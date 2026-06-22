@@ -1,0 +1,156 @@
+{
+    "timestamp":  "2026-06-10T08:10:54.4910704+04:00",
+    "acceptance":  {
+                       "apiToKafkaToFlinkToPostgresToUi":  false,
+                       "ackPathConfigured":  true
+                   },
+    "metrics":  {
+                    "Topic raw-alarms":  {
+                                             "detail":  "offsetTotal=0",
+                                             "pass":  true
+                                         },
+                    "Topic current-alarm-state":  {
+                                                      "detail":  "offsetTotal=0",
+                                                      "pass":  true
+                                                  },
+                    "Topic operator-actions":  {
+                                                   "detail":  "offsetTotal=0",
+                                                   "pass":  true
+                                               },
+                    "Topic ack-writeback":  {
+                                                "detail":  "offsetTotal=0",
+                                                "pass":  true
+                                            },
+                    "Topic ack-results":  {
+                                              "detail":  "offsetTotal=0",
+                                              "pass":  true
+                                          },
+                    "Topic lifecycle-events":  {
+                                                   "detail":  "offsetTotal=0",
+                                                   "pass":  true
+                                               },
+                    "Topic raw-alarms-dlq":  {
+                                                 "detail":  "offsetTotal=0",
+                                                 "pass":  true
+                                             },
+                    "Topic root-cause-events":  {
+                                                    "detail":  "offsetTotal=0",
+                                                    "pass":  true
+                                                },
+                    "kafkaTopicStatistics":  {
+                                                 "raw-alarms":  0,
+                                                 "current-alarm-state":  0,
+                                                 "operator-actions":  0,
+                                                 "ack-writeback":  0,
+                                                 "ack-results":  0,
+                                                 "lifecycle-events":  0,
+                                                 "raw-alarms-dlq":  0,
+                                                 "root-cause-events":  0
+                                             },
+                    "Lag flink-ams-raw-alarms":  {
+                                                     "detail":  "LAG=0 exists=True",
+                                                     "pass":  true
+                                                 },
+                    "Lag ams-backend":  {
+                                            "detail":  "LAG=0 exists=False",
+                                            "pass":  true
+                                        },
+                    "Lag ams-backend-lifecycle":  {
+                                                      "detail":  "LAG=0 exists=False",
+                                                      "pass":  true
+                                                  },
+                    "consumerLag":  {
+                                        "flink-ams-raw-alarms":  0,
+                                        "ams-backend":  0,
+                                        "ams-backend-lifecycle":  0
+                                    },
+                    "Flink Source: raw-alarms-source -\u003e validation":  {
+                                                                               "detail":  "in=0 out=0",
+                                                                               "pass":  false
+                                                                           },
+                    "Flink validation-filter":  {
+                                                    "detail":  "in=0 out=0",
+                                                    "pass":  false
+                                                },
+                    "Flink deduplication -\u003e normalization":  {
+                                                                      "detail":  "in=0 out=0",
+                                                                      "pass":  false
+                                                                  },
+                    "Flink lifecycle-engine -\u003e correlation-engine":  {
+                                                                              "detail":  "in=0 out=0",
+                                                                              "pass":  false
+                                                                          },
+                    "Flink Filter -\u003e flood-detection -\u003e (kpi-aggregation -\u003e Filter, lifecycle-events -\u003e Sink: Writer -\u003e Sink: Committer, projection-builder)":  {
+                                                                                                                                                                                             "detail":  "in=0 out=0",
+                                                                                                                                                                                             "pass":  false
+                                                                                                                                                                                         },
+                    "Flink ack-lifecycle-sink: Writer -\u003e ack-lifecycle-sink: Committer":  {
+                                                                                                   "detail":  "in=0 out=0",
+                                                                                                   "pass":  false
+                                                                                               },
+                    "Flink ack-projection-sink: Writer -\u003e ack-projection-sink: Committer":  {
+                                                                                                     "detail":  "in=0 out=0",
+                                                                                                     "pass":  false
+                                                                                                 },
+                    "flinkThroughput":  {
+                                            "restartCount":  null,
+                                            "checkpointSuccess":  null,
+                                            "recordsReceived":  0,
+                                            "recordsSent":  0
+                                        },
+                    "apiIngestionRate":  0,
+                    "API ingestion events":  {
+                                                 "detail":  "totalEventsObserved=0",
+                                                 "pass":  false
+                                             },
+                    "Pipeline Kafka lag":  {
+                                               "detail":  "lag=0",
+                                               "pass":  true
+                                           },
+                    "signalRClients":  1,
+                    "databaseWriteLatencyMs":  178,
+                    "alarmCurrentRows":  0,
+                    "PostgreSQL alarm_current":  {
+                                                     "detail":  "rows=0 latencyMs=178",
+                                                     "pass":  true
+                                                 }
+                },
+    "checks":  {
+                   "Consumer lag zero":  {
+                                             "detail":  "maxLag=0",
+                                             "pass":  true
+                                         },
+                   "Flink RUNNING":  {
+                                         "detail":  "1 job(s)",
+                                         "pass":  true
+                                     },
+                   "Restart count":  {
+                                         "detail":  "restarts=0",
+                                         "pass":  true
+                                     },
+                   "Flink records received":  {
+                                                  "detail":  "total=0",
+                                                  "pass":  false
+                                              },
+                   "Flink records sent":  {
+                                              "detail":  "total=0",
+                                              "pass":  false
+                                          },
+                   "alarm_history accessible":  {
+                                                    "detail":  "System.Object[]",
+                                                    "pass":  true
+                                                },
+                   "alarm_state_transitions accessible":  {
+                                                              "detail":  "System.Object[]",
+                                                              "pass":  true
+                                                          },
+                   "raw-alarms-dlq empty":  {
+                                                "detail":  "malformed=0",
+                                                "pass":  true
+                                            },
+                   "ACK_FAILED lifecycle visible":  {
+                                                        "detail":  "0 ",
+                                                        "pass":  true
+                                                    }
+               }
+}

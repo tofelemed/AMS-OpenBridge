@@ -1,0 +1,219 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>AMS.Infrastructure</name>
+    </assembly>
+    <members>
+        <member name="T:AMS.Infrastructure.Health.FlinkOnlyIngestHealthCheck">
+            <summary>
+            Enforces Flink-only orchestration: API ingestion → raw-alarms → Flink → projection consumers.
+            </summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Health.LiveReadinessScorer">
+            <summary>
+            Live readiness score from runtime probes (verification truth plane → UI).
+            Static CI/E2E checks are assumed PASS when the API is running.
+            </summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Health.ReadinessHistoryStore">
+            <summary>
+            Rolling readiness snapshots for "what changed since last good state?" (§12.0 operator control center).
+            </summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.AckLifecycleStates">
+            <summary>ISA-18.2 / CAS ACK orchestration lifecycle (append-only transition log).</summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.AckSlaWatchdogService">
+            <summary>
+            Legacy .NET ACK SLA watchdog — not registered in Flink-only mode (Flink owns ACK_TIMEOUT).
+            </summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.AlarmPartitionKeys">
+            <summary>
+            Kafka partition keys and versioned deterministic alarm instance identity.
+            Must match Flink <c>AlarmKeys</c>. See docs/production-contracts.md §1.
+            </summary>
+        </member>
+        <member name="F:AMS.Infrastructure.Kafka.AlarmPartitionKeys.InstanceKeySchemaVersion">
+            <summary>Increment when instance-key formula or normalization rules change.</summary>
+        </member>
+        <member name="M:AMS.Infrastructure.Kafka.AlarmPartitionKeys.AlarmInstanceKey(System.Guid,System.String,System.String,System.String)">
+            <summary>Versioned ISA-18.2 instance id — activeTime is NOT part of identity.</summary>
+        </member>
+        <member name="M:AMS.Infrastructure.Kafka.AlarmPartitionKeys.LogicalAlarmFamilyId(System.Guid,System.String,System.String,System.String)">
+            <summary>
+            Cross-version correlation for KPIs/SOE — stable when instance key formula changes.
+            v2 migrations may remap via alias table; family id persists across versions.
+            </summary>
+        </member>
+        <member name="M:AMS.Infrastructure.Kafka.AlarmPartitionKeys.DeterministicAlarmId(System.String)">
+            <summary>Matches Java <c>UUID.nameUUIDFromBytes(versionedInstanceKey)</c>.</summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.KafkaOptions">
+            <summary>
+            Kafka options for configuration binding
+            </summary>
+        </member>
+        <member name="P:AMS.Infrastructure.Kafka.KafkaOptions.UseFlinkOrchestration">
+            <summary>Must be true: Flink is the sole lifecycle/ACK orchestration engine.</summary>
+        </member>
+        <member name="P:AMS.Infrastructure.Kafka.KafkaOptions.TelemetryStallThresholdSeconds">
+            <summary>Seconds without raw-alarms before TELEMETRY_STALLED alert.</summary>
+        </member>
+        <member name="P:AMS.Infrastructure.Kafka.KafkaOptions.IngestAuthority">
+            <summary>Telemetry authority: gateway or streampipes.</summary>
+        </member>
+        <member name="P:AMS.Infrastructure.Kafka.KafkaOptions.LabDirectIngest">
+            <summary>Deprecated — must remain false (Flink-only mode).</summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.NormalizedAlarmEvent">
+            <summary>
+            Materialized alarm state projection (current-alarm-state topic).
+            </summary>
+        </member>
+        <!-- Badly formed XML comment ignored for member "P:AMS.Infrastructure.Kafka.NormalizedAlarmEvent.AlarmEventKind" -->
+        <member name="T:AMS.Infrastructure.Kafka.NormalizedAlarmConsumerService">
+            <summary>
+            Background service: Consumes normalized alarms from Kafka → persists to PostgreSQL → publishes via SignalR.
+            Implements exactly-once processing with idempotent writes.
+            </summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.AlarmEventProducer">
+            <summary>
+            Kafka producer for publishing alarm state changes to downstream topics.
+            Used by domain event handlers to propagate events.
+            </summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.LifecycleEventPublisher">
+            <summary>Append-only ACK lifecycle transitions → lifecycle-events topic.</summary>
+        </member>
+        <member name="M:AMS.Infrastructure.Kafka.LifecycleEventPublisher.EmitAsync(System.String,System.String,System.String,System.String,System.String,System.Threading.CancellationToken)">
+            <summary>Backward-compatible overload (maps actionId → commandId).</summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.NormalizedAlarmEventJson">
+            <summary>Parses <see cref="T:AMS.Infrastructure.Kafka.NormalizedAlarmEvent"/> from Flink current-alarm-state JSON.</summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.NormalizedAlarmIngestor">
+            <summary>
+            Persists normalized alarm events to PostgreSQL and SignalR.
+            Idempotent upsert contract: matches on serverId+sourceName+condition+subCondition (not activeTime).
+            PostgreSQL is at-least-once; Kafka+Flink are source of truth — see docs/production-contracts.md §2.
+            </summary>
+        </member>
+        <member name="M:AMS.Infrastructure.Kafka.NormalizedAlarmIngestor.HandleDeleteAsync(AMS.Infrastructure.Kafka.NormalizedAlarmEvent,System.Guid,AMS.Domain.Repositories.IUnitOfWork,AMS.Application.Alarms.Commands.IAlarmSignalRPublisher,System.Threading.CancellationToken)">
+            <summary>
+            Handle ALARM_STATE_DELETE: delete all matching rows from alarm_current and fire SignalR cleared.
+            </summary>
+        </member>
+        <member name="M:AMS.Infrastructure.Kafka.NormalizedAlarmIngestor.PropagateCookieToSiblingRows(System.Collections.Generic.IReadOnlyList{AMS.Domain.Alarms.ActiveAlarm},AMS.Infrastructure.Kafka.NormalizedAlarmEvent,AMS.Application.Alarms.Commands.IAlarmSignalRPublisher,System.Threading.CancellationToken)">
+            <summary>
+            Duplicate ingest rows for the same tag often lack cookieOffset; propagate from the latest Kafka event.
+            </summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.RawAlarmEventParser">
+            <summary>Parses timestamps from HTTP API raw-alarms payloads.</summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.StreamSchemaVersion">
+            <summary>Current schema version for all Kafka stream contracts (increment before Flink migration).</summary>
+        </member>
+        <member name="F:AMS.Infrastructure.Kafka.StreamSchemaVersion.Current">
+            <summary>ACK / lifecycle stream contracts.</summary>
+        </member>
+        <member name="F:AMS.Infrastructure.Kafka.StreamSchemaVersion.RawAlarms">
+            <summary>HTTP API raw-alarms envelope.</summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.StreamEventTypes">
+            <summary>Kafka event type discriminators (versioned contracts).</summary>
+        </member>
+        <member name="F:AMS.Infrastructure.Kafka.StreamEventTypes.AlarmStateDelete">
+            <summary>Emitted by Flink when conditionActive=false — row must be deleted from alarm_current.</summary>
+        </member>
+        <member name="F:AMS.Infrastructure.Kafka.StreamEventTypes.AckStateUpdate">
+            <summary>Emitted by Flink ACK confirmation — only updates ack fields, never conditionActive.</summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.AckCorrelationContext">
+            <summary>
+            End-to-end ACK trace identifiers (distributed tracing, replay, CEP lineage, audit).
+            </summary>
+        </member>
+        <member name="M:AMS.Infrastructure.Kafka.AckCorrelationContext.#ctor(System.String,System.String,System.String)">
+            <summary>
+            End-to-end ACK trace identifiers (distributed tracing, replay, CEP lineage, audit).
+            </summary>
+        </member>
+        <member name="M:AMS.Infrastructure.Kafka.AckCorrelationContext.NewLifecycleId">
+            <summary>New lifecycleId per state transition event.</summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.IVersionedStreamEvent">
+            <summary>Shared envelope fields on every versioned Kafka payload.</summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.IAckCorrelatedEvent">
+            <summary>ACK-scoped correlation on versioned events.</summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.LifecycleEventMessage">
+            <summary>Append-only lifecycle transition (replay log / observability).</summary>
+        </member>
+        <member name="P:AMS.Infrastructure.Kafka.LifecycleEventMessage.ActionId">
+            <summary>Legacy alias — same as CommandId when deserializing older payloads.</summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.AckResultMessage">
+            <summary>Edge → stream: DCS writeback outcome.</summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.OperatorActionMessage">
+            <summary>Operator command (UI → operator-actions).</summary>
+        </member>
+        <member name="P:AMS.Infrastructure.Kafka.OperatorActionMessage.SourceAlarmId">
+            <summary>Feed correlation id (e.g. BB26-BF402|Alarm high) for HTTP writeback.</summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.AckWritebackMessage">
+            <summary>Stream processor → edge DCS writeback orchestration.</summary>
+        </member>
+        <member name="P:AMS.Infrastructure.Kafka.AckWritebackMessage.SourceAlarmId">
+            <summary>Feed correlation id (e.g. BB26-BF402|Alarm high) for HTTP writeback.</summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.RawAlarmStreamEvent">
+            <summary>Raw alarm event from HTTP API ingest.</summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.TelemetryDeadmanWatchdogService">
+            <summary>
+            Monitors raw-alarms for silence and emits TELEMETRY_STALLED lifecycle alerts.
+            </summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Kafka.TelemetryIngestState">
+            <summary>
+            Shared telemetry ingest heartbeat updated by TelemetryDeadmanWatchdogService
+            and read by pipeline health API.
+            </summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Migrations.InitialCreate">
+            <inheritdoc />
+        </member>
+        <member name="M:AMS.Infrastructure.Migrations.InitialCreate.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:AMS.Infrastructure.Migrations.InitialCreate.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:AMS.Infrastructure.Migrations.InitialCreate.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="T:AMS.Infrastructure.Opc.NoOpOpcDcsGateway">
+            <summary>
+            A no-op implementation of the OPC DCS Gateway.
+            Used after StreamPipes was removed. Replaces StreamPipesOpcWritebackGateway.
+            </summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Repositories.ActiveAlarmRepository">
+            <summary>
+            Production-grade Active Alarm Repository.
+            Uses EF Core for writes, Dapper for complex reads (performance).
+            </summary>
+        </member>
+        <member name="T:AMS.Infrastructure.Repositories.HistoricalAlarmRepository">
+            <summary>
+            Historical Alarm Repository - optimized for TimescaleDB time-series queries.
+            Uses Dapper for high-performance bulk reads.
+            </summary>
+        </member>
+    </members>
+</doc>

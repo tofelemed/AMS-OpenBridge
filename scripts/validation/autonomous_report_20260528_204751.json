@@ -1,0 +1,148 @@
+﻿{
+    "startedAt":  "2026-05-28T15:47:51.0621876Z",
+    "phases":  {
+                   "phase7":  {
+                                  "pass":  false,
+                                  "name":  "OPC ACK",
+                                  "checks":  [
+                                                 {
+                                                     "detail":  "no unacked alarms",
+                                                     "pass":  false,
+                                                     "name":  "OPC ACK test"
+                                                 }
+                                             ]
+                              },
+                   "phase2":  {
+                                  "pass":  false,
+                                  "name":  "Infrastructure",
+                                  "checks":  [
+                                                 {
+                                                     "detail":  "running",
+                                                     "pass":  true,
+                                                     "name":  "Container ams-kafka"
+                                                 },
+                                                 {
+                                                     "detail":  "running",
+                                                     "pass":  true,
+                                                     "name":  "Container ams-zookeeper"
+                                                 },
+                                                 {
+                                                     "detail":  "running",
+                                                     "pass":  true,
+                                                     "name":  "Container ams-postgres"
+                                                 },
+                                                 {
+                                                     "detail":  "running",
+                                                     "pass":  true,
+                                                     "name":  "Container ams-redis"
+                                                 },
+                                                 {
+                                                     "detail":  "running",
+                                                     "pass":  true,
+                                                     "name":  "Container ams-flink-jobmanager"
+                                                 },
+                                                 {
+                                                     "detail":  "count=2",
+                                                     "pass":  true,
+                                                     "name":  "Flink taskmanagers"
+                                                 },
+                                                 {
+                                                     "detail":  "http://127.0.0.1:8000",
+                                                     "pass":  false,
+                                                     "name":  "AMS API"
+                                                 },
+                                                 {
+                                                     "detail":  "mode=ack-only",
+                                                     "pass":  false,
+                                                     "name":  "Gateway ACK-only"
+                                                 },
+                                                 {
+                                                     "detail":  "The remote server returned an error: (503) Server Unavailable.",
+                                                     "pass":  false,
+                                                     "name":  "Pipeline health API"
+                                                 }
+                                             ]
+                              },
+                   "phase1":  {
+                                  "pass":  true,
+                                  "name":  "Clean Reset",
+                                  "checks":  [
+                                                 {
+                                                     "detail":  "alarms.active_alarms",
+                                                     "pass":  true,
+                                                     "name":  "PostgreSQL active_alarms truncate"
+                                                 },
+                                                 {
+                                                     "detail":  "raw-opc-events, current-alarm-state, lifecycle-events, ack-results, ack-writeback, operator-actions",
+                                                     "pass":  true,
+                                                     "name":  "Kafka topics recreated"
+                                                 },
+                                                 {
+                                                     "detail":  "b4c755c97cce3c783f026e0e84ebcdf5",
+                                                     "pass":  true,
+                                                     "name":  "Flink job restarted"
+                                                 }
+                                             ]
+                              },
+                   "phase4":  {
+                                  "pass":  true,
+                                  "name":  "Flink",
+                                  "checks":  [
+                                                 {
+                                                     "detail":  "b4c755c97cce3c783f026e0e84ebcdf5",
+                                                     "pass":  true,
+                                                     "name":  "Flink RUNNING"
+                                                 },
+                                                 {
+                                                     "detail":  "2 jobs",
+                                                     "pass":  true,
+                                                     "name":  "Flink JobManager API"
+                                                 }
+                                             ]
+                              },
+                   "phase6":  {
+                                  "pass":  false,
+                                  "name":  "UI",
+                                  "checks":  [
+                                                 {
+                                                     "detail":  "no ui-results.json",
+                                                     "pass":  false,
+                                                     "name":  "UI automation"
+                                                 }
+                                             ]
+                              },
+                   "phase5":  {
+                                  "pass":  false,
+                                  "name":  "PostgreSQL",
+                                  "checks":  [
+                                                 {
+                                                     "detail":  "Cannot convert the \"System.Object[]\" value of type \"System.Object[]\" to type \"System.Int32\".",
+                                                     "pass":  false,
+                                                     "name":  "active_alarms rows"
+                                                 },
+                                                 {
+                                                     "detail":  "total=0",
+                                                     "pass":  false,
+                                                     "name":  "API active alarms"
+                                                 }
+                                             ]
+                              }
+               },
+    "summary":  {
+                    "OpcAckReflection":  null,
+                    "UI":  false,
+                    "Infrastructure":  false,
+                    "Kafka":  false,
+                    "EndToEndDeterminism":  false,
+                    "Flink":  true,
+                    "PostgreSQL":  false,
+                    "StreamPipes":  [
+                                        true,
+                                        false
+                                    ],
+                    "AgGridStability":  null,
+                    "AckLifecycle":  null
+                },
+    "completedAt":  "2026-05-28T16:00:24.6989116Z",
+    "overallPass":  false
+}

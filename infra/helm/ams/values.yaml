@@ -1,0 +1,99 @@
+global:
+  namespace: ams-core
+  storageClass: "standard"
+
+# ---- AMS API Subchart ----
+api:
+  enabled: true
+  replicaCount: 3
+  image:
+    repository: ghcr.io/your-org/ams-api
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 75
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+
+# ---- Flink Subchart ----
+flink:
+  enabled: true
+  jobmanager:
+    replicaCount: 2 # HA configuration
+    resources:
+      requests:
+        cpu: 1000m
+        memory: 4Gi
+  taskmanager:
+    replicaCount: 16
+    resources:
+      requests:
+        cpu: 2000m
+        memory: 8Gi
+  stateBackend:
+    type: "rocksdb"
+    incrementalCheckpoints: true
+    checkpointRetention: "RETAIN_ON_CANCELLATION"
+    s3Endpoint: "http://minio:9000"
+
+# ---- Kafka Bitnami Dependency ----
+kafka:
+  replicaCount: 5
+  deleteTopicEnable: true
+  autoCreateTopicsEnable: false
+  numPartitions: 64
+  defaultReplicationFactor: 3
+  minInsyncReplicas: 2
+  resources:
+    requests:
+      cpu: 2000m
+      memory: 4Gi
+  persistence:
+    size: 500Gi
+  zookeeper:
+    replicaCount: 3
+
+# ---- PostgreSQL (TimescaleDB) ----
+postgresql:
+  architecture: replication
+  image:
+    registry: docker.io
+    repository: timescale/timescaledb
+    tag: latest-pg16
+  auth:
+    username: ams_user
+    database: ams
+  primary:
+    resources:
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+  readReplicas:
+    replicaCount: 2
+
+# ---- Redis ----
+redis:
+  architecture: sentinel
+  sentinel:
+    enabled: true
+    quorum: 2
+
+# ---- Network Policies (OT Security) ----
+networkPolicies:
+  enabled: true
+  allowIngressFromGateway: true
+
+# ---- Pod Anti-Affinity ----
+affinity:
+  enabled: true

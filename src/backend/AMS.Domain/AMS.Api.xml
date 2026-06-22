@@ -1,0 +1,193 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>AMS.Domain</name>
+    </assembly>
+    <members>
+        <!-- Badly formed XML comment ignored for member "T:AMS.Domain.Alarms.AlarmPriority" -->
+        <!-- Badly formed XML comment ignored for member "T:AMS.Domain.Alarms.AlarmState" -->
+        <!-- Badly formed XML comment ignored for member "T:AMS.Domain.Alarms.AlarmEventType" -->
+        <member name="T:AMS.Domain.Alarms.AlarmCategory">
+            <summary>
+            Alarm category aligned with ISA-18.2 classification
+            </summary>
+        </member>
+        <member name="T:AMS.Domain.Alarms.SourceType">
+            <summary>
+            Source system type for multi-vendor integration
+            </summary>
+        </member>
+        <!-- Badly formed XML comment ignored for member "T:AMS.Domain.Alarms.ActiveAlarm" -->
+        <!-- Badly formed XML comment ignored for member "P:AMS.Domain.Alarms.ActiveAlarm.Severity" -->
+        <!-- Badly formed XML comment ignored for member "M:AMS.Domain.Alarms.ActiveAlarm.CreateFromOpcEvent(System.Guid,System.String,AMS.Domain.Alarms.AlarmEventType,System.String,System.String,System.String,System.Int32,AMS.Domain.Alarms.AlarmPriority,AMS.Domain.Alarms.AlarmCategory,System.Boolean,System.DateTimeOffset,System.DateTimeOffset,System.Int32,System.Nullable{System.Double},System.String,System.Collections.Generic.Dictionary{System.String,System.Object},System.Nullable{System.Guid})" -->
+        <member name="M:AMS.Domain.Alarms.ActiveAlarm.SetAlarmIdentity(System.Guid,System.String)">
+            <summary>Assign stable identity from stream projection (HTTP feed or Flink alarmId).</summary>
+        </member>
+        <member name="M:AMS.Domain.Alarms.ActiveAlarm.Acknowledge(System.Guid,System.String,System.DateTimeOffset)">
+            <summary>Acknowledge this alarm per ISA-18.2 operator interaction</summary>
+        </member>
+        <member name="M:AMS.Domain.Alarms.ActiveAlarm.Shelve(System.Guid,System.Int32,System.String,System.Int32)">
+            <summary>Shelve alarm per ISA-18.2. Max duration enforced by tag configuration.</summary>
+        </member>
+        <member name="M:AMS.Domain.Alarms.ActiveAlarm.Unshelve(System.Guid,System.String)">
+            <summary>Unshelve alarm, returning to appropriate state</summary>
+        </member>
+        <member name="M:AMS.Domain.Alarms.ActiveAlarm.Suppress(System.Guid,System.String)">
+            <summary>Suppress alarm (engineering / design suppression)</summary>
+        </member>
+        <member name="M:AMS.Domain.Alarms.ActiveAlarm.SetOutOfService(System.Guid,System.String)">
+            <summary>Set alarm out of service (ISA-18.2).</summary>
+        </member>
+        <member name="M:AMS.Domain.Alarms.ActiveAlarm.ApplyAckLifecycle(System.String,System.String,System.Nullable{System.Int64},System.String,System.String,System.String,System.String)">
+            <summary>Apply ACK lifecycle from stream (materialized view projection — not authoritative).</summary>
+        </member>
+        <member name="M:AMS.Domain.Alarms.ActiveAlarm.ReconcileAcknowledgement(System.DateTimeOffset,System.Nullable{System.Guid},System.String)">
+            <summary>Reconcile acknowledged state from operator ACK confirmation (not OPC ingest).</summary>
+        </member>
+        <member name="M:AMS.Domain.Alarms.ActiveAlarm.ClearOpcInferredAcknowledgement">
+            <summary>Remove OPC/DCS ack bit mistakenly applied before operator action.</summary>
+        </member>
+        <!-- Badly formed XML comment ignored for member "M:AMS.Domain.Alarms.ActiveAlarm.ApplyConditionChange(System.Boolean,System.String,System.Int32,System.DateTimeOffset)" -->
+        <member name="M:AMS.Domain.Alarms.ActiveAlarm.SyncOpcActiveTime(System.DateTimeOffset)">
+            <summary>Keep OPC active time in sync for DCS AcknowledgeCondition (E_INVALIDTIME if stale).</summary>
+        </member>
+        <member name="M:AMS.Domain.Alarms.ActiveAlarm.MergeOpcAttributes(System.Nullable{System.Int64},System.Nullable{System.Int32},System.String,System.Nullable{System.Boolean},System.String,System.String,System.String)">
+            <summary>Replace opc_attributes snapshot so EF persists JSONB mutations.</summary>
+        </member>
+        <member name="M:AMS.Domain.Alarms.ActiveAlarm.SetCorrelation(System.Guid,System.Nullable{System.Guid},System.Boolean)">
+            <summary>Set correlation (Flink correlation engine result)</summary>
+        </member>
+        <member name="T:AMS.Domain.Alarms.Result">
+            <summary>Simple result type for domain operations</summary>
+        </member>
+        <member name="M:AMS.Domain.Alarms.Result.#ctor(System.Boolean,System.String)">
+            <summary>Simple result type for domain operations</summary>
+        </member>
+        <!-- Badly formed XML comment ignored for member "T:AMS.Domain.Alarms.AlarmActivatedEvent" -->
+        <!-- Badly formed XML comment ignored for member "M:AMS.Domain.Alarms.AlarmActivatedEvent.#ctor(System.Guid,System.Guid,System.String,AMS.Domain.Alarms.AlarmPriority,System.DateTimeOffset)" -->
+        <!-- Badly formed XML comment ignored for member "P:AMS.Domain.Alarms.AlarmActivatedEvent.AlarmId" -->
+        <!-- Badly formed XML comment ignored for member "P:AMS.Domain.Alarms.AlarmActivatedEvent.ServerId" -->
+        <!-- Badly formed XML comment ignored for member "P:AMS.Domain.Alarms.AlarmActivatedEvent.SourceName" -->
+        <!-- Badly formed XML comment ignored for member "P:AMS.Domain.Alarms.AlarmActivatedEvent.Priority" -->
+        <!-- Badly formed XML comment ignored for member "P:AMS.Domain.Alarms.AlarmActivatedEvent.EventTime" -->
+        <member name="T:AMS.Domain.Alarms.AlarmAcknowledgedEvent">
+            <summary>Raised when an operator acknowledges an alarm</summary>
+        </member>
+        <member name="M:AMS.Domain.Alarms.AlarmAcknowledgedEvent.#ctor(System.Guid,System.Guid,System.String,System.Guid,System.DateTimeOffset)">
+            <summary>Raised when an operator acknowledges an alarm</summary>
+        </member>
+        <!-- Badly formed XML comment ignored for member "T:AMS.Domain.Alarms.AlarmClearedEvent" -->
+        <!-- Badly formed XML comment ignored for member "M:AMS.Domain.Alarms.AlarmClearedEvent.#ctor(System.Guid,System.Guid,System.String,System.DateTimeOffset)" -->
+        <!-- Badly formed XML comment ignored for member "P:AMS.Domain.Alarms.AlarmClearedEvent.AlarmId" -->
+        <!-- Badly formed XML comment ignored for member "P:AMS.Domain.Alarms.AlarmClearedEvent.ServerId" -->
+        <!-- Badly formed XML comment ignored for member "P:AMS.Domain.Alarms.AlarmClearedEvent.SourceName" -->
+        <!-- Badly formed XML comment ignored for member "P:AMS.Domain.Alarms.AlarmClearedEvent.ClearedTime" -->
+        <member name="T:AMS.Domain.Alarms.AlarmShelvedEvent">
+            <summary>Raised when an alarm is shelved by an operator</summary>
+        </member>
+        <member name="M:AMS.Domain.Alarms.AlarmShelvedEvent.#ctor(System.Guid,System.Guid,System.String,System.Guid,System.DateTimeOffset)">
+            <summary>Raised when an alarm is shelved by an operator</summary>
+        </member>
+        <member name="T:AMS.Domain.Alarms.AlarmUnshelvedEvent">
+            <summary>Raised when a shelved alarm is unshelved or auto-expires</summary>
+        </member>
+        <member name="M:AMS.Domain.Alarms.AlarmUnshelvedEvent.#ctor(System.Guid,System.Guid,System.String,System.Guid)">
+            <summary>Raised when a shelved alarm is unshelved or auto-expires</summary>
+        </member>
+        <member name="T:AMS.Domain.Alarms.AlarmSuppressedEvent">
+            <summary>Raised when an alarm is suppressed by design or operator</summary>
+        </member>
+        <member name="M:AMS.Domain.Alarms.AlarmSuppressedEvent.#ctor(System.Guid,System.Guid,System.String,System.Guid,System.String)">
+            <summary>Raised when an alarm is suppressed by design or operator</summary>
+        </member>
+        <member name="T:AMS.Domain.Alarms.AlarmFloodDetectedEvent">
+            <summary>Raised when alarm flood is detected (per ISA-18.2 / EEMUA-191)</summary>
+        </member>
+        <member name="M:AMS.Domain.Alarms.AlarmFloodDetectedEvent.#ctor(System.Guid,System.Double,System.Int32,System.DateTimeOffset)">
+            <summary>Raised when alarm flood is detected (per ISA-18.2 / EEMUA-191)</summary>
+        </member>
+        <member name="T:AMS.Domain.Alarms.ChatteringAlarmDetectedEvent">
+            <summary>Raised when a chattering alarm is detected</summary>
+        </member>
+        <member name="M:AMS.Domain.Alarms.ChatteringAlarmDetectedEvent.#ctor(System.Guid,System.Guid,System.String,System.Int32,System.Int32,System.DateTimeOffset)">
+            <summary>Raised when a chattering alarm is detected</summary>
+        </member>
+        <member name="T:AMS.Domain.Alarms.OpcServerConnectionChangedEvent">
+            <summary>Raised when OPC server connection state changes</summary>
+        </member>
+        <member name="M:AMS.Domain.Alarms.OpcServerConnectionChangedEvent.#ctor(System.Guid,System.String,System.Boolean,System.String,System.DateTimeOffset)">
+            <summary>Raised when OPC server connection state changes</summary>
+        </member>
+        <member name="T:AMS.Domain.Alarms.AlarmTagDiscoveredEvent">
+            <summary>Raised when a new alarm tag is auto-discovered on the OPC server</summary>
+        </member>
+        <member name="M:AMS.Domain.Alarms.AlarmTagDiscoveredEvent.#ctor(System.Guid,System.String,System.String,System.DateTimeOffset)">
+            <summary>Raised when a new alarm tag is auto-discovered on the OPC server</summary>
+        </member>
+        <member name="T:AMS.Domain.Common.BaseEntity">
+            <summary>
+            Base class for all domain entities with audit support.
+            </summary>
+        </member>
+        <member name="T:AMS.Domain.Common.IDomainEvent">
+            <summary>
+            Marker interface for domain events (published via MediatR).
+            </summary>
+        </member>
+        <member name="T:AMS.Domain.Common.DomainEventBase">
+            <summary>
+            Base record for all domain events.
+            </summary>
+        </member>
+        <member name="T:AMS.Domain.Connectivity.OpcConnection">
+            <summary>
+            OT connectivity endpoint managed by AMS and provisioned in Apache StreamPipes.
+            </summary>
+        </member>
+        <member name="F:AMS.Domain.Connectivity.OpcConnectionProtocols.OpcAe">
+            <summary>Legacy COM/DCOM — not ingestible via StreamPipes. Migrate to OPC-UA-AC.</summary>
+        </member>
+        <member name="F:AMS.Domain.Connectivity.OpcConnectionProtocols.OpcUaAc">
+            <summary>Production target: OPC UA Alarms &amp; Conditions (Linux/K8s/cloud-native).</summary>
+        </member>
+        <member name="F:AMS.Domain.Connectivity.OpcConnectionProtocols.IngestSupported">
+            <summary>Protocols StreamPipes can provision for telemetry ingest.</summary>
+        </member>
+        <member name="F:AMS.Domain.Connectivity.OpcConnectionProtocols.Supported">
+            <summary>All protocols accepted by the API (includes legacy read-only).</summary>
+        </member>
+        <member name="T:AMS.Domain.Repositories.IActiveAlarmRepository">
+            <summary>
+            Repository contract for active alarms.
+            Follows Repository pattern from DDD.
+            </summary>
+        </member>
+        <member name="M:AMS.Domain.Repositories.IActiveAlarmRepository.PurgeLabInjectedAlarmsAsync(System.Nullable{System.Guid},System.Threading.CancellationToken)">
+            <summary>Removes lab/storm-injected rows (Autonomous storm, hierarchical StreamPipes paths).</summary>
+        </member>
+        <member name="M:AMS.Domain.Repositories.IActiveAlarmRepository.GetBySourceNameForIngestAsync(System.Guid,System.String,System.Threading.CancellationToken)">
+            <summary>Tracked load for Kafka ingest (mutates opc_attributes).</summary>
+        </member>
+        <member name="T:AMS.Domain.Repositories.IHistoricalAlarmRepository">
+            <summary>
+            Repository contract for historical alarms.
+            Optimized for TimescaleDB time-range queries.
+            </summary>
+        </member>
+        <member name="T:AMS.Domain.Repositories.ISoeEventRepository">
+            <summary>
+            Repository contract for SOE events.
+            </summary>
+        </member>
+        <member name="T:AMS.Domain.Repositories.IOpcServerRepository">
+            <summary>
+            Repository for OPC server configurations.
+            </summary>
+        </member>
+        <member name="T:AMS.Domain.Repositories.IUnitOfWork">
+            <summary>
+            Unit of Work pattern - wraps all repositories in single transaction.
+            </summary>
+        </member>
+    </members>
+</doc>

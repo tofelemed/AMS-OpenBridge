@@ -1,0 +1,55 @@
+﻿{
+    "overallScore":  48,
+    "recommendation":  "NOT_READY - subsystem scores below threshold",
+    "subsystems":  {
+                       "kafka":  {
+                                     "weight":  0.15,
+                                     "score":  100,
+                                     "checksTotal":  2,
+                                     "checksPassed":  2
+                                 },
+                       "ingest":  {
+                                      "weight":  0.15,
+                                      "score":  0,
+                                      "checksTotal":  1,
+                                      "checksPassed":  0
+                                  },
+                       "database":  {
+                                        "weight":  0.1,
+                                        "score":  0,
+                                        "checksTotal":  0,
+                                        "checksPassed":  0
+                                    },
+                       "contracts":  {
+                                         "weight":  0.1,
+                                         "score":  0,
+                                         "checksTotal":  0,
+                                         "checksPassed":  0
+                                     },
+                       "ack":  {
+                                   "weight":  0.15,
+                                   "score":  100,
+                                   "checksTotal":  1,
+                                   "checksPassed":  1
+                               },
+                       "flink":  {
+                                     "weight":  0.2,
+                                     "score":  50,
+                                     "checksTotal":  2,
+                                     "checksPassed":  1
+                                 },
+                       "uiProjection":  {
+                                            "weight":  0.15,
+                                            "score":  50,
+                                            "checksTotal":  2,
+                                            "checksPassed":  1
+                                        }
+                   },
+    "characterization":  "Runtime verification for a distributed event-sourced industrial control platform",
+    "violations":  [
+                       "RAW_EVENT_CONTRACT:no sample event"
+                   ],
+    "cutoverThreshold":  85,
+    "violationCount":  1,
+    "generatedAt":  "2026-06-07T01:46:14.7438329Z"
+}

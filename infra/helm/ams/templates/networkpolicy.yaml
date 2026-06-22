@@ -1,0 +1,109 @@
+{{- if .Values.networkPolicies.enabled }}
+# ============================================================
+# OT Security: Network Policies (Zero Trust East-West)
+# Default Deny All in AMS namespace
+# ============================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-default-deny
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector: {} # Select all pods in this namespace
+  policyTypes:
+  - Ingress
+  - Egress
+---
+# Allow core services to reach DNS
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-allow-dns
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+---
+# Allow Gateway to reach Kafka and API
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-gateway-ingress
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchExpressions:
+      - {key: app, operator: In, values: [api, kafka]}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ams-gateway
+    # Also allow external load balancer
+    - ipBlock:
+        cidr: 0.0.0.0/0
+---
+# Allow API to reach PostgreSQL and Redis
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-api-egress
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: api
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgresql
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: redis
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: kafka
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: keycloak
+---
+# Allow Flink TaskManagers to reach Kafka and PostgreSQL
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-flink-egress
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: flink-taskmanager
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: kafka
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgresql
+    - podSelector:
+        matchLabels:
+          app: flink-jobmanager
+{{- end }}

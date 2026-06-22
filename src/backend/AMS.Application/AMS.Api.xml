@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>AMS.Application</name>
+    </assembly>
+    <members>
+        <member name="T:AMS.Application.Alarms.Commands.IAlarmSignalRPublisher">
+            <summary>
+            SignalR real-time publisher interface (implemented in API layer)
+            </summary>
+        </member>
+        <member name="T:AMS.Application.Alarms.Commands.IOperatorActionPublisher">
+            <summary>
+            Publishes operator lifecycle commands to Kafka operator-actions (command gateway).
+            </summary>
+        </member>
+        <member name="T:AMS.Application.Alarms.Commands.IOpcDcsGateway">
+            <summary>
+            Interface for writing actions back to the OPC Gateway/DCS
+            </summary>
+        </member>
+        <member name="T:AMS.Application.Alarms.Queries.GetHistoricalAlarmsQueryHandler">
+            <summary>
+            Handles historical alarm query requests.
+            </summary>
+        </member>
+        <member name="M:AMS.Application.Alarms.Queries.GetHistoricalAlarmsQueryHandler.#ctor(AMS.Domain.Repositories.IUnitOfWork,Microsoft.Extensions.Logging.ILogger{AMS.Application.Alarms.Queries.GetHistoricalAlarmsQueryHandler})">
+            <summary>
+            Creates a new <see cref="T:AMS.Application.Alarms.Queries.GetHistoricalAlarmsQueryHandler"/> instance.
+            </summary>
+        </member>
+        <member name="M:AMS.Application.Alarms.Queries.GetHistoricalAlarmsQueryHandler.Handle(AMS.Application.Alarms.Queries.GetHistoricalAlarmsQuery,System.Threading.CancellationToken)">
+            <summary>
+            Executes historical alarm retrieval for the requested filter window.
+            </summary>
+        </member>
+        <member name="T:AMS.Application.Alarms.Queries.GetAlarmStatisticsQuery">
+            <summary>
+            Query to fetch alarm statistics summary.
+            </summary>
+            <param name="ServerId">Optional server filter. When null, returns global statistics.</param>
+        </member>
+        <member name="M:AMS.Application.Alarms.Queries.GetAlarmStatisticsQuery.#ctor(System.Nullable{System.Guid})">
+            <summary>
+            Query to fetch alarm statistics summary.
+            </summary>
+            <param name="ServerId">Optional server filter. When null, returns global statistics.</param>
+        </member>
+        <member name="P:AMS.Application.Alarms.Queries.GetAlarmStatisticsQuery.ServerId">
+            <summary>Optional server filter. When null, returns global statistics.</summary>
+        </member>
+        <member name="T:AMS.Application.Alarms.Queries.GetAlarmStatisticsHandler">
+            <summary>
+            Handles alarm statistics summary requests.
+            </summary>
+        </member>
+        <member name="M:AMS.Application.Alarms.Queries.GetAlarmStatisticsHandler.#ctor(AMS.Application.Alarms.Queries.IAlarmEnricher)">
+            <summary>
+            Creates a new <see cref="T:AMS.Application.Alarms.Queries.GetAlarmStatisticsHandler"/> instance.
+            </summary>
+        </member>
+        <member name="M:AMS.Application.Alarms.Queries.GetAlarmStatisticsHandler.Handle(AMS.Application.Alarms.Queries.GetAlarmStatisticsQuery,System.Threading.CancellationToken)">
+            <summary>
+            Returns the current alarm statistics summary.
+            </summary>
+        </member>
+        <member name="T:AMS.Application.Alarms.Queries.IAlarmEnricher">
+            <summary>
+            Alarm enrichment service - fetches related data (server names, area paths, user names)
+            </summary>
+        </member>
+        <member name="M:AMS.Application.Alarms.Queries.IAlarmEnricher.EnrichAsync(System.Collections.Generic.IEnumerable{AMS.Domain.Alarms.ActiveAlarm},System.Threading.CancellationToken)">
+            <summary>
+            Enriches alarms with related metadata such as server names and area paths.
+            </summary>
+        </member>
+        <member name="M:AMS.Application.Alarms.Queries.IAlarmEnricher.GetStatsSummaryAsync(System.Nullable{System.Guid},System.Threading.CancellationToken)">
+            <summary>
+            Gets aggregate alarm statistics for a specific server or for all servers.
+            </summary>
+        </member>
+    </members>
+</doc>

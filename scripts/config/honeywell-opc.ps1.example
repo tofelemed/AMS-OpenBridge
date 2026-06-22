@@ -1,0 +1,7 @@
+# Copy to honeywell-opc.ps1 and set values for your Honeywell Experion / DCS OPC A&E server.
+@{
+    ServerId  = "00000000-0000-0000-0000-000000000001"
+    Name      = "Honeywell Experion"
+    OpcHost   = "YOUR-DCS-HOSTNAME"
+    OpcProgId = "Honeywell.AlarmEventServer.1"
+}

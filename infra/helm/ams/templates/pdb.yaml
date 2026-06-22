@@ -1,0 +1,40 @@
+{{- if .Values.api.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Release.Name }}-api-pdb
+  namespace: {{ .Release.Namespace }}
+spec:
+  minAvailable: {{ .Values.api.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      app: api
+      release: {{ .Release.Name }}
+{{- end }}
+---
+{{- if .Values.flink.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Release.Name }}-flink-jm-pdb
+  namespace: {{ .Release.Namespace }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: flink-jobmanager
+      release: {{ .Release.Name }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Release.Name }}-flink-tm-pdb
+  namespace: {{ .Release.Namespace }}
+spec:
+  # Flink requires a certain number of TMs to restore state
+  minAvailable: 50%
+  selector:
+    matchLabels:
+      app: flink-taskmanager
+      release: {{ .Release.Name }}
+{{- end }}

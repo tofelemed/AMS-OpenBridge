@@ -1,0 +1,401 @@
+name: AMS CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop, release/**]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment (dev/staging/prod)
+        required: true
+        default: dev
+        type: choice
+        options: [dev, staging, prod]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  REGISTRY:         ghcr.io
+  IMAGE_API:        ghcr.io/${{ github.repository }}/ams-api
+  IMAGE_FRONTEND:   ghcr.io/${{ github.repository }}/ams-frontend
+  DOTNET_VERSION:   '8.0.x'
+  NODE_VERSION:     '20.x'
+  JAVA_VERSION:     '17'
+
+jobs:
+  # ============================================================
+  # Code Quality & Security
+  # ============================================================
+  lint-and-analyze:
+    name: Lint & Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '${{ env.DOTNET_VERSION }}' }
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm, cache-dependency-path: src/frontend/package-lock.json }
+
+      - name: .NET Restore
+        run: dotnet restore src/backend/AMS.sln
+
+      - name: .NET Format Check
+        run: dotnet format src/backend/AMS.sln --verify-no-changes
+
+      - name: Frontend Lint
+        working-directory: src/frontend
+        run: |
+          npm ci --prefer-offline
+          npm run lint
+
+      - name: Trivy Vulnerability Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          ignore-unfixed: true
+
+      - name: SAST - CodeQL Analysis
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp, javascript, java
+
+      - name: CodeQL Analyze
+        uses: github/codeql-action/analyze@v3
+
+  # ============================================================
+  # Backend Build & Test
+  # ============================================================
+  build-backend:
+    name: Build & Test .NET Backend
+    runs-on: ubuntu-latest
+    needs: lint-and-analyze
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg16
+        env:
+          POSTGRES_DB:       ams_test
+          POSTGRES_USER:     ams_test
+          POSTGRES_PASSWORD: test_password
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '${{ env.DOTNET_VERSION }}' }
+
+      - name: Restore
+        run: dotnet restore src/backend/AMS.sln
+
+      - name: Build (Release)
+        run: dotnet build src/backend/AMS.sln -c Release --no-restore
+
+      - name: Apply Database Migrations
+        env:
+          ConnectionStrings__AmsDb: Host=localhost;Port=5432;Database=ams_test;Username=ams_test;Password=test_password
+        run: |
+          dotnet tool install --global dotnet-ef
+          cd src/backend/AMS.Api
+          dotnet ef database update
+
+      - name: Run Unit Tests
+        run: |
+          dotnet test src/backend/AMS.sln \
+            -c Release \
+            --no-build \
+            --filter "Category=Unit" \
+            --logger "trx;LogFileName=unit-results.trx" \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./TestResults
+
+      - name: Run Integration Tests
+        env:
+          ConnectionStrings__AmsDb: Host=localhost;Port=5432;Database=ams_test;Username=ams_test;Password=test_password
+        run: |
+          dotnet test src/backend/AMS.sln \
+            -c Release \
+            --no-build \
+            --filter "Category=Integration" \
+            --logger "trx;LogFileName=integration-results.trx" \
+            --results-directory ./TestResults
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: TestResults/**/*.trx
+
+      - name: Code Coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: TestResults/**/coverage.cobertura.xml
+
+      - name: Publish Artifact
+        run: |
+          dotnet publish src/backend/AMS.Api/AMS.Api.csproj \
+            -c Release -o ./publish/api \
+            /p:GenerateDocumentationFile=true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: api-publish
+          path: publish/api
+          retention-days: 5
+
+  # ============================================================
+  # Flink Build & Test
+  # ============================================================
+  build-flink:
+    name: Build & Test Flink Jobs
+    runs-on: ubuntu-latest
+    needs: lint-and-analyze
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with: { java-version: '${{ env.JAVA_VERSION }}', distribution: temurin, cache: maven }
+
+      - name: Build Flink Jobs
+        working-directory: src/flink
+        run: mvn clean package -DskipTests -Pproduction
+
+      - name: Run Flink Unit Tests
+        working-directory: src/flink
+        run: mvn test
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flink-jobs
+          path: src/flink/target/*.jar
+          retention-days: 5
+
+  # ============================================================
+  # Contract Gate — static + unit verification (every commit)
+  # Full runtime verification: e2e-full-system-test.ps1 in lab/staging
+  # ============================================================
+  contract-gate:
+    name: Contract Enforcement Gate
+    runs-on: ubuntu-latest
+    needs: lint-and-analyze
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '${{ env.DOTNET_VERSION }}' }
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm, cache-dependency-path: src/frontend/package-lock.json }
+
+      - name: Run contract gate
+        run: bash scripts/ci-contract-gate.sh
+
+  # ============================================================
+  # Frontend Build & Test
+  # ============================================================
+  build-frontend:
+    name: Build & Test React Frontend
+    runs-on: ubuntu-latest
+    needs: lint-and-analyze
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm, cache-dependency-path: src/frontend/package-lock.json }
+
+      - name: Install
+        working-directory: src/frontend
+        run: npm ci --prefer-offline
+
+      - name: Type Check
+        working-directory: src/frontend
+        run: npx tsc --noEmit
+
+      - name: Unit Tests
+        working-directory: src/frontend
+        run: npm test -- --run --reporter=junit --outputFile=test-results.xml
+
+      - name: Build
+        working-directory: src/frontend
+        env:
+          VITE_API_BASE_URL:     /api
+          VITE_SIGNALR_HUB_URL: /hubs/alarms
+          VITE_KEYCLOAK_REALM:  ams
+          VITE_KEYCLOAK_CLIENT: ams-frontend
+        run: npm run build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: src/frontend/dist
+          retention-days: 5
+
+  # ============================================================
+  # Docker Build & Push
+  # ============================================================
+  docker-build:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend, build-flink, contract-gate]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/release/')
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+        with: { driver-opts: image=moby/buildkit:latest }
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (API)
+        id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_API }}
+          tags: |
+            type=sha,prefix=sha-
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build & Push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: src/backend
+          file: infra/docker/api/Dockerfile
+          push: true
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+          provenance: true
+          sbom: true
+
+      - name: Build & Push Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: src/frontend
+          file: infra/docker/frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_FRONTEND }}:sha-${{ github.sha }}
+            ${{ env.IMAGE_FRONTEND }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Scan API image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_API }}:sha-${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: 0
+          format: sarif
+          output: trivy-api.sarif
+
+      - uses: github/codeql-action/upload-sarif@v3
+        with: { sarif_file: trivy-api.sarif }
+
+  # ============================================================
+  # Deploy to Development
+  # ============================================================
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/develop'
+    environment: development
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via Helm
+        env:
+          KUBECONFIG_DATA: ${{ secrets.DEV_KUBECONFIG }}
+        run: |
+          echo "$KUBECONFIG_DATA" | base64 -d > kubeconfig.yaml
+          export KUBECONFIG=kubeconfig.yaml
+
+          helm upgrade --install ams-dev ./infra/helm/ams \
+            --namespace ams-dev \
+            --create-namespace \
+            --values ./infra/helm/ams/values-dev.yaml \
+            --set api.image.tag=sha-${{ github.sha }} \
+            --set frontend.image.tag=sha-${{ github.sha }} \
+            --atomic \
+            --timeout 10m \
+            --wait
+
+      - name: Smoke Test
+        run: |
+          sleep 30
+          curl -f https://ams-dev.example.com/health/ready || exit 1
+
+  # ============================================================
+  # Deploy to Production
+  # ============================================================
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://ams.example.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via Helm (production)
+        env:
+          KUBECONFIG_DATA: ${{ secrets.PROD_KUBECONFIG }}
+        run: |
+          echo "$KUBECONFIG_DATA" | base64 -d > kubeconfig.yaml
+          export KUBECONFIG=kubeconfig.yaml
+
+          helm upgrade --install ams-prod ./infra/helm/ams \
+            --namespace ams-prod \
+            --create-namespace \
+            --values ./infra/helm/ams/values-prod.yaml \
+            --set api.image.tag=sha-${{ github.sha }} \
+            --set frontend.image.tag=sha-${{ github.sha }} \
+            --atomic \
+            --timeout 15m \
+            --wait \
+            --cleanup-on-fail
+
+      - name: Production Smoke Test
+        run: |
+          sleep 45
+          curl -f https://ams.example.com/health/ready || exit 1
+
+      - name: Notify Teams
+        if: always()
+        uses: jdcargile/ms-teams-notification@v1.4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          ms-teams-webhook-uri: ${{ secrets.TEAMS_WEBHOOK }}
+          notification-summary: "AMS Production Deploy - ${{ job.status }}"
+          notification-color: ${{ job.status == 'success' && '00e676' || 'ff1744' }}

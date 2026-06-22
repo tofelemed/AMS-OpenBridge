@@ -1,0 +1,342 @@
+# =============================================================================
+# Enterprise CAMS — .gitignore
+# Covers: .NET 8, React/Vite, Apache Flink/Maven, Docker, OPC redistributables
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# OPC Foundation redistributables (place MSI/DLLs locally; do not commit without license)
+# See: third-party/opc-core-redist/README.md
+# -----------------------------------------------------------------------------
+third-party/opc-core-redist/x86/*.dll
+third-party/opc-core-redist/installers/*.msi
+third-party/opc-core-redist/installers/*.msm
+third-party/opc-core-redist/installers/*.zip
+third-party/opc-core-redist/extracted/
+third-party/opc-core-redist/msm-extract/
+third-party/opc-core-redist/install-log.txt
+
+# -----------------------------------------------------------------------------
+# Environment, secrets, and local configuration overrides
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.env.local
+*.local.json
+appsettings.*.local.json
+appsettings.Local.json
+secrets/
+**/secrets/
+*.pfx
+*.p12
+*.key
+*.pem
+!**/*.example.pem
+!**/*.example.key
+user-secrets.json
+**/user-secrets.json
+
+# Docker Compose local overrides and secrets
+infra/docker/.env
+infra/docker/docker-compose.override.yml
+infra/docker/docker-compose.*.local.yml
+infra/docker/certs/*
+!infra/docker/certs/.gitkeep
+!infra/docker/certs/README*
+
+# -----------------------------------------------------------------------------
+# .NET / C# / Visual Studio
+# -----------------------------------------------------------------------------
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.rsuser
+*.cache
+*.ilk
+*.meta
+*.obj
+*.iobj
+*.pch
+*.pdb
+*.ipdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.tmp_proj
+*_wpftmp.csproj
+*.log
+*.tlog
+*.vspscc
+*.vssscc
+.builds
+*.pidb
+*.svclog
+*.scc
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+**/TestResults/
+**/BenchmarkDotNet.Artifacts/
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+.nuget/
+.dotnet/
+publish/
+**/publish-test/
+.tmpbuild/
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# StyleCop
+StyleCopReport.xml
+
+# NCrunch
+_NCrunch_*
+.*crunch*.local.xml
+nCrunchTemp_*
+
+# ReSharper / Rider
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+.idea/
+*.iml
+
+# Visual Studio
+.vs/
+*.VC.db
+*.VC.VC.opendb
+*.vsp
+*.vspx
+*.sap
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+# -----------------------------------------------------------------------------
+# Node.js / React / Vite / TypeScript frontend
+# -----------------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-store/
+.npm/
+.yarn/
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+package-lock.json.bak
+
+# Vite / build output
+dist/
+dist-ssr/
+*.local
+.vite/
+vite.config.ts.timestamp-*
+vite.config.js.timestamp-*
+
+# Vitest / coverage
+coverage/
+*.lcov
+.nyc_output/
+htmlcov/
+
+# TypeScript
+*.tsbuildinfo
+
+# ESLint / Prettier caches
+.eslintcache
+.prettiercache
+
+# Storybook
+storybook-static/
+
+# -----------------------------------------------------------------------------
+# Java / Maven / Apache Flink
+# -----------------------------------------------------------------------------
+target/
+!.mvn/wrapper/maven-wrapper.jar
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar.bak
+.flattened-pom.xml
+
+# Local Maven repository (if cached inside repo)
+.m2/
+
+# Flink checkpoints / savepoints (local dev)
+checkpoints/
+savepoints/
+flink-*-logs/
+
+# -----------------------------------------------------------------------------
+# Docker
+# -----------------------------------------------------------------------------
+**/.docker/
+docker-data/
+docker-volumes/
+*.tar
+*.img
+
+# -----------------------------------------------------------------------------
+# Database (local dumps, volumes, runtime data)
+# -----------------------------------------------------------------------------
+*.sql.gz
+*.dump
+*.bak
+*.mdf
+*.ldf
+*.ndf
+pgdata/
+postgres-data/
+timescaledb-data/
+*.db
+*.sqlite
+*.sqlite3
+
+# -----------------------------------------------------------------------------
+# Infrastructure / Kubernetes / Helm
+# -----------------------------------------------------------------------------
+infra/k8s/**/secrets/
+infra/helm/**/charts/
+infra/helm/**/Chart.lock
+*.kubeconfig
+kubeconfig
+
+# Terraform (if added later)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# -----------------------------------------------------------------------------
+# Monitoring / observability (local runtime data)
+# -----------------------------------------------------------------------------
+prometheus-data/
+grafana-data/
+*.prom
+
+# -----------------------------------------------------------------------------
+# Logs, temp files, and OS artifacts
+# -----------------------------------------------------------------------------
+logs/
+*.log
+*.log.*
+*.swp
+*.swo
+*~
+.#*
+\#*\#
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.stackdump
+*.cab
+*.msi
+*.msm
+*.msp
+
+# -----------------------------------------------------------------------------
+# Test, reports, and generated artifacts
+# -----------------------------------------------------------------------------
+reports/generated/
+*.trx
+*.coverage
+*.coveragexml
+TestResult.xml
+allure-results/
+allure-report/
+playwright-report/
+test-results/
+blob-report/
+screenshots/
+videos/
+
+# -----------------------------------------------------------------------------
+# Archives and large binaries (unless explicitly tracked)
+# -----------------------------------------------------------------------------
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+!src/flink/**/lib/*.jar
+*.rar
+*.tar
+*.zip
+*.war
+*.ear
+
+# -----------------------------------------------------------------------------
+# Misc editor / tool caches
+# -----------------------------------------------------------------------------
+*.bak
+*.orig
+*.rej
+.cache/
+.parcel-cache/
+.turbo/
+.sass-cache/
+*.sass.map
+*.css.map
+*.js.map
+!src/**/*.map
+
+# Windows shortcut files
+*.lnk

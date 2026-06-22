@@ -1,0 +1,80 @@
+[
+  {
+    "id": "deltav-opcae",
+    "name": "DeltaV OPC-AE",
+    "url": null,
+    "host": "192.168.1.10",
+    "progId": "Emerson.DeltaV.EventServer.1",
+    "protocol": "OPC-AE",
+    "authType": "None",
+    "username": null,
+    "enabled": false,
+    "lastPolled": 1779954771326,
+    "streamPipesAdapterId": null
+  },
+  {
+    "id": "honeywell-experion",
+    "name": "Honeywell Experion",
+    "url": "opc.tcp://192.168.1.11:4840",
+    "host": null,
+    "progId": null,
+    "protocol": "OPC-UA",
+    "authType": "Username",
+    "username": "admin",
+    "enabled": false,
+    "lastPolled": 1779954771326,
+    "streamPipesAdapterId": null
+  },
+  {
+    "id": "abb-800xa",
+    "name": "ABB 800xA",
+    "url": "opc.tcp://192.168.1.12:4840",
+    "host": null,
+    "progId": null,
+    "protocol": "OPC-UA",
+    "authType": "Certificate",
+    "username": null,
+    "enabled": false,
+    "lastPolled": 1780008966437,
+    "streamPipesAdapterId": null
+  },
+  {
+    "id": "d7ba2bde-bfd2-4309-808f-7e049195b05a",
+    "name": "Local IO Simulator",
+    "url": null,
+    "host": "192.168.1.108",
+    "progId": "HWHsc.OPCServer",
+    "protocol": "OPC-AE",
+    "authType": "None",
+    "username": null,
+    "enabled": true,
+    "lastPolled": 1780034616447,
+    "streamPipesAdapterId": null
+  },
+  {
+    "id": "7ce5ecbf-70c9-498d-b899-5c8bb7add383",
+    "name": "Local IO Simulator",
+    "url": null,
+    "host": "127.0.0.1",
+    "progId": "IntegrationObjects.OPCAEServer.Simulator.1",
+    "protocol": "OPC-AE",
+    "authType": "None",
+    "username": null,
+    "enabled": true,
+    "lastPolled": 1780048329402,
+    "streamPipesAdapterId": null
+  },
+  {
+    "id": "0a0fefa4-e1e6-4e4e-b2ae-3ed8525f26f5",
+    "name": "Plant OPC UA",
+    "url": "opc.tcp://hostname:4840",
+    "host": "192.168.161.1",
+    "progId": "IntegrationObjects.OPCAEServer.Simulator.1",
+    "protocol": "OPC-AE",
+    "authType": "None",
+    "username": null,
+    "enabled": false,
+    "lastPolled": 1780049693003,
+    "streamPipesAdapterId": null
+  }
+]

@@ -1,0 +1,70 @@
+{
+  "results": [
+    {
+      "name": "API pipeline reachable",
+      "pass": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "API unacked alarms available",
+      "pass": true,
+      "detail": "unacked=10"
+    },
+    {
+      "name": "UI /alarms load",
+      "pass": true,
+      "detail": "843ms"
+    },
+    {
+      "name": "Infrastructure ribbon visible",
+      "pass": true,
+      "detail": "Kafka: UnknownFlink: UnknownKafka Lag: 0Ingest: UnknownOPC: 0 ConnectedCEP: —Postgres: —SignalR: Connected"
+    },
+    {
+      "name": "AG Grid rows visible",
+      "pass": true,
+      "detail": "rows=15"
+    },
+    {
+      "name": "AG Grid scroll stable",
+      "pass": true,
+      "detail": "rows after scroll=15"
+    },
+    {
+      "name": "Navigate /dashboard",
+      "pass": true,
+      "detail": "209ms"
+    },
+    {
+      "name": "Navigate /historical",
+      "pass": true,
+      "detail": "151ms"
+    },
+    {
+      "name": "Navigate /soe",
+      "pass": true,
+      "detail": "179ms"
+    },
+    {
+      "name": "Navigate /analytics",
+      "pass": true,
+      "detail": "137ms"
+    },
+    {
+      "name": "Navigate /admin",
+      "pass": true,
+      "detail": "156ms"
+    },
+    {
+      "name": "Alarm row selected",
+      "pass": true,
+      "detail": "selectionCount=1"
+    },
+    {
+      "name": "ACK E2E flow",
+      "pass": true,
+      "detail": "row selected, dialog confirmed"
+    }
+  ],
+  "at": "2026-06-09T04:15:45.337Z"
+}

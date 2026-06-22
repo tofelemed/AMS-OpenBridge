@@ -1,0 +1,163 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>AMS.Api</name>
+    </assembly>
+    <members>
+        <member name="T:AMS.Api.BackgroundServices.AlarmIngestionOptions">
+            <summary>
+            Authoritative alarm ingestion: polls the source API and publishes delta events to raw-alarms.
+            </summary>
+        </member>
+        <member name="T:AMS.Api.Controllers.V1.AdminOpcServersController">
+            <summary>Legacy route — returns HTTP alarm feed only (OPC/gateway removed).</summary>
+        </member>
+        <member name="T:AMS.Api.Controllers.V1.AlarmIngestionAdminController">
+            <summary>HTTP alarm feed configuration and health (sole production ingest source).</summary>
+        </member>
+        <member name="T:AMS.Api.Controllers.V1.AlarmsController">
+            <summary>
+            Alarm management endpoints - OPC A&amp;E 1.10 aligned.
+            Provides real-time and historical alarm operations.
+            </summary>
+        </member>
+        <member name="M:AMS.Api.Controllers.V1.AlarmsController.GetActiveAlarms(System.Nullable{System.Guid},System.Nullable{AMS.Domain.Alarms.AlarmPriority},System.Nullable{AMS.Domain.Alarms.AlarmState},System.Nullable{AMS.Domain.Alarms.AlarmCategory},System.String,System.Nullable{System.Boolean},System.Nullable{System.Boolean},System.Nullable{System.Boolean},System.Int32,System.Int32,System.String,System.Boolean,System.Threading.CancellationToken)">
+            <summary>
+            Get all currently active alarms with real-time state.
+            Supports pagination, sorting, and multi-column filtering.
+            </summary>
+        </member>
+        <member name="M:AMS.Api.Controllers.V1.AlarmsController.GetAlarmStatistics(System.Nullable{System.Guid},System.Threading.CancellationToken)">
+            <summary>
+            Get real-time alarm statistics (ISA-18.2 KPIs).
+            </summary>
+        </member>
+        <member name="M:AMS.Api.Controllers.V1.AlarmsController.PurgeLabInjectedAlarms(System.Nullable{System.Guid},System.Threading.CancellationToken)">
+            <summary>
+            Removes storm/autonomous lab alarms from active_alarms (hierarchical paths, "Autonomous storm" messages).
+            Keeps Integration Objects simulator tags (e.g. FIC1001).
+            </summary>
+        </member>
+        <member name="M:AMS.Api.Controllers.V1.AlarmsController.AcknowledgeAlarm(System.Guid,AMS.Api.Controllers.V1.AcknowledgeRequest,System.Threading.CancellationToken)">
+            <summary>
+            Acknowledge a single alarm. Requires alarm.acknowledge permission.
+            Enforces ISA-18.2 operator interaction rules.
+            </summary>
+        </member>
+        <member name="M:AMS.Api.Controllers.V1.AlarmsController.BatchAcknowledgeAlarms(AMS.Api.Controllers.V1.BatchAcknowledgeRequest,System.Threading.CancellationToken)">
+            <summary>
+            Batch acknowledge multiple alarms in a single operation.
+            Per ISA-18.2 Section 9.5 – Operator override capabilities.
+            </summary>
+        </member>
+        <member name="M:AMS.Api.Controllers.V1.AlarmsController.ShelveAlarm(System.Guid,AMS.Api.Controllers.V1.ShelveRequest,System.Threading.CancellationToken)">
+            <summary>
+            Shelve an alarm. Per ISA-18.2 Section 11 – Alarm Shelving.
+            Maximum duration: 480 minutes (8 hours). Comment mandatory.
+            </summary>
+        </member>
+        <member name="M:AMS.Api.Controllers.V1.AlarmsController.GetHistoricalAlarms(System.DateTimeOffset,System.DateTimeOffset,System.Nullable{System.Guid},System.Nullable{AMS.Domain.Alarms.AlarmPriority},System.Nullable{AMS.Domain.Alarms.AlarmCategory},System.Nullable{AMS.Domain.Alarms.AlarmState},System.String,System.Nullable{System.Boolean},System.Int32,System.Int32,System.String,System.Boolean,System.Threading.CancellationToken)">
+            <summary>
+            Query historical alarms from TimescaleDB.
+            Optimized for billions of records with time-range filtering.
+            Maximum date range: 365 days per query.
+            </summary>
+        </member>
+        <member name="M:AMS.Api.Controllers.V1.AlarmsController.StreamHistoricalAlarms(System.DateTimeOffset,System.DateTimeOffset,System.Nullable{System.Guid},System.Threading.CancellationToken)">
+            <summary>
+            Streaming export of historical alarms as NDJSON.
+            Supports billions of records without memory pressure.
+            </summary>
+        </member>
+        <member name="M:AMS.Api.Controllers.V1.AnalyticsController.GetKpi(System.Threading.CancellationToken)">
+            <summary>ISA-18.2 KPI aggregates for the Analytics dashboard.</summary>
+        </member>
+        <member name="M:AMS.Api.Controllers.V1.OpcConnectionsController.SyncGatewayOpcConnectionsAsync(System.Threading.CancellationToken)">
+            <summary>
+            Persist live OPC gateway servers to DB and remove stale lab/simulation stubs.
+            </summary>
+        </member>
+        <member name="T:AMS.Api.Hubs.AlarmHub">
+            <summary>
+            Real-time alarm SignalR hub.
+            
+            Groups:
+              - "alarms-{priority}"   : Priority-based subscription (CRITICAL, HIGH, etc.)
+              - "server-{serverId}"   : Server-specific alarms
+              - "area-{areaId}"       : Area-specific alarms
+              - "role-{role}"         : Role-based filtered streams
+              - "station-{stationId}" : Operator station-specific stream
+            
+            Supports ~10,000 concurrent connections via SignalR scale-out.
+            </summary>
+        </member>
+        <member name="M:AMS.Api.Hubs.AlarmHub.SubscribeToServer(System.String)">
+            <summary>Subscribe to a specific server's alarm stream</summary>
+        </member>
+        <member name="M:AMS.Api.Hubs.AlarmHub.UnsubscribeFromServer(System.String)">
+            <summary>Unsubscribe from a server stream</summary>
+        </member>
+        <member name="M:AMS.Api.Hubs.AlarmHub.SubscribeToArea(System.String)">
+            <summary>Subscribe to alarms from a specific area</summary>
+        </member>
+        <member name="M:AMS.Api.Hubs.AlarmHub.SubscribeToPriority(System.String)">
+            <summary>Subscribe to priority-filtered alarm stream</summary>
+        </member>
+        <member name="M:AMS.Api.Hubs.AlarmHub.Ping">
+            <summary>Ping for connection health check</summary>
+        </member>
+        <member name="T:AMS.Api.Hubs.IAlarmHubClient">
+            <summary>
+            Strongly-typed client interface for AlarmHub
+            </summary>
+        </member>
+        <member name="M:AMS.Api.Hubs.IAlarmHubClient.OnNewAlarm(AMS.Api.Hubs.AlarmHubPayload)">
+            <summary>Called when a new alarm is created</summary>
+        </member>
+        <member name="M:AMS.Api.Hubs.IAlarmHubClient.OnAlarmUpdated(AMS.Api.Hubs.AlarmHubPayload)">
+            <summary>Called when alarm state changes (ack, shelve, clear, etc.)</summary>
+        </member>
+        <member name="M:AMS.Api.Hubs.IAlarmHubClient.OnAckLifecycleUpdated(AMS.Api.Hubs.AckLifecyclePayload)">
+            <summary>ACK orchestration lifecycle transition (real-time operational transparency)</summary>
+        </member>
+        <member name="M:AMS.Api.Hubs.IAlarmHubClient.OnAlarmCleared(AMS.Api.Hubs.AlarmClearedPayload)">
+            <summary>Called when alarm is cleared/archived</summary>
+        </member>
+        <member name="M:AMS.Api.Hubs.IAlarmHubClient.OnBulkAlarmsUpdated(AMS.Api.Hubs.AlarmBulkUpdatePayload)">
+            <summary>Bulk update for batch operations</summary>
+        </member>
+        <member name="M:AMS.Api.Hubs.IAlarmHubClient.OnFloodAlert(AMS.Api.Hubs.FloodAlertPayload)">
+            <summary>Alarm flood alert</summary>
+        </member>
+        <member name="M:AMS.Api.Hubs.IAlarmHubClient.OnServerStatusChanged(AMS.Api.Hubs.ServerStatusPayload)">
+            <summary>OPC server connection status change</summary>
+        </member>
+        <member name="M:AMS.Api.Hubs.IAlarmHubClient.OnSoeEvent(AMS.Api.Hubs.SoeEventPayload)">
+            <summary>SOE event for real-time SOE panel</summary>
+        </member>
+        <member name="M:AMS.Api.Hubs.IAlarmHubClient.OnAnalyticsUpdate(AMS.Api.Hubs.AnalyticsUpdatePayload)">
+            <summary>Analytics update (KPI refresh)</summary>
+        </member>
+        <member name="M:AMS.Api.Hubs.IAlarmHubClient.OnConnected(AMS.Api.Hubs.HubConnectionInfo)">
+            <summary>Connection established acknowledgement</summary>
+        </member>
+        <member name="M:AMS.Api.Hubs.IAlarmHubClient.OnHeartbeat(AMS.Api.Hubs.HeartbeatPayload)">
+            <summary>Server heartbeat</summary>
+        </member>
+        <member name="T:AMS.Api.Hubs.AlarmSignalRPublisher">
+            <summary>
+            SignalR publisher service — bridges domain events → real-time clients
+            </summary>
+        </member>
+        <member name="T:AMS.Api.Services.AlarmEnricher">
+            <summary>
+            Maps active alarm entities to API DTOs with OPC server names and KPI summary.
+            </summary>
+        </member>
+        <member name="M:AMS.Api.Services.AlarmEnricher.ResolveEffectiveState(AMS.Domain.Alarms.AlarmState,System.Boolean)">
+            <summary>
+            DB stores simplified state VARCHAR (ACTIVE/ACKNOWLEDGED); reconcile with ack_status for API projection.
+            </summary>
+        </member>
+    </members>
+</doc>

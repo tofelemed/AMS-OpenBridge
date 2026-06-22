@@ -1,0 +1,66 @@
+﻿{
+    "total":  11,
+    "checks":  {
+                   "SignalR health":  {
+                                          "Detail":  "Healthy",
+                                          "Pass":  true,
+                                          "At":  "2026-06-07T02:02:04.0438738Z"
+                                      },
+                   "raw-opc-events contract":  {
+                                                   "Detail":  "no sample event",
+                                                   "Pass":  false,
+                                                   "At":  "2026-06-07T02:02:24.4566225Z"
+                                               },
+                   "Flink checkpoint completed":  {
+                                                      "Detail":  "recent checkpoint exists",
+                                                      "Pass":  true,
+                                                      "At":  "2026-06-07T02:02:04.0368677Z"
+                                                  },
+                   "Kafka consumer lag":  {
+                                              "Detail":  "lag=0 threshold=5000",
+                                              "Pass":  true,
+                                              "At":  "2026-06-07T02:02:03.9016563Z"
+                                          },
+                   "current-alarm-state sample":  {
+                                                      "Detail":  "no message in window",
+                                                      "Pass":  false,
+                                                      "At":  "2026-06-07T02:02:42.5577760Z"
+                                                  },
+                   "Flink job RUNNING":  {
+                                             "Detail":  "running=1",
+                                             "Pass":  true,
+                                             "At":  "2026-06-07T02:02:03.9096466Z"
+                                         },
+                   "No client ui-* commandIds in operator-actions":  {
+                                                                         "Detail":  "clean sample",
+                                                                         "Pass":  true,
+                                                                         "At":  "2026-06-07T02:03:00.5335627Z"
+                                                                     },
+                   "API pipeline health":  {
+                                               "Detail":  "reachable",
+                                               "Pass":  true,
+                                               "At":  "2026-06-07T02:02:03.8776085Z"
+                                           },
+                   "DLQ raw-opc-events size":  {
+                                                   "Detail":  "messages=0 threshold=1000",
+                                                   "Pass":  true,
+                                                   "At":  "2026-06-07T02:02:04.0578408Z"
+                                               },
+                   "API alarm identity fields":  {
+                                                     "Detail":  "checked 2 rows",
+                                                     "Pass":  true,
+                                                     "At":  "2026-06-07T02:02:42.6255444Z"
+                                                 },
+                   "Historical API query":  {
+                                                "Detail":  "total=17997",
+                                                "Pass":  true,
+                                                "At":  "2026-06-07T02:03:00.7479558Z"
+                                            }
+               },
+    "generatedAt":  "2026-06-07T02:03:00.7689926Z",
+    "failed":  2,
+    "passed":  9,
+    "violations":  [
+                       "RAW_EVENT_CONTRACT:no sample event"
+                   ]
+}

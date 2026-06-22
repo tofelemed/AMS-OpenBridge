@@ -1,0 +1,26 @@
+apiVersion: v2
+name: ams
+description: Enterprise Consolidated Alarm Management System (OPC A&E / ISA-18.2)
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+
+dependencies:
+  - name: api
+    version: 1.0.0
+    repository: "file://charts/api"
+  - name: flink
+    version: 1.0.0
+    repository: "file://charts/flink"
+  - name: kafka
+    version: 26.6.1 # Bitnami Kafka
+    repository: "https://charts.bitnami.com/bitnami"
+  - name: postgresql
+    version: 12.12.10 # Bitnami Postgres
+    repository: "https://charts.bitnami.com/bitnami"
+  - name: redis
+    version: 18.6.1 # Bitnami Redis
+    repository: "https://charts.bitnami.com/bitnami"
+  - name: keycloak
+    version: 17.3.3 # Bitnami Keycloak
+    repository: "https://charts.bitnami.com/bitnami"

@@ -1,0 +1,114 @@
+{
+    "timestamp":  "2026-06-09T19:48:31.9277733+05:00",
+    "acceptance":  {
+                       "apiToKafkaToFlinkToPostgresToUi":  false,
+                       "ackPathConfigured":  true
+                   },
+    "metrics":  {
+                    "Topic raw-alarms":  {
+                                             "detail":  "offsetTotal=0",
+                                             "pass":  true
+                                         },
+                    "Topic current-alarm-state":  {
+                                                      "detail":  "offsetTotal=0",
+                                                      "pass":  true
+                                                  },
+                    "Topic operator-actions":  {
+                                                   "detail":  "offsetTotal=0",
+                                                   "pass":  true
+                                               },
+                    "Topic ack-writeback":  {
+                                                "detail":  "offsetTotal=0",
+                                                "pass":  true
+                                            },
+                    "Topic ack-results":  {
+                                              "detail":  "offsetTotal=0",
+                                              "pass":  true
+                                          },
+                    "Topic lifecycle-events":  {
+                                                   "detail":  "offsetTotal=0",
+                                                   "pass":  true
+                                               },
+                    "Topic raw-alarms-dlq":  {
+                                                 "detail":  "offsetTotal=0",
+                                                 "pass":  true
+                                             },
+                    "Topic root-cause-events":  {
+                                                    "detail":  "offsetTotal=0",
+                                                    "pass":  true
+                                                },
+                    "kafkaTopicStatistics":  {
+                                                 "raw-alarms":  0,
+                                                 "current-alarm-state":  0,
+                                                 "operator-actions":  0,
+                                                 "ack-writeback":  0,
+                                                 "ack-results":  0,
+                                                 "lifecycle-events":  0,
+                                                 "raw-alarms-dlq":  0,
+                                                 "root-cause-events":  0
+                                             },
+                    "Lag flink-ams-raw-alarms":  {
+                                                     "detail":  "LAG=0",
+                                                     "pass":  true
+                                                 },
+                    "Lag ams-backend":  {
+                                            "detail":  "LAG=0",
+                                            "pass":  false
+                                        },
+                    "Lag ams-backend-lifecycle":  {
+                                                      "detail":  "LAG=0",
+                                                      "pass":  false
+                                                  },
+                    "consumerLag":  {
+                                        "flink-ams-raw-alarms":  0,
+                                        "ams-backend":  0,
+                                        "ams-backend-lifecycle":  0
+                                    },
+                    "flinkThroughput":  {
+                                            "restartCount":  null,
+                                            "checkpointSuccess":  null
+                                        },
+                    "apiIngestionRate":  0,
+                    "API ingestion events":  {
+                                                 "detail":  "totalEventsObserved=0",
+                                                 "pass":  false
+                                             },
+                    "Pipeline Kafka lag":  {
+                                               "detail":  "lag=0",
+                                               "pass":  true
+                                           },
+                    "signalRClients":  1,
+                    "databaseWriteLatencyMs":  133,
+                    "alarmCurrentRows":  0,
+                    "PostgreSQL alarm_current":  {
+                                                     "detail":  "rows=0 latencyMs=133",
+                                                     "pass":  true
+                                                 }
+                },
+    "checks":  {
+                   "Consumer lag zero":  {
+                                             "detail":  "maxLag=0",
+                                             "pass":  true
+                                         },
+                   "Flink RUNNING":  {
+                                         "detail":  "1 job(s)",
+                                         "pass":  true
+                                     },
+                   "Restart count":  {
+                                         "detail":  "restarts=",
+                                         "pass":  false
+                                     },
+                   "Flink REST":  {
+                                      "detail":  "The remote server returned an error: (404) Not Found.",
+                                      "pass":  false
+                                  },
+                   "raw-alarms-dlq empty":  {
+                                                "detail":  "malformed=0",
+                                                "pass":  true
+                                            },
+                   "ACK_FAILED lifecycle visible":  {
+                                                        "detail":  "0 ",
+                                                        "pass":  true
+                                                    }
+               }
+}

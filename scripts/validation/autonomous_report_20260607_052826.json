@@ -1,0 +1,153 @@
+﻿{
+    "startedAt":  "2026-06-07T01:28:26.5164016Z",
+    "phases":  {
+                   "phase7":  {
+                                  "pass":  false,
+                                  "name":  "OPC ACK",
+                                  "checks":  [
+                                                 {
+                                                     "detail":  "The remote server returned an error: (500) Internal Server Error.",
+                                                     "pass":  false,
+                                                     "name":  "OPC ACK test"
+                                                 }
+                                             ]
+                              },
+                   "phase2":  {
+                                  "pass":  false,
+                                  "name":  "Infrastructure",
+                                  "checks":  [
+                                                 {
+                                                     "detail":  "running",
+                                                     "pass":  true,
+                                                     "name":  "Container ams-kafka"
+                                                 },
+                                                 {
+                                                     "detail":  "running",
+                                                     "pass":  true,
+                                                     "name":  "Container ams-zookeeper"
+                                                 },
+                                                 {
+                                                     "detail":  "running",
+                                                     "pass":  true,
+                                                     "name":  "Container ams-postgres"
+                                                 },
+                                                 {
+                                                     "detail":  "",
+                                                     "pass":  false,
+                                                     "name":  "Container ams-redis"
+                                                 },
+                                                 {
+                                                     "detail":  "running",
+                                                     "pass":  true,
+                                                     "name":  "Container ams-flink-jobmanager"
+                                                 },
+                                                 {
+                                                     "detail":  "count=1",
+                                                     "pass":  true,
+                                                     "name":  "Flink taskmanagers"
+                                                 },
+                                                 {
+                                                     "detail":  "http://127.0.0.1:8000",
+                                                     "pass":  true,
+                                                     "name":  "AMS API"
+                                                 },
+                                                 {
+                                                     "detail":  "Unable to connect to the remote server",
+                                                     "pass":  false,
+                                                     "name":  "Gateway health"
+                                                 },
+                                                 {
+                                                     "detail":  "lag=0 rate=0",
+                                                     "pass":  true,
+                                                     "name":  "Kafka broker"
+                                                 },
+                                                 {
+                                                     "detail":  "cpMs=0 restarts=0",
+                                                     "pass":  true,
+                                                     "name":  "Flink checkpoint"
+                                                 },
+                                                 {
+                                                     "detail":  "connected= wal=",
+                                                     "pass":  false,
+                                                     "name":  "Gateway OPC"
+                                                 },
+                                                 {
+                                                     "detail":  "26.1ms",
+                                                     "pass":  true,
+                                                     "name":  "Postgres latency"
+                                                 }
+                                             ]
+                              },
+                   "phase1":  {
+                                  "pass":  true,
+                                  "name":  "Clean Reset",
+                                  "checks":  [
+                                                 {
+                                                     "detail":  "-SkipReset",
+                                                     "pass":  true,
+                                                     "name":  "Reset skipped"
+                                                 }
+                                             ]
+                              },
+                   "phase4":  {
+                                  "pass":  true,
+                                  "name":  "Flink",
+                                  "checks":  [
+                                                 {
+                                                     "detail":  "3fe02c55da5411b673141909f345a2d2",
+                                                     "pass":  true,
+                                                     "name":  "Flink RUNNING"
+                                                 },
+                                                 {
+                                                     "detail":  "1 jobs",
+                                                     "pass":  true,
+                                                     "name":  "Flink JobManager API"
+                                                 }
+                                             ]
+                              },
+                   "phase6":  {
+                                  "pass":  true,
+                                  "name":  "UI",
+                                  "checks":  [
+                                                 {
+                                                     "detail":  "-SkipUi",
+                                                     "pass":  true,
+                                                     "name":  "UI skipped"
+                                                 }
+                                             ]
+                              },
+                   "phase5":  {
+                                  "pass":  false,
+                                  "name":  "PostgreSQL",
+                                  "checks":  [
+                                                 {
+                                                     "detail":  "count=0 (target storm projection)",
+                                                     "pass":  false,
+                                                     "name":  "active_alarms rows"
+                                                 },
+                                                 {
+                                                     "detail":  "The remote server returned an error: (500) Internal Server Error.",
+                                                     "pass":  false,
+                                                     "name":  "API active alarms"
+                                                 }
+                                             ]
+                              }
+               },
+    "summary":  {
+                    "OpcAckReflection":  null,
+                    "UI":  true,
+                    "Infrastructure":  false,
+                    "Kafka":  false,
+                    "EndToEndDeterminism":  false,
+                    "Flink":  true,
+                    "PostgreSQL":  false,
+                    "StreamPipes":  [
+                                        false,
+                                        false
+                                    ],
+                    "AgGridStability":  null,
+                    "AckLifecycle":  null
+                },
+    "completedAt":  "2026-06-07T01:33:21.8036314Z",
+    "overallPass":  false
+}

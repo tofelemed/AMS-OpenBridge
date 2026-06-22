@@ -1,0 +1,201 @@
+﻿{
+    "startedAt":  "2026-05-28T18:47:40.9853398Z",
+    "phases":  {
+                   "phase7":  {
+                                  "pass":  false,
+                                  "name":  "OPC ACK",
+                                  "checks":  [
+                                                 {
+                                                     "detail":  "no unacked alarms",
+                                                     "pass":  false,
+                                                     "name":  "OPC ACK test"
+                                                 }
+                                             ]
+                              },
+                   "phase2":  {
+                                  "pass":  false,
+                                  "name":  "Infrastructure",
+                                  "checks":  [
+                                                 {
+                                                     "detail":  "running",
+                                                     "pass":  true,
+                                                     "name":  "Container ams-kafka"
+                                                 },
+                                                 {
+                                                     "detail":  "running",
+                                                     "pass":  true,
+                                                     "name":  "Container ams-zookeeper"
+                                                 },
+                                                 {
+                                                     "detail":  "running",
+                                                     "pass":  true,
+                                                     "name":  "Container ams-postgres"
+                                                 },
+                                                 {
+                                                     "detail":  "running",
+                                                     "pass":  true,
+                                                     "name":  "Container ams-redis"
+                                                 },
+                                                 {
+                                                     "detail":  "running",
+                                                     "pass":  true,
+                                                     "name":  "Container ams-flink-jobmanager"
+                                                 },
+                                                 {
+                                                     "detail":  "count=2",
+                                                     "pass":  true,
+                                                     "name":  "Flink taskmanagers"
+                                                 },
+                                                 {
+                                                     "detail":  "http://127.0.0.1:8000",
+                                                     "pass":  false,
+                                                     "name":  "AMS API"
+                                                 },
+                                                 {
+                                                     "detail":  "mode=ack-only",
+                                                     "pass":  true,
+                                                     "name":  "Gateway ACK-only"
+                                                 },
+                                                 {
+                                                     "detail":  "The remote server returned an error: (503) Server Unavailable.",
+                                                     "pass":  false,
+                                                     "name":  "Pipeline health API"
+                                                 }
+                                             ]
+                              },
+                   "phase1":  {
+                                  "pass":  true,
+                                  "name":  "Clean Reset",
+                                  "checks":  [
+                                                 {
+                                                     "detail":  "alarms.active_alarms",
+                                                     "pass":  true,
+                                                     "name":  "PostgreSQL active_alarms truncate"
+                                                 },
+                                                 {
+                                                     "detail":  "raw-opc-events, current-alarm-state, lifecycle-events, ack-results, ack-writeback, operator-actions",
+                                                     "pass":  true,
+                                                     "name":  "Kafka topics recreated"
+                                                 },
+                                                 {
+                                                     "detail":  "aac066b33d6e97fe6016e3f593c77344",
+                                                     "pass":  true,
+                                                     "name":  "Flink job restarted"
+                                                 }
+                                             ]
+                              },
+                   "phase4":  {
+                                  "pass":  true,
+                                  "name":  "Flink",
+                                  "checks":  [
+                                                 {
+                                                     "detail":  "aac066b33d6e97fe6016e3f593c77344",
+                                                     "pass":  true,
+                                                     "name":  "Flink RUNNING"
+                                                 },
+                                                 {
+                                                     "detail":  "4 jobs",
+                                                     "pass":  true,
+                                                     "name":  "Flink JobManager API"
+                                                 }
+                                             ]
+                              },
+                   "phase6":  {
+                                  "pass":  false,
+                                  "name":  "UI",
+                                  "checks":  [
+                                                 {
+                                                     "detail":  "HTTP 503",
+                                                     "pass":  true,
+                                                     "name":  "UI: API pipeline reachable"
+                                                 },
+                                                 {
+                                                     "detail":  "856ms",
+                                                     "pass":  true,
+                                                     "name":  "UI: UI /alarms load"
+                                                 },
+                                                 {
+                                                     "detail":  "Kafka: UnknownFlink: UnknownOPC UA Ingest: UnknownTelemetry: UnknownSignalR: Connected",
+                                                     "pass":  true,
+                                                     "name":  "UI: Infrastructure ribbon visible"
+                                                 },
+                                                 {
+                                                     "detail":  "rows=0",
+                                                     "pass":  false,
+                                                     "name":  "UI: AG Grid rows visible"
+                                                 },
+                                                 {
+                                                     "detail":  "rows after scroll=0",
+                                                     "pass":  false,
+                                                     "name":  "UI: AG Grid scroll stable"
+                                                 },
+                                                 {
+                                                     "detail":  "208ms",
+                                                     "pass":  true,
+                                                     "name":  "UI: Navigate /dashboard"
+                                                 },
+                                                 {
+                                                     "detail":  "358ms",
+                                                     "pass":  true,
+                                                     "name":  "UI: Navigate /historical"
+                                                 },
+                                                 {
+                                                     "detail":  "160ms",
+                                                     "pass":  true,
+                                                     "name":  "UI: Navigate /soe"
+                                                 },
+                                                 {
+                                                     "detail":  "162ms",
+                                                     "pass":  true,
+                                                     "name":  "UI: Navigate /analytics"
+                                                 },
+                                                 {
+                                                     "detail":  "159ms",
+                                                     "pass":  true,
+                                                     "name":  "UI: Navigate /admin"
+                                                 },
+                                                 {
+                                                     "detail":  "TimeoutError: locator.click: Timeout 60000ms exceeded.\nCall log:\n  - waiting for locator(\u0027button:has-text(\"Ack\"), button[title*=\"Ack\" i]\u0027).first()\n    - locator resolved to \u003cbutton disabled id=\"btn-acknowledge\" class=\"btn btn--ghost\"\u003eâ€¦\u003c/button\u003e\n  - attempting click action\n    2 Ã— waiting for element to be visible, enabled and stable\n      - element is not enabled\n    - retrying click action\n    - waiting 20ms\n    2 Ã— waiting for element to be visible, enabled and stable\n      - element is not enabled\n    - retrying click action\n      - waiting 100ms\n    112 Ã— waiting for element to be visible, enabled and stable\n        - element is not enabled\n      - retrying click action\n        - waiting 500ms\n",
+                                                     "pass":  false,
+                                                     "name":  "UI: UI automation"
+                                                 }
+                                             ]
+                              },
+                   "phase5":  {
+                                  "pass":  false,
+                                  "name":  "PostgreSQL",
+                                  "checks":  [
+                                                 {
+                                                     "detail":  "count=0 (target storm projection)",
+                                                     "pass":  false,
+                                                     "name":  "active_alarms rows"
+                                                 },
+                                                 {
+                                                     "detail":  "total=0",
+                                                     "pass":  false,
+                                                     "name":  "API active alarms"
+                                                 }
+                                             ]
+                              }
+               },
+    "summary":  {
+                    "OpcAckReflection":  null,
+                    "UI":  false,
+                    "Infrastructure":  false,
+                    "Kafka":  true,
+                    "EndToEndDeterminism":  false,
+                    "Flink":  true,
+                    "PostgreSQL":  false,
+                    "StreamPipes":  [
+                                        true,
+                                        true
+                                    ],
+                    "AgGridStability":  [
+                                            false,
+                                            false
+                                        ],
+                    "AckLifecycle":  null
+                },
+    "completedAt":  "2026-05-28T18:54:57.9542140Z",
+    "overallPass":  false
+}
