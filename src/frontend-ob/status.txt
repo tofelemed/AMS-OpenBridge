@@ -1,0 +1,8 @@
+alarms pages , subpages converted to standerized OpenBridge
+ ACK, Shelves , etc all dailogs are well designed - UX
+
+Tomorrow 
+
+1- Session with Aadil bhai ( review the functionality and changes required )
+2- enhance complete frontend dashbaord - reports , according to openbridge 
+3- test througholy From DCS to Application Layer

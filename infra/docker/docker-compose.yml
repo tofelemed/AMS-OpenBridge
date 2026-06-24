@@ -286,7 +286,7 @@ services:
 
   ams-frontend:
     build:
-      context: ../../src/frontend
+      context: ../../src/frontend-ob
       dockerfile: ../../infra/docker/frontend/Dockerfile
       args:
         VITE_API_BASE_URL: ""

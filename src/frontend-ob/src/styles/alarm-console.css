@@ -1,0 +1,197 @@
+/* =============================================================================
+   alarm-console.css
+   Layout + chrome for the Alarm Console, built on OpenBridge design tokens.
+   Pairs with ag-theme-openbridge.css (which themes the grid itself).
+
+   Import after the grid theme:
+       import './ag-theme-openbridge.css';
+       import './alarm-console.css';
+   ============================================================================= */
+
+/* -----------------------------------------------------------------------------
+   Page shell — vertical flex column that fills the viewport so the grid can
+   take all remaining height (the grid wrapper uses flex: 1; min-height: 0).
+   -------------------------------------------------------------------------- */
+.alarm-console-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface-background-color);
+  color: var(--on-surface-active-color, var(--on-container-active-color));
+  box-sizing: border-box;
+}
+
+/* -----------------------------------------------------------------------------
+   Toolbar
+   -------------------------------------------------------------------------- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding: 6px 10px;
+  background: var(--container-background-color);
+  border: 1px solid var(--divider-color);
+  border-radius: var(--corner-radius, 4px);
+  scrollbar-width: thin;
+}
+
+.toolbar__divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 2px;
+  background: var(--divider-color);
+  flex-shrink: 0;
+}
+
+/* Search */
+.toolbar__search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  min-width: 240px;
+  background: var(--surface-background-color);
+  border: 1px solid var(--divider-color);
+  border-radius: var(--corner-radius, 4px);
+  flex-shrink: 0;
+}
+.toolbar__search:focus-within {
+  border-color: var(--focus-color);
+}
+.toolbar__search-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--on-container-active-color);
+  font-family: 'Noto Sans', system-ui, sans-serif;
+  font-size: 12px;
+}
+.toolbar__search-input::placeholder {
+  color: var(--on-container-neutral-color);
+}
+
+/* Selection chip */
+.toolbar__selection {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--on-container-neutral-color);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.toolbar__selection-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--focus-color);
+  color: var(--on-focus-active-color);
+  font-weight: 700;
+  font-size: 11px;
+}
+
+/* -----------------------------------------------------------------------------
+   In-cell timestamp
+   -------------------------------------------------------------------------- */
+.timestamp {
+  font-family: 'Noto Sans Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--on-container-neutral-color);
+  white-space: nowrap;
+}
+
+/* -----------------------------------------------------------------------------
+   Inline "Ack" button rendered inside the ACK grid cell.
+   Replaces the previous hard-coded inline styles; fits within a 40px row.
+   -------------------------------------------------------------------------- */
+.ack-inline-btn {
+  height: 22px;
+  padding: 0 12px;
+  font-family: 'Noto Sans', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--on-focus-active-color);
+  background: var(--focus-color);
+  border: 1px solid var(--focus-color);
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ack-inline-btn:hover  { filter: brightness(1.08); }
+.ack-inline-btn:active { filter: brightness(0.94); }
+.ack-inline-btn--locked {
+  color: var(--on-container-neutral-color);
+  background: var(--container-background-color);
+  border-color: var(--divider-color);
+  cursor: not-allowed;
+}
+
+/* -----------------------------------------------------------------------------
+   Acknowledge lifecycle badges (ACK column)
+   Base + state modifiers. Modifier names match the component:
+   `ack-lifecycle--${state.toLowerCase().replace(/_/g,'-')}`.
+   -------------------------------------------------------------------------- */
+.ack-lifecycle-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: 1px solid transparent;
+}
+
+/* Confirmed / acknowledged */
+.ack-lifecycle--ack-confirmed {
+  color: var(--running-color, var(--on-container-active-color));
+  background: color-mix(in srgb, var(--running-color, var(--focus-color)) 16%, transparent);
+  border-color: color-mix(in srgb, var(--running-color, var(--focus-color)) 40%, transparent);
+}
+
+/* In-flight states */
+.ack-lifecycle--ack-requested,
+.ack-lifecycle--ack-queued,
+.ack-lifecycle--ack-processing,
+.ack-lifecycle--ack-pending-dcs,
+.ack-lifecycle--ack-dispatched {
+  color: var(--focus-color);
+  background: color-mix(in srgb, var(--focus-color) 14%, transparent);
+  border-color: color-mix(in srgb, var(--focus-color) 38%, transparent);
+}
+
+/* Retrying */
+.ack-lifecycle--ack-retrying {
+  color: var(--alert-warning-border-color);
+  background: color-mix(in srgb, var(--alert-warning-border-color) 14%, transparent);
+  border-color: color-mix(in srgb, var(--alert-warning-border-color) 40%, transparent);
+}
+
+/* Failure / timeout */
+.ack-lifecycle--ack-failed,
+.ack-lifecycle--ack-timeout {
+  color: var(--alert-alarm-border-color);
+  background: color-mix(in srgb, var(--alert-alarm-border-color) 16%, transparent);
+  border-color: color-mix(in srgb, var(--alert-alarm-border-color) 44%, transparent);
+}

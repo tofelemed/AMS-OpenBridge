@@ -1,0 +1,219 @@
+/* =============================================================================
+   ag-theme-openbridge.css
+   OpenBridge token layer for AG Grid (Community v32, legacy CSS theming).
+
+   HOW TO USE
+   ----------
+   This is an OVERRIDE LAYER on top of the Alpine base theme. The grid wrapper
+   MUST carry BOTH classes:
+
+       <div className="ag-theme-alpine ag-theme-openbridge"> ... </div>
+
+   Import order (Alpine first, then this file):
+
+       import 'ag-grid-community/styles/ag-grid.css';
+       import 'ag-grid-community/styles/ag-theme-alpine.css';
+       import './ag-theme-openbridge.css';
+
+   All selectors are scoped to the compound `.ag-theme-alpine.ag-theme-openbridge`
+   (specificity 0,2,x) so they reliably win over Alpine's `.ag-theme-alpine`
+   defaults without !important.
+
+   Colours are driven entirely by OpenBridge design tokens, so the grid follows
+   the active `data-obc-theme` (day / dusk / night / bright) automatically.
+   ============================================================================= */
+
+.ag-theme-alpine.ag-theme-openbridge {
+  /* ---- Density / metrics ---------------------------------------------------
+     Explicit heights are the primary fix for cramped, overlapping rows.
+     Tune row density here: 36 (compact) / 40 (default) / 44 (touch panel).   */
+  --ag-grid-size: 6px;
+  --ag-row-height: 40px;
+  --ag-header-height: 40px;
+  --ag-cell-horizontal-padding: 12px;
+  --ag-cell-widget-spacing: 8px;
+
+  /* ---- Typography (OpenBridge uses Noto Sans) ---------------------------- */
+  --ag-font-family: 'Noto Sans', system-ui, -apple-system, sans-serif;
+  --ag-font-size: 12px;
+
+  /* ---- Surfaces & text (OpenBridge tokens) ------------------------------ */
+  --ag-background-color: var(--surface-background-color);
+  --ag-foreground-color: var(--on-container-active-color);
+  --ag-header-background-color: var(--container-background-color);
+  --ag-header-foreground-color: var(--on-container-neutral-color);
+  --ag-secondary-foreground-color: var(--on-container-neutral-color);
+  --ag-disabled-foreground-color: var(--on-container-disabled-color, color-mix(in srgb, var(--on-container-neutral-color) 50%, transparent));
+
+  /* ---- Borders & separators --------------------------------------------- */
+  --ag-border-color: var(--divider-color);
+  --ag-row-border-color: var(--divider-color);
+  --ag-header-column-separator-color: var(--divider-color);
+  --ag-border-radius: var(--corner-radius, 4px);
+  --ag-wrapper-border-radius: var(--corner-radius, 4px);
+
+  /* ---- Row states -------------------------------------------------------- */
+  --ag-odd-row-background-color: transparent;            /* no zebra: cleaner dense list */
+  --ag-row-hover-color: color-mix(in srgb, var(--on-container-active-color) 8%, transparent);
+  --ag-selected-row-background-color: color-mix(in srgb, var(--focus-color) 18%, transparent);
+  --ag-range-selection-background-color: color-mix(in srgb, var(--focus-color) 14%, transparent);
+
+  /* ---- Interactive accents ---------------------------------------------- */
+  --ag-input-focus-border-color: var(--focus-color);
+  --ag-checkbox-checked-color: var(--focus-color);
+  --ag-checkbox-unchecked-color: var(--on-container-neutral-color);
+  --ag-checkbox-background-color: var(--surface-background-color);
+
+  /* ---- Header text weight ------------------------------------------------ */
+  --ag-header-cell-hover-background-color: color-mix(in srgb, var(--on-container-active-color) 6%, transparent);
+}
+
+/* -----------------------------------------------------------------------------
+   1. CELL CONTENT: vertical centering + safe truncation
+   The single most important structural fix for "content overlapping". Cells
+   become flex containers so badges, buttons and icons sit centered, and text
+   truncates with an ellipsis instead of bleeding over neighbours.
+   -------------------------------------------------------------------------- */
+.ag-theme-alpine.ag-theme-openbridge .ag-cell {
+  display: flex;
+  align-items: center;
+  min-width: 0;                 /* allows children to shrink so ellipsis works */
+  line-height: normal;
+}
+
+.ag-theme-alpine.ag-theme-openbridge .ag-cell .ag-cell-value,
+.ag-theme-alpine.ag-theme-openbridge .ag-cell > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Numeric columns: keep right alignment but stay vertically centered */
+.ag-theme-alpine.ag-theme-openbridge .ag-cell.ag-right-aligned-cell {
+  justify-content: flex-end;
+}
+
+/* -----------------------------------------------------------------------------
+   2. HEADER: align with cell padding, prevent label clipping
+   -------------------------------------------------------------------------- */
+.ag-theme-alpine.ag-theme-openbridge .ag-header {
+  border-bottom: 1px solid var(--divider-color);
+}
+.ag-theme-alpine.ag-theme-openbridge .ag-header-cell {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.ag-theme-alpine.ag-theme-openbridge .ag-header-cell-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* -----------------------------------------------------------------------------
+   3. PINNED COLUMNS: opaque background + separator
+   Fixes the "first fixed columns overlap content" symptom — without an opaque
+   background and a divider, horizontally-scrolled center cells render UNDER the
+   pinned section. We give the pinned containers a solid surface and a clear
+   right-hand divider with a soft shadow.
+   -------------------------------------------------------------------------- */
+.ag-theme-alpine.ag-theme-openbridge .ag-pinned-left-cols-container,
+.ag-theme-alpine.ag-theme-openbridge .ag-pinned-left-header {
+  background: var(--surface-background-color);
+}
+.ag-theme-alpine.ag-theme-openbridge .ag-pinned-left-header {
+  border-right: 1px solid var(--divider-color);
+}
+.ag-theme-alpine.ag-theme-openbridge .ag-cell.ag-cell-last-left-pinned {
+  border-right: 1px solid var(--divider-color);
+}
+/* Depth cue so the pinned block reads as a fixed layer above the scroll area */
+.ag-theme-alpine.ag-theme-openbridge .ag-pinned-left-cols-container,
+.ag-theme-alpine.ag-theme-openbridge .ag-pinned-left-header {
+  box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.35);
+  clip-path: inset(0 -6px 0 0);  /* let the shadow show only on the right edge */
+}
+
+/* Selection checkbox column: center the control, kill side padding */
+.ag-theme-alpine.ag-theme-openbridge .ag-cell.ob-checkbox-cell,
+.ag-theme-alpine.ag-theme-openbridge .ag-header-cell.ob-checkbox-header .ag-header-select-all {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+.ag-theme-alpine.ag-theme-openbridge .ag-selection-checkbox {
+  margin-right: 0;
+}
+
+/* -----------------------------------------------------------------------------
+   4. FLOATING FILTER ROW
+   -------------------------------------------------------------------------- */
+.ag-theme-alpine.ag-theme-openbridge .ag-floating-filter {
+  background: var(--container-background-color);
+}
+.ag-theme-alpine.ag-theme-openbridge .ag-floating-filter-input input,
+.ag-theme-alpine.ag-theme-openbridge .ag-text-field-input {
+  height: 26px;
+  background: var(--surface-background-color);
+  color: var(--on-container-active-color);
+  border: 1px solid var(--divider-color);
+  border-radius: 3px;
+}
+.ag-theme-alpine.ag-theme-openbridge .ag-text-field-input:focus {
+  border-color: var(--focus-color);
+  outline: none;
+}
+
+/* -----------------------------------------------------------------------------
+   5. ROW STATE STYLING — OpenBridge alert semantics (ISA-18.2 / IEC 62682)
+   Priority drives a left accent bar; unacknowledged alarms blink until ack;
+   acknowledged alarms go steady; ack-lifecycle and shelve/suppress states get
+   distinct, restrained treatments. Accent is applied to the first cell of each
+   pinned/center row container so it spans the full row left edge.
+   -------------------------------------------------------------------------- */
+
+/* Left priority accent */
+.ag-theme-alpine.ag-theme-openbridge .ag-row.alarm-row-critical   .ag-cell:first-of-type { box-shadow: inset 4px 0 0 var(--alert-alarm-border-color); }
+.ag-theme-alpine.ag-theme-openbridge .ag-row.alarm-row-high       .ag-cell:first-of-type { box-shadow: inset 4px 0 0 var(--alert-warning-border-color); }
+.ag-theme-alpine.ag-theme-openbridge .ag-row.alarm-row-medium     .ag-cell:first-of-type { box-shadow: inset 4px 0 0 var(--alert-caution-border-color); }
+.ag-theme-alpine.ag-theme-openbridge .ag-row.alarm-row-low        .ag-cell:first-of-type { box-shadow: inset 4px 0 0 var(--on-container-neutral-color); }
+.ag-theme-alpine.ag-theme-openbridge .ag-row.alarm-row-diagnostic .ag-cell:first-of-type { box-shadow: inset 4px 0 0 var(--on-container-disabled-color, var(--on-container-neutral-color)); }
+
+/* Severity background tints (kept subtle so text stays legible) */
+.ag-theme-alpine.ag-theme-openbridge .ag-row.alarm-row-critical { background-color: color-mix(in srgb, var(--alert-alarm-border-color) 9%, transparent); }
+.ag-theme-alpine.ag-theme-openbridge .ag-row.alarm-row-high     { background-color: color-mix(in srgb, var(--alert-warning-border-color) 8%, transparent); }
+
+/* Unacknowledged alarm: blink until acknowledged (OpenBridge alert behaviour) */
+@keyframes ob-alarm-blink {
+  0%, 49%   { box-shadow: inset 4px 0 0 var(--alert-alarm-border-color);
+              background-color: color-mix(in srgb, var(--alert-alarm-border-color) 16%, transparent); }
+  50%, 100% { box-shadow: inset 4px 0 0 color-mix(in srgb, var(--alert-alarm-border-color) 35%, transparent);
+              background-color: transparent; }
+}
+.ag-theme-alpine.ag-theme-openbridge .ag-row.alarm-unacked .ag-cell:first-of-type {
+  animation: ob-alarm-blink 1s steps(1, end) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ag-theme-alpine.ag-theme-openbridge .ag-row.alarm-unacked .ag-cell:first-of-type { animation: none; }
+}
+
+/* Acknowledge lifecycle (in-flight command feedback) */
+.ag-theme-alpine.ag-theme-openbridge .ag-row.alarm-ack-pending    { background-color: color-mix(in srgb, var(--focus-color) 10%, transparent); font-style: italic; }
+.ag-theme-alpine.ag-theme-openbridge .ag-row.alarm-ack-dispatched { background-color: color-mix(in srgb, var(--focus-color) 8%, transparent); }
+.ag-theme-alpine.ag-theme-openbridge .ag-row.alarm-ack-retrying   { background-color: color-mix(in srgb, var(--alert-warning-border-color) 10%, transparent); }
+.ag-theme-alpine.ag-theme-openbridge .ag-row.alarm-ack-failed     { background-color: color-mix(in srgb, var(--alert-alarm-border-color) 14%, transparent); }
+.ag-theme-alpine.ag-theme-openbridge .ag-row.alarm-ack-failed .ag-cell:first-of-type { box-shadow: inset 4px 0 0 var(--alert-alarm-border-color); }
+
+/* Shelved / suppressed: de-emphasised, clearly "not annunciating" */
+.ag-theme-alpine.ag-theme-openbridge .ag-row.alarm-row-shelved,
+.ag-theme-alpine.ag-theme-openbridge .ag-row.alarm-row-suppressed {
+  opacity: 0.62;
+  font-style: italic;
+}
+.ag-theme-alpine.ag-theme-openbridge .ag-row.alarm-row-shelved .ag-cell:first-of-type,
+.ag-theme-alpine.ag-theme-openbridge .ag-row.alarm-row-suppressed .ag-cell:first-of-type {
+  box-shadow: inset 4px 0 0 var(--on-container-neutral-color);
+}
+
+/* Keep hover/selection readable on top of state tints */
+.ag-theme-alpine.ag-theme-openbridge .ag-row:hover { background-color: var(--ag-row-hover-color); }
+.ag-theme-alpine.ag-theme-openbridge .ag-row.ag-row-selected { background-color: var(--ag-selected-row-background-color); }

@@ -1,0 +1,1179 @@
+/* ============================================================
+ * HMI Dialog Design System
+ * Light-theme design language for all dialogs, modals,
+ * detail panels, context menus, and forms.
+ *
+ * Primary blue:  #1976D2
+ * Surface white: #FFFFFF
+ * Body bg:       #F5F7FA
+ * Border:        #D5DCE5
+ * Text primary:  #1A202C
+ * Text muted:    #6B7A8D
+ * ============================================================ */
+
+/* ---- Design Tokens ---- */
+:root {
+  --hmi-blue:            #1976D2;
+  --hmi-blue-dark:       #1565C0;
+  --hmi-blue-darker:     #0D47A1;
+  --hmi-blue-light:      #EAF3FF;
+  --hmi-blue-focus-ring: rgba(25, 118, 210, 0.18);
+  --hmi-blue-hover:      #5DA9FF;
+
+  --hmi-surface:         #FFFFFF;
+  --hmi-body-bg:         #F5F7FA;
+  --hmi-header-bg:       #1976D2;
+  --hmi-footer-bg:       #F5F7FA;
+
+  --hmi-border:          #D5DCE5;
+  --hmi-border-hover:    #5DA9FF;
+  --hmi-border-focus:    #1976D2;
+
+  --hmi-text:            #1A202C;
+  --hmi-text-muted:      #6B7A8D;
+  --hmi-text-label:      #374151;
+  --hmi-text-hint:       #8A96A3;
+
+  --hmi-radius-sm:       6px;
+  --hmi-radius:          10px;
+  --hmi-radius-lg:       12px;
+
+  --hmi-shadow-dialog:
+    0 4px 6px -1px rgba(0, 0, 0, 0.08),
+    0 12px 32px -4px rgba(0, 0, 0, 0.14),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
+
+  --hmi-shadow-panel:
+    -8px 0 32px rgba(0, 0, 0, 0.20),
+    -2px 0 8px  rgba(0, 0, 0, 0.08);
+
+  --hmi-shadow-menu:
+    0 2px 4px rgba(0, 0, 0, 0.08),
+    0 8px 24px rgba(0, 0, 0, 0.14),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
+
+  --hmi-btn-height:      36px;
+  --hmi-input-height:    38px;
+}
+
+/* ============================================================
+   OVERLAY / BACKDROP
+   ============================================================ */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* ============================================================
+   DIALOG CONTAINER
+   ============================================================ */
+.dialog-content {
+  background: var(--hmi-surface);
+  border: 1px solid var(--hmi-border);
+  border-radius: var(--hmi-radius);
+  box-shadow: var(--hmi-shadow-dialog);
+  min-width: 400px;
+  max-width: 92vw;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  /* Remove dark-theme top border overrides */
+  border-top: none !important;
+}
+
+/* Variant accent strips — thin colored line at very top */
+.dialog-content::before {
+  content: '';
+  display: block;
+  height: 3px;
+  background: var(--hmi-blue);
+  border-radius: var(--hmi-radius) var(--hmi-radius) 0 0;
+  flex-shrink: 0;
+}
+
+.dialog-content--warning::before { background: #F59E0B; }
+.dialog-content--danger::before  { background: #EF4444; }
+.dialog-content--success::before { background: #10B981; }
+
+/* ============================================================
+   DIALOG HEADER
+   ============================================================ */
+.dialog-header {
+  position: relative;
+  padding: 20px 22px 18px;
+  background: var(--hmi-blue) !important;
+  border-bottom: none !important;
+  flex-shrink: 0;
+}
+
+.dialog-header--warning { background: #D97706 !important; }
+.dialog-header--danger  { background: #DC2626 !important; }
+.dialog-header--success { background: #059669 !important; }
+
+/* Remove accent bar inside header — header IS the accent */
+.dialog-header__accent { display: none; }
+
+.dialog-header__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.dialog-header__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--hmi-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #FFFFFF;
+}
+
+/* All header icon variants white on colored header */
+.dialog-header__icon--default,
+.dialog-header__icon--warning,
+.dialog-header__icon--danger,
+.dialog-header__icon--success {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #FFFFFF;
+}
+
+.dialog-header__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.dialog-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #FFFFFF !important;
+  margin: 0;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.dialog-subtitle {
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.80) !important;
+  margin: 5px 0 0;
+  line-height: 1.45;
+}
+
+/* Close button inside header */
+.dialog-header obc-button,
+.dialog-header [part~="button"] {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* Override ObcButton flat in dialog header */
+.dialog-header .obc-btn,
+.dialog-header obc-button {
+  --obc-button-text-color: rgba(255, 255, 255, 0.85);
+  --obc-button-background: transparent;
+  --obc-button-border: transparent;
+}
+
+/* ============================================================
+   DIALOG BODY
+   ============================================================ */
+.dialog-body {
+  padding: 22px;
+  overflow-y: auto;
+  flex: 1;
+  background: var(--hmi-surface) !important;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ============================================================
+   DIALOG FOOTER
+   ============================================================ */
+.dialog-footer {
+  padding: 14px 22px;
+  border-top: 1px solid var(--hmi-border) !important;
+  background: var(--hmi-body-bg) !important;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* ---- Footer button overrides (ObcButton via obc-button web-component) ---- */
+/* Primary action (raised = confirm/save/acknowledge) */
+.dialog-footer obc-button[variant="raised"],
+.dialog-footer obc-button[variant="raised"]::part(button) {
+  background: var(--hmi-blue) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: var(--hmi-radius-sm) !important;
+  font-weight: 600 !important;
+  height: var(--hmi-btn-height) !important;
+  padding: 0 20px !important;
+  transition: background 140ms ease !important;
+  cursor: pointer !important;
+}
+.dialog-footer obc-button[variant="raised"]:hover::part(button),
+.dialog-footer obc-button[variant="raised"]:focus::part(button) {
+  background: var(--hmi-blue-dark) !important;
+}
+
+/* Secondary action (flat = cancel/close) */
+.dialog-footer obc-button[variant="flat"],
+.dialog-footer obc-button[variant="flat"]::part(button) {
+  background: var(--hmi-surface) !important;
+  color: #4A5568 !important;
+  border: 1px solid var(--hmi-border) !important;
+  border-radius: var(--hmi-radius-sm) !important;
+  font-weight: 500 !important;
+  height: var(--hmi-btn-height) !important;
+  padding: 0 20px !important;
+  transition: background 140ms ease, border-color 140ms ease !important;
+  cursor: pointer !important;
+}
+.dialog-footer obc-button[variant="flat"]:hover::part(button) {
+  background: var(--hmi-body-bg) !important;
+  border-color: #B0BAC5 !important;
+}
+
+/* ============================================================
+   FORM FIELDS
+   ============================================================ */
+.form-field {
+  margin-bottom: 18px;
+}
+
+.form-field:last-child {
+  margin-bottom: 0;
+}
+
+.form-field__label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hmi-text-label) !important;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-bottom: 7px;
+  /* Remove left border from dark theme */
+  border-left: none !important;
+  padding-left: 0 !important;
+}
+
+/* Keep label accent from dialog body override */
+.dialog-body .form-field__label {
+  border-left: none !important;
+  padding-left: 0 !important;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hmi-text-label) !important;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.form-field__required {
+  color: #EF4444 !important;
+  margin-left: 3px;
+}
+
+.form-field__hint {
+  font-size: 11.5px;
+  color: var(--hmi-text-hint) !important;
+  margin-top: 5px;
+  line-height: 1.45;
+}
+
+.form-field__error {
+  font-size: 11.5px;
+  color: #DC2626 !important;
+  margin-top: 5px;
+  font-weight: 500;
+}
+
+/* ============================================================
+   INPUT FIELDS — ob-input (textarea, select, input)
+   ============================================================ */
+
+/* Reset all dialog-scoped dark overrides */
+.dialog-body .ob-input,
+.dialog-content .ob-input {
+  width: 100%;
+  background: var(--hmi-surface) !important;
+  border: 1.5px solid var(--hmi-border) !important;
+  border-radius: var(--hmi-radius-sm) !important;
+  padding: 9px 13px !important;
+  font-size: 13px;
+  font-family: 'Noto Sans', sans-serif;
+  color: var(--hmi-text) !important;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  box-sizing: border-box;
+  box-shadow: none !important;
+}
+
+.dialog-body .ob-input:hover,
+.dialog-content .ob-input:hover {
+  border-color: var(--hmi-border-hover) !important;
+}
+
+.dialog-body .ob-input:focus,
+.dialog-content .ob-input:focus {
+  border-color: var(--hmi-border-focus) !important;
+  box-shadow: 0 0 0 3px var(--hmi-blue-focus-ring) !important;
+}
+
+.dialog-body .ob-input::placeholder,
+.dialog-content .ob-input::placeholder {
+  color: var(--hmi-text-hint) !important;
+}
+
+/* Textarea */
+.dialog-body textarea.ob-input,
+.dialog-content textarea.ob-input {
+  min-height: 76px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+/* Select — custom arrow using white-clean chevron */
+.dialog-body select.ob-input,
+.dialog-content select.ob-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236B7A8D' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: calc(100% - 12px) 50% !important;
+  background-size: 14px !important;
+  padding-right: 36px !important;
+  cursor: pointer;
+}
+
+.dialog-body select.ob-input option,
+.dialog-content select.ob-input option {
+  background: #ffffff;
+  color: var(--hmi-text);
+}
+
+/* Warning-variant dialogs */
+.dialog-content--warning .dialog-body .ob-input:focus {
+  border-color: #D97706 !important;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15) !important;
+}
+
+/* Danger-variant dialogs */
+.dialog-content--danger .dialog-body .ob-input:focus {
+  border-color: #DC2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
+}
+
+/* ============================================================
+   DIALOG SUMMARY CARD (Alarm detail inside dialogs)
+   ============================================================ */
+.dialog-summary-card {
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  background: var(--hmi-body-bg) !important;
+  border: 1.5px solid var(--hmi-border) !important;
+  border-radius: var(--hmi-radius-sm) !important;
+}
+
+.dialog-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 13px;
+}
+
+.dialog-summary-item__label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--hmi-text-muted) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 2px;
+}
+
+.dialog-summary-item__value {
+  font-size: 13px;
+  color: var(--hmi-text) !important;
+  line-height: 1.35;
+}
+
+.dialog-summary-item__value--mono {
+  font-family: 'Noto Sans Mono', monospace;
+  font-size: 12px;
+}
+
+.dialog-message-block {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hmi-border);
+}
+
+/* ============================================================
+   BATCH TABLE
+   ============================================================ */
+.dialog-batch-table {
+  margin-bottom: 18px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--hmi-surface) !important;
+  border: 1.5px solid var(--hmi-border) !important;
+  border-radius: var(--hmi-radius-sm) !important;
+}
+
+.dialog-batch-table__header,
+.dialog-batch-table__row {
+  display: grid;
+  grid-template-columns: 90px 1fr 150px;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--hmi-border);
+  font-size: 12px;
+}
+
+.dialog-batch-table__header {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--hmi-text-muted) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--hmi-body-bg) !important;
+  position: sticky;
+  top: 0;
+  border-bottom: 2px solid var(--hmi-border) !important;
+}
+
+.dialog-batch-table__row:last-child {
+  border-bottom: none;
+}
+
+.dialog-batch-table__row:hover {
+  background: var(--hmi-blue-light);
+}
+
+.dialog-batch-table__source {
+  font-family: 'Noto Sans Mono', monospace;
+  color: var(--hmi-text) !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.dialog-batch-table__time {
+  font-family: 'Noto Sans Mono', monospace;
+  font-size: 11px;
+  color: var(--hmi-text-muted) !important;
+}
+
+/* ============================================================
+   KBD HINT
+   ============================================================ */
+.dialog-kbd-hint {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--hmi-text-hint) !important;
+  margin-top: 10px;
+}
+
+.dialog-kbd-hint kbd {
+  padding: 2px 7px;
+  background: var(--hmi-body-bg);
+  border: 1px solid var(--hmi-border);
+  border-radius: 4px;
+  font-family: 'Noto Sans Mono', monospace;
+  font-size: 10px;
+  color: var(--hmi-text-label);
+}
+
+/* ============================================================
+   ISA NOTICE BLOCKS (Warning / Danger)
+   ============================================================ */
+.isa-notice {
+  padding: 13px 16px;
+  border-radius: var(--hmi-radius-sm) !important;
+  font-size: 12.5px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  line-height: 1.5;
+}
+
+.isa-notice--warning {
+  background: #FFFBEB !important;
+  border: 1.5px solid #F59E0B !important;
+  border-left: 4px solid #F59E0B !important;
+  color: #78350F !important;
+}
+
+.isa-notice--warning strong {
+  color: #92400E !important;
+}
+
+.isa-notice--danger {
+  background: #FEF2F2 !important;
+  border: 1.5px solid #FCA5A5 !important;
+  border-left: 4px solid #EF4444 !important;
+  color: #7F1D1D !important;
+}
+
+.isa-notice--danger strong {
+  color: #991B1B !important;
+}
+
+/* ============================================================
+   INFO NOTICE
+   ============================================================ */
+.info-notice {
+  font-size: 12px;
+  color: #1e40af !important;
+  padding: 10px 14px;
+  background: #EFF6FF !important;
+  border: 1px solid #BFDBFE !important;
+  border-left: 3px solid var(--hmi-blue) !important;
+  border-radius: var(--hmi-radius-sm) !important;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   DURATION & REASON CHIP BUTTONS
+   ============================================================ */
+.duration-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.duration-custom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hmi-border);
+}
+
+.duration-custom__hint {
+  font-size: 12px;
+  color: var(--hmi-text-hint);
+}
+
+.reason-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+/* Base chip/button style */
+.duration-btn,
+.reason-btn {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--hmi-surface) !important;
+  color: var(--hmi-text-muted) !important;
+  border: 1.5px solid var(--hmi-border) !important;
+  border-radius: 20px !important;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+  font-family: 'Noto Sans', sans-serif;
+  line-height: 1.4;
+}
+
+.duration-btn:hover,
+.reason-btn:hover {
+  background: var(--hmi-blue-light) !important;
+  color: var(--hmi-blue) !important;
+  border-color: var(--hmi-border-hover) !important;
+}
+
+.duration-btn--active {
+  background: var(--hmi-blue) !important;
+  color: #ffffff !important;
+  border-color: var(--hmi-blue) !important;
+  font-weight: 600 !important;
+}
+
+.reason-btn {
+  border-radius: 20px !important;
+  font-size: 11.5px;
+}
+
+.reason-btn--active {
+  background: var(--hmi-blue-light) !important;
+  color: var(--hmi-blue) !important;
+  border-color: var(--hmi-blue) !important;
+  font-weight: 600 !important;
+}
+
+.reason-btn--danger-active {
+  background: #FEF2F2 !important;
+  color: #DC2626 !important;
+  border-color: #FECACA !important;
+}
+
+.reason-btn--block {
+  width: 100%;
+  text-align: left;
+  border-radius: var(--hmi-radius-sm) !important;
+  padding: 9px 14px;
+  font-size: 12.5px;
+}
+
+/* ============================================================
+   CONTEXT MENU
+   ============================================================ */
+.context-menu {
+  background: var(--hmi-surface) !important;
+  border: 1px solid var(--hmi-border) !important;
+  border-radius: var(--hmi-radius-sm) !important;
+  box-shadow: var(--hmi-shadow-menu) !important;
+  min-width: 228px;
+  overflow: hidden;
+}
+
+.context-menu__header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--hmi-border) !important;
+  background: var(--hmi-body-bg) !important;
+}
+
+.context-menu__source {
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: 'Noto Sans Mono', monospace;
+  color: var(--hmi-text) !important;
+  word-break: break-all;
+}
+
+.context-menu__meta {
+  font-size: 11px;
+  color: var(--hmi-text-muted) !important;
+  margin-top: 3px;
+}
+
+.context-menu__body {
+  padding: 4px;
+}
+
+.context-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  font-size: 13px;
+  color: var(--hmi-text) !important;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 5px !important;
+  transition: background 100ms ease;
+  font-family: 'Noto Sans', sans-serif;
+}
+
+.context-menu__item:hover:not(.context-menu__item--disabled) {
+  background: var(--hmi-blue-light) !important;
+  color: var(--hmi-blue) !important;
+}
+
+.context-menu__item--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.context-menu__item--danger {
+  color: var(--hmi-text) !important;
+}
+
+.context-menu__item--danger:hover:not(.context-menu__item--disabled) {
+  background: #FEF2F2 !important;
+  color: #DC2626 !important;
+}
+
+.context-menu__icon {
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.context-menu__label {
+  flex: 1;
+}
+
+.context-menu__shortcut {
+  font-size: 10.5px;
+  color: var(--hmi-text-hint) !important;
+  font-family: 'Noto Sans Mono', monospace;
+}
+
+.context-menu__separator {
+  height: 1px;
+  background: var(--hmi-border) !important;
+  margin: 3px 6px;
+}
+
+/* ============================================================
+   DETAIL PANEL — Side panel slide-in
+   ============================================================ */
+.detail-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 500px;
+  max-width: calc(100% - 60px);
+  background: var(--hmi-surface) !important;
+  border-left: 1px solid var(--hmi-border) !important;
+  box-shadow: var(--hmi-shadow-panel) !important;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.detail-panel-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.28);
+  z-index: 499;
+  cursor: pointer;
+  backdrop-filter: blur(2px);
+}
+
+/* Panel header */
+.detail-panel__header {
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid var(--hmi-border) !important;
+  background: var(--hmi-blue) !important;
+  flex-shrink: 0;
+}
+
+.detail-panel__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.detail-panel__badges {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detail-panel__title {
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'Noto Sans Mono', monospace;
+  color: #FFFFFF !important;
+  word-break: break-all;
+  margin: 0 0 4px;
+  line-height: 1.35;
+}
+
+.detail-panel__meta {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
+/* State banner */
+.detail-panel__state-banner {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--hmi-border) !important;
+  background: var(--hmi-body-bg) !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.detail-panel__state-label {
+  font-size: 10px;
+  color: var(--hmi-text-muted) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 3px;
+}
+
+.detail-panel__state-value {
+  font-size: 12.5px;
+  font-weight: 700;
+  font-family: 'Noto Sans Mono', monospace;
+}
+
+.detail-panel__time-value {
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'Noto Sans Mono', monospace;
+  color: var(--hmi-text) !important;
+}
+
+/* Action bar */
+.detail-panel__actions {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--hmi-border) !important;
+  background: var(--hmi-surface) !important;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+/* Tabs */
+.detail-panel__tabs {
+  display: flex;
+  border-bottom: 1px solid var(--hmi-border) !important;
+  background: var(--hmi-surface) !important;
+  flex-shrink: 0;
+}
+
+.detail-panel__tab {
+  flex: 1;
+  padding: 11px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hmi-text-muted) !important;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: color 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+
+.detail-panel__tab:hover {
+  color: var(--hmi-blue) !important;
+  background: var(--hmi-blue-light);
+}
+
+.detail-panel__tab--active {
+  color: var(--hmi-blue) !important;
+  border-bottom-color: var(--hmi-blue) !important;
+  background: var(--hmi-blue-light);
+}
+
+/* Content area */
+.detail-panel__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  background: var(--hmi-body-bg) !important;
+}
+
+.detail-panel__sections {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ---- Section titles ---- */
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--hmi-blue) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin-bottom: 11px;
+  padding-bottom: 8px;
+  border-bottom: 1.5px solid var(--hmi-blue-light) !important;
+}
+
+/* ---- Property Grid ---- */
+.detail-property-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.detail-property__label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--hmi-text-muted) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 2px;
+  /* Remove dark-theme left border accent */
+  border-left: none !important;
+  padding-left: 0 !important;
+}
+
+.detail-property__value {
+  font-size: 12.5px;
+  color: var(--hmi-text) !important;
+  word-break: break-all;
+  line-height: 1.35;
+}
+
+.detail-property__value--mono {
+  font-family: 'Noto Sans Mono', monospace;
+  font-size: 12px;
+}
+
+/* ---- ob-card inside detail panel ---- */
+.detail-panel .ob-card {
+  background: var(--hmi-surface) !important;
+  border: 1px solid var(--hmi-border) !important;
+  border-radius: var(--hmi-radius-sm) !important;
+  padding: 12px 14px;
+  color: var(--hmi-text) !important;
+}
+
+/* ---- Process value ---- */
+.detail-process-value {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: 'Noto Sans Mono', monospace;
+  color: var(--hmi-text) !important;
+}
+
+.detail-process-unit {
+  font-size: 14px;
+  color: var(--hmi-text-muted) !important;
+  font-family: 'Noto Sans Mono', monospace;
+  margin-left: 8px;
+}
+
+/* ---- Message quote ---- */
+.detail-message-quote {
+  font-style: italic;
+  color: var(--hmi-text) !important;
+}
+
+/* ---- Empty state ---- */
+.detail-empty-state {
+  text-align: center;
+  padding: 32px;
+  color: var(--hmi-text-muted) !important;
+  font-size: 13px;
+}
+
+/* ---- OPC attribute rows ---- */
+.opc-attr-row {
+  display: flex;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--hmi-border) !important;
+  font-size: 12px;
+  gap: 12px;
+  background: var(--hmi-surface) !important;
+}
+
+.opc-attr-row:last-child {
+  border-bottom: none;
+}
+
+.opc-attr-row:hover {
+  background: var(--hmi-blue-light) !important;
+}
+
+.opc-attr-row__key {
+  color: var(--hmi-blue) !important;
+  font-family: 'Noto Sans Mono', monospace;
+  font-weight: 600;
+  min-width: 140px;
+  flex-shrink: 0;
+}
+
+.opc-attr-row__value {
+  color: var(--hmi-text) !important;
+  font-family: 'Noto Sans Mono', monospace;
+  word-break: break-all;
+}
+
+/* ---- History Timeline ---- */
+.history-timeline {
+  padding-left: 28px;
+  position: relative;
+}
+
+.history-timeline::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--hmi-border);
+}
+
+.history-event {
+  position: relative;
+  margin-bottom: 12px;
+  background: var(--hmi-surface) !important;
+  border: 1px solid var(--hmi-border) !important;
+  border-radius: var(--hmi-radius-sm) !important;
+  padding: 12px 16px;
+  transition: box-shadow 150ms ease;
+}
+
+.history-event:hover {
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.10);
+  border-color: var(--hmi-border-hover) !important;
+}
+
+.history-event__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  gap: 8px;
+}
+
+.history-event__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-event__label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--hmi-text) !important;
+}
+
+.history-event__time {
+  font-size: 11px;
+  font-family: 'Noto Sans Mono', monospace;
+  color: var(--hmi-text-muted) !important;
+  flex-shrink: 0;
+}
+
+.history-event__detail {
+  font-size: 12px;
+  color: var(--hmi-text-muted) !important;
+  line-height: 1.45;
+}
+
+.history-event__dot {
+  position: absolute;
+  left: -21px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--event-color, var(--hmi-blue));
+  border: 2px solid var(--hmi-surface);
+  box-shadow: 0 0 6px var(--event-color, var(--hmi-blue));
+}
+
+.history-event__pill {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--event-color, var(--hmi-blue)) 18%, transparent);
+  color: var(--event-color, var(--hmi-blue));
+  border: 1px solid color-mix(in srgb, var(--event-color, var(--hmi-blue)) 35%, transparent);
+  text-transform: uppercase;
+}
+
+/* ============================================================
+   DETAIL PANEL — Action Buttons Override
+   Reuse hmi button tokens for ObcButton inside panel actions
+   ============================================================ */
+.detail-panel__actions obc-button[variant="raised"],
+.detail-panel__actions obc-button[variant="raised"]::part(button) {
+  background: var(--hmi-blue) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: var(--hmi-radius-sm) !important;
+  font-weight: 600 !important;
+  transition: background 140ms ease !important;
+}
+
+.detail-panel__actions obc-button[variant="raised"]:hover::part(button) {
+  background: var(--hmi-blue-dark) !important;
+}
+
+.detail-panel__actions obc-button[variant="flat"],
+.detail-panel__actions obc-button[variant="flat"]::part(button) {
+  background: var(--hmi-surface) !important;
+  color: #4A5568 !important;
+  border: 1px solid var(--hmi-border) !important;
+  border-radius: var(--hmi-radius-sm) !important;
+  transition: background 140ms ease, border-color 140ms ease !important;
+}
+
+.detail-panel__actions obc-button[variant="flat"]:hover::part(button) {
+  background: var(--hmi-blue-light) !important;
+  color: var(--hmi-blue) !important;
+  border-color: var(--hmi-border-hover) !important;
+}
+
+/* Disabled state */
+.detail-panel__actions obc-button[disabled]::part(button) {
+  background: var(--hmi-body-bg) !important;
+  color: #B0BAC5 !important;
+  border-color: var(--hmi-border) !important;
+  cursor: not-allowed;
+}
+
+/* Panel close button */
+.detail-panel__header obc-button,
+.detail-panel__header obc-button::part(button) {
+  color: rgba(255, 255, 255, 0.85) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  border-radius: 5px !important;
+  transition: background 140ms ease !important;
+}
+
+.detail-panel__header obc-button:hover::part(button) {
+  background: rgba(255, 255, 255, 0.22) !important;
+}
+
+/* ============================================================
+   SCROLLBAR — Light theme inside dialogs and panels
+   ============================================================ */
+.dialog-body::-webkit-scrollbar,
+.detail-panel__content::-webkit-scrollbar,
+.dialog-batch-table::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.dialog-body::-webkit-scrollbar-track,
+.detail-panel__content::-webkit-scrollbar-track,
+.dialog-batch-table::-webkit-scrollbar-track {
+  background: var(--hmi-body-bg);
+  border-radius: 3px;
+}
+
+.dialog-body::-webkit-scrollbar-thumb,
+.detail-panel__content::-webkit-scrollbar-thumb,
+.dialog-batch-table::-webkit-scrollbar-thumb {
+  background: var(--hmi-border);
+  border-radius: 3px;
+}
+
+.dialog-body::-webkit-scrollbar-thumb:hover,
+.detail-panel__content::-webkit-scrollbar-thumb:hover,
+.dialog-batch-table::-webkit-scrollbar-thumb:hover {
+  background: #B0BAC5;
+}

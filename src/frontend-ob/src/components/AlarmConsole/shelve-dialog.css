@@ -1,0 +1,315 @@
+/* =============================================================================
+   shelve-dialog.css
+   Shelve modal overrides — aligned to the hmi-dialogs.css design system.
+   Scoped to .shelve-dialog / .shelve-dialog-overlay so other dialogs are
+   unaffected.
+   ============================================================================= */
+
+/* Stronger backdrop for this elevated action */
+.dialog-overlay.shelve-dialog-overlay {
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+/* Warning accent strip colour */
+.dialog-content.shelve-dialog::before {
+  background: #D97706;
+}
+
+/* Header: amber for warning */
+.dialog-content.shelve-dialog .dialog-header {
+  background: #D97706 !important;
+}
+
+/* Body layout */
+.dialog-content.shelve-dialog .dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--hmi-surface) !important;
+}
+
+/* Footer */
+.dialog-content.shelve-dialog .dialog-footer {
+  background: var(--hmi-body-bg) !important;
+  border-top: 1px solid var(--hmi-border) !important;
+}
+
+/* ---- Alarm context card ---- */
+.shelve-dialog__alarm-card {
+  padding: 13px 16px;
+  background: var(--hmi-body-bg) !important;
+  border: 1.5px solid var(--hmi-border) !important;
+  border-radius: var(--hmi-radius-sm, 6px) !important;
+}
+
+.shelve-dialog__alarm-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.shelve-dialog__alarm-source {
+  flex: 1;
+  min-width: 0;
+  font-family: 'Noto Sans Mono', ui-monospace, monospace;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--hmi-text, #1A202C);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shelve-dialog__alarm-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+
+.shelve-dialog__meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.shelve-dialog__meta-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--hmi-text-muted, #6B7A8D);
+}
+
+.shelve-dialog__meta-value {
+  font-size: 12.5px;
+  color: var(--hmi-text, #1A202C);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shelve-dialog__meta-value--mono {
+  font-family: 'Noto Sans Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+}
+
+.shelve-dialog__alarm-message {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hmi-border, #D5DCE5);
+  font-size: 12px;
+  color: var(--hmi-text-muted, #6B7A8D);
+  line-height: 1.5;
+}
+
+/* ---- Batch list ---- */
+.shelve-dialog__batch {
+  max-height: 140px;
+  overflow-y: auto;
+  background: var(--hmi-surface) !important;
+  border: 1.5px solid var(--hmi-border, #D5DCE5) !important;
+  border-radius: var(--hmi-radius-sm, 6px) !important;
+}
+
+.shelve-dialog__batch-row {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--hmi-border, #D5DCE5);
+  transition: background 100ms ease;
+}
+
+.shelve-dialog__batch-row:last-child {
+  border-bottom: none;
+}
+
+.shelve-dialog__batch-row:hover {
+  background: var(--hmi-blue-light, #EAF3FF);
+}
+
+/* ---- Expiry preview banner ---- */
+.shelve-dialog__expiry-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  background: #FFFBEB !important;
+  border: 1.5px solid #F59E0B !important;
+  border-left: 4px solid #F59E0B !important;
+  border-radius: var(--hmi-radius-sm, 6px) !important;
+  font-size: 12.5px;
+  color: #78350F;
+  line-height: 1.5;
+}
+
+.shelve-dialog__expiry-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.18);
+  color: #D97706;
+  font-size: 14px;
+}
+
+.shelve-dialog__expiry-banner strong {
+  color: #92400E;
+}
+
+/* ---- Form sections ---- */
+.shelve-dialog__section {
+  padding: 15px 16px;
+  background: var(--hmi-body-bg, #F5F7FA) !important;
+  border: 1.5px solid var(--hmi-border, #D5DCE5) !important;
+  border-radius: var(--hmi-radius-sm, 6px) !important;
+}
+
+.shelve-dialog__section .form-field {
+  margin-bottom: 0;
+}
+
+.shelve-dialog__section .form-field + .form-field {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--hmi-border, #D5DCE5);
+}
+
+/* ---- Labels: plain, no border accent ---- */
+.dialog-content.shelve-dialog .dialog-body .form-field__label {
+  border-left: none !important;
+  padding-left: 0 !important;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--hmi-text-label, #374151) !important;
+  margin-bottom: 9px;
+}
+
+.shelve-dialog .form-field__required {
+  color: #EF4444;
+}
+
+.shelve-dialog .form-field__hint {
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--hmi-text-hint, #8A96A3);
+}
+
+.shelve-dialog .form-field__error {
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: #DC2626;
+  font-weight: 500;
+}
+
+/* ---- Inputs: white with blue border ---- */
+.dialog-content.shelve-dialog .dialog-body .ob-input,
+.dialog-content.shelve-dialog .dialog-body .shelve-dialog__input-shell {
+  border: 1.5px solid var(--hmi-border, #D5DCE5) !important;
+  border-radius: var(--hmi-radius-sm, 6px) !important;
+  background: var(--hmi-surface, #FFFFFF) !important;
+  box-shadow: none !important;
+  transition: border-color 150ms ease, box-shadow 150ms ease !important;
+}
+
+.dialog-content.shelve-dialog .dialog-body .ob-input:hover {
+  border-color: var(--hmi-border-hover, #5DA9FF) !important;
+}
+
+.dialog-content.shelve-dialog .dialog-body .ob-input:focus {
+  border-color: var(--hmi-border-focus, #1976D2) !important;
+  box-shadow: 0 0 0 3px var(--hmi-blue-focus-ring, rgba(25, 118, 210, 0.18)) !important;
+  outline: none;
+}
+
+.dialog-content.shelve-dialog .dialog-body textarea.ob-input,
+.dialog-content.shelve-dialog .dialog-body select.ob-input,
+.dialog-content.shelve-dialog .dialog-body input.ob-input {
+  padding: 9px 13px;
+  font-size: 13px;
+  color: var(--hmi-text, #1A202C);
+}
+
+.dialog-content.shelve-dialog .dialog-body .ob-input::placeholder {
+  color: var(--hmi-text-hint, #8A96A3);
+}
+
+/* ---- Bordered picker shells ---- */
+.shelve-dialog .shelve-dialog__input-shell {
+  padding: 11px 13px;
+}
+
+.shelve-dialog .shelve-dialog__input-shell .duration-picker {
+  margin-bottom: 0;
+}
+
+.shelve-dialog .shelve-dialog__duration-custom {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hmi-border, #D5DCE5);
+}
+
+.shelve-dialog .shelve-dialog__inline-input {
+  width: 130px;
+}
+
+.shelve-dialog .shelve-dialog__textarea {
+  margin-top: 10px;
+}
+
+.shelve-dialog .shelve-dialog__input-shell--chips .reason-picker {
+  margin-bottom: 0;
+}
+
+/* ---- Chip buttons inside pickers ---- */
+.shelve-dialog .shelve-dialog__input-shell .duration-btn,
+.shelve-dialog .shelve-dialog__input-shell .reason-btn {
+  background: var(--hmi-surface, #FFFFFF) !important;
+  color: var(--hmi-text-muted, #6B7A8D) !important;
+  border: 1.5px solid var(--hmi-border, #D5DCE5) !important;
+  border-radius: 20px !important;
+}
+
+.shelve-dialog .shelve-dialog__input-shell .duration-btn:hover,
+.shelve-dialog .shelve-dialog__input-shell .reason-btn:hover {
+  background: var(--hmi-blue-light, #EAF3FF) !important;
+  color: var(--hmi-blue, #1976D2) !important;
+  border-color: var(--hmi-border-hover, #5DA9FF) !important;
+}
+
+.shelve-dialog .shelve-dialog__input-shell .duration-btn--active {
+  background: var(--hmi-blue, #1976D2) !important;
+  border-color: var(--hmi-blue, #1976D2) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+.shelve-dialog .shelve-dialog__input-shell .reason-btn--active {
+  background: var(--hmi-blue-light, #EAF3FF) !important;
+  color: var(--hmi-blue, #1976D2) !important;
+  border-color: var(--hmi-blue, #1976D2) !important;
+  font-weight: 600 !important;
+}
+
+/* ---- ISA notice — amber tones inside shelve dialog ---- */
+.shelve-dialog .isa-notice--warning {
+  background: #FFFBEB !important;
+  border: 1.5px solid #F59E0B !important;
+  border-left: 4px solid #D97706 !important;
+  border-radius: var(--hmi-radius-sm, 6px) !important;
+  color: #78350F !important;
+}
+
+.shelve-dialog .isa-notice--warning strong {
+  color: #92400E !important;
+}
