@@ -58,7 +58,32 @@ body {
   display: flex;
   align-items: center;
   gap: var(--spacing-3, 12px);
-  padding-right: var(--spacing-3, 12px);
+  padding: 8px var(--spacing-4, 16px);
+  min-height: 56px;
+}
+
+.app-topbar__brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.app-topbar__brand-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--on-surface-active-color, #1F2937);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.app-topbar__brand-tagline {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--on-surface-neutral-color, #6B7280);
+  letter-spacing: 0.02em;
+  line-height: 1.2;
 }
 
 .app-topbar__inner obc-top-bar {
@@ -69,8 +94,9 @@ body {
 .app-topbar__controls {
   display: flex;
   align-items: center;
-  gap: var(--spacing-2, 8px);
+  gap: var(--spacing-2, 10px);
   flex-shrink: 0;
+  padding: 6px 0;
 }
 
 .app-topbar__status {

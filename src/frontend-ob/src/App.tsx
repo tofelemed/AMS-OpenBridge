@@ -8,8 +8,6 @@ import 'react-toastify/dist/ReactToastify.css';
 import { useAlarmStore } from './store/alarmStore';
 
 // OpenBridge Components
-import { ObcTopBar } from '@oicl/openbridge-webcomponents-react/components/top-bar/top-bar';
-import { ObcAlertButton } from '@oicl/openbridge-webcomponents-react/components/alert-button/alert-button';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 
 // Lazy-loaded pages
@@ -26,14 +24,24 @@ import { LiveEventStream } from './components/shared/LiveEventStream';
 import { FloodAlertBanner } from './components/shared/FloodAlertBanner';
 import { LiveEventsContext } from './context/LiveEventsContext';
 
-// Theme Context
-type Theme = 'day' | 'dusk' | 'night' | 'bright';
+// Theme Context — Day and Bright only
+type Theme = 'day' | 'bright';
 const ThemeContext = createContext<{
   theme: Theme;
   setTheme: (t: Theme) => void;
 }>({ theme: 'day', setTheme: () => {} });
 
 export const useTheme = () => useContext(ThemeContext);
+
+const TB = {
+  blue: '#31598F', blueLight: '#EAF2FF', blueMuted: '#C4D8F0',
+  bg: '#F6F8FB', card: '#FFFFFF', border: '#DDE3EA',
+  text: '#1F2937', textSub: '#6B7280', textMuted: '#9CA3AF',
+  success: '#2E8B57', successBg: '#ECFDF5', successBorder: '#A7F3D0',
+  critical: '#D64545', criticalBg: '#FEF2F2',
+  radiusSm: '8px',
+  shadow: '0 1px 3px rgba(0,0,0,0.07)',
+} as const;
 
 const LIVE_EVENTS_STORAGE_KEY = 'ams-show-live-events';
 
@@ -156,12 +164,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const criticalCount = stats.totalCritical;
   const unackedCount = stats.unacknowledged;
 
-  const handleThemeChange = () => {
-    const themes: Theme[] = ['day', 'dusk', 'night', 'bright'];
-    const currentIndex = themes.indexOf(theme);
-    const nextIndex = (currentIndex + 1) % themes.length;
-    setTheme(themes[nextIndex]);
-  };
+  const isConnected = connSt === 'Connected';
 
   return (
     <LiveEventsContext.Provider value={{ showLiveEvents, toggleLiveEvents }}>
@@ -169,52 +172,112 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       {/* Flood Alert Banner */}
       {floodAlert && <FloodAlertBanner alert={floodAlert} />}
 
-      {/* OpenBridge Top Bar */}
+      {/* Top Bar — custom brand header (no hamburger / no "Page" suffix) */}
       <div className="app-topbar">
         <div className="app-topbar__inner">
-          <ObcTopBar
-            appTitle="AMS"
-            pageTitle="Alarm Management System"
-            showDivider={true}
-          >
-            <div slot="alerts" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              {criticalCount > 0 && (
-                <ObcAlertButton
-                  alert-type="alarm"
-                  count={criticalCount}
-                  acknowledged={false}
-                />
-              )}
-              {unackedCount > 0 && (
-                <ObcAlertButton
-                  alert-type="warning"
-                  count={unackedCount}
-                  acknowledged={false}
-                />
-              )}
-            </div>
-          </ObcTopBar>
+          <div className="app-topbar__brand">
+            <div className="app-topbar__brand-title">Traverse AMS</div>
+            <div className="app-topbar__brand-tagline">Lean Automation</div>
+          </div>
 
           <div className="app-topbar__controls">
-            <ObcButton
-              variant={showLiveEvents ? 'normal' : 'flat'}
-              size="small"
+            {/* Critical / unacked summary (text only — no bell icons) */}
+            {(criticalCount > 0 || unackedCount > 0) && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '5px 12px', borderRadius: TB.radiusSm,
+                background: criticalCount > 0 ? TB.criticalBg : TB.bg,
+                border: `1px solid ${criticalCount > 0 ? '#FCA5A5' : TB.border}`,
+                fontSize: '11.5px', fontWeight: 600,
+              }}>
+                {criticalCount > 0 && (
+                  <span style={{ color: TB.critical }}>
+                    {criticalCount} Critical
+                  </span>
+                )}
+                {criticalCount > 0 && unackedCount > 0 && (
+                  <span style={{ color: TB.textMuted }}>·</span>
+                )}
+                {unackedCount > 0 && (
+                  <span style={{ color: '#B45309' }}>
+                    {unackedCount} Unacked
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Live events toggle */}
+            <button
+              type="button"
               onClick={toggleLiveEvents}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                padding: '7px 14px', fontSize: '12.5px', fontWeight: 600,
+                borderRadius: TB.radiusSm, cursor: 'pointer', fontFamily: 'inherit',
+                border: `1.5px solid ${showLiveEvents ? TB.blueMuted : TB.border}`,
+                background: showLiveEvents ? TB.blueLight : TB.card,
+                color: showLiveEvents ? TB.blue : TB.textSub,
+                transition: 'all 130ms ease',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = TB.blueLight;
+                e.currentTarget.style.color = TB.blue;
+                e.currentTarget.style.borderColor = TB.blueMuted;
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = showLiveEvents ? TB.blueLight : TB.card;
+                e.currentTarget.style.color = showLiveEvents ? TB.blue : TB.textSub;
+                e.currentTarget.style.borderColor = showLiveEvents ? TB.blueMuted : TB.border;
+              }}
             >
               {showLiveEvents ? 'Hide Events' : 'Show Events'}
-            </ObcButton>
+            </button>
 
-            <ObcButton
-              variant="flat"
-              size="small"
-              onClick={handleThemeChange}
-            >
-              {theme.toUpperCase()}
-            </ObcButton>
+            {/* Theme: Day | Bright */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center',
+              background: TB.bg, border: `1px solid ${TB.border}`,
+              borderRadius: TB.radiusSm, padding: '3px', gap: '2px',
+            }}>
+              {(['day', 'bright'] as Theme[]).map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTheme(t)}
+                  style={{
+                    padding: '5px 14px', fontSize: '12px', fontWeight: 700,
+                    borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit',
+                    border: 'none', textTransform: 'capitalize',
+                    background: theme === t ? TB.card : 'transparent',
+                    color: theme === t ? TB.blue : TB.textMuted,
+                    boxShadow: theme === t ? TB.shadow : 'none',
+                    transition: 'all 130ms ease',
+                  }}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
 
-            <div className={`app-topbar__status${connSt === 'Connected' ? ' app-topbar__status--live' : ''}`}>
-              <div className="app-topbar__status-dot" />
-              <span>{connSt === 'Connected' ? 'LIVE' : connSt}</span>
+            {/* Connection status */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '7px',
+              padding: '6px 12px', borderRadius: TB.radiusSm,
+              background: isConnected ? TB.successBg : TB.criticalBg,
+              border: `1px solid ${isConnected ? TB.successBorder : '#FCA5A5'}`,
+            }}>
+              <div style={{
+                width: '8px', height: '8px', borderRadius: '50%',
+                background: isConnected ? TB.success : TB.critical,
+                boxShadow: `0 0 6px ${isConnected ? TB.success : TB.critical}`,
+              }} />
+              <span style={{
+                fontSize: '11px', fontWeight: 700, textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: isConnected ? TB.success : TB.critical,
+              }}>
+                {isConnected ? 'Live' : connSt}
+              </span>
             </div>
           </div>
         </div>
@@ -247,6 +310,11 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           className="live-events-expand-tab"
           onClick={toggleLiveEvents}
           aria-label="Show live events panel"
+          style={{
+            color: TB.blue,
+            background: TB.blueLight,
+            borderColor: TB.blueMuted,
+          }}
         >
           Live Events ▸
         </button>

@@ -787,6 +787,20 @@ const AlarmConsole: React.FC = () => {
   );
 };
 
+// ─── Design tokens for KPI bar ────────────────────────────────────────────────
+
+const KT = {
+  blue:     '#31598F', blueLight: '#EAF2FF', blueMuted: '#C4D8F0',
+  bg:       '#F6F8FB', card:      '#FFFFFF', border:    '#DDE3EA',
+  text:     '#1F2937', textSub:   '#6B7280', textMuted: '#9CA3AF',
+  success:  '#2E8B57', successBg: '#ECFDF5', successBorder: '#A7F3D0',
+  critical: '#D64545', criticalBg:'#FEF2F2', criticalBorder:'#FCA5A5',
+  warning:  '#B45309', warningBg: '#FFFBEB', warningBorder: '#FDE68A',
+  caution:  '#D97706',
+  radiusSm: '8px',
+  shadow:   '0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.05)',
+} as const;
+
 // ─── KPI Summary Bar ──────────────────────────────────────────────────────────
 
 interface KpiSummaryBarProps {
@@ -805,96 +819,123 @@ interface KpiSummaryBarProps {
   connectionState: string;
 }
 
-const KpiSummaryBar: React.FC<KpiSummaryBarProps> = ({ stats, connectionState }) => (
-  <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
-    background: 'var(--container-background-color)',
-    border: '1px solid var(--divider-color)',
-    borderRadius: 'var(--corner-radius, 4px)',
-    padding: '8px 16px',
-    flexWrap: 'nowrap',
-    overflowX: 'auto',
-    whiteSpace: 'nowrap',
-  }}>
-    {/* Total Active — prominent */}
-    <div style={{ display: 'flex', flexDirection: 'column', minWidth: '64px' }}>
-      <span style={{ fontSize: '10px', color: 'var(--on-container-neutral-color)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Active</span>
-      <span style={{ fontSize: '20px', fontWeight: 700, color: 'var(--on-container-active-color)', lineHeight: 1.1 }}>{stats.totalActive}</span>
+const KpiSummaryBar: React.FC<KpiSummaryBarProps> = ({ stats, connectionState }) => {
+  const isConnected = connectionState === 'Connected';
+  const rateHigh    = stats.alarmsPerTenMin > 10;
+  const rateWarn    = stats.alarmsPerTenMin > 5;
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: '4px',
+      background: KT.card, border: `1px solid ${KT.border}`,
+      borderRadius: KT.radiusSm, padding: '0 6px',
+      flexWrap: 'nowrap', overflowX: 'auto', whiteSpace: 'nowrap',
+      boxShadow: KT.shadow, flexShrink: 0,
+    }}>
+      {/* Total Active */}
+      <KpiCell>
+        <span style={{ fontSize: '10px', color: KT.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>Total Active</span>
+        <span style={{ fontSize: '22px', fontWeight: 800, color: KT.text, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{stats.totalActive}</span>
+      </KpiCell>
+
+      <KpiDivider />
+
+      {/* Priority grid */}
+      <div style={{ display: 'flex', gap: '2px', padding: '0 4px' }}>
+        <PriorityPill label="CRIT"  count={stats.totalCritical} bg={KT.criticalBg} color={KT.critical} border={KT.criticalBorder} pulse={stats.totalCritical > 0} />
+        <PriorityPill label="HIGH"  count={stats.totalHigh}     bg={KT.warningBg}  color={KT.warning}  border={KT.warningBorder} />
+        <PriorityPill label="MED"   count={stats.totalMedium}   bg={KT.blueLight}  color={KT.blue}     border={KT.blueMuted} />
+        <PriorityPill label="LOW"   count={stats.totalLow}      bg={KT.bg}         color={KT.textMuted} border={KT.border} />
+      </div>
+
+      <KpiDivider />
+
+      {/* Status cells */}
+      <KpiCell>
+        <span style={{ fontSize: '10px', color: KT.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>Unacked</span>
+        <span style={{
+          fontSize: '16px', fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums',
+          color: stats.unacknowledged > 0 ? KT.warning : KT.success,
+        }}>
+          {stats.unacknowledged}
+        </span>
+      </KpiCell>
+      <KpiCell>
+        <span style={{ fontSize: '10px', color: KT.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>Shelved</span>
+        <span style={{ fontSize: '16px', fontWeight: 700, lineHeight: 1, color: KT.textSub, fontVariantNumeric: 'tabular-nums' }}>{stats.shelved}</span>
+      </KpiCell>
+      <KpiCell>
+        <span style={{ fontSize: '10px', color: KT.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>Suppressed</span>
+        <span style={{ fontSize: '16px', fontWeight: 700, lineHeight: 1, color: KT.textSub, fontVariantNumeric: 'tabular-nums' }}>{stats.suppressed}</span>
+      </KpiCell>
+
+      <KpiDivider />
+
+      {/* Rate */}
+      <KpiCell>
+        <span style={{ fontSize: '10px', color: KT.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>Alarms / 10 min</span>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+          <span style={{
+            fontSize: '22px', fontWeight: 800, lineHeight: 1, fontVariantNumeric: 'tabular-nums',
+            color: rateHigh ? KT.critical : rateWarn ? KT.caution : KT.success,
+          }}>
+            {stats.alarmsPerTenMin.toFixed(1)}
+          </span>
+          <span style={{ fontSize: '10px', color: KT.textMuted }}>/ 10m</span>
+        </div>
+      </KpiCell>
+
+      {/* Connection badge */}
+      <div style={{ marginLeft: 'auto', padding: '0 10px', display: 'flex', alignItems: 'center', gap: '7px', flexShrink: 0 }}>
+        <div style={{
+          width: '8px', height: '8px', borderRadius: '50%',
+          background: isConnected ? KT.success : KT.critical,
+          boxShadow: `0 0 6px ${isConnected ? KT.success : KT.critical}`,
+        }} />
+        <span style={{
+          fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+          color: isConnected ? KT.success : KT.critical,
+        }}>
+          {connectionState}
+        </span>
+      </div>
     </div>
+  );
+};
 
-    <div style={{ width: '1px', height: '32px', background: 'var(--divider-color)', flexShrink: 0 }} />
-
-    {/* Priority breakdown */}
-    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-      <KpiItem label="Critical" count={stats.totalCritical} color="var(--alert-alarm-border-color)" />
-      <KpiItem label="High" count={stats.totalHigh} color="var(--alert-warning-border-color)" />
-      <KpiItem label="Medium" count={stats.totalMedium} color="var(--alert-caution-border-color)" />
-      <KpiItem label="Low" count={stats.totalLow} color="var(--on-container-neutral-color)" />
-    </div>
-
-    <div style={{ width: '1px', height: '32px', background: 'var(--divider-color)', flexShrink: 0 }} />
-
-    {/* Status counts */}
-    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-      <KpiItem label="Unacked" count={stats.unacknowledged} color="var(--alert-warning-border-color)" highlight={stats.unacknowledged > 0} />
-      <KpiItem label="Shelved" count={stats.shelved} color="var(--on-container-neutral-color)" />
-      <KpiItem label="Suppressed" count={stats.suppressed} color="var(--on-container-neutral-color)" />
-    </div>
-
-    <div style={{ width: '1px', height: '32px', background: 'var(--divider-color)', flexShrink: 0 }} />
-
-    {/* Alarm rate */}
-    <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'right', minWidth: '76px' }}>
-      <span style={{ fontSize: '10px', color: 'var(--on-container-neutral-color)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Alarms/10 Min</span>
-      <span style={{
-        fontSize: '20px',
-        fontWeight: 700,
-        lineHeight: 1.1,
-        color: stats.alarmsPerTenMin > 10 ? 'var(--alert-alarm-border-color)' : 'var(--running-color)',
-      }}>{stats.alarmsPerTenMin.toFixed(1)}</span>
-    </div>
-
-    {/* Connection state */}
-    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-      <div style={{
-        width: '8px',
-        height: '8px',
-        borderRadius: '50%',
-        background: connectionState === 'Connected' ? 'var(--running-color)' : 'var(--alert-alarm-border-color)',
-        boxShadow: `0 0 6px ${connectionState === 'Connected' ? 'var(--running-color)' : 'var(--alert-alarm-border-color)'}`,
-      }} />
-      <span style={{
-        fontSize: '11px',
-        fontWeight: 600,
-        textTransform: 'uppercase',
-        color: connectionState === 'Connected' ? 'var(--running-color)' : 'var(--alert-alarm-border-color)',
-      }}>
-        {connectionState}
-      </span>
-    </div>
+const KpiCell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '8px 10px' }}>
+    {children}
   </div>
 );
 
-const KpiItem: React.FC<{ label: string; count: number; color: string; highlight?: boolean }> = ({
-  label, count, color, highlight,
+const KpiDivider: React.FC = () => (
+  <div style={{ width: '1px', height: '32px', background: KT.border, flexShrink: 0 }} />
+);
+
+const PriorityPill: React.FC<{ label: string; count: number; bg: string; color: string; border: string; pulse?: boolean }> = ({
+  label, count, bg, color, border, pulse,
 }) => (
   <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: highlight ? '2px 8px' : '0',
-    background: highlight ? 'var(--alert-warning-background-color)' : 'transparent',
-    border: highlight ? '1px solid var(--alert-warning-border-color)' : 'none',
-    borderRadius: '4px',
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
+    padding: '7px 10px', borderRadius: '6px', minWidth: '48px',
+    background: count > 0 ? bg : KT.bg,
+    border: `1.5px solid ${count > 0 ? border : KT.border}`,
+    transition: 'all 160ms ease',
   }}>
-    <div style={{ width: '3px', height: '14px', background: color, borderRadius: '2px' }} />
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
-      <span style={{ fontSize: '9px', color: 'var(--on-container-neutral-color)', textTransform: 'uppercase', fontWeight: 600 }}>{label}</span>
-      <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--on-container-active-color)' }}>{count}</span>
-    </div>
+    <span style={{ fontSize: '9px', fontWeight: 700, color: count > 0 ? color : KT.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+      {label}
+    </span>
+    <span style={{
+      fontSize: '17px', fontWeight: 800, lineHeight: 1.1,
+      color: count > 0 ? color : KT.textMuted,
+      fontVariantNumeric: 'tabular-nums',
+      textShadow: pulse && count > 0 ? `0 0 8px ${color}66` : 'none',
+    }}>
+      {count}
+    </span>
   </div>
 );
+
 
 export default AlarmConsole;

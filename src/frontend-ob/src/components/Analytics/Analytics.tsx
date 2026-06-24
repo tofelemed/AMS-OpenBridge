@@ -1,9 +1,7 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { AgGridReact } from 'ag-grid-react';
-import type { ColDef } from 'ag-grid-community';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { useAlarmStore } from '../../store/alarmStore';
@@ -492,37 +490,202 @@ const BadActorsTable: React.FC<{ data?: Array<{ sourceName: string; count: numbe
 );
 
 /* ═══════════════════════════════════════
-   DRILL-DOWN AG GRID TABLE
+   DRILL-DOWN TABLE (RCA Explorer)
    ═══════════════════════════════════════ */
-const DrillDownTable: React.FC<{ data: Array<{ sourceName?: string; count?: number; percentage?: number }> }> = ({ data }) => {
-  const columnDefs = useMemo<ColDef[]>(() => [
-    { field: 'sourceName',  headerName: 'Tag / Source',       flex: 2, filter: true },
-    { field: 'count',       headerName: 'Alarm Count',         flex: 1, sortable: true },
-    { field: 'percentage',  headerName: '% Contribution',      flex: 1, valueFormatter: (p: { value: number }) => `${p.value?.toFixed(1)}%` },
-    { headerName: 'Priority Mix',    flex: 2, cellRenderer: () => 'High (40%) / Medium (60%)' },
-    { headerName: 'MTTA (Avg)',       flex: 1, cellRenderer: () => '14.2s' },
-    { headerName: 'Suggested Action', flex: 2,
-      cellRenderer: (p: { data?: { count?: number } }) => (p.data?.count ?? 0) > 500 ? 'Apply 5s ON-delay' : 'Review Setpoint'
-    },
-  ], []);
+type SortKey = 'sourceName' | 'count' | 'percentage' | 'mtta' | 'action';
+type SortDir = 'asc' | 'desc';
 
-  const rowData = data.length > 0 ? data : Array.from({ length: 25 }, (_, i) => ({
-    sourceName: `Unit1.FIC-${100 + i}.PV`,
-    count:      Math.floor(Math.random() * 1000),
-    percentage: Math.random() * 10,
-  }));
+interface RcaRow { sourceName: string; count: number; percentage: number; priorityMix: string; mtta: string; action: string; }
+
+const MOCK_RCA_ROWS: RcaRow[] = Array.from({ length: 25 }, (_, i) => {
+  const count = Math.floor(Math.random() * 900) + 50;
+  const pct   = parseFloat((Math.random() * 9 + 0.5).toFixed(1));
+  return {
+    sourceName:  `Unit1.FIC-${100 + i}.PV`,
+    count,
+    percentage:  pct,
+    priorityMix: i % 3 === 0 ? 'Critical (60%) / High (40%)' : 'High (40%) / Medium (60%)',
+    mtta:        `${(Math.random() * 25 + 5).toFixed(1)}s`,
+    action:      count > 500 ? 'Apply 5s ON-delay' : count > 200 ? 'Adjust setpoint' : 'Review & monitor',
+  };
+});
+
+const DrillDownTable: React.FC<{ data: Array<{ sourceName?: string; count?: number; percentage?: number }> }> = ({ data }) => {
+  const [sortKey, setSortKey] = useState<SortKey>('count');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [page,    setPage]    = useState(0);
+  const [search,  setSearch]  = useState('');
+  const PAGE_SIZE = 10;
+
+  const rows: RcaRow[] = data.length > 0
+    ? data.map(d => ({
+        sourceName:  d.sourceName ?? '—',
+        count:       d.count      ?? 0,
+        percentage:  d.percentage ?? 0,
+        priorityMix: 'High (40%) / Medium (60%)',
+        mtta:        '14.2s',
+        action:      (d.count ?? 0) > 500 ? 'Apply 5s ON-delay' : 'Review setpoint',
+      }))
+    : MOCK_RCA_ROWS;
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return q ? rows.filter(r => r.sourceName.toLowerCase().includes(q) || r.action.toLowerCase().includes(q)) : rows;
+  }, [rows, search]);
+
+  const sorted = useMemo(() => [...filtered].sort((a, b) => {
+    const av = a[sortKey], bv = b[sortKey];
+    const cmp = typeof av === 'number' && typeof bv === 'number'
+      ? av - bv
+      : String(av).localeCompare(String(bv));
+    return sortDir === 'asc' ? cmp : -cmp;
+  }), [filtered, sortKey, sortDir]);
+
+  const pageRows   = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+
+  const toggleSort = (k: SortKey) => {
+    if (k === sortKey) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(k); setSortDir('desc'); }
+    setPage(0);
+  };
+
+  const SortTh: React.FC<{ k: SortKey; label: string; align?: 'right' | 'left' }> = ({ k, label, align = 'left' }) => (
+    <th
+      onClick={() => toggleSort(k)}
+      style={{
+        padding: '11px 14px', textAlign: align,
+        fontSize: '10.5px', fontWeight: 700, color: sortKey === k ? T.blue : T.textMuted,
+        textTransform: 'uppercase', letterSpacing: '0.06em',
+        borderBottom: `1.5px solid ${T.border}`,
+        cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',
+        background: sortKey === k ? T.blueLight : T.bg,
+        transition: 'background 120ms ease',
+      }}
+    >
+      {label} {sortKey === k ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+    </th>
+  );
 
   return (
-    <div className="ag-theme-openbridge" style={{ height: 420, width: '100%' }}>
-      <AgGridReact
-        rowData={rowData}
-        columnDefs={columnDefs}
-        rowSelection="single"
-        animateRows={true}
-        defaultColDef={{ resizable: true, sortable: true }}
-      />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {/* Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: '1 1 220px' }}>
+          <span style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', color: T.textMuted, fontSize: '13px' }}>🔍</span>
+          <input
+            type="text" value={search} onChange={e => { setSearch(e.target.value); setPage(0); }}
+            placeholder="Filter by tag or action…"
+            style={{
+              width: '100%', padding: '8px 12px 8px 32px', fontSize: '13px',
+              border: `1px solid ${T.border}`, borderRadius: T.radiusSm,
+              background: T.card, color: T.textPrimary, fontFamily: 'inherit',
+              outline: 'none', boxSizing: 'border-box',
+            }}
+          />
+        </div>
+        <span style={{ fontSize: '12px', color: T.textMuted, flexShrink: 0 }}>
+          {filtered.length} tags · showing {Math.min(page * PAGE_SIZE + 1, filtered.length)}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)}
+        </span>
+      </div>
+
+      {/* Table */}
+      <div style={{ borderRadius: T.radiusSm, border: `1px solid ${T.border}`, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '700px' }}>
+            <thead>
+              <tr>
+                <th style={{ padding: '11px 14px', textAlign: 'left', fontSize: '10.5px', fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: `1.5px solid ${T.border}`, background: T.bg, width: '32px' }}>#</th>
+                <SortTh k="sourceName"  label="Tag / Source" />
+                <SortTh k="count"       label="Alarm Count"  align="right" />
+                <SortTh k="percentage"  label="% Total"      align="right" />
+                <th style={{ padding: '11px 14px', textAlign: 'left', fontSize: '10.5px', fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: `1.5px solid ${T.border}`, background: T.bg }}>Priority Mix</th>
+                <SortTh k="mtta"        label="MTTA Avg" />
+                <SortTh k="action"      label="Suggested Action" />
+              </tr>
+            </thead>
+            <tbody>
+              {pageRows.map((r, i) => (
+                <tr
+                  key={r.sourceName}
+                  style={{ borderBottom: `1px solid ${T.borderLight}`, background: T.card }}
+                  onMouseEnter={e => (e.currentTarget.style.background = T.blueLight)}
+                  onMouseLeave={e => (e.currentTarget.style.background = T.card)}
+                >
+                  <td style={{ padding: '10px 14px', color: T.textMuted, fontSize: '11px' }}>
+                    {page * PAGE_SIZE + i + 1}
+                  </td>
+                  <td style={{ padding: '10px 14px', fontFamily: "'Noto Sans Mono', monospace", fontWeight: 600, color: T.textPrimary, fontSize: '12px' }}>
+                    {r.sourceName}
+                  </td>
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: T.textPrimary, fontVariantNumeric: 'tabular-nums' }}>
+                    {r.count.toLocaleString()}
+                  </td>
+                  <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                      <div style={{ width: '60px', height: '5px', background: T.bg, borderRadius: 4, border: `1px solid ${T.border}`, overflow: 'hidden' }}>
+                        <div style={{ width: `${Math.min(r.percentage * 10, 100)}%`, height: '100%', background: r.percentage > 5 ? T.critical : T.blue, borderRadius: 4 }} />
+                      </div>
+                      <span style={{ fontWeight: 600, color: r.percentage > 5 ? T.critical : T.blue, minWidth: '38px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        {r.percentage.toFixed(1)}%
+                      </span>
+                    </div>
+                  </td>
+                  <td style={{ padding: '10px 14px', color: T.textSecondary, fontSize: '12px' }}>{r.priorityMix}</td>
+                  <td style={{ padding: '10px 14px', fontFamily: "'Noto Sans Mono', monospace", fontWeight: 600, color: T.blue, fontSize: '12px' }}>
+                    {r.mtta}
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <span style={{
+                      display: 'inline-block', padding: '3px 9px', borderRadius: '20px',
+                      fontSize: '11px', fontWeight: 600,
+                      background: r.action.includes('ON-delay') ? T.criticalBg : r.action.includes('setpoint') ? T.warningBg : T.blueLight,
+                      color: r.action.includes('ON-delay') ? T.critical : r.action.includes('setpoint') ? T.warning : T.blue,
+                    }}>
+                      {r.action}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {pageRows.length === 0 && (
+                <tr><td colSpan={7} style={{ textAlign: 'center', padding: '28px', color: T.textMuted }}>No matching records found.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+          <PaginationBtn onClick={() => setPage(p => p - 1)} disabled={page === 0}>← Prev</PaginationBtn>
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button key={i} onClick={() => setPage(i)} style={{
+              minWidth: '32px', height: '32px', padding: '0 8px',
+              borderRadius: '6px', border: `1.5px solid ${i === page ? T.blue : T.border}`,
+              background: i === page ? T.blue : T.card,
+              color: i === page ? '#fff' : T.textSecondary,
+              fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+            }}>
+              {i + 1}
+            </button>
+          ))}
+          <PaginationBtn onClick={() => setPage(p => p + 1)} disabled={page >= totalPages - 1}>Next →</PaginationBtn>
+        </div>
+      )}
     </div>
   );
 };
+
+const PaginationBtn: React.FC<{ onClick: () => void; disabled: boolean; children: React.ReactNode }> = ({ onClick, disabled, children }) => (
+  <button onClick={onClick} disabled={disabled} style={{
+    padding: '6px 14px', fontSize: '12px', fontWeight: 600,
+    borderRadius: '6px', cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+    border: `1.5px solid ${disabled ? T.borderLight : T.border}`,
+    background: disabled ? T.bg : T.card, color: disabled ? T.textMuted : T.textSecondary,
+  }}>
+    {children}
+  </button>
+);
 
 export default Analytics;

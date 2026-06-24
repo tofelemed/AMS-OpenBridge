@@ -5,88 +5,152 @@ import * as d3 from 'd3';
 import { useAlarmStore, type SoeEvent } from '../../store/alarmStore';
 import { formatTimestampMs } from '../../utils/time';
 
+const T = {
+  blue:          '#31598F',
+  blueLight:     '#EAF2FF',
+  blueMuted:     '#C4D8F0',
+  bg:            '#F6F8FB',
+  card:          '#FFFFFF',
+  border:        '#DDE3EA',
+  borderLight:   '#EEF2F7',
+  textPrimary:   '#1F2937',
+  textSecondary: '#6B7280',
+  textMuted:     '#9CA3AF',
+  success:       '#2E8B57',
+  successBg:     '#ECFDF5',
+  successBorder: '#A7F3D0',
+  warning:       '#B45309',
+  warningBg:     '#FFFBEB',
+  warningBorder: '#FDE68A',
+  critical:      '#D64545',
+  criticalBg:    '#FEF2F2',
+  caution:       '#D97706',
+  radius:        '12px',
+  radiusSm:      '8px',
+  shadow:        '0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.05)',
+} as const;
+
+const PRIORITY_COLOR = {
+  CRITICAL: T.critical,
+  HIGH:     T.caution,
+  MEDIUM:   T.blue,
+  LOW:      T.blueMuted,
+} as Record<string, string>;
+
 const SoePanel: React.FC = () => {
-  const events = useAlarmStore(s => s.recentSoeEvents);
-  const svgRef = useRef<SVGSVGElement>(null);
+  const events    = useAlarmStore(s => s.recentSoeEvents);
+  const svgRef    = useRef<SVGSVGElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!svgRef.current || !wrapperRef.current || events.length === 0) return;
 
-    const width = wrapperRef.current.clientWidth;
-    const height = 400;
-    const margin = { top: 20, right: 30, bottom: 30, left: 200 };
+    const width  = wrapperRef.current.clientWidth;
+    const height = 380;
+    const margin = { top: 24, right: 24, bottom: 36, left: 210 };
 
     d3.select(svgRef.current).selectAll('*').remove();
 
     const svg = d3.select(svgRef.current)
-      .attr('width', width)
-      .attr('height', height);
+      .attr('width', width).attr('height', height)
+      .style('background', 'transparent');
 
     const extent = d3.extent(events, d => d.sourceTimestampEpochMs) as [number, number];
     if (!extent[0] || !extent[1]) return;
-    
+
     const timeDomain = [extent[0] - 1000, extent[1] + 1000];
-
-    const x = d3.scaleTime()
-      .domain(timeDomain)
-      .range([margin.left, width - margin.right]);
-
+    const x = d3.scaleTime().domain(timeDomain).range([margin.left, width - margin.right]);
     const sources = Array.from(new Set(events.map(e => e.sourceName)));
-    const y = d3.scaleBand()
-      .domain(sources)
-      .range([margin.top, height - margin.bottom])
-      .padding(1);
+    const y = d3.scaleBand().domain(sources).range([margin.top, height - margin.bottom]).padding(0.4);
 
-    const xAxis = d3.axisBottom(x)
-      .ticks(10)
-      .tickFormat(d => d3.timeFormat('%H:%M:%S.%L')(d as Date));
-    
-    const xAxisGroup = svg.append('g')
-      .attr('transform', `translate(0,${height - margin.bottom})`)
-      .call(xAxis)
-      .attr('class', 'x-axis');
-
-    svg.append('g')
-      .attr('transform', `translate(${margin.left},0)`)
-      .call(d3.axisLeft(y))
-      .selectAll('text')
-      .style('font-family', "'Noto Sans Mono', monospace")
-      .style('font-size', '11px');
-
+    /* Light grid lines */
     svg.append('g')
       .attr('class', 'grid')
       .attr('transform', `translate(0,${height - margin.bottom})`)
-      .call(d3.axisBottom(x).tickSize(-height + margin.top + margin.bottom).tickFormat(() => ''))
-      .selectAll('line').attr('stroke', 'var(--divider-color)').attr('stroke-dasharray', '2,2');
+      .call(
+        d3.axisBottom(x)
+          .tickSize(-(height - margin.top - margin.bottom))
+          .tickFormat(() => '')
+      )
+      .selectAll('line')
+      .attr('stroke', T.borderLight)
+      .attr('stroke-width', 1);
 
+    svg.select('.grid .domain').remove();
+
+    /* Horizontal lane separators */
+    sources.forEach(src => {
+      svg.append('line')
+        .attr('x1', margin.left).attr('x2', width - margin.right)
+        .attr('y1', y(src)!).attr('y2', y(src)!)
+        .attr('stroke', T.borderLight)
+        .attr('stroke-width', 1);
+    });
+
+    /* X-axis */
+    const xAxisGroup = svg.append('g')
+      .attr('transform', `translate(0,${height - margin.bottom})`)
+      .call(
+        d3.axisBottom(x)
+          .ticks(8)
+          .tickFormat(d => d3.timeFormat('%H:%M:%S')(d as Date))
+      );
+
+    xAxisGroup.selectAll('text')
+      .attr('fill', T.textSecondary)
+      .attr('font-size', '11px');
+    xAxisGroup.select('.domain').attr('stroke', T.border);
+    xAxisGroup.selectAll('.tick line').attr('stroke', T.border);
+
+    /* Y-axis (source names) */
+    const yAxisGroup = svg.append('g')
+      .attr('transform', `translate(${margin.left},0)`)
+      .call(d3.axisLeft(y));
+
+    yAxisGroup.selectAll('text')
+      .attr('fill', T.textSecondary)
+      .attr('font-family', "'Noto Sans Mono', monospace")
+      .attr('font-size', '11px');
+    yAxisGroup.select('.domain').remove();
+    yAxisGroup.selectAll('.tick line').remove();
+
+    /* Zoom behaviour */
     const zoom = d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([1, 100])
+      .scaleExtent([1, 200])
       .translateExtent([[margin.left, 0], [width - margin.right, height]])
       .extent([[margin.left, 0], [width - margin.right, height]])
       .on('zoom', (event) => {
         const newX = event.transform.rescaleX(x);
-        xAxisGroup.call(xAxis.scale(newX));
+        xAxisGroup.call(
+          d3.axisBottom(newX)
+            .ticks(8)
+            .tickFormat(d => d3.timeFormat('%H:%M:%S.%L')(d as Date))
+        );
+        xAxisGroup.selectAll('text').attr('fill', T.textSecondary).attr('font-size', '11px');
         svg.selectAll<SVGCircleElement, SoeEvent>('circle')
           .attr('cx', d => newX(d.sourceTimestampEpochMs));
       });
 
     svg.call(zoom);
 
+    /* Tooltip */
     const tooltip = d3.select(wrapperRef.current)
       .append('div')
-      .attr('class', 'soe-tooltip')
       .style('opacity', 0)
       .style('position', 'absolute')
-      .style('background', 'var(--surface-background-color)')
-      .style('border', '1px solid var(--divider-color)')
-      .style('padding', '12px')
-      .style('border-radius', '4px')
+      .style('background', T.card)
+      .style('border', `1px solid ${T.border}`)
+      .style('border-left', `3px solid ${T.blue}`)
+      .style('padding', '12px 14px')
+      .style('border-radius', T.radiusSm)
       .style('pointer-events', 'none')
-      .style('color', 'var(--on-surface-active-color)')
-      .style('box-shadow', '0 8px 24px rgba(0,0,0,0.4)')
-      .style('z-index', '100');
+      .style('color', T.textPrimary)
+      .style('box-shadow', T.shadow)
+      .style('z-index', '100')
+      .style('min-width', '220px')
+      .style('font-size', '12px');
 
+    /* Event dots */
     svg.selectAll('circle')
       .data(events)
       .enter()
@@ -94,90 +158,195 @@ const SoePanel: React.FC = () => {
       .attr('cx', d => x(d.sourceTimestampEpochMs))
       .attr('cy', d => y(d.sourceName)!)
       .attr('r', 6)
-      .attr('fill', d => {
-        if (d.priority === 'CRITICAL') return 'var(--alert-alarm-border-color)';
-        if (d.priority === 'HIGH') return 'var(--alert-warning-border-color)';
-        return 'var(--focus-color)';
-      })
-      .attr('stroke', 'var(--surface-background-color)')
+      .attr('fill', d => PRIORITY_COLOR[d.priority] ?? T.blue)
+      .attr('stroke', T.card)
       .attr('stroke-width', 2)
+      .style('cursor', 'pointer')
       .on('mouseover', (event, d) => {
-        d3.select(event.currentTarget).attr('r', 9);
-        tooltip.transition().duration(200).style('opacity', .9);
+        d3.select(event.currentTarget).attr('r', 9).attr('stroke-width', 2.5);
+        tooltip.transition().duration(150).style('opacity', 1);
         tooltip.html(`
-          <div style="font-family: 'Noto Sans Mono', monospace; color: var(--focus-color); font-size: 11px; margin-bottom: 4px;">
+          <div style="font-family:'Noto Sans Mono',monospace;color:${T.blue};font-size:11px;margin-bottom:6px">
             ${formatTimestampMs(d.sourceTimestampEpochMs)}
           </div>
-          <strong>${d.sourceName}</strong><br/>
-          ${d.message}<br/>
-          <span style="color: ${d.isOutOfOrder ? 'var(--alert-caution-border-color)' : 'var(--on-container-neutral-color)'}">
-            Seq: ${d.id} ${d.isOutOfOrder ? '(Out of order)' : ''}
-          </span>
+          <div style="font-weight:700;color:${T.textPrimary};margin-bottom:4px">${d.sourceName}</div>
+          <div style="color:${T.textSecondary};margin-bottom:6px">${d.message}</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="padding:2px 8px;border-radius:12px;font-size:10.5px;font-weight:700;
+              background:${PRIORITY_COLOR[d.priority] ?? T.blue}22;
+              color:${PRIORITY_COLOR[d.priority] ?? T.blue}">${d.priority}</span>
+            ${d.isOutOfOrder ? `<span style="color:${T.caution};font-size:11px">⚠ Late arrival</span>` : ''}
+          </div>
         `)
-        .style('left', (event.pageX + 15) + 'px')
-        .style('top', (event.pageY - 28) + 'px');
+          .style('left', `${(event as MouseEvent).pageX + 14}px`)
+          .style('top',  `${(event as MouseEvent).pageY - 32}px`);
       })
       .on('mouseout', (event) => {
-        d3.select(event.currentTarget).attr('r', 6);
-        tooltip.transition().duration(500).style('opacity', 0);
+        d3.select(event.currentTarget).attr('r', 6).attr('stroke-width', 2);
+        tooltip.transition().duration(300).style('opacity', 0);
       });
 
     return () => { tooltip.remove(); };
   }, [events]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 'var(--spacing-4, 16px)' }}>
-      
-      <div className="ob-card" style={{ padding: 'var(--spacing-4, 16px)' }}>
-        <h2 style={{ fontSize: '15px', fontWeight: 600, marginBottom: 'var(--spacing-2, 8px)' }}>Sequence of Events (SOE)</h2>
-        <p style={{ fontSize: '13px', color: 'var(--on-container-neutral-color)' }}>
-          High-precision microsecond timeline for root-cause analysis. Scroll to zoom into millisecond intervals. Pan to navigate time.
-        </p>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', padding: '4px 0' }}>
 
-      <div ref={wrapperRef} className="ob-card" style={{ padding: 'var(--spacing-4, 16px)', position: 'relative' }}>
-        {events.length === 0 ? (
-          <div style={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-container-neutral-color)' }}>
-            Waiting for live SOE events...
-          </div>
-        ) : (
-          <svg ref={svgRef}></svg>
-        )}
-      </div>
-
-      <div className="ob-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ 
-          padding: 'var(--spacing-3, 12px) var(--spacing-4, 16px)', 
-          borderBottom: '1px solid var(--divider-color)', 
-          fontWeight: 600, 
-          fontSize: '13px' 
-        }}>
-          Event Log
+      {/* ── Page header ─────────────────────────── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h1 style={{ fontSize: '28px', fontWeight: 600, margin: 0, color: T.textPrimary, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+            Sequence of Events
+          </h1>
+          <p style={{ color: T.textSecondary, fontSize: '13.5px', margin: '5px 0 0' }}>
+            High-precision microsecond timeline for root-cause analysis. Scroll to zoom · drag to pan.
+          </p>
         </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--spacing-4, 16px)' }}>
-          {events.map((e, i) => (
-            <div 
-              key={`${e.id}-${i}`} 
-              className={`event-item ${
-                e.priority === 'CRITICAL' ? 'event-item--alarm' : 
-                e.priority === 'HIGH' ? 'event-item--warning' : ''
-              }`}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <span style={{ fontWeight: 600 }}>{e.sourceName}</span>
-                <span className="timestamp">{formatTimestampMs(e.sourceTimestampEpochMs)}</span>
-              </div>
-              <div style={{ color: 'var(--on-container-neutral-color)' }}>{e.message}</div>
-              {e.isOutOfOrder && (
-                <div style={{ fontSize: '11px', color: 'var(--alert-caution-border-color)', marginTop: '4px' }}>
-                  ⚠ Corrected late arrival
-                </div>
-              )}
-            </div>
+
+        {/* Legend */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '14px',
+          background: T.card, border: `1px solid ${T.border}`,
+          borderRadius: T.radiusSm, padding: '8px 14px',
+          boxShadow: T.shadow, flexShrink: 0, flexWrap: 'wrap',
+        }}>
+          {Object.entries(PRIORITY_COLOR).map(([p, c]) => (
+            <span key={p} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', fontWeight: 600, color: T.textSecondary }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: c, display: 'inline-block', flexShrink: 0 }} />
+              {p}
+            </span>
           ))}
         </div>
       </div>
 
+      {/* ── Timeline card ──────────────────────── */}
+      <div
+        ref={wrapperRef}
+        style={{
+          background: T.card, border: `1px solid ${T.border}`,
+          borderRadius: T.radius, padding: '18px 20px',
+          position: 'relative', boxShadow: T.shadow,
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: `1.5px solid ${T.border}` }}>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: T.textSecondary, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+            SOE Timeline
+          </span>
+          <span style={{ fontSize: '12px', color: T.textMuted }}>
+            {events.length} event{events.length !== 1 ? 's' : ''} · {events.length > 0 ? 'Live' : 'No data'}
+          </span>
+        </div>
+
+        {events.length === 0 ? (
+          <div style={{
+            height: 380, display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', gap: '12px',
+          }}>
+            <div style={{ fontSize: '36px' }}>📡</div>
+            <div style={{ fontSize: '15px', fontWeight: 600, color: T.textSecondary }}>Waiting for live SOE events</div>
+            <div style={{ fontSize: '13px', color: T.textMuted }}>Events will appear here when the OPC AE server emits alarms</div>
+          </div>
+        ) : (
+          <svg ref={svgRef} style={{ width: '100%', display: 'block' }} />
+        )}
+      </div>
+
+      {/* ── Event log ──────────────────────────── */}
+      <div style={{
+        background: T.card, border: `1px solid ${T.border}`,
+        borderRadius: T.radius, overflow: 'hidden',
+        boxShadow: T.shadow, flex: 1,
+      }}>
+        {/* Log header */}
+        <div style={{
+          padding: '14px 20px',
+          borderBottom: `1.5px solid ${T.border}`,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          background: T.bg,
+        }}>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: T.textSecondary, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+            Event Log
+          </span>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            padding: '4px 10px', borderRadius: '20px',
+            background: events.length > 0 ? T.blueLight : T.bg,
+            border: `1px solid ${events.length > 0 ? T.blueMuted : T.border}`,
+            fontSize: '12px', fontWeight: 600, color: events.length > 0 ? T.blue : T.textMuted,
+          }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: events.length > 0 ? T.blue : T.textMuted, display: 'inline-block' }} />
+            {events.length} events
+          </span>
+        </div>
+
+        {/* Event rows */}
+        <div style={{ overflowY: 'auto', maxHeight: '400px' }}>
+          {events.length === 0 ? (
+            <div style={{ padding: '32px', textAlign: 'center', color: T.textMuted, fontSize: '13px' }}>
+              No SOE events received yet.
+            </div>
+          ) : (
+            events.map((e, i) => {
+              const color = PRIORITY_COLOR[e.priority] ?? T.blue;
+              return (
+                <div
+                  key={`${e.id}-${i}`}
+                  style={{
+                    display: 'flex', alignItems: 'flex-start', gap: '14px',
+                    padding: '13px 20px',
+                    borderBottom: `1px solid ${T.borderLight}`,
+                    background: T.card,
+                    transition: 'background 120ms ease',
+                  }}
+                  onMouseEnter={ev => (ev.currentTarget.style.background = T.blueLight)}
+                  onMouseLeave={ev => (ev.currentTarget.style.background = T.card)}
+                >
+                  {/* Priority dot */}
+                  <div style={{
+                    width: '10px', height: '10px', borderRadius: '50%',
+                    background: color, flexShrink: 0, marginTop: '4px',
+                    boxShadow: e.priority === 'CRITICAL' ? `0 0 6px ${T.critical}88` : 'none',
+                  }} />
+
+                  {/* Content */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '3px' }}>
+                      <span style={{ fontWeight: 700, color: T.textPrimary, fontSize: '13px', fontFamily: "'Noto Sans Mono', monospace", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {e.sourceName}
+                      </span>
+                      <span style={{ fontSize: '11.5px', color: T.textMuted, flexShrink: 0, fontFamily: "'Noto Sans Mono', monospace" }}>
+                        {formatTimestampMs(e.sourceTimestampEpochMs)}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '12.5px', color: T.textSecondary, marginBottom: e.isOutOfOrder ? '4px' : 0 }}>
+                      {e.message}
+                    </div>
+                    {e.isOutOfOrder && (
+                      <div style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '5px',
+                        fontSize: '11px', fontWeight: 600, color: T.caution,
+                        background: T.warningBg, border: `1px solid ${T.warningBorder}`,
+                        padding: '2px 8px', borderRadius: '20px', marginTop: '4px',
+                      }}>
+                        ⚠ Corrected late arrival
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Priority badge */}
+                  <span style={{
+                    padding: '3px 9px', borderRadius: '20px', flexShrink: 0,
+                    fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase',
+                    background: `${color}18`, color, border: `1px solid ${color}44`,
+                  }}>
+                    {e.priority}
+                  </span>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
     </div>
   );
 };
