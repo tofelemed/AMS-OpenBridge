@@ -45,17 +45,43 @@ const CHART_AXIS_STYLE = {
   splitLine: { lineStyle: { color: T.borderLight, type: 'solid' as const } },
 };
 
+interface AnalyticsKpiResponse {
+  hourlyRates?: Array<{ hour?: string; count?: number; rate?: number }>;
+  chatteringCount?: number;
+  fleetingCount?: number;
+  top10ContributionPercent?: number;
+  badActors?: Array<{ sourceName: string; alarmCount?: number; count?: number }>;
+  staleAlarmCount?: number;
+  totalAlarms24h?: number;
+  priorities?: unknown;
+}
+
 const fetchAnalytics = async () => {
-  const res = await axios.get('/api/v1/analytics/kpi', {
+  const res = await axios.get<AnalyticsKpiResponse>('/api/v1/analytics/kpi', {
     headers: { Authorization: `Bearer ${getAuthToken()}` },
   });
-  return res.data;
+  const raw = res.data;
+
+  const badActors = (raw.badActors ?? []).map(a => {
+    const count = a.alarmCount ?? a.count ?? 0;
+    return { sourceName: a.sourceName, count, alarmCount: count };
+  });
+  const badActorTotal = badActors.reduce((sum, a) => sum + a.count, 0);
+
+  return {
+    ...raw,
+    hourlyRates: raw.hourlyRates ?? [],
+    badActors: badActors.map(a => ({
+      ...a,
+      percentage: badActorTotal > 0 ? (a.count / badActorTotal) * 100 : 0,
+    })),
+  };
 };
 
 const Analytics: React.FC = () => {
   const stats = useAlarmStore(s => s.stats);
 
-  const { data } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['alarmAnalytics'],
     queryFn: fetchAnalytics,
     refetchInterval: 60000,
@@ -105,7 +131,12 @@ const Analytics: React.FC = () => {
           <TargetKpi label="Alarms / Shift"     value="142"                  target="Day vs Night tracking" status="info" />
         </div>
         <ChartCard title="Alarm Rate vs Target — Last 24 Hours">
-          <AlarmRateChart data={data?.hourlyRates} />
+          <AlarmRateChart
+            data={data?.hourlyRates}
+            loading={isLoading}
+            error={isError}
+            totalAlarms24h={data?.totalAlarms24h}
+          />
         </ChartCard>
       </AnalyticsSection>
 
@@ -300,55 +331,122 @@ const ChartCard: React.FC<{ title: string; children: React.ReactNode }> = ({ tit
 /* ═══════════════════════════════════════
    ALARM RATE BAR CHART
    ═══════════════════════════════════════ */
-const AlarmRateChart: React.FC<{ data?: Array<{ rate: number }> }> = ({ data }) => {
-  const option = useMemo(() => {
-    const hours  = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
-    const values = data ? data.map(d => d.rate) : Array.from({ length: 24 }, () => Math.random() * 15);
+interface HourlyRatePoint { hour?: string; count?: number; rate?: number; }
 
-    return {
-      backgroundColor: 'transparent',
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(49,89,143,0.06)' } },
-        backgroundColor: T.card,
-        borderColor: T.border,
-        borderWidth: 1,
-        textStyle: { color: T.textPrimary, fontSize: 12 },
+function buildHourlySeries(data?: HourlyRatePoint[]) {
+  const bucketMap = new Map<number, number>();
+  for (const item of data ?? []) {
+    if (!item.hour) continue;
+    const bucketMs = new Date(item.hour).setMinutes(0, 0, 0);
+    bucketMap.set(bucketMs, item.count ?? item.rate ?? 0);
+  }
+
+  const labels: string[] = [];
+  const values: number[] = [];
+  const now = new Date();
+  now.setMinutes(0, 0, 0);
+
+  for (let i = 23; i >= 0; i--) {
+    const d = new Date(now);
+    d.setHours(d.getHours() - i);
+    labels.push(`${String(d.getHours()).padStart(2, '0')}:00`);
+    values.push(bucketMap.get(d.getTime()) ?? 0);
+  }
+
+  return { labels, values, hasData: values.some(v => v > 0) };
+}
+
+const AlarmRateChart: React.FC<{
+  data?: HourlyRatePoint[];
+  loading?: boolean;
+  error?: boolean;
+  totalAlarms24h?: number;
+}> = ({ data, loading, error, totalAlarms24h }) => {
+  const { labels, values, hasData } = useMemo(() => buildHourlySeries(data), [data]);
+
+  const option = useMemo(() => ({
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(49,89,143,0.06)' } },
+      backgroundColor: T.card,
+      borderColor: T.border,
+      borderWidth: 1,
+      textStyle: { color: T.textPrimary, fontSize: 12 },
+      formatter: (params: Array<{ axisValue: string; value: number }>) => {
+        const p = params[0];
+        return `${p.axisValue}<br/><strong>${p.value}</strong> alarms`;
       },
-      grid: { left: 48, right: 24, top: 24, bottom: 36 },
-      xAxis: {
-        type: 'category', data: hours,
-        ...CHART_AXIS_STYLE,
+    },
+    grid: { left: 48, right: 24, top: 24, bottom: 36 },
+    xAxis: {
+      type: 'category', data: labels,
+      ...CHART_AXIS_STYLE,
+    },
+    yAxis: {
+      type: 'value', name: 'Alarms / hr', min: 0,
+      nameTextStyle: { color: T.textMuted, fontSize: 11, padding: [0, 0, 0, 0] },
+      ...CHART_AXIS_STYLE,
+      axisLine: { show: false },
+    },
+    series: [{
+      type: 'bar',
+      data: values,
+      barMaxWidth: 28,
+      itemStyle: {
+        color: (p: { value: number }) =>
+          p.value > 12 ? T.critical
+          : p.value > 6  ? T.caution
+          : T.blue,
+        borderRadius: [3, 3, 0, 0],
       },
-      yAxis: {
-        type: 'value', name: 'Alarms / hr',
-        nameTextStyle: { color: T.textMuted, fontSize: 11, padding: [0, 0, 0, 0] },
-        ...CHART_AXIS_STYLE,
-        axisLine: { show: false },
+      markLine: {
+        silent: true,
+        symbol: 'none',
+        data: [
+          { yAxis: 6,  name: 'ISA Target', lineStyle: { color: T.success,  type: 'dashed', width: 1.5 } },
+          { yAxis: 12, name: 'Max',         lineStyle: { color: T.critical, type: 'dashed', width: 1.5 } },
+        ],
+        label: { position: 'end', color: T.textSecondary, fontSize: 10, formatter: '{b}' },
       },
-      series: [{
-        type: 'bar',
-        data: values,
-        barMaxWidth: 28,
-        itemStyle: {
-          color: (p: { value: number }) =>
-            p.value > 12 ? T.critical
-            : p.value > 6  ? T.caution
-            : T.blue,
-          borderRadius: [3, 3, 0, 0],
-        },
-        markLine: {
-          silent: true,
-          symbol: 'none',
-          data: [
-            { yAxis: 6,  name: 'ISA Target', lineStyle: { color: T.success,  type: 'dashed', width: 1.5 } },
-            { yAxis: 12, name: 'Max',         lineStyle: { color: T.critical, type: 'dashed', width: 1.5 } },
-          ],
-          label: { position: 'end', color: T.textSecondary, fontSize: 10, formatter: '{b}' },
-        },
-      }],
-    };
-  }, [data]);
+    }],
+  }), [labels, values]);
+
+  if (loading) {
+    return (
+      <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.textMuted, fontSize: '13px' }}>
+        Loading hourly alarm rates…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.critical, fontSize: '13px' }}>
+        Failed to load analytics data from /api/v1/analytics/kpi
+      </div>
+    );
+  }
+
+  if (!hasData) {
+    return (
+      <div style={{
+        height: 320, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: '10px',
+        background: T.bg, borderRadius: T.radiusSm,
+        border: `1px dashed ${T.border}`,
+      }}>
+        <div style={{ fontSize: '28px' }}>📊</div>
+        <div style={{ fontSize: '14px', fontWeight: 600, color: T.textSecondary }}>
+          No alarm history in the last 24 hours
+        </div>
+        <div style={{ fontSize: '12.5px', color: T.textMuted, textAlign: 'center', maxWidth: '380px' }}>
+          The API is responding, but there are no alarms in the last 24 hours
+          ({totalAlarms24h ?? 0} total). Historical alarm events will populate this chart automatically.
+        </div>
+      </div>
+    );
+  }
 
   return <ReactECharts option={option} style={{ height: 320 }} />;
 };
@@ -518,14 +616,17 @@ const DrillDownTable: React.FC<{ data: Array<{ sourceName?: string; count?: numb
   const PAGE_SIZE = 10;
 
   const rows: RcaRow[] = data.length > 0
-    ? data.map(d => ({
-        sourceName:  d.sourceName ?? '—',
-        count:       d.count      ?? 0,
-        percentage:  d.percentage ?? 0,
-        priorityMix: 'High (40%) / Medium (60%)',
-        mtta:        '14.2s',
-        action:      (d.count ?? 0) > 500 ? 'Apply 5s ON-delay' : 'Review setpoint',
-      }))
+    ? data.map(d => {
+        const count = d.count ?? (d as { alarmCount?: number }).alarmCount ?? 0;
+        return {
+          sourceName:  d.sourceName ?? '—',
+          count,
+          percentage:  d.percentage ?? 0,
+          priorityMix: 'High (40%) / Medium (60%)',
+          mtta:        '14.2s',
+          action:      count > 500 ? 'Apply 5s ON-delay' : 'Review setpoint',
+        };
+      })
     : MOCK_RCA_ROWS;
 
   const filtered = useMemo(() => {
