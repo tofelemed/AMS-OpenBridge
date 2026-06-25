@@ -1820,6 +1820,99 @@ Week 5 — Phase 6: TLS, ACLs, Prometheus, Grafana dashboards, load test
 
 ---
 
+## Phase 6 — Hardening & Observability (COMPLETED)
+
+### 6.1 Observability Stack
+
+| Component | Image | Port | Role |
+|-----------|-------|------|------|
+| Prometheus | `prom/prometheus:v2.51.2` | 9090 | Time-series metrics store, 15-day retention |
+| Grafana | `grafana/grafana:10.4.2` | 3001 | Dashboards; auto-provisioned Prometheus datasource |
+| redis-exporter | `oliver006/redis_exporter:v1.58.0` | 9121 | Redis → Prometheus bridge |
+| postgres-exporter | `prometheuscommunity/postgres-exporter:v0.15.0` | 9187 | PostgreSQL → Prometheus bridge |
+| kafka-exporter | `danielqsj/kafka-exporter:v1.7.0` | 9308 | Kafka consumer-lag → Prometheus |
+
+**Prometheus scrape targets** (`infra/docker/prometheus.yml`):
+
+| Job | Target | Notes |
+|-----|--------|-------|
+| `prometheus` | localhost:9090 | Self |
+| `ams-api` | ams-api:8000/metrics | ASP.NET middleware |
+| `historian-bff` | historian-bff:8090/metrics | .NET Minimal API |
+| `flink-jobmanager` | flink-jobmanager:9249 | PrometheusReporterFactory |
+| `flink-taskmanager` | flink-taskmanager:9249 | PrometheusReporterFactory |
+| `iotdb` | iotdb:9091/metrics | IoTDB built-in |
+| `emqx` | emqx:18083/api/v5/prometheus/stats | EMQX Dashboard API |
+| `redis` | redis-exporter:9121 | via exporter |
+| `postgres` | postgres-exporter:9187 | via exporter |
+| `kafka` | kafka-exporter:9308 | via exporter |
+
+**Grafana** is auto-provisioned with Prometheus as default datasource via `infra/docker/grafana/provisioning/datasources/prometheus.yml`.
+
+### 6.2 EMQX Security Hardening
+
+- `EMQX_ALLOW_ANONYMOUS: "false"` — anonymous connections rejected.
+- Dashboard credentials via `EMQX_DASHBOARD_USER` / `EMQX_DASHBOARD_PASSWORD` env vars.
+- Sparkplug Edge Node connects with `MQTT_USERNAME` / `MQTT_PASSWORD` (injected into `MqttConnectOptions`).
+- New `.env.example` entries: `EMQX_DASHBOARD_USER`, `EMQX_DASHBOARD_PASSWORD`, `EMQX_EDGE_USER`, `EMQX_EDGE_PASSWORD`.
+
+### 6.3 IoTDB Data Retention
+
+Script: `infra/docker/iotdb-init-ttl.sh` — runs once as `iotdb-init` service after IoTDB is healthy.
+
+| Storage Group | TTL |
+|---------------|-----|
+| `root.ams.site1.alarms` | **365 days** |
+| `root.ams.site1.metrics` | **90 days** |
+
+### 6.4 Flink Checkpoint Hardening
+
+Both `flink-jobmanager` and `flink-taskmanager` updated in `FLINK_PROPERTIES`:
+
+| Setting | Value | Reason |
+|---------|-------|--------|
+| `state.backend` | `rocksdb` | Handles large keyed state (RBE fingerprints) with off-heap memory |
+| `state.backend.incremental` | `true` | Faster checkpoint upload |
+| `execution.checkpointing.interval` | `60 000 ms` | 60-second checkpoint cycle |
+| `execution.checkpointing.min-pause` | `30 000 ms` | Prevents checkpoint storms |
+| `execution.checkpointing.mode` | `EXACTLY_ONCE` | Strong delivery guarantee |
+| `execution.checkpointing.timeout` | `120 000 ms` | 2-minute timeout before checkpoint is aborted |
+| `execution.checkpointing.externalized-checkpoint-retention` | `RETAIN_ON_CANCELLATION` | Allows manual job resume |
+| `metrics.reporter.prom.factory.class` | `PrometheusReporterFactory` | Exposes Flink metrics on `:9249` |
+
+### 6.5 nginx Production Proxy
+
+`src/frontend-ob/nginx.conf` updated with two new upstream blocks:
+
+```nginx
+# Historian BFF — strips /api/hist/ prefix
+location /api/hist/ { rewrite ^/api/hist/(.*)$ /$1 break; proxy_pass http://historian-bff:8090; }
+
+# EMQX WebSocket — upgrades HTTP to WS
+location /mqtt-ws { rewrite ^/mqtt-ws(.*)$ /mqtt$1 break; proxy_pass http://emqx:8083; upgrade; }
+```
+
+`infra/docker/frontend/Dockerfile` updated: `VITE_MQTT_WS_URL`, `VITE_SNAPSHOT_URL`, `VITE_HIST_URL`, `VITE_SPARKPLUG_GROUP`, `VITE_SPARKPLUG_EDGE` passed as build ARGs and embedded at build time.
+
+### 6.6 Startup Commands
+
+```powershell
+# Start observability stack only
+Set-Location "D:\HMI_Project_Usama\AMS-open\infra\docker"
+docker compose up -d prometheus grafana redis-exporter postgres-exporter kafka-exporter
+
+# Initialise IoTDB TTLs (one-shot)
+docker compose up iotdb-init
+
+# Full stack (all phases)
+docker compose up -d
+```
+
+Grafana UI: http://localhost:3001 (admin / value from `GRAFANA_PASSWORD`)
+Prometheus UI: http://localhost:9090
+
+---
+
 ## 8. Key Specification Decisions Made
 
 | Spec §  | Decision |

@@ -1,0 +1,135 @@
+using AMS.HistorianBff;
+using StackExchange.Redis;
+using System.Text.Json;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// ── Services ──────────────────────────────────────────────────────────────
+builder.Services.AddHttpClient<IoTDbClient>();
+builder.Services.AddHealthChecks();
+
+// Redis — used by /snapshot endpoint
+var redisHost = builder.Configuration["Redis:Host"] ?? "redis";
+var redisPort = builder.Configuration.GetValue<int>("Redis:Port", 6379);
+builder.Services.AddSingleton<IConnectionMultiplexer>(
+    ConnectionMultiplexer.Connect($"{redisHost}:{redisPort},abortConnect=false"));
+
+var app = builder.Build();
+
+// ── Health ─────────────────────────────────────────────────────────────────
+app.MapHealthChecks("/health");
+
+// ── GET /trend ─────────────────────────────────────────────────────────────
+// Returns decimated time-series points (≤ width points) for a given series + window.
+// Query params: series, start (ISO-8601), end (ISO-8601), width (px), measurements (csv)
+app.MapGet("/trend", async (
+    string series,
+    DateTimeOffset start,
+    DateTimeOffset end,
+    int width,
+    string? measurements,
+    IoTDbClient iotdb,
+    CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(series))
+        return Results.BadRequest("'series' is required");
+    if (end <= start)
+        return Results.BadRequest("'end' must be after 'start'");
+
+    width = Math.Clamp(width, 10, 2000);
+
+    var sql    = iotdb.BuildTrendSql(series, start, end, width, measurements ?? "");
+    var result = await iotdb.QueryAsync(sql, ct);
+    var points = IoTDbClient.MapPoints(result);
+
+    return Results.Ok(new { series, start, end, width, points });
+});
+
+// ── GET /raw ───────────────────────────────────────────────────────────────
+// Returns raw (non-decimated) records. maxCount capped at 10 000.
+app.MapGet("/raw", async (
+    string series,
+    DateTimeOffset start,
+    DateTimeOffset end,
+    int maxCount,
+    string? measurements,
+    IoTDbClient iotdb,
+    CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(series))
+        return Results.BadRequest("'series' is required");
+
+    maxCount = Math.Clamp(maxCount, 1, 10_000);
+    var sql    = iotdb.BuildRawSql(series, start, end, maxCount, measurements ?? "");
+    var result = await iotdb.QueryAsync(sql, ct);
+    var points = IoTDbClient.MapPoints(result);
+
+    return Results.Ok(new { series, start, end, maxCount, count = points.Count, points });
+});
+
+// ── GET /snapshot ──────────────────────────────────────────────────────────
+// Returns current metric values from Redis for one or more assets (source names).
+// Query params: assets (comma-separated source/device names)
+// Redis key: snapshot:metric:ams_site1:ams_edge1:<device>:<metricName>
+app.MapGet("/snapshot", async (
+    string assets,
+    IConnectionMultiplexer redis,
+    CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(assets))
+        return Results.BadRequest("'assets' is required");
+
+    var assetList = assets.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    var db        = redis.GetDatabase();
+    var group     = builder.Configuration["Sparkplug:Group"] ?? "ams_site1";
+    var edge      = builder.Configuration["Sparkplug:Edge"]  ?? "ams_edge1";
+
+    var result = new Dictionary<string, Dictionary<string, object?>>();
+
+    foreach (var asset in assetList)
+    {
+        var safeAsset = asset.Replace(" ", "_");
+        var pattern   = $"snapshot:metric:{group}:{edge}:{safeAsset}:*";
+
+        // SCAN for keys matching this asset's snapshot prefix
+        var server = redis.GetServer(redis.GetEndPoints().First());
+        var keys   = server.Keys(pattern: pattern).ToArray();
+
+        if (keys.Length == 0) continue;
+
+        var assetMetrics = new Dictionary<string, object?>();
+        foreach (var key in keys)
+        {
+            var metricName = ((string)key!).Split(':').Last();
+            var val        = await db.StringGetAsync(key);
+            if (val.IsNullOrEmpty) continue;
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<JsonElement>(val!);
+                assetMetrics[metricName] = parsed;
+            }
+            catch
+            {
+                assetMetrics[metricName] = (string?)val;
+            }
+        }
+        result[asset] = assetMetrics;
+    }
+
+    return Results.Ok(new { assets = result });
+});
+
+// ── GET /series ────────────────────────────────────────────────────────────
+// Lists available time-series paths (for UI auto-complete).
+app.MapGet("/series", async (
+    string? prefix,
+    IoTDbClient iotdb,
+    CancellationToken ct) =>
+{
+    var path   = string.IsNullOrWhiteSpace(prefix) ? "root.ams.site1.alarms.*" : prefix;
+    var sql    = $"SHOW TIMESERIES {path}";
+    var result = await iotdb.QueryAsync(sql, ct);
+    return Results.Ok(result);
+});
+
+app.Run();

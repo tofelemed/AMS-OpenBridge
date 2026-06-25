@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { useAlarmStore, type AlarmStats } from '../../store/alarmStore';
+import { useMqttStore } from '../../store/mqttStore';
 import { useNavigate } from 'react-router-dom';
 
 /* ─────────────────────────────────────────────
@@ -43,6 +44,19 @@ const Dashboard: React.FC = () => {
   const alarms  = useAlarmStore(s => s.alarms);
   const servers = useAlarmStore(s => s.serverStatuses);
   const navigate = useNavigate();
+
+  // Phase 5 — connect MQTT on dashboard mount; disconnect on unmount
+  const mqttConnect    = useMqttStore(s => s.connect);
+  const mqttDisconnect = useMqttStore(s => s.disconnect);
+  const mqttConnected  = useMqttStore(s => s.connected);
+  const mqttError      = useMqttStore(s => s.error);
+  const liveAlarms     = useMqttStore(s => s.liveAlarms);
+
+  useEffect(() => {
+    mqttConnect();
+    return () => { mqttDisconnect(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const operatorMetrics = useMemo(() => {
     const allAlarms   = Array.from(alarms.values());
@@ -215,6 +229,15 @@ const Dashboard: React.FC = () => {
             {[...servers.values()].map(s => <ServerCard key={s.serverId} server={s} />)}
           </div>
         )}
+      </SectionBlock>
+
+      {/* ── Phase 5 — Live MQTT / Sparkplug B Stream ──────── */}
+      <SectionBlock label="Live MQTT Stream (Sparkplug B)" level={5}>
+        <MqttStatusPanel
+          connected={mqttConnected}
+          error={mqttError}
+          liveAlarms={liveAlarms}
+        />
       </SectionBlock>
 
     </div>
@@ -766,5 +789,131 @@ const EmptyState: React.FC<{ message: string }> = ({ message }) => (
     {message}
   </div>
 );
+
+/* ═══════════════════════════════════════════════════════
+   Phase 5 — MQTT STATUS PANEL
+   Shows live MQTT connection state + Sparkplug B active
+   alarms received via the edge node.
+   ═══════════════════════════════════════════════════════ */
+import type { LiveAlarm } from '../../store/mqttStore';
+
+const PRIORITY_COLOR: Record<string, string> = {
+  CRITICAL:   T.critical,
+  HIGH:       T.caution,
+  MEDIUM:     T.blueMid,
+  LOW:        T.textMuted,
+  DIAGNOSTIC: T.textMuted,
+};
+
+const MqttStatusPanel: React.FC<{
+  connected:  boolean;
+  error:      string | null;
+  liveAlarms: Map<string, LiveAlarm>;
+}> = ({ connected, error, liveAlarms }) => {
+  const activeCount = [...liveAlarms.values()].filter(a => a.conditionActive).length;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+      {/* Connection status row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{
+            width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0,
+            background: connected ? T.success : T.critical,
+            boxShadow: connected ? `0 0 6px ${T.success}` : 'none',
+          }} />
+          <span style={{ fontSize: '13px', fontWeight: 600, color: connected ? T.success : T.critical }}>
+            {connected ? 'Connected to EMQX' : 'Disconnected'}
+          </span>
+        </div>
+        {connected && (
+          <span style={{
+            fontSize: '11px', padding: '2px 10px', borderRadius: '12px',
+            background: T.blueLight, color: T.blue, border: `1px solid ${T.blueMuted}`,
+            fontWeight: 600,
+          }}>
+            spBv1.0/ams_site1 · Sparkplug B
+          </span>
+        )}
+        {activeCount > 0 && (
+          <span style={{
+            fontSize: '11px', padding: '2px 10px', borderRadius: '12px',
+            background: T.criticalBg, color: T.critical, border: `1px solid ${T.criticalBorder}`,
+            fontWeight: 700,
+          }}>
+            {activeCount} live alarm{activeCount !== 1 ? 's' : ''}
+          </span>
+        )}
+        {error && (
+          <span style={{ fontSize: '12px', color: T.critical }}>{error}</span>
+        )}
+      </div>
+
+      {/* Live alarms table */}
+      {liveAlarms.size === 0 ? (
+        <div style={{
+          padding: '20px', textAlign: 'center',
+          color: T.textMuted, fontSize: '12.5px',
+          background: T.bg, borderRadius: T.radiusSm,
+          border: `1px dashed ${T.border}`,
+        }}>
+          {connected
+            ? 'Waiting for Sparkplug B DDATA messages from edge node...'
+            : 'Connect to EMQX to receive live alarm stream.'}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {[...liveAlarms.values()].slice(0, 10).map(alarm => (
+            <div key={alarm.alarmId} style={{
+              display: 'flex', alignItems: 'center', gap: '12px',
+              padding: '10px 14px',
+              background: T.card, border: `1px solid ${T.border}`,
+              borderRadius: T.radiusSm,
+              borderLeft: `3px solid ${PRIORITY_COLOR[alarm.priority] ?? T.border}`,
+            }}>
+              <div style={{
+                width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
+                background: alarm.conditionActive ? (PRIORITY_COLOR[alarm.priority] ?? T.border) : T.success,
+              }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ fontSize: '12.5px', fontWeight: 600, color: T.textPrimary,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                  {alarm.sourceName || alarm.alarmId}
+                </span>
+                {alarm.conditionName && (
+                  <span style={{ fontSize: '11px', color: T.textSecondary }}>{alarm.conditionName}</span>
+                )}
+              </div>
+              <span style={{
+                fontSize: '11px', fontWeight: 700, padding: '2px 8px',
+                borderRadius: '10px', textTransform: 'uppercase', letterSpacing: '0.04em',
+                background: alarm.state === 'CLEARED'       ? T.successBg
+                           : alarm.state === 'ACKNOWLEDGED'  ? T.blueLight
+                           : T.criticalBg,
+                color: alarm.state === 'CLEARED'       ? T.success
+                     : alarm.state === 'ACKNOWLEDGED'  ? T.blue
+                     : T.critical,
+              }}>
+                {alarm.state || 'ACTIVE'}
+              </span>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: PRIORITY_COLOR[alarm.priority] ?? T.textMuted, minWidth: '28px', textAlign: 'right' }}>
+                {alarm.severity > 0 ? alarm.severity : '—'}
+              </span>
+              <span style={{ fontSize: '11px', color: T.textMuted, minWidth: '55px', textAlign: 'right' }}>
+                {new Date(alarm.ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </span>
+            </div>
+          ))}
+          {liveAlarms.size > 10 && (
+            <div style={{ fontSize: '12px', color: T.textMuted, textAlign: 'center', padding: '6px' }}>
+              +{liveAlarms.size - 10} more live alarms
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default Dashboard;

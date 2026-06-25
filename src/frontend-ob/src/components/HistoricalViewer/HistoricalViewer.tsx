@@ -11,6 +11,7 @@ import { PriorityBadge } from '../shared/PriorityBadge';
 import { formatTimestampMs } from '../../utils/time';
 import { mapHistoricalAlarmRow } from '../../api/alarmMappers';
 import { getAuthToken } from '../../api/auth';
+import { useMqttStore, type TrendPoint } from '../../store/mqttStore';
 
 /* Design tokens (shared with Dashboard / Admin) */
 const T = {
@@ -47,6 +48,9 @@ const fetchHistoricalAlarms = async (params: HistoricalQueryParams) => {
 
 const HistoricalViewer: React.FC = () => {
   const gridRef = useRef<AgGridReact>(null);
+
+  // Tab state — 'alarms' (existing Postgres view) | 'trend' (IoTDB via BFF)
+  const [activeTab, setActiveTab] = useState<'alarms' | 'trend'>('alarms');
 
   const [dateRange,     setDateRange]     = useState<[Date | null, Date | null]>([
     new Date(Date.now() - 24 * 60 * 60 * 1000), new Date()
@@ -126,6 +130,29 @@ const HistoricalViewer: React.FC = () => {
         </div>
       </div>
 
+      {/* ── Tab bar ──────────────────────────────── */}
+      <div style={{ display: 'flex', gap: '4px', borderBottom: `2px solid ${T.border}`, paddingBottom: '0' }}>
+        {(['alarms', 'trend'] as const).map(tab => (
+          <button key={tab} onClick={() => setActiveTab(tab)} style={{
+            padding: '8px 20px', fontSize: '13px', fontWeight: 600,
+            border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit',
+            color: activeTab === tab ? T.blue : T.textSecondary,
+            borderBottom: activeTab === tab ? `2px solid ${T.blue}` : '2px solid transparent',
+            marginBottom: '-2px', transition: 'color 130ms ease',
+          }}>
+            {tab === 'alarms' ? '⏱ Alarm Records (PostgreSQL)' : '📈 IoTDB Trend (historian-bff)'}
+          </button>
+        ))}
+      </div>
+
+      {/* ── IoTDB Trend tab ──────────────────────── */}
+      {activeTab === 'trend' && (
+        <IoTDBTrendPanel dateRange={dateRange} setDateRange={setDateRange} />
+      )}
+
+      {/* ── Query toolbar (Alarm Records tab only) ── */}
+      {activeTab === 'alarms' && (
+      <>
       {/* ── Query toolbar ────────────────────────── */}
       <div style={{
         background: T.card,
@@ -249,9 +276,7 @@ const HistoricalViewer: React.FC = () => {
         boxShadow: T.shadow,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '12px', color: T.textMuted }}>
-            Showing page
-          </span>
+          <span style={{ fontSize: '12px', color: T.textMuted }}>Showing page</span>
           <span style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             minWidth: '28px', height: '28px', padding: '0 8px',
@@ -264,16 +289,13 @@ const HistoricalViewer: React.FC = () => {
             · {totalCount.toLocaleString()} total records
           </span>
         </div>
-
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <PaginationBtn onClick={() => setPage(p => p - 1)} disabled={page === 0}>
-            ← Previous
-          </PaginationBtn>
-          <PaginationBtn onClick={() => setPage(p => p + 1)} disabled={!hasNext}>
-            Next →
-          </PaginationBtn>
+          <PaginationBtn onClick={() => setPage(p => p - 1)} disabled={page === 0}>← Previous</PaginationBtn>
+          <PaginationBtn onClick={() => setPage(p => p + 1)} disabled={!hasNext}>Next →</PaginationBtn>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 };
@@ -324,5 +346,161 @@ const PaginationBtn: React.FC<{ onClick: () => void; disabled: boolean; children
     {children}
   </button>
 );
+
+/* ═══════════════════════════════════════════════════════
+   Phase 5 — IoTDB TREND PANEL
+   Calls historian-bff /trend → renders a simple SVG
+   sparkline + table of decimated points.
+   ═══════════════════════════════════════════════════════ */
+const IoTDBTrendPanel: React.FC<{
+  dateRange:    [Date | null, Date | null];
+  setDateRange: (r: [Date | null, Date | null]) => void;
+}> = ({ dateRange, setDateRange }) => {
+  const fetchTrend = useMqttStore(s => s.fetchTrend);
+  const [series,  setSeries]  = useState('root.ams.site1.alarms.*');
+  const [loading, setLoading] = useState(false);
+  const [points,  setPoints]  = useState<TrendPoint[]>([]);
+  const [error,   setError]   = useState<string | null>(null);
+
+  const runQuery = useCallback(async () => {
+    const start = dateRange[0];
+    const end   = dateRange[1];
+    if (!start || !end || !series.trim()) return;
+    setLoading(true); setError(null);
+    try {
+      const pts = await fetchTrend(series.trim(), start, end, 400);
+      setPoints(pts);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [dateRange, series, fetchTrend]);
+
+  // SVG sparkline from severity values
+  const sparkline = useMemo(() => {
+    const severities = points
+      .map(p => typeof p.severity === 'number' ? p.severity : Number(p.severity) || 0)
+      .filter(v => v > 0);
+    if (severities.length < 2) return null;
+    const W = 700, H = 60;
+    const max = Math.max(...severities, 1);
+    const xs = severities.map((_, i) => (i / (severities.length - 1)) * W);
+    const ys = severities.map(v => H - (v / max) * H);
+    return <polyline points={xs.map((x, i) => `${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ')}
+      fill="none" stroke={T.blue} strokeWidth="1.5" />;
+  }, [points]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Toolbar */}
+      <div style={{
+        background: T.card, border: `1px solid ${T.border}`,
+        borderRadius: T.radius, padding: '18px 20px', boxShadow: T.shadow,
+        display: 'flex', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap',
+      }}>
+        <FilterField label="IoTDB Series (path)">
+          <input type="text" className="ob-input"
+            value={series} onChange={e => setSeries(e.target.value)}
+            placeholder="root.ams.site1.alarms.*"
+            style={{ width: '320px' }}
+          />
+        </FilterField>
+        <FilterField label="Time Range">
+          <DatePicker selectsRange startDate={dateRange[0]} endDate={dateRange[1]}
+            onChange={setDateRange} showTimeSelect timeFormat="HH:mm" timeIntervals={15}
+            dateFormat="yyyy-MM-dd HH:mm" className="ob-input" wrapperClassName="date-picker-wrapper"
+          />
+        </FilterField>
+        <button onClick={() => void runQuery()} disabled={loading}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: '7px',
+            background: T.blue, color: '#fff', border: 'none', borderRadius: T.radiusSm,
+            padding: '9px 22px', fontSize: '13px', fontWeight: 600,
+            cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+            opacity: loading ? 0.7 : 1, alignSelf: 'flex-end',
+          }}>
+          {loading ? 'Querying…' : '▶ Fetch Trend'}
+        </button>
+        {points.length > 0 && (
+          <span style={{
+            marginLeft: 'auto', alignSelf: 'flex-end',
+            padding: '7px 14px', background: T.blueLight, border: `1px solid ${T.blueMuted}`,
+            borderRadius: T.radiusSm, fontSize: '12px', fontWeight: 700, color: T.blue,
+          }}>
+            {points.length} points
+          </span>
+        )}
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div style={{ padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: T.radiusSm, color: T.critical, fontSize: '13px' }}>
+          {error}
+        </div>
+      )}
+
+      {/* Sparkline */}
+      {sparkline && (
+        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: '16px 20px', boxShadow: T.shadow }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '10px' }}>
+            Severity over time (decimated — avg per interval)
+          </div>
+          <svg width="100%" viewBox="0 0 700 60" preserveAspectRatio="none" style={{ display: 'block', height: '60px' }}>
+            {sparkline}
+          </svg>
+        </div>
+      )}
+
+      {/* Point table */}
+      {points.length > 0 && (
+        <div style={{
+          background: T.card, border: `1px solid ${T.border}`,
+          borderRadius: T.radius, overflow: 'hidden', boxShadow: T.shadow,
+        }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px' }}>
+              <thead>
+                <tr style={{ background: T.bg, borderBottom: `1px solid ${T.border}` }}>
+                  {['Timestamp', ...Object.keys(points[0] ?? {}).filter(k => k !== 'ts')].map(h => (
+                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {points.slice(0, 200).map((pt, i) => (
+                  <tr key={i} style={{ borderBottom: `1px solid ${T.borderLight}`, background: i % 2 === 0 ? T.card : T.bg }}>
+                    <td style={{ padding: '8px 14px', color: T.textSecondary, fontFamily: 'monospace', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                      {new Date(pt.ts).toLocaleString('en-GB')}
+                    </td>
+                    {Object.entries(pt).filter(([k]) => k !== 'ts').map(([k, v]) => (
+                      <td key={k} style={{ padding: '8px 14px', color: T.textPrimary }}>
+                        {v === null || v === undefined ? <span style={{ color: T.textMuted }}>—</span> : String(v)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {points.length > 200 && (
+            <div style={{ padding: '10px 14px', fontSize: '12px', color: T.textMuted, borderTop: `1px solid ${T.border}` }}>
+              Showing first 200 of {points.length} points
+            </div>
+          )}
+        </div>
+      )}
+
+      {points.length === 0 && !loading && !error && (
+        <div style={{ padding: '40px', textAlign: 'center', color: T.textMuted, fontSize: '13px' }}>
+          <div style={{ fontSize: '28px', marginBottom: '10px', opacity: 0.4 }}>📈</div>
+          Enter an IoTDB series path and click Fetch Trend to query the historian.
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default HistoricalViewer;

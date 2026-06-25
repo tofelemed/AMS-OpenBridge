@@ -6,6 +6,12 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: {
+      '/api/hist': {
+        // Phase 5: Historian BFF — proxied in dev so /api/hist/* hits localhost:8090
+        target:      'http://localhost:8090',
+        changeOrigin: true,
+        rewrite:     (path) => path.replace(/^\/api\/hist/, ''),
+      },
       '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,
@@ -13,6 +19,13 @@ export default defineConfig({
       '/alarmHub': {
         target: 'http://localhost:5000',
         ws: true,
+      },
+      '/mqtt-ws': {
+        // Phase 5: EMQX WebSocket — proxied for dev; prod uses direct VITE_MQTT_WS_URL
+        target:      'ws://localhost:8083',
+        ws:          true,
+        changeOrigin: true,
+        rewrite:     (path) => path.replace(/^\/mqtt-ws/, '/mqtt'),
       },
     },
   },
