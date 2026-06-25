@@ -18,6 +18,13 @@ volumes:
   kafka_0_data:
   zookeeper_data:
   flink-checkpoints:
+  # ── Phase 0: Edge platform historians & brokers ──
+  iotdb-data:
+  iotdb-logs:
+  iotdb-ext:
+  redis-data:
+  emqx-data:
+  emqx-log:
 
 services:
   postgres:
@@ -46,6 +53,110 @@ services:
       timeout: 5s
       retries: 5
       start_period: 180s
+
+  # ─────────────────────────────────────────────
+  # Phase 0 — IoTDB historian (standalone, 1.3.2)
+  # Session API :6667 | REST v2 :8181 | Metrics :9091
+  # ─────────────────────────────────────────────
+  iotdb:
+    image: apache/iotdb:1.3.2-standalone
+    container_name: ams-iotdb
+    <<: *default-restart
+    deploy:
+      resources:
+        limits:
+          cpus: '1.00'
+          memory: 2048M
+    environment:
+      enable_auto_create_schema: "true"
+      IOTDB_JMX_LOCAL: "true"
+    volumes:
+      - iotdb-data:/iotdb/data
+      - iotdb-logs:/iotdb/logs
+      - iotdb-ext:/iotdb/ext
+    ports:
+      - "6667:6667"
+      - "8181:8181"
+      - "9091:9091"
+    networks:
+      - ams-backend
+    healthcheck:
+      # Session API :6667 is always enabled; REST :8181 requires opt-in config
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6667' 2>/dev/null && exit 0 || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+  # ─────────────────────────────────────────────
+  # Phase 0 — Redis state-cache (7.2)
+  # MQTT snapshot + alias registry :6379
+  # ─────────────────────────────────────────────
+  redis:
+    image: redis:7.2-alpine
+    container_name: ams-redis
+    <<: *default-restart
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    command: >
+      redis-server
+      --save 60 1
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 200mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6380:6379"    # host:6380 → container:6379 (6379 taken by Docker backend)
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ─────────────────────────────────────────────
+  # Phase 0 — EMQX MQTT broker (5.6, Sparkplug B)
+  # TCP :1883 | WS :8083 | WSS :8084 | Dashboard :18083
+  # ─────────────────────────────────────────────
+  emqx:
+    image: emqx/emqx:5.6.0
+    container_name: ams-emqx
+    <<: *default-restart
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    environment:
+      EMQX_NAME: "ams-emqx"
+      EMQX_HOST: "127.0.0.1"
+      EMQX_ALLOW_ANONYMOUS: "true"
+      EMQX_LISTENERS__TCP__DEFAULT__BIND: "0.0.0.0:1883"
+      EMQX_LISTENERS__WS__DEFAULT__BIND: "0.0.0.0:8083"
+      EMQX_LOG__CONSOLE__LEVEL: "warning"
+    volumes:
+      - emqx-data:/opt/emqx/data
+      - emqx-log:/opt/emqx/log
+    ports:
+      - "1883:1883"
+      - "8083:8083"
+      - "8084:8084"
+      - "18083:18083"
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD", "/opt/emqx/bin/emqx", "ctl", "status"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -173,6 +284,10 @@ services:
       DB_URL:        jdbc:postgresql://postgres:5432/ams
       DB_USER:       ams_user
       DB_PASS:       ${POSTGRES_PASSWORD:-supersecurepassword123}
+      IOTDB_HOST:    iotdb
+      IOTDB_PORT:    "6667"
+      IOTDB_USER:    root
+      IOTDB_PASS:    root
     volumes:
       - flink-checkpoints:/flink-checkpoints
       - ../../src/flink/target/ams-flink-1.0-SNAPSHOT.jar:/opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar
@@ -209,6 +324,10 @@ services:
       DB_URL:        jdbc:postgresql://postgres:5432/ams
       DB_USER:       ams_user
       DB_PASS:       ${POSTGRES_PASSWORD:-supersecurepassword123}
+      IOTDB_HOST:    iotdb
+      IOTDB_PORT:    "6667"
+      IOTDB_USER:    root
+      IOTDB_PASS:    root
     volumes:
       - flink-checkpoints:/flink-checkpoints
       - ./flink-entrypoint.sh:/opt/flink-entrypoint.sh:ro
@@ -308,3 +427,61 @@ services:
       - "3000:80"
     networks:
       - ams-backend
+
+  # ─────────────────────────────────────────────
+  # Phase 1 — Flink → IoTDB persistence job submit
+  # Submits IoTDBPersistenceJob once stack is healthy
+  # ─────────────────────────────────────────────
+  flink-job-submit-iotdb:
+    image: flink:1.18.1-java11
+    container_name: ams-flink-submit-iotdb
+    depends_on:
+      flink-jobmanager:
+        condition: service_started
+      flink-taskmanager:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      iotdb:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "/opt/flink-submit-iotdb-persistence.sh"]
+    environment:
+      FLINK_JOBMANAGER_HOST:  ams-flink-jobmanager
+      FLINK_JOBMANAGER_PORT:  "8081"
+      KAFKA_BROKERS:          kafka:9092
+      IOTDB_HOST:             iotdb
+      IOTDB_PORT:             "6667"
+      FLINK_JAR_PATH:         /opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar
+    volumes:
+      - ./flink-submit-iotdb-persistence.sh:/opt/flink-submit-iotdb-persistence.sh:ro
+      - ../../src/flink/target/ams-flink-1.0-SNAPSHOT.jar:/opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar:ro
+    networks:
+      - ams-backend
+    restart: "no"
+
+  # ─────────────────────────────────────────────
+  # Phase 2 — Flink live-state job submit
+  # Submits LiveStateJob (live.alarms, live.metrics RBE)
+  # ─────────────────────────────────────────────
+  flink-job-submit-live-state:
+    image: flink:1.18.1-java11
+    container_name: ams-flink-submit-live-state
+    depends_on:
+      flink-jobmanager:
+        condition: service_started
+      flink-taskmanager:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "/opt/flink-submit-live-state.sh"]
+    environment:
+      FLINK_JOBMANAGER_HOST: ams-flink-jobmanager
+      FLINK_JOBMANAGER_PORT: "8081"
+      KAFKA_BROKERS:         kafka:9092
+      FLINK_JAR_PATH:        /opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar
+    volumes:
+      - ./flink-submit-live-state.sh:/opt/flink-submit-live-state.sh:ro
+      - ../../src/flink/target/ams-flink-1.0-SNAPSHOT.jar:/opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar:ro
+    networks:
+      - ams-backend
+    restart: "no"

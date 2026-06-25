@@ -1,0 +1,23 @@
+#!/bin/bash
+# Submits LiveStateJob to Flink — publishes live.alarms and live.metrics (RBE).
+# Called by the flink-job-submit-live-state container (restart: no).
+set -e
+
+JOBMANAGER="${FLINK_JOBMANAGER_HOST:-ams-flink-jobmanager}:${FLINK_JOBMANAGER_PORT:-8081}"
+KAFKA="${KAFKA_BROKERS:-kafka:9092}"
+JAR="${FLINK_JAR_PATH:-/opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar}"
+
+echo "[LiveState-Submit] Waiting for Flink JobManager at http://${JOBMANAGER} ..."
+until curl -sf "http://${JOBMANAGER}/overview" > /dev/null 2>&1; do
+  sleep 3
+done
+echo "[LiveState-Submit] JobManager ready."
+
+echo "[LiveState-Submit] Submitting LiveStateJob ..."
+flink run \
+  -m "http://${JOBMANAGER}" \
+  -c com.ams.flink.LiveStateJob \
+  "${JAR}" \
+  --bootstrap.servers "${KAFKA}"
+
+echo "[LiveState-Submit] Job submitted successfully."

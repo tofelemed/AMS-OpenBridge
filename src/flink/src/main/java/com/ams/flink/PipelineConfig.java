@@ -11,6 +11,13 @@ public final class PipelineConfig {
     public final String dbPass;
     public final String rawAlarmsStartingOffsets;
 
+    // ── Phase 1: IoTDB historian ──
+    public final String iotdbHost;
+    public final int    iotdbPort;
+    public final String iotdbUser;
+    public final String iotdbPass;
+    public final int    iotdbBatchSize;
+
     public final int rawSource;
     public final int validation;
     public final int dedup;
@@ -26,7 +33,8 @@ public final class PipelineConfig {
     private PipelineConfig(
             String brokers, String dbUrl, String dbUser, String dbPass, String rawAlarmsStartingOffsets,
             int rawSource, int validation, int dedup, int enrichment, int soe, int lifecycle,
-            int flood, int kpi, int correlation, int ackProcessor, int projection) {
+            int flood, int kpi, int correlation, int ackProcessor, int projection,
+            String iotdbHost, int iotdbPort, String iotdbUser, String iotdbPass, int iotdbBatchSize) {
         this.brokers = brokers;
         this.dbUrl = dbUrl;
         this.dbUser = dbUser;
@@ -43,6 +51,11 @@ public final class PipelineConfig {
         this.correlation = correlation;
         this.ackProcessor = ackProcessor;
         this.projection = projection;
+        this.iotdbHost      = iotdbHost;
+        this.iotdbPort      = iotdbPort;
+        this.iotdbUser      = iotdbUser;
+        this.iotdbPass      = iotdbPass;
+        this.iotdbBatchSize = iotdbBatchSize;
     }
 
     public static PipelineConfig fromArgs(String[] args) {
@@ -80,7 +93,13 @@ public final class PipelineConfig {
                 parseInt(m, "parallelism.kpi", 1),
                 correlation,
                 ack,
-                projection
+                projection,
+                // IoTDB settings — Phase 1
+                m.getOrDefault("iotdb.host", System.getenv().getOrDefault("IOTDB_HOST", "iotdb")),
+                Integer.parseInt(m.getOrDefault("iotdb.port", System.getenv().getOrDefault("IOTDB_PORT", "6667"))),
+                System.getenv().getOrDefault("IOTDB_USER", "root"),
+                System.getenv().getOrDefault("IOTDB_PASS", "root"),
+                parseInt(m, "iotdb.batch-size", 500)
         );
     }
 

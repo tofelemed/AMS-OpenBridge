@@ -48,6 +48,14 @@
             <artifactId>postgresql</artifactId>
             <version>42.7.3</version>
         </dependency>
+
+        <!-- ── Phase 1: IoTDB historian sink ── -->
+        <!-- Connector version matches IoTDB server 1.3.2; at-least-once, idempotent via (series,ts) -->
+        <dependency>
+            <groupId>org.apache.iotdb</groupId>
+            <artifactId>flink-iotdb-connector</artifactId>
+            <version>1.3.2</version>
+        </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>

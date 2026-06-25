@@ -28,7 +28,14 @@ $allowedTopics = @(
     @{ Name = "alarm.state.delta"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     @{ Name = "alarm.state.active"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=compact,min.insync.replicas=$minIsr" },
     @{ Name = "flink.state.alarm.delta"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "system.state.drift.alerts"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" }
+    @{ Name = "system.state.drift.alerts"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+
+    # ── Phase 0: Edge platform live & telemetry topics ──────────────────────
+    # Live state (Report-By-Exception): Flink LiveStateJob → Sparkplug Edge Node
+    @{ Name = "live.metrics"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
+    @{ Name = "live.alarms";  Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
+    # Raw telemetry (harmonised samples – StreamPipes path, future use)
+    @{ Name = "raw.telemetry.site1"; Partitions = 16; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" }
 )
 
 $legacyTopics = @(
