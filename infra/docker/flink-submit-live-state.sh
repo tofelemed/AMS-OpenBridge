@@ -14,7 +14,7 @@ done
 echo "[LiveState-Submit] JobManager ready."
 
 echo "[LiveState-Submit] Submitting LiveStateJob ..."
-flink run \
+flink run -d \
   -m "http://${JOBMANAGER}" \
   -c com.ams.flink.LiveStateJob \
   "${JAR}" \

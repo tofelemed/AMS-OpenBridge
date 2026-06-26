@@ -2,14 +2,41 @@ import mqtt, { type MqttClient } from 'mqtt';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { enableMapSet } from 'immer';
+import { get as getSparkplugPayload } from 'sparkplug-payload';
 
-// sparkplug-payload has no type defs — decode via its JS API
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const SparkplugPayload = require('sparkplug-payload/lib/sparkplug-b');
+const SparkplugPayload = getSparkplugPayload('spBv1.0');
+if (!SparkplugPayload) {
+  throw new Error('[MqttStore] sparkplug-payload spBv1.0 namespace unavailable');
+}
+const decodeSparkplugPayload = SparkplugPayload.decodePayload.bind(SparkplugPayload);
 
 enableMapSet();
 
-const MQTT_WS_URL  = (import.meta.env.VITE_MQTT_WS_URL  as string | undefined) ?? 'ws://localhost:8083/mqtt';
+/** Resolve MQTT WebSocket URL — supports full ws(s):// URLs and same-origin paths like /mqtt-ws. */
+function resolveMqttWsUrl(): string {
+  const configured = (import.meta.env.VITE_MQTT_WS_URL as string | undefined)?.trim();
+  if (!configured) {
+    return 'ws://localhost:8083/mqtt';
+  }
+  if (/^wss?:\/\//i.test(configured)) {
+    return configured;
+  }
+  // Relative path — nginx/vite proxy on same host (e.g. /mqtt-ws → EMQX /mqtt)
+  if (configured.startsWith('/')) {
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${proto}//${window.location.host}${configured}`;
+  }
+  // host:port without scheme
+  return `ws://${configured}`;
+}
+
+export function getMqttBrokerUrl(): string {
+  if (typeof window === 'undefined') {
+    return (import.meta.env.VITE_MQTT_WS_URL as string | undefined) ?? 'ws://localhost:8083/mqtt';
+  }
+  return resolveMqttWsUrl();
+}
+
 const SNAPSHOT_URL = (import.meta.env.VITE_SNAPSHOT_URL as string | undefined) ?? '/api/hist/snapshot';
 const HIST_URL     = (import.meta.env.VITE_HIST_URL     as string | undefined) ?? '/api/hist';
 const SPARKPLUG_GROUP = 'ams_site1';
@@ -88,7 +115,8 @@ export const useMqttStore = create<MqttStoreState>()(
       connect: () => {
         if (client?.connected) return;
 
-        client = mqtt.connect(MQTT_WS_URL, {
+        const brokerUrl = resolveMqttWsUrl();
+        client = mqtt.connect(brokerUrl, {
           clientId:        `ams-hmi-${Math.random().toString(16).slice(2, 8)}`,
           clean:           true,
           keepalive:       30,
@@ -205,7 +233,7 @@ function handleMessage(
 ) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const decoded: any = SparkplugPayload.decodePayload(payload);
+    const decoded: any = decodeSparkplugPayload(payload);
     const parts  = topic.split('/'); // spBv1.0 / group / VERB / edge [/ device]
     const verb   = parts[2];
     const device = parts[4] ?? '';

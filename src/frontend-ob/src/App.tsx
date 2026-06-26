@@ -11,13 +11,16 @@ import { useAlarmStore } from './store/alarmStore';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 
 // Lazy-loaded pages
-const Dashboard = React.lazy(() => import('./components/Dashboard/Dashboard'));
-const AlarmConsole = React.lazy(() => import('./components/AlarmConsole/AlarmConsole'));
-const Analytics = React.lazy(() => import('./components/Analytics/Analytics'));
+const Dashboard        = React.lazy(() => import('./components/Dashboard/Dashboard'));
+const AlarmConsole     = React.lazy(() => import('./components/AlarmConsole/AlarmConsole'));
+const Analytics        = React.lazy(() => import('./components/Analytics/Analytics'));
 const HistoricalViewer = React.lazy(() => import('./components/HistoricalViewer/HistoricalViewer'));
-const SoePanel = React.lazy(() => import('./components/Soe/SoePanel'));
-const SystemMonitor = React.lazy(() => import('./components/SystemMonitor/SystemMonitor'));
-const Administration = React.lazy(() => import('./components/Administration/Administration'));
+const IoTDBTrendViewer = React.lazy(() => import('./components/IoTDBTrend/IoTDBTrendViewer'));
+const LiveEventsPage   = React.lazy(() => import('./components/LiveEvents/LiveEventsPage'));
+const SoePanel         = React.lazy(() => import('./components/Soe/SoePanel'));
+const SystemMonitor    = React.lazy(() => import('./components/SystemMonitor/SystemMonitor'));
+const EdgeNodeMonitor  = React.lazy(() => import('./components/EdgeNodeMonitor/EdgeNodeMonitor'));
+const Administration   = React.lazy(() => import('./components/Administration/Administration'));
 
 // Shared Components
 import { LiveEventStream } from './components/shared/LiveEventStream';
@@ -121,14 +124,22 @@ const App: React.FC = () => {
             <React.Suspense fallback={<LoadingScreen />}>
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/alarms" element={<AlarmConsole />} />
+                {/* Live Operations */}
+                <Route path="/dashboard"    element={<Dashboard />} />
+                <Route path="/alarms"       element={<AlarmConsole />} />
+                <Route path="/live-events"  element={<LiveEventsPage />} />
+                <Route path="/soe"          element={<SoePanel />} />
+                {/* Historical */}
                 <Route path="/historical" element={<HistoricalViewer />} />
-                <Route path="/analytics" element={<Analytics />} />
-                <Route path="/soe" element={<SoePanel />} />
-                <Route path="/system" element={<SystemMonitor />} />
-                <Route path="/admin/*" element={<Administration />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/trend"      element={<IoTDBTrendViewer />} />
+                {/* Analysis */}
+                <Route path="/analytics"  element={<Analytics />} />
+                {/* Infrastructure */}
+                <Route path="/system"     element={<SystemMonitor />} />
+                <Route path="/edge"       element={<EdgeNodeMonitor />} />
+                {/* Administration */}
+                <Route path="/admin/*"    element={<Administration />} />
+                <Route path="*"           element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </React.Suspense>
           </AppShell>
@@ -324,20 +335,28 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   );
 };
 
-// Navigation items
+// Navigation items — grouped by data source and function
 const navItems = [
-  { path: '/dashboard', label: 'Dashboard', icon: '📊', group: 'Operations' },
-  { path: '/alarms', label: 'Active Alarms', icon: '🔔', group: 'Operations', badge: 'alarms' },
-  { path: '/historical', label: 'Historical Viewer', icon: '📜', group: 'Operations' },
-  { path: '/soe', label: 'Sequence of Events', icon: '⏱️', group: 'Operations' },
-  { path: '/analytics', label: 'Analytics', icon: '📈', group: 'Analysis' },
-  { path: '/system', label: 'System Monitor', icon: '⚙️', group: 'Infrastructure' },
-  { path: '/admin/users', label: 'User Management', icon: '👤', group: 'Administration' },
-  { path: '/admin/alarm-feed', label: 'Alarm Feed', icon: '📡', group: 'Administration' },
-  { path: '/admin/alarm-rules', label: 'Alarm Rules', icon: '📋', group: 'Administration' },
-  { path: '/admin/notifications', label: 'Notifications', icon: '🔔', group: 'Administration' },
-  { path: '/admin/audit', label: 'Audit Log', icon: '📒', group: 'Administration' },
-  { path: '/admin/system', label: 'System Settings', icon: '🔧', group: 'Administration' },
+  // ── Live Operations (SignalR + MQTT real-time) ──────────────
+  { path: '/dashboard',    label: 'Dashboard',          icon: '📊', group: 'Live Operations',  badge: undefined as string | undefined },
+  { path: '/alarms',       label: 'Active Alarms',       icon: '🔔', group: 'Live Operations',  badge: 'alarms' },
+  { path: '/live-events',  label: 'Live Events',         icon: '📡', group: 'Live Operations' },
+  { path: '/soe',          label: 'Sequence of Events',  icon: '⏱',  group: 'Live Operations' },
+  // ── Historical (PostgreSQL + IoTDB) ───────────────────────
+  { path: '/historical', label: 'Alarm History',       icon: '📜', group: 'Historical' },
+  { path: '/trend',      label: 'IoTDB Trend Viewer',  icon: '📈', group: 'Historical' },
+  // ── Analysis ──────────────────────────────────────────────
+  { path: '/analytics',  label: 'Analytics',           icon: '🔬', group: 'Analysis' },
+  // ── Infrastructure (edge + system monitoring) ─────────────
+  { path: '/system',     label: 'System Monitor',      icon: '⚙',  group: 'Infrastructure' },
+  { path: '/edge',       label: 'Edge Node Monitor',   icon: '⬡',  group: 'Infrastructure' },
+  // ── Administration ────────────────────────────────────────
+  { path: '/admin/users',         label: 'User Management',  icon: '👤', group: 'Administration' },
+  { path: '/admin/alarm-feed',    label: 'Alarm Feed',       icon: '📡', group: 'Administration' },
+  { path: '/admin/alarm-rules',   label: 'Alarm Rules',      icon: '📋', group: 'Administration' },
+  { path: '/admin/notifications', label: 'Notifications',    icon: '🔔', group: 'Administration' },
+  { path: '/admin/audit',         label: 'Audit Log',        icon: '📒', group: 'Administration' },
+  { path: '/admin/system',        label: 'System Settings',  icon: '🔧', group: 'Administration' },
 ];
 
 const Sidebar: React.FC<{ unackedCount: number }> = ({ unackedCount }) => {

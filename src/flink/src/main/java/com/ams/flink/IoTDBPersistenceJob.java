@@ -12,6 +12,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.iotdb.flink.IoTDBSink;
 import org.apache.iotdb.flink.options.IoTDBSinkOptions;
 
+import java.util.Collections;
+
 /**
  * Flink job: raw-alarms → Apache IoTDB historian.
  *
@@ -74,7 +76,7 @@ public class IoTDBPersistenceJob {
                 cfg.iotdbPort,
                 cfg.iotdbUser,
                 cfg.iotdbPass,
-                null   // server auto-creates schema; no pre-registration needed
+                Collections.emptyList()   // auto_create_schema on server; empty = no pre-registration
         );
 
         IoTDBSink<IoTDBAlarmRow> sink = new IoTDBSink<>(opts, new AlarmIoTSerializationSchema());
@@ -106,8 +108,8 @@ public class IoTDBPersistenceJob {
                 alarmId = AlarmKeys.stableAlarmId(
                         AlarmKeys.alarmKey(serverId, source, condition, subCond));
             }
-            // Sanitise for IoTDB path: only alphanumerics, underscores and dashes
-            String safePath = alarmId.replaceAll("[^a-zA-Z0-9_\\-]", "_");
+            // Sanitise for IoTDB path: alphanumerics and underscores only (no hyphens/dots)
+            String safePath = alarmId.replaceAll("[^a-zA-Z0-9_]", "_");
             String devicePath = PATH_PREFIX + safePath;
 
             // ── Timestamp ─────────────────────────────────────────────────

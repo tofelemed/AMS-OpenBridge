@@ -6,7 +6,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ── Services ──────────────────────────────────────────────────────────────
 builder.Services.AddHttpClient<IoTDbClient>();
-builder.Services.AddHealthChecks();
 
 // Redis — used by /snapshot endpoint
 var redisHost = builder.Configuration["Redis:Host"] ?? "redis";
@@ -16,8 +15,47 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(
 
 var app = builder.Build();
 
-// ── Health ─────────────────────────────────────────────────────────────────
-app.MapHealthChecks("/health");
+// ── GET /health ─────────────────────────────────────────────────────────────
+// Returns JSON for Edge Node Monitor / observability (default MapHealthChecks writes plain text).
+app.MapGet("/health", async (
+    IoTDbClient iotdb,
+    IConnectionMultiplexer redis,
+    CancellationToken ct) =>
+{
+    var checks = new Dictionary<string, object>();
+    var iotdbStatus = "Healthy";
+    var redisStatus = "Healthy";
+
+    try
+    {
+        await iotdb.QueryAsync("SHOW VERSION", ct);
+        checks["iotdb"] = new { status = "Healthy", description = "IoTDB REST query OK" };
+    }
+    catch (Exception ex)
+    {
+        iotdbStatus = "Unhealthy";
+        checks["iotdb"] = new { status = "Unhealthy", description = ex.Message };
+    }
+
+    try
+    {
+        var db = redis.GetDatabase();
+        var latency = await db.PingAsync();
+        checks["redis"] = new { status = "Healthy", description = $"PING {latency.TotalMilliseconds:F1} ms" };
+    }
+    catch (Exception ex)
+    {
+        redisStatus = "Unhealthy";
+        checks["redis"] = new { status = "Unhealthy", description = ex.Message };
+    }
+
+    var overall = iotdbStatus == "Healthy" && redisStatus == "Healthy" ? "Healthy" : "Degraded";
+    var body = new { status = overall, iotdb = iotdbStatus, redis = redisStatus, checks };
+
+    return overall == "Healthy"
+        ? Results.Json(body)
+        : Results.Json(body, statusCode: StatusCodes.Status503ServiceUnavailable);
+});
 
 // ── GET /trend ─────────────────────────────────────────────────────────────
 // Returns decimated time-series points (≤ width points) for a given series + window.

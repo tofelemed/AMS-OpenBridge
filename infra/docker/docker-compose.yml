@@ -73,6 +73,9 @@ services:
     environment:
       enable_auto_create_schema: "true"
       IOTDB_JMX_LOCAL: "true"
+      # Enable REST API v2 (required by historian-bff / Flink IoTDB connector)
+      enable_rest_service: "true"
+      rest_service_port: "8181"
     volumes:
       - iotdb-data:/iotdb/data
       - iotdb-logs:/iotdb/logs
@@ -84,8 +87,8 @@ services:
     networks:
       - ams-backend
     healthcheck:
-      # Session API :6667 is always enabled; REST :8181 requires opt-in config
-      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6667' 2>/dev/null && exit 0 || exit 1"]
+      # Session :6667 + REST :8181 (historian-bff queries REST v2)
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6667' 2>/dev/null && bash -c 'echo > /dev/tcp/localhost/8181' 2>/dev/null && exit 0 || exit 1"]
       interval: 20s
       timeout: 10s
       retries: 10

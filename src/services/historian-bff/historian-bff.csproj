@@ -9,10 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Redis -->
     <PackageReference Include="StackExchange.Redis" Version="2.7.33" />
-    <!-- Minimal API health checks -->
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="8.0.0" />
   </ItemGroup>
 
 </Project>

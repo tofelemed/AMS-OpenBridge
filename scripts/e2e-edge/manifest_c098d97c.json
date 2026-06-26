@@ -1,0 +1,15 @@
+{
+  "runId": "c098d97c",
+  "alarms": [
+    {
+      "alarmId": "E2E-c098d97c-alarm-001",
+      "sourceName": "E2E.Unit1.Tag_001",
+      "iotdbPath": "root.ams.site1.alarms.E2E_c098d97c_alarm_001"
+    },
+    {
+      "alarmId": "E2E-c098d97c-alarm-002",
+      "sourceName": "E2E.Unit1.Tag_002",
+      "iotdbPath": "root.ams.site1.alarms.E2E_c098d97c_alarm_002"
+    }
+  ]
+}

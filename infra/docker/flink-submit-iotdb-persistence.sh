@@ -22,7 +22,7 @@ done
 echo "[IoTDB-Submit] IoTDB ready."
 
 echo "[IoTDB-Submit] Submitting IoTDBPersistenceJob ..."
-flink run \
+flink run -d \
   -m "http://${JOBMANAGER}" \
   -c com.ams.flink.IoTDBPersistenceJob \
   "${JAR}" \

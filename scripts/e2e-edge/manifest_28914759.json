@@ -1,0 +1,15 @@
+{
+  "runId": "28914759",
+  "alarms": [
+    {
+      "alarmId": "E2E-28914759-alarm-001",
+      "sourceName": "E2E.Unit1.Tag_001",
+      "iotdbPath": "root.ams.site1.alarms.E2E-28914759-alarm-001"
+    },
+    {
+      "alarmId": "E2E-28914759-alarm-002",
+      "sourceName": "E2E.Unit1.Tag_002",
+      "iotdbPath": "root.ams.site1.alarms.E2E-28914759-alarm-002"
+    }
+  ]
+}

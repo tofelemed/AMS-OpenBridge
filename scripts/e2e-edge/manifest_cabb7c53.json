@@ -1,0 +1,15 @@
+{
+  "runId": "cabb7c53",
+  "alarms": [
+    {
+      "alarmId": "E2E-cabb7c53-alarm-001",
+      "sourceName": "E2E.Unit1.Tag_001",
+      "iotdbPath": "root.ams.site1.alarms.E2E-cabb7c53-alarm-001"
+    },
+    {
+      "alarmId": "E2E-cabb7c53-alarm-002",
+      "sourceName": "E2E.Unit1.Tag_002",
+      "iotdbPath": "root.ams.site1.alarms.E2E-cabb7c53-alarm-002"
+    }
+  ]
+}

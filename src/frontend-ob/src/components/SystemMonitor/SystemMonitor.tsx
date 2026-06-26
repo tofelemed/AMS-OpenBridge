@@ -111,19 +111,38 @@ export const SystemMonitor: React.FC = () => {
 
       {/* ── Pipeline flow ───────────────────────── */}
       <MonitorCard title="Pipeline Data Flow" icon="🔄">
-        <div style={{ padding: '20px 0', overflowX: 'auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0', minWidth: '600px' }}>
-            <PipelineNode label="OPC Server"    status="active" sublabel="AE 1.10" />
+        <div style={{ padding: '16px 0', overflowX: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* Row 1 — Alarm live path */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0', minWidth: '700px' }}>
+            <PipelineNode label="OPC / HTTP Feed" status="active"                        sublabel="Ingestion API" />
             <PipelineArrow />
-            <PipelineNode label="Ingestion API" status="active" sublabel="HTTP pull" />
+            <PipelineNode label="Kafka"           status="active"                        sublabel={`${kafkaTput.toFixed(0)} ev/s`} />
             <PipelineArrow />
-            <PipelineNode label="Kafka"         status="active" sublabel={`${kafkaTput.toFixed(0)} ev/s`} />
+            <PipelineNode label="Flink Jobs"      status={flinkOk ? 'active' : 'warning'} sublabel={flinkOk ? 'Running' : 'Degraded'} />
             <PipelineArrow />
-            <PipelineNode label="Flink Jobs"    status={flinkOk ? 'active' : 'warning'} sublabel={flinkOk ? 'Running' : 'Degraded'} />
+            <PipelineNode label="SignalR Hub"     status="active"                        sublabel="WebSocket" />
             <PipelineArrow />
-            <PipelineNode label="SignalR Hub"   status="active" sublabel="WebSocket" />
+            <PipelineNode label="UI — Alarms"     status="active"                        sublabel="alarmStore" />
+          </div>
+          {/* Row 2 — Historian path */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0', minWidth: '700px' }}>
+            <PipelineNode label="Flink IoTDB Job" status="active"  sublabel="raw-alarms" />
             <PipelineArrow />
-            <PipelineNode label="UI Clients"    status="active" sublabel="React" />
+            <PipelineNode label="IoTDB"           status="active"  sublabel=":6667 / :8181" />
+            <PipelineArrow />
+            <PipelineNode label="Historian BFF"   status="active"  sublabel=".NET 8 :8090" />
+            <PipelineArrow />
+            <PipelineNode label="UI — Trend"      status="active"  sublabel="/trend page" />
+          </div>
+          {/* Row 3 — MQTT live path */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0', minWidth: '700px' }}>
+            <PipelineNode label="Flink LiveState" status="active"  sublabel="live.alarms RBE" />
+            <PipelineArrow />
+            <PipelineNode label="Sparkplug Node"  status="active"  sublabel="Tahu / Paho" />
+            <PipelineArrow />
+            <PipelineNode label="EMQX"            status="active"  sublabel="WS :8083" />
+            <PipelineArrow />
+            <PipelineNode label="UI — Dashboard"  status="active"  sublabel="mqttStore" />
           </div>
         </div>
       </MonitorCard>
@@ -181,11 +200,13 @@ export const SystemMonitor: React.FC = () => {
       {/* ── Kafka Topics ────────────────────────── */}
       <MonitorCard title="Kafka Topics" icon="📨">
         <DataTable
-          headers={['Topic', 'Partitions', 'Consumer Lag', 'Msg Rate', 'Status']}
+          headers={['Topic', 'Consumer', 'Consumer Lag', 'Msg Rate', 'Status']}
           rows={[
-            ['ams.raw-alarms',       '6', String(kafkaLag), '125 msg/s', 'Healthy'],
-            ['ams.enriched-alarms',  '6', '0',              '125 msg/s', 'Healthy'],
-            ['ams.audit-events',     '3', '0',              '45 msg/s',  'Healthy'],
+            ['raw-alarms',          'Flink OpcEventStreamJob',  String(kafkaLag), '—',         'Healthy'],
+            ['current-alarm-state', 'Flink LiveStateJob',       '0',              '—',         'Healthy'],
+            ['live.alarms',         'Sparkplug Edge Node',      '0',              '—',         'Healthy'],
+            ['live.metrics',        'Sparkplug Edge Node',      '0',              '—',         'Healthy'],
+            ['raw.telemetry.site1', 'Flink IoTDBPersistenceJob','0',              '—',         'Healthy'],
           ]}
           mono={[true, false, true, true, false]}
           statusCol={4}

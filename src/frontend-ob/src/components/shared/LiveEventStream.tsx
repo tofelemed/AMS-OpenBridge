@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAlarmStore } from '../../store/alarmStore';
 import { formatTimestampMs } from '../../utils/time';
 import { useLiveEventsPanel } from '../../context/LiveEventsContext';
@@ -35,6 +36,7 @@ const PRIORITY_COLOR: Record<string, string> = {
 };
 
 export const LiveEventStream: React.FC = () => {
+  const navigate = useNavigate();
   const events = useAlarmStore(s => s.recentSoeEvents);
   const recentEvents = events.slice(0, 50);
   const { toggleLiveEvents } = useLiveEventsPanel();
@@ -63,24 +65,39 @@ export const LiveEventStream: React.FC = () => {
             Live Events
           </span>
         </div>
-        <button
-          type="button"
-          onClick={toggleLiveEvents}
-          aria-label="Hide live events panel"
-          title="Hide live events panel"
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: '4px',
-            padding: '5px 12px', fontSize: '11.5px', fontWeight: 600,
-            color: T.blue, background: T.blueLight,
-            border: `1px solid ${T.blueMuted}`, borderRadius: T.radiusSm,
-            cursor: 'pointer', fontFamily: 'inherit',
-            transition: 'background 120ms ease',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = T.card)}
-          onMouseLeave={e => (e.currentTarget.style.background = T.blueLight)}
-        >
-          Hide ◂
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button
+            type="button"
+            onClick={() => navigate('/live-events')}
+            title="Open full Live Events page"
+            style={{
+              padding: '5px 10px', fontSize: '11px', fontWeight: 600,
+              color: T.blue, background: T.card,
+              border: `1px solid ${T.blueMuted}`, borderRadius: T.radiusSm,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            Expand ↗
+          </button>
+          <button
+            type="button"
+            onClick={toggleLiveEvents}
+            aria-label="Hide live events panel"
+            title="Hide live events panel"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '4px',
+              padding: '5px 12px', fontSize: '11.5px', fontWeight: 600,
+              color: T.blue, background: T.blueLight,
+              border: `1px solid ${T.blueMuted}`, borderRadius: T.radiusSm,
+              cursor: 'pointer', fontFamily: 'inherit',
+              transition: 'background 120ms ease',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = T.card)}
+            onMouseLeave={e => (e.currentTarget.style.background = T.blueLight)}
+          >
+            Hide ◂
+          </button>
+        </div>
       </div>
 
       {/* Event count strip */}
