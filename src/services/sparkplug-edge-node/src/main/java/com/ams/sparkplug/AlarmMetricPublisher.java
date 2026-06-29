@@ -216,7 +216,7 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
                         .setTimestamp(new Date());
 
         // Declare all known metrics with name + alias
-        for (String metricName : List.of("severity", "state", "acknowledged",
+        for (String metricName : List.of("alarmId", "severity", "state", "acknowledged",
                 "conditionActive", "priority", "sourceName", "conditionName", "message")) {
             long alias = aliases.aliasFor(metricName);
             Object seedValue = seedValue(seedNode, metricName);
@@ -239,6 +239,7 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
 
         // DDATA: alias only (no name) — receiver resolves via DBIRTH alias map
         // Note: Int32 expects Integer, Int64 expects Long — Sparkplug encoder is strict about types
+        addAliasMetric(builder, "alarmId",          MetricDataType.String,  text(node, "alarmId"));
         addAliasMetric(builder, "severity",       MetricDataType.Int32,   intVal(node, "severity", 0));
         addAliasMetric(builder, "state",          MetricDataType.String,  text(node, "state"));
         addAliasMetric(builder, "acknowledged",   MetricDataType.Boolean, boolVal(node, "acknowledged"));
@@ -271,6 +272,7 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
 
         try (Jedis jedis = jedisPool.getResource()) {
             Pipeline pipe = jedis.pipelined();
+            writeSnapshotField(pipe, prefix + "alarmId",          text(node, "alarmId"),             ts);
             writeSnapshotField(pipe, prefix + "severity",       intVal(node, "severity", 0),    ts);
             writeSnapshotField(pipe, prefix + "state",          text(node, "state"),             ts);
             writeSnapshotField(pipe, prefix + "acknowledged",   boolVal(node, "acknowledged"),   ts);

@@ -1,9 +1,14 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Modal } from '../shared/Modal';
 import { PriorityBadge } from '../shared/PriorityBadge';
 import { formatTimestampMs } from '../../utils/time';
+import {
+  buildTrendViewerUrl,
+  resolveHistorianPathForLiveAlarm,
+} from '../../utils/iotdbPaths';
 import { useMqttStore, type LiveAlarm, type LiveMetric } from '../../store/mqttStore';
 
 interface LiveAlarmDetailDialogProps {
@@ -30,7 +35,9 @@ export const LiveAlarmDetailDialog: React.FC<LiveAlarmDetailDialogProps> = ({
   isOpen,
   onClose,
 }) => {
+  const navigate = useNavigate();
   const metrics = useMqttStore(s => s.metrics);
+  const historianPath = alarm ? resolveHistorianPathForLiveAlarm(alarm, metrics) : '';
 
   const deviceMetrics = useMemo(() => {
     if (!alarm) return [] as { name: string; metric: LiveMetric }[];
@@ -57,6 +64,36 @@ export const LiveAlarmDetailDialog: React.FC<LiveAlarmDetailDialogProps> = ({
       variant={variant}
       width="560px"
       icon={<span style={{ fontSize: '20px' }}>⬡</span>}
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', width: '100%' }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              padding: '8px 16px', fontSize: '12.5px', fontWeight: 600,
+              border: '1px solid #DDE3EA', borderRadius: '8px',
+              background: '#fff', color: '#6B7280', cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            Close
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              navigate(buildTrendViewerUrl({ series: historianPath }, { hours: 6, auto: true }));
+            }}
+            style={{
+              padding: '8px 18px', fontSize: '12.5px', fontWeight: 600,
+              border: 'none', borderRadius: '8px',
+              background: '#31598F', color: '#fff', cursor: 'pointer', fontFamily: 'inherit',
+              boxShadow: '0 1px 4px rgba(49,89,143,0.25)',
+            }}
+          >
+            📈 View IoTDB Trend
+          </button>
+        </div>
+      }
     >
       <div className="detail-panel__sections">
         <div style={{
@@ -141,12 +178,14 @@ export const LiveAlarmDetailDialog: React.FC<LiveAlarmDetailDialogProps> = ({
 
         <Section title="Data Path">
           <PropertyGrid>
+            <Property label="IoTDB Device Path" value={historianPath} mono />
             <Property
               label="MQTT Topic"
               value={`spBv1.0/ams_site1/DDATA/ams_edge1/${alarm.alarmId}`}
               mono
             />
-            <Property label="Transport" value="Sparkplug B DDATA → Redis snapshot → HMI" />
+            <Property label="Live path" value="Sparkplug B DDATA → Redis snapshot → HMI" />
+            <Property label="Historian path" value="Flink → IoTDB → Historian BFF /trend" />
           </PropertyGrid>
         </Section>
       </div>

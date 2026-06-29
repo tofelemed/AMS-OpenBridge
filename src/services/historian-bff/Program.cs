@@ -73,6 +73,8 @@ app.MapGet("/trend", async (
         return Results.BadRequest("'series' is required");
     if (end <= start)
         return Results.BadRequest("'end' must be after 'start'");
+    if (series.Contains('*'))
+        return Results.BadRequest("'series' must be a concrete device path for GROUP BY trend (use /series to list devices)");
 
     width = Math.Clamp(width, 10, 2000);
 
@@ -90,19 +92,28 @@ app.MapGet("/raw", async (
     DateTimeOffset start,
     DateTimeOffset end,
     int maxCount,
+    int offset,
     string? measurements,
     IoTDbClient iotdb,
     CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(series))
         return Results.BadRequest("'series' is required");
+    if (series.Contains('*'))
+        return Results.BadRequest("'series' must be a concrete device path (wildcards are not supported for /raw)");
 
-    maxCount = Math.Clamp(maxCount, 1, 10_000);
-    var sql    = iotdb.BuildRawSql(series, start, end, maxCount, measurements ?? "");
+    maxCount = Math.Clamp(maxCount, 1, 500);
+    offset   = Math.Max(0, offset);
+    var sql    = iotdb.BuildRawSql(series, start, end, maxCount, offset, measurements ?? "");
     var result = await iotdb.QueryAsync(sql, ct);
     var points = IoTDbClient.MapPoints(result);
 
-    return Results.Ok(new { series, start, end, maxCount, count = points.Count, points });
+    return Results.Ok(new {
+        series, start, end, maxCount, offset,
+        count = points.Count,
+        hasMore = points.Count == maxCount,
+        points,
+    });
 });
 
 // ── GET /snapshot ──────────────────────────────────────────────────────────

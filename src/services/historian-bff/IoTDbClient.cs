@@ -55,12 +55,14 @@ public sealed class IoTDbClient(HttpClient http, IConfiguration cfg)
                $"GROUP BY ([{startMs},{endMs}), {intervalMs}ms)";
     }
 
-    /// <summary>Raw (non-decimated) query with LIMIT safeguard.</summary>
+    /// <summary>Raw (non-decimated) query with LIMIT/OFFSET for paginated table views.</summary>
     public string BuildRawSql(string series, DateTimeOffset start, DateTimeOffset end,
-                              int maxCount, string measurements)
+                              int maxCount, int offset, string measurements)
     {
         long startMs = start.ToUnixTimeMilliseconds();
         long endMs   = end.ToUnixTimeMilliseconds();
+        int limit    = Math.Clamp(maxCount, 1, 10_000);
+        int skip     = Math.Max(0, offset);
 
         string cols = string.IsNullOrWhiteSpace(measurements)
             ? "severity, state, ack_status, condition_name, source_name, priority"
@@ -68,7 +70,7 @@ public sealed class IoTDbClient(HttpClient http, IConfiguration cfg)
 
         return $"SELECT {cols} FROM {series} " +
                $"WHERE time >= {startMs} AND time < {endMs} " +
-               $"ORDER BY time ASC LIMIT {Math.Min(maxCount, 10_000)}";
+               $"ORDER BY time DESC LIMIT {limit} OFFSET {skip}";
     }
 
     // ── Response mapper ───────────────────────────────────────────────────
@@ -122,8 +124,10 @@ public sealed class IoTDbClient(HttpClient http, IConfiguration cfg)
     {
         // Remove "avg(" / "last_value(" wrappers IoTDB adds to column names
         int paren = col.IndexOf('(');
-        if (paren < 0) return col;
-        return col[(paren + 1)..col.LastIndexOf(')')];
+        var inner = paren < 0 ? col : col[(paren + 1)..col.LastIndexOf(')')];
+        // root.ams.site1.alarms.device.severity → severity
+        int dot = inner.LastIndexOf('.');
+        return dot >= 0 ? inner[(dot + 1)..] : inner;
     }
 
     private static object? JsonElementToValue(JsonElement? el)

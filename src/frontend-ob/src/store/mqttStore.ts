@@ -70,7 +70,16 @@ export interface TrendPoint {
   ts:        number;
   severity?: number;
   state?:    string;
+  priority?: string;
+  ack_status?: boolean | number;
   [key: string]: unknown;
+}
+
+export interface RawTrendPage {
+  points:  TrendPoint[];
+  count:   number;
+  hasMore: boolean;
+  offset:  number;
 }
 
 interface MqttStoreState {
@@ -93,6 +102,7 @@ interface MqttStoreState {
   loadSnapshot:      (assets: string[]) => Promise<void>;
   loadAllSnapshots:  () => Promise<void>;
   fetchTrend:        (series: string, start: Date, end: Date, width?: number) => Promise<TrendPoint[]>;
+  fetchRaw:          (series: string, start: Date, end: Date, maxCount?: number, offset?: number) => Promise<RawTrendPage>;
 }
 
 /** Redis snapshot JSON: { v, q, ts } written by sparkplug-edge-node. */
@@ -277,7 +287,7 @@ export const useMqttStore = create<MqttStoreState>()(
 
       // ── fetchTrend ────────────────────────────────────────────────────────
       // Calls historian-bff /trend for a time-series window.
-      fetchTrend: async (series, start, end, width = 800) => {
+      fetchTrend: async (series, start, end, width = 200) => {
         try {
           const params = new URLSearchParams({
             series,
@@ -286,12 +296,47 @@ export const useMqttStore = create<MqttStoreState>()(
             width:  String(width),
           });
           const res = await fetch(`${HIST_URL}/trend?${params}`);
-          if (!res.ok) return [];
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(text || `HTTP ${res.status}`);
+          }
           const data = await res.json() as { points: TrendPoint[] };
           return data.points ?? [];
         } catch (err) {
           console.warn('[MqttStore] fetchTrend failed:', err);
-          return [];
+          throw err;
+        }
+      },
+
+      fetchRaw: async (series, start, end, maxCount = 50, offset = 0) => {
+        try {
+          const params = new URLSearchParams({
+            series,
+            start:    start.toISOString(),
+            end:      end.toISOString(),
+            maxCount: String(maxCount),
+            offset:   String(offset),
+          });
+          const res = await fetch(`${HIST_URL}/raw?${params}`);
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(text || `HTTP ${res.status}`);
+          }
+          const data = await res.json() as {
+            points?: TrendPoint[];
+            count?: number;
+            hasMore?: boolean;
+            offset?: number;
+          };
+          return {
+            points:  data.points ?? [],
+            count:   data.count ?? 0,
+            hasMore: data.hasMore ?? false,
+            offset,
+          };
+        } catch (err) {
+          console.warn('[MqttStore] fetchRaw failed:', err);
+          throw err;
         }
       },
     };

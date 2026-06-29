@@ -16,9 +16,11 @@ Pipeline by mode
     (also updates API / alarm console via NormalizedAlarmIngestor)
 
   mqtt
-    live.alarms -> sparkplug-edge-node -> EMQX -> MQTT -> HMI  (skips Flink)
+    live.alarms -> sparkplug-edge-node -> EMQX -> MQTT -> HMI  (skips Flink — no IoTDB writes)
 
 Each tick varies severity/priority so Flink RBE still emits to live.alarms.
+
+For IoTDB Trend Viewer use --mode full (default), not mqtt.
 
 Usage
 -----
