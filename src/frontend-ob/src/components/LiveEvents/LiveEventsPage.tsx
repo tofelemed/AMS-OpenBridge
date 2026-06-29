@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAlarmStore, type SoeEvent } from '../../store/alarmStore';
 import { useMqttStore, type LiveAlarm } from '../../store/mqttStore';
 import { formatTimestampMs } from '../../utils/time';
+import { MqttLiveStream } from './MqttLiveStream';
 
 const T = {
   blue:          '#31598F',
@@ -48,32 +49,36 @@ const LiveEventsPage: React.FC = () => {
   const connectionState = useAlarmStore(s => s.connectionState);
   const signalrLive     = connectionState === 'Connected';
 
-  const mqttConnect     = useMqttStore(s => s.connect);
-  const mqttDisconnect  = useMqttStore(s => s.disconnect);
-  const mqttConnected   = useMqttStore(s => s.connected);
-  const mqttError       = useMqttStore(s => s.error);
-  const liveAlarms      = useMqttStore(s => s.liveAlarms);
+  const mqttConnect        = useMqttStore(s => s.connect);
+  const loadAllSnapshots   = useMqttStore(s => s.loadAllSnapshots);
+  const mqttConnected      = useMqttStore(s => s.connected);
+  const liveAlarms         = useMqttStore(s => s.liveAlarms);
 
-  const [activeTab,      setActiveTab]      = useState<StreamTab>('signalr');
+  const [activeTab,      setActiveTab]      = useState<StreamTab>('mqtt');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [sourceFilter,   setSourceFilter]   = useState('');
   const [paused,         setPaused]         = useState(false);
   const [frozenSoe,      setFrozenSoe]      = useState<SoeEvent[]>([]);
   const [frozenMqtt,     setFrozenMqtt]     = useState<LiveAlarm[]>([]);
 
+  // MQTT is kept alive app-wide by LiveEventStream (side panel); connect is idempotent
   useEffect(() => {
     mqttConnect();
-    return () => { mqttDisconnect(); };
+    void loadAllSnapshots();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (!paused) setFrozenSoe(soeEvents);
-  }, [soeEvents, paused]);
+    if (!paused) {
+      setFrozenMqtt(
+        [...liveAlarms.values()].sort((a, b) => b.ts - a.ts),
+      );
+    }
+  }, [liveAlarms, paused]);
 
   useEffect(() => {
-    if (!paused) setFrozenMqtt([...liveAlarms.values()]);
-  }, [liveAlarms, paused]);
+    if (!paused) setFrozenSoe(soeEvents);
+  }, [soeEvents, paused]);
 
   const filteredSoe = useMemo(() => {
     const q = sourceFilter.trim().toLowerCase();
@@ -84,22 +89,17 @@ const LiveEventsPage: React.FC = () => {
     });
   }, [frozenSoe, priorityFilter, sourceFilter]);
 
-  const filteredMqtt = useMemo(() => {
-    const q = sourceFilter.trim().toLowerCase();
-    return frozenMqtt.filter(a => {
-      if (priorityFilter && a.priority !== priorityFilter) return false;
-      if (q && !a.sourceName.toLowerCase().includes(q) && !a.message.toLowerCase().includes(q)) return false;
-      return true;
-    });
-  }, [frozenMqtt, priorityFilter, sourceFilter]);
+  const filteredMqtt = useMemo(() => frozenMqtt, [frozenMqtt]);
 
   const criticalSoe  = filteredSoe.filter(e => e.priority === 'CRITICAL').length;
   const outOfOrder   = filteredSoe.filter(e => e.isOutOfOrder).length;
-  const activeMqtt   = filteredMqtt.filter(a => a.conditionActive).length;
+  const activeMqtt   = filteredMqtt.filter(a => a.conditionActive && a.state !== 'CLEARED').length;
+  const unackMqtt    = filteredMqtt.filter(a => !a.acknowledged && a.conditionActive).length;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '4px 0', height: '100%' }}>
+    <div className="live-events-page">
 
+      <div className="live-events-page__top" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {/* ── Header ─────────────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
         <div>
@@ -131,10 +131,21 @@ const LiveEventsPage: React.FC = () => {
 
       {/* ── KPI row ────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-        <Kpi label="SignalR Events" value={String(filteredSoe.length)} sub={paused ? 'frozen' : 'streaming'} accent={T.blue} />
-        <Kpi label="Critical (SOE)" value={String(criticalSoe)} sub="in filtered view" accent={criticalSoe > 0 ? T.critical : T.textMuted} />
-        <Kpi label="Out-of-Order"   value={String(outOfOrder)} sub="late arrivals corrected" accent={outOfOrder > 0 ? T.caution : T.textMuted} />
-        <Kpi label="MQTT Alarms"    value={String(activeMqtt)} sub={`${filteredMqtt.length} total`} accent={activeMqtt > 0 ? T.caution : T.success} />
+        {activeTab === 'mqtt' ? (
+          <>
+            <Kpi label="Active Alarms" value={String(activeMqtt)} sub={paused ? 'frozen' : 'live state'} accent={activeMqtt > 0 ? T.caution : T.success} />
+            <Kpi label="Unacknowledged" value={String(unackMqtt)} sub="require operator action" accent={unackMqtt > 0 ? T.critical : T.textMuted} />
+            <Kpi label="Devices" value={String(filteredMqtt.length)} sub="in current view" accent={T.blue} />
+            <Kpi label="MQTT Link" value={mqttConnected ? 'Live' : 'Off'} sub="Sparkplug B DDATA" accent={mqttConnected ? T.success : T.critical} />
+          </>
+        ) : (
+          <>
+            <Kpi label="SignalR Events" value={String(filteredSoe.length)} sub={paused ? 'frozen' : 'streaming'} accent={T.blue} />
+            <Kpi label="Critical (SOE)" value={String(criticalSoe)} sub="in filtered view" accent={criticalSoe > 0 ? T.critical : T.textMuted} />
+            <Kpi label="Out-of-Order"   value={String(outOfOrder)} sub="late arrivals corrected" accent={outOfOrder > 0 ? T.caution : T.textMuted} />
+            <Kpi label="MQTT Alarms"    value={String(activeMqtt)} sub={`${filteredMqtt.length} total`} accent={activeMqtt > 0 ? T.caution : T.success} />
+          </>
+        )}
       </div>
 
       {/* ── Tab bar + filters ──────────────────────────────── */}
@@ -165,43 +176,49 @@ const LiveEventsPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap' }}>
-          <FilterField label="Priority">
-            <select className="ob-input" value={priorityFilter}
-              onChange={e => setPriorityFilter(e.target.value)} style={{ width: '140px' }}>
-              <option value="">All Priorities</option>
-              <option value="CRITICAL">Critical</option>
-              <option value="HIGH">High</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="LOW">Low</option>
-            </select>
-          </FilterField>
-          <FilterField label="Source / Message">
-            <input type="text" className="ob-input" placeholder="Filter…"
-              value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}
-              style={{ width: '220px' }} />
-          </FilterField>
           {activeTab === 'signalr' && (
-            <button type="button" onClick={() => navigate('/soe')}
-              style={{
-                marginLeft: 'auto', padding: '8px 16px', fontSize: '12.5px', fontWeight: 600,
-                border: `1.5px solid ${T.blueMuted}`, borderRadius: T.radiusSm,
-                background: T.blueLight, color: T.blue, cursor: 'pointer', fontFamily: 'inherit',
-              }}>
-              Open SOE Timeline →
-            </button>
+            <>
+              <FilterField label="Priority">
+                <select className="ob-input" value={priorityFilter}
+                  onChange={e => setPriorityFilter(e.target.value)} style={{ width: '140px' }}>
+                  <option value="">All Priorities</option>
+                  <option value="CRITICAL">Critical</option>
+                  <option value="HIGH">High</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="LOW">Low</option>
+                </select>
+              </FilterField>
+              <FilterField label="Source / Message">
+                <input type="text" className="ob-input" placeholder="Filter…"
+                  value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}
+                  style={{ width: '220px' }} />
+              </FilterField>
+              <button type="button" onClick={() => navigate('/soe')}
+                style={{
+                  marginLeft: 'auto', padding: '8px 16px', fontSize: '12.5px', fontWeight: 600,
+                  border: `1.5px solid ${T.blueMuted}`, borderRadius: T.radiusSm,
+                  background: T.blueLight, color: T.blue, cursor: 'pointer', fontFamily: 'inherit',
+                }}>
+                Open SOE Timeline →
+              </button>
+            </>
+          )}
+          {activeTab === 'mqtt' && (
+            <p style={{ margin: 0, fontSize: '12px', color: T.textMuted }}>
+              Use filters in the stream panel below.
+            </p>
           )}
         </div>
       </div>
+      </div>
 
-      {mqttError && activeTab === 'mqtt' && (
-        <div style={{ padding: '12px 16px', background: T.criticalBg, border: '1px solid #FCA5A5', borderRadius: T.radiusSm, color: T.critical, fontSize: '13px' }}>
-          MQTT error: {mqttError}
-        </div>
-      )}
-
-      {/* ── Event list ─────────────────────────────────────── */}
+      {/* ── Stream content (fills remaining height, scrolls internally) ─ */}
+      <div className="live-events-page__stream">
+      {activeTab === 'mqtt' ? (
+        <MqttLiveStream alarms={filteredMqtt} paused={paused} />
+      ) : (
       <div style={{
-        flex: 1, minHeight: '320px',
+        flex: 1, minHeight: 0,
         background: T.card, border: `1px solid ${T.border}`,
         borderRadius: T.radius, overflow: 'hidden', boxShadow: T.shadow,
         display: 'flex', flexDirection: 'column',
@@ -211,7 +228,7 @@ const LiveEventsPage: React.FC = () => {
           display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: T.bg,
         }}>
           <span style={{ fontSize: '12px', fontWeight: 700, color: T.textSecondary, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-            {activeTab === 'signalr' ? 'SignalR Event Stream' : 'MQTT DDATA Alarms'}
+            SignalR Event Stream
           </span>
           <span style={{ fontSize: '11px', color: T.textMuted }}>
             {paused ? 'Paused — list frozen' : 'Auto-updating'}
@@ -219,22 +236,15 @@ const LiveEventsPage: React.FC = () => {
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
-          {activeTab === 'signalr' ? (
-            filteredSoe.length === 0 ? (
-              <EmptyState icon="📡" title="Waiting for SignalR SOE events"
-                sub={signalrLive ? 'OPC AE events will appear here in real time' : 'SignalR hub is not connected'} />
-            ) : (
-              filteredSoe.map((event, i) => <SoeEventRow key={`${event.id}-${i}`} event={event} />)
-            )
+          {filteredSoe.length === 0 ? (
+            <EmptyState icon="📡" title="Waiting for SignalR SOE events"
+              sub={signalrLive ? 'OPC AE events will appear here in real time' : 'SignalR hub is not connected'} />
           ) : (
-            filteredMqtt.length === 0 ? (
-              <EmptyState icon="⬡" title="No MQTT alarm messages"
-                sub={mqttConnected ? 'Waiting for Sparkplug B DDATA from edge node' : 'Connect MQTT broker to receive live alarms'} />
-            ) : (
-              filteredMqtt.map(alarm => <MqttAlarmRow key={alarm.alarmId} alarm={alarm} />)
-            )
+            filteredSoe.map((event, i) => <SoeEventRow key={`${event.id}-${i}`} event={event} />)
           )}
         </div>
+      </div>
+      )}
       </div>
     </div>
   );
@@ -304,34 +314,6 @@ const SoeEventRow: React.FC<{ event: SoeEvent }> = ({ event }) => {
           ⚠ Late arrival corrected
         </span>
       )}
-    </div>
-  );
-};
-
-const MqttAlarmRow: React.FC<{ alarm: LiveAlarm }> = ({ alarm }) => {
-  const color = PRIORITY_COLOR[alarm.priority] ?? T.blue;
-  return (
-    <div style={{
-      padding: '10px 14px', marginBottom: '6px', borderRadius: T.radiusSm,
-      background: T.card, border: `1px solid ${T.borderLight}`,
-      borderLeft: `3px solid ${color}`,
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
-        <span style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: T.bg, color }}>
-          {alarm.priority || '—'}
-        </span>
-        <span style={{ fontSize: '10.5px', color: T.textMuted, fontFamily: 'monospace' }}>
-          {new Date(alarm.ts).toLocaleString('en-GB')}
-        </span>
-      </div>
-      <div style={{ fontSize: '12px', fontWeight: 700, color: T.textPrimary, fontFamily: 'monospace', marginBottom: '3px' }}>
-        {alarm.sourceName || alarm.alarmId}
-      </div>
-      <div style={{ fontSize: '12px', color: T.textSecondary }}>{alarm.message || alarm.conditionName || '—'}</div>
-      <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-        <span style={{ fontSize: '10.5px', fontWeight: 700, color: alarm.state === 'CLEARED' ? T.success : T.critical }}>{alarm.state || 'ACTIVE'}</span>
-        {alarm.severity > 0 && <span style={{ fontSize: '10.5px', color: T.textMuted }}>Sev {alarm.severity}</span>}
-      </div>
     </div>
   );
 };

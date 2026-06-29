@@ -50,7 +50,6 @@ const EdgeNodeMonitor: React.FC = () => {
   const metrics        = useMqttStore(s => s.metrics);
   const aliasMap       = useMqttStore(s => s.aliasMap);
   const mqttConnect    = useMqttStore(s => s.connect);
-  const mqttDisconnect = useMqttStore(s => s.disconnect);
 
   /* BFF health */
   const [bffHealth,  setBffHealth]  = useState<BffHealth | null>(null);
@@ -66,7 +65,6 @@ const EdgeNodeMonitor: React.FC = () => {
   /* Connect MQTT on mount */
   useEffect(() => {
     mqttConnect();
-    return () => { mqttDisconnect(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

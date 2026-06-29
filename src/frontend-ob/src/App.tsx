@@ -157,8 +157,8 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const [showLiveEvents, setShowLiveEvents] = useState(readLiveEventsPreference);
 
-  // Full-height pages (with internal layout) — no padding wrapper needed
-  const isFullHeightPage = location.pathname === '/alarms';
+  // Full-height pages manage their own internal scroll regions
+  const isFullHeightPage = location.pathname === '/alarms' || location.pathname === '/live-events';
 
   const toggleLiveEvents = () => {
     setShowLiveEvents(prev => {

@@ -106,8 +106,8 @@ app.MapGet("/raw", async (
 });
 
 // ── GET /snapshot ──────────────────────────────────────────────────────────
-// Returns current metric values from Redis for one or more assets (source names).
-// Query params: assets (comma-separated source/device names)
+// Returns current metric values from Redis for one or more assets (device IDs).
+// Query params: assets (comma-separated device names, or "*" for all devices)
 // Redis key: snapshot:metric:ams_site1:ams_edge1:<device>:<metricName>
 app.MapGet("/snapshot", async (
     string assets,
@@ -121,37 +121,50 @@ app.MapGet("/snapshot", async (
     var db        = redis.GetDatabase();
     var group     = builder.Configuration["Sparkplug:Group"] ?? "ams_site1";
     var edge      = builder.Configuration["Sparkplug:Edge"]  ?? "ams_edge1";
+    var server    = redis.GetServer(redis.GetEndPoints().First());
+    var result    = new Dictionary<string, Dictionary<string, object?>>();
 
-    var result = new Dictionary<string, Dictionary<string, object?>>();
-
-    foreach (var asset in assetList)
+    async Task AddKeyAsync(RedisKey key, string deviceId)
     {
-        var safeAsset = asset.Replace(" ", "_");
-        var pattern   = $"snapshot:metric:{group}:{edge}:{safeAsset}:*";
-
-        // SCAN for keys matching this asset's snapshot prefix
-        var server = redis.GetServer(redis.GetEndPoints().First());
-        var keys   = server.Keys(pattern: pattern).ToArray();
-
-        if (keys.Length == 0) continue;
-
-        var assetMetrics = new Dictionary<string, object?>();
-        foreach (var key in keys)
+        if (!result.TryGetValue(deviceId, out var assetMetrics))
         {
-            var metricName = ((string)key!).Split(':').Last();
-            var val        = await db.StringGetAsync(key);
-            if (val.IsNullOrEmpty) continue;
-            try
-            {
-                var parsed = JsonSerializer.Deserialize<JsonElement>(val!);
-                assetMetrics[metricName] = parsed;
-            }
-            catch
-            {
-                assetMetrics[metricName] = (string?)val;
-            }
+            assetMetrics = new Dictionary<string, object?>();
+            result[deviceId] = assetMetrics;
         }
-        result[asset] = assetMetrics;
+
+        var metricName = ((string)key!).Split(':').Last();
+        var val        = await db.StringGetAsync(key);
+        if (val.IsNullOrEmpty) return;
+        try
+        {
+            assetMetrics[metricName] = JsonSerializer.Deserialize<JsonElement>(val!);
+        }
+        catch
+        {
+            assetMetrics[metricName] = (string?)val;
+        }
+    }
+
+    if (assetList.Length == 1 && assetList[0] == "*")
+    {
+        // Discover all devices under this Sparkplug group/edge
+        var pattern = $"snapshot:metric:{group}:{edge}:*";
+        foreach (var key in server.Keys(pattern: pattern))
+        {
+            var parts = ((string)key!).Split(':');
+            if (parts.Length < 6) continue;
+            await AddKeyAsync(key, parts[4]);
+        }
+    }
+    else
+    {
+        foreach (var asset in assetList)
+        {
+            var safeAsset = asset.Replace(" ", "_");
+            var pattern   = $"snapshot:metric:{group}:{edge}:{safeAsset}:*";
+            foreach (var key in server.Keys(pattern: pattern))
+                await AddKeyAsync(key, safeAsset);
+        }
     }
 
     return Results.Ok(new { assets = result });

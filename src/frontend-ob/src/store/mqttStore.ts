@@ -76,6 +76,7 @@ export interface TrendPoint {
 interface MqttStoreState {
   connected:    boolean;
   error:        string | null;
+  snapshotLoaded: boolean;
   /** key = "device/metricName" */
   metrics:      Map<string, LiveMetric>;
   /** Live alarm state map — key = alarmId */
@@ -90,7 +91,73 @@ interface MqttStoreState {
   subscribeScreen:   (devices: string[]) => void;
   unsubscribeScreen: (devices: string[]) => void;
   loadSnapshot:      (assets: string[]) => Promise<void>;
+  loadAllSnapshots:  () => Promise<void>;
   fetchTrend:        (series: string, start: Date, end: Date, width?: number) => Promise<TrendPoint[]>;
+}
+
+/** Redis snapshot JSON: { v, q, ts } written by sparkplug-edge-node. */
+function parseSnapshotMetric(raw: unknown): LiveMetric | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  if ('v' in o && 'ts' in o) {
+    return {
+      value:   o.v as number | string | boolean,
+      quality: Number(o.q ?? 192),
+      ts:      Number(o.ts),
+    };
+  }
+  if ('value' in o && 'ts' in o) {
+    return {
+      value:   o.value as number | string | boolean,
+      quality: Number(o.quality ?? 192),
+      ts:      Number(o.ts),
+    };
+  }
+  return null;
+}
+
+function buildLiveAlarmFromMetrics(
+  device: string,
+  metrics: Map<string, LiveMetric>,
+  fallbackTs: number,
+): LiveAlarm {
+  const get = (name: string) => metrics.get(`${device}/${name}`);
+  const stateVal = get('state')?.value;
+  const state = stateVal != null ? String(stateVal) : '';
+  return {
+    alarmId:         device,
+    state,
+    severity:        Number(get('severity')?.value ?? 0),
+    acknowledged:    Boolean(get('acknowledged')?.value ?? false),
+    conditionActive: state !== 'CLEARED',
+    priority:        String(get('priority')?.value ?? ''),
+    sourceName:      String(get('sourceName')?.value ?? device),
+    conditionName:   String(get('conditionName')?.value ?? ''),
+    message:         String(get('message')?.value ?? ''),
+    ts:              get('severity')?.ts ?? get('state')?.ts ?? fallbackTs,
+  };
+}
+
+function applySnapshotAssets(
+  set: (fn: (s: MqttStoreState) => void) => void,
+  assets: Record<string, Record<string, unknown>>,
+) {
+  set(s => {
+    for (const [device, metricMap] of Object.entries(assets)) {
+      let latestTs = 0;
+      for (const [metric, raw] of Object.entries(metricMap)) {
+        const mv = parseSnapshotMetric(raw);
+        if (!mv) continue;
+        s.metrics.set(`${device}/${metric}`, mv);
+        if (mv.ts > latestTs) latestTs = mv.ts;
+      }
+      const alarm = buildLiveAlarmFromMetrics(device, s.metrics, latestTs || Date.now());
+      if (alarm.conditionActive && alarm.state !== 'CLEARED') {
+        s.liveAlarms.set(device, alarm);
+      }
+    }
+    s.snapshotLoaded = true;
+  });
 }
 
 // ── Store ──────────────────────────────────────────────────────────────────
@@ -106,6 +173,7 @@ export const useMqttStore = create<MqttStoreState>()(
     return {
       connected:  false,
       error:      null,
+      snapshotLoaded: false,
       metrics:    new Map(),
       liveAlarms: new Map(),
       aliasMap:   new Map(),
@@ -126,9 +194,11 @@ export const useMqttStore = create<MqttStoreState>()(
 
         client.on('connect', () => {
           set(s => { s.connected = true; s.error = null; });
-          // Always subscribe to BIRTH topics to seed alias map + initial values
           client!.subscribe(`spBv1.0/${SPARKPLUG_GROUP}/NBIRTH/${SPARKPLUG_EDGE}`);
           client!.subscribe(`spBv1.0/${SPARKPLUG_GROUP}/DBIRTH/${SPARKPLUG_EDGE}/#`);
+          client!.subscribe(`spBv1.0/${SPARKPLUG_GROUP}/DDATA/${SPARKPLUG_EDGE}/#`);
+          // Re-seed from Redis after refresh or reconnect (TTL ~1h on edge node)
+          void get().loadAllSnapshots();
         });
 
         client.on('message', (topic: string, payload: Buffer) => {
@@ -179,24 +249,29 @@ export const useMqttStore = create<MqttStoreState>()(
       },
 
       // ── loadSnapshot ──────────────────────────────────────────────────────
-      // Reads Redis snapshot via historian-bff /snapshot to seed initial values
-      // on screen open (so there's no blank state before first DDATA arrives).
       loadSnapshot: async (assets: string[]) => {
         if (assets.length === 0) return;
         try {
           const url = `${SNAPSHOT_URL}?assets=${assets.map(encodeURIComponent).join(',')}`;
           const res = await fetch(url);
           if (!res.ok) return;
-          const data = await res.json() as { assets: Record<string, Record<string, LiveMetric>> };
-          set(s => {
-            for (const [asset, metricMap] of Object.entries(data.assets ?? {})) {
-              for (const [metric, mv] of Object.entries(metricMap)) {
-                s.metrics.set(`${asset}/${metric}`, mv);
-              }
-            }
-          });
+          const data = await res.json() as { assets: Record<string, Record<string, unknown>> };
+          applySnapshotAssets(set, data.assets ?? {});
         } catch (err) {
           console.warn('[MqttStore] loadSnapshot failed:', err);
+        }
+      },
+
+      // ── loadAllSnapshots ────────────────────────────────────────────────────
+      // Discover all devices from Redis via BFF GET /snapshot?assets=*
+      loadAllSnapshots: async () => {
+        try {
+          const res = await fetch(`${SNAPSHOT_URL}?assets=${encodeURIComponent('*')}`);
+          if (!res.ok) return;
+          const data = await res.json() as { assets: Record<string, Record<string, unknown>> };
+          applySnapshotAssets(set, data.assets ?? {});
+        } catch (err) {
+          console.warn('[MqttStore] loadAllSnapshots failed:', err);
         }
       },
 
@@ -276,8 +351,9 @@ function handleMessage(
             quality: m.properties?.quality?.value ?? 192,
             ts,
           });
-          // Also update the liveAlarms map if this device carries alarm fields
-          if (name === 'state' || name === 'severity' || name === 'acknowledged') {
+          // Update liveAlarms when any alarm field changes
+          if (['state', 'severity', 'acknowledged', 'priority', 'sourceName', 'conditionName', 'message']
+              .includes(name)) {
             updateLiveAlarm(s, device, name, m.value, ts, get);
           }
         }
@@ -292,41 +368,14 @@ function updateLiveAlarm(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   s: any,
   device: string,
-  field: string,
-  value: unknown,
+  _field: string,
+  _value: unknown,
   ts: number,
   get: () => MqttStoreState,
 ) {
-  const existing: LiveAlarm = s.liveAlarms.get(device) ?? {
-    alarmId:        device,
-    state:          '',
-    severity:       0,
-    acknowledged:   false,
-    conditionActive:true,
-    priority:       '',
-    sourceName:     device,
-    conditionName:  '',
-    message:        '',
-    ts,
-  };
+  const alarm = buildLiveAlarmFromMetrics(device, get().metrics, ts);
 
-  // Pull other fields from metric map for a complete snapshot
-  const metrics = get().metrics;
-  const alarm: LiveAlarm = {
-    ...existing,
-    alarmId:        device,
-    state:          field === 'state'        ? String(value)   : (metrics.get(`${device}/state`)?.value as string   ?? existing.state),
-    severity:       field === 'severity'     ? Number(value)   : (metrics.get(`${device}/severity`)?.value as number ?? existing.severity),
-    acknowledged:   field === 'acknowledged' ? Boolean(value)  : (metrics.get(`${device}/acknowledged`)?.value as boolean ?? existing.acknowledged),
-    conditionActive:String(metrics.get(`${device}/state`)?.value ?? existing.state) !== 'CLEARED',
-    priority:       metrics.get(`${device}/priority`)?.value as string     ?? existing.priority,
-    sourceName:     metrics.get(`${device}/sourceName`)?.value as string   ?? existing.sourceName,
-    conditionName:  metrics.get(`${device}/conditionName`)?.value as string ?? existing.conditionName,
-    message:        metrics.get(`${device}/message`)?.value as string      ?? existing.message,
-    ts,
-  };
-
-  if (alarm.state === 'CLEARED') {
+  if (alarm.state === 'CLEARED' || !alarm.conditionActive) {
     s.liveAlarms.delete(device);
   } else {
     s.liveAlarms.set(device, alarm);

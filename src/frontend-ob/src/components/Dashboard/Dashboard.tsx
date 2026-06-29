@@ -47,14 +47,12 @@ const Dashboard: React.FC = () => {
 
   // Phase 5 — connect MQTT on dashboard mount; disconnect on unmount
   const mqttConnect    = useMqttStore(s => s.connect);
-  const mqttDisconnect = useMqttStore(s => s.disconnect);
   const mqttConnected  = useMqttStore(s => s.connected);
   const mqttError      = useMqttStore(s => s.error);
   const liveAlarms     = useMqttStore(s => s.liveAlarms);
 
   useEffect(() => {
     mqttConnect();
-    return () => { mqttDisconnect(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

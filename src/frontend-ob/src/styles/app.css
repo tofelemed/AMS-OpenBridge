@@ -150,6 +150,29 @@ body {
   min-height: 0;
 }
 
+/* Live Events — fixed chrome, scrollable alarm list only */
+.live-events-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-3, 12px);
+  overflow: hidden;
+  gap: 12px;
+}
+
+.live-events-page__top {
+  flex-shrink: 0;
+}
+
+.live-events-page__stream {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 /* AlarmConsole fills the entire main area */
 .alarm-console-page {
   flex: 1;
