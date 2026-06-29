@@ -16,6 +16,9 @@ import redis.clients.jedis.Pipeline;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -31,6 +34,10 @@ import java.util.concurrent.atomic.AtomicLong;
  * Redis writes (best-effort):
  *   snapshot:metric:<group>:<edge>:<device>:<metricName>  → JSON {v,q,ts}
  *   alias:<group>:<edge>                                   → Hash { alias: name }
+ *
+ * Threading note: MQTT callbacks run on Paho's internal thread. We must NOT
+ * do blocking publish operations inside callbacks or it deadlocks the client.
+ * Instead, we signal the main thread to publish NBIRTH after connect.
  */
 public class AlarmMetricPublisher implements MqttCallbackExtended {
 
@@ -44,6 +51,10 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
     private final Set<String>          bornDevices = Collections.synchronizedSet(new HashSet<>());
     private final AtomicLong           bdSeq       = new AtomicLong(0);
     private final AtomicLong           seq         = new AtomicLong(0);
+
+    // Signal from callback thread to main thread that NBIRTH needs publishing
+    private final AtomicBoolean        needsNBirth = new AtomicBoolean(false);
+    private volatile CountDownLatch    connectLatch;
 
     private volatile MqttClient mqttClient;
     private volatile boolean    running = true;
@@ -66,10 +77,13 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
     public void start() {
         connectMqtt();
 
+        // Publish NBIRTH from main thread (not callback thread) to avoid Paho deadlock
+        publishNBirthIfNeeded();
+
         Properties kProps = new Properties();
         kProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,  cfg.kafkaBrokers);
         kProps.put(ConsumerConfig.GROUP_ID_CONFIG,           cfg.kafkaGroupId);
-        kProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,  "latest");
+        kProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,  cfg.kafkaAutoOffsetReset);
         kProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
         kProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
                 "org.apache.kafka.common.serialization.StringDeserializer");
@@ -83,14 +97,34 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
                     cfg.liveAlarmsTopic, cfg.liveMetricsTopic);
 
             while (running) {
+                // Check for reconnect - may need to re-publish NBIRTH
+                publishNBirthIfNeeded();
+
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(500));
+                if (!records.isEmpty()) {
+                    LOG.info("Polled {} record(s) from Kafka", records.count());
+                }
                 for (ConsumerRecord<String, String> rec : records) {
                     try {
+                        LOG.debug("Processing record: topic={} key={} len={}", 
+                                rec.topic(), rec.key(), rec.value() != null ? rec.value().length() : 0);
                         processRecord(rec);
                     } catch (Exception e) {
-                        LOG.warn("Failed to process record from {}: {}", rec.topic(), e.getMessage());
+                        LOG.warn("Failed to process record from {}: {}", rec.topic(), e.getMessage(), e);
                     }
                 }
+            }
+        }
+    }
+
+    /** Publishes NBIRTH if signaled by connectComplete callback. */
+    private void publishNBirthIfNeeded() {
+        if (needsNBirth.compareAndSet(true, false)) {
+            try {
+                publishNBirth();
+            } catch (Exception e) {
+                LOG.error("Failed to publish NBIRTH: {}", e.getMessage(), e);
+                // Don't retry immediately - will be retried on next reconnect or poll cycle
             }
         }
     }
@@ -100,14 +134,16 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
     @Override
     public void connectComplete(boolean reconnect, String serverURI) {
         LOG.info("MQTT {} to {}", reconnect ? "reconnected" : "connected", serverURI);
+        // Reset state for new session
         seq.set(0);
         bornDevices.clear();
         aliases.reset();
-        try {
-            publishNBirth();
-        } catch (Exception e) {
-            LOG.error("Failed to publish NBIRTH on connect", e);
+        // Signal main thread to publish NBIRTH (don't publish from callback thread - it deadlocks Paho)
+        needsNBirth.set(true);
+        if (connectLatch != null) {
+            connectLatch.countDown();
         }
+        LOG.debug("Signaled main thread to publish NBIRTH");
     }
 
     @Override
@@ -124,11 +160,17 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
     // ── Core processing ────────────────────────────────────────────────────
 
     private void processRecord(ConsumerRecord<String, String> rec) throws Exception {
-        if (rec.value() == null || rec.value().isBlank()) return;
+        if (rec.value() == null || rec.value().isBlank()) {
+            LOG.debug("Skipping empty record");
+            return;
+        }
 
         JsonNode node = MAPPER.readTree(rec.value());
         String alarmId = text(node, "alarmId");
-        if (alarmId.isEmpty()) return;
+        if (alarmId.isEmpty()) {
+            LOG.warn("Skipping record with empty alarmId: {}", rec.value().substring(0, Math.min(100, rec.value().length())));
+            return;
+        }
 
         // Device = sanitised source name (or fallback to alarmId prefix)
         String source  = text(node, "sourceName");
@@ -136,15 +178,20 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
                 ? "alarm_" + alarmId.replace("-", "").substring(0, Math.min(8, alarmId.length()))
                 : source.replaceAll("[^a-zA-Z0-9_\\-]", "_");
 
+        LOG.info("Processing alarm {} -> device '{}'", alarmId, deviceId);
+
         // Ensure DBIRTH was published for this device
         if (!bornDevices.contains(deviceId)) {
+            LOG.info("Publishing DBIRTH for new device '{}'", deviceId);
             publishDBirth(deviceId, node);
             bornDevices.add(deviceId);
         }
 
         // Build DDATA payload (alias-only per Sparkplug spec)
+        LOG.debug("Publishing DDATA for device '{}' alarmId={}", deviceId, alarmId);
         publishDData(deviceId, node);
         writeToRedis(deviceId, node);
+        LOG.info("Successfully processed alarm {} for device '{}'", alarmId, deviceId);
     }
 
     // ── Sparkplug publish helpers ──────────────────────────────────────────
@@ -181,7 +228,7 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
 
         byte[] encoded = new SparkplugBPayloadEncoder().getBytes(builder.createPayload(), false);
         publishMqtt(topic, encoded, true);
-        LOG.debug("Published DBIRTH for device '{}'", deviceId);
+        LOG.info("Published DBIRTH for device '{}' ({} bytes)", deviceId, encoded.length);
     }
 
     private void publishDData(String deviceId, JsonNode node) throws Exception {
@@ -191,7 +238,8 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
                         .setTimestamp(new Date(node.has("rbeTs") ? node.get("rbeTs").asLong() : System.currentTimeMillis()));
 
         // DDATA: alias only (no name) — receiver resolves via DBIRTH alias map
-        addAliasMetric(builder, "severity",       MetricDataType.Int32,   (long) intVal(node, "severity", 0));
+        // Note: Int32 expects Integer, Int64 expects Long — Sparkplug encoder is strict about types
+        addAliasMetric(builder, "severity",       MetricDataType.Int32,   intVal(node, "severity", 0));
         addAliasMetric(builder, "state",          MetricDataType.String,  text(node, "state"));
         addAliasMetric(builder, "acknowledged",   MetricDataType.Boolean, boolVal(node, "acknowledged"));
         addAliasMetric(builder, "conditionActive",MetricDataType.Boolean, boolVal(node, "conditionActive"));
@@ -202,6 +250,7 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
 
         byte[] encoded = new SparkplugBPayloadEncoder().getBytes(builder.createPayload(), false);
         publishMqtt(topic, encoded, false);
+        LOG.info("Published DDATA for device '{}' ({} bytes)", deviceId, encoded.length);
     }
 
     private void addAliasMetric(SparkplugBPayload.SparkplugBPayloadBuilder builder,
@@ -249,6 +298,10 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
     private void connectMqtt() {
         for (int attempt = 1; attempt <= 20; attempt++) {
             try {
+                // Prepare latch for connect callback
+                connectLatch = new CountDownLatch(1);
+                needsNBirth.set(false);
+                
                 mqttClient = new MqttClient(cfg.mqttBrokerUri(), cfg.mqttClientId,
                         new MemoryPersistence());
                 mqttClient.setCallback(this);
@@ -258,6 +311,8 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
                 opts.setKeepAliveInterval(30);
                 opts.setConnectionTimeout(10);
                 opts.setAutomaticReconnect(true);
+                // Increase max in-flight messages to avoid blocking
+                opts.setMaxInflight(50);
                 // Phase 6: inject MQTT credentials when EMQX anonymous auth is disabled
                 if (cfg.mqttUsername != null) {
                     opts.setUserName(cfg.mqttUsername);
@@ -275,6 +330,11 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
 
                 mqttClient.connect(opts);
                 LOG.info("MQTT connected on attempt {}", attempt);
+                
+                // Wait for connectComplete callback to signal it's ready
+                if (!connectLatch.await(5, TimeUnit.SECONDS)) {
+                    LOG.warn("Connect callback did not complete in 5 seconds");
+                }
                 return;
             } catch (Exception e) {
                 LOG.warn("MQTT connect attempt {} failed: {}", attempt, e.getMessage());
@@ -289,10 +349,22 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
             LOG.warn("MQTT not connected — dropping message to {}", topic);
             return;
         }
+        
+        LOG.debug("Publishing {} bytes to {} (retained={})", payload.length, topic, retained);
+        
+        // Synchronous publish - safe when called from main thread (not from callback)
+        // The main thread was changed to call NBIRTH, not the callback, to avoid deadlock
         MqttMessage msg = new MqttMessage(payload);
         msg.setQos(MQTT_QOS);
         msg.setRetained(retained);
-        mqttClient.publish(topic, msg);
+        
+        try {
+            mqttClient.publish(topic, msg);
+        } catch (MqttException e) {
+            LOG.error("MQTT publish failed for {}: {} (reason: {})", 
+                    topic, e.getMessage(), e.getReasonCode(), e);
+            throw e;
+        }
     }
 
     // ── JSON helpers ───────────────────────────────────────────────────────
@@ -318,7 +390,7 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
 
     private static Object seedValue(JsonNode n, String name) {
         switch (name) {
-            case "severity":       return (long) intVal(n, "severity", 0);
+            case "severity":       return intVal(n, "severity", 0);  // Int32 expects Integer, not Long
             case "acknowledged":   return boolVal(n, "acknowledged");
             case "conditionActive":return boolVal(n, "conditionActive");
             default:               return text(n, name);

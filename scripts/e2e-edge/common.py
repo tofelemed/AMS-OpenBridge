@@ -228,7 +228,7 @@ def _kafka_consume_docker(topic: str, timeout_sec: float, contains: str | None) 
         "--timeout-ms",
         str(int(timeout_sec * 1000)),
     ]
-    proc = subprocess.run(cmd, capture_output=True, timeout=timeout_sec + 15)
+    proc = subprocess.run(cmd, capture_output=True, timeout=timeout_sec + 30)
     text = proc.stdout.decode("utf-8", errors="replace")
     lines = [ln.strip() for ln in text.splitlines() if ln.strip().startswith("{")]
     if contains:

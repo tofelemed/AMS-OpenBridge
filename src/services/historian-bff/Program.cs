@@ -164,7 +164,9 @@ app.MapGet("/series", async (
     IoTDbClient iotdb,
     CancellationToken ct) =>
 {
-    var path   = string.IsNullOrWhiteSpace(prefix) ? "root.ams.site1.alarms.*" : prefix;
+    // Use ** to match all descendant levels — measurements are stored one level
+    // deeper than the device path (e.g. root.ams.site1.alarms.<device>.severity).
+    var path   = string.IsNullOrWhiteSpace(prefix) ? "root.ams.site1.alarms.**" : prefix;
     var sql    = $"SHOW TIMESERIES {path}";
     var result = await iotdb.QueryAsync(sql, ct);
     return Results.Ok(result);

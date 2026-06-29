@@ -13,9 +13,18 @@ until curl -sf "http://${JOBMANAGER}/overview" > /dev/null 2>&1; do
 done
 echo "[LiveState-Submit] JobManager ready."
 
+# Guard: skip if a LiveStateJob is already RUNNING to avoid duplicate instances.
+RUNNING=$(curl -sf "http://${JOBMANAGER}/jobs/overview" \
+  | grep -o '"name":"AMS - Live State RBE"' | wc -l || true)
+if [ "${RUNNING}" -gt 0 ]; then
+  echo "[LiveState-Submit] LiveStateJob already RUNNING — skipping duplicate submit."
+  exit 0
+fi
+
 echo "[LiveState-Submit] Submitting LiveStateJob ..."
+# Note: flink run -m expects host:port (no http:// prefix)
 flink run -d \
-  -m "http://${JOBMANAGER}" \
+  -m "${JOBMANAGER}" \
   -c com.ams.flink.LiveStateJob \
   "${JAR}" \
   --bootstrap.servers "${KAFKA}"

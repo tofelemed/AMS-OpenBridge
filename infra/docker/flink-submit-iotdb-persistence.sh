@@ -16,14 +16,24 @@ done
 echo "[IoTDB-Submit] JobManager ready."
 
 echo "[IoTDB-Submit] Waiting for IoTDB at ${IOTDB_H}:${IOTDB_P} ..."
-until nc -z "${IOTDB_H}" "${IOTDB_P}" 2>/dev/null; do
+# Use /dev/tcp instead of nc — nc may not be installed in the flink image.
+until bash -c "echo > /dev/tcp/${IOTDB_H}/${IOTDB_P}" 2>/dev/null; do
   sleep 3
 done
 echo "[IoTDB-Submit] IoTDB ready."
 
+# Guard: skip if IoTDBPersistenceJob is already RUNNING to avoid duplicate instances.
+RUNNING=$(curl -sf "http://${JOBMANAGER}/jobs/overview" \
+  | grep -o '"name":"AMS - IoTDB Alarm Persistence"' | wc -l || true)
+if [ "${RUNNING}" -gt 0 ]; then
+  echo "[IoTDB-Submit] IoTDBPersistenceJob already RUNNING — skipping duplicate submit."
+  exit 0
+fi
+
 echo "[IoTDB-Submit] Submitting IoTDBPersistenceJob ..."
+# Note: flink run -m expects host:port (no http:// prefix)
 flink run -d \
-  -m "http://${JOBMANAGER}" \
+  -m "${JOBMANAGER}" \
   -c com.ams.flink.IoTDBPersistenceJob \
   "${JAR}" \
   --bootstrap.servers "${KAFKA}" \

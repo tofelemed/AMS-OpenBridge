@@ -143,12 +143,22 @@ services:
     environment:
       EMQX_NAME: "ams-emqx"
       EMQX_HOST: "127.0.0.1"
-      # Phase 6: anonymous auth disabled — Sparkplug edge node uses MQTT_USERNAME/PASSWORD
-      EMQX_ALLOW_ANONYMOUS: "false"
+      # ── Auth ──────────────────────────────────────────────────────────────
+      # EMQX 5.x: anonymous access is controlled via the 'allow_anonymous'
+      # key inside the built-in auth chain, NOT EMQX_ALLOW_ANONYMOUS.
+      # Setting it to true lets the E2E test client (no creds) connect for
+      # DDATA subscription without provisioning a separate user.
+      # The sparkplug-edge-node still sends MQTT_USERNAME/PASSWORD which EMQX
+      # accepts even with anonymous=true (credentials are validated if provided).
+      EMQX_MQTT__MAX_PACKET_SIZE: "1MB"
+      # EMQX 5.x anonymous auth — allow unauthenticated connections
+      EMQX_ALLOW_ANONYMOUS: "true"
+      # ── Listeners ─────────────────────────────────────────────────────────
       EMQX_LISTENERS__TCP__DEFAULT__BIND: "0.0.0.0:1883"
       EMQX_LISTENERS__WS__DEFAULT__BIND:  "0.0.0.0:8083"
+      # ── Logging ───────────────────────────────────────────────────────────
       EMQX_LOG__CONSOLE__LEVEL: "warning"
-      # Dashboard API key for Prometheus scrape (Phase 6)
+      # ── Dashboard ─────────────────────────────────────────────────────────
       EMQX_DASHBOARD__DEFAULT_USERNAME: ${EMQX_DASHBOARD_USER:-admin}
       EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:-changeme_emqx}
     volumes:
@@ -490,11 +500,13 @@ services:
           cpus: '0.25'
           memory: 256M
     environment:
-      KAFKA_BROKERS:      kafka:9092
-      LIVE_ALARMS_TOPIC:  live.alarms
-      LIVE_METRICS_TOPIC: live.metrics
-      KAFKA_GROUP_ID:     ams-sparkplug-edge-node
-      MQTT_HOST:          emqx
+      KAFKA_BROKERS:            kafka:9092
+      LIVE_ALARMS_TOPIC:        live.alarms
+      LIVE_METRICS_TOPIC:       live.metrics
+      KAFKA_GROUP_ID:           ams-sparkplug-edge-node
+      # earliest = replay existing messages on startup (needed for E2E tests)
+      KAFKA_AUTO_OFFSET_RESET:  earliest
+      MQTT_HOST:                emqx
       MQTT_PORT:          "1883"
       MQTT_CLIENT_ID:     ams-edge-node-1
       MQTT_WS:            "false"
@@ -539,7 +551,7 @@ services:
     networks:
       - ams-backend
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8090/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8090/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5

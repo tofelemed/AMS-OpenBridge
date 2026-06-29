@@ -75,16 +75,30 @@ public sealed class IoTDbClient(HttpClient http, IConfiguration cfg)
 
     /// <summary>
     /// Converts IoTDB REST v2 columnar response into a list of time-series points.
-    /// IoTDB returns: { "columnNames": [...], "timestamps": [...], "values": [[...], ...] }
+    ///
+    /// IoTDB REST v2 uses two different field names depending on query type:
+    ///   - Simple SELECT:       { "column_names": [...], "timestamps": [...], "values": [[...], ...] }
+    ///   - GROUP BY aggregate:  { "expressions": [...],  "timestamps": [...], "values": [[...], ...] }
+    ///   (column_names is null for aggregate queries)
     /// </summary>
     public static List<Dictionary<string, object?>> MapPoints(JsonElement result)
     {
         var points = new List<Dictionary<string, object?>>();
 
-        if (!result.TryGetProperty("columnNames", out var cols)
-            || !result.TryGetProperty("timestamps", out var ts)
+        if (!result.TryGetProperty("timestamps", out var ts)
             || !result.TryGetProperty("values", out var vals))
             return points;
+
+        // Prefer column_names; fall back to expressions (GROUP BY aggregates)
+        JsonElement cols;
+        bool hasCols = result.TryGetProperty("column_names", out cols)
+                    && cols.ValueKind == JsonValueKind.Array;
+        if (!hasCols)
+        {
+            hasCols = result.TryGetProperty("expressions", out cols)
+                   && cols.ValueKind == JsonValueKind.Array;
+        }
+        if (!hasCols) return points;
 
         var columnNames = cols.EnumerateArray().Select(c => c.GetString()!).ToList();
         var timestamps  = ts.EnumerateArray().Select(t => t.GetInt64()).ToList();

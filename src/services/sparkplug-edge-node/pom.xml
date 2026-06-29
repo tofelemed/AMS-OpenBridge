@@ -39,10 +39,21 @@
       <version>3.6.1</version>
     </dependency>
 
-    <!-- JSON parsing -->
+    <!-- JSON parsing — pin jackson-core to match databind to avoid
+         NoClassDefFoundError: StreamConstraintsException (added in 2.15) -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+      <version>2.15.3</version>
+    </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
+      <version>2.15.3</version>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
       <version>2.15.3</version>
     </dependency>
 

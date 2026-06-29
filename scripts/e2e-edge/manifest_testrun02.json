@@ -1,0 +1,20 @@
+{
+  "runId": "testrun02",
+  "alarms": [
+    {
+      "alarmId": "E2E-testrun02-alarm-001",
+      "sourceName": "E2E.Unit1.Tag_001",
+      "iotdbPath": "root.ams.site1.alarms.E2E_testrun02_alarm_001"
+    },
+    {
+      "alarmId": "E2E-testrun02-alarm-002",
+      "sourceName": "E2E.Unit1.Tag_002",
+      "iotdbPath": "root.ams.site1.alarms.E2E_testrun02_alarm_002"
+    },
+    {
+      "alarmId": "E2E-testrun02-alarm-003",
+      "sourceName": "E2E.Unit1.Tag_003",
+      "iotdbPath": "root.ams.site1.alarms.E2E_testrun02_alarm_003"
+    }
+  ]
+}

@@ -20,9 +20,15 @@ PROMETHEUS = os.getenv("E2E_PROMETHEUS", "http://localhost:9090")
 FRONTEND = os.getenv("E2E_FRONTEND", "http://localhost:3000")
 
 # MQTT / Sparkplug
+# E2E_MQTT_PORT  — raw TCP listener (paho-mqtt plain TCP).  Default: 1883.
+#                  Use 8083 only when connecting via WebSocket transport.
 MQTT_HOST = os.getenv("E2E_MQTT_HOST", "localhost")
-MQTT_PORT = int(os.getenv("E2E_MQTT_PORT", "8083"))
+MQTT_PORT = int(os.getenv("E2E_MQTT_PORT", "1883"))
+MQTT_WS_PORT = int(os.getenv("E2E_MQTT_WS_PORT", "8083"))
 MQTT_PATH = os.getenv("E2E_MQTT_PATH", "/mqtt")
+# Credentials for EMQX (ALLOW_ANONYMOUS=false).  Must match docker-compose EMQX_EDGE_USER/PASSWORD.
+MQTT_USERNAME = os.getenv("E2E_MQTT_USERNAME", "ams_edge")
+MQTT_PASSWORD = os.getenv("E2E_MQTT_PASSWORD", "changeme_edge")
 SPARKPLUG_GROUP = os.getenv("E2E_SPARKPLUG_GROUP", "ams_site1")
 SPARKPLUG_EDGE = os.getenv("E2E_SPARKPLUG_EDGE", "ams_edge1")
 
@@ -39,7 +45,9 @@ IOTDB_PASS = os.getenv("E2E_IOTDB_PASS", "root")
 
 # Test data prefix — unique per run
 TEST_PREFIX = os.getenv("E2E_TEST_PREFIX", "E2E")
-TEST_SERVER_ID = os.getenv("E2E_SERVER_ID", "e2e-server-001")
+# CRITICAL: Must be a valid GUID — NormalizedAlarmIngestor drops non-GUID serverIds!
+# Using the same GUID configured in docker-compose AlarmIngestion__ServerId
+TEST_SERVER_ID = os.getenv("E2E_SERVER_ID", "f0af9a6d-85f6-4c9f-a8ad-6de277d1d110")
 
 FLINK_UI = os.getenv("E2E_FLINK_UI", "http://localhost:8082")
 
