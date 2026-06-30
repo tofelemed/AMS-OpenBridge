@@ -1,6 +1,70 @@
 import type { ActiveAlarm } from '../store/alarmStore';
 
 const TERMINAL_ACK = new Set(['ACK_CONFIRMED', 'ACK_FAILED', 'ACK_TIMEOUT']);
+
+function shallowRecordEqual(
+  a: Record<string, unknown> | undefined,
+  b: Record<string, unknown> | undefined,
+): boolean {
+  const left = a ?? {};
+  const right = b ?? {};
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  for (const key of keys) {
+    if (left[key] !== right[key]) return false;
+  }
+  return true;
+}
+
+/** True when grid/API-visible alarm fields are unchanged (ignores reference identity). */
+export function alarmsEqual(a: ActiveAlarm, b: ActiveAlarm): boolean {
+  return (
+    a.id === b.id
+    && a.serverId === b.serverId
+    && a.serverName === b.serverName
+    && a.sourceName === b.sourceName
+    && a.conditionName === b.conditionName
+    && a.subConditionName === b.subConditionName
+    && a.message === b.message
+    && a.severity === b.severity
+    && a.priority === b.priority
+    && a.category === b.category
+    && a.state === b.state
+    && a.conditionActive === b.conditionActive
+    && a.acknowledged === b.acknowledged
+    && a.isShelved === b.isShelved
+    && a.isSuppressed === b.isSuppressed
+    && a.isOutOfService === b.isOutOfService
+    && a.qualityGood === b.qualityGood
+    && a.eventTimeEpochMs === b.eventTimeEpochMs
+    && a.activeTimeEpochMs === b.activeTimeEpochMs
+    && a.ackTimeEpochMs === b.ackTimeEpochMs
+    && a.ackedByUsername === b.ackedByUsername
+    && a.ackComment === b.ackComment
+    && a.shelveUntilEpochMs === b.shelveUntilEpochMs
+    && a.shelveComment === b.shelveComment
+    && a.suppressionReason === b.suppressionReason
+    && a.correlationId === b.correlationId
+    && a.isRootCause === b.isRootCause
+    && a.processValue === b.processValue
+    && a.processUnit === b.processUnit
+    && a.serverReceivedEpochMs === b.serverReceivedEpochMs
+    && a.logicalAlarmFamilyId === b.logicalAlarmFamilyId
+    && a.instanceKeySchemaVersion === b.instanceKeySchemaVersion
+    && a.eventTimeMissing === b.eventTimeMissing
+    && a.ackLifecycleState === b.ackLifecycleState
+    && a.ackRequestedAtEpochMs === b.ackRequestedAtEpochMs
+    && a.pendingAckActionId === b.pendingAckActionId
+    && a.commandId === b.commandId
+    && a.lifecycleId === b.lifecycleId
+    && a.dcsSequenceId === b.dcsSequenceId
+    && shallowRecordEqual(a.opcAttributes, b.opcAttributes)
+  );
+}
+
+/** Fields that affect default grid sort order. */
+export function alarmSortKeyChanged(a: ActiveAlarm, b: ActiveAlarm): boolean {
+  return a.eventTimeEpochMs !== b.eventTimeEpochMs || a.priority !== b.priority;
+}
 const PENDING_ACK = new Set([
   'ACK_REQUESTED', 'ACK_QUEUED', 'ACK_PROCESSING', 'ACK_DISPATCHED', 'ACK_PENDING_DCS', 'ACK_RETRYING',
 ]);
@@ -17,10 +81,12 @@ export function upsertAlarm(existing: ActiveAlarm | undefined, incoming: ActiveA
 
   if (incomingEvent === existingEvent && incoming.id === existing.id) {
     const merged = mergeFields(existing, incoming);
-    return preferRicherState(existing, merged);
+    const preferred = preferRicherState(existing, merged);
+    return alarmsEqual(existing, preferred) ? existing : preferred;
   }
 
-  return mergeFields(existing, incoming);
+  const merged = mergeFields(existing, incoming);
+  return alarmsEqual(existing, merged) ? existing : merged;
 }
 
 function preferRicherState(a: ActiveAlarm, b: ActiveAlarm): ActiveAlarm {
@@ -66,6 +132,8 @@ function mergeFields(existing: ActiveAlarm, incoming: ActiveAlarm): ActiveAlarm 
     lifecycleId: incoming.lifecycleId ?? existing.lifecycleId,
     dcsSequenceId: incoming.dcsSequenceId ?? existing.dcsSequenceId,
     ackLifecycleState: incoming.ackLifecycleState ?? existing.ackLifecycleState,
+    ackRequestedAtEpochMs: incoming.ackRequestedAtEpochMs ?? existing.ackRequestedAtEpochMs,
+    pendingAckActionId: incoming.pendingAckActionId ?? existing.pendingAckActionId,
   };
 }
 

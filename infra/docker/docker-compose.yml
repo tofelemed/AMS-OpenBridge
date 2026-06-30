@@ -22,6 +22,7 @@ volumes:
   iotdb-data:
   iotdb-logs:
   iotdb-ext:
+  iotdb-workbench-data:
   redis-data:
   emqx-data:
   emqx-log:
@@ -558,6 +559,190 @@ services:
       start_period: 30s
 
   # ─────────────────────────────────────────────
+  # Phase 1 — Asset Model Service (UNS source of truth)
+  # REST API for asset hierarchy and UNS path resolution
+  # ─────────────────────────────────────────────
+  asset-model:
+    build:
+      context: ../../src/services/asset-model
+    container_name: traverse-asset-model
+    <<: *default-restart
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:5000
+      ConnectionStrings__TraverseAssets: Host=postgres;Port=5432;Database=traverse_assets;Username=ams_user;Password=${POSTGRES_PASSWORD:-postgres}
+      Redis__Host:     redis
+      Redis__Port:     "6379"
+    ports:
+      - "5001:5000"
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ─────────────────────────────────────────────
+  # Phase 1 — Binding Resolver BFF
+  # Resolves UNS path + role → transport (live/history/alarm)
+  # ─────────────────────────────────────────────
+  binding-resolver:
+    build:
+      context: ../../src/services/binding-resolver
+    container_name: traverse-binding-resolver
+    <<: *default-restart
+    depends_on:
+      redis:
+        condition: service_healthy
+      asset-model:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:5000
+      Redis__Host:         redis
+      Redis__Port:         "6379"
+      Mqtt__Host:          emqx
+      Mqtt__WebSocketPort: "8083"
+      Mqtt__Protocol:      ws
+      Services__AssetModel:    http://asset-model:5000
+      Services__HistorianBff:  http://historian-bff:8090
+      Services__AmsApi:        http://ams-api:8000
+    ports:
+      - "5002:5000"
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ─────────────────────────────────────────────
+  # Phase 2 — Display Service
+  # CRUD for HMI display definitions (versioned, no process values)
+  # ─────────────────────────────────────────────
+  display-service:
+    build:
+      context: ../../src/services/display-service
+    container_name: traverse-display-service
+    <<: *default-restart
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:5000
+      ConnectionStrings__TraverseDisplays: Host=postgres;Port=5432;Database=traverse_displays;Username=ams_user;Password=${POSTGRES_PASSWORD:-postgres}
+      Redis__Host:     redis
+      Redis__Port:     "6379"
+    ports:
+      - "5003:5000"
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ─────────────────────────────────────────────
+  # Phase 3 — Template Service
+  # Reusable element templates with parameterized bindings
+  # ─────────────────────────────────────────────
+  template-service:
+    build:
+      context: ../../src/services/template-service
+    container_name: traverse-template-service
+    <<: *default-restart
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:5000
+      ConnectionStrings__TraverseTemplates: Host=postgres;Port=5432;Database=traverse_templates;Username=ams_user;Password=${POSTGRES_PASSWORD:-postgres}
+      Redis__Host:     redis
+      Redis__Port:     "6379"
+    ports:
+      - "5004:5000"
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ─────────────────────────────────────────────
+  # Phase 4 — Analysis Service
+  # Design-time CRUD for analyses; execution on Flink
+  # ─────────────────────────────────────────────
+  analysis-service:
+    build:
+      context: ../../src/services/analysis-service
+    container_name: traverse-analysis-service
+    <<: *default-restart
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:5000
+      ConnectionStrings__TraverseAnalysis: Host=postgres;Port=5432;Database=traverse_analysis;Username=ams_user;Password=${POSTGRES_PASSWORD:-postgres}
+      Redis__Host:        redis
+      Redis__Port:        "6379"
+      Kafka__Brokers:     kafka:9092
+      Flink__JobManagerUrl: http://flink-jobmanager:8081
+    ports:
+      - "5005:5000"
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ─────────────────────────────────────────────
   # Phase 6 — IoTDB TTL / retention init (one-shot)
   # Sets storage group TTLs after IoTDB is healthy
   # ─────────────────────────────────────────────
@@ -578,6 +763,91 @@ services:
     networks:
       - ams-backend
     restart: "no"
+
+  # ─────────────────────────────────────────────
+  # IoTDB Web Workbench — browser UI to query IoTDB
+  # Sign in: http://localhost:8086/autologin.html  (root / 123456)
+  # Then Data Connection → host iotdb, port 6667, user root, password root
+  # ─────────────────────────────────────────────
+  iotdb-workbench-init:
+    image: alpine:3.20
+    container_name: ams-iotdb-workbench-init
+    depends_on:
+      iotdb:
+        condition: service_healthy
+    volumes:
+      - iotdb-workbench-data:/data
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        DB=/data/iotdb.db
+        URL=https://raw.githubusercontent.com/apache/iotdb-web-workbench/master/backend/src/main/resources/sqlite/iotdb.db
+        if [ -f "$$DB" ] && [ "$$(wc -c < "$$DB")" -lt 10000 ]; then
+          echo "Removing invalid Workbench DB"
+          rm -f "$$DB"
+        fi
+        if [ -s "$$DB" ]; then
+          echo "Workbench DB already present"
+          exit 0
+        fi
+        apk add --no-cache curl >/dev/null
+        curl -fsSL -o "$$DB" "$$URL"
+        echo "Workbench DB seeded ($$(wc -c < "$$DB") bytes)"
+    networks:
+      - ams-backend
+    restart: "no"
+
+  iotdb-workbench-backend:
+    image: apache/iotdb-web-workbench:0.13.0-backend
+    container_name: ams-iotdb-workbench-backend
+    <<: *default-restart
+    depends_on:
+      iotdb:
+        condition: service_healthy
+      iotdb-workbench-init:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 1536M
+    # Upstream image entrypoint references unset ${JAVA_MEM_OPTS}; override explicitly.
+    # Needs ≥1GB container memory — 512M caused OOM restart loop (UI shows "Network error").
+    entrypoint: ["java", "-Xms256m", "-Xmx768m", "-jar", "/app/app.jar"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:sqlite:/data/iotdb.db
+    volumes:
+      - iotdb-workbench-data:/data
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/9090' 2>/dev/null || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 180s
+
+  iotdb-workbench-frontend:
+    image: apache/iotdb-web-workbench:0.13.0-frontend
+    container_name: ams-iotdb-workbench-frontend
+    <<: *default-restart
+    depends_on:
+      iotdb-workbench-backend:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 64M
+    environment:
+      BACKEND_ADDRESS: iotdb-workbench-backend:9090
+    volumes:
+      # Bundled login page is broken (submitForm); use this instead.
+      - ./iotdb-workbench/autologin.html:/usr/share/nginx/html/autologin.html:ro
+    ports:
+      - "8086:80"
+    networks:
+      - ams-backend
 
   # ─────────────────────────────────────────────
   # Phase 1 — Flink → IoTDB persistence job submit

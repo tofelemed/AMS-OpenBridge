@@ -67,7 +67,7 @@ public class LiveStateJob {
                 .name("rbe-alarm-filter")
                 .filter(s -> s != null && !s.isEmpty())
                 .sinkTo(kafkaSink(cfg.brokers, "live.alarms"))
-                .name("live-alarms-sink");
+                .name("live-alarms-sink");c
 
         // ── live.metrics ── numeric metrics only
         currentState

@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AgGridReact } from 'ag-grid-react';
 import type {
   ColDef,
+  GridApi,
   GridReadyEvent,
   CellContextMenuEvent,
   RowClassParams,
@@ -23,6 +24,7 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import { useAlarmStore, type ActiveAlarm } from '../../store/alarmStore';
 import { formatTimestampMs } from '../../utils/time';
 import { alarmMatchesConnectedOpcServer, isDisplayableOpcAlarm, sortAlarmsForConsole } from '../../utils/opcAlarmFilter';
+import { alarmSortKeyChanged, alarmsEqual } from '../../utils/alarmReconciliation';
 import { isOpcAckWriteable, opcAckSkipReason } from '../../utils/opcAckWriteable';
 import {
   acknowledgeAlarmsBatch,
@@ -86,6 +88,11 @@ const AlarmConsole: React.FC = () => {
     if (isFrozen) return frozenData.filter(filter).sort(sortAlarmsForConsole);
     return Array.from(alarms.values()).filter(filter).sort(sortAlarmsForConsole);
   }, [alarms, isFrozen, frozenData, connectedOpcServerIds]);
+
+  const rowDataRef = useRef(rowData);
+  rowDataRef.current = rowData;
+  const isFrozenRef = useRef(isFrozen);
+  isFrozenRef.current = isFrozen;
 
   // ─── Dialog openers ────────────────────────────────────────────────────────
 
@@ -397,6 +404,7 @@ const AlarmConsole: React.FC = () => {
     },
     {
       headerName: 'Time in Alarm',
+      colId: 'timeInAlarm',
       width: 116,
       minWidth: 96,
       sortable: false,
@@ -446,9 +454,60 @@ const AlarmConsole: React.FC = () => {
 
   const getRowId = useCallback((p: GetRowIdParams<ActiveAlarm>) => p.data.id, []);
 
+  /** Push store rows into AG Grid (must run when grid becomes ready and when data changes). */
+  const applyGridSync = useCallback((api: GridApi<ActiveAlarm>) => {
+    if (isFrozenRef.current) return;
+
+    const data = rowDataRef.current;
+    const prevMap = alarmSnapshotRef.current;
+
+    if (prevMap.size === 0) {
+      if (data.length === 0) return;
+      alarmSnapshotRef.current = new Map(data.map(a => [a.id, a]));
+      api.applyTransactionAsync({ add: data }, () => {
+        api.refreshClientSideRowModel('sort');
+      });
+      return;
+    }
+
+    const nextMap = new Map(data.map(a => [a.id, a]));
+    const adds: ActiveAlarm[] = [];
+    const updates: ActiveAlarm[] = [];
+    const removes: { id: string }[] = [];
+    let sortChanged = false;
+
+    for (const a of data) {
+      const prev = prevMap.get(a.id);
+      if (!prev) {
+        adds.push(a);
+        sortChanged = true;
+      } else if (!alarmsEqual(prev, a)) {
+        updates.push(a);
+        if (alarmSortKeyChanged(prev, a)) sortChanged = true;
+      }
+    }
+    for (const id of prevMap.keys()) {
+      if (!nextMap.has(id)) {
+        removes.push({ id });
+        sortChanged = true;
+      }
+    }
+
+    if (adds.length || updates.length || removes.length) {
+      api.applyTransactionAsync({
+        add: adds,
+        update: updates,
+        remove: removes as unknown as ActiveAlarm[],
+      }, () => {
+        if (sortChanged) api.refreshClientSideRowModel('sort');
+      });
+      alarmSnapshotRef.current = nextMap;
+    }
+  }, []);
+
   // ─── Grid events ────────────────────────────────────────────────────────────
 
-  const onGridReady = useCallback((e: GridReadyEvent) => {
+  const onGridReady = useCallback((e: GridReadyEvent<ActiveAlarm>) => {
     if (sortStateRef.current.length > 0) {
       e.api.applyColumnState({ state: sortStateRef.current, defaultState: { sort: null } });
     } else {
@@ -460,11 +519,8 @@ const AlarmConsole: React.FC = () => {
         defaultState: { sort: null },
       });
     }
-    alarmSnapshotRef.current = new Map(rowData.map(a => [a.id, a]));
-    if (rowData.length > 0) {
-      e.api.applyTransactionAsync({ add: rowData });
-    }
-  }, [rowData]);
+    applyGridSync(e.api);
+  }, [applyGridSync]);
 
   const onSortChanged = useCallback(() => {
     const api = gridRef.current?.api;
@@ -498,40 +554,25 @@ const AlarmConsole: React.FC = () => {
   useEffect(() => {
     const api = gridRef.current?.api;
     if (!api || isFrozen) return;
-    const prevMap = alarmSnapshotRef.current;
-    if (prevMap.size === 0) {
-      if (rowData.length === 0) return;
-      alarmSnapshotRef.current = new Map(rowData.map(a => [a.id, a]));
-      api.applyTransactionAsync({ add: rowData }, () => {
-        api.refreshClientSideRowModel('sort');
+    applyGridSync(api);
+  }, [lastUpdated, rowData, isFrozen, applyGridSync]);
+
+  useEffect(() => () => {
+    alarmSnapshotRef.current = new Map();
+  }, []);
+
+  // Refresh live timer columns without reloading alarm data.
+  useEffect(() => {
+    if (isFrozen) return;
+    const id = window.setInterval(() => {
+      if (alarmSnapshotRef.current.size === 0) return;
+      gridRef.current?.api?.refreshCells({
+        columns: ['ackLifecycleState', 'timeInAlarm'],
+        force: true,
       });
-      return;
-    }
-
-    const nextMap = new Map(rowData.map(a => [a.id, a]));
-    const adds: ActiveAlarm[] = [];
-    const updates: ActiveAlarm[] = [];
-    const removes: { id: string }[] = [];
-
-    for (const a of rowData) {
-      if (!prevMap.has(a.id)) adds.push(a);
-      else if (prevMap.get(a.id) !== a) updates.push(a);
-    }
-    for (const id of prevMap.keys()) {
-      if (!nextMap.has(id)) removes.push({ id });
-    }
-
-    if (adds.length || updates.length || removes.length) {
-      api.applyTransactionAsync({
-        add: adds,
-        update: updates,
-        remove: removes as unknown as ActiveAlarm[],
-      }, () => {
-        api.refreshClientSideRowModel('sort');
-      });
-    }
-    alarmSnapshotRef.current = nextMap;
-  }, [lastUpdated, rowData, isFrozen]);
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [isFrozen]);
 
   // ─── Keyboard shortcuts ────────────────────────────────────────────────────
 
@@ -707,7 +748,7 @@ const AlarmConsole: React.FC = () => {
           onRowDoubleClicked={onRowDoubleClicked}
           onSelectionChanged={onSelectionChanged}
           quickFilterText={quickFilter}
-          animateRows={true}
+          animateRows={false}
           rowSelection="multiple"
           suppressRowClickSelection={false}
           defaultColDef={{

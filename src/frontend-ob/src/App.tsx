@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useAlarmStore } from './store/alarmStore';
+import { HubConnectionState } from '@microsoft/signalr';
 
 // OpenBridge Components
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -21,6 +22,9 @@ const SoePanel         = React.lazy(() => import('./components/Soe/SoePanel'));
 const SystemMonitor    = React.lazy(() => import('./components/SystemMonitor/SystemMonitor'));
 const EdgeNodeMonitor  = React.lazy(() => import('./components/EdgeNodeMonitor/EdgeNodeMonitor'));
 const Administration   = React.lazy(() => import('./components/Administration/Administration'));
+// HMI Designer (Phase 2)
+const DisplayList      = React.lazy(() => import('./components/Designer/DisplayList'));
+const DesignerPage     = React.lazy(() => import('./components/Designer/DesignerPage'));
 
 // Shared Components
 import { LiveEventStream } from './components/shared/LiveEventStream';
@@ -90,11 +94,16 @@ const App: React.FC = () => {
     };
 
     console.info('[AMS] Connecting to live API with anonymous auth');
+    // Show the shell immediately; SignalR + alarm hydrate continue in the background.
+    setReady(true);
     void connectLive('anonymous-token');
 
     const refreshId = setInterval(() => {
+      const { connectionState } = useAlarmStore.getState();
+      // SignalR pushes live updates; polling is a fallback when the hub is down.
+      if (connectionState === HubConnectionState.Connected) return;
       void useAlarmStore.getState().refreshActiveAlarms().catch(() => {});
-    }, 8_000);
+    }, 30_000);
 
     return () => {
       clearInterval(refreshId);
@@ -134,6 +143,9 @@ const App: React.FC = () => {
                 <Route path="/trend"      element={<IoTDBTrendViewer />} />
                 {/* Analysis */}
                 <Route path="/analytics"  element={<Analytics />} />
+                {/* HMI Designer (Phase 2) */}
+                <Route path="/designer"       element={<DisplayList />} />
+                <Route path="/designer/:id"   element={<DesignerPage />} />
                 {/* Infrastructure */}
                 <Route path="/system"     element={<SystemMonitor />} />
                 <Route path="/edge"       element={<EdgeNodeMonitor />} />
@@ -158,7 +170,10 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [showLiveEvents, setShowLiveEvents] = useState(readLiveEventsPreference);
 
   // Full-height pages manage their own internal scroll regions
-  const isFullHeightPage = location.pathname === '/alarms' || location.pathname === '/live-events';
+  const isFullHeightPage =
+    location.pathname === '/alarms' ||
+    location.pathname === '/live-events' ||
+    /^\/designer\/[^/]+/.test(location.pathname);
 
   const toggleLiveEvents = () => {
     setShowLiveEvents(prev => {
@@ -347,6 +362,8 @@ const navItems = [
   { path: '/trend',      label: 'IoTDB Trend Viewer',  icon: '📈', group: 'Historical' },
   // ── Analysis ──────────────────────────────────────────────
   { path: '/analytics',  label: 'Analytics',           icon: '🔬', group: 'Analysis' },
+  // ── HMI Designer (Phase 2) ────────────────────────────────
+  { path: '/designer',   label: 'HMI Designer',        icon: '🎨', group: 'Design' },
   // ── Infrastructure (edge + system monitoring) ─────────────
   { path: '/system',     label: 'System Monitor',      icon: '⚙',  group: 'Infrastructure' },
   { path: '/edge',       label: 'Edge Node Monitor',   icon: '⬡',  group: 'Infrastructure' },

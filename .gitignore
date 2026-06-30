@@ -340,3 +340,6 @@ videos/
 
 # Windows shortcut files
 *.lnk
+
+# Reference application (local analysis only — exceeds GitHub 100MB limit)
+src/xmlgraphics-batik-main ScreeN Import/

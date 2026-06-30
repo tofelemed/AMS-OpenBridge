@@ -4,7 +4,7 @@ import { immer } from 'zustand/middleware/immer';
 import { enableMapSet } from 'immer';
 import { fetchAllActiveAlarms, fetchAlarmStatistics, fetchConnectedOpcAeServers, purgeLabInjectedAlarms } from '../api/alarmApi';
 import { mapHubAlarmPayload } from '../api/alarmMappers';
-import { applyAckLifecycleToAlarm, upsertAlarm } from '../utils/alarmReconciliation';
+import { applyAckLifecycleToAlarm, upsertAlarm, alarmsEqual } from '../utils/alarmReconciliation';
 import { alarmMatchesConnectedOpcServer } from '../utils/opcAlarmFilter';
 
 enableMapSet();
@@ -260,6 +260,7 @@ async function hydrateAlarmsFromApi(
 
   let fetched = 0;
   let stored = 0;
+  let hydrateDirty = false;
   const fetchedIds = new Set<string>();
   await fetchAllActiveAlarms(serverId || undefined, (pageAlarms) => {
     set(state => {
@@ -273,13 +274,15 @@ async function hydrateAlarmsFromApi(
       for (const alarm of pageAlarms) {
         if (alarmMatchesConnectedOpcServer(alarm, state.connectedOpcServerIds)) {
           const prev = state.alarms.get(alarm.id);
-          state.alarms.set(alarm.id, prev ? upsertAlarm(prev, alarm) : alarm);
+          const next = prev ? upsertAlarm(prev, alarm) : alarm;
+          if (next !== prev) {
+            state.alarms.set(alarm.id, next);
+            hydrateDirty = true;
+          }
           fetchedIds.add(alarm.id);
           stored++;
         }
       }
-      state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds);
-      state.lastUpdated = Date.now();
     });
     fetched += pageAlarms.length;
   });
@@ -290,8 +293,18 @@ async function hydrateAlarmsFromApi(
         const alarm = state.alarms.get(id);
         if (!alarm) continue;
         if (!alarmMatchesConnectedOpcServer(alarm, state.connectedOpcServerIds)) continue;
-        if (!fetchedIds.has(id)) state.alarms.delete(id);
+        if (!fetchedIds.has(id)) {
+          state.alarms.delete(id);
+          hydrateDirty = true;
+        }
       }
+      if (hydrateDirty) {
+        state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds);
+        state.lastUpdated = Date.now();
+      }
+    });
+  } else if (hydrateDirty) {
+    set(state => {
       state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds);
       state.lastUpdated = Date.now();
     });
@@ -365,15 +378,25 @@ export const useAlarmStore = create<AlarmStore>()(
             const id = String(pickId(raw));
             const incoming = mapHubAlarmPayload(raw, state.alarms.get(id));
             if (!alarmMatchesConnectedOpcServer(incoming, state.connectedOpcServerIds)) {
-              state.alarms.delete(id);
+              if (state.alarms.has(id)) {
+                state.alarms.delete(id);
+                state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds);
+                state.lastUpdated = Date.now();
+              }
               return;
             }
             if (!incoming.conditionActive) {
-              state.alarms.delete(id);
-            } else {
-              const existing = state.alarms.get(incoming.id);
-              state.alarms.set(incoming.id, existing ? upsertAlarm(existing, incoming) : incoming);
+              if (state.alarms.has(id)) {
+                state.alarms.delete(id);
+                state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds);
+                state.lastUpdated = Date.now();
+              }
+              return;
             }
+            const existing = state.alarms.get(incoming.id);
+            const next = existing ? upsertAlarm(existing, incoming) : incoming;
+            if (existing && alarmsEqual(existing, next)) return;
+            state.alarms.set(incoming.id, next);
             state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds);
             state.lastUpdated = Date.now();
           });

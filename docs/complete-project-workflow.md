@@ -1,38 +1,51 @@
 # AMS Complete Project Workflow
 
-> End-to-end reference for the Alarm Management System (AMS): ingestion → Kafka → Flink → PostgreSQL → API/SignalR → React UI.
+> End-to-end reference for the Alarm Management System (AMS): architecture, data flows, technologies, services, and databases.
 >
 > **Last verified against codebase:** June 2026  
-> **Primary runtime stack:** Docker Compose (`infra/docker/docker-compose.yml`)
+> **Primary runtime stack:** Docker Compose (`infra/docker/docker-compose.yml`)  
+> **HMI entry point:** `http://localhost:3000`
 
 ---
 
 ## Table of Contents
 
 1. [Executive Summary](#1-executive-summary)
-2. [System Architecture](#2-system-architecture)
-3. [Ingestion Layer](#3-ingestion-layer)
-4. [Kafka Topic Catalog](#4-kafka-topic-catalog)
-5. [Flink Stream Processing](#5-flink-stream-processing)
-6. [Data Models by Stage](#6-data-models-by-stage)
-7. [Backend Consumers & PostgreSQL Writes](#7-backend-consumers--postgresql-writes)
-8. [PostgreSQL Database Schema](#8-postgresql-database-schema)
-9. [Operator ACK Lifecycle](#9-operator-ack-lifecycle)
-10. [Frontend Consumption](#10-frontend-consumption)
-11. [Microservices (`src/services`)](#11-microservices-srcservices)
-12. [Infrastructure](#12-infrastructure)
-13. [Legacy vs Current Pipeline](#13-legacy-vs-current-pipeline)
-14. [Key File Index](#14-key-file-index)
+2. [Technology Stack](#2-technology-stack)
+3. [System Architecture](#3-system-architecture)
+4. [Pipeline A — DCS / HTTP Feed → PostgreSQL → SignalR](#4-pipeline-a--dcs--http-feed--postgresql--signalr)
+5. [Pipeline B — Edge Live → MQTT → Historian](#5-pipeline-b--edge-live--mqtt--historian)
+6. [Kafka Topic Catalog](#6-kafka-topic-catalog)
+7. [Flink Stream Processing](#7-flink-stream-processing)
+8. [Data Stores](#8-data-stores)
+9. [Backend (.NET API)](#9-backend-net-api)
+10. [Edge Services](#10-edge-services)
+11. [Frontend (React HMI)](#11-frontend-react-hmi)
+12. [Operator ACK Lifecycle](#12-operator-ack-lifecycle)
+13. [Infrastructure & Docker Compose](#13-infrastructure--docker-compose)
+14. [Observability](#14-observability)
+15. [Legacy vs Current Pipeline](#15-legacy-vs-current-pipeline)
+16. [Key File Index](#16-key-file-index)
+17. [Appendices](#17-appendices)
 
 ---
 
 ## 1. Executive Summary
 
-AMS is an industrial alarm management platform built around **event-driven stream processing**. The design principle is:
+AMS is an industrial **Alarm Management System** built around **event-driven stream processing**. Two complementary data paths serve different HMI needs:
+
+| Path | Purpose | Primary UI |
+|------|---------|------------|
+| **Pipeline A** | Authoritative OPC/HTTP alarm state, operator ACK, alarm console | `/alarms` (SignalR + REST) |
+| **Pipeline B** | Low-latency live metrics, Sparkplug B MQTT, IoTDB historian | `/live-events`, `/trend`, `/edge` |
+
+### Design principle
 
 > **Kafka + Flink own alarm state orchestration. The API is a projection layer — it does not directly write ACK state to SQL on operator action.**
 
-### Current production path (Docker Compose)
+Flink writes to **Kafka** (and **IoTDB** via a dedicated persistence job). **PostgreSQL** is updated exclusively by API background consumers. **Redis** holds MQTT metric snapshots. **IoTDB** holds time-series alarm history for trend charts.
+
+### Pipeline A — production alarm path
 
 ```
 HTTP Alarm Feed (DCS/SCADA)
@@ -43,13 +56,38 @@ Kafka: raw-alarms
     ↓ consume
 Flink: OpcEventStreamJob (state machine)
     ↓ publish
-Kafka: current-alarm-state | lifecycle-events | root-cause-events | ack-writeback
+Kafka: current-alarm-state | lifecycle-events | ack-writeback | root-cause-events
     ↓ consume
 AMS API — Kafka consumer services
     ↓ upsert/delete
 PostgreSQL: alarms.alarm_current
     ↓ REST + SignalR
-React UI (frontend-ob)
+React UI — Alarm Console, Dashboard
+```
+
+### Pipeline B — edge live path
+
+```
+raw-alarms (or current-alarm-state in fast mode)
+    ↓
+Flink: OpcEventStreamJob → current-alarm-state
+    ↓
+Flink: LiveStateJob (Report-by-Exception)
+    ↓ publish
+Kafka: live.alarms | live.metrics
+    ↓ consume
+sparkplug-edge-node (Java)
+    ↓ Sparkplug B DDATA + Redis snapshots
+EMQX MQTT broker
+    ↓ WebSocket /mqtt-ws
+React UI — mqttStore, Live Events MQTT tab
+
+Parallel historian branch:
+raw-alarms → Flink: IoTDBPersistenceJob → Apache IoTDB
+    ↓ REST v2
+historian-bff (.NET) → /trend, /raw, /snapshot
+    ↓ nginx /api/hist
+React UI — IoTDB Trend Viewer
 ```
 
 ### What runs where
@@ -57,126 +95,193 @@ React UI (frontend-ob)
 | Component | Location | Role |
 |-----------|----------|------|
 | HTTP ingest | `src/backend/AMS.Api` | Polls external alarm feed, publishes deltas to `raw-alarms` |
-| Stream processing | `src/flink` | Alarm state machine, KPIs, drift detection, replay |
+| Stream processing | `src/flink` | Alarm state machine, live RBE, IoTDB persistence, KPIs |
 | Projection & API | `src/backend` | Kafka consumers → PostgreSQL → REST + SignalR |
-| Operator UI | `src/frontend-ob` | React + OpenBridge, Zustand store, live SignalR |
-| Standalone services | `src/services` | Audit + notification (not in Docker Compose) |
-| Database | `database/` | TimescaleDB/PostgreSQL schema scripts |
+| Operator UI | `src/frontend-ob` | React 18 + OpenBridge, Zustand, AG Grid, SignalR, MQTT |
+| Sparkplug bridge | `src/services/sparkplug-edge-node` | Kafka → Sparkplug B → EMQX + Redis |
+| Historian BFF | `src/services/historian-bff` | IoTDB REST + Redis snapshot API |
+| Standalone (optional) | `src/services/audit-service`, `notification-service` | Not in Docker Compose |
+| Database scripts | `database/` | TimescaleDB/PostgreSQL schema |
 | Infrastructure | `infra/` | Docker Compose, Helm, Windows OPC gateway docs |
 
 ---
 
-## 2. System Architecture
+## 2. Technology Stack
 
-### 2.1 High-level diagram
+### Languages & runtimes
+
+| Layer | Technology | Version (Compose) |
+|-------|------------|-------------------|
+| Backend API | C# / .NET | 8 |
+| Stream processing | Java | 11 (Flink 1.18.1) |
+| Edge bridge | Java | 11 (Sparkplug Tahu) |
+| Historian BFF | C# / .NET | 8 Minimal API |
+| Frontend | TypeScript / React | 18, Vite 5 |
+| E2E scripts | Python | 3.x |
+
+### Data & messaging
+
+| System | Image / package | Role |
+|--------|-----------------|------|
+| **Apache Kafka** | Confluent 7.5.3 | Event bus, compacted alarm state |
+| **Apache Zookeeper** | Confluent 7.5.3 | Kafka coordination |
+| **Apache Flink** | 1.18.1-java11 | Stateful stream jobs, RocksDB checkpoints |
+| **PostgreSQL + TimescaleDB** | timescale/timescaledb pg15 | Active alarms, history, config, analytics |
+| **Apache IoTDB** | 1.3.2-standalone | Time-series alarm historian |
+| **Redis** | 7.2-alpine | MQTT metric snapshot cache |
+| **EMQX** | 5.6.0 | MQTT broker (Sparkplug B) |
+
+### Frontend libraries
+
+| Library | Use |
+|---------|-----|
+| `@microsoft/signalr` | Live alarm hub (`/hubs/alarms`) |
+| `mqtt` | Sparkplug B over WebSocket (`/mqtt-ws`) |
+| `zustand` + `immer` | `alarmStore`, `mqttStore` |
+| `ag-grid-react` | Alarm Console grid |
+| `@oicl/openbridge-webcomponents` | OpenBridge design system |
+| `echarts` / `d3` | Analytics & trend charts |
+| `@tanstack/react-query` | REST caching |
+
+### Protocols
+
+| Protocol | Where |
+|----------|-------|
+| HTTP/JSON | DCS feed, REST API, Historian BFF |
+| WebSocket | SignalR, MQTT-over-WS (via nginx) |
+| Sparkplug B | EMQX topics `spBv1.0/ams_site1/...` |
+| Kafka binary | Internal Docker network `kafka:9092` |
+
+---
+
+## 3. System Architecture
+
+### 3.1 Dual-pipeline overview
 
 ```mermaid
 flowchart TB
     subgraph Sources["Data Sources"]
         HTTP["HTTP Alarm Feed<br/>/api/current-alarms"]
         OPC["OPC-AE Gateway<br/>(Windows, optional)"]
-        LOOP["Control Loop Samples<br/>(future)"]
+        FEED["live_events_feed.py<br/>(E2E demo)"]
     end
 
     subgraph Ingest["Ingestion — AMS API"]
         AIS["AlarmIngestionService"]
         HAW["HttpAckWritebackService"]
-        TDW["TelemetryDeadmanWatchdog"]
     end
 
     subgraph Kafka["Apache Kafka"]
         RA["raw-alarms"]
         CAS["current-alarm-state"]
+        LA["live.alarms"]
+        LM["live.metrics"]
         LE["lifecycle-events"]
         OA["operator-actions"]
         AWB["ack-writeback"]
         AR["ack-results"]
-        RCE["root-cause-events"]
-        LA["lifecycle-alerts"]
         KPI["KPI topics"]
-        OBS["Observability topics"]
     end
 
     subgraph Flink["Apache Flink 1.18"]
-        OES["OpcEventStreamJob<br/>(auto-started)"]
+        OES["OpcEventStreamJob"]
+        LSJ["LiveStateJob"]
+        IDB["IoTDBPersistenceJob"]
         AKJ["AlarmKpiStreamJob"]
-        LKJ["LoopKpiStreamJob"]
-        SDJ["StateDriftDetectionJob"]
-        ASE["AlarmStateExportJob"]
-        ARE["AlarmReplayEngine"]
+    end
+
+    subgraph Stores["Data Stores"]
+        PG["PostgreSQL<br/>alarm_current"]
+        IOT["IoTDB<br/>root.ams.site1.alarms.*"]
+        RD["Redis<br/>snapshot:metric:*"]
+    end
+
+    subgraph Edge["Edge Bridge"]
+        SP["sparkplug-edge-node"]
+        EMQX["EMQX MQTT"]
     end
 
     subgraph API["AMS API (.NET 8)"]
         NAC["NormalizedAlarmConsumer"]
         LEC["LifecycleEventConsumer"]
-        KCC["KpiConsumerService"]
-        OAC["OperatorActionPublisher"]
-    end
-
-    subgraph DB["PostgreSQL / TimescaleDB"]
-        AC["alarms.alarm_current"]
-        AH["alarms.alarm_history"]
-        AST["alarms.alarm_state_transitions"]
-        OCC["configuration.opc_connections"]
-    end
-
-    subgraph UI["React UI (frontend-ob)"]
-        STORE["Zustand alarmStore"]
         HUB["SignalR /hubs/alarms"]
     end
 
+    subgraph BFF["historian-bff"]
+        HIST["/trend /raw /snapshot"]
+    end
+
+    subgraph UI["React HMI :3000"]
+        AC["Alarm Console"]
+        LEUI["Live Events"]
+        TR["IoTDB Trend"]
+    end
+
     HTTP --> AIS
+    FEED --> RA
+    FEED -.-> CAS
     OPC -.-> RA
     AIS --> RA
-    TDW --> LA
-  TDW -.monitors.-> RA
 
     RA --> OES
+    RA --> IDB
     OA --> OES
     AR --> OES
 
     OES --> CAS
     OES --> LE
-    OES --> RCE
     OES --> AWB
-
     AWB --> HAW
     HAW --> AR
 
-    LE --> AKJ
-    LE --> LEC
-    AKJ --> KPI
-    LOOP -.-> LKJ
-    LKJ --> KPI
-
     CAS --> NAC
-    CAS --> ASE
-    ASE --> OBS
-    KPI --> KCC
+    NAC --> PG
+    LE --> LEC
+    PG --> HUB
+    HUB --> AC
 
-    NAC --> AC
-    LEC --> AC
+    CAS --> LSJ
+    LSJ --> LA
+    LSJ --> LM
+    LA --> SP
+    LM --> SP
+    SP --> EMQX
+    SP --> RD
+    EMQX --> LEUI
 
-    AC --> API
-    API --> HUB
-    HUB --> STORE
-    API --> STORE
-
-    OAC --> OA
-    STORE --> OAC
+    IDB --> IOT
+    IOT --> HIST
+    RD --> HIST
+    HIST --> TR
 ```
 
-### 2.2 Design constraints
+### 3.2 Design constraints
 
 - **Flink-only orchestration** is enforced at startup (`Program.cs`). `Kafka:UseFlinkOrchestration` must be `true`; `LabDirectIngest` must be `false`.
-- **No Flink JDBC sinks** — Flink writes only to Kafka. PostgreSQL is updated exclusively by API background consumers.
+- **No Flink JDBC sinks to PostgreSQL** — Flink writes to Kafka and IoTDB only. PostgreSQL is updated by API consumers.
 - **At-least-once** delivery to PostgreSQL with **idempotent upserts** keyed on `serverId + sourceName + conditionName + subConditionName`.
+- **IoTDB writes** are idempotent on `(device path, timestamp)`; Flink `IoTDBPersistenceJob` uses at-least-once checkpoints.
+- **MQTT live path** uses Report-by-Exception (RBE) in `LiveStateJob` to minimize payload size.
+
+### 3.3 UI route map
+
+| Route | Data source | Description |
+|-------|-------------|-------------|
+| `/dashboard` | SignalR + REST stats | KPI overview |
+| `/alarms` | SignalR + REST active alarms | Operator alarm console (AG Grid) |
+| `/live-events` | SignalR SOE + MQTT Sparkplug | Real-time event streams |
+| `/trend` | Historian BFF → IoTDB | Alarm trend charts & raw table |
+| `/historical` | REST historical queries | Archived alarm search |
+| `/analytics` | REST + KPI SignalR | Analytics dashboards |
+| `/edge` | Historian BFF health + Redis | Edge node monitor |
+| `/system` | Pipeline health API | Kafka/Flink/SignalR status |
+| `/admin/*` | REST | Alarm feed config, OPC connections |
 
 ---
 
-## 3. Ingestion Layer
+## 4. Pipeline A — DCS / HTTP Feed → PostgreSQL → SignalR
 
-### 3.1 Primary ingest: HTTP alarm feed
+### 4.1 Primary ingest: HTTP alarm feed
 
 **Service:** `AlarmIngestionService`  
 **File:** `src/backend/AMS.Api/BackgroundServices/AlarmIngestionService.cs`
@@ -196,38 +301,9 @@ flowchart TB
 3. Publish **only deltas** (new alarm, state change, clear) to Kafka topic **`raw-alarms`**.
 4. Message key = `alarmId` (feed correlation id, e.g. `BB26-BF402|Alarm high`).
 
-**HTTP feed JSON fields (typical):**
+### 4.2 ACK writeback ingest
 
-```json
-{
-  "correlation_id": "BB26-BF402|Alarm high",
-  "tag_name": "BB26-BF402",
-  "severity": 700,
-  "state": "ACTIVE",
-  "acknowledged": false,
-  "message": "High alarm on BB26-BF402",
-  "condition": "Alarm high"
-}
-```
-
-**Published to `raw-alarms` as `RawAlarmStreamEvent`:**
-
-| Field | Source |
-|-------|--------|
-| `eventType` | `RAW_ALARM_EVENT` |
-| `serverId` | Configured HTTP feed server GUID |
-| `sourceName` | `tag_name` |
-| `conditionName` | `condition` |
-| `severity` / `priority` | Mapped from feed |
-| `conditionActive` | `state != "CLEARED"` |
-| `acknowledged` | From feed |
-| `eventTimeEpochMs` | Current UTC |
-| `alarmId` | `correlation_id` |
-
-### 3.2 ACK writeback ingest
-
-**Service:** `HttpAckWritebackService`  
-**File:** `src/backend/AMS.Api/BackgroundServices/HttpAckWritebackService.cs`
+**Service:** `HttpAckWritebackService`
 
 | Direction | Topic | Action |
 |-----------|-------|--------|
@@ -235,562 +311,246 @@ flowchart TB
 | HTTP POST | `AckWritebackUrl` | Writes ACK to external DCS/SCADA |
 | Produce | `ack-results` | Publishes `ACK_CONFIRMED` or `ACK_FAILED` |
 
-### 3.3 Telemetry watchdog
+### 4.3 Telemetry watchdog
 
 **Service:** `TelemetryDeadmanWatchdogService`
 
 - Monitors `raw-alarms` topic for message activity.
-- If no messages within configured threshold → publishes `TELEMETRY_STALLED` to **`lifecycle-alerts`**.
-- No downstream consumer in the current codebase (alert topic reserved).
+- If no messages within threshold → publishes `TELEMETRY_STALLED` to **`lifecycle-alerts`**.
 
-### 3.4 OPC-AE gateway (external, optional)
+### 4.4 OPC-AE gateway (external, optional)
 
-Documented in `infra/windows/opc-gateway-deploy.md`. A Windows x86 service connects to OPC-AE servers and can publish to Kafka's external listener (`localhost:9093`). The **legacy** path used `raw-opc-events`; the **current** path uses `raw-alarms` with the same JSON schema Flink accepts.
+Documented in `infra/windows/opc-gateway-deploy.md`. A Windows x86 service connects to OPC-AE servers and publishes to Kafka external listener (`localhost:9093`) on topic **`raw-alarms`**.
 
-### 3.5 Standalone microservices ingest
+### 4.5 PostgreSQL projection
 
-See [Section 11](#11-microservices-srcservices). `audit-service` and `notification-service` are Kafka consumers only — they do not produce alarm data.
+**Consumer:** `NormalizedAlarmConsumerService` → `NormalizedAlarmIngestor`
+
+| Kafka topic | PostgreSQL action | SignalR |
+|-------------|-------------------|---------|
+| `current-alarm-state` UPSERT | Insert/update `alarms.alarm_current` | `OnNewAlarm`, `OnAlarmUpdated` |
+| `current-alarm-state` DELETE | Delete from `alarm_current` | `OnAlarmCleared` |
+| `lifecycle-events` | Update ACK lifecycle fields | `OnAckLifecycleUpdated` |
+
+**Matching key:** `serverId + sourceName + conditionName + subConditionName` (not `activeTime`).
 
 ---
 
-## 4. Kafka Topic Catalog
+## 5. Pipeline B — Edge Live → MQTT → Historian
 
-Topics are provisioned by `scripts/kafka-reset-lab-topics.ps1` (19 production topics). Legacy OPC topics are deleted on reset.
+### 5.1 LiveStateJob — Report-by-Exception
 
-### 4.1 Core alarm pipeline (active in Docker Compose)
+**Entry class:** `com.ams.flink.LiveStateJob`  
+**Auto-submitted:** `infra/docker/flink-submit-live-state.sh`
 
-| Topic | Partitions | Cleanup | Producer | Consumer(s) | Consumer Group |
-|-------|------------|---------|----------|-------------|----------------|
-| **`raw-alarms`** | 8 | delete | `AlarmIngestionService` | Flink `OpcEventStreamJob`, `TelemetryDeadmanWatchdog` | `flink-ams-raw-alarms`, `ams-backend-telemetry-deadman` |
-| **`current-alarm-state`** | 8 | **compact** | Flink `OpcEventStreamJob` | `NormalizedAlarmConsumerService` | `ams-backend` |
-| **`operator-actions`** | 4 | delete | `OperatorActionPublisher` (API) | Flink `OpcEventStreamJob` | `flink-ams-operator-actions` |
-| **`ack-writeback`** | 2 | delete | Flink `OpcEventStreamJob` | `HttpAckWritebackService` | `ams-backend-http-ack-writeback` |
-| **`ack-results`** | 2 | delete | `HttpAckWritebackService` | Flink `OpcEventStreamJob` | `flink-ams-ack-results` |
-| **`lifecycle-events`** | 4 | delete | Flink `OpcEventStreamJob`, `LifecycleEventPublisher` | `LifecycleEventConsumerService`, Flink `AlarmKpiStreamJob` | `ams-backend-lifecycle`, `flink-ams-alarm-kpi` |
-| **`root-cause-events`** | 2 | delete | Flink `OpcEventStreamJob` | `notification-service` | `notification-service-group` |
-| **`lifecycle-alerts`** | — | — | `TelemetryDeadmanWatchdogService` | *(none wired)* | — |
+| Source | Sink | Purpose |
+|--------|------|---------|
+| `current-alarm-state` | `live.alarms` | Full alarm envelope for HMI list |
+| `current-alarm-state` | `live.metrics` | Lightweight numeric metrics for widgets |
 
-### 4.2 KPI & loop analytics (optional Flink jobs)
+**Logic:** Keyed by `alarmId`; Flink `ValueState` holds last published snapshot. Only changed fields are forwarded (RBE). Checkpointing: 30s AT_LEAST_ONCE.
 
-| Topic | Partitions | Producer | Consumer |
-|-------|------------|----------|----------|
-| **`loop-raw-data`** | 16 | External / future | Flink `LoopKpiStreamJob` |
-| **`loop-kpis-5m`** | 8 | Flink `LoopKpiStreamJob` | `KpiConsumerService` → SignalR |
-| **`kpi-alarm-rates`** | 4 | Flink `AlarmKpiStreamJob` | `KpiConsumerService` |
-| **`kpi-standing-snapshots`** | 2 | compact | Flink `AlarmKpiStreamJob` | `KpiConsumerService` |
-| **`kpi-bad-actors`** | 4 | *(no producer yet)* | `KpiConsumerService` |
-| **`kpi-health-scores`** | 2 | *(no producer yet)* | `KpiConsumerService` |
+### 5.2 sparkplug-edge-node — Kafka → MQTT
 
-### 4.3 Observability & drift detection (Phase 2)
+**Path:** `src/services/sparkplug-edge-node`  
+**Container:** `ams-sparkplug-edge-node`
 
-| Topic | Partitions | Producer | Consumer |
-|-------|------------|----------|----------|
-| **`alarm.events.raw`** | 8 | External | Flink `StateDriftDetectionJob`, `AlarmReplayEngine` |
-| **`alarm.state.active`** | 4 | compact | Flink `StateDriftDetectionJob` |
-| **`flink.state.alarm.delta`** | 4 | Flink `AlarmStateExportJob` | `AlarmStateDeltaConsumerService` → ObservabilityHub |
-| **`flink.state.alarm.replay`** | — | Flink `AlarmReplayEngine` | `ReplayResultConsumerService` → ObservabilityHub |
-| **`system.state.drift.alerts`** | 2 | Flink `StateDriftDetectionJob` | `DriftAlertConsumerService` → ObservabilityHub |
+| Input | Output |
+|-------|--------|
+| Kafka `live.alarms`, `live.metrics` | EMQX Sparkplug B topics |
+| — | Redis snapshot keys |
 
-### 4.4 Microservice & DLQ topics
+**Sparkplug topic pattern:**
+
+```
+spBv1.0/ams_site1/NDATA/ams_edge1/{deviceId}
+spBv1.0/ams_site1/DDATA/ams_edge1/{deviceId}
+```
+
+**Device ID:** Sanitised `sourceName` (not Kafka `alarmId`). The `alarmId` metric is published on DBIRTH/DDATA so the HMI can map MQTT device → IoTDB path.
+
+**Redis keys:**
+
+```
+snapshot:metric:ams_site1:ams_edge1:{device}:{metricName}  → JSON {v,q,ts}
+alias:ams_site1:ams_edge1                                   → Hash {alias: name}
+```
+
+### 5.3 IoTDBPersistenceJob — raw alarm historian
+
+**Entry class:** `com.ams.flink.IoTDBPersistenceJob`  
+**Auto-submitted:** `infra/docker/flink-submit-iotdb-persistence.sh`
+
+| Source | Sink |
+|--------|------|
+| `raw-alarms` | Apache IoTDB |
+
+**Tree path:** `root.ams.site1.alarms.{sanitised_alarmId}`  
+**Measurements:** `severity`, `state`, `ack_status`, `condition_active`, `priority`, `source_name`, `condition_name`
+
+> **Important:** IoTDB device paths use **Kafka alarmId** (e.g. `LIVE-04281e-03` → `LIVE_04281e_03`). MQTT device ids use **sanitised sourceName**. Use the `alarmId` Sparkplug metric or `resolveHistorianPathForLiveAlarm()` in the frontend to link them.
+
+### 5.4 historian-bff — query facade
+
+**Path:** `src/services/historian-bff`  
+**Container:** `ams-historian-bff` — port **8090**
+
+| Endpoint | Backend | Purpose |
+|----------|---------|---------|
+| `GET /health` | IoTDB + Redis ping | Health check |
+| `GET /series?prefix=` | IoTDB `SHOW TIMESERIES` | Discover alarm device paths |
+| `GET /trend?series=&start=&end=&width=` | IoTDB REST v2 | Decimated chart points |
+| `GET /raw?series=&start=&end=&maxCount=&offset=` | IoTDB REST v2 | Paginated raw records |
+| `GET /snapshot?assets=` | Redis | Current metric values |
+
+**Frontend proxy:** nginx strips `/api/hist/` → `historian-bff:8090`
+
+### 5.5 E2E live demo feeder
+
+**Script:** `scripts/e2e-edge/live_events_feed.py`
+
+| Mode | Path | IoTDB writes |
+|------|------|--------------|
+| `full` (default) | `raw-alarms` → full Flink chain → MQTT | Yes |
+| `fast` | `current-alarm-state` → LiveStateJob → MQTT | Indirect (via existing raw path) |
+| `mqtt` | Direct `live.alarms` → edge node → MQTT | **No** |
+
+```powershell
+python scripts/e2e-edge/live_events_feed.py --mode full --interval 3
+```
+
+---
+
+## 6. Kafka Topic Catalog
+
+Topics are provisioned by `scripts/kafka-reset-lab-topics.ps1`.
+
+### 6.1 Core alarm pipeline (Docker Compose)
+
+| Topic | Cleanup | Producer | Consumer(s) |
+|-------|---------|----------|-------------|
+| **`raw-alarms`** | delete | `AlarmIngestionService`, E2E feeder | Flink `OpcEventStreamJob`, `IoTDBPersistenceJob`, deadman watchdog |
+| **`current-alarm-state`** | **compact** | Flink `OpcEventStreamJob` | `NormalizedAlarmConsumerService`, `LiveStateJob` |
+| **`live.alarms`** | delete | Flink `LiveStateJob`, E2E feeder (`mqtt` mode) | `sparkplug-edge-node` |
+| **`live.metrics`** | delete | Flink `LiveStateJob` | `sparkplug-edge-node` |
+| **`operator-actions`** | delete | `OperatorActionPublisher` | Flink `OpcEventStreamJob` |
+| **`ack-writeback`** | delete | Flink `OpcEventStreamJob` | `HttpAckWritebackService` |
+| **`ack-results`** | delete | `HttpAckWritebackService` | Flink `OpcEventStreamJob` |
+| **`lifecycle-events`** | delete | Flink `OpcEventStreamJob` | `LifecycleEventConsumerService`, `AlarmKpiStreamJob` |
+| **`root-cause-events`** | delete | Flink `OpcEventStreamJob` | `notification-service` (optional) |
+| **`lifecycle-alerts`** | — | `TelemetryDeadmanWatchdogService` | *(none wired)* |
+
+### 6.2 KPI & observability (optional jobs)
 
 | Topic | Producer | Consumer |
 |-------|----------|----------|
-| **`audit-events`** | *(no in-repo producer)* | `audit-service` → PostgreSQL hash chain |
-| **`raw-alarms-dlq`** | *(stub — log only)* | — |
-| **`ack-writeback-dlq`** | Configured only | — |
+| `loop-raw-data` | External / future | Flink `LoopKpiStreamJob` |
+| `loop-kpis-5m` | Flink `LoopKpiStreamJob` | `KpiConsumerService` |
+| `kpi-alarm-rates` | Flink `AlarmKpiStreamJob` | `KpiConsumerService` |
+| `kpi-standing-snapshots` | Flink `AlarmKpiStreamJob` | `KpiConsumerService` |
+| `flink.state.alarm.delta` | Flink `AlarmStateExportJob` | `AlarmStateDeltaConsumerService` |
+| `system.state.drift.alerts` | Flink `StateDriftDetectionJob` | `DriftAlertConsumerService` |
 
-### 4.5 Legacy topics (removed on reset)
-
-```
-raw-opc-events, raw-opc-events-dlq, current-opc-state, opc-events, opc-ack,
-alarm-created, alarm-updated, alarm-cleared, alarm-acknowledged
-```
-
-These appear in older docs (`ams-alarm-architecture.md`) but are **not** part of the current pipeline.
-
-### 4.6 Complete topic flow map
+### 6.3 Complete flow map
 
 ```
 PRODUCERS                          TOPIC                         CONSUMERS
 ─────────                          ─────                         ─────────
 AlarmIngestionService         →    raw-alarms                →   OpcEventStreamJob
+                                                              →   IoTDBPersistenceJob → IoTDB
                                                               →   TelemetryDeadmanWatchdog
 
+OpcEventStreamJob             →    current-alarm-state       →   NormalizedAlarmConsumer → PostgreSQL
+                                                              →   LiveStateJob
+
+LiveStateJob                  →    live.alarms               →   sparkplug-edge-node → EMQX → HMI
+                              →    live.metrics              →   sparkplug-edge-node
+
 OperatorActionPublisher       →    operator-actions          →   OpcEventStreamJob
-
-OpcEventStreamJob             →    current-alarm-state       →   NormalizedAlarmConsumer
-                                                              →   AlarmStateExportJob (optional)
-
-OpcEventStreamJob             →    lifecycle-events          →   LifecycleEventConsumer
-                                                              →   AlarmKpiStreamJob (optional)
-
-OpcEventStreamJob             →    root-cause-events         →   notification-service
-
 OpcEventStreamJob             →    ack-writeback             →   HttpAckWritebackService
-
 HttpAckWritebackService       →    ack-results               →   OpcEventStreamJob
+```
 
-AlarmKpiStreamJob             →    kpi-alarm-rates           →   KpiConsumerService
-                              →    kpi-standing-snapshots    →   KpiConsumerService
+### 6.4 Legacy topics (removed on reset)
 
-LoopKpiStreamJob              →    loop-kpis-5m              →   KpiConsumerService
-
-AlarmStateExportJob           →    flink.state.alarm.delta   →   AlarmStateDeltaConsumer
-
-StateDriftDetectionJob        →    system.state.drift.alerts →   DriftAlertConsumer
-
-AlarmReplayEngine             →    flink.state.alarm.replay  →   ReplayResultConsumer
-
-TelemetryDeadmanWatchdog      →    lifecycle-alerts          →   (none)
+```
+raw-opc-events, alarm-created, alarm-updated, alarm-cleared, opc-ack, ...
 ```
 
 ---
 
-## 5. Flink Stream Processing
+## 7. Flink Stream Processing
 
 **Module:** `src/flink` (Maven, Flink 1.18.1, Java 11)  
-**Default JAR:** `ams-flink-1.0-SNAPSHOT.jar`  
-**Auto-submitted job:** `OpcEventStreamJob` only (via `infra/docker/flink-submit-raw-alarms.sh`)
+**JAR:** `ams-flink-1.0-SNAPSHOT.jar`  
+**State backend:** RocksDB, incremental checkpoints to `flink-checkpoints` volume
 
-All jobs use **Kafka sources and Kafka sinks only** — no JDBC/Postgres writes from Flink.
+### 7.1 Auto-submitted jobs (Docker Compose)
 
-### 5.1 OpcEventStreamJob — Primary Alarm State Machine
+| Job | Submit script | Entry class |
+|-----|---------------|-------------|
+| Alarm state machine | `flink-submit-raw-alarms.sh` | `OpcEventStreamJob` |
+| Live RBE | `flink-submit-live-state.sh` | `LiveStateJob` |
+| IoTDB historian | `flink-submit-iotdb-persistence.sh` | `IoTDBPersistenceJob` |
 
-**Entry class:** `com.ams.flink.OpcEventStreamJob`  
-**Flink job name:** `AMS - Alarm State Machine`  
-**Checkpointing:** 30s, EXACTLY_ONCE
+### 7.2 OpcEventStreamJob — Primary Alarm State Machine
 
-#### Kafka subscriptions
+**Subscriptions:** `raw-alarms`, `operator-actions`, `ack-results`
 
-| Topic | Group ID | Starting offset |
-|-------|----------|-----------------|
-| `raw-alarms` | `flink-ams-raw-alarms` | `earliest` or `latest` (env: `RAW_ALARMS_STARTING_OFFSETS`) |
-| `operator-actions` | `flink-ams-operator-actions` | `earliest` |
-| `ack-results` | `flink-ams-ack-results` | `earliest` |
-
-#### Processing pipeline
+**Pipeline (simplified):**
 
 ```
-raw-alarms
-  │
-  ├─ ValidationMap          Parse JSON → RawOpcAlarmEvent; reject if missing source/condition
-  ├─ DedupFilter            Keyed by alarmKey; drop stale duplicates (same timestamp, same state/ack)
-  ├─ EnrichmentMap          Map severity → priority; build opcAttributes JSON
-  ├─ SoeOrderMap            Pass-through (SOE ordering placeholder)
-  ├─ LifecycleMap           Keyed state machine: NEW → ACTIVE → CLEARED; persist ack across events
-  ├─ CorrelationMap         Pass-through (CEP placeholder)
-  ├─ FloodDetectFilter      Drop events with severity ≥ 950
-  │
-  ├─ RootCauseMap           → root-cause-events (crusher/conveyor/feeder/motor family)
-  ├─ KpiMap                 (computed, no sink wired)
-  ├─ toLifecycleJson        → lifecycle-events
-  └─ projection builder     → current-alarm-state
-                              ├─ ALARM_STATE_UPSERT (active alarms)
-                              └─ ALARM_STATE_DELETE (cleared alarms)
+raw-alarms → ValidationMap → DedupFilter → EnrichmentMap → LifecycleMap
+          → projection → current-alarm-state (UPSERT/DELETE)
+          → lifecycle-events
+          → root-cause-events (optional)
+          → ack-writeback (from operator-actions)
 
-operator-actions
-  └─ toAckWriteback         → ack-writeback (ACKNOWLEDGE actions only)
-
-ack-results
-  ├─ toAckLifecycleEvent    → lifecycle-events (ACK_CONFIRMED / ACK_FAILED)
-  └─ toAckConfirmedState    → current-alarm-state (ACK_STATE_UPDATE, acknowledged=true)
+ack-results → ACK_STATE_UPDATE → current-alarm-state
+           → lifecycle-events (ACK_CONFIRMED/FAILED)
 ```
 
-#### Operator details
+**Priority mapping:** CRITICAL≥900, HIGH≥700, MEDIUM≥400, LOW≥100
 
-| Operator | Keying | State | Logic |
-|----------|--------|-------|-------|
-| `ValidationMap` | — | — | Detects HTTP feed (`alarmId` + `state`) vs OPC feed (`severity` + `conditionActive`) |
-| `DedupFilter` | `alarmKey` | `lastEventTime`, `lastConditionActive`, `lastAcknowledged` | Pass through on state or ack change even if timestamp unchanged |
-| `EnrichmentMap` | — | — | Priority: CRITICAL≥900, HIGH≥700, MEDIUM≥400, LOW≥100; sets `opcAckWriteable` |
-| `LifecycleMap` | `alarmKey` | `prevLifecycle`, `prevAcknowledged` | Clears state on CLEARED; preserves ack across severity updates |
-| `FloodDetectFilter` | — | — | Filters diagnostic flood (severity ≥ 950) |
-| `RootCauseMap` | — | — | Emits root-cause for crusher plant equipment tags |
+### 7.3 LiveStateJob
 
-#### Kafka outputs
+See [Section 5.1](#51-livestatejob--report-by-exception).
 
-| Topic | Event types |
-|-------|-------------|
-| `current-alarm-state` | `ALARM_STATE_UPSERT`, `ALARM_STATE_DELETE`, `ACK_STATE_UPDATE` |
-| `lifecycle-events` | `lifecycleState`: NEW, ACTIVE, CLEARED, ACK_CONFIRMED, ACK_FAILED |
-| `root-cause-events` | `{ alarmId, rootCause, suppressed[], eventTime }` |
-| `ack-writeback` | `ACK_WRITEBACK_COMMAND`, `ackState: ACK_DISPATCHED` |
+### 7.4 IoTDBPersistenceJob
+
+See [Section 5.3](#53-iotdbpersistencejob--raw-alarm-historian).
+
+### 7.5 Optional jobs (manual submit via `scripts/lib/AmsFlinkJob.ps1`)
+
+| Job | Source | Sink |
+|-----|--------|------|
+| `AlarmKpiStreamJob` | `lifecycle-events` | `kpi-alarm-rates`, `kpi-standing-snapshots` |
+| `LoopKpiStreamJob` | `loop-raw-data` | `loop-kpis-5m` |
+| `StateDriftDetectionJob` | `alarm.events.raw` + `alarm.state.active` | `system.state.drift.alerts` |
+| `AlarmStateExportJob` | `current-alarm-state` | `flink.state.alarm.delta` |
+| `AlarmReplayEngine` | `alarm.events.raw` (seek) | `flink.state.alarm.replay` |
 
 ---
 
-### 5.2 AlarmKpiStreamJob — Alarm KPI Engine
+## 8. Data Stores
 
-**Entry class:** `com.ams.flink.AlarmKpiStreamJob`  
-**Not auto-started** — submit via `scripts/lib/AmsFlinkJob.ps1`
+### 8.1 PostgreSQL / TimescaleDB
 
-| | |
-|---|---|
-| **Source** | `lifecycle-events` (group: `flink-ams-alarm-kpi`) |
-| **Sink 1** | `kpi-alarm-rates` |
-| **Sink 2** | `kpi-standing-snapshots` |
+**Container:** `ams-postgres` — host port **5433**  
+**Bootstrap:** `database/scripts/` → `/docker-entrypoint-initdb.d`
 
-**Processing:**
+| Schema | Purpose |
+|--------|---------|
+| `alarms` | `alarm_current`, `alarm_history`, `alarm_state_transitions`, `active_alarms` (EF) |
+| `configuration` | `opc_connections`, OPC server registry |
+| `soe` | Sequence-of-events |
+| `analytics` | KPI aggregates |
+| `audit`, `security`, `notifications` | Supporting domains |
 
-1. **Alarm rate / flood detection**
-   - Filter: `lifecycleState == "ACTIVE"`
-   - Window: sliding 10-minute window, 1-minute slide
-   - Watermarks: 5s bounded out-of-orderness
-   - Flood status: NORMAL (≤10), MINOR_FLOOD (>10), MAJOR_FLOOD (>20), SEVERE_FLOOD (>50)
-
-2. **Standing alarm snapshot**
-   - Key: global `"GLOBAL"`
-   - Increment on ACTIVE, decrement on CLEARED
-   - Emits count on every lifecycle event
-
----
-
-### 5.3 LoopKpiStreamJob — Control Loop KPIs
-
-**Entry class:** `com.ams.flink.LoopKpiStreamJob`
-
-| | |
-|---|---|
-| **Source** | `loop-raw-data` (group: `flink-ams-loop-kpi`) |
-| **Sink** | `loop-kpis-5m` |
-
-**Processing:**
-
-- KeyBy `tagId`
-- Tumbling 5-minute event-time windows
-- Per window: IAE = Σ|SP − PV|, ISE = Σ(SP − PV)², dominant mode, sample count
-- Output: `eventType: "LOOP_KPI"`
-
----
-
-### 5.4 StateDriftDetectionJob — Event/State Divergence
-
-**Entry class:** `com.ams.flink.StateDriftDetectionJob`
-
-| Source | Topic |
-|--------|-------|
-| Raw events | `alarm.events.raw` |
-| Active state | `alarm.state.active` |
-| **Sink** | `system.state.drift.alerts` |
-
-**Processing:** KeyedCoProcessFunction — if raw event seen but no state update within 10 seconds → emit `DRIFT_MISSING_STATE` alert.
-
-> **Note:** Uses Phase-2 topic names (`alarm.events.raw`), not the production `raw-alarms` path.
-
----
-
-### 5.5 AlarmStateExportJob — Delta Export for Observability UI
-
-**Entry class:** `com.ams.flink.AlarmStateExportJob`
-
-| Source | Sink |
-|--------|------|
-| `current-alarm-state` | `flink.state.alarm.delta` |
-
-**Processing:** Compares current vs previous JSON per alarm id; emits `INSERT` / `UPDATE` / `REMOVE` delta envelopes with `current_state` and `previous_state`.
-
----
-
-### 5.6 AlarmReplayEngine — Historical Replay
-
-**Entry class:** `com.ams.flink.AlarmReplayEngine`  
-**Triggered by:** `POST /api/v1/Observability/replay` via `FlinkRestClient`
-
-| Source | Sink |
-|--------|------|
-| `alarm.events.raw` (seek to timestamp) | `flink.state.alarm.replay` |
-
-Runs the same validation → dedup → enrichment → lifecycle pipeline filtered to a single `correlationId`.
-
----
-
-## 6. Data Models by Stage
-
-### 6.1 Stage 1: HTTP feed → `raw-alarms`
-
-**C# model:** `RawAlarmStreamEvent` (`StreamMessages.cs`)
-
-```json
-{
-  "schemaVersion": 1,
-  "eventType": "RAW_ALARM_EVENT",
-  "eventId": "<uuid>",
-  "serverId": "f0af9a6d-85f6-4c9f-a8ad-6de277d1d110",
-  "serverName": "Current Alarms Feed",
-  "sourceName": "BB26-BF402",
-  "conditionName": "Alarm high",
-  "subConditionName": "",
-  "severity": 700,
-  "conditionActive": true,
-  "acknowledged": false,
-  "eventTimeEpochMs": 1719225600000,
-  "activeTimeEpochMs": 1719225600000,
-  "cookieOffset": 0,
-  "message": "High alarm on BB26-BF402"
-}
-```
-
-### 6.2 Stage 2: Flink internal model
-
-**Java POJO:** `RawOpcAlarmEvent`
-
-| Field | Description |
-|-------|-------------|
-| `alarmKey` | `serverId\|source\|condition\|subCondition` |
-| `alarmId` | Stable UUID from MD5(alarmKey) or explicit feed id |
-| `serverId` | OPC server or HTTP feed GUID |
-| `source` | Tag / source name |
-| `condition` / `subCondition` | Alarm condition identifiers |
-| `severity` | Numeric 0–1000 |
-| `priority` | CRITICAL / HIGH / MEDIUM / LOW / DIAGNOSTIC |
-| `category` | PROCESS (default) |
-| `conditionActive` | true = alarm active |
-| `acknowledged` | OPC-authoritative ack bit |
-| `lifecycleState` | NEW / ACTIVE / CLEARED |
-| `transitionType` | NEW / ACTIVE / CLEARED |
-| `eventTimeEpochMs` | Event timestamp |
-| `cookieOffset` | OPC-AE cookie for ACK writeback |
-| `opcAttributesJson` | Serialized metadata blob |
-
-**Identity:** `AlarmKeys.stableAlarmId(alarmKey)` — MD5 hash → UUID format (matches .NET `AlarmPartitionKeys`).
-
-### 6.3 Stage 3: Flink → `current-alarm-state`
-
-**C# model:** `NormalizedAlarmEvent` (`KafkaConsumerService.cs`)
-
-**`ALARM_STATE_UPSERT`:**
-
-```json
-{
-  "schemaVersion": 1,
-  "eventType": "ALARM_STATE_UPSERT",
-  "eventId": "<alarmId>:<timestamp>",
-  "alarmId": "<uuid>",
-  "serverId": "f0af9a6d-85f6-4c9f-a8ad-6de277d1d110",
-  "sourceName": "BB26-BF402",
-  "conditionName": "Alarm high",
-  "subConditionName": "",
-  "message": "High alarm on BB26-BF402",
-  "severity": 700,
-  "priority": "HIGH",
-  "category": "PROCESS",
-  "alarmEventKind": "CONDITION",
-  "conditionActive": true,
-  "acknowledged": false,
-  "quality": 192,
-  "eventTimeEpochMs": 1719225600000,
-  "activeTimeEpochMs": 1719225600000,
-  "serverReceivedEpochMs": 1719225601000,
-  "cookieOffset": 0,
-  "opcAttributes": {
-    "feed": "http-current-alarms",
-    "ackPath": "http",
-    "opcAckWriteable": true,
-    "alarmEventKind": "CONDITION"
-  }
-}
-```
-
-**`ALARM_STATE_DELETE`** (alarm cleared):
-
-```json
-{
-  "schemaVersion": 1,
-  "eventType": "ALARM_STATE_DELETE",
-  "alarmId": "<uuid>",
-  "serverId": "...",
-  "sourceName": "BB26-BF402",
-  "conditionName": "Alarm high",
-  "conditionActive": false,
-  "eventTimeEpochMs": 1719225700000
-}
-```
-
-**`ACK_STATE_UPDATE`** (operator ACK confirmed):
-
-```json
-{
-  "schemaVersion": 1,
-  "eventType": "ACK_STATE_UPDATE",
-  "commandId": "<uuid>",
-  "correlationId": "<uuid>",
-  "alarmId": "<uuid>",
-  "acknowledged": true,
-  "ackLifecycleState": "ACK_CONFIRMED",
-  "opcAttributes": { "feed": "http-current-alarms", "ackPath": "http" }
-}
-```
-
-### 6.4 Stage 4: `lifecycle-events`
-
-```json
-{
-  "schemaVersion": 1,
-  "alarmId": "<uuid>",
-  "serverId": "...",
-  "sourceName": "BB26-BF402",
-  "conditionName": "Alarm high",
-  "lifecycleState": "ACTIVE",
-  "transitionType": "NEW",
-  "timestampEpochMs": 1719225600000
-}
-```
-
-ACK lifecycle events add `commandId`, `correlationId`, `lifecycleId`, `detail` (error message on failure).
-
-### 6.5 Stage 5: Operator action messages
-
-**`operator-actions`** — `OperatorActionMessage`:
-
-```json
-{
-  "schemaVersion": 1,
-  "eventType": "OPERATOR_ACK_COMMAND",
-  "commandId": "<uuid>",
-  "correlationId": "<uuid>",
-  "alarmId": "<uuid>",
-  "sourceAlarmId": "BB26-BF402|Alarm high",
-  "actionType": "ACKNOWLEDGE",
-  "userId": "...",
-  "username": "operator1",
-  "serverId": "...",
-  "sourceName": "BB26-BF402",
-  "conditionName": "Alarm high",
-  "cookieOffset": 0,
-  "activeTimeEpochMs": 1719225600000
-}
-```
-
-### 6.6 KPI output models
-
-**`kpi-alarm-rates`:**
-
-```json
-{
-  "schemaVersion": 1,
-  "kpiType": "ALARM_RATE",
-  "windowStartEpochMs": 1719225000000,
-  "windowEndEpochMs": 1719225600000,
-  "activeCount": 15,
-  "floodStatus": "MINOR_FLOOD"
-}
-```
-
-**`loop-kpis-5m`:**
-
-```json
-{
-  "schemaVersion": 1,
-  "eventType": "LOOP_KPI",
-  "tagId": "TIC-101",
-  "iae": 42.5,
-  "ise": 12.3,
-  "dominantMode": "AUTO",
-  "sampleCount": 300
-}
-```
-
----
-
-## 7. Backend Consumers & PostgreSQL Writes
-
-All Kafka consumers are registered as `IHostedService` in `Program.cs`.
-
-### 7.1 Consumer service matrix
-
-| Service | Topic(s) | PostgreSQL write | SignalR event |
-|---------|----------|------------------|---------------|
-| `NormalizedAlarmConsumerService` | `current-alarm-state` | `alarms.alarm_current` upsert/delete | `OnNewAlarm`, `OnAlarmUpdated`, `OnAlarmCleared` |
-| `LifecycleEventConsumerService` | `lifecycle-events` | Updates ACK lifecycle fields on active alarm | `OnAckLifecycleUpdated` |
-| `HttpAckWritebackService` | `ack-writeback` | None (HTTP POST to DCS) | — |
-| `KpiConsumerService` | KPI topics | None | `OnLoopKpiUpdate`, `OnAlarmKpiUpdate`, `OnAnalyticsUpdate` |
-| `AlarmStateDeltaConsumerService` | `flink.state.alarm.delta` | None | ObservabilityHub |
-| `ReplayResultConsumerService` | `flink.state.alarm.replay` | None | ObservabilityHub |
-| `DriftAlertConsumerService` | `system.state.drift.alerts` | None | ObservabilityHub |
-| `TelemetryDeadmanWatchdogService` | `raw-alarms` (monitor) | None | — |
-
-### 7.2 NormalizedAlarmIngestor — projection logic
-
-**File:** `src/backend/AMS.Infrastructure/Kafka/NormalizedAlarmIngestor.cs`
-
-**Matching key:** `serverId + sourceName + conditionName + subConditionName` (not `activeTime`).
-
-| Event type | PostgreSQL action |
-|------------|-------------------|
-| `ALARM_STATE_UPSERT` (new) | INSERT into `alarm_current` via `ActiveAlarm.CreateFromOpcEvent` |
-| `ALARM_STATE_UPSERT` (existing) | UPDATE condition, severity, message, ack; DELETE if `conditionActive=false` |
-| `ALARM_STATE_DELETE` | DELETE matching rows from `alarm_current` |
-| `ACK_STATE_UPDATE` | UPDATE ack lifecycle fields only — never changes `conditionActive` |
-
-**Idempotency:** Duplicate Kafka messages produce the same final row state. External OPC acknowledgments (`acknowledged=true` without `commandId`) are reconciled without requiring a UI command.
-
-### 7.3 What is written to PostgreSQL
-
-#### `alarms.alarm_current` (primary runtime table)
-
-Written by `NormalizedAlarmConsumerService` → `NormalizedAlarmIngestor` → `ActiveAlarmRepository`.
-
-| Column | Source field |
-|--------|-------------|
-| `id` | Deterministic UUID from alarm identity |
-| `alarm_id` | Feed correlation id or stable alarm key |
-| `source` | `sourceName` |
-| `severity` | `severity` |
-| `message` | `message` |
-| `condition` | `conditionName` |
-| `sub_condition` | `subConditionName` |
-| `event_time` | `eventTimeEpochMs` |
-| `state` | Derived: ACTIVE / ACKNOWLEDGED / CLEARED |
-| `ack_status` | `acknowledged` boolean |
-| `opc_attributes` | JSONB blob (cookie, feed, ackPath, ackLifecycle, etc.) |
-| `last_updated` | UTC now |
-
-**Delete triggers:** `conditionActive=false` or `ALARM_STATE_DELETE` event.
-
-#### `alarms.alarm_history`
-
-**Not written by Kafka consumers in the current pipeline.** Populated by:
-- Historical queries may read existing rows
-- Analytics controller reads for KPI calculations
-- Legacy stored procedures reference `historical_alarms` hypertable
-
-> The live path maintains only `alarm_current` for active alarms. History accumulation depends on deployment configuration and legacy procedures.
-
-#### `alarms.alarm_state_transitions`
-
-Written when transition logging is enabled (EF migration table). Read by `GET /api/v1/alarms/transitions`.
-
-#### `configuration.opc_connections`
-
-Written by OPC Connections REST API (`OpcConnectionsController`). Not fed by Kafka.
-
-#### ACK path — no direct SQL on operator action
-
-When operator clicks ACK:
-1. `POST /api/v1/alarms/acknowledge/batch` → publishes to `operator-actions`
-2. Flink orchestrates → `ack-writeback` → HTTP writeback → `ack-results`
-3. Flink emits `ACK_STATE_UPDATE` → `current-alarm-state`
-4. `NormalizedAlarmIngestor` updates `opc_attributes` ack fields
-5. `LifecycleEventConsumerService` updates lifecycle badges
-
----
-
-## 8. PostgreSQL Database Schema
-
-**Bootstrap:** `database/scripts/` mounted into Postgres container at `/docker-entrypoint-initdb.d`.
-
-### 8.1 Schemas
-
-```
-alarms, soe, analytics, configuration, security, notifications, audit, keycloak
-```
-
-**Extensions:** TimescaleDB, `uuid-ossp`, `pg_trgm`, `btree_gin`, `pgcrypto`
-
-### 8.2 Active runtime tables
-
-#### `alarms.alarm_current` (simplified lab schema)
+**Primary runtime table:**
 
 ```sql
+-- alarms.alarm_current (simplified lab schema)
 CREATE TABLE alarms.alarm_current (
     id              UUID PRIMARY KEY,
     alarm_id        VARCHAR(255) NOT NULL UNIQUE,
@@ -800,68 +560,171 @@ CREATE TABLE alarms.alarm_current (
     condition       VARCHAR(512),
     sub_condition   VARCHAR(512),
     event_time      TIMESTAMPTZ(3) NOT NULL,
-    state           VARCHAR(64) NOT NULL,      -- ACTIVE, ACKNOWLEDGED, CLEARED
+    state           VARCHAR(64) NOT NULL,
     ack_status      BOOLEAN NOT NULL DEFAULT FALSE,
     opc_attributes  JSONB NOT NULL DEFAULT '{}',
     last_updated    TIMESTAMPTZ(3) NOT NULL
 );
 ```
 
-**EF mapping:** `AmsDbContext.ActiveAlarms` → this table (not `active_alarms`).
+**EF mapping:** `AmsDbContext.ActiveAlarms` → runtime queries use this table.
 
-#### `alarms.alarm_history`
+### 8.2 Apache IoTDB
 
-```sql
-CREATE TABLE alarms.alarm_history (
-    id              UUID PRIMARY KEY,
-    alarm_id        VARCHAR(255) NOT NULL,
-    source          VARCHAR(1024) NOT NULL,
-    severity        INTEGER NOT NULL,
-    message         TEXT,
-    condition       VARCHAR(512),
-    sub_condition   VARCHAR(512),
-    event_time      TIMESTAMPTZ(3) NOT NULL,
-    state           VARCHAR(64) NOT NULL,
-    ack_status      BOOLEAN NOT NULL DEFAULT FALSE,
-    cleared_time    TIMESTAMPTZ(3),
-    last_updated    TIMESTAMPTZ(3) NOT NULL
-);
-```
+**Container:** `ams-iotdb`
 
-#### `configuration.opc_connections` (EF migrations)
+| Port | API |
+|------|-----|
+| 6667 | Session (native) |
+| 8181 | REST v2 (used by historian-bff, Flink connector) |
+| 9091 | Metrics |
 
-Full connection registry: `name`, `protocol`, `endpoint`, `status`, `pipeline_status`, `events_per_sec`, StreamPipes adapter IDs, etc.
+**Namespace:** `root.ams.site1.alarms.*`  
+**Init:** `iotdb-init` one-shot container sets TTL via `iotdb-init-ttl.sh`
 
-#### `alarms.alarm_state_transitions` (EF migration)
+### 8.3 Redis
 
-Timescale hypertable on `transition_time`. Columns: `alarm_id`, `from_state`, `to_state`, `triggered_by`, `kafka_offset`.
+**Container:** `ams-redis` — host port **6380**
 
-### 8.3 Legacy / coexistence tables
+| Key pattern | Content |
+|-------------|---------|
+| `snapshot:metric:ams_site1:ams_edge1:{device}:{metric}` | Latest Sparkplug metric JSON |
+| `alias:ams_site1:ams_edge1` | Metric alias registry |
 
-The codebase bridges two schema generations:
-
-| Simplified (runtime) | Full EF schema | Status |
-|---------------------|----------------|--------|
-| `alarms.alarm_current` | `alarms.active_alarms` | Runtime uses `alarm_current` |
-| `alarms.alarm_history` | `alarms.historical_alarms` | Analytics may query both |
-| `configuration.opc_servers` | `configuration.opc_connections` | API uses `opc_connections` |
-
-Stored procedures in `database/procedures/alarm_operations.sql` reference legacy tables (`active_alarms`, `alarm_tags`, `audit.action_log`).
-
-### 8.4 Enum types (EF migration)
-
-```sql
-alarms.event_type     -- Simple, Tracking, Condition
-alarms.alarm_priority -- Critical, High, Medium, Low, Diagnostic
-alarms.alarm_category -- Process, Equipment, Instrument, Safety, ...
-alarms.alarm_state    -- Normal, UnackedActive, AckedActive, UnackedCleared, Shelved, ...
-```
+**Persistence:** AOF enabled, 200MB max memory, LRU eviction.
 
 ---
 
-## 9. Operator ACK Lifecycle
+## 9. Backend (.NET API)
 
-### 9.1 State machine
+**Container:** `ams-api` — port **8000**  
+**Structure:** Clean architecture — `AMS.Api`, `AMS.Application`, `AMS.Domain`, `AMS.Infrastructure`
+
+### 9.1 Kafka consumer matrix
+
+| Service | Topic(s) | PostgreSQL | SignalR |
+|---------|----------|------------|---------|
+| `NormalizedAlarmConsumerService` | `current-alarm-state` | `alarm_current` upsert/delete | Alarm events |
+| `LifecycleEventConsumerService` | `lifecycle-events` | ACK lifecycle fields | `OnAckLifecycleUpdated` |
+| `HttpAckWritebackService` | `ack-writeback` | — (HTTP to DCS) | — |
+| `KpiConsumerService` | KPI topics | — | KPI/analytics events |
+| `AlarmStateDeltaConsumerService` | `flink.state.alarm.delta` | — | ObservabilityHub |
+| `ReplayResultConsumerService` | `flink.state.alarm.replay` | — | ObservabilityHub |
+| `DriftAlertConsumerService` | `system.state.drift.alerts` | — | ObservabilityHub |
+
+### 9.2 Key REST endpoints
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/alarms/active` | Paginated active alarms |
+| GET | `/api/v1/alarms/active/statistics` | KPI counts |
+| POST | `/api/v1/alarms/acknowledge/batch` | Operator ACK → `operator-actions` |
+| POST | `/api/v1/alarms/{id}/shelve` | Shelve command |
+| GET | `/api/v1/admin/alarm-feed` | Connected feed status |
+| GET | `/health`, `/health/pipeline` | Health & pipeline status |
+
+### 9.3 SignalR hub
+
+**URL:** `/hubs/alarms` (WebSocket via nginx)
+
+| Event | Trigger |
+|-------|---------|
+| `OnNewAlarm` | New active alarm in PostgreSQL |
+| `OnAlarmUpdated` | State/severity change |
+| `OnAlarmCleared` | Alarm removed |
+| `OnAckLifecycleUpdated` | ACK command lifecycle |
+| `OnFloodAlert` | Flood detection |
+| `OnAnalyticsUpdate` | KPI refresh |
+| `OnSoeEvent` | Sequence of events |
+
+---
+
+## 10. Edge Services
+
+### 10.1 In Docker Compose
+
+| Service | Path | Language | Role |
+|---------|------|----------|------|
+| `sparkplug-edge-node` | `src/services/sparkplug-edge-node` | Java | Kafka → Sparkplug B → EMQX + Redis |
+| `historian-bff` | `src/services/historian-bff` | .NET 8 | IoTDB + Redis query API |
+
+### 10.2 Standalone (not in Compose)
+
+| Service | Path | Consumes | Output |
+|---------|------|----------|--------|
+| `audit-service` | `src/services/audit-service` | `audit-events` | PostgreSQL hash-chain audit |
+| `notification-service` | `src/services/notification-service` | `root-cause-events` | Email / Teams |
+
+### 10.3 opc-connector
+
+**Status:** Stub only. Real OPC connectivity is via external Windows OPC Gateway or HTTP feed.
+
+---
+
+## 11. Frontend (React HMI)
+
+**Path:** `src/frontend-ob`  
+**Container:** `ams-frontend` — port **3000** (nginx)
+
+### 11.1 nginx reverse proxy
+
+| Path | Target |
+|------|--------|
+| `/api/` | `ams-api:8000` |
+| `/hubs/` | `ams-api:8000` (WebSocket upgrade) |
+| `/api/hist/` | `historian-bff:8090` |
+| `/mqtt-ws` | `emqx:8083` (MQTT WebSocket) |
+| `/external-api/` | External DCS feed (dev) |
+
+### 11.2 State management
+
+| Store | File | Data source |
+|-------|------|-------------|
+| `alarmStore` | `store/alarmStore.ts` | SignalR + REST `/alarms/active` |
+| `mqttStore` | `store/mqttStore.ts` | MQTT Sparkplug + historian BFF |
+
+**Alarm Console hydration:**
+
+```
+App mount → alarmStore.initialize()
+  → GET /api/v1/admin/alarm-feed
+  → GET /api/v1/alarms/active (paginated)
+  → SignalR connect /hubs/alarms
+  → SubscribeToServer(serverId)
+Fallback poll every 30s only when SignalR disconnected
+```
+
+**Live Events (MQTT tab):**
+
+```
+mqttStore.connect() → WebSocket /mqtt-ws
+  → subscribe spBv1.0/ams_site1/DDATA/ams_edge1/#
+  → parse Sparkplug metrics → live alarm list
+```
+
+**IoTDB Trend Viewer:**
+
+```
+GET /api/hist/series?prefix=root.ams.site1.alarms.**
+GET /api/hist/trend?series=&start=&end=&width=200
+GET /api/hist/raw?series=&start=&end=&maxCount=50&offset=
+```
+
+### 11.3 Key UI pages
+
+| Page | Component | Grid / chart |
+|------|-----------|--------------|
+| Alarm Console | `AlarmConsole.tsx` | AG Grid, incremental transactions |
+| Live Events | `LiveEventsPage.tsx` | SignalR SOE + `MqttLiveStream` |
+| IoTDB Trend | `IoTDBTrendViewer.tsx` | ECharts + paginated raw table |
+| Edge Monitor | `EdgeNodeMonitor.tsx` | BFF/Redis/IoTDB health |
+| Dashboard | `Dashboard.tsx` | KPI cards from `alarmStore` |
+
+---
+
+## 12. Operator ACK Lifecycle
+
+### 12.1 State machine
 
 ```
 ACK_REQUESTED → ACK_QUEUED → ACK_DISPATCHED → ACK_PENDING_DCS → ACK_CONFIRMED
@@ -869,19 +732,19 @@ ACK_REQUESTED → ACK_QUEUED → ACK_DISPATCHED → ACK_PENDING_DCS → ACK_CONF
                                                               ↘ ACK_TIMEOUT
 ```
 
-### 9.2 Sequence diagram
+### 12.2 Sequence
 
 ```mermaid
 sequenceDiagram
     participant UI as React UI
     participant API as AMS API
-    participant K1 as Kafka operator-actions
+    participant K1 as operator-actions
     participant FL as Flink OpcEventStreamJob
-    participant K2 as Kafka ack-writeback
+    participant K2 as ack-writeback
     participant WB as HttpAckWritebackService
     participant DCS as HTTP DCS Feed
-    participant K3 as Kafka ack-results
-    participant K4 as Kafka current-alarm-state
+    participant K3 as ack-results
+    participant K4 as current-alarm-state
     participant PG as PostgreSQL
     participant SR as SignalR
 
@@ -892,18 +755,15 @@ sequenceDiagram
     FL->>K2: ACK_WRITEBACK_COMMAND
     K2->>WB: consume
     WB->>DCS: POST /api/alarms/acknowledge
-    DCS-->>WB: 200 OK
     WB->>K3: ACK_CONFIRMED
     K3->>FL: consume
     FL->>K4: ACK_STATE_UPDATE
-    FL->>K4: lifecycle-events
     K4->>API: NormalizedAlarmConsumer
-    API->>PG: UPDATE opc_attributes ack fields
+    API->>PG: UPDATE opc_attributes
     API->>SR: OnAckLifecycleUpdated (ACK_CONFIRMED)
-    SR->>UI: badge update
 ```
 
-### 9.3 Key rules
+### 12.3 Key rules
 
 - API **never** sets `acknowledged=true` in SQL on POST acknowledge.
 - Flink emits `ACK_STATE_UPDATE` with `conditionActive` omitted so cleared alarms are not resurrected.
@@ -911,243 +771,200 @@ sequenceDiagram
 
 ---
 
-## 10. Frontend Consumption
+## 13. Infrastructure & Docker Compose
 
-**App:** `src/frontend-ob` — React 18 + Vite + OpenBridge + Zustand + SignalR
+**File:** `infra/docker/docker-compose.yml`  
+**Network:** `ams-backend` bridge
 
-### 10.1 Data hydration flow
+### 13.1 All services
 
-```
-App mount
-  → alarmStore.initialize()
-    → GET /api/v1/admin/alarm-feed (resolve connected servers)
-    → GET /api/v1/alarms/active/statistics
-    → GET /api/v1/alarms/active (paginated, 500/page)
-    → SignalR connect to /hubs/alarms
-    → SubscribeToServer(serverId)
-  → Poll refreshActiveAlarms() every 8 seconds
-```
+| Service | Image / build | Host port | Role |
+|---------|---------------|-----------|------|
+| `postgres` | timescale/timescaledb pg15 | 5433 | Primary RDBMS |
+| `pgadmin` | dpage/pgadmin4 | 5050 | DB admin UI |
+| `iotdb` | apache/iotdb:1.3.2 | 6667, 8181, 9091 | Time-series historian |
+| `iotdb-init` | one-shot | — | TTL setup |
+| `redis` | redis:7.2-alpine | 6380 | Snapshot cache |
+| `emqx` | emqx:5.6.0 | 1883, 8083, 18083 | MQTT broker |
+| `zookeeper` | cp-zookeeper:7.5.3 | internal | Kafka coordination |
+| `kafka` | cp-kafka:7.5.3 | 9093 | Event bus |
+| `kafka-ui` | provectuslabs/kafka-ui | 8085 | Topic browser |
+| `flink-jobmanager` | flink:1.18.1 | 8082, 9249 | Flink UI + metrics |
+| `flink-taskmanager` | flink:1.18.1 | internal | 16 task slots |
+| `flink-job-submit` | one-shot | — | Submit OpcEventStreamJob |
+| `flink-job-submit-live-state` | one-shot | — | Submit LiveStateJob |
+| `flink-job-submit-iotdb` | one-shot | — | Submit IoTDBPersistenceJob |
+| `ams-api` | build backend | 8000 | .NET API + consumers |
+| `ams-frontend` | build frontend-ob | 3000 | React HMI (nginx) |
+| `sparkplug-edge-node` | build Java | internal | Kafka → MQTT bridge |
+| `historian-bff` | build .NET | 8090 | IoTDB/Redis BFF |
+| `prometheus` | prom/prometheus | 9090 | Metrics collection |
+| `grafana` | grafana/grafana | 3001 | Dashboards |
+| `redis-exporter` | oliver006/redis_exporter | 9121 | Redis metrics |
+| `postgres-exporter` | postgres-exporter | 9187 | PG metrics |
+| `kafka-exporter` | kafka-exporter | 9308 | Kafka metrics |
 
-### 10.2 Live updates (SignalR `/hubs/alarms`)
-
-| Hub method | UI effect |
-|------------|-----------|
-| `OnNewAlarm` | Add row to alarm grid |
-| `OnAlarmUpdated` | Update row |
-| `OnAlarmCleared` | Remove row |
-| `OnAckLifecycleUpdated` | Update ACK badge |
-| `OnFloodAlert` | Show flood banner |
-| `OnAnalyticsUpdate` | Refresh KPI stats |
-| `OnLoopKpiUpdate` / `OnAlarmKpiUpdate` | KPI panels |
-
-### 10.3 REST endpoints used
-
-| Page | Endpoints |
-|------|-----------|
-| Alarm Console | `GET /alarms/active`, `POST /alarms/acknowledge/batch`, shelve/suppress/OOS |
-| Dashboard | Zustand store (fed by above) |
-| Historical | `GET /alarms/historical`, `/historical/stream`, `/transitions/stream` |
-| Analytics | `GET /analytics/kpi` |
-| System Monitor | `GET /health/pipeline` |
-| Admin | `GET/POST /admin/alarm-feed` |
-
-### 10.4 Proxy configuration
-
-| Environment | API proxy |
-|-------------|-----------|
-| Vite dev | `/api` → `localhost:5000` |
-| Production nginx | `/api/` → `ams-api:8000`, `/hubs/` → WebSocket |
-
----
-
-## 11. Microservices (`src/services`)
-
-These are **standalone .NET services not included in Docker Compose**.
-
-### 11.1 audit-service
-
-| | |
-|---|---|
-| **Path** | `src/services/audit-service/` |
-| **Consumes** | `audit-events` |
-| **Produces** | None |
-| **Output** | PostgreSQL hash-chain audit log |
-| **Status** | Consumer implemented; no in-repo producer for `audit-events` |
-
-### 11.2 notification-service
-
-| | |
-|---|---|
-| **Path** | `src/services/notification-service/` |
-| **Consumes** | `root-cause-events` |
-| **Produces** | None |
-| **Output** | Email / Microsoft Teams notifications |
-| **Trigger** | Flink `RootCauseMap` for crusher plant equipment |
-
-### 11.3 opc-connector
-
-**Status:** Stub only (`.dockerignore` file). Real OPC connectivity is via external Windows OPC Gateway or HTTP feed.
-
----
-
-## 12. Infrastructure
-
-### 12.1 Docker Compose services
-
-**File:** `infra/docker/docker-compose.yml`
-
-| Service | Image | Port | Role |
-|---------|-------|------|------|
-| `postgres` | `timescale/timescaledb:latest-pg15` | 5433 | Database |
-| `pgadmin` | `dpage/pgadmin4` | 5050 | DB admin UI |
-| `zookeeper` | `confluentinc/cp-zookeeper:7.5.3` | internal | Kafka coordination |
-| `kafka` | `confluentinc/cp-kafka:7.5.3` | **9093** (host), 9092 (internal) | Event bus |
-| `kafka-ui` | `provectuslabs/kafka-ui` | 8085 | Topic browser |
-| `flink-jobmanager` | `flink:1.18.1-java11` | 8082 | Flink UI |
-| `flink-taskmanager` | `flink:1.18.1-java11` | internal | 16 task slots |
-| `flink-job-submit` | `flink:1.18.1-java11` | — | One-shot `OpcEventStreamJob` submit |
-| `ams-api` | build `infra/docker/api/Dockerfile` | 8000 | .NET API + Kafka workers |
-| `ams-frontend` | build `infra/docker/frontend/Dockerfile` | 3000 | React UI |
-
-**Network:** `ams-backend` bridge. Kafka internal listener: `kafka:9092`.
-
-### 12.2 Kafka broker settings (lab)
+### 13.2 Kafka broker (lab)
 
 - Auto-create topics: enabled
 - Default partitions: 4
-- Retention: 24 hours (Compose) / 7 days (reset script)
-- Dual listeners: INTERNAL (`kafka:9092`) + EXTERNAL (`:9093`)
+- Retention: 24 hours (Compose)
+- Listeners: INTERNAL `kafka:9092`, EXTERNAL `:9093`
 
-### 12.3 Flink deployment
+### 13.3 Flink deployment
 
-- JAR: `src/flink/target/ams-flink-1.0-SNAPSHOT.jar` (volume mount)
-- Submit script: `infra/docker/flink-submit-raw-alarms.sh`
-- Entry class: `com.ams.flink.OpcEventStreamJob`
-- Checkpoint dir: `flink-checkpoints` volume
-- Env: `RAW_ALARMS_STARTING_OFFSETS=earliest`, `KAFKA_BROKERS=kafka:9092`
+- JAR volume-mounted into JobManager
+- RocksDB state backend, 60s EXACTLY_ONCE checkpoints (OpcEventStreamJob)
+- Prometheus reporter on `:9249`
 
-### 12.4 Kubernetes / Helm (production target)
-
-**Path:** `infra/helm/ams/`
-
-- Umbrella chart: API, Flink, Bitnami Kafka/PostgreSQL/Redis/Keycloak
-- Kafka: 5 brokers, 64 partitions, replication factor 3
-- Network policies: API→PG/Redis/Kafka; Flink TM→Kafka/PG/JM
-- HPA and PDB templates included
-
-### 12.5 Startup orchestration
+### 13.4 Startup
 
 ```powershell
 # Full lab stack
 .\scripts\start-ams-production.ps1
-# → builds Flink JAR, starts Compose, resets Kafka topics, submits Flink job
+# → builds Flink JAR, starts Compose, resets Kafka topics, submits Flink jobs
 ```
 
+### 13.5 Kubernetes / Helm (production target)
+
+**Path:** `infra/helm/ams/` — umbrella chart with API, Flink, Bitnami Kafka/PostgreSQL/Redis.
+
 ---
 
-## 13. Legacy vs Current Pipeline
+## 14. Observability
 
-| Aspect | Legacy (documented, removed) | Current (running) |
-|--------|------------------------------|-------------------|
+| Tool | Port | Scrapes |
+|------|------|---------|
+| Prometheus | 9090 | Flink :9249, redis-exporter, postgres-exporter, kafka-exporter |
+| Grafana | 3001 | Prometheus datasource (auto-provisioned) |
+| Kafka UI | 8085 | Topic inspection |
+| Flink UI | 8082 | Job status, checkpoints |
+| EMQX Dashboard | 18083 | MQTT clients, topics |
+| API `/health/pipeline` | 8000 | End-to-end pipeline health JSON |
+
+**Frontend monitors:** `/system` (SystemMonitor), `/edge` (EdgeNodeMonitor + historian BFF health).
+
+---
+
+## 15. Legacy vs Current Pipeline
+
+| Aspect | Legacy | Current |
+|--------|--------|---------|
 | Ingest topic | `raw-opc-events` | `raw-alarms` |
-| Per-event topics | `alarm-created`, `alarm-updated`, `alarm-cleared` | Single `current-alarm-state` projection |
-| Ingest service | `OpcAeRawEventIngestService` (removed) | `AlarmIngestionService` (HTTP poll) |
-| Flink JDBC | Referenced in old docs | Not implemented — API projection only |
+| Per-event topics | `alarm-created`, `alarm-updated` | Single `current-alarm-state` projection |
+| Live HMI | SignalR only | SignalR + MQTT Sparkplug + IoTDB trends |
+| Historian | PostgreSQL history only | IoTDB time-series + PostgreSQL active state |
+| Flink JDBC to PG | Referenced in old docs | Not implemented |
 | ACK topics | `opc-ack` | `operator-actions` → `ack-writeback` → `ack-results` |
 
-The topic reset script (`kafka-reset-lab-topics.ps1`) explicitly deletes legacy topics on each lab reset.
-
 ---
 
-## 14. Key File Index
+## 16. Key File Index
 
 ### Ingestion & API
 
 | File | Purpose |
 |------|---------|
 | `src/backend/AMS.Api/BackgroundServices/AlarmIngestionService.cs` | HTTP → `raw-alarms` |
-| `src/backend/AMS.Api/BackgroundServices/HttpAckWritebackService.cs` | `ack-writeback` → HTTP → `ack-results` |
-| `src/backend/AMS.Api/Program.cs` | Service registration, Flink-only enforcement |
-| `src/backend/AMS.Api/appsettings.json` | Kafka topic configuration |
-| `src/backend/AMS.Infrastructure/Kafka/KafkaConsumerService.cs` | Normalized alarm consumer |
-| `src/backend/AMS.Infrastructure/Kafka/NormalizedAlarmIngestor.cs` | PostgreSQL projection logic |
-| `src/backend/AMS.Infrastructure/Kafka/StreamMessages.cs` | Kafka message contracts |
+| `src/backend/AMS.Api/BackgroundServices/HttpAckWritebackService.cs` | ACK writeback loop |
+| `src/backend/AMS.Infrastructure/Kafka/NormalizedAlarmIngestor.cs` | PostgreSQL projection |
+| `src/backend/AMS.Api/Hubs/AlarmsHub.cs` | SignalR hub |
 
 ### Flink
 
 | File | Purpose |
 |------|---------|
-| `src/flink/src/main/java/com/ams/flink/OpcEventStreamJob.java` | Main alarm state machine |
-| `src/flink/src/main/java/com/ams/flink/PipelineOperators.java` | Validation, dedup, lifecycle, projection |
-| `src/flink/src/main/java/com/ams/flink/AlarmKpiStreamJob.java` | KPI computation |
-| `src/flink/src/main/java/com/ams/flink/LoopKpiStreamJob.java` | Loop KPI computation |
-| `src/flink/src/main/java/com/ams/flink/RawOpcAlarmEvent.java` | Internal alarm model |
-| `src/flink/src/main/java/com/ams/flink/AlarmKeys.java` | Alarm identity (MD5 → UUID) |
+| `src/flink/.../OpcEventStreamJob.java` | Main alarm state machine |
+| `src/flink/.../LiveStateJob.java` | RBE → `live.alarms` / `live.metrics` |
+| `src/flink/.../IoTDBPersistenceJob.java` | `raw-alarms` → IoTDB |
+| `src/flink/.../PipelineOperators.java` | Validation, dedup, lifecycle |
 
-### Database
+### Edge & historian
 
 | File | Purpose |
 |------|---------|
-| `database/scripts/01_init_extensions.sql` | Extensions and schemas |
-| `database/scripts/02_alarm_schema.sql` | `alarm_current`, `alarm_history` |
-| `database/scripts/03_apply_ef_migrations.sql` | Full EF schema (active_alarms, transitions) |
-| `database/procedures/alarm_operations.sql` | Legacy stored procedures |
+| `src/services/sparkplug-edge-node/.../AlarmMetricPublisher.java` | Kafka → Sparkplug + Redis |
+| `src/services/historian-bff/Program.cs` | BFF endpoints |
+| `src/services/historian-bff/IoTDbClient.cs` | IoTDB REST client |
 
 ### Frontend
 
 | File | Purpose |
 |------|---------|
-| `src/frontend-ob/src/store/alarmStore.ts` | Zustand + SignalR hub |
-| `src/frontend-ob/src/api/alarmApi.ts` | REST client |
-| `src/frontend-ob/src/components/AlarmConsole/AlarmConsole.tsx` | Operator alarm grid |
+| `src/frontend-ob/src/store/alarmStore.ts` | SignalR + REST alarm state |
+| `src/frontend-ob/src/store/mqttStore.ts` | MQTT + historian fetch |
+| `src/frontend-ob/src/components/AlarmConsole/AlarmConsole.tsx` | Operator grid |
+| `src/frontend-ob/src/components/LiveEvents/MqttLiveStream.tsx` | MQTT alarm list |
+| `src/frontend-ob/src/components/IoTDBTrend/IoTDBTrendViewer.tsx` | Trend viewer |
+| `src/frontend-ob/src/utils/iotdbPaths.ts` | IoTDB path helpers |
+| `src/frontend-ob/nginx.conf` | API/hist/MQTT proxy |
 
 ### Infrastructure
 
 | File | Purpose |
 |------|---------|
 | `infra/docker/docker-compose.yml` | Full lab stack |
-| `infra/docker/flink-submit-raw-alarms.sh` | Auto-submit Flink job |
+| `infra/docker/flink-submit-raw-alarms.sh` | Submit OpcEventStreamJob |
+| `infra/docker/flink-submit-live-state.sh` | Submit LiveStateJob |
+| `infra/docker/flink-submit-iotdb-persistence.sh` | Submit IoTDBPersistenceJob |
+| `scripts/e2e-edge/live_events_feed.py` | Live demo feeder |
 | `scripts/kafka-reset-lab-topics.ps1` | Topic provisioning |
-| `scripts/lib/AmsFlinkJob.ps1` | Optional Flink job management |
-| `infra/helm/ams/` | Production Kubernetes chart |
 
-### Documentation
+### Related docs
 
 | File | Purpose |
 |------|---------|
 | `docs/ams-alarm-architecture.md` | Original architecture (partially legacy) |
 | `docs/flink-only-orchestration.md` | Flink ownership rules |
 | `docs/production-contracts.md` | Formal stream contracts |
-| `docs/complete-project-workflow.md` | This document |
 
 ---
 
-## Appendix A: Port Reference
+## 17. Appendices
+
+### Appendix A: Port reference
 
 | Service | Port |
 |---------|------|
-| Frontend | 3000 |
+| Frontend (HMI) | 3000 |
+| Grafana | 3001 |
 | API | 8000 |
+| Historian BFF | 8090 |
 | PostgreSQL | 5433 |
+| Redis | 6380 |
 | Kafka (external) | 9093 |
 | Kafka UI | 8085 |
 | Flink UI | 8082 |
+| Flink metrics | 9249 |
+| IoTDB REST | 8181 |
+| IoTDB session | 6667 |
+| EMQX MQTT | 1883 |
+| EMQX WebSocket | 8083 |
+| EMQX Dashboard | 18083 |
+| Prometheus | 9090 |
 | pgAdmin | 5050 |
 
-## Appendix B: Consumer Group Reference
+### Appendix B: Consumer group reference
 
 | Group ID | Service / Job |
 |----------|---------------|
 | `flink-ams-raw-alarms` | Flink OpcEventStreamJob |
+| `flink-ams-live-state` | Flink LiveStateJob |
+| `flink-ams-iotdb-persistence` | Flink IoTDBPersistenceJob |
 | `flink-ams-operator-actions` | Flink OpcEventStreamJob |
 | `flink-ams-ack-results` | Flink OpcEventStreamJob |
-| `flink-ams-alarm-kpi` | Flink AlarmKpiStreamJob |
-| `flink-ams-loop-kpi` | Flink LoopKpiStreamJob |
-| `flink-drift-detector` | Flink StateDriftDetectionJob |
-| `flink-state-export-job` | Flink AlarmStateExportJob |
-| `ams-backend` | NormalizedAlarmConsumerService |
+| `ams-sparkplug-edge-node` | sparkplug-edge-node |
+| `ams-backend` / `ams-backend-2` | NormalizedAlarmConsumerService |
 | `ams-backend-lifecycle` | LifecycleEventConsumerService |
 | `ams-backend-http-ack-writeback` | HttpAckWritebackService |
-| `ams-backend-telemetry-deadman` | TelemetryDeadmanWatchdogService |
-| `notification-service-group` | notification-service |
-| `audit-service-group` | audit-service |
+
+### Appendix C: Environment variables (frontend Docker build)
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `VITE_SIGNALR_HUB_URL` | `/hubs/alarms` | SignalR hub |
+| `VITE_MQTT_WS_URL` | `/mqtt-ws` | MQTT WebSocket proxy |
+| `VITE_HIST_URL` | `/api/hist` | Historian BFF |
+| `VITE_SNAPSHOT_URL` | `/api/hist/snapshot` | Redis snapshots |
+| `VITE_SPARKPLUG_GROUP` | `ams_site1` | Sparkplug group id |
+| `VITE_SPARKPLUG_EDGE` | `ams_edge1` | Sparkplug edge node id |

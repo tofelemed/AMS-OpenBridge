@@ -1,0 +1,277 @@
+================================================================================
+COMMON CURSOR TERMINAL COMMAND ERRORS (WINDOWS POWERSHELL)
+A practical reference for commands executed by the Cursor agent
+================================================================================
+
+Scope:        Windows PowerShell 5.1 (default powershell.exe) and PowerShell 7+ (pwsh)
+Purpose:      Documents recurring failures when the Cursor AI agent runs shell
+              commands, with the correct PowerShell-native syntax for each.
+Convention:   "WRONG" = behaviour that fails or is unreliable in PowerShell.
+              "RIGHT" = the recommended PowerShell-compliant form.
+
+--------------------------------------------------------------------------------
+1. COMMAND CHAINING WITH &&  (the most frequent issue)
+--------------------------------------------------------------------------------
+Cause:        The && (AND) and || (OR) operators were introduced in PowerShell 7.
+              Windows PowerShell 5.1 — the default shell Cursor invokes — does NOT
+              support them and raises:
+              "The token '&&' is not a valid statement separator in this version."
+
+WRONG:        cd project && npm install && npm run build
+RIGHT (any):  cd project; npm install; npm run build
+RIGHT (5.1):  cd project; if ($?) { npm install }; if ($?) { npm run build }
+
+Notes:        - ";" runs commands sequentially regardless of success/failure.
+              - "if ($?) { ... }" replicates && by checking the previous command's
+                success status, which is the safe equivalent for build pipelines.
+              - On PowerShell 7+ (pwsh) && and || work natively; confirm the shell
+                with: $PSVersionTable.PSVersion
+
+--------------------------------------------------------------------------------
+2. CONDITIONAL "OR" CHAINING WITH ||
+--------------------------------------------------------------------------------
+Cause:        Same root cause as &&. || is unsupported in Windows PowerShell 5.1.
+
+WRONG:        npm test || echo "tests failed"
+RIGHT (5.1):  npm test; if (-not $?) { Write-Host "tests failed" }
+RIGHT (7+):   npm test || Write-Host "tests failed"
+
+--------------------------------------------------------------------------------
+3. WORKING DIRECTORY (cd) NOT PERSISTING BETWEEN COMMANDS
+--------------------------------------------------------------------------------
+Cause:        The agent may execute each command in a fresh shell context, so a
+              "cd" in one invocation does not carry into the next. The subsequent
+              command then runs from the original directory and fails with
+              "path not found" or "no such file".
+
+WRONG:        (call 1) cd src
+              (call 2) npm install      <- runs in the parent directory
+RIGHT:        Combine into one invocation:
+              cd src; npm install
+              -- or use an absolute path --
+              npm install --prefix C:\repo\src
+
+--------------------------------------------------------------------------------
+4. ENVIRONMENT VARIABLE SYNTAX
+--------------------------------------------------------------------------------
+Cause:        PowerShell does not use CMD's %VAR% or bash's $VAR syntax for
+              environment variables. It uses the $env: provider.
+
+WRONG (cmd):  echo %PATH%
+WRONG (bash): echo $PATH
+RIGHT:        echo $env:PATH
+Set a var:    $env:NODE_ENV = "production"
+Inline (7+):  $env:NODE_ENV="production"; npm run build
+
+--------------------------------------------------------------------------------
+5. PATH SEPARATORS (FORWARD vs BACK SLASH)
+--------------------------------------------------------------------------------
+Cause:        Agents often emit Unix-style forward slashes. PowerShell tolerates
+              forward slashes in most cmdlets, but native .exe tools and some
+              scripts expect backslashes, causing "cannot find path" errors.
+
+TOLERATED:    cd src/components
+SAFEST:       cd src\components
+Recommended:  Use Join-Path to build paths safely:
+              Join-Path "src" "components"
+
+--------------------------------------------------------------------------------
+6. QUOTING PATHS WITH SPACES
+--------------------------------------------------------------------------------
+Cause:        Unquoted paths containing spaces are parsed as multiple arguments.
+
+WRONG:        cd C:\Program Files\nodejs
+RIGHT:        cd "C:\Program Files\nodejs"
+RIGHT:        cd 'C:\Program Files\nodejs'
+Notes:        Single quotes are literal; double quotes allow variable expansion
+              (e.g., "$env:USERPROFILE\repo").
+
+--------------------------------------------------------------------------------
+7. EXECUTION POLICY BLOCKS SCRIPTS (.ps1)
+--------------------------------------------------------------------------------
+Cause:        Running .ps1 scripts (including some npm/yarn wrappers) fails with
+              "running scripts is disabled on this system."
+
+WRONG:        ./setup.ps1
+RIGHT (session-scoped, safe):
+              Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; ./setup.ps1
+RIGHT (per-call):
+              powershell -ExecutionPolicy Bypass -File setup.ps1
+Notes:        Scope "Process" applies only to the current session and reverts on
+              close, which is preferable to changing machine-wide policy.
+
+--------------------------------------------------------------------------------
+8. "COMMAND NOT FOUND" FOR NEWLY INSTALLED TOOLS
+--------------------------------------------------------------------------------
+Cause:        A tool installed during the session is not on the PATH of the
+              already-running shell. PowerShell caches PATH at launch.
+
+Symptom:      "The term 'xyz' is not recognized as the name of a cmdlet..."
+RIGHT:        - Restart the integrated terminal, OR
+              - Call the executable by full path, OR
+              - Refresh PATH in-session:
+                $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
+--------------------------------------------------------------------------------
+9. PIPING / REDIRECTION DIFFERENCES
+--------------------------------------------------------------------------------
+Cause:        PowerShell pipes objects, not plain text. CMD/bash redirection idioms
+              can behave unexpectedly.
+
+WRONG (cmd):  command 2>&1 > log.txt   (order-sensitive, unreliable here)
+RIGHT:        command *> log.txt        (redirects all streams)
+RIGHT:        command 2>&1 | Tee-Object log.txt
+Suppress out: command | Out-Null
+
+--------------------------------------------------------------------------------
+10. LONG-RUNNING / INTERACTIVE COMMANDS HANG THE AGENT
+--------------------------------------------------------------------------------
+Cause:        Watch modes, dev servers, and prompts (e.g., "npm run dev",
+              "git rebase -i") never return control, so the agent appears stalled.
+
+MITIGATION:   - Add non-interactive flags: npm install --yes, git --no-pager
+              - Run servers in the background:
+                Start-Process npm -ArgumentList "run","dev"
+              - For one-shot builds prefer: npm run build (not the watch variant)
+
+--------------------------------------------------------------------------------
+11. INLINE ENV-VAR PREFIX (bash idiom) DOES NOT WORK
+--------------------------------------------------------------------------------
+Cause:        The bash pattern "VAR=value command" is invalid in PowerShell.
+
+WRONG:        NODE_ENV=production npm run build
+RIGHT:        $env:NODE_ENV="production"; npm run build
+Cross-shell:  Use the "cross-env" package for portable scripts:
+              npx cross-env NODE_ENV=production npm run build
+
+--------------------------------------------------------------------------------
+12. ESCAPING CHARACTERS (backtick, not backslash)
+--------------------------------------------------------------------------------
+Cause:        PowerShell's escape character is the backtick (`), not the backslash.
+
+WRONG:        echo "Line1\nLine2"      (\n is not interpreted)
+RIGHT:        Write-Host "Line1`nLine2"
+Notes:        Common escapes: `n (newline), `t (tab), `" (literal quote).
+
+================================================================================
+COMMON MISCONCEPTIONS vs THE RIGHT WAY
+(compiled from the Cursor community forum and independent troubleshooting reports)
+================================================================================
+
+M1. "The && failure is a Cursor bug that the developers must fix."
+    REALITY:  It is a shell limitation. Windows PowerShell 5.1 never supported
+              the && / || operators; the agent simply emits bash/CMD-style
+              chaining that 5.1 rejects. It is widely reported but is rooted in
+              the shell version, not a defect unique to Cursor.
+    RIGHT:    Either switch the default profile to PowerShell 7 (where && works),
+              or constrain the agent to PowerShell syntax via a project rule
+              (see M2). Do not wait for a "fix" — change the environment.
+
+M2. "Adding a rule that says 'use ; not &&' reliably stops the behaviour."
+    REALITY:  Multiple users report the agent still emits && intermittently even
+              after the instruction is placed in rules/prompts. A natural-language
+              rule reduces, but does not guarantee, compliance.
+    RIGHT:    Treat the rule as a secondary control and make the environment the
+              primary one. Create a project rule file (e.g. .cursor/rules or a
+              Rules-for-AI entry) such as:
+                "This project runs Windows PowerShell. Never chain commands with
+                 && or ||. Use ';' for sequential execution and 'if ($?) { ... }'
+                 for conditional execution. Use $env:VAR for environment variables."
+              Then ALSO set PowerShell 7 as the default profile so that any missed
+              cases still execute correctly.
+
+M3. "A command that hangs with no output has failed."
+    REALITY:  The command frequently completed successfully, but Cursor's shell
+              integration did not receive the completion signal, so the agent
+              waits indefinitely. This is commonly caused by a heavy interactive
+              shell profile (Oh-My-Zsh, Powerlevel10k on macOS/Linux), pseudo-
+              terminal/PSReadLine rendering conflicts, or a regression in specific
+              Cursor builds (notably some 1.6.x versions).
+    RIGHT:    - Keep the agent shell profile minimal; guard heavy startup logic so
+                it is skipped during agent sessions (detect the CURSOR_TRACE_ID
+                environment variable and return early).
+              - If cursor-positioning/rendering errors appear, toggling
+                "terminal.integrated.shellIntegration.enabled" can resolve the
+                conflict between Cursor's PTY and PSReadLine.
+              - If a recent update introduced the hang, test a known-good prior
+                version and disable auto-update while diagnosing.
+
+M4. "'Command not recognized' means the tool is not installed."
+    REALITY:  The agent terminal can run in a different shell or with a different
+              PATH/code page than the terminal you open manually (users report the
+              agent showing a '$' prompt and "Active code page: 65001" instead of
+              the normal 'PS>' prompt). The tool is installed; the agent's shell
+              just cannot see it.
+    RIGHT:    - Confirm the agent's shell: run  $PSVersionTable  and  $PROFILE.
+              - Pin the agent to the same profile you use interactively via
+                "terminal.integrated.defaultProfile.windows".
+              - Restart the integrated terminal after installs, or refresh PATH
+                in-session (see section 8), or call the tool by full path.
+
+M5. "The agent uses the same terminal I see when I press Ctrl+`."
+    REALITY:  The agent may spawn a separate shell/profile from your interactive
+              terminal, so environment, PATH and prompt can all differ.
+    RIGHT:    Explicitly define a single Windows profile and set it as default so
+              both the interactive terminal and the agent resolve to the same
+              PowerShell host and environment.
+
+M6. "Installing the newest Cursor version always improves reliability."
+    REALITY:  Several terminal-execution regressions were introduced in specific
+              releases; a newer build is not automatically more stable for
+              command execution.
+    RIGHT:    When command execution breaks immediately after an update, treat the
+              update as a suspect. Validate against a prior stable build, report
+              the regression, and re-enable updates once resolved.
+
+M7. "Disabling shell integration is always the wrong thing to do."
+    REALITY:  Shell integration provides useful signals, but its PTY handling can
+              conflict with PSReadLine and produce cursor-positioning errors where
+              every command appears to fail.
+    RIGHT:    Disabling shell integration is a legitimate diagnostic and, in some
+              environments, a permanent workaround for rendering conflicts. Accept
+              the trade-off (loss of some convenience features) when it restores
+              reliable execution.
+
+M8. "Running 'cd' in one step and the build in the next is equivalent to doing
+     both together."
+    REALITY:  The working directory may not persist between separate agent
+              invocations, so the second command runs from the wrong location.
+    RIGHT:    Combine directory change and action in one invocation
+              (cd path; command), or pass an absolute/--prefix path. See section 3.
+
+GENERAL PRINCIPLE
+    The most robust resolution is environmental, not behavioural: standardise on
+    PowerShell 7 as the default profile, pin one Windows terminal profile for both
+    interactive and agent use, keep the agent shell profile lightweight, and back
+    it with an explicit project rule. Relying on prompt instructions alone is the
+    most common reason these errors persist.
+
+================================================================================
+QUICK REFERENCE — bash/CMD  ->  POWERSHELL EQUIVALENTS
+================================================================================
+  cmd1 && cmd2          ->  cmd1; if ($?) { cmd2 }      (5.1)  |  cmd1 && cmd2 (7+)
+  cmd1 || cmd2          ->  cmd1; if (-not $?) { cmd2 }  (5.1) |  cmd1 || cmd2 (7+)
+  cmd1; cmd2            ->  cmd1; cmd2                    (same)
+  $VAR  /  %VAR%        ->  $env:VAR
+  VAR=value cmd         ->  $env:VAR="value"; cmd
+  export VAR=value      ->  $env:VAR="value"
+  ls / dir              ->  Get-ChildItem  (aliases: ls, dir, gci)
+  rm -rf folder         ->  Remove-Item folder -Recurse -Force
+  cat file              ->  Get-Content file
+  which tool            ->  Get-Command tool
+  cmd > /dev/null       ->  cmd | Out-Null
+  touch file            ->  New-Item file -ItemType File
+
+================================================================================
+RECOMMENDED PERMANENT FIX
+================================================================================
+To avoid the && / || class of errors entirely, configure Cursor's integrated
+terminal to use PowerShell 7 (pwsh) instead of Windows PowerShell 5.1:
+
+  1. Install PowerShell 7: winget install Microsoft.PowerShell
+  2. In Cursor: Settings -> Terminal -> Default Profile (Windows) -> "PowerShell 7"
+  3. Verify in the terminal: $PSVersionTable.PSVersion  (Major should be 7)
+
+Once on PowerShell 7, && and || operate as expected, removing the single most
+common source of agent command failures on Windows.
+================================================================================
