@@ -3,6 +3,8 @@ import type { CanvasItem } from './types';
 import { useBindingResolver } from '../../hooks/useBindingResolver';
 import { renderCustomSymbol, CUSTOM_SYMBOL_TYPES } from './CustomSymbols';
 import { getValueColor, formatValue as fmtValue, getPercentage as pctValue } from './openBridgeTheme';
+import { isLazyObcType } from './lazyCategoryRegistry';
+import { LazyObcSymbol } from './LazyObcSymbol';
 
 // OpenBridge Web Components (ISA-101 compliant)
 import { ObcStatusIndicator } from '@oicl/openbridge-webcomponents-react/components/status-indicator/status-indicator';
@@ -89,6 +91,22 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
     mode === 'preview' ? (statusValue ?? liveValue) : undefined,
     item.alarmLimits
   );
+
+  // OpenBridge components — lazy-loaded renderer chunks per domain
+  if (isLazyObcType(item.type)) {
+    return (
+      <LazyObcSymbol
+        item={item}
+        mode={mode}
+        isRunning={isRunning}
+        numericValue={numericValue}
+        liveValue={liveValue}
+        statusValue={statusValue}
+        displayValue={displayValue}
+        statusState={statusState}
+      />
+    );
+  }
 
   // Custom SVG symbols (OpenBridge themed, not in OBC library)
   if (CUSTOM_SYMBOL_TYPES.has(item.type)) {

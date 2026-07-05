@@ -131,3 +131,71 @@ declare module '@oicl/openbridge-webcomponents-react/components/alert-icon/alert
   }
   export const ObcAlertIcon: FC<ObcAlertIconProps>;
 }
+
+/** OpenBridge automation React wrappers — shared loose typing for web component props */
+declare module '@oicl/openbridge-webcomponents-react/automation/*/*' {
+  import { FC } from 'react';
+  export const ObcAnalogValve: FC<Record<string, unknown>>;
+  export const ObcAutomationButton: FC<Record<string, unknown>>;
+  export const ObcAutomationBadge: FC<Record<string, unknown>>;
+  export const ObcAutomationReadout: FC<Record<string, unknown>>;
+  export const ObcAutomationTank: FC<Record<string, unknown>>;
+  export const ObcPump: FC<Record<string, unknown>>;
+  export const ObcMotor: FC<Record<string, unknown>>;
+  export const ObcFan: FC<Record<string, unknown>>;
+  export const ObcDamper: FC<Record<string, unknown>>;
+  export const ObcDigitalValve: FC<Record<string, unknown>>;
+  export const ObcHorizontalLine: FC<Record<string, unknown>>;
+  export const ObcVerticalLine: FC<Record<string, unknown>>;
+  export const ObcCornerLine: FC<Record<string, unknown>>;
+  export const ObcThreeWayLine: FC<Record<string, unknown>>;
+  export const ObcDirectionLine: FC<Record<string, unknown>>;
+  export const ObcEndPointLine: FC<Record<string, unknown>>;
+  export const ObcLineCross: FC<Record<string, unknown>>;
+  export const ObcLineOverlap: FC<Record<string, unknown>>;
+  export const ObcValveAnalogThreeWayIcon: FC<Record<string, unknown>>;
+  export const ObcValveAnalogTwoWayIcon: FC<Record<string, unknown>>;
+  export const ObcBipolarTransistor: FC<Record<string, unknown>>;
+  export const ObcCapacitor: FC<Record<string, unknown>>;
+  export const ObcConverter: FC<Record<string, unknown>>;
+  export const ObcDiodes: FC<Record<string, unknown>>;
+  export const ObcFilter: FC<Record<string, unknown>>;
+  export const ObcGround: FC<Record<string, unknown>>;
+  export const ObcLogic: FC<Record<string, unknown>>;
+  export const ObcMosfet: FC<Record<string, unknown>>;
+  export const ObcResistor: FC<Record<string, unknown>>;
+  export const ObcRouter: FC<Record<string, unknown>>;
+  export const ObcSource: FC<Record<string, unknown>>;
+  export const ObcSwitch: FC<Record<string, unknown>>;
+  export const ObcTransformer: FC<Record<string, unknown>>;
+}
+
+declare module '@oicl/openbridge-webcomponents-react/components/sequence-step/sequence-step' {
+  import { FC, ReactNode } from 'react';
+  export const ObcSequenceStep: FC<Record<string, unknown> & { children?: ReactNode }>;
+}
+
+declare module '@oicl/openbridge-webcomponents-react/components/sequence-connector/sequence-connector' {
+  import { FC } from 'react';
+  export const ObcSequenceConnector: FC<Record<string, unknown>>;
+}
+
+declare module '@oicl/openbridge-webcomponents-react/components/sequence-item/sequence-item' {
+  import { FC } from 'react';
+  export const ObcSequenceItem: FC<Record<string, unknown>>;
+}
+
+declare module '@oicl/openbridge-webcomponents-react/components/sequence-toolbar/sequence-toolbar' {
+  import { FC, ReactNode } from 'react';
+  export const ObcSequenceToolbar: FC<Record<string, unknown> & { children?: ReactNode }>;
+}
+
+declare module '@oicl/openbridge-webcomponents-react/components/sequence-card/sequence-card' {
+  import { FC, ReactNode } from 'react';
+  export const ObcSequenceCard: FC<Record<string, unknown> & { children?: ReactNode }>;
+}
+
+declare module '@oicl/openbridge-webcomponents-react/components/automation-button-readout-stack/automation-button-readout-stack' {
+  import { FC } from 'react';
+  export const ObcAutomationButtonReadoutStack: FC<Record<string, unknown>>;
+}

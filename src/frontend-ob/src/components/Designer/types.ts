@@ -2,6 +2,9 @@
 // HMI Designer Types
 // ═══════════════════════════════════════════════════════════════════════════
 
+import type { AutomationProps } from './automationTypes';
+import type { ObcProps } from './obcCatalogTypes';
+
 export interface CanvasItem {
   id: string;
   type: string;
@@ -20,6 +23,9 @@ export interface CanvasItem {
   shapeProps?: ShapeProps;
   // Text-specific
   textProps?: TextProps;
+  // OpenBridge automation-specific
+  automationProps?: AutomationProps;
+  obcProps?: ObcProps;
 }
 
 export interface FormattingOptions {

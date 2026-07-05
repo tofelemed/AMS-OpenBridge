@@ -25,4 +25,10 @@ export type {
   SymbolCategory,
 } from './types';
 
+export { LAZY_CATEGORY_META, preloadCategory, preloadForSymbolTypes, isLazyObcType } from './lazyCategoryRegistry';
+export { getDefaultSizeSync, findSymbolDefinition, ensureCategoryLoaded } from './symbolLibraryService';
+export { isObcCatalogType, getDefaultObcProps } from './obcCatalogTypes';
+export { isAutomationType, getDefaultAutomationProps } from './automationTypes';
+export type { ObcProps } from './obcCatalogTypes';
+export type { AutomationProps } from './automationTypes';
 export { ASSET_TYPES, ASSET_TYPE_LABELS, ASSET_TYPE_ICONS } from './types';

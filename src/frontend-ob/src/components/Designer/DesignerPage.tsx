@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { DisplayDesigner } from './DisplayDesigner';
 import './Designer.css';
+
+const DisplayDesigner = React.lazy(() =>
+  import('./DisplayDesigner').then(m => ({ default: m.DisplayDesigner }))
+);
 
 export const DesignerPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -20,13 +23,20 @@ export const DesignerPage: React.FC = () => {
   }
   
   return (
-    <DisplayDesigner
-      displayId={id}
-      onClose={() => navigate('/designer')}
-      onSave={() => {
-        // Optionally show a success notification
-      }}
-    />
+    <Suspense fallback={
+      <div className="designer-page-loading">
+        <div className="symbol-loading__spinner" />
+        <p>Loading designer…</p>
+      </div>
+    }>
+      <DisplayDesigner
+        displayId={id}
+        onClose={() => navigate('/designer')}
+        onSave={() => {
+          // Optionally show a success notification
+        }}
+      />
+    </Suspense>
   );
 };
 

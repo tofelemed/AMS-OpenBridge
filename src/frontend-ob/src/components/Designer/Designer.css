@@ -2154,3 +2154,127 @@
   width: 100%;
   height: 100%;
 }
+
+/* OpenBridge automation symbols on canvas */
+.symbol-automation {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.designer-canvas__item .symbol-automation > * {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.designer-canvas__item obc-pump,
+.designer-canvas__item obc-motor,
+.designer-canvas__item obc-fan,
+.designer-canvas__item obc-analog-valve,
+.designer-canvas__item obc-digital-valve,
+.designer-canvas__item obc-damper,
+.designer-canvas__item obc-automation-button,
+.designer-canvas__item obc-automation-readout,
+.designer-canvas__item obc-automation-tank,
+.designer-canvas__item obc-horizontal-line,
+.designer-canvas__item obc-vertical-line,
+.designer-canvas__item obc-corner-line,
+.designer-canvas__item obc-three-way-line,
+.designer-canvas__item obc-direction-line,
+.designer-canvas__item obc-end-point-line,
+.designer-canvas__item obc-line-cross,
+.designer-canvas__item obc-line-overlap,
+.designer-canvas__item obc-valve-analog-three-way-icon,
+.designer-canvas__item obc-valve-analog-two-way-icon,
+.designer-canvas__item obc-sequence-step,
+.designer-canvas__item obc-sequence-connector,
+.designer-canvas__item obc-sequence-item,
+.designer-canvas__item obc-sequence-toolbar,
+.designer-canvas__item obc-sequence-card,
+.designer-canvas__item obc-resistor,
+.designer-canvas__item obc-capacitor,
+.designer-canvas__item obc-switch,
+.designer-canvas__item obc-transformer,
+.designer-canvas__item obc-bipolar-transistor,
+.designer-canvas__item obc-converter,
+.designer-canvas__item obc-diodes,
+.designer-canvas__item obc-filter,
+.designer-canvas__item obc-logic,
+.designer-canvas__item obc-mosfet,
+.designer-canvas__item obc-router,
+.designer-canvas__item obc-source,
+.designer-canvas__item obc-ground,
+.designer-canvas__item obc-automation-badge,
+.designer-canvas__item obc-automation-button-readout-stack {
+  width: 100%;
+  height: 100%;
+}
+
+/* OpenBridge catalog symbols */
+.symbol-obc {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.designer-canvas__item .symbol-obc > * {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.designer-canvas__item obc-bar-vertical,
+.designer-canvas__item obc-bar-horizontal,
+.designer-canvas__item obc-instrument-radial,
+.designer-canvas__item obc-gauge-radial,
+.designer-canvas__item obc-gauge-vertical,
+.designer-canvas__item obc-gauge-horizontal,
+.designer-canvas__item obc-gauge-trend,
+.designer-canvas__item obc-graph-mini,
+.designer-canvas__item obc-thruster,
+.designer-canvas__item obc-compass,
+.designer-canvas__item obc-poi-vessel,
+.designer-canvas__item obc-alert-list {
+  width: 100%;
+  height: 100%;
+}
+
+/* Lazy-load placeholders */
+.symbol-loading,
+.symbol-palette__loading,
+.designer-page-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  min-height: 40px;
+  color: var(--element-neutral-color, #949494);
+  font-size: 12px;
+}
+
+.symbol-loading__spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--container-border-color, #334155);
+  border-top-color: var(--selected-enabled-background-color, #2d548b);
+  border-radius: 50%;
+  animation: designer-spin 0.7s linear infinite;
+}
+
+@keyframes designer-spin {
+  to { transform: rotate(360deg); }
+}
+
+.designer-page-loading {
+  min-height: 60vh;
+}

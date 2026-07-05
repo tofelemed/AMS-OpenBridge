@@ -1,6 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import type { SymbolCategory, SymbolDefinition } from './types';
-
+import {
+  LAZY_CATEGORY_META,
+  preloadCategory,
+  type LazyCategoryId,
+} from './lazyCategoryRegistry';
+import {
+  ensureCategoryLoaded,
+  registerStaticCategories,
+} from './symbolLibraryService';
 interface SymbolPaletteProps {
   onAddItem: (type: string, position: { x: number; y: number }) => void;
 }
@@ -9,10 +17,9 @@ interface SymbolPaletteProps {
 const obc = (sym: Omit<SymbolDefinition, 'isOpenBridge'>): SymbolDefinition => ({ ...sym, isOpenBridge: true });
 const custom = (sym: Omit<SymbolDefinition, 'isOpenBridge'>): SymbolDefinition => ({ ...sym, isOpenBridge: false });
 
-const SYMBOL_LIBRARY: SymbolCategory[] = [
+const STATIC_SYMBOL_LIBRARY: SymbolCategory[] = [
   {
-    id: 'indicators',
-    name: 'Indicators',
+    id: 'indicators',    name: 'Indicators',
     icon: '📊',
     symbols: [
       obc({ type: 'obc.readout', label: 'Numeric Readout', icon: '🔢', category: 'indicators', defaultSize: { width: 120, height: 60 }, bindingSlots: ['value'], description: 'OpenBridge numeric display' }),
@@ -147,21 +154,61 @@ const SYMBOL_LIBRARY: SymbolCategory[] = [
   },
 ];
 
-export { SYMBOL_LIBRARY };
+/** Static categories always bundled; OpenBridge categories load on expand */
+export const SYMBOL_LIBRARY: SymbolCategory[] = STATIC_SYMBOL_LIBRARY;
+
+registerStaticCategories(STATIC_SYMBOL_LIBRARY);
 
 export const SymbolPalette: React.FC<SymbolPaletteProps> = ({ onAddItem }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['indicators', 'controls', 'equipment']));
-  
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [lazyCategories, setLazyCategories] = useState<Map<string, SymbolCategory>>(new Map());
+  const [loadingCategories, setLoadingCategories] = useState<Set<string>>(new Set());
+
+  const loadLazyCategory = useCallback(async (categoryId: LazyCategoryId) => {
+    if (lazyCategories.has(categoryId) || loadingCategories.has(categoryId)) return;
+    setLoadingCategories(prev => new Set(prev).add(categoryId));
+    preloadCategory(categoryId);
+    try {
+      const category = await ensureCategoryLoaded(categoryId);
+      setLazyCategories(prev => new Map(prev).set(categoryId, category));
+    } finally {
+      setLoadingCategories(prev => {
+        const next = new Set(prev);
+        next.delete(categoryId);
+        return next;
+      });
+    }
+  }, [lazyCategories, loadingCategories]);
+
   const toggleCategory = (id: string) => {
+    const isLazy = LAZY_CATEGORY_META.some(m => m.id === id);
+    const willExpand = !expandedCategories.has(id);
+
     setExpandedCategories(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+
+    if (isLazy && willExpand) {
+      void loadLazyCategory(id as LazyCategoryId);
+    }
   };
-  
+
+  const allCategories = useMemo((): SymbolCategory[] => {
+    const lazyLoaded = LAZY_CATEGORY_META
+      .map(meta => lazyCategories.get(meta.id) ?? {
+        id: meta.id,
+        name: meta.name,
+        icon: meta.icon,
+        symbols: [] as SymbolDefinition[],
+      })
+      .filter(cat => !searchTerm || cat.symbols.length > 0 || loadingCategories.has(cat.id));
+
+    return [...lazyLoaded, ...STATIC_SYMBOL_LIBRARY];
+  }, [lazyCategories, loadingCategories, searchTerm]);  
   const handleDragStart = (e: React.DragEvent, symbol: SymbolDefinition) => {
     e.dataTransfer.setData('application/symbol-type', symbol.type);
     e.dataTransfer.setData('application/symbol-data', JSON.stringify(symbol));
@@ -177,16 +224,15 @@ export const SymbolPalette: React.FC<SymbolPaletteProps> = ({ onAddItem }) => {
   };
   
   const filteredLibrary = searchTerm
-    ? SYMBOL_LIBRARY.map(cat => ({
+    ? allCategories.map(cat => ({
         ...cat,
-        symbols: cat.symbols.filter(s => 
+        symbols: cat.symbols.filter(s =>
           s.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
           s.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
           s.description?.toLowerCase().includes(searchTerm.toLowerCase())
         )
       })).filter(cat => cat.symbols.length > 0)
-    : SYMBOL_LIBRARY;
-  
+    : allCategories;  
   return (
     <div className="symbol-palette">
       <div className="symbol-palette__header">
@@ -216,16 +262,24 @@ export const SymbolPalette: React.FC<SymbolPaletteProps> = ({ onAddItem }) => {
             >
               <span className="symbol-palette__category-icon">{category.icon}</span>
               <span className="symbol-palette__category-name">{category.name}</span>
-              <span className="symbol-palette__category-count">{category.symbols.length}</span>
-              <span className="symbol-palette__category-chevron">
+              <span className="symbol-palette__category-count">
+                {loadingCategories.has(category.id)
+                  ? '…'
+                  : category.symbols.length || (LAZY_CATEGORY_META.some(m => m.id === category.id) ? '↓' : 0)}
+              </span>              <span className="symbol-palette__category-chevron">
                 {expandedCategories.has(category.id) ? '▼' : '▶'}
               </span>
             </button>
             
             {expandedCategories.has(category.id) && (
               <div className="symbol-palette__symbols">
-                {category.symbols.map(symbol => (
-                  <div
+                {loadingCategories.has(category.id) && (
+                  <div className="symbol-palette__loading">Loading components…</div>
+                )}
+                {!loadingCategories.has(category.id) && category.symbols.length === 0 && LAZY_CATEGORY_META.some(m => m.id === category.id) && (
+                  <div className="symbol-palette__loading">Expand to load OpenBridge components</div>
+                )}
+                {category.symbols.map(symbol => (                  <div
                     key={symbol.type}
                     className={`symbol-palette__item ${symbol.isOpenBridge ? 'symbol-palette__item--obc' : 'symbol-palette__item--custom'}`}
                     draggable

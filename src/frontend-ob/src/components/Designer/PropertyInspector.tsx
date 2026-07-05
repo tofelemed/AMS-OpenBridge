@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import type { CanvasItem, FormattingOptions, ItemStyle, AlarmLimits } from './types';
+import type { AutomationProps } from './automationTypes';
+import { isAutomationType } from './automationTypes';
+import type { ObcProps } from './obcCatalogTypes';
+import { isObcCatalogType } from './obcCatalogTypes';
 import { TagPicker } from './AssetBrowser';
-import { SYMBOL_LIBRARY } from './SymbolPalette';
+import { findSymbolDefinition } from './symbolLibraryService';
 
 interface PropertyInspectorProps {
   selectedItem: CanvasItem | undefined;
@@ -14,11 +18,7 @@ interface PropertyInspectorProps {
 
 // Get symbol definition from library
 function getSymbolDef(type: string) {
-  for (const cat of SYMBOL_LIBRARY) {
-    const sym = cat.symbols.find(s => s.type === type);
-    if (sym) return sym;
-  }
-  return null;
+  return findSymbolDefinition(type);
 }
 
 // Color presets for quick selection
@@ -81,6 +81,28 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
       alarmLimits: { ...selectedItem.alarmLimits, [key]: value }
     });
   };
+
+  const updateAutomation = (key: keyof AutomationProps, value: unknown) => {
+    updateItem({
+      automationProps: { ...selectedItem.automationProps, [key]: value } as AutomationProps
+    });
+  };
+
+  const updateObc = (key: keyof ObcProps, value: unknown) => {
+    updateItem({
+      obcProps: { ...selectedItem.obcProps, [key]: value } as ObcProps
+    });
+  };
+
+  const ap = selectedItem.automationProps ?? {};
+  const op = selectedItem.obcProps ?? {};
+  const isAutomation = isAutomationType(selectedItem.type);
+  const isObcCatalog = isObcCatalogType(selectedItem.type);
+  const isLine = selectedItem.type.startsWith('obc.auto.') && selectedItem.type.includes('line');
+  const isTank = selectedItem.type.includes('automation-tank');
+  const isValve = selectedItem.type.includes('valve');
+  const isMotorized = ['pump', 'motor', 'fan'].some(k => selectedItem.type.includes(k));
+  const isSequence = selectedItem.type.includes('sequence');
   
   const updatePosition = (axis: 'x' | 'y', value: number) => {
     updateItem({ position: { ...selectedItem.position, [axis]: value } });
@@ -255,6 +277,363 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
                 </label>
               </div>
             </div>
+
+            {isAutomation && (
+              <div className="property-section">
+                <div className="property-section__title">⚡ Automation</div>
+                <div className="property-section__hint">
+                  OpenBridge automation symbol properties
+                </div>
+
+                {(isMotorized || isValve || selectedItem.type.includes('damper') || selectedItem.type.includes('switch')) && (
+                  <div className="property-group">
+                    <label className="property-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={ap.on ?? ap.open ?? false}
+                        onChange={(e) => {
+                          if (isValve) updateAutomation('open', e.target.checked);
+                          else updateAutomation('on', e.target.checked);
+                        }}
+                      />
+                      <span>{isValve ? 'Open' : 'Running / ON'}</span>
+                    </label>
+                  </div>
+                )}
+
+                {(isMotorized || isValve) && (
+                  <div className="property-group">
+                    <label className="property-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={ap.vertical ?? false}
+                        onChange={(e) => updateAutomation('vertical', e.target.checked)}
+                      />
+                      <span>Vertical orientation</span>
+                    </label>
+                  </div>
+                )}
+
+                {isMotorized && (
+                  <div className="property-group">
+                    <label>Speed (%)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={ap.speedInPercent ?? 100}
+                      onChange={(e) => updateAutomation('speedInPercent', Number(e.target.value))}
+                      className="property-input"
+                    />
+                  </div>
+                )}
+
+                {(isValve || selectedItem.type.includes('valve-')) && (
+                  <>
+                    <div className="property-group">
+                      <label>Position / Value (%)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={ap.value ?? 50}
+                        onChange={(e) => updateAutomation('value', Number(e.target.value))}
+                        className="property-input"
+                      />
+                    </div>
+                    {selectedItem.type.includes('three-way') && (
+                      <div className="property-group">
+                        <label>Position 2 (%)</label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={ap.value2 ?? 50}
+                          onChange={(e) => updateAutomation('value2', Number(e.target.value))}
+                          className="property-input"
+                        />
+                      </div>
+                    )}
+                    <div className="property-group">
+                      <label className="property-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={ap.closed ?? false}
+                          onChange={(e) => updateAutomation('closed', e.target.checked)}
+                        />
+                        <span>Closed</span>
+                      </label>
+                    </div>
+                  </>
+                )}
+
+                {isLine && (
+                  <>
+                    <div className="property-group">
+                      <label>Medium</label>
+                      <select
+                        value={ap.medium ?? 'water'}
+                        onChange={(e) => updateAutomation('medium', e.target.value)}
+                        className="property-input"
+                      >
+                        <option value="normal">Normal</option>
+                        <option value="empty">Empty</option>
+                        <option value="water">Water</option>
+                        <option value="air">Air</option>
+                      </select>
+                    </div>
+                    <div className="property-group">
+                      <label>Line type</label>
+                      <select
+                        value={ap.lineType ?? 'fluid'}
+                        onChange={(e) => updateAutomation('lineType', e.target.value)}
+                        className="property-input"
+                      >
+                        <option value="fluid">Fluid</option>
+                        <option value="electric">Electric</option>
+                        <option value="air">Air</option>
+                        <option value="connector">Connector</option>
+                      </select>
+                    </div>
+                    {(selectedItem.type.includes('horizontal') || selectedItem.type.includes('vertical')) && (
+                      <div className="property-group">
+                        <label>Length (px)</label>
+                        <input
+                          type="number"
+                          min={10}
+                          value={ap.length ?? selectedItem.size.width}
+                          onChange={(e) => updateAutomation('length', Number(e.target.value))}
+                          className="property-input"
+                        />
+                      </div>
+                    )}
+                    {selectedItem.type.includes('corner') && (
+                      <div className="property-group">
+                        <label>Corner direction</label>
+                        <select
+                          value={ap.direction ?? 'top-right'}
+                          onChange={(e) => updateAutomation('direction', e.target.value)}
+                          className="property-input"
+                        >
+                          <option value="top-right">Top right</option>
+                          <option value="top-left">Top left</option>
+                          <option value="bottom-right">Bottom right</option>
+                          <option value="bottom-left">Bottom left</option>
+                        </select>
+                      </div>
+                    )}
+                    {selectedItem.type.includes('three-way-line') && (
+                      <div className="property-group">
+                        <label>Branch direction</label>
+                        <select
+                          value={ap.direction ?? 'top'}
+                          onChange={(e) => updateAutomation('direction', e.target.value)}
+                          className="property-input"
+                        >
+                          <option value="top">Top</option>
+                          <option value="right">Right</option>
+                          <option value="bottom">Bottom</option>
+                          <option value="left">Left</option>
+                        </select>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {isTank && (
+                  <>
+                    <div className="property-group">
+                      <label>Tag ID</label>
+                      <input
+                        type="text"
+                        value={ap.tag ?? ''}
+                        onChange={(e) => updateAutomation('tag', e.target.value)}
+                        className="property-input"
+                        placeholder="TK-101"
+                      />
+                    </div>
+                    <div className="property-group">
+                      <label>Trend</label>
+                      <select
+                        value={ap.trend ?? 'stable'}
+                        onChange={(e) => updateAutomation('trend', e.target.value)}
+                        className="property-input"
+                      >
+                        <option value="fast-rising">Fast rising</option>
+                        <option value="rising">Rising</option>
+                        <option value="stable">Stable</option>
+                        <option value="falling">Falling</option>
+                        <option value="fast-falling">Fast falling</option>
+                      </select>
+                    </div>
+                    <div className="property-group">
+                      <label>Max level</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={ap.max ?? 100}
+                        onChange={(e) => updateAutomation('max', Number(e.target.value))}
+                        className="property-input"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {selectedItem.type.includes('readout') && (
+                  <div className="property-group">
+                    <label>Digits</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={8}
+                      value={ap.numberOfDigits ?? 3}
+                      onChange={(e) => updateAutomation('numberOfDigits', Number(e.target.value))}
+                      className="property-input"
+                    />
+                  </div>
+                )}
+
+                {isSequence && (
+                  <>
+                    <div className="property-group">
+                      <label>Step state</label>
+                      <select
+                        value={ap.sequenceValue ?? 'regular'}
+                        onChange={(e) => updateAutomation('sequenceValue', e.target.value)}
+                        className="property-input"
+                      >
+                        <option value="not-started">Not started</option>
+                        <option value="loading">Loading</option>
+                        <option value="regular">Regular</option>
+                        <option value="next">Next</option>
+                        <option value="active">Active</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                    </div>
+                    <div className="property-group">
+                      <label>Subtitle</label>
+                      <input
+                        type="text"
+                        value={ap.subtitle ?? ''}
+                        onChange={(e) => updateAutomation('subtitle', e.target.value)}
+                        className="property-input"
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div className="property-group">
+                  <label className="property-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={ap.showReadoutStack ?? false}
+                      onChange={(e) => updateAutomation('showReadoutStack', e.target.checked)}
+                    />
+                    <span>Show readout stack</span>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {isObcCatalog && (
+              <div className="property-section">
+                <div className="property-section__title">▣ OpenBridge</div>
+                <div className="property-section__hint">
+                  Component-specific OpenBridge properties
+                </div>
+
+                {(selectedItem.type.includes('gauge') || selectedItem.type.includes('bar') || selectedItem.type.includes('instrument') || selectedItem.type.includes('thruster') || selectedItem.type.includes('depth') || selectedItem.type.includes('speed') || selectedItem.type.includes('graph')) && (
+                  <>
+                    <div className="property-row">
+                      <div className="property-group property-group--half">
+                        <label>Min</label>
+                        <input type="number" value={op.minValue ?? 0} onChange={(e) => updateObc('minValue', Number(e.target.value))} className="property-input" />
+                      </div>
+                      <div className="property-group property-group--half">
+                        <label>Max</label>
+                        <input type="number" value={op.maxValue ?? 100} onChange={(e) => updateObc('maxValue', Number(e.target.value))} className="property-input" />
+                      </div>
+                    </div>
+                    <div className="property-group">
+                      <label>Design value</label>
+                      <input type="number" value={op.value ?? 50} onChange={(e) => updateObc('value', Number(e.target.value))} className="property-input" />
+                    </div>
+                  </>
+                )}
+
+                {selectedItem.type.includes('gauge-radial') && (
+                  <div className="property-group">
+                    <label>Gauge type</label>
+                    <select value={op.gaugeType ?? 'needle'} onChange={(e) => updateObc('gaugeType', e.target.value)} className="property-input">
+                      <option value="needle">Needle</option>
+                      <option value="filled">Filled</option>
+                      <option value="bar">Bar</option>
+                    </select>
+                  </div>
+                )}
+
+                {(selectedItem.type.includes('toggle') || selectedItem.type.includes('checkbox') || selectedItem.type.includes('check-button') || selectedItem.type.includes('radio')) && (
+                  <div className="property-group">
+                    <label className="property-checkbox">
+                      <input type="checkbox" checked={op.checked ?? false} onChange={(e) => updateObc('checked', e.target.checked)} />
+                      <span>Checked / ON</span>
+                    </label>
+                  </div>
+                )}
+
+                {selectedItem.type.includes('battery') && (
+                  <>
+                    <div className="property-group">
+                      <label>Level (%)</label>
+                      <input type="number" min={0} max={100} value={op.level ?? 75} onChange={(e) => updateObc('level', Number(e.target.value))} className="property-input" />
+                    </div>
+                    <div className="property-group">
+                      <label className="property-checkbox">
+                        <input type="checkbox" checked={op.charging ?? false} onChange={(e) => updateObc('charging', e.target.checked)} />
+                        <span>Charging</span>
+                      </label>
+                    </div>
+                  </>
+                )}
+
+                {selectedItem.type.includes('status-indicator') && (
+                  <div className="property-group">
+                    <label>Status</label>
+                    <select value={op.status ?? 'active'} onChange={(e) => updateObc('status', e.target.value)} className="property-input">
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                      <option value="running">Running</option>
+                      <option value="caution">Caution</option>
+                      <option value="warning">Warning</option>
+                      <option value="alarm">Alarm</option>
+                    </select>
+                  </div>
+                )}
+
+                {(selectedItem.type.includes('alert') || selectedItem.type.includes('alert-button')) && (
+                  <div className="property-group">
+                    <label>Alert type</label>
+                    <select value={op.alertType ?? 'caution'} onChange={(e) => updateObc('alertType', e.target.value)} className="property-input">
+                      <option value="alarm">Alarm</option>
+                      <option value="warning">Warning</option>
+                      <option value="caution">Caution</option>
+                      <option value="notice">Notice</option>
+                    </select>
+                  </div>
+                )}
+
+                {selectedItem.type.includes('circular-progress') && (
+                  <div className="property-group">
+                    <label>Progress mode</label>
+                    <select value={op.progressMode ?? 'determinate'} onChange={(e) => updateObc('progressMode', e.target.value)} className="property-input">
+                      <option value="determinate">Determinate</option>
+                      <option value="indeterminate">Indeterminate</option>
+                      <option value="progressive-indeterminate">Progressive</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
         

@@ -1,7 +1,7 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react';
 import type { CanvasItem } from './types';
 import { SymbolRenderer } from './SymbolRenderer';
-import { SYMBOL_LIBRARY } from './SymbolPalette';
+import { getDefaultSizeSync } from './symbolLibraryService';
 
 interface DesignerCanvasProps {
   items: CanvasItem[];
@@ -18,11 +18,7 @@ interface DesignerCanvasProps {
 
 // Get default size for a symbol type
 function getDefaultSize(type: string): { width: number; height: number } {
-  for (const cat of SYMBOL_LIBRARY) {
-    const sym = cat.symbols.find(s => s.type === type);
-    if (sym) return sym.defaultSize;
-  }
-  return { width: 100, height: 60 };
+  return getDefaultSizeSync(type);
 }
 
 // Snap to grid

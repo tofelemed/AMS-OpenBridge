@@ -1,10 +1,14 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { SymbolPalette, SYMBOL_LIBRARY } from './SymbolPalette';
+import { SymbolPalette } from './SymbolPalette';
 import { PropertyInspector } from './PropertyInspector';
 import { DesignerCanvas } from './DesignerCanvas';
 import { AssetBrowser } from './AssetBrowser';
 import type { CanvasItem } from './types';
+import { isAutomationType, getDefaultAutomationProps } from './automationTypes';
+import { isObcCatalogType, getDefaultObcProps } from './obcCatalogTypes';
+import { getDefaultSizeSync } from './symbolLibraryService';
+import { preloadForSymbolTypes } from './lazyCategoryRegistry';
 
 const API_BASE = import.meta.env.VITE_DISPLAY_SERVICE_URL || '/api/displays';
 
@@ -41,11 +45,7 @@ function generateId(): string {
 
 // Get default size for a symbol type
 function getDefaultSize(type: string): { width: number; height: number } {
-  for (const cat of SYMBOL_LIBRARY) {
-    const sym = cat.symbols.find(s => s.type === type);
-    if (sym) return sym.defaultSize;
-  }
-  return { width: 100, height: 60 };
+  return getDefaultSizeSync(type);
 }
 
 // Fetch display content
@@ -98,6 +98,13 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
       setHistoryIndex(0);
     }
   }, [displayData]);
+
+  // Preload OpenBridge renderer chunks for symbols already on the canvas
+  useEffect(() => {
+    if (items.length > 0) {
+      preloadForSymbolTypes(items.map(i => i.type));
+    }
+  }, [items]);
   
   // Save mutation
   const saveMutation = useMutation({
@@ -145,7 +152,9 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
       size: defaultSize,
       label: '',
       bindings: {},
-      formatting: { decimals: 1 }
+      formatting: { decimals: 1 },
+      ...(isAutomationType(type) ? { automationProps: getDefaultAutomationProps(type) } : {}),
+      ...(isObcCatalogType(type) ? { obcProps: getDefaultObcProps(type) } : {}),
     };
     
     const newItems = [...items, newItem];
