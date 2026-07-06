@@ -49,18 +49,21 @@ function getDefaultSize(type: string): { width: number; height: number } {
 }
 
 // Fetch display content
+// display-service returns { ..., snapshot: { items, settings } }; adapt to { content }.
 async function fetchDisplay(id: string): Promise<DisplayData> {
   const res = await fetch(`${API_BASE}/${id}/content`);
   if (!res.ok) throw new Error('Failed to load display');
-  return res.json();
+  const json = await res.json();
+  const snapshot = json.snapshot ?? json.content ?? {};
+  return { ...json, content: { items: snapshot.items ?? [], settings: snapshot.settings } } as DisplayData;
 }
 
-// Save display content
+// Save display content — backend contract is { snapshot, changeNote, userId }.
 async function saveDisplay(id: string, content: DisplayData['content']): Promise<void> {
   const res = await fetch(`${API_BASE}/${id}/content`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content })
+    body: JSON.stringify({ snapshot: content, changeNote: 'designer save', userId: 'designer-user' })
   });
   if (!res.ok) throw new Error('Failed to save display');
 }

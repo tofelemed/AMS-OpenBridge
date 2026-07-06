@@ -1,10 +1,12 @@
 import React from 'react';
 import type { CanvasItem } from './types';
 import { useBindingResolver } from '../../hooks/useBindingResolver';
+import type { LiveMetric } from '../../store/mqttStore';
 import { renderCustomSymbol, CUSTOM_SYMBOL_TYPES } from './CustomSymbols';
-import { getValueColor, formatValue as fmtValue, getPercentage as pctValue } from './openBridgeTheme';
+import { getValueColor, formatValue as fmtValue, getPercentage as pctValue, isStale } from './openBridgeTheme';
 import { isLazyObcType } from './lazyCategoryRegistry';
 import { LazyObcSymbol } from './LazyObcSymbol';
+import { TrendChart } from './TrendChart';
 
 // OpenBridge Web Components (ISA-101 compliant)
 import { ObcStatusIndicator } from '@oicl/openbridge-webcomponents-react/components/status-indicator/status-indicator';
@@ -50,48 +52,92 @@ function getAlarmColor(value: number, limits?: CanvasItem['alarmLimits']): strin
   return getValueColor(value, limits);
 }
 
+// Every binding slot a symbol can declare. Resolved generically (not just value/
+// status/pv/sp) so a tank bound on `level`, a pump on `speed`, a valve on `position`
+// all receive live data. Fixed, constant order → stable hook order (see useSlotMetrics).
+const KNOWN_SLOTS = [
+  'value', 'pv', 'sp', 'status', 'state', 'running',
+  'level', 'speed', 'position', 'position2', 'temperature', 'current',
+  'pressure', 'flow', 'setpoint', 'command', 'text',
+] as const;
+
+// Which slot supplies the symbol's "primary" scalar when `value` isn't bound.
+const PRIMARY_VALUE_SLOTS = [
+  'value', 'pv', 'level', 'speed', 'position', 'pressure',
+  'temperature', 'current', 'flow', 'setpoint', 'sp',
+] as const;
+
+/** Resolve live metrics for every declared slot. Fixed-length loop keeps hook order stable. */
+function useSlotMetrics(item: CanvasItem, mode: 'design' | 'preview'): Record<string, LiveMetric | undefined> {
+  const enabled = mode === 'preview';
+  const out: Record<string, LiveMetric | undefined> = {};
+  for (const slot of KNOWN_SLOTS) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks -- constant-length loop; hook order is stable
+    const { metric } = useBindingResolver(enabled ? item.bindings?.[slot] : undefined, 'live');
+    out[slot] = metric;
+  }
+  return out;
+}
+
+/** NE107: wrap a symbol so stale (no-update) live data is visibly degraded. */
+const SymbolQualityWrap: React.FC<{ stale: boolean; children: React.ReactNode }> = ({ stale, children }) => {
+  if (!stale) return <>{children}</>;
+  return (
+    <div
+      className="symbol-quality-stale"
+      title="Stale data (NE107): no update received"
+      style={{ position: 'relative', width: '100%', height: '100%', filter: 'grayscale(1)', opacity: 0.5 }}
+    >
+      {children}
+      <span
+        aria-label="stale"
+        style={{
+          position: 'absolute', top: 0, right: 0, fontSize: 10, lineHeight: 1, padding: '1px 3px',
+          borderRadius: 3, background: 'var(--element-disabled-color, #535353)',
+          color: 'var(--container-background-color, #1f1f1f)', filter: 'grayscale(0)', opacity: 1,
+        }}
+      >
+        ⚠
+      </span>
+    </div>
+  );
+};
+
 export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) => {
-  const valueBinding = item.bindings?.value;
-  const statusBinding = item.bindings?.status;
-  const pvBinding = item.bindings?.pv;
-  const spBinding = item.bindings?.sp;
-  
-  const { data: liveValue, isLoading } = useBindingResolver(
-    mode === 'preview' ? valueBinding : undefined,
-    'live'
-  );
-  
-  const { data: statusValue } = useBindingResolver(
-    mode === 'preview' ? statusBinding : undefined,
-    'live'
-  );
+  // Generic multi-slot live binding — resolve every declared slot, not only value/status/pv/sp.
+  const slots = useSlotMetrics(item, mode);
 
-  const { data: pvValue } = useBindingResolver(
-    mode === 'preview' ? pvBinding : undefined,
-    'live'
-  );
+  const statusMetric = slots.status ?? slots.state ?? slots.running;
+  const statusValue = statusMetric?.value;
+  const pvValue = slots.pv?.value;
+  const spValue = slots.sp?.value;
 
-  const { data: spValue } = useBindingResolver(
-    mode === 'preview' ? spBinding : undefined,
-    'live'
-  );
-  
+  // Primary scalar: first received slot in priority order → any bound symbol shows live data.
+  const primarySlot = PRIMARY_VALUE_SLOTS.find(s => slots[s] !== undefined);
+  const primaryMetric = primarySlot ? slots[primarySlot] : undefined;
+  const liveValue = primaryMetric?.value;
+  const isLoading = mode === 'preview' && !!(primarySlot && item.bindings?.[primarySlot]) && liveValue === undefined;
+
   const numericValue = typeof liveValue === 'number' ? liveValue : 0;
   const decimals = item.formatting?.decimals ?? 1;
   const unit = item.formatting?.unit;
   const isRunning = statusValue === true || statusValue === 1 || statusValue === 'Running' || statusValue === 'ON';
-  
+
   const displayValue = mode === 'preview' && liveValue !== undefined
     ? fmtValue(liveValue, decimals, item.formatting?.showUnit !== false ? unit : undefined)
-    : item.bindings?.value
-      ? `{${item.bindings.value.split('/').pop()}}`
+    : (primarySlot && item.bindings?.[primarySlot])
+      ? `{${item.bindings[primarySlot]!.split('/').pop()}}`
       : '--';
-  
+
   const statusState = getStatusIndicatorState(
     mode === 'preview' ? (statusValue ?? liveValue) : undefined,
     item.alarmLimits
   );
 
+  // NE107 staleness: a slot that stopped updating renders degraded (see wrapper at return).
+  const stale = mode === 'preview' && primaryMetric !== undefined && isStale(primaryMetric.ts);
+
+  const renderInner = (): React.ReactNode => {
   // OpenBridge components — lazy-loaded renderer chunks per domain
   if (isLazyObcType(item.type)) {
     return (
@@ -567,26 +613,9 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
     case 'chart.trend':
       return (
         <div className="symbol symbol-trend">
-          <div className="symbol-trend__header">{item.label || 'Trend'}</div>
+          {item.label && <div className="symbol-trend__header">{item.label}</div>}
           <div className="symbol-trend__chart">
-            <svg viewBox="0 0 100 50" preserveAspectRatio="none" width="100%" height="100%">
-              <defs>
-                <linearGradient id="trend-gradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--alert-advisory-border-color, #3b82f6)" stopOpacity="0.5" />
-                  <stop offset="100%" stopColor="var(--alert-advisory-border-color, #3b82f6)" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M 0,40 10,35 20,38 30,25 40,30 50,20 60,25 70,15 80,22 90,18 100,12 L 100,50 L 0,50 Z"
-                fill="url(#trend-gradient)"
-              />
-              <polyline
-                points="0,40 10,35 20,38 30,25 40,30 50,20 60,25 70,15 80,22 90,18 100,12"
-                fill="none"
-                stroke="var(--alert-advisory-border-color, #3b82f6)"
-                strokeWidth="2"
-              />
-            </svg>
+            <TrendChart item={item} mode={mode} />
           </div>
         </div>
       );
@@ -626,6 +655,9 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
         </div>
       );
   }
+  };
+
+  return <SymbolQualityWrap stale={stale}>{renderInner()}</SymbolQualityWrap>;
 };
 
 export default SymbolRenderer;

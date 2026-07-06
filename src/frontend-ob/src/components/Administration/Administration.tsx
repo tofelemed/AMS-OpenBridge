@@ -1,13 +1,14 @@
 'use client';
 
 import React from 'react';
-import { Routes, Route, Link, useLocation } from 'react-router-dom';
+import { Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { UserManagementConfig }  from './UserManagementConfig';
 import { AlarmFeedConfig }       from './AlarmFeedConfig';
 import { AlarmRulesConfig }      from './AlarmRulesConfig';
 import { NotificationsConfig }   from './NotificationsConfig';
 import { SystemSettingsConfig }  from './SystemSettingsConfig';
 import AuditExplorer             from './AuditExplorer';
+import { useAuthStore }          from '../../store/authStore';
 
 /* Design tokens (shared with Dashboard) */
 const T = {
@@ -26,7 +27,7 @@ const T = {
 } as const;
 
 const TABS = [
-  { path: '/admin/users',         label: 'User Management', icon: '👤' },
+  { path: '/admin/users',         label: 'User Management', icon: '👤', permission: 'admin.users.edit' },
   { path: '/admin/alarm-feed',    label: 'Alarm Feed',      icon: '📡' },
   { path: '/admin/alarm-rules',   label: 'Alarm Rules',     icon: '⚙' },
   { path: '/admin/notifications', label: 'Notifications',   icon: '🔔' },
@@ -36,6 +37,9 @@ const TABS = [
 
 const Administration: React.FC = () => {
   const location = useLocation();
+  const hasPermission = useAuthStore(s => s.hasPermission);
+  const canManageUsers = hasPermission('admin.users.edit');
+  const visibleTabs = TABS.filter(t => !t.permission || hasPermission(t.permission));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px', padding: '4px 0' }}>
@@ -63,7 +67,7 @@ const Administration: React.FC = () => {
         gap: '4px',
         flexWrap: 'wrap',
       }}>
-        {TABS.map(t => {
+        {visibleTabs.map(t => {
           const isActive = location.pathname.startsWith(t.path);
           return (
             <Link
@@ -111,7 +115,10 @@ const Administration: React.FC = () => {
         boxShadow: T.shadow,
       }}>
         <Routes>
-          <Route path="users"         element={<UserManagementConfig />} />
+          <Route
+            path="users"
+            element={canManageUsers ? <UserManagementConfig /> : <Navigate to={visibleTabs[0]?.path ?? '/dashboard'} replace />}
+          />
           <Route path="alarm-feed"    element={<AlarmFeedConfig />} />
           <Route path="opc-servers"   element={<AlarmFeedConfig />} />
           <Route path="alarm-rules"   element={<AlarmRulesConfig />} />

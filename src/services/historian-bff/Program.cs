@@ -130,8 +130,9 @@ app.MapGet("/snapshot", async (
 
     var assetList = assets.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     var db        = redis.GetDatabase();
-    var group     = builder.Configuration["Sparkplug:Group"] ?? "ams_site1";
-    var edge      = builder.Configuration["Sparkplug:Edge"]  ?? "ams_edge1";
+    // Multi-site: scan across ALL sparkplug groups/edges. Snapshot keys are
+    // snapshot:metric:<group>:<edge>:<device>:<metric>; device is unique per site
+    // in the seeded model, so we match on device position rather than a fixed site.
     var server    = redis.GetServer(redis.GetEndPoints().First());
     var result    = new Dictionary<string, Dictionary<string, object?>>();
 
@@ -158,13 +159,13 @@ app.MapGet("/snapshot", async (
 
     if (assetList.Length == 1 && assetList[0] == "*")
     {
-        // Discover all devices under this Sparkplug group/edge
-        var pattern = $"snapshot:metric:{group}:{edge}:*";
+        // Discover all devices across every Sparkplug group/edge
+        var pattern = "snapshot:metric:*";
         foreach (var key in server.Keys(pattern: pattern))
         {
             var parts = ((string)key!).Split(':');
             if (parts.Length < 6) continue;
-            await AddKeyAsync(key, parts[4]);
+            await AddKeyAsync(key, parts[4]); // parts[4] = device
         }
     }
     else
@@ -172,7 +173,8 @@ app.MapGet("/snapshot", async (
         foreach (var asset in assetList)
         {
             var safeAsset = asset.Replace(" ", "_");
-            var pattern   = $"snapshot:metric:{group}:{edge}:{safeAsset}:*";
+            // group/edge wildcarded — device is the discriminator
+            var pattern   = $"snapshot:metric:*:*:{safeAsset}:*";
             foreach (var key in server.Keys(pattern: pattern))
                 await AddKeyAsync(key, safeAsset);
         }

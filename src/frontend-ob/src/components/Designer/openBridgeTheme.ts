@@ -63,6 +63,20 @@ export function getValueColor(
   return OBC.textActive;
 }
 
+/**
+ * NE107 / data-quality: a live sample is STALE if it hasn't updated within
+ * thresholdMs. Sim/edge publish every ~2s; 8s with no update ⇒ stale.
+ */
+export function isStale(ts?: number, thresholdMs = 8000): boolean {
+  if (ts === undefined || ts === null || !Number.isFinite(ts)) return false;
+  return Date.now() - ts > thresholdMs;
+}
+
+/** Sparkplug B quality: 192 = GOOD. Anything else is uncertain/bad. */
+export function isBadQuality(quality?: number): boolean {
+  return quality !== undefined && quality !== 192;
+}
+
 export function getPercentage(value: number, min = 0, max = 100): number {
   if (max === min) return 0;
   return Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));

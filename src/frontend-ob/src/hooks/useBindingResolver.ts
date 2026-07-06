@@ -74,10 +74,9 @@ export function useBindingResolver(
     if (!sparkplugDevice || !sparkplugMetric) return;
     
     const metricKey = `${sparkplugDevice}/${sparkplugMetric}`;
-    const metric = metrics.get(metricKey);
-    if (metric) {
-      setLiveValue(metric);
-    }
+    // Set unconditionally (incl. undefined) so a rebind to a new asset clears the PREVIOUS
+    // asset's value instead of showing it stale until fresh data arrives (asset swap, Phase E).
+    setLiveValue(metrics.get(metricKey));
   }, [binding, metrics]);
   
   return {

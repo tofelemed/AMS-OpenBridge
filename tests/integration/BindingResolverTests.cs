@@ -132,15 +132,19 @@ public class BindingResolverTests : IAsyncLifetime
         root.GetProperty("resolved").GetBoolean().Should().BeTrue();
         root.GetProperty("contextualPath").GetString().Should().Be(path);
         
+        // Device id is asset-model canonical: SparkplugDevice = <device> for a
+        // site/unit/device.measurement path (see asset-model/Models/Asset.cs). The
+        // earlier "crude1_pump101" expectation reflected the path-pattern FALLBACK that
+        // only ran because binding-resolver URL-encoded the asset-model lookup (fixed).
         var live = root.GetProperty("live");
         live.GetProperty("sparkplugTopic").GetString()
-            .Should().Be("spBv1.0/houston/DDATA/houston_edge1/crude1_pump101");
+            .Should().Be("spBv1.0/houston/DDATA/houston_edge1/pump101");
         live.GetProperty("sparkplugGroup").GetString().Should().Be("houston");
         live.GetProperty("sparkplugEdgeNode").GetString().Should().Be("houston_edge1");
-        live.GetProperty("sparkplugDevice").GetString().Should().Be("crude1_pump101");
+        live.GetProperty("sparkplugDevice").GetString().Should().Be("pump101");
         live.GetProperty("sparkplugMetric").GetString().Should().Be("discharge_press");
         live.GetProperty("redisSnapshotKey").GetString()
-            .Should().Be("snapshot:metric:houston:houston_edge1:crude1_pump101:discharge_press");
+            .Should().Be("snapshot:metric:houston:houston_edge1:pump101:discharge_press");
     }
     
     // ═══════════════════════════════════════════════════════════════════════════
@@ -165,8 +169,10 @@ public class BindingResolverTests : IAsyncLifetime
         
         root.GetProperty("resolved").GetBoolean().Should().BeTrue();
         
+        // Property is camelCase "ioTDbPath" (from C# IoTDbPath); the earlier
+        // "iotDbPath" spelling never matched and made this assertion throw.
         var history = root.GetProperty("history");
-        history.GetProperty("iotDbPath").GetString()
+        history.GetProperty("ioTDbPath").GetString()
             .Should().Be("root.houston.crude1.pump101.discharge_press");
         history.GetProperty("trendEndpoint").GetString()
             .Should().Contain("/trend?series=");

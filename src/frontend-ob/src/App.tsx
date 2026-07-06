@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useAlarmStore } from './store/alarmStore';
+import { useAuthStore } from './store/authStore';
 import { HubConnectionState } from '@microsoft/signalr';
 
 // OpenBridge Components
@@ -25,6 +26,10 @@ const Administration   = React.lazy(() => import('./components/Administration/Ad
 // HMI Designer (Phase 2)
 const DisplayList      = React.lazy(() => import('./components/Designer/DisplayList'));
 const DesignerPage     = React.lazy(() => import('./components/Designer/DesignerPage'));
+// Standalone runtime viewer (Phase B) — rendered chrome-free, outside the AppShell.
+const DisplayViewer    = React.lazy(() => import('./components/Designer/DisplayViewer'));
+// Login (Phase auth) — standalone, outside the AppShell.
+const Login            = React.lazy(() => import('./components/Login/Login'));
 
 // Shared Components
 import { LiveEventStream } from './components/shared/LiveEventStream';
@@ -78,27 +83,30 @@ const App: React.FC = () => {
   const [error] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>('day');
 
+  const authStatus = useAuthStore((s) => s.status);
+  const accessToken = useAuthStore((s) => s.accessToken);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-obc-theme', theme);
   }, [theme]);
 
+  // Restore an existing session (silent refresh via the httpOnly cookie) once on load.
   useEffect(() => {
-    const connectLive = async (token: string) => {
-      try {
-        await useAlarmStore.getState().initialize(token);
-      } catch (e) {
-        console.warn('[AMS] Live initialization failed, continuing in degraded mode', e);
-      } finally {
-        setReady(true);
-      }
-    };
+    void useAuthStore.getState().bootstrap().finally(() => setReady(true));
+  }, []);
 
-    console.info('[AMS] Connecting to live API with anonymous auth');
-    // Show the shell immediately; SignalR + alarm hydrate continue in the background.
-    setReady(true);
-    void connectLive('anonymous-token');
+  // Connect to live services only while authenticated; tear down on logout.
+  useEffect(() => {
+    if (authStatus !== 'authenticated' || !accessToken) return;
+
+    let cancelled = false;
+    void useAlarmStore
+      .getState()
+      .initialize(accessToken)
+      .catch((e) => console.warn('[AMS] Live initialization failed, degraded mode', e));
 
     const refreshId = setInterval(() => {
+      if (cancelled) return;
       const { connectionState } = useAlarmStore.getState();
       // SignalR pushes live updates; polling is a fallback when the hub is down.
       if (connectionState === HubConnectionState.Connected) return;
@@ -106,10 +114,11 @@ const App: React.FC = () => {
     }, 30_000);
 
     return () => {
+      cancelled = true;
       clearInterval(refreshId);
       void useAlarmStore.getState().disconnect();
     };
-  }, []);
+  }, [authStatus, accessToken]);
 
   if (error) return <ErrorScreen message={error} />;
   if (!ready) return <LoadingScreen />;
@@ -129,32 +138,60 @@ const App: React.FC = () => {
             pauseOnHover
             theme="dark"
           />
-          <AppShell>
-            <React.Suspense fallback={<LoadingScreen />}>
-              <Routes>
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                {/* Live Operations */}
-                <Route path="/dashboard"    element={<Dashboard />} />
-                <Route path="/alarms"       element={<AlarmConsole />} />
-                <Route path="/live-events"  element={<LiveEventsPage />} />
-                <Route path="/soe"          element={<SoePanel />} />
-                {/* Historical */}
-                <Route path="/historical" element={<HistoricalViewer />} />
-                <Route path="/trend"      element={<IoTDBTrendViewer />} />
-                {/* Analysis */}
-                <Route path="/analytics"  element={<Analytics />} />
-                {/* HMI Designer (Phase 2) */}
-                <Route path="/designer"       element={<DisplayList />} />
-                <Route path="/designer/:id"   element={<DesignerPage />} />
-                {/* Infrastructure */}
-                <Route path="/system"     element={<SystemMonitor />} />
-                <Route path="/edge"       element={<EdgeNodeMonitor />} />
-                {/* Administration */}
-                <Route path="/admin/*"    element={<Administration />} />
-                <Route path="*"           element={<Navigate to="/dashboard" replace />} />
-              </Routes>
-            </React.Suspense>
-          </AppShell>
+          <Routes>
+            {/* Login — standalone, no sidebar/topbar */}
+            <Route
+              path="/login"
+              element={
+                <React.Suspense fallback={<LoadingScreen />}>
+                  <Login />
+                </React.Suspense>
+              }
+            />
+            {/* Standalone runtime viewer — no sidebar/topbar (kiosk-capable) */}
+            <Route
+              path="/display/:id"
+              element={
+                <React.Suspense fallback={<LoadingScreen />}>
+                  <DisplayViewer />
+                </React.Suspense>
+              }
+            />
+            {/* Everything else runs inside the app shell (auth-gated) */}
+            <Route
+              path="/*"
+              element={
+                <RequireAuth>
+                <AppShell>
+                  <React.Suspense fallback={<LoadingScreen />}>
+                    <Routes>
+                      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                      {/* Live Operations */}
+                      <Route path="/dashboard"    element={<Dashboard />} />
+                      <Route path="/alarms"       element={<AlarmConsole />} />
+                      <Route path="/live-events"  element={<LiveEventsPage />} />
+                      <Route path="/soe"          element={<SoePanel />} />
+                      {/* Historical */}
+                      <Route path="/historical" element={<HistoricalViewer />} />
+                      <Route path="/trend"      element={<IoTDBTrendViewer />} />
+                      {/* Analysis */}
+                      <Route path="/analytics"  element={<Analytics />} />
+                      {/* HMI Designer (Phase 2) */}
+                      <Route path="/designer"       element={<DisplayList />} />
+                      <Route path="/designer/:id"   element={<DesignerPage />} />
+                      {/* Infrastructure */}
+                      <Route path="/system"     element={<SystemMonitor />} />
+                      <Route path="/edge"       element={<EdgeNodeMonitor />} />
+                      {/* Administration */}
+                      <Route path="/admin/*"    element={<Administration />} />
+                      <Route path="*"           element={<Navigate to="/dashboard" replace />} />
+                    </Routes>
+                  </React.Suspense>
+                </AppShell>
+                </RequireAuth>
+              }
+            />
+          </Routes>
         </BrowserRouter>
       </QueryClientProvider>
     </ThemeContext.Provider>
@@ -167,7 +204,15 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const floodAlert = useAlarmStore(s => s.floodAlert);
   const { theme, setTheme } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
+  const user = useAuthStore(s => s.user);
+  const logout = useAuthStore(s => s.logout);
   const [showLiveEvents, setShowLiveEvents] = useState(readLiveEventsPreference);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
 
   // Full-height pages manage their own internal scroll regions
   const isFullHeightPage =
@@ -305,6 +350,34 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 {isConnected ? 'Live' : connSt}
               </span>
             </div>
+
+            {/* User + sign out */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '10px',
+              paddingLeft: '10px', borderLeft: `1px solid ${TB.border}`,
+            }}>
+              {user && (
+                <div style={{ textAlign: 'right', lineHeight: 1.2 }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: TB.text }}>
+                    {user.full_name || user.username}
+                  </div>
+                  <div style={{ fontSize: '10.5px', fontWeight: 600, color: TB.textMuted }}>
+                    {user.role}
+                  </div>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => void handleLogout()}
+                style={{
+                  padding: '6px 12px', fontSize: '12px', fontWeight: 600,
+                  borderRadius: TB.radiusSm, cursor: 'pointer', fontFamily: 'inherit',
+                  border: `1px solid ${TB.border}`, background: TB.card, color: TB.textSub,
+                }}
+              >
+                Sign out
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -368,7 +441,7 @@ const navItems = [
   { path: '/system',     label: 'System Monitor',      icon: '⚙',  group: 'Infrastructure' },
   { path: '/edge',       label: 'Edge Node Monitor',   icon: '⬡',  group: 'Infrastructure' },
   // ── Administration ────────────────────────────────────────
-  { path: '/admin/users',         label: 'User Management',  icon: '👤', group: 'Administration' },
+  { path: '/admin/users',         label: 'User Management',  icon: '👤', group: 'Administration', permission: 'admin.users.edit' },
   { path: '/admin/alarm-feed',    label: 'Alarm Feed',       icon: '📡', group: 'Administration' },
   { path: '/admin/alarm-rules',   label: 'Alarm Rules',      icon: '📋', group: 'Administration' },
   { path: '/admin/notifications', label: 'Notifications',    icon: '🔔', group: 'Administration' },
@@ -379,14 +452,16 @@ const navItems = [
 const Sidebar: React.FC<{ unackedCount: number }> = ({ unackedCount }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const groups = [...new Set(navItems.map(i => i.group))];
+  const hasPermission = useAuthStore(s => s.hasPermission);
+  const visibleNavItems = navItems.filter(i => !i.permission || hasPermission(i.permission));
+  const groups = [...new Set(visibleNavItems.map(i => i.group))];
 
   return (
     <nav style={{ overflowY: 'auto', flex: 1, padding: '8px' }}>
       {groups.map(group => (
         <div key={group} className="nav-section">
           <div className="nav-section__title">{group}</div>
-          {navItems.filter(i => i.group === group).map(item => {
+          {visibleNavItems.filter(i => i.group === group).map(item => {
             const isActive = location.pathname === item.path || 
               (item.path !== '/' && location.pathname.startsWith(item.path));
             return (
@@ -407,6 +482,21 @@ const Sidebar: React.FC<{ unackedCount: number }> = ({ unackedCount }) => {
       ))}
     </nav>
   );
+};
+
+// Redirects to /login unless a session is active. Assumes bootstrap() has run
+// (App gates render on `ready`), so status is 'authenticated' or 'unauthenticated'.
+const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const status = useAuthStore((s) => s.status);
+  const location = useLocation();
+
+  if (status === 'idle' || status === 'authenticating') {
+    return <LoadingScreen />;
+  }
+  if (status !== 'authenticated') {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+  return <>{children}</>;
 };
 
 const LoadingScreen: React.FC = () => (

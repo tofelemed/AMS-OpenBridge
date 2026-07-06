@@ -71,7 +71,12 @@ public class PathResolver
         try
         {
             var client = _httpClientFactory.CreateClient("AssetModel");
-            var response = await client.GetAsync($"/assets/by-path/{Uri.EscapeDataString(contextualPath)}");
+            // asset-model uses a {**path} catch-all route — it only matches LITERAL slashes.
+            // Escape each segment but keep the separators, else every lookup 404s and we
+            // silently fall back to path-pattern resolution (which derives a different
+            // sparkplug device id, e.g. crude1_pump101 vs pump101) and breaks live values.
+            var encodedPath = string.Join('/', contextualPath.Split('/').Select(Uri.EscapeDataString));
+            var response = await client.GetAsync($"/assets/by-path/{encodedPath}");
             
             if (!response.IsSuccessStatusCode)
                 return null;

@@ -39,8 +39,11 @@ export function getMqttBrokerUrl(): string {
 
 const SNAPSHOT_URL = (import.meta.env.VITE_SNAPSHOT_URL as string | undefined) ?? '/api/hist/snapshot';
 const HIST_URL     = (import.meta.env.VITE_HIST_URL     as string | undefined) ?? '/api/hist';
-const SPARKPLUG_GROUP = 'ams_site1';
-const SPARKPLUG_EDGE  = 'ams_edge1';
+// De-hardcoded: these are only fallback defaults for targeted subscribes; the live
+// subscription below uses wildcards so DDATA from ANY site/edge (houston, dallas, …)
+// is received. Override per-deployment via VITE_SPARKPLUG_GROUP / VITE_SPARKPLUG_EDGE.
+const SPARKPLUG_GROUP = (import.meta.env.VITE_SPARKPLUG_GROUP as string | undefined) ?? 'ams_site1';
+const SPARKPLUG_EDGE  = (import.meta.env.VITE_SPARKPLUG_EDGE  as string | undefined) ?? 'ams_edge1';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -101,7 +104,7 @@ interface MqttStoreState {
   unsubscribeScreen: (devices: string[]) => void;
   loadSnapshot:      (assets: string[]) => Promise<void>;
   loadAllSnapshots:  () => Promise<void>;
-  fetchTrend:        (series: string, start: Date, end: Date, width?: number) => Promise<TrendPoint[]>;
+  fetchTrend:        (series: string, start: Date, end: Date, width?: number, measurements?: string) => Promise<TrendPoint[]>;
   fetchRaw:          (series: string, start: Date, end: Date, maxCount?: number, offset?: number) => Promise<RawTrendPage>;
 }
 
@@ -170,6 +173,30 @@ function applySnapshotAssets(
   });
 }
 
+// ── Live trend ring-buffer ───────────────────────────────────────────────────
+// Kept OUTSIDE zustand/immer state to avoid clone churn on every sample. Charts
+// poll it on a timer. Keyed by "device/metric" (same key as `metrics`).
+export interface SeriesSample { ts: number; v: number; }
+const LIVE_SERIES_CAP = 2000; // ~66 min at 2s cadence
+const liveSeries = new Map<string, SeriesSample[]>();
+
+function pushLiveSample(key: string, ts: number, value: unknown) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return;
+  let buf = liveSeries.get(key);
+  if (!buf) { buf = []; liveSeries.set(key, buf); }
+  // drop out-of-order / duplicate timestamps
+  if (buf.length && ts <= buf[buf.length - 1].ts) return;
+  buf.push({ ts, v: value });
+  if (buf.length > LIVE_SERIES_CAP) buf.splice(0, buf.length - LIVE_SERIES_CAP);
+}
+
+/** Live samples for "device/metric" accumulated from the MQTT stream, optionally since a ts. */
+export function getLiveSeries(key: string, sinceTs = 0): SeriesSample[] {
+  const buf = liveSeries.get(key);
+  if (!buf) return [];
+  return sinceTs ? buf.filter(p => p.ts >= sinceTs) : buf.slice();
+}
+
 // ── Store ──────────────────────────────────────────────────────────────────
 
 export const useMqttStore = create<MqttStoreState>()(
@@ -204,9 +231,11 @@ export const useMqttStore = create<MqttStoreState>()(
 
         client.on('connect', () => {
           set(s => { s.connected = true; s.error = null; });
-          client!.subscribe(`spBv1.0/${SPARKPLUG_GROUP}/NBIRTH/${SPARKPLUG_EDGE}`);
-          client!.subscribe(`spBv1.0/${SPARKPLUG_GROUP}/DBIRTH/${SPARKPLUG_EDGE}/#`);
-          client!.subscribe(`spBv1.0/${SPARKPLUG_GROUP}/DDATA/${SPARKPLUG_EDGE}/#`);
+          // Multi-site: wildcard group (+) and edge (+) so DDATA from every site
+          // (houston, dallas, …) is received. Metrics key by unique device/metric.
+          client!.subscribe('spBv1.0/+/NBIRTH/+');
+          client!.subscribe('spBv1.0/+/DBIRTH/+/#');
+          client!.subscribe('spBv1.0/+/DDATA/+/#');
           // Re-seed from Redis after refresh or reconnect (TTL ~1h on edge node)
           void get().loadAllSnapshots();
         });
@@ -287,7 +316,7 @@ export const useMqttStore = create<MqttStoreState>()(
 
       // ── fetchTrend ────────────────────────────────────────────────────────
       // Calls historian-bff /trend for a time-series window.
-      fetchTrend: async (series, start, end, width = 200) => {
+      fetchTrend: async (series, start, end, width = 200, measurements) => {
         try {
           const params = new URLSearchParams({
             series,
@@ -295,6 +324,7 @@ export const useMqttStore = create<MqttStoreState>()(
             end:    end.toISOString(),
             width:  String(width),
           });
+          if (measurements) params.set('measurements', measurements);
           const res = await fetch(`${HIST_URL}/trend?${params}`);
           if (!res.ok) {
             const text = await res.text();
@@ -396,6 +426,7 @@ function handleMessage(
             quality: m.properties?.quality?.value ?? 192,
             ts,
           });
+          pushLiveSample(`${device}/${name}`, ts, m.value); // feed the live trend buffer
           // Update liveAlarms when any alarm field changes
           if (['state', 'severity', 'acknowledged', 'priority', 'sourceName', 'conditionName', 'message']
               .includes(name)) {

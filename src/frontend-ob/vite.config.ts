@@ -22,6 +22,17 @@ export default defineConfig({
         changeOrigin: true,
         rewrite:     (path) => path.replace(/^\/api\/bindings/, ''),
       },
+      '/api/assets': {
+        // Asset Model service (UNS catalog) — powers the designer's AssetBrowser/TagPicker.
+        target:      'http://localhost:5001',
+        changeOrigin: true,
+        rewrite:     (path) => path.replace(/^\/api\/assets/, '/assets'),
+      },
+      '/api/auth': {
+        // Auth service (login, refresh, RBAC) — serves /api/auth/* directly, no rewrite.
+        target:      'http://localhost:3002',
+        changeOrigin: true,
+      },
       '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,

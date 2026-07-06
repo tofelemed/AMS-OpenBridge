@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 
 interface ModalProps {
@@ -33,21 +33,29 @@ export const Modal: React.FC<ModalProps> = ({
   const overlayRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') onClose();
+  // Keep the latest onClose in a ref so the open/keydown effect below does NOT
+  // depend on it. Callers pass an inline `onClose` that changes identity every
+  // render; if the effect depended on it, it would re-run on every keystroke and
+  // call contentRef.focus(), stealing focus from whatever input is being typed in.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
   }, [onClose]);
 
+  // Runs only when the modal opens/closes — focuses the dialog once on open.
   useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
-      contentRef.current?.focus();
-    }
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCloseRef.current();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
+    contentRef.current?.focus();
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
     };
-  }, [isOpen, handleKeyDown]);
+  }, [isOpen]);
 
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === overlayRef.current) onClose();

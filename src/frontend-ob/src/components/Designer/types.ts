@@ -26,6 +26,16 @@ export interface CanvasItem {
   // OpenBridge automation-specific
   automationProps?: AutomationProps;
   obcProps?: ObcProps;
+  // Navigation (Phase D) — click this symbol to open another display / URL / faceplate.
+  navigationLink?: NavigationLink;
+}
+
+export interface NavigationLink {
+  targetDisplayId?: string;          // open another saved display
+  targetUrl?: string;                // or an external URL
+  assetContext?: string;             // UNS path passed as ?asset= (in-context navigation)
+  label?: string;                    // breadcrumb / crumb label for the target
+  openMode?: 'replace' | 'new-tab' | 'popup'; // default 'replace'
 }
 
 export interface FormattingOptions {

@@ -29,6 +29,8 @@ volumes:
   # ── Phase 6: Observability ──
   prometheus-data:
   grafana-data:
+  # ── Auth service RS256 signing key ──
+  auth-keys:
 
 services:
   postgres:
@@ -588,6 +590,58 @@ services:
       - ams-backend
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:5000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ─────────────────────────────────────────────
+  # Auth Service (Node/Express)
+  # Login, RS256 JWTs (JWKS at /api/auth/.well-known/jwks.json), RBAC
+  # ─────────────────────────────────────────────
+  auth-service:
+    build:
+      context: ../../src/services/auth-service
+    container_name: traverse-auth-service
+    <<: *default-restart
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    environment:
+      NODE_ENV: production
+      PORT: "3002"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: traverse_auth
+      DB_USER: ams_user
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      # Stable RS256 key persisted in the auth-keys volume (generated on first start).
+      JWT_PRIVATE_KEY_PATH: /app/keys/jwt-private.pem
+      JWT_ISSUER: traverse-auth
+      JWT_AUDIENCE: ams-services
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      # Served over HTTP inside the lab stack, so the refresh cookie cannot be Secure.
+      COOKIE_SECURE: "false"
+      COOKIE_SAMESITE: lax
+      CORS_ORIGIN: http://localhost:3000,http://localhost:5174
+      # Entrypoint seeds this admin once (idempotent).
+      BOOTSTRAP_ADMIN_USERNAME: ${AUTH_BOOTSTRAP_USERNAME:-admin}
+      BOOTSTRAP_ADMIN_EMAIL: ${AUTH_BOOTSTRAP_EMAIL:-admin@local}
+      BOOTSTRAP_ADMIN_PASSWORD: ${AUTH_BOOTSTRAP_PASSWORD:-ChangeMe123!}
+    volumes:
+      - auth-keys:/app/keys
+    ports:
+      - "3002:3002"
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3002/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -14,6 +14,11 @@ import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
@@ -48,6 +53,13 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
     private final SparkplugConfig      cfg;
     private final MetricAliasRegistry  aliases;
     private final JedisPool            jedisPool;
+
+    // IoTDB REST v2 (history persistence for process values). Best-effort, like Redis.
+    private final HttpClient           httpClient  = HttpClient.newHttpClient();
+    private final String               iotdbUrl    = envOr("IOTDB_REST_URL", "http://iotdb:8181");
+    private final boolean              iotdbEnabled= !"false".equalsIgnoreCase(System.getenv("IOTDB_PERSIST"));
+    private final String               iotdbAuth   = Base64.getEncoder().encodeToString(
+        (envOr("IOTDB_USER", "root") + ":" + envOr("IOTDB_PASSWORD", "root")).getBytes(StandardCharsets.UTF_8));
     private final Set<String>          bornDevices = Collections.synchronizedSet(new HashSet<>());
     private final AtomicLong           bdSeq       = new AtomicLong(0);
     private final AtomicLong           seq         = new AtomicLong(0);
@@ -106,9 +118,13 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
                 }
                 for (ConsumerRecord<String, String> rec : records) {
                     try {
-                        LOG.debug("Processing record: topic={} key={} len={}", 
+                        LOG.debug("Processing record: topic={} key={} len={}",
                                 rec.topic(), rec.key(), rec.value() != null ? rec.value().length() : 0);
-                        processRecord(rec);
+                        if (rec.topic().equals(cfg.liveMetricsTopic)) {
+                            processMetricRecord(rec);   // generic process values (level/speed/position/…)
+                        } else {
+                            processRecord(rec);         // alarm records (legacy schema)
+                        }
                     } catch (Exception e) {
                         LOG.warn("Failed to process record from {}: {}", rec.topic(), e.getMessage(), e);
                     }
@@ -192,6 +208,105 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
         publishDData(deviceId, node);
         writeToRedis(deviceId, node);
         LOG.info("Successfully processed alarm {} for device '{}'", alarmId, deviceId);
+    }
+
+    // ── Generic process-metric branch (live.metrics) ───────────────────────
+    // Forwards arbitrary process values (level/speed/position/…) as Sparkplug
+    // DDATA with the metric NAME included (receivers key by device/name, no alias
+    // needed) and writes a Redis snapshot. group/edge are taken PER RECORD so a
+    // single edge node serves many sites (houston, dallas, …).
+    // Record shape: {group,edge,device,metric,value,quality?,ts?,type?}
+
+    private void processMetricRecord(ConsumerRecord<String, String> rec) throws Exception {
+        if (rec.value() == null || rec.value().isBlank()) return;
+
+        JsonNode node = MAPPER.readTree(rec.value());
+        String device = text(node, "device");
+        String metric = text(node, "metric");
+        if (device.isEmpty() || metric.isEmpty()) {
+            LOG.warn("Skipping metric record missing device/metric: {}",
+                    rec.value().substring(0, Math.min(120, rec.value().length())));
+            return;
+        }
+
+        String group = node.hasNonNull("group") ? node.get("group").asText() : cfg.sparkplugGroup;
+        String edge  = node.hasNonNull("edge")  ? node.get("edge").asText()  : cfg.sparkplugEdge;
+        long   ts    = node.hasNonNull("ts")      ? node.get("ts").asLong()      : System.currentTimeMillis();
+        int    quality = node.hasNonNull("quality") ? node.get("quality").asInt() : 192;
+
+        JsonNode v  = node.get("value");
+        String type = text(node, "type").toLowerCase();
+        Object value;
+        MetricDataType dtype;
+        if (type.equals("bool")   || (type.isEmpty() && v != null && v.isBoolean())) {
+            value = (v != null && v.asBoolean()); dtype = MetricDataType.Boolean;
+        } else if (type.equals("string") || (type.isEmpty() && v != null && v.isTextual())) {
+            value = (v != null ? v.asText() : ""); dtype = MetricDataType.String;
+        } else if (type.equals("int") || (type.isEmpty() && v != null && v.isIntegralNumber())) {
+            value = (v != null ? v.asInt() : 0); dtype = MetricDataType.Int32;
+        } else {
+            value = (v != null ? v.asDouble() : 0.0); dtype = MetricDataType.Double;
+        }
+
+        publishMetricDData(group, edge, device, metric, dtype, value, ts);
+        writeMetricSnapshot(group, edge, device, metric, value, quality, ts);
+
+        // History: persist numeric process values to IoTDB at root.<site>.<unit>.<device>.<measurement>
+        String path = text(node, "path");
+        if (iotdbEnabled && !path.isEmpty()
+                && (dtype == MetricDataType.Double || dtype == MetricDataType.Int32)) {
+            writeToIoTDB(path, value, ts);
+        }
+        LOG.info("Metric {}/{}={} → spBv1.0/{}/DDATA/{}/{}", device, metric, value, group, edge, device);
+    }
+
+    /** Best-effort async insert of a numeric sample into IoTDB via REST v2. */
+    private void writeToIoTDB(String path, Object value, long ts) {
+        try {
+            int dot = path.lastIndexOf('.');
+            if (dot < 0) return;
+            String devicePath  = "root." + path.substring(0, dot).replace('/', '.');
+            String measurement = path.substring(dot + 1);
+            String sql = "INSERT INTO " + devicePath + "(timestamp," + measurement + ") VALUES("
+                    + ts + "," + value + ")";
+            String body = "{\"sql\":" + valueJson(sql) + "}";
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(iotdbUrl + "/rest/v2/nonQuery"))
+                    .header("Authorization", "Basic " + iotdbAuth)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+                    .build();
+            httpClient.sendAsync(req, HttpResponse.BodyHandlers.discarding());
+        } catch (Exception e) {
+            LOG.debug("IoTDB write failed (non-fatal): {}", e.getMessage());
+        }
+    }
+
+    private static String envOr(String key, String def) {
+        String v = System.getenv(key);
+        return (v != null && !v.isBlank()) ? v : def;
+    }
+
+    private void publishMetricDData(String group, String edge, String device, String metric,
+                                    MetricDataType dtype, Object value, long ts) throws Exception {
+        String topic = "spBv1.0/" + group + "/DDATA/" + edge + "/" + device;
+        SparkplugBPayload payload = new SparkplugBPayload.SparkplugBPayloadBuilder(seq.getAndIncrement())
+                .setTimestamp(new Date(ts))
+                .addMetric(new Metric.MetricBuilder(metric, dtype, value).createMetric())
+                .createPayload();
+        byte[] encoded = new SparkplugBPayloadEncoder().getBytes(payload, false);
+        publishMqtt(topic, encoded, false);
+    }
+
+    private void writeMetricSnapshot(String group, String edge, String device, String metric,
+                                     Object value, int quality, long ts) {
+        String key = "snapshot:metric:" + group + ":" + edge + ":" + device + ":" + metric;
+        String json = "{\"v\":" + valueJson(value) + ",\"q\":" + quality + ",\"ts\":" + ts + "}";
+        try (Jedis jedis = jedisPool.getResource()) {
+            jedis.setex(key, cfg.redisTtlSeconds, json);
+        } catch (Exception e) {
+            LOG.debug("Redis metric snapshot write failed (non-fatal): {}", e.getMessage());
+        }
     }
 
     // ── Sparkplug publish helpers ──────────────────────────────────────────
