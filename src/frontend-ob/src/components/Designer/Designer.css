@@ -2691,27 +2691,191 @@
 .display-viewer__themes { display: inline-flex; gap: 2px; }
 .display-viewer__btn.active { background: var(--selected-enabled-background-color); color: var(--on-selected-active-color); border-color: var(--selected-enabled-background-color); }
 
-/* ── Phase I: PI Vision import ───────────────────────────────────────────── */
-.import-page { padding: 24px 28px; max-width: 1000px; color: var(--ams-text, #1f2937); }
-.import-page__title { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
-.import-page__hint { color: var(--ams-text-dim, #6b7280); font-size: 13px; margin: 0 0 18px; }
-.import-page__drop {
-  display: flex; align-items: center; gap: 12px; padding: 22px; border-radius: 10px; cursor: pointer;
-  border: 2px dashed var(--ams-border, #d5dce6); background: var(--ams-panel-2, #eef2f7);
+/* ── PI Vision import page ───────────────────────────────────────────────────
+   Fully token-driven (day/night safe). The old rules here were never applied at all — ImportPage.tsx
+   didn't import this stylesheet, so the page rendered as raw browser defaults. */
+.import-page {
+  padding: 24px 28px 40px; max-width: 1180px;
+  color: var(--element-active-color); font-family: var(--ams-font);
 }
-.import-page__error { margin-top: 12px; color: var(--ams-crit); font-size: 13px; }
-.import-page__result { margin-top: 18px; }
-.import-page__summary { display: flex; gap: 12px; align-items: baseline; margin-bottom: 12px; font-size: 14px; }
-.import-page__cols { display: grid; grid-template-columns: 220px 1fr; gap: 20px; }
-.import-page__cols h4 { margin: 0 0 8px; font-size: 13px; }
-.import-page__table td { padding: 2px 10px 2px 0; font-size: 12px; }
-.import-page__unmapped { max-height: 320px; overflow: auto; border: 1px solid var(--ams-border, #d5dce6); border-radius: 8px; }
-.import-page__unmapped-row { display: flex; align-items: center; gap: 8px; padding: 4px 10px; font-size: 12px; border-bottom: 1px solid var(--ams-border, #d5dce6); }
-.import-page__pill { background: var(--ams-warn); color: var(--on-selected-active-color); border-radius: var(--border-radius-br-4); padding: 1px 6px; font-size: 10px; font-weight: 700; }
-.import-page__ref { color: var(--ams-text-dim, #6b7280); margin-left: auto; }
-.import-page__actions { display: flex; gap: 10px; margin-top: 18px; }
-.import-page__save { background: var(--raised-enabled-background-color); color: var(--on-raised-active-color); border: none; border-radius: var(--border-radius-br-8); padding: 9px 18px; font-weight: 700; cursor: pointer; }
-.import-page__actions button { padding: 9px 16px; border-radius: 8px; cursor: pointer; }
+.import-page__head { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
+.import-page__back {
+  display: inline-flex; align-items: center; gap: 4px; flex: none;
+  padding: 6px 12px; margin-top: 2px; cursor: pointer;
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  color: var(--element-active-color);
+  background: var(--normal-enabled-background-color, var(--container-background-color));
+  border: 1px solid var(--border-divider-color);
+  border-radius: var(--border-radius-br-6);
+}
+.import-page__back:hover { background: var(--flat-hover-background-color); }
+.import-page__back svg { width: 14px; height: 14px; }
+.import-page__title { margin: 0 0 4px; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.import-page__hint {
+  margin: 0; max-width: 78ch;
+  font-size: 13px; line-height: 1.5; color: var(--element-neutral-color);
+}
+.import-page__hint code {
+  padding: 1px 5px; border-radius: var(--border-radius-br-4);
+  background: var(--container-section-color); font-size: 12px;
+}
+
+/* Drop zone */
+.import-drop {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  padding: 40px 24px; cursor: pointer; text-align: center;
+  border: 2px dashed var(--border-divider-color);
+  border-radius: var(--border-radius-br-12);
+  background: var(--container-section-color);
+  transition: border-color .12s, background .12s;
+}
+.import-drop:hover, .import-drop:focus-visible {
+  border-color: var(--selected-enabled-background-color);
+  background: var(--container-background-color);
+}
+.import-drop--over {
+  border-color: var(--selected-enabled-background-color);
+  background: color-mix(in srgb, var(--selected-enabled-background-color) 8%, transparent);
+}
+.import-drop--busy { cursor: progress; opacity: .75; }
+.import-drop__icon { display: inline-flex; color: var(--element-neutral-color); }
+.import-drop__icon svg { width: 28px; height: 28px; }
+.import-drop__title { font-size: 14px; font-weight: 600; }
+.import-drop__sub { font-size: 12px; color: var(--element-inactive-color); }
+
+/* Alert */
+.import-alert {
+  display: flex; align-items: center; gap: 8px; margin-top: 16px;
+  padding: 10px 14px; font-size: 13px;
+  border-radius: var(--border-radius-br-8); border: 1px solid;
+}
+.import-alert svg { width: 16px; height: 16px; flex: none; }
+.import-alert--error {
+  color: var(--alert-alarm-color); border-color: var(--alert-alarm-color);
+  background: color-mix(in srgb, var(--alert-alarm-color) 8%, transparent);
+}
+
+/* Stats */
+.import-page__result { margin-top: 24px; }
+.import-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px; margin-bottom: 20px;
+}
+.import-stat {
+  display: flex; flex-direction: column; gap: 2px; padding: 14px 16px;
+  background: var(--container-background-color);
+  border: 1px solid var(--border-divider-color);
+  border-radius: var(--border-radius-br-8);
+}
+.import-stat__value { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.import-stat__value--ok { color: var(--alert-running-color); }
+.import-stat__value--warn { color: var(--alert-warning-color); }
+.import-stat__label {
+  font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--element-neutral-color);
+}
+
+/* Cards */
+.import-grid {
+  display: grid; grid-template-columns: 1.4fr 0.8fr 1.3fr; gap: 16px; align-items: start;
+}
+@media (max-width: 1100px) { .import-grid { grid-template-columns: 1fr; } }
+.import-card {
+  padding: 16px; min-width: 0;
+  background: var(--container-background-color);
+  border: 1px solid var(--border-divider-color);
+  border-radius: var(--border-radius-br-8);
+}
+.import-card__title { margin: 0 0 12px; font-size: 13px; font-weight: 600; }
+.import-card__note {
+  margin: 10px 0 0; font-size: 11px; line-height: 1.45; color: var(--element-inactive-color);
+}
+.import-card__ok {
+  display: flex; align-items: center; gap: 6px; margin: 0;
+  font-size: 12px; color: var(--alert-running-color);
+}
+.import-card__ok svg { width: 15px; height: 15px; }
+.import-preview {
+  border: 1px solid var(--border-divider-color); border-radius: var(--border-radius-br-4);
+  overflow: hidden; background: var(--container-section-color);
+}
+.import-preview svg { width: 100%; height: auto; display: block; }
+
+/* Mapped types */
+.import-types { list-style: none; margin: 0; padding: 0; max-height: 300px; overflow-y: auto; }
+.import-types__row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 5px 0; font-size: 12px;
+  border-bottom: 1px solid var(--border-divider-color);
+}
+.import-types__row:last-child { border-bottom: none; }
+.import-types__name { color: var(--element-active-color); }
+.import-types__count {
+  font-variant-numeric: tabular-nums; font-weight: 600; color: var(--element-neutral-color);
+}
+
+/* Unmapped */
+.import-unmapped {
+  list-style: none; margin: 0; padding: 0; max-height: 300px; overflow-y: auto;
+  border: 1px solid var(--border-divider-color); border-radius: var(--border-radius-br-6);
+}
+.import-unmapped__row {
+  display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 12px;
+  border-bottom: 1px solid var(--border-divider-color);
+}
+.import-unmapped__row:last-child { border-bottom: none; }
+.import-unmapped__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.import-unmapped__ref {
+  margin-left: auto; flex: none; max-width: 45%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 11px; color: var(--element-inactive-color);
+}
+.import-pill {
+  flex: none; padding: 1px 6px; border-radius: var(--border-radius-br-4);
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  color: var(--on-selected-active-color); background: var(--alert-warning-color);
+}
+
+/* Save bar */
+.import-save {
+  display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap;
+  margin-top: 20px; padding: 16px;
+  background: var(--container-section-color);
+  border: 1px solid var(--border-divider-color);
+  border-radius: var(--border-radius-br-8);
+}
+.import-save__field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 240px; }
+.import-save__field span {
+  font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--element-neutral-color);
+}
+.import-save__field input {
+  padding: 9px 12px; font-family: inherit; font-size: 13px;
+  color: var(--on-indent-active-color);
+  background: var(--indent-enabled-background-color);
+  border: 1px solid var(--indent-enabled-border-color);
+  border-radius: var(--border-radius-br-6);
+}
+.import-save__field input:focus-visible {
+  outline: none; border-color: var(--indent-focused-border-color, var(--border-focus-color));
+}
+.import-save__actions { display: flex; gap: 8px; }
+.import-btn {
+  padding: 9px 18px; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  color: var(--element-active-color);
+  background: var(--normal-enabled-background-color, var(--container-background-color));
+  border: 1px solid var(--normal-enabled-border-color, var(--border-divider-color));
+  border-radius: var(--border-radius-br-6);
+}
+.import-btn:hover:not(:disabled) { background: var(--flat-hover-background-color); }
+.import-btn--primary {
+  color: var(--on-raised-active-color);
+  background: var(--raised-enabled-background-color);
+  border-color: var(--raised-enabled-background-color);
+}
+.import-btn--primary:hover:not(:disabled) { background: var(--raised-hover-background-color); }
+.import-btn:disabled { opacity: .55; cursor: not-allowed; }
 
 /* ── Phase F: alarms & dynamic behavior ─────────────────────────────────── */
 @keyframes symbol-fx-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.2; } }

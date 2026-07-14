@@ -60,7 +60,7 @@ function firstBinding(sym: Record<string, unknown>): string | undefined {
   return ds.length ? normalizeBinding(ds[0]) : undefined;
 }
 
-export async function importPdix(file: File | Blob, opts?: { demoLiveTag?: string }): Promise<ImportedDisplay> {
+export async function importPdix(file: File | Blob): Promise<ImportedDisplay> {
   const zip = await JSZip.loadAsync(file);
   const displayEntry = zip.file('display_json') ?? zip.file(/display_json/i)[0];
   if (!displayEntry) throw new Error('Not a .pdix: no display_json entry');
@@ -117,11 +117,11 @@ export async function importPdix(file: File | Blob, opts?: { demoLiveTag?: strin
     items.push(item);
   });
 
-  // Demo: remap the first bound value symbol to a live UNS tag so imported bindings resolve to live data.
-  if (opts?.demoLiveTag) {
-    const target = items.find(i => i.type === 'obc.readout-unit' && i.bindings?.value);
-    if (target) { target.bindings = { speed: opts.demoLiveTag }; target.label = `${target.label ?? 'Imported'} (live)`; }
-  }
+  // NOTE: there used to be a `demoLiveTag` option here that rebound the first value symbol of the
+  // imported display to a hardcoded UNS tag and appended "(live)" to its label. It existed to prove a
+  // Phase-I gate ("an imported binding resolves to live data") and the import page passed it on every
+  // real import — silently corrupting one symbol of every customer display that came through. An import
+  // must reproduce the source faithfully; bind tags in the designer afterwards. Removed deliberately.
 
   return {
     name: String(display.Name ?? 'Imported PI Vision Display'),

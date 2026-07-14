@@ -181,6 +181,28 @@ const App: React.FC = () => {
                 </React.Suspense>
               }
             />
+            {/* /designer/import must be declared at THIS tier, not nested inside the /* shell branch
+                below. React Router ranks a literal segment ("import") above a dynamic one (":id")
+                when comparing siblings within the SAME <Routes> — but /designer/:id lives here at the
+                top level while /designer/import was nested one level down inside /*, so :id was
+                winning the outer match before the inner route was ever even considered. Visiting
+                /designer/import rendered the CANVAS EDITOR with id="import", which 404'd on every
+                /api/displays/import* call. Keep it inside the app shell (sidebar/topbar) — it's a
+                form/upload page, not the full-screen canvas editor. */}
+            <Route
+              path="/designer/import"
+              element={
+                <RequireAuth>
+                  <RequirePermission permission="display.edit">
+                    <AppShell>
+                      <React.Suspense fallback={<LoadingScreen />}>
+                        <ImportPage />
+                      </React.Suspense>
+                    </AppShell>
+                  </RequirePermission>
+                </RequireAuth>
+              }
+            />
             {/* The Designer runs full-viewport, OUTSIDE the app shell.
                 Inside the shell it only got ~1420px of a 1920px screen (sidebar + events rail), which
                 is why its 31-control toolbar overflowed and a 1920px artboard could never be seen at
@@ -238,8 +260,8 @@ const App: React.FC = () => {
                       <Route path="/displays"       element={<RequirePermission permission="display.view"><DisplayLauncher /></RequirePermission>} />
                       {/* HMI Designer — authoring, Admin/Engineer only */}
                       <Route path="/designer"       element={<RequirePermission permission="display.edit"><DisplayList /></RequirePermission>} />
-                      <Route path="/designer/import" element={<RequirePermission permission="display.edit"><ImportPage /></RequirePermission>} />
-                      {/* /designer/:id is a standalone full-viewport route — see above, outside the shell */}
+                      {/* /designer/import and /designer/:id are both standalone routes declared above,
+                          outside this shell's nested <Routes> — see the top-level block for why. */}
                       {/* Dedicated trend view (Phase J) — needs history + binding resolution */}
                       <Route path="/trend"          element={<RequirePermission permission="historian.view"><TrendPage /></RequirePermission>} />
                       {/* Infrastructure */}
