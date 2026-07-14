@@ -1468,3 +1468,16 @@ select.ob-input option {
     border-top: 1px solid var(--divider-color);
   }
 }
+
+/* Role has no permission for this route (RequirePermission fallback). */
+.app-forbidden {
+  padding: 32px;
+  color: var(--ams-text, #1f2937);
+  font-family: var(--ams-font, system-ui);
+}
+.app-forbidden h2 { margin: 0 0 8px; font-size: 18px; }
+.app-forbidden p { color: var(--ams-text-dim, #6b7280); font-size: 13px; }
+.app-forbidden code {
+  padding: 1px 5px; border-radius: 4px;
+  background: var(--ams-disabled-bg, #e8ecf1); color: var(--ams-crit, #e10019);
+}

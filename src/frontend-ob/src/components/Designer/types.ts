@@ -17,6 +17,10 @@ export interface CanvasItem {
   rotation?: number;
   zIndex?: number;
   locked?: boolean;
+  hidden?: boolean;        // Phase G — layer visibility toggle
+  flipH?: boolean;         // Phase G — horizontal flip
+  flipV?: boolean;         // Phase G — vertical flip
+  groupId?: string;        // Phase G — grouping (selecting one selects the group)
   // Equipment-specific
   alarmLimits?: AlarmLimits;
   // Shape-specific
@@ -28,6 +32,39 @@ export interface CanvasItem {
   obcProps?: ObcProps;
   // Navigation (Phase D) — click this symbol to open another display / URL / faceplate.
   navigationLink?: NavigationLink;
+  // Phase F — alarms & dynamic behavior:
+  alarmSource?: string;              // alarm sourceName to bind this symbol to alarmStore
+  rules?: VisualRule[];              // conditional formatting (value/limit → color/blink/visibility/rotation)
+  multiStateConfig?: MultiStateConfig; // config-driven multi-state (value range → color/label)
+}
+
+// ── Phase F: conditional-formatting rule engine ─────────────────────────────
+export type RuleOperator = '>' | '>=' | '<' | '<=' | '==' | '!=' | 'between' | 'outside';
+export type RuleEffect = 'color' | 'blink' | 'hidden' | 'rotate';
+
+export interface VisualRule {
+  slot?: string;        // binding slot whose live value is tested (default = primary value)
+  op: RuleOperator;
+  value: number | string | boolean;   // threshold (or low bound for between/outside)
+  value2?: number;      // high bound for between/outside
+  effect: RuleEffect;
+  color?: string;       // CSS color / OpenBridge token var() for effect 'color'
+  rotateDeg?: number;   // degrees for effect 'rotate'
+}
+
+export interface MultiStateItem {
+  min?: number;                        // numeric range (inclusive) …
+  max?: number;
+  equals?: string | number | boolean;  // … or exact match
+  label?: string;
+  color: string;                       // OpenBridge token var() or CSS color
+  blink?: boolean;
+}
+
+export interface MultiStateConfig {
+  slot?: string;                       // binding slot to evaluate (default 'status'/primary)
+  states: MultiStateItem[];
+  default?: { label?: string; color?: string };
 }
 
 export interface NavigationLink {

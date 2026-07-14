@@ -5,6 +5,8 @@ using System.Text.RegularExpressions;
 using Traverse.TemplateService.Data;
 using Traverse.TemplateService.Models;
 
+using Traverse.Auth;
+
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("TraverseTemplates") 
@@ -18,7 +20,14 @@ var redisPort = builder.Configuration.GetValue<int>("Redis:Port", 6379);
 builder.Services.AddSingleton<IConnectionMultiplexer>(
     ConnectionMultiplexer.Connect($"{redisHost}:{redisPort},abortConnect=false"));
 
+// ── Auth (platform RBAC) ────────────────────────────────────────────────────
+// RS256 bearer validation against auth-service JWKS + a policy per permission key.
+// Internal callers (e.g. binding-resolver → asset-model) authenticate with X-Service-Key.
+builder.AddTraverseAuth();
+
 var app = builder.Build();
+
+app.UseTraverseAuth();
 
 // ── GET /health ─────────────────────────────────────────────────────────────
 app.MapGet("/health", async (TemplateDbContext db, IConnectionMultiplexer redis) =>
@@ -82,7 +91,7 @@ app.MapGet("/templates", async (
         .ToListAsync();
     
     return Results.Ok(new { total, skip, take = templates.Count, templates });
-});
+}).RequireAuthorization("template.view");
 
 // ── GET /templates/{id} ──────────────────────────────────────────────────────
 app.MapGet("/templates/{id:guid}", async (Guid id, TemplateDbContext db) =>
@@ -99,7 +108,7 @@ app.MapGet("/templates/{id:guid}", async (Guid id, TemplateDbContext db) =>
         template.PublishedVersion, template.DraftVersion, template.IsSystem, template.OwnerId,
         template.Parameters.Select(p => new ParameterDto(p.Name, p.Label, p.Type, p.Required)).ToList(),
         template.Versions.Select(v => new VersionSummaryDto(v.Id, v.Version, v.Status, v.ChangeNote, v.CreatedBy, v.CreatedAt)).ToList()));
-});
+}).RequireAuthorization("template.view");
 
 // ── GET /templates/{id}/definition ───────────────────────────────────────────
 app.MapGet("/templates/{id:guid}/definition", async (Guid id, int? version, TemplateDbContext db) =>
@@ -130,7 +139,7 @@ app.MapGet("/templates/{id:guid}/definition", async (Guid id, int? version, Temp
         definition = templateVersion.Definition,
         parameters = parameters.Select(p => new ParameterDto(p.Name, p.Label, p.Type, p.Required))
     });
-});
+}).RequireAuthorization("template.view");
 
 // ── POST /templates ──────────────────────────────────────────────────────────
 app.MapPost("/templates", async (CreateTemplateRequest request, TemplateDbContext db) =>
@@ -210,7 +219,7 @@ app.MapPost("/templates", async (CreateTemplateRequest request, TemplateDbContex
     await db.SaveChangesAsync();
     
     return Results.Created($"/templates/{template.Id}", new { id = template.Id, name = template.Name });
-});
+}).RequireAuthorization("template.edit");
 
 // ── PUT /templates/{id}/definition ───────────────────────────────────────────
 app.MapPut("/templates/{id:guid}/definition", async (Guid id, SaveDefinitionRequest request, TemplateDbContext db) =>
@@ -242,7 +251,7 @@ app.MapPut("/templates/{id:guid}/definition", async (Guid id, SaveDefinitionRequ
     await db.SaveChangesAsync();
     
     return Results.Ok(new { templateId = template.Id, version = newVersion.Version });
-});
+}).RequireAuthorization("template.edit");
 
 // ── POST /templates/{id}/publish ─────────────────────────────────────────────
 app.MapPost("/templates/{id:guid}/publish", async (Guid id, TemplateDbContext db) =>
@@ -263,7 +272,7 @@ app.MapPost("/templates/{id:guid}/publish", async (Guid id, TemplateDbContext db
     await db.SaveChangesAsync();
     
     return Results.Ok(new { templateId = template.Id, publishedVersion = template.PublishedVersion });
-});
+}).RequireAuthorization("template.publish");
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Template Instantiation Endpoint
@@ -323,7 +332,7 @@ app.MapPost("/templates/{id:guid}/instantiate", async (Guid id, InstantiateReque
         size = new { width = templateVersion.DefaultWidth, height = templateVersion.DefaultHeight },
         definition = JsonDocument.Parse(defJson)
     });
-});
+}).RequireAuthorization("template.view");
 
 // ── GET /templates/categories ────────────────────────────────────────────────
 app.MapGet("/templates/categories", async (TemplateDbContext db) =>
@@ -335,7 +344,7 @@ app.MapGet("/templates/categories", async (TemplateDbContext db) =>
         .ToListAsync();
     
     return Results.Ok(categories);
-});
+}).RequireAuthorization("template.view");
 
 app.Run();
 

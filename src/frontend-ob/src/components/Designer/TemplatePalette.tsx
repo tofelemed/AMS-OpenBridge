@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { apiFetch } from '../../api/apiFetch';
 
 const TEMPLATE_SERVICE_URL = import.meta.env.VITE_TEMPLATE_SERVICE_URL || '/api/templates';
 
@@ -19,7 +20,7 @@ interface TemplatePaletteProps {
 }
 
 const fetchTemplates = async (): Promise<{ templates: Template[] }> => {
-  const res = await fetch(`${TEMPLATE_SERVICE_URL}/templates`);
+  const res = await apiFetch(`${TEMPLATE_SERVICE_URL}/templates`);
   if (!res.ok) throw new Error('Failed to load templates');
   return res.json();
 };

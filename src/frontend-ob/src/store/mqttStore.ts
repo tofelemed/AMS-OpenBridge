@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { enableMapSet } from 'immer';
 import { get as getSparkplugPayload } from 'sparkplug-payload';
+import { apiFetch } from '../api/apiFetch';
 
 const SparkplugPayload = getSparkplugPayload('spBv1.0');
 if (!SparkplugPayload) {
@@ -292,7 +293,7 @@ export const useMqttStore = create<MqttStoreState>()(
         if (assets.length === 0) return;
         try {
           const url = `${SNAPSHOT_URL}?assets=${assets.map(encodeURIComponent).join(',')}`;
-          const res = await fetch(url);
+          const res = await apiFetch(url);
           if (!res.ok) return;
           const data = await res.json() as { assets: Record<string, Record<string, unknown>> };
           applySnapshotAssets(set, data.assets ?? {});
@@ -305,7 +306,7 @@ export const useMqttStore = create<MqttStoreState>()(
       // Discover all devices from Redis via BFF GET /snapshot?assets=*
       loadAllSnapshots: async () => {
         try {
-          const res = await fetch(`${SNAPSHOT_URL}?assets=${encodeURIComponent('*')}`);
+          const res = await apiFetch(`${SNAPSHOT_URL}?assets=${encodeURIComponent('*')}`);
           if (!res.ok) return;
           const data = await res.json() as { assets: Record<string, Record<string, unknown>> };
           applySnapshotAssets(set, data.assets ?? {});
@@ -325,7 +326,7 @@ export const useMqttStore = create<MqttStoreState>()(
             width:  String(width),
           });
           if (measurements) params.set('measurements', measurements);
-          const res = await fetch(`${HIST_URL}/trend?${params}`);
+          const res = await apiFetch(`${HIST_URL}/trend?${params}`);
           if (!res.ok) {
             const text = await res.text();
             throw new Error(text || `HTTP ${res.status}`);
@@ -347,7 +348,7 @@ export const useMqttStore = create<MqttStoreState>()(
             maxCount: String(maxCount),
             offset:   String(offset),
           });
-          const res = await fetch(`${HIST_URL}/raw?${params}`);
+          const res = await apiFetch(`${HIST_URL}/raw?${params}`);
           if (!res.ok) {
             const text = await res.text();
             throw new Error(text || `HTTP ${res.status}`);

@@ -99,7 +99,277 @@ Remaining Phase E scope (NOT in the gate, not built): **collections** (repeat a 
 elements) and wiring the orphaned **TemplatePalette**. Also cosmetic: `shape.label` type renders as
 the unknown "?" symbol (not handled in SymbolRenderer switch).
 
-## 🏁 Roadmap complete — Gates A–E all PASSED (2026-07-05), each with observed browser evidence.
+## 🏁 Gates A–E all PASSED (2026-07-05), each with observed browser evidence.
+
+## Phase F–I (second roadmap) — audit-first; `SYSTEM_AUDIT.md` + `PHASE_FI_PLAN.md` approved 2026-07-08.
+
+### GATE F — Alarms & dynamic behaviors — ✅ PASSED (2026-07-09)
+Real end-to-end, no mocks. **Root-cause fix:** alarm state-change commands (suppress/shelve/out-of-service)
+500'd because their handlers opened a manual DB transaction incompatible with the DbContext's
+`NpgsqlRetryingExecutionStrategy` — dropped the redundant transaction (SaveChanges is atomic) in
+`AMS.Application/Alarms/Commands/AlarmCommands.cs`; rebuilt ams-api. (The "192.168.1.51:8010 connection
+refused" was background-poller noise, not the cause.) Also fixed the vite dev proxy: `/api/v1` + `/hubs`
+(SignalR) now route to ams-api:8000 (alarm REST/hub were unreachable in dev).
+Built: `rules[]`/`multiStateConfig`/`alarmSource` on `CanvasItem`; `ruleEngine.ts` (color/blink/hidden/
+rotate + multistate); alarm annunciators (beacon/banner/summary) + `alarm.table` wired to `alarmStore`
+(`SymbolRenderer.tsx`); viewer connects the alarm hub after login (App-level init); `scripts/sim/limit_watchdog.py`
+(real limit breach → real latched alarm through raw-alarms + current-alarm-state).
+**Evidence** (Playwright, logged-in viewer of display `4c31517d`, source `houston/crude1/pump101`):
+| Stage | alarmStore (API `/active`) | Beacon | Banner | Table |
+|---|---|---|---|---|
+| Baseline | 0 active | hidden | – | 0 |
+| Breach (watchdog: live 205.4 ≥ HiHi 100) | 1 · `UnacknowledgedUncleared` · Critical · unacked | **present + blinking** | "CRITICAL · …pump101/HiHi" | 1 (UNACK) |
+| Suppress (`POST /suppress` → 200) | removed from active | **hidden** | – | 0 |
+Screenshot `gateF_active.png`: red beacon, red banner, table row, **and** the speed readout carries an
+orange rule-engine outline (speed>2500). Build ✓ 18.19s. Deferred/noticed: `shape.label` still renders the
+unknown "?" glyph (pre-existing; slated for Phase H icon/type cleanup).
+
+### GATE G — Editor pro-grade UX — ✅ PASSED (2026-07-09)
+Rewrote the editor interaction model. **Multi-select** (`selectedIds`) via marquee + shift/ctrl-click;
+group-aware selection; **group/ungroup** (`groupId` on `CanvasItem`); **align** left/right/top/bottom/
+center + same-size; **z-order** front/back; **flip** H/V; **rotate handle**; **copy/paste** clipboard;
+**wheel-zoom + space-pan**; configurable canvas size. Fixed the two audited history bugs: `updateItem`
+now snapshots (drag/resize commit on mouse-up via `onCommit`; property edits commit), and the ref-based
+history eliminates the `slice(-50)`/index desync. Files: `DesignerCanvas.tsx` (rewritten),
+`DisplayDesigner.tsx` (ref history + ops), `types.ts` (+`groupId`/`hidden`/`flipH`/`flipV`).
+**Evidence** (Playwright, authenticated `/designer/<id>`, verified against `window.__designer` state):
+- copy/paste → 6 items, new independent id, +20/+20 offset; undo paste → back to 5.
+- marquee-select **5**; group → all 5 share one `groupId`; click one grouped item → whole group (5) selected.
+- align-left → all x=80; align-top → all y=90.
+- **undo×3 → positions == baseline AND ungrouped**; **redo×3 → re-grouped + aligned**. History accurate at
+  every step. (`gateG_aligned.png`, `gateG_final.png`) Build ✓ 19.40s.
+
+### GATE H — Design-system unification (OpenBridge / PI Vision) — ✅ PASSED (2026-07-09)
+Created `designTokens.css` — the single source of truth for AMS semantic colors + trend-pen palette +
+surfaces/typography, with `day` / `bright` / `night` variants keyed on `data-obc-theme`. Rewired the
+scattered color sources onto it: `openBridgeTheme.OBC` (alarm/warn/caut/run → `var(--ams-*)`),
+`TrendChart` pens + chart chrome (resolved from `--ams-pen-*`; pen-1 == `--ams-crit`, so one token
+feeds alarms AND the first trend pen), and `Designer.css` raw status hex (`#dc2626`→`--ams-crit`,
+`#f59e0b`→`--ams-warn`, `#22c55e`→`--ams-run`). Added `night` to the shell theme toggle + a day/night
+control on the standalone viewer.
+**Evidence** (Playwright, authenticated viewer of display `6bbcdcf9` = alarm beacon + live+historical trend):
+- **One token drives both**: with `--ams-crit=#e10019` the alarm beacon **and** trend pen-1 are both
+  `rgb(225,0,25)`; changing **only** `--ams-crit`→`#8b5cf6` turned **both purple** (`gateH_before.png`
+  vs `gateH_after.png`).
+- **Day↔Night respected on every screen**: switching to night shifted `--ams-crit`→`#ff5a6a`, panel bg
+  `#ffffff`→`#111827`; OpenBridge chrome + alarm + trend all re-themed (`gateH_night.png`). Build ✓ 18.73s.
+Scope note (honest): Phase H delivered the **color-token unification + day/night theming** (the gate's
+three testable asks). The broader restructure — full emoji→OB-icon sweep and app-shell/asset-panel
+re-layout — is **partial** (ops/nav still use emoji; `shape.label` still renders "?"); logged for a
+follow-up styling pass, not required by Gate H.
+
+### GATE I — PI Vision import — ✅ PASSED (2026-07-09)
+Lifted + adapted the importer into `frontend-ob/src/services/import/pdixImport.ts` (JSZip → `.pdix`
+`display_json` → our `CanvasItem[]`), with `mapPdixType` re-pointed to OpenBridge/AMS ids and emitting
+the Phase H tokens (`backgroundColor: var(--ams-canvas-bg)`). Import UI `ImportPage.tsx` at
+`/designer/import`: upload → preview (per-type counts) → **unmapped list surfaced for manual mapping**
+→ save as an AMS display. Added `shape.label` (text) renderer + fixed ellipse→`shape.circle` so imports
+render faithfully (also clears the old "?" glyph). Perf fix: `useBindingResolver` only subscribes bound
+slots to the live map (a 720-item display mounts ~11.5k slot-hooks; unconditional subscription re-rendered
+all on every MQTT tick). Installed `jszip`.
+**Evidence** (Playwright, authenticated): imported bundled **`301-Kiln.pdix`** →
+- **720 items** parsed (statictext 257, rectangle 204, value 149, graphic 102, line 5, ellipse 2, trend 1,
+  group 1); **102 graphics surfaced in the import UI for manual mapping** with their DirectoryKey/FileKey
+  refs — none silently dropped (`gateI_import.png`).
+- Saved + **rendered faithfully in the designer** — real PI Vision text labels, value boxes, colored
+  shapes, trend, positioned per the original Kiln HMI, in the Phase H design system (`gateI_designer.png`).
+- An **imported symbol's binding resolved to live data** (remapped value → `houston/crude1/pump101.speed`
+  → live **2917.6 RPM**) (`gateI_live.png`). Build ✓ 26.49s.
+
+## 🏁🏁 SECOND ROADMAP COMPLETE — Gates F, G, H, I all PASSED (2026-07-09), each with pasted evidence.
+
+## Phase J–L (third roadmap) — audit-first; `SYSTEM_AUDIT.md` §7–§11 + `PHASE_JL_PLAN.md` approved 2026-07-13.
+Decisions locked: Operators/Viewers **can** trend · the runtime viewer **requires login** (anonymous kiosk
+mode removed) · AMS.Api's `TestAuthHandler` bypass **gets replaced with real JWKS validation in K**.
+
+### GATE J — Dedicated trend view (page + dialog) — ✅ PASSED (2026-07-13)
+Reused Phase C's engine rather than rebuilding it: lifted `TrendChart`'s body into **`TrendCore.tsx`**
+(pens-driven — `{path,label}[]` instead of a `CanvasItem`), leaving `TrendChart` as a thin adapter
+(`item.bindings → pens`). The same core now backs three surfaces: the canvas symbol, the ad-hoc
+**`TrendDialog`**, and the deep-linkable **`/trend?tags=…`** page. Added PI-Vision presentation on top:
+**per-pen Y-axes** (paying down Phase C's shared-axis deferral, which would have flattened mixed units),
+a legend that reads **each pen's value at the cursor** with its engineering unit, and range presets
+15m/1h/8h/1d/1w + ◀/⏸/▶▶/**Now** + window timestamps + LIVE/HISTORICAL state. Trend entry points: the
+designer ops toolbar (enabled when the selection has bound tags) and the runtime viewer (Operators may
+trend). `/trend` was already taken by the legacy `IoTDBTrendViewer` — moved that to `/iotdb-trend` (nav kept).
+**Real bug fixed (inherited from Phase C):** the historian returns `null` for empty buckets and
+`Number(null) === 0` **is finite**, so every gap was being plotted as a **zero**. Now empty buckets are
+dropped before the cast. (Visible in the first gate run: all three pens read `0.00`.)
+**Evidence** (Playwright, authenticated designer, display `1c86cd44`, 3 mixed-type tags):
+| Check | Observed |
+|---|---|
+| 3 pens, mixed units, distinct token colors | `tank01.level 86.27 %` `rgb(225,0,25)` · `pump101.speed 2404.46 RPM` `rgb(64,192,87)` · `pump101.discharge_press 146.60 PSI` `rgb(250,176,5)` |
+| Per-pen Y-axes | `3` axes rendered |
+| Cursor (reads every pen at one timestamp) | @45% → `["77.79","2963.29","279.65"]` · @75% → `["18.97","2791.97","399.18"]` |
+| Zoom (dataZoom, Phase C) | window `0.0-100.0` → after wheel `3.8-94.7` |
+| Live ↔ historical | `LIVE` → [◀] `HISTORICAL` (end 22:46:43) → [Now] `LIVE` (end 22:54:15) |
+| Open in full page | `/trend?tags=houston%2Fcrude1%2Ftank01.level%2C…pump101.speed%2C…discharge_press` → same 3 pens live |
+| Canvas untouched on return | before `{items:3, selectedIds:[gj1,gj2,gj3], histIndex:0, histLen:1}` == after |
+9/9 checks pass (`gateJ_dialog.png`, `gateJ_cursor.png`, `gateJ_historical.png`, `gateJ_fullpage.png`).
+Build ✓ 26.25s.
+Note: the stack had to be restarted for this phase; the auth volume re-bootstrapped the admin from the
+compose default, so dev login is now **`admin` / `ChangeMe123!`** (was `Admin123!` during F–I).
+
+### GATE K — RBAC (Designer vs. published runtime) — ✅ PASSED (2026-07-13)
+The audit found this was **not** "add a role check": the roles were real, but **display-service had no
+authentication layer at all** (anonymous writes + publish), the permission vocabulary was **alarm-only**
+(no `display.*` key existed), and **AMS.Api's `TestAuthHandler` authenticated every anonymous request
+with the full 11-permission admin set**, making its `[Authorize]` policies decorative.
+Built: `display.view` / `display.edit` / `display.publish` permissions + role mapping (Admin/Engineer =
+all three · Operator/Viewer = view) in the auth-service seed **and** the live DB; test users
+`engineer1` / `operator1` / `viewer1` (`Passw0rd!23`); **RS256 bearer validation in display-service**
+(`Auth/JwksKeyCache.cs` — auth-service serves JWKS but no OIDC discovery, so keys are fetched directly
+and re-fetched on an unknown `kid`) with `DisplayView`/`DisplayEdit`/`DisplayPublish` policies on all 10
+endpoints; **the same in AMS.Api, replacing `TestAuthHandler`** (+ `?access_token=` support, which
+SignalR WebSockets and browser CSV downloads require); `apiFetch` (the display calls previously sent
+**no** Authorization header at all); a real `RequirePermission` route guard; the **Operator launcher**
+`/displays` (the display list only ever opened the *designer*, so Operators had no way to reach a
+published HMI); `--ams-disabled` read-only tokens.
+**Real bug fixed:** refresh tokens are single-use, and App bootstrap + an `apiFetch` 401-retry could
+fire two concurrent refreshes — the second presented a spent token and killed the session on reload.
+`authStore.refresh` is now single-flighted. Also raised auth-service's 100-req/15-min per-IP rate limit
+(a control room behind one NAT would trip it).
+**Evidence — API, bypassing the frontend entirely (real tokens, pasted verbatim):**
+```
+PUT  /displays/{id}/content   no token   → HTTP/1.1 401 Unauthorized
+PUT  /displays/{id}/content   operator1  → HTTP/1.1 403 Forbidden
+POST /displays/{id}/publish   operator1  → HTTP/1.1 403 Forbidden
+GET  /displays                operator1  → HTTP 200                       (reads allowed)
+PUT  /displays/{id}/content   engineer1  → HTTP/1.1 200 OK  {"version":5,"status":"draft"}
+--- AMS.Api (was: TestAuthHandler passed EVERYONE with full admin rights) ---
+GET  /api/v1/alarms/active    no token   → HTTP 401
+GET  /api/v1/alarms/active    admin      → HTTP 200
+POST /api/v1/alarms/…/suppress viewer1   → HTTP 403
+POST /api/v1/alarms/…/suppress admin     → HTTP 400   (reached the handler = authorized)
+```
+**Evidence — frontend (Playwright, two live sessions):** Engineer → Designer nav present, designer opens,
+**Publish visible** (`Draft v16 · Published v16`). Operator → **no Designer nav**; typing
+`/designer/<id>` **redirects to `/displays`** (designer never renders); launcher lists `Published v16`;
+the runtime viewer runs with live values `["34.0","3074.9","384.1"]` and **zero edit UI**. 9/9 checks pass
+(`gateK_engineer_designer.png`, `gateK_operator_redirect.png`, `gateK_operator_launcher.png`,
+`gateK_operator_viewer.png`).
+**Regression bar (decision 3):** the Gate F alarm path still works under real auth — SignalR negotiate
+`200`, WebSocket opens carrying the RS256 token, the injected **real limit-breach alarm** (pump101
+discharge_press 332.28 ≥ HiHi 100) renders as `CRITICAL`, and **no 401/403** on any alarm REST/hub call.
+Builds: `npm run build` ✓ 22.01s · `dotnet build` display-service + AMS.Api ✓ 0 errors.
+
+### GATE L — Publish workflow — ✅ PASSED (2026-07-13)
+The audit found the backend **already had** draft/published versioning (`draft_version`,
+`published_version`, append-only `display_versions` with `status`, and a working `POST /publish`) — it
+behaved as edit-is-live for exactly one reason: `GET /content` defaulted to the **draft** and the viewer
+called it with no params, so `published_version` was never read by anything. So L was small:
+`?stage=published` on the content read (default stays `draft` — the Designer needs it) + a 404 when
+nothing is published; the viewer now requests it; **Publish / Unpublish / Revert** in the designer header
+with `Draft vN · Published vM · unpublished changes` badges (gated on `display.publish`); new
+`POST /unpublish` and `POST /revert` (revert copies the published snapshot into a **new** draft — history
+is never rewritten). The viewer also stops retrying a 404 and says *why* it is blank.
+**Evidence** (Playwright — Engineer editing in the real Designer UI, Operator watching the runtime in a
+second session; `served` = what display-service returns for `?stage=published`):
+| Step | Designer | Served (live) | Operator sees |
+|---|---|---|---|
+| Baseline | 3 items · Draft v13 · Published v13 | v13 (published) — 3 items | **3 symbols** |
+| Engineer edits + **Saves** (no publish) | 4 items · Draft v14 · Published v13 · *unpublished changes* | **v13 — 3 items** | **3 symbols** (unchanged) |
+| Engineer clicks **Publish** | 4 items · Draft v14 · **Published v14** | **v14 — 4 items** | **4 symbols** |
+| Engineer edits + Saves again | 5 items · Draft v15 · Published v14 · *unpublished changes* | **v14 — 4 items** | **4 symbols** (unchanged) |
+| Engineer clicks **Revert** | **4 items** (back to published) · Draft v16 | v14 — 4 items | 4 symbols |
+| Engineer clicks **Unpublish** | Draft v16 · **Not published** | **404 "Display has no published version"** | *"This display has no published version yet…"* |
+6/6 checks pass (`gateL_1_baseline_operator.png` … `gateL_5_unpublished_operator.png`). Build ✓.
+
+## 🏁🏁🏁 THIRD ROADMAP COMPLETE — Gates J, K, L all PASSED (2026-07-13), each with pasted evidence.
+
+## Final status — all 12 phases (A–L)
+| Phase | Status |
+|---|---|
+| A — Live data works | ✅ PASSED (2026-07-05) |
+| B — Standalone runtime viewer | ✅ PASSED (2026-07-05) |
+| C — Trends (live + historical, multi-pen) | ✅ PASSED (2026-07-05) |
+| D — Navigation (HPHMI L1→L4) | ✅ PASSED (2026-07-05) |
+| E — Asset-relative displays | ✅ PASSED (2026-07-05) |
+| F — Alarms & dynamic behaviors | ✅ PASSED (2026-07-09) |
+| G — Editor pro-grade UX | ✅ PASSED (2026-07-09) |
+| H — Design-system unification | ✅ PASSED (2026-07-09) |
+| I — PI Vision import | ✅ PASSED (2026-07-09) |
+| J — Dedicated trend view | ✅ PASSED (2026-07-13) |
+| K — RBAC (Designer vs. runtime) | ✅ PASSED (2026-07-13) |
+| L — Publish workflow | ✅ PASSED (2026-07-13) |
+
+**Dev credentials (this stack):** `admin`/`ChangeMe123!` (Admin) · `engineer1`/`operator1`/`viewer1` with
+`Passw0rd!23`. **Lab runbook:** `docker compose up -d` in `infra/docker`, then the `ams-sim` container
+(process values) — binding-resolver may need `--no-deps` because asset-model's healthcheck image lacks
+`wget` and reports unhealthy while actually serving fine.
+
+### PLATFORM-WIDE AUTH + RBAC — ✅ DONE (2026-07-14)
+Phase K secured only display-service and AMS.Api. This closes the rest: **every service now validates
+RS256 tokens and enforces a permission**, and **every page/route is permission-guarded**.
+
+**"Admin can't access the HMI Designer" — diagnosed, not guessed.** Admin's token *did* carry
+`display.edit`, and the Designer opened fine on the dev server. The cause was the **production frontend
+image (`ams-frontend`, :3000), which predated Phase K** — an old bundle with no `/displays` route and no
+token on display calls. Rebuilt; admin now reaches the Designer on **both** :5174 and :3000 (verified).
+A stale in-browser session from before the permissions were seeded produces the same symptom — re-login.
+
+**Built**
+- `src/services/_shared/TraverseAuth.cs` — one auth module (JWKS bearer validation + a policy per
+  permission key + an `X-Service-Key` service principal), copied into each service because each builds
+  from its own Docker context. `scripts/sync-auth-module.ps1 [-Check]` keeps the copies from drifting.
+- **Enforced in:** asset-model (10), template-service (8), binding-resolver (4), historian-bff (4),
+  analysis-service (10), audit-service (1) — **37 endpoints**, on top of display-service (10) + AMS.Api.
+  `/health` stays anonymous (container probes).
+- **New permissions** (auth-service seed + live DB): `asset.view/edit`, `template.view/edit/publish`,
+  `binding.resolve`, `historian.view`, `analysis.view/edit`. Every role gets the **read** keys — a running
+  display must resolve bindings, read the UNS catalog and pull history, so withholding them would render
+  an empty canvas for Operators. Only Admin/Engineer get the **edit** keys.
+- **Service-to-service:** binding-resolver → asset-model has no user context; it now authenticates with
+  `X-Service-Key` (`Auth__ServiceKey`, per-service compose env). Without this the live data path would
+  have broken the moment asset-model started requiring a token.
+- **Frontend:** the remaining 14 unauthenticated call sites (AssetBrowser, TemplatePalette,
+  useBindingResolver, mqttStore ×4, iotdbPaths, historianHealth, SystemMonitor, viewer asset list) moved
+  onto `apiFetch`; **every route** now carries the permission its APIs need — `/admin/*` was reachable by
+  any authenticated user via direct URL; nav entries match their route guards; a role that lacks a
+  permission gets an explicit "Not authorized" page instead of a redirect loop. Dropped the
+  `Bearer ${token || 'dev'}` fallback in `alarmApi`.
+
+**Bugs found and fixed along the way** (all pre-existing):
+- **audit-service did not compile at all** (Worker SDK + `WebApplication`, missing
+  `Serilog.Settings.Configuration`) — verified against a pristine HEAD checkout. No Dockerfile and absent
+  from compose, so nothing ever caught it. Now builds.
+- **Every .NET service healthcheck was a lie**: `wget -qO- .../health` in an aspnet image that has no
+  `wget` → permanently "unhealthy", which is why `binding-resolver` refused to start (its `depends_on`
+  waits for asset-model to be healthy). Replaced with a `bash /dev/tcp` probe; all six now report healthy.
+- **No `.dockerignore` in any service** → a host `dotnet build` leaks `obj/project.assets.json` (with
+  Windows nuget paths) into the image and breaks `dotnet publish --no-restore`. Added to all six.
+- `/api/templates` had **no vite proxy** — TemplatePalette's calls fell through to a dead catch-all.
+
+**Evidence — RBAC matrix (real tokens, all four roles, every service; `no token` column = anonymous):**
+```
+SERVICE           ENDPOINT                 KIND    none     admin engineer1 operator1   viewer1
+asset-model       GET  /assets             read     401       200       200       200       200
+asset-model       POST /assets             write    401       201       409*      403       403
+binding-resolver  GET  /resolve            read     401       200       200       200       200
+binding-resolver  POST /resolve/batch      read     401       200       200       200       200
+historian-bff     GET  /snapshot           read     401       200       200       200       200
+historian-bff     GET  /trend              read     401       200       200       200       200
+template-service  GET  /templates          read     401       200       200       200       200
+template-service  POST /templates          write    401       201       201       403       403
+analysis-service  GET  /analyses           read     401       200       200       200       200
+analysis-service  POST /analyses           write    401       400*      400*      403       403
+display-service   GET  /displays           read     401       200       200       200       200
+display-service   POST /displays           write    401       201       201       403       403
+ams-api           GET  /api/v1/alarms/active read   401       200       200       200       200
+health endpoints (no token) → 200 on all six services
+* 409 = duplicate asset, 400 = probe body rejected: the handler RAN, i.e. authorization passed.
+RBAC MATRIX: PASS
+```
+**Evidence — UI role walk (Playwright, all four roles, live stack):**
+| Role | Designer nav | `/designer` direct | `/admin/users` direct | Runtime viewer live values | Unexpected 401/403 |
+|---|---|---|---|---|---|
+| admin | ✅ | opens | opens | `15.4 / 1702.0 / 263.1` | **NONE** |
+| engineer1 | ✅ | opens | → `/displays` | `87.1 / 2732.7 / 218.6` | **NONE** |
+| operator1 | ❌ | → `/displays` | → `/displays` | `18.5 / 1595.3 / 227.5` | **NONE** |
+| viewer1 | ❌ | → `/displays` | → `/displays` | `82.5 / 2861.7 / 261.2` | **NONE** |
+Live values render for **every** role — bindings, historian and assets all authenticate correctly, so
+locking the platform down did not break the data path. `npm run build` ✓ 20.38s; all 6 services build ✓.
+Prod frontend (:3000) re-verified as admin: Designer opens, zero 401/403.
 
 ## Deferred items noticed (do NOT fix early — later-phase scope)
 - **Device-id inconsistency**: binding-resolver FALLBACK + `/preview` derive `unit_device` (crude1_pump101)
@@ -114,6 +384,24 @@ the unknown "?" symbol (not handled in SymbolRenderer switch).
 - historian-bff `/trend`/`/raw`/`/series` default to alarm schema + single-series/decimated → Phase C (needs multi-series endpoint).
 - Full `Designer.css` raw-hex → OpenBridge-token sweep (70 hexes) → cleanup pass.
 - `run-all.ps1`/`start-ams-docker-full.ps1` stale (missing `docker-compose.lab.yml`, wrong container names) → infra cleanup.
+- ~~Still unauthenticated: asset-model, template-service, binding-resolver, historian-bff,
+  analysis-service, audit-service~~ → **DONE 2026-07-14** (see "Platform-wide auth + RBAC" above).
+- **notification-service is still unauthenticated** — deliberately: it is a Kafka worker whose only HTTP
+  surface is `/health`, `/metrics` and `GET /` (a liveness string). Nothing to authorize; revisit if it
+  ever grows a real API.
+- **`PUT /analyses/executions/{id}/status` is now `analysis.edit`-gated.** It is the Flink→service
+  callback, so if that job is ever wired up it must send `X-Service-Key` (or a token) — today nothing
+  calls it, so nothing broke.
+- **`Auth__ServiceKey` defaults to `traverse-internal-dev-key`** in compose. Set `TRAVERSE_SERVICE_KEY`
+  to a real secret before any non-lab deployment — it grants a full-permission service principal.
+- **audit-service still has no Dockerfile** and is absent from docker-compose (it now compiles, but it is
+  not deployed, so its auth wiring is unverified at runtime).
+- `scripts/sim/limit_watchdog.py` only runs on the **host** (it shells out to `docker exec ams-redis
+  redis-cli`), but the host can't reach Kafka's advertised listener (`EXTERNAL://:9093` advertises an
+  empty host). Make it read the snapshot over HTTP (historian-bff) so it can run in-network.
+- `display-service` had no `.dockerignore`, so a host `dotnet build` leaked `obj/` into the image and
+  broke `publish --no-restore`. Added there; the other services likely have the same latent trap.
+- Personal Views (`13_personal_views_schema.sql`) remain schema-only — no entity, endpoint, or UI.
 
 ## Change log
 - 2026-07-05: Roadmap kicked off; contract pinned from asset-model/binding-resolver; ROADMAP_PROGRESS created. Phase A started.

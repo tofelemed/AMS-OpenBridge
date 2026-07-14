@@ -14,6 +14,8 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
     <PackageReference Include="StackExchange.Redis" Version="2.7.33" />
+    <!-- Phase K: RS256 bearer validation against the auth-service JWKS. -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.4" />
   </ItemGroup>
 
 </Project>

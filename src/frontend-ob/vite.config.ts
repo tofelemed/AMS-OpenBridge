@@ -28,10 +28,28 @@ export default defineConfig({
         changeOrigin: true,
         rewrite:     (path) => path.replace(/^\/api\/assets/, '/assets'),
       },
+      '/api/templates': {
+        // Template service — was missing, so TemplatePalette's calls fell through to the /api catch-all.
+        // Callers use `${'/api/templates'}/templates`, so strip the prefix entirely: → /templates.
+        target:      'http://localhost:5004',
+        changeOrigin: true,
+        rewrite:     (path) => path.replace(/^\/api\/templates/, ''),
+      },
       '/api/auth': {
         // Auth service (login, refresh, RBAC) — serves /api/auth/* directly, no rewrite.
         target:      'http://localhost:3002',
         changeOrigin: true,
+      },
+      '/api/v1': {
+        // AMS .NET API (alarms REST) — runs in Docker on host port 8000.
+        target:      'http://localhost:8000',
+        changeOrigin: true,
+      },
+      '/hubs': {
+        // AMS SignalR hubs (alarm realtime) → ams-api:8000, WebSocket upgrade.
+        target:      'http://localhost:8000',
+        changeOrigin: true,
+        ws:          true,
       },
       '/api': {
         target: 'http://localhost:5000',

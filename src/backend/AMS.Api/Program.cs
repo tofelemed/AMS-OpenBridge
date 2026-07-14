@@ -238,14 +238,49 @@ services.AddSwaggerGen(opt =>
     opt.UseInlineDefinitionsForEnums();
 });
 
-// ---- JWT Authentication (Disabled for simplified architecture) ----
-Log.Warning("Registering local TestAuthHandler authentication bypass.");
-services.AddAuthentication(opt =>
-{
-    opt.DefaultAuthenticateScheme = "AnonymousTest";
-    opt.DefaultChallengeScheme = "AnonymousTest";
-})
-.AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, TestAuthHandler>("AnonymousTest", null);
+// ---- JWT Authentication (Phase K: real RS256 bearer validation against auth-service) ----
+// This replaces the former TestAuthHandler, which succeeded for EVERY anonymous request with the full
+// permission set — making the policies below decorative. Tokens now come from auth-service and are
+// verified against its JWKS.
+services.AddHttpClient();
+services.AddSingleton<AMS.Api.Auth.JwksKeyCache>();
+
+var authIssuer   = config["Auth:Issuer"]   ?? "traverse-auth";
+var authAudience = config["Auth:Audience"] ?? "ams-services";
+
+services.AddAuthentication(Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(opt =>
+    {
+        opt.RequireHttpsMetadata = false; // HTTP inside the compose network
+        opt.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = authIssuer,
+            ValidateAudience = true,
+            ValidAudience = authAudience,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidAlgorithms = new[] { "RS256" },
+            ClockSkew = TimeSpan.FromSeconds(30),
+        };
+        opt.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+        {
+            OnMessageReceived = ctx =>
+            {
+                var jwks = ctx.HttpContext.RequestServices.GetRequiredService<AMS.Api.Auth.JwksKeyCache>();
+                ctx.Options.TokenValidationParameters.IssuerSigningKeyResolver = jwks.Resolve;
+
+                // SignalR WebSockets (and browser-initiated stream/export downloads) cannot set an
+                // Authorization header — they carry the token as ?access_token=, per the SignalR contract.
+                if (string.IsNullOrEmpty(ctx.Token))
+                {
+                    var qsToken = ctx.Request.Query["access_token"].ToString();
+                    if (!string.IsNullOrEmpty(qsToken)) ctx.Token = qsToken;
+                }
+                return Task.CompletedTask;
+            },
+        };
+    });
 
 // ---- Authorization Policies (RBAC) ----
 services.AddAuthorizationBuilder()
@@ -717,42 +752,6 @@ public static class ApplicationBuilderExtensions
                 ctx.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
             await next();
         });
-}
-
-// Local testing authentication bypass handler
-public sealed class TestAuthHandler : Microsoft.AspNetCore.Authentication.AuthenticationHandler<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions>
-{
-    public TestAuthHandler(
-        Microsoft.Extensions.Options.IOptionsMonitor<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions> options, 
-        ILoggerFactory logger, 
-        System.Text.Encodings.Web.UrlEncoder encoder) 
-        : base(options, logger, encoder) { }
-
-    protected override Task<Microsoft.AspNetCore.Authentication.AuthenticateResult> HandleAuthenticateAsync()
-    {
-        var claims = new[] { 
-            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, "a0000000-0000-0000-0000-000000000001"),
-            new System.Security.Claims.Claim("sub", "a0000000-0000-0000-0000-000000000001"),
-            new System.Security.Claims.Claim("preferred_username", "simulator_operator"),
-            new System.Security.Claims.Claim("role", "OPERATOR"),
-            new System.Security.Claims.Claim("operator_station", "STATION_1"),
-            new System.Security.Claims.Claim("permission", "alarm.view"),
-            new System.Security.Claims.Claim("permission", "alarm.acknowledge"),
-            new System.Security.Claims.Claim("permission", "alarm.acknowledge_batch"),
-            new System.Security.Claims.Claim("permission", "alarm.shelve"),
-            new System.Security.Claims.Claim("permission", "alarm.unshelve"),
-            new System.Security.Claims.Claim("permission", "alarm.suppress"),
-            new System.Security.Claims.Claim("permission", "alarm.export"),
-            new System.Security.Claims.Claim("permission", "soe.view"),
-            new System.Security.Claims.Claim("permission", "analytics.view"),
-            new System.Security.Claims.Claim("permission", "admin.users.edit"),
-            new System.Security.Claims.Claim("permission", "admin.audit.view")
-        };
-        var identity = new System.Security.Claims.ClaimsIdentity(claims, "TestAuth");
-        var principal = new System.Security.Claims.ClaimsPrincipal(identity);
-        var ticket = new Microsoft.AspNetCore.Authentication.AuthenticationTicket(principal, "AnonymousTest");
-        return Task.FromResult(Microsoft.AspNetCore.Authentication.AuthenticateResult.Success(ticket));
-    }
 }
 
 // Expose Program for WebApplicationFactory integration tests

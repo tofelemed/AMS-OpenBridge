@@ -1,4 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk.Worker">
+<!-- Program.cs builds a WebApplication (health/metrics/audit-verify endpoints), so this must be the
+     Web SDK. It was the Worker SDK, which does not reference ASP.NET Core — the project did not
+     compile at all (it has no Dockerfile and is absent from docker-compose, so nothing caught it). -->
+<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -8,6 +11,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Program.cs builds a WebApplication (health/metrics/verify endpoints), but the Worker SDK does
+         not reference ASP.NET Core â€” without this the project does not compile at all. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <!-- Platform auth: RS256 bearer validation against auth-service JWKS. -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.4" />
     <PackageReference Include="Confluent.Kafka" Version="2.4.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.5">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -16,6 +24,9 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="8.0.0" />
+    <!-- Serilog ReadFrom.Configuration(...) lives here; it was missing. -->
+    <PackageReference Include="Serilog.Settings.Configuration" Version="8.0.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
     <PackageReference Include="AWSSDK.S3" Version="3.7.307.24" />
     <PackageReference Include="System.Text.Json" Version="8.0.4" />

@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Asset } from './types';
 import { ASSET_TYPE_ICONS, ASSET_TYPE_LABELS } from './types';
+import { apiFetch } from '../../api/apiFetch';
 
 const ASSET_API = import.meta.env.VITE_ASSET_MODEL_URL || '/api/assets';
 
@@ -23,7 +24,7 @@ async function fetchAssets(parentId?: string): Promise<Asset[]> {
   const url = parentId 
     ? `${ASSET_API}?parentId=${parentId}`
     : `${ASSET_API}?type=1`; // Start with sites
-  const res = await fetch(url);
+  const res = await apiFetch(url);
   if (!res.ok) throw new Error('Failed to fetch assets');
   const data = await res.json();
   return data.assets || [];
@@ -31,7 +32,7 @@ async function fetchAssets(parentId?: string): Promise<Asset[]> {
 
 async function fetchAssetChildren(assetId: string): Promise<Asset[]> {
   const url = `${ASSET_API}/${assetId}/children`;
-  const res = await fetch(url);
+  const res = await apiFetch(url);
   if (!res.ok) throw new Error('Failed to fetch children');
   const data = await res.json();
   return data.children || [];
@@ -39,7 +40,7 @@ async function fetchAssetChildren(assetId: string): Promise<Asset[]> {
 
 async function searchAssets(query: string): Promise<Asset[]> {
   const url = `${ASSET_API}?search=${encodeURIComponent(query)}`;
-  const res = await fetch(url);
+  const res = await apiFetch(url);
   if (!res.ok) throw new Error('Failed to search');
   const data = await res.json();
   return data.assets || [];

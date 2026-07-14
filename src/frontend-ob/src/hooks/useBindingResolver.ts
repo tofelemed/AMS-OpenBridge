@@ -1,8 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMqttStore, type LiveMetric } from '../store/mqttStore';
 import { useEffect, useState } from 'react';
+import { apiFetch } from '../api/apiFetch';
 
 const BINDING_RESOLVER_URL = import.meta.env.VITE_BINDING_RESOLVER_URL || '/api/bindings';
+
+// Stable empty map returned by the metrics selector when a hook has no binding (perf — see below).
+const EMPTY_METRICS: ReadonlyMap<string, LiveMetric> = new Map();
 
 interface BindingResolution {
   contextualPath: string;
@@ -29,7 +33,7 @@ interface BindingResolution {
 }
 
 async function resolveBinding(path: string, role: string): Promise<BindingResolution> {
-  const res = await fetch(`${BINDING_RESOLVER_URL}/resolve?path=${encodeURIComponent(path)}&roles=${role}`);
+  const res = await apiFetch(`${BINDING_RESOLVER_URL}/resolve?path=${encodeURIComponent(path)}&roles=${role}`);
   if (!res.ok) throw new Error('Failed to resolve binding');
   return res.json();
 }
@@ -39,7 +43,10 @@ export function useBindingResolver(
   role: 'live' | 'history' | 'alarm' | 'all' = 'all'
 ) {
   const [liveValue, setLiveValue] = useState<LiveMetric | undefined>(undefined);
-  const metrics = useMqttStore(state => state.metrics);
+  // Perf: only subscribe to the live metrics map when this hook actually has a binding.
+  // A display can mount thousands of unbound slot-hooks (16/symbol); subscribing them all would
+  // re-render every one on every MQTT tick. Returning a stable empty map avoids that.
+  const metrics = useMqttStore(state => (path ? state.metrics : EMPTY_METRICS));
   const subscribeScreen = useMqttStore(state => state.subscribeScreen);
   const unsubscribeScreen = useMqttStore(state => state.unsubscribeScreen);
   
@@ -95,7 +102,7 @@ export function useBatchBindingResolver(
   return useQuery({
     queryKey: ['bindings-batch', paths, role],
     queryFn: async () => {
-      const res = await fetch(`${BINDING_RESOLVER_URL}/resolve/batch`, {
+      const res = await apiFetch(`${BINDING_RESOLVER_URL}/resolve/batch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

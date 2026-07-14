@@ -2,8 +2,10 @@ import React from 'react';
 import type { CanvasItem } from './types';
 import { useBindingResolver } from '../../hooks/useBindingResolver';
 import type { LiveMetric } from '../../store/mqttStore';
+import { useAlarmStore } from '../../store/alarmStore';
 import { renderCustomSymbol, CUSTOM_SYMBOL_TYPES } from './CustomSymbols';
-import { getValueColor, formatValue as fmtValue, getPercentage as pctValue, isStale } from './openBridgeTheme';
+import { getValueColor, formatValue as fmtValue, getPercentage as pctValue, isStale, OBC } from './openBridgeTheme';
+import { evaluateRules, evaluateMultiState } from './ruleEngine';
 import { isLazyObcType } from './lazyCategoryRegistry';
 import { LazyObcSymbol } from './LazyObcSymbol';
 import { TrendChart } from './TrendChart';
@@ -79,26 +81,124 @@ function useSlotMetrics(item: CanvasItem, mode: 'design' | 'preview'): Record<st
   return out;
 }
 
-/** NE107: wrap a symbol so stale (no-update) live data is visibly degraded. */
-const SymbolQualityWrap: React.FC<{ stale: boolean; children: React.ReactNode }> = ({ stale, children }) => {
-  if (!stale) return <>{children}</>;
+/** Phase F: live alarm state for a symbol bound to an alarm sourceName (from alarmStore). */
+export interface SymbolAlarmState {
+  active: boolean; unacked: boolean; count: number; highestPriority?: string; message?: string;
+}
+const PRIORITY_ORDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'DIAGNOSTIC'];
+function useSymbolAlarm(sourceName: string | undefined): SymbolAlarmState {
+  const alarms = useAlarmStore(s => s.alarms);
+  return React.useMemo(() => {
+    if (!sourceName) return { active: false, unacked: false, count: 0 };
+    const m = Array.from(alarms.values()).filter(a =>
+      a.sourceName === sourceName && a.conditionActive && !a.isSuppressed && !a.isShelved && !a.isOutOfService);
+    const hp = m.map(a => a.priority).sort((x, y) => PRIORITY_ORDER.indexOf(x) - PRIORITY_ORDER.indexOf(y))[0];
+    return { active: m.length > 0, unacked: m.some(a => !a.acknowledged), count: m.length, highestPriority: hp, message: m[0]?.message ?? undefined };
+  }, [alarms, sourceName]);
+}
+
+const ALARM_ANNUNCIATOR_TYPES = new Set(['alarm.beacon', 'alarm.horn', 'alarm.banner', 'alarm.summary']);
+function priorityColor(p?: string): string {
+  switch (p) {
+    case 'CRITICAL': return OBC.alarm;
+    case 'HIGH':     return OBC.warning;
+    case 'MEDIUM':   return OBC.caution;
+    default:         return OBC.advisory;
+  }
+}
+
+/** Alarm annunciator symbols render purely from alarmStore state. */
+const AlarmAnnunciator: React.FC<{
+  item: CanvasItem; mode: 'design' | 'preview'; alarm: SymbolAlarmState;
+  stats: { totalCritical: number; totalHigh: number; unacknowledged: number };
+}> = ({ item, mode, alarm, stats }) => {
+  const design = mode !== 'preview';
+  if (item.type === 'alarm.summary') {
+    return (
+      <div className="symbol symbol-alarm-summary">
+        <div className="symbol-alarm-summary__row"><span>Critical</span><b style={{ color: OBC.alarm }}>{design ? '–' : stats.totalCritical}</b></div>
+        <div className="symbol-alarm-summary__row"><span>High</span><b style={{ color: OBC.warning }}>{design ? '–' : stats.totalHigh}</b></div>
+        <div className="symbol-alarm-summary__row"><span>Unacked</span><b>{design ? '–' : stats.unacknowledged}</b></div>
+      </div>
+    );
+  }
+  const active = design ? true : alarm.active;   // design mode shows a preview
+  if (!active) return null;                       // runtime: hidden when no active alarm (suppress → hides)
+  const color = priorityColor(alarm.highestPriority);
+  if (item.type === 'alarm.banner') {
+    return (
+      <div className="symbol symbol-alarm-banner" style={{ borderColor: color, color }}>
+        <span className="symbol-alarm-banner__dot" style={{ background: color }} />
+        <span className="symbol-alarm-banner__text">
+          {design ? (item.label || 'ALARM — bound source') : `${alarm.highestPriority ?? 'ALARM'} · ${alarm.message ?? item.alarmSource}`}
+        </span>
+      </div>
+    );
+  }
+  return ( // beacon / horn
+    <div className="symbol symbol-alarm-beacon" title={item.alarmSource}>
+      <svg viewBox="0 0 40 40" width="100%" height="100%">
+        <circle cx="20" cy="20" r="14" fill={color} stroke={color} strokeWidth="2" />
+        {item.type === 'alarm.horn' && <text x="20" y="26" textAnchor="middle" fontSize="18" fill="#fff">♪</text>}
+      </svg>
+    </div>
+  );
+};
+
+/** Phase F — event/alarm table: live active alarms from alarmStore (optional source-prefix filter). */
+const AlarmTable: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }> = ({ item, mode }) => {
+  const alarms = useAlarmStore(s => s.alarms);
+  const rows = React.useMemo(() => {
+    const filter = item.alarmSource;
+    return Array.from(alarms.values())
+      .filter(a => a.conditionActive && !a.isSuppressed && !a.isShelved && !a.isOutOfService)
+      .filter(a => !filter || (a.sourceName ?? '').startsWith(filter))
+      .sort((x, y) => PRIORITY_ORDER.indexOf(x.priority) - PRIORITY_ORDER.indexOf(y.priority))
+      .slice(0, 100);
+  }, [alarms, item.alarmSource]);
+  if (mode !== 'preview') {
+    return <div className="symbol-alarm-table" style={{ padding: 8, fontSize: 12 }}>▦ Alarm Table{item.alarmSource ? ` · ${item.alarmSource}` : ''}</div>;
+  }
   return (
-    <div
-      className="symbol-quality-stale"
-      title="Stale data (NE107): no update received"
-      style={{ position: 'relative', width: '100%', height: '100%', filter: 'grayscale(1)', opacity: 0.5 }}
-    >
+    <div className="symbol-alarm-table">
+      <table>
+        <thead><tr><th>Time</th><th>Source</th><th>Priority</th><th>State</th></tr></thead>
+        <tbody>
+          {rows.map(a => (
+            <tr key={a.id}>
+              <td>{a.eventTimeEpochMs ? new Date(a.eventTimeEpochMs).toLocaleTimeString() : ''}</td>
+              <td>{a.sourceName}</td>
+              <td style={{ color: priorityColor(a.priority), fontWeight: 700 }}>{a.priority}</td>
+              <td>{a.acknowledged ? 'ACK' : 'UNACK'}</td>
+            </tr>
+          ))}
+          {rows.length === 0 && <tr><td colSpan={4} style={{ opacity: .6 }}>No active alarms</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+/** Combined FX wrapper: NE107 staleness + rule-engine (hidden / blink / rotate / color outline). */
+const SymbolFxWrap: React.FC<{
+  stale: boolean; hidden: boolean; blink: boolean; outlineColor?: string; rotateDeg?: number; children: React.ReactNode;
+}> = ({ stale, hidden, blink, outlineColor, rotateDeg, children }) => {
+  if (hidden) return null;
+  const style: React.CSSProperties = { position: 'relative', width: '100%', height: '100%' };
+  if (stale) { style.filter = 'grayscale(1)'; style.opacity = 0.5; }
+  if (rotateDeg !== undefined) style.transform = `rotate(${rotateDeg}deg)`;
+  if (outlineColor) { style.outline = `3px solid ${outlineColor}`; style.outlineOffset = '1px'; style.borderRadius = '4px'; }
+  const cls = `symbol-fx${blink ? ' symbol-fx--blink' : ''}${stale ? ' symbol-quality-stale' : ''}`;
+  return (
+    <div className={cls} style={style}>
       {children}
-      <span
-        aria-label="stale"
-        style={{
-          position: 'absolute', top: 0, right: 0, fontSize: 10, lineHeight: 1, padding: '1px 3px',
-          borderRadius: 3, background: 'var(--element-disabled-color, #535353)',
-          color: 'var(--container-background-color, #1f1f1f)', filter: 'grayscale(0)', opacity: 1,
-        }}
-      >
-        ⚠
-      </span>
+      {stale && (
+        <span aria-label="stale" style={{
+          position: 'absolute', top: 0, right: 0, fontSize: 10, lineHeight: 1, padding: '1px 3px', borderRadius: 3,
+          background: 'var(--element-disabled-color, #535353)', color: 'var(--container-background-color, #1f1f1f)',
+          filter: 'grayscale(0)', opacity: 1,
+        }}>⚠</span>
+      )}
     </div>
   );
 };
@@ -136,6 +236,22 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
 
   // NE107 staleness: a slot that stopped updating renders degraded (see wrapper at return).
   const stale = mode === 'preview' && primaryMetric !== undefined && isStale(primaryMetric.ts);
+
+  // Phase F — alarm state (from alarmStore) + conditional-formatting rules + multi-state.
+  const alarm = useSymbolAlarm(mode === 'preview' ? item.alarmSource : undefined);
+  const alarmStats = useAlarmStore(s => s.stats);
+  const getSlotValue = (slot?: string): unknown =>
+    mode !== 'preview' ? undefined : (slot ? slots[slot]?.value : liveValue);
+  const ruleOutcome = evaluateRules(item.rules, getSlotValue);
+  const multiState = evaluateMultiState(item.multiStateConfig, getSlotValue);
+  const isAnnunciator = ALARM_ANNUNCIATOR_TYPES.has(item.type);
+
+  const fxHidden  = ruleOutcome.hidden;
+  const fxBlink   = ruleOutcome.blink || alarm.unacked || !!multiState?.blink;
+  const fxRotate  = ruleOutcome.rotateDeg;
+  const fxOutline = ruleOutcome.color
+    ?? multiState?.color
+    ?? (item.alarmSource && alarm.active && !isAnnunciator ? priorityColor(alarm.highestPriority) : undefined);
 
   const renderInner = (): React.ReactNode => {
   // OpenBridge components — lazy-loaded renderer chunks per domain
@@ -657,7 +773,25 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
   }
   };
 
-  return <SymbolQualityWrap stale={stale}>{renderInner()}</SymbolQualityWrap>;
+  if (item.type === 'alarm.table') {
+    return (
+      <SymbolFxWrap stale={false} hidden={false} blink={false}>
+        <AlarmTable item={item} mode={mode} />
+      </SymbolFxWrap>
+    );
+  }
+  if (isAnnunciator) {
+    return (
+      <SymbolFxWrap stale={false} hidden={fxHidden} blink={fxBlink}>
+        <AlarmAnnunciator item={item} mode={mode} alarm={alarm} stats={alarmStats} />
+      </SymbolFxWrap>
+    );
+  }
+  return (
+    <SymbolFxWrap stale={stale} hidden={fxHidden} blink={fxBlink} outlineColor={fxOutline} rotateDeg={fxRotate}>
+      {renderInner()}
+    </SymbolFxWrap>
+  );
 };
 
 export default SymbolRenderer;

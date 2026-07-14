@@ -1,0 +1,80 @@
+/*
+ * Phase H — single source of truth for AMS/Traverse HMI design tokens.
+ * Semantic status colors, trend-pen palette, surfaces and typography — all as CSS custom
+ * properties, with light-condition variants keyed on [data-obc-theme] (day / bright / night).
+ * Alarm styling (Phase F) AND trend styling (Phase C) both derive from THESE tokens, so
+ * changing one value here updates both, and switching the theme re-colors every screen.
+ */
+:root,
+:root[data-obc-theme='day'] {
+  /* semantic status (ISA-101: color for abnormal states) */
+  --ams-crit:     #e10019;   /* critical / alarm  — shared by alarm symbols AND trend pen 1 */
+  --ams-warn:     #fe9413;   /* high / warning */
+  --ams-caut:     #ffdb42;   /* medium / caution */
+  --ams-run:      #008300;   /* running / normal */
+  --ams-advisory: #2d548b;   /* low / advisory */
+
+  /* trend-pen palette (pen 1 == critical token, so one token drives alarm + trend) */
+  --ams-pen-1: var(--ams-crit);
+  --ams-pen-2: #40c057;
+  --ams-pen-3: #fab005;
+  --ams-pen-4: #e64980;
+  --ams-pen-5: #7048e8;
+  --ams-pen-6: #20c997;
+
+  /* surfaces / text / lines (drive designer + viewer chrome) */
+  --ams-canvas-bg: #f3f5f9;
+  --ams-panel-bg:  #ffffff;
+  --ams-panel-2:   #eef2f7;
+  --ams-border:    #d5dce6;
+  --ams-text:      #1f2937;
+  --ams-text-dim:  #6b7280;
+  --ams-grid-line: rgba(30, 41, 59, 0.10);
+
+  /* read-only / locked (Phase K: a surface a role can see but not act on) */
+  --ams-disabled:    #9aa4b2;
+  --ams-disabled-bg: #e8ecf1;
+
+  /* typography */
+  --ams-font: 'Noto Sans', system-ui, -apple-system, sans-serif;
+  --ams-font-mono: 'Noto Sans Mono', ui-monospace, monospace;
+  --ams-density: 1;   /* trend-first: scale spacing */
+}
+
+:root[data-obc-theme='bright'] {
+  --ams-crit: #ff1a1a;
+  --ams-warn: #ff9800;
+  --ams-caut: #ffe000;
+  --ams-canvas-bg: #ffffff;
+  --ams-panel-bg: #ffffff;
+  --ams-border: #c4ccd6;
+  --ams-text: #0b1220;
+  --ams-grid-line: rgba(0, 0, 0, 0.12);
+}
+
+/* Night / high-contrast (control-room dark) */
+:root[data-obc-theme='night'] {
+  --ams-crit:     #ff5a6a;
+  --ams-warn:     #ffb454;
+  --ams-caut:     #ffe66d;
+  --ams-run:      #3ddc84;
+  --ams-advisory: #6ea8ff;
+
+  --ams-pen-1: var(--ams-crit);
+  --ams-pen-2: #51cf66;
+  --ams-pen-3: #ffd43b;
+  --ams-pen-4: #f783ac;
+  --ams-pen-5: #9775fa;
+  --ams-pen-6: #63e6be;
+
+  --ams-canvas-bg: #0b1220;
+  --ams-panel-bg:  #111827;
+  --ams-panel-2:   #1f2937;
+  --ams-border:    #334155;
+  --ams-text:      #e5e7eb;
+  --ams-text-dim:  #94a3b8;
+  --ams-grid-line: rgba(148, 163, 184, 0.14);
+
+  --ams-disabled:    #64748b;
+  --ams-disabled-bg: #1a2334;
+}

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { Modal, FormField } from '../shared/Modal';
+import { apiFetch } from '../../api/apiFetch';
 
 const API_BASE = import.meta.env.VITE_DISPLAY_SERVICE_URL || '/api/displays';
 
@@ -65,13 +66,13 @@ const CATEGORY_META: Record<string, { label: string; icon: string; color: string
 
 async function fetchDisplays(category?: string): Promise<{ displays: Display[]; total: number }> {
   const url = category ? `${API_BASE}?category=${category}` : API_BASE;
-  const res = await fetch(url);
+  const res = await apiFetch(url);
   if (!res.ok) throw new Error('Failed to load displays');
   return res.json();
 }
 
 async function createDisplay(data: { name: string; category: string; description?: string }) {
-  const res = await fetch(API_BASE, {
+  const res = await apiFetch(API_BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...data, ownerId: 'designer-user' }),

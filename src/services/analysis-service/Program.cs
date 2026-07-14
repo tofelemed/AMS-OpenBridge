@@ -5,6 +5,8 @@ using Confluent.Kafka;
 using Traverse.AnalysisService.Data;
 using Traverse.AnalysisService.Models;
 
+using Traverse.Auth;
+
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("TraverseAnalysis") 
@@ -34,7 +36,14 @@ builder.Services.AddHttpClient("Flink", client =>
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 
+// ── Auth (platform RBAC) ────────────────────────────────────────────────────
+// RS256 bearer validation against auth-service JWKS + a policy per permission key.
+// Internal callers (e.g. binding-resolver → asset-model) authenticate with X-Service-Key.
+builder.AddTraverseAuth();
+
 var app = builder.Build();
+
+app.UseTraverseAuth();
 
 // ── GET /health ─────────────────────────────────────────────────────────────
 app.MapGet("/health", async (AnalysisDbContext db) =>
@@ -85,7 +94,7 @@ app.MapGet("/analyses", async (
         .ToListAsync();
     
     return Results.Ok(new { total, analyses });
-});
+}).RequireAuthorization("analysis.view");
 
 // ── GET /analyses/{id} ───────────────────────────────────────────────────────
 app.MapGet("/analyses/{id:guid}", async (Guid id, AnalysisDbContext db) =>
@@ -104,7 +113,7 @@ app.MapGet("/analyses/{id:guid}", async (Guid id, AnalysisDbContext db) =>
         analysis.Executions.Select(e => new ExecutionDto(
             e.Id, e.Status, e.WindowStart, e.WindowEnd,
             e.InputRecords, e.OutputRecords, e.StartedAt, e.CompletedAt)).ToList()));
-});
+}).RequireAuthorization("analysis.view");
 
 // ── POST /analyses ───────────────────────────────────────────────────────────
 app.MapPost("/analyses", async (CreateAnalysisRequest request, AnalysisDbContext db, IProducer<string, string> kafka) =>
@@ -140,7 +149,7 @@ app.MapPost("/analyses", async (CreateAnalysisRequest request, AnalysisDbContext
     }
     
     return Results.Created($"/analyses/{analysis.Id}", new { id = analysis.Id, name = analysis.Name });
-});
+}).RequireAuthorization("analysis.edit");
 
 // ── PUT /analyses/{id} ───────────────────────────────────────────────────────
 app.MapPut("/analyses/{id:guid}", async (Guid id, UpdateAnalysisRequest request, AnalysisDbContext db, IProducer<string, string> kafka) =>
@@ -172,7 +181,7 @@ app.MapPut("/analyses/{id:guid}", async (Guid id, UpdateAnalysisRequest request,
     }
     
     return Results.Ok(new { id = analysis.Id, name = analysis.Name });
-});
+}).RequireAuthorization("analysis.edit");
 
 // ── DELETE /analyses/{id} ────────────────────────────────────────────────────
 app.MapDelete("/analyses/{id:guid}", async (Guid id, AnalysisDbContext db, IProducer<string, string> kafka) =>
@@ -191,7 +200,7 @@ app.MapDelete("/analyses/{id:guid}", async (Guid id, AnalysisDbContext db, IProd
     await db.SaveChangesAsync();
     
     return Results.NoContent();
-});
+}).RequireAuthorization("analysis.edit");
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Analysis Execution Endpoints
@@ -243,7 +252,7 @@ app.MapPost("/analyses/{id:guid}/execute", async (
         executionId = execution.Id,
         status = execution.Status
     });
-});
+}).RequireAuthorization("analysis.edit");
 
 // ── GET /analyses/{id}/executions ────────────────────────────────────────────
 app.MapGet("/analyses/{id:guid}/executions", async (Guid id, AnalysisDbContext db, int skip = 0, int take = 20) =>
@@ -259,7 +268,7 @@ app.MapGet("/analyses/{id:guid}/executions", async (Guid id, AnalysisDbContext d
         .ToListAsync();
     
     return Results.Ok(new { executions });
-});
+}).RequireAuthorization("analysis.view");
 
 // ── GET /analyses/executions/{executionId} ───────────────────────────────────
 app.MapGet("/analyses/executions/{executionId:guid}", async (Guid executionId, AnalysisDbContext db) =>
@@ -284,7 +293,7 @@ app.MapGet("/analyses/executions/{executionId:guid}", async (Guid executionId, A
         startedAt = execution.StartedAt,
         completedAt = execution.CompletedAt
     });
-});
+}).RequireAuthorization("analysis.view");
 
 // ── PUT /analyses/executions/{executionId}/status ────────────────────────────
 // Called by Flink job to update execution status.
@@ -310,7 +319,7 @@ app.MapPut("/analyses/executions/{executionId:guid}/status", async (
     await db.SaveChangesAsync();
     
     return Results.Ok(new { id = execution.Id, status = execution.Status });
-});
+}).RequireAuthorization("analysis.edit");
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Analysis Types / Templates
@@ -377,7 +386,7 @@ app.MapGet("/analyses/types", () =>
         }
     };
     return Results.Ok(types);
-});
+}).RequireAuthorization("analysis.view");
 
 app.Run();
 

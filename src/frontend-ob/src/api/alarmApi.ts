@@ -3,7 +3,9 @@ import { getAuthToken } from './auth';
 import { mapActiveAlarmDto } from './alarmMappers';
 import type { ActiveAlarm, AlarmStats } from '../store/alarmStore';
 
-const authHeaders = () => ({ Authorization: `Bearer ${getAuthToken() || 'dev'}` });
+// No `|| 'dev'` fallback: AMS.Api validates tokens for real now, so a literal "Bearer dev" is just a
+// guaranteed 401 that hides the actual cause (no session).
+const authHeaders = () => ({ Authorization: `Bearer ${getAuthToken() ?? ''}` });
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 

@@ -29,6 +29,12 @@ interface AuthState {
   hasPermission: (key: string) => boolean;
 }
 
+// Refresh tokens are SINGLE-USE (auth-service rotates them on every /refresh). Two concurrent
+// refreshes therefore race: the first rotates the cookie, the second presents the now-spent token and
+// 401s, killing the session. That happens for real — App bootstrap and an apiFetch 401-retry can fire
+// at the same moment on a page load. Single-flight it: concurrent callers share one in-flight request.
+let refreshInFlight: Promise<boolean> | null = null;
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
   user: null,
@@ -61,22 +67,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   refresh: async () => {
-    try {
-      const { token } = await refreshRequest();
-      set({ accessToken: token, status: 'authenticated' });
-      if (!get().user) {
-        try {
-          const user = await meRequest(token);
-          set({ user });
-        } catch {
-          // A missing profile is non-fatal; token is still usable.
+    if (refreshInFlight) return refreshInFlight;
+
+    refreshInFlight = (async () => {
+      try {
+        const { token } = await refreshRequest();
+        set({ accessToken: token, status: 'authenticated' });
+        if (!get().user) {
+          try {
+            const user = await meRequest(token);
+            set({ user });
+          } catch {
+            // A missing profile is non-fatal; token is still usable.
+          }
         }
+        return true;
+      } catch {
+        set({ accessToken: null, user: null, status: 'unauthenticated' });
+        return false;
+      } finally {
+        refreshInFlight = null;
       }
-      return true;
-    } catch {
-      set({ accessToken: null, user: null, status: 'unauthenticated' });
-      return false;
-    }
+    })();
+
+    return refreshInFlight;
   },
 
   bootstrap: async () => {

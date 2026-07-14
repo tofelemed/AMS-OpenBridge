@@ -212,7 +212,7 @@ public class ShelveAlarmCommandHandler : IRequestHandler<ShelveAlarmCommand, She
 
     public async Task<ShelveAlarmResult> Handle(ShelveAlarmCommand request, CancellationToken ct)
     {
-        await _uow.BeginTransactionAsync(ct);
+        // No user-initiated transaction (NpgsqlRetryingExecutionStrategy forbids it); SaveChanges is atomic.
         try
         {
             var alarm = await _uow.ActiveAlarms.GetByIdAsync(request.AlarmId, ct);
@@ -225,7 +225,6 @@ public class ShelveAlarmCommandHandler : IRequestHandler<ShelveAlarmCommand, She
 
             await _uow.ActiveAlarms.UpdateAsync(alarm, ct);
             await _uow.SaveChangesAsync(ct);
-            await _uow.CommitTransactionAsync(ct);
 
             await _publisher.PublishAlarmUpdatedAsync(alarm, ct);
 
@@ -243,7 +242,6 @@ public class ShelveAlarmCommandHandler : IRequestHandler<ShelveAlarmCommand, She
         }
         catch (Exception ex)
         {
-            await _uow.RollbackTransactionAsync(ct);
             _logger.LogError(ex, "Failed to shelve alarm {AlarmId}", request.AlarmId);
             throw;
         }
@@ -281,7 +279,8 @@ public class SuppressAlarmCommandHandler : IRequestHandler<SuppressAlarmCommand,
 
     public async Task<SuppressAlarmResult> Handle(SuppressAlarmCommand request, CancellationToken ct)
     {
-        await _uow.BeginTransactionAsync(ct);
+        // No user-initiated transaction: the DbContext uses NpgsqlRetryingExecutionStrategy,
+        // which forbids manual BeginTransaction. A single SaveChangesAsync is already atomic + retriable.
         try
         {
             var alarm = await _uow.ActiveAlarms.GetByIdAsync(request.AlarmId, ct);
@@ -294,13 +293,11 @@ public class SuppressAlarmCommandHandler : IRequestHandler<SuppressAlarmCommand,
 
             await _uow.ActiveAlarms.UpdateAsync(alarm, ct);
             await _uow.SaveChangesAsync(ct);
-            await _uow.CommitTransactionAsync(ct);
             await _publisher.PublishAlarmUpdatedAsync(alarm, ct);
             return new SuppressAlarmResult(true, "Alarm suppressed successfully");
         }
         catch (Exception ex)
         {
-            await _uow.RollbackTransactionAsync(ct);
             _logger.LogError(ex, "Failed to suppress alarm {AlarmId}", request.AlarmId);
             throw;
         }
@@ -338,7 +335,7 @@ public class SetAlarmOutOfServiceCommandHandler : IRequestHandler<SetAlarmOutOfS
 
     public async Task<SetAlarmOutOfServiceResult> Handle(SetAlarmOutOfServiceCommand request, CancellationToken ct)
     {
-        await _uow.BeginTransactionAsync(ct);
+        // No user-initiated transaction (NpgsqlRetryingExecutionStrategy forbids it); SaveChanges is atomic.
         try
         {
             var alarm = await _uow.ActiveAlarms.GetByIdAsync(request.AlarmId, ct);
@@ -351,13 +348,11 @@ public class SetAlarmOutOfServiceCommandHandler : IRequestHandler<SetAlarmOutOfS
 
             await _uow.ActiveAlarms.UpdateAsync(alarm, ct);
             await _uow.SaveChangesAsync(ct);
-            await _uow.CommitTransactionAsync(ct);
             await _publisher.PublishAlarmUpdatedAsync(alarm, ct);
             return new SetAlarmOutOfServiceResult(true, "Alarm set out of service");
         }
         catch (Exception ex)
         {
-            await _uow.RollbackTransactionAsync(ct);
             _logger.LogError(ex, "Failed to set alarm {AlarmId} out of service", request.AlarmId);
             throw;
         }

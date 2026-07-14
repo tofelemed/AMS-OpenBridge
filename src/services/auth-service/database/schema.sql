@@ -104,7 +104,24 @@ INSERT INTO permissions (permission_key, description, category) VALUES
     ('soe.view',                'View sequence of events',       'soe'),
     ('analytics.view',          'View analytics / KPIs',         'analytics'),
     ('admin.users.edit',        'Create/edit/delete users',      'admin'),
-    ('admin.audit.view',        'View audit log',                'admin')
+    ('admin.audit.view',        'View audit log',                'admin'),
+    -- HMI displays (Phase K). view = open the published runtime viewer; edit = the Designer
+    -- (create/save/import/delete); publish = promote a draft to the live version.
+    ('display.view',            'View published HMI displays',   'display'),
+    ('display.edit',            'Create/edit HMI displays (Designer)', 'display'),
+    ('display.publish',         'Publish/unpublish HMI displays', 'display'),
+    -- Platform services. Every role needs the READ keys or the runtime viewer cannot bind live data:
+    -- a display resolves bindings (binding.resolve), reads the UNS catalog (asset.view) and pulls
+    -- history (historian.view). Only authors get the EDIT keys.
+    ('asset.view',              'Browse the UNS asset catalog',  'asset'),
+    ('asset.edit',              'Create/edit/delete UNS assets',  'asset'),
+    ('template.view',           'View/instantiate display templates', 'template'),
+    ('template.edit',           'Create/edit display templates', 'template'),
+    ('template.publish',        'Publish display templates',     'template'),
+    ('binding.resolve',         'Resolve UNS path+role → transport', 'binding'),
+    ('historian.view',          'Read history/trends/snapshots', 'historian'),
+    ('analysis.view',           'View analyses and executions',  'analysis'),
+    ('analysis.edit',           'Create/edit/run analyses',      'analysis')
 ON CONFLICT (permission_key) DO NOTHING;
 
 -- =============================================
@@ -115,25 +132,33 @@ INSERT INTO role_permissions (role_name, permission_key)
 SELECT 'Admin', permission_key FROM permissions
 ON CONFLICT DO NOTHING;
 
--- Engineer: all alarm.* + soe.view + analytics.view (no admin.*)
+-- Engineer: all alarm.* + soe.view + analytics.view + full authoring of displays, assets,
+-- templates and analyses (no admin.*)
 INSERT INTO role_permissions (role_name, permission_key)
 SELECT 'Engineer', permission_key FROM permissions
-WHERE category = 'alarm' OR permission_key IN ('soe.view', 'analytics.view')
+WHERE category IN ('alarm', 'display', 'asset', 'template', 'binding', 'historian', 'analysis')
+   OR permission_key IN ('soe.view', 'analytics.view')
 ON CONFLICT DO NOTHING;
 
--- Operator: core alarm operations + soe.view
+-- Operator: core alarm operations + soe.view + the published runtime viewer (no Designer).
+-- The read keys below are what a running display needs to show live data — remove them and the
+-- viewer renders an empty canvas.
 INSERT INTO role_permissions (role_name, permission_key)
 SELECT 'Operator', permission_key FROM permissions
 WHERE permission_key IN (
     'alarm.view', 'alarm.acknowledge', 'alarm.acknowledge_batch',
-    'alarm.shelve', 'alarm.unshelve', 'soe.view'
+    'alarm.shelve', 'alarm.unshelve', 'soe.view',
+    'display.view', 'asset.view', 'template.view', 'binding.resolve', 'historian.view', 'analysis.view'
 )
 ON CONFLICT DO NOTHING;
 
--- Viewer: read-only
+-- Viewer: read-only (published displays included; no Designer)
 INSERT INTO role_permissions (role_name, permission_key)
 SELECT 'Viewer', permission_key FROM permissions
-WHERE permission_key IN ('alarm.view', 'soe.view', 'analytics.view')
+WHERE permission_key IN (
+    'alarm.view', 'soe.view', 'analytics.view',
+    'display.view', 'asset.view', 'template.view', 'binding.resolve', 'historian.view', 'analysis.view'
+)
 ON CONFLICT DO NOTHING;
 
 -- NOTE: no seed users. Create the first admin with `npm run seed:admin`

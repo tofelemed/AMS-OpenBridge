@@ -1,4 +1,5 @@
 import type { LiveAlarm, LiveMetric } from '../store/mqttStore';
+import { apiFetch } from '../api/apiFetch';
 
 /** IoTDB alarm device prefix — must match IoTDBPersistenceJob.PATH_PREFIX. */
 export const IOTDB_ALARM_PREFIX = 'root.ams.site1.alarms.';
@@ -40,7 +41,7 @@ export function parseTimeseriesPaths(body: { values?: unknown[][] }): string[] {
 /** Discover unique IoTDB alarm device paths via Historian BFF /series. */
 export async function discoverIotdbDevicePaths(): Promise<string[]> {
   try {
-    const res = await fetch(`${HIST_URL}/series?prefix=${encodeURIComponent('root.ams.site1.alarms.**')}`);
+    const res = await apiFetch(`${HIST_URL}/series?prefix=${encodeURIComponent('root.ams.site1.alarms.**')}`);
     if (!res.ok) return [];
     const body = await res.json() as { values?: unknown[][] };
     const devices = new Set<string>();

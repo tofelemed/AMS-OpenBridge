@@ -18,12 +18,13 @@ export const OBC = {
   border: 'var(--normal-enabled-border-color, #bebebe)',
   borderFocus: 'var(--normal-focused-border-color, #4271b3)',
 
-  // ISA-101: color reserved for abnormal / priority states only
-  alarm: 'var(--alert-alarm-color, #e10019)',
-  warning: 'var(--alert-warning-color, #fe9413)',
-  caution: 'var(--alert-caution-color, #ffdb42)',
-  running: 'var(--alert-running-color, #008300)',
-  advisory: 'var(--selected-enabled-background-color, #2d548b)',
+  // ISA-101: color reserved for abnormal / priority states only.
+  // Phase H — single token source (designTokens.css); drives alarms (F) AND trend pens (C).
+  alarm: 'var(--ams-crit)',
+  warning: 'var(--ams-warn)',
+  caution: 'var(--ams-caut)',
+  running: 'var(--ams-run)',
+  advisory: 'var(--ams-advisory)',
 
   // Alarm container backgrounds (subtle fills)
   alarmBg: 'var(--alert-alarm-container-background-color, rgba(255,210,203,0.15))',

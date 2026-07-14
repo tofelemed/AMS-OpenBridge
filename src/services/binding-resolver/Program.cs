@@ -2,6 +2,8 @@ using StackExchange.Redis;
 using Traverse.BindingResolver.Models;
 using Traverse.BindingResolver.Services;
 
+using Traverse.Auth;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Redis ───────────────────────────────────────────────────────────────────
@@ -16,12 +18,24 @@ builder.Services.AddHttpClient("AssetModel", client =>
     var baseUrl = builder.Configuration["Services:AssetModel"] ?? "http://asset-model:5000";
     client.BaseAddress = new Uri(baseUrl);
     client.Timeout = TimeSpan.FromSeconds(5);
+    // asset-model now requires authorization. This call has no user context (it happens while resolving
+    // a binding), so it authenticates as a service principal with the shared internal key.
+    var serviceKey = builder.Configuration["Auth:ServiceKey"];
+    if (!string.IsNullOrEmpty(serviceKey))
+        client.DefaultRequestHeaders.Add(TraverseAuthExtensions.ServiceKeyHeader, serviceKey);
 });
 
 // ── Services ─────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<PathResolver>();
 
+// ── Auth (platform RBAC) ────────────────────────────────────────────────────
+// RS256 bearer validation against auth-service JWKS + a policy per permission key.
+// Internal callers (e.g. binding-resolver → asset-model) authenticate with X-Service-Key.
+builder.AddTraverseAuth();
+
 var app = builder.Build();
+
+app.UseTraverseAuth();
 
 // ── GET /health ─────────────────────────────────────────────────────────────
 app.MapGet("/health", async (IConnectionMultiplexer redis) =>
@@ -66,7 +80,7 @@ app.MapGet("/resolve", async (
     return binding.Resolved 
         ? Results.Ok(binding) 
         : Results.NotFound(binding);
-});
+}).RequireAuthorization("binding.resolve");
 
 // ── POST /resolve/batch ──────────────────────────────────────────────────────
 // Resolves multiple paths in a single request.
@@ -84,7 +98,7 @@ app.MapPost("/resolve/batch", async (
         request.Bindings.Select(b => resolver.ResolveAsync(b.Path, b.Roles)));
     
     return Results.Ok(new { bindings = results });
-});
+}).RequireAuthorization("binding.resolve");
 
 // ── GET /resolve/alias ───────────────────────────────────────────────────────
 // Resolves a legacy path to canonical path and then to bindings.
@@ -108,7 +122,7 @@ app.MapGet("/resolve/alias", async (
     
     var binding = await resolver.ResolveAsync(canonicalPath, roleList);
     return Results.Ok(new { legacyPath = legacy, canonicalPath, binding });
-});
+}).RequireAuthorization("binding.resolve");
 
 // ── GET /preview ─────────────────────────────────────────────────────────────
 // Preview binding resolution without hitting Asset Model (pattern-based only).
@@ -156,6 +170,6 @@ app.MapGet("/preview", (string path, PathResolver resolver) =>
                 : null
         }
     });
-});
+}).RequireAuthorization("binding.resolve");
 
 app.Run();

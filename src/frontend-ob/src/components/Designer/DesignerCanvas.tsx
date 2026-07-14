@@ -5,322 +5,230 @@ import { getDefaultSizeSync } from './symbolLibraryService';
 
 interface DesignerCanvasProps {
   items: CanvasItem[];
-  selectedId: string | null;
+  selectedIds: string[];
   mode: 'design' | 'preview';
   gridSize?: number;
   showGrid?: boolean;
   zoom?: number;
-  onSelectItem: (id: string | null) => void;
-  onUpdateItem: (id: string, updates: Partial<CanvasItem>) => void;
+  canvasWidth?: number;
+  canvasHeight?: number;
+  onSelect: (ids: string[]) => void;                 // replace selection
+  onToggleSelect: (id: string) => void;              // shift/ctrl-click
+  onUpdateItems: (updates: Array<{ id: string; changes: Partial<CanvasItem> }>) => void; // live (no history)
+  onCommit: () => void;                               // snapshot history (drag/resize end)
   onAddItem: (type: string, position: { x: number; y: number }) => void;
-  onDeleteItem?: (id: string) => void;
+  onDeleteSelected?: () => void;
+  onNudge?: (dx: number, dy: number) => void;         // arrow keys (commits)
+  onZoomBy?: (factor: number) => void;                // ctrl+wheel
 }
 
-// Get default size for a symbol type
-function getDefaultSize(type: string): { width: number; height: number } {
-  return getDefaultSizeSync(type);
-}
-
-// Snap to grid
-function snapToGrid(value: number, gridSize: number): number {
-  return Math.round(value / gridSize) * gridSize;
-}
+const snap = (v: number, g: number) => Math.round(v / g) * g;
 
 export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
-  items,
-  selectedId,
-  mode,
-  gridSize = 10,
-  showGrid = true,
-  zoom = 1,
-  onSelectItem,
-  onUpdateItem,
-  onAddItem,
-  onDeleteItem
+  items, selectedIds, mode, gridSize = 10, showGrid = true, zoom = 1,
+  canvasWidth = 1920, canvasHeight = 1080,
+  onSelect, onToggleSelect, onUpdateItems, onCommit, onAddItem, onDeleteSelected, onNudge, onZoomBy,
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
-  const [resizeHandle, setResizeHandle] = useState<string | null>(null);
-  const [dragStart, setDragStart] = useState<{ x: number; y: number; itemX: number; itemY: number }>({ x: 0, y: 0, itemX: 0, itemY: 0 });
-  const [resizeStart, setResizeStart] = useState<{ x: number; y: number; width: number; height: number; itemX: number; itemY: number }>({ x: 0, y: 0, width: 0, height: 0, itemX: 0, itemY: 0 });
-  const [selectionBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  
-  // Handle keyboard shortcuts
+  const [drag, setDrag] = useState<null | { sx: number; sy: number; starts: Map<string, { x: number; y: number }> }>(null);
+  const [resize, setResize] = useState<null | { handle: string; sx: number; sy: number; w: number; h: number; x: number; y: number; id: string }>(null);
+  const [rotate, setRotate] = useState<null | { id: string; cx: number; cy: number }>(null);
+  const [marquee, setMarquee] = useState<null | { x0: number; y0: number; x1: number; y1: number }>(null);
+  const [spaceDown, setSpaceDown] = useState(false);
+  const selected = new Set(selectedIds);
+  const primaryId = selectedIds[0] ?? null;
+
+  const groupMembers = useCallback((item: CanvasItem): string[] =>
+    item.groupId ? items.filter(i => i.groupId === item.groupId).map(i => i.id) : [item.id], [items]);
+
+  // ── keyboard: nudge / delete / esc / space-pan ─────────────────────────────
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (mode !== 'design' || !selectedId) return;
-      
-      const selectedItem = items.find(i => i.id === selectedId);
-      if (!selectedItem || selectedItem.locked) return;
-      
+    const down = (e: KeyboardEvent) => {
+      if (e.key === ' ') { setSpaceDown(true); return; }
+      if (mode !== 'design' || selectedIds.length === 0) return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       switch (e.key) {
-        case 'Delete':
-        case 'Backspace':
-          if (onDeleteItem) {
-            e.preventDefault();
-            onDeleteItem(selectedId);
-          }
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          onUpdateItem(selectedId, { position: { ...selectedItem.position, y: selectedItem.position.y - (e.shiftKey ? 10 : 1) } });
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          onUpdateItem(selectedId, { position: { ...selectedItem.position, y: selectedItem.position.y + (e.shiftKey ? 10 : 1) } });
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          onUpdateItem(selectedId, { position: { ...selectedItem.position, x: selectedItem.position.x - (e.shiftKey ? 10 : 1) } });
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          onUpdateItem(selectedId, { position: { ...selectedItem.position, x: selectedItem.position.x + (e.shiftKey ? 10 : 1) } });
-          break;
-        case 'Escape':
-          onSelectItem(null);
-          break;
+        case 'Delete': case 'Backspace': e.preventDefault(); onDeleteSelected?.(); break;
+        case 'ArrowUp':    e.preventDefault(); onNudge?.(0, -(e.shiftKey ? 10 : 1)); break;
+        case 'ArrowDown':  e.preventDefault(); onNudge?.(0,  (e.shiftKey ? 10 : 1)); break;
+        case 'ArrowLeft':  e.preventDefault(); onNudge?.(-(e.shiftKey ? 10 : 1), 0); break;
+        case 'ArrowRight': e.preventDefault(); onNudge?.( (e.shiftKey ? 10 : 1), 0); break;
+        case 'Escape': onSelect([]); break;
       }
     };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mode, selectedId, items, onUpdateItem, onDeleteItem, onSelectItem]);
-  
-  // Drop handler for adding new items
+    const up = (e: KeyboardEvent) => { if (e.key === ' ') setSpaceDown(false); };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
+  }, [mode, selectedIds, onDeleteSelected, onNudge, onSelect]);
+
+  const toCanvas = (e: { clientX: number; clientY: number }) => {
+    const r = canvasRef.current!.getBoundingClientRect();
+    return { x: (e.clientX - r.left) / zoom, y: (e.clientY - r.top) / zoom };
+  };
+
+  // ── drop new symbol ────────────────────────────────────────────────────────
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    const symbolType = e.dataTransfer.getData('application/symbol-type');
-    if (!symbolType || !canvasRef.current) return;
-    
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = snapToGrid((e.clientX - rect.left) / zoom, gridSize);
-    const y = snapToGrid((e.clientY - rect.top) / zoom, gridSize);
-    
-    const defaultSize = getDefaultSize(symbolType);
-    const centeredX = x - defaultSize.width / 2;
-    const centeredY = y - defaultSize.height / 2;
-    
-    onAddItem(symbolType, { x: centeredX, y: centeredY });
+    const t = e.dataTransfer.getData('application/symbol-type');
+    if (!t || !canvasRef.current) return;
+    const p = toCanvas(e);
+    const d = getDefaultSizeSync(t);
+    onAddItem(t, { x: snap(p.x - d.width / 2, gridSize), y: snap(p.y - d.height / 2, gridSize) });
   }, [zoom, gridSize, onAddItem]);
-  
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-  }, []);
-  
-  // Canvas click to deselect
-  const handleCanvasClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === canvasRef.current) {
-      onSelectItem(null);
-    }
-  }, [onSelectItem]);
-  
-  // Item mouse down for dragging
-  const handleItemMouseDown = useCallback((e: React.MouseEvent, item: CanvasItem) => {
+
+  // ── item mousedown (select + start drag) ───────────────────────────────────
+  const itemMouseDown = (e: React.MouseEvent, item: CanvasItem) => {
     if (mode !== 'design' || item.locked) return;
     e.stopPropagation();
-    
-    onSelectItem(item.id);
-    
+    const members = groupMembers(item);
+    if (e.shiftKey || e.ctrlKey || e.metaKey) { onToggleSelect(item.id); return; }
+    // if clicking an unselected item, select it (or its group)
+    let sel = selectedIds;
+    if (!selected.has(item.id)) { sel = members; onSelect(members); }
     if (e.button === 0) {
-      setIsDragging(true);
-      setDragStart({
-        x: e.clientX,
-        y: e.clientY,
-        itemX: item.position.x,
-        itemY: item.position.y
-      });
+      const starts = new Map<string, { x: number; y: number }>();
+      const ids = sel.length ? sel : members;
+      for (const id of ids) { const it = items.find(x => x.id === id); if (it) starts.set(id, { ...it.position }); }
+      setDrag({ sx: e.clientX, sy: e.clientY, starts });
     }
-  }, [mode, onSelectItem]);
-  
-  // Resize handle mouse down
-  const handleResizeMouseDown = useCallback((e: React.MouseEvent, item: CanvasItem, handle: string) => {
+  };
+
+  const resizeMouseDown = (e: React.MouseEvent, item: CanvasItem, handle: string) => {
     if (mode !== 'design' || item.locked) return;
     e.stopPropagation();
-    
-    setIsResizing(true);
-    setResizeHandle(handle);
-    setResizeStart({
-      x: e.clientX,
-      y: e.clientY,
-      width: item.size.width,
-      height: item.size.height,
-      itemX: item.position.x,
-      itemY: item.position.y
-    });
-  }, [mode]);
-  
-  // Mouse move for dragging/resizing
+    setResize({ handle, sx: e.clientX, sy: e.clientY, w: item.size.width, h: item.size.height, x: item.position.x, y: item.position.y, id: item.id });
+  };
+  const rotateMouseDown = (e: React.MouseEvent, item: CanvasItem) => {
+    if (mode !== 'design' || item.locked) return;
+    e.stopPropagation();
+    setRotate({ id: item.id, cx: item.position.x + item.size.width / 2, cy: item.position.y + item.size.height / 2 });
+  };
+
+  // ── canvas mousedown → marquee (empty area = canvas bg or grid layer) ──────
+  const canvasMouseDown = (e: React.MouseEvent) => {
+    const el = e.target as HTMLElement;
+    const onEmpty = el === canvasRef.current || el.classList.contains('designer-canvas__grid');
+    if (mode !== 'design' || !onEmpty || spaceDown) return;
+    const p = toCanvas(e);
+    setMarquee({ x0: p.x, y0: p.y, x1: p.x, y1: p.y });
+    if (!(e.shiftKey || e.ctrlKey)) onSelect([]);
+  };
+
+  // ── global move/up for drag / resize / rotate / marquee ────────────────────
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!selectedId) return;
-      
-      if (isDragging) {
-        const dx = (e.clientX - dragStart.x) / zoom;
-        const dy = (e.clientY - dragStart.y) / zoom;
-        
-        onUpdateItem(selectedId, {
-          position: {
-            x: snapToGrid(dragStart.itemX + dx, gridSize),
-            y: snapToGrid(dragStart.itemY + dy, gridSize)
-          }
-        });
-      }
-      
-      if (isResizing && resizeHandle) {
-        const dx = (e.clientX - resizeStart.x) / zoom;
-        const dy = (e.clientY - resizeStart.y) / zoom;
-        
-        let newWidth = resizeStart.width;
-        let newHeight = resizeStart.height;
-        let newX = resizeStart.itemX;
-        let newY = resizeStart.itemY;
-        
-        if (resizeHandle.includes('e')) newWidth = Math.max(20, resizeStart.width + dx);
-        if (resizeHandle.includes('w')) {
-          newWidth = Math.max(20, resizeStart.width - dx);
-          newX = resizeStart.itemX + dx;
-        }
-        if (resizeHandle.includes('s')) newHeight = Math.max(20, resizeStart.height + dy);
-        if (resizeHandle.includes('n')) {
-          newHeight = Math.max(20, resizeStart.height - dy);
-          newY = resizeStart.itemY + dy;
-        }
-        
-        onUpdateItem(selectedId, {
-          position: { x: snapToGrid(newX, gridSize), y: snapToGrid(newY, gridSize) },
-          size: { width: snapToGrid(newWidth, gridSize), height: snapToGrid(newHeight, gridSize) }
-        });
+    if (!drag && !resize && !rotate && !marquee) return;
+    const move = (e: MouseEvent) => {
+      if (drag) {
+        const dx = (e.clientX - drag.sx) / zoom, dy = (e.clientY - drag.sy) / zoom;
+        onUpdateItems([...drag.starts].map(([id, s]) => ({ id, changes: { position: { x: snap(s.x + dx, gridSize), y: snap(s.y + dy, gridSize) } } })));
+      } else if (resize) {
+        const dx = (e.clientX - resize.sx) / zoom, dy = (e.clientY - resize.sy) / zoom;
+        let w = resize.w, h = resize.h, x = resize.x, y = resize.y;
+        if (resize.handle.includes('e')) w = Math.max(20, resize.w + dx);
+        if (resize.handle.includes('w')) { w = Math.max(20, resize.w - dx); x = resize.x + dx; }
+        if (resize.handle.includes('s')) h = Math.max(20, resize.h + dy);
+        if (resize.handle.includes('n')) { h = Math.max(20, resize.h - dy); y = resize.y + dy; }
+        onUpdateItems([{ id: resize.id, changes: { position: { x: snap(x, gridSize), y: snap(y, gridSize) }, size: { width: snap(w, gridSize), height: snap(h, gridSize) } } }]);
+      } else if (rotate) {
+        const p = toCanvas(e);
+        const deg = Math.round((Math.atan2(p.y - rotate.cy, p.x - rotate.cx) * 180 / Math.PI + 90) / 5) * 5;
+        onUpdateItems([{ id: rotate.id, changes: { rotation: deg } }]);
+      } else if (marquee) {
+        const p = toCanvas(e);
+        setMarquee(m => m && { ...m, x1: p.x, y1: p.y });
       }
     };
-    
-    const handleMouseUp = () => {
-      setIsDragging(false);
-      setIsResizing(false);
-      setResizeHandle(null);
+    const up = () => {
+      if (marquee) {
+        const x = Math.min(marquee.x0, marquee.x1), y = Math.min(marquee.y0, marquee.y1);
+        const w = Math.abs(marquee.x1 - marquee.x0), h = Math.abs(marquee.y1 - marquee.y0);
+        if (w > 3 || h > 3) {
+          const hit = items.filter(it => it.position.x < x + w && it.position.x + it.size.width > x && it.position.y < y + h && it.position.y + it.size.height > y).map(it => it.id);
+          onSelect(hit);
+        }
+        setMarquee(null);
+      }
+      if (drag || resize || rotate) onCommit();
+      setDrag(null); setResize(null); setRotate(null);
     };
-    
-    if (isDragging || isResizing) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-      return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isDragging, isResizing, selectedId, dragStart, resizeStart, resizeHandle, zoom, gridSize, onUpdateItem]);
-  
-  // Sort items by z-index
-  const sortedItems = [...items].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
-  
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+  }, [drag, resize, rotate, marquee, zoom, gridSize, items, onUpdateItems, onCommit, onSelect]);
+
+  const onWheel = (e: React.WheelEvent) => {
+    if (e.ctrlKey && onZoomBy) { e.preventDefault(); onZoomBy(e.deltaY < 0 ? 1.1 : 0.9); }
+  };
+
+  const sorted = [...items].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+
   return (
-    <div className="designer-canvas-wrapper">
-      {/* Toolbar */}
+    <div className={`designer-canvas-wrapper${spaceDown ? ' designer-canvas-wrapper--pan' : ''}`} onWheel={onWheel}>
       {mode === 'design' && (
         <div className="designer-canvas-toolbar">
-          <div className="designer-canvas-toolbar__group">
-            <span className="designer-canvas-toolbar__label">Zoom:</span>
-            <span className="designer-canvas-toolbar__value">{Math.round(zoom * 100)}%</span>
-          </div>
-          <div className="designer-canvas-toolbar__group">
-            <span className="designer-canvas-toolbar__label">Grid:</span>
-            <span className="designer-canvas-toolbar__value">{gridSize}px</span>
-          </div>
-          <div className="designer-canvas-toolbar__group">
-            <span className="designer-canvas-toolbar__label">Items:</span>
-            <span className="designer-canvas-toolbar__value">{items.length}</span>
-          </div>
-          {selectedId && (
-            <div className="designer-canvas-toolbar__group">
-              <span className="designer-canvas-toolbar__selected">✓ Selected</span>
-            </div>
-          )}
+          <span className="designer-canvas-toolbar__value">Zoom {Math.round(zoom * 100)}%</span>
+          <span className="designer-canvas-toolbar__value">Grid {gridSize}px</span>
+          <span className="designer-canvas-toolbar__value">Items {items.length}</span>
+          {selectedIds.length > 0 && <span className="designer-canvas-toolbar__selected">✓ {selectedIds.length} selected</span>}
         </div>
       )}
-      
-      {/* Canvas */}
       <div
         ref={canvasRef}
-        className={`designer-canvas ${mode === 'preview' ? 'designer-canvas--preview' : ''} ${isDragging ? 'designer-canvas--dragging' : ''}`}
+        className={`designer-canvas ${mode === 'preview' ? 'designer-canvas--preview' : ''}${drag ? ' designer-canvas--dragging' : ''}`}
         style={{
+          width: canvasWidth, height: canvasHeight,
           backgroundSize: showGrid && mode === 'design' ? `${gridSize * zoom}px ${gridSize * zoom}px` : undefined,
-          transform: `scale(${zoom})`,
-          transformOrigin: 'top left',
+          transform: `scale(${zoom})`, transformOrigin: 'top left',
         }}
         onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onClick={handleCanvasClick}
+        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+        onMouseDown={canvasMouseDown}
       >
-        {/* Grid dots */}
-        {showGrid && mode === 'design' && (
-          <div className="designer-canvas__grid" />
-        )}
-        
-        {/* Render items */}
-        {sortedItems.map(item => {
-          const isSelected = selectedId === item.id;
-          
+        {showGrid && mode === 'design' && <div className="designer-canvas__grid" />}
+
+        {sorted.map(item => {
+          if (item.hidden && mode === 'design') return null;
+          const isSel = selected.has(item.id);
+          const isPrimary = item.id === primaryId && selectedIds.length === 1;
+          const tf = [
+            item.rotation ? `rotate(${item.rotation}deg)` : '',
+            item.flipH ? 'scaleX(-1)' : '', item.flipV ? 'scaleY(-1)' : '',
+          ].filter(Boolean).join(' ') || undefined;
           return (
             <div
               key={item.id}
-              className={`designer-canvas__item ${isSelected ? 'designer-canvas__item--selected' : ''} ${item.locked ? 'designer-canvas__item--locked' : ''}`}
-              style={{
-                left: item.position.x,
-                top: item.position.y,
-                width: item.size.width,
-                height: item.size.height,
-                transform: item.rotation ? `rotate(${item.rotation}deg)` : undefined,
-                zIndex: item.zIndex || 0,
-              }}
-              onMouseDown={(e) => handleItemMouseDown(e, item)}
+              className={`designer-canvas__item ${isSel ? 'designer-canvas__item--selected' : ''} ${item.locked ? 'designer-canvas__item--locked' : ''}`}
+              style={{ left: item.position.x, top: item.position.y, width: item.size.width, height: item.size.height, transform: tf, zIndex: item.zIndex || 0 }}
+              onMouseDown={(e) => itemMouseDown(e, item)}
             >
               <SymbolRenderer item={item} mode={mode} />
-              
-              {/* Selection handles */}
-              {isSelected && mode === 'design' && !item.locked && (
+              {isPrimary && mode === 'design' && !item.locked && (
                 <div className="designer-canvas__handles">
-                  <div className="designer-canvas__handle designer-canvas__handle--nw" onMouseDown={(e) => handleResizeMouseDown(e, item, 'nw')} />
-                  <div className="designer-canvas__handle designer-canvas__handle--n" onMouseDown={(e) => handleResizeMouseDown(e, item, 'n')} />
-                  <div className="designer-canvas__handle designer-canvas__handle--ne" onMouseDown={(e) => handleResizeMouseDown(e, item, 'ne')} />
-                  <div className="designer-canvas__handle designer-canvas__handle--e" onMouseDown={(e) => handleResizeMouseDown(e, item, 'e')} />
-                  <div className="designer-canvas__handle designer-canvas__handle--se" onMouseDown={(e) => handleResizeMouseDown(e, item, 'se')} />
-                  <div className="designer-canvas__handle designer-canvas__handle--s" onMouseDown={(e) => handleResizeMouseDown(e, item, 's')} />
-                  <div className="designer-canvas__handle designer-canvas__handle--sw" onMouseDown={(e) => handleResizeMouseDown(e, item, 'sw')} />
-                  <div className="designer-canvas__handle designer-canvas__handle--w" onMouseDown={(e) => handleResizeMouseDown(e, item, 'w')} />
+                  <div className="designer-canvas__rotate-handle" onMouseDown={(e) => rotateMouseDown(e, item)} title="Rotate" />
+                  {['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(h => (
+                    <div key={h} className={`designer-canvas__handle designer-canvas__handle--${h}`} onMouseDown={(e) => resizeMouseDown(e, item, h)} />
+                  ))}
                 </div>
               )}
-              
-              {/* Lock indicator */}
-              {item.locked && mode === 'design' && (
-                <div className="designer-canvas__lock-indicator">🔒</div>
-              )}
+              {item.locked && mode === 'design' && <div className="designer-canvas__lock-indicator">🔒</div>}
             </div>
           );
         })}
-        
-        {/* Selection box (for multi-select) */}
-        {selectionBox && (
-          <div
-            className="designer-canvas__selection-box"
-            style={{
-              left: selectionBox.x,
-              top: selectionBox.y,
-              width: selectionBox.width,
-              height: selectionBox.height
-            }}
-          />
+
+        {marquee && (
+          <div className="designer-canvas__selection-box" style={{
+            left: Math.min(marquee.x0, marquee.x1), top: Math.min(marquee.y0, marquee.y1),
+            width: Math.abs(marquee.x1 - marquee.x0), height: Math.abs(marquee.y1 - marquee.y0),
+          }} />
         )}
-        
-        {/* Empty state */}
+
         {items.length === 0 && mode === 'design' && (
           <div className="designer-canvas__empty">
             <div className="designer-canvas__empty-icon">🎨</div>
             <div className="designer-canvas__empty-title">Empty Canvas</div>
-            <div className="designer-canvas__empty-hint">
-              Drag components from the palette or double-click to add
-            </div>
+            <div className="designer-canvas__empty-hint">Drag components from the palette</div>
           </div>
         )}
       </div>

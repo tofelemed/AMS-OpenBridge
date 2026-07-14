@@ -7,6 +7,9 @@ import App from './App';
 // OpenBridge Design System - Global CSS (must be imported before any components)
 import '@oicl/openbridge-webcomponents/dist/openbridge.css';
 
+// Phase H — AMS design tokens (single source: alarm + trend colors, day/night palettes)
+import './components/Designer/designTokens.css';
+
 // Application-specific styles (extends OpenBridge tokens)
 import './styles/app.css';
 

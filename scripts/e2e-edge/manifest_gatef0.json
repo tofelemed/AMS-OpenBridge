@@ -1,0 +1,10 @@
+{
+  "runId": "gatef0",
+  "alarms": [
+    {
+      "alarmId": "E2E-gatef0-alarm-001",
+      "sourceName": "E2E.Unit1.Tag_001",
+      "iotdbPath": "root.ams.site1.alarms.E2E_gatef0_alarm_001"
+    }
+  ]
+}

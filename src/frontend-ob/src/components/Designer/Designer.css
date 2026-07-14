@@ -25,10 +25,10 @@
   --designer-accent-hover: var(--alert-advisory-fill-color, #60a5fa);
   
   /* ISA-18.2: Alarm colors (reserved for alarms only) */
-  --designer-alarm: var(--alert-alarm-border-color, #dc2626);
-  --designer-warning: var(--alert-warning-border-color, #f59e0b);
+  --designer-alarm: var(--alert-alarm-border-color, var(--ams-crit));
+  --designer-warning: var(--alert-warning-border-color, var(--ams-warn));
   --designer-caution: var(--alert-caution-border-color, #eab308);
-  --designer-running: var(--alert-running-border-color, #22c55e);
+  --designer-running: var(--alert-running-border-color, var(--ams-run));
   
   --designer-grid-color: rgba(148, 163, 184, 0.08);
   
@@ -1276,8 +1276,8 @@
 .symbol-digital__display {
   font-family: 'Digital-7', monospace;
   font-size: 28px;
-  color: #22c55e;
-  text-shadow: 0 0 10px #22c55e;
+  color: var(--ams-run);
+  text-shadow: 0 0 10px var(--ams-run);
 }
 
 /* Gauge */
@@ -1327,10 +1327,10 @@
   opacity: 0.3;
 }
 
-.symbol-bar__zone--hihi { background: #dc2626; top: 0; }
-.symbol-bar__zone--lolo { background: #dc2626; bottom: 0; }
-.symbol-bar__zone--hi { background: #f59e0b; }
-.symbol-bar__zone--lo { background: #f59e0b; }
+.symbol-bar__zone--hihi { background: var(--ams-crit); top: 0; }
+.symbol-bar__zone--lolo { background: var(--ams-crit); bottom: 0; }
+.symbol-bar__zone--hi { background: var(--ams-warn); }
+.symbol-bar__zone--lo { background: var(--ams-warn); }
 
 .symbol-bar__value {
   writing-mode: vertical-rl;
@@ -1363,7 +1363,7 @@
 }
 
 .symbol-status--on .symbol-status__indicator {
-  box-shadow: 0 0 8px #22c55e;
+  box-shadow: 0 0 8px var(--ams-run);
 }
 
 .symbol-status__label {
@@ -1389,9 +1389,9 @@
   opacity: 0.3;
 }
 
-.symbol-multistate__light--failure { background: #dc2626; }
-.symbol-multistate__light--warning { background: #f59e0b; }
-.symbol-multistate__light--good { background: #22c55e; }
+.symbol-multistate__light--failure { background: var(--ams-crit); }
+.symbol-multistate__light--warning { background: var(--ams-warn); }
+.symbol-multistate__light--good { background: var(--ams-run); }
 
 .symbol-multistate__light.active {
   opacity: 1;
@@ -1452,7 +1452,7 @@
 .symbol-heater--on,
 .symbol-cooler--on,
 .symbol-conveyor--running {
-  color: #22c55e;
+  color: var(--ams-run);
 }
 
 .symbol-equipment__label {
@@ -2342,6 +2342,117 @@
 .trend-chart__design-label { font-size: 13px; font-weight: 600; }
 .trend-chart__design-pens { font-size: 10px; opacity: .8; }
 
+/* ── Phase J: TrendCore (shared by the canvas symbol, the dialog and /trend) ─ */
+.trend-core { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0;
+  font-family: var(--ams-font); color: var(--ams-text); }
+.trend-core__legend {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px 14px;
+  padding: 5px 8px; border-bottom: 1px solid var(--ams-border);
+}
+.trend-core__pen { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.trend-core__swatch { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.trend-core__pen-label { color: var(--ams-text); }
+.trend-core__pen-value { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ams-text); }
+.trend-core__pen-unit { color: var(--ams-text-dim); }
+.trend-core__pen-x {
+  border: none; background: none; cursor: pointer; padding: 0 2px;
+  color: var(--ams-text-dim); font-size: 13px; line-height: 1;
+}
+.trend-core__pen-x:hover { color: var(--ams-crit); }
+.trend-core__pen-empty { font-size: 11px; color: var(--ams-text-dim); }
+.trend-core__canvas { flex: 1; min-height: 0; }
+.trend-core__bar {
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  padding: 4px 8px; border-top: 1px solid var(--ams-border);
+}
+.trend-core__rbtn {
+  font-size: 11px; line-height: 1; padding: 4px 8px; cursor: pointer;
+  color: var(--ams-text-dim); background: var(--ams-panel-bg);
+  border: 1px solid var(--ams-border); border-radius: 5px;
+}
+.trend-core__rbtn.active {
+  color: #fff; background: var(--selected-enabled-background-color, #2d548b);
+  border-color: var(--selected-enabled-background-color, #2d548b);
+}
+.trend-core__rbtn:disabled { opacity: .4; cursor: default; }
+.trend-core__sep { flex: 1; }
+.trend-core__clock { font-size: 10px; color: var(--ams-text-dim); font-variant-numeric: tabular-nums; }
+.trend-core__mode { font-size: 10px; font-weight: 700; letter-spacing: .5px; color: var(--ams-run); margin-left: auto; }
+
+/* Trend dialog (ad-hoc trend over the canvas) */
+.trend-dialog__backdrop {
+  position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, .45);
+}
+.trend-dialog {
+  display: flex; flex-direction: column; width: min(1100px, 92vw); height: min(620px, 86vh);
+  background: var(--ams-panel-bg); color: var(--ams-text);
+  border: 1px solid var(--ams-border); border-radius: 8px; box-shadow: 0 12px 40px rgba(0, 0, 0, .5);
+}
+.trend-dialog__head {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+  border-bottom: 1px solid var(--ams-border);
+}
+.trend-dialog__title { font-size: 13px; font-weight: 600; }
+.trend-dialog__spacer { flex: 1; }
+.trend-dialog__body { flex: 1; min-height: 0; }
+
+/* ── Phase K: published-HMI launcher + read-only affordances ─────────────── */
+.display-launcher { padding: 16px; font-family: var(--ams-font); color: var(--ams-text); }
+.display-launcher__head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+.display-launcher__title { font-size: 18px; font-weight: 600; margin: 0; }
+.display-launcher__count { font-size: 12px; color: var(--ams-text-dim); }
+.display-launcher__msg { padding: 16px; font-size: 13px; color: var(--ams-text-dim); }
+.display-launcher__grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px;
+}
+.display-launcher__card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  padding: 14px; cursor: pointer; text-align: left;
+  background: var(--ams-panel-bg); color: var(--ams-text);
+  border: 1px solid var(--ams-border); border-radius: 8px;
+}
+.display-launcher__card:hover { border-color: var(--ams-advisory); }
+.display-launcher__card-name { font-size: 14px; font-weight: 600; }
+.display-launcher__card-meta { font-size: 11px; color: var(--ams-text-dim); }
+.display-launcher__badge {
+  font-size: 10px; padding: 2px 6px; border-radius: 4px;
+  color: var(--ams-run); border: 1px solid var(--ams-run);
+}
+
+/* Phase L — publish state + actions in the designer header */
+.display-designer__publish { display: flex; align-items: center; gap: 6px; }
+.display-designer__version { font-size: 11px; color: var(--ams-text-dim); display: flex; align-items: center; gap: 6px; }
+.display-designer__badge--pub { color: var(--ams-run); font-weight: 600; }
+.display-designer__badge--unpub { color: var(--ams-text-dim); }
+.display-designer__badge--dirty {
+  padding: 1px 6px; border-radius: 4px; font-weight: 600;
+  color: var(--ams-warn); border: 1px solid var(--ams-warn);
+}
+.display-designer__publish-btn {
+  font-size: 11px; padding: 5px 9px; cursor: pointer; border-radius: 5px;
+  color: var(--ams-text); background: var(--ams-panel-bg); border: 1px solid var(--ams-border);
+}
+.display-designer__publish-btn:disabled { color: var(--ams-disabled); cursor: not-allowed; opacity: .6; }
+
+/* A surface a role may see but not act on (Operator/Viewer). */
+.is-readonly, [data-readonly='true'] {
+  color: var(--ams-disabled);
+  background: var(--ams-disabled-bg);
+  cursor: not-allowed;
+  pointer-events: none;
+  opacity: .7;
+}
+
+/* Full-page trend (/trend) */
+.trend-page { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 12px; gap: 8px; }
+.trend-page__head { display: flex; align-items: center; gap: 10px; }
+.trend-page__title { font-size: 15px; font-weight: 600; color: var(--ams-text); }
+.trend-page__chart {
+  flex: 1; min-height: 0;
+  background: var(--ams-panel-bg); border: 1px solid var(--ams-border); border-radius: 8px;
+}
+
 /* ── Phase D: navigation (breadcrumb + faceplate popup) ─────────────────── */
 .display-viewer__crumbs { display: flex; align-items: center; gap: 2px; overflow: hidden; }
 .display-viewer__crumb { display: inline-flex; align-items: center; gap: 2px; }
@@ -2372,3 +2483,77 @@
   border-bottom: 1px solid var(--normal-enabled-border-color, #334155);
 }
 .display-viewer__popup-frame { flex: 1; border: none; width: 100%; }
+.display-viewer__themes { display: inline-flex; gap: 2px; }
+.display-viewer__btn.active { background: var(--ams-advisory); color: #fff; border-color: var(--ams-advisory); }
+
+/* ── Phase I: PI Vision import ───────────────────────────────────────────── */
+.import-page { padding: 24px 28px; max-width: 1000px; color: var(--ams-text, #1f2937); }
+.import-page__title { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+.import-page__hint { color: var(--ams-text-dim, #6b7280); font-size: 13px; margin: 0 0 18px; }
+.import-page__drop {
+  display: flex; align-items: center; gap: 12px; padding: 22px; border-radius: 10px; cursor: pointer;
+  border: 2px dashed var(--ams-border, #d5dce6); background: var(--ams-panel-2, #eef2f7);
+}
+.import-page__error { margin-top: 12px; color: var(--ams-crit); font-size: 13px; }
+.import-page__result { margin-top: 18px; }
+.import-page__summary { display: flex; gap: 12px; align-items: baseline; margin-bottom: 12px; font-size: 14px; }
+.import-page__cols { display: grid; grid-template-columns: 220px 1fr; gap: 20px; }
+.import-page__cols h4 { margin: 0 0 8px; font-size: 13px; }
+.import-page__table td { padding: 2px 10px 2px 0; font-size: 12px; }
+.import-page__unmapped { max-height: 320px; overflow: auto; border: 1px solid var(--ams-border, #d5dce6); border-radius: 8px; }
+.import-page__unmapped-row { display: flex; align-items: center; gap: 8px; padding: 4px 10px; font-size: 12px; border-bottom: 1px solid var(--ams-border, #d5dce6); }
+.import-page__pill { background: var(--ams-warn); color: #000; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 700; }
+.import-page__ref { color: var(--ams-text-dim, #6b7280); margin-left: auto; }
+.import-page__actions { display: flex; gap: 10px; margin-top: 18px; }
+.import-page__save { background: var(--ams-advisory); color: #fff; border: none; border-radius: 8px; padding: 9px 18px; font-weight: 700; cursor: pointer; }
+.import-page__actions button { padding: 9px 16px; border-radius: 8px; cursor: pointer; }
+
+/* ── Phase F: alarms & dynamic behavior ─────────────────────────────────── */
+@keyframes symbol-fx-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.2; } }
+.symbol-fx--blink { animation: symbol-fx-blink 0.9s step-start infinite; }
+.symbol-alarm-beacon { width: 100%; height: 100%; display: flex; }
+.symbol-alarm-banner {
+  display: flex; align-items: center; gap: 8px; width: 100%; height: 100%; padding: 0 10px;
+  border: 2px solid; border-radius: 6px; font-weight: 700; font-size: 12px;
+  background: var(--container-background-color, #1f1f1f);
+}
+.symbol-alarm-banner__dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.symbol-alarm-banner__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.symbol-alarm-summary {
+  display: flex; flex-direction: column; justify-content: center; gap: 3px; width: 100%; height: 100%;
+  padding: 6px 12px; border-radius: 6px; font-size: 12px;
+  border: 1px solid var(--normal-enabled-border-color, #334155);
+  background: var(--container-background-color, #1f1f1f);
+}
+.symbol-alarm-summary__row { display: flex; justify-content: space-between; }
+.symbol-alarm-table {
+  width: 100%; height: 100%; overflow: auto; border-radius: 6px; font-size: 11px;
+  border: 1px solid var(--normal-enabled-border-color, #334155);
+  background: var(--container-background-color, #1f1f1f);
+}
+.symbol-alarm-table table { width: 100%; border-collapse: collapse; }
+.symbol-alarm-table th, .symbol-alarm-table td {
+  padding: 3px 6px; text-align: left; white-space: nowrap;
+  border-bottom: 1px solid var(--normal-enabled-border-color, #334155);
+}
+.symbol-alarm-table thead th { position: sticky; top: 0; background: var(--container-section-color, #262626); }
+
+/* ── Phase G: editor arrange ops + handles ──────────────────────────────── */
+.display-designer__ops { display: flex; align-items: center; gap: 2px; }
+.display-designer__ops button {
+  min-width: 26px; height: 26px; padding: 0 5px; font-size: 13px; cursor: pointer; border-radius: 5px;
+  border: 1px solid var(--normal-enabled-border-color, #334155);
+  background: var(--container-section-color, #1f2937);
+  color: var(--element-active-color, #e5e7eb);
+}
+.display-designer__ops button:disabled { opacity: .35; cursor: default; }
+.display-designer__ops button:hover:not(:disabled) { border-color: var(--normal-hover-border-color, #64748b); }
+.display-designer__ops-sep { width: 1px; height: 18px; background: var(--normal-enabled-border-color, #334155); margin: 0 3px; }
+.designer-canvas__rotate-handle {
+  position: absolute; left: 50%; top: -22px; width: 10px; height: 10px; margin-left: -5px; z-index: 20;
+  border-radius: 50%; cursor: grab; border: 2px solid #fff;
+  background: var(--selected-enabled-background-color, #2d548b);
+}
+.designer-canvas-wrapper--pan, .designer-canvas-wrapper--pan .designer-canvas { cursor: grab; }
+/* grid is a background layer — let empty-canvas clicks (marquee) pass through */
+.designer-canvas__grid { pointer-events: none; }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../../api/apiFetch';
 
 const T = {
   blue:          '#31598F',
@@ -40,7 +41,7 @@ export const SystemMonitor: React.FC = () => {
   useEffect(() => {
     const fetchHealth = async () => {
       try {
-        const res = await fetch('/api/v1/health/pipeline');
+        const res = await apiFetch('/api/v1/health/pipeline');
         if (res.ok) setPipelineHealth(await res.json() as PipelineHealth);
       } catch { /* silent */ }
     };

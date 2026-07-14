@@ -4,6 +4,8 @@ using System.Text.Json;
 using Traverse.AssetModel.Data;
 using Traverse.AssetModel.Models;
 
+using Traverse.Auth;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Database ────────────────────────────────────────────────────────────────
@@ -19,7 +21,14 @@ var redisPort = builder.Configuration.GetValue<int>("Redis:Port", 6379);
 builder.Services.AddSingleton<IConnectionMultiplexer>(
     ConnectionMultiplexer.Connect($"{redisHost}:{redisPort},abortConnect=false"));
 
+// ── Auth (platform RBAC) ────────────────────────────────────────────────────
+// RS256 bearer validation against auth-service JWKS + a policy per permission key.
+// Internal callers (e.g. binding-resolver → asset-model) authenticate with X-Service-Key.
+builder.AddTraverseAuth();
+
 var app = builder.Build();
+
+app.UseTraverseAuth();
 
 // ── GET /health ─────────────────────────────────────────────────────────────
 app.MapGet("/health", async (AssetDbContext db, IConnectionMultiplexer redis) =>
@@ -86,14 +95,14 @@ app.MapGet("/assets", async (
         .ToListAsync();
     
     return Results.Ok(new { total, skip, take = assets.Count, assets = assets.Select(AssetDto.From) });
-});
+}).RequireAuthorization("asset.view");
 
 // ── GET /assets/{id} ─────────────────────────────────────────────────────────
 app.MapGet("/assets/{id:guid}", async (Guid id, AssetDbContext db) =>
 {
     var asset = await db.Assets.FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
     return asset is null ? Results.NotFound() : Results.Ok(AssetDto.From(asset));
-});
+}).RequireAuthorization("asset.view");
 
 // ── GET /assets/by-path/{**path} ────────────────────────────────────────────
 // Resolve asset by contextual path.
@@ -101,7 +110,7 @@ app.MapGet("/assets/by-path/{**path}", async (string path, AssetDbContext db) =>
 {
     var asset = await db.Assets.FirstOrDefaultAsync(a => a.ContextualPath == path && !a.IsDeleted);
     return asset is null ? Results.NotFound() : Results.Ok(AssetDto.From(asset));
-});
+}).RequireAuthorization("asset.view");
 
 // ── POST /assets ─────────────────────────────────────────────────────────────
 app.MapPost("/assets", async (CreateAssetRequest request, AssetDbContext db, IConnectionMultiplexer redis) =>
@@ -134,7 +143,7 @@ app.MapPost("/assets", async (CreateAssetRequest request, AssetDbContext db, ICo
     await PublishAssetEvent(redis, "asset.created", asset);
     
     return Results.Created($"/assets/{asset.Id}", AssetDto.From(asset));
-});
+}).RequireAuthorization("asset.edit");
 
 // ── PUT /assets/{id} ─────────────────────────────────────────────────────────
 app.MapPut("/assets/{id:guid}", async (Guid id, UpdateAssetRequest request, AssetDbContext db, IConnectionMultiplexer redis) =>
@@ -155,7 +164,7 @@ app.MapPut("/assets/{id:guid}", async (Guid id, UpdateAssetRequest request, Asse
     await PublishAssetEvent(redis, "asset.updated", asset);
     
     return Results.Ok(AssetDto.From(asset));
-});
+}).RequireAuthorization("asset.edit");
 
 // ── DELETE /assets/{id} ──────────────────────────────────────────────────────
 app.MapDelete("/assets/{id:guid}", async (Guid id, AssetDbContext db, IConnectionMultiplexer redis) =>
@@ -171,7 +180,7 @@ app.MapDelete("/assets/{id:guid}", async (Guid id, AssetDbContext db, IConnectio
     await PublishAssetEvent(redis, "asset.deleted", asset);
     
     return Results.NoContent();
-});
+}).RequireAuthorization("asset.edit");
 
 // ── GET /assets/{id}/children ────────────────────────────────────────────────
 app.MapGet("/assets/{id:guid}/children", async (Guid id, AssetDbContext db) =>
@@ -183,7 +192,7 @@ app.MapGet("/assets/{id:guid}/children", async (Guid id, AssetDbContext db) =>
         .ToListAsync();
     
     return Results.Ok(children.Select(AssetDto.From));
-});
+}).RequireAuthorization("asset.view");
 
 // ── GET /assets/{id}/hierarchy ───────────────────────────────────────────────
 // Returns the full path from root to this asset.
@@ -201,7 +210,7 @@ app.MapGet("/assets/{id:guid}/hierarchy", async (Guid id, AssetDbContext db) =>
     }
     
     return Results.Ok(hierarchy.Select(AssetDto.From));
-});
+}).RequireAuthorization("asset.view");
 
 // ── Alias Mapping Endpoints ──────────────────────────────────────────────────
 
@@ -221,7 +230,7 @@ app.MapGet("/aliases/resolve", async (string legacy, string? source, AssetDbCont
     return asset is null 
         ? Results.Ok(new { canonicalPath = mapping.CanonicalPath, asset = (object?)null })
         : Results.Ok(new { canonicalPath = mapping.CanonicalPath, asset = AssetDto.From(asset) });
-});
+}).RequireAuthorization("asset.view");
 
 // POST /aliases
 app.MapPost("/aliases", async (CreateAliasRequest request, AssetDbContext db) =>
@@ -243,7 +252,7 @@ app.MapPost("/aliases", async (CreateAliasRequest request, AssetDbContext db) =>
     await db.SaveChangesAsync();
     
     return Results.Created($"/aliases/{alias.Id}", alias);
-});
+}).RequireAuthorization("asset.edit");
 
 app.Run();
 

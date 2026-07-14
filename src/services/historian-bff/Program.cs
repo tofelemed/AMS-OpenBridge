@@ -2,6 +2,8 @@ using AMS.HistorianBff;
 using StackExchange.Redis;
 using System.Text.Json;
 
+using Traverse.Auth;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Services ──────────────────────────────────────────────────────────────
@@ -13,7 +15,14 @@ var redisPort = builder.Configuration.GetValue<int>("Redis:Port", 6379);
 builder.Services.AddSingleton<IConnectionMultiplexer>(
     ConnectionMultiplexer.Connect($"{redisHost}:{redisPort},abortConnect=false"));
 
+// ── Auth (platform RBAC) ────────────────────────────────────────────────────
+// RS256 bearer validation against auth-service JWKS + a policy per permission key.
+// Internal callers (e.g. binding-resolver → asset-model) authenticate with X-Service-Key.
+builder.AddTraverseAuth();
+
 var app = builder.Build();
+
+app.UseTraverseAuth();
 
 // ── GET /health ─────────────────────────────────────────────────────────────
 // Returns JSON for Edge Node Monitor / observability (default MapHealthChecks writes plain text).
@@ -83,7 +92,7 @@ app.MapGet("/trend", async (
     var points = IoTDbClient.MapPoints(result);
 
     return Results.Ok(new { series, start, end, width, points });
-});
+}).RequireAuthorization("historian.view");
 
 // ── GET /raw ───────────────────────────────────────────────────────────────
 // Returns raw (non-decimated) records. maxCount capped at 10 000.
@@ -114,7 +123,7 @@ app.MapGet("/raw", async (
         hasMore = points.Count == maxCount,
         points,
     });
-});
+}).RequireAuthorization("historian.view");
 
 // ── GET /snapshot ──────────────────────────────────────────────────────────
 // Returns current metric values from Redis for one or more assets (device IDs).
@@ -181,7 +190,7 @@ app.MapGet("/snapshot", async (
     }
 
     return Results.Ok(new { assets = result });
-});
+}).RequireAuthorization("historian.view");
 
 // ── GET /series ────────────────────────────────────────────────────────────
 // Lists available time-series paths (for UI auto-complete).
@@ -196,6 +205,6 @@ app.MapGet("/series", async (
     var sql    = $"SHOW TIMESERIES {path}";
     var result = await iotdb.QueryAsync(sql, ct);
     return Results.Ok(result);
-});
+}).RequireAuthorization("historian.view");
 
 app.Run();

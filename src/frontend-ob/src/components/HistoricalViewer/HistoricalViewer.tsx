@@ -91,16 +91,20 @@ const HistoricalViewer: React.FC = () => {
 
   const onGridReady = useCallback((e: GridReadyEvent) => { e.api.sizeColumnsToFit(); }, []);
 
-  const handleExport = () => {
+  // A browser download can't set an Authorization header, so the stream endpoints take the token as
+  // ?access_token= (the same query-param path SignalR uses; AMS.Api reads it in OnMessageReceived).
+  const exportRange = () => {
     const from = dateRange[0]?.toISOString() ?? new Date(Date.now() - 86400000).toISOString();
     const to   = dateRange[1]?.toISOString() ?? new Date().toISOString();
-    window.open(`/api/v1/alarms/historical/stream?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, '_blank');
+    return `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&access_token=${encodeURIComponent(getAuthToken() ?? '')}`;
+  };
+
+  const handleExport = () => {
+    window.open(`/api/v1/alarms/historical/stream?${exportRange()}`, '_blank');
   };
 
   const handleExportTransitions = () => {
-    const from = dateRange[0]?.toISOString() ?? new Date(Date.now() - 86400000).toISOString();
-    const to   = dateRange[1]?.toISOString() ?? new Date().toISOString();
-    window.open(`/api/v1/alarms/transitions/stream?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, '_blank');
+    window.open(`/api/v1/alarms/transitions/stream?${exportRange()}`, '_blank');
   };
 
   const totalCount = data?.totalCount ?? 0;

@@ -1,3 +1,4 @@
+import { apiFetch } from './apiFetch';
 export interface BffHealth {
   status: string;
   iotdb:  string;
@@ -7,7 +8,7 @@ export interface BffHealth {
 
 /** Fetch historian-bff /health — supports JSON and legacy plain-text responses. */
 export async function fetchHistorianBffHealth(): Promise<BffHealth> {
-  const res = await fetch('/api/hist/health');
+  const res = await apiFetch('/api/hist/health');
 
   const contentType = res.headers.get('content-type') ?? '';
   let body: BffHealth;

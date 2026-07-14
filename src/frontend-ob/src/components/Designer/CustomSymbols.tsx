@@ -190,6 +190,22 @@ export function renderCustomSymbol(type: string, ctx: CustomSymbolContext): Reac
       );
 
     // ─── Shapes ───────────────────────────────────────────────────────────
+    case 'shape.label':
+      return (
+        <div
+          className="symbol symbol-custom symbol-text"
+          style={{
+            display: 'flex', alignItems: 'center', width: '100%', height: '100%', overflow: 'hidden',
+            whiteSpace: 'nowrap', fontFamily: 'var(--ams-font)',
+            fontSize: (item.style?.fontSize as number) || 13,
+            color: (item.style?.stroke as string) && item.style?.stroke !== 'none'
+              ? (item.style?.stroke as string) : 'var(--ams-text, #e5e7eb)',
+          }}
+        >
+          {item.label || ''}
+        </div>
+      );
+
     case 'shape.rect':
       return (
         <div className="symbol symbol-custom symbol-shape">
@@ -371,7 +387,7 @@ export const CUSTOM_SYMBOL_TYPES = new Set([
   'ind.gauge', 'ind.multistate', 'ind.digital', 'ind.setpoint',
   'equip.heater', 'equip.cooler', 'equip.conveyor', 'equip.agitator',
   'pipe.reducer',
-  'shape.rect', 'shape.circle', 'shape.line', 'shape.divider',
+  'shape.rect', 'shape.circle', 'shape.line', 'shape.divider', 'shape.label',
   'ctrl.selector',
   'alarm.beacon', 'alarm.horn', 'alarm.summary',
   'chart.bar', 'chart.xy', 'chart.pie',

@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using Prometheus;
 using Serilog;
 
+using Traverse.Auth;
+
 var builder = WebApplication.CreateBuilder(args);
 
 Log.Logger = new LoggerConfiguration()
@@ -35,6 +37,9 @@ builder.Services.AddHostedService<WormArchiveWriter>();
 // Add basic healthcheck and metrics API
 builder.Services.AddHealthChecks();
 
+// ── Auth (platform RBAC) ────────────────────────────────────────────────────
+builder.AddTraverseAuth();
+
 var app = builder.Build();
 
 // Run migrations on startup
@@ -45,6 +50,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseRouting();
+app.UseTraverseAuth();
 app.UseHttpMetrics();
 
 app.MapMetrics();
@@ -55,6 +61,6 @@ app.MapPost("/api/v1/audit/verify", async (ChainIntegrityVerifier verifier, Canc
 {
     var isValid = await verifier.VerifyFullChainAsync(ct);
     return isValid ? Results.Ok("Chain verified. No tampering detected.") : Results.Problem("CHAIN TAMPERING DETECTED.");
-});
+}).RequireAuthorization("admin.audit.view");
 
 app.Run();

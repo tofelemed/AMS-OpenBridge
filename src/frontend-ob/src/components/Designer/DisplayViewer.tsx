@@ -10,7 +10,10 @@ import { useQuery } from '@tanstack/react-query';
 import type { CanvasItem, NavigationLink } from './types';
 import { SymbolRenderer } from './SymbolRenderer';
 import { useMqttStore } from '../../store/mqttStore';
+import { pensFromItems } from './TrendChart';
+import TrendDialog from './TrendDialog';
 import './Designer.css';
+import { apiFetch } from '../../api/apiFetch';
 
 const API_BASE = import.meta.env.VITE_DISPLAY_SERVICE_URL || '/api/displays';
 
@@ -23,8 +26,11 @@ interface ViewerContent {
 }
 
 async function fetchViewerContent(id: string): Promise<ViewerContent> {
-  // No version param → service returns the current (published-or-draft) version.
-  const res = await fetch(`${API_BASE}/${id}/content`);
+  // Phase L — the runtime serves the PUBLISHED version, never the draft. Without `stage=published`
+  // this endpoint falls back to the latest draft, which is what used to make every designer save go
+  // live instantly. A display that has never been published 404s here (nothing to run yet).
+  const res = await apiFetch(`${API_BASE}/${id}/content?stage=published`);
+  if (res.status === 404) throw new Error('This display has no published version yet.');
   if (!res.ok) throw new Error(`Failed to load display (${res.status})`);
   const json = await res.json();
   const snapshot = json.snapshot ?? json.content ?? {};
@@ -80,9 +86,14 @@ export const DisplayViewer: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [trail, setTrail] = useState<Crumb[]>(() => readTrail());
   const [popup, setPopup] = useState<{ id: string; asset?: string } | null>(null);
+  const [trendOpen, setTrendOpen] = useState(false); // Phase J — ad-hoc trend
   // Asset-relative swap: the currently selected element (device path) bound to {{element}}.
   const [element, setElement] = useState<string | undefined>(assetContext);
   useEffect(() => { if (assetContext) setElement(assetContext); }, [assetContext]);
+  // Phase H — kiosk day/night: drives data-obc-theme, which re-colors OpenBridge + AMS tokens.
+  const [theme, setThemeState] = useState<string>(() =>
+    (typeof document !== 'undefined' ? document.documentElement.getAttribute('data-obc-theme') || 'day' : 'day'));
+  const applyTheme = (t: string) => { document.documentElement.setAttribute('data-obc-theme', t); setThemeState(t); };
 
   // Open a navigation link from a clicked symbol.
   const handleNav = (link: NavigationLink) => {
@@ -110,6 +121,9 @@ export const DisplayViewer: React.FC = () => {
     queryFn: () => fetchViewerContent(id!),
     enabled: !!id,
     refetchInterval: refreshMs || false,
+    // "Not published" is a terminal answer, not a transient failure — retrying it just leaves the
+    // operator staring at "Loading…" instead of telling them why the display is blank.
+    retry: (count, err) => !/no published version/i.test((err as Error).message) && count < 2,
   });
 
   // Maintain the breadcrumb trail: append on forward-nav, trim when returning to a prior crumb.
@@ -137,7 +151,7 @@ export const DisplayViewer: React.FC = () => {
   const { data: candidates } = useQuery({
     queryKey: ['swap-candidates', swapPrefix],
     queryFn: async () => {
-      const res = await fetch('/api/assets?type=4');
+      const res = await apiFetch('/api/assets?type=4');
       if (!res.ok) return [] as { contextualPath: string; name: string }[];
       const j = await res.json();
       const all = (j.assets ?? []) as { contextualPath: string; name: string }[];
@@ -149,6 +163,10 @@ export const DisplayViewer: React.FC = () => {
     () => (element ? items.map(i => (isAssetRelative(i) ? substituteElement(i, element) : i)) : items),
     [items, element],
   );
+
+  // Phase J — pens = the display's bound tags (asset-relative paths already substituted). Capped at
+  // 6, the pen-token palette size.
+  const viewerPens = useMemo(() => pensFromItems(resolvedItems).slice(0, 6), [resolvedItems]);
 
   const toggleFullscreen = async () => {
     const el = rootRef.current;
@@ -170,7 +188,17 @@ export const DisplayViewer: React.FC = () => {
 
   if (!id) return <div className="display-viewer__msg">No display id.</div>;
   if (isLoading) return <div className="display-viewer__msg">Loading display…</div>;
-  if (error || !data) return <div className="display-viewer__msg">Failed to load display.</div>;
+  // Surface the real reason: an unpublished display isn't a failure, it just has nothing to run yet.
+  if (error || !data) {
+    const msg = (error as Error | null)?.message;
+    return (
+      <div className="display-viewer__msg" data-testid="viewer-error">
+        {msg && /no published version/i.test(msg)
+          ? 'This display has no published version yet. An engineer must publish it before it can run.'
+          : 'Failed to load display.'}
+      </div>
+    );
+  }
 
   return (
     <div className="display-viewer" ref={rootRef} data-asset={assetContext}>
@@ -193,6 +221,19 @@ export const DisplayViewer: React.FC = () => {
           ))}
         </nav>
         <span className="display-viewer__spacer" />
+        {/* Phase J — ad-hoc trend of this display's bound tags (Operators/Viewers may trend). */}
+        <button
+          className="display-viewer__btn"
+          data-testid="viewer-trend"
+          disabled={viewerPens.length === 0}
+          onClick={() => setTrendOpen(true)}
+          title={viewerPens.length ? `Trend ${viewerPens.length} tag(s) on this display` : 'No bound tags'}
+        >📈 Trend</button>
+        <div className="display-viewer__themes">
+          {(['day', 'night'] as const).map(t => (
+            <button key={t} className={`display-viewer__btn${theme === t ? ' active' : ''}`} onClick={() => applyTheme(t)}>{t}</button>
+          ))}
+        </div>
         {hasAssetRelative && (
           <label className="display-viewer__refresh">
             Asset
@@ -267,6 +308,9 @@ export const DisplayViewer: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Phase J — ad-hoc trend from the published runtime (Operators/Viewers may trend) */}
+      {trendOpen && <TrendDialog pens={viewerPens} onClose={() => setTrendOpen(false)} />}
     </div>
   );
 };

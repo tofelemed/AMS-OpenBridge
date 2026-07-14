@@ -28,6 +28,11 @@ const DisplayList      = React.lazy(() => import('./components/Designer/DisplayL
 const DesignerPage     = React.lazy(() => import('./components/Designer/DesignerPage'));
 // Standalone runtime viewer (Phase B) — rendered chrome-free, outside the AppShell.
 const DisplayViewer    = React.lazy(() => import('./components/Designer/DisplayViewer'));
+const ImportPage       = React.lazy(() => import('./components/Designer/ImportPage'));
+// Dedicated trend view (Phase J) — deep-linkable /trend?tags=a,b,c
+const TrendPage        = React.lazy(() => import('./components/Designer/TrendPage'));
+// Published-HMI launcher (Phase K) — the Operator/Viewer entry point into the runtime viewer.
+const DisplayLauncher  = React.lazy(() => import('./components/Designer/DisplayLauncher'));
 // Login (Phase auth) — standalone, outside the AppShell.
 const Login            = React.lazy(() => import('./components/Login/Login'));
 
@@ -36,8 +41,8 @@ import { LiveEventStream } from './components/shared/LiveEventStream';
 import { FloodAlertBanner } from './components/shared/FloodAlertBanner';
 import { LiveEventsContext } from './context/LiveEventsContext';
 
-// Theme Context — Day and Bright only
-type Theme = 'day' | 'bright';
+// Theme Context — Day, Bright, Night (Phase H: night = control-room high-contrast)
+type Theme = 'day' | 'bright' | 'night';
 const ThemeContext = createContext<{
   theme: Theme;
   setTheme: (t: Theme) => void;
@@ -148,13 +153,18 @@ const App: React.FC = () => {
                 </React.Suspense>
               }
             />
-            {/* Standalone runtime viewer — no sidebar/topbar (kiosk-capable) */}
+            {/* Standalone runtime viewer — no sidebar/topbar, but NOT anonymous: Phase K requires a
+                session (display-service now enforces display.view on reads). */}
             <Route
               path="/display/:id"
               element={
-                <React.Suspense fallback={<LoadingScreen />}>
-                  <DisplayViewer />
-                </React.Suspense>
+                <RequireAuth>
+                  <RequirePermission permission="display.view">
+                    <React.Suspense fallback={<LoadingScreen />}>
+                      <DisplayViewer />
+                    </React.Suspense>
+                  </RequirePermission>
+                </RequireAuth>
               }
             />
             {/* Everything else runs inside the app shell (auth-gated) */}
@@ -166,24 +176,33 @@ const App: React.FC = () => {
                   <React.Suspense fallback={<LoadingScreen />}>
                     <Routes>
                       <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                      {/* EVERY route carries the permission its APIs require, so a direct URL can never
+                          render a page the role's token would only get 401/403 from. The service is still
+                          the boundary that actually holds — this just stops us rendering a dead page. */}
                       {/* Live Operations */}
-                      <Route path="/dashboard"    element={<Dashboard />} />
-                      <Route path="/alarms"       element={<AlarmConsole />} />
-                      <Route path="/live-events"  element={<LiveEventsPage />} />
-                      <Route path="/soe"          element={<SoePanel />} />
+                      <Route path="/dashboard"    element={<RequirePermission permission="alarm.view"><Dashboard /></RequirePermission>} />
+                      <Route path="/alarms"       element={<RequirePermission permission="alarm.view"><AlarmConsole /></RequirePermission>} />
+                      <Route path="/live-events"  element={<RequirePermission permission="alarm.view"><LiveEventsPage /></RequirePermission>} />
+                      <Route path="/soe"          element={<RequirePermission permission="soe.view"><SoePanel /></RequirePermission>} />
                       {/* Historical */}
-                      <Route path="/historical" element={<HistoricalViewer />} />
-                      <Route path="/trend"      element={<IoTDBTrendViewer />} />
+                      <Route path="/historical"   element={<RequirePermission permission="alarm.view"><HistoricalViewer /></RequirePermission>} />
+                      {/* Legacy IoTDB explorer — moved off /trend, which is now the Phase J trend view */}
+                      <Route path="/iotdb-trend"  element={<RequirePermission permission="historian.view"><IoTDBTrendViewer /></RequirePermission>} />
                       {/* Analysis */}
-                      <Route path="/analytics"  element={<Analytics />} />
-                      {/* HMI Designer (Phase 2) */}
-                      <Route path="/designer"       element={<DisplayList />} />
-                      <Route path="/designer/:id"   element={<DesignerPage />} />
+                      <Route path="/analytics"    element={<RequirePermission permission="analytics.view"><Analytics /></RequirePermission>} />
+                      {/* Published-HMI launcher — every role with display.view */}
+                      <Route path="/displays"       element={<RequirePermission permission="display.view"><DisplayLauncher /></RequirePermission>} />
+                      {/* HMI Designer — authoring, Admin/Engineer only */}
+                      <Route path="/designer"       element={<RequirePermission permission="display.edit"><DisplayList /></RequirePermission>} />
+                      <Route path="/designer/import" element={<RequirePermission permission="display.edit"><ImportPage /></RequirePermission>} />
+                      <Route path="/designer/:id"   element={<RequirePermission permission="display.edit"><DesignerPage /></RequirePermission>} />
+                      {/* Dedicated trend view (Phase J) — needs history + binding resolution */}
+                      <Route path="/trend"          element={<RequirePermission permission="historian.view"><TrendPage /></RequirePermission>} />
                       {/* Infrastructure */}
-                      <Route path="/system"     element={<SystemMonitor />} />
-                      <Route path="/edge"       element={<EdgeNodeMonitor />} />
-                      {/* Administration */}
-                      <Route path="/admin/*"    element={<Administration />} />
+                      <Route path="/system"     element={<RequirePermission permission="historian.view"><SystemMonitor /></RequirePermission>} />
+                      <Route path="/edge"       element={<RequirePermission permission="historian.view"><EdgeNodeMonitor /></RequirePermission>} />
+                      {/* Administration — was reachable by ANY authenticated user via direct URL */}
+                      <Route path="/admin/*"    element={<RequirePermission permission="admin.users.edit"><Administration /></RequirePermission>} />
                       <Route path="*"           element={<Navigate to="/dashboard" replace />} />
                     </Routes>
                   </React.Suspense>
@@ -310,7 +329,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               background: TB.bg, border: `1px solid ${TB.border}`,
               borderRadius: TB.radiusSm, padding: '3px', gap: '2px',
             }}>
-              {(['day', 'bright'] as Theme[]).map(t => (
+              {(['day', 'bright', 'night'] as Theme[]).map(t => (
                 <button
                   key={t}
                   type="button"
@@ -426,27 +445,31 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 // Navigation items — grouped by data source and function
 const navItems = [
   // ── Live Operations (SignalR + MQTT real-time) ──────────────
-  { path: '/dashboard',    label: 'Dashboard',          icon: '📊', group: 'Live Operations',  badge: undefined as string | undefined },
-  { path: '/alarms',       label: 'Active Alarms',       icon: '🔔', group: 'Live Operations',  badge: 'alarms' },
-  { path: '/live-events',  label: 'Live Events',         icon: '📡', group: 'Live Operations' },
-  { path: '/soe',          label: 'Sequence of Events',  icon: '⏱',  group: 'Live Operations' },
+  // `permission` must match the route guard for the same path (see the Routes block) — a nav entry that
+  // is visible but redirects on click is worse than no entry at all.
+  { path: '/dashboard',    label: 'Dashboard',          icon: '📊', group: 'Live Operations',  badge: undefined as string | undefined, permission: 'alarm.view' },
+  { path: '/alarms',       label: 'Active Alarms',       icon: '🔔', group: 'Live Operations',  badge: 'alarms', permission: 'alarm.view' },
+  { path: '/live-events',  label: 'Live Events',         icon: '📡', group: 'Live Operations', permission: 'alarm.view' },
+  { path: '/soe',          label: 'Sequence of Events',  icon: '⏱',  group: 'Live Operations', permission: 'soe.view' },
   // ── Historical (PostgreSQL + IoTDB) ───────────────────────
-  { path: '/historical', label: 'Alarm History',       icon: '📜', group: 'Historical' },
-  { path: '/trend',      label: 'IoTDB Trend Viewer',  icon: '📈', group: 'Historical' },
+  { path: '/historical', label: 'Alarm History',       icon: '📜', group: 'Historical', permission: 'alarm.view' },
+  { path: '/trend',       label: 'Trend',               icon: '📈', group: 'Historical', permission: 'historian.view' },
+  { path: '/iotdb-trend', label: 'IoTDB Trend Viewer',  icon: '🗄', group: 'Historical', permission: 'historian.view' },
   // ── Analysis ──────────────────────────────────────────────
-  { path: '/analytics',  label: 'Analytics',           icon: '🔬', group: 'Analysis' },
-  // ── HMI Designer (Phase 2) ────────────────────────────────
-  { path: '/designer',   label: 'HMI Designer',        icon: '🎨', group: 'Design' },
+  { path: '/analytics',  label: 'Analytics',           icon: '🔬', group: 'Analysis', permission: 'analytics.view' },
+  // ── HMI displays (runtime for everyone, Designer for authors) ──
+  { path: '/displays',   label: 'HMI Displays',        icon: '🖥', group: 'Design', permission: 'display.view' },
+  { path: '/designer',   label: 'HMI Designer',        icon: '🎨', group: 'Design', permission: 'display.edit' },
   // ── Infrastructure (edge + system monitoring) ─────────────
-  { path: '/system',     label: 'System Monitor',      icon: '⚙',  group: 'Infrastructure' },
-  { path: '/edge',       label: 'Edge Node Monitor',   icon: '⬡',  group: 'Infrastructure' },
-  // ── Administration ────────────────────────────────────────
+  { path: '/system',     label: 'System Monitor',      icon: '⚙',  group: 'Infrastructure', permission: 'historian.view' },
+  { path: '/edge',       label: 'Edge Node Monitor',   icon: '⬡',  group: 'Infrastructure', permission: 'historian.view' },
+  // ── Administration (admin only — the whole section, not just User Management) ──
   { path: '/admin/users',         label: 'User Management',  icon: '👤', group: 'Administration', permission: 'admin.users.edit' },
-  { path: '/admin/alarm-feed',    label: 'Alarm Feed',       icon: '📡', group: 'Administration' },
-  { path: '/admin/alarm-rules',   label: 'Alarm Rules',      icon: '📋', group: 'Administration' },
-  { path: '/admin/notifications', label: 'Notifications',    icon: '🔔', group: 'Administration' },
-  { path: '/admin/audit',         label: 'Audit Log',        icon: '📒', group: 'Administration' },
-  { path: '/admin/system',        label: 'System Settings',  icon: '🔧', group: 'Administration' },
+  { path: '/admin/alarm-feed',    label: 'Alarm Feed',       icon: '📡', group: 'Administration', permission: 'admin.users.edit' },
+  { path: '/admin/alarm-rules',   label: 'Alarm Rules',      icon: '📋', group: 'Administration', permission: 'admin.users.edit' },
+  { path: '/admin/notifications', label: 'Notifications',    icon: '🔔', group: 'Administration', permission: 'admin.users.edit' },
+  { path: '/admin/audit',         label: 'Audit Log',        icon: '📒', group: 'Administration', permission: 'admin.audit.view' },
+  { path: '/admin/system',        label: 'System Settings',  icon: '🔧', group: 'Administration', permission: 'admin.users.edit' },
 ];
 
 const Sidebar: React.FC<{ unackedCount: number }> = ({ unackedCount }) => {
@@ -495,6 +518,31 @@ const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }
   if (status !== 'authenticated') {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+  return <>{children}</>;
+};
+
+// Phase K — route-level authorization. Authentication alone is not enough: an Operator who types a
+// Designer URL must be REDIRECTED, not shown a partially-rendered editor. (Note this also closes the
+// pre-existing gap where /admin/users was merely hidden from the nav but still directly reachable.)
+export const RequirePermission: React.FC<{ permission: string; children: React.ReactNode }> = ({
+  permission,
+  children,
+}) => {
+  const hasPermission = useAuthStore(s => s.hasPermission);
+  const location = useLocation();
+  if (!hasPermission(permission)) {
+    // Land somewhere the role CAN use — the published-display launcher. If they can't use that either,
+    // say so rather than bouncing between two forbidden routes forever.
+    if (!hasPermission('display.view') || location.pathname === '/displays') {
+      return (
+        <div className="app-forbidden" data-testid="forbidden">
+          <h2>Not authorized</h2>
+          <p>Your role does not have the <code>{permission}</code> permission.</p>
+        </div>
+      );
+    }
+    return <Navigate to="/displays" replace />;
   }
   return <>{children}</>;
 };

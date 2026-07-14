@@ -427,6 +427,11 @@ services:
       ASPNETCORE_HTTP_PORTS:    "8000"
       Urls:                     http://0.0.0.0:8000
       ConnectionStrings__AmsDb: Host=postgres;Port=5432;Database=ams;Username=ams_user;Password=${POSTGRES_PASSWORD:-supersecurepassword123}
+      # Phase K — RBAC: real bearer auth (replaces the TestAuthHandler bypass).
+      Auth__JwksUrl:            http://auth-service:3002/api/auth/.well-known/jwks.json
+      Auth__Issuer:             traverse-auth
+      Auth__Audience:           ams-services
+      Security__DisableApiAuthorization: "false"
       Kafka__BootstrapServers:  kafka:9092
       Kafka__IngestAuthority:        api
       Kafka__ConsumerGroupId:        ams-backend-2
@@ -549,12 +554,18 @@ services:
       IoTDB__RestUrl:  http://iotdb:8181
       Redis__Host:     redis
       Redis__Port:     "6379"
+      # Platform auth (RBAC): validate RS256 tokens from auth-service; X-Service-Key authenticates
+      # internal service-to-service calls that carry no user token.
+      Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
+      Auth__Issuer:    traverse-auth
+      Auth__Audience:  ams-services
+      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
     ports:
       - "8090:8090"
     networks:
       - ams-backend
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8090/health || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/8090' || exit 1"]  # aspnet image has no wget/curl; /dev/tcp works
       interval: 10s
       timeout: 5s
       retries: 5
@@ -584,12 +595,18 @@ services:
       ConnectionStrings__TraverseAssets: Host=postgres;Port=5432;Database=traverse_assets;Username=ams_user;Password=${POSTGRES_PASSWORD:-postgres}
       Redis__Host:     redis
       Redis__Port:     "6379"
+      # Platform auth (RBAC): validate RS256 tokens from auth-service; X-Service-Key authenticates
+      # internal service-to-service calls that carry no user token.
+      Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
+      Auth__Issuer:    traverse-auth
+      Auth__Audience:  ams-services
+      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
     ports:
       - "5001:5000"
     networks:
       - ams-backend
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/health || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/5000' || exit 1"]  # aspnet image has no wget/curl; /dev/tcp works
       interval: 10s
       timeout: 5s
       retries: 5
@@ -629,6 +646,9 @@ services:
       # Served over HTTP inside the lab stack, so the refresh cookie cannot be Secure.
       COOKIE_SECURE: "false"
       COOKIE_SAMESITE: lax
+      # 100/15min (the default) is per-IP: a control room behind one NAT — or an automated gate run —
+      # exhausts it in minutes. Lab value; tune per deployment.
+      RATE_LIMIT_MAX_REQUESTS: "2000"
       CORS_ORIGIN: http://localhost:3000,http://localhost:5174
       # Entrypoint seeds this admin once (idempotent).
       BOOTSTRAP_ADMIN_USERNAME: ${AUTH_BOOTSTRAP_USERNAME:-admin}
@@ -676,12 +696,18 @@ services:
       Services__AssetModel:    http://asset-model:5000
       Services__HistorianBff:  http://historian-bff:8090
       Services__AmsApi:        http://ams-api:8000
+      # Platform auth (RBAC): validate RS256 tokens from auth-service; X-Service-Key authenticates
+      # internal service-to-service calls that carry no user token.
+      Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
+      Auth__Issuer:    traverse-auth
+      Auth__Audience:  ams-services
+      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
     ports:
       - "5002:5000"
     networks:
       - ams-backend
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/health || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/5000' || exit 1"]  # aspnet image has no wget/curl; /dev/tcp works
       interval: 10s
       timeout: 5s
       retries: 5
@@ -711,12 +737,16 @@ services:
       ConnectionStrings__TraverseDisplays: Host=postgres;Port=5432;Database=traverse_displays;Username=ams_user;Password=${POSTGRES_PASSWORD:-postgres}
       Redis__Host:     redis
       Redis__Port:     "6379"
+      # Phase K — RBAC: validate RS256 tokens from auth-service (JWKS; no OIDC discovery).
+      Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
+      Auth__Issuer:    traverse-auth
+      Auth__Audience:  ams-services
     ports:
       - "5003:5000"
     networks:
       - ams-backend
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/health || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/5000' || exit 1"]  # aspnet image has no wget/curl; /dev/tcp works
       interval: 10s
       timeout: 5s
       retries: 5
@@ -746,12 +776,18 @@ services:
       ConnectionStrings__TraverseTemplates: Host=postgres;Port=5432;Database=traverse_templates;Username=ams_user;Password=${POSTGRES_PASSWORD:-postgres}
       Redis__Host:     redis
       Redis__Port:     "6379"
+      # Platform auth (RBAC): validate RS256 tokens from auth-service; X-Service-Key authenticates
+      # internal service-to-service calls that carry no user token.
+      Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
+      Auth__Issuer:    traverse-auth
+      Auth__Audience:  ams-services
+      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
     ports:
       - "5004:5000"
     networks:
       - ams-backend
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/health || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/5000' || exit 1"]  # aspnet image has no wget/curl; /dev/tcp works
       interval: 10s
       timeout: 5s
       retries: 5
@@ -785,12 +821,18 @@ services:
       Redis__Port:        "6379"
       Kafka__Brokers:     kafka:9092
       Flink__JobManagerUrl: http://flink-jobmanager:8081
+      # Platform auth (RBAC): validate RS256 tokens from auth-service; X-Service-Key authenticates
+      # internal service-to-service calls that carry no user token.
+      Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
+      Auth__Issuer:    traverse-auth
+      Auth__Audience:  ams-services
+      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
     ports:
       - "5005:5000"
     networks:
       - ams-backend
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/health || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/5000' || exit 1"]  # aspnet image has no wget/curl; /dev/tcp works
       interval: 10s
       timeout: 5s
       retries: 5
