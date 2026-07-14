@@ -12,7 +12,9 @@ export const TrendPage: React.FC = () => {
   const [params, setParams] = useSearchParams();
 
   const pens: PenSpec[] = useMemo(() => {
-    const tags = (params.get('tags') ?? '').split(',').map(t => t.trim()).filter(Boolean);
+    // Dedupe: two identical tags in the URL produced two pens with the same path — duplicate React
+    // keys, both reading the same history, and removing one removed both (onRemovePen filters by path).
+    const tags = [...new Set((params.get('tags') ?? '').split(',').map(t => t.trim()).filter(Boolean))];
     return tags.map(path => ({ path, label: path.split('/').pop() ?? path }));
   }, [params]);
 

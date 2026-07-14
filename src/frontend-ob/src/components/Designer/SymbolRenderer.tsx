@@ -2,6 +2,7 @@ import React from 'react';
 import type { CanvasItem } from './types';
 import { useBindingResolver } from '../../hooks/useBindingResolver';
 import type { LiveMetric } from '../../store/mqttStore';
+import { findSymbolDefinition } from './symbolLibraryService';
 import { useAlarmStore } from '../../store/alarmStore';
 import { renderCustomSymbol, CUSTOM_SYMBOL_TYPES } from './CustomSymbols';
 import { getValueColor, formatValue as fmtValue, getPercentage as pctValue, isStale, OBC } from './openBridgeTheme';
@@ -181,14 +182,18 @@ const AlarmTable: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }> = (
 
 /** Combined FX wrapper: NE107 staleness + rule-engine (hidden / blink / rotate / color outline). */
 const SymbolFxWrap: React.FC<{
-  stale: boolean; hidden: boolean; blink: boolean; outlineColor?: string; rotateDeg?: number; children: React.ReactNode;
-}> = ({ stale, hidden, blink, outlineColor, rotateDeg, children }) => {
+  stale: boolean; hidden: boolean; blink: boolean; outlineColor?: string; rotateDeg?: number;
+  /** Design mode, symbol takes a tag, nothing bound → dashed outline. Makes a forgotten binding
+      visible at a glance across a display with hundreds of symbols. */
+  unbound?: boolean;
+  children: React.ReactNode;
+}> = ({ stale, hidden, blink, outlineColor, rotateDeg, unbound, children }) => {
   if (hidden) return null;
   const style: React.CSSProperties = { position: 'relative', width: '100%', height: '100%' };
   if (stale) { style.filter = 'grayscale(1)'; style.opacity = 0.5; }
   if (rotateDeg !== undefined) style.transform = `rotate(${rotateDeg}deg)`;
   if (outlineColor) { style.outline = `3px solid ${outlineColor}`; style.outlineOffset = '1px'; style.borderRadius = '4px'; }
-  const cls = `symbol-fx${blink ? ' symbol-fx--blink' : ''}${stale ? ' symbol-quality-stale' : ''}`;
+  const cls = `symbol-fx${blink ? ' symbol-fx--blink' : ''}${stale ? ' symbol-quality-stale' : ''}${unbound ? ' symbol-unbound' : ''}`;
   return (
     <div className={cls} style={style}>
       {children}
@@ -223,11 +228,33 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
   const unit = item.formatting?.unit;
   const isRunning = statusValue === true || statusValue === 1 || statusValue === 'Running' || statusValue === 'ON';
 
+  // Design-mode truth. Three explicit states — the one question design mode has to answer is
+  // "is this symbol bound?", and until now you could not tell: `primarySlot` is derived from RESOLVED
+  // METRICS, which are always undefined in design mode, so a bound readout fell through to the same
+  // "--" as an unbound one (the `{tagname}` branch was unreachable).
+  //
+  // Bound but not live  → {tagname}, disambiguated by device when the leaf alone would collide.
+  // Unbound             → dimmed "—" + a dashed outline (see .symbol-unbound), so a forgotten binding
+  //                       is visible at a glance across a 300-symbol display.
+  // Live                → the formatted value.
+  const boundSlot = primarySlot
+    ?? PRIMARY_VALUE_SLOTS.find(s => item.bindings?.[s])
+    ?? Object.keys(item.bindings ?? {})[0];
+  const boundPath = boundSlot ? item.bindings?.[boundSlot] : undefined;
+  const isBound = !!boundPath;
+
+  const tagPlaceholder = (path: string) => {
+    // "houston/crude1/pump101.speed" → "{pump101.speed}" — the leaf alone ("speed") collides across
+    // every pump on the display.
+    const leaf = path.split('/').pop() ?? path;
+    return `{${leaf}}`;
+  };
+
   const displayValue = mode === 'preview' && liveValue !== undefined
     ? fmtValue(liveValue, decimals, item.formatting?.showUnit !== false ? unit : undefined)
-    : (primarySlot && item.bindings?.[primarySlot])
-      ? `{${item.bindings[primarySlot]!.split('/').pop()}}`
-      : '--';
+    : isBound
+      ? tagPlaceholder(boundPath!)
+      : '—';
 
   const statusState = getStatusIndicatorState(
     mode === 'preview' ? (statusValue ?? liveValue) : undefined,
@@ -788,7 +815,10 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
     );
   }
   return (
-    <SymbolFxWrap stale={stale} hidden={fxHidden} blink={fxBlink} outlineColor={fxOutline} rotateDeg={fxRotate}>
+    <SymbolFxWrap
+      stale={stale} hidden={fxHidden} blink={fxBlink} outlineColor={fxOutline} rotateDeg={fxRotate}
+      unbound={mode === 'design' && !isBound && (findSymbolDefinition(item.type)?.bindingSlots?.length ?? 0) > 0}
+    >
       {renderInner()}
     </SymbolFxWrap>
   );

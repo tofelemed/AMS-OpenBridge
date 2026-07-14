@@ -1481,3 +1481,10 @@ select.ob-input option {
   padding: 1px 5px; border-radius: 4px;
   background: var(--ams-disabled-bg, #e8ecf1); color: var(--ams-crit, #e10019);
 }
+
+/* Sidebar nav icons (OpenBridge Obi* — replaced the emoji chrome). */
+.nav-item__icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 20px; flex: none;
+}
+.nav-item__icon svg { width: 18px; height: 18px; }

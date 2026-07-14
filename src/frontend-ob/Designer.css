@@ -1,0 +1,6 @@
+
+/* Smart alignment guide: the edge/centre line the dragged selection snapped onto. */
+.designer-canvas__guide {
+  position: absolute; z-index: 999; pointer-events: none;
+  background: var(--alert-alarm-color);
+}

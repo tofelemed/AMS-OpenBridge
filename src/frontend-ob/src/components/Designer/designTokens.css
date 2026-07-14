@@ -35,6 +35,34 @@
   --ams-disabled:    #9aa4b2;
   --ams-disabled-bg: #e8ecf1;
 
+  /* ── Compatibility aliases ────────────────────────────────────────────────
+   * styles/app.css, hmi-dialogs.css and older Designer rules reference ~30 token names that DO NOT
+   * EXIST in OpenBridge (--divider-color, --focus-color, --surface-background-color,
+   * --on-container-*, --alert-*-border-color, --spacing-*, --corner-radius, …). A var() with no
+   * fallback silently resolves to nothing, so those declarations were simply dropped — which is why
+   * e.g. the top bar had no background at all.
+   *
+   * Defining them here, in terms of REAL tokens, makes every existing usage live and theme-aware in
+   * one place. Prefer the real token names in new code; this block exists so the old ones stop lying. */
+  --surface-background-color:    var(--container-background-color);
+  --divider-color:               var(--border-divider-color);
+  --focus-color:                 var(--border-focus-color);
+  --on-container-regular-color:  var(--element-active-color);
+  --on-container-active-color:   var(--element-active-color);
+  --on-container-neutral-color:  var(--element-neutral-color);
+  --on-container-muted-color:    var(--element-inactive-color);
+  --on-surface-neutral-color:    var(--element-neutral-color);
+  --alert-alarm-border-color:    var(--alert-alarm-color);
+  --alert-warning-border-color:  var(--alert-warning-color);
+  --alert-caution-border-color:  var(--alert-caution-color);
+  --alert-running-border-color:  var(--alert-running-color);
+  --alert-advisory-border-color: var(--selected-enabled-background-color);
+  --corner-radius:               var(--border-radius-br-8);
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+
   /* typography */
   --ams-font: 'Noto Sans', system-ui, -apple-system, sans-serif;
   --ams-font-mono: 'Noto Sans Mono', ui-monospace, monospace;

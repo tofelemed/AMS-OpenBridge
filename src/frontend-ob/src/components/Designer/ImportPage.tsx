@@ -6,11 +6,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { importPdix, type ImportedDisplay } from '../../services/import/pdixImport';
 import { apiFetch } from '../../api/apiFetch';
+import { useAuthStore } from '../../store/authStore';
 
 const API_BASE = import.meta.env.VITE_DISPLAY_SERVICE_URL || '/api/displays';
 
 export const ImportPage: React.FC = () => {
   const navigate = useNavigate();
+  const user = useAuthStore(s => s.user?.username ?? 'unknown');   // real owner, not the literal 'importer'
   const [result, setResult] = useState<ImportedDisplay | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -32,14 +34,24 @@ export const ImportPage: React.FC = () => {
     if (!result) return;
     setBusy(true);
     try {
-      const created = await apiFetch(API_BASE, {
+      // Both responses used to be ignored. If the content PUT failed, the user was still navigated into
+      // the newly-created EMPTY display and told nothing — the whole import was silently lost. If the
+      // POST failed, `created.id` was undefined → PUT /displays/undefined/content → /designer/undefined.
+      const createRes = await apiFetch(API_BASE, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: result.name, category: 'imported', ownerId: 'importer' }),
-      }).then(r => r.json());
-      await apiFetch(`${API_BASE}/${created.id}/content`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ snapshot: { items: result.items, settings: result.settings }, changeNote: 'PI Vision import', userId: 'importer' }),
+        body: JSON.stringify({ name: result.name, category: 'imported', ownerId: user }),
       });
+      if (!createRes.ok) throw new Error(`Could not create the display (${createRes.status})`);
+      const created = await createRes.json();
+      if (!created?.id) throw new Error('The display service did not return an id');
+
+      const contentRes = await apiFetch(`${API_BASE}/${created.id}/content`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ snapshot: { items: result.items, settings: result.settings }, changeNote: 'PI Vision import', userId: user }),
+      });
+      if (!contentRes.ok) {
+        throw new Error(`The display was created but the imported content could not be saved (${contentRes.status}). Nothing was imported.`);
+      }
       navigate(`/designer/${created.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

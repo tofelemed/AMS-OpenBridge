@@ -1,20 +1,202 @@
 import React, { useState } from 'react';
-import type { CanvasItem, FormattingOptions, ItemStyle, AlarmLimits } from './types';
+import type { CanvasItem, FormattingOptions, ItemStyle, AlarmLimits, NavigationLink } from './types';
 import type { AutomationProps } from './automationTypes';
 import { isAutomationType } from './automationTypes';
 import type { ObcProps } from './obcCatalogTypes';
 import { isObcCatalogType } from './obcCatalogTypes';
 import { TagPicker } from './AssetBrowser';
+import NavigationEditor from './NavigationEditor';
 import { findSymbolDefinition } from './symbolLibraryService';
+import { ObiPlaceholder } from '@oicl/openbridge-webcomponents-react/icons/icon-placeholder';
+import { ObiContentCopyGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-content-copy-google';
+import { ObiDelete } from '@oicl/openbridge-webcomponents-react/icons/icon-delete';
 
 interface PropertyInspectorProps {
-  selectedItem: CanvasItem | undefined;
-  // selectedItems for future multi-select support
-  // selectedItems?: CanvasItem[];
+  /** The whole selection. With N>1 the inspector edits ALL of them (it used to silently edit only the
+      first, which quietly discarded the user's intent on every multi-select edit). */
+  selectedItems: CanvasItem[];
   onUpdateItem: (id: string, updates: Partial<CanvasItem>) => void;
+  /** Bulk edit — one patch applied to every selected id, as ONE undo entry. */
+  onUpdateMany: (ids: string[], patch: Partial<CanvasItem> | ((item: CanvasItem) => Partial<CanvasItem>)) => void;
   onDeleteItem?: (id: string) => void;
   onDuplicateItem?: (id: string) => void;
 }
+
+/** Sentinel for "the selection disagrees about this property". */
+const MIXED = Symbol('mixed');
+
+/** The shared value of a property across the selection, or MIXED. */
+function common<T>(items: CanvasItem[], get: (i: CanvasItem) => T): T | typeof MIXED {
+  const first = get(items[0]);
+  return items.every(i => Object.is(get(i), first)) ? first : MIXED;
+}
+
+/**
+ * Bulk property editing (PI Vision calls this "Format Symbols").
+ *
+ * Two rules taken straight from PI Vision, because they are the right ones:
+ *  1. A property whose value DIFFERS across the selection renders BLANK — and is never seeded from
+ *     item[0]'s value. (Seeding from the first item is precisely how the legacy app silently stamped
+ *     item[0]'s geometry onto everything else.) Leaving a field untouched leaves each item alone.
+ *  2. Some properties are single-selection only. Bindings are the important one: PI Vision refuses bulk
+ *     binding, and the legacy code in this repo says why — "configure data bindings for each element
+ *     individually to ensure precise industrial traceability". Raw X/Y is excluded too: writing one
+ *     absolute X to five symbols stacks them on top of each other, which is never what anyone meant.
+ *     Use Align/Distribute for that.
+ */
+const MultiSelectPanel: React.FC<{
+  items: CanvasItem[];
+  onUpdateMany: (ids: string[], patch: Partial<CanvasItem> | ((item: CanvasItem) => Partial<CanvasItem>)) => void;
+  onDelete?: (id: string) => void;
+}> = ({ items, onUpdateMany, onDelete }) => {
+  const ids = items.map(i => i.id);
+  // Merge into each item's OWN style so the other style properties survive.
+  const patchStyle = (key: keyof ItemStyle, value: unknown) =>
+    onUpdateMany(ids, (i) => ({ style: { ...i.style, [key]: value } as ItemStyle }));
+
+  const fill = common(items, i => i.style?.fill);
+  const stroke = common(items, i => i.style?.stroke);
+  const strokeWidth = common(items, i => i.style?.strokeWidth);
+  const width = common(items, i => i.size?.width);
+  const height = common(items, i => i.size?.height);
+  const rotation = common(items, i => i.rotation ?? 0);
+  const locked = common(items, i => !!i.locked);
+  const hidden = common(items, i => !!i.hidden);
+
+  const val = <T,>(v: T | typeof MIXED): string => (v === MIXED || v === undefined ? '' : String(v));
+  const mixedTitle = (v: unknown) => (v === MIXED ? 'Values differ across the selection' : undefined);
+
+  return (
+    <div className="property-inspector" data-testid="multi-inspector">
+      <div className="property-inspector__header">
+        <h3>Properties</h3>
+        <div className="property-inspector__actions">
+          {onDelete && (
+            <button
+              className="property-inspector__action property-inspector__action--danger"
+              onClick={() => items.forEach(i => onDelete(i.id))}
+              title="Delete all selected"
+            ><ObiDelete /></button>
+          )}
+        </div>
+      </div>
+
+      <div className="property-inspector__multi" data-testid="multi-count">
+        {items.length} symbols selected — edits apply to all of them
+      </div>
+
+      <div className="property-inspector__content">
+        <div className="property-section">
+          <div className="property-section__title">Size</div>
+          <div className="property-row">
+            <label className="property-label">W</label>
+            <input
+              className="property-input" type="number" data-testid="multi-width"
+              placeholder={width === MIXED ? 'Mixed' : ''} title={mixedTitle(width)}
+              value={val(width)}
+              onChange={e => {
+                const n = Number(e.target.value);
+                if (!e.target.value || !Number.isFinite(n)) return;   // never coerce empty → 0
+                onUpdateMany(ids, (i) => ({ size: { ...i.size, width: n } }));
+              }}
+            />
+            <label className="property-label">H</label>
+            <input
+              className="property-input" type="number"
+              placeholder={height === MIXED ? 'Mixed' : ''} title={mixedTitle(height)}
+              value={val(height)}
+              onChange={e => {
+                const n = Number(e.target.value);
+                if (!e.target.value || !Number.isFinite(n)) return;
+                onUpdateMany(ids, (i) => ({ size: { ...i.size, height: n } }));
+              }}
+            />
+          </div>
+          <div className="property-hint">
+            Position is single-selection only — use Align / Distribute to move a group.
+          </div>
+        </div>
+
+        <div className="property-section">
+          <div className="property-section__title">Transform</div>
+          <div className="property-row">
+            <label className="property-label">Rotation</label>
+            <input
+              className="property-input" type="number"
+              placeholder={rotation === MIXED ? 'Mixed' : ''} title={mixedTitle(rotation)}
+              value={val(rotation)}
+              onChange={e => {
+                const n = Number(e.target.value);
+                if (!e.target.value || !Number.isFinite(n)) return;
+                onUpdateMany(ids, { rotation: n });
+              }}
+            />
+          </div>
+          <label className="property-checkbox">
+            <input
+              type="checkbox" data-testid="multi-locked"
+              checked={locked === true}
+              ref={el => { if (el) el.indeterminate = locked === MIXED; }}
+              onChange={e => onUpdateMany(ids, { locked: e.target.checked })}
+            />
+            <span>Locked</span>
+          </label>
+          <label className="property-checkbox">
+            <input
+              type="checkbox" data-testid="multi-hidden"
+              checked={hidden === true}
+              ref={el => { if (el) el.indeterminate = hidden === MIXED; }}
+              onChange={e => onUpdateMany(ids, { hidden: e.target.checked })}
+            />
+            <span>Hidden</span>
+          </label>
+        </div>
+
+        <div className="property-section">
+          <div className="property-section__title">Style</div>
+          <div className="property-row">
+            <label className="property-label">Fill</label>
+            <input
+              className="property-input" type="text" data-testid="multi-fill"
+              placeholder={fill === MIXED ? 'Mixed' : 'e.g. var(--ams-run)'} title={mixedTitle(fill)}
+              value={val(fill)}
+              onChange={e => patchStyle('fill', e.target.value)}
+            />
+          </div>
+          <div className="property-row">
+            <label className="property-label">Stroke</label>
+            <input
+              className="property-input" type="text"
+              placeholder={stroke === MIXED ? 'Mixed' : ''} title={mixedTitle(stroke)}
+              value={val(stroke)}
+              onChange={e => patchStyle('stroke', e.target.value)}
+            />
+          </div>
+          <div className="property-row">
+            <label className="property-label">Stroke width</label>
+            <input
+              className="property-input" type="number"
+              placeholder={strokeWidth === MIXED ? 'Mixed' : ''} title={mixedTitle(strokeWidth)}
+              value={val(strokeWidth)}
+              onChange={e => {
+                const n = Number(e.target.value);
+                if (!e.target.value || !Number.isFinite(n)) return;
+                patchStyle('strokeWidth', n);
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="property-section">
+          <div className="property-hint">
+            Data bindings, labels and alarm limits are edited one symbol at a time — binding several
+            symbols at once would break tag traceability.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Get symbol definition from library
 function getSymbolDef(type: string) {
@@ -28,28 +210,35 @@ const COLOR_PRESETS = [
 ];
 
 export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
-  selectedItem,
+  selectedItems,
   onUpdateItem,
+  onUpdateMany,
   onDeleteItem,
   onDuplicateItem
 }) => {
-  const [activeTab, setActiveTab] = useState<'general' | 'bindings' | 'style' | 'limits'>('general');
-  
-  if (!selectedItem) {
+  const [activeTab, setActiveTab] = useState<'general' | 'bindings' | 'style' | 'limits' | 'action'>('general');
+  const selectedItem = selectedItems.length === 1 ? selectedItems[0] : undefined;
+
+  if (selectedItems.length === 0) {
     return (
       <div className="property-inspector">
         <div className="property-inspector__header">
-          <h3>⚙️ Properties</h3>
+          <h3>Properties</h3>
         </div>
         <div className="property-inspector__empty">
-          <div className="property-inspector__empty-icon">👆</div>
+          <div className="property-inspector__empty-icon"><ObiPlaceholder /></div>
           <p>Select an item to edit its properties</p>
           <small>Click on any element on the canvas</small>
         </div>
       </div>
     );
   }
-  
+
+  // N>1 → bulk editor (was: silently edited only selectedIds[0]).
+  if (!selectedItem) {
+    return <MultiSelectPanel items={selectedItems} onUpdateMany={onUpdateMany} onDelete={onDeleteItem} />;
+  }
+
   const symbolDef = getSymbolDef(selectedItem.type);
   const bindingSlots = symbolDef?.bindingSlots || [];
   const hasAlarmLimits = symbolDef?.hasAlarmLimits || false;
@@ -115,7 +304,7 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
   return (
     <div className="property-inspector">
       <div className="property-inspector__header">
-        <h3>⚙️ Properties</h3>
+        <h3>Properties</h3>
         <div className="property-inspector__actions">
           {onDuplicateItem && (
             <button
@@ -123,7 +312,7 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
               onClick={() => onDuplicateItem(selectedItem.id)}
               title="Duplicate"
             >
-              📋
+              <ObiContentCopyGoogle />
             </button>
           )}
           {onDeleteItem && (
@@ -132,14 +321,14 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
               onClick={() => onDeleteItem(selectedItem.id)}
               title="Delete"
             >
-              🗑️
+              <ObiDelete />
             </button>
           )}
         </div>
       </div>
       
       <div className="property-inspector__type-badge">
-        {symbolDef?.icon || '📦'} {symbolDef?.label || selectedItem.type}
+        {symbolDef?.label || selectedItem.type}
       </div>
       
       {/* Tabs */}
@@ -172,7 +361,23 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
             Limits
           </button>
         )}
+        {/* Navigation authoring — the runtime has honored navigationLink since Phase D, but there was
+            no way to author one, so no multi-screen HMI could be built here. */}
+        <button
+          className={`property-inspector__tab ${activeTab === 'action' ? 'active' : ''}`}
+          onClick={() => setActiveTab('action')}
+          data-testid="tab-action"
+        >
+          Action{selectedItem.navigationLink ? ' •' : ''}
+        </button>
       </div>
+
+      {activeTab === 'action' && (
+        <NavigationEditor
+          item={selectedItem}
+          onChange={(navigationLink: NavigationLink | undefined) => updateItem({ navigationLink })}
+        />
+      )}
       
       <div className="property-inspector__content">
         {/* ═══════════════════════════════════════════════════════════════════════════ */}
@@ -181,7 +386,7 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
         {activeTab === 'general' && (
           <>
             <div className="property-section">
-              <div className="property-section__title">📝 Label</div>
+              <div className="property-section__title">Label</div>
               <div className="property-group">
                 <input
                   type="text"
@@ -194,7 +399,7 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
             </div>
             
             <div className="property-section">
-              <div className="property-section__title">📍 Position</div>
+              <div className="property-section__title">Position</div>
               <div className="property-row">
                 <div className="property-group property-group--half">
                   <label>X</label>
@@ -218,7 +423,7 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
             </div>
             
             <div className="property-section">
-              <div className="property-section__title">📐 Size</div>
+              <div className="property-section__title">Size</div>
               <div className="property-row">
                 <div className="property-group property-group--half">
                   <label>Width</label>
@@ -244,7 +449,7 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
             </div>
             
             <div className="property-section">
-              <div className="property-section__title">🔄 Transform</div>
+              <div className="property-section__title">Transform</div>
               <div className="property-group">
                 <label>Rotation (deg)</label>
                 <input
@@ -273,14 +478,14 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
                     checked={selectedItem.locked || false}
                     onChange={(e) => updateItem({ locked: e.target.checked })}
                   />
-                  <span>🔒 Locked</span>
+                  <span>Locked</span>
                 </label>
               </div>
             </div>
 
             {isAutomation && (
               <div className="property-section">
-                <div className="property-section__title">⚡ Automation</div>
+                <div className="property-section__title">Automation</div>
                 <div className="property-section__hint">
                   OpenBridge automation symbol properties
                 </div>
@@ -643,7 +848,7 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
         {activeTab === 'bindings' && (
           <>
             <div className="property-section">
-              <div className="property-section__title">🔗 Data Bindings</div>
+              <div className="property-section__title">Data Bindings</div>
               <div className="property-section__hint">
                 Connect this element to live process data
               </div>
@@ -672,7 +877,7 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
             {/* Formatting options for numeric displays */}
             {(selectedItem.type.includes('readout') || selectedItem.type.includes('gauge') || selectedItem.type.includes('bar') || selectedItem.type.includes('digital') || selectedItem.type.includes('setpoint')) && (
               <div className="property-section">
-                <div className="property-section__title">🔢 Formatting</div>
+                <div className="property-section__title">Formatting</div>
                 <div className="property-row">
                   <div className="property-group property-group--half">
                     <label>Decimals</label>
@@ -737,7 +942,7 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
         {activeTab === 'style' && (
           <>
             <div className="property-section">
-              <div className="property-section__title">🎨 Colors</div>
+              <div className="property-section__title">Colors</div>
               <div className="property-group">
                 <label>Fill Color</label>
                 <div className="property-color-picker">
@@ -814,7 +1019,7 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
             </div>
             
             <div className="property-section">
-              <div className="property-section__title">🔤 Text</div>
+              <div className="property-section__title">Text</div>
               <div className="property-group">
                 <label>Font Size</label>
                 <input
@@ -847,7 +1052,7 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
                       className={`property-button ${selectedItem.style?.textAlign === align ? 'active' : ''}`}
                       onClick={() => updateStyle('textAlign', align)}
                     >
-                      {align === 'left' ? '⬅️' : align === 'center' ? '↔️' : '➡️'}
+                      {align === 'left' ? 'Left' : align === 'center' ? 'Centre' : 'Right'}
                     </button>
                   ))}
                 </div>
@@ -855,7 +1060,7 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
             </div>
             
             <div className="property-section">
-              <div className="property-section__title">📦 Border</div>
+              <div className="property-section__title">Border</div>
               <div className="property-group">
                 <label>Border Radius</label>
                 <input
@@ -877,7 +1082,7 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
         {activeTab === 'limits' && hasAlarmLimits && (
           <>
             <div className="property-section">
-              <div className="property-section__title">🚨 Alarm Limits</div>
+              <div className="property-section__title">Alarm Limits</div>
               <div className="property-section__hint">
                 Configure alarm thresholds for visual indication
               </div>

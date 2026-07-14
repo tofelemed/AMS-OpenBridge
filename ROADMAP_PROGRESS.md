@@ -371,6 +371,169 @@ Live values render for **every** role — bindings, historian and assets all aut
 locking the platform down did not break the data path. `npm run build` ✓ 20.38s; all 6 services build ✓.
 Prod frontend (:3000) re-verified as admin: Designer opens, zero 401/403.
 
+### DESIGNER AUDIT + REDESIGN (M1–M5) — ✅ DONE (2026-07-14)
+Four parallel audit agents (design-system, UX/layout, correctness, published-HMI), then fixes phase by
+phase with evidence. User-approved scope: everything, migrate old data, full icon sweep.
+
+**M1 — Why the Designer looked "not OpenBridge" (root cause, one bug, ~40 symptoms).**
+`Designer.css:12-38` built a `--designer-*` layer on **OpenBridge token names that do not exist**
+(`--container-background-color-alt`, `--container-surface-color`, `--container-border-color`,
+`--on-container-regular-color`, `--alert-*-border-color`…). A `var()` fallback fails **silently**, so all
+but one fell through to a hardcoded Tailwind-slate hex — that was the dark navy, and it is why
+day/night did nothing in the Designer: **the tokens were never live.** Rewired onto 12 verified real
+tokens with **no hex fallbacks** (a missing token must break loudly). Also: `styles/app.css` had 33 more
+invented names (`--divider-color` ×31, `--surface-background-color`…) — defined once as aliases over real
+tokens in `designTokens.css`; the inline JS palettes in `App.tsx`/`DisplayList.tsx` (which beat every
+stylesheet) now hold tokens; two `@keyframes spin` de-duplicated; `--designer-danger`/`--designer-success`
+were **used but never defined** (dead rules: the alarm banner had no background at all).
+**The canvas was worse:** the Designer wrote `backgroundColor: '#0f172a'` **hardcoded on every save**, and
+the viewer applies it as an *inline* style — un-themeable, and it silently overwrote imported displays
+that had correctly stored a token. Fixed + **migrated the existing data** (`17_display_background_token_migration.sql`:
+14 snapshot versions + 6 display rows → `var(--ams-canvas-bg)`).
+**Evidence:** day → `header rgb(247,247,247) / text rgb(31,31,31)`; night → `rgb(0,0,0) / rgb(234,167,94)`;
+viewer canvas `#f3f5f9` → `#0b1220` (was navy in every theme). `m1_designer_day/night.png`.
+
+**M2 — Correctness bugs (all pre-existing, all now proven fixed):**
+| Bug | Was | Now |
+|---|---|---|
+| **Every Save wiped the undo stack** — the refetch re-seeded history (`setItems + history=[loaded] + index=0`) | add 3 symbols → Ctrl+S → Ctrl+Z did nothing | seeds **once per display**; undo after save: 5 items → 4 ✓ |
+| Edits during an in-flight save were reverted by the refetch | silent data loss | server is the source of truth only at load |
+| **No unsaved-changes guard anywhere** (zero `beforeunload` in the frontend) | Back/refresh destroyed the work silently | `beforeunload` + confirm on Back ✓ |
+| **Revert flagged the display "unpublished changes" forever** (revert bumps draft_version) | badge lied on every reverted display | revert now publishes the identical snapshot → `Draft v24 · Published v24` ✓ |
+| Live-trend **zoom snapped back** on any re-render (`notMerge` re-applied an option with no start/end) | zooming into a spike was impossible | zoom held through 6 mousemoves + a live tick: `4.0-94.9` ✓ |
+| **Pause didn't freeze** the window (it only stopped the interval) | "paused" chart kept scrolling | window end pinned; mode reads `PAUSED` ✓ |
+| Asset-relative display opened from the launcher was **dead** (no `?asset=` → every symbol `--`) | no hint, no default | defaults to the first candidate asset |
+| Save/publish failures were **completely silent** (no `onError`, no toast) | engineer walked away believing it saved | toasts on every lifecycle action |
+| **Audit trail was fiction**: every save posted `userId: 'designer-user'` | `created_by` identical for every person | real user from the session — DB now shows `created_by=engineer1` |
+| Import ignored **both** HTTP statuses | a failed content PUT navigated you into an empty display, import lost | both checked, real error surfaced |
+| Viewer replaced a **live** screen with "Failed to load" on any refetch blip | kiosk screens blanked on a transient 500 | keeps last-good content + a non-destructive banner |
+| Space key flipped the canvas to pan **while typing** in a text field | typing a space in the palette search | typing guard moved first |
+| `/trend?tags=a,a` → duplicate pens (dup React keys, removing one removed both) | — | deduped |
+| `resolveColor()` forced a style flush **9× per render** (every 2s tick, every mousemove) | — | memoised per theme |
+
+**M3 — Toolbar + full-screen.** The toolbar was **31 controls in one non-wrapping 48px row** (~1600px
+intrinsic in ~1420px — it already overflowed at 1920px), all unlabelled glyphs, with `⬆` meaning **two**
+different things (bring-to-front *and* Publish) and align-centre-V implemented but **unreachable** (no
+button). Rebuilt as `DesignerToolbar.tsx`: a **document bar** (name · mode · full-screen · Save ·
+Publish▾ · version) + a **context bar** (undo/redo │ group · Align▾ (all 6 + same-size) · order · flip │
+zoom −/combo/+ · **Fit** │ grid · tags · trend), with Unpublish/Revert folded into the Publish menu and a
+`⋮` overflow (canvas size, fit, shortcuts). **The Designer is now a full-viewport route outside the app
+shell** (it was getting ~1420px of a 1920px screen, so a 1920px artboard could never be seen at 100%).
+Added **fit-to-screen** (there was none anywhere), centred + padded the artboard, removed the duplicate
+zoom chip (zoom was displayed in **three** places), and fixed `.designer-canvas`'s hardcoded
+`min-width:1920px` which overrode the display's real canvas size.
+**Evidence:** designer width == viewport (1600px), **0 toolbar overflow** on both rows, Fit → 110%.
+
+**M4 — Published-HMI features (both user asks).**
+- **Last published time + publisher.** It **did not exist in the data model**: publish flips an existing
+  draft row's status, so `created_at` is the *save* time (a draft saved Monday, published Friday, reported
+  Monday) and `updated_at` is bumped by six unrelated operations. Added `published_at`/`published_by` to
+  both tables (`18_display_published_at.sql`, idempotent + backfilled), stamped **from the bearer token**
+  (never the request body), surfaced in the designer header and on every launcher card:
+  `Published v24 · 23m ago by engineer1`.
+- **Trend from published displays.** The runtime had **no selection model at all** — clicking a symbol did
+  nothing unless it had a navigation link, and the Trend button silently capped the whole display at 6
+  pens. Now: **ctrl/shift-click** symbols → multi-pen trend · **Pick tag** mode → click one symbol →
+  single-tag trend · **Trend** with no selection → whole display (and it *says* when it caps).
+  **Evidence (as operator1):** multi = 2 pens, single = 1 pen, whole = 3 pens ✓.
+- Launcher also gained search, category chips, description, open-in-new-tab (real `<a href>`), and a fix
+  for a **real bug**: it fetched the default `take=50` and filtered published **client-side**, so with >50
+  displays published ones silently vanished.
+
+**M5 — Icons.** Emoji chrome replaced with **verified** OpenBridge `Obi*` icons across the sidebar nav
+(18), designer toolbar, symbol palette (~60, resolved from the symbol *type*), property inspector and
+canvas. Where OpenBridge genuinely has **no** icon (zoom, flip, group, align, publish) the control is a
+**text-labelled button** rather than an invented glyph — which also kills the undecodable `⊢ ≑ ⊣ ⊤ ⊥`.
+**Evidence:** emoji scan of nav + toolbar + palette → **NONE**.
+
+Builds ✓ (`npm run build` 30.4s, display-service 0 errors). RBAC regression re-run: all four roles still
+render live values with **no unexpected 401/403**.
+
+### DESIGNER GAP-CLOSURE (N1–N6) — ✅ DONE (2026-07-14)
+Every fix benchmarked against **AVEVA PI Vision 2025** (User Guide + the real `.pdix` wire schema from
+`301-Kiln.zip`), cross-checked against Ignition / WinCC / FactoryTalk / InTouch / ArchestrA, and against
+**ISA-101 · ISA-18.2 · ASM**. Plan: `PHASE_N_PLAN.md`.
+
+**The reframing finding:** `NavigationLink`, `hidden`, `locked`, `zIndex`, `groupId` and 17 named binding
+slots were **already in the model and already honored by the runtime**. The gap was authoring UI.
+
+| # | Was | Now | Benchmark |
+|---|---|---|---|
+| **N1** | Asset tree **replaced** the property inspector (XOR), and could only ever write `bindings.value` — so **16 of 17 slots were unreachable** | Left panel = **Symbols │ Assets │ Layers** tabs; properties pinned right; clicking a tag binds the symbol's **primary declared slot** | PI Vision/Ignition/WinCC all put sources left, properties right — for exactly this reason |
+| **N2** | With 5 symbols selected the inspector **silently edited only the first** — a data-loss trap | Bulk editor: **blank = "values differ"**, never seeded from item[0]; one bulk edit = **one** undo entry; bindings/label/position stay single-only | PI Vision "Format Symbols": *"if the value is blank … set to different values"*; **bulk binding refused** for tag traceability |
+| **N3** | **No navigation authoring at all** — a multi-screen HMI could not be built | **Action tab**: open display (real display picker) / URL (https-or-same-origin **validated**) ; open modes replace/new-tab/**popup**; asset context **none / this symbol's asset / as-root / explicit**; **`shape.hotspot`** for linking over imported P&ID art; link badge in design mode | PI Vision `LinkURL`/`NewTab`/`IncludeAsset`. We store a **FK, not a URL** — PI Vision stores the route, so renaming a display breaks every inbound link |
+| **N4** | No rename, no duplicate, no delete. Deletes were soft but **unrecoverable through the API** | `POST /duplicate` (**Save As** — regenerates item ids so groups don't alias), `GET /deleted`, `POST /restore`; card menu + confirm + **Undo** toast + recycle bin | PI Vision: Save▾ → Save As; delete → **Recycle Bin**, retained indefinitely |
+| **N5** | "Space+drag pan" was **advertised in the toolbar and did nothing**; snap was **unconditional** (nothing could be placed off-grid); `hidden`/`locked` had **no UI whatsoever**; `hidden` was **inverted** (vanished from the editor, still rendered in the runtime) | Pan (**Space+drag and middle-drag**); **Snap toggle + Alt-bypass**; **Layers panel** (z-order list, eye/lock, filter); hidden now ghosts in the editor and hides at runtime | PI Vision has a snap toggle + **Alt to bypass**; it has **no pan at all**, so we take the industry gesture instead |
+| **N6** | Design mode showed **`--` for bound and unbound alike** — the one question design mode exists to answer | Three states: **`{tag}`** bound · dimmed **—** + **dashed outline** unbound · live value in preview | No vendor documents a design-mode placeholder (Ignition shows live data) — this is genuinely novel |
+
+**Bugs found while building this (all pre-existing, all fixed):**
+- **`transform: scale()` does not affect layout**, so the canvas well never overflowed — **zoomed-in content
+  was simply unreachable** at any zoom above fit. A stage element now reserves the scaled footprint.
+- `itemMouseDown` stopped propagation for **every** button, so middle-drag pan never fired when the pointer
+  was over a symbol — i.e. anywhere useful on a dense display.
+- `.designer-canvas` hardcoded `min-width:1920px`, overriding the display's real canvas size.
+
+**Evidence (Playwright, live stack):**
+- N1: asset tree **and** property inspector on screen together ✓
+- N2: 4 selected → width field reads **"Mixed"** → set 150 → **[150,150,150,150]**; **one** undo → **[220,220,220,66]** ✓
+- N3: picker lists real displays → authored `{targetDisplayId, assetContextMode:'current-asset'}`, link badge drawn ✓
+- N4: duplicate → **fresh item ids** (`i04a7151a0d0`…), status `draft`; delete → bin (1) → restore → back in list ✓
+- N5: layers lists 4 objects; eye → 1 hidden + **ghosted (still selectable)**; lock → 1 locked; snap toggles; **middle-drag pans (scrollLeft 0 → 180)** ✓
+- N6: design mode shows `{tank01.level}` `{pump101.speed}` `{pump101.discharge_press}`; **1 symbol flagged unbound** ✓
+Builds: frontend ✓ 32.4s · display-service ✓ 0 errors.
+
+**Standards correction (worth recording):** an earlier draft cited "≤3 clicks from L1" as a rule. **It is
+folklore** — it is in no ISA-101 clause, no Hollifield paper and no ASM guideline. The citable
+requirements are **ASM 5.1/5.2/5.3** (flat, directly accessible, no menu-directory dependency) and **ASM
+5.5** (call-up ≤3 s). Alarm→display jump is **ISA-18.2 §11.6.2.6(a)** (a *should*). Also note **ASM 9.3
+(P1): modal dialogs are not to be used** — our popup faceplate must stay non-modal.
+
+### DESIGNER TAIL — thumbnails · launcher hierarchy · smart guides · CSS cleanup — ✅ DONE (2026-07-14)
+
+**Thumbnails.** The display cards rendered a **grey box containing the text "1920 × 1080"** dressed up as
+a preview. Now a real one: `thumbnail.ts` serialises the display to a **schematic SVG** and it is stored
+(`19_display_thumbnail_and_level.sql` → `thumbnail_svg`, `PUT/GET /displays/{id}/thumbnail`).
+Three deliberate choices, all load-bearing:
+- **SVG, not a raster** — we render DOM/SVG (no Konva), so a preview is a *serialization*: no
+  html2canvas, no headless browser, no blobs in Postgres.
+- **A schematic, not a DOM dump** — OpenBridge symbols are Web Components with **shadow DOM, which does
+  not serialize**; a naive `XMLSerializer` pass would silently emit empty boxes, which is worse than an
+  honest schematic. Symbols are drawn as their footprint, coloured by kind; text symbols as text.
+- **Generated on PUBLISH only, from the DESIGN-MODE model** — never on autosave (you would melt the
+  browser), and never from live data, so **a thumbnail can never leak a process value** into a screenshot
+  of the display list. The server also rejects any SVG containing `<script`/`onload`.
+No editor in the survey (Ignition, WinCC, FactoryTalk, InTouch, ArchestrA) ships display thumbnails, so
+there was no prior art to copy.
+
+**Launcher hierarchy + favourites.** Added **`level` (ISA-101 Clause 6.3: 1=overview · 2=unit control ·
+3=unit detail · 4=support/diagnostic)** to the display model — `category` had been doing double duty, which
+is why the launcher could not present a hierarchy — backfilled from category. The launcher now has level
+chips, process-area chips (from `hierarchyPath`; ASM 1.3 "organise by the process equipment hierarchy"),
+**Favourites** and **Recents**, real previews, and search. Deliberately **not** a folder tree: **ASM 5.2/5.3
+(Priority 1)** require primary displays to be *directly accessible* and reachable *without depending on a
+menu directory*. Favourites/Recents are flagged in-code as a **product decision, not a compliance item** —
+no standard requires them.
+
+**Smart alignment guides.** Dragging now snaps the selection's left/centre/right and top/middle/bottom to
+the same six lines on every other item, and **draws the line it snapped to**. Not in PI Vision (grid snap
+only) but standard in Ignition Perspective and every modern editor — and the difference between a display
+that *is* aligned and one that is approximately aligned. Tolerance is in canvas units (÷ zoom), so guides
+don't get stickier as you zoom in. Alt still bypasses everything.
+
+**CSS cleanup.** 19 selectors were defined more than once (Designer.css was appended to across ~10 phases).
+**Deleting the earlier blocks would have been wrong** — CSS *merges* declarations, so an earlier block can
+legitimately supply properties the later one doesn't. Instead: removed only the **dead declarations** —
+properties in an earlier block that a later block with the same selector re-declares — which cannot change
+any computed style. **46 dead declarations removed, 8 fully-dead blocks removed.** Verified by re-running
+the theme probe (day `rgb(247,247,247)` → night `rgb(0,0,0)`; canvas `#f3f5f9` → `#0b1220`) **after** the
+edit: rendering unchanged.
+
+**Evidence:** smart guides — dragged an item toward y=224, **2 guide lines shown, snapped to y=220** ✓ ·
+publish → **`PUT /thumbnail 200`**, launcher card renders a **real SVG (5 shapes)** matching the layout ✓ ·
+level chips `All / L1 Overview / L2 Unit / L3 Detail / L4 Diagnostic`, star → **Favourites** section,
+open → **Recent** section ✓ · theme + all-four-role regression re-run after the CSS edit: **PASS, no
+unexpected 401/403** ✓. Builds: frontend ✓ 33.7s · display-service ✓ 0 errors.
+
 ## Deferred items noticed (do NOT fix early — later-phase scope)
 - **Device-id inconsistency**: binding-resolver FALLBACK + `/preview` derive `unit_device` (crude1_pump101)
   while asset-model (authoritative, used by the live path) derives `device` (pump101) for 3-seg paths.

@@ -41,15 +41,39 @@ public class Display
     public int Height { get; set; } = 1080;
     
     /// <summary>
-    /// Background color (hex).
+    /// Canvas background — a theme token by default so the display follows day/night.
     /// </summary>
-    public string BackgroundColor { get; set; } = "#1e1e1e";
-    
+    public string BackgroundColor { get; set; } = "var(--ams-canvas-bg)";
+
     /// <summary>
     /// Current published version number (null if never published).
     /// </summary>
     public int? PublishedVersion { get; set; }
-    
+
+    /// <summary>
+    /// When the current published version actually went live.
+    /// NOT the same as the version's CreatedAt: publish flips an EXISTING draft row's status, so
+    /// CreatedAt is the SAVE time. A draft saved Monday and published Friday would report Monday.
+    /// </summary>
+    public DateTimeOffset? PublishedAt { get; set; }
+
+    /// <summary>Who published the current version.</summary>
+    public string? PublishedBy { get; set; }
+
+    /// <summary>
+    /// Design-mode SVG preview, regenerated on publish. NEVER contains process values — a thumbnail is
+    /// rendered from the design-mode view precisely so a screenshot of the display list can't leak
+    /// plant data.
+    /// </summary>
+    public string? ThumbnailSvg { get; set; }
+    public DateTimeOffset? ThumbnailAt { get; set; }
+
+    /// <summary>
+    /// ISA-101 display hierarchy (Clause 6.3): 1=overview, 2=unit control, 3=unit detail,
+    /// 4=support/diagnostic. `Category` was doing double duty for this.
+    /// </summary>
+    public short? Level { get; set; }
+
     /// <summary>
     /// Latest draft version number.
     /// </summary>
@@ -107,8 +131,14 @@ public class DisplayVersion
     /// User who created this version.
     /// </summary>
     public required string CreatedBy { get; set; }
-    
+
     public DateTimeOffset CreatedAt { get; set; }
+
+    /// <summary>When this version was published (null if it never was). See Display.PublishedAt.</summary>
+    public DateTimeOffset? PublishedAt { get; set; }
+
+    /// <summary>Who published this version.</summary>
+    public string? PublishedBy { get; set; }
 }
 
 /// <summary>

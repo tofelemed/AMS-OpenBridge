@@ -9,6 +9,8 @@ import TrendCore, { type PenSpec } from './TrendCore';
 
 interface TrendDialogProps {
   pens: PenSpec[];
+  /** Optional advisory, e.g. "showing the first 6 of 14 tags" — never truncate silently. */
+  note?: string;
   onClose: () => void;
 }
 
@@ -18,7 +20,7 @@ export function trendUrl(pens: PenSpec[]): string {
   return `/trend?tags=${encodeURIComponent(tags)}`;
 }
 
-export const TrendDialog: React.FC<TrendDialogProps> = ({ pens: initialPens, onClose }) => {
+export const TrendDialog: React.FC<TrendDialogProps> = ({ pens: initialPens, note, onClose }) => {
   const [pens, setPens] = useState<PenSpec[]>(initialPens);
 
   useEffect(() => {
@@ -41,6 +43,7 @@ export const TrendDialog: React.FC<TrendDialogProps> = ({ pens: initialPens, onC
           >Open in full page ↗</button>
           <button className="trend-core__rbtn" data-testid="trend-close" onClick={onClose}>Close</button>
         </div>
+        {note && <div className="trend-dialog__note" data-testid="trend-note">{note}</div>}
         <div className="trend-dialog__body">
           <TrendCore
             pens={pens}

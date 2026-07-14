@@ -9,6 +9,39 @@ import {
   ensureCategoryLoaded,
   registerStaticCategories,
 } from './symbolLibraryService';
+
+import { ObiPlaceholder } from '@oicl/openbridge-webcomponents-react/icons/icon-placeholder';
+import { ObiTank } from '@oicl/openbridge-webcomponents-react/icons/icon-tank';
+import { ObiFanOn } from '@oicl/openbridge-webcomponents-react/icons/icon-fan-on';
+import { ObiElectricMotor } from '@oicl/openbridge-webcomponents-react/icons/icon-electric-motor';
+import { ObiPumpOnHorizontal } from '@oicl/openbridge-webcomponents-react/icons/icon-pump-on-horizontal';
+import { ObiTrend } from '@oicl/openbridge-webcomponents-react/icons/icon-trend';
+import { ObiChart } from '@oicl/openbridge-webcomponents-react/icons/icon-chart';
+import { ObiAlarmGeneral } from '@oicl/openbridge-webcomponents-react/icons/icon-alarm-general';
+import { ObiTextIcon } from '@oicl/openbridge-webcomponents-react/icons/icon-text-icon';
+import { ObiIdTag } from '@oicl/openbridge-webcomponents-react/icons/icon-id-tag';
+import { ObiSettingsIec } from '@oicl/openbridge-webcomponents-react/icons/icon-settings-iec';
+import { ObiChevronDownGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-down-google';
+import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-right-google';
+
+// Palette icons come from the symbol TYPE, not from an emoji string. Only icons verified to exist in
+// the OpenBridge set are used; anything the library has no icon for gets ObiPlaceholder (per the
+// OpenBridge rules: never invent an icon, never mix in a second icon set).
+const SYMBOL_ICONS: Array<[RegExp, React.FC<Record<string, unknown>>]> = [
+  [/tank/i, ObiTank],
+  [/fan/i, ObiFanOn],
+  [/motor/i, ObiElectricMotor],
+  [/pump/i, ObiPumpOnHorizontal],
+  [/trend|chart/i, ObiTrend],
+  [/bar|gauge|graph|instrument/i, ObiChart],
+  [/alarm|horn|beacon/i, ObiAlarmGeneral],
+  [/label|text|readout|digital|numeric|value/i, ObiTextIcon],
+  [/badge|tag/i, ObiIdTag],
+  [/valve|damper|control|switch|button|slider|input|setpoint/i, ObiSettingsIec],
+];
+const iconFor = (type: string): React.FC<Record<string, unknown>> =>
+  SYMBOL_ICONS.find(([re]) => re.test(type))?.[1] ?? ObiPlaceholder;
+
 interface SymbolPaletteProps {
   onAddItem: (type: string, position: { x: number; y: number }) => void;
 }
@@ -101,6 +134,7 @@ const STATIC_SYMBOL_LIBRARY: SymbolCategory[] = [
       obc({ type: 'obc.card', label: 'Card', icon: '⬜', category: 'shapes', defaultSize: { width: 200, height: 150 }, bindingSlots: [], description: 'OpenBridge grouping card' }),
       obc({ type: 'obc.elevated-card', label: 'Elevated Card', icon: '🗔', category: 'shapes', defaultSize: { width: 200, height: 150 }, bindingSlots: [], description: 'Elevated panel' }),
       custom({ type: 'shape.rect', label: 'Rectangle', icon: '▭', category: 'shapes', defaultSize: { width: 100, height: 60 }, bindingSlots: [], description: 'Rectangle shape' }),
+      custom({ type: 'shape.hotspot', label: 'Hotspot (clickable area)', icon: '▭', category: 'shapes', defaultSize: { width: 120, height: 80 }, bindingSlots: [], description: 'Transparent clickable region — draw over imported artwork and give it a navigation link' }),
       custom({ type: 'shape.circle', label: 'Circle', icon: '○', category: 'shapes', defaultSize: { width: 60, height: 60 }, bindingSlots: [], description: 'Circle / ellipse' }),
       custom({ type: 'shape.line', label: 'Line', icon: '╱', category: 'shapes', defaultSize: { width: 100, height: 4 }, bindingSlots: [], description: 'Straight line' }),
       custom({ type: 'shape.divider', label: 'Divider', icon: '─', category: 'shapes', defaultSize: { width: 200, height: 2 }, bindingSlots: [], description: 'Section divider' }),
@@ -236,7 +270,7 @@ export const SymbolPalette: React.FC<SymbolPaletteProps> = ({ onAddItem }) => {
   return (
     <div className="symbol-palette">
       <div className="symbol-palette__header">
-        <h3>🧰 HMI Components</h3>
+        <h3>HMI Components</h3>
       </div>
       
       <div className="symbol-palette__search">
@@ -260,14 +294,14 @@ export const SymbolPalette: React.FC<SymbolPaletteProps> = ({ onAddItem }) => {
               className={`symbol-palette__category-header ${expandedCategories.has(category.id) ? 'expanded' : ''}`}
               onClick={() => toggleCategory(category.id)}
             >
-              <span className="symbol-palette__category-icon">{category.icon}</span>
+              <span className="symbol-palette__category-icon">{React.createElement(iconFor(category.id))}</span>
               <span className="symbol-palette__category-name">{category.name}</span>
               <span className="symbol-palette__category-count">
                 {loadingCategories.has(category.id)
                   ? '…'
                   : category.symbols.length || (LAZY_CATEGORY_META.some(m => m.id === category.id) ? '↓' : 0)}
               </span>              <span className="symbol-palette__category-chevron">
-                {expandedCategories.has(category.id) ? '▼' : '▶'}
+                {expandedCategories.has(category.id) ? <ObiChevronDownGoogle /> : <ObiChevronRightGoogle />}
               </span>
             </button>
             
@@ -287,7 +321,7 @@ export const SymbolPalette: React.FC<SymbolPaletteProps> = ({ onAddItem }) => {
                     onDoubleClick={() => onAddItem(symbol.type, { x: 100, y: 100 })}
                     title={symbol.description || symbol.label}
                   >
-                    <div className="symbol-palette__item-icon">{symbol.icon}</div>
+                    <div className="symbol-palette__item-icon">{React.createElement(iconFor(symbol.type + ' ' + symbol.label))}</div>
                     <div className="symbol-palette__item-info">
                       <div className="symbol-palette__item-label">
                         {symbol.label}
@@ -311,7 +345,7 @@ export const SymbolPalette: React.FC<SymbolPaletteProps> = ({ onAddItem }) => {
       </div>
       
       <div className="symbol-palette__hint">
-        <span>💡</span> Drag to canvas or double-click to add
+        Drag to canvas or double-click to add
       </div>
       
       <div className="symbol-palette__standards">

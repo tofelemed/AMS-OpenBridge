@@ -7,14 +7,24 @@ import { AssetBrowser } from './AssetBrowser';
 import type { CanvasItem } from './types';
 import { isAutomationType, getDefaultAutomationProps } from './automationTypes';
 import { isObcCatalogType, getDefaultObcProps } from './obcCatalogTypes';
-import { getDefaultSizeSync } from './symbolLibraryService';
+import { getDefaultSizeSync, findSymbolDefinition } from './symbolLibraryService';
 import { preloadForSymbolTypes } from './lazyCategoryRegistry';
 import { pensFromItems } from './TrendChart';
+import DesignerToolbar from './DesignerToolbar';
+import LayersPanel from './LayersPanel';
+import { renderThumbnailSvg } from './thumbnail';
 import TrendDialog from './TrendDialog';
 import { apiFetch } from '../../api/apiFetch';
 import { useAuthStore } from '../../store/authStore';
+import { toast } from 'react-toastify';
+import { ObiError } from '@oicl/openbridge-webcomponents-react/icons/icon-error';
+
 
 const API_BASE = import.meta.env.VITE_DISPLAY_SERVICE_URL || '/api/displays';
+
+// Which declared slot a clicked tag binds to (mirrors SymbolRenderer's PRIMARY_VALUE_SLOTS order).
+const PRIMARY_SLOT_ORDER = ['value', 'pv', 'level', 'speed', 'position', 'pressure',
+  'temperature', 'current', 'flow', 'setpoint', 'sp', 'status', 'command'];
 
 interface DisplayDesignerProps {
   displayId: string;
@@ -63,13 +73,23 @@ async function fetchDisplay(id: string): Promise<DisplayData> {
 }
 
 // Phase L — draft/published metadata + the publish lifecycle (all display.publish-gated server-side).
-interface DisplayMeta { draftVersion: number; publishedVersion: number | null }
+interface DisplayMeta {
+  draftVersion: number;
+  publishedVersion: number | null;
+  publishedAt: string | null;
+  publishedBy: string | null;
+}
 
 async function fetchDisplayMeta(id: string): Promise<DisplayMeta> {
   const res = await apiFetch(`${API_BASE}/${id}`);
   if (!res.ok) throw new Error('Failed to load display metadata');
   const j = await res.json();
-  return { draftVersion: j.draftVersion, publishedVersion: j.publishedVersion ?? null };
+  return {
+    draftVersion: j.draftVersion,
+    publishedVersion: j.publishedVersion ?? null,
+    publishedAt: j.publishedAt ?? null,
+    publishedBy: j.publishedBy ?? null,
+  };
 }
 
 async function postLifecycle(id: string, action: 'publish' | 'unpublish' | 'revert'): Promise<void> {
@@ -85,13 +105,15 @@ const unpublishDisplay = (id: string) => postLifecycle(id, 'unpublish');
 const revertDisplay    = (id: string) => postLifecycle(id, 'revert');
 
 // Save display content — backend contract is { snapshot, changeNote, userId }.
-async function saveDisplay(id: string, content: DisplayData['content']): Promise<void> {
+// `userId` lands in display_versions.created_by, i.e. it IS the audit trail. It used to be the literal
+// 'designer-user' for every save by every person, which made the trail fiction.
+async function saveDisplay(id: string, content: DisplayData['content'], userId: string): Promise<void> {
   const res = await apiFetch(`${API_BASE}/${id}/content`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ snapshot: content, changeNote: 'designer save', userId: 'designer-user' })
+    body: JSON.stringify({ snapshot: content, changeNote: 'designer save', userId })
   });
-  if (!res.ok) throw new Error('Failed to save display');
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
 }
 
 export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
@@ -100,7 +122,8 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
   onSave
 }) => {
   const queryClient = useQueryClient();
-  
+  const currentUser = useAuthStore(s => s.user?.username ?? 'unknown');
+
   // State
   const [items, setItems] = useState<CanvasItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -108,10 +131,15 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
   const [mode, setMode] = useState<'design' | 'preview'>('design');
   const [zoom, setZoom] = useState(1);
   const [showGrid, setShowGrid] = useState(true);
-  const [gridSize] = useState(10);
-  const [showAssetBrowser, setShowAssetBrowser] = useState(false);
+  const [gridSize, setGridSize] = useState(10);   // was setter-less, so the persisted value was ignored
+  const [leftTab, setLeftTab] = useState<'symbols' | 'assets' | 'layers'>('symbols');
+  // Snap was unconditional — you could not place anything off-grid. Alt bypasses it per-drag.
+  const [snapEnabled, setSnapEnabled] = useState(true);
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 1920, height: 1080 });
+  // Canvas background is a THEME TOKEN by default, so the canvas follows day/night like everything else.
+  const [bgColor, setBgColor] = useState('var(--ams-canvas-bg)');
   const [trendOpen, setTrendOpen] = useState(false); // Phase J — ad-hoc trend dialog
 
   // History — ref-based (avoids the stale-closure index desync of the old version)
@@ -128,30 +156,64 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
     queryFn: () => fetchDisplay(displayId)
   });
   
-  // Load items from fetched data
+  // Seed the canvas from the server — ONCE per display, not on every refetch.
+  //
+  // This effect used to key on the whole `displayData` object. Saving invalidates the query, the
+  // refetched document always differs (the version number increments), so the effect re-ran and did
+  // `setItems(server) + historyRef = [server] + index = 0`. Two real consequences:
+  //   * every Save wiped the undo stack (place 3 symbols, Ctrl+S, Ctrl+Z → nothing happens);
+  //   * an edit made while the save round-trip was in flight was silently reverted by the refetch.
+  // The server is the source of truth only at load; after that the canvas owns the items.
+  const seededRef = useRef<string | null>(null);
   useEffect(() => {
-    if (displayData?.content?.items) {
-      const loaded = displayData.content.items;
-      setItems(loaded);
-      historyRef.current = [loaded];
-      indexRef.current = 0;
-      setHist({ index: 0, len: 1 });
-      const s = displayData.content.settings;
-      if (s?.canvasWidth && s?.canvasHeight) setCanvasSize({ width: s.canvasWidth, height: s.canvasHeight });
-    }
-  }, [displayData]);
+    if (!displayData?.content?.items) return;
+    if (seededRef.current === displayId) return;   // already seeded this display
+    seededRef.current = displayId;
+
+    const loaded = displayData.content.items;
+    setItems(loaded);
+    historyRef.current = [loaded];
+    indexRef.current = 0;
+    setHist({ index: 0, len: 1 });
+
+    const s = displayData.content.settings;
+    if (s?.canvasWidth && s?.canvasHeight) setCanvasSize({ width: s.canvasWidth, height: s.canvasHeight });
+    // Round-trip the rest of the settings too — showGrid/gridSize/backgroundColor used to be written
+    // on every save but never read back, so the saved values were unreachable.
+    if (typeof s?.showGrid === 'boolean') setShowGrid(s.showGrid);
+    if (s?.gridSize) setGridSize(s.gridSize);
+    if (s?.backgroundColor) setBgColor(s.backgroundColor);
+  }, [displayData, displayId]);
+
+  /** Re-seed the canvas from the server on purpose (used by Revert, which replaces the draft). */
+  const reseedFromServer = useCallback(async () => {
+    seededRef.current = null;
+    await queryClient.invalidateQueries({ queryKey: ['display', displayId] });
+  }, [queryClient, displayId]);
 
   useEffect(() => { if (items.length > 0) preloadForSymbolTypes(items.map(i => i.type)); }, [items]);
 
-  // Save mutation
+  // Save mutation.
+  // NOTE: backgroundColor used to be the literal '#0f172a' here. Every save stamped dark navy into the
+  // display document — overwriting imported displays that correctly stored a theme token — and the
+  // viewer applies it as an inline style, so the canvas could never follow day/night. It is now
+  // whatever the display actually has (default: the theme token).
   const saveMutation = useMutation({
-    mutationFn: () => saveDisplay(displayId, { items, settings: { gridSize, showGrid, backgroundColor: '#0f172a', canvasWidth: canvasSize.width, canvasHeight: canvasSize.height } }),
+    mutationFn: () => saveDisplay(displayId, {
+      items,
+      settings: { gridSize, showGrid, backgroundColor: bgColor, canvasWidth: canvasSize.width, canvasHeight: canvasSize.height },
+    }, currentUser),
     onSuccess: () => {
       setIsDirty(false);
-      queryClient.invalidateQueries({ queryKey: ['display', displayId] });
+      toast.success('Display saved');
       queryClient.invalidateQueries({ queryKey: ['display-meta', displayId] });
+      queryClient.invalidateQueries({ queryKey: ['displays'] });          // refresh the list badges
+      queryClient.invalidateQueries({ queryKey: ['launcher-displays'] });
       onSave?.();
     },
+    // A failed save used to be completely silent: no onError, no toast — the button just re-enabled
+    // itself and the engineer walked away believing the work was persisted.
+    onError: (e: Error) => toast.error(`Save failed: ${e.message}`),
   });
 
   // ── Phase L: draft ⇄ published ────────────────────────────────────────────
@@ -166,15 +228,44 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
   const hasUnpublishedChanges =
     !!meta && meta.publishedVersion != null && meta.draftVersion > meta.publishedVersion;
 
+  // Invalidate the metadata AND both list pages, so the Draft/Published badges elsewhere don't sit
+  // stale for staleTime (30s) after a publish.
   const invalidateMeta = () => {
     queryClient.invalidateQueries({ queryKey: ['display-meta', displayId] });
-    queryClient.invalidateQueries({ queryKey: ['display', displayId] });
+    queryClient.invalidateQueries({ queryKey: ['displays'] });
+    queryClient.invalidateQueries({ queryKey: ['launcher-displays'] });
   };
-  const publishMutation   = useMutation({ mutationFn: () => publishDisplay(displayId),   onSuccess: invalidateMeta });
-  const unpublishMutation = useMutation({ mutationFn: () => unpublishDisplay(displayId), onSuccess: invalidateMeta });
-  const revertMutation    = useMutation({
+  const publishMutation = useMutation({
+    mutationFn: async () => {
+      await publishDisplay(displayId);
+      // Regenerate the preview on PUBLISH only — never on autosave (you'd melt the browser), and always
+      // from the design-mode model, so a thumbnail can never capture a live process value.
+      const svg = renderThumbnailSvg({
+        items, width: canvasSize.width, height: canvasSize.height, background: bgColor,
+      });
+      await apiFetch(`${API_BASE}/${displayId}/thumbnail`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ svg }),
+      }).catch(() => { /* a missing thumbnail must never fail a publish */ });
+    },
+    onSuccess: () => { invalidateMeta(); toast.success('Published to the runtime'); },
+    onError: (e: Error) => toast.error(`Publish failed: ${e.message}`),
+  });
+  const unpublishMutation = useMutation({
+    mutationFn: () => unpublishDisplay(displayId),
+    onSuccess: () => { invalidateMeta(); toast.info('Withdrawn from the runtime'); },
+    onError: (e: Error) => toast.error(`Unpublish failed: ${e.message}`),
+  });
+  const revertMutation = useMutation({
     mutationFn: () => revertDisplay(displayId),
-    onSuccess: () => { invalidateMeta(); setIsDirty(false); },
+    // Revert replaces the draft on the SERVER, so the canvas has to be re-seeded from it — otherwise
+    // the editor keeps showing the discarded edits.
+    onSuccess: async () => {
+      invalidateMeta();
+      setIsDirty(false);
+      await reseedFromServer();
+      toast.success('Reverted to the published version');
+    },
+    onError: (e: Error) => toast.error(`Revert failed: ${e.message}`),
   });
 
   // ── history (ref-based) ──────────────────────────────────────────────────
@@ -228,6 +319,30 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
   }, [apply]);
 
   // property-panel edit — commits
+  /** The slot a tag binds to when you click it in the asset tree: the symbol's declared primary. */
+  const primarySlotFor = useCallback((item: CanvasItem): string | undefined => {
+    const slots = findSymbolDefinition(item.type)?.bindingSlots;
+    if (!slots?.length) return 'value';
+    return slots.find(s => PRIMARY_SLOT_ORDER.includes(s)) ?? slots[0];
+  }, []);
+
+  /**
+   * Bulk property edit — ONE pass over the items, ONE undo entry (never N).
+   *
+   * `patch` may be a function so a caller can merge into each item's OWN nested object
+   * (`i => ({ size: { ...i.size, width: 150 } })`). Calling this once per item in a loop would NOT work:
+   * `itemsRef.current` only updates after a render, so each iteration would overwrite the previous one
+   * and only the last item would keep the edit.
+   */
+  const updateMany = useCallback((
+    ids: string[],
+    patch: Partial<CanvasItem> | ((item: CanvasItem) => Partial<CanvasItem>),
+  ) => {
+    const set = new Set(ids);
+    apply(itemsRef.current.map(it =>
+      set.has(it.id) ? { ...it, ...(typeof patch === 'function' ? patch(it) : patch) } : it), true);
+  }, [apply]);
+
   const updateItem = useCallback((id: string, changes: Partial<CanvasItem>) => {
     apply(itemsRef.current.map(it => it.id === id ? { ...it, ...changes } : it), true);
   }, [apply]);
@@ -342,6 +457,55 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
     return () => window.removeEventListener('keydown', onKey);
   }, [saveMutation, undo, redo, duplicateSelected, copySelected, paste, groupSelected, ungroupSelected]);
 
+  // ── Full screen + fit-to-screen ───────────────────────────────────────────
+  // The designer is a full-viewport route (outside the app shell), so "full screen" here is the real
+  // browser fullscreen — the same affordance the runtime viewer has.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = useCallback(async () => {
+    if (!document.fullscreenElement) {
+      await rootRef.current?.requestFullscreen?.();
+    } else {
+      await document.exitFullscreen?.();
+    }
+  }, []);
+  useEffect(() => {
+    const onFs = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
+  }, []);
+
+  /** Zoom so the whole artboard fits the canvas well (there was no fit/zoom-to-fit anywhere). */
+  const fitToScreen = useCallback(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const pad = 48; // matches the wrapper padding
+    const z = Math.min(
+      (el.clientWidth - pad) / canvasSize.width,
+      (el.clientHeight - pad) / canvasSize.height,
+    );
+    setZoom(Math.max(0.1, Math.min(3, Number(z.toFixed(2)))));
+  }, [canvasSize]);
+
+  // Unsaved-changes guard. There was none: "← Back", a sidebar click, a refresh or a tab close all
+  // discarded the work silently. This covers the browser-level exits; `closeDesigner` covers in-app ones.
+  useEffect(() => {
+    if (!isDirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';   // required for Chrome to show the native prompt
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [isDirty]);
+
+  const closeDesigner = useCallback(() => {
+    if (isDirty && !window.confirm('You have unsaved changes. Leave the designer and discard them?')) return;
+    onClose?.();
+  }, [isDirty, onClose]);
+
   // Debug/test hook: expose designer state for automated verification.
   useEffect(() => {
     (window as unknown as { __designer?: unknown }).__designer = {
@@ -356,7 +520,7 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
   if (isLoading) {
     return (
       <div className="display-designer display-designer--loading">
-        <div className="display-designer__loading-spinner">⏳</div>
+        <div className="display-designer__loading-spinner" />
         <div>Loading display...</div>
       </div>
     );
@@ -365,7 +529,7 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
   if (error) {
     return (
       <div className="display-designer display-designer--error">
-        <div className="display-designer__error-icon">❌</div>
+        <div className="display-designer__error-icon"><ObiError /></div>
         <div>Failed to load display</div>
         <button onClick={() => queryClient.invalidateQueries({ queryKey: ['display', displayId] })}>
           Retry
@@ -375,164 +539,121 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
   }
   
   return (
-    <div className="display-designer">
-      {/* Header Toolbar */}
-      <header className="display-designer__header">
-        <div className="display-designer__header-left">
-          <button className="display-designer__back-btn" onClick={onClose}>
-            ← Back
-          </button>
-          <div className="display-designer__title">
-            <span className="display-designer__name">{displayData?.name || 'Untitled'}</span>
-            {isDirty && <span className="display-designer__dirty">●</span>}
-          </div>
-        </div>
-        
-        <div className="display-designer__header-center">
-          {/* Mode Toggle */}
-          <div className="display-designer__mode-toggle">
-            <button
-              className={`display-designer__mode-btn ${mode === 'design' ? 'active' : ''}`}
-              onClick={() => setMode('design')}
-            >
-              ✏️ Design
-            </button>
-            <button
-              className={`display-designer__mode-btn ${mode === 'preview' ? 'active' : ''}`}
-              onClick={() => setMode('preview')}
-            >
-              ▶️ Preview
-            </button>
-          </div>
-          
-          {/* Zoom Controls */}
-          <div className="display-designer__zoom-controls">
-            <button onClick={() => setZoom(z => Math.max(0.25, z - 0.25))}>−</button>
-            <span>{Math.round(zoom * 100)}%</span>
-            <button onClick={() => setZoom(z => Math.min(2, z + 0.25))}>+</button>
-            <button onClick={() => setZoom(1)}>100%</button>
-          </div>
-        </div>
-        
-        <div className="display-designer__header-right">
-          {/* Arrange ops (multi-select) */}
-          {mode === 'design' && (
-            <div className="display-designer__ops">
-              <button onClick={groupSelected} disabled={selectedIds.length < 2} title="Group (Ctrl+G)">▣</button>
-              <button onClick={ungroupSelected} disabled={selectedIds.length < 1} title="Ungroup (Ctrl+Shift+G)">▢</button>
-              <span className="display-designer__ops-sep" />
-              <button onClick={() => alignSelected('left')} disabled={selectedIds.length < 2} title="Align left">⊢</button>
-              <button onClick={() => alignSelected('centerH')} disabled={selectedIds.length < 2} title="Align center-H">≑</button>
-              <button onClick={() => alignSelected('right')} disabled={selectedIds.length < 2} title="Align right">⊣</button>
-              <button onClick={() => alignSelected('top')} disabled={selectedIds.length < 2} title="Align top">⊤</button>
-              <button onClick={() => alignSelected('bottom')} disabled={selectedIds.length < 2} title="Align bottom">⊥</button>
-              <button onClick={sameSize} disabled={selectedIds.length < 2} title="Same size">▭</button>
-              <span className="display-designer__ops-sep" />
-              <button onClick={() => zOrder('front')} disabled={!selectedIds.length} title="Bring to front">⬆</button>
-              <button onClick={() => zOrder('back')} disabled={!selectedIds.length} title="Send to back">⬇</button>
-              <button onClick={() => flipSelected('H')} disabled={!selectedIds.length} title="Flip horizontal">⇄</button>
-              <button onClick={() => flipSelected('V')} disabled={!selectedIds.length} title="Flip vertical">⇅</button>
-              <span className="display-designer__ops-sep" />
-              {/* Phase J — ad-hoc trend of the selected symbols' bound tags */}
-              <button
-                onClick={() => setTrendOpen(true)}
-                disabled={trendPens.length === 0}
-                data-testid="trend-action"
-                title={trendPens.length ? `Trend ${trendPens.length} tag(s)` : 'Select symbol(s) with a bound tag'}
-              >📈 Trend</button>
-            </div>
-          )}
-          {/* History */}
-          <div className="display-designer__history">
-            <button onClick={undo} disabled={hist.index <= 0} title="Undo (Ctrl+Z)">↩️</button>
-            <button onClick={redo} disabled={hist.index >= hist.len - 1} title="Redo (Ctrl+Y)">↪️</button>
-          </div>
-          
-          {/* View Options */}
-          <div className="display-designer__view-options">
-            <label className="display-designer__checkbox">
-              <input
-                type="checkbox"
-                checked={showGrid}
-                onChange={(e) => setShowGrid(e.target.checked)}
-              />
-              Grid
-            </label>
-            <button
-              className={`display-designer__toggle ${showAssetBrowser ? 'active' : ''}`}
-              onClick={() => setShowAssetBrowser(!showAssetBrowser)}
-              title="Asset Browser"
-            >
-              🏷️
-            </button>
-          </div>
-          
-          {/* Save */}
-          <button
-            className="display-designer__save-btn"
-            onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending || !isDirty}
-          >
-            {saveMutation.isPending ? '💾 Saving...' : '💾 Save'}
-          </button>
-
-          {/* Phase L — draft/published state + publish. Editing only ever writes drafts; Operators keep
-              seeing the last published version until Publish is pressed. Gated on display.publish (K). */}
-          <div className="display-designer__publish" data-testid="publish-state">
-            <span className="display-designer__version" data-testid="version-badges">
-              Draft v{meta?.draftVersion ?? '–'}
-              {' · '}
-              {meta?.publishedVersion
-                ? <span className="display-designer__badge--pub">Published v{meta.publishedVersion}</span>
-                : <span className="display-designer__badge--unpub">Not published</span>}
-              {hasUnpublishedChanges && <span className="display-designer__badge--dirty" data-testid="unpublished-badge">unpublished changes</span>}
-            </span>
-            {canPublish && (
-              <>
-                <button
-                  className="display-designer__publish-btn"
-                  data-testid="publish-btn"
-                  onClick={() => publishMutation.mutate()}
-                  disabled={publishMutation.isPending || isDirty}
-                  title={isDirty ? 'Save first, then publish' : 'Publish the current draft to the runtime viewer'}
-                >
-                  {publishMutation.isPending ? '⬆ Publishing…' : '⬆ Publish'}
-                </button>
-                <button
-                  className="display-designer__publish-btn"
-                  data-testid="unpublish-btn"
-                  onClick={() => unpublishMutation.mutate()}
-                  disabled={unpublishMutation.isPending || !meta?.publishedVersion}
-                  title="Withdraw this display from the runtime"
-                >
-                  ⤫ Unpublish
-                </button>
-                <button
-                  className="display-designer__publish-btn"
-                  data-testid="revert-btn"
-                  onClick={() => revertMutation.mutate()}
-                  disabled={revertMutation.isPending || !meta?.publishedVersion}
-                  title="Discard unpublished edits — restore the last published version as a new draft"
-                >
-                  ↺ Revert
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+    <div className="display-designer" ref={rootRef}>
+      <DesignerToolbar
+        name={displayData?.name || 'Untitled'}
+        isDirty={isDirty}
+        mode={mode}
+        setMode={setMode}
+        isFullscreen={isFullscreen}
+        toggleFullscreen={toggleFullscreen}
+        onBack={closeDesigner}
+        zoom={zoom}
+        setZoom={setZoom}
+        fitToScreen={fitToScreen}
+        histIndex={hist.index}
+        histLen={hist.len}
+        undo={undo}
+        redo={redo}
+        selectedCount={selectedIds.length}
+        onGroup={groupSelected}
+        onUngroup={ungroupSelected}
+        onAlign={alignSelected}
+        onSameSize={sameSize}
+        onZOrder={zOrder}
+        onFlip={flipSelected}
+        trendCount={trendPens.length}
+        onTrend={() => setTrendOpen(true)}
+        showGrid={showGrid}
+        setShowGrid={setShowGrid}
+        snapEnabled={snapEnabled}
+        setSnapEnabled={setSnapEnabled}
+        showAssets={leftTab === 'assets'}
+        toggleAssets={() => { setLeftTab(t => (t === 'assets' ? 'symbols' : 'assets')); setLeftCollapsed(false); }}
+        canvasSize={canvasSize}
+        setCanvasSize={(s) => { setCanvasSize(s); setIsDirty(true); }}
+        onSave={() => saveMutation.mutate()}
+        saving={saveMutation.isPending}
+        canPublish={canPublish}
+        meta={meta}
+        hasUnpublishedChanges={hasUnpublishedChanges}
+        onPublish={() => publishMutation.mutate()}
+        onUnpublish={() => unpublishMutation.mutate()}
+        onRevert={() => {
+          if (window.confirm('Discard all unpublished edits and restore the last published version?')) {
+            revertMutation.mutate();
+          }
+        }}
+        publishing={publishMutation.isPending || unpublishMutation.isPending || revertMutation.isPending}
+      />
       
       {/* Main Content */}
       <div className="display-designer__body">
-        {/* Left Panel - Symbol Palette */}
-        {mode === 'design' && (
+        {/* Left panel — SOURCES (symbols + assets), tabbed.
+            The asset tree used to live on the RIGHT and *replaced* the property inspector, so you could
+            never see the tag tree and the symbol's binding slots at the same time — which made binding
+            any slot other than `value` physically impossible. PI Vision (and Ignition, and WinCC) put
+            sources on the left and properties on the right for exactly this reason. */}
+        {mode === 'design' && !leftCollapsed && (
           <aside className="display-designer__sidebar display-designer__sidebar--left">
-            <SymbolPalette onAddItem={addItem} />
+            <div className="ds-tabs" role="tablist">
+              <button
+                className={`ds-tab${leftTab === 'symbols' ? ' active' : ''}`}
+                onClick={() => setLeftTab('symbols')}
+                role="tab" aria-selected={leftTab === 'symbols'}
+                data-testid="tab-symbols"
+              >Symbols</button>
+              <button
+                className={`ds-tab${leftTab === 'assets' ? ' active' : ''}`}
+                onClick={() => setLeftTab('assets')}
+                role="tab" aria-selected={leftTab === 'assets'}
+                data-testid="tab-assets"
+              >Assets</button>
+              <button
+                className={`ds-tab${leftTab === 'layers' ? ' active' : ''}`}
+                onClick={() => setLeftTab('layers')}
+                role="tab" aria-selected={leftTab === 'layers'}
+                data-testid="tab-layers"
+              >Layers</button>
+              <span className="ds-tabs__spacer" />
+              <button className="ds-collapse" onClick={() => setLeftCollapsed(true)} title="Collapse panel">‹</button>
+            </div>
+            <div className="ds-panel-body">
+              {leftTab === 'layers' ? (
+                <LayersPanel
+                  items={items}
+                  selectedIds={selectedIds}
+                  onSelect={selectMany}
+                  onUpdateItem={updateItem}
+                />
+              ) : leftTab === 'symbols'
+                ? <SymbolPalette onAddItem={addItem} />
+                : (
+                  <AssetBrowser
+                    selectedPath={selectedItem?.bindings?.value}
+                    // Clicking a tag binds the selected symbol's PRIMARY slot (PI Vision's drag-to-bind
+                    // gesture). Every other slot is bound from the inspector's Data tab, which is now
+                    // visible at the same time.
+                    onSelectPath={(path) => {
+                      if (!selectedId || !selectedItem) {
+                        toast.info('Select a symbol on the canvas first, then pick a tag.');
+                        return;
+                      }
+                      const slot = primarySlotFor(selectedItem) ?? 'value';
+                      updateItem(selectedId, { bindings: { ...selectedItem.bindings, [slot]: path } });
+                      toast.success(`Bound ${slot} → ${path.split('/').pop()}`);
+                    }}
+                  />
+                )}
+            </div>
           </aside>
         )}
-        
+        {mode === 'design' && leftCollapsed && (
+          <button className="ds-rail" onClick={() => setLeftCollapsed(false)} title="Show panel">›</button>
+        )}
+
         {/* Center - Canvas */}
-        <main className="display-designer__main">
+        <main className="display-designer__main" ref={mainRef}>
           <DesignerCanvas
             items={items}
             selectedIds={selectedIds}
@@ -542,6 +663,8 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
             zoom={zoom}
             canvasWidth={canvasSize.width}
             canvasHeight={canvasSize.height}
+            canvasBg={bgColor}
+            snapEnabled={snapEnabled}
             onSelect={selectMany}
             onToggleSelect={toggleSelect}
             onUpdateItems={updateItemsLive}
@@ -553,28 +676,16 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
           />
         </main>
         
-        {/* Right Panel - Properties / Asset Browser */}
+        {/* Right panel — PROPERTIES, always visible (never swapped out for the asset tree). */}
         {mode === 'design' && (
           <aside className="display-designer__sidebar display-designer__sidebar--right">
-            {showAssetBrowser ? (
-              <AssetBrowser
-                selectedPath={selectedItem?.bindings?.value}
-                onSelectPath={(path) => {
-                  if (selectedId && selectedItem) {
-                    updateItem(selectedId, {
-                      bindings: { ...selectedItem.bindings, value: path }
-                    });
-                  }
-                }}
-              />
-            ) : (
-              <PropertyInspector
-                selectedItem={selectedItem}
-                onUpdateItem={updateItem}
-                onDeleteItem={deleteItem}
-                onDuplicateItem={() => duplicateSelected()}
-              />
-            )}
+            <PropertyInspector
+              selectedItems={items.filter(i => selectedIds.includes(i.id))}
+              onUpdateItem={updateItem}
+              onUpdateMany={updateMany}
+              onDeleteItem={deleteItem}
+              onDuplicateItem={() => duplicateSelected()}
+            />
           </aside>
         )}
       </div>

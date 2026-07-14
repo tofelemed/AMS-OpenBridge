@@ -68,11 +68,27 @@ export interface MultiStateConfig {
 }
 
 export interface NavigationLink {
+  // We store a real FK, not a URL. PI Vision stores the route ("./#/Displays/189/101---Crusher-Detail"),
+  // which means renaming a display breaks every inbound link — we resolve the route at render instead.
   targetDisplayId?: string;          // open another saved display
-  targetUrl?: string;                // or an external URL
-  assetContext?: string;             // UNS path passed as ?asset= (in-context navigation)
+  targetUrl?: string;                // or an external URL (https / same-origin only — validated on author)
   label?: string;                    // breadcrumb / crumb label for the target
   openMode?: 'replace' | 'new-tab' | 'popup'; // default 'replace'
+
+  /**
+   * How the clicked symbol's asset reaches the target display (PI Vision's `IncludeAsset`):
+   *  'none'                  — no context.
+   *  'current-asset'         — pass THIS symbol's own bound asset. A pump tile on an overview opens the
+   *                            pump detail *for that pump*. The everyday case.
+   *  'current-asset-as-root' — pass it as a root; the target resolves that asset AND its children
+   *                            (turbine → turbine + gearbox + generator).
+   *  'explicit'              — a fixed asset chosen at author time. The only option for a static shape
+   *                            (rectangle/text/hotspot) that has no binding of its own — this is exactly
+   *                            PI Vision's "drag an asset onto the symbol" drop field.
+   */
+  assetContextMode?: 'none' | 'current-asset' | 'current-asset-as-root' | 'explicit';
+  assetContext?: string;             // the UNS path — only meaningful when mode === 'explicit'
+  includeTimeRange?: boolean;        // target inherits the source display's time range (PI Vision parity)
 }
 
 export interface FormattingOptions {

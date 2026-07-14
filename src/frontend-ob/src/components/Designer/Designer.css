@@ -9,29 +9,46 @@
 /* ─────────────────────────────────────────────────────────────────────────
    CSS Variables (ISA-101 Compliant Palette)
    ───────────────────────────────────────────────────────────────────────── */
+/* Designer chrome — ALIASES OVER REAL OPENBRIDGE TOKENS.
+ *
+ * These previously pointed at token names that do not exist in the OpenBridge library
+ * (--container-background-color-alt, --container-surface-color, --container-border-color,
+ * --on-container-regular-color, --alert-*-border-color, …). A var() fallback fails SILENTLY, so
+ * every one of them resolved to its hardcoded Tailwind-slate hex — which is why the Designer rendered
+ * dark navy inside a light app shell, and why switching day/night changed nothing here: none of the
+ * tokens were ever live.
+ *
+ * Every name below is verified present in @oicl/openbridge-webcomponents/dist/openbridge.css for all
+ * four themes. NO HEX FALLBACKS: if a token ever disappears the UI must break loudly, not silently
+ * re-introduce a hardcoded palette. */
 :root {
-  /* ISA-101: Grayscale background hierarchy */
-  --designer-bg: var(--container-background-color, #0f172a);
-  --designer-surface: var(--container-background-color-alt, #1e293b);
-  --designer-surface-alt: var(--container-surface-color, #334155);
-  --designer-border: var(--container-border-color, #475569);
-  
-  /* ISA-101: Grayscale text (no color for normal state) */
-  --designer-text: var(--on-container-regular-color, #f1f5f9);
-  --designer-text-muted: var(--on-container-muted-color, #94a3b8);
-  
-  /* ISA-101: Color ONLY for abnormal situations */
-  --designer-accent: var(--alert-advisory-border-color, #3b82f6);
-  --designer-accent-hover: var(--alert-advisory-fill-color, #60a5fa);
-  
-  /* ISA-18.2: Alarm colors (reserved for alarms only) */
-  --designer-alarm: var(--alert-alarm-border-color, var(--ams-crit));
-  --designer-warning: var(--alert-warning-border-color, var(--ams-warn));
-  --designer-caution: var(--alert-caution-border-color, #eab308);
-  --designer-running: var(--alert-running-border-color, var(--ams-run));
-  
-  --designer-grid-color: rgba(148, 163, 184, 0.08);
-  
+  /* Surfaces (ISA-101: grayscale hierarchy — color is reserved for abnormal states) */
+  --designer-bg:          var(--container-backdrop-color);    /* canvas well / page backdrop */
+  --designer-surface:     var(--container-background-color);  /* header, sidebars, footer, cards */
+  --designer-surface-alt: var(--container-section-color);     /* nested sections, group headers */
+  --designer-border:      var(--border-divider-color);
+
+  /* Content */
+  --designer-text:        var(--element-active-color);
+  --designer-text-muted:  var(--element-neutral-color);
+  --designer-text-faint:  var(--element-inactive-color);
+
+  /* Interactive */
+  --designer-accent:       var(--selected-enabled-background-color);
+  --designer-accent-hover: var(--selected-hover-background-color);
+  --designer-on-accent:    var(--on-selected-active-color);
+
+  /* ISA-18.2 alarm colors (reserved for alarms only) */
+  --designer-alarm:    var(--alert-alarm-color);
+  --designer-warning:  var(--alert-warning-color);
+  --designer-caution:  var(--alert-caution-color);
+  --designer-running:  var(--alert-running-color);
+  --designer-danger:   var(--alert-alarm-color);    /* was USED but never DEFINED → dead rules */
+  --designer-success:  var(--alert-running-color);  /* same */
+
+  --designer-grid-color: var(--ams-grid-line);      /* theme-aware; the old literal was invisible on light */
+  --designer-font: var(--font-family-main);
+
   --sidebar-width: 280px;
   --header-height: 48px;
   --footer-height: 28px;
@@ -40,14 +57,17 @@
 /* ─────────────────────────────────────────────────────────────────────────
    Display Designer Layout
    ───────────────────────────────────────────────────────────────────────── */
+/* Full-viewport authoring workspace (a standalone route, not a page inside the shell). */
 .display-designer {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: 100vh;
+  width: 100vw;
   min-height: 0;
+  overflow: hidden;
   background: var(--designer-bg);
   color: var(--designer-text);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--designer-font);
 }
 
 .display-designer--loading,
@@ -372,9 +392,7 @@
 
 .symbol-palette__category-header:hover {
   background: var(--designer-surface-alt);
-}
-
-.symbol-palette__category-icon {
+}.symbol-palette__category-icon {
   margin-right: 8px;
 }
 
@@ -465,10 +483,17 @@
 /* ─────────────────────────────────────────────────────────────────────────
    Designer Canvas
    ───────────────────────────────────────────────────────────────────────── */
+/* The artboard sits in a scrollable well, padded and centred (it used to be flush against the palette
+   with zero padding, so a symbol at x=0 was unreachable). */
 .designer-canvas-wrapper {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  align-items: center;
+  min-height: 100%;
+  padding: 24px;
+  width: max-content;
+  min-width: 100%;
+  box-sizing: border-box;
 }
 
 .designer-canvas-toolbar {
@@ -502,13 +527,14 @@
 
 .designer-canvas {
   position: relative;
-  flex: 1;
-  min-width: 1920px;
-  min-height: 1080px;
-  background: var(--designer-bg);
+  /* The artboard is sized inline from the display's canvasWidth/Height (DesignerCanvas.tsx).
+     `min-width/height: 1920/1080px` used to override that, so a 1280×720 display still laid out at
+     1920×1080. The background comes from the display's own (tokenized) backgroundColor. */
+  flex: none;
   background-image: radial-gradient(var(--designer-grid-color) 1px, transparent 1px);
   background-position: -1px -1px;
   overflow: hidden;
+  box-shadow: var(--shadow-raised);
 }
 
 .designer-canvas--preview {
@@ -517,12 +543,9 @@
 
 .designer-canvas--dragging {
   cursor: grabbing !important;
-}
-
-.designer-canvas__grid {
+}.designer-canvas__grid {
   position: absolute;
   inset: 0;
-  pointer-events: none;
 }
 
 .designer-canvas__item {
@@ -865,17 +888,27 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}/* Alarm-limit priority swatches. Were emoji (🔴🟠🟡🔵) — now real alert tokens, so they follow the
+   theme and match the alarm colors used on the canvas. */
+.property-label--hihi::before,
+.property-label--hi::before,
+.property-label--lo::before,
+.property-label--lolo::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: var(--border-radius-br-2);
+  flex: none;
 }
+.property-label--hihi::before { background: var(--designer-alarm); }
+.property-label--hi::before   { background: var(--designer-warning); }
+.property-label--lo::before   { background: var(--designer-caution); }
+.property-label--lolo::before { background: var(--designer-accent); }
 
-.property-label--hihi::before { content: '🔴'; }
-.property-label--hi::before { content: '🟠'; }
-.property-label--lo::before { content: '🟡'; }
-.property-label--lolo::before { content: '🔵'; }
-
-.property-input--alarm-hihi:focus { border-color: var(--designer-danger); }
-.property-input--alarm-hi:focus { border-color: var(--designer-warning); }
-.property-input--alarm-lo:focus { border-color: #eab308; }
-.property-input--alarm-lolo:focus { border-color: #3b82f6; }
+.property-input--alarm-hihi:focus { border-color: var(--designer-alarm); }
+.property-input--alarm-hi:focus   { border-color: var(--designer-warning); }
+.property-input--alarm-lo:focus   { border-color: var(--designer-caution); }
+.property-input--alarm-lolo:focus { border-color: var(--designer-accent); }
 
 .property-empty {
   text-align: center;
@@ -1208,9 +1241,7 @@
   text-align: center;
   color: var(--designer-text-muted);
   font-size: 13px;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────
+}/* ─────────────────────────────────────────────────────────────────────────
    Symbol Styles
    ───────────────────────────────────────────────────────────────────────── */
 .symbol {
@@ -1220,7 +1251,6 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--designer-text);
 }
 
 /* Label */
@@ -1265,11 +1295,11 @@
   margin-top: 2px;
 }
 
-/* Digital Display */
+/* Digital Display — an inset readout well (was hardcoded near-black, unthemeable) */
 .symbol-digital {
-  background: #0a0a0a;
-  border: 2px solid #333;
-  border-radius: 4px;
+  background: var(--indent-enabled-background-color);
+  border: 2px solid var(--indent-enabled-border-color);
+  border-radius: var(--border-radius-br-4);
   padding: 8px 16px;
 }
 
@@ -1337,11 +1367,7 @@
   text-orientation: mixed;
   font-size: 12px;
   color: var(--designer-text-muted);
-}
-
-.symbol-bar__label {
-  font-size: 10px;
-  color: var(--designer-text-muted);
+}.symbol-bar__label {
   text-align: center;
 }
 
@@ -1396,22 +1422,11 @@
 .symbol-multistate__light.active {
   opacity: 1;
   box-shadow: 0 0 8px currentColor;
-}
-
-/* Setpoint */
+}/* Setpoint */
 .symbol-setpoint {
-  background: var(--designer-surface);
-  border: 1px solid var(--designer-border);
-  border-radius: 6px;
-  padding: 8px 12px;
   font-size: 14px;
-}
-
-.symbol-setpoint__row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 4px;
-}
+}/* removed: every declaration of `.symbol-setpoint__row` here was overridden by a later block
+   with the same selector — dead code from appending across phases. */
 
 .symbol-setpoint__label {
   color: var(--designer-text-muted);
@@ -1442,7 +1457,8 @@
 .symbol-heater,
 .symbol-cooler,
 .symbol-conveyor {
-  color: #94a3b8;
+  /* Process symbols at rest: the OpenBridge symbol color, not a fixed slate grey. */
+  color: var(--element-symbol-color);
 }
 
 .symbol-pump--running,
@@ -1453,18 +1469,9 @@
 .symbol-cooler--on,
 .symbol-conveyor--running {
   color: var(--ams-run);
-}
-
-.symbol-equipment__label {
-  font-size: 11px;
-  text-align: center;
-  margin-top: 4px;
-  color: var(--designer-text);
-}
-
-.symbol-fan--running .spinning {
-  animation: spin 1s linear infinite;
-}
+}/* removed: every declaration of `.symbol-equipment__label` here was overridden by a later block
+   with the same selector — dead code from appending across phases. *//* removed: every declaration of `.symbol-fan--running .spinning` here was overridden by a later block
+   with the same selector — dead code from appending across phases. */
 
 .symbol-tank__label {
   font-size: 11px;
@@ -1573,34 +1580,11 @@
   border: 2px solid var(--designer-accent);
   border-radius: 50%;
   cursor: grab;
-}
-
-.symbol-slider__value {
-  font-size: 12px;
-  font-family: monospace;
-}
-
-.symbol-input {
-  padding: 4px;
-}
-
-.symbol-input__label {
-  font-size: 11px;
-  color: var(--designer-text-muted);
-  margin-bottom: 4px;
-}
-
-.symbol-input__field {
-  width: 100%;
-  padding: 6px 8px;
-  background: var(--designer-surface);
-  border: 1px solid var(--designer-border);
-  border-radius: 4px;
-  color: var(--designer-text);
-  font-size: 14px;
-  font-family: monospace;
-  text-align: center;
-}
+}/* removed: every declaration of `.symbol-slider__value` here was overridden by a later block
+   with the same selector — dead code from appending across phases. *//* removed: every declaration of `.symbol-input` here was overridden by a later block
+   with the same selector — dead code from appending across phases. *//* removed: every declaration of `.symbol-input__label` here was overridden by a later block
+   with the same selector — dead code from appending across phases. *//* removed: every declaration of `.symbol-input__field` here was overridden by a later block
+   with the same selector — dead code from appending across phases. */
 
 /* Charts */
 .symbol-trend {
@@ -1645,15 +1629,7 @@
 /* Alarms */
 .symbol-alarm-indicator {
   padding: 4px;
-}
-
-.symbol-alarm-banner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 16px;
-  background: var(--designer-danger);
-  border-radius: 4px;
+}.symbol-alarm-banner {
   color: white;
 }
 
@@ -1665,9 +1641,7 @@
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
-}
-
-.symbol-alarm-banner__text {
+}.symbol-alarm-banner__text {
   flex: 1;
   font-size: 13px;
   font-weight: 500;
@@ -1893,13 +1867,8 @@
 .symbol-dynamic-text {
   font-family: monospace;
   font-size: 14px;
-}
-
-/* Alarm banner - ISA-18.2 alarm priority colors */
-.symbol-alarm-banner {
-  background: var(--designer-surface);
-  border: 2px solid var(--designer-border);
-}
+}/* removed: every declaration of `.symbol-alarm-banner` here was overridden by a later block
+   with the same selector — dead code from appending across phases. */
 
 .symbol-alarm-banner--alarm {
   border-color: var(--designer-alarm);
@@ -1912,10 +1881,12 @@
 
 /* Fan spinning animation */
 .symbol-fan--running .spinning {
-  animation: spin 0.8s linear infinite;
+  animation: symbol-spin 0.8s linear infinite;
 }
 
-@keyframes spin {
+/* renamed: a second @keyframes named `spin` silently redefined the one at the top of this
+   file. Both are still referenced, so they must not share a name. */
+@keyframes symbol-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
@@ -2083,14 +2054,8 @@
 .symbol-selector__pos--active {
   background: var(--selected-enabled-background-color, #2d548b);
   color: var(--element-active-inverted-color, #fff);
-}
-
-.symbol-alarm-summary {
-  background: var(--container-section-color, #262626);
-  border: 1px solid var(--normal-enabled-border-color, #bebebe);
-  border-radius: 4px;
+}.symbol-alarm-summary {
   overflow: hidden;
-  font-size: 12px;
 }
 
 .symbol-alarm-summary__header {
@@ -2098,11 +2063,7 @@
   background: var(--container-backdrop-color, #0f0f0f);
   font-weight: 600;
   color: var(--element-active-color, #f1f5f9);
-}
-
-.symbol-alarm-summary__row {
-  display: flex;
-  justify-content: space-between;
+}.symbol-alarm-summary__row {
   padding: 6px 10px;
   border-top: 1px solid var(--normal-enabled-border-color, #bebebe);
   color: var(--element-neutral-color, #949494);
@@ -2244,9 +2205,7 @@
 .designer-canvas__item obc-alert-list {
   width: 100%;
   height: 100%;
-}
-
-/* Lazy-load placeholders */
+}/* Lazy-load placeholders */
 .symbol-loading,
 .symbol-palette__loading,
 .designer-page-loading {
@@ -2257,7 +2216,6 @@
   gap: 8px;
   width: 100%;
   height: 100%;
-  min-height: 40px;
   color: var(--element-neutral-color, #949494);
   font-size: 12px;
 }
@@ -2327,8 +2285,8 @@
   border: 1px solid var(--normal-enabled-border-color, #334155); border-radius: 5px;
 }
 .trend-chart__rbtn.active {
-  color: #fff; background: var(--selected-enabled-background-color, #2d548b);
-  border-color: var(--selected-enabled-background-color, #2d548b);
+  color: var(--on-selected-active-color); background: var(--selected-enabled-background-color);
+  border-color: var(--selected-enabled-background-color);
 }
 .trend-chart__rbtn:disabled { opacity: .4; cursor: default; }
 .trend-chart__sep { flex: 1; }
@@ -2371,8 +2329,8 @@
   border: 1px solid var(--ams-border); border-radius: 5px;
 }
 .trend-core__rbtn.active {
-  color: #fff; background: var(--selected-enabled-background-color, #2d548b);
-  border-color: var(--selected-enabled-background-color, #2d548b);
+  color: var(--on-selected-active-color); background: var(--selected-enabled-background-color);
+  border-color: var(--selected-enabled-background-color);
 }
 .trend-core__rbtn:disabled { opacity: .4; cursor: default; }
 .trend-core__sep { flex: 1; }
@@ -2405,19 +2363,266 @@
 .display-launcher__msg { padding: 16px; font-size: 13px; color: var(--ams-text-dim); }
 .display-launcher__grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px;
+}.display-launcher__card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px;
+  cursor: pointer;
+  text-align: left;
+  background: var(--ams-panel-bg);
+  color: var(--ams-text);
+  border: 1px solid var(--ams-border);
+  border-radius: 8px;
 }
-.display-launcher__card {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
-  padding: 14px; cursor: pointer; text-align: left;
-  background: var(--ams-panel-bg); color: var(--ams-text);
-  border: 1px solid var(--ams-border); border-radius: 8px;
-}
-.display-launcher__card:hover { border-color: var(--ams-advisory); }
+.display-launcher__card { text-decoration: none; }
+.display-launcher__card:hover { border-color: var(--designer-accent); box-shadow: var(--shadow-raised); }
 .display-launcher__card-name { font-size: 14px; font-weight: 600; }
+.display-launcher__card-desc {
+  font-size: 11px; color: var(--ams-text-dim);
+  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
 .display-launcher__card-meta { font-size: 11px; color: var(--ams-text-dim); }
+.display-launcher__card-foot {
+  display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 4px; flex-wrap: wrap;
+}
 .display-launcher__badge {
-  font-size: 10px; padding: 2px 6px; border-radius: 4px;
-  color: var(--ams-run); border: 1px solid var(--ams-run);
+  font-size: 10px; padding: 2px 6px; border-radius: var(--border-radius-br-4);
+  color: var(--alert-running-color); border: 1px solid var(--alert-running-color);
+}
+/* "Published 2h ago · engineer1" — the launcher's audit line */
+.display-launcher__published { font-size: 10px; color: var(--ams-text-dim); }
+.display-launcher__search {
+  font-size: 12px; padding: 6px 10px; min-width: 220px;
+  color: var(--on-indent-active-color); background: var(--indent-enabled-background-color);
+  border: 1px solid var(--indent-enabled-border-color); border-radius: var(--border-radius-br-6);
+}
+.display-launcher__filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.display-launcher__chip {
+  font-size: 11px; padding: 4px 10px; cursor: pointer; border-radius: var(--border-radius-br-round);
+  color: var(--ams-text-dim); background: var(--container-section-color);
+  border: 1px solid var(--border-divider-color);
+}
+.display-launcher__chip.active {
+  color: var(--on-selected-active-color); background: var(--selected-enabled-background-color);
+  border-color: var(--selected-enabled-background-color);
+}
+
+/* ── N1: left panel tabs (Symbols | Assets) + collapse rail ───────────────── */
+.ds-tabs {
+  display: flex; align-items: center; gap: 2px; flex: none;
+  padding: 6px 8px; border-bottom: 1px solid var(--designer-border);
+  background: var(--designer-surface);
+}
+.ds-tabs__spacer { flex: 1; }
+.ds-tab {
+  font-size: 12px; padding: 5px 10px; cursor: pointer; border-radius: var(--border-radius-br-4);
+  color: var(--designer-text-muted); background: none; border: 1px solid transparent;
+}
+.ds-tab.active {
+  color: var(--on-selected-active-color); background: var(--selected-enabled-background-color);
+}
+.ds-collapse, .ds-rail {
+  cursor: pointer; color: var(--designer-text-muted);
+  background: var(--designer-surface); border: 1px solid var(--designer-border);
+  border-radius: var(--border-radius-br-4); padding: 2px 6px; font-size: 13px;
+}
+.ds-rail {
+  align-self: stretch; border-radius: 0; border-width: 0 1px 0 0;
+  width: 22px; flex: none;
+}
+.ds-panel-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── N2: multi-selection inspector ────────────────────────────────────────── */
+.property-inspector__multi {
+  padding: 8px 12px; font-size: 12px; font-weight: 600;
+  color: var(--on-selected-active-color); background: var(--selected-enabled-background-color);
+}
+.property-hint {
+  padding: 6px 2px; font-size: 11px; line-height: 1.4; color: var(--designer-text-muted);
+}
+.property-hint--error { color: var(--alert-alarm-color); }
+.property-input--invalid { border-color: var(--alert-alarm-color); }
+
+/* ── N3: navigation authoring ─────────────────────────────────────────────── */
+.nav-picker {
+  display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow-y: auto;
+  margin-top: 6px; padding: 4px;
+  border: 1px solid var(--designer-border); border-radius: var(--border-radius-br-4);
+  background: var(--indent-enabled-background-color);
+}
+.nav-picker__item {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  padding: 6px 8px; cursor: pointer; text-align: left;
+  background: none; border: 1px solid transparent; border-radius: var(--border-radius-br-4);
+  color: var(--designer-text);
+}
+.nav-picker__item:hover { background: var(--flat-hover-background-color); }
+.nav-picker__item.active {
+  color: var(--on-selected-active-color); background: var(--selected-enabled-background-color);
+}
+.nav-picker__name { font-size: 12px; font-weight: 600; }
+.nav-picker__meta { font-size: 10px; opacity: .75; }
+
+/* Link badge on a symbol that navigates (design mode only). */
+.designer-canvas__link-indicator {
+  position: absolute; top: 2px; left: 2px; z-index: 3;
+  display: inline-flex; padding: 1px; border-radius: var(--border-radius-br-2);
+  color: var(--on-selected-active-color); background: var(--selected-enabled-background-color);
+}
+.designer-canvas__link-indicator svg { width: 11px; height: 11px; }
+
+/* Hotspot: a clickable region — dashed while designing, invisible at runtime. */
+.symbol-hotspot { width: 100%; height: 100%; background: transparent; }
+.symbol-hotspot--design {
+  display: flex; align-items: center; justify-content: center;
+  border: 1px dashed var(--selected-enabled-background-color);
+  border-radius: var(--border-radius-br-4);
+  background: color-mix(in srgb, var(--selected-enabled-background-color) 8%, transparent);
+}
+.symbol-hotspot__label {
+  font-size: 10px; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--selected-enabled-background-color);
+}
+
+/* Palette icons are OpenBridge Obi* SVGs now (were emoji) — size them consistently. */
+.symbol-palette__item-icon svg,
+.symbol-palette__category-icon svg { width: 18px; height: 18px; }
+.symbol-palette__category-chevron svg { width: 14px; height: 14px; }
+.symbol-palette__item-icon,
+.symbol-palette__category-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--element-symbol-color);
+}
+
+/* ── Designer toolbar (document bar + context bar) ────────────────────────── */
+.designer-toolbar {
+  display: flex; flex-direction: column; flex: none;
+  background: var(--designer-surface);
+  border-bottom: 1px solid var(--designer-border);
+  font-family: var(--designer-font);
+}
+.dt-row {
+  display: flex; align-items: center; gap: 4px;
+  padding: 6px 10px; min-height: 40px; flex-wrap: wrap;
+}
+.dt-row--context {
+  border-top: 1px solid var(--designer-border);
+  background: var(--designer-surface-alt);
+  min-height: 36px;
+}
+.dt-spacer { flex: 1 1 auto; }
+.dt-div {
+  width: 1px; align-self: stretch; margin: 2px 6px;
+  background: var(--designer-border);
+}
+.dt-title {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; color: var(--designer-text);
+  max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dt-dirty {
+  width: 7px; height: 7px; border-radius: 50%; flex: none;
+  background: var(--alert-warning-color);
+}
+.dt-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 30px; padding: 4px 9px; cursor: pointer; white-space: nowrap;
+  font-family: inherit; font-size: 12px; line-height: 1;
+  color: var(--on-flat-active-color, var(--designer-text));
+  background: var(--flat-enabled-background-color, transparent);
+  border: 1px solid transparent; border-radius: var(--border-radius-br-4);
+}
+.dt-btn:hover:not(:disabled) { background: var(--flat-hover-background-color); }
+.dt-btn:disabled { color: var(--element-disabled-color); cursor: not-allowed; }
+.dt-btn.active {
+  color: var(--on-selected-active-color);
+  background: var(--selected-enabled-background-color);
+}
+.dt-btn--primary {
+  color: var(--on-raised-active-color);
+  background: var(--raised-enabled-background-color);
+  border-color: var(--raised-enabled-background-color);
+}
+.dt-btn--primary:hover:not(:disabled) { background: var(--raised-hover-background-color); }
+.dt-btn--primary:disabled {
+  color: var(--element-disabled-color);
+  background: var(--normal-enabled-background-color);
+  border-color: var(--border-divider-color);
+}
+.dt-btn svg { width: 16px; height: 16px; }
+.dt-caret { width: 12px !important; height: 12px !important; opacity: .7; }
+.dt-seg { display: flex; gap: 2px; padding: 2px; border-radius: var(--border-radius-br-6);
+  background: var(--container-section-color); }
+.dt-split { display: flex; align-items: center; }
+.dt-split .dt-menu .dt-btn { padding: 4px 4px; }
+
+/* dropdown */
+.dt-menu { position: relative; }
+.dt-menu__pop {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 40;
+  display: flex; flex-direction: column; min-width: 220px; padding: 4px;
+  background: var(--container-background-color);
+  border: 1px solid var(--border-divider-color);
+  border-radius: var(--border-radius-br-6);
+  box-shadow: var(--shadow-overlay);
+}
+.dt-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 7px 10px; cursor: pointer; text-align: left; white-space: nowrap;
+  font-family: inherit; font-size: 12px; color: var(--designer-text);
+  background: none; border: none; border-radius: var(--border-radius-br-4);
+}
+.dt-item:hover:not(:disabled):not(.dt-item--static) { background: var(--flat-hover-background-color); }
+.dt-item:disabled { color: var(--element-disabled-color); cursor: not-allowed; }
+.dt-item--danger { color: var(--alert-alarm-color); }
+.dt-item--static { cursor: default; }
+.dt-size { display: flex; align-items: center; gap: 4px; }
+.dt-size input {
+  width: 62px; padding: 3px 5px; font-size: 11px;
+  color: var(--on-indent-active-color); background: var(--indent-enabled-background-color);
+  border: 1px solid var(--indent-enabled-border-color); border-radius: var(--border-radius-br-4);
+}
+.dt-shortcuts {
+  flex-direction: column; align-items: flex-start; gap: 2px;
+  padding-top: 8px; margin-top: 4px;
+  border-top: 1px solid var(--border-divider-color);
+  font-size: 11px; color: var(--designer-text-muted);
+}
+.dt-check {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; color: var(--designer-text); cursor: pointer;
+}
+.dt-hint { font-size: 11px; color: var(--designer-text-muted); }
+.dt-version { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--designer-text-muted); }
+.dt-badge { padding: 1px 6px; border-radius: var(--border-radius-br-4); }
+.dt-badge--pub { color: var(--alert-running-color); font-weight: 600; }
+.dt-badge--unpub { color: var(--designer-text-muted); }
+.dt-badge--dirty {
+  color: var(--alert-warning-color); font-weight: 600;
+  border: 1px solid var(--alert-warning-color);
+}
+
+/* Runtime trend selection: a bound symbol an operator can trend, and one they have picked. */
+.display-viewer__item--trendable:hover {
+  outline: 1px dashed var(--selected-enabled-background-color);
+  outline-offset: 2px;
+}
+.display-viewer__item--picked {
+  outline: 2px solid var(--selected-enabled-background-color);
+  outline-offset: 2px;
+}
+.trend-dialog__note {
+  padding: 5px 12px; font-size: 11px;
+  color: var(--ams-text-dim); background: var(--container-section-color);
+  border-bottom: 1px solid var(--ams-border);
+}
+
+/* A refresh failed but the last-known-good display is still on screen (kiosk safety). */
+.display-viewer__stale {
+  padding: 4px 12px; font-size: 11px; font-weight: 600;
+  color: var(--on-selected-active-color); background: var(--alert-warning-color);
 }
 
 /* Phase L — publish state + actions in the designer header */
@@ -2484,7 +2689,7 @@
 }
 .display-viewer__popup-frame { flex: 1; border: none; width: 100%; }
 .display-viewer__themes { display: inline-flex; gap: 2px; }
-.display-viewer__btn.active { background: var(--ams-advisory); color: #fff; border-color: var(--ams-advisory); }
+.display-viewer__btn.active { background: var(--selected-enabled-background-color); color: var(--on-selected-active-color); border-color: var(--selected-enabled-background-color); }
 
 /* ── Phase I: PI Vision import ───────────────────────────────────────────── */
 .import-page { padding: 24px 28px; max-width: 1000px; color: var(--ams-text, #1f2937); }
@@ -2502,10 +2707,10 @@
 .import-page__table td { padding: 2px 10px 2px 0; font-size: 12px; }
 .import-page__unmapped { max-height: 320px; overflow: auto; border: 1px solid var(--ams-border, #d5dce6); border-radius: 8px; }
 .import-page__unmapped-row { display: flex; align-items: center; gap: 8px; padding: 4px 10px; font-size: 12px; border-bottom: 1px solid var(--ams-border, #d5dce6); }
-.import-page__pill { background: var(--ams-warn); color: #000; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 700; }
+.import-page__pill { background: var(--ams-warn); color: var(--on-selected-active-color); border-radius: var(--border-radius-br-4); padding: 1px 6px; font-size: 10px; font-weight: 700; }
 .import-page__ref { color: var(--ams-text-dim, #6b7280); margin-left: auto; }
 .import-page__actions { display: flex; gap: 10px; margin-top: 18px; }
-.import-page__save { background: var(--ams-advisory); color: #fff; border: none; border-radius: 8px; padding: 9px 18px; font-weight: 700; cursor: pointer; }
+.import-page__save { background: var(--raised-enabled-background-color); color: var(--on-raised-active-color); border: none; border-radius: var(--border-radius-br-8); padding: 9px 18px; font-weight: 700; cursor: pointer; }
 .import-page__actions button { padding: 9px 16px; border-radius: 8px; cursor: pointer; }
 
 /* ── Phase F: alarms & dynamic behavior ─────────────────────────────────── */
@@ -2551,9 +2756,103 @@
 .display-designer__ops-sep { width: 1px; height: 18px; background: var(--normal-enabled-border-color, #334155); margin: 0 3px; }
 .designer-canvas__rotate-handle {
   position: absolute; left: 50%; top: -22px; width: 10px; height: 10px; margin-left: -5px; z-index: 20;
-  border-radius: 50%; cursor: grab; border: 2px solid #fff;
+  border-radius: 50%; cursor: grab; border: 2px solid var(--container-background-color);
   background: var(--selected-enabled-background-color, #2d548b);
 }
 .designer-canvas-wrapper--pan, .designer-canvas-wrapper--pan .designer-canvas { cursor: grab; }
 /* grid is a background layer — let empty-canvas clicks (marquee) pass through */
 .designer-canvas__grid { pointer-events: none; }
+
+/* ── N4: display lifecycle (rename / duplicate / delete → recycle bin) ────── */
+.dl-card-actions {
+  position: absolute; top: 8px; right: 8px; z-index: 2;
+  display: flex; gap: 4px; opacity: 0; transition: opacity .12s;
+}
+div:hover > .dl-card-actions { opacity: 1; }
+.dl-action {
+  font-size: 10px; padding: 3px 7px; cursor: pointer;
+  color: var(--element-active-color); background: var(--container-background-color);
+  border: 1px solid var(--border-divider-color); border-radius: var(--border-radius-br-4);
+}
+.dl-action:hover { background: var(--flat-hover-background-color); }
+.dl-action--danger { color: var(--alert-alarm-color); border-color: var(--alert-alarm-color); }
+.dl-undo {
+  background: none; border: none; text-decoration: underline; cursor: pointer;
+  color: inherit; font: inherit; padding: 0;
+}
+.dl-bin {
+  margin-top: 24px; padding: 12px;
+  background: var(--container-section-color);
+  border: 1px solid var(--border-divider-color); border-radius: var(--border-radius-br-8);
+  font-family: var(--ams-font);
+}
+.dl-bin__title { font-size: 12px; font-weight: 600; color: var(--element-neutral-color); margin-bottom: 8px; }
+.dl-bin__row { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+.dl-bin__name { font-size: 12px; color: var(--element-active-color); }
+.dl-bin__meta { font-size: 11px; color: var(--element-inactive-color); flex: 1; }
+
+/* ── N5: pan cursor, ghosted hidden items, layers panel ───────────────────── */
+.designer-canvas-wrapper--pan { cursor: grab; }
+.designer-canvas-wrapper--panning { cursor: grabbing; user-select: none; }
+/* Hidden = hidden AT RUNTIME. In the editor it stays visible but ghosted, so it is still selectable
+   (it used to disappear from the editor and still render in the viewer — exactly backwards). */
+.designer-canvas__item--hidden { opacity: .35; outline: 1px dashed var(--element-inactive-color); }
+
+.layers-panel { display: flex; flex-direction: column; min-height: 0; flex: 1; font-family: var(--ams-font); }
+.layers-panel__search {
+  margin: 8px; padding: 6px 8px; font-size: 12px;
+  color: var(--on-indent-active-color); background: var(--indent-enabled-background-color);
+  border: 1px solid var(--indent-enabled-border-color); border-radius: var(--border-radius-br-4);
+}
+.layers-panel__list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 4px 8px; }
+.layers-row {
+  display: flex; align-items: center; gap: 6px; padding: 4px 6px; cursor: pointer;
+  border-radius: var(--border-radius-br-4); font-size: 12px; color: var(--designer-text);
+}
+.layers-row:hover { background: var(--flat-hover-background-color); }
+.layers-row.active { background: var(--selected-enabled-background-color); color: var(--on-selected-active-color); }
+.layers-row__btn {
+  display: inline-flex; padding: 2px; cursor: pointer;
+  background: none; border: none; color: inherit; opacity: .65;
+}
+.layers-row__btn:hover, .layers-row__btn.active { opacity: 1; }
+.layers-row__btn svg { width: 14px; height: 14px; }
+.layers-row__name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.layers-row__name.dimmed { opacity: .5; text-decoration: line-through; }
+.layers-row__group { font-size: 9px; opacity: .6; }
+.layers-row__z { font-size: 10px; opacity: .5; font-variant-numeric: tabular-nums; }
+
+/* Design mode: a symbol that takes a tag but has none. The single most useful thing the editor can
+   tell you about a 300-symbol display. */
+.symbol-unbound {
+  outline: 1px dashed var(--alert-warning-color);
+  outline-offset: 2px;
+  border-radius: var(--border-radius-br-4);
+}
+
+/* Reserves the SCALED artboard footprint in layout (transform: scale does not affect layout, so the
+   well never overflowed and zoomed-in content was unreachable). */
+.designer-canvas__stage { position: relative; flex: none; }
+
+/* ── Thumbnails + launcher hierarchy/favourites ───────────────────────────── */
+.dl-thumb {
+  width: 100%; aspect-ratio: 16 / 9; overflow: hidden;
+  border-radius: var(--border-radius-br-4);
+  border: 1px solid var(--border-divider-color);
+  background: var(--container-section-color);
+}
+.dl-thumb svg { width: 100%; height: 100%; display: block; }
+.dl-thumb--none {
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  padding: 8px; font-size: 10px; color: var(--element-inactive-color);
+}
+.display-launcher__card-head { display: flex; align-items: center; gap: 6px; width: 100%; }
+.dl-star {
+  margin-left: auto; cursor: pointer; font-size: 14px; line-height: 1;
+  background: none; border: none; color: var(--element-inactive-color);
+}
+.dl-star.active { color: var(--alert-warning-color); }
+.display-launcher__section {
+  margin: 18px 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--element-neutral-color);
+}

@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
+using System.Security.Claims;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Traverse.DisplayService.Auth;
 using Traverse.DisplayService.Data;
 using Traverse.DisplayService.Models;
@@ -146,7 +148,8 @@ app.MapGet("/displays", async (
         .Select(d => new DisplayListDto(
             d.Id, d.Name, d.Category, d.Description, d.HierarchyPath,
             d.Width, d.Height, d.PublishedVersion, d.DraftVersion,
-            d.OwnerId, d.CreatedAt, d.UpdatedAt))
+            d.OwnerId, d.CreatedAt, d.UpdatedAt, d.PublishedAt, d.PublishedBy,
+            d.Level, d.ThumbnailSvg != null))
         .ToListAsync();
     
     return Results.Ok(new { total, skip, take = displays.Count, displays });
@@ -166,9 +169,10 @@ app.MapGet("/displays/{id:guid}", async (Guid id, DisplayDbContext db) =>
         display.Id, display.Name, display.Category, display.Description,
         display.HierarchyPath, display.Width, display.Height, display.BackgroundColor,
         display.PublishedVersion, display.DraftVersion, display.OwnerId,
-        display.CreatedAt, display.UpdatedAt,
+        display.CreatedAt, display.UpdatedAt, display.PublishedAt, display.PublishedBy,
         display.Versions.Select(v => new VersionSummaryDto(
-            v.Id, v.Version, v.Status, v.ChangeNote, v.CreatedBy, v.CreatedAt)).ToList()));
+            v.Id, v.Version, v.Status, v.ChangeNote, v.CreatedBy, v.CreatedAt,
+            v.PublishedAt, v.PublishedBy)).ToList()));
 }).RequireAuthorization("DisplayView");
 
 // ── GET /displays/{id}/content ───────────────────────────────────────────────
@@ -228,6 +232,7 @@ app.MapPost("/displays", async (CreateDisplayRequest request, DisplayDbContext d
         Height = request.Height ?? 1080,
         BackgroundColor = request.BackgroundColor ?? "#1e1e1e",
         DraftVersion = 1,
+        Level = request.Level,
         OwnerId = request.OwnerId ?? "system",
         CreatedAt = DateTimeOffset.UtcNow,
         UpdatedAt = DateTimeOffset.UtcNow
@@ -281,7 +286,8 @@ app.MapPut("/displays/{id:guid}", async (Guid id, UpdateDisplayRequest request, 
     if (request.Width.HasValue) display.Width = request.Width.Value;
     if (request.Height.HasValue) display.Height = request.Height.Value;
     if (request.BackgroundColor is not null) display.BackgroundColor = request.BackgroundColor;
-    
+    if (request.Level is not null) display.Level = request.Level;
+
     display.UpdatedAt = DateTimeOffset.UtcNow;
     await db.SaveChangesAsync();
     
@@ -337,17 +343,18 @@ app.MapPut("/displays/{id:guid}/content", async (Guid id, SaveContentRequest req
 
 // ── POST /displays/{id}/publish ──────────────────────────────────────────────
 // Publish the current draft as the active version.
-app.MapPost("/displays/{id:guid}/publish", async (Guid id, PublishRequest request, DisplayDbContext db, IConnectionMultiplexer redis) =>
+app.MapPost("/displays/{id:guid}/publish", async (Guid id, PublishRequest request, ClaimsPrincipal user,
+                                                 DisplayDbContext db, IConnectionMultiplexer redis) =>
 {
     var display = await db.Displays.FirstOrDefaultAsync(d => d.Id == id && !d.IsDeleted);
     if (display is null) return Results.NotFound();
-    
+
     var draftVersion = await db.DisplayVersions
         .FirstOrDefaultAsync(v => v.DisplayId == id && v.Version == display.DraftVersion);
-    
+
     if (draftVersion is null)
         return Results.BadRequest("No draft version to publish");
-    
+
     // Archive current published version
     if (display.PublishedVersion.HasValue)
     {
@@ -356,22 +363,32 @@ app.MapPost("/displays/{id:guid}/publish", async (Guid id, PublishRequest reques
         if (currentPublished is not null)
             currentPublished.Status = "archived";
     }
-    
-    // Publish draft
+
+    // Stamp WHO and WHEN. The publisher comes from the bearer token, not from the request body — a
+    // client-supplied identity in an audit trail is worthless.
+    var now = DateTimeOffset.UtcNow;
+    var publisher = PublisherName(user);
+
     draftVersion.Status = "published";
     draftVersion.ChangeNote = request.ChangeNote ?? draftVersion.ChangeNote;
+    draftVersion.PublishedAt = now;
+    draftVersion.PublishedBy = publisher;
+
     display.PublishedVersion = draftVersion.Version;
-    display.UpdatedAt = DateTimeOffset.UtcNow;
-    
+    display.PublishedAt = now;
+    display.PublishedBy = publisher;
+    display.UpdatedAt = now;
+
     await db.SaveChangesAsync();
-    
+
     await PublishDisplayEvent(redis, "display.published", display.Id, display.Name);
-    
+
     return Results.Ok(new
     {
         displayId = display.Id,
         publishedVersion = display.PublishedVersion,
-        publishedAt = DateTimeOffset.UtcNow
+        publishedAt = now,
+        publishedBy = publisher
     });
 }).RequireAuthorization("DisplayPublish");
 
@@ -390,6 +407,8 @@ app.MapPost("/displays/{id:guid}/unpublish", async (Guid id, DisplayDbContext db
 
     var was = display.PublishedVersion;
     display.PublishedVersion = null;
+    display.PublishedAt = null;
+    display.PublishedBy = null;
     display.UpdatedAt = DateTimeOffset.UtcNow;
     await db.SaveChangesAsync();
 
@@ -402,7 +421,7 @@ app.MapPost("/displays/{id:guid}/unpublish", async (Guid id, DisplayDbContext db
 // Phase L — discard unpublished work: copy the last published snapshot into a NEW draft version.
 // Append-only, exactly like PUT /content — history is never rewritten, so the abandoned drafts remain
 // auditable.
-app.MapPost("/displays/{id:guid}/revert", async (Guid id, DisplayDbContext db, IConnectionMultiplexer redis) =>
+app.MapPost("/displays/{id:guid}/revert", async (Guid id, ClaimsPrincipal user, DisplayDbContext db, IConnectionMultiplexer redis) =>
 {
     var display = await db.Displays.FirstOrDefaultAsync(d => d.Id == id && !d.IsDeleted);
     if (display is null) return Results.NotFound();
@@ -411,6 +430,8 @@ app.MapPost("/displays/{id:guid}/revert", async (Guid id, DisplayDbContext db, I
     var published = await db.DisplayVersions
         .FirstOrDefaultAsync(v => v.DisplayId == id && v.Version == display.PublishedVersion);
     if (published is null) return Results.BadRequest("Published version not found");
+
+    var revertedFrom = display.PublishedVersion.Value;
 
     display.DraftVersion++;
     display.UpdatedAt = DateTimeOffset.UtcNow;
@@ -421,11 +442,22 @@ app.MapPost("/displays/{id:guid}/revert", async (Guid id, DisplayDbContext db, I
         DisplayId = display.Id,
         Version = display.DraftVersion,
         Snapshot = published.Snapshot,
-        Status = "draft",
+        // The new draft is byte-identical to what is already live, so it IS the published version —
+        // mark it so. Otherwise draft (n+1) > published (n) forever and the display is permanently
+        // flagged "unpublished changes" even though nothing differs from the runtime; the only way to
+        // clear the badge was to press Publish, creating a meaningless new published version.
+        Status = "published",
         ChangeNote = $"Reverted to published v{published.Version}",
-        CreatedBy = "revert",
-        CreatedAt = DateTimeOffset.UtcNow
+        CreatedBy = PublisherName(user),
+        CreatedAt = DateTimeOffset.UtcNow,
+        PublishedAt = DateTimeOffset.UtcNow,
+        PublishedBy = PublisherName(user)
     };
+
+    published.Status = "archived";
+    display.PublishedVersion = revertVersion.Version;
+    display.PublishedAt = DateTimeOffset.UtcNow;
+    display.PublishedBy = PublisherName(user);
 
     db.DisplayVersions.Add(revertVersion);
     await db.SaveChangesAsync();
@@ -436,9 +468,128 @@ app.MapPost("/displays/{id:guid}/revert", async (Guid id, DisplayDbContext db, I
     {
         displayId = display.Id,
         draftVersion = revertVersion.Version,
-        revertedTo = published.Version
+        publishedVersion = display.PublishedVersion,
+        revertedTo = revertedFrom
     });
 }).RequireAuthorization("DisplayPublish");
+
+// ── POST /displays/{id}/duplicate ────────────────────────────────────────────
+// "Save As" (PI Vision's Save ▾ → Save As). Copies WHAT YOU ARE LOOKING AT — the current draft — into a
+// brand-new display owned by the caller. It is also how you take a copy of someone else's display.
+//
+// Item ids are REGENERATED: a straight copy would leave two displays sharing item ids, so `groupId`
+// membership and any self-referencing link would alias across both.
+app.MapPost("/displays/{id:guid}/duplicate", async (Guid id, DuplicateRequest request, ClaimsPrincipal user,
+                                                    DisplayDbContext db, IConnectionMultiplexer redis) =>
+{
+    var source = await db.Displays.FirstOrDefaultAsync(d => d.Id == id && !d.IsDeleted);
+    if (source is null) return Results.NotFound();
+    if (string.IsNullOrWhiteSpace(request.Name)) return Results.BadRequest("name is required");
+
+    var sourceVersion = await db.DisplayVersions
+        .FirstOrDefaultAsync(v => v.DisplayId == id && v.Version == source.DraftVersion);
+    if (sourceVersion is null) return Results.BadRequest("Source display has no content to copy");
+
+    var owner = PublisherName(user);
+    var now = DateTimeOffset.UtcNow;
+
+    var copy = new Display
+    {
+        Id = Guid.NewGuid(),
+        Name = request.Name,
+        Category = request.Category ?? source.Category,
+        Description = source.Description,
+        HierarchyPath = request.HierarchyPath ?? source.HierarchyPath,
+        Width = source.Width,
+        Height = source.Height,
+        BackgroundColor = source.BackgroundColor,
+        DraftVersion = 1,
+        PublishedVersion = null,        // a copy starts unpublished — it is not live until someone says so
+        OwnerId = owner,
+        CreatedAt = now,
+        UpdatedAt = now,
+    };
+
+    copy.Versions.Add(new DisplayVersion
+    {
+        Id = Guid.NewGuid(),
+        DisplayId = copy.Id,
+        Version = 1,
+        Snapshot = RegenerateItemIds(sourceVersion.Snapshot),
+        Status = "draft",
+        ChangeNote = $"Copied from \"{source.Name}\" v{sourceVersion.Version}",
+        CreatedBy = owner,
+        CreatedAt = now,
+    });
+
+    db.Displays.Add(copy);
+    await db.SaveChangesAsync();
+    await PublishDisplayEvent(redis, "display.created", copy.Id, copy.Name);
+
+    return Results.Created($"/displays/{copy.Id}", new { id = copy.Id, name = copy.Name, draftVersion = 1 });
+}).RequireAuthorization("DisplayEdit");
+
+// ── GET /displays/deleted ────────────────────────────────────────────────────
+// The recycle bin. Deletes are soft (IsDeleted), so nothing was ever actually recoverable through the
+// API — the rows just became invisible. PI Vision keeps deleted displays indefinitely and lets you
+// restore them; under ISA-101 a display is a change-managed artifact, so this is the right posture.
+app.MapGet("/displays/deleted", async (DisplayDbContext db) =>
+{
+    var deleted = await db.Displays
+        .Where(d => d.IsDeleted)
+        .OrderByDescending(d => d.UpdatedAt)
+        .Select(d => new { d.Id, d.Name, d.Category, d.OwnerId, deletedAt = d.UpdatedAt })
+        .ToListAsync();
+    return Results.Ok(new { total = deleted.Count, displays = deleted });
+}).RequireAuthorization("DisplayEdit");
+
+// ── POST /displays/{id}/restore ──────────────────────────────────────────────
+app.MapPost("/displays/{id:guid}/restore", async (Guid id, DisplayDbContext db, IConnectionMultiplexer redis) =>
+{
+    var display = await db.Displays.FirstOrDefaultAsync(d => d.Id == id && d.IsDeleted);
+    if (display is null) return Results.NotFound();
+
+    display.IsDeleted = false;
+    display.UpdatedAt = DateTimeOffset.UtcNow;
+    await db.SaveChangesAsync();
+    await PublishDisplayEvent(redis, "display.restored", display.Id, display.Name);
+
+    // Restored as a DRAFT: it must be re-published deliberately, never silently re-appear on an
+    // operator's screen just because someone emptied the bin.
+    return Results.Ok(new { id = display.Id, name = display.Name, publishedVersion = display.PublishedVersion });
+}).RequireAuthorization("DisplayEdit");
+
+// ── PUT /displays/{id}/thumbnail ─────────────────────────────────────────────
+// Store the display's preview. The client renders it from the DESIGN-MODE canvas on publish, so a
+// thumbnail can never capture a live process value (a preview of a running display would leak plant
+// data into every screenshot of the display list). SVG text, not a raster: we render DOM/SVG, so this
+// is a serialization — no headless browser, no rasterizer.
+app.MapPut("/displays/{id:guid}/thumbnail", async (Guid id, ThumbnailRequest request, DisplayDbContext db) =>
+{
+    var display = await db.Displays.FirstOrDefaultAsync(d => d.Id == id && !d.IsDeleted);
+    if (display is null) return Results.NotFound();
+    if (string.IsNullOrWhiteSpace(request.Svg)) return Results.BadRequest("svg is required");
+    if (request.Svg.Length > 400_000) return Results.BadRequest("thumbnail too large");
+    // Defence in depth: an SVG is markup, and this one is rendered back into the list page.
+    if (request.Svg.Contains("<script", StringComparison.OrdinalIgnoreCase)
+        || request.Svg.Contains("onload", StringComparison.OrdinalIgnoreCase))
+        return Results.BadRequest("thumbnail must not contain script");
+
+    display.ThumbnailSvg = request.Svg;
+    display.ThumbnailAt = DateTimeOffset.UtcNow;
+    await db.SaveChangesAsync();
+    return Results.Ok(new { displayId = display.Id, bytes = request.Svg.Length, at = display.ThumbnailAt });
+}).RequireAuthorization("DisplayEdit");
+
+// ── GET /displays/{id}/thumbnail ─────────────────────────────────────────────
+// Served separately from the list so a page of 200 cards doesn't drag 200 SVG blobs with it.
+app.MapGet("/displays/{id:guid}/thumbnail", async (Guid id, DisplayDbContext db) =>
+{
+    var svg = await db.Displays.Where(d => d.Id == id && !d.IsDeleted)
+        .Select(d => d.ThumbnailSvg).FirstOrDefaultAsync();
+    if (string.IsNullOrEmpty(svg)) return Results.NotFound();
+    return Results.Content(svg, "image/svg+xml");
+}).RequireAuthorization("DisplayView");
 
 // ── DELETE /displays/{id} ────────────────────────────────────────────────────
 // Soft-delete a display.
@@ -511,6 +662,48 @@ app.MapGet("/displays/categories", async (DisplayDbContext db) =>
 app.Run();
 
 // ── Helper Functions ─────────────────────────────────────────────────────────
+/// <summary>
+/// Deep-copy a snapshot with fresh item ids, remapping groupId membership so the copy's groups stay
+/// internally consistent and never alias the source display's items.
+/// </summary>
+static JsonDocument RegenerateItemIds(JsonDocument snapshot)
+{
+    var root = JsonNode.Parse(snapshot.RootElement.GetRawText())!.AsObject();
+    if (root["items"] is not JsonArray items) return JsonDocument.Parse(root.ToJsonString());
+
+    var idMap = new Dictionary<string, string>();
+    var groupMap = new Dictionary<string, string>();
+
+    foreach (var item in items.OfType<JsonObject>())
+    {
+        var oldId = item["id"]?.GetValue<string>();
+        if (oldId is null) continue;
+        var newId = $"i{Guid.NewGuid():N}"[..12];
+        idMap[oldId] = newId;
+        item["id"] = newId;
+
+        var g = item["groupId"]?.GetValue<string>();
+        if (g is not null)
+        {
+            if (!groupMap.TryGetValue(g, out var newGroup))
+            {
+                newGroup = $"grp-{Guid.NewGuid():N}"[..12];
+                groupMap[g] = newGroup;
+            }
+            item["groupId"] = newGroup;
+        }
+    }
+
+    return JsonDocument.Parse(root.ToJsonString());
+}
+
+/// <summary>Who is acting, taken from the bearer token (never from the request body).</summary>
+static string PublisherName(ClaimsPrincipal user) =>
+    user.FindFirst("preferred_username")?.Value
+    ?? user.FindFirst("username")?.Value
+    ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value
+    ?? "unknown";
+
 static async Task PublishDisplayEvent(IConnectionMultiplexer redis, string eventType, Guid displayId, string name)
 {
     var subscriber = redis.GetSubscriber();
@@ -522,25 +715,33 @@ static async Task PublishDisplayEvent(IConnectionMultiplexer redis, string event
 record DisplayListDto(
     Guid Id, string Name, string Category, string? Description, string? HierarchyPath,
     int Width, int Height, int? PublishedVersion, int DraftVersion,
-    string OwnerId, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
+    string OwnerId, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
+    DateTimeOffset? PublishedAt, string? PublishedBy,
+    short? Level, bool HasThumbnail);
 
 record DisplayDetailDto(
     Guid Id, string Name, string Category, string? Description, string? HierarchyPath,
     int Width, int Height, string BackgroundColor,
     int? PublishedVersion, int DraftVersion, string OwnerId,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
+    DateTimeOffset? PublishedAt, string? PublishedBy,
     List<VersionSummaryDto> RecentVersions);
 
 record VersionSummaryDto(
-    Guid Id, int Version, string Status, string? ChangeNote, string CreatedBy, DateTimeOffset CreatedAt);
+    Guid Id, int Version, string Status, string? ChangeNote, string CreatedBy, DateTimeOffset CreatedAt,
+    DateTimeOffset? PublishedAt, string? PublishedBy);
+
+record DuplicateRequest(string Name, string? Category, string? HierarchyPath);
+
+record ThumbnailRequest(string Svg);
 
 record CreateDisplayRequest(
     string Name, string? Category, string? Description, string? HierarchyPath,
-    int? Width, int? Height, string? BackgroundColor, string? OwnerId);
+    int? Width, int? Height, string? BackgroundColor, string? OwnerId, short? Level);
 
 record UpdateDisplayRequest(
     string? Name, string? Category, string? Description, string? HierarchyPath,
-    int? Width, int? Height, string? BackgroundColor);
+    int? Width, int? Height, string? BackgroundColor, short? Level);
 
 record SaveContentRequest(JsonDocument? Snapshot, string? ChangeNote, string? UserId);
 

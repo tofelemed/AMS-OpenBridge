@@ -11,6 +11,22 @@ import { HubConnectionState } from '@microsoft/signalr';
 
 // OpenBridge Components
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { ObiDashboard } from '@oicl/openbridge-webcomponents-react/icons/icon-dashboard';
+import { ObiAlarm } from '@oicl/openbridge-webcomponents-react/icons/icon-alarm';
+import { ObiMonitoring } from '@oicl/openbridge-webcomponents-react/icons/icon-monitoring';
+import { ObiTime } from '@oicl/openbridge-webcomponents-react/icons/icon-time';
+import { ObiHistoryGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-history-google';
+import { ObiTrend } from '@oicl/openbridge-webcomponents-react/icons/icon-trend';
+import { ObiDatabase } from '@oicl/openbridge-webcomponents-react/icons/icon-database';
+import { ObiChart } from '@oicl/openbridge-webcomponents-react/icons/icon-chart';
+import { ObiEditGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-edit-google';
+import { ObiSettingsIec } from '@oicl/openbridge-webcomponents-react/icons/icon-settings-iec';
+import { ObiUser } from '@oicl/openbridge-webcomponents-react/icons/icon-user';
+import { ObiNotification } from '@oicl/openbridge-webcomponents-react/icons/icon-notification';
+import { ObiListAltCheckGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-list-alt-check-google';
+import { ObiWrench } from '@oicl/openbridge-webcomponents-react/icons/icon-wrench';
+import { ObiPlaceholder } from '@oicl/openbridge-webcomponents-react/icons/icon-placeholder';
+
 
 // Lazy-loaded pages
 const Dashboard        = React.lazy(() => import('./components/Dashboard/Dashboard'));
@@ -50,14 +66,26 @@ const ThemeContext = createContext<{
 
 export const useTheme = () => useContext(ThemeContext);
 
+// Shell palette. These are applied via inline style={{}}, which beats every stylesheet — so when they
+// were raw hex the app shell could never follow the day/night theme. They are now OpenBridge tokens
+// (valid inside an inline style value), so the shell re-themes with everything else.
 const TB = {
-  blue: '#31598F', blueLight: '#EAF2FF', blueMuted: '#C4D8F0',
-  bg: '#F6F8FB', card: '#FFFFFF', border: '#DDE3EA',
-  text: '#1F2937', textSub: '#6B7280', textMuted: '#9CA3AF',
-  success: '#2E8B57', successBg: '#ECFDF5', successBorder: '#A7F3D0',
-  critical: '#D64545', criticalBg: '#FEF2F2',
-  radiusSm: '8px',
-  shadow: '0 1px 3px rgba(0,0,0,0.07)',
+  blue: 'var(--selected-enabled-background-color)',
+  blueLight: 'var(--container-section-color)',
+  blueMuted: 'var(--border-divider-color)',
+  bg: 'var(--container-backdrop-color)',
+  card: 'var(--container-background-color)',
+  border: 'var(--border-divider-color)',
+  text: 'var(--element-active-color)',
+  textSub: 'var(--element-neutral-color)',
+  textMuted: 'var(--element-inactive-color)',
+  success: 'var(--alert-running-color)',
+  successBg: 'var(--container-section-color)',
+  successBorder: 'var(--alert-running-color)',
+  critical: 'var(--alert-alarm-color)',
+  criticalBg: 'var(--container-section-color)',
+  radiusSm: 'var(--border-radius-br-8)',
+  shadow: 'var(--shadow-flat)',
 } as const;
 
 const LIVE_EVENTS_STORAGE_KEY = 'ams-show-live-events';
@@ -153,6 +181,22 @@ const App: React.FC = () => {
                 </React.Suspense>
               }
             />
+            {/* The Designer runs full-viewport, OUTSIDE the app shell.
+                Inside the shell it only got ~1420px of a 1920px screen (sidebar + events rail), which
+                is why its 31-control toolbar overflowed and a 1920px artboard could never be seen at
+                100%. It is an authoring workspace, not a page — same treatment as the runtime viewer. */}
+            <Route
+              path="/designer/:id"
+              element={
+                <RequireAuth>
+                  <RequirePermission permission="display.edit">
+                    <React.Suspense fallback={<LoadingScreen />}>
+                      <DesignerPage />
+                    </React.Suspense>
+                  </RequirePermission>
+                </RequireAuth>
+              }
+            />
             {/* Standalone runtime viewer — no sidebar/topbar, but NOT anonymous: Phase K requires a
                 session (display-service now enforces display.view on reads). */}
             <Route
@@ -195,7 +239,7 @@ const App: React.FC = () => {
                       {/* HMI Designer — authoring, Admin/Engineer only */}
                       <Route path="/designer"       element={<RequirePermission permission="display.edit"><DisplayList /></RequirePermission>} />
                       <Route path="/designer/import" element={<RequirePermission permission="display.edit"><ImportPage /></RequirePermission>} />
-                      <Route path="/designer/:id"   element={<RequirePermission permission="display.edit"><DesignerPage /></RequirePermission>} />
+                      {/* /designer/:id is a standalone full-viewport route — see above, outside the shell */}
                       {/* Dedicated trend view (Phase J) — needs history + binding resolution */}
                       <Route path="/trend"          element={<RequirePermission permission="historian.view"><TrendPage /></RequirePermission>} />
                       {/* Infrastructure */}
@@ -233,11 +277,11 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     navigate('/login', { replace: true });
   };
 
-  // Full-height pages manage their own internal scroll regions
+  // Full-height pages manage their own internal scroll regions.
+  // (/designer/:id is no longer here — it renders outside the shell entirely.)
   const isFullHeightPage =
     location.pathname === '/alarms' ||
-    location.pathname === '/live-events' ||
-    /^\/designer\/[^/]+/.test(location.pathname);
+    location.pathname === '/live-events';
 
   const toggleLiveEvents = () => {
     setShowLiveEvents(prev => {
@@ -447,29 +491,29 @@ const navItems = [
   // ── Live Operations (SignalR + MQTT real-time) ──────────────
   // `permission` must match the route guard for the same path (see the Routes block) — a nav entry that
   // is visible but redirects on click is worse than no entry at all.
-  { path: '/dashboard',    label: 'Dashboard',          icon: '📊', group: 'Live Operations',  badge: undefined as string | undefined, permission: 'alarm.view' },
-  { path: '/alarms',       label: 'Active Alarms',       icon: '🔔', group: 'Live Operations',  badge: 'alarms', permission: 'alarm.view' },
-  { path: '/live-events',  label: 'Live Events',         icon: '📡', group: 'Live Operations', permission: 'alarm.view' },
-  { path: '/soe',          label: 'Sequence of Events',  icon: '⏱',  group: 'Live Operations', permission: 'soe.view' },
+  { path: '/dashboard',    label: 'Dashboard',          Icon: ObiDashboard, group: 'Live Operations',  badge: undefined as string | undefined, permission: 'alarm.view' },
+  { path: '/alarms',       label: 'Active Alarms',       Icon: ObiAlarm, group: 'Live Operations',  badge: 'alarms', permission: 'alarm.view' },
+  { path: '/live-events',  label: 'Live Events',         Icon: ObiMonitoring, group: 'Live Operations', permission: 'alarm.view' },
+  { path: '/soe',          label: 'Sequence of Events',  Icon: ObiTime,  group: 'Live Operations', permission: 'soe.view' },
   // ── Historical (PostgreSQL + IoTDB) ───────────────────────
-  { path: '/historical', label: 'Alarm History',       icon: '📜', group: 'Historical', permission: 'alarm.view' },
-  { path: '/trend',       label: 'Trend',               icon: '📈', group: 'Historical', permission: 'historian.view' },
-  { path: '/iotdb-trend', label: 'IoTDB Trend Viewer',  icon: '🗄', group: 'Historical', permission: 'historian.view' },
+  { path: '/historical', label: 'Alarm History',       Icon: ObiHistoryGoogle, group: 'Historical', permission: 'alarm.view' },
+  { path: '/trend',       label: 'Trend',               Icon: ObiTrend, group: 'Historical', permission: 'historian.view' },
+  { path: '/iotdb-trend', label: 'IoTDB Trend Viewer',  Icon: ObiDatabase, group: 'Historical', permission: 'historian.view' },
   // ── Analysis ──────────────────────────────────────────────
-  { path: '/analytics',  label: 'Analytics',           icon: '🔬', group: 'Analysis', permission: 'analytics.view' },
+  { path: '/analytics',  label: 'Analytics',           Icon: ObiChart, group: 'Analysis', permission: 'analytics.view' },
   // ── HMI displays (runtime for everyone, Designer for authors) ──
-  { path: '/displays',   label: 'HMI Displays',        icon: '🖥', group: 'Design', permission: 'display.view' },
-  { path: '/designer',   label: 'HMI Designer',        icon: '🎨', group: 'Design', permission: 'display.edit' },
+  { path: '/displays',   label: 'HMI Displays',        Icon: ObiMonitoring, group: 'Design', permission: 'display.view' },
+  { path: '/designer',   label: 'HMI Designer',        Icon: ObiEditGoogle, group: 'Design', permission: 'display.edit' },
   // ── Infrastructure (edge + system monitoring) ─────────────
-  { path: '/system',     label: 'System Monitor',      icon: '⚙',  group: 'Infrastructure', permission: 'historian.view' },
-  { path: '/edge',       label: 'Edge Node Monitor',   icon: '⬡',  group: 'Infrastructure', permission: 'historian.view' },
+  { path: '/system',     label: 'System Monitor',      Icon: ObiSettingsIec,  group: 'Infrastructure', permission: 'historian.view' },
+  { path: '/edge',       label: 'Edge Node Monitor',   Icon: ObiPlaceholder,  group: 'Infrastructure', permission: 'historian.view' },
   // ── Administration (admin only — the whole section, not just User Management) ──
-  { path: '/admin/users',         label: 'User Management',  icon: '👤', group: 'Administration', permission: 'admin.users.edit' },
-  { path: '/admin/alarm-feed',    label: 'Alarm Feed',       icon: '📡', group: 'Administration', permission: 'admin.users.edit' },
-  { path: '/admin/alarm-rules',   label: 'Alarm Rules',      icon: '📋', group: 'Administration', permission: 'admin.users.edit' },
-  { path: '/admin/notifications', label: 'Notifications',    icon: '🔔', group: 'Administration', permission: 'admin.users.edit' },
-  { path: '/admin/audit',         label: 'Audit Log',        icon: '📒', group: 'Administration', permission: 'admin.audit.view' },
-  { path: '/admin/system',        label: 'System Settings',  icon: '🔧', group: 'Administration', permission: 'admin.users.edit' },
+  { path: '/admin/users',         label: 'User Management',  Icon: ObiUser, group: 'Administration', permission: 'admin.users.edit' },
+  { path: '/admin/alarm-feed',    label: 'Alarm Feed',       Icon: ObiMonitoring, group: 'Administration', permission: 'admin.users.edit' },
+  { path: '/admin/alarm-rules',   label: 'Alarm Rules',      Icon: ObiListAltCheckGoogle, group: 'Administration', permission: 'admin.users.edit' },
+  { path: '/admin/notifications', label: 'Notifications',    Icon: ObiNotification, group: 'Administration', permission: 'admin.users.edit' },
+  { path: '/admin/audit',         label: 'Audit Log',        Icon: ObiListAltCheckGoogle, group: 'Administration', permission: 'admin.audit.view' },
+  { path: '/admin/system',        label: 'System Settings',  Icon: ObiWrench, group: 'Administration', permission: 'admin.users.edit' },
 ];
 
 const Sidebar: React.FC<{ unackedCount: number }> = ({ unackedCount }) => {
@@ -493,7 +537,10 @@ const Sidebar: React.FC<{ unackedCount: number }> = ({ unackedCount }) => {
                 className={`nav-item ${isActive ? 'nav-item--active' : ''}`}
                 onClick={() => navigate(item.path)}
               >
-                <span style={{ fontSize: '14px', width: '24px', textAlign: 'center' }}>{item.icon}</span>
+                {/* OpenBridge icons, not emoji: emoji render differently per-OS, ignore the theme, and
+                    are not part of the design system. Where OpenBridge has no matching icon we use
+                    ObiPlaceholder rather than inventing one. */}
+                <span className="nav-item__icon"><item.Icon /></span>
                 <span style={{ flex: 1 }}>{item.label}</span>
                 {item.badge === 'alarms' && unackedCount > 0 && (
                   <span className="nav-item__badge">{unackedCount}</span>

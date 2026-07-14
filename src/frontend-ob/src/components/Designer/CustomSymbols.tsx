@@ -206,6 +206,17 @@ export function renderCustomSymbol(type: string, ctx: CustomSymbolContext): Reac
         </div>
       );
 
+    // A transparent clickable region: dashed and visible while designing, INVISIBLE at runtime.
+    // This is how PI Vision actually builds "click the pump on the P&ID" — an invisible rectangle
+    // overlaid on the artwork (264 of the 721 symbols in the sample .pdix are exactly this). Without
+    // it you cannot attach navigation to an imported drawing at all.
+    case 'shape.hotspot':
+      return (
+        <div className={`symbol symbol-custom symbol-hotspot${mode === 'design' ? ' symbol-hotspot--design' : ''}`}>
+          {mode === 'design' && <span className="symbol-hotspot__label">{item.label || 'hotspot'}</span>}
+        </div>
+      );
+
     case 'shape.rect':
       return (
         <div className="symbol symbol-custom symbol-shape">
@@ -387,7 +398,7 @@ export const CUSTOM_SYMBOL_TYPES = new Set([
   'ind.gauge', 'ind.multistate', 'ind.digital', 'ind.setpoint',
   'equip.heater', 'equip.cooler', 'equip.conveyor', 'equip.agitator',
   'pipe.reducer',
-  'shape.rect', 'shape.circle', 'shape.line', 'shape.divider', 'shape.label',
+  'shape.rect', 'shape.circle', 'shape.line', 'shape.divider', 'shape.label', 'shape.hotspot',
   'ctrl.selector',
   'alarm.beacon', 'alarm.horn', 'alarm.summary',
   'chart.bar', 'chart.xy', 'chart.pie',

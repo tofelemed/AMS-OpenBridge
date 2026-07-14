@@ -2,6 +2,9 @@ import React, { useRef, useCallback, useState, useEffect } from 'react';
 import type { CanvasItem } from './types';
 import { SymbolRenderer } from './SymbolRenderer';
 import { getDefaultSizeSync } from './symbolLibraryService';
+import { ObiCommandLocked } from '@oicl/openbridge-webcomponents-react/icons/icon-command-locked';
+import { ObiPlaceholder } from '@oicl/openbridge-webcomponents-react/icons/icon-placeholder';
+import { ObiLink } from '@oicl/openbridge-webcomponents-react/icons/icon-link';
 
 interface DesignerCanvasProps {
   items: CanvasItem[];
@@ -12,6 +15,11 @@ interface DesignerCanvasProps {
   zoom?: number;
   canvasWidth?: number;
   canvasHeight?: number;
+  /** Display background — a theme token by default, so the artboard follows day/night. */
+  canvasBg?: string;
+  /** Snap to grid. It used to be unconditional, so you could not place anything off-grid at all.
+      Hold Alt while dragging to bypass it for one gesture (PI Vision's exact affordance). */
+  snapEnabled?: boolean;
   onSelect: (ids: string[]) => void;                 // replace selection
   onToggleSelect: (id: string) => void;              // shift/ctrl-click
   onUpdateItems: (updates: Array<{ id: string; changes: Partial<CanvasItem> }>) => void; // live (no history)
@@ -24,12 +32,76 @@ interface DesignerCanvasProps {
 
 const snap = (v: number, g: number) => Math.round(v / g) * g;
 
+// ── Smart alignment guides ───────────────────────────────────────────────────
+// While dragging, compare the selection's left/centre/right and top/middle/bottom against the same six
+// lines on every OTHER item. If one lands within tolerance, nudge the selection onto it and draw the
+// line. Tolerance is in CANVAS units, so it is divided by zoom at the call site — otherwise guides get
+// stickier the further you zoom in.
+const GUIDE_TOLERANCE = 6;
+
+export interface Guide { axis: 'x' | 'y'; at: number }
+
+interface MovingItem { id: string; x: number; y: number }
+
+function computeSmartSnap(
+  moving: MovingItem[],
+  items: CanvasItem[],
+  starts: Map<string, { x: number; y: number }>,
+  tol: number,
+): { dx: number; dy: number; guides: Guide[] } {
+  const movingIds = new Set(moving.map(m => m.id));
+  const sizeOf = (id: string) => items.find(i => i.id === id)?.size ?? { width: 0, height: 0 };
+
+  // The selection's bounding box at its candidate position.
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const m of moving) {
+    const s = sizeOf(m.id);
+    minX = Math.min(minX, m.x); minY = Math.min(minY, m.y);
+    maxX = Math.max(maxX, m.x + s.width); maxY = Math.max(maxY, m.y + s.height);
+  }
+  if (!Number.isFinite(minX) || !starts.size) return { dx: 0, dy: 0, guides: [] };
+
+  const selX = [minX, (minX + maxX) / 2, maxX];
+  const selY = [minY, (minY + maxY) / 2, maxY];
+
+  const targetsX: number[] = [];
+  const targetsY: number[] = [];
+  for (const i of items) {
+    if (movingIds.has(i.id) || i.hidden) continue;
+    const { x, y } = i.position;
+    const { width, height } = i.size;
+    targetsX.push(x, x + width / 2, x + width);
+    targetsY.push(y, y + height / 2, y + height);
+  }
+
+  const best = (sel: number[], targets: number[]) => {
+    let d = 0, at: number | null = null, dist = tol;
+    for (const s of sel) {
+      for (const t of targets) {
+        const delta = Math.abs(t - s);
+        if (delta < dist) { dist = delta; d = t - s; at = t; }
+      }
+    }
+    return { d, at };
+  };
+
+  const bx = best(selX, targetsX);
+  const by = best(selY, targetsY);
+  const guides: Guide[] = [];
+  if (bx.at !== null) guides.push({ axis: 'x', at: bx.at });
+  if (by.at !== null) guides.push({ axis: 'y', at: by.at });
+  return { dx: bx.d, dy: by.d, guides };
+}
+
 export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
   items, selectedIds, mode, gridSize = 10, showGrid = true, zoom = 1,
-  canvasWidth = 1920, canvasHeight = 1080,
+  canvasWidth = 1920, canvasHeight = 1080, canvasBg = 'var(--ams-canvas-bg)', snapEnabled = true,
   onSelect, onToggleSelect, onUpdateItems, onCommit, onAddItem, onDeleteSelected, onNudge, onZoomBy,
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [panning, setPanning] = useState(false);
+  const [guides, setGuides] = useState<Guide[]>([]);
   const [drag, setDrag] = useState<null | { sx: number; sy: number; starts: Map<string, { x: number; y: number }> }>(null);
   const [resize, setResize] = useState<null | { handle: string; sx: number; sy: number; w: number; h: number; x: number; y: number; id: string }>(null);
   const [rotate, setRotate] = useState<null | { id: string; cx: number; cy: number }>(null);
@@ -44,10 +116,15 @@ export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
   // ── keyboard: nudge / delete / esc / space-pan ─────────────────────────────
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      // The typing guard has to come FIRST. The space branch used to sit above it, so typing a space
+      // into the palette search or a property field flipped the canvas into pan mode.
+      const tag = (e.target as HTMLElement)?.tagName;
+      const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+        || (e.target as HTMLElement)?.isContentEditable;
+      if (typing) return;
+
       if (e.key === ' ') { setSpaceDown(true); return; }
       if (mode !== 'design' || selectedIds.length === 0) return;
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       switch (e.key) {
         case 'Delete': case 'Backspace': e.preventDefault(); onDeleteSelected?.(); break;
         case 'ArrowUp':    e.preventDefault(); onNudge?.(0, -(e.shiftKey ? 10 : 1)); break;
@@ -80,6 +157,9 @@ export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
 
   // ── item mousedown (select + start drag) ───────────────────────────────────
   const itemMouseDown = (e: React.MouseEvent, item: CanvasItem) => {
+    // Middle-button (pan) and Space-pan must reach the wrapper even when the pointer is over a symbol —
+    // otherwise panning only worked on empty canvas, which on a dense display is nowhere.
+    if (e.button === 1 || spaceDown) return;
     if (mode !== 'design' || item.locked) return;
     e.stopPropagation();
     const members = groupMembers(item);
@@ -120,9 +200,26 @@ export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
   useEffect(() => {
     if (!drag && !resize && !rotate && !marquee) return;
     const move = (e: MouseEvent) => {
+      // Alt bypasses snapping for this gesture without turning the setting off — the single highest
+      // value-to-effort affordance in an industrial editor, and PI Vision has exactly it.
+      const g = (v: number) => (snapEnabled && !e.altKey ? snap(v, gridSize) : Math.round(v));
       if (drag) {
         const dx = (e.clientX - drag.sx) / zoom, dy = (e.clientY - drag.sy) / zoom;
-        onUpdateItems([...drag.starts].map(([id, s]) => ({ id, changes: { position: { x: snap(s.x + dx, gridSize), y: snap(s.y + dy, gridSize) } } })));
+        const moving = [...drag.starts].map(([id, s]) => ({ id, x: g(s.x + dx), y: g(s.y + dy) }));
+
+        // Smart alignment guides: snap the dragged selection's edges/centres to the OTHER items'
+        // edges/centres, and draw the line we snapped to. Not in PI Vision (which only has grid snap),
+        // but standard in Ignition Perspective / InTouch / every modern editor — and the thing that
+        // actually makes a display look aligned rather than approximately aligned.
+        const adj = snapEnabled && !e.altKey
+          ? computeSmartSnap(moving, items, drag.starts, GUIDE_TOLERANCE / zoom)
+          : { dx: 0, dy: 0, guides: [] as Guide[] };
+        setGuides(adj.guides);
+
+        onUpdateItems(moving.map(m => ({
+          id: m.id,
+          changes: { position: { x: m.x + adj.dx, y: m.y + adj.dy } },
+        })));
       } else if (resize) {
         const dx = (e.clientX - resize.sx) / zoom, dy = (e.clientY - resize.sy) / zoom;
         let w = resize.w, h = resize.h, x = resize.x, y = resize.y;
@@ -156,29 +253,76 @@ export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
     return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
-  }, [drag, resize, rotate, marquee, zoom, gridSize, items, onUpdateItems, onCommit, onSelect]);
+  }, [drag, resize, rotate, marquee, zoom, gridSize, snapEnabled, items, onUpdateItems, onCommit, onSelect]);
 
   const onWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey && onZoomBy) { e.preventDefault(); onZoomBy(e.deltaY < 0 ? 1.1 : 0.9); }
   };
 
+  // ── Pan ────────────────────────────────────────────────────────────────────
+  // The toolbar has advertised "Space+drag pan" for two phases and it did NOTHING — `spaceDown` only
+  // swapped the cursor to `grab`. Panning is implemented by scrolling the canvas well (which keeps the
+  // scrollbars honest). Two gestures, because industrial editors expect both:
+  //   · Space + drag   (the advertised one)
+  //   · Middle-mouse drag (never conflicts with anything, so it always works)
+  const panRef = useRef<null | { sx: number; sy: number; sl: number; st: number }>(null);
+  const scrollParent = () => wrapperRef.current?.parentElement ?? null;
+
+  const startPan = (e: React.MouseEvent) => {
+    const el = scrollParent();
+    if (!el) return;
+    e.preventDefault();
+    panRef.current = { sx: e.clientX, sy: e.clientY, sl: el.scrollLeft, st: el.scrollTop };
+  };
+
+  useEffect(() => {
+    if (!panRef.current) return;
+    const move = (e: MouseEvent) => {
+      const el = scrollParent();
+      const p = panRef.current;
+      if (!el || !p) return;
+      el.scrollLeft = p.sl - (e.clientX - p.sx);
+      el.scrollTop = p.st - (e.clientY - p.sy);
+    };
+    const up = () => { panRef.current = null; setPanning(false); };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+  }, [panning]);
+
+  const wrapperMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 1 || (spaceDown && e.button === 0)) {   // middle button, or Space+left
+      setPanning(true);
+      startPan(e);
+    }
+  };
+
   const sorted = [...items].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
 
   return (
-    <div className={`designer-canvas-wrapper${spaceDown ? ' designer-canvas-wrapper--pan' : ''}`} onWheel={onWheel}>
-      {mode === 'design' && (
-        <div className="designer-canvas-toolbar">
-          <span className="designer-canvas-toolbar__value">Zoom {Math.round(zoom * 100)}%</span>
-          <span className="designer-canvas-toolbar__value">Grid {gridSize}px</span>
-          <span className="designer-canvas-toolbar__value">Items {items.length}</span>
-          {selectedIds.length > 0 && <span className="designer-canvas-toolbar__selected">✓ {selectedIds.length} selected</span>}
-        </div>
-      )}
+    <div
+      ref={wrapperRef}
+      className={`designer-canvas-wrapper${spaceDown || panning ? ' designer-canvas-wrapper--pan' : ''}${panning ? ' designer-canvas-wrapper--panning' : ''}`}
+      onWheel={onWheel}
+      onMouseDown={wrapperMouseDown}
+      // Middle-click otherwise triggers the browser's autoscroll widget.
+      onAuxClick={(e) => { if (e.button === 1) e.preventDefault(); }}
+    >
+      {/* The floating zoom/grid/items chip that used to sit here is gone: it repeated what the toolbar
+          and the status bar already say (zoom was displayed in THREE places at once). */}
+      {/* Stage: reserves the SCALED footprint in layout. `transform: scale()` does not affect layout, so
+          without this the well never overflowed — which is why zooming in gave you nothing to scroll or
+          pan to, and half the artboard was simply unreachable at any zoom above fit. */}
+      <div
+        className="designer-canvas__stage"
+        style={{ width: canvasWidth * zoom, height: canvasHeight * zoom }}
+      >
       <div
         ref={canvasRef}
         className={`designer-canvas ${mode === 'preview' ? 'designer-canvas--preview' : ''}${drag ? ' designer-canvas--dragging' : ''}`}
         style={{
           width: canvasWidth, height: canvasHeight,
+          background: canvasBg,
           backgroundSize: showGrid && mode === 'design' ? `${gridSize * zoom}px ${gridSize * zoom}px` : undefined,
           transform: `scale(${zoom})`, transformOrigin: 'top left',
         }}
@@ -188,8 +332,23 @@ export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
       >
         {showGrid && mode === 'design' && <div className="designer-canvas__grid" />}
 
+        {/* Smart alignment guides — the line the selection just snapped to. */}
+        {guides.map((g, n) => (
+          <div
+            key={`${g.axis}-${n}`}
+            className={`designer-canvas__guide designer-canvas__guide--${g.axis}`}
+            data-testid="align-guide"
+            style={g.axis === 'x'
+              ? { left: g.at, top: 0, bottom: 0, width: 1 }
+              : { top: g.at, left: 0, right: 0, height: 1 }}
+          />
+        ))}
+
         {sorted.map(item => {
-          if (item.hidden && mode === 'design') return null;
+          // `hidden` was INVERTED: the item vanished from the EDITOR (where you need to see it to bring
+          // it back) but still rendered in the runtime. Hidden means hidden at runtime; in design mode
+          // it stays visible but ghosted, so it remains selectable from the canvas and the layers panel.
+          if (item.hidden && mode === 'preview') return null;
           const isSel = selected.has(item.id);
           const isPrimary = item.id === primaryId && selectedIds.length === 1;
           const tf = [
@@ -199,7 +358,7 @@ export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
           return (
             <div
               key={item.id}
-              className={`designer-canvas__item ${isSel ? 'designer-canvas__item--selected' : ''} ${item.locked ? 'designer-canvas__item--locked' : ''}`}
+              className={`designer-canvas__item ${isSel ? 'designer-canvas__item--selected' : ''} ${item.locked ? 'designer-canvas__item--locked' : ''}${item.hidden ? ' designer-canvas__item--hidden' : ''}`}
               style={{ left: item.position.x, top: item.position.y, width: item.size.width, height: item.size.height, transform: tf, zIndex: item.zIndex || 0 }}
               onMouseDown={(e) => itemMouseDown(e, item)}
             >
@@ -212,7 +371,12 @@ export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
                   ))}
                 </div>
               )}
-              {item.locked && mode === 'design' && <div className="designer-canvas__lock-indicator">🔒</div>}
+              {item.locked && mode === 'design' && <div className="designer-canvas__lock-indicator"><ObiCommandLocked /></div>}
+              {/* A symbol that navigates should say so at author time — otherwise a link is invisible
+                  until someone runs the display and clicks it. */}
+              {item.navigationLink && mode === 'design' && (
+                <div className="designer-canvas__link-indicator" title="Has a navigation link"><ObiLink /></div>
+              )}
             </div>
           );
         })}
@@ -226,11 +390,12 @@ export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
 
         {items.length === 0 && mode === 'design' && (
           <div className="designer-canvas__empty">
-            <div className="designer-canvas__empty-icon">🎨</div>
+            <div className="designer-canvas__empty-icon"><ObiPlaceholder /></div>
             <div className="designer-canvas__empty-title">Empty Canvas</div>
             <div className="designer-canvas__empty-hint">Drag components from the palette</div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

@@ -49,6 +49,19 @@ function resolveColor(cssColor: string): string {
   return c || cssColor;
 }
 
+/** The active OpenBridge theme (data-obc-theme). Changing it must re-resolve the chart's colors. */
+function useObcTheme(): string {
+  const [theme, setTheme] = useState(() =>
+    (typeof document === 'undefined' ? 'day' : document.documentElement.getAttribute('data-obc-theme') ?? 'day'));
+  useEffect(() => {
+    const root = document.documentElement;
+    const obs = new MutationObserver(() => setTheme(root.getAttribute('data-obc-theme') ?? 'day'));
+    obs.observe(root, { attributes: true, attributeFilter: ['data-obc-theme'] });
+    return () => obs.disconnect();
+  }, []);
+  return theme;
+}
+
 // Test marker: lets automated checks confirm which build of this module the page actually loaded.
 (globalThis as unknown as { __trendCoreBuild?: string }).__trendCoreBuild = 'J1';
 
@@ -122,6 +135,9 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
   const [endTs, setEndTs] = useState(() => 0); // 0 = "now"; set when paused/scrubbed
   const [cursorTs, setCursorTs] = useState<number | null>(null);
   const [zoomPct, setZoomPct] = useState({ start: 0, end: 100 });
+  // "Now" for the live window. It only moves on the 2s tick (below) — deriving it from Date.now() in
+  // the render body made the window jump on every mousemove.
+  const [nowTs, setNowTs] = useState(() => Date.now());
   const [, forceTick] = useState(0);
 
   const fetchTrend = useMqttStore(s => s.fetchTrend);
@@ -130,7 +146,15 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
 
   useEffect(() => { connect(); }, [connect]);
 
-  const windowEnd = live && !endTs ? Date.now() : (endTs || Date.now());
+  // The window end must only advance on a LIVE TICK — not on every render.
+  //
+  // It used to be `live && !endTs ? Date.now() : …`, recomputed in the render body and baked into
+  // xAxis.min/max. Every render (a mousemove over the chart, a zoom event, the 2s tick) produced a new
+  // option, which <ReactECharts notMerge> re-applied with setOption(…, /*notMerge*/ true) — discarding
+  // the chart's internal state. Two visible bugs: zooming into a spike snapped straight back to
+  // 0–100%, and ⏸ Pause didn't freeze anything (the window still scrolled on mouse movement).
+  // Follow "now" only while live AND playing; otherwise the window is pinned (paused or scrubbed).
+  const windowEnd = (live && playing) ? nowTs : (endTs || nowTs);
   const windowStart = windowEnd - rangeMs;
 
   // Historical fetch per pen, on window/pen change (identical to Phase C).
@@ -165,14 +189,21 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
   // Live tick — advance the window and pull fresh samples from the MQTT ring-buffer.
   useEffect(() => {
     if (!live || !playing) return;
-    const id = setInterval(() => forceTick(t => t + 1), 2000);
+    const id = setInterval(() => { setNowTs(Date.now()); forceTick(t => t + 1); }, 2000);
     return () => clearInterval(id);
   }, [live, playing]);
 
-  const penColors = PEN_TOKENS.map(t => resolveColor(`var(${t})`));
-  const cText = resolveColor('var(--ams-text-dim)');
-  const cBorder = resolveColor('var(--ams-border)');
-  const cGrid = resolveColor('var(--ams-grid-line)');
+  // Theme colors: resolved ONCE per theme, not 9× per render.
+  // resolveColor() appends a span, forces a style flush via getComputedStyle, then removes it. It used
+  // to run in the render body — i.e. on every 2s tick, every mousemove over the chart and every zoom
+  // event, for 6 pens + 3 chrome tokens.
+  const theme = useObcTheme();
+  const { penColors, cText, cBorder, cGrid } = useMemo(() => ({
+    penColors: PEN_TOKENS.map(t => resolveColor(`var(${t})`)),
+    cText: resolveColor('var(--ams-text-dim)'),
+    cBorder: resolveColor('var(--ams-border)'),
+    cGrid: resolveColor('var(--ams-grid-line)'),
+  }), [theme]);
 
   // Merged (history + live tail) data per pen — also what the legend reads at the cursor.
   const penData = pens.map(pen => {
@@ -225,9 +256,16 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
       axisLabel: { color: cText, fontSize: 10 }, axisLine: { lineStyle: { color: cBorder } },
     },
     yAxis,
+    // Carry the current zoom window in the option. <ReactECharts notMerge> re-applies the option on
+    // every change, which resets any component state that isn't in it — so without start/end here the
+    // user's zoom was thrown away the moment anything re-rendered.
     dataZoom: [
-      { type: 'inside', filterMode: 'none' },
-      { type: 'slider', height: 16, bottom: 6, filterMode: 'none', textStyle: { color: cText, fontSize: 9 } },
+      { type: 'inside', filterMode: 'none', start: zoomPct.start, end: zoomPct.end },
+      {
+        type: 'slider', height: 16, bottom: 6, filterMode: 'none',
+        start: zoomPct.start, end: zoomPct.end,
+        textStyle: { color: cText, fontSize: 9 },
+      },
     ],
     series,
   };
@@ -249,6 +287,16 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
     setLive(false);
     setPlaying(false);
     setEndTs(prev => (prev || Date.now()) + dir * rangeMs * 0.5);
+  };
+
+  /** ⏸ / ▶ — pausing must FREEZE the window at the current instant, not merely stop the interval. */
+  const togglePlay = () => {
+    setPlaying(p => {
+      const next = !p;
+      if (!next) setEndTs(Date.now());  // pause → pin the window end
+      else setEndTs(0);                 // resume → follow "now" again
+      return next;
+    });
   };
 
   return (
@@ -312,23 +360,26 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
               key={r.ms}
               className={`trend-core__rbtn ${rangeMs === r.ms ? 'active' : ''}`}
               data-testid={`range-${r.label}`}
-              onClick={() => setRangeMs(r.ms)}
+              // A new range means a new window — an old zoom selection no longer means anything.
+              onClick={() => { setRangeMs(r.ms); setZoomPct({ start: 0, end: 100 }); }}
             >{r.label}</button>
           ))}
           <span className="trend-core__sep" />
           <button className="trend-core__rbtn" data-testid="trend-back" onClick={() => step(-1)} title="Step back">◀</button>
-          <button className="trend-core__rbtn" onClick={() => setPlaying(p => !p)} title="Play/Pause" disabled={!live}>
+          <button className="trend-core__rbtn" data-testid="trend-play" onClick={togglePlay} title="Play/Pause" disabled={!live}>
             {playing && live ? '⏸' : '▶'}
           </button>
           <button className="trend-core__rbtn" data-testid="trend-fwd" onClick={() => step(1)} title="Step forward">▶▶</button>
           <button
             className={`trend-core__rbtn trend-core__now ${live ? 'active' : ''}`}
             data-testid="trend-now"
-            onClick={() => { setLive(true); setPlaying(true); setEndTs(0); }}
+            onClick={() => { setLive(true); setPlaying(true); setEndTs(0); setZoomPct({ start: 0, end: 100 }); }}
             title="Jump to live"
           >Now</button>
           <span className="trend-core__clock" data-testid="trend-end">{fmtClock(windowEnd)}</span>
-          <span className="trend-core__mode" data-testid="trend-mode">{live ? 'LIVE' : 'HISTORICAL'}</span>
+          <span className="trend-core__mode" data-testid="trend-mode">
+            {live ? (playing ? 'LIVE' : 'PAUSED') : 'HISTORICAL'}
+          </span>
         </div>
       )}
     </div>

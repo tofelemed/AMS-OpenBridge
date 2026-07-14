@@ -28,6 +28,11 @@ public class DisplayDbContext : DbContext
             entity.Property(e => e.Height).HasColumnName("height");
             entity.Property(e => e.BackgroundColor).HasColumnName("background_color");
             entity.Property(e => e.PublishedVersion).HasColumnName("published_version");
+            entity.Property(e => e.PublishedAt).HasColumnName("published_at");
+            entity.Property(e => e.PublishedBy).HasColumnName("published_by");
+            entity.Property(e => e.ThumbnailSvg).HasColumnName("thumbnail_svg");
+            entity.Property(e => e.ThumbnailAt).HasColumnName("thumbnail_at");
+            entity.Property(e => e.Level).HasColumnName("level");
             entity.Property(e => e.DraftVersion).HasColumnName("draft_version");
             entity.Property(e => e.OwnerId).HasColumnName("owner_id").IsRequired();
             entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
@@ -58,7 +63,9 @@ public class DisplayDbContext : DbContext
             entity.Property(e => e.ChangeNote).HasColumnName("change_note");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by").IsRequired();
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
-            
+            entity.Property(e => e.PublishedAt).HasColumnName("published_at");
+            entity.Property(e => e.PublishedBy).HasColumnName("published_by");
+
             entity.HasIndex(e => new { e.DisplayId, e.Version }).IsUnique();
             entity.HasIndex(e => e.Status);
         });

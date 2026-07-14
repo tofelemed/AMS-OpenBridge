@@ -4,39 +4,42 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { Modal, FormField } from '../shared/Modal';
-import { apiFetch } from '../../api/apiFetch';
+import { apiFetch, apiJson } from '../../api/apiFetch';
+import { relativeTime } from '../../utils/relativeTime';
+import { useAuthStore } from '../../store/authStore';
 
 const API_BASE = import.meta.env.VITE_DISPLAY_SERVICE_URL || '/api/displays';
 
-/* OpenBridge-inspired tokens (matches Dashboard / Administration) */
+/* OpenBridge tokens. These were raw hex ("OpenBridge-inspired") applied via inline style, which beats
+   every stylesheet — so this page could never follow the day/night theme. Real tokens now. */
 const T = {
-  blue: '#31598F',
-  blueMid: '#4069A5',
-  blueLight: '#EAF2FF',
-  blueMuted: '#C4D8F0',
-  bg: '#F6F8FB',
-  card: '#FFFFFF',
-  border: '#DDE3EA',
-  borderLight: '#EEF2F7',
-  textPrimary: '#1F2937',
-  textSecondary: '#6B7280',
-  textMuted: '#9CA3AF',
-  success: '#2E8B57',
-  successBg: '#ECFDF5',
-  successBorder: '#A7F3D0',
-  warning: '#B45309',
-  warningBg: '#FFFBEB',
-  warningBorder: '#FDE68A',
-  critical: '#D64545',
-  criticalBg: '#FEF2F2',
-  criticalBorder: '#FCA5A5',
-  purple: '#6D28D9',
-  purpleBg: '#F5F3FF',
-  purpleBorder: '#DDD6FE',
-  radius: '12px',
-  radiusSm: '8px',
-  shadow: '0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.05)',
-  shadowHover: '0 2px 8px rgba(49,89,143,0.12), 0 8px 24px rgba(49,89,143,0.08)',
+  blue: 'var(--selected-enabled-background-color)',
+  blueMid: 'var(--selected-hover-background-color)',
+  blueLight: 'var(--container-section-color)',
+  blueMuted: 'var(--border-divider-color)',
+  bg: 'var(--container-backdrop-color)',
+  card: 'var(--container-background-color)',
+  border: 'var(--border-divider-color)',
+  borderLight: 'var(--border-divider-color)',
+  textPrimary: 'var(--element-active-color)',
+  textSecondary: 'var(--element-neutral-color)',
+  textMuted: 'var(--element-inactive-color)',
+  success: 'var(--alert-running-color)',
+  successBg: 'var(--container-section-color)',
+  successBorder: 'var(--alert-running-color)',
+  warning: 'var(--alert-warning-color)',
+  warningBg: 'var(--container-section-color)',
+  warningBorder: 'var(--alert-warning-color)',
+  critical: 'var(--alert-alarm-color)',
+  criticalBg: 'var(--container-section-color)',
+  criticalBorder: 'var(--alert-alarm-color)',
+  purple: 'var(--element-neutral-color)',
+  purpleBg: 'var(--container-section-color)',
+  purpleBorder: 'var(--border-divider-color)',
+  radius: 'var(--border-radius-br-12)',
+  radiusSm: 'var(--border-radius-br-8)',
+  shadow: 'var(--shadow-flat)',
+  shadowHover: 'var(--shadow-raised)',
 } as const;
 
 interface Display {
@@ -49,6 +52,8 @@ interface Display {
   height: number;
   publishedVersion?: number;
   draftVersion: number;
+  level?: number | null;
+  hasThumbnail?: boolean;
   ownerId: string;
   createdAt: string;
   updatedAt: string;
@@ -71,11 +76,13 @@ async function fetchDisplays(category?: string): Promise<{ displays: Display[]; 
   return res.json();
 }
 
-async function createDisplay(data: { name: string; category: string; description?: string }) {
+async function createDisplay(data: { name: string; category: string; description?: string; ownerId: string }) {
   const res = await apiFetch(API_BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...data, ownerId: 'designer-user' }),
+    // ownerId was the literal 'designer-user' for every display by every person — which makes owner-based
+    // permissions meaningless. It is the real user now.
+    body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error('Failed to create display');
   return res.json();
@@ -96,6 +103,7 @@ function formatRelativeDate(iso: string): string {
 
 export const DisplayList: React.FC = () => {
   const navigate = useNavigate();
+  const currentUser = useAuthStore(s => s.user?.username ?? 'unknown');
   const queryClient = useQueryClient();
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -116,6 +124,60 @@ export const DisplayList: React.FC = () => {
       navigate(`/designer/${result.id}`);
     },
     onError: () => toast.error('Failed to create display'),
+  });
+
+  const refreshLists = () => {
+    queryClient.invalidateQueries({ queryKey: ['displays'] });
+    queryClient.invalidateQueries({ queryKey: ['launcher-displays'] });
+    queryClient.invalidateQueries({ queryKey: ['deleted-displays'] });
+  };
+
+  const renameMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      apiJson(`${API_BASE}/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) }),
+    onSuccess: () => { toast.success('Renamed'); refreshLists(); },
+    onError: (e: Error) => toast.error(`Rename failed: ${e.message}`),
+  });
+
+  // "Save As": copies the current draft into a new, UNPUBLISHED display owned by the caller.
+  const duplicateMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      apiJson<{ id: string }>(`${API_BASE}/${id}/duplicate`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }),
+      }),
+    onSuccess: (r) => { toast.success('Display duplicated'); refreshLists(); navigate(`/designer/${r.id}`); },
+    onError: (e: Error) => toast.error(`Duplicate failed: ${e.message}`),
+  });
+
+  // Soft delete → recycle bin. Recoverable, which is why the toast offers Undo.
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiFetch(`${API_BASE}/${id}`, { method: 'DELETE' }).then(r => {
+      if (!r.ok) throw new Error(String(r.status));
+      return id;
+    }),
+    onSuccess: (id) => {
+      refreshLists();
+      toast.info(
+        <span>
+          Display deleted.{' '}
+          <button className="dl-undo" onClick={() => restoreMutation.mutate(id)}>Undo</button>
+        </span>,
+        { autoClose: 8000 },
+      );
+    },
+    onError: (e: Error) => toast.error(`Delete failed: ${e.message}`),
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: (id: string) => apiJson(`${API_BASE}/${id}/restore`, { method: 'POST' }),
+    onSuccess: () => { toast.success('Display restored'); refreshLists(); },
+    onError: (e: Error) => toast.error(`Restore failed: ${e.message}`),
+  });
+
+  // The recycle bin itself (deleted displays were previously invisible AND unrecoverable via the API).
+  const { data: deleted } = useQuery({
+    queryKey: ['deleted-displays'],
+    queryFn: () => apiJson<{ displays: Array<{ id: string; name: string; deletedAt: string }> }>(`${API_BASE}/deleted`),
   });
 
   const stats = useMemo(() => {
@@ -238,11 +300,63 @@ export const DisplayList: React.FC = () => {
           gap: '16px',
         }}>
           {data?.displays.map(display => (
-            <DisplayCard
-              key={display.id}
-              display={display}
-              onOpen={() => navigate(`/designer/${display.id}`)}
-            />
+            <div key={display.id} style={{ position: 'relative' }}>
+              <DisplayCard
+                display={display}
+                onOpen={() => navigate(`/designer/${display.id}`)}
+              />
+              {/* Rename / Duplicate ("Save As") / Delete. None of these existed — a display could be
+                  created and opened, and that was all. PI Vision puts exactly these on its home page. */}
+              <div className="dl-card-actions">
+                <button
+                  className="dl-action" data-testid="card-rename"
+                  title="Rename"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const name = window.prompt('Rename display', display.name);
+                    if (name && name.trim() && name !== display.name) renameMutation.mutate({ id: display.id, name: name.trim() });
+                  }}
+                >Rename</button>
+                <button
+                  className="dl-action" data-testid="card-duplicate"
+                  title="Duplicate (Save As)"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const name = window.prompt('Name for the copy', `${display.name} (copy)`);
+                    if (name && name.trim()) duplicateMutation.mutate({ id: display.id, name: name.trim() });
+                  }}
+                >Duplicate</button>
+                <button
+                  className="dl-action dl-action--danger" data-testid="card-delete"
+                  title="Delete (recoverable from the recycle bin)"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Never delete on a bare click; name the display in the prompt.
+                    if (window.confirm(`Delete "${display.name}"? It goes to the recycle bin and can be restored.`)) {
+                      deleteMutation.mutate(display.id);
+                    }
+                  }}
+                >Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Recycle bin — deletes are soft, so nothing is ever really gone. PI Vision keeps deleted
+          displays indefinitely; under ISA-101 a display is a change-managed artifact. */}
+      {(deleted?.displays.length ?? 0) > 0 && (
+        <div className="dl-bin" data-testid="recycle-bin">
+          <div className="dl-bin__title">Recycle bin ({deleted!.displays.length})</div>
+          {deleted!.displays.map(d => (
+            <div key={d.id} className="dl-bin__row">
+              <span className="dl-bin__name">{d.name}</span>
+              <span className="dl-bin__meta">deleted {relativeTime(d.deletedAt)}</span>
+              <button
+                className="dl-action" data-testid="bin-restore"
+                onClick={() => restoreMutation.mutate(d.id)}
+              >Restore</button>
+            </div>
           ))}
         </div>
       )}
@@ -262,7 +376,7 @@ export const DisplayList: React.FC = () => {
             <ObcButton
               variant="normal"
               disabled={createMutation.isPending || !newDisplay.name.trim()}
-              onClick={() => createMutation.mutate(newDisplay)}
+              onClick={() => createMutation.mutate({ ...newDisplay, ownerId: currentUser })}
             >
               {createMutation.isPending ? 'Creating…' : 'Create Display'}
             </ObcButton>
@@ -272,7 +386,7 @@ export const DisplayList: React.FC = () => {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            createMutation.mutate(newDisplay);
+            createMutation.mutate({ ...newDisplay, ownerId: currentUser });
           }}
           style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
         >
@@ -353,6 +467,32 @@ const FilterChip: React.FC<FilterChipProps> = ({
   </button>
 );
 
+/** The card preview: the display's own SVG schematic, generated on publish (never a fake box). */
+const DisplayThumb: React.FC<{ id: string; has?: boolean }> = ({ id, has }) => {
+  const { data } = useQuery({
+    queryKey: ['thumb', id],
+    queryFn: async () => {
+      const r = await apiFetch(`${API_BASE}/${id}/thumbnail`);
+      return r.ok ? r.text() : '';
+    },
+    enabled: !!has,
+    staleTime: 5 * 60_000,
+  });
+  if (!has || !data) {
+    return (
+      <span style={{ fontSize: '11px', color: T.textMuted }}>
+        No preview — publish to generate one
+      </span>
+    );
+  }
+  return (
+    <div
+      style={{ width: '100%', height: '100%', overflow: 'hidden' }}
+      dangerouslySetInnerHTML={{ __html: data }}
+    />
+  );
+};
+
 interface DisplayCardProps {
   display: Display;
   onOpen: () => void;
@@ -391,7 +531,8 @@ const DisplayCard: React.FC<DisplayCardProps> = ({ display, onOpen }) => {
         e.currentTarget.style.borderColor = T.border;
       }}
     >
-      {/* Preview thumbnail */}
+      {/* Real preview — this used to be a grey box with the text "1920 × 1080" in it, dressed up as a
+          thumbnail. It is now the display's actual SVG schematic, regenerated on publish. */}
       <div style={{
         height: '120px',
         background: `linear-gradient(145deg, ${T.bg} 0%, ${T.borderLight} 100%)`,
@@ -399,18 +540,7 @@ const DisplayCard: React.FC<DisplayCardProps> = ({ display, onOpen }) => {
         borderBottom: `1px solid ${T.borderLight}`,
         position: 'relative',
       }}>
-        <div style={{
-          width: '72%', height: '60%',
-          background: '#1a1a2e',
-          borderRadius: '4px',
-          border: `2px solid ${T.border}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.3)',
-        }}>
-          <span style={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'monospace' }}>
-            {display.width} × {display.height}
-          </span>
-        </div>
+        <DisplayThumb id={display.id} has={display.hasThumbnail} />
         <span style={{
           position: 'absolute', top: '10px', right: '10px',
           fontSize: '10px', fontWeight: 700, padding: '3px 8px',

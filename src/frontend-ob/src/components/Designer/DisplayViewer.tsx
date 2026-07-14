@@ -10,10 +10,13 @@ import { useQuery } from '@tanstack/react-query';
 import type { CanvasItem, NavigationLink } from './types';
 import { SymbolRenderer } from './SymbolRenderer';
 import { useMqttStore } from '../../store/mqttStore';
-import { pensFromItems } from './TrendChart';
+import { pensFromItems, pensFromItem } from './TrendChart';
+import { ObiTrend } from '@oicl/openbridge-webcomponents-react/icons/icon-trend';
 import TrendDialog from './TrendDialog';
+import { isSafeUrl } from './NavigationEditor';
 import './Designer.css';
 import { apiFetch } from '../../api/apiFetch';
+import { useTheme } from '../../App';
 
 const API_BASE = import.meta.env.VITE_DISPLAY_SERVICE_URL || '/api/displays';
 
@@ -40,7 +43,9 @@ async function fetchViewerContent(id: string): Promise<ViewerContent> {
     items: snapshot.items ?? [],
     width: settings.canvasWidth ?? json.width ?? 1920,
     height: settings.canvasHeight ?? json.height ?? 1080,
-    backgroundColor: settings.backgroundColor ?? json.backgroundColor ?? '#0f172a',
+    // Default to the theme token, not a hardcoded navy: an inline hex here can't follow day/night and
+    // can't be overridden by any stylesheet. `var(--ams-canvas-bg)` is a valid inline background value.
+    backgroundColor: settings.backgroundColor ?? json.backgroundColor ?? 'var(--ams-canvas-bg)',
   };
 }
 
@@ -86,27 +91,59 @@ export const DisplayViewer: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [trail, setTrail] = useState<Crumb[]>(() => readTrail());
   const [popup, setPopup] = useState<{ id: string; asset?: string } | null>(null);
-  const [trendOpen, setTrendOpen] = useState(false); // Phase J — ad-hoc trend
+  // Ad-hoc trend from the RUNTIME. An operator can:
+  //   · Trend            → the whole display's bound tags
+  //   · Ctrl/Shift-click → build a multi-symbol selection, then Trend
+  //   · "Pick" mode      → click one symbol to trend that single tag
+  const [trendOpen, setTrendOpen] = useState(false);
+  const [trendSel, setTrendSel] = useState<string[]>([]);
+  const [trendPickMode, setTrendPickMode] = useState(false);
+  const toggleTrendPick = (id: string) =>
+    setTrendSel(sel => (sel.includes(id) ? sel.filter(x => x !== id) : [...sel, id]));
   // Asset-relative swap: the currently selected element (device path) bound to {{element}}.
   const [element, setElement] = useState<string | undefined>(assetContext);
   useEffect(() => { if (assetContext) setElement(assetContext); }, [assetContext]);
-  // Phase H — kiosk day/night: drives data-obc-theme, which re-colors OpenBridge + AMS tokens.
-  const [theme, setThemeState] = useState<string>(() =>
-    (typeof document !== 'undefined' ? document.documentElement.getAttribute('data-obc-theme') || 'day' : 'day'));
-  const applyTheme = (t: string) => { document.documentElement.setAttribute('data-obc-theme', t); setThemeState(t); };
+  // Kiosk day/night. This used to mutate document.documentElement directly while the app's own theme
+  // state stayed on 'day' — so after switching to night in the viewer, the shell's toggle still
+  // highlighted "day" and clicking "day" did nothing (state unchanged → no effect → no DOM write).
+  // The viewer renders inside ThemeContext, so it drives the SAME state as the rest of the app.
+  const { theme, setTheme } = useTheme();
+  const applyTheme = (t: string) => setTheme(t as 'day' | 'bright' | 'night');
+
+  /** The asset a link passes to its target, per the authored mode (PI Vision's IncludeAsset). */
+  const resolveLinkAsset = (link: NavigationLink, item?: CanvasItem): string | undefined => {
+    const mode = link.assetContextMode ?? (link.assetContext ? 'explicit' : 'none');
+    if (mode === 'none') return undefined;
+    if (mode === 'explicit') return link.assetContext;
+    // 'current-asset' / 'current-asset-as-root': take the device path off the symbol's own binding —
+    // "houston/crude1/pump101.speed" → "houston/crude1/pump101". This is what makes a pump tile on an
+    // overview open the pump detail *for that pump*.
+    const bound = Object.values(item?.bindings ?? {}).find(v => typeof v === 'string' && v.includes('/'));
+    if (!bound) return undefined;
+    const dot = bound.lastIndexOf('.');
+    return dot > 0 ? bound.slice(0, dot) : bound;
+  };
 
   // Open a navigation link from a clicked symbol.
-  const handleNav = (link: NavigationLink) => {
+  const handleNav = (link: NavigationLink, item?: CanvasItem) => {
     const openMode = link.openMode ?? 'replace';
-    const q = link.assetContext ? `?asset=${encodeURIComponent(link.assetContext)}` : '';
+    const asset = resolveLinkAsset(link, item);
+    const params = new URLSearchParams();
+    if (asset) params.set('asset', asset);
+    if (link.assetContextMode === 'current-asset-as-root' && asset) params.set('assetRoot', asset);
+    const q = params.toString() ? `?${params}` : '';
+
     if (link.targetUrl) {
+      // Only follow a link the author was allowed to save (https / same-origin). Belt and braces: the
+      // editor validates, but a snapshot could have been hand-edited or imported.
+      if (!isSafeUrl(link.targetUrl)) return;
       if (openMode === 'new-tab') window.open(link.targetUrl, '_blank', 'noopener');
       else window.location.href = link.targetUrl;
       return;
     }
     if (!link.targetDisplayId) return;
     if (openMode === 'new-tab') { window.open(`/display/${link.targetDisplayId}${q}`, '_blank', 'noopener'); return; }
-    if (openMode === 'popup') { setPopup({ id: link.targetDisplayId, asset: link.assetContext }); return; }
+    if (openMode === 'popup') { setPopup({ id: link.targetDisplayId, asset }); return; }
     navigate(`/display/${link.targetDisplayId}${q}`);
   };
 
@@ -159,14 +196,32 @@ export const DisplayViewer: React.FC = () => {
     },
     enabled: hasAssetRelative,
   });
+  // An asset-relative display opened WITHOUT ?asset= had no element, so nothing was substituted: every
+  // symbol resolved the literal path "{{element}}.speed", 404'd, and rendered "--" with no explanation
+  // (and the launcher links carry no asset param, so this was the normal way to open one). Default to
+  // the first candidate so the display is alive on arrival; the Asset selector still lets them switch.
+  useEffect(() => {
+    if (!hasAssetRelative || element || !candidates?.length) return;
+    setElement(candidates[0].contextualPath);
+  }, [hasAssetRelative, element, candidates]);
+
   const resolvedItems = useMemo(
     () => (element ? items.map(i => (isAssetRelative(i) ? substituteElement(i, element) : i)) : items),
     [items, element],
   );
 
-  // Phase J — pens = the display's bound tags (asset-relative paths already substituted). Capped at
-  // 6, the pen-token palette size.
-  const viewerPens = useMemo(() => pensFromItems(resolvedItems).slice(0, 6), [resolvedItems]);
+  // Pens for the trend dialog: the SELECTED symbols if any, else the whole display.
+  // An explicit selection is never truncated — only the whole-display fallback is capped at the size
+  // of the pen palette (and the operator is told, rather than silently losing tags).
+  const allPens = useMemo(() => pensFromItems(resolvedItems), [resolvedItems]);
+  const selectedPens = useMemo(
+    () => pensFromItems(resolvedItems.filter(i => trendSel.includes(i.id))),
+    [resolvedItems, trendSel],
+  );
+  const viewerPens = selectedPens.length ? selectedPens : allPens.slice(0, 6);
+  const penCapNote = !selectedPens.length && allPens.length > 6
+    ? `Showing the first 6 of ${allPens.length} tags — ctrl/shift-click symbols to choose.`
+    : undefined;
 
   const toggleFullscreen = async () => {
     const el = rootRef.current;
@@ -188,8 +243,11 @@ export const DisplayViewer: React.FC = () => {
 
   if (!id) return <div className="display-viewer__msg">No display id.</div>;
   if (isLoading) return <div className="display-viewer__msg">Loading display…</div>;
-  // Surface the real reason: an unpublished display isn't a failure, it just has nothing to run yet.
-  if (error || !data) {
+  // Only replace the screen when there is NOTHING to show. It used to be `error || !data`: react-query
+  // keeps the last good data on a failed refetch, so with auto-refresh on (kiosk mode) a single
+  // transient blip blanked a live control-room screen even though valid content was cached. A failed
+  // refresh is now a non-destructive banner over the still-running display (below).
+  if (!data) {
     const msg = (error as Error | null)?.message;
     return (
       <div className="display-viewer__msg" data-testid="viewer-error">
@@ -202,9 +260,15 @@ export const DisplayViewer: React.FC = () => {
 
   return (
     <div className="display-viewer" ref={rootRef} data-asset={assetContext}>
+      {/* A refresh failed but we still have good content — say so without blanking the screen. */}
+      {error && (
+        <div className="display-viewer__stale" data-testid="viewer-stale">
+          Refresh failed — showing the last loaded version.
+        </div>
+      )}
       {/* Minimal runtime bar — status + kiosk/refresh only, NO editing controls */}
       <div className="display-viewer__bar">
-        <button className="display-viewer__btn" onClick={() => navigate('/designer')} title="Home">⌂</button>
+        <button className="display-viewer__btn" onClick={() => navigate('/displays')} title="Home">⌂</button>
         <button className="display-viewer__btn" onClick={() => navigate(-1)} title="Back">←</button>
         <button className="display-viewer__btn" onClick={() => navigate(1)} title="Forward">→</button>
         <nav className="display-viewer__crumbs">
@@ -221,14 +285,35 @@ export const DisplayViewer: React.FC = () => {
           ))}
         </nav>
         <span className="display-viewer__spacer" />
-        {/* Phase J — ad-hoc trend of this display's bound tags (Operators/Viewers may trend). */}
+        {/* Trend from the published runtime — whole display, a multi-symbol selection, or one tag. */}
+        <button
+          className={`display-viewer__btn${trendPickMode ? ' active' : ''}`}
+          data-testid="viewer-trend-pick"
+          onClick={() => setTrendPickMode(v => !v)}
+          disabled={allPens.length === 0}
+          title="Pick mode: click a symbol to trend that tag"
+        >Pick tag</button>
+        {trendSel.length > 0 && (
+          <button
+            className="display-viewer__btn"
+            data-testid="viewer-trend-clear"
+            onClick={() => setTrendSel([])}
+            title="Clear the trend selection"
+          >Clear ({trendSel.length})</button>
+        )}
         <button
           className="display-viewer__btn"
           data-testid="viewer-trend"
           disabled={viewerPens.length === 0}
           onClick={() => setTrendOpen(true)}
-          title={viewerPens.length ? `Trend ${viewerPens.length} tag(s) on this display` : 'No bound tags'}
-        >📈 Trend</button>
+          title={
+            selectedPens.length
+              ? `Trend the ${selectedPens.length} selected tag(s)`
+              : `Trend this display's ${Math.min(allPens.length, 6)} tag(s)`
+          }
+        >
+          <ObiTrend /> Trend{trendSel.length ? ` (${selectedPens.length})` : ''}
+        </button>
         <div className="display-viewer__themes">
           {(['day', 'night'] as const).map(t => (
             <button key={t} className={`display-viewer__btn${theme === t ? ' active' : ''}`} onClick={() => applyTheme(t)}>{t}</button>
@@ -268,14 +353,45 @@ export const DisplayViewer: React.FC = () => {
           className="display-viewer__stage"
           style={{ width: data.width, height: data.height, background: data.backgroundColor }}
         >
-          {resolvedItems.map(item => (
+          {resolvedItems.map(item => {
+            const trendable = pensFromItem(item).length > 0;
+            const picked = trendSel.includes(item.id);
+            return (
             <div
               key={item.id}
-              className={`display-viewer__item${item.navigationLink ? ' display-viewer__item--link' : ''}`}
+              className={
+                `display-viewer__item${item.navigationLink ? ' display-viewer__item--link' : ''}` +
+                `${trendable ? ' display-viewer__item--trendable' : ''}` +
+                `${picked ? ' display-viewer__item--picked' : ''}`
+              }
               data-resolved={item.bindings ? Object.values(item.bindings)[0] : undefined}
-              onClick={item.navigationLink ? () => handleNav(item.navigationLink!) : undefined}
-              role={item.navigationLink ? 'button' : undefined}
-              title={item.navigationLink ? (item.navigationLink.label ?? 'Open display') : undefined}
+              data-trend-selected={picked || undefined}
+              // Click policy in the runtime (PI Vision-style):
+              //   ctrl/shift-click a bound symbol → add/remove it from the trend selection (never navigates)
+              //   plain click in "pick" mode      → trend THAT ONE tag immediately
+              //   plain click otherwise           → unchanged: follow the navigation link, if any
+              // Previously onClick was attached ONLY to items with a navigationLink, so no symbol was
+              // selectable and the operator could only trend the whole display.
+              onClick={(e) => {
+                if (trendable && (e.ctrlKey || e.metaKey || e.shiftKey)) {
+                  e.preventDefault(); e.stopPropagation();
+                  toggleTrendPick(item.id);
+                  return;
+                }
+                if (trendable && trendPickMode) {
+                  e.preventDefault(); e.stopPropagation();
+                  setTrendSel([item.id]);
+                  setTrendOpen(true);
+                  return;
+                }
+                if (item.navigationLink) handleNav(item.navigationLink, item);
+              }}
+              role={item.navigationLink || trendable ? 'button' : undefined}
+              title={
+                item.navigationLink ? (item.navigationLink.label ?? 'Open display')
+                  : trendable ? (trendPickMode ? 'Click to trend this tag' : 'Ctrl/Shift-click to add to the trend selection')
+                  : undefined
+              }
               style={{
                 position: 'absolute',
                 left: item.position?.x ?? 0,
@@ -283,12 +399,13 @@ export const DisplayViewer: React.FC = () => {
                 width: item.size?.width ?? 100,
                 height: item.size?.height ?? 60,
                 transform: item.rotation ? `rotate(${item.rotation}deg)` : undefined,
-                cursor: item.navigationLink ? 'pointer' : undefined,
+                cursor: item.navigationLink || (trendable && trendPickMode) ? 'pointer' : undefined,
               }}
             >
               <SymbolRenderer item={item} mode="preview" />
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -310,7 +427,7 @@ export const DisplayViewer: React.FC = () => {
       )}
 
       {/* Phase J — ad-hoc trend from the published runtime (Operators/Viewers may trend) */}
-      {trendOpen && <TrendDialog pens={viewerPens} onClose={() => setTrendOpen(false)} />}
+      {trendOpen && <TrendDialog pens={viewerPens} note={penCapNote} onClose={() => setTrendOpen(false)} />}
     </div>
   );
 };
