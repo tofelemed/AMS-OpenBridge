@@ -2763,19 +2763,32 @@
 /* grid is a background layer — let empty-canvas clicks (marquee) pass through */
 .designer-canvas__grid { pointer-events: none; }
 
-/* ── N4: display lifecycle (rename / duplicate / delete → recycle bin) ────── */
+/* ── N4: display lifecycle (rename / duplicate / delete → recycle bin) ─────
+   Anchored to the bottom-right corner of the THUMBNAIL (top:84px lands just inside its 120px height) —
+   top-right there is the category badge, and bottom-right of the whole card is the date/version
+   footer, so this is the one corner nothing else uses. Icon buttons (not text) so the strip reads as
+   chrome, not content; revealed on card hover AND on keyboard focus (:focus-within) for Tab users. */
 .dl-card-actions {
-  position: absolute; top: 8px; right: 8px; z-index: 2;
-  display: flex; gap: 4px; opacity: 0; transition: opacity .12s;
+  position: absolute; top: 84px; right: 8px; z-index: 2;
+  display: flex; gap: 4px;
+  opacity: 0; transition: opacity .12s;
 }
-div:hover > .dl-card-actions { opacity: 1; }
+div:hover > .dl-card-actions,
+div:focus-within > .dl-card-actions { opacity: 1; }
 .dl-action {
-  font-size: 10px; padding: 3px 7px; cursor: pointer;
-  color: var(--element-active-color); background: var(--container-background-color);
-  border: 1px solid var(--border-divider-color); border-radius: var(--border-radius-br-4);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; padding: 0; cursor: pointer;
+  color: var(--on-normal-active-color, var(--element-active-color));
+  background: var(--normal-enabled-background-color, var(--container-background-color));
+  border: 1px solid var(--normal-enabled-border-color, var(--border-divider-color));
+  border-radius: var(--border-radius-br-4);
+  box-shadow: var(--shadow-flat);
 }
-.dl-action:hover { background: var(--flat-hover-background-color); }
+.dl-action svg { width: 15px; height: 15px; }
+.dl-action:hover { background: var(--normal-hover-background-color, var(--flat-hover-background-color)); }
+.dl-action:focus-visible { outline: 2px solid var(--border-focus-color); outline-offset: 1px; }
 .dl-action--danger { color: var(--alert-alarm-color); border-color: var(--alert-alarm-color); }
+.dl-action--danger:hover { background: color-mix(in srgb, var(--alert-alarm-color) 12%, transparent); }
 .dl-undo {
   background: none; border: none; text-decoration: underline; cursor: pointer;
   color: inherit; font: inherit; padding: 0;

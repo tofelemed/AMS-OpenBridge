@@ -3,10 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { ObiEditGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-edit-google';
+import { ObiContentCopyGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-content-copy-google';
+import { ObiDelete } from '@oicl/openbridge-webcomponents-react/icons/icon-delete';
+import { ObiFileUploadGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-file-upload-google';
 import { Modal, FormField } from '../shared/Modal';
 import { apiFetch, apiJson } from '../../api/apiFetch';
 import { relativeTime } from '../../utils/relativeTime';
 import { useAuthStore } from '../../store/authStore';
+// The card action buttons (.dl-action, .dl-card-actions) are defined here — this file never imported
+// it, so Rename/Duplicate/Delete rendered as bare unstyled HTML buttons instead of the styled pills.
+import './Designer.css';
 
 const API_BASE = import.meta.env.VITE_DISPLAY_SERVICE_URL || '/api/displays';
 
@@ -214,23 +221,42 @@ export const DisplayList: React.FC = () => {
             Create and manage operator displays · OpenBridge + custom SVG components
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowCreateModal(true)}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: '7px',
-            background: T.blue, color: '#fff', border: 'none',
-            borderRadius: T.radiusSm, padding: '9px 20px',
-            fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-            fontFamily: 'inherit', boxShadow: '0 1px 4px rgba(49,89,143,0.25)',
-            flexShrink: 0,
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = T.blueMid; }}
-          onMouseLeave={e => { e.currentTarget.style.background = T.blue; }}
-        >
-          <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span>
-          New Display
-        </button>
+        <div style={{ display: 'flex', gap: '10px', flexShrink: 0 }}>
+          {/* Import from AVEVA PI Vision (.pdix) — the importer (ImportPage.tsx, /designer/import)
+              already exists, but had no entry point from the display list itself. */}
+          <button
+            type="button"
+            onClick={() => navigate('/designer/import')}
+            title="Import a PI Vision .pdix display"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '7px',
+              background: T.card, color: T.textPrimary, border: `1.5px solid ${T.border}`,
+              borderRadius: T.radiusSm, padding: '9px 18px',
+              fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = T.blueLight; e.currentTarget.style.borderColor = T.blueMuted; }}
+            onMouseLeave={e => { e.currentTarget.style.background = T.card; e.currentTarget.style.borderColor = T.border; }}
+          >
+            <ObiFileUploadGoogle />
+            Import HMI
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowCreateModal(true)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '7px',
+              background: T.blue, color: '#fff', border: 'none',
+              borderRadius: T.radiusSm, padding: '9px 20px',
+              fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+              fontFamily: 'inherit', boxShadow: '0 1px 4px rgba(49,89,143,0.25)',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = T.blueMid; }}
+            onMouseLeave={e => { e.currentTarget.style.background = T.blue; }}
+          >
+            <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span>
+            New Display
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -306,29 +332,33 @@ export const DisplayList: React.FC = () => {
                 onOpen={() => navigate(`/designer/${display.id}`)}
               />
               {/* Rename / Duplicate ("Save As") / Delete. None of these existed — a display could be
-                  created and opened, and that was all. PI Vision puts exactly these on its home page. */}
+                  created and opened, and that was all. PI Vision puts exactly these on its home page.
+                  Icon-only (not text) so the strip reads as chrome over the thumbnail, not content. */}
               <div className="dl-card-actions">
                 <button
                   className="dl-action" data-testid="card-rename"
                   title="Rename"
+                  aria-label="Rename display"
                   onClick={(e) => {
                     e.stopPropagation();
                     const name = window.prompt('Rename display', display.name);
                     if (name && name.trim() && name !== display.name) renameMutation.mutate({ id: display.id, name: name.trim() });
                   }}
-                >Rename</button>
+                ><ObiEditGoogle /></button>
                 <button
                   className="dl-action" data-testid="card-duplicate"
                   title="Duplicate (Save As)"
+                  aria-label="Duplicate display"
                   onClick={(e) => {
                     e.stopPropagation();
                     const name = window.prompt('Name for the copy', `${display.name} (copy)`);
                     if (name && name.trim()) duplicateMutation.mutate({ id: display.id, name: name.trim() });
                   }}
-                >Duplicate</button>
+                ><ObiContentCopyGoogle /></button>
                 <button
                   className="dl-action dl-action--danger" data-testid="card-delete"
                   title="Delete (recoverable from the recycle bin)"
+                  aria-label="Delete display"
                   onClick={(e) => {
                     e.stopPropagation();
                     // Never delete on a bare click; name the display in the prompt.
@@ -336,7 +366,7 @@ export const DisplayList: React.FC = () => {
                       deleteMutation.mutate(display.id);
                     }
                   }}
-                >Delete</button>
+                ><ObiDelete /></button>
               </div>
             </div>
           ))}
