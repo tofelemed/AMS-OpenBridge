@@ -21,7 +21,10 @@ export interface DisplayTimeState {
   /** Saved (display-default) expressions, for "revert". */
   savedStartExpr: string;
   savedEndExpr: string;
+  /** Phase 8 (K18/M15) — display timezone: 'local' (client), 'UTC', or an IANA zone. */
+  tz: string;
 
+  setTz: (tz: string) => void;
   setRange: (startExpr: string, endExpr: string) => void;
   setDurationMs: (ms: number) => void;
   snapToNow: () => void;
@@ -59,6 +62,9 @@ export const useDisplayTimeStore = create<DisplayTimeState>((set, get) => ({
   error: initial.error,
   savedStartExpr: DEFAULT_START,
   savedEndExpr: DEFAULT_END,
+  tz: 'local',
+
+  setTz: (tz) => set({ tz }),
 
   setRange: (startExpr, endExpr) => {
     const r = resolve(startExpr, endExpr);
@@ -106,5 +112,19 @@ export const useDisplayTimeStore = create<DisplayTimeState>((set, get) => ({
     const s = params.get('start');
     const e = params.get('end');
     if (s || e) get().setRange(s ?? get().startExpr, e ?? get().endExpr);
+    const tz = params.get('tz');
+    if (tz) set({ tz });
   },
 }));
+
+/** Format an epoch-ms in the display timezone ('local' = client zone; else an IANA zone / 'UTC'). */
+export function formatInZone(ms: number, tz: string, opts?: Intl.DateTimeFormatOptions): string {
+  const base: Intl.DateTimeFormatOptions = opts ?? {
+    month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+  };
+  try {
+    return new Intl.DateTimeFormat(undefined, tz && tz !== 'local' ? { ...base, timeZone: tz } : base).format(ms);
+  } catch {
+    return new Intl.DateTimeFormat(undefined, base).format(ms);
+  }
+}

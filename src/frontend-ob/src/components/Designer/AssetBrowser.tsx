@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { Asset } from './types';
 import { ASSET_TYPE_ICONS, ASSET_TYPE_LABELS } from './types';
 import { apiFetch } from '../../api/apiFetch';
+import { hasWildcard, literalPart, matchesTerm } from '../../utils/glob';
 
 const ASSET_API = import.meta.env.VITE_ASSET_MODEL_URL || '/api/assets';
 
@@ -64,13 +65,19 @@ export const AssetBrowser: React.FC<AssetBrowserProps> = ({
     staleTime: 60_000
   });
   
-  // Search results
-  const { data: searchResults, isLoading: isSearching } = useQuery({
-    queryKey: ['assets', 'search', searchTerm],
-    queryFn: () => searchAssets(searchTerm),
+  // Search results. Phase 8 (O8/O9): a wildcard term (pump*, temp?) is sent to the server as its longest
+  // literal run (a substring pre-filter), then narrowed CLIENT-SIDE by the glob across name/path/desc.
+  const serverTerm = hasWildcard(searchTerm) ? literalPart(searchTerm) : searchTerm;
+  const { data: rawSearchResults, isLoading: isSearching } = useQuery({
+    queryKey: ['assets', 'search', serverTerm],
+    queryFn: () => searchAssets(serverTerm),
     enabled: searchTerm.length >= 2,
     staleTime: 30_000
   });
+  const searchResults = React.useMemo(
+    () => (rawSearchResults ?? []).filter(a => matchesTerm(searchTerm, a.name, a.contextualPath, a.description)),
+    [rawSearchResults, searchTerm],
+  );
   
   const loadChildren = useCallback(async (assetId: string) => {
     if (childrenCache[assetId] || loadingNodes.has(assetId)) return;

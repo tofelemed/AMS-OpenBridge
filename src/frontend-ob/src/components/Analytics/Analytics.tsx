@@ -54,6 +54,14 @@ interface AnalyticsKpiResponse {
   staleAlarmCount?: number;
   totalAlarms24h?: number;
   priorities?: unknown;
+  // Phase 8 (N18) — EEMUA-191 / ISA-18.2 KPIs served by analytics when available (else derived/—).
+  peakAlarmRate?: number;
+  timeInFloodPercent?: number;
+  alarmsPerShift?: number;
+  meanTimeToAckSec?: number;
+  meanTimeToRespondMin?: number;
+  operatorCompliancePercent?: number;
+  falseAlarmRatePercent?: number;
 }
 
 const fetchAnalytics = async () => {
@@ -86,6 +94,22 @@ const Analytics: React.FC = () => {
     queryFn: fetchAnalytics,
     refetchInterval: 60000,
   });
+
+  // Phase 8 (N18) — drive the EEMUA/ISA-18.2 KPIs from live data (served value first, then a value
+  // derived from what the API DOES return), instead of the former hardcoded literals. Anything with no
+  // real source renders '—' rather than a fabricated number.
+  const rates = (data?.hourlyRates ?? []).map(h => h.rate ?? h.count ?? 0);
+  const fmt1 = (n?: number) => (n == null || Number.isNaN(n) ? '—' : n.toFixed(1));
+  const fmt0 = (n?: number) => (n == null || Number.isNaN(n) ? '—' : String(Math.round(n)));
+  const kpi = {
+    peakAlarmRate: data?.peakAlarmRate ?? (rates.length ? Math.max(...rates) : undefined),
+    timeInFlood: data?.timeInFloodPercent,
+    alarmsPerShift: data?.alarmsPerShift ?? (data?.totalAlarms24h != null ? data.totalAlarms24h / 2 : undefined),
+    mtta: data?.meanTimeToAckSec,
+    mttr: data?.meanTimeToRespondMin,
+    compliance: data?.operatorCompliancePercent,
+    falseAlarmRate: data?.falseAlarmRatePercent,
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px', padding: '4px 0' }}>
@@ -126,9 +150,11 @@ const Analytics: React.FC = () => {
           <TargetKpi label="Average Alarm Rate" value={stats.alarmsPerTenMin.toFixed(1)} unit="/ 10 min"
             target="Target ≤ 1.0 / 10 min (ISA-18.2)"
             status={stats.alarmsPerTenMin <= 2.0 ? 'pass' : 'fail'} />
-          <TargetKpi label="Peak Alarm Rate"   value="14"   unit="/ 10 min" target="Max burst threshold"   status="fail" />
-          <TargetKpi label="Time in Flood"      value="1.2"  unit="%"        target="Target < 1% of time"  status="warn" />
-          <TargetKpi label="Alarms / Shift"     value="142"                  target="Day vs Night tracking" status="info" />
+          <TargetKpi label="Peak Alarm Rate"   value={fmt1(kpi.peakAlarmRate)}   unit="/ 10 min" target="Max burst threshold"
+            status={kpi.peakAlarmRate == null ? 'info' : kpi.peakAlarmRate > 10 ? 'fail' : 'warn'} />
+          <TargetKpi label="Time in Flood"      value={fmt1(kpi.timeInFlood)}  unit="%"        target="Target < 1% of time"
+            status={kpi.timeInFlood == null ? 'info' : kpi.timeInFlood < 1 ? 'pass' : 'warn'} />
+          <TargetKpi label="Alarms / Shift"     value={fmt0(kpi.alarmsPerShift)}                target="Day vs Night tracking" status="info" />
         </div>
         <ChartCard title="Alarm Rate vs Target — Last 24 Hours">
           <AlarmRateChart
@@ -147,9 +173,11 @@ const Analytics: React.FC = () => {
         description="Response times, acknowledgment compliance, and operator SOP adherence"
       >
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
-          <TargetKpi label="Mean Time to Ack (MTTA)"   value="12.4" unit="s"  target="Target < 30s"         status="pass" />
-          <TargetKpi label="Mean Time to Respond"       value="2.5"  unit="m"  target="Correct action time"  status="info" />
-          <TargetKpi label="Operator Compliance"        value="94"   unit="%"  target="SOP Adherence > 95%"  status="warn" />
+          <TargetKpi label="Mean Time to Ack (MTTA)"   value={fmt1(kpi.mtta)} unit="s"  target="Target < 30s"
+            status={kpi.mtta == null ? 'info' : kpi.mtta < 30 ? 'pass' : 'warn'} />
+          <TargetKpi label="Mean Time to Respond"       value={fmt1(kpi.mttr)}  unit="m"  target="Correct action time"  status="info" />
+          <TargetKpi label="Operator Compliance"        value={fmt0(kpi.compliance)}   unit="%"  target="SOP Adherence > 95%"
+            status={kpi.compliance == null ? 'info' : kpi.compliance >= 95 ? 'pass' : 'warn'} />
           <TargetKpi label="Unacknowledged Active"      value={stats.unacknowledged} target="Target 0"
             status={stats.unacknowledged === 0 ? 'pass' : 'warn'} />
         </div>
@@ -171,7 +199,8 @@ const Analytics: React.FC = () => {
           <TargetKpi label="Top 10 Contribution"  value={`${data?.top10ContributionPercent?.toFixed(1) ?? '28.5'}`} unit="%"
             target="Target < 5% of alarms"
             status={(data?.top10ContributionPercent ?? 28.5) < 5 ? 'pass' : 'fail'} />
-          <TargetKpi label="False Alarm Rate"     value="3.1" unit="%" target="Target < 1%" status="warn" />
+          <TargetKpi label="False Alarm Rate"     value={fmt1(kpi.falseAlarmRate)} unit="%" target="Target < 1%"
+            status={kpi.falseAlarmRate == null ? 'info' : kpi.falseAlarmRate < 1 ? 'pass' : 'warn'} />
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>

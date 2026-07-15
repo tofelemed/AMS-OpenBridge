@@ -13,6 +13,7 @@ import { useAssetMetadata } from '../../hooks/useAssetMetadata';
 import { convert, canonicalUnit } from '../../utils/uom';
 import { qualityFrom, type QualityInfo } from '../../utils/quality';
 import { CustomSymbolInstance } from './CustomSymbolInstance';
+import { TimeSeriesTable } from './TimeSeriesTable';
 import { isLazyObcType } from './lazyCategoryRegistry';
 import { LazyObcSymbol } from './LazyObcSymbol';
 import { TrendChart } from './TrendChart';
@@ -181,6 +182,8 @@ const AlarmTable: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }> = (
       toast.error('Failed to acknowledge alarm');
     }
   }, []);
+  // Phase 8 (N9) — click a row to expand its full event details.
+  const [expandedId, setExpandedId] = React.useState<string | null>(null);
 
   if (mode !== 'preview') {
     return <div className="symbol-alarm-table" style={{ padding: 8, fontSize: 12 }}>▦ Alarm Table{item.alarmSource ? ` · ${item.alarmSource}` : ''}</div>;
@@ -191,7 +194,13 @@ const AlarmTable: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }> = (
         <thead><tr><th>Time</th><th>Source</th><th>Priority</th><th>State</th><th></th></tr></thead>
         <tbody>
           {rows.map(a => (
-            <tr key={a.id}>
+            <React.Fragment key={a.id}>
+            <tr
+              onClick={() => setExpandedId(id => (id === a.id ? null : a.id))}
+              style={{ cursor: 'pointer' }}
+              data-testid="alarm-row"
+              title="Click for event details"
+            >
               <td>{a.eventTimeEpochMs ? new Date(a.eventTimeEpochMs).toLocaleTimeString() : ''}</td>
               <td>{a.sourceName}</td>
               <td style={{ color: priorityColor(a.priority), fontWeight: 700 }}>{a.priority}</td>
@@ -202,12 +211,22 @@ const AlarmTable: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }> = (
                     type="button"
                     className="symbol-alarm-table__ack"
                     data-testid="alarm-ack"
-                    onClick={() => ack(a.id)}
+                    onClick={(e) => { e.stopPropagation(); ack(a.id); }}
                     title="Acknowledge"
                   >Ack</button>
                 )}
               </td>
             </tr>
+            {expandedId === a.id && (
+              <tr className="symbol-alarm-table__detail" data-testid="alarm-detail">
+                <td colSpan={5} style={{ background: 'var(--container-section-color)', fontSize: 11, padding: '6px 10px' }}>
+                  <div><strong>Condition:</strong> {a.conditionName ?? '—'} · <strong>State:</strong> {a.state ?? '—'} · <strong>Severity:</strong> {a.severity ?? '—'}</div>
+                  <div><strong>Message:</strong> {a.message ?? '—'}</div>
+                  <div><strong>Event time:</strong> {a.eventTimeEpochMs ? new Date(a.eventTimeEpochMs).toLocaleString() : '—'}</div>
+                </td>
+              </tr>
+            )}
+            </React.Fragment>
           ))}
           {rows.length === 0 && <tr><td colSpan={5} style={{ opacity: .6 }}>No active alarms</td></tr>}
         </tbody>
@@ -215,6 +234,17 @@ const AlarmTable: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }> = (
     </div>
   );
 };
+
+/** Phase 8 (C2/C4/C6) — text styling from ItemStyle: font family, italic, underline, background. */
+function textStyle(s?: import('./types').ItemStyle): React.CSSProperties {
+  if (!s) return {};
+  const out: React.CSSProperties = {};
+  if (s.fontFamily) out.fontFamily = s.fontFamily;
+  if (s.fontStyle) out.fontStyle = s.fontStyle;
+  if (s.textDecoration) out.textDecoration = s.textDecoration;
+  if (s.background) out.background = s.background;
+  return out;
+}
 
 /** Combined FX wrapper: NE107 quality/staleness + rule-engine (hidden / blink / rotate / color outline). */
 const SymbolFxWrap: React.FC<{
@@ -802,6 +832,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
           fontWeight: item.style?.fontWeight,
           textAlign: item.style?.textAlign,
           color: item.style?.fill,
+          ...textStyle(item.style),
         }}>
           {item.label || 'Label'}
         </div>
@@ -811,9 +842,10 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
       return (
         <div className="symbol symbol-title" style={{
           fontSize: item.style?.fontSize || 18,
-          fontWeight: 'bold',
+          fontWeight: item.style?.fontWeight ?? 'bold',
           textAlign: item.style?.textAlign,
           color: item.style?.fill,
+          ...textStyle(item.style),
         }}>
           {item.label || 'Section Title'}
         </div>
@@ -821,7 +853,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
 
     case 'text.dynamic':
       return (
-        <div className="symbol symbol-dynamic-text" style={{ color: item.style?.fill }}>
+        <div className="symbol symbol-dynamic-text" style={{ color: item.style?.fill, ...textStyle(item.style) }}>
           {mode === 'preview' ? String(liveValue || '--') : `{${item.bindings?.text || 'text'}}`}
         </div>
       );
@@ -903,6 +935,9 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
   }
   if (item.type === 'table.compare') {
     return <AssetComparisonTable item={item} mode={mode} />;
+  }
+  if (item.type === 'table.timeseries') {
+    return <TimeSeriesTable item={item} mode={mode} />;
   }
   // Phase 7 — user-defined custom symbols (registered via the custom-symbol framework).
   if (item.type.startsWith('custom:')) {

@@ -1,5 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { useDisplayTimeStore } from '../../store/timeStore';
+import { useDisplayTimeStore, formatInZone } from '../../store/timeStore';
+
+// Phase 8 (K18/M15) — a small, common timezone set. 'local' = the viewing client's zone.
+const TZ_OPTIONS: { value: string; label: string }[] = [
+  { value: 'local', label: 'Local' },
+  { value: 'UTC', label: 'UTC' },
+  { value: 'America/New_York', label: 'US East' },
+  { value: 'America/Chicago', label: 'US Central' },
+  { value: 'America/Los_Angeles', label: 'US Pacific' },
+  { value: 'Europe/London', label: 'London' },
+  { value: 'Asia/Dubai', label: 'Dubai' },
+  { value: 'Asia/Karachi', label: 'Karachi' },
+];
 
 const PRESETS: { label: string; ms: number }[] = [
   { label: '15m', ms: 15 * 60_000 },
@@ -9,8 +21,8 @@ const PRESETS: { label: string; ms: number }[] = [
   { label: '1w', ms: 7 * 24 * 60 * 60_000 },
 ];
 
-const fmt = (ms: number) =>
-  ms ? new Date(ms).toLocaleString(undefined, { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+const fmt = (ms: number, tz: string) =>
+  ms ? formatInZone(ms, tz, { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
 
 const btn: React.CSSProperties = {
   padding: '4px 10px', fontSize: 12, fontWeight: 600,
@@ -44,6 +56,8 @@ export const TimeBar: React.FC = () => {
   const shift = useDisplayTimeStore(s => s.shift);
   const revert = useDisplayTimeStore(s => s.revert);
   const tick = useDisplayTimeStore(s => s.tick);
+  const tz = useDisplayTimeStore(s => s.tz);
+  const setTz = useDisplayTimeStore(s => s.setTz);
 
   const [s, setS] = useState(startExpr);
   const [e, setE] = useState(endExpr);
@@ -105,8 +119,19 @@ export const TimeBar: React.FC = () => {
       </span>
 
       <span style={{ fontSize: 11, color: 'var(--element-neutral-color, #949494)', fontFamily: 'monospace' }}>
-        {fmt(start)} → {fmt(end)}
+        {fmt(start, tz)} → {fmt(end, tz)}
       </span>
+
+      {/* Timezone (K18/M15) — resolved times render in this zone. */}
+      <select
+        style={{ ...field, width: 'auto', fontFamily: 'inherit' }}
+        data-testid="time-tz"
+        value={tz}
+        onChange={ev => setTz(ev.target.value)}
+        title="Display timezone"
+      >
+        {TZ_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
 
       {error && (
         <span data-testid="time-error" style={{ fontSize: 11, color: 'var(--ams-crit)' }}>{error}</span>

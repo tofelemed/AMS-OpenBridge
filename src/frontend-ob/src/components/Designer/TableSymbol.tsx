@@ -82,6 +82,40 @@ export const TableSymbol: React.FC<{ item: CanvasItem; mode: 'design' | 'preview
     return col === 'min' ? s.min : col === 'max' ? s.max : s.avg;
   };
 
+  const fmtCell = (v: number | string | boolean | undefined) =>
+    v === undefined ? '--' : formatValue(v, decimals);
+
+  // Phase 8 (E4.16) — transposed: tags across the top, attributes (Value/Units/summaries) down the side.
+  if (item.transpose) {
+    const attrRows: Array<{ label: string; get: (r: typeof rows[number]) => string }> = [
+      { label: 'Value', get: r => fmtCell(r.value) },
+      ...(showUnit ? [{ label: 'Units', get: () => unit }] : []),
+      ...summaryCols.map(c => ({ label: SUMMARY_LABEL[c], get: (r: typeof rows[number]) => {
+        const v = summaryVal(r.path, c); return v == null ? '--' : formatValue(v, decimals);
+      } })),
+    ];
+    return (
+      <div className="symbol-table">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              {rows.map((r, i) => <th key={i}>{r.label}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {attrRows.map((ar, ri) => (
+              <tr key={ri}>
+                <td>{ar.label}</td>
+                {rows.map((r, i) => <td key={i} className="symbol-table__val">{ar.get(r)}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
   return (
     <div className="symbol-table">
       <table>

@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import type { CanvasItem, FormattingOptions, ItemStyle, AlarmLimits, NavigationLink, MultiStateConfig, MultiStateItem, CollectionCriteria, TrendTrace, StateMapEntry } from './types';
 import { compatibleUnits } from '../../utils/uom';
+
+// Phase 8 (B35) — a simple "format painter": copy one symbol's visual style + formatting, paste onto
+// another. Module-level so it survives selection changes within the session.
+let formatClipboard: { style?: ItemStyle; formatting?: FormattingOptions } | null = null;
 import type { AutomationProps } from './automationTypes';
 import { isAutomationType } from './automationTypes';
 import type { ObcProps } from './obcCatalogTypes';
@@ -647,6 +651,44 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
               </div>
             </div>
 
+            {/* Phase 8 (B35) — format painter: copy this symbol's style + formatting, paste onto another. */}
+            <div className="property-section">
+              <div className="property-section__title">Format</div>
+              <div className="property-group" style={{ display: 'flex', gap: 6 }}>
+                <button
+                  className="property-button" data-testid="format-copy"
+                  onClick={() => { formatClipboard = { style: selectedItem.style, formatting: selectedItem.formatting }; }}
+                >Copy format</button>
+                <button
+                  className="property-button" data-testid="format-paste"
+                  disabled={!formatClipboard}
+                  onClick={() => { if (formatClipboard) updateItem({ style: { ...formatClipboard.style }, formatting: { ...formatClipboard.formatting } }); }}
+                >Paste format</button>
+              </div>
+            </div>
+
+            {/* Phase 8 (B34/B35) — switch a value symbol to a compatible display type. All of these bind a
+                single `value`, so bindings, formatting and alarm limits carry over unchanged. */}
+            {['obc.readout', 'obc.readout-unit', 'ind.gauge', 'ind.digital'].includes(selectedItem.type) && (
+              <div className="property-section">
+                <div className="property-section__title">Symbol type</div>
+                <div className="property-group">
+                  <select
+                    className="property-select"
+                    data-testid="symbol-type-switch"
+                    value={selectedItem.type}
+                    onChange={(e) => updateItem({ type: e.target.value })}
+                  >
+                    <option value="obc.readout">Numeric Readout</option>
+                    <option value="obc.readout-unit">Readout + Unit</option>
+                    <option value="ind.gauge">Circular Gauge</option>
+                    <option value="ind.digital">Digital Display</option>
+                  </select>
+                </div>
+                <div className="property-hint">Bindings, formatting and limits are preserved.</div>
+              </div>
+            )}
+
             {/* Alarm binding — drives the priority-coloured outline / blink-on-unacked (useSymbolAlarm)
                 and the alarm.table filter. The runtime has honored alarmSource since Phase F; this is
                 the missing authoring field. */}
@@ -723,6 +765,15 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
                   </label>
                 ))}
                 <div className="property-hint">Computed over the display time range via the historian.</div>
+                <label className="property-hint" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+                  <input
+                    type="checkbox"
+                    data-testid="table-transpose"
+                    checked={selectedItem.transpose ?? false}
+                    onChange={(e) => updateItem({ transpose: e.target.checked || undefined })}
+                  />
+                  Transpose (tags across the top)
+                </label>
               </div>
             )}
 
@@ -873,6 +924,12 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
                     checked={selectedItem.steppedLines ?? false}
                     onChange={(e) => updateItem({ steppedLines: e.target.checked || undefined })} />
                   Stepped plotting
+                </label>
+                <label className="property-hint" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input type="checkbox" data-testid="trend-regression"
+                    checked={selectedItem.showRegression ?? false}
+                    onChange={(e) => updateItem({ showRegression: e.target.checked || undefined })} />
+                  Regression (trend line)
                 </label>
                 <div className="property-hint">Click a legend entry in the running trend to hide/show that trace.</div>
               </div>
@@ -1682,6 +1739,47 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
                     </button>
                   ))}
                 </div>
+              </div>
+              {/* Phase 8 (C2/C4/C6) — font family, italic, underline, text background. */}
+              <div className="property-group">
+                <label>Font Family</label>
+                <select
+                  className="property-select"
+                  value={selectedItem.style?.fontFamily || ''}
+                  onChange={(e) => updateStyle('fontFamily', e.target.value || undefined)}
+                >
+                  <option value="">Default</option>
+                  <option value="var(--ams-font-sans, sans-serif)">Sans-serif</option>
+                  <option value="Georgia, serif">Serif</option>
+                  <option value="ui-monospace, monospace">Monospace</option>
+                </select>
+              </div>
+              <div className="property-group">
+                <label>Style</label>
+                <div className="property-button-group">
+                  <button
+                    className={`property-button ${selectedItem.style?.fontStyle === 'italic' ? 'active' : ''}`}
+                    data-testid="text-italic"
+                    onClick={() => updateStyle('fontStyle', selectedItem.style?.fontStyle === 'italic' ? undefined : 'italic')}
+                    style={{ fontStyle: 'italic' }}
+                  >I</button>
+                  <button
+                    className={`property-button ${selectedItem.style?.textDecoration === 'underline' ? 'active' : ''}`}
+                    data-testid="text-underline"
+                    onClick={() => updateStyle('textDecoration', selectedItem.style?.textDecoration === 'underline' ? undefined : 'underline')}
+                    style={{ textDecoration: 'underline' }}
+                  >U</button>
+                </div>
+              </div>
+              <div className="property-group">
+                <label>Text Background</label>
+                <input
+                  type="text"
+                  className="property-input"
+                  placeholder="none — e.g. var(--ams-container-bg)"
+                  value={selectedItem.style?.background ?? ''}
+                  onChange={(e) => updateStyle('background', e.target.value || undefined)}
+                />
               </div>
             </div>
             

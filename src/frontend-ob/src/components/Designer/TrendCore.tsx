@@ -50,6 +50,22 @@ interface TrendCoreProps {
   // Phase 6 — manual Y scale (E1.8/E1.10) and stepped plotting (E1.22). Both additive/optional.
   scale?: { auto?: boolean; min?: number; max?: number };
   stepped?: boolean;
+  // Phase 8 (E1.12) — overlay a per-trace linear regression line.
+  regression?: boolean;
+}
+
+/** Least-squares fit over [ts,value] points → the two window-spanning endpoints, or null if degenerate. */
+function regressionLine(pts: Array<{ ts: number; value: number }>): Array<[number, number]> | null {
+  const n = pts.length;
+  if (n < 2) return null;
+  let sx = 0, sy = 0, sxy = 0, sxx = 0;
+  for (const p of pts) { sx += p.ts; sy += p.value; sxy += p.ts * p.value; sxx += p.ts * p.ts; }
+  const denom = n * sxx - sx * sx;
+  if (denom === 0) return null;
+  const slope = (n * sxy - sx * sy) / denom;
+  const intercept = (sy - slope * sx) / n;
+  const x0 = pts[0].ts, x1 = pts[n - 1].ts;
+  return [[x0, slope * x0 + intercept], [x1, slope * x1 + intercept]];
 }
 
 // Phase H tokens — echarts renders to canvas and can't consume var(), so resolve to a concrete
@@ -125,6 +141,7 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
   controlledWindow,
   scale,
   stepped,
+  regression,
 }) => {
   const paths = useMemo(() => penSpecs.map(p => p.path), [penSpecs]);
   const { data: batch } = useBatchBindingResolver(paths, 'all');
@@ -329,6 +346,24 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
     data: hiddenPens.has(pen.path) ? [] : penData[i].map(p => [p.ts, p.value]),
   }));
 
+  // Phase 8 (E1.12) — one dashed least-squares regression line per visible pen.
+  const regressionSeries = regression ? pens.flatMap((pen, i) => {
+    if (hiddenPens.has(pen.path)) return [];
+    const line = regressionLine(penData[i]);
+    if (!line) return [];
+    return [{
+      name: `${pen.label} (fit)`,
+      type: 'line' as const,
+      showSymbol: false,
+      lineStyle: { width: 1, type: 'dashed' as const, opacity: 0.75 },
+      color: penColor(i),
+      yAxisIndex: perAxis ? i : 0,
+      data: line,
+      silent: true,
+      z: 1,
+    }];
+  }) : [];
+
   const option = {
     animation: false,
     grid: { left: perAxis ? 30 + pens.length * 44 : 52, right: 14, top: 12, bottom: 48 },
@@ -353,7 +388,7 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
         textStyle: { color: cText, fontSize: 9 },
       },
     ],
-    series,
+    series: [...series, ...regressionSeries],
   };
 
   /** value of a pen at the cursor timestamp (nearest sample), else its latest sample */

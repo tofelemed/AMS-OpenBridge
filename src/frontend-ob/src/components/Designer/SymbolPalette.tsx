@@ -192,6 +192,7 @@ const STATIC_SYMBOL_LIBRARY: SymbolCategory[] = [
       custom({ type: 'chart.xy', label: 'XY Plot', icon: '📉', category: 'trends', defaultSize: { width: 250, height: 180 }, bindingSlots: ['x', 'y'], description: 'Scatter / XY plot (X vs Y live samples)' }),
       custom({ type: 'table.value', label: 'Table', icon: '▦', category: 'trends', defaultSize: { width: 260, height: 160 }, bindingSlots: ['value', 'value2', 'value3', 'value4', 'value5', 'value6'], description: 'Value table — one row per bound tag (Name / Value / Units)' }),
       custom({ type: 'table.compare', label: 'Asset Comparison', icon: '▤', category: 'trends', defaultSize: { width: 320, height: 180 }, bindingSlots: [], description: 'One row per asset (dynamic search), columns = attributes' }),
+      custom({ type: 'table.timeseries', label: 'Time-Series Table', icon: '🕑', category: 'trends', defaultSize: { width: 320, height: 200 }, bindingSlots: ['value', 'value2', 'value3', 'value4'], description: 'Timestamped rows over the display time range, columns = tags' }),
       custom({ type: 'chart.pie', label: 'Pie Chart', icon: '🥧', category: 'trends', defaultSize: { width: 120, height: 120 }, bindingSlots: ['values'], description: 'Distribution chart' }),
     ]
   },

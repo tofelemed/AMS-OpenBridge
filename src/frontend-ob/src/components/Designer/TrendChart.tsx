@@ -83,6 +83,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({ item, mode }) => {
       showTimeBar={!follow}
       scale={item.trendScale}
       stepped={item.steppedLines}
+      regression={item.showRegression}
     />
   );
 };

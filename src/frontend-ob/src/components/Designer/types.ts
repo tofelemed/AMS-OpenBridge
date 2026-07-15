@@ -67,6 +67,10 @@ export interface CanvasItem {
   trace?: Record<string, TrendTrace>;
   trendScale?: TrendScale;
   steppedLines?: boolean;
+  // Phase 8 (E1.12) — overlay a linear least-squares regression line per trace.
+  showRegression?: boolean;
+  // Phase 8 (E4.16) — table.value: swap rows↔columns (tags across the top).
+  transpose?: boolean;
 }
 
 // ── Phase 6 supporting types ────────────────────────────────────────────────
@@ -186,6 +190,12 @@ export interface ItemStyle {
   fontWeight?: string;
   textAlign?: 'left' | 'center' | 'right';
   borderRadius?: number;
+  // Phase 8 (C2/C4/C6) — text styling
+  fontFamily?: string;
+  fontStyle?: 'normal' | 'italic';
+  textDecoration?: 'none' | 'underline';
+  /** Text background fill (C6). */
+  background?: string;
 }
 
 export interface ShapeProps {

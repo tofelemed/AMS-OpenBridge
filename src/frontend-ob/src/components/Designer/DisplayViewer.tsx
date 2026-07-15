@@ -12,6 +12,7 @@ import { SymbolRenderer } from './SymbolRenderer';
 import { useMqttStore } from '../../store/mqttStore';
 import { useDisplayTimeStore } from '../../store/timeStore';
 import { TimeBar } from './TimeBar';
+import { useTouchZoomPan } from '../../hooks/useTouchZoomPan';
 import { pensFromItems, pensFromItem } from './TrendChart';
 import { ObiTrend } from '@oicl/openbridge-webcomponents-react/icons/icon-trend';
 import TrendDialog from './TrendDialog';
@@ -87,6 +88,14 @@ export const DisplayViewer: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [params] = useSearchParams();
   const assetContext = params.get('asset') ?? undefined; // Phase E will rebind against this
+  // Phase 8 (M11–M14) — kiosk / chrome control via URL params. ?kiosk=1 hides ALL chrome (navigation bar
+  // + time bar) for a wall/panel display; ?hideBar / ?hideTimebar hide them individually.
+  const truthy = (v: string | null) => v === '1' || v === 'true' || v === 'yes';
+  const kiosk = truthy(params.get('kiosk'));
+  const hideBar = kiosk || truthy(params.get('hideBar'));
+  const hideTimebar = kiosk || truthy(params.get('hideTimebar'));
+  // Phase 8 (U2/U3) — touch zoom/pan for tablets & panels.
+  const { transform: touchTransform, scale: touchScale, reset: resetTouch, handlers: touchHandlers } = useTouchZoomPan();
   const rootRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [refreshMs, setRefreshMs] = useState(0);
@@ -306,7 +315,8 @@ export const DisplayViewer: React.FC = () => {
           Refresh failed — showing the last loaded version.
         </div>
       )}
-      {/* Minimal runtime bar — status + kiosk/refresh only, NO editing controls */}
+      {/* Minimal runtime bar — status + kiosk/refresh only, NO editing controls. Hidden in kiosk mode. */}
+      {!hideBar && (
       <div className="display-viewer__bar">
         <button className="display-viewer__btn" onClick={() => navigate('/displays')} title="Home">⌂</button>
         <button className="display-viewer__btn" onClick={() => navigate(-1)} title="Back">←</button>
@@ -386,12 +396,21 @@ export const DisplayViewer: React.FC = () => {
           {isFullscreen ? 'Exit full screen' : 'Full screen'}
         </button>
       </div>
+      )}
 
-      {/* Read-only stage — each item positioned absolutely, rendered live in preview mode */}
-      <div className="display-viewer__stage-wrap">
+      {/* Read-only stage — each item positioned absolutely, rendered live in preview mode.
+          Phase 8 (U2/U3) — pinch-to-zoom + one-finger pan on touch devices; double-tap resets. */}
+      <div className="display-viewer__stage-wrap" style={{ position: 'relative', touchAction: touchScale > 1 ? 'none' : 'pan-x pan-y' }} {...touchHandlers}>
+        {touchScale > 1 && (
+          <button className="display-viewer__btn" data-testid="viewer-zoom-reset"
+            onClick={resetTouch}
+            style={{ position: 'absolute', top: 8, right: 8, zIndex: 5 }}
+          >Reset zoom ({touchScale.toFixed(1)}×)</button>
+        )}
         <div
           className="display-viewer__stage"
-          style={{ width: data.width, height: data.height, background: data.backgroundColor }}
+          style={{ width: data.width, height: data.height, background: data.backgroundColor,
+            transform: touchTransform, transformOrigin: 'top left' }}
         >
           {resolvedItems.map(item => {
             const trendable = pensFromItem(item).length > 0;
@@ -449,8 +468,8 @@ export const DisplayViewer: React.FC = () => {
         </div>
       </div>
 
-      {/* Display time bar (K1–K7) — one time context every time-aware symbol follows. */}
-      <TimeBar />
+      {/* Display time bar (K1–K7) — one time context every time-aware symbol follows. Hidden in kiosk. */}
+      {!hideTimebar && <TimeBar />}
 
       {/* Faceplate popup (openMode: 'popup') — isolated via iframe on the same viewer route */}
       {popup && (

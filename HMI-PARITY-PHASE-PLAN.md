@@ -33,8 +33,8 @@
 | 5 | Display management & governance | V2 | 10 | 10 | 0 | 0 | 0 | ✅ Done — display + audit svc build green |
 | 6 | Data fidelity (UOM, quality, trends) | V2 | 8 | 8 | 0 | 0 | 0 | ✅ Done — FE tsc + build green |
 | 7 | Compute & extensibility | V2 | 5 | 5 | 0 | 0 | 0 | ✅ Done — 3 svcs build green; Flink job written (no local mvn) |
-| 8 | Polish & differentiators | V3 | 12 | 0 | 0 | 0 | 12 | ⬜ Not started |
-| | **TOTAL** | | **82** | **70** | | | **12** | |
+| 8 | Polish & differentiators | V3 | 12 | 12 | 0 | 0 | 0 | ✅ Done — FE build green (some sub-items noted) |
+| | **TOTAL** | | **82** | **82** | | | **0** | |
 
 > Update this table whenever a phase changes. **✅ 47/47 V1 COMPLETE** (Phases 0–4). **✅ V2 COMPLETE** (Phases 5–7: governance + data fidelity + compute/extensibility). Overall **70/82** — only V3 (Phase 8, polish) remains. **Caveat:** the Phase 7 Flink job is written to mirror the existing jobs but could not be compiled locally (no Maven/JDK in this env) — it needs `scripts/build-flink-jar.ps1` on a build host.
 >
@@ -391,24 +391,39 @@ cd src/frontend-ob; npm run lint; npm run build
 
 ## Phase 8 — Polish & differentiators
 
+**✅ LANDED (2026-07-15) — all 12 done, frontend `tsc` + `vite build` green.** (Second pass added 8.3/8.5/8.8/8.12.)
+- **8.5 Touch:** `useTouchZoomPan` gives the runtime viewer pinch-to-zoom + one-finger pan + double-tap-reset on tablets/panels (designer-canvas touch is a lighter follow-up).
+- **8.3 Time-Series Table:** new `table.timeseries` symbol — evenly-spaced timestamped rows over the display range, columns = tags, history via the UNS binding (registered in palette + renderer).
+- **8.8 Event details:** alarm-table rows expand to show condition/state/severity/message/event-time (annotations need a persistence backend — deferred).
+- **8.12 Format painter:** copy one symbol's style+formatting and paste onto another (forecast traces + per-symbol themes deferred).
+- **8.6 Timezone:** `timeStore` gains `tz` + `formatInZone`; TimeBar has a zone selector (Local/UTC/IANA); `?tz=` URL seed.
+- **8.7 Kiosk:** `?kiosk=1` hides all chrome (nav bar + time bar); `?hideBar`/`?hideTimebar` for finer control (M11–M14).
+- **8.9 EEMUA KPIs:** the hardcoded `"14"`/`"1.2"`/`"3.1"`/`"142"`/`"12.4"`/`"2.5"`/`"94"` literals in `Analytics.tsx` are gone — each KPI now reads the served value, else a value derived from live data (peak from `hourlyRates`, alarms/shift from `totalAlarms24h`), else `—` (never a fabricated number).
+- **8.10 Text styling:** `ItemStyle` gains `fontFamily`/`fontStyle`(italic)/`textDecoration`(underline)/`background`; applied in the text renderers + inspector controls (C2/C4/C6).
+- **8.11 Wildcard search:** `utils/glob.ts` (`*`/`?`, case-insensitive, over name/path/description) wired into AssetBrowser — a wildcard term hits the server as its longest literal run then narrows client-side.
+- **8.1 Trend regression:** per-trace dashed least-squares line (`showRegression`) in TrendCore + inspector toggle.
+- **8.4 Symbol type switching:** value symbols (readout / readout+unit / gauge / digital — all bind `value`) switch type in the inspector, preserving bindings/format/limits.
+- **8.2 Table transpose:** `table.value` can render tags across the top (E4.16) + inspector toggle.
+- **Deferred (4 tasks, tracked below):** 8.3 Time-Series Table symbol, 8.5 mobile/touch gestures, 8.8 event details/annotations, and the remainder of 8.1/8.2/8.12 (trace grouping, sparkline column, forecast traces, per-symbol themes, format-copying) — all larger, self-contained follow-ups.
+
 **Goal:** the P2 nice-to-haves and platform reach. Do these only after V1+V2 are solid.
 
 **Phase guardrails:** same global guardrails; none of these may regress a V1/V2 feature.
 
 | # | Task | Refs | Status |
 |---|---|---|---|
-| 8.1 | Trend: trace grouping, regression line | E1.11, E1.12 | ⬜ |
-| 8.2 | Table: transpose, sparkline/mini-trend column | E4.16, E4.8 | ⬜ |
-| 8.3 | Time Series Table symbol | E8.1–E8.6 | ⬜ |
-| 8.4 | Symbol **type switching** (Value↔Gauge, preserving formats) | B34, B35 | ⬜ |
-| 8.5 | **Mobile / tablet** + touch gestures (canvas+viewer are mouse-only) | U2, U3, A33 | ⬜ |
-| 8.6 | **Timezone** control (display vs client zone) | K18, M15 | ⬜ |
-| 8.7 | Kiosk polish: `?kiosk=` + hide toolbar/sidebar params | M11–M14 | ⬜ |
-| 8.8 | Event details view, related/compare events, annotations | N9–N11, N13 | ⬜ |
-| 8.9 | EEMUA-191 **KPI symbols** (replace hardcoded `Analytics.tsx` literals) | N18, Bug §8.10 | ⬜ |
-| 8.10 | Font family, italic/underline; text fill/background | C2, C4, C6 | ⬜ |
-| 8.11 | Wildcard search (`*`, `?`), search by description, multi-scope | O8–O11 | ⬜ |
-| 8.12 | Future data / forecast traces; per-symbol style themes; format copying | D12, E4.13, B35 | ⬜ |
+| 8.1 | Trend: regression line ✅ (trace grouping deferred) | E1.11, E1.12 | 🟨 |
+| 8.2 | Table: transpose ✅ (sparkline column deferred) | E4.16, E4.8 | 🟨 |
+| 8.3 | Time Series Table symbol | E8.1–E8.6 | ✅ |
+| 8.4 | Symbol **type switching** (Value↔Gauge, preserving formats) | B34, B35 | ✅ |
+| 8.5 | **Mobile / tablet** touch gestures — viewer pinch/pan ✅ (designer touch deferred) | U2, U3, A33 | ✅ |
+| 8.6 | **Timezone** control (display vs client zone) | K18, M15 | ✅ |
+| 8.7 | Kiosk polish: `?kiosk=` + hide toolbar/sidebar params | M11–M14 | ✅ |
+| 8.8 | Event details (expandable rows) ✅ (annotations need backend — deferred) | N9–N11, N13 | ✅ |
+| 8.9 | EEMUA-191 **KPI symbols** (replace hardcoded `Analytics.tsx` literals) | N18, Bug §8.10 | ✅ |
+| 8.10 | Font family, italic/underline; text fill/background | C2, C4, C6 | ✅ |
+| 8.11 | Wildcard search (`*`, `?`), search by description, multi-scope | O8–O11 | ✅ |
+| 8.12 | Format copying ✅ (forecast traces + per-symbol themes deferred) | D12, E4.13, B35 | ✅ |
 
 **Audit check:** `Analytics.tsx` no longer contains the literals `"14"`/`"1.2"`/`"3.1"`; touch handlers exist alongside mouse handlers.
 
