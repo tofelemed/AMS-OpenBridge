@@ -40,11 +40,10 @@ export function getMqttBrokerUrl(): string {
 
 const SNAPSHOT_URL = (import.meta.env.VITE_SNAPSHOT_URL as string | undefined) ?? '/api/hist/snapshot';
 const HIST_URL     = (import.meta.env.VITE_HIST_URL     as string | undefined) ?? '/api/hist';
-// De-hardcoded: these are only fallback defaults for targeted subscribes; the live
-// subscription below uses wildcards so DDATA from ANY site/edge (houston, dallas, …)
-// is received. Override per-deployment via VITE_SPARKPLUG_GROUP / VITE_SPARKPLUG_EDGE.
-const SPARKPLUG_GROUP = (import.meta.env.VITE_SPARKPLUG_GROUP as string | undefined) ?? 'ams_site1';
-const SPARKPLUG_EDGE  = (import.meta.env.VITE_SPARKPLUG_EDGE  as string | undefined) ?? 'ams_edge1';
+// Plant-wide DDATA "firehose". The display runtime NEVER subscribes to this — it subscribes
+// per-open-screen (W10 / CQRS scoping). Only monitoring surfaces (Live Events, dashboards)
+// opt in via subscribeFirehose()/unsubscribeFirehose().
+const FIREHOSE_DDATA_TOPIC = 'spBv1.0/+/DDATA/+/#';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -86,6 +85,15 @@ export interface RawTrendPage {
   offset:  number;
 }
 
+/** Aggregate summary of one measurement over a window (historian-bff /summary). */
+export interface TrendSummary {
+  min:   number | null;
+  max:   number | null;
+  avg:   number | null;
+  total: number | null;
+  count: number | null;
+}
+
 interface MqttStoreState {
   connected:    boolean;
   error:        string | null;
@@ -101,12 +109,17 @@ interface MqttStoreState {
 
   connect:           () => void;
   disconnect:        () => void;
-  subscribeScreen:   (devices: string[]) => void;
-  unsubscribeScreen: (devices: string[]) => void;
+  /** Subscribe to specific DDATA topics for the open screen's bound devices (W10 scoping). */
+  subscribeScreen:   (topics: string[]) => void;
+  unsubscribeScreen: (topics: string[]) => void;
+  /** Opt into the plant-wide DDATA firehose (monitoring surfaces only; ref-counted). */
+  subscribeFirehose:   () => void;
+  unsubscribeFirehose: () => void;
   loadSnapshot:      (assets: string[]) => Promise<void>;
   loadAllSnapshots:  () => Promise<void>;
   fetchTrend:        (series: string, start: Date, end: Date, width?: number, measurements?: string) => Promise<TrendPoint[]>;
   fetchRaw:          (series: string, start: Date, end: Date, maxCount?: number, offset?: number) => Promise<RawTrendPage>;
+  fetchSummary:      (series: string, start: Date, end: Date, measurement: string) => Promise<TrendSummary | null>;
 }
 
 /** Redis snapshot JSON: { v, q, ts } written by sparkplug-edge-node. */
@@ -203,6 +216,7 @@ export function getLiveSeries(key: string, sinceTs = 0): SeriesSample[] {
 export const useMqttStore = create<MqttStoreState>()(
   immer((set, get) => {
     let client: MqttClient | null = null;
+    let firehoseRefs = 0; // ref count for the plant-wide DDATA firehose subscription
 
     function ensureConnected() {
       if (!client?.connected) get().connect();
@@ -232,11 +246,14 @@ export const useMqttStore = create<MqttStoreState>()(
 
         client.on('connect', () => {
           set(s => { s.connected = true; s.error = null; });
-          // Multi-site: wildcard group (+) and edge (+) so DDATA from every site
-          // (houston, dallas, …) is received. Metrics key by unique device/metric.
+          // Birth certificates are low-volume and needed to decode DDATA aliases → keep the
+          // NBIRTH/DBIRTH wildcards. Process-value DDATA is NOT wildcarded here: the display
+          // runtime subscribes per-open-screen (W10) and monitoring surfaces opt into the
+          // firehose via subscribeFirehose(). Active subscriptions are restored on reconnect below.
           client!.subscribe('spBv1.0/+/NBIRTH/+');
           client!.subscribe('spBv1.0/+/DBIRTH/+/#');
-          client!.subscribe('spBv1.0/+/DDATA/+/#');
+          // Restore any active per-screen / firehose subscriptions after a (re)connect.
+          get().subscribed.forEach(t => client!.subscribe(t, { qos: 0 }));
           // Re-seed from Redis after refresh or reconnect (TTL ~1h on edge node)
           void get().loadAllSnapshots();
         });
@@ -268,10 +285,12 @@ export const useMqttStore = create<MqttStoreState>()(
       },
 
       // ── subscribeScreen ───────────────────────────────────────────────────
-      subscribeScreen: (devices: string[]) => {
+      // Scoped, per-open-screen subscription (W10). Callers pass fully-qualified DDATA topics
+      // from the binding (which carry the real group/edge — multi-site safe).
+      subscribeScreen: (topics: string[]) => {
         ensureConnected();
-        devices.forEach(device => {
-          const topic = `spBv1.0/${SPARKPLUG_GROUP}/DDATA/${SPARKPLUG_EDGE}/${device}`;
+        topics.forEach(topic => {
+          if (!topic) return;
           if (!get().subscribed.has(topic)) {
             client?.subscribe(topic, { qos: 0 });
             set(s => { s.subscribed.add(topic); });
@@ -280,12 +299,33 @@ export const useMqttStore = create<MqttStoreState>()(
       },
 
       // ── unsubscribeScreen ─────────────────────────────────────────────────
-      unsubscribeScreen: (devices: string[]) => {
-        devices.forEach(device => {
-          const topic = `spBv1.0/${SPARKPLUG_GROUP}/DDATA/${SPARKPLUG_EDGE}/${device}`;
+      unsubscribeScreen: (topics: string[]) => {
+        topics.forEach(topic => {
+          if (!topic) return;
+          // Never tear down the shared firehose from a per-screen unsubscribe.
+          if (topic === FIREHOSE_DDATA_TOPIC) return;
           client?.unsubscribe(topic);
           set(s => { s.subscribed.delete(topic); });
         });
+      },
+
+      // ── firehose (plant-wide DDATA; monitoring surfaces only, ref-counted) ─
+      subscribeFirehose: () => {
+        ensureConnected();
+        firehoseRefs += 1;
+        if (firehoseRefs === 1) {
+          client?.subscribe(FIREHOSE_DDATA_TOPIC, { qos: 0 });
+          set(s => { s.subscribed.add(FIREHOSE_DDATA_TOPIC); });
+        }
+      },
+
+      unsubscribeFirehose: () => {
+        if (firehoseRefs === 0) return;
+        firehoseRefs -= 1;
+        if (firehoseRefs === 0) {
+          client?.unsubscribe(FIREHOSE_DDATA_TOPIC);
+          set(s => { s.subscribed.delete(FIREHOSE_DDATA_TOPIC); });
+        }
       },
 
       // ── loadSnapshot ──────────────────────────────────────────────────────
@@ -336,6 +376,25 @@ export const useMqttStore = create<MqttStoreState>()(
         } catch (err) {
           console.warn('[MqttStore] fetchTrend failed:', err);
           throw err;
+        }
+      },
+
+      // ── fetchSummary ──────────────────────────────────────────────────────
+      // Aggregate summary (min/max/avg/total/count) of one measurement over a window.
+      fetchSummary: async (series, start, end, measurement) => {
+        try {
+          const params = new URLSearchParams({
+            series,
+            start:       start.toISOString(),
+            end:         end.toISOString(),
+            measurement,
+          });
+          const res = await apiFetch(`${HIST_URL}/summary?${params}`);
+          if (!res.ok) return null;
+          return await res.json() as TrendSummary;
+        } catch (err) {
+          console.warn('[MqttStore] fetchSummary failed:', err);
+          return null;
         }
       },
 

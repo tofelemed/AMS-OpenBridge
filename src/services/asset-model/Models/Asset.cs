@@ -45,7 +45,14 @@ public class Asset
     /// High engineering limit for HMI scaling.
     /// </summary>
     public double? HiEngLimit { get; set; }
-    
+
+    /// <summary>
+    /// Asset type/template name (e.g. "Tank", "Pump", "CrudeUnit"). Enables "assets of the same
+    /// type" queries for collections / asset context switching (Phase 4). Distinct from the 1–5
+    /// hierarchy level in <see cref="Type"/>.
+    /// </summary>
+    public string? Template { get; set; }
+
     /// <summary>
     /// Reference to parent asset ID (null for root sites).
     /// </summary>

@@ -78,7 +78,18 @@ public class Display
     /// Latest draft version number.
     /// </summary>
     public int DraftVersion { get; set; } = 1;
-    
+
+    /// <summary>
+    /// Governed folder (Phase 5). Null = root. The free-text <see cref="HierarchyPath"/> stays for
+    /// backward compatibility, but folders are the change-managed organisation.
+    /// </summary>
+    public Guid? FolderId { get; set; }
+
+    /// <summary>
+    /// Keyword/tag labels for filtering and search (Phase 5).
+    /// </summary>
+    public string[] Tags { get; set; } = Array.Empty<string>();
+
     /// <summary>
     /// Owner user ID.
     /// </summary>

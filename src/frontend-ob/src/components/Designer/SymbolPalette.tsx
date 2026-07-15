@@ -9,6 +9,7 @@ import {
   ensureCategoryLoaded,
   registerStaticCategories,
 } from './symbolLibraryService';
+import { CustomSymbolPanel } from './CustomSymbolPanel';
 
 import { ObiPlaceholder } from '@oicl/openbridge-webcomponents-react/icons/icon-placeholder';
 import { ObiTank } from '@oicl/openbridge-webcomponents-react/icons/icon-tank';
@@ -137,6 +138,8 @@ const STATIC_SYMBOL_LIBRARY: SymbolCategory[] = [
       custom({ type: 'shape.hotspot', label: 'Hotspot (clickable area)', icon: '▭', category: 'shapes', defaultSize: { width: 120, height: 80 }, bindingSlots: [], description: 'Transparent clickable region — draw over imported artwork and give it a navigation link' }),
       custom({ type: 'shape.circle', label: 'Circle', icon: '○', category: 'shapes', defaultSize: { width: 60, height: 60 }, bindingSlots: [], description: 'Circle / ellipse' }),
       custom({ type: 'shape.line', label: 'Line', icon: '╱', category: 'shapes', defaultSize: { width: 100, height: 4 }, bindingSlots: [], description: 'Straight line' }),
+      custom({ type: 'shape.polygon', label: 'Polygon', icon: '⬠', category: 'shapes', defaultSize: { width: 80, height: 80 }, bindingSlots: [], description: 'Polygon / polyline' }),
+      custom({ type: 'image.static', label: 'Image', icon: '🖼️', category: 'shapes', defaultSize: { width: 120, height: 90 }, bindingSlots: [], description: 'Uploaded image / SVG' }),
       custom({ type: 'shape.divider', label: 'Divider', icon: '─', category: 'shapes', defaultSize: { width: 200, height: 2 }, bindingSlots: [], description: 'Section divider' }),
     ]
   },
@@ -162,6 +165,10 @@ const STATIC_SYMBOL_LIBRARY: SymbolCategory[] = [
       custom({ type: 'alarm.beacon', label: 'Alarm Beacon', icon: '🔴', category: 'alarms', defaultSize: { width: 40, height: 40 }, bindingSlots: ['state'], description: 'Flashing alarm light' }),
       custom({ type: 'alarm.horn', label: 'Alarm Horn', icon: '📯', category: 'alarms', defaultSize: { width: 50, height: 50 }, bindingSlots: ['active'], description: 'Audible alarm indicator' }),
       custom({ type: 'alarm.summary', label: 'Alarm Summary', icon: '📋', category: 'alarms', defaultSize: { width: 180, height: 120 }, bindingSlots: ['source'], description: 'Mini alarm list' }),
+      // Live alarm grid (Time / Source / Priority / State). Component already existed in
+      // SymbolRenderer (AlarmTable) — it was just never registered, so it could not be placed.
+      // Scope it to an asset via the "Alarm source" field on the General tab.
+      custom({ type: 'alarm.table', label: 'Alarm Table', icon: '🚨', category: 'alarms', defaultSize: { width: 360, height: 200 }, bindingSlots: [], description: 'Live alarm grid (scope via Alarm source)' }),
     ]
   },
   {
@@ -181,8 +188,10 @@ const STATIC_SYMBOL_LIBRARY: SymbolCategory[] = [
     symbols: [
       custom({ type: 'chart.trend', label: 'Trend Chart', icon: '📈', category: 'trends', defaultSize: { width: 300, height: 180 }, bindingSlots: ['value'], description: 'Real-time trend' }),
       custom({ type: 'chart.sparkline', label: 'Sparkline', icon: '〰️', category: 'trends', defaultSize: { width: 100, height: 32 }, bindingSlots: ['value'], description: 'Mini trend line' }),
-      custom({ type: 'chart.bar', label: 'Bar Chart', icon: '📊', category: 'trends', defaultSize: { width: 250, height: 160 }, bindingSlots: ['values'], description: 'Comparison bar chart' }),
-      custom({ type: 'chart.xy', label: 'XY Plot', icon: '📉', category: 'trends', defaultSize: { width: 250, height: 180 }, bindingSlots: ['x', 'y'], description: 'Scatter / XY plot' }),
+      custom({ type: 'chart.bar', label: 'Bar Chart', icon: '📊', category: 'trends', defaultSize: { width: 250, height: 160 }, bindingSlots: ['value', 'value2', 'value3', 'value4', 'value5', 'value6'], description: 'Comparison bar chart — one bar per bound tag' }),
+      custom({ type: 'chart.xy', label: 'XY Plot', icon: '📉', category: 'trends', defaultSize: { width: 250, height: 180 }, bindingSlots: ['x', 'y'], description: 'Scatter / XY plot (X vs Y live samples)' }),
+      custom({ type: 'table.value', label: 'Table', icon: '▦', category: 'trends', defaultSize: { width: 260, height: 160 }, bindingSlots: ['value', 'value2', 'value3', 'value4', 'value5', 'value6'], description: 'Value table — one row per bound tag (Name / Value / Units)' }),
+      custom({ type: 'table.compare', label: 'Asset Comparison', icon: '▤', category: 'trends', defaultSize: { width: 320, height: 180 }, bindingSlots: [], description: 'One row per asset (dynamic search), columns = attributes' }),
       custom({ type: 'chart.pie', label: 'Pie Chart', icon: '🥧', category: 'trends', defaultSize: { width: 120, height: 120 }, bindingSlots: ['values'], description: 'Distribution chart' }),
     ]
   },
@@ -286,7 +295,10 @@ export const SymbolPalette: React.FC<SymbolPaletteProps> = ({ onAddItem }) => {
           </button>
         )}
       </div>
-      
+
+      {/* Phase 7 — user-defined custom symbols (register / edit / drag to place). */}
+      {!searchTerm && <CustomSymbolPanel />}
+
       <div className="symbol-palette__categories">
         {filteredLibrary.map(category => (
           <div key={category.id} className="symbol-palette__category">

@@ -61,10 +61,19 @@ interface Display {
   draftVersion: number;
   level?: number | null;
   hasThumbnail?: boolean;
+  folderId?: string | null;
+  tags?: string[];
   ownerId: string;
   createdAt: string;
   updatedAt: string;
 }
+
+type SortKey = 'name' | 'updated' | 'created' | 'owner';
+type ViewMode = 'grid' | 'list';
+
+const SORT_LABELS: Record<SortKey, string> = {
+  name: 'Name', updated: 'Recently updated', created: 'Recently created', owner: 'Owner',
+};
 
 const CATEGORIES = ['overview', 'detail', 'faceplate', 'trend', 'alarm'] as const;
 
@@ -76,14 +85,24 @@ const CATEGORY_META: Record<string, { label: string; icon: string; color: string
   alarm:     { label: 'Alarm',     icon: '🚨', color: T.critical, bg: T.criticalBg,    border: T.criticalBorder },
 };
 
-async function fetchDisplays(category?: string): Promise<{ displays: Display[]; total: number }> {
-  const url = category ? `${API_BASE}?category=${category}` : API_BASE;
-  const res = await apiFetch(url);
+interface DisplayQuery { category?: string; search?: string; sort?: SortKey; tag?: string; }
+
+async function fetchDisplays(q: DisplayQuery): Promise<{ displays: Display[]; total: number }> {
+  const params = new URLSearchParams();
+  if (q.category) params.set('category', q.category);
+  if (q.search) params.set('search', q.search);
+  if (q.sort) params.set('sort', q.sort);
+  if (q.tag) params.set('tag', q.tag);
+  const qs = params.toString();
+  const res = await apiFetch(qs ? `${API_BASE}?${qs}` : API_BASE);
   if (!res.ok) throw new Error('Failed to load displays');
   return res.json();
 }
 
-async function createDisplay(data: { name: string; category: string; description?: string; ownerId: string }) {
+interface FavoriteRow { id: string; displayId?: string | null; personalViewId?: string | null; }
+interface RecentRow { id: string; name: string; category: string; level?: number | null; accessedAt: string; hasThumbnail?: boolean; }
+
+async function createDisplay(data: { name: string; category: string; description?: string; level?: number; tags?: string[]; ownerId: string }) {
   const res = await apiFetch(API_BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -93,6 +112,11 @@ async function createDisplay(data: { name: string; category: string; description
   });
   if (!res.ok) throw new Error('Failed to create display');
   return res.json();
+}
+
+/** Split a comma/space-separated tag string into a clean, de-duplicated array. */
+function parseTags(raw: string): string[] {
+  return Array.from(new Set(raw.split(/[,\n]/).map(t => t.trim()).filter(Boolean)));
 }
 
 function formatRelativeDate(iso: string): string {
@@ -114,11 +138,51 @@ export const DisplayList: React.FC = () => {
   const queryClient = useQueryClient();
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newDisplay, setNewDisplay] = useState({ name: '', category: 'overview', description: '' });
+  const [newDisplay, setNewDisplay] = useState({ name: '', category: 'overview', description: '', level: 2, tags: '' });
+  // Phase 5.9/5.10 — home-page search, sort, list/grid toggle, and tag filter.
+  const [searchText, setSearchText] = useState('');
+  const [sortBy, setSortBy] = useState<SortKey>('name');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem('dl.view') as ViewMode) || 'grid');
+  const [tagFilter, setTagFilter] = useState<string | undefined>();
+
+  const setView = (m: ViewMode) => { setViewMode(m); localStorage.setItem('dl.view', m); };
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['displays', selectedCategory],
-    queryFn: () => fetchDisplays(selectedCategory),
+    queryKey: ['displays', selectedCategory, searchText, sortBy, tagFilter],
+    queryFn: () => fetchDisplays({ category: selectedCategory, search: searchText || undefined, sort: sortBy, tag: tagFilter }),
+  });
+
+  // Server-side favorites + recent (Phase 5.6 — were localStorage/per-browser).
+  const { data: favData } = useQuery({
+    queryKey: ['favorites'],
+    queryFn: () => apiJson<{ favorites: FavoriteRow[] }>(`${API_BASE}/me/favorites`),
+  });
+  const favoriteIds = useMemo(
+    () => new Set((favData?.favorites ?? []).filter(f => f.displayId).map(f => f.displayId as string)),
+    [favData],
+  );
+  const favRowByDisplay = useMemo(() => {
+    const m = new Map<string, string>();
+    (favData?.favorites ?? []).forEach(f => { if (f.displayId) m.set(f.displayId, f.id); });
+    return m;
+  }, [favData]);
+
+  const { data: recentData } = useQuery({
+    queryKey: ['recent-displays'],
+    queryFn: () => apiJson<{ recents: RecentRow[] }>(`${API_BASE}/me/recent`),
+  });
+
+  const toggleFavorite = useMutation({
+    mutationFn: async (display: Display) => {
+      const existing = favRowByDisplay.get(display.id);
+      if (existing) return apiFetch(`${API_BASE}/me/favorites/${existing}`, { method: 'DELETE' });
+      return apiJson(`${API_BASE}/me/favorites`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayId: display.id }),
+      });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['favorites'] }),
+    onError: (e: Error) => toast.error(`Favorite failed: ${e.message}`),
   });
 
   const createMutation = useMutation({
@@ -127,7 +191,7 @@ export const DisplayList: React.FC = () => {
       toast.success('Display created');
       queryClient.invalidateQueries({ queryKey: ['displays'] });
       setShowCreateModal(false);
-      setNewDisplay({ name: '', category: 'overview', description: '' });
+      setNewDisplay({ name: '', category: 'overview', description: '', level: 2, tags: '' });
       navigate(`/designer/${result.id}`);
     },
     onError: () => toast.error('Failed to create display'),
@@ -312,6 +376,72 @@ export const DisplayList: React.FC = () => {
         })}
       </div>
 
+      {/* Search · sort · view toggle (Phase 5.9) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        <input
+          type="search"
+          className="ob-input"
+          placeholder="Search by name, description or tag…"
+          value={searchText}
+          onChange={e => setSearchText(e.target.value)}
+          data-testid="display-search"
+          style={{ flex: '1 1 240px', minWidth: '180px' }}
+        />
+        <label style={{ fontSize: '12px', color: T.textMuted, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          Sort
+          <select className="ob-input" value={sortBy} onChange={e => setSortBy(e.target.value as SortKey)} data-testid="display-sort">
+            {(Object.keys(SORT_LABELS) as SortKey[]).map(k => <option key={k} value={k}>{SORT_LABELS[k]}</option>)}
+          </select>
+        </label>
+        <div style={{ display: 'inline-flex', border: `1px solid ${T.border}`, borderRadius: T.radiusSm, overflow: 'hidden' }}>
+          {(['grid', 'list'] as ViewMode[]).map(m => (
+            <button
+              key={m} type="button" onClick={() => setView(m)} data-testid={`view-${m}`}
+              style={{
+                padding: '7px 12px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: 'none',
+                fontFamily: 'inherit',
+                background: viewMode === m ? T.blueLight : T.card, color: viewMode === m ? T.blue : T.textSecondary,
+              }}
+            >
+              {m === 'grid' ? '▦ Grid' : '☰ List'}
+            </button>
+          ))}
+        </div>
+        {tagFilter && (
+          <button
+            type="button" onClick={() => setTagFilter(undefined)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px',
+              fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              borderRadius: T.radiusSm, border: `1.5px solid ${T.blueMuted}`, background: T.blueLight, color: T.blue,
+            }}
+          >
+            tag: {tagFilter} <span aria-hidden>✕</span>
+          </button>
+        )}
+      </div>
+
+      {/* Recently opened (Phase 5.6) — server-side, so it follows the user across browsers. */}
+      {(recentData?.recents.length ?? 0) > 0 && !searchText && !tagFilter && !selectedCategory && (
+        <div>
+          <div style={{ fontSize: '12px', fontWeight: 600, color: T.textMuted, marginBottom: '8px' }}>Recently opened</div>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            {recentData!.recents.slice(0, 8).map(r => (
+              <button
+                key={r.id} type="button" onClick={() => navigate(`/designer/${r.id}`)}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '8px 14px',
+                  fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                  borderRadius: T.radiusSm, border: `1px solid ${T.border}`, background: T.card, color: T.textPrimary,
+                }}
+              >
+                <span>{CATEGORY_META[r.category]?.icon ?? '🖥️'}</span> {r.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       {isLoading ? (
         <LoadingState />
@@ -322,13 +452,17 @@ export const DisplayList: React.FC = () => {
       ) : (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: '16px',
+          gridTemplateColumns: viewMode === 'list' ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))',
+          gap: viewMode === 'list' ? '8px' : '16px',
         }}>
           {data?.displays.map(display => (
             <div key={display.id} style={{ position: 'relative' }}>
               <DisplayCard
                 display={display}
+                viewMode={viewMode}
+                isFavorite={favoriteIds.has(display.id)}
+                onToggleFavorite={() => toggleFavorite.mutate(display)}
+                onTagClick={(t) => setTagFilter(t)}
                 onOpen={() => navigate(`/designer/${display.id}`)}
               />
               {/* Rename / Duplicate ("Save As") / Delete. None of these existed — a display could be
@@ -406,7 +540,7 @@ export const DisplayList: React.FC = () => {
             <ObcButton
               variant="normal"
               disabled={createMutation.isPending || !newDisplay.name.trim()}
-              onClick={() => createMutation.mutate({ ...newDisplay, ownerId: currentUser })}
+              onClick={() => createMutation.mutate({ name: newDisplay.name, category: newDisplay.category, description: newDisplay.description, level: newDisplay.level, tags: parseTags(newDisplay.tags), ownerId: currentUser })}
             >
               {createMutation.isPending ? 'Creating…' : 'Create Display'}
             </ObcButton>
@@ -416,7 +550,7 @@ export const DisplayList: React.FC = () => {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            createMutation.mutate({ ...newDisplay, ownerId: currentUser });
+            createMutation.mutate({ name: newDisplay.name, category: newDisplay.category, description: newDisplay.description, level: newDisplay.level, tags: parseTags(newDisplay.tags), ownerId: currentUser });
           }}
           style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
         >
@@ -448,6 +582,21 @@ export const DisplayList: React.FC = () => {
             </select>
           </FormField>
 
+          <FormField label="ISA-101 level" hint="Display hierarchy tier (L1 overview → L4 faceplate) — drives home-page filtering">
+            <select
+              className="ob-input"
+              style={{ width: '100%' }}
+              data-testid="new-display-level"
+              value={newDisplay.level}
+              onChange={(e) => setNewDisplay(prev => ({ ...prev, level: Number(e.target.value) }))}
+            >
+              <option value={1}>L1 — Enterprise / overview</option>
+              <option value={2}>L2 — Unit / area</option>
+              <option value={3}>L3 — Detail</option>
+              <option value={4}>L4 — Faceplate</option>
+            </select>
+          </FormField>
+
           <FormField label="Description" hint="Optional — helps operators find this display">
             <textarea
               className="ob-input"
@@ -456,6 +605,18 @@ export const DisplayList: React.FC = () => {
               onChange={(e) => setNewDisplay(prev => ({ ...prev, description: e.target.value }))}
               placeholder="Main overview for Houston crude unit…"
               rows={3}
+            />
+          </FormField>
+
+          <FormField label="Tags" hint="Optional — comma-separated keywords for filtering (e.g. crude, unit-1, critical)">
+            <input
+              type="text"
+              className="ob-input"
+              style={{ width: '100%' }}
+              data-testid="new-display-tags"
+              value={newDisplay.tags}
+              onChange={(e) => setNewDisplay(prev => ({ ...prev, tags: e.target.value }))}
+              placeholder="crude, unit-1, critical"
             />
           </FormField>
         </form>
@@ -526,13 +687,88 @@ const DisplayThumb: React.FC<{ id: string; has?: boolean }> = ({ id, has }) => {
 interface DisplayCardProps {
   display: Display;
   onOpen: () => void;
+  viewMode?: ViewMode;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
+  onTagClick?: (tag: string) => void;
 }
 
-const DisplayCard: React.FC<DisplayCardProps> = ({ display, onOpen }) => {
+/** A small star toggle used in both grid and list layouts. */
+const FavoriteStar: React.FC<{ on?: boolean; onToggle?: () => void }> = ({ on, onToggle }) => (
+  <button
+    type="button"
+    title={on ? 'Remove from favorites' : 'Add to favorites'}
+    aria-label="Toggle favorite"
+    data-testid="card-favorite"
+    onClick={(e) => { e.stopPropagation(); onToggle?.(); }}
+    style={{
+      border: 'none', background: 'transparent', cursor: 'pointer', padding: '2px 4px',
+      fontSize: '16px', lineHeight: 1, color: on ? T.warning : T.textMuted,
+    }}
+  >
+    {on ? '★' : '☆'}
+  </button>
+);
+
+/** Clickable tag chips (Phase 5.10). Clicking filters the list by that tag. */
+const TagChips: React.FC<{ tags?: string[]; onTagClick?: (t: string) => void }> = ({ tags, onTagClick }) => {
+  if (!tags || tags.length === 0) return null;
+  return (
+    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '8px' }}>
+      {tags.map(t => (
+        <button
+          key={t} type="button"
+          onClick={(e) => { e.stopPropagation(); onTagClick?.(t); }}
+          style={{
+            fontSize: '10.5px', fontWeight: 600, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit',
+            borderRadius: '20px', border: `1px solid ${T.border}`, background: T.bg, color: T.textSecondary,
+          }}
+        >
+          #{t}
+        </button>
+      ))}
+    </div>
+  );
+};
+
+const DisplayCard: React.FC<DisplayCardProps> = ({ display, onOpen, viewMode = 'grid', isFavorite, onToggleFavorite, onTagClick }) => {
   const meta = CATEGORY_META[display.category] ?? CATEGORY_META.overview;
   const hasUnpublishedDraft = display.publishedVersion
     ? display.draftVersion > display.publishedVersion
     : true;
+
+  // List mode — a compact single-line row.
+  if (viewMode === 'list') {
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onOpen}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onOpen(); }}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px',
+          background: T.card, border: `1px solid ${T.border}`, borderLeft: `4px solid ${meta.color}`,
+          borderRadius: T.radiusSm, cursor: 'pointer',
+        }}
+      >
+        <FavoriteStar on={isFavorite} onToggle={onToggleFavorite} />
+        <span style={{ fontSize: '16px' }}>{meta.icon}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: T.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {display.name}
+          </div>
+          {display.tags && display.tags.length > 0 && (
+            <span style={{ fontSize: '11px', color: T.textMuted }}>{display.tags.map(t => `#${t}`).join(' ')}</span>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
+          <VersionBadge label={`Draft v${display.draftVersion}`} variant={hasUnpublishedDraft ? 'draft' : 'muted'} />
+          {display.publishedVersion && <VersionBadge label={`Pub v${display.publishedVersion}`} variant="published" />}
+          <span style={{ fontSize: '11px', color: T.textMuted, marginLeft: '4px' }}>{formatRelativeDate(display.updatedAt)}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -571,6 +807,9 @@ const DisplayCard: React.FC<DisplayCardProps> = ({ display, onOpen }) => {
         position: 'relative',
       }}>
         <DisplayThumb id={display.id} has={display.hasThumbnail} />
+        <span style={{ position: 'absolute', top: '8px', left: '8px' }}>
+          <FavoriteStar on={isFavorite} onToggle={onToggleFavorite} />
+        </span>
         <span style={{
           position: 'absolute', top: '10px', right: '10px',
           fontSize: '10px', fontWeight: 700, padding: '3px 8px',
@@ -611,6 +850,8 @@ const DisplayCard: React.FC<DisplayCardProps> = ({ display, onOpen }) => {
             {formatRelativeDate(display.updatedAt)}
           </span>
         </div>
+
+        <TagChips tags={display.tags} onTagClick={onTagClick} />
       </div>
     </div>
   );

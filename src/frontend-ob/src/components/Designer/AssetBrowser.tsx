@@ -124,6 +124,13 @@ export const AssetBrowser: React.FC<AssetBrowserProps> = ({
         <div
           className={`asset-node__row ${isSelected ? 'selected' : ''}`}
           style={{ paddingLeft: `${level * 16 + 8}px` }}
+          // Measurements are draggable onto the canvas — drop on empty space to create a bound value
+          // readout, or onto a symbol to add the tag to it (B18/B19/O13).
+          draggable={asset.type === 5}
+          onDragStart={asset.type === 5 ? (e) => {
+            e.dataTransfer.setData('application/x-ams-tag', asset.contextualPath);
+            e.dataTransfer.effectAllowed = 'copy';
+          } : undefined}
         >
           {hasChildren ? (
             <button

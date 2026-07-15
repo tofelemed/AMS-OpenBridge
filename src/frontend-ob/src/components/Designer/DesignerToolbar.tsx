@@ -59,8 +59,9 @@ interface ToolbarProps {
   onGroup: () => void;
   onUngroup: () => void;
   onAlign: (d: AlignDir) => void;
+  onDistribute: (axis: 'h' | 'v') => void;
   onSameSize: () => void;
-  onZOrder: (d: 'front' | 'back') => void;
+  onZOrder: (d: 'front' | 'back' | 'forward' | 'backward') => void;
   onFlip: (a: 'H' | 'V') => void;
 
   trendCount: number;
@@ -70,6 +71,9 @@ interface ToolbarProps {
   setShowGrid: (v: boolean) => void;
   snapEnabled: boolean;
   setSnapEnabled: (v: boolean) => void;
+  /** Display-level background colour (B32 — was loaded/saved but had no editor control). */
+  bgColor: string;
+  setBgColor: (v: string) => void;
   showAssets: boolean;
   toggleAssets: () => void;
 
@@ -290,6 +294,9 @@ export const DesignerToolbar: React.FC<ToolbarProps> = (p) => {
                 <button className="dt-item" onClick={() => { close(); p.onAlign('centerV'); }}>Align centre (vertical)</button>
                 <button className="dt-item" onClick={() => { close(); p.onAlign('bottom'); }}>Align bottom</button>
                 <button className="dt-item" onClick={() => { close(); p.onSameSize(); }}>Make same size</button>
+                {/* Distribute needs ≥3 items; the handler no-ops otherwise. */}
+                <button className="dt-item" data-testid="distribute-h" onClick={() => { close(); p.onDistribute('h'); }}>Distribute horizontally</button>
+                <button className="dt-item" data-testid="distribute-v" onClick={() => { close(); p.onDistribute('v'); }}>Distribute vertically</button>
               </>
             )}
           </Menu>
@@ -297,6 +304,8 @@ export const DesignerToolbar: React.FC<ToolbarProps> = (p) => {
           <button className="dt-btn" onClick={() => p.onZOrder('front')} disabled={!hasSel} title="Bring to front" aria-label="Bring to front">
             <ObiArrowUpGoogle />
           </button>
+          <button className="dt-btn" onClick={() => p.onZOrder('forward')} disabled={!hasSel} title="Bring forward (one step)">Fwd</button>
+          <button className="dt-btn" onClick={() => p.onZOrder('backward')} disabled={!hasSel} title="Send backward (one step)">Bwd</button>
           <button className="dt-btn" onClick={() => p.onZOrder('back')} disabled={!hasSel} title="Send to back" aria-label="Send to back">
             <ObiArrowDownGoogle />
           </button>
@@ -335,6 +344,18 @@ export const DesignerToolbar: React.FC<ToolbarProps> = (p) => {
             />
             Snap
           </label>
+          {/* Display background colour (B32). Native picker needs a hex; a var()/token value falls back
+              to a neutral swatch, and "Theme" restores the token default. */}
+          <span className="dt-check" title="Display background colour">
+            BG
+            <input
+              type="color"
+              data-testid="bg-color"
+              value={/^#[0-9a-fA-F]{6}$/.test(p.bgColor) ? p.bgColor : '#1f1f1f'}
+              onChange={e => p.setBgColor(e.target.value)}
+            />
+            <button className="dt-btn" onClick={() => p.setBgColor('var(--ams-canvas-bg)')} title="Reset background to theme default">Theme</button>
+          </span>
           <button
             className={`dt-btn${p.showAssets ? ' active' : ''}`}
             onClick={p.toggleAssets}

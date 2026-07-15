@@ -24,9 +24,19 @@ const TYPE_MAP: Record<string, string> = {
   statictext: 'shape.label', text: 'shape.label', label: 'shape.label', simpletext: 'shape.label',
   value: 'obc.readout-unit', numeric: 'obc.readout-unit', indicator: 'obc.readout-unit',
   trend: 'chart.trend', chart: 'chart.trend',
-  radial: 'ind.radial', radialgauge: 'ind.radial', gauge: 'ind.radial',
-  bargauge: 'ind.bar', verticalgauge: 'ind.vbar',
+  // Gauge variants map to ind.gauge — a renderable custom gauge. (ind.radial/ind.bar/ind.vbar
+  // have NO renderer and previously imported as silent "❓" boxes.)
+  radial: 'ind.gauge', radialgauge: 'ind.gauge', gauge: 'ind.gauge',
+  bargauge: 'ind.gauge', verticalgauge: 'ind.gauge',
 };
+
+// Every type TYPE_MAP is allowed to emit MUST have a renderer (SymbolRenderer/CustomSymbols).
+// A mapping to anything outside this set is surfaced in `unmapped` rather than rendering a
+// silent "❓" — the importer is the migration front door, so failures must be visible.
+const RENDERABLE_MAPPED_TYPES = new Set<string>([
+  'shape.rect', 'shape.line', 'shape.circle', 'shape.polygon', 'shape.label',
+  'obc.readout-unit', 'chart.trend', 'ind.gauge',
+]);
 
 const num = (v: unknown, d = 0): number => { const n = Number(v); return Number.isFinite(n) ? n : d; };
 
@@ -93,8 +103,11 @@ export async function importPdix(file: File | Blob): Promise<ImportedDisplay> {
     if (piType === 'group') { stats.group = stats.group; return; } // structural container, not a drawable
 
     const mapped = TYPE_MAP[piType];
-    if (!mapped) {
-      unmapped.push({ id, name: String(sym.Name ?? id), piType, reason: 'Unknown PI Vision symbol type' });
+    if (!mapped || !RENDERABLE_MAPPED_TYPES.has(mapped)) {
+      unmapped.push({
+        id, name: String(sym.Name ?? id), piType,
+        reason: mapped ? `Mapped type '${mapped}' has no renderer` : 'Unknown PI Vision symbol type',
+      });
       items.push({ id, type: 'shape.rect', position: { x, y }, size: { width, height }, label: `⚠ ${piType}`,
         style: { fill: 'none', stroke: 'var(--ams-warn)', strokeWidth: 1 } });
       return;

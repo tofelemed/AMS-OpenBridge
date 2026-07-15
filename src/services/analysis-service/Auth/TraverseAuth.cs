@@ -165,6 +165,20 @@ public static class TraverseAuthExtensions
     {
         var serviceKey = app.Configuration["Auth:ServiceKey"];
 
+        // The built-in default key grants a FULLY-permissioned principal to anyone who can present it.
+        // Fail closed in Production; warn loudly elsewhere so the lab still runs but the risk is visible.
+        const string InsecureDefaultServiceKey = "traverse-internal-dev-key";
+        if (string.Equals(serviceKey, InsecureDefaultServiceKey, StringComparison.Ordinal))
+        {
+            if (app.Environment.IsProduction())
+                throw new InvalidOperationException(
+                    "Auth:ServiceKey is the insecure built-in default. Configure a strong, unique key " +
+                    "(env Auth__ServiceKey / TRAVERSE_SERVICE_KEY) before running in Production.");
+            app.Logger.LogWarning(
+                "Auth:ServiceKey is the insecure built-in default and grants full permissions to any caller " +
+                "presenting it. Set a unique Auth__ServiceKey before deploying beyond a local lab.");
+        }
+
         // Internal service-to-service calls carry no user token. A matching X-Service-Key is promoted to
         // a fully-permissioned service principal BEFORE authentication runs, so the normal policies apply
         // unchanged. If no key is configured the header is ignored entirely (it can't be used to bypass).

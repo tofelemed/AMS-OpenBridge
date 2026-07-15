@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using System.Text.Json;
 using Confluent.Kafka;
+using Traverse.AnalysisService.Consumers;
 using Traverse.AnalysisService.Data;
 using Traverse.AnalysisService.Models;
 
@@ -36,12 +37,53 @@ builder.Services.AddHttpClient("Flink", client =>
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 
+// asset-model client (Phase 7 — register derived measurements from calculation results). Authenticates
+// as a service principal with the shared internal key, like binding-resolver → asset-model.
+builder.Services.AddHttpClient("AssetModel", client =>
+{
+    var baseUrl = builder.Configuration["Services:AssetModel"] ?? "http://asset-model:5000";
+    client.BaseAddress = new Uri(baseUrl);
+    client.Timeout = TimeSpan.FromSeconds(5);
+    var serviceKey = builder.Configuration["Auth:ServiceKey"];
+    if (!string.IsNullOrEmpty(serviceKey))
+        client.DefaultRequestHeaders.Add(TraverseAuthExtensions.ServiceKeyHeader, serviceKey);
+});
+
+// Phase 7 — consume calculation results (analysis.results) and publish derived measurements to the UNS.
+builder.Services.AddHostedService<AnalysisResultConsumer>();
+
 // ── Auth (platform RBAC) ────────────────────────────────────────────────────
 // RS256 bearer validation against auth-service JWKS + a policy per permission key.
 // Internal callers (e.g. binding-resolver → asset-model) authenticate with X-Service-Key.
 builder.AddTraverseAuth();
 
 var app = builder.Build();
+
+// Phase 7 — self-healing schema for calculation versioning (fresh installs get it from a DB script).
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AnalysisDbContext>();
+        await db.Database.ExecuteSqlRawAsync(@"
+            ALTER TABLE analysis.analysis_definitions ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1;
+            CREATE TABLE IF NOT EXISTS analysis.calculation_versions (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                analysis_id UUID NOT NULL REFERENCES analysis.analysis_definitions(id) ON DELETE CASCADE,
+                version INTEGER NOT NULL,
+                configuration JSONB NOT NULL,
+                change_note TEXT,
+                status TEXT NOT NULL DEFAULT 'draft',
+                created_by TEXT NOT NULL DEFAULT 'system',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                published_at TIMESTAMPTZ,
+                UNIQUE (analysis_id, version));");
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "Could not ensure calculation_versions schema at startup");
+    }
+}
 
 app.UseTraverseAuth();
 
@@ -212,11 +254,12 @@ app.MapPost("/analyses/{id:guid}/execute", async (
     Guid id,
     ExecuteRequest request,
     AnalysisDbContext db,
-    IProducer<string, string> kafka) =>
+    IProducer<string, string> kafka,
+    IConnectionMultiplexer redis) =>
 {
     var analysis = await db.Analyses.FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
     if (analysis is null) return Results.NotFound();
-    
+
     var execution = new AnalysisExecution
     {
         Id = Guid.NewGuid(),
@@ -226,10 +269,16 @@ app.MapPost("/analyses/{id:guid}/execute", async (
         WindowEnd = request.WindowEnd ?? DateTimeOffset.UtcNow,
         StartedAt = DateTimeOffset.UtcNow
     };
-    
+
     db.Executions.Add(execution);
     await db.SaveChangesAsync();
-    
+
+    // Phase 7 — for a calculation, extract the expression + inputs from the config and read each input's
+    // current value from the Redis snapshot, so the Flink job can evaluate immediately. Compute stays in
+    // Flink; this service only sources the inputs and ships the command.
+    var (expression, inputs, unit) = CalcPayload.Parse(analysis.Configuration);
+    var inputValues = await CalcPayload.ReadInputsAsync(redis, inputs);
+
     // Publish execution command to Kafka
     await kafka.ProduceAsync("analysis.executions", new Message<string, string>
     {
@@ -242,11 +291,14 @@ app.MapPost("/analyses/{id:guid}/execute", async (
             targetPath = analysis.TargetPath,
             outputPath = analysis.OutputPath,
             configuration = analysis.Configuration,
+            expression,
+            inputs = inputValues,
+            unit,
             windowStart = execution.WindowStart,
             windowEnd = execution.WindowEnd
         })
     });
-    
+
     return Results.Accepted($"/analyses/{id}/executions/{execution.Id}", new
     {
         executionId = execution.Id,
@@ -322,6 +374,65 @@ app.MapPut("/analyses/executions/{executionId:guid}/status", async (
 }).RequireAuthorization("analysis.edit");
 
 // ══════════════════════════════════════════════════════════════════════════════
+// Phase 7 — Calculation versioning (named, versioned artifacts; L1–L4/L10)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── POST /analyses/{id}/versions — snapshot the current config as a new draft version. ─
+app.MapPost("/analyses/{id:guid}/versions", async (Guid id, VersionRequest request, System.Security.Claims.ClaimsPrincipal user, AnalysisDbContext db) =>
+{
+    var analysis = await db.Analyses.FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
+    if (analysis is null) return Results.NotFound();
+
+    var nextVersion = 1 + (await db.CalculationVersions.Where(v => v.AnalysisId == id)
+        .Select(v => (int?)v.Version).MaxAsync() ?? 0);
+
+    var version = new CalculationVersion
+    {
+        Id = Guid.NewGuid(),
+        AnalysisId = id,
+        Version = nextVersion,
+        Configuration = JsonDocument.Parse(analysis.Configuration.RootElement.GetRawText()),
+        ChangeNote = request.ChangeNote,
+        Status = "draft",
+        CreatedBy = Username(user),
+        CreatedAt = DateTimeOffset.UtcNow,
+    };
+    db.CalculationVersions.Add(version);
+    await db.SaveChangesAsync();
+    return Results.Created($"/analyses/{id}/versions/{nextVersion}", new { analysisId = id, version = nextVersion, status = version.Status });
+}).RequireAuthorization("analysis.edit");
+
+// ── POST /analyses/{id}/versions/{v}/publish — make a version the live artifact. ─
+app.MapPost("/analyses/{id:guid}/versions/{v:int}/publish", async (Guid id, int v, AnalysisDbContext db) =>
+{
+    var analysis = await db.Analyses.FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
+    if (analysis is null) return Results.NotFound();
+    var version = await db.CalculationVersions.FirstOrDefaultAsync(x => x.AnalysisId == id && x.Version == v);
+    if (version is null) return Results.NotFound($"Version {v} not found");
+
+    // Archive the previously-published version, promote this one, adopt its config as current.
+    var prev = await db.CalculationVersions.Where(x => x.AnalysisId == id && x.Status == "published").ToListAsync();
+    foreach (var p in prev) p.Status = "archived";
+    version.Status = "published";
+    version.PublishedAt = DateTimeOffset.UtcNow;
+    analysis.Version = v;
+    analysis.Configuration = JsonDocument.Parse(version.Configuration.RootElement.GetRawText());
+    analysis.UpdatedAt = DateTimeOffset.UtcNow;
+    await db.SaveChangesAsync();
+    return Results.Ok(new { analysisId = id, publishedVersion = v });
+}).RequireAuthorization("analysis.edit");
+
+// ── GET /analyses/{id}/versions — version history. ─
+app.MapGet("/analyses/{id:guid}/versions", async (Guid id, AnalysisDbContext db) =>
+{
+    var versions = await db.CalculationVersions.Where(v => v.AnalysisId == id)
+        .OrderByDescending(v => v.Version)
+        .Select(v => new { v.Version, v.Status, v.ChangeNote, v.CreatedBy, v.CreatedAt, v.PublishedAt })
+        .ToListAsync();
+    return Results.Ok(new { analysisId = id, versions });
+}).RequireAuthorization("analysis.view");
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Analysis Types / Templates
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -374,14 +485,18 @@ app.MapGet("/analyses/types", () =>
         },
         new AnalysisTypeInfo
         {
+            // "expression" matches the AnalysisType enum value clients POST; the display name is
+            // "Calculation". (Was advertised as "Custom Flink SQL" that no job executed — audit §7.3.)
             Type = "expression",
-            Name = "Custom Expression",
-            Description = "Custom Flink SQL expression",
+            Name = "Calculation",
+            // Phase 7 — this is what the AnalysisExecutionJob actually runs: an arithmetic expression over
+            // named input tags, evaluated in Flink and published to the UNS as a derived measurement.
+            Description = "Arithmetic expression over named input tags, executed by Flink and published to the UNS as a derived measurement",
             ConfigSchema = new Dictionary<string, string>
             {
-                ["sqlExpression"] = "string - Flink SQL SELECT",
-                ["sourceTable"] = "string - default: metrics",
-                ["windowSize"] = "string? - time window"
+                ["expression"] = "string - arithmetic over input names, e.g. (a + b) / 2 * 3.6",
+                ["inputs"] = "{name,path}[] - named UNS tag inputs bound into the expression",
+                ["unit"] = "string? - engineering unit of the derived result"
             }
         }
     };
@@ -410,6 +525,88 @@ static async Task PublishAnalysisCommand(IProducer<string, string> kafka, string
     });
 }
 
+static string Username(System.Security.Claims.ClaimsPrincipal user) =>
+    user.FindFirst("preferred_username")?.Value
+    ?? user.FindFirst("username")?.Value
+    ?? user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+    ?? "system";
+
+// ── Phase 7 — calculation input sourcing (Redis snapshot reads) ───────────────
+static class CalcPayload
+{
+    public record Input(string Name, string Path);
+
+    /// <summary>Extract (expression, inputs, unit) from an analysis configuration document.</summary>
+    public static (string? expression, List<Input> inputs, string? unit) Parse(JsonDocument config)
+    {
+        var inputs = new List<Input>();
+        string? expression = null, unit = null;
+        try
+        {
+            var root = config.RootElement;
+            if (root.TryGetProperty("expression", out var e) && e.ValueKind == JsonValueKind.String) expression = e.GetString();
+            if (expression is null && root.TryGetProperty("sqlExpression", out var s) && s.ValueKind == JsonValueKind.String) expression = s.GetString();
+            if (root.TryGetProperty("unit", out var u) && u.ValueKind == JsonValueKind.String) unit = u.GetString();
+            if (root.TryGetProperty("inputs", out var arr) && arr.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in arr.EnumerateArray())
+                {
+                    var name = item.TryGetProperty("name", out var n) ? n.GetString() : null;
+                    var path = item.TryGetProperty("path", out var p) ? p.GetString() : null;
+                    if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(path))
+                        inputs.Add(new Input(name!, path!));
+                }
+            }
+        }
+        catch { /* malformed config → no calc payload */ }
+        return (expression, inputs, unit);
+    }
+
+    /// <summary>Read each input's current value from its Redis snapshot (best-effort).</summary>
+    public static async Task<Dictionary<string, double>> ReadInputsAsync(IConnectionMultiplexer redis, List<Input> inputs)
+    {
+        var result = new Dictionary<string, double>();
+        if (inputs.Count == 0) return result;
+        var db = redis.GetDatabase();
+        foreach (var input in inputs)
+        {
+            var key = SnapshotKeyFor(input.Path);
+            if (key is null) continue;
+            try
+            {
+                var raw = await db.StringGetAsync(key);
+                if (raw.IsNullOrEmpty) continue;
+                if (double.TryParse(raw!, out var d)) { result[input.Name] = d; continue; }
+                using var doc = JsonDocument.Parse(raw.ToString());
+                if (doc.RootElement.TryGetProperty("value", out var vv) && vv.TryGetDouble(out var dv)) result[input.Name] = dv;
+                else if (doc.RootElement.TryGetProperty("v", out var v2) && v2.TryGetDouble(out var dv2)) result[input.Name] = dv2;
+            }
+            catch { /* a missing/garbled snapshot just leaves that variable unbound */ }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Snapshot key for a UNS path. Live snapshots are keyed by the BARE device name (the asset catalog's
+    /// canonical SparkplugDevice, and what historian-bff /snapshot reads at position 4) —
+    /// snapshot:metric:{site}:{site}_edge1:{device}:{metric}. NOT the {unit}_{device} form that
+    /// binding-resolver's *fallback* generates (which its own comment flags as breaking live values).
+    /// </summary>
+    public static string? SnapshotKeyFor(string contextualPath)
+    {
+        var parts = contextualPath.Split('/');
+        if (parts.Length < 2) return null;
+        var site = parts[0];
+        var edgeNode = $"{site}_edge1";
+        var last = parts[^1];
+        var dot = last.IndexOf('.');
+        if (dot < 0) return null;
+        var device = last[..dot];
+        var metric = last[(dot + 1)..];
+        return $"snapshot:metric:{site}:{edgeNode}:{device}:{metric}";
+    }
+}
+
 // ── DTOs ─────────────────────────────────────────────────────────────────────
 record AnalysisListDto(
     Guid Id, string Name, AnalysisType Type, string? Description,
@@ -436,6 +633,8 @@ record UpdateAnalysisRequest(
     string? OutputPath, string? Schedule, bool? IsEnabled);
 
 record ExecuteRequest(DateTimeOffset? WindowStart, DateTimeOffset? WindowEnd);
+
+record VersionRequest(string? ChangeNote);
 
 record UpdateExecutionStatusRequest(
     string Status, string? FlinkJobId, long? InputRecords, long? OutputRecords, string? ErrorMessage);

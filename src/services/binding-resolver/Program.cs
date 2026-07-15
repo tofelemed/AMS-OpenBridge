@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using StackExchange.Redis;
 using Traverse.BindingResolver.Models;
 using Traverse.BindingResolver.Services;
@@ -67,18 +68,24 @@ app.MapGet("/health", async (IConnectionMultiplexer redis) =>
 app.MapGet("/resolve", async (
     string path,
     string? roles,
+    ClaimsPrincipal user,
     PathResolver resolver) =>
 {
     if (string.IsNullOrWhiteSpace(path))
         return Results.BadRequest("'path' is required");
-    
+
+    // Phase 7 (R17) — asset-scoped authorization. A token carrying assetScope claim(s) may only resolve
+    // paths under an allowed prefix; a token with no scope claim is unrestricted (backward compatible).
+    if (!AssetScope.InScope(user, path))
+        return Results.Forbid();
+
     var roleList = string.IsNullOrWhiteSpace(roles)
         ? new[] { "all" }
         : roles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    
+
     var binding = await resolver.ResolveAsync(path, roleList);
-    return binding.Resolved 
-        ? Results.Ok(binding) 
+    return binding.Resolved
+        ? Results.Ok(binding)
         : Results.NotFound(binding);
 }).RequireAuthorization("binding.resolve");
 
@@ -86,17 +93,27 @@ app.MapGet("/resolve", async (
 // Resolves multiple paths in a single request.
 app.MapPost("/resolve/batch", async (
     BatchBindingRequest request,
+    ClaimsPrincipal user,
     PathResolver resolver) =>
 {
     if (request.Bindings is null || request.Bindings.Length == 0)
         return Results.BadRequest("At least one binding is required");
-    
+
     if (request.Bindings.Length > 100)
         return Results.BadRequest("Maximum 100 bindings per request");
-    
+
+    // Out-of-scope paths (Phase 7/R17) are returned unresolved rather than resolved, so a scoped user
+    // never receives transport for a tag they may not see — but the response still aligns by index.
     var results = await Task.WhenAll(
-        request.Bindings.Select(b => resolver.ResolveAsync(b.Path, b.Roles)));
-    
+        request.Bindings.Select(b => AssetScope.InScope(user, b.Path)
+            ? resolver.ResolveAsync(b.Path, b.Roles)
+            : Task.FromResult(new BindingResponse
+            {
+                ContextualPath = b.Path,
+                Resolved = false,
+                Error = "Path is outside your asset scope"
+            })));
+
     return Results.Ok(new { bindings = results });
 }).RequireAuthorization("binding.resolve");
 
@@ -107,15 +124,19 @@ app.MapGet("/resolve/alias", async (
     string legacy,
     string? source,
     string? roles,
+    ClaimsPrincipal user,
     PathResolver resolver) =>
 {
     if (string.IsNullOrWhiteSpace(legacy))
         return Results.BadRequest("'legacy' path is required");
-    
+
     var canonicalPath = await resolver.TryResolveAliasAsync(legacy, source);
     if (canonicalPath is null)
         return Results.NotFound(new { error = $"No alias mapping found for '{legacy}'" });
-    
+
+    if (!AssetScope.InScope(user, canonicalPath))
+        return Results.Forbid();
+
     var roleList = string.IsNullOrWhiteSpace(roles)
         ? new[] { "all" }
         : roles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -173,3 +194,27 @@ app.MapGet("/preview", (string path, PathResolver resolver) =>
 }).RequireAuthorization("binding.resolve");
 
 app.Run();
+
+// ── Phase 7 (R17) — asset-scoped authorization ────────────────────────────────
+static class AssetScope
+{
+    /// <summary>
+    /// A caller may resolve a UNS path only if it falls under one of the allowed prefixes carried on the
+    /// token's <c>assetScope</c> claim(s). No scope claim = unrestricted (scoping is opt-in per user, so
+    /// existing Admin/Engineer tokens are unaffected). Prefixes match on '/' boundaries, so scope
+    /// "site1/unit2" allows "site1/unit2/dev.metric" but not "site1/unit22".
+    /// </summary>
+    public static bool InScope(ClaimsPrincipal user, string path)
+    {
+        var scopes = user.FindAll("assetScope").Select(c => c.Value)
+            .Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+        if (scopes.Length == 0) return true;
+        var p = path.Replace('\\', '/');
+        return scopes.Any(s =>
+        {
+            var prefix = s.TrimEnd('/');
+            return p.Equals(prefix, StringComparison.OrdinalIgnoreCase)
+                || p.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase);
+        });
+    }
+}

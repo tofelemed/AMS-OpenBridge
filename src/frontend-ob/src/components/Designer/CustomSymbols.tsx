@@ -1,6 +1,7 @@
 import React from 'react';
 import type { CanvasItem } from './types';
 import { OBC, getNamurState, getValueColor, getPercentage, formatValue } from './openBridgeTheme';
+import { mediaUrl } from '../../api/mediaApi';
 
 export interface CustomSymbolContext {
   item: CanvasItem;
@@ -217,6 +218,18 @@ export function renderCustomSymbol(type: string, ctx: CustomSymbolContext): Reac
         </div>
       );
 
+    // ─── Image (uploaded PNG/JPEG/GIF/WebP/SVG) ───────────────────────────
+    case 'image.static': {
+      const src = item.mediaId ? mediaUrl(item.mediaId) : undefined;
+      return (
+        <div className="symbol symbol-custom symbol-image">
+          {src
+            ? <img src={src} alt={item.label || 'image'} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            : <div className="symbol-image__placeholder">🖼️ Image — upload in the inspector</div>}
+        </div>
+      );
+    }
+
     case 'shape.rect':
       return (
         <div className="symbol symbol-custom symbol-shape">
@@ -226,6 +239,7 @@ export function renderCustomSymbol(type: string, ctx: CustomSymbolContext): Reac
               fill={(item.style?.fill as string) || fill}
               stroke={(item.style?.stroke as string) || stroke}
               strokeWidth={item.style?.strokeWidth ?? 2}
+              strokeDasharray={item.style?.strokeDasharray}
               rx={item.style?.borderRadius ?? 4}
               opacity={item.style?.opacity ?? 1}
             />
@@ -242,6 +256,7 @@ export function renderCustomSymbol(type: string, ctx: CustomSymbolContext): Reac
               fill={(item.style?.fill as string) || fill}
               stroke={(item.style?.stroke as string) || stroke}
               strokeWidth={item.style?.strokeWidth ?? 2}
+              strokeDasharray={item.style?.strokeDasharray}
               opacity={item.style?.opacity ?? 1}
             />
           </svg>
@@ -256,10 +271,52 @@ export function renderCustomSymbol(type: string, ctx: CustomSymbolContext): Reac
               x1="0" y1="2" x2="100" y2="2"
               stroke={(item.style?.stroke as string) || stroke}
               strokeWidth={item.style?.strokeWidth ?? 2}
+              strokeDasharray={item.style?.strokeDasharray}
             />
           </svg>
         </div>
       );
+
+    // Polygon / polyline. Points come from a .pdix import (absolute coords) or a default
+    // triangle. Normalized to the point bounding box so the shape fills the symbol frame.
+    case 'shape.polygon': {
+      const pts = item.shapeProps?.points ?? [];
+      if (pts.length >= 2) {
+        const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+        const minX = Math.min(...xs), minY = Math.min(...ys);
+        const w = Math.max(1, Math.max(...xs) - minX);
+        const h = Math.max(1, Math.max(...ys) - minY);
+        const attr = pts.map(p => `${p.x - minX},${p.y - minY}`).join(' ');
+        return (
+          <div className="symbol symbol-custom symbol-shape">
+            <svg viewBox={`0 0 ${w} ${h}`} width="100%" height="100%" preserveAspectRatio="none">
+              <polygon
+                points={attr}
+                fill={(item.style?.fill as string) || fill}
+                stroke={(item.style?.stroke as string) || stroke}
+                strokeWidth={item.style?.strokeWidth ?? 2}
+                strokeDasharray={item.style?.strokeDasharray}
+                opacity={item.style?.opacity ?? 1}
+              />
+            </svg>
+          </div>
+        );
+      }
+      return (
+        <div className="symbol symbol-custom symbol-shape">
+          <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="none">
+            <polygon
+              points="50,4 96,96 4,96"
+              fill={(item.style?.fill as string) || fill}
+              stroke={(item.style?.stroke as string) || stroke}
+              strokeWidth={item.style?.strokeWidth ?? 2}
+              strokeDasharray={item.style?.strokeDasharray}
+              opacity={item.style?.opacity ?? 1}
+            />
+          </svg>
+        </div>
+      );
+    }
 
     case 'shape.divider':
       return (
@@ -341,39 +398,8 @@ export function renderCustomSymbol(type: string, ctx: CustomSymbolContext): Reac
       );
 
     // ─── Charts ───────────────────────────────────────────────────────────
-    case 'chart.bar':
-      return (
-        <div className="symbol symbol-custom symbol-chart-bar">
-          <div className="symbol-chart-bar__header">{item.label || 'Bar Chart'}</div>
-          <svg viewBox="0 0 100 60" width="100%" height="100%" preserveAspectRatio="none">
-            {[15, 35, 25, 50, 40, 30].map((h, i) => (
-              <rect
-                key={i}
-                x={8 + i * 15}
-                y={60 - h}
-                width="10"
-                height={h}
-                fill={OBC.advisory}
-                opacity="0.85"
-              />
-            ))}
-          </svg>
-        </div>
-      );
-
-    case 'chart.xy':
-      return (
-        <div className="symbol symbol-custom symbol-chart-xy">
-          <div className="symbol-chart-xy__header">{item.label || 'XY Plot'}</div>
-          <svg viewBox="0 0 100 60" width="100%" height="100%">
-            <line x1="10" y1="55" x2="95" y2="55" stroke={stroke} strokeWidth="1" />
-            <line x1="10" y1="5" x2="10" y2="55" stroke={stroke} strokeWidth="1" />
-            {[[20,45],[35,30],[50,35],[65,20],[80,25]].map(([x,y], i) => (
-              <circle key={i} cx={x} cy={y} r="3" fill={OBC.advisory} />
-            ))}
-          </svg>
-        </div>
-      );
+    // chart.bar and chart.xy are handled by dedicated data-bound components (BarChart / XYPlot),
+    // dispatched from SymbolRenderer — they are intentionally NOT in this mock switch anymore.
 
     case 'chart.pie':
       return (
@@ -398,8 +424,9 @@ export const CUSTOM_SYMBOL_TYPES = new Set([
   'ind.gauge', 'ind.multistate', 'ind.digital', 'ind.setpoint',
   'equip.heater', 'equip.cooler', 'equip.conveyor', 'equip.agitator',
   'pipe.reducer',
-  'shape.rect', 'shape.circle', 'shape.line', 'shape.divider', 'shape.label', 'shape.hotspot',
+  'shape.rect', 'shape.circle', 'shape.line', 'shape.polygon', 'shape.divider', 'shape.label', 'shape.hotspot',
+  'image.static',
   'ctrl.selector',
   'alarm.beacon', 'alarm.horn', 'alarm.summary',
-  'chart.bar', 'chart.xy', 'chart.pie',
+  'chart.pie',
 ]);

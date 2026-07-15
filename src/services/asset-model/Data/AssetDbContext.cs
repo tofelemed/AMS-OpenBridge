@@ -27,6 +27,7 @@ public class AssetDbContext : DbContext
             entity.Property(e => e.EngineeringUnit).HasColumnName("engineering_unit");
             entity.Property(e => e.LoEngLimit).HasColumnName("lo_eng_limit");
             entity.Property(e => e.HiEngLimit).HasColumnName("hi_eng_limit");
+            entity.Property(e => e.Template).HasColumnName("template");
             entity.Property(e => e.ParentId).HasColumnName("parent_id");
             entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");

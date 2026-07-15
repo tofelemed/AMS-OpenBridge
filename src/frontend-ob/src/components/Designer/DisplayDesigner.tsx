@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SymbolPalette } from './SymbolPalette';
 import { PropertyInspector } from './PropertyInspector';
 import { DesignerCanvas } from './DesignerCanvas';
+import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { AssetBrowser } from './AssetBrowser';
 import type { CanvasItem } from './types';
 import { isAutomationType, getDefaultAutomationProps } from './automationTypes';
@@ -141,6 +142,9 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
   // Canvas background is a THEME TOKEN by default, so the canvas follows day/night like everything else.
   const [bgColor, setBgColor] = useState('var(--ams-canvas-bg)');
   const [trendOpen, setTrendOpen] = useState(false); // Phase J — ad-hoc trend dialog
+  // Right-click context menu (Phase 1.12) + a signal to focus a PropertyInspector tab from it.
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+  const [inspectorFocus, setInspectorFocus] = useState<{ tab: string; nonce: number } | undefined>(undefined);
 
   // History — ref-based (avoids the stale-closure index desync of the old version)
   const historyRef = useRef<CanvasItem[][]>([]);
@@ -347,6 +351,30 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
     apply(itemsRef.current.map(it => it.id === id ? { ...it, ...changes } : it), true);
   }, [apply]);
 
+  // Drag-a-tag-from-the-tree gestures (B18/B19). Drop on empty canvas → a bound value readout;
+  // drop on a symbol → add the tag to its next free binding slot.
+  const addBoundSymbol = useCallback((path: string, position: { x: number; y: number }) => {
+    const type = 'obc.readout-unit';
+    const leaf = path.split('/').pop() ?? path;
+    const newItem: CanvasItem = {
+      id: generateId(), type, position, size: getDefaultSize(type),
+      label: leaf, bindings: { value: path }, formatting: { decimals: 1 },
+    };
+    apply([...itemsRef.current, newItem]);
+    setSelectedIds([newItem.id]);
+    toast.success(`Added ${leaf}`);
+  }, [apply]);
+
+  const bindTagToItem = useCallback((id: string, path: string) => {
+    const item = itemsRef.current.find(i => i.id === id);
+    if (!item) return;
+    const slots = findSymbolDefinition(item.type)?.bindingSlots ?? [];
+    const bound = item.bindings ?? {};
+    const slot = slots.find(s => !bound[s]) ?? primarySlotFor(item) ?? 'value';
+    updateItem(id, { bindings: { ...bound, [slot]: path } });
+    toast.success(`Bound ${slot} → ${path.split('/').pop()}`);
+  }, [primarySlotFor, updateItem]);
+
   const deleteSelected = useCallback(() => {
     const ids = new Set(selectedIds);
     apply(itemsRef.current.filter(it => !ids.has(it.id)));
@@ -382,6 +410,34 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
     apply(itemsRef.current.map(it => ids.has(it.id) ? { ...it, groupId: undefined } : it));
   }, [apply, selectedIds]);
 
+  // Convert-to-collection (§I) — wrap the selection into a repeating container. The cell items keep
+  // their relative positions; the container repeats once per matching asset at runtime.
+  const convertToCollection = useCallback(() => {
+    const sel = itemsRef.current.filter(it => selectedIds.includes(it.id));
+    if (!sel.length) return;
+    const minX = Math.min(...sel.map(i => i.position.x));
+    const minY = Math.min(...sel.map(i => i.position.y));
+    const maxX = Math.max(...sel.map(i => i.position.x + i.size.width));
+    const maxY = Math.max(...sel.map(i => i.position.y + i.size.height));
+    const cellW = Math.max(20, maxX - minX);
+    const cellH = Math.max(20, maxY - minY);
+    const cellItems = sel.map(it => ({ ...it, position: { x: it.position.x - minX, y: it.position.y - minY }, groupId: undefined }));
+    const container: CanvasItem = {
+      id: generateId(), type: 'collection.container',
+      position: { x: minX, y: minY },
+      size: { width: cellW * 2 + 24, height: cellH * 3 + 40 },
+      collectionConfig: {
+        criteria: { returnAllDescendants: true },
+        cell: { width: cellW, height: cellH },
+        columns: 2, gap: 12, items: cellItems, maxInstances: 24,
+      },
+    };
+    const selSet = new Set(selectedIds);
+    apply([...itemsRef.current.filter(it => !selSet.has(it.id)), container]);
+    setSelectedIds([container.id]);
+    toast.success('Converted to collection — set criteria in the inspector');
+  }, [apply, selectedIds]);
+
   // align / same-size
   const alignSelected = useCallback((dir: 'left' | 'right' | 'top' | 'bottom' | 'centerH' | 'centerV') => {
     const sel = itemsRef.current.filter(it => selectedIds.includes(it.id));
@@ -412,20 +468,50 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
     apply(itemsRef.current.map(it => ids.has(it.id) ? { ...it, size: { width, height } } : it));
   }, [apply, selectedIds]);
 
-  // z-order / flip
-  const zOrder = useCallback((dir: 'front' | 'back') => {
-    const zs = itemsRef.current.map(i => i.zIndex || 0);
-    const target = dir === 'front' ? Math.max(0, ...zs) + 1 : Math.min(0, ...zs) - 1;
+  // z-order / flip. front/back jump past everything; forward/backward step one level.
+  const zOrder = useCallback((dir: 'front' | 'back' | 'forward' | 'backward') => {
     const ids = new Set(selectedIds);
-    apply(itemsRef.current.map(it => ids.has(it.id) ? { ...it, zIndex: target } : it));
+    if (dir === 'front' || dir === 'back') {
+      const zs = itemsRef.current.map(i => i.zIndex || 0);
+      const target = dir === 'front' ? Math.max(0, ...zs) + 1 : Math.min(0, ...zs) - 1;
+      apply(itemsRef.current.map(it => ids.has(it.id) ? { ...it, zIndex: target } : it));
+    } else {
+      const delta = dir === 'forward' ? 1 : -1;
+      apply(itemsRef.current.map(it => ids.has(it.id) ? { ...it, zIndex: (it.zIndex || 0) + delta } : it));
+    }
+  }, [apply, selectedIds]);
+
+  // distribute — even spacing of ≥3 items by their top-left along one axis.
+  const distributeSelected = useCallback((axis: 'h' | 'v') => {
+    const key: 'x' | 'y' = axis === 'h' ? 'x' : 'y';
+    const sel = itemsRef.current.filter(it => selectedIds.includes(it.id));
+    if (sel.length < 3) return;
+    const sorted = [...sel].sort((a, b) => a.position[key] - b.position[key]);
+    const start = sorted[0].position[key];
+    const end = sorted[sorted.length - 1].position[key];
+    const gap = (end - start) / (sorted.length - 1);
+    const targets = new Map<string, number>();
+    sorted.forEach((it, i) => {
+      if (i > 0 && i < sorted.length - 1) targets.set(it.id, Math.round(start + gap * i));
+    });
+    apply(itemsRef.current.map(it =>
+      targets.has(it.id) ? { ...it, position: { ...it.position, [key]: targets.get(it.id)! } } : it));
   }, [apply, selectedIds]);
   const flipSelected = useCallback((axis: 'H' | 'V') => {
     const ids = new Set(selectedIds);
     apply(itemsRef.current.map(it => ids.has(it.id) ? { ...it, [axis === 'H' ? 'flipH' : 'flipV']: !(axis === 'H' ? it.flipH : it.flipV) } : it));
   }, [apply, selectedIds]);
 
-  // copy / paste
+  // cut / copy / paste
   const copySelected = useCallback(() => { clipboardRef.current = itemsRef.current.filter(it => selectedIds.includes(it.id)); }, [selectedIds]);
+  const cut = useCallback(() => {
+    const sel = itemsRef.current.filter(it => selectedIds.includes(it.id));
+    if (!sel.length) return;
+    clipboardRef.current = sel;
+    const ids = new Set(selectedIds);
+    apply(itemsRef.current.filter(it => !ids.has(it.id)));
+    setSelectedIds([]);
+  }, [apply, selectedIds]);
   const paste = useCallback(() => {
     if (!clipboardRef.current.length) return;
     const copies = clipboardRef.current.map(it => ({ ...it, id: generateId(), groupId: undefined, position: { x: it.position.x + 20, y: it.position.y + 20 } }));
@@ -436,6 +522,18 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
   const selectMany = useCallback((ids: string[]) => setSelectedIds(ids), []);
   const toggleSelect = useCallback((id: string) => setSelectedIds(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]), []);
   const zoomBy = useCallback((f: number) => setZoom(z => Math.max(0.25, Math.min(3, z * f))), []);
+
+  // Right-click context menu (Phase 1.12). Selecting the item first makes the inspector reflect it.
+  const ctxNonce = useRef(0);
+  const focusInspectorTab = useCallback((tab: string) => {
+    ctxNonce.current += 1;
+    setInspectorFocus({ tab, nonce: ctxNonce.current });
+  }, []);
+  const handleItemContextMenu = useCallback((e: React.MouseEvent, item: CanvasItem) => {
+    e.preventDefault();
+    setSelectedIds(sel => (sel.includes(item.id) ? sel : [item.id]));
+    setCtxMenu({ x: e.clientX, y: e.clientY });
+  }, []);
 
   // ── keyboard shortcuts ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -449,13 +547,14 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
       else if (k === 'y') { e.preventDefault(); redo(); }
       else if (k === 'd') { e.preventDefault(); duplicateSelected(); }
       else if (k === 'c') { e.preventDefault(); copySelected(); }
+      else if (k === 'x') { e.preventDefault(); cut(); }
       else if (k === 'v') { e.preventDefault(); paste(); }
       else if (k === 'g') { e.preventDefault(); e.shiftKey ? ungroupSelected() : groupSelected(); }
       else if (k === 'a') { e.preventDefault(); setSelectedIds(itemsRef.current.map(i => i.id)); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [saveMutation, undo, redo, duplicateSelected, copySelected, paste, groupSelected, ungroupSelected]);
+  }, [saveMutation, undo, redo, duplicateSelected, copySelected, cut, paste, groupSelected, ungroupSelected]);
 
   // ── Full screen + fit-to-screen ───────────────────────────────────────────
   // The designer is a full-viewport route (outside the app shell), so "full screen" here is the real
@@ -559,6 +658,7 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
         onGroup={groupSelected}
         onUngroup={ungroupSelected}
         onAlign={alignSelected}
+        onDistribute={distributeSelected}
         onSameSize={sameSize}
         onZOrder={zOrder}
         onFlip={flipSelected}
@@ -568,6 +668,8 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
         setShowGrid={setShowGrid}
         snapEnabled={snapEnabled}
         setSnapEnabled={setSnapEnabled}
+        bgColor={bgColor}
+        setBgColor={(c) => { setBgColor(c); setIsDirty(true); }}
         showAssets={leftTab === 'assets'}
         toggleAssets={() => { setLeftTab(t => (t === 'assets' ? 'symbols' : 'assets')); setLeftCollapsed(false); }}
         canvasSize={canvasSize}
@@ -673,6 +775,9 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
             onDeleteSelected={deleteSelected}
             onNudge={nudge}
             onZoomBy={zoomBy}
+            onItemContextMenu={handleItemContextMenu}
+            onBindTag={bindTagToItem}
+            onAddBoundSymbol={addBoundSymbol}
           />
         </main>
         
@@ -685,10 +790,34 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
               onUpdateMany={updateMany}
               onDeleteItem={deleteItem}
               onDuplicateItem={() => duplicateSelected()}
+              focusTab={inspectorFocus}
             />
           </aside>
         )}
       </div>
+
+      {ctxMenu && (
+        <ContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onClose={() => setCtxMenu(null)}
+          items={([
+            { label: 'Cut', onClick: cut, disabled: !selectedIds.length },
+            { label: 'Copy', onClick: copySelected, disabled: !selectedIds.length },
+            { label: 'Paste', onClick: paste, disabled: !clipboardRef.current.length },
+            { label: 'Duplicate', onClick: duplicateSelected, disabled: !selectedIds.length },
+            { label: 'Delete', onClick: deleteSelected, disabled: !selectedIds.length, danger: true, divider: true },
+            { label: 'Bring to front', onClick: () => zOrder('front'), divider: true },
+            { label: 'Bring forward', onClick: () => zOrder('forward') },
+            { label: 'Send backward', onClick: () => zOrder('backward') },
+            { label: 'Send to back', onClick: () => zOrder('back') },
+            { label: 'Convert to collection', onClick: convertToCollection, disabled: !selectedIds.length, divider: true },
+            { label: 'Format…', onClick: () => focusInspectorTab('style'), divider: true },
+            { label: 'Edit states…', onClick: () => focusInspectorTab('states') },
+            { label: 'Add navigation link…', onClick: () => focusInspectorTab('action') },
+          ] as ContextMenuItem[])}
+        />
+      )}
       
       {/* Footer Status Bar */}
       <footer className="display-designer__footer">

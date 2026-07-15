@@ -54,12 +54,38 @@ public class AnalysisDefinition
     /// Owner user ID.
     /// </summary>
     public required string OwnerId { get; set; }
-    
+
+    /// <summary>
+    /// Current published version (Phase 7 — calculations are named, versioned artifacts, per the
+    /// Flink-only-compute decision). Bumped when a new version is published.
+    /// </summary>
+    public int Version { get; set; } = 1;
+
     public bool IsDeleted { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
-    
+
     public ICollection<AnalysisExecution> Executions { get; set; } = new List<AnalysisExecution>();
+}
+
+/// <summary>
+/// An immutable, versioned snapshot of a calculation/analysis definition (Phase 7 — L1–L4/L10).
+/// A calculation is authored, versioned, and published as an artifact; the Flink AnalysisExecutionJob
+/// runs the published version. History is append-only so an execution is always traceable to a version.
+/// </summary>
+public class CalculationVersion
+{
+    public Guid Id { get; set; }
+    public Guid AnalysisId { get; set; }
+    public int Version { get; set; }
+    /// <summary>Snapshot of the analysis configuration at this version (e.g. expression + inputs).</summary>
+    public required JsonDocument Configuration { get; set; }
+    public string? ChangeNote { get; set; }
+    /// <summary>draft | published | archived.</summary>
+    public required string Status { get; set; }
+    public required string CreatedBy { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? PublishedAt { get; set; }
 }
 
 public enum AnalysisType
@@ -239,4 +265,25 @@ public class ExpressionConfig
     /// Time window for expression (e.g., "1h").
     /// </summary>
     public string? WindowSize { get; set; }
+}
+
+/// <summary>
+/// Configuration for a calculation (Phase 7): an arithmetic expression over named input tags, evaluated
+/// by the Flink AnalysisExecutionJob and published to the UNS as a derived measurement. This is the
+/// Traverse-shaped alternative to a client-side expression engine (recorded decision L19).
+/// </summary>
+public class CalculationConfig
+{
+    /// <summary>Arithmetic expression using the input names, e.g. "(a + b) / 2 * 3.6".</summary>
+    public required string Expression { get; set; }
+    /// <summary>Named inputs: each maps a variable name to a UNS path whose live value is substituted.</summary>
+    public required CalculationInput[] Inputs { get; set; }
+    /// <summary>Engineering unit of the derived result (registered with the derived measurement).</summary>
+    public string? Unit { get; set; }
+}
+
+public class CalculationInput
+{
+    public required string Name { get; set; }
+    public required string Path { get; set; }
 }

@@ -28,6 +28,9 @@ interface DesignerCanvasProps {
   onDeleteSelected?: () => void;
   onNudge?: (dx: number, dy: number) => void;         // arrow keys (commits)
   onZoomBy?: (factor: number) => void;                // ctrl+wheel
+  onItemContextMenu?: (e: React.MouseEvent, item: CanvasItem) => void; // right-click a symbol
+  onBindTag?: (id: string, path: string) => void;                     // drop a tag on a symbol
+  onAddBoundSymbol?: (path: string, position: { x: number; y: number }) => void; // drop a tag on empty canvas
 }
 
 const snap = (v: number, g: number) => Math.round(v / g) * g;
@@ -97,6 +100,7 @@ export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
   items, selectedIds, mode, gridSize = 10, showGrid = true, zoom = 1,
   canvasWidth = 1920, canvasHeight = 1080, canvasBg = 'var(--ams-canvas-bg)', snapEnabled = true,
   onSelect, onToggleSelect, onUpdateItems, onCommit, onAddItem, onDeleteSelected, onNudge, onZoomBy,
+  onItemContextMenu, onBindTag, onAddBoundSymbol,
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -145,15 +149,30 @@ export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
     return { x: (e.clientX - r.left) / zoom, y: (e.clientY - r.top) / zoom };
   };
 
-  // ── drop new symbol ────────────────────────────────────────────────────────
+  // ── drop: a new symbol (palette) OR a data tag (asset tree) ──────────────────
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    const t = e.dataTransfer.getData('application/symbol-type');
-    if (!t || !canvasRef.current) return;
-    const p = toCanvas(e);
-    const d = getDefaultSizeSync(t);
-    onAddItem(t, { x: snap(p.x - d.width / 2, gridSize), y: snap(p.y - d.height / 2, gridSize) });
-  }, [zoom, gridSize, onAddItem]);
+    if (!canvasRef.current) return;
+    const symbolType = e.dataTransfer.getData('application/symbol-type');
+    if (symbolType) {
+      const p = toCanvas(e);
+      const d = getDefaultSizeSync(symbolType);
+      onAddItem(symbolType, { x: snap(p.x - d.width / 2, gridSize), y: snap(p.y - d.height / 2, gridSize) });
+      return;
+    }
+    const tagPath = e.dataTransfer.getData('application/x-ams-tag');
+    if (tagPath) {
+      const p = toCanvas(e);
+      // Topmost symbol under the drop point, if any → add the tag to it (B19); else create a bound
+      // value readout at the drop point (B18).
+      const hit = [...items]
+        .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
+        .find(it => p.x >= it.position.x && p.x <= it.position.x + it.size.width
+                 && p.y >= it.position.y && p.y <= it.position.y + it.size.height);
+      if (hit) onBindTag?.(hit.id, tagPath);
+      else onAddBoundSymbol?.(tagPath, { x: snap(p.x, gridSize), y: snap(p.y, gridSize) });
+    }
+  }, [zoom, gridSize, onAddItem, items, onBindTag, onAddBoundSymbol]);
 
   // ── item mousedown (select + start drag) ───────────────────────────────────
   const itemMouseDown = (e: React.MouseEvent, item: CanvasItem) => {
@@ -222,11 +241,24 @@ export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
         })));
       } else if (resize) {
         const dx = (e.clientX - resize.sx) / zoom, dy = (e.clientY - resize.sy) / zoom;
-        let w = resize.w, h = resize.h, x = resize.x, y = resize.y;
+        let w = resize.w, h = resize.h;
         if (resize.handle.includes('e')) w = Math.max(20, resize.w + dx);
-        if (resize.handle.includes('w')) { w = Math.max(20, resize.w - dx); x = resize.x + dx; }
+        if (resize.handle.includes('w')) w = Math.max(20, resize.w - dx);
         if (resize.handle.includes('s')) h = Math.max(20, resize.h + dy);
-        if (resize.handle.includes('n')) { h = Math.max(20, resize.h - dy); y = resize.y + dy; }
+        if (resize.handle.includes('n')) h = Math.max(20, resize.h - dy);
+        // Shift preserves aspect ratio (Q8 / B23). Edge handles drive the other dimension;
+        // corner handles use width as the driver.
+        if (e.shiftKey && resize.w > 0 && resize.h > 0) {
+          const aspect = resize.w / resize.h;
+          const wChanged = /[ew]/.test(resize.handle);
+          const hChanged = /[ns]/.test(resize.handle);
+          if (hChanged && !wChanged) w = Math.max(20, h * aspect);
+          else h = Math.max(20, w / aspect);
+        }
+        // Anchor the opposite edge for west/north handles, derived from the FINAL size.
+        let x = resize.x, y = resize.y;
+        if (resize.handle.includes('w')) x = resize.x + (resize.w - w);
+        if (resize.handle.includes('n')) y = resize.y + (resize.h - h);
         onUpdateItems([{ id: resize.id, changes: { position: { x: snap(x, gridSize), y: snap(y, gridSize) }, size: { width: snap(w, gridSize), height: snap(h, gridSize) } } }]);
       } else if (rotate) {
         const p = toCanvas(e);
@@ -361,6 +393,7 @@ export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
               className={`designer-canvas__item ${isSel ? 'designer-canvas__item--selected' : ''} ${item.locked ? 'designer-canvas__item--locked' : ''}${item.hidden ? ' designer-canvas__item--hidden' : ''}`}
               style={{ left: item.position.x, top: item.position.y, width: item.size.width, height: item.size.height, transform: tf, zIndex: item.zIndex || 0 }}
               onMouseDown={(e) => itemMouseDown(e, item)}
+              onContextMenu={onItemContextMenu ? (e) => onItemContextMenu(e, item) : undefined}
             >
               <SymbolRenderer item={item} mode={mode} />
               {isPrimary && mode === 'design' && !item.locked && (

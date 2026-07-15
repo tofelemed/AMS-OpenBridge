@@ -216,6 +216,37 @@ public sealed class AlarmsController : ControllerBase
     }
 
     // ====================================================================
+    // POST /api/v1/alarms/{id}/unshelve
+    // ====================================================================
+    /// <summary>
+    /// Unshelve a shelved alarm, returning it to service. Per ISA-18.2 Section 11.
+    /// Reason mandatory.
+    /// </summary>
+    [HttpPost("{id:guid}/unshelve")]
+    [Authorize(Policy = "alarm.unshelve")]
+    [SwaggerOperation("UnshelveAlarm", Tags = new[] { "Alarms" })]
+    [ProducesResponseType(typeof(UnshelveAlarmResult), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(403)]
+    public async Task<IActionResult> UnshelveAlarm(
+        [FromRoute] Guid id,
+        [FromBody] UnshelveRequest request,
+        CancellationToken ct = default)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var result = await _mediator.Send(new UnshelveAlarmCommand(
+            AlarmId:         id,
+            UserId:          GetCurrentUserId(),
+            Reason:          request.Reason,
+            OperatorStation: request.OperatorStation
+        ), ct);
+
+        if (!result.Success) return BadRequest(new { message = result.Message });
+        return Ok(result);
+    }
+
+    // ====================================================================
     // POST /api/v1/alarms/{id}/suppress
     // ====================================================================
     [HttpPost("{id:guid}/suppress")]
@@ -449,6 +480,11 @@ public record ShelveRequest(
 );
 
 public record SuppressRequest(
+    [Required, MaxLength(2000)] string Reason,
+    [MaxLength(255)] string? OperatorStation
+);
+
+public record UnshelveRequest(
     [Required, MaxLength(2000)] string Reason,
     [MaxLength(255)] string? OperatorStation
 );

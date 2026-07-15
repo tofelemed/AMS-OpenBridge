@@ -9,6 +9,7 @@ public class AnalysisDbContext : DbContext
     
     public DbSet<AnalysisDefinition> Analyses => Set<AnalysisDefinition>();
     public DbSet<AnalysisExecution> Executions => Set<AnalysisExecution>();
+    public DbSet<CalculationVersion> CalculationVersions => Set<CalculationVersion>();
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -29,6 +30,7 @@ public class AnalysisDbContext : DbContext
             entity.Property(e => e.Schedule).HasColumnName("schedule").IsRequired();
             entity.Property(e => e.IsEnabled).HasColumnName("is_enabled").HasDefaultValue(true);
             entity.Property(e => e.OwnerId).HasColumnName("owner_id").IsRequired();
+            entity.Property(e => e.Version).HasColumnName("version").HasDefaultValue(1);
             entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
@@ -64,6 +66,22 @@ public class AnalysisDbContext : DbContext
             entity.HasIndex(e => e.AnalysisId);
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.StartedAt);
+        });
+
+        modelBuilder.Entity<CalculationVersion>(entity =>
+        {
+            entity.ToTable("calculation_versions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.AnalysisId).HasColumnName("analysis_id");
+            entity.Property(e => e.Version).HasColumnName("version");
+            entity.Property(e => e.Configuration).HasColumnName("configuration").HasColumnType("jsonb");
+            entity.Property(e => e.ChangeNote).HasColumnName("change_note");
+            entity.Property(e => e.Status).HasColumnName("status").IsRequired();
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by").IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+            entity.Property(e => e.PublishedAt).HasColumnName("published_at");
+            entity.HasIndex(e => new { e.AnalysisId, e.Version }).IsUnique();
         });
     }
 }

@@ -50,6 +50,8 @@ const EdgeNodeMonitor: React.FC = () => {
   const metrics        = useMqttStore(s => s.metrics);
   const aliasMap       = useMqttStore(s => s.aliasMap);
   const mqttConnect    = useMqttStore(s => s.connect);
+  const subscribeFirehose   = useMqttStore(s => s.subscribeFirehose);
+  const unsubscribeFirehose = useMqttStore(s => s.unsubscribeFirehose);
 
   /* BFF health */
   const [bffHealth,  setBffHealth]  = useState<BffHealth | null>(null);
@@ -65,6 +67,9 @@ const EdgeNodeMonitor: React.FC = () => {
   /* Connect MQTT on mount */
   useEffect(() => {
     mqttConnect();
+    // Edge monitor shows plant-wide live alarms → opt into the DDATA firehose.
+    subscribeFirehose();
+    return () => unsubscribeFirehose();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

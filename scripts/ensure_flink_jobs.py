@@ -116,6 +116,15 @@ CORE_JOBS: tuple[FlinkJobSpec, ...] = (
             "--bootstrap.servers", KAFKA_BROKERS,
         ),
     ),
+    # Phase 7 — evaluates calculation expressions (analysis.executions → analysis.results). Previously
+    # analysis-service produced execution commands that no job consumed; this closes that loop.
+    FlinkJobSpec(
+        name="AMS - Analysis Execution Engine",
+        entry_class="com.ams.flink.AnalysisExecutionJob",
+        extra_args=(
+            "--bootstrap.servers", KAFKA_BROKERS,
+        ),
+    ),
 )
 
 

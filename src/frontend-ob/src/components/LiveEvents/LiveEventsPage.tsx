@@ -49,10 +49,12 @@ const LiveEventsPage: React.FC = () => {
   const connectionState = useAlarmStore(s => s.connectionState);
   const signalrLive     = connectionState === 'Connected';
 
-  const mqttConnect        = useMqttStore(s => s.connect);
-  const loadAllSnapshots   = useMqttStore(s => s.loadAllSnapshots);
-  const mqttConnected      = useMqttStore(s => s.connected);
-  const liveAlarms         = useMqttStore(s => s.liveAlarms);
+  const mqttConnect         = useMqttStore(s => s.connect);
+  const loadAllSnapshots    = useMqttStore(s => s.loadAllSnapshots);
+  const subscribeFirehose   = useMqttStore(s => s.subscribeFirehose);
+  const unsubscribeFirehose = useMqttStore(s => s.unsubscribeFirehose);
+  const mqttConnected       = useMqttStore(s => s.connected);
+  const liveAlarms          = useMqttStore(s => s.liveAlarms);
 
   const [activeTab,      setActiveTab]      = useState<StreamTab>('mqtt');
   const [priorityFilter, setPriorityFilter] = useState('');
@@ -65,6 +67,9 @@ const LiveEventsPage: React.FC = () => {
   useEffect(() => {
     mqttConnect();
     void loadAllSnapshots();
+    // Live Events is a plant-wide monitor → opt into the DDATA firehose.
+    subscribeFirehose();
+    return () => unsubscribeFirehose();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

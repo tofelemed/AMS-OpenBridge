@@ -224,16 +224,19 @@ public class PathResolver
     
     private AlarmBinding BuildAlarmBinding(string alarmSource)
     {
-        var amsApi = _config["Services:AmsApi"] ?? "http://ams-api:5000";
-        var signalrHub = _config["Services:SignalRHub"] ?? $"{amsApi}/hubs/alarm";
-        
+        // ams-api listens on :8000 in-container (compose) — NOT :5000 (that is local-dev Kestrel).
+        var amsApi = _config["Services:AmsApi"] ?? "http://ams-api:8000";
+        // The AlarmHub is mapped at /hubs/alarms (plural) in AMS.Api/Program.cs.
+        var signalrHub = _config["Services:SignalRHub"] ?? $"{amsApi}/hubs/alarms";
+
         return new AlarmBinding
         {
             AlarmSource = alarmSource,
             SignalRHub = signalrHub,
             SubscribeMethod = "SubscribeToAlarms",
             KafkaTopic = "live.alarms",
-            AlarmApiEndpoint = $"{amsApi}/api/alarms?source={Uri.EscapeDataString(alarmSource)}"
+            // Real route is GET /api/v1/alarms/active?sourceNameContains= (AlarmsController).
+            AlarmApiEndpoint = $"{amsApi}/api/v1/alarms/active?sourceNameContains={Uri.EscapeDataString(alarmSource)}"
         };
     }
 }

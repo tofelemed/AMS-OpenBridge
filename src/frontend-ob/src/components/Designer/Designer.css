@@ -1422,7 +1422,167 @@
 .symbol-multistate__light.active {
   opacity: 1;
   box-shadow: 0 0 8px currentColor;
-}/* Setpoint */
+}
+
+/* ── Multi-state authoring editor (PropertyInspector States tab) ───────────── */
+.ms-btn {
+  margin-top: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--element-active-color, #f1f5f9);
+  background: var(--container-section-color, #262626);
+  border: 1px solid var(--normal-enabled-border-color, #bebebe);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.ms-btn:hover { border-color: var(--normal-focused-border-color, #4271b3); }
+.ms-btn--danger { color: var(--ams-crit); }
+
+.ms-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--designer-border, #333);
+}
+.ms-state__label { flex: 1 1 90px; min-width: 70px; }
+.ms-state__range { display: flex; align-items: center; gap: 4px; }
+.ms-state__range .property-input { width: 56px; }
+.ms-state__dash { color: var(--element-neutral-color, #949494); }
+.ms-state__blink { display: flex; align-items: center; gap: 4px; font-size: 11px; }
+
+.ms-swatches { display: flex; gap: 4px; }
+.ms-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.ms-swatch--active {
+  border-color: var(--element-active-color, #f1f5f9);
+  box-shadow: 0 0 0 1px var(--container-background-color, #1f1f1f);
+}
+
+/* ── Canvas right-click context menu ───────────────────────────────────────── */
+.ctx-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 180px;
+  padding: 4px;
+  background: var(--container-section-color, #262626);
+  border: 1px solid var(--normal-enabled-border-color, #bebebe);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+}
+.ctx-menu__item {
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--element-active-color, #f1f5f9);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.ctx-menu__item:hover:not(:disabled) { background: var(--normal-focused-border-color, #4271b3); }
+.ctx-menu__item:disabled { color: var(--element-disabled-color, #535353); cursor: default; }
+.ctx-menu__item--danger { color: var(--ams-crit); }
+.ctx-menu__divider {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--designer-border, #333);
+}
+
+/* ── Bar chart (data-bound) ─────────────────────────────────────────────────── */
+.symbol-barchart { width: 100%; height: 100%; padding: 6px; box-sizing: border-box; }
+.symbol-barchart--empty, .symbol-barchart--design {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; font-size: 12px; color: var(--element-neutral-color, #949494);
+}
+.symbol-barchart__design-pens, .symbol-xyplot__design-pens { font-size: 10px; opacity: 0.7; }
+.symbol-barchart__plot {
+  display: flex; align-items: flex-end; justify-content: space-around;
+  gap: 4px; width: 100%; height: 100%;
+}
+.symbol-barchart__col {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  flex: 1; height: 100%; min-width: 0;
+}
+.symbol-barchart__bar { width: 70%; border-radius: 2px 2px 0 0; min-height: 2px; transition: height 0.3s ease; }
+.symbol-barchart__value { font-size: 9px; margin-top: 2px; color: var(--element-active-color, #f1f5f9); }
+.symbol-barchart__label {
+  font-size: 9px; color: var(--element-neutral-color, #949494);
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── XY plot (data-bound) ───────────────────────────────────────────────────── */
+.symbol-xyplot { width: 100%; height: 100%; }
+.symbol-xyplot--empty, .symbol-xyplot--design {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; font-size: 12px; color: var(--element-neutral-color, #949494); height: 100%;
+}
+
+/* ── Collection container ───────────────────────────────────────────────────── */
+.symbol-collection { width: 100%; height: 100%; }
+.symbol-collection--empty {
+  display: flex; align-items: center; justify-content: center; height: 100%;
+  font-size: 12px; color: var(--element-neutral-color, #949494);
+  border: 1px dashed var(--normal-enabled-border-color, #6b6b6b); border-radius: 4px;
+}
+.symbol-collection--design {
+  width: 100%; height: 100%; padding: 4px; box-sizing: border-box;
+  border: 1px dashed var(--normal-focused-border-color, #4271b3); border-radius: 4px; position: relative;
+}
+.symbol-collection__badge {
+  position: absolute; top: 2px; right: 4px; z-index: 1;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.04em;
+  color: var(--normal-focused-border-color, #4271b3);
+}
+
+/* ── Image symbol ───────────────────────────────────────────────────────────── */
+.symbol-image { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.symbol-image__placeholder {
+  font-size: 11px; color: var(--element-neutral-color, #949494);
+  border: 1px dashed var(--normal-enabled-border-color, #6b6b6b); border-radius: 4px;
+  padding: 8px; text-align: center; width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ── Value table (data-bound) ───────────────────────────────────────────────── */
+.symbol-table { width: 100%; height: 100%; overflow: auto; }
+.symbol-table--empty, .symbol-table--design {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; font-size: 12px; color: var(--element-neutral-color, #949494); height: 100%;
+}
+.symbol-table__design-pens { font-size: 10px; opacity: 0.7; }
+.symbol-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.symbol-table th {
+  text-align: left; padding: 3px 6px; font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--element-neutral-color, #949494);
+  border-bottom: 1px solid var(--designer-border, #333);
+}
+.symbol-table td { padding: 3px 6px; border-bottom: 1px solid var(--designer-border, #2a2a2a); }
+.symbol-table__val { font-variant-numeric: tabular-nums; color: var(--element-active-color, #f1f5f9); }
+
+/* Alarm-table ACK button (ACK from a designed display) */
+.symbol-alarm-table__ack {
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--container-background-color, #1f1f1f);
+  background: var(--ams-run);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.symbol-alarm-table__ack:hover { filter: brightness(1.1); }
+/* Setpoint */
 .symbol-setpoint {
   font-size: 14px;
 }/* removed: every declaration of `.symbol-setpoint__row` here was overridden by a later block

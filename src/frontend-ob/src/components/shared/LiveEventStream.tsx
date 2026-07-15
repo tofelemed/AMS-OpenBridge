@@ -39,16 +39,21 @@ export const LiveEventStream: React.FC = () => {
   const navigate = useNavigate();
   const { toggleLiveEvents } = useLiveEventsPanel();
 
-  const mqttConnect       = useMqttStore(s => s.connect);
-  const loadAllSnapshots  = useMqttStore(s => s.loadAllSnapshots);
-  const mqttConnected     = useMqttStore(s => s.connected);
-  const mqttError         = useMqttStore(s => s.error);
-  const liveAlarms        = useMqttStore(s => s.liveAlarms);
+  const mqttConnect         = useMqttStore(s => s.connect);
+  const loadAllSnapshots    = useMqttStore(s => s.loadAllSnapshots);
+  const subscribeFirehose   = useMqttStore(s => s.subscribeFirehose);
+  const unsubscribeFirehose = useMqttStore(s => s.unsubscribeFirehose);
+  const mqttConnected       = useMqttStore(s => s.connected);
+  const mqttError           = useMqttStore(s => s.error);
+  const liveAlarms          = useMqttStore(s => s.liveAlarms);
 
   useEffect(() => {
     mqttConnect();
     void loadAllSnapshots();
-  }, [mqttConnect, loadAllSnapshots]);
+    // This panel is a plant-wide live monitor → opt into the DDATA firehose.
+    subscribeFirehose();
+    return () => unsubscribeFirehose();
+  }, [mqttConnect, loadAllSnapshots, subscribeFirehose, unsubscribeFirehose]);
 
   const activeAlarms = useMemo(() => {
     return [...liveAlarms.values()]

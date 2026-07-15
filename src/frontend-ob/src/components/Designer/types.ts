@@ -36,6 +36,71 @@ export interface CanvasItem {
   alarmSource?: string;              // alarm sourceName to bind this symbol to alarmStore
   rules?: VisualRule[];              // conditional formatting (value/limit → color/blink/visibility/rotation)
   multiStateConfig?: MultiStateConfig; // config-driven multi-state (value range → color/label)
+  // Phase 2 — per-symbol time context (K17 / E1.23). 'display' (default) follows the display time
+  // bar; 'own' lets the symbol keep its own independent range controls.
+  timeMode?: 'display' | 'own';
+  // Phase 3 — image symbol: id of an uploaded media asset (C19/C21). The id is stored, never the
+  // bytes (config-only); the URL is built at render from the media endpoint.
+  mediaId?: string;
+  // Phase 4 — collections (§I). Present on a 'collection.container' item: repeats its template cell
+  // once per matching asset, substituting {{element}} in each cell's bindings.
+  collectionConfig?: CollectionConfig;
+  // Phase 4 — dynamic search criteria (§J / E5). One asset query drives rows/bars:
+  //  · asset-comparison table (table.compare): one row per asset, one column per attribute
+  //  · bar chart with criteria set: one bar per asset using attributes[0]
+  comparison?: { criteria: CollectionCriteria; attributes: string[] };
+  // Phase 4 — table summary columns (E4.5–E4.7): aggregates over the display time range.
+  summaryColumns?: Array<'min' | 'max' | 'avg'>;
+  // ── Phase 6 — data fidelity ──────────────────────────────────────────────────
+  // Per-item display unit (P2/P3/E3.6). Values convert from the tag's native (asset-catalog) unit to
+  // this one via utils/uom. Empty/undefined = use the tag's native unit as-is.
+  uom?: string;
+  // Render the ISA-18.2 / NE107 quality badge from LiveMetric.quality (W4). Defaults on for readouts.
+  showQuality?: boolean;
+  // Inherit lo/hi engineering limits from the bound asset into alarmLimits (G20/E3.1). The author may
+  // recolour but the thresholds come from the asset — set false to use hand-entered alarmLimits.
+  inheritLimits?: boolean;
+  // Value symbol: show the sample timestamp (E2.4) and map a discrete value → label/colour (E2.7).
+  showTimestamp?: boolean;
+  stateMap?: StateMapEntry[];
+  // Trend: per-pen style keyed by pen path (E1.2–E1.4), manual Y scale (E1.8/E1.10), stepped plot (E1.22).
+  trace?: Record<string, TrendTrace>;
+  trendScale?: TrendScale;
+  steppedLines?: boolean;
+}
+
+// ── Phase 6 supporting types ────────────────────────────────────────────────
+/** Value symbol digital/string state mapping: a discrete reading → a label (and optional colour). */
+export interface StateMapEntry { when: number | string | boolean; label: string; color?: string; }
+
+/** Per-trace trend styling (PI Vision per-trace config). */
+export interface TrendTrace {
+  color?: string;
+  width?: number;
+  style?: 'solid' | 'dashed' | 'dotted';
+  showMarkers?: boolean;
+  hidden?: boolean;   // clickable-legend hide/show (E1.17)
+}
+
+/** Trend Y-axis manual scale. auto (default) = ECharts autoscale. */
+export interface TrendScale { auto?: boolean; min?: number; max?: number; }
+
+// ── Phase 4: collections ─────────────────────────────────────────────────────
+export interface CollectionCriteria {
+  root?: string;                 // scope the asset query to this subtree (contextual path)
+  returnAllDescendants?: boolean; // whole subtree vs. direct children
+  assetType?: number;            // hierarchy level 1–5
+  template?: string;             // asset type/template name (e.g. "Tank")
+}
+
+export interface CollectionConfig {
+  criteria: CollectionCriteria;
+  cell: { width: number; height: number }; // one repeating cell footprint
+  columns: number;
+  gap: number;
+  items: CanvasItem[];           // the template cell — positions are relative to the cell origin
+  maxInstances?: number;         // paging guard
+  sort?: { by: 'name' | 'path'; dir: 'asc' | 'desc' }; // structural sort (I15)
 }
 
 // ── Phase F: conditional-formatting rule engine ─────────────────────────────
@@ -114,6 +179,8 @@ export interface ItemStyle {
   fill?: string;
   stroke?: string;
   strokeWidth?: number;
+  /** SVG stroke-dasharray, e.g. '6 4' (dashed) or '2 4' (dotted). Undefined = solid. */
+  strokeDasharray?: string;
   opacity?: number;
   fontSize?: number;
   fontWeight?: string;

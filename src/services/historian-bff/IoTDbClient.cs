@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace AMS.HistorianBff;
 
@@ -32,11 +33,29 @@ public sealed class IoTDbClient(HttpClient http, IConfiguration cfg)
         return (await JsonSerializer.DeserializeAsync<JsonElement>(stream, cancellationToken: ct));
     }
 
+    // ── Input validation (SQL-injection defense) ─────────────────────────
+    // IoTDB REST v2 accepts only a raw SQL string (no bind parameters), so `series`
+    // and `measurements` are the injection surface. They are strictly whitelisted here;
+    // anything failing these patterns is rejected by the endpoints with a 400 BEFORE
+    // it can reach the SQL builders.
+    private static readonly Regex SeriesPattern      = new(@"^root(\.[A-Za-z0-9_]+)+$", RegexOptions.Compiled);
+    private static readonly Regex MeasurementPattern = new(@"^[A-Za-z0-9_]+$",           RegexOptions.Compiled);
+
+    /// <summary>True if <paramref name="series"/> is a concrete IoTDB path (root.a.b.c) with no metacharacters.</summary>
+    public static bool IsValidSeries(string? series)
+        => !string.IsNullOrWhiteSpace(series) && SeriesPattern.IsMatch(series.Trim());
+
+    /// <summary>True if a (nullable/blank = allowed) CSV of measurement identifiers is all safe bare names.</summary>
+    public static bool IsValidMeasurements(string? measurements)
+        => string.IsNullOrWhiteSpace(measurements)
+           || measurements.Split(',').Select(m => m.Trim()).All(m => MeasurementPattern.IsMatch(m));
+
     // ── SQL builders ──────────────────────────────────────────────────────
 
     /// <summary>
     /// Builds a GROUP BY (time interval) query for trend decimation.
     /// Interval = (end - start) / width  → always returns ≤ width points.
+    /// Callers MUST pass series/measurements already validated via IsValidSeries/IsValidMeasurements.
     /// </summary>
     public string BuildTrendSql(string series, DateTimeOffset start, DateTimeOffset end,
                                 int width, string measurements)
@@ -53,6 +72,19 @@ public sealed class IoTDbClient(HttpClient http, IConfiguration cfg)
 
         return $"SELECT {cols} FROM {series} " +
                $"GROUP BY ([{startMs},{endMs}), {intervalMs}ms)";
+    }
+
+    /// <summary>
+    /// Aggregate summary (min/max/avg/sum/count) of one measurement over a window — feeds table
+    /// summary columns (E4.5–E4.7). Caller MUST validate series/measurement first.
+    /// </summary>
+    public string BuildSummarySql(string series, DateTimeOffset start, DateTimeOffset end, string measurement)
+    {
+        long s = start.ToUnixTimeMilliseconds();
+        long e = end.ToUnixTimeMilliseconds();
+        var m = measurement.Trim();
+        return $"SELECT min_value({m}), max_value({m}), avg({m}), sum({m}), count({m}) " +
+               $"FROM {series} WHERE time >= {s} AND time < {e}";
     }
 
     /// <summary>Raw (non-decimated) query with LIMIT/OFFSET for paginated table views.</summary>

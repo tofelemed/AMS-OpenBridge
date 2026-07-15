@@ -1,0 +1,66 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Live-data simulator + on-demand V2 pipeline validator.
+# Use TOGETHER with the main compose (they share the ams-backend network + project):
+#
+#   # start the live-data feed (Kafka live.metrics → edge → EMQX + Redis snapshots)
+#   docker compose -f docker-compose.yml -f docker-compose.sims.yml up -d --build ams-sim
+#
+#   # run the validation suite once (governance + Flink compute loop + fidelity + authz)
+#   docker compose -f docker-compose.yml -f docker-compose.sims.yml run --rm v2-validator
+#
+# Or use the launcher: scripts/run-v2-validation.ps1
+# ═══════════════════════════════════════════════════════════════════════════
+services:
+
+  # Test-stack overrides: the Phase-0.7 service-key hardening fails CLOSED in Production when the key is
+  # the built-in default. This dev/compose stack uses the default key, so run these TraverseAuth services
+  # in Development (the hardening then warns instead of throwing). Scoped here so the main compose stays
+  # production-shaped.
+  analysis-service:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+  audit-service:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+
+  # Continuous process-value feed for the 2-site plant. Re-runnable: it just keeps publishing.
+  ams-sim:
+    build:
+      context: ../../scripts/sim
+    container_name: ams-sim
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: ["--bootstrap", "kafka:9092", "--interval", "2"]
+    networks:
+      - ams-backend
+
+  # On-demand validator (profiled so `up` doesn't start it; use `run --rm v2-validator`).
+  v2-validator:
+    build:
+      context: ../../scripts/e2e-v2
+    container_name: v2-validator
+    profiles: ["validate"]
+    depends_on:
+      - auth-service
+      - display-service
+      - analysis-service
+      - binding-resolver
+      - historian-bff
+      - asset-model
+    environment:
+      V2_AUTH_BASE:     http://auth-service:3002
+      V2_DISPLAY_BASE:  http://display-service:5000
+      V2_ANALYSIS_BASE: http://analysis-service:5000
+      V2_BINDING_BASE:  http://binding-resolver:5000
+      V2_HIST_BASE:     http://historian-bff:8090
+      V2_ASSET_BASE:    http://asset-model:5000
+      V2_AUDIT_BASE:    http://audit-service:8080
+      V2_REDIS_HOST:    redis
+      V2_REDIS_PORT:    "6379"
+      V2_ADMIN_USER:    ${AUTH_BOOTSTRAP_USERNAME:-admin}
+      V2_ADMIN_PASS:    ${AUTH_BOOTSTRAP_PASSWORD:-ChangeMe123!}
+      V2_SERVICE_KEY:   ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
+    networks:
+      - ams-backend

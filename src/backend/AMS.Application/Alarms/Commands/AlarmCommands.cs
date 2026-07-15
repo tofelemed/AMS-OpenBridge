@@ -249,6 +249,73 @@ public class ShelveAlarmCommandHandler : IRequestHandler<ShelveAlarmCommand, She
 }
 
 // ============================================================
+// Unshelve Alarm Command (ISA-18.2 — return a shelved alarm to service)
+// ============================================================
+
+public record UnshelveAlarmCommand(
+    Guid AlarmId,
+    Guid UserId,
+    string Reason,
+    string? OperatorStation
+) : IRequest<UnshelveAlarmResult>;
+
+public record UnshelveAlarmResult(bool Success, string Message);
+
+public class UnshelveAlarmValidator : AbstractValidator<UnshelveAlarmCommand>
+{
+    public UnshelveAlarmValidator()
+    {
+        RuleFor(x => x.AlarmId).NotEmpty();
+        RuleFor(x => x.UserId).NotEmpty();
+        RuleFor(x => x.Reason).NotEmpty().WithMessage("Unshelve reason is required")
+            .MaximumLength(2000);
+    }
+}
+
+public class UnshelveAlarmCommandHandler : IRequestHandler<UnshelveAlarmCommand, UnshelveAlarmResult>
+{
+    private readonly IUnitOfWork _uow;
+    private readonly IAlarmSignalRPublisher _publisher;
+    private readonly ILogger<UnshelveAlarmCommandHandler> _logger;
+
+    public UnshelveAlarmCommandHandler(
+        IUnitOfWork uow,
+        IAlarmSignalRPublisher publisher,
+        ILogger<UnshelveAlarmCommandHandler> logger)
+    {
+        _uow       = uow;
+        _publisher = publisher;
+        _logger    = logger;
+    }
+
+    public async Task<UnshelveAlarmResult> Handle(UnshelveAlarmCommand request, CancellationToken ct)
+    {
+        // No user-initiated transaction (NpgsqlRetryingExecutionStrategy forbids it); SaveChanges is atomic.
+        try
+        {
+            var alarm = await _uow.ActiveAlarms.GetByIdAsync(request.AlarmId, ct);
+            if (alarm is null)
+                return new UnshelveAlarmResult(false, "Alarm not found");
+
+            var result = alarm.Unshelve(request.UserId, request.Reason);
+            if (result.IsFailure)
+                return new UnshelveAlarmResult(false, result.Error!);
+
+            await _uow.ActiveAlarms.UpdateAsync(alarm, ct);
+            await _uow.SaveChangesAsync(ct);
+            await _publisher.PublishAlarmUpdatedAsync(alarm, ct);
+            // NOTE: OPC/DCS un-suppression writeback is a follow-up (IOpcDcsGateway has no Unshelve yet).
+            return new UnshelveAlarmResult(true, "Alarm unshelved successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to unshelve alarm {AlarmId}", request.AlarmId);
+            throw;
+        }
+    }
+}
+
+// ============================================================
 // Suppress Alarm Command
 // ============================================================
 

@@ -14,6 +14,14 @@ export interface PenSpec {
   /** UNS path, e.g. houston/crude1/pump101.speed */
   path: string;
   label?: string;
+  // Phase 6 — per-trace styling (E1.2–E1.4). All optional; defaults reproduce the prior look exactly.
+  color?: string;                                   // overrides the auto-assigned pen token
+  lineWidth?: number;                               // default 1.5
+  lineStyle?: 'solid' | 'dashed' | 'dotted';        // default solid
+  showMarkers?: boolean;                            // default false
+  hidden?: boolean;                                 // initial hidden state (clickable legend, E1.17)
+  /** Authoritative unit from the asset catalog / per-item UOM override; falls back to the name guess. */
+  unitOverride?: string;
 }
 
 interface Pen extends PenSpec {
@@ -33,6 +41,15 @@ interface TrendCoreProps {
   initialRangeMs?: number;
   className?: string;
   onRemovePen?: (path: string) => void;
+  /**
+   * External time window (e.g. the display time bar, K/E1.23). When provided it DRIVES the chart
+   * window and the internal range/live controls are bypassed. Undefined/null = fully self-controlled
+   * — the existing behaviour is unchanged, so this is a purely additive opt-in.
+   */
+  controlledWindow?: { start: number; end: number; live: boolean } | null;
+  // Phase 6 — manual Y scale (E1.8/E1.10) and stepped plotting (E1.22). Both additive/optional.
+  scale?: { auto?: boolean; min?: number; max?: number };
+  stepped?: boolean;
 }
 
 // Phase H tokens — echarts renders to canvas and can't consume var(), so resolve to a concrete
@@ -105,6 +122,9 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
   initialRangeMs = 15 * 60_000,
   className = '',
   onRemovePen,
+  controlledWindow,
+  scale,
+  stepped,
 }) => {
   const paths = useMemo(() => penSpecs.map(p => p.path), [penSpecs]);
   const { data: batch } = useBatchBindingResolver(paths, 'all');
@@ -121,13 +141,31 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
       return {
         ...spec,
         label: spec.label ?? spec.path.split('/').pop() ?? spec.path,
-        unit: unitFor(met ?? measurement),
+        // Prefer the authoritative unit (asset catalog / UOM override); the name guess is a last resort.
+        unit: spec.unitOverride || unitFor(met ?? measurement),
         iotSeries: series,
         measurement,
         liveKey: dev && met ? `${dev}/${met}` : undefined,
       };
     });
   }, [batch, penSpecs]);
+
+  // Clickable-legend hide/show (E1.17) — runtime interaction, seeded from each pen's default hidden flag.
+  // Re-seed ONLY when the set of pen paths changes (add/remove pen), not on every penSpecs identity change
+  // — otherwise an async metadata/trace update (which rebuilds penSpecs) would silently un-hide traces the
+  // operator just hid.
+  const pathsKey = penSpecs.map(p => p.path).join('|');
+  const [hiddenPens, setHiddenPens] = useState<Set<string>>(
+    () => new Set(penSpecs.filter(p => p.hidden).map(p => p.path)));
+  useEffect(() => {
+    setHiddenPens(new Set(penSpecs.filter(p => p.hidden).map(p => p.path)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathsKey]);
+  const toggleHidden = (path: string) => setHiddenPens(prev => {
+    const next = new Set(prev);
+    if (next.has(path)) next.delete(path); else next.add(path);
+    return next;
+  });
 
   const [rangeMs, setRangeMs] = useState(initialRangeMs);
   const [live, setLive] = useState(true);
@@ -143,8 +181,23 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
   const fetchTrend = useMqttStore(s => s.fetchTrend);
   const connect = useMqttStore(s => s.connect);
   const histRef = useRef<Record<string, { ts: number; value: number }[]>>({});
+  // Plot pixel width → historian decimation is sized to it (U9). Kept in a ref so a resize doesn't
+  // trigger a refetch; the next window-change fetch simply uses the current width.
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const widthRef = useRef(500);
 
   useEffect(() => { connect(); }, [connect]);
+
+  // Track the plot's pixel width for decimation.
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const measure = () => { widthRef.current = Math.max(50, Math.round(el.clientWidth)) || 500; };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // The window end must only advance on a LIVE TICK — not on every render.
   //
@@ -154,8 +207,18 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
   // the chart's internal state. Two visible bugs: zooming into a spike snapped straight back to
   // 0–100%, and ⏸ Pause didn't freeze anything (the window still scrolled on mouse movement).
   // Follow "now" only while live AND playing; otherwise the window is pinned (paused or scrubbed).
-  const windowEnd = (live && playing) ? nowTs : (endTs || nowTs);
-  const windowStart = windowEnd - rangeMs;
+  // When an external window is supplied it wins; otherwise the internal live/paused logic applies.
+  const isControlled = !!controlledWindow;
+  const controlledLive = controlledWindow?.live ?? false;
+  const windowEnd = controlledWindow
+    ? controlledWindow.end
+    : ((live && playing) ? nowTs : (endTs || nowTs));
+  const windowStart = controlledWindow ? controlledWindow.start : windowEnd - rangeMs;
+  // History refetch key. In live mode the END advances continually and the ring-buffer tail fills the
+  // leading edge, so we refetch only when the SPAN changes; in fixed mode either bound triggers it.
+  const fetchKey = controlledWindow
+    ? (controlledLive ? `cspan:${controlledWindow.end - controlledWindow.start}` : `cfix:${controlledWindow.start}:${controlledWindow.end}`)
+    : (live ? `live:${rangeMs}` : `fix:${rangeMs}:${endTs}`);
 
   // Historical fetch per pen, on window/pen change (identical to Phase C).
   useEffect(() => {
@@ -166,7 +229,7 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
     Promise.all(pens.map(async pen => {
       if (!pen.iotSeries || !pen.measurement) return [];
       try {
-        const pts = await fetchTrend(pen.iotSeries, start, end, 500, pen.measurement);
+        const pts = await fetchTrend(pen.iotSeries, start, end, widthRef.current, pen.measurement);
         // The historian returns `null` for buckets with no samples. Number(null) === 0 (and 0 is
         // finite), so a plain Number() cast plotted every gap as a zero — drop empty buckets first.
         return pts
@@ -183,15 +246,17 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
       forceTick(t => t + 1);
     });
     return () => { cancelled = true; };
-    // re-fetch when range, pens, or (paused/historical) the fixed end changes
-  }, [pens, rangeMs, live ? 0 : endTs, fetchTrend]); // eslint-disable-line react-hooks/exhaustive-deps
+    // re-fetch when the window span/bounds change (fetchKey), the pens change, or fetchTrend changes
+  }, [pens, fetchKey, fetchTrend]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Live tick — advance the window and pull fresh samples from the MQTT ring-buffer.
+  // Skipped when an external window drives the chart: that window advances on its own cadence and its
+  // change re-renders this component (which re-reads the ring buffer for the tail).
   useEffect(() => {
-    if (!live || !playing) return;
+    if (isControlled || !live || !playing) return;
     const id = setInterval(() => { setNowTs(Date.now()); forceTick(t => t + 1); }, 2000);
     return () => clearInterval(id);
-  }, [live, playing]);
+  }, [isControlled, live, playing]);
 
   // Theme colors: resolved ONCE per theme, not 9× per render.
   // resolveColor() appends a span, forces a style flush via getComputedStyle, then removes it. It used
@@ -206,41 +271,62 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
   }), [theme]);
 
   // Merged (history + live tail) data per pen — also what the legend reads at the cursor.
+  // Tail while live: internally live, or externally live when a window is driving us.
+  const tailing = isControlled ? controlledLive : live;
   const penData = pens.map(pen => {
     const hist = histRef.current[pen.path] ?? [];
     const lastHistTs = hist.length ? hist[hist.length - 1].ts : 0;
-    const liveTail = live && pen.liveKey
+    const liveTail = tailing && pen.liveKey
       ? getLiveSeries(pen.liveKey, windowStart).filter(p => p.ts > lastHistTs).map(p => ({ ts: p.ts, value: p.v }))
       : [];
     return hist.concat(liveTail);
   });
+
+  // Effective per-pen colour: an explicit per-trace colour (E1.2) wins over the auto-assigned token.
+  const penColor = (i: number) => {
+    const c = pens[i]?.color;
+    return c ? resolveColor(c) : penColors[i % penColors.length];
+  };
+
+  // Manual Y scale (E1.8/E1.10): when scale.auto === false, pin the axis bounds (either bound may be
+  // left undefined to keep that side auto).
+  const manualScale = !!scale && scale.auto === false;
+  const yBounds = manualScale ? { min: scale!.min, max: scale!.max, scale: false } : { scale: true };
 
   // Per-pen Y-axis (PI Vision) when units differ, unless explicitly overridden.
   const distinctUnits = new Set(pens.map(p => p.unit));
   const perAxis = multiAxis ?? (pens.length > 1 && distinctUnits.size > 1);
 
   const yAxis = perAxis
+    // Per-pen axes carry different units, so a single manual min/max can't apply to all of them — keep
+    // autoscale for the multi-axis case; manual scale only makes sense on the single shared axis.
     ? pens.map((_pen, i) => ({
         type: 'value' as const, scale: true, position: 'left' as const, offset: i * 44,
-        axisLabel: { color: penColors[i % penColors.length], fontSize: 10 },
-        axisLine: { show: true, lineStyle: { color: penColors[i % penColors.length] } },
+        axisLabel: { color: penColor(i), fontSize: 10 },
+        axisLine: { show: true, lineStyle: { color: penColor(i) } },
         splitLine: { show: i === 0, lineStyle: { color: cGrid } },
       }))
     : [{
-        type: 'value' as const, scale: true,
+        type: 'value' as const, ...yBounds,
         axisLabel: { color: cText, fontSize: 10 },
         splitLine: { lineStyle: { color: cGrid } },
       }];
 
+  const dashFor = (s?: string) => (s === 'dashed' ? 'dashed' : s === 'dotted' ? 'dotted' : 'solid');
   const series = pens.map((pen, i) => ({
     name: pen.label,
     type: 'line' as const,
-    showSymbol: false,
+    // Markers per-trace (E1.3); default off — same as before.
+    showSymbol: pen.showMarkers ?? false,
+    symbolSize: 4,
     smooth: false,
-    lineStyle: { width: 1.5 },
-    color: penColors[i % penColors.length],
+    // Stepped plotting (E1.22) applies chart-wide.
+    step: stepped ? ('end' as const) : (false as const),
+    lineStyle: { width: pen.lineWidth ?? 1.5, type: dashFor(pen.lineStyle) },
+    color: penColor(i),
     yAxisIndex: perAxis ? i : 0,
-    data: penData[i].map(p => [p.ts, p.value]),
+    // Clickable-legend hide (E1.17): a hidden pen draws nothing but keeps its legend row.
+    data: hiddenPens.has(pen.path) ? [] : penData[i].map(p => [p.ts, p.value]),
   }));
 
   const option = {
@@ -305,16 +391,26 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
       <div className="trend-core__legend" data-testid="trend-legend">
         {pens.map((pen, i) => {
           const v = valueAt(i);
+          const isHidden = hiddenPens.has(pen.path);
           return (
-            <div key={pen.path} className="trend-core__pen" data-pen={pen.path} title={pen.path}>
-              <span className="trend-core__swatch" style={{ background: penColors[i % penColors.length] }} />
-              <span className="trend-core__pen-label">{pen.label}</span>
+            <div
+              key={pen.path}
+              className="trend-core__pen"
+              data-pen={pen.path}
+              data-hidden={isHidden || undefined}
+              title={`${pen.path} — click to ${isHidden ? 'show' : 'hide'}`}
+              // Clickable legend: toggle this trace's visibility (E1.17).
+              onClick={() => toggleHidden(pen.path)}
+              style={{ cursor: 'pointer', opacity: isHidden ? 0.4 : 1 }}
+            >
+              <span className="trend-core__swatch" style={{ background: penColor(i) }} />
+              <span className="trend-core__pen-label" style={isHidden ? { textDecoration: 'line-through' } : undefined}>{pen.label}</span>
               <span className="trend-core__pen-value" data-testid="pen-value">
                 {v === undefined ? '--' : v.toFixed(2)}
               </span>
               <span className="trend-core__pen-unit">{pen.unit}</span>
               {onRemovePen && (
-                <button className="trend-core__pen-x" onClick={() => onRemovePen(pen.path)} title="Remove pen">×</button>
+                <button className="trend-core__pen-x" onClick={(e) => { e.stopPropagation(); onRemovePen(pen.path); }} title="Remove pen">×</button>
               )}
             </div>
           );
@@ -323,10 +419,13 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
       </div>
 
       <div
+        ref={canvasRef}
         className="trend-core__canvas"
         data-axes={yAxis.length}
         data-pens={pens.length}
         data-zoom={`${zoomPct.start.toFixed(1)}-${zoomPct.end.toFixed(1)}`}
+        // Double-click clears a retained cursor and returns the legend to the latest sample.
+        onDoubleClick={() => setCursorTs(null)}
       >
         <ReactECharts
           option={option}
@@ -341,9 +440,11 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
           onEvents={{
             updateAxisPointer: (e: { axesInfo?: Array<{ axisDim?: string; value?: number }> }) => {
               const t = e.axesInfo?.find(a => a.axisDim === 'x')?.value;
-              setCursorTs(typeof t === 'number' ? t : null);
+              if (typeof t === 'number') setCursorTs(t);
             },
-            globalout: () => setCursorTs(null),
+            // E1.13/E1.14 — the cursor is RETAINED when the pointer leaves the plot (was discarded on
+            // globalout, so the legend snapped back to the latest sample the instant you moved away).
+            // Double-click clears it (below) to return to "latest".
             datazoom: (e: { start?: number; end?: number; batch?: Array<{ start?: number; end?: number }> }) => {
               const z = e.batch?.[0] ?? e;
               if (typeof z.start === 'number' && typeof z.end === 'number') setZoomPct({ start: z.start, end: z.end });

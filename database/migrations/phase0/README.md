@@ -1,6 +1,22 @@
+> # ⛔ SUPERSEDED — DO NOT USE FOR THE RUNNING SYSTEM
+>
+> These scripts are **NOT applied** by the stack. `infra/docker/docker-compose.yml` mounts only
+> **`database/scripts/`** into `/docker-entrypoint-initdb.d`, and that directory is the single
+> source of truth for the live schema.
+>
+> This `phase0/` set **conflicts** with `database/scripts/` (e.g. it creates an *unqualified*
+> `display_definitions`, whereas the live schema — and `DisplayDbContext` — uses
+> `displays.display_definitions`). Tables that exist **only** here and **do not exist** in the
+> running system include: `operator_views`, `display_comments`, `tags TEXT[]`,
+> `resource_permissions`, `attribute_instances`, `attribute_templates`,
+> `state_machine_definitions`, `uom_classes` / `uom_units`, `categories`, `user_preferences`.
+>
+> Audit code against `database/scripts/`, never against this directory. Retained only for
+> historical reference. See `AUDIT-REPORT.md` §7 (doc-vs-code discrepancies).
+
 # Phase 0 Database Migrations
 
-**Status:** Ready for execution  
+**Status:** ⛔ Superseded by `database/scripts/` — retained for reference only (see banner above)
 **Date:** 2026-06-30
 
 ## Execution Order

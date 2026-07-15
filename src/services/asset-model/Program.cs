@@ -28,6 +28,20 @@ builder.AddTraverseAuth();
 
 var app = builder.Build();
 
+// Self-healing: add the `template` column (Phase 4) if an already-initialised DB predates it.
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AssetDbContext>();
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE assets.assets ADD COLUMN IF NOT EXISTS template TEXT;");
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "Could not ensure assets.template column at startup");
+    }
+}
+
 app.UseTraverseAuth();
 
 // ── GET /health ─────────────────────────────────────────────────────────────
@@ -132,6 +146,7 @@ app.MapPost("/assets", async (CreateAssetRequest request, AssetDbContext db, ICo
         EngineeringUnit = request.EngineeringUnit,
         LoEngLimit = request.LoEngLimit,
         HiEngLimit = request.HiEngLimit,
+        Template = request.Template,
         ParentId = request.ParentId,
         CreatedAt = DateTimeOffset.UtcNow,
         UpdatedAt = DateTimeOffset.UtcNow
@@ -157,7 +172,8 @@ app.MapPut("/assets/{id:guid}", async (Guid id, UpdateAssetRequest request, Asse
     if (request.EngineeringUnit is not null) asset.EngineeringUnit = request.EngineeringUnit;
     if (request.LoEngLimit.HasValue) asset.LoEngLimit = request.LoEngLimit;
     if (request.HiEngLimit.HasValue) asset.HiEngLimit = request.HiEngLimit;
-    
+    if (request.Template is not null) asset.Template = request.Template;
+
     asset.UpdatedAt = DateTimeOffset.UtcNow;
     await db.SaveChangesAsync();
     
@@ -181,6 +197,56 @@ app.MapDelete("/assets/{id:guid}", async (Guid id, AssetDbContext db, IConnectio
     
     return Results.NoContent();
 }).RequireAuthorization("asset.edit");
+
+// ── POST /assets/search ───────────────────────────────────────────────────────
+// The one query surface for collections, dynamic search criteria, asset-comparison tables, and
+// asset context switching (Phase 4). Structural search only — root subtree, descendants (path-prefix,
+// since contextual_path encodes the hierarchy), hierarchy level, and template. Live-value filters
+// (e.g. Flow > 50) are applied by the collection engine against the live plane (CQRS), not here.
+app.MapPost("/assets/search", async (AssetSearchRequest req, AssetDbContext db) =>
+{
+    var q = db.Assets.Where(a => !a.IsDeleted);
+
+    if (!string.IsNullOrWhiteSpace(req.Root))
+    {
+        if (req.ReturnAllDescendants)
+        {
+            var prefix = req.Root + "/";
+            q = q.Where(a => a.ContextualPath == req.Root || a.ContextualPath.StartsWith(prefix));
+        }
+        else
+        {
+            // Direct children of the root asset (index-backed via parent_id).
+            var rootId = await db.Assets
+                .Where(a => a.ContextualPath == req.Root && !a.IsDeleted)
+                .Select(a => (Guid?)a.Id)
+                .FirstOrDefaultAsync();
+            q = q.Where(a => a.ParentId == rootId);
+        }
+    }
+
+    if (req.AssetType.HasValue) q = q.Where(a => a.Type == (AssetType)req.AssetType.Value);
+    if (!string.IsNullOrWhiteSpace(req.Template)) q = q.Where(a => a.Template == req.Template);
+    if (!string.IsNullOrWhiteSpace(req.Search))
+        q = q.Where(a => a.Name.Contains(req.Search) || a.ContextualPath.Contains(req.Search));
+
+    var take = Math.Clamp(req.Take ?? 500, 1, 2000);
+    var assets = await q.OrderBy(a => a.ContextualPath).Take(take).ToListAsync();
+    return Results.Ok(new { count = assets.Count, assets = assets.Select(AssetDto.From) });
+}).RequireAuthorization("asset.view");
+
+// ── GET /assets/{id}/descendants ──────────────────────────────────────────────
+// All descendants of an asset (path-prefix). Optional type filter. Complements /children (one level).
+app.MapGet("/assets/{id:guid}/descendants", async (Guid id, AssetType? type, AssetDbContext db) =>
+{
+    var root = await db.Assets.FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
+    if (root is null) return Results.NotFound();
+    var prefix = root.ContextualPath + "/";
+    var q = db.Assets.Where(a => !a.IsDeleted && a.ContextualPath.StartsWith(prefix));
+    if (type.HasValue) q = q.Where(a => a.Type == type.Value);
+    var list = await q.OrderBy(a => a.ContextualPath).ToListAsync();
+    return Results.Ok(list.Select(AssetDto.From));
+}).RequireAuthorization("asset.view");
 
 // ── GET /assets/{id}/children ────────────────────────────────────────────────
 app.MapGet("/assets/{id:guid}/children", async (Guid id, AssetDbContext db) =>
@@ -274,6 +340,7 @@ record AssetDto(
     string? EngineeringUnit,
     double? LoEngLimit,
     double? HiEngLimit,
+    string? Template,
     Guid? ParentId,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
@@ -288,7 +355,7 @@ record AssetDto(
 {
     public static AssetDto From(Asset a) => new(
         a.Id, a.ContextualPath, a.Name, a.Type, a.Description,
-        a.EngineeringUnit, a.LoEngLimit, a.HiEngLimit, a.ParentId,
+        a.EngineeringUnit, a.LoEngLimit, a.HiEngLimit, a.Template, a.ParentId,
         a.CreatedAt, a.UpdatedAt,
         a.IoTDbPath, a.SparkplugGroup, a.SparkplugEdgeNode, a.SparkplugDevice,
         a.SparkplugMetric, a.SparkplugTopic, a.AlarmSource, a.RedisSnapshotKey);
@@ -302,6 +369,7 @@ record CreateAssetRequest(
     string? EngineeringUnit,
     double? LoEngLimit,
     double? HiEngLimit,
+    string? Template,
     Guid? ParentId);
 
 record UpdateAssetRequest(
@@ -309,7 +377,16 @@ record UpdateAssetRequest(
     string? Description,
     string? EngineeringUnit,
     double? LoEngLimit,
-    double? HiEngLimit);
+    double? HiEngLimit,
+    string? Template);
+
+record AssetSearchRequest(
+    string? Root,
+    bool ReturnAllDescendants,
+    int? AssetType,
+    string? Template,
+    string? Search,
+    int? Take);
 
 record CreateAliasRequest(
     string LegacyPath,

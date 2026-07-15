@@ -62,14 +62,17 @@ export function useBindingResolver(
   useEffect(() => {
     if (!binding?.live || role === 'history') return;
     
-    const { sparkplugDevice } = binding.live;
+    const { sparkplugTopic, sparkplugGroup, sparkplugEdgeNode, sparkplugDevice } = binding.live;
     if (!sparkplugDevice) return;
-    
-    // Subscribe to the device for DDATA updates
-    subscribeScreen([sparkplugDevice]);
-    
+
+    // Subscribe to the exact DDATA topic — it carries the real group/edge (multi-site safe) and
+    // scopes traffic to this open screen (W10). Fall back to composing it if the resolver omitted it.
+    const topic = sparkplugTopic
+      || `spBv1.0/${sparkplugGroup}/DDATA/${sparkplugEdgeNode}/${sparkplugDevice}`;
+    subscribeScreen([topic]);
+
     return () => {
-      unsubscribeScreen([sparkplugDevice]);
+      unsubscribeScreen([topic]);
     };
   }, [binding, role, subscribeScreen, unsubscribeScreen]);
   

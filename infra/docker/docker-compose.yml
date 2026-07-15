@@ -696,6 +696,7 @@ services:
       Services__AssetModel:    http://asset-model:5000
       Services__HistorianBff:  http://historian-bff:8090
       Services__AmsApi:        http://ams-api:8000
+      Services__SignalRHub:    http://ams-api:8000/hubs/alarms
       # Platform auth (RBAC): validate RS256 tokens from auth-service; X-Service-Key authenticates
       # internal service-to-service calls that carry no user token.
       Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
@@ -737,6 +738,8 @@ services:
       ConnectionStrings__TraverseDisplays: Host=postgres;Port=5432;Database=traverse_displays;Username=ams_user;Password=${POSTGRES_PASSWORD:-postgres}
       Redis__Host:     redis
       Redis__Port:     "6379"
+      # Phase 5 — emit governance audit events to the audit-service via Kafka.
+      Kafka__BootstrapServers: kafka:9092
       # Phase K — RBAC: validate RS256 tokens from auth-service (JWKS; no OIDC discovery).
       Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
       Auth__Issuer:    traverse-auth
@@ -747,6 +750,44 @@ services:
       - ams-backend
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/5000' || exit 1"]  # aspnet image has no wget/curl; /dev/tcp works
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ─────────────────────────────────────────────
+  # Phase 5 (V2) — Audit Service
+  # Consumes audit-events (governance actions emitted by display-service) into an immutable, hash-chained
+  # store and exposes GET /api/v1/audit. Without this the audit trail has a producer but no consumer.
+  # ─────────────────────────────────────────────
+  audit-service:
+    build:
+      context: ../../src/services/audit-service
+    container_name: traverse-audit-service
+    <<: *default-restart
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:8080
+      ConnectionStrings__AuditDb: Host=postgres;Port=5432;Database=traverse_audit;Username=ams_user;Password=${POSTGRES_PASSWORD:-postgres}
+      Kafka__BootstrapServers: kafka:9092
+      Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
+      Auth__Issuer:    traverse-auth
+      Auth__Audience:  ams-services
+    ports:
+      - "8095:8080"
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/8080' || exit 1"]  # aspnet image has no wget/curl
       interval: 10s
       timeout: 5s
       retries: 5

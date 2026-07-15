@@ -10,6 +10,8 @@ import { useQuery } from '@tanstack/react-query';
 import type { CanvasItem, NavigationLink } from './types';
 import { SymbolRenderer } from './SymbolRenderer';
 import { useMqttStore } from '../../store/mqttStore';
+import { useDisplayTimeStore } from '../../store/timeStore';
+import { TimeBar } from './TimeBar';
 import { pensFromItems, pensFromItem } from './TrendChart';
 import { ObiTrend } from '@oicl/openbridge-webcomponents-react/icons/icon-trend';
 import TrendDialog from './TrendDialog';
@@ -131,6 +133,13 @@ export const DisplayViewer: React.FC = () => {
     const params = new URLSearchParams();
     if (asset) params.set('asset', asset);
     if (link.assetContextMode === 'current-asset-as-root' && asset) params.set('assetRoot', asset);
+    // Carry the current time range to the target when the link asks for it (M4). Pass the
+    // EXPRESSIONS so a live window stays live on the target.
+    if (link.includeTimeRange) {
+      const t = useDisplayTimeStore.getState();
+      params.set('start', t.startExpr);
+      params.set('end', t.endExpr);
+    }
     const q = params.toString() ? `?${params}` : '';
 
     if (link.targetUrl) {
@@ -152,6 +161,14 @@ export const DisplayViewer: React.FC = () => {
   // Live data: ensure the MQTT client is connected for the whole viewer lifetime.
   const connect = useMqttStore(s => s.connect);
   useEffect(() => { connect(); }, [connect]);
+
+  // Seed the display time context from URL params (?start=&end=). The saved defaults become the
+  // "Revert" target. (K19 / M9.)
+  useEffect(() => {
+    useDisplayTimeStore.getState().markSaved();
+    useDisplayTimeStore.getState().initFromUrl(params);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['viewer-display', id],
@@ -186,13 +203,36 @@ export const DisplayViewer: React.FC = () => {
     return i > 0 ? base.slice(0, i) : '';
   }, [element]);
   const { data: candidates } = useQuery({
-    queryKey: ['swap-candidates', swapPrefix],
+    queryKey: ['swap-candidates', swapPrefix, element],
     queryFn: async () => {
-      const res = await apiFetch('/api/assets?type=4');
+      // Discover peers by TYPE/TEMPLATE (H2/H6/H11), not just "same folder". Learn the current
+      // asset's template + level, then search the subtree for others like it. Falls back gracefully
+      // to same-level discovery when templates aren't configured yet.
+      let template: string | undefined;
+      let assetType: number | undefined = 4; // default: Device
+      if (element) {
+        const encoded = element.split('/').map(encodeURIComponent).join('/');
+        const cur = await apiFetch(`/api/assets/by-path/${encoded}`);
+        if (cur.ok) {
+          const a = await cur.json() as { template?: string; type?: number };
+          template = a.template || undefined;
+          if (typeof a.type === 'number') assetType = a.type;
+        }
+      }
+      const res = await apiFetch('/api/assets/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          root: swapPrefix || undefined,
+          returnAllDescendants: true,
+          template,
+          assetType: template ? undefined : assetType,
+          take: 200,
+        }),
+      });
       if (!res.ok) return [] as { contextualPath: string; name: string }[];
       const j = await res.json();
-      const all = (j.assets ?? []) as { contextualPath: string; name: string }[];
-      return swapPrefix ? all.filter(a => a.contextualPath.startsWith(swapPrefix + '/')) : all;
+      return (j.assets ?? []) as { contextualPath: string; name: string }[];
     },
     enabled: hasAssetRelative,
   });
@@ -408,6 +448,9 @@ export const DisplayViewer: React.FC = () => {
           })}
         </div>
       </div>
+
+      {/* Display time bar (K1–K7) — one time context every time-aware symbol follows. */}
+      <TimeBar />
 
       {/* Faceplate popup (openMode: 'popup') — isolated via iframe on the same viewer route */}
       {popup && (

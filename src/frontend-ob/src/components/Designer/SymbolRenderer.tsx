@@ -1,15 +1,26 @@
 import React from 'react';
+import { toast } from 'react-toastify';
 import type { CanvasItem } from './types';
 import { useBindingResolver } from '../../hooks/useBindingResolver';
 import type { LiveMetric } from '../../store/mqttStore';
 import { findSymbolDefinition } from './symbolLibraryService';
 import { useAlarmStore } from '../../store/alarmStore';
+import { acknowledgeAlarmsBatch } from '../../api/alarmApi';
 import { renderCustomSymbol, CUSTOM_SYMBOL_TYPES } from './CustomSymbols';
 import { getValueColor, formatValue as fmtValue, getPercentage as pctValue, isStale, OBC } from './openBridgeTheme';
 import { evaluateRules, evaluateMultiState } from './ruleEngine';
+import { useAssetMetadata } from '../../hooks/useAssetMetadata';
+import { convert, canonicalUnit } from '../../utils/uom';
+import { qualityFrom, type QualityInfo } from '../../utils/quality';
+import { CustomSymbolInstance } from './CustomSymbolInstance';
 import { isLazyObcType } from './lazyCategoryRegistry';
 import { LazyObcSymbol } from './LazyObcSymbol';
 import { TrendChart } from './TrendChart';
+import { BarChart } from './BarChart';
+import { XYPlot } from './XYPlot';
+import { TableSymbol } from './TableSymbol';
+import { CollectionRenderer } from './CollectionRenderer';
+import { AssetComparisonTable } from './AssetComparisonTable';
 
 // OpenBridge Web Components (ISA-101 compliant)
 import { ObcStatusIndicator } from '@oicl/openbridge-webcomponents-react/components/status-indicator/status-indicator';
@@ -62,6 +73,9 @@ const KNOWN_SLOTS = [
   'value', 'pv', 'sp', 'status', 'state', 'running',
   'level', 'speed', 'position', 'position2', 'temperature', 'current',
   'pressure', 'flow', 'setpoint', 'command', 'text',
+  // Previously-declared-but-unresolvable slots (charts, alarm annunciators, heat exchanger,
+  // faceplate). Adding them here is what lets an authored binding actually receive data.
+  'values', 'x', 'y', 'source', 'alarms', 'active', 'asset', 'tempIn', 'tempOut',
 ] as const;
 
 // Which slot supplies the symbol's "primary" scalar when `value` isn't bound.
@@ -157,13 +171,24 @@ const AlarmTable: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }> = (
       .sort((x, y) => PRIORITY_ORDER.indexOf(x.priority) - PRIORITY_ORDER.indexOf(y.priority))
       .slice(0, 100);
   }, [alarms, item.alarmSource]);
+  // ACK straight from a designed display (N12) — reuses the existing batch-ack API. The SignalR
+  // update flips the row to ACK; no local mutation.
+  const ack = React.useCallback(async (id: string) => {
+    try {
+      await acknowledgeAlarmsBatch([id], 'Acknowledged from display', 'display');
+      toast.success('Alarm acknowledged');
+    } catch {
+      toast.error('Failed to acknowledge alarm');
+    }
+  }, []);
+
   if (mode !== 'preview') {
     return <div className="symbol-alarm-table" style={{ padding: 8, fontSize: 12 }}>▦ Alarm Table{item.alarmSource ? ` · ${item.alarmSource}` : ''}</div>;
   }
   return (
     <div className="symbol-alarm-table">
       <table>
-        <thead><tr><th>Time</th><th>Source</th><th>Priority</th><th>State</th></tr></thead>
+        <thead><tr><th>Time</th><th>Source</th><th>Priority</th><th>State</th><th></th></tr></thead>
         <tbody>
           {rows.map(a => (
             <tr key={a.id}>
@@ -171,33 +196,56 @@ const AlarmTable: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }> = (
               <td>{a.sourceName}</td>
               <td style={{ color: priorityColor(a.priority), fontWeight: 700 }}>{a.priority}</td>
               <td>{a.acknowledged ? 'ACK' : 'UNACK'}</td>
+              <td>
+                {!a.acknowledged && (
+                  <button
+                    type="button"
+                    className="symbol-alarm-table__ack"
+                    data-testid="alarm-ack"
+                    onClick={() => ack(a.id)}
+                    title="Acknowledge"
+                  >Ack</button>
+                )}
+              </td>
             </tr>
           ))}
-          {rows.length === 0 && <tr><td colSpan={4} style={{ opacity: .6 }}>No active alarms</td></tr>}
+          {rows.length === 0 && <tr><td colSpan={5} style={{ opacity: .6 }}>No active alarms</td></tr>}
         </tbody>
       </table>
     </div>
   );
 };
 
-/** Combined FX wrapper: NE107 staleness + rule-engine (hidden / blink / rotate / color outline). */
+/** Combined FX wrapper: NE107 quality/staleness + rule-engine (hidden / blink / rotate / color outline). */
 const SymbolFxWrap: React.FC<{
   stale: boolean; hidden: boolean; blink: boolean; outlineColor?: string; rotateDeg?: number;
   /** Design mode, symbol takes a tag, nothing bound → dashed outline. Makes a forgotten binding
       visible at a glance across a display with hundreds of symbols. */
   unbound?: boolean;
+  /** Phase 6 — ISA-18.2/NE107 quality of the primary slot; a badge shows for any non-good state. */
+  quality?: QualityInfo | null;
+  showQuality?: boolean;
   children: React.ReactNode;
-}> = ({ stale, hidden, blink, outlineColor, rotateDeg, unbound, children }) => {
+}> = ({ stale, hidden, blink, outlineColor, rotateDeg, unbound, quality, showQuality, children }) => {
   if (hidden) return null;
   const style: React.CSSProperties = { position: 'relative', width: '100%', height: '100%' };
   if (stale) { style.filter = 'grayscale(1)'; style.opacity = 0.5; }
   if (rotateDeg !== undefined) style.transform = `rotate(${rotateDeg}deg)`;
   if (outlineColor) { style.outline = `3px solid ${outlineColor}`; style.outlineOffset = '1px'; style.borderRadius = '4px'; }
   const cls = `symbol-fx${blink ? ' symbol-fx--blink' : ''}${stale ? ' symbol-quality-stale' : ''}${unbound ? ' symbol-unbound' : ''}`;
+  // Show the NE107 badge when quality is abnormal and the symbol opted in; otherwise fall back to the
+  // legacy stale ⚠ so behaviour is unchanged for symbols that don't render quality.
+  const showBadge = showQuality && quality && quality.state !== 'good';
   return (
     <div className={cls} style={style}>
       {children}
-      {stale && (
+      {showBadge ? (
+        <span aria-label={`quality: ${quality!.label}`} title={`${quality!.label} — NE107: ${quality!.ne107}`} style={{
+          position: 'absolute', top: 0, right: 0, fontSize: 10, lineHeight: 1, padding: '1px 3px', borderRadius: 3,
+          background: quality!.color ?? 'var(--element-disabled-color, #535353)',
+          color: 'var(--container-background-color, #1f1f1f)', filter: 'grayscale(0)', opacity: 1, fontWeight: 700,
+        }}>{quality!.glyph}</span>
+      ) : stale && (
         <span aria-label="stale" style={{
           position: 'absolute', top: 0, right: 0, fontSize: 10, lineHeight: 1, padding: '1px 3px', borderRadius: 3,
           background: 'var(--element-disabled-color, #535353)', color: 'var(--container-background-color, #1f1f1f)',
@@ -250,19 +298,52 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
     return `{${leaf}}`;
   };
 
+  // ── Phase 6 — UOM, quality, and asset-inherited limits ────────────────────────
+  // The tag's authoritative unit + engineering limits come from the asset catalog (declared-but-unread
+  // until now). item.uom converts the DISPLAYED value from that native unit; alarm thresholds stay in
+  // native units so colouring is unaffected by a display-unit switch.
+  const meta = useAssetMetadata(mode === 'preview' ? boundPath : undefined);
+  const nativeUnit = canonicalUnit(meta.data?.engineeringUnit) || unit || '';
+  const targetUnit = item.uom || nativeUnit;
+  const convertedValue = (typeof liveValue === 'number' && item.uom)
+    ? convert(liveValue, nativeUnit, item.uom) : liveValue;
+  const shownUnit = item.formatting?.showUnit !== false ? (targetUnit || undefined) : undefined;
+
+  // Digital/string state mapping (E2.7): a discrete reading → a label.
+  const mappedState = item.stateMap?.find(s => String(s.when) === String(liveValue));
+
+  // Threshold inheritance (G20/E3.1): asset lo/hi eng limits back-fill hi/lo unless the author opted out.
+  const effectiveLimits: typeof item.alarmLimits = (() => {
+    const base = item.alarmLimits ?? {};
+    if (item.inheritLimits === false) return item.alarmLimits;
+    const lo = meta.data?.loEngLimit ?? undefined;
+    const hi = meta.data?.hiEngLimit ?? undefined;
+    if (lo === undefined && hi === undefined) return item.alarmLimits;
+    return { ...base, lo: base.lo ?? lo, hi: base.hi ?? hi };
+  })();
+
+  // NE107 staleness: a slot that stopped updating renders degraded (see wrapper at return).
+  const stale = mode === 'preview' && primaryMetric !== undefined && isStale(primaryMetric.ts);
+
+  // Quality-on-open (W4): NE107 / ISA-18.2 state from the Sparkplug quality code + staleness.
+  const quality: QualityInfo | null = (mode === 'preview' && primaryMetric)
+    ? qualityFrom(typeof primaryMetric.quality === 'number' ? primaryMetric.quality : undefined, stale)
+    : null;
+
   const displayValue = mode === 'preview' && liveValue !== undefined
-    ? fmtValue(liveValue, decimals, item.formatting?.showUnit !== false ? unit : undefined)
+    ? (mappedState ? mappedState.label : fmtValue(convertedValue, decimals, shownUnit))
     : isBound
       ? tagPlaceholder(boundPath!)
       : '—';
 
+  // Item with the effective (asset-inherited) limits, handed to gauges/OBC symbols so their scale + zones
+  // follow the asset instead of a fixed 0–100.
+  const renderItem: CanvasItem = effectiveLimits === item.alarmLimits ? item : { ...item, alarmLimits: effectiveLimits };
+
   const statusState = getStatusIndicatorState(
     mode === 'preview' ? (statusValue ?? liveValue) : undefined,
-    item.alarmLimits
+    effectiveLimits
   );
-
-  // NE107 staleness: a slot that stopped updating renders degraded (see wrapper at return).
-  const stale = mode === 'preview' && primaryMetric !== undefined && isStale(primaryMetric.ts);
 
   // Phase F — alarm state (from alarmStore) + conditional-formatting rules + multi-state.
   const alarm = useSymbolAlarm(mode === 'preview' ? item.alarmSource : undefined);
@@ -285,7 +366,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
   if (isLazyObcType(item.type)) {
     return (
       <LazyObcSymbol
-        item={item}
+        item={renderItem}
         mode={mode}
         isRunning={isRunning}
         numericValue={numericValue}
@@ -302,7 +383,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
     return (
       <>
         {renderCustomSymbol(item.type, {
-          item,
+          item: renderItem,
           mode,
           displayValue,
           numericValue,
@@ -313,7 +394,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
           pvValue,
           spValue,
           decimals,
-          unit,
+          unit: shownUnit ?? unit,
         })}
       </>
     );
@@ -328,9 +409,14 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
       return (
         <div className="symbol symbol-readout">
           {item.label && <div className="symbol-readout__label">{item.label}</div>}
-          <div className="symbol-readout__value" style={{ color: getAlarmColor(numericValue, item.alarmLimits) }}>
+          <div className="symbol-readout__value" style={{ color: mappedState?.color ?? getAlarmColor(numericValue, effectiveLimits) }}>
             {isLoading && mode === 'preview' ? '...' : displayValue}
           </div>
+          {item.showTimestamp && mode === 'preview' && primaryMetric && (
+            <div className="symbol-readout__ts" style={{ fontSize: 10, color: OBC.textInactive }}>
+              {new Date(primaryMetric.ts).toLocaleTimeString()}
+            </div>
+          )}
         </div>
       );
     
@@ -715,24 +801,27 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
           fontSize: item.style?.fontSize || 14,
           fontWeight: item.style?.fontWeight,
           textAlign: item.style?.textAlign,
+          color: item.style?.fill,
         }}>
           {item.label || 'Label'}
         </div>
       );
-    
+
     case 'text.title':
       return (
         <div className="symbol symbol-title" style={{
           fontSize: item.style?.fontSize || 18,
           fontWeight: 'bold',
+          textAlign: item.style?.textAlign,
+          color: item.style?.fill,
         }}>
           {item.label || 'Section Title'}
         </div>
       );
-    
+
     case 'text.dynamic':
       return (
-        <div className="symbol symbol-dynamic-text">
+        <div className="symbol symbol-dynamic-text" style={{ color: item.style?.fill }}>
           {mode === 'preview' ? String(liveValue || '--') : `{${item.bindings?.text || 'text'}}`}
         </div>
       );
@@ -762,6 +851,15 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
           </div>
         </div>
       );
+
+    case 'chart.bar':
+      return <BarChart item={item} mode={mode} />;
+
+    case 'chart.xy':
+      return <XYPlot item={item} mode={mode} />;
+
+    case 'table.value':
+      return <TableSymbol item={item} mode={mode} />;
     
     case 'chart.sparkline':
       return (
@@ -800,6 +898,20 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
   }
   };
 
+  if (item.type === 'collection.container') {
+    return <CollectionRenderer item={item} mode={mode} />;
+  }
+  if (item.type === 'table.compare') {
+    return <AssetComparisonTable item={item} mode={mode} />;
+  }
+  // Phase 7 — user-defined custom symbols (registered via the custom-symbol framework).
+  if (item.type.startsWith('custom:')) {
+    return (
+      <SymbolFxWrap stale={stale} hidden={fxHidden} blink={fxBlink} outlineColor={fxOutline} rotateDeg={fxRotate}>
+        <CustomSymbolInstance item={item} mode={mode} />
+      </SymbolFxWrap>
+    );
+  }
   if (item.type === 'alarm.table') {
     return (
       <SymbolFxWrap stale={false} hidden={false} blink={false}>
@@ -817,6 +929,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
   return (
     <SymbolFxWrap
       stale={stale} hidden={fxHidden} blink={fxBlink} outlineColor={fxOutline} rotateDeg={fxRotate}
+      quality={quality} showQuality={item.showQuality ?? false}
       unbound={mode === 'design' && !isBound && (findSymbolDefinition(item.type)?.bindingSlots?.length ?? 0) > 0}
     >
       {renderInner()}

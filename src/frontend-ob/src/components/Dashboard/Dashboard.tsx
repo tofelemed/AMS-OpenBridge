@@ -46,13 +46,18 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
 
   // Phase 5 — connect MQTT on dashboard mount; disconnect on unmount
-  const mqttConnect    = useMqttStore(s => s.connect);
-  const mqttConnected  = useMqttStore(s => s.connected);
-  const mqttError      = useMqttStore(s => s.error);
-  const liveAlarms     = useMqttStore(s => s.liveAlarms);
+  const mqttConnect         = useMqttStore(s => s.connect);
+  const mqttConnected       = useMqttStore(s => s.connected);
+  const mqttError           = useMqttStore(s => s.error);
+  const liveAlarms          = useMqttStore(s => s.liveAlarms);
+  const subscribeFirehose   = useMqttStore(s => s.subscribeFirehose);
+  const unsubscribeFirehose = useMqttStore(s => s.unsubscribeFirehose);
 
   useEffect(() => {
     mqttConnect();
+    // Dashboard shows a plant-wide live-alarm summary → opt into the DDATA firehose.
+    subscribeFirehose();
+    return () => unsubscribeFirehose();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

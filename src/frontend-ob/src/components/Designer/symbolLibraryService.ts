@@ -6,6 +6,7 @@ import {
   resolveCategoryId,
   type LazyCategoryId,
 } from './lazyCategoryRegistry';
+import { getCustomSymbol } from './customSymbolRegistry';
 
 /** Built-in (non-lazy) categories from SymbolPalette static section */
 let staticCategories: SymbolCategory[] = [];
@@ -23,6 +24,23 @@ export async function ensureCategoryLoaded(categoryId: LazyCategoryId): Promise<
 }
 
 export function findSymbolDefinition(type: string): SymbolDefinition | null {
+  // Phase 7 — user-registered custom symbols. Synthesize a definition so the inspector renders binding
+  // pickers for each declared slot and the canvas knows the default footprint.
+  if (type.startsWith('custom:')) {
+    const def = getCustomSymbol(type);
+    if (!def) return null;
+    return {
+      type: `custom:${def.id}`,
+      label: def.name,
+      icon: '✳️',
+      category: def.category || 'custom',
+      defaultSize: def.defaultSize ?? { width: 120, height: 80 },
+      bindingSlots: def.slots.map(s => s.name),
+      isOpenBridge: false,
+      description: 'Custom symbol',
+    };
+  }
+
   const cached = findCachedSymbol(type);
   if (cached) return cached;
 
