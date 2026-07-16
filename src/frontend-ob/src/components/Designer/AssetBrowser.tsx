@@ -193,6 +193,13 @@ export const AssetBrowser: React.FC<AssetBrowserProps> = ({
         key={asset.id}
         className={`asset-search-result ${isSelected ? 'selected' : ''}`}
         onClick={() => handleSelect(asset)}
+        // A measurement found via search is just as draggable as one found in the tree (B18/B19/O13):
+        // drop on empty canvas to create a bound value readout, or onto a symbol to add the tag.
+        draggable={asset.type === 5}
+        onDragStart={asset.type === 5 ? (e) => {
+          e.dataTransfer.setData('application/x-ams-tag', asset.contextualPath);
+          e.dataTransfer.effectAllowed = 'copy';
+        } : undefined}
       >
         <span className="asset-search-result__icon">{typeIcon}</span>
         <div className="asset-search-result__info">
@@ -273,80 +280,129 @@ export const AssetBrowser: React.FC<AssetBrowserProps> = ({
   );
 };
 
-// Compact tag picker for property inspector
+// Compact tag picker for property inspector.
+//
+// UX (revised): the main input IS the search box — typing ≥2 chars shows a live typeahead dropdown of
+// matching tags directly beneath it (no folder-click-first). The 📂 button opens a full hierarchy
+// *browse* tree (the AssetBrowser in picker mode) for users who prefer to navigate rather than search.
+// Both paths call onChange(contextualPath). Wildcards (pump*, temp?) are honoured like the AssetBrowser.
 export const TagPicker: React.FC<{
   value: string;
   onChange: (path: string) => void;
   placeholder?: string;
 }> = ({ value, onChange, placeholder }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  const { data: searchResults } = useQuery({
-    queryKey: ['assets', 'search', searchTerm],
-    queryFn: () => searchAssets(searchTerm),
-    enabled: isOpen && searchTerm.length >= 2,
-    staleTime: 30_000
+  const [focused, setFocused] = useState(false);
+  const [browseOpen, setBrowseOpen] = useState(false);
+  const wrapRef = React.useRef<HTMLDivElement>(null);
+
+  // Typeahead is driven by whatever is currently in the input. A wildcard term is pre-filtered
+  // server-side by its longest literal run, then narrowed client-side by the glob (mirrors AssetBrowser).
+  const term = value.trim();
+  const serverTerm = hasWildcard(term) ? literalPart(term) : term;
+  const { data: rawResults, isFetching } = useQuery({
+    queryKey: ['assets', 'search', serverTerm],
+    queryFn: () => searchAssets(serverTerm),
+    enabled: focused && !browseOpen && term.length >= 2,
+    staleTime: 30_000,
   });
-  
+  const results = React.useMemo(
+    () => (rawResults ?? []).filter(a => matchesTerm(term, a.name, a.contextualPath, a.description)),
+    [rawResults, term],
+  );
+  // Don't pop the typeahead when the input already holds an exact path the user selected.
+  const isExactMatch = results.length === 1 && results[0].contextualPath === term;
+  const showTypeahead = focused && !browseOpen && term.length >= 2 && !isExactMatch;
+
   const handleSelect = (asset: Asset) => {
     onChange(asset.contextualPath);
-    setIsOpen(false);
-    setSearchTerm('');
+    setFocused(false);
+    setBrowseOpen(false);
   };
-  
+
+  // Close both popups on an outside click.
+  React.useEffect(() => {
+    if (!focused && !browseOpen) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setFocused(false);
+        setBrowseOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    return () => document.removeEventListener('mousedown', onDocMouseDown);
+  }, [focused, browseOpen]);
+
   return (
-    <div className="tag-picker">
+    <div className="tag-picker" ref={wrapRef}>
       <div className="tag-picker__input-wrapper">
         <input
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder || 'Enter tag path or browse...'}
+          onFocus={() => { setFocused(true); setBrowseOpen(false); }}
+          placeholder={placeholder || 'Type to search, or browse →'}
           className="tag-picker__input"
         />
+        {value && (
+          <button
+            type="button"
+            className="tag-picker__clear"
+            onMouseDown={(e) => { e.preventDefault(); onChange(''); }}
+            title="Clear tag"
+          >
+            ✕
+          </button>
+        )}
         <button
           type="button"
-          className="tag-picker__browse"
-          onClick={() => setIsOpen(!isOpen)}
-          title="Browse assets"
+          className={`tag-picker__browse${browseOpen ? ' active' : ''}`}
+          onClick={() => { setBrowseOpen(o => !o); setFocused(false); }}
+          title="Browse asset tree"
         >
           📂
         </button>
       </div>
-      
-      {isOpen && (
+
+      {/* Typeahead — live results as you type in the input above. */}
+      {showTypeahead && (
         <div className="tag-picker__dropdown">
-          <input
-            type="text"
-            placeholder="Search tags..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="tag-picker__search"
-            autoFocus
-          />
-          
           <div className="tag-picker__results">
-            {searchResults && searchResults.length > 0 ? (
-              searchResults.slice(0, 10).map(asset => (
+            {results.length > 0 ? (
+              results.slice(0, 12).map(asset => (
                 <button
                   key={asset.id}
+                  type="button"
                   className="tag-picker__result"
-                  onClick={() => handleSelect(asset)}
+                  // onMouseDown fires before the input's blur, so the pick registers.
+                  onMouseDown={(e) => { e.preventDefault(); handleSelect(asset); }}
                 >
                   <span className="tag-picker__result-icon">
                     {ASSET_TYPE_ICONS[asset.type]}
                   </span>
                   <span className="tag-picker__result-name">{asset.name}</span>
                   <span className="tag-picker__result-path">{asset.contextualPath}</span>
+                  {asset.engineeringUnit && (
+                    <span className="tag-picker__result-unit">{asset.engineeringUnit}</span>
+                  )}
                 </button>
               ))
-            ) : searchTerm.length >= 2 ? (
-              <div className="tag-picker__no-results">No tags found</div>
+            ) : isFetching ? (
+              <div className="tag-picker__hint">Searching…</div>
             ) : (
-              <div className="tag-picker__hint">Type to search tags</div>
+              <div className="tag-picker__no-results">No tags found</div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Browse — full hierarchy tree (sites → units → devices → measurements). */}
+      {browseOpen && (
+        <div className="tag-picker__dropdown tag-picker__dropdown--browse">
+          <AssetBrowser
+            mode="picker"
+            selectedPath={value}
+            onSelectPath={(_path, asset) => handleSelect(asset)}
+          />
         </div>
       )}
     </div>

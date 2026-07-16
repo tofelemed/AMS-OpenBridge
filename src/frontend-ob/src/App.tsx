@@ -233,6 +233,19 @@ const App: React.FC = () => {
                 </RequireAuth>
               }
             />
+            {/* Phase 4 — personal (operator-owned) views render through the same runtime viewer. */}
+            <Route
+              path="/my-view/:id"
+              element={
+                <RequireAuth>
+                  <RequirePermission permission="display.view">
+                    <React.Suspense fallback={<LoadingScreen />}>
+                      <DisplayViewer source="personal-view" />
+                    </React.Suspense>
+                  </RequirePermission>
+                </RequireAuth>
+              }
+            />
             {/* Everything else runs inside the app shell (auth-gated) */}
             <Route
               path="/*"

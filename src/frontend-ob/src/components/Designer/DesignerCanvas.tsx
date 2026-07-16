@@ -2,6 +2,7 @@ import React, { useRef, useCallback, useState, useEffect } from 'react';
 import type { CanvasItem } from './types';
 import { SymbolRenderer } from './SymbolRenderer';
 import { getDefaultSizeSync } from './symbolLibraryService';
+import { mediaUrl } from '../../api/mediaApi';
 import { ObiCommandLocked } from '@oicl/openbridge-webcomponents-react/icons/icon-command-locked';
 import { ObiPlaceholder } from '@oicl/openbridge-webcomponents-react/icons/icon-placeholder';
 import { ObiLink } from '@oicl/openbridge-webcomponents-react/icons/icon-link';
@@ -17,6 +18,8 @@ interface DesignerCanvasProps {
   canvasHeight?: number;
   /** Display background — a theme token by default, so the artboard follows day/night. */
   canvasBg?: string;
+  /** Optional background image (id of an uploaded media asset); drawn under the symbols. */
+  canvasBgImage?: string;
   /** Snap to grid. It used to be unconditional, so you could not place anything off-grid at all.
       Hold Alt while dragging to bypass it for one gesture (PI Vision's exact affordance). */
   snapEnabled?: boolean;
@@ -98,7 +101,7 @@ function computeSmartSnap(
 
 export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
   items, selectedIds, mode, gridSize = 10, showGrid = true, zoom = 1,
-  canvasWidth = 1920, canvasHeight = 1080, canvasBg = 'var(--ams-canvas-bg)', snapEnabled = true,
+  canvasWidth = 1920, canvasHeight = 1080, canvasBg = 'var(--ams-canvas-bg)', canvasBgImage, snapEnabled = true,
   onSelect, onToggleSelect, onUpdateItems, onCommit, onAddItem, onDeleteSelected, onNudge, onZoomBy,
   onItemContextMenu, onBindTag, onAddBoundSymbol,
 }) => {
@@ -354,8 +357,12 @@ export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
         className={`designer-canvas ${mode === 'preview' ? 'designer-canvas--preview' : ''}${drag ? ' designer-canvas--dragging' : ''}`}
         style={{
           width: canvasWidth, height: canvasHeight,
-          background: canvasBg,
-          backgroundSize: showGrid && mode === 'design' ? `${gridSize * zoom}px ${gridSize * zoom}px` : undefined,
+          // backgroundColor (not the `background` shorthand) so an optional image layers on top of it.
+          backgroundColor: canvasBg,
+          ...(canvasBgImage ? {
+            backgroundImage: `url(${mediaUrl(canvasBgImage)})`,
+            backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
+          } : {}),
           transform: `scale(${zoom})`, transformOrigin: 'top left',
         }}
         onDrop={handleDrop}

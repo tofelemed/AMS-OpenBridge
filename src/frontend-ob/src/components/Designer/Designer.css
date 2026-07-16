@@ -1241,7 +1241,125 @@
   text-align: center;
   color: var(--designer-text-muted);
   font-size: 13px;
-}/* ─────────────────────────────────────────────────────────────────────────
+}
+
+.tag-picker__clear {
+  width: 28px;
+  background: transparent;
+  border: 1px solid var(--designer-border);
+  border-radius: 4px;
+  color: var(--designer-text-muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.tag-picker__clear:hover {
+  color: var(--designer-text);
+  background: var(--designer-surface-alt);
+}
+
+.tag-picker__browse.active {
+  background: var(--designer-accent);
+  border-color: var(--designer-accent);
+}
+
+/* Browse popup hosts the full AssetBrowser tree — give it room and let it scroll. */
+.tag-picker__dropdown--browse {
+  max-height: 360px;
+  overflow: hidden;
+}
+
+.tag-picker__dropdown--browse .asset-browser {
+  max-height: 358px;
+}
+
+.tag-picker__result-unit {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--designer-text-muted);
+  font-family: monospace;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Phase 4 — governance UI (folders, version history, sharing, personal views)
+   ───────────────────────────────────────────────────────────────────────── */
+/* DisplayList: folder sidebar + main grid */
+.dl-layout { display: flex; gap: 16px; align-items: flex-start; }
+.dl-folders {
+  flex: 0 0 220px; position: sticky; top: 8px;
+  background: var(--container-background-color); border: 1px solid var(--border-divider-color);
+  border-radius: var(--border-radius-br-8); padding: 8px; max-height: 70vh; overflow: auto;
+}
+.dl-main { flex: 1 1 auto; min-width: 0; }
+@media (max-width: 900px) { .dl-layout { flex-direction: column; } .dl-folders { flex-basis: auto; width: 100%; position: static; } }
+
+/* Folder tree */
+.ft__head { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--element-neutral-color); padding: 2px 4px 8px; }
+.ft__head button, .ft__actions button { background: transparent; border: none; color: var(--element-neutral-color); cursor: pointer; font-size: 12px; padding: 2px 4px; border-radius: 4px; }
+.ft__head button:hover, .ft__actions button:hover { background: var(--container-section-color); color: var(--element-active-color); }
+.ft__row { display: flex; align-items: center; gap: 4px; padding: 5px 4px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--element-active-color); }
+.ft__row:hover { background: var(--container-section-color); }
+.ft__row--sel { background: var(--container-section-color); font-weight: 600; }
+.ft__row--drop { outline: 2px dashed var(--selected-enabled-background-color); outline-offset: -2px; }
+.ft__caret, .ft__caret-spacer { width: 16px; text-align: center; background: transparent; border: none; color: var(--element-inactive-color); cursor: pointer; font-size: 10px; }
+.ft__name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ft__actions { display: none; gap: 2px; }
+.ft__row:hover .ft__actions { display: flex; }
+
+/* Version history */
+.vh__hint { font-size: 12px; color: var(--element-neutral-color); margin-bottom: 8px; }
+.vh__link, .vh__diff-list { background: none; border: none; }
+.vh__link { color: var(--selected-enabled-background-color); cursor: pointer; margin-left: 8px; text-decoration: underline; }
+.vh__diff { background: var(--container-section-color); border-radius: 6px; padding: 8px 10px; font-size: 12px; margin-bottom: 10px; }
+.vh__diff-add { color: var(--alert-running-color); }
+.vh__diff-chg { color: var(--alert-warning-color); }
+.vh__diff-rem { color: var(--alert-alarm-color); }
+.vh__diff-list { margin: 6px 0 0; padding-left: 4px; list-style: none; font-family: monospace; font-size: 11px; }
+.vh__list { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow: auto; }
+.vh__row { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border-divider-color); }
+.vh__row--sel { background: var(--container-section-color); }
+.vh__pick { flex: 1; display: flex; align-items: center; gap: 8px; background: transparent; border: none; color: var(--element-active-color); text-align: left; cursor: pointer; padding: 8px 4px; }
+.vh__ver { font-weight: 700; font-family: monospace; }
+.vh__tag { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 8px; }
+.vh__tag--pub { background: var(--alert-running-color); color: var(--container-background-color); }
+.vh__tag--draft { background: var(--alert-warning-color); color: var(--container-background-color); }
+.vh__note { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vh__meta { font-size: 11px; color: var(--element-inactive-color); }
+.vh__restore, .share__grant, .pv__open { cursor: pointer; }
+.vh__restore { background: var(--selected-enabled-background-color); color: #fff; border: none; border-radius: 6px; padding: 5px 10px; font-size: 12px; font-weight: 600; }
+.vh__restore:disabled { opacity: 0.5; cursor: default; }
+.vh__comments { margin-top: 14px; border-top: 1px solid var(--border-divider-color); padding-top: 10px; }
+.vh__comments-title { font-size: 12px; font-weight: 700; color: var(--element-neutral-color); margin-bottom: 6px; }
+.vh__comments-list { list-style: none; margin: 0 0 8px; padding: 0; max-height: 120px; overflow: auto; font-size: 12px; }
+.vh__comments-list li { padding: 4px 0; border-bottom: 1px solid var(--border-divider-color); }
+.vh__comments-add { display: flex; gap: 6px; }
+.vh__comments-add input { flex: 1; }
+
+/* Sharing / ACL */
+.share__owner { font-size: 13px; margin-bottom: 10px; }
+.share__list { list-style: none; margin: 0 0 10px; padding: 0; }
+.share__row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border-divider-color); font-size: 13px; }
+.share__row--inherited { opacity: 0.75; }
+.share__principal { flex: 1; }
+.share__access { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 8px; background: var(--container-section-color); }
+.share__access--edit { color: var(--alert-warning-color); }
+.share__inherited { font-size: 10px; color: var(--element-inactive-color); }
+.share__remove { background: transparent; border: none; color: var(--alert-alarm-color); cursor: pointer; }
+.share__add { display: flex; gap: 6px; align-items: center; margin-top: 10px; }
+.share__add input { flex: 1; }
+.share__grant { background: var(--selected-enabled-background-color); color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-weight: 600; }
+.share__grant:disabled { opacity: 0.5; cursor: default; }
+.share__readonly, .share__empty, .pv__empty, .vh__empty { font-size: 12px; color: var(--element-inactive-color); padding: 8px 0; }
+
+/* Personal views */
+.pv__list { list-style: none; margin: 0; padding: 0; }
+.pv__row { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border-divider-color); }
+.pv__open { flex: 1; display: flex; flex-direction: column; align-items: flex-start; background: transparent; border: none; color: var(--element-active-color); text-align: left; padding: 8px 4px; }
+.pv__meta { font-size: 11px; color: var(--element-inactive-color); }
+.pv__del { background: transparent; border: none; color: var(--alert-alarm-color); cursor: pointer; }
+.pv__section { font-size: 12px; font-weight: 700; color: var(--element-neutral-color); margin: 10px 0 4px; }
+
+/* ─────────────────────────────────────────────────────────────────────────
    Symbol Styles
    ───────────────────────────────────────────────────────────────────────── */
 .symbol {
@@ -1526,6 +1644,21 @@
 .symbol-xyplot--empty, .symbol-xyplot--design {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 4px; font-size: 12px; color: var(--element-neutral-color, #949494); height: 100%;
+}
+
+/* ── Pie chart (data-bound) ─────────────────────────────────────────────────── */
+.symbol-pie { width: 100%; height: 100%; }
+.symbol-pie--empty, .symbol-pie--design {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; font-size: 12px; color: var(--element-neutral-color, #949494); height: 100%;
+}
+.symbol-pie__design-pens { font-size: 10px; opacity: 0.7; }
+
+/* ── Sparkline (data-bound) ─────────────────────────────────────────────────── */
+.symbol-sparkline { width: 100%; height: 100%; }
+.symbol-sparkline--empty {
+  display: flex; align-items: center; justify-content: center; height: 100%;
+  font-size: 11px; color: var(--element-neutral-color, #949494);
 }
 
 /* ── Collection container ───────────────────────────────────────────────────── */

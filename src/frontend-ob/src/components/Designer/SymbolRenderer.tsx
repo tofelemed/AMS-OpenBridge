@@ -11,6 +11,7 @@ import { getValueColor, formatValue as fmtValue, getPercentage as pctValue, isSt
 import { evaluateRules, evaluateMultiState } from './ruleEngine';
 import { useAssetMetadata } from '../../hooks/useAssetMetadata';
 import { convert, canonicalUnit } from '../../utils/uom';
+import { useDisplayTimeStore, formatInZone } from '../../store/timeStore';
 import { qualityFrom, type QualityInfo } from '../../utils/quality';
 import { CustomSymbolInstance } from './CustomSymbolInstance';
 import { TimeSeriesTable } from './TimeSeriesTable';
@@ -19,6 +20,8 @@ import { LazyObcSymbol } from './LazyObcSymbol';
 import { TrendChart } from './TrendChart';
 import { BarChart } from './BarChart';
 import { XYPlot } from './XYPlot';
+import { Sparkline } from './Sparkline';
+import { PieChart } from './PieChart';
 import { TableSymbol } from './TableSymbol';
 import { CollectionRenderer } from './CollectionRenderer';
 import { AssetComparisonTable } from './AssetComparisonTable';
@@ -111,6 +114,18 @@ function useSymbolAlarm(sourceName: string | undefined): SymbolAlarmState {
     const hp = m.map(a => a.priority).sort((x, y) => PRIORITY_ORDER.indexOf(x) - PRIORITY_ORDER.indexOf(y))[0];
     return { active: m.length > 0, unacked: m.some(a => !a.acknowledged), count: m.length, highestPriority: hp, message: m[0]?.message ?? undefined };
   }, [alarms, sourceName]);
+}
+
+/** Plant-wide active-alarm summary — drives the `obc.alert-button` annunciator when no source is set. */
+function useGlobalAlarmSummary(enabled: boolean): SymbolAlarmState {
+  const alarms = useAlarmStore(s => s.alarms);
+  return React.useMemo(() => {
+    if (!enabled) return { active: false, unacked: false, count: 0 };
+    const m = Array.from(alarms.values()).filter(a =>
+      a.conditionActive && !a.isSuppressed && !a.isShelved && !a.isOutOfService);
+    const hp = m.map(a => a.priority).sort((x, y) => PRIORITY_ORDER.indexOf(x) - PRIORITY_ORDER.indexOf(y))[0];
+    return { active: m.length > 0, unacked: m.some(a => !a.acknowledged), count: m.length, highestPriority: hp };
+  }, [alarms, enabled]);
 }
 
 const ALARM_ANNUNCIATOR_TYPES = new Set(['alarm.beacon', 'alarm.horn', 'alarm.banner', 'alarm.summary']);
@@ -263,9 +278,12 @@ const SymbolFxWrap: React.FC<{
   if (rotateDeg !== undefined) style.transform = `rotate(${rotateDeg}deg)`;
   if (outlineColor) { style.outline = `3px solid ${outlineColor}`; style.outlineOffset = '1px'; style.borderRadius = '4px'; }
   const cls = `symbol-fx${blink ? ' symbol-fx--blink' : ''}${stale ? ' symbol-quality-stale' : ''}${unbound ? ' symbol-unbound' : ''}`;
-  // Show the NE107 badge when quality is abnormal and the symbol opted in; otherwise fall back to the
-  // legacy stale ⚠ so behaviour is unchanged for symbols that don't render quality.
-  const showBadge = showQuality && quality && quality.state !== 'good';
+  // Show the NE107 badge for any abnormal quality. Bad/Uncertain are safety-relevant and surface
+  // ALWAYS (even without the per-symbol opt-in) so a failed/frozen tag can never be silently hidden;
+  // the informational states (maintenance / out-of-service) stay behind `showQuality`. Falls back to
+  // the legacy stale ⚠ for symbols that don't render quality at all.
+  const safetyState = !!quality && (quality.state === 'bad' || quality.state === 'uncertain');
+  const showBadge = !!quality && quality.state !== 'good' && (!!showQuality || safetyState);
   return (
     <div className={cls} style={style}>
       {children}
@@ -354,6 +372,8 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
 
   // NE107 staleness: a slot that stopped updating renders degraded (see wrapper at return).
   const stale = mode === 'preview' && primaryMetric !== undefined && isStale(primaryMetric.ts);
+  // Display timezone (K18/M15) — a value-symbol's timestamp respects the display zone, not just local.
+  const tz = useDisplayTimeStore(s => s.tz);
 
   // Quality-on-open (W4): NE107 / ISA-18.2 state from the Sparkplug quality code + staleness.
   const quality: QualityInfo | null = (mode === 'preview' && primaryMetric)
@@ -377,6 +397,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
 
   // Phase F — alarm state (from alarmStore) + conditional-formatting rules + multi-state.
   const alarm = useSymbolAlarm(mode === 'preview' ? item.alarmSource : undefined);
+  const globalAlarm = useGlobalAlarmSummary(mode === 'preview' && item.type === 'obc.alert-button' && !item.alarmSource);
   const alarmStats = useAlarmStore(s => s.stats);
   const getSlotValue = (slot?: string): unknown =>
     mode !== 'preview' ? undefined : (slot ? slots[slot]?.value : liveValue);
@@ -392,6 +413,10 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
     ?? (item.alarmSource && alarm.active && !isAnnunciator ? priorityColor(alarm.highestPriority) : undefined);
 
   const renderInner = (): React.ReactNode => {
+  // Live-bound chart symbols with dedicated components (must precede the custom-symbol catch below,
+  // since chart.pie is otherwise a CUSTOM_SYMBOL_TYPE and would fall to the mock renderer).
+  if (item.type === 'chart.pie') return <PieChart item={item} mode={mode} />;
+
   // OpenBridge components — lazy-loaded renderer chunks per domain
   if (isLazyObcType(item.type)) {
     return (
@@ -444,7 +469,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
           </div>
           {item.showTimestamp && mode === 'preview' && primaryMetric && (
             <div className="symbol-readout__ts" style={{ fontSize: 10, color: OBC.textInactive }}>
-              {new Date(primaryMetric.ts).toLocaleTimeString()}
+              {formatInZone(primaryMetric.ts, tz, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </div>
           )}
         </div>
@@ -572,16 +597,16 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
     case 'obc.clock':
       return <ObcClock />;
     
-    case 'obc.breadcrumb':
+    case 'obc.breadcrumb': {
+      // Derive the trail from the author's label ("Houston/Crude1/Pump101" or dotted) instead of a
+      // hardcoded Site/Area. Last segment is the current (non-link) crumb.
+      const parts = (item.label || 'Site/Area/Current').split(/[/.]/).map(s => s.trim()).filter(Boolean);
       return (
-        <ObcBreadcrumb 
-          items={[
-            { label: 'Site', href: '#' },
-            { label: 'Area', href: '#' },
-            { label: item.label || 'Current' }
-          ]}
+        <ObcBreadcrumb
+          items={parts.map((label, i) => (i < parts.length - 1 ? { label, href: '#' } : { label }))}
         />
       );
+    }
     
     // ─────────────────────────────────────────────────────────────────────────
     // OPENBRIDGE ALARMS (ISA-18.2)
@@ -593,12 +618,22 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
         />
       );
     
-    case 'obc.alert-button':
+    case 'obc.alert-button': {
+      // Live annunciator: scoped to `alarmSource` if set, else the plant-wide active-alarm summary.
+      // Colour follows the highest active priority (ISA-101: colour only for the abnormal); the label
+      // blinks while any alarm is unacknowledged.
+      const a = item.alarmSource ? alarm : globalAlarm;
+      const tok = a.highestPriority === 'CRITICAL' ? OBC.alarm
+        : a.highestPriority === 'HIGH' ? OBC.warning
+        : a.count > 0 ? OBC.caution : undefined;
       return (
         <ObcButton variant="flat">
-          🔔 {item.label || 'Alarms'}
+          <span className={a.unacked ? 'symbol-fx--blink' : ''} style={tok ? { color: tok, fontWeight: 700 } : undefined}>
+            🔔 {item.label || 'Alarms'}{a.count > 0 ? ` (${a.count})` : ''}
+          </span>
         </ObcButton>
       );
+    }
     
     case 'obc.nav-item':
       return (
@@ -705,16 +740,29 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
         </div>
       );
     
-    case 'equip.hx':
+    case 'equip.hx': {
+      // Shell & tube HX now reads its tempIn/tempOut slots (already resolved into `slots.*`) and
+      // labels the inlet/outlet temperatures live.
+      const tin = slots.tempIn?.value, tout = slots.tempOut?.value;
+      const hxDec = item.formatting?.decimals ?? 0;
+      const hxUnit = item.formatting?.unit ? `${item.formatting.unit}` : '';
+      const fmtT = (v: unknown) => (typeof v === 'number' ? `${v.toFixed(hxDec)}${hxUnit}` : '--');
       return (
         <div className="symbol symbol-hx">
           <svg viewBox="0 0 100 60" width="100%" height="100%">
             <ellipse cx="50" cy="30" rx="45" ry="25" fill="none" stroke="currentColor" strokeWidth="2" />
-            <line x1="5" y1="30" x2="95" y2="30" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M 8 30 Q 25 14 42 30 T 76 30 L 92 30" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            {mode === 'preview' && tin !== undefined && (
+              <text x="8" y="54" fontSize="9" fill="currentColor">in {fmtT(tin)}</text>
+            )}
+            {mode === 'preview' && tout !== undefined && (
+              <text x="92" y="54" fontSize="9" textAnchor="end" fill="currentColor">out {fmtT(tout)}</text>
+            )}
           </svg>
           {item.label && <div className="symbol-equipment__label">{item.label}</div>}
         </div>
       );
+    }
     
     case 'equip.compressor':
       return (
@@ -894,18 +942,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
       return <TableSymbol item={item} mode={mode} />;
     
     case 'chart.sparkline':
-      return (
-        <div className="symbol symbol-sparkline">
-          <svg viewBox="0 0 100 30" preserveAspectRatio="none" width="100%" height="100%">
-            <polyline
-              points="0,20 15,18 30,22 45,15 60,20 75,12 90,18 100,10"
-              fill="none"
-              stroke="var(--alert-advisory-border-color, #3b82f6)"
-              strokeWidth="2"
-            />
-          </svg>
-        </div>
-      );
+      return <Sparkline item={item} mode={mode} />;
     
     case 'nav.faceplate':
       return (

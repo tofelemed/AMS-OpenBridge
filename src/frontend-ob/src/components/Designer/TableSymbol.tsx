@@ -5,6 +5,8 @@ import type { CanvasItem } from './types';
 import { useBatchBindingResolver } from '../../hooks/useBindingResolver';
 import { useMqttStore, type TrendSummary } from '../../store/mqttStore';
 import { useDisplayTimeStore } from '../../store/timeStore';
+import { useAssetMetadataBatch } from '../../hooks/useAssetMetadata';
+import { convert, canonicalUnit } from '../../utils/uom';
 import { formatValue } from './openBridgeTheme';
 
 interface Row { slot: string; path: string; label: string; }
@@ -31,11 +33,23 @@ export const TableSymbol: React.FC<{ item: CanvasItem; mode: 'design' | 'preview
   const fetchSummary = useMqttStore(s => s.fetchSummary);
   const tStart = useDisplayTimeStore(s => s.start);
   const tEnd = useDisplayTimeStore(s => s.end);
+  // Per-tag engineering unit (P — each row shows its OWN unit, not one shared string), and dimension-
+  // aware conversion when a display unit (item.uom) is set. Mirrors the single-value symbol path.
+  const { data: metaByPath } = useAssetMetadataBatch(paths, mode === 'preview');
 
   const summaryCols = item.summaryColumns ?? [];
   const showUnit = item.formatting?.showUnit !== false;
   const unit = item.formatting?.unit ?? '';
   const decimals = item.formatting?.decimals ?? 1;
+
+  // For a row's path: native unit (from the asset catalog, falling back to the symbol's unit), the unit
+  // actually shown (item.uom when set), and a converter for numeric values in that row.
+  const unitInfo = (path: string) => {
+    const nativeUnit = canonicalUnit(metaByPath?.[path]?.engineeringUnit) || unit || '';
+    const shownUnit = item.uom || nativeUnit;
+    const conv = (v: number) => (item.uom ? convert(v, nativeUnit, item.uom) : v);
+    return { shownUnit, conv };
+  };
 
   const resolved = (batch?.bindings ?? []) as Array<{
     live?: { sparkplugDevice?: string; sparkplugMetric?: string };
@@ -79,17 +93,19 @@ export const TableSymbol: React.FC<{ item: CanvasItem; mode: 'design' | 'preview
   const summaryVal = (path: string, col: 'min' | 'max' | 'avg'): number | null => {
     const s = summaries[path];
     if (!s) return null;
-    return col === 'min' ? s.min : col === 'max' ? s.max : s.avg;
+    const raw = col === 'min' ? s.min : col === 'max' ? s.max : s.avg;
+    return raw == null ? null : unitInfo(path).conv(raw);
   };
 
-  const fmtCell = (v: number | string | boolean | undefined) =>
-    v === undefined ? '--' : formatValue(v, decimals);
+  // Format a live cell, converting numeric values into the row's display unit.
+  const fmtValueCell = (path: string, v: number | string | boolean | undefined) =>
+    v === undefined ? '--' : typeof v === 'number' ? formatValue(unitInfo(path).conv(v), decimals) : formatValue(v, decimals);
 
   // Phase 8 (E4.16) — transposed: tags across the top, attributes (Value/Units/summaries) down the side.
   if (item.transpose) {
     const attrRows: Array<{ label: string; get: (r: typeof rows[number]) => string }> = [
-      { label: 'Value', get: r => fmtCell(r.value) },
-      ...(showUnit ? [{ label: 'Units', get: () => unit }] : []),
+      { label: 'Value', get: r => fmtValueCell(r.path, r.value) },
+      ...(showUnit ? [{ label: 'Units', get: (r: typeof rows[number]) => unitInfo(r.path).shownUnit }] : []),
       ...summaryCols.map(c => ({ label: SUMMARY_LABEL[c], get: (r: typeof rows[number]) => {
         const v = summaryVal(r.path, c); return v == null ? '--' : formatValue(v, decimals);
       } })),
@@ -131,8 +147,8 @@ export const TableSymbol: React.FC<{ item: CanvasItem; mode: 'design' | 'preview
           {rows.map((r, i) => (
             <tr key={i}>
               <td>{r.label}</td>
-              <td className="symbol-table__val">{r.value === undefined ? '--' : formatValue(r.value, decimals)}</td>
-              {showUnit && <td>{unit}</td>}
+              <td className="symbol-table__val">{fmtValueCell(r.path, r.value)}</td>
+              {showUnit && <td>{unitInfo(r.path).shownUnit}</td>}
               {summaryCols.map(c => {
                 const v = summaryVal(r.path, c);
                 return <td key={c} className="symbol-table__val">{v == null ? '--' : formatValue(v, decimals)}</td>;

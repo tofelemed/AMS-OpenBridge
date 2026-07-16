@@ -248,10 +248,21 @@ export function renderSymbol(ctx: CatalogRenderContext): React.ReactNode {
     case 'graph.circular-progress':
     case 'bb.circular-progress':
       return wrap(obcEl(ObcCircularProgress, { value: pctValue(val), mode: props.progressMode ?? 'determinate' }));
-    case 'graph.graph-mini':
-      return wrap(obcEl(ObcGraphMini, { data: DEMO_GRAPH_DATA, minY: props.minValue ?? 0, maxY: props.maxValue ?? 100 }));
-    case 'graph.gauge-trend':
-      return wrap(obcEl(ObcGaugeTrend, { data: DEMO_TREND_DATA, ...instrumentValue(ctx), state: 'active' }));
+    case 'graph.graph-mini': {
+      // Live in preview (bound → real value ring-buffer); DEMO shape only in design mode / before data.
+      const s = ctx.mode === 'preview' ? (ctx.trendSeries ?? []) : [];
+      const graphData: [number[], number[]] = s.length >= 2
+        ? [s.map((_, i) => i), s]
+        : DEMO_GRAPH_DATA;
+      return wrap(obcEl(ObcGraphMini, { data: graphData, minY: props.minValue ?? 0, maxY: props.maxValue ?? 100 }));
+    }
+    case 'graph.gauge-trend': {
+      const s = ctx.mode === 'preview' ? (ctx.trendSeries ?? []) : [];
+      const trendData = s.length >= 2
+        ? s.slice(-5).map((value, i, arr) => ({ label: i === arr.length - 1 ? 'Now' : `T-${arr.length - 1 - i}`, value }))
+        : DEMO_TREND_DATA;
+      return wrap(obcEl(ObcGaugeTrend, { data: trendData, ...instrumentValue(ctx), state: 'active' }));
+    }
 
     // ── Instruments ─────────────────────────────────────────────────────────
     case 'inst.gauge-radial':

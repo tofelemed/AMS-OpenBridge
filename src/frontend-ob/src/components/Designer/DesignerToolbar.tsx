@@ -26,7 +26,9 @@ import { ObiArrowUpGoogle } from '@oicl/openbridge-webcomponents-react/icons/ico
 import { ObiArrowDownGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-arrow-down-google';
 import { ObiTrend } from '@oicl/openbridge-webcomponents-react/icons/icon-trend';
 import { ObiIdTag } from '@oicl/openbridge-webcomponents-react/icons/icon-id-tag';
+import { toast } from 'react-toastify';
 import { relativeTime, absoluteTime } from '../../utils/relativeTime';
+import { uploadMedia } from '../../api/mediaApi';
 
 export type AlignDir = 'left' | 'centerH' | 'right' | 'top' | 'centerV' | 'bottom';
 
@@ -66,6 +68,8 @@ interface ToolbarProps {
 
   trendCount: number;
   onTrend: () => void;
+  /** Phase 4 — open the version-history browser (compare / restore). */
+  onHistory: () => void;
 
   showGrid: boolean;
   setShowGrid: (v: boolean) => void;
@@ -74,6 +78,9 @@ interface ToolbarProps {
   /** Display-level background colour (B32 — was loaded/saved but had no editor control). */
   bgColor: string;
   setBgColor: (v: string) => void;
+  /** Display-level background IMAGE (media-asset id; config-only). */
+  bgImageId?: string;
+  setBgImageId: (v: string | undefined) => void;
   showAssets: boolean;
   toggleAssets: () => void;
 
@@ -356,6 +363,34 @@ export const DesignerToolbar: React.FC<ToolbarProps> = (p) => {
             />
             <button className="dt-btn" onClick={() => p.setBgColor('var(--ams-canvas-bg)')} title="Reset background to theme default">Theme</button>
           </span>
+          {/* Display background IMAGE (schematic/plant photo). Bytes go to the sanitising media store;
+              the display keeps only the id (config-only). Clear reverts to the colour above. */}
+          <span className="dt-check" title="Display background image">
+            <label className="dt-btn" style={{ cursor: 'pointer', margin: 0 }} title="Upload a background image">
+              {p.bgImageId ? 'Image ✓' : 'Image'}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                data-testid="bg-image"
+                style={{ display: 'none' }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (!file) return;
+                  try {
+                    const { id } = await uploadMedia(file);
+                    p.setBgImageId(id);
+                    toast.success('Background image set');
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : 'Upload failed');
+                  }
+                }}
+              />
+            </label>
+            {p.bgImageId && (
+              <button className="dt-btn" onClick={() => p.setBgImageId(undefined)} title="Remove background image">✕</button>
+            )}
+          </span>
           <button
             className={`dt-btn${p.showAssets ? ' active' : ''}`}
             onClick={p.toggleAssets}
@@ -373,6 +408,14 @@ export const DesignerToolbar: React.FC<ToolbarProps> = (p) => {
             data-testid="trend-action"
           >
             <ObiTrend /> Trend{p.trendCount ? ` (${p.trendCount})` : ''}
+          </button>
+          <button
+            className="dt-btn"
+            onClick={p.onHistory}
+            title="Version history — compare and restore prior versions"
+            data-testid="history-action"
+          >
+            🕓 History
           </button>
 
           <span className="dt-spacer" />

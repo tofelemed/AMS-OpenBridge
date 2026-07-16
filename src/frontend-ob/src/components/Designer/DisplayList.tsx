@@ -11,6 +11,8 @@ import { Modal, FormField } from '../shared/Modal';
 import { apiFetch, apiJson } from '../../api/apiFetch';
 import { relativeTime } from '../../utils/relativeTime';
 import { useAuthStore } from '../../store/authStore';
+import ShareDialog from './ShareDialog';
+import { FolderTree, DISPLAY_DND } from './FolderTree';
 // The card action buttons (.dl-action, .dl-card-actions) are defined here — this file never imported
 // it, so Rename/Duplicate/Delete rendered as bare unstyled HTML buttons instead of the styled pills.
 import './Designer.css';
@@ -144,6 +146,12 @@ export const DisplayList: React.FC = () => {
   const [sortBy, setSortBy] = useState<SortKey>('name');
   const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem('dl.view') as ViewMode) || 'grid');
   const [tagFilter, setTagFilter] = useState<string | undefined>();
+  // Favorites-only view + ISA-101 level filter (both applied client-side over the fetched list).
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [levelFilter, setLevelFilter] = useState<number | undefined>();
+  // Phase 4 — sharing dialog target + folder filter.
+  const [shareTarget, setShareTarget] = useState<{ id: string; name: string } | null>(null);
+  const [folderFilter, setFolderFilter] = useState<string | undefined>();
 
   const setView = (m: ViewMode) => { setViewMode(m); localStorage.setItem('dl.view', m); };
 
@@ -171,6 +179,17 @@ export const DisplayList: React.FC = () => {
     queryKey: ['recent-displays'],
     queryFn: () => apiJson<{ recents: RecentRow[] }>(`${API_BASE}/me/recent`),
   });
+
+  // Favorites + ISA-101 level are narrowed client-side (the server list query already applies
+  // category/search/tag/sort). Keeps the star meaningful and mirrors the launcher's level filter.
+  const visibleDisplays = useMemo(
+    () => (data?.displays ?? []).filter(d =>
+      (!showFavoritesOnly || favoriteIds.has(d.id)) &&
+      (levelFilter == null || d.level === levelFilter) &&
+      // folderFilter: undefined = All · '' = Unfiled (no folder) · else a specific folder id.
+      (folderFilter === undefined || (folderFilter === '' ? !d.folderId : d.folderId === folderFilter))),
+    [data, showFavoritesOnly, favoriteIds, levelFilter, folderFilter],
+  );
 
   const toggleFavorite = useMutation({
     mutationFn: async (display: Display) => {
@@ -393,6 +412,36 @@ export const DisplayList: React.FC = () => {
             {(Object.keys(SORT_LABELS) as SortKey[]).map(k => <option key={k} value={k}>{SORT_LABELS[k]}</option>)}
           </select>
         </label>
+        {/* ISA-101 level filter — mirrors the operator launcher's level filtering. */}
+        <label style={{ fontSize: '12px', color: T.textMuted, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          Level
+          <select
+            className="ob-input" value={levelFilter ?? ''} data-testid="display-level-filter"
+            onChange={e => setLevelFilter(e.target.value ? Number(e.target.value) : undefined)}
+          >
+            <option value="">All</option>
+            <option value={1}>L1 — Overview</option>
+            <option value={2}>L2 — Unit / area</option>
+            <option value={3}>L3 — Detail</option>
+            <option value={4}>L4 — Faceplate</option>
+          </select>
+        </label>
+        {/* Favorites-only toggle — makes the star meaningful (starred displays land here). */}
+        <button
+          type="button" onClick={() => setShowFavoritesOnly(v => !v)} data-testid="filter-favorites"
+          title="Show only favorites"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px',
+            fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+            borderRadius: T.radiusSm,
+            border: `1.5px solid ${showFavoritesOnly ? T.warning : T.border}`,
+            background: showFavoritesOnly ? T.blueLight : T.card,
+            color: showFavoritesOnly ? T.warning : T.textSecondary,
+          }}
+        >
+          <span aria-hidden style={{ color: T.warning }}>★</span> Favorites
+          {favoriteIds.size > 0 && <span style={{ opacity: 0.7 }}>({favoriteIds.size})</span>}
+        </button>
         <div style={{ display: 'inline-flex', border: `1px solid ${T.border}`, borderRadius: T.radiusSm, overflow: 'hidden' }}>
           {(['grid', 'list'] as ViewMode[]).map(m => (
             <button
@@ -442,21 +491,37 @@ export const DisplayList: React.FC = () => {
         </div>
       )}
 
-      {/* Content */}
+      {/* Content — folder sidebar + display grid */}
+      <div className="dl-layout">
+        <aside className="dl-folders">
+          <FolderTree selectedFolderId={folderFilter} onSelect={setFolderFilter} />
+        </aside>
+        <div className="dl-main">
       {isLoading ? (
         <LoadingState />
       ) : error ? (
         <ErrorState onRetry={() => refetch()} />
-      ) : data?.displays.length === 0 ? (
-        <EmptyState onCreate={() => setShowCreateModal(true)} category={selectedCategory} />
+      ) : visibleDisplays.length === 0 ? (
+        showFavoritesOnly
+          ? <div style={{ padding: '48px', textAlign: 'center', color: T.textMuted }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>★</div>
+              No favorites yet — click the star on any display to add it here.
+            </div>
+          : <EmptyState onCreate={() => setShowCreateModal(true)} category={selectedCategory} />
       ) : (
         <div style={{
           display: 'grid',
           gridTemplateColumns: viewMode === 'list' ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))',
           gap: viewMode === 'list' ? '8px' : '16px',
         }}>
-          {data?.displays.map(display => (
-            <div key={display.id} style={{ position: 'relative' }}>
+          {visibleDisplays.map(display => (
+            <div
+              key={display.id}
+              style={{ position: 'relative' }}
+              // Drag a card onto a folder (or Unfiled) to move it (Phase 4).
+              draggable
+              onDragStart={(e) => { e.dataTransfer.setData(DISPLAY_DND, display.id); e.dataTransfer.effectAllowed = 'move'; }}
+            >
               <DisplayCard
                 display={display}
                 viewMode={viewMode}
@@ -490,6 +555,12 @@ export const DisplayList: React.FC = () => {
                   }}
                 ><ObiContentCopyGoogle /></button>
                 <button
+                  className="dl-action" data-testid="card-share"
+                  title="Share (manage who can view / edit)"
+                  aria-label="Share display"
+                  onClick={(e) => { e.stopPropagation(); setShareTarget({ id: display.id, name: display.name }); }}
+                >🔗</button>
+                <button
                   className="dl-action dl-action--danger" data-testid="card-delete"
                   title="Delete (recoverable from the recycle bin)"
                   aria-label="Delete display"
@@ -506,6 +577,8 @@ export const DisplayList: React.FC = () => {
           ))}
         </div>
       )}
+        </div>
+      </div>
 
       {/* Recycle bin — deletes are soft, so nothing is ever really gone. PI Vision keeps deleted
           displays indefinitely; under ISA-101 a display is a change-managed artifact. */}
@@ -621,6 +694,16 @@ export const DisplayList: React.FC = () => {
           </FormField>
         </form>
       </Modal>
+
+      {/* Phase 4 — sharing / ACL editor */}
+      {shareTarget && (
+        <ShareDialog
+          displayId={shareTarget.id}
+          displayName={shareTarget.name}
+          open={!!shareTarget}
+          onClose={() => setShareTarget(null)}
+        />
+      )}
     </div>
   );
 };

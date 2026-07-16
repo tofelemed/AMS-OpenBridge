@@ -21,6 +21,8 @@ export interface CatalogRenderContext {
   displayValue: string;
   isRunning: boolean;
   statusState: 'active' | 'inactive' | 'caution' | 'warning' | 'alarm' | 'running';
+  /** Recent live values of the primary binding (oldest→newest); feeds graph-mini / gauge-trend. */
+  trendSeries?: number[];
 }
 
 export type ObcRenderContext = AutomationRenderContext | CatalogRenderContext;

@@ -17,8 +17,11 @@ import { pensFromItems, pensFromItem } from './TrendChart';
 import { ObiTrend } from '@oicl/openbridge-webcomponents-react/icons/icon-trend';
 import TrendDialog from './TrendDialog';
 import { isSafeUrl } from './NavigationEditor';
+import { toast } from 'react-toastify';
+import PersonalViewsDialog from './PersonalViewsDialog';
 import './Designer.css';
-import { apiFetch } from '../../api/apiFetch';
+import { apiFetch, apiJson } from '../../api/apiFetch';
+import { mediaUrl } from '../../api/mediaApi';
 import { useTheme } from '../../App';
 
 const API_BASE = import.meta.env.VITE_DISPLAY_SERVICE_URL || '/api/displays';
@@ -29,9 +32,29 @@ interface ViewerContent {
   width: number;
   height: number;
   backgroundColor: string;
+  /** Optional display background image (id of an uploaded media asset — config-only, never the bytes). */
+  backgroundImageId?: string;
 }
 
-async function fetchViewerContent(id: string): Promise<ViewerContent> {
+type ViewerSource = 'display' | 'personal-view';
+
+async function fetchViewerContent(id: string, source: ViewerSource = 'display'): Promise<ViewerContent> {
+  // Phase 4 — a personal view is a per-user config snapshot; it loads from /me/views/{id} instead of
+  // the published display content. Same ViewerContent shape, so the rest of the runtime is unchanged.
+  if (source === 'personal-view') {
+    const v = await apiJson<{
+      name: string; width: number; height: number; backgroundColor: string;
+      config?: { items?: CanvasItem[]; settings?: { backgroundImageId?: string } };
+    }>(`${API_BASE}/me/views/${id}`);
+    return {
+      name: v.name ?? 'Personal view',
+      items: v.config?.items ?? [],
+      width: v.width ?? 1920,
+      height: v.height ?? 1080,
+      backgroundColor: v.backgroundColor ?? 'var(--ams-canvas-bg)',
+      backgroundImageId: v.config?.settings?.backgroundImageId,
+    };
+  }
   // Phase L — the runtime serves the PUBLISHED version, never the draft. Without `stage=published`
   // this endpoint falls back to the latest draft, which is what used to make every designer save go
   // live instantly. A display that has never been published 404s here (nothing to run yet).
@@ -49,6 +72,7 @@ async function fetchViewerContent(id: string): Promise<ViewerContent> {
     // Default to the theme token, not a hardcoded navy: an inline hex here can't follow day/night and
     // can't be overridden by any stylesheet. `var(--ams-canvas-bg)` is a valid inline background value.
     backgroundColor: settings.backgroundColor ?? json.backgroundColor ?? 'var(--ams-canvas-bg)',
+    backgroundImageId: settings.backgroundImageId,
   };
 }
 
@@ -84,9 +108,10 @@ function substituteElement(item: CanvasItem, element: string): CanvasItem {
 const isAssetRelative = (item: CanvasItem) =>
   !!item.bindings && Object.values(item.bindings).some(v => v.includes('{{element}}'));
 
-export const DisplayViewer: React.FC = () => {
+export const DisplayViewer: React.FC<{ source?: ViewerSource }> = ({ source = 'display' }) => {
   const { id } = useParams<{ id: string }>();
   const [params] = useSearchParams();
+  const isPersonalView = source === 'personal-view';
   const assetContext = params.get('asset') ?? undefined; // Phase E will rebind against this
   // Phase 8 (M11–M14) — kiosk / chrome control via URL params. ?kiosk=1 hides ALL chrome (navigation bar
   // + time bar) for a wall/panel display; ?hideBar / ?hideTimebar hide them individually.
@@ -109,6 +134,7 @@ export const DisplayViewer: React.FC = () => {
   const [trendOpen, setTrendOpen] = useState(false);
   const [trendSel, setTrendSel] = useState<string[]>([]);
   const [trendPickMode, setTrendPickMode] = useState(false);
+  const [myViewsOpen, setMyViewsOpen] = useState(false); // Phase 4 — personal views dialog
   const toggleTrendPick = (id: string) =>
     setTrendSel(sel => (sel.includes(id) ? sel.filter(x => x !== id) : [...sel, id]));
   // Asset-relative swap: the currently selected element (device path) bound to {{element}}.
@@ -180,8 +206,8 @@ export const DisplayViewer: React.FC = () => {
   }, []);
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['viewer-display', id],
-    queryFn: () => fetchViewerContent(id!),
+    queryKey: ['viewer-display', source, id],
+    queryFn: () => fetchViewerContent(id!, source),
     enabled: !!id,
     refetchInterval: refreshMs || false,
     // "Not published" is a terminal answer, not a transient failure — retrying it just leaves the
@@ -392,6 +418,33 @@ export const DisplayViewer: React.FC = () => {
           </select>
         </label>
         <button className="display-viewer__btn" onClick={() => refetch()}>Refresh</button>
+        {/* Phase 4 — personal views: save the current config as a private view / open My Views. */}
+        {!isPersonalView && (
+          <button
+            className="display-viewer__btn" data-testid="viewer-save-view"
+            title="Save this display's layout as your own personal view"
+            onClick={async () => {
+              if (!data) return;
+              const name = window.prompt('Name for your personal view', `${data.name} (my view)`);
+              if (!name?.trim()) return;
+              try {
+                await apiJson(`${API_BASE}/me/views`, {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    name: name.trim(), sourceDisplayId: id,
+                    width: data.width, height: data.height, backgroundColor: data.backgroundColor,
+                    // Config only — items are display configuration (no process values); server re-checks.
+                    config: { items: data.items, settings: { backgroundImageId: data.backgroundImageId } },
+                  }),
+                });
+                toast.success('Saved to My views');
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : 'Save failed');
+              }
+            }}
+          >Save as view</button>
+        )}
+        <button className="display-viewer__btn" data-testid="viewer-my-views" onClick={() => setMyViewsOpen(true)}>My views</button>
         <button className="display-viewer__btn" onClick={toggleFullscreen}>
           {isFullscreen ? 'Exit full screen' : 'Full screen'}
         </button>
@@ -410,6 +463,10 @@ export const DisplayViewer: React.FC = () => {
         <div
           className="display-viewer__stage"
           style={{ width: data.width, height: data.height, background: data.backgroundColor,
+            ...(data.backgroundImageId ? {
+              backgroundImage: `url(${mediaUrl(data.backgroundImageId)})`,
+              backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
+            } : {}),
             transform: touchTransform, transformOrigin: 'top left' }}
         >
           {resolvedItems.map(item => {
@@ -490,6 +547,9 @@ export const DisplayViewer: React.FC = () => {
 
       {/* Phase J — ad-hoc trend from the published runtime (Operators/Viewers may trend) */}
       {trendOpen && <TrendDialog pens={viewerPens} note={penCapNote} onClose={() => setTrendOpen(false)} />}
+
+      {/* Phase 4 — personal (operator-owned) views */}
+      <PersonalViewsDialog open={myViewsOpen} onClose={() => setMyViewsOpen(false)} />
     </div>
   );
 };

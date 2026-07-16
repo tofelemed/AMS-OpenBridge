@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { AutomationRenderContext, CatalogRenderContext } from './obcRenderShared';
 import { isAutomationType } from './automationTypes';
 import { isObcCatalogType } from './obcCatalogTypes';
 import { isLazyObcType, loadRendererForType } from './lazyCategoryRegistry';
+
+const TREND_CAP = 60;
 
 interface LazyObcSymbolProps {
   item: AutomationRenderContext['item'];
@@ -31,6 +33,19 @@ export const LazyObcSymbol: React.FC<LazyObcSymbolProps> = ({
     </div>
   );
 
+  // Per-item ring buffer of recent live values — feeds graph-mini / gauge-trend a real trend series
+  // (the effect re-runs on every numericValue change, so each new sample is appended here).
+  const trendRef = useRef<number[]>([]);
+  if (mode === 'preview' && Number.isFinite(numericValue)) {
+    const buf = trendRef.current;
+    if (buf.length === 0 || buf[buf.length - 1] !== numericValue || buf.length < 2) {
+      buf.push(numericValue);
+      if (buf.length > TREND_CAP) buf.splice(0, buf.length - TREND_CAP);
+    }
+  } else if (mode !== 'preview') {
+    trendRef.current = [];
+  }
+
   useEffect(() => {
     if (!isLazyObcType(item.type)) return;
 
@@ -58,6 +73,7 @@ export const LazyObcSymbol: React.FC<LazyObcSymbolProps> = ({
           displayValue,
           isRunning,
           statusState,
+          trendSeries: trendRef.current.slice(),
         };
         setContent((render as (c: CatalogRenderContext) => React.ReactNode)(ctx));
       }

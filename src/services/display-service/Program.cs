@@ -126,7 +126,12 @@ using (var scope = app.Services.CreateScope())
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id TEXT NOT NULL,
                 display_id UUID REFERENCES displays.display_definitions(id),
                 personal_view_id UUID REFERENCES displays.personal_views(id),
-                display_order INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());");
+                display_order INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
+            -- Self-heal older deployments whose governance tables predate these columns (CREATE TABLE
+            -- IF NOT EXISTS won't add them, so an existing table would 500 the ORDER BY / SELECT).
+            ALTER TABLE displays.view_favorites ADD COLUMN IF NOT EXISTS display_order INTEGER NOT NULL DEFAULT 0;
+            ALTER TABLE displays.view_favorites ADD COLUMN IF NOT EXISTS personal_view_id UUID REFERENCES displays.personal_views(id);
+            ALTER TABLE displays.recent_displays ADD COLUMN IF NOT EXISTS accessed_at TIMESTAMPTZ NOT NULL DEFAULT NOW();");
     }
     catch (Exception ex)
     {

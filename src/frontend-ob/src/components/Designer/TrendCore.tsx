@@ -9,6 +9,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { useBatchBindingResolver } from '../../hooks/useBindingResolver';
 import { useMqttStore, getLiveSeries } from '../../store/mqttStore';
+import { useDisplayTimeStore, formatInZone } from '../../store/timeStore';
 
 export interface PenSpec {
   /** UNS path, e.g. houston/crude1/pump101.speed */
@@ -128,8 +129,9 @@ function splitIoTPath(iotDbPath?: string): { series?: string; measurement?: stri
   return { series: iotDbPath.slice(0, dot), measurement: iotDbPath.slice(dot + 1) };
 }
 
-const fmtClock = (ms: number) =>
-  new Date(ms).toLocaleString(undefined, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const CLOCK_OPTS: Intl.DateTimeFormatOptions = { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+// Axis ticks are terser (no date) when the visible window is under a day.
+const AXIS_OPTS: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
 
 export const TrendCore: React.FC<TrendCoreProps> = ({
   pens: penSpecs,
@@ -183,6 +185,11 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
     if (next.has(path)) next.delete(path); else next.add(path);
     return next;
   });
+
+  // Display timezone (K18/M15) — reformats the clock labels AND the echarts time axis, so the trend
+  // agrees with the time bar / time-series table instead of always showing the client's local zone.
+  const tz = useDisplayTimeStore(s => s.tz);
+  const fmtClock = React.useCallback((ms: number) => formatInZone(ms, tz, CLOCK_OPTS), [tz]);
 
   const [rangeMs, setRangeMs] = useState(initialRangeMs);
   const [live, setLive] = useState(true);
@@ -374,7 +381,12 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
     },
     xAxis: {
       type: 'time', min: windowStart, max: windowEnd,
-      axisLabel: { color: cText, fontSize: 10 }, axisLine: { lineStyle: { color: cBorder } },
+      axisLabel: {
+        color: cText, fontSize: 10,
+        // Render ticks in the display timezone (echarts defaults to the client's local zone).
+        formatter: (value: number) => formatInZone(value, tz, AXIS_OPTS),
+      },
+      axisLine: { lineStyle: { color: cBorder } },
     },
     yAxis,
     // Carry the current zoom window in the option. <ReactECharts notMerge> re-applies the option on

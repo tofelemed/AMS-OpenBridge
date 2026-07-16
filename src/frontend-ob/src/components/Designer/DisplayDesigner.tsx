@@ -13,6 +13,7 @@ import { preloadForSymbolTypes } from './lazyCategoryRegistry';
 import { pensFromItems } from './TrendChart';
 import DesignerToolbar from './DesignerToolbar';
 import LayersPanel from './LayersPanel';
+import VersionHistoryDialog from './VersionHistoryDialog';
 import { renderThumbnailSvg } from './thumbnail';
 import TrendDialog from './TrendDialog';
 import { apiFetch } from '../../api/apiFetch';
@@ -49,6 +50,8 @@ interface DisplaySettings {
   gridSize: number;
   showGrid: boolean;
   backgroundColor: string;
+  /** Optional display background image (media-asset id; config-only). */
+  backgroundImageId?: string;
   canvasWidth: number;
   canvasHeight: number;
 }
@@ -141,7 +144,10 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
   const [canvasSize, setCanvasSize] = useState({ width: 1920, height: 1080 });
   // Canvas background is a THEME TOKEN by default, so the canvas follows day/night like everything else.
   const [bgColor, setBgColor] = useState('var(--ams-canvas-bg)');
+  // Optional display background image (media-asset id; config-only — the bytes live in the media store).
+  const [bgImageId, setBgImageId] = useState<string | undefined>(undefined);
   const [trendOpen, setTrendOpen] = useState(false); // Phase J — ad-hoc trend dialog
+  const [historyOpen, setHistoryOpen] = useState(false); // Phase 4 — version history browser
   // Right-click context menu (Phase 1.12) + a signal to focus a PropertyInspector tab from it.
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const [inspectorFocus, setInspectorFocus] = useState<{ tab: string; nonce: number } | undefined>(undefined);
@@ -187,6 +193,7 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
     if (typeof s?.showGrid === 'boolean') setShowGrid(s.showGrid);
     if (s?.gridSize) setGridSize(s.gridSize);
     if (s?.backgroundColor) setBgColor(s.backgroundColor);
+    setBgImageId(s?.backgroundImageId || undefined);
   }, [displayData, displayId]);
 
   /** Re-seed the canvas from the server on purpose (used by Revert, which replaces the draft). */
@@ -205,7 +212,7 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
   const saveMutation = useMutation({
     mutationFn: () => saveDisplay(displayId, {
       items,
-      settings: { gridSize, showGrid, backgroundColor: bgColor, canvasWidth: canvasSize.width, canvasHeight: canvasSize.height },
+      settings: { gridSize, showGrid, backgroundColor: bgColor, backgroundImageId: bgImageId, canvasWidth: canvasSize.width, canvasHeight: canvasSize.height },
     }, currentUser),
     onSuccess: () => {
       setIsDirty(false);
@@ -664,12 +671,15 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
         onFlip={flipSelected}
         trendCount={trendPens.length}
         onTrend={() => setTrendOpen(true)}
+        onHistory={() => setHistoryOpen(true)}
         showGrid={showGrid}
         setShowGrid={setShowGrid}
         snapEnabled={snapEnabled}
         setSnapEnabled={setSnapEnabled}
         bgColor={bgColor}
         setBgColor={(c) => { setBgColor(c); setIsDirty(true); }}
+        bgImageId={bgImageId}
+        setBgImageId={(id) => { setBgImageId(id); setIsDirty(true); }}
         showAssets={leftTab === 'assets'}
         toggleAssets={() => { setLeftTab(t => (t === 'assets' ? 'symbols' : 'assets')); setLeftCollapsed(false); }}
         canvasSize={canvasSize}
@@ -766,6 +776,7 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
             canvasWidth={canvasSize.width}
             canvasHeight={canvasSize.height}
             canvasBg={bgColor}
+            canvasBgImage={bgImageId}
             snapEnabled={snapEnabled}
             onSelect={selectMany}
             onToggleSelect={toggleSelect}
@@ -842,6 +853,14 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
 
       {/* Phase J — ad-hoc trend over the canvas (does not touch canvas state) */}
       {trendOpen && <TrendDialog pens={trendPens} onClose={() => setTrendOpen(false)} />}
+
+      {/* Phase 4 — version history browser (compare / restore / change notes) */}
+      <VersionHistoryDialog
+        displayId={displayId}
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        onRestored={() => { setHistoryOpen(false); setIsDirty(false); void reseedFromServer(); }}
+      />
     </div>
   );
 };
