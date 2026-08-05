@@ -132,7 +132,11 @@ services.Configure<AMS.Api.BackgroundServices.AlarmIngestionOptions>(
 
 services.AddHttpClient<AMS.Api.Services.FlinkRestClient>(client =>
 {
-    client.BaseAddress = new Uri("http://ams-flink-jobmanager:8081");
+    // Read from config. This was hardcoded, so Flink:JobManagerUrl was ignored by
+    // the client while PipelineHealthService honoured it — two components could
+    // disagree about which cluster they were talking to.
+    client.BaseAddress = new Uri(
+        config["Flink:JobManagerUrl"] ?? "http://ams-flink-jobmanager:8081");
 });
 services.AddHostedService<AMS.Api.BackgroundServices.AlarmIngestionService>();
 services.AddHostedService<AMS.Api.BackgroundServices.HttpAckWritebackService>();
