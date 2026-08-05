@@ -46,6 +46,18 @@ public final class CplmHistoricalReplayJob {
         String outputTopic = params.get("output-topic", "clpm.gate.results.v1");
         String loopId = params.getRequired("loop-id");
         String replayId = params.getRequired("replay-id");
+        // Registry evidence for G12/G13. The streaming path receives these on the
+        // metadata broadcast, which a bounded BATCH job does not consume, so they
+        // arrive as arguments instead. They were hardcoded false, which meant a
+        // recomputed window could never evaluate G13 even when the same loop's
+        // streaming verdict did.
+        boolean hasStepTest = params.getBoolean("has-step-test", false);
+        boolean hasPeerLinks = params.getBoolean("has-peer-links", false);
+        // A replay covers one contiguous slice of history. Epoch-aligned 24h
+        // tumbling windows split a noon-to-noon replay into two half-full windows,
+        // both of which fail G0 completeness and return INSUFFICIENT_DATA. The
+        // offset shifts the window boundary onto the data's own start.
+        long windowOffsetMs = params.getLong("window-offset-ms", 0L);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -74,8 +86,8 @@ public final class CplmHistoricalReplayJob {
                         && loopId.equalsIgnoreCase(sample.loopId))
                 .assignTimestampsAndWatermarks(watermarks)
                 .keyBy(sample -> sample.loopId)
-                .window(TumblingEventTimeWindows.of(Time.hours(24)))
-                .process(new HistoricalWindowFunction(replayId))
+                .window(TumblingEventTimeWindows.of(Time.hours(24), Time.milliseconds(windowOffsetMs)))
+                .process(new HistoricalWindowFunction(replayId, hasStepTest, hasPeerLinks))
                 .name("cplm-historical-native-formula")
                 .map(result -> withReplayLineage(result, replayId, inputTopic))
                 .name("cplm-historical-lineage");
@@ -97,6 +109,15 @@ public final class CplmHistoricalReplayJob {
             List<CplmNormalizedSample> samples,
             long windowStart,
             long windowEnd) {
+        return computeWindow(samples, windowStart, windowEnd, false, false);
+    }
+
+    static CplmGateResult computeWindow(
+            List<CplmNormalizedSample> samples,
+            long windowStart,
+            long windowEnd,
+            boolean hasStepTest,
+            boolean hasPeerLinks) {
         List<CplmNormalizedSample> evaluationSamples = materializeEvaluationSamples(
                 samples, windowStart, windowEnd, EVALUATION_PERIOD_MS);
         CplmNormalizedSample first = evaluationSamples.isEmpty()
@@ -106,7 +127,7 @@ public final class CplmHistoricalReplayJob {
                 first == null ? null : first.loopType,
                 first == null ? null : first.assetUuid);
         return CplmGateFusionEngine.fuseFromSamples(
-                evaluationSamples, windowStart, windowEnd, "24h", false, false, profile);
+                evaluationSamples, windowStart, windowEnd, "24h", hasStepTest, hasPeerLinks, profile);
     }
 
     /**
@@ -182,9 +203,13 @@ public final class CplmHistoricalReplayJob {
     static final class HistoricalWindowFunction extends ProcessWindowFunction<
             CplmNormalizedSample, CplmGateResult, String, TimeWindow> {
         private final String replayId;
+        private final boolean hasStepTest;
+        private final boolean hasPeerLinks;
 
-        HistoricalWindowFunction(String replayId) {
+        HistoricalWindowFunction(String replayId, boolean hasStepTest, boolean hasPeerLinks) {
             this.replayId = replayId;
+            this.hasStepTest = hasStepTest;
+            this.hasPeerLinks = hasPeerLinks;
         }
 
         @Override
@@ -203,7 +228,8 @@ public final class CplmHistoricalReplayJob {
             }
             if (!samples.isEmpty()) {
                 out.collect(computeWindow(
-                        samples, context.window().getStart(), context.window().getEnd()));
+                        samples, context.window().getStart(), context.window().getEnd(),
+                        hasStepTest, hasPeerLinks));
             }
         }
 

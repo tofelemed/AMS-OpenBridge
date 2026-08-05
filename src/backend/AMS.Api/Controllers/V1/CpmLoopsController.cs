@@ -101,6 +101,56 @@ public sealed class CpmLoopsController : ControllerBase
             : NotFound(new { error = $"Loop '{loopId}' is not registered" });
     }
 
+    /// <summary>
+    /// A8 — recompute this loop's gates from historical samples. Runs as a bounded
+    /// BATCH job, so a verdict comes back in seconds instead of waiting for the
+    /// streaming pipeline's event-time timers to cross a 12h/24h window.
+    /// </summary>
+    [HttpPost("{loopId}/recompute")]
+    [Authorize(Policy = "cpm.manage")]
+    public async Task<IActionResult> Recompute(
+        string loopId, [FromServices] ICplmRecomputeService recompute, CancellationToken ct)
+    {
+        var loop = await _registry.GetAsync(loopId, ct);
+        if (loop is null) return NotFound(new { error = $"Loop '{loopId}' is not registered" });
+
+        try
+        {
+            // Feed the batch job the same evidence the streaming path gets from the
+            // broadcast, so a recomputed verdict matches the streamed one.
+            var handle = await recompute.StartAsync(
+                loop.LoopId,
+                hasStepTest: loop.StepTestApproved,
+                hasPeerLinks: loop.Links.Count > 0,
+                windowOffsetMs: await recompute.GetWindowOffsetMsAsync(loop.LoopId, ct),
+                ct);
+            return Accepted(new
+            {
+                handle.LoopId,
+                handle.ReplayId,
+                handle.JobId,
+                statusUrl = $"/api/v1/cpm/replays/{handle.ReplayId}?jobId={handle.JobId}",
+                note = "Results land in analytics.cplm_gate_results with source='flink-historical-replay'."
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new { error = "RECOMPUTE_SUBMIT_FAILED", message = ex.Message });
+        }
+    }
+
+    /// <summary>A8 — poll a recompute job.</summary>
+    [HttpGet("/api/v{version:apiVersion}/cpm/replays/{replayId}")]
+    [Authorize(Policy = "analytics.view")]
+    public async Task<IActionResult> GetReplayStatus(
+        string replayId, [FromQuery] string jobId,
+        [FromServices] ICplmRecomputeService recompute, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(jobId))
+            return BadRequest(new { error = "jobId is required (returned by the recompute call)" });
+        return Ok(await recompute.GetStatusAsync(replayId, jobId, ct));
+    }
+
     /// <summary>The onboarding contract, so a UI need not hardcode role requirements.</summary>
     [HttpGet("/api/v{version:apiVersion}/cpm/registry-contract")]
     [Authorize(Policy = "analytics.view")]

@@ -163,6 +163,12 @@ services.AddHttpClient("AssetModel", client =>
     client.Timeout = TimeSpan.FromSeconds(15);
 });
 services.AddSingleton<AMS.Api.Services.ICpmLoopRegistryService, AMS.Api.Services.CpmLoopRegistryService>();
+// A8 — on-demand batch recompute. Uploads the mounted jar to the JobManager and
+// runs CplmHistoricalReplayJob; the legacy FlinkRestClient path could never work
+// because the jar is bind-mounted, so GET /jars is always empty.
+services.Configure<AMS.Api.Services.CplmRecomputeOptions>(
+    config.GetSection(AMS.Api.Services.CplmRecomputeOptions.SectionName));
+services.AddSingleton<AMS.Api.Services.ICplmRecomputeService, AMS.Api.Services.CplmRecomputeService>();
 services.AddHostedService<AMS.Api.BackgroundServices.DriftAlertConsumerService>();
 services.AddSingleton<TelemetryIngestState>();
 services.AddSingleton<ReadinessHistoryStore>();

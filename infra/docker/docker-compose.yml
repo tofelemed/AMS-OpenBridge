@@ -450,6 +450,12 @@ services:
       Cpm__AssetModelUrl:            http://asset-model:5000
       Cpm__ServiceKey:               ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
       Cpm__BootstrapServers:         kafka:9092
+      # A8 recompute uploads this jar to the JobManager and runs the batch replay
+      # job. The cluster's copy is bind-mounted (never uploaded), so Flink's
+      # /jars list is empty and the REST run endpoint needs its own upload.
+      CplmRecompute__JarPath:        /opt/ams/flink/ams-flink.jar
+    volumes:
+      - ../../src/flink/target/ams-flink-1.0-SNAPSHOT.jar:/opt/ams/flink/ams-flink.jar:ro
     ports:
       - "8000:8000"
     networks:
