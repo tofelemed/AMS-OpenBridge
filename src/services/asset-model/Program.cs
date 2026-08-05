@@ -35,6 +35,26 @@ using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<AssetDbContext>();
         await db.Database.ExecuteSqlRawAsync("ALTER TABLE assets.assets ADD COLUMN IF NOT EXISTS template TEXT;");
+        // CPLM Phase 4.1 — asset graph edges (PEER/UPSTREAM_OF/…). Same statements as
+        // database/scripts/31_assets_relationships.sql, so already-initialised volumes
+        // converge without a wipe (this service has no migration runner).
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS assets.asset_relationships (
+                id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                from_asset_id UUID NOT NULL REFERENCES assets.assets(id) ON DELETE CASCADE,
+                to_asset_id   UUID NOT NULL REFERENCES assets.assets(id) ON DELETE CASCADE,
+                rel_type      TEXT NOT NULL CHECK (rel_type IN
+                                  ('PEER','UPSTREAM_OF','DOWNSTREAM_OF','CASCADE_PRIMARY','CASCADE_SECONDARY')),
+                created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                created_by    TEXT,
+                CONSTRAINT chk_asset_rel_not_self CHECK (from_asset_id <> to_asset_id));
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_asset_relationships_edge
+                ON assets.asset_relationships (from_asset_id, to_asset_id, rel_type);
+            CREATE INDEX IF NOT EXISTS idx_asset_relationships_from
+                ON assets.asset_relationships (from_asset_id, rel_type);
+            CREATE INDEX IF NOT EXISTS idx_asset_relationships_to
+                ON assets.asset_relationships (to_asset_id, rel_type);
+            """);
     }
     catch (Exception ex)
     {
@@ -278,6 +298,126 @@ app.MapGet("/assets/{id:guid}/hierarchy", async (Guid id, AssetDbContext db) =>
     return Results.Ok(hierarchy.Select(AssetDto.From));
 }).RequireAuthorization("asset.view");
 
+// ── Asset Relationship Endpoints (CPLM Phase 4.2) ────────────────────────────
+// Non-hierarchical edges between assets. CPLM reads PEER/UPSTREAM_OF to decide
+// whether an oscillation is self-inflicted or arriving from upstream (G13).
+
+// GET /assets/{id}/relationships?type=PEER&direction=both
+// direction: out (this asset is the source), in (target), both (default).
+// PEER is stored as a single directed row but is conceptually symmetric, so the
+// default "both" is what callers almost always want.
+app.MapGet("/assets/{id:guid}/relationships", async (
+    Guid id, string? type, string? direction, AssetDbContext db) =>
+{
+    if (type is not null && !AssetRelationshipTypes.IsValid(type))
+        return Results.BadRequest(new { error = $"Invalid rel_type '{type}'. Valid: {string.Join(", ", AssetRelationshipTypes.All)}" });
+
+    var dir = (direction ?? "both").ToLowerInvariant();
+    if (dir is not ("in" or "out" or "both"))
+        return Results.BadRequest(new { error = "direction must be one of: in, out, both" });
+
+    var relType = type?.ToUpperInvariant();
+    var query = db.AssetRelationships.AsQueryable();
+    query = dir switch
+    {
+        "out" => query.Where(r => r.FromAssetId == id),
+        "in" => query.Where(r => r.ToAssetId == id),
+        _ => query.Where(r => r.FromAssetId == id || r.ToAssetId == id)
+    };
+    if (relType is not null) query = query.Where(r => r.RelType == relType);
+
+    var rows = await query.OrderBy(r => r.RelType).ThenBy(r => r.CreatedAt).ToListAsync();
+
+    // Resolve the far end of each edge so callers do not need a second round-trip.
+    var otherIds = rows.Select(r => r.FromAssetId == id ? r.ToAssetId : r.FromAssetId).Distinct().ToList();
+    var others = await db.Assets.Where(a => otherIds.Contains(a.Id) && !a.IsDeleted)
+        .ToDictionaryAsync(a => a.Id, a => a);
+
+    return Results.Ok(rows.Select(r =>
+    {
+        var outgoing = r.FromAssetId == id;
+        var otherId = outgoing ? r.ToAssetId : r.FromAssetId;
+        others.TryGetValue(otherId, out var other);
+        return new
+        {
+            id = r.Id,
+            relType = r.RelType,
+            // As seen from {id}: an inbound UPSTREAM_OF row means the far asset
+            // is upstream of me, i.e. my effective relation is DOWNSTREAM_OF.
+            effectiveRelType = outgoing ? r.RelType : AssetRelationshipTypes.Inverse(r.RelType),
+            direction = outgoing ? "out" : "in",
+            assetId = otherId,
+            assetPath = other?.ContextualPath,
+            assetName = other?.Name,
+            createdAt = r.CreatedAt,
+            createdBy = r.CreatedBy
+        };
+    }));
+}).RequireAuthorization("asset.view");
+
+// POST /assets/{id}/relationships  { toAssetId, relType }
+app.MapPost("/assets/{id:guid}/relationships", async (
+    Guid id, CreateRelationshipRequest request, AssetDbContext db, HttpContext http) =>
+{
+    if (!AssetRelationshipTypes.IsValid(request.RelType))
+        return Results.BadRequest(new { error = $"Invalid rel_type '{request.RelType}'. Valid: {string.Join(", ", AssetRelationshipTypes.All)}" });
+    if (id == request.ToAssetId)
+        return Results.BadRequest(new { error = "An asset cannot relate to itself" });
+
+    var relType = request.RelType.ToUpperInvariant();
+
+    // Both endpoints must exist and be live; a dangling edge is worse than no edge
+    // because CPLM would count it as a peer link and evaluate G13 on nothing.
+    var known = await db.Assets.Where(a => (a.Id == id || a.Id == request.ToAssetId) && !a.IsDeleted)
+        .Select(a => a.Id).ToListAsync();
+    if (!known.Contains(id)) return Results.NotFound(new { error = $"Asset {id} not found" });
+    if (!known.Contains(request.ToAssetId)) return Results.NotFound(new { error = $"Asset {request.ToAssetId} not found" });
+
+    var existing = await db.AssetRelationships.FirstOrDefaultAsync(r =>
+        r.FromAssetId == id && r.ToAssetId == request.ToAssetId && r.RelType == relType);
+    if (existing is not null) return Results.Ok(new { id = existing.Id, relType, status = "exists" });
+
+    // PEER is symmetric: reject the mirror row so the pair has exactly one edge.
+    if (relType == AssetRelationshipTypes.Peer)
+    {
+        var mirror = await db.AssetRelationships.FirstOrDefaultAsync(r =>
+            r.FromAssetId == request.ToAssetId && r.ToAssetId == id && r.RelType == relType);
+        if (mirror is not null) return Results.Ok(new { id = mirror.Id, relType, status = "exists" });
+    }
+
+    var rel = new AssetRelationship
+    {
+        FromAssetId = id,
+        ToAssetId = request.ToAssetId,
+        RelType = relType,
+        CreatedBy = http.User.Identity?.Name
+    };
+    db.AssetRelationships.Add(rel);
+    await db.SaveChangesAsync();
+
+    return Results.Created($"/assets/{id}/relationships", new { id = rel.Id, relType, status = "created" });
+}).RequireAuthorization("asset.edit");
+
+// DELETE /assets/{id}/relationships?toAssetId={guid}&relType={type}
+app.MapDelete("/assets/{id:guid}/relationships", async (
+    Guid id, Guid toAssetId, string relType, AssetDbContext db) =>
+{
+    if (!AssetRelationshipTypes.IsValid(relType))
+        return Results.BadRequest(new { error = $"Invalid rel_type '{relType}'" });
+
+    var type = relType.ToUpperInvariant();
+    // Delete the edge in whichever direction it was stored (PEER may be either way).
+    var rows = await db.AssetRelationships.Where(r => r.RelType == type &&
+            ((r.FromAssetId == id && r.ToAssetId == toAssetId) ||
+             (type == "PEER" && r.FromAssetId == toAssetId && r.ToAssetId == id)))
+        .ToListAsync();
+    if (rows.Count == 0) return Results.NotFound();
+
+    db.AssetRelationships.RemoveRange(rows);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+}).RequireAuthorization("asset.edit");
+
 // ── Alias Mapping Endpoints ──────────────────────────────────────────────────
 
 // GET /aliases/resolve?legacy={path}&source={system}
@@ -392,3 +532,7 @@ record CreateAliasRequest(
     string LegacyPath,
     string CanonicalPath,
     string? SourceSystem);
+
+record CreateRelationshipRequest(
+    Guid ToAssetId,
+    string RelType);

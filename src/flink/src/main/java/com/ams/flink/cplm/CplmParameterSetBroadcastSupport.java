@@ -201,7 +201,60 @@ public final class CplmParameterSetBroadcastSupport {
                                    Collector<CplmLongDiagnosticsResult> out) throws Exception {
             diagnostic.resolvedProfile = resolve(
                     diagnostic.loopId, diagnostic.loopType, diagnostic.assetUuid, ctx);
+            applyLoopEvidence(diagnostic, ctx.getBroadcastState(PROFILE_STATE));
             out.collect(diagnostic);
+        }
+    }
+
+    /**
+     * Attribute key carrying per-loop registry evidence (peer/upstream links and
+     * approved step tests). Published to the metadata broadcast topic by the CPLM
+     * onboarding service as
+     * {@code {"calcInstanceId":"<loopId>","parameters":[{"name":"cplm.loop.evidence","value":"{...}"}]}},
+     * which {@link #applyUpdateToState} stores under {@code <loopId>:cplm.loop.evidence}.
+     */
+    public static final String ATTR_LOOP_EVIDENCE = "cplm.loop.evidence";
+
+    /**
+     * Stamps HAS_PEER_LINKS / HAS_STEP_TEST onto a long-diagnostics record from
+     * broadcast state, before the fusion join reads those flags.
+     *
+     * <p>This closes a real gap: the fusion job has always read these two flags
+     * ({@code CplmGateFusionStreamJob}), but nothing in the pipeline ever wrote
+     * them — so G13 was permanently NOT_EVALUATED/NO_UPSTREAM_LINKS and the
+     * disturbance soft-block could never fire, meaning an oscillating loop being
+     * disturbed from upstream was diagnosed as stiction. Topology is
+     * configuration, so it arrives on the broadcast (control) plane rather than
+     * on the sample stream.
+     */
+    static void applyLoopEvidence(CplmLongDiagnosticsResult diagnostic,
+                                  ReadOnlyBroadcastState<String, String> state) throws Exception {
+        if (diagnostic == null || diagnostic.loopId == null || state == null) return;
+        String json = state.get(diagnostic.loopId + ":" + ATTR_LOOP_EVIDENCE);
+        if (json == null || json.isBlank()) return;
+
+        JsonNode evidence;
+        try {
+            evidence = MAPPER.readTree(json);
+        } catch (Exception ex) {
+            return; // malformed evidence must never break the diagnostics stream
+        }
+        if (diagnostic.observabilityFlags == null) {
+            diagnostic.observabilityFlags = new java.util.ArrayList<>();
+        }
+        if (evidence.path("hasPeerLinks").asBoolean(false)) {
+            if (!diagnostic.observabilityFlags.contains("HAS_PEER_LINKS")) {
+                diagnostic.observabilityFlags.add("HAS_PEER_LINKS");
+            }
+            // The engine re-adds NO_UPSTREAM_LINKS itself when peers are absent;
+            // strip the stale negative so the two never coexist.
+            diagnostic.observabilityFlags.remove("NO_UPSTREAM_LINKS");
+        }
+        if (evidence.path("hasStepTest").asBoolean(false)) {
+            if (!diagnostic.observabilityFlags.contains("HAS_STEP_TEST")) {
+                diagnostic.observabilityFlags.add("HAS_STEP_TEST");
+            }
+            diagnostic.observabilityFlags.remove("NO_STEP_TEST");
         }
     }
 

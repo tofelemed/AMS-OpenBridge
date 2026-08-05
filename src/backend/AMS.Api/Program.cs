@@ -148,6 +148,17 @@ services.AddHttpClient("IotDbWrite");
 services.AddSingleton<AMS.Api.Services.IotDbWriteClient>();
 services.AddHostedService<AMS.Api.BackgroundServices.CplmResultConsumerService>();
 services.AddHostedService<AMS.Api.BackgroundServices.RawLoopIotDbConsumer>();
+// CPLM Phase 4 — loop registry / onboarding. Publishes peer-link evidence onto the
+// CPLM metadata broadcast, which is what makes G13 evaluable.
+services.Configure<AMS.Api.Services.CpmRegistryOptions>(
+    config.GetSection(AMS.Api.Services.CpmRegistryOptions.SectionName));
+services.AddHttpClient("AssetModel", client =>
+{
+    client.BaseAddress = new Uri(
+        config["Cpm:AssetModelUrl"] ?? "http://asset-model:5000");
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
+services.AddSingleton<AMS.Api.Services.ICpmLoopRegistryService, AMS.Api.Services.CpmLoopRegistryService>();
 services.AddHostedService<AMS.Api.BackgroundServices.DriftAlertConsumerService>();
 services.AddSingleton<TelemetryIngestState>();
 services.AddSingleton<ReadinessHistoryStore>();
@@ -305,7 +316,11 @@ services.AddAuthorizationBuilder()
     .AddPolicy("soe.view",               p => p.RequireClaim("permission", "soe.view"))
     .AddPolicy("analytics.view",         p => p.RequireClaim("permission", "analytics.view"))
     .AddPolicy("admin.users.edit",       p => p.RequireClaim("permission", "admin.users.edit"))
-    .AddPolicy("admin.audit.view",       p => p.RequireClaim("permission", "admin.audit.view"));
+    .AddPolicy("admin.audit.view",       p => p.RequireClaim("permission", "admin.audit.view"))
+    // CPLM Phase 4 — onboarding a loop decides what the diagnosis engine evaluates
+    // and what operators are told about their plant, so writes need their own
+    // permission rather than riding on an alarm or analytics claim.
+    .AddPolicy("cpm.manage",             p => p.RequireClaim("permission", "cpm.manage"));
 
 // ---- Rate Limiting ----
 services.AddRateLimiter(opt =>

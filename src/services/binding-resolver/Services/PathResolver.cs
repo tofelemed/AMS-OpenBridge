@@ -46,8 +46,14 @@ public class PathResolver
             {
                 return BuildBindingFromAsset(asset, resolveLive, resolveHistory, resolveAlarm);
             }
-            
-            // Fallback: generate bindings from path pattern directly
+
+            // Fallback: derive bindings from the path string. This produces a
+            // different sparkplug device id than asset-model would, so the result is
+            // stamped Provenance="fallback" — callers that need a trustworthy binding
+            // (CPLM readiness, faceplates) must check it rather than Resolved alone.
+            _logger.LogWarning(
+                "No asset registered for {Path}; returning FALLBACK binding derived from the path string",
+                contextualPath);
             return BuildBindingFromPath(contextualPath, resolveLive, resolveHistory, resolveAlarm);
         }
         catch (Exception ex)
@@ -176,6 +182,7 @@ public class PathResolver
         {
             ContextualPath = contextualPath,
             Resolved = true,
+            Provenance = "fallback",
             Live = live ? BuildLiveBinding(site, edgeNode, deviceId, metric, redisKey, sparkplugTopic) : null,
             History = history ? BuildHistoryBinding(iotdbPath) : null,
             Alarm = alarm ? BuildAlarmBinding(alarmSource) : null
@@ -188,7 +195,7 @@ public class PathResolver
         var mqttHost = _config["Mqtt:Host"] ?? "emqx";
         var mqttPort = _config.GetValue<int>("Mqtt:WebSocketPort", 8083);
         var mqttProtocol = _config["Mqtt:Protocol"] ?? "ws";
-        var historianBff = _config["Services:HistorianBff"] ?? "http://historian-bff:5000";
+        var historianBff = _config["Services:HistorianBff"] ?? "http://historian-bff:8090";
         
         return new LiveBinding
         {
@@ -211,7 +218,7 @@ public class PathResolver
     
     private HistoryBinding BuildHistoryBinding(string iotdbPath)
     {
-        var historianBff = _config["Services:HistorianBff"] ?? "http://historian-bff:5000";
+        var historianBff = _config["Services:HistorianBff"] ?? "http://historian-bff:8090";
         var encodedPath = Uri.EscapeDataString(iotdbPath);
         
         return new HistoryBinding
@@ -233,7 +240,10 @@ public class PathResolver
         {
             AlarmSource = alarmSource,
             SignalRHub = signalrHub,
-            SubscribeMethod = "SubscribeToAlarms",
+            // AlarmHub exposes SubscribeToServer / SubscribeToArea / SubscribeToPriority.
+            // There is no SubscribeToAlarms method — advertising it made every client
+            // that honoured this binding fail its hub invocation.
+            SubscribeMethod = "SubscribeToArea",
             KafkaTopic = "live.alarms",
             // Real route is GET /api/v1/alarms/active?sourceNameContains= (AlarmsController).
             AlarmApiEndpoint = $"{amsApi}/api/v1/alarms/active?sourceNameContains={Uri.EscapeDataString(alarmSource)}"

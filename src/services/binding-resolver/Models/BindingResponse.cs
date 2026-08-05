@@ -14,6 +14,18 @@ public record BindingResponse
     /// Whether the path was successfully resolved.
     /// </summary>
     public bool Resolved { get; init; }
+
+    /// <summary>
+    /// Where this binding came from: "asset-model" (the asset is registered and its
+    /// identifiers are authoritative) or "fallback" (derived from the path string
+    /// because asset-model returned 404 or was unreachable).
+    ///
+    /// This distinction is load-bearing. Fallback resolution derives a DIFFERENT
+    /// sparkplug device id (crude1_pump101 vs pump101), so a binding can look
+    /// resolved while pointing at nothing that publishes. Readiness checks must
+    /// treat "fallback" as unresolved rather than trusting <see cref="Resolved"/>.
+    /// </summary>
+    public string Provenance { get; init; } = "asset-model";
     
     /// <summary>
     /// Error message if resolution failed.

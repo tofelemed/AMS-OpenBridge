@@ -9,6 +9,7 @@ public class AssetDbContext : DbContext
     
     public DbSet<Asset> Assets => Set<Asset>();
     public DbSet<AliasMapping> AliasMappings => Set<AliasMapping>();
+    public DbSet<AssetRelationship> AssetRelationships => Set<AssetRelationship>();
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -62,6 +63,23 @@ public class AssetDbContext : DbContext
             
             entity.HasIndex(e => new { e.LegacyPath, e.SourceSystem }).IsUnique();
             entity.HasIndex(e => e.CanonicalPath);
+        });
+
+        modelBuilder.Entity<AssetRelationship>(entity =>
+        {
+            entity.ToTable("asset_relationships");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            entity.Property(e => e.FromAssetId).HasColumnName("from_asset_id").IsRequired();
+            entity.Property(e => e.ToAssetId).HasColumnName("to_asset_id").IsRequired();
+            entity.Property(e => e.RelType).HasColumnName("rel_type").IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+
+            entity.HasIndex(e => new { e.FromAssetId, e.ToAssetId, e.RelType }).IsUnique();
+            entity.HasIndex(e => new { e.FromAssetId, e.RelType });
+            entity.HasIndex(e => new { e.ToAssetId, e.RelType });
         });
     }
 }
