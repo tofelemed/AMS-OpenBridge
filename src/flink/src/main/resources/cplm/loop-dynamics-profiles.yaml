@@ -1,0 +1,247 @@
+# CPLM loop-dynamics profiles — governed defaults (SME review before production flip)
+# calculation v3.0.0 / dynamics pack v2.0.0 — all loop types + pressure splits
+dynamicsProfileVersion: "2.0.0"
+calculationVersion: "3.0.0"
+acfRegularityMin: 0.10
+fftPeakToMedianMin: 3.0
+classes:
+  FIC:
+    gateProfileId: FLOW_FAST_SELF_REG
+    dynamicClass: FAST_SELF_REG
+    serviceObjective: TIGHT
+    tauMinS: 10
+    tauMaxS: 900
+    minSamplesPerPeriod: 8
+    minValidCycles: 5
+    cornerAngleDeg: 65
+    opDeadbandPct: 0.5
+    opTravelFloorPct: 2.0
+    effortRatioFloor: 0.05
+    phaseAreaPerCycleLo: 0.05
+    phaseAreaPerCycleHi: 1.5
+    familyPriors:
+      stiction: 1.0
+      oscillation: 1.0
+      effort: 1.0
+      geometry: 0.5
+    integrating: false
+    geometryRole: SUPPORTING
+    shapeRole: PRIMARY
+    horchRole: SUPPORTING
+    saturationRole: PRIMARY
+    requireOscillationForStiction: true
+    minNonGeometryEvidences: 2
+    geometryAloneForbidden: true
+    spRangePassMax: 1.0
+    goodErrorPctPassMin: 0.5
+    satLowPct: 5.0
+    satHighPct: 95.0
+    satWarnOccupancy: 0.05
+    persistenceWindows: 3
+    persistenceMinAgree: 2
+    pvFilter:
+      type: ewma
+      window: 5
+  PIC:
+    gateProfileId: PRESSURE_LIQUID_FAST
+    dynamicClass: FAST_SELF_REG
+    serviceObjective: TIGHT
+    tauMinS: 5
+    tauMaxS: 1800
+    minSamplesPerPeriod: 8
+    minValidCycles: 5
+    cornerAngleDeg: 60
+    opDeadbandPct: 0.5
+    opTravelFloorPct: 2.0
+    effortRatioFloor: 0.05
+    phaseAreaPerCycleLo: 0.05
+    phaseAreaPerCycleHi: 1.5
+    familyPriors:
+      stiction: 1.0
+      oscillation: 1.0
+      effort: 1.0
+      geometry: 0.5
+    integrating: false
+    geometryRole: SUPPORTING
+    shapeRole: PRIMARY
+    horchRole: SUPPORTING
+    saturationRole: PRIMARY
+    requireOscillationForStiction: true
+    minNonGeometryEvidences: 2
+    geometryAloneForbidden: true
+    spRangePassMax: 1.0
+    goodErrorPctPassMin: 0.5
+    persistenceWindows: 3
+    persistenceMinAgree: 2
+    pvFilter:
+      type: ewma
+      window: 5
+  PIC_GAS:
+    gateProfileId: PRESSURE_GAS_INTEGRATING
+    dynamicClass: INTEGRATING
+    serviceObjective: AVERAGING
+    tauMinS: 120
+    tauMaxS: 14400
+    minSamplesPerPeriod: 8
+    minValidCycles: 3
+    cornerAngleDeg: 50
+    opDeadbandPct: 0.5
+    opTravelFloorPct: 1.5
+    effortRatioFloor: 0.04
+    phaseAreaPerCycleLo: 0.05
+    phaseAreaPerCycleHi: 2.0
+    familyPriors:
+      stiction: 1.0
+      oscillation: 1.0
+      effort: 1.0
+      geometry: 0.3
+    integrating: true
+    geometryRole: DISPLAY_ONLY
+    shapeRole: PRIMARY
+    horchRole: SUPPORTING
+    saturationRole: PRIMARY
+    requireOscillationForStiction: true
+    minNonGeometryEvidences: 2
+    geometryAloneForbidden: true
+    spRangePassMax: 5.0
+    goodErrorPctPassMin: 0.30
+    persistenceWindows: 3
+    persistenceMinAgree: 2
+    pvFilter:
+      type: ewma
+      window: 7
+  PIC_VAPOUR:
+    gateProfileId: PRESSURE_VAPOUR_SLOW
+    dynamicClass: SLOW_SELF_REG
+    serviceObjective: TIGHT
+    tauMinS: 300
+    tauMaxS: 28800
+    minSamplesPerPeriod: 8
+    minValidCycles: 3
+    cornerAngleDeg: 45
+    opDeadbandPct: 0.25
+    opTravelFloorPct: 1.0
+    effortRatioFloor: 0.03
+    phaseAreaPerCycleLo: 0.05
+    phaseAreaPerCycleHi: 2.0
+    familyPriors:
+      stiction: 1.0
+      oscillation: 1.0
+      effort: 1.0
+      geometry: 1.0
+    integrating: false
+    geometryRole: PRIMARY
+    shapeRole: PRIMARY
+    horchRole: PRIMARY
+    saturationRole: PRIMARY
+    requireOscillationForStiction: true
+    minNonGeometryEvidences: 2
+    geometryAloneForbidden: false
+    spRangePassMax: 1.0
+    goodErrorPctPassMin: 0.5
+    persistenceWindows: 3
+    persistenceMinAgree: 2
+    pvFilter:
+      type: ewma
+      window: 5
+  LIC:
+    gateProfileId: LEVEL_INTEGRATING
+    dynamicClass: INTEGRATING
+    serviceObjective: AVERAGING
+    tauMinS: 120
+    tauMaxS: 14400
+    minSamplesPerPeriod: 8
+    minValidCycles: 3
+    cornerAngleDeg: 50
+    opDeadbandPct: 0.5
+    opTravelFloorPct: 1.5
+    effortRatioFloor: 0.04
+    phaseAreaPerCycleLo: 0.05
+    phaseAreaPerCycleHi: 2.0
+    familyPriors:
+      stiction: 1.0
+      oscillation: 1.0
+      effort: 1.0
+      geometry: 0.3
+    integrating: true
+    geometryRole: DISPLAY_ONLY
+    shapeRole: PRIMARY
+    horchRole: SUPPORTING
+    saturationRole: PRIMARY
+    requireOscillationForStiction: true
+    minNonGeometryEvidences: 2
+    geometryAloneForbidden: true
+    spRangePassMax: 5.0
+    goodErrorPctPassMin: 0.30
+    persistenceWindows: 3
+    persistenceMinAgree: 2
+    pvFilter:
+      type: ewma
+      window: 7
+  TIC:
+    gateProfileId: TEMP_SLOW_SELF_REG
+    dynamicClass: SLOW_SELF_REG
+    serviceObjective: TIGHT
+    tauMinS: 300
+    tauMaxS: 28800
+    minSamplesPerPeriod: 8
+    minValidCycles: 3
+    cornerAngleDeg: 45
+    opDeadbandPct: 0.25
+    opTravelFloorPct: 1.0
+    effortRatioFloor: 0.03
+    phaseAreaPerCycleLo: 0.05
+    phaseAreaPerCycleHi: 2.0
+    familyPriors:
+      stiction: 1.0
+      oscillation: 1.0
+      effort: 1.0
+      geometry: 1.0
+    integrating: false
+    geometryRole: PRIMARY
+    shapeRole: PRIMARY
+    horchRole: PRIMARY
+    saturationRole: PRIMARY
+    requireOscillationForStiction: true
+    minNonGeometryEvidences: 2
+    geometryAloneForbidden: false
+    spRangePassMax: 1.0
+    goodErrorPctPassMin: 0.5
+    persistenceWindows: 3
+    persistenceMinAgree: 2
+    pvFilter:
+      type: ewma
+      window: 5
+  UNKNOWN:
+    gateProfileId: UNKNOWN
+    dynamicClass: FAST_SELF_REG
+    serviceObjective: TIGHT
+    tauMinS: 5
+    tauMaxS: 86400
+    minSamplesPerPeriod: 8
+    minValidCycles: 5
+    cornerAngleDeg: 65
+    opDeadbandPct: 0.5
+    opTravelFloorPct: 2.0
+    effortRatioFloor: 0.05
+    phaseAreaPerCycleLo: 0.05
+    phaseAreaPerCycleHi: 1.5
+    familyPriors:
+      stiction: 1.0
+      oscillation: 1.0
+      effort: 1.0
+      geometry: 0.0
+    geometryFamilyEnabled: false
+    integrating: false
+    geometryRole: DISPLAY_ONLY
+    shapeRole: SUPPORTING
+    horchRole: SUPPORTING
+    saturationRole: PRIMARY
+    requireOscillationForStiction: true
+    minNonGeometryEvidences: 2
+    geometryAloneForbidden: true
+    persistenceWindows: 3
+    persistenceMinAgree: 2
+    pvFilter:
+      type: ewma
+      window: 5

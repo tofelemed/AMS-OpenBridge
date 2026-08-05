@@ -1,0 +1,52 @@
+package com.ams.flink.cplm;
+
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.connector.kafka.source.KafkaSource;
+import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+
+import java.time.Duration;
+
+/** Shared normalized-sample ingest: source → map → filter → watermarks. */
+public final class CplmIngestPipeline {
+    private CplmIngestPipeline() {
+    }
+
+    public static DataStream<CplmNormalizedSample> build(
+            StreamExecutionEnvironment env,
+            CplmJobConfig cfg,
+            String sourceOperatorName) {
+
+        KafkaSource<String> source = KafkaSource.<String>builder()
+                .setBootstrapServers(cfg.brokers)
+                .setTopics(cfg.inputTopic)
+                .setGroupId(cfg.consumerGroupId)
+                .setStartingOffsets(OffsetsInitializer.latest())
+                .setValueOnlyDeserializer(new SimpleStringSchema())
+                .setProperty("request.timeout.ms", "120000")
+                .setProperty("default.api.timeout.ms", "120000")
+                .build();
+
+        // withIdleness: keyed backfills land on one Kafka partition; idle partitions
+        // must not stall event-time watermarks (otherwise long-job timers never fire).
+        WatermarkStrategy<CplmNormalizedSample> wm = WatermarkStrategy
+                .<CplmNormalizedSample>forBoundedOutOfOrderness(Duration.ofMinutes(cfg.outOfOrdernessMinutes))
+                .withIdleness(Duration.ofMinutes(1))
+                .withTimestampAssigner((event, ts) -> event.eventTsMs);
+
+        DataStream<CplmNormalizedSample> parsed = env
+                .fromSource(source, WatermarkStrategy.noWatermarks(), sourceOperatorName)
+                .map(CplmNormalizedSample::fromJson)
+                .name(sourceOperatorName + "-parse")
+                .filter(s -> s != null && s.isValid)
+                .name(sourceOperatorName + "-quality-filter");
+
+        // Connect profiles before assigning event-time watermarks so the
+        // no-watermark configuration stream cannot hold back window timers.
+        return CplmParameterSetBroadcastSupport.connectSampleProfiles(parsed, env, cfg)
+                .assignTimestampsAndWatermarks(wm)
+                .name(sourceOperatorName + "-watermarks");
+    }
+}

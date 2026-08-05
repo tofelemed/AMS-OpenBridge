@@ -72,6 +72,17 @@
             <version>1.18.30</version>
             <scope>provided</scope>
         </dependency>
+
+        <!-- CPLM gate-math regression tests (golden reference loop SYN_TIC_001).
+             Test scope only: it does not enter the shaded jar. The tests need nothing beyond
+             JUnit and flink-streaming-java, which is already declared 'provided' and is
+             therefore on the test classpath. -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

@@ -24,7 +24,11 @@ env:
   IMAGE_FRONTEND:   ghcr.io/${{ github.repository }}/ams-frontend
   DOTNET_VERSION:   '8.0.x'
   NODE_VERSION:     '20.x'
-  JAVA_VERSION:     '17'
+  # Must match src/flink/pom.xml (maven.compiler.source/target = 11) AND the runtime image
+  # (flink:1.18.1-java11). Building on 17 with -source/-target 11 still links against the
+  # JDK 17 class library, which yields a jar that compiles clean and can throw
+  # NoSuchMethodError on the Java 11 cluster. Used only by the build-flink job.
+  JAVA_VERSION:     '11'
 
 jobs:
   # ============================================================
@@ -172,6 +176,13 @@ jobs:
       - name: Build Flink Jobs
         working-directory: src/flink
         run: mvn clean package -DskipTests -Pproduction
+
+      # Gate on the CPLM golden reference loop (SYN_TIC_001) explicitly and first. If the
+      # gate math ever drifts, this must be the failure the log leads with — not something
+      # buried in a full-suite run.
+      - name: CPLM golden-loop regression (gate math must be unchanged)
+        working-directory: src/flink
+        run: mvn test -Dtest='Cplm*Test' -DfailIfNoTests=true
 
       - name: Run Flink Unit Tests
         working-directory: src/flink
