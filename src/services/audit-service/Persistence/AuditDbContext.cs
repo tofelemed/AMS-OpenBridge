@@ -39,6 +39,15 @@ public class AuditDbContext : DbContext
         e.HasIndex(x => x.CurrentHash).IsUnique(); // Ensure chain uniqueness
     }
 
+    /// <summary>
+    /// Explicit, scoped escape hatch for the one-time hash re-chain migration
+    /// (ChainIntegrityVerifier.RechainAsync). Rows written before the
+    /// canonical-JSON hash fix can never verify — jsonb rewrote their preimage —
+    /// so their hashes must be recomputed once. Only hash columns are ever
+    /// rewritten under this flag; deletes stay forbidden unconditionally.
+    /// </summary>
+    public bool AllowHashRechain { get; set; }
+
     // INTERCEPT SAVES TO PREVENT UPDATES OR DELETES
     public override int SaveChanges()
     {
@@ -54,11 +63,21 @@ public class AuditDbContext : DbContext
 
     private void EnsureAppendOnly()
     {
-        var modifiedOrDeleted = ChangeTracker.Entries()
-            .Where(e => e.State == EntityState.Modified || e.State == EntityState.Deleted);
-
-        if (modifiedOrDeleted.Any())
+        foreach (var entry in ChangeTracker.Entries()
+                     .Where(e => e.State == EntityState.Modified || e.State == EntityState.Deleted))
         {
+            if (entry.State == EntityState.Modified && AllowHashRechain)
+            {
+                // Even under rechain, only the chain columns may change.
+                var illegal = entry.Properties
+                    .Where(p => p.IsModified)
+                    .Select(p => p.Metadata.Name)
+                    .Where(n => n != nameof(AuditEvent.PreviousHash) && n != nameof(AuditEvent.CurrentHash))
+                    .ToList();
+                if (illegal.Count == 0) continue;
+                throw new InvalidOperationException(
+                    $"Rechain may only rewrite hash columns; refused: {string.Join(", ", illegal)}");
+            }
             throw new InvalidOperationException("Audit records are immutable. UPDATE and DELETE operations are strictly forbidden.");
         }
     }

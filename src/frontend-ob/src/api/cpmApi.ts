@@ -197,6 +197,13 @@ export interface CpmGateMatrix {
   familyDisqualifiers: string[];
   hasPeerLinks: boolean;
   insufficientEvidenceReason: string | null;
+  /** All numeric payload fields (family scores, freeze index, shape metrics, …). */
+  metrics: Record<string, number>;
+  narrative: {
+    selectedFamily: string | null;
+    statusReason: string | null;
+    recommendation: string | null;
+  };
   metadata: {
     schemaVersion: number | null;
     calculationVersion: string | null;

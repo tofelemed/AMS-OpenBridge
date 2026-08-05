@@ -171,6 +171,9 @@ services.AddSingleton<AMS.Api.Services.ICpmLoopRegistryService, AMS.Api.Services
 services.Configure<AMS.Api.Services.CplmRecomputeOptions>(
     config.GetSection(AMS.Api.Services.CplmRecomputeOptions.SectionName));
 services.AddSingleton<AMS.Api.Services.ICplmRecomputeService, AMS.Api.Services.CplmRecomputeService>();
+// A15 — CPLM governance events (activate/delete/ack/shelve/recompute) onto the
+// audit-events topic; audit-service chains them into the immutable store.
+services.AddSingleton<AMS.Api.Services.ICplmAuditEmitter, AMS.Api.Services.CplmAuditEmitter>();
 services.AddHostedService<AMS.Api.BackgroundServices.DriftAlertConsumerService>();
 services.AddSingleton<TelemetryIngestState>();
 services.AddSingleton<ReadinessHistoryStore>();

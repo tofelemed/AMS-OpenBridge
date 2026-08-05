@@ -40,6 +40,13 @@ export default defineConfig({
         target:      'http://localhost:3002',
         changeOrigin: true,
       },
+      '/api/audit': {
+        // Audit service (immutable hash-chained trail) — /api/audit/* → /api/v1/audit/*.
+        // Cannot ride the /api/v1 catch-all: that one goes to ams-api.
+        target:      'http://localhost:8095',
+        changeOrigin: true,
+        rewrite:     (path) => path.replace(/^\/api\/audit/, '/api/v1/audit'),
+      },
       '/api/v1': {
         // AMS .NET API (alarms REST) — runs in Docker on host port 8000.
         target:      'http://localhost:8000',

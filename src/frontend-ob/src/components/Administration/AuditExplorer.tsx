@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { formatTimestampMs } from '../../utils/time';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { useAuditEvents, useVerifyAuditChain } from '../../hooks/useAudit';
 
 const T = {
   blue: '#31598F', blueLight: '#EAF2FF', blueMuted: '#C4D8F0',
@@ -16,15 +16,6 @@ const T = {
   radius: '12px', radiusSm: '8px',
 } as const;
 
-const fetchAuditEvents = async () => ({
-  items: [
-    { eventId: 'f8d9a2b1', timestampUtc: Date.now() - 60000,    eventType: 'ALARM_ACKNOWLEDGED', userId: 'operator01', sourceIp: '10.10.5.14', station: 'CCR-01', entityType: 'Alarm',         entityId: 'alarm-1234', currentHash: 'a1b2c3d4e5f6', correlationId: 'root-555' },
-    { eventId: 'e7c8b1a0', timestampUtc: Date.now() - 120000,   eventType: 'ALARM_SHELVED',      userId: 'operator02', sourceIp: '10.10.5.15', station: 'CCR-02', entityType: 'Alarm',         entityId: 'alarm-9999', currentHash: '0f9e8d7c6b5a', correlationId: null },
-    { eventId: 'd6b7a09f', timestampUtc: Date.now() - 3600000,  eventType: 'TOPOLOGY_UPDATED',   userId: 'admin',      sourceIp: '10.10.1.5',  station: 'ENG-01', entityType: 'EquipmentNode', entityId: 'Pump-A1',    currentHash: '1a2b3c4d5e6f', correlationId: null },
-  ],
-  totalCount: 3,
-});
-
 const EVENT_BADGE: Record<string, { bg: string; color: string }> = {
   ALARM_ACKNOWLEDGED: { bg: T.blueLight,  color: T.blue },
   ALARM_SHELVED:      { bg: T.warningBg,  color: T.caution },
@@ -35,10 +26,10 @@ const AuditExplorer: React.FC = () => {
   const [filterType, setFilterType] = useState('');
   const [filterUser, setFilterUser] = useState('');
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['auditEvents', filterType, filterUser],
-    queryFn: fetchAuditEvents,
-  });
+  // Real immutable trail from audit-service (was a hardcoded 3-row fixture).
+  const { data, isLoading, isError, error } = useAuditEvents(
+    { eventType: filterType || undefined, userId: filterUser || undefined, take: 100 });
+  const verify = useVerifyAuditChain();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
@@ -79,23 +70,26 @@ const AuditExplorer: React.FC = () => {
           </select>
         </FilterField>
         <div style={{ marginLeft: 'auto' }}>
-          <ObcButton variant="raised" onClick={() => alert('Verification job started. Check logs.')}>
-            ✓ Verify Cryptographic Chain
+          <ObcButton variant="raised" onClick={() => verify.mutate()}>
+            {verify.isPending ? 'Verifying…' : '✓ Verify Cryptographic Chain'}
           </ObcButton>
         </div>
       </div>
 
-      {/* Integrity notice */}
+      {/* Integrity notice — reflects the last verification actually run; no standing claim. */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: '10px',
         padding: '11px 16px', borderRadius: T.radiusSm,
-        background: T.successBg, border: `1px solid ${T.successBorder}`,
-        fontSize: '12.5px', color: '#1a4731',
+        background: verify.isSuccess ? T.successBg : verify.isError ? T.criticalBg : T.bg,
+        border: `1px solid ${verify.isSuccess ? T.successBorder : verify.isError ? T.critical : T.border}`,
+        fontSize: '12.5px', color: verify.isError ? T.critical : '#1a4731',
       }}>
         <span style={{ fontSize: '14px' }}>🔒</span>
         <span>
-          <strong>Hash chain verified.</strong> All audit entries are cryptographically linked.
-          Any tampering will break the chain and trigger an alert.
+          {verify.isSuccess && <><strong>Chain verified just now.</strong> {String(verify.data)}</>}
+          {verify.isError && <><strong>Verification failed.</strong> {(verify.error as Error)?.message} — the service could not confirm chain integrity.</>}
+          {verify.isPending && <>Walking the full chain…</>}
+          {verify.isIdle && <>Entries are hash-chained by audit-service. Run a verification to confirm integrity now — this page makes no standing claim.</>}
         </span>
       </div>
 
@@ -104,7 +98,7 @@ const AuditExplorer: React.FC = () => {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
           <thead>
             <tr style={{ background: T.bg }}>
-              {['Timestamp', 'Event Type', 'User / Station', 'Entity', 'Hash Signature', 'Actions'].map(h => (
+              {['Timestamp', 'Event Type', 'User', 'Entity', 'Hash Signature', 'Correlation'].map(h => (
                 <th key={h} style={{
                   padding: '11px 16px', textAlign: 'left',
                   fontSize: '10.5px', fontWeight: 700, color: T.textMuted,
@@ -123,7 +117,21 @@ const AuditExplorer: React.FC = () => {
                   Loading immutable ledger…
                 </td>
               </tr>
-            ) : data?.items.map((e, i) => {
+            ) : isError ? (
+              <tr>
+                <td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: T.textMuted }}>
+                  {String((error as Error)?.message ?? '').includes('403')
+                    ? 'Audit reads require the admin.audit.view permission (re-login if recently granted).'
+                    : `Audit service unreachable: ${(error as Error)?.message ?? 'unknown error'}`}
+                </td>
+              </tr>
+            ) : (data?.events ?? []).length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: T.textMuted }}>
+                  No audit events match — the trail records logins, display changes and CPM governance actions.
+                </td>
+              </tr>
+            ) : data?.events.map((e, i) => {
               const badge = EVENT_BADGE[e.eventType] ?? { bg: T.bg, color: T.textMuted };
               return (
                 <tr
@@ -133,7 +141,7 @@ const AuditExplorer: React.FC = () => {
                   onMouseLeave={ev => (ev.currentTarget.style.background = T.card)}
                 >
                   <td style={{ padding: '12px 16px', fontFamily: "'Noto Sans Mono', monospace", fontSize: '12px', color: T.textSecondary, whiteSpace: 'nowrap' }}>
-                    {formatTimestampMs(e.timestampUtc)}
+                    {formatTimestampMs(new Date(e.timestampUtc).getTime())}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{
@@ -146,10 +154,7 @@ const AuditExplorer: React.FC = () => {
                     </span>
                   </td>
                   <td style={{ padding: '12px 16px' }}>
-                    <div style={{ fontWeight: 600, color: T.textPrimary }}>{e.userId}</div>
-                    <div style={{ fontSize: '11.5px', color: T.textMuted, marginTop: '2px' }}>
-                      {e.station} · {e.sourceIp}
-                    </div>
+                    <div style={{ fontWeight: 600, color: T.textPrimary }}>{e.userId || 'system'}</div>
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <div style={{ fontWeight: 600, color: T.textPrimary }}>{e.entityType}</div>
@@ -165,11 +170,8 @@ const AuditExplorer: React.FC = () => {
                       </span>
                     </div>
                   </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', gap: '7px' }}>
-                      <AuditBtn>Diff</AuditBtn>
-                      {e.correlationId && <AuditBtn>Trace Root</AuditBtn>}
-                    </div>
+                  <td style={{ padding: '12px 16px', fontFamily: "'Noto Sans Mono', monospace", fontSize: '11.5px', color: T.textMuted }}>
+                    {e.correlationId ?? '—'}
                   </td>
                 </tr>
               );
@@ -179,7 +181,7 @@ const AuditExplorer: React.FC = () => {
       </div>
 
       <div style={{ fontSize: '12px', color: T.textMuted, textAlign: 'right' }}>
-        Total records: {data?.totalCount ?? 0}
+        Total records: {data?.total ?? 0}
       </div>
     </div>
   );
@@ -190,20 +192,6 @@ const FilterField: React.FC<{ label: string; children: React.ReactNode }> = ({ l
     <span style={{ fontSize: '11px', fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
     {children}
   </label>
-);
-
-const AuditBtn: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <button style={{
-    padding: '4px 12px', fontSize: '11.5px', fontWeight: 600,
-    borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit',
-    border: `1px solid ${T.border}`, background: T.bg, color: T.textSecondary,
-    transition: 'all 120ms ease',
-  }}
-    onMouseEnter={e => { e.currentTarget.style.background = T.blueLight; e.currentTarget.style.color = T.blue; }}
-    onMouseLeave={e => { e.currentTarget.style.background = T.bg; e.currentTarget.style.color = T.textSecondary; }}
-  >
-    {children}
-  </button>
 );
 
 export default AuditExplorer;

@@ -20,13 +20,19 @@ namespace AMS.Api.Controllers.V1;
 public sealed class CpmLoopsController : ControllerBase
 {
     private readonly ICpmLoopRegistryService _registry;
+    private readonly ICplmAuditEmitter _audit;
     private readonly ILogger<CpmLoopsController> _logger;
 
-    public CpmLoopsController(ICpmLoopRegistryService registry, ILogger<CpmLoopsController> logger)
+    public CpmLoopsController(
+        ICpmLoopRegistryService registry, ICplmAuditEmitter audit, ILogger<CpmLoopsController> logger)
     {
         _registry = registry;
+        _audit = audit;
         _logger = logger;
     }
+
+    private string Actor() =>
+        User.FindFirst("preferred_username")?.Value ?? User.Identity?.Name ?? "unknown";
 
     /// <summary>All registered loops with their signal-role mapping and peer links.</summary>
     [HttpGet]
@@ -60,6 +66,8 @@ public sealed class CpmLoopsController : ControllerBase
             var loop = await _registry.ActivateAsync(request, ct);
             _logger.LogInformation("Loop {LoopId} activated ({LoopType} at {Site})",
                 loop.LoopId, loop.LoopType, loop.Site);
+            _audit.Emit("CPM_LOOP_ACTIVATED", Actor(), "CpmLoop", loop.LoopId,
+                new { loop.LoopType, loop.Site, loop.MonitoringEnabled, links = loop.Links.Count });
             return Ok(loop);
         }
         catch (ArgumentException ex)
@@ -84,6 +92,8 @@ public sealed class CpmLoopsController : ControllerBase
         var projected = await _registry.ProjectLinksAsync(loopId, ct);
         await _registry.PublishEvidenceAsync(loopId, ct);
         var refreshed = await _registry.GetAsync(loopId, ct);
+        _audit.Emit("CPM_EVIDENCE_REPUBLISHED", Actor(), "CpmLoop", loopId,
+            new { projected, links = refreshed!.Links.Count });
         return Ok(new { loopId, republished = true, projected, links = refreshed!.Links.Count });
     }
 
@@ -96,6 +106,9 @@ public sealed class CpmLoopsController : ControllerBase
     public async Task<IActionResult> Delete(string loopId, CancellationToken ct)
     {
         var deleted = await _registry.DeleteAsync(loopId, ct);
+        if (deleted)
+            _audit.Emit("CPM_LOOP_DELETED", Actor(), "CpmLoop", loopId,
+                new { note = "Analytics history retained" });
         return deleted
             ? Ok(new { loopId, deleted = true, note = "Analytics history retained" })
             : NotFound(new { error = $"Loop '{loopId}' is not registered" });
@@ -124,6 +137,8 @@ public sealed class CpmLoopsController : ControllerBase
                 hasPeerLinks: loop.Links.Count > 0,
                 windowOffsetMs: await recompute.GetWindowOffsetMsAsync(loop.LoopId, ct),
                 ct);
+            _audit.Emit("CPM_RECOMPUTE_STARTED", Actor(), "CpmLoop", loop.LoopId,
+                new { handle.ReplayId, handle.JobId, hasStepTest = loop.StepTestApproved, hasPeerLinks = loop.Links.Count > 0 });
             return Accepted(new
             {
                 handle.LoopId,

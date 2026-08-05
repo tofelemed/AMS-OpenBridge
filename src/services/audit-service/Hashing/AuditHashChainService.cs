@@ -15,8 +15,12 @@ public class AuditHashChainService
     public string GenerateHash(AuditEvent evt, string previousHash)
     {
         evt.PreviousHash = previousHash;
-        
-        // Canonical string representation for hashing
+
+        // Canonical string representation for hashing. The Before/AfterState
+        // columns are jsonb: Postgres rewrites key order and whitespace, so the
+        // hash must be over a canonical serialization (sorted keys, compact) or
+        // verification fails on every round-tripped row — which is exactly what
+        // happened to the original ToString()-based preimage.
         var payload = new StringBuilder()
             .Append(evt.EventId)
             .Append(evt.TimestampUtc.ToUnixTimeMilliseconds())
@@ -24,8 +28,8 @@ public class AuditHashChainService
             .Append(evt.UserId)
             .Append(evt.SourceIp)
             .Append(evt.EntityId)
-            .Append(evt.BeforeState?.RootElement.ToString() ?? "null")
-            .Append(evt.AfterState?.RootElement.ToString() ?? "null")
+            .Append(evt.BeforeState is null ? "null" : Canonical(evt.BeforeState.RootElement))
+            .Append(evt.AfterState is null ? "null" : Canonical(evt.AfterState.RootElement))
             .Append(previousHash)
             .Append(SecretSalt)
             .ToString();
@@ -45,4 +49,18 @@ public class AuditHashChainService
         var expectedHash = GenerateHash(evt, evt.PreviousHash);
         return evt.CurrentHash.Equals(expectedHash, StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// Order- and whitespace-independent JSON text: object keys sorted ordinally,
+    /// compact separators, scalars as raw text. Stable across a jsonb round trip.
+    /// </summary>
+    private static string Canonical(JsonElement el) => el.ValueKind switch
+    {
+        JsonValueKind.Object => "{" + string.Join(",",
+            el.EnumerateObject()
+              .OrderBy(p => p.Name, StringComparer.Ordinal)
+              .Select(p => JsonSerializer.Serialize(p.Name) + ":" + Canonical(p.Value))) + "}",
+        JsonValueKind.Array => "[" + string.Join(",", el.EnumerateArray().Select(Canonical)) + "]",
+        _ => el.GetRawText(),
+    };
 }

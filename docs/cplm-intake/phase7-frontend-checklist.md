@@ -135,25 +135,30 @@ widget, column, and interaction — inside `src/frontend-ob`, wired to the real 
 - [ ] **OpenBridge alert components** for severity/state rendering (repo rule; U4 explicitly).
 
 ### U5 — Investigation (`/cpm/investigation?loop=&window=`)
-- [ ] Analysis-type library chips (7 cases) — derived from the loop's actual latest verdict
+- [x] Analysis-type library chips (7 cases) — derived from the loop's actual latest verdict
       (diagnosis/EXCLUDED_*/INSUFFICIENT_* → case id), clickable to filter loops by case.
-- [ ] Controls: LoopSelect + Live/Historical segmented; historical from/to + profile select +
+- [x] Controls: LoopSelect + Live/Historical segmented; historical from/to + profile select +
       `Load historical evidence` ← `gates?from=&to=` (real, no fake 650 ms).
-- [ ] Final-conclusion card (code/outcome/summary/badge) ← `gates/latest`
+- [x] Final-conclusion card (code/outcome/summary/badge) ← `gates/latest`
       (`diagnosis`, `insufficientEvidenceReason`, `observabilityFlags`, `familyDisqualifiers`).
-- [ ] Key-facts tiles ← metric fields (freeze index, stiction score, selected family, …) from
+- [x] Key-facts tiles ← metric fields (freeze index, stiction score, selected family, …) from
       the gates payload.
-- [ ] Evidence chart (PV/SP/OP + highlighted region + x labels) ← `/trend?envelope=true` over
+- [x] Evidence chart (PV/SP/OP + highlighted region + x labels) ← `/trend?envelope=true` over
       the selected window; region annotations from gate reasons where derivable.
-- [ ] Reasoning chain (4 steps + machine-reason code) ← gate statuses mapped to the
+- [x] Reasoning chain (4 steps + machine-reason code) ← gate statuses mapped to the
       Eligibility→Evidence→Fusion narrative; machine reason = `insufficient_evidence_reason`
       or the family disqualifier string.
-- [ ] Hypothesis comparison ← family scores from payload (`family_score`,
+- [x] Hypothesis comparison ← family scores from payload (`family_score`,
       `raw_final_element_score`, detector scores).
-- [ ] Next-best action panel + `Create investigation case ›` (creates a note on the event frame;
+- [x] Next-best action panel + `Create investigation case ›` (creates a note on the event frame;
       full case-management = DG-7).
-- [ ] Window browser (5 window cards + transition + delta table PREVIOUS/CURRENT) ←
+- [x] Window browser (5 window cards + transition + delta table PREVIOUS/CURRENT) ←
       `gates` history rows; delta computed client-side between adjacent windows.
+
+*U5 build notes (S6): historical evidence is selected from the loop's real evaluated
+windows (a window picker over `gates` history) rather than free from/to inputs — same
+data, no way to pick a range that was never evaluated. Chart region annotations from
+gate reasons were not derivable reliably and are omitted rather than guessed.*
 
 ### U6 — Historical explorer (`/cpm/historical?loop=&from=&to=&kpi=`)
 - [x] Toolbar: LoopSelect, from/to datetime, KPI overlay select (Stiction probability /
@@ -234,24 +239,24 @@ widget, column, and interaction — inside `src/frontend-ob`, wired to the real 
       `republish-evidence` action.
 
 ### U11 — Pipeline health (`/cpm/pipeline`)
-- [ ] Restricted banner (read-only copy).
-- [ ] KPI tiles: Jobs running (real count from `pipeline-status`), watermark lag, max Kafka lag,
+- [x] Restricted banner (read-only copy).
+- [x] KPI tiles: Jobs running (real count from `pipeline-status`), watermark lag, max Kafka lag,
       checkpoint success, managed state ← DG-1 Flink/metrics proxy.
-- [ ] Job table: `Service | Status | Latency | Backpressure | Parallelism` — one row per
+- [x] Job table: `Service | Status | Latency | Backpressure | Parallelism` — one row per
       **required job** (7) from `pipeline-status` + DG-1 metrics. **Replace the fabricated
       SystemMonitor/EdgeNodeMonitor hardcoded panels — remove, don't extend (plan 7.7).**
-- [ ] `Run E2E verification` → recompute round-trip on a reference loop + report (cpm.manage).
-- [ ] Runtime telemetry chart (lag/checkpoint duration over range) ← DG-1.
-- [ ] Result delivery path strip (DCS→Kafka→Flink→IoTDB→UI) with real last-delivery age
+- [x] `Run E2E verification` → recompute round-trip on a reference loop + report (cpm.manage).
+- [x] Runtime telemetry chart (lag/checkpoint duration over range) ← DG-1.
+- [x] Result delivery path strip (DCS→Kafka→Flink→IoTDB→UI) with real last-delivery age
       (`gates/latest.metadata.computedAt` vs now).
 
 ### U12 — Governance (`/cpm/governance`)
-- [ ] Audit stream ← audit-service `GET /api/v1/audit` (+ **A15 emitter**: CPLM onboarding/
+- [x] Audit stream ← audit-service `GET /api/v1/audit` (+ **A15 emitter**: CPLM onboarding/
       ack/shelve/recompute events → audit topic — the remaining Phase 5 leftover; build here).
-- [ ] Approval queue + detail + evidence checklist + Approve/Reject — **no server-side approval
+- [x] Approval queue + detail + evidence checklist + Approve/Reject — **no server-side approval
       workflow exists** (DG-8): ship stage 1 as read-only governance view (audit + version
       history from `loop_config` + calculation versions), stage 2 adds an approvals table.
-- [ ] Separation-of-duties card (static, reflects real roles: Admin/Engineer/Operator/Viewer
+- [x] Separation-of-duties card (static, reflects real roles: Admin/Engineer/Operator/Viewer
       + cpm.manage/system.manage mapping).
 
 ## Data-gap register (server work Phase 7 needs)
@@ -282,7 +287,13 @@ widget, column, and interaction — inside `src/frontend-ob`, wired to the real 
    sidebar 'Loop Performance' nav group (routes existed but had no nav entries until S5).
 6. **S6 Investigation + Pipeline + Governance** (U5, U11, U12 + A15 audit emitter;
    remove SystemMonitor/EdgeNodeMonitor fabricated panels). *Exit: reasoning chain from real
-   flags; U11 shows 7 real jobs; audit stream live.*
+   flags; U11 shows 7 real jobs; audit stream live.* ✅ **DONE** — SystemMonitor deleted
+   outright (its job table/latencies were invented and its /health/pipeline endpoint never
+   existed, so it spun forever); EdgeNodeMonitor audited as REAL (MQTT + BFF health) and kept.
+   The admin AuditExplorer was also a fabrication (3 hardcoded rows, fake standing
+   "chain verified" banner, alert() verify) — rewired to the real /api/audit + verify.
+   Gates payload numeric fields now ride the matrix as `metrics` + `narrative`
+   (selected_family/status_reason/recommendation) for U5.
 7. **S7 Polish** — command palette bindings, kiosk/timezone conformance with existing app,
    `npm run lint` clean (`--max-warnings 0`), typecheck, screen-by-screen parity pass against
    the CPA prototype.

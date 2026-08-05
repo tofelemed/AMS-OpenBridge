@@ -220,6 +220,17 @@ public sealed class CpmAnalyticsController : ControllerBase
             ["familyDisqualifiers"] = ReadStringArray(payload, "family_disqualifiers"),
             ["hasPeerLinks"] = ReadBool(payload, "has_peer_links"),
             ["insufficientEvidenceReason"] = ReadString(payload, "insufficient_evidence_reason"),
+            // U5 Investigation — the numeric evidence behind the verdict (family
+            // scores, freeze index, shape metrics, …). All numeric payload fields
+            // pass through as-is; inventing a curated subset here would just mean
+            // another schema to keep in sync with the engine.
+            ["metrics"] = ReadNumericFields(payload),
+            ["narrative"] = new
+            {
+                selectedFamily = ReadString(payload, "selected_family"),
+                statusReason = ReadString(payload, "status_reason"),
+                recommendation = ReadString(payload, "recommendation"),
+            },
             // A13 — per-window provenance. Without these a stored verdict cannot be
             // attributed to the formula version that produced it, which makes
             // historical evidence unauditable after any engine change.
@@ -275,6 +286,21 @@ public sealed class CpmAnalyticsController : ControllerBase
 
     private static int? ReadInt(JsonElement el, string name) =>
         el.ValueKind == JsonValueKind.Object && el.TryGetProperty(name, out var p) && p.TryGetInt32(out var v) ? v : null;
+
+    private static Dictionary<string, double> ReadNumericFields(JsonElement el)
+    {
+        var result = new Dictionary<string, double>();
+        if (el.ValueKind != JsonValueKind.Object) return result;
+        foreach (var prop in el.EnumerateObject())
+        {
+            if (prop.Value.ValueKind == JsonValueKind.Number && prop.Value.TryGetDouble(out var v)
+                && !double.IsNaN(v) && !double.IsInfinity(v))
+            {
+                result[prop.Name] = v;
+            }
+        }
+        return result;
+    }
 
     private static string[] ReadStringArray(JsonElement el, string name)
     {

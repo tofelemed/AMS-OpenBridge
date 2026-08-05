@@ -20,7 +20,6 @@ import { ObiTrend } from '@oicl/openbridge-webcomponents-react/icons/icon-trend'
 import { ObiDatabase } from '@oicl/openbridge-webcomponents-react/icons/icon-database';
 import { ObiChart } from '@oicl/openbridge-webcomponents-react/icons/icon-chart';
 import { ObiEditGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-edit-google';
-import { ObiSettingsIec } from '@oicl/openbridge-webcomponents-react/icons/icon-settings-iec';
 import { ObiUser } from '@oicl/openbridge-webcomponents-react/icons/icon-user';
 import { ObiNotification } from '@oicl/openbridge-webcomponents-react/icons/icon-notification';
 import { ObiListAltCheckGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-list-alt-check-google';
@@ -36,7 +35,6 @@ const HistoricalViewer = React.lazy(() => import('./components/HistoricalViewer/
 const IoTDBTrendViewer = React.lazy(() => import('./components/IoTDBTrend/IoTDBTrendViewer'));
 const LiveEventsPage   = React.lazy(() => import('./components/LiveEvents/LiveEventsPage'));
 const SoePanel         = React.lazy(() => import('./components/Soe/SoePanel'));
-const SystemMonitor    = React.lazy(() => import('./components/SystemMonitor/SystemMonitor'));
 // CPLM Phase 7 — Loop Performance screens (built slice by slice; see
 // docs/cplm-intake/phase7-frontend-checklist.md)
 const CpmLoopRegistry  = React.lazy(() => import('./components/Cpm/LoopRegistry'));
@@ -48,6 +46,9 @@ const CpmCalculations  = React.lazy(() => import('./components/Cpm/CpmCalculatio
 const CpmHistorical    = React.lazy(() => import('./components/Cpm/CpmHistorical'));
 const CpmWindows       = React.lazy(() => import('./components/Cpm/CpmWindows'));
 const CpmReplay        = React.lazy(() => import('./components/Cpm/CpmReplay'));
+const CpmInvestigation = React.lazy(() => import('./components/Cpm/CpmInvestigation'));
+const CpmPipeline      = React.lazy(() => import('./components/Cpm/CpmPipeline'));
+const CpmGovernance    = React.lazy(() => import('./components/Cpm/CpmGovernance'));
 const EdgeNodeMonitor  = React.lazy(() => import('./components/EdgeNodeMonitor/EdgeNodeMonitor'));
 const Administration   = React.lazy(() => import('./components/Administration/Administration'));
 // HMI Designer (Phase 2)
@@ -289,6 +290,9 @@ const App: React.FC = () => {
                       <Route path="/cpm/historical" element={<RequirePermission permission="analytics.view"><CpmHistorical /></RequirePermission>} />
                       <Route path="/cpm/windows"   element={<RequirePermission permission="analytics.view"><CpmWindows /></RequirePermission>} />
                       <Route path="/cpm/replay"    element={<RequirePermission permission="analytics.view"><CpmReplay /></RequirePermission>} />
+                      <Route path="/cpm/investigation" element={<RequirePermission permission="analytics.view"><CpmInvestigation /></RequirePermission>} />
+                      <Route path="/cpm/pipeline"  element={<RequirePermission permission="analytics.view"><CpmPipeline /></RequirePermission>} />
+                      <Route path="/cpm/governance" element={<RequirePermission permission="analytics.view"><CpmGovernance /></RequirePermission>} />
                       <Route path="/cpm/registry"  element={<RequirePermission permission="analytics.view"><CpmLoopRegistry /></RequirePermission>} />
                       <Route path="/cpm/events"    element={<RequirePermission permission="analytics.view"><CpmEvents /></RequirePermission>} />
                       {/* Published-HMI launcher — every role with display.view */}
@@ -300,7 +304,6 @@ const App: React.FC = () => {
                       {/* Dedicated trend view (Phase J) — needs history + binding resolution */}
                       <Route path="/trend"          element={<RequirePermission permission="historian.view"><TrendPage /></RequirePermission>} />
                       {/* Infrastructure */}
-                      <Route path="/system"     element={<RequirePermission permission="historian.view"><SystemMonitor /></RequirePermission>} />
                       <Route path="/edge"       element={<RequirePermission permission="historian.view"><EdgeNodeMonitor /></RequirePermission>} />
                       {/* Administration — was reachable by ANY authenticated user via direct URL */}
                       <Route path="/admin/*"    element={<RequirePermission permission="admin.users.edit"><Administration /></RequirePermission>} />
@@ -565,6 +568,9 @@ const navItems = [
   { path: '/cpm/historical',   label: 'Historical',         Icon: ObiHistoryGoogle, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/windows',      label: 'Window Inspector',   Icon: ObiTime, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/replay',       label: 'Evidence Replay',    Icon: ObiTrend, group: 'Loop Performance', permission: 'analytics.view' },
+  { path: '/cpm/investigation', label: 'Investigation',     Icon: ObiEditGoogle, group: 'Loop Performance', permission: 'analytics.view' },
+  { path: '/cpm/pipeline',     label: 'Pipeline Health',    Icon: ObiMonitoring, group: 'Loop Performance', permission: 'analytics.view' },
+  { path: '/cpm/governance',   label: 'Governance',         Icon: ObiUser, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/calculations', label: 'Calculations',       Icon: ObiListAltCheckGoogle, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/registry',     label: 'Loop Registry',      Icon: ObiWrench, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/events',       label: 'Loop Events',        Icon: ObiNotification, group: 'Loop Performance', permission: 'analytics.view' },
@@ -572,7 +578,8 @@ const navItems = [
   { path: '/displays',   label: 'HMI Displays',        Icon: ObiMonitoring, group: 'Design', permission: 'display.view' },
   { path: '/designer',   label: 'HMI Designer',        Icon: ObiEditGoogle, group: 'Design', permission: 'display.edit' },
   // ── Infrastructure (edge + system monitoring) ─────────────
-  { path: '/system',     label: 'System Monitor',      Icon: ObiSettingsIec,  group: 'Infrastructure', permission: 'historian.view' },
+  // SystemMonitor was removed in Phase 7 S6: its job table and latency metrics were
+  // fabricated and its data endpoint never existed. /cpm/pipeline is the real one.
   { path: '/edge',       label: 'Edge Node Monitor',   Icon: ObiPlaceholder,  group: 'Infrastructure', permission: 'historian.view' },
   // ── Administration (admin only — the whole section, not just User Management) ──
   { path: '/admin/users',         label: 'User Management',  Icon: ObiUser, group: 'Administration', permission: 'admin.users.edit' },

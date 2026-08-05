@@ -1,3 +1,4 @@
+using AMS.Api.Services;
 using Asp.Versioning;
 using Dapper;
 using Microsoft.AspNetCore.Authorization;
@@ -17,13 +18,19 @@ namespace AMS.Api.Controllers.V1;
 public sealed class CpmEventsController : ControllerBase
 {
     private readonly NpgsqlDataSource _dataSource;
+    private readonly ICplmAuditEmitter _audit;
     private readonly ILogger<CpmEventsController> _logger;
 
-    public CpmEventsController(NpgsqlDataSource dataSource, ILogger<CpmEventsController> logger)
+    public CpmEventsController(
+        NpgsqlDataSource dataSource, ICplmAuditEmitter audit, ILogger<CpmEventsController> logger)
     {
         _dataSource = dataSource;
+        _audit = audit;
         _logger = logger;
     }
+
+    private string Actor() =>
+        User.FindFirst("preferred_username")?.Value ?? User.Identity?.Name ?? "unknown";
 
     /// <summary>
     /// A12 — event frames. Defaults to open frames, because "what is wrong right
@@ -74,6 +81,8 @@ public sealed class CpmEventsController : ControllerBase
             """, new { id, user = User.Identity?.Name ?? "unknown", note = request?.Note });
         if (affected == 0) return NotFound();
         _logger.LogInformation("CPLM event frame {Id} acknowledged by {User}", id, User.Identity?.Name);
+        _audit.Emit("CPM_EVENT_ACKNOWLEDGED", Actor(), "CpmEventFrame", id.ToString(),
+            new { note = request?.Note });
         return Ok(new { id, ackState = "ACKNOWLEDGED" });
     }
 
@@ -98,6 +107,8 @@ public sealed class CpmEventsController : ControllerBase
         if (affected == 0) return NotFound();
         _logger.LogInformation("CPLM event frame {Id} shelved until {Until} by {User}",
             id, request.Until, User.Identity?.Name);
+        _audit.Emit("CPM_EVENT_SHELVED", Actor(), "CpmEventFrame", id.ToString(),
+            new { until = request.Until, note = request.Note });
         return Ok(new { id, ackState = "SHELVED", shelveUntil = request.Until });
     }
 

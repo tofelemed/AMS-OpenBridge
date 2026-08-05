@@ -70,6 +70,15 @@ app.MapPost("/api/v1/audit/verify", async (ChainIntegrityVerifier verifier, Canc
     return isValid ? Results.Ok("Chain verified. No tampering detected.") : Results.Problem("CHAIN TAMPERING DETECTED.");
 }).RequireAuthorization("admin.audit.view");
 
+// One-time migration: rows hashed before the canonical-JSON fix can never verify
+// (jsonb rewrote their preimage). Recomputes the chain under the current
+// algorithm; safe to call again (idempotent — rehashed count will be 0).
+app.MapPost("/api/v1/audit/rechain", async (ChainIntegrityVerifier verifier, CancellationToken ct) =>
+{
+    var (total, rehashed) = await verifier.RechainAsync(ct);
+    return Results.Ok(new { total, rehashed, note = "Chain recomputed under the canonical hash algorithm." });
+}).RequireAuthorization("admin.audit.view");
+
 // ── GET /api/v1/audit — query the immutable audit trail (Phase 5). ────────────
 // Filter by entity (e.g. entityType=Display, entityId=<guid>), actor, event type, and time window.
 // This is what surfaces "who changed this display, and when" now that display-service emits governance
