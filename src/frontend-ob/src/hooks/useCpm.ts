@@ -126,3 +126,48 @@ export function useCpmPipelineStatus(refetchMs = 15_000) {
     refetchInterval: refetchMs,
   });
 }
+
+export function useFleetRankings(site?: string, windowKind = '24h') {
+  return useQuery({
+    queryKey: ['cpm', 'fleet', 'rankings', site ?? '', windowKind],
+    queryFn: () => cpm.getFleetRankings(site, windowKind),
+    refetchInterval: 60_000,
+  });
+}
+
+export function useFleetHeatmap(site?: string, windowKind = '24h') {
+  return useQuery({
+    queryKey: ['cpm', 'fleet', 'heatmap', site ?? '', windowKind],
+    queryFn: () => cpm.getFleetHeatmap(site, windowKind),
+    refetchInterval: 60_000,
+  });
+}
+
+export function useCpmCalculations() {
+  return useQuery({
+    queryKey: ['cpm', 'calculations'],
+    queryFn: cpm.getCalculations,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useCpmTrend(
+  series: string | undefined, start: Date, end: Date, width = 300, measurements = 'pv,sp,op',
+) {
+  return useQuery({
+    queryKey: ['cpm', 'trend', series ?? '', start.getTime(), end.getTime(), width, measurements],
+    queryFn: () => cpm.getTrend(series!, start, end, width, measurements, true),
+    enabled: !!series,
+    staleTime: 60_000,
+  });
+}
+
+export function useGateHistory(
+  loopId: string | undefined, windowKind = '24h', from?: string, to?: string,
+) {
+  return useQuery({
+    queryKey: ['cpm', 'gate-history', loopId ?? '', windowKind, from ?? '', to ?? ''],
+    queryFn: () => cpm.getGateHistory(loopId!, windowKind, from, to),
+    enabled: !!loopId,
+  });
+}

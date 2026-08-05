@@ -227,3 +227,48 @@
 /* ── CSV preview (U10 bulk import) ── */
 .cpm-csv-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
 .cpm-mono { font-family: var(--font-mono, monospace); font-size: 0.82rem; }
+
+/* ── Gate status matrix (U3) ── */
+.cpm-matrix-scroll { overflow-x: auto; }
+.cpm-matrix { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+.cpm-matrix th, .cpm-matrix td { border: 1px solid var(--divider-color); padding: 4px 6px; text-align: center; }
+.cpm-matrix__tier { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--on-container-neutral-color); }
+.cpm-matrix__gate { font-size: 0.72rem; }
+.cpm-matrix__loop { text-align: left; min-width: 160px; }
+.cpm-matrix__result { min-width: 180px; }
+.cpm-matrix tbody tr { cursor: pointer; }
+.cpm-matrix tbody tr:hover { background: var(--container-hover-color, rgba(128,128,128,0.08)); }
+.cpm-matrix__row--selected { outline: 2px solid var(--instrument-enhanced-primary-color); }
+.cpm-matrix__cell {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--cpm-tone, var(--on-container-neutral-color));
+  padding: 2px 6px;
+}
+.cpm-matrix__cell:hover { outline: 1px solid var(--instrument-enhanced-primary-color); border-radius: 4px; }
+.cpm-matrix-summary {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--divider-color);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── Pipeline window rows (U1) ── */
+.cpm-window-rows { display: grid; gap: 6px; }
+.cpm-window-row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 1.4fr;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--divider-color);
+  border-radius: 6px;
+  align-items: center;
+}

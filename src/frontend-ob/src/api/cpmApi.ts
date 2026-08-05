@@ -264,3 +264,100 @@ export interface CpmPipelineStatus {
 
 export const getPipelineStatus = () =>
   apiJson<CpmPipelineStatus>(`${BASE}/pipeline-status`);
+
+// ── Fleet rankings & heatmap (U1/U3) ────────────────────────────────────────
+
+export interface CpmRankedLoop {
+  rank: number;
+  loopId: string;
+  displayName: string;
+  site: string;
+  area: string | null;
+  unit: string | null;
+  loopType: string;
+  criticality: string;
+  windowEnd: string | null;
+  diagnosis: string;
+  severity: string | null;
+  confidence: number | null;
+  metrics: {
+    effortRatio: number | null;
+    triangularity: number | null;
+    horchOddness: number | null;
+    acfPeriodS: number | null;
+    goodErrorPct: number | null;
+    mae: number | null;
+  };
+  observabilityFlags: string[];
+}
+
+export const getFleetRankings = (site?: string, windowKind = '24h', limit = 50) => {
+  const params = new URLSearchParams({ windowKind, limit: String(limit) });
+  if (site) params.set('site', site);
+  return apiJson<{ site: string | null; windowKind: string; count: number; loops: CpmRankedLoop[] }>(
+    `${BASE}/fleet/rankings?${params.toString()}`);
+};
+
+export interface CpmHeatmapLoop {
+  loopId: string;
+  displayName: string;
+  loopType: string;
+  windowEnd: string | null;
+  diagnosis: string;
+  confidence: number | null;
+  gates: Record<string, string>;
+}
+
+export const getFleetHeatmap = (site?: string, windowKind = '24h', limit = 100) => {
+  const params = new URLSearchParams({ windowKind, limit: String(limit) });
+  if (site) params.set('site', site);
+  return apiJson<{ site: string | null; windowKind: string; gateKeys: string[]; count: number; loops: CpmHeatmapLoop[] }>(
+    `${BASE}/fleet/heatmap?${params.toString()}`);
+};
+
+// ── Calculations catalogue (U3 drawer, U9) ──────────────────────────────────
+
+export interface CpmGateDefinition {
+  key: string;
+  name: string;
+  tier: string;
+  question: string;
+  observedInResults: boolean;
+}
+
+export interface CpmCalculations {
+  calculationVersion: string | null;
+  dynamicsProfileVersion: string | null;
+  engine: string;
+  gates: CpmGateDefinition[];
+  families: { key: string; label: string; primaryGates: string[] }[];
+  bands: { band: string; maxConfidence: number }[];
+  note: string;
+}
+
+export const getCalculations = () =>
+  apiJson<CpmCalculations>(`${BASE}/calculations`);
+
+// ── Historian trend (envelope) ──────────────────────────────────────────────
+
+export interface CpmTrendPoint {
+  ts: number;
+  [measurement: string]: number | string | null;
+}
+
+/** envelope=true adds <m>_min/<m>_max/<m>_avg columns so oscillation renders truthfully. */
+export const getTrend = (
+  series: string, start: Date, end: Date, width = 300,
+  measurements = 'pv,sp,op', envelope = true,
+) => {
+  const params = new URLSearchParams({
+    series,
+    start: start.toISOString(),
+    end: end.toISOString(),
+    width: String(width),
+    measurements,
+    envelope: String(envelope),
+  });
+  return apiJson<{ series: string; envelope: boolean; points: CpmTrendPoint[] }>(
+    `/api/hist/trend?${params.toString()}`);
+};
