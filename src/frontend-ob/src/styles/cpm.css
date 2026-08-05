@@ -309,3 +309,39 @@
   min-width: 140px;
 }
 .cpm-lineage__arrow { color: var(--on-container-neutral-color); font-size: 1.1rem; }
+
+/* ── S5: Historical / Windows / Replay (U6–U8) ── */
+
+/* Diagnosis band track: one clickable segment per evaluated window (U6). */
+.cpm-band-track { display: flex; gap: 2px; margin: 10px 0 4px; }
+.cpm-band-seg {
+  flex: 1;
+  height: 22px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  opacity: 0.85;
+  min-width: 8px;
+  padding: 0;
+}
+.cpm-band-seg:hover { opacity: 1; }
+.cpm-band-seg--selected { outline: 2px solid var(--instrument-enhanced-primary-color); opacity: 1; }
+.cpm-band-seg--good { background: var(--instrument-enhanced-secondary-color); }
+.cpm-band-seg--warn { background: var(--alert-caution-color); }
+.cpm-band-seg--bad { background: var(--alert-alarm-color); }
+.cpm-band-seg--muted { background: var(--on-container-neutral-color); opacity: 0.35; }
+
+/* Sample-density bar (U7): per-bucket fill vs the 5 s-grid expectation. */
+.cpm-density { display: flex; align-items: flex-end; gap: 2px; height: 48px; margin: 8px 0; }
+.cpm-density__bucket {
+  flex: 1;
+  background: var(--instrument-enhanced-secondary-color);
+  border-radius: 2px 2px 0 0;
+  min-height: 2px;
+}
+.cpm-density__bucket--sparse { background: var(--alert-caution-color); }
+.cpm-density__bucket--empty { background: var(--on-container-neutral-color); opacity: 0.25; }
+
+/* Replay cursor slider row (U8). */
+.cpm-slider-row { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+.cpm-slider-row input[type='range'] { flex: 1; accent-color: var(--instrument-enhanced-primary-color); }

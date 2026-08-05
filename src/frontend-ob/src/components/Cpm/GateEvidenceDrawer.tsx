@@ -8,6 +8,7 @@
  * where the engine did not evaluate, the drawer says so and explains why.
  */
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { KvRow, PanelHead, TonePill, toneFor } from './shared';
 import { useCpmCalculations, useLatestGates } from '../../hooks/useCpm';
@@ -29,6 +30,7 @@ export const GateEvidenceDrawer: React.FC<{
   windowKind?: string;
   onClose: () => void;
 }> = ({ loopId, gateKey, windowKind = '24h', onClose }) => {
+  const navigate = useNavigate();
   const { data: matrix } = useLatestGates(loopId, windowKind);
   const { data: calc } = useCpmCalculations();
 
@@ -108,10 +110,12 @@ export const GateEvidenceDrawer: React.FC<{
         )}
 
         <div style={{ marginTop: 16 }}>
-          {/* Evidence Replay (U8) lands in slice S5; a dead navigation would be
-              worse than an honest disabled state. */}
-          <ObcButton variant="normal" disabled>
-            Open in Evidence Replay (available soon)
+          <ObcButton variant="raised" onClick={() => {
+            const q = new URLSearchParams({ loop: loopId, gate: gateKey });
+            if (matrix?.windowEnd) q.set('window', matrix.windowEnd);
+            navigate(`/cpm/replay?${q.toString()}`);
+          }}>
+            Open in Evidence Replay ›
           </ObcButton>
         </div>
       </div>

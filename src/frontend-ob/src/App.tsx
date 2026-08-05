@@ -45,6 +45,9 @@ const CpmOverview      = React.lazy(() => import('./components/Cpm/CpmOverview')
 const CpmPerformance   = React.lazy(() => import('./components/Cpm/CpmPerformance'));
 const CpmExplorer      = React.lazy(() => import('./components/Cpm/CpmExplorer'));
 const CpmCalculations  = React.lazy(() => import('./components/Cpm/CpmCalculations'));
+const CpmHistorical    = React.lazy(() => import('./components/Cpm/CpmHistorical'));
+const CpmWindows       = React.lazy(() => import('./components/Cpm/CpmWindows'));
+const CpmReplay        = React.lazy(() => import('./components/Cpm/CpmReplay'));
 const EdgeNodeMonitor  = React.lazy(() => import('./components/EdgeNodeMonitor/EdgeNodeMonitor'));
 const Administration   = React.lazy(() => import('./components/Administration/Administration'));
 // HMI Designer (Phase 2)
@@ -283,6 +286,9 @@ const App: React.FC = () => {
                       <Route path="/cpm/performance" element={<RequirePermission permission="analytics.view"><CpmPerformance /></RequirePermission>} />
                       <Route path="/cpm/explorer"     element={<RequirePermission permission="analytics.view"><CpmExplorer /></RequirePermission>} />
                       <Route path="/cpm/calculations" element={<RequirePermission permission="analytics.view"><CpmCalculations /></RequirePermission>} />
+                      <Route path="/cpm/historical" element={<RequirePermission permission="analytics.view"><CpmHistorical /></RequirePermission>} />
+                      <Route path="/cpm/windows"   element={<RequirePermission permission="analytics.view"><CpmWindows /></RequirePermission>} />
+                      <Route path="/cpm/replay"    element={<RequirePermission permission="analytics.view"><CpmReplay /></RequirePermission>} />
                       <Route path="/cpm/registry"  element={<RequirePermission permission="analytics.view"><CpmLoopRegistry /></RequirePermission>} />
                       <Route path="/cpm/events"    element={<RequirePermission permission="analytics.view"><CpmEvents /></RequirePermission>} />
                       {/* Published-HMI launcher — every role with display.view */}
@@ -552,6 +558,16 @@ const navItems = [
   { path: '/iotdb-trend', label: 'IoTDB Trend Viewer',  Icon: ObiDatabase, group: 'Historical', permission: 'historian.view' },
   // ── Analysis ──────────────────────────────────────────────
   { path: '/analytics',  label: 'Analytics',           Icon: ObiChart, group: 'Analysis', permission: 'analytics.view' },
+  // ── Loop Performance (CPLM Phase 7) ───────────────────────
+  { path: '/cpm',              label: 'Overview',           Icon: ObiDashboard, group: 'Loop Performance', permission: 'analytics.view' },
+  { path: '/cpm/performance',  label: 'Performance',        Icon: ObiChart, group: 'Loop Performance', permission: 'analytics.view' },
+  { path: '/cpm/explorer',     label: 'Loop Explorer',      Icon: ObiDatabase, group: 'Loop Performance', permission: 'analytics.view' },
+  { path: '/cpm/historical',   label: 'Historical',         Icon: ObiHistoryGoogle, group: 'Loop Performance', permission: 'analytics.view' },
+  { path: '/cpm/windows',      label: 'Window Inspector',   Icon: ObiTime, group: 'Loop Performance', permission: 'analytics.view' },
+  { path: '/cpm/replay',       label: 'Evidence Replay',    Icon: ObiTrend, group: 'Loop Performance', permission: 'analytics.view' },
+  { path: '/cpm/calculations', label: 'Calculations',       Icon: ObiListAltCheckGoogle, group: 'Loop Performance', permission: 'analytics.view' },
+  { path: '/cpm/registry',     label: 'Loop Registry',      Icon: ObiWrench, group: 'Loop Performance', permission: 'analytics.view' },
+  { path: '/cpm/events',       label: 'Loop Events',        Icon: ObiNotification, group: 'Loop Performance', permission: 'analytics.view' },
   // ── HMI displays (runtime for everyone, Designer for authors) ──
   { path: '/displays',   label: 'HMI Displays',        Icon: ObiMonitoring, group: 'Design', permission: 'display.view' },
   { path: '/designer',   label: 'HMI Designer',        Icon: ObiEditGoogle, group: 'Design', permission: 'display.edit' },

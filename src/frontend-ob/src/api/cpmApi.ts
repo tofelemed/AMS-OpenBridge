@@ -381,3 +381,71 @@ export const getKpis = (
   return apiJson<{ loopId: string; resolution: string; tier: 'short' | 'long'; count: number; samples: CpmKpiRow[] }>(
     `${BASE}/loops/${encodeURIComponent(loopId)}/kpis?${params.toString()}`);
 };
+
+// ── Resolutions catalogue (U7): windows the engine actually emits ───────────
+
+export interface CpmResolutions {
+  shortWindows: string[];
+  longWindows: string[];
+  gates: { key: string; name: string; tier: string }[];
+  note: string;
+}
+
+export const getResolutions = () =>
+  apiJson<CpmResolutions>(`${BASE}/resolutions`);
+
+// ── Raw cursor read (U7/U8): stable paging for evidence replay ──────────────
+
+export const getRawCursor = (
+  series: string, start: Date, end: Date, maxCount = 2000,
+  cursor?: number, measurements = 'pv,sp,op,mode',
+) => {
+  const params = new URLSearchParams({
+    series,
+    start: start.toISOString(),
+    end: end.toISOString(),
+    maxCount: String(maxCount),
+    measurements,
+  });
+  if (cursor != null) params.set('cursor', String(cursor));
+  return apiJson<{
+    series: string; count: number; cursor: number | null;
+    nextCursor: number | null; hasMore: boolean; points: CpmTrendPoint[];
+  }>(`/api/hist/raw/cursor?${params.toString()}`);
+};
+
+// ── Recompute (A8, U8) ──────────────────────────────────────────────────────
+
+export const recomputeLoop = (loopId: string) =>
+  apiJson<{ loopId: string; replayId: string; jobId: string; statusUrl: string }>(
+    `${BASE}/loops/${encodeURIComponent(loopId)}/recompute`, { method: 'POST' });
+
+export const getReplayStatus = (replayId: string, jobId: string) =>
+  apiJson<{ replayId: string; jobId: string; state: string; finished: boolean; succeeded: boolean }>(
+    `${BASE}/replays/${encodeURIComponent(replayId)}?jobId=${encodeURIComponent(jobId)}`);
+
+// ── Pipeline metrics (DG-1 proxy, U7/U11) ───────────────────────────────────
+
+export interface CpmJobMetrics {
+  name: string;
+  jid: string;
+  state: string;
+  role: 'alarm' | 'cplm';
+  startTime: string | null;
+  uptimeSec: number | null;
+  checkpoint: {
+    completed: number;
+    failed: number;
+    lastDurationMs: number | null;
+    lastSizeBytes: number | null;
+    lastCompletedAgeSec: number | null;
+  } | null;
+}
+
+export const getPipelineMetrics = () =>
+  apiJson<{
+    jobManagerReachable: boolean;
+    collectedAt: string;
+    jobs: CpmJobMetrics[];
+    unavailable: string[];
+  }>(`${BASE}/pipeline-metrics`);

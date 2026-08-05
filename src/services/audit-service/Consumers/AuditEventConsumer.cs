@@ -23,6 +23,11 @@ public class AuditEventConsumer : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Yield before the blocking Consume loop: without this, Host.StartAsync
+        // waits on the synchronous section, Kestrel never binds, and a broker
+        // hiccup at boot takes the whole host down instead of just this consumer.
+        await Task.Yield();
+
         var config = new ConsumerConfig
         {
             BootstrapServers = _bootstrapServers,
@@ -40,23 +45,37 @@ public class AuditEventConsumer : BackgroundService
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                var cr = consumer.Consume(stoppingToken);
-                if (cr.Message == null) continue;
+                try
+                {
+                    var cr = consumer.Consume(stoppingToken);
+                    if (cr.Message == null) continue;
 
-                var evt = JsonSerializer.Deserialize<AuditEvent>(cr.Message.Value, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                if (evt == null) continue;
+                    var evt = JsonSerializer.Deserialize<AuditEvent>(cr.Message.Value, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    if (evt == null) continue;
 
-                using var scope = _sp.CreateScope();
-                var repo = scope.ServiceProvider.GetRequiredService<ImmutableAuditRepository>();
+                    using var scope = _sp.CreateScope();
+                    var repo = scope.ServiceProvider.GetRequiredService<ImmutableAuditRepository>();
 
-                // Append to DB with hash chaining
-                await repo.AppendAsync(evt, stoppingToken);
+                    // Append to DB with hash chaining
+                    await repo.AppendAsync(evt, stoppingToken);
 
-                // Acknowledge Kafka message only AFTER successful immutable DB write
-                consumer.Commit(cr);
+                    // Acknowledge Kafka message only AFTER successful immutable DB write
+                    consumer.Commit(cr);
+                }
+                catch (ConsumeException ex)
+                {
+                    // Transient broker/DNS trouble (seen at stack boot) — retry,
+                    // never let it kill the consumer or the host.
+                    _logger.LogWarning(ex, "Kafka consume failed; retrying in 5s");
+                    await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+                }
             }
         }
         catch (OperationCanceledException)
+        {
+            // shutdown
+        }
+        finally
         {
             consumer.Close();
         }

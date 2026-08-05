@@ -156,43 +156,46 @@ widget, column, and interaction — inside `src/frontend-ob`, wired to the real 
       `gates` history rows; delta computed client-side between adjacent windows.
 
 ### U6 — Historical explorer (`/cpm/historical?loop=&from=&to=&kpi=`)
-- [ ] Toolbar: LoopSelect, from/to datetime, KPI overlay select (Stiction probability /
+- [x] Toolbar: LoopSelect, from/to datetime, KPI overlay select (Stiction probability /
       Effort ratio / IAE / FFT peak ratio), `Apply range`.
-- [ ] Synchronized chart: PV/SP/OP (envelope trend) + KPI overlay ← `/trend?envelope=true` +
+- [x] Synchronized chart: PV/SP/OP (envelope trend) + KPI overlay ← `/trend?envelope=true` +
       `GET /cpm/loops/{id}/kpis` series aligned on time.
-- [ ] **Diagnosis band track** (clickable segments Normal/Developing/Suspected/Recovering with
+- [x] **Diagnosis band track** (clickable segments Normal/Developing/Suspected/Recovering with
       gate + note) ← `gates` history: band = diagnosis class per window; click moves cursor.
 - [ ] Quality/mode track ← `/raw/cursor` on mode+quality measurements (coarse ribbon).
-- [ ] Selected-period card (profile, window, completeness, confidence + `Replay this period ›`
+      *Deferred from S5: the raw cursor pages at 5000 points (~7 h at the 5 s grid), so a
+      multi-day ribbon from the first page alone would misrepresent coverage; needs a
+      decimated mode/quality read (S7 or historian-bff aggregation).*
+- [x] Selected-period card (profile, window, completeness, confidence + `Replay this period ›`
       **actually navigates** to U8 with params).
-- [ ] Maintenance correlation panel — DG-3 (no CMMS): render panel with empty-state copy.
-- [ ] `Export evidence` → download JSON/CSV of the queried windows (client-side).
+- [x] Maintenance correlation panel — DG-3 (no CMMS): render panel with empty-state copy.
+- [x] `Export evidence` → download JSON/CSV of the queried windows (client-side).
 
 ### U7 — Window inspector (`/cpm/windows?loop=&profile=`)
-- [ ] Toolbar: LoopSelect + window profile select (1m/5m/10m/15m/30m/60m from
+- [x] Toolbar: LoopSelect + window profile select (1m/5m/10m/15m/30m/60m from
       `GET /cpm/resolutions` + 4h/12h/24h) + live watermark chip (DG-1 proxy).
-- [ ] Emitted-window list (5 recent, result id, state pill) ← `kpis?resolution=` rows.
-- [ ] Window metadata grid: boundary semantics `[start,end)`, size, slide, expected vs actual
+- [x] Emitted-window list (5 recent, result id, state pill) ← `kpis?resolution=` rows.
+- [x] Window metadata grid: boundary semantics `[start,end)`, size, slide, expected vs actual
       samples, completeness, allowed lateness ← short/long feature rows
       (`sample_count`, `completeness`, window bounds); late/out-of-order counts = DG-4 (show `—`).
-- [ ] Sample-density bar (used/late/excluded) ← `/raw/cursor` bucket counts vs expected;
+- [x] Sample-density bar (used/late/excluded) ← `/raw/cursor` bucket counts vs expected;
       excluded = bad-quality count from G0 fields.
-- [ ] Window contract strip (dropped/retained/added) — computed from profile size/slide.
+- [x] Window contract strip (dropped/retained/added) — computed from profile size/slide.
 
 ### U8 — Evidence replay (`/cpm/replay?loop=&window=&gate=`)
-- [ ] Toolbar: LoopSelect + emitted-window select (`gates` history) + gate select
+- [x] Toolbar: LoopSelect + emitted-window select (`gates` history) + gate select
       (all 17, from `/cpm/calculations`) + role pill.
-- [ ] Transformation stepper (Raw→…→Calculated) — cosmetic stages retained; chart shows
+- [x] Transformation stepper (Raw→…→Calculated) — cosmetic stages retained; chart shows
       raw (`/raw/cursor`) vs evaluated (5 s grid) series.
-- [ ] Evidence chart with replay cursor slider; ACF/phase-plane variants for G5/G6/G9/G14
+- [x] Evidence chart with replay cursor slider; ACF/phase-plane variants for G5/G6/G9/G14
       (echarts, computed client-side from raw samples — or metric fields from payload).
-- [ ] Summary aside: latest value/threshold/window/role/profile/result-id + Formula/Purpose/
+- [x] Summary aside: latest value/threshold/window/role/profile/result-id + Formula/Purpose/
       Fusion ← `/cpm/calculations` + `gates/latest` metrics.
-- [ ] Input lineage strip (IoTDB raw → normalization → gate → G15) — static structure, real ids.
-- [ ] **Recompute integration:** `Re-run this window` → `POST /cpm/loops/{id}/recompute` +
+- [x] Input lineage strip (IoTDB raw → normalization → gate → G15) — static structure, real ids.
+- [x] **Recompute integration:** `Re-run this window` → `POST /cpm/loops/{id}/recompute` +
       poll `GET /cpm/replays/{id}` → refetch gates on FINISHED (this is A8; ~1 min round trip).
-- [ ] Engineer note textarea → stores as note on the loop's open event frame (`note` field).
-- [ ] `Export package` → client-side JSON bundle (gates payload + raw slice + versions).
+- [x] Engineer note textarea → stores as note on the loop's open event frame (`note` field).
+- [x] `Export package` → client-side JSON bundle (gates payload + raw slice + versions).
 
 ### U9 — Calculations (`/cpm/calculations?loop=`)
 - [ ] Loop selector panel + facts strip (health/dynamics/latest window/issue).
@@ -255,7 +258,7 @@ widget, column, and interaction — inside `src/frontend-ob`, wired to the real 
 
 | ID | Gap | Consumer | Plan |
 |---|---|---|---|
-| DG-1 | Flink metrics proxy (watermark lag, per-job latency/backpressure/parallelism, checkpoint stats, events/s) | U1 runtime, U7 chip, U11 | Small `GET /cpm/pipeline-metrics` in AMS.Api proxying Flink REST `/jobs/{id}` + `/checkpoints` (server-side, keeps Flink off the browser network) |
+| DG-1 | Flink metrics proxy (watermark lag, per-job latency/backpressure/parallelism, checkpoint stats, events/s) | U1 runtime, U7 chip, U11 | **DONE (S5):** `GET /cpm/pipeline-metrics` proxies `/jobs/overview` + `/jobs/{id}/checkpoints`; state/uptime/checkpoint age-duration-size per required job; watermark/events-s/backpressure listed in `unavailable[]` (honest) |
 | DG-2 | Fleet time-heatmap in one call | U3 heatmap | Start client-side pivot over per-loop gate history; add endpoint if >20 loops |
 | DG-3 | Maintenance/CMMS events | U6 panel | Empty-state; integration out of scope |
 | DG-4 | Late/out-of-order counts per window | U7 | Not recorded by jobs today; show `—` (honest) |
@@ -275,7 +278,8 @@ widget, column, and interaction — inside `src/frontend-ob`, wired to the real 
 4. **S4 Explorer + Calculations** (U2, U9). *Exit: tree → loop tabs all live; calc drawer
    shows real values + versions.*
 5. **S5 Historical + Windows + Replay** (U6, U7, U8 + DG-1 proxy). *Exit: diagnosis bands from
-   real windows; replay re-runs a window via A8 and refreshes.*
+   real windows; replay re-runs a window via A8 and refreshes.* ✅ **DONE** — plus the
+   sidebar 'Loop Performance' nav group (routes existed but had no nav entries until S5).
 6. **S6 Investigation + Pipeline + Governance** (U5, U11, U12 + A15 audit emitter;
    remove SystemMonitor/EdgeNodeMonitor fabricated panels). *Exit: reasoning chain from real
    flags; U11 shows 7 real jobs; audit stream live.*

@@ -212,6 +212,95 @@ public sealed class CpmReadinessController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// A10/DG-1 — per-job runtime metrics proxied from the Flink REST API, so
+    /// the browser never talks to Flink directly. Values that Flink does not
+    /// expose cheaply (per-record watermark lag, events/s) are omitted rather
+    /// than estimated — an omitted metric is honest, an estimated one lies.
+    /// </summary>
+    [HttpGet("pipeline-metrics")]
+    public async Task<IActionResult> GetPipelineMetrics(CancellationToken ct = default)
+    {
+        var client = _httpFactory.CreateClient();
+        client.Timeout = TimeSpan.FromSeconds(10);
+        var baseUrl = FlinkBaseUrl();
+
+        var jobs = new List<object>();
+        var reachable = false;
+        try
+        {
+            var overviewRes = await client.GetAsync($"{baseUrl}/jobs/overview", ct);
+            if (overviewRes.IsSuccessStatusCode)
+            {
+                reachable = true;
+                using var overview = JsonDocument.Parse(await overviewRes.Content.ReadAsStringAsync(ct));
+                foreach (var job in overview.RootElement.GetProperty("jobs").EnumerateArray())
+                {
+                    var name = job.TryGetProperty("name", out var n) ? n.GetString() : null;
+                    var jid = job.TryGetProperty("jid", out var j) ? j.GetString() : null;
+                    if (name is null || jid is null) continue;
+                    if (!RequiredJobs.Any(r => r.Name == name)) continue;
+
+                    long startTime = job.TryGetProperty("start-time", out var st) ? st.GetInt64() : 0;
+                    var state = job.TryGetProperty("state", out var s) ? s.GetString() : "UNKNOWN";
+
+                    // Checkpoint statistics per job (restore/loss risk indicator).
+                    object? checkpoint = null;
+                    try
+                    {
+                        var cpRes = await client.GetAsync($"{baseUrl}/jobs/{jid}/checkpoints", ct);
+                        if (cpRes.IsSuccessStatusCode)
+                        {
+                            using var cp = JsonDocument.Parse(await cpRes.Content.ReadAsStringAsync(ct));
+                            var counts = cp.RootElement.GetProperty("counts");
+                            var latest = cp.RootElement.TryGetProperty("latest", out var l)
+                                && l.TryGetProperty("completed", out var comp)
+                                && comp.ValueKind == JsonValueKind.Object ? comp : (JsonElement?)null;
+                            checkpoint = new
+                            {
+                                completed = counts.TryGetProperty("completed", out var c1) ? c1.GetInt32() : 0,
+                                failed = counts.TryGetProperty("failed", out var c2) ? c2.GetInt32() : 0,
+                                lastDurationMs = latest?.TryGetProperty("end_to_end_duration", out var d) == true ? d.GetInt64() : (long?)null,
+                                lastSizeBytes = latest?.TryGetProperty("state_size", out var sz) == true ? sz.GetInt64() : (long?)null,
+                                lastCompletedAgeSec = latest?.TryGetProperty("latest_ack_timestamp", out var ts) == true && ts.GetInt64() > 0
+                                    ? (long?)Math.Max(0, (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - ts.GetInt64()) / 1000)
+                                    : null
+                            };
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Checkpoint stats unavailable for {Job}", name);
+                    }
+
+                    jobs.Add(new
+                    {
+                        name,
+                        jid,
+                        state,
+                        role = RequiredJobs.First(r => r.Name == name).Role,
+                        startTime = startTime > 0 ? DateTimeOffset.FromUnixTimeMilliseconds(startTime).UtcDateTime : (DateTime?)null,
+                        uptimeSec = startTime > 0 ? (long?)Math.Max(0, (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - startTime) / 1000) : null,
+                        checkpoint
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not read Flink metrics");
+        }
+
+        return Ok(new
+        {
+            jobManagerReachable = reachable,
+            collectedAt = DateTime.UtcNow,
+            jobs,
+            // Explicit about what is NOT here, so the UI renders honest gaps.
+            unavailable = new[] { "watermarkLagMs", "eventsPerSecond", "backpressure" }
+        });
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────
 
     private string FlinkBaseUrl() =>

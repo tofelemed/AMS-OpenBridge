@@ -3,6 +3,7 @@
  * Components consume these, never cpmApi directly, so caching/invalidation
  * stays in one place.
  */
+import React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as cpm from '../api/cpmApi';
 
@@ -179,4 +180,67 @@ export function useCpmKpis(loopId: string | undefined, resolution = '24h', limit
     enabled: !!loopId,
     staleTime: 60_000,
   });
+}
+
+export function useCpmResolutions() {
+  return useQuery({
+    queryKey: ['cpm', 'resolutions'],
+    queryFn: cpm.getResolutions,
+    staleTime: Infinity, // static per deployment
+  });
+}
+
+/** KPI rows bounded to an explicit time range (U6 overlay, U7 inspector). */
+export function useCpmKpisRange(
+  loopId: string | undefined, resolution: string, from?: string, to?: string, limit = 500,
+) {
+  return useQuery({
+    queryKey: ['cpm', 'kpis-range', loopId ?? '', resolution, from ?? '', to ?? '', limit],
+    queryFn: () => cpm.getKpis(loopId!, resolution, from, to, limit),
+    enabled: !!loopId,
+    staleTime: 60_000,
+  });
+}
+
+export function useRawWindow(
+  series: string | undefined, start: Date | undefined, end: Date | undefined,
+  measurements = 'pv,sp,op,mode', maxCount = 2000,
+) {
+  return useQuery({
+    queryKey: ['cpm', 'raw', series ?? '', start?.getTime() ?? 0, end?.getTime() ?? 0, measurements],
+    queryFn: () => cpm.getRawCursor(series!, start!, end!, maxCount, undefined, measurements),
+    enabled: !!series && !!start && !!end,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function usePipelineMetrics(refetchMs = 20_000) {
+  return useQuery({
+    queryKey: ['cpm', 'pipeline-metrics'],
+    queryFn: cpm.getPipelineMetrics,
+    refetchInterval: refetchMs,
+  });
+}
+
+/** A8 recompute: submit, then poll until finished, then refetch gate queries. */
+export function useRecompute(loopId: string | undefined) {
+  const qc = useQueryClient();
+  const [handle, setHandle] = React.useState<{ replayId: string; jobId: string } | null>(null);
+  const submit = useMutation({
+    mutationFn: () => cpm.recomputeLoop(loopId!),
+    onSuccess: (h) => setHandle({ replayId: h.replayId, jobId: h.jobId }),
+  });
+  const status = useQuery({
+    queryKey: ['cpm', 'replay-status', handle?.replayId ?? ''],
+    queryFn: () => cpm.getReplayStatus(handle!.replayId, handle!.jobId),
+    enabled: !!handle,
+    refetchInterval: (q) => (q.state.data?.finished ? false : 5_000),
+  });
+  React.useEffect(() => {
+    if (status.data?.finished) {
+      void qc.invalidateQueries({ queryKey: ['cpm', 'gates'] });
+      void qc.invalidateQueries({ queryKey: ['cpm', 'gate-history'] });
+    }
+  }, [status.data?.finished, qc]);
+  return { submit, status: handle ? status.data : null, reset: () => setHandle(null) };
 }
