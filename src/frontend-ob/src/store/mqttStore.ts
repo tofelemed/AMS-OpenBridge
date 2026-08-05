@@ -289,13 +289,31 @@ export const useMqttStore = create<MqttStoreState>()(
       // from the binding (which carry the real group/edge — multi-site safe).
       subscribeScreen: (topics: string[]) => {
         ensureConnected();
+        const fresh: string[] = [];
         topics.forEach(topic => {
           if (!topic) return;
           if (!get().subscribed.has(topic)) {
             client?.subscribe(topic, { qos: 0 });
             set(s => { s.subscribed.add(topic); });
+            fresh.push(topic);
           }
         });
+
+        // Phase 6.6 — paint on OPEN, not on connect.
+        // Snapshots were only re-seeded from Redis when MQTT connected, so a
+        // faceplate opened on an already-connected client showed nothing until
+        // the next DDATA arrived. With report-by-exception upstream, a steady
+        // signal may not publish for minutes, so "blank until something changes"
+        // is indistinguishable from "broken" to an operator.
+        const devices = fresh
+          .map(t => {
+            // spBv1.0/<group>/DDATA/<edge>/<device>[/...]
+            const parts = t.split('/');
+            const i = parts.indexOf('DDATA');
+            return i >= 0 && parts.length > i + 2 ? parts[i + 2] : '';
+          })
+          .filter(d => d && d !== '#' && d !== '+');
+        if (devices.length > 0) void get().loadSnapshot([...new Set(devices)]);
       },
 
       // ── unsubscribeScreen ─────────────────────────────────────────────────

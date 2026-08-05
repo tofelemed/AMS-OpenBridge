@@ -101,13 +101,18 @@ services:
     image: redis:7.2-alpine
     container_name: ams-redis
     <<: *default-restart
+    # Phase 6.7 — snapshots are a paint-on-open CONTRACT, not a cache.
+    # allkeys-lru let Redis evict a live snapshot under memory pressure, so a
+    # faceplate could open blank with nothing logged and nothing to retry
+    # against. volatile-lru only evicts keys carrying an explicit TTL, which is
+    # exactly the edge node's snapshot expiry and nothing else.
     command: >
       redis-server
       --save 60 1
       --appendonly yes
       --appendfsync everysec
-      --maxmemory 200mb
-      --maxmemory-policy allkeys-lru
+      --maxmemory 512mb
+      --maxmemory-policy volatile-lru
     volumes:
       - redis-data:/data
     ports:

@@ -10,6 +10,8 @@ public final class SparkplugConfig {
     public final String kafkaBrokers;
     public final String liveAlarmsTopic;
     public final String liveMetricsTopic;
+    /** CPLM loop metrics (Phase 6.1): loop-scoped PV/SP/OP/VP/MODE via report-by-exception. */
+    public final String liveLoopMetricsTopic;
     public final String kafkaGroupId;
     /** Kafka auto.offset.reset — "earliest" to replay history, "latest" for real-time only */
     public final String kafkaAutoOffsetReset;
@@ -35,7 +37,7 @@ public final class SparkplugConfig {
     public final int    redisTtlSeconds;
 
     private SparkplugConfig(
-            String kafkaBrokers, String liveAlarmsTopic, String liveMetricsTopic, 
+            String kafkaBrokers, String liveAlarmsTopic, String liveMetricsTopic, String liveLoopMetricsTopic, 
             String kafkaGroupId, String kafkaAutoOffsetReset,
             String mqttHost, int mqttPort, String mqttClientId, boolean mqttWs,
             String mqttUsername, String mqttPassword,
@@ -44,6 +46,7 @@ public final class SparkplugConfig {
         this.kafkaBrokers          = kafkaBrokers;
         this.liveAlarmsTopic       = liveAlarmsTopic;
         this.liveMetricsTopic      = liveMetricsTopic;
+        this.liveLoopMetricsTopic  = liveLoopMetricsTopic;
         this.kafkaGroupId          = kafkaGroupId;
         this.kafkaAutoOffsetReset  = kafkaAutoOffsetReset;
         this.mqttHost         = mqttHost;
@@ -64,6 +67,7 @@ public final class SparkplugConfig {
                 env("KAFKA_BROKERS",            "kafka:9092"),
                 env("LIVE_ALARMS_TOPIC",        "live.alarms"),
                 env("LIVE_METRICS_TOPIC",       "live.metrics"),
+                env("LIVE_LOOP_METRICS_TOPIC",  "live.loop.metrics"),
                 env("KAFKA_GROUP_ID",           "ams-sparkplug-edge-node"),
                 env("KAFKA_AUTO_OFFSET_RESET",  "earliest"),  // earliest = replay on startup
                 env("MQTT_HOST",                "emqx"),

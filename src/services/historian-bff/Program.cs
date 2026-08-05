@@ -144,6 +144,54 @@ app.MapGet("/raw", async (
     });
 }).RequireAuthorization("historian.view");
 
+// ── GET /raw/cursor ────────────────────────────────────────────────────────
+// Cursor-paged raw read for evidence replay (Phase 6.5). Pass the returned
+// nextCursor back to fetch the next page. Unlike OFFSET paging this costs the
+// same per page over an 86 400-row day, and cannot skip or repeat a row when
+// data lands mid-walk.
+app.MapGet("/raw/cursor", async (
+    string series,
+    DateTimeOffset start,
+    DateTimeOffset end,
+    int maxCount,
+    long? cursor,
+    string? measurements,
+    ClaimsPrincipal user,
+    IoTDbClient iotdb,
+    CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(series))
+        return Results.BadRequest("'series' is required");
+    if (!AssetScope.SeriesInScope(user, series))
+        return Results.Forbid();
+    if (end <= start)
+        return Results.BadRequest("'end' must be after 'start'");
+    if (!IoTDbClient.IsValidSeries(series))
+        return Results.BadRequest("'series' must be a valid IoTDB path (root.<segment>[.<segment>...])");
+    if (!IoTDbClient.IsValidMeasurements(measurements))
+        return Results.BadRequest("'measurements' must be a comma-separated list of bare identifiers");
+
+    maxCount = Math.Clamp(maxCount <= 0 ? 1000 : maxCount, 1, 10_000);
+
+    var sql    = iotdb.BuildRawCursorSql(series, start, end, maxCount, cursor, measurements ?? "");
+    var result = await iotdb.QueryAsync(sql, ct);
+    var points = IoTDbClient.MapPoints(result);
+
+    long? nextCursor = points.Count == maxCount && points.Count > 0
+        ? Convert.ToInt64(points[^1]["ts"])
+        : null;
+
+    return Results.Ok(new {
+        series, start, end, maxCount,
+        count  = points.Count,
+        cursor,
+        // null means the walk is complete - callers should stop, not retry.
+        nextCursor,
+        hasMore = nextCursor is not null,
+        points,
+    });
+}).RequireAuthorization("historian.view");
+
 // ── GET /summary ─────────────────────────────────────────────────────────────
 // Aggregate summary of one measurement over a window (min/max/avg/total/count) for table summary
 // columns. Query params: series, start, end, measurement.

@@ -104,9 +104,9 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
         kProps.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "500");
 
         try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(kProps)) {
-            consumer.subscribe(List.of(cfg.liveAlarmsTopic, cfg.liveMetricsTopic));
-            LOG.info("Kafka consumer subscribed to {} / {}",
-                    cfg.liveAlarmsTopic, cfg.liveMetricsTopic);
+            consumer.subscribe(List.of(cfg.liveAlarmsTopic, cfg.liveMetricsTopic, cfg.liveLoopMetricsTopic));
+            LOG.info("Kafka consumer subscribed to {} / {} / {}",
+                    cfg.liveAlarmsTopic, cfg.liveMetricsTopic, cfg.liveLoopMetricsTopic);
 
             while (running) {
                 // Check for reconnect - may need to re-publish NBIRTH
@@ -120,7 +120,9 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
                     try {
                         LOG.debug("Processing record: topic={} key={} len={}",
                                 rec.topic(), rec.key(), rec.value() != null ? rec.value().length() : 0);
-                        if (rec.topic().equals(cfg.liveMetricsTopic)) {
+                        if (rec.topic().equals(cfg.liveLoopMetricsTopic)) {
+                            processLoopMetricRecord(rec); // CPLM loop signals (pv/sp/op/vp/mode)
+                        } else if (rec.topic().equals(cfg.liveMetricsTopic)) {
                             processMetricRecord(rec);   // generic process values (level/speed/position/…)
                         } else {
                             processRecord(rec);         // alarm records (legacy schema)
@@ -248,7 +250,12 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
             value = (v != null ? v.asDouble() : 0.0); dtype = MetricDataType.Double;
         }
 
-        publishMetricDData(group, edge, device, metric, dtype, value, ts);
+        // A device must be born before its data means anything. Only the alarm
+        // branch used to do this, so every process-value device emitted DDATA
+        // with no birth certificate — spec-invalid, and consumers that track
+        // birth/death saw metrics from a device they had never been told about.
+        ensureProcessDeviceBorn(group, edge, device, metric, dtype, value, ts);
+        publishMetricDData(group, edge, device, metric, dtype, value, ts, quality);
         writeMetricSnapshot(group, edge, device, metric, value, quality, ts);
 
         // History: persist numeric process values to IoTDB at root.<site>.<unit>.<device>.<measurement>
@@ -258,6 +265,78 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
             writeToIoTDB(path, value, ts);
         }
         LOG.info("Metric {}/{}={} → spBv1.0/{}/DDATA/{}/{}", device, metric, value, group, edge, device);
+    }
+
+    // ── CPLM loop-metric branch (live.loop.metrics, Phase 6.2) ────────────
+    // LoopLiveRbeJob emits one report-by-exception record per changed signal:
+    //   {loopId, metric, value, dataType, quality, ts}
+    // The loop becomes the Sparkplug device and pv/sp/op/vp/mode its metrics, so
+    // a faceplate subscribes to one device and gets the whole loop.
+
+    private void processLoopMetricRecord(ConsumerRecord<String, String> rec) throws Exception {
+        if (rec.value() == null || rec.value().isBlank()) return;
+
+        JsonNode node = MAPPER.readTree(rec.value());
+        String loopId = text(node, "loopId");
+        String metric = text(node, "metric");
+        if (loopId.isEmpty() || metric.isEmpty()) {
+            LOG.warn("Skipping loop metric missing loopId/metric: {}",
+                    rec.value().substring(0, Math.min(120, rec.value().length())));
+            return;
+        }
+
+        String device = loopId.replaceAll("[^a-zA-Z0-9_\\-]", "_");
+        String group  = cfg.sparkplugGroup;
+        String edge   = cfg.sparkplugEdge;
+        long   ts     = node.hasNonNull("ts") ? node.get("ts").asLong() : System.currentTimeMillis();
+
+        // CPLM quality is a NAMUR/OPC string ("GOOD"/"BAD"/…); Sparkplug carries
+        // the OPC numeric. Map rather than defaulting, so a bad sensor does not
+        // arrive on the HMI looking healthy.
+        int quality = 192;
+        JsonNode q = node.get("quality");
+        if (q != null && q.isNumber()) {
+            quality = q.asInt();
+        } else if (q != null && q.isTextual()) {
+            String qs = q.asText().toUpperCase();
+            quality = qs.startsWith("GOOD") ? 192 : qs.startsWith("UNCERTAIN") ? 64 : 0;
+        }
+
+        JsonNode v = node.get("value");
+        String dataType = text(node, "dataType").toLowerCase();
+        Object value;
+        MetricDataType dtype;
+        if (dataType.equals("string") || (dataType.isEmpty() && v != null && v.isTextual())) {
+            value = (v != null ? v.asText() : ""); dtype = MetricDataType.String;
+        } else {
+            value = (v != null ? v.asDouble() : 0.0); dtype = MetricDataType.Double;
+        }
+
+        ensureProcessDeviceBorn(group, edge, device, metric, dtype, value, ts);
+        publishMetricDData(group, edge, device, metric, dtype, value, ts, quality);
+        writeMetricSnapshot(group, edge, device, metric, value, quality, ts);
+        LOG.debug("Loop {}/{}={} q={} -> spBv1.0/{}/DDATA/{}/{}",
+                device, metric, value, quality, group, edge, device);
+    }
+
+    /**
+     * Publishes DBIRTH once per process-value device. Sparkplug requires a birth
+     * before data; the alarm branch did this but the metric branch never did, so
+     * process devices streamed DDATA no consumer had been introduced to.
+     */
+    private void ensureProcessDeviceBorn(String group, String edge, String device, String metric,
+                                         MetricDataType dtype, Object value, long ts) throws Exception {
+        String key = group + "/" + edge + "/" + device;
+        if (bornDevices.contains(key)) return;
+
+        String topic = "spBv1.0/" + group + "/DBIRTH/" + edge + "/" + device;
+        SparkplugBPayload payload = new SparkplugBPayload.SparkplugBPayloadBuilder(seq.getAndIncrement())
+                .setTimestamp(new Date(ts))
+                .addMetric(new Metric.MetricBuilder(metric, dtype, value).createMetric())
+                .createPayload();
+        publishMqtt(topic, new SparkplugBPayloadEncoder().getBytes(payload, false), false);
+        bornDevices.add(key);
+        LOG.info("Published DBIRTH for process device '{}' ({})", device, topic);
     }
 
     /** Best-effort async insert of a numeric sample into IoTDB via REST v2. */
@@ -289,10 +368,26 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
 
     private void publishMetricDData(String group, String edge, String device, String metric,
                                     MetricDataType dtype, Object value, long ts) throws Exception {
+        publishMetricDData(group, edge, device, metric, dtype, value, ts, 192);
+    }
+
+    /**
+     * Publishes DDATA with quality attached as a Sparkplug metric PROPERTY.
+     * The HMI reads {@code m.properties?.quality?.value}; because nothing ever
+     * set it, every value rendered as quality 192 (GOOD) regardless of what the
+     * source actually reported — a bad sensor looked healthy on the faceplate.
+     */
+    private void publishMetricDData(String group, String edge, String device, String metric,
+                                    MetricDataType dtype, Object value, long ts, int quality) throws Exception {
         String topic = "spBv1.0/" + group + "/DDATA/" + edge + "/" + device;
         SparkplugBPayload payload = new SparkplugBPayload.SparkplugBPayloadBuilder(seq.getAndIncrement())
                 .setTimestamp(new Date(ts))
-                .addMetric(new Metric.MetricBuilder(metric, dtype, value).createMetric())
+                .addMetric(new Metric.MetricBuilder(metric, dtype, value)
+                        .properties(new PropertySet.PropertySetBuilder()
+                                .addProperty("quality",
+                                        new PropertyValue(PropertyDataType.Int32, quality))
+                                .createPropertySet())
+                        .createMetric())
                 .createPayload();
         byte[] encoded = new SparkplugBPayloadEncoder().getBytes(payload, false);
         publishMqtt(topic, encoded, false);

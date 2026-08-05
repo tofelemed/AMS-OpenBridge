@@ -121,6 +121,35 @@ public sealed class IoTDbClient(HttpClient http, IConfiguration cfg)
                $"ORDER BY time DESC LIMIT {limit} OFFSET {skip}";
     }
 
+    /// <summary>
+    /// Cursor-paged raw read (Phase 6.5). Pages by timestamp instead of OFFSET.
+    ///
+    /// Evidence replay walks a full day at 1 Hz — 86 400 rows. With OFFSET that
+    /// is ~173 pages whose scan cost grows with every page, because the engine
+    /// must count and discard everything before the offset. Keying on the last
+    /// timestamp seen makes every page cost the same, and it cannot skip or
+    /// duplicate rows when data arrives mid-walk.
+    /// </summary>
+    public string BuildRawCursorSql(string series, DateTimeOffset start, DateTimeOffset end,
+                                    int maxCount, long? afterTsExclusive, string measurements)
+    {
+        long startMs = start.ToUnixTimeMilliseconds();
+        long endMs   = end.ToUnixTimeMilliseconds();
+        int limit    = Math.Clamp(maxCount, 1, 10_000);
+
+        string cols = string.IsNullOrWhiteSpace(measurements)
+            ? "severity, state, ack_status, condition_name, source_name, priority"
+            : measurements;
+
+        // Ascending so the cursor moves forward through time; a descending walk
+        // would need the cursor to move backwards and reads awkwardly for replay.
+        long from = afterTsExclusive is long a && a >= startMs ? a + 1 : startMs;
+
+        return $"SELECT {cols} FROM {series} " +
+               $"WHERE time >= {from} AND time < {endMs} " +
+               $"ORDER BY time ASC LIMIT {limit}";
+    }
+
     // ── Response mapper ───────────────────────────────────────────────────
 
     /// <summary>
