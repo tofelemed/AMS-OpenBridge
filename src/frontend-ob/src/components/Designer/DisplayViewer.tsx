@@ -230,7 +230,7 @@ export const DisplayViewer: React.FC<{ source?: ViewerSource }> = ({ source = 'd
 
   // Asset-relative: detect {{element}} bindings, list swap candidates (devices in the same
   // unit), and produce runtime-resolved items. Changing `element` rebinds the whole display.
-  const items = data?.items ?? [];
+  const items = useMemo(() => data?.items ?? [], [data]);
   const hasAssetRelative = useMemo(() => items.some(isAssetRelative), [items]);
   const swapPrefix = useMemo(() => {
     const base = element || '';

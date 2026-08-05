@@ -50,6 +50,8 @@ export const AlarmDetailPanel: React.FC<AlarmDetailPanelProps> = ({
     if (h > 0) return `${h}h ${m}m ${s}s`;
     if (m > 0) return `${m}m ${s}s`;
     return `${s}s`;
+  // alarm identity is captured via alarm.id below; the full object would retrigger on every SignalR patch.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alarm?.activeTimeEpochMs]);
 
   if (!alarm) return null;

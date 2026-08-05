@@ -10,9 +10,9 @@ import { formatValue } from './openBridgeTheme';
 
 export const AssetComparisonTable: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }> = ({ item, mode }) => {
   const cfg = item.comparison;
-  const attributes = cfg?.attributes ?? [];
+  const attributes = useMemo(() => cfg?.attributes ?? [], [cfg]);
   const { data: assets } = useAssetSearch(cfg?.criteria ?? {}, mode === 'preview' && !!cfg && attributes.length > 0);
-  const rows = assets ?? [];
+  const rows = useMemo(() => assets ?? [], [assets]);
 
   const paths = useMemo(
     () => (mode === 'preview' ? rows.flatMap(a => attributes.map(attr => `${a.contextualPath}.${attr}`)) : []),

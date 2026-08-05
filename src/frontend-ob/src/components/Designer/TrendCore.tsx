@@ -292,6 +292,8 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
     cText: resolveColor('var(--ams-text-dim)'),
     cBorder: resolveColor('var(--ams-border)'),
     cGrid: resolveColor('var(--ams-grid-line)'),
+    // theme is intentionally a dep: chart colors re-derive on theme change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [theme]);
 
   // Merged (history + live tail) data per pen — also what the legend reads at the cursor.

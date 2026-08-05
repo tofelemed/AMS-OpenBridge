@@ -1,0 +1,229 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   CPLM Phase 7 — CPM screen styles.
+   Every color/spacing value comes from OpenBridge tokens so the screens follow
+   data-obc-theme (day/dusk/night/bright). The CPA prototype's tone vocabulary
+   (good|warn|bad|muted) maps onto OpenBridge status/alert tokens HERE and
+   nowhere else.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Tone mapping (single source of truth) ── */
+.cpm-tone-good  { --cpm-tone: var(--instrument-enhanced-secondary-color); }
+.cpm-tone-warn  { --cpm-tone: var(--alert-caution-color); }
+.cpm-tone-bad   { --cpm-tone: var(--alert-alarm-color); }
+.cpm-tone-muted { --cpm-tone: var(--on-container-neutral-color); }
+
+/* ── Layout scaffolding ── */
+.cpm-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  color: var(--on-container-active-color);
+}
+
+.cpm-surface {
+  background: var(--container-backdrop-color);
+  border: 1px solid var(--container-border-color, var(--divider-color));
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.cpm-grid-2 { display: grid; grid-template-columns: 1.4fr 0.7fr; gap: 16px; }
+@media (max-width: 1100px) { .cpm-grid-2 { grid-template-columns: 1fr; } }
+
+/* ── Header / eyebrow / copy ── */
+.cpm-workspace-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.cpm-workspace-header__actions { display: flex; gap: 8px; align-items: center; }
+.cpm-eyebrow {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--on-container-neutral-color);
+}
+.cpm-title { margin: 2px 0 4px; font-size: 1.4rem; }
+.cpm-panel-title { margin: 2px 0 0; font-size: 1.05rem; }
+.cpm-copy { margin: 0; color: var(--on-container-neutral-color); max-width: 64ch; }
+.cpm-panel-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin-bottom: 12px; }
+
+/* ── Pill (tone dot + label) ── */
+.cpm-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  border: 1px solid var(--divider-color);
+  color: var(--on-container-active-color);
+  white-space: nowrap;
+}
+.cpm-pill__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cpm-tone, var(--on-container-neutral-color)); }
+.cpm-pill--good  { --cpm-tone: var(--instrument-enhanced-secondary-color); }
+.cpm-pill--warn  { --cpm-tone: var(--alert-caution-color); }
+.cpm-pill--bad   { --cpm-tone: var(--alert-alarm-color); }
+.cpm-pill--muted { --cpm-tone: var(--on-container-neutral-color); }
+
+/* ── KPI tile ── */
+.cpm-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border: 1px solid var(--divider-color);
+  border-left: 3px solid var(--cpm-tone, var(--divider-color));
+  border-radius: 8px;
+  background: var(--container-backdrop-color);
+}
+.cpm-kpi--good  { --cpm-tone: var(--instrument-enhanced-secondary-color); }
+.cpm-kpi--warn  { --cpm-tone: var(--alert-caution-color); }
+.cpm-kpi--bad   { --cpm-tone: var(--alert-alarm-color); }
+.cpm-kpi__caption { font-size: 0.75rem; color: var(--on-container-neutral-color); text-transform: uppercase; letter-spacing: 0.05em; }
+.cpm-kpi__value { font-size: 1.5rem; font-weight: 600; }
+.cpm-kpi__sub { font-size: 0.8rem; color: var(--on-container-neutral-color); }
+.cpm-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+
+/* ── Form field / select (token-styled natives, matching app conventions) ── */
+.cpm-field { display: flex; flex-direction: column; gap: 4px; min-width: 200px; }
+.cpm-field__label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--on-container-neutral-color); }
+.cpm-select,
+.cpm-input,
+.cpm-textarea {
+  background: var(--input-background-color, var(--container-backdrop-color));
+  color: var(--on-container-active-color);
+  border: 1px solid var(--divider-color);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font: inherit;
+}
+.cpm-select:focus, .cpm-input:focus, .cpm-textarea:focus {
+  outline: 2px solid var(--instrument-enhanced-primary-color);
+  outline-offset: 1px;
+}
+.cpm-input--error { border-color: var(--alert-alarm-color); }
+.cpm-field__error { color: var(--alert-alarm-color); font-size: 0.78rem; }
+
+/* ── Key/value rows ── */
+.cpm-kv { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--divider-color); }
+.cpm-kv:last-child { border-bottom: none; }
+.cpm-kv__label { color: var(--on-container-neutral-color); font-size: 0.85rem; }
+.cpm-kv__value { text-align: right; font-size: 0.85rem; }
+
+/* ── Toolbar (the U5–U9 query bar) ── */
+.cpm-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+
+/* ── Filter segmented row (U4) ── */
+.cpm-filter-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cpm-filter-count { margin-left: auto; color: var(--on-container-neutral-color); font-size: 0.85rem; }
+
+/* ── Event list (U4) ── */
+.cpm-event-row {
+  display: grid;
+  grid-template-columns: 1.6fr 0.6fr 0.6fr 0.6fr;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--divider-color);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+.cpm-event-row:hover { background: var(--container-hover-color, rgba(128,128,128,0.08)); }
+.cpm-event-row--selected { border-left-color: var(--instrument-enhanced-primary-color); background: var(--container-hover-color, rgba(128,128,128,0.08)); }
+.cpm-event-row__title { font-weight: 600; }
+.cpm-event-row__sub { font-size: 0.78rem; color: var(--on-container-neutral-color); }
+.cpm-event-head {
+  display: grid;
+  grid-template-columns: 1.6fr 0.6fr 0.6fr 0.6fr;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--on-container-neutral-color);
+  border-bottom: 1px solid var(--divider-color);
+}
+
+/* ── Registry table (U10) ── */
+.cpm-reg-head, .cpm-reg-row {
+  display: grid;
+  grid-template-columns: 1.35fr 0.8fr 0.65fr 0.5fr 0.8fr 0.6fr;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+}
+.cpm-reg-head {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--on-container-neutral-color);
+  border-bottom: 1px solid var(--divider-color);
+}
+.cpm-reg-row { border-bottom: 1px solid var(--divider-color); cursor: pointer; border-left: 3px solid transparent; }
+.cpm-reg-row:hover { background: var(--container-hover-color, rgba(128,128,128,0.08)); }
+.cpm-reg-row--selected { border-left-color: var(--instrument-enhanced-primary-color); }
+
+/* ── Banner (U10 draft-first / U11 restricted) ── */
+.cpm-banner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid var(--alert-caution-color);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--alert-caution-color) 8%, transparent);
+  font-size: 0.88rem;
+}
+
+/* ── Wizard (U10 add-loop) ── */
+.cpm-wizard-steps { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+.cpm-wizard-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--divider-color);
+  font-size: 0.8rem;
+  color: var(--on-container-neutral-color);
+  background: none;
+  cursor: default;
+}
+.cpm-wizard-step--active { border-color: var(--instrument-enhanced-primary-color); color: var(--on-container-active-color); font-weight: 600; }
+.cpm-wizard-step--done { color: var(--instrument-enhanced-secondary-color); cursor: pointer; }
+.cpm-wizard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.cpm-wizard-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; gap: 12px; }
+
+/* ── Modal / drawer scaffolding ── */
+.cpm-modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 60;
+  display: flex; align-items: center; justify-content: center;
+}
+.cpm-modal {
+  background: var(--container-backdrop-color);
+  color: var(--on-container-active-color);
+  border: 1px solid var(--divider-color);
+  border-radius: 10px;
+  width: min(860px, 92vw);
+  max-height: 88vh;
+  overflow: auto;
+  padding: 20px;
+}
+.cpm-drawer {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: min(480px, 94vw);
+  background: var(--container-backdrop-color);
+  border-left: 1px solid var(--divider-color);
+  z-index: 61;
+  overflow: auto;
+  padding: 20px;
+}
+
+/* ── Empty state ── */
+.cpm-empty { text-align: center; padding: 32px 16px; color: var(--on-container-neutral-color); }
+.cpm-empty h3 { color: var(--on-container-active-color); margin: 0 0 6px; }
+
+/* ── CSV preview (U10 bulk import) ── */
+.cpm-csv-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
+.cpm-mono { font-family: var(--font-mono, monospace); font-size: 0.82rem; }

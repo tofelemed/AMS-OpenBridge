@@ -37,6 +37,10 @@ const IoTDBTrendViewer = React.lazy(() => import('./components/IoTDBTrend/IoTDBT
 const LiveEventsPage   = React.lazy(() => import('./components/LiveEvents/LiveEventsPage'));
 const SoePanel         = React.lazy(() => import('./components/Soe/SoePanel'));
 const SystemMonitor    = React.lazy(() => import('./components/SystemMonitor/SystemMonitor'));
+// CPLM Phase 7 — Loop Performance screens (built slice by slice; see
+// docs/cplm-intake/phase7-frontend-checklist.md)
+const CpmLoopRegistry  = React.lazy(() => import('./components/Cpm/LoopRegistry'));
+const CpmEvents        = React.lazy(() => import('./components/Cpm/CpmEvents'));
 const EdgeNodeMonitor  = React.lazy(() => import('./components/EdgeNodeMonitor/EdgeNodeMonitor'));
 const Administration   = React.lazy(() => import('./components/Administration/Administration'));
 // HMI Designer (Phase 2)
@@ -269,6 +273,10 @@ const App: React.FC = () => {
                       <Route path="/iotdb-trend"  element={<RequirePermission permission="historian.view"><IoTDBTrendViewer /></RequirePermission>} />
                       {/* Analysis */}
                       <Route path="/analytics"    element={<RequirePermission permission="analytics.view"><Analytics /></RequirePermission>} />
+
+                      {/* ── Loop Performance (CPLM) ─────────────────── */}
+                      <Route path="/cpm/registry"  element={<RequirePermission permission="analytics.view"><CpmLoopRegistry /></RequirePermission>} />
+                      <Route path="/cpm/events"    element={<RequirePermission permission="analytics.view"><CpmEvents /></RequirePermission>} />
                       {/* Published-HMI launcher — every role with display.view */}
                       <Route path="/displays"       element={<RequirePermission permission="display.view"><DisplayLauncher /></RequirePermission>} />
                       {/* HMI Designer — authoring, Admin/Engineer only */}

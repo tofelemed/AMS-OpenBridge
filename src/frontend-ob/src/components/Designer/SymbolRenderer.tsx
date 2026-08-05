@@ -270,10 +270,15 @@ const SymbolFxWrap: React.FC<{
   /** Phase 6 — ISA-18.2/NE107 quality of the primary slot; a badge shows for any non-good state. */
   quality?: QualityInfo | null;
   showQuality?: boolean;
+  /** Author conditional-format / multi-state colour. Sets the CONTENT colour (`currentColor`), so every
+      equipment SVG that draws with `currentColor` (pump/valve/motor/tank outline + reading) recolours
+      with the state — instead of a box being drawn around it. */
+  contentColor?: string;
   children: React.ReactNode;
-}> = ({ stale, hidden, blink, outlineColor, rotateDeg, unbound, quality, showQuality, children }) => {
+}> = ({ stale, hidden, blink, outlineColor, rotateDeg, unbound, quality, showQuality, contentColor, children }) => {
   if (hidden) return null;
   const style: React.CSSProperties = { position: 'relative', width: '100%', height: '100%' };
+  if (contentColor) style.color = contentColor;
   if (stale) { style.filter = 'grayscale(1)'; style.opacity = 0.5; }
   if (rotateDeg !== undefined) style.transform = `rotate(${rotateDeg}deg)`;
   if (outlineColor) { style.outline = `3px solid ${outlineColor}`; style.outlineOffset = '1px'; style.borderRadius = '4px'; }
@@ -405,12 +410,18 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
   const multiState = evaluateMultiState(item.multiStateConfig, getSlotValue);
   const isAnnunciator = ALARM_ANNUNCIATOR_TYPES.has(item.type);
 
+  // Author conditional-format / multi-state colour. This recolours the COMPONENT ITSELF — the reading
+  // and the equipment fill/icon — the way PI Vision / Ignition / WinCC do, instead of drawing a box
+  // around it. (An active alarm SOURCE still outlines the symbol, as an ISA-18.2 annunciation; that is
+  // a distinct mechanism from value-driven state colour.)
+  const stateColor = ruleOutcome.color ?? multiState?.color;
+
   const fxHidden  = ruleOutcome.hidden;
   const fxBlink   = ruleOutcome.blink || alarm.unacked || !!multiState?.blink;
   const fxRotate  = ruleOutcome.rotateDeg;
-  const fxOutline = ruleOutcome.color
-    ?? multiState?.color
-    ?? (item.alarmSource && alarm.active && !isAnnunciator ? priorityColor(alarm.highestPriority) : undefined);
+  const fxOutline = item.alarmSource && alarm.active && !isAnnunciator
+    ? priorityColor(alarm.highestPriority)
+    : undefined;
 
   const renderInner = (): React.ReactNode => {
   // Live-bound chart symbols with dedicated components (must precede the custom-symbol catch below,
@@ -450,6 +461,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
           spValue,
           decimals,
           unit: shownUnit ?? unit,
+          stateColor,
         })}
       </>
     );
@@ -464,7 +476,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
       return (
         <div className="symbol symbol-readout">
           {item.label && <div className="symbol-readout__label">{item.label}</div>}
-          <div className="symbol-readout__value" style={{ color: mappedState?.color ?? getAlarmColor(numericValue, effectiveLimits) }}>
+          <div className="symbol-readout__value" style={{ color: mappedState?.color ?? stateColor ?? getAlarmColor(numericValue, effectiveLimits) }}>
             {isLoading && mode === 'preview' ? '...' : displayValue}
           </div>
           {item.showTimestamp && mode === 'preview' && primaryMetric && (
@@ -482,7 +494,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
         </ObcStatusIndicator>
       );
     
-    case 'obc.bar':
+    case 'obc.bar': {
       const barPercent = mode === 'preview' ? pctValue(numericValue) : 60;
       return (
         <div className="symbol symbol-bar-vertical">
@@ -498,7 +510,8 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
         </div>
       );
     
-    case 'obc.bar-horizontal':
+    }
+    case 'obc.bar-horizontal': {
       const hBarPercent = mode === 'preview' ? pctValue(numericValue) : 60;
       return (
         <div className="symbol symbol-bar-horizontal">
@@ -510,6 +523,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
         </div>
       );
     
+    }
     case 'obc.badge':
       return (
         <ObcBadge>
@@ -670,7 +684,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
         </div>
       );
     
-    case 'equip.valve':
+    case 'equip.valve': {
       const valvePosition = mode === 'preview' && typeof liveValue === 'number' ? liveValue : 50;
       return (
         <div className={`symbol symbol-valve ${isRunning ? 'symbol--open' : ''}`}>
@@ -687,6 +701,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
         </div>
       );
     
+    }
     case 'equip.valve-onoff':
       return (
         <div className={`symbol symbol-valve-onoff ${isRunning ? 'symbol--open' : ''}`}>
@@ -710,7 +725,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
         </div>
       );
     
-    case 'equip.tank':
+    case 'equip.tank': {
       const tankLevel = mode === 'preview' && typeof liveValue === 'number' ? liveValue : 65;
       const tankPercent = Math.max(0, Math.min(100, tankLevel));
       return (
@@ -728,11 +743,11 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
             <rect
               x="8" y={95 - tankPercent * 0.9}
               width="44" height={tankPercent * 0.9}
-              fill={getAlarmColor(tankPercent, item.alarmLimits)}
+              fill={stateColor ?? getAlarmColor(tankPercent, item.alarmLimits)}
               opacity="0.5"
               clipPath={`url(#tank-clip-${item.id})`}
             />
-            <text x="30" y="55" textAnchor="middle" fill="currentColor" fontSize="12" fontWeight="bold">
+            <text x="30" y="55" textAnchor="middle" fill={stateColor ?? 'currentColor'} fontSize="12" fontWeight="bold">
               {tankPercent.toFixed(0)}%
             </text>
           </svg>
@@ -740,6 +755,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
         </div>
       );
     
+    }
     case 'equip.hx': {
       // Shell & tube HX now reads its tempIn/tempOut slots (already resolved into `slots.*`) and
       // labels the inlet/outlet temperatures live.
@@ -806,7 +822,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
     case 'inst.fi':
     case 'inst.li':
     case 'inst.ai':
-    case 'inst.tt':
+    case 'inst.tt': {
       const instLetter = item.type.split('.')[1].toUpperCase();
       return (
         <div className="symbol symbol-instrument">
@@ -824,6 +840,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
     // ─────────────────────────────────────────────────────────────────────────
     // PIPING (ISA-101 grayscale)
     // ─────────────────────────────────────────────────────────────────────────
+    }
     case 'pipe.horizontal':
       return (
         <div className="symbol symbol-pipe">
@@ -1001,6 +1018,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
   return (
     <SymbolFxWrap
       stale={stale} hidden={fxHidden} blink={fxBlink} outlineColor={fxOutline} rotateDeg={fxRotate}
+      contentColor={stateColor}
       quality={quality} showQuality={item.showQuality ?? false}
       unbound={mode === 'design' && !isBound && (findSymbolDefinition(item.type)?.bindingSlots?.length ?? 0) > 0}
     >

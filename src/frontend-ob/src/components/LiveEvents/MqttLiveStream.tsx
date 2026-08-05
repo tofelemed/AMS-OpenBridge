@@ -128,6 +128,8 @@ export const MqttLiveStream: React.FC<MqttLiveStreamProps> = ({ alarms, paused }
       }
     });
     return list;
+    // tick is intentionally a dep: it forces the relative-time labels to refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alarms, priorityFilter, search, sortBy, tick]);
 
   const brokerLabel = useMemo(() => {

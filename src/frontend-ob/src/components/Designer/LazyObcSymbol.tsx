@@ -82,6 +82,8 @@ export const LazyObcSymbol: React.FC<LazyObcSymbolProps> = ({
     return () => {
       cancelled = true;
     };
+  // item identity is intentionally excluded: the effect keys on item.id to avoid re-import churn.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     item.type,
     item.id,

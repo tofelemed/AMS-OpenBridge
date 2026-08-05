@@ -175,6 +175,8 @@ export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
       if (hit) onBindTag?.(hit.id, tagPath);
       else onAddBoundSymbol?.(tagPath, { x: snap(p.x, gridSize), y: snap(p.y, gridSize) });
     }
+  // toCanvas is stable for a given transform; adding it would rebuild the callback on every pan/zoom.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zoom, gridSize, onAddItem, items, onBindTag, onAddBoundSymbol]);
 
   // ── item mousedown (select + start drag) ───────────────────────────────────
@@ -288,6 +290,8 @@ export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
     return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+  // toCanvas is stable for a given transform; adding it would re-run the effect on every pan/zoom.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drag, resize, rotate, marquee, zoom, gridSize, snapEnabled, items, onUpdateItems, onCommit, onSelect]);
 
   const onWheel = (e: React.WheelEvent) => {
