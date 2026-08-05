@@ -143,10 +143,14 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
     }
 
     /// <summary>
-    /// Derives the window offset from the earliest window this loop has already
-    /// produced, so the recompute lands on the same boundary the streaming
-    /// pipeline used. Falls back to 0 (epoch-aligned) when there is no history —
-    /// harmless, because with no prior windows there is nothing to line up with.
+    /// Derives the 24h window offset from where this loop's data actually starts,
+    /// so one tumbling window covers the replayed slice instead of splitting it.
+    ///
+    /// The 1-minute short windows are used because they are tumbling and therefore
+    /// track the data start to the minute. The long job's 24h window_start is NOT
+    /// usable for this: it is derived from an event-time timer minus 24h, so it
+    /// sits a full day before the data and produced a useless offset.
+    /// Falls back to 0 (epoch-aligned) when the loop has no short-window history.
     /// </summary>
     public async Task<long> GetWindowOffsetMsAsync(string loopId, CancellationToken ct)
     {
@@ -154,8 +158,8 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
         {
             await using var conn = await _dataSource.OpenConnectionAsync(ct);
             var start = await conn.ExecuteScalarAsync<DateTime?>("""
-                SELECT MIN(window_start) FROM analytics.cplm_long_feature_results
-                WHERE lower(loop_id) = lower(@loopId) AND window_kind = '24h'
+                SELECT MIN(window_start) FROM analytics.cplm_short_feature_results
+                WHERE lower(loop_id) = lower(@loopId) AND window_kind = '1m'
                 """, new { loopId });
             if (start is null) return 0L;
             var ms = new DateTimeOffset(DateTime.SpecifyKind(start.Value, DateTimeKind.Utc)).ToUnixTimeMilliseconds();
@@ -183,7 +187,19 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
             if (_cachedJarId is not null) return _cachedJarId;
             var client = CreateClient();
 
-            // Reuse an existing upload if the cluster already has one.
+            if (!File.Exists(_options.JarPath))
+                throw new InvalidOperationException(
+                    $"Recompute needs the Flink jar mounted at {_options.JarPath}. " +
+                    "Add the bind mount to the ams-api service (see docker-compose.yml).");
+
+            // Stamp the upload with the local jar's build time. Reusing whatever
+            // "ams-flink" jar happened to be on the cluster silently pins recompute
+            // to a stale build: an older jar simply ignores newly added arguments,
+            // so the job succeeds while doing the wrong thing — which is exactly
+            // how the window-offset fix appeared not to work.
+            var stamp = File.GetLastWriteTimeUtc(_options.JarPath).ToString("yyyyMMddHHmmss");
+            var expectedName = $"ams-flink-{stamp}.jar";
+
             try
             {
                 var list = await client.GetAsync("/jars", ct);
@@ -196,8 +212,11 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
                         {
                             var name = f.TryGetProperty("name", out var n) ? n.GetString() : null;
                             var id = f.TryGetProperty("id", out var i) ? i.GetString() : null;
-                            if (id is not null && (name?.Contains("ams-flink", StringComparison.OrdinalIgnoreCase) ?? false))
+                            if (id is not null && string.Equals(name, expectedName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                _logger.LogInformation("Reusing uploaded Flink jar {Name}", expectedName);
                                 return _cachedJarId = id;
+                            }
                         }
                     }
                 }
@@ -207,16 +226,11 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
                 _logger.LogDebug(ex, "Could not list Flink jars; will upload");
             }
 
-            if (!File.Exists(_options.JarPath))
-                throw new InvalidOperationException(
-                    $"Recompute needs the Flink jar mounted at {_options.JarPath}. " +
-                    "Add the bind mount to the ams-api service (see docker-compose.yml).");
-
             using var content = new MultipartFormDataContent();
             await using var stream = File.OpenRead(_options.JarPath);
             var file = new StreamContent(stream);
             file.Headers.ContentType = new MediaTypeHeaderValue("application/x-java-archive");
-            content.Add(file, "jarfile", Path.GetFileName(_options.JarPath));
+            content.Add(file, "jarfile", expectedName);
 
             var upload = await client.PostAsync("/jars/upload", content, ct);
             upload.EnsureSuccessStatusCode();
