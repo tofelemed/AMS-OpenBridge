@@ -25,6 +25,7 @@ import { ObiNotification } from '@oicl/openbridge-webcomponents-react/icons/icon
 import { ObiListAltCheckGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-list-alt-check-google';
 import { ObiWrench } from '@oicl/openbridge-webcomponents-react/icons/icon-wrench';
 import { ObiPlaceholder } from '@oicl/openbridge-webcomponents-react/icons/icon-placeholder';
+import CommandPalette from './components/CommandPalette';
 
 
 // Lazy-loaded pages
@@ -363,6 +364,8 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <LiveEventsContext.Provider value={{ showLiveEvents, toggleLiveEvents }}>
     <div className={`app-root${showLiveEvents ? '' : ' app-root--events-hidden'}`}>
+      {/* ⌘K / Ctrl+K palette (Phase 7 F0.4) — searches nav, loops, calculations */}
+      <CommandPalette navItems={navItems} />
       {/* Flood Alert Banner */}
       {floodAlert && <FloodAlertBanner alert={floodAlert} />}
 

@@ -1488,3 +1488,59 @@ select.ob-input option {
   width: 24px; height: 20px; flex: none;
 }
 .nav-item__icon svg { width: 18px; height: 18px; }
+
+/* ── Command palette (Phase 7 F0.4) — OpenBridge tokens only ── */
+.cmdk-backdrop {
+  position: fixed; inset: 0; z-index: 1200;
+  background: var(--modal-backdrop-color, rgba(0, 0, 0, 0.45));
+}
+.cmdk {
+  position: fixed; z-index: 1201;
+  top: 12vh; left: 50%; transform: translateX(-50%);
+  width: min(560px, calc(100vw - 32px));
+  display: flex; flex-direction: column;
+  background: var(--container-backdrop-color);
+  border: 1px solid var(--divider-color);
+  border-radius: 10px;
+  box-shadow: var(--modal-shadow, 0 12px 40px rgba(0, 0, 0, 0.35));
+  overflow: hidden;
+}
+.cmdk__input {
+  border: none; outline: none;
+  background: transparent;
+  color: var(--on-container-active-color);
+  font: inherit; font-size: 1rem;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--divider-color);
+}
+.cmdk__list { max-height: 50vh; overflow-y: auto; padding: 6px; }
+.cmdk__item {
+  display: grid; grid-template-columns: 48px auto 1fr; gap: 10px;
+  align-items: baseline;
+  width: 100%; padding: 8px 10px;
+  border: none; border-radius: 6px;
+  background: none; color: var(--on-container-active-color);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.cmdk__item--active { background: var(--container-hover-color, rgba(128, 128, 128, 0.12)); }
+.cmdk__kind {
+  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em;
+  color: var(--on-container-neutral-color);
+  border: 1px solid var(--divider-color);
+  border-radius: 4px; padding: 1px 4px; text-align: center;
+}
+.cmdk__kind--loop { color: var(--instrument-enhanced-secondary-color); }
+.cmdk__kind--calc { color: var(--alert-caution-color); }
+.cmdk__title { white-space: nowrap; }
+.cmdk__sub {
+  color: var(--on-container-neutral-color);
+  font-size: 0.8rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cmdk__empty { padding: 18px; color: var(--on-container-neutral-color); }
+.cmdk__hint {
+  padding: 8px 16px;
+  border-top: 1px solid var(--divider-color);
+  color: var(--on-container-neutral-color);
+  font-size: 0.75rem;
+}

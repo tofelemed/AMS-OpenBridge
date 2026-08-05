@@ -8,41 +8,41 @@ widget, column, and interaction — inside `src/frontend-ob`, wired to the real 
 
 ## Ground rules (non-negotiable)
 
-- [ ] **OpenBridge only.** Every component/color/spacing from `@oicl/openbridge-webcomponents-react`
+- [x] **OpenBridge only.** Every component/color/spacing from `@oicl/openbridge-webcomponents-react`
       (per-path imports) + OpenBridge CSS tokens. Resolve every component/prop/slot from
       `node_modules/@oicl/openbridge-webcomponents/custom-elements.json` — if it isn't in the
       manifest it doesn't exist. Read `openbridge-agent-rules.md` (or invoke the `openbridge`
       skill) **before writing the first component**. The CPA prototype's hand-written CSS,
       Geist fonts, lucide icons and light-only palette do **not** transfer; its layouts,
       labels, and flows do.
-- [ ] **Icons:** `Obi*` only. Map lucide → Obi at the nav/table level (e.g. `CircleGauge`→gauge-ish
+- [x] **Icons:** `Obi*` only. Map lucide → Obi at the nav/table level (e.g. `CircleGauge`→gauge-ish
       Obi icon; pick from the manifest, don't guess).
-- [ ] **Theming:** CPA is light-only; ours must honor `data-obc-theme` (day/dusk/night/bright).
+- [x] **Theming:** CPA is light-only; ours must honor `data-obc-theme` (day/dusk/night/bright).
       All tone colors (`good|warn|bad|muted`) map to OpenBridge alert/status tokens — the CPLM
       band vocabulary (PASS/WARN/EXCLUDED/SUSPECTED/CONFIRMED) maps per `conversion.md`
       (ISA-18.2 alert mapping). No raw hex.
-- [ ] **Toasts/alerts:** the CPA `notify()` toast is replaced by OpenBridge alert/notification
+- [x] **Toasts/alerts:** the CPA `notify()` toast is replaced by OpenBridge alert/notification
       components — no custom banners (repo rule).
-- [ ] **Typed API layer (plan 7.1):** new `src/api/cpmApi.ts` over `apiFetch` with TS types
+- [x] **Typed API layer (plan 7.1):** new `src/api/cpmApi.ts` over `apiFetch` with TS types
       mirroring the C# DTOs, consumed **only** through `@tanstack/react-query` hooks in
       `src/hooks/useCpm*.ts`. No raw `useEffect`+`Promise.all` (the TrendCore anti-pattern).
-- [ ] **Real routes.** The prototype has no router (label-string switch). Every screen gets a URL;
+- [x] **Real routes.** The prototype has no router (label-string switch). Every screen gets a URL;
       every toolbar select (loop, window, gate, range) becomes a query param so views deep-link.
-- [ ] **Permissions:** reads `analytics.view`; mutations (ack/shelve/onboard/recompute)
+- [x] **Permissions:** reads `analytics.view`; mutations (ack/shelve/onboard/recompute)
       `cpm.manage`; U11 admin actions `system.manage`. Nav entries carry the same permission as
       their route guard (existing `navItems` rule).
-- [ ] **Charts:** echarts (already in the repo) replaces the prototype's hand-drawn canvas.
+- [x] **Charts:** echarts (already in the repo) replaces the prototype's hand-drawn canvas.
       Trend charts reuse/extend `TrendCore` with the new `?envelope=true` (min/max band + avg
       line) so oscillation renders truthfully.
 
 ## Foundation work (build first — F0)
 
-- [ ] **F0.1 Routes + nav group.** New sidebar group `Loop Performance` (order after Analysis):
+- [x] **F0.1 Routes + nav group.** New sidebar group `Loop Performance` (order after Analysis):
       `/cpm` (U1 Overview) · `/cpm/explorer` (U2) · `/cpm/performance` (U3) · `/cpm/events` (U4)
       · `/cpm/investigation` (U5) · `/cpm/historical` (U6) · `/cpm/windows` (U7)
       · `/cpm/replay` (U8) · `/cpm/calculations` (U9) · `/cpm/registry` (U10)
       · `/cpm/pipeline` (U11) · `/cpm/governance` (U12). Route guards + matching nav permissions.
-- [ ] **F0.2 `cpmApi.ts`** — typed client for: `GET /cpm/loops`, `GET /cpm/loops/{id}`,
+- [x] **F0.2 `cpmApi.ts`** — typed client for: `GET /cpm/loops`, `GET /cpm/loops/{id}`,
       `POST /cpm/loops/activate`, `DELETE /cpm/loops/{id}`, `POST /cpm/loops/{id}/republish-evidence`,
       `POST /cpm/loops/{id}/recompute`, `GET /cpm/replays/{id}`, `GET /cpm/registry-contract`,
       `GET /cpm/loops/{id}/gates/latest`, `GET /cpm/loops/{id}/gates`, `GET /cpm/loops/{id}/kpis`,
@@ -50,25 +50,46 @@ widget, column, and interaction — inside `src/frontend-ob`, wired to the real 
       `GET /cpm/loops/{id}/readiness`, `GET /cpm/pipeline-status`, `GET /cpm/events`,
       `POST /cpm/events/{id}/acknowledge|shelve`, `GET /cpm/calculations`,
       historian `GET /trend?envelope=true`, `GET /raw/cursor`, `GET /snapshot`.
-- [ ] **F0.3 Shared CPM components** (all OpenBridge-based):
-      - [ ] `TonePill` — the `good|warn|bad|muted` dot+label pill (status token colors).
-      - [ ] `GateStatusCell` — ✓/!/×/■/— glyph cell with tone (used by U3 matrix + U5 chain).
-      - [ ] `CpmDataTable` — thin wrapper (ag-grid or obc table per manifest) with the CPA
+- [x] **F0.3 Shared CPM components** (all OpenBridge-based):
+      - [x] `TonePill` — the `good|warn|bad|muted` dot+label pill (status token colors).
+      - [x] `GateStatusCell` — ✓/!/×/■/— glyph cell with tone (used by U3 matrix + U5 chain).
+      - [x] `CpmDataTable` — thin wrapper (ag-grid or obc table per manifest) with the CPA
             grid-column pattern.
-      - [ ] `KpiTile` — caption/value/sub/tone tile (U1, U3, U9, U11).
-      - [ ] `WorkspaceHeader` — eyebrow/title/copy/actions row.
-      - [ ] `GateEvidenceDrawer` — right-side drawer; content driven by `GET /cpm/calculations`
+      - [x] `KpiTile` — caption/value/sub/tone tile (U1, U3, U9, U11).
+      - [x] `WorkspaceHeader` — eyebrow/title/copy/actions row.
+      - [x] `GateEvidenceDrawer` — right-side drawer; content driven by `GET /cpm/calculations`
             gate definitions + the selected loop's `gates/latest` payload.
-      - [ ] `LoopSelect` — loop dropdown fed by `GET /cpm/loops` (used by U5–U9 toolbars).
-      - [ ] `RelationshipMap` — lineage strip (source → loop → pack → outputs), real edges from
+      - [x] `LoopSelect` — loop dropdown fed by `GET /cpm/loops` (used by U5–U9 toolbars).
+      - [x] `RelationshipMap` — lineage strip (source → loop → pack → outputs), real edges from
             asset-model `/assets/{id}/relationships`.
-- [ ] **F0.4 Command palette** (⌘K actually bound): searches loops (`GET /cpm/loops`) +
+- [x] **F0.4 Command palette** (⌘K actually bound): searches loops (`GET /cpm/loops`) +
       calculations (`GET /cpm/calculations`) + nav items; Loop→Explorer, Calc→Calculations.
-- [ ] **F0.5 Live plane hook** `useLoopLive(loopId)` — resolves the loop device via
+- [x] **F0.5 Live plane hook** `useLoopLive(loopId)` — resolves the loop device via
       binding-resolver, `mqttStore.subscribeScreen` on the loop's Sparkplug device
       (pv/sp/op/vp/mode metrics + quality property), snapshot-on-open already handled in store.
 
 ## Per-screen checklists
+
+> **S7 parity-pass verdict (2026-08-05):** all 12 screens are live. U5–U8 and U11–U12
+> boxes are marked below. U1–U4, U9, U10 boxes are deliberately left as-authored:
+> those screens shipped in S1–S4 with documented, intentional deviations from the CPA
+> prototype where the prototype's widget had no honest data source, so blanket
+> checkmarks would misstate what exists. The deviation register:
+> - **U1**: KPI tiles show monitored / need-attention / VP-capped / no-peer-context
+>   (real capability data) instead of the prototype's "Plant health meter" and "Data
+>   confidence" (no scoring model configured). The rolling-window ribbon with 1 s
+>   countdowns was **not built** — window boundaries are event-time on the server; a
+>   client-side countdown would be theater. Live runtime panel shows real job states;
+>   events/s + watermark stated unavailable (DG-1 scope). Signal row is live as of S7
+>   (useLoopLive). Focused drawer continues to **Performance** (richer than Explorer
+>   for triage), not Explorer.
+> - **U2**: all five tabs live; `Add to watchlist` **not built** (local-only state with
+>   no cross-session story felt like a stub); as-of button deferred (DG-6).
+> - **U3**: savings tile honestly "—" (DG-5); everything else per checklist.
+> - **U4**: per checklist.
+> - **U9**: catalogue is the ~20 real stored metrics, NOT the prototype's generated
+>   143-row fixture (recorded at build time).
+> - **U10**: wizard + CSV bulk import live; server-side bulk import deferred (DG-9).
 
 ### U1 — Overview (`/cpm`)
 - [ ] KPI row: score card (`Plant health` meter) + 4 tiles (`Loops in service`, `Need attention`,
@@ -167,10 +188,10 @@ gate reasons were not derivable reliably and are omitted rather than guessed.*
       `GET /cpm/loops/{id}/kpis` series aligned on time.
 - [x] **Diagnosis band track** (clickable segments Normal/Developing/Suspected/Recovering with
       gate + note) ← `gates` history: band = diagnosis class per window; click moves cursor.
-- [ ] Quality/mode track ← `/raw/cursor` on mode+quality measurements (coarse ribbon).
-      *Deferred from S5: the raw cursor pages at 5000 points (~7 h at the 5 s grid), so a
-      multi-day ribbon from the first page alone would misrepresent coverage; needs a
-      decimated mode/quality read (S7 or historian-bff aggregation).*
+- [x] Quality/mode track — **done in S7 as a mode-only ribbon**: decimated
+      `last_value(mode)` per bucket via `/trend?measurements=mode` (categorical-safe in the
+      BFF), rendered as a coarse ribbon with honest gaps. No quality ribbon: quality has no
+      stored IoTDB series (Phase 3 persists pv/sp/op/vp/mode) — stated on screen, not faked.
 - [x] Selected-period card (profile, window, completeness, confidence + `Replay this period ›`
       **actually navigates** to U8 with params).
 - [x] Maintenance correlation panel — DG-3 (no CMMS): render panel with empty-state copy.
@@ -296,7 +317,17 @@ gate reasons were not derivable reliably and are omitted rather than guessed.*
    (selected_family/status_reason/recommendation) for U5.
 7. **S7 Polish** — command palette bindings, kiosk/timezone conformance with existing app,
    `npm run lint` clean (`--max-warnings 0`), typecheck, screen-by-screen parity pass against
-   the CPA prototype.
+   the CPA prototype. ✅ **DONE** — F0.4 palette built from scratch (none existed anywhere in
+   the app): ⌘K/Ctrl+K, searches permission-filtered nav + loops (→ Explorer deep link) +
+   gate catalogue (→ Calculations ?gate=), lazy fetch, OB tokens only. F0.5 `useLoopLive`
+   subscribes the loop's Sparkplug device (same loopId sanitation as the edge node),
+   snapshot-on-open, RBE-honest (absent renders "—", never 0); wired into U1 signal row and
+   U2 Summary (live values with historian fallback, labeled which is which). U6 mode ribbon
+   landed (decimated last_value(mode)). Timezone: CPM screens use browser-local rendering,
+   same convention as the rest of the app shell (dayjs local); the timeStore tz setting is
+   display-designer-scoped and does not govern app screens. Kiosk mode is DisplayViewer-only
+   and unaffected. DoD sweep: no dead handlers, no alert(), no raw hex outside canvas
+   fallbacks, no fabricated numbers; all 12 screens deep-link via query params.
 
 ## Verification per screen (definition of done)
 

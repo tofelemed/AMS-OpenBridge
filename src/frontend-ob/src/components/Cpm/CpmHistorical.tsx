@@ -17,7 +17,7 @@ import {
 } from './shared';
 import type { CpmGateMatrix } from '../../api/cpmApi';
 import {
-  useCpmKpisRange, useCpmLoops, useCpmTrend, useGateHistory,
+  useCpmKpisRange, useCpmLoops, useCpmModeTrack, useCpmTrend, useGateHistory,
 } from '../../hooks/useCpm';
 
 function cssVar(name: string, fallback: string): string {
@@ -82,6 +82,7 @@ export const CpmHistorical: React.FC = () => {
 
   const series = loopId ? `root.site1.cpm.${loopId.replace(/[^a-zA-Z0-9_-]/g, '_')}` : undefined;
   const trend = useCpmTrend(series, from, to, 300);
+  const modeTrack = useCpmModeTrack(series, from, to, 96);
   const kpis = useCpmKpisRange(loopId, overlay.resolution, from.toISOString(), to.toISOString());
   const history = useGateHistory(loopId, '24h', from.toISOString(), to.toISOString());
 
@@ -224,6 +225,29 @@ export const CpmHistorical: React.FC = () => {
             the overlay track is empty, not zero.
           </p>
         )}
+
+        {(() => {
+          const modes = (modeTrack.data?.points ?? [])
+            .map(p => ({ ts: p.ts, mode: typeof p.mode === 'string' ? p.mode : null }));
+          const known = modes.filter(m => m.mode != null);
+          if (known.length === 0) return null;
+          return (
+            <>
+              <PanelHead eyebrow="Mode track" title="Controller mode across the range"
+                right={<span className="cpm-copy">
+                  last_value per bucket · gaps = no stored samples · no quality series is stored, so no quality ribbon
+                </span>} />
+              <div className="cpm-band-track" aria-label="Controller mode track">
+                {modes.map(m => (
+                  <span key={m.ts}
+                    className={`cpm-band-seg cpm-band-seg--${m.mode == null ? 'muted' : m.mode === 'AUTO' ? 'good' : 'warn'}`}
+                    style={{ cursor: 'default', height: 10 }}
+                    title={`${new Date(m.ts).toLocaleString()} · ${m.mode ?? 'no data'}`} />
+                ))}
+              </div>
+            </>
+          );
+        })()}
 
         <PanelHead eyebrow="Diagnosis bands" title="What each 24h window concluded"
           right={<span className="cpm-copy">{windows.length} evaluated window(s) · click a band to inspect</span>} />

@@ -17,6 +17,7 @@ import {
 import {
   useCpmEvents, useCpmLoops, useCpmReadiness, useCpmTrend, useLatestGates,
 } from '../../hooks/useCpm';
+import { useLoopLive, qualityLabel } from '../../hooks/useLoopLive';
 import type { CpmLoop } from '../../api/cpmApi';
 
 const TABS = ['Summary', 'Signals', 'Calculations', 'Relationships', 'History'] as const;
@@ -156,6 +157,8 @@ const LoopWorkspace: React.FC<{
 
 const SummaryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   const gates = useLatestGates(loop.loopId, '24h');
+  // F0.5 — live plane (RBE + snapshot-on-open); historian values remain the fallback.
+  const live = useLoopLive(loop.loopId);
   const series = `root.site1.cpm.${loop.loopId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
   const { start, end } = useMemo(() => {
     const now = new Date();
@@ -201,19 +204,30 @@ const SummaryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   return (
     <div className="cpm-grid-2">
       <div>
-        <PanelHead eyebrow="Last stored samples" title="Operating state" />
+        <PanelHead eyebrow={live.hasData ? 'Live operating state' : 'Last stored samples'}
+          title="Operating state"
+          right={<TonePill tone={qualityLabel(live.quality ?? live.pv).tone}>
+            {live.hasData ? qualityLabel(live.quality ?? live.pv).label : 'NO LIVE PUBLISHER'}
+          </TonePill>} />
         <div className="cpm-kpi-row" style={{ marginBottom: 12 }}>
-          {(['pv', 'sp', 'op'] as const).map(m => (
-            <div key={m} className="cpm-kpi">
-              <span className="cpm-kpi__caption">{m.toUpperCase()}</span>
-              <span className="cpm-kpi__value">
-                {last && num(last[`${m}_avg`]) != null
-                  ? (num(last[`${m}_avg`])!).toFixed(2)
-                  : last && num(last[m]) != null ? (num(last[m])!).toFixed(2) : '—'}
-              </span>
-              <span className="cpm-kpi__sub">{m === 'op' ? '%' : 'EU'} · from historian</span>
-            </div>
-          ))}
+          {(['pv', 'sp', 'op'] as const).map(m => {
+            const lv = live[m];
+            const liveVal = lv && typeof lv.value === 'number' ? lv.value.toFixed(2) : null;
+            return (
+              <div key={m} className="cpm-kpi">
+                <span className="cpm-kpi__caption">{m.toUpperCase()}</span>
+                <span className="cpm-kpi__value">
+                  {liveVal
+                    ?? (last && num(last[`${m}_avg`]) != null
+                      ? (num(last[`${m}_avg`])!).toFixed(2)
+                      : last && num(last[m]) != null ? (num(last[m])!).toFixed(2) : '—')}
+                </span>
+                <span className="cpm-kpi__sub">
+                  {m === 'op' ? '%' : 'EU'} · {liveVal ? 'live (RBE)' : 'from historian'}
+                </span>
+              </div>
+            );
+          })}
         </div>
         {trend.isLoading && <EmptyState title="Loading trend…" />}
         {!trend.isLoading && points.length === 0 && (

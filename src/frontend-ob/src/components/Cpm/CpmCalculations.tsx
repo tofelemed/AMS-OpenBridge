@@ -55,7 +55,8 @@ const METRICS: MetricDef[] = [
 export const CpmCalculations: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const [search, setSearch] = useState('');
-  const [gateFilter, setGateFilter] = useState('all');
+  // ?gate= deep link (command palette lands here pre-filtered to one gate).
+  const [gateFilter, setGateFilter] = useState(() => params.get('gate') ?? 'all');
   const [kindFilter, setKindFilter] = useState('all');
   const [page, setPage] = useState(0);
   const [drawer, setDrawer] = useState<MetricDef | null>(null);

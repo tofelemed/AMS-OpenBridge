@@ -19,6 +19,7 @@ import {
   useCpmEvents, useCpmPipelineStatus, useCpmTrend, useFleetRankings,
   useFleetSummary, useLatestGates,
 } from '../../hooks/useCpm';
+import { useLoopLive, qualityLabel } from '../../hooks/useLoopLive';
 
 /** echarts renders to canvas and cannot consume var(); resolve tokens once per render. */
 function cssVar(name: string, fallback: string): string {
@@ -214,6 +215,11 @@ const LoopFocus: React.FC<{
 
   const trend = useCpmTrend(series, start, end, 240);
   const points = useMemo(() => trend.data?.points ?? [], [trend.data]);
+  // F0.5 — live plane: RBE deltas + snapshot-on-open for this loop's device.
+  const live = useLoopLive(loopId);
+  const q = qualityLabel(live.quality ?? live.pv);
+  const fmtLive = (m: { value: number | string | boolean } | undefined, digits = 1) =>
+    m == null ? '—' : typeof m.value === 'number' ? m.value.toFixed(digits) : String(m.value);
 
   const option = useMemo(() => {
     const good = cssVar('--instrument-enhanced-secondary-color', '#41be95');
@@ -256,10 +262,18 @@ const LoopFocus: React.FC<{
       <PanelHead eyebrow={displayName} title={loopId}
         right={<ObcButton variant="raised" onClick={onOpenAnalysis}>Open analysis →</ObcButton>} />
       <div className="cpm-filter-row" style={{ marginBottom: 8 }}>
-        <TonePill tone="good">PV</TonePill>
-        <TonePill tone="muted">SP</TonePill>
-        <TonePill tone="warn">OP</TonePill>
-        <span className="cpm-filter-count">Last 8 hours · envelope shows true min/max per bucket</span>
+        {/* Live signal row (F0.5): RBE means "no update" ≠ 0 — absent renders as —. */}
+        <TonePill tone="good">PV {fmtLive(live.pv)}</TonePill>
+        <TonePill tone="muted">SP {fmtLive(live.sp)}</TonePill>
+        <TonePill tone="warn">OP {fmtLive(live.op)}</TonePill>
+        <TonePill tone="muted">MODE {fmtLive(live.mode)}</TonePill>
+        <TonePill tone={q.tone}>{q.label}</TonePill>
+        <span className="cpm-filter-count">
+          {live.hasData && live.lastTs
+            ? `live · last change ${new Date(live.lastTs).toLocaleTimeString()}`
+            : 'no live publisher for this loop'}
+          {' · '}8 h envelope trend below
+        </span>
       </div>
       {trend.isLoading && <EmptyState title="Loading trend…" />}
       {!trend.isLoading && points.length === 0 && (

@@ -163,6 +163,22 @@ export function useCpmTrend(
   });
 }
 
+/**
+ * U6 mode track (S7): coarse categorical ribbon — IoTDB last_value(mode) per
+ * bucket via the trend endpoint. Quality has no stored series, so there is no
+ * quality ribbon; this is the mode half only, honestly.
+ */
+export function useCpmModeTrack(
+  series: string | undefined, start: Date, end: Date, width = 96,
+) {
+  return useQuery({
+    queryKey: ['cpm', 'mode-track', series ?? '', start.getTime(), end.getTime(), width],
+    queryFn: () => cpm.getTrend(series!, start, end, width, 'mode', false),
+    enabled: !!series,
+    staleTime: 60_000,
+  });
+}
+
 export function useGateHistory(
   loopId: string | undefined, windowKind = '24h', from?: string, to?: string,
 ) {
