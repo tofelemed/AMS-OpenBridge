@@ -444,6 +444,12 @@ services:
       AlarmIngestion__PollIntervalMs: "2000"
       AlarmIngestion__ServerId:      "f0af9a6d-85f6-4c9f-a8ad-6de277d1d110"
       AlarmIngestion__ServerName:    "Current Alarms Feed"
+      # CPLM Phase 4 — the loop registry reads the asset graph from asset-model to
+      # project peer links. This key MUST match asset-model's Auth__ServiceKey or
+      # the call 401s and every loop silently reports NO_UPSTREAM_LINKS.
+      Cpm__AssetModelUrl:            http://asset-model:5000
+      Cpm__ServiceKey:               ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
+      Cpm__BootstrapServers:         kafka:9092
     ports:
       - "8000:8000"
     networks:

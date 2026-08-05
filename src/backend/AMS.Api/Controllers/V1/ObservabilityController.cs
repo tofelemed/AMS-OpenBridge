@@ -1,10 +1,16 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using AMS.Api.Services;
 
 namespace AMS.Api.Controllers.V1;
 
+/// <summary>
+/// Replay submission. This controller had NO [Authorize] and there is no
+/// fallback policy, so an unauthenticated caller could submit a Flink job.
+/// </summary>
 [ApiController]
 [Route("api/v1/[controller]")]
+[Authorize(Policy = "system.manage")]
 public class ObservabilityController : ControllerBase
 {
     private readonly FlinkRestClient _flinkClient;

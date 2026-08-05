@@ -9,10 +9,17 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AMS.Api.Controllers.V1;
 
+/// <summary>
+/// OPC/DCS connection lifecycle. This controller had NO [Authorize] and there is
+/// no fallback policy, so create/update/delete/connect/disconnect of DCS
+/// connections were reachable unauthenticated. Reads need analytics.view;
+/// mutations need system.manage.
+/// </summary>
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/opc/connections")]
 [Produces("application/json")]
+[Authorize(Policy = "analytics.view")]
 public sealed class OpcConnectionsController : ControllerBase
 {
     private static readonly Guid DefaultHttpFeedId = Guid.Parse("f0af9a6d-85f6-4c9f-a8ad-6de277d1d110");
@@ -106,6 +113,7 @@ public sealed class OpcConnectionsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "system.manage")]
     public async Task<IActionResult> Create([FromBody] UpsertOpcConnectionRequest request, CancellationToken ct)
     {
         var error = Validate(request, isCreate: true);
@@ -157,6 +165,7 @@ public sealed class OpcConnectionsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = "system.manage")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpsertOpcConnectionRequest request, CancellationToken ct)
     {
         var error = Validate(request, isCreate: false);
@@ -210,6 +219,7 @@ public sealed class OpcConnectionsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "system.manage")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var entity = await _repo.GetByIdAsync(id, ct);
@@ -220,6 +230,7 @@ public sealed class OpcConnectionsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/connect")]
+    [Authorize(Policy = "system.manage")]
     public async Task<IActionResult> Connect(Guid id, CancellationToken ct)
     {
         var entity = await _repo.GetByIdAsync(id, ct);
@@ -262,6 +273,7 @@ public sealed class OpcConnectionsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/disconnect")]
+    [Authorize(Policy = "system.manage")]
     public async Task<IActionResult> Disconnect(Guid id, CancellationToken ct)
     {
         var entity = await _repo.GetByIdAsync(id, ct);
@@ -278,6 +290,7 @@ public sealed class OpcConnectionsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/test")]
+    [Authorize(Policy = "system.manage")]
     public async Task<IActionResult> Test(Guid id, CancellationToken ct)
     {
         var entity = await _repo.GetByIdAsync(id, ct);
