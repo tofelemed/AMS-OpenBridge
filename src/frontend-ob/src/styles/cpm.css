@@ -272,3 +272,40 @@
   border-radius: 6px;
   align-items: center;
 }
+
+/* ── Explorer (U2) ── */
+.cpm-explorer-layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; }
+@media (max-width: 1000px) { .cpm-explorer-layout { grid-template-columns: 1fr; } }
+.cpm-tree-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-left: 3px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: var(--on-container-active-color);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+.cpm-tree-item:hover { background: var(--container-hover-color, rgba(128,128,128,0.08)); }
+.cpm-tree-item--active {
+  border-left-color: var(--instrument-enhanced-primary-color);
+  background: var(--container-hover-color, rgba(128,128,128,0.08));
+}
+
+/* ── Lineage strip (U2 relationships, U9 dependencies) ── */
+.cpm-lineage { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.cpm-lineage__node {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border: 1px solid var(--divider-color);
+  border-radius: 8px;
+  min-width: 140px;
+}
+.cpm-lineage__arrow { color: var(--on-container-neutral-color); font-size: 1.1rem; }

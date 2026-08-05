@@ -171,3 +171,12 @@ export function useGateHistory(
     enabled: !!loopId,
   });
 }
+
+export function useCpmKpis(loopId: string | undefined, resolution = '24h', limit = 50) {
+  return useQuery({
+    queryKey: ['cpm', 'kpis', loopId ?? '', resolution, limit],
+    queryFn: () => cpm.getKpis(loopId!, resolution, undefined, undefined, limit),
+    enabled: !!loopId,
+    staleTime: 60_000,
+  });
+}

@@ -43,6 +43,8 @@ const CpmLoopRegistry  = React.lazy(() => import('./components/Cpm/LoopRegistry'
 const CpmEvents        = React.lazy(() => import('./components/Cpm/CpmEvents'));
 const CpmOverview      = React.lazy(() => import('./components/Cpm/CpmOverview'));
 const CpmPerformance   = React.lazy(() => import('./components/Cpm/CpmPerformance'));
+const CpmExplorer      = React.lazy(() => import('./components/Cpm/CpmExplorer'));
+const CpmCalculations  = React.lazy(() => import('./components/Cpm/CpmCalculations'));
 const EdgeNodeMonitor  = React.lazy(() => import('./components/EdgeNodeMonitor/EdgeNodeMonitor'));
 const Administration   = React.lazy(() => import('./components/Administration/Administration'));
 // HMI Designer (Phase 2)
@@ -279,6 +281,8 @@ const App: React.FC = () => {
                       {/* ── Loop Performance (CPLM) ─────────────────── */}
                       <Route path="/cpm"             element={<RequirePermission permission="analytics.view"><CpmOverview /></RequirePermission>} />
                       <Route path="/cpm/performance" element={<RequirePermission permission="analytics.view"><CpmPerformance /></RequirePermission>} />
+                      <Route path="/cpm/explorer"     element={<RequirePermission permission="analytics.view"><CpmExplorer /></RequirePermission>} />
+                      <Route path="/cpm/calculations" element={<RequirePermission permission="analytics.view"><CpmCalculations /></RequirePermission>} />
                       <Route path="/cpm/registry"  element={<RequirePermission permission="analytics.view"><CpmLoopRegistry /></RequirePermission>} />
                       <Route path="/cpm/events"    element={<RequirePermission permission="analytics.view"><CpmEvents /></RequirePermission>} />
                       {/* Published-HMI launcher — every role with display.view */}

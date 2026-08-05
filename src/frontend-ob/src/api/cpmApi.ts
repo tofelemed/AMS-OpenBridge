@@ -361,3 +361,23 @@ export const getTrend = (
   return apiJson<{ series: string; envelope: boolean; points: CpmTrendPoint[] }>(
     `/api/hist/trend?${params.toString()}`);
 };
+
+// ── KPI stream (U2/U9): short/long feature rows carry the raw metric values ──
+
+export interface CpmKpiRow {
+  window_start: string | null;
+  window_end: string | null;
+  sample_count: number | null;
+  created_at: string;
+  [metric: string]: number | string | null;
+}
+
+export const getKpis = (
+  loopId: string, resolution = '24h', from?: string, to?: string, limit = 50,
+) => {
+  const params = new URLSearchParams({ resolution, limit: String(limit) });
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  return apiJson<{ loopId: string; resolution: string; tier: 'short' | 'long'; count: number; samples: CpmKpiRow[] }>(
+    `${BASE}/loops/${encodeURIComponent(loopId)}/kpis?${params.toString()}`);
+};
