@@ -152,6 +152,8 @@ services.AddHttpClient("IotDbWrite");
 services.AddSingleton<AMS.Api.Services.IotDbWriteClient>();
 services.AddHostedService<AMS.Api.BackgroundServices.CplmResultConsumerService>();
 services.AddHostedService<AMS.Api.BackgroundServices.RawLoopIotDbConsumer>();
+// A12 - derive durable event frames from the gate-result stream.
+services.AddHostedService<AMS.Api.BackgroundServices.CplmEventFrameService>();
 // CPLM Phase 4 — loop registry / onboarding. Publishes peer-link evidence onto the
 // CPLM metadata broadcast, which is what makes G13 evaluable.
 services.Configure<AMS.Api.Services.CpmRegistryOptions>(
