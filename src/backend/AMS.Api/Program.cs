@@ -137,6 +137,11 @@ services.AddHttpClient<AMS.Api.Services.FlinkRestClient>(client =>
 services.AddHostedService<AMS.Api.BackgroundServices.AlarmIngestionService>();
 services.AddHostedService<AMS.Api.BackgroundServices.HttpAckWritebackService>();
 services.AddHostedService<AMS.Api.BackgroundServices.KpiConsumerService>();
+// CPLM Phase 3 — persist clpm.gate.results.v1 + clpm.feature.{short,long}.v1
+// into analytics.cplm_* (self-healing DDL, idempotent upserts, at-least-once).
+services.Configure<AMS.Api.BackgroundServices.CplmOptions>(
+    config.GetSection(AMS.Api.BackgroundServices.CplmOptions.SectionName));
+services.AddHostedService<AMS.Api.BackgroundServices.CplmResultConsumerService>();
 services.AddHostedService<AMS.Api.BackgroundServices.DriftAlertConsumerService>();
 services.AddSingleton<TelemetryIngestState>();
 services.AddSingleton<ReadinessHistoryStore>();
