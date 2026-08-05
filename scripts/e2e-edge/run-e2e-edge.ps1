@@ -1,4 +1,4 @@
-# Edge Platform E2E — PowerShell runner
+﻿# Edge Platform E2E — PowerShell runner
 param(
     [string]$RunId = "",
     [int]$Count = 3,

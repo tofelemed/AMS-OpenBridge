@@ -1,4 +1,4 @@
-# Designer End-to-End Test Suite
+﻿# Designer End-to-End Test Suite
 # Tests HMI designer flow through nginx (port 3000) and direct service ports.
 
 param(

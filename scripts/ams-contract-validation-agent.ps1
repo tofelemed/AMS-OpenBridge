@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
   AMS contract validation agent — health + contract violation detection (E2E plan §10).

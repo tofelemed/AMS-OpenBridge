@@ -7,6 +7,14 @@ JOBMANAGER="${FLINK_JOBMANAGER_HOST:-ams-flink-jobmanager}:${FLINK_JOBMANAGER_PO
 KAFKA="${KAFKA_BROKERS:-kafka:9092}"
 JAR="${FLINK_JAR_PATH:-/opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar}"
 
+# The jar is bind-mounted from the host. If it was never built, Docker silently creates a
+# DIRECTORY at this path and `flink run` fails with an opaque error — so check for a file.
+if [ ! -f "$JAR" ]; then
+  echo "[LiveState-Submit] ERROR: JAR not found (or is a directory) at ${JAR}."
+  echo "[LiveState-Submit]        Run scripts/build-flink-jar.ps1, then recreate this container."
+  exit 1
+fi
+
 echo "[LiveState-Submit] Waiting for Flink JobManager at http://${JOBMANAGER} ..."
 until curl -sf "http://${JOBMANAGER}/overview" > /dev/null 2>&1; do
   sleep 3

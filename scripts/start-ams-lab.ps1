@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
   Brings up the full AMS stack (Docker + Gateway + API + frontend).
@@ -377,7 +377,7 @@ if ($DockerFull) {
         $fullArgs = @('up', '-d')
         if ($RemoveOrphans) { $fullArgs += '--remove-orphans' }
         Invoke-DockerCompose -Args $fullArgs
-        Wait-DockerHealthy @("ams-postgres", "ams-redis", "ams-kafka", "ams-flink-jobmanager", "ams-api-v3") -TimeoutSec 300
+        Wait-DockerHealthy @("ams-postgres", "ams-redis", "ams-kafka", "ams-flink-jobmanager", "ams-flink-taskmanager", "ams-api") -TimeoutSec 300
     } finally { Pop-Location }
     $stabArgs = @{ ForceResubmit = $true; SkipValidation = $true }
     if ($SkipBuild) { $stabArgs.SkipBuild = $true }

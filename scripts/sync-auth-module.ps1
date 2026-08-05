@@ -1,4 +1,4 @@
-# Copies src/services/_shared/TraverseAuth.cs into every service that enforces platform RBAC.
+﻿# Copies src/services/_shared/TraverseAuth.cs into every service that enforces platform RBAC.
 #
 # Each service builds from its OWN Docker context (docker-compose sets `context: ../../src/services/<svc>`),
 # so a shared .csproj reference outside that context cannot be restored inside the image. The module is

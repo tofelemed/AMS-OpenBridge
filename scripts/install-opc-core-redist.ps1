@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
   Installs OPC Core Components for Classic OPC A&E (opcaeps.dll in SysWOW64).

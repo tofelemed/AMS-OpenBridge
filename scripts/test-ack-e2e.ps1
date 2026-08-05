@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   End-to-end ACK test: Injects a test alarm → Kafka → Flink → PostgreSQL → ACK via API → verify lifecycle.
 

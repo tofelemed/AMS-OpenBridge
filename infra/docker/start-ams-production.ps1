@@ -1,4 +1,4 @@
-# Run from infra/docker — forwards to project-root scripts\start-ams-production.ps1
+﻿# Run from infra/docker — forwards to project-root scripts\start-ams-production.ps1
 param(
     [switch]$SkipDocker,
     [switch]$ForceResubmit,

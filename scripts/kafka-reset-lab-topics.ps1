@@ -1,4 +1,4 @@
-# Production Kafka topics — HTTP API ingest pipeline only.
+﻿# Production Kafka topics — HTTP API ingest pipeline only.
 # WARNING: deletes all messages on listed topics.
 param([switch]$Force)
 

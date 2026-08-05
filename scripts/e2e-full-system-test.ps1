@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
   Full system E2E test — ingestion, Flink, ACK, UI contract, replay, agent (plan §0–§12).

@@ -9,6 +9,14 @@ IOTDB_H="${IOTDB_HOST:-iotdb}"
 IOTDB_P="${IOTDB_PORT:-6667}"
 JAR="${FLINK_JAR_PATH:-/opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar}"
 
+# The jar is bind-mounted from the host. If it was never built, Docker silently creates a
+# DIRECTORY at this path and `flink run` fails with an opaque error — so check for a file.
+if [ ! -f "$JAR" ]; then
+  echo "[IoTDB-Submit] ERROR: JAR not found (or is a directory) at ${JAR}."
+  echo "[IoTDB-Submit]        Run scripts/build-flink-jar.ps1, then recreate this container."
+  exit 1
+fi
+
 echo "[IoTDB-Submit] Waiting for Flink JobManager at http://${JOBMANAGER} ..."
 until curl -sf "http://${JOBMANAGER}/overview" > /dev/null 2>&1; do
   sleep 3

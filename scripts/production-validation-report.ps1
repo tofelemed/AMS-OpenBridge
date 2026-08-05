@@ -1,4 +1,4 @@
-# Production validation report: Real OPC → Kafka → Flink → PostgreSQL → UI
+﻿# Production validation report: Real OPC → Kafka → Flink → PostgreSQL → UI
 param(
     [string]$ApiBase = "http://127.0.0.1:8000",
     [string]$FlinkBase = "http://127.0.0.1:8082",

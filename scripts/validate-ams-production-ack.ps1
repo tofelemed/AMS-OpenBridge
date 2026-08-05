@@ -1,4 +1,4 @@
-# Production ACK validation matrix (Flink-authoritative, no SQL/optimistic ACK).
+﻿# Production ACK validation matrix (Flink-authoritative, no SQL/optimistic ACK).
 param(
     [string]$ApiBase = "http://127.0.0.1:8000",
     [string]$GatewayBase = "http://127.0.0.1:5050",

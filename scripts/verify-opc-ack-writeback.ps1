@@ -1,4 +1,4 @@
-# Cross-verify operator ACK: UI/API → Kafka → Flink → OPC Gateway → ack-results → DB/UI
+﻿# Cross-verify operator ACK: UI/API → Kafka → Flink → OPC Gateway → ack-results → DB/UI
 param(
     [string]$ApiBase = "http://127.0.0.1:8000",
     [string]$GatewayBase = "http://127.0.0.1:5050",

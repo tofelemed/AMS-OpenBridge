@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Validate the V2 pipeline (Phases 5-7) end-to-end against a running AMS/Traverse stack.
 

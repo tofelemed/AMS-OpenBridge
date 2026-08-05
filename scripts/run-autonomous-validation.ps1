@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
   Clean autonomous validation after storm — gateway ACK-only on :5050, long catch-up window.

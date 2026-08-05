@@ -15,7 +15,11 @@ param(
     [switch]$RemoveOrphans,
     [switch]$GoldenVerify,
     [switch]$SkipGoldenVerify,
-    [switch]$RunFullE2EOnVerify
+    [switch]$RunFullE2EOnVerify,
+    # Optional compose overlays (e.g. docker-compose.sims.yml for the process-value
+    # simulator). Only overlays whose file actually exists are applied.
+    [ValidateSet("docker-compose.lab.yml", "docker-compose.sims.yml")]
+    [string[]]$ApplyOverlay = @()
 )
 
 $ErrorActionPreference = "Stop"
@@ -28,12 +32,25 @@ function Write-Step([string]$msg) {
     Write-Host "`n>> $msg" -ForegroundColor Cyan
 }
 
+function Get-ComposeFileArgs {
+    # Base compose file plus any requested overlays that actually exist on disk.
+    # docker-compose.lab.yml does not exist in this repo today; a hardcoded -f for it
+    # made every compose call fail, so the -f list is built from real files only.
+    $fileArgs = @("-f", "docker-compose.yml")
+    foreach ($overlay in $ApplyOverlay) {
+        if (Test-Path (Join-Path $composeDir $overlay)) {
+            $fileArgs += @("-f", $overlay)
+        }
+        else {
+            Write-Host "  [WARN] Overlay $overlay not found in $composeDir - skipping" -ForegroundColor Yellow
+        }
+    }
+    return $fileArgs
+}
+
 function Invoke-Compose {
     param([string[]]$ExtraArgs)
-    $files = @(
-        "-f", "docker-compose.yml",
-        "-f", "docker-compose.lab.yml"
-    )
+    $files = Get-ComposeFileArgs
     $args = @("compose") + $files + @("--env-file", ".env") + $ExtraArgs
     Push-Location $composeDir
     try {
@@ -121,7 +138,7 @@ foreach ($port in @(8000, 3000)) {
 }
 
 Write-Step "Building and starting all Docker services"
-Write-Host "  Compose: docker compose -f docker-compose.yml -f docker-compose.streampipes.yml -f docker-compose.lab.yml --env-file .env up -d --build" -ForegroundColor DarkGray
+Write-Host "  Compose: docker compose $((Get-ComposeFileArgs) -join ' ') --env-file .env up -d$(if (-not $SkipBuild) { ' --build' })" -ForegroundColor DarkGray
 if ($ResetKafkaVolumes) {
     Write-Host "  Resetting Kafka/Zookeeper volumes (fixes cluster ID mismatch)..." -ForegroundColor Yellow
     Invoke-Compose -ExtraArgs @("down", "-v")
@@ -137,7 +154,7 @@ Invoke-Compose -ExtraArgs $upArgs
 Write-Step "Waiting for core services"
 Wait-Healthy @(
     "ams-postgres", "ams-redis", "ams-kafka", "ams-flink-jobmanager",
-    "ams-api-v3", "ams-frontend-v3"
+    "ams-flink-taskmanager", "ams-api", "ams-frontend"
 ) -TimeoutSec 420
 
 if ($ResetKafkaTopics) {
@@ -207,7 +224,7 @@ Write-Host "  Alarm Console:   http://localhost:3000" -ForegroundColor White
 Write-Host "  API / Swagger:   http://localhost:8000/swagger" -ForegroundColor White
 Write-Host "  Flink UI:        http://localhost:8082" -ForegroundColor White
 Write-Host "  Grafana:         http://localhost:3001  (profile: observability)" -ForegroundColor DarkGray
-Write-Host "`nStop: docker compose -f docker-compose.yml -f docker-compose.lab.yml down" -ForegroundColor DarkGray
+Write-Host "`nStop: docker compose -f docker-compose.yml down  (run from infra\docker)" -ForegroundColor DarkGray
 
 try {
     Start-Process "http://localhost:3000"

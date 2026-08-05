@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Start the minimal ACK-test Docker stack, build Flink, submit job, run E2E test.
 
@@ -145,7 +145,7 @@ try {
     $jobId = Ensure-AmsFlinkAlarmJob `
         -JarHostPath $FlinkJar `
         -ForceResubmit:$ForceResubmit `
-        -RawOpcStartingOffsets "latest"
+        -RawAlarmsStartingOffsets "latest"
 
     Write-Host "  Flink Job ID: $jobId" -ForegroundColor Green
 } catch {

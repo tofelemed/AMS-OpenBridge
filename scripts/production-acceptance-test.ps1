@@ -1,4 +1,4 @@
-# Production acceptance tests — CAMS vNext (Tests 1–7)
+﻿# Production acceptance tests — CAMS vNext (Tests 1–7)
 # Run after: docker compose + StreamPipes overlay + AMS.Api + Flink job
 
 param(

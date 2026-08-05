@@ -1,4 +1,4 @@
-# Stop API, refresh Kafka coordinator, start API with new consumer group replay.
+﻿# Stop API, refresh Kafka coordinator, start API with new consumer group replay.
 param(
     [string]$ConsumerGroupId = "ams-backend-v2"
 )

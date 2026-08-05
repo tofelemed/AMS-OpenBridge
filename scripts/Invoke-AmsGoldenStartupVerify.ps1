@@ -1,7 +1,7 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
-  Golden startup verification â€” readiness score gate after stack bring-up.
+  Golden startup verification — readiness score gate after stack bring-up.
 
 .EXAMPLE
   .\scripts\Invoke-AmsGoldenStartupVerify.ps1
@@ -23,7 +23,7 @@ function Test-LiveReadinessScore {
     $headers = @{ Authorization = "Bearer $Token" }
     $h = Invoke-RestMethod -Uri "$Base/api/v1/health/pipeline" -Headers $headers -TimeoutSec 30
     if (-not $h.readiness) {
-        Write-Host "  [WARN] Live readiness not exposed by API â€” falling back to agent checks" -ForegroundColor Yellow
+        Write-Host "  [WARN] Live readiness not exposed by API — falling back to agent checks" -ForegroundColor Yellow
         return $null
     }
     Write-Host ("  Live readiness: {0}/100  gate={1}" -f $h.readiness.overallScore, $h.readiness.gateStatus) -ForegroundColor Cyan

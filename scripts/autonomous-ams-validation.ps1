@@ -1,4 +1,4 @@
-# AMS Autonomous Operational Validation — no user interaction required.
+﻿# AMS Autonomous Operational Validation — no user interaction required.
 param(
     [int]$StormCount = 17200,
     [int]$CatchUpSec = 180,
@@ -117,7 +117,7 @@ if (-not $SkipReset) {
         Write-Host "  Building Flink JAR..." -ForegroundColor DarkGray
         docker run --rm -v "${Root}/src/flink:/build" -w /build maven:3.9-eclipse-temurin-11 mvn -q package -DskipTests 2>&1 | Out-Null
     }
-    Ensure-AmsFlinkAlarmJob -JarHostPath $flinkJar -RawOpcStartingOffsets earliest | Out-Null
+    Ensure-AmsFlinkAlarmJob -JarHostPath $flinkJar -RawAlarmsStartingOffsets earliest | Out-Null
     Start-Sleep -Seconds 8
     $running = @(Get-AmsFlinkAlarmJobs | Where-Object { $_.Status -eq "RUNNING" })
     $p1 = Test-Check $p1 "Flink job restarted" ($running.Count -ge 1) $(if ($running) { $running[0].Id } else { "none" })

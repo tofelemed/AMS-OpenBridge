@@ -5,7 +5,8 @@ param(
     [switch]$ForceResubmit,
     [switch]$SkipValidation,
     [ValidateSet("latest", "earliest")]
-    [string]$RawOpcStartingOffsets = "latest"
+    [Alias("RawOpcStartingOffsets")]
+    [string]$RawAlarmsStartingOffsets = "latest"
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,7 +28,7 @@ if (-not $SkipBuild) {
 }
 
 Write-Host "[Flink] Ensure single RUNNING job (lab parallelism)..." -ForegroundColor Yellow
-$jobId = Ensure-AmsFlinkAlarmJob -JarHostPath $jar -RawOpcStartingOffsets $RawOpcStartingOffsets -ForceResubmit:$ForceResubmit
+$jobId = Ensure-AmsFlinkAlarmJob -JarHostPath $jar -RawAlarmsStartingOffsets $RawAlarmsStartingOffsets -ForceResubmit:$ForceResubmit
 Write-Host "[Flink] Alarm JobId: $jobId" -ForegroundColor Green
 
 Write-Host "`n[Flink] Submitting Loop KPI Engine..." -ForegroundColor Yellow

@@ -45,6 +45,9 @@ function Ensure-AmsFlinkAlarmJob {
         [string]$JarHostPath,
         [string]$JarContainerPath = "/opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar",
         [string]$EntryClass = "com.ams.flink.OpcEventStreamJob",
+        # RawOpcStartingOffsets is a legacy alias (from the deleted raw-opc-events topic).
+        # Several call sites still use it; without the alias PowerShell fails to bind and throws.
+        [Alias("RawOpcStartingOffsets")]
         [ValidateSet("latest", "earliest")]
         [string]$RawAlarmsStartingOffsets = "earliest",
         [switch]$ForceResubmit,

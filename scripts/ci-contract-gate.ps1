@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
   CI contract gate (Windows) — static contract verification without live Kafka/Flink.

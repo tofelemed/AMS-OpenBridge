@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
   Build and run the full AMS Docker stack (all services).
@@ -21,7 +21,11 @@ param(
     [switch]$RemoveOrphans,
     [switch]$GoldenVerify,
     [switch]$SkipGoldenVerify,
-    [switch]$RunFullE2EOnVerify
+    [switch]$RunFullE2EOnVerify,
+    # Optional compose overlays, e.g. -ApplyOverlay docker-compose.sims.yml to start the
+    # process-value simulator alongside the base stack.
+    [ValidateSet("docker-compose.lab.yml", "docker-compose.sims.yml")]
+    [string[]]$ApplyOverlay = @()
 )
 
 $script = Join-Path $PSScriptRoot "scripts\start-ams-docker-full.ps1"

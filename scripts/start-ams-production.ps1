@@ -1,4 +1,4 @@
-# Production startup: Docker stack → Kafka topics → Flink JAR → Flink job.
+﻿# Production startup: Docker stack → Kafka topics → Flink JAR → Flink job.
 
 param([switch]$SkipDocker, [switch]$ForceResubmit, [switch]$ResetKafkaVolumes)
 
