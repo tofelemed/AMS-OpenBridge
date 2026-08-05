@@ -1014,6 +1014,39 @@ services:
       - ams-backend
     restart: "no"
 
+  # ─────────────────────────────────────────────
+  # Flink job supervisor — standing loop that resubmits any of the six core
+  # jobs (3 alarm baseline + 3 CPLM) that is not RUNNING. There is no JM HA:
+  # a JobManager restart or Docker daemon bounce loses every job, and the
+  # one-shot submit containers (restart: "no") do not rerun on their own.
+  # ─────────────────────────────────────────────
+  flink-job-supervisor:
+    image: flink:1.18.1-java11
+    container_name: ams-flink-job-supervisor
+    <<: *default-restart
+    depends_on:
+      flink-jobmanager:
+        condition: service_started
+      flink-taskmanager:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "/opt/flink-job-supervisor.sh"]
+    environment:
+      FLINK_JOBMANAGER_HOST:       ams-flink-jobmanager
+      FLINK_JOBMANAGER_PORT:       "8081"
+      KAFKA_BROKERS:               kafka:9092
+      FLINK_JAR_PATH:              /opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar
+      SUPERVISOR_INTERVAL_SEC:     "60"
+      RAW_ALARMS_STARTING_OFFSETS: earliest
+      IOTDB_HOST:                  iotdb
+      IOTDB_PORT:                  "6667"
+    volumes:
+      - ./flink-job-supervisor.sh:/opt/flink-job-supervisor.sh:ro
+      - ../../src/flink/target/ams-flink-1.0-SNAPSHOT.jar:/opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar:ro
+    networks:
+      - ams-backend
+
   # ═════════════════════════════════════════════
   # Phase 6 — Hardening & Observability
   # ═════════════════════════════════════════════

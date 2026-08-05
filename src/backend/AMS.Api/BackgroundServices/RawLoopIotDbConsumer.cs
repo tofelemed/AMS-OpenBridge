@@ -1,0 +1,185 @@
+using Confluent.Kafka;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using AMS.Api.Services;
+using AMS.Infrastructure.Kafka;
+using System.Text.Json;
+
+namespace AMS.Api.BackgroundServices;
+
+/// <summary>
+/// CPLM Phase 3 (3.5) — loop historian writer: consumes loop.samples.v1 and
+/// persists samples into IoTDB at root.&lt;site&gt;.cpm.&lt;loop&gt;.{pv,sp,op,vp,mode}.
+/// Modelling the loop as ONE IoTDB device with pv/sp/op/vp/mode as measurements
+/// makes multi-signal trend reads align for free (intake decision, 6.4).
+///
+/// Ported from CPA's RawLoopIotDbConsumer with the plan-mandated fixes:
+///   * batched writes (accumulate per loop, flush at 500 rows or 5 s) instead
+///     of one fire-and-forget REST call per sample
+///   * explicit CREATE TIMESERIES (DOUBLE / TEXT) before first write per device
+///   * offsets stored only after a successful flush (at-least-once); IoTDB
+///     writes are idempotent by (device, timestamp), so redelivery is safe
+/// </summary>
+public sealed class RawLoopIotDbConsumer : BackgroundService
+{
+    private static readonly string[] Measurements = { "pv", "sp", "op", "vp", "mode" };
+    private static readonly Dictionary<string, string> MeasurementTypes = new()
+    {
+        ["pv"] = "DOUBLE", ["sp"] = "DOUBLE", ["op"] = "DOUBLE", ["vp"] = "DOUBLE", ["mode"] = "TEXT"
+    };
+    private const int FlushRows = 500;
+    private static readonly TimeSpan FlushInterval = TimeSpan.FromSeconds(5);
+
+    private readonly ILogger<RawLoopIotDbConsumer> _logger;
+    private readonly IotDbWriteClient _iotdb;
+    private readonly CplmOptions _cplm;
+    private readonly string _bootstrap;
+
+    public RawLoopIotDbConsumer(
+        ILogger<RawLoopIotDbConsumer> logger,
+        IotDbWriteClient iotdb,
+        IOptions<CplmOptions> cplmOptions,
+        IOptions<KafkaOptions> kafka)
+    {
+        _logger = logger;
+        _iotdb = iotdb;
+        _cplm = cplmOptions.Value;
+        _bootstrap = kafka.Value.BootstrapServers;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        if (!_iotdb.Enabled)
+        {
+            _logger.LogInformation("RawLoopIotDbConsumer disabled (IotDb:Enabled=false).");
+            return;
+        }
+
+        await Task.Yield();
+        var config = new ConsumerConfig
+        {
+            BootstrapServers = _bootstrap,
+            GroupId = "ams-iotdb-raw-loop",
+            // Earliest: on first deploy, backfill the historian from what the
+            // topic retains (7 d) so evidence trends have history immediately.
+            AutoOffsetReset = AutoOffsetReset.Earliest,
+            EnableAutoCommit = true,
+            EnableAutoOffsetStore = false
+        };
+
+        using var consumer = new ConsumerBuilder<string, string>(config).Build();
+        consumer.Subscribe(_cplm.SamplesTopic);
+        _logger.LogInformation("RawLoopIotDbConsumer started: {Topic} → IoTDB {Root}.<loop>", _cplm.SamplesTopic, _iotdb.LoopRootPrefix);
+
+        // device → pending rows; offsets stored only when the whole buffer flushes.
+        var pending = new Dictionary<string, List<(long Ts, IReadOnlyList<object?> Values)>>();
+        var pendingOffsets = new List<ConsumeResult<string, string>>();
+        var lastFlush = DateTime.UtcNow;
+        long written = 0;
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                var cr = consumer.Consume(TimeSpan.FromMilliseconds(500));
+                if (cr != null && !string.IsNullOrWhiteSpace(cr.Message.Value))
+                {
+                    if (TryParse(cr, out var device, out var row))
+                    {
+                        if (!pending.TryGetValue(device, out var rows))
+                            pending[device] = rows = new List<(long, IReadOnlyList<object?>)>();
+                        rows.Add(row);
+                    }
+                    // Unparseable/keyless samples advance with the next flush.
+                    pendingOffsets.Add(cr);
+                }
+
+                var total = pending.Sum(kv => kv.Value.Count);
+                if (total == 0 && pendingOffsets.Count > 0 && DateTime.UtcNow - lastFlush >= FlushInterval)
+                {
+                    foreach (var off in pendingOffsets) consumer.StoreOffset(off);
+                    pendingOffsets.Clear();
+                    lastFlush = DateTime.UtcNow;
+                    continue;
+                }
+                if (total == 0 || (total < FlushRows && DateTime.UtcNow - lastFlush < FlushInterval))
+                    continue;
+
+                var allOk = true;
+                foreach (var (device, rows) in pending)
+                {
+                    await _iotdb.EnsureTimeseriesAsync(device, MeasurementTypes, stoppingToken);
+                    var ok = await _iotdb.InsertBatchAsync(device, Measurements, rows, stoppingToken);
+                    if (ok) written += rows.Count; else allOk = false;
+                }
+
+                if (allOk)
+                {
+                    foreach (var off in pendingOffsets) consumer.StoreOffset(off);
+                    if (written > 0 && written % 5000 < FlushRows)
+                        _logger.LogInformation("RawLoopIotDbConsumer wrote {Count} samples across {Devices} device(s)", written, pending.Count);
+                }
+                else
+                {
+                    _logger.LogWarning("IoTDB flush failed for at least one device; offsets not stored, batch will be redelivered");
+                }
+                pending.Clear();
+                pendingOffsets.Clear();
+                lastFlush = DateTime.UtcNow;
+            }
+            catch (OperationCanceledException) { break; }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "RawLoopIotDbConsumer error");
+                pending.Clear();
+                pendingOffsets.Clear();
+                await Task.Delay(500, stoppingToken);
+            }
+        }
+
+        consumer.Close();
+    }
+
+    private bool TryParse(ConsumeResult<string, string> cr, out string device, out (long, IReadOnlyList<object?>) row)
+    {
+        device = "";
+        row = default;
+        try
+        {
+            using var doc = JsonDocument.Parse(cr.Message.Value);
+            var r = doc.RootElement;
+            var loopId = GetString(r, "loop_id") ?? GetString(r, "tagId") ?? cr.Message.Key;
+            if (string.IsNullOrWhiteSpace(loopId)) return false;
+
+            long ts;
+            if (r.TryGetProperty("event_ts_ms", out var t1) && t1.TryGetInt64(out var v1)) ts = v1;
+            else if (r.TryGetProperty("timestamp", out var t2) && t2.TryGetInt64(out var v2)) ts = v2;
+            else return false;
+
+            device = $"{_iotdb.LoopRootPrefix}.{IotDbWriteClient.SafeNode(loopId)}";
+            row = (ts, new object?[]
+            {
+                GetDouble(r, "pv"), GetDouble(r, "sp"), GetDouble(r, "op"),
+                GetDouble(r, "vp"), GetString(r, "mode")
+            });
+            return true;
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "Unparseable loop sample skipped");
+            return false;
+        }
+    }
+
+    private static string? GetString(JsonElement r, string name) =>
+        r.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
+
+    private static double? GetDouble(JsonElement r, string name)
+    {
+        if (!r.TryGetProperty(name, out var p)) return null;
+        if (p.ValueKind == JsonValueKind.Number && p.TryGetDouble(out var d)) return d;
+        if (p.ValueKind == JsonValueKind.String && double.TryParse(p.GetString(), out var ds)) return ds;
+        return null;
+    }
+}

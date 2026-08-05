@@ -38,17 +38,20 @@ public sealed class CplmResultConsumerService : BackgroundService
     private readonly ILogger<CplmResultConsumerService> _logger;
     private readonly NpgsqlDataSource _dataSource;
     private readonly CplmOptions _options;
+    private readonly AMS.Api.Services.IotDbWriteClient _iotdb;
     private readonly IConsumer<string, string> _consumer;
 
     public CplmResultConsumerService(
         ILogger<CplmResultConsumerService> logger,
         IOptions<KafkaOptions> kafkaOptions,
         IOptions<CplmOptions> cplmOptions,
+        AMS.Api.Services.IotDbWriteClient iotdb,
         NpgsqlDataSource dataSource)
     {
         _logger = logger;
         _dataSource = dataSource;
         _options = cplmOptions.Value;
+        _iotdb = iotdb;
 
         var config = new ConsumerConfig
         {
@@ -69,17 +72,25 @@ public sealed class CplmResultConsumerService : BackgroundService
     {
         await Task.Yield();
 
-        try
+        // Do not run without the tables. Postgres may still be starting when this
+        // service comes up (57P03 on a cold stack), so retry with backoff instead
+        // of failing fast — messages wait in Kafka either way.
+        while (!stoppingToken.IsCancellationRequested)
         {
-            await EnsureSchemaAsync(stoppingToken);
+            try
+            {
+                await EnsureSchemaAsync(stoppingToken);
+                break;
+            }
+            catch (OperationCanceledException) { return; }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "CPLM analytics schema not ensured yet; retrying in 10s");
+                try { await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken); }
+                catch (OperationCanceledException) { return; }
+            }
         }
-        catch (Exception ex)
-        {
-            // Do not run without the tables: with offsets stored only after
-            // persist, failing fast here is safe — messages wait in Kafka.
-            _logger.LogError(ex, "CPLM analytics schema could not be ensured; consumer not starting");
-            return;
-        }
+        if (stoppingToken.IsCancellationRequested) return;
 
         var topics = new[] { _options.GateResultsTopic, _options.ShortFeatureTopic, _options.LongFeatureTopic };
         _consumer.Subscribe(topics);
@@ -209,6 +220,16 @@ public sealed class CplmResultConsumerService : BackgroundService
         cmd.Parameters.Add(new NpgsqlParameter("payload", NpgsqlDbType.Jsonb) { Value = json });
         cmd.Parameters.AddWithValue("source", GetString(root, "calculation_source") ?? "flink");
         await cmd.ExecuteNonQueryAsync(ct);
+
+        // Phase 3.6 — KPI series dual-write. Timestamp = window end, so replays
+        // overwrite the same point (idempotent by window). Failure is logged by
+        // the client and never fails the message: Postgres is the evidence store.
+        await WriteKpiSeriesAsync(loopId, "gate_" + (GetString(root, "window_kind") ?? "24h"), root,
+            new[] { "mae", "rmse", "iae", "good_error_pct", "acf_period_s", "acf_regularity",
+                    "effort_ratio", "triangularity", "horch_oddness", "phase_area_norm_per_cycle",
+                    "corner_score", "travel_per_day", "reversals_per_hour",
+                    "harmonic_amplitude_ratio", "harmonic_energy_ratio", "confidence" },
+            new[] { "diagnosis", "severity" }, ct);
         return true;
     }
 
@@ -290,7 +311,36 @@ public sealed class CplmResultConsumerService : BackgroundService
         cmd.Parameters.Add(new NpgsqlParameter("payload", NpgsqlDbType.Jsonb) { Value = json });
         cmd.Parameters.AddWithValue("source", "flink");
         await cmd.ExecuteNonQueryAsync(ct);
+
+        var family = (isLong ? "long_" : "short_") + (GetString(root, "window_kind") ?? (isLong ? "24h" : "5m"));
+        await WriteKpiSeriesAsync(loopId, family, root, fields, textFields: null, ct);
         return true;
+    }
+
+    /// <summary>
+    /// Phase 3.6 — write a KPI aggregate row into IoTDB at
+    /// root.&lt;site&gt;.cpm.&lt;loop&gt;.kpi.&lt;family&gt; with explicitly declared timeseries.
+    /// NOTE: sample_count is the measurement name everywhere (CPA used "samples"
+    /// for features but "sample_count" for gates — unified here; Phase 5 readers
+    /// must use sample_count).
+    /// </summary>
+    private async Task WriteKpiSeriesAsync(string loopId, string family, JsonElement root,
+        string[] numericFields, string[]? textFields, CancellationToken ct)
+    {
+        if (!_iotdb.Enabled) return;
+        long endMs = root.TryGetProperty("windowEndMs", out var p) && p.TryGetInt64(out var v) && v > 0
+            ? v : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var device = $"{_iotdb.LoopRootPrefix}.{AMS.Api.Services.IotDbWriteClient.SafeNode(loopId)}.kpi.{family}";
+
+        var types = new Dictionary<string, string> { ["sample_count"] = "DOUBLE" };
+        foreach (var f in numericFields) types[f] = "DOUBLE";
+        if (textFields != null) foreach (var f in textFields) types[f] = "TEXT";
+        await _iotdb.EnsureTimeseriesAsync(device, types, ct);
+
+        var kv = new List<KeyValuePair<string, object?>> { new("sample_count", (double)GetInt(root, "sample_count")) };
+        foreach (var f in numericFields) kv.Add(new(f, GetDouble(root, f)));
+        if (textFields != null) foreach (var f in textFields) kv.Add(new(f, GetString(root, f)));
+        await _iotdb.InsertAsync(device, endMs, kv, ct);
     }
 
     // ── Self-healing DDL (mirrors database/scripts/30_cplm_analytics_schema.sql) ──
@@ -414,6 +464,7 @@ public sealed class CplmResultConsumerService : BackgroundService
 public sealed class CplmOptions
 {
     public const string SectionName = "Cplm";
+    public string SamplesTopic { get; set; } = "loop.samples.v1";
     public string GateResultsTopic { get; set; } = "clpm.gate.results.v1";
     public string ShortFeatureTopic { get; set; } = "clpm.feature.short.v1";
     public string LongFeatureTopic { get; set; } = "clpm.feature.long.v1";

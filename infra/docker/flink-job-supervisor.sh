@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# Standing Flink job supervisor (CPLM Phase 2.5, pattern from CPA).
+#
+# The one-shot flink-submit-* containers are restart:"no": after a JobManager
+# restart or a Docker daemon bounce (twice on 2026-08-05 alone) every job is
+# gone and nothing brings them back — there is no JM HA. This container loops
+# forever, re-submitting any of the six standing jobs that is not RUNNING.
+#
+# Job identity is the exact display name; every job hardcodes its own name, so
+# the grep is stable. FAILED/FINISHED jobs do not block resubmission (the guard
+# requires the "(RUNNING)" state, not just the name).
+set -euo pipefail
+
+JM_HOST="${FLINK_JOBMANAGER_HOST:-ams-flink-jobmanager}"
+JM_PORT="${FLINK_JOBMANAGER_PORT:-8081}"
+JAR="${FLINK_JAR_PATH:-/opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar}"
+KAFKA_BROKERS="${KAFKA_BROKERS:-kafka:9092}"
+INTERVAL="${SUPERVISOR_INTERVAL_SEC:-60}"
+RAW_ALARMS_OFFSETS="${RAW_ALARMS_STARTING_OFFSETS:-earliest}"
+IOTDB_HOST="${IOTDB_HOST:-iotdb}"
+IOTDB_PORT="${IOTDB_PORT:-6667}"
+
+# Explicit input topic: the compiled CPLM default (clpm.normalized.samples.v1)
+# is a dead topic — never rely on it.
+CPLM_ARGS=(
+  --bootstrap.servers "${KAFKA_BROKERS}"
+  --input-topic loop.samples.v1
+  --short-feature-topic clpm.feature.short.v1
+  --long-feature-topic clpm.feature.long.v1
+  --output-topic clpm.gate.results.v1
+  --consumer-group-id flink-ams-cplm
+)
+
+wait_jm() {
+  for _ in $(seq 1 60); do
+    if curl -sf "http://${JM_HOST}:${JM_PORT}/overview" >/dev/null 2>&1; then return 0; fi
+    sleep 5
+  done
+  echo "[supervisor] JobManager not reachable at ${JM_HOST}:${JM_PORT}" >&2
+  return 1
+}
+
+job_running() {
+  /opt/flink/bin/flink list -m "${JM_HOST}:${JM_PORT}" 2>/dev/null \
+    | grep -F "$1" | grep -q "(RUNNING)"
+}
+
+submit_if_missing() {
+  local name="$1"; local class="$2"; shift 2
+  if job_running "$name"; then return 0; fi
+  if [ ! -f "$JAR" ]; then
+    echo "[supervisor] JAR missing at ${JAR}; cannot submit '$name'" >&2
+    return 1
+  fi
+  echo "[supervisor] submitting '$name' (${class})"
+  /opt/flink/bin/flink run -d -m "${JM_HOST}:${JM_PORT}" -c "$class" "$JAR" "$@" || true
+  sleep 8
+}
+
+ensure_all() {
+  wait_jm || return 1
+  submit_if_missing "AMS - Alarm State Machine" com.ams.flink.OpcEventStreamJob \
+    --bootstrap.servers "${KAFKA_BROKERS}" \
+    --raw-alarms.starting-offsets "${RAW_ALARMS_OFFSETS}" \
+    --parallelism.raw-ingest 2 --parallelism.validation 2 --parallelism.dedup 2 \
+    --parallelism.normalization 2 --parallelism.soe 2 --parallelism.lifecycle 2 \
+    --parallelism.correlation 2 --parallelism.flood 1 --parallelism.kpi 1 \
+    --parallelism.projection 2 --parallelism.ack 2
+  submit_if_missing "AMS - IoTDB Alarm Persistence" com.ams.flink.IoTDBPersistenceJob \
+    --bootstrap.servers "${KAFKA_BROKERS}" \
+    --iotdb.host "${IOTDB_HOST}" --iotdb.port "${IOTDB_PORT}"
+  submit_if_missing "AMS - Live State RBE" com.ams.flink.LiveStateJob \
+    --bootstrap.servers "${KAFKA_BROKERS}"
+  submit_if_missing "AMS - CPLM Short Feature Engine" com.ams.flink.cplm.CplmShortFeatureStreamJob \
+    "${CPLM_ARGS[@]}" --job-name "AMS - CPLM Short Feature Engine"
+  submit_if_missing "AMS - CPLM Long Diagnostics Engine" com.ams.flink.cplm.CplmLongDiagnosticsStreamJob \
+    "${CPLM_ARGS[@]}" --job-name "AMS - CPLM Long Diagnostics Engine" --window-hours 24
+  submit_if_missing "AMS - CPLM Gate Fusion Engine" com.ams.flink.cplm.CplmGateFusionStreamJob \
+    "${CPLM_ARGS[@]}" --job-name "AMS - CPLM Gate Fusion Engine"
+}
+
+echo "[supervisor] starting; interval=${INTERVAL}s jar=${JAR}"
+while true; do
+  ensure_all || echo "[supervisor] ensure pass failed; retrying in ${INTERVAL}s"
+  sleep "${INTERVAL}"
+done

@@ -23,7 +23,13 @@ public final class CplmIngestPipeline {
                 .setBootstrapServers(cfg.brokers)
                 .setTopics(cfg.inputTopic)
                 .setGroupId(cfg.consumerGroupId)
-                .setStartingOffsets(OffsetsInitializer.latest())
+                // committed offsets, earliest for a brand-new group. latest() (the CPA
+                // original) silently skipped every sample published while a job was
+                // down — a fresh submit after a JobManager loss dropped the backlog
+                // instead of resuming. The supervisor resubmits jobs on failure, so
+                // resuming from committed offsets is the correct restart semantic.
+                .setStartingOffsets(OffsetsInitializer.committedOffsets(
+                        org.apache.kafka.clients.consumer.OffsetResetStrategy.EARLIEST))
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .setProperty("request.timeout.ms", "120000")
                 .setProperty("default.api.timeout.ms", "120000")
