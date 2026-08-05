@@ -77,6 +77,17 @@ ensure_all() {
     "${CPLM_ARGS[@]}" --job-name "AMS - CPLM Long Diagnostics Engine" --window-hours 24
   submit_if_missing "AMS - CPLM Gate Fusion Engine" com.ams.flink.cplm.CplmGateFusionStreamJob \
     "${CPLM_ARGS[@]}" --job-name "AMS - CPLM Gate Fusion Engine"
+  # Phase 6.1 — live loop metrics (report-by-exception) for HMI badges.
+  # --live-topic is MANDATORY: the compiled default is live.metrics, which
+  # LiveStateJob already produces to with an incompatible alarm-shaped payload.
+  # Decision C-A put loop metrics on their own topic rather than adding a third
+  # schema to a topic that already carries two.
+  submit_if_missing "AMS - Loop Live RBE Engine" com.ams.flink.cplm.LoopLiveRbeJob \
+    --bootstrap.servers "${KAFKA_BROKERS}" \
+    --input-topic loop.samples.v1 \
+    --live-topic "${CPLM_LIVE_TOPIC:-live.loop.metrics}" \
+    --consumer-group-id flink-ams-cplm \
+    --deadband "${CPLM_LIVE_DEADBAND:-0.05}"
 }
 
 echo "[supervisor] starting; interval=${INTERVAL}s jar=${JAR}"

@@ -34,7 +34,8 @@ public sealed class CpmReadinessController : ControllerBase
         ("AMS - Live State RBE",              "alarm"),
         ("AMS - CPLM Short Feature Engine",   "cplm"),
         ("AMS - CPLM Long Diagnostics Engine","cplm"),
-        ("AMS - CPLM Gate Fusion Engine",     "cplm")
+        ("AMS - CPLM Gate Fusion Engine",     "cplm"),
+        ("AMS - Loop Live RBE Engine",        "cplm")
     };
 
     private readonly NpgsqlDataSource _dataSource;

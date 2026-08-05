@@ -76,6 +76,9 @@ app.MapGet("/trend", async (
     DateTimeOffset end,
     int width,
     string? measurements,
+    // Opt-in so existing consumers (Designer, TrendCore, TimeSeriesTable,
+    // TableSymbol) keep their current response shape unchanged.
+    bool? envelope,
     ClaimsPrincipal user,
     IoTDbClient iotdb,
     CancellationToken ct) =>
@@ -95,11 +98,12 @@ app.MapGet("/trend", async (
 
     width = Math.Clamp(width, 10, 2000);
 
-    var sql    = iotdb.BuildTrendSql(series, start, end, width, measurements ?? "");
+    var wantEnvelope = envelope ?? false;
+    var sql    = iotdb.BuildTrendSql(series, start, end, width, measurements ?? "", wantEnvelope);
     var result = await iotdb.QueryAsync(sql, ct);
     var points = IoTDbClient.MapPoints(result);
 
-    return Results.Ok(new { series, start, end, width, points });
+    return Results.Ok(new { series, start, end, width, envelope = wantEnvelope, points });
 }).RequireAuthorization("historian.view");
 
 // ── GET /raw ───────────────────────────────────────────────────────────────

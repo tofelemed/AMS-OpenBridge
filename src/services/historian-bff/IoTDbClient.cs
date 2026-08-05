@@ -58,7 +58,7 @@ public sealed class IoTDbClient(HttpClient http, IConfiguration cfg)
     /// Callers MUST pass series/measurements already validated via IsValidSeries/IsValidMeasurements.
     /// </summary>
     public string BuildTrendSql(string series, DateTimeOffset start, DateTimeOffset end,
-                                int width, string measurements)
+                                int width, string measurements, bool envelope = false)
     {
         long startMs    = start.ToUnixTimeMilliseconds();
         long endMs      = end.ToUnixTimeMilliseconds();
@@ -68,7 +68,23 @@ public sealed class IoTDbClient(HttpClient http, IConfiguration cfg)
         string cols = string.IsNullOrWhiteSpace(measurements)
             ? "avg(severity), last_value(state), last_value(ack_status), last_value(priority)"
             : string.Join(", ", measurements.Split(',').Select(m => m.Trim())
-                .Select(m => m is "severity" ? "avg(severity)" : $"last_value({m})"));
+                .SelectMany(m => m switch
+                {
+                    // severity is a level, not a signal — averaging it is right.
+                    "severity" => new[] { "avg(severity)" },
+                    // state/ack/priority are categorical: last_value is the only
+                    // meaningful aggregate.
+                    "state" or "ack_status" or "priority" or "mode"
+                        => new[] { $"last_value({m})" },
+                    // Everything else is a process signal. Decimating a PV with
+                    // last_value ALIASES oscillation: a 45-minute cycle sampled
+                    // once per bucket can render as a flat line, which is exactly
+                    // the evidence a CPLM diagnosis screen must not lose. The
+                    // envelope keeps the extremes each bucket actually contained.
+                    _ => envelope
+                        ? new[] { $"min_value({m})", $"max_value({m})", $"avg({m})", $"last_value({m})" }
+                        : new[] { $"last_value({m})" }
+                }));
 
         return $"SELECT {cols} FROM {series} " +
                $"GROUP BY ([{startMs},{endMs}), {intervalMs}ms)";
@@ -156,10 +172,24 @@ public sealed class IoTDbClient(HttpClient http, IConfiguration cfg)
     {
         // Remove "avg(" / "last_value(" wrappers IoTDB adds to column names
         int paren = col.IndexOf('(');
+        var func = paren < 0 ? "" : col[..paren].Trim().ToLowerInvariant();
         var inner = paren < 0 ? col : col[(paren + 1)..col.LastIndexOf(')')];
         // root.ams.site1.alarms.device.severity → severity
         int dot = inner.LastIndexOf('.');
-        return dot >= 0 ? inner[(dot + 1)..] : inner;
+        var name = dot >= 0 ? inner[(dot + 1)..] : inner;
+
+        // Envelope queries select several aggregates of the SAME measurement, so
+        // the bare name is ambiguous and the last column silently overwrote the
+        // rest — which made an envelope response indistinguishable from a plain
+        // last_value one. Suffix the spread aggregates; last_value keeps the bare
+        // name so existing consumers see no change.
+        return func switch
+        {
+            "min_value" or "min" => name + "_min",
+            "max_value" or "max" => name + "_max",
+            "avg" when name is not "severity" => name + "_avg",
+            _ => name
+        };
     }
 
     private static object? JsonElementToValue(JsonElement? el)

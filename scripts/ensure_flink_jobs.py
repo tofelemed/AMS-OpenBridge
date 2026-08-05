@@ -158,6 +158,19 @@ CORE_JOBS = CORE_JOBS + (
         entry_class="com.ams.flink.cplm.CplmGateFusionStreamJob",
         extra_args=_CPLM_COMMON_ARGS + ("--job-name", "AMS - CPLM Gate Fusion Engine"),
     ),
+    # Phase 6.1 - live loop metrics. --live-topic is mandatory: the compiled
+    # default (live.metrics) already carries LiveStateJob's alarm payload.
+    FlinkJobSpec(
+        name="AMS - Loop Live RBE Engine",
+        entry_class="com.ams.flink.cplm.LoopLiveRbeJob",
+        extra_args=(
+            "--bootstrap.servers", KAFKA_BROKERS,
+            "--input-topic", "loop.samples.v1",
+            "--live-topic", "live.loop.metrics",
+            "--consumer-group-id", "flink-ams-cplm",
+            "--deadband", "0.05",
+        ),
+    ),
 )
 
 
