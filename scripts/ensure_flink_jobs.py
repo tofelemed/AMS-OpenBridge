@@ -125,6 +125,39 @@ CORE_JOBS: tuple[FlinkJobSpec, ...] = (
             "--bootstrap.servers", KAFKA_BROKERS,
         ),
     ),
+    # CPLM three-stage pipeline (loop.samples.v1 → clpm.gate.results.v1).
+    # --input-topic MUST be passed explicitly: the compiled default is the dead
+    # clpm.normalized.samples.v1. Do NOT add CplmGateStreamJob (legacy monolith —
+    # would double-produce gate results) or CplmHistoricalReplayJob (on-demand
+    # batch with a per-request name that defeats name-based reconciliation).
+)
+_CPLM_COMMON_ARGS: tuple[str, ...] = (
+    "--bootstrap.servers", KAFKA_BROKERS,
+    "--input-topic", "loop.samples.v1",
+    "--short-feature-topic", "clpm.feature.short.v1",
+    "--long-feature-topic", "clpm.feature.long.v1",
+    "--output-topic", "clpm.gate.results.v1",
+    "--consumer-group-id", "flink-ams-cplm",
+)
+CORE_JOBS = CORE_JOBS + (
+    FlinkJobSpec(
+        name="AMS - CPLM Short Feature Engine",
+        entry_class="com.ams.flink.cplm.CplmShortFeatureStreamJob",
+        extra_args=_CPLM_COMMON_ARGS + ("--job-name", "AMS - CPLM Short Feature Engine"),
+    ),
+    FlinkJobSpec(
+        name="AMS - CPLM Long Diagnostics Engine",
+        entry_class="com.ams.flink.cplm.CplmLongDiagnosticsStreamJob",
+        extra_args=_CPLM_COMMON_ARGS
+        + ("--job-name", "AMS - CPLM Long Diagnostics Engine", "--window-hours", "24"),
+    ),
+    # Fusion last: both of its sources start at OffsetsInitializer.latest(), so the
+    # feature topics should exist before it runs.
+    FlinkJobSpec(
+        name="AMS - CPLM Gate Fusion Engine",
+        entry_class="com.ams.flink.cplm.CplmGateFusionStreamJob",
+        extra_args=_CPLM_COMMON_ARGS + ("--job-name", "AMS - CPLM Gate Fusion Engine"),
+    ),
 )
 
 

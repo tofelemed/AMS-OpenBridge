@@ -38,6 +38,24 @@ $allowedTopics = @(
     @{ Name = "raw.telemetry.site1"; Partitions = 16; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" }
 )
 
+# ── Phase 2 (CPLM): ensure-only topics — NEVER deleted by this script ─────────
+# clpm.gate.results.v1 is evidence data with 30 d retention and loop.samples.v1
+# feeds a job holding 24 h of keyed state; wiping them on every stack start
+# (start-ams-production.ps1 calls this script with -Force) would destroy replay
+# margin and diagnosis history. These are created if missing and their configs
+# are aligned if they already exist, but existing data is left alone.
+# NB: every CPLM job also subscribes to ams.metadata.updates unconditionally.
+$cplmRetention30d = "2592000000"
+$ensureTopics = @(
+    @{ Name = "loop.samples.v1"; Partitions = 16; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
+    @{ Name = "clpm.feature.short.v1"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "clpm.feature.long.v1"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "clpm.gate.results.v1"; Partitions = 8; Config = "retention.ms=$cplmRetention30d,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "live.loop.metrics"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
+    @{ Name = "ams.metadata.updates"; Partitions = 3; Config = "cleanup.policy=compact,min.insync.replicas=$minIsr" },
+    @{ Name = "context.parameter-set.v1"; Partitions = 3; Config = "cleanup.policy=compact,min.insync.replicas=$minIsr" }
+)
+
 $legacyTopics = @(
     "raw-opc-events", "raw-opc-events-dlq", "current-opc-state", "opc-events", "opc-ack",
     "alarm-created", "alarm-updated", "alarm-cleared", "alarm-acknowledged"
@@ -79,6 +97,54 @@ function Test-KafkaTopicExists {
     return $false
 }
 
+# Expand "k1=v1,k2=v2" into repeated ("--config","k1=v1","--config","k2=v2") args.
+# Without this the broker defaults win (24 h retention, delete policy) no matter
+# what the topic table above declares.
+function Get-KafkaConfigArgs {
+    param([string]$Config)
+    $args = @()
+    foreach ($kv in ($Config -split ",")) {
+        $kv = $kv.Trim()
+        if ($kv) { $args += @("--config", $kv) }
+    }
+    return $args
+}
+
+function New-KafkaTopic {
+    param([hashtable]$Topic)
+    Write-Host "[Kafka] Creating $($Topic.Name) partitions=$($Topic.Partitions) config=$($Topic.Config)..." -ForegroundColor Green
+    Invoke-AmsKafkaExec -AllowFailure -Args (@(
+        "kafka-topics", "--bootstrap-server", "kafka:9092", "--create",
+        "--topic", $Topic.Name, "--partitions", "$($Topic.Partitions)", "--replication-factor", "1"
+    ) + (Get-KafkaConfigArgs -Config $Topic.Config)) | Out-Null
+}
+
+# Verify the declared config was actually applied; the create call is -AllowFailure
+# so this is the only place a silent failure becomes visible.
+function Test-KafkaTopicConfig {
+    param([hashtable]$Topic)
+    $desc = docker exec ams-kafka kafka-configs --bootstrap-server kafka:9092 --describe --entity-type topics --entity-name $Topic.Name 2>&1 | Out-String
+    $bad = @()
+    foreach ($kv in ($Topic.Config -split ",")) {
+        $kv = $kv.Trim()
+        if (-not $kv) { continue }
+        $key = ($kv -split "=")[0]
+        # min.insync.replicas=1 / defaults may not be listed as dynamic overrides; only
+        # flag keys that ARE listed but with a different value, or retention/cleanup
+        # keys missing entirely (those we always set explicitly).
+        $mustBePresent = $key -in @("retention.ms", "cleanup.policy")
+        if ($desc -match [regex]::Escape($key) + "=([^,\s]+)") {
+            if ($Matches[1] -ne ($kv -split "=", 2)[1]) { $bad += "$kv (actual: $key=$($Matches[1]))" }
+        }
+        elseif ($mustBePresent) { $bad += "$kv (not set - broker default in effect)" }
+    }
+    if ($bad.Count -gt 0) {
+        Write-Host "[Kafka] WARNING: $($Topic.Name) config mismatch: $($bad -join '; ')" -ForegroundColor Red
+        return $false
+    }
+    return $true
+}
+
 foreach ($t in $allowedTopics) {
     if (Test-KafkaTopicExists -TopicName $t.Name) {
         Write-Host "[Kafka] Deleting $($t.Name)..." -ForegroundColor Yellow
@@ -94,12 +160,40 @@ foreach ($t in $allowedTopics) {
         Write-Host "[Kafka] $($t.Name) still exists after delete; skipping create." -ForegroundColor DarkYellow
         continue
     }
-    Write-Host "[Kafka] Creating $($t.Name) partitions=$($t.Partitions)..." -ForegroundColor Green
-    Invoke-AmsKafkaExec -AllowFailure -Args @(
-        "kafka-topics", "--bootstrap-server", "kafka:9092", "--create",
-        "--topic", $t.Name, "--partitions", "$($t.Partitions)", "--replication-factor", "1"
-    ) | Out-Null
+    New-KafkaTopic -Topic $t
+}
+
+# ── Ensure-only tier (CPLM): create if missing, align config if present, never delete ──
+foreach ($t in $ensureTopics) {
+    if (Test-KafkaTopicExists -TopicName $t.Name) {
+        Write-Host "[Kafka] Ensuring config on existing $($t.Name) (data preserved)..." -ForegroundColor Cyan
+        Invoke-AmsKafkaExec -AllowFailure -Args @(
+            "kafka-configs", "--bootstrap-server", "kafka:9092", "--alter",
+            "--entity-type", "topics", "--entity-name", $t.Name,
+            "--add-config", $t.Config
+        ) | Out-Null
+    }
+    else {
+        New-KafkaTopic -Topic $t
+    }
+}
+
+# ── Verification pass — the create/alter calls above are -AllowFailure, so check ──
+Write-Host ""
+Write-Host "[Kafka] Verifying topic configs..." -ForegroundColor Cyan
+$configFailures = 0
+foreach ($t in ($allowedTopics + $ensureTopics)) {
+    if (-not (Test-KafkaTopicExists -TopicName $t.Name)) {
+        Write-Host "[Kafka] WARNING: $($t.Name) does not exist after create." -ForegroundColor Red
+        $configFailures++
+        continue
+    }
+    if (-not (Test-KafkaTopicConfig -Topic $t)) { $configFailures++ }
 }
 
 Write-Host ""
-Write-Host "Production topics ready." -ForegroundColor Cyan
+if ($configFailures -gt 0) {
+    Write-Host "Topics ready with $configFailures config mismatch(es) - see warnings above." -ForegroundColor Yellow
+    exit 1
+}
+Write-Host "Production topics ready (configs verified)." -ForegroundColor Cyan
