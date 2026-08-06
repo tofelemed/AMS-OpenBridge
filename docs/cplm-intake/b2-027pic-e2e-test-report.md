@@ -52,9 +52,13 @@ support a stiction/oscillation verdict, and it says exactly why instead of guess
 | L2 | Flink short features | rows at **all six resolutions** (1m…60m) with window_end = now | **PASS** |
 | L3 | Live RBE | `live.loop.metrics` emitting per-metric deltas (deadband 0.05) | **PASS** |
 | L4 | Sparkplug edge → Redis | all 5 snapshot keys (`pv/sp/op/mode/quality`); pv snapshot **4 s old**, quality 192 GOOD | **PASS** |
-| L5 | EMQX DDATA | same edge-node code path as L4 (snapshot written alongside DDATA publish); frontend `useLoopLive` subscribes `spBv1.0/ams_site1/DDATA/ams_edge1/B2_027PIC` | **PASS (via L4)** |
+| L5 | EMQX Sparkplug DDATA | **directly observed** in edge-node logs: `Publishing 56 bytes to spBv1.0/ams_site1/DDATA/ams_edge1/B2_027PIC`, one publish per metric with quality (`pv=-0.9005871 q=192`, `sp=-1.4 q=192`). Topic matches exactly what the frontend's `useLoopLive` subscribes to. | **PASS** |
 | L6 | IoTDB live rows | last pv **10 s old** | **PASS** |
 | L7 | `/kpis` live rows | 1m resolution rows with window_end = now | **PASS** |
+
+Sustained-run confirmation (~20 min after start): feature rows kept accumulating at every
+resolution — 1m: 22 rows, 5m: 22, 10m: 11, 15m/30m/60m: 5 each, newest window_end tracking
+the clock; IoTDB last PV 7 s old. The live plane is steady-state, not a first-sample fluke.
 
 ## Findings (worth knowing, none blocking)
 
