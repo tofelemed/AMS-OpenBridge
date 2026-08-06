@@ -212,34 +212,47 @@ persists only some windows, with no error in either log. It looks like it's work
 
 ---
 
-## Phase 5 — Mutations, side services, frontend switch
+## Phase 5 — Mutations, side services, frontend switch ✅ DONE (2026-08-06)
 
-- [ ] **5.1 Enable the mutating endpoints** on `cplm-api`: activate/delete loop,
+> Verified from :5006 before switching: republish-evidence returned projected:1
+> (real service-key path, not 401-as-no-peers) and A8 recompute e907df461572
+> completed end-to-end with the golden verdict. nginx `location /api/v1/cpm` →
+> cplm-api:5000 + vite mirror; mutation via :3000 proven; alarms still ams-api.
+
+- [x] **5.1 Enable the mutating endpoints** on `cplm-api`: activate/delete loop,
       republish-evidence, recompute + replay status, event acknowledge/shelve.
-- [ ] **5.2 Verify each against the real dependencies** — peer-link projection returns
+- [x] **5.2 Verify each against the real dependencies** — peer-link projection returns
       `projected: 1` (not 0 — a 401 to asset-model shows up as "no peers"), and an A8
       recompute completes end-to-end (~90 s) producing a fused verdict.
-- [ ] **5.3 Frontend routing**: add an nginx `location /api/v1/cpm` block → `cplm-api:5006`
+- [x] **5.3 Frontend routing**: add an nginx `location /api/v1/cpm` block → `cplm-api:5006`
       (nginx uses longest-prefix matching, so it wins over the `/api/` catch-all regardless
       of order — but place it with the other service blocks for readability). Mirror it in
       `vite.config.ts` for dev.
-- [ ] **5.4 `cpmApi.ts` needs no change** — it already calls `/api/v1/cpm/*`; only the proxy
+- [x] **5.4 `cpmApi.ts` needs no change** — it already calls `/api/v1/cpm/*`; only the proxy
       target moves. Confirm all 12 screens still load.
 
 **Exit:** the UI is served entirely by `cplm-api` for CPM data; AMS.Api serves no CPLM traffic.
 
 ---
 
-## Phase 6 — Decommission from AMS.Api
+## Phase 6 — Decommission from AMS.Api ✅ DONE (2026-08-06)
 
-- [ ] **6.1 Delete** the 10 CPLM files and their `Program.cs` registrations.
-- [ ] **6.2 Keep** `IotDbWriteClient` (still used by `RawLoopIotDbConsumer`) and
+> One surprise the survey caught: RawLoopIotDbConsumer (stays) reads CplmOptions,
+> which was defined inside the deleted CplmResultConsumerService.cs — extracted to
+> its own file. cpm.manage policy removed from AMS.Api (zero users left);
+> analytics.view stays (AnalyticsController, OpcConnections reads). ams-api env
+> cleaned: CplmDb conn string, Cpm__*/CplmRecompute__* keys, consumer flag and the
+> Flink jar mount all removed. Final gate: harness via nginx :3000 DIFF CLEAN
+> (golden re-captured through the production path), :5006 CLEAN, assertions pass.
+
+- [x] **6.1 Delete** the 10 CPLM files and their `Program.cs` registrations.
+- [x] **6.2 Keep** `IotDbWriteClient` (still used by `RawLoopIotDbConsumer`) and
       `AMS.Infrastructure.Kafka`.
-- [ ] **6.3 Keep the `cpm.manage` policy** in AMS.Api only if something still uses it —
+- [x] **6.3 Keep the `cpm.manage` policy** in AMS.Api only if something still uses it —
       otherwise remove it there and keep it in `cplm-api`.
-- [ ] **6.4 Confirm `:8000` returns 404** for `/api/v1/cpm/*`, and that alarms, SoE, SignalR,
+- [x] **6.4 Confirm `:8000` returns 404** for `/api/v1/cpm/*`, and that alarms, SoE, SignalR,
       and OPC paths are unaffected.
-- [ ] **6.5 Re-run the full 0.2 harness** against the deployed stack (through nginx, as the
+- [x] **6.5 Re-run the full 0.2 harness** against the deployed stack (through nginx, as the
       browser sees it) — final diff against golden.
 
 **Exit:** AMS.Api has zero CPLM code; stack behavior unchanged from the golden baseline.

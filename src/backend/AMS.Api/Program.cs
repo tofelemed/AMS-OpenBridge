@@ -68,17 +68,8 @@ var npgsqlDataSource = new NpgsqlDataSourceBuilder(connStr)
 
 services.AddSingleton(npgsqlDataSource);
 
-// CPLM extraction Phase 1 — CPLM data lives in its own logical database
-// (traverse_cplm) per the one-database-per-service rule. Only the Cpm*/Cplm*
-// classes use this source, via [FromKeyedServices("cplm")]. Required, not
-// optional: a silent fallback to AmsDb would write to the wrong database and
-// never log an error — the exact failure species this migration guards against.
-var cplmConnStr = config.GetConnectionString("CplmDb")
-    ?? throw new InvalidOperationException("CplmDb connection string is required (traverse_cplm database)");
-var cplmDataSource = new NpgsqlDataSourceBuilder(cplmConnStr)
-    .EnableDynamicJson()
-    .Build();
-services.AddKeyedSingleton("cplm", cplmDataSource);
+// CPLM extraction Phase 6 — the keyed "cplm" data source is gone: every class
+// that used traverse_cplm now lives in src/services/cplm-api.
 services.AddDbContext<AmsDbContext>(opt =>
     opt.UseNpgsql(npgsqlDataSource, o =>
     {
@@ -153,49 +144,17 @@ services.AddHttpClient<AMS.Api.Services.FlinkRestClient>(client =>
 services.AddHostedService<AMS.Api.BackgroundServices.AlarmIngestionService>();
 services.AddHostedService<AMS.Api.BackgroundServices.HttpAckWritebackService>();
 services.AddHostedService<AMS.Api.BackgroundServices.KpiConsumerService>();
-// CPLM Phase 3 — persist clpm.gate.results.v1 + clpm.feature.{short,long}.v1
-// into analytics.cplm_* (self-healing DDL, idempotent upserts, at-least-once),
-// dual-write KPI series to IoTDB, and write raw loop samples to the historian.
+// CPLM extraction Phase 6 — result/frame consumers, registry, recompute and
+// audit emitter all live in src/services/cplm-api now. What stays here:
+// IotDbWriteClient + CplmOptions, both used by RawLoopIotDbConsumer (raw loop
+// samples → IoTDB historian, its own consumer group — never part of the move).
 services.Configure<AMS.Api.BackgroundServices.CplmOptions>(
     config.GetSection(AMS.Api.BackgroundServices.CplmOptions.SectionName));
 services.Configure<AMS.Api.Services.IotDbWriteOptions>(
     config.GetSection(AMS.Api.Services.IotDbWriteOptions.SectionName));
 services.AddHttpClient("IotDbWrite");
 services.AddSingleton<AMS.Api.Services.IotDbWriteClient>();
-// Extraction Phase 4 — the CPLM result/frame consumers are moving to cplm-api
-// under the SAME consumer group ids. Flag-gated so the cutover is an ordered
-// pair of env flips (this off → zero group members confirmed → cplm-api on);
-// running both sides at once would split partitions and silently halve
-// persistence. Default TRUE here until the cutover flips it.
-if (config.GetValue("Cplm:ConsumersEnabled", true))
-{
-    services.AddHostedService<AMS.Api.BackgroundServices.CplmResultConsumerService>();
-    // A12 - derive durable event frames from the gate-result stream.
-    services.AddHostedService<AMS.Api.BackgroundServices.CplmEventFrameService>();
-}
-// RawLoopIotDbConsumer is NOT part of the extraction (raw loop samples → IoTDB
-// historian); it stays in AMS.Api with its own group.
 services.AddHostedService<AMS.Api.BackgroundServices.RawLoopIotDbConsumer>();
-// CPLM Phase 4 — loop registry / onboarding. Publishes peer-link evidence onto the
-// CPLM metadata broadcast, which is what makes G13 evaluable.
-services.Configure<AMS.Api.Services.CpmRegistryOptions>(
-    config.GetSection(AMS.Api.Services.CpmRegistryOptions.SectionName));
-services.AddHttpClient("AssetModel", client =>
-{
-    client.BaseAddress = new Uri(
-        config["Cpm:AssetModelUrl"] ?? "http://asset-model:5000");
-    client.Timeout = TimeSpan.FromSeconds(15);
-});
-services.AddSingleton<AMS.Api.Services.ICpmLoopRegistryService, AMS.Api.Services.CpmLoopRegistryService>();
-// A8 — on-demand batch recompute. Uploads the mounted jar to the JobManager and
-// runs CplmHistoricalReplayJob; the legacy FlinkRestClient path could never work
-// because the jar is bind-mounted, so GET /jars is always empty.
-services.Configure<AMS.Api.Services.CplmRecomputeOptions>(
-    config.GetSection(AMS.Api.Services.CplmRecomputeOptions.SectionName));
-services.AddSingleton<AMS.Api.Services.ICplmRecomputeService, AMS.Api.Services.CplmRecomputeService>();
-// A15 — CPLM governance events (activate/delete/ack/shelve/recompute) onto the
-// audit-events topic; audit-service chains them into the immutable store.
-services.AddSingleton<AMS.Api.Services.ICplmAuditEmitter, AMS.Api.Services.CplmAuditEmitter>();
 services.AddHostedService<AMS.Api.BackgroundServices.DriftAlertConsumerService>();
 services.AddSingleton<TelemetryIngestState>();
 services.AddSingleton<ReadinessHistoryStore>();
@@ -354,10 +313,7 @@ services.AddAuthorizationBuilder()
     .AddPolicy("analytics.view",         p => p.RequireClaim("permission", "analytics.view"))
     .AddPolicy("admin.users.edit",       p => p.RequireClaim("permission", "admin.users.edit"))
     .AddPolicy("admin.audit.view",       p => p.RequireClaim("permission", "admin.audit.view"))
-    // CPLM Phase 4 — onboarding a loop decides what the diagnosis engine evaluates
-    // and what operators are told about their plant, so writes need their own
-    // permission rather than riding on an alarm or analytics claim.
-    .AddPolicy("cpm.manage",             p => p.RequireClaim("permission", "cpm.manage"))
+    // cpm.manage moved to cplm-api with the CPLM controllers (extraction Phase 6).
     // Referenced by ObservabilityController and OpcConnectionsController since the
     // security hardening, but never registered — ASP.NET throws on an unknown policy,
     // so every endpoint carrying it returned HTTP 500 even for admins holding the claim.

@@ -433,8 +433,6 @@ services:
       ASPNETCORE_HTTP_PORTS:    "8000"
       Urls:                     http://0.0.0.0:8000
       ConnectionStrings__AmsDb: Host=postgres;Port=5432;Database=ams;Username=ams_user;Password=${POSTGRES_PASSWORD:-supersecurepassword123}
-      # CPLM extraction Phase 1 — CPLM tables live in their own logical database.
-      ConnectionStrings__CplmDb: Host=postgres;Port=5432;Database=traverse_cplm;Username=ams_user;Password=${POSTGRES_PASSWORD:-supersecurepassword123}
       # Phase K — RBAC: real bearer auth (replaces the TestAuthHandler bypass).
       Auth__JwksUrl:            http://auth-service:3002/api/auth/.well-known/jwks.json
       Auth__Issuer:             traverse-auth
@@ -452,21 +450,10 @@ services:
       AlarmIngestion__ServerId:      "f0af9a6d-85f6-4c9f-a8ad-6de277d1d110"
       AlarmIngestion__ServerName:    "Current Alarms Feed"
       # CPLM Phase 4 — the loop registry reads the asset graph from asset-model to
-      # project peer links. This key MUST match asset-model's Auth__ServiceKey or
-      # the call 401s and every loop silently reports NO_UPSTREAM_LINKS.
-      Cpm__AssetModelUrl:            http://asset-model:5000
-      Cpm__ServiceKey:               ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
-      Cpm__BootstrapServers:         kafka:9092
-      # Extraction Phase 4 — CUTOVER DONE 2026-08-06: cplm-api owns the CPLM
-      # consumer groups now. Never set true here while cplm-api's flag is true —
-      # two members in one group split partitions and silently halve persistence.
-      Cplm__ConsumersEnabled:        "false"
-      # A8 recompute uploads this jar to the JobManager and runs the batch replay
-      # job. The cluster's copy is bind-mounted (never uploaded), so Flink's
-      # /jars list is empty and the REST run endpoint needs its own upload.
-      CplmRecompute__JarPath:        /opt/ams/flink/ams-flink.jar
-    volumes:
-      - ../../src/flink/target/ams-flink-1.0-SNAPSHOT.jar:/opt/ams/flink/ams-flink.jar:ro
+      # CPLM extraction Phase 6: registry/recompute/consumers all live in
+      # cplm-api now — its env block carries the Cpm__/CplmRecompute__ keys and
+      # the Flink jar mount. ams-api keeps only RawLoopIotDbConsumer (IoTDB
+      # historian writes, defaults suffice).
     ports:
       - "8000:8000"
     networks:
@@ -877,8 +864,9 @@ services:
       # projection 401s and G13 silently degrades to "no peers".
       Cpm__ServiceKey:       ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
       Cpm__BootstrapServers: kafka:9092
-      # Phase 3: reads only; mutations stay on AMS.Api until Phase 5 flips this.
-      Cpm__EnableMutations:  "false"
+      # Phase 5 (2026-08-06): cplm-api owns CPLM mutations; AMS.Api's copies are
+      # deleted in Phase 6.
+      Cpm__EnableMutations:  "true"
       # Phase 4 cutover flag — CUTOVER DONE 2026-08-06: this service owns the
       # ams-api-cplm-results(+-frames) groups. AMS.Api's matching flag must stay
       # false; two members in one group split partitions and silently halve

@@ -47,6 +47,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite:     (path) => path.replace(/^\/api\/audit/, '/api/v1/audit'),
       },
+      '/api/v1/cpm': {
+        // CPLM extraction Phase 5 — loop-performance API is its own service now.
+        target:      'http://localhost:5006',
+        changeOrigin: true,
+      },
       '/api/v1': {
         // AMS .NET API (alarms REST) — runs in Docker on host port 8000.
         target:      'http://localhost:8000',
