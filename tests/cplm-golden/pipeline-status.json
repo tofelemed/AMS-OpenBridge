@@ -1,0 +1,52 @@
+{
+ "alarmRunning": true,
+ "allRequiredRunning": true,
+ "cplmRunning": true,
+ "jobManagerReachable": true,
+ "jobManagerUrl": "http://flink-jobmanager:8081",
+ "jobs": [
+  {
+   "name": "AMS - Alarm State Machine",
+   "role": "alarm",
+   "running": true,
+   "state": "RUNNING"
+  },
+  {
+   "name": "AMS - CPLM Gate Fusion Engine",
+   "role": "cplm",
+   "running": true,
+   "state": "RUNNING"
+  },
+  {
+   "name": "AMS - CPLM Long Diagnostics Engine",
+   "role": "cplm",
+   "running": true,
+   "state": "RUNNING"
+  },
+  {
+   "name": "AMS - CPLM Short Feature Engine",
+   "role": "cplm",
+   "running": true,
+   "state": "RUNNING"
+  },
+  {
+   "name": "AMS - IoTDB Alarm Persistence",
+   "role": "alarm",
+   "running": true,
+   "state": "RUNNING"
+  },
+  {
+   "name": "AMS - Live State RBE",
+   "role": "alarm",
+   "running": true,
+   "state": "RUNNING"
+  },
+  {
+   "name": "AMS - Loop Live RBE Engine",
+   "role": "cplm",
+   "running": true,
+   "state": "RUNNING"
+  }
+ ],
+ "unexpectedJobs": "<masked>"
+}

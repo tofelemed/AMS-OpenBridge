@@ -1,0 +1,28 @@
+{
+ "assetId": "1b8a8f21-dc46-4866-b614-0a1daa8ec5b1",
+ "criticality": "medium",
+ "displayName": "G13_LOOP_A",
+ "isActive": true,
+ "links": [
+  {
+   "origin": "asset-graph",
+   "relType": "PEER",
+   "toLoopId": "G13_LOOP_B"
+  }
+ ],
+ "loopId": "G13_LOOP_A",
+ "loopType": "TIC",
+ "monitoringEnabled": true,
+ "observabilityFlags": [
+  "NO_VP"
+ ],
+ "site": "site1",
+ "stepTestApproved": false,
+ "tags": {
+  "MODE": "site1/unit1/G13_LOOP_A.mode",
+  "OP": "site1/unit1/G13_LOOP_A.op",
+  "PV": "site1/unit1/G13_LOOP_A.pv",
+  "SP": "site1/unit1/G13_LOOP_A.sp"
+ },
+ "unit": "unit1"
+}

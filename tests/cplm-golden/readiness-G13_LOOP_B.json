@@ -1,0 +1,89 @@
+{
+ "blockers": [],
+ "checks": [
+  {
+   "id": "registry_row",
+   "label": "Registered",
+   "ok": true
+  },
+  {
+   "id": "monitoring_enabled",
+   "label": "Monitoring enabled",
+   "ok": true
+  },
+  {
+   "id": "loop_type",
+   "label": "Loop type (TIC)",
+   "ok": true
+  },
+  {
+   "id": "tag_pv",
+   "label": "Signal PV",
+   "ok": true
+  },
+  {
+   "id": "tag_sp",
+   "label": "Signal SP",
+   "ok": true
+  },
+  {
+   "id": "tag_op",
+   "label": "Signal OP",
+   "ok": true
+  },
+  {
+   "id": "tag_mode",
+   "label": "Signal MODE",
+   "ok": true
+  },
+  {
+   "id": "tag_vp",
+   "label": "Signal VP (enables G14 confirmation)",
+   "message": "Map a VP (valve position) signal to lift the confidence cap.",
+   "ok": false
+  },
+  {
+   "id": "peer_links",
+   "label": "Peer / upstream links (G13)",
+   "ok": true
+  },
+  {
+   "id": "binding_provenance",
+   "label": "Signal bindings resolve via asset-model",
+   "message": "Resolved by path fallback, not the asset model: pv (unreachable), sp (unreachable), op (unreachable), mode (unreachable). Register these signals as assets — a fallback binding derives a different device id and may point at nothing.",
+   "ok": false
+  },
+  {
+   "id": "evidence_short",
+   "label": "Short features produced",
+   "message": "No samples have reached loop.samples.v1 for this loop yet.",
+   "ok": false
+  },
+  {
+   "id": "evidence_verdict",
+   "label": "Diagnosis produced",
+   "message": "Fusion needs a 12h/24h window; verdicts appear once the long job's timers pass the window end.",
+   "ok": false
+  },
+  {
+   "id": "cplm_jobs",
+   "label": "CPLM Flink jobs running",
+   "ok": true
+  }
+ ],
+ "degraded": true,
+ "displayName": "G13_LOOP_B",
+ "evidence": {
+  "longFeatures": 0,
+  "shortFeatures": 0,
+  "verdicts": 0
+ },
+ "loopId": "G13_LOOP_B",
+ "ready": true,
+ "warnings": [
+  "No VP signal — G14 caps confidence at 0.89, so no diagnosis can reach CONFIRMED.",
+  "Resolved by path fallback, not the asset model: pv (unreachable), sp (unreachable), op (unreachable), mode (unreachable). Register these signals as assets — a fallback binding derives a different device id and may point at nothing.",
+  "No samples have reached loop.samples.v1 for this loop yet.",
+  "Fusion needs a 12h/24h window; verdicts appear once the long job's timers pass the window end."
+ ]
+}

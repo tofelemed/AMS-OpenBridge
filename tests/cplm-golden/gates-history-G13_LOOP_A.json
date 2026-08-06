@@ -1,0 +1,1437 @@
+{
+ "count": 6,
+ "loopId": "G13_LOOP_A",
+ "windowKind": "24h",
+ "windows": [
+  {
+   "confidence": 0.89,
+   "diagnosis": "SUSPECTED_FINAL_ELEMENT_NONLINEARITY",
+   "familyDisqualifiers": [
+    "geometry:FAMILY_DISQUALIFIED"
+   ],
+   "gates": [
+    {
+     "key": "G0",
+     "name": "Data quality",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G1",
+     "name": "Mode / service",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G2",
+     "name": "SP activity",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G2r",
+     "name": "Operating region",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G3",
+     "name": "Base performance",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G4",
+     "name": "Actuator effort",
+     "status": "WARN",
+     "tier": "short"
+    },
+    {
+     "key": "G5",
+     "name": "Oscillation (ACF)",
+     "status": "WARN",
+     "tier": "long"
+    },
+    {
+     "key": "G6",
+     "name": "Spectral (FFT)",
+     "status": "WARN",
+     "tier": "long"
+    },
+    {
+     "key": "G7",
+     "name": "Stiction shape",
+     "status": "STRONG",
+     "tier": "long"
+    },
+    {
+     "key": "G8",
+     "name": "Horch oddness",
+     "status": "STRONG",
+     "tier": "long"
+    },
+    {
+     "key": "G9",
+     "name": "Phase geometry",
+     "reason": "",
+     "status": "STRONG",
+     "tier": "long"
+    },
+    {
+     "key": "G10",
+     "name": "Valve / saturation",
+     "status": "PASS",
+     "tier": "long"
+    },
+    {
+     "key": "G11",
+     "name": "Sensor health",
+     "status": "PASS",
+     "tier": "long"
+    },
+    {
+     "key": "G12",
+     "name": "Step-test evidence",
+     "status": "NOT_EVALUATED",
+     "tier": "fusion"
+    },
+    {
+     "key": "G13",
+     "name": "Disturbance context",
+     "status": "PASS",
+     "tier": "fusion"
+    },
+    {
+     "key": "G14",
+     "name": "VP confirmation",
+     "status": "INSUFFICIENT_EVIDENCE",
+     "tier": "fusion"
+    },
+    {
+     "key": "G15",
+     "name": "Diagnosis band",
+     "status": "SUSPECTED",
+     "tier": "fusion"
+    }
+   ],
+   "hasPeerLinks": true,
+   "insufficientEvidenceReason": null,
+   "loopId": "G13_LOOP_A",
+   "metadata": {
+    "calculationSource": "flink-historical-replay",
+    "calculationVersion": "3.0.0",
+    "computedAt": "2026-08-05T13:09:13.796938Z",
+    "dynamicsClass": "UNKNOWN",
+    "dynamicsProfileVersion": "2.0.0",
+    "profileSource": "UNKNOWN",
+    "replayId": "2d6b25fd6915",
+    "schemaVersion": 1
+   },
+   "metrics": {
+    "acf_gamma0": 11.988035171768127,
+    "acf_period_candidate_count": 6,
+    "acf_period_s": 2700,
+    "acf_regularity": 1,
+    "acf_zero_crossing_count": 7,
+    "auto_pct": 1,
+    "bad_quality_pct": 0,
+    "completed_cycles": 31,
+    "completeness": 0.9994212962962963,
+    "confidence": 0.89,
+    "corner_score": 0.9192932216292913,
+    "corner_score_qualified": 0,
+    "corner_score_raw": 0.9192932216292913,
+    "cycle_samples": 540,
+    "delta_pv_mean": 3.5387753263719444e-06,
+    "delta_pv_std": 0.0055555544284919605,
+    "duplicate_timestamps": 0,
+    "effort_family_score": 0.9992019137035789,
+    "effort_ratio": 7.993615309628631,
+    "effort_score": 0.9992019137035789,
+    "expected_sample_count": 17280,
+    "family_score": 1,
+    "fft_h2_amp": 0.0002911362036361348,
+    "fft_h3_amp": 0.5376467120477663,
+    "fft_h5_amp": 0.19200793410542688,
+    "fft_max_bin": 8635,
+    "fft_peak_amplitude": 4.858180097200157,
+    "fft_peak_bin": 32,
+    "fft_peak_freq_hz": 0.00037058482918355534,
+    "fft_peak_period_s": 2698.4374999999995,
+    "fft_peak_ratio": 0.9843945867009006,
+    "fft_peak_to_median": 128123.4740469373,
+    "fft_score": 0.9843945867009006,
+    "fft_total_energy": 23.976070343835563,
+    "first_cycle_sse_sine": 2.6047620487896443,
+    "first_cycle_sse_triangle": 7.249750705340475e-29,
+    "freeze_index_s": 0,
+    "freeze_run_samples": 0,
+    "g14_confidence_cap": 0.89,
+    "gap_count": 0,
+    "geometry_family_score": 0,
+    "geometry_score": 0,
+    "good_error_pct": 0.6701795020266358,
+    "harmonic_amplitude_ratio": 0.15025086920460362,
+    "harmonic_energy_ratio": 0.013809520722454201,
+    "horch_even_sum": 0.2243080018485599,
+    "horch_odd_sum": 286.24045681939145,
+    "horch_oddness": 0.9992169787373727,
+    "horch_score": 0.9992169787373727,
+    "iae": 32398.472222222223,
+    "ise": 16200.385030864447,
+    "itae": 1399548053.4722228,
+    "mae": 0.37519944669626204,
+    "manual_pct": 0,
+    "max_gap_s": 5,
+    "mode_changes_per_h": 0,
+    "oce": 0.6701795020266358,
+    "op_range_pct": 12,
+    "op_std": 3.462380084432937,
+    "op_travel": 767.5111111112233,
+    "oscillation_family_score": 1,
+    "oscillation_score": 1,
+    "persistence_agree_count": 0,
+    "persistence_windows_required": 3,
+    "phase_area_norm_per_cycle": 0.47473118279536003,
+    "phase_bbox_area": 18,
+    "phase_path_area": 264.8999999998109,
+    "pv_drift_per_day": 0.03511109435013087,
+    "pv_quantization_count": 271,
+    "pv_std": 0.4331431962033951,
+    "raw_final_element_score": 0.8473828708081466,
+    "region_out_of_band_pct": 0,
+    "reversal_count": 63,
+    "reversals_per_hour": 2.625,
+    "rmse": 0.43314319656474687,
+    "sample_count": 17270,
+    "sample_period_sec": 5,
+    "sampling_jitter": 0,
+    "sat_limit_dwell_samples": 0,
+    "saturation_pct": 0,
+    "schemaVersion": 1,
+    "sp_changes_per_h": 0,
+    "sp_max": 100,
+    "sp_min": 100,
+    "sp_range": 0,
+    "spectral_entropy": 0.016961254660487427,
+    "spectral_entropy_bin_count": 96,
+    "spike_count": 0,
+    "stiction_family_score": 1,
+    "stiction_score": 1,
+    "travel_per_day": 767.5111111112233,
+    "triangularity": 1,
+    "valid_cycles": 31,
+    "valid_turning_angles": 17268,
+    "validated_period_s": 2700,
+    "windowEndMs": 1785932160000,
+    "windowStartMs": 1785845760000,
+    "window_area_norm": 14.716666666656161
+   },
+   "narrative": {
+    "recommendation": "Check VP/positioner data or perform an approved bump/stroke test before retuning.",
+    "selectedFamily": "stiction",
+    "statusReason": "selected_family=stiction, family_score=1.000, weighted=0.847, confidence=0.890, G14_cap=0.89, class=UNKNOWN, profile=UNKNOWN"
+   },
+   "observabilityFlags": [
+    "NO_VP",
+    "NO_STEP_TEST"
+   ],
+   "sampleCount": 17270,
+   "severity": "HIGH",
+   "windowEnd": "2026-08-05T12:16:00Z",
+   "windowKind": "24h",
+   "windowStart": "2026-08-04T12:16:00Z"
+  },
+  {
+   "confidence": 0.89,
+   "diagnosis": "SUSPECTED_FINAL_ELEMENT_NONLINEARITY",
+   "familyDisqualifiers": [
+    "geometry:FAMILY_DISQUALIFIED"
+   ],
+   "gates": [
+    {
+     "key": "G0",
+     "name": "Data quality",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G1",
+     "name": "Mode / service",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G2",
+     "name": "SP activity",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G2r",
+     "name": "Operating region",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G3",
+     "name": "Base performance",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G4",
+     "name": "Actuator effort",
+     "status": "WARN",
+     "tier": "short"
+    },
+    {
+     "key": "G5",
+     "name": "Oscillation (ACF)",
+     "status": "WARN",
+     "tier": "long"
+    },
+    {
+     "key": "G6",
+     "name": "Spectral (FFT)",
+     "status": "WARN",
+     "tier": "long"
+    },
+    {
+     "key": "G7",
+     "name": "Stiction shape",
+     "status": "STRONG",
+     "tier": "long"
+    },
+    {
+     "key": "G8",
+     "name": "Horch oddness",
+     "status": "STRONG",
+     "tier": "long"
+    },
+    {
+     "key": "G9",
+     "name": "Phase geometry",
+     "reason": "",
+     "status": "STRONG",
+     "tier": "long"
+    },
+    {
+     "key": "G10",
+     "name": "Valve / saturation",
+     "status": "PASS",
+     "tier": "long"
+    },
+    {
+     "key": "G11",
+     "name": "Sensor health",
+     "status": "PASS",
+     "tier": "long"
+    },
+    {
+     "key": "G12",
+     "name": "Step-test evidence",
+     "status": "NOT_EVALUATED",
+     "tier": "fusion"
+    },
+    {
+     "key": "G13",
+     "name": "Disturbance context",
+     "status": "PASS",
+     "tier": "fusion"
+    },
+    {
+     "key": "G14",
+     "name": "VP confirmation",
+     "status": "INSUFFICIENT_EVIDENCE",
+     "tier": "fusion"
+    },
+    {
+     "key": "G15",
+     "name": "Diagnosis band",
+     "status": "SUSPECTED",
+     "tier": "fusion"
+    }
+   ],
+   "hasPeerLinks": true,
+   "insufficientEvidenceReason": null,
+   "loopId": "G13_LOOP_A",
+   "metadata": {
+    "calculationVersion": "3.0.0",
+    "computedAt": "2026-08-05T12:50:31.393095Z",
+    "dynamicsClass": "UNKNOWN",
+    "dynamicsProfileVersion": "2.0.0",
+    "profileSource": "UNKNOWN",
+    "schemaVersion": 1
+   },
+   "metrics": {
+    "acf_gamma0": 11.977692233428877,
+    "acf_period_candidate_count": 6,
+    "acf_period_s": 2700,
+    "acf_regularity": 1,
+    "acf_zero_crossing_count": 7,
+    "auto_pct": 1,
+    "bad_quality_pct": 0,
+    "completed_cycles": 31,
+    "completeness": 0.9987847222222223,
+    "confidence": 0.89,
+    "corner_score": 0.9192932220201607,
+    "corner_score_qualified": 0,
+    "corner_score_raw": 0.9192932220201607,
+    "cycle_samples": 540,
+    "delta_pv_mean": 7.082061781331557e-06,
+    "delta_pv_std": 0.005555551041549371,
+    "duplicate_timestamps": 0,
+    "effort_family_score": 0.9984711195932401,
+    "effort_ratio": 7.987768956745921,
+    "effort_score": 0.9984711195932401,
+    "expected_sample_count": 17280,
+    "family_score": 1,
+    "fft_h2_amp": 0.0011482478205302425,
+    "fft_h3_amp": 0.5288467509796895,
+    "fft_h5_amp": 0.18351736259361315,
+    "fft_max_bin": 8629,
+    "fft_peak_amplitude": 4.846583513246264,
+    "fft_peak_bin": 32,
+    "fft_peak_freq_hz": 0.0003708210209166232,
+    "fft_peak_period_s": 2696.71875,
+    "fft_peak_ratio": 0.9805466400828631,
+    "fft_peak_to_median": 63836.98780396138,
+    "fft_score": 0.9805466400828631,
+    "fft_total_energy": 23.955384466857673,
+    "first_cycle_sse_sine": 2.6047620487896443,
+    "first_cycle_sse_triangle": 7.249750705340475e-29,
+    "freeze_index_s": 0,
+    "freeze_run_samples": 0,
+    "g14_confidence_cap": 0.89,
+    "gap_count": 0,
+    "geometry_family_score": 0,
+    "geometry_score": 0,
+    "good_error_pct": 0.6699692913842054,
+    "harmonic_amplitude_ratio": 0.1472196567837369,
+    "harmonic_energy_ratio": 0.013340451596221763,
+    "horch_even_sum": 0.440352577002876,
+    "horch_odd_sum": 286.25376754666536,
+    "horch_oddness": 0.9984640334555416,
+    "horch_score": 0.9984640334555416,
+    "iae": 32393.583333333336,
+    "ise": 16199.93348765457,
+    "itae": 1399126059.8611119,
+    "mae": 0.3753819263379493,
+    "manual_pct": 0,
+    "max_gap_s": 5,
+    "mode_changes_per_h": 0,
+    "oce": 0.6699692913842054,
+    "op_range_pct": 12,
+    "op_std": 3.460901884589898,
+    "op_travel": 767.022222222334,
+    "oscillation_family_score": 1,
+    "oscillation_score": 1,
+    "persistence_agree_count": 3,
+    "persistence_windows_required": 3,
+    "phase_area_norm_per_cycle": 0.43333333333299545,
+    "phase_bbox_area": 18,
+    "phase_path_area": 241.79999999981146,
+    "pv_drift_per_day": 0.03483767825513981,
+    "pv_quantization_count": 271,
+    "pv_std": 0.43327516147885803,
+    "raw_final_element_score": 0.8465454706425237,
+    "region_out_of_band_pct": 0,
+    "reversal_count": 63,
+    "reversals_per_hour": 2.625,
+    "rmse": 0.43327516785933784,
+    "sample_count": 17259,
+    "sample_period_sec": 5,
+    "sampling_jitter": 0,
+    "sat_limit_dwell_samples": 0,
+    "saturation_pct": 0,
+    "schemaVersion": 1,
+    "sp_changes_per_h": 0,
+    "sp_max": 100,
+    "sp_min": 100,
+    "sp_range": 0,
+    "spectral_entropy": 0.023854573886055677,
+    "spectral_entropy_bin_count": 96,
+    "spike_count": 0,
+    "stiction_family_score": 1,
+    "stiction_score": 1,
+    "travel_per_day": 767.022222222334,
+    "triangularity": 1,
+    "valid_cycles": 31,
+    "valid_turning_angles": 17257,
+    "validated_period_s": 2700,
+    "windowEndMs": 1785932100000,
+    "windowStartMs": 1785845700000,
+    "window_area_norm": 13.433333333322858
+   },
+   "narrative": {
+    "recommendation": "Check VP/positioner data or perform an approved bump/stroke test before retuning.",
+    "selectedFamily": "stiction",
+    "statusReason": "selected_family=stiction, family_score=1.000, weighted=0.847, confidence=0.890, G14_cap=0.89, class=UNKNOWN, profile=UNKNOWN"
+   },
+   "observabilityFlags": [
+    "NO_VP",
+    "HAS_PEER_LINKS",
+    "NO_STEP_TEST"
+   ],
+   "sampleCount": 17259,
+   "severity": "HIGH",
+   "windowEnd": "2026-08-05T12:15:00Z",
+   "windowKind": "24h",
+   "windowStart": "2026-08-04T12:15:00Z"
+  },
+  {
+   "confidence": 0.89,
+   "diagnosis": "SUSPECTED_FINAL_ELEMENT_NONLINEARITY",
+   "familyDisqualifiers": [
+    "geometry:FAMILY_DISQUALIFIED"
+   ],
+   "gates": [
+    {
+     "key": "G0",
+     "name": "Data quality",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G1",
+     "name": "Mode / service",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G2",
+     "name": "SP activity",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G2r",
+     "name": "Operating region",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G3",
+     "name": "Base performance",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G4",
+     "name": "Actuator effort",
+     "status": "STRONG",
+     "tier": "short"
+    },
+    {
+     "key": "G5",
+     "name": "Oscillation (ACF)",
+     "status": "WARN",
+     "tier": "long"
+    },
+    {
+     "key": "G6",
+     "name": "Spectral (FFT)",
+     "status": "WARN",
+     "tier": "long"
+    },
+    {
+     "key": "G7",
+     "name": "Stiction shape",
+     "status": "STRONG",
+     "tier": "long"
+    },
+    {
+     "key": "G8",
+     "name": "Horch oddness",
+     "status": "STRONG",
+     "tier": "long"
+    },
+    {
+     "key": "G9",
+     "name": "Phase geometry",
+     "reason": "",
+     "status": "PASS",
+     "tier": "long"
+    },
+    {
+     "key": "G10",
+     "name": "Valve / saturation",
+     "status": "PASS",
+     "tier": "long"
+    },
+    {
+     "key": "G11",
+     "name": "Sensor health",
+     "status": "PASS",
+     "tier": "long"
+    },
+    {
+     "key": "G12",
+     "name": "Step-test evidence",
+     "status": "NOT_EVALUATED",
+     "tier": "fusion"
+    },
+    {
+     "key": "G13",
+     "name": "Disturbance context",
+     "status": "PASS",
+     "tier": "fusion"
+    },
+    {
+     "key": "G14",
+     "name": "VP confirmation",
+     "status": "INSUFFICIENT_EVIDENCE",
+     "tier": "fusion"
+    },
+    {
+     "key": "G15",
+     "name": "Diagnosis band",
+     "status": "SUSPECTED",
+     "tier": "fusion"
+    }
+   ],
+   "hasPeerLinks": true,
+   "insufficientEvidenceReason": null,
+   "loopId": "G13_LOOP_A",
+   "metadata": {
+    "calculationVersion": "3.0.0",
+    "computedAt": "2026-08-05T12:49:37.090008Z",
+    "dynamicsClass": "UNKNOWN",
+    "dynamicsProfileVersion": "2.0.0",
+    "profileSource": "UNKNOWN",
+    "schemaVersion": 1
+   },
+   "metrics": {
+    "acf_gamma0": 12.035071191032277,
+    "acf_period_candidate_count": 6,
+    "acf_period_s": 2700,
+    "acf_regularity": 1,
+    "acf_zero_crossing_count": 7,
+    "auto_pct": 1,
+    "bad_quality_pct": 0,
+    "completed_cycles": 31,
+    "completeness": 0.9883680555555555,
+    "confidence": 0.89,
+    "corner_score": 0.9204479426338819,
+    "corner_score_qualified": 0,
+    "corner_score_raw": 0.9204479426338819,
+    "cycle_samples": 540,
+    "delta_pv_mean": 2.21207271213128e-05,
+    "delta_pv_std": 0.00555551151598976,
+    "duplicate_timestamps": 0,
+    "effort_family_score": 1,
+    "effort_ratio": 8.024563580172988,
+    "effort_score": 1,
+    "expected_sample_count": 17280,
+    "family_score": 1,
+    "fft_h2_amp": 0.05386995127695722,
+    "fft_h3_amp": 0.0753983121548667,
+    "fft_h5_amp": 0.024826785221779144,
+    "fft_max_bin": 8539,
+    "fft_peak_amplitude": 3.84255838480886,
+    "fft_peak_bin": 32,
+    "fft_peak_freq_hz": 0.00037472919960185026,
+    "fft_peak_period_s": 2668.5937499999995,
+    "fft_peak_ratio": 0.613426157032921,
+    "fft_peak_to_median": 5237.14232181559,
+    "fft_score": 0.613426157032921,
+    "fft_total_energy": 24.070142382064187,
+    "first_cycle_sse_sine": 2.6047620487896443,
+    "first_cycle_sse_triangle": 7.249750705340475e-29,
+    "freeze_index_s": 0,
+    "freeze_run_samples": 0,
+    "g14_confidence_cap": 0.89,
+    "gap_count": 0,
+    "geometry_family_score": 0,
+    "geometry_score": 0,
+    "good_error_pct": 0.6717020902863166,
+    "harmonic_amplitude_ratio": 0.040102200987446594,
+    "harmonic_energy_ratio": 0.0006233042658468582,
+    "horch_even_sum": 0.8256471554213114,
+    "horch_odd_sum": 286.19090388459614,
+    "horch_oddness": 0.9971233465372308,
+    "horch_score": 0.9971233465372308,
+    "iae": 31958.916666666664,
+    "ise": 15963.845524691604,
+    "itae": 1361839023.472224,
+    "mae": 0.3742481019575698,
+    "manual_pct": 0,
+    "max_gap_s": 5,
+    "mode_changes_per_h": 0,
+    "oce": 0.6717020902863166,
+    "op_range_pct": 12,
+    "op_std": 3.4693088724787895,
+    "op_travel": 759.0222222223276,
+    "oscillation_family_score": 1,
+    "oscillation_score": 1,
+    "persistence_agree_count": 3,
+    "persistence_windows_required": 3,
+    "phase_area_norm_per_cycle": 0.27743926722454926,
+    "phase_bbox_area": 18,
+    "phase_path_area": 154.8111111112985,
+    "pv_drift_per_day": 0.0047635103672486545,
+    "pv_quantization_count": 271,
+    "pv_std": 0.432336143619165,
+    "raw_final_element_score": 0.7914385928623844,
+    "region_out_of_band_pct": 0,
+    "reversal_count": 63,
+    "reversals_per_hour": 2.625,
+    "rmse": 0.4323669974698507,
+    "sample_count": 17079,
+    "sample_period_sec": 5,
+    "sampling_jitter": 0,
+    "sat_limit_dwell_samples": 0,
+    "saturation_pct": 0,
+    "schemaVersion": 1,
+    "sp_changes_per_h": 0,
+    "sp_max": 100,
+    "sp_min": 100,
+    "sp_range": 0,
+    "spectral_entropy": 0.30342654223327864,
+    "spectral_entropy_bin_count": 96,
+    "spike_count": 0,
+    "stiction_family_score": 1,
+    "stiction_score": 1,
+    "travel_per_day": 759.0222222223276,
+    "triangularity": 1,
+    "valid_cycles": 31,
+    "valid_turning_angles": 17077,
+    "validated_period_s": 2700,
+    "windowEndMs": 1785931200000,
+    "windowStartMs": 1785844800000,
+    "window_area_norm": 8.600617283961027
+   },
+   "narrative": {
+    "recommendation": "Check VP/positioner data or perform an approved bump/stroke test before retuning.",
+    "selectedFamily": "stiction",
+    "statusReason": "selected_family=stiction, family_score=1.000, weighted=0.791, confidence=0.890, G14_cap=0.89, class=UNKNOWN, profile=UNKNOWN"
+   },
+   "observabilityFlags": [
+    "NO_VP",
+    "HAS_PEER_LINKS",
+    "NO_STEP_TEST"
+   ],
+   "sampleCount": 17079,
+   "severity": "HIGH",
+   "windowEnd": "2026-08-05T12:00:00Z",
+   "windowKind": "24h",
+   "windowStart": "2026-08-04T12:00:00Z"
+  },
+  {
+   "confidence": 0.89,
+   "diagnosis": "SUSPECTED_FINAL_ELEMENT_NONLINEARITY",
+   "familyDisqualifiers": [
+    "geometry:FAMILY_DISQUALIFIED"
+   ],
+   "gates": [
+    {
+     "key": "G0",
+     "name": "Data quality",
+     "status": "WARN",
+     "tier": "short"
+    },
+    {
+     "key": "G1",
+     "name": "Mode / service",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G2",
+     "name": "SP activity",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G2r",
+     "name": "Operating region",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G3",
+     "name": "Base performance",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G4",
+     "name": "Actuator effort",
+     "status": "WARN",
+     "tier": "short"
+    },
+    {
+     "key": "G5",
+     "name": "Oscillation (ACF)",
+     "status": "WARN",
+     "tier": "long"
+    },
+    {
+     "key": "G6",
+     "name": "Spectral (FFT)",
+     "status": "WARN",
+     "tier": "long"
+    },
+    {
+     "key": "G7",
+     "name": "Stiction shape",
+     "status": "STRONG",
+     "tier": "long"
+    },
+    {
+     "key": "G8",
+     "name": "Horch oddness",
+     "status": "STRONG",
+     "tier": "long"
+    },
+    {
+     "key": "G9",
+     "name": "Phase geometry",
+     "reason": "",
+     "status": "PASS",
+     "tier": "long"
+    },
+    {
+     "key": "G10",
+     "name": "Valve / saturation",
+     "status": "PASS",
+     "tier": "long"
+    },
+    {
+     "key": "G11",
+     "name": "Sensor health",
+     "status": "PASS",
+     "tier": "long"
+    },
+    {
+     "key": "G12",
+     "name": "Step-test evidence",
+     "status": "NOT_EVALUATED",
+     "tier": "fusion"
+    },
+    {
+     "key": "G13",
+     "name": "Disturbance context",
+     "status": "PASS",
+     "tier": "fusion"
+    },
+    {
+     "key": "G14",
+     "name": "VP confirmation",
+     "status": "INSUFFICIENT_EVIDENCE",
+     "tier": "fusion"
+    },
+    {
+     "key": "G15",
+     "name": "Diagnosis band",
+     "status": "SUSPECTED",
+     "tier": "fusion"
+    }
+   ],
+   "hasPeerLinks": true,
+   "insufficientEvidenceReason": null,
+   "loopId": "G13_LOOP_A",
+   "metadata": {
+    "calculationVersion": "3.0.0",
+    "computedAt": "2026-08-05T12:48:43.128494Z",
+    "dynamicsClass": "UNKNOWN",
+    "dynamicsProfileVersion": "2.0.0",
+    "profileSource": "UNKNOWN",
+    "schemaVersion": 1
+   },
+   "metrics": {
+    "acf_gamma0": 11.982757025796689,
+    "acf_period_candidate_count": 6,
+    "acf_period_s": 2700,
+    "acf_regularity": 1,
+    "acf_zero_crossing_count": 7,
+    "auto_pct": 1,
+    "bad_quality_pct": 0,
+    "completed_cycles": 31,
+    "completeness": 0.9779513888888889,
+    "confidence": 0.89,
+    "corner_score": 0.9192685404319639,
+    "corner_score_qualified": 0,
+    "corner_score_raw": 0.9192685404319639,
+    "cycle_samples": 540,
+    "delta_pv_mean": -3.682224063334241e-05,
+    "delta_pv_std": 0.005555433525249595,
+    "duplicate_timestamps": 0,
+    "effort_family_score": 0.9983420731180507,
+    "effort_ratio": 7.986736584944405,
+    "effort_score": 0.9983420731180507,
+    "expected_sample_count": 17280,
+    "family_score": 1,
+    "fft_h2_amp": 0.04609274781550813,
+    "fft_h3_amp": 0.07098478383119157,
+    "fft_h5_amp": 0.027836759375875306,
+    "fft_max_bin": 8449,
+    "fft_peak_amplitude": 4.192185194703642,
+    "fft_peak_bin": 31,
+    "fft_peak_freq_hz": 0.00036688561453340437,
+    "fft_peak_period_s": 2725.6451612903224,
+    "fft_peak_ratio": 0.7333210824878572,
+    "fft_peak_to_median": 6960.913447408046,
+    "fft_score": 0.7333210824878572,
+    "fft_total_energy": 23.96551405159338,
+    "first_cycle_sse_sine": 2.6047620487896443,
+    "first_cycle_sse_triangle": 7.249750705340475e-29,
+    "freeze_index_s": 0,
+    "freeze_run_samples": 0,
+    "g14_confidence_cap": 0.89,
+    "gap_count": 0,
+    "geometry_family_score": 0,
+    "geometry_score": 0,
+    "good_error_pct": 0.6694478963252264,
+    "harmonic_amplitude_ratio": 0.034567721675477996,
+    "harmonic_energy_ratio": 0.00045169442842859657,
+    "horch_even_sum": 1.1393933339703715,
+    "horch_odd_sum": 286.16049290216046,
+    "horch_oddness": 0.9960341323176373,
+    "horch_score": 0.9960341323176373,
+    "iae": 31721.083333333336,
+    "ise": 15876.007561728635,
+    "itae": 1341660593.1944468,
+    "mae": 0.3754196500779139,
+    "manual_pct": 0,
+    "max_gap_s": 5,
+    "mode_changes_per_h": 0,
+    "oce": 0.6694478963252264,
+    "op_range_pct": 12,
+    "op_std": 3.4618360042195806,
+    "op_travel": 751.0222222223213,
+    "oscillation_family_score": 1,
+    "oscillation_score": 1,
+    "persistence_agree_count": 3,
+    "persistence_windows_required": 3,
+    "phase_area_norm_per_cycle": 0.15238948626078563,
+    "phase_bbox_area": 18,
+    "phase_path_area": 85.03333333351839,
+    "pv_drift_per_day": 0.012349037149733996,
+    "pv_quantization_count": 271,
+    "pv_std": 0.433448125827187,
+    "raw_final_element_score": 0.8089562998044136,
+    "region_out_of_band_pct": 0,
+    "reversal_count": 62,
+    "reversals_per_hour": 2.5833333333333335,
+    "rmse": 0.4334661050342898,
+    "sample_count": 16899,
+    "sample_period_sec": 5,
+    "sampling_jitter": 0,
+    "sat_limit_dwell_samples": 0,
+    "saturation_pct": 0,
+    "schemaVersion": 1,
+    "sp_changes_per_h": 0,
+    "sp_max": 100,
+    "sp_min": 100,
+    "sp_range": 0,
+    "spectral_entropy": 0.23452280409280102,
+    "spectral_entropy_bin_count": 93,
+    "spike_count": 0,
+    "stiction_family_score": 1,
+    "stiction_score": 1,
+    "travel_per_day": 751.0222222223213,
+    "triangularity": 1,
+    "valid_cycles": 31,
+    "valid_turning_angles": 16897,
+    "validated_period_s": 2700,
+    "windowEndMs": 1785930300000,
+    "windowStartMs": 1785843900000,
+    "window_area_norm": 4.7240740740843545
+   },
+   "narrative": {
+    "recommendation": "Check VP/positioner data or perform an approved bump/stroke test before retuning.",
+    "selectedFamily": "stiction",
+    "statusReason": "selected_family=stiction, family_score=1.000, weighted=0.809, confidence=0.890, G14_cap=0.89, class=UNKNOWN, profile=UNKNOWN"
+   },
+   "observabilityFlags": [
+    "NO_VP",
+    "HAS_PEER_LINKS",
+    "NO_STEP_TEST"
+   ],
+   "sampleCount": 16899,
+   "severity": "HIGH",
+   "windowEnd": "2026-08-05T11:45:00Z",
+   "windowKind": "24h",
+   "windowStart": "2026-08-04T11:45:00Z"
+  },
+  {
+   "confidence": 0.89,
+   "diagnosis": "SUSPECTED_FINAL_ELEMENT_NONLINEARITY",
+   "familyDisqualifiers": [
+    "geometry:FAMILY_DISQUALIFIED"
+   ],
+   "gates": [
+    {
+     "key": "G0",
+     "name": "Data quality",
+     "status": "WARN",
+     "tier": "short"
+    },
+    {
+     "key": "G1",
+     "name": "Mode / service",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G2",
+     "name": "SP activity",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G2r",
+     "name": "Operating region",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G3",
+     "name": "Base performance",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G4",
+     "name": "Actuator effort",
+     "status": "WARN",
+     "tier": "short"
+    },
+    {
+     "key": "G5",
+     "name": "Oscillation (ACF)",
+     "status": "WARN",
+     "tier": "long"
+    },
+    {
+     "key": "G6",
+     "name": "Spectral (FFT)",
+     "status": "WARN",
+     "tier": "long"
+    },
+    {
+     "key": "G7",
+     "name": "Stiction shape",
+     "status": "STRONG",
+     "tier": "long"
+    },
+    {
+     "key": "G8",
+     "name": "Horch oddness",
+     "status": "STRONG",
+     "tier": "long"
+    },
+    {
+     "key": "G9",
+     "name": "Phase geometry",
+     "reason": "",
+     "status": "STRONG",
+     "tier": "long"
+    },
+    {
+     "key": "G10",
+     "name": "Valve / saturation",
+     "status": "PASS",
+     "tier": "long"
+    },
+    {
+     "key": "G11",
+     "name": "Sensor health",
+     "status": "PASS",
+     "tier": "long"
+    },
+    {
+     "key": "G12",
+     "name": "Step-test evidence",
+     "status": "NOT_EVALUATED",
+     "tier": "fusion"
+    },
+    {
+     "key": "G13",
+     "name": "Disturbance context",
+     "status": "PASS",
+     "tier": "fusion"
+    },
+    {
+     "key": "G14",
+     "name": "VP confirmation",
+     "status": "INSUFFICIENT_EVIDENCE",
+     "tier": "fusion"
+    },
+    {
+     "key": "G15",
+     "name": "Diagnosis band",
+     "status": "SUSPECTED",
+     "tier": "fusion"
+    }
+   ],
+   "hasPeerLinks": true,
+   "insufficientEvidenceReason": null,
+   "loopId": "G13_LOOP_A",
+   "metadata": {
+    "calculationVersion": "3.0.0",
+    "computedAt": "2026-08-05T12:47:47.673618Z",
+    "dynamicsClass": "UNKNOWN",
+    "dynamicsProfileVersion": "2.0.0",
+    "profileSource": "UNKNOWN",
+    "schemaVersion": 1
+   },
+   "metrics": {
+    "acf_gamma0": 11.976954590168138,
+    "acf_period_candidate_count": 6,
+    "acf_period_s": 2700,
+    "acf_regularity": 1,
+    "acf_zero_crossing_count": 7,
+    "auto_pct": 1,
+    "bad_quality_pct": 0,
+    "completed_cycles": 30,
+    "completeness": 0.9675347222222223,
+    "confidence": 0.89,
+    "corner_score": 0.919242837598566,
+    "corner_score_qualified": 0,
+    "corner_score_raw": 0.919242837598566,
+    "cycle_samples": 540,
+    "delta_pv_mean": 7.310816019991627e-06,
+    "delta_pv_std": 0.005555550745230968,
+    "duplicate_timestamps": 0,
+    "effort_family_score": 0.998421698283808,
+    "effort_ratio": 7.987373586270464,
+    "effort_score": 0.998421698283808,
+    "expected_sample_count": 17280,
+    "family_score": 1,
+    "fft_h2_amp": 0.001184907257304345,
+    "fft_h3_amp": 0.5288587561901205,
+    "fft_h5_amp": 0.18354148625307712,
+    "fft_max_bin": 8359,
+    "fft_peak_amplitude": 4.846426781751443,
+    "fft_peak_bin": 31,
+    "fft_peak_freq_hz": 0.00037083557629044806,
+    "fft_peak_period_s": 2696.612903225806,
+    "fft_peak_ratio": 0.9805436087299997,
+    "fft_peak_to_median": 61924.32413315901,
+    "fft_score": 0.9805436087299997,
+    "fft_total_energy": 23.95390918033633,
+    "first_cycle_sse_sine": 2.6047620487896443,
+    "first_cycle_sse_triangle": 7.249750705340475e-29,
+    "freeze_index_s": 0,
+    "freeze_run_samples": 0,
+    "g14_confidence_cap": 0.89,
+    "gap_count": 0,
+    "geometry_family_score": 0,
+    "geometry_score": 0,
+    "good_error_pct": 0.6699563371015013,
+    "harmonic_amplitude_ratio": 0.1472394367717282,
+    "harmonic_energy_ratio": 0.013342235715305881,
+    "horch_even_sum": 0.4547057051455232,
+    "horch_odd_sum": 286.25542238597114,
+    "horch_oddness": 0.9984140577517339,
+    "horch_score": 0.9984140577517339,
+    "iae": 31381.083333333336,
+    "ise": 15693.669598765666,
+    "itae": 1313030259.8611119,
+    "mae": 0.37539426201726583,
+    "manual_pct": 0,
+    "max_gap_s": 5,
+    "mode_changes_per_h": 0,
+    "oce": 0.6699563371015013,
+    "op_range_pct": 12,
+    "op_std": 3.4607967356588407,
+    "op_travel": 743.0222222223149,
+    "oscillation_family_score": 1,
+    "oscillation_score": 1,
+    "persistence_agree_count": 2,
+    "persistence_windows_required": 3,
+    "phase_area_norm_per_cycle": 0.4311111111107729,
+    "phase_bbox_area": 18,
+    "phase_path_area": 232.79999999981737,
+    "pv_drift_per_day": 0.037125899252140104,
+    "pv_quantization_count": 271,
+    "pv_std": 0.4332834439605556,
+    "raw_final_element_score": 0.846527607602418,
+    "region_out_of_band_pct": 0,
+    "reversal_count": 61,
+    "reversals_per_hour": 2.5416666666666665,
+    "rmse": 0.4332834507597251,
+    "sample_count": 16719,
+    "sample_period_sec": 5,
+    "sampling_jitter": 0,
+    "sat_limit_dwell_samples": 0,
+    "saturation_pct": 0,
+    "schemaVersion": 1,
+    "sp_changes_per_h": 0,
+    "sp_max": 100,
+    "sp_min": 100,
+    "sp_range": 0,
+    "spectral_entropy": 0.024020521923485645,
+    "spectral_entropy_bin_count": 93,
+    "spike_count": 0,
+    "stiction_family_score": 1,
+    "stiction_score": 1,
+    "travel_per_day": 743.0222222223149,
+    "triangularity": 1,
+    "valid_cycles": 30,
+    "valid_turning_angles": 16717,
+    "validated_period_s": 2700,
+    "windowEndMs": 1785929400000,
+    "windowStartMs": 1785843000000,
+    "window_area_norm": 12.933333333323187
+   },
+   "narrative": {
+    "recommendation": "Check VP/positioner data or perform an approved bump/stroke test before retuning.",
+    "selectedFamily": "stiction",
+    "statusReason": "selected_family=stiction, family_score=1.000, weighted=0.847, confidence=0.890, G14_cap=0.89, class=UNKNOWN, profile=UNKNOWN"
+   },
+   "observabilityFlags": [
+    "NO_VP",
+    "HAS_PEER_LINKS",
+    "NO_STEP_TEST"
+   ],
+   "sampleCount": 16719,
+   "severity": "HIGH",
+   "windowEnd": "2026-08-05T11:30:00Z",
+   "windowKind": "24h",
+   "windowStart": "2026-08-04T11:30:00Z"
+  },
+  {
+   "confidence": 0.54,
+   "diagnosis": "DETECTED_FINAL_ELEMENT_NONLINEARITY",
+   "familyDisqualifiers": [
+    "geometry:FAMILY_DISQUALIFIED"
+   ],
+   "gates": [
+    {
+     "key": "G0",
+     "name": "Data quality",
+     "status": "WARN",
+     "tier": "short"
+    },
+    {
+     "key": "G1",
+     "name": "Mode / service",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G2",
+     "name": "SP activity",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G2r",
+     "name": "Operating region",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G3",
+     "name": "Base performance",
+     "status": "PASS",
+     "tier": "short"
+    },
+    {
+     "key": "G4",
+     "name": "Actuator effort",
+     "status": "STRONG",
+     "tier": "short"
+    },
+    {
+     "key": "G5",
+     "name": "Oscillation (ACF)",
+     "status": "WARN",
+     "tier": "long"
+    },
+    {
+     "key": "G6",
+     "name": "Spectral (FFT)",
+     "status": "WARN",
+     "tier": "long"
+    },
+    {
+     "key": "G7",
+     "name": "Stiction shape",
+     "status": "STRONG",
+     "tier": "long"
+    },
+    {
+     "key": "G8",
+     "name": "Horch oddness",
+     "status": "STRONG",
+     "tier": "long"
+    },
+    {
+     "key": "G9",
+     "name": "Phase geometry",
+     "reason": "",
+     "status": "STRONG",
+     "tier": "long"
+    },
+    {
+     "key": "G10",
+     "name": "Valve / saturation",
+     "status": "PASS",
+     "tier": "long"
+    },
+    {
+     "key": "G11",
+     "name": "Sensor health",
+     "status": "PASS",
+     "tier": "long"
+    },
+    {
+     "key": "G12",
+     "name": "Step-test evidence",
+     "status": "NOT_EVALUATED",
+     "tier": "fusion"
+    },
+    {
+     "key": "G13",
+     "name": "Disturbance context",
+     "status": "PASS",
+     "tier": "fusion"
+    },
+    {
+     "key": "G14",
+     "name": "VP confirmation",
+     "status": "INSUFFICIENT_EVIDENCE",
+     "tier": "fusion"
+    },
+    {
+     "key": "G15",
+     "name": "Diagnosis band",
+     "status": "SUSPECTED",
+     "tier": "fusion"
+    }
+   ],
+   "hasPeerLinks": true,
+   "insufficientEvidenceReason": null,
+   "loopId": "G13_LOOP_A",
+   "metadata": {
+    "calculationVersion": "3.0.0",
+    "computedAt": "2026-08-05T12:46:59.068038Z",
+    "dynamicsClass": "UNKNOWN",
+    "dynamicsProfileVersion": "2.0.0",
+    "profileSource": "UNKNOWN",
+    "schemaVersion": 1
+   },
+   "metrics": {
+    "acf_gamma0": 12.03615840514889,
+    "acf_period_candidate_count": 6,
+    "acf_period_s": 2700,
+    "acf_regularity": 1,
+    "acf_zero_crossing_count": 7,
+    "auto_pct": 1,
+    "bad_quality_pct": 0,
+    "completed_cycles": 30,
+    "completeness": 0.9571180555555555,
+    "confidence": 0.54,
+    "corner_score": 0.9204353362092148,
+    "corner_score_qualified": 0,
+    "corner_score_raw": 0.9204353362092148,
+    "cycle_samples": 540,
+    "delta_pv_mean": 2.2843014740463175e-05,
+    "delta_pv_std": 0.005555508593057791,
+    "duplicate_timestamps": 0,
+    "effort_family_score": 1,
+    "effort_ratio": 8.025382687342667,
+    "effort_score": 1,
+    "expected_sample_count": 17280,
+    "family_score": 1,
+    "fft_h2_amp": 0.05557269634704262,
+    "fft_h3_amp": 0.07615182436421179,
+    "fft_h5_amp": 0.025280722838226743,
+    "fft_max_bin": 8269,
+    "fft_peak_amplitude": 3.8429827667392393,
+    "fft_peak_bin": 31,
+    "fft_peak_freq_hz": 0.00037487151581111315,
+    "fft_peak_period_s": 2667.5806451612902,
+    "fft_peak_ratio": 0.61350623879863,
+    "fft_peak_to_median": 5072.30075457116,
+    "fft_score": 0.61350623879863,
+    "fft_total_energy": 24.072316810297703,
+    "first_cycle_sse_sine": 2.6047620487896443,
+    "first_cycle_sse_triangle": 7.249750705340475e-29,
+    "freeze_index_s": 0,
+    "freeze_run_samples": 0,
+    "g14_confidence_cap": 0.89,
+    "gap_count": 0,
+    "geometry_family_score": 0,
+    "geometry_score": 0,
+    "good_error_pct": 0.6717455710744301,
+    "harmonic_amplitude_ratio": 0.040855047518909296,
+    "harmonic_energy_ratio": 0.0006450573320062761,
+    "horch_even_sum": 0.8529291463176528,
+    "horch_odd_sum": 286.1903326538238,
+    "horch_oddness": 0.9970285693488548,
+    "horch_score": 0.9970285693488548,
+    "iae": 30946.416666666664,
+    "ise": 15457.581635802699,
+    "itae": 1276916823.472224,
+    "mae": 0.374223552411472,
+    "manual_pct": 0,
+    "max_gap_s": 5,
+    "mode_changes_per_h": 0,
+    "oce": 0.6717455710744301,
+    "op_range_pct": 12,
+    "op_std": 3.469475672364216,
+    "op_travel": 735.0222222223085,
+    "oscillation_family_score": 1,
+    "oscillation_score": 1,
+    "persistence_agree_count": 1,
+    "persistence_windows_required": 3,
+    "phase_area_norm_per_cycle": 0.3033539094653566,
+    "phase_bbox_area": 18,
+    "phase_path_area": 163.81111111129258,
+    "pv_drift_per_day": 0.005084204184917898,
+    "pv_quantization_count": 271,
+    "pv_std": 0.43231280146131135,
+    "raw_final_element_score": 0.7914316496895655,
+    "region_out_of_band_pct": 0,
+    "reversal_count": 61,
+    "reversals_per_hour": 2.5416666666666665,
+    "rmse": 0.43234570466412736,
+    "sample_count": 16539,
+    "sample_period_sec": 5,
+    "sampling_jitter": 0,
+    "sat_limit_dwell_samples": 0,
+    "saturation_pct": 0,
+    "schemaVersion": 1,
+    "sp_changes_per_h": 0,
+    "sp_max": 100,
+    "sp_min": 100,
+    "sp_range": 0,
+    "spectral_entropy": 0.30529959165721837,
+    "spectral_entropy_bin_count": 93,
+    "spike_count": 0,
+    "stiction_family_score": 1,
+    "stiction_score": 1,
+    "travel_per_day": 735.0222222223085,
+    "triangularity": 1,
+    "valid_cycles": 30,
+    "valid_turning_angles": 16537,
+    "validated_period_s": 2700,
+    "windowEndMs": 1785928500000,
+    "windowStartMs": 1785842100000,
+    "window_area_norm": 9.100617283960698
+   },
+   "narrative": {
+    "recommendation": "Check VP/positioner data or perform an approved bump/stroke test before retuning.",
+    "selectedFamily": "stiction",
+    "statusReason": "selected_family=stiction, family_score=1.000, weighted=0.791, confidence=0.890, G14_cap=0.89, class=UNKNOWN, profile=UNKNOWN; persistence_cap agree=1/2"
+   },
+   "observabilityFlags": [
+    "NO_VP",
+    "HAS_PEER_LINKS",
+    "NO_STEP_TEST",
+    "PERSISTENCE_CAP"
+   ],
+   "sampleCount": 16539,
+   "severity": "LOW",
+   "windowEnd": "2026-08-05T11:15:00Z",
+   "windowKind": "24h",
+   "windowStart": "2026-08-04T11:15:00Z"
+  }
+ ]
+}

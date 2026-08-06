@@ -1,0 +1,43 @@
+{
+ "count": 2,
+ "loops": [
+  {
+   "confidence": 0.89,
+   "criticality": "medium",
+   "diagnosis": "SUSPECTED_FINAL_ELEMENT_NONLINEARITY",
+   "displayName": "G13_LOOP_A",
+   "loopId": "G13_LOOP_A",
+   "loopType": "TIC",
+   "metrics": {
+    "acfPeriodS": 2700,
+    "effortRatio": 7.993615309628631,
+    "goodErrorPct": 0.6701795020266358,
+    "horchOddness": 0.9992169787373727,
+    "mae": 0.37519944669626204,
+    "triangularity": 1
+   },
+   "observabilityFlags": [
+    "NO_VP",
+    "NO_STEP_TEST"
+   ],
+   "rank": 1,
+   "severity": "HIGH",
+   "site": "site1",
+   "unit": "unit1",
+   "windowEnd": "2026-08-05T12:16:00Z"
+  },
+  {
+   "criticality": "medium",
+   "diagnosis": "NOT_EVALUATED",
+   "displayName": "G13_LOOP_B",
+   "loopId": "G13_LOOP_B",
+   "loopType": "TIC",
+   "metrics": {},
+   "observabilityFlags": [],
+   "rank": 2,
+   "site": "site1",
+   "unit": "unit1"
+  }
+ ],
+ "windowKind": "24h"
+}

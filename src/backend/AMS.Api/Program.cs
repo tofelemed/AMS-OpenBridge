@@ -335,7 +335,11 @@ services.AddAuthorizationBuilder()
     // CPLM Phase 4 — onboarding a loop decides what the diagnosis engine evaluates
     // and what operators are told about their plant, so writes need their own
     // permission rather than riding on an alarm or analytics claim.
-    .AddPolicy("cpm.manage",             p => p.RequireClaim("permission", "cpm.manage"));
+    .AddPolicy("cpm.manage",             p => p.RequireClaim("permission", "cpm.manage"))
+    // Referenced by ObservabilityController and OpcConnectionsController since the
+    // security hardening, but never registered — ASP.NET throws on an unknown policy,
+    // so every endpoint carrying it returned HTTP 500 even for admins holding the claim.
+    .AddPolicy("system.manage",          p => p.RequireClaim("permission", "system.manage"));
 
 // ---- Rate Limiting ----
 services.AddRateLimiter(opt =>

@@ -1,0 +1,180 @@
+{
+ "bands": [
+  {
+   "band": "NO_CALL",
+   "maxConfidence": 0.35
+  },
+  {
+   "band": "DETECTED",
+   "maxConfidence": 0.55
+  },
+  {
+   "band": "CLASSIFIED",
+   "maxConfidence": 0.75
+  },
+  {
+   "band": "SUSPECTED",
+   "maxConfidence": 0.9
+  },
+  {
+   "band": "CONFIRMED",
+   "maxConfidence": 1
+  }
+ ],
+ "engine": "CplmGateFusionEngine (Flink)",
+ "families": [
+  {
+   "key": "FINAL_ELEMENT_NONLINEARITY",
+   "label": "Stiction / final element",
+   "primaryGates": [
+    "G7",
+    "G8",
+    "G9"
+   ]
+  },
+  {
+   "key": "OSCILLATION",
+   "label": "Oscillation",
+   "primaryGates": [
+    "G5",
+    "G6"
+   ]
+  },
+  {
+   "key": "EXCESSIVE_EFFORT",
+   "label": "Excessive actuator effort",
+   "primaryGates": [
+    "G4"
+   ]
+  },
+  {
+   "key": "GEOMETRY",
+   "label": "Phase geometry",
+   "primaryGates": [
+    "G9"
+   ]
+  }
+ ],
+ "gates": [
+  {
+   "key": "G0",
+   "name": "Data quality",
+   "observedInResults": true,
+   "question": "Is the sample stream complete and trustworthy?",
+   "tier": "short"
+  },
+  {
+   "key": "G1",
+   "name": "Mode / service",
+   "observedInResults": true,
+   "question": "Was the loop in automatic long enough to judge?",
+   "tier": "short"
+  },
+  {
+   "key": "G2",
+   "name": "SP activity",
+   "observedInResults": true,
+   "question": "Did the setpoint move enough to confound the analysis?",
+   "tier": "short"
+  },
+  {
+   "key": "G2r",
+   "name": "Operating region",
+   "observedInResults": true,
+   "question": "Was the loop inside its valid operating band?",
+   "tier": "short"
+  },
+  {
+   "key": "G3",
+   "name": "Base performance",
+   "observedInResults": true,
+   "question": "How large is the control error?",
+   "tier": "short"
+  },
+  {
+   "key": "G4",
+   "name": "Actuator effort",
+   "observedInResults": true,
+   "question": "How hard is the actuator working for that error?",
+   "tier": "short"
+  },
+  {
+   "key": "G5",
+   "name": "Oscillation (ACF)",
+   "observedInResults": true,
+   "question": "Is there a regular oscillation, and at what period?",
+   "tier": "long"
+  },
+  {
+   "key": "G6",
+   "name": "Spectral (FFT)",
+   "observedInResults": true,
+   "question": "Does the spectrum show a dominant peak and harmonics?",
+   "tier": "long"
+  },
+  {
+   "key": "G7",
+   "name": "Stiction shape",
+   "observedInResults": true,
+   "question": "Is the OP trace triangular, as stiction produces?",
+   "tier": "long"
+  },
+  {
+   "key": "G8",
+   "name": "Horch oddness",
+   "observedInResults": true,
+   "question": "Does the cross-correlation show the odd symmetry of stiction?",
+   "tier": "long"
+  },
+  {
+   "key": "G9",
+   "name": "Phase geometry",
+   "observedInResults": true,
+   "question": "Does the PV-OP phase plot show sharp corners?",
+   "tier": "long"
+  },
+  {
+   "key": "G10",
+   "name": "Valve / saturation",
+   "observedInResults": true,
+   "question": "Is the actuator saturated or cycling at a limit?",
+   "tier": "long"
+  },
+  {
+   "key": "G11",
+   "name": "Sensor health",
+   "observedInResults": true,
+   "question": "Is the measurement frozen, quantised or drifting?",
+   "tier": "long"
+  },
+  {
+   "key": "G12",
+   "name": "Step-test evidence",
+   "observedInResults": true,
+   "question": "Is there an approved step test to support tuning claims?",
+   "tier": "fusion"
+  },
+  {
+   "key": "G13",
+   "name": "Disturbance context",
+   "observedInResults": true,
+   "question": "Could an upstream loop be causing this oscillation?",
+   "tier": "fusion"
+  },
+  {
+   "key": "G14",
+   "name": "VP confirmation",
+   "observedInResults": true,
+   "question": "Is valve position available to confirm the diagnosis?",
+   "tier": "fusion"
+  },
+  {
+   "key": "G15",
+   "name": "Diagnosis band",
+   "observedInResults": true,
+   "question": "How confident is the final verdict?",
+   "tier": "fusion"
+  }
+ ],
+ "note": "CONFIRMED requires a VP signal; without it G14 caps confidence at 0.89."
+}

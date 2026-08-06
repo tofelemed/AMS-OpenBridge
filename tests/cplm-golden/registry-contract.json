@@ -1,0 +1,36 @@
+{
+ "loopTypes": [
+  "FIC",
+  "PIC",
+  "PIC_GAS",
+  "PIC_VAPOUR",
+  "LIC",
+  "TIC",
+  "UNKNOWN"
+ ],
+ "notes": {
+  "loopType": "Mandatory. ISA first-letter inference fails on UNS-style tag names, and the UNKNOWN profile disables geometry-based diagnosis (prior 0.0).",
+  "peerLinks": "Create asset relationships, then onboard (or republish evidence). Without peer links G13 stays NOT_EVALUATED and the disturbance soft-block cannot fire.",
+  "vp": "Optional. Without a VP role, G14 caps confidence at 0.89 and no diagnosis can reach CONFIRMED."
+ },
+ "optionalSignalRoles": [
+  "VP",
+  "STATUS",
+  "QUALITY",
+  "UPSTREAM",
+  "UTILITY"
+ ],
+ "relationshipTypes": [
+  "PEER",
+  "UPSTREAM_OF",
+  "DOWNSTREAM_OF",
+  "CASCADE_PRIMARY",
+  "CASCADE_SECONDARY"
+ ],
+ "requiredSignalRoles": [
+  "PV",
+  "SP",
+  "OP",
+  "MODE"
+ ]
+}

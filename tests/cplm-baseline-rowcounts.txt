@@ -1,0 +1,11 @@
+gate_results|550
+short_features|3842
+long_features|755
+event_frames|41
+loop_registry|2
+loop_link|2
+loop_tag_map|8
+loop_group|0
+loop_group_member|0
+loop_tag_catalog|0
+threshold_profile|0

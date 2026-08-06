@@ -1,0 +1,77 @@
+{
+ "count": 2,
+ "gateKeys": [
+  "G0",
+  "G1",
+  "G2",
+  "G2r",
+  "G3",
+  "G4",
+  "G5",
+  "G6",
+  "G7",
+  "G8",
+  "G9",
+  "G10",
+  "G11",
+  "G12",
+  "G13",
+  "G14",
+  "G15"
+ ],
+ "loops": [
+  {
+   "confidence": 0.89,
+   "diagnosis": "SUSPECTED_FINAL_ELEMENT_NONLINEARITY",
+   "displayName": "G13_LOOP_A",
+   "gates": {
+    "G0": "PASS",
+    "G1": "PASS",
+    "G10": "PASS",
+    "G11": "PASS",
+    "G12": "NOT_EVALUATED",
+    "G13": "PASS",
+    "G14": "INSUFFICIENT_EVIDENCE",
+    "G15": "SUSPECTED",
+    "G2": "PASS",
+    "G2r": "PASS",
+    "G3": "PASS",
+    "G4": "WARN",
+    "G5": "WARN",
+    "G6": "WARN",
+    "G7": "STRONG",
+    "G8": "STRONG",
+    "G9": "STRONG"
+   },
+   "loopId": "G13_LOOP_A",
+   "loopType": "TIC",
+   "windowEnd": "2026-08-05T12:16:00Z"
+  },
+  {
+   "diagnosis": "NOT_EVALUATED",
+   "displayName": "G13_LOOP_B",
+   "gates": {
+    "G0": "NOT_EVALUATED",
+    "G1": "NOT_EVALUATED",
+    "G10": "NOT_EVALUATED",
+    "G11": "NOT_EVALUATED",
+    "G12": "NOT_EVALUATED",
+    "G13": "NOT_EVALUATED",
+    "G14": "NOT_EVALUATED",
+    "G15": "NOT_EVALUATED",
+    "G2": "NOT_EVALUATED",
+    "G2r": "NOT_EVALUATED",
+    "G3": "NOT_EVALUATED",
+    "G4": "NOT_EVALUATED",
+    "G5": "NOT_EVALUATED",
+    "G6": "NOT_EVALUATED",
+    "G7": "NOT_EVALUATED",
+    "G8": "NOT_EVALUATED",
+    "G9": "NOT_EVALUATED"
+   },
+   "loopId": "G13_LOOP_B",
+   "loopType": "TIC"
+  }
+ ],
+ "windowKind": "24h"
+}

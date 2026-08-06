@@ -1,0 +1,20 @@
+{
+ "capability": {
+  "confidenceCappedWithoutVp": 0.89,
+  "loopsCappedByMissingVp": 2,
+  "loopsWithoutDisturbanceContext": 0
+ },
+ "diagnoses": [
+  {
+   "count": 1,
+   "diagnosis": "SUSPECTED_FINAL_ELEMENT_NONLINEARITY"
+  }
+ ],
+ "loops": {
+  "monitored": 2,
+  "total": 2,
+  "withPeerLinks": 2,
+  "withVp": 0
+ },
+ "windowKind": "24h"
+}

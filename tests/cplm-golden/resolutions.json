@@ -1,0 +1,103 @@
+{
+ "gates": [
+  {
+   "key": "G0",
+   "name": "Data quality",
+   "tier": "short"
+  },
+  {
+   "key": "G1",
+   "name": "Mode / service",
+   "tier": "short"
+  },
+  {
+   "key": "G2",
+   "name": "SP activity",
+   "tier": "short"
+  },
+  {
+   "key": "G2r",
+   "name": "Operating region",
+   "tier": "short"
+  },
+  {
+   "key": "G3",
+   "name": "Base performance",
+   "tier": "short"
+  },
+  {
+   "key": "G4",
+   "name": "Actuator effort",
+   "tier": "short"
+  },
+  {
+   "key": "G5",
+   "name": "Oscillation (ACF)",
+   "tier": "long"
+  },
+  {
+   "key": "G6",
+   "name": "Spectral (FFT)",
+   "tier": "long"
+  },
+  {
+   "key": "G7",
+   "name": "Stiction shape",
+   "tier": "long"
+  },
+  {
+   "key": "G8",
+   "name": "Horch oddness",
+   "tier": "long"
+  },
+  {
+   "key": "G9",
+   "name": "Phase geometry",
+   "tier": "long"
+  },
+  {
+   "key": "G10",
+   "name": "Valve / saturation",
+   "tier": "long"
+  },
+  {
+   "key": "G11",
+   "name": "Sensor health",
+   "tier": "long"
+  },
+  {
+   "key": "G12",
+   "name": "Step-test evidence",
+   "tier": "fusion"
+  },
+  {
+   "key": "G13",
+   "name": "Disturbance context",
+   "tier": "fusion"
+  },
+  {
+   "key": "G14",
+   "name": "VP confirmation",
+   "tier": "fusion"
+  },
+  {
+   "key": "G15",
+   "name": "Diagnosis band",
+   "tier": "fusion"
+  }
+ ],
+ "longWindows": [
+  "4h",
+  "12h",
+  "24h"
+ ],
+ "note": "Gate results are produced only for 12h and 24h windows: fusion fires on long records.",
+ "shortWindows": [
+  "1m",
+  "5m",
+  "10m",
+  "15m",
+  "30m",
+  "60m"
+ ]
+}

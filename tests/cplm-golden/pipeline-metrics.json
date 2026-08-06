@@ -1,0 +1,116 @@
+{
+ "collectedAt": "<masked>",
+ "jobManagerReachable": true,
+ "jobs": [
+  {
+   "checkpoint": {
+    "completed": "<masked>",
+    "failed": "<masked>",
+    "lastCompletedAgeSec": "<masked>",
+    "lastDurationMs": "<masked>",
+    "lastSizeBytes": "<masked>"
+   },
+   "jid": "<masked>",
+   "name": "AMS - Alarm State Machine",
+   "role": "alarm",
+   "startTime": "<masked>",
+   "state": "RUNNING",
+   "uptimeSec": "<masked>"
+  },
+  {
+   "checkpoint": {
+    "completed": "<masked>",
+    "failed": "<masked>",
+    "lastCompletedAgeSec": "<masked>",
+    "lastDurationMs": "<masked>",
+    "lastSizeBytes": "<masked>"
+   },
+   "jid": "<masked>",
+   "name": "AMS - CPLM Gate Fusion Engine",
+   "role": "cplm",
+   "startTime": "<masked>",
+   "state": "RUNNING",
+   "uptimeSec": "<masked>"
+  },
+  {
+   "checkpoint": {
+    "completed": "<masked>",
+    "failed": "<masked>",
+    "lastCompletedAgeSec": "<masked>",
+    "lastDurationMs": "<masked>",
+    "lastSizeBytes": "<masked>"
+   },
+   "jid": "<masked>",
+   "name": "AMS - CPLM Long Diagnostics Engine",
+   "role": "cplm",
+   "startTime": "<masked>",
+   "state": "RUNNING",
+   "uptimeSec": "<masked>"
+  },
+  {
+   "checkpoint": {
+    "completed": "<masked>",
+    "failed": "<masked>",
+    "lastCompletedAgeSec": "<masked>",
+    "lastDurationMs": "<masked>",
+    "lastSizeBytes": "<masked>"
+   },
+   "jid": "<masked>",
+   "name": "AMS - CPLM Short Feature Engine",
+   "role": "cplm",
+   "startTime": "<masked>",
+   "state": "RUNNING",
+   "uptimeSec": "<masked>"
+  },
+  {
+   "checkpoint": {
+    "completed": "<masked>",
+    "failed": "<masked>",
+    "lastCompletedAgeSec": "<masked>",
+    "lastDurationMs": "<masked>",
+    "lastSizeBytes": "<masked>"
+   },
+   "jid": "<masked>",
+   "name": "AMS - IoTDB Alarm Persistence",
+   "role": "alarm",
+   "startTime": "<masked>",
+   "state": "RUNNING",
+   "uptimeSec": "<masked>"
+  },
+  {
+   "checkpoint": {
+    "completed": "<masked>",
+    "failed": "<masked>",
+    "lastCompletedAgeSec": "<masked>",
+    "lastDurationMs": "<masked>",
+    "lastSizeBytes": "<masked>"
+   },
+   "jid": "<masked>",
+   "name": "AMS - Live State RBE",
+   "role": "alarm",
+   "startTime": "<masked>",
+   "state": "RUNNING",
+   "uptimeSec": "<masked>"
+  },
+  {
+   "checkpoint": {
+    "completed": "<masked>",
+    "failed": "<masked>",
+    "lastCompletedAgeSec": "<masked>",
+    "lastDurationMs": "<masked>",
+    "lastSizeBytes": "<masked>"
+   },
+   "jid": "<masked>",
+   "name": "AMS - Loop Live RBE Engine",
+   "role": "cplm",
+   "startTime": "<masked>",
+   "state": "RUNNING",
+   "uptimeSec": "<masked>"
+  }
+ ],
+ "unavailable": [
+  "watermarkLagMs",
+  "eventsPerSecond",
+  "backpressure"
+ ]
+}
