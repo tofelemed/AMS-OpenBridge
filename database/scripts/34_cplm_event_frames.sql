@@ -11,6 +11,9 @@
 -- rebuilt; ack/shelve state is operator input and is the one thing that cannot.
 -- ═══════════════════════════════════════════════════════════════════════════
 
+-- CPLM extraction Phase 1: this schema lives in traverse_cplm (created by 29_traverse_cplm_db.sql), not ams.
+\c traverse_cplm
+
 CREATE SCHEMA IF NOT EXISTS analytics;
 
 CREATE TABLE IF NOT EXISTS analytics.cplm_event_frames (

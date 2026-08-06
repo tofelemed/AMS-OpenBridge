@@ -22,7 +22,7 @@ public sealed class CpmEventsController : ControllerBase
     private readonly ILogger<CpmEventsController> _logger;
 
     public CpmEventsController(
-        NpgsqlDataSource dataSource, ICplmAuditEmitter audit, ILogger<CpmEventsController> logger)
+        [FromKeyedServices("cplm")] NpgsqlDataSource dataSource, ICplmAuditEmitter audit, ILogger<CpmEventsController> logger)
     {
         _dataSource = dataSource;
         _audit = audit;

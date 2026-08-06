@@ -51,7 +51,7 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
 
     public CplmRecomputeService(
         IHttpClientFactory httpFactory,
-        Npgsql.NpgsqlDataSource dataSource,
+        [Microsoft.Extensions.DependencyInjection.FromKeyedServices("cplm")] Npgsql.NpgsqlDataSource dataSource,
         IConfiguration config,
         IOptions<CplmRecomputeOptions> options,
         ILogger<CplmRecomputeService> logger)

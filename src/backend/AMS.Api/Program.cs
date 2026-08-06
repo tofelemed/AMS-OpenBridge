@@ -67,6 +67,18 @@ var npgsqlDataSource = new NpgsqlDataSourceBuilder(connStr)
     .Build();
 
 services.AddSingleton(npgsqlDataSource);
+
+// CPLM extraction Phase 1 — CPLM data lives in its own logical database
+// (traverse_cplm) per the one-database-per-service rule. Only the Cpm*/Cplm*
+// classes use this source, via [FromKeyedServices("cplm")]. Required, not
+// optional: a silent fallback to AmsDb would write to the wrong database and
+// never log an error — the exact failure species this migration guards against.
+var cplmConnStr = config.GetConnectionString("CplmDb")
+    ?? throw new InvalidOperationException("CplmDb connection string is required (traverse_cplm database)");
+var cplmDataSource = new NpgsqlDataSourceBuilder(cplmConnStr)
+    .EnableDynamicJson()
+    .Build();
+services.AddKeyedSingleton("cplm", cplmDataSource);
 services.AddDbContext<AmsDbContext>(opt =>
     opt.UseNpgsql(npgsqlDataSource, o =>
     {

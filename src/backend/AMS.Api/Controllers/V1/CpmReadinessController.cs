@@ -44,7 +44,7 @@ public sealed class CpmReadinessController : ControllerBase
     private readonly ILogger<CpmReadinessController> _logger;
 
     public CpmReadinessController(
-        NpgsqlDataSource dataSource,
+        [FromKeyedServices("cplm")] NpgsqlDataSource dataSource,
         IHttpClientFactory httpFactory,
         IConfiguration config,
         ILogger<CpmReadinessController> logger)

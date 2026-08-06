@@ -10,6 +10,9 @@
 -- at 30+ to avoid the 15/17/19/20/21/24 collisions in CPA's originals.
 -- ═══════════════════════════════════════════════════════════════════════════
 
+-- CPLM extraction Phase 1: this schema lives in traverse_cplm (created by 29_traverse_cplm_db.sql), not ams.
+\c traverse_cplm
+
 CREATE SCHEMA IF NOT EXISTS cpm;
 
 CREATE TABLE IF NOT EXISTS cpm.loop_registry (

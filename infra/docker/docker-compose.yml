@@ -433,6 +433,8 @@ services:
       ASPNETCORE_HTTP_PORTS:    "8000"
       Urls:                     http://0.0.0.0:8000
       ConnectionStrings__AmsDb: Host=postgres;Port=5432;Database=ams;Username=ams_user;Password=${POSTGRES_PASSWORD:-supersecurepassword123}
+      # CPLM extraction Phase 1 — CPLM tables live in their own logical database.
+      ConnectionStrings__CplmDb: Host=postgres;Port=5432;Database=traverse_cplm;Username=ams_user;Password=${POSTGRES_PASSWORD:-supersecurepassword123}
       # Phase K — RBAC: real bearer auth (replaces the TestAuthHandler bypass).
       Auth__JwksUrl:            http://auth-service:3002/api/auth/.well-known/jwks.json
       Auth__Issuer:             traverse-auth

@@ -49,7 +49,7 @@ public sealed class CpmAnalyticsController : ControllerBase
 
     private readonly NpgsqlDataSource _dataSource;
 
-    public CpmAnalyticsController(NpgsqlDataSource dataSource) => _dataSource = dataSource;
+    public CpmAnalyticsController([FromKeyedServices("cplm")] NpgsqlDataSource dataSource) => _dataSource = dataSource;
 
     /// <summary>
     /// A3 — the gate matrix for a loop's most recent evaluated window.

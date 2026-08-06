@@ -94,7 +94,7 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
     private static int _schemaEnsured;
 
     public CpmLoopRegistryService(
-        NpgsqlDataSource dataSource,
+        [FromKeyedServices("cplm")] NpgsqlDataSource dataSource,
         IOptions<CpmRegistryOptions> options,
         IHttpClientFactory httpFactory,
         ILogger<CpmLoopRegistryService> logger)

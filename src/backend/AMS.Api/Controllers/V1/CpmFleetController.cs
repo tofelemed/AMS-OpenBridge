@@ -23,7 +23,7 @@ public sealed class CpmFleetController : ControllerBase
 {
     private readonly NpgsqlDataSource _dataSource;
 
-    public CpmFleetController(NpgsqlDataSource dataSource) => _dataSource = dataSource;
+    public CpmFleetController([FromKeyedServices("cplm")] NpgsqlDataSource dataSource) => _dataSource = dataSource;
 
     /// <summary>
     /// A11 — headline counts: how many loops are registered, monitored, evaluated,

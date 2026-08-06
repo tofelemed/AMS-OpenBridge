@@ -46,7 +46,7 @@ public sealed class CplmResultConsumerService : BackgroundService
         IOptions<KafkaOptions> kafkaOptions,
         IOptions<CplmOptions> cplmOptions,
         AMS.Api.Services.IotDbWriteClient iotdb,
-        NpgsqlDataSource dataSource)
+        [FromKeyedServices("cplm")] NpgsqlDataSource dataSource)
     {
         _logger = logger;
         _dataSource = dataSource;

@@ -44,7 +44,7 @@ public sealed class CplmEventFrameService : BackgroundService
         ILogger<CplmEventFrameService> logger,
         IOptions<AMS.Infrastructure.Kafka.KafkaOptions> kafkaOptions,
         IOptions<CplmOptions> cplmOptions,
-        NpgsqlDataSource dataSource)
+        [FromKeyedServices("cplm")] NpgsqlDataSource dataSource)
     {
         _logger = logger;
         _dataSource = dataSource;

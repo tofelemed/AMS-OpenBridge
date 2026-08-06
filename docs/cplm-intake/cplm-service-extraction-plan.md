@@ -57,11 +57,11 @@ needed yet, this can wait — it does not unblock A12b or DG-8.
 
 ---
 
-## Phase 0 — Safety net & preconditions
+## Phase 0 — Safety net & preconditions ✅ DONE (`a26f66f`)
 
 The extraction has **no test coverage to protect it**. Build the net first.
 
-- [ ] **0.1 Fix the `system.manage` policy bug (live, found while surveying).**
+- [x] **0.1 Fix the `system.manage` policy bug (live, found while surveying).**
       `ObservabilityController` (whole controller) and 3 `OpcConnectionsController` actions
       carry `[Authorize(Policy = "system.manage")]`, but the policy is **never registered**
       in `Program.cs` (`AddAuthorizationBuilder` block ends at `cpm.manage`) and there is no
@@ -69,17 +69,17 @@ The extraction has **no test coverage to protect it**. Build the net first.
       that *does* carry the `system.manage` claim. Fails closed, so not a security hole, but
       the endpoints are broken. One line: `.AddPolicy("system.manage", p => p.RequireClaim("permission", "system.manage"))`.
       *Do this first — the new service copies this policy block, and copying it broken doubles the bug.*
-- [ ] **0.2 Response-diff harness.** Script that hits every CPLM endpoint against a base URL
+- [x] **0.2 Response-diff harness.** Script that hits every CPLM endpoint against a base URL
       and writes canonical JSON to disk: loops (list + one), registry-contract, readiness,
       events, gates/latest, gates history, kpis (short + long resolution), resolutions,
       fleet summary/rankings/heatmap, calculations, pipeline-status, pipeline-metrics.
       Run it against `:8000` now and commit the golden output.
-- [ ] **0.3 Contract tests for the move** in `AMS.Tests.Contract` (or a new
+- [x] **0.3 Contract tests for the move** in `AMS.Tests.Contract` (or a new
       `Cplm.Tests.Contract`): status codes, permission enforcement (401/403 vs 200 per
       policy), and the gate-matrix shape (17 gate keys incl. `G2r`, `metrics`, `narrative`,
       `metadata` version stamps). These outlive the extraction — they're the regression net
       CPLM never had.
-- [ ] **0.4 Record the live baseline** — row counts (table above), the golden verdict
+- [x] **0.4 Record the live baseline** — row counts (table above), the golden verdict
       (`G13_LOOP_A` = SUSPECTED_FINAL_ELEMENT_NONLINEARITY @ 0.89, G13 PASS, `has_peer_links: true`),
       and current Kafka consumer-group offsets for both CPLM groups.
 
@@ -87,26 +87,26 @@ The extraction has **no test coverage to protect it**. Build the net first.
 
 ---
 
-## Phase 1 — Database split (schema moves, code stays)
+## Phase 1 — Database split (schema moves, code stays) ✅ DONE (2026-08-06)
 
 Proves the boundary with the code still in one process. One connection string to revert.
 
-- [ ] **1.1 Create `traverse_cplm`** database (same cluster, `ams_user` owner) with schemas
+- [x] **1.1 Create `traverse_cplm`** database (same cluster, `ams_user` owner) with schemas
       `analytics` and `cpm`.
-- [ ] **1.2 Re-verify the boundary** immediately before migrating (the grep from the baseline
+- [x] **1.2 Re-verify the boundary** immediately before migrating (the grep from the baseline
       table — no non-CPLM code referencing the schemas). If anything new appeared, stop.
-- [ ] **1.3 Migrate structure + data**: `pg_dump -n analytics -n cpm` from `ams` → restore
+- [x] **1.3 Migrate structure + data**: `pg_dump -n analytics -n cpm` from `ams` → restore
       into `traverse_cplm`. Includes the 3 `_latest` views, the UNIQUE upsert keys
       (`loop_id, window_kind, window_end, source`), and the **partial unique index on
       `cplm_event_frames WHERE closed_at IS NULL`** — verify indexes explicitly, a partial
       index silently missing means duplicate open frames.
-- [ ] **1.4 Add a second data source** in AMS.Api (`ConnectionStrings:Cplm`) and point *only*
+- [x] **1.4 Add a second data source** in AMS.Api (`ConnectionStrings:Cplm`) and point *only*
       the CPLM controllers/consumers at it. Everything else keeps using `ams`.
-- [ ] **1.5 Verify**: row counts match the Phase 0 baseline exactly; run the 0.2 harness and
+- [x] **1.5 Verify**: row counts match the Phase 0 baseline exactly; run the 0.2 harness and
       **diff against golden — must be byte-identical**; the golden verdict still resolves.
-- [ ] **1.6 Soak** for one full pipeline cycle: confirm new gate results land in
+- [x] **1.6 Soak** for one full pipeline cycle: confirm new gate results land in
       `traverse_cplm` (not `ams`) and that the 12h/24h fusion windows still persist.
-- [ ] **1.7 Drop `analytics.*` / `cpm.*` from `ams`** — only after 1.6 passes. Take a dump first.
+- [x] **1.7 Drop `analytics.*` / `cpm.*` from `ams`** — only after 1.6 passes. Take a dump first.
 
 > **Trap:** `CplmResultConsumerService` has self-healing DDL (creates tables when missing,
 > 57P03 retry). Pointed at an empty database it will happily create empty tables and report
