@@ -161,6 +161,50 @@ jobs:
           retention-days: 5
 
   # ============================================================
+  # Traverse Services Build
+  # Nothing under src/services/ was compiled by CI before this — they are not in
+  # AMS.sln, so a service could break on main and no job would notice. Added with
+  # the CPLM extraction, which moved the loop-performance API into its own
+  # service (src/services/cplm-api).
+  # notification-service is deliberately absent: it does not compile today
+  # (Serilog ReadFrom.Configuration needs Serilog.Settings.Configuration, which
+  # its csproj lacks). Listing it would make this job permanently red; it needs a
+  # real fix first, tracked separately from the extraction.
+  # ============================================================
+  build-services:
+    name: Build Traverse Services
+    runs-on: ubuntu-latest
+    needs: lint-and-analyze
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - asset-model
+          - binding-resolver
+          - display-service
+          - template-service
+          - analysis-service
+          - historian-bff
+          - audit-service
+          - cplm-api
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '${{ env.DOTNET_VERSION }}' }
+
+      - name: Build ${{ matrix.service }}
+        run: dotnet build src/services/${{ matrix.service }} -c Release
+
+      # The shared RBAC module is copied into each service (each builds from its
+      # own Docker context). A service whose copy has drifted from _shared would
+      # ship different auth behaviour than the rest of the platform.
+      - name: Verify TraverseAuth copy is in sync
+        if: hashFiles(format('src/services/{0}/Auth/TraverseAuth.cs', matrix.service)) != ''
+        run: diff -q src/services/_shared/TraverseAuth.cs src/services/${{ matrix.service }}/Auth/TraverseAuth.cs
+
+  # ============================================================
   # Flink Build & Test
   # ============================================================
   build-flink:

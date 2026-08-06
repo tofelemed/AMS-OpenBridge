@@ -86,7 +86,15 @@ graph TD
 - **Role:** The authoritative persistent data store handling both relational configuration data and time-series event data.
 - **Schema & Integration:** Managed strictly via EF Core Migrations (`AmsDbContext.cs`). Maps complex entities, manages standard naming conventions, and handles structured JSON payloads for rapid querying.
 
-### 3.6 IOC Dashboard (React & Vite)
+### 3.6 Control Loop Performance Service (`cplm-api`, .NET 8)
+- **Role:** Owns control-loop performance monitoring end to end — a separate deploy unit from the alarm backend so loop analytics can scale and release independently. Port **5006**; nginx proxies `/api/v1/cpm/*` to it.
+- **Boundary:** Its own logical database, `traverse_cplm` (schemas `analytics.*`, `cpm.*`), in the shared Postgres cluster. **No query joins CPLM data to alarm-core tables** — the two systems meet over Kafka and HTTP, never in SQL.
+- **Kafka (async data plane):** consumes `clpm.gate.results.v1`, `clpm.feature.short.v1`, `clpm.feature.long.v1`; produces `ams.metadata.updates` (loop evidence that makes G13 evaluable) and `audit-events`. It owns the consumer groups `ams-api-cplm-results` and `ams-api-cplm-results-frames` — **exactly one member process, ever** (see `docs/cplm-consumer-cutover-runbook.md`).
+- **HTTP (sync control plane):** asset-model for peer-link projection, Flink REST for A8 batch recompute and pipeline metrics, binding-resolver for readiness provenance.
+- **Dual persistence:** gate/feature results into Postgres (idempotent upsert on `loop_id, window_kind, window_end, source`), KPI series into IoTDB at `root.site1.cpm.<loop>.kpi.<family>`.
+- **Not here:** `RawLoopIotDbConsumer` (raw loop samples → IoTDB historian) stays in the alarm backend with its own consumer group.
+
+### 3.7 IOC Dashboard (React & Vite)
 - **Role:** The single pane of glass providing total situational awareness to plant operators.
 - **Stack:** React 18, Vite, TypeScript, and a highly customized Glassmorphism CSS design system.
 - **Features:**

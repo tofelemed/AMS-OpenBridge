@@ -12,9 +12,14 @@ no HTTP host; script-driven E2E is the established pattern here):
   - permission enforcement: no token -> 401 on reads, cpm.manage guarded on writes
 
 Usage:
-  python scripts/cplm-response-diff.py capture [--base http://localhost:8000]
-  python scripts/cplm-response-diff.py diff    [--base http://localhost:8000]
-  python scripts/cplm-response-diff.py assert  [--base http://localhost:8000]
+  python scripts/cplm-response-diff.py capture [--base http://localhost:3000]
+  python scripts/cplm-response-diff.py diff    [--base http://localhost:3000]
+  python scripts/cplm-response-diff.py assert  [--base http://localhost:3000]
+
+Default base is the nginx frontend (:3000) — the path a browser actually takes,
+so the proxy route counts as part of the contract. Use --base http://localhost:5006
+to hit cplm-api directly and isolate the service from the proxy. CPLM no longer
+lives on :8000 (moved out of ams-api by the extraction, Phase 6).
 
 Golden dir: tests/cplm-golden/ (committed).
 """
@@ -217,7 +222,7 @@ def cmd_assert(base: str) -> int:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("mode", choices=["capture", "diff", "assert"])
-    ap.add_argument("--base", default="http://localhost:8000")
+    ap.add_argument("--base", default="http://localhost:3000")
     args = ap.parse_args()
     if args.mode == "capture":
         cmd_capture(args.base)

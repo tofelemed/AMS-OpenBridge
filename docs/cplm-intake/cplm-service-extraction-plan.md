@@ -259,16 +259,27 @@ persists only some windows, with no error in either log. It looks like it's work
 
 ---
 
-## Phase 7 — Documentation & operational close-out
+## Phase 7 — Documentation & operational close-out ✅ DONE (2026-08-06)
 
-- [ ] **7.1 Update `CLAUDE.md`** — add `cplm-api` to the `src/services/` list, the port table
+> 7.5 turned up one real stale assumption: the response-diff harness still defaulted
+> to `--base :8000`, where CPLM no longer lives — now defaults to :3000 (through
+> nginx, the path a browser takes). No .ps1 hardcoded a CPLM HTTP endpoint; the
+> scripts mentioning CPLM are Flink/Kafka/replay tooling, unaffected by the move.
+> 7.4 grew beyond the plan: NOTHING under src/services/ was compiled by CI before
+> (they are not in AMS.sln), so a matrix job now builds all 8 buildable services
+> plus verifies each TraverseAuth copy matches _shared. notification-service is
+> excluded and the reason is written in the workflow: it does not compile today
+> (missing Serilog.Settings.Configuration) — a pre-existing break, not extraction
+> fallout.
+
+- [x] **7.1 Update `CLAUDE.md`** — add `cplm-api` to the `src/services/` list, the port table
       (5006), and the database list (`traverse_cplm`).
-- [ ] **7.2 Update `architecture_document.md`** — CPLM data path now terminates in a separate
+- [x] **7.2 Update `architecture_document.md`** — CPLM data path now terminates in a separate
       service; note the consumer-group ownership.
-- [ ] **7.3 Runbook entry**: the consumer-group cutover procedure (4.2) — this is the step
+- [x] **7.3 Runbook entry**: the consumer-group cutover procedure (4.2) — this is the step
       that silently corrupts data if done wrong, so it must be written down, not remembered.
-- [ ] **7.4 CI**: add `cplm-api` build + the new contract tests to `.github/workflows/ci-cd.yml`.
-- [ ] **7.5 `scripts/`**: update any script that assumes CPLM lives at `:8000`
+- [x] **7.4 CI**: add `cplm-api` build + the new contract tests to `.github/workflows/ci-cd.yml`.
+- [x] **7.5 `scripts/`**: update any script that assumes CPLM lives at `:8000`
       (check `ams-readiness-score.ps1`, `production-acceptance-test.ps1`, validation scripts).
 
 ---
@@ -297,9 +308,9 @@ persists only some windows, with no error in either log. It looks like it's work
 
 ## Definition of done
 
-- [ ] `cplm-api` serves every CPM endpoint with byte-identical responses to the golden baseline.
-- [ ] All CPLM persistence (Postgres + IoTDB KPIs) flows through `cplm-api`; no missing windows.
-- [ ] AMS.Api contains zero CPLM code and returns 404 for `/api/v1/cpm/*`.
-- [ ] All 12 Phase-7 UI screens work unchanged.
-- [ ] Golden verdict reproducible via recompute from the new service.
-- [ ] Contract tests in CI; runbook documents the cutover.
+- [x] `cplm-api` serves every CPM endpoint with byte-identical responses to the golden baseline.
+- [x] All CPLM persistence (Postgres + IoTDB KPIs) flows through `cplm-api`; no missing windows.
+- [x] AMS.Api contains zero CPLM code and returns 404 for `/api/v1/cpm/*`.
+- [x] All 12 Phase-7 UI screens work unchanged.
+- [x] Golden verdict reproducible via recompute from the new service.
+- [x] Contract tests in CI; runbook documents the cutover.

@@ -14,11 +14,11 @@ The end-to-end alarm data path: **OPC-UA / StreamPipes → Kafka (`raw-opc-event
 ## Top-level layout
 
 - `src/backend/` — .NET 8 Clean Architecture solution: `AMS.Api` (Web API, SignalR hubs, background workers), `AMS.Application`, `AMS.Domain`, `AMS.Infrastructure` (EF Core / `AmsDbContext`), plus `AMS.Tests.Contract` and `AMS.Tests.Integration` (xUnit).
-- `src/services/` — Traverse microservices. .NET 8 minimal APIs: `asset-model` (UNS source of truth), `binding-resolver` (path+role → transport), `display-service`, `template-service`, `analysis-service`, `historian-bff` (IoTDB reads), `notification-service`, `audit-service`. `sparkplug-edge-node` and `opc-connector` involve Java/edge code.
+- `src/services/` — Traverse microservices. .NET 8 minimal APIs: `asset-model` (UNS source of truth), `binding-resolver` (path+role → transport), `display-service`, `template-service`, `analysis-service`, `historian-bff` (IoTDB reads), `notification-service`, `audit-service`, `cplm-api` (control-loop performance: the CPM REST API + the CPLM result/event-frame Kafka consumers). `sparkplug-edge-node` and `opc-connector` involve Java/edge code.
 - `src/flink/` — Java (Maven) Flink jobs. Entry point of interest: `OpcEventStreamJob.java` (event-sourced alarm state machine); also `LiveStateJob`, `IoTDBPersistenceJob`, KPI jobs.
 - `src/frontend-ob/` — React 18 + Vite + TypeScript dashboard using **OpenBridge web components**. The HMI Designer lives in `src/components/Designer/` (this is where the current working-tree changes are).
 - `infra/docker/docker-compose.yml` — orchestrates the entire stack (~35 services). `infra/helm`, `infra/windows` for other deploy targets.
-- `database/scripts/` + `database/migrations/` — SQL schemas. Traverse uses **one PostgreSQL database per service** (`traverse_assets`, `traverse_templates`, `traverse_analysis`, `traverse_displays`, `traverse_shared`); AMS core uses the `ams` database.
+- `database/scripts/` + `database/migrations/` — SQL schemas. Traverse uses **one PostgreSQL database per service** (`traverse_assets`, `traverse_templates`, `traverse_analysis`, `traverse_displays`, `traverse_shared`, `traverse_audit`, `traverse_cplm`); AMS core uses the `ams` database. Scripts run in filename order against `postgres` and `\c` into their own database — a new per-service database needs its own `NN_traverse_<svc>_db.sql` before the schema scripts that populate it.
 - `scripts/` — large collection of PowerShell (`.ps1`) automation for build, deploy, E2E, and validation. This is the primary operational tooling; prefer these over ad-hoc commands.
 - **Ignore** `src/xmlgraphics-batik-main ScreeN Import/` — that is the legacy reference app being retired (Batik/Konva); it is not part of the live path and its `node_modules` dominate glob results.
 
@@ -77,7 +77,9 @@ Jobs are submitted to the Flink JobManager during stack startup; see `infra/dock
 | display-service | 5003 |
 | template-service | 5004 |
 | analysis-service | 5005 |
+| cplm-api | 5006 |
 | historian-bff | 8090 |
+| audit-service | 8095 |
 | Postgres | 5433 → 5432 |
 | Redis | 6380 → 6379 |
 | Kafka | 9093 (kafka-ui: 8085) |
@@ -94,6 +96,7 @@ These are settled decisions (`MIGRATION_LOG.md` "Recorded Decisions", `src/Unifi
 - **Bind through the UNS**: everything addresses data by path + role, resolved to a transport by `binding-resolver`. UNS pattern is `root.<site>.<unit>.<device>.<measurement>`. Path+role → live (Sparkplug/Redis), history (IoTDB/historian-bff), or alarm (SignalR).
 - **Flink-only compute**: analysis/aggregation runs as Flink jobs, not in-service. The .NET `AlarmStreamProcessorService` is only a fallback for when `Kafka:UseFlinkOrchestration` is `false`.
 - **Reuse shared infra**: one Postgres cluster, one Kafka, one EMQX, one IoTDB — but a separate logical database per service.
+- **CPLM lives in `cplm-api`, not `ams-api`**: the loop-performance REST API (`/api/v1/cpm/*`, proxied by nginx to `cplm-api:5000`), the `traverse_cplm` database, and the `clpm.*` result consumers all belong to that service. `ams-api` keeps only `RawLoopIotDbConsumer` (raw loop samples → IoTDB historian, its own consumer group). **The CPLM consumer groups (`ams-api-cplm-results`, `-frames`) must only ever have one member process** — two split the partitions and each persists a subset with no error logged. See [docs/cplm-consumer-cutover-runbook.md](docs/cplm-consumer-cutover-runbook.md) before moving or duplicating them.
 - **DOM/SVG designer, not Konva**: the HMI designer renders with DOM/SVG. Do not reintroduce Konva. Batik is retired from the live path.
 - **Two-tier displays**: controlled/versioned displays vs. operator-owned Personal Views (non-versioned).
 - **Quality on reopen**: alarm/quality state must map to NAMUR NE107 + ISA-18.2 (Good/Uncertain/Bad/Maintenance/OutOfService).
