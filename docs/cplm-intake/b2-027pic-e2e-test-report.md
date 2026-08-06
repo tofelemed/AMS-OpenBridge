@@ -62,10 +62,30 @@ the clock; IoTDB last PV 7 s old. The live plane is steady-state, not a first-sa
 
 ## Findings (worth knowing, none blocking)
 
-- **F1 — Old data cannot enter the streaming path.** Event-time watermarks never regress;
-  anything older than the pipeline's high-water mark is silently late-dropped. Historical
-  loads MUST go: publish → IoTDB (raw consumer has no windows) → **A8 recompute** for
-  verdicts. This is by design; the test proves the design.
+- **F1 — Old data cannot enter the streaming path, and the evidence is already being
+  collected but never surfaced.** Event-time watermarks never regress; the short windows use
+  `allowedLateness(30s)` and there is **no `sideOutputLateData`/`OutputTag` anywhere**, so
+  late records are discarded without capture. Historical loads MUST go: publish → IoTDB (raw
+  consumer has no windows) → **A8 recompute** for verdicts. That part is by design.
+
+  What is *not* by design: this is invisible to every operator surface. Flink itself has been
+  counting it the whole time — `numLateRecordsDropped` exists on all six window operators and
+  reads (cumulative since job start, including this backfill and earlier replays):
+
+  | operator | late-dropped |
+  |---|---|
+  | cplm-short-window-1m | 81,847 |
+  | cplm-short-window-5m | 81,799 |
+  | cplm-short-window-10m | 81,739 |
+  | cplm-short-window-15m | 81,703 |
+  | cplm-short-window-30m | 81,523 |
+  | cplm-short-window-60m | 81,163 |
+
+  Our DG-1 metrics proxy (`GET /cpm/pipeline-metrics`) exposes state/uptime/checkpoints only,
+  so nothing in the API or the Pipeline Health screen shows this. **Cheapest high-value fix in
+  the whole system:** add `numLateRecordsDropped` per window operator to that proxy and surface
+  it on U11 — it turns "my backfill silently vanished" into a self-diagnosing number, with no
+  Flink job change required.
 - **F2 — A8 produces verdicts, not feature rows.** `analytics.cplm_short/long_feature_results`
   only fill from streaming. For a historical-only loop, U7 Windows / U6 KPI overlay /
   `/kpis` are empty (honest empty states); Calculations still works because the gate payload
