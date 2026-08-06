@@ -460,7 +460,7 @@ function handleMessage(
   get: () => MqttStoreState,
 ) {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const decoded: any = decodeSparkplugPayload(payload);
     const parts  = topic.split('/'); // spBv1.0 / group / VERB / edge [/ device]
     const verb   = parts[2];
@@ -519,7 +519,7 @@ function handleMessage(
 }
 
 function updateLiveAlarm(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   s: any,
   device: string,
   _field: string,

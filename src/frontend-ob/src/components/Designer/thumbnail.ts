@@ -18,6 +18,7 @@ const THUMB_W = 400;
 
 /** Colour a symbol's footprint by what it *is*, so the schematic reads as a layout at a glance. */
 function kindColor(type: string): string {
+  if (/import\.unmapped|unmapped|placeholder/.test(type)) return 'var(--alert-caution-color)';
   if (/alarm/.test(type)) return 'var(--alert-alarm-color)';
   if (/trend|chart|graph/.test(type)) return 'var(--ams-pen-2)';
   if (/readout|numeric|digital|value|label|text/.test(type)) return 'var(--element-neutral-color)';

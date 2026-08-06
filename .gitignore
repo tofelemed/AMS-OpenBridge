@@ -343,3 +343,6 @@ videos/
 
 # Reference application (local analysis only — exceeds GitHub 100MB limit)
 src/xmlgraphics-batik-main ScreeN Import/
+
+# CPA reference / intake material (local only — large PDFs, sample data, drafts)
+CPA/

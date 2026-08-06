@@ -6,6 +6,7 @@ import { DesignerCanvas } from './DesignerCanvas';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { AssetBrowser } from './AssetBrowser';
 import type { CanvasItem } from './types';
+import type { ImportReport } from '../../services/import/pdixImport';
 import { isAutomationType, getDefaultAutomationProps } from './automationTypes';
 import { isObcCatalogType, getDefaultObcProps } from './obcCatalogTypes';
 import { getDefaultSizeSync, findSymbolDefinition } from './symbolLibraryService';
@@ -54,6 +55,8 @@ interface DisplaySettings {
   backgroundImageId?: string;
   canvasWidth: number;
   canvasHeight: number;
+  /** P0 — travels with a PI-Vision-imported display so re-opening it shows what was lost. */
+  importReport?: ImportReport;
 }
 
 // Generate unique ID
@@ -148,6 +151,11 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
   const [bgImageId, setBgImageId] = useState<string | undefined>(undefined);
   const [trendOpen, setTrendOpen] = useState(false); // Phase J — ad-hoc trend dialog
   const [historyOpen, setHistoryOpen] = useState(false); // Phase 4 — version history browser
+  // P0 — PI Vision import report (from settings.importReport). Kept in state so it (a) renders the
+  // review banner and (b) is re-persisted on Save (the save mutation rebuilds settings from scratch,
+  // so without this the report would be dropped on the first designer save).
+  const [importReport, setImportReport] = useState<ImportReport | undefined>(undefined);
+  const [reportDismissed, setReportDismissed] = useState(false);
   // Right-click context menu (Phase 1.12) + a signal to focus a PropertyInspector tab from it.
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const [inspectorFocus, setInspectorFocus] = useState<{ tab: string; nonce: number } | undefined>(undefined);
@@ -194,6 +202,7 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
     if (s?.gridSize) setGridSize(s.gridSize);
     if (s?.backgroundColor) setBgColor(s.backgroundColor);
     setBgImageId(s?.backgroundImageId || undefined);
+    setImportReport(s?.importReport);
   }, [displayData, displayId]);
 
   /** Re-seed the canvas from the server on purpose (used by Revert, which replaces the draft). */
@@ -212,7 +221,7 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
   const saveMutation = useMutation({
     mutationFn: () => saveDisplay(displayId, {
       items,
-      settings: { gridSize, showGrid, backgroundColor: bgColor, backgroundImageId: bgImageId, canvasWidth: canvasSize.width, canvasHeight: canvasSize.height },
+      settings: { gridSize, showGrid, backgroundColor: bgColor, backgroundImageId: bgImageId, canvasWidth: canvasSize.width, canvasHeight: canvasSize.height, ...(importReport ? { importReport } : {}) },
     }, currentUser),
     onSuccess: () => {
       setIsDirty(false);
@@ -698,7 +707,37 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
         }}
         publishing={publishMutation.isPending || unpublishMutation.isPending || revertMutation.isPending}
       />
-      
+
+      {/* P0 — PI Vision import review banner. Persisted on the display, so it surfaces every time the
+          imported display is re-opened (not just once in the import wizard) until dismissed. */}
+      {mode === 'design' && importReport && !reportDismissed && (importReport.placeholders > 0 || importReport.bindingsUnresolved > 0 || (importReport.notes?.length ?? 0) > 0) && (
+        <div className="ds-import-banner" role="status" style={{
+          display: 'flex', gap: 12, alignItems: 'flex-start', padding: '8px 14px',
+          borderBottom: '1px solid var(--border-subtle-color, #333)',
+          background: 'var(--alert-caution-background-color, rgba(255,193,7,0.12))',
+          color: 'var(--on-container-color, #e5e7eb)', fontSize: 12.5,
+        }}>
+          <ObiError style={{ color: 'var(--alert-caution-color)', flex: '0 0 auto', marginTop: 1 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <strong>Imported from AVEVA PI Vision.</strong>{' '}
+            {importReport.rendered} of {importReport.total} symbols imported natively
+            {importReport.placeholders > 0 && <>, <b style={{ color: 'var(--alert-caution-color)' }}>{importReport.placeholders} need a manual rebuild</b> (shown as dashed caution boxes)</>}
+            {importReport.bindingsUnresolved > 0 && <>, {importReport.bindingsUnresolved} tag binding{importReport.bindingsUnresolved === 1 ? '' : 's'} still need resolving</>}.
+            {importReport.notes?.length > 0 && (
+              <ul style={{ margin: '4px 0 0', paddingLeft: 18, opacity: 0.9 }}>
+                {importReport.notes.map((n, i) => <li key={i}>{n}</li>)}
+              </ul>
+            )}
+          </div>
+          <button
+            className="ds-import-banner__dismiss"
+            onClick={() => setReportDismissed(true)}
+            style={{ flex: '0 0 auto', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 13, opacity: 0.7 }}
+            title="Dismiss"
+          >Dismiss ✕</button>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="display-designer__body">
         {/* Left panel — SOURCES (symbols + assets), tabbed.

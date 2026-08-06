@@ -87,7 +87,7 @@ const CATEGORY_META: Record<string, { label: string; icon: string; color: string
   alarm:     { label: 'Alarm',     icon: '🚨', color: T.critical, bg: T.criticalBg,    border: T.criticalBorder },
 };
 
-interface DisplayQuery { category?: string; search?: string; sort?: SortKey; tag?: string; }
+interface DisplayQuery { category?: string; search?: string; sort?: SortKey; tag?: string; folderId?: string; }
 
 async function fetchDisplays(q: DisplayQuery): Promise<{ displays: Display[]; total: number }> {
   const params = new URLSearchParams();
@@ -95,6 +95,12 @@ async function fetchDisplays(q: DisplayQuery): Promise<{ displays: Display[]; to
   if (q.search) params.set('search', q.search);
   if (q.sort) params.set('sort', q.sort);
   if (q.tag) params.set('tag', q.tag);
+  // Scope to the selected folder ON THE SERVER (Program.cs applies `folderId`). The list was filtered
+  // only client-side over the endpoint's default first 50 rows, so with >50 displays a folder showed
+  // an arbitrary/incomplete subset (and every display leaked into every folder view). Also lift the
+  // page cap so the client-side Unfiled/All narrowing is complete. Mirrors DisplayLauncher's fix.
+  if (q.folderId) params.set('folderId', q.folderId);
+  params.set('take', '200');
   const qs = params.toString();
   const res = await apiFetch(qs ? `${API_BASE}?${qs}` : API_BASE);
   if (!res.ok) throw new Error('Failed to load displays');
@@ -156,8 +162,12 @@ export const DisplayList: React.FC = () => {
   const setView = (m: ViewMode) => { setViewMode(m); localStorage.setItem('dl.view', m); };
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['displays', selectedCategory, searchText, sortBy, tagFilter],
-    queryFn: () => fetchDisplays({ category: selectedCategory, search: searchText || undefined, sort: sortBy, tag: tagFilter }),
+    queryKey: ['displays', selectedCategory, searchText, sortBy, tagFilter, folderFilter],
+    // Only a real folder id goes to the server; '' (Unfiled) / undefined (All) are narrowed client-side.
+    queryFn: () => fetchDisplays({
+      category: selectedCategory, search: searchText || undefined, sort: sortBy, tag: tagFilter,
+      folderId: folderFilter ? folderFilter : undefined,
+    }),
   });
 
   // Server-side favorites + recent (Phase 5.6 — were localStorage/per-browser).

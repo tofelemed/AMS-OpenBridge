@@ -16,6 +16,8 @@ export interface CustomSymbolContext {
   spValue: unknown;
   decimals: number;
   unit?: string;
+  /** Author conditional-format / multi-state colour — recolours the symbol's line + reading. */
+  stateColor?: string;
 }
 
 const NAMUR_COLORS: Record<string, { fill: string; label: string }> = {
@@ -27,11 +29,13 @@ const NAMUR_COLORS: Record<string, { fill: string; label: string }> = {
 };
 
 export function renderCustomSymbol(type: string, ctx: CustomSymbolContext): React.ReactNode {
-  const { item, mode, displayValue, numericValue, isRunning, isLoading, liveValue, statusValue, pvValue, spValue, decimals, unit } = ctx;
-  const stroke = OBC.textNeutral;
+  const { item, mode, displayValue, numericValue, isRunning, isLoading, liveValue, statusValue, pvValue, spValue, decimals, unit, stateColor } = ctx;
+  // A value-driven state colour (multi-state / conditional rule) recolours the symbol's line and its
+  // reading — so a gauge/digital/equipment symbol changes colour with the state, not a box around it.
+  const stroke = stateColor ?? OBC.textNeutral;
   const fill = OBC.section;
-  const text = OBC.textActive;
-  const valueColor = getValueColor(numericValue, item.alarmLimits);
+  const text = stateColor ?? OBC.textActive;
+  const valueColor = stateColor ?? getValueColor(numericValue, item.alarmLimits);
   const pct = mode === 'preview' ? getPercentage(numericValue) : 55;
 
   switch (type) {
@@ -215,6 +219,31 @@ export function renderCustomSymbol(type: string, ctx: CustomSymbolContext): Reac
       return (
         <div className={`symbol symbol-custom symbol-hotspot${mode === 'design' ? ' symbol-hotspot--design' : ''}`}>
           {mode === 'design' && <span className="symbol-hotspot__label">{item.label || 'hotspot'}</span>}
+        </div>
+      );
+
+    // A PI Vision symbol the importer could not map (external SVG-library graphic, unknown type, …).
+    // Rendered as a VISIBLE, self-describing caution box — never an invisible 1px outline — so the
+    // display engineer sees exactly what needs a manual rebuild. `textProps.text` carries the reason
+    // (type · ref — reason) into the tooltip. See services/import/pdixImport.ts (IMPORT_PLACEHOLDER_TYPE).
+    case 'import.unmapped':
+      return (
+        <div
+          className="symbol symbol-custom symbol-import-unmapped"
+          title={item.textProps?.text || item.label || 'Unmapped PI Vision symbol'}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%',
+            boxSizing: 'border-box', overflow: 'hidden', textAlign: 'center', padding: 2,
+            border: `1.5px dashed ${OBC.caution}`, borderRadius: 4,
+            background: 'var(--alert-caution-background-color, rgba(255,193,7,0.14))',
+            color: OBC.caution, fontFamily: 'var(--ams-font)',
+            fontSize: Math.max(8, Math.min((item.size?.height ?? 20) * 0.4, 12)),
+            lineHeight: 1.1,
+          }}
+        >
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+            {item.label || '⚠ unmapped'}
+          </span>
         </div>
       );
 
@@ -425,6 +454,7 @@ export const CUSTOM_SYMBOL_TYPES = new Set([
   'equip.heater', 'equip.cooler', 'equip.conveyor', 'equip.agitator',
   'pipe.reducer',
   'shape.rect', 'shape.circle', 'shape.line', 'shape.polygon', 'shape.divider', 'shape.label', 'shape.hotspot',
+  'import.unmapped',
   'image.static',
   'ctrl.selector',
   'alarm.beacon', 'alarm.horn', 'alarm.summary',

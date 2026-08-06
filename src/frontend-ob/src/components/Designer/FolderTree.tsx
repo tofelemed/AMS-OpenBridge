@@ -64,8 +64,13 @@ export const FolderTree: React.FC<{
     onError: (e: Error) => toast.error(`Delete failed: ${e.message}`),
   });
   const moveDisplay = useMutation({
+    // Unfile = the empty GUID, NOT JSON null: the backend request field is `Guid?`, so a literal null
+    // deserializes to "no value" and the update is silently skipped (`if (FolderId.HasValue)`), leaving
+    // the display in its old folder while the UI toasts "Moved". The empty GUID hits the backend's
+    // `== Guid.Empty ? null` branch and actually clears the folder.
     mutationFn: (v: { displayId: string; folderId: string | null }) => apiJson(`${API_BASE}/${v.displayId}`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folderId: v.folderId }),
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folderId: v.folderId ?? '00000000-0000-0000-0000-000000000000' }),
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['displays'] }); toast.success('Moved'); },
     onError: (e: Error) => toast.error(`Move failed: ${e.message}`),

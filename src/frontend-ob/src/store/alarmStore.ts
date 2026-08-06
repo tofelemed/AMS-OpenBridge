@@ -186,7 +186,7 @@ function recalcStatsFromAlarms(alarms: Map<string, ActiveAlarm>, connectedOpcSer
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 type SetState = (fn: (state: any) => void) => void;
 
 async function syncConnectedOpcServers(set: SetState): Promise<{ id?: string; protocol?: string }> {

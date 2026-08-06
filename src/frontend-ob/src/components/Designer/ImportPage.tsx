@@ -79,11 +79,16 @@ export const ImportPage: React.FC = () => {
       const created = await createRes.json();
       if (!created?.id) throw new Error('The display service did not return an id');
 
+      // Stamp the import time onto the persisted report (the importer stays clock-free).
+      const settings = result.settings.importReport
+        ? { ...result.settings, importReport: { ...result.settings.importReport, importedAt: new Date().toISOString() } }
+        : result.settings;
+
       const contentRes = await apiFetch(`${API_BASE}/${created.id}/content`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          snapshot: { items: result.items, settings: result.settings },
+          snapshot: { items: result.items, settings },
           changeNote: `Imported from ${file?.name ?? 'PI Vision'}`,
           userId: user,
         }),
