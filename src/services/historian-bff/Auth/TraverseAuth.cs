@@ -93,12 +93,18 @@ public static class Perms
     public const string AnalysisView = "analysis.view";
     public const string AnalysisEdit = "analysis.edit";
     public const string AuditView = "admin.audit.view";
+    // CPLM (extraction Phase 2): loop-performance reads, onboarding/ack/recompute
+    // writes, and pipeline/OPC operations. Keys are seeded by 33_cpm_permissions.sql.
+    public const string AnalyticsView = "analytics.view";
+    public const string CpmManage = "cpm.manage";
+    public const string SystemManage = "system.manage";
 
     public static readonly string[] All =
     {
         AlarmView, DisplayView, DisplayEdit, DisplayPublish, AssetView, AssetEdit,
         TemplateView, TemplateEdit, TemplatePublish, BindingResolve, HistorianView,
         AnalysisView, AnalysisEdit, AuditView,
+        AnalyticsView, CpmManage, SystemManage,
     };
 }
 

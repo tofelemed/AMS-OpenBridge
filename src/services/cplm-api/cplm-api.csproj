@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Traverse.CplmApi</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Platform auth: RS256 bearer validation against auth-service JWKS (shared TraverseAuth module). -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.4" />
+    <!-- CPLM data access is Dapper over raw Npgsql (same as the code arriving from AMS.Api in Phase 3). -->
+    <PackageReference Include="Npgsql" Version="8.0.3" />
+    <PackageReference Include="Dapper" Version="2.1.35" />
+    <!-- Result-stream consumers (arrive in Phase 4) + the audit/evidence producers. -->
+    <PackageReference Include="Confluent.Kafka" Version="2.3.0" />
+    <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
+  </ItemGroup>
+
+</Project>

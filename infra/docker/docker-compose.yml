@@ -850,6 +850,52 @@ services:
       start_period: 30s
 
   # ─────────────────────────────────────────────
+  # CPLM API (extraction plan Phase 2) — loop-performance service.
+  # Phase 2: skeleton only (auth/health/metrics). Controllers arrive in
+  # Phase 3; the Kafka result consumers in Phase 4 (HARD cutover — the
+  # consumer group must never run in two processes at once).
+  # ─────────────────────────────────────────────
+  cplm-api:
+    build:
+      context: ../../src/services/cplm-api
+    container_name: traverse-cplm-api
+    <<: *default-restart
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:5000
+      ConnectionStrings__CplmDb: Host=postgres;Port=5432;Database=traverse_cplm;Username=ams_user;Password=${POSTGRES_PASSWORD:-supersecurepassword123}
+      Cpm__AssetModelUrl:    http://asset-model:5000
+      Cpm__FlinkUrl:         http://flink-jobmanager:8081
+      Cpm__BootstrapServers: kafka:9092
+      # A8 recompute uploads this jar to the JobManager (path must match Cplm recompute options).
+      Cpm__JarPath:          /opt/ams/flink/ams-flink.jar
+      IotDb__RestUrl:        http://iotdb:8181
+      # Platform auth (RBAC): validate RS256 tokens from auth-service; X-Service-Key authenticates
+      # internal service-to-service calls that carry no user token.
+      Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
+      Auth__Issuer:    traverse-auth
+      Auth__Audience:  ams-services
+      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
+    volumes:
+      # A8 recompute cannot work without the jar — verified at Phase 5.2, not first click.
+      - ../../src/flink/target/ams-flink-1.0-SNAPSHOT.jar:/opt/ams/flink/ams-flink.jar:ro
+    ports:
+      - "5006:5000"
+    networks:
+      - ams-backend
+    healthcheck:
+      # /health verifies current_database()=traverse_cplm, so use it rather than a bare TCP probe.
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/5000 && printf \"GET /health HTTP/1.0\\r\\n\\r\\n\" >&3 && grep -q Healthy <&3' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ─────────────────────────────────────────────
   # Phase 6 — IoTDB TTL / retention init (one-shot)
   # Sets storage group TTLs after IoTDB is healthy
   # ─────────────────────────────────────────────

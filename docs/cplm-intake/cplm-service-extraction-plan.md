@@ -116,29 +116,37 @@ Proves the boundary with the code still in one process. One connection string to
 
 ---
 
-## Phase 2 — Service skeleton (deployed, no traffic)
+## Phase 2 — Service skeleton (deployed, no traffic) ✅ DONE (2026-08-06)
 
-- [ ] **2.1 Create `src/services/cplm-api`** following the `analysis-service` layout
+> 2.3 resolution: `AMS.Infrastructure.Kafka` — the consumers use only `KafkaOptions.BootstrapServers`;
+> the new service supplies it from `Cpm:BootstrapServers`, no copy and no project reference.
+> `IotDbWriteClient` copied to `Services/IotDbWriteClient.cs` with a provenance header naming the
+> AMS.Api original (which stays for RawLoopIotDbConsumer). Also added: `/authcheck` guarded probe
+> (skeleton had no domain routes, so 404s proved nothing about auth), `.dockerignore` (host obj/
+> breaks in-container publish), and the three CPLM permission keys added to the shared
+> `_shared/TraverseAuth.cs` `Perms.All` + `cplm-api` added to sync-auth-module.ps1.
+
+- [x] **2.1 Create `src/services/cplm-api`** following the `analysis-service` layout
       (`Program.cs`, `Auth/`, `Data/`, `Models/`, `Dockerfile`, `appsettings.json`,
       `cplm-api.csproj` with `RootNamespace Traverse.CplmApi`, net8.0).
-- [ ] **2.2 Platform auth**: RS256 bearer validation against auth-service JWKS + the policy
+- [x] **2.2 Platform auth**: RS256 bearer validation against auth-service JWKS + the policy
       block (`analytics.view`, `cpm.manage`, `system.manage` — the fixed one from 0.1).
-- [ ] **2.3 Resolve the two shared dependencies:**
+- [x] **2.3 Resolve the two shared dependencies:**
       - `AMS.Infrastructure.Kafka` — check what's actually used; if it's only message
         contracts, copy the DTOs rather than taking a project reference on the AMS backend
         (a services/ project referencing backend/ couples the deploy units back together).
       - `IotDbWriteClient` — **shared with `RawLoopIotDbConsumer`, which stays in AMS.Api.**
         Copy it into the new service (≈1 file) rather than moving it. Note the duplication
         in the file header; a shared package is over-engineering for one class.
-- [ ] **2.4 Health + metrics**: `/health` (mirroring the other services so compose's
+- [x] **2.4 Health + metrics**: `/health` (mirroring the other services so compose's
       healthcheck works), Prometheus `/metrics`.
-- [ ] **2.5 Compose service** on port **5006**, `depends_on` postgres/kafka, env:
+- [x] **2.5 Compose service** on port **5006**, `depends_on` postgres/kafka, env:
       `ConnectionStrings__Default` → `traverse_cplm`, `Cpm__AssetModelUrl`,
       `Cpm__ServiceKey` (`TRAVERSE_SERVICE_KEY`), `Cpm__BootstrapServers`,
       IoTDB config, **and the Flink jar bind-mount**
       (`../../src/flink/target/ams-flink-1.0-SNAPSHOT.jar:/opt/ams/flink/ams-flink.jar:ro`) —
       A8 recompute uploads that jar and cannot work without it.
-- [ ] **2.6 Verify** the empty service starts healthy, validates a real token, and reaches
+- [x] **2.6 Verify** the empty service starts healthy, validates a real token, and reaches
       Postgres — **before** any endpoint moves.
 
 **Exit:** `cplm-api` healthy in compose, serving nothing but `/health`.

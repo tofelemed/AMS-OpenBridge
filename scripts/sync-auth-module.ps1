@@ -12,7 +12,7 @@ param([switch]$Check)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $source = Join-Path $root 'src\services\_shared\TraverseAuth.cs'
-$services = @('asset-model', 'template-service', 'binding-resolver', 'historian-bff', 'analysis-service', 'audit-service')
+$services = @('asset-model', 'template-service', 'binding-resolver', 'historian-bff', 'analysis-service', 'audit-service', 'cplm-api')
 
 if (-not (Test-Path $source)) { throw "Shared auth module not found: $source" }
 $sourceHash = (Get-FileHash $source -Algorithm SHA256).Hash
