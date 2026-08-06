@@ -162,10 +162,20 @@ services.Configure<AMS.Api.Services.IotDbWriteOptions>(
     config.GetSection(AMS.Api.Services.IotDbWriteOptions.SectionName));
 services.AddHttpClient("IotDbWrite");
 services.AddSingleton<AMS.Api.Services.IotDbWriteClient>();
-services.AddHostedService<AMS.Api.BackgroundServices.CplmResultConsumerService>();
+// Extraction Phase 4 — the CPLM result/frame consumers are moving to cplm-api
+// under the SAME consumer group ids. Flag-gated so the cutover is an ordered
+// pair of env flips (this off → zero group members confirmed → cplm-api on);
+// running both sides at once would split partitions and silently halve
+// persistence. Default TRUE here until the cutover flips it.
+if (config.GetValue("Cplm:ConsumersEnabled", true))
+{
+    services.AddHostedService<AMS.Api.BackgroundServices.CplmResultConsumerService>();
+    // A12 - derive durable event frames from the gate-result stream.
+    services.AddHostedService<AMS.Api.BackgroundServices.CplmEventFrameService>();
+}
+// RawLoopIotDbConsumer is NOT part of the extraction (raw loop samples → IoTDB
+// historian); it stays in AMS.Api with its own group.
 services.AddHostedService<AMS.Api.BackgroundServices.RawLoopIotDbConsumer>();
-// A12 - derive durable event frames from the gate-result stream.
-services.AddHostedService<AMS.Api.BackgroundServices.CplmEventFrameService>();
 // CPLM Phase 4 — loop registry / onboarding. Publishes peer-link evidence onto the
 // CPLM metadata broadcast, which is what makes G13 evaluable.
 services.Configure<AMS.Api.Services.CpmRegistryOptions>(

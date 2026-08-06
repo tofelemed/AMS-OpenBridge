@@ -177,25 +177,35 @@ Controllers are idempotent reads — they can exist in both services simultaneou
 
 ---
 
-## Phase 4 — Move the write path (the risky one)
+## Phase 4 — Move the write path (the risky one) ✅ DONE (2026-08-06)
+
+> Cutover executed as flag flips (`Cplm:ConsumersEnabled` in both services), not
+> redeploys-with-code-removed: AMS.Api off → both groups confirmed ZERO members →
+> cplm-api on → single member (172.19.0.27 = traverse-cplm-api) holding all 24
+> partitions, offsets continuous, lag 0. Verified via A8 recompute 01425e7c61a5:
+> golden verdict persisted to traverse_cplm by the NEW consumer (zero CPLM
+> consumer log lines in AMS.Api), IoTDB gate KPI updated with zero write
+> failures, CPM_RECOMPUTE_STARTED audit event chained. Offsets before/after in
+> tests/cplm-cutover-offsets-*.txt. Golden re-captured post-recompute; both
+> :8000 and :5006 DIFF CLEAN.
 
 **This is a hard cutover.** Both consumers use group `ams-api-cplm-results` (+`-frames`).
 Two processes in the same group means Kafka **splits the partitions between them** — each
 persists only some windows, with no error in either log. It looks like it's working.
 
-- [ ] **4.1 Move** `CplmResultConsumerService` + `CplmEventFrameService` into `cplm-api`,
+- [x] **4.1 Move** `CplmResultConsumerService` + `CplmEventFrameService` into `cplm-api`,
       keeping the **same group ids** so committed offsets carry over.
-- [ ] **4.2 Cutover procedure (ordered, not parallel):**
+- [x] **4.2 Cutover procedure (ordered, not parallel):**
       1. Note current offsets/lag for both groups.
       2. Stop AMS.Api's consumers (feature-flag them off, or deploy the AMS.Api build with
          them removed) and **confirm the group has zero members**.
       3. Start `cplm-api`'s consumers.
       4. Confirm consumption resumes from the recorded offsets, lag drains to ~0.
-- [ ] **4.3 Verify no gap**: row counts increased monotonically, no window between the two
+- [x] **4.3 Verify no gap**: row counts increased monotonically, no window between the two
       processes is missing (query for gaps in `window_end` at the active resolutions).
-- [ ] **4.4 Verify the IoTDB dual-write** still lands KPI series (`root.site1.cpm.<loop>.kpi.*`)
+- [x] **4.4 Verify the IoTDB dual-write** still lands KPI series (`root.site1.cpm.<loop>.kpi.*`)
       from the new process.
-- [ ] **4.5 Verify the audit emitter** (`CplmAuditEmitter`) still reaches `audit-events` and
+- [x] **4.5 Verify the audit emitter** (`CplmAuditEmitter`) still reaches `audit-events` and
       chains into audit-service.
 
 **Exit:** all CPLM persistence flows through `cplm-api`; no missing windows; KPIs and audit intact.

@@ -457,6 +457,10 @@ services:
       Cpm__AssetModelUrl:            http://asset-model:5000
       Cpm__ServiceKey:               ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
       Cpm__BootstrapServers:         kafka:9092
+      # Extraction Phase 4 — CUTOVER DONE 2026-08-06: cplm-api owns the CPLM
+      # consumer groups now. Never set true here while cplm-api's flag is true —
+      # two members in one group split partitions and silently halve persistence.
+      Cplm__ConsumersEnabled:        "false"
       # A8 recompute uploads this jar to the JobManager and runs the batch replay
       # job. The cluster's copy is bind-mounted (never uploaded), so Flink's
       # /jars list is empty and the REST run endpoint needs its own upload.
@@ -875,6 +879,11 @@ services:
       Cpm__BootstrapServers: kafka:9092
       # Phase 3: reads only; mutations stay on AMS.Api until Phase 5 flips this.
       Cpm__EnableMutations:  "false"
+      # Phase 4 cutover flag — CUTOVER DONE 2026-08-06: this service owns the
+      # ams-api-cplm-results(+-frames) groups. AMS.Api's matching flag must stay
+      # false; two members in one group split partitions and silently halve
+      # persistence.
+      Cplm__ConsumersEnabled: "true"
       Flink__JobManagerUrl:  http://flink-jobmanager:8081
       Kafka__BootstrapServers: kafka:9092
       Services__BindingResolver: http://binding-resolver:5000

@@ -1,0 +1,37 @@
+
+GROUP                TOPIC                 PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                  HOST            CLIENT-ID
+ams-api-cplm-results clpm.gate.results.v1  0          80              80              0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.gate.results.v1  5          95              95              0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.feature.short.v1 5          747             747             0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.feature.long.v1  0          130             130             0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.feature.long.v1  6          122             122             0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.feature.long.v1  7          125             125             0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.feature.short.v1 7          777             777             0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.feature.long.v1  4          113             113             0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.feature.short.v1 4          630             630             0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.feature.long.v1  2          117             117             0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.gate.results.v1  1          88              88              0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.feature.long.v1  1          124             124             0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.feature.short.v1 0          715             715             0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.gate.results.v1  6          99              99              0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.gate.results.v1  7          93              93              0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.feature.short.v1 1          699             699             0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.feature.short.v1 6          615             615             0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.gate.results.v1  2          88              88              0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.gate.results.v1  3          98              98              0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.feature.long.v1  3          109             109             0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.gate.results.v1  4          103             103             0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.feature.short.v1 3          641             641             0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.feature.long.v1  5          118             118             0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+ams-api-cplm-results clpm.feature.short.v1 2          682             682             0               rdkafka-b2e9d69d-224f-4246-98aa-76a3a0bbdcdd /172.19.0.27    rdkafka
+----
+
+GROUP                       TOPIC                PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                  HOST            CLIENT-ID
+ams-api-cplm-results-frames clpm.gate.results.v1 0          80              80              0               rdkafka-ff6853d3-3138-4ed2-ba42-07c52846b5dd /172.19.0.27    rdkafka
+ams-api-cplm-results-frames clpm.gate.results.v1 5          95              95              0               rdkafka-ff6853d3-3138-4ed2-ba42-07c52846b5dd /172.19.0.27    rdkafka
+ams-api-cplm-results-frames clpm.gate.results.v1 4          103             103             0               rdkafka-ff6853d3-3138-4ed2-ba42-07c52846b5dd /172.19.0.27    rdkafka
+ams-api-cplm-results-frames clpm.gate.results.v1 1          88              88              0               rdkafka-ff6853d3-3138-4ed2-ba42-07c52846b5dd /172.19.0.27    rdkafka
+ams-api-cplm-results-frames clpm.gate.results.v1 6          99              99              0               rdkafka-ff6853d3-3138-4ed2-ba42-07c52846b5dd /172.19.0.27    rdkafka
+ams-api-cplm-results-frames clpm.gate.results.v1 7          93              93              0               rdkafka-ff6853d3-3138-4ed2-ba42-07c52846b5dd /172.19.0.27    rdkafka
+ams-api-cplm-results-frames clpm.gate.results.v1 2          88              88              0               rdkafka-ff6853d3-3138-4ed2-ba42-07c52846b5dd /172.19.0.27    rdkafka
+ams-api-cplm-results-frames clpm.gate.results.v1 3          98              98              0               rdkafka-ff6853d3-3138-4ed2-ba42-07c52846b5dd /172.19.0.27    rdkafka

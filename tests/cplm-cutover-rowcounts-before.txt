@@ -1,0 +1,4 @@
+gate|550
+short|3842
+long|755
+frames|41

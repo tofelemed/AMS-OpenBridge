@@ -67,6 +67,27 @@ builder.Services.AddSingleton<Traverse.CplmApi.Services.ICplmRecomputeService,
 builder.Services.AddSingleton<Traverse.CplmApi.Services.ICplmAuditEmitter,
     Traverse.CplmApi.Services.CplmAuditEmitter>();
 
+// ── CPLM write path (Phase 4 — the hard cutover) ───────────────────────────
+// Both consumers use the SAME group ids as their AMS.Api originals so committed
+// offsets carry over. Two processes in one group would split partitions and
+// each persist half the windows with no error anywhere — the flag makes the
+// cutover an env flip on each side, ordered: AMS.Api off → zero members
+// confirmed → this on. Default OFF: a freshly deployed cplm-api must never
+// steal partitions from a still-consuming AMS.Api.
+builder.Services.Configure<Traverse.CplmApi.Infrastructure.KafkaOptions>(
+    config.GetSection("Kafka"));
+builder.Services.Configure<Traverse.CplmApi.Services.IotDbWriteOptions>(
+    config.GetSection(Traverse.CplmApi.Services.IotDbWriteOptions.SectionName));
+builder.Services.AddHttpClient("IotDbWrite");
+builder.Services.AddSingleton<Traverse.CplmApi.Services.IotDbWriteClient>();
+builder.Services.Configure<Traverse.CplmApi.BackgroundServices.CplmOptions>(
+    config.GetSection(Traverse.CplmApi.BackgroundServices.CplmOptions.SectionName));
+if (config.GetValue("Cplm:ConsumersEnabled", false))
+{
+    builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmResultConsumerService>();
+    builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmEventFrameService>();
+}
+
 // ── Auth (platform RBAC): RS256 JWKS + one policy per permission key ───────
 // analytics.view / cpm.manage / system.manage ride Perms.All in the shared
 // TraverseAuth module (synced by scripts/sync-auth-module.ps1).
