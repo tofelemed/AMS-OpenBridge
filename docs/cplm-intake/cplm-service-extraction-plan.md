@@ -153,17 +153,25 @@ Proves the boundary with the code still in one process. One connection string to
 
 ---
 
-## Phase 3 — Move the read path (safe, reversible)
+## Phase 3 — Move the read path (safe, reversible) ✅ DONE (2026-08-06)
+
+> Executed as COPY (originals stay until Phase 6). Mechanical transforms only:
+> namespace, literal `api/v1` routes (no Asp.Versioning dependency), provenance
+> banner per file. Mutations gated by `Cpm:EnableMutations=false` middleware
+> (503 with a pointer to AMS.Api) rather than deleted from the copies — one env
+> flip enables them in Phase 5. One real divergence found by the diff gate and
+> fixed: AMS.Api serializes camelCase/omit-nulls/string-enums via AddJsonOptions;
+> the defaults do not, and 11 endpoints differed until cplm-api matched it.
 
 Controllers are idempotent reads — they can exist in both services simultaneously.
 
-- [ ] **3.1 Move** `CpmAnalyticsController`, `CpmFleetController`, `CpmEventsController` (read
+- [x] **3.1 Move** `CpmAnalyticsController`, `CpmFleetController`, `CpmEventsController` (read
       actions), `CpmReadinessController`, and the read side of `CpmLoopsController`.
-- [ ] **3.2 Move `CplmRecomputeService` + `CpmLoopRegistryService`** (the controllers depend
+- [x] **3.2 Move `CplmRecomputeService` + `CpmLoopRegistryService`** (the controllers depend
       on them) — but leave the *mutating* endpoints disabled until Phase 5.
-- [ ] **3.3 Run the 0.2 harness against `:5006`** and diff against golden. Both services now
+- [x] **3.3 Run the 0.2 harness against `:5006`** and diff against golden. Both services now
       answer identically. **Diff must be clean before proceeding.**
-- [ ] **3.4 Do not switch the frontend yet.** AMS.Api still serves the UI.
+- [x] **3.4 Do not switch the frontend yet.** AMS.Api still serves the UI.
 
 **Exit:** `:5006` returns byte-identical responses to `:8000` for every read endpoint.
 

@@ -23,6 +23,10 @@ var dataSource = new NpgsqlDataSourceBuilder(connStr)
     .EnableDynamicJson()
     .Build();
 builder.Services.AddSingleton(dataSource);
+// The controllers copied from AMS.Api inject [FromKeyedServices("cplm")]
+// (Phase 1 wiring). Register the same source under that key so the files stay
+// byte-close to the originals until Phase 6 deletes them there.
+builder.Services.AddKeyedSingleton("cplm", dataSource);
 
 // ── HTTP control plane ─────────────────────────────────────────────────────
 // asset-model: peer-link projection at onboarding (service-principal call).
@@ -41,7 +45,27 @@ builder.Services.AddHttpClient("Flink", client =>
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 
-builder.Services.AddControllers();
+// JSON options MUST match AMS.Api exactly (camelCase, omit nulls, enums as
+// strings) — the Phase 3 exit gate is a byte-identical response diff, and the
+// first run failed on exactly this: golden omits null fields, defaults don't.
+builder.Services.AddControllers().AddJsonOptions(opt =>
+{
+    opt.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    opt.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+    opt.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+});
+
+// ── CPLM domain services (Phase 3 read path) ───────────────────────────────
+builder.Services.Configure<Traverse.CplmApi.Services.CpmRegistryOptions>(
+    config.GetSection(Traverse.CplmApi.Services.CpmRegistryOptions.SectionName));
+builder.Services.AddSingleton<Traverse.CplmApi.Services.ICpmLoopRegistryService,
+    Traverse.CplmApi.Services.CpmLoopRegistryService>();
+builder.Services.Configure<Traverse.CplmApi.Services.CplmRecomputeOptions>(
+    config.GetSection(Traverse.CplmApi.Services.CplmRecomputeOptions.SectionName));
+builder.Services.AddSingleton<Traverse.CplmApi.Services.ICplmRecomputeService,
+    Traverse.CplmApi.Services.CplmRecomputeService>();
+builder.Services.AddSingleton<Traverse.CplmApi.Services.ICplmAuditEmitter,
+    Traverse.CplmApi.Services.CplmAuditEmitter>();
 
 // ── Auth (platform RBAC): RS256 JWKS + one policy per permission key ───────
 // analytics.view / cpm.manage / system.manage ride Perms.All in the shared
@@ -49,6 +73,31 @@ builder.Services.AddControllers();
 builder.AddTraverseAuth();
 
 var app = builder.Build();
+
+// ── Phase 3 gate: reads only ───────────────────────────────────────────────
+// The mutation endpoints exist in the copied controllers, but until Phase 5
+// the frontend still writes through AMS.Api — two live write paths would mean
+// two audit trails and two evidence publishers for the same click. 503 (not
+// 404/405) so a misrouted caller sees "temporarily not here", which is true.
+if (!config.GetValue("Cpm:EnableMutations", false))
+{
+    app.Use(async (ctx, next) =>
+    {
+        var m = ctx.Request.Method;
+        if (ctx.Request.Path.StartsWithSegments("/api")
+            && !HttpMethods.IsGet(m) && !HttpMethods.IsHead(m) && !HttpMethods.IsOptions(m))
+        {
+            ctx.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            await ctx.Response.WriteAsJsonAsync(new
+            {
+                error = "CPLM mutations are served by AMS.Api until extraction Phase 5",
+                enableWith = "Cpm__EnableMutations=true"
+            });
+            return;
+        }
+        await next();
+    });
+}
 
 app.UseTraverseAuth();
 app.MapControllers();

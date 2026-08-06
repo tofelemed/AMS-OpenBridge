@@ -869,10 +869,17 @@ services:
       ASPNETCORE_URLS: http://0.0.0.0:5000
       ConnectionStrings__CplmDb: Host=postgres;Port=5432;Database=traverse_cplm;Username=ams_user;Password=${POSTGRES_PASSWORD:-supersecurepassword123}
       Cpm__AssetModelUrl:    http://asset-model:5000
-      Cpm__FlinkUrl:         http://flink-jobmanager:8081
+      # Same key ams-api uses — MUST match asset-model's Auth__ServiceKey or peer-link
+      # projection 401s and G13 silently degrades to "no peers".
+      Cpm__ServiceKey:       ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
       Cpm__BootstrapServers: kafka:9092
-      # A8 recompute uploads this jar to the JobManager (path must match Cplm recompute options).
-      Cpm__JarPath:          /opt/ams/flink/ams-flink.jar
+      # Phase 3: reads only; mutations stay on AMS.Api until Phase 5 flips this.
+      Cpm__EnableMutations:  "false"
+      Flink__JobManagerUrl:  http://flink-jobmanager:8081
+      Kafka__BootstrapServers: kafka:9092
+      Services__BindingResolver: http://binding-resolver:5000
+      # A8 recompute uploads this jar to the JobManager.
+      CplmRecompute__JarPath: /opt/ams/flink/ams-flink.jar
       IotDb__RestUrl:        http://iotdb:8181
       # Platform auth (RBAC): validate RS256 tokens from auth-service; X-Service-Key authenticates
       # internal service-to-service calls that carry no user token.
