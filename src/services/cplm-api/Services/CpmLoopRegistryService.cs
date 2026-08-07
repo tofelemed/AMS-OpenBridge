@@ -54,7 +54,16 @@ public sealed record CpmLoopActivateRequest(
     IReadOnlyList<CpmTagMapEntry>? Tags = null,
     string? ThresholdProfileId = null,
     bool EnableMonitoring = true,
-    bool StepTestApproved = false);
+    bool StepTestApproved = false,
+    CpmEngineeringRange? Engineering = null);
+
+/// <summary>
+/// P3-8 - the engineering range of the OP signal. The engine assumed OP is
+/// 0-100 %: a 0-1 valve fraction made G2r pass unconditionally and saturation
+/// read 0 forever. Declared here at onboarding, broadcast to Flink as
+/// cplm.loop.engineering, and used to normalize OP before gate evaluation.
+/// </summary>
+public sealed record CpmEngineeringRange(double? OpMin = null, double? OpMax = null);
 
 public sealed record CpmLoopDto(
     string LoopId,
@@ -199,6 +208,21 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
         await using var tx = await conn.BeginTransactionAsync(ct);
         try
         {
+            // P3-9 - analytics reads are lower(loop_id) while storage keys are
+            // case-sensitive: "fic-101" and "FIC-101" would be two registry rows
+            // and two IoTDB devices silently merged into one analytics answer.
+            // One canonical casing per loop; re-activating the existing casing
+            // still upserts as before.
+            var existingCasing = await conn.QueryFirstOrDefaultAsync<string>(
+                "SELECT loop_id FROM cpm.loop_registry WHERE lower(loop_id) = lower(@loopId) AND loop_id <> @loopId",
+                new { loopId = request.LoopId }, tx);
+            if (existingCasing != null)
+            {
+                throw new InvalidOperationException(
+                    $"Loop id '{request.LoopId}' collides with existing loop '{existingCasing}' " +
+                    "(loop ids are case-insensitively unique; re-use the existing casing or retire it first)");
+            }
+
             var tags = request.Tags ?? Array.Empty<CpmTagMapEntry>();
             // tags JSONB mirrors every mapped role, VP included — CPA's version
             // hard-coded pv/sp/op/mode and silently dropped vp.
@@ -219,10 +243,11 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
             await conn.ExecuteAsync("""
                 INSERT INTO cpm.loop_registry
                     (loop_id, asset_id, display_name, site, area, unit, loop_type, criticality,
-                     is_active, monitoring, tags, threshold_profile_id, updated_at)
+                     is_active, monitoring, tags, engineering, threshold_profile_id, updated_at)
                 VALUES
                     (@loopId, @assetId, @displayName, @site, @area, @unit, @loopType, @criticality,
-                     TRUE, @monitoring::jsonb, @tags::jsonb, @thresholdProfileId, NOW())
+                     TRUE, @monitoring::jsonb, @tags::jsonb, COALESCE(@engineering::jsonb, '{}'::jsonb),
+                     @thresholdProfileId, NOW())
                 ON CONFLICT (loop_id) DO UPDATE SET
                     asset_id = EXCLUDED.asset_id, display_name = EXCLUDED.display_name,
                     site = EXCLUDED.site, area = EXCLUDED.area, unit = EXCLUDED.unit,
@@ -232,6 +257,8 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
                     -- Merge, do not replace: a re-activation must not wipe evidence
                     -- accumulated since the first onboarding (the CPA bug).
                     monitoring = cpm.loop_registry.monitoring || EXCLUDED.monitoring,
+                    -- P3-8: omitting engineering on re-activation keeps the stored range.
+                    engineering = COALESCE(@engineering::jsonb, cpm.loop_registry.engineering),
                     updated_at = NOW()
                 """,
                 new
@@ -246,6 +273,9 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
                     criticality = (request.Criticality ?? "medium").ToLowerInvariant(),
                     monitoring = monitoringJson,
                     tags = tagsJson,
+                    engineering = request.Engineering is { OpMin: not null } or { OpMax: not null }
+                        ? JsonSerializer.Serialize(new { opMin = request.Engineering.OpMin, opMax = request.Engineering.OpMax })
+                        : null,
                     thresholdProfileId = request.ThresholdProfileId
                 }, tx);
 
@@ -440,8 +470,9 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
             SELECT from_loop_id FROM cpm.loop_link WHERE to_loop_id = @loopId AND rel_type = 'PEER'
             """, new { loopId })).ToList();
 
-        var monitoringJson = await conn.QueryFirstOrDefaultAsync<string>(
-            "SELECT monitoring::text FROM cpm.loop_registry WHERE loop_id = @loopId", new { loopId });
+        var row = await conn.QueryFirstOrDefaultAsync<(string? Monitoring, string? Engineering)>(
+            "SELECT monitoring::text, engineering::text FROM cpm.loop_registry WHERE loop_id = @loopId", new { loopId });
+        var monitoringJson = row.Monitoring;
         var monitoring = ParseJson(monitoringJson);
         var stepTest = monitoring.TryGetProperty("evidence", out var ev)
             && ev.TryGetProperty("stepTestApproved", out var st) && st.ValueKind == JsonValueKind.True;
@@ -464,13 +495,31 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
         // Envelope shape consumed by CplmParameterSetBroadcastSupport.applyUpdateToState:
         // parameters[].name lands in broadcast state under "<calcInstanceId>:<name>",
         // which is exactly the key applyLoopEvidence reads.
+        var parameters = new List<Dictionary<string, string>>
+        {
+            new() { ["name"] = "cplm.loop.evidence", ["value"] = evidence }
+        };
+
+        // P3-8 - broadcast the OP engineering range so the engine can normalize a
+        // non-0-100 OP (e.g. a 0-1 valve fraction) before gate evaluation. Merge-only
+        // key applied AFTER profile resolution; it can never clobber the class pack.
+        var engineering = ParseJson(row.Engineering);
+        var hasEng = engineering.ValueKind == JsonValueKind.Object;
+        double? opMin = hasEng && engineering.TryGetProperty("opMin", out var mn) && mn.ValueKind == JsonValueKind.Number ? mn.GetDouble() : null;
+        double? opMax = hasEng && engineering.TryGetProperty("opMax", out var mx) && mx.ValueKind == JsonValueKind.Number ? mx.GetDouble() : null;
+        if (opMin != null || opMax != null)
+        {
+            parameters.Add(new Dictionary<string, string>
+            {
+                ["name"] = "cplm.loop.engineering",
+                ["value"] = JsonSerializer.Serialize(new { opEngMin = opMin ?? 0.0, opEngMax = opMax ?? 100.0 })
+            });
+        }
+
         var envelope = JsonSerializer.Serialize(new Dictionary<string, object>
         {
             ["calcInstanceId"] = loopId,
-            ["parameters"] = new[]
-            {
-                new Dictionary<string, string> { ["name"] = "cplm.loop.evidence", ["value"] = evidence }
-            }
+            ["parameters"] = parameters
         });
 
         try
@@ -539,6 +588,8 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
                 CREATE INDEX IF NOT EXISTS idx_cpm_loop_registry_asset ON cpm.loop_registry (asset_id);
                 CREATE INDEX IF NOT EXISTS idx_cpm_loop_registry_site ON cpm.loop_registry (site);
+                -- P3-9: analytics reads join on lower(loop_id); enforce one casing per loop.
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_cpm_loop_registry_loop_ci ON cpm.loop_registry (lower(loop_id));
                 CREATE TABLE IF NOT EXISTS cpm.loop_tag_map (
                     loop_id VARCHAR(64) NOT NULL REFERENCES cpm.loop_registry(loop_id) ON DELETE CASCADE,
                     signal_role VARCHAR(16) NOT NULL,

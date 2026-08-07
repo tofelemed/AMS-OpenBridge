@@ -561,7 +561,10 @@ services:
     networks:
       - ams-backend
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/8090' || exit 1"]  # aspnet image has no wget/curl; /dev/tcp works
+      # P3-10 - probe /health (which checks IoTDB + Redis), not bare TCP: the
+      # container used to report healthy with the historian down. The image
+      # installs wget for exactly this purpose (aspnet slim has no curl).
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8090/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5

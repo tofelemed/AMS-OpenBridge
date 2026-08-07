@@ -96,6 +96,23 @@ public final class CplmLoopDynamicsProfile implements Serializable {
     public double satWarnOccupancy = 0.05;
     public int satLimitDwellSamplesWarn = 30;
 
+    // P3-8 - engineering range of the OP signal itself. The engine historically
+    // assumed OP arrives as 0-100 %: a 0-1 valve fraction made every saturation
+    // threshold unreachable (saturation stuck at 0) and G2r pass unconditionally.
+    // When a loop declares its range (registry -> cplm.loop.engineering
+    // broadcast), OP is normalized to 0-100 before any gate math. The default
+    // 0-100 is an exact identity, so undeclared loops are byte-for-byte
+    // unchanged (golden reference included).
+    public double opEngMin = 0.0;
+    public double opEngMax = 100.0;
+
+    /** Normalize one OP sample to 0-100 % of the declared engineering range. */
+    public double normalizeOp(double op) {
+        double span = opEngMax - opEngMin;
+        if (span <= 1e-12 || (opEngMin == 0.0 && opEngMax == 100.0)) return op;
+        return (op - opEngMin) / span * 100.0;
+    }
+
     // --- temporal persistence ---
     public int persistenceWindows = 3;
     public int persistenceMinAgree = 2;
@@ -127,6 +144,8 @@ public final class CplmLoopDynamicsProfile implements Serializable {
         p.priorEffort = priorEffort;
         p.priorGeometry = priorGeometry;
         p.integrating = integrating;
+        p.opEngMin = opEngMin;
+        p.opEngMax = opEngMax;
         p.geometryFamilyEnabled = geometryFamilyEnabled;
         p.pvFilterType = pvFilterType;
         p.pvFilterWindow = pvFilterWindow;

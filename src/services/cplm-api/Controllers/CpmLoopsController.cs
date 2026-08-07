@@ -76,6 +76,11 @@ public sealed class CpmLoopsController : ControllerBase
             // 422: the request is well-formed JSON but not a viable loop definition.
             return UnprocessableEntity(new { error = "REGISTRY_VALIDATION", message = ex.Message });
         }
+        catch (InvalidOperationException ex)
+        {
+            // P3-9 - 409: the loop id collides case-insensitively with an existing loop.
+            return Conflict(new { error = "LOOP_ID_CASE_COLLISION", message = ex.Message });
+        }
     }
 
     /// <summary>

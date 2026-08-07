@@ -43,17 +43,20 @@ public sealed class CplmEventFrameService : BackgroundService
     private readonly NpgsqlDataSource _dataSource;
     private readonly CplmOptions _options;
     private readonly IConsumer<string, string> _consumer;
+    private readonly Traverse.CplmApi.Services.ConsumerHeartbeat _heartbeat;
     private static int _schemaEnsured;
 
     public CplmEventFrameService(
         ILogger<CplmEventFrameService> logger,
         IOptions<Traverse.CplmApi.Infrastructure.KafkaOptions> kafkaOptions,
         IOptions<CplmOptions> cplmOptions,
+        Traverse.CplmApi.Services.ConsumerHeartbeat heartbeat,
         [FromKeyedServices("cplm")] NpgsqlDataSource dataSource)
     {
         _logger = logger;
         _dataSource = dataSource;
         _options = cplmOptions.Value;
+        _heartbeat = heartbeat;
         _consumer = new ConsumerBuilder<string, string>(new ConsumerConfig
         {
             BootstrapServers = kafkaOptions.Value.BootstrapServers,
@@ -69,6 +72,7 @@ public sealed class CplmEventFrameService : BackgroundService
         await Task.Yield();
         while (!stoppingToken.IsCancellationRequested)
         {
+            _heartbeat.Report("frames", "ENSURING_SCHEMA"); // P3-11
             try { await EnsureSchemaAsync(stoppingToken); break; }
             catch (Exception ex)
             {
@@ -84,6 +88,7 @@ public sealed class CplmEventFrameService : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            _heartbeat.Report("frames", "CONSUMING"); // P3-11: beats even when idle (500 ms poll)
             ConsumeResult<string, string>? result = null;
             try
             {

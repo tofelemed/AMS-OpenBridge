@@ -23,6 +23,12 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class CplmDynamicsParameterSetSupport implements Serializable {
 
     public static final String ATTR_OVERRIDE = "cplm.dynamics.override";
+    /**
+     * P3-8 - per-loop OP engineering range published by the registry
+     * (cpm.loop_registry.engineering). Applied AFTER profile resolution as a
+     * merge, never as an override: it cannot clobber the class pack.
+     */
+    public static final String ATTR_ENGINEERING = "cplm.loop.engineering";
     public static final String ATTR_PROFILE_VERSION = "cplm.dynamicsProfileVersion";
     public static final String ATTR_CALC_VERSION = "cplm.calculationVersion";
     public static final String ATTR_CLASS_PREFIX = "cplm.dynamics.class.";
@@ -97,17 +103,36 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
                 if (override != null) {
                     override.profileSource = CplmLoopDynamicsProfile.ProfileSource.OVERRIDE;
                     stampVersions(override);
+                    applyEngineering(override, loopId);
                     return override;
                 }
                 fromSpine.loopClass = cls;
                 stampVersions(fromSpine);
+                applyEngineering(fromSpine, loopId);
                 return fromSpine;
             }
         }
 
         CplmLoopDynamicsProfile fallback = CplmLoopDynamicsProfile.resolve(loopId, loopType, override);
         stampVersions(fallback);
+        applyEngineering(fallback, loopId);
         return fallback;
+    }
+
+    /** P3-8 - merge the loop's declared OP engineering range onto the resolved profile. */
+    private static void applyEngineering(CplmLoopDynamicsProfile p, String loopId) {
+        if (p == null || loopId == null || loopId.isEmpty()) return;
+        String eng = SPINE.get(loopId + ":" + ATTR_ENGINEERING);
+        if (eng == null) eng = SPINE.get(ATTR_ENGINEERING + ":" + loopId);
+        if (eng == null) return;
+        try {
+            JsonNode n = MAPPER.readTree(eng);
+            if (n.isTextual()) n = MAPPER.readTree(n.asText());
+            if (n.has("opEngMin")) p.opEngMin = n.path("opEngMin").asDouble(p.opEngMin);
+            if (n.has("opEngMax")) p.opEngMax = n.path("opEngMax").asDouble(p.opEngMax);
+        } catch (Exception ignored) {
+            // a malformed range must never break gate evaluation
+        }
     }
 
     private static String firstMatchingSuffix(String suffix) {
@@ -173,6 +198,8 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
             }
             if (root.has("geometryFamilyEnabled")) p.geometryFamilyEnabled = root.path("geometryFamilyEnabled").asBoolean(p.geometryFamilyEnabled);
             if (root.has("integrating")) p.integrating = root.path("integrating").asBoolean(p.integrating);
+            if (root.has("opEngMin")) p.opEngMin = root.path("opEngMin").asDouble(p.opEngMin);
+            if (root.has("opEngMax")) p.opEngMax = root.path("opEngMax").asDouble(p.opEngMax);
             if (root.has("gateProfileId")) p.gateProfileId = root.path("gateProfileId").asText(p.gateProfileId);
             if (root.has("dynamicClass")) {
                 try {

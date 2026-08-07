@@ -49,6 +49,10 @@ CREATE TABLE IF NOT EXISTS cpm.loop_registry (
 
 CREATE INDEX IF NOT EXISTS idx_cpm_loop_registry_asset ON cpm.loop_registry (asset_id);
 CREATE INDEX IF NOT EXISTS idx_cpm_loop_registry_site  ON cpm.loop_registry (site);
+-- P3-9: analytics reads join on lower(loop_id); enforce one casing per loop
+-- so "fic-101" and "FIC-101" cannot become two registry rows / IoTDB devices
+-- silently merged into one analytics answer.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_cpm_loop_registry_loop_ci ON cpm.loop_registry (lower(loop_id));
 -- Matches the hot predicate COALESCE((monitoring->>'enabled')::boolean, FALSE)
 -- exactly — CPA indexed the bare text expression, which the cast made unusable.
 CREATE INDEX IF NOT EXISTS idx_cpm_loop_registry_enabled

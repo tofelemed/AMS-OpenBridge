@@ -44,6 +44,7 @@ public sealed class CplmResultConsumerService : BackgroundService
     private readonly NpgsqlDataSource _dataSource;
     private readonly CplmOptions _options;
     private readonly Traverse.CplmApi.Services.IotDbWriteClient _iotdb;
+    private readonly Traverse.CplmApi.Services.ConsumerHeartbeat _heartbeat;
     private readonly IConsumer<string, string> _consumer;
 
     public CplmResultConsumerService(
@@ -51,12 +52,14 @@ public sealed class CplmResultConsumerService : BackgroundService
         IOptions<KafkaOptions> kafkaOptions,
         IOptions<CplmOptions> cplmOptions,
         Traverse.CplmApi.Services.IotDbWriteClient iotdb,
+        Traverse.CplmApi.Services.ConsumerHeartbeat heartbeat,
         [FromKeyedServices("cplm")] NpgsqlDataSource dataSource)
     {
         _logger = logger;
         _dataSource = dataSource;
         _options = cplmOptions.Value;
         _iotdb = iotdb;
+        _heartbeat = heartbeat;
 
         var config = new ConsumerConfig
         {
@@ -82,6 +85,7 @@ public sealed class CplmResultConsumerService : BackgroundService
         // of failing fast — messages wait in Kafka either way.
         while (!stoppingToken.IsCancellationRequested)
         {
+            _heartbeat.Report("results", "ENSURING_SCHEMA"); // P3-11
             try
             {
                 await EnsureSchemaAsync(stoppingToken);
@@ -103,6 +107,7 @@ public sealed class CplmResultConsumerService : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            _heartbeat.Report("results", "CONSUMING"); // P3-11: beats even when idle (500 ms poll)
             ConsumeResult<string, string>? result = null;
             try
             {

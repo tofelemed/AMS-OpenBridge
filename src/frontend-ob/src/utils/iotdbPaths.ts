@@ -1,8 +1,13 @@
 import type { LiveAlarm, LiveMetric } from '../store/mqttStore';
 import { apiFetch } from '../api/apiFetch';
 
-/** IoTDB alarm device prefix — must match IoTDBPersistenceJob.PATH_PREFIX. */
-export const IOTDB_ALARM_PREFIX = 'root.ams.site1.alarms.';
+/**
+ * IoTDB alarm device prefix — must match IoTDBPersistenceJob.PATH_PREFIX.
+ * P3-5: overridable like VITE_LOOP_ROOT_PREFIX in loopSeries.ts — repointing
+ * the historian for a second site must not require a code change.
+ */
+export const IOTDB_ALARM_PREFIX =
+  (import.meta.env.VITE_ALARM_ROOT_PREFIX as string | undefined) ?? 'root.ams.site1.alarms.';
 
 const HIST_URL = (import.meta.env.VITE_HIST_URL as string | undefined) ?? '/api/hist';
 
@@ -41,7 +46,7 @@ export function parseTimeseriesPaths(body: { values?: unknown[][] }): string[] {
 /** Discover unique IoTDB alarm device paths via Historian BFF /series. */
 export async function discoverIotdbDevicePaths(): Promise<string[]> {
   try {
-    const res = await apiFetch(`${HIST_URL}/series?prefix=${encodeURIComponent('root.ams.site1.alarms.**')}`);
+    const res = await apiFetch(`${HIST_URL}/series?prefix=${encodeURIComponent(`${IOTDB_ALARM_PREFIX}**`)}`);
     if (!res.ok) return [];
     const body = await res.json() as { values?: unknown[][] };
     const devices = new Set<string>();

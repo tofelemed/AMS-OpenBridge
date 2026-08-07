@@ -82,6 +82,9 @@ builder.Services.AddHttpClient("IotDbWrite");
 builder.Services.AddSingleton<Traverse.CplmApi.Services.IotDbWriteClient>();
 builder.Services.Configure<Traverse.CplmApi.BackgroundServices.CplmOptions>(
     config.GetSection(Traverse.CplmApi.BackgroundServices.CplmOptions.SectionName));
+// P3-11: always registered so /health can tell "consumers disabled by config"
+// apart from "consumers enabled but silent".
+builder.Services.AddSingleton<Traverse.CplmApi.Services.ConsumerHeartbeat>();
 if (config.GetValue("Cplm:ConsumersEnabled", false))
 {
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmResultConsumerService>();
@@ -136,7 +139,11 @@ app.MapGet("/authcheck", (System.Security.Claims.ClaimsPrincipal user) => Result
 })).RequireAuthorization(Perms.AnalyticsView);
 
 // ── GET /health — liveness + the one dependency that must never be wrong ───
-app.MapGet("/health", async (NpgsqlDataSource ds) =>
+// P3-11: also surfaces both Kafka consumers. A stalled/missing consumer makes
+// the status "Degraded" but still HTTP 200 — the container healthcheck must
+// not restart-loop the read API because Kafka wobbled; 503 stays DB-only.
+var cplmConsumersEnabled = config.GetValue("Cplm:ConsumersEnabled", false);
+app.MapGet("/health", async (NpgsqlDataSource ds, Traverse.CplmApi.Services.ConsumerHeartbeat beats) =>
 {
     try
     {
@@ -145,9 +152,30 @@ app.MapGet("/health", async (NpgsqlDataSource ds) =>
         // Not SELECT 1: prove we are in the RIGHT database, not just A database.
         cmd.CommandText = "SELECT current_database()";
         var db = (string?)await cmd.ExecuteScalarAsync();
-        return db == "traverse_cplm"
-            ? Results.Json(new { status = "Healthy", database = db })
-            : Results.Json(new { status = "Unhealthy", error = $"connected to '{db}', expected traverse_cplm" }, statusCode: 503);
+        if (db != "traverse_cplm")
+            return Results.Json(new { status = "Unhealthy", error = $"connected to '{db}', expected traverse_cplm" }, statusCode: 503);
+
+        (string State, string? Phase, double? AgeSeconds) ConsumerState(string name)
+        {
+            if (!cplmConsumersEnabled) return ("DISABLED_BY_CONFIG", null, null);
+            var b = beats.Get(name);
+            if (b == null) return ("NEVER_STARTED", null, null);
+            var age = (DateTimeOffset.UtcNow - b.Value.At).TotalSeconds;
+            // Poll cycle is 500 ms; 60 s of silence means the loop is wedged.
+            return (age > 60 ? "STALLED" : "RUNNING", b.Value.Phase, Math.Round(age, 1));
+        }
+
+        var r = ConsumerState("results");
+        var f = ConsumerState("frames");
+        var results = new { state = r.State, phase = r.Phase, heartbeatAgeSeconds = r.AgeSeconds };
+        var frames = new { state = f.State, phase = f.Phase, heartbeatAgeSeconds = f.AgeSeconds };
+        var degraded = r.State is "STALLED" or "NEVER_STARTED" || f.State is "STALLED" or "NEVER_STARTED";
+        return Results.Json(new
+        {
+            status = degraded ? "Degraded" : "Healthy",
+            database = db,
+            consumers = new { enabled = cplmConsumersEnabled, results, frames }
+        });
     }
     catch (Exception ex)
     {

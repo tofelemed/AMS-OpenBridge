@@ -85,7 +85,23 @@ item is in the commit message and in `docs/cplm-intake/pipeline-fix-validation.m
 | P2-22 | FIXED — historian-bff raises on IoTDB's embedded non-200 code; a broken query is now a visible 500, not `200 {points: []}` |
 | P2-23 | FIXED — TrendCore marks failed pens and renders a caution line naming them instead of silently dropping the series |
 
-**Still open:** everything under P3.
+## P3 FIX STATUS — 2026-08-07 (third pass; items numbered in section order)
+
+| # | Item | Outcome |
+|---|---|---|
+| P3-1 | window_area_norm > 1.0 | FIXED — with a validated period each completed cycle is shoelaced as its own CLOSED polygon and the magnitudes averaged: counter-rotating cycles no longer cancel, extra windings cannot exceed the bbox, and window_area_norm equals the per-cycle [0,1] fraction. Without a validated period the whole path is properly closed before the shoelace (the old code never added the closure edge). Golden 30/30 unchanged |
+| P3-2 | IAE/ISE/ITAE scale with sample count | FIXED — integrals now use the actual inter-sample interval (zero-order hold across gaps, the historian's own recording assumption; final sample contributes one median interval). On gap-free data the totals are bit-identical to the old formula (golden 30/30). ITAE's time weight anchors to windowStart, not the first present sample |
+| P3-3 | G12/G13 report EXCLUDED when never evaluated | FIXED — field default is PENDING like every other gate; blockDiagnosis's existing PENDING→NOT_EVALUATED mapping now actually fires |
+| P3-4 | validated_period_s unstable across windows | PARTIAL (deliberate) — when ACF fails only its regularity gate and the FFT peak is a small-integer harmonic (k=2..5, ±15 %) of the in-band ACF cycle, the fold publishes the corroborated fundamental (source FFT_HARMONIC_FOLD) instead of the harmonic — kills the 1200→430 flavour of the flip. The ACF-regular path is untouched. Cross-window period persistence (like family-level applyPersistence) is the full fix and stays backlog |
+| P3-5 | historian prefix hardcoded in six frontend files + iotdb-init-ttl.sh | FIXED — the six CPM screens were already centralized through utils/loopSeries.ts (VITE_LOOP_ROOT_PREFIX) in the P1-5 consolidation; this pass adds VITE_ALARM_ROOT_PREFIX for the alarm tree (iotdbPaths.ts) and parameterizes iotdb-init-ttl.sh (ALARM_DB / LOOP_DB / LOOP_CPM_PREFIX env vars) |
+| P3-6 | PENDING leaks into public gate vocabulary | FIXED — pubStatus() maps any surviving PENDING (an internal "not set yet" sentinel) to NOT_EVALUATED on every gate emit, flat fields and the gates{} map both; internal round-trip topics keep the sentinel |
+| P3-7 | dynamic_class + dynamics_class both written | FIXED — the public verdict no longer publishes the unread near-duplicate `dynamic_class` (speed class); it stays on the internal long-diagnostics topic and is encoded in gate_profile_id |
+| P3-8 | OP assumed 0–100 with no way to declare otherwise | FIXED — activation accepts engineering { opMin, opMax } (stored in the existing cpm.loop_registry.engineering JSONB, kept on re-activation), published as merge-only broadcast key cplm.loop.engineering, applied AFTER profile resolution (cannot clobber the class pack), and the engine normalizes every OP sample to 0–100 at both extraction points. Default 0–100 is exact identity — undeclared loops (golden included) are byte-for-byte unchanged |
+| P3-9 | case-insensitive reads vs case-sensitive keys | FIXED — activation 409s on a case-variant collision (LOOP_ID_CASE_COLLISION names the existing casing) and a unique index on lower(loop_id) enforces it at the storage layer (self-heal block + 32_cpm_loop_registry.sql) |
+| P3-10 | historian-bff healthcheck TCP-only | FIXED — compose healthcheck now wgets /health (which probes IoTDB REST + Redis and 503s on failure); the image installed wget for exactly this and the stale "no wget/curl" comment was wrong |
+| P3-11 | cplm-api /health proves only Postgres | FIXED — both Kafka consumers heartbeat every 500 ms poll cycle with a phase (ENSURING_SCHEMA / CONSUMING); /health reports state per consumer (RUNNING / STALLED >60 s / NEVER_STARTED / DISABLED_BY_CONFIG) and turns "Degraded" (still HTTP 200 — a Kafka stall must not restart-loop the read API; 503 stays DB-only) |
+
+**Still open:** the recorded deliberate partials (P2-3 G4 recalibration, P2-4 calibrated corner statistic, P2-10 binding-resolver wiring, P3-4 cross-window period persistence) and the SP≡PV ingest guard recommended in the data-quality note.
 
 
 ---

@@ -21,6 +21,13 @@ IOTDB_PORT="${IOTDB_PORT:-6667}"
 IOTDB_USER="${IOTDB_USER:-root}"
 IOTDB_PASS="${IOTDB_PASS:-root}"
 
+# P3-5 - the historian trees are configurable everywhere else (frontend
+# VITE_LOOP_ROOT_PREFIX / VITE_ALARM_ROOT_PREFIX, server config); hardcoding
+# them here meant a repointed site got TTLs on the wrong tree with no error.
+ALARM_DB="${ALARM_DB:-root.ams}"
+LOOP_DB="${LOOP_DB:-root.site1}"
+LOOP_CPM_PREFIX="${LOOP_CPM_PREFIX:-${LOOP_DB}.cpm}"
+
 # TTL values in milliseconds
 TTL_90_DAYS=$(( 90 * 24 * 3600 * 1000 ))
 TTL_365_DAYS=$(( 365 * 24 * 3600 * 1000 ))
@@ -45,11 +52,11 @@ run_sql() {
 # are prefix-exclusive — auto_create_schema made root.ams the database when the
 # alarm sink first wrote, so root.ams.site1.alarms was never a database and the
 # original per-subtree TTLs here NEVER applied. TTL is set on the real database.
-echo "[iotdb-init-ttl] Creating alarm database root.ams (already-exists is fine)…"
-run_sql "CREATE DATABASE root.ams;"
+echo "[iotdb-init-ttl] Creating alarm database ${ALARM_DB} (already-exists is fine)…"
+run_sql "CREATE DATABASE ${ALARM_DB};"
 
-echo "[iotdb-init-ttl] Setting TTL — alarm tree root.ams: ${TTL_365_DAYS}ms (365 days)…"
-run_sql "SET TTL TO root.ams ${TTL_365_DAYS};"
+echo "[iotdb-init-ttl] Setting TTL — alarm tree ${ALARM_DB}: ${TTL_365_DAYS}ms (365 days)…"
+run_sql "SET TTL TO ${ALARM_DB} ${TTL_365_DAYS};"
 
 # ── CPLM Phase 3 (3.8) — loop historian tree ─────────────────────────────────
 # Raw samples + KPI series live under root.<site> (root.site1.cpm.<loop>.…),
@@ -69,8 +76,8 @@ run_sql_v() {
   return 0
 }
 
-echo "[iotdb-init-ttl] Creating loop-historian database root.site1 (already-exists is fine)…"
-run_sql "CREATE DATABASE root.site1;"
+echo "[iotdb-init-ttl] Creating loop-historian database ${LOOP_DB} (already-exists is fine)…"
+run_sql "CREATE DATABASE ${LOOP_DB};"
 
 # ORDER MATTERS. KPI series should outlive raw samples (730 d vs 90 d), but on
 # IoTDB 1.3.2 a path-pattern SET TTL just rewrites the owning DATABASE's TTL.
@@ -78,19 +85,19 @@ run_sql "CREATE DATABASE root.site1;"
 # versions: 1.3.2 ends at 90 d everywhere (kpi limitation noted), ≥1.3.3 keeps
 # a separate 730 d device TTL on the kpi subtree.
 echo "[iotdb-init-ttl] Attempting KPI-subtree TTL: ${TTL_730_DAYS}ms (730 days)…"
-if ! run_sql_v "SET TTL TO root.site1.cpm.**.kpi.** ${TTL_730_DAYS};"; then
+if ! run_sql_v "SET TTL TO ${LOOP_CPM_PREFIX}.**.kpi.** ${TTL_730_DAYS};"; then
   echo "[iotdb-init-ttl] NOTE: path-scoped TTL unsupported — kpi.* will inherit the 90 d database TTL."
 fi
 
-echo "[iotdb-init-ttl] Setting TTL — raw loop samples root.site1: ${TTL_90_DAYS}ms (90 days)…"
-run_sql_v "SET TTL TO root.site1 ${TTL_90_DAYS};" || true
+echo "[iotdb-init-ttl] Setting TTL — raw loop samples ${LOOP_DB}: ${TTL_90_DAYS}ms (90 days)…"
+run_sql_v "SET TTL TO ${LOOP_DB} ${TTL_90_DAYS};" || true
 
 echo "[iotdb-init-ttl] Verifying TTL settings (SHOW ALL TTL)…"
 TTL_OUT=$(echo "SHOW ALL TTL;" | "${IOTDB_CLI}" -h "${IOTDB_HOST}" -p "${IOTDB_PORT}" \
     -u "${IOTDB_USER}" -pw "${IOTDB_PASS}" -disableISO8601 2>&1 || true)
 echo "$TTL_OUT"
-if ! echo "$TTL_OUT" | grep -q "root.site1"; then
-  echo "[iotdb-init-ttl] ERROR: root.site1 has no TTL — raw loop samples would grow unbounded."
+if ! echo "$TTL_OUT" | grep -q "${LOOP_DB}"; then
+  echo "[iotdb-init-ttl] ERROR: ${LOOP_DB} has no TTL — raw loop samples would grow unbounded."
   exit 1
 fi
 

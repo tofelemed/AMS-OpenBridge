@@ -152,7 +152,7 @@ public final class CplmGateEngine implements Serializable {
             CplmNormalizedSample s = samples.get(i);
             pv[i] = s.pv;
             sp[i] = s.sp;
-            op[i] = s.op;
+            op[i] = profile.normalizeOp(s.op); // P3-8: identity unless a range is declared
             err[i] = sp[i] - pv[i];
             if (s.isAutoMode()) autoCount++;
             boolean pvOk = pv[i] >= profile.regionPvMin && pv[i] <= profile.regionPvMax;
@@ -193,13 +193,25 @@ public final class CplmGateEngine implements Serializable {
 
         double mae = meanAbs(err);
         double rmse = Math.sqrt(meanSq(err));
+        // P3-2 - integrate over the actual inter-sample intervals (zero-order
+        // hold across gaps, the historian's own recording assumption), not the
+        // median dt applied uniformly: that made IAE/ISE/ITAE scale with sample
+        // COUNT, so a 95%-complete window reported ~95% of the true integral
+        // while being labelled a full-window IAE. The final sample, which has
+        // no successor, contributes one median interval - on gap-free data the
+        // totals are identical to the previous formula. ITAE's time weight is
+        // anchored to windowStart, not the first present sample, so a late-
+        // starting window no longer shifts every weight toward zero.
         double iae = 0, ise = 0, itae = 0;
         int goodErrorCount = 0;
         for (int i = 0; i < n; i++) {
-            iae += Math.abs(err[i]) * tsSec;
-            ise += err[i] * err[i] * tsSec;
-            double tSec = (samples.get(i).eventTsMs - samples.get(0).eventTsMs) / 1000.0;
-            itae += tSec * Math.abs(err[i]) * tsSec;
+            double dtSec = i < n - 1
+                    ? (samples.get(i + 1).eventTsMs - samples.get(i).eventTsMs) / 1000.0
+                    : tsSec;
+            double tSec = (samples.get(i).eventTsMs - windowStartMs) / 1000.0;
+            iae += Math.abs(err[i]) * dtSec;
+            ise += err[i] * err[i] * dtSec;
+            itae += tSec * Math.abs(err[i]) * dtSec;
             if (Math.abs(err[i]) <= GOOD_ERROR_BAND) goodErrorCount++;
         }
         result.mae = mae;
@@ -322,7 +334,7 @@ public final class CplmGateEngine implements Serializable {
             CplmNormalizedSample s = samples.get(i);
             pv[i] = s.pv;
             sp[i] = s.sp;
-            op[i] = s.op;
+            op[i] = profile.normalizeOp(s.op); // P3-8: identity unless a range is declared
             if (s.vp != null) hasVp = true;
         }
         result.hasVp = hasVp;
@@ -517,6 +529,28 @@ public final class CplmGateEngine implements Serializable {
             out.status = "VALID";
             out.periodS = fft.peakPeriodSec;
             out.source = "FFT";
+            // P3-4 (partial) - adjacent windows flipped 1200 -> 430 -> 3520 s on
+            // the same signal: when ACF regularity dips below its gate for one
+            // window, the fallback FFT peak is often a HARMONIC of the real
+            // cycle (430 ~= 1290/3), which then flips G9 between bands on pure
+            // noise. If the weakly-regular ACF cycle is an (approximate) small-
+            // integer multiple of the FFT peak, the two estimators corroborate
+            // one fundamental - publish that instead of the harmonic. The
+            // ACF-regular path above is untouched. Cross-window period
+            // persistence (like the family-level applyPersistence) is the full
+            // fix and stays backlog.
+            if (acf.periodSec > fft.peakPeriodSec
+                    && profile.isPeriodInBand(acf.periodSec, tsSec)) {
+                double ratio = acf.periodSec / fft.peakPeriodSec;
+                long k = Math.round(ratio);
+                if (k >= 2 && k <= 5 && Math.abs(ratio - k) <= 0.15 * k) {
+                    double folded = fft.peakPeriodSec * k;
+                    if (profile.isPeriodInBand(folded, tsSec)) {
+                        out.periodS = folded;
+                        out.source = "FFT_HARMONIC_FOLD";
+                    }
+                }
+            }
             return out;
         }
         out.status = "NO_VALID_CYCLE";
@@ -1009,17 +1043,44 @@ public final class CplmGateEngine implements Serializable {
         r.bboxArea = bbox;
         if (bbox < 1e-12) return r;
 
-        double area = 0;
-        for (int i = 0; i < n - 1; i++) {
-            area += pv[i] * op[i + 1] - pv[i + 1] * op[i];
-        }
-        area = 0.5 * Math.abs(area);
-        r.pathArea = area;
-        r.windowAreaNorm = area / bbox;
-        // Only normalise by cycles when the period was validated (caller passes 0 otherwise).
-        if (completedCycles > 0) {
-            r.cycleNormalizedArea = r.windowAreaNorm / completedCycles;
+        // P3-1 - the old shoelace summed signed cross-products over the whole
+        // window and took abs AFTER summation, with no closure edge: counter-
+        // rotating sub-loops cancelled toward zero, and multiply-wound
+        // trajectories summed past the bounding box (window_area_norm hit
+        // 1.17 on live data - impossible for a fraction). With a validated
+        // period, each completed cycle is shoelaced as its own CLOSED polygon
+        // and the magnitudes averaged: opposite-handed cycles no longer
+        // cancel, extra windings cannot exceed the bbox, and on a clean
+        // single-handed oscillation the value matches the old formula.
+        // window_area_norm and the per-cycle norm are then the same [0,1]
+        // fraction; without a validated period the whole path is closed and
+        // shoelaced as one polygon (per-cycle stays 0, as before).
+        if (completedCycles > 0 && n / completedCycles >= 3) {
+            int len = n / completedCycles;
+            double absSum = 0;
+            for (int c = 0; c < completedCycles; c++) {
+                int s = c * len;
+                int e = (c == completedCycles - 1) ? n : s + len; // last chunk absorbs remainder
+                double a = 0;
+                for (int i = s; i < e - 1; i++) {
+                    a += pv[i] * op[i + 1] - pv[i + 1] * op[i];
+                }
+                a += pv[e - 1] * op[s] - pv[s] * op[e - 1]; // closure edge
+                absSum += 0.5 * Math.abs(a);
+            }
+            double perCycleArea = absSum / completedCycles;
+            r.pathArea = absSum;
+            r.windowAreaNorm = perCycleArea / bbox;
+            r.cycleNormalizedArea = perCycleArea / bbox;
         } else {
+            double area = 0;
+            for (int i = 0; i < n - 1; i++) {
+                area += pv[i] * op[i + 1] - pv[i + 1] * op[i];
+            }
+            area += pv[n - 1] * op[0] - pv[0] * op[n - 1]; // closure edge
+            area = 0.5 * Math.abs(area);
+            r.pathArea = area;
+            r.windowAreaNorm = area / bbox;
             r.cycleNormalizedArea = 0;
         }
 
