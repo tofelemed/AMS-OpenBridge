@@ -111,6 +111,15 @@ public sealed class RawLoopIotDbConsumer : BackgroundService
                 {
                     await _iotdb.EnsureTimeseriesAsync(device, MeasurementTypes, stoppingToken);
                     var ok = await _iotdb.InsertBatchAsync(device, Measurements, rows, stoppingToken);
+                    if (!ok)
+                    {
+                        // P2-17 - one malformed value used to reject the whole
+                        // 500-row statement; offsets were withheld, the identical
+                        // batch was redelivered, and the partition wedged forever
+                        // behind a single poison row. Bisect: good halves land,
+                        // the poison narrows to ONE row which is dropped loudly.
+                        ok = await InsertBisectingAsync(device, rows, stoppingToken);
+                    }
                     if (ok) written += rows.Count; else allOk = false;
                 }
 
@@ -150,12 +159,24 @@ public sealed class RawLoopIotDbConsumer : BackgroundService
             using var doc = JsonDocument.Parse(cr.Message.Value);
             var r = doc.RootElement;
             var loopId = GetString(r, "loop_id") ?? GetString(r, "tagId") ?? cr.Message.Key;
-            if (string.IsNullOrWhiteSpace(loopId)) return false;
+            if (string.IsNullOrWhiteSpace(loopId))
+            {
+                // P2-18 - these two rejects were silent returns while offsets
+                // advanced, so a producer field rename would stop the historian
+                // gaining data with ZERO diagnostics. Rate-limited so a bad
+                // producer cannot flood the log.
+                LogParseDrop("missing loop_id/tagId/key", cr);
+                return false;
+            }
 
             long ts;
             if (r.TryGetProperty("event_ts_ms", out var t1) && t1.TryGetInt64(out var v1)) ts = v1;
             else if (r.TryGetProperty("timestamp", out var t2) && t2.TryGetInt64(out var v2)) ts = v2;
-            else return false;
+            else
+            {
+                LogParseDrop("missing/non-integer event_ts_ms/timestamp", cr);
+                return false;
+            }
 
             device = $"{_iotdb.LoopRootPrefix}.{IotDbWriteClient.SafeNode(loopId)}";
             row = (ts, new object?[]
@@ -170,6 +191,52 @@ public sealed class RawLoopIotDbConsumer : BackgroundService
             _logger.LogWarning(ex, "Unparseable loop sample skipped");
             return false;
         }
+    }
+
+    /// <summary>
+    /// P2-17 - recursively split a rejected batch. IoTDB rejects a multi-row
+    /// INSERT atomically, so one bad value poisons all its neighbours; halving
+    /// isolates it in O(log n) inserts. A single failing row is dropped with a
+    /// loud log rather than wedging the partition forever - the historian is a
+    /// best-effort mirror (Postgres holds the evidence), so availability of the
+    /// other 499 rows wins over refusing to progress.
+    /// </summary>
+    private async Task<bool> InsertBisectingAsync(
+        string device,
+        IReadOnlyList<(long TimestampMs, IReadOnlyList<object?> Values)> rows,
+        CancellationToken ct)
+    {
+        if (rows.Count == 0) return true;
+        if (rows.Count == 1)
+        {
+            var ok = await _iotdb.InsertBatchAsync(device, Measurements, rows, ct);
+            if (!ok)
+            {
+                _logger.LogError(
+                    "Dropping poison sample for {Device} at ts={Ts} after repeated IoTDB rejection: {Values}",
+                    device, rows[0].TimestampMs, string.Join(",", rows[0].Values));
+            }
+            return true; // the poison row is consumed either way
+        }
+        var mid = rows.Count / 2;
+        var left = await InsertBisectingAsync(device, rows.Take(mid).ToList(), ct);
+        var right = await InsertBisectingAsync(device, rows.Skip(mid).ToList(), ct);
+        return left && right;
+    }
+
+    private long _parseDrops;
+    private DateTime _lastParseDropLog = DateTime.MinValue;
+
+    /// <summary>P2-18 - count every drop, log at most once per minute with the total.</summary>
+    private void LogParseDrop(string why, ConsumeResult<string, string> cr)
+    {
+        _parseDrops++;
+        if (DateTime.UtcNow - _lastParseDropLog < TimeSpan.FromMinutes(1)) return;
+        _lastParseDropLog = DateTime.UtcNow;
+        var sample = cr.Message.Value;
+        _logger.LogWarning(
+            "RawLoopIotDbConsumer dropped {Total} unparseable sample(s) so far; latest: {Why}; payload head: {Head}",
+            _parseDrops, why, sample.Length <= 160 ? sample : sample[..160]);
     }
 
     private static string? GetString(JsonElement r, string name) =>

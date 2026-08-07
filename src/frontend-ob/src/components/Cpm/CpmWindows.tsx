@@ -12,6 +12,7 @@ import React, { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   EmptyState, KvRow, LoopSelect, PanelHead, TonePill, WorkspaceHeader,
+  fmtDateTime,
 } from './shared';
 import type { CpmKpiRow } from '../../api/cpmApi';
 import {
@@ -20,7 +21,7 @@ import {
 import { loopSeries } from '../../utils/loopSeries';
 
 /** The engine normalizes samples onto a 5 s grid; expectations derive from it. */
-const SAMPLE_PERIOD_S = 5;
+const SAMPLE_PERIOD_S = 5; // fallback only - rows carry sample_period_sec since P2-11
 
 const PROFILE_SECONDS: Record<string, number> = {
   '1m': 60, '5m': 300, '10m': 600, '15m': 900, '30m': 1800, '60m': 3600,
@@ -33,7 +34,13 @@ function completenessOf(row: CpmKpiRow, profileS: number): number | null {
   const direct = row.completeness;
   if (typeof direct === 'number') return direct;
   if (typeof row.sample_count === 'number') {
-    return row.sample_count / (profileS / SAMPLE_PERIOD_S);
+    // P2-11: prefer the engine's own per-window contract; a 1s loop was
+    // previously billed against the hardcoded 5s and read 20% complete.
+    const period = typeof row.sample_period_sec === 'number' && row.sample_period_sec > 0
+      ? row.sample_period_sec : SAMPLE_PERIOD_S;
+    const expected = typeof row.expected_sample_count === 'number' && row.expected_sample_count > 0
+      ? row.expected_sample_count : profileS / period;
+    return row.sample_count / expected;
   }
   return null;
 }
@@ -145,10 +152,10 @@ export const CpmWindows: React.FC = () => {
               onKeyDown={e => { if (e.key === 'Enter' && r.window_end) setParams(p => { p.set('window', r.window_end!); return p; }); }}>
               <span>
                 <span className="cpm-event-row__title">
-                  {r.window_end ? new Date(r.window_end).toLocaleString() : '—'}
+                  {r.window_end ? fmtDateTime(r.window_end) : '—'}
                 </span>
                 <div className="cpm-event-row__sub">
-                  {r.window_start ? `from ${new Date(r.window_start).toLocaleString()}` : ''}
+                  {r.window_start ? `from ${fmtDateTime(r.window_start)}` : ''}
                 </div>
               </span>
               <span className="cpm-event-row__sub">
@@ -173,8 +180,8 @@ export const CpmWindows: React.FC = () => {
             <>
               <KvRow label="Boundaries">
                 <span className="cpm-mono">
-                  [{selected.window_start ? new Date(selected.window_start).toLocaleString() : '—'},{' '}
-                  {selected.window_end ? new Date(selected.window_end).toLocaleString() : '—'})
+                  [{selected.window_start ? fmtDateTime(selected.window_start) : '—'},{' '}
+                  {selected.window_end ? fmtDateTime(selected.window_end) : '—'})
                 </span>
               </KvRow>
               <KvRow label="Size / slide">{profile} / {profile} (tumbling — no overlap)</KvRow>

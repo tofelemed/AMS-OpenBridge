@@ -56,6 +56,8 @@ public class CplmGateResult implements Serializable {
     public double pvStd;
     public double opStd;
     public double effortRatio;
+    /** P2-3 - unit-free effort variant; see CplmShortFeatureResult. */
+    public double effortRatioNormalized;
     public double opTravel;
     public double travelPerDay;
     public int reversalCount;
@@ -267,6 +269,7 @@ public class CplmGateResult implements Serializable {
         putMetric(out, "pv_std", pvStd);
         putMetric(out, "op_std", opStd);
         putMetric(out, "effort_ratio", effortRatio);
+        putMetric(out, "effort_ratio_normalized", effortRatioNormalized);
         putMetric(out, "op_travel", opTravel);
         putMetric(out, "travel_per_day", travelPerDay);
         putMetric(out, "reversal_count", reversalCount);

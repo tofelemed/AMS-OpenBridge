@@ -10,7 +10,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { KvRow, PanelHead, TonePill, toneFor } from './shared';
+import { KvRow, PanelHead, TonePill, toneFor, fmtDateTime } from './shared';
 import { useCpmCalculations, useLatestGates } from '../../hooks/useCpm';
 
 /** Role per gate — the same static policy the registry aside shows. */
@@ -67,11 +67,11 @@ export const GateEvidenceDrawer: React.FC<{
         </div>
 
         <PanelHead eyebrow="Contract" title="Window & attribution" />
-        <KvRow label="Window">{matrix?.windowStart ? new Date(matrix.windowStart).toLocaleString() : '—'} → {matrix?.windowEnd ? new Date(matrix.windowEnd).toLocaleString() : '—'}</KvRow>
+        <KvRow label="Window">{matrix?.windowStart ? fmtDateTime(matrix.windowStart) : '—'} → {matrix?.windowEnd ? fmtDateTime(matrix.windowEnd) : '—'}</KvRow>
         <KvRow label="Gate role">{role}</KvRow>
         <KvRow label="Samples">{matrix?.sampleCount ?? '—'}</KvRow>
         <KvRow label="Source">{matrix?.metadata.calculationSource ?? 'flink'}</KvRow>
-        <KvRow label="Emitted">{matrix?.metadata.computedAt ? new Date(matrix.metadata.computedAt).toLocaleString() : '—'}</KvRow>
+        <KvRow label="Emitted">{matrix?.metadata.computedAt ? fmtDateTime(matrix.metadata.computedAt) : '—'}</KvRow>
 
         <PanelHead eyebrow="Purpose" title="What this gate asks" />
         <p className="cpm-copy">{def?.question ?? 'Definition unavailable.'}</p>

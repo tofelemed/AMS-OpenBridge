@@ -65,7 +65,21 @@ export function useLoopLive(loopId: string | undefined): LoopLiveState {
 /** OPC/Sparkplug quality number → NAMUR-style label + tone. */
 export function qualityLabel(q: LiveMetric | undefined): { label: string; tone: 'good' | 'warn' | 'bad' | 'muted' } {
   if (!q) return { label: 'NO SIGNAL', tone: 'muted' };
-  const n = typeof q.value === 'number' ? q.value : q.quality;
+  // P2-20 - the live plane carries OPC numerics but the batch plane (and some
+  // producers) carry strings; a string reaching the old numeric-only branches
+  // compared undefined >= 192 and returned a red BAD for a healthy loop. Handle
+  // both vocabularies, incl. the NE107 states CLAUDE.md mandates.
+  const v = q.value;
+  if (typeof v === 'string') {
+    const s = v.trim().toUpperCase();
+    if (s.startsWith('GOOD')) return { label: 'GOOD', tone: 'good' };
+    if (s.startsWith('UNCERTAIN')) return { label: 'UNCERTAIN', tone: 'warn' };
+    if (s.startsWith('MAINT')) return { label: 'MAINTENANCE', tone: 'warn' };
+    if (s.startsWith('OUT_OF_SERVICE') || s === 'OOS') return { label: 'OUT OF SERVICE', tone: 'muted' };
+    if (s.startsWith('BAD')) return { label: 'BAD', tone: 'bad' };
+  }
+  const n = typeof v === 'number' ? v : q.quality;
+  if (typeof n !== 'number' || Number.isNaN(n)) return { label: 'UNKNOWN', tone: 'muted' };
   if (n >= 192) return { label: 'GOOD', tone: 'good' };
   if (n >= 64) return { label: 'UNCERTAIN', tone: 'warn' };
   return { label: 'BAD', tone: 'bad' };

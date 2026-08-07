@@ -79,7 +79,7 @@ public sealed class CpmEventsController : ControllerBase
             SET ack_state = 'ACKNOWLEDGED', acked_by = @user, acked_at = NOW(),
                 note = COALESCE(@note, note), shelve_until = NULL, updated_at = NOW()
             WHERE id = @id
-            """, new { id, user = User.Identity?.Name ?? "unknown", note = request?.Note });
+            """, new { id, user = Actor(), note = request?.Note }); // P2-14 - same claim as the audit trail
         if (affected == 0) return NotFound();
         _logger.LogInformation("CPLM event frame {Id} acknowledged by {User}", id, User.Identity?.Name);
         _audit.Emit("CPM_EVENT_ACKNOWLEDGED", Actor(), "CpmEventFrame", id.ToString(),
@@ -104,7 +104,7 @@ public sealed class CpmEventsController : ControllerBase
             SET ack_state = 'SHELVED', shelve_until = @until, acked_by = @user,
                 acked_at = NOW(), note = COALESCE(@note, note), updated_at = NOW()
             WHERE id = @id
-            """, new { id, until = request.Until, user = User.Identity?.Name ?? "unknown", note = request.Note });
+            """, new { id, until = request.Until, user = Actor(), note = request.Note }); // P2-14
         if (affected == 0) return NotFound();
         _logger.LogInformation("CPLM event frame {Id} shelved until {Until} by {User}",
             id, request.Until, User.Identity?.Name);

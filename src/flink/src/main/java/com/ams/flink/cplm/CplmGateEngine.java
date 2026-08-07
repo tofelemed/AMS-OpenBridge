@@ -220,6 +220,12 @@ public final class CplmGateEngine implements Serializable {
         result.pvStd = stdPv;
         result.opStd = stdOp;
         result.effortRatio = stdPv > 1e-12 ? stdOp / stdPv : 0.0;
+        // P2-3 - scale-free variant: each std normalized by its own observed
+        // span, so the ratio is comparable across loops regardless of PV units.
+        double pvSpan = max(pv) - min(pv);
+        double opSpan = max(op) - min(op);
+        result.effortRatioNormalized = (pvSpan > 1e-12 && opSpan > 1e-12 && stdPv > 1e-12)
+                ? (stdOp / opSpan) / (stdPv / pvSpan) : 0.0;
         result.opTravel = computeOpTravel(op);
         result.travelPerDay = computeTravelPerDay(op, tsSec, windowSec);
         result.reversalCount = computeReversalCount(op);
@@ -788,13 +794,20 @@ public final class CplmGateEngine implements Serializable {
         double unboundedPeriod = (unboundedPeakBin * df) > 1e-15 ? 1.0 / (unboundedPeakBin * df) : 0;
         r.unboundedPeakPeriodSec = unboundedPeriod;
 
-        // Median of in-band amplitudes for quality ratio
+        // Median of in-band amplitudes for quality ratio.
+        // P2-1: also require >= 3 completed cycles inside the record. Bin 1 IS
+        // the record length and dominates any detrended signal; when the
+        // profile band reaches the window length (UNKNOWN tauMax = 86400) it
+        // passed the band check and became a "validated 24h oscillation" with
+        // completed_cycles = 1.
+        double maxObservablePeriod = (n * tsSec) / 3.0;
         java.util.ArrayList<Double> inBandAmps = new java.util.ArrayList<>();
         int peakBin = -1;
         double peakAmp = 0;
         for (int k = 1; k <= kMax; k++) {
             double period = (k * df) > 1e-15 ? 1.0 / (k * df) : Double.POSITIVE_INFINITY;
             if (period < profile.tauMinS || period > profile.tauMaxS) continue;
+            if (period > maxObservablePeriod) continue;
             inBandAmps.add(amplitudes[k]);
             if (amplitudes[k] > peakAmp) {
                 peakAmp = amplitudes[k];
@@ -1053,6 +1066,13 @@ public final class CplmGateEngine implements Serializable {
             // Explicit noise-floor signal when OP never moves through a vertex.
             r.cornerScoreQualified = 0;
         }
+        // P2-4 REVERTED after the golden gate caught it: cornerScoreQualified
+        // is 0.0 on the SYN_TIC_001 stiction REFERENCE loop (the OP-deadband
+        // vertex gate discards even genuine corners there), so promoting it to
+        // the headline would blind the metric on exactly the case it exists to
+        // catch. Raw stays the published corner_score (noise-sensitive - see
+        // the catalogue caveat); both variants remain published for diagnosis.
+        // A calibrated corner statistic is backlog work, not an alias swap.
         r.cornerScore = r.cornerScoreRaw;
         return r;
     }

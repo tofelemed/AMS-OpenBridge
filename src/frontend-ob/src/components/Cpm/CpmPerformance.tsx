@@ -12,6 +12,7 @@ import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KpiTile, PanelHead, TonePill, WorkspaceHeader, toneFor,
+  fmtDateTime,
 } from './shared';
 import GateEvidenceDrawer from './GateEvidenceDrawer';
 import { useFleetHeatmap, useFleetRankings, useFleetSummary } from '../../hooks/useCpm';
@@ -183,7 +184,7 @@ export const CpmPerformance: React.FC = () => {
               <strong>{selectedRow.loopId}</strong> · {selectedRow.displayName}
               <div className="cpm-event-row__sub">
                 Selected row · latest {windowKind} fused result
-                {selectedRow.windowEnd ? ` · ${new Date(selectedRow.windowEnd).toLocaleString()}` : ''}
+                {selectedRow.windowEnd ? ` · ${fmtDateTime(selectedRow.windowEnd)}` : ''}
               </div>
             </div>
             <span className="cpm-copy">

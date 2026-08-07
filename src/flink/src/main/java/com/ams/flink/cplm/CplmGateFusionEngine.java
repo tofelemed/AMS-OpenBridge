@@ -94,12 +94,16 @@ public final class CplmGateFusionEngine implements Serializable {
         result.oce = shortF.oce;
         result.pvStd = shortF.pvStd;
         result.opStd = shortF.opStd;
-        result.effortRatio = shortF.effortRatio > 0 ? shortF.effortRatio : longD.effortRatio;
+        // P2-6: "> 0" treated a genuine zero as missing and silently spliced in
+        // another stage's value computed on a different sample set. The honest
+        // predicate is whether the short stage actually ran.
+        result.effortRatio = shortF.sufficientData ? shortF.effortRatio : longD.effortRatio;
+        result.effortRatioNormalized = shortF.effortRatioNormalized; // P2-3
         result.opTravel = shortF.opTravel;
         result.travelPerDay = shortF.travelPerDay;
         result.reversalCount = shortF.reversalCount;
         result.reversalsPerHour = shortF.reversalsPerHour;
-        result.saturationPct = shortF.saturationPct > 0 ? shortF.saturationPct : longD.saturationPct;
+        result.saturationPct = shortF.sufficientData ? shortF.saturationPct : longD.saturationPct; // P2-6
         result.gate3Status = shortF.gate3Status;
         result.gate4Status = shortF.gate4Status;
 
@@ -144,7 +148,7 @@ public final class CplmGateFusionEngine implements Serializable {
         result.windowAreaNorm = longD.windowAreaNorm;
         result.cornerScoreRaw = longD.cornerScoreRaw > 0 ? longD.cornerScoreRaw : longD.cornerScore;
         result.cornerScoreQualified = longD.cornerScoreQualified;
-        result.cornerScore = result.cornerScoreRaw;
+        result.cornerScore = result.cornerScoreRaw; // P2-4 reverted - see CplmGateEngine
         result.validTurningAngles = longD.validTurningAngles;
         result.gate9Status = longD.gate9Status;
         result.gate9Reason = longD.gate9Reason;
@@ -474,6 +478,30 @@ public final class CplmGateFusionEngine implements Serializable {
         return result;
     }
 
+    /** P2-8 - what a person can DO about each blocking exclusion. */
+    private static String recommendationFor(String diagnosis, String reason) {
+        if ("EXCLUDED_DATA_QUALITY".equals(diagnosis)) {
+            return "Data quality blocked evaluation: check historian collection and "
+                    + "transmitter health for this loop's PV/SP/OP feeds.";
+        }
+        if ("EXCLUDED_MODE".equals(diagnosis)) {
+            return "The loop spent too little time in closed-loop control this window. If "
+                    + "manual operation was intentional, no action; otherwise check why the "
+                    + "operator or logic dropped it out of auto/cascade.";
+        }
+        if ("EXCLUDED_OPERATING_REGION".equals(diagnosis)) {
+            return "PV/OP ran outside the loop's declared operating region. Verify the region "
+                    + "limits in the loop's dynamics profile, or investigate the process excursion.";
+        }
+        if ("EXCLUDED_SENSOR".equals(diagnosis)) {
+            return "The PV signal froze for a material share of the window. Check the "
+                    + "transmitter and the historian scan/compression settings before trusting "
+                    + "any diagnosis on this loop.";
+        }
+        return "Evaluation was blocked (" + reason + "); resolve the exclusion before acting "
+                + "on any metric from this window.";
+    }
+
     private static CplmGateResult blockDiagnosis(CplmGateResult result, String diagnosis, String reason) {
         result.selectedFamily = "NONE";
         result.familyScore = 0;
@@ -482,7 +510,12 @@ public final class CplmGateFusionEngine implements Serializable {
         result.gate15Status = "INSUFFICIENT_EVIDENCE";
         result.severity = "LOW";
         result.insufficientEvidenceReason = reason;
-        result.recommendation = reason;
+        // P2-8: recommendation is surfaced by the UI as "Next-best action";
+        // echoing the gate code ("G1 mode/service EXCLUDED") told the operator
+        // nothing actionable. Map each blocking exclusion to what a person can
+        // actually do about it. The machine reason stays in
+        // insufficient_evidence_reason / status_reason.
+        result.recommendation = recommendationFor(diagnosis, reason);
         result.statusReason = reason;
         result.gate12Status = result.gate12Status == null || "PENDING".equals(result.gate12Status)
                 ? "NOT_EVALUATED" : result.gate12Status;
@@ -647,12 +680,13 @@ public final class CplmGateFusionEngine implements Serializable {
                 : CplmDynamicsParameterSetSupport.resolveFromSpine(loopId, loopType, assetUuid);
         CplmShortFeatureResult shortF = CplmGateEngine.computeShortFeatures(
                 samples, windowStartMs, windowEndMs, windowKind, profile);
-        if (!shortF.sufficientData) {
-            CplmLongDiagnosticsResult empty = new CplmLongDiagnosticsResult();
-            empty.loopId = shortF.loopId;
-            empty.windowKind = windowKind;
-            return fuse(shortF, empty, hasStepTestEvidence, hasPeerLinks, profile);
-        }
+        // P2-5: previously an EMPTY long result was substituted when short data
+        // was insufficient, while the streaming path passes the real one - so
+        // the same window carried different metrics depending on which job wrote
+        // it, and the row with LESS data reported MORE. Compute the long
+        // diagnostics unconditionally, exactly like streaming; fuse() handles
+        // insufficiency itself and P1-10's long_metrics_qualified flags the
+        // provenance either way.
         CplmLongDiagnosticsResult longD = CplmGateEngine.computeLongDiagnostics(
                 samples, windowStartMs, windowEndMs, windowKind, profile);
         return fuse(shortF, longD, hasStepTestEvidence, hasPeerLinks, profile);

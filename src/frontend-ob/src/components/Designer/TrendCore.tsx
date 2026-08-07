@@ -11,6 +11,9 @@ import { useBatchBindingResolver } from '../../hooks/useBindingResolver';
 import { useMqttStore, getLiveSeries } from '../../store/mqttStore';
 import { useDisplayTimeStore, formatInZone } from '../../store/timeStore';
 
+/** P2-23 - sentinel distinguishing "fetch failed" from a legitimately empty series. */
+const FETCH_FAILED = Symbol('fetch-failed');
+
 export interface PenSpec {
   /** UNS path, e.g. houston/crude1/pump101.speed */
   path: string;
@@ -205,6 +208,8 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
   const fetchTrend = useMqttStore(s => s.fetchTrend);
   const connect = useMqttStore(s => s.connect);
   const histRef = useRef<Record<string, { ts: number; value: number }[]>>({});
+  /** P2-23 - pens whose history fetch failed this cycle (shown as a warning). */
+  const failedPensRef = useRef<string[]>([]);
   // Plot pixel width → historian decimation is sized to it (U9). Kept in a ref so a resize doesn't
   // trigger a refetch; the next window-change fetch simply uses the current width.
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -261,12 +266,26 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
           .filter(p => p.raw !== null && p.raw !== undefined && p.raw !== '')
           .map(p => ({ ts: p.ts, value: Number(p.raw) }))
           .filter(p => Number.isFinite(p.value));
-      } catch { return []; }
+      } catch {
+        // P2-23 - swallowing this made a failed pen render as an empty series,
+        // indistinguishable from "no data": one pen silently vanished while its
+        // siblings plotted. Mark it so the chart can say so.
+        return FETCH_FAILED;
+      }
     })).then(results => {
       if (cancelled) return;
       const map: Record<string, { ts: number; value: number }[]> = {};
-      pens.forEach((pen, i) => { map[pen.path] = results[i]; });
+      const failed: string[] = [];
+      pens.forEach((pen, i) => {
+        if (results[i] === FETCH_FAILED) {
+          map[pen.path] = [];
+          failed.push(pen.label || pen.measurement || pen.path);
+        } else {
+          map[pen.path] = results[i] as { ts: number; value: number }[];
+        }
+      });
       histRef.current = map;
+      failedPensRef.current = failed;
       forceTick(t => t + 1);
     });
     return () => { cancelled = true; };
@@ -476,6 +495,18 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
         // Double-click clears a retained cursor and returns the legend to the latest sample.
         onDoubleClick={() => setCursorTs(null)}
       >
+        {failedPensRef.current.length > 0 && (
+          <div style={{
+            color: 'var(--alert-caution-color)',
+            fontSize: '0.75rem',
+            padding: '2px 8px',
+          }}>
+            {/* P2-23 - a failed history fetch used to render as an empty series,
+                indistinguishable from real emptiness. */}
+            {failedPensRef.current.length} pen(s) failed to load:{' '}
+            {failedPensRef.current.join(', ')} - values shown may be incomplete
+          </div>
+        )}
         <ReactECharts
           option={option}
           style={{ width: '100%', height: '100%' }}

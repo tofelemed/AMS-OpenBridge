@@ -13,6 +13,7 @@ import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
+  fmtDateTime,
 } from './shared';
 import {
   useCpmEvents, useCpmLoops, useCpmReadiness, useCpmTrend, useLatestGates,
@@ -270,8 +271,12 @@ const SignalsTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
           <strong>{role}</strong>
           <span className="cpm-event-row__sub">{SIGNAL_MEANINGS[role] ?? role}</span>
           <span className="cpm-mono">{path}</span>
-          <TonePill tone={provenance?.ok === false ? 'warn' : 'good'}>
-            {provenance?.ok === false ? 'CHECK' : 'RESOLVED'}
+          {/* P2-10: these registry paths are configuration metadata - nothing
+              resolves data through them today (the historian reads
+              root.site1.cpm.<loop> regardless), so labelling them RESOLVED
+              claimed a binding that does not exist. */}
+          <TonePill tone={provenance?.ok === false ? 'warn' : 'muted'}>
+            {provenance?.ok === false ? 'CHECK' : 'CONFIGURED'}
           </TonePill>
         </div>
       ))}
@@ -358,8 +363,8 @@ const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
       {rows.map(e => (
         <div key={e.id} className="cpm-event-row" style={{ gridTemplateColumns: '0.9fr 1.6fr 0.8fr', cursor: 'default' }}>
           <span className="cpm-event-row__sub">
-            {new Date(e.opened_at).toLocaleString()}
-            {e.closed_at ? ` → ${new Date(e.closed_at).toLocaleString()}` : ' · open'}
+            {fmtDateTime(e.opened_at)}
+            {e.closed_at ? ` → ${fmtDateTime(e.closed_at)}` : ' · open'}
           </span>
           <span>
             <span className="cpm-event-row__title">{e.peak_diagnosis.replace(/_/g, ' ')}</span>

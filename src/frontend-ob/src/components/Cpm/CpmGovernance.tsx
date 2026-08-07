@@ -12,6 +12,7 @@ import React, { useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader,
+  fmtDateTime,
 } from './shared';
 import { useAuditEvents, useVerifyAuditChain } from '../../hooks/useAudit';
 import { useCpmCalculations, useCpmLoops } from '../../hooks/useCpm';
@@ -112,7 +113,7 @@ export const CpmGovernance: React.FC = () => {
         {(audit.data?.events ?? []).map(e => (
           <div key={e.eventId} className="cpm-event-row" style={{ gridTemplateColumns: '1fr 1.2fr 0.9fr 1fr' }}>
             <span>
-              <span className="cpm-event-row__title">{new Date(e.timestampUtc).toLocaleString()}</span>
+              <span className="cpm-event-row__title">{fmtDateTime(e.timestampUtc)}</span>
               <div className="cpm-event-row__sub cpm-mono">{e.currentHash.slice(0, 16)}…</div>
             </span>
             <TonePill tone={EVENT_TONE(e.eventType)}>{e.eventType.replace(/_/g, ' ')}</TonePill>

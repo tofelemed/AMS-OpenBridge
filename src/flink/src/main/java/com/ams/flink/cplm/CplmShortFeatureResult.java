@@ -51,6 +51,8 @@ public final class CplmShortFeatureResult implements Serializable {
     public String gate3Status = "PENDING";
 
     public double effortRatio;
+    /** P2-3 - (sigmaOP/opSpan)/(sigmaPV/pvSpan): unit-free, cross-loop comparable. */
+    public double effortRatioNormalized;
     public double opTravel;
     public double travelPerDay;
     public int reversalCount;
@@ -134,6 +136,7 @@ public final class CplmShortFeatureResult implements Serializable {
         putMetric(out, "freeze_index_s", freezeIndexS);
         out.put("gate3_status", gate3Status);
         putMetric(out, "effort_ratio", effortRatio);
+        putMetric(out, "effort_ratio_normalized", effortRatioNormalized);
         putMetric(out, "op_travel", opTravel);
         putMetric(out, "travel_per_day", travelPerDay);
         putMetric(out, "reversal_count", reversalCount);

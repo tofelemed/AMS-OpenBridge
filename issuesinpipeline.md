@@ -57,7 +57,36 @@ item is in the commit message and in `docs/cplm-intake/pipeline-fix-validation.m
 
 | P1-8 | Uncomputed metrics now persist as **SQL NULL**, not 0.0 | Declined window stores `mae`/`good_error_pct`/`travel_per_day` = NULL (`jsonb_typeof` = `null`); `sample_count` still a real number |
 
-**Still open:** everything under P2/P3.
+## P2 FIX STATUS — 2026-08-07 (second pass)
+
+| ID | Outcome |
+|---|---|
+| P2-1 | FIXED — FFT candidates must complete >= 3 cycles in the record; the record-length bin can no longer become a "validated 24h oscillation" |
+| P2-2 | FIXED — `inferFromTag` now finds FIC/PIC/LIC/TIC tokens anywhere in the tag, so `B2_027PIC` resolves the PIC profile instead of UNKNOWN |
+| P2-3 | PARTIAL (deliberate) — new scale-free `effort_ratio_normalized` published alongside the legacy metric; **G4 still consumes the legacy ratio** because recalibrating its 3/8 thresholds means changing the golden reference contract — that is a calibration decision, not a drive-by fix |
+| P2-4 | **REVERTED after the golden gate caught it** — `corner_score_qualified` is 0.0 on the SYN_TIC_001 stiction reference loop, so promoting it would blind the headline on exactly the case it exists to catch. Raw stays published as `corner_score` with a loud caveat in the calculations catalogue; a calibrated corner statistic is backlog work |
+| P2-5 | FIXED — replay computes long diagnostics exactly like streaming (empty-substitute removed); same window now carries the same metrics from either path |
+| P2-6 | FIXED — fusion splices on `shortF.sufficientData`, not `> 0`; a genuine zero is no longer replaced by another stage's value |
+| P2-7 | FIXED — feature rows keep `calculation_source` provenance instead of hardcoding `flink` |
+| P2-8 | FIXED — blocked verdicts carry an actionable recommendation per exclusion type; the machine reason stays in `insufficient_evidence_reason` |
+| P2-9 | FIXED (previous pass) |
+| P2-10 | FIXED (presentation) — Signals tab labels registry paths CONFIGURED (muted) instead of RESOLVED (green); registry placeholder now suggests dotted UNS form. Actually wiring binding-resolver through these paths remains future work |
+| P2-11 | FIXED — `/kpis` serves `sample_period_sec` + `expected_sample_count` from the payload; the Windows screen prefers them over the hardcoded 5 s |
+| P2-12 | FIXED — PENDING / INSUFFICIENT_EVIDENCE label as "Not evaluated", never "Outside" |
+| P2-13 | FIXED — one `fmtDateTime` helper with `timeZoneName: 'short'` replaced every bare `toLocaleString()` in the CPM screens |
+| P2-14 | FIXED — `acked_by` uses the same claim resolution as the audit trail (`preferred_username` first) |
+| P2-15 | FIXED in BOTH copies — a device is only cached as ensured after every CREATE TIMESERIES succeeded; failures retry on the next write |
+| P2-16 | FIXED — replay status counts the rows the replay actually wrote (was hardcoded 0) and treats a Flink 404 as ARCHIVED-terminal instead of polling forever |
+| P2-17 | FIXED — a rejected IoTDB batch bisects to isolate the poison row, which is dropped loudly instead of wedging the partition forever |
+| P2-18 | FIXED — parse rejects are counted and logged (rate-limited) instead of silently advancing offsets |
+| P2-19 | FIXED (engine side) — loop ids are BOM/whitespace-stripped at ingest so a producer quirk cannot fork a loop across partitions/keyed state. The CPA reference script that omits `parse.key` lives in the untracked CPA/ folder — noted, not edited |
+| P2-20 | FIXED both planes — engine accepts `Good*`/OPC numerics (UNCERTAIN deliberately stays not-good); the live-plane label handles strings + numerics incl. NE107 MAINTENANCE/OUT_OF_SERVICE |
+| P2-21 | OPEN — sparkplug edge-node offset/MQTT coupling; a meaningful consumer-loop refactor, not attempted in this pass |
+| P2-22 | FIXED — historian-bff raises on IoTDB's embedded non-200 code; a broken query is now a visible 500, not `200 {points: []}` |
+| P2-23 | FIXED — TrendCore marks failed pens and renders a caution line naming them instead of silently dropping the series |
+
+**Still open:** P2-21, everything under P3.
+
 
 ---
 

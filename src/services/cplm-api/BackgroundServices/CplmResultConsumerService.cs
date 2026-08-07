@@ -320,7 +320,11 @@ public sealed class CplmResultConsumerService : BackgroundService
         for (var i = 0; i < fields.Length; i++)
             cmd.Parameters.AddWithValue($"m{i + 1}", GetDoubleOrNull(root, fields[i]));
         cmd.Parameters.Add(new NpgsqlParameter("payload", NpgsqlDbType.Jsonb) { Value = json });
-        cmd.Parameters.AddWithValue("source", "flink");
+        // P2-7 - gate rows kept calculation_source but feature rows hardcoded
+        // "flink", so an A8 recompute overwrote streaming KPI rows in place with
+        // no trace, and /gates returned the same windowEnd twice (different
+        // sources) while the feature tables could not represent that at all.
+        cmd.Parameters.AddWithValue("source", GetString(root, "calculation_source") ?? "flink");
         await cmd.ExecuteNonQueryAsync(ct);
 
         var family = (isLong ? "long_" : "short_") + (GetString(root, "window_kind") ?? (isLong ? "24h" : "5m"));

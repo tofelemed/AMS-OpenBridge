@@ -14,6 +14,7 @@ import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KvRow, LoopSelect, PanelHead, TonePill, WorkspaceHeader, toneFor,
+  fmtDateTime,
 } from './shared';
 import type { CpmGateMatrix } from '../../api/cpmApi';
 import {
@@ -243,7 +244,7 @@ export const CpmHistorical: React.FC = () => {
                   <span key={m.ts}
                     className={`cpm-band-seg cpm-band-seg--${m.mode == null ? 'muted' : m.mode === 'AUTO' ? 'good' : 'warn'}`}
                     style={{ cursor: 'default', height: 10 }}
-                    title={`${new Date(m.ts).toLocaleString()} · ${m.mode ?? 'no data'}`} />
+                    title={`${fmtDateTime(m.ts)} · ${m.mode ?? 'no data'}`} />
                 ))}
               </div>
             </>
@@ -264,7 +265,7 @@ export const CpmHistorical: React.FC = () => {
               return (
                 <button key={w.windowEnd ?? w.metadata.computedAt} type="button"
                   className={`cpm-band-seg cpm-band-seg--${b.tone}${isSel ? ' cpm-band-seg--selected' : ''}`}
-                  title={`${b.label} · ${w.diagnosis ?? '—'} · ends ${w.windowEnd ? new Date(w.windowEnd).toLocaleString() : '—'}`}
+                  title={`${b.label} · ${w.diagnosis ?? '—'} · ends ${w.windowEnd ? fmtDateTime(w.windowEnd) : '—'}`}
                   onClick={() => setParams(p => { if (w.windowEnd) p.set('window', w.windowEnd); return p; })}
                 />
               );
@@ -277,7 +278,7 @@ export const CpmHistorical: React.FC = () => {
         <section className="cpm-surface">
           <PanelHead eyebrow="Selected period" title={
             selectedWindow?.windowEnd
-              ? `24h window ending ${new Date(selectedWindow.windowEnd).toLocaleString()}`
+              ? `24h window ending ${fmtDateTime(selectedWindow.windowEnd)}`
               : 'No window selected'} />
           {!selectedWindow && <EmptyState title="Click a diagnosis band above" />}
           {selectedWindow && (
@@ -291,9 +292,9 @@ export const CpmHistorical: React.FC = () => {
                 {selectedWindow.confidence != null ? `${(selectedWindow.confidence * 100).toFixed(0)}%` : '—'}
               </KvRow>
               <KvRow label="Window">
-                {selectedWindow.windowStart ? new Date(selectedWindow.windowStart).toLocaleString() : '—'}
+                {selectedWindow.windowStart ? fmtDateTime(selectedWindow.windowStart) : '—'}
                 {' → '}
-                {selectedWindow.windowEnd ? new Date(selectedWindow.windowEnd).toLocaleString() : '—'}
+                {selectedWindow.windowEnd ? fmtDateTime(selectedWindow.windowEnd) : '—'}
               </KvRow>
               <KvRow label="Samples">{selectedWindow.sampleCount ?? '—'}</KvRow>
               <KvRow label="Calculation">

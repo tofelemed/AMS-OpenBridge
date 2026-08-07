@@ -135,14 +135,41 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
                 using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync(ct));
                 state = doc.RootElement.TryGetProperty("state", out var s) ? s.GetString() ?? "UNKNOWN" : "UNKNOWN";
             }
+            else if (res.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                // P2-16 - Flink archives finished jobs; a 404 previously left the
+                // state UNKNOWN/finished:false FOREVER and the UI polled endlessly.
+                // A 404 for a job we ourselves submitted means it reached a
+                // terminal state and aged out of the REST cache. Whether it
+                // SUCCEEDED is answered by the evidence store, not by Flink.
+                state = "ARCHIVED";
+            }
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Could not read recompute job {JobId}", jobId);
         }
 
-        var finished = state is "FINISHED" or "FAILED" or "CANCELED";
-        return new CplmRecomputeStatus(replayId, jobId, state, finished, state == "FINISHED", 0);
+        // P2-16 - gateResults was a hardcoded 0, so the UI reported a successful
+        // recompute that "produced nothing". Count the rows this replay actually
+        // wrote; for ARCHIVED jobs this is also what decides success.
+        var gateResults = 0;
+        try
+        {
+            await using var conn = await _dataSource.OpenConnectionAsync(ct);
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT count(*) FROM analytics.cplm_gate_results WHERE payload->>'replay_id' = @rid";
+            cmd.Parameters.AddWithValue("rid", replayId);
+            gateResults = Convert.ToInt32(await cmd.ExecuteScalarAsync(ct));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not count gate results for replay {ReplayId}", replayId);
+        }
+
+        var finished = state is "FINISHED" or "FAILED" or "CANCELED" or "ARCHIVED";
+        var succeeded = state == "FINISHED" || (state == "ARCHIVED" && gateResults > 0);
+        return new CplmRecomputeStatus(replayId, jobId, state, finished, succeeded, gateResults);
     }
 
     /// <summary>

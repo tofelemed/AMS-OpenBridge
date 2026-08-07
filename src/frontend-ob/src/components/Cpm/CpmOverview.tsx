@@ -14,6 +14,7 @@ import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KpiTile, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
+  fmtDateTime,
 } from './shared';
 import {
   useCpmEvents, useCpmPipelineStatus, useCpmTrend, useFleetRankings,
@@ -136,7 +137,7 @@ export const CpmOverview: React.FC = () => {
             right={<ObcButton variant="normal" onClick={() => navigate('/cpm/events')}>All events ›</ObcButton>} />
           {(events.data?.events ?? []).length === 0 && <EmptyState title="No recent events" />}
           {(events.data?.events ?? []).map(e => (
-            <KvRow key={e.id} label={new Date(e.opened_at).toLocaleString()}>
+            <KvRow key={e.id} label={fmtDateTime(e.opened_at)}>
               {e.loop_id} · {e.peak_diagnosis.replace(/_/g, ' ')}
             </KvRow>
           ))}

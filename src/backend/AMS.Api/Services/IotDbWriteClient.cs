@@ -75,14 +75,29 @@ public sealed class IotDbWriteClient
     /// </summary>
     public async Task EnsureTimeseriesAsync(string devicePath, IReadOnlyDictionary<string, string> measurements, CancellationToken ct)
     {
+        // P2-15 - previously the device was marked ensured BEFORE any statement
+        // ran, and each result was discarded. A transient IoTDB outage on first
+        // touch then left the device unpinned for the whole process lifetime.
+        // Only cache the device once every CREATE has succeeded (or already
+        // existed); otherwise retry on the next write.
+        // Kept in step with src/services/cplm-api/Services/IotDbWriteClient.cs.
         lock (_ensureLock)
         {
-            if (!_ensuredDevices.Add(devicePath)) return;
+            if (_ensuredDevices.Contains(devicePath)) return;
         }
+        var allOk = true;
         foreach (var (name, dataType) in measurements)
         {
             var sql = $"create timeseries {devicePath}.{name} with datatype={dataType}";
-            await NonQueryAsync(sql, ct, expectAlreadyExists: true);
+            allOk &= await NonQueryAsync(sql, ct, expectAlreadyExists: true);
+        }
+        if (allOk)
+        {
+            lock (_ensureLock) { _ensuredDevices.Add(devicePath); }
+        }
+        else
+        {
+            _logger.LogWarning("Timeseries DDL incomplete for {Device}; will retry on next write", devicePath);
         }
     }
 

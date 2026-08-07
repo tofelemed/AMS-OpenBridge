@@ -30,7 +30,24 @@ public sealed class IoTDbClient(HttpClient http, IConfiguration cfg)
         var resp = await http.SendAsync(req, ct);
         resp.EnsureSuccessStatusCode();
         var stream = await resp.Content.ReadAsStreamAsync(ct);
-        return (await JsonSerializer.DeserializeAsync<JsonElement>(stream, cancellationToken: ct));
+        var body = await JsonSerializer.DeserializeAsync<JsonElement>(stream, cancellationToken: ct);
+        // P2-22 - IoTDB REST v2 reports query-level failures as HTTP 200 with an
+        // embedded non-success code. Swallowing that turned every broken query
+        // (bad path, timeout, storage engine error) into 200 {points: []}, which
+        // an operator reads as "the process was steady". The WRITE client in
+        // cplm-api guards exactly this; the read side never did. IoTDB uses 200
+        // for success; result sets carry no code at all, so only an explicit
+        // non-200 code is a failure.
+        if (body.ValueKind == JsonValueKind.Object
+            && body.TryGetProperty("code", out var code)
+            && code.ValueKind == JsonValueKind.Number
+            && code.GetInt32() != 200)
+        {
+            var msg = body.TryGetProperty("message", out var m) ? m.GetString() : null;
+            throw new InvalidOperationException(
+                $"IoTDB query failed (code {code.GetInt32()}): {msg ?? "no message"} - SQL: {sql}");
+        }
+        return body;
     }
 
     // ── Input validation (SQL-injection defense) ─────────────────────────

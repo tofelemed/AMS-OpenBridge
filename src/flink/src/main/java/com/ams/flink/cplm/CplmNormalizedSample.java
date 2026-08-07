@@ -41,9 +41,9 @@ public final class CplmNormalizedSample implements Serializable {
         try {
             JsonNode root = MAPPER.readTree(json);
             if (root.has("loop_id")) {
-                s.loopId = root.get("loop_id").asText();
+                s.loopId = cleanId(root.get("loop_id").asText());
             } else if (root.has("tagId")) {
-                s.loopId = root.get("tagId").asText();
+                s.loopId = cleanId(root.get("tagId").asText());
             } else {
                 s.isValid = false;
                 return s;
@@ -94,8 +94,26 @@ public final class CplmNormalizedSample implements Serializable {
         return s;
     }
 
+    /**
+     * P2-20 - the engine accepted only the exact string "GOOD"; the standard
+     * OPC-UA vocabulary ("Good_NonSpecific", "GoodNonSpecific"), the numeric
+     * OPC form (192/64/0) and NE107 states all counted as bad, so a healthy
+     * OPC-fed loop read bad_quality_pct = 1.0 and (post-P1-11) failed G0.
+     * Good = anything starting with "good" or an OPC numeric >= 192.
+     * UNCERTAIN deliberately counts as not-good: the engine has no partial
+     * weighting, and treating uncertain data as trustworthy is the worse error.
+     */
     public boolean isGoodQuality() {
-        return quality == null || "GOOD".equalsIgnoreCase(quality);
+        if (quality == null) return true;              // absent field: legacy producers
+        String q = quality.trim();
+        if (q.isEmpty()) return true;
+        char c = q.charAt(0);
+        if (c == 'g' || c == 'G') return true;          // GOOD, Good_NonSpecific, ...
+        if (Character.isDigit(c)) {
+            try { return Integer.parseInt(q) >= 192; }  // OPC numeric
+            catch (NumberFormatException e) { return false; }
+        }
+        return false;
     }
 
     /**
@@ -128,6 +146,18 @@ public final class CplmNormalizedSample implements Serializable {
         if (AUTO_MODE_TOKENS.contains(m)) return true;
         // Compound vendor strings, e.g. "AUTO-CAS".
         return m.contains("AUTO") || m.contains("CASCADE");
+    }
+
+    /**
+     * P2-19 - a UTF-8 BOM smuggled into a producer's first key/value made
+     * "\uFEFFG13_LOOP_A" a DIFFERENT loop from "G13_LOOP_A": keyed state split,
+     * and the sparse phantom partition dropped out of watermark computation so
+     * its records arrived late and were discarded. Strip BOM + whitespace here
+     * so no producer quirk can fork a loop's identity.
+     */
+    private static String cleanId(String id) {
+        if (id == null) return null;
+        return id.replace("\uFEFF", "").trim();
     }
 
     /** True when the JSON node holds a usable number for the given field. */

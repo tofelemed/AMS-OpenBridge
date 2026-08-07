@@ -347,7 +347,7 @@ const AddLoopWizard: React.FC<{ existing: CpmLoop[]; onClose: () => void }> = ({
                 <label key={k} className="cpm-field">
                   <span className="cpm-field__label">{label}</span>
                   <input className="cpm-input" value={form[k]} onChange={set(k)}
-                    placeholder={`${form.site}/unit1/${form.loopId || 'LOOP'}.${k}`} />
+                    placeholder={`root.${form.site || 'site1'}.unit1.${form.loopId || 'LOOP'}.${k.toLowerCase()}`} />
                 </label>
               ))}
             </div>

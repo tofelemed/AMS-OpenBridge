@@ -13,6 +13,7 @@ import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KvRow, LoopSelect, PanelHead, TonePill, WorkspaceHeader, toneFor,
+  fmtDateTime,
 } from './shared';
 import {
   useCpmCalculations, useCpmEvents, useCpmKpis, useCpmLoops, useLatestGates,
@@ -48,7 +49,10 @@ const METRICS: MetricDef[] = [
   { id: 'CPLM-041', field: 'harmonic_energy_ratio', name: 'Harmonic energy ratio', gate: 'G6', kind: 'Calculation', unit: 'ratio', source: 'long', description: 'Spectral energy in harmonics.' },
   { id: 'CPLM-050', field: 'triangularity', name: 'OP triangularity', gate: 'G7', kind: 'Calculation', unit: 'score', source: 'long', description: 'Triangular-wave similarity of the actuator trace (stiction shape).' },
   { id: 'CPLM-060', field: 'horch_oddness', name: 'Horch oddness', gate: 'G8', kind: 'Calculation', unit: 'score', source: 'long', description: 'Odd-symmetry of the PV–OP cross-correlation.' },
-  { id: 'CPLM-070', field: 'corner_score', name: 'Phase-portrait corner score', gate: 'G9', kind: 'Calculation', unit: 'score', source: 'long', description: 'Sharp-corner evidence in the PV–OP phase plot.' },
+  // P2-4: raw is noise-sensitive (near 0.9+ even on healthy 5s data) and the
+  // qualified variant reads 0.0 on the stiction reference loop, so NEITHER is a
+  // trustworthy headline alone - say so instead of pretending.
+  { id: 'CPLM-070', field: 'corner_score', name: 'Phase-portrait corner score (raw)', gate: 'G9', kind: 'Calculation', unit: 'score', source: 'long', description: 'Sharp-corner evidence in the PV–OP phase plot. CAUTION: the raw statistic reads high (~0.9) even on healthy noisy data; treat it only alongside the G9 verdict and phase-area band, never alone.' },
   { id: 'CPLM-090', field: 'confidence', name: 'Fused confidence', gate: 'G15', kind: 'Decision', unit: 'ratio', source: 'gate', description: 'Final banded confidence of the selected family.' },
 ];
 
@@ -84,8 +88,13 @@ export const CpmCalculations: React.FC = () => {
 
   const statusOf = (m: MetricDef): { label: string; tone: 'good' | 'warn' | 'bad' | 'muted' } => {
     const cell = gates.data?.gates.find(g => g.key === m.gate);
-    if (!cell || cell.status === 'NOT_EVALUATED') return { label: 'Not evaluated', tone: 'muted' };
+    // P2-12: PENDING and INSUFFICIENT_EVIDENCE also mean "not judged" - they
+    // previously fell through to the else branch and were labelled "Outside"
+    // (i.e. out of spec), which is a verdict the engine never issued.
+    if (!cell || ['NOT_EVALUATED', 'PENDING', 'INSUFFICIENT_EVIDENCE'].includes(cell.status))
+      return { label: 'Not evaluated', tone: 'muted' };
     const t = toneFor(cell.status);
+    if (t === 'muted') return { label: cell.status.replace(/_/g, ' '), tone: t };
     return { label: t === 'good' ? 'Acceptable' : t === 'warn' ? 'Review' : 'Outside', tone: t };
   };
 
@@ -124,7 +133,7 @@ export const CpmCalculations: React.FC = () => {
               </TonePill>
               <span className="cpm-copy">
                 {loop.loopType} · profile {loop.thresholdProfileId ?? 'default'}
-                {gates.data?.windowEnd ? ` · latest window ${new Date(gates.data.windowEnd).toLocaleString()}` : ''}
+                {gates.data?.windowEnd ? ` · latest window ${fmtDateTime(gates.data.windowEnd)}` : ''}
               </span>
             </>
           )}
@@ -284,7 +293,7 @@ const CalcDrawer: React.FC<{
             <PanelHead eyebrow="Loop episodes" title="Recent diagnosis history" />
             {(events.data?.events ?? []).length === 0 && <EmptyState title="No episodes recorded" />}
             {(events.data?.events ?? []).map(e => (
-              <KvRow key={e.id} label={new Date(e.opened_at).toLocaleString()}>
+              <KvRow key={e.id} label={fmtDateTime(e.opened_at)}>
                 {e.peak_diagnosis.replace(/_/g, ' ')} · {(e.peak_confidence * 100).toFixed(0)}%
               </KvRow>
             ))}

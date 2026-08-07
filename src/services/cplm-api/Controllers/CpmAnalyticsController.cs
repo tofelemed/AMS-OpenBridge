@@ -145,7 +145,9 @@ public sealed class CpmAnalyticsController : ControllerBase
                      -- (they are the exclusion's decision inputs) but must not be
                      -- plotted beside full-window values without a marker.
                      COALESCE((payload->>'long_metrics_qualified')::boolean, TRUE) AS long_metrics_qualified,
-                     COALESCE((payload->>'freeze_fraction')::double precision, 0) AS freeze_fraction
+                     COALESCE((payload->>'freeze_fraction')::double precision, 0) AS freeze_fraction,
+                     (payload->>'sample_period_sec')::double precision AS sample_period_sec,
+                     (payload->>'expected_sample_count')::int AS expected_sample_count
               FROM analytics.cplm_long_feature_results
               WHERE lower(loop_id) = lower(@loopId) AND window_kind = @resolution
                 AND (@from::timestamptz IS NULL OR window_end >= @from::timestamptz)
@@ -160,7 +162,11 @@ public sealed class CpmAnalyticsController : ControllerBase
                      -- evaluate a window, and the consumer stores 0.0 (never NULL).
                      -- Without this flag a KPI chart draws those windows as
                      -- perfect control. It lives in the payload, not a column.
-                     COALESCE((payload->>'sufficient_data')::boolean, TRUE) AS sufficient_data
+                     COALESCE((payload->>'sufficient_data')::boolean, TRUE) AS sufficient_data,
+                     -- P2-11: the UI hardcoded a 5s sample period; the engine
+                     -- publishes the real per-window values - serve them.
+                     (payload->>'sample_period_sec')::double precision AS sample_period_sec,
+                     (payload->>'expected_sample_count')::int AS expected_sample_count
               FROM analytics.cplm_short_feature_results
               WHERE lower(loop_id) = lower(@loopId) AND window_kind = @resolution
                 AND (@from::timestamptz IS NULL OR window_end >= @from::timestamptz)

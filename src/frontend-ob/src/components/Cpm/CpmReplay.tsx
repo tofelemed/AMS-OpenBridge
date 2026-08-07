@@ -16,6 +16,7 @@ import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KvRow, LoopSelect, PanelHead, TonePill, WorkspaceHeader, toneFor,
+  fmtDateTime,
 } from './shared';
 import type { CpmGateMatrix, CpmKpiRow } from '../../api/cpmApi';
 import {
@@ -198,7 +199,7 @@ export const CpmReplay: React.FC = () => {
               onChange={e => setParams(p => { p.set('window', e.target.value); return p; })}>
               {windows.map(w => (
                 <option key={w.windowEnd ?? ''} value={w.windowEnd ?? ''}>
-                  ends {w.windowEnd ? new Date(w.windowEnd).toLocaleString() : '—'} · {(w.diagnosis ?? '—').replace(/_/g, ' ')}
+                  ends {w.windowEnd ? fmtDateTime(w.windowEnd) : '—'} · {(w.diagnosis ?? '—').replace(/_/g, ' ')}
                 </option>
               ))}
             </select>
@@ -268,8 +269,8 @@ export const CpmReplay: React.FC = () => {
           </KvRow>
           {cell?.reason && <KvRow label="Reason">{cell.reason}</KvRow>}
           <KvRow label="Window">
-            {selected?.windowStart ? new Date(selected.windowStart).toLocaleString() : '—'} →{' '}
-            {selected?.windowEnd ? new Date(selected.windowEnd).toLocaleString() : '—'}
+            {selected?.windowStart ? fmtDateTime(selected.windowStart) : '—'} →{' '}
+            {selected?.windowEnd ? fmtDateTime(selected.windowEnd) : '—'}
           </KvRow>
           <KvRow label="Samples">{selected?.sampleCount ?? '—'}</KvRow>
           <KvRow label="Calculation">
@@ -336,7 +337,7 @@ export const CpmReplay: React.FC = () => {
             <>
               <p className="cpm-copy">
                 Notes attach by acknowledging the open event frame
-                ({openFrame.family.replace(/_/g, ' ')} · opened {new Date(openFrame.opened_at).toLocaleString()}).
+                ({openFrame.family.replace(/_/g, ' ')} · opened {fmtDateTime(openFrame.opened_at)}).
               </p>
               <textarea className="cpm-textarea" rows={3} value={note}
                 placeholder="What did the evidence show? What action was taken?"

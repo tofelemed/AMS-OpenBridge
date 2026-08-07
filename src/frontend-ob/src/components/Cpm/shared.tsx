@@ -12,6 +12,15 @@ import type { CpmLoop } from '../../api/cpmApi';
 
 export type CpmTone = 'good' | 'warn' | 'bad' | 'muted';
 
+/**
+ * P2-13 - every CPM timestamp render used bare toLocaleString() with no zone
+ * label, while the CSV exports write raw UTC ISO. An operator at UTC+5 saw
+ * 16:49 on screen and 11:49:00Z in the export and read the 5-hour gap as a
+ * data error. One formatter, always naming the zone.
+ */
+export const fmtDateTime = (ts: string | number | null | undefined): string =>
+  ts != null && ts !== '' ? new Date(ts).toLocaleString(undefined, { timeZoneName: 'short' }) : '\u2014';
+
 /** Diagnosis / band / state → tone, in one place so every screen agrees. */
 export function toneFor(value: string | null | undefined): CpmTone {
   if (!value) return 'muted';

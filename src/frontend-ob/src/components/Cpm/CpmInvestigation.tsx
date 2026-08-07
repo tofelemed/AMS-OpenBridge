@@ -16,6 +16,7 @@ import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KpiTile, KvRow, LoopSelect, PanelHead, TonePill, WorkspaceHeader, toneFor,
+  fmtDateTime,
 } from './shared';
 import type { CpmGateMatrix } from '../../api/cpmApi';
 import {
@@ -234,7 +235,7 @@ export const CpmInvestigation: React.FC = () => {
                 onChange={e => setParams(p => { p.set('window', e.target.value); return p; })}>
                 {windows.map(w => (
                   <option key={w.windowEnd ?? ''} value={w.windowEnd ?? ''}>
-                    ends {w.windowEnd ? new Date(w.windowEnd).toLocaleString() : '—'}
+                    ends {w.windowEnd ? fmtDateTime(w.windowEnd) : '—'}
                   </option>
                 ))}
               </select>
@@ -259,8 +260,8 @@ export const CpmInvestigation: React.FC = () => {
                   {matrix.confidence != null ? `${(matrix.confidence * 100).toFixed(0)}% confidence` : 'no confidence'}
                 </TonePill>} />
               <KvRow label="Window">
-                {matrix.windowStart ? new Date(matrix.windowStart).toLocaleString() : '—'} →{' '}
-                {matrix.windowEnd ? new Date(matrix.windowEnd).toLocaleString() : '—'} ({matrix.windowKind})
+                {matrix.windowStart ? fmtDateTime(matrix.windowStart) : '—'} →{' '}
+                {matrix.windowEnd ? fmtDateTime(matrix.windowEnd) : '—'} ({matrix.windowKind})
               </KvRow>
               <KvRow label="Severity">{matrix.severity ?? '—'}</KvRow>
               <KvRow label="Selected family">{matrix.narrative?.selectedFamily ?? '—'}</KvRow>

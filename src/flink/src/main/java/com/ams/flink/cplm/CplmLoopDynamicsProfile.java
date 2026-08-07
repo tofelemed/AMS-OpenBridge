@@ -220,6 +220,17 @@ public final class CplmLoopDynamicsProfile implements Serializable {
         if (s.startsWith("TIC") || s.startsWith("TC") || s.startsWith("SYN_TIC") || s.charAt(0) == 'T') {
             return LoopClass.TIC;
         }
+        // P2-2: real plant tags are site/unit-prefixed ("B2_027PIC"), so
+        // prefix-only matching sent essentially every production tag to the
+        // UNKNOWN profile - wrong band limits (root cause of the record-length
+        // "oscillation") and the geometry family permanently disabled. Look for
+        // the loop-type token anywhere in the tag. Order matters: the 3-letter
+        // ISA tokens are unambiguous; single letters stay prefix-only above
+        // because "L" appears inside too many unrelated words.
+        if (s.contains("FIC")) return LoopClass.FIC;
+        if (s.contains("PIC")) return LoopClass.PIC;
+        if (s.contains("LIC")) return LoopClass.LIC;
+        if (s.contains("TIC")) return LoopClass.TIC;
         return LoopClass.UNKNOWN;
     }
 
