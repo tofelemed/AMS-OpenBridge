@@ -7,6 +7,7 @@ import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.eclipse.tahu.message.SparkplugBPayloadEncoder;
 import org.eclipse.tahu.message.model.*;
 import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.JedisPool;
@@ -96,7 +97,14 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
         kProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,  cfg.kafkaBrokers);
         kProps.put(ConsumerConfig.GROUP_ID_CONFIG,           cfg.kafkaGroupId);
         kProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,  cfg.kafkaAutoOffsetReset);
-        kProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
+        // P2-21 - offsets are the delivery ledger, not a heartbeat. Auto-commit
+        // acknowledged records on a timer regardless of whether their DDATA ever
+        // reached EMQX, so an MQTT outage longer than the commit interval
+        // permanently dropped every alarm change and RBE delta in the window -
+        // and on a report-by-exception plane the HMI then paints the stale prior
+        // value until the NEXT real change, which can be hours away. Offsets are
+        // now committed only after the polled batch was actually delivered.
+        kProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
         kProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
                 "org.apache.kafka.common.serialization.StringDeserializer");
         kProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
@@ -108,27 +116,81 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
             LOG.info("Kafka consumer subscribed to {} / {} / {}",
                     cfg.liveAlarmsTopic, cfg.liveMetricsTopic, cfg.liveLoopMetricsTopic);
 
+            boolean pausedForMqtt = false;
             while (running) {
                 // Check for reconnect - may need to re-publish NBIRTH
                 publishNBirthIfNeeded();
 
-                ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(500));
-                if (!records.isEmpty()) {
-                    LOG.info("Polled {} record(s) from Kafka", records.count());
+                // P2-21 - while the broker is down, stop consuming instead of
+                // consuming-and-dropping. pause() keeps the group membership
+                // alive (poll still runs for heartbeats) but delivers nothing.
+                boolean mqttUp = mqttClient != null && mqttClient.isConnected();
+                if (!mqttUp && !pausedForMqtt) {
+                    consumer.pause(consumer.assignment());
+                    pausedForMqtt = true;
+                    LOG.warn("MQTT disconnected - pausing Kafka consumption until the broker returns");
+                } else if (mqttUp && pausedForMqtt) {
+                    consumer.resume(consumer.assignment());
+                    pausedForMqtt = false;
+                    LOG.info("MQTT reconnected - resuming Kafka consumption");
                 }
-                for (ConsumerRecord<String, String> rec : records) {
-                    try {
-                        LOG.debug("Processing record: topic={} key={} len={}",
-                                rec.topic(), rec.key(), rec.value() != null ? rec.value().length() : 0);
-                        if (rec.topic().equals(cfg.liveLoopMetricsTopic)) {
-                            processLoopMetricRecord(rec); // CPLM loop signals (pv/sp/op/vp/mode)
-                        } else if (rec.topic().equals(cfg.liveMetricsTopic)) {
-                            processMetricRecord(rec);   // generic process values (level/speed/position/…)
-                        } else {
-                            processRecord(rec);         // alarm records (legacy schema)
+
+                ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(500));
+                if (records.isEmpty()) continue;
+                LOG.info("Polled {} record(s) from Kafka", records.count());
+
+                // Process partition-by-partition so a delivery failure can seek
+                // that partition (and every untouched one) back for replay while
+                // still committing the partitions that fully succeeded.
+                Map<TopicPartition, OffsetAndMetadata> done = new HashMap<>();
+                boolean deliveryFailed = false;
+                List<TopicPartition> parts = new ArrayList<>(records.partitions());
+                for (int pi = 0; pi < parts.size(); pi++) {
+                    TopicPartition tp = parts.get(pi);
+                    if (deliveryFailed) {
+                        // Not reached this batch - replay from its first record.
+                        consumer.seek(tp, records.records(tp).get(0).offset());
+                        continue;
+                    }
+                    for (ConsumerRecord<String, String> rec : records.records(tp)) {
+                        try {
+                            LOG.debug("Processing record: topic={} key={} len={}",
+                                    rec.topic(), rec.key(), rec.value() != null ? rec.value().length() : 0);
+                            if (rec.topic().equals(cfg.liveLoopMetricsTopic)) {
+                                processLoopMetricRecord(rec); // CPLM loop signals (pv/sp/op/vp/mode)
+                            } else if (rec.topic().equals(cfg.liveMetricsTopic)) {
+                                processMetricRecord(rec);   // generic process values
+                            } else {
+                                processRecord(rec);         // alarm records (legacy schema)
+                            }
+                            done.put(tp, new OffsetAndMetadata(rec.offset() + 1));
+                        } catch (MqttException e) {
+                            // Broker unreachable: hold position and replay after
+                            // reconnect. NOT a poison record - do not skip it.
+                            LOG.warn("MQTT delivery failed at {}:{} (offset {}) - will replay after reconnect: {}",
+                                    tp.topic(), tp.partition(), rec.offset(), e.getMessage());
+                            consumer.seek(tp, rec.offset());
+                            done.remove(tp); // partial progress superseded by the seek
+                            deliveryFailed = true;
+                            break;
+                        } catch (Exception e) {
+                            // Malformed record: skipping is correct - it would
+                            // fail identically on every replay and wedge the
+                            // partition. Its offset is included in the commit.
+                            LOG.warn("Skipping unprocessable record from {}: {}", rec.topic(), e.getMessage(), e);
+                            done.put(tp, new OffsetAndMetadata(rec.offset() + 1));
                         }
+                    }
+                }
+
+                if (!done.isEmpty()) {
+                    try {
+                        consumer.commitSync(done);
                     } catch (Exception e) {
-                        LOG.warn("Failed to process record from {}: {}", rec.topic(), e.getMessage(), e);
+                        // At-least-once: a failed commit means redelivery, and
+                        // every publish target (MQTT DDATA, Redis SET, IoTDB
+                        // insert-by-timestamp) is idempotent per record.
+                        LOG.warn("Offset commit failed; batch may be redelivered: {}", e.getMessage());
                     }
                 }
             }
@@ -357,7 +419,7 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
                     .build();
             httpClient.sendAsync(req, HttpResponse.BodyHandlers.discarding());
         } catch (Exception e) {
-            LOG.debug("IoTDB write failed (non-fatal): {}", e.getMessage());
+            LOG.warn("IoTDB write failed (non-fatal): {}", e.getMessage());
         }
     }
 
@@ -400,7 +462,7 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
         try (Jedis jedis = jedisPool.getResource()) {
             jedis.setex(key, cfg.redisTtlSeconds, json);
         } catch (Exception e) {
-            LOG.debug("Redis metric snapshot write failed (non-fatal): {}", e.getMessage());
+            LOG.warn("Redis metric snapshot write failed (non-fatal): {}", e.getMessage());
         }
     }
 
@@ -490,7 +552,7 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
             writeSnapshotField(pipe, prefix + "priority",       text(node, "priority"),          ts);
             pipe.sync();
         } catch (Exception e) {
-            LOG.debug("Redis write failed (non-fatal): {}", e.getMessage());
+            LOG.warn("Redis write failed (non-fatal): {}", e.getMessage());
         }
     }
 
@@ -558,8 +620,11 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
 
     private void publishMqtt(String topic, byte[] payload, boolean retained) throws MqttException {
         if (mqttClient == null || !mqttClient.isConnected()) {
-            LOG.warn("MQTT not connected — dropping message to {}", topic);
-            return;
+            // P2-21 - this used to log-and-return, which turned "broker down"
+            // into silent record loss the moment auto-commit fired. Throwing
+            // makes the poll loop hold offsets and replay the batch after
+            // reconnect - the broker being down is a delivery failure.
+            throw new MqttException(MqttException.REASON_CODE_CLIENT_NOT_CONNECTED);
         }
         
         LOG.debug("Publishing {} bytes to {} (retained={})", payload.length, topic, retained);
