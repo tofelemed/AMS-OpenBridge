@@ -1,0 +1,340 @@
+491:       return (
+492:         <ObcStatusIndicator status={statusState}>
+493:           {item.label || 'Status'}
+494:         </ObcStatusIndicator>
+495:       );
+496:     
+497:     case 'obc.bar':
+498:       const barPercent = mode === 'preview' ? pctValue(numericValue) : 60;
+499:       return (
+500:         <div className="symbol symbol-bar-vertical">
+501:           <ObcProgressBar 
+502:             value={barPercent}
+503:             style={{ 
+504:               transform: 'rotate(-90deg)', 
+505:               width: item.size.height,
+506:               '--progress-bar-color': getAlarmColor(numericValue, item.alarmLimits)
+507:             } as React.CSSProperties}
+508:           />
+509:           {item.label && <div className="symbol-bar__label">{item.label}</div>}
+510:         </div>
+511:       );
+512:     
+513:     case 'obc.bar-horizontal':
+514:       const hBarPercent = mode === 'preview' ? pctValue(numericValue) : 60;
+515:       return (
+516:         <div className="symbol symbol-bar-horizontal">
+517:           {item.label && <div className="symbol-bar__label">{item.label}</div>}
+518:           <ObcProgressBar 
+519:             value={hBarPercent}
+520:             style={{ '--progress-bar-color': getAlarmColor(numericValue, item.alarmLimits) } as React.CSSProperties}
+521:           />
+522:         </div>
+523:       );
+524:     
+525:     case 'obc.badge':
+526:       return (
+527:         <ObcBadge>
+528:           {item.label || (mode === 'preview' ? String(liveValue || '--') : '{tag}')}
+529:         </ObcBadge>
+530:       );
+531:     
+532:     // ─────────────────────────────────────────────────────────────────────────
+533:     // OPENBRIDGE CONTROLS (ISA-101)
+534:     // ─────────────────────────────────────────────────────────────────────────
+535:     case 'obc.button':
+536:       return (
+537:         <ObcButton variant="normal">
+538:           {item.label || 'Command'}
+539:         </ObcButton>
+540:       );
+541:     
+542:     case 'obc.toggle':
+543:       return (
+544:         <div className="symbol symbol-toggle">
+545:           <ObcToggleSwitch checked={isRunning} />
+546:           {item.label && <span className="symbol-toggle__label">{item.label}</span>}
+547:         </div>
+548:       );
+549:     
+550:     case 'obc.slider':
+551:       return (
+552:         <div className="symbol symbol-slider-vertical">
+553:           <ObcSlider 
+554:             value={mode === 'preview' ? numericValue : 50}
+555:             min={0}
+556:             max={100}
+557:           />
+558:           <div className="symbol-slider__value">{displayValue}</div>
+559:         </div>
+560:       );
+561:     
+562:     case 'obc.slider-horizontal':
+563:       return (
+564:         <div className="symbol symbol-slider-horizontal">
+565:           {item.label && <div className="symbol-slider__label">{item.label}</div>}
+566:           <ObcSlider 
+567:             value={mode === 'preview' ? numericValue : 50}
+568:             min={0}
+569:             max={100}
+570:           />
+571:         </div>
+572:       );
+573:     
+574:     case 'obc.input':
+575:       return (
+576:         <div className="symbol symbol-input">
+577:           {item.label && <div className="symbol-input__label">{item.label}</div>}
+578:           <input
+579:             type="text"
+580:             className="symbol-input__field"
+581:             value={mode === 'preview' ? displayValue : ''}
+582:             readOnly={mode === 'preview'}
+583:             placeholder="0.0"
+584:           />
+585:         </div>
+586:       );
+587:     
+588:     case 'obc.check':
+589:       return (
+590:         <div className="symbol symbol-check">
+591:           <input type="checkbox" checked={isRunning} readOnly />
+592:           <span>{item.label || 'Option'}</span>
+593:         </div>
+594:       );
+595:     
+596:     // ─────────────────────────────────────────────────────────────────────────
+597:     // OPENBRIDGE LAYOUT
+598:     // ─────────────────────────────────────────────────────────────────────────
+599:     case 'obc.card':
+600:     case 'obc.elevated-card':
+601:       return (
+602:         <ObcCard>
+603:           <div className="symbol-card__content">
+604:             {item.label || 'Card'}
+605:           </div>
+606:         </ObcCard>
+607:       );
+608:     
+609:     case 'obc.clock':
+610:       return <ObcClock />;
+611:     
+612:     case 'obc.breadcrumb': {
+613:       // Derive the trail from the author's label ("Houston/Crude1/Pump101" or dotted) instead of a
+614:       // hardcoded Site/Area. Last segment is the current (non-link) crumb.
+615:       const parts = (item.label || 'Site/Area/Current').split(/[/.]/).map(s => s.trim()).filter(Boolean);
+616:       return (
+617:         <ObcBreadcrumb
+618:           items={parts.map((label, i) => (i < parts.length - 1 ? { label, href: '#' } : { label }))}
+619:         />
+620:       );
+621:     }
+622:     
+623:     // ─────────────────────────────────────────────────────────────────────────
+624:     // OPENBRIDGE ALARMS (ISA-18.2)
+625:     // ─────────────────────────────────────────────────────────────────────────
+626:     case 'obc.alert-icon':
+627:       return (
+628:         <ObcAlertIcon 
+629:           alert-type={statusState === 'alarm' ? 'alarm' : statusState === 'warning' ? 'warning' : 'caution'}
+630:         />
+631:       );
+632:     
+633:     case 'obc.alert-button': {
+634:       // Live annunciator: scoped to `alarmSource` if set, else the plant-wide active-alarm summary.
+635:       // Colour follows the highest active priority (ISA-101: colour only for the abnormal); the label
+636:       // blinks while any alarm is unacknowledged.
+637:       const a = item.alarmSource ? alarm : globalAlarm;
+638:       const tok = a.highestPriority === 'CRITICAL' ? OBC.alarm
+639:         : a.highestPriority === 'HIGH' ? OBC.warning
+640:         : a.count > 0 ? OBC.caution : undefined;
+641:       return (
+642:         <ObcButton variant="flat">
+643:           <span className={a.unacked ? 'symbol-fx--blink' : ''} style={tok ? { color: tok, fontWeight: 700 } : undefined}>
+644:             🔔 {item.label || 'Alarms'}{a.count > 0 ? ` (${a.count})` : ''}
+645:           </span>
+646:         </ObcButton>
+647:       );
+648:     }
+649:     
+650:     case 'obc.nav-item':
+651:       return (
+652:         <ObcButton variant="normal">
+653:           {item.label || 'Navigate'} →
+654:         </ObcButton>
+655:       );
+656:     
+657:     // ─────────────────────────────────────────────────────────────────────────
+658:     // ISA-5.1 EQUIPMENT SYMBOLS (SVG - grayscale by default)
+659:     // ─────────────────────────────────────────────────────────────────────────
+660:     case 'equip.pump':
+661:       return (
+662:         <div className={`symbol symbol-pump ${isRunning ? 'symbol--running' : ''}`}>
+663:           <svg viewBox="0 0 80 80" width="100%" height="100%">
+664:             <circle cx="40" cy="40" r="28" fill="none" stroke="currentColor" strokeWidth="2.5" />
+665:             <polygon points="40,15 55,35 40,30 25,35" fill="currentColor">
+666:               {isRunning && (
+667:                 <animateTransform
+668:                   attributeName="transform"
+669:                   type="rotate"
+670:                   from="0 40 40"
+671:                   to="360 40 40"
+672:                   dur="1s"
+673:                   repeatCount="indefinite"
+674:                 />
+675:               )}
+676:             </polygon>
+677:             <line x1="40" y1="68" x2="40" y2="80" stroke="currentColor" strokeWidth="2.5" />
+678:             <line x1="0" y1="40" x2="12" y2="40" stroke="currentColor" strokeWidth="2.5" />
+679:             <line x1="68" y1="40" x2="80" y2="40" stroke="currentColor" strokeWidth="2.5" />
+680:           </svg>
+681:           {item.label && <div className="symbol-equipment__label">{item.label}</div>}
+682:         </div>
+683:       );
+684:     
+685:     case 'equip.valve':
+686:       const valvePosition = mode === 'preview' && typeof liveValue === 'number' ? liveValue : 50;
+687:       return (
+688:         <div className={`symbol symbol-valve ${isRunning ? 'symbol--open' : ''}`}>
+689:           <svg viewBox="0 0 60 80" width="100%" height="100%">
+690:             <polygon points="5,20 30,45 5,70" fill="none" stroke="currentColor" strokeWidth="2" />
+691:             <polygon points="55,20 30,45 55,70" fill="none" stroke="currentColor" strokeWidth="2" />
+692:             <line x1="30" y1="45" x2="30" y2="8" stroke="currentColor" strokeWidth="2" />
+693:             <rect x="20" y="2" width="20" height="8" fill="currentColor" rx="2" />
+694:             <text x="30" y="78" textAnchor="middle" fontSize="10" fill="currentColor">
+695:               {valvePosition}%
+696:             </text>
+697:           </svg>
+698:           {item.label && <div className="symbol-equipment__label">{item.label}</div>}
+699:         </div>
+700:       );
+701:     
+702:     case 'equip.valve-onoff':
+703:       return (
+704:         <div className={`symbol symbol-valve-onoff ${isRunning ? 'symbol--open' : ''}`}>
+705:           <svg viewBox="0 0 50 50" width="100%" height="100%">
+706:             <polygon points="5,10 25,25 5,40" fill="none" stroke="currentColor" strokeWidth="2" />
+707:             <polygon points="45,10 25,25 45,40" fill="none" stroke="currentColor" strokeWidth="2" />
+708:             <rect x="18" y="2" width="14" height="6" fill="currentColor" rx="1" />
+709:           </svg>
+710:           {item.label && <div className="symbol-equipment__label">{item.label}</div>}
+711:         </div>
+712:       );
+713:     
+714:     case 'equip.motor':
+715:       return (
+716:         <div className={`symbol symbol-motor ${isRunning ? 'symbol--running' : ''}`}>
+717:           <svg viewBox="0 0 70 70" width="100%" height="100%">
+718:             <circle cx="35" cy="35" r="28" fill="none" stroke="currentColor" strokeWidth="2.5" />
+719:             <text x="35" y="43" textAnchor="middle" fontSize="24" fill="currentColor">M</text>
+720:           </svg>
+721:           {item.label && <div className="symbol-equipment__label">{item.label}</div>}
+722:         </div>
+723:       );
+724:     
+725:     case 'equip.tank':
+726:       const tankLevel = mode === 'preview' && typeof liveValue === 'number' ? liveValue : 65;
+727:       const tankPercent = Math.max(0, Math.min(100, tankLevel));
+728:       return (
+729:         <div className="symbol symbol-tank">
+730:           <svg viewBox="0 0 60 100" width="100%" height="100%">
+731:             <path
+732:               d="M 8 15 Q 8 5 30 5 Q 52 5 52 15 L 52 85 Q 52 95 30 95 Q 8 95 8 85 Z"
+733:               fill="none"
+734:               stroke="currentColor"
+735:               strokeWidth="2"
+736:             />
+737:             <clipPath id={`tank-clip-${item.id}`}>
+738:               <path d="M 8 15 Q 8 5 30 5 Q 52 5 52 15 L 52 85 Q 52 95 30 95 Q 8 95 8 85 Z" />
+739:             </clipPath>
+740:             <rect
+741:               x="8" y={95 - tankPercent * 0.9}
+742:               width="44" height={tankPercent * 0.9}
+743:               fill={stateColor ?? getAlarmColor(tankPercent, item.alarmLimits)}
+744:               opacity="0.5"
+745:               clipPath={`url(#tank-clip-${item.id})`}
+746:             />
+747:             <text x="30" y="55" textAnchor="middle" fill={stateColor ?? 'currentColor'} fontSize="12" fontWeight="bold">
+748:               {tankPercent.toFixed(0)}%
+749:             </text>
+750:           </svg>
+751:           {item.label && <div className="symbol-equipment__label">{item.label}</div>}
+752:         </div>
+753:       );
+754:     
+755:     case 'equip.hx': {
+756:       // Shell & tube HX now reads its tempIn/tempOut slots (already resolved into `slots.*`) and
+757:       // labels the inlet/outlet temperatures live.
+758:       const tin = slots.tempIn?.value, tout = slots.tempOut?.value;
+759:       const hxDec = item.formatting?.decimals ?? 0;
+760:       const hxUnit = item.formatting?.unit ? `${item.formatting.unit}` : '';
+761:       const fmtT = (v: unknown) => (typeof v === 'number' ? `${v.toFixed(hxDec)}${hxUnit}` : '--');
+762:       return (
+763:         <div className="symbol symbol-hx">
+764:           <svg viewBox="0 0 100 60" width="100%" height="100%">
+765:             <ellipse cx="50" cy="30" rx="45" ry="25" fill="none" stroke="currentColor" strokeWidth="2" />
+766:             <path d="M 8 30 Q 25 14 42 30 T 76 30 L 92 30" fill="none" stroke="currentColor" strokeWidth="1.5" />
+767:             {mode === 'preview' && tin !== undefined && (
+768:               <text x="8" y="54" fontSize="9" fill="currentColor">in {fmtT(tin)}</text>
+769:             )}
+770:             {mode === 'preview' && tout !== undefined && (
+771:               <text x="92" y="54" fontSize="9" textAnchor="end" fill="currentColor">out {fmtT(tout)}</text>
+772:             )}
+773:           </svg>
+774:           {item.label && <div className="symbol-equipment__label">{item.label}</div>}
+775:         </div>
+776:       );
+777:     }
+778:     
+779:     case 'equip.compressor':
+780:       return (
+781:         <div className={`symbol symbol-compressor ${isRunning ? 'symbol--running' : ''}`}>
+782:           <svg viewBox="0 0 80 80" width="100%" height="100%">
+783:             <polygon points="10,60 40,10 70,60" fill="none" stroke="currentColor" strokeWidth="2" />
+784:             <line x1="0" y1="40" x2="10" y2="40" stroke="currentColor" strokeWidth="2" />
+785:             <line x1="70" y1="40" x2="80" y2="40" stroke="currentColor" strokeWidth="2" />
+786:           </svg>
+787:           {item.label && <div className="symbol-equipment__label">{item.label}</div>}
+788:         </div>
+789:       );
+790:     
+791:     case 'equip.fan':
+792:       return (
+793:         <div className={`symbol symbol-fan ${isRunning ? 'symbol--running' : ''}`}>
+794:           <svg viewBox="0 0 70 70" width="100%" height="100%">
+795:             <circle cx="35" cy="35" r="28" fill="none" stroke="currentColor" strokeWidth="2" />
+796:             <g className={isRunning ? 'spinning' : ''} style={{ transformOrigin: '35px 35px' }}>
+797:               {[0, 90, 180, 270].map(angle => (
+798:                 <ellipse
+799:                   key={angle}
+800:                   cx="35" cy="20"
+801:                   rx="6" ry="12"
+802:                   fill="currentColor"
+803:                   transform={`rotate(${angle} 35 35)`}
+804:                 />
+805:               ))}
+806:             </g>
+807:             <circle cx="35" cy="35" r="6" fill="var(--container-background-color, #1e293b)" stroke="currentColor" strokeWidth="1.5" />
+808:           </svg>
+809:           {item.label && <div className="symbol-equipment__label">{item.label}</div>}
+810:         </div>
+811:       );
+812:     
+813:     // ─────────────────────────────────────────────────────────────────────────
+814:     // ISA-5.1 INSTRUMENT SYMBOLS (Circle with function letter)
+815:     // ─────────────────────────────────────────────────────────────────────────
+816:     case 'inst.ti':
+817:     case 'inst.pi':
+818:     case 'inst.fi':
+819:     case 'inst.li':
+820:     case 'inst.ai':
+821:     case 'inst.tt':
+822:       const instLetter = item.type.split('.')[1].toUpperCase();
+823:       return (
+824:         <div className="symbol symbol-instrument">
+825:           <svg viewBox="0 0 50 50" width="100%" height="100%">
+826:             <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" strokeWidth="2" />
+827:             <line x1="5" y1="25" x2="45" y2="25" stroke="currentColor" strokeWidth="1" />
+828:             <text x="25" y="22" textAnchor="middle" fontSize="12" fill="currentColor">{instLetter}</text>
+829:             <text x="25" y="36" textAnchor="middle" fontSize="9" fill="currentColor">
+830:               {mode === 'preview' ? fmtValue(liveValue, decimals) : '---'}
