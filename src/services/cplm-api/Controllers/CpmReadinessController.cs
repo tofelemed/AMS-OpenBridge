@@ -235,12 +235,38 @@ public sealed class CpmReadinessController : ControllerBase
             {
                 reachable = true;
                 using var overview = JsonDocument.Parse(await overviewRes.Content.ReadAsStringAsync(ct));
+                // Flink's overview keeps terminal jobs (CANCELED/FINISHED/FAILED)
+                // in the list. Reporting them alongside the live one made the
+                // Pipeline Health screen show phantom duplicates of every job and
+                // made a real duplicate (two RUNNING copies sharing a consumer
+                // group) impossible to spot. Keep the RUNNING instance per name,
+                // falling back to the newest terminal one when nothing is running
+                // so a dead required job still shows up rather than vanishing.
+                var byName = new Dictionary<string, JsonElement>();
                 foreach (var job in overview.RootElement.GetProperty("jobs").EnumerateArray())
+                {
+                    var jn = job.TryGetProperty("name", out var nn) ? nn.GetString() : null;
+                    if (jn is null || !RequiredJobs.Any(r => r.Name == jn)) continue;
+                    var jstate = job.TryGetProperty("state", out var js) ? js.GetString() : null;
+                    if (!byName.TryGetValue(jn, out var kept))
+                    {
+                        byName[jn] = job;
+                        continue;
+                    }
+                    var keptState = kept.TryGetProperty("state", out var ks) ? ks.GetString() : null;
+                    var keptStart = kept.TryGetProperty("start-time", out var kst) ? kst.GetInt64() : 0;
+                    var thisStart = job.TryGetProperty("start-time", out var tst) ? tst.GetInt64() : 0;
+                    var preferThis = (jstate == "RUNNING" && keptState != "RUNNING")
+                                     || (jstate == keptState && thisStart > keptStart)
+                                     || (keptState != "RUNNING" && jstate != "RUNNING" && thisStart > keptStart);
+                    if (preferThis) byName[jn] = job;
+                }
+
+                foreach (var job in byName.Values)
                 {
                     var name = job.TryGetProperty("name", out var n) ? n.GetString() : null;
                     var jid = job.TryGetProperty("jid", out var j) ? j.GetString() : null;
                     if (name is null || jid is null) continue;
-                    if (!RequiredJobs.Any(r => r.Name == name)) continue;
 
                     long startTime = job.TryGetProperty("start-time", out var st) ? st.GetInt64() : 0;
                     var state = job.TryGetProperty("state", out var s) ? s.GetString() : "UNKNOWN";
@@ -274,6 +300,49 @@ public sealed class CpmReadinessController : ControllerBase
                         _logger.LogDebug(ex, "Checkpoint stats unavailable for {Job}", name);
                     }
 
+                    // P1-6 — late-dropped record counts per window operator.
+                    // Windowed jobs discard records that arrive behind the
+                    // watermark, with no side output and no log line. Flink has
+                    // been counting them all along; nothing surfaced it, so a
+                    // backfill that vanished entirely looked like a healthy run.
+                    // This is the only signal that distinguishes "no data" from
+                    // "your data arrived too late to be windowed".
+                    long? lateDropped = null;
+                    try
+                    {
+                        var vertRes = await client.GetAsync($"{baseUrl}/jobs/{jid}", ct);
+                        if (vertRes.IsSuccessStatusCode)
+                        {
+                            using var vj = JsonDocument.Parse(await vertRes.Content.ReadAsStringAsync(ct));
+                            if (vj.RootElement.TryGetProperty("vertices", out var verts))
+                            {
+                                foreach (var v in verts.EnumerateArray())
+                                {
+                                    var vname = v.TryGetProperty("name", out var vn) ? vn.GetString() ?? "" : "";
+                                    var vid = v.TryGetProperty("id", out var vi) ? vi.GetString() : null;
+                                    if (vid is null || !vname.Contains("window", StringComparison.OrdinalIgnoreCase)) continue;
+                                    var metric = $"0.{vname.Split(" ->")[0]}.numLateRecordsDropped";
+                                    var mRes = await client.GetAsync(
+                                        $"{baseUrl}/jobs/{jid}/vertices/{vid}/metrics?get={Uri.EscapeDataString(metric)}", ct);
+                                    if (!mRes.IsSuccessStatusCode) continue;
+                                    using var md = JsonDocument.Parse(await mRes.Content.ReadAsStringAsync(ct));
+                                    foreach (var m in md.RootElement.EnumerateArray())
+                                    {
+                                        if (m.TryGetProperty("value", out var mv)
+                                            && long.TryParse(mv.GetString(), out var lv))
+                                        {
+                                            lateDropped = Math.Max(lateDropped ?? 0, lv);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Late-record metrics unavailable for {Job}", name);
+                    }
+
                     jobs.Add(new
                     {
                         name,
@@ -282,7 +351,10 @@ public sealed class CpmReadinessController : ControllerBase
                         role = RequiredJobs.First(r => r.Name == name).Role,
                         startTime = startTime > 0 ? DateTimeOffset.FromUnixTimeMilliseconds(startTime).UtcDateTime : (DateTime?)null,
                         uptimeSec = startTime > 0 ? (long?)Math.Max(0, (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - startTime) / 1000) : null,
-                        checkpoint
+                        checkpoint,
+                        // Max across this job's window operators (each counts the
+                        // same record independently, so a sum would multiply it).
+                        lateRecordsDropped = lateDropped
                     });
                 }
             }

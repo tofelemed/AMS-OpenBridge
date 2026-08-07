@@ -19,6 +19,7 @@ import {
 } from '../../hooks/useCpm';
 import { useLoopLive, qualityLabel } from '../../hooks/useLoopLive';
 import type { CpmLoop } from '../../api/cpmApi';
+import { loopSeries } from '../../utils/loopSeries';
 
 const TABS = ['Summary', 'Signals', 'Calculations', 'Relationships', 'History'] as const;
 type Tab = typeof TABS[number];
@@ -159,7 +160,7 @@ const SummaryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   const gates = useLatestGates(loop.loopId, '24h');
   // F0.5 — live plane (RBE + snapshot-on-open); historian values remain the fallback.
   const live = useLoopLive(loop.loopId);
-  const series = `root.site1.cpm.${loop.loopId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+  const series = loopSeries(loop.loopId);
   const { start, end } = useMemo(() => {
     const now = new Date();
     return { start: new Date(now.getTime() - 8 * 3600_000), end: now };

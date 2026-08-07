@@ -22,6 +22,7 @@ import {
   useAcknowledgeEvent, useCpmEvents, useCpmLoops, useCpmTrend,
   useFleetRankings, useGateHistory, useLatestGates,
 } from '../../hooks/useCpm';
+import { loopSeries } from '../../utils/loopSeries';
 
 function cssVar(name: string, fallback: string): string {
   if (typeof window === 'undefined') return fallback;
@@ -43,13 +44,14 @@ function caseFor(diagnosis: string): string {
 }
 
 /** Key facts — real stored metric fields with honest units. */
-const KEY_FACTS: { field: string; label: string; unit: string }[] = [
+const KEY_FACTS: { field: string; label: string; unit: string; scale?: number }[] = [
   { field: 'stiction_score', label: 'Stiction score', unit: '' },
   { field: 'effort_ratio', label: 'Effort ratio', unit: '' },
   { field: 'triangularity', label: 'OP triangularity', unit: '' },
   { field: 'acf_period_s', label: 'Oscillation period', unit: 's' },
   { field: 'freeze_index_s', label: 'Freeze index', unit: 's' },
-  { field: 'good_error_pct', label: 'Good-error time', unit: '%' },
+  // 0..1 fraction from the engine - scaled to percent by KEY_FACTS rendering.
+  { field: 'good_error_pct', label: 'Good-error time', unit: '%', scale: 100 },
 ];
 
 /** Family / detector scores for hypothesis comparison. */
@@ -124,7 +126,7 @@ export const CpmInvestigation: React.FC = () => {
     : undefined;
 
   // Evidence chart over the verdict's own window.
-  const series = loopId ? `root.site1.cpm.${loopId.replace(/[^a-zA-Z0-9_-]/g, '_')}` : undefined;
+  const series = loopId ? loopSeries(loopId) : undefined;
   const { start, end } = useMemo(() => {
     if (matrix?.windowStart && matrix.windowEnd)
       return { start: new Date(matrix.windowStart), end: new Date(matrix.windowEnd) };
@@ -285,7 +287,8 @@ export const CpmInvestigation: React.FC = () => {
               <div className="cpm-kpi-row">
                 {KEY_FACTS.map(f => (
                   <KpiTile key={f.field} caption={f.label} tone="muted"
-                    value={metrics[f.field] != null ? `${fmt(metrics[f.field])}${f.unit}` : '—'}
+                    value={metrics[f.field] != null
+                      ? `${fmt(metrics[f.field]! * (f.scale ?? 1))}${f.unit}` : '—'}
                     sub={metrics[f.field] == null ? 'not in this payload' : undefined} />
                 ))}
               </div>

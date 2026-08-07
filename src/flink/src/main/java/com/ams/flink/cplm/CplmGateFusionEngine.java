@@ -168,6 +168,11 @@ public final class CplmGateFusionEngine implements Serializable {
         result.satLimitDwellSamples = longD.satLimitDwellSamples;
         result.satCyclingPattern = longD.satCyclingPattern;
 
+        // P1-10: stamp the provenance of the long-tier metrics copied above
+        // BEFORE any early return, so every row carries it.
+        result.longMetricsQualified =
+                shortF.sufficientData && !"FAIL".equalsIgnoreCase(shortF.gate0Status);
+
         if (!shortF.sufficientData) {
             result.diagnosis = "INSUFFICIENT_DATA";
             result.severity = "LOW";

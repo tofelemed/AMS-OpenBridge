@@ -19,6 +19,7 @@ import type { CpmGateMatrix } from '../../api/cpmApi';
 import {
   useCpmKpisRange, useCpmLoops, useCpmModeTrack, useCpmTrend, useGateHistory,
 } from '../../hooks/useCpm';
+import { loopSeries } from '../../utils/loopSeries';
 
 function cssVar(name: string, fallback: string): string {
   if (typeof window === 'undefined') return fallback;
@@ -30,7 +31,7 @@ function cssVar(name: string, fallback: string): string {
 const KPI_OVERLAYS = [
   { key: 'effort_ratio', label: 'Actuator effort ratio', resolution: '15m', unit: 'ratio' },
   { key: 'iae', label: 'Integral absolute error', resolution: '15m', unit: 'EU·s' },
-  { key: 'good_error_pct', label: 'Good-error time', resolution: '15m', unit: '%' },
+  { key: 'good_error_pct', label: 'Good-error time', resolution: '15m', unit: '% (0-1 fraction)' },
   { key: 'triangularity', label: 'OP triangularity (stiction)', resolution: '24h', unit: 'score' },
   { key: 'harmonic_energy_ratio', label: 'Harmonic energy ratio', resolution: '24h', unit: 'ratio' },
 ];
@@ -80,7 +81,7 @@ export const CpmHistorical: React.FC = () => {
   const [draftFrom, setDraftFrom] = useState(() => toLocalInput(from));
   const [draftTo, setDraftTo] = useState(() => toLocalInput(to));
 
-  const series = loopId ? `root.site1.cpm.${loopId.replace(/[^a-zA-Z0-9_-]/g, '_')}` : undefined;
+  const series = loopId ? loopSeries(loopId) : undefined;
   const trend = useCpmTrend(series, from, to, 300);
   const modeTrack = useCpmModeTrack(series, from, to, 96);
   const kpis = useCpmKpisRange(loopId, overlay.resolution, from.toISOString(), to.toISOString());

@@ -15,6 +15,52 @@ from the raw CSVs), data loss/duplication, silent-failure code audit, and cross-
 
 ---
 
+## FIX STATUS — 2026-08-07
+
+All P0 and P1-1…P1-12 items below have been fixed, deployed and validated on the
+running stack. Each is marked inline. Evidence and the validation method for every
+item is in the commit message and in `docs/cplm-intake/pipeline-fix-validation.md`.
+
+| ID | Fix | Validated by |
+|---|---|---|
+| P0-1 | Duplicate jobs cancelled; supervisor now counts RUNNING copies and refuses to stack a second | 7 jobs running, 0 duplicate names |
+| P0-2 | Long job skips timers the watermark already passed | Long tier now emits **current** windows (was frozen at 2026-07-27) |
+| P0-3 | Fusion sources use `committedOffsets(EARLIEST)` | Source diff + job restarted on new jar |
+| P0-4 | `good_error_pct` scaled ×100 at every render site | API 0.8965 → UI 89.7% |
+| P0-5 | `travel_per_day`/`reversals_per_hour` emitted on the long payload | Key present in 6/6 new rows, absent in 348/348 old |
+| P0-6 | All three upserts guarded with `WHERE EXCLUDED.sample_count >= …` | 3 guards in deployed source |
+| P1-1 | Freeze must be material (≥60 s **and** ≥10 % of window); `freeze_fraction` published | Key present in 6/6 new rows |
+| P1-2 | `toneFor` covers STRONG + LOW/MEDIUM/HIGH/CRITICAL | 1,201 STRONG cells no longer render grey |
+| P1-3 | `cplm_gate_latest` orders by `window_end` before "has a verdict" | View definition confirmed in DB |
+| P1-4 | Fleet joins use `lower(loop_id)` in all three places | Deployed source |
+| P1-5 | One shared `loopSeries()` helper mirroring `SafeNode`; `loop_id` validated at onboarding | `FIC-101` now rejected with a 422 explaining the collision |
+| P1-6 | `lateRecordsDropped` surfaced per job (+ terminal-job dedupe) | Metrics payload carries it; 12 phantom rows → 7 real |
+| P1-7 | Mode vocabulary normalised in the engine | `AUT`/`CASCADE` → auto_pct **1.000**, G1 PASS; `MAN` still EXCLUDED |
+| P1-9 | `sufficient_data` exposed on the KPI endpoint | Deployed SQL |
+| P1-10 | `long_metrics_qualified` stamped on every gate row | `false` on new INSUFFICIENT_DATA rows |
+| P1-11 | Bad quality ≥50 % now FAILS G0 | Test loop: `bad_quality_pct=1.0` → **G0 FAIL** (was WARN) |
+| P1-12 | Missing/non-numeric pv/sp/op marks the sample invalid | Test loop with no `op` produced **zero** windows (was G4 PASS on op=0) |
+
+**Also found and fixed while validating (not in the original register):**
+- **The Flink job supervisor had been dead the whole time.** `flink-job-supervisor.sh`
+  was checked out CRLF, so bash read `set -o pipefail` as an invalid option and the
+  script failed on line 12 every 60-second loop — it had never resubmitted anything.
+  This is the *same* defect that silently broke `iotdb-init-ttl.sh`. All five
+  `infra/docker/*.sh` files were CRLF; all are now LF, and a new `.gitattributes`
+  pins `*.sh eol=lf` so a Windows checkout cannot reintroduce it.
+- **`/cpm/pipeline-metrics` listed terminal jobs**, so Pipeline Health showed 12 rows
+  including cancelled duplicates — which would have made a real duplicate impossible
+  to spot on the very screen meant to reveal it. Now one row per job, RUNNING preferred.
+- **`criticality` is normalised to lowercase on insert** and validated (P2-9), so
+  `"MEDIUM"` returns 422 with the valid list instead of a bare 500.
+
+**Still open (P1-8 and everything under P2/P3):** P1-8 (0.0 meaning "not computed" in
+mae/auto_pct/sp_min/sp_max) is *partially* addressed — `sufficient_data` and
+`long_metrics_qualified` now let a consumer tell the two apart — but the columns
+themselves still store 0.0 rather than NULL.
+
+---
+
 ## P0 — Fix first (active outage, or wrong numbers reaching users now)
 
 ### P0-1 ✅ Two "CPLM Long Diagnostics Engine" jobs are running at once, on one consumer group

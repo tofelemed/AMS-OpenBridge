@@ -52,7 +52,7 @@ public sealed class CpmFleetController : ControllerBase
             WITH latest AS (
                 SELECT DISTINCT ON (g.loop_id) g.loop_id, g.diagnosis
                 FROM analytics.cplm_gate_results g
-                JOIN cpm.loop_registry r ON r.loop_id = g.loop_id
+                JOIN cpm.loop_registry r ON lower(r.loop_id) = lower(g.loop_id)
                 WHERE g.window_kind = @windowKind
                   AND g.diagnosis IS DISTINCT FROM 'INSUFFICIENT_DATA'
                   AND (@site::text IS NULL OR r.site = @site)
@@ -117,7 +117,7 @@ public sealed class CpmFleetController : ControllerBase
                    l.effort_ratio, l.triangularity, l.horch_oddness, l.acf_period_s,
                    l.good_error_pct, l.mae, l.payload
             FROM cpm.loop_registry r
-            LEFT JOIN latest l ON l.loop_id = r.loop_id
+            LEFT JOIN latest l ON lower(l.loop_id) = lower(r.loop_id)
             WHERE (@site::text IS NULL OR r.site = @site)
               AND COALESCE((r.monitoring->>'enabled')::boolean, FALSE)
             ORDER BY
@@ -185,7 +185,7 @@ public sealed class CpmFleetController : ControllerBase
             SELECT r.loop_id, r.display_name, r.site, r.loop_type,
                    l.window_end, l.diagnosis, l.confidence, l.payload
             FROM cpm.loop_registry r
-            LEFT JOIN latest l ON l.loop_id = r.loop_id
+            LEFT JOIN latest l ON lower(l.loop_id) = lower(r.loop_id)
             WHERE (@site::text IS NULL OR r.site = @site)
               AND COALESCE((r.monitoring->>'enabled')::boolean, FALSE)
             ORDER BY r.loop_id

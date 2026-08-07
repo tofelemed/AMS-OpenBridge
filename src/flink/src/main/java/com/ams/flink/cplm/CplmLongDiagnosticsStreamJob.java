@@ -172,8 +172,19 @@ public class CplmLongDiagnosticsStreamJob {
                 out.collect(r24h);
             }
 
-            // Register next timer at +15 minutes
+            // Register the next cadence timer. CRITICAL: skip ahead when the
+            // watermark has already moved past it. Stepping strictly +15 min
+            // means an event-time gap (a historical backfill, or any idle
+            // period) forces one firing per 15 minutes of gap - an 11-day gap
+            // is ~1,056 sequential firings, each rescanning the whole 24h
+            // buffer. The job then cannot complete a checkpoint, restarts, and
+            // replays the same timers forever, so no window past the gap is
+            // ever emitted. Jumping to the watermark collapses that to one.
             long next = timestamp + TIMER_INTERVAL_MS;
+            long watermark = ctx.timerService().currentWatermark();
+            if (watermark >= next) {
+                next = ((watermark / TIMER_INTERVAL_MS) + 1) * TIMER_INTERVAL_MS;
+            }
             ctx.timerService().registerEventTimeTimer(next);
             nextTimerTs.update(next);
         }

@@ -38,7 +38,7 @@ const METRICS: MetricDef[] = [
   { id: 'CPLM-011', field: 'rmse', name: 'Root-mean-square error', gate: 'G3', kind: 'Calculation', unit: 'EU', source: 'short', description: 'RMS control error.' },
   { id: 'CPLM-012', field: 'iae', name: 'Integral absolute error', gate: 'G3', kind: 'Calculation', unit: 'EU·s', source: 'short', description: 'Accumulated absolute error.' },
   { id: 'CPLM-013', field: 'ise', name: 'Integral squared error', gate: 'G3', kind: 'Calculation', unit: 'EU²·s', source: 'short', description: 'Accumulated squared error.' },
-  { id: 'CPLM-014', field: 'good_error_pct', name: 'Good-error time', gate: 'G3', kind: 'Calculation', unit: '%', source: 'short', description: 'Time fraction the error stayed inside the good band.' },
+  { id: 'CPLM-014', field: 'good_error_pct', name: 'Good-error time', gate: 'G3', kind: 'Calculation', unit: 'fraction', source: 'short', description: 'Time fraction (0-1) the error stayed inside the good band.' },
   { id: 'CPLM-020', field: 'effort_ratio', name: 'Actuator effort ratio', gate: 'G4', kind: 'Calculation', unit: 'ratio', source: 'short', description: 'OP travel relative to the error it corrects.' },
   { id: 'CPLM-021', field: 'travel_per_day', name: 'OP travel per day', gate: 'G4', kind: 'Calculation', unit: '%/day', source: 'long', description: 'Total actuator travel extrapolated to a day.' },
   { id: 'CPLM-022', field: 'reversals_per_hour', name: 'OP reversals per hour', gate: 'G4', kind: 'Calculation', unit: 'per h', source: 'long', description: 'Direction changes of the actuator.' },

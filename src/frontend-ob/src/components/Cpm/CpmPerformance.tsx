@@ -57,8 +57,9 @@ export const CpmPerformance: React.FC = () => {
   // Fleet aggregates from real per-loop metrics.
   const medianMae = median(evaluated.map(l => l.metrics.mae).filter((x): x is number => x != null && x > 0));
   const avgGoodError = (() => {
+    // goodErrorPct is a 0..1 FRACTION from the engine; scale to percent here.
     const xs = evaluated.map(l => l.metrics.goodErrorPct).filter((x): x is number => x != null);
-    return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+    return xs.length ? (100 * xs.reduce((a, b) => a + b, 0)) / xs.length : null;
   })();
   const oscillating = evaluated.filter(l =>
     (l.metrics.acfPeriodS ?? 0) > 0 || l.diagnosis.includes('OSCILLATION')
@@ -67,7 +68,8 @@ export const CpmPerformance: React.FC = () => {
   const ranked = useMemo(() => {
     const rows = [...loops];
     if (rankBy === 'confidence') rows.sort((a, b) => (b.confidence ?? -1) - (a.confidence ?? -1));
-    else rows.sort((a, b) => (a.metrics.goodErrorPct ?? 101) - (b.metrics.goodErrorPct ?? 101));
+    // Sentinel above any real fraction so unevaluated loops sink to the bottom.
+    else rows.sort((a, b) => (a.metrics.goodErrorPct ?? 1.01) - (b.metrics.goodErrorPct ?? 1.01));
     return rows.slice(0, 8);
   }, [loops, rankBy]);
 

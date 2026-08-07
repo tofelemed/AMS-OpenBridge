@@ -86,6 +86,9 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
     public static readonly string[] RequiredRoles = { "PV", "SP", "OP", "MODE" };
     public static readonly string[] OptionalRoles = { "VP", "STATUS", "QUALITY", "UPSTREAM", "UTILITY" };
 
+    /// <summary>Lowercase to match the loop_registry CHECK constraint exactly.</summary>
+    private static readonly string[] ValidCriticalities = { "low", "medium", "high", "critical" };
+
     private static readonly string[] ValidLoopTypes =
         { "FIC", "PIC", "PIC_GAS", "PIC_VAPOUR", "LIC", "TIC", "UNKNOWN" };
 
@@ -240,7 +243,7 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
                     area = request.Area,
                     unit = request.Unit,
                     loopType = request.LoopType.ToUpperInvariant(),
-                    criticality = request.Criticality ?? "medium",
+                    criticality = (request.Criticality ?? "medium").ToLowerInvariant(),
                     monitoring = monitoringJson,
                     tags = tagsJson,
                     thresholdProfileId = request.ThresholdProfileId
@@ -287,6 +290,22 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
     {
         if (string.IsNullOrWhiteSpace(request.LoopId))
             throw new ArgumentException("loopId is required");
+        // P1-5: the historian device path is prefix + SafeNode(loopId), which maps
+        // every non-alphanumeric to '_'. So "FIC-101", "FIC.101", "FIC 101" and
+        // "FIC_101" all collapse onto ONE device while the registry keeps them as
+        // four distinct loops - their PV/SP/OP would merge, last write wins. Reject
+        // the ambiguity at onboarding rather than discovering it as merged trends.
+        if (!System.Text.RegularExpressions.Regex.IsMatch(request.LoopId, "^[A-Za-z][A-Za-z0-9_]*$"))
+            throw new ArgumentException(
+                $"loopId '{request.LoopId}' must start with a letter and contain only letters, " +
+                "digits and underscore. Characters like '-', '.' or ' ' are collapsed to '_' in the " +
+                "historian path, which would silently merge two loops onto one series.");
+        // P2-9: criticality has a Postgres CHECK but was never validated here, so a
+        // valid-looking "MEDIUM" became an unhandled 23514 and a bare HTTP 500.
+        if (!string.IsNullOrWhiteSpace(request.Criticality)
+            && !ValidCriticalities.Contains(request.Criticality.ToLowerInvariant()))
+            throw new ArgumentException(
+                $"criticality must be one of: {string.Join(", ", ValidCriticalities)} (lowercase)");
         if (string.IsNullOrWhiteSpace(request.Site))
             throw new ArgumentException("site is required (single-site today, but the discriminator is not retrofittable)");
         // loop_type is mandatory: Traverse tags are named pump101.discharge_press,

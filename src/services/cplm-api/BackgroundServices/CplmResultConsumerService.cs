@@ -195,6 +195,7 @@ public sealed class CplmResultConsumerService : BackgroundService
                 diagnosis = EXCLUDED.diagnosis, severity = EXCLUDED.severity,
                 confidence = EXCLUDED.confidence, payload = EXCLUDED.payload,
                 created_at = NOW()
+            WHERE EXCLUDED.sample_count >= analytics.cplm_gate_results.sample_count
             """;
 
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
@@ -277,6 +278,7 @@ public sealed class CplmResultConsumerService : BackgroundService
                   harmonic_amplitude_ratio = EXCLUDED.harmonic_amplitude_ratio,
                   harmonic_energy_ratio = EXCLUDED.harmonic_energy_ratio,
                   payload = EXCLUDED.payload, created_at = NOW()
+              WHERE EXCLUDED.sample_count >= analytics.cplm_long_feature_results.sample_count
               """
             : """
               INSERT INTO analytics.cplm_short_feature_results
@@ -295,12 +297,16 @@ public sealed class CplmResultConsumerService : BackgroundService
                   reversals_per_hour = EXCLUDED.reversals_per_hour,
                   auto_pct = EXCLUDED.auto_pct, completeness = EXCLUDED.completeness,
                   payload = EXCLUDED.payload, created_at = NOW()
+              WHERE EXCLUDED.sample_count >= analytics.cplm_short_feature_results.sample_count
               """;
 
         string[] fields = isLong
             ? new[] { "acf_period_s", "acf_regularity", "effort_ratio", "triangularity", "horch_oddness",
                       "corner_score", "travel_per_day", "reversals_per_hour",
                       "harmonic_amplitude_ratio", "harmonic_energy_ratio" }
+            // P1-9: sufficient_data rides in the payload (added to the column list
+            // below) so a consumer can tell "declined to evaluate" from "measured
+            // zero" - previously mae=0 on an unevaluated window drew as perfect control.
             : new[] { "iae", "ise", "mae", "rmse", "good_error_pct", "effort_ratio",
                       "travel_per_day", "reversals_per_hour", "auto_pct", "completeness" };
 
@@ -378,11 +384,17 @@ public sealed class CplmResultConsumerService : BackgroundService
                 ON analytics.cplm_gate_results (loop_id, window_kind, window_end DESC);
             CREATE INDEX IF NOT EXISTS idx_cplm_gate_results_loop_lower
                 ON analytics.cplm_gate_results (lower(loop_id));
-            CREATE OR REPLACE VIEW analytics.cplm_gate_latest AS
+            -- P1-3: window_end must outrank "has a real diagnosis". Previously a
+            -- historical-replay row with a verdict outranked EVERY live row forever,
+            -- so the loop's "latest" 24h state was a week-old batch result while a
+            -- current row sat in the same table. Recency first, then prefer a real
+            -- verdict over INSUFFICIENT_DATA within the same window.
+            DROP VIEW IF EXISTS analytics.cplm_gate_latest;
+            CREATE VIEW analytics.cplm_gate_latest AS
                 SELECT DISTINCT ON (loop_id, window_kind) * FROM analytics.cplm_gate_results
                 ORDER BY loop_id, window_kind,
-                         (diagnosis IS NOT NULL AND diagnosis <> 'INSUFFICIENT_DATA') DESC,
                          window_end DESC NULLS LAST,
+                         (diagnosis IS NOT NULL AND diagnosis <> 'INSUFFICIENT_DATA') DESC,
                          created_at DESC;
 
             CREATE TABLE IF NOT EXISTS analytics.cplm_short_feature_results (

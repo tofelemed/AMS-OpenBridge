@@ -20,6 +20,7 @@ import {
   useFleetSummary, useLatestGates,
 } from '../../hooks/useCpm';
 import { useLoopLive, qualityLabel } from '../../hooks/useLoopLive';
+import { loopSeries } from '../../utils/loopSeries';
 
 /** echarts renders to canvas and cannot consume var(); resolve tokens once per render. */
 function cssVar(name: string, fallback: string): string {
@@ -207,7 +208,7 @@ const LoopFocus: React.FC<{
   onOpenAnalysis: () => void;
 }> = ({ loopId, displayName, onOpenAnalysis }) => {
   // The historian device for a loop follows the Phase 3 convention.
-  const series = `root.site1.cpm.${loopId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+  const series = loopSeries(loopId);
   const { start, end } = useMemo(() => {
     const now = new Date();
     return { start: new Date(now.getTime() - 8 * 3600_000), end: now };

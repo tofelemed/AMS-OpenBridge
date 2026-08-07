@@ -1,0 +1,9 @@
+# Shell scripts run inside Linux containers. A CRLF checkout on Windows makes
+# bash read `set -o pipefail\r` as an invalid option and `fi\r` as a syntax
+# error - the script then fails silently every loop. This has bitten the IoTDB
+# TTL init and the Flink job supervisor; force LF so it cannot recur.
+*.sh text eol=lf
+# Same reasoning for anything else executed inside a container.
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf

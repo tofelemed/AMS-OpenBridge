@@ -171,6 +171,14 @@ public class CplmGateResult implements Serializable {
     public double oscillationFamilyScore;
     public double effortFamilyScore;
     public double geometryFamilyScore;
+    /**
+     * P1-10 - false when the long-tier metrics on this row (ACF period, FFT,
+     * triangularity, corner score, effort ratio ...) were computed on a window
+     * that failed G0 or had insufficient samples. They are still published,
+     * because they are the inputs to the exclusion decision, but nothing
+     * downstream could previously tell them apart from full-window values.
+     */
+    public boolean longMetricsQualified;
     public boolean stictionQualified;
     public boolean oscillationQualified;
     public boolean effortQualified;
@@ -324,6 +332,7 @@ public class CplmGateResult implements Serializable {
         out.put("vp_available", vpAvailable);
         out.put("has_step_test_evidence", hasStepTestEvidence);
         out.put("has_peer_links", hasPeerLinks);
+        out.put("long_metrics_qualified", longMetricsQualified);
         out.put("gate14_status", gate14Status);
         out.put("g14_confidence_cap", g14ConfidenceCap);
         out.put("oscillation_score", oscillationScore);

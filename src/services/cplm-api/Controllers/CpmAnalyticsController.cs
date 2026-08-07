@@ -139,7 +139,13 @@ public sealed class CpmAnalyticsController : ControllerBase
               SELECT window_start, window_end, sample_count, acf_period_s, acf_regularity,
                      effort_ratio, triangularity, horch_oddness, corner_score,
                      travel_per_day, reversals_per_hour,
-                     harmonic_amplitude_ratio, harmonic_energy_ratio, created_at
+                     harmonic_amplitude_ratio, harmonic_energy_ratio, created_at,
+                     -- P1-10: false when these metrics were computed on a window
+                     -- that failed G0 / had insufficient samples. They are kept
+                     -- (they are the exclusion's decision inputs) but must not be
+                     -- plotted beside full-window values without a marker.
+                     COALESCE((payload->>'long_metrics_qualified')::boolean, TRUE) AS long_metrics_qualified,
+                     COALESCE((payload->>'freeze_fraction')::double precision, 0) AS freeze_fraction
               FROM analytics.cplm_long_feature_results
               WHERE lower(loop_id) = lower(@loopId) AND window_kind = @resolution
                 AND (@from::timestamptz IS NULL OR window_end >= @from::timestamptz)
@@ -149,7 +155,12 @@ public sealed class CpmAnalyticsController : ControllerBase
             : """
               SELECT window_start, window_end, sample_count, iae, ise, mae, rmse,
                      good_error_pct, effort_ratio, travel_per_day, reversals_per_hour,
-                     auto_pct, completeness, created_at
+                     auto_pct, completeness, created_at,
+                     -- P1-9: the engine zeroes mae/rmse/iae when it declines to
+                     -- evaluate a window, and the consumer stores 0.0 (never NULL).
+                     -- Without this flag a KPI chart draws those windows as
+                     -- perfect control. It lives in the payload, not a column.
+                     COALESCE((payload->>'sufficient_data')::boolean, TRUE) AS sufficient_data
               FROM analytics.cplm_short_feature_results
               WHERE lower(loop_id) = lower(@loopId) AND window_kind = @resolution
                 AND (@from::timestamptz IS NULL OR window_end >= @from::timestamptz)

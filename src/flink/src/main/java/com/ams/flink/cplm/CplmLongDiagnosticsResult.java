@@ -91,6 +91,8 @@ public final class CplmLongDiagnosticsResult implements Serializable {
     public boolean satCyclingPattern;
     public int freezeRunSamples;
     public double freezeIndexS;
+    /** P1-1 - longest unchanged run as a share of the window (0..1). */
+    public double freezeFraction;
     public int pvQuantizationCount;
     public double pvDriftPerDay;
     public double deltaPvMean;
@@ -174,6 +176,7 @@ public final class CplmLongDiagnosticsResult implements Serializable {
         out.put("validated_period_s", validatedPeriodS);
         out.put("period_reject_reason", periodRejectReason);
         out.put("op_range_pct", opRangePct);
+        out.put("freeze_fraction", freezeFraction);
         out.put("effort_ratio", effortRatio);
         out.put("fft_peak_to_median", fftPeakToMedian);
         out.put("calculationVersion", calculationVersion);
@@ -206,6 +209,14 @@ public final class CplmLongDiagnosticsResult implements Serializable {
         if (alignedShort != null) {
             try {
                 out.set("short_features", MAPPER.readTree(alignedShort.toJson()));
+                // P0-5: the long tier computes no travel/reversal statistics of
+                // its own, so these keys were absent and the consumer's
+                // missing-key coercion wrote 0.0 into indexed columns that the
+                // KPI API serves and the UI labels "OP travel per day". The
+                // window-aligned short result covers exactly this window, so
+                // publish its values at the root rather than a silent zero.
+                out.put("travel_per_day", alignedShort.travelPerDay);
+                out.put("reversals_per_hour", alignedShort.reversalsPerHour);
             } catch (Exception ignored) {
                 // aligned short features are an enrichment; never fail the long payload
             }

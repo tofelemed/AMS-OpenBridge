@@ -16,14 +16,22 @@ export type CpmTone = 'good' | 'warn' | 'bad' | 'muted';
 export function toneFor(value: string | null | undefined): CpmTone {
   if (!value) return 'muted';
   const v = value.toUpperCase();
-  if (v.startsWith('CONFIRMED') || v.startsWith('SUSPECTED') || v === 'FAIL' || v === 'BAD')
+  // STRONG is the engine's strongest evidence level, not an unknown value.
+  // Without this branch the gates that PRODUCE a high-severity diagnosis
+  // (G7 stiction shape, G8 Horch oddness, G9 phase geometry) fell through to
+  // 'muted' and rendered identically to "not evaluated" - weaker WARN gates
+  // looked more alarming than the ones driving the verdict.
+  if (v.startsWith('CONFIRMED') || v.startsWith('SUSPECTED') || v === 'FAIL' || v === 'BAD'
+      || v === 'STRONG' || v === 'CRITICAL' || v === 'HIGH')
     return 'bad';
   if (v.startsWith('DETECTED') || v.startsWith('CLASSIFIED') || v === 'WARN' || v === 'REVIEW'
-      || v === 'SHELVED' || v.startsWith('EXCLUDED'))
+      || v === 'SHELVED' || v.startsWith('EXCLUDED') || v === 'MEDIUM')
     return 'warn';
   if (v === 'PASS' || v === 'GOOD' || v === 'ACKNOWLEDGED' || v === 'ACTIVE' || v === 'RUNNING'
-      || v === 'HEALTHY' || v === 'ACCEPTABLE')
+      || v === 'HEALTHY' || v === 'ACCEPTABLE' || v === 'LOW')
     return 'good';
+  // PENDING / NOT_EVALUATED / INSUFFICIENT_EVIDENCE stay muted deliberately:
+  // "we did not judge this" must not look like a verdict either way.
   return 'muted';
 }
 

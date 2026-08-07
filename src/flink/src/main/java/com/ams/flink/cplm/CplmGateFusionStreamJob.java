@@ -8,6 +8,7 @@ import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
@@ -43,7 +44,7 @@ public class CplmGateFusionStreamJob {
                 .setBootstrapServers(cfg.brokers)
                 .setTopics(cfg.shortFeatureTopic)
                 .setGroupId(cfg.consumerGroupId + "-short-in")
-                .setStartingOffsets(OffsetsInitializer.latest())
+                .setStartingOffsets(OffsetsInitializer.committedOffsets(OffsetResetStrategy.EARLIEST))
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .build();
 
@@ -51,7 +52,7 @@ public class CplmGateFusionStreamJob {
                 .setBootstrapServers(cfg.brokers)
                 .setTopics(cfg.longFeatureTopic)
                 .setGroupId(cfg.consumerGroupId + "-long-in")
-                .setStartingOffsets(OffsetsInitializer.latest())
+                .setStartingOffsets(OffsetsInitializer.committedOffsets(OffsetResetStrategy.EARLIEST))
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .build();
 

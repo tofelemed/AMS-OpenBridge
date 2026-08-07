@@ -40,14 +40,33 @@ wait_jm() {
   return 1
 }
 
-job_running() {
+# Count RUNNING jobs whose display name matches. Returns the count so callers
+# can tell "missing" (0) from "healthy" (1) from "DUPLICATE" (>1).
+job_running_count() {
   /opt/flink/bin/flink list -m "${JM_HOST}:${JM_PORT}" 2>/dev/null \
-    | grep -F "$1" | grep -q "(RUNNING)"
+    | grep -F "$1" | grep -c "(RUNNING)"
+}
+
+job_running() {
+  [ "$(job_running_count "$1")" -ge 1 ]
 }
 
 submit_if_missing() {
   local name="$1"; local class="$2"; shift 2
-  if job_running "$name"; then return 0; fi
+  local running
+  running="$(job_running_count "$name")"
+  # A second copy of a standing job is worse than none: Flink's KafkaSource does
+  # not use consumer-group coordination, so BOTH copies assign themselves every
+  # partition, double-process every record, and clobber each other's committed
+  # offsets. The old check was a plain "is it running" grep, which cannot see a
+  # duplicate. Never submit on top of an existing one, and say so loudly.
+  if [ "$running" -gt 1 ]; then
+    echo "[supervisor] WARNING: $running copies of '$name' are RUNNING. Duplicate jobs" >&2
+    echo "[supervisor]          share a consumer group and will clobber offsets." >&2
+    echo "[supervisor]          Cancel all but one: flink cancel <jobid>" >&2
+    return 0
+  fi
+  if [ "$running" -ge 1 ]; then return 0; fi
   if [ ! -f "$JAR" ]; then
     echo "[supervisor] JAR missing at ${JAR}; cannot submit '$name'" >&2
     return 1

@@ -58,9 +58,18 @@ public final class CplmNormalizedSample implements Serializable {
                 return s;
             }
 
-            s.pv = root.has("pv") ? root.get("pv").asDouble(0.0) : 0.0;
-            s.sp = root.has("sp") ? root.get("sp").asDouble(0.0) : 0.0;
-            s.op = root.has("op") ? root.get("op").asDouble(0.0) : 0.0;
+            // P1-12: a missing or non-numeric required signal is NOT zero.
+            // asDouble(0.0) also swallows JSON null and unparseable strings, so
+            // a bridge that stopped publishing OP produced op=0 with isValid
+            // still true -> effort_ratio 0, travel 0 -> "G4 PASS, actuator
+            // healthy" for a valve nobody was receiving data from.
+            if (!isNumeric(root, "pv") || !isNumeric(root, "sp") || !isNumeric(root, "op")) {
+                s.isValid = false;
+                return s;
+            }
+            s.pv = root.get("pv").asDouble();
+            s.sp = root.get("sp").asDouble();
+            s.op = root.get("op").asDouble();
             if (root.has("vp") && !root.get("vp").isNull()) {
                 s.vp = root.get("vp").asDouble();
             }
@@ -89,7 +98,47 @@ public final class CplmNormalizedSample implements Serializable {
         return quality == null || "GOOD".equalsIgnoreCase(quality);
     }
 
+    /**
+     * P1-7 - normalize the mode vocabulary HERE rather than in each producer.
+     * The previous test was mode.contains("AUTO"), which is false for the
+     * strings real systems actually emit: PI/Honeywell exports say "AUT", and
+     * a cascade slave says "CAS"/"CASCADE". Both scored auto_pct = 0, which
+     * excluded every window as EXCLUDED_MODE - indistinguishable on screen
+     * from an operator leaving the loop in manual.
+     *
+     * Auto = the loop is under closed-loop control, whatever the DCS calls it.
+     * A cascade / remote-setpoint slave qualifies: its setpoint comes from a
+     * master, but the algorithm is controlling. Manual, initialization-manual
+     * and remote-output do not.
+     */
+    private static final java.util.Set<String> AUTO_MODE_TOKENS = java.util.Set.of(
+            "AUTO", "AUT", "A", "AUTOMATIC", "NORMAL", "NORM",
+            "CAS", "CASC", "CASCADE", "RSP", "DDC", "SUP", "SUPERVISORY");
+
+    private static final java.util.Set<String> MANUAL_MODE_TOKENS = java.util.Set.of(
+            "MAN", "MANUAL", "M", "IMAN", "ROUT", "LO", "LOCAL", "OFF", "TRACK");
+
     public boolean isAutoMode() {
-        return mode != null && mode.toUpperCase().contains("AUTO");
+        if (mode == null) return false;
+        String m = mode.trim().toUpperCase();
+        if (m.isEmpty() || "UNKNOWN".equals(m)) return false;
+        // Explicit manual tokens first: IMAN/ROUT must never be mistaken for
+        // auto by the looser substring fallback below.
+        if (MANUAL_MODE_TOKENS.contains(m)) return false;
+        if (AUTO_MODE_TOKENS.contains(m)) return true;
+        // Compound vendor strings, e.g. "AUTO-CAS".
+        return m.contains("AUTO") || m.contains("CASCADE");
+    }
+
+    /** True when the JSON node holds a usable number for the given field. */
+    private static boolean isNumeric(JsonNode root, String field) {
+        JsonNode v = root.get(field);
+        if (v == null || v.isNull()) return false;
+        if (v.isNumber()) return true;
+        if (v.isTextual()) {
+            try { Double.parseDouble(v.asText().trim()); return true; }
+            catch (NumberFormatException e) { return false; }
+        }
+        return false;
     }
 }

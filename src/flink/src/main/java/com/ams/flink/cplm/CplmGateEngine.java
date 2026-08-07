@@ -116,7 +116,15 @@ public final class CplmGateEngine implements Serializable {
         result.maxGapS = maxGapS;
 
         // Gate 0 — data_quality: >=0.98 PASS, >=0.95 WARN, else FAIL (build prompt §2.3)
-        if (result.completeness >= 0.98 && result.badQualityPct < 0.05 && duplicateTs == 0) {
+        if (result.badQualityPct >= 0.50) {
+            // P1-11: bad quality previously had NO path to FAIL - it could only
+            // downgrade PASS to WARN, and fusion blocks on FAIL alone. A failed
+            // transmitter holding its last-good value at full rate therefore
+            // gave completeness 1.0, G0 WARN, and a full confident diagnosis
+            // computed over dead data - dispatching an engineer to a valve
+            // because a sensor died.
+            result.gate0Status = "FAIL";
+        } else if (result.completeness >= 0.98 && result.badQualityPct < 0.05 && duplicateTs == 0) {
             result.gate0Status = "PASS";
         } else if (result.completeness >= 0.95) {
             result.gate0Status = "WARN";
@@ -430,7 +438,15 @@ public final class CplmGateEngine implements Serializable {
         result.deltaPvMean = deltaPv.mean;
         result.deltaPvStd = deltaPv.std;
         result.spikeCount = computeSpikeCount(pv);
-        result.gate11Status = result.freezeIndexS < 60 ? "PASS" : "WARN";
+        // P1-1: a freeze only means a stuck sensor if it is MATERIAL relative
+        // to the window. Compressed historians (PI stores on change; we
+        // forward-fill onto the 5 s grid) make the longest unchanged run equal
+        // the archive deadband, so thresholding on absolute seconds alone
+        // excluded entire days as EXCLUDED_SENSOR for a 70 s gap - 0.08% of a
+        // 24 h window. Require both an absolute floor and a share of the window.
+        result.freezeFraction = n > 0 ? (double) result.freezeRunSamples / n : 0.0;
+        boolean materialFreeze = result.freezeIndexS >= 60 && result.freezeFraction >= 0.10;
+        result.gate11Status = materialFreeze ? "WARN" : "PASS";
 
         return result;
     }

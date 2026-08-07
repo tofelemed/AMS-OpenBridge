@@ -22,6 +22,7 @@ import {
   useAcknowledgeEvent, useCpmCalculations, useCpmEvents, useCpmKpisRange,
   useCpmLoops, useGateHistory, useRawWindow, useRecompute,
 } from '../../hooks/useCpm';
+import { loopSeries } from '../../utils/loopSeries';
 
 function cssVar(name: string, fallback: string): string {
   if (typeof window === 'undefined') return fallback;
@@ -88,7 +89,7 @@ export const CpmReplay: React.FC = () => {
   ).data?.samples.find(r => r.window_end === selected?.windowEnd);
 
   // Raw slice for the selected window (first page, ascending).
-  const series = loopId ? `root.site1.cpm.${loopId.replace(/[^a-zA-Z0-9_-]/g, '_')}` : undefined;
+  const series = loopId ? loopSeries(loopId) : undefined;
   const winStart = selected?.windowStart ? new Date(selected.windowStart) : undefined;
   const winEnd = selected?.windowEnd ? new Date(selected.windowEnd) : undefined;
   const raw = useRawWindow(series, winStart, winEnd, 'pv,sp,op', 5000);

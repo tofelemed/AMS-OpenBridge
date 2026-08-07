@@ -17,6 +17,7 @@ import type { CpmKpiRow } from '../../api/cpmApi';
 import {
   useCpmKpis, useCpmLoops, useCpmResolutions, usePipelineMetrics, useRawWindow,
 } from '../../hooks/useCpm';
+import { loopSeries } from '../../utils/loopSeries';
 
 /** The engine normalizes samples onto a 5 s grid; expectations derive from it. */
 const SAMPLE_PERIOD_S = 5;
@@ -54,7 +55,7 @@ export const CpmWindows: React.FC = () => {
   const selected = rows.find(r => r.window_end === selectedEnd) ?? rows[0];
 
   // Sample density across the selected window from the raw historian slice.
-  const series = loopId ? `root.site1.cpm.${loopId.replace(/[^a-zA-Z0-9_-]/g, '_')}` : undefined;
+  const series = loopId ? loopSeries(loopId) : undefined;
   const winStart = selected?.window_start ? new Date(selected.window_start) : undefined;
   const winEnd = selected?.window_end ? new Date(selected.window_end) : undefined;
   const raw = useRawWindow(series, winStart, winEnd, 'pv', 5000);
