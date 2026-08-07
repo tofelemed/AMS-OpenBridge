@@ -43,7 +43,8 @@ item is in the commit message and in `docs/cplm-intake/pipeline-fix-validation.m
 
 **Also found and fixed while validating (not in the original register):**
 - **The Flink job supervisor had been dead the whole time.** `flink-job-supervisor.sh`
-  was checked out CRLF, so bash read `set -o pipefail` as an invalid option and the
+  was checked out CRLF, so bash read `set -o pipefail
+` as an invalid option and the
   script failed on line 12 every 60-second loop — it had never resubmitted anything.
   This is the *same* defect that silently broke `iotdb-init-ttl.sh`. All five
   `infra/docker/*.sh` files were CRLF; all are now LF, and a new `.gitattributes`
@@ -54,10 +55,9 @@ item is in the commit message and in `docs/cplm-intake/pipeline-fix-validation.m
 - **`criticality` is normalised to lowercase on insert** and validated (P2-9), so
   `"MEDIUM"` returns 422 with the valid list instead of a bare 500.
 
-**Still open (P1-8 and everything under P2/P3):** P1-8 (0.0 meaning "not computed" in
-mae/auto_pct/sp_min/sp_max) is *partially* addressed — `sufficient_data` and
-`long_metrics_qualified` now let a consumer tell the two apart — but the columns
-themselves still store 0.0 rather than NULL.
+| P1-8 | Uncomputed metrics now persist as **SQL NULL**, not 0.0 | Declined window stores `mae`/`good_error_pct`/`travel_per_day` = NULL (`jsonb_typeof` = `null`); `sample_count` still a real number |
+
+**Still open:** everything under P2/P3.
 
 ---
 

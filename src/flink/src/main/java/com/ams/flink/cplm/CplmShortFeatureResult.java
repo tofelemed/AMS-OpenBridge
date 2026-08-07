@@ -72,6 +72,28 @@ public final class CplmShortFeatureResult implements Serializable {
 
     public boolean sufficientData = true;
 
+
+    /**
+     * P1-8 - emit JSON null, not 0.0, for a metric the engine never computed.
+     *
+     * computeShortFeatures returns early when G0 fails or n &lt; 10, leaving every
+     * performance metric at its Java default of 0.0. Persisted as 0.0 those are
+     * indistinguishable from real measurements: mae = 0 reads as perfect control,
+     * auto_pct = 0 reads as "loop in manual", and sp_min = sp_max = 0 reads as a
+     * setpoint parked at zero. Any fleet average over the column is then dragged
+     * toward zero by every window that was never evaluated.
+     *
+     * Null is the honest encoding: SQL aggregates skip it, charts draw a gap.
+     * The in-memory field stays 0.0 so the fusion engine's arithmetic is
+     * untouched - this changes only what leaves the job.
+     */
+    private void putMetric(ObjectNode out, String name, double value) {
+        if (sufficientData) out.put(name, value); else out.putNull(name);
+    }
+
+    private void putMetric(ObjectNode out, String name, int value) {
+        if (sufficientData) out.put(name, value); else out.putNull(name);
+    }
     public String toJson() {
         ObjectNode out = MAPPER.createObjectNode();
         out.put("schemaVersion", 1);
@@ -91,35 +113,35 @@ public final class CplmShortFeatureResult implements Serializable {
         out.put("gap_count", gapCount);
         out.put("max_gap_s", maxGapS);
         out.put("gate0_status", gate0Status);
-        out.put("auto_pct", autoPct);
-        out.put("manual_pct", manualPct);
-        out.put("mode_changes_per_h", modeChangesPerHour);
+        putMetric(out, "auto_pct", autoPct);
+        putMetric(out, "manual_pct", manualPct);
+        putMetric(out, "mode_changes_per_h", modeChangesPerHour);
         out.put("gate1_status", gate1Status);
-        out.put("sp_min", spMin);
-        out.put("sp_max", spMax);
-        out.put("sp_range", spRange);
-        out.put("sp_changes_per_h", spChangesPerHour);
+        putMetric(out, "sp_min", spMin);
+        putMetric(out, "sp_max", spMax);
+        putMetric(out, "sp_range", spRange);
+        putMetric(out, "sp_changes_per_h", spChangesPerHour);
         out.put("gate2_status", gate2Status);
-        out.put("mae", mae);
-        out.put("rmse", rmse);
-        out.put("iae", iae);
-        out.put("ise", ise);
-        out.put("itae", itae);
-        out.put("good_error_pct", goodErrorPct);
-        out.put("oce", oce);
-        out.put("pv_std", pvStd);
-        out.put("op_std", opStd);
-        out.put("freeze_index_s", freezeIndexS);
+        putMetric(out, "mae", mae);
+        putMetric(out, "rmse", rmse);
+        putMetric(out, "iae", iae);
+        putMetric(out, "ise", ise);
+        putMetric(out, "itae", itae);
+        putMetric(out, "good_error_pct", goodErrorPct);
+        putMetric(out, "oce", oce);
+        putMetric(out, "pv_std", pvStd);
+        putMetric(out, "op_std", opStd);
+        putMetric(out, "freeze_index_s", freezeIndexS);
         out.put("gate3_status", gate3Status);
-        out.put("effort_ratio", effortRatio);
-        out.put("op_travel", opTravel);
-        out.put("travel_per_day", travelPerDay);
-        out.put("reversal_count", reversalCount);
-        out.put("reversals_per_hour", reversalsPerHour);
-        out.put("saturation_pct", saturationPct);
+        putMetric(out, "effort_ratio", effortRatio);
+        putMetric(out, "op_travel", opTravel);
+        putMetric(out, "travel_per_day", travelPerDay);
+        putMetric(out, "reversal_count", reversalCount);
+        putMetric(out, "reversals_per_hour", reversalsPerHour);
+        putMetric(out, "saturation_pct", saturationPct);
         out.put("gate4_status", gate4Status);
         out.put("gate2r_status", gate2rStatus);
-        out.put("region_out_of_band_pct", regionOutOfBandPct);
+        putMetric(out, "region_out_of_band_pct", regionOutOfBandPct);
         out.put("operating_region_valid", operatingRegionValid);
         out.put("calculationVersion", calculationVersion);
         out.put("dynamicsProfileVersion", dynamicsProfileVersion);

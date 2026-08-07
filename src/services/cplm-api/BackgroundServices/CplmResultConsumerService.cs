@@ -205,21 +205,21 @@ public sealed class CplmResultConsumerService : BackgroundService
         AddTimestamp(cmd, "winStart", root, "windowStartMs");
         AddTimestamp(cmd, "winEnd", root, "windowEndMs");
         cmd.Parameters.AddWithValue("samples", GetInt(root, "sample_count"));
-        cmd.Parameters.AddWithValue("mae", GetDouble(root, "mae"));
-        cmd.Parameters.AddWithValue("rmse", GetDouble(root, "rmse"));
-        cmd.Parameters.AddWithValue("iae", GetDouble(root, "iae"));
-        cmd.Parameters.AddWithValue("goodErrorPct", GetDouble(root, "good_error_pct"));
-        cmd.Parameters.AddWithValue("acfPeriodS", GetDouble(root, "acf_period_s"));
-        cmd.Parameters.AddWithValue("acfRegularity", GetDouble(root, "acf_regularity"));
-        cmd.Parameters.AddWithValue("effortRatio", GetDouble(root, "effort_ratio"));
-        cmd.Parameters.AddWithValue("triangularity", GetDouble(root, "triangularity"));
-        cmd.Parameters.AddWithValue("horchOddness", GetDouble(root, "horch_oddness"));
-        cmd.Parameters.AddWithValue("phaseArea", GetDouble(root, "phase_area_norm_per_cycle"));
-        cmd.Parameters.AddWithValue("cornerScore", GetDouble(root, "corner_score"));
-        cmd.Parameters.AddWithValue("travelPerDay", GetDouble(root, "travel_per_day"));
-        cmd.Parameters.AddWithValue("reversalsPerHour", GetDouble(root, "reversals_per_hour"));
-        cmd.Parameters.AddWithValue("harmAmpRatio", GetDouble(root, "harmonic_amplitude_ratio"));
-        cmd.Parameters.AddWithValue("harmEnergyRatio", GetDouble(root, "harmonic_energy_ratio"));
+        cmd.Parameters.AddWithValue("mae", GetDoubleOrNull(root, "mae"));
+        cmd.Parameters.AddWithValue("rmse", GetDoubleOrNull(root, "rmse"));
+        cmd.Parameters.AddWithValue("iae", GetDoubleOrNull(root, "iae"));
+        cmd.Parameters.AddWithValue("goodErrorPct", GetDoubleOrNull(root, "good_error_pct"));
+        cmd.Parameters.AddWithValue("acfPeriodS", GetDoubleOrNull(root, "acf_period_s"));
+        cmd.Parameters.AddWithValue("acfRegularity", GetDoubleOrNull(root, "acf_regularity"));
+        cmd.Parameters.AddWithValue("effortRatio", GetDoubleOrNull(root, "effort_ratio"));
+        cmd.Parameters.AddWithValue("triangularity", GetDoubleOrNull(root, "triangularity"));
+        cmd.Parameters.AddWithValue("horchOddness", GetDoubleOrNull(root, "horch_oddness"));
+        cmd.Parameters.AddWithValue("phaseArea", GetDoubleOrNull(root, "phase_area_norm_per_cycle"));
+        cmd.Parameters.AddWithValue("cornerScore", GetDoubleOrNull(root, "corner_score"));
+        cmd.Parameters.AddWithValue("travelPerDay", GetDoubleOrNull(root, "travel_per_day"));
+        cmd.Parameters.AddWithValue("reversalsPerHour", GetDoubleOrNull(root, "reversals_per_hour"));
+        cmd.Parameters.AddWithValue("harmAmpRatio", GetDoubleOrNull(root, "harmonic_amplitude_ratio"));
+        cmd.Parameters.AddWithValue("harmEnergyRatio", GetDoubleOrNull(root, "harmonic_energy_ratio"));
         cmd.Parameters.AddWithValue("diagnosis", (object?)GetString(root, "diagnosis") ?? DBNull.Value);
         cmd.Parameters.AddWithValue("severity", (object?)GetString(root, "severity") ?? DBNull.Value);
         cmd.Parameters.AddWithValue("confidence", GetDouble(root, "confidence"));
@@ -318,7 +318,7 @@ public sealed class CplmResultConsumerService : BackgroundService
         AddTimestamp(cmd, "winEnd", root, "windowEndMs");
         cmd.Parameters.AddWithValue("samples", GetInt(root, "sample_count"));
         for (var i = 0; i < fields.Length; i++)
-            cmd.Parameters.AddWithValue($"m{i + 1}", GetDouble(root, fields[i]));
+            cmd.Parameters.AddWithValue($"m{i + 1}", GetDoubleOrNull(root, fields[i]));
         cmd.Parameters.Add(new NpgsqlParameter("payload", NpgsqlDbType.Jsonb) { Value = json });
         cmd.Parameters.AddWithValue("source", "flink");
         await cmd.ExecuteNonQueryAsync(ct);
@@ -349,7 +349,14 @@ public sealed class CplmResultConsumerService : BackgroundService
         await _iotdb.EnsureTimeseriesAsync(device, types, ct);
 
         var kv = new List<KeyValuePair<string, object?>> { new("sample_count", (double)GetInt(root, "sample_count")) };
-        foreach (var f in numericFields) kv.Add(new(f, GetDouble(root, f)));
+        // P1-8: skip metrics the engine did not compute rather than writing 0.0.
+        // InsertAsync drops null entries, so the KPI series gets a genuine gap
+        // instead of a zero that a trend chart would draw as perfect performance.
+        foreach (var f in numericFields)
+        {
+            var val = GetDoubleOrNull(root, f);
+            kv.Add(new(f, val is DBNull ? null : val));
+        }
         if (textFields != null) foreach (var f in textFields) kv.Add(new(f, GetString(root, f)));
         await _iotdb.InsertAsync(device, endMs, kv, ct);
     }
@@ -462,6 +469,22 @@ public sealed class CplmResultConsumerService : BackgroundService
     /// <summary>Missing/null/non-numeric → 0.0, never NULL (CPA-compatible; ranking depends on it).</summary>
     private static double GetDouble(JsonElement r, string name)
         => r.TryGetProperty(name, out var p) && p.TryGetDouble(out var v) ? v : 0.0;
+
+    /// <summary>
+    /// P1-8 - preserves "the engine did not compute this" as SQL NULL instead of
+    /// collapsing it to 0.0. The engine now emits JSON null for metrics it never
+    /// calculated (window failed G0 / too few samples); writing 0.0 made those
+    /// indistinguishable from a real measurement, so mae = 0 read as perfect
+    /// control and every fleet average was dragged toward zero by the windows
+    /// that never ran. A genuinely-absent key stays 0.0 for back-compat with
+    /// producers that predate the change.
+    /// </summary>
+    private static object GetDoubleOrNull(JsonElement r, string name)
+    {
+        if (!r.TryGetProperty(name, out var p)) return 0.0;              // key absent: legacy producer
+        if (p.ValueKind == JsonValueKind.Null) return DBNull.Value;       // explicit "not computed"
+        return p.TryGetDouble(out var v) ? v : DBNull.Value;
+    }
 
     private static int GetInt(JsonElement r, string name)
         => r.TryGetProperty(name, out var p) && p.TryGetInt32(out var v) ? v : 0;
