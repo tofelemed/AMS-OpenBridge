@@ -150,10 +150,25 @@ The broker has **no authenticator or ACL configured at all**, and the browser co
 | 3 | Rate limiting | ✅ Redis fixed-window per plan schema; login 10/min/IP + mutations fail CLOSED, reads fail OPEN — all proven by stopping Redis live. |
 | 4 | Response caching | ✅ Allow-list of the plan's 5 route families with per-user scope hash; deny-list proven (no header/keys for alarm/auth/audit); cross-user isolation tested with a second account. |
 | 5 | Limits/breaker/metrics | ✅ 4KB/2MB/256KB body caps (413), passive-health breaker (dead upstream: 503 in 6–10ms vs ~2.5s; 5xx responses never trip it), 5s connect timeout, `/gw/metrics` RED + access log. |
-| 6 | EMQX auth + MQTT-WS behind gateway | ⬜ Not started — coordinated EMQX+frontend change; `/mqtt-ws` stays anonymous at the gateway until then (flip its route policy to `default` in the same change). |
-| 7 | nginx → static SPA only | ⬜ Not started — cutover step: point the frontend at the gateway, shrink nginx, unpublish service ports, then delete per-service validators (AUTH-08 closes here). |
+| 6 | EMQX auth + MQTT-WS behind gateway | ✅ Done — EMQX 5.6 authenticator chain (JWT-via-JWKS for browsers, `from=password`, `disconnect_after_expire=false`; built-in DB for `ams_edge`, provisioned by the new `emqx-init` one-shot). File ACL + `no_match=deny`: edge owns `spBv1.0/#`, browsers subscribe-only, **NCMD/DCMD publish denied**. `mqttStore.ts` presents the token as MQTT password + `?access_token=` (both refreshed per reconnect); gateway `/mqtt-ws` route flipped to authenticated. 8084 retired. **Tested 8/8**: anonymous refused; JWT subscribe-only; browser publishes dropped; edge DDATA delivered; upgrade rejected without token; real sparkplug-edge-node reconnected under auth. |
+| 7 | nginx → static SPA only | 🔄 In progress — nginx rewritten to SPA + single-upstream pass-through to the gateway (`/api`, `/hubs`, `/mqtt-ws`, `/health`); `/swagger` + `/external-api` removed; Vite dev proxy collapsed to the gateway (dev/prod parity); frontend `depends_on` gateway. **Final lockdown remains** (see below). |
 
 Defects found & fixed while testing: auth-service refresh tokens had no `jti` (two same-second logins → duplicate-key 500); YARP's default `HealthyOrPanic` re-dials the only unhealthy destination (breaker never fast-failed until `HealthyAndUnknown` was set); lab DB was missing migration 38 (`credentials_changed_at`) — applied.
+
+### Final lockdown (the remaining cutover step — do as one coordinated change)
+
+Everything is in place for edge-only enforcement, but two deliberate steps remain, deferred
+because they break local tooling that talks to services directly:
+
+1. **Unpublish direct service host ports** (`5000–5006`, `8000`, `8083`, `8090`, `8095`, `3002`,
+   `1883` if no external SCADA client needs it). Blocked on: `scripts/*.ps1` E2E/validation
+   tooling and any operator bookmarks that hit `localhost:<port>` — they must be repointed at
+   the gateway first. After this, services are reachable only on the compose network.
+2. **Delete the per-service JWT validators** (the 8 `TraverseAuth.cs` copies + `ams-api`/
+   `display-service` hand-rolled ones) and replace them with the trusted `X-Auth-*` header
+   handler — **only after step 1**, per the §2 cutover ordering. This closes AUTH-08.
+   On-prem production should add gateway↔service mTLS (§2 prerequisite 2) so header trust is
+   cryptographically bound, not just network-bound.
 
 ## Rollback
 

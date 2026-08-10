@@ -601,8 +601,10 @@ services:
         VITE_SPARKPLUG_EDGE: ams_edge1
     container_name: ams-frontend
     <<: *default-restart
+    # Item 7 cutover: nginx serves the SPA and passes /api, /hubs, /mqtt-ws to
+    # the gateway — its only upstream now.
     depends_on:
-      ams-api:
+      gateway:
         condition: service_healthy
     environment:
       VITE_API_BASE_URL:     http://ams-api:8000
