@@ -119,7 +119,7 @@ Write-Host "`n══════════════════════
 Write-Host " DEPLOYMENT COMPLETE" -ForegroundColor Cyan
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
 Write-Host "`nNext steps:"
-Write-Host "  1. Run schemas: .\scripts\run-all-schemas.ps1"
+Write-Host "  1. Schemas: applied automatically by the postgres container from database/scripts/ on first init"
 Write-Host "  2. Validate:    .\scripts\validate-deployment.ps1"
 Write-Host ""
 

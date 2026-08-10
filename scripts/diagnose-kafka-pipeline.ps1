@@ -78,14 +78,14 @@ if ($rawTotal -gt 0 -and $currTotal -gt 0) {
     Write-Host "`n  => Production path active: raw-opc-events -> Flink -> current-alarm-state" -ForegroundColor Green
     Write-Host "     NormalizedAlarmConsumerService should project to PostgreSQL." -ForegroundColor DarkGray
 } elseif ($createdTotal -gt 0) {
-    Write-Host "`n  => Lab path active: alarm-* topics (OpcHttpIngestor / opc-connector)" -ForegroundColor Yellow
+    Write-Host "`n  => Lab path active: alarm-* topics (OpcHttpIngestor)" -ForegroundColor Yellow
     Write-Host "     UI may update via SimpleKafkaSignalRBridge; verify DB projection separately." -ForegroundColor DarkGray
 } else {
     Write-Host "`n  => No ingest detected. Likely causes:" -ForegroundColor Red
     Write-Host "     - Kafka broker unhealthy (restart kafka)" -ForegroundColor DarkGray
     Write-Host "     - OPC simulator/gateway down (production path)" -ForegroundColor DarkGray
     Write-Host "     - OpcHttpIngest.FeedUrl unreachable (lab HTTP path)" -ForegroundColor DarkGray
-    Write-Host "     - opc-connector not started (add to docker compose up)" -ForegroundColor DarkGray
+    Write-Host "     - AlarmIngestion:FeedUrl unreachable (ams-api polls the OPC feed into raw-alarms)" -ForegroundColor DarkGray
 }
 
 Write-Section "Recommended actions"
@@ -94,7 +94,7 @@ if ($kafkaStatus -ne 'healthy') {
     Write-Host "  2. Wait 30-60s, re-run this script" -ForegroundColor White
 }
 if ($rawTotal -eq 0 -and $createdTotal -eq 0) {
-    Write-Host "  3. Start mock ingest: docker compose up -d opc-connector" -ForegroundColor White
+    Write-Host "  3. Start mock ingest: docker compose -f infra/docker/docker-compose.sims.yml up -d ams-sim" -ForegroundColor White
     Write-Host "  4. Or set OpcHttpIngest:FeedUrl in appsettings.Development.json" -ForegroundColor White
     Write-Host "  5. Lab ACK without vendor OPC: LabAckSimulator.Enabled=true in appsettings.Development.json" -ForegroundColor White
 }

@@ -24,8 +24,8 @@ grep -q "Projection correctness definition" "$ROOT/docs/production-contracts.md"
 # ── 2. Frontend contract static checks ──────────────────────
 echo ""
 echo "[Frontend static]"
-MAPPERS="$ROOT/src/frontend/src/api/alarmMappers.ts"
-CONSOLE="$ROOT/src/frontend/src/components/AlarmConsole/AlarmConsole.tsx"
+MAPPERS="$ROOT/src/frontend-ob/src/api/alarmMappers.ts"
+CONSOLE="$ROOT/src/frontend-ob/src/components/AlarmConsole/AlarmConsole.tsx"
 
 if grep -E "eventTimeEpochMs.*Date\.now\(\)" "$MAPPERS" 2>/dev/null; then
   fail "alarmMappers uses Date.now() for eventTime (contract violation)"
@@ -39,7 +39,7 @@ else
   pass "no client ui-* commandId generation in AlarmConsole"
 fi
 
-if [[ -f "$ROOT/src/frontend/src/utils/alarmReconciliation.ts" ]]; then
+if [[ -f "$ROOT/src/frontend-ob/src/utils/alarmReconciliation.ts" ]]; then
   pass "alarmReconciliation.ts present"
 else
   fail "alarmReconciliation.ts missing"
@@ -83,8 +83,8 @@ fi
 # ── 6. Frontend typecheck ───────────────────────────────────
 echo ""
 echo "[Frontend typecheck]"
-if command -v npm >/dev/null 2>&1 && [[ -f "$ROOT/src/frontend/package.json" ]]; then
-  (cd "$ROOT/src/frontend" && npm ci --prefer-offline --silent && npx tsc --noEmit) \
+if command -v npm >/dev/null 2>&1 && [[ -f "$ROOT/src/frontend-ob/package.json" ]]; then
+  (cd "$ROOT/src/frontend-ob" && npm ci --prefer-offline --silent && npx tsc --noEmit) \
     && pass "tsc --noEmit" || fail "tsc --noEmit"
 else
   echo "  [SKIP] npm not available"

@@ -124,7 +124,6 @@ function Wait-KafkaBrokerReady {
 function Get-DockerComposeUpArgs {
     $services = @(
         'postgres', 'redis', 'zookeeper', 'kafka', 'kafka-init-v2',
-        'opc-connector',
         'flink-jobmanager', 'flink-taskmanager'
     )
     $port8083 = Get-NetTCPConnection -LocalPort 8083 -State Listen -ErrorAction SilentlyContinue
