@@ -8,6 +8,7 @@ import { formatTimestampMs } from '../../utils/time';
 import {
   buildTrendViewerUrl,
   resolveHistorianPathForLiveAlarm,
+  resolveHistorianPathServerFirst,
 } from '../../utils/iotdbPaths';
 import { useMqttStore, type LiveAlarm, type LiveMetric } from '../../store/mqttStore';
 
@@ -81,7 +82,12 @@ export const LiveAlarmDetailDialog: React.FC<LiveAlarmDetailDialogProps> = ({
             type="button"
             onClick={() => {
               onClose();
-              navigate(buildTrendViewerUrl({ series: historianPath }, { hours: 6, auto: true }));
+              // DATA-07: the CANONICAL path comes from binding-resolver (single identity
+              // rule, matches what Flink stored); the locally-derived historianPath shown
+              // in the dialog is only the fallback if the resolver is unreachable.
+              void resolveHistorianPathServerFirst(alarm, metrics).then(path => {
+                navigate(buildTrendViewerUrl({ series: path }, { hours: 6, auto: true }));
+              });
             }}
             style={{
               padding: '8px 18px', fontSize: '12.5px', fontWeight: 600,

@@ -60,7 +60,7 @@ export async function discoverIotdbDevicePaths(): Promise<string[]> {
 }
 
 /**
- * Map MQTT live alarm → IoTDB device path.
+ * Map MQTT live alarm → IoTDB device path (LOCAL fallback rule).
  * MQTT device id is Sparkplug topic id (sanitised sourceName); IoTDB uses Kafka alarmId.
  * When edge node publishes alarmId metric, use that; otherwise fall back to sanitised device id.
  */
@@ -73,6 +73,31 @@ export function resolveHistorianPathForLiveAlarm(
     return iotdbAlarmPath(String(kafkaAlarmId));
   }
   return iotdbAlarmPath(alarm.alarmId);
+}
+
+/**
+ * DATA-07: SERVER-FIRST historian-path resolution for a live alarm. The canonical
+ * identity rule lives in binding-resolver (GET /api/bindings/resolve/alarm), which
+ * derives exactly what IoTDBPersistenceJob stored — the browser stops guessing.
+ * The local rule above remains only as a fallback when the resolver is unreachable,
+ * so the trend link degrades instead of dying.
+ */
+export async function resolveHistorianPathServerFirst(
+  alarm: LiveAlarm,
+  metrics: Map<string, LiveMetric>,
+): Promise<string> {
+  const bridged = metrics.get(`${alarm.alarmId}/alarmId`)?.value;
+  const id = (bridged != null && String(bridged).trim()) ? String(bridged) : alarm.alarmId;
+  try {
+    const res = await apiFetch(`/api/bindings/resolve/alarm?alarmId=${encodeURIComponent(id)}`);
+    if (res.ok) {
+      const body = await res.json() as { historianPath?: string };
+      if (body.historianPath) return body.historianPath;
+    }
+  } catch {
+    // fall through to the local rule
+  }
+  return iotdbAlarmPath(id);
 }
 
 /** Navigate to trend viewer with series or alarm id pre-selected. */

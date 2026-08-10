@@ -31,6 +31,9 @@ import java.util.Collections;
  */
 public class IoTDBPersistenceJob {
 
+    private static final org.slf4j.Logger LOG =
+            org.slf4j.LoggerFactory.getLogger(IoTDBPersistenceJob.class);
+
     private static final ObjectMapper MAPPER = new ObjectMapper();
     /** IoTDB namespace prefix — align with §7 tree model. */
     private static final String PATH_PREFIX = "root.ams.site1.alarms.";
@@ -87,6 +90,30 @@ public class IoTDBPersistenceJob {
         return sink;
     }
 
+    // ── Sanitisation collision guard (DATA-07) ─────────────────────────────
+    // Distinct alarm ids can collapse to one IoTDB path segment (FIC-101 and
+    // FIC.101 both become FIC_101) — their histories would silently interleave.
+    // Bounded map of sanitised → first-seen original; a DIFFERENT original
+    // arriving for the same sanitised value logs a warning so the collision is
+    // visible instead of silent. Renaming stored series is a migration decision
+    // (docs/alarm-identity-contract.md), not something this job does unilaterally.
+    private static final java.util.concurrent.ConcurrentHashMap<String, String> SANITISED_TO_ORIGINAL =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    private static final int COLLISION_GUARD_MAX_ENTRIES = 50_000;
+
+    static void warnOnSanitisationCollision(String original, String sanitised) {
+        if (SANITISED_TO_ORIGINAL.size() >= COLLISION_GUARD_MAX_ENTRIES
+                && !SANITISED_TO_ORIGINAL.containsKey(sanitised)) {
+            return; // guard full — stop tracking new ids rather than growing unbounded
+        }
+        String firstSeen = SANITISED_TO_ORIGINAL.putIfAbsent(sanitised, original);
+        if (firstSeen != null && !firstSeen.equals(original)) {
+            LOG.warn("IoTDB path collision: alarm ids '{}' and '{}' both sanitise to '{}' — "
+                    + "their historian series interleave under one device path",
+                    firstSeen, original, sanitised);
+        }
+    }
+
     // ── JSON → IoTDBAlarmRow ───────────────────────────────────────────────
 
     /**
@@ -110,8 +137,13 @@ public class IoTDBPersistenceJob {
                 alarmId = AlarmKeys.stableAlarmId(
                         AlarmKeys.alarmKey(serverId, source, condition, subCond));
             }
-            // Sanitise for IoTDB path: alphanumerics and underscores only (no hyphens/dots)
+            // Sanitise for IoTDB path: alphanumerics and underscores only (no hyphens/dots).
+            // THE canonical alarm-identity rule (docs/alarm-identity-contract.md): every
+            // consumer (binding-resolver /resolve/alarm, the browser fallback) derives the
+            // same [^A-Za-z0-9_] -> '_' over the Kafka alarmId. Do not change one without
+            // the others — stored IoTDB series are addressed by this exact rule.
             String safePath = alarmId.replaceAll("[^a-zA-Z0-9_]", "_");
+            warnOnSanitisationCollision(alarmId, safePath);
             String devicePath = PATH_PREFIX + safePath;
 
             // ── Timestamp ─────────────────────────────────────────────────
