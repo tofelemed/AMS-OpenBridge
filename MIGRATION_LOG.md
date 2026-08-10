@@ -304,3 +304,11 @@ Per `Unified-HMI-Platform-Feasibility-and-Transition-Plan.md` §1–§2:
 13. Retire StreamPipes + CouchDB
 14. Separate database per service
 15. Thumbnails client-side at save
+16. **Edge-only authentication (2026-08-10).** The Plan 04 API gateway is the single JWT validator;
+    backend services stop validating tokens and trust the gateway, which forwards identity/permission
+    as trusted `X-Auth-*` headers over gateway↔service mTLS. Per-service JWKS validators (the 8
+    `TraverseAuth.cs` copies + the hand-rolled `ams-api`/`display-service` ones) get **deleted** in
+    Plan 04 — this is how AUTH-08 ("exactly one JWT validator") is resolved, rather than by a shared
+    library. Requires: services unreachable except via the gateway, header trust bound to mTLS, and
+    internal service-to-service calls on mTLS/SPIFFE (not `X-Service-Key`). Fine-grained
+    `RequireAuthorization` policies stay in-service, reading the injected `permission` claims.

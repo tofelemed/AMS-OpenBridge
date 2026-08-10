@@ -1,8 +1,13 @@
 # Plan 04 — API Gateway & Edge Security
 
 **Phase:** 2 · **Effort:** L · **Depends on:** Plan 03 (identity model) · **Approval:** dedicated funded track
-**Gaps closed:** GW-01, GW-02, GW-03, AUTH-03
+**Gaps closed:** GW-01, GW-02, GW-03, AUTH-03, AUTH-08 (resolved by deletion under the edge-only model — see §2)
 **Objective:** put a real gateway in front of the estate — TLS, edge authentication, per-client rate limiting, response caching, request-size limits — and close the anonymous live-data plane.
+
+> **Decided auth model: EDGE-ONLY.** The gateway is the single JWT validator. Backend services stop
+> validating tokens and trust the gateway; this is what dissolves AUTH-08 (the duplicated per-service
+> validators are deleted, not consolidated into a library). Prerequisites that make edge-only *safe* are
+> called out in §2 — they are mandatory, not optional.
 
 > **This is the largest net-new build in the programme.** Everything else fixes existing code; this introduces a new component that most of the security and performance work depends on.
 
@@ -15,7 +20,7 @@ The front door is a pure reverse proxy on plain HTTP with **no** authentication,
 | # | Task | Gap | Where | Effort |
 |---|---|---|---|---|
 | 1 | Stand up the YARP gateway with TLS termination | GW-02 | new `src/services/gateway` | M |
-| 2 | Edge JWT validation (services keep re-validating) | GW-01 | gateway | S |
+| 2 | Edge-only JWT validation; delete per-service validators | GW-01, AUTH-08 | gateway + all services | M |
 | 3 | Per-client, per-route rate limiting on Redis counters | GW-03 | gateway + Redis | M |
 | 4 | Response caching with per-route TTL and invalidation | GW-01 | gateway + Redis | M |
 | 5 | Request-size limits, circuit breaking, edge observability | GW-01 | gateway | S |
@@ -32,11 +37,51 @@ The front door is a pure reverse proxy on plain HTTP with **no** authentication,
 - TLS 1.2+ termination with real certificates; HTTP redirects to HTTPS; WSS for both WebSocket routes.
 - Deploy in **shadow mode** first (routes a copy of read traffic) to verify parity before cutover.
 
-### 2. Edge authentication (GW-01)
+### 2. Edge-only authentication (GW-01, AUTH-08)
 
-- Validate the JWT at the gateway and reject anonymous requests before they reach any service.
-- **Keep per-service validation** — zero-trust is a deliberate architectural decision, not redundancy to remove.
-- Check the `jti` revocation set from Plan 03 item 4 here (single enforcement point).
+**Decided model: edge-only.** The gateway is the *sole* JWT validator; backend services stop validating
+tokens and trust the gateway. This is what closes AUTH-08 — the duplicated per-service validators
+(`_shared/TraverseAuth.cs` × 8 copies + the hand-rolled ones in `ams-api` and `display-service`) are
+**deleted**, not consolidated into a shared library. The heavy JWKS/`kid`/signature logic lives in exactly
+one place: the gateway.
+
+At the gateway:
+- Validate the RS256 JWT against auth-service JWKS (issuer/audience/expiry/signature), reject anonymous
+  requests before they reach any service.
+- Check the revocation set (`credentials_changed_at` epoch + `jti` blocklist from Plan 03) here — the
+  single enforcement point. A deactivated user or rotated role is rejected at the edge within seconds.
+- After validation, forward the caller's identity + `permission[]` claims to the upstream as **trusted
+  headers** (e.g. `X-Auth-Subject`, `X-Auth-Roles`, `X-Auth-Permissions`). The gateway is the only writer
+  of these headers.
+
+At each backend service:
+- Replace `AddTraverseAuth`/`UseTraverseAuth` JWKS validation with a trivial handler that populates the
+  ASP.NET identity from the gateway-injected headers. **The existing per-endpoint policies
+  (`RequireAuthorization("asset.edit")` etc.) keep working unchanged** — they read the same `permission`
+  claims, now sourced from the trusted header instead of a locally-validated token. Fine-grained
+  authorization stays in-service; only the *cryptographic validation* moves to the edge.
+
+**Mandatory safety prerequisites (edge-only is unsafe without all of these):**
+1. **Services are unreachable except through the gateway.** No published service ports; only the gateway
+   can dial them — Docker-network isolation now, network policy + mTLS in the on-prem prod. If a service
+   is directly reachable, anyone can forge `X-Auth-*` headers and bypass auth entirely.
+2. **Reject spoofed identity headers.** Services accept `X-Auth-*` only over the gateway↔service mTLS
+   channel (verified client cert) and strip any such headers arriving from elsewhere.
+3. **Internal service-to-service calls bypass the gateway** (binding-resolver / cplm-api / analysis-service
+   → asset-model). These use **mTLS/SPIFFE workload identity** (the AUTH-01 target), *not* the header
+   trust — that is item 2b below and replaces the `X-Service-Key` scheme.
+4. **Background Kafka consumers have no HTTP surface** and are unaffected — they authenticate to Kafka/EMQX,
+   not through the gateway.
+
+**Cutover sequencing (avoid a window where services trust headers while still publicly reachable):**
+enable gateway validation + header injection → put services on the private network / mTLS and unpublish
+their ports → *then* delete the per-service JWKS validators. Not the other order.
+
+### 2b. Internal identity — mTLS/SPIFFE (AUTH-01 target)
+
+Replace the shared `X-Service-Key` (Plan 03 hardened it, but it is still a bearer secret) with mTLS +
+SPIFFE/SPIRE workload identity for the asset-model callers. asset-model authorizes the peer's SPIFFE ID
+instead of a header, and the `Auth:ServicePermissions` scope from Plan 03 maps onto the peer identity.
 
 ### 3. Rate limiting (GW-03)
 
@@ -87,6 +132,9 @@ The broker has **no authenticator or ACL configured at all**, and the browser co
 
 - [ ] All client traffic reaches services only via the gateway over HTTPS/WSS; direct service ports are not published.
 - [ ] An unauthenticated API request is rejected at the edge; a revoked token is rejected at the edge.
+- [ ] **Edge-only holds:** exactly one JWT validator exists (the gateway); no backend service performs JWKS/signature validation. The per-service validators and `sync-auth-module.ps1` are gone (AUTH-08).
+- [ ] A request carrying a forged `X-Auth-*` header, sent directly to a service (bypassing the gateway), is rejected — proving header trust is bound to the gateway↔service mTLS channel.
+- [ ] asset-model authorizes its internal callers by SPIFFE/mTLS identity, not `X-Service-Key`.
 - [ ] Rate limits enforced per client (verified by load test); login limiting fails closed when Redis is down.
 - [ ] Cache hit-ratio measured on cacheable routes; an automated test proves alarm state, ACK, and live routes are **never** served from cache.
 - [ ] An anonymous MQTT-WS connection is refused; an authenticated browser can subscribe but **cannot** publish device commands.

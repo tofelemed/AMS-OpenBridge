@@ -118,27 +118,31 @@ Items 1, 2, 6 are code changes reverted by redeploy. Item 3 staged rollback = re
 | 7 | Single auth library | AUTH-08 | ⏸ **Deferred to its own CI-gated PR** (see below). |
 | 8 | Externalise secrets | SEC-02 | ✅ Done — every credential literal removed from compose; missing secret aborts startup (`:?`); IoTDB creds env-driven; `.env.example` documents the now-required set. |
 
-### AUTH-08 — why deferred, and how to execute
+### AUTH-08 — deferred to Plan 04, resolved by deletion (edge-only auth)
 
-AUTH-08 raises every service's Docker build context and folds `ams-api` + `display-service`
-onto one referenced `Traverse.Auth` project. Its correctness lives almost entirely in the
-Dockerfile COPY/context changes, which **only** manifest in a full image build — this plan's
-own guidance is to land it "in one PR with a full CI run, not service by service." A single
-.NET service image build here runs >2 min, so validating all nine without CI is not feasible in
-this pass, and a half-validated build-system change risks the half-migrated estate the plan
-warns against. The current security posture is intact: the 8 copies are byte-identical and the
-CI drift guard (`sync-auth-module.ps1 -Check`) fails the build if they diverge.
+**Decision (2026-08-10): edge-only auth.** The API gateway (Plan 04) becomes the *single* JWT
+validator; backend services stop validating tokens and trust the gateway. So AUTH-08 — "exactly one
+JWT validation implementation" — is achieved by **deleting** the per-service validators, not by
+refactoring them into a shared library. The heavy JWKS/`kid`/signature logic ends up in one place: the
+gateway. See [04-api-gateway-and-edge.md](./04-api-gateway-and-edge.md) §2.
 
-Ready-to-run steps (own PR, full CI):
-1. Add `src/services/_shared/Traverse.Auth.csproj` (net8.0 classlib) wrapping `TraverseAuth.cs`.
-2. For each service under `src/services` (asset-model, template-service, binding-resolver,
-   historian-bff, analysis-service, audit-service, cplm-api, notification-service, display-service):
-   raise its compose `build.context` to `../../src/services` with `dockerfile: <svc>/Dockerfile`;
-   rewrite the Dockerfile COPY/restore to reference `<svc>/` and `_shared/`; add a
-   `<ProjectReference>` to `Traverse.Auth.csproj`; delete `<svc>/Auth/TraverseAuth.cs`.
-3. Fold `ams-api` (raise its context to include `src/services/_shared`, or publish `Traverse.Auth`
-   as a local package) and `display-service` off their hand-rolled `JwksKeyCache`/validators.
-4. Delete `scripts/sync-auth-module.ps1` and drop the CI drift step; run the full image-build CI.
+Why this is the right sequencing: the shared-library refactor (raise every Docker build context, add a
+`Traverse.Auth` project reference, fold `ams-api`/`display-service`) is a high-risk build-system migration
+that the plan says must land as one full-CI PR — and it would be **throwaway** once edge-only deletes those
+validators anyway. Meanwhile the security posture is intact: the 8 copies are byte-identical and the CI
+drift guard (`sync-auth-module.ps1 -Check`) fails the build if they diverge.
+
+What Plan 04 does for AUTH-08:
+1. Gateway validates the JWT + revocation once, injects trusted `X-Auth-*` identity/permission headers.
+2. Each service replaces its JWKS validator with a trivial "trust the gateway header" handler; existing
+   `RequireAuthorization("…")` policies keep working off the injected `permission` claims.
+3. Delete the 8 `Auth/TraverseAuth.cs` copies, the `ams-api`/`display-service` hand-rolled validators,
+   `scripts/sync-auth-module.ps1`, and the CI drift step.
+4. Enforce the edge-only safety prerequisites (services unreachable except via the gateway; header trust
+   bound to gateway↔service mTLS; internal calls on mTLS/SPIFFE, not `X-Service-Key`).
+
+> Fallback only if edge-only is ever reversed: consolidate the validators into
+> `src/services/_shared/Traverse.Auth.csproj` referenced by all services via a raised Docker build context.
 
 ## Risks & notes
 
