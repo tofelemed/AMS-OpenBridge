@@ -141,6 +141,20 @@ The broker has **no authenticator or ACL configured at all**, and the browser co
 - [ ] Oversized request bodies are rejected per route.
 - [ ] `/swagger` is not publicly reachable in production.
 
+## Execution status (2026-08-10)
+
+| # | Task | Status |
+|---|---|---|
+| 1 | YARP gateway + TLS knob | ✅ Built (`src/services/gateway`): route map mirrors nginx 1:1 (every rewrite shape live-tested), WS passthrough (101 to EMQX), `/swagger` gated, external-feed IP now config, HTTPS-on-8443 via `Gateway:Tls:CertPath` (cert to be supplied on-prem). Compose: **shadow mode on host 8081** alongside nginx. |
+| 2 | Edge-only JWT validation | ✅ **Transition state**: gateway validates (JWKS, revocation within ~8s via auth-service internal poll, `X-Auth-*` injection + spoof-strip) *and* forwards the bearer, so services still validate. **Per-service validator deletion deliberately NOT done** — blocked on the §2 prerequisites (unpublish service ports / mTLS), which is the cutover step. |
+| 3 | Rate limiting | ✅ Redis fixed-window per plan schema; login 10/min/IP + mutations fail CLOSED, reads fail OPEN — all proven by stopping Redis live. |
+| 4 | Response caching | ✅ Allow-list of the plan's 5 route families with per-user scope hash; deny-list proven (no header/keys for alarm/auth/audit); cross-user isolation tested with a second account. |
+| 5 | Limits/breaker/metrics | ✅ 4KB/2MB/256KB body caps (413), passive-health breaker (dead upstream: 503 in 6–10ms vs ~2.5s; 5xx responses never trip it), 5s connect timeout, `/gw/metrics` RED + access log. |
+| 6 | EMQX auth + MQTT-WS behind gateway | ⬜ Not started — coordinated EMQX+frontend change; `/mqtt-ws` stays anonymous at the gateway until then (flip its route policy to `default` in the same change). |
+| 7 | nginx → static SPA only | ⬜ Not started — cutover step: point the frontend at the gateway, shrink nginx, unpublish service ports, then delete per-service validators (AUTH-08 closes here). |
+
+Defects found & fixed while testing: auth-service refresh tokens had no `jti` (two same-second logins → duplicate-key 500); YARP's default `HealthyOrPanic` re-dials the only unhealthy destination (breaker never fast-failed until `HealthyAndUnknown` was set); lab DB was missing migration 38 (`credentials_changed_at`) — applied.
+
 ## Rollback
 
 The gateway runs alongside nginx until cutover; rollback at any stage = repoint DNS/compose back to the nginx path. Item 6 is the exception — enabling EMQX authentication breaks unauthenticated clients by design; stage it by allowing both auth and anonymous briefly, then removing anonymous once the frontend cutover is confirmed.
