@@ -140,16 +140,31 @@ services:
     environment:
       EMQX_NAME: "ams-emqx"
       EMQX_HOST: "127.0.0.1"
-      # ── Auth ──────────────────────────────────────────────────────────────
-      # EMQX 5.x: anonymous access is controlled via the 'allow_anonymous'
-      # key inside the built-in auth chain, NOT EMQX_ALLOW_ANONYMOUS.
-      # Setting it to true lets the E2E test client (no creds) connect for
-      # DDATA subscription without provisioning a separate user.
-      # The sparkplug-edge-node still sends MQTT_USERNAME/PASSWORD which EMQX
-      # accepts even with anonymous=true (credentials are validated if provided).
       EMQX_MQTT__MAX_PACKET_SIZE: "1MB"
-      # EMQX 5.x anonymous auth — allow unauthenticated connections
-      EMQX_ALLOW_ANONYMOUS: "true"
+      # ── Authentication (Plan 04 item 6, AUTH-03) ─────────────────────────
+      # Anonymous access is CLOSED. Authenticator chain (first success wins):
+      #   1. JWT via auth-service JWKS — browsers present the platform RS256
+      #      access token as the MQTT password. disconnect_after_expire=false:
+      #      the 15-min token TTL must not drop live operator subscriptions
+      #      every quarter hour; browsers are subscribe-only by ACL, and the
+      #      frontend refreshes the token on every reconnect anyway.
+      #   2. Built-in database — the Sparkplug edge node's ams_edge credential
+      #      (created by emqx-init from EMQX_EDGE_PASSWORD).
+      EMQX_AUTHENTICATION__1__MECHANISM: "jwt"
+      EMQX_AUTHENTICATION__1__FROM: "password"
+      EMQX_AUTHENTICATION__1__USE_JWKS: "true"
+      EMQX_AUTHENTICATION__1__ENDPOINT: "http://auth-service:3002/api/auth/.well-known/jwks.json"
+      EMQX_AUTHENTICATION__1__REFRESH_INTERVAL: "300"
+      EMQX_AUTHENTICATION__1__DISCONNECT_AFTER_EXPIRE: "false"
+      EMQX_AUTHENTICATION__2__MECHANISM: "password_based"
+      EMQX_AUTHENTICATION__2__BACKEND: "built_in_database"
+      # ── Authorization: file ACL, deny-by-default ─────────────────────────
+      # acl.conf: edge node owns spBv1.0/#; browsers subscribe-only; browser
+      # publish (incl. NCMD/DCMD device commands) denied.
+      EMQX_AUTHORIZATION__NO_MATCH: "deny"
+      EMQX_AUTHORIZATION__SOURCES__1__TYPE: "file"
+      EMQX_AUTHORIZATION__SOURCES__1__ENABLE: "true"
+      EMQX_AUTHORIZATION__SOURCES__1__PATH: "/opt/emqx/etc/acl.conf"
       # ── Listeners ─────────────────────────────────────────────────────────
       EMQX_LISTENERS__TCP__DEFAULT__BIND: "0.0.0.0:1883"
       EMQX_LISTENERS__WS__DEFAULT__BIND:  "0.0.0.0:8083"
@@ -161,10 +176,13 @@ services:
     volumes:
       - emqx-data:/opt/emqx/data
       - emqx-log:/opt/emqx/log
+      - ./emqx/acl.conf:/opt/emqx/etc/acl.conf:ro
     ports:
+      # 8084 (unused WSS listener) retired per Plan 04 item 6. 8083 direct WS
+      # remains published for the transition; the frontend path is /mqtt-ws via
+      # the gateway — see the final-lockdown note in the plan.
       - "1883:1883"
       - "8083:8083"
-      - "8084:8084"
       - "18083:18083"
     networks:
       - ams-backend
@@ -174,6 +192,28 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+
+  # One-shot: provision the Sparkplug edge node's MQTT credential in EMQX's
+  # built-in-database authenticator (Plan 04 item 6). Idempotent; re-runs on
+  # every stack start.
+  emqx-init:
+    image: curlimages/curl:8.9.1
+    container_name: ams-emqx-init
+    depends_on:
+      emqx:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/emqx-init.sh"]
+    environment:
+      EMQX_API: http://emqx:18083/api/v5
+      EMQX_DASHBOARD_USER:     ${EMQX_DASHBOARD_USER:-admin}
+      EMQX_DASHBOARD_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:?EMQX_DASHBOARD_PASSWORD must be set}
+      EMQX_EDGE_USER:          ${EMQX_EDGE_USER:-ams_edge}
+      EMQX_EDGE_PASSWORD:      ${EMQX_EDGE_PASSWORD:?EMQX_EDGE_PASSWORD must be set}
+    volumes:
+      - ./emqx/emqx-init.sh:/emqx-init.sh:ro
+    networks:
+      - ams-backend
+    restart: "no"
 
   pgadmin:
     image: dpage/pgadmin4:latest

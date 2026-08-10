@@ -4,6 +4,7 @@ import { immer } from 'zustand/middleware/immer';
 import { enableMapSet } from 'immer';
 import { get as getSparkplugPayload } from 'sparkplug-payload';
 import { apiFetch } from '../api/apiFetch';
+import { getAuthToken } from '../api/auth';
 
 const SparkplugPayload = getSparkplugPayload('spBv1.0');
 if (!SparkplugPayload) {
@@ -236,12 +237,28 @@ export const useMqttStore = create<MqttStoreState>()(
         if (client?.connected) return;
 
         const brokerUrl = resolveMqttWsUrl();
-        client = mqtt.connect(brokerUrl, {
+        // AUTH-03 (Plan 04 item 6): the broker no longer accepts anonymous
+        // connections. The RS256 access token rides in two places:
+        //  - MQTT CONNECT password — EMQX's JWT authenticator (from=password)
+        //    validates it against auth-service JWKS;
+        //  - ?access_token= on the WS URL — the API gateway authenticates the
+        //    WebSocket upgrade at the edge (browsers cannot set headers on WS).
+        // Both are refreshed per (re)connect attempt so a rotated token never
+        // strands the live-value stream.
+        const withToken = (url: string): string => {
+          const token = getAuthToken();
+          if (!token) return url;
+          return `${url}${url.includes('?') ? '&' : '?'}access_token=${encodeURIComponent(token)}`;
+        };
+        client = mqtt.connect(withToken(brokerUrl), {
           clientId:        `ams-hmi-${Math.random().toString(16).slice(2, 8)}`,
           clean:           true,
           keepalive:       30,
           reconnectPeriod: 2000,
           connectTimeout:  10_000,
+          username:        'hmi-browser',
+          password:        getAuthToken() || undefined,
+          transformWsUrl:  () => withToken(brokerUrl),
         });
 
         client.on('connect', () => {
@@ -271,6 +288,13 @@ export const useMqttStore = create<MqttStoreState>()(
         });
 
         client.on('reconnect', () => {
+          // Refresh the MQTT password with the CURRENT access token before the
+          // CONNECT packet goes out — the original token may have rotated (15m
+          // TTL) since the client was created. transformWsUrl (above) refreshes
+          // the URL query token the same way for the gateway's edge auth.
+          if (client) {
+            (client.options as { password?: Buffer | string }).password = getAuthToken() || undefined;
+          }
           // Resubscribe to previously subscribed DDATA topics on reconnect
           const subs = get().subscribed;
           subs.forEach(t => client!.subscribe(t));
