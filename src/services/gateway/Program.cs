@@ -16,8 +16,12 @@ using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
+using Prometheus;
 using Traverse.Gateway.Auth;
+using Traverse.Gateway.Limits;
+using Traverse.Gateway.Proxy;
 using Traverse.Gateway.RateLimit;
+using Yarp.ReverseProxy.Forwarder;
 using Yarp.ReverseProxy.Transforms;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -44,6 +48,10 @@ builder.Services.AddSingleton<JwksKeyCache>();
 builder.Services.AddSingleton<RevocationCache>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<RevocationCache>());
 builder.Services.AddSingleton<RedisRateLimiter>();
+
+// Bounded connect timeout -> dead upstreams fail fast and feed the passive-health
+// circuit breaker (TransportFailureRate, configured per cluster in appsettings).
+builder.Services.AddSingleton<IForwarderHttpClientFactory, GatewayForwarderHttpClientFactory>();
 
 var authIssuer   = config["Auth:Issuer"]   ?? "traverse-auth";
 var authAudience = config["Auth:Audience"] ?? "ams-services";
@@ -134,6 +142,9 @@ if (!string.IsNullOrWhiteSpace(certPath))
 // ---- Gateway's own liveness (distinct from /health, which proxies to ams-api for parity) ----
 app.MapGet("/gw/health", () => Results.Ok(new { status = "Healthy", service = "gateway" }));
 
+// Prometheus scrape endpoint under the gateway's own /gw namespace (internal network).
+app.MapMetrics("/gw/metrics");
+
 // ---- Spoof guard: the gateway is the ONLY writer of X-Auth-* identity headers ----
 app.Use(async (ctx, next) =>
 {
@@ -145,6 +156,28 @@ app.Use(async (ctx, next) =>
     }
     await next();
 });
+
+// ---- Per-route request-body limits (Plan 04 item 5) ----
+app.UseMiddleware<BodyLimitMiddleware>();
+
+// ---- RED metrics per route + compact access log (Plan 04 item 5) ----
+app.UseHttpMetrics();
+if (config.GetValue("Gateway:AccessLog", true))
+{
+    app.Use(async (ctx, next) =>
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        await next();
+        sw.Stop();
+        app.Logger.LogInformation(
+            "{Method} {Path} -> {Status} {Ms}ms user={User} ip={Ip} cache={Cache}",
+            ctx.Request.Method, ctx.Request.Path.Value, ctx.Response.StatusCode,
+            sw.ElapsedMilliseconds,
+            ctx.User.Identity?.IsAuthenticated == true ? ctx.User.FindFirst("preferred_username")?.Value : "-",
+            ctx.Connection.RemoteIpAddress,
+            ctx.Response.Headers.TryGetValue("X-Cache", out var xc) ? xc.ToString() : "-");
+    });
+}
 
 // ---- /swagger gate (GW-01: not publicly reachable unless explicitly enabled) ----
 var exposeSwagger = config.GetValue("Gateway:ExposeSwagger", false);
