@@ -249,6 +249,11 @@ app.Use(async (ctx, next) =>
 
 app.UseAuthorization();
 
+// ---- Edge response cache (GW-01, Plan 04 item 4) ----
+// After authorization (a cached body is only ever served to an authenticated,
+// authorized caller and the key is scoped per user), before the proxy.
+app.UseMiddleware<Traverse.Gateway.Caching.ResponseCacheMiddleware>();
+
 app.MapReverseProxy();
 
 app.Logger.LogInformation(
