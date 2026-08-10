@@ -1,3 +1,5 @@
+\c traverse_assets
+-- DATA-11: previously ran against ams (no \c) and errored; explicit targeting now.
 -- Phase 4 — asset type/template name for "assets of the same type" queries (collections, dynamic
 -- search criteria, asset context switching). asset-model also adds this at startup (ADD COLUMN IF
 -- NOT EXISTS) so an already-initialised database self-heals; this covers a fresh install.

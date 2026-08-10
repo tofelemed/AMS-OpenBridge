@@ -1,3 +1,7 @@
+\c traverse_displays
+-- DATA-11: this script previously ran against the ams database (no \c) - four of
+-- these five errored there and 20_display_media_assets created its table in the
+-- WRONG database, masked by the display-service self-heal. Explicit targeting now.
 -- Record WHEN a display was published, and BY WHOM.
 --
 -- Publish flips an existing draft row's status to 'published' — it inserts no row and never touches

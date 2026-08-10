@@ -1,3 +1,7 @@
+\c traverse_displays
+-- DATA-11: this script previously ran against the ams database (no \c) - four of
+-- these five errored there and 20_display_media_assets created its table in the
+-- WRONG database, masked by the display-service self-heal. Explicit targeting now.
 -- Migrate hardcoded canvas backgrounds → the theme token.
 --
 -- The Designer used to write `backgroundColor: '#0f172a'` into every saved snapshot (and the viewer

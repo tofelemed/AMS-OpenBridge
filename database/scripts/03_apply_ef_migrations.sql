@@ -179,6 +179,12 @@ CREATE INDEX IF NOT EXISTS idx_transitions_server ON alarms.alarm_state_transiti
 
 -- --------------------------------------------------------
 -- 8. Mark all migrations as applied in EF history
+--
+-- DATA-02 note: pre-marking 20260528000000_AddTimescaleDbHypertables is
+-- DELIBERATE and stays. The real hypertables + compression + retention are
+-- created by 39_timescale_policies.sql (the authoritative implementation) —
+-- letting the EF migration also run create_hypertable at API startup would
+-- race the mounted SQL for the same conversion.
 -- --------------------------------------------------------
 INSERT INTO public."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
 VALUES

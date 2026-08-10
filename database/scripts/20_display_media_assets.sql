@@ -1,3 +1,7 @@
+\c traverse_displays
+-- DATA-11: this script previously ran against the ams database (no \c) - four of
+-- these five errored there and 20_display_media_assets created its table in the
+-- WRONG database, masked by the display-service self-heal. Explicit targeting now.
 -- Phase 3 — media asset store for image/SVG symbols (and the future custom graphics library).
 -- Referenced by display snapshots via id only (config-only invariant: never inline the bytes).
 -- display-service also creates this table at startup (CREATE TABLE IF NOT EXISTS) so an already
