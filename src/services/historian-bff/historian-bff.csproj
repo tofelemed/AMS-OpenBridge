@@ -9,6 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- RES-01: retry + circuit breaker + timeout on every outbound HttpClient. -->
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="8.10.0" />
     <!-- Platform auth: RS256 bearer validation against auth-service JWKS. -->
     <PackageReference Include="StackExchange.Redis" Version="2.7.33" />
   </ItemGroup>

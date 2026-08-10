@@ -19,6 +19,9 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 
 // ---- Services ----
+// RES-01: retry + circuit breaker + timeout on every outbound HttpClient in this service.
+builder.Services.ConfigureHttpClientDefaults(http => http.AddStandardResilienceHandler());
+
 builder.Services.AddHttpClient();
 
 // Providers

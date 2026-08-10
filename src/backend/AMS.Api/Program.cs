@@ -93,6 +93,10 @@ services.AddMediatR(cfg =>
 services.AddValidatorsFromAssembly(typeof(AcknowledgeAlarmCommandValidator).Assembly);
 
 // ---- Repositories & Unit of Work ----
+// DATA-08: short-TTL alarm-list read cache, version-invalidated by the projection consumers.
+services.AddMemoryCache();
+services.AddSingleton<AMS.Infrastructure.Caching.AlarmReadCache>();
+
 services.AddScoped<IActiveAlarmRepository, ActiveAlarmRepository>();
 services.AddScoped<IHistoricalAlarmRepository, HistoricalAlarmRepository>();
 services.AddScoped<IAlarmTransitionRepository, AlarmTransitionRepository>();
@@ -266,6 +270,11 @@ services.AddSwaggerGen(opt =>
 // revocation, and forwards the identity as X-Auth-* headers. This service
 // materialises those headers into a principal; the policies below are unchanged.
 services.AddHttpClient();
+
+// RES-01: every outbound HttpClient (Flink REST, IoTDB writer, alarm feed poller,
+// DCS ACK writeback) gets retry + circuit breaker + timeout. The package was
+// referenced but had ZERO call sites — no outbound call had any resilience.
+services.ConfigureHttpClientDefaults(http => http.AddStandardResilienceHandler());
 
 services.AddAuthentication(AMS.Api.Auth.GatewayHeaderAuthHandler.SchemeName)
     .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,

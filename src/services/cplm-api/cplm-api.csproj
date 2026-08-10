@@ -8,6 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- RES-01: retry + circuit breaker + timeout on every outbound HttpClient. -->
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="8.10.0" />
     <!-- Platform auth: RS256 bearer validation against auth-service JWKS (shared TraverseAuth module). -->
     <!-- CPLM data access is Dapper over raw Npgsql (same as the code arriving from AMS.Api in Phase 3). -->
     <PackageReference Include="Npgsql" Version="8.0.3" />

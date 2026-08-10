@@ -30,6 +30,9 @@ builder.Services.AddKeyedSingleton("cplm", dataSource);
 
 // ── HTTP control plane ─────────────────────────────────────────────────────
 // asset-model: peer-link projection at onboarding (service-principal call).
+// RES-01: retry + circuit breaker + timeout on every outbound HttpClient in this service.
+builder.Services.ConfigureHttpClientDefaults(http => http.AddStandardResilienceHandler());
+
 builder.Services.AddHttpClient("AssetModel", client =>
 {
     client.BaseAddress = new Uri(config["Cpm:AssetModelUrl"] ?? "http://asset-model:5000");
@@ -43,6 +46,21 @@ builder.Services.AddHttpClient("Flink", client =>
 {
     client.BaseAddress = new Uri(config["Cpm:FlinkUrl"] ?? "http://flink-jobmanager:8081");
     client.Timeout = TimeSpan.FromSeconds(30);
+});
+// RES-01: the recompute jar upload (~40 MB to the JobManager) cannot live under the
+// default resilience ceiling (30s total) — it gets its own pipeline with a 5-minute
+// budget. CircuitBreaker sampling must be ≥ 2× the attempt timeout (library invariant).
+builder.Services.AddHttpClient("FlinkJarUpload", client =>
+{
+    client.BaseAddress = new Uri(
+        (config["Flink:JobManagerUrl"] ?? "http://ams-flink-jobmanager:8081").TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromMinutes(6);
+}).AddStandardResilienceHandler(o =>
+{
+    o.AttemptTimeout.Timeout       = TimeSpan.FromMinutes(4);
+    o.TotalRequestTimeout.Timeout  = TimeSpan.FromMinutes(5);
+    o.Retry.MaxRetryAttempts       = 1;
+    o.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(8);
 });
 
 // JSON options MUST match AMS.Api exactly (camelCase, omit nulls, enums as

@@ -8,11 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- RES-01: retry + circuit breaker + timeout on every outbound HttpClient. -->
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="8.10.0" />
     <!-- Platform auth (AUTH-07): same RS256/JWKS stack as every other Traverse HTTP service.
          Auth/TraverseAuth.cs is kept byte-identical by scripts/sync-auth-module.ps1. -->
     <PackageReference Include="Confluent.Kafka" Version="2.4.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="8.0.0" />
     <!-- Required by Program.cs ReadFrom.Configuration(...). Its absence meant this
          service had never compiled, which is why CI excluded it from the build matrix. -->

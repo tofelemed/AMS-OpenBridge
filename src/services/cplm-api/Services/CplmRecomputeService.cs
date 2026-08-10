@@ -282,11 +282,9 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
 
     private HttpClient CreateClient()
     {
-        var client = _httpFactory.CreateClient();
-        client.BaseAddress = new Uri(
-            (_config["Flink:JobManagerUrl"] ?? "http://ams-flink-jobmanager:8081").TrimEnd('/') + "/");
-        client.Timeout = TimeSpan.FromMinutes(2); // jar upload is ~40 MB
-        return client;
+        // RES-01: the named client carries base address + a 5-minute resilience budget
+        // (the default pipeline's 30s total would abort the ~40 MB jar upload).
+        return _httpFactory.CreateClient("FlinkJarUpload");
     }
 
     private static string Trim(string s) => s.Length <= 400 ? s : s[..400] + "…";
