@@ -28,6 +28,11 @@ public class RootCauseConsumer : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Yield before the blocking consume loop: without this ExecuteAsync runs inline,
+        // Host.StartAsync never returns, Kestrel never binds and the container stays
+        // unhealthy forever — the same boot hang audit-service already documents.
+        await Task.Yield();
+
         var config = new ConsumerConfig
         {
             BootstrapServers = _bootstrapServers,

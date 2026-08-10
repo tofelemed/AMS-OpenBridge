@@ -44,6 +44,7 @@ public sealed class CplmEventFrameService : BackgroundService
     private readonly CplmOptions _options;
     private readonly IConsumer<string, string> _consumer;
     private readonly Traverse.CplmApi.Services.ConsumerHeartbeat _heartbeat;
+    private readonly Traverse.CplmApi.Services.SingleMemberGuard _guard;
     private static int _schemaEnsured;
 
     public CplmEventFrameService(
@@ -51,20 +52,28 @@ public sealed class CplmEventFrameService : BackgroundService
         IOptions<Traverse.CplmApi.Infrastructure.KafkaOptions> kafkaOptions,
         IOptions<CplmOptions> cplmOptions,
         Traverse.CplmApi.Services.ConsumerHeartbeat heartbeat,
+        Traverse.CplmApi.Services.SingleMemberGuard guard,
         [FromKeyedServices("cplm")] NpgsqlDataSource dataSource)
     {
         _logger = logger;
         _dataSource = dataSource;
         _options = cplmOptions.Value;
         _heartbeat = heartbeat;
+        _guard = guard;
         _consumer = new ConsumerBuilder<string, string>(new ConsumerConfig
         {
             BootstrapServers = kafkaOptions.Value.BootstrapServers,
             GroupId = _options.ConsumerGroupId + "-frames",
+            // STR-06: static membership names the intended sole member.
+            GroupInstanceId = _options.ConsumerGroupId + "-frames-sole",
             AutoOffsetReset = AutoOffsetReset.Earliest,
             EnableAutoCommit = true,
             EnableAutoOffsetStore = false
-        }).Build();
+        })
+        // STR-06: assert this process holds every partition — a split would have it
+        // persisting only some event frames, silently.
+        .SetPartitionsAssignedHandler((_, parts) => _guard.VerifySoleMembership("frames", parts))
+        .Build();
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

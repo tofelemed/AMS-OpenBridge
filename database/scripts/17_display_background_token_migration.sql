@@ -8,6 +8,13 @@
 -- Idempotent: re-running it changes nothing. Safe on a live DB (no locks beyond the row updates).
 -- Applies to draft AND published versions so an operator's running screen re-themes without a re-publish.
 
+
+-- DATA-11: this script has no \c and therefore ran against the default POSTGRES_DB
+-- ('ams'), where these objects do not exist. Under the postgres entrypoint's
+-- ON_ERROR_STOP that aborted the whole fresh-volume init at this file, so every
+-- later script silently never ran. Connect to the owning database first.
+\c traverse_displays
+
 UPDATE displays.display_versions
 SET snapshot = jsonb_set(
         snapshot,

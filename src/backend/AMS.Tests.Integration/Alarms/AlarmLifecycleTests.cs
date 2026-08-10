@@ -1,121 +1,112 @@
-using System.Net.Http.Json;
-using AMS.Application.Alarms.Commands;
 using AMS.Domain.Alarms;
-using AMS.Infrastructure.Persistence;
 using FluentAssertions;
-using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace AMS.Tests.Integration.Alarms;
 
-public class AlarmLifecycleTests : TestBase
+/// <summary>
+/// ISA-18.2 alarm lifecycle rules, exercised directly against the domain entity.
+///
+/// These previously targeted an ActiveAlarm.CreateFromOpcEvent(OpcRawEvent) overload and
+/// AckedByUsername / ShelveUntilEpochMs members that no longer exist, so the whole test
+/// project failed to compile — and because CI referenced a non-existent AMS.sln, nothing
+/// ever reported it. Rewritten against the current API and kept free of the Testcontainers
+/// harness so the core state machine stays fast to verify.
+/// </summary>
+public class AlarmLifecycleTests
 {
-    [Fact]
-    public async Task AcknowledgeAlarm_ShouldUpdateStateAndRecordAudit()
+    private static ActiveAlarm NewAlarm(
+        string sourceName = "Plant.Area1.TankLevel",
+        string conditionName = "HI_HI",
+        int severity = 900,
+        bool conditionActive = true)
     {
-        // Arrange
-        var alarmId = Guid.NewGuid().ToString();
-        var alarm = ActiveAlarm.CreateFromOpcEvent(new OpcRawEvent
-        {
-            EventId = alarmId,
-            ServerId = Guid.NewGuid().ToString(),
-            SourceName = "Plant.Area1.TankLevel",
-            ConditionName = "HI_HI",
-            Severity = 900,
-            EventTimeEpochMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            ConditionActive = true,
-            AckRequired = true
-        });
-
-        using (var scope = Factory.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<AmsDbContext>();
-            db.ActiveAlarms.Add(alarm);
-            await db.SaveChangesAsync();
-        }
-
-        var command = new AcknowledgeAlarmCommand(alarmId, "Acknowledged by operator test");
-
-        // Act
-        var response = await Client.PostAsJsonAsync($"/api/v1/alarms/{alarmId}/acknowledge", command);
-
-        // Assert
-        response.IsSuccessStatusCode.Should().BeTrue();
-
-        using (var scope = Factory.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<AmsDbContext>();
-            var updatedAlarm = await db.ActiveAlarms.FindAsync(alarmId);
-
-            updatedAlarm.Should().NotBeNull();
-            updatedAlarm!.Acknowledged.Should().BeTrue();
-            updatedAlarm.AckComment.Should().Be("Acknowledged by operator test");
-            updatedAlarm.AckedByUsername.Should().Be("testuser");
-            updatedAlarm.State.Should().Be("ACKNOWLEDGED_UNCLEARED");
-        }
+        var now = DateTimeOffset.UtcNow;
+        return ActiveAlarm.CreateFromOpcEvent(
+            serverId:         Guid.NewGuid(),
+            sourceName:       sourceName,
+            eventType:        AlarmEventType.Condition,
+            conditionName:    conditionName,
+            subConditionName: null,
+            message:          $"{conditionName} on {sourceName}",
+            severity:         severity,
+            priority:         AlarmPriority.High,
+            category:         AlarmCategory.Process,
+            conditionActive:  conditionActive,
+            eventTime:        now,
+            activeTime:       now);
     }
 
     [Fact]
-    public async Task ShelveAlarm_ShouldSetShelvedStateAndComment()
+    public void Acknowledge_SetsAcknowledgedAndRecordsOperator()
     {
-        // Arrange
-        var alarmId = Guid.NewGuid().ToString();
-        var alarm = ActiveAlarm.CreateFromOpcEvent(new OpcRawEvent
-        {
-            EventId = alarmId,
-            ServerId = Guid.NewGuid().ToString(),
-            SourceName = "Plant.Area2.PumpVibration",
-            ConditionName = "HI",
-            Severity = 500,
-            EventTimeEpochMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            ConditionActive = true,
-            AckRequired = true
-        });
+        var alarm  = NewAlarm();
+        var userId = Guid.NewGuid();
 
-        using (var scope = Factory.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<AmsDbContext>();
-            db.ActiveAlarms.Add(alarm);
-            await db.SaveChangesAsync();
-        }
+        var result = alarm.Acknowledge(userId, "Acknowledged by operator test", DateTimeOffset.UtcNow);
 
-        var shelveDurationMins = 60;
-        var command = new ShelveAlarmCommand(alarmId, shelveDurationMins, "Shelved for maintenance");
-
-        // Act
-        var response = await Client.PostAsJsonAsync($"/api/v1/alarms/{alarmId}/shelve", command);
-
-        // Assert
-        response.IsSuccessStatusCode.Should().BeTrue();
-
-        using (var scope = Factory.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<AmsDbContext>();
-            var updatedAlarm = await db.ActiveAlarms.FindAsync(alarmId);
-
-            updatedAlarm.Should().NotBeNull();
-            updatedAlarm!.IsShelved.Should().BeTrue();
-            updatedAlarm.ShelveComment.Should().Be("Shelved for maintenance");
-            updatedAlarm.State.Should().Be("SHELVED");
-            updatedAlarm.ShelveUntilEpochMs.Should().NotBeNull();
-        }
+        result.IsSuccess.Should().BeTrue();
+        alarm.Acknowledged.Should().BeTrue();
+        alarm.AckedBy.Should().Be(userId);
+        alarm.AckComment.Should().Be("Acknowledged by operator test");
     }
-}
 
-// ---- Duplicate OpcRawEvent for tests since AMS.Domain.Alarms namespace doesn't reference the gateway DTO directly ----
-// (In a real project, this would be a shared DTO in a Common library)
-public class OpcRawEvent
-{
-    public string EventId { get; set; } = string.Empty;
-    public string ServerId { get; set; } = string.Empty;
-    public string ServerName { get; set; } = string.Empty;
-    public string SourceName { get; set; } = string.Empty;
-    public string ConditionName { get; set; } = string.Empty;
-    public string SubConditionName { get; set; } = string.Empty;
-    public string Message { get; set; } = string.Empty;
-    public int Severity { get; set; }
-    public long EventTimeEpochMs { get; set; }
-    public bool ConditionActive { get; set; }
-    public bool AckRequired { get; set; }
-    public Dictionary<string, object> Attributes { get; set; } = new();
+    [Fact]
+    public void Acknowledge_IsRejected_WhenAlreadyAcknowledged()
+    {
+        var alarm = NewAlarm();
+        alarm.Acknowledge(Guid.NewGuid(), "first", DateTimeOffset.UtcNow);
+
+        var second = alarm.Acknowledge(Guid.NewGuid(), "second", DateTimeOffset.UtcNow);
+
+        second.IsSuccess.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Shelve_SetsShelvedStateAndExpiry()
+    {
+        var alarm = NewAlarm("Plant.Area2.PumpVibration", "HI", 500);
+
+        var result = alarm.Shelve(Guid.NewGuid(), durationMinutes: 60, comment: "Shelved for maintenance");
+
+        result.IsSuccess.Should().BeTrue();
+        alarm.IsShelved.Should().BeTrue();
+        alarm.ShelveComment.Should().Be("Shelved for maintenance");
+        alarm.ShelveUntil.Should().NotBeNull();
+        alarm.ShelveUntil!.Value.Should().BeAfter(DateTimeOffset.UtcNow);
+    }
+
+    [Fact]
+    public void Shelve_RequiresAComment_PerIsa182()
+    {
+        var alarm = NewAlarm();
+
+        var result = alarm.Shelve(Guid.NewGuid(), durationMinutes: 30, comment: "  ");
+
+        result.IsSuccess.Should().BeFalse();
+        alarm.IsShelved.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Shelve_IsRejected_BeyondMaximumDuration()
+    {
+        var alarm = NewAlarm();
+
+        var result = alarm.Shelve(Guid.NewGuid(), durationMinutes: 10_000, comment: "too long");
+
+        result.IsSuccess.Should().BeFalse();
+        alarm.IsShelved.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Acknowledge_IsRejected_WhileShelved()
+    {
+        var alarm = NewAlarm();
+        alarm.Shelve(Guid.NewGuid(), durationMinutes: 60, comment: "maintenance");
+
+        var result = alarm.Acknowledge(Guid.NewGuid(), "should not apply", DateTimeOffset.UtcNow);
+
+        result.IsSuccess.Should().BeFalse();
+        alarm.Acknowledged.Should().BeFalse();
+    }
 }

@@ -85,6 +85,12 @@ builder.Services.Configure<Traverse.CplmApi.BackgroundServices.CplmOptions>(
 // P3-11: always registered so /health can tell "consumers disabled by config"
 // apart from "consumers enabled but silent".
 builder.Services.AddSingleton<Traverse.CplmApi.Services.ConsumerHeartbeat>();
+// STR-06: detects a second member stealing partitions from the CPLM consumer groups.
+builder.Services.AddSingleton(sp => new Traverse.CplmApi.Services.SingleMemberGuard(
+    sp.GetRequiredService<ILogger<Traverse.CplmApi.Services.SingleMemberGuard>>(),
+    sp.GetRequiredService<Traverse.CplmApi.Services.ConsumerHeartbeat>(),
+    sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Traverse.CplmApi.Infrastructure.KafkaOptions>>()
+      .Value.BootstrapServers));
 if (config.GetValue("Cplm:ConsumersEnabled", false))
 {
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmResultConsumerService>();
@@ -143,7 +149,10 @@ app.MapGet("/authcheck", (System.Security.Claims.ClaimsPrincipal user) => Result
 // the status "Degraded" but still HTTP 200 — the container healthcheck must
 // not restart-loop the read API because Kafka wobbled; 503 stays DB-only.
 var cplmConsumersEnabled = config.GetValue("Cplm:ConsumersEnabled", false);
-app.MapGet("/health", async (NpgsqlDataSource ds, Traverse.CplmApi.Services.ConsumerHeartbeat beats) =>
+app.MapGet("/health", async (
+    NpgsqlDataSource ds,
+    Traverse.CplmApi.Services.ConsumerHeartbeat beats,
+    Traverse.CplmApi.Services.SingleMemberGuard guard) =>
 {
     try
     {
@@ -169,12 +178,23 @@ app.MapGet("/health", async (NpgsqlDataSource ds, Traverse.CplmApi.Services.Cons
         var f = ConsumerState("frames");
         var results = new { state = r.State, phase = r.Phase, heartbeatAgeSeconds = r.AgeSeconds };
         var frames = new { state = f.State, phase = f.Phase, heartbeatAgeSeconds = f.AgeSeconds };
-        var degraded = r.State is "STALLED" or "NEVER_STARTED" || f.State is "STALLED" or "NEVER_STARTED";
+        // STR-06: a partition split means another member is persisting half the
+        // windows. The heartbeat cannot see this — both members look "RUNNING".
+        var degraded = r.State is "STALLED" or "NEVER_STARTED"
+                    || f.State is "STALLED" or "NEVER_STARTED"
+                    || guard.SplitDetected;
         return Results.Json(new
         {
             status = degraded ? "Degraded" : "Healthy",
             database = db,
-            consumers = new { enabled = cplmConsumersEnabled, results, frames }
+            consumers = new
+            {
+                enabled = cplmConsumersEnabled,
+                results,
+                frames,
+                groupSplitDetected = guard.SplitDetected,
+                groupSplitDetail = guard.SplitDetail
+            }
         });
     }
     catch (Exception ex)

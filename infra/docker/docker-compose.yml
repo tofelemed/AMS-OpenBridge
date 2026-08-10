@@ -18,7 +18,10 @@ volumes:
   cloudbeaver-data:
   kafka_0_data:
   zookeeper_data:
+  # Retained for the file:// fallback; checkpoints now live in MinIO (STR-02).
   flink-checkpoints:
+  # STR-02: durable Flink checkpoint/savepoint object store.
+  minio-data:
   # ── Phase 0: Edge platform historians & brokers ──
   iotdb-data:
   iotdb-logs:
@@ -286,8 +289,63 @@ services:
       retries: 5
       start_period: 180s
 
+  # ─────────────────────────────────────────────
+  # MinIO — durable object storage for Flink checkpoints and savepoints (STR-02)
+  #
+  # Checkpoints previously lived on the `flink-checkpoints` local Docker volume, so
+  # losing the host lost every exactly-once state: the ISA-18.2 alarm state machine,
+  # the RBE fingerprints and the CPLM 24 h diagnostics buffer. This is storage
+  # durability, NOT replication — a single MinIO node is enough here, and it is the
+  # prerequisite that makes Flink JobManager HA (Plan 09) a config change rather
+  # than a redesign, because HA needs a checkpoint store both JMs can reach.
+  # ─────────────────────────────────────────────
+  minio:
+    image: minio/minio:RELEASE.2024-06-13T22-53-53Z
+    container_name: ams-minio
+    <<: *default-restart
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER:     ${MINIO_ROOT_USER:-ams_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-ams_minio_dev_password}
+    volumes:
+      - minio-data:/data
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # console
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  # One-shot: create the checkpoint/savepoint buckets before Flink starts.
+  minio-init:
+    image: minio/mc:RELEASE.2024-06-12T14-34-03Z
+    container_name: ams-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER:     ${MINIO_ROOT_USER:-ams_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-ams_minio_dev_password}
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
+      mc mb --ignore-existing local/ams-flink &&
+      echo '[minio-init] buckets ready'
+      "
+    networks:
+      - ams-backend
+    restart: "no"
+
   flink-jobmanager:
-    image: flink:1.18.1-java11
+    build:
+      context: ../../src/flink
+      dockerfile: ../../infra/docker/flink/Dockerfile
+    image: ams-flink:1.0-SNAPSHOT
     container_name: ams-flink-jobmanager
     <<: *default-restart
     entrypoint: ["/bin/bash", "/opt/flink-entrypoint.sh"]
@@ -295,6 +353,9 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+      # STR-02: the checkpoint buckets must exist before the first checkpoint fires.
+      minio-init:
+        condition: service_completed_successfully
     environment:
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: flink-jobmanager
@@ -303,9 +364,17 @@ services:
         # Phase 6: RocksDB state backend for large keyed state (RBE fingerprints)
         state.backend: rocksdb
         state.backend.incremental: true
-        state.checkpoints.dir: file:///flink-checkpoints
+        # STR-02 — durable object storage. Was file:///flink-checkpoints (a host-local
+        # Docker volume): losing the host lost all exactly-once state. Savepoints get an
+        # explicit home too, which STR-11's upgrade procedure depends on.
+        state.checkpoints.dir: s3://ams-flink/checkpoints
+        state.savepoints.dir: s3://ams-flink/savepoints
+        s3.endpoint: http://minio:9000
+        s3.path.style.access: true
+        s3.access-key: ${MINIO_ROOT_USER:-ams_minio}
+        s3.secret-key: ${MINIO_ROOT_PASSWORD:-ams_minio_dev_password}
         # CPLM (Phase 2): cap retained checkpoints — RETAIN_ON_CANCELLATION plus the
-        # CPLM jobs' 180-300 s intervals would otherwise grow the volume unboundedly.
+        # CPLM jobs' 180-300 s intervals would otherwise grow the bucket unboundedly.
         state.checkpoints.num-retained: 3
         # Phase 6: checkpoint hardening — 60s interval, 30s min pause, EXACTLY_ONCE
         execution.checkpointing.interval: 60000
@@ -322,6 +391,7 @@ services:
       # is NOT in /opt/flink/opt. The official entrypoint's copy_plugins_if_required() does
       # `exit 1` when the named plugin is missing from /opt/flink/opt, so setting the variable
       # kills both Flink containers on start. Verified: :9249 already serves metrics.
+      # The s3-fs-presto plugin is installed by flink-entrypoint.sh for the same reason.
       KAFKA_BROKERS: kafka:9092
       DB_URL:        jdbc:postgresql://postgres:5432/ams
       DB_USER:       ams_user
@@ -332,7 +402,6 @@ services:
       IOTDB_PASS:    root
     volumes:
       - flink-checkpoints:/flink-checkpoints
-      - ../../src/flink/target/ams-flink-1.0-SNAPSHOT.jar:/opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar
       - ./flink-entrypoint.sh:/opt/flink-entrypoint.sh:ro
     ports:
       - "8082:8081"
@@ -341,7 +410,10 @@ services:
       - ams-backend
 
   flink-taskmanager:
-    image: flink:1.18.1-java11
+    build:
+      context: ../../src/flink
+      dockerfile: ../../infra/docker/flink/Dockerfile
+    image: ams-flink:1.0-SNAPSHOT
     container_name: ams-flink-taskmanager
     <<: *default-restart
     depends_on:
@@ -362,7 +434,15 @@ services:
         # Phase 6: consistent settings with jobmanager
         state.backend: rocksdb
         state.backend.incremental: true
-        state.checkpoints.dir: file:///flink-checkpoints
+        # STR-02 — must match the jobmanager exactly; the TM writes the actual
+        # checkpoint data, so a TM still pointing at file:// would silently keep
+        # state on the host while the JM believed it was durable.
+        state.checkpoints.dir: s3://ams-flink/checkpoints
+        state.savepoints.dir: s3://ams-flink/savepoints
+        s3.endpoint: http://minio:9000
+        s3.path.style.access: true
+        s3.access-key: ${MINIO_ROOT_USER:-ams_minio}
+        s3.secret-key: ${MINIO_ROOT_PASSWORD:-ams_minio_dev_password}
         state.checkpoints.num-retained: 3
         execution.checkpointing.interval: 60000
         execution.checkpointing.min-pause: 30000
@@ -392,7 +472,10 @@ services:
       - ams-backend
 
   flink-job-submit:
-    image: flink:1.18.1-java11
+    build:
+      context: ../../src/flink
+      dockerfile: ../../infra/docker/flink/Dockerfile
+    image: ams-flink:1.0-SNAPSHOT
     container_name: ams-flink-job-submit
     depends_on:
       flink-jobmanager:
@@ -411,7 +494,6 @@ services:
       FLINK_ENTRY_CLASS:           com.ams.flink.OpcEventStreamJob
     volumes:
       - ./flink-submit-raw-alarms.sh:/opt/flink-submit-raw-alarms.sh:ro
-      - ../../src/flink/target/ams-flink-1.0-SNAPSHOT.jar:/opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar:ro
     networks:
       - ams-backend
     restart: "no"
@@ -618,6 +700,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       PORT: "3002"
@@ -626,6 +710,9 @@ services:
       DB_NAME: traverse_auth
       DB_USER: ams_user
       DB_PASSWORD: ${POSTGRES_PASSWORD:-supersecurepassword123}
+      # RBAC governance audit trail (Phase 3): role/permission/user changes are emitted
+      # to audit-events for the tamper-evident store. Unset → emit is a no-op (dev).
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       # Stable RS256 key persisted in the auth-keys volume (generated on first start).
       JWT_PRIVATE_KEY_PATH: /app/keys/jwt-private.pem
       JWT_ISSUER: traverse-auth
@@ -758,6 +845,43 @@ services:
       Auth__Audience:  ams-services
     ports:
       - "8095:8080"
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/8080' || exit 1"]  # aspnet image has no wget/curl
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ─────────────────────────────────────────────
+  # Notification Service — root-cause + platform lifecycle alerts
+  #
+  # STR-05: this service existed in the tree but was never deployed, which left
+  # the `lifecycle-alerts` topic with two producers (the telemetry deadman and the
+  # ACK-SLA watchdog in ams-api) and NO consumer — a dead OPC feed raised nothing
+  # an operator could see. It also never compiled until Serilog.Settings.Configuration
+  # was added, which is why CI excluded it from the build matrix.
+  # ─────────────────────────────────────────────
+  notification-service:
+    build:
+      context: ../../src/services/notification-service
+    container_name: traverse-notification-service
+    <<: *default-restart
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:8080
+      Kafka__BootstrapServers: kafka:9092
+      Kafka__LifecycleAlertsTopic: lifecycle-alerts
+      # Email dispatch is opt-in; with no SMTP host configured the alert still
+      # lands in logs and in the ams_lifecycle_alerts_total metric.
+      Smtp__Host: ${SMTP_HOST:-}
+      Smtp__Port: ${SMTP_PORT:-25}
+      Smtp__From: ${SMTP_FROM:-ams-noreply@plant.local}
+    ports:
+      - "8096:8080"
     networks:
       - ams-backend
     healthcheck:
@@ -1004,7 +1128,10 @@ services:
   # Submits IoTDBPersistenceJob once stack is healthy
   # ─────────────────────────────────────────────
   flink-job-submit-iotdb:
-    image: flink:1.18.1-java11
+    build:
+      context: ../../src/flink
+      dockerfile: ../../infra/docker/flink/Dockerfile
+    image: ams-flink:1.0-SNAPSHOT
     container_name: ams-flink-submit-iotdb
     depends_on:
       flink-jobmanager:
@@ -1025,7 +1152,6 @@ services:
       FLINK_JAR_PATH:         /opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar
     volumes:
       - ./flink-submit-iotdb-persistence.sh:/opt/flink-submit-iotdb-persistence.sh:ro
-      - ../../src/flink/target/ams-flink-1.0-SNAPSHOT.jar:/opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar:ro
     networks:
       - ams-backend
     restart: "no"
@@ -1035,7 +1161,10 @@ services:
   # Submits LiveStateJob (live.alarms, live.metrics RBE)
   # ─────────────────────────────────────────────
   flink-job-submit-live-state:
-    image: flink:1.18.1-java11
+    build:
+      context: ../../src/flink
+      dockerfile: ../../infra/docker/flink/Dockerfile
+    image: ams-flink:1.0-SNAPSHOT
     container_name: ams-flink-submit-live-state
     depends_on:
       flink-jobmanager:
@@ -1052,7 +1181,6 @@ services:
       FLINK_JAR_PATH:        /opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar
     volumes:
       - ./flink-submit-live-state.sh:/opt/flink-submit-live-state.sh:ro
-      - ../../src/flink/target/ams-flink-1.0-SNAPSHOT.jar:/opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar:ro
     networks:
       - ams-backend
     restart: "no"
@@ -1063,7 +1191,10 @@ services:
   # (loop.samples.v1 → clpm.gate.results.v1)
   # ─────────────────────────────────────────────
   flink-job-submit-cplm:
-    image: flink:1.18.1-java11
+    build:
+      context: ../../src/flink
+      dockerfile: ../../infra/docker/flink/Dockerfile
+    image: ams-flink:1.0-SNAPSHOT
     container_name: ams-flink-submit-cplm
     depends_on:
       flink-jobmanager:
@@ -1081,7 +1212,6 @@ services:
       CPLM_INPUT_TOPIC:      loop.samples.v1
     volumes:
       - ./flink-submit-cplm.sh:/opt/flink-submit-cplm.sh:ro
-      - ../../src/flink/target/ams-flink-1.0-SNAPSHOT.jar:/opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar:ro
     networks:
       - ams-backend
     restart: "no"
@@ -1093,7 +1223,10 @@ services:
   # one-shot submit containers (restart: "no") do not rerun on their own.
   # ─────────────────────────────────────────────
   flink-job-supervisor:
-    image: flink:1.18.1-java11
+    build:
+      context: ../../src/flink
+      dockerfile: ../../infra/docker/flink/Dockerfile
+    image: ams-flink:1.0-SNAPSHOT
     container_name: ams-flink-job-supervisor
     <<: *default-restart
     depends_on:
@@ -1115,7 +1248,6 @@ services:
       IOTDB_PORT:                  "6667"
     volumes:
       - ./flink-job-supervisor.sh:/opt/flink-job-supervisor.sh:ro
-      - ../../src/flink/target/ams-flink-1.0-SNAPSHOT.jar:/opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar:ro
     networks:
       - ams-backend
 

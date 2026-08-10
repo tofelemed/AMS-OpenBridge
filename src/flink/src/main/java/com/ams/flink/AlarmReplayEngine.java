@@ -2,6 +2,7 @@ package com.ams.flink;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
@@ -48,32 +49,38 @@ public class AlarmReplayEngine {
                 .setParallelism(1)
                 .map(new PipelineOperators.ValidationMap())
                 .name("validation")
+                .uid("validation")
                 .setParallelism(1)
                 .filter(e -> e != null && correlationId.equals(e.getAlarmKey()))
-                .name("correlation-filter");
+                .name("correlation-filter")
+                .uid("correlation-filter");
 
         // Exact same logic as live production pipeline
         SingleOutputStreamOperator<RawOpcAlarmEvent> deduped = filteredAndValidated
                 .keyBy(RawOpcAlarmEvent::getAlarmKey)
                 .filter(new PipelineOperators.DedupFilter())
                 .name("deduplication")
+                .uid("deduplication")
                 .setParallelism(1);
 
         SingleOutputStreamOperator<RawOpcAlarmEvent> normalized = deduped
                 .map(new PipelineOperators.EnrichmentMap())
                 .name("normalization")
+                .uid("normalization")
                 .setParallelism(1)
                 .filter(e -> e != null);
 
         SingleOutputStreamOperator<RawOpcAlarmEvent> soeOrdered = normalized
                 .map(new PipelineOperators.SoeOrderMap())
                 .name("soe-ordering")
+                .uid("soe-ordering")
                 .setParallelism(1);
 
         SingleOutputStreamOperator<RawOpcAlarmEvent> lifecycleStream = soeOrdered
                 .keyBy(RawOpcAlarmEvent::getAlarmKey)
                 .map(new PipelineOperators.LifecycleMap())
                 .name("lifecycle-engine")
+                .uid("lifecycle-engine")
                 .setParallelism(1);
 
         // Convert state outputs into a delta/replay format
@@ -94,10 +101,12 @@ public class AlarmReplayEngine {
             return root.toString();
         })
         .name("replay-delta-formatter")
+        .uid("replay-delta-formatter")
         .setParallelism(1)
         .sinkTo(
             KafkaSink.<String>builder()
                 .setBootstrapServers(brokers)
+                .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .setRecordSerializer(KafkaRecordSerializationSchema.builder()
                         .setTopic("flink.state.alarm.replay")
                         .setValueSerializationSchema(new SimpleStringSchema())
@@ -106,6 +115,7 @@ public class AlarmReplayEngine {
                 .build()
         )
         .name("replay-sink")
+        .uid("replay-sink")
         .setParallelism(1);
 
         env.execute("AMS Alarm Replay Engine [" + replayId + "]");

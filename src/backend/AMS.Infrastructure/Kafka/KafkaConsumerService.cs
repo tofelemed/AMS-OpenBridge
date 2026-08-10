@@ -110,19 +110,42 @@ public sealed class NormalizedAlarmConsumerService : BackgroundService
         Converters = { new QualityJsonConverter() }
     };
 
+    /// <summary>Events routed to the DLQ after all persistence retries failed. Alert on any increase.</summary>
+    private static readonly Prometheus.Counter DlqEvents = Prometheus.Metrics.CreateCounter(
+        "ams_projection_dlq_events_total",
+        "Normalized alarm events routed to the dead-letter topic after exhausting retries.",
+        new Prometheus.CounterConfiguration { LabelNames = new[] { "reason" } });
+
+    /// <summary>Batch persistence attempts that failed and were retried.</summary>
+    private static readonly Prometheus.Counter FlushRetries = Prometheus.Metrics.CreateCounter(
+        "ams_projection_flush_retries_total",
+        "Projection batch persistence attempts that failed and were retried.");
+
+    private const int MaxFlushAttempts = 4;
+
     private readonly ILogger<NormalizedAlarmConsumerService> _logger;
     private readonly KafkaOptions _opts;
     private readonly IServiceProvider _sp;
+    private readonly AlarmEventProducer _producer;
     private IConsumer<string, string>? _consumer;
+
+    // Batch state is instance-level so the partitions-revoked handler can drain it before
+    // the rebalance completes (STR-09): committing the consume position while records sit
+    // un-persisted in this list would acknowledge events that never reached PostgreSQL.
+    private readonly List<NormalizedAlarmEvent> _batch = new(100);
+    private readonly Dictionary<TopicPartition, TopicPartitionOffset> _offsets = new();
+    private readonly SemaphoreSlim _flushLock = new(1, 1);
 
     public NormalizedAlarmConsumerService(
         IOptions<KafkaOptions> opts,
         IServiceProvider sp,
+        AlarmEventProducer producer,
         ILogger<NormalizedAlarmConsumerService> logger)
     {
-        _opts   = opts.Value;
-        _sp     = sp;
-        _logger = logger;
+        _opts     = opts.Value;
+        _sp       = sp;
+        _producer = producer;
+        _logger   = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -154,13 +177,22 @@ public sealed class NormalizedAlarmConsumerService : BackgroundService
             {
                 _logger.LogWarning("Revoked partitions: {Partitions}",
                     string.Join(",", partitions.Select(p => $"{p.Topic}:{p.Partition}")));
+
+                // STR-09: never bare-Commit() here. A bare commit acknowledges the current
+                // consume position, which includes records still sitting un-persisted in
+                // _batch — those events would be lost to the incoming owner. Instead drain
+                // the batch; FlushBatchAsync commits only after PostgreSQL accepted the write.
+                // If the drain fails we deliberately commit nothing and let the new owner
+                // re-read from the last durable offset.
                 try
                 {
-                    c.Commit();
+                    FlushBatchAsync(c, CancellationToken.None).GetAwaiter().GetResult();
                 }
-                catch (KafkaException ex) when (ex.Error.Reason.Contains("No offset stored", StringComparison.OrdinalIgnoreCase))
+                catch (Exception ex)
                 {
-                    _logger.LogDebug("No offsets stored at revoke time; skipping commit.");
+                    _logger.LogError(ex,
+                        "Failed to drain {Count} pending events during partition revoke; " +
+                        "offsets left uncommitted for redelivery.", _batch.Count);
                 }
             })
             .Build();
@@ -168,9 +200,7 @@ public sealed class NormalizedAlarmConsumerService : BackgroundService
         _consumer = consumer;
         consumer.Subscribe(_opts.NormalizedAlarmsTopic);
 
-        var batchSize  = 100;
-        var batch      = new List<NormalizedAlarmEvent>(batchSize);
-        var lastOffsets = new Dictionary<TopicPartition, TopicPartitionOffset>();
+        const int batchSize = 100;
 
         try
         {
@@ -180,16 +210,10 @@ public sealed class NormalizedAlarmConsumerService : BackgroundService
                 {
                     var cr = consumer.Consume(TimeSpan.FromMilliseconds(100));
 
-                    if (cr is null)
+                    if (cr is null || cr.IsPartitionEOF)
                     {
-                        if (batch.Count > 0)
-                            await FlushBatchAsync(batch, lastOffsets, consumer, stoppingToken);
-                        continue;
-                    }
-                    if (cr.IsPartitionEOF)
-                    {
-                        if (batch.Count > 0)
-                            await FlushBatchAsync(batch, lastOffsets, consumer, stoppingToken);
+                        if (_batch.Count > 0)
+                            await FlushBatchAsync(consumer, stoppingToken);
                         continue;
                     }
 
@@ -200,20 +224,31 @@ public sealed class NormalizedAlarmConsumerService : BackgroundService
                     }
                     catch (JsonException jex)
                     {
+                        // A message we cannot even parse will never succeed on retry, so it goes
+                        // straight to the DLQ. Only skip past it once the DLQ write is durable.
                         _logger.LogError(jex, "Failed to deserialize message at offset {Offset}", cr.Offset.Value);
-                        await SendToDeadLetterAsync(cr.Message.Key, cr.Message.Value, "DeserializationFailed", stoppingToken);
-                        consumer.Commit(new[] { new TopicPartitionOffset(cr.TopicPartition, cr.Offset + 1) });
+                        if (await SendToDeadLetterAsync(cr.Message.Key, cr.Message.Value,
+                                                        "DeserializationFailed", cr.TopicPartitionOffset, stoppingToken))
+                        {
+                            consumer.Commit(new[] { new TopicPartitionOffset(cr.TopicPartition, cr.Offset + 1) });
+                        }
+                        else
+                        {
+                            _logger.LogError("DLQ write failed for offset {Offset}; not committing so it is redelivered.",
+                                cr.Offset.Value);
+                            await Task.Delay(2000, stoppingToken);
+                        }
                         continue;
                     }
 
                     if (evt is not null)
                     {
-                        batch.Add(evt);
-                        lastOffsets[cr.TopicPartition] = cr.TopicPartitionOffset;
+                        _batch.Add(evt);
+                        _offsets[cr.TopicPartition] = cr.TopicPartitionOffset;
                     }
 
-                    if (batch.Count >= batchSize)
-                        await FlushBatchAsync(batch, lastOffsets, consumer, stoppingToken);
+                    if (_batch.Count >= batchSize)
+                        await FlushBatchAsync(consumer, stoppingToken);
                 }
                 catch (ConsumeException ex) when (ex.Error.Code == ErrorCode.UnknownTopicOrPart)
                 {
@@ -228,8 +263,8 @@ public sealed class NormalizedAlarmConsumerService : BackgroundService
                 }
             }
 
-            if (batch.Count > 0)
-                await FlushBatchAsync(batch, lastOffsets, consumer, stoppingToken);
+            if (_batch.Count > 0)
+                await FlushBatchAsync(consumer, stoppingToken);
         }
         finally
         {
@@ -245,50 +280,187 @@ public sealed class NormalizedAlarmConsumerService : BackgroundService
         }
     }
 
-    private async Task FlushBatchAsync(
-        List<NormalizedAlarmEvent> batch,
-        Dictionary<TopicPartition, TopicPartitionOffset> offsets,
-        IConsumer<string, string> consumer,
-        CancellationToken ct)
+    /// <summary>
+    /// Persists the pending batch and commits its offsets only once PostgreSQL has accepted
+    /// the write (DOM-01). A transient database failure is retried with exponential backoff;
+    /// the batch and its offsets are retained across attempts so nothing is acknowledged early.
+    /// Only after every retry is exhausted are the events routed to the dead-letter topic, and
+    /// even then the offsets advance only if the DLQ write itself succeeded — otherwise the
+    /// batch stays put and is redelivered rather than silently dropped.
+    /// </summary>
+    private async Task FlushBatchAsync(IConsumer<string, string> consumer, CancellationToken ct)
     {
-        using var scope = _sp.CreateScope();
-        var mediator    = scope.ServiceProvider.GetRequiredService<IMediator>();
-        var uow         = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        var publisher   = scope.ServiceProvider.GetRequiredService<AMS.Application.Alarms.Commands.IAlarmSignalRPublisher>();
-
+        await _flushLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            foreach (var evt in batch)
+            if (_batch.Count == 0) return;
+
+            for (var attempt = 1; attempt <= MaxFlushAttempts; attempt++)
             {
-                await NormalizedAlarmIngestor.ProcessAsync(evt, uow, publisher, ct);
+                try
+                {
+                    using var scope = _sp.CreateScope();
+                    var uow       = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    var publisher = scope.ServiceProvider
+                        .GetRequiredService<AMS.Application.Alarms.Commands.IAlarmSignalRPublisher>();
+
+                    foreach (var evt in _batch)
+                        await NormalizedAlarmIngestor.ProcessAsync(evt, uow, publisher, ct);
+
+                    await uow.SaveChangesAsync(ct);
+
+                    // DATA-06: append to the alarm event log only after the projection write
+                    // succeeded, so history never records an event that was rolled back.
+                    // Failure here must not fail the batch — history is analytics, the
+                    // projection is the system of record.
+                    try
+                    {
+                        await uow.HistoricalAlarms.AppendHistoryAsync(BuildHistoryRecords(_batch), ct);
+                    }
+                    catch (Exception histEx)
+                    {
+                        _logger.LogError(histEx,
+                            "Failed to append {Count} rows to alarm_history; projection is committed and correct.",
+                            _batch.Count);
+                    }
+
+                    consumer.Commit(_offsets.Values);
+                    _logger.LogDebug("Committed batch of {Count} alarm events", _batch.Count);
+
+                    _batch.Clear();
+                    _offsets.Clear();
+                    return;
+                }
+                catch (Exception ex) when (attempt < MaxFlushAttempts && !ct.IsCancellationRequested)
+                {
+                    FlushRetries.Inc();
+                    var delay = TimeSpan.FromMilliseconds(250 * Math.Pow(2, attempt - 1));
+                    _logger.LogWarning(ex,
+                        "Batch persist attempt {Attempt}/{Max} failed for {Count} events; retrying in {Delay}ms. " +
+                        "Offsets remain uncommitted.", attempt, MaxFlushAttempts, _batch.Count, delay.TotalMilliseconds);
+                    await Task.Delay(delay, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    // Retries exhausted (or shutting down): route to the DLQ. Commit only if
+                    // every event was durably accepted by the dead-letter topic.
+                    _logger.LogError(ex,
+                        "Batch of {Count} events failed after {Max} attempts; routing to DLQ {Topic}",
+                        _batch.Count, MaxFlushAttempts, _opts.RawAlarmsDlqTopic);
+
+                    var allDelivered = true;
+                    foreach (var evt in _batch)
+                    {
+                        var delivered = await SendToDeadLetterAsync(
+                            evt.EventId,
+                            JsonSerializer.Serialize(evt),
+                            ex.GetType().Name + ": " + ex.Message,
+                            null,
+                            ct).ConfigureAwait(false);
+                        allDelivered &= delivered;
+                    }
+
+                    if (allDelivered)
+                    {
+                        consumer.Commit(_offsets.Values);
+                        _batch.Clear();
+                        _offsets.Clear();
+                    }
+                    else
+                    {
+                        _logger.LogCritical(
+                            "DLQ write failed for part of a {Count}-event batch; offsets NOT committed. " +
+                            "Events will be redelivered — investigate broker availability.", _batch.Count);
+                    }
+                    return;
+                }
             }
-
-            await uow.SaveChangesAsync(ct);
-
-            // Commit offsets after successful database write
-            consumer.Commit(offsets.Values);
-            _logger.LogDebug("Committed batch of {Count} alarm events", batch.Count);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to process batch of {Count} events, sending to DLQ", batch.Count);
-
-            foreach (var evt in batch)
-                await SendToDeadLetterAsync(evt.EventId, JsonSerializer.Serialize(evt), ex.Message, ct);
         }
         finally
         {
-            batch.Clear();
-            offsets.Clear();
+            _flushLock.Release();
         }
     }
 
-    private Task SendToDeadLetterAsync(string key, string payload, string reason, CancellationToken ct)
+    /// <summary>
+    /// Publishes a poison/failed event to the dead-letter topic. Returns true only when the
+    /// broker acknowledged the write, so callers can decide whether it is safe to advance offsets.
+    /// </summary>
+    private async Task<bool> SendToDeadLetterAsync(
+        string key,
+        string payload,
+        string reason,
+        TopicPartitionOffset? origin,
+        CancellationToken ct)
     {
-        // DLQ producer would be injected in production; simplified here
-        _logger.LogWarning("DLQ: {Key} - {Reason}", key, reason);
-        return Task.CompletedTask;
+        var envelope = new DeadLetterEnvelope(
+            Key: key,
+            Reason: reason,
+            SourceTopic: origin?.Topic ?? _opts.NormalizedAlarmsTopic,
+            SourcePartition: origin?.Partition.Value,
+            SourceOffset: origin?.Offset.Value,
+            FailedAtUtc: DateTimeOffset.UtcNow,
+            Payload: payload);
+
+        try
+        {
+            await _producer.PublishAsync(_opts.RawAlarmsDlqTopic, key ?? string.Empty, envelope, ct)
+                           .ConfigureAwait(false);
+            DlqEvents.WithLabels(reason.Split(':')[0]).Inc();
+            _logger.LogWarning("DLQ published: key={Key} reason={Reason} topic={Topic}",
+                key, reason, _opts.RawAlarmsDlqTopic);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to publish to DLQ topic {Topic} for key {Key}",
+                _opts.RawAlarmsDlqTopic, key);
+            return false;
+        }
     }
+
+    /// <summary>
+    /// Projects the processed batch into append-only history rows (DATA-06).
+    /// ALARM_STATE_DELETE carries no observable state for the log and is skipped.
+    /// </summary>
+    private static List<AMS.Domain.Repositories.AlarmHistoryRecord> BuildHistoryRecords(
+        IReadOnlyList<NormalizedAlarmEvent> batch)
+    {
+        var rows = new List<AMS.Domain.Repositories.AlarmHistoryRecord>(batch.Count);
+        foreach (var evt in batch)
+        {
+            if (string.Equals(evt.EventType, "ALARM_STATE_DELETE", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var eventTime = DateTimeOffset.FromUnixTimeMilliseconds(evt.EventTimeEpochMs);
+            var state = !evt.ConditionActive ? "CLEARED"
+                      : evt.Acknowledged     ? "ACKNOWLEDGED"
+                                             : "ACTIVE";
+
+            rows.Add(new AMS.Domain.Repositories.AlarmHistoryRecord(
+                AlarmId:      evt.AlarmId ?? evt.EventId,
+                Source:       evt.SourceName,
+                Severity:     evt.Severity,
+                Message:      evt.Message,
+                Condition:    evt.ConditionName,
+                SubCondition: evt.SubConditionName,
+                EventTime:    eventTime,
+                State:        state,
+                AckStatus:    evt.Acknowledged,
+                ClearedTime:  evt.ConditionActive ? null : eventTime));
+        }
+        return rows;
+    }
+
+    /// <summary>Wrapper written to the dead-letter topic: enough context to replay or diagnose.</summary>
+    private sealed record DeadLetterEnvelope(
+        string Key,
+        string Reason,
+        string SourceTopic,
+        int? SourcePartition,
+        long? SourceOffset,
+        DateTimeOffset FailedAtUtc,
+        string Payload);
 
     internal sealed class QualityJsonConverter : JsonConverter<int>
     {

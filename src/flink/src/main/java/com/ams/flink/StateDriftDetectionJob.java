@@ -5,6 +5,7 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
@@ -57,6 +58,7 @@ public class StateDriftDetectionJob {
 
         KafkaSink<String> sink = KafkaSink.<String>builder()
                 .setBootstrapServers(brokers)
+                .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .setRecordSerializer(KafkaRecordSerializationSchema.builder()
                         .setTopic("system.state.drift.alerts")
                         .setValueSerializationSchema(new SimpleStringSchema())

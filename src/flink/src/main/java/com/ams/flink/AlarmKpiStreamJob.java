@@ -5,6 +5,7 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
@@ -62,7 +63,8 @@ public class AlarmKpiStreamJob {
         DataStream<String> lifecycleStream = env
                 .fromSource(lifecycleSource, WatermarkStrategy.noWatermarks(), "lifecycle-source")
                 .assignTimestampsAndWatermarks(watermarkStrategy)
-                .name("lifecycle-kpi-ingest");
+                .name("lifecycle-kpi-ingest")
+                .uid("lifecycle-kpi-ingest");
 
         // 1. Alarm Rate & Flood Detection (10 min sliding window, sliding every 1 min)
         DataStream<AlarmKpiResult> alarmRates = lifecycleStream
@@ -74,10 +76,12 @@ public class AlarmKpiStreamJob {
                 })
                 .windowAll(SlidingEventTimeWindows.of(Time.minutes(10), Time.minutes(1)))
                 .process(new AlarmRateProcessWindowFunction())
-                .name("alarm-rate-10m");
+                .name("alarm-rate-10m")
+                .uid("alarm-rate-10m");
 
         KafkaSink<String> ratesSink = KafkaSink.<String>builder()
                 .setBootstrapServers(cfg.brokers)
+                .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .setRecordSerializer(KafkaRecordSerializationSchema.builder()
                         .setTopic("kpi-alarm-rates")
                         .setValueSerializationSchema(new SimpleStringSchema())
@@ -90,10 +94,12 @@ public class AlarmKpiStreamJob {
         DataStream<AlarmKpiResult> standingSnapshot = lifecycleStream
                 .keyBy(json -> "GLOBAL") // Simple global counter for lab purposes
                 .process(new StandingAlarmTracker())
-                .name("standing-alarm-tracker");
+                .name("standing-alarm-tracker")
+                .uid("standing-alarm-tracker");
 
         KafkaSink<String> standingSink = KafkaSink.<String>builder()
                 .setBootstrapServers(cfg.brokers)
+                .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .setRecordSerializer(KafkaRecordSerializationSchema.builder()
                         .setTopic("kpi-standing-snapshots")
                         .setValueSerializationSchema(new SimpleStringSchema())

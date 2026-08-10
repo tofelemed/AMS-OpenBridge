@@ -58,10 +58,12 @@ public class IoTDBPersistenceJob {
                 .fromSource(rawSource, WatermarkStrategy.noWatermarks(), "raw-alarms-iotdb")
                 .map(IoTDBPersistenceJob::parseToRow)
                 .filter(r -> r != null)
-                .name("iotdb-parse-filter");
+                .name("iotdb-parse-filter")
+                .uid("iotdb-parse-filter");
 
         rows.addSink(buildSink(cfg))
-            .name("iotdb-alarm-sink");
+            .name("iotdb-alarm-sink")
+            .uid("iotdb-alarm-sink");
 
         env.execute("AMS - IoTDB Alarm Persistence");
     }

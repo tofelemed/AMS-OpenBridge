@@ -1,0 +1,5 @@
+# Host build artifacts must not leak into the image: obj/project.assets.json records HOST nuget
+# paths, which breaks the container's `dotnet publish --no-restore` (NETSDK1064).
+bin/
+obj/
+out/

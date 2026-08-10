@@ -59,8 +59,10 @@ public class CplmLongDiagnosticsStreamJob {
                 .keyBy(s -> s.loopId)
                 .process(new LongDiagnosticsProcessFunction())
                 .name("cplm-long-diagnostics-keyed-process")
+                .uid("cplm-long-diagnostics-keyed-process")
                 .map(CplmLongDiagnosticsResult::toJson)
-                .name("cplm-long-diagnostics-serialize");
+                .name("cplm-long-diagnostics-serialize")
+                .uid("cplm-long-diagnostics-serialize");
 
         CplmKafkaSink.attach(diagnostics, cfg, cfg.longFeatureTopic, "cplm-long-diagnostics-sink");
         env.execute(cfg.jobName);

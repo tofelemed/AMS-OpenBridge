@@ -45,6 +45,7 @@ public sealed class CplmResultConsumerService : BackgroundService
     private readonly CplmOptions _options;
     private readonly Traverse.CplmApi.Services.IotDbWriteClient _iotdb;
     private readonly Traverse.CplmApi.Services.ConsumerHeartbeat _heartbeat;
+    private readonly Traverse.CplmApi.Services.SingleMemberGuard _guard;
     private readonly IConsumer<string, string> _consumer;
 
     public CplmResultConsumerService(
@@ -53,6 +54,7 @@ public sealed class CplmResultConsumerService : BackgroundService
         IOptions<CplmOptions> cplmOptions,
         Traverse.CplmApi.Services.IotDbWriteClient iotdb,
         Traverse.CplmApi.Services.ConsumerHeartbeat heartbeat,
+        Traverse.CplmApi.Services.SingleMemberGuard guard,
         [FromKeyedServices("cplm")] NpgsqlDataSource dataSource)
     {
         _logger = logger;
@@ -60,11 +62,15 @@ public sealed class CplmResultConsumerService : BackgroundService
         _options = cplmOptions.Value;
         _iotdb = iotdb;
         _heartbeat = heartbeat;
+        _guard = guard;
 
         var config = new ConsumerConfig
         {
             BootstrapServers = kafkaOptions.Value.BootstrapServers,
             GroupId = _options.ConsumerGroupId,
+            // STR-06: static membership. Names the intended sole member explicitly and
+            // avoids a full rebalance on every restart of this service.
+            GroupInstanceId = _options.ConsumerGroupId + "-sole",
             // Earliest: on first deploy, ingest results already sitting in the
             // topics (30 d retention on gate results) instead of only new ones.
             AutoOffsetReset = AutoOffsetReset.Earliest,
@@ -73,7 +79,12 @@ public sealed class CplmResultConsumerService : BackgroundService
             EnableAutoCommit = true,
             EnableAutoOffsetStore = false
         };
-        _consumer = new ConsumerBuilder<string, string>(config).Build();
+        _consumer = new ConsumerBuilder<string, string>(config)
+            // STR-06: a second member would silently take half the partitions and
+            // persist half the windows. Assert we hold all of them.
+            .SetPartitionsAssignedHandler((_, parts) =>
+                _guard.VerifySoleMembership("results", parts))
+            .Build();
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

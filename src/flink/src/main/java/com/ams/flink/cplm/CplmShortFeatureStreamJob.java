@@ -54,8 +54,10 @@ public class CplmShortFeatureStreamJob {
                 .allowedLateness(Time.seconds(30))
                 .process(new ShortFeatureWindowFn("1m"))
                 .name("cplm-short-window-1m")
+                .uid("cplm-short-window-1m")
                 .map(CplmShortFeatureResult::toJson)
-                .name("cplm-short-serialize-1m");
+                .name("cplm-short-serialize-1m")
+                .uid("cplm-short-serialize-1m");
 
         // Branch 2: 5m sliding / 1m slide, 60s allowed lateness
         DataStream<String> branch5m = normalized
@@ -64,8 +66,10 @@ public class CplmShortFeatureStreamJob {
                 .allowedLateness(Time.seconds(60))
                 .process(new ShortFeatureWindowFn("5m"))
                 .name("cplm-short-window-5m")
+                .uid("cplm-short-window-5m")
                 .map(CplmShortFeatureResult::toJson)
-                .name("cplm-short-serialize-5m");
+                .name("cplm-short-serialize-5m")
+                .uid("cplm-short-serialize-5m");
 
         // Branch 3: 10m sliding / 2m slide, 90s allowed lateness
         DataStream<String> branch10m = normalized
@@ -74,8 +78,10 @@ public class CplmShortFeatureStreamJob {
                 .allowedLateness(Time.seconds(90))
                 .process(new ShortFeatureWindowFn("10m"))
                 .name("cplm-short-window-10m")
+                .uid("cplm-short-window-10m")
                 .map(CplmShortFeatureResult::toJson)
-                .name("cplm-short-serialize-10m");
+                .name("cplm-short-serialize-10m")
+                .uid("cplm-short-serialize-10m");
 
         // Branch 4: 15m sliding / 5m slide, 2min allowed lateness
         DataStream<String> branch15m = normalized
@@ -84,8 +90,10 @@ public class CplmShortFeatureStreamJob {
                 .allowedLateness(Time.minutes(2))
                 .process(new ShortFeatureWindowFn("15m"))
                 .name("cplm-short-window-15m")
+                .uid("cplm-short-window-15m")
                 .map(CplmShortFeatureResult::toJson)
-                .name("cplm-short-serialize-15m");
+                .name("cplm-short-serialize-15m")
+                .uid("cplm-short-serialize-15m");
 
         // Branch 5: 30m sliding / 5m slide, 2min allowed lateness
         DataStream<String> branch30m = normalized
@@ -94,8 +102,10 @@ public class CplmShortFeatureStreamJob {
                 .allowedLateness(Time.minutes(2))
                 .process(new ShortFeatureWindowFn("30m"))
                 .name("cplm-short-window-30m")
+                .uid("cplm-short-window-30m")
                 .map(CplmShortFeatureResult::toJson)
-                .name("cplm-short-serialize-30m");
+                .name("cplm-short-serialize-30m")
+                .uid("cplm-short-serialize-30m");
 
         // Branch 6: 60m sliding / 5m slide, 3min allowed lateness
         DataStream<String> branch60m = normalized
@@ -104,8 +114,10 @@ public class CplmShortFeatureStreamJob {
                 .allowedLateness(Time.minutes(3))
                 .process(new ShortFeatureWindowFn("60m"))
                 .name("cplm-short-window-60m")
+                .uid("cplm-short-window-60m")
                 .map(CplmShortFeatureResult::toJson)
-                .name("cplm-short-serialize-60m");
+                .name("cplm-short-serialize-60m")
+                .uid("cplm-short-serialize-60m");
 
         // Union all four branches into one sink
         DataStream<String> union = branch1m.union(branch5m).union(branch10m).union(branch15m).union(branch30m).union(branch60m);

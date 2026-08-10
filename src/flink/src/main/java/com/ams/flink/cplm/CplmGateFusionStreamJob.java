@@ -71,27 +71,33 @@ public class CplmGateFusionStreamJob {
                 .map(CplmShortFeatureResult::fromJson)
                 .filter(s -> s != null && s.loopId != null && !s.loopId.isEmpty())
                 .name("cplm-fusion-short-parse")
+                .uid("cplm-fusion-short-parse")
                 .assignTimestampsAndWatermarks(shortWm)
-                .name("cplm-fusion-short-watermarks");
+                .name("cplm-fusion-short-watermarks")
+                .uid("cplm-fusion-short-watermarks");
 
         DataStream<CplmLongDiagnosticsResult> parsedLongStream = env
                 .fromSource(longSource, WatermarkStrategy.noWatermarks(), "cplm-fusion-long-source")
                 .map(CplmLongDiagnosticsResult::fromJson)
                 .filter(l -> l != null && l.loopId != null && !l.loopId.isEmpty())
-                .name("cplm-fusion-long-parse");
+                .name("cplm-fusion-long-parse")
+                .uid("cplm-fusion-long-parse");
 
         DataStream<CplmLongDiagnosticsResult> longStream =
                 CplmParameterSetBroadcastSupport.connectLongProfiles(parsedLongStream, env, cfg)
                 .assignTimestampsAndWatermarks(longWm)
-                .name("cplm-fusion-long-watermarks");
+                .name("cplm-fusion-long-watermarks")
+                .uid("cplm-fusion-long-watermarks");
 
         DataStream<String> fused = shortStream
                 .keyBy(s -> s.loopId)
                 .connect(longStream.keyBy(l -> l.loopId))
                 .process(new GateFusionCoProcess())
                 .name("cplm-gate-fusion-join")
+                .uid("cplm-gate-fusion-join")
                 .map(CplmGateResult::toJson)
-                .name("cplm-gate-fusion-serialize");
+                .name("cplm-gate-fusion-serialize")
+                .uid("cplm-gate-fusion-serialize");
 
         CplmKafkaSink.attach(fused, cfg, cfg.outputTopic, "cplm-gate-fusion-sink");
         env.execute(cfg.jobName);

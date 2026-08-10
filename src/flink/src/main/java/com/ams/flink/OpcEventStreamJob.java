@@ -2,6 +2,7 @@ package com.ams.flink;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
@@ -55,62 +56,74 @@ public class OpcEventStreamJob {
                 .setParallelism(cfg.rawSource)
                 .map(new PipelineOperators.ValidationMap())
                 .name("validation")
+                .uid("validation")
                 .setParallelism(cfg.validation)
                 .filter(e -> e != null)
-                .name("validation-filter");
+                .name("validation-filter")
+                .uid("validation-filter");
 
         SingleOutputStreamOperator<RawOpcAlarmEvent> deduped = validated
                 .keyBy(RawOpcAlarmEvent::getAlarmKey)
                 .filter(new PipelineOperators.DedupFilter())
                 .name("deduplication")
+                .uid("deduplication")
                 .setParallelism(cfg.dedup);
 
         SingleOutputStreamOperator<RawOpcAlarmEvent> normalized = deduped
                 .map(new PipelineOperators.EnrichmentMap())
                 .name("normalization")
+                .uid("normalization")
                 .setParallelism(cfg.enrichment)
                 .filter(e -> e != null);
 
         SingleOutputStreamOperator<RawOpcAlarmEvent> soeOrdered = normalized
                 .map(new PipelineOperators.SoeOrderMap())
                 .name("soe-ordering")
+                .uid("soe-ordering")
                 .setParallelism(cfg.soe);
 
         SingleOutputStreamOperator<RawOpcAlarmEvent> lifecycleStream = soeOrdered
                 .keyBy(RawOpcAlarmEvent::getAlarmKey)
                 .map(new PipelineOperators.LifecycleMap())
                 .name("lifecycle-engine")
+                .uid("lifecycle-engine")
                 .setParallelism(cfg.lifecycle);
 
         SingleOutputStreamOperator<RawOpcAlarmEvent> correlated = lifecycleStream
                 .map(new PipelineOperators.CorrelationMap())
                 .name("correlation-engine")
+                .uid("correlation-engine")
                 .setParallelism(cfg.correlation)
                 .filter(e -> e != null);
 
         SingleOutputStreamOperator<RawOpcAlarmEvent> floodFiltered = correlated
                 .filter(new PipelineOperators.FloodDetectFilter())
                 .name("flood-detection")
+                .uid("flood-detection")
                 .setParallelism(cfg.flood);
 
         DataStream<String> rootCause = floodFiltered
                 .map(new PipelineOperators.RootCauseMap())
                 .name("root-cause-analysis")
+                .uid("root-cause-analysis")
                 .setParallelism(cfg.correlation)
                 .filter(s -> s != null && !s.isEmpty());
         rootCause.sinkTo(kafkaSink(cfg.brokers, "root-cause-events"))
                 .name("root-cause-sink")
+                .uid("root-cause-sink")
                 .setParallelism(cfg.correlation);
 
         floodFiltered
                 .map(new PipelineOperators.KpiMap())
                 .name("kpi-aggregation")
+                .uid("kpi-aggregation")
                 .setParallelism(cfg.kpi)
                 .filter(s -> s != null && !s.isEmpty());
 
         DataStream<String> lifecycleEvents = floodFiltered
                 .map(PipelineOperators::toLifecycleJson)
-                .name("lifecycle-events");
+                .name("lifecycle-events")
+                .uid("lifecycle-events");
         lifecycleEvents.sinkTo(kafkaSink(cfg.brokers, "lifecycle-events"));
 
         DataStream<String> currentState = floodFiltered
@@ -120,9 +133,11 @@ public class OpcEventStreamJob {
                     }
                     return PipelineOperators.toCurrentAlarmStateJson(e, e.acknowledged);
                 })
-                .name("projection-builder");
+                .name("projection-builder")
+                .uid("projection-builder");
         currentState.sinkTo(kafkaSink(cfg.brokers, "current-alarm-state"))
                 .name("current-alarm-state-sink")
+                .uid("current-alarm-state-sink")
                 .setParallelism(cfg.projection);
 
         // ACK orchestration: operator-actions → ack-writeback
@@ -131,6 +146,7 @@ public class OpcEventStreamJob {
                 .setParallelism(cfg.ackProcessor)
                 .map(OpcEventStreamJob::toAckWriteback)
                 .name("ack-processor")
+                .uid("ack-processor")
                 .setParallelism(cfg.ackProcessor)
                 .filter(s -> s != null && !s.isEmpty())
                 .sinkTo(kafkaSink(cfg.brokers, "ack-writeback"));
@@ -141,13 +157,15 @@ public class OpcEventStreamJob {
                 .fromSource(ackResultsSource, WatermarkStrategy.noWatermarks(), "ack-results")
                 .setParallelism(cfg.ackProcessor)
                 .filter(s -> s != null && !s.isEmpty())
-                .name("ack-results");
+                .name("ack-results")
+                .uid("ack-results");
 
         ackResults
                 .map(OpcEventStreamJob::toAckLifecycleEvent)
                 .filter(s -> s != null && !s.isEmpty())
                 .sinkTo(kafkaSink(cfg.brokers, "lifecycle-events"))
                 .name("ack-lifecycle-sink")
+                .uid("ack-lifecycle-sink")
                 .setParallelism(cfg.ackProcessor);
 
         ackResults
@@ -156,6 +174,7 @@ public class OpcEventStreamJob {
                 .filter(s -> s != null && !s.isEmpty())
                 .sinkTo(kafkaSink(cfg.brokers, "current-alarm-state"))
                 .name("ack-projection-sink")
+                .uid("ack-projection-sink")
                 .setParallelism(cfg.projection);
 
         env.execute("AMS - Alarm State Machine");
@@ -176,6 +195,7 @@ public class OpcEventStreamJob {
     private static KafkaSink<String> kafkaSink(String brokers, String topic) {
         return KafkaSink.<String>builder()
                 .setBootstrapServers(brokers)
+                .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .setRecordSerializer(KafkaRecordSerializationSchema.builder()
                         .setTopic(topic)
                         .setValueSerializationSchema(new SimpleStringSchema())

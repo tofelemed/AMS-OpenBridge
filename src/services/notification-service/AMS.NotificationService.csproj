@@ -12,9 +12,17 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="8.0.0" />
+    <!-- Required by Program.cs ReadFrom.Configuration(...). Its absence meant this
+         service had never compiled, which is why CI excluded it from the build matrix. -->
+    <PackageReference Include="Serilog.Settings.Configuration" Version="8.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
-    <PackageReference Include="System.Text.Json" Version="8.0.4" />
-    <PackageReference Include="MailKit" Version="4.6.0" />
+    <!-- 8.0.4 carried GHSA-8g4q-xg66-9fp4 (HIGH); 8.0.5 clears it. CI's Trivy gate
+         fails the build on HIGH/CRITICAL. -->
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <!-- GHSA-9j88-vvj5-vhgr (moderate) is still open upstream — it reproduces on the
+         latest 4.13.0, so there is nothing to upgrade to. Below the Trivy gate;
+         revisit when MailKit ships a fix. -->
+    <PackageReference Include="MailKit" Version="4.13.0" />
     <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
   </ItemGroup>
 </Project>

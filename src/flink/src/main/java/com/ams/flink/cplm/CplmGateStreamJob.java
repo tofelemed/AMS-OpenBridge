@@ -2,6 +2,7 @@ package com.ams.flink.cplm;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
@@ -47,11 +48,14 @@ public class CplmGateStreamJob {
                 .window(TumblingEventTimeWindows.of(Time.hours(24)))
                 .process(new CplmGateWindowFunction())
                 .name("cplm-gate-window")
+                .uid("cplm-gate-window")
                 .map(CplmGateResult::toJson)
-                .name("cplm-gate-serialize");
+                .name("cplm-gate-serialize")
+                .uid("cplm-gate-serialize");
 
         KafkaSink<String> sink = KafkaSink.<String>builder()
                 .setBootstrapServers(cfg.brokers)
+                .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .setRecordSerializer(KafkaRecordSerializationSchema.builder()
                         .setTopic(cfg.outputTopic)
                         .setValueSerializationSchema(new SimpleStringSchema())

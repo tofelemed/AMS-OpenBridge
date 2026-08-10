@@ -4,6 +4,7 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
@@ -89,17 +90,21 @@ public final class CplmHistoricalReplayJob {
                 .window(TumblingEventTimeWindows.of(Time.hours(24), Time.milliseconds(windowOffsetMs)))
                 .process(new HistoricalWindowFunction(replayId, hasStepTest, hasPeerLinks))
                 .name("cplm-historical-native-formula")
+                .uid("cplm-historical-native-formula")
                 .map(result -> withReplayLineage(result, replayId, inputTopic))
-                .name("cplm-historical-lineage");
+                .name("cplm-historical-lineage")
+                .uid("cplm-historical-lineage");
 
         results.sinkTo(KafkaSink.<String>builder()
                         .setBootstrapServers(brokers)
+                        .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                         .setRecordSerializer(KafkaRecordSerializationSchema.builder()
                                 .setTopic(outputTopic)
                                 .setValueSerializationSchema(new SimpleStringSchema())
                                 .build())
                         .build())
                 .name("cplm-historical-gate-sink")
+                .uid("cplm-historical-gate-sink")
                 .setParallelism(1);
 
         env.execute("AMS - CPLM Historical Replay [" + replayId + "]");

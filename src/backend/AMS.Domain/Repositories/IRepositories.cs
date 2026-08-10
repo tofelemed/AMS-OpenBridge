@@ -39,7 +39,28 @@ public interface IHistoricalAlarmRepository
     Task<long> CountAsync(HistoricalAlarmQuery query, CancellationToken ct = default);
     Task BulkInsertAsync(IEnumerable<object> records, CancellationToken ct = default);
     IAsyncEnumerable<object> StreamAsync(HistoricalAlarmQuery query, CancellationToken ct = default);
+
+    /// <summary>
+    /// Appends processed alarm events to alarms.alarm_history (DATA-06).
+    /// Until this existed the table had readers — the KPI dashboard and history
+    /// search — but no writer anywhere in the repository, so both surfaces read
+    /// a permanently empty table.
+    /// </summary>
+    Task AppendHistoryAsync(IReadOnlyList<AlarmHistoryRecord> records, CancellationToken ct = default);
 }
+
+/// <summary>One row of the append-only alarm event log (alarms.alarm_history).</summary>
+public record AlarmHistoryRecord(
+    string AlarmId,
+    string Source,
+    int Severity,
+    string? Message,
+    string? Condition,
+    string? SubCondition,
+    DateTimeOffset EventTime,
+    string State,
+    bool AckStatus,
+    DateTimeOffset? ClearedTime);
 
 /// <summary>
 /// Repository contract for SOE events.

@@ -7,6 +7,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
@@ -19,7 +20,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
- * Flink job: current-alarm-state → live.alarms + live.metrics  (Report-by-Exception).
+ * Flink job: current-alarm-state → live.alarms + live.alarm.metrics  (Report-by-Exception).
  *
  * Reads the compacted current-alarm-state topic.  For every incoming event it compares
  * the new state against the last published state (held in Flink ValueState keyed by alarmId).
@@ -27,13 +28,21 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
  *
  * Two output topics:
  *   live.alarms   — full alarm state envelope (for the HMI alarm list / faceplate)
- *   live.metrics  — lightweight numeric metrics (severity, count) for dashboard widgets
+ *   live.alarm.metrics — lightweight numeric metrics (severity, state) for dashboard widgets
  *
  * Spec reference: §6 "Live-State Job", §8.2 "Kafka → MQTT bridge".
  */
 public class LiveStateJob {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    /**
+     * STR-12 — alarm-shaped numeric metrics. Deliberately NOT `live.metrics`: that topic
+     * carries the process-value schema ({device, metric, value}) that sparkplug-edge-node's
+     * metric branch parses, and mixing the two shapes meant these records were silently
+     * discarded by the consumer.
+     */
+    private static final String ALARM_METRICS_TOPIC = "live.alarm.metrics";
 
     public static void main(String[] args) throws Exception {
         PipelineConfig cfg = PipelineConfig.fromArgs(args);
@@ -58,25 +67,40 @@ public class LiveStateJob {
         DataStream<String> currentState = env
                 .fromSource(source, WatermarkStrategy.noWatermarks(), "current-alarm-state-source")
                 .filter(s -> s != null && !s.isBlank())
-                .name("live-state-ingest");
+                .name("live-state-ingest")
+                .uid("live-state-ingest");
 
         // ── live.alarms ── full envelope, RBE filtered
         currentState
                 .keyBy(LiveStateJob::extractAlarmId)
                 .map(new RbeAlarmStateMap())
                 .name("rbe-alarm-filter")
+                .uid("rbe-alarm-filter")
                 .filter(s -> s != null && !s.isEmpty())
                 .sinkTo(kafkaSink(cfg.brokers, "live.alarms"))
-                .name("live-alarms-sink");
+                .name("live-alarms-sink")
+                .uid("live-alarms-sink");
 
-        // ── live.metrics ── numeric metrics only
+        // ── alarm numeric metrics ──
+        // STR-12: this used to sink to `live.metrics`, which is ALSO the process-value
+        // topic. The two payloads are incompatible: sparkplug-edge-node's metric branch
+        // requires {device, metric, value} and RbeMetricsMap emits {alarmId, severity,
+        // state, priority}. Every record produced here was therefore dropped by the edge
+        // node as "missing device/metric" — a silently dead path whose data is in any
+        // case already carried, in full, by live.alarms.
+        //
+        // Keeping the topics separate makes the schemas single-purpose. Note the new
+        // topic has no consumer today: this sink is a candidate for removal, but that is
+        // a product decision (see STR-08's schedule-or-retire list), not a silent drop.
         currentState
                 .keyBy(LiveStateJob::extractAlarmId)
                 .map(new RbeMetricsMap())
                 .name("rbe-metrics-filter")
+                .uid("rbe-metrics-filter")
                 .filter(s -> s != null && !s.isEmpty())
-                .sinkTo(kafkaSink(cfg.brokers, "live.metrics"))
-                .name("live-metrics-sink");
+                .sinkTo(kafkaSink(cfg.brokers, ALARM_METRICS_TOPIC))
+                .name("live-metrics-sink")
+                .uid("live-metrics-sink");
 
         env.execute("AMS - Live State RBE");
     }
@@ -239,6 +263,7 @@ public class LiveStateJob {
     private static KafkaSink<String> kafkaSink(String brokers, String topic) {
         return KafkaSink.<String>builder()
                 .setBootstrapServers(brokers)
+                .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .setRecordSerializer(
                         KafkaRecordSerializationSchema.builder()
                                 .setTopic(topic)

@@ -68,7 +68,8 @@ public final class CplmParameterSetBroadcastSupport {
                         "cplm-parameter-legacy-source")
                 .process(new LegacyParameterHydrateFn())
                 .setParallelism(1)
-                .name("cplm-parameter-legacy-hydrate");
+                .name("cplm-parameter-legacy-hydrate")
+                .uid("cplm-parameter-legacy-hydrate");
 
         if (!consumeCanonical()) {
             return;
@@ -85,7 +86,8 @@ public final class CplmParameterSetBroadcastSupport {
                         "cplm-parameter-set-source")
                 .process(new ParameterSetHydrateFn())
                 .setParallelism(1)
-                .name("cplm-parameter-set-hydrate");
+                .name("cplm-parameter-set-hydrate")
+                .uid("cplm-parameter-set-hydrate");
     }
 
     /**
@@ -100,7 +102,8 @@ public final class CplmParameterSetBroadcastSupport {
         BroadcastStream<String> profiles = buildParameterUpdateStream(env, cfg).broadcast(PROFILE_STATE);
         return samples.connect(profiles)
                 .process(new SampleProfileBroadcastFn())
-                .name("cplm-sample-profile-broadcast");
+                .name("cplm-sample-profile-broadcast")
+                .uid("cplm-sample-profile-broadcast");
     }
 
     /**
@@ -114,7 +117,8 @@ public final class CplmParameterSetBroadcastSupport {
         BroadcastStream<String> profiles = buildParameterUpdateStream(env, cfg).broadcast(PROFILE_STATE);
         return diagnostics.connect(profiles)
                 .process(new LongProfileBroadcastFn())
-                .name("cplm-fusion-profile-broadcast");
+                .name("cplm-fusion-profile-broadcast")
+                .uid("cplm-fusion-profile-broadcast");
     }
 
     private static DataStream<String> buildParameterUpdateStream(

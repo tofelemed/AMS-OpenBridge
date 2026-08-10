@@ -32,6 +32,11 @@ public sealed class ActiveAlarmConfiguration : IEntityTypeConfiguration<ActiveAl
         b.Property(a => a.Id).HasColumnName("id").ValueGeneratedNever();
 
         b.Property(a => a.AlarmId).HasColumnName("alarm_id").IsRequired();
+        // DATA-01: server_id is part of the alarm's identity
+        // (server + source + condition + subCondition) and is backed by
+        // uq_alarm_current_identity. It was previously unmapped, which let two
+        // OPC servers exposing the same tag name collide in the projection.
+        b.Property(a => a.ServerId).HasColumnName("server_id").IsRequired();
         b.Property(a => a.SourceName).HasColumnName("source").IsRequired();
         b.Property(a => a.Severity).HasColumnName("severity").IsRequired();
         b.Property(a => a.Message).HasColumnName("message");
@@ -65,7 +70,6 @@ public sealed class ActiveAlarmConfiguration : IEntityTypeConfiguration<ActiveAl
         // Ignored properties to match the new simple table schema without throwing errors:
         b.Ignore(a => a.CreatedAt);
         b.Ignore(a => a.UpdatedAt);
-        b.Ignore(a => a.ServerId);
         b.Ignore(a => a.AlarmTagId);
         b.Ignore(a => a.EventType);
         b.Ignore(a => a.Priority);
@@ -78,12 +82,14 @@ public sealed class ActiveAlarmConfiguration : IEntityTypeConfiguration<ActiveAl
         b.Ignore(a => a.AckedBy);
         b.Ignore(a => a.AckComment);
         b.Ignore(a => a.ServerReceivedAt);
-        b.Ignore(a => a.IsShelved);
+        // DOM-02: shelving is now persisted. These were ignored, so an operator's
+        // shelve was lost on the next reload and shelve expiry had nothing to act on.
+        b.Property(a => a.IsShelved).HasColumnName("is_shelved");
+        b.Property(a => a.ShelveUntil).HasColumnName("shelve_until").HasColumnType("timestamptz(3)");
+        b.Property(a => a.IsSuppressed).HasColumnName("is_suppressed");
         b.Ignore(a => a.ShelvedAt);
-        b.Ignore(a => a.ShelvedBy);
-        b.Ignore(a => a.ShelveUntil);
+        b.Property(a => a.ShelvedBy).HasColumnName("shelved_by");
         b.Ignore(a => a.ShelveComment);
-        b.Ignore(a => a.IsSuppressed);
         b.Ignore(a => a.SuppressedAt);
         b.Ignore(a => a.SuppressedBy);
         b.Ignore(a => a.SuppressionReason);

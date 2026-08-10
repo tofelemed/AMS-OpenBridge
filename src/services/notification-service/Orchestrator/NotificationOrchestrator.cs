@@ -71,6 +71,67 @@ public class NotificationOrchestrator
         }
     }
 
+    /// <summary>
+    /// Dispatches a platform lifecycle alert (STR-05). Unlike a root-cause event these are
+    /// not tied to a plant area — a stalled telemetry feed or a breached ACK SLA is an
+    /// operations-wide condition — so every configured channel is notified.
+    /// </summary>
+    public async Task ProcessLifecycleAlertAsync(LifecycleAlert alert, CancellationToken ct)
+    {
+        var severityTag = alert.IsCritical ? "CRITICAL" : alert.Severity.ToUpperInvariant();
+        var subject     = $"[AMS {severityTag}] {alert.EventType}";
+        var body        = GenerateLifecycleAlertBody(alert);
+
+        var channels = GetActivePoliciesForArea(new List<string>())
+            .Where(p => IsActiveForCurrentShift(p.Schedule))
+            .SelectMany(p => p.Channels)
+            .ToList();
+
+        if (channels.Count == 0)
+        {
+            _logger.LogWarning(
+                "Lifecycle alert {EventType} had no active notification channel; " +
+                "it is recorded in logs and metrics only.", alert.EventType);
+            return;
+        }
+
+        foreach (var channel in channels)
+        {
+            var provider = _providers.FirstOrDefault(
+                p => p.ChannelType.Equals(channel.Type, StringComparison.OrdinalIgnoreCase));
+
+            if (provider is null)
+            {
+                _logger.LogWarning("No provider for channel type {ChannelType}", channel.Type);
+                continue;
+            }
+
+            try
+            {
+                await provider.SendAsync(channel.TargetEndpoint, subject, body, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to dispatch lifecycle alert to {ChannelType} {Endpoint}",
+                    channel.Type, channel.TargetEndpoint);
+            }
+        }
+    }
+
+    private static string GenerateLifecycleAlertBody(LifecycleAlert alert)
+    {
+        var raisedAt = DateTimeOffset.FromUnixTimeMilliseconds(alert.TimestampEpochMs);
+        return $@"
+            <h3>AMS platform alert: {alert.EventType}</h3>
+            <ul>
+                <li><b>Severity:</b> {alert.Severity}</li>
+                <li><b>Raised:</b> {raisedAt:yyyy-MM-dd HH:mm:ss} UTC</li>
+                <li><b>Detail:</b> {alert.Describe()}</li>
+            </ul>
+            <p>This alert came from an AMS pipeline watchdog, not from a process alarm.
+               Check ingest and stream health before trusting the alarm console.</p>";
+    }
+
     private string GenerateMessageBody(RootCauseEvent rootCause)
     {
         return $@"

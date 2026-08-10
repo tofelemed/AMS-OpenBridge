@@ -111,10 +111,16 @@ public sealed class ActiveAlarmRepository : IActiveAlarmRepository
             .Where(a => a.SourceName == sourceName)
             .ToListAsync(ct);
 
+    /// <summary>
+    /// Ingest-path lookup. DATA-01: this MUST filter on serverId — it previously accepted the
+    /// parameter and ignored it, so an alarm from one OPC server could match and overwrite a
+    /// same-named tag from another. Backed by uq_alarm_current_identity, whose leading columns
+    /// are (server_id, source), so this is an index probe rather than a sequential scan.
+    /// </summary>
     public async Task<IReadOnlyList<ActiveAlarm>> GetBySourceNameForIngestAsync(
         Guid serverId, string sourceName, CancellationToken ct = default)
         => await _ctx.ActiveAlarms
-            .Where(a => a.SourceName == sourceName)
+            .Where(a => a.ServerId == serverId && a.SourceName == sourceName)
             .ToListAsync(ct);
 
     public async Task<IReadOnlyList<ActiveAlarm>> GetUnacknowledgedAsync(
@@ -215,10 +221,32 @@ public sealed class HistoricalAlarmRepository : IHistoricalAlarmRepository
 
     public async Task<long> CountAsync(HistoricalAlarmQuery query, CancellationToken ct = default)
     {
+        // DATA-06: this counted alarms.historical_alarms while QueryAsync/StreamAsync read
+        // alarms.alarm_history — so paging totals described a different table than the rows.
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
         return await conn.ExecuteScalarAsync<long>(
-            "SELECT COUNT(*) FROM alarms.historical_alarms WHERE event_time BETWEEN @From AND @To",
+            "SELECT COUNT(*) FROM alarms.alarm_history WHERE event_time BETWEEN @From AND @To",
             new { query.From, query.To });
+    }
+
+    /// <summary>
+    /// DATA-06: the writer alarms.alarm_history never had. Called after the projection batch
+    /// has been durably persisted, so history only records events that actually landed.
+    /// </summary>
+    public async Task AppendHistoryAsync(IReadOnlyList<AlarmHistoryRecord> records, CancellationToken ct = default)
+    {
+        if (records.Count == 0) return;
+
+        const string sql = @"
+            INSERT INTO alarms.alarm_history
+                (alarm_id, source, severity, message, condition, sub_condition,
+                 event_time, state, ack_status, cleared_time)
+            VALUES
+                (@AlarmId, @Source, @Severity, @Message, @Condition, @SubCondition,
+                 @EventTime, @State, @AckStatus, @ClearedTime)";
+
+        await using var conn = await _dataSource.OpenConnectionAsync(ct);
+        await conn.ExecuteAsync(new CommandDefinition(sql, records, cancellationToken: ct));
     }
 
     public async Task BulkInsertAsync(IEnumerable<object> records, CancellationToken ct = default)

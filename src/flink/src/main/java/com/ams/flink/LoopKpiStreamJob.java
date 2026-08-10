@@ -2,6 +2,7 @@ package com.ams.flink;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
@@ -51,18 +52,22 @@ public class LoopKpiStreamJob {
                 .map(RawLoopData::fromJson)
                 .filter(d -> d != null && d.isValid)
                 .assignTimestampsAndWatermarks(watermarkStrategy)
-                .name("loop-data-validation");
+                .name("loop-data-validation")
+                .uid("loop-data-validation");
 
         DataStream<String> kpiStream = rawStream
                 .keyBy(d -> d.tagId)
                 .window(TumblingEventTimeWindows.of(Time.minutes(5)))
                 .process(new LoopKpiWindowFunction())
                 .name("loop-kpi-5m-window")
+                .uid("loop-kpi-5m-window")
                 .map(LoopKpiResult::toJson)
-                .name("loop-kpi-serialization");
+                .name("loop-kpi-serialization")
+                .uid("loop-kpi-serialization");
 
         KafkaSink<String> kpiSink = KafkaSink.<String>builder()
                 .setBootstrapServers(cfg.brokers)
+                .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .setRecordSerializer(KafkaRecordSerializationSchema.builder()
                         .setTopic("loop-kpis-5m")
                         .setValueSerializationSchema(new SimpleStringSchema())

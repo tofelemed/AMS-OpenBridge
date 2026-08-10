@@ -45,7 +45,12 @@ public class HttpAckWritebackService : BackgroundService
             BootstrapServers = _kafka.BootstrapServers,
             GroupId = $"{_kafka.ConsumerGroupId}-http-ack-writeback",
             AutoOffsetReset = AutoOffsetReset.Latest,
-            EnableAutoCommit = true,
+            // STR-10: manual commit. With auto-commit the offset could advance before the DCS
+            // POST and the ack-results publish had happened, so a crash in that window silently
+            // dropped an operator acknowledgement (at-most-once). We now commit only after the
+            // full cycle is durable, making the writeback at-least-once; the DCS payload carries
+            // an idempotency key so a redelivered ACK is a no-op rather than a duplicate action.
+            EnableAutoCommit = false,
         };
 
         using var consumer = new ConsumerBuilder<string, string>(config).Build();
@@ -60,11 +65,32 @@ public class HttpAckWritebackService : BackgroundService
                 try
                 {
                     var cr = consumer.Consume(stoppingToken);
-                    if (cr.IsPartitionEOF || string.IsNullOrWhiteSpace(cr.Message.Value))
+                    if (cr.IsPartitionEOF)
                         continue;
 
-                    var writeback = JsonSerializer.Deserialize<AckWritebackMessage>(cr.Message.Value, JsonOpts);
-                    if (writeback == null) continue;
+                    if (string.IsNullOrWhiteSpace(cr.Message.Value))
+                    {
+                        consumer.Commit(cr); // nothing actionable — do not redeliver
+                        continue;
+                    }
+
+                    AckWritebackMessage? writeback;
+                    try
+                    {
+                        writeback = JsonSerializer.Deserialize<AckWritebackMessage>(cr.Message.Value, JsonOpts);
+                    }
+                    catch (JsonException jex)
+                    {
+                        _logger.LogError(jex, "Malformed ack-writeback at offset {Offset}; skipping", cr.Offset.Value);
+                        consumer.Commit(cr); // poison message would never parse on retry
+                        continue;
+                    }
+
+                    if (writeback == null)
+                    {
+                        consumer.Commit(cr);
+                        continue;
+                    }
 
                     var feedCorrelationId = ResolveFeedCorrelationId(writeback);
                     _logger.LogInformation(
@@ -72,10 +98,18 @@ public class HttpAckWritebackService : BackgroundService
                         writeback.AlarmId,
                         feedCorrelationId);
 
+                    // idempotency_key lets the DCS discard a redelivered ACK. Required now that
+                    // the consumer is at-least-once (STR-10): the same writeback can legitimately
+                    // be POSTed twice if we crash between the POST and the offset commit.
+                    var idempotencyKey = !string.IsNullOrWhiteSpace(writeback.CommandId)
+                        ? writeback.CommandId
+                        : $"{writeback.AlarmId}|{writeback.ActiveTimeEpochMs}|{writeback.CookieOffset}";
+
                     var payload = new
                     {
                         correlation_ids = new[] { feedCorrelationId },
                         source_event_id = writeback.SourceEventId,
+                        idempotency_key = idempotencyKey,
                         action = "ACKNOWLEDGE",
                         @operator = writeback.Username ?? "operator",
                         timestamp = DateTimeOffset.UtcNow.ToString("o")
@@ -132,7 +166,21 @@ public class HttpAckWritebackService : BackgroundService
                         TimestampEpochMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
                     };
 
-                    await _producer.PublishAsync(_kafka.AckResultsTopic, writeback.AlarmId, resultMsg, stoppingToken);
+                    // Commit only after the ack-result is durably published. If this publish
+                    // fails we leave the offset uncommitted so the whole cycle is retried on
+                    // redelivery — the operator's acknowledgement is never silently lost.
+                    try
+                    {
+                        await _producer.PublishAsync(_kafka.AckResultsTopic, writeback.AlarmId, resultMsg, stoppingToken);
+                        consumer.Commit(cr);
+                    }
+                    catch (Exception pubEx)
+                    {
+                        _logger.LogError(pubEx,
+                            "Failed to publish ack-result for AlarmId={AlarmId}; offset not committed, " +
+                            "writeback will be retried on redelivery.", writeback.AlarmId);
+                        await Task.Delay(2000, stoppingToken);
+                    }
                 }
                 catch (ConsumeException ex)
                 {

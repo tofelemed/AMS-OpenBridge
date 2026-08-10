@@ -1,6 +1,7 @@
 package com.ams.flink;
 
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
@@ -51,10 +52,12 @@ public class AnalysisExecutionJob {
                 .fromSource(source, org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks(),
                         "analysis-executions-source")
                 .process(new EvaluateCalculation())
-                .name("evaluate-calculation");
+                .name("evaluate-calculation")
+                .uid("evaluate-calculation");
 
         KafkaSink<String> sink = KafkaSink.<String>builder()
                 .setBootstrapServers(cfg.brokers)
+                .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .setRecordSerializer(KafkaRecordSerializationSchema.builder()
                         .setTopic("analysis.results")
                         .setValueSerializationSchema(new SimpleStringSchema())

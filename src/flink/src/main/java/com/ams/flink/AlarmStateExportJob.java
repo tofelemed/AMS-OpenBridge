@@ -5,10 +5,12 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
@@ -30,6 +32,14 @@ public class AlarmStateExportJob {
         PipelineConfig cfg = PipelineConfig.fromArgs(args);
         String brokers = cfg.brokers;
 
+        // STR-08: this job had NO checkpointing at all, so its keyed delta state was never
+        // snapshotted and source offsets were never committed through a checkpoint — a
+        // restart silently replayed or skipped state transitions. AT_LEAST_ONCE is enough:
+        // the downstream consumer applies deltas by alarm id and is idempotent.
+        env.enableCheckpointing(30_000, CheckpointingMode.AT_LEAST_ONCE);
+        env.getCheckpointConfig().setMinPauseBetweenCheckpoints(10_000);
+        env.getCheckpointConfig().setCheckpointTimeout(60_000);
+
         // Consume current-alarm-state as the source of truth for "active state updates" in Flink
         KafkaSource<String> stateSource = KafkaSource.<String>builder()
                 .setBootstrapServers(brokers)
@@ -45,10 +55,12 @@ public class AlarmStateExportJob {
         DataStream<String> deltaState = stateUpdates
                 .keyBy(json -> extractId(json))
                 .process(new StateDeltaFunction())
-                .name("Delta State Computation");
+                .name("Delta State Computation")
+                .uid("Delta State Computation");
 
         KafkaSink<String> sink = KafkaSink.<String>builder()
                 .setBootstrapServers(brokers)
+                .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .setRecordSerializer(KafkaRecordSerializationSchema.builder()
                         .setTopic("flink.state.alarm.delta")
                         .setValueSerializationSchema(new SimpleStringSchema())
@@ -60,11 +72,22 @@ public class AlarmStateExportJob {
         env.execute("AMS Alarm State Export Engine");
     }
 
+    /**
+     * STR-08 — this read "Id"/"id", but current-alarm-state records carry the identity as
+     * "alarmId". Every record therefore fell through to the "unknown" fallback and the whole
+     * stream keyed to a single partition, so the per-alarm delta state was meaningless (one
+     * shared previousState for every alarm in the plant). "Id"/"id" are kept as fallbacks for
+     * any legacy producer.
+     */
     private static String extractId(String json) {
         try {
             ObjectMapper mapper = new ObjectMapper();
             JsonNode node = mapper.readTree(json);
-            return AlarmJson.text(node, "Id", "id");
+            String id = AlarmJson.text(node, "alarmId", "AlarmId");
+            if (id == null || id.isEmpty()) {
+                id = AlarmJson.text(node, "Id", "id");
+            }
+            return (id == null || id.isEmpty()) ? "unknown" : id;
         } catch (Exception e) {
             return "unknown";
         }

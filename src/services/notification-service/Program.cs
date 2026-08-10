@@ -29,6 +29,9 @@ builder.Services.AddSingleton<NotificationOrchestrator>();
 
 // Background Workers (Kafka)
 builder.Services.AddHostedService<RootCauseConsumer>();
+// STR-05: lifecycle-alerts had two producers (telemetry deadman, ACK-SLA watchdog)
+// and no consumer at all — a dead OPC feed raised nothing an operator could see.
+builder.Services.AddHostedService<LifecycleAlertConsumer>();
 
 // Basic Health/Metrics
 builder.Services.AddHealthChecks();

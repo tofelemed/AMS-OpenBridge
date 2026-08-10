@@ -8,6 +8,13 @@
 --
 -- Idempotent (IF NOT EXISTS) so it is safe on a live DB and on a fresh initdb volume.
 
+
+-- DATA-11: this script has no \c and therefore ran against the default POSTGRES_DB
+-- ('ams'), where these objects do not exist. Under the postgres entrypoint's
+-- ON_ERROR_STOP that aborted the whole fresh-volume init at this file, so every
+-- later script silently never ran. Connect to the owning database first.
+\c traverse_displays
+
 ALTER TABLE displays.display_definitions
     ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS published_by TEXT;

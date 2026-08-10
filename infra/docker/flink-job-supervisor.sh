@@ -4,7 +4,11 @@
 # The one-shot flink-submit-* containers are restart:"no": after a JobManager
 # restart or a Docker daemon bounce (twice on 2026-08-05 alone) every job is
 # gone and nothing brings them back — there is no JM HA. This container loops
-# forever, re-submitting any of the six standing jobs that is not RUNNING.
+# forever, re-submitting any of the TEN standing jobs that is not RUNNING.
+#
+# Keep this list in step with scripts/ensure_flink_jobs.py CORE_JOBS — the two
+# drifted once already (AnalysisExecutionJob existed only in the Python script,
+# which stack startup never invokes, so it silently stayed dead — STR-07).
 #
 # Job identity is the exact display name; every job hardcodes its own name, so
 # the grep is stable. FAILED/FINISHED jobs do not block resubmission (the guard
@@ -107,6 +111,19 @@ ensure_all() {
     --live-topic "${CPLM_LIVE_TOPIC:-live.loop.metrics}" \
     --consumer-group-id flink-ams-cplm \
     --deadband "${CPLM_LIVE_DEADBAND:-0.05}"
+  # STR-07 — this job used to live only in scripts/ensure_flink_jobs.py, which the
+  # stack never calls (only the validation/e2e scripts do). After any JobManager
+  # restart it stayed dead, analysis.executions piled up unconsumed and every
+  # analysis sat "pending" until a human ran the validation script by hand.
+  submit_if_missing "AMS - Analysis Execution Engine" com.ams.flink.AnalysisExecutionJob \
+    --bootstrap.servers "${KAFKA_BROKERS}"
+  # STR-08 — both of these had a LIVE input topic and a LIVE .NET consumer in ams-api,
+  # but no submission mechanism at all: KpiConsumerService and AlarmStateDeltaConsumerService
+  # sat idle forever waiting on topics nothing produced to.
+  submit_if_missing "AMS - Alarm KPI Engine" com.ams.flink.AlarmKpiStreamJob \
+    --bootstrap.servers "${KAFKA_BROKERS}"
+  submit_if_missing "AMS Alarm State Export Engine" com.ams.flink.AlarmStateExportJob \
+    --bootstrap.servers "${KAFKA_BROKERS}"
 }
 
 echo "[supervisor] starting; interval=${INTERVAL}s jar=${JAR}"

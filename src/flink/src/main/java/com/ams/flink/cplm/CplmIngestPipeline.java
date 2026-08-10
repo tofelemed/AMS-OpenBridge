@@ -42,17 +42,24 @@ public final class CplmIngestPipeline {
                 .withIdleness(Duration.ofMinutes(1))
                 .withTimestampAssigner((event, ts) -> event.eventTsMs);
 
+        // STR-11: uid() mirrors name() so savepoints survive topology changes.
+        // sourceOperatorName is per-job, which keeps these unique across the CPLM jobs
+        // that share this pipeline builder.
         DataStream<CplmNormalizedSample> parsed = env
                 .fromSource(source, WatermarkStrategy.noWatermarks(), sourceOperatorName)
+                .uid(sourceOperatorName + "-source")
                 .map(CplmNormalizedSample::fromJson)
                 .name(sourceOperatorName + "-parse")
+                .uid(sourceOperatorName + "-parse")
                 .filter(s -> s != null && s.isValid)
-                .name(sourceOperatorName + "-quality-filter");
+                .name(sourceOperatorName + "-quality-filter")
+                .uid(sourceOperatorName + "-quality-filter");
 
         // Connect profiles before assigning event-time watermarks so the
         // no-watermark configuration stream cannot hold back window timers.
         return CplmParameterSetBroadcastSupport.connectSampleProfiles(parsed, env, cfg)
                 .assignTimestampsAndWatermarks(wm)
-                .name(sourceOperatorName + "-watermarks");
+                .name(sourceOperatorName + "-watermarks")
+                .uid(sourceOperatorName + "-watermarks");
     }
 }
