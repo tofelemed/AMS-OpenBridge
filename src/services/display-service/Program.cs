@@ -21,7 +21,7 @@ builder.Services.AddDbContext<DisplayDbContext>(options =>
 var redisHost = builder.Configuration["Redis:Host"] ?? "redis";
 var redisPort = builder.Configuration.GetValue<int>("Redis:Port", 6379);
 builder.Services.AddSingleton<IConnectionMultiplexer>(
-    ConnectionMultiplexer.Connect($"{redisHost}:{redisPort},abortConnect=false"));
+    ConnectionMultiplexer.Connect($"{redisHost}:{redisPort},abortConnect=false{(string.IsNullOrEmpty(builder.Configuration["Redis:Password"]) ? "" : $",password={builder.Configuration["Redis:Password"]}")}"));
 
 // ── Audit trail (Phase 5) ─────────────────────────────────────────────────────
 // Governance actions (create/edit/delete/publish/share…) are emitted to the platform audit log.

@@ -11,9 +11,12 @@ var builder = WebApplication.CreateBuilder(args);
 var redisHost = builder.Configuration["Redis:Host"] ?? "redis";
 var redisPort = builder.Configuration.GetValue<int>("Redis:Port", 6379);
 builder.Services.AddSingleton<IConnectionMultiplexer>(
-    ConnectionMultiplexer.Connect($"{redisHost}:{redisPort},abortConnect=false"));
+    ConnectionMultiplexer.Connect($"{redisHost}:{redisPort},abortConnect=false{(string.IsNullOrEmpty(builder.Configuration["Redis:Password"]) ? "" : $",password={builder.Configuration["Redis:Password"]}")}"));
 
 // ── HTTP Clients ─────────────────────────────────────────────────────────────
+// RES-01: retry + circuit breaker + timeout on every outbound HttpClient in this service.
+builder.Services.ConfigureHttpClientDefaults(http => http.AddStandardResilienceHandler());
+
 builder.Services.AddHttpClient("AssetModel", client =>
 {
     var baseUrl = builder.Configuration["Services:AssetModel"] ?? "http://asset-model:5000";
@@ -115,6 +118,28 @@ app.MapPost("/resolve/batch", async (
             })));
 
     return Results.Ok(new { bindings = results });
+}).RequireAuthorization("binding.resolve");
+
+// ── GET /resolve/alarm ───────────────────────────────────────────────────────
+// DATA-07: THE canonical live-alarm → historian-path derivation. One identity rule
+// exists in the platform (docs/alarm-identity-contract.md): the Kafka alarmId,
+// sanitised [^A-Za-z0-9_] → '_' — exactly what IoTDBPersistenceJob stores under
+// root.<prefix>.alarms.<sanitised>. The browser used to re-derive this locally
+// (and silently produced an empty trend when its guess diverged); it now asks
+// here and only falls back to the local rule if this service is unreachable.
+app.MapGet("/resolve/alarm", (string alarmId, IConfiguration config) =>
+{
+    if (string.IsNullOrWhiteSpace(alarmId))
+        return Results.BadRequest("'alarmId' is required");
+
+    var prefix = config["Alarm:HistorianPrefix"] ?? "root.ams.site1.alarms.";
+    var sanitized = System.Text.RegularExpressions.Regex.Replace(alarmId, "[^a-zA-Z0-9_]", "_");
+    return Results.Ok(new
+    {
+        alarmId,
+        historianPath = prefix + sanitized,
+        rule = "[^A-Za-z0-9_] -> '_' over the Kafka alarmId (alarm-identity contract)",
+    });
 }).RequireAuthorization("binding.resolve");
 
 // ── GET /resolve/alias ───────────────────────────────────────────────────────

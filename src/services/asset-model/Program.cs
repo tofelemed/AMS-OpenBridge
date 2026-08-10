@@ -19,7 +19,7 @@ builder.Services.AddDbContext<AssetDbContext>(options =>
 var redisHost = builder.Configuration["Redis:Host"] ?? "redis";
 var redisPort = builder.Configuration.GetValue<int>("Redis:Port", 6379);
 builder.Services.AddSingleton<IConnectionMultiplexer>(
-    ConnectionMultiplexer.Connect($"{redisHost}:{redisPort},abortConnect=false"));
+    ConnectionMultiplexer.Connect($"{redisHost}:{redisPort},abortConnect=false{(string.IsNullOrEmpty(builder.Configuration["Redis:Password"]) ? "" : $",password={builder.Configuration["Redis:Password"]}")}"));
 
 // ── Auth (platform RBAC) ────────────────────────────────────────────────────
 // RS256 bearer validation against auth-service JWKS + a policy per permission key.

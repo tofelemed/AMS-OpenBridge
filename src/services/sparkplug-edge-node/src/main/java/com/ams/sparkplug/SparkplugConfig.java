@@ -30,9 +30,11 @@ public final class SparkplugConfig {
     public final String sparkplugGroup;
     public final String sparkplugEdge;
 
-    // Redis (state cache)
+    // Redis (CONTRACT tier — snapshot:* / alias:* paint-on-open keys, DATA-03)
     public final String redisHost;
     public final int    redisPort;
+    /** requirepass credential — null means no auth (dev only). */
+    public final String redisPassword;
     /** TTL in seconds for snapshot keys. */
     public final int    redisTtlSeconds;
 
@@ -42,7 +44,7 @@ public final class SparkplugConfig {
             String mqttHost, int mqttPort, String mqttClientId, boolean mqttWs,
             String mqttUsername, String mqttPassword,
             String sparkplugGroup, String sparkplugEdge,
-            String redisHost, int redisPort, int redisTtlSeconds) {
+            String redisHost, int redisPort, String redisPassword, int redisTtlSeconds) {
         this.kafkaBrokers          = kafkaBrokers;
         this.liveAlarmsTopic       = liveAlarmsTopic;
         this.liveMetricsTopic      = liveMetricsTopic;
@@ -59,6 +61,7 @@ public final class SparkplugConfig {
         this.sparkplugEdge    = sparkplugEdge;
         this.redisHost        = redisHost;
         this.redisPort        = redisPort;
+        this.redisPassword    = redisPassword;
         this.redisTtlSeconds  = redisTtlSeconds;
     }
 
@@ -78,8 +81,9 @@ public final class SparkplugConfig {
                 envOrNull("MQTT_PASSWORD"),
                 env("SPARKPLUG_GROUP",    "ams_site1"),
                 env("SPARKPLUG_EDGE",     "ams_edge1"),
-                env("REDIS_HOST",         "redis"),
+                env("REDIS_HOST",         "redis-contract"),
                 intEnv("REDIS_PORT",      6379),
+                envOrNull("REDIS_PASSWORD"),
                 intEnv("REDIS_TTL_SECS",  3600)
         );
     }

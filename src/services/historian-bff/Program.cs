@@ -1,4 +1,5 @@
 using AMS.HistorianBff;
+using Microsoft.Extensions.Caching.Memory;
 using StackExchange.Redis;
 using System.Security.Claims;
 using System.Text.Json;
@@ -8,13 +9,18 @@ using Traverse.Auth;
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Services ──────────────────────────────────────────────────────────────
-builder.Services.AddHttpClient<IoTDbClient>();
+// RES-01: retry + circuit breaker + timeout on every outbound HttpClient in this service.
+builder.Services.ConfigureHttpClientDefaults(http => http.AddStandardResilienceHandler());
 
-// Redis — used by /snapshot endpoint
+builder.Services.AddHttpClient<IoTDbClient>();
+// DATA-09: 2s burst cache for /snapshot results.
+builder.Services.AddMemoryCache();
+
+// Redis (CONTRACT tier — snapshot keys, DATA-03) — used by /snapshot endpoint
 var redisHost = builder.Configuration["Redis:Host"] ?? "redis";
 var redisPort = builder.Configuration.GetValue<int>("Redis:Port", 6379);
 builder.Services.AddSingleton<IConnectionMultiplexer>(
-    ConnectionMultiplexer.Connect($"{redisHost}:{redisPort},abortConnect=false"));
+    ConnectionMultiplexer.Connect($"{redisHost}:{redisPort},abortConnect=false{(string.IsNullOrEmpty(builder.Configuration["Redis:Password"]) ? "" : $",password={builder.Configuration["Redis:Password"]}")}"));
 
 // ── Auth (platform RBAC) ────────────────────────────────────────────────────
 // RS256 bearer validation against auth-service JWKS + a policy per permission key.
@@ -236,81 +242,98 @@ app.MapGet("/summary", async (
 
 // ── GET /snapshot ──────────────────────────────────────────────────────────
 // Returns current metric values from Redis for one or more assets (device IDs).
-// Query params: assets (comma-separated device names, or "*" for all devices)
+// Query params: assets (comma-separated device names, or "*" for all devices);
+//               limit/offset page over the device list (deterministic order).
 // Redis key: snapshot:metric:ams_site1:ams_edge1:<device>:<metricName>
+//
+// DATA-09: this endpoint used to run a keyspace SCAN plus one GET per key on
+// EVERY request — the shift-change hot path (~4,000 reads). It now serves from
+// the snapshot index the edge node maintains on write:
+//   snapshot:devices          SET of device ids
+//   snapshot:index:<device>   SET of that device's full snapshot keys
+// Reads are SMEMBERS + one batched MGET per device; index entries whose key has
+// expired (TTL) are pruned lazily. A 2-second in-memory result cache absorbs
+// request bursts (shift change: every console repainting at once).
 app.MapGet("/snapshot", async (
     string assets,
+    int? limit,
+    int? offset,
     ClaimsPrincipal user,
     IConnectionMultiplexer redis,
+    Microsoft.Extensions.Caching.Memory.IMemoryCache cache,
     CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(assets))
         return Results.BadRequest("'assets' is required");
 
     // Phase 7 (R17) — a scoped user must not receive the live-value firehose for out-of-scope sites.
-    // Snapshot keys carry the Sparkplug group (site) at position 2; filter results to allowed sites.
     var siteTokens = AssetScope.SiteTokens(user);
     bool GroupAllowed(string group) => siteTokens.Length == 0
         || siteTokens.Any(t => group.Contains(t, StringComparison.OrdinalIgnoreCase));
 
+    var take = Math.Clamp(limit ?? 500, 1, 2000);
+    var skip = Math.Max(offset ?? 0, 0);
+
+    // Short burst cache, scoped by query + the caller's site scope (never cross-scope).
+    var cacheKey = $"snap:{assets}:{take}:{skip}:{string.Join('|', siteTokens)}";
+    if (cache.TryGetValue(cacheKey, out object? cached) && cached is not null)
+        return Results.Ok(cached);
+
+    var db = redis.GetDatabase();
+
+    // Resolve the device list from the index (no SCAN).
+    string[] deviceList;
     var assetList = assets.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    var db        = redis.GetDatabase();
-    // Multi-site: scan across ALL sparkplug groups/edges. Snapshot keys are
-    // snapshot:metric:<group>:<edge>:<device>:<metric>; device is unique per site
-    // in the seeded model, so we match on device position rather than a fixed site.
-    var server    = redis.GetServer(redis.GetEndPoints().First());
-    var result    = new Dictionary<string, Dictionary<string, object?>>();
-
-    async Task AddKeyAsync(RedisKey key, string deviceId)
-    {
-        if (!result.TryGetValue(deviceId, out var assetMetrics))
-        {
-            assetMetrics = new Dictionary<string, object?>();
-            result[deviceId] = assetMetrics;
-        }
-
-        var metricName = ((string)key!).Split(':').Last();
-        var val        = await db.StringGetAsync(key);
-        if (val.IsNullOrEmpty) return;
-        try
-        {
-            assetMetrics[metricName] = JsonSerializer.Deserialize<JsonElement>(val!);
-        }
-        catch
-        {
-            assetMetrics[metricName] = (string?)val;
-        }
-    }
-
     if (assetList.Length == 1 && assetList[0] == "*")
     {
-        // Discover all devices across every Sparkplug group/edge
-        var pattern = "snapshot:metric:*";
-        foreach (var key in server.Keys(pattern: pattern))
-        {
-            var parts = ((string)key!).Split(':');
-            if (parts.Length < 6) continue;
-            if (!GroupAllowed(parts[2])) continue;   // parts[2] = sparkplug group (site)
-            await AddKeyAsync(key, parts[4]); // parts[4] = device
-        }
+        var members = await db.SetMembersAsync("snapshot:devices");
+        deviceList = members.Select(m => (string)m!).OrderBy(d => d, StringComparer.Ordinal).ToArray();
     }
     else
     {
-        foreach (var asset in assetList)
-        {
-            var safeAsset = asset.Replace(" ", "_");
-            // group/edge wildcarded — device is the discriminator
-            var pattern   = $"snapshot:metric:*:*:{safeAsset}:*";
-            foreach (var key in server.Keys(pattern: pattern))
-            {
-                var parts = ((string)key!).Split(':');
-                if (parts.Length < 6 || !GroupAllowed(parts[2])) continue;
-                await AddKeyAsync(key, safeAsset);
-            }
-        }
+        deviceList = assetList.Select(a => a.Replace(" ", "_")).OrderBy(d => d, StringComparer.Ordinal).ToArray();
     }
 
-    return Results.Ok(new { assets = result });
+    var totalDevices = deviceList.Length;
+    deviceList = deviceList.Skip(skip).Take(take).ToArray();
+
+    var result = new Dictionary<string, Dictionary<string, object?>>();
+    foreach (var device in deviceList)
+    {
+        var indexKey = $"snapshot:index:{device}";
+        var keys = await db.SetMembersAsync(indexKey);
+        if (keys.Length == 0) continue;
+
+        var redisKeys = keys.Select(k => (RedisKey)(string)k!).ToArray();
+        var values    = await db.StringGetAsync(redisKeys);
+
+        Dictionary<string, object?>? assetMetrics = null;
+        var stale = new List<RedisValue>();
+        for (var i = 0; i < redisKeys.Length; i++)
+        {
+            var keyStr = (string)redisKeys[i]!;
+            var parts  = keyStr.Split(':');
+            if (parts.Length < 6) continue;
+            if (values[i].IsNullOrEmpty) { stale.Add((string)redisKeys[i]!); continue; }  // TTL-expired -> prune
+            if (!GroupAllowed(parts[2])) continue;   // parts[2] = sparkplug group (site)
+
+            assetMetrics ??= result.TryGetValue(device, out var existing)
+                ? existing
+                : (result[device] = new Dictionary<string, object?>());
+
+            var metricName = parts[^1];
+            try   { assetMetrics[metricName] = JsonSerializer.Deserialize<JsonElement>(values[i]!); }
+            catch { assetMetrics[metricName] = (string?)values[i]; }
+        }
+
+        // Lazy index hygiene: drop members whose snapshot key expired (fire-and-forget).
+        if (stale.Count > 0)
+            _ = db.SetRemoveAsync(indexKey, stale.ToArray(), CommandFlags.FireAndForget);
+    }
+
+    var payload = new { assets = result, totalDevices };
+    cache.Set(cacheKey, (object)payload, TimeSpan.FromSeconds(2));
+    return Results.Ok(payload);
 }).RequireAuthorization("historian.view");
 
 // ── GET /series ────────────────────────────────────────────────────────────

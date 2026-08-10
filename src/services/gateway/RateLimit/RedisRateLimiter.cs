@@ -37,6 +37,7 @@ public sealed class RedisRateLimiter
                     AbortOnConnectFail = false,   // gateway must start even if Redis is down
                     ConnectTimeout = 2000,
                     SyncTimeout = 1000,
+                    Password = config["Redis:Password"],
                 };
                 var mux = await ConnectionMultiplexer.ConnectAsync(options);
                 _log.LogInformation("Rate-limit Redis connected: {Host}:{Port}", host, port);

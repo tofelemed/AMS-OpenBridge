@@ -19,7 +19,7 @@ builder.Services.AddDbContext<AnalysisDbContext>(options =>
 var redisHost = builder.Configuration["Redis:Host"] ?? "redis";
 var redisPort = builder.Configuration.GetValue<int>("Redis:Port", 6379);
 builder.Services.AddSingleton<IConnectionMultiplexer>(
-    ConnectionMultiplexer.Connect($"{redisHost}:{redisPort},abortConnect=false"));
+    ConnectionMultiplexer.Connect($"{redisHost}:{redisPort},abortConnect=false{(string.IsNullOrEmpty(builder.Configuration["Redis:Password"]) ? "" : $",password={builder.Configuration["Redis:Password"]}")}"));
 
 // Kafka producer for analysis commands
 var kafkaBrokers = builder.Configuration["Kafka:Brokers"] ?? "kafka:9092";
@@ -30,6 +30,9 @@ builder.Services.AddSingleton<IProducer<string, string>>(sp =>
 });
 
 // Flink REST API client
+// RES-01: retry + circuit breaker + timeout on every outbound HttpClient in this service.
+builder.Services.ConfigureHttpClientDefaults(http => http.AddStandardResilienceHandler());
+
 builder.Services.AddHttpClient("Flink", client =>
 {
     var flinkUrl = builder.Configuration["Flink:JobManagerUrl"] ?? "http://flink-jobmanager:8081";

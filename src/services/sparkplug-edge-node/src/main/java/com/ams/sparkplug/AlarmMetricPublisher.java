@@ -80,7 +80,10 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
         this.cfg  = cfg;
         JedisPoolConfig poolCfg = new JedisPoolConfig();
         poolCfg.setMaxTotal(4);
-        this.jedisPool = new JedisPool(poolCfg, cfg.redisHost, cfg.redisPort);
+        // DATA-03: snapshots/aliases live on the CONTRACT Redis tier (noeviction),
+        // authenticated with requirepass. Null password = no auth (dev only).
+        this.jedisPool = new JedisPool(poolCfg, cfg.redisHost, cfg.redisPort,
+                redis.clients.jedis.Protocol.DEFAULT_TIMEOUT, cfg.redisPassword);
         this.aliases   = new MetricAliasRegistry(jedisPool, cfg.sparkplugGroup, cfg.sparkplugEdge);
         this.topicNBirth = "spBv1.0/" + cfg.sparkplugGroup + "/NBIRTH/" + cfg.sparkplugEdge;
         this.topicNDeath = "spBv1.0/" + cfg.sparkplugGroup + "/NDEATH/" + cfg.sparkplugEdge;
@@ -460,7 +463,13 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
         String key = "snapshot:metric:" + group + ":" + edge + ":" + device + ":" + metric;
         String json = "{\"v\":" + valueJson(value) + ",\"q\":" + quality + ",\"ts\":" + ts + "}";
         try (Jedis jedis = jedisPool.getResource()) {
-            jedis.setex(key, cfg.redisTtlSeconds, json);
+            Pipeline pipe = jedis.pipelined();
+            pipe.setex(key, cfg.redisTtlSeconds, json);
+            // DATA-09: maintain the snapshot index on write so /snapshot reads are
+            // SMEMBERS + MGET instead of a full keyspace SCAN per request.
+            pipe.sadd("snapshot:devices", device);
+            pipe.sadd("snapshot:index:" + device, key);
+            pipe.sync();
         } catch (Exception e) {
             LOG.warn("Redis metric snapshot write failed (non-fatal): {}", e.getMessage());
         }
@@ -550,6 +559,12 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
             writeSnapshotField(pipe, prefix + "acknowledged",   boolVal(node, "acknowledged"),   ts);
             writeSnapshotField(pipe, prefix + "conditionActive",boolVal(node, "conditionActive"),ts);
             writeSnapshotField(pipe, prefix + "priority",       text(node, "priority"),          ts);
+            // DATA-09: maintain the snapshot index (device set + per-device key set)
+            // so /snapshot serves via SMEMBERS + MGET, not a keyspace SCAN.
+            pipe.sadd("snapshot:devices", deviceId);
+            pipe.sadd("snapshot:index:" + deviceId,
+                    prefix + "alarmId", prefix + "severity", prefix + "state",
+                    prefix + "acknowledged", prefix + "conditionActive", prefix + "priority");
             pipe.sync();
         } catch (Exception e) {
             LOG.warn("Redis write failed (non-fatal): {}", e.getMessage());

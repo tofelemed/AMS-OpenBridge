@@ -65,6 +65,7 @@ public sealed class ResponseCacheMiddleware
                     AbortOnConnectFail = false,
                     ConnectTimeout = 2000,
                     SyncTimeout = 1000,
+                    Password = config["Redis:Password"],
                 });
                 return (IConnectionMultiplexer)mux;
             }
