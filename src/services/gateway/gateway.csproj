@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Traverse.Gateway</RootNamespace>
+    <AssemblyName>gateway</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Reverse proxy core. 2.2.x targets net8.0. -->
+    <PackageReference Include="Yarp.ReverseProxy" Version="2.2.0" />
+    <!-- Edge JWT validation against auth-service JWKS (same stack as the services it fronts). -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.4" />
+    <!-- Rate-limit counters + response cache + revocation set (Plan 04 items 2-4). -->
+    <PackageReference Include="StackExchange.Redis" Version="2.7.33" />
+    <!-- RED metrics per route (Plan 04 item 5). -->
+    <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
+  </ItemGroup>
+
+</Project>
