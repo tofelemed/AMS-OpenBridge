@@ -29,22 +29,17 @@ public sealed class ActiveAlarmRepository : IActiveAlarmRepository
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == id, ct);
 
+    /// <summary>
+    /// DATA-10: this previously honoured only 3 of the 8 advertised filters — ServerId,
+    /// Priority, Category, IsShelved and IsSuppressed were accepted by the API surface
+    /// and silently ignored, so an operator's filtered view lied. Every filter applies now.
+    /// Defaults are unchanged: with no filters, all Active alarms (incl. shelved/suppressed)
+    /// are returned, exactly as before.
+    /// </summary>
     public async Task<IReadOnlyList<ActiveAlarm>> GetActiveAlarmsAsync(
         ActiveAlarmQuery query, CancellationToken ct = default)
     {
-        var q = _ctx.ActiveAlarms.AsNoTracking().AsQueryable();
-
-        if (query.State.HasValue)
-            q = q.Where(a => a.State == query.State.Value);
-        if (!string.IsNullOrWhiteSpace(query.SourceNameContains))
-            q = q.Where(a => EF.Functions.ILike(a.SourceName, $"%{query.SourceNameContains}%"));
-        if (query.IsAcknowledged.HasValue)
-        {
-            q = q.Where(a => a.Acknowledged == query.IsAcknowledged.Value);
-        }
-
-        // Only return Active alarms
-        q = q.Where(a => a.State == AlarmState.UnacknowledgedUncleared || a.State == AlarmState.AcknowledgedUncleared);
+        var q = ApplyActiveFilters(_ctx.ActiveAlarms.AsNoTracking(), query);
 
         q = query.SortBy switch
         {
@@ -52,6 +47,8 @@ public sealed class ActiveAlarmRepository : IActiveAlarmRepository
                                                  : q.OrderBy(a => a.Severity),
             "SourceName" => query.SortDescending ? q.OrderByDescending(a => a.SourceName)
                                                  : q.OrderBy(a => a.SourceName),
+            "Priority"   => query.SortDescending ? q.OrderByDescending(a => a.Priority)
+                                                 : q.OrderBy(a => a.Priority),
             _            => query.SortDescending ? q.OrderByDescending(a => a.EventTime)
                                                  : q.OrderBy(a => a.EventTime)
         };
@@ -62,14 +59,37 @@ public sealed class ActiveAlarmRepository : IActiveAlarmRepository
             .ToListAsync(ct);
     }
 
-    public async Task<int> CountActiveAsync(Guid? serverId = null, CancellationToken ct = default)
-    {
-        var q = _ctx.ActiveAlarms.AsNoTracking();
+    /// <summary>
+    /// DATA-10: counts with the SAME filters as the list, so X-Total-Count matches what
+    /// the operator is actually paging through (it previously ignored every filter
+    /// including the serverId it was handed).
+    /// </summary>
+    public async Task<int> CountActiveAsync(ActiveAlarmQuery query, CancellationToken ct = default)
+        => await ApplyActiveFilters(_ctx.ActiveAlarms.AsNoTracking(), query).CountAsync(ct);
 
-        // Only count Active alarms
+    private static IQueryable<ActiveAlarm> ApplyActiveFilters(IQueryable<ActiveAlarm> q, ActiveAlarmQuery query)
+    {
+        // Only Active alarms (the invariant this repository serves).
         q = q.Where(a => a.State == AlarmState.UnacknowledgedUncleared || a.State == AlarmState.AcknowledgedUncleared);
 
-        return await q.CountAsync(ct);
+        if (query.ServerId.HasValue)
+            q = q.Where(a => a.ServerId == query.ServerId.Value);
+        if (query.Priority.HasValue)
+            q = q.Where(a => a.Priority == query.Priority.Value);
+        if (query.State.HasValue)
+            q = q.Where(a => a.State == query.State.Value);
+        if (query.Category.HasValue)
+            q = q.Where(a => a.Category == query.Category.Value);
+        if (!string.IsNullOrWhiteSpace(query.SourceNameContains))
+            q = q.Where(a => EF.Functions.ILike(a.SourceName, $"%{query.SourceNameContains}%"));
+        if (query.IsAcknowledged.HasValue)
+            q = q.Where(a => a.Acknowledged == query.IsAcknowledged.Value);
+        if (query.IsShelved.HasValue)
+            q = q.Where(a => a.IsShelved == query.IsShelved.Value);
+        if (query.IsSuppressed.HasValue)
+            q = q.Where(a => a.IsSuppressed == query.IsSuppressed.Value);
+
+        return q;
     }
 
     public Task<ActiveAlarm> AddAsync(ActiveAlarm alarm, CancellationToken ct = default)
@@ -123,11 +143,20 @@ public sealed class ActiveAlarmRepository : IActiveAlarmRepository
             .Where(a => a.ServerId == serverId && a.SourceName == sourceName)
             .ToListAsync(ct);
 
+    /// <summary>
+    /// DATA-10: previously ignored both parameters and returned the ENTIRE unacked set
+    /// unbounded — during an alarm flood that is exactly when it would be largest.
+    /// Filters apply and the result is capped (newest first; 1000 = the API's max page).
+    /// </summary>
     public async Task<IReadOnlyList<ActiveAlarm>> GetUnacknowledgedAsync(
         Guid? serverId = null, AlarmPriority? minPriority = null, CancellationToken ct = default)
     {
         var q = _ctx.ActiveAlarms.AsNoTracking().Where(a => !a.Acknowledged);
-        return await q.OrderByDescending(a => a.EventTime).ToListAsync(ct);
+        if (serverId.HasValue)
+            q = q.Where(a => a.ServerId == serverId.Value);
+        if (minPriority.HasValue)
+            q = q.Where(a => a.Priority >= minPriority.Value);
+        return await q.OrderByDescending(a => a.EventTime).Take(1000).ToListAsync(ct);
     }
 
     public async Task<IReadOnlyList<ActiveAlarm>> GetShelvedExpiredAsync(CancellationToken ct = default)

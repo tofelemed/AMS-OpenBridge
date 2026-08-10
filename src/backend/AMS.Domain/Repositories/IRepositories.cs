@@ -11,7 +11,8 @@ public interface IActiveAlarmRepository
     Task<ActiveAlarm?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<IReadOnlyList<ActiveAlarm>> GetActiveAlarmsAsync(
         ActiveAlarmQuery query, CancellationToken ct = default);
-    Task<int> CountActiveAsync(Guid? serverId = null, CancellationToken ct = default);
+    /// <summary>Counts with the SAME filters as GetActiveAlarmsAsync so totals match the page (DATA-10).</summary>
+    Task<int> CountActiveAsync(ActiveAlarmQuery query, CancellationToken ct = default);
     Task<ActiveAlarm> AddAsync(ActiveAlarm alarm, CancellationToken ct = default);
     Task UpdateAsync(ActiveAlarm alarm, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);

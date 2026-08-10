@@ -119,7 +119,9 @@ public class GetActiveAlarmsQueryHandler : IRequestHandler<GetActiveAlarmsQuery,
         );
 
         var alarms = await _uow.ActiveAlarms.GetActiveAlarmsAsync(query, ct);
-        var total  = await _uow.ActiveAlarms.CountActiveAsync(request.ServerId, ct);
+        // DATA-10: count with the same filters as the list — X-Total-Count previously
+        // reported the unfiltered total whenever any filter was set.
+        var total  = await _uow.ActiveAlarms.CountActiveAsync(query, ct);
 
         // Enrich with server names, area paths
         var dtos = await _enricher.EnrichAsync(alarms, ct);
