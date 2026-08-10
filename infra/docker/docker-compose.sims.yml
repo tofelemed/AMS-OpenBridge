@@ -12,16 +12,10 @@
 # ═══════════════════════════════════════════════════════════════════════════
 services:
 
-  # Test-stack overrides: the Phase-0.7 service-key hardening fails CLOSED in Production when the key is
-  # the built-in default. This dev/compose stack uses the default key, so run these TraverseAuth services
-  # in Development (the hardening then warns instead of throwing). Scoped here so the main compose stays
-  # production-shaped.
-  analysis-service:
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-  audit-service:
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
+  # AUTH-01: the service-key hardening now fails CLOSED in every non-Development environment, and the
+  # ASPNETCORE_ENVIRONMENT=Development downgrade that used to sit here has been removed. The sim/validator
+  # stack runs production-shaped: it MUST have a strong TRAVERSE_SERVICE_KEY (see infra/docker/.env). If
+  # the key is left at the built-in default the TraverseAuth services refuse to start, by design.
 
   # Continuous process-value feed for the 2-site plant. Re-runnable: it just keeps publishing.
   ams-sim:
@@ -60,7 +54,7 @@ services:
       V2_REDIS_HOST:    redis
       V2_REDIS_PORT:    "6379"
       V2_ADMIN_USER:    ${AUTH_BOOTSTRAP_USERNAME:-admin}
-      V2_ADMIN_PASS:    ${AUTH_BOOTSTRAP_PASSWORD:-ChangeMe123!}
-      V2_SERVICE_KEY:   ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
+      V2_ADMIN_PASS:    ${AUTH_BOOTSTRAP_PASSWORD:?AUTH_BOOTSTRAP_PASSWORD must be set}
+      V2_SERVICE_KEY:   ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set}
     networks:
       - ams-backend

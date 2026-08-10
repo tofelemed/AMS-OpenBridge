@@ -13,7 +13,7 @@ import { randomUUID } from 'node:crypto';
 import jwt, { SignOptions, VerifyOptions } from 'jsonwebtoken';
 import pool from '../config/database';
 import logger from '../config/logger';
-import { keyConfig } from '../config/keys';
+import { keyConfig, publicKeyForKid } from '../config/keys';
 import { PermissionService } from './permission.service';
 import {
   User,
@@ -41,6 +41,12 @@ const JWT_AUDIENCE = process.env.JWT_AUDIENCE || 'ams-services';
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '10');
 
 const permissionService = new PermissionService();
+
+/** Read the `kid` header of a JWT without verifying it, to pick the right validation key. */
+function kidOf(token: string): string | undefined {
+  const decoded = jwt.decode(token, { complete: true }) as { header?: { kid?: string } } | null;
+  return decoded?.header?.kid;
+}
 
 export class AuthService {
   /**
@@ -170,7 +176,7 @@ export class AuthService {
    */
   async verifyToken(token: string): Promise<TokenPayload> {
     try {
-      const decoded = jwt.verify(token, keyConfig.publicKey, {
+      const decoded = jwt.verify(token, publicKeyForKid(kidOf(token)), {
         algorithms: [keyConfig.algorithm],
         issuer: JWT_ISSUER,
         audience: JWT_AUDIENCE,
@@ -216,7 +222,7 @@ export class AuthService {
   async refreshToken(refreshToken: string): Promise<RefreshResult> {
     let decoded: { user_id?: string; sub?: string; type?: string };
     try {
-      decoded = jwt.verify(refreshToken, keyConfig.publicKey, {
+      decoded = jwt.verify(refreshToken, publicKeyForKid(kidOf(refreshToken)), {
         algorithms: [keyConfig.algorithm],
         issuer: JWT_ISSUER,
       } as VerifyOptions) as typeof decoded;

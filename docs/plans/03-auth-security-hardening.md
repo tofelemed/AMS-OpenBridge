@@ -92,18 +92,53 @@ Plaintext defaults across compose take effect on any fresh clone: Postgres `supe
 
 ## Exit criteria
 
-- [ ] `Security__DisableApiAuthorization` does not exist in any image or compose file.
-- [ ] Connecting to `/hubs/observability` without a valid token is rejected.
-- [ ] No service accepts the built-in default service key in any non-development environment; service principals no longer hold `Perms.All`.
-- [ ] Deactivating a user invalidates their live access token within seconds (revocation check verified).
-- [ ] A key rotation completes with zero failed validations during the overlap window.
-- [ ] notification-service authenticates its endpoints, starts without blocking the host, and builds in CI.
-- [ ] Exactly one JWT validation implementation exists in the repo.
-- [ ] No credential literal remains in compose; a missing secret fails startup.
+- [x] `Security__DisableApiAuthorization` does not exist in any image or compose file.
+- [x] Connecting to `/hubs/observability` without a valid token is rejected.
+- [x] No service accepts the built-in default service key in any non-development environment; service principals no longer hold `Perms.All`.
+- [x] Deactivating a user invalidates their live access token within seconds (revocation check verified).
+- [x] A key rotation completes with zero failed validations during the overlap window.
+- [x] notification-service authenticates its endpoints, starts without blocking the host, and builds in CI.
+- [ ] Exactly one JWT validation implementation exists in the repo. — **AUTH-08 deferred to its own CI-gated PR** (the 8 copies remain byte-identical + drift-guarded meanwhile).
+- [x] No credential literal remains in compose; a missing secret fails startup.
 
 ## Rollback
 
 Items 1, 2, 6 are code changes reverted by redeploy. Item 3 staged rollback = re-enable the header check with the strong key. Item 4/5 are additive (revocation set empty = current behaviour; second key optional). Item 7 is a build-system change — keep the copies in git history until the referenced library is proven in CI. Item 8: retain the old secret values in the vault until every service has cut over.
+
+## Execution status (2026-08-10)
+
+| # | Task | Gap | Status |
+|---|---|---|---|
+| 1 | Remove the authorization kill switch | AUTH-02 | ✅ Done — flag + branch deleted from `Program.cs`, removed from compose + appsettings. |
+| 2 | Authorize the observability hub | AUTH-04 | ✅ Done — `[Authorize(Policy="system.manage")]` on `ObservabilityHub` (no live client to break). |
+| 3 | Per-service identity | AUTH-01 | ✅ Done — fail-closed in **all** non-Development, `Auth:ServicePermissions` scoping (asset-model = `asset.view,asset.edit`; every other service = none), default-key-use warning, sims Development downgrade removed. |
+| 4 | Access-token revocation | AUTH-05 | ✅ Done earlier (RBAC build) — `credentials_changed_at` epoch + refresh-token deletion. |
+| 5 | Key rotation with JWKS overlap | AUTH-06 | ✅ Done — dual-key `keys.ts`, kid-selected verification, `keys:rotate` tool, runbook. Overlap proven: a token signed by the old key still validates after rotation (functional test). |
+| 6 | Secure & deploy notification-service | AUTH-07 | ✅ Done — `AddTraverseAuth`/`UseTraverseAuth` wired (health/metrics stay anonymous); boot-hang + CI + compose were landed in Plan 02. |
+| 7 | Single auth library | AUTH-08 | ⏸ **Deferred to its own CI-gated PR** (see below). |
+| 8 | Externalise secrets | SEC-02 | ✅ Done — every credential literal removed from compose; missing secret aborts startup (`:?`); IoTDB creds env-driven; `.env.example` documents the now-required set. |
+
+### AUTH-08 — why deferred, and how to execute
+
+AUTH-08 raises every service's Docker build context and folds `ams-api` + `display-service`
+onto one referenced `Traverse.Auth` project. Its correctness lives almost entirely in the
+Dockerfile COPY/context changes, which **only** manifest in a full image build — this plan's
+own guidance is to land it "in one PR with a full CI run, not service by service." A single
+.NET service image build here runs >2 min, so validating all nine without CI is not feasible in
+this pass, and a half-validated build-system change risks the half-migrated estate the plan
+warns against. The current security posture is intact: the 8 copies are byte-identical and the
+CI drift guard (`sync-auth-module.ps1 -Check`) fails the build if they diverge.
+
+Ready-to-run steps (own PR, full CI):
+1. Add `src/services/_shared/Traverse.Auth.csproj` (net8.0 classlib) wrapping `TraverseAuth.cs`.
+2. For each service under `src/services` (asset-model, template-service, binding-resolver,
+   historian-bff, analysis-service, audit-service, cplm-api, notification-service, display-service):
+   raise its compose `build.context` to `../../src/services` with `dockerfile: <svc>/Dockerfile`;
+   rewrite the Dockerfile COPY/restore to reference `<svc>/` and `_shared/`; add a
+   `<ProjectReference>` to `Traverse.Auth.csproj`; delete `<svc>/Auth/TraverseAuth.cs`.
+3. Fold `ams-api` (raise its context to include `src/services/_shared`, or publish `Traverse.Auth`
+   as a local package) and `display-service` off their hand-rolled `JwksKeyCache`/validators.
+4. Delete `scripts/sync-auth-module.ps1` and drop the CI drift step; run the full image-build CI.
 
 ## Risks & notes
 

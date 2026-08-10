@@ -49,7 +49,7 @@ services:
       # "supersecurepassword123", so a clone without infra/docker/.env (untracked) created the
       # database with one password and connected with another. Supply POSTGRES_PASSWORD via
       # .env for anything beyond a local lab.
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-supersecurepassword123}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ../../database/scripts:/docker-entrypoint-initdb.d:ro
@@ -157,7 +157,7 @@ services:
       EMQX_LOG__CONSOLE__LEVEL: "warning"
       # ── Dashboard ─────────────────────────────────────────────────────────
       EMQX_DASHBOARD__DEFAULT_USERNAME: ${EMQX_DASHBOARD_USER:-admin}
-      EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:-changeme_emqx}
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:?EMQX_DASHBOARD_PASSWORD must be set}
     volumes:
       - emqx-data:/opt/emqx/data
       - emqx-log:/opt/emqx/log
@@ -184,7 +184,7 @@ services:
         condition: service_healthy
     environment:
       PGADMIN_DEFAULT_EMAIL:    ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:?PGADMIN_DEFAULT_PASSWORD must be set}
       PGADMIN_CONFIG_SERVER_MODE: "False"
     volumes:
       - pgadmin-data:/var/lib/pgadmin
@@ -306,7 +306,7 @@ services:
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER:     ${MINIO_ROOT_USER:-ams_minio}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-ams_minio_dev_password}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set — see infra/docker/.env.example}
     volumes:
       - minio-data:/data
     ports:
@@ -330,7 +330,7 @@ services:
         condition: service_healthy
     environment:
       MINIO_ROOT_USER:     ${MINIO_ROOT_USER:-ams_minio}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-ams_minio_dev_password}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set — see infra/docker/.env.example}
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
@@ -372,7 +372,7 @@ services:
         s3.endpoint: http://minio:9000
         s3.path.style.access: true
         s3.access-key: ${MINIO_ROOT_USER:-ams_minio}
-        s3.secret-key: ${MINIO_ROOT_PASSWORD:-ams_minio_dev_password}
+        s3.secret-key: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set — see infra/docker/.env.example}
         # CPLM (Phase 2): cap retained checkpoints — RETAIN_ON_CANCELLATION plus the
         # CPLM jobs' 180-300 s intervals would otherwise grow the bucket unboundedly.
         state.checkpoints.num-retained: 3
@@ -395,11 +395,11 @@ services:
       KAFKA_BROKERS: kafka:9092
       DB_URL:        jdbc:postgresql://postgres:5432/ams
       DB_USER:       ams_user
-      DB_PASS:       ${POSTGRES_PASSWORD:-supersecurepassword123}
+      DB_PASS:       ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
       IOTDB_HOST:    iotdb
       IOTDB_PORT:    "6667"
-      IOTDB_USER:    root
-      IOTDB_PASS:    root
+      IOTDB_USER:    ${IOTDB_USER:-root}
+      IOTDB_PASS:    ${IOTDB_PASSWORD:?IOTDB_PASSWORD must be set — change off the IoTDB default root/root}
     volumes:
       - flink-checkpoints:/flink-checkpoints
       - ./flink-entrypoint.sh:/opt/flink-entrypoint.sh:ro
@@ -442,7 +442,7 @@ services:
         s3.endpoint: http://minio:9000
         s3.path.style.access: true
         s3.access-key: ${MINIO_ROOT_USER:-ams_minio}
-        s3.secret-key: ${MINIO_ROOT_PASSWORD:-ams_minio_dev_password}
+        s3.secret-key: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set — see infra/docker/.env.example}
         state.checkpoints.num-retained: 3
         execution.checkpointing.interval: 60000
         execution.checkpointing.min-pause: 30000
@@ -456,11 +456,11 @@ services:
       KAFKA_BROKERS: kafka:9092
       DB_URL:        jdbc:postgresql://postgres:5432/ams
       DB_USER:       ams_user
-      DB_PASS:       ${POSTGRES_PASSWORD:-supersecurepassword123}
+      DB_PASS:       ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
       IOTDB_HOST:    iotdb
       IOTDB_PORT:    "6667"
-      IOTDB_USER:    root
-      IOTDB_PASS:    root
+      IOTDB_USER:    ${IOTDB_USER:-root}
+      IOTDB_PASS:    ${IOTDB_PASSWORD:?IOTDB_PASSWORD must be set — change off the IoTDB default root/root}
     volumes:
       - flink-checkpoints:/flink-checkpoints
       - ./flink-entrypoint.sh:/opt/flink-entrypoint.sh:ro
@@ -514,12 +514,11 @@ services:
       ASPNETCORE_URLS:          http://0.0.0.0:8000
       ASPNETCORE_HTTP_PORTS:    "8000"
       Urls:                     http://0.0.0.0:8000
-      ConnectionStrings__AmsDb: Host=postgres;Port=5432;Database=ams;Username=ams_user;Password=${POSTGRES_PASSWORD:-supersecurepassword123}
+      ConnectionStrings__AmsDb: Host=postgres;Port=5432;Database=ams;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
       # Phase K — RBAC: real bearer auth (replaces the TestAuthHandler bypass).
       Auth__JwksUrl:            http://auth-service:3002/api/auth/.well-known/jwks.json
       Auth__Issuer:             traverse-auth
       Auth__Audience:           ams-services
-      Security__DisableApiAuthorization: "false"
       Kafka__BootstrapServers:  kafka:9092
       Kafka__IngestAuthority:        api
       Kafka__ConsumerGroupId:        ams-backend-2
@@ -603,7 +602,7 @@ services:
       MQTT_WS:            "false"
       # Phase 6: MQTT auth credentials (matches EMQX built-in auth user)
       MQTT_USERNAME:      ${EMQX_EDGE_USER:-ams_edge}
-      MQTT_PASSWORD:      ${EMQX_EDGE_PASSWORD:-changeme_edge}
+      MQTT_PASSWORD:      ${EMQX_EDGE_PASSWORD:?EMQX_EDGE_PASSWORD must be set}
       SPARKPLUG_GROUP:    ams_site1
       SPARKPLUG_EDGE:     ams_edge1
       REDIS_HOST:         redis
@@ -637,7 +636,9 @@ services:
       Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
       Auth__Issuer:    traverse-auth
       Auth__Audience:  ams-services
-      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
+      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
+      # Sends the key to asset-model but receives no internal calls itself → principal can do nothing.
+      Auth__ServicePermissions: ""
     ports:
       - "8090:8090"
     networks:
@@ -668,7 +669,7 @@ services:
         condition: service_healthy
     environment:
       ASPNETCORE_URLS: http://0.0.0.0:5000
-      ConnectionStrings__TraverseAssets: Host=postgres;Port=5432;Database=traverse_assets;Username=ams_user;Password=${POSTGRES_PASSWORD:-supersecurepassword123}
+      ConnectionStrings__TraverseAssets: Host=postgres;Port=5432;Database=traverse_assets;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
       Redis__Host:     redis
       Redis__Port:     "6379"
       # Platform auth (RBAC): validate RS256 tokens from auth-service; X-Service-Key authenticates
@@ -676,7 +677,11 @@ services:
       Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
       Auth__Issuer:    traverse-auth
       Auth__Audience:  ams-services
-      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
+      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
+      # Service-principal scope (AUTH-01): asset-model is the ONLY service that receives internal
+      # X-Service-Key calls — reads from binding-resolver/cplm-api (asset.view) and derived-asset
+      # registration from analysis-service (asset.edit). Nothing else is granted.
+      Auth__ServicePermissions: "asset.view,asset.edit"
     ports:
       - "5001:5000"
     networks:
@@ -709,7 +714,7 @@ services:
       DB_PORT: "5432"
       DB_NAME: traverse_auth
       DB_USER: ams_user
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-supersecurepassword123}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
       # RBAC governance audit trail (Phase 3): role/permission/user changes are emitted
       # to audit-events for the tamper-evident store. Unset → emit is a no-op (dev).
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
@@ -729,7 +734,7 @@ services:
       # Entrypoint seeds this admin once (idempotent).
       BOOTSTRAP_ADMIN_USERNAME: ${AUTH_BOOTSTRAP_USERNAME:-admin}
       BOOTSTRAP_ADMIN_EMAIL: ${AUTH_BOOTSTRAP_EMAIL:-admin@local}
-      BOOTSTRAP_ADMIN_PASSWORD: ${AUTH_BOOTSTRAP_PASSWORD:-ChangeMe123!}
+      BOOTSTRAP_ADMIN_PASSWORD: ${AUTH_BOOTSTRAP_PASSWORD:?AUTH_BOOTSTRAP_PASSWORD must be set — the first-run admin password}
     volumes:
       - auth-keys:/app/keys
     ports:
@@ -773,7 +778,9 @@ services:
       Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
       Auth__Issuer:    traverse-auth
       Auth__Audience:  ams-services
-      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
+      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
+      # Sends the key to asset-model but receives no internal calls itself → principal can do nothing.
+      Auth__ServicePermissions: ""
     ports:
       - "5002:5000"
     networks:
@@ -801,7 +808,7 @@ services:
         condition: service_healthy
     environment:
       ASPNETCORE_URLS: http://0.0.0.0:5000
-      ConnectionStrings__TraverseDisplays: Host=postgres;Port=5432;Database=traverse_displays;Username=ams_user;Password=${POSTGRES_PASSWORD:-supersecurepassword123}
+      ConnectionStrings__TraverseDisplays: Host=postgres;Port=5432;Database=traverse_displays;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
       Redis__Host:     redis
       Redis__Port:     "6379"
       # Phase 5 — emit governance audit events to the audit-service via Kafka.
@@ -838,7 +845,7 @@ services:
         condition: service_healthy
     environment:
       ASPNETCORE_URLS: http://0.0.0.0:8080
-      ConnectionStrings__AuditDb: Host=postgres;Port=5432;Database=traverse_audit;Username=ams_user;Password=${POSTGRES_PASSWORD:-supersecurepassword123}
+      ConnectionStrings__AuditDb: Host=postgres;Port=5432;Database=traverse_audit;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
       Kafka__BootstrapServers: kafka:9092
       Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
       Auth__Issuer:    traverse-auth
@@ -875,6 +882,12 @@ services:
       ASPNETCORE_URLS: http://0.0.0.0:8080
       Kafka__BootstrapServers: kafka:9092
       Kafka__LifecycleAlertsTopic: lifecycle-alerts
+      # Platform auth (AUTH-07): validate RS256 tokens from auth-service. No X-Service-Key is set —
+      # this worker receives no internal calls — so the service-principal scope is empty.
+      Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
+      Auth__Issuer:    traverse-auth
+      Auth__Audience:  ams-services
+      Auth__ServicePermissions: ""
       # Email dispatch is opt-in; with no SMTP host configured the alert still
       # lands in logs and in the ams_lifecycle_alerts_total metric.
       Smtp__Host: ${SMTP_HOST:-}
@@ -907,7 +920,7 @@ services:
         condition: service_healthy
     environment:
       ASPNETCORE_URLS: http://0.0.0.0:5000
-      ConnectionStrings__TraverseTemplates: Host=postgres;Port=5432;Database=traverse_templates;Username=ams_user;Password=${POSTGRES_PASSWORD:-supersecurepassword123}
+      ConnectionStrings__TraverseTemplates: Host=postgres;Port=5432;Database=traverse_templates;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
       Redis__Host:     redis
       Redis__Port:     "6379"
       # Platform auth (RBAC): validate RS256 tokens from auth-service; X-Service-Key authenticates
@@ -915,7 +928,9 @@ services:
       Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
       Auth__Issuer:    traverse-auth
       Auth__Audience:  ams-services
-      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
+      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
+      # Receives no internal X-Service-Key calls → principal can do nothing.
+      Auth__ServicePermissions: ""
     ports:
       - "5004:5000"
     networks:
@@ -945,7 +960,7 @@ services:
         condition: service_healthy
     environment:
       ASPNETCORE_URLS: http://0.0.0.0:5000
-      ConnectionStrings__TraverseAnalysis: Host=postgres;Port=5432;Database=traverse_analysis;Username=ams_user;Password=${POSTGRES_PASSWORD:-supersecurepassword123}
+      ConnectionStrings__TraverseAnalysis: Host=postgres;Port=5432;Database=traverse_analysis;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
       Redis__Host:        redis
       Redis__Port:        "6379"
       Kafka__Brokers:     kafka:9092
@@ -955,7 +970,9 @@ services:
       Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
       Auth__Issuer:    traverse-auth
       Auth__Audience:  ams-services
-      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
+      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
+      # Sends the key to asset-model (derived-asset registration) but receives no internal calls → nothing.
+      Auth__ServicePermissions: ""
     ports:
       - "5005:5000"
     networks:
@@ -985,11 +1002,11 @@ services:
         condition: service_healthy
     environment:
       ASPNETCORE_URLS: http://0.0.0.0:5000
-      ConnectionStrings__CplmDb: Host=postgres;Port=5432;Database=traverse_cplm;Username=ams_user;Password=${POSTGRES_PASSWORD:-supersecurepassword123}
+      ConnectionStrings__CplmDb: Host=postgres;Port=5432;Database=traverse_cplm;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
       Cpm__AssetModelUrl:    http://asset-model:5000
       # Same key ams-api uses — MUST match asset-model's Auth__ServiceKey or peer-link
       # projection 401s and G13 silently degrades to "no peers".
-      Cpm__ServiceKey:       ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
+      Cpm__ServiceKey:       ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
       Cpm__BootstrapServers: kafka:9092
       # Phase 5 (2026-08-06): cplm-api owns CPLM mutations; AMS.Api's copies are
       # deleted in Phase 6.
@@ -1010,7 +1027,9 @@ services:
       Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
       Auth__Issuer:    traverse-auth
       Auth__Audience:  ams-services
-      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:-traverse-internal-dev-key}
+      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
+      # Sends the key to asset-model but receives no internal calls itself → principal can do nothing.
+      Auth__ServicePermissions: ""
     volumes:
       # A8 recompute cannot work without the jar — verified at Phase 5.2, not first click.
       - ../../src/flink/target/ams-flink-1.0-SNAPSHOT.jar:/opt/ams/flink/ams-flink.jar:ro
@@ -1042,8 +1061,8 @@ services:
     environment:
       IOTDB_HOST: iotdb
       IOTDB_PORT: "6667"
-      IOTDB_USER: root
-      IOTDB_PASS: root
+      IOTDB_USER: ${IOTDB_USER:-root}
+      IOTDB_PASS: ${IOTDB_PASSWORD:?IOTDB_PASSWORD must be set — change off the IoTDB default root/root}
     networks:
       - ams-backend
     restart: "no"
@@ -1290,7 +1309,7 @@ services:
         condition: service_healthy
     environment:
       GF_SECURITY_ADMIN_USER:     ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?GRAFANA_PASSWORD must be set}
       GF_SERVER_ROOT_URL:         http://localhost:3001
       GF_USERS_ALLOW_SIGN_UP:     "false"
       # Auto-provision Prometheus as default datasource
@@ -1333,7 +1352,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATA_SOURCE_NAME: "postgresql://ams_user:${POSTGRES_PASSWORD:-supersecurepassword123}@postgres:5432/ams?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://ams_user:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}@postgres:5432/ams?sslmode=disable"
     ports:
       - "9187:9187"
     networks:

@@ -171,36 +171,49 @@ public static class TraverseAuthExtensions
     {
         var serviceKey = app.Configuration["Auth:ServiceKey"];
 
-        // The built-in default key grants a FULLY-permissioned principal to anyone who can present it.
-        // Fail closed in Production; warn loudly elsewhere so the lab still runs but the risk is visible.
+        // The built-in default key grants a service principal to anyone who can present it, and the
+        // value is visible in source. Fail closed in EVERY non-Development environment (Staging /
+        // Production / custom); only a local dev box may run with it, and even there it warns loudly.
         const string InsecureDefaultServiceKey = "traverse-internal-dev-key";
         if (string.Equals(serviceKey, InsecureDefaultServiceKey, StringComparison.Ordinal))
         {
-            if (app.Environment.IsProduction())
+            if (!app.Environment.IsDevelopment())
                 throw new InvalidOperationException(
                     "Auth:ServiceKey is the insecure built-in default. Configure a strong, unique key " +
-                    "(env Auth__ServiceKey / TRAVERSE_SERVICE_KEY) before running in Production.");
+                    "(env Auth__ServiceKey / TRAVERSE_SERVICE_KEY) before running outside Development.");
             app.Logger.LogWarning(
-                "Auth:ServiceKey is the insecure built-in default and grants full permissions to any caller " +
+                "Auth:ServiceKey is the insecure built-in default and grants a service principal to any caller " +
                 "presenting it. Set a unique Auth__ServiceKey before deploying beyond a local lab.");
         }
 
+        // Scope the service principal to only the permissions this service must honour from internal
+        // callers instead of granting every permission. Auth:ServicePermissions is a comma/space/
+        // semicolon-separated list of permission keys; when the setting is absent the principal falls
+        // back to all permissions (logged) so an un-migrated service keeps working. An explicitly-empty
+        // value yields a principal that can do nothing — correct for a service nobody calls internally.
+        var servicePerms = ParseServicePermissions(app.Configuration["Auth:ServicePermissions"], app.Logger);
+
         // Internal service-to-service calls carry no user token. A matching X-Service-Key is promoted to
-        // a fully-permissioned service principal BEFORE authentication runs, so the normal policies apply
-        // unchanged. If no key is configured the header is ignored entirely (it can't be used to bypass).
+        // a scoped service principal BEFORE authentication runs, so the normal policies apply unchanged.
+        // If no key is configured the header is ignored entirely (it can't be used to bypass).
         app.Use(async (ctx, next) =>
         {
             if (!string.IsNullOrEmpty(serviceKey) &&
                 ctx.Request.Headers.TryGetValue(ServiceKeyHeader, out var presented) &&
                 CryptoEquals(presented.ToString(), serviceKey))
             {
+                if (string.Equals(serviceKey, InsecureDefaultServiceKey, StringComparison.Ordinal))
+                    app.Logger.LogWarning(
+                        "Internal call authenticated with the INSECURE DEFAULT service key from {RemoteIp}",
+                        ctx.Connection.RemoteIpAddress);
+
                 var claims = new List<Claim>
                 {
                     new(ClaimTypes.NameIdentifier, "service"),
                     new("preferred_username", "traverse-service"),
                     new("role", "Service"),
                 };
-                claims.AddRange(Perms.All.Select(p => new Claim("permission", p)));
+                claims.AddRange(servicePerms.Select(p => new Claim("permission", p)));
                 ctx.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "ServiceKey"));
             }
             await next();
@@ -217,5 +230,34 @@ public static class TraverseAuthExtensions
         var diff = 0;
         for (var i = 0; i < a.Length; i++) diff |= a[i] ^ b[i];
         return diff == 0;
+    }
+
+    /// <summary>
+    /// Parse Auth:ServicePermissions into the permission set granted to the internal service principal.
+    /// Null (setting absent) → every permission, with a warning; explicitly empty → no permissions.
+    /// Unknown keys are dropped with a warning so a typo cannot silently widen scope.
+    /// </summary>
+    private static string[] ParseServicePermissions(string? configured, ILogger logger)
+    {
+        if (configured is null)
+        {
+            logger.LogWarning(
+                "Auth:ServicePermissions is not set — the internal service principal is granted ALL permissions. " +
+                "Scope it to the keys this service must honour from internal callers " +
+                "(e.g. Auth__ServicePermissions=asset.view,asset.edit).");
+            return Perms.All;
+        }
+
+        var keys = configured
+            .Split(new[] { ',', ' ', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        var unknown = keys.Where(k => !Perms.All.Contains(k)).ToArray();
+        if (unknown.Length > 0)
+            logger.LogWarning("Auth:ServicePermissions has unknown permission key(s), ignored: {Keys}",
+                string.Join(", ", unknown));
+
+        return keys.Where(k => Perms.All.Contains(k)).ToArray();
     }
 }

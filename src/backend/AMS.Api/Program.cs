@@ -444,9 +444,11 @@ app.UseHttpMetrics(opt =>
 });
 
 // ---- Routes ----
-var controllerEndpoints = app.MapControllers();
-if (config.GetValue("Security:DisableApiAuthorization", false))
-    controllerEndpoints.AllowAnonymous();
+// Every controller is authorized by its own [Authorize] attributes. There is deliberately no
+// global bypass here: the former Security:DisableApiAuthorization switch could turn the entire
+// REST surface (alarms, ACK, shelve, admin, audit, OPC) anonymous from a single env var. Removed
+// so no release image can ship an authorization kill switch (AUTH-02).
+app.MapControllers();
 app.MapHub<AMS.Api.Hubs.AlarmHub>("/hubs/alarms", opt =>
 {
     opt.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets

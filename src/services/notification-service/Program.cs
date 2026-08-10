@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Prometheus;
 using Serilog;
+using Traverse.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,14 +37,20 @@ builder.Services.AddHostedService<LifecycleAlertConsumer>();
 // Basic Health/Metrics
 builder.Services.AddHealthChecks();
 
+// Platform auth (AUTH-07): RS256 bearer validation against auth-service JWKS, same as every peer
+// service. This worker has no business HTTP surface today, but wiring the stack keeps it consistent
+// and ready to guard any future endpoint. /health and /metrics stay anonymous for probes/Prometheus.
+builder.AddTraverseAuth();
+
 var app = builder.Build();
 
 app.UseRouting();
 app.UseHttpMetrics();
+app.UseTraverseAuth();
 
 app.MapMetrics();
 app.MapHealthChecks("/health");
 
-app.MapGet("/", () => "AMS Notification Service is running.");
+app.MapGet("/", () => "AMS Notification Service is running.").RequireAuthorization();
 
 app.Run();

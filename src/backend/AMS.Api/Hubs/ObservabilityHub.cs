@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using System.Text.Json.Serialization;
 
@@ -32,6 +33,11 @@ public sealed record AlarmStateDeltaPayload(
     [property: JsonPropertyName("current_state")] object? CurrentState
 );
 
+// Drift alerts, alarm-state deltas, and replay streams are engineering/diagnostic surfaces, not
+// operator data. Previously this hub carried no [Authorize] at all, so it pushed to any client that
+// connected. Gated to system.manage — the same admin/engineering policy that guards the observability
+// REST controllers (AUTH-04).
+[Authorize(Policy = "system.manage")]
 public sealed class ObservabilityHub : Hub<IObservabilityHubClient>
 {
     private readonly ILogger<ObservabilityHub> _logger;
