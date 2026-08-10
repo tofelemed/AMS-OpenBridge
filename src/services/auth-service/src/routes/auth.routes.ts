@@ -6,7 +6,7 @@ import { Router, Request, Response } from 'express';
 import { AuthController } from '../controllers/auth.controller';
 import { PermissionController } from '../controllers/permission.controller';
 import { authenticateToken, optionalAuth } from '../middleware/auth.middleware';
-import { requireAdmin } from '../middleware/rbac.middleware';
+import { requirePermission } from '../middleware/rbac.middleware';
 import {
   validateLogin,
   validateCreateUser,
@@ -56,35 +56,37 @@ router.put(
   (req, res) => authController.changePassword(req, res)
 );
 
-// User management routes - require Admin role
+// User management routes — gated by the admin.users.edit PERMISSION (not a
+// hardcoded role). Admin holds it via the matrix; a custom role can be granted it too.
+const canManageUsers = requirePermission('admin.users.edit');
 router.post(
   '/users',
   authenticateToken,
-  requireAdmin,
+  canManageUsers,
   validateCreateUser,
   (req, res) => authController.createUser(req, res)
 );
-router.get('/users', authenticateToken, requireAdmin, (req, res) =>
+router.get('/users', authenticateToken, canManageUsers, (req, res) =>
   authController.getAllUsers(req, res)
 );
 // Batch endpoint for users - must be before /users/:id route
-router.get('/users/page', authenticateToken, requireAdmin, (req, res) =>
+router.get('/users/page', authenticateToken, canManageUsers, (req, res) =>
   authController.getUsersPage(req, res)
 );
-router.get('/users/:id', authenticateToken, requireAdmin, (req, res) =>
+router.get('/users/:id', authenticateToken, canManageUsers, (req, res) =>
   authController.getUserById(req, res)
 );
 router.put(
   '/users/:id',
   authenticateToken,
-  requireAdmin,
+  canManageUsers,
   validateUpdateUser,
   (req, res) => authController.updateUser(req, res)
 );
 router.delete(
   '/users/:id',
   authenticateToken,
-  requireAdmin,
+  canManageUsers,
   (req, res) => authController.deleteUser(req, res)
 );
 
@@ -92,7 +94,7 @@ router.delete(
 // BULK IMPORT ROUTES
 // ============================================================================
 
-router.post('/users/bulk-import/validate', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+router.post('/users/bulk-import/validate', authenticateToken, canManageUsers, async (req: Request, res: Response) => {
   try {
     const { rows } = req.body;
     if (!rows || !Array.isArray(rows) || rows.length === 0) {
@@ -110,7 +112,7 @@ router.post('/users/bulk-import/validate', authenticateToken, requireAdmin, asyn
   }
 });
 
-router.post('/users/bulk-import/execute', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+router.post('/users/bulk-import/execute', authenticateToken, canManageUsers, async (req: Request, res: Response) => {
   try {
     const { rows, options } = req.body;
     if (!rows || !Array.isArray(rows) || rows.length === 0) {
@@ -128,7 +130,7 @@ router.post('/users/bulk-import/execute', authenticateToken, requireAdmin, async
   }
 });
 
-router.get('/users/bulk-import/template', authenticateToken, requireAdmin, (_req: Request, res: Response) => {
+router.get('/users/bulk-import/template', authenticateToken, canManageUsers, (_req: Request, res: Response) => {
   const csv = bulkImportService.generateTemplate();
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename=user_import_template.csv');
@@ -136,26 +138,46 @@ router.get('/users/bulk-import/template', authenticateToken, requireAdmin, (_req
 });
 
 // ============================================================================
-// RBAC ROUTES (Admin only) — roles, functional permission catalog, and mapping
+// RBAC ROUTES — gated by the rbac.manage PERMISSION. Roles, the (code-owned)
+// permission catalog, role→permission mapping, and custom-role lifecycle.
 // ============================================================================
+const canManageRbac = requirePermission('rbac.manage');
 
-router.get('/roles', authenticateToken, requireAdmin, (req, res) =>
+router.get('/roles', authenticateToken, canManageRbac, (req, res) =>
   permissionController.getRoles(req, res)
 );
-router.get('/permissions', authenticateToken, requireAdmin, (req, res) =>
+router.get('/permissions', authenticateToken, canManageRbac, (req, res) =>
   permissionController.getAllPermissions(req, res)
 );
+
+// Custom-role lifecycle (system roles protected inside the service).
+router.post('/roles', authenticateToken, canManageRbac, (req, res) =>
+  permissionController.createRole(req, res)
+);
+router.put('/roles/:role', authenticateToken, canManageRbac, (req, res) =>
+  permissionController.updateRole(req, res)
+);
+router.delete('/roles/:role', authenticateToken, canManageRbac, (req, res) =>
+  permissionController.deleteRole(req, res)
+);
+
 router.get(
   '/roles/:role/permissions',
   authenticateToken,
-  requireAdmin,
+  canManageRbac,
   (req, res) => permissionController.getRolePermissions(req, res)
 );
 router.put(
   '/roles/:role/permissions',
   authenticateToken,
-  requireAdmin,
+  canManageRbac,
   (req, res) => permissionController.setRolePermissions(req, res)
+);
+router.post(
+  '/roles/:role/permissions/reset',
+  authenticateToken,
+  canManageRbac,
+  (req, res) => permissionController.resetRolePermissions(req, res)
 );
 
 export default router;

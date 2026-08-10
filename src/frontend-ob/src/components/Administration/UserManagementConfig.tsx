@@ -15,6 +15,7 @@ import {
   type AdminUser,
   type UsersFilters,
 } from '../../api/usersApi';
+import { getRoles } from '../../api/rolesApi';
 import { toast } from 'react-toastify';
 
 const T = {
@@ -27,6 +28,8 @@ const T = {
   radiusSm: '8px',
 } as const;
 
+// Built-in roles are the fallback if the roles API is unavailable; the live list
+// (system + custom) is fetched so custom roles can be assigned to users.
 const ROLES = ['Admin', 'Engineer', 'Operator', 'Viewer'] as const;
 type Role = (typeof ROLES)[number];
 
@@ -80,6 +83,16 @@ export const UserManagementConfig: React.FC = () => {
     retry: false,
     staleTime: 30_000,
   });
+
+  // Live role list (system + custom) for the assignment dropdown, so custom roles
+  // are assignable. Falls back to the built-in ROLES if the roles API is denied.
+  const { data: roleList } = useQuery({
+    queryKey: ['admin-roles'],
+    queryFn: getRoles,
+    retry: false,
+    staleTime: 60_000,
+  });
+  const assignableRoles: string[] = roleList?.map((r) => r.role_name) ?? [...ROLES];
 
   // ── Create / edit modal ─────────────────────────────────────────────
   const [modalOpen, setModalOpen] = useState(false);
@@ -196,7 +209,7 @@ export const UserManagementConfig: React.FC = () => {
         <input className="ob-input" type="text" autoComplete="off" placeholder="Search name or email…" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
         <select className="ob-input" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
           <option value="all">All roles</option>
-          {(data?.filterOptions?.roles ?? ROLES).map((r) => <option key={r} value={r}>{r}</option>)}
+          {assignableRoles.map((r) => <option key={r} value={r}>{r}</option>)}
         </select>
         <select className="ob-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="all">All statuses</option>
@@ -305,7 +318,7 @@ export const UserManagementConfig: React.FC = () => {
           )}
           <FormField label="Role" required>
             <select className="ob-input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })}>
-              {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+              {assignableRoles.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
           </FormField>
           <FormField label="Status">

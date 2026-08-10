@@ -9,6 +9,7 @@
  */
 
 import bcrypt from 'bcrypt';
+import { randomUUID } from 'node:crypto';
 import jwt, { SignOptions, VerifyOptions } from 'jsonwebtoken';
 import pool from '../config/database';
 import logger from '../config/logger';
@@ -63,6 +64,10 @@ export class AuthService {
       issuer: JWT_ISSUER,
       audience: JWT_AUDIENCE,
       keyid: keyConfig.kid,
+      // jti gives per-token identity for future gateway-side blocklisting; the
+      // per-user credentials_changed_at epoch (checked in verifyToken) is what
+      // provides revocation today.
+      jwtid: randomUUID(),
     } as SignOptions);
   }
 
@@ -83,6 +88,16 @@ export class AuthService {
         keyid: keyConfig.kid,
       } as SignOptions
     );
+  }
+
+  /**
+   * Revoke all live access + refresh tokens for a user (Phase 3). Bumps the
+   * credentials_changed_at epoch (invalidates outstanding access tokens on their
+   * next verifyToken) and deletes stored refresh tokens (blocks silent re-mint).
+   */
+  async revokeUserTokens(userId: string): Promise<void> {
+    await pool.query('UPDATE users SET credentials_changed_at = NOW() WHERE user_id = $1', [userId]);
+    await pool.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
   }
 
   /** Persist a refresh token, deriving its expiry from the signed `exp` claim. */
@@ -159,9 +174,31 @@ export class AuthService {
         algorithms: [keyConfig.algorithm],
         issuer: JWT_ISSUER,
         audience: JWT_AUDIENCE,
-      } as VerifyOptions) as TokenPayload;
+      } as VerifyOptions) as TokenPayload & { iat?: number };
+
+      // Revocation check (Phase 3): reject a signature-valid token if the user is
+      // now inactive or their credentials/permissions changed after the token was
+      // issued. This makes a role/permission change or a deactivation take effect
+      // immediately for every path that validates through auth-service (its own
+      // admin routes now, the API gateway in Plan 04) rather than waiting out the
+      // access-token TTL.
+      const uid = decoded.sub || (decoded as any).user_id;
+      if (uid) {
+        const r = await pool.query(
+          'SELECT is_active, EXTRACT(EPOCH FROM credentials_changed_at)::bigint AS changed FROM users WHERE user_id = $1',
+          [uid]
+        );
+        if (r.rows.length === 0 || r.rows[0].is_active === false) {
+          throw new AuthenticationError('Account is inactive');
+        }
+        const changed = Number(r.rows[0].changed);
+        if (decoded.iat && changed && decoded.iat < changed) {
+          throw new AuthenticationError('Token revoked; please sign in again');
+        }
+      }
       return decoded;
     } catch (error) {
+      if (error instanceof AuthenticationError) throw error;
       if (error instanceof jwt.TokenExpiredError) {
         throw new AuthenticationError('Token expired');
       }
@@ -353,6 +390,13 @@ export class AuthService {
       throw new NotFoundError('User');
     }
 
+    // Phase 3: a role change or deactivation must take effect promptly, so revoke
+    // this user's live tokens (their next request re-mints with the new role/perms
+    // or is rejected if deactivated).
+    if (updateData.role !== undefined || updateData.is_active !== undefined) {
+      await this.revokeUserTokens(userId);
+    }
+
     logger.info(`User updated: ${userId}`);
     return result.rows[0];
   }
@@ -442,6 +486,9 @@ export class AuthService {
       'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
       [newPasswordHash, userId]
     );
+
+    // Phase 3: a password change invalidates all existing sessions.
+    await this.revokeUserTokens(userId);
 
     logger.info(`Password changed for user: ${userId}`);
   }

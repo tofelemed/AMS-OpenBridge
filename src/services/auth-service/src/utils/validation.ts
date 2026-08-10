@@ -5,6 +5,19 @@
 import { body, validationResult, ValidationChain } from 'express-validator';
 import { Request, Response, NextFunction } from 'express';
 import { ValidationError } from './errors';
+import pool from '../config/database';
+
+/**
+ * Role validity is checked against the DB `roles` table, NOT a hardcoded list —
+ * otherwise a user could never be assigned a custom role, defeating the whole
+ * custom-role feature. (This replaced isIn(['Admin','Engineer','Operator','Viewer']).)
+ */
+async function roleExists(value: string): Promise<void> {
+  const res = await pool.query('SELECT 1 FROM roles WHERE role_name = $1', [value]);
+  if (res.rows.length === 0) {
+    throw new Error(`Invalid role: '${value}' does not exist`);
+  }
+}
 
 export const validate = (validations: ValidationChain[]) => {
   return async (req: Request, _res: Response, next: NextFunction) => {
@@ -65,8 +78,7 @@ export const validateCreateUser = validate([
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
   body('role')
     .optional()
-    .isIn(['Admin', 'Engineer', 'Operator', 'Viewer'])
-    .withMessage('Invalid role'),
+    .custom(roleExists),
   body('full_name')
     .optional()
     .trim()
@@ -84,8 +96,7 @@ export const validateUpdateUser = validate([
     .normalizeEmail(),
   body('role')
     .optional()
-    .isIn(['Admin', 'Engineer', 'Operator', 'Viewer'])
-    .withMessage('Invalid role'),
+    .custom(roleExists),
   body('full_name')
     .optional()
     .trim()

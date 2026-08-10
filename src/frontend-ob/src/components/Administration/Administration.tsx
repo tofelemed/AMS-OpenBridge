@@ -3,6 +3,7 @@
 import React from 'react';
 import { Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { UserManagementConfig }  from './UserManagementConfig';
+import { RolesConfig }           from './RolesConfig';
 import { AlarmFeedConfig }       from './AlarmFeedConfig';
 import { AlarmRulesConfig }      from './AlarmRulesConfig';
 import { NotificationsConfig }   from './NotificationsConfig';
@@ -28,6 +29,7 @@ const T = {
 
 const TABS = [
   { path: '/admin/users',         label: 'User Management', icon: '👤', permission: 'admin.users.edit' },
+  { path: '/admin/roles',         label: 'Roles & Permissions', icon: '🛡', permission: 'rbac.manage' },
   { path: '/admin/alarm-feed',    label: 'Alarm Feed',      icon: '📡' },
   { path: '/admin/alarm-rules',   label: 'Alarm Rules',     icon: '⚙' },
   { path: '/admin/notifications', label: 'Notifications',   icon: '🔔' },
@@ -39,6 +41,7 @@ const Administration: React.FC = () => {
   const location = useLocation();
   const hasPermission = useAuthStore(s => s.hasPermission);
   const canManageUsers = hasPermission('admin.users.edit');
+  const canManageRbac = hasPermission('rbac.manage');
   const visibleTabs = TABS.filter(t => !t.permission || hasPermission(t.permission));
 
   return (
@@ -118,6 +121,10 @@ const Administration: React.FC = () => {
           <Route
             path="users"
             element={canManageUsers ? <UserManagementConfig /> : <Navigate to={visibleTabs[0]?.path ?? '/dashboard'} replace />}
+          />
+          <Route
+            path="roles"
+            element={canManageRbac ? <RolesConfig /> : <Navigate to={visibleTabs[0]?.path ?? '/dashboard'} replace />}
           />
           <Route path="alarm-feed"    element={<AlarmFeedConfig />} />
           <Route path="opc-servers"   element={<AlarmFeedConfig />} />

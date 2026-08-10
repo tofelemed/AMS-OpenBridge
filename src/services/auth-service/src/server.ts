@@ -12,6 +12,8 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import logger from './config/logger';
+import pool from './config/database';
+import { ensurePermissionCatalog } from './rbac/catalog-sync';
 import promClient from 'prom-client';
 
 // Load environment variables
@@ -167,6 +169,14 @@ const server = app.listen(PORT, () => {
   logger.info(`📊 Health: http://localhost:${PORT}/health`);
   logger.info(`🔑 API: http://localhost:${PORT}/api/auth`);
   logger.info(`🌍 Environment: ${NODE_ENV}`);
+
+  // Ensure the permission catalog matches the code-owned manifest. Self-heals
+  // catalog completeness independent of how the DB was initialised; does not
+  // touch admin-owned role→permission mappings. Non-fatal on failure — the
+  // service still authenticates, and the SQL seed remains the fallback.
+  ensurePermissionCatalog(pool)
+    .then((n) => logger.info(`RBAC catalog ensured (${n} permission rows upserted)`))
+    .catch((err) => logger.error('RBAC catalog sync failed (non-fatal):', err));
 });
 
 // Graceful shutdown

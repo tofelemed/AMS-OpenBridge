@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS roles (
     role_name VARCHAR(50) PRIMARY KEY,
     description VARCHAR(500),
     is_system_role BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- =============================================
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS permissions (
     permission_key VARCHAR(100) PRIMARY KEY,
     description VARCHAR(500),
     category VARCHAR(50),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- =============================================
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS permissions (
 CREATE TABLE IF NOT EXISTS role_permissions (
     role_name VARCHAR(50) NOT NULL REFERENCES roles(role_name) ON DELETE CASCADE,
     permission_key VARCHAR(100) NOT NULL REFERENCES permissions(permission_key) ON DELETE CASCADE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (role_name, permission_key)
 );
 
@@ -55,8 +55,11 @@ CREATE TABLE IF NOT EXISTS users (
     role VARCHAR(50) NOT NULL DEFAULT 'Viewer'
         REFERENCES roles(role_name),
     is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    -- Token revocation epoch: access tokens minted before this are rejected by
+    -- verifyToken. Bumped on role/permission/password/active change (Phase 3).
+    credentials_changed_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -72,8 +75,8 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     token_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     token VARCHAR(2000) UNIQUE NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
@@ -121,7 +124,12 @@ INSERT INTO permissions (permission_key, description, category) VALUES
     ('binding.resolve',         'Resolve UNS path+role → transport', 'binding'),
     ('historian.view',          'Read history/trends/snapshots', 'historian'),
     ('analysis.view',           'View analyses and executions',  'analysis'),
-    ('analysis.edit',           'Create/edit/run analyses',      'analysis')
+    ('analysis.edit',           'Create/edit/run analyses',      'analysis'),
+    -- CPLM + system ops + RBAC administration. cpm.manage/system.manage also seeded by
+    -- 33_cpm_permissions.sql on the docker-init path; rbac.manage gates role management.
+    ('cpm.manage',              'Onboard and configure control loops (CPLM)', 'cpm'),
+    ('system.manage',           'Manage pipeline jobs and OPC connections', 'system'),
+    ('rbac.manage',             'Manage roles and their permissions', 'admin')
 ON CONFLICT (permission_key) DO NOTHING;
 
 -- =============================================
@@ -133,11 +141,11 @@ SELECT 'Admin', permission_key FROM permissions
 ON CONFLICT DO NOTHING;
 
 -- Engineer: all alarm.* + soe.view + analytics.view + full authoring of displays, assets,
--- templates and analyses (no admin.*)
+-- templates and analyses + CPLM loop onboarding (no admin.*, no system.manage).
 INSERT INTO role_permissions (role_name, permission_key)
 SELECT 'Engineer', permission_key FROM permissions
 WHERE category IN ('alarm', 'display', 'asset', 'template', 'binding', 'historian', 'analysis')
-   OR permission_key IN ('soe.view', 'analytics.view')
+   OR permission_key IN ('soe.view', 'analytics.view', 'cpm.manage')
 ON CONFLICT DO NOTHING;
 
 -- Operator: core alarm operations + soe.view + the published runtime viewer (no Designer).
@@ -147,7 +155,7 @@ INSERT INTO role_permissions (role_name, permission_key)
 SELECT 'Operator', permission_key FROM permissions
 WHERE permission_key IN (
     'alarm.view', 'alarm.acknowledge', 'alarm.acknowledge_batch',
-    'alarm.shelve', 'alarm.unshelve', 'soe.view',
+    'alarm.shelve', 'alarm.unshelve', 'alarm.export', 'soe.view', 'analytics.view',
     'display.view', 'asset.view', 'template.view', 'binding.resolve', 'historian.view', 'analysis.view'
 )
 ON CONFLICT DO NOTHING;

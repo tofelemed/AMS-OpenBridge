@@ -8,7 +8,14 @@
 import pool from '../config/database';
 import logger from '../config/logger';
 import { Permission, Role } from '../types';
-import { NotFoundError, ValidationError } from '../utils/errors';
+import { ConflictError, NotFoundError, ValidationError } from '../utils/errors';
+import {
+  SYSTEM_ROLES,
+  defaultPermissionsForRole,
+  type SystemRole,
+} from '../rbac/permission-catalog';
+
+const SYSTEM_ROLE_NAMES = new Set(SYSTEM_ROLES.map((r) => r.name as string));
 
 export class PermissionService {
   /**
@@ -102,7 +109,207 @@ export class PermissionService {
       client.release();
     }
 
+    // Phase 3: re-permissioning a role must take effect promptly for everyone
+    // holding it. Bump their revocation epoch + drop refresh tokens so their next
+    // request re-mints a token with the new permission set.
+    await this.revokeTokensForRole(role);
+
     logger.info(`Role permissions updated: ${role} -> [${uniqueKeys.join(', ')}]`);
+    return uniqueKeys;
+  }
+
+  /** Phase 3: revoke live tokens for every user holding a role (used on re-permissioning). */
+  private async revokeTokensForRole(role: string): Promise<void> {
+    await pool.query('UPDATE users SET credentials_changed_at = NOW() WHERE role = $1', [role]);
+    await pool.query(
+      'DELETE FROM refresh_tokens WHERE user_id IN (SELECT user_id FROM users WHERE role = $1)',
+      [role]
+    );
+  }
+
+  // ── Custom role lifecycle (Phase 2) ────────────────────────────────────────
+
+  /** True for the four built-in roles, which cannot be renamed or deleted. */
+  isSystemRole(role: string): boolean {
+    return SYSTEM_ROLE_NAMES.has(role);
+  }
+
+  /**
+   * Create a custom role (is_system_role = FALSE) with an optional starting
+   * permission set. Fails if the name is taken or collides with a system role.
+   */
+  async createRole(
+    roleName: string,
+    description: string | null,
+    permissionKeys: string[] = []
+  ): Promise<Role> {
+    const name = (roleName ?? '').trim();
+    if (!name) throw new ValidationError('role name is required');
+    if (name.length > 50) throw new ValidationError('role name must be ≤ 50 chars');
+    if (SYSTEM_ROLE_NAMES.has(name)) {
+      throw new ConflictError(`'${name}' is a reserved system role`);
+    }
+
+    const exists = await pool.query('SELECT 1 FROM roles WHERE role_name = $1', [name]);
+    if (exists.rows.length > 0) throw new ConflictError(`Role '${name}' already exists`);
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        'INSERT INTO roles (role_name, description, is_system_role) VALUES ($1, $2, FALSE)',
+        [name, description ?? null]
+      );
+      const keys = await this.applyMappingWithin(client, name, permissionKeys);
+      await client.query('COMMIT');
+      logger.info(`Custom role created: ${name} -> [${keys.join(', ')}]`);
+      return { role_name: name, description: description ?? null, is_system_role: false } as Role;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Update a role. Description is editable for any role. Renaming is allowed for
+   * CUSTOM roles only, and repoints role_permissions and users in one transaction
+   * (the FKs are not ON UPDATE CASCADE).
+   */
+  async updateRole(
+    role: string,
+    changes: { description?: string | null; newName?: string }
+  ): Promise<Role> {
+    const roleCheck = await pool.query(
+      'SELECT role_name, description, is_system_role FROM roles WHERE role_name = $1',
+      [role]
+    );
+    if (roleCheck.rows.length === 0) throw new NotFoundError('Role');
+    const isSystem = roleCheck.rows[0].is_system_role as boolean;
+
+    const rename = changes.newName && changes.newName.trim() !== role;
+    if (rename && isSystem) {
+      throw new ConflictError(`System role '${role}' cannot be renamed`);
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      if (changes.description !== undefined) {
+        await client.query('UPDATE roles SET description = $1 WHERE role_name = $2', [
+          changes.description,
+          role,
+        ]);
+      }
+
+      let finalName = role;
+      if (rename) {
+        const newName = changes.newName!.trim();
+        if (SYSTEM_ROLE_NAMES.has(newName)) throw new ConflictError(`'${newName}' is reserved`);
+        const clash = await client.query('SELECT 1 FROM roles WHERE role_name = $1', [newName]);
+        if (clash.rows.length > 0) throw new ConflictError(`Role '${newName}' already exists`);
+
+        // Repoint children first (FKs are not ON UPDATE CASCADE), then the row.
+        await client.query('INSERT INTO roles (role_name, description, is_system_role) SELECT $1, description, is_system_role FROM roles WHERE role_name = $2', [newName, role]);
+        await client.query('UPDATE role_permissions SET role_name = $1 WHERE role_name = $2', [newName, role]);
+        // Phase 3: moved users get a fresh epoch so their stale role claim is re-minted.
+        await client.query('UPDATE users SET role = $1, credentials_changed_at = NOW() WHERE role = $2', [newName, role]);
+        await client.query('DELETE FROM roles WHERE role_name = $1', [role]);
+        finalName = newName;
+      }
+
+      await client.query('COMMIT');
+      logger.info(`Role updated: ${role}${rename ? ` -> ${finalName}` : ''}`);
+      const row = await pool.query(
+        'SELECT role_name, description, is_system_role FROM roles WHERE role_name = $1',
+        [finalName]
+      );
+      return row.rows[0] as Role;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Delete a custom role. System roles are refused; a role with users assigned is
+   * refused unless a reassignTo target is given (users are moved first).
+   */
+  async deleteRole(role: string, reassignTo?: string): Promise<void> {
+    const roleCheck = await pool.query(
+      'SELECT is_system_role FROM roles WHERE role_name = $1',
+      [role]
+    );
+    if (roleCheck.rows.length === 0) throw new NotFoundError('Role');
+    if (roleCheck.rows[0].is_system_role) {
+      throw new ConflictError(`System role '${role}' cannot be deleted`);
+    }
+
+    const users = await pool.query('SELECT COUNT(*)::int AS n FROM users WHERE role = $1', [role]);
+    const userCount = users.rows[0].n as number;
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      if (userCount > 0) {
+        if (!reassignTo) {
+          throw new ConflictError(
+            `Role '${role}' has ${userCount} user(s); pass reassignTo to move them first`
+          );
+        }
+        const target = await client.query('SELECT 1 FROM roles WHERE role_name = $1', [reassignTo]);
+        if (target.rows.length === 0) throw new ValidationError(`reassignTo role '${reassignTo}' does not exist`);
+        // Phase 3: reassigned users change permission set → revoke their live tokens.
+        await client.query('UPDATE users SET role = $1, credentials_changed_at = NOW() WHERE role = $2', [reassignTo, role]);
+      }
+      // role_permissions rows cascade on role delete.
+      await client.query('DELETE FROM roles WHERE role_name = $1', [role]);
+      await client.query('COMMIT');
+      logger.info(`Role deleted: ${role}${userCount > 0 ? ` (${userCount} users -> ${reassignTo})` : ''}`);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /** Reset a SYSTEM role's permissions to the manifest default matrix. */
+  async resetRolePermissions(role: string): Promise<string[]> {
+    if (!SYSTEM_ROLE_NAMES.has(role)) {
+      throw new ValidationError(`Reset applies to system roles only; '${role}' is custom — edit it directly`);
+    }
+    const defaults = defaultPermissionsForRole(role as SystemRole);
+    return this.setRolePermissions(role, defaults);
+  }
+
+  /** Shared mapping-replace used within an open transaction (create role path). */
+  private async applyMappingWithin(
+    client: any,
+    role: string,
+    permissionKeys: string[]
+  ): Promise<string[]> {
+    const uniqueKeys = Array.from(new Set(permissionKeys));
+    if (uniqueKeys.length > 0) {
+      const validRows = await client.query(
+        'SELECT permission_key FROM permissions WHERE permission_key = ANY($1)',
+        [uniqueKeys]
+      );
+      const validSet = new Set(validRows.rows.map((r: { permission_key: string }) => r.permission_key));
+      const unknown = uniqueKeys.filter((k) => !validSet.has(k));
+      if (unknown.length > 0) throw new ValidationError(`Unknown permission key(s): ${unknown.join(', ')}`);
+    }
+    await client.query('DELETE FROM role_permissions WHERE role_name = $1', [role]);
+    for (const key of uniqueKeys) {
+      await client.query(
+        'INSERT INTO role_permissions (role_name, permission_key) VALUES ($1, $2)',
+        [role, key]
+      );
+    }
     return uniqueKeys;
   }
 }
