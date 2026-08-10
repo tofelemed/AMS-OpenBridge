@@ -24,10 +24,12 @@ namespace AMS.Api.Controllers.V1;
 public sealed class AlarmsController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly AMS.Infrastructure.Caching.AlarmReadCache _readCache;
 
-    public AlarmsController(IMediator mediator)
+    public AlarmsController(IMediator mediator, AMS.Infrastructure.Caching.AlarmReadCache readCache)
     {
         _mediator = mediator;
+        _readCache = readCache;
     }
 
     // ====================================================================
@@ -58,20 +60,25 @@ public sealed class AlarmsController : ControllerBase
         [FromQuery] bool sortDescending          = true,
         CancellationToken ct                     = default)
     {
-        var result = await _mediator.Send(new GetActiveAlarmsQuery(
-            ServerId:            serverId,
-            Priority:            priority,
-            State:               state,
-            Category:            category,
-            SourceNameContains:  sourceNameContains,
-            IsAcknowledged:      isAcknowledged,
-            IsShelved:           isShelved,
-            IsSuppressed:        isSuppressed,
-            PageNumber:          pageNumber,
-            PageSize:            pageSize,
-            SortBy:              sortBy,
-            SortDescending:      sortDescending
-        ), ct);
+        // DATA-08: the alarm list is the hottest read (every console polls it). Cached for
+        // ≤3s keyed by the full query string; any projection write invalidates immediately
+        // (version bump), so operators never see written state later than one in-flight read.
+        var result = await _readCache.GetOrCreateAsync(
+            $"active:{Request.QueryString.Value}",
+            () => _mediator.Send(new GetActiveAlarmsQuery(
+                ServerId:            serverId,
+                Priority:            priority,
+                State:               state,
+                Category:            category,
+                SourceNameContains:  sourceNameContains,
+                IsAcknowledged:      isAcknowledged,
+                IsShelved:           isShelved,
+                IsSuppressed:        isSuppressed,
+                PageNumber:          pageNumber,
+                PageSize:            pageSize,
+                SortBy:              sortBy,
+                SortDescending:      sortDescending
+            ), ct));
 
         Response.Headers.Append("X-Total-Count", result.TotalCount.ToString());
         return Ok(result);
@@ -90,7 +97,10 @@ public sealed class AlarmsController : ControllerBase
         [FromQuery] Guid? serverId = null,
         CancellationToken ct = default)
     {
-        var stats = await _mediator.Send(new GetAlarmStatisticsQuery(serverId), ct);
+        // DATA-08: stats summary rides the same invalidated cache as the list.
+        var stats = await _readCache.GetOrCreateAsync(
+            $"stats:{serverId}",
+            () => _mediator.Send(new GetAlarmStatisticsQuery(serverId), ct));
         return Ok(stats);
     }
 

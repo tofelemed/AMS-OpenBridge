@@ -81,6 +81,10 @@ public sealed class LifecycleEventConsumerService : BackgroundService
                                 dcsSequenceId: evt.DcsSequenceId);
                             await uow.ActiveAlarms.UpdateAsync(alarm, stoppingToken);
                             await uow.SaveChangesAsync(stoppingToken);
+                            // DATA-08: invalidate the alarm-list read cache on ACK-state writes.
+                            scope.ServiceProvider
+                                .GetRequiredService<AMS.Infrastructure.Caching.AlarmReadCache>()
+                                .Invalidate();
                         }
                     }
 

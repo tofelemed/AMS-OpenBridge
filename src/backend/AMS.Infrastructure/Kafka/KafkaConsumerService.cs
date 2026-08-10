@@ -309,6 +309,12 @@ public sealed class NormalizedAlarmConsumerService : BackgroundService
 
                     await uow.SaveChangesAsync(ct);
 
+                    // DATA-08: a projection write makes every cached alarm-list read stale —
+                    // bump the read-cache version so the next poll re-reads Postgres.
+                    scope.ServiceProvider
+                        .GetRequiredService<AMS.Infrastructure.Caching.AlarmReadCache>()
+                        .Invalidate();
+
                     // DATA-06: append to the alarm event log only after the projection write
                     // succeeded, so history never records an event that was rolled back.
                     // Failure here must not fail the batch — history is analytics, the
