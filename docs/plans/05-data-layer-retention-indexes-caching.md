@@ -124,6 +124,24 @@ Polly is referenced in `AMS.Infrastructure.csproj` but has **zero call sites**; 
 - [ ] A clean-volume database init completes with zero errors and no object in the wrong database.
 - [ ] Every outbound HttpClient has retry + circuit breaker.
 
+## Execution status (2026-08-11) — COMPLETE
+
+| # | Task | Status |
+|---|---|---|
+| 1 | Hypertables + compression + retention | ✅ `39_timescale_policies.sql`: 7 hypertables across ams/analysis/cplm with compression + retention jobs (2y alarms — confirm with compliance). PKs widened where needed; cplm upsert conflict target proven intact. Excluded, documented in-script: `cplm_event_frames` (lifecycle table), `audit.immutable_events` (hash chain forbids retention). EF pre-mark kept deliberately — 39 is the authoritative implementation. |
+| 2 | Hot-predicate indexes | ✅ `40_alarm_hot_indexes.sql` (state+time, time+source, pg_trgm). Repo fixes: all 8 advertised filters honoured; count matches the filtered list; unacked read bounded (1000). |
+| 3 | Redis contract tier | ✅ `redis-contract` (noeviction+AOF+requirepass, unpublished): snapshot+alias keys; edge/historian-bff/analysis moved. Cache-tier pressure leaves contract untouched; contract-full → loud OOM with snapshots intact. TLS deferred to on-prem (documented). Cache tier stays volatile-lru (deviation, justified in commit). |
+| 4 | /snapshot scan fix | ✅ Index maintained on edge write (`snapshot:devices` + `snapshot:index:*`), SMEMBERS+MGET reads, lazy pruning, paging, 2s burst cache. 4k-request burst: 99.5% OK. |
+| 5 | API-tier caching | ✅ `AlarmReadCache` (3s TTL, version-invalidated by both projection consumers) on the alarm list + stats. In-memory pending Plan 06 scale-out. |
+| 6 | Alarm identity | ✅ Canonical rule (= what Flink always stored → no data migration); binding-resolver `GET /resolve/alarm` is the single deriver; browser server-first with local fallback; Flink collision guard; device-id divergence documented as a deferred migration decision (`docs/alarm-identity-contract.md`). |
+| 7 | Init-script targeting | ✅ Scripts 17–21 `\c` into their DBs. Clean-volume init (production-shaped): **zero errors**, `media_assets` in the right database. |
+| 8 | Cleanup | ✅ TIMESTAMPTZ was already done (migration 38); orphan `traverse_shared` removed from CLAUDE.md (real `traverse_auth` listed instead). |
+| 9 | Resilience | ✅ `AddStandardResilienceHandler` defaults in all 6 outbound-HTTP services + a 5-min budget for the Flink jar upload; gateway deliberately excluded (has its own breaker). IoTDB-down /trend fails bounded at 30s (was a 100s hang). |
+
+**Lab-drift finds during execution:** migrations 35/36/38 had never been applied to the lab
+postgres volume (init scripts run only on first volume creation) — applied; kafka/zookeeper
+state was reset once to clear a broken coordinator (fallout of an earlier cluster-ID repair).
+
 ## Rollback
 
 Index and policy additions are reversible (`DROP INDEX`, `remove_retention_policy`). Hypertable conversion is **not trivially reversible** — snapshot the database first and rehearse on a copy. Redis tier split: keep the old instance running until both writer and reader have cut over. Caching and resilience are feature-flagged code changes.
