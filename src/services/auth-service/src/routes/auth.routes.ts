@@ -16,6 +16,7 @@ import {
 } from '../utils/validation';
 import * as bulkImportService from '../services/bulkImportService';
 import { getJwks } from '../config/keys';
+import pool from '../config/database';
 
 const router = Router();
 const authController = new AuthController();
@@ -24,6 +25,46 @@ const permissionController = new PermissionController();
 // Public key set for RS256 token validators (.NET services, etc.)
 router.get('/.well-known/jwks.json', (_req: Request, res: Response) => {
   res.status(200).json(getJwks());
+});
+
+// ── Internal: edge-revocation feed for the API gateway (Plan 04 §2) ─────────────
+// The gateway polls this every few seconds and rejects signature-valid tokens whose
+// owner was revoked (credentials_changed_at bump) or deactivated — the edge-only
+// enforcement point. Guarded by the internal service key; disabled if none is set.
+router.get('/internal/revocations', async (req: Request, res: Response) => {
+  const serviceKey = process.env.TRAVERSE_SERVICE_KEY;
+  if (!serviceKey) {
+    res.status(404).json({ error: 'Internal endpoints disabled (no TRAVERSE_SERVICE_KEY).' });
+    return;
+  }
+  if (req.header('X-Service-Key') !== serviceKey) {
+    res.status(403).json({ error: 'Invalid service key.' });
+    return;
+  }
+
+  const since = Number.parseInt(String(req.query.sinceEpoch ?? ''), 10);
+  const sinceEpoch = Number.isFinite(since) ? since : Math.floor(Date.now() / 1000) - 1800;
+
+  try {
+    const result = await pool.query(
+      `SELECT user_id,
+              EXTRACT(EPOCH FROM credentials_changed_at)::bigint AS changed,
+              is_active
+         FROM users
+        WHERE credentials_changed_at > to_timestamp($1)
+           OR is_active = false`,
+      [sinceEpoch]
+    );
+    res.status(200).json({
+      data: result.rows.map((r) => ({
+        user_id: r.user_id,
+        changed: Number(r.changed) || 0,
+        is_active: r.is_active !== false,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to read revocations.' });
+  }
 });
 
 // Public routes

@@ -573,6 +573,42 @@ services:
       - ams-backend
 
   # ─────────────────────────────────────────────
+  # Plan 04 — API Gateway (YARP). SHADOW MODE: runs alongside nginx on 8080; the
+  # frontend still talks to nginx (3000) until cutover flips it to the gateway
+  # (then nginx serves the static SPA only — Plan 04 item 7). Edge-only auth:
+  # validates RS256 tokens at the edge, enforces revocation within seconds, and
+  # injects X-Auth-* identity headers (MIGRATION_LOG decision #16).
+  # ─────────────────────────────────────────────
+  gateway:
+    build:
+      context: ../../src/services/gateway
+    container_name: traverse-gateway
+    <<: *default-restart
+    depends_on:
+      auth-service:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Auth__JwksUrl:        http://auth-service:3002/api/auth/.well-known/jwks.json
+      Auth__AuthServiceUrl: http://auth-service:3002
+      Auth__Issuer:         traverse-auth
+      Auth__Audience:       ams-services
+      # Authenticates the edge-revocation poll against auth-service's internal endpoint.
+      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
+      # TLS: set Gateway__Tls__CertPath (+ mount the cert) for HTTPS on 8443 in production.
+      Gateway__ExposeSwagger: "false"
+    ports:
+      - "8081:8080"
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/8080 && printf \"GET /gw/health HTTP/1.0\\r\\n\\r\\n\" >&3 && grep -q Healthy <&3' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ─────────────────────────────────────────────
   # Phase 3 — Sparkplug B Edge Node
   # Kafka(live.alarms, live.metrics) → EMQX → HMI
   # Also writes Redis snapshot cache
@@ -735,6 +771,9 @@ services:
       BOOTSTRAP_ADMIN_USERNAME: ${AUTH_BOOTSTRAP_USERNAME:-admin}
       BOOTSTRAP_ADMIN_EMAIL: ${AUTH_BOOTSTRAP_EMAIL:-admin@local}
       BOOTSTRAP_ADMIN_PASSWORD: ${AUTH_BOOTSTRAP_PASSWORD:?AUTH_BOOTSTRAP_PASSWORD must be set — the first-run admin password}
+      # Guards GET /api/auth/internal/revocations — the gateway's edge-revocation poll
+      # (Plan 04 §2). Unset → the internal endpoint is disabled.
+      TRAVERSE_SERVICE_KEY: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
     volumes:
       - auth-keys:/app/keys
     ports:

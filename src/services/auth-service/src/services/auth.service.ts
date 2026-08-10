@@ -92,6 +92,12 @@ export class AuthService {
         expiresIn: JWT_REFRESH_EXPIRES_IN,
         issuer: JWT_ISSUER,
         keyid: keyConfig.kid,
+        // Without a jti the payload is fully deterministic, so two logins in the
+        // same second minted byte-identical refresh tokens and the second INSERT
+        // INTO refresh_tokens hit the unique constraint -> intermittent login 500
+        // (two operator stations logging in simultaneously). jti makes every
+        // refresh token unique.
+        jwtid: randomUUID(),
       } as SignOptions
     );
   }
