@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
   Build and run the full AMS stack in Docker for local user experience.
@@ -221,7 +221,7 @@ Write-Host "`n========================================" -ForegroundColor Green
 Write-Host " AMS Docker stack is ready" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "  Alarm Console:   http://localhost:3000" -ForegroundColor White
-Write-Host "  API / Swagger:   http://localhost:8000/swagger" -ForegroundColor White
+Write-Host "  API / Swagger:   http://localhost:8081/swagger" -ForegroundColor White
 Write-Host "  Flink UI:        http://localhost:8082" -ForegroundColor White
 Write-Host "  Grafana:         http://localhost:3001  (profile: observability)" -ForegroundColor DarkGray
 Write-Host "`nStop: docker compose -f docker-compose.yml down  (run from infra\docker)" -ForegroundColor DarkGray

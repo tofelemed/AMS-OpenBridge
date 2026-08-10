@@ -4,7 +4,7 @@
 param(
     [switch]$Verbose,
     [string]$FrontendBase = "http://localhost:3000",
-    [string]$DisplayDirect = "http://localhost:5003"
+    [string]$DisplayDirect = "http://localhost:8081/api"
 )
 
 $ErrorActionPreference = "Continue"

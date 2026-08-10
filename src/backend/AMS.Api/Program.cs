@@ -11,7 +11,6 @@ using AMS.Domain.Repositories;
 using Asp.Versioning;
 using FluentValidation;
 using MediatR;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
@@ -262,46 +261,16 @@ services.AddSwaggerGen(opt =>
 // ---- JWT Authentication (Phase K: real RS256 bearer validation against auth-service) ----
 // This replaces the former TestAuthHandler, which succeeded for EVERY anonymous request with the full
 // permission set — making the policies below decorative. Tokens now come from auth-service and are
-// verified against its JWKS.
+// Edge-only auth (Plan 04 final lockdown): the GATEWAY is the single JWT validator —
+// it validates the RS256 token (including SignalR's ?access_token=), enforces
+// revocation, and forwards the identity as X-Auth-* headers. This service
+// materialises those headers into a principal; the policies below are unchanged.
 services.AddHttpClient();
-services.AddSingleton<AMS.Api.Auth.JwksKeyCache>();
 
-var authIssuer   = config["Auth:Issuer"]   ?? "traverse-auth";
-var authAudience = config["Auth:Audience"] ?? "ams-services";
-
-services.AddAuthentication(Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(opt =>
-    {
-        opt.RequireHttpsMetadata = false; // HTTP inside the compose network
-        opt.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = authIssuer,
-            ValidateAudience = true,
-            ValidAudience = authAudience,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidAlgorithms = new[] { "RS256" },
-            ClockSkew = TimeSpan.FromSeconds(30),
-        };
-        opt.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
-        {
-            OnMessageReceived = ctx =>
-            {
-                var jwks = ctx.HttpContext.RequestServices.GetRequiredService<AMS.Api.Auth.JwksKeyCache>();
-                ctx.Options.TokenValidationParameters.IssuerSigningKeyResolver = jwks.Resolve;
-
-                // SignalR WebSockets (and browser-initiated stream/export downloads) cannot set an
-                // Authorization header — they carry the token as ?access_token=, per the SignalR contract.
-                if (string.IsNullOrEmpty(ctx.Token))
-                {
-                    var qsToken = ctx.Request.Query["access_token"].ToString();
-                    if (!string.IsNullOrEmpty(qsToken)) ctx.Token = qsToken;
-                }
-                return Task.CompletedTask;
-            },
-        };
-    });
+services.AddAuthentication(AMS.Api.Auth.GatewayHeaderAuthHandler.SchemeName)
+    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,
+               AMS.Api.Auth.GatewayHeaderAuthHandler>(
+        AMS.Api.Auth.GatewayHeaderAuthHandler.SchemeName, _ => { });
 
 // ---- Authorization Policies (RBAC) ----
 services.AddAuthorizationBuilder()

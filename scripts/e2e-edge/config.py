@@ -1,7 +1,7 @@
-"""Edge platform E2E — endpoint configuration (override via env vars)."""
+﻿"""Edge platform E2E â€” endpoint configuration (override via env vars)."""
 import os
 
-# Kafka (host → Docker external listener, or in-container via docker exec)
+# Kafka (host â†’ Docker external listener, or in-container via docker exec)
 KAFKA_BOOTSTRAP = os.getenv("E2E_KAFKA_BOOTSTRAP", "localhost:9093")
 KAFKA_DOCKER_CONTAINER = os.getenv("E2E_KAFKA_DOCKER", "ams-kafka")
 # "true" = always docker exec; "false" = host:9093; "auto" = try host then docker
@@ -12,15 +12,15 @@ TOPIC_LIVE_ALARMS = os.getenv("E2E_TOPIC_LIVE_ALARMS", "live.alarms")
 TOPIC_LIVE_METRICS = os.getenv("E2E_TOPIC_LIVE_METRICS", "live.metrics")
 
 # Services
-API_BASE = os.getenv("E2E_API_BASE", "http://localhost:8000")
-BFF_BASE = os.getenv("E2E_BFF_BASE", "http://localhost:8090")
+API_BASE = os.getenv("E2E_API_BASE", "http://localhost:8081")
+BFF_BASE = os.getenv("E2E_BFF_BASE", "http://localhost:8081/api/hist")
 BFF_VIA_NGINX = os.getenv("E2E_BFF_NGINX", "http://localhost:3000/api/hist")
 IOTDB_REST = os.getenv("E2E_IOTDB_REST", "http://localhost:8181")
 PROMETHEUS = os.getenv("E2E_PROMETHEUS", "http://localhost:9090")
 FRONTEND = os.getenv("E2E_FRONTEND", "http://localhost:3000")
 
 # MQTT / Sparkplug
-# E2E_MQTT_PORT  — raw TCP listener (paho-mqtt plain TCP).  Default: 1883.
+# E2E_MQTT_PORT  â€” raw TCP listener (paho-mqtt plain TCP).  Default: 1883.
 #                  Use 8083 only when connecting via WebSocket transport.
 MQTT_HOST = os.getenv("E2E_MQTT_HOST", "localhost")
 MQTT_PORT = int(os.getenv("E2E_MQTT_PORT", "1883"))
@@ -43,9 +43,9 @@ PG_PASS = os.getenv("E2E_PG_PASS", "supersecurepassword123")
 IOTDB_USER = os.getenv("E2E_IOTDB_USER", "root")
 IOTDB_PASS = os.getenv("E2E_IOTDB_PASS", "root")
 
-# Test data prefix — unique per run
+# Test data prefix â€” unique per run
 TEST_PREFIX = os.getenv("E2E_TEST_PREFIX", "E2E")
-# CRITICAL: Must be a valid GUID — NormalizedAlarmIngestor drops non-GUID serverIds!
+# CRITICAL: Must be a valid GUID â€” NormalizedAlarmIngestor drops non-GUID serverIds!
 # Using the same GUID configured in docker-compose AlarmIngestion__ServerId
 TEST_SERVER_ID = os.getenv("E2E_SERVER_ID", "f0af9a6d-85f6-4c9f-a8ad-6de277d1d110")
 

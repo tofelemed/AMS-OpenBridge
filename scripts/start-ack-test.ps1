@@ -100,7 +100,7 @@ Write-Host "  Waiting for ams-api..." -NoNewline
 $apiReady = $false
 for ($i = 0; $i -lt 30; $i++) {
     try {
-        $null = Invoke-RestMethod -Uri "http://localhost:8000/health" -UseBasicParsing -TimeoutSec 3
+        $null = Invoke-RestMethod -Uri "http://localhost:8081/health" -UseBasicParsing -TimeoutSec 3
         $apiReady = $true
         break
     } catch {

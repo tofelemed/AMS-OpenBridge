@@ -10,7 +10,6 @@
   <ItemGroup>
     <!-- Platform auth (AUTH-07): same RS256/JWKS stack as every other Traverse HTTP service.
          Auth/TraverseAuth.cs is kept byte-identical by scripts/sync-auth-module.ps1. -->
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.4" />
     <PackageReference Include="Confluent.Kafka" Version="2.4.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />

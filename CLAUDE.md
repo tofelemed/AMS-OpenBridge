@@ -38,7 +38,7 @@ This wraps `scripts/start-ams-docker-full.ps1`. Related: `scripts/start-ams-lab.
 ### Frontend (`src/frontend-ob`)
 ```powershell
 npm install
-npm run dev      # Vite dev server on http://localhost:5174 (proxies /api → :5000, /api/bindings → :5002, /api/displays → :5003, /api/hist → :8090)
+npm run dev      # Vite dev server on http://localhost:5174 (proxies /api, /hubs, /mqtt-ws → the API gateway on :8081)
 npm run build    # tsc typecheck + vite build → dist/
 npm run lint     # eslint, --max-warnings 0 (must be clean)
 ```
@@ -46,7 +46,7 @@ npm run lint     # eslint, --max-warnings 0 (must be clean)
 ### Backend & services (.NET 8)
 ```powershell
 dotnet build src/backend/AMS.Api/AMS.Api.csproj
-dotnet run --project src/backend/AMS.Api          # local dev API (Kestrel; frontend dev proxy expects :5000)
+dotnet run --project src/backend/AMS.Api          # local dev API (Kestrel; note: browser traffic normally rides the gateway on :8081)
 dotnet run --project src/services/binding-resolver # any service runs the same way
 ```
 
@@ -66,27 +66,30 @@ End-to-end validation is script-driven, not `dotnet test`: `scripts/e2e-full-sys
 ```
 Jobs are submitted to the Flink JobManager during stack startup; see `infra/docker/flink-submit-*.sh` and `scripts/ensure_flink_jobs.py`.
 
-## Service ports (docker-compose)
+## Service ports (docker-compose) — after the Plan 04 final lockdown
 
-| Service | Host port |
+**The API gateway (host `8081`) is the only way into the API surface.** Individual services
+publish **no** host ports — they exist only on the compose network, addressed via the gateway's
+route map (`/api/assets`, `/api/displays`, `/api/bindings`, `/api/hist`, `/api/audit`,
+`/api/v1/cpm`, `/api/auth`, `/api/*`→ams-api, `/hubs`, `/mqtt-ws`). Per-service health for host
+tooling: `http://localhost:8081/gw/upstreams/<cluster>/health`. Full reference:
+[docs/api-gateway.md](docs/api-gateway.md).
+
+| Published on host | What |
 |---|---|
-| ams-api (.NET) | 8000 (local dev Kestrel: 5000) |
-| ams-frontend (nginx) | 3000 (dev Vite: 5174) |
-| asset-model | 5001 |
-| binding-resolver | 5002 |
-| display-service | 5003 |
-| template-service | 5004 |
-| analysis-service | 5005 |
-| cplm-api | 5006 |
-| historian-bff | 8090 |
-| audit-service | 8095 |
-| Postgres | 5433 → 5432 |
-| Redis | 6380 → 6379 |
-| Kafka | 9093 (kafka-ui: 8085) |
-| EMQX (MQTT/Sparkplug) | 1883, WS 8083, dashboard 18083 |
-| IoTDB | 6667 |
-| Flink JobManager UI | 8082 |
-| Prometheus / Grafana | 9090 / 3001 |
+| **8081** | **API gateway (entire API surface)** — 8443 HTTPS when a cert is configured |
+| 3000 | ams-frontend nginx (static SPA; passes /api, /hubs, /mqtt-ws to the gateway). Dev Vite: 5174 → proxies to 8081 |
+| 1883 / 18083 | EMQX MQTT TCP (authenticated) / dashboard. Direct WS 8083 is no longer published — browsers use /mqtt-ws via the gateway |
+| 5433 → 5432 | Postgres |
+| 6380 → 6379 | Redis |
+| 9093 | Kafka (kafka-ui: 8085) |
+| 6667 | IoTDB |
+| 8082 | Flink JobManager UI |
+| 9090 / 3001 | Prometheus / Grafana |
+
+Auth is **edge-only** (MIGRATION_LOG decision #16): the gateway is the single JWT validator;
+services authorize from the gateway-injected `X-Auth-*` headers via the shared `TraverseAuth.cs`
+header-trust module (synced by `scripts/sync-auth-module.ps1`). No service parses JWTs.
 
 ## Architecture rules that aren't obvious from the code
 

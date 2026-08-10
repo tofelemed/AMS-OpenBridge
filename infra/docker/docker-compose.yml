@@ -1,4 +1,4 @@
-x-logging: &default-logging
+﻿x-logging: &default-logging
   logging:
     driver: "json-file"
     options:
@@ -22,7 +22,7 @@ volumes:
   flink-checkpoints:
   # STR-02: durable Flink checkpoint/savepoint object store.
   minio-data:
-  # ── Phase 0: Edge platform historians & brokers ──
+  # â”€â”€ Phase 0: Edge platform historians & brokers â”€â”€
   iotdb-data:
   iotdb-logs:
   iotdb-ext:
@@ -30,10 +30,10 @@ volumes:
   redis-data:
   emqx-data:
   emqx-log:
-  # ── Phase 6: Observability ──
+  # â”€â”€ Phase 6: Observability â”€â”€
   prometheus-data:
   grafana-data:
-  # ── Auth service RS256 signing key ──
+  # â”€â”€ Auth service RS256 signing key â”€â”€
   auth-keys:
 
 services:
@@ -49,7 +49,7 @@ services:
       # "supersecurepassword123", so a clone without infra/docker/.env (untracked) created the
       # database with one password and connected with another. Supply POSTGRES_PASSWORD via
       # .env for anything beyond a local lab.
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set â€” see infra/docker/.env.example}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ../../database/scripts:/docker-entrypoint-initdb.d:ro
@@ -64,10 +64,10 @@ services:
       retries: 5
       start_period: 180s
 
-  # ─────────────────────────────────────────────
-  # Phase 0 — IoTDB historian (standalone, 1.3.2)
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Phase 0 â€” IoTDB historian (standalone, 1.3.2)
   # Session API :6667 | REST v2 :8181 | Metrics :9091
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   iotdb:
     image: apache/iotdb:1.3.2-standalone
     container_name: ams-iotdb
@@ -96,15 +96,15 @@ services:
       retries: 10
       start_period: 120s
 
-  # ─────────────────────────────────────────────
-  # Phase 0 — Redis state-cache (7.2)
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Phase 0 â€” Redis state-cache (7.2)
   # MQTT snapshot + alias registry :6379
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   redis:
     image: redis:7.2-alpine
     container_name: ams-redis
     <<: *default-restart
-    # Phase 6.7 — snapshots are a paint-on-open CONTRACT, not a cache.
+    # Phase 6.7 â€” snapshots are a paint-on-open CONTRACT, not a cache.
     # allkeys-lru let Redis evict a live snapshot under memory pressure, so a
     # faceplate could open blank with nothing logged and nothing to retry
     # against. volatile-lru only evicts keys carrying an explicit TTL, which is
@@ -119,7 +119,7 @@ services:
     volumes:
       - redis-data:/data
     ports:
-      - "6380:6379"    # host:6380 → container:6379 (6379 taken by Docker backend)
+      - "6380:6379"    # host:6380 â†’ container:6379 (6379 taken by Docker backend)
     networks:
       - ams-backend
     healthcheck:
@@ -129,10 +129,10 @@ services:
       retries: 5
       start_period: 20s
 
-  # ─────────────────────────────────────────────
-  # Phase 0 — EMQX MQTT broker (5.6, Sparkplug B)
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Phase 0 â€” EMQX MQTT broker (5.6, Sparkplug B)
   # TCP :1883 | WS :8083 | WSS :8084 | Dashboard :18083
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   emqx:
     image: emqx/emqx:5.6.0
     container_name: ams-emqx
@@ -141,14 +141,14 @@ services:
       EMQX_NAME: "ams-emqx"
       EMQX_HOST: "127.0.0.1"
       EMQX_MQTT__MAX_PACKET_SIZE: "1MB"
-      # ── Authentication (Plan 04 item 6, AUTH-03) ─────────────────────────
+      # â”€â”€ Authentication (Plan 04 item 6, AUTH-03) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       # Anonymous access is CLOSED. Authenticator chain (first success wins):
-      #   1. JWT via auth-service JWKS — browsers present the platform RS256
+      #   1. JWT via auth-service JWKS â€” browsers present the platform RS256
       #      access token as the MQTT password. disconnect_after_expire=false:
       #      the 15-min token TTL must not drop live operator subscriptions
       #      every quarter hour; browsers are subscribe-only by ACL, and the
       #      frontend refreshes the token on every reconnect anyway.
-      #   2. Built-in database — the Sparkplug edge node's ams_edge credential
+      #   2. Built-in database â€” the Sparkplug edge node's ams_edge credential
       #      (created by emqx-init from EMQX_EDGE_PASSWORD).
       EMQX_AUTHENTICATION__1__MECHANISM: "jwt"
       EMQX_AUTHENTICATION__1__FROM: "password"
@@ -158,19 +158,19 @@ services:
       EMQX_AUTHENTICATION__1__DISCONNECT_AFTER_EXPIRE: "false"
       EMQX_AUTHENTICATION__2__MECHANISM: "password_based"
       EMQX_AUTHENTICATION__2__BACKEND: "built_in_database"
-      # ── Authorization: file ACL, deny-by-default ─────────────────────────
+      # â”€â”€ Authorization: file ACL, deny-by-default â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       # acl.conf: edge node owns spBv1.0/#; browsers subscribe-only; browser
       # publish (incl. NCMD/DCMD device commands) denied.
       EMQX_AUTHORIZATION__NO_MATCH: "deny"
       EMQX_AUTHORIZATION__SOURCES__1__TYPE: "file"
       EMQX_AUTHORIZATION__SOURCES__1__ENABLE: "true"
       EMQX_AUTHORIZATION__SOURCES__1__PATH: "/opt/emqx/etc/acl.conf"
-      # ── Listeners ─────────────────────────────────────────────────────────
+      # â”€â”€ Listeners â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       EMQX_LISTENERS__TCP__DEFAULT__BIND: "0.0.0.0:1883"
       EMQX_LISTENERS__WS__DEFAULT__BIND:  "0.0.0.0:8083"
-      # ── Logging ───────────────────────────────────────────────────────────
+      # â”€â”€ Logging â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       EMQX_LOG__CONSOLE__LEVEL: "warning"
-      # ── Dashboard ─────────────────────────────────────────────────────────
+      # â”€â”€ Dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       EMQX_DASHBOARD__DEFAULT_USERNAME: ${EMQX_DASHBOARD_USER:-admin}
       EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:?EMQX_DASHBOARD_PASSWORD must be set}
     volumes:
@@ -180,9 +180,9 @@ services:
     ports:
       # 8084 (unused WSS listener) retired per Plan 04 item 6. 8083 direct WS
       # remains published for the transition; the frontend path is /mqtt-ws via
-      # the gateway — see the final-lockdown note in the plan.
+      # the gateway â€” see the final-lockdown note in the plan.
       - "1883:1883"
-      - "8083:8083"
+      # 8083 direct WS unpublished (FINAL LOCKDOWN) — browsers use /mqtt-ws via the gateway.
       - "18083:18083"
     networks:
       - ams-backend
@@ -233,7 +233,7 @@ services:
     networks:
       - ams-backend
 
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   # CloudBeaver CE + IoTDB driver (custom image)
   # Build:  docker compose build cloudbeaver
   #         # or:  .\infra\docker\cloudbeaver\build.ps1
@@ -241,7 +241,7 @@ services:
   # IoTDB connection (from inside this container):
   #   host iotdb | port 6667 | user root | password root
   #   JDBC: jdbc:iotdb://iotdb:6667/  | dialect: Tree
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   cloudbeaver:
     build:
       context: ./cloudbeaver
@@ -329,16 +329,16 @@ services:
       retries: 5
       start_period: 180s
 
-  # ─────────────────────────────────────────────
-  # MinIO — durable object storage for Flink checkpoints and savepoints (STR-02)
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # MinIO â€” durable object storage for Flink checkpoints and savepoints (STR-02)
   #
   # Checkpoints previously lived on the `flink-checkpoints` local Docker volume, so
   # losing the host lost every exactly-once state: the ISA-18.2 alarm state machine,
   # the RBE fingerprints and the CPLM 24 h diagnostics buffer. This is storage
-  # durability, NOT replication — a single MinIO node is enough here, and it is the
+  # durability, NOT replication â€” a single MinIO node is enough here, and it is the
   # prerequisite that makes Flink JobManager HA (Plan 09) a config change rather
   # than a redesign, because HA needs a checkpoint store both JMs can reach.
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   minio:
     image: minio/minio:RELEASE.2024-06-13T22-53-53Z
     container_name: ams-minio
@@ -346,7 +346,7 @@ services:
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER:     ${MINIO_ROOT_USER:-ams_minio}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set — see infra/docker/.env.example}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set â€” see infra/docker/.env.example}
     volumes:
       - minio-data:/data
     ports:
@@ -370,7 +370,7 @@ services:
         condition: service_healthy
     environment:
       MINIO_ROOT_USER:     ${MINIO_ROOT_USER:-ams_minio}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set — see infra/docker/.env.example}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set â€” see infra/docker/.env.example}
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
@@ -404,7 +404,7 @@ services:
         # Phase 6: RocksDB state backend for large keyed state (RBE fingerprints)
         state.backend: rocksdb
         state.backend.incremental: true
-        # STR-02 — durable object storage. Was file:///flink-checkpoints (a host-local
+        # STR-02 â€” durable object storage. Was file:///flink-checkpoints (a host-local
         # Docker volume): losing the host lost all exactly-once state. Savepoints get an
         # explicit home too, which STR-11's upgrade procedure depends on.
         state.checkpoints.dir: s3://ams-flink/checkpoints
@@ -412,11 +412,11 @@ services:
         s3.endpoint: http://minio:9000
         s3.path.style.access: true
         s3.access-key: ${MINIO_ROOT_USER:-ams_minio}
-        s3.secret-key: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set — see infra/docker/.env.example}
-        # CPLM (Phase 2): cap retained checkpoints — RETAIN_ON_CANCELLATION plus the
+        s3.secret-key: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set â€” see infra/docker/.env.example}
+        # CPLM (Phase 2): cap retained checkpoints â€” RETAIN_ON_CANCELLATION plus the
         # CPLM jobs' 180-300 s intervals would otherwise grow the bucket unboundedly.
         state.checkpoints.num-retained: 3
-        # Phase 6: checkpoint hardening — 60s interval, 30s min pause, EXACTLY_ONCE
+        # Phase 6: checkpoint hardening â€” 60s interval, 30s min pause, EXACTLY_ONCE
         execution.checkpointing.interval: 60000
         execution.checkpointing.min-pause: 30000
         execution.checkpointing.mode: EXACTLY_ONCE
@@ -435,11 +435,11 @@ services:
       KAFKA_BROKERS: kafka:9092
       DB_URL:        jdbc:postgresql://postgres:5432/ams
       DB_USER:       ams_user
-      DB_PASS:       ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
+      DB_PASS:       ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set â€” see infra/docker/.env.example}
       IOTDB_HOST:    iotdb
       IOTDB_PORT:    "6667"
       IOTDB_USER:    ${IOTDB_USER:-root}
-      IOTDB_PASS:    ${IOTDB_PASSWORD:?IOTDB_PASSWORD must be set — change off the IoTDB default root/root}
+      IOTDB_PASS:    ${IOTDB_PASSWORD:?IOTDB_PASSWORD must be set â€” change off the IoTDB default root/root}
     volumes:
       - flink-checkpoints:/flink-checkpoints
       - ./flink-entrypoint.sh:/opt/flink-entrypoint.sh:ro
@@ -474,7 +474,7 @@ services:
         # Phase 6: consistent settings with jobmanager
         state.backend: rocksdb
         state.backend.incremental: true
-        # STR-02 — must match the jobmanager exactly; the TM writes the actual
+        # STR-02 â€” must match the jobmanager exactly; the TM writes the actual
         # checkpoint data, so a TM still pointing at file:// would silently keep
         # state on the host while the JM believed it was durable.
         state.checkpoints.dir: s3://ams-flink/checkpoints
@@ -482,7 +482,7 @@ services:
         s3.endpoint: http://minio:9000
         s3.path.style.access: true
         s3.access-key: ${MINIO_ROOT_USER:-ams_minio}
-        s3.secret-key: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set — see infra/docker/.env.example}
+        s3.secret-key: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set â€” see infra/docker/.env.example}
         state.checkpoints.num-retained: 3
         execution.checkpointing.interval: 60000
         execution.checkpointing.min-pause: 30000
@@ -496,11 +496,11 @@ services:
       KAFKA_BROKERS: kafka:9092
       DB_URL:        jdbc:postgresql://postgres:5432/ams
       DB_USER:       ams_user
-      DB_PASS:       ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
+      DB_PASS:       ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set â€” see infra/docker/.env.example}
       IOTDB_HOST:    iotdb
       IOTDB_PORT:    "6667"
       IOTDB_USER:    ${IOTDB_USER:-root}
-      IOTDB_PASS:    ${IOTDB_PASSWORD:?IOTDB_PASSWORD must be set — change off the IoTDB default root/root}
+      IOTDB_PASS:    ${IOTDB_PASSWORD:?IOTDB_PASSWORD must be set â€” change off the IoTDB default root/root}
     volumes:
       - flink-checkpoints:/flink-checkpoints
       - ./flink-entrypoint.sh:/opt/flink-entrypoint.sh:ro
@@ -554,8 +554,8 @@ services:
       ASPNETCORE_URLS:          http://0.0.0.0:8000
       ASPNETCORE_HTTP_PORTS:    "8000"
       Urls:                     http://0.0.0.0:8000
-      ConnectionStrings__AmsDb: Host=postgres;Port=5432;Database=ams;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
-      # Phase K — RBAC: real bearer auth (replaces the TestAuthHandler bypass).
+      ConnectionStrings__AmsDb: Host=postgres;Port=5432;Database=ams;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set â€” see infra/docker/.env.example}
+      # Phase K â€” RBAC: real bearer auth (replaces the TestAuthHandler bypass).
       Auth__JwksUrl:            http://auth-service:3002/api/auth/.well-known/jwks.json
       Auth__Issuer:             traverse-auth
       Auth__Audience:           ams-services
@@ -570,13 +570,12 @@ services:
       AlarmIngestion__PollIntervalMs: "2000"
       AlarmIngestion__ServerId:      "f0af9a6d-85f6-4c9f-a8ad-6de277d1d110"
       AlarmIngestion__ServerName:    "Current Alarms Feed"
-      # CPLM Phase 4 — the loop registry reads the asset graph from asset-model to
+      # CPLM Phase 4 â€” the loop registry reads the asset graph from asset-model to
       # CPLM extraction Phase 6: registry/recompute/consumers all live in
-      # cplm-api now — its env block carries the Cpm__/CplmRecompute__ keys and
+      # cplm-api now â€” its env block carries the Cpm__/CplmRecompute__ keys and
       # the Flink jar mount. ams-api keeps only RawLoopIotDbConsumer (IoTDB
       # historian writes, defaults suffice).
-    ports:
-      - "8000:8000"
+    # FINAL LOCKDOWN (Plan 04): no published port — reachable only through the gateway (8081) / compose network. See docs/api-gateway.md.
     networks:
       - ams-backend
     healthcheck:
@@ -602,7 +601,7 @@ services:
     container_name: ams-frontend
     <<: *default-restart
     # Item 7 cutover: nginx serves the SPA and passes /api, /hubs, /mqtt-ws to
-    # the gateway — its only upstream now.
+    # the gateway â€” its only upstream now.
     depends_on:
       gateway:
         condition: service_healthy
@@ -614,13 +613,13 @@ services:
     networks:
       - ams-backend
 
-  # ─────────────────────────────────────────────
-  # Plan 04 — API Gateway (YARP). SHADOW MODE: runs alongside nginx on 8080; the
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Plan 04 â€” API Gateway (YARP). SHADOW MODE: runs alongside nginx on 8080; the
   # frontend still talks to nginx (3000) until cutover flips it to the gateway
-  # (then nginx serves the static SPA only — Plan 04 item 7). Edge-only auth:
+  # (then nginx serves the static SPA only â€” Plan 04 item 7). Edge-only auth:
   # validates RS256 tokens at the edge, enforces revocation within seconds, and
   # injects X-Auth-* identity headers (MIGRATION_LOG decision #16).
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   gateway:
     build:
       context: ../../src/services/gateway
@@ -650,11 +649,11 @@ services:
       retries: 5
       start_period: 20s
 
-  # ─────────────────────────────────────────────
-  # Phase 3 — Sparkplug B Edge Node
-  # Kafka(live.alarms, live.metrics) → EMQX → HMI
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Phase 3 â€” Sparkplug B Edge Node
+  # Kafka(live.alarms, live.metrics) â†’ EMQX â†’ HMI
   # Also writes Redis snapshot cache
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   sparkplug-edge-node:
     build:
       context: ../../src/services/sparkplug-edge-node
@@ -689,11 +688,11 @@ services:
     networks:
       - ams-backend
 
-  # ─────────────────────────────────────────────
-  # Phase 4 — Historian BFF (.NET 8 Minimal API)
-  # /trend, /raw → IoTDB REST v2
-  # /snapshot    → Redis
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Phase 4 â€” Historian BFF (.NET 8 Minimal API)
+  # /trend, /raw â†’ IoTDB REST v2
+  # /snapshot    â†’ Redis
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   historian-bff:
     build:
       context: ../../src/services/historian-bff
@@ -715,10 +714,9 @@ services:
       Auth__Issuer:    traverse-auth
       Auth__Audience:  ams-services
       Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
-      # Sends the key to asset-model but receives no internal calls itself → principal can do nothing.
+      # Sends the key to asset-model but receives no internal calls itself â†’ principal can do nothing.
       Auth__ServicePermissions: ""
-    ports:
-      - "8090:8090"
+    # FINAL LOCKDOWN (Plan 04): no published port — reachable only through the gateway (8081) / compose network. See docs/api-gateway.md.
     networks:
       - ams-backend
     healthcheck:
@@ -731,10 +729,10 @@ services:
       retries: 5
       start_period: 30s
 
-  # ─────────────────────────────────────────────
-  # Phase 1 — Asset Model Service (UNS source of truth)
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Phase 1 â€” Asset Model Service (UNS source of truth)
   # REST API for asset hierarchy and UNS path resolution
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   asset-model:
     build:
       context: ../../src/services/asset-model
@@ -747,7 +745,7 @@ services:
         condition: service_healthy
     environment:
       ASPNETCORE_URLS: http://0.0.0.0:5000
-      ConnectionStrings__TraverseAssets: Host=postgres;Port=5432;Database=traverse_assets;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
+      ConnectionStrings__TraverseAssets: Host=postgres;Port=5432;Database=traverse_assets;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set â€” see infra/docker/.env.example}
       Redis__Host:     redis
       Redis__Port:     "6379"
       # Platform auth (RBAC): validate RS256 tokens from auth-service; X-Service-Key authenticates
@@ -757,11 +755,10 @@ services:
       Auth__Audience:  ams-services
       Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
       # Service-principal scope (AUTH-01): asset-model is the ONLY service that receives internal
-      # X-Service-Key calls — reads from binding-resolver/cplm-api (asset.view) and derived-asset
+      # X-Service-Key calls â€” reads from binding-resolver/cplm-api (asset.view) and derived-asset
       # registration from analysis-service (asset.edit). Nothing else is granted.
       Auth__ServicePermissions: "asset.view,asset.edit"
-    ports:
-      - "5001:5000"
+    # FINAL LOCKDOWN (Plan 04): no published port — reachable only through the gateway (8081) / compose network. See docs/api-gateway.md.
     networks:
       - ams-backend
     healthcheck:
@@ -771,10 +768,10 @@ services:
       retries: 5
       start_period: 30s
 
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   # Auth Service (Node/Express)
   # Login, RS256 JWTs (JWKS at /api/auth/.well-known/jwks.json), RBAC
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   auth-service:
     build:
       context: ../../src/services/auth-service
@@ -792,9 +789,9 @@ services:
       DB_PORT: "5432"
       DB_NAME: traverse_auth
       DB_USER: ams_user
-      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set â€” see infra/docker/.env.example}
       # RBAC governance audit trail (Phase 3): role/permission/user changes are emitted
-      # to audit-events for the tamper-evident store. Unset → emit is a no-op (dev).
+      # to audit-events for the tamper-evident store. Unset â†’ emit is a no-op (dev).
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       # Stable RS256 key persisted in the auth-keys volume (generated on first start).
       JWT_PRIVATE_KEY_PATH: /app/keys/jwt-private.pem
@@ -805,21 +802,20 @@ services:
       # Served over HTTP inside the lab stack, so the refresh cookie cannot be Secure.
       COOKIE_SECURE: "false"
       COOKIE_SAMESITE: lax
-      # 100/15min (the default) is per-IP: a control room behind one NAT — or an automated gate run —
+      # 100/15min (the default) is per-IP: a control room behind one NAT â€” or an automated gate run â€”
       # exhausts it in minutes. Lab value; tune per deployment.
       RATE_LIMIT_MAX_REQUESTS: "2000"
       CORS_ORIGIN: http://localhost:3000,http://localhost:5174
       # Entrypoint seeds this admin once (idempotent).
       BOOTSTRAP_ADMIN_USERNAME: ${AUTH_BOOTSTRAP_USERNAME:-admin}
       BOOTSTRAP_ADMIN_EMAIL: ${AUTH_BOOTSTRAP_EMAIL:-admin@local}
-      BOOTSTRAP_ADMIN_PASSWORD: ${AUTH_BOOTSTRAP_PASSWORD:?AUTH_BOOTSTRAP_PASSWORD must be set — the first-run admin password}
-      # Guards GET /api/auth/internal/revocations — the gateway's edge-revocation poll
-      # (Plan 04 §2). Unset → the internal endpoint is disabled.
+      BOOTSTRAP_ADMIN_PASSWORD: ${AUTH_BOOTSTRAP_PASSWORD:?AUTH_BOOTSTRAP_PASSWORD must be set â€” the first-run admin password}
+      # Guards GET /api/auth/internal/revocations â€” the gateway's edge-revocation poll
+      # (Plan 04 Â§2). Unset â†’ the internal endpoint is disabled.
       TRAVERSE_SERVICE_KEY: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
     volumes:
       - auth-keys:/app/keys
-    ports:
-      - "3002:3002"
+    # FINAL LOCKDOWN (Plan 04): no published port — reachable only through the gateway (8081) / compose network. See docs/api-gateway.md.
     networks:
       - ams-backend
     healthcheck:
@@ -829,10 +825,10 @@ services:
       retries: 5
       start_period: 30s
 
-  # ─────────────────────────────────────────────
-  # Phase 1 — Binding Resolver BFF
-  # Resolves UNS path + role → transport (live/history/alarm)
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Phase 1 â€” Binding Resolver BFF
+  # Resolves UNS path + role â†’ transport (live/history/alarm)
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   binding-resolver:
     build:
       context: ../../src/services/binding-resolver
@@ -860,10 +856,9 @@ services:
       Auth__Issuer:    traverse-auth
       Auth__Audience:  ams-services
       Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
-      # Sends the key to asset-model but receives no internal calls itself → principal can do nothing.
+      # Sends the key to asset-model but receives no internal calls itself â†’ principal can do nothing.
       Auth__ServicePermissions: ""
-    ports:
-      - "5002:5000"
+    # FINAL LOCKDOWN (Plan 04): no published port — reachable only through the gateway (8081) / compose network. See docs/api-gateway.md.
     networks:
       - ams-backend
     healthcheck:
@@ -873,10 +868,10 @@ services:
       retries: 5
       start_period: 30s
 
-  # ─────────────────────────────────────────────
-  # Phase 2 — Display Service
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Phase 2 â€” Display Service
   # CRUD for HMI display definitions (versioned, no process values)
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   display-service:
     build:
       context: ../../src/services/display-service
@@ -889,17 +884,16 @@ services:
         condition: service_healthy
     environment:
       ASPNETCORE_URLS: http://0.0.0.0:5000
-      ConnectionStrings__TraverseDisplays: Host=postgres;Port=5432;Database=traverse_displays;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
+      ConnectionStrings__TraverseDisplays: Host=postgres;Port=5432;Database=traverse_displays;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set â€” see infra/docker/.env.example}
       Redis__Host:     redis
       Redis__Port:     "6379"
-      # Phase 5 — emit governance audit events to the audit-service via Kafka.
+      # Phase 5 â€” emit governance audit events to the audit-service via Kafka.
       Kafka__BootstrapServers: kafka:9092
-      # Phase K — RBAC: validate RS256 tokens from auth-service (JWKS; no OIDC discovery).
+      # Phase K â€” RBAC: validate RS256 tokens from auth-service (JWKS; no OIDC discovery).
       Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
       Auth__Issuer:    traverse-auth
       Auth__Audience:  ams-services
-    ports:
-      - "5003:5000"
+    # FINAL LOCKDOWN (Plan 04): no published port — reachable only through the gateway (8081) / compose network. See docs/api-gateway.md.
     networks:
       - ams-backend
     healthcheck:
@@ -909,11 +903,11 @@ services:
       retries: 5
       start_period: 30s
 
-  # ─────────────────────────────────────────────
-  # Phase 5 (V2) — Audit Service
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Phase 5 (V2) â€” Audit Service
   # Consumes audit-events (governance actions emitted by display-service) into an immutable, hash-chained
   # store and exposes GET /api/v1/audit. Without this the audit trail has a producer but no consumer.
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   audit-service:
     build:
       context: ../../src/services/audit-service
@@ -926,13 +920,12 @@ services:
         condition: service_healthy
     environment:
       ASPNETCORE_URLS: http://0.0.0.0:8080
-      ConnectionStrings__AuditDb: Host=postgres;Port=5432;Database=traverse_audit;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
+      ConnectionStrings__AuditDb: Host=postgres;Port=5432;Database=traverse_audit;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set â€” see infra/docker/.env.example}
       Kafka__BootstrapServers: kafka:9092
       Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
       Auth__Issuer:    traverse-auth
       Auth__Audience:  ams-services
-    ports:
-      - "8095:8080"
+    # FINAL LOCKDOWN (Plan 04): no published port — reachable only through the gateway (8081) / compose network. See docs/api-gateway.md.
     networks:
       - ams-backend
     healthcheck:
@@ -942,15 +935,15 @@ services:
       retries: 5
       start_period: 30s
 
-  # ─────────────────────────────────────────────
-  # Notification Service — root-cause + platform lifecycle alerts
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Notification Service â€” root-cause + platform lifecycle alerts
   #
   # STR-05: this service existed in the tree but was never deployed, which left
   # the `lifecycle-alerts` topic with two producers (the telemetry deadman and the
-  # ACK-SLA watchdog in ams-api) and NO consumer — a dead OPC feed raised nothing
+  # ACK-SLA watchdog in ams-api) and NO consumer â€” a dead OPC feed raised nothing
   # an operator could see. It also never compiled until Serilog.Settings.Configuration
   # was added, which is why CI excluded it from the build matrix.
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   notification-service:
     build:
       context: ../../src/services/notification-service
@@ -963,8 +956,8 @@ services:
       ASPNETCORE_URLS: http://0.0.0.0:8080
       Kafka__BootstrapServers: kafka:9092
       Kafka__LifecycleAlertsTopic: lifecycle-alerts
-      # Platform auth (AUTH-07): validate RS256 tokens from auth-service. No X-Service-Key is set —
-      # this worker receives no internal calls — so the service-principal scope is empty.
+      # Platform auth (AUTH-07): validate RS256 tokens from auth-service. No X-Service-Key is set â€”
+      # this worker receives no internal calls â€” so the service-principal scope is empty.
       Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
       Auth__Issuer:    traverse-auth
       Auth__Audience:  ams-services
@@ -974,8 +967,7 @@ services:
       Smtp__Host: ${SMTP_HOST:-}
       Smtp__Port: ${SMTP_PORT:-25}
       Smtp__From: ${SMTP_FROM:-ams-noreply@plant.local}
-    ports:
-      - "8096:8080"
+    # FINAL LOCKDOWN (Plan 04): no published port — reachable only through the gateway (8081) / compose network. See docs/api-gateway.md.
     networks:
       - ams-backend
     healthcheck:
@@ -985,10 +977,10 @@ services:
       retries: 5
       start_period: 30s
 
-  # ─────────────────────────────────────────────
-  # Phase 3 — Template Service
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Phase 3 â€” Template Service
   # Reusable element templates with parameterized bindings
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   template-service:
     build:
       context: ../../src/services/template-service
@@ -1001,7 +993,7 @@ services:
         condition: service_healthy
     environment:
       ASPNETCORE_URLS: http://0.0.0.0:5000
-      ConnectionStrings__TraverseTemplates: Host=postgres;Port=5432;Database=traverse_templates;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
+      ConnectionStrings__TraverseTemplates: Host=postgres;Port=5432;Database=traverse_templates;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set â€” see infra/docker/.env.example}
       Redis__Host:     redis
       Redis__Port:     "6379"
       # Platform auth (RBAC): validate RS256 tokens from auth-service; X-Service-Key authenticates
@@ -1010,10 +1002,9 @@ services:
       Auth__Issuer:    traverse-auth
       Auth__Audience:  ams-services
       Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
-      # Receives no internal X-Service-Key calls → principal can do nothing.
+      # Receives no internal X-Service-Key calls â†’ principal can do nothing.
       Auth__ServicePermissions: ""
-    ports:
-      - "5004:5000"
+    # FINAL LOCKDOWN (Plan 04): no published port — reachable only through the gateway (8081) / compose network. See docs/api-gateway.md.
     networks:
       - ams-backend
     healthcheck:
@@ -1023,10 +1014,10 @@ services:
       retries: 5
       start_period: 30s
 
-  # ─────────────────────────────────────────────
-  # Phase 4 — Analysis Service
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Phase 4 â€” Analysis Service
   # Design-time CRUD for analyses; execution on Flink
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   analysis-service:
     build:
       context: ../../src/services/analysis-service
@@ -1041,7 +1032,7 @@ services:
         condition: service_healthy
     environment:
       ASPNETCORE_URLS: http://0.0.0.0:5000
-      ConnectionStrings__TraverseAnalysis: Host=postgres;Port=5432;Database=traverse_analysis;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
+      ConnectionStrings__TraverseAnalysis: Host=postgres;Port=5432;Database=traverse_analysis;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set â€” see infra/docker/.env.example}
       Redis__Host:        redis
       Redis__Port:        "6379"
       Kafka__Brokers:     kafka:9092
@@ -1052,10 +1043,9 @@ services:
       Auth__Issuer:    traverse-auth
       Auth__Audience:  ams-services
       Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
-      # Sends the key to asset-model (derived-asset registration) but receives no internal calls → nothing.
+      # Sends the key to asset-model (derived-asset registration) but receives no internal calls â†’ nothing.
       Auth__ServicePermissions: ""
-    ports:
-      - "5005:5000"
+    # FINAL LOCKDOWN (Plan 04): no published port — reachable only through the gateway (8081) / compose network. See docs/api-gateway.md.
     networks:
       - ams-backend
     healthcheck:
@@ -1065,12 +1055,12 @@ services:
       retries: 5
       start_period: 30s
 
-  # ─────────────────────────────────────────────
-  # CPLM API (extraction plan Phase 2) — loop-performance service.
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # CPLM API (extraction plan Phase 2) â€” loop-performance service.
   # Phase 2: skeleton only (auth/health/metrics). Controllers arrive in
-  # Phase 3; the Kafka result consumers in Phase 4 (HARD cutover — the
+  # Phase 3; the Kafka result consumers in Phase 4 (HARD cutover â€” the
   # consumer group must never run in two processes at once).
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   cplm-api:
     build:
       context: ../../src/services/cplm-api
@@ -1083,16 +1073,16 @@ services:
         condition: service_healthy
     environment:
       ASPNETCORE_URLS: http://0.0.0.0:5000
-      ConnectionStrings__CplmDb: Host=postgres;Port=5432;Database=traverse_cplm;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}
+      ConnectionStrings__CplmDb: Host=postgres;Port=5432;Database=traverse_cplm;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set â€” see infra/docker/.env.example}
       Cpm__AssetModelUrl:    http://asset-model:5000
-      # Same key ams-api uses — MUST match asset-model's Auth__ServiceKey or peer-link
+      # Same key ams-api uses â€” MUST match asset-model's Auth__ServiceKey or peer-link
       # projection 401s and G13 silently degrades to "no peers".
       Cpm__ServiceKey:       ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
       Cpm__BootstrapServers: kafka:9092
       # Phase 5 (2026-08-06): cplm-api owns CPLM mutations; AMS.Api's copies are
       # deleted in Phase 6.
       Cpm__EnableMutations:  "true"
-      # Phase 4 cutover flag — CUTOVER DONE 2026-08-06: this service owns the
+      # Phase 4 cutover flag â€” CUTOVER DONE 2026-08-06: this service owns the
       # ams-api-cplm-results(+-frames) groups. AMS.Api's matching flag must stay
       # false; two members in one group split partitions and silently halve
       # persistence.
@@ -1109,13 +1099,12 @@ services:
       Auth__Issuer:    traverse-auth
       Auth__Audience:  ams-services
       Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
-      # Sends the key to asset-model but receives no internal calls itself → principal can do nothing.
+      # Sends the key to asset-model but receives no internal calls itself â†’ principal can do nothing.
       Auth__ServicePermissions: ""
     volumes:
-      # A8 recompute cannot work without the jar — verified at Phase 5.2, not first click.
+      # A8 recompute cannot work without the jar â€” verified at Phase 5.2, not first click.
       - ../../src/flink/target/ams-flink-1.0-SNAPSHOT.jar:/opt/ams/flink/ams-flink.jar:ro
-    ports:
-      - "5006:5000"
+    # FINAL LOCKDOWN (Plan 04): no published port — reachable only through the gateway (8081) / compose network. See docs/api-gateway.md.
     networks:
       - ams-backend
     healthcheck:
@@ -1126,10 +1115,10 @@ services:
       retries: 5
       start_period: 30s
 
-  # ─────────────────────────────────────────────
-  # Phase 6 — IoTDB TTL / retention init (one-shot)
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Phase 6 â€” IoTDB TTL / retention init (one-shot)
   # Sets storage group TTLs after IoTDB is healthy
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   iotdb-init:
     image: apache/iotdb:1.3.2-standalone
     container_name: ams-iotdb-init
@@ -1143,16 +1132,16 @@ services:
       IOTDB_HOST: iotdb
       IOTDB_PORT: "6667"
       IOTDB_USER: ${IOTDB_USER:-root}
-      IOTDB_PASS: ${IOTDB_PASSWORD:?IOTDB_PASSWORD must be set — change off the IoTDB default root/root}
+      IOTDB_PASS: ${IOTDB_PASSWORD:?IOTDB_PASSWORD must be set â€” change off the IoTDB default root/root}
     networks:
       - ams-backend
     restart: "no"
 
-  # ─────────────────────────────────────────────
-  # IoTDB Web Workbench — browser UI to query IoTDB
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # IoTDB Web Workbench â€” browser UI to query IoTDB
   # Sign in: http://localhost:8086/autologin.html  (root / 123456)
-  # Then Data Connection → host iotdb, port 6667, user root, password root
-  # ─────────────────────────────────────────────
+  # Then Data Connection â†’ host iotdb, port 6667, user root, password root
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   iotdb-workbench-init:
     image: alpine:3.20
     container_name: ams-iotdb-workbench-init
@@ -1191,7 +1180,7 @@ services:
       iotdb-workbench-init:
         condition: service_completed_successfully
     # Upstream image entrypoint references unset ${JAVA_MEM_OPTS}; override explicitly.
-    # Needs ≥1GB container memory — 512M caused OOM restart loop (UI shows "Network error").
+    # Needs â‰¥1GB container memory â€” 512M caused OOM restart loop (UI shows "Network error").
     entrypoint: ["java", "-Xms256m", "-Xmx768m", "-jar", "/app/app.jar"]
     environment:
       SPRING_DATASOURCE_URL: jdbc:sqlite:/data/iotdb.db
@@ -1223,10 +1212,10 @@ services:
     networks:
       - ams-backend
 
-  # ─────────────────────────────────────────────
-  # Phase 1 — Flink → IoTDB persistence job submit
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Phase 1 â€” Flink â†’ IoTDB persistence job submit
   # Submits IoTDBPersistenceJob once stack is healthy
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   flink-job-submit-iotdb:
     build:
       context: ../../src/flink
@@ -1256,10 +1245,10 @@ services:
       - ams-backend
     restart: "no"
 
-  # ─────────────────────────────────────────────
-  # Phase 2 — Flink live-state job submit
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Phase 2 â€” Flink live-state job submit
   # Submits LiveStateJob (live.alarms, live.metrics RBE)
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   flink-job-submit-live-state:
     build:
       context: ../../src/flink
@@ -1285,11 +1274,11 @@ services:
       - ams-backend
     restart: "no"
 
-  # ─────────────────────────────────────────────
-  # Phase 2 (CPLM) — three-stage pipeline submit
-  # Short Feature → Long Diagnostics → Gate Fusion
-  # (loop.samples.v1 → clpm.gate.results.v1)
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Phase 2 (CPLM) â€” three-stage pipeline submit
+  # Short Feature â†’ Long Diagnostics â†’ Gate Fusion
+  # (loop.samples.v1 â†’ clpm.gate.results.v1)
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   flink-job-submit-cplm:
     build:
       context: ../../src/flink
@@ -1316,12 +1305,12 @@ services:
       - ams-backend
     restart: "no"
 
-  # ─────────────────────────────────────────────
-  # Flink job supervisor — standing loop that resubmits any of the six core
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Flink job supervisor â€” standing loop that resubmits any of the six core
   # jobs (3 alarm baseline + 3 CPLM) that is not RUNNING. There is no JM HA:
   # a JobManager restart or Docker daemon bounce loses every job, and the
   # one-shot submit containers (restart: "no") do not rerun on their own.
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   flink-job-supervisor:
     build:
       context: ../../src/flink
@@ -1351,11 +1340,11 @@ services:
     networks:
       - ams-backend
 
-  # ═════════════════════════════════════════════
-  # Phase 6 — Hardening & Observability
-  # ═════════════════════════════════════════════
+  # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  # Phase 6 â€” Hardening & Observability
+  # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-  # ── Prometheus ────────────────────────────────
+  # â”€â”€ Prometheus â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   prometheus:
     image: prom/prometheus:v2.51.2
     container_name: ams-prometheus
@@ -1380,7 +1369,7 @@ services:
       retries: 5
       start_period: 30s
 
-  # ── Grafana ───────────────────────────────────
+  # â”€â”€ Grafana â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   grafana:
     image: grafana/grafana:10.4.2
     container_name: ams-grafana
@@ -1409,7 +1398,7 @@ services:
       retries: 5
       start_period: 30s
 
-  # ── Redis Exporter ────────────────────────────
+  # â”€â”€ Redis Exporter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   redis-exporter:
     image: oliver006/redis_exporter:v1.58.0
     container_name: ams-redis-exporter
@@ -1424,7 +1413,7 @@ services:
     networks:
       - ams-backend
 
-  # ── PostgreSQL Exporter ───────────────────────
+  # â”€â”€ PostgreSQL Exporter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.15.0
     container_name: ams-postgres-exporter
@@ -1433,13 +1422,13 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATA_SOURCE_NAME: "postgresql://ams_user:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see infra/docker/.env.example}@postgres:5432/ams?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://ams_user:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set â€” see infra/docker/.env.example}@postgres:5432/ams?sslmode=disable"
     ports:
       - "9187:9187"
     networks:
       - ams-backend
 
-  # ── Kafka Exporter ────────────────────────────
+  # â”€â”€ Kafka Exporter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   kafka-exporter:
     image: danielqsj/kafka-exporter:v1.7.0
     container_name: ams-kafka-exporter

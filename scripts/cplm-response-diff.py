@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 CPLM extraction safety net (extraction plan Phase 0.2/0.3).
 
@@ -16,8 +16,8 @@ Usage:
   python scripts/cplm-response-diff.py diff    [--base http://localhost:3000]
   python scripts/cplm-response-diff.py assert  [--base http://localhost:3000]
 
-Default base is the nginx frontend (:3000) — the path a browser actually takes,
-so the proxy route counts as part of the contract. Use --base http://localhost:5006
+Default base is the nginx frontend (:3000) â€” the path a browser actually takes,
+so the proxy route counts as part of the contract. Use --base http://localhost:8081
 to hit cplm-api directly and isolate the service from the proxy. CPLM no longer
 lives on :8000 (moved out of ams-api by the extraction, Phase 6).
 
@@ -33,7 +33,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 GOLDEN = ROOT / "tests" / "cplm-golden"
-AUTH_URL = "http://localhost:3002/api/auth/login"
+AUTH_URL = "http://localhost:8081/api/auth/login"
 ADMIN = {"username": "admin", "password": "ChangeMe123!"}
 
 # Keys whose values change run-to-run; masked before writing/diffing.
@@ -211,7 +211,7 @@ def cmd_assert(base: str) -> int:
     status, _ = http(base + "/api/v1/cpm/loops/NO_SUCH_LOOP/recompute", None, method="POST", body=b"{}")
     check(status == 401, f"unauthenticated recompute -> 401 (got {status})")
     # cpm.manage guarded write with a valid admin token but a bogus loop: must be
-    # 404 (authz passed, loop missing) — proves the policy resolves instead of 500.
+    # 404 (authz passed, loop missing) â€” proves the policy resolves instead of 500.
     status, _ = http(base + "/api/v1/cpm/loops/NO_SUCH_LOOP/recompute", token, method="POST", body=b"{}")
     check(status == 404, f"authorized recompute on missing loop -> 404 (got {status})")
 

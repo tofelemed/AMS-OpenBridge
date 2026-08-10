@@ -145,6 +145,40 @@ app.MapGet("/gw/health", () => Results.Ok(new { status = "Healthy", service = "g
 // Prometheus scrape endpoint under the gateway's own /gw namespace (internal network).
 app.MapMetrics("/gw/metrics");
 
+// ---- Upstream health passthrough (ops) ----
+// With direct service ports unpublished (final lockdown), host tooling checks a
+// service's liveness here: GET /gw/upstreams/<cluster>/health. Resolves the
+// cluster's destination from the live proxy state and relays its /health.
+// Availability info only — no auth, same as the old per-port /health checks.
+app.MapGet("/gw/upstreams/{cluster}/health",
+    async (string cluster, Yarp.ReverseProxy.IProxyStateLookup proxy, IHttpClientFactory httpFactory) =>
+{
+    if (!proxy.TryGetCluster(cluster, out var state))
+        return Results.NotFound(new { error = $"Unknown cluster '{cluster}'." });
+
+    var destination = state.Destinations.Values.FirstOrDefault();
+    if (destination is null)
+        return Results.Problem($"Cluster '{cluster}' has no destinations.", statusCode: 502);
+
+    try
+    {
+        var client = httpFactory.CreateClient();
+        client.Timeout = TimeSpan.FromSeconds(5);
+        var res = await client.GetAsync(destination.Model.Config.Address.TrimEnd('/') + "/health");
+        var body = await res.Content.ReadAsStringAsync();
+        return Results.Content(body, res.Content.Headers.ContentType?.ToString() ?? "application/json",
+            statusCode: (int)res.StatusCode);
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(new { status = "Unreachable", cluster, detail = ex.Message }, statusCode: 502);
+    }
+});
+
+// Cluster inventory for the endpoint above (ops discoverability).
+app.MapGet("/gw/upstreams", (Yarp.ReverseProxy.IProxyStateLookup proxy) =>
+    Results.Ok(proxy.GetClusters().Select(c => c.ClusterId).OrderBy(x => x)));
+
 // ---- Spoof guard: the gateway is the ONLY writer of X-Auth-* identity headers ----
 app.Use(async (ctx, next) =>
 {

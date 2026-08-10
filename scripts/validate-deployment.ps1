@@ -61,8 +61,8 @@ Write-Host "══════════════════════�
 Write-Host "1. Core AMS Services" -ForegroundColor Yellow
 Write-Host "─────────────────────────────────────────────────────────────────"
 
-Test-ServiceHealth -Name "AMS API" -Url "http://localhost:8000/health"
-Test-ServiceHealth -Name "Historian BFF" -Url "http://localhost:8090/health"
+Test-ServiceHealth -Name "AMS API" -Url "http://localhost:8081/health"
+Test-ServiceHealth -Name "Historian BFF" -Url "http://localhost:8081/gw/upstreams/historian-bff/health"
 
 # ───────────────────────────────────────────────────────────────────────────
 # Section 2: Traverse Services (Phase 1-4)
@@ -70,11 +70,11 @@ Test-ServiceHealth -Name "Historian BFF" -Url "http://localhost:8090/health"
 Write-Host "`n2. Traverse Services" -ForegroundColor Yellow
 Write-Host "─────────────────────────────────────────────────────────────────"
 
-Test-ServiceHealth -Name "Asset Model" -Url "http://localhost:5001/health"
-Test-ServiceHealth -Name "Binding Resolver" -Url "http://localhost:5002/health"
-Test-ServiceHealth -Name "Display Service" -Url "http://localhost:5003/health"
-Test-ServiceHealth -Name "Template Service" -Url "http://localhost:5004/health"
-Test-ServiceHealth -Name "Analysis Service" -Url "http://localhost:5005/health"
+Test-ServiceHealth -Name "Asset Model" -Url "http://localhost:8081/gw/upstreams/asset-model/health"
+Test-ServiceHealth -Name "Binding Resolver" -Url "http://localhost:8081/gw/upstreams/binding-resolver/health"
+Test-ServiceHealth -Name "Display Service" -Url "http://localhost:8081/gw/upstreams/display-service/health"
+Test-ServiceHealth -Name "Template Service" -Url "http://localhost:8081/gw/upstreams/template-service/health"
+Test-ServiceHealth -Name "Analysis Service" -Url "http://localhost:8081/gw/upstreams/analysis-service/health"
 
 # ───────────────────────────────────────────────────────────────────────────
 # Section 3: Infrastructure Services
@@ -124,22 +124,22 @@ Write-Host "`n4. API Smoke Tests" -ForegroundColor Yellow
 Write-Host "─────────────────────────────────────────────────────────────────"
 
 # Asset Model API
-Test-ApiEndpoint -Name "List Assets" -Url "http://localhost:5001/assets" -ExpectedProperty "assets"
+Test-ApiEndpoint -Name "List Assets" -Url "http://localhost:8081/api/assets" -ExpectedProperty "assets"
 
 # Binding Resolver API
-Test-ApiEndpoint -Name "Preview Path Resolution" -Url "http://localhost:5002/preview?path=houston/crude1/pump101.discharge_press"
+Test-ApiEndpoint -Name "Preview Path Resolution" -Url "http://localhost:8081/api/bindings/preview?path=houston/crude1/pump101.discharge_press"
 
 # Display Service API
-Test-ApiEndpoint -Name "List Displays" -Url "http://localhost:5003/displays" -ExpectedProperty "displays"
+Test-ApiEndpoint -Name "List Displays" -Url "http://localhost:8081/api/displays" -ExpectedProperty "displays"
 
 # Template Service API
-Test-ApiEndpoint -Name "List Templates" -Url "http://localhost:5004/templates" -ExpectedProperty "templates"
+Test-ApiEndpoint -Name "List Templates" -Url "http://localhost:8081/api/templates" -ExpectedProperty "templates"
 
 # Analysis Service API
-Test-ApiEndpoint -Name "Analysis Types" -Url "http://localhost:5005/analyses/types"
+Test-ApiEndpoint -Name "Analysis Types" -Url "http://localhost:8081/api/analyses/types"
 
 # Historian BFF API
-Test-ApiEndpoint -Name "Series List" -Url "http://localhost:8090/series"
+Test-ApiEndpoint -Name "Series List" -Url "http://localhost:8081/api/hist/series"
 
 # ───────────────────────────────────────────────────────────────────────────
 # Section 5: End-to-End Data Flow Test
@@ -149,7 +149,7 @@ Write-Host "──────────────────────�
 
 # Test: UNS Path → Binding Resolution → Live Transport Info
 try {
-    $binding = Invoke-RestMethod -Uri 'http://localhost:5002/resolve?path=houston/crude1/pump101.discharge_press&roles=all' -TimeoutSec 10
+    $binding = Invoke-RestMethod -Uri 'http://localhost:8081/api/bindings/resolve?path=houston/crude1/pump101.discharge_press&roles=all' -TimeoutSec 10
     $hasLive = $null -ne $binding.live
     $hasHistory = $null -ne $binding.history
     $hasAlarm = $null -ne $binding.alarm
@@ -173,11 +173,11 @@ try {
         description = "Created by deployment validation"
     } | ConvertTo-Json
     
-    $created = Invoke-RestMethod -Uri "http://localhost:5001/assets" -Method Post -Body $testAsset -ContentType "application/json" -TimeoutSec 10
-    $retrieved = Invoke-RestMethod -Uri "http://localhost:5001/assets/$($created.id)" -TimeoutSec 10
+    $created = Invoke-RestMethod -Uri "http://localhost:8081/api/assets" -Method Post -Body $testAsset -ContentType "application/json" -TimeoutSec 10
+    $retrieved = Invoke-RestMethod -Uri "http://localhost:8081/api/assets/$($created.id)" -TimeoutSec 10
     
     # Cleanup
-    Invoke-RestMethod -Uri "http://localhost:5001/assets/$($created.id)" -Method Delete -TimeoutSec 10 | Out-Null
+    Invoke-RestMethod -Uri "http://localhost:8081/api/assets/$($created.id)" -Method Delete -TimeoutSec 10 | Out-Null
     
     Write-TestResult -Name "Asset CRUD (create/read/delete)" -Passed ($retrieved.id -eq $created.id)
 } catch {

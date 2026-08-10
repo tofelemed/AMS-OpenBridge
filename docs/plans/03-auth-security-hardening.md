@@ -98,7 +98,7 @@ Plaintext defaults across compose take effect on any fresh clone: Postgres `supe
 - [x] Deactivating a user invalidates their live access token within seconds (revocation check verified).
 - [x] A key rotation completes with zero failed validations during the overlap window.
 - [x] notification-service authenticates its endpoints, starts without blocking the host, and builds in CI.
-- [ ] Exactly one JWT validation implementation exists in the repo. — **AUTH-08 deferred to its own CI-gated PR** (the 8 copies remain byte-identical + drift-guarded meanwhile).
+- [x] Exactly one JWT validation implementation exists in the repo. — **Met via the Plan 04 final lockdown (edge-only)**: JWKS/JwtBearer code exists only in the gateway; every service authorizes from gateway-injected `X-Auth-*` headers through the shared header-trust `TraverseAuth.cs` (no crypto). AUTH-08 **closed**.
 - [x] No credential literal remains in compose; a missing secret fails startup.
 
 ## Rollback

@@ -155,20 +155,37 @@ The broker has **no authenticator or ACL configured at all**, and the browser co
 
 Defects found & fixed while testing: auth-service refresh tokens had no `jti` (two same-second logins → duplicate-key 500); YARP's default `HealthyOrPanic` re-dials the only unhealthy destination (breaker never fast-failed until `HealthyAndUnknown` was set); lab DB was missing migration 38 (`credentials_changed_at`) — applied.
 
-### Final lockdown (the remaining cutover step — do as one coordinated change)
+### Final lockdown — ✅ DONE (2026-08-10). AUTH-08 closed.
 
-Everything is in place for edge-only enforcement, but two deliberate steps remain, deferred
-because they break local tooling that talks to services directly:
+Executed as one coordinated change, in the §2 cutover order:
 
-1. **Unpublish direct service host ports** (`5000–5006`, `8000`, `8083`, `8090`, `8095`, `3002`,
-   `1883` if no external SCADA client needs it). Blocked on: `scripts/*.ps1` E2E/validation
-   tooling and any operator bookmarks that hit `localhost:<port>` — they must be repointed at
-   the gateway first. After this, services are reachable only on the compose network.
-2. **Delete the per-service JWT validators** (the 8 `TraverseAuth.cs` copies + `ams-api`/
-   `display-service` hand-rolled ones) and replace them with the trusted `X-Auth-*` header
-   handler — **only after step 1**, per the §2 cutover ordering. This closes AUTH-08.
-   On-prem production should add gateway↔service mTLS (§2 prerequisite 2) so header trust is
-   cryptographically bound, not just network-bound.
+1. **Ops tooling repointed** — every `scripts/**` reference to a direct `localhost:<port>` now
+   targets the gateway (path-equivalents for native service paths; per-service health via the
+   new `GET /gw/upstreams/<cluster>/health` passthrough). A native `/api/v1/audit` route was
+   added to the gateway for path-parity. Vite dev proxy already targeted the gateway.
+2. **Direct service host ports unpublished** — ams-api 8000, auth-service 3002, asset-model 5001,
+   binding-resolver 5002, display-service 5003, template-service 5004, analysis-service 5005,
+   cplm-api 5006, historian-bff 8090, audit-service 8095, notification-service 8096, EMQX WS 8083.
+   Kept: gateway 8081, frontend 3000, EMQX 1883 (authenticated, external SCADA/edge clients) +
+   18083 dashboard, infra ports. **Verified: all 12 closed ports refuse connections.**
+3. **Per-service JWT validators deleted** — `TraverseAuth.cs` rewritten as a header-trust shim
+   (no crypto; same `AddTraverseAuth`/`UseTraverseAuth` surface, keeps the scoped `X-Service-Key`
+   path for internal calls) and synced to 9 services (display-service folded onto it, its
+   hand-rolled validator deleted); ams-api's JwtBearer stack replaced by `GatewayHeaderAuthHandler`.
+   JwtBearer package refs removed estate-wide. **grep-verified: JWKS/JwtBearer code exists only in
+   the gateway.** All per-endpoint permission policies unchanged.
+
+Tested live on rebuilt images: 401-at-edge and 200-authed on real ams-api endpoints; SignalR
+negotiate through the gateway (query token → header auth); every service's API through the
+gateway; internal `X-Service-Key` → asset-model 200/401/401 (with/without/bad key); frontend
+:3000 chain intact. Environment drift found & fixed during testing: migrations 35/36 (server
+identity + shelving) had never been applied to the lab volume — applied (same class of drift as
+migration 38 earlier; the lab's postgres volume predates the init-script additions).
+
+**Remaining for on-prem (not lab-blocking):** real TLS cert on 8443; gateway↔service **mTLS**
+so `X-Auth-*` trust is bound to the peer certificate — today it is network-bound (verified: an
+in-network forged header is accepted, an out-of-network one cannot reach a service at all);
+mTLS/SPIFFE to replace `X-Service-Key` for internal calls.
 
 ## Rollback
 

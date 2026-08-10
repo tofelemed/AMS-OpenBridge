@@ -15,7 +15,6 @@
          not reference ASP.NET Core — without this the project does not compile at all. -->
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <!-- Platform auth: RS256 bearer validation against auth-service JWKS. -->
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.4" />
     <PackageReference Include="Confluent.Kafka" Version="2.4.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.5">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

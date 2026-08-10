@@ -9,7 +9,6 @@
 
   <ItemGroup>
     <!-- Platform auth: RS256 bearer validation against auth-service JWKS (shared TraverseAuth module). -->
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.4" />
     <!-- CPLM data access is Dapper over raw Npgsql (same as the code arriving from AMS.Api in Phase 3). -->
     <PackageReference Include="Npgsql" Version="8.0.3" />
     <PackageReference Include="Dapper" Version="2.1.35" />

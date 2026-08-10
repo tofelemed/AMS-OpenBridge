@@ -1,6 +1,6 @@
 ﻿# End-to-end production validation: API → Kafka → Flink → PostgreSQL → UI path.
 param(
-    [string]$ApiUrl = "http://localhost:8000",
+    [string]$ApiUrl = "http://localhost:8081",
     [string]$FlinkUrl = "http://localhost:8082"
 )
 

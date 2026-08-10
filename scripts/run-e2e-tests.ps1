@@ -47,11 +47,11 @@ try {
         engineeringUnit = "PSI"
     } | ConvertTo-Json
     
-    $createdAsset = Invoke-RestMethod -Uri "http://localhost:5001/assets" -Method Post -Body $asset -ContentType "application/json" -TimeoutSec 10
+    $createdAsset = Invoke-RestMethod -Uri "http://localhost:8081/api/assets" -Method Post -Body $asset -ContentType "application/json" -TimeoutSec 10
     Write-TestResult -Name "Create Asset" -Passed ($null -ne $createdAsset.id) -Details "ID: $($createdAsset.id)"
     
     # Resolve via Binding Resolver
-    $resolveUrl = "http://localhost:5002/resolve?path=$testPath" + '&roles=all'
+    $resolveUrl = "http://localhost:8081/api/bindings/resolve?path=$testPath" + '&roles=all'
     $binding = Invoke-RestMethod -Uri $resolveUrl -TimeoutSec 10
     Write-TestResult -Name "Resolve Asset Path" -Passed $binding.resolved -Details "IoTDB: $($binding.history.iotDbPath)"
     
@@ -60,7 +60,7 @@ try {
     Write-TestResult -Name "IoTDB Path Derivation" -Passed ($binding.history.iotDbPath -eq $expectedIotdb) -Details "Expected: $expectedIotdb, Got: $($binding.history.iotDbPath)"
     
     # Cleanup
-    Invoke-RestMethod -Uri "http://localhost:5001/assets/$($createdAsset.id)" -Method Delete -TimeoutSec 10 | Out-Null
+    Invoke-RestMethod -Uri "http://localhost:8081/api/assets/$($createdAsset.id)" -Method Delete -TimeoutSec 10 | Out-Null
     Write-TestResult -Name "Cleanup Asset" -Passed $true
 } catch {
     Write-TestResult -Name "Asset → Binding Flow" -Passed $false -Details $_.Exception.Message
@@ -81,11 +81,11 @@ try {
         ownerId = "e2e-test"
     } | ConvertTo-Json
     
-    $createdDisplay = Invoke-RestMethod -Uri "http://localhost:5003/displays" -Method Post -Body $display -ContentType "application/json" -TimeoutSec 10
+    $createdDisplay = Invoke-RestMethod -Uri "http://localhost:8081/api/displays" -Method Post -Body $display -ContentType "application/json" -TimeoutSec 10
     Write-TestResult -Name "Create Display" -Passed ($null -ne $createdDisplay.id)
     
     # Get display
-    $retrieved = Invoke-RestMethod -Uri "http://localhost:5003/displays/$($createdDisplay.id)" -TimeoutSec 10
+    $retrieved = Invoke-RestMethod -Uri "http://localhost:8081/api/displays/$($createdDisplay.id)" -TimeoutSec 10
     Write-TestResult -Name "Retrieve Display" -Passed ($retrieved.id -eq $createdDisplay.id)
     
     # Save content (CQRS compliant - no process values)
@@ -106,11 +106,11 @@ try {
         userId = "e2e-test"
     } | ConvertTo-Json -Depth 10
     
-    $saved = Invoke-RestMethod -Uri "http://localhost:5003/displays/$($createdDisplay.id)/content" -Method Put -Body $content -ContentType "application/json" -TimeoutSec 10
+    $saved = Invoke-RestMethod -Uri "http://localhost:8081/api/displays/$($createdDisplay.id)/content" -Method Put -Body $content -ContentType "application/json" -TimeoutSec 10
     Write-TestResult -Name "Save Display Content (CQRS)" -Passed ($saved.version -gt 1)
     
     # Cleanup
-    Invoke-RestMethod -Uri "http://localhost:5003/displays/$($createdDisplay.id)" -Method Delete -TimeoutSec 10 | Out-Null
+    Invoke-RestMethod -Uri "http://localhost:8081/api/displays/$($createdDisplay.id)" -Method Delete -TimeoutSec 10 | Out-Null
     Write-TestResult -Name "Delete Display" -Passed $true
 } catch {
     Write-TestResult -Name "Display CRUD" -Passed $false -Details $_.Exception.Message
@@ -124,7 +124,7 @@ Write-Host "──────────────────────�
 
 try {
     # List templates
-    $templates = Invoke-RestMethod -Uri "http://localhost:5004/templates" -TimeoutSec 10
+    $templates = Invoke-RestMethod -Uri "http://localhost:8081/api/templates" -TimeoutSec 10
     Write-TestResult -Name "List Templates" -Passed ($templates.total -ge 0) -Details "Found $($templates.total) templates"
     
     # Check for system templates
@@ -139,7 +139,7 @@ try {
             position = @{ x = 0; y = 0 }
         } | ConvertTo-Json
         
-        $instance = Invoke-RestMethod -Uri "http://localhost:5004/templates/$($template.id)/instantiate" -Method Post -Body $instantiate -ContentType "application/json" -TimeoutSec 10
+        $instance = Invoke-RestMethod -Uri "http://localhost:8081/api/templates/$($template.id)/instantiate" -Method Post -Body $instantiate -ContentType "application/json" -TimeoutSec 10
         Write-TestResult -Name "Instantiate Template" -Passed ($null -ne $instance.instanceId) -Details "Instance: $($instance.instanceId)"
     }
 } catch {
@@ -154,11 +154,11 @@ Write-Host "──────────────────────�
 
 try {
     # List analysis types
-    $types = Invoke-RestMethod -Uri "http://localhost:5005/analyses/types" -TimeoutSec 10
+    $types = Invoke-RestMethod -Uri "http://localhost:8081/api/analyses/types" -TimeoutSec 10
     Write-TestResult -Name "Get Analysis Types" -Passed ($types.Count -eq 4) -Details "$($types.Count) types available"
     
     # List analyses
-    $analyses = Invoke-RestMethod -Uri "http://localhost:5005/analyses" -TimeoutSec 10
+    $analyses = Invoke-RestMethod -Uri "http://localhost:8081/api/analyses" -TimeoutSec 10
     Write-TestResult -Name "List Analyses" -Passed ($analyses.total -ge 0) -Details "Found $($analyses.total) analyses"
 } catch {
     Write-TestResult -Name "Analysis Service" -Passed $false -Details $_.Exception.Message
@@ -172,11 +172,11 @@ Write-Host "──────────────────────�
 
 try {
     # Test series endpoint
-    $series = Invoke-RestMethod -Uri "http://localhost:8090/series" -TimeoutSec 10
+    $series = Invoke-RestMethod -Uri "http://localhost:8081/api/hist/series" -TimeoutSec 10
     Write-TestResult -Name "List IoTDB Series" -Passed $true -Details "Series query successful"
     
     # Test snapshot endpoint
-    $snapshot = Invoke-RestMethod -Uri "http://localhost:8090/snapshot?assets=*" -TimeoutSec 10
+    $snapshot = Invoke-RestMethod -Uri "http://localhost:8081/api/hist/snapshot?assets=*" -TimeoutSec 10
     Write-TestResult -Name "Redis Snapshot" -Passed ($null -ne $snapshot.assets) -Details "$($snapshot.assets.Count) assets in snapshot"
 } catch {
     Write-TestResult -Name "Historian BFF" -Passed $false -Details $_.Exception.Message

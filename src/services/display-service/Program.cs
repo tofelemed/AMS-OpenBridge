@@ -1,11 +1,9 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Traverse.DisplayService.Auth;
+using Traverse.Auth;
 using Traverse.DisplayService.Data;
 using Traverse.DisplayService.Models;
 using Traverse.DisplayService.Services;
@@ -29,44 +27,12 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(
 // Governance actions (create/edit/delete/publish/share…) are emitted to the platform audit log.
 builder.Services.AddSingleton<AuditEmitter>();
 
-// ── Auth (Phase K) ──────────────────────────────────────────────────────────
-// Displays are authored by Admin/Engineer and consumed by Operator/Viewer. Enforce that here, in the
-// service — the frontend guard is convenience; this is the boundary that actually holds. Tokens are
-// the RS256 JWTs minted by auth-service; authorization is by the `permission` claim (an array in the
-// token, so each entry arrives as its own claim), matching how AMS.Api models policies.
+// ── Auth (edge-only, Plan 04 final lockdown) ────────────────────────────────
+// Displays are authored by Admin/Engineer and consumed by Operator/Viewer. The GATEWAY validates the
+// RS256 token and forwards identity as X-Auth-* headers; this service authorizes from those claims.
+// The historic PascalCase policy names are kept so the endpoint map below is untouched.
 builder.Services.AddHttpClient();
-builder.Services.AddSingleton<JwksKeyCache>();
-
-var authIssuer   = builder.Configuration["Auth:Issuer"]   ?? "traverse-auth";
-var authAudience = builder.Configuration["Auth:Audience"] ?? "ams-services";
-
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.RequireHttpsMetadata = false; // HTTP inside the compose network
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = authIssuer,
-            ValidateAudience = true,
-            ValidAudience = authAudience,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidAlgorithms = new[] { "RS256" },
-            ClockSkew = TimeSpan.FromSeconds(30),
-        };
-        options.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = ctx =>
-            {
-                // Resolve the signing key through the JWKS cache (auth-service has no OIDC discovery).
-                var jwks = ctx.HttpContext.RequestServices.GetRequiredService<JwksKeyCache>();
-                ctx.Options.TokenValidationParameters.IssuerSigningKeyResolver = jwks.Resolve;
-                return Task.CompletedTask;
-            },
-        };
-    });
-
+builder.AddTraverseAuth();
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("DisplayView",    p => p.RequireClaim("permission", "display.view"));
@@ -139,8 +105,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-app.UseAuthentication();
-app.UseAuthorization();
+app.UseTraverseAuth();
 
 // ── GET /health ─────────────────────────────────────────────────────────────
 app.MapGet("/health", async (DisplayDbContext db, IConnectionMultiplexer redis) =>

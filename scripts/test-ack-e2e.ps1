@@ -30,7 +30,7 @@
 
 param(
     [string]$KafkaBootstrap = "localhost:29092",
-    [string]$ApiBaseUrl     = "http://localhost:8000",
+    [string]$ApiBaseUrl     = "http://localhost:8081",
     [int]$WaitSeconds       = 30,
     [switch]$SkipInject
 )
