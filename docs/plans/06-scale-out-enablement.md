@@ -1,5 +1,17 @@
 # Plan 06 — Scale-Out Enablement
 
+> **STATUS (2026-08-11): DEFERRED by decision — ams-api stays single-instance.**
+> Measured footprint (191 MB RAM / ~4.5% CPU with the full lab pipeline) is nowhere near
+> one instance's limits, and replicas buy no real availability while Kafka (RF=1),
+> Postgres, Flink, and Redis are single points of failure (Plan 09). Revisit when
+> concurrent operator connections approach ~500+ or Plan 09 is committed — then do both
+> together. **Item 2's shutdown note was executed now** (the only single-instance-relevant
+> piece): the three UI-topic consumers (`AlarmStateDeltaConsumerService`,
+> `ReplayResultConsumerService`, `DriftAlertConsumerService`) now call `consumer.Close()`
+> so restarts don't stall delta delivery for the broker session timeout. Everything else
+> below is untouched and remains the playbook for when scale-out is actually needed.
+> **The partition-split trap stands: never run 2 replicas before item 2's group-id fix.**
+
 **Phase:** 2 · **Effort:** M · **Depends on:** Plan 04 (gateway load-balances replicas), Plan 02 (CPLM single-member enforcement)
 **Gaps closed:** SCALE-01
 **Objective:** remove the architectural pin that forces `ams-api` to run as a single instance, so the API tier can scale horizontally to the target operator count.

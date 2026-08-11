@@ -67,5 +67,9 @@ public sealed class DriftAlertConsumerService : BackgroundService
                 await Task.Delay(1000, stoppingToken);
             }
         }
+
+        // Leave the group cleanly; Dispose alone makes the broker hold the partitions
+        // until session timeout, stalling delta delivery after every restart.
+        consumer.Close();
     }
 }
