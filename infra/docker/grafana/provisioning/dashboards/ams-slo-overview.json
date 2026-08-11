@@ -1,0 +1,86 @@
+{
+  "title": "AMS SLO Overview",
+  "uid": "ams-slo-overview",
+  "tags": ["ams", "slo", "provisioned"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-3h", "to": "now" },
+  "editable": true,
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Scrape targets DOWN",
+      "gridPos": { "h": 6, "w": 4, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "count(up == 0) or vector(0)", "refId": "A" }],
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 2, "type": "stat", "title": "Flink running jobs",
+      "gridPos": { "h": 6, "w": 4, "x": 4, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "flink_jobmanager_numRunningJobs", "refId": "A" }],
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [
+        { "color": "red", "value": null }, { "color": "green", "value": 1 } ] } }, "overrides": [] },
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 3, "type": "timeseries", "title": "HTTP p95 latency by service",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le, job) (rate(http_request_duration_seconds_bucket[5m])))", "legendFormat": "{{job}}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "HTTP request rate / 5xx by service",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "sum by (job) (rate(http_requests_received_total[5m]))", "legendFormat": "{{job}} rps", "refId": "A" },
+        { "expr": "sum by (job) (rate(http_requests_received_total{code=~\"5..\"}[5m]))", "legendFormat": "{{job}} 5xx", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Kafka consumer-group lag",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum by (consumergroup) (kafka_consumergroup_lag)", "legendFormat": "{{consumergroup}}", "refId": "A" }],
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "DLQ growth (10m window)",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum by (topic) (increase(kafka_topic_partition_current_offset{topic=~\".*-dlq\"}[10m]))", "legendFormat": "{{topic}}", "refId": "A" }],
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "Flink failed checkpoints (15m window)",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum by (job_name) (increase(flink_jobmanager_job_numberOfFailedCheckpoints[15m]))", "legendFormat": "{{job_name}}", "refId": "A" }],
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "Redis memory used / max",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "redis_memory_used_bytes / redis_memory_max_bytes", "legendFormat": "{{instance}}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1, "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "orange", "value": 0.7 }, { "color": "red", "value": 0.8 } ] } }, "overrides": [] }
+    },
+    {
+      "id": 9, "type": "timeseries", "title": "Postgres active connections",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "sum(pg_stat_activity_count)", "legendFormat": "connections", "refId": "A" },
+        { "expr": "pg_settings_max_connections", "legendFormat": "max_connections", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    }
+  ]
+}

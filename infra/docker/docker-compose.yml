@@ -1,9 +1,10 @@
+# Attached to every service as `logging: *default-logging` (Plan 08 item 5) —
+# without it json-file logs grow unbounded and eventually fill the host disk.
 x-logging: &default-logging
-  logging:
-    driver: "json-file"
-    options:
-      max-size: "10m"
-      max-file: "3"
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 x-restart: &default-restart
   restart: unless-stopped
@@ -41,6 +42,7 @@ services:
   postgres:
     image: timescale/timescaledb:latest-pg15
     container_name: ams-postgres
+    logging: *default-logging
     <<: *default-restart
     environment:
       POSTGRES_DB:       ams
@@ -72,6 +74,7 @@ services:
   iotdb:
     image: apache/iotdb:1.3.2-standalone
     container_name: ams-iotdb
+    logging: *default-logging
     <<: *default-restart
     environment:
       enable_auto_create_schema: "true"
@@ -79,6 +82,11 @@ services:
       # Enable REST API v2 (required by historian-bff / Flink IoTDB connector)
       enable_rest_service: "true"
       rest_service_port: "8181"
+      # Prometheus metrics on :9091 (Plan 08 — the port was published but the
+      # reporter was never enabled, so the scrape target was down forever)
+      dn_metric_reporter_list: "PROMETHEUS"
+      dn_metric_level: "CORE"
+      dn_metric_prometheus_reporter_port: "9091"
     volumes:
       - iotdb-data:/iotdb/data
       - iotdb-logs:/iotdb/logs
@@ -107,6 +115,7 @@ services:
   redis:
     image: redis:7.2-alpine
     container_name: ams-redis
+    logging: *default-logging
     <<: *default-restart
     command: >
       redis-server
@@ -139,6 +148,7 @@ services:
   redis-contract:
     image: redis:7.2-alpine
     container_name: ams-redis-contract
+    logging: *default-logging
     <<: *default-restart
     command: >
       redis-server
@@ -168,6 +178,7 @@ services:
   emqx:
     image: emqx/emqx:5.6.0
     container_name: ams-emqx
+    logging: *default-logging
     <<: *default-restart
     environment:
       EMQX_NAME: "ams-emqx"
@@ -231,6 +242,7 @@ services:
   emqx-init:
     image: curlimages/curl:8.9.1
     container_name: ams-emqx-init
+    logging: *default-logging
     depends_on:
       emqx:
         condition: service_healthy
@@ -250,6 +262,7 @@ services:
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: ams-pgadmin
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       postgres:
@@ -283,6 +296,7 @@ services:
         IOTDB_JDBC_VERSION: "1.3.2"
     image: ams-cloudbeaver:iotdb
     container_name: ams-cloudbeaver
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       iotdb:
@@ -297,6 +311,7 @@ services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.3
     container_name: ams-zookeeper
+    logging: *default-logging
     <<: *default-restart
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
@@ -322,12 +337,13 @@ services:
         - ams-backend
       environment:
         KAFKA_CLUSTERS_0_NAME: local
-        KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092,kafka-1:9093,kafka-2:9094
+        KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
         KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
 
   kafka:
     image: confluentinc/cp-kafka:7.5.3
     container_name: ams-kafka
+    logging: *default-logging
     hostname: kafka
     <<: *default-restart
     depends_on:
@@ -374,6 +390,7 @@ services:
   minio:
     image: minio/minio:RELEASE.2024-06-13T22-53-53Z
     container_name: ams-minio
+    logging: *default-logging
     <<: *default-restart
     command: server /data --console-address ":9001"
     environment:
@@ -397,6 +414,7 @@ services:
   minio-init:
     image: minio/mc:RELEASE.2024-06-12T14-34-03Z
     container_name: ams-minio-init
+    logging: *default-logging
     depends_on:
       minio:
         condition: service_healthy
@@ -419,6 +437,7 @@ services:
       dockerfile: ../../infra/docker/flink/Dockerfile
     image: ams-flink:1.0-SNAPSHOT
     container_name: ams-flink-jobmanager
+    logging: *default-logging
     <<: *default-restart
     entrypoint: ["/bin/bash", "/opt/flink-entrypoint.sh"]
     command: jobmanager
@@ -487,6 +506,7 @@ services:
       dockerfile: ../../infra/docker/flink/Dockerfile
     image: ams-flink:1.0-SNAPSHOT
     container_name: ams-flink-taskmanager
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       flink-jobmanager:
@@ -549,6 +569,7 @@ services:
       dockerfile: ../../infra/docker/flink/Dockerfile
     image: ams-flink:1.0-SNAPSHOT
     container_name: ams-flink-job-submit
+    logging: *default-logging
     depends_on:
       flink-jobmanager:
         condition: service_started
@@ -575,6 +596,7 @@ services:
       context: ../../src/backend
       dockerfile: ../../infra/docker/api/Dockerfile
     container_name: ams-api
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       postgres:
@@ -629,6 +651,7 @@ services:
         VITE_SPARKPLUG_GROUP: ams_site1
         VITE_SPARKPLUG_EDGE: ams_edge1
     container_name: ams-frontend
+    logging: *default-logging
     <<: *default-restart
     # Item 7 cutover: nginx serves the SPA and passes /api, /hubs, /mqtt-ws to
     # the gateway â€” its only upstream now.
@@ -654,6 +677,7 @@ services:
     build:
       context: ../../src/services/gateway
     container_name: traverse-gateway
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       auth-service:
@@ -689,6 +713,7 @@ services:
     build:
       context: ../../src/services/sparkplug-edge-node
     container_name: ams-sparkplug-edge-node
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       kafka:
@@ -730,6 +755,7 @@ services:
     build:
       context: ../../src/services/historian-bff
     container_name: ams-historian-bff
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       iotdb:
@@ -771,6 +797,7 @@ services:
     build:
       context: ../../src/services/asset-model
     container_name: traverse-asset-model
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       postgres:
@@ -811,6 +838,7 @@ services:
     build:
       context: ../../src/services/auth-service
     container_name: traverse-auth-service
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       postgres:
@@ -868,6 +896,7 @@ services:
     build:
       context: ../../src/services/binding-resolver
     container_name: traverse-binding-resolver
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       redis:
@@ -912,6 +941,7 @@ services:
     build:
       context: ../../src/services/display-service
     container_name: traverse-display-service
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       postgres:
@@ -949,6 +979,7 @@ services:
     build:
       context: ../../src/services/audit-service
     container_name: traverse-audit-service
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       postgres:
@@ -985,6 +1016,7 @@ services:
     build:
       context: ../../src/services/notification-service
     container_name: traverse-notification-service
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       kafka:
@@ -1022,6 +1054,7 @@ services:
     build:
       context: ../../src/services/template-service
     container_name: traverse-template-service
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       postgres:
@@ -1060,6 +1093,7 @@ services:
     build:
       context: ../../src/services/analysis-service
     container_name: traverse-analysis-service
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       postgres:
@@ -1104,6 +1138,7 @@ services:
     build:
       context: ../../src/services/cplm-api
     container_name: traverse-cplm-api
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       postgres:
@@ -1161,6 +1196,7 @@ services:
   iotdb-init:
     image: apache/iotdb:1.3.2-standalone
     container_name: ams-iotdb-init
+    logging: *default-logging
     depends_on:
       iotdb:
         condition: service_healthy
@@ -1184,6 +1220,7 @@ services:
   iotdb-workbench-init:
     image: alpine:3.20
     container_name: ams-iotdb-workbench-init
+    logging: *default-logging
     depends_on:
       iotdb:
         condition: service_healthy
@@ -1212,6 +1249,7 @@ services:
   iotdb-workbench-backend:
     image: apache/iotdb-web-workbench:0.13.0-backend
     container_name: ams-iotdb-workbench-backend
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       iotdb:
@@ -1237,6 +1275,7 @@ services:
   iotdb-workbench-frontend:
     image: apache/iotdb-web-workbench:0.13.0-frontend
     container_name: ams-iotdb-workbench-frontend
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       iotdb-workbench-backend:
@@ -1261,6 +1300,7 @@ services:
       dockerfile: ../../infra/docker/flink/Dockerfile
     image: ams-flink:1.0-SNAPSHOT
     container_name: ams-flink-submit-iotdb
+    logging: *default-logging
     depends_on:
       flink-jobmanager:
         condition: service_started
@@ -1294,6 +1334,7 @@ services:
       dockerfile: ../../infra/docker/flink/Dockerfile
     image: ams-flink:1.0-SNAPSHOT
     container_name: ams-flink-submit-live-state
+    logging: *default-logging
     depends_on:
       flink-jobmanager:
         condition: service_started
@@ -1324,6 +1365,7 @@ services:
       dockerfile: ../../infra/docker/flink/Dockerfile
     image: ams-flink:1.0-SNAPSHOT
     container_name: ams-flink-submit-cplm
+    logging: *default-logging
     depends_on:
       flink-jobmanager:
         condition: service_started
@@ -1356,6 +1398,7 @@ services:
       dockerfile: ../../infra/docker/flink/Dockerfile
     image: ams-flink:1.0-SNAPSHOT
     container_name: ams-flink-job-supervisor
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       flink-jobmanager:
@@ -1384,18 +1427,43 @@ services:
   # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   # â”€â”€ Prometheus â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # ── Alertmanager (Plan 08 item 2) ─────────────────────────────────────────
+  # Dev-null receiver — alerts visible in its UI, nobody notified. Production
+  # swaps the receiver in alertmanager.yml. Not published on the host; reach it
+  # via the compose network (prometheus already routes alerts to it).
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: ams-alertmanager
+    logging: *default-logging
+    <<: *default-restart
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   prometheus:
     image: prom/prometheus:v2.51.2
     container_name: ams-prometheus
+    logging: *default-logging
     <<: *default-restart
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
       - "--storage.tsdb.retention.time=15d"
       - "--web.enable-lifecycle"
-      - "--web.enable-admin-api"
+      # --web.enable-admin-api removed (Plan 08 item 4): it allowed anonymous
+      # TSDB deletion on a published port. Lifecycle (config reload) stays.
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus-rules.yml:/etc/prometheus/rules.yml:ro
       - prometheus-data:/prometheus
     ports:
       - "9090:9090"
@@ -1412,6 +1480,7 @@ services:
   grafana:
     image: grafana/grafana:10.4.2
     container_name: ams-grafana
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       prometheus:
@@ -1441,6 +1510,7 @@ services:
   redis-exporter:
     image: oliver006/redis_exporter:v1.58.0
     container_name: ams-redis-exporter
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       redis:
@@ -1456,6 +1526,7 @@ services:
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.15.0
     container_name: ams-postgres-exporter
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       postgres:
@@ -1471,6 +1542,7 @@ services:
   kafka-exporter:
     image: danielqsj/kafka-exporter:v1.7.0
     container_name: ams-kafka-exporter
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       kafka:

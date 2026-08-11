@@ -89,3 +89,49 @@ Every item is additive configuration. Resource limits are the one behavioural ri
 - **Alert fatigue:** start with the small rule set above and tune thresholds against a week of real data before adding more.
 - Resource limits set too tight will OOM the Flink TaskManager, which deliberately has none today because it hosts the CPLM long-diagnostics state — size it from observed usage, not a guess.
 - Digest pinning increases upgrade friction; pair it with a scheduled dependency-bump job so images do not silently rot.
+
+---
+
+## Execution status (2026-08-11) — dev-scoped by decision
+
+Executed at **dev-necessary scope** ("don't overkill"): everything config-level and the one
+named instrumentation gap. Production-only hardening deferred, listed below.
+
+**Done & verified live:**
+- **Item 1 (partial-by-evidence):** scrape jobs added for gateway (`/gw/metrics`), audit-service,
+  notification-service, cplm-api — every service that actually exposes prometheus-net metrics.
+  The uninstrumented services (asset-model, binding-resolver, display, template, analysis,
+  auth-service) are deliberately NOT scraped blind; add job + instrumentation together.
+- **historian-bff instrumented** (`prometheus-net.AspNetCore`, audit-service pattern) — the
+  trend-p95 SLI is now measurable. Verified `/metrics` 200 and target `up`.
+- **Item 2:** `prometheus-rules.yml` (7 rules: TargetDown, ConsumerGroupLagHigh,
+  DlqReceivingMessages, FlinkNoRunningJobs, FlinkCheckpointFailures, RedisMemoryHigh,
+  PostgresConnectionsSaturated) + Alertmanager v0.27 in compose with a dev-null receiver
+  (production swaps the receiver only). **Alert path proven end-to-end:** with Flink absent,
+  `TargetDown` fired and arrived in Alertmanager's API.
+- **Item 3 (minimal):** one provisioned dashboard `AMS SLO Overview` (9 panels: targets, Flink
+  jobs/checkpoints, HTTP p95 + RED, consumer lag, DLQ growth, Redis memory, PG connections);
+  datasource pinned `uid: prometheus`. Verified via Grafana API on a clean recreate.
+- **Item 4:** `--web.enable-admin-api` removed (verified: delete_series → "admin APIs disabled");
+  EMQX scrape job disabled — it carried committed creds (admin/public) that never matched the
+  real password, so the target had never scraped; re-enable via API key + password_file when needed.
+- **Item 5 (log rotation only):** `x-logging` anchor restructured and attached to **all 43
+  services** (10m×3 json-file).
+- **Item 6:** kafka-ui phantom brokers removed; `.env.example` StreamPipes section marked as an
+  external-overlay contract (the compose file it references is not in this repo); the stale
+  `ALLOW_ANONYMOUS` e2e assertion no longer exists anywhere (resolved by Plans 03/04).
+- **Item 7:** [docs/ops-contracts.md](../ops-contracts.md) — at-least-once idempotent sinks,
+  SignalR 30s poll fallback, health semantics, in-service rate limiter.
+- **Bonus:** IoTDB metrics reporter enabled (`dn_metric_reporter_list=PROMETHEUS`) — port 9091
+  was published but the reporter was never on, so that target had been down forever. Lab repair:
+  `root-cause-events` topic recreated (lost in the kafka volume reset; notification-service was
+  crash-looping on it).
+
+**Deferred to production hardening (deliberate, not forgotten):**
+- Non-root `USER` conversion, image digest pinning, CPU/memory limits, `cap_drop`/`read_only`
+  (item 5) — limits must be sized from observed production usage per the risk note.
+- Prometheus/Grafana behind auth / unpublished (item 4) — dev keeps 9090/3001 published.
+- SLI recording rules + end-to-end field-to-HMI latency instrumentation (item 1) — needs the
+  ingest-side timestamp work; do with the production deployment.
+- Real Alertmanager receiver (email/webhook) — one edit in `alertmanager.yml`.
+- The 17 Phase-0 documentation-drift items (item 6) — bulk doc pass, separate change.

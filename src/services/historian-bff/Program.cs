@@ -1,5 +1,6 @@
 using AMS.HistorianBff;
 using Microsoft.Extensions.Caching.Memory;
+using Prometheus;
 using StackExchange.Redis;
 using System.Security.Claims;
 using System.Text.Json;
@@ -30,6 +31,10 @@ builder.AddTraverseAuth();
 var app = builder.Build();
 
 app.UseTraverseAuth();
+
+// OPS-01: request-duration histograms per endpoint — trend p95 comes from here.
+app.UseHttpMetrics();
+app.MapMetrics();
 
 // ── GET /health ─────────────────────────────────────────────────────────────
 // Returns JSON for Edge Node Monitor / observability (default MapHealthChecks writes plain text).

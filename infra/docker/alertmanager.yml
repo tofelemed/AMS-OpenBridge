@@ -1,0 +1,18 @@
+# Alertmanager (Plan 08 item 2).
+# Dev ships a dev-null receiver: alerts are visible in the Alertmanager/Prometheus
+# UIs but notify nobody. Production wires a real integration (email/webhook/
+# PagerDuty) into the 'default' receiver below — routing and grouping are done.
+route:
+  receiver: default
+  group_by: [alertname, severity]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers: [severity = "critical"]
+      receiver: default
+      repeat_interval: 1h
+
+receivers:
+  # A receiver with no notifier configs is valid: alerts route here and stop.
+  - name: default

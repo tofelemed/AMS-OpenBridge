@@ -4,11 +4,16 @@ global:
   external_labels:
     env: dev
 
-# ── Alerting (optional — enable when Alertmanager is running) ──────────────
-# alerting:
-#   alertmanagers:
-#     - static_configs:
-#         - targets: ["alertmanager:9093"]
+# ── Alerting (Plan 08) ──────────────────────────────────────────────────────
+# Alertmanager runs in compose with a dev-null receiver; production only has to
+# swap the receiver in alertmanager.yml — rules and routing are already wired.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+rule_files:
+  - /etc/prometheus/rules.yml
 
 # ── Scrape configs ──────────────────────────────────────────────────────────
 scrape_configs:
@@ -50,17 +55,15 @@ scrape_configs:
       - targets: ["iotdb:9091"]
     metrics_path: /metrics
 
-  # ── EMQX Broker ──────────────────────────────────────────────────────────
-  # EMQX 5.x exposes Prometheus pull endpoint on :18083/api/v5/prometheus/stats
-  # (requires enabling in EMQX Dashboard → Integration → Prometheus).
-  # Alternatively enable the push gateway or use the built-in exporter plugin.
-  - job_name: emqx
-    static_configs:
-      - targets: ["emqx:18083"]
-    metrics_path: /api/v5/prometheus/stats
-    basic_auth:
-      username: admin
-      password: public
+  # ── EMQX Broker — DISABLED (Plan 08 item 4) ──────────────────────────────
+  # The job previously carried committed credentials (admin/public) that did not
+  # match the broker's real dashboard password from .env — the target never
+  # scraped successfully. Re-enable with an EMQX API key delivered via a
+  # password_file (never committed) when broker metrics are actually needed.
+  # - job_name: emqx
+  #   static_configs:
+  #     - targets: ["emqx:18083"]
+  #   metrics_path: /api/v5/prometheus/stats
 
   # ── Redis ─────────────────────────────────────────────────────────────────
   # Scraped via redis_exporter sidecar (added to compose in Phase 6).
@@ -78,3 +81,28 @@ scrape_configs:
   - job_name: kafka
     static_configs:
       - targets: ["kafka-exporter:9308"]
+
+  # ── API gateway (YARP; prometheus-net on /gw/metrics) ─────────────────────
+  - job_name: gateway
+    static_configs:
+      - targets: ["gateway:8080"]
+    metrics_path: /gw/metrics
+
+  # ── Traverse services that expose prometheus-net /metrics (Plan 08 item 1)
+  # The remaining Traverse services (asset-model, binding-resolver, display,
+  # template, analysis) and auth-service are not instrumented yet — add them
+  # here the moment they get a /metrics endpoint; do not scrape blind targets.
+  - job_name: audit-service
+    static_configs:
+      - targets: ["audit-service:8080"]
+    metrics_path: /metrics
+
+  - job_name: notification-service
+    static_configs:
+      - targets: ["notification-service:8080"]
+    metrics_path: /metrics
+
+  - job_name: cplm-api
+    static_configs:
+      - targets: ["cplm-api:5000"]
+    metrics_path: /metrics

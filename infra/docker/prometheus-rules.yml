@@ -1,0 +1,72 @@
+# AMS alert rules (Plan 08 item 2) — the minimum set, tuned for signal not noise.
+# Every rule here is evaluable from metrics the stack already exports; add rules
+# only alongside the exporter/instrumentation that feeds them.
+groups:
+  - name: ams-availability
+    rules:
+      - alert: TargetDown
+        expr: up == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} ({{ $labels.instance }}) is not being scraped"
+          description: "Scrape target has been down for 3 minutes. If the service was removed intentionally, remove its scrape job too."
+
+  - name: ams-alarm-pipeline
+    rules:
+      - alert: ConsumerGroupLagHigh
+        expr: sum by (consumergroup) (kafka_consumergroup_lag) > 10000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Kafka consumer group {{ $labels.consumergroup }} lag above 10k"
+          description: "Sustained lag means alarm projections / UI deltas are falling behind the stream."
+
+      - alert: DlqReceivingMessages
+        expr: sum by (topic) (increase(kafka_topic_partition_current_offset{topic=~".*-dlq"}[10m])) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "DLQ topic {{ $labels.topic }} received messages in the last 10m"
+          description: "Poison messages are being dead-lettered. Inspect the DLQ before retention discards them."
+
+      - alert: FlinkNoRunningJobs
+        expr: flink_jobmanager_numRunningJobs == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Flink has zero running jobs"
+          description: "The alarm state machine is not processing. Alarm lifecycle, deltas, and KPIs are stalled."
+
+      - alert: FlinkCheckpointFailures
+        expr: increase(flink_jobmanager_job_numberOfFailedCheckpoints[15m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Flink job {{ $labels.job_name }} failed checkpoints in the last 15m"
+          description: "Repeated checkpoint failures precede state loss on restart — investigate before restarting anything."
+
+  - name: ams-data-stores
+    rules:
+      - alert: RedisMemoryHigh
+        expr: (redis_memory_used_bytes / redis_memory_max_bytes > 0.8) and (redis_memory_max_bytes > 0)
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis at {{ $value | humanizePercentage }} of maxmemory"
+          description: "The contract tier is noeviction — writes start failing at 100%. The cache tier starts evicting. Either way, act before it climbs."
+
+      - alert: PostgresConnectionsSaturated
+        expr: sum(pg_stat_activity_count) / scalar(pg_settings_max_connections) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Postgres using {{ $value | humanizePercentage }} of max_connections"
+          description: "Connection saturation takes down every service at once — find the pool that is leaking."
