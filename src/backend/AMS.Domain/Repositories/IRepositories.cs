@@ -23,10 +23,9 @@ public interface IActiveAlarmRepository
     /// <summary>Tracked load for Kafka ingest (mutates opc_attributes).</summary>
     Task<IReadOnlyList<ActiveAlarm>> GetBySourceNameForIngestAsync(
         Guid serverId, string sourceName, CancellationToken ct = default);
-    Task<IReadOnlyList<ActiveAlarm>> GetUnacknowledgedAsync(
-        Guid? serverId = null, AlarmPriority? minPriority = null, CancellationToken ct = default);
-    Task<IReadOnlyList<ActiveAlarm>> GetShelvedExpiredAsync(CancellationToken ct = default);
-    Task<IReadOnlyList<ActiveAlarm>> GetByCorrelationIdAsync(Guid correlationId, CancellationToken ct = default);
+    // Plan 10 A4: GetUnacknowledgedAsync / GetShelvedExpiredAsync / GetByCorrelationIdAsync
+    // removed — zero callers. Shelve expiry runs via the alarms.expire_shelved_alarms()
+    // SQL function (ShelveExpiryService), never through a repository read.
 }
 
 /// <summary>
@@ -38,7 +37,9 @@ public interface IHistoricalAlarmRepository
     Task<HistoricalAlarmQueryResult> QueryAsync(
         HistoricalAlarmQuery query, CancellationToken ct = default);
     Task<long> CountAsync(HistoricalAlarmQuery query, CancellationToken ct = default);
-    Task BulkInsertAsync(IEnumerable<object> records, CancellationToken ct = default);
+    // Plan 10 A4: BulkInsertAsync (COPY into alarms.historical_alarms) removed — zero
+    // callers; the write path to that table was dead. The table's fate is a recorded
+    // decision (plan item A7), not a unilateral drop.
     IAsyncEnumerable<object> StreamAsync(HistoricalAlarmQuery query, CancellationToken ct = default);
 
     /// <summary>

@@ -143,28 +143,8 @@ public sealed class ActiveAlarmRepository : IActiveAlarmRepository
             .Where(a => a.ServerId == serverId && a.SourceName == sourceName)
             .ToListAsync(ct);
 
-    /// <summary>
-    /// DATA-10: previously ignored both parameters and returned the ENTIRE unacked set
-    /// unbounded — during an alarm flood that is exactly when it would be largest.
-    /// Filters apply and the result is capped (newest first; 1000 = the API's max page).
-    /// </summary>
-    public async Task<IReadOnlyList<ActiveAlarm>> GetUnacknowledgedAsync(
-        Guid? serverId = null, AlarmPriority? minPriority = null, CancellationToken ct = default)
-    {
-        var q = _ctx.ActiveAlarms.AsNoTracking().Where(a => !a.Acknowledged);
-        if (serverId.HasValue)
-            q = q.Where(a => a.ServerId == serverId.Value);
-        if (minPriority.HasValue)
-            q = q.Where(a => a.Priority >= minPriority.Value);
-        return await q.OrderByDescending(a => a.EventTime).Take(1000).ToListAsync(ct);
-    }
-
-    public async Task<IReadOnlyList<ActiveAlarm>> GetShelvedExpiredAsync(CancellationToken ct = default)
-        => await Task.FromResult(new List<ActiveAlarm>());
-
-    public async Task<IReadOnlyList<ActiveAlarm>> GetByCorrelationIdAsync(
-        Guid correlationId, CancellationToken ct = default)
-        => await Task.FromResult(new List<ActiveAlarm>());
+    // Plan 10 A4: GetUnacknowledgedAsync, GetShelvedExpiredAsync and GetByCorrelationIdAsync
+    // removed with their interface members — zero callers anywhere in the solution.
 }
 
 /// <summary>
@@ -278,20 +258,8 @@ public sealed class HistoricalAlarmRepository : IHistoricalAlarmRepository
         await conn.ExecuteAsync(new CommandDefinition(sql, records, cancellationToken: ct));
     }
 
-    public async Task BulkInsertAsync(IEnumerable<object> records, CancellationToken ct = default)
-    {
-        // Use COPY protocol for maximum throughput
-        await using var conn = await _dataSource.OpenConnectionAsync(ct);
-        await using var writer = await conn.BeginBinaryImportAsync(
-            @"COPY alarms.historical_alarms (
-                id, server_id, source_name, event_type, condition_name, 
-                message, severity, priority, category, alarm_state,
-                condition_active, acknowledged, quality, event_time, active_time,
-                server_received_at
-              ) FROM STDIN (FORMAT BINARY)", ct);
-        // Rows are written by caller via the Npgsql COPY API
-        await writer.CompleteAsync(ct);
-    }
+    // Plan 10 A4: BulkInsertAsync (COPY into alarms.historical_alarms) removed — zero
+    // callers; that table's write path was dead. Table fate = plan item A7 decision.
 
     public async IAsyncEnumerable<object> StreamAsync(
         HistoricalAlarmQuery query,

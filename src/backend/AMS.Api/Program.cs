@@ -14,7 +14,6 @@ using MediatR;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Npgsql;
 using Prometheus;
@@ -122,7 +121,8 @@ if (config.GetValue("Kafka:LabDirectIngest", false))
 if (!useFlinkOrchestration)
 {
     throw new InvalidOperationException(
-        "Kafka:UseFlinkOrchestration must be true. AlarmStreamProcessorService and .NET ACK orchestration are disabled.");
+        "Kafka:UseFlinkOrchestration must be true. Flink owns the alarm lifecycle; " +
+        "in-service stream processing and .NET ACK orchestration were removed.");
 }
 
 Console.WriteLine("[AMS] Flink-only orchestration — stream processor disabled; lifecycle owned by Flink.");

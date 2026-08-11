@@ -587,10 +587,8 @@ services:
       ASPNETCORE_HTTP_PORTS:    "8000"
       Urls:                     http://0.0.0.0:8000
       ConnectionStrings__AmsDb: Host=postgres;Port=5432;Database=ams;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set â€” see infra/docker/.env.example}
-      # Phase K â€” RBAC: real bearer auth (replaces the TestAuthHandler bypass).
-      Auth__JwksUrl:            http://auth-service:3002/api/auth/.well-known/jwks.json
-      Auth__Issuer:             traverse-auth
-      Auth__Audience:           ams-services
+      # Edge-only auth (Plan 04): the gateway validates tokens; ams-api trusts its
+      # X-Auth-* headers — no JWKS/issuer/audience config exists here anymore.
       Kafka__BootstrapServers:  kafka:9092
       Kafka__IngestAuthority:        api
       Kafka__ConsumerGroupId:        ams-backend-2
