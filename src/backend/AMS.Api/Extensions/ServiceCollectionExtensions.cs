@@ -81,16 +81,24 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>
+    /// Plan 10 C1 — health semantics:
+    ///  LIVENESS ("critical", served by /health/ready and the container probe) is postgres
+    ///  only: the REST surface genuinely cannot function without it. Kafka/Flink outages
+    ///  degrade the PIPELINE, not the API — they used to be tagged critical, so a down
+    ///  Flink marked the whole container unhealthy while every endpoint still answered.
+    ///  They remain fully visible in /health (aggregate detail) and /health/pipeline.
+    ///  The kafka check is metadata-based (KafkaMetadataHealthCheck) — the old one
+    ///  PUBLISHED a synthetic message to server-status on every probe.
+    /// </summary>
     public static IServiceCollection AddAmsHealthChecks(
         this IServiceCollection services, IConfiguration config, string connStr)
     {
+        services.AddSingleton<Health.KafkaMetadataHealthCheck>();
         services.AddHealthChecks()
             .AddNpgSql(connStr, name: "postgresql", tags: new[] { "database", "critical" })
-            .AddKafka(new Confluent.Kafka.ProducerConfig
-            {
-                BootstrapServers = config["Kafka:BootstrapServers"] ?? "localhost:9092"
-            }, topic: "server-status", name: "kafka", tags: new[] { "messaging", "critical" })
-            .AddCheck<FlinkOnlyIngestHealthCheck>("flink-ingest", tags: new[] { "critical", "ingest" });
+            .AddCheck<Health.KafkaMetadataHealthCheck>("kafka", tags: new[] { "messaging", "pipeline" })
+            .AddCheck<FlinkOnlyIngestHealthCheck>("flink-ingest", tags: new[] { "pipeline", "ingest" });
         return services;
     }
 

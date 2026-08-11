@@ -233,7 +233,12 @@ services.AddAmsAuthPolicies();
 services.AddAmsRateLimiting();
 services.AddAmsResponseCompression();
 services.AddAmsHealthChecks(config, connStr);
-services.AddAmsCors(config);
+// Plan 10 C3: CORS is Development-only. In every deployed shape the browser is
+// same-origin (SPA behind nginx -> gateway; no published API port), and even dev
+// uses the Vite proxy — the policy exists solely as a safety net for ad-hoc
+// dev setups that point a browser straight at a locally-run API.
+if (builder.Environment.IsDevelopment())
+    services.AddAmsCors(config);
 
 // ============================================================
 // Application Pipeline
@@ -272,7 +277,8 @@ app.UseSerilogRequestLogging(opt =>
 
 app.UseResponseCompression();
 app.UseSecurityHeaders();  // X-Content-Type-Options, X-Frame-Options, HSTS
-app.UseCors("AmsPolicy");
+if (app.Environment.IsDevelopment())
+    app.UseCors("AmsPolicy");
 app.UseRateLimiter();
 
 if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
@@ -322,9 +328,17 @@ app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
 {
     ResponseWriter = HealthChecks.UI.Client.UIResponseWriter.WriteHealthCheckUIResponse
 });
+// Liveness / container probe: "critical" only (postgres). Kafka/Flink outages degrade the
+// pipeline, not the REST surface — they must never restart-loop the container (Plan 10 C1).
 app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
     Predicate = hc => hc.Tags.Contains("critical")
+});
+// Pipeline view: kafka + flink-ingest only — what ops watches when data stops flowing.
+app.MapHealthChecks("/health/pipeline", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = hc => hc.Tags.Contains("pipeline"),
+    ResponseWriter = HealthChecks.UI.Client.UIResponseWriter.WriteHealthCheckUIResponse
 });
 
 Log.Information("AMS API starting on {Urls}", string.Join(", ", app.Urls));

@@ -100,3 +100,30 @@ config-level and trivially reversible.
 - Consumer-group/topic renames, partition changes → not worth the migration risk here.
 - Dropping `historical_alarms` → needs the A7 decision first.
 - Rewriting the Clean Architecture layering — it earns its keep for this domain.
+
+---
+
+## Execution status (2026-08-11)
+
+| Phase | Status | Commit | Notes |
+|---|---|---|---|
+| A | ✅ Done | `77b0494` | A1–A6 complete. A7 recorded as open decision (table kept; export reads `alarm_history`). |
+| B | ✅ Done | `52f68ec` | Program.cs 655 → ~300 lines; all moves verbatim. **B3 decision: SOE stays a loud stub** — the `soe` schema has *no tables* (analysis assumption wrong), so implementing the query = new feature, recorded in `StubRepositories.cs`. |
+| C | ✅ Done | this commit | C1(a–d) + C3 shipped; C2 already satisfied (Serilog `GetLevel` was Debug/Warn>1s/Error≥500 since Plan 04); C4 no-change decision documented in `AddAmsRateLimiting`; C5/C6 deferred — optional, measurement-gated. |
+| D | ✅ Done | follow-up commit | D1 + D2. Checked-in defaults: `AlarmIngestion:Enabled=false`, empty URLs — compose env supplies the deployment values (verified live: container still polls the feed). |
+
+**C1 acceptance evidence (lab, Flink jobs absent):** recreated ams-api container reached
+`healthy` via `/health/ready` (200, postgres-only) *while* aggregate `/health` reported
+`kafka: Unhealthy` during broker cold-connect — exactly the decoupling the item exists for.
+`/health/pipeline` serves the kafka + flink-ingest view. `server-status` end offsets flat
+(3449) over a 75s+ window spanning multiple probe intervals → zero synthetic messages.
+Production CORS verified inert (OPTIONS + foreign Origin → no `access-control-*` headers).
+Gateway smoke: unauth 401, auth alarms 200, hub negotiate 200.
+
+**Kafka health-check note:** the very first `/health` after boot can report kafka
+`Unhealthy ("Local: Timed out")` — AdminClient's cold connect + ApiVersion negotiation can
+exceed the 2s metadata timeout. It self-corrects on the next probe (5s cache) and never
+affects `/health/ready`/container health. Accepted as a cosmetic first-probe artifact.
+
+**Exit criteria:** all met except the SOE line, which is superseded by the B3 recorded
+decision (schema empty ⇒ stub documented loudly, endpoint unchanged).
