@@ -1,3 +1,7 @@
+using AMS.Api.Behaviors;
+using AMS.Api.BackgroundServices;
+using AMS.Api.Extensions;
+using AMS.Api.Filters;
 using AMS.Api.Health;
 using AMS.Api.Hubs;
 using AMS.Application.Alarms.Commands;
@@ -8,20 +12,15 @@ using AMS.Infrastructure.Opc;
 using AMS.Infrastructure.Persistence;
 using AMS.Infrastructure.Repositories;
 using AMS.Domain.Repositories;
-using Asp.Versioning;
 using FluentValidation;
 using MediatR;
-using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi.Models;
 using Npgsql;
 using Prometheus;
 using Serilog;
 using Serilog.Events;
 using StackExchange.Redis;
 using System.Reflection;
-using System.Threading.RateLimiting;
 
 // ============================================================
 // AMS API Bootstrap
@@ -210,57 +209,9 @@ services.AddControllers(opt =>
     opt.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
 });
 
-// ---- API Versioning ----
-services.AddApiVersioning(opt =>
-{
-    opt.DefaultApiVersion                = new ApiVersion(1, 0);
-    opt.AssumeDefaultVersionWhenUnspecified = true;
-    opt.ReportApiVersions                = true;
-    opt.ApiVersionReader                 = ApiVersionReader.Combine(
-        new UrlSegmentApiVersionReader(),
-        new HeaderApiVersionReader("X-Api-Version"));
-}).AddApiExplorer(opt =>
-{
-    opt.GroupNameFormat           = "'v'VVV";
-    opt.SubstituteApiVersionInUrl = true;
-});
-
-// ---- Swagger / OpenAPI ----
-services.AddEndpointsApiExplorer();
-services.AddSwaggerGen(opt =>
-{
-    opt.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Title          = "AMS – Alarm Management System API",
-        Version        = "v1",
-        Description    = "OPC A&E 1.10 compliant enterprise alarm management REST API. " +
-                         "Supports ISA-18.2 and EEMUA-191 alarm lifecycle operations.",
-        Contact        = new OpenApiContact { Name = "AMS Operations", Email = "ams-ops@company.com" },
-        License        = new OpenApiLicense { Name = "Enterprise License" }
-    });
-
-    opt.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Type         = SecuritySchemeType.Http,
-        Scheme       = "bearer",
-        BearerFormat = "JWT",
-        Description  = "JWT Bearer token from Keycloak / IdentityServer"
-    });
-
-    opt.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        [new OpenApiSecurityScheme
-        {
-            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
-        }] = Array.Empty<string>()
-    });
-
-    opt.EnableAnnotations();
-    var apiXml = Path.Combine(AppContext.BaseDirectory, "AMS.Api.xml");
-    if (File.Exists(apiXml))
-        opt.IncludeXmlComments(apiXml, includeControllerXmlComments: true);
-    opt.UseInlineDefinitionsForEnums();
-});
+// ---- API Versioning + Swagger (Extensions/ServiceCollectionExtensions.cs) ----
+services.AddAmsApiVersioning();
+services.AddAmsSwagger();
 
 // ---- JWT Authentication (Phase K: real RS256 bearer validation against auth-service) ----
 // This replaces the former TestAuthHandler, which succeeded for EVERY anonymous request with the full
@@ -276,85 +227,13 @@ services.AddHttpClient();
 // referenced but had ZERO call sites — no outbound call had any resilience.
 services.ConfigureHttpClientDefaults(http => http.AddStandardResilienceHandler());
 
-services.AddAuthentication(AMS.Api.Auth.GatewayHeaderAuthHandler.SchemeName)
-    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,
-               AMS.Api.Auth.GatewayHeaderAuthHandler>(
-        AMS.Api.Auth.GatewayHeaderAuthHandler.SchemeName, _ => { });
-
-// ---- Authorization Policies (RBAC) ----
-services.AddAuthorizationBuilder()
-    .AddPolicy("alarm.view",             p => p.RequireClaim("permission", "alarm.view"))
-    .AddPolicy("alarm.acknowledge",      p => p.RequireClaim("permission", "alarm.acknowledge"))
-    .AddPolicy("alarm.acknowledge_batch",p => p.RequireClaim("permission", "alarm.acknowledge_batch"))
-    .AddPolicy("alarm.shelve",           p => p.RequireClaim("permission", "alarm.shelve"))
-    .AddPolicy("alarm.unshelve",         p => p.RequireClaim("permission", "alarm.unshelve"))
-    .AddPolicy("alarm.suppress",         p => p.RequireClaim("permission", "alarm.suppress"))
-    .AddPolicy("alarm.export",           p => p.RequireClaim("permission", "alarm.export"))
-    .AddPolicy("soe.view",               p => p.RequireClaim("permission", "soe.view"))
-    .AddPolicy("analytics.view",         p => p.RequireClaim("permission", "analytics.view"))
-    .AddPolicy("admin.users.edit",       p => p.RequireClaim("permission", "admin.users.edit"))
-    .AddPolicy("admin.audit.view",       p => p.RequireClaim("permission", "admin.audit.view"))
-    // cpm.manage moved to cplm-api with the CPLM controllers (extraction Phase 6).
-    // Referenced by ObservabilityController and OpcConnectionsController since the
-    // security hardening, but never registered — ASP.NET throws on an unknown policy,
-    // so every endpoint carrying it returned HTTP 500 even for admins holding the claim.
-    .AddPolicy("system.manage",          p => p.RequireClaim("permission", "system.manage"));
-
-// ---- Rate Limiting ----
-services.AddRateLimiter(opt =>
-{
-    opt.AddFixedWindowLimiter("alarms-read", o =>
-    {
-        o.PermitLimit        = 1000;
-        o.Window             = TimeSpan.FromMinutes(1);
-        o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        o.QueueLimit         = 50;
-    });
-
-    opt.AddFixedWindowLimiter("alarms-write", o =>
-    {
-        o.PermitLimit = 300;
-        o.Window      = TimeSpan.FromMinutes(1);
-    });
-
-    opt.OnRejected = async (ctx, ct) =>
-    {
-        ctx.HttpContext.Response.StatusCode = 429;
-        ctx.HttpContext.Response.Headers.RetryAfter = "60";
-        await ctx.HttpContext.Response.WriteAsJsonAsync(
-            new { message = "Rate limit exceeded. Retry after 60 seconds.", code = 429 }, ct);
-    };
-});
-
-// ---- Response Compression ----
-services.AddResponseCompression(opt =>
-{
-    opt.Providers.Add<BrotliCompressionProvider>();
-    opt.Providers.Add<GzipCompressionProvider>();
-    opt.EnableForHttps = true;
-    opt.MimeTypes      = ResponseCompressionDefaults.MimeTypes
-        .Concat(new[] { "application/json", "application/x-ndjson", "text/event-stream" });
-});
-
-// ---- Health Checks ----
-services.AddHealthChecks()
-    .AddNpgSql(connStr, name: "postgresql", tags: new[] { "database", "critical" })
-    .AddKafka(new Confluent.Kafka.ProducerConfig
-    {
-        BootstrapServers = config["Kafka:BootstrapServers"] ?? "localhost:9092"
-    }, topic: "server-status", name: "kafka", tags: new[] { "messaging", "critical" })
-    .AddCheck<FlinkOnlyIngestHealthCheck>("flink-ingest", tags: new[] { "critical", "ingest" });
-
-// ---- CORS ----
-services.AddCors(opt => opt.AddPolicy("AmsPolicy", p =>
-{
-    var origins = config.GetSection("AllowedOrigins").Get<string[]>() ?? new[] { "http://localhost:3000" };
-    p.WithOrigins(origins)
-     .AllowAnyMethod()
-     .AllowAnyHeader()
-     .AllowCredentials()
-     .WithExposedHeaders("X-Total-Count", "X-Api-Version");
-}));
+// Auth + policies, rate limiting, compression, health, CORS — one cohesive
+// registration group each (Extensions/ServiceCollectionExtensions.cs).
+services.AddAmsAuthPolicies();
+services.AddAmsRateLimiting();
+services.AddAmsResponseCompression();
+services.AddAmsHealthChecks(config, connStr);
+services.AddAmsCors(config);
 
 // ============================================================
 // Application Pipeline
@@ -456,200 +335,6 @@ app.Run();
 // MediatR Pipeline Behaviors
 // ============================================================
 
-public sealed class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
-    where TRequest : notnull
-{
-    private readonly IEnumerable<IValidator<TRequest>> _validators;
-
-    public ValidationBehavior(IEnumerable<IValidator<TRequest>> validators)
-        => _validators = validators;
-
-    public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken ct)
-    {
-        if (!_validators.Any()) return await next();
-
-        var ctx     = new ValidationContext<TRequest>(request);
-        var results = await Task.WhenAll(_validators.Select(v => v.ValidateAsync(ctx, ct)));
-        var errors  = results.SelectMany(r => r.Errors).Where(f => f is not null).ToList();
-
-        if (errors.Count > 0)
-            throw new FluentValidation.ValidationException(errors);
-
-        return await next();
-    }
-}
-
-public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
-    where TRequest : notnull
-{
-    private readonly ILogger<LoggingBehavior<TRequest, TResponse>> _logger;
-
-    public LoggingBehavior(ILogger<LoggingBehavior<TRequest, TResponse>> logger)
-        => _logger = logger;
-
-    public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken ct)
-    {
-        var name = typeof(TRequest).Name;
-        _logger.LogDebug("Handling {RequestName}", name);
-        var sw = System.Diagnostics.Stopwatch.StartNew();
-        try
-        {
-            var response = await next();
-            sw.Stop();
-            _logger.LogDebug("Handled {RequestName} in {ElapsedMs}ms", name, sw.ElapsedMilliseconds);
-            return response;
-        }
-        catch (Exception ex)
-        {
-            sw.Stop();
-            _logger.LogError(ex, "Request {RequestName} failed after {ElapsedMs}ms", name, sw.ElapsedMilliseconds);
-            throw;
-        }
-    }
-}
-
-public sealed class GlobalExceptionFilter : Microsoft.AspNetCore.Mvc.Filters.IExceptionFilter
-{
-    private readonly ILogger<GlobalExceptionFilter> _logger;
-
-    public GlobalExceptionFilter(ILogger<GlobalExceptionFilter> logger) => _logger = logger;
-
-    public void OnException(Microsoft.AspNetCore.Mvc.Filters.ExceptionContext ctx)
-    {
-        var ex      = ctx.Exception;
-        var problem = ex switch
-        {
-            FluentValidation.ValidationException ve => new Microsoft.AspNetCore.Mvc.ValidationProblemDetails(
-                ve.Errors.GroupBy(e => e.PropertyName)
-                  .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray()))
-                {
-                    Status = 400, Title = "Validation Failed", Type = "https://tools.ietf.org/html/rfc7231#section-6.5.1"
-                },
-            UnauthorizedAccessException => new Microsoft.AspNetCore.Mvc.ProblemDetails
-                { Status = 403, Title = "Forbidden", Detail = "You do not have permission to perform this action" },
-            KeyNotFoundException => new Microsoft.AspNetCore.Mvc.ProblemDetails
-                { Status = 404, Title = "Not Found", Detail = ex.Message },
-            _ => new Microsoft.AspNetCore.Mvc.ProblemDetails
-                {
-                    Status  = 500,
-                    Title   = "Internal Server Error",
-                    Detail  = "An unexpected error occurred. Please contact support.",
-                    Extensions = { ["traceId"] = ctx.HttpContext.TraceIdentifier }
-                }
-        };
-
-        _logger.LogError(ex, "Unhandled exception [{TraceId}]: {Message}",
-            ctx.HttpContext.TraceIdentifier, ex.Message);
-
-        ctx.Result  = new Microsoft.AspNetCore.Mvc.ObjectResult(problem) { StatusCode = problem.Status };
-        ctx.ExceptionHandled = true;
-    }
-}
-
-// Placeholder classes for compilation (full implementations in respective files)
-public class ShelveExpiryService : BackgroundService
-{
-    private readonly IServiceProvider _sp;
-    private readonly ILogger<ShelveExpiryService> _logger;
-    public ShelveExpiryService(IServiceProvider sp, ILogger<ShelveExpiryService> logger)
-    { _sp = sp; _logger = logger; }
-    protected override async Task ExecuteAsync(CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            try
-            {
-                using var scope = _sp.CreateScope();
-                var db = scope.ServiceProvider.GetRequiredService<AmsDbContext>();
-                // Call alarms.expire_shelved_alarms() stored procedure
-                await db.Database.ExecuteSqlRawAsync("SELECT alarms.expire_shelved_alarms()", ct);
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to execute shelve expiry. Schema or function might be missing.");
-            }
-            try
-            {
-                await Task.Delay(TimeSpan.FromMinutes(1), ct);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-        }
-    }
-}
-
-public class SoeEventRepository : ISoeEventRepository
-{
-    private readonly NpgsqlDataSource _ds;
-    public SoeEventRepository(NpgsqlDataSource ds) => _ds = ds;
-    public Task<SoeEventQueryResult> QueryAsync(SoeEventQuery q, CancellationToken ct = default) =>
-        Task.FromResult(new SoeEventQueryResult(new List<object>(), 0, 1, 500, false));
-    public IAsyncEnumerable<object> StreamReplayAsync(DateTimeOffset f, DateTimeOffset t, Guid[] s,
-        CancellationToken ct = default) => EmptyReplay(ct);
-
-    private static async IAsyncEnumerable<object> EmptyReplay(
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
-    {
-        await Task.CompletedTask;
-        yield break;
-    }
-}
-
-public class OpcServerRepository : IOpcServerRepository
-{
-    private readonly AmsDbContext _ctx;
-    public OpcServerRepository(AmsDbContext ctx) => _ctx = ctx;
-    public Task<IReadOnlyList<OpcServerConfig>> GetAllEnabledAsync(CancellationToken ct = default) =>
-        Task.FromResult<IReadOnlyList<OpcServerConfig>>(new List<OpcServerConfig>());
-    public Task<OpcServerConfig?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<OpcServerConfig?>(null);
-    public Task<OpcServerConfig> AddAsync(OpcServerConfig s, CancellationToken ct = default) => Task.FromResult(s);
-    public Task UpdateAsync(OpcServerConfig s, CancellationToken ct = default) => Task.CompletedTask;
-    public Task UpdateConnectionStateAsync(Guid id, bool c, string? e, CancellationToken ct = default) => Task.CompletedTask;
-    public Task UpdateHeartbeatAsync(Guid id, CancellationToken ct = default) => Task.CompletedTask;
-}
-
-public class UnitOfWork : IUnitOfWork
-{
-    private readonly AmsDbContext _ctx;
-    private Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? _tx;
-    public IActiveAlarmRepository ActiveAlarms { get; }
-    public IHistoricalAlarmRepository HistoricalAlarms { get; }
-    public ISoeEventRepository SoeEvents { get; }
-    public IOpcServerRepository OpcServers { get; }
-    public UnitOfWork(AmsDbContext ctx, IActiveAlarmRepository aa, IHistoricalAlarmRepository ha,
-        ISoeEventRepository soe, IOpcServerRepository opc)
-    { _ctx = ctx; ActiveAlarms = aa; HistoricalAlarms = ha; SoeEvents = soe; OpcServers = opc; }
-    public Task<int> SaveChangesAsync(CancellationToken ct = default) => _ctx.SaveChangesAsync(ct);
-    public async Task BeginTransactionAsync(CancellationToken ct = default) =>
-        _tx = await _ctx.Database.BeginTransactionAsync(ct);
-    public async Task CommitTransactionAsync(CancellationToken ct = default) =>
-        await _tx!.CommitAsync(ct);
-    public async Task RollbackTransactionAsync(CancellationToken ct = default) =>
-        await _tx!.RollbackAsync(ct);
-}
-
-// Security headers middleware
-public static class ApplicationBuilderExtensions
-{
-    public static IApplicationBuilder UseSecurityHeaders(this IApplicationBuilder app)
-        => app.Use(async (ctx, next) =>
-        {
-            ctx.Response.Headers["X-Content-Type-Options"]  = "nosniff";
-            ctx.Response.Headers["X-Frame-Options"]          = "DENY";
-            ctx.Response.Headers["X-XSS-Protection"]         = "1; mode=block";
-            ctx.Response.Headers["Referrer-Policy"]          = "strict-origin-when-cross-origin";
-            ctx.Response.Headers["Permissions-Policy"]       = "geolocation=(), camera=(), microphone=()";
-            if (!ctx.Request.IsHttps)
-                ctx.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
-            await next();
-        });
-}
 
 // Expose Program for WebApplicationFactory integration tests
 public partial class Program { }
