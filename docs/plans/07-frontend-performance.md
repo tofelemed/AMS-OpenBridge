@@ -97,3 +97,13 @@ All items are self-contained frontend changes revertible per-commit. Item 1 and 
 - **Items 1–2 change what data arrives at the client.** Confirm with operations that no workflow depends on the side panel silently receiving plant-wide data while a different screen is open.
 - Memoisation (item 4) can mask genuine updates if comparators are wrong — pair each `React.memo` with a test that a value change still re-renders.
 - The alarm grid (AG Grid, client-side row model with `applyTransactionAsync` and 50 ms batching) is already production-grade — **do not** refactor it as part of this work.
+
+## Execution status (2026-08-11) — COMPLETE
+
+All 8 items landed in commit 2a57f4b (plus the "Connecting to AMS" loader fix — it was the
+Suspense fallback for every lazy route chunk, now a quiet route fallback with the connection
+wording reserved for the real auth bootstrap). Exit criteria met at the code level; the
+broker-side "no plant-wide subscription on non-monitoring routes" check requires a live browser
+session (the mechanism — ref-counted subscribe + conditional mount — is code-verified).
+Deep-link note: "View IoTDB Trend" now targets /iotdb-trend, which consumes
+series/alarmId/hours/auto (the /trend Phase J page reads tags/range and never did).
