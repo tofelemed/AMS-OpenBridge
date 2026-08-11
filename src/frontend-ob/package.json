@@ -16,7 +16,6 @@
     "@oicl/openbridge-webcomponents-react": "^1.0.1",
     "@tanstack/react-query": "^5.40.0",
     "@tanstack/react-query-devtools": "^5.40.0",
-    "@tanstack/react-virtual": "^3.5.0",
     "ag-grid-community": "^31.3.2",
     "ag-grid-react": "^31.3.2",
     "axios": "^1.7.2",

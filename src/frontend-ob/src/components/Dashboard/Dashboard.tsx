@@ -81,6 +81,20 @@ const Dashboard: React.FC = () => {
 
   const nowStr = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
+  // FE-05: a cold load used to render ZEROS while hydrating — indistinguishable from a
+  // quiet plant. Until the first hydration completes, say we're loading.
+  const hydrated = useAlarmStore(s => s.hydrated);
+  if (!hydrated) {
+    return (
+      <div className="loading-screen" style={{ minHeight: '300px' }} data-testid="dashboard-hydrating">
+        <div className="spinner" />
+        <p style={{ color: 'var(--on-container-neutral-color)', fontSize: '13.5px' }}>
+          Loading alarm data…
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', padding: '4px 0' }}>
 

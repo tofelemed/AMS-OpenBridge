@@ -118,8 +118,9 @@ interface MqttStoreState {
   unsubscribeFirehose: () => void;
   loadSnapshot:      (assets: string[]) => Promise<void>;
   loadAllSnapshots:  () => Promise<void>;
-  fetchTrend:        (series: string, start: Date, end: Date, width?: number, measurements?: string) => Promise<TrendPoint[]>;
-  fetchRaw:          (series: string, start: Date, end: Date, maxCount?: number, offset?: number) => Promise<RawTrendPage>;
+  /** FE-03: optional AbortSignal — pass it so a superseded query can be cancelled. */
+  fetchTrend:        (series: string, start: Date, end: Date, width?: number, measurements?: string, signal?: AbortSignal) => Promise<TrendPoint[]>;
+  fetchRaw:          (series: string, start: Date, end: Date, maxCount?: number, offset?: number, signal?: AbortSignal) => Promise<RawTrendPage>;
   fetchSummary:      (series: string, start: Date, end: Date, measurement: string) => Promise<TrendSummary | null>;
 }
 
@@ -218,6 +219,9 @@ export const useMqttStore = create<MqttStoreState>()(
   immer((set, get) => {
     let client: MqttClient | null = null;
     let firehoseRefs = 0; // ref count for the plant-wide DDATA firehose subscription
+    // FE-06: per-topic ref counts for screen subscriptions (survives reconnects —
+    // the 'connect' handler resubscribes from `subscribed`, refs stay authoritative).
+    const screenRefs = new Map<string, number>();
 
     function ensureConnected() {
       if (!client?.connected) get().connect();
@@ -311,12 +315,17 @@ export const useMqttStore = create<MqttStoreState>()(
       // ── subscribeScreen ───────────────────────────────────────────────────
       // Scoped, per-open-screen subscription (W10). Callers pass fully-qualified DDATA topics
       // from the binding (which carry the real group/edge — multi-site safe).
+      // FE-06: topics are REF-COUNTED. Two mounted components sharing a device topic
+      // each hold a reference; the broker subscribe happens only 0→1 and the
+      // unsubscribe only 1→0 — the first unmount no longer starves the survivor.
       subscribeScreen: (topics: string[]) => {
         ensureConnected();
         const fresh: string[] = [];
         topics.forEach(topic => {
           if (!topic) return;
-          if (!get().subscribed.has(topic)) {
+          const refs = (screenRefs.get(topic) ?? 0) + 1;
+          screenRefs.set(topic, refs);
+          if (refs === 1) {
             client?.subscribe(topic, { qos: 0 });
             set(s => { s.subscribed.add(topic); });
             fresh.push(topic);
@@ -341,11 +350,20 @@ export const useMqttStore = create<MqttStoreState>()(
       },
 
       // ── unsubscribeScreen ─────────────────────────────────────────────────
+      // FE-06: decrement the ref; only the LAST subscriber's unmount unsubscribes at
+      // the broker (this used to unsubscribe unconditionally — the survivor silently
+      // showed stale values).
       unsubscribeScreen: (topics: string[]) => {
         topics.forEach(topic => {
           if (!topic) return;
           // Never tear down the shared firehose from a per-screen unsubscribe.
           if (topic === FIREHOSE_DDATA_TOPIC) return;
+          const refs = (screenRefs.get(topic) ?? 0) - 1;
+          if (refs > 0) {
+            screenRefs.set(topic, refs);
+            return;
+          }
+          screenRefs.delete(topic);
           client?.unsubscribe(topic);
           set(s => { s.subscribed.delete(topic); });
         });
@@ -399,7 +417,7 @@ export const useMqttStore = create<MqttStoreState>()(
 
       // ── fetchTrend ────────────────────────────────────────────────────────
       // Calls historian-bff /trend for a time-series window.
-      fetchTrend: async (series, start, end, width = 200, measurements) => {
+      fetchTrend: async (series, start, end, width = 200, measurements, signal) => {
         try {
           const params = new URLSearchParams({
             series,
@@ -408,7 +426,7 @@ export const useMqttStore = create<MqttStoreState>()(
             width:  String(width),
           });
           if (measurements) params.set('measurements', measurements);
-          const res = await apiFetch(`${HIST_URL}/trend?${params}`);
+          const res = await apiFetch(`${HIST_URL}/trend?${params}`, { signal });
           if (!res.ok) {
             const text = await res.text();
             throw new Error(text || `HTTP ${res.status}`);
@@ -440,7 +458,7 @@ export const useMqttStore = create<MqttStoreState>()(
         }
       },
 
-      fetchRaw: async (series, start, end, maxCount = 50, offset = 0) => {
+      fetchRaw: async (series, start, end, maxCount = 50, offset = 0, signal) => {
         try {
           const params = new URLSearchParams({
             series,
@@ -449,7 +467,7 @@ export const useMqttStore = create<MqttStoreState>()(
             maxCount: String(maxCount),
             offset:   String(offset),
           });
-          const res = await apiFetch(`${HIST_URL}/raw?${params}`);
+          const res = await apiFetch(`${HIST_URL}/raw?${params}`, { signal });
           if (!res.ok) {
             const text = await res.text();
             throw new Error(text || `HTTP ${res.status}`);
@@ -477,6 +495,49 @@ export const useMqttStore = create<MqttStoreState>()(
 
 // ── Sparkplug B message handler ────────────────────────────────────────────
 
+// FE-01 (coalescing): one immer set() per DDATA message meant React notification
+// rate == broker message rate — at plant scale, thousands of renders per second in
+// every client. DDATA updates are buffered here (last-write-wins per metric key,
+// exactly like the trend ring buffer that already lives outside zustand) and applied
+// as ONE batched store update per 100 ms tick. NBIRTH/DBIRTH stay immediate — they
+// are rare and reset session state.
+const FLUSH_INTERVAL_MS = 100;
+const pendingMetrics = new Map<string, LiveMetric>();
+const pendingAlarmDevices = new Map<string, number>(); // device → latest ts
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+const ALARM_FIELDS = new Set(
+  ['state', 'severity', 'acknowledged', 'priority', 'sourceName', 'conditionName', 'message'],
+);
+
+function scheduleFlush(set: (fn: (s: MqttStoreState) => void) => void) {
+  if (flushTimer !== null) return;
+  flushTimer = setTimeout(() => {
+    flushTimer = null;
+    if (pendingMetrics.size === 0 && pendingAlarmDevices.size === 0) return;
+
+    // Drain the buffers BEFORE the store update so messages arriving during the
+    // set() land in the next tick instead of being lost.
+    const metrics = new Map(pendingMetrics);
+    const alarmDevices = new Map(pendingAlarmDevices);
+    pendingMetrics.clear();
+    pendingAlarmDevices.clear();
+
+    set(s => {
+      for (const [key, metric] of metrics) s.metrics.set(key, metric);
+      for (const [device, ts] of alarmDevices) {
+        // Build from the draft map — it already contains this flush's values.
+        const alarm = buildLiveAlarmFromMetrics(device, s.metrics as Map<string, LiveMetric>, ts);
+        if (alarm.state === 'CLEARED' || !alarm.conditionActive) {
+          s.liveAlarms.delete(device);
+        } else {
+          s.liveAlarms.set(device, alarm);
+        }
+      }
+    });
+  }, FLUSH_INTERVAL_MS);
+}
+
 function handleMessage(
   topic: string,
   payload: Buffer,
@@ -484,7 +545,7 @@ function handleMessage(
   get: () => MqttStoreState,
 ) {
   try {
-     
+
     const decoded: any = decodeSparkplugPayload(payload);
     const parts  = topic.split('/'); // spBv1.0 / group / VERB / edge [/ device]
     const verb   = parts[2];
@@ -517,45 +578,24 @@ function handleMessage(
 
     if (verb === 'DDATA') {
       const aliasMap = get().aliasMap;
-      set(s => {
-        const ts = Number(decoded.timestamp ?? Date.now());
-        for (const m of (decoded.metrics ?? [])) {
-          const name = m.name
-            ? String(m.name)
-            : aliasMap.get(Number(m.alias)) ?? `alias_${m.alias}`;
-          s.metrics.set(`${device}/${name}`, {
-            value:   m.value,
-            quality: m.properties?.quality?.value ?? 192,
-            ts,
-          });
-          pushLiveSample(`${device}/${name}`, ts, m.value); // feed the live trend buffer
-          // Update liveAlarms when any alarm field changes
-          if (['state', 'severity', 'acknowledged', 'priority', 'sourceName', 'conditionName', 'message']
-              .includes(name)) {
-            updateLiveAlarm(s, device, name, m.value, ts, get);
-          }
+      const ts = Number(decoded.timestamp ?? Date.now());
+      for (const m of (decoded.metrics ?? [])) {
+        const name = m.name
+          ? String(m.name)
+          : aliasMap.get(Number(m.alias)) ?? `alias_${m.alias}`;
+        pendingMetrics.set(`${device}/${name}`, {
+          value:   m.value,
+          quality: m.properties?.quality?.value ?? 192,
+          ts,
+        });
+        pushLiveSample(`${device}/${name}`, ts, m.value); // trend buffer: immediate, outside zustand
+        if (ALARM_FIELDS.has(name)) {
+          pendingAlarmDevices.set(device, ts);
         }
-      });
+      }
+      scheduleFlush(set);
     }
   } catch (err) {
     console.debug('[MqttStore] Failed to decode Sparkplug message:', err);
-  }
-}
-
-function updateLiveAlarm(
-   
-  s: any,
-  device: string,
-  _field: string,
-  _value: unknown,
-  ts: number,
-  get: () => MqttStoreState,
-) {
-  const alarm = buildLiveAlarmFromMetrics(device, get().metrics, ts);
-
-  if (alarm.state === 'CLEARED' || !alarm.conditionActive) {
-    s.liveAlarms.delete(device);
-  } else {
-    s.liveAlarms.set(device, alarm);
   }
 }

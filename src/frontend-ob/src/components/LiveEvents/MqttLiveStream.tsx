@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getMqttBrokerUrl, useMqttStore, type LiveAlarm } from '../../store/mqttStore';
+import { useDebounce } from '../../hooks/useDebounce';
 import { MqttAlarmListHeader, MqttAlarmListItem } from './MqttAlarmListItem';
 import { LiveAlarmDetailDialog } from './LiveAlarmDetailDialog';
 
@@ -108,8 +109,10 @@ export const MqttLiveStream: React.FC<MqttLiveStreamProps> = ({ alarms, paused }
     };
   }, [alarms]);
 
+  // FE-02: filter once per typing pause, not per keystroke.
+  const debouncedSearch = useDebounce(search, 250);
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     let list = alarms.filter(a => {
       if (priorityFilter && a.priority !== priorityFilter) return false;
       if (q) {
@@ -130,7 +133,7 @@ export const MqttLiveStream: React.FC<MqttLiveStreamProps> = ({ alarms, paused }
     return list;
     // tick is intentionally a dep: it forces the relative-time labels to refresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alarms, priorityFilter, search, sortBy, tick]);
+  }, [alarms, priorityFilter, debouncedSearch, sortBy, tick]);
 
   const brokerLabel = useMemo(() => {
     try {

@@ -32,5 +32,19 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        // FE-07: the heavy vendors used to chunk only along route-lazy boundaries, so
+        // whichever page loaded first paid for echarts/ag-grid/mqtt in its own chunk
+        // and re-downloads were possible across entries. Named vendor chunks are
+        // shared, cached once, and keep page chunks small.
+        manualChunks: {
+          'vendor-echarts': ['echarts', 'echarts-for-react'],
+          'vendor-aggrid':  ['ag-grid-community', 'ag-grid-react'],
+          'vendor-mqtt':    ['mqtt', 'sparkplug-payload'],
+          'vendor-d3':      ['d3'],
+        },
+      },
+    },
   },
 });

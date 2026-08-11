@@ -309,7 +309,11 @@ const SymbolFxWrap: React.FC<{
   );
 };
 
-export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) => {
+// FE-04: memoised — `item` is identity-stable in preview mode and `mode` is a string,
+// so the default shallow compare stops parent re-renders (canvas pan/zoom, sibling
+// updates) from re-rendering every symbol. Live-value updates still re-render the
+// affected symbol through its own per-key store subscriptions in useSlotMetrics.
+const SymbolRendererImpl: React.FC<SymbolRendererProps> = ({ item, mode }) => {
   // Generic multi-slot live binding — resolve every declared slot, not only value/status/pv/sp.
   const slots = useSlotMetrics(item, mode);
 
@@ -1026,5 +1030,7 @@ export const SymbolRenderer: React.FC<SymbolRendererProps> = ({ item, mode }) =>
     </SymbolFxWrap>
   );
 };
+
+export const SymbolRenderer = React.memo(SymbolRendererImpl);
 
 export default SymbolRenderer;

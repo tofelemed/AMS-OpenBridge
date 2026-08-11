@@ -137,6 +137,9 @@ interface AlarmStore {
   lastUpdated: number;
   selectedAlarmIds: Set<string>;
   activeProtocol: string | null;
+  /** FE-05: true once the first alarm hydration has COMPLETED (success or failure).
+   *  Until then, "0 active alarms" is 'not loaded yet', not 'quiet plant'. */
+  hydrated: boolean;
 
   initialize: (token: string) => Promise<void>;
   refreshActiveAlarms: () => Promise<void>;
@@ -319,6 +322,9 @@ function pickId(raw: Record<string, unknown>): string {
   return String(raw.id ?? raw.Id ?? '');
 }
 
+// FE-07: prevents the 30s poll fallback from starting a hydration while one is in flight.
+let refreshInFlight = false;
+
 export const useAlarmStore = create<AlarmStore>()(
   immer((set, get) => ({
     alarms: new Map(),
@@ -334,6 +340,7 @@ export const useAlarmStore = create<AlarmStore>()(
     lastUpdated: 0,
     selectedAlarmIds: new Set(),
     activeProtocol: null,
+    hydrated: false,
 
     initialize: async (token: string) => {
       if (hubInitInFlight) return hubInitInFlight;
@@ -502,6 +509,9 @@ export const useAlarmStore = create<AlarmStore>()(
             }
           }).catch(loadErr => {
             console.warn('[AlarmStore] Failed to load active alarms snapshot', loadErr);
+          }).finally(() => {
+            // FE-05: first hydration attempt finished — screens may stop showing skeletons.
+            set(state => { state.hydrated = true; });
           });
         } catch (err) {
           console.error('[AlarmHub] Connection failed:', err);
@@ -517,11 +527,20 @@ export const useAlarmStore = create<AlarmStore>()(
     },
 
     refreshActiveAlarms: async () => {
+      // FE-07: overlap guard — a slow hydration must not interleave with the next
+      // 30s poll tick (two concurrent hydrations can apply out of order).
+      if (refreshInFlight) return;
+      refreshInFlight = true;
       try {
         await hydrateAlarmsFromApi(set, { purgeLab: false, reconcile: true });
       } catch (err) {
         console.warn('[AlarmStore] Refresh failed', err);
         throw err;
+      } finally {
+        refreshInFlight = false;
+        // FE-05: hydration has completed at least once (even on failure the UI should
+        // show an error/empty state, not an indefinite skeleton).
+        set(state => { state.hydrated = true; });
       }
     },
 

@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAlarmStore, type SoeEvent } from '../../store/alarmStore';
 import { useMqttStore, type LiveAlarm } from '../../store/mqttStore';
+import { useDebounce } from '../../hooks/useDebounce';
 import { formatTimestampMs } from '../../utils/time';
 import { MqttLiveStream } from './MqttLiveStream';
 
@@ -85,14 +86,16 @@ const LiveEventsPage: React.FC = () => {
     if (!paused) setFrozenSoe(soeEvents);
   }, [soeEvents, paused]);
 
+  // FE-02: filter once per typing pause, not per keystroke.
+  const debouncedSourceFilter = useDebounce(sourceFilter, 250);
   const filteredSoe = useMemo(() => {
-    const q = sourceFilter.trim().toLowerCase();
+    const q = debouncedSourceFilter.trim().toLowerCase();
     return frozenSoe.filter(e => {
       if (priorityFilter && e.priority !== priorityFilter) return false;
       if (q && !e.sourceName.toLowerCase().includes(q) && !e.message.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [frozenSoe, priorityFilter, sourceFilter]);
+  }, [frozenSoe, priorityFilter, debouncedSourceFilter]);
 
   const filteredMqtt = useMemo(() => frozenMqtt, [frozenMqtt]);
 

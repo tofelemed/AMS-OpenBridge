@@ -114,5 +114,9 @@ export function buildTrendViewerUrl(
   } else {
     params.set('alarmId', target.alarmId);
   }
-  return `/trend?${params.toString()}`;
+  // FE-07: this used to emit /trend — the Phase J trend page, which reads tags/range
+  // and silently ignored every one of these params, so "View IoTDB Trend" dead-ended
+  // on an empty chart. /iotdb-trend is the page that actually consumes
+  // series/alarmId/hours/auto (see IoTDBTrendViewer's searchParams handling).
+  return `/iotdb-trend?${params.toString()}`;
 }

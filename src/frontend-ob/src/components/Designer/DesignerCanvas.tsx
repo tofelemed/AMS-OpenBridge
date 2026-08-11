@@ -223,7 +223,20 @@ export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
   // ── global move/up for drag / resize / rotate / marquee ────────────────────
   useEffect(() => {
     if (!drag && !resize && !rotate && !marquee) return;
+    // FE-04: mousemove fires far faster than the display refreshes; running smart-snap +
+    // onUpdateItems per raw event burned a full snap computation for frames that were
+    // never painted. Coalesce to one processed move per animation frame (last event wins).
+    let pendingFrame = 0;
+    let latestEvent: MouseEvent | null = null;
     const move = (e: MouseEvent) => {
+      latestEvent = e;
+      if (pendingFrame) return;
+      pendingFrame = requestAnimationFrame(() => {
+        pendingFrame = 0;
+        if (latestEvent) processMove(latestEvent);
+      });
+    };
+    const processMove = (e: MouseEvent) => {
       // Alt bypasses snapping for this gesture without turning the setting off — the single highest
       // value-to-effort affordance in an industrial editor, and PI Vision has exactly it.
       const g = (v: number) => (snapEnabled && !e.altKey ? snap(v, gridSize) : Math.round(v));
@@ -289,7 +302,11 @@ export const DesignerCanvas: React.FC<DesignerCanvasProps> = ({
     };
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
-    return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+    return () => {
+      if (pendingFrame) cancelAnimationFrame(pendingFrame);
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
   // toCanvas is stable for a given transform; adding it would re-run the effect on every pan/zoom.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drag, resize, rotate, marquee, zoom, gridSize, snapEnabled, items, onUpdateItems, onCommit, onSelect]);

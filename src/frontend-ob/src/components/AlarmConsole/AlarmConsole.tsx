@@ -22,6 +22,7 @@ import { toast } from 'react-toastify';
 import { useHotkeys } from 'react-hotkeys-hook';
 
 import { useAlarmStore, type ActiveAlarm } from '../../store/alarmStore';
+import { useDebounce } from '../../hooks/useDebounce';
 import { formatTimestampMs } from '../../utils/time';
 import { alarmMatchesConnectedOpcServer, isDisplayableOpcAlarm, sortAlarmsForConsole } from '../../utils/opcAlarmFilter';
 import { alarmSortKeyChanged, alarmsEqual } from '../../utils/alarmReconciliation';
@@ -67,6 +68,11 @@ const AlarmConsole: React.FC = () => {
   // Dialog / panel state
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; alarm: ActiveAlarm } | null>(null);
   const [quickFilter, setQuickFilter] = useState('');
+  // FE-02: the input stays instant; the GRID refilters once per typing pause instead
+  // of resorting the whole row set on every keystroke.
+  const debouncedQuickFilter = useDebounce(quickFilter, 250);
+  // FE-05: distinguish "still hydrating" from "genuinely no active alarms".
+  const hydrated = useAlarmStore(s => s.hydrated);
   const [ackDialogOpen, setAckDialogOpen] = useState(false);
   const [ackDialogAlarms, setAckDialogAlarms] = useState<ActiveAlarm[]>([]);
   const [shelveDialogOpen, setShelveDialogOpen] = useState(false);
@@ -747,7 +753,11 @@ const AlarmConsole: React.FC = () => {
           preventDefaultOnContextMenu={true}
           onRowDoubleClicked={onRowDoubleClicked}
           onSelectionChanged={onSelectionChanged}
-          quickFilterText={quickFilter}
+          quickFilterText={debouncedQuickFilter}
+          // FE-05: an empty grid mid-hydration must not read as a quiet plant.
+          overlayNoRowsTemplate={hydrated
+            ? '<span style="color: var(--on-container-neutral-color)">No active alarms</span>'
+            : '<span style="color: var(--on-container-neutral-color)">Loading alarms…</span>'}
           animateRows={false}
           rowSelection="multiple"
           suppressRowClickSelection={false}

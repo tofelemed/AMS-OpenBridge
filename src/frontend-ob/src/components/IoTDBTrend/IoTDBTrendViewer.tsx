@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -94,32 +94,44 @@ const IoTDBTrendViewer: React.FC = () => {
   const [error, setError]           = useState<string | null>(null);
   const [queried, setQueried]       = useState(false);
 
+  // FE-03: each query owns an AbortController; a new query (tag/range change) aborts
+  // the previous one, so a slow stale response can never overwrite a newer result.
+  // This viewer previously had NO guard at all.
+  const queryAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => queryAbortRef.current?.abort(), []);
+
   const executeQuery = useCallback(async (path: string, start: Date, end: Date) => {
     if (path.includes('*')) {
       setError('Select a concrete alarm device path — wildcards are not supported for IoTDB queries.');
       return;
     }
 
+    queryAbortRef.current?.abort();
+    const ac = new AbortController();
+    queryAbortRef.current = ac;
+
     setLoading(true);
     setError(null);
     setTableOffset(0);
     try {
       const [trend, raw] = await Promise.all([
-        fetchTrend(path, start, end, CHART_BUCKETS),
-        fetchRaw(path, start, end, PAGE_SIZE, 0),
+        fetchTrend(path, start, end, CHART_BUCKETS, undefined, ac.signal),
+        fetchRaw(path, start, end, PAGE_SIZE, 0, ac.signal),
       ]);
+      if (ac.signal.aborted) return; // superseded — a newer query owns the UI now
       setChartPoints(trend);
       setTablePoints(raw.points);
       setHasMore(raw.hasMore);
       setTableOffset(raw.points.length);
       setQueried(true);
     } catch (e) {
+      if (ac.signal.aborted) return; // cancellation is not an error to display
       setError(String(e));
       setChartPoints([]);
       setTablePoints([]);
       setHasMore(false);
     } finally {
-      setLoading(false);
+      if (!ac.signal.aborted) setLoading(false);
     }
   }, [fetchTrend, fetchRaw]);
 
@@ -170,15 +182,19 @@ const IoTDBTrendViewer: React.FC = () => {
     if (!start || !end || !path || !hasMore || loadingMore) return;
 
     setLoadingMore(true);
+    // FE-03: pagination rides the active query's controller — a new query aborts it too.
+    const ac = queryAbortRef.current;
     try {
-      const raw = await fetchRaw(path, start, end, PAGE_SIZE, tableOffset);
+      const raw = await fetchRaw(path, start, end, PAGE_SIZE, tableOffset, ac?.signal);
+      if (ac?.signal.aborted) return;
       setTablePoints(prev => [...prev, ...raw.points]);
       setHasMore(raw.hasMore);
       setTableOffset(prev => prev + raw.points.length);
     } catch (e) {
+      if (ac?.signal.aborted) return;
       setError(String(e));
     } finally {
-      setLoadingMore(false);
+      if (!ac?.signal.aborted) setLoadingMore(false);
     }
   }, [dateRange, series, hasMore, loadingMore, tableOffset, fetchRaw]);
 

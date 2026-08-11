@@ -199,6 +199,11 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
   const [playing, setPlaying] = useState(true);
   const [endTs, setEndTs] = useState(() => 0); // 0 = "now"; set when paused/scrubbed
   const [cursorTs, setCursorTs] = useState<number | null>(null);
+  // FE-04: the axis-pointer event fires per mousemove; each setCursorTs re-render
+  // rebuilds the option object and re-applies it with setOption(notMerge). Coalesce
+  // cursor updates to one per animation frame (last position wins).
+  const cursorFrameRef = useRef(0);
+  const pendingCursorTsRef = useRef<number | null>(null);
   const [zoomPct, setZoomPct] = useState({ start: 0, end: 100 });
   // "Now" for the live window. It only moves on the 2s tick (below) — deriving it from Date.now() in
   // the render body made the window jump on every mousemove.
@@ -520,7 +525,15 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
           onEvents={{
             updateAxisPointer: (e: { axesInfo?: Array<{ axisDim?: string; value?: number }> }) => {
               const t = e.axesInfo?.find(a => a.axisDim === 'x')?.value;
-              if (typeof t === 'number') setCursorTs(t);
+              if (typeof t !== 'number') return;
+              // rAF-throttled (see cursorFrameRef note above).
+              pendingCursorTsRef.current = t;
+              if (!cursorFrameRef.current) {
+                cursorFrameRef.current = requestAnimationFrame(() => {
+                  cursorFrameRef.current = 0;
+                  if (pendingCursorTsRef.current != null) setCursorTs(pendingCursorTsRef.current);
+                });
+              }
             },
             // E1.13/E1.14 — the cursor is RETAINED when the pointer leaves the plot (was discarded on
             // globalout, so the legend snapped back to the latest sample the instant you moved away).

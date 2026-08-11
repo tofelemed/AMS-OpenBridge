@@ -1,12 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { useMqttStore, type LiveMetric } from '../store/mqttStore';
-import { useEffect, useState } from 'react';
+import { useMqttStore } from '../store/mqttStore';
+import { useEffect } from 'react';
 import { apiFetch } from '../api/apiFetch';
 
 const BINDING_RESOLVER_URL = import.meta.env.VITE_BINDING_RESOLVER_URL || '/api/bindings';
 
-// Stable empty map returned by the metrics selector when a hook has no binding (perf — see below).
-const EMPTY_METRICS: ReadonlyMap<string, LiveMetric> = new Map();
 
 interface BindingResolution {
   contextualPath: string;
@@ -32,8 +30,8 @@ interface BindingResolution {
   };
 }
 
-async function resolveBinding(path: string, role: string): Promise<BindingResolution> {
-  const res = await apiFetch(`${BINDING_RESOLVER_URL}/resolve?path=${encodeURIComponent(path)}&roles=${role}`);
+async function resolveBinding(path: string, role: string, signal?: AbortSignal): Promise<BindingResolution> {
+  const res = await apiFetch(`${BINDING_RESOLVER_URL}/resolve?path=${encodeURIComponent(path)}&roles=${role}`, { signal });
   if (!res.ok) throw new Error('Failed to resolve binding');
   return res.json();
 }
@@ -42,26 +40,35 @@ export function useBindingResolver(
   path: string | undefined,
   role: 'live' | 'history' | 'alarm' | 'all' = 'all'
 ) {
-  const [liveValue, setLiveValue] = useState<LiveMetric | undefined>(undefined);
-  // Perf: only subscribe to the live metrics map when this hook actually has a binding.
-  // A display can mount thousands of unbound slot-hooks (16/symbol); subscribing them all would
-  // re-render every one on every MQTT tick. Returning a stable empty map avoids that.
-  const metrics = useMqttStore(state => (path ? state.metrics : EMPTY_METRICS));
   const subscribeScreen = useMqttStore(state => state.subscribeScreen);
   const unsubscribeScreen = useMqttStore(state => state.unsubscribeScreen);
-  
-  // First resolve the path to get transport info
+
+  // First resolve the path to get transport info.
+  // FE-03: React Query's abort signal is threaded through, so navigating away or
+  // rebinding cancels the in-flight resolve instead of letting a stale response land.
   const { data: binding, isLoading: isResolving } = useQuery({
     queryKey: ['binding', path, role],
-    queryFn: () => resolveBinding(path!, role),
+    queryFn: ({ signal }) => resolveBinding(path!, role, signal),
     enabled: !!path,
     staleTime: 60_000
   });
-  
+
+  // FE-04: subscribe to THIS slot's metric key only — not the whole metrics Map.
+  // A dense display mounts hundreds of bound slot-hooks; with the Map-level
+  // subscription every one re-rendered on EVERY device's update. The per-key
+  // selector re-renders a slot only when its own metric object changes (unchanged
+  // keys keep object identity across the coalesced store flush). A rebind to a new
+  // asset naturally yields undefined until fresh data arrives (asset-swap safe).
+  const live = binding?.live;
+  const metricKey = live?.sparkplugDevice && live.sparkplugMetric
+    ? `${live.sparkplugDevice}/${live.sparkplugMetric}`
+    : undefined;
+  const liveValue = useMqttStore(state => (metricKey ? state.metrics.get(metricKey) : undefined));
+
   // Subscribe to MQTT for live data
   useEffect(() => {
     if (!binding?.live || role === 'history') return;
-    
+
     const { sparkplugTopic, sparkplugGroup, sparkplugEdgeNode, sparkplugDevice } = binding.live;
     if (!sparkplugDevice) return;
 
@@ -75,20 +82,7 @@ export function useBindingResolver(
       unsubscribeScreen([topic]);
     };
   }, [binding, role, subscribeScreen, unsubscribeScreen]);
-  
-  // Read metric value from store
-  useEffect(() => {
-    if (!binding?.live) return;
-    
-    const { sparkplugDevice, sparkplugMetric } = binding.live;
-    if (!sparkplugDevice || !sparkplugMetric) return;
-    
-    const metricKey = `${sparkplugDevice}/${sparkplugMetric}`;
-    // Set unconditionally (incl. undefined) so a rebind to a new asset clears the PREVIOUS
-    // asset's value instead of showing it stale until fresh data arrives (asset swap, Phase E).
-    setLiveValue(metrics.get(metricKey));
-  }, [binding, metrics]);
-  
+
   return {
     data: liveValue?.value,
     metric: liveValue,

@@ -7,6 +7,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useAlarmStore } from './store/alarmStore';
 import { useAuthStore } from './store/authStore';
+import { useMqttStore } from './store/mqttStore';
 import { HubConnectionState } from '@microsoft/signalr';
 
 // OpenBridge Components
@@ -163,6 +164,9 @@ const App: React.FC = () => {
       cancelled = true;
       clearInterval(refreshId);
       void useAlarmStore.getState().disconnect();
+      // FE-06: close the MQTT socket too — it used to outlive the session for the
+      // tab's lifetime, so a signed-out console kept streaming live plant data.
+      useMqttStore.getState().disconnect();
     };
   }, [authStatus, accessToken]);
 
@@ -189,7 +193,7 @@ const App: React.FC = () => {
             <Route
               path="/login"
               element={
-                <React.Suspense fallback={<LoadingScreen />}>
+                <React.Suspense fallback={<RouteFallback />}>
                   <Login />
                 </React.Suspense>
               }
@@ -208,7 +212,7 @@ const App: React.FC = () => {
                 <RequireAuth>
                   <RequirePermission permission="display.edit">
                     <AppShell>
-                      <React.Suspense fallback={<LoadingScreen />}>
+                      <React.Suspense fallback={<RouteFallback />}>
                         <ImportPage />
                       </React.Suspense>
                     </AppShell>
@@ -225,7 +229,7 @@ const App: React.FC = () => {
               element={
                 <RequireAuth>
                   <RequirePermission permission="display.edit">
-                    <React.Suspense fallback={<LoadingScreen />}>
+                    <React.Suspense fallback={<RouteFallback />}>
                       <DesignerPage />
                     </React.Suspense>
                   </RequirePermission>
@@ -239,7 +243,7 @@ const App: React.FC = () => {
               element={
                 <RequireAuth>
                   <RequirePermission permission="display.view">
-                    <React.Suspense fallback={<LoadingScreen />}>
+                    <React.Suspense fallback={<RouteFallback />}>
                       <DisplayViewer />
                     </React.Suspense>
                   </RequirePermission>
@@ -252,7 +256,7 @@ const App: React.FC = () => {
               element={
                 <RequireAuth>
                   <RequirePermission permission="display.view">
-                    <React.Suspense fallback={<LoadingScreen />}>
+                    <React.Suspense fallback={<RouteFallback />}>
                       <DisplayViewer source="personal-view" />
                     </React.Suspense>
                   </RequirePermission>
@@ -265,7 +269,7 @@ const App: React.FC = () => {
               element={
                 <RequireAuth>
                 <AppShell>
-                  <React.Suspense fallback={<LoadingScreen />}>
+                  <React.Suspense fallback={<RouteFallback />}>
                     <Routes>
                       <Route path="/" element={<Navigate to="/dashboard" replace />} />
                       {/* EVERY route carries the permission its APIs require, so a direct URL can never
@@ -523,10 +527,17 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         }
       </main>
 
-      {/* Live Events Panel — toggled via top bar */}
-      <aside className={`app-events${showLiveEvents ? '' : ' app-events--hidden'}`}>
-        <LiveEventStream />
-      </aside>
+      {/* Live Events Panel — toggled via top bar.
+          FE-01: the panel must UNMOUNT when hidden, not just get a CSS class. While it
+          is mounted it holds the plant-wide DDATA firehose subscription (ref-counted in
+          mqttStore) — a permanently-mounted-but-hidden panel meant every logged-in
+          client streamed the whole plant forever. Unmounting runs its effect cleanup,
+          which drops the firehose ref and unsubscribes at the broker. */}
+      {showLiveEvents && (
+        <aside className="app-events">
+          <LiveEventStream />
+        </aside>
+      )}
 
       {/* Re-open tab when panel is collapsed */}
       {!showLiveEvents && (
@@ -671,11 +682,25 @@ export const RequirePermission: React.FC<{ permission: string; children: React.R
   return <>{children}</>;
 };
 
+// Shown ONLY while the session bootstrap / auth handshake is genuinely in flight.
 const LoadingScreen: React.FC = () => (
   <div className="loading-screen">
     <div className="spinner" />
     <p style={{ color: 'var(--on-container-neutral-color)', fontSize: '14px' }}>
       Connecting to AMS...
+    </p>
+  </div>
+);
+
+// FE-05 / UX: lazy route chunks used to fall back to the full "Connecting to AMS..."
+// screen, so EVERY first visit to a page flashed a scary connection message for what
+// is just a code-split download. Route transitions get this quiet, honest fallback
+// instead; the connection wording stays reserved for the real auth bootstrap above.
+const RouteFallback: React.FC = () => (
+  <div className="loading-screen" style={{ minHeight: '200px' }}>
+    <div className="spinner" />
+    <p style={{ color: 'var(--on-container-neutral-color)', fontSize: '13px' }}>
+      Loading…
     </p>
   </div>
 );
