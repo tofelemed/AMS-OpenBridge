@@ -1090,6 +1090,29 @@ app.MapDelete("/me/favorites/{id:guid}", async (Guid id, ClaimsPrincipal user, D
     return Results.NoContent();
 }).RequireAuthorization("DisplayView");
 
+// ── POST /me/recent — explicitly record a runtime open. ───────────────────────
+// The published-content GET already upserts a recent (Phase 5.6), but that only
+// fires when the viewer actually fetches content. A client that opens an
+// already-cached display, or wants the "Recent" ribbon to refresh immediately on
+// click (DisplayLauncher/DisplayList), had no route to call — its best-effort POST
+// 404'd silently and the ribbon stayed empty. Same idempotent upsert as the read path.
+app.MapPost("/me/recent", async (RecentRequest request, ClaimsPrincipal user, DisplayDbContext db) =>
+{
+    if (request.DisplayId is null) return Results.BadRequest("displayId required");
+    var exists = await db.Displays.AnyAsync(d => d.Id == request.DisplayId && !d.IsDeleted);
+    if (!exists) return Results.NotFound();
+    var who = PublisherName(user);
+    try
+    {
+        await db.Database.ExecuteSqlInterpolatedAsync($@"
+            INSERT INTO displays.recent_displays (user_id, display_id, accessed_at)
+            VALUES ({who}, {request.DisplayId}, NOW())
+            ON CONFLICT (user_id, display_id) DO UPDATE SET accessed_at = NOW();");
+    }
+    catch { /* recents are non-critical */ }
+    return Results.NoContent();
+}).RequireAuthorization("DisplayView");
+
 // ── GET /me/recent — most-recently opened displays for the caller. ────────────
 app.MapGet("/me/recent", async (ClaimsPrincipal user, DisplayDbContext db, int take = 12) =>
 {
@@ -1333,5 +1356,6 @@ record PersonalViewRequest(
     JsonDocument? Config, Guid? SourceDisplayId, bool? IsShared, string[]? SharedWith);
 
 record FavoriteRequest(Guid? DisplayId, Guid? PersonalViewId, int? DisplayOrder);
+record RecentRequest(Guid? DisplayId);
 
 record CommentRequest(int? Version, string Body);
