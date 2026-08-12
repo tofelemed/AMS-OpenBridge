@@ -153,7 +153,7 @@ export const AlarmFeedConfig: React.FC = () => {
             style={{ flex: 1, minWidth: '280px', fontFamily: "'Noto Sans Mono', monospace", fontSize: '13px' }}
             value={testUrl}
             onChange={e => setTestUrl(e.target.value)}
-            placeholder="http://192.168.1.51:8010/api/current-alarms"
+            placeholder="http://alarm-feed-host:8010/api/current-alarms"
           />
           <ObcButton variant="raised" onClick={() => void handleTest()} disabled={isTesting}>
             {isTesting ? 'Testing…' : 'Test GET'}

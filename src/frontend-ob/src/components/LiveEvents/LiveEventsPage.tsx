@@ -224,7 +224,7 @@ const LiveEventsPage: React.FC = () => {
             <EmptyState icon="📡" title="Waiting for SignalR SOE events"
               sub={signalrLive ? 'OPC AE events will appear here in real time' : 'SignalR hub is not connected'} />
           ) : (
-            filteredSoe.map((event, i) => <SoeEventRow key={`${event.id}-${i}`} event={event} />)
+            filteredSoe.map((event) => <SoeEventRow key={`${event.id}-${event.sourceTimestampEpochMs}`} event={event} />)
           )}
         </div>
       </div>

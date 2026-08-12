@@ -12,7 +12,6 @@ import { markApiActivity } from '../auth/sessionClock';
 // counter only needs to cover the SYNCHRONOUS start of the queryFn, which is
 // when apiFetch marks activity.
 let pollDepth = 0;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function backgroundPoll<F extends (...args: any[]) => any>(fn: F): F {
   return ((...args: Parameters<F>) => {
     pollDepth++;

@@ -221,6 +221,39 @@ body {
   margin-bottom: var(--spacing-1, 4px);
 }
 
+/* Collapsible group header — a full-width toggle that keeps the label styling. */
+.nav-section__title--toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2, 8px);
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-align: left;
+  border-radius: var(--corner-radius, 4px);
+}
+.nav-section__title--toggle:hover {
+  color: var(--on-surface-active-color);
+  background: var(--regular-hover-background-color);
+}
+.nav-section__chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin-left: auto;
+  opacity: 0.7;
+}
+.nav-section__chevron svg { width: 14px; height: 14px; }
+
 .nav-item {
   display: flex;
   align-items: center;

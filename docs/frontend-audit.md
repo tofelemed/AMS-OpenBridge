@@ -330,19 +330,58 @@ server-side log-scrub check).
 
 ---
 
-## 6. LOW severity (batch cleanup)
+## 6. LOW severity (batch cleanup) — ✅ ALL FIXED
 
-d3/render churn on SOE (full rebuild per event, resets zoom — `SoePanel.tsx:52`); index-keyed SOE rows
-force remount per event (`LiveEventsPage.tsx:251`); `window.__designer` exposed in prod
-(`DisplayDesigner.tsx:625`); `encodeURI` vs per-segment encode (`useAssetMetadata.ts:19`); faceplate popup
-boots a whole SPA in an iframe (`DisplayViewer.tsx:539`); viewer theme switcher offers only 2 of 4 themes
-(`DisplayViewer.tsx:394`); stale hardcoded infra facts + LAN-IP placeholder in Edge/AlarmFeed
-(`EdgeNodeMonitor.tsx:172`, `AlarmFeedConfig.tsx:155`); `me/recent` has no writer so the ribbon is always
-empty (`DisplayList.tsx:188`); double-firing context-menu handlers (`AlarmContextMenu.tsx:134`); AbortSignal
-not threaded through CPM/asset/audit queries (`cpmApi.ts:150`); `liveSeries`/`metrics` map keys never
-evicted → slow memory growth over a long session (`mqttStore.ts:197`); duplicate `?assets=*` snapshot on
-first connect (`mqttStore.ts:279`); `google fonts` pulled from the network — dead on an air-gapped plant.
-Full list with `file:line` in the agent journal.
+Shipped as the LOW batch. Each item and how it was resolved:
+
+- ✅ **SOE d3 rebuild resets zoom** (`SoePanel.tsx`) — the operator's zoom/pan is captured in
+  `transformRef` and re-applied after each rebuild, so an arriving event no longer snaps a
+  zoomed-in root-cause view back to full extent.
+- ✅ **Index-keyed SOE rows remount per event** (`LiveEventsPage.tsx`, `SoePanel.tsx`) — rows now key on
+  `${id}-${sourceTimestampEpochMs}` (position-independent), so prepending an event no longer remounts the list.
+- ✅ **`window.__designer` in prod** (`DisplayDesigner.tsx`) — gated behind `import.meta.env.DEV` and
+  cleaned up on unmount; compiled out of production builds.
+- ✅ **`encodeURI` vs per-segment** (`useAssetMetadata.ts`) — now `encodeURIComponent` (a UNS path is one
+  dot-delimited segment; `/ ? # &`/space must be percent-encoded).
+- ✅ **Faceplate popup booted a whole SPA in an iframe** (`DisplayViewer.tsx`) — replaced with a recursively
+  **embedded** `DisplayViewer` (new `embedId`/`embedAsset` props, forced kiosk, global side-effects — trail +
+  display-time store — guarded). Reuses the live app tree, the shared MQTT client, and the warm query cache.
+- ✅ **Viewer theme switcher** (`DisplayViewer.tsx`) — now offers the app's full set (day/bright/night); it
+  was missing `bright`. (The app deliberately supports 3 themes, not 4 — `dusk` is intentionally omitted.)
+- ✅ **Stale infra facts + LAN-IP placeholder** (`EdgeNodeMonitor.tsx`, `AlarmFeedConfig.tsx`) — dropped the
+  removed `WS :8083` and hardcoded IoTDB patch version; the alarm-feed test placeholder is now a generic
+  `alarm-feed-host` instead of a site LAN IP.
+- ✅ **`me/recent` ribbon always empty** — investigation found the real, bigger cause: a **gateway routing
+  gap**. The gateway strips only `/api` (`/api/displays/*` → `/displays/*`), but display-service registers its
+  user-scoped routes at the ROOT (`/me/*`) and folders at `/folders/*`. So `/api/displays/me/recent`,
+  `/me/favorites`, `/me/views` and `/folders*` all **404'd through the gateway** — a regression from the Plan-04
+  lockdown that silently broke the Recent ribbon, favorites, personal views AND the folder tree. Fix: three
+  additive gateway routes (`api-displays-me`, `api-displays-folders`, `-bare`, Order -1) that strip the full
+  `/api/displays` prefix for those namespaces. Also added the previously-missing `POST /me/recent` route in
+  display-service so the explicit client writer works. Recents now write and read end-to-end.
+- ✅ **Double-firing context-menu handlers** (`AlarmContextMenu.tsx`) — fired on BOTH `onMouseDown` and
+  `onClick`; collapsed to a single `onClick` (every action ran twice before).
+- ✅ **AbortSignal not threaded** (`cpmApi.ts`, `useCpm.ts`, `useAssetMetadata.ts`, `auditApi.ts`) — threaded
+  react-query's `signal` through the diagnose-workspace hot paths (trend / raw / kpis / gates / gate-history /
+  events) plus asset-metadata and audit, so a superseded loop/window switch aborts its in-flight request.
+  *Scoped subset:* the static (calculations/resolutions/contract) and self-replacing poll queries
+  (fleet/pipeline) were left unthreaded — aborting them buys nothing.
+- ✅ **`liveSeries` map keys never evicted** (`mqttStore.ts`) — added an LRU key cap (`LIVE_SERIES_KEY_CAP`,
+  evicts the least-recently-updated series) so a long control-room session with churning devices stays bounded.
+- ✅ **Duplicate `?assets=*` on first connect** (`mqttStore.ts`) — `loadAllSnapshots` now has an in-flight +
+  recency dedupe, so the connect handler and a mounted monitoring surface no longer both fire the wildcard seed.
+- ✅ **Google Fonts pulled from the network** (`index.html` → `styles/fonts.css`) — Noto Sans / Noto Sans Mono
+  are self-hosted via `@fontsource-variable` (latin + latin-ext, aliased to the bare family names OpenBridge's
+  own CSS uses). Nothing hits the CDN at runtime — works on an air-gapped plant.
+
+**Also fixed in this pass (nav/IA, from §7):**
+- ✅ **Sidebar scroll-to-top on every click** — the root cause was `RouteErrorBoundary` keying the ErrorBoundary
+  by `location.pathname`, which remounted the **entire app shell** (topbar + sidebar) on every navigation.
+  Added a `resetKey` prop to `ErrorBoundary` (clears a crashed page on nav WITHOUT remounting a healthy shell)
+  and switched the route boundary to it. The sidebar keeps its scroll position now.
+- ✅ **Collapsible sidebar groups** — each nav group header is a toggle (chevron), collapse state persists to
+  `localStorage`, and the group holding the current route is always shown. Directly relieves the "12 flat Loop
+  Performance entries" clutter without the deeper page merges (those remain proposed below).
 
 ---
 

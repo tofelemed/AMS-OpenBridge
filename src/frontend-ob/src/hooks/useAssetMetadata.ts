@@ -15,8 +15,12 @@ export interface AssetMetadata {
   hiEngLimit?: number | null;
 }
 
-async function fetchMeta(path: string): Promise<AssetMetadata> {
-  const res = await apiFetch(`${ASSET_API}/by-path/${encodeURI(path)}`);
+async function fetchMeta(path: string, signal?: AbortSignal): Promise<AssetMetadata> {
+  // encodeURIComponent (not encodeURI): a UNS path is one dot-delimited path
+  // segment, so any '/', '?', '#', '&' or space in it must be percent-encoded
+  // to stay inside the {path} route param. encodeURI leaves those literal and
+  // would split the segment / corrupt the query.
+  const res = await apiFetch(`${ASSET_API}/by-path/${encodeURIComponent(path)}`, { signal });
   if (!res.ok) return {};
   const a = await res.json() as AssetMetadata;
   return { engineeringUnit: a.engineeringUnit, loEngLimit: a.loEngLimit, hiEngLimit: a.hiEngLimit };
@@ -28,7 +32,7 @@ export function useAssetMetadata(path?: string, enabled = true) {
     queryKey: ['asset-meta', path],
     enabled: enabled && !!path,
     staleTime: 5 * 60_000,
-    queryFn: () => fetchMeta(path as string),
+    queryFn: ({ signal }) => fetchMeta(path as string, signal),
   });
 }
 
@@ -39,8 +43,8 @@ export function useAssetMetadataBatch(paths: string[], enabled = true) {
     queryKey: ['asset-meta-batch', key],
     enabled: enabled && paths.length > 0,
     staleTime: 5 * 60_000,
-    queryFn: async (): Promise<Record<string, AssetMetadata>> => {
-      const entries = await Promise.all(paths.map(async p => [p, await fetchMeta(p)] as const));
+    queryFn: async ({ signal }): Promise<Record<string, AssetMetadata>> => {
+      const entries = await Promise.all(paths.map(async p => [p, await fetchMeta(p, signal)] as const));
       return Object.fromEntries(entries);
     },
   });

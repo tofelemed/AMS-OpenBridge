@@ -166,6 +166,7 @@ export const CpmInvestigation: React.FC = () => {
           data: points.map(p => [p.ts, num(p.op_avg) ?? num(p.op)]) },
       ],
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
   }, [points, obcTheme]);
 
   const metrics = matrix?.metrics ?? {};

@@ -112,6 +112,7 @@ export const CpmPipeline: React.FC = () => {
           lineStyle: { color: amber, width: 1.5 }, data: telemetry.map(s => [s.t, s.ckptDurMs]) },
       ],
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
   }, [telemetry, obcTheme]);
 
   // E2E verification: a real recompute round-trip on a reference loop.

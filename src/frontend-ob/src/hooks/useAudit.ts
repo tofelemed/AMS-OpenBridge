@@ -10,7 +10,7 @@ export function useAuditEvents(q: audit.AuditQuery = {}, refetchMs = 30_000, ena
   return useQuery({
     queryKey: ['audit', 'events', q],
     // H2: interval poll — must not extend the idle-session clock.
-    queryFn: backgroundPoll(() => audit.getAuditEvents(q)),
+    queryFn: backgroundPoll(({ signal }) => audit.getAuditEvents(q, signal)),
     refetchInterval: refetchMs > 0 ? refetchMs : false,
     enabled,
     retry: false, // a 403 should surface as a permission message, not retry noise

@@ -6,6 +6,11 @@ import App from './App';
 // H1: last-resort boundary — a shell crash renders a recover screen, not white.
 import ErrorBoundary from './components/shared/ErrorBoundary';
 
+// Self-hosted Noto Sans / Noto Sans Mono — vendored so nothing hits the Google
+// Fonts CDN at runtime (dead on an air-gapped plant). Must load before OpenBridge
+// CSS so its 'Noto Sans' references resolve to the bundled woff2.
+import './styles/fonts.css';
+
 // OpenBridge Design System - Global CSS (must be imported before any components)
 import '@oicl/openbridge-webcomponents/dist/openbridge.css';
 

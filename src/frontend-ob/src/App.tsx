@@ -25,6 +25,8 @@ import { ObiNotification } from '@oicl/openbridge-webcomponents-react/icons/icon
 import { ObiListAltCheckGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-list-alt-check-google';
 import { ObiWrench } from '@oicl/openbridge-webcomponents-react/icons/icon-wrench';
 import { ObiPlaceholder } from '@oicl/openbridge-webcomponents-react/icons/icon-placeholder';
+import { ObiChevronDownGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-down-google';
+import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-right-google';
 import CommandPalette from './components/CommandPalette';
 import SessionTimeoutDialog from './components/shared/SessionTimeoutDialog';
 import ErrorBoundary from './components/shared/ErrorBoundary';
@@ -35,8 +37,11 @@ import { expiredReason } from './auth/sessionClock';
 // navigating away automatically resets the error state.
 const RouteErrorBoundary: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
+  // resetKey (not `key`): a crashed page clears on navigation, but a HEALTHY app
+  // shell is never remounted — keying by pathname here used to remount the whole
+  // shell (topbar + sidebar) on every click, resetting the sidebar's scroll to top.
   return (
-    <ErrorBoundary scope="route" key={location.pathname}>
+    <ErrorBoundary scope="route" resetKey={location.pathname}>
       {children}
     </ErrorBoundary>
   );
@@ -664,6 +669,17 @@ const navItems = [
   { path: '/admin/system',        label: 'System Settings',  Icon: ObiWrench, group: 'Administration', permission: 'admin.users.edit' },
 ];
 
+// Collapsed nav groups persist across navigation and reload, so an operator who
+// closes the sections they don't use keeps them closed. Stored as the list of
+// COLLAPSED group names (default: nothing collapsed → same as before).
+const NAV_COLLAPSED_KEY = 'ams-nav-collapsed-groups';
+function readCollapsedGroups(): Set<string> {
+  try {
+    const raw = localStorage.getItem(NAV_COLLAPSED_KEY);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch { return new Set(); }
+}
+
 const Sidebar: React.FC<{ unackedCount: number }> = ({ unackedCount }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -671,35 +687,65 @@ const Sidebar: React.FC<{ unackedCount: number }> = ({ unackedCount }) => {
   const visibleNavItems = navItems.filter(i => !i.permission || hasPermission(i.permission));
   const groups = [...new Set(visibleNavItems.map(i => i.group))];
 
+  const [collapsed, setCollapsed] = useState<Set<string>>(readCollapsedGroups);
+
+  // F: exact, or a real path-segment boundary — the old startsWith kept '/cpm'
+  // active on every '/cpm/*' page, double-highlighting the sidebar.
+  const isActivePath = (path: string) =>
+    location.pathname === path || (path !== '/' && location.pathname.startsWith(path + '/'));
+  const activeGroup = visibleNavItems.find(i => isActivePath(i.path))?.group;
+
+  const toggleGroup = (group: string) => {
+    setCollapsed(prev => {
+      const next = new Set(prev);
+      if (next.has(group)) next.delete(group); else next.add(group);
+      try { localStorage.setItem(NAV_COLLAPSED_KEY, JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
   return (
     <nav style={{ overflowY: 'auto', flex: 1, padding: '8px' }}>
-      {groups.map(group => (
-        <div key={group} className="nav-section">
-          <div className="nav-section__title">{group}</div>
-          {visibleNavItems.filter(i => i.group === group).map(item => {
-            // F: exact, or a real path-segment boundary — the old startsWith kept
-            // '/cpm' active on every '/cpm/*' page, double-highlighting the sidebar.
-            const isActive = location.pathname === item.path ||
-              (item.path !== '/' && location.pathname.startsWith(item.path + '/'));
-            return (
-              <button
-                key={item.path}
-                className={`nav-item ${isActive ? 'nav-item--active' : ''}`}
-                onClick={() => navigate(item.path)}
-              >
-                {/* OpenBridge icons, not emoji: emoji render differently per-OS, ignore the theme, and
-                    are not part of the design system. Where OpenBridge has no matching icon we use
-                    ObiPlaceholder rather than inventing one. */}
-                <span className="nav-item__icon"><item.Icon /></span>
-                <span style={{ flex: 1 }}>{item.label}</span>
-                {item.badge === 'alarms' && unackedCount > 0 && (
-                  <span className="nav-item__badge">{unackedCount}</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      ))}
+      {groups.map(group => {
+        // The group holding the current page is always shown, even if the user
+        // collapsed it — so navigation (e.g. via ⌘K) never lands on a hidden item.
+        const open = !collapsed.has(group) || group === activeGroup;
+        const groupItems = visibleNavItems.filter(i => i.group === group);
+        return (
+          <div key={group} className="nav-section">
+            <button
+              type="button"
+              className="nav-section__title nav-section__title--toggle"
+              onClick={() => toggleGroup(group)}
+              aria-expanded={open}
+            >
+              <span>{group}</span>
+              <span className="nav-section__chevron">
+                {open ? <ObiChevronDownGoogle /> : <ObiChevronRightGoogle />}
+              </span>
+            </button>
+            {open && groupItems.map(item => {
+              const isActive = isActivePath(item.path);
+              return (
+                <button
+                  key={item.path}
+                  className={`nav-item ${isActive ? 'nav-item--active' : ''}`}
+                  onClick={() => navigate(item.path)}
+                >
+                  {/* OpenBridge icons, not emoji: emoji render differently per-OS, ignore the theme, and
+                      are not part of the design system. Where OpenBridge has no matching icon we use
+                      ObiPlaceholder rather than inventing one. */}
+                  <span className="nav-item__icon"><item.Icon /></span>
+                  <span style={{ flex: 1 }}>{item.label}</span>
+                  {item.badge === 'alarms' && unackedCount > 0 && (
+                    <span className="nav-item__badge">{unackedCount}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        );
+      })}
     </nav>
   );
 };

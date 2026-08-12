@@ -26,7 +26,7 @@ export interface AuditQuery {
   take?: number;
 }
 
-export const getAuditEvents = (q: AuditQuery = {}) => {
+export const getAuditEvents = (q: AuditQuery = {}, signal?: AbortSignal) => {
   const params = new URLSearchParams();
   if (q.entityType) params.set('entityType', q.entityType);
   if (q.entityId) params.set('entityId', q.entityId);
@@ -36,7 +36,7 @@ export const getAuditEvents = (q: AuditQuery = {}) => {
   if (q.to) params.set('to', q.to);
   if (q.take) params.set('take', String(q.take));
   return apiJson<{ total: number; count: number; events: AuditEventRow[] }>(
-    `/api/audit?${params.toString()}`);
+    `/api/audit?${params.toString()}`, { signal });
 };
 
 /** Full-chain cryptographic verification; returns the service's verdict text. */

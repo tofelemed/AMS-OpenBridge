@@ -25,6 +25,10 @@ const SoePanel: React.FC = () => {
   const events    = useAlarmStore(s => s.recentSoeEvents);
   const svgRef    = useRef<SVGSVGElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  // Preserve the operator's zoom/pan across rebuilds. A new SOE event re-runs the
+  // effect (full d3 rebuild); without this, every arriving event snapped an
+  // operator who was zoomed into a microsecond window back to full extent.
+  const transformRef = useRef<d3.ZoomTransform | null>(null);
 
   useEffect(() => {
     if (!svgRef.current || !wrapperRef.current || events.length === 0) return;
@@ -104,6 +108,7 @@ const SoePanel: React.FC = () => {
       .translateExtent([[margin.left, 0], [width - margin.right, height]])
       .extent([[margin.left, 0], [width - margin.right, height]])
       .on('zoom', (event) => {
+        transformRef.current = event.transform;
         const newX = event.transform.rescaleX(x);
         xAxisGroup.call(
           d3.axisBottom(newX)
@@ -169,6 +174,14 @@ const SoePanel: React.FC = () => {
         d3.select(event.currentTarget).attr('r', 6).attr('stroke-width', 2);
         tooltip.transition().duration(300).style('opacity', 0);
       });
+
+    // Re-apply the pre-rebuild zoom/pan (if the operator had zoomed in) so a new
+    // event doesn't reset their view. Fires the zoom handler → repositions axis
+    // + circles against the restored transform.
+    const saved = transformRef.current;
+    if (saved && saved.k !== 1) {
+      svg.call(zoom.transform, saved);
+    }
 
     return () => { tooltip.remove(); };
   }, [events]);
@@ -270,11 +283,11 @@ const SoePanel: React.FC = () => {
               No SOE events received yet.
             </div>
           ) : (
-            events.map((e, i) => {
+            events.map((e) => {
               const color = PRIORITY_COLOR[e.priority] ?? T.blue;
               return (
                 <div
-                  key={`${e.id}-${i}`}
+                  key={`${e.id}-${e.sourceTimestampEpochMs}`}
                   style={{
                     display: 'flex', alignItems: 'flex-start', gap: '14px',
                     padding: '13px 20px',

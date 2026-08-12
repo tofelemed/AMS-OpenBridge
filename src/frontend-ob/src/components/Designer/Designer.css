@@ -2980,7 +2980,9 @@
   padding: 8px 12px; font-size: 13px;
   border-bottom: 1px solid var(--normal-enabled-border-color, #334155);
 }
-.display-viewer__popup-frame { flex: 1; border: none; width: 100%; }
+/* Holds the embedded faceplate DisplayViewer (no longer an iframe). min-height:0
+   lets the flex child shrink so its content scrolls inside the popup, not past it. */
+.display-viewer__popup-frame { flex: 1; min-height: 0; border: none; width: 100%; overflow: auto; }
 .display-viewer__themes { display: inline-flex; gap: 2px; }
 .display-viewer__btn.active { background: var(--selected-enabled-background-color); color: var(--on-selected-active-color); border-color: var(--selected-enabled-background-color); }
 

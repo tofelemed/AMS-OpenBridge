@@ -630,10 +630,14 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
   }, [isDirty, onClose]);
 
   // Debug/test hook: expose designer state for automated verification.
+  // DEV/E2E only — never leak internal designer state onto window in a
+  // production plant build (import.meta.env.DEV is compiled out of prod).
   useEffect(() => {
+    if (!import.meta.env.DEV) return;
     (window as unknown as { __designer?: unknown }).__designer = {
       items, selectedIds, histIndex: hist.index, histLen: hist.len,
     };
+    return () => { delete (window as unknown as { __designer?: unknown }).__designer; };
   }, [items, selectedIds, hist]);
   
   const selectedItem = items.find(i => i.id === selectedId);

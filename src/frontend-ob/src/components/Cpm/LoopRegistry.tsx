@@ -499,9 +499,9 @@ const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => void }> =
     const CONCURRENCY = 4;
 
     const worker = async () => {
-      while (true) {
-        const idx = cursor++;
-        if (idx >= valid.length) return;
+      // Work-stealing: each worker atomically grabs the next row via cursor++ and
+      // stops when the list is exhausted (bounded-concurrency bulk import).
+      for (let idx = cursor++; idx < valid.length; idx = cursor++) {
         const v = valid[idx].values;
         const tags: CpmTagMapEntry[] = [];
         const add = (role: string, key: string) => { if (v[key]) tags.push({ signalRole: role, unsPath: v[key] }); };

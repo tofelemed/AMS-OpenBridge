@@ -151,14 +151,14 @@ const EdgeNodeMonitor: React.FC = () => {
             <EdgeArrow />
             <EdgeNode label="Sparkplug Edge Node" sub="Java / Tahu" status="active" />
             <EdgeArrow />
-            <EdgeNode label="EMQX" sub="MQTT 5.0 · WS :8083" status={mqttConnected ? 'active' : 'warning'} />
+            <EdgeNode label="EMQX" sub="MQTT 5.0 · /mqtt-ws" status={mqttConnected ? 'active' : 'warning'} />
             <EdgeArrow />
             <EdgeNode label="Frontend" sub="MQTT.js · mqttStore" status={mqttConnected ? 'active' : 'warning'} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0', minWidth: '700px', marginTop: '16px' }}>
             <EdgeNode label="Flink IoTDB Job" sub="raw-alarms" status="active" />
             <EdgeArrow />
-            <EdgeNode label="IoTDB" sub="1.3.2 standalone" status={iotdbUp ? 'active' : 'warning'} />
+            <EdgeNode label="IoTDB" sub="standalone" status={iotdbUp ? 'active' : 'warning'} />
             <EdgeArrow />
             <EdgeNode label="Historian BFF" sub=".NET 8 · /trend /raw" status={bffUp ? 'active' : bffError ? 'error' : 'warning'} />
             <EdgeArrow />

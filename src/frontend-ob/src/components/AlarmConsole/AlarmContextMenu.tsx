@@ -139,14 +139,14 @@ export const AlarmContextMenu: React.FC<AlarmContextMenuProps> = ({
             )}
             <button
               className={`context-menu__item ${item.disabled ? 'context-menu__item--disabled' : ''} ${item.danger ? 'context-menu__item--danger' : ''}`}
-              onMouseDown={(e) => {
+              // Single handler: this used to fire on BOTH onMouseDown and onClick,
+              // so every menu action (acknowledge, shelve, unshelve…) ran twice.
+              // onClick alone is safe — the outside-click closer only fires for
+              // targets outside the menu, so an in-menu click never self-closes.
+              onClick={(e) => {
                 if (item.disabled) return;
                 e.preventDefault();
                 e.stopPropagation();
-                item.onClick();
-              }}
-              onClick={() => {
-                if (item.disabled) return;
                 item.onClick();
               }}
               disabled={item.disabled}

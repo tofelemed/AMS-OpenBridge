@@ -87,7 +87,7 @@ export function useCpmEvents(q: cpm.CpmEventsQuery, refetchMs = 30_000, enabled 
   // fleet-wide callers (Events page, Overview) simply omit it.
   return useQuery({
     queryKey: KEYS.events(q),
-    queryFn: backgroundPoll(() => cpm.getEvents(q)),
+    queryFn: backgroundPoll(({ signal }) => cpm.getEvents(q, signal)),
     refetchInterval: refetchMs,
     enabled,
   });
@@ -114,7 +114,7 @@ export function useShelveEvent() {
 export function useLatestGates(loopId: string | undefined, windowKind = '24h') {
   return useQuery({
     queryKey: KEYS.gatesLatest(loopId ?? '', windowKind),
-    queryFn: () => cpm.getLatestGates(loopId!, windowKind),
+    queryFn: ({ signal }) => cpm.getLatestGates(loopId!, windowKind, signal),
     enabled: !!loopId,
   });
 }
@@ -168,7 +168,7 @@ export function useCpmTrend(
   // discarding it when the verdict window arrives.
   return useQuery({
     queryKey: ['cpm', 'trend', series ?? '', start.getTime(), end.getTime(), width, measurements],
-    queryFn: () => cpm.getTrend(series!, start, end, width, measurements, true),
+    queryFn: ({ signal }) => cpm.getTrend(series!, start, end, width, measurements, true, signal),
     enabled: !!series && enabled,
     staleTime: 60_000,
   });
@@ -184,7 +184,7 @@ export function useCpmModeTrack(
 ) {
   return useQuery({
     queryKey: ['cpm', 'mode-track', series ?? '', start.getTime(), end.getTime(), width],
-    queryFn: () => cpm.getTrend(series!, start, end, width, 'mode', false),
+    queryFn: ({ signal }) => cpm.getTrend(series!, start, end, width, 'mode', false, signal),
     enabled: !!series,
     staleTime: 60_000,
   });
@@ -195,7 +195,7 @@ export function useGateHistory(
 ) {
   return useQuery({
     queryKey: ['cpm', 'gate-history', loopId ?? '', windowKind, from ?? '', to ?? ''],
-    queryFn: () => cpm.getGateHistory(loopId!, windowKind, from, to),
+    queryFn: ({ signal }) => cpm.getGateHistory(loopId!, windowKind, from, to, 100, signal),
     enabled: !!loopId,
   });
 }
@@ -203,7 +203,7 @@ export function useGateHistory(
 export function useCpmKpis(loopId: string | undefined, resolution = '24h', limit = 50) {
   return useQuery({
     queryKey: ['cpm', 'kpis', loopId ?? '', resolution, limit],
-    queryFn: () => cpm.getKpis(loopId!, resolution, undefined, undefined, limit),
+    queryFn: ({ signal }) => cpm.getKpis(loopId!, resolution, undefined, undefined, limit, signal),
     enabled: !!loopId,
     staleTime: 60_000,
   });
@@ -226,7 +226,7 @@ export function useCpmKpisRange(
   // with from='' and again with from=windowStart, discarding the first response.
   return useQuery({
     queryKey: ['cpm', 'kpis-range', loopId ?? '', resolution, from ?? '', to ?? '', limit],
-    queryFn: () => cpm.getKpis(loopId!, resolution, from, to, limit),
+    queryFn: ({ signal }) => cpm.getKpis(loopId!, resolution, from, to, limit, signal),
     enabled: !!loopId && enabled,
     staleTime: 60_000,
   });
@@ -238,7 +238,7 @@ export function useRawWindow(
 ) {
   return useQuery({
     queryKey: ['cpm', 'raw', series ?? '', start?.getTime() ?? 0, end?.getTime() ?? 0, measurements],
-    queryFn: () => cpm.getRawCursor(series!, start!, end!, maxCount, undefined, measurements),
+    queryFn: ({ signal }) => cpm.getRawCursor(series!, start!, end!, maxCount, undefined, measurements, signal),
     enabled: !!series && !!start && !!end,
     staleTime: 5 * 60_000,
   });

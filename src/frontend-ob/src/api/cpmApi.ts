@@ -147,7 +147,7 @@ export interface CpmEventsQuery {
   limit?: number;
 }
 
-export const getEvents = (q: CpmEventsQuery = {}) => {
+export const getEvents = (q: CpmEventsQuery = {}, signal?: AbortSignal) => {
   const params = new URLSearchParams();
   if (q.loopId) params.set('loopId', q.loopId);
   if (q.openOnly !== undefined) params.set('openOnly', String(q.openOnly));
@@ -155,7 +155,7 @@ export const getEvents = (q: CpmEventsQuery = {}) => {
   if (q.from) params.set('from', q.from);
   if (q.limit) params.set('limit', String(q.limit));
   return apiJson<{ count: number; openOnly: boolean; events: CpmEventFrame[] }>(
-    `${BASE}/events?${params.toString()}`);
+    `${BASE}/events?${params.toString()}`, { signal });
 };
 
 export const acknowledgeEvent = (id: number, note?: string) =>
@@ -216,18 +216,18 @@ export interface CpmGateMatrix {
   };
 }
 
-export const getLatestGates = (loopId: string, windowKind = '24h') =>
+export const getLatestGates = (loopId: string, windowKind = '24h', signal?: AbortSignal) =>
   apiJson<CpmGateMatrix>(
-    `${BASE}/loops/${encodeURIComponent(loopId)}/gates/latest?windowKind=${windowKind}`);
+    `${BASE}/loops/${encodeURIComponent(loopId)}/gates/latest?windowKind=${windowKind}`, { signal });
 
 export const getGateHistory = (
-  loopId: string, windowKind = '24h', from?: string, to?: string, limit = 100,
+  loopId: string, windowKind = '24h', from?: string, to?: string, limit = 100, signal?: AbortSignal,
 ) => {
   const params = new URLSearchParams({ windowKind, limit: String(limit) });
   if (from) params.set('from', from);
   if (to) params.set('to', to);
   return apiJson<{ loopId: string; windowKind: string; count: number; windows: CpmGateMatrix[] }>(
-    `${BASE}/loops/${encodeURIComponent(loopId)}/gates?${params.toString()}`);
+    `${BASE}/loops/${encodeURIComponent(loopId)}/gates?${params.toString()}`, { signal });
 };
 
 // ── Fleet (U1/U3) ───────────────────────────────────────────────────────────
@@ -355,7 +355,7 @@ export interface CpmTrendPoint {
 /** envelope=true adds <m>_min/<m>_max/<m>_avg columns so oscillation renders truthfully. */
 export const getTrend = (
   series: string, start: Date, end: Date, width = 300,
-  measurements = 'pv,sp,op', envelope = true,
+  measurements = 'pv,sp,op', envelope = true, signal?: AbortSignal,
 ) => {
   const params = new URLSearchParams({
     series,
@@ -366,7 +366,7 @@ export const getTrend = (
     envelope: String(envelope),
   });
   return apiJson<{ series: string; envelope: boolean; points: CpmTrendPoint[] }>(
-    `/api/hist/trend?${params.toString()}`);
+    `/api/hist/trend?${params.toString()}`, { signal });
 };
 
 // ── KPI stream (U2/U9): short/long feature rows carry the raw metric values ──
@@ -380,13 +380,13 @@ export interface CpmKpiRow {
 }
 
 export const getKpis = (
-  loopId: string, resolution = '24h', from?: string, to?: string, limit = 50,
+  loopId: string, resolution = '24h', from?: string, to?: string, limit = 50, signal?: AbortSignal,
 ) => {
   const params = new URLSearchParams({ resolution, limit: String(limit) });
   if (from) params.set('from', from);
   if (to) params.set('to', to);
   return apiJson<{ loopId: string; resolution: string; tier: 'short' | 'long'; count: number; samples: CpmKpiRow[] }>(
-    `${BASE}/loops/${encodeURIComponent(loopId)}/kpis?${params.toString()}`);
+    `${BASE}/loops/${encodeURIComponent(loopId)}/kpis?${params.toString()}`, { signal });
 };
 
 // ── Resolutions catalogue (U7): windows the engine actually emits ───────────
@@ -405,7 +405,7 @@ export const getResolutions = () =>
 
 export const getRawCursor = (
   series: string, start: Date, end: Date, maxCount = 2000,
-  cursor?: number, measurements = 'pv,sp,op,mode',
+  cursor?: number, measurements = 'pv,sp,op,mode', signal?: AbortSignal,
 ) => {
   const params = new URLSearchParams({
     series,
@@ -418,7 +418,7 @@ export const getRawCursor = (
   return apiJson<{
     series: string; count: number; cursor: number | null;
     nextCursor: number | null; hasMore: boolean; points: CpmTrendPoint[];
-  }>(`/api/hist/raw/cursor?${params.toString()}`);
+  }>(`/api/hist/raw/cursor?${params.toString()}`, { signal });
 };
 
 // ── Recompute (A8, U8) ──────────────────────────────────────────────────────

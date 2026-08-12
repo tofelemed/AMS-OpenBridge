@@ -148,6 +148,7 @@ export const CpmHistorical: React.FC = () => {
           data: overlayData },
       ],
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
   }, [points, kpiRows, overlay, obcTheme]);
 
   const applyRange = () => {

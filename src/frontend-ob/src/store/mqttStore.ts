@@ -195,13 +195,34 @@ function applySnapshotAssets(
 // Kept OUTSIDE zustand/immer state to avoid clone churn on every sample. Charts
 // poll it on a timer. Keyed by "device/metric" (same key as `metrics`).
 export interface SeriesSample { ts: number; v: number; }
-const LIVE_SERIES_CAP = 2000; // ~66 min at 2s cadence
+const LIVE_SERIES_CAP = 2000; // ~66 min at 2s cadence, per key
+// Bound the NUMBER of keys too. Each DDATA metric ever seen used to get a
+// permanent ring buffer here — over a long control-room session (devices come
+// and go, aliases churn) the key count grew without limit. When we'd exceed the
+// cap on adding a NEW key, evict the least-recently-updated series (oldest last
+// sample); these are ephemeral chart buffers, so dropping an inactive device's
+// trail is harmless and it re-seeds from the next sample.
+const LIVE_SERIES_KEY_CAP = 4000;
 const liveSeries = new Map<string, SeriesSample[]>();
+
+function evictStaleSeriesKey() {
+  let oldestKey: string | null = null;
+  let oldestTs = Infinity;
+  for (const [k, buf] of liveSeries) {
+    const last = buf.length ? buf[buf.length - 1].ts : 0;
+    if (last < oldestTs) { oldestTs = last; oldestKey = k; }
+  }
+  if (oldestKey !== null) liveSeries.delete(oldestKey);
+}
 
 function pushLiveSample(key: string, ts: number, value: unknown) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return;
   let buf = liveSeries.get(key);
-  if (!buf) { buf = []; liveSeries.set(key, buf); }
+  if (!buf) {
+    if (liveSeries.size >= LIVE_SERIES_KEY_CAP) evictStaleSeriesKey();
+    buf = [];
+    liveSeries.set(key, buf);
+  }
   // drop out-of-order / duplicate timestamps
   if (buf.length && ts <= buf[buf.length - 1].ts) return;
   buf.push({ ts, v: value });
@@ -226,6 +247,12 @@ const SNAPSHOT_DEDUPE_MS = 5_000;
 let pendingSnapshotDevices = new Set<string>();
 let snapshotBatchTimer: ReturnType<typeof setTimeout> | null = null;
 const recentSnapshotAt = new Map<string, number>();
+
+// Wildcard (?assets=*) seed dedupe — see loadAllSnapshots. Collapses the
+// connect-handler call and concurrent monitoring-surface mounts into one fetch.
+const ALL_SNAPSHOTS_DEDUPE_MS = 3_000;
+let allSnapshotsInFlight: Promise<void> | null = null;
+let lastAllSnapshotsAt = 0;
 
 // ── Store ──────────────────────────────────────────────────────────────────
 
@@ -469,18 +496,30 @@ export const useMqttStore = create<MqttStoreState>()(
       // ── loadAllSnapshots ────────────────────────────────────────────────────
       // Discover all devices from Redis via BFF GET /snapshot?assets=*
       loadAllSnapshots: async () => {
-        try {
-          const res = await apiFetch(`${SNAPSHOT_URL}?assets=${encodeURIComponent('*')}`);
-          if (!res.ok) return;
-          const data = await res.json() as { assets: Record<string, Record<string, unknown>> };
-          // H10: the wildcard seed covers every returned device — stamp them so
-          // the per-screen loads that follow within 5s become no-ops.
-          const ts = Date.now();
-          for (const dev of Object.keys(data.assets ?? {})) recentSnapshotAt.set(dev, ts);
-          applySnapshotAssets(set, data.assets ?? {});
-        } catch (err) {
-          console.warn('[MqttStore] loadAllSnapshots failed:', err);
-        }
+        // Dedupe the wildcard seed: the client 'connect' handler AND every
+        // mounted monitoring surface (LiveEvents, dashboards) each call this, so
+        // the very first connect fired two identical ?assets=* fetches. Collapse
+        // any that are in-flight or fired within the recency window into one.
+        if (allSnapshotsInFlight) return allSnapshotsInFlight;
+        if (Date.now() - lastAllSnapshotsAt < ALL_SNAPSHOTS_DEDUPE_MS) return;
+        allSnapshotsInFlight = (async () => {
+          try {
+            const res = await apiFetch(`${SNAPSHOT_URL}?assets=${encodeURIComponent('*')}`);
+            if (!res.ok) return;
+            const data = await res.json() as { assets: Record<string, Record<string, unknown>> };
+            // H10: the wildcard seed covers every returned device — stamp them so
+            // the per-screen loads that follow within 5s become no-ops.
+            const ts = Date.now();
+            for (const dev of Object.keys(data.assets ?? {})) recentSnapshotAt.set(dev, ts);
+            applySnapshotAssets(set, data.assets ?? {});
+          } catch (err) {
+            console.warn('[MqttStore] loadAllSnapshots failed:', err);
+          } finally {
+            lastAllSnapshotsAt = Date.now();
+            allSnapshotsInFlight = null;
+          }
+        })();
+        return allSnapshotsInFlight;
       },
 
       // ── fetchTrend ────────────────────────────────────────────────────────
@@ -615,7 +654,6 @@ function handleMessage(
   try {
     if (!decodeSparkplugPayload) return; // library still loading — cannot happen post-connect
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const decoded: any = decodeSparkplugPayload(payload);
     const parts  = topic.split('/'); // spBv1.0 / group / VERB / edge [/ device]
     const verb   = parts[2];

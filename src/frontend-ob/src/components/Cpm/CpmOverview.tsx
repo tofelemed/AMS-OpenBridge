@@ -260,6 +260,7 @@ const LoopFocus: React.FC<{
           data: points.map(p => num(p.op_avg) ?? num(p.op)) },
       ],
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
   }, [points, obcTheme]);
 
   return (

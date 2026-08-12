@@ -109,15 +109,26 @@ function substituteElement(item: CanvasItem, element: string): CanvasItem {
 const isAssetRelative = (item: CanvasItem) =>
   !!item.bindings && Object.values(item.bindings).some(v => v.includes('{{element}}'));
 
-export const DisplayViewer: React.FC<{ source?: ViewerSource }> = ({ source = 'display' }) => {
-  const { id } = useParams<{ id: string }>();
+export const DisplayViewer: React.FC<{
+  source?: ViewerSource;
+  /** Embedded mode: render this display INLINE (e.g. a faceplate popup) instead of
+   * driving from the route. Reuses the live app tree — no second SPA/iframe boot. */
+  embedId?: string;
+  embedAsset?: string;
+}> = ({ source = 'display', embedId, embedAsset }) => {
+  const { id: routeId } = useParams<{ id: string }>();
   const [params] = useSearchParams();
+  const embedded = !!embedId;
+  const id = embedId ?? routeId;
   const isPersonalView = source === 'personal-view';
-  const assetContext = params.get('asset') ?? undefined; // Phase E will rebind against this
+  // In embedded mode the route params belong to the PARENT viewer — take the asset
+  // from the embed prop instead so a faceplate binds to its own device.
+  const assetContext = embedded ? embedAsset : (params.get('asset') ?? undefined);
   // Phase 8 (M11–M14) — kiosk / chrome control via URL params. ?kiosk=1 hides ALL chrome (navigation bar
   // + time bar) for a wall/panel display; ?hideBar / ?hideTimebar hide them individually.
+  // Embedded faceplates are always chrome-free.
   const truthy = (v: string | null) => v === '1' || v === 'true' || v === 'yes';
-  const kiosk = truthy(params.get('kiosk'));
+  const kiosk = embedded || truthy(params.get('kiosk'));
   const hideBar = kiosk || truthy(params.get('hideBar'));
   const hideTimebar = kiosk || truthy(params.get('hideTimebar'));
   // Phase 8 (U2/U3) — touch zoom/pan for tablets & panels.
@@ -199,8 +210,10 @@ export const DisplayViewer: React.FC<{ source?: ViewerSource }> = ({ source = 'd
   useEffect(() => { connect(); }, [connect]);
 
   // Seed the display time context from URL params (?start=&end=). The saved defaults become the
-  // "Revert" target. (K19 / M9.)
+  // "Revert" target. (K19 / M9.) Skipped when embedded — the display-time store is global and a
+  // faceplate popup must not reset the parent display's time window.
   useEffect(() => {
+    if (embedded) return;
     useDisplayTimeStore.getState().markSaved();
     useDisplayTimeStore.getState().initFromUrl(params);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -217,8 +230,10 @@ export const DisplayViewer: React.FC<{ source?: ViewerSource }> = ({ source = 'd
   });
 
   // Maintain the breadcrumb trail: append on forward-nav, trim when returning to a prior crumb.
+  // Skipped when embedded — the trail is shared session state; a faceplate popup must not
+  // append itself to the parent display's navigation breadcrumb.
   useEffect(() => {
-    if (!id) return;
+    if (!id || embedded) return;
     setTrail(prev => {
       const idx = prev.findIndex(c => c.id === id && c.asset === assetContext);
       const name = data?.name ?? id;
@@ -227,7 +242,7 @@ export const DisplayViewer: React.FC<{ source?: ViewerSource }> = ({ source = 'd
       writeTrail(next);
       return next;
     });
-  }, [id, assetContext, data?.name]);
+  }, [id, assetContext, data?.name, embedded]);
 
   // Asset-relative: detect {{element}} bindings, list swap candidates (devices in the same
   // unit), and produce runtime-resolved items. Changing `element` rebinds the whole display.
@@ -408,7 +423,10 @@ export const DisplayViewer: React.FC<{ source?: ViewerSource }> = ({ source = 'd
           <ObiTrend /> Trend{trendSel.length ? ` (${selectedPens.length})` : ''}
         </button>
         <div className="display-viewer__themes">
-          {(['day', 'night'] as const).map(t => (
+          {/* Match the app shell's theme set (day / bright / night) — the viewer
+              used to offer only day+night, so an operator on 'bright' (high-ambient
+              daylight) couldn't reach it from a full-screen display. */}
+          {(['day', 'bright', 'night'] as const).map(t => (
             <button key={t} className={`display-viewer__btn${theme === t ? ' active' : ''}`} onClick={() => applyTheme(t)}>{t}</button>
           ))}
         </div>
@@ -545,19 +563,22 @@ export const DisplayViewer: React.FC<{ source?: ViewerSource }> = ({ source = 'd
       {/* Display time bar (K1–K7) — one time context every time-aware symbol follows. Hidden in kiosk. */}
       {!hideTimebar && <TimeBar />}
 
-      {/* Faceplate popup (openMode: 'popup') — isolated via iframe on the same viewer route */}
-      {popup && (
+      {/* Faceplate popup (openMode: 'popup') — rendered INLINE with an embedded
+          DisplayViewer instead of an <iframe src="/display/…">. The iframe booted a
+          whole second SPA (React + OpenBridge + a second MQTT connection + a fresh
+          auth/query context) on every popup; embedding reuses the already-loaded app
+          tree, the shared MQTT client, and the warm query cache. Not embedded when it
+          IS itself embedded — cap nesting at one level. */}
+      {popup && !embedded && (
         <div className="display-viewer__popup-overlay" onClick={() => setPopup(null)}>
           <div className="display-viewer__popup" onClick={e => e.stopPropagation()}>
             <div className="display-viewer__popup-bar">
               <span>Faceplate{popup.asset ? ` · ${assetShort(popup.asset)}` : ''}</span>
               <button className="display-viewer__btn" onClick={() => setPopup(null)}>✕</button>
             </div>
-            <iframe
-              title="faceplate"
-              className="display-viewer__popup-frame"
-              src={`/display/${popup.id}${popup.asset ? `?asset=${encodeURIComponent(popup.asset)}` : ''}`}
-            />
+            <div className="display-viewer__popup-frame">
+              <DisplayViewer source="display" embedId={popup.id} embedAsset={popup.asset} />
+            </div>
           </div>
         </div>
       )}

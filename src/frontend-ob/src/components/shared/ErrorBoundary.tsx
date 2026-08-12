@@ -23,6 +23,15 @@ interface Props {
   children: React.ReactNode;
   /** Where this boundary sits — only used to label the log line. */
   scope?: string;
+  /**
+   * When this value changes AND the boundary is currently showing an error, the
+   * error is cleared so the children re-render. Unlike a React `key`, changing it
+   * does NOT remount the subtree while there is no error — the caller (route
+   * boundary) can pass the pathname to reset a crashed page on navigation without
+   * remounting the still-healthy app shell (which used to reset the sidebar scroll
+   * on every click). See RouteErrorBoundary in App.tsx.
+   */
+  resetKey?: string | number;
 }
 
 interface State {
@@ -38,6 +47,14 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo): void {
     console.error(`[ErrorBoundary:${this.props.scope ?? 'root'}]`, error, info.componentStack);
+  }
+
+  componentDidUpdate(prevProps: Props): void {
+    // Navigation changed the reset key while a page was crashed — clear the error
+    // so the new route renders. No-op when healthy (children stay mounted).
+    if (this.state.error && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ error: null });
+    }
   }
 
   render(): React.ReactNode {
