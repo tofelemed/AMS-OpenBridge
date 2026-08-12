@@ -7,6 +7,11 @@ import { ObiEditGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-e
 import { ObiContentCopyGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-content-copy-google';
 import { ObiDelete } from '@oicl/openbridge-webcomponents-react/icons/icon-delete';
 import { ObiLink } from '@oicl/openbridge-webcomponents-react/icons/icon-link';
+import { ObiDashboard } from '@oicl/openbridge-webcomponents-react/icons/icon-dashboard';
+import { ObiSearch } from '@oicl/openbridge-webcomponents-react/icons/icon-search';
+import { ObiClipboard } from '@oicl/openbridge-webcomponents-react/icons/icon-clipboard';
+import { ObiTrend } from '@oicl/openbridge-webcomponents-react/icons/icon-trend';
+import { ObiAlarm } from '@oicl/openbridge-webcomponents-react/icons/icon-alarm';
 import { ObiFileUploadGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-file-upload-google';
 import { Modal, FormField } from '../shared/Modal';
 import { useConfirm, usePrompt } from '../shared/dialogService';
@@ -54,12 +59,18 @@ const SORT_LABELS: Record<SortKey, string> = {
 
 const CATEGORIES = ['overview', 'detail', 'faceplate', 'trend', 'alarm'] as const;
 
-const CATEGORY_META: Record<string, { label: string; icon: string; color: string; bg: string; border: string }> = {
-  overview:  { label: 'Overview',  icon: '🖥️', color: T.blue,     bg: T.blueLight,     border: T.blueMuted },
-  detail:    { label: 'Detail',    icon: '🔍', color: T.success,  bg: T.successBg,     border: T.successBorder },
-  faceplate: { label: 'Faceplate', icon: '📋', color: T.purple,   bg: T.purpleBg,      border: T.purpleBorder },
-  trend:     { label: 'Trend',     icon: '📈', color: T.warning,  bg: T.warningBg,     border: T.warningBorder },
-  alarm:     { label: 'Alarm',     icon: '🚨', color: T.critical, bg: T.criticalBg,    border: T.criticalBorder },
+const CATEGORY_META: Record<string, { label: string; Icon: React.FC; color: string; bg: string; border: string }> = {
+  overview:  { label: 'Overview',  Icon: ObiDashboard, color: T.blue,     bg: T.blueLight,     border: T.blueMuted },
+  detail:    { label: 'Detail',    Icon: ObiSearch,    color: T.success,  bg: T.successBg,     border: T.successBorder },
+  faceplate: { label: 'Faceplate', Icon: ObiClipboard, color: T.purple,   bg: T.purpleBg,      border: T.purpleBorder },
+  trend:     { label: 'Trend',     Icon: ObiTrend,     color: T.warning,  bg: T.warningBg,     border: T.warningBorder },
+  alarm:     { label: 'Alarm',     Icon: ObiAlarm,     color: T.critical, bg: T.criticalBg,    border: T.criticalBorder },
+};
+
+/** Category glyph as an obi-* icon (sized via .category-icon). Falls back to Overview. */
+const CategoryIcon: React.FC<{ category?: string }> = ({ category }) => {
+  const Icon = (category && CATEGORY_META[category]?.Icon) || ObiDashboard;
+  return <span className="category-icon" style={{ display: 'inline-flex', alignItems: 'center' }}><Icon /></span>;
 };
 
 interface DisplayQuery { category?: string; search?: string; sort?: SortKey; tag?: string; folderId?: string; }
@@ -372,7 +383,7 @@ export const DisplayList: React.FC = () => {
             <FilterChip
               key={cat}
               label={meta.label}
-              icon={meta.icon}
+              icon={<CategoryIcon category={cat} />}
               active={selectedCategory === cat}
               onClick={() => setSelectedCategory(cat)}
               activeColor={meta.color}
@@ -472,7 +483,7 @@ export const DisplayList: React.FC = () => {
                   borderRadius: T.radiusSm, border: `1px solid ${T.border}`, background: T.card, color: T.textPrimary,
                 }}
               >
-                <span>{CATEGORY_META[r.category]?.icon ?? '🖥️'}</span> {r.name}
+                <CategoryIcon category={r.category} /> {r.name}
               </button>
             ))}
           </div>
@@ -637,7 +648,7 @@ export const DisplayList: React.FC = () => {
             >
               {CATEGORIES.map(cat => (
                 <option key={cat} value={cat}>
-                  {CATEGORY_META[cat].icon} {CATEGORY_META[cat].label}
+                  {CATEGORY_META[cat].label}
                 </option>
               ))}
             </select>
@@ -700,7 +711,7 @@ export const DisplayList: React.FC = () => {
 
 interface FilterChipProps {
   label: string;
-  icon?: string;
+  icon?: React.ReactNode;
   active: boolean;
   onClick: () => void;
   activeColor?: string;
@@ -823,7 +834,7 @@ const DisplayCard: React.FC<DisplayCardProps> = ({ display, onOpen, viewMode = '
         }}
       >
         <FavoriteStar on={isFavorite} onToggle={onToggleFavorite} />
-        <span style={{ fontSize: '16px' }}>{meta.icon}</span>
+        <CategoryIcon category={display.category} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: '14px', fontWeight: 600, color: T.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {display.name}
@@ -886,8 +897,9 @@ const DisplayCard: React.FC<DisplayCardProps> = ({ display, onOpen, viewMode = '
           fontSize: '10px', fontWeight: 700, padding: '3px 8px',
           borderRadius: '20px', textTransform: 'uppercase', letterSpacing: '0.05em',
           background: meta.bg, color: meta.color, border: `1px solid ${meta.border}`,
+          display: 'inline-flex', alignItems: 'center', gap: '4px',
         }}>
-          {meta.icon} {meta.label}
+          <CategoryIcon category={display.category} /> {meta.label}
         </span>
       </div>
 

@@ -11,17 +11,25 @@ import { SystemSettingsConfig }  from './SystemSettingsConfig';
 import AuditExplorer             from './AuditExplorer';
 import { useAuthStore }          from '../../store/authStore';
 import { T } from '../../styles/theme';
+// obi-* icons (closest-semantic — no exact shield/lock icon exists in OpenBridge).
+import { ObiUser } from '@oicl/openbridge-webcomponents-react/icons/icon-user';
+import { ObiSettingsUserIec } from '@oicl/openbridge-webcomponents-react/icons/icon-settings-user-iec';
+import { ObiMonitoring } from '@oicl/openbridge-webcomponents-react/icons/icon-monitoring';
+import { ObiListAltCheckGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-list-alt-check-google';
+import { ObiNotification } from '@oicl/openbridge-webcomponents-react/icons/icon-notification';
+import { ObiClipboard } from '@oicl/openbridge-webcomponents-react/icons/icon-clipboard';
+import { ObiWrench } from '@oicl/openbridge-webcomponents-react/icons/icon-wrench';
 
 /* Design tokens (shared with Dashboard) */
 
 const TABS = [
-  { path: '/admin/users',         label: 'User Management', icon: '👤', permission: 'admin.users.edit' },
-  { path: '/admin/roles',         label: 'Roles & Permissions', icon: '🛡', permission: 'rbac.manage' },
-  { path: '/admin/alarm-feed',    label: 'Alarm Feed',      icon: '📡' },
-  { path: '/admin/alarm-rules',   label: 'Alarm Rules',     icon: '⚙' },
-  { path: '/admin/notifications', label: 'Notifications',   icon: '🔔' },
-  { path: '/admin/audit',         label: 'Audit Log',       icon: '🔒' },
-  { path: '/admin/system',        label: 'System Settings', icon: '🛠' },
+  { path: '/admin/users',         label: 'User Management',     Icon: ObiUser, permission: 'admin.users.edit' },
+  { path: '/admin/roles',         label: 'Roles & Permissions', Icon: ObiSettingsUserIec, permission: 'rbac.manage' },
+  { path: '/admin/alarm-feed',    label: 'Alarm Feed',          Icon: ObiMonitoring },
+  { path: '/admin/alarm-rules',   label: 'Alarm Rules',         Icon: ObiListAltCheckGoogle },
+  { path: '/admin/notifications', label: 'Notifications',       Icon: ObiNotification },
+  { path: '/admin/audit',         label: 'Audit Log',           Icon: ObiClipboard },
+  { path: '/admin/system',        label: 'System Settings',     Icon: ObiWrench },
 ];
 
 const Administration: React.FC = () => {
@@ -87,7 +95,7 @@ const Administration: React.FC = () => {
                 }
               }}
             >
-              <span style={{ fontSize: '14px' }}>{t.icon}</span>
+              <span className="admin-tab-icon" style={{ display: 'inline-flex' }}><t.Icon /></span>
               {t.label}
             </Link>
           );

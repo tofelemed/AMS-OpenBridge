@@ -1305,6 +1305,9 @@
 .ft__name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ft__actions { display: none; gap: 2px; }
 .ft__row:hover .ft__actions { display: flex; }
+/* obi-* glyphs (caret chevrons + action icons) need explicit sizing. */
+.ft__caret svg { width: 14px; height: 14px; }
+.ft__actions button svg { width: 14px; height: 14px; }
 
 /* Version history */
 .vh__hint { font-size: 12px; color: var(--element-neutral-color); margin-bottom: 8px; }

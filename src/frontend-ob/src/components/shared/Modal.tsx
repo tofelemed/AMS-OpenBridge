@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObiCloseGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-close-google';
+import { ObiWarningGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-warning-google';
 
 interface ModalProps {
   isOpen: boolean;
@@ -149,6 +150,10 @@ export const FormField: React.FC<FormFieldProps> = ({ label, required, hint, err
     </label>
     {children}
     {hint && !error && <div className="form-field__hint">{hint}</div>}
-    {error && <div className="form-field__error">⚠ {error}</div>}
+    {error && (
+      <div className="form-field__error" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+        <span style={{ display: 'inline-flex' }}><ObiWarningGoogle /></span> {error}
+      </div>
+    )}
   </div>
 );

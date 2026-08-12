@@ -5,6 +5,16 @@ import { useAlarmStore, type AlarmStats } from '../../store/alarmStore';
 import { useMqttStore } from '../../store/mqttStore';
 import { useAlarmAnalytics } from '../../hooks/useAlarmAnalytics';
 import { useNavigate } from 'react-router-dom';
+// obi-* icons (no emoji). Closest-semantic where OpenBridge has no exact glyph.
+import { ObiWarningGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-warning-google';
+import { ObiAlarm } from '@oicl/openbridge-webcomponents-react/icons/icon-alarm';
+import { ObiError } from '@oicl/openbridge-webcomponents-react/icons/icon-error';
+import { ObiTrend } from '@oicl/openbridge-webcomponents-react/icons/icon-trend';
+import { ObiCheckGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-check-google';
+import { ObiTimerGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-timer-google';
+import { ObiVolumeOff } from '@oicl/openbridge-webcomponents-react/icons/icon-volume-off';
+import { ObiWrench } from '@oicl/openbridge-webcomponents-react/icons/icon-wrench';
+import { ObiBoltGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-bolt-google';
 
 /* ─────────────────────────────────────────────
    Design tokens (OpenBridge-inspired light theme)
@@ -110,7 +120,7 @@ const Dashboard: React.FC = () => {
           onMouseEnter={e => (e.currentTarget.style.background = T.blueMid)}
           onMouseLeave={e => (e.currentTarget.style.background = T.blue)}
         >
-          <span style={{ fontSize: '16px', lineHeight: 1 }}>⚑</span>
+          <span className="dash-icon-sm" style={{ display: 'inline-flex', lineHeight: 1 }}><ObiAlarm /></span>
           View Active Alarms
         </button>
       </div>
@@ -123,7 +133,7 @@ const Dashboard: React.FC = () => {
             value={stats.totalActive}
             sub={`${stats.alarmsPerTenMin.toFixed(1)} per 10 min`}
             status={stats.totalActive > 100 ? 'warning' : stats.totalActive > 0 ? 'active' : 'ok'}
-            icon="⚠"
+            icon={<ObiWarningGoogle />}
             onClick={() => navigate('/alarms')}
           />
           <PrimaryKpi
@@ -131,7 +141,7 @@ const Dashboard: React.FC = () => {
             value={stats.totalCritical}
             sub={stats.totalCritical > 0 ? 'Immediate action required' : 'No critical conditions'}
             status={stats.totalCritical > 0 ? 'critical' : 'ok'}
-            icon="🚨"
+            icon={<ObiAlarm />}
             onClick={() => navigate('/alarms?priority=CRITICAL')}
           />
           <PrimaryKpi
@@ -139,7 +149,7 @@ const Dashboard: React.FC = () => {
             value={stats.unacknowledged}
             sub="Requires operator action"
             status={stats.unacknowledged > 20 ? 'warning' : stats.unacknowledged > 0 ? 'active' : 'ok'}
-            icon="✗"
+            icon={<ObiError />}
             onClick={() => navigate('/alarms?unacked=1')}
           />
           <PrimaryKpi
@@ -147,7 +157,7 @@ const Dashboard: React.FC = () => {
             value={`${stats.alarmsPerTenMin.toFixed(1)}`}
             sub={stats.floodActive ? '⚠ FLOOD CONDITION DETECTED' : alarmRateWarning ? 'Exceeds ISA-18.2 target' : 'ISA-18.2 target ≤ 1.0 / 10 min'}
             status={stats.floodActive ? 'critical' : alarmRateWarning ? 'warning' : 'ok'}
-            icon="~"
+            icon={<ObiTrend />}
             unit="/ 10 min"
           />
         </div>
@@ -432,7 +442,7 @@ interface PrimaryKpiProps {
   value: number | string;
   sub?: string;
   status?: KpiStatus;
-  icon?: string;
+  icon?: React.ReactNode;
   unit?: string;
   /** When set, the card becomes a button that drills into the alarm console with a filter preset. */
   onClick?: () => void;
@@ -474,11 +484,11 @@ const PrimaryKpi: React.FC<PrimaryKpiProps> = ({ label, value, sub, status = 'ne
             {label}
           </span>
           {icon && (
-            <span style={{
+            <span className="dash-icon-sm" style={{
               width: '28px', height: '28px', display: 'inline-flex',
               alignItems: 'center', justifyContent: 'center',
               background: s.valueBg, borderRadius: '6px',
-              fontSize: '13px', color: s.valueColor,
+              color: s.valueColor,
               border: `1px solid ${s.badgeBorder}`,
             }}>
               {icon}
@@ -606,7 +616,7 @@ const PriorityDistribution: React.FC<{ stats: AlarmStats }> = ({ stats }) => {
   if (total === 0) {
     return (
       <div style={{ padding: '28px 0', textAlign: 'center' }}>
-        <div style={{ fontSize: '32px', marginBottom: '10px' }}>✓</div>
+        <div className="dash-icon-lg" style={{ marginBottom: '10px', color: T.success, display: 'flex', justifyContent: 'center' }}><ObiCheckGoogle /></div>
         <div style={{ fontSize: '15px', fontWeight: 600, color: T.success }}>No active alarms</div>
         <div style={{ fontSize: '12.5px', color: T.textSecondary, marginTop: '4px' }}>All processes operating within normal parameters</div>
       </div>
@@ -683,12 +693,12 @@ const PriorityDistribution: React.FC<{ stats: AlarmStats }> = ({ stats }) => {
    ALARM STATE MATRIX (Level 4)
    ═══════════════════════════════════════════════════════ */
 const AlarmStateMatrix: React.FC<{ stats: AlarmStats }> = ({ stats }) => {
-  const states = [
+  const states: { label: string; value: number; desc: string; Icon: React.FC; color: string; bg: string; border: string }[] = [
     {
       label: 'Active & Unacknowledged',
       value: stats.unacknowledged,
       desc: 'Requires immediate operator attention',
-      icon: '⚠',
+      Icon: ObiWarningGoogle,
       color: T.critical,
       bg: T.criticalBg,
       border: T.criticalBorder,
@@ -697,7 +707,7 @@ const AlarmStateMatrix: React.FC<{ stats: AlarmStats }> = ({ stats }) => {
       label: 'Active & Acknowledged',
       value: Math.max(0, stats.totalActive - stats.unacknowledged),
       desc: 'Operator aware, condition persists',
-      icon: '✓',
+      Icon: ObiCheckGoogle,
       color: T.caution,
       bg: T.cautionBg,
       border: T.warningBorder,
@@ -706,7 +716,7 @@ const AlarmStateMatrix: React.FC<{ stats: AlarmStats }> = ({ stats }) => {
       label: 'Shelved',
       value: stats.shelved,
       desc: 'Temporary suppression in place',
-      icon: '⏸',
+      Icon: ObiTimerGoogle,
       color: T.blueMid,
       bg: T.blueLight,
       border: T.blueMuted,
@@ -715,7 +725,7 @@ const AlarmStateMatrix: React.FC<{ stats: AlarmStats }> = ({ stats }) => {
       label: 'Suppressed by Design',
       value: stats.suppressed,
       desc: 'Filtered by process state rules',
-      icon: '🔇',
+      Icon: ObiVolumeOff,
       color: T.textSecondary,
       bg: T.bg,
       border: T.border,
@@ -724,7 +734,7 @@ const AlarmStateMatrix: React.FC<{ stats: AlarmStats }> = ({ stats }) => {
       label: 'Out of Service',
       value: stats.outOfService || 0,
       desc: 'Monitoring fully disabled',
-      icon: '🔧',
+      Icon: ObiWrench,
       color: (stats.outOfService || 0) > 0 ? T.warning : T.textSecondary,
       bg: (stats.outOfService || 0) > 0 ? T.warningBg : T.bg,
       border: (stats.outOfService || 0) > 0 ? T.warningBorder : T.border,
@@ -733,7 +743,7 @@ const AlarmStateMatrix: React.FC<{ stats: AlarmStats }> = ({ stats }) => {
       label: 'Total Active',
       value: stats.totalActive,
       desc: 'All active alarm conditions',
-      icon: '⚑',
+      Icon: ObiAlarm,
       color: T.blue,
       bg: T.blueLight,
       border: T.blueMuted,
@@ -753,13 +763,13 @@ const AlarmStateMatrix: React.FC<{ stats: AlarmStats }> = ({ stats }) => {
             borderRadius: T.radiusSm,
           }}
         >
-          <div style={{
+          <div className="dash-icon-md" style={{
             width: '40px', height: '40px', flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             background: T.card, border: `1px solid ${st.border}`,
-            borderRadius: '8px', fontSize: '18px',
+            borderRadius: '8px', color: st.color,
           }}>
-            {st.icon}
+            <st.Icon />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '10.5px', fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' }}>
@@ -849,7 +859,7 @@ const EmptyState: React.FC<{ message: string }> = ({ message }) => (
     padding: '40px 20px', textAlign: 'center',
     color: T.textMuted, fontSize: '13px', lineHeight: 1.6,
   }}>
-    <div style={{ fontSize: '28px', marginBottom: '10px', opacity: 0.5 }}>⚡</div>
+    <div className="dash-icon-lg" style={{ marginBottom: '10px', opacity: 0.5, display: 'flex', justifyContent: 'center' }}><ObiBoltGoogle /></div>
     {message}
   </div>
 );

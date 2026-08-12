@@ -708,6 +708,14 @@ body {
 /* ---- Flood Alert Banner ---- */
 /* AlarmStateIcon — constrain the obi-* icon glyph to fit the 24px status circle. */
 .alarm-state-icon svg { width: 14px; height: 14px; }
+/* Admin hub tab icons + category chips — obi-* glyphs need explicit sizing. */
+.admin-tab-icon svg { width: 16px; height: 16px; }
+.category-icon svg { width: 16px; height: 16px; }
+/* Dashboard obi-* icon glyphs (small badge / medium tile / large empty-state). */
+.dash-icon-sm svg { width: 16px; height: 16px; }
+.dash-icon-md svg { width: 20px; height: 20px; }
+.dash-icon-lg svg { width: 30px; height: 30px; }
+.form-field__error svg { width: 13px; height: 13px; }
 
 .flood-banner {
   background: linear-gradient(90deg, var(--alert-alarm-background-color), var(--alert-alarm-border-color));
