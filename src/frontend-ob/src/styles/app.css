@@ -706,6 +706,9 @@ body {
 }
 
 /* ---- Flood Alert Banner ---- */
+/* AlarmStateIcon — constrain the obi-* icon glyph to fit the 24px status circle. */
+.alarm-state-icon svg { width: 14px; height: 14px; }
+
 .flood-banner {
   background: linear-gradient(90deg, var(--alert-alarm-background-color), var(--alert-alarm-border-color));
   border-bottom: 2px solid var(--alert-alarm-border-color);

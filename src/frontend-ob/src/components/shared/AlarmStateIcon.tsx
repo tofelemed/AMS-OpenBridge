@@ -1,36 +1,45 @@
 'use client';
 
 import React from 'react';
+import { ObiWrench } from '@oicl/openbridge-webcomponents-react/icons/icon-wrench';
+import { ObiVolumeOff } from '@oicl/openbridge-webcomponents-react/icons/icon-volume-off';
+import { ObiTimerGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-timer-google';
+import { ObiCheckGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-check-google';
+import { ObiWarningGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-warning-google';
 import type { ActiveAlarm } from '../../store/alarmStore';
 
 interface AlarmStateIconProps {
   alarm: ActiveAlarm;
 }
 
+// ISA-18.2 alarm state → OpenBridge obi-* icon (no emoji). The circle chrome +
+// token color are preserved; only the glyph is now a design-system icon.
 export const AlarmStateIcon: React.FC<AlarmStateIconProps> = ({ alarm }) => {
-  const getStateInfo = () => {
+  const getStateInfo = (): { Icon: React.FC; label: string; color: string } => {
     if (alarm.isOutOfService) {
-      return { icon: '🔧', label: 'Out of Service', color: 'var(--on-container-neutral-color)' };
+      return { Icon: ObiWrench, label: 'Out of Service', color: 'var(--on-container-neutral-color)' };
     }
     if (alarm.isSuppressed) {
-      return { icon: '🔇', label: 'Suppressed', color: 'var(--on-container-neutral-color)' };
+      return { Icon: ObiVolumeOff, label: 'Suppressed', color: 'var(--on-container-neutral-color)' };
     }
     if (alarm.isShelved) {
-      return { icon: '📥', label: 'Shelved', color: 'var(--alert-caution-border-color)' };
+      // Shelving is a timed temporary suppression — the timer icon reads that.
+      return { Icon: ObiTimerGoogle, label: 'Shelved', color: 'var(--alert-caution-border-color)' };
     }
     if (!alarm.conditionActive) {
-      return { icon: '✓', label: 'Cleared', color: 'var(--running-color)' };
+      return { Icon: ObiCheckGoogle, label: 'Cleared', color: 'var(--running-color)' };
     }
     if (alarm.acknowledged) {
-      return { icon: '✓', label: 'Acknowledged', color: 'var(--alert-warning-border-color)' };
+      return { Icon: ObiCheckGoogle, label: 'Acknowledged', color: 'var(--alert-warning-border-color)' };
     }
-    return { icon: '!', label: 'Active', color: 'var(--alert-alarm-border-color)' };
+    return { Icon: ObiWarningGoogle, label: 'Active', color: 'var(--alert-alarm-border-color)' };
   };
 
-  const { icon, label, color } = getStateInfo();
+  const { Icon, label, color } = getStateInfo();
 
   return (
     <span
+      className="alarm-state-icon"
       title={label}
       style={{
         display: 'inline-flex',
@@ -42,11 +51,9 @@ export const AlarmStateIcon: React.FC<AlarmStateIconProps> = ({ alarm }) => {
         background: `color-mix(in srgb, ${color} 15%, transparent)`,
         border: `1px solid ${color}`,
         color,
-        fontSize: '12px',
-        fontWeight: 700,
       }}
     >
-      {icon}
+      <Icon />
     </span>
   );
 };
