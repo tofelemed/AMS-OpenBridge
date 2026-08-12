@@ -17,7 +17,9 @@ import {
   useActivateLoop, useCpmLoops, useCpmReadiness, useCpmRegistryContract,
   useRepublishEvidence,
 } from '../../hooks/useCpm';
+import { activateLoop as activateLoopApi } from '../../api/cpmApi';
 import type { CpmActivateRequest, CpmLoop, CpmTagMapEntry } from '../../api/cpmApi';
+import { useQueryClient } from '@tanstack/react-query';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -455,10 +457,11 @@ function parseCsv(text: string, existingTags: Set<string>): { missing: string[];
 }
 
 const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => void }> = ({ existing, onClose }) => {
-  const activate = useActivateLoop();
   const [text, setText] = useState('');
   const [results, setResults] = useState<{ tag: string; ok: boolean; message?: string }[] | null>(null);
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(null);
+  const qc = useQueryClient();
 
   const existingTags = useMemo(
     () => new Set(existing.map(l => l.loopId.toUpperCase())), [existing]);
@@ -479,31 +482,52 @@ const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => void }> =
   };
 
   const runImport = async () => {
+    // H: was N strictly-sequential mutateAsync calls, each invalidating the loops
+    // query while the list behind the modal was mounted → ~2N serial requests and
+    // no progress. Now: bounded concurrency, a live "k of N" counter, and a SINGLE
+    // invalidation at the end (the per-call mutation invalidation is bypassed by
+    // calling the API directly).
     setImporting(true);
-    const outcome: { tag: string; ok: boolean; message?: string }[] = [];
-    for (const row of valid) {
-      const v = row.values;
-      const tags: CpmTagMapEntry[] = [];
-      const add = (role: string, key: string) => { if (v[key]) tags.push({ signalRole: role, unsPath: v[key] }); };
-      add('PV', 'pv_tag'); add('SP', 'sp_tag'); add('OP', 'op_tag'); add('MODE', 'mode_tag'); add('VP', 'vp_tag');
-      try {
-        await activate.mutateAsync({
-          loopId: v['tag'].toUpperCase(),
-          displayName: v['service'],
-          site: v['site'],
-          area: v['area'] || null,
-          loopType: v['loop_type'].toUpperCase(),
-          criticality: v['criticality'] || null,
-          tags,
-          thresholdProfileId: v['profile'] || null,
-          enableMonitoring: true,
-        });
-        outcome.push({ tag: v['tag'], ok: true });
-      } catch (err) {
-        outcome.push({ tag: v['tag'], ok: false, message: String(err) });
+    setResults(null);
+    setImportProgress({ done: 0, total: valid.length });
+    const outcome: { tag: string; ok: boolean; message?: string }[] = new Array(valid.length);
+    let cursor = 0;
+    let done = 0;
+    const CONCURRENCY = 4;
+
+    const worker = async () => {
+      while (true) {
+        const idx = cursor++;
+        if (idx >= valid.length) return;
+        const v = valid[idx].values;
+        const tags: CpmTagMapEntry[] = [];
+        const add = (role: string, key: string) => { if (v[key]) tags.push({ signalRole: role, unsPath: v[key] }); };
+        add('PV', 'pv_tag'); add('SP', 'sp_tag'); add('OP', 'op_tag'); add('MODE', 'mode_tag'); add('VP', 'vp_tag');
+        try {
+          await activateLoopApi({
+            loopId: v['tag'].toUpperCase(),
+            displayName: v['service'],
+            site: v['site'],
+            area: v['area'] || null,
+            loopType: v['loop_type'].toUpperCase(),
+            criticality: v['criticality'] || null,
+            tags,
+            thresholdProfileId: v['profile'] || null,
+            enableMonitoring: true,
+          });
+          outcome[idx] = { tag: v['tag'], ok: true };
+        } catch (err) {
+          outcome[idx] = { tag: v['tag'], ok: false, message: err instanceof Error ? err.message : String(err) };
+        }
+        done++;
+        setImportProgress({ done, total: valid.length });
       }
-    }
+    };
+
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, valid.length) }, () => worker()));
+    void qc.invalidateQueries({ queryKey: ['cpm', 'loops'] }); // one refresh, not N
     setResults(outcome);
+    setImportProgress(null);
     setImporting(false);
   };
 
@@ -556,7 +580,7 @@ const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => void }> =
             disabled={valid.length === 0 || parsed.missing.length > 0 || importing}
             onClick={runImport}
           >
-            {importing ? 'Importing…' : 'Import & activate'}
+            {importing ? `Importing… ${importProgress?.done ?? 0} of ${importProgress?.total ?? valid.length}` : 'Import & activate'}
           </ObcButton>
         </div>
       </div>

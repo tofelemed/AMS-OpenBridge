@@ -30,6 +30,7 @@ import { isOpcAckWriteable, opcAckSkipReason } from '../../utils/opcAckWriteable
 import {
   acknowledgeAlarmsBatch,
   shelveAlarm as shelveAlarmApi,
+  unshelveAlarm as unshelveAlarmApi,
   suppressAlarm as suppressAlarmApi,
   setAlarmOutOfService as setAlarmOutOfServiceApi,
 } from '../../api/alarmApi';
@@ -190,35 +191,41 @@ const AlarmConsole: React.FC = () => {
   }, [ackDialogAlarms, clearSel, applyAckLifecycle]);
 
   const handleShelveConfirm = useCallback(async (durationMinutes: number, comment: string, operatorStation: string) => {
-    try {
-      await Promise.all(
-        shelveDialogAlarms.map(a => shelveAlarmApi(a.id, durationMinutes, comment, operatorStation)),
-      );
-      toast.success(`Shelve command sent for ${shelveDialogAlarms.length} alarm(s). State updates via SignalR.`);
-      clearSel();
-    } catch {
-      toast.error('Shelve command failed');
-    }
+    // H: allSettled (not Promise.all) so a partial failure doesn't misreport the
+    // whole batch; on ANY failure we THROW so the dialog stays open and shows the
+    // inline error (its catch was dead code because this used to swallow errors).
+    const results = await Promise.allSettled(
+      shelveDialogAlarms.map(a => shelveAlarmApi(a.id, durationMinutes, comment, operatorStation)),
+    );
+    const failed = results.filter(r => r.status === 'rejected').length;
+    const ok = results.length - failed;
+    if (ok > 0) toast.success(`Shelve command sent for ${ok} alarm(s). State updates via SignalR.`);
+    if (failed > 0) throw new Error(`${failed} of ${results.length} shelve command(s) failed.`);
+    clearSel();
   }, [shelveDialogAlarms, clearSel]);
+
+  // G: real unshelve (no dialog — it takes no parameters).
+  const handleUnshelve = useCallback(async (alarm: ActiveAlarm) => {
+    try {
+      await unshelveAlarmApi(alarm.id, 'CCR-01');
+      toast.success('Unshelve command sent. State updates via SignalR.');
+    } catch {
+      toast.error('Unshelve command failed');
+    }
+  }, []);
 
   const handleSuppressConfirm = useCallback(async (reason: string, operatorStation: string) => {
     if (!suppressTarget) return;
-    try {
-      await suppressAlarmApi(suppressTarget.id, reason, operatorStation);
-      toast.success(`Suppress command sent for ${suppressTarget.sourceName}.`);
-    } catch {
-      toast.error('Suppress command failed');
-    }
+    // H: let a failure reject so the dialog keeps its inline error and stays open.
+    await suppressAlarmApi(suppressTarget.id, reason, operatorStation);
+    toast.success(`Suppress command sent for ${suppressTarget.sourceName}.`);
   }, [suppressTarget]);
 
   const handleOosConfirm = useCallback(async (reason: string, operatorStation: string) => {
     if (!oosTarget) return;
-    try {
-      await setAlarmOutOfServiceApi(oosTarget.id, reason, operatorStation);
-      toast.success(`Out-of-service command sent for ${oosTarget.sourceName}.`);
-    } catch {
-      toast.error('Out-of-service command failed');
-    }
+    // H: reject on failure so the dialog shows its inline error and stays open.
+    await setAlarmOutOfServiceApi(oosTarget.id, reason, operatorStation);
+    toast.success(`Out-of-service command sent for ${oosTarget.sourceName}.`);
   }, [oosTarget]);
 
   // ─── Column definitions ────────────────────────────────────────────────────
@@ -604,6 +611,9 @@ const AlarmConsole: React.FC = () => {
 
   useHotkeys('f5', (e) => {
     e.preventDefault();
+    // G: was a cells-only repaint that looked like a refresh but re-fetched
+    // nothing. Now re-hydrates from the API too.
+    void useAlarmStore.getState().refreshActiveAlarms();
     gridRef.current?.api.refreshCells({ force: true });
   });
 
@@ -713,7 +723,10 @@ const AlarmConsole: React.FC = () => {
         <ObcButton
           variant="flat"
           size="small"
-          onClick={() => gridRef.current?.api.refreshCells({ force: true })}
+          onClick={() => {
+            void useAlarmStore.getState().refreshActiveAlarms();
+            gridRef.current?.api.refreshCells({ force: true });
+          }}
         >
           ↻ Refresh (F5)
         </ObcButton>
@@ -786,6 +799,7 @@ const AlarmConsole: React.FC = () => {
           onClose={() => setContextMenu(null)}
           onAcknowledge={(alarm) => { setContextMenu(null); openAckDialog([alarm]); }}
           onShelve={(alarm) => { setContextMenu(null); openShelveDialog([alarm]); }}
+          onUnshelve={(alarm) => { setContextMenu(null); void handleUnshelve(alarm); }}
           onSuppress={(alarm) => { setContextMenu(null); openSuppressDialog(alarm); }}
           onOutOfService={(alarm) => { setContextMenu(null); openOosDialog(alarm); }}
           onViewDetails={(alarm) => { setContextMenu(null); openDetailPanel(alarm); }}

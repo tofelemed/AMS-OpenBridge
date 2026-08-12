@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObcCheckbox } from '@oicl/openbridge-webcomponents-react/components/checkbox/checkbox';
 import { CheckboxStatus } from '@oicl/openbridge-webcomponents/dist/components/checkbox/checkbox.js';
@@ -55,14 +55,21 @@ export const RolesConfig: React.FC = () => {
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
   }, [catalog]);
 
+  // H: clicking role A then role B could leave A selected if A's response landed
+  // last — a sequence guard makes the latest click win regardless of order.
+  const loadSeq = useRef(0);
   const loadRole = useCallback(async (role: string) => {
+    const seq = ++loadSeq.current;
     setError(null); setNotice(null);
+    setSelected(role); // optimistic — the row highlights immediately
     try {
       const perms = await getRolePermissions(role);
-      setSelected(role);
+      if (seq !== loadSeq.current) return; // a newer click superseded this one
       setSelectedPerms(new Set(perms));
       setBaseline(new Set(perms));
-    } catch (e) { setError(extractRoleApiError(e)); }
+    } catch (e) {
+      if (seq === loadSeq.current) setError(extractRoleApiError(e));
+    }
   }, []);
 
   const refresh = useCallback(async (keep?: string) => {

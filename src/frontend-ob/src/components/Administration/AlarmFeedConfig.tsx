@@ -38,6 +38,7 @@ export const AlarmFeedConfig: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isTesting, setIsTesting] = useState(false);
   const [testUrl,   setTestUrl]   = useState('');
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   const reload = useCallback(async () => {
     try {
@@ -57,10 +58,21 @@ export const AlarmFeedConfig: React.FC = () => {
 
   const handleTest = async () => {
     if (!testUrl.trim()) return;
+    setIsTesting(true);
+    setTestResult(null);
     try {
-      setIsTesting(true);
-      await authedAxios.post('/api/v1/admin/alarm-feed/test', { feedUrl: testUrl.trim() });
-    } finally { setIsTesting(false); }
+      const res = await authedAxios.post<{ success: boolean; message?: string; statusCode?: number }>(
+        '/api/v1/admin/alarm-feed/test', { feedUrl: testUrl.trim() });
+      const d = res.data;
+      setTestResult({
+        ok: !!d.success,
+        message: d.message || (d.success ? `OK (HTTP ${d.statusCode ?? 200})` : `Failed (HTTP ${d.statusCode ?? '—'})`),
+      });
+    } catch (err) {
+      setTestResult({ ok: false, message: err instanceof Error ? err.message : 'Probe request failed' });
+    } finally {
+      setIsTesting(false);
+    }
   };
 
   if (isLoading && !status) {
@@ -159,6 +171,16 @@ export const AlarmFeedConfig: React.FC = () => {
             Refresh
           </ObcButton>
         </div>
+        {testResult && (
+          <div role="status" style={{
+            marginTop: '10px', padding: '9px 14px', borderRadius: T.radiusSm, fontSize: '13px', fontWeight: 600,
+            background: testResult.ok ? T.successBg : T.criticalBg,
+            border: `1px solid ${testResult.ok ? T.success : T.critical}`,
+            color: testResult.ok ? T.success : T.critical,
+          }}>
+            {testResult.ok ? '✓ ' : '✗ '}{testResult.message}
+          </div>
+        )}
       </ConfigSection>
     </div>
   );

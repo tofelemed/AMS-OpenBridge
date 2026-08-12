@@ -92,6 +92,17 @@ export async function shelveAlarm(
   );
 }
 
+// G: the reversal endpoint the context menu promised but never called — the
+// "Unshelve" item used to re-open the Shelve dialog and re-shelve instead.
+// (Backend has POST /{id}/unshelve; there is deliberately no unsuppress /
+// return-to-service endpoint, so the menu no longer pretends those reverse.)
+export async function unshelveAlarm(
+  alarmId: string,
+  operatorStation: string,
+): Promise<void> {
+  await authedAxios.post(`/api/v1/alarms/${alarmId}/unshelve`, { operatorStation });
+}
+
 export async function suppressAlarm(
   alarmId: string,
   reason: string,

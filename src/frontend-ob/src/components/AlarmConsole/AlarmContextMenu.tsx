@@ -10,6 +10,7 @@ interface AlarmContextMenuProps {
   onClose: () => void;
   onAcknowledge: (alarm: ActiveAlarm) => void;
   onShelve: (alarm: ActiveAlarm) => void;
+  onUnshelve: (alarm: ActiveAlarm) => void;
   onSuppress: (alarm: ActiveAlarm) => void;
   onOutOfService: (alarm: ActiveAlarm) => void;
   onViewDetails: (alarm: ActiveAlarm) => void;
@@ -32,6 +33,7 @@ export const AlarmContextMenu: React.FC<AlarmContextMenuProps> = ({
   onClose,
   onAcknowledge,
   onShelve,
+  onUnshelve,
   onSuppress,
   onOutOfService,
   onViewDetails,
@@ -67,20 +69,26 @@ export const AlarmContextMenu: React.FC<AlarmContextMenuProps> = ({
       onClick: () => onAcknowledge(alarm),
     },
     {
+      // G: 'Unshelve' now calls the real POST /{id}/unshelve (it used to re-open
+      // the shelve dialog and re-shelve).
       icon: '📥',
       label: alarm.isShelved ? 'Unshelve' : 'Shelve...',
-      onClick: () => onShelve(alarm),
+      onClick: () => (alarm.isShelved ? onUnshelve(alarm) : onShelve(alarm)),
       separator: false,
     },
     {
+      // G: there is no unsuppress endpoint — offer Suppress only when not
+      // suppressed, and label the suppressed state honestly instead of showing
+      // an 'Unsuppress' action that silently does nothing.
       icon: '🔇',
-      label: alarm.isSuppressed ? 'Unsuppress' : 'Suppress...',
+      label: alarm.isSuppressed ? 'Suppressed (clears on RTN)' : 'Suppress...',
       disabled: alarm.isSuppressed,
       onClick: () => onSuppress(alarm),
     },
     {
+      // G: no return-to-service endpoint — same honesty as suppress.
       icon: '🔧',
-      label: alarm.isOutOfService ? 'Return to Service' : 'Set Out of Service...',
+      label: alarm.isOutOfService ? 'Out of service' : 'Set Out of Service...',
       disabled: alarm.isOutOfService,
       danger: true,
       onClick: () => onOutOfService(alarm),

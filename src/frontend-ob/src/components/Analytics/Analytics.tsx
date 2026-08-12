@@ -112,6 +112,24 @@ const Analytics: React.FC = () => {
     falseAlarmRate: data?.falseAlarmRatePercent,
   };
 
+  // G: was a dead button with no onClick. Exports the KPIs currently on screen
+  // as a JSON file client-side — a real action, no new endpoint, no token leak.
+  const handleExport = () => {
+    const payload = {
+      generatedAt: new Date().toISOString(),
+      standard: 'ISA-18.2 / EEMUA-191',
+      liveStats: stats,
+      kpis: data ?? null,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ams-analytics-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px', padding: '4px 0' }}>
 
@@ -126,15 +144,17 @@ const Analytics: React.FC = () => {
           </p>
         </div>
         <button
+          onClick={handleExport}
+          disabled={!data}
           style={{
             display: 'inline-flex', alignItems: 'center', gap: '7px',
             background: T.card, color: T.blue,
             border: `1.5px solid ${T.blue}`, borderRadius: T.radiusSm,
             padding: '9px 20px', fontSize: '13px', fontWeight: 600,
-            cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
-            transition: 'background 140ms ease',
+            cursor: data ? 'pointer' : 'not-allowed', fontFamily: 'inherit', flexShrink: 0,
+            opacity: data ? 1 : 0.6, transition: 'background 140ms ease',
           }}
-          onMouseEnter={e => (e.currentTarget.style.background = T.blueLight)}
+          onMouseEnter={e => data && (e.currentTarget.style.background = T.blueLight)}
           onMouseLeave={e => (e.currentTarget.style.background = T.card)}
         >
           ↓ Export ISA-18.2 Report

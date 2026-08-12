@@ -166,7 +166,7 @@ const AuditExplorer: React.FC = () => {
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: T.success, flexShrink: 0 }} title="Hash verified" />
+                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: T.textMuted, flexShrink: 0 }} title="Hash recorded (run Verify to check the chain)" />
                       <span style={{ fontFamily: "'Noto Sans Mono', monospace", fontSize: '11.5px', color: T.textMuted }}>
                         {e.currentHash.substring(0, 12)}…
                       </span>

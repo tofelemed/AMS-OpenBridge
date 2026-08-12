@@ -68,14 +68,19 @@ export const UserManagementConfig: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const debouncedSearch = useDebounce(searchInput, 400);
+  const [page, setPage] = useState(1); // H: real pagination — 100+ accounts were invisible
 
   const filters: UsersFilters = useMemo(() => {
-    const f: UsersFilters = { page: 1, pageSize: 100 };
+    const f: UsersFilters = { page, pageSize: 50 };
     if (debouncedSearch) f.search = debouncedSearch;
     if (roleFilter !== 'all') f.role = roleFilter;
     if (statusFilter !== 'all') f.status = statusFilter;
     return f;
-  }, [debouncedSearch, roleFilter, statusFilter]);
+  }, [page, debouncedSearch, roleFilter, statusFilter]);
+
+  // H: reset to page 1 whenever a filter narrows the set (else page N of the old
+  // result shows a false "no users").
+  useEffect(() => { setPage(1); }, [debouncedSearch, roleFilter, statusFilter]);
 
   const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
     queryKey: ['admin-users', filters],
@@ -267,6 +272,19 @@ export const UserManagementConfig: React.FC = () => {
           </tbody>
         </table>
       </div>
+      {data?.pagination && data.pagination.totalPages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12, padding: '4px 2px' }}>
+          <span style={{ fontSize: 12, color: T.textSub }}>
+            Page {data.pagination.page} of {data.pagination.totalPages} · {data.pagination.total} users
+          </span>
+          <ObcButton variant="flat" disabled={page <= 1 || isFetching} onClick={() => setPage(p => Math.max(1, p - 1))}>
+            ‹ Prev
+          </ObcButton>
+          <ObcButton variant="flat" disabled={page >= data.pagination.totalPages || isFetching} onClick={() => setPage(p => p + 1)}>
+            Next ›
+          </ObcButton>
+        </div>
+      )}
       {isFetching && !isLoading && <div style={{ fontSize: 12, color: T.blue }}>Refreshing…</div>}
 
       {/* Create / edit modal */}
