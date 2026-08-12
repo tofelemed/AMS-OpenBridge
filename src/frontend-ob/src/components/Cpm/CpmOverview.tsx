@@ -34,6 +34,31 @@ function cssVar(name: string, fallback: string): string {
 const fmtTime = (iso: string | null) =>
   iso ? new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—';
 
+/**
+ * Compact good-error% micro-bar for a priority-queue row (data already in the
+ * rankings payload — no new endpoint). Good-error% is share of samples inside the
+ * acceptable band (higher = better); MAE is the fallback text when % is absent.
+ */
+const GoodErrorBar: React.FC<{ pct: number | null; mae: number | null }> = ({ pct, mae }) => {
+  if (pct == null && mae == null) return null;
+  if (pct == null) {
+    return <div className="cpm-event-row__sub" style={{ fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>MAE {mae!.toFixed(2)}</div>;
+  }
+  const clamped = Math.max(0, Math.min(100, pct));
+  const color = pct >= 80 ? 'var(--alert-running-color)' : pct >= 50 ? 'var(--alert-caution-color)' : 'var(--alert-alarm-color)';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, maxWidth: 220 }}
+      title={`Good-error ${pct.toFixed(0)}%${mae != null ? ` · MAE ${mae.toFixed(2)}` : ''}`}>
+      <span style={{ position: 'relative', flex: 1, height: 4, borderRadius: 2, background: 'var(--container-section-color)', overflow: 'hidden', minWidth: 48 }}>
+        <span style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${clamped}%`, background: color, borderRadius: 2 }} />
+      </span>
+      <span className="cpm-event-row__sub" style={{ fontVariantNumeric: 'tabular-nums', minWidth: 46, textAlign: 'right' }}>
+        good {pct.toFixed(0)}%
+      </span>
+    </div>
+  );
+};
+
 export const CpmOverview: React.FC = () => {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
@@ -97,6 +122,7 @@ export const CpmOverview: React.FC = () => {
               <span>
                 <span className="cpm-event-row__title">{l.loopId}</span>
                 <div className="cpm-event-row__sub">{l.displayName} · {l.area ?? l.site}</div>
+                <GoodErrorBar pct={l.metrics.goodErrorPct} mae={l.metrics.mae} />
               </span>
               <span className="cpm-event-row__sub">
                 {l.confidence != null ? `${(l.confidence * 100).toFixed(0)}% conf` : '—'}
@@ -190,15 +216,22 @@ const PipelinePanel: React.FC = () => {
             value={j.state} />
         ))}
       </div>
-      <div className="cpm-window-rows">
-        {WINDOW_ROWS.map(w => (
-          <div key={w.label} className="cpm-window-row">
-            <strong>{w.label}</strong>
-            <span className="cpm-event-row__sub">{w.kind}</span>
-            <span className="cpm-event-row__sub">→ {w.output}</span>
-          </div>
-        ))}
-      </div>
+      {/* The window catalogue is static reference material — collapsed by default so
+          the live job states above stay the focus. */}
+      <details className="cpm-window-disclosure">
+        <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '13px', color: 'var(--element-active-color)', padding: '4px 0' }}>
+          How the analysis windows work
+        </summary>
+        <div className="cpm-window-rows" style={{ marginTop: 8 }}>
+          {WINDOW_ROWS.map(w => (
+            <div key={w.label} className="cpm-window-row">
+              <strong>{w.label}</strong>
+              <span className="cpm-event-row__sub">{w.kind}</span>
+              <span className="cpm-event-row__sub">→ {w.output}</span>
+            </div>
+          ))}
+        </div>
+      </details>
     </section>
   );
 };
@@ -268,8 +301,9 @@ const LoopFocus: React.FC<{
       <PanelHead eyebrow={displayName} title={loopId}
         right={<ObcButton variant="raised" onClick={onOpenAnalysis}>Open analysis →</ObcButton>} />
       <div className="cpm-filter-row" style={{ marginBottom: 8 }}>
-        {/* Live signal row (F0.5): RBE means "no update" ≠ 0 — absent renders as —. */}
-        <TonePill tone="good">PV {fmtLive(live.pv)}</TonePill>
+        {/* Live signal row (F0.5): RBE means "no update" ≠ 0 — absent renders as —.
+            PV pill tone follows the signal QUALITY so a bad-quality PV reads bad. */}
+        <TonePill tone={q.tone}>PV {fmtLive(live.pv)}</TonePill>
         <TonePill tone="muted">SP {fmtLive(live.sp)}</TonePill>
         <TonePill tone="warn">OP {fmtLive(live.op)}</TonePill>
         <TonePill tone="muted">MODE {fmtLive(live.mode)}</TonePill>

@@ -3,6 +3,7 @@
 import React, { useMemo, useEffect } from 'react';
 import { useAlarmStore, type AlarmStats } from '../../store/alarmStore';
 import { useMqttStore } from '../../store/mqttStore';
+import { useAlarmAnalytics } from '../../hooks/useAlarmAnalytics';
 import { useNavigate } from 'react-router-dom';
 
 /* ─────────────────────────────────────────────
@@ -13,7 +14,12 @@ const Dashboard: React.FC = () => {
   const stats   = useAlarmStore(s => s.stats);
   const alarms  = useAlarmStore(s => s.alarms);
   const servers = useAlarmStore(s => s.serverStatuses);
+  const lastUpdated = useAlarmStore(s => s.lastUpdated);
   const navigate = useNavigate();
+
+  // Plant-wide KPIs shared with the Analytics page (same react-query key — no
+  // extra request). MTTA and the 24h rate sparkline come from here.
+  const { data: analytics } = useAlarmAnalytics();
 
   // Phase 5 — connect MQTT on dashboard mount; disconnect on unmount
   const mqttConnect         = useMqttStore(s => s.connect);
@@ -49,7 +55,11 @@ const Dashboard: React.FC = () => {
   const connectedServers = [...servers.values()].filter(s => s.isConnected).length;
   const alarmRateWarning = stats.alarmsPerTenMin > 1.0 && !stats.floodActive;
 
-  const nowStr = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  // "Updated" reflects the last time alarm state actually changed (alarmStore),
+  // not a render-time clock that ticked just because React re-rendered.
+  const updatedStr = lastUpdated
+    ? new Date(lastUpdated).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+    : '—';
 
   // FE-05: a cold load used to render ZEROS while hydrating — indistinguishable from a
   // quiet plant. Until the first hydration completes, say we're loading.
@@ -82,7 +92,7 @@ const Dashboard: React.FC = () => {
           </div>
           <p style={{ color: T.textSecondary, fontSize: '13.5px', margin: 0, fontWeight: 400 }}>
             ISA-18.2 / EEMUA 191 — Real-time operational awareness&ensp;·&ensp;
-            <span style={{ color: T.textMuted }}>Updated {nowStr}</span>
+            <span style={{ color: T.textMuted }}>Updated {updatedStr}</span>
           </p>
         </div>
         <button
@@ -114,6 +124,7 @@ const Dashboard: React.FC = () => {
             sub={`${stats.alarmsPerTenMin.toFixed(1)} per 10 min`}
             status={stats.totalActive > 100 ? 'warning' : stats.totalActive > 0 ? 'active' : 'ok'}
             icon="⚠"
+            onClick={() => navigate('/alarms')}
           />
           <PrimaryKpi
             label="Critical Alarms"
@@ -121,6 +132,7 @@ const Dashboard: React.FC = () => {
             sub={stats.totalCritical > 0 ? 'Immediate action required' : 'No critical conditions'}
             status={stats.totalCritical > 0 ? 'critical' : 'ok'}
             icon="🚨"
+            onClick={() => navigate('/alarms?priority=CRITICAL')}
           />
           <PrimaryKpi
             label="Unacknowledged"
@@ -128,6 +140,7 @@ const Dashboard: React.FC = () => {
             sub="Requires operator action"
             status={stats.unacknowledged > 20 ? 'warning' : stats.unacknowledged > 0 ? 'active' : 'ok'}
             icon="✗"
+            onClick={() => navigate('/alarms?unacked=1')}
           />
           <PrimaryKpi
             label="Alarm Rate"
@@ -138,6 +151,7 @@ const Dashboard: React.FC = () => {
             unit="/ 10 min"
           />
         </div>
+        <RateSparkline points={analytics?.hourlyRates} />
       </SectionBlock>
 
       {/* ── LEVEL 2 — System Status KPIs ───────────────── */}
@@ -176,7 +190,11 @@ const Dashboard: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <OperatorMetric
               label="Mean Time to Acknowledge"
-              value={operatorMetrics.avgMtta > 0 ? `${operatorMetrics.avgMtta.toFixed(1)}s` : '—'}
+              // Prefer the plant-wide MTTA from /analytics/kpi (shared query) over the
+              // session-only compute; fall back to the session value if unavailable.
+              value={analytics?.meanTimeToAckSec != null
+                ? `${analytics.meanTimeToAckSec.toFixed(1)}s`
+                : operatorMetrics.avgMtta > 0 ? `${operatorMetrics.avgMtta.toFixed(1)}s` : '—'}
               description="Avg. operator response time"
               accentColor={T.blue}
             />
@@ -330,6 +348,53 @@ const SectionBlock: React.FC<{ label: string; level: number; children: React.Rea
 );
 
 /* ═══════════════════════════════════════════════════════
+   24-HOUR ALARM-RATE SPARKLINE (Level 1)
+   Reuses the Analytics hourlyRates (shared query) — no new endpoint. The ISA-18.2
+   target of 1.0 alarms / 10 min = 6 / hour is drawn as a dashed reference line.
+   ═══════════════════════════════════════════════════════ */
+const ISA_TARGET_PER_HOUR = 6;
+
+const RateSparkline: React.FC<{ points?: Array<{ hour?: string; count?: number; rate?: number }> }> = ({ points }) => {
+  const values = (points ?? []).slice(-24).map(p => p.rate ?? p.count ?? 0);
+  if (values.length < 2) return null; // nothing meaningful to draw yet
+
+  const W = 100, H = 28;
+  const max = Math.max(ISA_TARGET_PER_HOUR, ...values, 1);
+  const stepX = W / (values.length - 1);
+  const y = (v: number) => H - (v / max) * H;
+  const line = values.map((v, i) => `${i === 0 ? 'M' : 'L'} ${(i * stepX).toFixed(2)},${y(v).toFixed(2)}`).join(' ');
+  const area = `${line} L ${W.toFixed(2)},${H} L 0,${H} Z`;
+  const targetY = y(ISA_TARGET_PER_HOUR).toFixed(2);
+  const peak = Math.max(...values);
+  const overTarget = values.filter(v => v > ISA_TARGET_PER_HOUR).length;
+
+  return (
+    <div style={{
+      marginTop: '16px', display: 'flex', alignItems: 'center', gap: '16px',
+      background: T.bg, border: `1px solid ${T.borderLight}`, borderRadius: T.radiusSm, padding: '12px 16px',
+    }}>
+      <div style={{ flexShrink: 0 }}>
+        <div style={{ fontSize: '10.5px', fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          Alarm rate — last 24 h
+        </div>
+        <div style={{ fontSize: '12px', color: T.textSecondary, marginTop: '2px' }}>
+          Peak {peak.toFixed(0)}/hr · {overTarget} h over target
+        </div>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Alarm rate over the last 24 hours"
+        style={{ flex: 1, height: '40px', width: '100%', display: 'block', overflow: 'visible' }}>
+        <line x1="0" y1={targetY} x2={W} y2={targetY} style={{ stroke: T.caution }} strokeWidth="0.75" strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />
+        <path d={area} style={{ fill: T.blue, opacity: 0.12 }} />
+        <path d={line} fill="none" style={{ stroke: T.blue }} strokeWidth="1.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+      </svg>
+      <div style={{ flexShrink: 0, fontSize: '10.5px', color: T.caution, fontWeight: 700, whiteSpace: 'nowrap' }}>
+        ISA {ISA_TARGET_PER_HOUR}/hr
+      </div>
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════
    PRIMARY KPI CARD (Level 1)
    ═══════════════════════════════════════════════════════ */
 type KpiStatus = 'ok' | 'active' | 'warning' | 'critical' | 'neutral';
@@ -369,21 +434,33 @@ interface PrimaryKpiProps {
   status?: KpiStatus;
   icon?: string;
   unit?: string;
+  /** When set, the card becomes a button that drills into the alarm console with a filter preset. */
+  onClick?: () => void;
 }
 
-const PrimaryKpi: React.FC<PrimaryKpiProps> = ({ label, value, sub, status = 'neutral', icon, unit }) => {
+const PrimaryKpi: React.FC<PrimaryKpiProps> = ({ label, value, sub, status = 'neutral', icon, unit, onClick }) => {
   const s = STATUS_STYLES[status];
+  const clickable = !!onClick;
   return (
-    <div style={{
+    <div
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick!(); } } : undefined}
+      title={clickable ? 'Open in the alarm console' : undefined}
+      style={{
       background: T.card,
       border: `1px solid ${T.border}`,
       borderRadius: T.radius,
       overflow: 'hidden',
       boxShadow: T.shadow,
       transition: 'box-shadow 180ms ease',
-      cursor: 'default',
+      cursor: clickable ? 'pointer' : 'default',
       display: 'flex', flexDirection: 'column',
-    }}>
+    }}
+      onMouseEnter={clickable ? (e) => (e.currentTarget.style.boxShadow = T.shadowHover) : undefined}
+      onMouseLeave={clickable ? (e) => (e.currentTarget.style.boxShadow = T.shadow) : undefined}
+    >
       {/* Accent bar */}
       <div style={{ height: '3px', background: s.bar, flexShrink: 0 }} />
 

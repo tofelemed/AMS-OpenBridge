@@ -20,6 +20,7 @@ import './ag-theme-openbridge.css';
 import './alarm-console.css';
 import { toast } from 'react-toastify';
 import { useHotkeys } from 'react-hotkeys-hook';
+import { useSearchParams } from 'react-router-dom';
 
 import { useAlarmStore, type ActiveAlarm } from '../../store/alarmStore';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -66,6 +67,17 @@ const AlarmConsole: React.FC = () => {
   const lastUpdated = useAlarmStore(s => s.lastUpdated);
   const { showLiveEvents, toggleLiveEvents } = useLiveEventsPanel();
 
+  // Drill-in presets (from the Dashboard KPI cards): /alarms?priority=CRITICAL, ?unacked=1.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const presetPriority = (searchParams.get('priority') ?? '').toUpperCase() || null;
+  const presetUnacked = searchParams.get('unacked') === '1';
+  const clearPreset = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('priority');
+    next.delete('unacked');
+    setSearchParams(next, { replace: true });
+  };
+
   // Dialog / panel state
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; alarm: ActiveAlarm } | null>(null);
   const [quickFilter, setQuickFilter] = useState('');
@@ -91,10 +103,12 @@ const AlarmConsole: React.FC = () => {
 
   const rowData = useMemo(() => {
     const filter = (a: ActiveAlarm) =>
-      alarmMatchesConnectedOpcServer(a, connectedOpcServerIds) && isDisplayableOpcAlarm(a);
+      alarmMatchesConnectedOpcServer(a, connectedOpcServerIds) && isDisplayableOpcAlarm(a)
+      && (!presetPriority || (a.priority ?? '').toUpperCase() === presetPriority)
+      && (!presetUnacked || !a.acknowledged);
     if (isFrozen) return frozenData.filter(filter).sort(sortAlarmsForConsole);
     return Array.from(alarms.values()).filter(filter).sort(sortAlarmsForConsole);
-  }, [alarms, isFrozen, frozenData, connectedOpcServerIds]);
+  }, [alarms, isFrozen, frozenData, connectedOpcServerIds, presetPriority, presetUnacked]);
 
   const rowDataRef = useRef(rowData);
   rowDataRef.current = rowData;
@@ -668,6 +682,26 @@ const AlarmConsole: React.FC = () => {
             </button>
           )}
         </div>
+
+        {(presetPriority || presetUnacked) && (
+          <span
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700,
+              background: 'var(--container-section-color)', color: 'var(--element-active-color)',
+              border: '1px solid var(--element-active-color)', whiteSpace: 'nowrap',
+            }}
+          >
+            {presetPriority ? `Priority: ${presetPriority}` : 'Unacknowledged only'}
+            <button
+              onClick={clearPreset}
+              aria-label="Clear filter preset"
+              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, fontSize: '13px', lineHeight: 1 }}
+            >
+              ✕
+            </button>
+          </span>
+        )}
 
         <div className="toolbar__divider" />
 

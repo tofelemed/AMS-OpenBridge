@@ -2,9 +2,8 @@
 
 import React, { useMemo, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { useQuery } from '@tanstack/react-query';
-import { authedAxios } from '../../api/http';
 import { useAlarmStore } from '../../store/alarmStore';
+import { useAlarmAnalytics } from '../../hooks/useAlarmAnalytics';
 import { T } from '../../styles/theme';
 
 /* ─────────────────────────────────────────
@@ -19,57 +18,11 @@ const CHART_AXIS_STYLE = {
   splitLine: { lineStyle: { color: T.borderLight, type: 'solid' as const } },
 };
 
-interface AnalyticsKpiResponse {
-  hourlyRates?: Array<{ hour?: string; count?: number; rate?: number }>;
-  chatteringCount?: number;
-  fleetingCount?: number;
-  top10ContributionPercent?: number;
-  badActors?: Array<{ sourceName: string; alarmCount?: number; count?: number }>;
-  staleAlarmCount?: number;
-  totalAlarms24h?: number;
-  priorities?: Array<{ priority: string; count: number }>;
-  // Phase 8 (N18) — EEMUA-191 / ISA-18.2 KPIs served by analytics when available (else derived/—).
-  peakAlarmRate?: number;
-  timeInFloodPercent?: number;
-  alarmsPerShift?: number;
-  meanTimeToAckSec?: number;
-  meanTimeToRespondMin?: number;
-  operatorCompliancePercent?: number;
-  falseAlarmRatePercent?: number;
-}
-
-const fetchAnalytics = async () => {
-  // H2: authedAxios (401 replay); skipActivity because this query re-fires on a
-  // 60s interval — a parked Analytics tab must not keep the session alive.
-  const res = await authedAxios.get<AnalyticsKpiResponse>('/api/v1/analytics/kpi', {
-    skipActivity: true,
-  });
-  const raw = res.data;
-
-  const badActors = (raw.badActors ?? []).map(a => {
-    const count = a.alarmCount ?? a.count ?? 0;
-    return { sourceName: a.sourceName, count, alarmCount: count };
-  });
-  const badActorTotal = badActors.reduce((sum, a) => sum + a.count, 0);
-
-  return {
-    ...raw,
-    hourlyRates: raw.hourlyRates ?? [],
-    badActors: badActors.map(a => ({
-      ...a,
-      percentage: badActorTotal > 0 ? (a.count / badActorTotal) * 100 : 0,
-    })),
-  };
-};
-
 const Analytics: React.FC = () => {
   const stats = useAlarmStore(s => s.stats);
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['alarmAnalytics'],
-    queryFn: fetchAnalytics,
-    refetchInterval: 60000,
-  });
+  // Shared with the Dashboard via the ['alarmAnalytics'] key (see useAlarmAnalytics).
+  const { data, isLoading, isError } = useAlarmAnalytics();
 
   // Phase 8 (N18) — drive the EEMUA/ISA-18.2 KPIs from live data (served value first, then a value
   // derived from what the API DOES return), instead of the former hardcoded literals. Anything with no
