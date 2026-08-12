@@ -444,6 +444,26 @@ one page with a role-conditional card action.
 
 ## 8. Design / UX improvement opportunities
 
+**Status (this batch):**
+- ✅ **Theme migration** — done earlier via `styles/theme.ts`; every remaining raw hex is a `var(--token, #fallback)`
+  fallback, a `cssVar()` echarts literal, or a NAMUR swatch (all intentional). Night theme works app-wide.
+- ✅ **Dashboard upgrades** — shared `useAlarmAnalytics` (MTTA from `/analytics/kpi`), KPI cards drill into
+  `/alarms` with a filter preset, 24h alarm-rate sparkline + ISA target line, `lastUpdated` stamp. (Priority
+  donut kept as the token-driven segmented bar — already themes correctly; `ObcDonutChart` API not cleanly
+  resolvable, so not hand-wired.)
+- ✅ **CPM Overview** — good-error%/MAE micro-bar on queue rows, "how it works" disclosure, PV pill tone from quality.
+- ✅ **window.prompt/confirm → Modal dialog service** (`useConfirm`/`usePrompt`, 15 sites).
+- ✅ **Flood/alarm feedback** — `FloodAlertBanner` uses `ObcAlertIcon alert-type="alarm"` (blinking); toastify
+  already themed from `useTheme()` and, after the dialog-service move, scoped to CRUD toasts only.
+- ✅ **Real error page** — `ErrorBoundary` with Reload (shipped in an earlier batch).
+- ◑ **Emoji → obi-\*** — done for the clean/domain-critical targets (`Modal` close, alarm-toolbar search,
+  share button, `AlarmStateIcon`). **Remaining (deferred):** Dashboard KPI/state glyphs, admin-tab icons,
+  display categories, folder-tree glyphs — several concepts (folder, shield, lock, flag, pause) have **no exact
+  obi icon**, so these need a decision (closest-semantic obi, `obi-placeholder`, or leave) rather than silent
+  substitution.
+
+Original opportunity list:
+
 - **Migrate the "old generation" pages onto the CPM token layer** (`styles/cpm.css` + OpenBridge tokens).
   Single highest-leverage design fix — restores night theme app-wide and kills the 398 raw-hex clones.
 - **Swap emoji for `obi-*` icons** everywhere (alarm toolbar inline SVG magnifier, Dashboard KPIs, admin
