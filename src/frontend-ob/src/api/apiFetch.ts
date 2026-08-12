@@ -6,6 +6,24 @@
 import { useAuthStore } from '../store/authStore';
 import { markApiActivity } from '../auth/sessionClock';
 
+// H2: interval-driven refetches are machine-initiated and must NOT extend the
+// idle-session clock — otherwise any page with a poller keeps a parked tab
+// alive forever. Polling queryFns wrap themselves in backgroundPoll(); the
+// counter only needs to cover the SYNCHRONOUS start of the queryFn, which is
+// when apiFetch marks activity.
+let pollDepth = 0;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function backgroundPoll<F extends (...args: any[]) => any>(fn: F): F {
+  return ((...args: Parameters<F>) => {
+    pollDepth++;
+    try {
+      return fn(...args);
+    } finally {
+      pollDepth--;
+    }
+  }) as F;
+}
+
 /** fetch() + Authorization bearer + one silent-refresh retry on 401. */
 export async function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
   const call = (token: string | null) => {
@@ -14,9 +32,10 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
     return fetch(input, { ...init, headers });
   };
 
-  // Session idle clock: every authenticated REST call counts as activity
-  // (login/refresh go through authApi, not here, so they don't self-extend).
-  if (useAuthStore.getState().accessToken) markApiActivity();
+  // Session idle clock: every authenticated USER-initiated REST call counts as
+  // activity (login/refresh go through authApi, not here, so they don't
+  // self-extend; interval polls opt out via backgroundPoll above).
+  if (pollDepth === 0 && useAuthStore.getState().accessToken) markApiActivity();
 
   const res = await call(useAuthStore.getState().accessToken);
   if (res.status !== 401) return res;

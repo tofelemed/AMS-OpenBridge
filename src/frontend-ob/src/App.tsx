@@ -3,7 +3,7 @@
 import React, { useEffect, useState, createContext, useContext } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useAlarmStore } from './store/alarmStore';
 import { useAuthStore } from './store/authStore';
@@ -11,7 +11,6 @@ import { useMqttStore } from './store/mqttStore';
 import { HubConnectionState } from '@microsoft/signalr';
 
 // OpenBridge Components
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObiDashboard } from '@oicl/openbridge-webcomponents-react/icons/icon-dashboard';
 import { ObiAlarm } from '@oicl/openbridge-webcomponents-react/icons/icon-alarm';
 import { ObiMonitoring } from '@oicl/openbridge-webcomponents-react/icons/icon-monitoring';
@@ -28,7 +27,20 @@ import { ObiWrench } from '@oicl/openbridge-webcomponents-react/icons/icon-wrenc
 import { ObiPlaceholder } from '@oicl/openbridge-webcomponents-react/icons/icon-placeholder';
 import CommandPalette from './components/CommandPalette';
 import SessionTimeoutDialog from './components/shared/SessionTimeoutDialog';
+import ErrorBoundary from './components/shared/ErrorBoundary';
 import { expiredReason } from './auth/sessionClock';
+
+// H1: route-level boundary — a crashed page (or failed lazy chunk) renders a
+// recover screen instead of white-screening the whole app; keyed by pathname so
+// navigating away automatically resets the error state.
+const RouteErrorBoundary: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const location = useLocation();
+  return (
+    <ErrorBoundary scope="route" key={location.pathname}>
+      {children}
+    </ErrorBoundary>
+  );
+};
 
 
 // Lazy-loaded pages
@@ -129,11 +141,9 @@ const queryClient = new QueryClient({
 
 const App: React.FC = () => {
   const [ready, setReady] = useState(false);
-  const [error] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>('day');
 
   const authStatus = useAuthStore((s) => s.status);
-  const accessToken = useAuthStore((s) => s.accessToken);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-obc-theme', theme);
@@ -142,6 +152,19 @@ const App: React.FC = () => {
   // Restore an existing session (silent refresh via the httpOnly cookie) once on load.
   useEffect(() => {
     void useAuthStore.getState().bootstrap().finally(() => setReady(true));
+  }, []);
+
+  // H1: background failures used to vanish (or blank the tree via an uncaught
+  // rejection). Surface them: one toast + a console entry with the real error.
+  useEffect(() => {
+    const onRejection = (e: PromiseRejectionEvent) => {
+      console.error('[AMS] Unhandled promise rejection', e.reason);
+      toast.error('A background operation failed. See the browser console for details.', {
+        toastId: 'unhandled-rejection', // collapse repeats into one toast
+      });
+    };
+    window.addEventListener('unhandledrejection', onRejection);
+    return () => window.removeEventListener('unhandledrejection', onRejection);
   }, []);
 
   // Session-policy watchdog: every 60s check the dual clocks — absolute first,
@@ -159,13 +182,21 @@ const App: React.FC = () => {
   }, [authStatus]);
 
   // Connect to live services only while authenticated; tear down on logout.
+  // H4: keyed on authStatus ONLY — this used to also key on accessToken, so
+  // every ~1h token rotation ran the cleanup (killing SignalR AND the MQTT
+  // socket) and the re-run only revived the alarm hub: MQTT stayed dead until
+  // some component remounted, freezing the Live Events rail and open displays.
+  // The hub reads the CURRENT token via its accessTokenFactory (alarmStore),
+  // so rotation needs no transport teardown at all.
   useEffect(() => {
-    if (authStatus !== 'authenticated' || !accessToken) return;
+    if (authStatus !== 'authenticated') return;
+    const token = useAuthStore.getState().accessToken;
+    if (!token) return;
 
     let cancelled = false;
     void useAlarmStore
       .getState()
-      .initialize(accessToken)
+      .initialize(token)
       .catch((e) => console.warn('[AMS] Live initialization failed, degraded mode', e));
 
     const refreshId = setInterval(() => {
@@ -184,9 +215,8 @@ const App: React.FC = () => {
       // tab's lifetime, so a signed-out console kept streaming live plant data.
       useMqttStore.getState().disconnect();
     };
-  }, [authStatus, accessToken]);
+  }, [authStatus]);
 
-  if (error) return <ErrorScreen message={error} />;
   if (!ready) return <LoadingScreen />;
 
   return (
@@ -206,6 +236,7 @@ const App: React.FC = () => {
           />
           {/* Why the session ended (idle/absolute) — survives the redirect to /login. */}
           <SessionTimeoutDialog />
+          <RouteErrorBoundary>
           <Routes>
             {/* Login — standalone, no sidebar/topbar */}
             <Route
@@ -338,6 +369,7 @@ const App: React.FC = () => {
               }
             />
           </Routes>
+          </RouteErrorBoundary>
         </BrowserRouter>
       </QueryClientProvider>
     </ThemeContext.Provider>
@@ -720,15 +752,6 @@ const RouteFallback: React.FC = () => (
     <p style={{ color: 'var(--on-container-neutral-color)', fontSize: '13px' }}>
       Loading…
     </p>
-  </div>
-);
-
-const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
-  <div className="loading-screen">
-    <p style={{ color: 'var(--alert-alarm-border-color)', fontSize: '15px' }}>{message}</p>
-    <ObcButton variant="normal" onClick={() => window.location.reload()}>
-      Retry
-    </ObcButton>
   </div>
 );
 

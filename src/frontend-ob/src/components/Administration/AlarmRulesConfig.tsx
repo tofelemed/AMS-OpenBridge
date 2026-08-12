@@ -16,19 +16,24 @@ export const AlarmRulesConfig: React.FC = () => {
     maxShelveDurationHours: 24, chatteringThreshold: 3,
     chatteringWindowMinutes: 5, autoUnshelve: true, requireAckComment: true,
   });
-  const [isSaving, setIsSaving] = useState(false);
-  const [saved,    setSaved]    = useState(false);
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    await new Promise(r => setTimeout(r, 800));
-    setIsSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+      {/* H6: this page is NOT wired to any backend — it used to fake a green
+          '✓ Saved' after an 800ms timeout while persisting nothing, which in an
+          alarm-management product is a safety-adjacent lie. Until a real
+          settings endpoint exists the page is explicitly read-only. */}
+      <div role="alert" style={{
+        display: 'flex', alignItems: 'center', gap: '10px',
+        background: T.warningBg ?? '#FFFBEB', border: `1px solid ${T.warningBorder ?? '#FDE68A'}`,
+        borderRadius: T.radiusSm, padding: '12px 16px',
+        color: T.warning ?? '#B45309', fontSize: '13px', fontWeight: 600,
+      }}>
+        Not functional yet — these settings are not connected to the backend and cannot be saved.
+        Values shown are illustrative defaults, not the running configuration.
+      </div>
+
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -41,18 +46,17 @@ export const AlarmRulesConfig: React.FC = () => {
           </p>
         </div>
         <button
-          onClick={() => void handleSave()}
-          disabled={isSaving}
+          disabled
+          title="Not connected to a backend yet — changes cannot be saved"
           style={{
             display: 'inline-flex', alignItems: 'center', gap: '6px',
-            background: saved ? T.success : T.blue, color: '#fff',
+            background: T.textMuted, color: '#fff',
             border: 'none', borderRadius: T.radiusSm,
             padding: '8px 20px', fontSize: '13px', fontWeight: 600,
-            cursor: isSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-            transition: 'background 200ms ease',
+            cursor: 'not-allowed', fontFamily: 'inherit',
           }}
         >
-          {isSaving ? 'Saving…' : saved ? '✓ Saved' : 'Save Changes'}
+          Save unavailable
         </button>
       </div>
 

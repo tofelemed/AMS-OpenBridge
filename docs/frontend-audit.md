@@ -140,7 +140,7 @@ N+1 is bulk CSV import.* **Correction:** there is **no SignalR in CPM** — repl
 
 ### Correctness / data-integrity bugs
 
-**H1 — No ErrorBoundary anywhere in the app.** `grep ErrorBoundary|componentDidCatch|
+**H1 — No ErrorBoundary anywhere in the app.** ✅ **FIXED 2026-08-12** (root + route boundary keyed by pathname, chunk-error wording, unhandledrejection toast). `grep ErrorBoundary|componentDidCatch|
 getDerivedStateFromError` = 0 hits; no `window.onerror`/`unhandledrejection`. A failed lazy-chunk
 load (routine after a redeploy invalidates hashed chunks) or any render throw unmounts the whole
 tree to a **permanent white screen**. The one `ErrorScreen` is dead code — `App.tsx:132`'s error
@@ -148,7 +148,7 @@ state has no setter. *Fix:* root boundary around `<App/>` + a route-level bounda
 whose fallback offers Reload; add an `unhandledrejection` listener that toasts + logs.
 (`App.tsx:132,189,726`)
 
-**H2 — Two HTTP stacks invert the idle-session clock.** Only `apiFetch` calls `markApiActivity`.
+**H2 — Two HTTP stacks invert the idle-session clock.** ✅ **FIXED 2026-08-12** (`api/http.ts` authedAxios: activity + 401 replay; hydration/polls exempted via `skipActivity`/`backgroundPoll`). Only `apiFetch` calls `markApiActivity`.
 `alarmApi.ts:8`, `usersApi.ts:5`, `rolesApi.ts:6`, `AlarmFeedConfig`, `Analytics`, `HistoricalViewer`
 use raw axios and mark **nothing** — so an operator whose whole shift is acking/shelving alarms, or
 an admin editing users, generates zero activity and is force-logged-out as "idle" (`App.tsx:152`).
@@ -157,42 +157,42 @@ activity forever**, so a parked tab never idles. Same split also means the axios
 401→refresh→replay. *Fix:* converge on `apiFetch`, or an axios interceptor that marks activity +
 does the refresh-once; exempt `refetchInterval` polls from activity marking. (`apiFetch.ts:19`)
 
-**H3 — `jwtExpMs` uses `atob` on a base64url JWT → proactive refresh is silently dead.** `atob`
+**H3 — `jwtExpMs` uses `atob` on a base64url JWT → proactive refresh is silently dead.** ✅ **FIXED 2026-08-12** (base64url normalize + pad; proven on real + synthetic tokens). `atob`
 throws on `-`/`_`, present in virtually every real JWT, so `scheduleProactiveRefresh` never
 schedules and every session limps on reactive 401-retries — which the axios paths (H2) don't have.
 *Fix:* base64url-normalize before `atob`; add a unit test with a real token. (`authStore.ts:61`)
 
-**H4 — Token rotation tears down MQTT permanently.** The live-services effect is keyed on
+**H4 — Token rotation tears down MQTT permanently.** ✅ **FIXED 2026-08-12** (effect keyed on authStatus only; hub accessTokenFactory reads the current token). The live-services effect is keyed on
 `accessToken`, so every ~1 h rotation runs `mqttStore.disconnect()` in cleanup but the re-run body
 only re-inits the alarm hub — **MQTT never reconnects** until some component remounts. The Live
 Events rail and any open HMI display silently freeze. *Fix:* key the effect on `authStatus` only;
 read the current token inside `initialize` and the hub's `accessTokenFactory`. (`App.tsx:187`)
 
-**H5 — Analytics presents fabricated numbers as live ISA-18.2 KPIs.** Priority donut ignores its
+**H5 — Analytics presents fabricated numbers as live ISA-18.2 KPIs.** ✅ **FIXED 2026-08-12** (donut/bar consume real payload+store; '—' for unserved; MOCK_RCA_ROWS deleted). Priority donut ignores its
 `data` prop and renders hardcoded 12/45/120/240; "Bad Behaviours" is hardcoded 34/89/12/156;
 "Safety Latency 12 ms" / "Data Loss 0%" are literals stamped `status="pass"`; missing API fields
 fall back to invented values (`chattering ?? 34` …); the RCA drill-down shows 25 `Math.random()`
 rows and stamps fake `priorityMix`/`mtta: 14.2s` onto real rows. *Fix:* render `—`/empty states for
 unserved metrics, delete `MOCK_RCA_ROWS`, make the donut consume the payload. (`Analytics.tsx:486,509,627`)
 
-**H6 — Three Admin tabs fake persistence.** Alarm Rules, System Settings, Notifications each do
+**H6 — Three Admin tabs fake persistence.** ✅ **FIXED 2026-08-12** (honest 'Not functional yet' banners, saves disabled, fake sample policies removed — wiring to real endpoints stays open as a feature). Alarm Rules, System Settings, Notifications each do
 `await new Promise(r => setTimeout(r, 800)); setSaved(true)` with **no API call** and lose all edits
 on tab switch — a green "✓ Saved" for a write that never happened. In an alarm-management product a
 fake-saved flood threshold is safety-adjacent. A real `notification-service` exists and is never
 called. *Fix:* wire to real endpoints or remove/stamp "Not yet functional".
 (`AlarmRulesConfig.tsx:22`, `SystemSettingsConfig.tsx:23`, `NotificationsConfig.tsx:36`)
 
-**H7 — `opcAlarmFilter` ignores its argument and hardcodes one server GUID.** Alarms from any OPC
+**H7 — `opcAlarmFilter` ignores its argument and hardcodes one server GUID.** ✅ **FIXED 2026-08-12** (set membership with GUID fallback when the set is empty). Alarms from any OPC
 server whose ID ≠ `f0af9a6d-…` are silently dropped from console, dashboard, and stats; the whole
 `syncConnectedOpcServers`/`VITE_OPC_SERVER_ID` machinery is dead code nothing consults. *Fix:*
 restore the set-membership test with the GUID as fallback. (`opcAlarmFilter.ts:21`)
 
-**H8 — Stats reset to zero on every alarm event.** `recalcStatsFromAlarms` returns
+**H8 — Stats reset to zero on every alarm event.** ✅ **FIXED 2026-08-12** (recalc preserves prior rate/flood; threaded through all 9 call sites). `recalcStatsFromAlarms` returns
 `alarmsPerTenMin: 0, floodActive: false` and is assigned wholesale on every SignalR message, wiping
 the real rate/flood values from `/statistics`/`OnAnalyticsUpdate` — the Dashboard "Alarm Rate" KPI
 flickers to 0.0 after each alarm. *Fix:* preserve prior rate/flood in the recalc. (`alarmStore.ts:186`)
 
-**H9 — Historical Viewer AG-Grid is unstyled when opened directly.** Wrapper carries only
+**H9 — Historical Viewer AG-Grid is unstyled when opened directly.** ✅ **FIXED 2026-08-12** (own CSS imports + compound theme classes). Wrapper carries only
 `ag-theme-openbridge` (the override needs the compound `.ag-theme-alpine.ag-theme-openbridge`) and
 the file imports **none** of the three required AG-Grid CSS files — so `/historical` renders an
 unstyled grid unless the AlarmConsole chunk loaded first. *Fix:* import the CSS and use both classes,

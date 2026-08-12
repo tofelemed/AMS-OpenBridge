@@ -58,7 +58,13 @@ let proactiveTimer: ReturnType<typeof setTimeout> | null = null;
 
 function jwtExpMs(token: string): number | null {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1])) as { exp?: number };
+    // H3: JWTs are base64URL (RFC 7515) — atob() throws on '-'/'_', which real
+    // tokens virtually always contain. Normalize + pad before decoding, or the
+    // proactive-refresh scheduler silently never runs.
+    const b64url = token.split('.')[1] ?? '';
+    const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/')
+      .padEnd(b64url.length + ((4 - (b64url.length % 4)) % 4), '=');
+    const payload = JSON.parse(atob(b64)) as { exp?: number };
     return payload.exp ? payload.exp * 1000 : null;
   } catch {
     return null;

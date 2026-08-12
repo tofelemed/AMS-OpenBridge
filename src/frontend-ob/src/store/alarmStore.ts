@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { enableMapSet } from 'immer';
 import { fetchAllActiveAlarms, fetchAlarmStatistics, fetchConnectedOpcAeServers, purgeLabInjectedAlarms } from '../api/alarmApi';
+import { getAuthToken } from '../api/auth';
 import { mapHubAlarmPayload } from '../api/alarmMappers';
 import { applyAckLifecycleToAlarm, upsertAlarm, alarmsEqual } from '../utils/alarmReconciliation';
 import { alarmMatchesConnectedOpcServer } from '../utils/opcAlarmFilter';
@@ -170,7 +171,11 @@ interface AlarmStore {
 
 const MAX_SOE_EVENTS = 500;
 
-function recalcStatsFromAlarms(alarms: Map<string, ActiveAlarm>, connectedOpcServerIds: Set<string>): AlarmStats {
+function recalcStatsFromAlarms(
+  alarms: Map<string, ActiveAlarm>,
+  connectedOpcServerIds: Set<string>,
+  prev?: AlarmStats,
+): AlarmStats {
   const visible = Array.from(alarms.values()).filter(a =>
     alarmMatchesConnectedOpcServer(a, connectedOpcServerIds));
   const active = visible.filter(a => a.conditionActive && !a.isShelved && !a.isSuppressed && !a.isOutOfService);
@@ -184,8 +189,11 @@ function recalcStatsFromAlarms(alarms: Map<string, ActiveAlarm>, connectedOpcSer
     shelved: visible.filter(a => a.isShelved).length,
     suppressed: visible.filter(a => a.isSuppressed).length,
     outOfService: visible.filter(a => a.isOutOfService).length,
-    alarmsPerTenMin: 0,
-    floodActive: false,
+    // H8: rate/flood come from /statistics and OnAnalyticsUpdate — a client-side
+    // recount cannot compute them, so it must PRESERVE the last server values
+    // instead of zeroing them on every SignalR alarm event.
+    alarmsPerTenMin: prev?.alarmsPerTenMin ?? 0,
+    floodActive: prev?.floodActive ?? false,
   };
 }
 
@@ -302,13 +310,13 @@ async function hydrateAlarmsFromApi(
         }
       }
       if (hydrateDirty) {
-        state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds);
+        state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds, state.stats);
         state.lastUpdated = Date.now();
       }
     });
   } else if (hydrateDirty) {
     set(state => {
-      state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds);
+      state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds, state.stats);
       state.lastUpdated = Date.now();
     });
   }
@@ -354,7 +362,9 @@ export const useAlarmStore = create<AlarmStore>()(
 
         const connection = new HubConnectionBuilder()
           .withUrl(hubUrl, {
-            accessTokenFactory: () => token,
+            // H4: read the CURRENT token, not the initialize-time closure —
+            // hub auto-reconnects after a rotation must present the new token.
+            accessTokenFactory: () => getAuthToken() ?? token,
             withCredentials: true,
           })
           .withAutomaticReconnect({
@@ -374,7 +384,7 @@ export const useAlarmStore = create<AlarmStore>()(
             const incoming = mapHubAlarmPayload(raw, state.alarms.get(id));
             if (!alarmMatchesConnectedOpcServer(incoming, state.connectedOpcServerIds)) return;
             state.alarms.set(incoming.id, incoming);
-            state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds);
+            state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds, state.stats);
             state.lastUpdated = Date.now();
             playAlarmSound(incoming.priority);
           });
@@ -387,7 +397,7 @@ export const useAlarmStore = create<AlarmStore>()(
             if (!alarmMatchesConnectedOpcServer(incoming, state.connectedOpcServerIds)) {
               if (state.alarms.has(id)) {
                 state.alarms.delete(id);
-                state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds);
+                state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds, state.stats);
                 state.lastUpdated = Date.now();
               }
               return;
@@ -395,7 +405,7 @@ export const useAlarmStore = create<AlarmStore>()(
             if (!incoming.conditionActive) {
               if (state.alarms.has(id)) {
                 state.alarms.delete(id);
-                state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds);
+                state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds, state.stats);
                 state.lastUpdated = Date.now();
               }
               return;
@@ -404,7 +414,7 @@ export const useAlarmStore = create<AlarmStore>()(
             const next = existing ? upsertAlarm(existing, incoming) : incoming;
             if (existing && alarmsEqual(existing, next)) return;
             state.alarms.set(incoming.id, next);
-            state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds);
+            state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds, state.stats);
             state.lastUpdated = Date.now();
           });
         });
@@ -413,7 +423,7 @@ export const useAlarmStore = create<AlarmStore>()(
           const alarmId = String(payload.alarmId ?? payload.AlarmId ?? '');
           set(state => {
             state.alarms.delete(alarmId);
-            state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds);
+            state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds, state.stats);
             state.lastUpdated = Date.now();
           });
         });
@@ -567,7 +577,7 @@ export const useAlarmStore = create<AlarmStore>()(
         if (updated === alarm) return;
 
         state.alarms.set(alarmId, updated);
-        state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds);
+        state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds, state.stats);
         state.lastUpdated = Date.now();
       });
     },
@@ -595,7 +605,7 @@ export const useAlarmStore = create<AlarmStore>()(
           }
           state.alarms.set(id, alarm);
         }
-        state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds);
+        state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds, state.stats);
         state.lastUpdated = Date.now();
       });
     },

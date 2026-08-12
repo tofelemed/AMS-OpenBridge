@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import axios from 'axios';
-import { getAuthToken } from '../../api/auth';
+import { authedAxios } from '../../api/http';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 
 const T = {
@@ -25,7 +24,6 @@ interface AlarmFeedStatus {
   pipelinePath: string; configNote: string;
 }
 
-const authHeaders = () => ({ Authorization: `Bearer ${getAuthToken()}` });
 
 function getStatusStyle(status: string): { color: string; bg: string; border: string } {
   if (status === 'Connected' || status === 'Healthy')
@@ -44,7 +42,7 @@ export const AlarmFeedConfig: React.FC = () => {
   const reload = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await axios.get<AlarmFeedStatus>('/api/v1/admin/alarm-feed', { headers: authHeaders() });
+      const res = await authedAxios.get<AlarmFeedStatus>('/api/v1/admin/alarm-feed', { skipActivity: true });
       setStatus(res.data);
       setTestUrl(res.data.feedUrl);
     } catch { /* silent */ }
@@ -61,7 +59,7 @@ export const AlarmFeedConfig: React.FC = () => {
     if (!testUrl.trim()) return;
     try {
       setIsTesting(true);
-      await axios.post('/api/v1/admin/alarm-feed/test', { feedUrl: testUrl.trim() }, { headers: authHeaders() });
+      await authedAxios.post('/api/v1/admin/alarm-feed/test', { feedUrl: testUrl.trim() });
     } finally { setIsTesting(false); }
   };
 

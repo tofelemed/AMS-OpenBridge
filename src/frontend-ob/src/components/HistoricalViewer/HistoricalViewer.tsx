@@ -3,10 +3,17 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef, GridReadyEvent } from 'ag-grid-community';
+// H9: this page renders AG Grid and MUST import its CSS itself — it used to
+// rely on the AlarmConsole chunk having loaded first, so /historical opened
+// directly showed an unstyled grid. Order matters: base, Alpine, then the
+// OpenBridge override layer (which requires BOTH theme classes on the wrapper).
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
+import '../AlarmConsole/ag-theme-openbridge.css';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import { authedAxios } from '../../api/http';
 import { PriorityBadge } from '../shared/PriorityBadge';
 import { formatTimestampMs } from '../../utils/time';
 import { mapHistoricalAlarmRow } from '../../api/alarmMappers';
@@ -29,7 +36,7 @@ interface HistoricalQueryParams {
 }
 
 const fetchHistoricalAlarms = async (params: HistoricalQueryParams) => {
-  const res = await axios.get('/api/v1/alarms/historical', {
+  const res = await authedAxios.get('/api/v1/alarms/historical', {
     params: {
       from: new Date(params.fromEpochMs).toISOString(),
       to:   new Date(params.toEpochMs).toISOString(),
@@ -39,7 +46,6 @@ const fetchHistoricalAlarms = async (params: HistoricalQueryParams) => {
       pageSize:   params.limit,
       sortBy: 'EventTime', sortDescending: true,
     },
-    headers: { Authorization: `Bearer ${getAuthToken()}` },
   });
   return res.data;
 };
@@ -190,7 +196,7 @@ const HistoricalViewer: React.FC = () => {
 
       {/* ── Grid ─── */}
       <div style={{ flex: 1, background: T.card, border: `1px solid ${T.border}`, borderRadius: T.radius, overflow: 'hidden', boxShadow: T.shadow }}>
-        <div className="ag-theme-openbridge" style={{ height: '100%', width: '100%' }}>
+        <div className="ag-theme-alpine ag-theme-openbridge" style={{ height: '100%', width: '100%' }}>
           <AgGridReact
             ref={gridRef} rowData={rowData} columnDefs={columnDefs}
             onGridReady={onGridReady} rowSelection="multiple" tooltipShowDelay={500}

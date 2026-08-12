@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useMqttStore, getMqttBrokerUrl, type LiveAlarm } from '../../store/mqttStore';
 import { fetchHistorianBffHealth, type BffHealth } from '../../api/historianHealth';
+import { backgroundPoll } from '../../api/apiFetch';
 
 const T = {
   blue:          '#31598F',
@@ -111,8 +112,11 @@ const EdgeNodeMonitor: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    void fetchBffHealth();
-    const id = setInterval(() => void fetchBffHealth(), 15_000);
+    void fetchBffHealth(); // mount fetch = user navigation, counts as activity
+    // H2: the 15s interval is machine-initiated — parking this tab must not
+    // keep the idle-session clock alive forever.
+    const poll = backgroundPoll(fetchBffHealth);
+    const id = setInterval(() => void poll(), 15_000);
     return () => clearInterval(id);
   }, [fetchBffHealth]);
 

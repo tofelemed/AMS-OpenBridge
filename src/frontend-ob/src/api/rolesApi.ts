@@ -1,9 +1,10 @@
+// H2: authedAxios attaches the bearer, marks idle-clock activity (these are
+// all admin-initiated actions) and replays once after a silent 401 refresh.
 import axios from 'axios';
-import { getAuthToken } from './auth';
+import { authedAxios } from './http';
 
 // RBAC admin API (auth-service). All endpoints require the rbac.manage permission.
 const BASE = '/api/auth';
-const authHeaders = () => ({ Authorization: `Bearer ${getAuthToken()}` });
 
 export interface Role {
   role_name: string;
@@ -19,36 +20,34 @@ export interface PermissionDef {
 }
 
 export async function getRoles(): Promise<Role[]> {
-  const res = await axios.get(`${BASE}/roles`, { headers: authHeaders() });
+  const res = await authedAxios.get(`${BASE}/roles`);
   return res.data.data;
 }
 
 export async function getPermissionCatalog(): Promise<PermissionDef[]> {
-  const res = await axios.get(`${BASE}/permissions`, { headers: authHeaders() });
+  const res = await authedAxios.get(`${BASE}/permissions`);
   return res.data.data;
 }
 
 export async function getRolePermissions(role: string): Promise<string[]> {
-  const res = await axios.get(`${BASE}/roles/${encodeURIComponent(role)}/permissions`, {
-    headers: authHeaders(),
-  });
+  const res = await authedAxios.get(`${BASE}/roles/${encodeURIComponent(role)}/permissions`);
   return res.data.data.permissions;
 }
 
 export async function setRolePermissions(role: string, permissions: string[]): Promise<string[]> {
-  const res = await axios.put(
+  const res = await authedAxios.put(
     `${BASE}/roles/${encodeURIComponent(role)}/permissions`,
     { permissions },
-    { headers: authHeaders() }
+    {}
   );
   return res.data.data.permissions;
 }
 
 export async function resetRolePermissions(role: string): Promise<string[]> {
-  const res = await axios.post(
+  const res = await authedAxios.post(
     `${BASE}/roles/${encodeURIComponent(role)}/permissions/reset`,
     {},
-    { headers: authHeaders() }
+    {}
   );
   return res.data.data.permissions;
 }
@@ -58,7 +57,7 @@ export async function createRole(payload: {
   description?: string;
   permissions?: string[];
 }): Promise<Role> {
-  const res = await axios.post(`${BASE}/roles`, payload, { headers: authHeaders() });
+  const res = await authedAxios.post(`${BASE}/roles`, payload);
   return res.data.data;
 }
 
@@ -66,15 +65,12 @@ export async function updateRole(
   role: string,
   changes: { description?: string; newName?: string }
 ): Promise<Role> {
-  const res = await axios.put(`${BASE}/roles/${encodeURIComponent(role)}`, changes, {
-    headers: authHeaders(),
-  });
+  const res = await authedAxios.put(`${BASE}/roles/${encodeURIComponent(role)}`, changes);
   return res.data.data;
 }
 
 export async function deleteRole(role: string, reassignTo?: string): Promise<void> {
-  await axios.delete(`${BASE}/roles/${encodeURIComponent(role)}`, {
-    headers: authHeaders(),
+  await authedAxios.delete(`${BASE}/roles/${encodeURIComponent(role)}`, {
     params: reassignTo ? { reassignTo } : undefined,
   });
 }

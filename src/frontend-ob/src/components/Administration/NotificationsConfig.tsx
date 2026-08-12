@@ -33,11 +33,9 @@ const ACTION_ICONS: Record<NotificationRule['action'], string> = {
 };
 
 export const NotificationsConfig: React.FC = () => {
-  const [rules, setRules] = useState<NotificationRule[]>([
-    { id: 'notif-1', name: 'Plant Manager Alert',      trigger: 'Flood State',    action: 'SMS',     target: '+15550199',                              enabled: true },
-    { id: 'notif-2', name: 'Night Shift Supervisors',  trigger: 'Critical Alarms',action: 'Email',   target: 'nightshift@plant.local',                 enabled: true },
-    { id: 'notif-3', name: 'IT Infrastructure Team',   trigger: 'System Errors',  action: 'Webhook', target: 'https://pagerduty.local/api/v1/trigger', enabled: false },
-  ]);
+  // H6: was seeded with three FAKE sample policies presented as configured
+  // escalation routes. Starts empty until wired to notification-service.
+  const [rules, setRules] = useState<NotificationRule[]>([]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRule,  setEditingRule]  = useState<NotificationRule | null>(null);
@@ -76,6 +74,19 @@ export const NotificationsConfig: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
+      {/* H6: this page is NOT wired to notification-service — it used to show
+          three fabricated policies and fake-save edits into local state. Until
+          real CRUD exists it is explicitly read-only and starts empty. */}
+      <div role="alert" style={{
+        display: 'flex', alignItems: 'center', gap: '10px',
+        background: '#FFFBEB', border: '1px solid #FDE68A',
+        borderRadius: T.radiusSm, padding: '12px 16px',
+        color: '#B45309', fontSize: '13px', fontWeight: 600,
+      }}>
+        Not functional yet — notification routing is not connected to the backend.
+        No escalation policies are active, and policies cannot be created from this page.
+      </div>
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h3 style={{ fontSize: '16px', fontWeight: 700, color: T.textPrimary, margin: 0 }}>Notification Policies</h3>
@@ -84,14 +95,13 @@ export const NotificationsConfig: React.FC = () => {
           </p>
         </div>
         <button
-          onClick={() => handleOpenModal()}
+          disabled
+          title="Not connected to notification-service yet — policies cannot be saved"
           style={{
-            background: T.blue, color: '#fff', border: 'none',
+            background: T.textMuted, color: '#fff', border: 'none',
             borderRadius: T.radiusSm, padding: '8px 18px',
-            fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+            fontSize: '13px', fontWeight: 600, cursor: 'not-allowed', fontFamily: 'inherit',
           }}
-          onMouseEnter={e => (e.currentTarget.style.background = '#4069A5')}
-          onMouseLeave={e => (e.currentTarget.style.background = T.blue)}
         >
           + Add Policy
         </button>

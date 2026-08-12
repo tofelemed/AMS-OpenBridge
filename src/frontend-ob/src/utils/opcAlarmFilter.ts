@@ -16,15 +16,19 @@ export function isLiveSimulatorAlarm(alarm: ActiveAlarm): boolean {
   return isDisplayableOpcAlarm(alarm);
 }
 
+// Fallback when no server list has been synced yet: the lab HTTP-feed server.
+// H7 fix: this used to be the ONLY id accepted — the connectedServerIds argument
+// was ignored, silently dropping alarms from every other OPC server.
 const HTTP_FEED_SERVER_ID = 'f0af9a6d-85f6-4c9f-a8ad-6de277d1d110';
 
 export function alarmMatchesConnectedOpcServer(
   alarm: ActiveAlarm,
-  _connectedServerIds: ReadonlySet<string>,
+  connectedServerIds: ReadonlySet<string>,
 ): boolean {
   if (!isDisplayableOpcAlarm(alarm)) return false;
   if (!isActiveOpcAlarm(alarm)) return false;
   const serverId = alarm.serverId.trim().toLowerCase();
+  if (connectedServerIds.size > 0) return connectedServerIds.has(serverId);
   return serverId === HTTP_FEED_SERVER_ID;
 }
 

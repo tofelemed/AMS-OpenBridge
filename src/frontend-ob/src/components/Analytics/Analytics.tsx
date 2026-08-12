@@ -3,9 +3,8 @@
 import React, { useMemo, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import { authedAxios } from '../../api/http';
 import { useAlarmStore } from '../../store/alarmStore';
-import { getAuthToken } from '../../api/auth';
 
 /* ─────────────────────────────────────────
    Shared design tokens (mirrors Dashboard)
@@ -53,7 +52,7 @@ interface AnalyticsKpiResponse {
   badActors?: Array<{ sourceName: string; alarmCount?: number; count?: number }>;
   staleAlarmCount?: number;
   totalAlarms24h?: number;
-  priorities?: unknown;
+  priorities?: Array<{ priority: string; count: number }>;
   // Phase 8 (N18) — EEMUA-191 / ISA-18.2 KPIs served by analytics when available (else derived/—).
   peakAlarmRate?: number;
   timeInFloodPercent?: number;
@@ -65,8 +64,10 @@ interface AnalyticsKpiResponse {
 }
 
 const fetchAnalytics = async () => {
-  const res = await axios.get<AnalyticsKpiResponse>('/api/v1/analytics/kpi', {
-    headers: { Authorization: `Bearer ${getAuthToken()}` },
+  // H2: authedAxios (401 replay); skipActivity because this query re-fires on a
+  // 60s interval — a parked Analytics tab must not keep the session alive.
+  const res = await authedAxios.get<AnalyticsKpiResponse>('/api/v1/analytics/kpi', {
+    skipActivity: true,
   });
   const raw = res.data;
 
@@ -190,15 +191,16 @@ const Analytics: React.FC = () => {
         description="Chattering, fleeting, and false alarm identification for rationalization"
       >
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '20px' }}>
-          <TargetKpi label="Chattering Alarms"    value={data?.chatteringCount ?? 34}
+          {/* H5: no invented fallbacks — while the API hasn't answered these render '—'. */}
+          <TargetKpi label="Chattering Alarms"    value={fmt0(data?.chatteringCount)}
             target="Rapid ON/OFF — Target 0"
-            status={(data?.chatteringCount ?? 34) === 0 ? 'pass' : 'fail'} />
-          <TargetKpi label="Fleeting Alarms"      value={data?.fleetingCount ?? 89}
+            status={data?.chatteringCount == null ? 'info' : data.chatteringCount === 0 ? 'pass' : 'fail'} />
+          <TargetKpi label="Fleeting Alarms"      value={fmt0(data?.fleetingCount)}
             target="Target < 5% of total"
-            status={(data?.fleetingCount ?? 89) < 20 ? 'pass' : 'warn'} />
-          <TargetKpi label="Top 10 Contribution"  value={`${data?.top10ContributionPercent?.toFixed(1) ?? '28.5'}`} unit="%"
+            status={data?.fleetingCount == null ? 'info' : data.fleetingCount < 20 ? 'pass' : 'warn'} />
+          <TargetKpi label="Top 10 Contribution"  value={fmt1(data?.top10ContributionPercent)} unit="%"
             target="Target < 5% of alarms"
-            status={(data?.top10ContributionPercent ?? 28.5) < 5 ? 'pass' : 'fail'} />
+            status={data?.top10ContributionPercent == null ? 'info' : data.top10ContributionPercent < 5 ? 'pass' : 'fail'} />
           <TargetKpi label="False Alarm Rate"     value={fmt1(kpi.falseAlarmRate)} unit="%" target="Target < 1%"
             status={kpi.falseAlarmRate == null ? 'info' : kpi.falseAlarmRate < 1 ? 'pass' : 'warn'} />
         </div>
@@ -208,7 +210,12 @@ const Analytics: React.FC = () => {
             <PriorityDonutChart data={data?.priorities} />
           </ChartCard>
           <ChartCard title="Alarm Bad Behaviours">
-            <BadBehavioursChart />
+            <BadBehavioursChart
+              chattering={data?.chatteringCount}
+              fleeting={data?.fleetingCount}
+              stale={data?.staleAlarmCount}
+              standing={stats.totalActive}
+            />
           </ChartCard>
         </div>
 
@@ -224,11 +231,12 @@ const Analytics: React.FC = () => {
         description="Long-standing alarms, safety latency, and data integrity"
       >
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px' }}>
-          <TargetKpi label="Stale Alarms"         value={data?.staleAlarmCount ?? 12}  target="> 24 h standing"        status={(data?.staleAlarmCount ?? 12) < 5 ? 'pass' : 'warn'} />
+          <TargetKpi label="Stale Alarms"         value={fmt0(data?.staleAlarmCount)}  target="> 24 h standing"        status={data?.staleAlarmCount == null ? 'info' : data.staleAlarmCount < 5 ? 'pass' : 'warn'} />
           <TargetKpi label="Standing Alarms"      value={stats.totalActive}             target="Total active"           status={stats.totalActive < 10 ? 'pass' : 'warn'} />
           <TargetKpi label="Suppressed / Shelved" value={stats.suppressed + stats.shelved} target="Review manually"    status="info" />
-          <TargetKpi label="Safety Latency"       value="12" unit="ms"                  target="Target < 100 ms"       status="pass" />
-          <TargetKpi label="System Data Loss"     value="0"  unit="%"                   target="Network reliability"   status="pass" />
+          {/* H5: these two were hardcoded literals stamped 'pass' — no metric exists yet. */}
+          <TargetKpi label="Safety Latency"       value="—"                             target="Not instrumented yet"  status="info" />
+          <TargetKpi label="System Data Loss"     value="—"                             target="Not instrumented yet"  status="info" />
         </div>
       </AnalyticsSection>
 
@@ -483,7 +491,21 @@ const AlarmRateChart: React.FC<{
 /* ═══════════════════════════════════════
    PRIORITY DONUT CHART
    ═══════════════════════════════════════ */
-const PriorityDonutChart: React.FC<{ data?: unknown }> = ({ data: _ }) => {
+const PRIORITY_COLORS: Record<string, string> = {
+  CRITICAL: T.critical, HIGH: T.caution, MEDIUM: T.blue, LOW: T.blueMuted,
+};
+
+// H5: was a hardcoded 12/45/120/240 donut that ignored its prop. It now renders
+// the server's live per-priority counts, and says so when there are none.
+const PriorityDonutChart: React.FC<{ data?: Array<{ priority: string; count: number }> }> = ({ data }) => {
+  const slices = (data ?? [])
+    .filter(p => p.count > 0)
+    .map(p => ({
+      value: p.count,
+      name: p.priority.charAt(0) + p.priority.slice(1).toLowerCase(),
+      itemStyle: { color: PRIORITY_COLORS[p.priority.toUpperCase()] ?? T.blueMuted },
+    }));
+
   const option = useMemo(() => ({
     backgroundColor: 'transparent',
     tooltip: {
@@ -506,15 +528,18 @@ const PriorityDonutChart: React.FC<{ data?: unknown }> = ({ data: _ }) => {
         label: { show: true, fontSize: 13, fontWeight: 700, color: T.textPrimary },
         itemStyle: { shadowBlur: 8, shadowColor: 'rgba(0,0,0,0.12)' },
       },
-      data: [
-        { value: 12,  name: 'Critical', itemStyle: { color: T.critical } },
-        { value: 45,  name: 'High',     itemStyle: { color: T.caution } },
-        { value: 120, name: 'Medium',   itemStyle: { color: T.blue } },
-        { value: 240, name: 'Low',      itemStyle: { color: T.blueMuted } },
-      ],
+      data: slices,
     }],
-  }), []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [JSON.stringify(slices)]);
 
+  if (slices.length === 0) {
+    return (
+      <div style={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.textMuted, fontSize: 13 }}>
+        No active alarms to distribute.
+      </div>
+    );
+  }
   return <ReactECharts option={option} style={{ height: 260 }} />;
 };
 
@@ -523,7 +548,12 @@ const PriorityDonutChart: React.FC<{ data?: unknown }> = ({ data: _ }) => {
    ═══════════════════════════════════════ */
 const BAD_BEHAVIOUR_COLORS = [T.critical, T.caution, T.warning, T.blue];
 
-const BadBehavioursChart: React.FC = () => {
+// H5: was a hardcoded 34/89/12/156 bar. Chattering/fleeting/stale come from the
+// analytics API; standing is the live active count from the alarm store.
+const BadBehavioursChart: React.FC<{
+  chattering?: number; fleeting?: number; stale?: number; standing?: number;
+}> = ({ chattering, fleeting, stale, standing }) => {
+  const values = [chattering, fleeting, stale, standing];
   const option = useMemo(() => ({
     backgroundColor: 'transparent',
     tooltip: {
@@ -547,16 +577,22 @@ const BadBehavioursChart: React.FC = () => {
     series: [{
       name: 'Count', type: 'bar',
       barMaxWidth: 20,
-      data: [
-        { value: 34,  itemStyle: { color: BAD_BEHAVIOUR_COLORS[0], borderRadius: [0, 3, 3, 0] } },
-        { value: 89,  itemStyle: { color: BAD_BEHAVIOUR_COLORS[1], borderRadius: [0, 3, 3, 0] } },
-        { value: 12,  itemStyle: { color: BAD_BEHAVIOUR_COLORS[2], borderRadius: [0, 3, 3, 0] } },
-        { value: 156, itemStyle: { color: BAD_BEHAVIOUR_COLORS[3], borderRadius: [0, 3, 3, 0] } },
-      ],
+      data: values.map((v, i) => ({
+        value: v ?? 0,
+        itemStyle: { color: BAD_BEHAVIOUR_COLORS[i], borderRadius: [0, 3, 3, 0] },
+      })),
       label: { show: true, position: 'right', fontSize: 11, color: T.textSecondary },
     }],
-  }), []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [chattering, fleeting, stale, standing]);
 
+  if (values.every(v => v == null)) {
+    return (
+      <div style={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.textMuted, fontSize: 13 }}>
+        Waiting for analytics data…
+      </div>
+    );
+  }
   return <ReactECharts option={option} style={{ height: 260 }} />;
 };
 
@@ -624,19 +660,6 @@ type SortDir = 'asc' | 'desc';
 
 interface RcaRow { sourceName: string; count: number; percentage: number; priorityMix: string; mtta: string; action: string; }
 
-const MOCK_RCA_ROWS: RcaRow[] = Array.from({ length: 25 }, (_, i) => {
-  const count = Math.floor(Math.random() * 900) + 50;
-  const pct   = parseFloat((Math.random() * 9 + 0.5).toFixed(1));
-  return {
-    sourceName:  `Unit1.FIC-${100 + i}.PV`,
-    count,
-    percentage:  pct,
-    priorityMix: i % 3 === 0 ? 'Critical (60%) / High (40%)' : 'High (40%) / Medium (60%)',
-    mtta:        `${(Math.random() * 25 + 5).toFixed(1)}s`,
-    action:      count > 500 ? 'Apply 5s ON-delay' : count > 200 ? 'Adjust setpoint' : 'Review & monitor',
-  };
-});
-
 const DrillDownTable: React.FC<{ data: Array<{ sourceName?: string; count?: number; percentage?: number }> }> = ({ data }) => {
   const [sortKey, setSortKey] = useState<SortKey>('count');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -644,19 +667,19 @@ const DrillDownTable: React.FC<{ data: Array<{ sourceName?: string; count?: numb
   const [search,  setSearch]  = useState('');
   const PAGE_SIZE = 10;
 
-  const rows: RcaRow[] = data.length > 0
-    ? data.map(d => {
-        const count = d.count ?? (d as { alarmCount?: number }).alarmCount ?? 0;
-        return {
-          sourceName:  d.sourceName ?? '—',
-          count,
-          percentage:  d.percentage ?? 0,
-          priorityMix: 'High (40%) / Medium (60%)',
-          mtta:        '14.2s',
-          action:      count > 500 ? 'Apply 5s ON-delay' : 'Review setpoint',
-        };
-      })
-    : MOCK_RCA_ROWS;
+  // H5: rows come ONLY from the API. priorityMix/MTTA per source are not served
+  // yet, so they render '—' instead of the fabricated values they used to show.
+  const rows: RcaRow[] = data.map(d => {
+    const count = d.count ?? (d as { alarmCount?: number }).alarmCount ?? 0;
+    return {
+      sourceName:  d.sourceName ?? '—',
+      count,
+      percentage:  d.percentage ?? 0,
+      priorityMix: '—',
+      mtta:        '—',
+      action:      count > 500 ? 'Apply 5s ON-delay' : 'Review setpoint',
+    };
+  });
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -735,6 +758,13 @@ const DrillDownTable: React.FC<{ data: Array<{ sourceName?: string; count?: numb
               </tr>
             </thead>
             <tbody>
+              {pageRows.length === 0 && (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '28px', color: T.textMuted, fontSize: '13px' }}>
+                    No bad-actor data yet — rows appear when the analytics API reports alarm sources.
+                  </td>
+                </tr>
+              )}
               {pageRows.map((r, i) => (
                 <tr
                   key={r.sourceName}

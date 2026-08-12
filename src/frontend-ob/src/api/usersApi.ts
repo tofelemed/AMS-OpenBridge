@@ -1,8 +1,9 @@
+// H2: authedAxios attaches the bearer, marks idle-clock activity (these are
+// all admin-initiated actions) and replays once after a silent 401 refresh.
 import axios from 'axios';
-import { getAuthToken } from './auth';
+import { authedAxios } from './http';
 
 const BASE = '/api/auth';
-const authHeaders = () => ({ Authorization: `Bearer ${getAuthToken()}` });
 
 export interface AdminUser {
   user_id: string;
@@ -30,7 +31,7 @@ export interface UsersPage {
 }
 
 export async function getUsersPage(filters: UsersFilters): Promise<UsersPage> {
-  const res = await axios.get(`${BASE}/users/page`, { params: filters, headers: authHeaders() });
+  const res = await authedAxios.get(`${BASE}/users/page`, { params: filters });
   return {
     users: res.data.data,
     pagination: res.data.pagination,
@@ -48,7 +49,7 @@ export interface CreateUserPayload {
 }
 
 export async function createUser(payload: CreateUserPayload): Promise<AdminUser> {
-  const res = await axios.post(`${BASE}/users`, payload, { headers: authHeaders() });
+  const res = await authedAxios.post(`${BASE}/users`, payload);
   return res.data.data;
 }
 
@@ -60,12 +61,12 @@ export interface UpdateUserPayload {
 }
 
 export async function updateUser(id: string, payload: UpdateUserPayload): Promise<AdminUser> {
-  const res = await axios.put(`${BASE}/users/${id}`, payload, { headers: authHeaders() });
+  const res = await authedAxios.put(`${BASE}/users/${id}`, payload);
   return res.data.data;
 }
 
 export async function deleteUser(id: string): Promise<void> {
-  await axios.delete(`${BASE}/users/${id}`, { headers: authHeaders() });
+  await authedAxios.delete(`${BASE}/users/${id}`);
 }
 
 // ── Bulk import ─────────────────────────────────────────────────────────────
@@ -96,7 +97,7 @@ export interface BulkImportResult {
 }
 
 export async function validateBulkImport(rows: Record<string, unknown>[]): Promise<BulkValidationResult> {
-  const res = await axios.post(`${BASE}/users/bulk-import/validate`, { rows }, { headers: authHeaders() });
+  const res = await authedAxios.post(`${BASE}/users/bulk-import/validate`, { rows });
   return res.data.data;
 }
 
@@ -104,17 +105,16 @@ export async function executeBulkImport(
   rows: Record<string, unknown>[],
   options: { skipErrors?: boolean; overwriteDuplicates?: boolean }
 ): Promise<BulkImportResult> {
-  const res = await axios.post(
+  const res = await authedAxios.post(
     `${BASE}/users/bulk-import/execute`,
     { rows, options },
-    { headers: authHeaders() }
+    {}
   );
   return res.data.data;
 }
 
 export async function getImportTemplate(): Promise<string> {
-  const res = await axios.get(`${BASE}/users/bulk-import/template`, {
-    headers: authHeaders(),
+  const res = await authedAxios.get(`${BASE}/users/bulk-import/template`, {
     responseType: 'text',
   });
   return res.data as string;

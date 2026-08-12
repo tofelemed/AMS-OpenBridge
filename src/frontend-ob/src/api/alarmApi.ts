@@ -1,18 +1,17 @@
-import axios from 'axios';
-import { getAuthToken } from './auth';
+// H2: all calls ride authedAxios — bearer attach, idle-clock marking and the
+// 401 silent-refresh replay live in ONE place (api/http.ts). Hydration reads
+// (statistics / active pages / feed / purge) are machine-initiated, so they
+// pass skipActivity and never keep an unattended session alive.
+import { authedAxios } from './http';
 import { mapActiveAlarmDto } from './alarmMappers';
 import type { ActiveAlarm, AlarmStats } from '../store/alarmStore';
-
-// No `|| 'dev'` fallback: AMS.Api validates tokens for real now, so a literal "Bearer dev" is just a
-// guaranteed 401 that hides the actual cause (no session).
-const authHeaders = () => ({ Authorization: `Bearer ${getAuthToken() ?? ''}` });
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
 export async function fetchAlarmStatistics(serverId?: string): Promise<Partial<AlarmStats>> {
-  const res = await axios.get('/api/v1/alarms/active/statistics', {
+  const res = await authedAxios.get('/api/v1/alarms/active/statistics', {
     params: { serverId: serverId || undefined },
-    headers: authHeaders(),
+    skipActivity: true,
   });
   const d = res.data ?? {};
   return {
@@ -40,7 +39,7 @@ export async function fetchAllActiveAlarms(
   let totalCount = Number.POSITIVE_INFINITY;
 
   while (all.length < totalCount) {
-    const res = await axios.get('/api/v1/alarms/active', {
+    const res = await authedAxios.get('/api/v1/alarms/active', {
       params: {
         pageNumber,
         pageSize,
@@ -48,7 +47,7 @@ export async function fetchAllActiveAlarms(
         sortBy: 'EventTime',
         sortDescending: true,
       },
-      headers: authHeaders(),
+      skipActivity: true,
     });
 
     const items = (res.data?.items ?? res.data?.Items ?? []) as Record<string, unknown>[];
@@ -74,10 +73,9 @@ export async function acknowledgeAlarmsBatch(
   comment: string,
   operatorStation: string,
 ): Promise<{ message?: string }> {
-  const { data } = await axios.post(
+  const { data } = await authedAxios.post(
     '/api/v1/alarms/acknowledge/batch',
     { alarmIds, comment, operatorStation },
-    { headers: authHeaders() },
   );
   return data;
 }
@@ -88,10 +86,9 @@ export async function shelveAlarm(
   comment: string,
   operatorStation: string,
 ): Promise<void> {
-  await axios.post(
+  await authedAxios.post(
     `/api/v1/alarms/${alarmId}/shelve`,
     { durationMinutes, comment, operatorStation },
-    { headers: authHeaders() },
   );
 }
 
@@ -100,10 +97,9 @@ export async function suppressAlarm(
   reason: string,
   operatorStation: string,
 ): Promise<void> {
-  await axios.post(
+  await authedAxios.post(
     `/api/v1/alarms/${alarmId}/suppress`,
     { reason, operatorStation },
-    { headers: authHeaders() },
   );
 }
 
@@ -112,10 +108,9 @@ export async function setAlarmOutOfService(
   reason: string,
   operatorStation: string,
 ): Promise<void> {
-  await axios.post(
+  await authedAxios.post(
     `/api/v1/alarms/${alarmId}/out-of-service`,
     { reason, operatorStation },
-    { headers: authHeaders() },
   );
 }
 
@@ -123,7 +118,7 @@ export async function fetchConnectedOpcAeServers(): Promise<
   { id: string; name: string; status: string; protocol: string }[]
 > {
   try {
-    const res = await axios.get('/api/v1/admin/alarm-feed', { headers: authHeaders() });
+    const res = await authedAxios.get('/api/v1/admin/alarm-feed', { skipActivity: true });
     const feed = res.data as {
       enabled: boolean;
       serverId: string;
@@ -144,10 +139,10 @@ export async function fetchConnectedOpcAeServers(): Promise<
 }
 
 export async function purgeLabInjectedAlarms(serverId?: string): Promise<number> {
-  const res = await axios.post(
+  const res = await authedAxios.post(
     '/api/v1/alarms/active/purge-lab-data',
     null,
-    { params: { serverId: serverId || undefined }, headers: authHeaders() },
+    { params: { serverId: serverId || undefined }, skipActivity: true },
   );
   return Number(res.data?.removedCount ?? res.data?.RemovedCount ?? 0);
 }

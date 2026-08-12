@@ -4,6 +4,9 @@
  * stays in one place.
  */
 import React from 'react';
+// H2: interval-polling queryFns are wrapped in backgroundPoll so machine
+// refetches never extend the idle-session clock.
+import { backgroundPoll } from '../api/apiFetch';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as cpm from '../api/cpmApi';
 
@@ -81,7 +84,7 @@ export function useRepublishEvidence() {
 export function useCpmEvents(q: cpm.CpmEventsQuery, refetchMs = 30_000) {
   return useQuery({
     queryKey: KEYS.events(q),
-    queryFn: () => cpm.getEvents(q),
+    queryFn: backgroundPoll(() => cpm.getEvents(q)),
     refetchInterval: refetchMs,
   });
 }
@@ -115,7 +118,7 @@ export function useLatestGates(loopId: string | undefined, windowKind = '24h') {
 export function useFleetSummary(site?: string) {
   return useQuery({
     queryKey: KEYS.fleetSummary(site),
-    queryFn: () => cpm.getFleetSummary(site),
+    queryFn: backgroundPoll(() => cpm.getFleetSummary(site)),
     refetchInterval: 60_000,
   });
 }
@@ -123,7 +126,7 @@ export function useFleetSummary(site?: string) {
 export function useCpmPipelineStatus(refetchMs = 15_000) {
   return useQuery({
     queryKey: KEYS.pipeline,
-    queryFn: cpm.getPipelineStatus,
+    queryFn: backgroundPoll(cpm.getPipelineStatus),
     refetchInterval: refetchMs,
   });
 }
@@ -131,7 +134,7 @@ export function useCpmPipelineStatus(refetchMs = 15_000) {
 export function useFleetRankings(site?: string, windowKind = '24h') {
   return useQuery({
     queryKey: ['cpm', 'fleet', 'rankings', site ?? '', windowKind],
-    queryFn: () => cpm.getFleetRankings(site, windowKind),
+    queryFn: backgroundPoll(() => cpm.getFleetRankings(site, windowKind)),
     refetchInterval: 60_000,
   });
 }
@@ -139,7 +142,7 @@ export function useFleetRankings(site?: string, windowKind = '24h') {
 export function useFleetHeatmap(site?: string, windowKind = '24h') {
   return useQuery({
     queryKey: ['cpm', 'fleet', 'heatmap', site ?? '', windowKind],
-    queryFn: () => cpm.getFleetHeatmap(site, windowKind),
+    queryFn: backgroundPoll(() => cpm.getFleetHeatmap(site, windowKind)),
     refetchInterval: 60_000,
   });
 }
@@ -233,7 +236,7 @@ export function useRawWindow(
 export function usePipelineMetrics(refetchMs = 20_000) {
   return useQuery({
     queryKey: ['cpm', 'pipeline-metrics'],
-    queryFn: cpm.getPipelineMetrics,
+    queryFn: backgroundPoll(cpm.getPipelineMetrics),
     refetchInterval: refetchMs,
   });
 }
@@ -248,7 +251,7 @@ export function useRecompute(loopId: string | undefined) {
   });
   const status = useQuery({
     queryKey: ['cpm', 'replay-status', handle?.replayId ?? ''],
-    queryFn: () => cpm.getReplayStatus(handle!.replayId, handle!.jobId),
+    queryFn: backgroundPoll(() => cpm.getReplayStatus(handle!.replayId, handle!.jobId)),
     enabled: !!handle,
     refetchInterval: (q) => (q.state.data?.finished ? false : 5_000),
   });
