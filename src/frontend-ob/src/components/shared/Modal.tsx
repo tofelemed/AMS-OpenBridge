@@ -42,18 +42,46 @@ export const Modal: React.FC<ModalProps> = ({
     onCloseRef.current = onClose;
   }, [onClose]);
 
-  // Runs only when the modal opens/closes — focuses the dialog once on open.
+  // Runs only when the modal opens/closes — focuses the dialog once on open,
+  // traps Tab within it (J: keyboard users used to Tab out into the dimmed page,
+  // incl. the destructive buttons underneath), and restores focus on close.
   useEffect(() => {
     if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCloseRef.current();
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+
+    const focusable = (): HTMLElement[] => {
+      const root = contentRef.current;
+      if (!root) return [];
+      return Array.from(root.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )).filter(el => el.offsetParent !== null || el === document.activeElement);
     };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onCloseRef.current(); return; }
+      if (e.key !== 'Tab') return;
+      const items = focusable();
+      if (items.length === 0) { e.preventDefault(); contentRef.current?.focus(); return; }
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement as HTMLElement;
+      if (e.shiftKey && (active === first || active === contentRef.current)) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault(); first.focus();
+      }
+    };
+
     document.addEventListener('keydown', handleKeyDown);
     document.body.style.overflow = 'hidden';
-    contentRef.current?.focus();
+    // Focus the first interactive control if there is one, else the dialog itself.
+    const items = focusable();
+    (items[0] ?? contentRef.current)?.focus();
+
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
+      previouslyFocused?.focus?.();
     };
   }, [isOpen]);
 

@@ -5,6 +5,13 @@ import * as d3 from 'd3';
 import { useAlarmStore, type SoeEvent } from '../../store/alarmStore';
 import { formatTimestampMs } from '../../utils/time';
 
+// K: plant/OPC event text (sourceName, message) is external data — interpolating
+// it raw into tooltip.html() is stored-XSS. Escape the interpolated fields.
+function escapeHtml(v: unknown): string {
+  return String(v ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+}
+
 const T = {
   blue:          '#31598F',
   blueLight:     '#EAF2FF',
@@ -169,12 +176,12 @@ const SoePanel: React.FC = () => {
           <div style="font-family:'Noto Sans Mono',monospace;color:${T.blue};font-size:11px;margin-bottom:6px">
             ${formatTimestampMs(d.sourceTimestampEpochMs)}
           </div>
-          <div style="font-weight:700;color:${T.textPrimary};margin-bottom:4px">${d.sourceName}</div>
-          <div style="color:${T.textSecondary};margin-bottom:6px">${d.message}</div>
+          <div style="font-weight:700;color:${T.textPrimary};margin-bottom:4px">${escapeHtml(d.sourceName)}</div>
+          <div style="color:${T.textSecondary};margin-bottom:6px">${escapeHtml(d.message)}</div>
           <div style="display:flex;gap:8px;align-items:center">
             <span style="padding:2px 8px;border-radius:12px;font-size:10.5px;font-weight:700;
               background:${PRIORITY_COLOR[d.priority] ?? T.blue}22;
-              color:${PRIORITY_COLOR[d.priority] ?? T.blue}">${d.priority}</span>
+              color:${PRIORITY_COLOR[d.priority] ?? T.blue}">${escapeHtml(d.priority)}</span>
             ${d.isOutOfOrder ? `<span style="color:${T.caution};font-size:11px">⚠ Late arrival</span>` : ''}
           </div>
         `)

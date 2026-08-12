@@ -18,6 +18,7 @@ import {
 import {
   useCpmCalculations, useCpmEvents, useCpmKpis, useCpmLoops, useLatestGates,
 } from '../../hooks/useCpm';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 interface MetricDef {
   id: string;
@@ -231,13 +232,14 @@ const CalcDrawer: React.FC<{
   versions: { calc: string | null; profile: string | null };
   onClose: () => void;
 }> = ({ metric, loopId, value, status, versions, onClose }) => {
+  const dialogRef = useDialogA11y<HTMLDivElement>(onClose);
   const [tab, setTab] = useState<typeof DRAWER_TABS[number]>('Definition');
   const events = useCpmEvents({ loopId, openOnly: false, limit: 10 });
 
   return (
     <>
       <div className="cpm-modal-backdrop" onClick={onClose} />
-      <div className="cpm-drawer" role="dialog" aria-label={`${metric.id} definition`}>
+      <div ref={dialogRef} className="cpm-drawer" role="dialog" aria-modal="true" tabIndex={-1} aria-label={`${metric.id} definition`}>
         <PanelHead eyebrow={`${loopId} · ${metric.id}`} title={metric.name}
           right={<ObcButton variant="normal" onClick={onClose}>Close</ObcButton>} />
         <div className="cpm-kpi-row" style={{ margin: '12px 0' }}>

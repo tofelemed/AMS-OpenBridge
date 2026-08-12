@@ -22,6 +22,7 @@ import {
 import { useLoopLive, qualityLabel } from '../../hooks/useLoopLive';
 import { loopSeries } from '../../utils/loopSeries';
 import { useObcTheme } from '../../hooks/useObcTheme';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 /** echarts renders to canvas and cannot consume var(); resolve tokens once per render. */
 function cssVar(name: string, fallback: string): string {
@@ -298,11 +299,12 @@ const FocusedLoopDrawer: React.FC<{
   onClose: () => void;
   onExplore: () => void;
 }> = ({ loopId, onClose, onExplore }) => {
+  const dialogRef = useDialogA11y<HTMLDivElement>(onClose);
   const { data: matrix, isLoading } = useLatestGates(loopId, '24h');
   return (
     <>
       <div className="cpm-modal-backdrop" onClick={onClose} />
-      <div className="cpm-drawer" role="dialog" aria-label="Focused loop analysis">
+      <div ref={dialogRef} className="cpm-drawer" role="dialog" aria-modal="true" tabIndex={-1} aria-label="Focused loop analysis">
         <PanelHead eyebrow="Focused loop analysis" title={loopId}
           right={<ObcButton variant="normal" onClick={onClose}>Close</ObcButton>} />
         {isLoading && <EmptyState title="Loading latest verdict…" />}

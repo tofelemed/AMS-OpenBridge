@@ -13,11 +13,11 @@
 //     *without depending on a menu directory*. So: level chips + search, not a folder tree.
 //   · by muscle memory — an operator works 4–6 displays for a whole shift → Favourites + Recents.
 //     (No standard requires these; they are a product decision, and we say so.)
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authStore';
-import { apiJson } from '../../api/apiFetch';
+import { apiFetch, apiJson } from '../../api/apiFetch';
 import { relativeTime, absoluteTime } from '../../utils/relativeTime';
 import './Designer.css';
 
@@ -45,20 +45,19 @@ const LEVELS: Array<{ n: number; label: string; hint: string }> = [
   { n: 4, label: 'L4 Diagnostic', hint: 'Support / diagnostic — sensors, components, point detail' },
 ];
 
-const FAV_KEY = 'ams-display-favourites';
-const RECENT_KEY = 'ams-display-recents';
-const readIds = (k: string): string[] => {
-  try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch { return []; }
-};
+// I: favourites/recents now live SERVER-side (/me/favorites, /me/recent) —
+// the same store DisplayList uses — so a display starred in the Designer home
+// shows starred here (and vice versa), across browsers. They were localStorage.
+interface FavRow { id: string; displayId?: string | null; }
 
 /** The card's preview. A real SVG schematic of the display, generated on publish. */
 const Thumb: React.FC<{ id: string; has?: boolean }> = ({ id, has }) => {
   const { data } = useQuery({
     queryKey: ['thumb', id],
     queryFn: async () => {
-      const r = await fetch(`${API_BASE}/${id}/thumbnail`, {
-        headers: { Authorization: `Bearer ${useAuthStore.getState().accessToken ?? ''}` },
-      });
+      // I: apiFetch (bearer + 401 refresh-replay) — the raw fetch used a static
+      // token, so after a rotation every thumbnail degraded to 'No preview'.
+      const r = await apiFetch(`${API_BASE}/${id}/thumbnail`);
       return r.ok ? r.text() : '';
     },
     enabled: !!has,
@@ -79,8 +78,24 @@ export const DisplayLauncher: React.FC = () => {
   const [search, setSearch] = useState('');
   const [level, setLevel] = useState<number | 'all'>('all');
   const [area, setArea] = useState<string>('all');
-  const [favs, setFavs] = useState<string[]>(() => readIds(FAV_KEY));
-  const [recents, setRecents] = useState<string[]>(() => readIds(RECENT_KEY));
+  const qc = useQueryClient();
+  const { data: favData } = useQuery({
+    queryKey: ['favorites'],
+    queryFn: () => apiJson<{ favorites: FavRow[] }>(`${API_BASE}/me/favorites`),
+  });
+  const favIds = useMemo(
+    () => new Set((favData?.favorites ?? []).filter(f => f.displayId).map(f => f.displayId as string)),
+    [favData]);
+  const favRowByDisplay = useMemo(() => {
+    const m = new Map<string, string>();
+    (favData?.favorites ?? []).forEach(f => { if (f.displayId) m.set(f.displayId, f.id); });
+    return m;
+  }, [favData]);
+  const { data: recentData } = useQuery({
+    queryKey: ['recents'],
+    queryFn: () => apiJson<{ recents: { id: string }[] }>(`${API_BASE}/me/recent`),
+  });
+  const recents = useMemo(() => (recentData?.recents ?? []).map(r => r.id), [recentData]);
 
   const { data, isLoading, error } = useQuery({
     // take=200: the endpoint defaults to 50 and the published filter is client-side, so with more than
@@ -102,30 +117,27 @@ export const DisplayLauncher: React.FC = () => {
     return ['all', ...Array.from(new Set(roots)).sort()];
   }, [published]);
 
-  const toggleFav = (id: string) => {
-    setFavs(prev => {
-      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
-      localStorage.setItem(FAV_KEY, JSON.stringify(next));
-      return next;
-    });
-  };
+  const toggleFavorite = useMutation({
+    mutationFn: async (id: string) => {
+      const existing = favRowByDisplay.get(id);
+      if (existing) return apiFetch(`${API_BASE}/me/favorites/${existing}`, { method: 'DELETE' });
+      return apiJson(`${API_BASE}/me/favorites`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayId: id }),
+      });
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['favorites'] }),
+  });
+  const toggleFav = (id: string) => toggleFavorite.mutate(id);
 
   const open = (id: string) => {
-    const next = [id, ...recents.filter(x => x !== id)].slice(0, 6);
-    setRecents(next);
-    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+    // Best-effort recent-access write (the server owns the recents list now).
+    void apiFetch(`${API_BASE}/me/recent`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ displayId: id }),
+    }).then(() => qc.invalidateQueries({ queryKey: ['recents'] })).catch(() => {});
     navigate(`/display/${id}`);
   };
-
-  // Prune favourites/recents that point at displays that no longer exist or are unpublished.
-  useEffect(() => {
-    if (!published.length) return;
-    const live = new Set(published.map(d => d.id));
-    const f = favs.filter(id => live.has(id));
-    const r = recents.filter(id => live.has(id));
-    if (f.length !== favs.length) { setFavs(f); localStorage.setItem(FAV_KEY, JSON.stringify(f)); }
-    if (r.length !== recents.length) { setRecents(r); localStorage.setItem(RECENT_KEY, JSON.stringify(r)); }
-  }, [published]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -138,7 +150,7 @@ export const DisplayLauncher: React.FC = () => {
   }, [published, search, level, area]);
 
   const byId = useMemo(() => new Map(published.map(d => [d.id, d])), [published]);
-  const favDisplays = favs.map(id => byId.get(id)).filter((d): d is DisplaySummary => !!d);
+  const favDisplays = [...favIds].map(id => byId.get(id)).filter((d): d is DisplaySummary => !!d);
   const recentDisplays = recents.map(id => byId.get(id)).filter((d): d is DisplaySummary => !!d);
 
   if (isLoading) return <div className="display-launcher__msg">Loading displays…</div>;
@@ -160,9 +172,9 @@ export const DisplayLauncher: React.FC = () => {
       <span className="display-launcher__card-head">
         <span className="display-launcher__card-name">{d.name}</span>
         <button
-          className={`dl-star${favs.includes(d.id) ? ' active' : ''}`}
+          className={`dl-star${favIds.has(d.id) ? ' active' : ''}`}
           data-testid="launcher-fav"
-          title={favs.includes(d.id) ? 'Remove from favourites' : 'Add to favourites'}
+          title={favIds.has(d.id) ? 'Remove from favourites' : 'Add to favourites'}
           onClick={e => { e.preventDefault(); e.stopPropagation(); toggleFav(d.id); }}
         >★</button>
       </span>

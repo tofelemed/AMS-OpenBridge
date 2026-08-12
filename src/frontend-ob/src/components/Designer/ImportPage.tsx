@@ -94,7 +94,12 @@ export const ImportPage: React.FC = () => {
         }),
       });
       if (!contentRes.ok) {
-        throw new Error(`The display was created but the imported content could not be saved (${contentRes.status}). Nothing was imported.`);
+        // I: don't leave an empty orphan display behind — soft-delete the shell
+        // we just created so a retry doesn't create a second one.
+        try {
+          await apiFetch(`${API_BASE}/${created.id}`, { method: 'DELETE' });
+        } catch { /* best-effort cleanup; the shell lands in the recycle bin either way */ }
+        throw new Error(`The imported content could not be saved (${contentRes.status}); the empty display was removed. Nothing was imported — please try again.`);
       }
       navigate(`/designer/${created.id}`);
     } catch (err) {

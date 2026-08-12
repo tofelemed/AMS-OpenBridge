@@ -15,10 +15,11 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { useQuery } from '@tanstack/react-query';
 import { useDebounce } from '../../hooks/useDebounce';
 import { authedAxios } from '../../api/http';
+import { apiFetch } from '../../api/apiFetch';
+import { toast } from 'react-toastify';
 import { PriorityBadge } from '../shared/PriorityBadge';
 import { formatTimestampMs } from '../../utils/time';
 import { mapHistoricalAlarmRow } from '../../api/alarmMappers';
-import { getAuthToken } from '../../api/auth';
 
 const T = {
   blue: '#31598F', blueLight: '#EAF2FF', blueMuted: '#C4D8F0',
@@ -104,21 +105,39 @@ const HistoricalViewer: React.FC = () => {
 
   const onGridReady = useCallback((e: GridReadyEvent) => { e.api.sizeColumnsToFit(); }, []);
 
-  // A browser download can't set an Authorization header, so the stream endpoints take the token as
-  // ?access_token= (the same query-param path SignalR uses; AMS.Api reads it in OnMessageReceived).
+  // K: was window.open with the bearer token in the ?access_token= query string,
+  // which leaks it into browser history and proxy/server access logs. Now the
+  // stream is fetched through apiFetch (Authorization header) into a Blob and the
+  // download is triggered client-side — no token ever appears in a URL.
   const exportRange = () => {
     const from = dateRange[0]?.toISOString() ?? new Date(Date.now() - 86400000).toISOString();
     const to   = dateRange[1]?.toISOString() ?? new Date().toISOString();
-    return `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&access_token=${encodeURIComponent(getAuthToken() ?? '')}`;
+    return `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
   };
 
-  const handleExport = () => {
-    window.open(`/api/v1/alarms/historical/stream?${exportRange()}`, '_blank');
+  const downloadStream = async (path: string, filename: string) => {
+    try {
+      const res = await apiFetch(`${path}?${exportRange()}`);
+      if (!res.ok) throw new Error(`Export failed (HTTP ${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Export failed');
+    }
   };
 
-  const handleExportTransitions = () => {
-    window.open(`/api/v1/alarms/transitions/stream?${exportRange()}`, '_blank');
-  };
+  const handleExport = () =>
+    void downloadStream('/api/v1/alarms/historical/stream',
+      `alarm-history-${new Date().toISOString().slice(0, 10)}.ndjson`);
+
+  const handleExportTransitions = () =>
+    void downloadStream('/api/v1/alarms/transitions/stream',
+      `alarm-transitions-${new Date().toISOString().slice(0, 10)}.ndjson`);
 
   const totalCount = data?.totalCount ?? 0;
   const hasNext    = !!data?.items && data.items.length >= pageSize;

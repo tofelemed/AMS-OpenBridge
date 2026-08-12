@@ -166,6 +166,7 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
   const [hist, setHist] = useState({ index: -1, len: 0 });
   const itemsRef = useRef<CanvasItem[]>([]);
   itemsRef.current = items;
+  const isDirtyRef = useRef(false); // I: read latest isDirty inside the once-registered keydown handler
   const clipboardRef = useRef<CanvasItem[]>([]);
   
   // Fetch display data
@@ -183,6 +184,7 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
   //   * an edit made while the save round-trip was in flight was silently reverted by the refetch.
   // The server is the source of truth only at load; after that the canvas owns the items.
   const seededRef = useRef<string | null>(null);
+  const [seedNonce, setSeedNonce] = useState(0); // I: force re-seed on Revert even if the body is identical
   useEffect(() => {
     if (!displayData?.content?.items) return;
     if (seededRef.current === displayId) return;   // already seeded this display
@@ -203,12 +205,13 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
     if (s?.backgroundColor) setBgColor(s.backgroundColor);
     setBgImageId(s?.backgroundImageId || undefined);
     setImportReport(s?.importReport);
-  }, [displayData, displayId]);
+  }, [displayData, displayId, seedNonce]);
 
   /** Re-seed the canvas from the server on purpose (used by Revert, which replaces the draft). */
   const reseedFromServer = useCallback(async () => {
     seededRef.current = null;
     await queryClient.invalidateQueries({ queryKey: ['display', displayId] });
+    setSeedNonce(n => n + 1); // I: re-run the seed effect even if the refetched body is deep-equal
   }, [queryClient, displayId]);
 
   useEffect(() => { if (items.length > 0) preloadForSymbolTypes(items.map(i => i.type)); }, [items]);
@@ -218,6 +221,7 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
   // display document — overwriting imported displays that correctly stored a theme token — and the
   // viewer applies it as an inline style, so the canvas could never follow day/night. It is now
   // whatever the display actually has (default: the theme token).
+  const saveRef = useRef<() => void>(() => {});
   const saveMutation = useMutation({
     mutationFn: () => saveDisplay(displayId, {
       items,
@@ -552,13 +556,15 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
   }, []);
 
   // ── keyboard shortcuts ──────────────────────────────────────────────────────
+  isDirtyRef.current = isDirty;
+  saveRef.current = () => saveMutation.mutate();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (!(e.ctrlKey || e.metaKey)) return;
       const k = e.key.toLowerCase();
-      if (k === 's') { e.preventDefault(); saveMutation.mutate(); }
+      if (k === 's') { e.preventDefault(); if (isDirtyRef.current) saveRef.current(); }
       else if (k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
       else if (k === 'y') { e.preventDefault(); redo(); }
       else if (k === 'd') { e.preventDefault(); duplicateSelected(); }
@@ -570,7 +576,9 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [saveMutation, undo, redo, duplicateSelected, copySelected, cut, paste, groupSelected, ungroupSelected]);
+  // I: NOT saveMutation (new object each render → listener re-registered every
+  // render incl. every drag frame). mutate is read via a ref.
+  }, [undo, redo, duplicateSelected, copySelected, cut, paste, groupSelected, ungroupSelected]);
 
   // ── Full screen + fit-to-screen ───────────────────────────────────────────
   // The designer is a full-viewport route (outside the app shell), so "full screen" here is the real

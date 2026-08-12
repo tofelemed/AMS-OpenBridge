@@ -20,6 +20,7 @@ import {
 import { activateLoop as activateLoopApi } from '../../api/cpmApi';
 import type { CpmActivateRequest, CpmLoop, CpmTagMapEntry } from '../../api/cpmApi';
 import { useQueryClient } from '@tanstack/react-query';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -225,6 +226,7 @@ interface WizardState {
 }
 
 const AddLoopWizard: React.FC<{ existing: CpmLoop[]; onClose: () => void }> = ({ existing, onClose }) => {
+  const dialogRef = useDialogA11y<HTMLDivElement>(onClose);
   const contract = useCpmRegistryContract();
   const activate = useActivateLoop();
   const [step, setStep] = useState(0);
@@ -276,7 +278,7 @@ const AddLoopWizard: React.FC<{ existing: CpmLoop[]; onClose: () => void }> = ({
 
   return (
     <div className="cpm-modal-backdrop" onClick={e => { if (e.target === e.currentTarget && !activate.isPending) onClose(); }}>
-      <div className="cpm-modal" role="dialog" aria-label="Add control loop">
+      <div ref={dialogRef} className="cpm-modal" role="dialog" aria-modal="true" tabIndex={-1} aria-label="Add control loop">
         <PanelHead eyebrow="Governed registry workflow" title="Add control loop" />
         <div className="cpm-wizard-steps">
           {STEPS.map((s, i) => (
@@ -457,6 +459,7 @@ function parseCsv(text: string, existingTags: Set<string>): { missing: string[];
 }
 
 const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => void }> = ({ existing, onClose }) => {
+  const dialogRef2 = useDialogA11y<HTMLDivElement>(onClose);
   const [text, setText] = useState('');
   const [results, setResults] = useState<{ tag: string; ok: boolean; message?: string }[] | null>(null);
   const [importing, setImporting] = useState(false);
@@ -533,7 +536,7 @@ const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => void }> =
 
   return (
     <div className="cpm-modal-backdrop" onClick={e => { if (e.target === e.currentTarget && !importing) onClose(); }}>
-      <div className="cpm-modal" role="dialog" aria-label="Import loops from CSV">
+      <div ref={dialogRef2} className="cpm-modal" role="dialog" aria-modal="true" tabIndex={-1} aria-label="Import loops from CSV">
         <PanelHead eyebrow="Bulk registry workflow" title="Import loops from CSV"
           right={<ObcButton variant="normal" onClick={downloadTemplate}>Download template</ObcButton>} />
 

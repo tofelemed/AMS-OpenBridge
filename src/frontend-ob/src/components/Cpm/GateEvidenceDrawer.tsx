@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { KvRow, PanelHead, TonePill, toneFor, fmtDateTime } from './shared';
 import { useCpmCalculations, useLatestGates } from '../../hooks/useCpm';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 /** Role per gate — the same static policy the registry aside shows. */
 const GATE_ROLES: Record<string, string> = {
@@ -30,6 +31,7 @@ export const GateEvidenceDrawer: React.FC<{
   windowKind?: string;
   onClose: () => void;
 }> = ({ loopId, gateKey, windowKind = '24h', onClose }) => {
+  const dialogRef = useDialogA11y<HTMLDivElement>(onClose);
   const navigate = useNavigate();
   const { data: matrix } = useLatestGates(loopId, windowKind);
   const { data: calc } = useCpmCalculations();
@@ -42,7 +44,7 @@ export const GateEvidenceDrawer: React.FC<{
   return (
     <>
       <div className="cpm-modal-backdrop" onClick={onClose} />
-      <div className="cpm-drawer" role="dialog" aria-label={`${gateKey} evidence`}>
+      <div ref={dialogRef} className="cpm-drawer" role="dialog" aria-modal="true" tabIndex={-1} aria-label={`${gateKey} evidence`}>
         <PanelHead
           eyebrow={`${loopId} · ${gateKey} · ${role}`}
           title={def?.name ?? cell?.name ?? gateKey}
