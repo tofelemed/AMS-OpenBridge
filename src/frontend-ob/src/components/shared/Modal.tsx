@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { ObiCloseGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-close-google';
 
 interface ModalProps {
   isOpen: boolean;
@@ -119,7 +120,7 @@ export const Modal: React.FC<ModalProps> = ({
               {subtitle && <p className="dialog-subtitle">{subtitle}</p>}
             </div>
             <ObcButton variant="flat" size="small" onClick={onClose} aria-label="Close dialog">
-              ✕
+              <ObiCloseGoogle />
             </ObcButton>
           </div>
         </div>

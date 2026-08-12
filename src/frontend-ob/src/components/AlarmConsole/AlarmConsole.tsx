@@ -49,6 +49,7 @@ import { useLiveEventsPanel } from '../../context/LiveEventsContext';
 
 // OpenBridge Components
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { ObiSearch } from '@oicl/openbridge-webcomponents-react/icons/icon-search';
 
 const AlarmConsole: React.FC = () => {
   const gridRef = useRef<AgGridReact<ActiveAlarm>>(null);
@@ -661,10 +662,9 @@ const AlarmConsole: React.FC = () => {
       <div className="toolbar">
         {/* Search */}
         <div className="toolbar__search">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-            strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--on-container-neutral-color)', flexShrink: 0 }}>
-            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-          </svg>
+          <span style={{ color: 'var(--on-container-neutral-color)', flexShrink: 0, display: 'inline-flex' }}>
+            <ObiSearch />
+          </span>
           <input
             type="text"
             className="toolbar__search-input"

@@ -6,6 +6,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import { ObiEditGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-edit-google';
 import { ObiContentCopyGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-content-copy-google';
 import { ObiDelete } from '@oicl/openbridge-webcomponents-react/icons/icon-delete';
+import { ObiLink } from '@oicl/openbridge-webcomponents-react/icons/icon-link';
 import { ObiFileUploadGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-file-upload-google';
 import { Modal, FormField } from '../shared/Modal';
 import { useConfirm, usePrompt } from '../shared/dialogService';
@@ -546,7 +547,7 @@ export const DisplayList: React.FC = () => {
                   title="Share (manage who can view / edit)"
                   aria-label="Share display"
                   onClick={(e) => { e.stopPropagation(); setShareTarget({ id: display.id, name: display.name }); }}
-                >🔗</button>
+                ><ObiLink /></button>
                 <button
                   className="dl-action dl-action--danger" data-testid="card-delete"
                   title="Delete (recoverable from the recycle bin)"
