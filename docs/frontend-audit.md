@@ -456,11 +456,12 @@ one page with a role-conditional card action.
 - ✅ **Flood/alarm feedback** — `FloodAlertBanner` uses `ObcAlertIcon alert-type="alarm"` (blinking); toastify
   already themed from `useTheme()` and, after the dialog-service move, scoped to CRUD toasts only.
 - ✅ **Real error page** — `ErrorBoundary` with Reload (shipped in an earlier batch).
-- ◑ **Emoji → obi-\*** — done for the clean/domain-critical targets (`Modal` close, alarm-toolbar search,
-  share button, `AlarmStateIcon`). **Remaining (deferred):** Dashboard KPI/state glyphs, admin-tab icons,
-  display categories, folder-tree glyphs — several concepts (folder, shield, lock, flag, pause) have **no exact
-  obi icon**, so these need a decision (closest-semantic obi, `obi-placeholder`, or leave) rather than silent
-  substitution.
+- ✅ **Emoji → obi-\*** (closest-semantic, option a) — `Modal` close + FormField error, alarm-toolbar search,
+  share button, `AlarmStateIcon`, **Dashboard** KPI + AlarmStateMatrix + header + empty-states, **Administration**
+  hub tabs, **display categories** (`CategoryIcon`), **FolderTree** carets/rename/delete. Concepts with **no exact
+  OpenBridge icon** are left as-is and noted in-commit: folder (📁/🗂️/📂) and add (＋) in the folder tree; the
+  remaining hand-rolled dialog close ✕ buttons; and — deliberately **not** targets — directional text arrows
+  (typographic) and the designer symbol-palette glyphs (they represent specific process symbols).
 
 Original opportunity list:
 
