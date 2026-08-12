@@ -387,6 +387,25 @@ Shipped as the LOW batch. Each item and how it was resolved:
 
 ## 7. Page consolidation proposal
 
+**Status:** the low-risk subset is DONE (see below); the deeper page merges remain proposed.
+
+- ✅ **Collapsible sidebar groups** shipped (see §6) — directly relieves the "12 flat Loop Performance
+  entries" clutter without merging any pages.
+- ✅ **Administration: 6 sidebar entries → 1.** The sidebar now has a single "Administration" entry
+  (`/admin`); the hub's own 7-tab bar handles the sections, and its existing index redirect lands a bare
+  `/admin` on the first tab the user can see. The entry uses an `anyOf` permission gate so an auditor or
+  rbac-manager still sees it.
+- ✅ **IoTDB Trend → Diagnostics.** Moved out of the primary Historical nav into a bottom "Diagnostics"
+  group (dev/E2E tooling), collapsible like any other group.
+- ⏳ **Deferred (larger / more opinionated):** folding `/soe` into `/live-events`; merging `/designer` +
+  `/displays`; nesting the 12 CPM pages under a tabbed workspace; a single "System Health" page
+  (Edge + Alarm Feed + Pipeline). These change operator muscle memory and delete/merge routes — left for an
+  explicit follow-up.
+
+---
+
+### Original proposal (retained for reference)
+
 The user asked which pages are must / unnecessary and what can be grouped. The sidebar has ~25 entries
 for an admin; two groups break the IA.
 

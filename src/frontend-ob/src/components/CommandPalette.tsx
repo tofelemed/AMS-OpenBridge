@@ -19,6 +19,8 @@ export interface PaletteNavItem {
   label: string;
   group: string;
   permission?: string;
+  /** Shown when the user holds ANY of these (e.g. the Administration entry). */
+  anyOf?: string[];
 }
 
 interface Entry {
@@ -72,7 +74,7 @@ export const CommandPalette: React.FC<{ navItems: PaletteNavItem[] }> = ({ navIt
 
   const entries = useMemo<Entry[]>(() => {
     const nav: Entry[] = navItems
-      .filter(i => !i.permission || hasPermission(i.permission))
+      .filter(i => (i.anyOf ? i.anyOf.some(p => hasPermission(p)) : (!i.permission || hasPermission(i.permission))))
       .map(i => ({ kind: 'nav', title: i.label, sub: i.group, path: i.path }));
     const loopEntries: Entry[] = (loops.data?.loops ?? []).map(l => ({
       kind: 'loop',

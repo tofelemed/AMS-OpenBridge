@@ -636,7 +636,6 @@ const navItems = [
   // ── Historical (PostgreSQL + IoTDB) ───────────────────────
   { path: '/historical', label: 'Alarm History',       Icon: ObiHistoryGoogle, group: 'Historical', permission: 'alarm.view' },
   { path: '/trend',       label: 'Trend',               Icon: ObiTrend, group: 'Historical', permission: 'historian.view' },
-  { path: '/iotdb-trend', label: 'IoTDB Trend Viewer',  Icon: ObiDatabase, group: 'Historical', permission: 'historian.view' },
   // ── Analysis ──────────────────────────────────────────────
   { path: '/analytics',  label: 'Analytics',           Icon: ObiChart, group: 'Analysis', permission: 'analytics.view' },
   // ── Loop Performance (CPLM Phase 7) ───────────────────────
@@ -659,14 +658,13 @@ const navItems = [
   // SystemMonitor was removed in Phase 7 S6: its job table and latency metrics were
   // fabricated and its data endpoint never existed. /cpm/pipeline is the real one.
   { path: '/edge',       label: 'Edge Node Monitor',   Icon: ObiPlaceholder,  group: 'Infrastructure', permission: 'historian.view' },
-  // ── Administration (admin only — the whole section, not just User Management) ──
-  { path: '/admin/users',         label: 'User Management',  Icon: ObiUser, group: 'Administration', permission: 'admin.users.edit' },
-  { path: '/admin/roles',         label: 'Roles & Permissions', Icon: ObiUser, group: 'Administration', permission: 'rbac.manage' },
-  { path: '/admin/alarm-feed',    label: 'Alarm Feed',       Icon: ObiMonitoring, group: 'Administration', permission: 'admin.users.edit' },
-  { path: '/admin/alarm-rules',   label: 'Alarm Rules',      Icon: ObiListAltCheckGoogle, group: 'Administration', permission: 'admin.users.edit' },
-  { path: '/admin/notifications', label: 'Notifications',    Icon: ObiNotification, group: 'Administration', permission: 'admin.users.edit' },
-  { path: '/admin/audit',         label: 'Audit Log',        Icon: ObiListAltCheckGoogle, group: 'Administration', permission: 'admin.audit.view' },
-  { path: '/admin/system',        label: 'System Settings',  Icon: ObiWrench, group: 'Administration', permission: 'admin.users.edit' },
+  // ── Administration (ONE entry — the hub's own 7-tab bar handles the sections;
+  //    a bare /admin lands on the first tab the user can see via the hub's index
+  //    redirect). Visible to anyone holding ANY admin permission — matches the
+  //    /admin/* route's anyOf guard, so an auditor or rbac-manager still sees it. ──
+  { path: '/admin',      label: 'Administration',      Icon: ObiUser, group: 'Administration', permission: 'admin.users.edit', anyOf: ['admin.users.edit', 'admin.audit.view', 'rbac.manage'] },
+  // ── Diagnostics (engineer/E2E tooling — moved out of the primary Historical nav) ──
+  { path: '/iotdb-trend', label: 'IoTDB Trend Viewer',  Icon: ObiDatabase, group: 'Diagnostics', permission: 'historian.view' },
 ];
 
 // Collapsed nav groups persist across navigation and reload, so an operator who
@@ -684,7 +682,13 @@ const Sidebar: React.FC<{ unackedCount: number }> = ({ unackedCount }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const hasPermission = useAuthStore(s => s.hasPermission);
-  const visibleNavItems = navItems.filter(i => !i.permission || hasPermission(i.permission));
+  // `anyOf` (e.g. the single Administration entry) shows when the user holds ANY
+  // of the listed permissions; otherwise fall back to the single `permission`.
+  const visibleNavItems = navItems.filter(i => {
+    const anyOf = (i as { anyOf?: string[] }).anyOf;
+    if (anyOf) return anyOf.some(p => hasPermission(p));
+    return !i.permission || hasPermission(i.permission);
+  });
   const groups = [...new Set(visibleNavItems.map(i => i.group))];
 
   const [collapsed, setCollapsed] = useState<Set<string>>(readCollapsedGroups);
