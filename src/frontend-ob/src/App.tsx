@@ -30,6 +30,7 @@ import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icon
 import CommandPalette from './components/CommandPalette';
 import SessionTimeoutDialog from './components/shared/SessionTimeoutDialog';
 import ErrorBoundary from './components/shared/ErrorBoundary';
+import { DialogProvider } from './components/shared/dialogService';
 import { expiredReason } from './auth/sessionClock';
 
 // H1: route-level boundary — a crashed page (or failed lazy chunk) renders a
@@ -250,6 +251,7 @@ const App: React.FC = () => {
           />
           {/* Why the session ended (idle/absolute) — survives the redirect to /login. */}
           <SessionTimeoutDialog />
+          <DialogProvider>
           <RouteErrorBoundary>
           <Routes>
             {/* Login — standalone, no sidebar/topbar */}
@@ -384,6 +386,7 @@ const App: React.FC = () => {
             />
           </Routes>
           </RouteErrorBoundary>
+          </DialogProvider>
         </BrowserRouter>
       </QueryClientProvider>
     </ThemeContext.Provider>

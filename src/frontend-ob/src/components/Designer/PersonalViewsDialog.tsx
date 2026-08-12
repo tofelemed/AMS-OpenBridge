@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Modal } from '../shared/Modal';
+import { useConfirm } from '../shared/dialogService';
 import { apiJson, apiFetch } from '../../api/apiFetch';
 import { relativeTime } from '../../utils/relativeTime';
 
@@ -22,6 +23,7 @@ interface ViewRow {
 export const PersonalViewsDialog: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const confirm = useConfirm();
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['my-views'],
@@ -49,7 +51,7 @@ export const PersonalViewsDialog: React.FC<{ open: boolean; onClose: () => void 
       </button>
       {v.mine && (
         <button className="pv__del" data-testid="pv-delete"
-          onClick={() => { if (window.confirm(`Delete personal view "${v.name}"?`)) remove.mutate(v.id); }}
+          onClick={async () => { if (await confirm({ title: 'Delete personal view', message: `Delete personal view "${v.name}"?`, confirmLabel: 'Delete', danger: true })) remove.mutate(v.id); }}
           title="Delete">✕</button>
       )}
     </li>

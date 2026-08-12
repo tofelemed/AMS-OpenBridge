@@ -17,6 +17,7 @@ import {
 } from '../../api/usersApi';
 import { getRoles } from '../../api/rolesApi';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../shared/dialogService';
 import { T } from '../../styles/theme';
 
 
@@ -55,6 +56,7 @@ const EMPTY_FORM: UserForm = { username: '', email: '', full_name: '', password:
 export const UserManagementConfig: React.FC = () => {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((s) => s.user);
+  const confirm = useConfirm();
 
   const [searchInput, setSearchInput] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
@@ -172,12 +174,12 @@ export const UserManagementConfig: React.FC = () => {
     saveMutation.mutate();
   };
 
-  const handleDelete = (u: AdminUser) => {
+  const handleDelete = async (u: AdminUser) => {
     if (u.user_id === currentUser?.user_id) {
       toast.warn('You cannot delete your own account.');
       return;
     }
-    if (window.confirm(`Delete user "${u.username}"? This cannot be undone.`)) {
+    if (await confirm({ title: 'Delete user', message: `Delete user "${u.username}"? This cannot be undone.`, confirmLabel: 'Delete', danger: true })) {
       deleteMutation.mutate(u.user_id);
     }
   };

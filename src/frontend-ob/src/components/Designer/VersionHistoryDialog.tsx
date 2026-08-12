@@ -9,6 +9,7 @@ import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Modal } from '../shared/Modal';
+import { useConfirm } from '../shared/dialogService';
 import { apiJson } from '../../api/apiFetch';
 import { relativeTime } from '../../utils/relativeTime';
 
@@ -55,6 +56,7 @@ export const VersionHistoryDialog: React.FC<{
   onRestored?: () => void;
 }> = ({ displayId, open, onClose, onRestored }) => {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [compare, setCompare] = useState<{ base?: number; against?: number }>({});
 
   const { data, isLoading, isError, error, refetch } = useQuery({
@@ -159,7 +161,7 @@ export const VersionHistoryDialog: React.FC<{
                   <button
                     className="vh__restore" data-testid="version-restore"
                     disabled={restore.isPending}
-                    onClick={() => { if (window.confirm(`Restore v${v.version} into a new draft?`)) restore.mutate(v.version); }}
+                    onClick={async () => { if (await confirm({ title: 'Restore version', message: `Restore v${v.version} into a new draft?`, confirmLabel: 'Restore' })) restore.mutate(v.version); }}
                     title="Copy this version into a new editable draft"
                   >Restore</button>
                 </li>

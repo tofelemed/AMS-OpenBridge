@@ -20,6 +20,7 @@ import TrendDialog from './TrendDialog';
 import { isSafeUrl } from './NavigationEditor';
 import { toast } from 'react-toastify';
 import PersonalViewsDialog from './PersonalViewsDialog';
+import { usePrompt } from '../shared/dialogService';
 import './Designer.css';
 import { apiFetch, apiJson } from '../../api/apiFetch';
 import { mediaUrl } from '../../api/mediaApi';
@@ -135,6 +136,7 @@ export const DisplayViewer: React.FC<{
   const { transform: touchTransform, scale: touchScale, reset: resetTouch, handlers: touchHandlers } = useTouchZoomPan();
   const rootRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const promptDialog = usePrompt();
   const [refreshMs, setRefreshMs] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [trail, setTrail] = useState<Crumb[]>(() => readTrail());
@@ -460,7 +462,7 @@ export const DisplayViewer: React.FC<{
             title="Save this display's layout as your own personal view"
             onClick={async () => {
               if (!data) return;
-              const name = window.prompt('Name for your personal view', `${data.name} (my view)`);
+              const name = await promptDialog({ title: 'Save personal view', label: 'View name', defaultValue: `${data.name} (my view)` });
               if (!name?.trim()) return;
               try {
                 await apiJson(`${API_BASE}/me/views`, {

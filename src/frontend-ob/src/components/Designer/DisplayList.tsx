@@ -8,6 +8,7 @@ import { ObiContentCopyGoogle } from '@oicl/openbridge-webcomponents-react/icons
 import { ObiDelete } from '@oicl/openbridge-webcomponents-react/icons/icon-delete';
 import { ObiFileUploadGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-file-upload-google';
 import { Modal, FormField } from '../shared/Modal';
+import { useConfirm, usePrompt } from '../shared/dialogService';
 import { apiFetch, apiJson } from '../../api/apiFetch';
 import { relativeTime } from '../../utils/relativeTime';
 import { useAuthStore } from '../../store/authStore';
@@ -117,6 +118,8 @@ export const DisplayList: React.FC = () => {
   const navigate = useNavigate();
   const currentUser = useAuthStore(s => s.user?.username ?? 'unknown');
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
+  const prompt = usePrompt();
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newDisplay, setNewDisplay] = useState({ name: '', category: 'overview', description: '', level: 2, tags: '' });
@@ -522,9 +525,9 @@ export const DisplayList: React.FC = () => {
                   className="dl-action" data-testid="card-rename"
                   title="Rename"
                   aria-label="Rename display"
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.stopPropagation();
-                    const name = window.prompt('Rename display', display.name);
+                    const name = await prompt({ title: 'Rename display', label: 'Display name', defaultValue: display.name });
                     if (name && name.trim() && name !== display.name) renameMutation.mutate({ id: display.id, name: name.trim() });
                   }}
                 ><ObiEditGoogle /></button>
@@ -532,9 +535,9 @@ export const DisplayList: React.FC = () => {
                   className="dl-action" data-testid="card-duplicate"
                   title="Duplicate (Save As)"
                   aria-label="Duplicate display"
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.stopPropagation();
-                    const name = window.prompt('Name for the copy', `${display.name} (copy)`);
+                    const name = await prompt({ title: 'Duplicate display', label: 'Name for the copy', defaultValue: `${display.name} (copy)` });
                     if (name && name.trim()) duplicateMutation.mutate({ id: display.id, name: name.trim() });
                   }}
                 ><ObiContentCopyGoogle /></button>
@@ -548,10 +551,10 @@ export const DisplayList: React.FC = () => {
                   className="dl-action dl-action--danger" data-testid="card-delete"
                   title="Delete (recoverable from the recycle bin)"
                   aria-label="Delete display"
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.stopPropagation();
-                    // Never delete on a bare click; name the display in the prompt.
-                    if (window.confirm(`Delete "${display.name}"? It goes to the recycle bin and can be restored.`)) {
+                    // Never delete on a bare click; name the display in the dialog.
+                    if (await confirm({ title: 'Delete display', message: `Delete "${display.name}"? It goes to the recycle bin and can be restored.`, confirmLabel: 'Delete', danger: true })) {
                       deleteMutation.mutate(display.id);
                     }
                   }}

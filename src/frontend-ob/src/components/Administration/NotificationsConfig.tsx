@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Modal, FormField } from '../shared/Modal';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { useConfirm } from '../shared/dialogService';
 import { T } from '../../styles/theme';
 
 
@@ -26,6 +27,7 @@ const ACTION_ICONS: Record<NotificationRule['action'], string> = {
 export const NotificationsConfig: React.FC = () => {
   // H6: was seeded with three FAKE sample policies presented as configured
   // escalation routes. Starts empty until wired to notification-service.
+  const confirm = useConfirm();
   const [rules, setRules] = useState<NotificationRule[]>([]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -57,8 +59,8 @@ export const NotificationsConfig: React.FC = () => {
   const toggleStatus = (id: string) =>
     setRules(rules.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r));
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Delete this notification policy?'))
+  const handleDelete = async (id: string) => {
+    if (await confirm({ title: 'Delete notification policy', message: 'Delete this notification policy?', danger: true }))
       setRules(rules.filter(r => r.id !== id));
   };
 

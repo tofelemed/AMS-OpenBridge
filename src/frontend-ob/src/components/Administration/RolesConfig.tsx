@@ -10,6 +10,7 @@ import {
   resetRolePermissions, createRole, deleteRole, updateRole,
   extractRoleApiError, type Role, type PermissionDef,
 } from '../../api/rolesApi';
+import { usePrompt } from '../shared/dialogService';
 import { T } from '../../styles/theme';
 
 /* Layout tokens — shared idiom with the other Administration tabs. */
@@ -21,6 +22,7 @@ const sortRoles = (rs: Role[]) =>
       : a.is_system_role ? -1 : 1);
 
 export const RolesConfig: React.FC = () => {
+  const prompt = usePrompt();
   const [roles, setRoles] = useState<Role[]>([]);
   const [catalog, setCatalog] = useState<PermissionDef[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -129,10 +131,14 @@ export const RolesConfig: React.FC = () => {
 
   const onDelete = async () => {
     if (!selectedRole || selectedRole.is_system_role) return;
-    const reassignTo = window.prompt(
-      `Delete custom role "${selectedRole.role_name}".\n\nIf any users hold it, enter a role to reassign them to (leave blank to cancel if there are users):`,
-      'Viewer'
-    );
+    const reassignTo = await prompt({
+      title: `Delete role "${selectedRole.role_name}"`,
+      message: 'If any users hold this role, enter a role to reassign them to (leave blank to cancel if there are users).',
+      label: 'Reassign users to',
+      defaultValue: 'Viewer',
+      confirmLabel: 'Delete role',
+      required: false,
+    });
     if (reassignTo === null) return;
     setBusy(true); setError(null); setNotice(null);
     try {

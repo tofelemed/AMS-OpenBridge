@@ -20,6 +20,7 @@ import TrendDialog from './TrendDialog';
 import { apiFetch } from '../../api/apiFetch';
 import { useAuthStore } from '../../store/authStore';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../shared/dialogService';
 import { ObiError } from '@oicl/openbridge-webcomponents-react/icons/icon-error';
 
 
@@ -129,6 +130,7 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
   onSave
 }) => {
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const currentUser = useAuthStore(s => s.user?.username ?? 'unknown');
 
   // State
@@ -624,10 +626,14 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [isDirty]);
 
-  const closeDesigner = useCallback(() => {
-    if (isDirty && !window.confirm('You have unsaved changes. Leave the designer and discard them?')) return;
+  const closeDesigner = useCallback(async () => {
+    if (isDirty && !(await confirm({
+      title: 'Unsaved changes',
+      message: 'You have unsaved changes. Leave the designer and discard them?',
+      confirmLabel: 'Discard & leave', danger: true,
+    }))) return;
     onClose?.();
-  }, [isDirty, onClose]);
+  }, [isDirty, onClose, confirm]);
 
   // Debug/test hook: expose designer state for automated verification.
   // DEV/E2E only — never leak internal designer state onto window in a
@@ -712,8 +718,12 @@ export const DisplayDesigner: React.FC<DisplayDesignerProps> = ({
         hasUnpublishedChanges={hasUnpublishedChanges}
         onPublish={() => publishMutation.mutate()}
         onUnpublish={() => unpublishMutation.mutate()}
-        onRevert={() => {
-          if (window.confirm('Discard all unpublished edits and restore the last published version?')) {
+        onRevert={async () => {
+          if (await confirm({
+            title: 'Revert to published',
+            message: 'Discard all unpublished edits and restore the last published version?',
+            confirmLabel: 'Revert', danger: true,
+          })) {
             revertMutation.mutate();
           }
         }}

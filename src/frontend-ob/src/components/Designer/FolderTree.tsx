@@ -8,6 +8,7 @@ import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { apiJson, apiFetch } from '../../api/apiFetch';
+import { useConfirm, usePrompt } from '../shared/dialogService';
 
 const API_BASE = import.meta.env.VITE_DISPLAY_SERVICE_URL || '/api/displays';
 
@@ -35,6 +36,8 @@ export const FolderTree: React.FC<{
   onSelect: (folderId: string | undefined | '') => void;
 }> = ({ selectedFolderId, onSelect }) => {
   const qc = useQueryClient();
+  const confirm = useConfirm();
+  const prompt = usePrompt();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 
@@ -108,9 +111,9 @@ export const FolderTree: React.FC<{
           <span className="ft__icon">📁</span>
           <span className="ft__name">{node.name}</span>
           <span className="ft__actions">
-            <button title="New subfolder" onClick={(e) => { e.stopPropagation(); const name = window.prompt('New subfolder name'); if (name?.trim()) createFolder.mutate({ name: name.trim(), parentId: node.id }); }}>＋</button>
-            <button title="Rename" onClick={(e) => { e.stopPropagation(); const name = window.prompt('Rename folder', node.name); if (name?.trim() && name !== node.name) renameFolder.mutate({ id: node.id, name: name.trim(), parentId: node.parentId }); }}>✎</button>
-            <button title="Delete (displays inside are kept, just unfiled)" onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete folder "${node.name}"? Displays inside are moved to Unfiled.`)) deleteFolder.mutate(node.id); }}>✕</button>
+            <button title="New subfolder" onClick={async (e) => { e.stopPropagation(); const name = await prompt({ title: 'New subfolder', label: 'Subfolder name' }); if (name?.trim()) createFolder.mutate({ name: name.trim(), parentId: node.id }); }}>＋</button>
+            <button title="Rename" onClick={async (e) => { e.stopPropagation(); const name = await prompt({ title: 'Rename folder', label: 'Folder name', defaultValue: node.name }); if (name?.trim() && name !== node.name) renameFolder.mutate({ id: node.id, name: name.trim(), parentId: node.parentId }); }}>✎</button>
+            <button title="Delete (displays inside are kept, just unfiled)" onClick={async (e) => { e.stopPropagation(); if (await confirm({ title: 'Delete folder', message: `Delete folder "${node.name}"? Displays inside are moved to Unfiled.`, confirmLabel: 'Delete', danger: true })) deleteFolder.mutate(node.id); }}>✕</button>
           </span>
         </div>
         {isOpen && node.children.map(c => renderNode(c, depth + 1))}
@@ -122,7 +125,7 @@ export const FolderTree: React.FC<{
     <div className="ft" data-testid="folder-tree">
       <div className="ft__head">
         <span>Folders</span>
-        <button title="New folder" onClick={() => { const name = window.prompt('New folder name'); if (name?.trim()) createFolder.mutate({ name: name.trim() }); }}>＋ New</button>
+        <button title="New folder" onClick={async () => { const name = await prompt({ title: 'New folder', label: 'Folder name' }); if (name?.trim()) createFolder.mutate({ name: name.trim() }); }}>＋ New</button>
       </div>
       <div
         className={`ft__row${selectedFolderId === undefined ? ' ft__row--sel' : ''}`}
