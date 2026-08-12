@@ -57,7 +57,7 @@ export const VersionHistoryDialog: React.FC<{
   const qc = useQueryClient();
   const [compare, setCompare] = useState<{ base?: number; against?: number }>({});
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['versions', displayId],
     queryFn: () => apiJson<VersionsResponse>(`${API_BASE}/${displayId}/versions`),
     enabled: open,
@@ -165,7 +165,13 @@ export const VersionHistoryDialog: React.FC<{
                 </li>
               );
             })}
-            {versions.length === 0 && <li className="vh__empty">No versions yet.</li>}
+            {isError && (
+              <li className="vh__empty">
+                Could not load versions: {(error as Error)?.message ?? 'unavailable'}.{' '}
+                <button type="button" className="linklike" onClick={() => void refetch()}>Retry</button>
+              </li>
+            )}
+            {!isError && versions.length === 0 && <li className="vh__empty">No versions yet.</li>}
           </ul>
         )}
 

@@ -20,7 +20,6 @@ const EDGE = (import.meta.env.VITE_SPARKPLUG_EDGE as string | undefined) || 'ams
 /** Same sanitation the edge node applies to loopId → device. */
 const deviceOf = (loopId: string) => loopId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
-const EMPTY_METRICS: ReadonlyMap<string, LiveMetric> = new Map();
 
 export interface LoopLiveState {
   pv: LiveMetric | undefined;
@@ -39,9 +38,18 @@ export function useLoopLive(loopId: string | undefined): LoopLiveState {
   const device = loopId ? deviceOf(loopId) : undefined;
   const subscribeScreen = useMqttStore(s => s.subscribeScreen);
   const unsubscribeScreen = useMqttStore(s => s.unsubscribeScreen);
-  // Only watch the metrics map while a loop is actually bound (perf pattern
-  // from useBindingResolver — unbound hooks must not re-render per MQTT tick).
-  const metrics = useMqttStore(s => (device ? s.metrics : EMPTY_METRICS));
+
+  // D: select THIS loop's six metric keys individually — the old version
+  // subscribed to the whole metrics Map, whose identity changes on every 100ms
+  // flush, so every mounted loop row re-rendered 10×/s regardless of its own
+  // data. Per-key selectors re-render only when a key's own object changes
+  // (unchanged keys keep identity across the coalesced flush).
+  const pv      = useMqttStore(s => (device ? s.metrics.get(`${device}/pv`) : undefined));
+  const sp      = useMqttStore(s => (device ? s.metrics.get(`${device}/sp`) : undefined));
+  const op      = useMqttStore(s => (device ? s.metrics.get(`${device}/op`) : undefined));
+  const vp      = useMqttStore(s => (device ? s.metrics.get(`${device}/vp`) : undefined));
+  const mode    = useMqttStore(s => (device ? s.metrics.get(`${device}/mode`) : undefined));
+  const quality = useMqttStore(s => (device ? s.metrics.get(`${device}/quality`) : undefined));
 
   useEffect(() => {
     if (!device) return;
@@ -51,15 +59,14 @@ export function useLoopLive(loopId: string | undefined): LoopLiveState {
   }, [device, subscribeScreen, unsubscribeScreen]);
 
   return useMemo(() => {
-    const get = (m: string) => (device ? metrics.get(`${device}/${m}`) : undefined);
-    const all = [get('pv'), get('sp'), get('op'), get('vp'), get('mode'), get('quality')];
+    const all = [pv, sp, op, vp, mode, quality];
     const stamps = all.filter((x): x is LiveMetric => x != null).map(x => x.ts);
     return {
-      pv: all[0], sp: all[1], op: all[2], vp: all[3], mode: all[4], quality: all[5],
+      pv, sp, op, vp, mode, quality,
       hasData: stamps.length > 0,
       lastTs: stamps.length ? Math.max(...stamps) : null,
     };
-  }, [metrics, device]);
+  }, [pv, sp, op, vp, mode, quality]);
 }
 
 /** OPC/Sparkplug quality number → NAMUR-style label + tone. */

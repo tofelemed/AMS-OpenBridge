@@ -16,14 +16,14 @@ import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KpiTile, KvRow, LoopSelect, PanelHead, TonePill, WorkspaceHeader, toneFor,
-  fmtDateTime,
-} from './shared';
+  fmtDateTime, QueryError } from './shared';
 import type { CpmGateMatrix } from '../../api/cpmApi';
 import {
   useAcknowledgeEvent, useCpmEvents, useCpmLoops, useCpmTrend,
   useFleetRankings, useGateHistory, useLatestGates,
 } from '../../hooks/useCpm';
 import { loopSeries } from '../../utils/loopSeries';
+import { useObcTheme } from '../../hooks/useObcTheme';
 
 function cssVar(name: string, fallback: string): string {
   if (typeof window === 'undefined') return fallback;
@@ -134,9 +134,10 @@ export const CpmInvestigation: React.FC = () => {
     const now = new Date();
     return { start: new Date(now.getTime() - 24 * 3600_000), end: now };
   }, [matrix?.windowStart, matrix?.windowEnd]);
-  const trend = useCpmTrend(series, start, end, 280);
+  const trend = useCpmTrend(series, start, end, 280, 'pv,sp,op', !!matrix); // C: hold until the verdict window is known
   const points = useMemo(() => trend.data?.points ?? [], [trend.data]);
 
+  const obcTheme = useObcTheme(); // C: re-derive chart colors on theme switch
   const chartOption = useMemo(() => {
     const good = cssVar('--instrument-enhanced-secondary-color', '#41be95');
     const amber = cssVar('--alert-caution-color', '#d79a40');
@@ -165,7 +166,7 @@ export const CpmInvestigation: React.FC = () => {
           data: points.map(p => [p.ts, num(p.op_avg) ?? num(p.op)]) },
       ],
     };
-  }, [points]);
+  }, [points, obcTheme]);
 
   const metrics = matrix?.metrics ?? {};
   const machineReason = matrix?.insufficientEvidenceReason
@@ -174,7 +175,7 @@ export const CpmInvestigation: React.FC = () => {
     ?? null;
 
   // Investigation note → the loop's open event frame (full cases are DG-7).
-  const events = useCpmEvents({ loopId, openOnly: true, limit: 5 }, 60_000);
+  const events = useCpmEvents({ loopId, openOnly: true, limit: 5 }, 60_000, !!loopId); // C
   const openFrame = events.data?.events.find(e => e.ack_state === 'UNACKNOWLEDGED');
   const ack = useAcknowledgeEvent();
   const [note, setNote] = useState('');
@@ -244,7 +245,8 @@ export const CpmInvestigation: React.FC = () => {
         </div>
       </section>
 
-      {!matrix && !latest.isLoading && (
+      {latest.isError && <QueryError title="Verdict unavailable" error={latest.error} retry={() => void latest.refetch()} />}
+      {!matrix && !latest.isLoading && !latest.isError && (
         <section className="cpm-surface">
           <EmptyState title="No fused verdict for this loop"
             copy="Verdicts appear once the loop completes a 12h/24h evaluation window, or after a recompute." />

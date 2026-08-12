@@ -132,6 +132,9 @@ const Administration: React.FC = () => {
           <Route path="notifications" element={<NotificationsConfig />} />
           <Route path="audit"         element={<AuditExplorer />} />
           <Route path="system"        element={<SystemSettingsConfig />} />
+          {/* F: bare /admin was an empty pane — land on the first tab the user can see. */}
+          <Route index element={<Navigate to={visibleTabs[0]?.path ?? '/dashboard'} replace />} />
+          <Route path="*" element={<Navigate to={visibleTabs[0]?.path ?? '/dashboard'} replace />} />
         </Routes>
       </div>
 

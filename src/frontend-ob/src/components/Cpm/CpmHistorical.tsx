@@ -14,13 +14,13 @@ import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KvRow, LoopSelect, PanelHead, TonePill, WorkspaceHeader, toneFor,
-  fmtDateTime,
-} from './shared';
+  fmtDateTime, QueryError } from './shared';
 import type { CpmGateMatrix } from '../../api/cpmApi';
 import {
   useCpmKpisRange, useCpmLoops, useCpmModeTrack, useCpmTrend, useGateHistory,
 } from '../../hooks/useCpm';
 import { loopSeries } from '../../utils/loopSeries';
+import { useObcTheme } from '../../hooks/useObcTheme';
 
 function cssVar(name: string, fallback: string): string {
   if (typeof window === 'undefined') return fallback;
@@ -101,6 +101,7 @@ export const CpmHistorical: React.FC = () => {
   const points = useMemo(() => trend.data?.points ?? [], [trend.data]);
   const kpiRows = useMemo(() => kpis.data?.samples ?? [], [kpis.data]);
 
+  const obcTheme = useObcTheme(); // C: re-derive chart colors on theme switch
   const option = useMemo(() => {
     const good = cssVar('--instrument-enhanced-secondary-color', '#41be95');
     const amber = cssVar('--alert-caution-color', '#d79a40');
@@ -147,7 +148,7 @@ export const CpmHistorical: React.FC = () => {
           data: overlayData },
       ],
     };
-  }, [points, kpiRows, overlay]);
+  }, [points, kpiRows, overlay, obcTheme]);
 
   const applyRange = () => {
     setParams(p => {
@@ -214,7 +215,8 @@ export const CpmHistorical: React.FC = () => {
         </div>
 
         {trend.isLoading && <EmptyState title="Loading trend…" />}
-        {!trend.isLoading && points.length === 0 && (
+        {trend.isError && <QueryError title="Historian unreachable" error={trend.error} retry={() => void trend.refetch()} />}
+        {!trend.isLoading && !trend.isError && points.length === 0 && (
           <EmptyState title="No historian data in this range"
             copy={series ? `No samples stored at ${series} between the selected dates.` : 'Select a loop.'} />
         )}

@@ -38,7 +38,7 @@ export const FolderTree: React.FC<{
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 
-  const { data } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['folders'],
     queryFn: () => apiJson<{ folders: Folder[] }>(`${API_BASE}/folders`),
   });
@@ -138,7 +138,14 @@ export const FolderTree: React.FC<{
       >
         <span className="ft__caret-spacer" /><span className="ft__icon">📂</span><span className="ft__name">Unfiled</span>
       </div>
-      {tree.map(n => renderNode(n))}
+      {isLoading && <div className="ft__row ft__muted">Loading folders…</div>}
+      {isError && (
+        <div className="ft__row ft__muted">
+          Folders unavailable.{' '}
+          <button type="button" className="linklike" onClick={() => void refetch()}>Retry</button>
+        </div>
+      )}
+      {!isLoading && !isError && tree.map(n => renderNode(n))}
     </div>
   );
 };

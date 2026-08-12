@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useMqttStore, getMqttBrokerUrl, type LiveAlarm } from '../../store/mqttStore';
 import { fetchHistorianBffHealth, type BffHealth } from '../../api/historianHealth';
 import { backgroundPoll } from '../../api/apiFetch';
@@ -59,12 +59,6 @@ const EdgeNodeMonitor: React.FC = () => {
   const [bffLoading, setBffLoading] = useState(false);
   const [bffError,   setBffError]   = useState<string | null>(null);
 
-  /* Snapshot assets (sample from metrics map keys) */
-  const [snapAssets, setSnapAssets] = useState<SnapshotAsset[]>([]);
-
-  /* Track incoming message count */
-  const [prevMetricSize, setPrevMetricSize] = useState(0);
-
   /* Connect MQTT on mount */
   useEffect(() => {
     mqttConnect();
@@ -74,15 +68,11 @@ const EdgeNodeMonitor: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* Track metric map size changes */
-  useEffect(() => {
-    if (metrics.size !== prevMetricSize) {
-      setPrevMetricSize(metrics.size);
-    }
-  }, [metrics.size, prevMetricSize]);
-
-  /* Derive snapshot asset summary from metrics map */
-  useEffect(() => {
+  /* D: derive the snapshot asset summary in-render via useMemo. This was two
+     effects that each called setState on every 100ms firehose flush — a dead
+     prevMetricSize counter and a snapAssets effect — so the page rendered, then
+     re-rendered from the setState, ~2×/flush. A memo derives it in one pass. */
+  const snapAssets = useMemo<SnapshotAsset[]>(() => {
     const deviceSet = new Map<string, number>();
     for (const key of metrics.keys()) {
       const device = key.split('/')[0];
@@ -95,7 +85,7 @@ const EdgeNodeMonitor: React.FC = () => {
       const age      = tsMetric ? Math.round((now - tsMetric.ts) / 1000) : null;
       assets.push({ asset, metricCount: count, freshness: age });
     }
-    setSnapAssets(assets.sort((a, b) => a.asset.localeCompare(b.asset)));
+    return assets.sort((a, b) => a.asset.localeCompare(b.asset));
   }, [metrics]);
 
   /* Fetch BFF health */

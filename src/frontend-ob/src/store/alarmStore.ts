@@ -438,6 +438,11 @@ async function hydrateAlarmsFromApi(
 }
 
 let hubInitInFlight: Promise<void> | null = null;
+// D: hold the connection from the moment it is BUILT, before start() resolves —
+// disconnect() (on logout) used to no-op because state.hubConnection is only set
+// on success, so a logout racing the initial connect left a live hub pushing
+// alarms and firing unauthenticated hydration after sign-out.
+let liveHubConnection: HubConnection | null = null;
 
 function pickId(raw: Record<string, unknown>): string {
   return String(raw.id ?? raw.Id ?? '');
@@ -491,6 +496,7 @@ export const useAlarmStore = create<AlarmStore>()(
           })
           .configureLogging(LogLevel.Warning)
           .build();
+        liveHubConnection = connection;
 
         connection.on('OnNewAlarm', (raw: Record<string, unknown>) => {
           queueHubDelta(set, { kind: 'new', raw });
@@ -633,8 +639,11 @@ export const useAlarmStore = create<AlarmStore>()(
     disconnect: async () => {
       if (hubFlushTimer) { clearTimeout(hubFlushTimer); hubFlushTimer = null; }
       pendingHubDeltas = [];
-      const conn = get().hubConnection;
-      if (conn) await conn.stop();
+      // D: stop whichever connection exists — the module ref covers the window
+      // where start() is still in flight and state.hubConnection is still null.
+      const conn = get().hubConnection ?? liveHubConnection;
+      liveHubConnection = null;
+      if (conn) { try { await conn.stop(); } catch { /* already closing */ } }
       set(state => { state.hubConnection = null; state.connectionState = HubConnectionState.Disconnected; });
     },
 
@@ -734,24 +743,48 @@ export const useAlarmStore = create<AlarmStore>()(
   }))
 );
 
-const audioCtx = typeof window !== 'undefined' ? new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)() : null;
+// D: audible annunciation was likely silent — the AudioContext was created at
+// module load, so the browser autoplay policy started it 'suspended', and
+// playAlarmSound never resumed it. Now it is created lazily and resumed on the
+// first user gesture (the gesture is what the policy requires), then resumed
+// again defensively before each beep.
+let audioCtx: AudioContext | null = null;
+
+function getAudioContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  if (!audioCtx) {
+    const Ctor = window.AudioContext
+      || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return null;
+    audioCtx = new Ctor();
+  }
+  return audioCtx;
+}
+
+if (typeof window !== 'undefined') {
+  const unlock = () => { void getAudioContext()?.resume().catch(() => {}); };
+  window.addEventListener('pointerdown', unlock, { once: true });
+  window.addEventListener('keydown', unlock, { once: true });
+}
 
 function playAlarmSound(priority: string) {
-  if (!audioCtx) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
   try {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
+    if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
     osc.connect(gain);
-    gain.connect(audioCtx.destination);
+    gain.connect(ctx.destination);
 
     const freq = priority === 'CRITICAL' ? 880 : priority === 'HIGH' ? 660 : 440;
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
 
-    osc.start(audioCtx.currentTime);
-    osc.stop(audioCtx.currentTime + 0.4);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.4);
   } catch {
     /* Audio may be blocked by browser policy */
   }

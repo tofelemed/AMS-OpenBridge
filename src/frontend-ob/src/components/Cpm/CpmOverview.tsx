@@ -14,14 +14,14 @@ import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KpiTile, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
-  fmtDateTime,
-} from './shared';
+  fmtDateTime, QueryError } from './shared';
 import {
   useCpmEvents, useCpmPipelineStatus, useCpmTrend, useFleetRankings,
   useFleetSummary, useLatestGates,
 } from '../../hooks/useCpm';
 import { useLoopLive, qualityLabel } from '../../hooks/useLoopLive';
 import { loopSeries } from '../../utils/loopSeries';
+import { useObcTheme } from '../../hooks/useObcTheme';
 
 /** echarts renders to canvas and cannot consume var(); resolve tokens once per render. */
 function cssVar(name: string, fallback: string): string {
@@ -80,7 +80,8 @@ export const CpmOverview: React.FC = () => {
           <PanelHead eyebrow="Priority queue" title="Loops requiring review"
             right={<ObcButton variant="normal" onClick={() => navigate('/cpm/performance')}>View all ›</ObcButton>} />
           {rankings.isLoading && <EmptyState title="Loading…" />}
-          {!rankings.isLoading && loops.length === 0 && (
+          {rankings.isError && <QueryError title="Rankings unavailable" error={rankings.error} retry={() => void rankings.refetch()} />}
+          {!rankings.isLoading && !rankings.isError && loops.length === 0 && (
             <EmptyState title="No monitored loops"
               copy="Onboard loops in the Loop Registry to populate this queue."
               action={{ label: 'Open Loop Registry', onClick: () => navigate('/cpm/registry') }} />
@@ -223,6 +224,7 @@ const LoopFocus: React.FC<{
   const fmtLive = (m: { value: number | string | boolean } | undefined, digits = 1) =>
     m == null ? '—' : typeof m.value === 'number' ? m.value.toFixed(digits) : String(m.value);
 
+  const obcTheme = useObcTheme(); // C: re-derive chart colors on theme switch
   const option = useMemo(() => {
     const good = cssVar('--instrument-enhanced-secondary-color', '#41be95');
     const amber = cssVar('--alert-caution-color', '#d79a40');
@@ -257,7 +259,7 @@ const LoopFocus: React.FC<{
           data: points.map(p => num(p.op_avg) ?? num(p.op)) },
       ],
     };
-  }, [points]);
+  }, [points, obcTheme]);
 
   return (
     <section className="cpm-surface">

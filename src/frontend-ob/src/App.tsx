@@ -141,12 +141,21 @@ const queryClient = new QueryClient({
 
 const App: React.FC = () => {
   const [ready, setReady] = useState(false);
-  const [theme, setTheme] = useState<Theme>('day');
+  // F: persist the theme — a night-shift control room reverting to 'day' on every
+  // reload is hostile. Mirrors the LiveEvents preference idiom.
+  const [theme, setTheme] = useState<Theme>(() => {
+    try {
+      const t = localStorage.getItem('ams-theme');
+      if (t === 'day' || t === 'bright' || t === 'night') return t;
+    } catch { /* ignore */ }
+    return 'day';
+  });
 
   const authStatus = useAuthStore((s) => s.status);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-obc-theme', theme);
+    try { localStorage.setItem('ams-theme', theme); } catch { /* ignore */ }
   }, [theme]);
 
   // Restore an existing session (silent refresh via the httpOnly cookie) once on load.
@@ -232,7 +241,7 @@ const App: React.FC = () => {
             pauseOnFocusLoss
             draggable
             pauseOnHover
-            theme="dark"
+            theme={theme === 'night' ? 'dark' : 'light'}
           />
           {/* Why the session ended (idle/absolute) — survives the redirect to /login. */}
           <SessionTimeoutDialog />
@@ -360,7 +369,7 @@ const App: React.FC = () => {
                       {/* Infrastructure */}
                       <Route path="/edge"       element={<RequirePermission permission="historian.view"><EdgeNodeMonitor /></RequirePermission>} />
                       {/* Administration — was reachable by ANY authenticated user via direct URL */}
-                      <Route path="/admin/*"    element={<RequirePermission permission="admin.users.edit"><Administration /></RequirePermission>} />
+                      <Route path="/admin/*"    element={<RequirePermission permission="admin.users.edit" anyOf={['admin.users.edit', 'admin.audit.view', 'rbac.manage']}><Administration /></RequirePermission>} />
                       <Route path="*"           element={<Navigate to="/dashboard" replace />} />
                     </Routes>
                   </React.Suspense>
@@ -647,6 +656,7 @@ const navItems = [
   { path: '/edge',       label: 'Edge Node Monitor',   Icon: ObiPlaceholder,  group: 'Infrastructure', permission: 'historian.view' },
   // ── Administration (admin only — the whole section, not just User Management) ──
   { path: '/admin/users',         label: 'User Management',  Icon: ObiUser, group: 'Administration', permission: 'admin.users.edit' },
+  { path: '/admin/roles',         label: 'Roles & Permissions', Icon: ObiUser, group: 'Administration', permission: 'rbac.manage' },
   { path: '/admin/alarm-feed',    label: 'Alarm Feed',       Icon: ObiMonitoring, group: 'Administration', permission: 'admin.users.edit' },
   { path: '/admin/alarm-rules',   label: 'Alarm Rules',      Icon: ObiListAltCheckGoogle, group: 'Administration', permission: 'admin.users.edit' },
   { path: '/admin/notifications', label: 'Notifications',    Icon: ObiNotification, group: 'Administration', permission: 'admin.users.edit' },
@@ -667,8 +677,10 @@ const Sidebar: React.FC<{ unackedCount: number }> = ({ unackedCount }) => {
         <div key={group} className="nav-section">
           <div className="nav-section__title">{group}</div>
           {visibleNavItems.filter(i => i.group === group).map(item => {
-            const isActive = location.pathname === item.path || 
-              (item.path !== '/' && location.pathname.startsWith(item.path));
+            // F: exact, or a real path-segment boundary — the old startsWith kept
+            // '/cpm' active on every '/cpm/*' page, double-highlighting the sidebar.
+            const isActive = location.pathname === item.path ||
+              (item.path !== '/' && location.pathname.startsWith(item.path + '/'));
             return (
               <button
                 key={item.path}
@@ -702,7 +714,7 @@ const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return <LoadingScreen />;
   }
   if (status !== 'authenticated') {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    return <Navigate to="/login" replace state={{ from: location.pathname + location.search + location.hash }} />;
   }
   return <>{children}</>;
 };
@@ -710,13 +722,18 @@ const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 // Phase K — route-level authorization. Authentication alone is not enough: an Operator who types a
 // Designer URL must be REDIRECTED, not shown a partially-rendered editor. (Note this also closes the
 // pre-existing gap where /admin/users was merely hidden from the nav but still directly reachable.)
-export const RequirePermission: React.FC<{ permission: string; children: React.ReactNode }> = ({
-  permission,
-  children,
-}) => {
+export const RequirePermission: React.FC<{
+  permission: string;
+  /** F: any-of gate — the route opens if the user holds ANY of these (the umbrella
+   *  /admin/* guard uses it so an auditor/rbac-manager isn't bounced by the
+   *  users.edit requirement; the hub's per-tab guards then do the fine gating). */
+  anyOf?: string[];
+  children: React.ReactNode;
+}> = ({ permission, anyOf, children }) => {
   const hasPermission = useAuthStore(s => s.hasPermission);
   const location = useLocation();
-  if (!hasPermission(permission)) {
+  const allowed = anyOf ? anyOf.some(p => hasPermission(p)) : hasPermission(permission);
+  if (!allowed) {
     // Land somewhere the role CAN use — the published-display launcher. If they can't use that either,
     // say so rather than bouncing between two forbidden routes forever.
     if (!hasPermission('display.view') || location.pathname === '/displays') {

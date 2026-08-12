@@ -13,6 +13,7 @@ import '../AlarmConsole/ag-theme-openbridge.css';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { useQuery } from '@tanstack/react-query';
+import { useDebounce } from '../../hooks/useDebounce';
 import { authedAxios } from '../../api/http';
 import { PriorityBadge } from '../shared/PriorityBadge';
 import { formatTimestampMs } from '../../utils/time';
@@ -24,7 +25,7 @@ const T = {
   bg: '#F6F8FB', card: '#FFFFFF', border: '#DDE3EA', borderLight: '#EEF2F7',
   textPrimary: '#1F2937', textSecondary: '#6B7280', textMuted: '#9CA3AF',
   success: '#2E8B57', successBg: '#ECFDF5',
-  critical: '#D64545', criticalBg: '#FEF2F2',
+  critical: '#D64545', criticalBg: '#FEF2F2', criticalBorder: '#FCA5A5',
   radius: '12px', radiusSm: '8px',
   shadow: '0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.05)',
 } as const;
@@ -61,13 +62,19 @@ const HistoricalViewer: React.FC = () => {
   const [page,           setPage]           = useState(0);
   const pageSize = 500;
 
-  const { data, isLoading, refetch } = useQuery({
-    queryKey: ['historicalAlarms', dateRange, priorityFilter, sourceFilter, page],
+  // E: debounce Source/Tag so typing "Unit1.FIC" fires ONE query, not ~9.
+  const debouncedSource = useDebounce(sourceFilter, 300);
+  // E: reset to page 0 whenever a filter changes, else narrowing on page 3
+  // queries page 3 of the new result set and shows a false "no rows".
+  React.useEffect(() => { setPage(0); }, [dateRange, priorityFilter, debouncedSource]);
+
+  const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
+    queryKey: ['historicalAlarms', dateRange, priorityFilter, debouncedSource, page],
     queryFn:  () => fetchHistoricalAlarms({
       fromEpochMs: dateRange[0]?.getTime() ?? 0,
       toEpochMs:   dateRange[1]?.getTime() ?? Date.now(),
       priority: priorityFilter || undefined,
-      source:   sourceFilter   || undefined,
+      source:   debouncedSource || undefined,
       limit: pageSize, offset: page * pageSize,
     }),
     enabled: !!dateRange[0] && !!dateRange[1],
@@ -180,7 +187,7 @@ const HistoricalViewer: React.FC = () => {
         >
           {isLoading
             ? <><span style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />Querying…</>
-            : <>▶ Run Query</>}
+            : <>↻ Refresh</>}
         </button>
 
         {totalCount > 0 && (
@@ -194,11 +201,29 @@ const HistoricalViewer: React.FC = () => {
         )}
       </div>
 
+      {/* B: distinct error banner — a failed query is no longer indistinguishable
+          from an empty result (the grid shows the loading overlay while fetching). */}
+      {isError && (
+        <div role="alert" style={{
+          display: 'flex', alignItems: 'center', gap: '10px',
+          background: T.criticalBg, border: `1px solid ${T.criticalBorder}`,
+          borderRadius: T.radiusSm, padding: '10px 16px', color: T.critical, fontSize: '13px',
+        }}>
+          <span style={{ fontWeight: 600 }}>Could not load alarm history:</span>
+          <span>{(error as Error)?.message ?? 'the service is unavailable'}</span>
+          <button onClick={() => void refetch()} style={{
+            marginLeft: 'auto', background: 'transparent', border: `1px solid ${T.critical}`,
+            color: T.critical, borderRadius: T.radiusSm, padding: '4px 14px', fontSize: '12px',
+            fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+          }}>Retry</button>
+        </div>
+      )}
+
       {/* ── Grid ─── */}
       <div style={{ flex: 1, background: T.card, border: `1px solid ${T.border}`, borderRadius: T.radius, overflow: 'hidden', boxShadow: T.shadow }}>
         <div className="ag-theme-alpine ag-theme-openbridge" style={{ height: '100%', width: '100%' }}>
           <AgGridReact
-            ref={gridRef} rowData={rowData} columnDefs={columnDefs}
+            ref={gridRef} rowData={isFetching ? undefined : rowData} columnDefs={columnDefs}
             onGridReady={onGridReady} rowSelection="multiple" tooltipShowDelay={500}
             overlayLoadingTemplate={'<span style="padding:20px;color:#6B7280">Executing query…</span>'}
             overlayNoRowsTemplate={'<span style="padding:20px;color:#6B7280">No historical alarms found in this range.</span>'}

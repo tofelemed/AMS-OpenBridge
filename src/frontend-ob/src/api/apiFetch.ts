@@ -46,10 +46,49 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
   return call(useAuthStore.getState().accessToken);
 }
 
-/** apiFetch + JSON parse, throwing on a non-2xx (so react-query surfaces the error). */
+/**
+ * Typed API failure. Pages branch on `status` (e.g. err.status === 403) and show
+ * `message`, which prefers the server's problem-detail body over the old
+ * "GET /api/... → 500" internals leak. `String(error)` still yields something
+ * readable for legacy render sites.
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  /** Raw server detail (problem+json title/detail/error/message), if any. */
+  readonly detail?: string;
+
+  constructor(status: number, message: string, detail?: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.detail = detail;
+  }
+}
+
+function friendlyHttpMessage(status: number, detail?: string): string {
+  if (detail) return detail;
+  if (status === 401) return 'Your session is not authorized for this request.';
+  if (status === 403) return 'You do not have permission to view this.';
+  if (status === 404) return 'The requested data was not found.';
+  if (status >= 500) return 'The service is currently unavailable. Try again shortly.';
+  return `Request failed (HTTP ${status}).`;
+}
+
+/** apiFetch + JSON parse, throwing a typed ApiError on non-2xx (react-query surfaces it). */
 export async function apiJson<T>(input: string, init?: RequestInit): Promise<T> {
   const res = await apiFetch(input, init);
-  if (!res.ok) throw new Error(`${init?.method ?? 'GET'} ${input} → ${res.status}`);
+  if (!res.ok) {
+    // Best-effort read of the server's error body (problem+json or ad-hoc JSON).
+    let detail: string | undefined;
+    try {
+      const body = await res.json() as Record<string, unknown>;
+      detail = [body.detail, body.title, body.error, body.message]
+        .find((v): v is string => typeof v === 'string' && v.length > 0);
+    } catch {
+      /* non-JSON body — keep the generic wording */
+    }
+    throw new ApiError(res.status, friendlyHttpMessage(res.status, detail), detail);
+  }
   return res.json() as Promise<T>;
 }
 

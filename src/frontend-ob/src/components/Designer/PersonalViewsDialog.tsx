@@ -23,7 +23,7 @@ export const PersonalViewsDialog: React.FC<{ open: boolean; onClose: () => void 
   const qc = useQueryClient();
   const navigate = useNavigate();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['my-views'],
     queryFn: () => apiJson<{ views: ViewRow[] }>(`${API_BASE}/me/views`),
     enabled: open,
@@ -62,7 +62,13 @@ export const PersonalViewsDialog: React.FC<{ open: boolean; onClose: () => void 
           <>
             <ul className="pv__list">
               {mine.map(row)}
-              {mine.length === 0 && <li className="pv__empty">No personal views yet — open a display and “Save as personal view”.</li>}
+              {isError && (
+                <li className="pv__empty">
+                  Could not load your views: {(error as Error)?.message ?? 'unavailable'}.{' '}
+                  <button type="button" className="linklike" onClick={() => void refetch()}>Retry</button>
+                </li>
+              )}
+              {!isError && mine.length === 0 && <li className="pv__empty">No personal views yet — open a display and “Save as personal view”.</li>}
             </ul>
             {shared.length > 0 && (
               <>

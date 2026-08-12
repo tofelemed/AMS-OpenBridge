@@ -20,6 +20,7 @@ import {
   useCpmLoops, useCpmPipelineStatus, useFleetRankings, usePipelineMetrics, useRecompute,
 } from '../../hooks/useCpm';
 import { useAuthStore } from '../../store/authStore';
+import { useObcTheme } from '../../hooks/useObcTheme';
 
 function cssVar(name: string, fallback: string): string {
   if (typeof window === 'undefined') return fallback;
@@ -89,6 +90,7 @@ export const CpmPipeline: React.FC = () => {
     setTelemetry(prev => [...prev.slice(-119), { t: new Date(d.collectedAt).getTime(), ckptAgeSec: age, ckptDurMs: dur }]);
   }, [metrics.data]);
 
+  const obcTheme = useObcTheme(); // C: re-derive chart colors on theme switch
   const telemetryOption = useMemo(() => {
     const good = cssVar('--instrument-enhanced-secondary-color', '#41be95');
     const amber = cssVar('--alert-caution-color', '#d79a40');
@@ -110,7 +112,7 @@ export const CpmPipeline: React.FC = () => {
           lineStyle: { color: amber, width: 1.5 }, data: telemetry.map(s => [s.t, s.ckptDurMs]) },
       ],
     };
-  }, [telemetry]);
+  }, [telemetry, obcTheme]);
 
   // E2E verification: a real recompute round-trip on a reference loop.
   const refLoop = loopsQuery.data?.loops.find(l => l.monitoringEnabled) ?? loopsQuery.data?.loops[0];

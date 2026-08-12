@@ -12,8 +12,7 @@ import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KpiTile, PanelHead, TonePill, WorkspaceHeader, toneFor,
-  fmtDateTime,
-} from './shared';
+  fmtDateTime, QueryError } from './shared';
 import GateEvidenceDrawer from './GateEvidenceDrawer';
 import { useFleetHeatmap, useFleetRankings, useFleetSummary } from '../../hooks/useCpm';
 
@@ -119,7 +118,8 @@ export const CpmPerformance: React.FC = () => {
           right={<span className="cpm-copy">✓ Pass · ! Attention · × Failed · — Not evaluated</span>}
         />
         {heatmap.isLoading && <EmptyState title="Loading gate matrix…" />}
-        {!heatmap.isLoading && (heatmap.data?.loops.length ?? 0) === 0 && (
+        {heatmap.isError && <QueryError title="Gate matrix unavailable" error={heatmap.error} retry={() => void heatmap.refetch()} />}
+        {!heatmap.isLoading && !heatmap.isError && (heatmap.data?.loops.length ?? 0) === 0 && (
           <EmptyState title="No monitored loops"
             copy="Onboard loops in the Loop Registry to populate the matrix." />
         )}

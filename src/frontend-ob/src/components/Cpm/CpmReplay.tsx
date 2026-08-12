@@ -16,14 +16,14 @@ import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KvRow, LoopSelect, PanelHead, TonePill, WorkspaceHeader, toneFor,
-  fmtDateTime,
-} from './shared';
+  fmtDateTime, QueryError } from './shared';
 import type { CpmGateMatrix, CpmKpiRow } from '../../api/cpmApi';
 import {
   useAcknowledgeEvent, useCpmCalculations, useCpmEvents, useCpmKpisRange,
   useCpmLoops, useGateHistory, useRawWindow, useRecompute,
 } from '../../hooks/useCpm';
 import { loopSeries } from '../../utils/loopSeries';
+import { useObcTheme } from '../../hooks/useObcTheme';
 
 function cssVar(name: string, fallback: string): string {
   if (typeof window === 'undefined') return fallback;
@@ -87,6 +87,7 @@ export const CpmReplay: React.FC = () => {
   const kpiRow: CpmKpiRow | undefined = useCpmKpisRange(
     loopId, '24h',
     selected?.windowStart ?? undefined, undefined, 10,
+    !!selected?.windowStart, // C: don't fire with from='' then refetch with the real window
   ).data?.samples.find(r => r.window_end === selected?.windowEnd);
 
   // Raw slice for the selected window (first page, ascending).
@@ -106,6 +107,7 @@ export const CpmReplay: React.FC = () => {
   const role = GATE_ROLES[gateKey] ?? '—';
   const isShapeGate = SHAPE_GATES.has(gateKey);
 
+  const obcTheme = useObcTheme(); // C: re-derive chart colors on theme switch
   const chartOption = useMemo(() => {
     const good = cssVar('--instrument-enhanced-secondary-color', '#41be95');
     const amber = cssVar('--alert-caution-color', '#d79a40');
@@ -151,14 +153,14 @@ export const CpmReplay: React.FC = () => {
           data: points.map(p => [p.ts, num(p.op)]) },
       ],
     };
-  }, [points, cursorTs, isShapeGate]);
+  }, [points, cursorTs, isShapeGate, obcTheme]);
 
   // A8 recompute round trip.
   const { submit, status, reset } = useRecompute(loopId);
   const recomputeBusy = submit.isPending || (status != null && !status.finished);
 
   // Engineer note → acknowledge the loop's open event frame with the note.
-  const events = useCpmEvents({ loopId, openOnly: true, limit: 5 }, 60_000);
+  const events = useCpmEvents({ loopId, openOnly: true, limit: 5 }, 60_000, !!loopId); // C
   const openFrame = events.data?.events.find(e => e.ack_state === 'UNACKNOWLEDGED');
   const ack = useAcknowledgeEvent();
   const [note, setNote] = useState('');
@@ -229,7 +231,8 @@ export const CpmReplay: React.FC = () => {
           slice this window drew from{isShapeGate ? ' as a PV–OP phase plane (the shape this gate scores)' : ''}.
         </p>
 
-        {!selected && !history.isLoading && (
+        {history.isError && <QueryError title="Gate history unavailable" error={history.error} retry={() => void history.refetch()} />}
+        {!selected && !history.isLoading && !history.isError && (
           <EmptyState title="No evaluated 24h windows for this loop"
             copy="Replay needs a stored fused result; run the loop long enough to complete a window, or recompute from history." />
         )}

@@ -12,8 +12,7 @@ import React, { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   EmptyState, KvRow, LoopSelect, PanelHead, TonePill, WorkspaceHeader,
-  fmtDateTime,
-} from './shared';
+  fmtDateTime, QueryError } from './shared';
 import type { CpmKpiRow } from '../../api/cpmApi';
 import {
   useCpmKpis, useCpmLoops, useCpmResolutions, usePipelineMetrics, useRawWindow,
@@ -136,7 +135,8 @@ export const CpmWindows: React.FC = () => {
         <PanelHead eyebrow="Emitted windows" title={`Latest ${profile} results for ${loopId ?? '—'}`}
           right={<span className="cpm-copy">{rows.length} recent · newest first</span>} />
         {kpis.isLoading && <EmptyState title="Loading windows…" />}
-        {!kpis.isLoading && rows.length === 0 && (
+        {kpis.isError && <QueryError title="Window data unavailable" error={kpis.error} retry={() => void kpis.refetch()} />}
+        {!kpis.isLoading && !kpis.isError && rows.length === 0 && (
           <EmptyState title={`No ${profile} windows stored for this loop`}
             copy="Rows appear as the corresponding Flink tier emits results for this resolution." />
         )}

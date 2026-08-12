@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { formatTimestampMs } from '../../utils/time';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { useAuditEvents, useVerifyAuditChain } from '../../hooks/useAudit';
+import { useDebounce } from '../../hooks/useDebounce';
 
 const T = {
   blue: '#31598F', blueLight: '#EAF2FF', blueMuted: '#C4D8F0',
@@ -25,10 +26,11 @@ const EVENT_BADGE: Record<string, { bg: string; color: string }> = {
 const AuditExplorer: React.FC = () => {
   const [filterType, setFilterType] = useState('');
   const [filterUser, setFilterUser] = useState('');
+  const debouncedUser = useDebounce(filterUser, 400); // E: one audit query per pause
 
   // Real immutable trail from audit-service (was a hardcoded 3-row fixture).
   const { data, isLoading, isError, error } = useAuditEvents(
-    { eventType: filterType || undefined, userId: filterUser || undefined, take: 100 });
+    { eventType: filterType || undefined, userId: debouncedUser || undefined, take: 100 });
   const verify = useVerifyAuditChain();
 
   return (

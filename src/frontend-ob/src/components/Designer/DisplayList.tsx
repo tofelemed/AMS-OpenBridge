@@ -16,6 +16,7 @@ import { FolderTree, DISPLAY_DND } from './FolderTree';
 // The card action buttons (.dl-action, .dl-card-actions) are defined here — this file never imported
 // it, so Rename/Duplicate/Delete rendered as bare unstyled HTML buttons instead of the styled pills.
 import './Designer.css';
+import { useDebounce } from '../../hooks/useDebounce';
 
 const API_BASE = import.meta.env.VITE_DISPLAY_SERVICE_URL || '/api/displays';
 
@@ -149,6 +150,7 @@ export const DisplayList: React.FC = () => {
   const [newDisplay, setNewDisplay] = useState({ name: '', category: 'overview', description: '', level: 2, tags: '' });
   // Phase 5.9/5.10 — home-page search, sort, list/grid toggle, and tag filter.
   const [searchText, setSearchText] = useState('');
+  const debouncedSearch = useDebounce(searchText, 250); // E: one query per pause, not per keystroke
   const [sortBy, setSortBy] = useState<SortKey>('name');
   const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem('dl.view') as ViewMode) || 'grid');
   const [tagFilter, setTagFilter] = useState<string | undefined>();
@@ -162,10 +164,10 @@ export const DisplayList: React.FC = () => {
   const setView = (m: ViewMode) => { setViewMode(m); localStorage.setItem('dl.view', m); };
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['displays', selectedCategory, searchText, sortBy, tagFilter, folderFilter],
+    queryKey: ['displays', selectedCategory, debouncedSearch, sortBy, tagFilter, folderFilter],
     // Only a real folder id goes to the server; '' (Unfiled) / undefined (All) are narrowed client-side.
     queryFn: () => fetchDisplays({
-      category: selectedCategory, search: searchText || undefined, sort: sortBy, tag: tagFilter,
+      category: selectedCategory, search: debouncedSearch || undefined, sort: sortBy, tag: tagFilter,
       folderId: folderFilter ? folderFilter : undefined,
     }),
   });

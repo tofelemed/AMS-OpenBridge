@@ -127,7 +127,7 @@ export const CpmEvents: React.FC = () => {
         </section>
 
         {selected
-          ? <EventDetail event={selected} />
+          ? <EventDetail key={selected.id} event={selected} />
           : <section className="cpm-surface"><EmptyState title="Select an event" /></section>}
       </div>
     </div>
@@ -204,7 +204,7 @@ const EventDetail: React.FC<{ event: CpmEventFrame }> = ({ event }) => {
               Shelve…
             </ObcButton>
             <ObcButton variant="raised" disabled={ack.isPending || event.ack_state === 'ACKNOWLEDGED'}
-              onClick={() => ack.mutate({ id: event.id, note: note || undefined })}>
+              onClick={() => ack.mutate({ id: event.id, note: note || undefined }, { onSuccess: () => setNote('') })}>
               {ack.isPending ? 'Acknowledging…' : 'Acknowledge'}
             </ObcButton>
           </div>

@@ -9,6 +9,7 @@
  * workflow yet; the approval queue says so instead of simulating one.
  */
 import React, { useState } from 'react';
+import { ApiError } from '../../api/apiFetch';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader,
@@ -54,7 +55,9 @@ export const CpmGovernance: React.FC = () => {
   const calc = useCpmCalculations();
   const loops = useCpmLoops();
 
-  const auditForbidden = audit.isError && String((audit.error as Error)?.message ?? '').includes('403');
+  // Typed check — the old version substring-matched '403' in a message that
+  // embeds the request URL, so any URL containing '403' misclassified.
+  const auditForbidden = audit.isError && audit.error instanceof ApiError && audit.error.status === 403;
 
   return (
     <div className="cpm-screen">

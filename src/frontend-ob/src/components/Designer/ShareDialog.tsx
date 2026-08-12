@@ -28,7 +28,7 @@ export const ShareDialog: React.FC<{
   const [principal, setPrincipal] = useState('');
   const [access, setAccess] = useState<'read' | 'edit'>('read');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['permissions', displayId],
     queryFn: () => apiJson<PermissionsResponse>(`${API_BASE}/${displayId}/permissions`),
     enabled: open,
@@ -81,7 +81,13 @@ export const ShareDialog: React.FC<{
                   <span className="share__inherited">inherited</span>
                 </li>
               ))}
-              {grants.length === 0 && <li className="share__empty">Not shared with anyone yet — only the owner can see it.</li>}
+              {isError && (
+                <li className="share__empty">
+                  Could not load sharing: {(error as Error)?.message ?? 'unavailable'}.{' '}
+                  <button type="button" className="linklike" onClick={() => void refetch()}>Retry</button>
+                </li>
+              )}
+              {!isError && grants.length === 0 && <li className="share__empty">Not shared with anyone yet — only the owner can see it.</li>}
             </ul>
 
             {canManage ? (

@@ -81,11 +81,15 @@ export function useRepublishEvidence() {
   });
 }
 
-export function useCpmEvents(q: cpm.CpmEventsQuery, refetchMs = 30_000) {
+export function useCpmEvents(q: cpm.CpmEventsQuery, refetchMs = 30_000, enabled = true) {
+  // C: `enabled` lets loop-scoped callers (Replay/Investigation) gate on !!loopId
+  // so they don't fire a wasted fleet-wide fetch before the loop resolves; the
+  // fleet-wide callers (Events page, Overview) simply omit it.
   return useQuery({
     queryKey: KEYS.events(q),
     queryFn: backgroundPoll(() => cpm.getEvents(q)),
     refetchInterval: refetchMs,
+    enabled,
   });
 }
 
@@ -157,11 +161,15 @@ export function useCpmCalculations() {
 
 export function useCpmTrend(
   series: string | undefined, start: Date, end: Date, width = 300, measurements = 'pv,sp,op',
+  enabled = true,
 ) {
+  // C: `enabled` lets a caller hold the trend until the real window bounds are
+  // known (Investigation), instead of fetching the default 24h range and
+  // discarding it when the verdict window arrives.
   return useQuery({
     queryKey: ['cpm', 'trend', series ?? '', start.getTime(), end.getTime(), width, measurements],
     queryFn: () => cpm.getTrend(series!, start, end, width, measurements, true),
-    enabled: !!series,
+    enabled: !!series && enabled,
     staleTime: 60_000,
   });
 }
@@ -212,11 +220,14 @@ export function useCpmResolutions() {
 /** KPI rows bounded to an explicit time range (U6 overlay, U7 inspector). */
 export function useCpmKpisRange(
   loopId: string | undefined, resolution: string, from?: string, to?: string, limit = 500,
+  enabled = true,
 ) {
+  // C: `enabled` lets Replay gate on the selected window so it does not fire once
+  // with from='' and again with from=windowStart, discarding the first response.
   return useQuery({
     queryKey: ['cpm', 'kpis-range', loopId ?? '', resolution, from ?? '', to ?? '', limit],
     queryFn: () => cpm.getKpis(loopId!, resolution, from, to, limit),
-    enabled: !!loopId,
+    enabled: !!loopId && enabled,
     staleTime: 60_000,
   });
 }

@@ -151,3 +151,20 @@ export const EmptyState: React.FC<{
     )}
   </div>
 );
+
+/**
+ * Distinct error state so a fetch failure is never mistaken for "no data".
+ * `error` is the react-query error (an ApiError carries a friendly `.message`);
+ * `retry` wires the query's refetch. Rendered with the same EmptyState chrome.
+ */
+export const QueryError: React.FC<{
+  title?: string;
+  error: unknown;
+  retry?: () => void;
+}> = ({ title = 'Could not load this data', error, retry }) => (
+  <EmptyState
+    title={title}
+    copy={error instanceof Error ? error.message : 'The service is currently unavailable.'}
+    action={retry ? { label: 'Retry', onClick: retry } : undefined}
+  />
+);

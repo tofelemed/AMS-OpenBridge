@@ -21,6 +21,7 @@ import {
 import { useLoopLive, qualityLabel } from '../../hooks/useLoopLive';
 import type { CpmLoop } from '../../api/cpmApi';
 import { loopSeries } from '../../utils/loopSeries';
+import { useObcTheme } from '../../hooks/useObcTheme';
 
 const TABS = ['Summary', 'Signals', 'Calculations', 'Relationships', 'History'] as const;
 type Tab = typeof TABS[number];
@@ -171,6 +172,7 @@ const SummaryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   const last = points.length ? points[points.length - 1] : undefined;
   const num = (v: unknown) => (typeof v === 'number' ? v : null);
 
+  const obcTheme = useObcTheme(); // C: re-derive chart colors on theme switch
   const option = useMemo(() => {
     const good = cssVar('--instrument-enhanced-secondary-color', '#41be95');
     const amber = cssVar('--alert-caution-color', '#d79a40');
@@ -201,7 +203,7 @@ const SummaryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
           data: points.map(p => num(p.op_avg) ?? num(p.op)) },
       ],
     };
-  }, [points]);
+  }, [points, obcTheme]);
 
   return (
     <div className="cpm-grid-2">
