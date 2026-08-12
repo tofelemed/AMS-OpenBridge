@@ -5,17 +5,8 @@ import { formatTimestampMs } from '../../utils/time';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { useAuditEvents, useVerifyAuditChain } from '../../hooks/useAudit';
 import { useDebounce } from '../../hooks/useDebounce';
+import { T } from '../../styles/theme';
 
-const T = {
-  blue: '#31598F', blueLight: '#EAF2FF', blueMuted: '#C4D8F0',
-  bg: '#F6F8FB', card: '#FFFFFF', border: '#DDE3EA', borderLight: '#EEF2F7',
-  textPrimary: '#1F2937', textSecondary: '#6B7280', textMuted: '#9CA3AF',
-  success: '#2E8B57', successBg: '#ECFDF5', successBorder: '#A7F3D0',
-  critical: '#D64545', criticalBg: '#FEF2F2',
-  warning: '#B45309', warningBg: '#FFFBEB', warningBorder: '#FDE68A',
-  caution: '#D97706',
-  radius: '12px', radiusSm: '8px',
-} as const;
 
 const EVENT_BADGE: Record<string, { bg: string; color: string }> = {
   ALARM_ACKNOWLEDGED: { bg: T.blueLight,  color: T.blue },
@@ -84,7 +75,7 @@ const AuditExplorer: React.FC = () => {
         padding: '11px 16px', borderRadius: T.radiusSm,
         background: verify.isSuccess ? T.successBg : verify.isError ? T.criticalBg : T.bg,
         border: `1px solid ${verify.isSuccess ? T.successBorder : verify.isError ? T.critical : T.border}`,
-        fontSize: '12.5px', color: verify.isError ? T.critical : '#1a4731',
+        fontSize: '12.5px', color: verify.isError ? T.critical : T.success,
       }}>
         <span style={{ fontSize: '14px' }}>🔒</span>
         <span>

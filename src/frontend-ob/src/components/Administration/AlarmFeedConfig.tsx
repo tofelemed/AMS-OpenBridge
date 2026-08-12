@@ -3,17 +3,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { authedAxios } from '../../api/http';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { T } from '../../styles/theme';
 
-const T = {
-  blue: '#31598F', blueLight: '#EAF2FF', blueMuted: '#C4D8F0',
-  bg: '#F6F8FB', card: '#FFFFFF', border: '#DDE3EA', borderLight: '#EEF2F7',
-  textPrimary: '#1F2937', textSecondary: '#6B7280', textMuted: '#9CA3AF',
-  success: '#2E8B57', successBg: '#ECFDF5', successBorder: '#A7F3D0',
-  critical: '#D64545', criticalBg: '#FEF2F2', criticalBorder: '#FCA5A5',
-  warning: '#B45309', warningBg: '#FFFBEB', warningBorder: '#FDE68A',
-  radius: '12px', radiusSm: '8px',
-  shadow: '0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.05)',
-} as const;
 
 interface AlarmFeedStatus {
   enabled: boolean; feedUrl: string; pollIntervalMs: number;

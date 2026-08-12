@@ -1,15 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
+import { T } from '../../styles/theme';
 
-const T = {
-  blue: '#31598F', blueLight: '#EAF2FF', blueMuted: '#C4D8F0',
-  bg: '#F6F8FB', card: '#FFFFFF', border: '#DDE3EA', borderLight: '#EEF2F7',
-  textPrimary: '#1F2937', textSecondary: '#6B7280', textMuted: '#9CA3AF',
-  success: '#2E8B57', successBg: '#ECFDF5',
-  warning: '#B45309', warningBg: '#FFFBEB', warningBorder: '#FDE68A',
-  radius: '12px', radiusSm: '8px',
-} as const;
 
 export const SystemSettingsConfig: React.FC = () => {
   const [formData, setFormData] = useState({

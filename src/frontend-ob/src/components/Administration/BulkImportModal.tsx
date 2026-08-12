@@ -13,15 +13,8 @@ import {
   type BulkImportResult,
 } from '../../api/usersApi';
 import { toast } from 'react-toastify';
+import { T } from '../../styles/theme';
 
-const T = {
-  blue: '#31598F', blueLight: '#EAF2FF', border: '#DDE3EA',
-  text: '#1F2937', textSub: '#6B7280', textMuted: '#9CA3AF',
-  success: '#2E8B57', successBg: '#ECFDF5',
-  critical: '#D64545', criticalBg: '#FEF2F2',
-  warning: '#B45309', warningBg: '#FFFBEB',
-  radiusSm: '8px',
-} as const;
 
 type Step = 'upload' | 'preview' | 'result';
 
@@ -152,7 +145,7 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, onImported }
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) void handleFile(f); }}
             onClick={() => fileInputRef.current?.click()}
-            style={{ cursor: 'pointer', border: `2px dashed ${T.border}`, borderRadius: T.radiusSm, padding: '32px', textAlign: 'center', color: T.textSub, background: '#FBFCFE' }}
+            style={{ cursor: 'pointer', border: `2px dashed ${T.border}`, borderRadius: T.radiusSm, padding: '32px', textAlign: 'center', color: T.textSub, background: T.card }}
           >
             {busy ? 'Validating…' : 'Click to choose a CSV file, or drag & drop it here'}
             <input ref={fileInputRef} type="file" accept=".csv" style={{ display: 'none' }}
@@ -185,7 +178,7 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, onImported }
           <div style={{ maxHeight: 300, overflow: 'auto', border: `1px solid ${T.border}`, borderRadius: T.radiusSm }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
-                <tr style={{ position: 'sticky', top: 0, background: '#F6F8FB' }}>
+                <tr style={{ position: 'sticky', top: 0, background: 'var(--container-backdrop-color)' }}>
                   {['#', 'Status', 'Username', 'Email', 'Role', 'Notes'].map((h) => (
                     <th key={h} style={{ textAlign: 'left', padding: '6px 8px', color: T.textSub, borderBottom: `1px solid ${T.border}` }}>{h}</th>
                   ))}
@@ -238,7 +231,7 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, onImported }
 const Stat: React.FC<{ label: string; value: number; tone?: 'success' | 'warning' | 'critical' | 'blue' }> = ({ label, value, tone }) => {
   const color = tone === 'success' ? T.success : tone === 'warning' ? T.warning : tone === 'critical' ? T.critical : tone === 'blue' ? T.blue : T.text;
   return (
-    <div style={{ minWidth: 84, padding: '8px 12px', border: `1px solid ${T.border}`, borderRadius: T.radiusSm, background: '#FFFFFF' }}>
+    <div style={{ minWidth: 84, padding: '8px 12px', border: `1px solid ${T.border}`, borderRadius: T.radiusSm, background: 'var(--container-background-color)' }}>
       <div style={{ fontSize: 18, fontWeight: 700, color }}>{value}</div>
       <div style={{ fontSize: 11, color: T.textSub }}>{label}</div>
     </div>

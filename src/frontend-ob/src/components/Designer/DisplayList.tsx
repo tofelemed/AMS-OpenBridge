@@ -17,40 +17,12 @@ import { FolderTree, DISPLAY_DND } from './FolderTree';
 // it, so Rename/Duplicate/Delete rendered as bare unstyled HTML buttons instead of the styled pills.
 import './Designer.css';
 import { useDebounce } from '../../hooks/useDebounce';
+import { T } from '../../styles/theme';
 
 const API_BASE = import.meta.env.VITE_DISPLAY_SERVICE_URL || '/api/displays';
 
 /* OpenBridge tokens. These were raw hex ("OpenBridge-inspired") applied via inline style, which beats
    every stylesheet — so this page could never follow the day/night theme. Real tokens now. */
-const T = {
-  blue: 'var(--selected-enabled-background-color)',
-  blueMid: 'var(--selected-hover-background-color)',
-  blueLight: 'var(--container-section-color)',
-  blueMuted: 'var(--border-divider-color)',
-  bg: 'var(--container-backdrop-color)',
-  card: 'var(--container-background-color)',
-  border: 'var(--border-divider-color)',
-  borderLight: 'var(--border-divider-color)',
-  textPrimary: 'var(--element-active-color)',
-  textSecondary: 'var(--element-neutral-color)',
-  textMuted: 'var(--element-inactive-color)',
-  success: 'var(--alert-running-color)',
-  successBg: 'var(--container-section-color)',
-  successBorder: 'var(--alert-running-color)',
-  warning: 'var(--alert-warning-color)',
-  warningBg: 'var(--container-section-color)',
-  warningBorder: 'var(--alert-warning-color)',
-  critical: 'var(--alert-alarm-color)',
-  criticalBg: 'var(--container-section-color)',
-  criticalBorder: 'var(--alert-alarm-color)',
-  purple: 'var(--element-neutral-color)',
-  purpleBg: 'var(--container-section-color)',
-  purpleBorder: 'var(--border-divider-color)',
-  radius: 'var(--border-radius-br-12)',
-  radiusSm: 'var(--border-radius-br-8)',
-  shadow: 'var(--shadow-flat)',
-  shadowHover: 'var(--shadow-raised)',
-} as const;
 
 interface Display {
   id: string;

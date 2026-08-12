@@ -10,15 +10,9 @@ import {
   resetRolePermissions, createRole, deleteRole, updateRole,
   extractRoleApiError, type Role, type PermissionDef,
 } from '../../api/rolesApi';
+import { T } from '../../styles/theme';
 
 /* Layout tokens — shared idiom with the other Administration tabs. */
-const T = {
-  blue: '#31598F', blueLight: '#EAF2FF', blueMuted: '#C4D8F0',
-  card: '#FFFFFF', border: '#DDE3EA',
-  textPrimary: '#1F2937', textSecondary: '#6B7280', textMuted: '#9CA3AF',
-  danger: '#B42318', dangerBg: '#FEF3F2',
-  radius: '10px', radiusSm: '8px',
-} as const;
 
 const sortRoles = (rs: Role[]) =>
   [...rs].sort((a, b) =>

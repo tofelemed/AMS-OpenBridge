@@ -447,7 +447,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 display: 'flex', alignItems: 'center', gap: '8px',
                 padding: '5px 12px', borderRadius: TB.radiusSm,
                 background: criticalCount > 0 ? TB.criticalBg : TB.bg,
-                border: `1px solid ${criticalCount > 0 ? '#FCA5A5' : TB.border}`,
+                border: `1px solid ${criticalCount > 0 ? 'var(--alert-alarm-color)' : TB.border}`,
                 fontSize: '11.5px', fontWeight: 600,
               }}>
                 {criticalCount > 0 && (
@@ -459,7 +459,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   <span style={{ color: TB.textMuted }}>·</span>
                 )}
                 {unackedCount > 0 && (
-                  <span style={{ color: '#B45309' }}>
+                  <span style={{ color: 'var(--alert-warning-color)' }}>
                     {unackedCount} Unacked
                   </span>
                 )}
@@ -524,7 +524,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               display: 'flex', alignItems: 'center', gap: '7px',
               padding: '6px 12px', borderRadius: TB.radiusSm,
               background: isConnected ? TB.successBg : TB.criticalBg,
-              border: `1px solid ${isConnected ? TB.successBorder : '#FCA5A5'}`,
+              border: `1px solid ${isConnected ? TB.successBorder : 'var(--alert-alarm-color)'}`,
             }}>
               <div style={{
                 width: '8px', height: '8px', borderRadius: '50%',

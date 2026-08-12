@@ -17,16 +17,8 @@ import {
 } from '../../api/usersApi';
 import { getRoles } from '../../api/rolesApi';
 import { toast } from 'react-toastify';
+import { T } from '../../styles/theme';
 
-const T = {
-  blue: '#31598F', blueLight: '#EAF2FF', blueMuted: '#C4D8F0',
-  bg: '#F6F8FB', card: '#FFFFFF', border: '#DDE3EA',
-  text: '#1F2937', textSub: '#6B7280', textMuted: '#9CA3AF',
-  success: '#2E8B57', successBg: '#ECFDF5', successBorder: '#A7F3D0',
-  critical: '#D64545', criticalBg: '#FEF2F2', criticalBorder: '#FCA5A5',
-  warning: '#B45309', warningBg: '#FFFBEB', warningBorder: '#FDE68A',
-  radiusSm: '8px',
-} as const;
 
 // Built-in roles are the fallback if the roles API is unavailable; the live list
 // (system + custom) is fetched so custom roles can be assigned to users.

@@ -8,36 +8,6 @@ import { useNavigate } from 'react-router-dom';
 /* ─────────────────────────────────────────────
    Design tokens (OpenBridge-inspired light theme)
    ───────────────────────────────────────────── */
-const T = {
-  blue:         '#31598F',
-  blueMid:      '#4069A5',
-  blueLight:    '#EAF2FF',
-  blueMuted:    '#C4D8F0',
-  bg:           '#F6F8FB',
-  card:         '#FFFFFF',
-  border:       '#DDE3EA',
-  borderLight:  '#EEF2F7',
-  textPrimary:  '#1F2937',
-  textSecondary:'#6B7280',
-  textMuted:    '#9CA3AF',
-  success:      '#2E8B57',
-  successBg:    '#ECFDF5',
-  successBorder:'#A7F3D0',
-  warning:      '#B45309',
-  warningBg:    '#FFFBEB',
-  warningBorder:'#FDE68A',
-  critical:     '#D64545',
-  criticalBg:   '#FEF2F2',
-  criticalBorder:'#FCA5A5',
-  caution:      '#D97706',
-  cautionBg:    '#FFFBEB',
-  notice:       '#4069A5',
-  noticeBg:     '#EFF6FF',
-  radius:       '12px',
-  radiusSm:     '8px',
-  shadow:       '0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.05)',
-  shadowHover:  '0 2px 8px rgba(49,89,143,0.12), 0 8px 24px rgba(49,89,143,0.08)',
-} as const;
 
 const Dashboard: React.FC = () => {
   const stats   = useAlarmStore(s => s.stats);
@@ -549,8 +519,8 @@ const OperatorMetric: React.FC<{
 const PRIORITY_DEFS = [
   { key: 'totalCritical' as const, label: 'Critical', color: T.critical,  textColor: '#fff' },
   { key: 'totalHigh'     as const, label: 'High',     color: T.caution,   textColor: '#fff' },
-  { key: 'totalMedium'   as const, label: 'Medium',   color: '#4069A5',   textColor: '#fff' },
-  { key: 'totalLow'      as const, label: 'Low',      color: '#8BAFD4',   textColor: '#1F2937' },
+  { key: 'totalMedium'   as const, label: 'Medium',   color: 'var(--element-active-color)', textColor: 'var(--on-selected-color, #fff)' },
+  { key: 'totalLow'      as const, label: 'Low',      color: 'var(--container-section-color)', textColor: 'var(--element-active-color)' },
 ];
 
 const PriorityDistribution: React.FC<{ stats: AlarmStats }> = ({ stats }) => {
@@ -813,6 +783,7 @@ const EmptyState: React.FC<{ message: string }> = ({ message }) => (
    alarms received via the edge node.
    ═══════════════════════════════════════════════════════ */
 import type { LiveAlarm } from '../../store/mqttStore';
+import { T } from '../../styles/theme';
 
 const PRIORITY_COLOR: Record<string, string> = {
   CRITICAL:   T.critical,

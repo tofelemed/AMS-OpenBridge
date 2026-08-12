@@ -4,33 +4,8 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useMqttStore, getMqttBrokerUrl, type LiveAlarm } from '../../store/mqttStore';
 import { fetchHistorianBffHealth, type BffHealth } from '../../api/historianHealth';
 import { backgroundPoll } from '../../api/apiFetch';
+import { T } from '../../styles/theme';
 
-const T = {
-  blue:          '#31598F',
-  blueMid:       '#4069A5',
-  blueLight:     '#EAF2FF',
-  blueMuted:     '#C4D8F0',
-  bg:            '#F6F8FB',
-  card:          '#FFFFFF',
-  border:        '#DDE3EA',
-  borderLight:   '#EEF2F7',
-  textPrimary:   '#1F2937',
-  textSecondary: '#6B7280',
-  textMuted:     '#9CA3AF',
-  success:       '#2E8B57',
-  successBg:     '#ECFDF5',
-  successBorder: '#A7F3D0',
-  warning:       '#B45309',
-  warningBg:     '#FFFBEB',
-  warningBorder: '#FDE68A',
-  critical:      '#D64545',
-  criticalBg:    '#FEF2F2',
-  criticalBorder:'#FCA5A5',
-  caution:       '#D97706',
-  radius:        '12px',
-  radiusSm:      '8px',
-  shadow:        '0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.05)',
-} as const;
 
 interface SnapshotAsset {
   asset:       string;
@@ -343,36 +318,36 @@ const ConnDot: React.FC<{ connected: boolean; label: string }> = ({ connected, l
   <span style={{
     display: 'inline-flex', alignItems: 'center', gap: '6px',
     padding: '4px 12px', borderRadius: '20px',
-    background: connected ? '#ECFDF5' : '#FEF2F2',
-    border: `1px solid ${connected ? '#A7F3D0' : '#FCA5A5'}`,
+    background: 'var(--container-section-color)',
+    border: `1px solid ${connected ? 'var(--alert-running-color)' : 'var(--alert-alarm-color)'}`,
     fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
-    color: connected ? '#2E8B57' : '#D64545',
+    color: connected ? 'var(--alert-running-color)' : 'var(--alert-alarm-color)',
   }}>
-    <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'currentColor', display: 'inline-block', boxShadow: connected ? '0 0 6px #2E8B57' : 'none' }} />
+    <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'currentColor', display: 'inline-block' }} />
     {label}
   </span>
 );
 
 type HealthStatus = 'pass' | 'warn' | 'fail';
 const KPI_CFG: Record<HealthStatus, { bar: string; val: string; badgeBg: string; badgeColor: string; badgeBorder: string; label: string }> = {
-  pass: { bar: '#2E8B57', val: '#2E8B57', badgeBg: '#ECFDF5', badgeColor: '#2E8B57', badgeBorder: '#A7F3D0', label: 'Healthy' },
-  warn: { bar: '#D97706', val: '#B45309', badgeBg: '#FFFBEB', badgeColor: '#B45309', badgeBorder: '#FDE68A', label: 'Degraded' },
-  fail: { bar: '#D64545', val: '#D64545', badgeBg: '#FEF2F2', badgeColor: '#D64545', badgeBorder: '#FCA5A5', label: 'Critical' },
+  pass: { bar: 'var(--alert-running-color)', val: 'var(--alert-running-color)', badgeBg: 'var(--container-section-color)', badgeColor: 'var(--alert-running-color)', badgeBorder: 'var(--alert-running-color)', label: 'Healthy' },
+  warn: { bar: 'var(--alert-caution-color)', val: 'var(--alert-warning-color)', badgeBg: 'var(--container-section-color)', badgeColor: 'var(--alert-warning-color)', badgeBorder: 'var(--alert-warning-color)', label: 'Degraded' },
+  fail: { bar: 'var(--alert-alarm-color)', val: 'var(--alert-alarm-color)', badgeBg: 'var(--container-section-color)', badgeColor: 'var(--alert-alarm-color)', badgeBorder: 'var(--alert-alarm-color)', label: 'Critical' },
 };
 
 const EdgeKpi: React.FC<{ icon: string; label: string; value: string; status: HealthStatus; sub?: string }> = ({ icon, label, value, status, sub }) => {
   const c = KPI_CFG[status];
   return (
-    <div style={{ background: '#FFFFFF', border: '1px solid #DDE3EA', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.07)' }}>
+    <div style={{ background: 'var(--container-background-color)', border: '1px solid var(--border-divider-color)', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.07)' }}>
       <div style={{ height: '3px', background: c.bar }} />
       <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
           <span style={{ fontSize: '14px' }}>{icon}</span>
-          <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</span>
+          <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--element-inactive-color)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</span>
         </div>
         <span style={{ fontSize: '26px', fontWeight: 700, color: c.val, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
-          {sub && <span style={{ fontSize: '11.5px', color: '#6B7280' }}>{sub}</span>}
+          {sub && <span style={{ fontSize: '11.5px', color: 'var(--element-neutral-color)' }}>{sub}</span>}
           <span style={{ marginLeft: 'auto', padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', background: c.badgeBg, color: c.badgeColor, border: `1px solid ${c.badgeBorder}`, flexShrink: 0 }}>{c.label}</span>
         </div>
       </div>
@@ -381,10 +356,10 @@ const EdgeKpi: React.FC<{ icon: string; label: string; value: string; status: He
 };
 
 const MonitorCard: React.FC<{ title: string; icon: string; children: React.ReactNode }> = ({ title, icon, children }) => (
-  <div style={{ background: '#FFFFFF', border: '1px solid #DDE3EA', borderRadius: '12px', padding: '20px 22px', boxShadow: '0 1px 3px rgba(0,0,0,0.07)' }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1.5px solid #DDE3EA' }}>
-      <span style={{ width: '30px', height: '30px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#EAF2FF', border: '1px solid #C4D8F0', borderRadius: '8px', fontSize: '14px' }}>{icon}</span>
-      <h3 style={{ fontSize: '13.5px', fontWeight: 700, color: '#1F2937', margin: 0 }}>{title}</h3>
+  <div style={{ background: 'var(--container-background-color)', border: '1px solid var(--border-divider-color)', borderRadius: '12px', padding: '20px 22px', boxShadow: '0 1px 3px rgba(0,0,0,0.07)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1.5px solid var(--border-divider-color)' }}>
+      <span style={{ width: '30px', height: '30px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'var(--container-section-color)', border: '1px solid var(--border-divider-color)', borderRadius: '8px', fontSize: '14px' }}>{icon}</span>
+      <h3 style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--element-active-color)', margin: 0 }}>{title}</h3>
     </div>
     {children}
   </div>
@@ -392,9 +367,9 @@ const MonitorCard: React.FC<{ title: string; icon: string; children: React.React
 
 type EdgeNodeStatus = 'active' | 'warning' | 'error';
 const EDGE_STATUS: Record<EdgeNodeStatus, { dot: string; border: string; bg: string }> = {
-  active:  { dot: '#2E8B57', border: '#A7F3D0', bg: '#ECFDF5' },
-  warning: { dot: '#D97706', border: '#FDE68A', bg: '#FFFBEB' },
-  error:   { dot: '#D64545', border: '#FCA5A5', bg: '#FEF2F2' },
+  active:  { dot: 'var(--alert-running-color)', border: 'var(--alert-running-color)', bg: 'var(--container-section-color)' },
+  warning: { dot: 'var(--alert-caution-color)', border: 'var(--alert-warning-color)', bg: 'var(--container-section-color)' },
+  error:   { dot: 'var(--alert-alarm-color)', border: 'var(--alert-alarm-color)', bg: 'var(--container-section-color)' },
 };
 
 const EdgeNode: React.FC<{ label: string; sub?: string; status: EdgeNodeStatus }> = ({ label, sub, status }) => {
@@ -402,8 +377,8 @@ const EdgeNode: React.FC<{ label: string; sub?: string; status: EdgeNodeStatus }
   return (
     <div style={{ padding: '12px 14px', minWidth: '110px', background: ns.bg, border: `1.5px solid ${ns.border}`, borderRadius: '8px', textAlign: 'center', boxShadow: `0 1px 4px ${ns.dot}20` }}>
       <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: ns.dot, margin: '0 auto 7px', boxShadow: status === 'active' ? `0 0 7px ${ns.dot}` : 'none' }} />
-      <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#1F2937', whiteSpace: 'nowrap' }}>{label}</div>
-      {sub && <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '2px', fontFamily: "'Noto Sans Mono', monospace" }}>{sub}</div>}
+      <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--element-active-color)', whiteSpace: 'nowrap' }}>{label}</div>
+      {sub && <div style={{ fontSize: '10px', color: 'var(--element-neutral-color)', marginTop: '2px', fontFamily: "'Noto Sans Mono', monospace" }}>{sub}</div>}
     </div>
   );
 };
@@ -411,8 +386,8 @@ const EdgeNode: React.FC<{ label: string; sub?: string; status: EdgeNodeStatus }
 const EdgeArrow: React.FC = () => (
   <div style={{ display: 'flex', alignItems: 'center', padding: '0 4px', flexShrink: 0 }}>
     <svg width="28" height="16" viewBox="0 0 28 16" fill="none">
-      <line x1="0" y1="8" x2="22" y2="8" stroke="#C4D8F0" strokeWidth="1.5" />
-      <path d="M19 4 L26 8 L19 12" fill="none" stroke="#C4D8F0" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+      <line x1="0" y1="8" x2="22" y2="8" stroke="var(--border-divider-color)" strokeWidth="1.5" />
+      <path d="M19 4 L26 8 L19 12" fill="none" stroke="var(--border-divider-color)" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   </div>
 );
@@ -420,31 +395,31 @@ const EdgeArrow: React.FC = () => (
 const LiveAlarmRow: React.FC<{ alarm: LiveAlarm }> = ({ alarm }) => (
   <div style={{
     display: 'flex', alignItems: 'center', gap: '12px',
-    padding: '10px 14px', background: '#FFFFFF',
-    border: '1px solid #DDE3EA', borderRadius: '8px',
-    borderLeft: `3px solid ${PRIORITY_COLOR[alarm.priority] ?? '#DDE3EA'}`,
+    padding: '10px 14px', background: 'var(--container-background-color)',
+    border: '1px solid var(--border-divider-color)', borderRadius: '8px',
+    borderLeft: `3px solid ${PRIORITY_COLOR[alarm.priority] ?? 'var(--border-divider-color)'}`,
   }}>
-    <div style={{ width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0, background: alarm.conditionActive ? (PRIORITY_COLOR[alarm.priority] ?? '#DDE3EA') : '#2E8B57' }} />
+    <div style={{ width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0, background: alarm.conditionActive ? (PRIORITY_COLOR[alarm.priority] ?? 'var(--border-divider-color)') : 'var(--alert-running-color)' }} />
     <div style={{ flex: 1, minWidth: 0 }}>
-      <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#1F2937', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+      <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--element-active-color)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
         {alarm.sourceName || alarm.alarmId}
       </span>
-      {alarm.conditionName && <span style={{ fontSize: '11px', color: '#6B7280' }}>{alarm.conditionName}</span>}
+      {alarm.conditionName && <span style={{ fontSize: '11px', color: 'var(--element-neutral-color)' }}>{alarm.conditionName}</span>}
     </div>
     <span style={{
       fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '10px', textTransform: 'uppercase', letterSpacing: '0.04em',
-      background: alarm.state === 'CLEARED' ? '#ECFDF5' : alarm.state === 'ACKNOWLEDGED' ? '#EAF2FF' : '#FEF2F2',
-      color:      alarm.state === 'CLEARED' ? '#2E8B57'  : alarm.state === 'ACKNOWLEDGED' ? '#31598F'  : '#D64545',
+      background: alarm.state === 'CLEARED' ? 'var(--container-section-color)' : alarm.state === 'ACKNOWLEDGED' ? 'var(--container-section-color)' : 'var(--container-section-color)',
+      color:      alarm.state === 'CLEARED' ? 'var(--alert-running-color)'  : alarm.state === 'ACKNOWLEDGED' ? 'var(--element-active-color)'  : 'var(--alert-alarm-color)',
     }}>{alarm.state || 'ACTIVE'}</span>
     {alarm.priority && (
-      <span style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 8px', borderRadius: '10px', background: '#F6F8FB', border: '1px solid #DDE3EA', color: PRIORITY_COLOR[alarm.priority] ?? '#6B7280' }}>
+      <span style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 8px', borderRadius: '10px', background: 'var(--container-backdrop-color)', border: '1px solid var(--border-divider-color)', color: PRIORITY_COLOR[alarm.priority] ?? 'var(--element-neutral-color)' }}>
         {alarm.priority}
       </span>
     )}
-    <span style={{ fontSize: '12px', fontWeight: 700, color: PRIORITY_COLOR[alarm.priority] ?? '#9CA3AF', minWidth: '28px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+    <span style={{ fontSize: '12px', fontWeight: 700, color: PRIORITY_COLOR[alarm.priority] ?? 'var(--element-inactive-color)', minWidth: '28px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
       {alarm.severity > 0 ? alarm.severity : '—'}
     </span>
-    <span style={{ fontSize: '11px', color: '#9CA3AF', minWidth: '60px', textAlign: 'right', fontFamily: 'monospace' }}>
+    <span style={{ fontSize: '11px', color: 'var(--element-inactive-color)', minWidth: '60px', textAlign: 'right', fontFamily: 'monospace' }}>
       {new Date(alarm.ts).toLocaleTimeString('en-GB')}
     </span>
   </div>

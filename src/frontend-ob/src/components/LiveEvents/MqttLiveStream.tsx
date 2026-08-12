@@ -5,36 +5,14 @@ import { getMqttBrokerUrl, useMqttStore, type LiveAlarm } from '../../store/mqtt
 import { useDebounce } from '../../hooks/useDebounce';
 import { MqttAlarmListHeader, MqttAlarmListItem } from './MqttAlarmListItem';
 import { LiveAlarmDetailDialog } from './LiveAlarmDetailDialog';
+import { T } from '../../styles/theme';
 
-const T = {
-  blue:          '#31598F',
-  blueLight:     '#EAF2FF',
-  blueMuted:     '#C4D8F0',
-  bg:            '#F6F8FB',
-  card:          '#FFFFFF',
-  border:        '#DDE3EA',
-  borderLight:   '#EEF2F7',
-  textPrimary:   '#1F2937',
-  textSecondary: '#6B7280',
-  textMuted:     '#9CA3AF',
-  success:       '#2E8B57',
-  successBg:     '#ECFDF5',
-  successBorder: '#A7F3D0',
-  warning:       '#B45309',
-  warningBg:     '#FFFBEB',
-  critical:      '#D64545',
-  criticalBg:    '#FEF2F2',
-  caution:       '#D97706',
-  radius:        '12px',
-  radiusSm:      '8px',
-  shadow:        '0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.05)',
-} as const;
 
 const PRIORITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const;
 
 const PRIORITY_STYLE: Record<string, { color: string; bg: string; border: string }> = {
-  CRITICAL: { color: T.critical, bg: T.criticalBg, border: '#FCA5A5' },
-  HIGH:     { color: T.caution,  bg: T.warningBg, border: '#FDE68A' },
+  CRITICAL: { color: T.critical, bg: T.criticalBg, border: 'var(--alert-alarm-color)' },
+  HIGH:     { color: T.caution,  bg: T.warningBg, border: 'var(--alert-warning-color)' },
   MEDIUM:   { color: T.blue,     bg: T.blueLight, border: T.blueMuted },
   LOW:      { color: T.textMuted, bg: T.bg,       border: T.border },
 };
@@ -163,7 +141,7 @@ export const MqttLiveStream: React.FC<MqttLiveStreamProps> = ({ alarms, paused }
 
       {error && (
         <div style={{
-          padding: '12px 16px', background: T.criticalBg, border: '1px solid #FCA5A5',
+          padding: '12px 16px', background: T.criticalBg, border: '1px solid var(--alert-alarm-color)',
           borderRadius: T.radiusSm, color: T.critical, fontSize: '13px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
         }}>

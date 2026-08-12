@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { useAlarmStore, type SoeEvent } from '../../store/alarmStore';
 import { formatTimestampMs } from '../../utils/time';
+import { T } from '../../styles/theme';
 
 // K: plant/OPC event text (sourceName, message) is external data — interpolating
 // it raw into tooltip.html() is stored-XSS. Escape the interpolated fields.
@@ -12,30 +13,6 @@ function escapeHtml(v: unknown): string {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 }
 
-const T = {
-  blue:          '#31598F',
-  blueLight:     '#EAF2FF',
-  blueMuted:     '#C4D8F0',
-  bg:            '#F6F8FB',
-  card:          '#FFFFFF',
-  border:        '#DDE3EA',
-  borderLight:   '#EEF2F7',
-  textPrimary:   '#1F2937',
-  textSecondary: '#6B7280',
-  textMuted:     '#9CA3AF',
-  success:       '#2E8B57',
-  successBg:     '#ECFDF5',
-  successBorder: '#A7F3D0',
-  warning:       '#B45309',
-  warningBg:     '#FFFBEB',
-  warningBorder: '#FDE68A',
-  critical:      '#D64545',
-  criticalBg:    '#FEF2F2',
-  caution:       '#D97706',
-  radius:        '12px',
-  radiusSm:      '8px',
-  shadow:        '0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.05)',
-} as const;
 
 const PRIORITY_COLOR = {
   CRITICAL: T.critical,

@@ -10,22 +10,9 @@ import { NotificationsConfig }   from './NotificationsConfig';
 import { SystemSettingsConfig }  from './SystemSettingsConfig';
 import AuditExplorer             from './AuditExplorer';
 import { useAuthStore }          from '../../store/authStore';
+import { T } from '../../styles/theme';
 
 /* Design tokens (shared with Dashboard) */
-const T = {
-  blue:          '#31598F',
-  blueLight:     '#EAF2FF',
-  blueMuted:     '#C4D8F0',
-  bg:            '#F6F8FB',
-  card:          '#FFFFFF',
-  border:        '#DDE3EA',
-  textPrimary:   '#1F2937',
-  textSecondary: '#6B7280',
-  textMuted:     '#9CA3AF',
-  radius:        '12px',
-  radiusSm:      '8px',
-  shadow:        '0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.05)',
-} as const;
 
 const TABS = [
   { path: '/admin/users',         label: 'User Management', icon: '👤', permission: 'admin.users.edit' },

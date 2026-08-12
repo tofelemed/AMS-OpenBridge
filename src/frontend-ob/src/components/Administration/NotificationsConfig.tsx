@@ -3,17 +3,8 @@
 import React, { useState } from 'react';
 import { Modal, FormField } from '../shared/Modal';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { T } from '../../styles/theme';
 
-const T = {
-  blue: '#31598F', blueLight: '#EAF2FF', blueMuted: '#C4D8F0',
-  bg: '#F6F8FB', card: '#FFFFFF', border: '#DDE3EA', borderLight: '#EEF2F7',
-  textPrimary: '#1F2937', textSecondary: '#6B7280', textMuted: '#9CA3AF',
-  success: '#2E8B57', successBg: '#ECFDF5', successBorder: '#A7F3D0',
-  critical: '#D64545', criticalBg: '#FEF2F2', criticalBorder: '#FCA5A5',
-  warning: '#B45309', warningBg: '#FFFBEB', warningBorder: '#FDE68A',
-  caution: '#D97706',
-  radius: '12px', radiusSm: '8px',
-} as const;
 
 interface NotificationRule {
   id: string; name: string;
@@ -79,9 +70,9 @@ export const NotificationsConfig: React.FC = () => {
           real CRUD exists it is explicitly read-only and starts empty. */}
       <div role="alert" style={{
         display: 'flex', alignItems: 'center', gap: '10px',
-        background: '#FFFBEB', border: '1px solid #FDE68A',
+        background: 'var(--container-section-color)', border: '1px solid var(--alert-warning-color)',
         borderRadius: T.radiusSm, padding: '12px 16px',
-        color: '#B45309', fontSize: '13px', fontWeight: 600,
+        color: 'var(--alert-warning-color)', fontSize: '13px', fontWeight: 600,
       }}>
         Not functional yet — notification routing is not connected to the backend.
         No escalation policies are active, and policies cannot be created from this page.

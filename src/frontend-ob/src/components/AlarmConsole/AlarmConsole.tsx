@@ -855,13 +855,13 @@ const AlarmConsole: React.FC = () => {
 // ─── Design tokens for KPI bar ────────────────────────────────────────────────
 
 const KT = {
-  blue:     '#31598F', blueLight: '#EAF2FF', blueMuted: '#C4D8F0',
-  bg:       '#F6F8FB', card:      '#FFFFFF', border:    '#DDE3EA',
-  text:     '#1F2937', textSub:   '#6B7280', textMuted: '#9CA3AF',
-  success:  '#2E8B57', successBg: '#ECFDF5', successBorder: '#A7F3D0',
-  critical: '#D64545', criticalBg:'#FEF2F2', criticalBorder:'#FCA5A5',
-  warning:  '#B45309', warningBg: '#FFFBEB', warningBorder: '#FDE68A',
-  caution:  '#D97706',
+  blue:     'var(--element-active-color)', blueLight: 'var(--container-section-color)', blueMuted: 'var(--border-divider-color)',
+  bg:       'var(--container-backdrop-color)', card:      'var(--container-background-color)', border:    'var(--border-divider-color)',
+  text:     'var(--element-active-color)', textSub:   'var(--element-neutral-color)', textMuted: 'var(--element-inactive-color)',
+  success:  'var(--alert-running-color)', successBg: 'var(--container-section-color)', successBorder: 'var(--alert-running-color)',
+  critical: 'var(--alert-alarm-color)', criticalBg:'var(--container-section-color)', criticalBorder:'var(--alert-alarm-color)',
+  warning:  'var(--alert-warning-color)', warningBg: 'var(--container-section-color)', warningBorder: 'var(--alert-warning-color)',
+  caution:  'var(--alert-caution-color)',
   radiusSm: '8px',
   shadow:   '0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.05)',
 } as const;

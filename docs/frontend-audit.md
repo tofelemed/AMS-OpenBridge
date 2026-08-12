@@ -229,7 +229,7 @@ dynamic graph; lazy-init `mqttStore` via dynamic import inside `connect()`. (`vi
 
 ## 5. Findings — MEDIUM (grouped by theme)
 
-**Error-as-empty-state (a whole class).** Fetch errors render as "nothing here" across most non-CPM
+**Error-as-empty-state (a whole class).** ✅ **FIXED** — shared `QueryError`/`isError` branches across the 6 CPM pages, 3 Designer dialogs, FolderTree, and HistoricalViewer. Fetch errors render as "nothing here" across most non-CPM
 pages and 4 of 6 CPM pages: CpmOverview shows "No monitored loops — onboard in Registry" on a
 rankings **error** (sends operators to re-onboard during an outage, `CpmOverview.tsx:83`); CpmPerformance,
 CpmHistorical, CpmWindows, CpmReplay, CpmInvestigation all show "No data" on error
@@ -239,25 +239,25 @@ show their empty copy on error (`ShareDialog.tsx:84`); FolderTree has no loading
 (`FolderTree.tsx:41`). `CpmGovernance`, `CpmEvents`, `LoopRegistry`, `UserManagement` do it right —
 copy their `isError` branch everywhere.
 
-**Untyped API errors leak internals.** `apiJson` throws `Error("GET /api/... → 500")` — method + raw
+**Untyped API errors leak internals.** ✅ **FIXED** — `ApiError { status, message, detail }` from `apiJson`; Governance checks `err.status === 403`. `apiJson` throws `Error("GET /api/... → 500")` — method + raw
 URL + status, discarding the server's problem-detail body — and pages render it via `String(error)`
 to operators (`CpmEvents.tsx:99`, `LoopRegistry.tsx:104`). Worse, `CpmGovernance` detects 403 by
 **substring-matching "403" in that string** (`CpmGovernance.tsx:57`), which breaks the moment a URL
 contains "403". *Fix:* a typed `ApiError { status, message }` that parses the JSON body; pages branch
 on `err.status`, not string content. (`apiFetch.ts:33`)
 
-**Raw-hex theme (398 occurrences, 36 files).** Dashboard, LiveEvents, SOE, Analytics, Historical,
+**Raw-hex theme (398 occurrences, 36 files).** ✅ **FIXED** — shared `src/styles/theme.ts` token module; all 20 `T`/`KT` palettes + App stragglers replaced with OpenBridge tokens (night theme works). Dashboard, LiveEvents, SOE, Analytics, Historical,
 IoTDB Trend, Edge, and the whole Admin section inline a light-only `const T = {…hex…}` palette applied
 via inline style (beats every stylesheet), so they render white-on-light in night mode. Plus emoji as
 icons and a hardcoded `<ToastContainer theme="dark">`. The shell and DisplayList already converted the
 same palette to tokens ("Real tokens now"). *Fix:* one shared token module; delete the per-file clones.
 CPM proves the token pipeline works in all four themes. (`Dashboard.tsx:11`, +35 files)
 
-**ECharts colors go stale on theme switch (CPM).** Tokens are resolved to literals inside a `useMemo`
+**ECharts colors go stale on theme switch (CPM).** ✅ **FIXED** — `useObcTheme()` added to the 6 CPM chart memos. Tokens are resolved to literals inside a `useMemo`
 keyed only on chart data, so flipping day↔night leaves every CPM chart in the old theme's colors until
 the next refetch. *Fix:* add the active theme to the memo deps. (`CpmOverview.tsx:260` + 5 CPM charts)
 
-**Waterfalls & wasted fetches (CPM).** Replay and Investigation each fire **8 requests on mount, 2
+**Waterfalls & wasted fetches (CPM).** ✅ **FIXED** — `enabled` gates on useCpmEvents/useCpmTrend/useCpmKpisRange; Replay/Investigation drop 2 wasted requests each. Replay and Investigation each fire **8 requests on mount, 2
 wasted**: a fleet-wide `/events` before `loopId` resolves (`useCpm.ts:81` has no `enabled` gate), and a
 default-range `/trend` or `/kpis` that's discarded when the real window bounds arrive
 (`CpmInvestigation.tsx:131`, `CpmReplay.tsx:87`). Overview/Explorer/Calculations are 2-deep waterfalls
@@ -265,42 +265,42 @@ because the selected loop defaults to `loops[0]` — when `?loop=` is in the URL
 *could* start at t0 but don't. *Fix:* `enabled` gates on `loopId`/window; start dependent queries from
 the URL param.
 
-**Idle/rotation session issues beyond H2/H3** — see also: SignalR connection kept alive after logout
+**Idle/rotation session issues beyond H2/H3** ✅ **FIXED** — hub held in a module ref (logout stops it); connect() `connecting` guard (in H12); accessTokenFactory reads current token (in H4). — see also: SignalR connection kept alive after logout
 if logout races the initial connect (`alarmStore.ts:495`); `mqttStore.connect()` guards only
 `connected` not `connecting`, so two mounts during the WS handshake create a second orphaned client
 (`mqttStore.ts:241`); hub `accessTokenFactory` captures a stale token (`alarmStore.ts:357`).
 
-**Per-message O(n) stats storm.** Every SignalR alarm triggers a full recompute over the entire alarms
+**Per-message O(n) stats storm.** ✅ **FIXED** — hub deltas coalesced 100ms (H11); useLoopLive per-key selectors; EdgeNodeMonitor useMemo + dead-state removed. Every SignalR alarm triggers a full recompute over the entire alarms
 Map with ~9 filter passes, no coalescing — a CPU/render storm exactly during a flood (`alarmStore.ts:377`).
 `useLoopLive` and EdgeNodeMonitor subscribe to the whole metrics Map, re-rendering on every 100 ms
 flush (`useLoopLive.ts:44`, `EdgeNodeMonitor.tsx:77` also has a dead `prevMetricSize` state).
 
-**Alarm audio likely silent.** `AudioContext` is built at module load → browsers start it `suspended`;
+**Alarm audio likely silent.** ✅ **FIXED** — AudioContext lazily created + resumed on first gesture; play call out of the immer producer. `AudioContext` is built at module load → browsers start it `suspended`;
 `playAlarmSound` never calls `resume()`, and it runs inside an immer `set()` producer. For ISA-18.2
 audible annunciation this must be deterministic. *Fix:* lazily create/resume on first user gesture,
 hoist the call out of the producer. (`alarmStore.ts:647`)
 
-**Undebounced search re-fetches (3 places).** Historical Source/Tag (`HistoricalViewer.tsx:159` — ~9
+**Undebounced search re-fetches (3 places).** ✅ **FIXED** — Historical (300ms + page reset), DisplayList (250ms), Audit (400ms). Historical Source/Tag (`HistoricalViewer.tsx:159` — ~9
 sequential 500-row queries typing "Unit1.FIC"), DisplayList search (`DisplayList.tsx:165`), Audit user
 filter (`AuditExplorer.tsx:30`). `useDebounce` exists and is used correctly elsewhere. Historical also
 never resets `page` on filter change → false "No alarms found" from page 3 (`HistoricalViewer.tsx:59`),
 and its "Run Query" button is a no-op since queries already auto-run.
 
-**RBAC / nav mismatches.** "Audit Log" nav shows to `admin.audit.view` but `/admin/*` guard demands
+**RBAC / nav mismatches.** ✅ **FIXED** — /admin/* any-of guard, Roles nav added, /admin index redirect, path-boundary highlight, redirect preserves query, theme persisted, toast follows theme. "Audit Log" nav shows to `admin.audit.view` but `/admin/*` guard demands
 `admin.users.edit` → auditors bounced to `/displays` (`App.tsx:332` vs `621`); `rbac.manage`-only users
 can never reach the Roles tab (also absent from the sidebar). Bare `/admin` renders an empty pane (no
 index route). Sidebar double-highlights every `/cpm/*` page (prefix match keeps `/cpm` active). Deep-link
 redirect after login drops the query string (`?loop=…` lost). Theme choice isn't persisted (reverts to
 `day` every reload — hostile to night shift).
 
-**Fake/misleading affordances.** Analytics "Export ISA-18.2 Report" button has no `onClick`
+**Fake/misleading affordances.** ✅ **FIXED** — Analytics export (client-side JSON), Alarm Feed test feedback, console Refresh re-fetches, real Unshelve + honest suppress/OOS, audit dot 'recorded'. Analytics "Export ISA-18.2 Report" button has no `onClick`
 (`Analytics.tsx:127`); Alarm Feed "Test GET" gives zero feedback + leaks an unhandled rejection on
 failure (`AlarmFeedConfig.tsx:60`); AlarmConsole "Refresh (F5)" only repaints cells, never re-fetches
 (`AlarmConsole.tsx:713`); context-menu "Unshelve/Unsuppress/Return to Service" don't exist as APIs —
 operators **cannot reverse a shelve/suppress from the UI at all** (`AlarmContextMenu.tsx:71`); Audit rows
 show a green "Hash verified" dot that never verified (`AuditExplorer.tsx:167`).
 
-**Forms & inputs.** Shelve/suppress/OOS confirm handlers swallow API errors → dialog closes as if it
+**Forms & inputs.** ✅ **FIXED** — dialog handlers rethrow, allSettled shelve, quote-aware CSV, bulk-import concurrency+progress, Roles race guard, Users pagination. (Password reset = separate feature.) Shelve/suppress/OOS confirm handlers swallow API errors → dialog closes as if it
 worked, the inline error UI is dead code (`AlarmConsole.tsx:199`); batch shelve is an N+1 that reports
 whole-command failure on partial success (`AlarmConsole.tsx:194`); CpmEvents note input isn't keyed by
 event id → a note typed for one event submits with another's ack (`CpmEvents.tsx:130`); LoopRegistry CSV
@@ -310,7 +310,7 @@ parse splits on commas with no quoting → a description with a comma shifts eve
 (`UserManagementConfig.tsx:73,55`); Roles has a switch race + silent discard of unsaved edits + `window.prompt`
 delete (`RolesConfig.tsx:58,46,131`).
 
-**Designer.** Revert can leave discarded edits on canvas when the server draft already equals published
+**Designer.** ✅ **FIXED** — revert seedNonce, Ctrl+S isDirty, keydown deps, import orphan cleanup, launcher favorites server-backed + apiFetch thumbnails. Revert can leave discarded edits on canvas when the server draft already equals published
 (`DisplayDesigner.tsx:209`); Ctrl+S saves even when nothing changed → version-history churn
 (`DisplayDesigner.tsx:561`); the keydown effect re-registers every render (incl. every drag frame) because
 `saveMutation` is in its deps (`DisplayDesigner.tsx:573`); Import leaves an orphan display if the content
@@ -318,11 +318,11 @@ PUT fails after create (`ImportPage.tsx:96`); favorites implemented twice (serve
 star in Designer doesn't show in Launcher (`DisplayLauncher.tsx:48`); thumbnail N+1 (one GET/card, up to
 200) (`DisplayList.tsx:756`).
 
-**Accessibility.** No CPM drawer/modal (gate evidence, focus-loop, calc, wizard, bulk import) has focus
+**Accessibility.** ✅ **FIXED** — Modal focus trap + restore; `useDialogA11y` (Escape/focus/aria-modal) on the 5 CPM drawers/modals. No CPM drawer/modal (gate evidence, focus-loop, calc, wizard, bulk import) has focus
 trap, autofocus, or Escape-to-close (`GateEvidenceDrawer.tsx:44` + 4 more); shared `Modal` has no focus
 trap and doesn't restore focus on close (`Modal.tsx:46`); icon-only buttons lack aria labels.
 
-**Security (lower-frequency).** SOE d3 tooltip interpolates plant/OPC event text into `innerHTML`
+**Security (lower-frequency).** ✅ **FIXED** — SOE tooltip HTML-escaped; Historical export via Blob (no token in URL). MQTT token on WS query remains a documented tradeoff. SOE d3 tooltip interpolates plant/OPC event text into `innerHTML`
 unescaped → stored-XSS via the alarm pipeline (`SoePanel.tsx:168`); Historical NDJSON export puts the
 bearer token in the URL query string of `window.open` → leaks into history/proxy logs
 (`HistoricalViewer.tsx:99`); the MQTT token rides the WS URL query (documented tradeoff — worth a

@@ -72,8 +72,8 @@ export const LiveAlarmDetailDialog: React.FC<LiveAlarmDetailDialogProps> = ({
             onClick={onClose}
             style={{
               padding: '8px 16px', fontSize: '12.5px', fontWeight: 600,
-              border: '1px solid #DDE3EA', borderRadius: '8px',
-              background: '#fff', color: '#6B7280', cursor: 'pointer', fontFamily: 'inherit',
+              border: '1px solid var(--border-divider-color)', borderRadius: '8px',
+              background: '#fff', color: 'var(--element-neutral-color)', cursor: 'pointer', fontFamily: 'inherit',
             }}
           >
             Close
@@ -92,7 +92,7 @@ export const LiveAlarmDetailDialog: React.FC<LiveAlarmDetailDialogProps> = ({
             style={{
               padding: '8px 18px', fontSize: '12.5px', fontWeight: 600,
               border: 'none', borderRadius: '8px',
-              background: '#31598F', color: '#fff', cursor: 'pointer', fontFamily: 'inherit',
+              background: 'var(--element-active-color)', color: '#fff', cursor: 'pointer', fontFamily: 'inherit',
               boxShadow: '0 1px 4px rgba(49,89,143,0.25)',
             }}
           >
@@ -105,26 +105,26 @@ export const LiveAlarmDetailDialog: React.FC<LiveAlarmDetailDialogProps> = ({
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
           padding: '12px 14px', borderRadius: '8px',
-          background: 'var(--container-background-color, #F6F8FB)',
-          border: '1px solid var(--divider-color, #DDE3EA)',
+          background: 'var(--container-background-color, var(--container-backdrop-color))',
+          border: '1px solid var(--divider-color, var(--border-divider-color))',
           marginBottom: '4px',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <PriorityBadge priority={alarm.priority || 'LOW'} />
             <span style={{
               fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px',
-              background: alarm.conditionActive ? '#FEF2F2' : '#ECFDF5',
-              color: alarm.conditionActive ? '#D64545' : '#2E8B57',
+              background: alarm.conditionActive ? 'var(--container-section-color)' : 'var(--container-section-color)',
+              color: alarm.conditionActive ? 'var(--alert-alarm-color)' : 'var(--alert-running-color)',
             }}>
               {stateLabel(alarm)}
             </span>
             {alarm.acknowledged && (
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#2E8B57' }}>ACK</span>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--alert-running-color)' }}>ACK</span>
             )}
           </div>
           <div style={{ textAlign: 'right' }}>
             <div className="detail-property__label">Severity</div>
-            <div style={{ fontSize: '22px', fontWeight: 700, color: '#31598F', fontVariantNumeric: 'tabular-nums' }}>
+            <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--element-active-color)', fontVariantNumeric: 'tabular-nums' }}>
               {alarm.severity}
             </div>
           </div>
@@ -138,14 +138,14 @@ export const LiveAlarmDetailDialog: React.FC<LiveAlarmDetailDialogProps> = ({
             <Property
               label="Condition Active"
               value={alarm.conditionActive ? 'YES' : 'NO'}
-              color={alarm.conditionActive ? '#D64545' : '#2E8B57'}
+              color={alarm.conditionActive ? 'var(--alert-alarm-color)' : 'var(--alert-running-color)'}
             />
             <Property label="Priority" value={alarm.priority || '—'} />
             <Property label="State" value={alarm.state || 'ACTIVE'} />
             <Property
               label="Acknowledged"
               value={alarm.acknowledged ? 'YES' : 'NO'}
-              color={alarm.acknowledged ? '#2E8B57' : '#D64545'}
+              color={alarm.acknowledged ? 'var(--alert-running-color)' : 'var(--alert-alarm-color)'}
             />
           </PropertyGrid>
         </Section>
@@ -172,7 +172,7 @@ export const LiveAlarmDetailDialog: React.FC<LiveAlarmDetailDialogProps> = ({
                   <span className="opc-attr-row__key">{name}</span>
                   <span className="opc-attr-row__value">
                     {String(metric.value)}
-                    <span style={{ marginLeft: '8px', color: '#9CA3AF', fontSize: '10px' }}>
+                    <span style={{ marginLeft: '8px', color: 'var(--element-inactive-color)', fontSize: '10px' }}>
                       q={metric.quality} · {formatTimestampMs(metric.ts)}
                     </span>
                   </span>

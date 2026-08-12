@@ -1,14 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-const T = {
-  blue: '#31598F', blueLight: '#EAF2FF', blueMuted: '#C4D8F0',
-  bg: '#F6F8FB', card: '#FFFFFF', border: '#DDE3EA', borderLight: '#EEF2F7',
-  textPrimary: '#1F2937', textSecondary: '#6B7280', textMuted: '#9CA3AF',
-  success: '#2E8B57', successBg: '#ECFDF5',
-  warning: '#B45309', warningBg: '#FFFBEB', warningBorder: '#FDE68A',
-  radius: '12px', radiusSm: '8px',
-} as const;
+import { T } from '../../styles/theme';
 
 export const AlarmRulesConfig: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -26,9 +19,9 @@ export const AlarmRulesConfig: React.FC = () => {
           settings endpoint exists the page is explicitly read-only. */}
       <div role="alert" style={{
         display: 'flex', alignItems: 'center', gap: '10px',
-        background: T.warningBg ?? '#FFFBEB', border: `1px solid ${T.warningBorder ?? '#FDE68A'}`,
+        background: T.warningBg ?? 'var(--container-section-color)', border: `1px solid ${T.warningBorder ?? 'var(--alert-warning-color)'}`,
         borderRadius: T.radiusSm, padding: '12px 16px',
-        color: T.warning ?? '#B45309', fontSize: '13px', fontWeight: 600,
+        color: T.warning ?? 'var(--alert-warning-color)', fontSize: '13px', fontWeight: 600,
       }}>
         Not functional yet — these settings are not connected to the backend and cannot be saved.
         Values shown are illustrative defaults, not the running configuration.

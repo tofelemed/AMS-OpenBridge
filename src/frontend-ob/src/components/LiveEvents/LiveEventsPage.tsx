@@ -7,32 +7,8 @@ import { useMqttStore, type LiveAlarm } from '../../store/mqttStore';
 import { useDebounce } from '../../hooks/useDebounce';
 import { formatTimestampMs } from '../../utils/time';
 import { MqttLiveStream } from './MqttLiveStream';
+import { T } from '../../styles/theme';
 
-const T = {
-  blue:          '#31598F',
-  blueMid:       '#4069A5',
-  blueLight:     '#EAF2FF',
-  blueMuted:     '#C4D8F0',
-  bg:            '#F6F8FB',
-  card:          '#FFFFFF',
-  border:        '#DDE3EA',
-  borderLight:   '#EEF2F7',
-  textPrimary:   '#1F2937',
-  textSecondary: '#6B7280',
-  textMuted:     '#9CA3AF',
-  success:       '#2E8B57',
-  successBg:     '#ECFDF5',
-  successBorder: '#A7F3D0',
-  warning:       '#B45309',
-  warningBg:     '#FFFBEB',
-  warningBorder: '#FDE68A',
-  critical:      '#D64545',
-  criticalBg:    '#FEF2F2',
-  caution:       '#D97706',
-  radius:        '12px',
-  radiusSm:      '8px',
-  shadow:        '0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.05)',
-} as const;
 
 const PRIORITY_COLOR: Record<string, string> = {
   CRITICAL: T.critical,
@@ -266,7 +242,7 @@ const StatusBadge: React.FC<{ live: boolean; label: string }> = ({ live, label }
     padding: '5px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 700,
     textTransform: 'uppercase', letterSpacing: '0.05em',
     background: live ? T.successBg : T.criticalBg,
-    border: `1px solid ${live ? T.successBorder : '#FCA5A5'}`,
+    border: `1px solid ${live ? T.successBorder : 'var(--alert-alarm-color)'}`,
     color: live ? T.success : T.critical,
   }}>
     <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'currentColor', boxShadow: live ? `0 0 6px ${T.success}` : 'none' }} />

@@ -20,16 +20,8 @@ import { toast } from 'react-toastify';
 import { PriorityBadge } from '../shared/PriorityBadge';
 import { formatTimestampMs } from '../../utils/time';
 import { mapHistoricalAlarmRow } from '../../api/alarmMappers';
+import { T } from '../../styles/theme';
 
-const T = {
-  blue: '#31598F', blueLight: '#EAF2FF', blueMuted: '#C4D8F0',
-  bg: '#F6F8FB', card: '#FFFFFF', border: '#DDE3EA', borderLight: '#EEF2F7',
-  textPrimary: '#1F2937', textSecondary: '#6B7280', textMuted: '#9CA3AF',
-  success: '#2E8B57', successBg: '#ECFDF5',
-  critical: '#D64545', criticalBg: '#FEF2F2', criticalBorder: '#FCA5A5',
-  radius: '12px', radiusSm: '8px',
-  shadow: '0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.05)',
-} as const;
 
 interface HistoricalQueryParams {
   fromEpochMs: number; toEpochMs: number;
@@ -201,7 +193,7 @@ const HistoricalViewer: React.FC = () => {
             cursor: isLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
             opacity: isLoading ? 0.7 : 1, transition: 'opacity 140ms ease', alignSelf: 'flex-end',
           }}
-          onMouseEnter={e => !isLoading && (e.currentTarget.style.background = '#4069A5')}
+          onMouseEnter={e => !isLoading && (e.currentTarget.style.background = 'var(--element-active-color)')}
           onMouseLeave={e => (e.currentTarget.style.background = T.blue)}
         >
           {isLoading
@@ -244,8 +236,8 @@ const HistoricalViewer: React.FC = () => {
           <AgGridReact
             ref={gridRef} rowData={isFetching ? undefined : rowData} columnDefs={columnDefs}
             onGridReady={onGridReady} rowSelection="multiple" tooltipShowDelay={500}
-            overlayLoadingTemplate={'<span style="padding:20px;color:#6B7280">Executing query…</span>'}
-            overlayNoRowsTemplate={'<span style="padding:20px;color:#6B7280">No historical alarms found in this range.</span>'}
+            overlayLoadingTemplate={'<span style="padding:20px;color:var(--element-neutral-color)">Executing query…</span>'}
+            overlayNoRowsTemplate={'<span style="padding:20px;color:var(--element-neutral-color)">No historical alarms found in this range.</span>'}
           />
         </div>
       </div>
