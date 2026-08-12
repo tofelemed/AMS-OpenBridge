@@ -200,7 +200,7 @@ as `AlarmConsole.tsx:15` does. (`HistoricalViewer.tsx:193`)
 
 ### Performance (HIGH)
 
-**H10 — Viewer per-symbol fan-out (N+1 × 3).** For a bound display the runtime viewer fires, per
+**H10 — Viewer per-symbol fan-out (N+1 × 3).** ✅ **FIXED 2026-08-12** (page-level `usePrimeBindings` → one POST /resolve/batch primes the query cache; per-slot hooks pause via `BindingPrimeContext`; snapshot GETs micro-batched 50ms + 5s dedupe vs the wildcard seed; asset-meta batch endpoint remains a backend TODO). For a bound display the runtime viewer fires, per
 symbol: one `GET /bindings/resolve` (25 `useBindingResolver` hooks/symbol), one
 `GET /assets/by-path`, and per device one `GET /hist/snapshot?assets=<device>` — **~120 requests for
 a 50-symbol/20-device display**, on top of a whole-plant `?assets=*` snapshot. **Batch endpoints
@@ -209,7 +209,7 @@ renderer uses none of them. *Fix:* resolve all bindings/metadata once at the pag
 batch endpoints, prime the query cache keyed `['binding',path,role]`, let per-slot hooks read it.
 (`SymbolRenderer.tsx:92`, `useAssetMetadata.ts:18`, `mqttStore.ts:341`)
 
-**H11 — Every symbol subscribes to the entire alarms Map.** `useAlarmStore(s => s.alarms)` inside
+**H11 — Every symbol subscribes to the entire alarms Map.** ✅ **FIXED 2026-08-12** (hub deltas coalesced 100ms like MQTT with ONE stats/index rebuild per batch; per-source `alarmIndexBySource` with identity preservation; symbols without a source never re-render; stats subscription gated to annunciators; alarm sound moved out of the immer producer, beeps only on genuinely new alarms). `useAlarmStore(s => s.alarms)` inside
 each symbol (even in design mode, even when `sourceName` is undefined) means every SignalR delta
 re-renders every symbol — a 300-symbol display re-renders 300 symbols per event, and `alarmStore`
 does one `set()` per hub message with **no coalescing** (unlike MQTT's 100 ms batch). `React.memo`
@@ -217,7 +217,7 @@ can't help — the subscription is inside the component. *Fix:* a per-source ala
 check + batch hub deltas like MQTT; skip the subscription for unbound non-annunciator symbols.
 (`SymbolRenderer.tsx:109`, `alarmStore.ts:377`)
 
-**H12 — ag-grid + mqtt ship in the entry bundle to everyone.** `dist/index.html` module-preloads
+**H12 — ag-grid + mqtt ship in the entry bundle to everyone.** ✅ **FIXED 2026-08-12** (function-form manualChunks + pinned vendor-react; mqtt/sparkplug dynamically imported inside connect() — also fixes the connect race; entry payload 2.08MB → 556KB: index 324KB + vendor-react 232KB). `dist/index.html` module-preloads
 `vendor-aggrid` (1.25 MB) and `vendor-mqtt` (482 KB), so **every first paint including `/login`**
 downloads ~2 MB JS (+713 KB CSS) before interactive. ag-grid is used only by two lazy routes; the
 object-form `manualChunks` hoisted it into the entry graph. (Designer weight is fine — `catalogRenderer`

@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMqttStore } from '../store/mqttStore';
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { apiFetch } from '../api/apiFetch';
 
 const BINDING_RESOLVER_URL = import.meta.env.VITE_BINDING_RESOLVER_URL || '/api/bindings';
@@ -36,20 +36,73 @@ async function resolveBinding(path: string, role: string, signal?: AbortSignal):
   return res.json();
 }
 
+/** H10: while a page-level batch resolve is priming the cache, per-slot hooks
+ *  hold off — otherwise a 50-symbol display fires 50 individual GET /resolve
+ *  calls in the same tick the ONE batch POST is answering. Default: no batch
+ *  in progress, hooks behave exactly as before. */
+export const BindingPrimeContext = React.createContext<{ priming: boolean }>({ priming: false });
+
+/**
+ * H10: resolve a display's bindings in ONE POST /resolve/batch and prime the
+ * per-path query cache (['binding', path, role]) that useBindingResolver reads.
+ * Returns true while priming. On any failure it simply stops priming and the
+ * per-slot hooks fall back to individual resolves — no functional regression.
+ */
+export function usePrimeBindings(paths: string[], role: 'live' | 'history' | 'alarm' | 'all' = 'live'): boolean {
+  const qc = useQueryClient();
+  const pathsKey = React.useMemo(() => [...new Set(paths)].sort().join('|'), [paths]);
+  const [priming, setPriming] = React.useState(() => paths.length > 0);
+
+  useEffect(() => {
+    const unique = pathsKey ? pathsKey.split('|') : [];
+    // Only fetch paths the cache doesn't already have fresh.
+    const missing = unique.filter(p => qc.getQueryData(['binding', p, role]) === undefined);
+    if (missing.length === 0) { setPriming(false); return; }
+    setPriming(true);
+    let cancelled = false;
+    (async () => {
+      try {
+        // Server caps a batch at 100 bindings.
+        for (let i = 0; i < missing.length; i += 100) {
+          const slice = missing.slice(i, i + 100);
+          const res = await apiFetch(`${BINDING_RESOLVER_URL}/resolve/batch`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bindings: slice.map(path => ({ path, roles: [role] })) }),
+          });
+          if (!res.ok) throw new Error(`batch resolve → ${res.status}`);
+          const data = await res.json() as { bindings?: BindingResolution[] };
+          for (const b of data.bindings ?? []) {
+            qc.setQueryData(['binding', b.contextualPath, role], b);
+          }
+        }
+      } catch (err) {
+        console.warn('[useBindingResolver] batch prime failed — falling back to per-slot resolves', err);
+      }
+      if (!cancelled) setPriming(false);
+    })();
+    return () => { cancelled = true; };
+  }, [pathsKey, role, qc]);
+
+  return priming;
+}
+
 export function useBindingResolver(
   path: string | undefined,
   role: 'live' | 'history' | 'alarm' | 'all' = 'all'
 ) {
   const subscribeScreen = useMqttStore(state => state.subscribeScreen);
   const unsubscribeScreen = useMqttStore(state => state.unsubscribeScreen);
+  const { priming } = React.useContext(BindingPrimeContext);
 
   // First resolve the path to get transport info.
   // FE-03: React Query's abort signal is threaded through, so navigating away or
   // rebinding cancels the in-flight resolve instead of letting a stale response land.
+  // H10: paused while a page-level batch is priming this exact cache key.
   const { data: binding, isLoading: isResolving } = useQuery({
     queryKey: ['binding', path, role],
     queryFn: ({ signal }) => resolveBinding(path!, role, signal),
-    enabled: !!path,
+    enabled: !!path && !priming,
     staleTime: 60_000
   });
 

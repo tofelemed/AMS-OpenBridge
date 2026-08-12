@@ -1,16 +1,18 @@
-import mqtt, { type MqttClient } from 'mqtt';
+// H12: the mqtt + sparkplug libraries (~480KB) are loaded via dynamic import
+// inside connect(), NOT statically — App.tsx imports this store at the top
+// level, so a static import here shipped vendor-mqtt in the entry bundle to
+// every first paint including /login. Only the TYPES are imported statically
+// (erased at build time).
+import type { MqttClient } from 'mqtt';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { enableMapSet } from 'immer';
-import { get as getSparkplugPayload } from 'sparkplug-payload';
 import { apiFetch } from '../api/apiFetch';
 import { getAuthToken } from '../api/auth';
 
-const SparkplugPayload = getSparkplugPayload('spBv1.0');
-if (!SparkplugPayload) {
-  throw new Error('[MqttStore] sparkplug-payload spBv1.0 namespace unavailable');
-}
-const decodeSparkplugPayload = SparkplugPayload.decodePayload.bind(SparkplugPayload);
+// Bound inside connect() once the sparkplug library has been dynamically
+// imported; messages only arrive after connect, so decode is always ready.
+let decodeSparkplugPayload: ((payload: Uint8Array) => unknown) | null = null;
 
 enableMapSet();
 
@@ -213,11 +215,24 @@ export function getLiveSeries(key: string, sinceTs = 0): SeriesSample[] {
   return sinceTs ? buf.filter(p => p.ts >= sinceTs) : buf.slice();
 }
 
+// ── H10: snapshot request micro-batching ────────────────────────────────────
+// subscribeScreen() is called one topic at a time by per-slot binding hooks, so
+// a 20-device display used to issue 20 separate GET /snapshot?assets=<device>
+// calls — right after the connect handler had already fetched ?assets=* with
+// all of them. Devices now collect for 50ms and go out as ONE comma-joined GET,
+// and any device seeded by a snapshot response in the last 5s is skipped.
+const SNAPSHOT_BATCH_MS = 50;
+const SNAPSHOT_DEDUPE_MS = 5_000;
+let pendingSnapshotDevices = new Set<string>();
+let snapshotBatchTimer: ReturnType<typeof setTimeout> | null = null;
+const recentSnapshotAt = new Map<string, number>();
+
 // ── Store ──────────────────────────────────────────────────────────────────
 
 export const useMqttStore = create<MqttStoreState>()(
   immer((set, get) => {
     let client: MqttClient | null = null;
+    let connecting = false; // guards the async dynamic-import + WS-handshake window
     let firehoseRefs = 0; // ref count for the plant-wide DDATA firehose subscription
     // FE-06: per-topic ref counts for screen subscriptions (survives reconnects —
     // the 'connect' handler resubscribes from `subscribed`, refs stay authoritative).
@@ -227,19 +242,8 @@ export const useMqttStore = create<MqttStoreState>()(
       if (!client?.connected) get().connect();
     }
 
-    return {
-      connected:  false,
-      error:      null,
-      snapshotLoaded: false,
-      metrics:    new Map(),
-      liveAlarms: new Map(),
-      aliasMap:   new Map(),
-      subscribed: new Set(),
-
-      // ── connect ──────────────────────────────────────────────────────────
-      connect: () => {
-        if (client?.connected) return;
-
+    // Typed by what we use: the dynamically-imported default export's connect().
+    function openClient(mqtt: { connect: (url: string, opts: Record<string, unknown>) => MqttClient }) {
         const brokerUrl = resolveMqttWsUrl();
         // AUTH-03 (Plan 04 item 6): the broker no longer accepts anonymous
         // connections. The RS256 access token rides in two places:
@@ -303,12 +307,52 @@ export const useMqttStore = create<MqttStoreState>()(
           const subs = get().subscribed;
           subs.forEach(t => client!.subscribe(t));
         });
+    }
+
+
+    return {
+      connected:  false,
+      error:      null,
+      snapshotLoaded: false,
+      metrics:    new Map(),
+      liveAlarms: new Map(),
+      aliasMap:   new Map(),
+      subscribed: new Set(),
+
+      // ── connect ──────────────────────────────────────────────────────────
+      // H12: mqtt + sparkplug are dynamically imported here so they stay out of
+      // the entry bundle. The `client` / `connecting` guards also fix the old
+      // race where two components mounting during the WS handshake each built
+      // a client and orphaned the first (`client?.connected` was false while
+      // still connecting, so the guard passed twice).
+      connect: () => {
+        if (client || connecting) return;
+        connecting = true;
+        void (async () => {
+          try {
+            const [{ default: mqtt }, { get: getSparkplugPayload }] = await Promise.all([
+              import('mqtt'),
+              import('sparkplug-payload'),
+            ]);
+            if (!decodeSparkplugPayload) {
+              const spb = getSparkplugPayload('spBv1.0');
+              if (!spb) throw new Error('sparkplug-payload spBv1.0 namespace unavailable');
+              decodeSparkplugPayload = spb.decodePayload.bind(spb) as (p: Uint8Array) => unknown;
+            }
+            openClient(mqtt);
+          } catch (err) {
+            set(s => { s.error = err instanceof Error ? err.message : String(err); });
+          } finally {
+            connecting = false;
+          }
+        })();
       },
 
       // ── disconnect ───────────────────────────────────────────────────────
       disconnect: () => {
         client?.end(true);
         client = null;
+        connecting = false;
         set(s => { s.connected = false; });
       },
 
@@ -390,16 +434,36 @@ export const useMqttStore = create<MqttStoreState>()(
 
       // ── loadSnapshot ──────────────────────────────────────────────────────
       loadSnapshot: async (assets: string[]) => {
-        if (assets.length === 0) return;
-        try {
-          const url = `${SNAPSHOT_URL}?assets=${assets.map(encodeURIComponent).join(',')}`;
-          const res = await apiFetch(url);
-          if (!res.ok) return;
-          const data = await res.json() as { assets: Record<string, Record<string, unknown>> };
-          applySnapshotAssets(set, data.assets ?? {});
-        } catch (err) {
-          console.warn('[MqttStore] loadSnapshot failed:', err);
+        // H10: batch + dedupe — collect devices for 50ms, skip ones a snapshot
+        // response already covered in the last 5s (incl. the ?assets=* seed).
+        const now = Date.now();
+        for (const a of assets) {
+          if (!a) continue;
+          const seenAt = recentSnapshotAt.get(a);
+          if (seenAt !== undefined && now - seenAt < SNAPSHOT_DEDUPE_MS) continue;
+          pendingSnapshotDevices.add(a);
         }
+        if (pendingSnapshotDevices.size === 0 || snapshotBatchTimer) return;
+        snapshotBatchTimer = setTimeout(() => {
+          snapshotBatchTimer = null;
+          const batch = [...pendingSnapshotDevices];
+          pendingSnapshotDevices = new Set();
+          if (batch.length === 0) return;
+          void (async () => {
+            try {
+              const url = `${SNAPSHOT_URL}?assets=${batch.map(encodeURIComponent).join(',')}`;
+              const res = await apiFetch(url);
+              if (!res.ok) return;
+              const data = await res.json() as { assets: Record<string, Record<string, unknown>> };
+              const ts = Date.now();
+              for (const dev of Object.keys(data.assets ?? {})) recentSnapshotAt.set(dev, ts);
+              for (const dev of batch) recentSnapshotAt.set(dev, ts);
+              applySnapshotAssets(set, data.assets ?? {});
+            } catch (err) {
+              console.warn('[MqttStore] loadSnapshot failed:', err);
+            }
+          })();
+        }, SNAPSHOT_BATCH_MS);
       },
 
       // ── loadAllSnapshots ────────────────────────────────────────────────────
@@ -409,6 +473,10 @@ export const useMqttStore = create<MqttStoreState>()(
           const res = await apiFetch(`${SNAPSHOT_URL}?assets=${encodeURIComponent('*')}`);
           if (!res.ok) return;
           const data = await res.json() as { assets: Record<string, Record<string, unknown>> };
+          // H10: the wildcard seed covers every returned device — stamp them so
+          // the per-screen loads that follow within 5s become no-ops.
+          const ts = Date.now();
+          for (const dev of Object.keys(data.assets ?? {})) recentSnapshotAt.set(dev, ts);
           applySnapshotAssets(set, data.assets ?? {});
         } catch (err) {
           console.warn('[MqttStore] loadAllSnapshots failed:', err);
@@ -545,7 +613,9 @@ function handleMessage(
   get: () => MqttStoreState,
 ) {
   try {
+    if (!decodeSparkplugPayload) return; // library still loading — cannot happen post-connect
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const decoded: any = decodeSparkplugPayload(payload);
     const parts  = topic.split('/'); // spBv1.0 / group / VERB / edge [/ device]
     const verb   = parts[2];

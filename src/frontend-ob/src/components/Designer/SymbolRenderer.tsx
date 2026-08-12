@@ -105,27 +105,36 @@ export interface SymbolAlarmState {
   active: boolean; unacked: boolean; count: number; highestPriority?: string; message?: string;
 }
 const PRIORITY_ORDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'DIAGNOSTIC'];
+const NO_ALARM: SymbolAlarmState = { active: false, unacked: false, count: 0 };
+const ZERO_STATS = {
+  totalActive: 0, totalCritical: 0, totalHigh: 0, totalMedium: 0, totalLow: 0,
+  unacknowledged: 0, shelved: 0, suppressed: 0, outOfService: 0,
+  alarmsPerTenMin: 0, floodActive: false,
+};
+
+// H11: subscribe to THIS source's derived summary only (O(1) lookup, identity
+// preserved by the store when unchanged) — the old version subscribed every
+// symbol to the whole alarms Map and scanned it per SignalR event, so a
+// 300-symbol display re-rendered 300 symbols per delta. With no sourceName the
+// selector returns a stable constant and the symbol never re-renders on alarms.
 function useSymbolAlarm(sourceName: string | undefined): SymbolAlarmState {
-  const alarms = useAlarmStore(s => s.alarms);
-  return React.useMemo(() => {
-    if (!sourceName) return { active: false, unacked: false, count: 0 };
-    const m = Array.from(alarms.values()).filter(a =>
-      a.sourceName === sourceName && a.conditionActive && !a.isSuppressed && !a.isShelved && !a.isOutOfService);
-    const hp = m.map(a => a.priority).sort((x, y) => PRIORITY_ORDER.indexOf(x) - PRIORITY_ORDER.indexOf(y))[0];
-    return { active: m.length > 0, unacked: m.some(a => !a.acknowledged), count: m.length, highestPriority: hp, message: m[0]?.message ?? undefined };
-  }, [alarms, sourceName]);
+  const summary = useAlarmStore(s =>
+    (sourceName ? s.alarmIndexBySource.get(sourceName) : undefined));
+  return summary ?? NO_ALARM;
 }
 
-/** Plant-wide active-alarm summary — drives the `obc.alert-button` annunciator when no source is set. */
+/** Plant-wide active-alarm summary — drives the `obc.alert-button` annunciator when no source is set.
+ *  H11: derived from the store's stats (rebuilt once per coalesced flush), not a whole-Map scan. */
 function useGlobalAlarmSummary(enabled: boolean): SymbolAlarmState {
-  const alarms = useAlarmStore(s => s.alarms);
+  const stats = useAlarmStore(s => (enabled ? s.stats : undefined));
   return React.useMemo(() => {
-    if (!enabled) return { active: false, unacked: false, count: 0 };
-    const m = Array.from(alarms.values()).filter(a =>
-      a.conditionActive && !a.isSuppressed && !a.isShelved && !a.isOutOfService);
-    const hp = m.map(a => a.priority).sort((x, y) => PRIORITY_ORDER.indexOf(x) - PRIORITY_ORDER.indexOf(y))[0];
-    return { active: m.length > 0, unacked: m.some(a => !a.acknowledged), count: m.length, highestPriority: hp };
-  }, [alarms, enabled]);
+    if (!stats) return NO_ALARM;
+    const hp = stats.totalCritical > 0 ? 'CRITICAL'
+      : stats.totalHigh > 0 ? 'HIGH'
+      : stats.totalMedium > 0 ? 'MEDIUM'
+      : stats.totalLow > 0 ? 'LOW' : undefined;
+    return { active: stats.totalActive > 0, unacked: stats.unacknowledged > 0, count: stats.totalActive, highestPriority: hp };
+  }, [stats]);
 }
 
 const ALARM_ANNUNCIATOR_TYPES = new Set(['alarm.beacon', 'alarm.horn', 'alarm.banner', 'alarm.summary']);
@@ -407,7 +416,10 @@ const SymbolRendererImpl: React.FC<SymbolRendererProps> = ({ item, mode }) => {
   // Phase F — alarm state (from alarmStore) + conditional-formatting rules + multi-state.
   const alarm = useSymbolAlarm(mode === 'preview' ? item.alarmSource : undefined);
   const globalAlarm = useGlobalAlarmSummary(mode === 'preview' && item.type === 'obc.alert-button' && !item.alarmSource);
-  const alarmStats = useAlarmStore(s => s.stats);
+  // H11: only annunciator symbols consume plant-wide stats — everything else
+  // gets a stable constant and never re-renders on the stats flush.
+  const alarmStats = useAlarmStore(s =>
+    (ALARM_ANNUNCIATOR_TYPES.has(item.type) ? s.stats : ZERO_STATS));
   const getSlotValue = (slot?: string): unknown =>
     mode !== 'preview' ? undefined : (slot ? slots[slot]?.value : liveValue);
   const ruleOutcome = evaluateRules(item.rules, getSlotValue);

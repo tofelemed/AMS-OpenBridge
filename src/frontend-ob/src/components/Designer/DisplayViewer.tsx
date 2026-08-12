@@ -13,6 +13,7 @@ import { useMqttStore } from '../../store/mqttStore';
 import { useDisplayTimeStore } from '../../store/timeStore';
 import { TimeBar } from './TimeBar';
 import { useTouchZoomPan } from '../../hooks/useTouchZoomPan';
+import { usePrimeBindings, BindingPrimeContext } from '../../hooks/useBindingResolver';
 import { pensFromItems, pensFromItem } from './TrendChart';
 import { ObiTrend } from '@oicl/openbridge-webcomponents-react/icons/icon-trend';
 import TrendDialog from './TrendDialog';
@@ -285,6 +286,21 @@ export const DisplayViewer: React.FC<{ source?: ViewerSource }> = ({ source = 'd
     [items, element],
   );
 
+  // H10: resolve every bound path in ONE batch POST and prime the query cache
+  // BEFORE the per-slot hooks mount — a 50-symbol display used to fire ~50
+  // individual GET /resolve calls (25 slot-hooks per symbol, deduped per path).
+  const boundPaths = useMemo(() => {
+    const out = new Set<string>();
+    for (const i of resolvedItems) {
+      for (const p of Object.values(i.bindings ?? {})) {
+        if (typeof p === 'string' && p) out.add(p);
+      }
+    }
+    return [...out];
+  }, [resolvedItems]);
+  const bindingsPriming = usePrimeBindings(boundPaths, 'live');
+  const primeCtx = useMemo(() => ({ priming: bindingsPriming }), [bindingsPriming]);
+
   // Pens for the trend dialog: the SELECTED symbols if any, else the whole display.
   // An explicit selection is never truncated — only the whole-display fallback is capped at the size
   // of the pen palette (and the operator is told, rather than silently losing tags).
@@ -334,6 +350,7 @@ export const DisplayViewer: React.FC<{ source?: ViewerSource }> = ({ source = 'd
   }
 
   return (
+    <BindingPrimeContext.Provider value={primeCtx}>
     <div className="display-viewer" ref={rootRef} data-asset={assetContext}>
       {/* A refresh failed but we still have good content — say so without blanking the screen. */}
       {error && (
@@ -551,6 +568,7 @@ export const DisplayViewer: React.FC<{ source?: ViewerSource }> = ({ source = 'd
       {/* Phase 4 — personal (operator-owned) views */}
       <PersonalViewsDialog open={myViewsOpen} onClose={() => setMyViewsOpen(false)} />
     </div>
+    </BindingPrimeContext.Provider>
   );
 };
 

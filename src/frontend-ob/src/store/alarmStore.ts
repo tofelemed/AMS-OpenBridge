@@ -71,6 +71,16 @@ export interface AlarmStats {
   floodActive: boolean;
 }
 
+/** H11: per-source derived alarm state consumed by HMI symbols — one O(1) map
+ *  lookup with stable identity instead of every symbol scanning the whole Map. */
+export interface SourceAlarmSummary {
+  active: boolean;
+  unacked: boolean;
+  count: number;
+  highestPriority?: string;
+  message?: string;
+}
+
 export interface FloodAlert {
   serverId: string;
   alarmsPerTenMin: number;
@@ -126,6 +136,8 @@ export interface AlarmKpiPayload {
 
 interface AlarmStore {
   alarms: Map<string, ActiveAlarm>;
+  /** H11: sourceName → derived symbol state; identity preserved when unchanged. */
+  alarmIndexBySource: Map<string, SourceAlarmSummary>;
   stats: AlarmStats;
   floodAlert: FloodAlert | null;
   serverStatuses: Map<string, ServerStatus>;
@@ -197,8 +209,107 @@ function recalcStatsFromAlarms(
   };
 }
 
+const SUMMARY_PRIORITY_ORDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'DIAGNOSTIC'];
+
+/** H11: rebuild the per-source symbol index in one pass. Summaries that did not
+ *  change keep their previous object identity, so per-source zustand selectors
+ *  do not re-render symbols whose alarm state is untouched. */
+function rebuildSourceIndex(
+  alarms: Map<string, ActiveAlarm>,
+  prev: Map<string, SourceAlarmSummary>,
+): Map<string, SourceAlarmSummary> {
+  const bySource = new Map<string, ActiveAlarm[]>();
+  for (const a of alarms.values()) {
+    if (!a.conditionActive || a.isSuppressed || a.isShelved || a.isOutOfService) continue;
+    const list = bySource.get(a.sourceName);
+    if (list) list.push(a); else bySource.set(a.sourceName, [a]);
+  }
+  const next = new Map<string, SourceAlarmSummary>();
+  for (const [source, list] of bySource) {
+    list.sort((x, y) =>
+      SUMMARY_PRIORITY_ORDER.indexOf(x.priority) - SUMMARY_PRIORITY_ORDER.indexOf(y.priority));
+    const candidate: SourceAlarmSummary = {
+      active: true,
+      unacked: list.some(a => !a.acknowledged),
+      count: list.length,
+      highestPriority: list[0]?.priority,
+      message: list[0]?.message ?? undefined,
+    };
+    const old = prev.get(source);
+    next.set(source,
+      old &&
+      old.active === candidate.active && old.unacked === candidate.unacked &&
+      old.count === candidate.count && old.highestPriority === candidate.highestPriority &&
+      old.message === candidate.message
+        ? old
+        : candidate);
+  }
+  return next;
+}
+
  
 type SetState = (fn: (state: any) => void) => void;
+
+// ── H11: hub-delta coalescing ────────────────────────────────────────────────
+// SignalR used to apply ONE store set() per message — during an alarm burst
+// every subscriber (console grid, dashboard, every HMI symbol) re-rendered per
+// event. Deltas now buffer for 100ms (mirroring the MQTT DDATA flush) and apply
+// in a single set() with ONE stats/index rebuild per batch.
+type HubDelta =
+  | { kind: 'new'; raw: Record<string, unknown> }
+  | { kind: 'update'; raw: Record<string, unknown> }
+  | { kind: 'clear'; alarmId: string };
+
+let pendingHubDeltas: HubDelta[] = [];
+let hubFlushTimer: ReturnType<typeof setTimeout> | null = null;
+const HUB_FLUSH_MS = 100;
+
+function queueHubDelta(set: SetState, delta: HubDelta) {
+  pendingHubDeltas.push(delta);
+  if (!hubFlushTimer) hubFlushTimer = setTimeout(() => flushHubDeltas(set), HUB_FLUSH_MS);
+}
+
+function flushHubDeltas(set: SetState) {
+  hubFlushTimer = null;
+  const batch = pendingHubDeltas;
+  pendingHubDeltas = [];
+  if (batch.length === 0) return;
+
+  const sounds: string[] = [];
+  set(state => {
+    let dirty = false;
+    for (const d of batch) {
+      if (d.kind === 'clear') {
+        if (state.alarms.delete(d.alarmId)) dirty = true;
+        continue;
+      }
+      const id = String(pickId(d.raw));
+      const incoming = mapHubAlarmPayload(d.raw, state.alarms.get(id));
+      if (!alarmMatchesConnectedOpcServer(incoming, state.connectedOpcServerIds)) {
+        if (state.alarms.delete(id)) dirty = true;
+        continue;
+      }
+      if (d.kind === 'update' && !incoming.conditionActive) {
+        if (state.alarms.delete(id)) dirty = true;
+        continue;
+      }
+      const existing = state.alarms.get(incoming.id);
+      const next = existing ? upsertAlarm(existing, incoming) : incoming;
+      if (existing && alarmsEqual(existing, next)) continue;
+      state.alarms.set(incoming.id, next);
+      dirty = true;
+      // Annunciate genuinely NEW alarms only (re-deliveries no longer re-beep).
+      if (d.kind === 'new' && !existing) sounds.push(incoming.priority);
+    }
+    if (dirty) {
+      state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds, state.stats);
+      state.alarmIndexBySource = rebuildSourceIndex(state.alarms, state.alarmIndexBySource);
+      state.lastUpdated = Date.now();
+    }
+  });
+  // Side effect deliberately OUTSIDE the immer producer.
+  sounds.forEach(playAlarmSound);
+}
 
 async function syncConnectedOpcServers(set: SetState): Promise<{ id?: string; protocol?: string }> {
   try {
@@ -311,12 +422,14 @@ async function hydrateAlarmsFromApi(
       }
       if (hydrateDirty) {
         state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds, state.stats);
+        state.alarmIndexBySource = rebuildSourceIndex(state.alarms, state.alarmIndexBySource);
         state.lastUpdated = Date.now();
       }
     });
   } else if (hydrateDirty) {
     set(state => {
       state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds, state.stats);
+        state.alarmIndexBySource = rebuildSourceIndex(state.alarms, state.alarmIndexBySource);
       state.lastUpdated = Date.now();
     });
   }
@@ -336,6 +449,7 @@ let refreshInFlight = false;
 export const useAlarmStore = create<AlarmStore>()(
   immer((set, get) => ({
     alarms: new Map(),
+    alarmIndexBySource: new Map(),
     stats: { totalActive: 0, totalCritical: 0, totalHigh: 0, totalMedium: 0, totalLow: 0, unacknowledged: 0, shelved: 0, suppressed: 0, outOfService: 0, alarmsPerTenMin: 0, floodActive: false },
     floodAlert: null,
     serverStatuses: new Map(),
@@ -379,53 +493,15 @@ export const useAlarmStore = create<AlarmStore>()(
           .build();
 
         connection.on('OnNewAlarm', (raw: Record<string, unknown>) => {
-          set(state => {
-            const id = pickId(raw);
-            const incoming = mapHubAlarmPayload(raw, state.alarms.get(id));
-            if (!alarmMatchesConnectedOpcServer(incoming, state.connectedOpcServerIds)) return;
-            state.alarms.set(incoming.id, incoming);
-            state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds, state.stats);
-            state.lastUpdated = Date.now();
-            playAlarmSound(incoming.priority);
-          });
+          queueHubDelta(set, { kind: 'new', raw });
         });
 
         connection.on('OnAlarmUpdated', (raw: Record<string, unknown>) => {
-          set(state => {
-            const id = String(pickId(raw));
-            const incoming = mapHubAlarmPayload(raw, state.alarms.get(id));
-            if (!alarmMatchesConnectedOpcServer(incoming, state.connectedOpcServerIds)) {
-              if (state.alarms.has(id)) {
-                state.alarms.delete(id);
-                state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds, state.stats);
-                state.lastUpdated = Date.now();
-              }
-              return;
-            }
-            if (!incoming.conditionActive) {
-              if (state.alarms.has(id)) {
-                state.alarms.delete(id);
-                state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds, state.stats);
-                state.lastUpdated = Date.now();
-              }
-              return;
-            }
-            const existing = state.alarms.get(incoming.id);
-            const next = existing ? upsertAlarm(existing, incoming) : incoming;
-            if (existing && alarmsEqual(existing, next)) return;
-            state.alarms.set(incoming.id, next);
-            state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds, state.stats);
-            state.lastUpdated = Date.now();
-          });
+          queueHubDelta(set, { kind: 'update', raw });
         });
 
         connection.on('OnAlarmCleared', (payload: { alarmId?: string; AlarmId?: string }) => {
-          const alarmId = String(payload.alarmId ?? payload.AlarmId ?? '');
-          set(state => {
-            state.alarms.delete(alarmId);
-            state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds, state.stats);
-            state.lastUpdated = Date.now();
-          });
+          queueHubDelta(set, { kind: 'clear', alarmId: String(payload.alarmId ?? payload.AlarmId ?? '') });
         });
 
         connection.on('OnBulkAlarmsUpdated', ({ alarmIds, action }: { alarmIds: string[]; action: string }) => {
@@ -555,6 +631,8 @@ export const useAlarmStore = create<AlarmStore>()(
     },
 
     disconnect: async () => {
+      if (hubFlushTimer) { clearTimeout(hubFlushTimer); hubFlushTimer = null; }
+      pendingHubDeltas = [];
       const conn = get().hubConnection;
       if (conn) await conn.stop();
       set(state => { state.hubConnection = null; state.connectionState = HubConnectionState.Disconnected; });
@@ -578,6 +656,7 @@ export const useAlarmStore = create<AlarmStore>()(
 
         state.alarms.set(alarmId, updated);
         state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds, state.stats);
+        state.alarmIndexBySource = rebuildSourceIndex(state.alarms, state.alarmIndexBySource);
         state.lastUpdated = Date.now();
       });
     },
@@ -606,6 +685,7 @@ export const useAlarmStore = create<AlarmStore>()(
           state.alarms.set(id, alarm);
         }
         state.stats = recalcStatsFromAlarms(state.alarms, state.connectedOpcServerIds, state.stats);
+        state.alarmIndexBySource = rebuildSourceIndex(state.alarms, state.alarmIndexBySource);
         state.lastUpdated = Date.now();
       });
     },
