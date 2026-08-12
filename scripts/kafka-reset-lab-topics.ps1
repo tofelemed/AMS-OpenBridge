@@ -28,6 +28,9 @@ $allowedTopics = @(
     @{ Name = "alarm.state.delta"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     @{ Name = "alarm.state.active"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=compact,min.insync.replicas=$minIsr" },
     @{ Name = "flink.state.alarm.delta"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    # Written by AlarmReplayEngine, consumed by ams-api ReplayResultConsumerService.
+    # Was missing here (auto-create used to paper over it; Plan 09 turns auto-create off).
+    @{ Name = "flink.state.alarm.replay"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     @{ Name = "system.state.drift.alerts"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
 
     # ── Phase 0: Edge platform live & telemetry topics ──────────────────────

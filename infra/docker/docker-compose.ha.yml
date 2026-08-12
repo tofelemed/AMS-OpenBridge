@@ -1,0 +1,373 @@
+# ════════════════════════════════════════════════════════════════════════════
+# Plan 09 — HA overlay (approved topology, 2026-08-12)
+#
+#   Kafka     3 brokers, RF=3, min.insync.replicas=2, auto-create OFF
+#             (ZooKeeper retained — matches the existing 3-broker+ZK production
+#              Kafka estate; KRaft migration deliberately NOT taken)
+#   Flink     2 JobManagers (ZooKeeper HA) + 2 TaskManagers, HA state on MinIO
+#   Postgres  primary + streaming hot-standby replica + PgBouncer
+#   IoTDB     primary + async pipe replica (DR standby, manual promote)
+#   EMQX      single node BY DECISION — no clustering
+#
+# Usage (dev drill / staging):
+#   docker compose -f docker-compose.yml -f docker-compose.ha.yml up -d <services>
+# The base file alone stays the single-node dev footprint — this file only ever
+# ADDS nodes and overrides replication settings; nothing in dev depends on it.
+# Production mapping + failover runbooks: docs/ha-production-guide.md
+# ════════════════════════════════════════════════════════════════════════════
+
+# YAML anchors do not cross compose files — this mirrors the base definition.
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+volumes:
+  kafka_1_data:
+  kafka_2_data:
+  postgres-replica-data:
+  iotdb-replica-data:
+  iotdb-replica-logs:
+  iotdb-replica-ext:
+
+services:
+
+  # ── Kafka: cluster-wide replication defaults on broker 1 ──────────────────
+  # These merge over the base env. They only apply while the overlay is up;
+  # plain dev runs keep the base single-broker settings untouched.
+  kafka:
+    environment:
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR:       3
+      KAFKA_MIN_INSYNC_REPLICAS:              2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE:        "false"
+
+  kafka-2:
+    image: confluentinc/cp-kafka:7.5.3
+    container_name: ams-kafka-2
+    logging: *default-logging
+    hostname: kafka-2
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID:                        2
+      KAFKA_ZOOKEEPER_CONNECT:                zookeeper:2181
+      KAFKA_LISTENERS:                        INTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS:             INTERNAL://kafka-2:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP:   INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME:       INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR:       3
+      KAFKA_MIN_INSYNC_REPLICAS:              2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE:        "false"
+      KAFKA_NUM_PARTITIONS:                   4
+      KAFKA_HEAP_OPTS:                        "-Xmx1024M -Xms1024M"
+      KAFKA_LOG_RETENTION_HOURS:              "24"
+      KAFKA_LOG_SEGMENT_BYTES:                "104857600"
+    volumes:
+      - kafka_1_data:/var/lib/kafka/data
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+
+  kafka-3:
+    image: confluentinc/cp-kafka:7.5.3
+    container_name: ams-kafka-3
+    logging: *default-logging
+    hostname: kafka-3
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID:                        3
+      KAFKA_ZOOKEEPER_CONNECT:                zookeeper:2181
+      KAFKA_LISTENERS:                        INTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS:             INTERNAL://kafka-3:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP:   INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME:       INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR:       3
+      KAFKA_MIN_INSYNC_REPLICAS:              2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE:        "false"
+      KAFKA_NUM_PARTITIONS:                   4
+      KAFKA_HEAP_OPTS:                        "-Xmx1024M -Xms1024M"
+      KAFKA_LOG_RETENTION_HOURS:              "24"
+      KAFKA_LOG_SEGMENT_BYTES:                "104857600"
+    volumes:
+      - kafka_2_data:/var/lib/kafka/data
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+
+  # ── Flink: ZooKeeper HA — 2 JMs, leader election, HA metadata on MinIO ────
+  # NB: an env override REPLACES the whole FLINK_PROPERTIES value, so the full
+  # base property set is repeated here with the HA lines added.
+  flink-jobmanager:
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        jobmanager.memory.process.size: 1024m
+        parallelism.default: 1
+        high-availability.type: zookeeper
+        high-availability.zookeeper.quorum: zookeeper:2181
+        high-availability.storageDir: s3://ams-flink/ha
+        high-availability.cluster-id: /ams-flink-ha
+        state.backend: rocksdb
+        state.backend.incremental: true
+        state.checkpoints.dir: s3://ams-flink/checkpoints
+        state.savepoints.dir: s3://ams-flink/savepoints
+        s3.endpoint: http://minio:9000
+        s3.path.style.access: true
+        s3.access-key: ${MINIO_ROOT_USER:-ams_minio}
+        s3.secret-key: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}
+        state.checkpoints.num-retained: 3
+        execution.checkpointing.interval: 60000
+        execution.checkpointing.min-pause: 30000
+        execution.checkpointing.mode: EXACTLY_ONCE
+        execution.checkpointing.timeout: 120000
+        execution.checkpointing.max-concurrent-checkpoints: 1
+        execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.port: 9249
+
+  flink-jobmanager-2:
+    image: ams-flink:1.0-SNAPSHOT
+    container_name: ams-flink-jobmanager-2
+    logging: *default-logging
+    entrypoint: ["/bin/bash", "/opt/flink-entrypoint.sh"]
+    command: jobmanager
+    depends_on:
+      kafka:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager-2
+        jobmanager.memory.process.size: 1024m
+        parallelism.default: 1
+        high-availability.type: zookeeper
+        high-availability.zookeeper.quorum: zookeeper:2181
+        high-availability.storageDir: s3://ams-flink/ha
+        high-availability.cluster-id: /ams-flink-ha
+        state.backend: rocksdb
+        state.backend.incremental: true
+        state.checkpoints.dir: s3://ams-flink/checkpoints
+        state.savepoints.dir: s3://ams-flink/savepoints
+        s3.endpoint: http://minio:9000
+        s3.path.style.access: true
+        s3.access-key: ${MINIO_ROOT_USER:-ams_minio}
+        s3.secret-key: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}
+        state.checkpoints.num-retained: 3
+        execution.checkpointing.interval: 60000
+        execution.checkpointing.min-pause: 30000
+        execution.checkpointing.mode: EXACTLY_ONCE
+        execution.checkpointing.timeout: 120000
+        execution.checkpointing.max-concurrent-checkpoints: 1
+        execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.port: 9249
+      KAFKA_BROKERS: kafka:9092,kafka-2:9092,kafka-3:9092
+      DB_URL:        jdbc:postgresql://postgres:5432/ams
+      DB_USER:       ams_user
+      DB_PASS:       ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      IOTDB_HOST:    iotdb
+      IOTDB_PORT:    "6667"
+      IOTDB_USER:    ${IOTDB_USER:-root}
+      IOTDB_PASS:    ${IOTDB_PASSWORD:?IOTDB_PASSWORD must be set}
+    volumes:
+      - flink-checkpoints:/flink-checkpoints
+      - ./flink-entrypoint.sh:/opt/flink-entrypoint.sh:ro
+    ports:
+      - "8083:8081"
+    networks:
+      - ams-backend
+
+  flink-taskmanager:
+    environment:
+      FLINK_PROPERTIES: |
+        taskmanager.memory.process.size: 2048m
+        taskmanager.numberOfTaskSlots: 16
+        high-availability.type: zookeeper
+        high-availability.zookeeper.quorum: zookeeper:2181
+        high-availability.storageDir: s3://ams-flink/ha
+        high-availability.cluster-id: /ams-flink-ha
+        state.backend: rocksdb
+        state.backend.incremental: true
+        state.checkpoints.dir: s3://ams-flink/checkpoints
+        state.savepoints.dir: s3://ams-flink/savepoints
+        s3.endpoint: http://minio:9000
+        s3.path.style.access: true
+        s3.access-key: ${MINIO_ROOT_USER:-ams_minio}
+        s3.secret-key: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}
+        state.checkpoints.num-retained: 3
+        execution.checkpointing.interval: 60000
+        execution.checkpointing.min-pause: 30000
+        execution.checkpointing.mode: EXACTLY_ONCE
+        execution.checkpointing.timeout: 120000
+        execution.checkpointing.max-concurrent-checkpoints: 1
+        execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.port: 9249
+
+  flink-taskmanager-2:
+    image: ams-flink:1.0-SNAPSHOT
+    container_name: ams-flink-taskmanager-2
+    logging: *default-logging
+    entrypoint: ["/bin/bash", "/opt/flink-entrypoint.sh"]
+    command: taskmanager
+    depends_on:
+      flink-jobmanager:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    environment:
+      FLINK_PROPERTIES: |
+        taskmanager.memory.process.size: 2048m
+        taskmanager.numberOfTaskSlots: 16
+        high-availability.type: zookeeper
+        high-availability.zookeeper.quorum: zookeeper:2181
+        high-availability.storageDir: s3://ams-flink/ha
+        high-availability.cluster-id: /ams-flink-ha
+        state.backend: rocksdb
+        state.backend.incremental: true
+        state.checkpoints.dir: s3://ams-flink/checkpoints
+        state.savepoints.dir: s3://ams-flink/savepoints
+        s3.endpoint: http://minio:9000
+        s3.path.style.access: true
+        s3.access-key: ${MINIO_ROOT_USER:-ams_minio}
+        s3.secret-key: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}
+        state.checkpoints.num-retained: 3
+        execution.checkpointing.interval: 60000
+        execution.checkpointing.min-pause: 30000
+        execution.checkpointing.mode: EXACTLY_ONCE
+        execution.checkpointing.timeout: 120000
+        execution.checkpointing.max-concurrent-checkpoints: 1
+        execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.port: 9249
+      KAFKA_BROKERS: kafka:9092,kafka-2:9092,kafka-3:9092
+      DB_URL:        jdbc:postgresql://postgres:5432/ams
+      DB_USER:       ams_user
+      DB_PASS:       ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      IOTDB_HOST:    iotdb
+      IOTDB_PORT:    "6667"
+      IOTDB_USER:    ${IOTDB_USER:-root}
+      IOTDB_PASS:    ${IOTDB_PASSWORD:?IOTDB_PASSWORD must be set}
+    volumes:
+      - flink-checkpoints:/flink-checkpoints
+      - ./flink-entrypoint.sh:/opt/flink-entrypoint.sh:ro
+    networks:
+      - ams-backend
+
+  # ── PostgreSQL: streaming hot-standby replica ─────────────────────────────
+  # Primary prep (once, documented in docs/ha-production-guide.md):
+  #   CREATE ROLE replicator WITH REPLICATION LOGIN PASSWORD '<PG_REPLICATION_PASSWORD>';
+  #   echo 'host replication replicator all scram-sha-256' >> pg_hba.conf; reload.
+  # First start runs pg_basebackup (-R writes standby.signal + primary_conninfo).
+  postgres-replica:
+    image: timescale/timescaledb:latest-pg15
+    container_name: ams-postgres-replica
+    logging: *default-logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGDATA: /var/lib/postgresql/data
+      REPLICATION_PASSWORD: ${PG_REPLICATION_PASSWORD:?PG_REPLICATION_PASSWORD must be set — see .env.example}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        if [ ! -s "$$PGDATA/PG_VERSION" ]; then
+          echo "[replica] empty PGDATA — taking base backup from primary"
+          export PGPASSWORD="$$REPLICATION_PASSWORD"
+          until pg_basebackup -h postgres -p 5432 -U replicator -D "$$PGDATA" -Fp -Xs -R -P; do
+            echo "[replica] primary not ready for basebackup; retrying in 3s"; rm -rf "$$PGDATA"/*; sleep 3
+          done
+          chown -R postgres:postgres "$$PGDATA"
+          chmod 0700 "$$PGDATA"
+        fi
+        exec docker-entrypoint.sh postgres
+    volumes:
+      - postgres-replica-data:/var/lib/postgresql/data
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ams_user -d ams"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+
+  # ── PgBouncer: transaction pooling in front of the primary ────────────────
+  # Services keep direct connections in dev; production cutover = point their
+  # ConnectionStrings at pgbouncer:6432 (see the guide for pool sizing).
+  pgbouncer:
+    # bitnami versioned tags were purged from docker.io (bitnamilegacy migration);
+    # edoburu is the maintained community image.
+    image: edoburu/pgbouncer:v1.23.1-p2
+    container_name: ams-pgbouncer
+    logging: *default-logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST:     postgres
+      DB_PORT:     "5432"
+      DB_USER:     ams_user
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      DB_NAME:     ams
+      LISTEN_PORT: "6432"
+      POOL_MODE:   transaction
+      MAX_CLIENT_CONN:   "500"
+      DEFAULT_POOL_SIZE: "20"
+      AUTH_TYPE:   scram-sha-256
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD-SHELL", "PGPASSWORD=$$DB_PASSWORD psql -h localhost -p 6432 -U ams_user -d ams -c 'SELECT 1' >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── IoTDB: async pipe replica (DR standby, manual promote) ────────────────
+  # NOT a consensus cluster — approved decision: one main + one replica.
+  # Replication is created on the primary after both are up:
+  #   CREATE PIPE ha_dr WITH SINK ('sink'='iotdb-thrift-sink',
+  #                                'sink.node-urls'='iotdb-replica:6667');
+  iotdb-replica:
+    image: apache/iotdb:1.3.2-standalone
+    container_name: ams-iotdb-replica
+    logging: *default-logging
+    environment:
+      enable_auto_create_schema: "true"
+      IOTDB_JMX_LOCAL: "true"
+      enable_rest_service: "true"
+      rest_service_port: "8181"
+    volumes:
+      - iotdb-replica-data:/iotdb/data
+      - iotdb-replica-logs:/iotdb/logs
+      - iotdb-replica-ext:/iotdb/ext
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6667' 2>/dev/null && exit 0 || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 120s

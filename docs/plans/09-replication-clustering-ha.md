@@ -1,8 +1,17 @@
 # Plan 09 — Replication, Clustering & High Availability
 
 **Phase:** 4 (**LAST**) · **Effort:** L · **Depends on:** Plan 02 item 1 (durable remote checkpoints), Plan 06 (stateless app tier), Plan 08 (monitoring to observe failover)
-**Gaps closed:** STR-03, STR-04, DATA-04, DATA-05
-**Status:** ⚠️ **APPROVAL-GATED — do not start until sizing and budget are signed off.**
+**Gaps closed:** STR-03, STR-04, DATA-04 (reduced scope), DATA-05
+**Status:** ✅ **APPROVED 2026-08-12 and executed as a drilled overlay.** Decisions:
+Kafka 3 brokers **with ZooKeeper** (matches the existing production estate; KRaft
+deliberately not taken) · Flink as recommended (2 JM ZK-HA + 2 TM) · IoTDB one main +
+one async-pipe replica (DR, not consensus — reduced-scope DATA-04 by explicit decision) ·
+Postgres primary + one streaming replica + PgBouncer · EMQX left single-node.
+Topology lives in `infra/docker/docker-compose.ha.yml`; all four failover drills passed
+in the lab (broker kill, JM kill with keyed-state restore in 9 s, replica promote, pipe
+replication). Procedures, drill evidence, and the two traps found are in
+[docs/ha-production-guide.md](../ha-production-guide.md). Production-remaining: SASL/mTLS
+listeners, 3-node ZK, Patroni/PITR, IoTDB credential rotation — listed in the guide.
 
 **Objective:** convert every single-instance store and compute cluster into a replicated, fault-tolerant topology so the platform survives the loss of any one node.
 
