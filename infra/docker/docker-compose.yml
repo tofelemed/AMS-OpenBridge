@@ -231,7 +231,11 @@ services:
     networks:
       - ams-backend
     healthcheck:
-      test: ["CMD", "/opt/emqx/bin/emqx", "ctl", "status"]
+      # NOT `emqx ctl status` / `emqx ping`: both attach an Erlang shell, which
+      # takes 10-35s under load — the probe timed out forever while the broker
+      # served fine, and every dependent service was blocked on "unhealthy".
+      # A TCP accept on the MQTT listener answers in ~1s and tests what matters.
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/1883 && exec 3<&-' || exit 1"]
       interval: 20s
       timeout: 10s
       retries: 5

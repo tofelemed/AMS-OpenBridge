@@ -31,6 +31,10 @@ $allowedTopics = @(
     # Written by AlarmReplayEngine, consumed by ams-api ReplayResultConsumerService.
     # Was missing here (auto-create used to paper over it; Plan 09 turns auto-create off).
     @{ Name = "flink.state.alarm.replay"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    # Phase 7 calculation loop: analysis-service -> analysis.executions -> AnalysisExecutionJob
+    # -> analysis.results -> analysis-service. Also missing here until 2026-08-12 (same trap).
+    @{ Name = "analysis.executions"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "analysis.results"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     @{ Name = "system.state.drift.alerts"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
 
     # ── Phase 0: Edge platform live & telemetry topics ──────────────────────
