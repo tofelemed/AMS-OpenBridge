@@ -21,8 +21,12 @@ export class ValidationError extends AppError {
 }
 
 export class AuthenticationError extends AppError {
-  constructor(message: string = 'Authentication failed') {
+  /** Machine-readable reason (e.g. SESSION_IDLE_TIMEOUT) the frontend maps to a dialog. */
+  code?: string;
+
+  constructor(message: string = 'Authentication failed', code?: string) {
     super(message, 401);
+    this.code = code;
   }
 }
 

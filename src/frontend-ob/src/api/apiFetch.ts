@@ -2,8 +2,9 @@
 //
 // Before this, display/asset/binding calls used bare fetch() and sent no Authorization header at all
 // (display-service accepted anonymous writes). Now that display-service validates RS256 bearer tokens,
-// every call to it has to carry one — and refresh it when the 15-minute access token expires.
+// every call to it has to carry one — and refresh it when the access token expires.
 import { useAuthStore } from '../store/authStore';
+import { markApiActivity } from '../auth/sessionClock';
 
 /** fetch() + Authorization bearer + one silent-refresh retry on 401. */
 export async function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
@@ -12,6 +13,10 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
     if (token) headers.set('Authorization', `Bearer ${token}`);
     return fetch(input, { ...init, headers });
   };
+
+  // Session idle clock: every authenticated REST call counts as activity
+  // (login/refresh go through authApi, not here, so they don't self-extend).
+  if (useAuthStore.getState().accessToken) markApiActivity();
 
   const res = await call(useAuthStore.getState().accessToken);
   if (res.status !== 401) return res;

@@ -54,11 +54,18 @@ export interface LoginRequest {
 }
 
 /** Tokens produced internally by AuthService (refresh token is set as an httpOnly cookie). */
+/** Dual-clock session policy for the caller's role — mirrored by the frontend clocks. */
+export interface SessionPolicy {
+  idleMs: number;
+  absoluteMs: number;
+}
+
 export interface AuthTokens {
   token: string;
   refreshToken: string;
   user: UserPublic;
   permissions: string[];
+  sessionPolicy: SessionPolicy;
 }
 
 /** Body returned to the client on login/refresh (no refresh token — it lives in a cookie). */
@@ -71,6 +78,7 @@ export interface LoginResponse {
 export interface RefreshResult {
   token: string;
   refreshToken: string;
+  sessionPolicy: SessionPolicy;
 }
 
 /**

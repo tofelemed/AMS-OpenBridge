@@ -868,8 +868,16 @@ services:
       JWT_PRIVATE_KEY_PATH: /app/keys/jwt-private.pem
       JWT_ISSUER: traverse-auth
       JWT_AUDIENCE: ams-services
-      JWT_EXPIRES_IN: 15m
+      # 1h access tokens (decision 2026-08-12): safe because the gateway enforces
+      # revocation within 5s; quarters the /refresh traffic vs the old 15m.
+      JWT_EXPIRES_IN: 1h
       JWT_REFRESH_EXPIRES_IN: 7d
+      # Dual-clock session policy (enforced only on /auth/refresh, DB clock):
+      # sliding idle + absolute max. Operators watch (SignalR) more than they
+      # click, so their idle window is longer; the absolute cap binds everyone.
+      SESSION_IDLE_TIMEOUT: 30m
+      SESSION_ABSOLUTE_TIMEOUT: 12h
+      SESSION_IDLE_TIMEOUT_OPERATOR: 8h
       # Served over HTTP inside the lab stack, so the refresh cookie cannot be Secure.
       COOKIE_SECURE: "false"
       COOKIE_SAMESITE: lax

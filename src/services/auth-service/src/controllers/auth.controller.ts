@@ -32,6 +32,7 @@ export class AuthController {
       res.status(200).json({
         success: true,
         token: result.token,
+        sessionPolicy: result.sessionPolicy,
         user: { ...result.user, permissions: result.permissions },
       });
     } catch (error: any) {
@@ -89,6 +90,7 @@ export class AuthController {
       res.status(200).json({
         success: true,
         token: result.token,
+        sessionPolicy: result.sessionPolicy,
       });
     } catch (error: any) {
       // Clear a bad/expired refresh cookie so the client stops retrying.
@@ -96,6 +98,9 @@ export class AuthController {
       res.status(error.statusCode || 500).json({
         success: false,
         error: error.message || 'Token refresh failed',
+        // Typed session-policy reason (SESSION_IDLE_TIMEOUT / SESSION_MAX_DURATION)
+        // — the frontend maps it to the timeout dialog wording.
+        ...(error.code ? { code: error.code } : {}),
       });
     }
   }

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { SessionPolicy } from '../auth/sessionClock';
 
 /** Authenticated user as returned by the auth service. */
 export interface AuthUser {
@@ -20,15 +21,27 @@ const client = axios.create({ withCredentials: true });
 export async function loginRequest(
   username: string,
   password: string
-): Promise<{ token: string; user: AuthUser }> {
+): Promise<{ token: string; user: AuthUser; sessionPolicy?: SessionPolicy }> {
   const res = await client.post(`${AUTH_BASE}/login`, { username, password });
-  return { token: res.data.token, user: res.data.user };
+  return { token: res.data.token, user: res.data.user, sessionPolicy: res.data.sessionPolicy };
 }
 
 /** POST /api/auth/refresh → new access token using the refresh cookie. */
-export async function refreshRequest(): Promise<{ token: string }> {
+export async function refreshRequest(): Promise<{ token: string; sessionPolicy?: SessionPolicy }> {
   const res = await client.post(`${AUTH_BASE}/refresh`, {});
-  return { token: res.data.token };
+  return { token: res.data.token, sessionPolicy: res.data.sessionPolicy };
+}
+
+/**
+ * Typed session-end reason from a failed /refresh, if the server sent one
+ * (SESSION_IDLE_TIMEOUT → 'inactivity', SESSION_MAX_DURATION → 'expired').
+ */
+export function sessionEndCodeOf(error: unknown): 'inactivity' | 'expired' | null {
+  if (!axios.isAxiosError(error)) return null;
+  const code = (error.response?.data as { code?: string } | undefined)?.code;
+  if (code === 'SESSION_IDLE_TIMEOUT') return 'inactivity';
+  if (code === 'SESSION_MAX_DURATION') return 'expired';
+  return null;
 }
 
 /** POST /api/auth/logout → clears the server record + refresh cookie. */

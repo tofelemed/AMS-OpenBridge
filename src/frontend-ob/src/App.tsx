@@ -27,6 +27,8 @@ import { ObiListAltCheckGoogle } from '@oicl/openbridge-webcomponents-react/icon
 import { ObiWrench } from '@oicl/openbridge-webcomponents-react/icons/icon-wrench';
 import { ObiPlaceholder } from '@oicl/openbridge-webcomponents-react/icons/icon-placeholder';
 import CommandPalette from './components/CommandPalette';
+import SessionTimeoutDialog from './components/shared/SessionTimeoutDialog';
+import { expiredReason } from './auth/sessionClock';
 
 
 // Lazy-loaded pages
@@ -142,6 +144,20 @@ const App: React.FC = () => {
     void useAuthStore.getState().bootstrap().finally(() => setReady(true));
   }, []);
 
+  // Session-policy watchdog: every 60s check the dual clocks — absolute first,
+  // then idle (same order as the server) — and end the session with a typed
+  // reason. Activity = authenticated REST via apiFetch; SignalR/MQTT push and
+  // mouse/keyboard deliberately do NOT extend the idle clock (operators get a
+  // longer idle window server-side instead).
+  useEffect(() => {
+    if (authStatus !== 'authenticated') return;
+    const watchdogId = setInterval(() => {
+      const reason = expiredReason();
+      if (reason) void useAuthStore.getState().endSession(reason);
+    }, 60_000);
+    return () => clearInterval(watchdogId);
+  }, [authStatus]);
+
   // Connect to live services only while authenticated; tear down on logout.
   useEffect(() => {
     if (authStatus !== 'authenticated' || !accessToken) return;
@@ -188,6 +204,8 @@ const App: React.FC = () => {
             pauseOnHover
             theme="dark"
           />
+          {/* Why the session ended (idle/absolute) — survives the redirect to /login. */}
+          <SessionTimeoutDialog />
           <Routes>
             {/* Login — standalone, no sidebar/topbar */}
             <Route

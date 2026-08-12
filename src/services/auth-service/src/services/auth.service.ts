@@ -33,12 +33,45 @@ import {
   ConflictError,
   ValidationError,
 } from '../utils/errors';
+import { parseDuration } from '../utils/duration';
 
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
 const JWT_ISSUER = process.env.JWT_ISSUER || 'traverse-auth';
 const JWT_AUDIENCE = process.env.JWT_AUDIENCE || 'ams-services';
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '10');
+
+// ── Dual-clock session policy ────────────────────────────────────────────────
+// Sliding idle + absolute max, enforced ONLY here on /refresh against Postgres.
+// "Idle" means time since the last successful refresh — ordinary API traffic
+// does not move the server clock; the frontend supplies the "no API call" UX.
+const SESSION_IDLE_TIMEOUT_MS = parseDuration(
+  process.env.SESSION_IDLE_TIMEOUT || '30m',
+  30 * 60 * 1000
+);
+const SESSION_ABSOLUTE_TIMEOUT_MS = parseDuration(
+  process.env.SESSION_ABSOLUTE_TIMEOUT || '12h',
+  12 * 60 * 60 * 1000
+);
+
+/**
+ * Per-role idle override: SESSION_IDLE_TIMEOUT_<ROLE> (e.g. _OPERATOR=8h).
+ * Decision (2026-08-12): operators watching the live alarm console generate no
+ * REST traffic, so they get a longer idle window instead of counting SignalR
+ * frames as activity. The absolute clock still bounds every role.
+ */
+function idleTimeoutMsForRole(role: string | undefined): number {
+  if (!role) return SESSION_IDLE_TIMEOUT_MS;
+  const override = process.env[`SESSION_IDLE_TIMEOUT_${role.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`];
+  if (override) return parseDuration(override, SESSION_IDLE_TIMEOUT_MS);
+  if (role.toLowerCase() === 'operator') return parseDuration('8h', 8 * 60 * 60 * 1000);
+  return SESSION_IDLE_TIMEOUT_MS;
+}
+
+/** The policy the frontend mirrors — returned on login/refresh so FE/BE never drift. */
+export function sessionPolicyForRole(role: string | undefined): { idleMs: number; absoluteMs: number } {
+  return { idleMs: idleTimeoutMsForRole(role), absoluteMs: SESSION_ABSOLUTE_TIMEOUT_MS };
+}
 
 const permissionService = new PermissionService();
 
@@ -112,14 +145,19 @@ export class AuthService {
     await pool.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
   }
 
-  /** Persist a refresh token, deriving its expiry from the signed `exp` claim. */
+  /**
+   * Persist a refresh token, deriving its expiry from the signed `exp` claim.
+   * Login starts BOTH session clocks: last_used_at (sliding idle — bumped on
+   * every rotation) and session_started_at (absolute — never touched again).
+   */
   private async storeRefreshToken(userId: string, refreshToken: string): Promise<void> {
     const decoded = jwt.decode(refreshToken) as { exp?: number } | null;
     const expiresAt = decoded?.exp
       ? new Date(decoded.exp * 1000)
       : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await pool.query(
-      'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+      `INSERT INTO refresh_tokens (user_id, token, expires_at, last_used_at, session_started_at)
+       VALUES ($1, $2, $3, NOW(), NOW())`,
       [userId, refreshToken, expiresAt]
     );
   }
@@ -165,6 +203,7 @@ export class AuthService {
       token,
       refreshToken,
       permissions,
+      sessionPolicy: sessionPolicyForRole(user.role),
       user: {
         user_id: user.user_id,
         username: user.username,
@@ -240,12 +279,35 @@ export class AuthService {
       throw new AuthenticationError('Invalid refresh token');
     }
 
+    // Ages are computed on the DB clock so node/postgres clock skew cannot
+    // affect session policy. This /refresh check is the ONLY server-side
+    // enforcement point of the idle/absolute session clocks.
     const tokenResult = await pool.query(
-      'SELECT * FROM refresh_tokens WHERE token = $1 AND expires_at > NOW()',
+      `SELECT rt.*, u.role AS user_role,
+              EXTRACT(EPOCH FROM (NOW() - COALESCE(rt.last_used_at, rt.created_at))) * 1000       AS idle_ms,
+              EXTRACT(EPOCH FROM (NOW() - COALESCE(rt.session_started_at, rt.created_at))) * 1000 AS session_age_ms
+       FROM refresh_tokens rt
+       JOIN users u ON u.user_id = rt.user_id
+       WHERE rt.token = $1 AND rt.expires_at > NOW()`,
       [refreshToken]
     );
     if (tokenResult.rows.length === 0) {
       throw new AuthenticationError('Refresh token not found or expired');
+    }
+
+    const row = tokenResult.rows[0];
+    const idleMs = Number(row.idle_ms);
+    const sessionAgeMs = Number(row.session_age_ms);
+
+    if (sessionAgeMs > SESSION_ABSOLUTE_TIMEOUT_MS) {
+      await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
+      logger.info(`Session max duration reached (age ${Math.round(sessionAgeMs / 1000)}s)`);
+      throw new AuthenticationError('Maximum session duration reached', 'SESSION_MAX_DURATION');
+    }
+    if (idleMs > idleTimeoutMsForRole(row.user_role)) {
+      await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
+      logger.info(`Session idle timeout (idle ${Math.round(idleMs / 1000)}s, role ${row.user_role})`);
+      throw new AuthenticationError('Session expired due to inactivity', 'SESSION_IDLE_TIMEOUT');
     }
 
     const userId = decoded.user_id || decoded.sub;
@@ -267,14 +329,19 @@ export class AuthService {
       ? new Date(decodedNew.exp * 1000)
       : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
+    // Rotate: bump the sliding idle clock; session_started_at is deliberately untouched.
     await pool.query(
-      'UPDATE refresh_tokens SET token = $1, expires_at = $2 WHERE token = $3',
+      'UPDATE refresh_tokens SET token = $1, expires_at = $2, last_used_at = NOW() WHERE token = $3',
       [newRefreshToken, expiresAt, refreshToken]
     );
 
     logger.info(`Token refreshed for user: ${user.username}`);
 
-    return { token: newToken, refreshToken: newRefreshToken };
+    return {
+      token: newToken,
+      refreshToken: newRefreshToken,
+      sessionPolicy: sessionPolicyForRole(user.role),
+    };
   }
 
   /**
