@@ -139,11 +139,17 @@ app.MapGet("/assets/{id:guid}", async (Guid id, AssetDbContext db) =>
 }).RequireAuthorization("asset.view");
 
 // ── GET /assets/by-path/{**path} ────────────────────────────────────────────
-// Resolve asset by contextual path.
+// Resolve asset by contextual path. This is a best-effort METADATA lookup (the
+// designer/display runtime calls it per bound symbol to enrich units/limits), and
+// most bound UNS paths — measurement leaves like "…/tank01.level", or assets not
+// in the catalog yet — simply have no asset row. Returning 404 for those spammed
+// the browser console with red 404s on every Designer/Display open. Absence of an
+// asset here is NORMAL, not an error: return 200 with a null body and let callers
+// treat it as "no metadata".
 app.MapGet("/assets/by-path/{**path}", async (string path, AssetDbContext db) =>
 {
     var asset = await db.Assets.FirstOrDefaultAsync(a => a.ContextualPath == path && !a.IsDeleted);
-    return asset is null ? Results.NotFound() : Results.Ok(AssetDto.From(asset));
+    return Results.Ok(asset is null ? null : AssetDto.From(asset));
 }).RequireAuthorization("asset.view");
 
 // ── POST /assets ─────────────────────────────────────────────────────────────

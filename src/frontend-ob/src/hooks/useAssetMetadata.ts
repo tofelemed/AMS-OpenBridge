@@ -22,7 +22,9 @@ async function fetchMeta(path: string, signal?: AbortSignal): Promise<AssetMetad
   // would split the segment / corrupt the query.
   const res = await apiFetch(`${ASSET_API}/by-path/${encodeURIComponent(path)}`, { signal });
   if (!res.ok) return {};
-  const a = await res.json() as AssetMetadata;
+  // The endpoint returns 200 with a null body when no asset exists at this path.
+  const a = await res.json() as AssetMetadata | null;
+  if (!a) return {};
   return { engineeringUnit: a.engineeringUnit, loEngLimit: a.loEngLimit, hiEngLimit: a.hiEngLimit };
 }
 

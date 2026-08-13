@@ -267,9 +267,12 @@ export const DisplayViewer: React.FC<{
         const encoded = element.split('/').map(encodeURIComponent).join('/');
         const cur = await apiFetch(`/api/assets/by-path/${encoded}`);
         if (cur.ok) {
-          const a = await cur.json() as { template?: string; type?: number };
-          template = a.template || undefined;
-          if (typeof a.type === 'number') assetType = a.type;
+          // 200 with a null body when the asset isn't in the catalog.
+          const a = await cur.json() as { template?: string; type?: number } | null;
+          if (a) {
+            template = a.template || undefined;
+            if (typeof a.type === 'number') assetType = a.type;
+          }
         }
       }
       const res = await apiFetch('/api/assets/search', {
