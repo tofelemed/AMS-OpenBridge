@@ -14,6 +14,7 @@ import {
   updatePolicy,
   clearSessionClocks,
   expiredReason,
+  getPolicy,
 } from '../auth/sessionClock';
 
 export type AuthStatus =
@@ -75,7 +76,22 @@ function scheduleProactiveRefresh(token: string): void {
   if (proactiveTimer) clearTimeout(proactiveTimer);
   const expMs = jwtExpMs(token);
   if (!expMs) return;
-  const fireIn = Math.max(expMs - Date.now() - 60_000, 5_000);
+
+  // Two constraints, whichever is SOONER:
+  //  1) refresh ~60s before the access token expires (avoid a 401 round-trip);
+  //  2) refresh well WITHIN the server's idle window. The server's sliding-idle
+  //     clock (last_used_at) only advances on a successful /refresh, so if we only
+  //     refreshed at token expiry (~59m) the server would see idle ≈ 59m and reject
+  //     an ACTIVE user whose idle window is 30m — the "logged out while using it"
+  //     bug. Refreshing at ~40% of the idle window keeps last_used_at fresh (≥2
+  //     refreshes per window) so an active session never trips the server clock.
+  // The refresh itself is gated on the LOCAL idle clock (expiredReason below), so a
+  // genuinely idle user is still ended by the App watchdog at the window boundary.
+  const { idleMs } = getPolicy();
+  const beforeExpiry = expMs - Date.now() - 60_000;
+  const withinIdleWindow = idleMs * 0.4;
+  const fireIn = Math.max(Math.min(beforeExpiry, withinIdleWindow), 30_000);
+
   proactiveTimer = setTimeout(() => {
     const { status, refresh, endSession } = useAuthStore.getState();
     if (status !== 'authenticated') return;

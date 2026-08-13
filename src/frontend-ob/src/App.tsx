@@ -31,7 +31,7 @@ import CommandPalette from './components/CommandPalette';
 import SessionTimeoutDialog from './components/shared/SessionTimeoutDialog';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 import { DialogProvider } from './components/shared/dialogService';
-import { expiredReason } from './auth/sessionClock';
+import { expiredReason, markApiActivity } from './auth/sessionClock';
 
 // H1: route-level boundary — a crashed page (or failed lazy chunk) renders a
 // recover screen instead of white-screening the whole app; keyed by pathname so
@@ -184,9 +184,9 @@ const App: React.FC = () => {
 
   // Session-policy watchdog: every 60s check the dual clocks — absolute first,
   // then idle (same order as the server) — and end the session with a typed
-  // reason. Activity = authenticated REST via apiFetch; SignalR/MQTT push and
-  // mouse/keyboard deliberately do NOT extend the idle clock (operators get a
-  // longer idle window server-side instead).
+  // reason. Activity = authenticated REST via apiFetch OR deliberate user
+  // interaction (see below). SignalR/MQTT push traffic still does NOT count, so an
+  // unattended console receiving live data alone still idles out.
   useEffect(() => {
     if (authStatus !== 'authenticated') return;
     const watchdogId = setInterval(() => {
@@ -194,6 +194,30 @@ const App: React.FC = () => {
       if (reason) void useAuthStore.getState().endSession(reason);
     }, 60_000);
     return () => clearInterval(watchdogId);
+  }, [authStatus]);
+
+  // A user actively working the console shouldn't be logged out just because their
+  // clicks/keystrokes didn't happen to fire a REST call. Deliberate interaction —
+  // pointerdown / keydown (NOT incidental mousemove) — marks activity too, throttled
+  // so we touch localStorage at most ~2×/min. Combined with the in-window proactive
+  // refresh, an active session stays alive; a truly unattended one still idles out.
+  useEffect(() => {
+    if (authStatus !== 'authenticated') return;
+    let last = 0;
+    const onInteract = () => {
+      const now = Date.now();
+      if (now - last < 30_000) return;
+      last = now;
+      markApiActivity();
+    };
+    window.addEventListener('pointerdown', onInteract, { passive: true });
+    window.addEventListener('keydown', onInteract, { passive: true });
+    window.addEventListener('wheel', onInteract, { passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', onInteract);
+      window.removeEventListener('keydown', onInteract);
+      window.removeEventListener('wheel', onInteract);
+    };
   }, [authStatus]);
 
   // Connect to live services only while authenticated; tear down on logout.
