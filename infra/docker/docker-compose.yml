@@ -28,7 +28,6 @@ volumes:
   iotdb-data:
   iotdb-logs:
   iotdb-ext:
-  iotdb-workbench-data:
   redis-data:
   redis-contract-data:
   emqx-data:
@@ -1231,84 +1230,6 @@ services:
     networks:
       - ams-backend
     restart: "no"
-
-  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  # IoTDB Web Workbench â€” browser UI to query IoTDB
-  # Sign in: http://localhost:8086/autologin.html  (root / 123456)
-  # Then Data Connection â†’ host iotdb, port 6667, user root, password root
-  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  iotdb-workbench-init:
-    image: alpine:3.20
-    container_name: ams-iotdb-workbench-init
-    logging: *default-logging
-    depends_on:
-      iotdb:
-        condition: service_healthy
-    volumes:
-      - iotdb-workbench-data:/data
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        DB=/data/iotdb.db
-        URL=https://raw.githubusercontent.com/apache/iotdb-web-workbench/master/backend/src/main/resources/sqlite/iotdb.db
-        if [ -f "$$DB" ] && [ "$$(wc -c < "$$DB")" -lt 10000 ]; then
-          echo "Removing invalid Workbench DB"
-          rm -f "$$DB"
-        fi
-        if [ -s "$$DB" ]; then
-          echo "Workbench DB already present"
-          exit 0
-        fi
-        apk add --no-cache curl >/dev/null
-        curl -fsSL -o "$$DB" "$$URL"
-        echo "Workbench DB seeded ($$(wc -c < "$$DB") bytes)"
-    networks:
-      - ams-backend
-    restart: "no"
-
-  iotdb-workbench-backend:
-    image: apache/iotdb-web-workbench:0.13.0-backend
-    container_name: ams-iotdb-workbench-backend
-    logging: *default-logging
-    <<: *default-restart
-    depends_on:
-      iotdb:
-        condition: service_healthy
-      iotdb-workbench-init:
-        condition: service_completed_successfully
-    # Upstream image entrypoint references unset ${JAVA_MEM_OPTS}; override explicitly.
-    # Needs â‰¥1GB container memory â€” 512M caused OOM restart loop (UI shows "Network error").
-    entrypoint: ["java", "-Xms256m", "-Xmx768m", "-jar", "/app/app.jar"]
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:sqlite:/data/iotdb.db
-    volumes:
-      - iotdb-workbench-data:/data
-    networks:
-      - ams-backend
-    healthcheck:
-      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/9090' 2>/dev/null || exit 1"]
-      interval: 20s
-      timeout: 10s
-      retries: 15
-      start_period: 180s
-
-  iotdb-workbench-frontend:
-    image: apache/iotdb-web-workbench:0.13.0-frontend
-    container_name: ams-iotdb-workbench-frontend
-    logging: *default-logging
-    <<: *default-restart
-    depends_on:
-      iotdb-workbench-backend:
-        condition: service_healthy
-    environment:
-      BACKEND_ADDRESS: iotdb-workbench-backend:9090
-    volumes:
-      # Bundled login page is broken (submitForm); use this instead.
-      - ./iotdb-workbench/autologin.html:/usr/share/nginx/html/autologin.html:ro
-    ports:
-      - "8086:80"
-    networks:
-      - ams-backend
 
   # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   # Phase 1 â€” Flink â†’ IoTDB persistence job submit
