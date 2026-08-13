@@ -14,19 +14,13 @@ import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KvRow, LoopSelect, PanelHead, TonePill, WorkspaceHeader, toneFor,
-  fmtDateTime, QueryError } from './shared';
+  fmtDateTime, QueryError, cpmChartColors } from './shared';
 import type { CpmGateMatrix } from '../../api/cpmApi';
 import {
   useCpmKpisRange, useCpmLoops, useCpmModeTrack, useCpmTrend, useGateHistory,
 } from '../../hooks/useCpm';
 import { loopSeries } from '../../utils/loopSeries';
 import { useObcTheme } from '../../hooks/useObcTheme';
-
-function cssVar(name: string, fallback: string): string {
-  if (typeof window === 'undefined') return fallback;
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return v || fallback;
-}
 
 /** KPI overlays offered — real stored fields only, each at the resolution it exists at. */
 const KPI_OVERLAYS = [
@@ -103,10 +97,7 @@ export const CpmHistorical: React.FC = () => {
 
   const obcTheme = useObcTheme(); // C: re-derive chart colors on theme switch
   const option = useMemo(() => {
-    const good = cssVar('--instrument-enhanced-secondary-color', '#41be95');
-    const amber = cssVar('--alert-caution-color', '#d79a40');
-    const grey = cssVar('--on-container-neutral-color', '#9aa6af');
-    const accent = cssVar('--instrument-enhanced-primary-color', '#5aa8f8');
+    const { good, amber, grey, accent } = cpmChartColors();
     const num = (v: unknown) => (typeof v === 'number' ? v : null);
     // Overlay rows joined onto the trend by time (echarts 'time' axis handles alignment).
     const overlayData = kpiRows

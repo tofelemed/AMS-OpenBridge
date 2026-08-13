@@ -13,7 +13,7 @@ import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
-  fmtDateTime,
+  fmtDateTime, cpmChartColors,
 } from './shared';
 import {
   useCpmEvents, useCpmLoops, useCpmReadiness, useCpmTrend, useLatestGates,
@@ -25,12 +25,6 @@ import { useObcTheme } from '../../hooks/useObcTheme';
 
 const TABS = ['Summary', 'Signals', 'Calculations', 'Relationships', 'History'] as const;
 type Tab = typeof TABS[number];
-
-function cssVar(name: string, fallback: string): string {
-  if (typeof window === 'undefined') return fallback;
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return v || fallback;
-}
 
 const SIGNAL_MEANINGS: Record<string, string> = {
   PV: 'Process variable',
@@ -174,9 +168,7 @@ const SummaryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
 
   const obcTheme = useObcTheme(); // C: re-derive chart colors on theme switch
   const option = useMemo(() => {
-    const good = cssVar('--instrument-enhanced-secondary-color', '#41be95');
-    const amber = cssVar('--alert-caution-color', '#d79a40');
-    const grey = cssVar('--on-container-neutral-color', '#9aa6af');
+    const { good, amber, grey } = cpmChartColors();
     return {
       animation: false,
       grid: { left: 42, right: 12, top: 14, bottom: 24 },

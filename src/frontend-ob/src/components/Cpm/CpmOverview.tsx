@@ -14,7 +14,7 @@ import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KpiTile, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
-  fmtDateTime, QueryError } from './shared';
+  fmtDateTime, QueryError, cpmChartColors } from './shared';
 import {
   useCpmEvents, useCpmPipelineStatus, useCpmTrend, useFleetRankings,
   useFleetSummary, useLatestGates,
@@ -25,12 +25,6 @@ import { useObcTheme } from '../../hooks/useObcTheme';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 /** echarts renders to canvas and cannot consume var(); resolve tokens once per render. */
-function cssVar(name: string, fallback: string): string {
-  if (typeof window === 'undefined') return fallback;
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return v || fallback;
-}
-
 const fmtTime = (iso: string | null) =>
   iso ? new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—';
 
@@ -260,9 +254,7 @@ const LoopFocus: React.FC<{
 
   const obcTheme = useObcTheme(); // C: re-derive chart colors on theme switch
   const option = useMemo(() => {
-    const good = cssVar('--instrument-enhanced-secondary-color', '#41be95');
-    const amber = cssVar('--alert-caution-color', '#d79a40');
-    const grey = cssVar('--on-container-neutral-color', '#9aa6af');
+    const { good, amber, grey } = cpmChartColors();
     const ts = points.map(p => p.ts);
     const num = (v: unknown) => (typeof v === 'number' ? v : null);
     return {

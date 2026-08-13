@@ -16,7 +16,7 @@ import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KpiTile, KvRow, LoopSelect, PanelHead, TonePill, WorkspaceHeader, toneFor,
-  fmtDateTime, QueryError } from './shared';
+  fmtDateTime, QueryError, cpmChartColors } from './shared';
 import type { CpmGateMatrix } from '../../api/cpmApi';
 import {
   useAcknowledgeEvent, useCpmEvents, useCpmLoops, useCpmTrend,
@@ -24,12 +24,6 @@ import {
 } from '../../hooks/useCpm';
 import { loopSeries } from '../../utils/loopSeries';
 import { useObcTheme } from '../../hooks/useObcTheme';
-
-function cssVar(name: string, fallback: string): string {
-  if (typeof window === 'undefined') return fallback;
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return v || fallback;
-}
 
 /** Diagnosis → analysis case, CPA's chip vocabulary grounded in our verdicts. */
 function caseFor(diagnosis: string): string {
@@ -139,9 +133,7 @@ export const CpmInvestigation: React.FC = () => {
 
   const obcTheme = useObcTheme(); // C: re-derive chart colors on theme switch
   const chartOption = useMemo(() => {
-    const good = cssVar('--instrument-enhanced-secondary-color', '#41be95');
-    const amber = cssVar('--alert-caution-color', '#d79a40');
-    const grey = cssVar('--on-container-neutral-color', '#9aa6af');
+    const { good, amber, grey } = cpmChartColors();
     const num = (v: unknown) => (typeof v === 'number' ? v : null);
     return {
       animation: false,

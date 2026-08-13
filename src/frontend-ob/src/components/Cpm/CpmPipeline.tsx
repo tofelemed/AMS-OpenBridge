@@ -14,19 +14,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
-  EmptyState, KpiTile, KvRow, PanelHead, TonePill, WorkspaceHeader,
+  EmptyState, KpiTile, KvRow, PanelHead, TonePill, WorkspaceHeader, cpmChartColors,
 } from './shared';
 import {
   useCpmLoops, useCpmPipelineStatus, useFleetRankings, usePipelineMetrics, useRecompute,
 } from '../../hooks/useCpm';
 import { useAuthStore } from '../../store/authStore';
 import { useObcTheme } from '../../hooks/useObcTheme';
-
-function cssVar(name: string, fallback: string): string {
-  if (typeof window === 'undefined') return fallback;
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return v || fallback;
-}
 
 const fmtUptime = (sec: number | null | undefined) => {
   if (sec == null) return '—';
@@ -92,9 +86,7 @@ export const CpmPipeline: React.FC = () => {
 
   const obcTheme = useObcTheme(); // C: re-derive chart colors on theme switch
   const telemetryOption = useMemo(() => {
-    const good = cssVar('--instrument-enhanced-secondary-color', '#41be95');
-    const amber = cssVar('--alert-caution-color', '#d79a40');
-    const grey = cssVar('--on-container-neutral-color', '#9aa6af');
+    const { good, amber, grey } = cpmChartColors();
     return {
       animation: false,
       grid: { left: 48, right: 48, top: 24, bottom: 24 },

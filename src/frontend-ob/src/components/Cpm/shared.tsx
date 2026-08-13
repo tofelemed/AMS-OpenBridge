@@ -13,6 +13,41 @@ import type { CpmLoop } from '../../api/cpmApi';
 export type CpmTone = 'good' | 'warn' | 'bad' | 'muted';
 
 /**
+ * Resolve a CSS color (incl. var() chains) to a concrete rgb() for echarts, which
+ * renders to canvas and can't consume var(). A hidden span in the live DOM resolves
+ * against the CURRENT theme cascade — more reliable than
+ * getComputedStyle(documentElement).getPropertyValue, which returns empty whenever
+ * the theme tokens are scoped to a selector documentElement doesn't match (the cause
+ * of the CPM loop trends rendering with washed-out / missing colors).
+ */
+export function resolveCssColor(value: string, fallback: string): string {
+  if (typeof document === 'undefined') return fallback;
+  const el = document.createElement('span');
+  el.style.color = value;
+  el.style.display = 'none';
+  document.body.appendChild(el);
+  const resolved = getComputedStyle(el).color;
+  el.remove();
+  return resolved || fallback;
+}
+
+/**
+ * Shared CPM trend palette — the SAME pen colors the Trend page (TrendCore) uses, so
+ * loop trends on Historical / Investigation / Replay / Overview read consistently
+ * (PI-Vision style) and stay visible in every theme. PV=green, OP=amber, SP/axis=
+ * neutral, overlay/cursor=violet. Call inside the chart useMemo (keyed on obcTheme)
+ * so it re-resolves on a theme switch.
+ */
+export function cpmChartColors() {
+  return {
+    good:   resolveCssColor('var(--ams-pen-2)', '#40c057'),          // PV line + envelope band
+    amber:  resolveCssColor('var(--ams-pen-3)', '#fab005'),          // OP line
+    grey:   resolveCssColor('var(--element-neutral-color)', '#9aa6af'), // axis, grid, SP
+    accent: resolveCssColor('var(--ams-pen-5)', '#7048e8'),          // overlay / evidence cursor
+  };
+}
+
+/**
  * P2-13 - every CPM timestamp render used bare toLocaleString() with no zone
  * label, while the CSV exports write raw UTC ISO. An operator at UTC+5 saw
  * 16:49 on screen and 11:49:00Z in the export and read the 5-hour gap as a
