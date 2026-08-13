@@ -14,6 +14,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.ConfigureHttpClientDefaults(http => http.AddStandardResilienceHandler());
 
 builder.Services.AddHttpClient<IoTDbClient>();
+// Keeps IoTDB's query/aggregation engine warm so the first trend query on the
+// Historical / Trend page isn't a cold ~2s hit (SHOW VERSION health probes only
+// warm the connection, not the data path). See IoTDbWarmupService.
+builder.Services.AddHostedService<IoTDbWarmupService>();
 // DATA-09: 2s burst cache for /snapshot results.
 builder.Services.AddMemoryCache();
 
