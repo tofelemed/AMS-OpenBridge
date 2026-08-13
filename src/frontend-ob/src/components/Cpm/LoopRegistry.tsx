@@ -7,7 +7,7 @@
  * The prototype's "draft" concept maps to our immediate activate + readiness
  * report (the wizard shows readiness as its post-save validation step).
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
@@ -65,6 +65,15 @@ export const LoopRegistry: React.FC = () => {
 
   const selected = loops.find(l => l.loopId === selectedId) ?? filtered[0];
 
+  // Page the registry list so a large fleet isn't one long scroll. Selection still
+  // resolves against the full list so the detail aside works across pages.
+  const PAGE_SIZE = 25;
+  const [page, setPage] = useState(0);
+  useEffect(() => { setPage(0); }, [search]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pagedLoops = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+
   return (
     <div className="cpm-screen">
       <WorkspaceHeader
@@ -112,7 +121,7 @@ export const LoopRegistry: React.FC = () => {
               action={{ label: 'Add loop', onClick: () => setWizardOpen(true) }}
             />
           )}
-          {filtered.map(loop => {
+          {pagedLoops.map(loop => {
             const st = stateOf(loop);
             return (
               <div
@@ -135,6 +144,13 @@ export const LoopRegistry: React.FC = () => {
               </div>
             );
           })}
+          {pageCount > 1 && (
+            <div className="cpm-pager">
+              <ObcButton variant="flat" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={safePage === 0}>← Prev</ObcButton>
+              <span className="cpm-event-row__sub">Page {safePage + 1} of {pageCount}</span>
+              <ObcButton variant="flat" onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))} disabled={safePage >= pageCount - 1}>Next →</ObcButton>
+            </div>
+          )}
         </section>
 
         {selected

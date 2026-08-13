@@ -131,6 +131,15 @@
 .cpm-event-row--selected { border-left-color: var(--instrument-enhanced-primary-color); background: var(--container-hover-color, rgba(128,128,128,0.08)); }
 .cpm-event-row__title { font-weight: 600; }
 .cpm-event-row__sub { font-size: 0.78rem; color: var(--on-container-neutral-color); }
+.cpm-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-divider-color);
+}
+
 .cpm-event-head {
   display: grid;
   grid-template-columns: 1.6fr 0.6fr 0.6fr 0.6fr;

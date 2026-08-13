@@ -8,7 +8,7 @@
  * shelve REQUIRES an expiry — the API rejects unbounded shelves because that
  * is how diagnoses get forgotten.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
@@ -69,6 +69,15 @@ export const CpmEvents: React.FC = () => {
 
   const selected = events.find(e => String(e.id) === selectedId) ?? events[0];
 
+  // Page the (filtered) event list so it isn't a 200-row scroll. Selection still
+  // resolves against the full list, so the detail pane works across pages.
+  const PAGE_SIZE = 20;
+  const [page, setPage] = useState(0);
+  useEffect(() => { setPage(0); }, [filter]);
+  const pageCount = Math.max(1, Math.ceil(events.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pagedEvents = events.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+
   return (
     <div className="cpm-screen">
       <WorkspaceHeader
@@ -103,7 +112,7 @@ export const CpmEvents: React.FC = () => {
               copy="Diagnosis episodes appear here when the gate engine reports a fault family."
             />
           )}
-          {events.map(e => {
+          {pagedEvents.map(e => {
             const sev = severityOf(e);
             return (
               <div
@@ -124,6 +133,13 @@ export const CpmEvents: React.FC = () => {
               </div>
             );
           })}
+          {pageCount > 1 && (
+            <div className="cpm-pager">
+              <ObcButton variant="flat" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={safePage === 0}>← Prev</ObcButton>
+              <span className="cpm-event-row__sub">Page {safePage + 1} of {pageCount}</span>
+              <ObcButton variant="flat" onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))} disabled={safePage >= pageCount - 1}>Next →</ObcButton>
+            </div>
+          )}
         </section>
 
         {selected

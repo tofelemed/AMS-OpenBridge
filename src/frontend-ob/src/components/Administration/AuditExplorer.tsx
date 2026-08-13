@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { formatTimestampMs } from '../../utils/time';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { useAuditEvents, useVerifyAuditChain } from '../../hooks/useAudit';
@@ -20,9 +20,20 @@ const AuditExplorer: React.FC = () => {
   const debouncedUser = useDebounce(filterUser, 400); // E: one audit query per pause
 
   // Real immutable trail from audit-service (was a hardcoded 3-row fixture).
+  // Fetch the latest window and page through it client-side (25/page) so the table
+  // isn't a 200-row wall; narrow with the user/type filters to reach older records.
+  const FETCH_WINDOW = 200;
+  const PAGE_SIZE = 25;
   const { data, isLoading, isError, error } = useAuditEvents(
-    { eventType: filterType || undefined, userId: debouncedUser || undefined, take: 100 });
+    { eventType: filterType || undefined, userId: debouncedUser || undefined, take: FETCH_WINDOW });
   const verify = useVerifyAuditChain();
+
+  const events = useMemo(() => data?.events ?? [], [data]);
+  const [page, setPage] = useState(0);
+  useEffect(() => { setPage(0); }, [filterType, debouncedUser]);
+  const pageCount = Math.max(1, Math.ceil(events.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const paged = events.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
@@ -118,17 +129,17 @@ const AuditExplorer: React.FC = () => {
                     : `Audit service unreachable: ${(error as Error)?.message ?? 'unknown error'}`}
                 </td>
               </tr>
-            ) : (data?.events ?? []).length === 0 ? (
+            ) : events.length === 0 ? (
               <tr>
                 <td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: T.textMuted }}>
                   No audit events match — the trail records logins, display changes and CPM governance actions.
                 </td>
               </tr>
-            ) : data?.events.map((e, i) => {
+            ) : paged.map((e, i) => {
               const badge = EVENT_BADGE[e.eventType] ?? { bg: T.bg, color: T.textMuted };
               return (
                 <tr
-                  key={i}
+                  key={e.eventId || i}
                   style={{ borderBottom: `1px solid ${T.borderLight}`, background: T.card }}
                   onMouseEnter={ev => (ev.currentTarget.style.background = T.blueLight)}
                   onMouseLeave={ev => (ev.currentTarget.style.background = T.card)}
@@ -173,8 +184,26 @@ const AuditExplorer: React.FC = () => {
         </table>
       </div>
 
-      <div style={{ fontSize: '12px', color: T.textMuted, textAlign: 'right' }}>
-        Total records: {data?.total ?? 0}
+      {/* Pagination + totals */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ fontSize: '12px', color: T.textMuted }}>
+          {events.length > 0
+            ? `Showing ${safePage * PAGE_SIZE + 1}–${Math.min((safePage + 1) * PAGE_SIZE, events.length)} of ${events.length}${events.length >= FETCH_WINDOW ? ' (latest)' : ''} · total records: ${data?.total ?? 0}`
+            : `Total records: ${data?.total ?? 0}`}
+        </div>
+        {pageCount > 1 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ObcButton variant="flat" size="small" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={safePage === 0}>
+              ← Previous
+            </ObcButton>
+            <span style={{ fontSize: '12px', color: T.textSecondary, minWidth: '72px', textAlign: 'center' }}>
+              Page {safePage + 1} of {pageCount}
+            </span>
+            <ObcButton variant="flat" size="small" onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))} disabled={safePage >= pageCount - 1}>
+              Next →
+            </ObcButton>
+          </div>
+        )}
       </div>
     </div>
   );
