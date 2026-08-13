@@ -49,6 +49,7 @@ export const LoopRegistry: React.FC = () => {
   const selectedId = params.get('loop') ?? '';
   const [search, setSearch] = useState('');
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [editLoop, setEditLoop] = useState<CpmLoop | null>(null);
   const [importOpen, setImportOpen] = useState(false);
 
   const { data, isLoading, error } = useCpmLoops();
@@ -154,11 +155,12 @@ export const LoopRegistry: React.FC = () => {
         </section>
 
         {selected
-          ? <ProfileAside loop={selected} />
+          ? <ProfileAside loop={selected} onEdit={() => setEditLoop(selected)} />
           : <section className="cpm-surface"><EmptyState title="Select a loop" /></section>}
       </div>
 
       {wizardOpen && <AddLoopWizard existing={loops} onClose={() => setWizardOpen(false)} />}
+      {editLoop && <AddLoopWizard existing={loops} editLoop={editLoop} onClose={() => setEditLoop(null)} />}
       {importOpen && <BulkImportDialog existing={loops} onClose={() => setImportOpen(false)} />}
     </div>
   );
@@ -177,7 +179,7 @@ const GATE_ROLE_POLICY: [string, string][] = [
   ['FUSION', 'G15'],
 ];
 
-const ProfileAside: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
+const ProfileAside: React.FC<{ loop: CpmLoop; onEdit: () => void }> = ({ loop, onEdit }) => {
   const republish = useRepublishEvidence();
   const st = stateOf(loop);
   return (
@@ -185,7 +187,12 @@ const ProfileAside: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
       <PanelHead
         eyebrow="Assigned profile"
         title={`${loop.loopId} · ${dynamicClassOf(loop)}`}
-        right={<TonePill tone={st.tone}>{st.label.toUpperCase()}</TonePill>}
+        right={
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <TonePill tone={st.tone}>{st.label.toUpperCase()}</TonePill>
+            <ObcButton variant="normal" onClick={onEdit}>Edit loop</ObcButton>
+          </span>
+        }
       />
       <KvRow label="Loop type">{loop.loopType}</KvRow>
       <KvRow label="Site / area / unit">{[loop.site, loop.area, loop.unit].filter(Boolean).join(' / ')}</KvRow>
@@ -241,13 +248,23 @@ interface WizardState {
   thresholdProfileId: string; enableMonitoring: boolean;
 }
 
-const AddLoopWizard: React.FC<{ existing: CpmLoop[]; onClose: () => void }> = ({ existing, onClose }) => {
+const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; onClose: () => void }> = ({ existing, editLoop, onClose }) => {
   const dialogRef = useDialogA11y<HTMLDivElement>(onClose);
   const contract = useCpmRegistryContract();
   const activate = useActivateLoop();
+  const isEdit = !!editLoop;
   const [step, setStep] = useState(0);
   const [savedLoopId, setSavedLoopId] = useState<string | null>(null);
-  const [form, setForm] = useState<WizardState>({
+  const [form, setForm] = useState<WizardState>(() => editLoop ? {
+    // Edit mode: prefill from the existing loop. Activate is an upsert, so saving
+    // with the same loopId updates it.
+    loopId: editLoop.loopId, displayName: editLoop.displayName, site: editLoop.site,
+    area: editLoop.area ?? '', unit: editLoop.unit ?? '',
+    loopType: editLoop.loopType, criticality: editLoop.criticality,
+    pv: editLoop.tags['PV'] ?? '', sp: editLoop.tags['SP'] ?? '', op: editLoop.tags['OP'] ?? '',
+    mode: editLoop.tags['MODE'] ?? '', vp: editLoop.tags['VP'] ?? '',
+    thresholdProfileId: editLoop.thresholdProfileId ?? '', enableMonitoring: editLoop.monitoringEnabled,
+  } : {
     loopId: '', displayName: '', site: 'site1', area: '', unit: '',
     loopType: 'FIC', criticality: 'medium',
     pv: '', sp: '', op: '', mode: '', vp: '',
@@ -258,7 +275,9 @@ const AddLoopWizard: React.FC<{ existing: CpmLoop[]; onClose: () => void }> = ({
   const set = (k: keyof WizardState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: k === 'loopId' ? e.target.value.toUpperCase() : e.target.value }));
 
-  const duplicate = existing.some(l => l.loopId.toUpperCase() === form.loopId.toUpperCase());
+  // In edit mode the loopId is fixed (it's the identity we're updating), so it is
+  // never a "duplicate" of itself.
+  const duplicate = !isEdit && existing.some(l => l.loopId.toUpperCase() === form.loopId.toUpperCase());
   const identityValid = form.loopId.trim() !== '' && form.displayName.trim() !== ''
     && form.site.trim() !== '' && !duplicate;
   const signalsValid = !form.enableMonitoring
@@ -294,8 +313,8 @@ const AddLoopWizard: React.FC<{ existing: CpmLoop[]; onClose: () => void }> = ({
 
   return (
     <div className="cpm-modal-backdrop" onClick={e => { if (e.target === e.currentTarget && !activate.isPending) onClose(); }}>
-      <div ref={dialogRef} className="cpm-modal" role="dialog" aria-modal="true" tabIndex={-1} aria-label="Add control loop">
-        <PanelHead eyebrow="Governed registry workflow" title="Add control loop" />
+      <div ref={dialogRef} className="cpm-modal" role="dialog" aria-modal="true" tabIndex={-1} aria-label={isEdit ? 'Edit control loop' : 'Add control loop'}>
+        <PanelHead eyebrow="Governed registry workflow" title={isEdit ? `Edit loop ${editLoop!.loopId}` : 'Add control loop'} />
         <div className="cpm-wizard-steps">
           {STEPS.map((s, i) => (
             <button
@@ -313,7 +332,7 @@ const AddLoopWizard: React.FC<{ existing: CpmLoop[]; onClose: () => void }> = ({
           <div className="cpm-wizard-grid">
             <label className="cpm-field">
               <span className="cpm-field__label">Loop tag *</span>
-              <input className={`cpm-input${duplicate ? ' cpm-input--error' : ''}`} value={form.loopId} onChange={set('loopId')} placeholder="FIC-10409" />
+              <input className={`cpm-input${duplicate ? ' cpm-input--error' : ''}`} value={form.loopId} onChange={set('loopId')} placeholder="FIC-10409" disabled={isEdit} title={isEdit ? 'Loop ID is the identity and cannot be changed' : undefined} />
               {duplicate && <span className="cpm-field__error">This tag already exists</span>}
             </label>
             <label className="cpm-field">
@@ -432,7 +451,7 @@ const AddLoopWizard: React.FC<{ existing: CpmLoop[]; onClose: () => void }> = ({
           {!savedLoopId && (step < 4
             ? <ObcButton variant="raised" disabled={!canContinue} onClick={() => setStep(s => s + 1)}>Continue ›</ObcButton>
             : <ObcButton variant="raised" disabled={activate.isPending} onClick={save}>
-                {activate.isPending ? 'Activating…' : 'Activate loop'}
+                {activate.isPending ? (isEdit ? 'Updating…' : 'Activating…') : (isEdit ? 'Update loop' : 'Activate loop')}
               </ObcButton>)}
         </div>
       </div>
