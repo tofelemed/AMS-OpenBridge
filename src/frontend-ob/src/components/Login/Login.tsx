@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { FormField } from '../shared/Modal';
@@ -21,9 +21,27 @@ export const Login: React.FC = () => {
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const usernameRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
 
   const submitting = status === 'authenticating';
   const redirectTo = location.state?.from ?? '/dashboard';
+
+  // Browser autofill sets the input VALUE without firing React's onChange, so the
+  // controlled state stayed empty and the Sign-in button stayed disabled until the
+  // user touched a field. Poll the DOM a few times after mount to sync state from
+  // whatever autofill/password-manager put there.
+  useEffect(() => {
+    const sync = () => {
+      const u = usernameRef.current?.value;
+      const p = passwordRef.current?.value;
+      if (u != null && u !== username) setUsername(u);
+      if (p != null && p !== password) setPassword(p);
+    };
+    const timers = [80, 250, 700].map(ms => setTimeout(sync, ms));
+    return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Already signed in → bounce to the intended destination.
   if (status === 'authenticated') {
@@ -31,9 +49,13 @@ export const Login: React.FC = () => {
   }
 
   const doLogin = async () => {
-    if (!username.trim() || !password || submitting) return;
+    // Read the LIVE DOM values (refs), not just state — the last-typed keystroke or
+    // an autofill that hasn't synced to state yet is still the source of truth.
+    const u = (usernameRef.current?.value ?? username).trim();
+    const p = passwordRef.current?.value ?? password;
+    if (!u || !p || submitting) return;
     try {
-      await login(username.trim(), password);
+      await login(u, p);
       navigate(redirectTo, { replace: true });
     } catch {
       // Error message is surfaced from the store.
@@ -55,6 +77,7 @@ export const Login: React.FC = () => {
 
         <FormField label="Username" required>
           <input
+            ref={usernameRef}
             className="ob-input"
             type="text"
             autoComplete="username"
@@ -67,6 +90,7 @@ export const Login: React.FC = () => {
 
         <FormField label="Password" required>
           <input
+            ref={passwordRef}
             className="ob-input"
             type="password"
             autoComplete="current-password"
@@ -85,7 +109,7 @@ export const Login: React.FC = () => {
         <ObcButton
           variant="raised"
           onClick={() => void doLogin()}
-          disabled={submitting || !username.trim() || !password}
+          disabled={submitting}
         >
           {submitting ? 'Signing in…' : 'Sign in'}
         </ObcButton>
