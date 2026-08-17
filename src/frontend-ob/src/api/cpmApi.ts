@@ -86,8 +86,11 @@ export const deleteLoop = (loopId: string) =>
     `${BASE}/loops/${encodeURIComponent(loopId)}`, { method: 'DELETE' });
 
 export const republishEvidence = (loopId: string) =>
-  apiJson<{ loopId: string; republished: boolean; projected: number; links: number }>(
-    `${BASE}/loops/${encodeURIComponent(loopId)}/republish-evidence`, { method: 'POST' });
+  apiJson<{
+    loopId: string; republished: boolean; projected: number; links: number;
+    /** UNS signal assets upserted by the projection (older API builds omit it). */
+    signalAssets?: number;
+  }>(`${BASE}/loops/${encodeURIComponent(loopId)}/republish-evidence`, { method: 'POST' });
 
 export const getRegistryContract = () =>
   apiJson<CpmRegistryContract>(`${BASE}/registry-contract`);

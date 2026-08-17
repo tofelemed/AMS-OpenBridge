@@ -11,8 +11,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
-  EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader, fmtDuration, fmtWindowShape,
-  windowSpecsOf,
+  EmptyState, KvRow, PanelHead, QueryError, TonePill, WorkspaceHeader, fmtDuration,
+  fmtWindowShape, windowSpecsOf,
 } from './shared';
 import {
   useActivateLoop, useCpmLoops, useCpmReadiness, useCpmRegistryContract,
@@ -53,7 +53,7 @@ export const LoopRegistry: React.FC = () => {
   const [editLoop, setEditLoop] = useState<CpmLoop | null>(null);
   const [importOpen, setImportOpen] = useState(false);
 
-  const { data, isLoading, error } = useCpmLoops();
+  const { data, isLoading, isError, error, refetch } = useCpmLoops();
   const loops = useMemo(() => data?.loops ?? [], [data]);
 
   const filtered = useMemo(() => {
@@ -65,7 +65,8 @@ export const LoopRegistry: React.FC = () => {
       || (l.area ?? '').toLowerCase().includes(q));
   }, [loops, search]);
 
-  const selected = loops.find(l => l.loopId === selectedId) ?? filtered[0];
+  // Case-insensitive, like every loop lookup in cplm-api.
+  const selected = loops.find(l => l.loopId.toLowerCase() === selectedId.toLowerCase()) ?? filtered[0];
 
   // Page the registry list so a large fleet isn't one long scroll. Selection still
   // resolves against the full list so the detail aside works across pages.
@@ -115,8 +116,8 @@ export const LoopRegistry: React.FC = () => {
             <span>VP</span><span>Profile</span><span>State</span>
           </div>
           {isLoading && <EmptyState title="Loading registry…" />}
-          {error != null && <EmptyState title="Registry unavailable" copy={String(error)} />}
-          {!isLoading && filtered.length === 0 && (
+          {isError && <QueryError title="Registry unavailable" error={error} retry={() => void refetch()} />}
+          {!isLoading && !isError && filtered.length === 0 && (
             <EmptyState
               title="No loops registered"
               copy="Onboard the first loop to start producing diagnoses."
@@ -129,10 +130,16 @@ export const LoopRegistry: React.FC = () => {
               <div
                 key={loop.loopId}
                 className={`cpm-reg-row${selected?.loopId === loop.loopId ? ' cpm-reg-row--selected' : ''}`}
-                onClick={() => setParams(p => { p.set('loop', loop.loopId); return p; })}
+                onClick={() => setParams(p => { p.set('loop', loop.loopId); return p; }, { replace: true })}
                 role="button"
                 tabIndex={0}
-                onKeyDown={e => { if (e.key === 'Enter') setParams(p => { p.set('loop', loop.loopId); return p; }); }}
+                aria-pressed={selected?.loopId === loop.loopId}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setParams(p => { p.set('loop', loop.loopId); return p; }, { replace: true });
+                  }
+                }}
               >
                 <span>
                   <strong>{loop.loopId}</strong>
@@ -230,7 +237,10 @@ const ProfileAside: React.FC<{ loop: CpmLoop; onEdit: () => void }> = ({ loop, o
         </ObcButton>
         {republish.isSuccess && (
           <p className="cpm-copy">
-            Republished — {republish.data.links} link(s) live on the broadcast.
+            Republished — {republish.data.links} link(s) live on the broadcast
+            {typeof republish.data.signalAssets === 'number'
+              ? `, ${republish.data.signalAssets} signal asset(s) projected into the UNS`
+              : ''}.
           </p>
         )}
       </div>
@@ -454,7 +464,11 @@ const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; onClose
             <KvRow label="Signals">{['pv', 'sp', 'op', 'mode', 'vp'].filter(k => form[k as keyof WizardState]).map(k => k.toUpperCase()).join(' · ') || 'none'}</KvRow>
             <KvRow label="Monitoring">{form.enableMonitoring ? 'Enabled on save' : 'Registered only'}</KvRow>
             {activate.isError && (
-              <p className="cpm-field__error" style={{ marginTop: 8 }}>{String(activate.error)}</p>
+              <p className="cpm-field__error" style={{ marginTop: 8 }}>
+                {/* ApiError carries the server's problem detail (422 validation,
+                    409 case-collision) — String() prefixed it with "Error:". */}
+                {activate.error instanceof Error ? activate.error.message : String(activate.error)}
+              </p>
             )}
           </>
         )}
@@ -507,17 +521,50 @@ interface CsvRow {
   existing: boolean;
 }
 
+/**
+ * LR1 — split one CSV line respecting double quotes (RFC-4180 style: quoted
+ * cells may contain commas, "" escapes a quote). The old naive split(',')
+ * meant a service description like "Reactor 1, feed flow" shifted every
+ * following column — and because the shifted row could still pass the
+ * required-fields check, it ACTIVATED a loop with wrong tag paths.
+ */
+function splitCsvLine(line: string): string[] {
+  const cells: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+      else if (ch === '"') inQuotes = false;
+      else cur += ch;
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      cells.push(cur.trim()); cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  cells.push(cur.trim());
+  return cells;
+}
+
 function parseCsv(text: string, existingTags: Set<string>): { missing: string[]; rows: CsvRow[] } {
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   if (lines.length === 0) return { missing: [...CSV_HEADERS], rows: [] };
-  const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+  const headers = splitCsvLine(lines[0]).map(h => h.toLowerCase());
   const missing = CSV_HEADERS.filter(h => !headers.includes(h));
   const seen = new Set<string>();
   const rows: CsvRow[] = lines.slice(1).map(line => {
-    const cells = line.split(',').map(c => c.trim());
+    const cells = splitCsvLine(line);
     const values: Record<string, string> = {};
     headers.forEach((h, i) => { values[h] = cells[i] ?? ''; });
     const problems: string[] = [];
+    // A mis-shaped row means every cell after the fault is in the wrong column —
+    // never let it through on the strength of accidentally-non-empty cells.
+    if (cells.length !== headers.length)
+      problems.push(`${cells.length} cell(s) for ${headers.length} column(s) — quote any value containing a comma`);
     const tag = (values['tag'] ?? '').toUpperCase();
     for (const req of ['tag', 'service', 'site', 'loop_type', 'pv_tag', 'sp_tag', 'op_tag', 'mode_tag'])
       if (!values[req]) problems.push(`missing ${req}`);

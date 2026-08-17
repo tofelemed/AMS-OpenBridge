@@ -45,7 +45,10 @@ export const CpmPipeline: React.FC = () => {
 
   const status = useCpmPipelineStatus();
   const metrics = usePipelineMetrics();
-  const rankings = useFleetRankings();
+  // PH1: 200 = server max. "Last fused verdict age" scans windowEnd across this
+  // page — the default top-50 confidence slice could miss the fleet's newest
+  // window and overstate staleness. Past 200 loops the caveat returns.
+  const rankings = useFleetRankings(undefined, '24h', 'confidence', 200);
   const loopsQuery = useCpmLoops();
 
   const jobs = useMemo(() => metrics.data?.jobs ?? [], [metrics.data]);
@@ -111,6 +114,15 @@ export const CpmPipeline: React.FC = () => {
   const refLoop = loopsQuery.data?.loops.find(l => l.monitoringEnabled) ?? loopsQuery.data?.loops[0];
   const { submit, status: replayStatus, reset } = useRecompute(refLoop?.loopId);
   const [e2eStartedAt, setE2eStartedAt] = useState<number | null>(null);
+  // PH2: elapsed is FROZEN at the moment the replay finishes. Computing
+  // Date.now() - startedAt in render meant "Completed in 34s" kept counting up
+  // while the page sat open — a finished round trip reading like a running one.
+  const [e2eElapsedS, setE2eElapsedS] = useState<number | null>(null);
+  useEffect(() => {
+    if (replayStatus?.finished && e2eStartedAt != null && e2eElapsedS == null) {
+      setE2eElapsedS(Math.round((Date.now() - e2eStartedAt) / 1000));
+    }
+  }, [replayStatus?.finished, e2eStartedAt, e2eElapsedS]);
   const e2eBusy = submit.isPending || (replayStatus != null && !replayStatus.finished);
 
   return (
@@ -127,9 +139,13 @@ export const CpmPipeline: React.FC = () => {
       />
 
       <div className="cpm-kpi-row">
-        <KpiTile caption="Required jobs" tone={status.data?.allRequiredRunning ? 'good' : 'bad'}
-          value={status.data ? `${runningCount}/${statusJobs.length}` : '…'}
-          sub={status.data?.jobManagerReachable ? 'JobManager reachable' : 'JobManager unreachable'} />
+        {/* PH3: if the STATUS QUERY itself fails, the tile used to sit at '…'
+            forever — indistinguishable from a slow first load. */}
+        <KpiTile caption="Required jobs"
+          tone={status.isError ? 'warn' : status.data?.allRequiredRunning ? 'good' : 'bad'}
+          value={status.isError ? '—' : status.data ? `${runningCount}/${statusJobs.length}` : '…'}
+          sub={status.isError ? 'status endpoint unreachable'
+            : status.data?.jobManagerReachable ? 'JobManager reachable' : 'JobManager unreachable'} />
         <KpiTile caption="Checkpoint success" tone={ckptSuccessPct != null && ckptSuccessPct >= 99 ? 'good' : 'warn'}
           value={ckptSuccessPct != null ? `${ckptSuccessPct.toFixed(1)}%` : '—'}
           sub={`${ckptCompleted.toLocaleString()} ok · ${ckptFailed} failed (since job start)`} />
@@ -218,7 +234,7 @@ export const CpmPipeline: React.FC = () => {
           </p>
           <div className="cpm-filter-row">
             <ObcButton variant="raised" disabled={!refLoop || !canManage || e2eBusy}
-              onClick={() => { reset(); setE2eStartedAt(Date.now()); submit.mutate(); }}>
+              onClick={() => { reset(); setE2eStartedAt(Date.now()); setE2eElapsedS(null); submit.mutate(); }}>
               {e2eBusy ? 'Verifying…' : 'Run E2E verification'}
             </ObcButton>
             {submit.isError && (
@@ -227,10 +243,10 @@ export const CpmPipeline: React.FC = () => {
               </span>
             )}
           </div>
-          {replayStatus?.finished && e2eStartedAt != null && (
+          {replayStatus?.finished && e2eElapsedS != null && (
             <KvRow label="Round trip">
               {replayStatus.succeeded ? 'Completed' : 'Failed'} in{' '}
-              {Math.round((Date.now() - e2eStartedAt) / 1000)}s · replay {replayStatus.replayId}
+              {e2eElapsedS}s · replay {replayStatus.replayId}
             </KvRow>
           )}
 

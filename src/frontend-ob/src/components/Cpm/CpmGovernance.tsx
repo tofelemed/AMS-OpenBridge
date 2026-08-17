@@ -165,7 +165,11 @@ export const CpmGovernance: React.FC = () => {
             onboarding, event ack/shelve and recompute; <span className="cpm-mono">system.manage</span>{' '}
             guards pipeline and OPC mutations; <span className="cpm-mono">admin.audit.view</span>{' '}
             guards audit reads; <span className="cpm-mono">analytics.view</span> guards every CPM read.
-            New claims require re-login (15-minute token lifetime).
+            {/* No hard-coded TTL: permission claims are read from the access token,
+                so they refresh on re-login/token refresh — the previous text
+                asserted a "15-minute token lifetime" this page cannot know. */}
+            Permission changes take effect when the session's token is next issued
+            (re-login, or the automatic refresh).
           </p>
         </section>
       </div>

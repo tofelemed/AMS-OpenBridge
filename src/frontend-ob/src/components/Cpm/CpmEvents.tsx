@@ -12,8 +12,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
-  EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
+  EmptyState, KvRow, PanelHead, QueryError, TonePill, WorkspaceHeader, toneFor,
+  fmtDateTime,
 } from './shared';
+import { usePagedSlice } from '../shared/ListPager';
 import { useAcknowledgeEvent, useCpmEvents, useShelveEvent } from '../../hooks/useCpm';
 import type { CpmEventFrame } from '../../api/cpmApi';
 
@@ -52,31 +54,44 @@ function stateLabel(e: CpmEventFrame): string {
   return 'Unacknowledged';
 }
 
-const fmt = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+// E2 (P2-13): the page's local formatter carried no zone label — and this page
+// owns operator ack timestamps, the exact case the shared formatter exists for.
+const fmt = (iso: string | null) => (iso ? fmtDateTime(iso) : '—');
+
+/** The fetch cap; at the cap, client-side filter counts describe a slice. */
+const FETCH_LIMIT = 200;
 
 export const CpmEvents: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const filter = (params.get('filter') as FilterKey) ?? 'all';
   const selectedId = params.get('event');
+  // E1: both orders are legitimate here — triage (worst first) is the right
+  // default for a response queue, but "what happened lately" needs opened_at.
+  // The rows were confidence-ordered under an "Opened" column with no hint.
+  const sort = params.get('sort') === 'recent' ? 'recent' as const : 'triage' as const;
 
   // Fetch broadly (open + closed + shelved), filter client-side so tab switches
   // are instant; 30 s background refetch keeps the list current.
-  const { data, isLoading, error } = useCpmEvents({ openOnly: false, includeShelved: true, limit: 200 });
+  const { data, isLoading, isError, error, refetch } =
+    useCpmEvents({ openOnly: false, includeShelved: true, limit: FETCH_LIMIT, sort });
   const events = useMemo(
     () => (data?.events ?? []).filter(e => matches(e, filter)),
     [data, filter]);
+  // E3: at the cap the filters are counting a slice, not the fleet.
+  const truncated = (data?.events.length ?? 0) >= FETCH_LIMIT;
 
-  const selected = events.find(e => String(e.id) === selectedId) ?? events[0];
+  // E4: selection resolves against the FULL list, not the filtered one — a deep
+  // link to an acknowledged event, opened while the "Unacknowledged" filter is
+  // active, used to silently show a different event under that URL.
+  const selected = (data?.events ?? []).find(e => String(e.id) === selectedId) ?? events[0];
+  const selectionHiddenByFilter =
+    !!selected && !events.some(e => e.id === selected.id);
 
-  // Page the (filtered) event list so it isn't a 200-row scroll. Selection still
-  // resolves against the full list, so the detail pane works across pages.
+  // Page the (filtered) event list so it isn't a 200-row scroll.
   const PAGE_SIZE = 20;
   const [page, setPage] = useState(0);
-  useEffect(() => { setPage(0); }, [filter]);
-  const pageCount = Math.max(1, Math.ceil(events.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount - 1);
-  const pagedEvents = events.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  useEffect(() => { setPage(0); }, [filter, sort]);
+  const { pageCount, safePage, pageItems: pagedEvents } = usePagedSlice(events, page, PAGE_SIZE);
 
   return (
     <div className="cpm-screen">
@@ -91,12 +106,22 @@ export const CpmEvents: React.FC = () => {
           <ObcButton
             key={f.key}
             variant={filter === f.key ? 'raised' : 'normal'}
-            onClick={() => setParams(p => { p.set('filter', f.key); return p; })}
+            onClick={() => setParams(p => { p.set('filter', f.key); return p; }, { replace: true })}
           >
             {f.label}
           </ObcButton>
         ))}
-        <span className="cpm-filter-count">{events.length} event(s)</span>
+        <span className="cpm-field__label" style={{ alignSelf: 'center', marginLeft: 8 }}>Order</span>
+        {([['triage', 'Triage (worst first)'], ['recent', 'Newest first']] as const).map(([k, label]) => (
+          <ObcButton key={k} variant={sort === k ? 'raised' : 'normal'}
+            onClick={() => setParams(p => { if (k === 'triage') p.delete('sort'); else p.set('sort', k); return p; }, { replace: true })}>
+            {label}
+          </ObcButton>
+        ))}
+        <span className="cpm-filter-count">
+          {events.length} event(s)
+          {truncated ? ` · showing the ${sort === 'recent' ? 'newest' : 'highest-priority'} ${FETCH_LIMIT} — counts describe this slice, not the fleet` : ''}
+        </span>
       </div>
 
       <div className="cpm-grid-2">
@@ -105,12 +130,17 @@ export const CpmEvents: React.FC = () => {
             <span>Event</span><span>Severity</span><span>State</span><span>Opened</span>
           </div>
           {isLoading && <EmptyState title="Loading events…" />}
-          {error != null && <EmptyState title="Events unavailable" copy={String(error)} />}
-          {!isLoading && events.length === 0 && (
+          {isError && <QueryError title="Events unavailable" error={error} retry={() => void refetch()} />}
+          {!isLoading && !isError && events.length === 0 && (
             <EmptyState
               title="No events in this view"
               copy="Diagnosis episodes appear here when the gate engine reports a fault family."
             />
+          )}
+          {selectionHiddenByFilter && (
+            <p className="cpm-copy" role="status" style={{ padding: '8px 12px' }}>
+              The selected event is hidden by the current filter — its detail stays open on the right.
+            </p>
           )}
           {pagedEvents.map(e => {
             const sev = severityOf(e);
@@ -118,10 +148,16 @@ export const CpmEvents: React.FC = () => {
               <div
                 key={e.id}
                 className={`cpm-event-row${selected?.id === e.id ? ' cpm-event-row--selected' : ''}`}
-                onClick={() => setParams(p => { p.set('event', String(e.id)); return p; })}
+                onClick={() => setParams(p => { p.set('event', String(e.id)); return p; }, { replace: true })}
                 role="button"
                 tabIndex={0}
-                onKeyDown={ev => { if (ev.key === 'Enter') setParams(p => { p.set('event', String(e.id)); return p; }); }}
+                aria-pressed={selected?.id === e.id}
+                onKeyDown={ev => {
+                  if (ev.key === 'Enter' || ev.key === ' ') {
+                    ev.preventDefault();
+                    setParams(p => { p.set('event', String(e.id)); return p; }, { replace: true });
+                  }
+                }}
               >
                 <span>
                   <span className="cpm-event-row__title">{e.peak_diagnosis.replace(/_/g, ' ')}</span>
