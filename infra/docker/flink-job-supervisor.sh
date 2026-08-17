@@ -44,11 +44,18 @@ wait_jm() {
   return 1
 }
 
-# Count RUNNING jobs whose display name matches. Returns the count so callers
+# Count PRESENT jobs whose display name matches. Returns the count so callers
 # can tell "missing" (0) from "healthy" (1) from "DUPLICATE" (>1).
+#
+# Prod item 3 (2026-08-17): a job mid-recovery is PRESENT, not missing. The old
+# "(RUNNING)"-only grep raced against restart cycles — a job caught in
+# RESTARTING/INITIALIZING at poll time got a second copy submitted on top
+# (observed live 2026-08-13: duplicate "AMS - Live State RBE" double-consuming
+# every partition). With JM HA, jobs also pass through recovery states after a
+# JobManager restart and must not be resubmitted while recovering.
 job_running_count() {
   /opt/flink/bin/flink list -m "${JM_HOST}:${JM_PORT}" 2>/dev/null \
-    | grep -F "$1" | grep -c "(RUNNING)"
+    | grep -F "$1" | grep -cE '\((CREATED|INITIALIZING|RUNNING|RESTARTING|RECONCILING)\)'
 }
 
 job_running() {

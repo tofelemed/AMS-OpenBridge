@@ -7,7 +7,7 @@
  * five inner tabs (Summary / Signals / Calculations / Relationships / History),
  * all deep-linked via ?loop= and ?tab=.
  */
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -346,16 +346,34 @@ const RelationshipsTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => (
 
 // ── History ────────────────────────────────────────────────────────────────
 
+// The API window the tab pulls; a loop with a long diagnosis history returns the
+// most recent FETCH_WINDOW episodes, so say so rather than truncating silently.
+const HISTORY_FETCH_WINDOW = 50;
+const HISTORY_PAGE_SIZE = 10;
+
 const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
-  const events = useCpmEvents({ loopId: loop.loopId, openOnly: false, includeShelved: true, limit: 50 });
-  const rows = events.data?.events ?? [];
+  const events = useCpmEvents({
+    loopId: loop.loopId, openOnly: false, includeShelved: true, limit: HISTORY_FETCH_WINDOW,
+  });
+  const rows = useMemo(() => events.data?.events ?? [], [events.data]);
+
+  const [page, setPage] = useState(0);
+  // Switching loops must not leave the operator on page 4 of the previous loop.
+  useEffect(() => { setPage(0); }, [loop.loopId]);
+  const pageCount = Math.max(1, Math.ceil(rows.length / HISTORY_PAGE_SIZE));
+  const safePage  = Math.min(page, pageCount - 1);
+  const pagedRows = useMemo(
+    () => rows.slice(safePage * HISTORY_PAGE_SIZE, safePage * HISTORY_PAGE_SIZE + HISTORY_PAGE_SIZE),
+    [rows, safePage],
+  );
+
   return (
     <div>
       {events.isLoading && <EmptyState title="Loading history…" />}
       {!events.isLoading && rows.length === 0 && (
         <EmptyState title="No diagnosis episodes recorded for this loop" />
       )}
-      {rows.map(e => (
+      {pagedRows.map(e => (
         <div key={e.id} className="cpm-event-row" style={{ gridTemplateColumns: '0.9fr 1.6fr 0.8fr', cursor: 'default' }}>
           <span className="cpm-event-row__sub">
             {fmtDateTime(e.opened_at)}
@@ -368,6 +386,16 @@ const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
           <TonePill tone={e.closed_at ? 'muted' : 'warn'}>{e.ack_state}</TonePill>
         </div>
       ))}
+      {pageCount > 1 && (
+        <div className="cpm-pager">
+          <ObcButton variant="flat" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={safePage === 0}>← Prev</ObcButton>
+          <span className="cpm-event-row__sub">
+            {safePage * HISTORY_PAGE_SIZE + 1}–{Math.min((safePage + 1) * HISTORY_PAGE_SIZE, rows.length)} of {rows.length}
+            {rows.length >= HISTORY_FETCH_WINDOW ? ' (latest)' : ''} · Page {safePage + 1} of {pageCount}
+          </span>
+          <ObcButton variant="flat" onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))} disabled={safePage >= pageCount - 1}>Next →</ObcButton>
+        </div>
+      )}
     </div>
   );
 };

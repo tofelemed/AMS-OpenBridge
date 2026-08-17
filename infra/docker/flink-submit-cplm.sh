@@ -52,9 +52,11 @@ fi
 
 job_running() {
   # Match name AND state — matching the name alone would let a FAILED job block
-  # resubmission forever.
+  # resubmission forever. Recovery states count as present (prod item 3): with JM
+  # HA, jobs pass through CREATED/INITIALIZING/RECONCILING at cold start and a
+  # RUNNING-only check would submit a duplicate on top of a recovering job.
   /opt/flink/bin/flink list -m "${JOBMANAGER_HOST}:${JOBMANAGER_PORT}" 2>/dev/null \
-    | grep -F "$1" | grep -q "(RUNNING)"
+    | grep -F "$1" | grep -qE '\((CREATED|INITIALIZING|RUNNING|RESTARTING|RECONCILING)\)'
 }
 
 submit_if_missing() {

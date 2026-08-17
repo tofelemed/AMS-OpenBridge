@@ -22,11 +22,12 @@ public final class AlarmIoTSerializationSchema implements IoTSerializationSchema
 
     private static final long serialVersionUID = 1L;
 
-    private static final List<String> MEASUREMENTS = Arrays.asList(
+    /** Shared with {@link FailLoudIoTDBSink} — one measurement schema, one place. */
+    static final List<String> MEASUREMENTS = Arrays.asList(
             "severity", "state", "ack_status", "condition_active",
             "priority", "source_name", "condition_name");
 
-    private static final List<TSDataType> TYPES = Arrays.asList(
+    static final List<TSDataType> TYPES = Arrays.asList(
             TSDataType.INT32,   // severity
             TSDataType.TEXT,    // state
             TSDataType.BOOLEAN, // ack_status

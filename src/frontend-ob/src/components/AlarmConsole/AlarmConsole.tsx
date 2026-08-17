@@ -11,6 +11,7 @@ import type {
   GetRowIdParams,
   RowDoubleClickedEvent,
   SelectionChangedEvent,
+  PaginationChangedEvent,
 } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
@@ -50,6 +51,23 @@ import { useLiveEventsPanel } from '../../context/LiveEventsContext';
 // OpenBridge Components
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObiSearch } from '@oicl/openbridge-webcomponents-react/icons/icon-search';
+
+// Pagination. An active-alarm list runs to thousands of rows in a flood; AG Grid
+// virtualizes the DOM but an unbounded scroll leaves the operator with no sense of
+// position and no way to work the list systematically. Page size is per-operator
+// and sticky across sessions.
+const PAGE_SIZE_CHOICES = [25, 50, 100, 200, 500];
+const PAGE_SIZE_DEFAULT = 100;
+const PAGE_SIZE_STORAGE_KEY = 'ams.alarms.pageSize';
+
+function readStoredPageSize(): number {
+  try {
+    const saved = Number(window.localStorage.getItem(PAGE_SIZE_STORAGE_KEY));
+    return PAGE_SIZE_CHOICES.includes(saved) ? saved : PAGE_SIZE_DEFAULT;
+  } catch {
+    return PAGE_SIZE_DEFAULT;
+  }
+}
 
 const AlarmConsole: React.FC = () => {
   const gridRef = useRef<AgGridReact<ActiveAlarm>>(null);
@@ -101,6 +119,11 @@ const AlarmConsole: React.FC = () => {
   // Freeze mode
   const [isFrozen, setIsFrozen] = useState(false);
   const [frozenData, setFrozenData] = useState<ActiveAlarm[]>([]);
+
+  // Read once at mount: after that the grid owns the page size (the paging panel's
+  // selector is the only way to change it) and we just mirror it back to storage.
+  const [initialPageSize] = useState(readStoredPageSize);
+  const pageSizeRef = useRef<number>(initialPageSize);
 
   const rowData = useMemo(() => {
     const filter = (a: ActiveAlarm) =>
@@ -577,6 +600,20 @@ const AlarmConsole: React.FC = () => {
     setSelected(e.api.getSelectedRows().map(r => r.id));
   }, [setSelected]);
 
+  // Remember the operator's page size (the panel's selector is the only way to change it).
+  const onPaginationChanged = useCallback((e: PaginationChangedEvent<ActiveAlarm>) => {
+    const size = e.api.paginationGetPageSize();
+    if (size === pageSizeRef.current) return;
+    pageSizeRef.current = size;
+    try { window.localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(size)); } catch { /* private mode */ }
+  }, []);
+
+  // Narrowing the list must land on page 1 — otherwise a filter applied from page 6
+  // leaves the operator staring at an empty page.
+  useEffect(() => {
+    gridRef.current?.api?.paginationGoToFirstPage();
+  }, [debouncedQuickFilter, presetPriority, presetUnacked]);
+
   // ─── Incremental grid updates via applyTransactionAsync ────────────────────
 
   useEffect(() => {
@@ -801,6 +838,10 @@ const AlarmConsole: React.FC = () => {
           onRowDoubleClicked={onRowDoubleClicked}
           onSelectionChanged={onSelectionChanged}
           quickFilterText={debouncedQuickFilter}
+          pagination={true}
+          paginationPageSize={initialPageSize}
+          paginationPageSizeSelector={PAGE_SIZE_CHOICES}
+          onPaginationChanged={onPaginationChanged}
           // FE-05: an empty grid mid-hydration must not read as a quiet plant.
           overlayNoRowsTemplate={hydrated
             ? '<span style="color: var(--on-container-neutral-color)">No active alarms</span>'

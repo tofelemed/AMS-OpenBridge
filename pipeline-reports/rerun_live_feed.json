@@ -1,0 +1,26 @@
+{
+  "sim": "sim_alarm_feed",
+  "run_tag": "rlive2",
+  "count": 8,
+  "baseline": {
+    "current_alarm_state": 6638,
+    "lifecycle_events": 6804
+  },
+  "checks": {
+    "current_alarm_state_grew": true,
+    "cas_records_keyed_by_alarm_id": true,
+    "cas_records_are_upserts": true,
+    "pg_alarm_current_rows": true,
+    "pg_identity_columns_correct": true,
+    "api_priority_mapping": true,
+    "lifecycle_events_grew": true
+  },
+  "detail": {
+    "cas_matched": 8,
+    "pg_rows": 8,
+    "api_active_matched": 8,
+    "priority_mismatches": [],
+    "no_priority_record_projected": true
+  },
+  "finished_utc": "2026-08-13T19:28:11.106724Z"
+}

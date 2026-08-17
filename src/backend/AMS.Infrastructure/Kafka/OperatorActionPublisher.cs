@@ -55,9 +55,12 @@ public sealed class OperatorActionPublisher : IOperatorActionPublisher
 
         var partitionKey = AlarmPartitionKeys.AssetKey(serverId, alarm.SourceName);
 
+        // PIPE-009: named args — the 5-positional form bound to the EmitAsync
+        // overload WITHOUT partitionKey, shifting every argument one slot
+        // (lifecycleState became the partition key, detail became ACK_REQUESTED).
         await _lifecycle.EmitAsync(correlation, alarm.Id.ToString(), partitionKey,
-            AckLifecycleStates.Requested,
-            $"Operator {username} initiated ACK",
+            lifecycleState: AckLifecycleStates.Requested,
+            detail: $"Operator {username} initiated ACK",
             ct: ct);
 
         var action = new OperatorActionMessage

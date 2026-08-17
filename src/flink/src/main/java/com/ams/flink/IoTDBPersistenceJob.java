@@ -9,16 +9,13 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.iotdb.flink.IoTDBSink;
-import org.apache.iotdb.flink.options.IoTDBSinkOptions;
-
-import java.util.Collections;
 
 /**
  * Flink job: raw-alarms → Apache IoTDB historian.
  *
  * Consumes every alarm event from raw-alarms, converts it to an
- * {@link IoTDBAlarmRow}, and writes via the flink-iotdb-connector (Tablet batches).
+ * {@link IoTDBAlarmRow}, and writes via {@link FailLoudIoTDBSink} (checkpoint-
+ * integrated batches; a failed write fails the checkpoint instead of dropping).
  *
  * IoTDB tree path: root.ams.site1.alarms.<sanitised_alarmId>
  * Measurements: severity, state, ack_status, condition_active, priority, source_name, condition_name
@@ -51,7 +48,10 @@ public class IoTDBPersistenceJob {
                 .setBootstrapServers(cfg.brokers)
                 .setTopics("raw-alarms")
                 .setGroupId("flink-ams-iotdb-persistence")
-                .setStartingOffsets(OffsetsInitializer.earliest())
+                // committed-with-earliest-fallback: fresh submits continue where the
+                // group left off instead of replaying the whole topic (prod item 4).
+                .setStartingOffsets(OffsetsInitializer.committedOffsets(
+                        org.apache.kafka.clients.consumer.OffsetResetStrategy.EARLIEST))
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .setProperty("request.timeout.ms", "120000")
                 .setProperty("default.api.timeout.ms", "120000")
@@ -64,30 +64,17 @@ public class IoTDBPersistenceJob {
                 .name("iotdb-parse-filter")
                 .uid("iotdb-parse-filter");
 
-        rows.addSink(buildSink(cfg))
+        // PIPE-014: FailLoudIoTDBSink replaces the upstream IoTDBSink, whose
+        // background flush swallowed write errors while checkpoints completed —
+        // committed offsets then pointed past records that only existed in a heap
+        // buffer. This sink flushes inside snapshotState() and THROWS on failure.
+        rows.addSink(new FailLoudIoTDBSink(
+                        cfg.iotdbHost, cfg.iotdbPort, cfg.iotdbUser, cfg.iotdbPass,
+                        cfg.iotdbBatchSize))
             .name("iotdb-alarm-sink")
             .uid("iotdb-alarm-sink");
 
         env.execute("AMS - IoTDB Alarm Persistence");
-    }
-
-    // ── Sink builder ───────────────────────────────────────────────────────
-
-    private static IoTDBSink<IoTDBAlarmRow> buildSink(PipelineConfig cfg) {
-        // IoTDBSinkOptions(host, port, user, password, timeseriesOptionList)
-        // timeseriesOptionList = null when enable_auto_create_schema=true on the server
-        IoTDBSinkOptions opts = new IoTDBSinkOptions(
-                cfg.iotdbHost,
-                cfg.iotdbPort,
-                cfg.iotdbUser,
-                cfg.iotdbPass,
-                Collections.emptyList()   // auto_create_schema on server; empty = no pre-registration
-        );
-
-        IoTDBSink<IoTDBAlarmRow> sink = new IoTDBSink<>(opts, new AlarmIoTSerializationSchema());
-        sink.withBatchSize(cfg.iotdbBatchSize);   // commit every N rows
-        sink.withFlushIntervalMs(5_000);           // or every 5 s, whichever comes first
-        return sink;
     }
 
     // ── Sanitisation collision guard (DATA-07) ─────────────────────────────
@@ -197,7 +184,11 @@ public class IoTDBPersistenceJob {
     private static int priorityToSeverity(String priority) {
         if (priority == null) return 300;
         switch (priority.toUpperCase()) {
-            case "CRITICAL":   return 950;
+            // PIPE-007: CRITICAL must normalize to 900, matching
+            // PipelineOperators.priorityToSeverity — the historian and the
+            // Postgres projection must agree on one value for the same alarm.
+            // (950 also collided with the flood-band constant.)
+            case "CRITICAL":   return 900;
             case "HIGH":       return 700;
             case "MEDIUM":     return 400;
             case "LOW":        return 100;

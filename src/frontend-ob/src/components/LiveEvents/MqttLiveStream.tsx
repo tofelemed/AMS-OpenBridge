@@ -5,10 +5,15 @@ import { getMqttBrokerUrl, useMqttStore, type LiveAlarm } from '../../store/mqtt
 import { useDebounce } from '../../hooks/useDebounce';
 import { MqttAlarmListHeader, MqttAlarmListItem } from './MqttAlarmListItem';
 import { LiveAlarmDetailDialog } from './LiveAlarmDetailDialog';
+import { ListPager, usePagedSlice } from '../shared/ListPager';
 import { T } from '../../styles/theme';
 
 
 const PRIORITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const;
+
+// The DDATA firehose covers every device on the site — page it rather than
+// rendering the whole set into the DOM.
+const PAGE_SIZE = 50;
 
 const PRIORITY_STYLE: Record<string, { color: string; bg: string; border: string }> = {
   CRITICAL: { color: T.critical, bg: T.criticalBg, border: 'var(--alert-alarm-color)' },
@@ -19,6 +24,13 @@ const PRIORITY_STYLE: Record<string, { color: string; bg: string; border: string
 
 type SortKey = 'newest' | 'severity' | 'priority' | 'source';
 type ViewMode = 'list' | 'table';
+
+const SORT_NOTE: Record<SortKey, string> = {
+  newest:   'newest first',
+  severity: 'highest severity first',
+  priority: 'highest priority first',
+  source:   'by source',
+};
 
 interface MqttLiveStreamProps {
   alarms: LiveAlarm[];
@@ -112,6 +124,11 @@ export const MqttLiveStream: React.FC<MqttLiveStreamProps> = ({ alarms, paused }
     // tick is intentionally a dep: it forces the relative-time labels to refresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alarms, priorityFilter, debouncedSearch, sortBy, tick]);
+
+  // Re-filtering or re-sorting must land on page 1, not on a now-empty page.
+  const [page, setPage] = useState(0);
+  useEffect(() => { setPage(0); }, [priorityFilter, debouncedSearch, sortBy]);
+  const { pageCount, safePage, pageItems: pagedAlarms } = usePagedSlice(filtered, page, PAGE_SIZE);
 
   const brokerLabel = useMemo(() => {
     try {
@@ -229,7 +246,7 @@ export const MqttLiveStream: React.FC<MqttLiveStreamProps> = ({ alarms, paused }
             <EmptyMqttState connected={connected} snapshotLoaded={snapshotLoaded} />
           ) : viewMode === 'table' ? (
             <MqttAlarmTable
-              alarms={filtered}
+              alarms={pagedAlarms}
               flashIds={flashIds}
               paused={paused}
               selectedId={selectedAlarm?.alarmId}
@@ -238,7 +255,7 @@ export const MqttLiveStream: React.FC<MqttLiveStreamProps> = ({ alarms, paused }
           ) : (
             <>
               <MqttAlarmListHeader />
-              {filtered.map(alarm => (
+              {pagedAlarms.map(alarm => (
                 <MqttAlarmListItem
                   key={alarm.alarmId}
                   alarm={alarm}
@@ -250,6 +267,12 @@ export const MqttLiveStream: React.FC<MqttLiveStreamProps> = ({ alarms, paused }
             </>
           )}
         </div>
+
+        <ListPager
+          page={safePage} pageCount={pageCount} pageSize={PAGE_SIZE}
+          total={filtered.length} onPageChange={setPage}
+          note={paused ? 'paused' : SORT_NOTE[sortBy]}
+        />
       </div>
     </div>
 

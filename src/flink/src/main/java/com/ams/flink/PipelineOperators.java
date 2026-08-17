@@ -61,10 +61,17 @@ public final class PipelineOperators {
                 evt.message = text(root, "message", null);
                 if (httpFeed) {
                     evt.severity = priorityToSeverity(text(root, "priority", null));
+                    // PIPE-012: keep the wire severity for flood detection — the
+                    // normalized severity above is capped at 900, which made the
+                    // ">= 950 flood band" unreachable for http-feed events.
+                    evt.rawSeverity = root.has("severity")
+                            ? root.get("severity").asInt(evt.severity)
+                            : evt.severity;
                     String state = text(root, "state", "ACTIVE");
                     evt.conditionActive = !"CLEARED".equalsIgnoreCase(state);
                 } else {
                     evt.severity = root.has("severity") ? root.get("severity").asInt(300) : 300;
+                    evt.rawSeverity = evt.severity;
                     evt.conditionActive = !root.has("conditionActive") || root.get("conditionActive").asBoolean(true);
                 }
                 evt.ackRequired = httpFeed || (root.has("ackRequired") && root.get("ackRequired").asBoolean());
@@ -364,8 +371,14 @@ public final class PipelineOperators {
         public boolean filter(RawOpcAlarmEvent evt) {
             recordsIn.inc();
             if (evt == null) return false;
+            // PIPE-012: test the wire severity, not the normalized one — http-feed
+            // events are clamped to <= 900 by ValidationMap, so the flood band was
+            // unreachable there. rawSeverity == severity on the non-http path.
+            if (Math.max(evt.severity, evt.rawSeverity) >= 950) {
+                return false;
+            }
             recordsOut.inc();
-            return evt.severity < 950;
+            return true;
         }
     }
 

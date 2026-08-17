@@ -1,0 +1,54 @@
+{
+  "sim": "sim_ack_lifecycle",
+  "run_tag": "rack2",
+  "count": 3,
+  "via_api": true,
+  "checks": {
+    "api_batch_ack_accepted": true,
+    "ack_only_via_kafka_roundtrip": true,
+    "ack_writeback_grew": true,
+    "ack_writeback_dispatched": true,
+    "ack_results_grew": true,
+    "ack_results_have_result_state": true,
+    "lifecycle_ack_states_present": true,
+    "ack_confirm_reached_cas": true,
+    "cas_ack_state_update_seen": true,
+    "pg_acknowledged_after_confirm": true
+  },
+  "detail": {
+    "ack_status_before": {
+      "ACK-rack2-002": "f",
+      "ACK-rack2-000": "f",
+      "ACK-rack2-001": "f"
+    },
+    "resolved_guids": 3,
+    "api_batch_ack_response": "{\"successCount\":3,\"failedCount\":0,\"message\":\"3 acknowledgement(s) dispatched to Flink, 0 failed\"}",
+    "early_ack_roundtrip_evidence": 3,
+    "ack_writeback_matched": 3,
+    "ack_result_states": [
+      "ACK_CONFIRMED"
+    ],
+    "lifecycle_states_seen": [
+      "ACK_CONFIRMED",
+      "ACK_QUEUED",
+      "ACK_REQUESTED"
+    ],
+    "pg_acknowledged_rows": 3,
+    "ack_status_after": {
+      "ACK-rack2-002": {
+        "ack_status": "t",
+        "state": "ACTIVE"
+      },
+      "ACK-rack2-000": {
+        "ack_status": "t",
+        "state": "ACTIVE"
+      },
+      "ACK-rack2-001": {
+        "ack_status": "t",
+        "state": "ACTIVE"
+      }
+    }
+  },
+  "note": "ACK_CONFIRMED via real HTTP writeback is unreachable in this lab (PIPE-002); confirm branch exercised via synthetic ack-results.",
+  "finished_utc": "2026-08-13T19:22:30.320117Z"
+}

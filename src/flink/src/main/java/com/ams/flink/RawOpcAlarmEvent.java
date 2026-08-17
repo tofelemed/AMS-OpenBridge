@@ -10,6 +10,13 @@ public class RawOpcAlarmEvent implements java.io.Serializable {
     public String subCondition;
     public String message;
     public int severity;
+    /**
+     * Severity as received on the wire, BEFORE ValidationMap normalizes http-feed
+     * events to the priority band floor. FloodDetectFilter tests this value
+     * (PIPE-012): the normalized severity is capped at 900, so the documented
+     * "drop >= 950" band could never fire on the http-feed path.
+     */
+    public int rawSeverity;
     public boolean conditionActive;
     public boolean ackRequired;
     /** DCS/OPC ack bit from telemetry — informational only; never drives UI projection. */

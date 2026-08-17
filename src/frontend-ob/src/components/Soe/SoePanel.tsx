@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useAlarmStore, type SoeEvent } from '../../store/alarmStore';
 import { formatTimestampMs } from '../../utils/time';
 import { T } from '../../styles/theme';
+import { ListPager, usePagedSlice } from '../shared/ListPager';
 
 // K: plant/OPC event text (sourceName, message) is external data — interpolating
 // it raw into tooltip.html() is stored-XSS. Escape the interpolated fields.
@@ -21,6 +22,9 @@ const PRIORITY_COLOR = {
   LOW:      T.blueMuted,
 } as Record<string, string>;
 
+// The store keeps the latest MAX_SOE_EVENTS (500); the log rendered all of them.
+const PAGE_SIZE = 25;
+
 const SoePanel: React.FC = () => {
   const events    = useAlarmStore(s => s.recentSoeEvents);
   const svgRef    = useRef<SVGSVGElement>(null);
@@ -29,6 +33,12 @@ const SoePanel: React.FC = () => {
   // effect (full d3 rebuild); without this, every arriving event snapped an
   // operator who was zoomed into a microsecond window back to full extent.
   const transformRef = useRef<d3.ZoomTransform | null>(null);
+
+  // Event-log paging. The d3 timeline above still plots the full buffer — only the
+  // log is paged. Page 1 tracks the live head; deeper pages drift as new events
+  // push in, which is inherent to a rolling buffer.
+  const [page, setPage] = useState(0);
+  const { pageCount, safePage, pageItems: pagedEvents } = usePagedSlice(events, page, PAGE_SIZE);
 
   useEffect(() => {
     if (!svgRef.current || !wrapperRef.current || events.length === 0) return;
@@ -283,7 +293,7 @@ const SoePanel: React.FC = () => {
               No SOE events received yet.
             </div>
           ) : (
-            events.map((e) => {
+            pagedEvents.map((e) => {
               const color = PRIORITY_COLOR[e.priority] ?? T.blue;
               return (
                 <div
@@ -343,6 +353,12 @@ const SoePanel: React.FC = () => {
             })
           )}
         </div>
+
+        <ListPager
+          page={safePage} pageCount={pageCount} pageSize={PAGE_SIZE}
+          total={events.length} onPageChange={setPage}
+          note={safePage === 0 ? 'newest first' : 'older events'}
+        />
       </div>
     </div>
   );

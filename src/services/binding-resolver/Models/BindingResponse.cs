@@ -99,10 +99,18 @@ public record LiveBinding
 /// </summary>
 public record MqttConnectionInfo
 {
+    /// <summary>Broker host on the compose network — for in-cluster/ops consumers only.</summary>
     public required string Host { get; init; }
     public required int Port { get; init; }
     public required string Protocol { get; init; }  // ws or wss
     public string? Username { get; init; }
+
+    /// <summary>
+    /// Gateway-relative WebSocket path browsers must use (PIPE-011). The gateway
+    /// authenticates it via <c>?access_token=&lt;JWT&gt;</c> — Host/Port above are
+    /// unreachable from outside the compose network since the Plan 04 lockdown.
+    /// </summary>
+    public string WsPath { get; init; } = "/mqtt-ws";
 }
 
 /// <summary>

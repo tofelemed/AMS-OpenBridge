@@ -24,4 +24,18 @@ final class CplmKafkaSink {
         // this sink afterwards. sinkName is unique per job.
         return stream.sinkTo(sink).name(sinkName).uid(sinkName);
     }
+
+    /**
+     * Keyed variant (PIPE-010): key = a top-level JSON string field, so all records
+     * for one entity land on one partition and consumers see them in order.
+     * Delegates to the shared {@link com.ams.flink.KafkaSinks} builder (explicit
+     * producer timeouts, never emits a null key).
+     */
+    static DataStreamSink<String> attachKeyed(
+            DataStream<String> stream, CplmJobConfig cfg, String topic, String sinkName, String keyField) {
+        return stream
+                .sinkTo(com.ams.flink.KafkaSinks.keyedByJsonField(cfg.brokers, topic, keyField))
+                .name(sinkName)
+                .uid(sinkName);
+    }
 }

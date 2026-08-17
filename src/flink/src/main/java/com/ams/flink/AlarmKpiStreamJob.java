@@ -97,14 +97,11 @@ public class AlarmKpiStreamJob {
                 .name("standing-alarm-tracker")
                 .uid("standing-alarm-tracker");
 
-        KafkaSink<String> standingSink = KafkaSink.<String>builder()
-                .setBootstrapServers(cfg.brokers)
-                .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
-                .setRecordSerializer(KafkaRecordSerializationSchema.builder()
-                        .setTopic("kpi-standing-snapshots")
-                        .setValueSerializationSchema(new SimpleStringSchema())
-                        .build())
-                .build();
+        // kpi-standing-snapshots is COMPACTED: records must be keyed or the broker
+        // rejects them — see docs/alarm-history-flink-sink-stuck.md. Key matches the
+        // keyBy above: one global snapshot entity, compaction keeps the latest.
+        KafkaSink<String> standingSink =
+                KafkaSinks.fixedKey(cfg.brokers, "kpi-standing-snapshots", "GLOBAL");
 
         standingSnapshot.map(AlarmKpiResult::toJson).sinkTo(standingSink).name("standing-sink");
 

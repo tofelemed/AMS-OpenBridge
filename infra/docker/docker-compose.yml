@@ -91,6 +91,10 @@ services:
       - iotdb-data:/iotdb/data
       - iotdb-logs:/iotdb/logs
       - iotdb-ext:/iotdb/ext
+      # PIPE-014: explicit ON_HEAP/OFF_HEAP sizing. datanode-env.sh recalculates
+      # from host memory unconditionally — env vars cannot override it, so the
+      # edited script is mounted over the stock one.
+      - ./iotdb/datanode-env.sh:/iotdb/conf/datanode-env.sh:ro
     ports:
       - "6667:6667"
       - "8181:8181"
@@ -364,11 +368,21 @@ services:
       KAFKA_BROKER_ID:                        1
       KAFKA_ZOOKEEPER_CONNECT:                zookeeper:2181
       KAFKA_LISTENERS:                        INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS:             INTERNAL://kafka:9092,EXTERNAL://:9093
+      # PIPE-001: EXTERNAL must advertise a host-resolvable address. The previous
+      # `EXTERNAL://:9093` (empty host) made clients resolve the container's
+      # canonical hostname, so every host-side producer/consumer failed after
+      # bootstrap. 127.0.0.1 (not `localhost`): on Windows hosts `localhost`
+      # resolves to ::1 first and Docker's published port black-holes IPv6.
+      # Override KAFKA_EXTERNAL_HOST in .env for non-local access.
+      KAFKA_ADVERTISED_LISTENERS:             INTERNAL://kafka:9092,EXTERNAL://${KAFKA_EXTERNAL_HOST:-127.0.0.1}:9093
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP:   INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME:       INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE:        "true"
+      # PIPE-005 / Plan 09: auto-create OFF — a typo'd topic name must fail loudly,
+      # not materialize a 4-partition 24h-retention topic. Every required topic is
+      # declared in scripts/kafka-reset-lab-topics.ps1 (incl. audit-events and
+      # lifecycle-alerts since PIPE-006).
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE:        "false"
       KAFKA_NUM_PARTITIONS:                   4
       KAFKA_HEAP_OPTS:                        "-Xmx1024M -Xms1024M"
       KAFKA_LOG_RETENTION_HOURS:              "24"
@@ -387,6 +401,48 @@ services:
       timeout: 10s
       retries: 5
       start_period: 180s
+
+  # ────────────────────────────────────────────────
+  # mock-dcs — lab stand-in for the DCS ACK endpoint (PIPE-002).
+  # HttpAckWritebackService POSTs acknowledgements here and gets HTTP 200, so the
+  # full ACK loop (operator-actions → ack-writeback → HTTP → ack-results
+  # ACK_CONFIRMED → ACK_STATE_UPDATE → Postgres) is testable E2E without a real
+  # DCS. Logs every ACK body to stdout for inspection. Remove/override
+  # ACK_WRITEBACK_URL when a real feed host exists.
+  # ────────────────────────────────────────────────
+  mock-dcs:
+    image: python:3.11-alpine
+    container_name: ams-mock-dcs
+    logging: *default-logging
+    <<: *default-restart
+    command:
+      - python
+      - -u
+      - -c
+      - |
+        import json
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+        class H(BaseHTTPRequestHandler):
+            def do_POST(self):
+                n = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(n)
+                print('ACK', self.path, body.decode('utf-8', 'replace')[:400], flush=True)
+                out = json.dumps({'status': 'ok'}).encode()
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(out)))
+                self.end_headers()
+                self.wfile.write(out)
+            def log_message(self, *a):
+                pass
+        HTTPServer(('0.0.0.0', 8010), H).serve_forever()
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8010), 3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
 
   # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   # MinIO â€” durable object storage for Flink checkpoints and savepoints (STR-02)
@@ -463,6 +519,17 @@ services:
         jobmanager.rpc.address: flink-jobmanager
         jobmanager.memory.process.size: 1024m
         parallelism.default: 1
+        # JM HA (prod item 1, 2026-08-17): ZooKeeper-backed HA services. Even with a
+        # single JM this persists submitted job graphs (ZK pointers + s3 blobs), so a
+        # JobManager restart RECOVERS every job from its latest checkpoint instead of
+        # wiping the registry and forcing fresh stateless resubmits (the 2026-08-13
+        # failure mode: lost dedup/RBE/CPLM-24h state + raw-alarms replay storms).
+        # MinIO (STR-02) was the prerequisite; ZK is the same ensemble Kafka uses.
+        high-availability.type: zookeeper
+        high-availability.zookeeper.quorum: zookeeper:2181
+        high-availability.zookeeper.path.root: /flink-ams
+        high-availability.cluster-id: /ams-lab
+        high-availability.storageDir: s3://ams-flink/ha/
         # Phase 6: RocksDB state backend for large keyed state (RBE fingerprints)
         state.backend: rocksdb
         state.backend.incremental: true
@@ -534,6 +601,13 @@ services:
         jobmanager.rpc.address: flink-jobmanager
         taskmanager.memory.process.size: 2048m
         taskmanager.numberOfTaskSlots: 16
+        # JM HA — must match the jobmanager exactly; the TM discovers the leading
+        # JM through ZooKeeper once HA is on.
+        high-availability.type: zookeeper
+        high-availability.zookeeper.quorum: zookeeper:2181
+        high-availability.zookeeper.path.root: /flink-ams
+        high-availability.cluster-id: /ams-lab
+        high-availability.storageDir: s3://ams-flink/ha/
         # Phase 6: consistent settings with jobmanager
         state.backend: rocksdb
         state.backend.incremental: true
@@ -629,7 +703,11 @@ services:
       Flink__JobManagerUrl:          http://flink-jobmanager:8081
       AlarmIngestion__Enabled:       "true"
       AlarmIngestion__FeedUrl:          http://192.168.1.51:8010/api/current-alarms
-      AlarmIngestion__AckWritebackUrl:  http://192.168.1.51:8010/api/alarms/acknowledge
+      # PIPE-002: the real DCS host (192.168.1.51) is unreachable from this lab, so
+      # every ACK ended ACK_FAILED and ACK_CONFIRMED was untestable E2E. The lab
+      # now closes the loop against the mock-dcs stub below. Point back at the
+      # real feed host (override in .env) when one exists.
+      AlarmIngestion__AckWritebackUrl:  ${ACK_WRITEBACK_URL:-http://mock-dcs:8010/api/alarms/acknowledge}
       AlarmIngestion__PollIntervalMs: "2000"
       AlarmIngestion__ServerId:      "f0af9a6d-85f6-4c9f-a8ad-6de277d1d110"
       AlarmIngestion__ServerName:    "Current Alarms Feed"
@@ -1355,7 +1433,11 @@ services:
       KAFKA_BROKERS:               kafka:9092
       FLINK_JAR_PATH:              /opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar
       SUPERVISOR_INTERVAL_SEC:     "60"
-      RAW_ALARMS_STARTING_OFFSETS: earliest
+      # Prod item 4 (2026-08-17): resume from the consumer group's committed offsets
+      # (earliest only on a true first deploy). "earliest" made every fresh submit
+      # replay the whole raw-alarms topic — idempotent downstream, but a burst of
+      # thousands of re-upserts through CAS/SignalR/historian on each JM incident.
+      RAW_ALARMS_STARTING_OFFSETS: committed
       IOTDB_HOST:                  iotdb
       IOTDB_PORT:                  "6667"
     volumes:

@@ -1,0 +1,7 @@
+# ams-sims — pipeline validation simulators
+# Kafka publishing rides `docker exec ams-kafka kafka-console-producer`
+# (host 9093 advertises an unresolvable address — pipeline.md PIPE-001),
+# so no Kafka client library is required.
+requests>=2.31
+paho-mqtt>=2.0
+signalrcore>=1.0.2   # SignalR /hubs/alarms verification (sim_alarm_feed)

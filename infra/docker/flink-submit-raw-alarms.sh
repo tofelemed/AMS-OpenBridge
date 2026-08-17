@@ -29,10 +29,12 @@ if [ ! -f "$JAR_PATH" ]; then
   exit 1
 fi
 
-# Skip submit if the alarm state machine job is already RUNNING.
+# Skip submit if the alarm state machine job is already present. Recovery states
+# count (prod item 3): with JM HA a cold start recovers jobs through
+# CREATED/INITIALIZING/RECONCILING, and a RUNNING-only check would duplicate them.
 if /opt/flink/bin/flink list -m "${JOBMANAGER_HOST}:${JOBMANAGER_PORT}" 2>/dev/null \
-  | grep -q "${JOB_NAME} (RUNNING)"; then
-  echo "[Flink Submit] Job '${JOB_NAME}' already RUNNING; skipping submit."
+  | grep -F "${JOB_NAME}" | grep -qE '\((CREATED|INITIALIZING|RUNNING|RESTARTING|RECONCILING)\)'; then
+  echo "[Flink Submit] Job '${JOB_NAME}' already present; skipping submit."
   exit 0
 fi
 

@@ -7,9 +7,6 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.base.DeliveryGuarantee;
-import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
-import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.streaming.api.CheckpointingMode;
@@ -71,13 +68,15 @@ public class LiveStateJob {
                 .uid("live-state-ingest");
 
         // ── live.alarms ── full envelope, RBE filtered
+        // Keyed by alarmId (PIPE-010): live.alarms has 4 partitions and the edge
+        // node must see one alarm's UPSERT/CLEAR sequence in order.
         currentState
                 .keyBy(LiveStateJob::extractAlarmId)
                 .map(new RbeAlarmStateMap())
                 .name("rbe-alarm-filter")
                 .uid("rbe-alarm-filter")
                 .filter(s -> s != null && !s.isEmpty())
-                .sinkTo(kafkaSink(cfg.brokers, "live.alarms"))
+                .sinkTo(KafkaSinks.keyedByJsonField(cfg.brokers, "live.alarms", "alarmId"))
                 .name("live-alarms-sink")
                 .uid("live-alarms-sink");
 
@@ -98,7 +97,7 @@ public class LiveStateJob {
                 .name("rbe-metrics-filter")
                 .uid("rbe-metrics-filter")
                 .filter(s -> s != null && !s.isEmpty())
-                .sinkTo(kafkaSink(cfg.brokers, ALARM_METRICS_TOPIC))
+                .sinkTo(KafkaSinks.keyedByJsonField(cfg.brokers, ALARM_METRICS_TOPIC, "alarmId"))
                 .name("live-metrics-sink")
                 .uid("live-metrics-sink");
 
@@ -260,15 +259,4 @@ public class LiveStateJob {
         return (v == null || v.isNull()) ? "" : v.asText();
     }
 
-    private static KafkaSink<String> kafkaSink(String brokers, String topic) {
-        return KafkaSink.<String>builder()
-                .setBootstrapServers(brokers)
-                .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
-                .setRecordSerializer(
-                        KafkaRecordSerializationSchema.builder()
-                                .setTopic(topic)
-                                .setValueSerializationSchema(new SimpleStringSchema())
-                                .build())
-                .build();
-    }
 }

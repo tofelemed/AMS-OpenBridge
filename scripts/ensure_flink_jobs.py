@@ -86,7 +86,9 @@ CORE_JOBS: tuple[FlinkJobSpec, ...] = (
         entry_class="com.ams.flink.OpcEventStreamJob",
         extra_args=(
             "--bootstrap.servers", KAFKA_BROKERS,
-            "--raw-alarms.starting-offsets", "earliest",
+            # committed-with-earliest-fallback (prod item 4, 2026-08-17): keep in
+            # step with the compose supervisor's RAW_ALARMS_STARTING_OFFSETS.
+            "--raw-alarms.starting-offsets", "committed",
             "--parallelism.raw-ingest", "2",
             "--parallelism.validation", "2",
             "--parallelism.dedup", "2",
@@ -170,6 +172,18 @@ CORE_JOBS = CORE_JOBS + (
             "--consumer-group-id", "flink-ams-cplm",
             "--deadband", "0.05",
         ),
+    ),
+    # STR-08 parity with flink-job-supervisor.sh (the two lists must not drift —
+    # that is how AnalysisExecutionJob stayed dead once already, STR-07).
+    FlinkJobSpec(
+        name="AMS - Alarm KPI Engine",
+        entry_class="com.ams.flink.AlarmKpiStreamJob",
+        extra_args=("--bootstrap.servers", KAFKA_BROKERS),
+    ),
+    FlinkJobSpec(
+        name="AMS Alarm State Export Engine",
+        entry_class="com.ams.flink.AlarmStateExportJob",
+        extra_args=("--bootstrap.servers", KAFKA_BROKERS),
     ),
 )
 

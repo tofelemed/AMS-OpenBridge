@@ -1,0 +1,56 @@
+{
+  "sim": "sim_ack_lifecycle",
+  "run_tag": "vack5",
+  "count": 3,
+  "via_api": true,
+  "checks": {
+    "api_batch_ack_accepted": true,
+    "api_did_not_ack_directly": true,
+    "ack_writeback_grew": true,
+    "ack_writeback_dispatched": true,
+    "ack_results_grew": true,
+    "ack_results_have_result_state": true,
+    "lifecycle_ack_states_present": true,
+    "ack_confirm_reached_cas": true,
+    "cas_ack_state_update_seen": true,
+    "pg_acknowledged_after_confirm": true
+  },
+  "detail": {
+    "ack_status_before": {
+      "ACK-vack5-002": "f",
+      "ACK-vack5-001": "f",
+      "ACK-vack5-000": "f"
+    },
+    "resolved_guids": 3,
+    "api_batch_ack_response": "{\"successCount\":3,\"failedCount\":0,\"message\":\"3 acknowledgement(s) dispatched to Flink, 0 failed\"}",
+    "ack_writeback_matched": 3,
+    "ack_result_states": [
+      "ACK_FAILED"
+    ],
+    "lifecycle_states_seen": [
+      "ACK_FAILED",
+      "ACK_QUEUED",
+      "ACTIVE",
+      "f0af9a6d-85f6-4c9f-a8ad-6de277d1d110|AckSim.vack5.Unit1.Tag_000",
+      "f0af9a6d-85f6-4c9f-a8ad-6de277d1d110|AckSim.vack5.Unit1.Tag_001",
+      "f0af9a6d-85f6-4c9f-a8ad-6de277d1d110|AckSim.vack5.Unit1.Tag_002"
+    ],
+    "pg_acknowledged_rows": 3,
+    "ack_status_after": {
+      "ACK-vack5-002": {
+        "ack_status": "t",
+        "state": "ACTIVE"
+      },
+      "ACK-vack5-000": {
+        "ack_status": "t",
+        "state": "ACTIVE"
+      },
+      "ACK-vack5-001": {
+        "ack_status": "t",
+        "state": "ACTIVE"
+      }
+    }
+  },
+  "note": "ACK_CONFIRMED via real HTTP writeback is unreachable in this lab (PIPE-002); confirm branch exercised via synthetic ack-results.",
+  "finished_utc": "2026-08-13T11:41:41.826058Z"
+}

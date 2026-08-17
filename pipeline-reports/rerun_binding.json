@@ -1,0 +1,77 @@
+{
+  "sim": "sim_binding_resolution",
+  "run_tag": "rbind1",
+  "checks": {
+    "paths_discovered": true,
+    "role_live_all_paths": true,
+    "role_history_all_paths": true,
+    "role_alarm_all_paths": true,
+    "batch_resolve": true,
+    "service_key_rejected_at_gateway": true,
+    "anonymous_rejected": true
+  },
+  "detail": {
+    "paths": [
+      "dallas/blend1/hx02.flow",
+      "dallas/blend1/hx02.temp_in",
+      "dallas/blend1/hx02.temp_out"
+    ],
+    "per_path": {
+      "dallas/blend1/hx02.flow": {
+        "live_descriptor_sample": "{\"contextualPath\": \"dallas/blend1/hx02.flow\", \"resolved\": true, \"provenance\": \"asset-model\", \"error\": null, \"live\": {\"mqtt\": {\"host\": \"emqx\", \"port\": 8083, \"protocol\": \"ws\", \"username\": \"\", \"wsPath\": \"/mqtt-ws\"}, \"sparkplugTopic\": \"spBv1.0/dallas/DDATA/dallas_edge1/hx02\", \"sparkplugGroup\": \"dallas\", \"sparkplugEdgeNode\": \"dallas_edge1\", \"sparkplugDevice\": \"hx02\", \"sparkplugMetric\": \"flow\", \"redisSn",
+        "live": {
+          "ok": true,
+          "problems": []
+        },
+        "history_descriptor_sample": "{\"contextualPath\": \"dallas/blend1/hx02.flow\", \"resolved\": true, \"provenance\": \"asset-model\", \"error\": null, \"live\": null, \"history\": {\"ioTDbPath\": \"root.dallas.blend1.hx02.flow\", \"trendEndpoint\": \"/api/hist/trend?series=root.dallas.blend1.hx02.flow\", \"rawEndpoint\": \"/api/hist/raw?series=root.dallas.blend1.hx02.flow\"}, \"alarm\": null}",
+        "history": {
+          "ok": true,
+          "problems": []
+        },
+        "alarm_descriptor_sample": "{\"contextualPath\": \"dallas/blend1/hx02.flow\", \"resolved\": true, \"provenance\": \"asset-model\", \"error\": null, \"live\": null, \"history\": null, \"alarm\": {\"alarmSource\": \"dallas:blend1:hx02\", \"signalRHub\": \"/hubs/alarms\", \"subscribeMethod\": \"SubscribeToArea\", \"kafkaTopic\": \"live.alarms\", \"alarmApiEndpoint\": \"/api/v1/alarms/active?sourceNameContains=dallas%3Ablend1%3Ahx02\"}}",
+        "alarm": {
+          "ok": true,
+          "problems": []
+        }
+      },
+      "dallas/blend1/hx02.temp_in": {
+        "live_descriptor_sample": "{\"contextualPath\": \"dallas/blend1/hx02.temp_in\", \"resolved\": true, \"provenance\": \"asset-model\", \"error\": null, \"live\": {\"mqtt\": {\"host\": \"emqx\", \"port\": 8083, \"protocol\": \"ws\", \"username\": \"\", \"wsPath\": \"/mqtt-ws\"}, \"sparkplugTopic\": \"spBv1.0/dallas/DDATA/dallas_edge1/hx02\", \"sparkplugGroup\": \"dallas\", \"sparkplugEdgeNode\": \"dallas_edge1\", \"sparkplugDevice\": \"hx02\", \"sparkplugMetric\": \"temp_in\", \"r",
+        "live": {
+          "ok": true,
+          "problems": []
+        },
+        "history_descriptor_sample": "{\"contextualPath\": \"dallas/blend1/hx02.temp_in\", \"resolved\": true, \"provenance\": \"asset-model\", \"error\": null, \"live\": null, \"history\": {\"ioTDbPath\": \"root.dallas.blend1.hx02.temp_in\", \"trendEndpoint\": \"/api/hist/trend?series=root.dallas.blend1.hx02.temp_in\", \"rawEndpoint\": \"/api/hist/raw?series=root.dallas.blend1.hx02.temp_in\"}, \"alarm\": null}",
+        "history": {
+          "ok": true,
+          "problems": []
+        },
+        "alarm_descriptor_sample": "{\"contextualPath\": \"dallas/blend1/hx02.temp_in\", \"resolved\": true, \"provenance\": \"asset-model\", \"error\": null, \"live\": null, \"history\": null, \"alarm\": {\"alarmSource\": \"dallas:blend1:hx02\", \"signalRHub\": \"/hubs/alarms\", \"subscribeMethod\": \"SubscribeToArea\", \"kafkaTopic\": \"live.alarms\", \"alarmApiEndpoint\": \"/api/v1/alarms/active?sourceNameContains=dallas%3Ablend1%3Ahx02\"}}",
+        "alarm": {
+          "ok": true,
+          "problems": []
+        }
+      },
+      "dallas/blend1/hx02.temp_out": {
+        "live_descriptor_sample": "{\"contextualPath\": \"dallas/blend1/hx02.temp_out\", \"resolved\": true, \"provenance\": \"asset-model\", \"error\": null, \"live\": {\"mqtt\": {\"host\": \"emqx\", \"port\": 8083, \"protocol\": \"ws\", \"username\": \"\", \"wsPath\": \"/mqtt-ws\"}, \"sparkplugTopic\": \"spBv1.0/dallas/DDATA/dallas_edge1/hx02\", \"sparkplugGroup\": \"dallas\", \"sparkplugEdgeNode\": \"dallas_edge1\", \"sparkplugDevice\": \"hx02\", \"sparkplugMetric\": \"temp_out\", ",
+        "live": {
+          "ok": true,
+          "problems": []
+        },
+        "history_descriptor_sample": "{\"contextualPath\": \"dallas/blend1/hx02.temp_out\", \"resolved\": true, \"provenance\": \"asset-model\", \"error\": null, \"live\": null, \"history\": {\"ioTDbPath\": \"root.dallas.blend1.hx02.temp_out\", \"trendEndpoint\": \"/api/hist/trend?series=root.dallas.blend1.hx02.temp_out\", \"rawEndpoint\": \"/api/hist/raw?series=root.dallas.blend1.hx02.temp_out\"}, \"alarm\": null}",
+        "history": {
+          "ok": true,
+          "problems": []
+        },
+        "alarm_descriptor_sample": "{\"contextualPath\": \"dallas/blend1/hx02.temp_out\", \"resolved\": true, \"provenance\": \"asset-model\", \"error\": null, \"live\": null, \"history\": null, \"alarm\": {\"alarmSource\": \"dallas:blend1:hx02\", \"signalRHub\": \"/hubs/alarms\", \"subscribeMethod\": \"SubscribeToArea\", \"kafkaTopic\": \"live.alarms\", \"alarmApiEndpoint\": \"/api/v1/alarms/active?sourceNameContains=dallas%3Ablend1%3Ahx02\"}}",
+        "alarm": {
+          "ok": true,
+          "problems": []
+        }
+      }
+    },
+    "batch_sample": "{\"bindings\":[{\"contextualPath\":\"dallas/blend1/hx02.flow\",\"resolved\":true,\"provenance\":\"asset-model\",\"error\":null,\"live\":{\"mqtt\":{\"host\":\"emqx\",\"port\":8083,\"protocol\":\"ws\",\"username\":\"\",\"wsPath\":\"/mqtt-ws\"},\"sparkplugTopic\":\"spBv1.0/dallas/DDATA/dallas_edge1/hx02\",\"sparkplugGroup\":\"dallas\",\"sparkplugEdgeNode\":\"dallas_edge1\",\"sparkplugDevice\":\"hx02\",\"sparkplugMetric\":\"flow\",\"redisSnapshotKey\":\"snaps",
+    "service_key_status": 401,
+    "anonymous_status": 401
+  },
+  "finished_utc": "2026-08-13T19:22:48.418868Z"
+}

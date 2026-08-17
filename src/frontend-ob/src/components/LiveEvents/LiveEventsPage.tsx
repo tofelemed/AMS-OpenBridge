@@ -7,6 +7,7 @@ import { useMqttStore, type LiveAlarm } from '../../store/mqttStore';
 import { useDebounce } from '../../hooks/useDebounce';
 import { formatTimestampMs } from '../../utils/time';
 import { MqttLiveStream } from './MqttLiveStream';
+import { ListPager, usePagedSlice } from '../shared/ListPager';
 import { T } from '../../styles/theme';
 
 
@@ -18,6 +19,9 @@ const PRIORITY_COLOR: Record<string, string> = {
 };
 
 type StreamTab = 'signalr' | 'mqtt';
+
+// The SignalR tab renders from the store's rolling 500-event SOE buffer.
+const SOE_PAGE_SIZE = 25;
 
 const LiveEventsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -74,6 +78,13 @@ const LiveEventsPage: React.FC = () => {
   }, [frozenSoe, priorityFilter, debouncedSourceFilter]);
 
   const filteredMqtt = useMemo(() => frozenMqtt, [frozenMqtt]);
+
+  // Narrowing the stream must land the operator on page 1, not on a now-empty page.
+  const [soePage, setSoePage] = useState(0);
+  useEffect(() => { setSoePage(0); }, [priorityFilter, debouncedSourceFilter, activeTab]);
+  const {
+    pageCount: soePageCount, safePage: soeSafePage, pageItems: pagedSoe,
+  } = usePagedSlice(filteredSoe, soePage, SOE_PAGE_SIZE);
 
   const criticalSoe  = filteredSoe.filter(e => e.priority === 'CRITICAL').length;
   const outOfOrder   = filteredSoe.filter(e => e.isOutOfOrder).length;
@@ -224,9 +235,15 @@ const LiveEventsPage: React.FC = () => {
             <EmptyState icon="📡" title="Waiting for SignalR SOE events"
               sub={signalrLive ? 'OPC AE events will appear here in real time' : 'SignalR hub is not connected'} />
           ) : (
-            filteredSoe.map((event) => <SoeEventRow key={`${event.id}-${event.sourceTimestampEpochMs}`} event={event} />)
+            pagedSoe.map((event) => <SoeEventRow key={`${event.id}-${event.sourceTimestampEpochMs}`} event={event} />)
           )}
         </div>
+
+        <ListPager
+          page={soeSafePage} pageCount={soePageCount} pageSize={SOE_PAGE_SIZE}
+          total={filteredSoe.length} onPageChange={setSoePage}
+          note={paused ? 'frozen' : 'newest first'}
+        />
       </div>
       )}
       </div>

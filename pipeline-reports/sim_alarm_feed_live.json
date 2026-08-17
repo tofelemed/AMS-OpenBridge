@@ -1,0 +1,29 @@
+{
+  "sim": "sim_alarm_feed",
+  "run_tag": "vlive1",
+  "count": 8,
+  "baseline": {
+    "current_alarm_state": 232,
+    "lifecycle_events": 380
+  },
+  "checks": {
+    "current_alarm_state_grew": true,
+    "cas_records_keyed_by_alarm_id": true,
+    "cas_records_are_upserts": true,
+    "pg_alarm_current_rows": true,
+    "pg_identity_columns_correct": true,
+    "api_priority_mapping": true,
+    "lifecycle_events_grew": true,
+    "signalr_on_new_or_updated": true
+  },
+  "detail": {
+    "cas_matched": 8,
+    "pg_rows": 8,
+    "api_active_matched": 8,
+    "priority_mismatches": [],
+    "signalr_events_total": 8,
+    "signalr_errors": [],
+    "no_priority_record_projected": true
+  },
+  "finished_utc": "2026-08-13T11:48:56.662963Z"
+}

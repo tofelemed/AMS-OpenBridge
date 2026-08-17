@@ -221,3 +221,63 @@
 /* Keep hover/selection readable on top of state tints */
 .ag-theme-alpine.ag-theme-openbridge .ag-row:hover { background-color: var(--ag-row-hover-color); }
 .ag-theme-alpine.ag-theme-openbridge .ag-row.ag-row-selected { background-color: var(--ag-selected-row-background-color); }
+
+/* ── Pagination panel ───────────────────────────────────────────────────────
+   AG Grid's own paging footer, dressed in OpenBridge tokens so it reads as
+   part of the console chrome rather than Alpine's default grey bar. */
+.ag-theme-alpine.ag-theme-openbridge .ag-paging-panel {
+  height: 40px;
+  min-height: 40px;
+  padding: 0 12px;
+  gap: 16px;
+  background: var(--container-background-color);
+  color: var(--on-container-neutral-color);
+  border-top: 1px solid var(--divider-color);
+  font-size: 12px;
+}
+.ag-theme-alpine.ag-theme-openbridge .ag-paging-row-summary-panel,
+.ag-theme-alpine.ag-theme-openbridge .ag-paging-page-summary-panel {
+  color: var(--on-container-neutral-color);
+  font-variant-numeric: tabular-nums;
+}
+.ag-theme-alpine.ag-theme-openbridge .ag-paging-description,
+.ag-theme-alpine.ag-theme-openbridge .ag-paging-number,
+.ag-theme-alpine.ag-theme-openbridge .ag-paging-row-summary-panel-number {
+  color: var(--on-container-active-color);
+  font-weight: 600;
+}
+
+/* Page-size selector: match the floating-filter inputs above it. */
+.ag-theme-alpine.ag-theme-openbridge .ag-paging-page-size .ag-picker-field-wrapper {
+  background: var(--surface-background-color);
+  border: 1px solid var(--divider-color);
+  border-radius: var(--corner-radius, 4px);
+  color: var(--on-container-active-color);
+  min-height: 28px;
+}
+.ag-theme-alpine.ag-theme-openbridge .ag-paging-page-size .ag-picker-field-wrapper:focus-within {
+  border-color: var(--focus-color);
+  outline: none;
+}
+
+/* Prev/next/first/last: 32px visible control inside a 40px hit area. */
+.ag-theme-alpine.ag-theme-openbridge .ag-paging-button {
+  min-width: 32px;
+  height: 32px;
+  margin: 0 2px;
+  padding: 0 4px;
+  border-radius: var(--corner-radius, 4px);
+  color: var(--on-container-active-color);
+  cursor: pointer;
+}
+.ag-theme-alpine.ag-theme-openbridge .ag-paging-button:hover:not(.ag-disabled) {
+  background: color-mix(in srgb, var(--on-container-active-color) 8%, transparent);
+}
+.ag-theme-alpine.ag-theme-openbridge .ag-paging-button:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: -2px;
+}
+.ag-theme-alpine.ag-theme-openbridge .ag-paging-button.ag-disabled {
+  color: var(--ag-disabled-foreground-color);
+  cursor: default;
+}

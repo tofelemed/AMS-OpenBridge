@@ -7,7 +7,13 @@ $ErrorActionPreference = "Stop"
 
 $retentionMs = "604800000"
 $segmentMs = "3600000"
-$minIsr = "1"
+# Prod item 5 (2026-08-17): replication is env-parametrized so the SAME script
+# serves lab and production. Lab (single broker) stays RF=1/minISR=1. Production
+# (>=3 brokers) MUST run with KAFKA_TOPIC_RF=3 and KAFKA_TOPIC_MIN_ISR=2 —
+# together with producer acks=all that survives one broker loss without data
+# loss. See docs/ha-production-guide.md (also covers __consumer_offsets RF).
+$rf = if ($env:KAFKA_TOPIC_RF) { $env:KAFKA_TOPIC_RF } else { "1" }
+$minIsr = if ($env:KAFKA_TOPIC_MIN_ISR) { $env:KAFKA_TOPIC_MIN_ISR } else { "1" }
 
 $allowedTopics = @(
     @{ Name = "raw-alarms"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
@@ -41,6 +47,12 @@ $allowedTopics = @(
     # Live state (Report-By-Exception): Flink LiveStateJob → Sparkplug Edge Node
     @{ Name = "live.metrics"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
     @{ Name = "live.alarms";  Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
+    # STR-12 split: LiveStateJob's alarm-shaped numeric metrics go here, NOT to
+    # live.metrics (that carries the {device,metric,value} process-value schema).
+    # Uncataloged until 2026-08-13: with auto-create now OFF (Plan 09/PIPE-005) a
+    # missing topic stalls the producer at checkpoint flush and restart-loops the
+    # Live State RBE job.
+    @{ Name = "live.alarm.metrics"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
     # Raw telemetry (harmonised samples – StreamPipes path, future use)
     @{ Name = "raw.telemetry.site1"; Partitions = 16; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" }
 )
@@ -60,7 +72,14 @@ $ensureTopics = @(
     @{ Name = "clpm.gate.results.v1"; Partitions = 8; Config = "retention.ms=$cplmRetention30d,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     @{ Name = "live.loop.metrics"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
     @{ Name = "ams.metadata.updates"; Partitions = 3; Config = "cleanup.policy=compact,min.insync.replicas=$minIsr" },
-    @{ Name = "context.parameter-set.v1"; Partitions = 3; Config = "cleanup.policy=compact,min.insync.replicas=$minIsr" }
+    @{ Name = "context.parameter-set.v1"; Partitions = 3; Config = "cleanup.policy=compact,min.insync.replicas=$minIsr" },
+    # PIPE-006: previously uncataloged — they existed only via broker auto-create
+    # (24 h retention). audit-events is the governance transport (display-service /
+    # cplm-api → audit-service); lifecycle-alerts carries the deadman + ACK-SLA
+    # watchdog alerts consumed by notification-service (STR-05). Ensure-only:
+    # audit/alert data is never wiped by a stack reset.
+    @{ Name = "audit-events"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "lifecycle-alerts"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" }
 )
 
 $legacyTopics = @(
@@ -122,7 +141,7 @@ function New-KafkaTopic {
     Write-Host "[Kafka] Creating $($Topic.Name) partitions=$($Topic.Partitions) config=$($Topic.Config)..." -ForegroundColor Green
     Invoke-AmsKafkaExec -AllowFailure -Args (@(
         "kafka-topics", "--bootstrap-server", "kafka:9092", "--create",
-        "--topic", $Topic.Name, "--partitions", "$($Topic.Partitions)", "--replication-factor", "1"
+        "--topic", $Topic.Name, "--partitions", "$($Topic.Partitions)", "--replication-factor", $rf
     ) + (Get-KafkaConfigArgs -Config $Topic.Config)) | Out-Null
 }
 

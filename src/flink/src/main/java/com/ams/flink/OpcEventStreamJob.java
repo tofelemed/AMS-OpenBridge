@@ -2,8 +2,6 @@ package com.ams.flink;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.connector.base.DeliveryGuarantee;
-import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
@@ -37,9 +35,19 @@ public class OpcEventStreamJob {
         env.getCheckpointConfig().setExternalizedCheckpointCleanup(
                 CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
-        OffsetsInitializer rawOffsets = "latest".equalsIgnoreCase(cfg.rawAlarmsStartingOffsets)
-                ? OffsetsInitializer.latest()
-                : OffsetsInitializer.earliest();
+        // "committed" (prod default): resume from the group's committed offsets,
+        // falling back to earliest only when the group has none (true first deploy).
+        // A fresh submit with plain "earliest" replays the entire topic — safe but
+        // a needless burst through every downstream on each JM incident.
+        OffsetsInitializer rawOffsets;
+        if ("latest".equalsIgnoreCase(cfg.rawAlarmsStartingOffsets)) {
+            rawOffsets = OffsetsInitializer.latest();
+        } else if ("committed".equalsIgnoreCase(cfg.rawAlarmsStartingOffsets)) {
+            rawOffsets = OffsetsInitializer.committedOffsets(
+                    org.apache.kafka.clients.consumer.OffsetResetStrategy.EARLIEST);
+        } else {
+            rawOffsets = OffsetsInitializer.earliest();
+        }
 
         KafkaSource<String> rawSource = KafkaSource.<String>builder()
                 .setBootstrapServers(cfg.brokers)
@@ -135,7 +143,9 @@ public class OpcEventStreamJob {
                 })
                 .name("projection-builder")
                 .uid("projection-builder");
-        currentState.sinkTo(kafkaSink(cfg.brokers, "current-alarm-state"))
+        // current-alarm-state is COMPACTED: records must be keyed (by alarmId) or the
+        // broker rejects them — see docs/alarm-history-flink-sink-stuck.md.
+        currentState.sinkTo(KafkaSinks.keyedByJsonField(cfg.brokers, "current-alarm-state", "alarmId"))
                 .name("current-alarm-state-sink")
                 .uid("current-alarm-state-sink")
                 .setParallelism(cfg.projection);
@@ -172,7 +182,7 @@ public class OpcEventStreamJob {
                 .filter(OpcEventStreamJob::isAckConfirmed)
                 .map(OpcEventStreamJob::toAckConfirmedState)
                 .filter(s -> s != null && !s.isEmpty())
-                .sinkTo(kafkaSink(cfg.brokers, "current-alarm-state"))
+                .sinkTo(KafkaSinks.keyedByJsonField(cfg.brokers, "current-alarm-state", "alarmId"))
                 .name("ack-projection-sink")
                 .uid("ack-projection-sink")
                 .setParallelism(cfg.projection);
@@ -185,7 +195,11 @@ public class OpcEventStreamJob {
                 .setBootstrapServers(brokers)
                 .setTopics(topic)
                 .setGroupId(groupId)
-                .setStartingOffsets(OffsetsInitializer.earliest())
+                // committed-with-earliest-fallback: a fresh submit must not replay
+                // every historical operator action / ack result (re-dispatching old
+                // ACK writebacks), only continue where the group left off.
+                .setStartingOffsets(OffsetsInitializer.committedOffsets(
+                        org.apache.kafka.clients.consumer.OffsetResetStrategy.EARLIEST))
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .setProperty("request.timeout.ms", "120000")
                 .setProperty("default.api.timeout.ms", "120000")
@@ -193,14 +207,7 @@ public class OpcEventStreamJob {
     }
 
     private static KafkaSink<String> kafkaSink(String brokers, String topic) {
-        return KafkaSink.<String>builder()
-                .setBootstrapServers(brokers)
-                .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
-                .setRecordSerializer(KafkaRecordSerializationSchema.builder()
-                        .setTopic(topic)
-                        .setValueSerializationSchema(new SimpleStringSchema())
-                        .build())
-                .build();
+        return KafkaSinks.valueOnly(brokers, topic);
     }
 
     private static String toAckWriteback(String json) {

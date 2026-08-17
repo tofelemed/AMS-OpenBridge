@@ -1,0 +1,111 @@
+{
+  "sim": "sim_live_mqtt_direct",
+  "run_tag": "rmqt1",
+  "count": 6,
+  "devices_seen": [
+    "MqttSim_rmqt1_Unit1_Tag_000",
+    "MqttSim_rmqt1_Unit1_Tag_001",
+    "MqttSim_rmqt1_Unit1_Tag_002",
+    "MqttSim_rmqt1_Unit1_Tag_003",
+    "MqttSim_rmqt1_Unit1_Tag_004",
+    "MqttSim_rmqt1_Unit1_Tag_005"
+  ],
+  "checks": {
+    "mqtt_ddata_all_devices": true,
+    "dbirth_before_ddata": true,
+    "ddata_aliases_declared_in_dbirth": true,
+    "qos_zero": true,
+    "not_retained": true,
+    "redis_snapshot_with_ttl": true,
+    "no_iotdb_write_on_direct_path": true
+  },
+  "detail": {
+    "captured": 12,
+    "kinds": [
+      "DBIRTH",
+      "DDATA"
+    ],
+    "alias_maps": {
+      "MqttSim_rmqt1_Unit1_Tag_000": {
+        "0": "alarmId",
+        "1": "severity",
+        "2": "state",
+        "3": "acknowledged",
+        "4": "conditionActive",
+        "5": "priority",
+        "6": "sourceName",
+        "7": "conditionName",
+        "8": "message"
+      },
+      "MqttSim_rmqt1_Unit1_Tag_001": {
+        "0": "alarmId",
+        "1": "severity",
+        "2": "state",
+        "3": "acknowledged",
+        "4": "conditionActive",
+        "5": "priority",
+        "6": "sourceName",
+        "7": "conditionName",
+        "8": "message"
+      },
+      "MqttSim_rmqt1_Unit1_Tag_002": {
+        "0": "alarmId",
+        "1": "severity",
+        "2": "state",
+        "3": "acknowledged",
+        "4": "conditionActive",
+        "5": "priority",
+        "6": "sourceName",
+        "7": "conditionName",
+        "8": "message"
+      },
+      "MqttSim_rmqt1_Unit1_Tag_003": {
+        "0": "alarmId",
+        "1": "severity",
+        "2": "state",
+        "3": "acknowledged",
+        "4": "conditionActive",
+        "5": "priority",
+        "6": "sourceName",
+        "7": "conditionName",
+        "8": "message"
+      },
+      "MqttSim_rmqt1_Unit1_Tag_004": {
+        "0": "alarmId",
+        "1": "severity",
+        "2": "state",
+        "3": "acknowledged",
+        "4": "conditionActive",
+        "5": "priority",
+        "6": "sourceName",
+        "7": "conditionName",
+        "8": "message"
+      },
+      "MqttSim_rmqt1_Unit1_Tag_005": {
+        "0": "alarmId",
+        "1": "severity",
+        "2": "state",
+        "3": "acknowledged",
+        "4": "conditionActive",
+        "5": "priority",
+        "6": "sourceName",
+        "7": "conditionName",
+        "8": "message"
+      }
+    },
+    "redis": {
+      "keys_found": 36,
+      "sample_keys": [
+        "snapshot:metric:ams_site1:ams_edge1:MqttSim_rmqt1_Unit1_Tag_003:acknowledged",
+        "snapshot:metric:ams_site1:ams_edge1:MqttSim_rmqt1_Unit1_Tag_004:severity",
+        "snapshot:metric:ams_site1:ams_edge1:MqttSim_rmqt1_Unit1_Tag_002:acknowledged",
+        "snapshot:metric:ams_site1:ams_edge1:MqttSim_rmqt1_Unit1_Tag_005:state",
+        "snapshot:metric:ams_site1:ams_edge1:MqttSim_rmqt1_Unit1_Tag_003:alarmId"
+      ],
+      "sample_value": "{\"v\":false,\"q\":192,\"ts\":1786649024833}"
+    },
+    "edge_iotdb_persist_env": "(unset)",
+    "iotdb_hit": false
+  },
+  "finished_utc": "2026-08-13T19:23:55.869416Z"
+}

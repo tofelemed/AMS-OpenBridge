@@ -189,14 +189,20 @@ public class PathResolver
         };
     }
     
+    // PIPE-011: descriptor URLs must be reachable by the CLIENT (a browser going
+    // through the API gateway). Compose-internal addresses (historian-bff:8090,
+    // ams-api:8000, emqx:8083) are unpublished since the Plan 04 lockdown, so all
+    // endpoint fields are gateway-relative. Override via Public:* config if a
+    // deployment fronts the gateway under a path prefix.
+    private string HistPublicBase => _config["Public:HistBase"] ?? "/api/hist";
+
     private LiveBinding BuildLiveBinding(
         string group, string edgeNode, string device, string? metric, string? redisKey, string topic)
     {
         var mqttHost = _config["Mqtt:Host"] ?? "emqx";
         var mqttPort = _config.GetValue<int>("Mqtt:WebSocketPort", 8083);
         var mqttProtocol = _config["Mqtt:Protocol"] ?? "ws";
-        var historianBff = _config["Services:HistorianBff"] ?? "http://historian-bff:8090";
-        
+
         return new LiveBinding
         {
             Mqtt = new MqttConnectionInfo
@@ -204,7 +210,8 @@ public class PathResolver
                 Host = mqttHost,
                 Port = mqttPort,
                 Protocol = mqttProtocol,
-                Username = _config["Mqtt:Username"]
+                Username = _config["Mqtt:Username"],
+                WsPath = _config["Public:MqttWsPath"] ?? "/mqtt-ws"
             },
             SparkplugTopic = topic,
             SparkplugGroup = group,
@@ -212,29 +219,28 @@ public class PathResolver
             SparkplugDevice = device,
             SparkplugMetric = metric,
             RedisSnapshotKey = redisKey,
-            SnapshotEndpoint = $"{historianBff}/snapshot?assets={device}"
+            SnapshotEndpoint = $"{HistPublicBase}/snapshot?assets={device}"
         };
     }
-    
+
     private HistoryBinding BuildHistoryBinding(string iotdbPath)
     {
-        var historianBff = _config["Services:HistorianBff"] ?? "http://historian-bff:8090";
         var encodedPath = Uri.EscapeDataString(iotdbPath);
-        
+
         return new HistoryBinding
         {
             IoTDbPath = iotdbPath,
-            TrendEndpoint = $"{historianBff}/trend?series={encodedPath}",
-            RawEndpoint = $"{historianBff}/raw?series={encodedPath}"
+            TrendEndpoint = $"{HistPublicBase}/trend?series={encodedPath}",
+            RawEndpoint = $"{HistPublicBase}/raw?series={encodedPath}"
         };
     }
     
     private AlarmBinding BuildAlarmBinding(string alarmSource)
     {
-        // ams-api listens on :8000 in-container (compose) — NOT :5000 (that is local-dev Kestrel).
-        var amsApi = _config["Services:AmsApi"] ?? "http://ams-api:8000";
-        // The AlarmHub is mapped at /hubs/alarms (plural) in AMS.Api/Program.cs.
-        var signalrHub = _config["Services:SignalRHub"] ?? $"{amsApi}/hubs/alarms";
+        // PIPE-011: gateway-relative — the AlarmHub is mapped at /hubs/alarms
+        // (plural) in AMS.Api/Program.cs and the gateway proxies /hubs.
+        var signalrHub = _config["Public:SignalRHub"] ?? "/hubs/alarms";
+        var alarmsApiBase = _config["Public:AlarmsApiBase"] ?? "/api/v1/alarms";
 
         return new AlarmBinding
         {
@@ -246,7 +252,7 @@ public class PathResolver
             SubscribeMethod = "SubscribeToArea",
             KafkaTopic = "live.alarms",
             // Real route is GET /api/v1/alarms/active?sourceNameContains= (AlarmsController).
-            AlarmApiEndpoint = $"{amsApi}/api/v1/alarms/active?sourceNameContains={Uri.EscapeDataString(alarmSource)}"
+            AlarmApiEndpoint = $"{alarmsApiBase}/active?sourceNameContains={Uri.EscapeDataString(alarmSource)}"
         };
     }
 }

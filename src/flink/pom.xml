@@ -30,7 +30,18 @@
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-connector-kafka</artifactId>
-            <version>3.0.1-1.18</version>
+            <!-- 3.0.1 swallowed async produce errors (records rejected by the broker
+                 completed checkpoints silently — docs/alarm-history-flink-sink-stuck.md);
+                 3.2.0 propagates them and fails the checkpoint. -->
+            <version>3.2.0-1.18</version>
+        </dependency>
+        <!-- connector-kafka 3.2.0 no longer drags this in transitively; the classes
+             (DeliveryGuarantee etc.) ship inside the Flink 1.18 distribution. -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-connector-base</artifactId>
+            <version>${flink.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>

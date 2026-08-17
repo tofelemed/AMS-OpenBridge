@@ -137,7 +137,9 @@ display-service / cplm-api  →  Kafka audit-events  →  audit-service  →  tr
 analysis-service → analysis.executions → AnalysisExecutionJob → analysis.results
 ```
 
-In `ensure_flink_jobs.py`; **not** in compose supervisor (gap after JM restart).
+Standing job in the compose supervisor since STR-07 (this doc previously said
+ensure-script-only — stale). JM HA (2026-08-17) additionally recovers it, like every
+job, from its latest checkpoint after a JobManager restart.
 
 ---
 

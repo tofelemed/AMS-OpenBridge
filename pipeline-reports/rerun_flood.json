@@ -1,0 +1,31 @@
+{
+  "sim": "sim_stress_flood",
+  "run_tag": "rfld2",
+  "checks": {
+    "cas_growth_appeared": true,
+    "flood_band_dropped": true,
+    "dedup_collapsed_repeats": true,
+    "rbe_bounded_live_alarms": true,
+    "emqx_fanout_bounded": true,
+    "all_standing_jobs_running": true,
+    "no_new_checkpoint_failures": true
+  },
+  "detail": {
+    "published": 1300,
+    "publish_secs": 11.9,
+    "distinct": 400,
+    "flood_band": 100,
+    "expected_pass": 300,
+    "cas_grown": 300,
+    "cas_vs_expected": {
+      "grown": 300,
+      "survived_expected": 300,
+      "raw_published": 1300
+    },
+    "live_alarms_grown": 300,
+    "emqx_ddata_observed": 300,
+    "checkpoint_failures": {},
+    "raw_alarms_grown": 1300
+  },
+  "finished_utc": "2026-08-13T19:38:22.661324Z"
+}
