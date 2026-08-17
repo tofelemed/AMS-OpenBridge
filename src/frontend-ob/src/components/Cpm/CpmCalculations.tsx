@@ -18,7 +18,11 @@ import {
 import {
   useCpmCalculations, useCpmEvents, useCpmKpis, useCpmLoops, useLatestGates,
 } from '../../hooks/useCpm';
+import { ApiError } from '../../api/apiFetch';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
+
+/** gates/latest 404 = "no fused window yet" — an answer, not a failure. */
+const isNoVerdict = (e: unknown) => e instanceof ApiError && e.status === 404;
 
 interface MetricDef {
   id: string;
@@ -36,10 +40,10 @@ const METRICS: MetricDef[] = [
   { id: 'CPLM-001', field: 'completeness', name: 'Sample completeness', gate: 'G0', kind: 'Calculation', unit: 'ratio', source: 'short', description: 'Fraction of expected samples present in the window.' },
   { id: 'CPLM-002', field: 'sample_count', name: 'Sample count', gate: 'G0', kind: 'Calculation', unit: 'count', source: 'short', description: 'Samples evaluated in the window.' },
   { id: 'CPLM-003', field: 'auto_pct', name: 'Automatic-mode fraction', gate: 'G1', kind: 'Calculation', unit: 'ratio', source: 'short', description: 'Time fraction the controller spent in AUTO.' },
-  { id: 'CPLM-010', field: 'mae', name: 'Mean absolute error', gate: 'G3', kind: 'Calculation', unit: 'EU', source: 'short', description: 'Mean |PV − SP| over the window.' },
-  { id: 'CPLM-011', field: 'rmse', name: 'Root-mean-square error', gate: 'G3', kind: 'Calculation', unit: 'EU', source: 'short', description: 'RMS control error.' },
-  { id: 'CPLM-012', field: 'iae', name: 'Integral absolute error', gate: 'G3', kind: 'Calculation', unit: 'EU·s', source: 'short', description: 'Accumulated absolute error.' },
-  { id: 'CPLM-013', field: 'ise', name: 'Integral squared error', gate: 'G3', kind: 'Calculation', unit: 'EU²·s', source: 'short', description: 'Accumulated squared error.' },
+  { id: 'CPLM-010', field: 'mae', name: 'Mean absolute error', gate: 'G3', kind: 'Calculation', unit: 'PV units', source: 'short', description: 'Mean |PV − SP| over the window.' },
+  { id: 'CPLM-011', field: 'rmse', name: 'Root-mean-square error', gate: 'G3', kind: 'Calculation', unit: 'PV units', source: 'short', description: 'RMS control error.' },
+  { id: 'CPLM-012', field: 'iae', name: 'Integral absolute error', gate: 'G3', kind: 'Calculation', unit: 'PV·s', source: 'short', description: 'Accumulated absolute error.' },
+  { id: 'CPLM-013', field: 'ise', name: 'Integral squared error', gate: 'G3', kind: 'Calculation', unit: 'PV²·s', source: 'short', description: 'Accumulated squared error.' },
   { id: 'CPLM-014', field: 'good_error_pct', name: 'Good-error time', gate: 'G3', kind: 'Calculation', unit: 'fraction', source: 'short', description: 'Time fraction (0-1) the error stayed inside the good band.' },
   { id: 'CPLM-020', field: 'effort_ratio', name: 'Actuator effort ratio', gate: 'G4', kind: 'Calculation', unit: 'ratio', source: 'short', description: 'OP travel relative to the error it corrects.' },
   { id: 'CPLM-021', field: 'travel_per_day', name: 'OP travel per day', gate: 'G4', kind: 'Calculation', unit: '%/day', source: 'long', description: 'Total actuator travel extrapolated to a day.' },
@@ -60,8 +64,13 @@ const METRICS: MetricDef[] = [
 export const CpmCalculations: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const [search, setSearch] = useState('');
-  // ?gate= deep link (command palette lands here pre-filtered to one gate).
-  const [gateFilter, setGateFilter] = useState(() => params.get('gate') ?? 'all');
+  // C5 — the gate filter LIVES in the URL, not in state seeded from it once.
+  // The old useState initializer meant the command palette's ?gate=G7 did
+  // nothing if this page was already mounted (params changed, state didn't),
+  // and changing the filter never updated the URL, so the view wasn't shareable.
+  const gateFilter = params.get('gate') ?? 'all';
+  const setGateFilter = (g: string) =>
+    setParams(p => { if (g === 'all') p.delete('gate'); else p.set('gate', g); return p; }, { replace: true });
   const [kindFilter, setKindFilter] = useState('all');
   const [page, setPage] = useState(0);
   const [drawer, setDrawer] = useState<MetricDef | null>(null);
@@ -69,8 +78,9 @@ export const CpmCalculations: React.FC = () => {
 
   const { data: loopData } = useCpmLoops();
   const loops = useMemo(() => loopData?.loops ?? [], [loopData]);
+  // Case-insensitive, like every loop lookup in cplm-api.
   const loopId = params.get('loop') ?? loops[0]?.loopId;
-  const loop = loops.find(l => l.loopId === loopId) ?? loops[0];
+  const loop = loops.find(l => l.loopId.toLowerCase() === (loopId ?? '').toLowerCase()) ?? loops[0];
 
   const gates = useLatestGates(loop?.loopId, '24h');
   const shortKpis = useCpmKpis(loop?.loopId, '60m', 1);
@@ -85,6 +95,29 @@ export const CpmCalculations: React.FC = () => {
     const row = m.source === 'short' ? latestShort : latestLong;
     const v = row?.[m.field];
     return typeof v === 'number' ? v : null;
+  };
+
+  /**
+   * C1 — the engine's qualification flags (P1-9/P1-10). A short row with
+   * sufficient_data=false carries ZEROED mae/rmse/iae because the engine
+   * DECLINED the window; a long row with long_metrics_qualified=false was
+   * computed on a window that failed G0. The API ships both flags precisely so
+   * a UI never renders those values as clean measurements — and this page did.
+   */
+  const disqualificationOf = (m: MetricDef): string | null => {
+    if (m.source === 'short' && latestShort?.sufficient_data === false)
+      return 'window declined (insufficient data) — stored values are zeroed placeholders';
+    if (m.source === 'long' && latestLong?.long_metrics_qualified === false)
+      return 'metrics unqualified — computed on a window that failed G0';
+    return null;
+  };
+
+  /** C2 — WHEN the "latest" value is from; a 4-day-old number without a
+   * timestamp reads as current. */
+  const windowEndOf = (m: MetricDef): string | null => {
+    if (m.source === 'gate') return gates.data?.windowEnd ?? null;
+    const row = m.source === 'short' ? latestShort : latestLong;
+    return typeof row?.window_end === 'string' ? row.window_end : null;
   };
 
   const statusOf = (m: MetricDef): { label: string; tone: 'good' | 'warn' | 'bad' | 'muted' } => {
@@ -109,7 +142,10 @@ export const CpmCalculations: React.FC = () => {
       && (!q || m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q)));
   }, [search, gateFilter, kindFilter]);
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE));
-  const rows = filtered.slice(page * PAGE, page * PAGE + PAGE);
+  // Clamped: a URL-driven filter change (command palette) shrinks `filtered`
+  // without the selects' setPage(0) running.
+  const safePage = Math.min(page, pages - 1);
+  const rows = filtered.slice(safePage * PAGE, safePage * PAGE + PAGE);
 
   const observed = METRICS.filter(m => valueOf(m) != null).length;
   const review = METRICS.filter(m => statusOf(m).tone === 'warn' || statusOf(m).tone === 'bad').length;
@@ -126,17 +162,28 @@ export const CpmCalculations: React.FC = () => {
         <PanelHead eyebrow="1 · Select the loop" title="Which loop do you want to evaluate?" />
         <div className="cpm-toolbar">
           <LoopSelect loops={loops} value={loop?.loopId ?? ''}
-            onChange={id => { setParams(p => { p.set('loop', id); return p; }); setPage(0); }} />
+            onChange={id => { setParams(p => { p.set('loop', id); return p; }, { replace: true }); setPage(0); }} />
           {loop && (
             <>
-              <TonePill tone={toneFor(gates.data?.diagnosis)}>
-                {(gates.data?.diagnosis ?? 'NOT_EVALUATED').replace(/_/g, ' ')}
-              </TonePill>
+              {/* C4: a FAILED gates fetch is not a NOT_EVALUATED verdict — the
+                  404 "no fused window yet" is, and keeps the muted pill. */}
+              {gates.isError && !isNoVerdict(gates.error) ? (
+                <TonePill tone="warn">VERDICT UNAVAILABLE</TonePill>
+              ) : (
+                <TonePill tone={toneFor(gates.data?.diagnosis)}>
+                  {(gates.data?.diagnosis ?? 'NOT_EVALUATED').replace(/_/g, ' ')}
+                </TonePill>
+              )}
               <span className="cpm-copy">
                 {loop.loopType} · profile {loop.thresholdProfileId ?? 'default'}
                 {gates.data?.windowEnd ? ` · latest window ${fmtDateTime(gates.data.windowEnd)}` : ''}
               </span>
             </>
+          )}
+          {(shortKpis.isError || longKpis.isError) && (
+            <span className="cpm-field__error">
+              KPI rows unavailable — latest values below may be missing, not absent.
+            </span>
           )}
         </div>
       </section>
@@ -173,19 +220,30 @@ export const CpmCalculations: React.FC = () => {
         {rows.map(m => {
           const v = valueOf(m);
           const st = statusOf(m);
+          const disq = disqualificationOf(m);
+          const wEnd = windowEndOf(m);
           return (
             <div key={m.id} className="cpm-event-row"
               style={{ gridTemplateColumns: '0.7fr 1.8fr 0.4fr 0.7fr 0.9fr 0.8fr' }}
               onClick={() => setDrawer(m)} role="button" tabIndex={0}
-              onKeyDown={e => { if (e.key === 'Enter') setDrawer(m); }}>
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDrawer(m); } }}>
               <span className="cpm-mono">{m.id}</span>
               <span>
                 <span className="cpm-event-row__title">{m.name}</span>
                 <div className="cpm-event-row__sub">{m.description}</div>
               </span>
               <span>{m.gate}</span>
-              <span>{v != null ? `${v.toFixed(3)} ${m.unit}` : '—'}</span>
-              <span className="cpm-event-row__sub">{m.source === 'short' ? '60m short' : m.source === 'long' ? '24h long' : '24h fused'}</span>
+              {/* C1: a value from a DECLINED window is a zeroed placeholder the
+                  engine told us not to trust — never render it as a measurement. */}
+              <span title={disq ?? undefined}>
+                {disq ? '— (declined)' : v != null ? `${v.toFixed(3)} ${m.unit}` : '—'}
+              </span>
+              {/* C2: WHEN, not just which resolution — "latest" without a
+                  timestamp reads as current on a stale historian. */}
+              <span className="cpm-event-row__sub">
+                {m.source === 'short' ? '60m' : m.source === 'long' ? '24h' : '24h fused'}
+                {wEnd ? ` · ends ${fmtDateTime(wEnd)}` : ''}
+              </span>
               <TonePill tone={st.tone}>{st.label}</TonePill>
             </div>
           );
@@ -193,15 +251,17 @@ export const CpmCalculations: React.FC = () => {
         {rows.length === 0 && <EmptyState title="No matching metrics" />}
 
         <div className="cpm-wizard-footer">
-          <ObcButton variant="normal" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</ObcButton>
-          <span className="cpm-copy">Page {page + 1} of {pages}</span>
-          <ObcButton variant="normal" disabled={page >= pages - 1} onClick={() => setPage(p => p + 1)}>Next</ObcButton>
+          <ObcButton variant="normal" disabled={safePage === 0} onClick={() => setPage(Math.max(0, safePage - 1))}>Previous</ObcButton>
+          <span className="cpm-copy">Page {safePage + 1} of {pages}</span>
+          <ObcButton variant="normal" disabled={safePage >= pages - 1} onClick={() => setPage(Math.min(pages - 1, safePage + 1))}>Next</ObcButton>
         </div>
       </section>
 
       {drawer && loop && (
         <CalcDrawer metric={drawer} loopId={loop.loopId}
           value={valueOf(drawer)} status={statusOf(drawer)}
+          disqualification={disqualificationOf(drawer)}
+          windowEnd={windowEndOf(drawer)}
           versions={{
             calc: gates.data?.metadata.calculationVersion ?? catalogue.data?.calculationVersion ?? null,
             profile: gates.data?.metadata.dynamicsProfileVersion ?? catalogue.data?.dynamicsProfileVersion ?? null,
@@ -229,12 +289,16 @@ const CalcDrawer: React.FC<{
   loopId: string;
   value: number | null;
   status: { label: string; tone: 'good' | 'warn' | 'bad' | 'muted' };
+  disqualification: string | null;
+  windowEnd: string | null;
   versions: { calc: string | null; profile: string | null };
   onClose: () => void;
-}> = ({ metric, loopId, value, status, versions, onClose }) => {
+}> = ({ metric, loopId, value, status, disqualification, windowEnd, versions, onClose }) => {
   const dialogRef = useDialogA11y<HTMLDivElement>(onClose);
   const [tab, setTab] = useState<typeof DRAWER_TABS[number]>('Definition');
-  const events = useCpmEvents({ loopId, openOnly: false, limit: 10 });
+  // sort:'recent' — this tab is a timeline labelled by opened_at; the server's
+  // triage default would list highest-confidence episodes as if newest (B1).
+  const events = useCpmEvents({ loopId, openOnly: false, limit: 10, sort: 'recent' });
 
   return (
     <>
@@ -243,10 +307,15 @@ const CalcDrawer: React.FC<{
         <PanelHead eyebrow={`${loopId} · ${metric.id}`} title={metric.name}
           right={<ObcButton variant="normal" onClick={onClose}>Close</ObcButton>} />
         <div className="cpm-kpi-row" style={{ margin: '12px 0' }}>
-          <div className={`cpm-kpi cpm-kpi--${status.tone}`}>
+          <div className={`cpm-kpi cpm-kpi--${disqualification ? 'warn' : status.tone}`}>
             <span className="cpm-kpi__caption">Latest value</span>
-            <span className="cpm-kpi__value">{value != null ? `${value.toFixed(3)} ${metric.unit}` : '—'}</span>
-            <span className="cpm-kpi__sub">{status.label}</span>
+            <span className="cpm-kpi__value">
+              {disqualification ? '— (declined)' : value != null ? `${value.toFixed(3)} ${metric.unit}` : '—'}
+            </span>
+            <span className="cpm-kpi__sub">
+              {disqualification ?? status.label}
+              {windowEnd ? ` · window ends ${fmtDateTime(windowEnd)}` : ''}
+            </span>
           </div>
         </div>
 

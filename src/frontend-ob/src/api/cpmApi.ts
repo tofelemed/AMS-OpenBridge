@@ -410,7 +410,14 @@ export interface CpmKpiRow {
   window_end: string | null;
   sample_count: number | null;
   created_at: string;
-  [metric: string]: number | string | null;
+  /**
+   * P1-9/P1-10 qualification flags ride along as booleans: `sufficient_data`
+   * (short rows — false means the engine DECLINED the window and zeroed
+   * mae/rmse/iae; those zeros must never render as perfect control) and
+   * `long_metrics_qualified` (long rows — false means the metrics were computed
+   * on a window that failed G0).
+   */
+  [metric: string]: number | string | boolean | null;
 }
 
 export const getKpis = (
