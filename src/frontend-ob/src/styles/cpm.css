@@ -10,7 +10,7 @@
 .cpm-tone-good  { --cpm-tone: var(--instrument-enhanced-secondary-color); }
 .cpm-tone-warn  { --cpm-tone: var(--alert-caution-color); }
 .cpm-tone-bad   { --cpm-tone: var(--alert-alarm-color); }
-.cpm-tone-muted { --cpm-tone: var(--on-container-neutral-color); }
+.cpm-tone-muted { --cpm-tone: var(--element-neutral-color); }
 
 /* ── Layout scaffolding ── */
 .cpm-screen {
@@ -18,12 +18,12 @@
   flex-direction: column;
   gap: 16px;
   padding: 16px;
-  color: var(--on-container-active-color);
+  color: var(--element-active-color);
 }
 
 .cpm-surface {
   background: var(--container-backdrop-color);
-  border: 1px solid var(--container-border-color, var(--divider-color));
+  border: 1px solid var(--container-border-color, var(--border-divider-color));
   border-radius: 8px;
   padding: 16px;
 }
@@ -39,11 +39,11 @@
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--on-container-neutral-color);
+  color: var(--element-neutral-color);
 }
 .cpm-title { margin: 2px 0 4px; font-size: 1.4rem; }
 .cpm-panel-title { margin: 2px 0 0; font-size: 1.05rem; }
-.cpm-copy { margin: 0; color: var(--on-container-neutral-color); max-width: 64ch; }
+.cpm-copy { margin: 0; color: var(--element-neutral-color); max-width: 64ch; }
 .cpm-panel-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin-bottom: 12px; }
 
 /* ── Pill (tone dot + label) ── */
@@ -54,15 +54,15 @@
   padding: 2px 10px;
   border-radius: 999px;
   font-size: 0.8rem;
-  border: 1px solid var(--divider-color);
-  color: var(--on-container-active-color);
+  border: 1px solid var(--border-divider-color);
+  color: var(--element-active-color);
   white-space: nowrap;
 }
-.cpm-pill__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cpm-tone, var(--on-container-neutral-color)); }
+.cpm-pill__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cpm-tone, var(--element-neutral-color)); }
 .cpm-pill--good  { --cpm-tone: var(--instrument-enhanced-secondary-color); }
 .cpm-pill--warn  { --cpm-tone: var(--alert-caution-color); }
 .cpm-pill--bad   { --cpm-tone: var(--alert-alarm-color); }
-.cpm-pill--muted { --cpm-tone: var(--on-container-neutral-color); }
+.cpm-pill--muted { --cpm-tone: var(--element-neutral-color); }
 
 /* ── KPI tile ── */
 .cpm-kpi {
@@ -70,28 +70,28 @@
   flex-direction: column;
   gap: 2px;
   padding: 14px 16px;
-  border: 1px solid var(--divider-color);
-  border-left: 3px solid var(--cpm-tone, var(--divider-color));
+  border: 1px solid var(--border-divider-color);
+  border-left: 3px solid var(--cpm-tone, var(--border-divider-color));
   border-radius: 8px;
   background: var(--container-backdrop-color);
 }
 .cpm-kpi--good  { --cpm-tone: var(--instrument-enhanced-secondary-color); }
 .cpm-kpi--warn  { --cpm-tone: var(--alert-caution-color); }
 .cpm-kpi--bad   { --cpm-tone: var(--alert-alarm-color); }
-.cpm-kpi__caption { font-size: 0.75rem; color: var(--on-container-neutral-color); text-transform: uppercase; letter-spacing: 0.05em; }
+.cpm-kpi__caption { font-size: 0.75rem; color: var(--element-neutral-color); text-transform: uppercase; letter-spacing: 0.05em; }
 .cpm-kpi__value { font-size: 1.5rem; font-weight: 600; }
-.cpm-kpi__sub { font-size: 0.8rem; color: var(--on-container-neutral-color); }
+.cpm-kpi__sub { font-size: 0.8rem; color: var(--element-neutral-color); }
 .cpm-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
 
 /* ── Form field / select (token-styled natives, matching app conventions) ── */
 .cpm-field { display: flex; flex-direction: column; gap: 4px; min-width: 200px; }
-.cpm-field__label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--on-container-neutral-color); }
+.cpm-field__label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--element-neutral-color); }
 .cpm-select,
 .cpm-input,
 .cpm-textarea {
   background: var(--input-background-color, var(--container-backdrop-color));
-  color: var(--on-container-active-color);
-  border: 1px solid var(--divider-color);
+  color: var(--element-active-color);
+  border: 1px solid var(--border-divider-color);
   border-radius: 6px;
   padding: 8px 10px;
   font: inherit;
@@ -104,9 +104,9 @@
 .cpm-field__error { color: var(--alert-alarm-color); font-size: 0.78rem; }
 
 /* ── Key/value rows ── */
-.cpm-kv { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--divider-color); }
+.cpm-kv { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--border-divider-color); }
 .cpm-kv:last-child { border-bottom: none; }
-.cpm-kv__label { color: var(--on-container-neutral-color); font-size: 0.85rem; }
+.cpm-kv__label { color: var(--element-neutral-color); font-size: 0.85rem; }
 .cpm-kv__value { text-align: right; font-size: 0.85rem; }
 
 /* ── Toolbar (the U5–U9 query bar) ── */
@@ -114,7 +114,7 @@
 
 /* ── Filter segmented row (U4) ── */
 .cpm-filter-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.cpm-filter-count { margin-left: auto; color: var(--on-container-neutral-color); font-size: 0.85rem; }
+.cpm-filter-count { margin-left: auto; color: var(--element-neutral-color); font-size: 0.85rem; }
 
 /* ── Event list (U4) ── */
 .cpm-event-row {
@@ -123,14 +123,14 @@
   gap: 8px;
   align-items: center;
   padding: 10px 12px;
-  border-bottom: 1px solid var(--divider-color);
+  border-bottom: 1px solid var(--border-divider-color);
   cursor: pointer;
   border-left: 3px solid transparent;
 }
 .cpm-event-row:hover { background: var(--container-hover-color, rgba(128,128,128,0.08)); }
 .cpm-event-row--selected { border-left-color: var(--instrument-enhanced-primary-color); background: var(--container-hover-color, rgba(128,128,128,0.08)); }
 .cpm-event-row__title { font-weight: 600; }
-.cpm-event-row__sub { font-size: 0.78rem; color: var(--on-container-neutral-color); }
+.cpm-event-row__sub { font-size: 0.78rem; color: var(--element-neutral-color); }
 .cpm-pager {
   display: flex;
   align-items: center;
@@ -148,8 +148,8 @@
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--on-container-neutral-color);
-  border-bottom: 1px solid var(--divider-color);
+  color: var(--element-neutral-color);
+  border-bottom: 1px solid var(--border-divider-color);
 }
 
 /* ── Registry table (U10) ── */
@@ -164,10 +164,10 @@
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--on-container-neutral-color);
-  border-bottom: 1px solid var(--divider-color);
+  color: var(--element-neutral-color);
+  border-bottom: 1px solid var(--border-divider-color);
 }
-.cpm-reg-row { border-bottom: 1px solid var(--divider-color); cursor: pointer; border-left: 3px solid transparent; }
+.cpm-reg-row { border-bottom: 1px solid var(--border-divider-color); cursor: pointer; border-left: 3px solid transparent; }
 .cpm-reg-row:hover { background: var(--container-hover-color, rgba(128,128,128,0.08)); }
 .cpm-reg-row--selected { border-left-color: var(--instrument-enhanced-primary-color); }
 
@@ -191,13 +191,13 @@
   gap: 6px;
   padding: 6px 12px;
   border-radius: 999px;
-  border: 1px solid var(--divider-color);
+  border: 1px solid var(--border-divider-color);
   font-size: 0.8rem;
-  color: var(--on-container-neutral-color);
+  color: var(--element-neutral-color);
   background: none;
   cursor: default;
 }
-.cpm-wizard-step--active { border-color: var(--instrument-enhanced-primary-color); color: var(--on-container-active-color); font-weight: 600; }
+.cpm-wizard-step--active { border-color: var(--instrument-enhanced-primary-color); color: var(--element-active-color); font-weight: 600; }
 .cpm-wizard-step--done { color: var(--instrument-enhanced-secondary-color); cursor: pointer; }
 .cpm-wizard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .cpm-wizard-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; gap: 12px; }
@@ -211,8 +211,8 @@
 }
 .cpm-modal {
   background: var(--container-backdrop-color);
-  color: var(--on-container-active-color);
-  border: 1px solid var(--divider-color);
+  color: var(--element-active-color);
+  border: 1px solid var(--border-divider-color);
   border-radius: 10px;
   width: min(860px, 92vw);
   max-height: 88vh;
@@ -223,15 +223,15 @@
   position: fixed; top: 0; right: 0; bottom: 0;
   width: min(480px, 94vw);
   background: var(--container-backdrop-color);
-  border-left: 1px solid var(--divider-color);
+  border-left: 1px solid var(--border-divider-color);
   z-index: 61;
   overflow: auto;
   padding: 20px;
 }
 
 /* ── Empty state ── */
-.cpm-empty { text-align: center; padding: 32px 16px; color: var(--on-container-neutral-color); }
-.cpm-empty h3 { color: var(--on-container-active-color); margin: 0 0 6px; }
+.cpm-empty { text-align: center; padding: 32px 16px; color: var(--element-neutral-color); }
+.cpm-empty h3 { color: var(--element-active-color); margin: 0 0 6px; }
 
 /* ── CSV preview (U10 bulk import) ── */
 .cpm-csv-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
@@ -240,8 +240,8 @@
 /* ── Gate status matrix (U3) ── */
 .cpm-matrix-scroll { overflow-x: auto; }
 .cpm-matrix { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
-.cpm-matrix th, .cpm-matrix td { border: 1px solid var(--divider-color); padding: 4px 6px; text-align: center; }
-.cpm-matrix__tier { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--on-container-neutral-color); }
+.cpm-matrix th, .cpm-matrix td { border: 1px solid var(--border-divider-color); padding: 4px 6px; text-align: center; }
+.cpm-matrix__tier { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--element-neutral-color); }
 .cpm-matrix__gate { font-size: 0.72rem; }
 .cpm-matrix__loop { text-align: left; min-width: 160px; }
 .cpm-matrix__result { min-width: 180px; }
@@ -254,7 +254,7 @@
   cursor: pointer;
   font-weight: 700;
   font-size: 0.95rem;
-  color: var(--cpm-tone, var(--on-container-neutral-color));
+  color: var(--cpm-tone, var(--element-neutral-color));
   padding: 2px 6px;
 }
 .cpm-matrix__cell:hover { outline: 1px solid var(--instrument-enhanced-primary-color); border-radius: 4px; }
@@ -265,7 +265,7 @@
   justify-content: space-between;
   margin-top: 12px;
   padding: 10px 12px;
-  border: 1px solid var(--divider-color);
+  border: 1px solid var(--border-divider-color);
   border-radius: 8px;
   flex-wrap: wrap;
 }
@@ -277,9 +277,71 @@
   grid-template-columns: 1fr 1.4fr 1.4fr;
   gap: 10px;
   padding: 8px 10px;
-  border: 1px solid var(--divider-color);
+  border: 1px solid var(--border-divider-color);
   border-radius: 6px;
   align-items: center;
+}
+
+/* ── Window ladder (U1 disclosure) ──
+   The ladder used to be 11 flat, identically-weighted rows in which the tier
+   caption ("G0-G4 short features") repeated six times and the long-tier cadence
+   three times — so the one thing the panel exists to convey, that this is a
+   short -> long -> fusion PIPELINE spanning 1 minute to 24 hours, was invisible.
+   Rows now group under a tier head that states the shared facts once, and each
+   row carries a log-scaled bar so the span reads at a glance. */
+.cpm-window-tier + .cpm-window-tier { margin-top: 14px; }
+.cpm-window-tier__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 0 2px 6px;
+  border-bottom: 1px solid var(--border-divider-color);
+  margin-bottom: 6px;
+}
+.cpm-window-tier__rows { display: grid; gap: 2px; }
+.cpm-window-lrow {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(70px, 1fr) minmax(11rem, 1.1fr) minmax(9rem, 0.9fr);
+  gap: 12px;
+  align-items: center;
+  padding: 5px 2px;
+  border-radius: 4px;
+}
+.cpm-window-lrow:hover { background: var(--container-hover-color, rgba(128,128,128,0.08)); }
+.cpm-window-lrow__kind { font-variant-numeric: tabular-nums; }
+
+/* Log-scaled span bar: 1 min .. 24 h on one axis. Decorative — every value it
+   encodes is also present as text in the same row. */
+.cpm-window-scale {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--container-section-color);
+  overflow: hidden;
+}
+.cpm-window-scale__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+  background: var(--instrument-enhanced-secondary-color);
+}
+/* The advance step of a sliding window, drawn over its size: the gap between the
+   two is the overlap that a tumbling window does not have. */
+.cpm-window-scale__slide {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+  background: var(--instrument-enhanced-primary-color);
+}
+.cpm-window-lrow--fusion .cpm-window-scale__fill { background: var(--instrument-enhanced-primary-color); }
+
+@media (max-width: 900px) {
+  .cpm-window-lrow { grid-template-columns: 3.25rem 1fr; row-gap: 2px; }
+  .cpm-window-scale { grid-column: 2; }
+  .cpm-window-lrow > span:nth-child(3),
+  .cpm-window-lrow > span:nth-child(4) { grid-column: 2; }
 }
 
 /* ── Explorer (U2) ── */
@@ -295,7 +357,7 @@
   border-left: 3px solid transparent;
   border-radius: 4px;
   background: none;
-  color: var(--on-container-active-color);
+  color: var(--element-active-color);
   cursor: pointer;
   text-align: left;
   font: inherit;
@@ -313,11 +375,11 @@
   flex-direction: column;
   gap: 2px;
   padding: 10px 14px;
-  border: 1px solid var(--divider-color);
+  border: 1px solid var(--border-divider-color);
   border-radius: 8px;
   min-width: 140px;
 }
-.cpm-lineage__arrow { color: var(--on-container-neutral-color); font-size: 1.1rem; }
+.cpm-lineage__arrow { color: var(--element-neutral-color); font-size: 1.1rem; }
 
 /* ── S5: Historical / Windows / Replay (U6–U8) ── */
 
@@ -338,7 +400,7 @@
 .cpm-band-seg--good { background: var(--instrument-enhanced-secondary-color); }
 .cpm-band-seg--warn { background: var(--alert-caution-color); }
 .cpm-band-seg--bad { background: var(--alert-alarm-color); }
-.cpm-band-seg--muted { background: var(--on-container-neutral-color); opacity: 0.35; }
+.cpm-band-seg--muted { background: var(--element-neutral-color); opacity: 0.35; }
 
 /* Sample-density bar (U7): per-bucket fill vs the 5 s-grid expectation. */
 .cpm-density { display: flex; align-items: flex-end; gap: 2px; height: 48px; margin: 8px 0; }
@@ -349,7 +411,7 @@
   min-height: 2px;
 }
 .cpm-density__bucket--sparse { background: var(--alert-caution-color); }
-.cpm-density__bucket--empty { background: var(--on-container-neutral-color); opacity: 0.25; }
+.cpm-density__bucket--empty { background: var(--element-neutral-color); opacity: 0.25; }
 
 /* Replay cursor slider row (U8). */
 .cpm-slider-row { display: flex; align-items: center; gap: 12px; margin: 8px 0; }

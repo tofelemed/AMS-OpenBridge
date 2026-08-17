@@ -12,7 +12,7 @@ import React, { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   EmptyState, KvRow, LoopSelect, PanelHead, TonePill, WorkspaceHeader,
-  fmtDateTime, QueryError } from './shared';
+  fmtDateTime, fmtDuration, fmtWindowShape, windowSpecsOf, QueryError } from './shared';
 import type { CpmKpiRow } from '../../api/cpmApi';
 import {
   useCpmKpis, useCpmLoops, useCpmResolutions, usePipelineMetrics, useRawWindow,
@@ -82,7 +82,18 @@ export const CpmWindows: React.FC = () => {
 
   const rawCapped = raw.data?.hasMore === true;
   const expectedSamples = Math.round(profileS / SAMPLE_PERIOD_S);
-  const isLong = (resolutions.data?.longWindows ?? ['4h', '12h', '24h']).includes(profile);
+
+  // The served window contract — the authority on assigner/slide/lateness. This
+  // page previously asserted its own version and got two facts wrong. windowSpecsOf
+  // keeps the selector populated (names only) if the API predates `windows`.
+  const specs = useMemo(
+    () => windowSpecsOf(resolutions.data, k => (PROFILE_SECONDS[k] ?? 0) * 1000),
+    [resolutions.data]);
+  const shortSpecs = useMemo(() => specs.filter(w => w.tier === 'short'), [specs]);
+  const longSpecs = useMemo(() => specs.filter(w => w.tier === 'long'), [specs]);
+  const spec = specs.find(w => w.kind === profile);
+  const isLong = spec ? spec.tier === 'long'
+    : (resolutions.data?.longWindows ?? ['4h', '12h', '24h']).includes(profile);
 
   // Watermark chip: DG-1 gives job state + checkpoint age; watermark lag itself
   // is listed unavailable by the proxy, so the chip reports what is real.
@@ -117,13 +128,20 @@ export const CpmWindows: React.FC = () => {
             <span className="cpm-field__label">Window profile</span>
             <select className="cpm-select" value={profile}
               onChange={e => setParams(p => { p.set('profile', e.target.value); p.delete('window'); return p; })}>
+              {/* Labels come from the served window contract. They used to be
+                  hardcoded as "{w} tumbling" for every short kind — true only of
+                  1m; 5m/10m/15m/30m/60m are SLIDING windows with overlap. */}
               <optgroup label="Short features (G0–G4)">
-                {(resolutions.data?.shortWindows ?? ['1m', '5m', '10m', '15m', '30m', '60m']).map(w =>
-                  <option key={w} value={w}>{w} tumbling</option>)}
+                {shortSpecs.map(w => {
+                  const shape = fmtWindowShape(w);
+                  return <option key={w.kind} value={w.kind}>{w.kind}{shape ? ` — ${shape}` : ''}</option>;
+                })}
               </optgroup>
               <optgroup label="Long diagnostics (G5–G11)">
-                {(resolutions.data?.longWindows ?? ['4h', '12h', '24h']).map(w =>
-                  <option key={w} value={w}>{w} slice</option>)}
+                {longSpecs.map(w => {
+                  const shape = fmtWindowShape(w);
+                  return <option key={w.kind} value={w.kind}>{w.kind}{shape ? ` — ${shape}` : ''}</option>;
+                })}
               </optgroup>
             </select>
           </label>
@@ -184,8 +202,30 @@ export const CpmWindows: React.FC = () => {
                   {selected.window_end ? fmtDateTime(selected.window_end) : '—'})
                 </span>
               </KvRow>
-              <KvRow label="Size / slide">{profile} / {profile} (tumbling — no overlap)</KvRow>
-              <KvRow label="Expected samples">{expectedSamples.toLocaleString()} (5 s grid)</KvRow>
+              {/* Size/slide and lateness now come from the served contract. The
+                  hardcoded text claimed every window was "tumbling — no overlap"
+                  (true only of 1m — the other five short kinds are sliding) and
+                  that short-tier lateness was "watermark-bounded" (each branch
+                  sets an explicit 30s/60s/90s/2min/2min/3min). */}
+              <KvRow label="Size / slide">
+                {spec
+                  ? `${fmtWindowShape(spec)}${spec.overlapping ? ' — overlapping' : ' — no overlap'}`
+                  : '—'}
+              </KvRow>
+              <KvRow label="Expected samples">
+                {(() => {
+                  // The engine publishes the real per-window sample period; this
+                  // panel used to assume a 5 s grid for every loop.
+                  const served = typeof selected.expected_sample_count === 'number'
+                    ? selected.expected_sample_count : null;
+                  const period = typeof selected.sample_period_sec === 'number'
+                    ? selected.sample_period_sec : null;
+                  if (served != null) {
+                    return `${served.toLocaleString()}${period ? ` (${period} s grid)` : ''}`;
+                  }
+                  return `${expectedSamples.toLocaleString()} (assumed ${SAMPLE_PERIOD_S} s grid — engine did not report one)`;
+                })()}
+              </KvRow>
               <KvRow label="Actual samples">
                 {fmtBytesless(typeof selected.sample_count === 'number' ? selected.sample_count : null)}
               </KvRow>
@@ -193,8 +233,17 @@ export const CpmWindows: React.FC = () => {
                 {(() => { const c = completenessOf(selected, profileS); return c != null ? `${(c * 100).toFixed(1)}%` : '—'; })()}
               </KvRow>
               <KvRow label="Allowed lateness">
-                {isLong ? '15 min event-time timers (long tier cadence)' : 'watermark-bounded (short tier)'}
+                {spec?.allowedLatenessMs != null
+                  ? `${fmtDuration(spec.allowedLatenessMs)} (event-time)`
+                  : spec?.cadenceMs != null
+                    ? `n/a — recomputed every ${fmtDuration(spec.cadenceMs)} from a retained buffer`
+                    : '—'}
               </KvRow>
+              {spec?.minSamples != null && (
+                <KvRow label="Minimum samples">
+                  {spec.minSamples} — a slice below this is not emitted at all
+                </KvRow>
+              )}
               <KvRow label="Late events">— (DG-4: not recorded by the jobs)</KvRow>
               <KvRow label="Out-of-order events">— (DG-4: not recorded by the jobs)</KvRow>
             </>
@@ -227,22 +276,44 @@ export const CpmWindows: React.FC = () => {
             </>
           )}
 
+          {/* Boundary behaviour differs per assigner, and this block described the
+              tumbling case for all of them. A sliding window does NOT start empty
+              — it shares samples with its neighbours — and the long tier is not a
+              Flink window at all but a retained buffer resliced on a timer. */}
           <PanelHead eyebrow="Window contract" title="What happens at each boundary" />
           <div className="cpm-window-rows">
             <div className="cpm-window-row">
               <strong>On open</strong>
-              <span className="cpm-event-row__sub">all prior samples dropped (tumbling)</span>
-              <span className="cpm-event-row__sub">→ empty accumulator</span>
+              <span className="cpm-event-row__sub">
+                {spec?.assigner === 'sliding'
+                  ? `overlaps the previous window by ${fmtDuration(spec.sizeMs - (spec.slideMs ?? 0))} — samples are shared, not dropped`
+                  : spec?.assigner === 'rolling-buffer'
+                    ? 'no open/close — a slice is taken from the retained buffer'
+                    : 'all prior samples dropped (tumbling)'}
+              </span>
+              <span className="cpm-event-row__sub">
+                {spec?.assigner === 'tumbling' ? '→ empty accumulator' : '→ shared history'}
+              </span>
             </div>
             <div className="cpm-window-row">
               <strong>While open</strong>
-              <span className="cpm-event-row__sub">samples on the 5 s grid accumulate</span>
+              <span className="cpm-event-row__sub">samples accumulate at the loop's publish rate</span>
               <span className="cpm-event-row__sub">→ up to {expectedSamples.toLocaleString()} added</span>
             </div>
             <div className="cpm-window-row">
               <strong>On close</strong>
-              <span className="cpm-event-row__sub">{isLong ? 'event-time timer fires (≤15 min after watermark passes end)' : 'watermark passes window end'}</span>
-              <span className="cpm-event-row__sub">→ one result emitted, nothing retained</span>
+              <span className="cpm-event-row__sub">
+                {spec?.cadenceMs != null
+                  ? `event-time timer fires every ${fmtDuration(spec.cadenceMs)}`
+                  : spec?.allowedLatenessMs != null
+                    ? `watermark passes window end, then ${fmtDuration(spec.allowedLatenessMs)} of lateness is still accepted`
+                    : 'watermark passes window end'}
+              </span>
+              <span className="cpm-event-row__sub">
+                {spec?.minSamples != null
+                  ? `→ one result if ≥ ${spec.minSamples} samples, else nothing`
+                  : '→ one result emitted, nothing retained'}
+              </span>
             </div>
           </div>
         </section>

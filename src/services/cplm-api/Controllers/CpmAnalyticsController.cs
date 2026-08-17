@@ -44,9 +44,67 @@ public sealed class CpmAnalyticsController : ControllerBase
         ("G15", "Diagnosis band",      "fusion")
     };
 
+    /// <summary>
+    /// The window contract the deployed Flink jobs actually implement.
+    ///
+    /// This exists because three UI surfaces (Overview's window ladder, the Window
+    /// Inspector, the onboarding wizard) each hardcoded their own version of it and
+    /// drifted apart — two of them claimed every short window was TUMBLING when
+    /// five of the six are SLIDING with overlap, and that short-tier lateness was
+    /// "watermark-bounded" when each branch sets an explicit 30s–3min.
+    ///
+    /// Honest about what this is: a hand-maintained mirror of the job sources, not
+    /// something the jobs publish. It reduces four copies to one; it does not make
+    /// drift impossible. If you change a window, change it here too:
+    ///   • short  — CplmShortFeatureStreamJob (6 branches, .allowedLateness per branch)
+    ///   • long   — CplmLongDiagnosticsStreamJob (TIMER_INTERVAL_MS, WINDOW_*_MS, MIN_SAMPLES)
+    ///   • fusion — CplmGateFusionStreamJob.processElement2 (12h/24h guard)
+    /// </summary>
+    private sealed record WindowSpec(
+        string Kind,
+        string Tier,
+        /// <summary>tumbling | sliding | rolling-buffer (the long tier is a
+        /// KeyedProcessFunction over a retained buffer, not a Flink window).</summary>
+        string Assigner,
+        long SizeMs,
+        long? SlideMs,
+        long? AllowedLatenessMs,
+        long? CadenceMs,
+        int? MinSamples,
+        string Feeds);
+
+    private const long Min = 60_000L;
+    private const long Hour = 60L * Min;
+
+    private static readonly WindowSpec[] WindowSpecs =
+    {
+        // ── short tier: CplmShortFeatureStreamJob ────────────────────────────
+        new("1m",  "short", "tumbling",       1 * Min,  null,    30_000,  null, null, "G0–G4 short features"),
+        new("5m",  "short", "sliding",        5 * Min,  1 * Min, 60_000,  null, null, "G0–G4 short features"),
+        new("10m", "short", "sliding",       10 * Min,  2 * Min, 90_000,  null, null, "G0–G4 short features"),
+        new("15m", "short", "sliding",       15 * Min,  5 * Min, 2 * Min, null, null, "G0–G4 short features"),
+        new("30m", "short", "sliding",       30 * Min,  5 * Min, 2 * Min, null, null, "G0–G4 short features"),
+        new("60m", "short", "sliding",       60 * Min,  5 * Min, 3 * Min, null, null, "G0–G4 short features"),
+        // ── long tier: CplmLongDiagnosticsStreamJob ──────────────────────────
+        // Event-time timers on a 15-min cadence recompute each slice from the
+        // retained buffer; a slice with < MinSamples is not emitted at all, which
+        // is the usual reason a sparse loop never produces a verdict.
+        // `feeds` is the same for all three: which of them additionally trigger
+        // fusion is stated once by `fusion.firesOn` below, not duplicated here —
+        // otherwise a UI grouping these rows cannot dedupe the shared caption.
+        new("4h",  "long",  "rolling-buffer",  4 * Hour, null, null, 15 * Min, 32, "G5–G11 long diagnostics"),
+        new("12h", "long",  "rolling-buffer", 12 * Hour, null, null, 15 * Min, 32, "G5–G11 long diagnostics"),
+        new("24h", "long",  "rolling-buffer", 24 * Hour, null, null, 15 * Min, 32, "G5–G11 long diagnostics"),
+    };
+
+    /// <summary>Which long records trigger the fusion engine (G12–G15 → verdict).</summary>
+    private static readonly string[] FusionTriggerWindows = { "12h", "24h" };
+
     /// <summary>Short-feature resolutions vs long-diagnostics resolutions.</summary>
-    private static readonly string[] ShortWindows = { "1m", "5m", "10m", "15m", "30m", "60m" };
-    private static readonly string[] LongWindows = { "4h", "12h", "24h" };
+    private static readonly string[] ShortWindows =
+        WindowSpecs.Where(w => w.Tier == "short").Select(w => w.Kind).ToArray();
+    private static readonly string[] LongWindows =
+        WindowSpecs.Where(w => w.Tier == "long").Select(w => w.Kind).ToArray();
 
     private readonly NpgsqlDataSource _dataSource;
 
@@ -186,14 +244,42 @@ public sealed class CpmAnalyticsController : ControllerBase
         });
     }
 
-    /// <summary>Available resolutions and the gate catalogue, so a UI need not hardcode them.</summary>
+    /// <summary>
+    /// Available resolutions, the full window contract, and the gate catalogue, so
+    /// a UI need not hardcode any of it. `windows` is the addition: assigner, size,
+    /// slide, allowed lateness, cadence and the minimum-sample floor per window
+    /// kind — the facts three screens previously each guessed at differently.
+    /// </summary>
     [HttpGet("resolutions")]
     public IActionResult GetResolutions() => Ok(new
     {
         shortWindows = ShortWindows,
         longWindows = LongWindows,
+        windows = WindowSpecs.Select(w => new
+        {
+            kind = w.Kind,
+            tier = w.Tier,
+            assigner = w.Assigner,
+            sizeMs = w.SizeMs,
+            slideMs = w.SlideMs,
+            allowedLatenessMs = w.AllowedLatenessMs,
+            cadenceMs = w.CadenceMs,
+            minSamples = w.MinSamples,
+            feeds = w.Feeds,
+            // Overlap is the fact the old UI copy got wrong, so state it outright
+            // rather than leaving every caller to infer it from slide < size.
+            overlapping = w.SlideMs != null && w.SlideMs < w.SizeMs
+        }),
+        fusion = new
+        {
+            firesOn = FusionTriggerWindows,
+            produces = "G0–G15 fused diagnosis",
+            note = "Fusion is triggered by long records, so no verdict exists before a loop completes a 12h slice."
+        },
         gates = GateDefs.Select(g => new { key = g.Key, name = g.Name, tier = g.Tier }),
-        note = "Gate results are produced only for 12h and 24h windows: fusion fires on long records."
+        note = "Gate results are produced only for 12h and 24h windows: fusion fires on long records. "
+             + "Window values mirror the deployed Flink jobs (CplmShortFeatureStreamJob, "
+             + "CplmLongDiagnosticsStreamJob, CplmGateFusionStreamJob)."
     });
 
     // ── Shaping ─────────────────────────────────────────────────────────────

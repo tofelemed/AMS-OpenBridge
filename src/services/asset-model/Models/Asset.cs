@@ -62,55 +62,82 @@ public class Asset
     /// Soft-delete flag.
     /// </summary>
     public bool IsDeleted { get; set; }
-    
+
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
-    
+
     // ───────────────────────────────────────────────────────────────────────────
-    // Derived paths — computed from ContextualPath
+    // Transport overrides — stored, nullable, null = derive from ContextualPath
+    //
+    // Why these exist: the derived transports below assume the data for an asset
+    // lives where its PATH TEXT says (IoTDB root.<path>, sparkplug <unit>_<device>).
+    // That holds for plant signals fed through the UNS pipeline, but not for
+    // signals whose pipeline keys storage by something else — CPLM loop signals
+    // land in IoTDB at root.<site>.cpm.<loopId>.<role> (keyed by LOOP id, from
+    // RawLoopIotDbConsumer) and publish live under the ams_site1/ams_edge1 edge
+    // with device = sanitized loopId (LoopLiveRbeJob → sparkplug-edge-node).
+    // Without an override, registering such a signal as an asset yields a binding
+    // with asset-model provenance that points at a location nothing writes —
+    // "resolved" and empty. The overrides let the asset state where its data
+    // actually is; consumers (binding-resolver, Trend, displays) are unchanged
+    // because the computed properties below fall back through them.
     // ───────────────────────────────────────────────────────────────────────────
-    
+
+    public string? IoTDbPathOverride { get; set; }
+    public string? SparkplugGroupOverride { get; set; }
+    public string? SparkplugEdgeNodeOverride { get; set; }
+    public string? SparkplugDeviceOverride { get; set; }
+    public string? SparkplugMetricOverride { get; set; }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // Derived paths — override wins, else computed from ContextualPath
+    // ───────────────────────────────────────────────────────────────────────────
+
     /// <summary>
-    /// IoTDB time-series path. Derived: root.{contextual_path with / → .}
+    /// IoTDB time-series path. Override, else root.{contextual_path with / → .}
     /// Example: root.houston.refinery.crude1.pump101.discharge_press
     /// </summary>
-    public string IoTDbPath => $"root.{ContextualPath.Replace('/', '.').Replace(' ', '_')}";
-    
+    public string IoTDbPath =>
+        IoTDbPathOverride ?? $"root.{ContextualPath.Replace('/', '.').Replace(' ', '_')}";
+
     /// <summary>
-    /// Sparkplug B group identifier. Derived from site level.
+    /// Sparkplug B group identifier. Override, else derived from site level.
     /// Example: houston
     /// </summary>
-    public string SparkplugGroup => ContextualPath.Split('/')[0];
-    
+    public string SparkplugGroup => SparkplugGroupOverride ?? ContextualPath.Split('/')[0];
+
     /// <summary>
-    /// Sparkplug B edge node. Derived from site + edge convention.
+    /// Sparkplug B edge node. Override, else site + edge convention.
     /// For compatibility with existing AMS: {site}_edge1
     /// </summary>
-    public string SparkplugEdgeNode => $"{SparkplugGroup}_edge1";
-    
+    public string SparkplugEdgeNode =>
+        SparkplugEdgeNodeOverride ?? $"{ContextualPath.Split('/')[0]}_edge1";
+
     /// <summary>
-    /// Sparkplug B device ID. Derived from unit/device portion.
+    /// Sparkplug B device ID. Override, else derived from unit/device portion.
     /// Example: crude1_pump101
     /// </summary>
     public string SparkplugDevice
     {
         get
         {
+            if (SparkplugDeviceOverride is not null) return SparkplugDeviceOverride;
             var parts = ContextualPath.Split('/');
-            return parts.Length >= 4 
-                ? $"{parts[^2]}_{parts[^1].Split('.')[0]}" 
+            return parts.Length >= 4
+                ? $"{parts[^2]}_{parts[^1].Split('.')[0]}"
                 : parts[^1].Split('.')[0];
         }
     }
-    
+
     /// <summary>
-    /// Sparkplug metric name. The measurement portion after the device.
+    /// Sparkplug metric name. Override, else the measurement portion after the device.
     /// Example: discharge_press
     /// </summary>
     public string? SparkplugMetric
     {
         get
         {
+            if (SparkplugMetricOverride is not null) return SparkplugMetricOverride;
             var lastPart = ContextualPath.Split('/')[^1];
             var dotIndex = lastPart.IndexOf('.');
             return dotIndex >= 0 ? lastPart[(dotIndex + 1)..] : null;

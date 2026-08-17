@@ -47,34 +47,60 @@ export const CpmPerformance: React.FC = () => {
   const [drawer, setDrawer] = useState<{ loopId: string; gate: string } | null>(null);
   const [rankBy, setRankBy] = useState<'confidence' | 'error'>('confidence');
 
-  const summary = useFleetSummary();
+  const summary = useFleetSummary(undefined, windowKind);
+  // The matrix/KPI feed stays confidence-ordered; the bad-actor panel asks the
+  // SERVER for its own ordering (P3) instead of re-sorting this page of results.
   const rankings = useFleetRankings(undefined, windowKind);
+  const badActors = useFleetRankings(undefined, windowKind, rankBy === 'error' ? 'error' : 'confidence', 8);
   const heatmap = useFleetHeatmap(undefined, windowKind);
 
   const loops = useMemo(() => rankings.data?.loops ?? [], [rankings.data]);
   const evaluated = loops.filter(l => l.diagnosis !== 'NOT_EVALUATED');
 
-  // Fleet aggregates from real per-loop metrics.
+  // Aggregates over the loops actually returned — which is a capped, confidence-
+  // ordered page, NOT the fleet. They are labelled accordingly below; `truncated`
+  // drives that wording so the tiles never claim a fleet figure they don't have.
+  const fleetEvaluated = (summary.data?.diagnoses ?? []).reduce((n, d) => n + d.count, 0);
+  const truncated = fleetEvaluated > evaluated.length;
+
   const medianMae = median(evaluated.map(l => l.metrics.mae).filter((x): x is number => x != null && x > 0));
   const avgGoodError = (() => {
     // goodErrorPct is a 0..1 FRACTION from the engine; scale to percent here.
     const xs = evaluated.map(l => l.metrics.goodErrorPct).filter((x): x is number => x != null);
     return xs.length ? (100 * xs.reduce((a, b) => a + b, 0)) / xs.length : null;
   })();
+  // P4: acfPeriodS > 0 is NOT evidence of a problem — ACF returns a period for
+  // most signals (it is non-zero on ~58% of stored results, while only ~8% carry
+  // an oscillation/final-element diagnosis). Count the diagnosis the engine
+  // actually reached; that is what "evidence" means on this screen.
   const oscillating = evaluated.filter(l =>
-    (l.metrics.acfPeriodS ?? 0) > 0 || l.diagnosis.includes('OSCILLATION')
-    || l.diagnosis.includes('FINAL_ELEMENT')).length;
+    l.diagnosis.includes('OSCILLATION') || l.diagnosis.includes('FINAL_ELEMENT')).length;
 
-  const ranked = useMemo(() => {
-    const rows = [...loops];
-    if (rankBy === 'confidence') rows.sort((a, b) => (b.confidence ?? -1) - (a.confidence ?? -1));
-    // Sentinel above any real fraction so unevaluated loops sink to the bottom.
-    else rows.sort((a, b) => (a.metrics.goodErrorPct ?? 1.01) - (b.metrics.goodErrorPct ?? 1.01));
-    return rows.slice(0, 8);
-  }, [loops, rankBy]);
+  const ranked = useMemo(() => badActors.data?.loops ?? [], [badActors.data]);
 
   const gateKeys = heatmap.data?.gateKeys ?? TIER_GROUPS.flatMap(g => g.keys);
-  const selectedRow = heatmap.data?.loops.find(l => l.loopId === selectedLoop);
+
+  // P5: the group headers span hardcoded tier widths while the columns come from
+  // the API. They agree today (17 keys, same order) — but if the engine ever adds
+  // a gate, the header would keep spanning 17 columns while the body grew one, and
+  // every glyph would sit under the wrong tier label with nothing to signal it.
+  // Intersect the groups with the served keys so the spans always match the body,
+  // and collect anything the API sent that no group claims.
+  const tierGroups = useMemo(() => {
+    const keySet = new Set(gateKeys);
+    const groups = TIER_GROUPS
+      .map(g => ({ label: g.label, keys: g.keys.filter(k => keySet.has(k)) }))
+      .filter(g => g.keys.length > 0);
+    const claimed = new Set(groups.flatMap(g => g.keys));
+    const ungrouped = gateKeys.filter(k => !claimed.has(k));
+    return ungrouped.length ? [...groups, { label: 'Other', keys: ungrouped }] : groups;
+  }, [gateKeys]);
+  // Render columns in the order the groups declare, so header and body agree.
+  const orderedGateKeys = useMemo(() => tierGroups.flatMap(g => g.keys), [tierGroups]);
+
+  // Case-insensitive, like every loop lookup in cplm-api.
+  const selectedRow = heatmap.data?.loops.find(
+    l => l.loopId.toLowerCase() === (selectedLoop ?? '').toLowerCase());
   const warnCount = selectedRow
     ? Object.values(selectedRow.gates).filter(s => glyphFor(s).tone === 'warn').length : 0;
   const badCount = selectedRow
@@ -90,7 +116,7 @@ export const CpmPerformance: React.FC = () => {
           <div className="cpm-filter-row">
             {['12h', '24h'].map(w => (
               <ObcButton key={w} variant={windowKind === w ? 'raised' : 'normal'}
-                onClick={() => setParams(p => { p.set('window', w); return p; })}>
+                onClick={() => setParams(p => { p.set('window', w); return p; }, { replace: true })}>
                 {w}
               </ObcButton>
             ))}
@@ -99,14 +125,24 @@ export const CpmPerformance: React.FC = () => {
       />
 
       <div className="cpm-kpi-row">
+        {/* These are computed over the loops this page fetched — a capped,
+            confidence-ordered page. Saying "fleet average" over a top-50 slice
+            was a claim the data could not support, so the caption states the
+            actual basis and names the shortfall when the fleet is larger. */}
         <KpiTile caption="Good-error time" tone={avgGoodError != null && avgGoodError >= 80 ? 'good' : 'warn'}
           value={avgGoodError != null ? `${avgGoodError.toFixed(1)}%` : '—'}
-          sub={avgGoodError != null ? 'fleet average, evaluated loops' : 'no evaluated loops yet'} />
+          sub={avgGoodError == null ? 'no evaluated loops yet'
+            : truncated ? `mean of top ${evaluated.length} of ${fleetEvaluated} evaluated`
+            : `mean of all ${evaluated.length} evaluated loop(s)`} />
         <KpiTile caption="Median MAE" tone="good"
-          value={medianMae != null ? `${medianMae.toFixed(2)} EU` : '—'}
-          sub={medianMae != null ? `${evaluated.length} evaluated loop(s)` : 'no evaluated loops yet'} />
-        <KpiTile caption="Loops with periodic evidence" tone={oscillating > 0 ? 'warn' : 'good'}
-          value={oscillating} sub={`of ${evaluated.length} evaluated`} />
+          value={medianMae != null ? medianMae.toFixed(2) : '—'}
+          sub={medianMae == null ? 'no evaluated loops yet'
+            : truncated ? `top ${evaluated.length} of ${fleetEvaluated} evaluated · PV units`
+            : `${evaluated.length} evaluated loop(s) · PV units`} />
+        <KpiTile caption="Loops with periodic diagnosis" tone={oscillating > 0 ? 'warn' : 'good'}
+          value={oscillating}
+          sub={truncated ? `of top ${evaluated.length} of ${fleetEvaluated} evaluated`
+            : `of ${evaluated.length} evaluated`} />
         <KpiTile caption="Potential savings" tone="muted" value="—"
           sub="no $/loop model configured" />
       </div>
@@ -129,25 +165,38 @@ export const CpmPerformance: React.FC = () => {
               <thead>
                 <tr>
                   <th rowSpan={2} className="cpm-matrix__loop">Loop</th>
-                  {TIER_GROUPS.map(g => (
+                  {tierGroups.map(g => (
                     <th key={g.label} colSpan={g.keys.length} className="cpm-matrix__tier">{g.label}</th>
                   ))}
                   <th rowSpan={2} className="cpm-matrix__result">Result</th>
                 </tr>
                 <tr>
-                  {gateKeys.map(k => <th key={k} className="cpm-matrix__gate">{k}</th>)}
+                  {orderedGateKeys.map(k => <th key={k} className="cpm-matrix__gate">{k}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {heatmap.data!.loops.map(row => (
                   <tr key={row.loopId}
-                    className={selectedLoop === row.loopId ? 'cpm-matrix__row--selected' : undefined}
-                    onClick={() => setParams(p => { p.set('loop', row.loopId); return p; })}>
+                    className={selectedRow?.loopId === row.loopId ? 'cpm-matrix__row--selected' : undefined}
+                    // P8 replace: selecting a row is in-page selection, not a page
+                    // visit — clicking through a 20-row matrix left 20 back-steps.
+                    // P9: the row was mouse-only; the cells inside are buttons but
+                    // the row itself had no role, tab stop or key handler.
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={selectedRow?.loopId === row.loopId}
+                    onClick={() => setParams(p => { p.set('loop', row.loopId); return p; }, { replace: true })}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setParams(p => { p.set('loop', row.loopId); return p; }, { replace: true });
+                      }
+                    }}>
                     <td className="cpm-matrix__loop">
                       <strong>{row.loopId}</strong>
                       <div className="cpm-event-row__sub">{row.displayName}</div>
                     </td>
-                    {gateKeys.map(k => {
+                    {orderedGateKeys.map(k => {
                       const g = glyphFor(row.gates[k] ?? 'NOT_EVALUATED');
                       return (
                         <td key={k}>
@@ -157,7 +206,7 @@ export const CpmPerformance: React.FC = () => {
                             title={`${row.loopId} · ${k} · ${row.gates[k] ?? 'NOT_EVALUATED'}`}
                             onClick={e => {
                               e.stopPropagation();
-                              setParams(p => { p.set('loop', row.loopId); return p; });
+                              setParams(p => { p.set('loop', row.loopId); return p; }, { replace: true });
                               setDrawer({ loopId: row.loopId, gate: k });
                             }}
                           >
@@ -213,13 +262,24 @@ export const CpmPerformance: React.FC = () => {
               </select>
             }
           />
-          {ranked.length === 0 && <EmptyState title="No ranked loops yet" />}
+          {badActors.isLoading && <EmptyState title="Ranking…" />}
+          {badActors.isError && (
+            <QueryError title="Ranking unavailable" error={badActors.error}
+              retry={() => void badActors.refetch()} />
+          )}
+          {!badActors.isLoading && !badActors.isError && ranked.length === 0 && (
+            <EmptyState title="No ranked loops yet" />
+          )}
           {ranked.map((l, i) => (
             <div key={l.loopId} className="cpm-kv">
               <span className="cpm-kv__label">#{i + 1} · <strong>{l.loopId}</strong> · {l.displayName}</span>
               <span className="cpm-kv__value">
                 <TonePill tone={toneFor(l.diagnosis)}>{l.diagnosis.replace(/_/g, ' ')}</TonePill>
-                {l.confidence != null ? ` ${(l.confidence * 100).toFixed(0)}%` : ''}
+                {/* Show the metric the ranking is actually by, not always confidence. */}
+                {rankBy === 'error'
+                  ? (l.metrics.goodErrorPct != null
+                      ? ` good ${(l.metrics.goodErrorPct * 100).toFixed(0)}%` : '')
+                  : (l.confidence != null ? ` ${(l.confidence * 100).toFixed(0)}%` : '')}
               </span>
             </div>
           ))}

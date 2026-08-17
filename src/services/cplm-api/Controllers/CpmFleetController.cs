@@ -95,12 +95,37 @@ public sealed class CpmFleetController : ControllerBase
         [FromQuery] string? site = null,
         [FromQuery] string windowKind = "24h",
         [FromQuery] int limit = 50,
+        [FromQuery] string orderBy = "confidence",
         CancellationToken ct = default)
     {
         limit = Math.Clamp(limit, 1, 200);
+
+        // Whitelisted — this is interpolated into ORDER BY.
+        //
+        // Why the server has to do this: the caller applies LIMIT, so re-sorting
+        // the returned page client-side ranks a SUBSET chosen by a different
+        // metric. "Worst control error in the fleet" computed over the 50
+        // most-confident loops is not the worst in the fleet, and the loop that
+        // actually deserves attention can be absent from the page entirely.
+        var rankExpr = orderBy?.Trim().ToLowerInvariant() switch
+        {
+            "confidence" or null or "" => "l.confidence DESC NULLS LAST",
+            // good_error_pct is share-inside-band: LOWER is worse, so worst-first.
+            "error" => "l.good_error_pct ASC NULLS LAST",
+            "mae" => "l.mae DESC NULLS LAST",
+            "effort" => "l.effort_ratio DESC NULLS LAST",
+            _ => null
+        };
+        if (rankExpr is null)
+            return BadRequest(new
+            {
+                error = $"Unknown orderBy '{orderBy}'",
+                allowed = new[] { "confidence", "error", "mae", "effort" }
+            });
+
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
 
-        var rows = await conn.QueryAsync("""
+        var rows = await conn.QueryAsync($"""
             WITH latest AS (
                 SELECT DISTINCT ON (g.loop_id)
                        g.loop_id, g.window_kind, g.window_end, g.diagnosis, g.severity,
@@ -121,10 +146,10 @@ public sealed class CpmFleetController : ControllerBase
             WHERE (@site::text IS NULL OR r.site = @site)
               AND COALESCE((r.monitoring->>'enabled')::boolean, FALSE)
             ORDER BY
-                -- Real verdicts first, then by confidence; unevaluated loops sink
+                -- Real verdicts first, whatever the metric; unevaluated loops sink
                 -- to the bottom but are still listed.
                 (l.diagnosis IS NOT NULL AND l.diagnosis <> 'INSUFFICIENT_DATA') DESC,
-                l.confidence DESC NULLS LAST,
+                {rankExpr},
                 r.loop_id
             LIMIT @limit
             """, new { site, windowKind, limit });
@@ -155,7 +180,9 @@ public sealed class CpmFleetController : ControllerBase
             observabilityFlags = ReadStringArray((string?)r.payload, "observability_flags")
         }).ToList();
 
-        return Ok(new { site, windowKind, count = ranked.Count, loops = ranked });
+        // orderBy echoes back: with a LIMIT, the ordering determines WHICH loops
+        // are in the response, so a caller must be able to tell what it got.
+        return Ok(new { site, windowKind, orderBy, count = ranked.Count, loops = ranked });
     }
 
     /// <summary>

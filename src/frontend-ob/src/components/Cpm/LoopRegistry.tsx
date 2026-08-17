@@ -11,11 +11,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
-  EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader,
+  EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader, fmtDuration, fmtWindowShape,
+  windowSpecsOf,
 } from './shared';
 import {
   useActivateLoop, useCpmLoops, useCpmReadiness, useCpmRegistryContract,
-  useRepublishEvidence,
+  useCpmResolutions, useRepublishEvidence,
 } from '../../hooks/useCpm';
 import { activateLoop as activateLoopApi } from '../../api/cpmApi';
 import type { CpmActivateRequest, CpmLoop, CpmTagMapEntry } from '../../api/cpmApi';
@@ -252,6 +253,28 @@ const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; onClose
   const dialogRef = useDialogA11y<HTMLDivElement>(onClose);
   const contract = useCpmRegistryContract();
   const activate = useActivateLoop();
+  // Step 3 shows the deployed window contract. Served, not restated — see the
+  // comment at that step.
+  const resolutions = useCpmResolutions();
+  // Names-only fallback when the API predates the contract (see windowSpecsOf).
+  const windowSpecs = useMemo(() => windowSpecsOf(resolutions.data, () => 0), [resolutions.data]);
+  const shortWindowSummary = useMemo(
+    () => windowSpecs
+      .filter(w => w.tier === 'short')
+      // Shape when the API served it, bare kind when it didn't.
+      .map(w => fmtWindowShape(w) || w.kind)
+      .join(' · '),
+    [windowSpecs]);
+  const longWindowSummary = useMemo(() => {
+    const long = windowSpecs.filter(w => w.tier === 'long');
+    if (!long.length) return '';
+    // Same cadence across the long tier, so name it once rather than per slice.
+    const cadence = long[0].cadenceMs;
+    return `${long.map(w => w.kind).join(' / ')} slices${cadence ? ` · ${fmtDuration(cadence)} cadence` : ''}`;
+  }, [windowSpecs]);
+  const minSamplesFloor = useMemo(
+    () => windowSpecs.find(w => w.minSamples != null)?.minSamples ?? null,
+    [windowSpecs]);
   const isEdit = !!editLoop;
   const [step, setStep] = useState(0);
   const [savedLoopId, setSavedLoopId] = useState<string | null>(null);
@@ -400,12 +423,24 @@ const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; onClose
 
         {step === 3 && (
           <>
-            <KvRow label="Short features (G0–G4)">1m · 5m/1m · 10m/2m · 15m/5m · 30m/5m · 60m/5m</KvRow>
-            <KvRow label="Long diagnostics (G5–G11)">4h / 12h / 24h slices · 15 min cadence</KvRow>
-            <KvRow label="Fusion (G12–G15)">Fires on 12h and 24h long records</KvRow>
+            {/* Read from the served window contract rather than restating it: this
+                was the third hardcoded copy of the same facts, and the other two
+                had drifted into claiming every short window was tumbling. */}
+            <KvRow label="Short features (G0–G4)">
+              {shortWindowSummary || '—'}
+            </KvRow>
+            <KvRow label="Long diagnostics (G5–G11)">
+              {longWindowSummary || '—'}
+            </KvRow>
+            <KvRow label="Fusion (G12–G15)">
+              {resolutions.data?.fusion
+                ? `Fires on ${resolutions.data.fusion.firesOn.join(' and ')} long records`
+                : '—'}
+            </KvRow>
             <p className="cpm-copy" style={{ marginTop: 12 }}>
               Windows are fixed by the deployed pipeline; they are shown here so the reviewer
-              knows what cadence to expect. First fused verdict needs ≥ 12 h of samples.
+              knows what cadence to expect. First fused verdict needs ≥ 12 h of samples
+              {minSamplesFloor != null ? `, and any slice with fewer than ${minSamplesFloor} samples is not evaluated at all` : ''}.
             </p>
           </>
         )}

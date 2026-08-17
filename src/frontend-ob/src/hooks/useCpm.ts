@@ -6,7 +6,7 @@
 import React from 'react';
 // H2: interval-polling queryFns are wrapped in backgroundPoll so machine
 // refetches never extend the idle-session clock.
-import { backgroundPoll } from '../api/apiFetch';
+import { ApiError, backgroundPoll } from '../api/apiFetch';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as cpm from '../api/cpmApi';
 
@@ -116,13 +116,22 @@ export function useLatestGates(loopId: string | undefined, windowKind = '24h') {
     queryKey: KEYS.gatesLatest(loopId ?? '', windowKind),
     queryFn: ({ signal }) => cpm.getLatestGates(loopId!, windowKind, signal),
     enabled: !!loopId,
+    // gates/latest answers 404 for a loop with no fused window yet. That is a
+    // definitive answer, not a transient failure, so the global retry:2 turned
+    // every newly-onboarded loop into 3 requests per selection (with backoff
+    // delaying the "no verdict yet" message). Other statuses still retry.
+    retry: (count, err) => !(err instanceof ApiError && err.status === 404) && count < 2,
   });
 }
 
-export function useFleetSummary(site?: string) {
+export function useFleetSummary(site?: string, windowKind = '24h') {
+  // P10: this used to drop windowKind on the floor and always ask for 24h, while
+  // the query key claimed to identify the result by site alone. Any caller behind
+  // a 12h/24h toggle silently got 24h diagnosis counts — and cached them under a
+  // key that could not tell the two apart.
   return useQuery({
-    queryKey: KEYS.fleetSummary(site),
-    queryFn: backgroundPoll(() => cpm.getFleetSummary(site)),
+    queryKey: [...KEYS.fleetSummary(site), windowKind],
+    queryFn: backgroundPoll(() => cpm.getFleetSummary(site, windowKind)),
     refetchInterval: 60_000,
   });
 }
@@ -135,10 +144,13 @@ export function useCpmPipelineStatus(refetchMs = 15_000) {
   });
 }
 
-export function useFleetRankings(site?: string, windowKind = '24h') {
+export function useFleetRankings(
+  site?: string, windowKind = '24h',
+  orderBy: cpm.CpmRankingOrder = 'confidence', limit = 50,
+) {
   return useQuery({
-    queryKey: ['cpm', 'fleet', 'rankings', site ?? '', windowKind],
-    queryFn: backgroundPoll(() => cpm.getFleetRankings(site, windowKind)),
+    queryKey: ['cpm', 'fleet', 'rankings', site ?? '', windowKind, orderBy, limit],
+    queryFn: backgroundPoll(() => cpm.getFleetRankings(site, windowKind, limit, orderBy)),
     refetchInterval: 60_000,
   });
 }
@@ -161,14 +173,22 @@ export function useCpmCalculations() {
 
 export function useCpmTrend(
   series: string | undefined, start: Date, end: Date, width = 300, measurements = 'pv,sp,op',
-  enabled = true,
+  enabled = true, pollDriven = false,
 ) {
   // C: `enabled` lets a caller hold the trend until the real window bounds are
   // known (Investigation), instead of fetching the default 24h range and
   // discarding it when the verdict window arrives.
+  //
+  // H2: `pollDriven` is for callers whose window advances on a TIMER (Explorer's
+  // rolling 8h). Those refetches are machine-initiated, so they must not extend
+  // the idle-session clock — otherwise a parked Explorer tab keeps the session
+  // alive forever. Callers whose window moves because a USER moved it (Historical,
+  // Investigation, Replay) leave it false, so their work still counts as activity.
+  const fetchTrend = ({ signal }: { signal: AbortSignal }) =>
+    cpm.getTrend(series!, start, end, width, measurements, true, signal);
   return useQuery({
     queryKey: ['cpm', 'trend', series ?? '', start.getTime(), end.getTime(), width, measurements],
-    queryFn: ({ signal }) => cpm.getTrend(series!, start, end, width, measurements, true, signal),
+    queryFn: pollDriven ? backgroundPoll(fetchTrend) : fetchTrend,
     enabled: !!series && enabled,
     staleTime: 60_000,
   });

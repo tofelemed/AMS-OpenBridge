@@ -145,6 +145,13 @@ export interface CpmEventsQuery {
   includeShelved?: boolean;
   from?: string;
   limit?: number;
+  /**
+   * 'triage' (server default) — open first, then highest peak confidence: worst-first
+   * for the Events screen. 'recent' — strictly newest-opened first, for anything that
+   * renders a chronological episode list. This is not cosmetic: with a LIMIT the two
+   * orders return DIFFERENT frames, so a timeline must ask for 'recent' explicitly.
+   */
+  sort?: 'triage' | 'recent';
 }
 
 export const getEvents = (q: CpmEventsQuery = {}, signal?: AbortSignal) => {
@@ -154,7 +161,8 @@ export const getEvents = (q: CpmEventsQuery = {}, signal?: AbortSignal) => {
   if (q.includeShelved) params.set('includeShelved', 'true');
   if (q.from) params.set('from', q.from);
   if (q.limit) params.set('limit', String(q.limit));
-  return apiJson<{ count: number; openOnly: boolean; events: CpmEventFrame[] }>(
+  if (q.sort) params.set('sort', q.sort);
+  return apiJson<{ count: number; openOnly: boolean; sort: string; events: CpmEventFrame[] }>(
     `${BASE}/events?${params.toString()}`, { signal });
 };
 
@@ -252,9 +260,17 @@ export const getFleetSummary = (site?: string, windowKind = '24h') => {
 
 // ── Pipeline (U11, U1 runtime panel) ────────────────────────────────────────
 
+/**
+ * 'platform' covers the jobs that are required but belong to neither the alarm nor
+ * the CPLM pipeline (analysis execution, alarm KPI, alarm state export). They were
+ * previously absent from the server's required list and therefore surfaced under
+ * `unexpectedJobs` while running normally.
+ */
+export type CpmJobRole = 'alarm' | 'cplm' | 'platform';
+
 export interface CpmPipelineJob {
   name: string;
-  role: 'alarm' | 'cplm';
+  role: CpmJobRole;
   state: string;
   running: boolean;
 }
@@ -292,17 +308,35 @@ export interface CpmRankedLoop {
     triangularity: number | null;
     horchOddness: number | null;
     acfPeriodS: number | null;
+    /**
+     * Share of samples inside the acceptable error band, as a **0..1 FRACTION**
+     * despite the `Pct` name (the column is `good_error_pct`; verified range in
+     * stored data is 0..1, mean ~0.88). Multiply by 100 before display.
+     * Treating it as an already-scaled percent renders every healthy loop as
+     * ~1% and, against the usual 80/50 thresholds, permanently red.
+     */
     goodErrorPct: number | null;
     mae: number | null;
   };
   observabilityFlags: string[];
 }
 
-export const getFleetRankings = (site?: string, windowKind = '24h', limit = 50) => {
-  const params = new URLSearchParams({ windowKind, limit: String(limit) });
+/**
+ * `orderBy` decides which loops the LIMIT keeps, so it must be sent to the server
+ * rather than applied to the returned page — re-sorting 50 rows that were selected
+ * by confidence cannot surface the fleet's worst-controlled loop.
+ */
+export type CpmRankingOrder = 'confidence' | 'error' | 'mae' | 'effort';
+
+export const getFleetRankings = (
+  site?: string, windowKind = '24h', limit = 50, orderBy: CpmRankingOrder = 'confidence',
+) => {
+  const params = new URLSearchParams({ windowKind, limit: String(limit), orderBy });
   if (site) params.set('site', site);
-  return apiJson<{ site: string | null; windowKind: string; count: number; loops: CpmRankedLoop[] }>(
-    `${BASE}/fleet/rankings?${params.toString()}`);
+  return apiJson<{
+    site: string | null; windowKind: string; orderBy: string;
+    count: number; loops: CpmRankedLoop[];
+  }>(`${BASE}/fleet/rankings?${params.toString()}`);
 };
 
 export interface CpmHeatmapLoop {
@@ -391,9 +425,30 @@ export const getKpis = (
 
 // ── Resolutions catalogue (U7): windows the engine actually emits ───────────
 
+/**
+ * The deployed window contract, served by the API so no screen hardcodes it.
+ * `assigner` is 'tumbling' | 'sliding' | 'rolling-buffer' — the long tier is a
+ * KeyedProcessFunction over a retained buffer, not a Flink window assigner.
+ */
+export interface CpmWindowSpec {
+  kind: string;
+  tier: 'short' | 'long';
+  assigner: string;
+  sizeMs: number;
+  slideMs: number | null;
+  allowedLatenessMs: number | null;
+  cadenceMs: number | null;
+  /** Slices below this sample count are not emitted at all. */
+  minSamples: number | null;
+  feeds: string;
+  overlapping: boolean;
+}
+
 export interface CpmResolutions {
   shortWindows: string[];
   longWindows: string[];
+  windows: CpmWindowSpec[];
+  fusion: { firesOn: string[]; produces: string; note: string };
   gates: { key: string; name: string; tier: string }[];
   note: string;
 }
@@ -437,7 +492,7 @@ export interface CpmJobMetrics {
   name: string;
   jid: string;
   state: string;
-  role: 'alarm' | 'cplm';
+  role: CpmJobRole;
   startTime: string | null;
   uptimeSec: number | null;
   checkpoint: {

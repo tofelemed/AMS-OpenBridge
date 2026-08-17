@@ -28,6 +28,12 @@ builder.Services.AddSingleton(dataSource);
 // byte-close to the originals until Phase 6 deletes them there.
 builder.Services.AddKeyedSingleton("cplm", dataSource);
 
+// Short-TTL cache for the Flink /jobs/overview read. Readiness, pipeline-status
+// and pipeline-metrics each need the same job states, and readiness is called
+// PER LOOP — so browsing loops in the Explorer fanned one Flink REST call per
+// click on top of the pipeline panel's own poll.
+builder.Services.AddMemoryCache();
+
 // ── HTTP control plane ─────────────────────────────────────────────────────
 // asset-model: peer-link projection at onboarding (service-principal call).
 // RES-01: retry + circuit breaker + timeout on every outbound HttpClient in this service.

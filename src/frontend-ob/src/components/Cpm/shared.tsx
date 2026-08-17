@@ -8,7 +8,7 @@
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import type { CpmLoop } from '../../api/cpmApi';
+import type { CpmLoop, CpmWindowSpec } from '../../api/cpmApi';
 
 export type CpmTone = 'good' | 'warn' | 'bad' | 'muted';
 
@@ -44,6 +44,7 @@ export function cpmChartColors() {
     amber:  resolveCssColor('var(--ams-pen-3)', '#fab005'),          // OP line
     grey:   resolveCssColor('var(--element-neutral-color)', '#9aa6af'), // axis, grid, SP
     accent: resolveCssColor('var(--ams-pen-5)', '#7048e8'),          // overlay / evidence cursor
+    pink:   resolveCssColor('var(--ams-pen-4)', '#e64980'),          // VP (valve position) pen
   };
 }
 
@@ -55,6 +56,182 @@ export function cpmChartColors() {
  */
 export const fmtDateTime = (ts: string | number | null | undefined): string =>
   ts != null && ts !== '' ? new Date(ts).toLocaleString(undefined, { timeZoneName: 'short' }) : '\u2014';
+
+/**
+ * A window ending "now", quantized to `tickMs`, that ADVANCES.
+ *
+ * Both the Overview loop-focus panel and the Explorer summary anchored their 8h
+ * trend window once per selected loop, so a screen left open on a wallboard kept
+ * rendering the window that ended when the loop was clicked — hours stale, with
+ * nothing saying so. Quantizing matters because start/end go into the react-query
+ * key: an unquantized Date.now() would mint a new cache entry every render.
+ *
+ * Callers must pass the resulting window to a POLL-AWARE fetch (useCpmTrend's
+ * `pollDriven`), because these refetches are machine-initiated and must not extend
+ * the idle-session clock.
+ */
+export function useRollingWindow(spanMs: number, tickMs: number) {
+  const [endMs, setEndMs] = React.useState(() => Math.floor(Date.now() / tickMs) * tickMs);
+  React.useEffect(() => {
+    const id = setInterval(
+      () => setEndMs(Math.floor(Date.now() / tickMs) * tickMs), tickMs);
+    return () => clearInterval(id);
+  }, [tickMs]);
+  return React.useMemo(
+    () => ({ start: new Date(endMs - spanMs), end: new Date(endMs) }),
+    [endMs, spanMs],
+  );
+}
+
+/** Shared trend-window defaults for the 8h loop panels. */
+export const TREND_SPAN_MS = 8 * 3600_000;
+export const TREND_TICK_MS = 60_000;
+
+/**
+ * Window-contract formatting, in one place so the Overview ladder, the Window
+ * Inspector and the onboarding wizard describe a window identically. They used to
+ * each phrase it themselves and two of them were wrong (claiming every short
+ * window was tumbling, and that short-tier lateness was watermark-bounded).
+ */
+/**
+ * Duration in the unit a control engineer would use, and — importantly —
+ * CONSISTENTLY within a column.
+ *
+ * The first version picked the largest unit that divided exactly, which rendered
+ * the six short-tier lateness values as "30 s · 1 min · 90 s · 2 min · 2 min ·
+ * 3 min" (units flip-flopping mid-column) and labelled the 60m window "1h" while
+ * its own row header said 60m. Rule now: seconds below a minute, minutes up to and
+ * including an hour (one decimal when needed), hours above that.
+ */
+export const fmtDuration = (ms: number | null | undefined): string => {
+  if (ms == null) return '—';
+  if (ms < 60_000) return `${Math.round(ms / 1000)} s`;
+  if (ms <= 3_600_000) {
+    const min = ms / 60_000;
+    return `${Number.isInteger(min) ? min : min.toFixed(1)} min`;
+  }
+  const h = ms / 3_600_000;
+  return `${Number.isInteger(h) ? h : h.toFixed(1)} h`;
+};
+
+/**
+ * "1 min tumbling" · "5 min / 1 min slide" · "24h slice · 15 min cadence".
+ *
+ * Returns '' for UNKNOWN_ASSIGNER — i.e. when the API is older than this UI and
+ * served window names without their shape. Saying nothing is the point: inventing
+ * a shape is exactly the defect this contract replaced.
+ */
+export const UNKNOWN_ASSIGNER = 'unknown';
+
+export function fmtWindowShape(
+  w: CpmWindowSpec,
+  opts: { omitCadence?: boolean } = {},
+): string {
+  if (w.assigner === UNKNOWN_ASSIGNER) return '';
+  if (w.assigner === 'sliding' && w.slideMs != null) {
+    return `${fmtDuration(w.sizeMs)} / ${fmtDuration(w.slideMs)} slide`;
+  }
+  if (w.assigner === 'rolling-buffer') {
+    // omitCadence: the caller has already stated the cadence once for the whole
+    // tier, so repeating it per row is the duplication grouping was meant to end.
+    const cadence = w.cadenceMs && !opts.omitCadence ? ` · ${fmtDuration(w.cadenceMs)} cadence` : '';
+    return `${fmtDuration(w.sizeMs)} slice${cadence}`;
+  }
+  return `${fmtDuration(w.sizeMs)} ${w.assigner}`;
+}
+
+/**
+ * The served window contract, or a names-only fallback built from the legacy
+ * shortWindows/longWindows arrays when the API predates `windows`. Version skew is
+ * realistic (the gateway can route to an older cplm-api during a rolling deploy),
+ * and a window SELECTOR that renders zero options is worse than one that renders
+ * names without shapes.
+ */
+export function windowSpecsOf(
+  data: { windows?: CpmWindowSpec[]; shortWindows?: string[]; longWindows?: string[] } | undefined,
+  sizeMsOf: (kind: string) => number,
+): CpmWindowSpec[] {
+  if (data?.windows?.length) return data.windows;
+  const mk = (kind: string, tier: 'short' | 'long'): CpmWindowSpec => ({
+    kind, tier, assigner: UNKNOWN_ASSIGNER, sizeMs: sizeMsOf(kind),
+    slideMs: null, allowedLatenessMs: null, cadenceMs: null, minSamples: null,
+    feeds: '', overlapping: false,
+  });
+  return [
+    ...(data?.shortWindows ?? []).map(w => mk(w, 'short')),
+    ...(data?.longWindows ?? []).map(w => mk(w, 'long')),
+  ];
+}
+
+/** Lateness/overlap qualifier, or null when the window has nothing to add. */
+export function fmtWindowLateness(w: CpmWindowSpec): string | null {
+  if (w.allowedLatenessMs != null) return `${fmtDuration(w.allowedLatenessMs)} allowed lateness`;
+  if (w.minSamples != null) return `needs ≥ ${w.minSamples} samples`;
+  return null;
+}
+
+/**
+ * Controller-mode classification — a faithful mirror of the engine's
+ * CplmNormalizedSample.isAutoMode() (P1-7), including its ordering: explicit
+ * manual tokens are checked BEFORE the compound-string fallback so IMAN/ROUT
+ * are never mistaken for auto.
+ *
+ * This exists because the UI re-introduced the exact bug that P1-7 fixed in the
+ * engine: the mode track tested `mode === 'AUTO'`, and the strings real systems
+ * emit are "AUT", "CAS"/"CASCADE", "MAN" — so the good branch was unreachable
+ * and a loop in perfect automatic rendered amber across its whole history.
+ * If you change the engine's sets, change these too.
+ */
+const AUTO_MODE_TOKENS = new Set([
+  'AUTO', 'AUT', 'A', 'AUTOMATIC', 'NORMAL', 'NORM',
+  'CAS', 'CASC', 'CASCADE', 'RSP', 'DDC', 'SUP', 'SUPERVISORY',
+]);
+const MANUAL_MODE_TOKENS = new Set([
+  'MAN', 'MANUAL', 'M', 'IMAN', 'ROUT', 'LO', 'LOCAL', 'OFF', 'TRACK',
+]);
+
+export type ModeClass = 'auto' | 'manual' | 'unknown';
+
+export function classifyMode(mode: string | null | undefined): ModeClass {
+  if (mode == null) return 'unknown';
+  const m = mode.trim().toUpperCase();
+  if (m === '' || m === 'UNKNOWN') return 'unknown';
+  if (MANUAL_MODE_TOKENS.has(m)) return 'manual';
+  if (AUTO_MODE_TOKENS.has(m)) return 'auto';
+  if (m.includes('AUTO') || m.includes('CASCADE')) return 'auto';
+  // A manual-family compound ("IMAN-TRACK") should not fall through to unknown
+  // looking neutral; the engine treats everything non-auto as not-auto, and the
+  // track's job is to show when the loop was NOT under closed-loop control.
+  if (m.includes('MAN')) return 'manual';
+  return 'unknown';
+}
+
+/**
+ * Deep link to the Trend page for a loop's mapped signals. Meaningful since the
+ * signal-asset projection: loop tag paths now resolve through the UNS to the
+ * loop pipeline's real transports (root.<site>.cpm.<loop>.<role> + the loop's
+ * live Sparkplug device), so a /trend pen on them draws actual data.
+ *
+ * Numeric roles only — MODE is a TEXT series and a line chart on it is noise;
+ * it has its own ribbon on Historical.
+ */
+export function loopTrendHref(
+  tags: Record<string, string>, range = '8h',
+  /** Optional explicit window — lands on /trend PINNED to it (?from=&to=),
+   * so an episode or Historical range carries over instead of resetting to live. */
+  window?: { from: Date; to: Date },
+): string | null {
+  const paths = ['PV', 'SP', 'OP', 'VP']
+    .map(r => tags[r])
+    .filter((p): p is string => !!p);
+  if (paths.length === 0) return null;
+  const q = new URLSearchParams({ tags: [...new Set(paths)].join(','), range });
+  if (window) {
+    q.set('from', window.from.toISOString());
+    q.set('to', window.to.toISOString());
+  }
+  return `/trend?${q.toString()}`;
+}
 
 /** Diagnosis / band / state → tone, in one place so every screen agrees. */
 export function toneFor(value: string | null | undefined): CpmTone {

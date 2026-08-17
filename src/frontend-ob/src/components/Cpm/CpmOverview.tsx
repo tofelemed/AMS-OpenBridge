@@ -14,12 +14,14 @@ import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KpiTile, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
-  fmtDateTime, QueryError, cpmChartColors } from './shared';
+  fmtDateTime, fmtDuration, fmtWindowLateness, fmtWindowShape, QueryError, cpmChartColors,
+  useRollingWindow, windowSpecsOf, TREND_SPAN_MS, TREND_TICK_MS } from './shared';
 import {
-  useCpmEvents, useCpmPipelineStatus, useCpmTrend, useFleetRankings,
+  useCpmEvents, useCpmPipelineStatus, useCpmResolutions, useCpmTrend, useFleetRankings,
   useFleetSummary, useLatestGates,
 } from '../../hooks/useCpm';
 import { useLoopLive, qualityLabel } from '../../hooks/useLoopLive';
+import { ApiError } from '../../api/apiFetch';
 import { loopSeries } from '../../utils/loopSeries';
 import { useObcTheme } from '../../hooks/useObcTheme';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
@@ -38,16 +40,21 @@ const GoodErrorBar: React.FC<{ pct: number | null; mae: number | null }> = ({ pc
   if (pct == null) {
     return <div className="cpm-event-row__sub" style={{ fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>MAE {mae!.toFixed(2)}</div>;
   }
-  const clamped = Math.max(0, Math.min(100, pct));
-  const color = pct >= 80 ? 'var(--alert-running-color)' : pct >= 50 ? 'var(--alert-caution-color)' : 'var(--alert-alarm-color)';
+  // goodErrorPct is a 0..1 FRACTION despite the name (see CpmRankedLoop.metrics).
+  // This component consumed it as if it were already 0..100, so a healthy loop at
+  // 0.88 drew a 0.88%-wide bar labelled "good 1%" — and since the thresholds
+  // below are 80/50, EVERY loop in the priority queue rendered red.
+  const scaled = pct * 100;
+  const clamped = Math.max(0, Math.min(100, scaled));
+  const color = scaled >= 80 ? 'var(--alert-running-color)' : scaled >= 50 ? 'var(--alert-caution-color)' : 'var(--alert-alarm-color)';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, maxWidth: 220 }}
-      title={`Good-error ${pct.toFixed(0)}%${mae != null ? ` · MAE ${mae.toFixed(2)}` : ''}`}>
+      title={`Good-error ${scaled.toFixed(0)}%${mae != null ? ` · MAE ${mae.toFixed(2)}` : ''}`}>
       <span style={{ position: 'relative', flex: 1, height: 4, borderRadius: 2, background: 'var(--container-section-color)', overflow: 'hidden', minWidth: 48 }}>
         <span style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${clamped}%`, background: color, borderRadius: 2 }} />
       </span>
       <span className="cpm-event-row__sub" style={{ fontVariantNumeric: 'tabular-nums', minWidth: 46, textAlign: 'right' }}>
-        good {pct.toFixed(0)}%
+        good {scaled.toFixed(0)}%
       </span>
     </div>
   );
@@ -60,15 +67,35 @@ export const CpmOverview: React.FC = () => {
 
   const summary = useFleetSummary();
   const rankings = useFleetRankings();
-  const events = useCpmEvents({ openOnly: false, limit: 3 }, 60_000);
+  // sort:'recent' — the panel below is titled "Recent context" and stamps each row
+  // with opened_at, but the endpoint's default order is triage (open first, then
+  // peak confidence), so with limit:3 it was showing the three HIGHEST-CONFIDENCE
+  // frames as though they were the three latest.
+  const events = useCpmEvents({ openOnly: false, limit: 3, sort: 'recent' }, 60_000);
 
   const loops = rankings.data?.loops ?? [];
-  const selectedId = params.get('loop') ?? loops[0]?.loopId;
-  const selected = loops.find(l => l.loopId === selectedId) ?? loops[0];
+  // Case-insensitive, like every loop lookup in cplm-api; and a ?loop= that names
+  // nothing must not silently show a different loop's data under that URL.
+  const requestedId = params.get('loop');
+  const selected = requestedId
+    ? loops.find(l => l.loopId.toLowerCase() === requestedId.toLowerCase())
+    : loops[0];
+  const missingLoop = !!requestedId && !selected
+    && !rankings.isLoading && !rankings.isError && loops.length > 0;
 
   const evaluated = loops.filter(l => l.diagnosis !== 'NOT_EVALUATED');
-  const needAttention = evaluated.filter(l => toneFor(l.diagnosis) !== 'good').length;
   const topFinding = evaluated[0];
+
+  // Counted from the fleet summary, NOT from `loops`. The rankings call is capped
+  // (limit=50, server clamps at 200), so deriving these from it produced a count
+  // over an arbitrary top-50 slice displayed beside a genuine fleet-wide
+  // "of N registered" — silently understating a plant with more than 50 loops.
+  // summary.diagnoses is one row per loop (DISTINCT ON loop_id) with no cap.
+  const fleetDiagnoses = summary.data?.diagnoses ?? [];
+  const fleetEvaluated = fleetDiagnoses.reduce((n, d) => n + d.count, 0);
+  const needAttention = fleetDiagnoses
+    .filter(d => toneFor(d.diagnosis) !== 'good')
+    .reduce((n, d) => n + d.count, 0);
 
   return (
     <div className="cpm-screen">
@@ -83,8 +110,8 @@ export const CpmOverview: React.FC = () => {
           value={summary.data ? `${summary.data.loops.monitored}` : '…'}
           sub={summary.data ? `of ${summary.data.loops.total} registered` : undefined} />
         <KpiTile caption="Need attention" tone={needAttention > 0 ? 'warn' : 'good'}
-          value={needAttention}
-          sub={`${evaluated.length} loop(s) evaluated`} />
+          value={summary.data ? needAttention : '…'}
+          sub={summary.data ? `${fleetEvaluated} loop(s) evaluated` : undefined} />
         <KpiTile caption="Confidence-capped (no VP)" tone={summary.data && summary.data.capability.loopsCappedByMissingVp > 0 ? 'warn' : 'good'}
           value={summary.data?.capability.loopsCappedByMissingVp ?? '…'}
           sub="cannot reach CONFIRMED" />
@@ -110,9 +137,10 @@ export const CpmOverview: React.FC = () => {
             <div key={l.loopId}
               className={`cpm-event-row${selected?.loopId === l.loopId ? ' cpm-event-row--selected' : ''}`}
               style={{ gridTemplateColumns: '1.4fr 0.8fr 1fr' }}
-              onClick={() => setParams(p => { p.set('loop', l.loopId); return p; })}
+              // replace: picking a row is in-page selection, not a page visit.
+              onClick={() => setParams(p => { p.set('loop', l.loopId); return p; }, { replace: true })}
               role="button" tabIndex={0}
-              onKeyDown={e => { if (e.key === 'Enter') setParams(p => { p.set('loop', l.loopId); return p; }); }}>
+              onKeyDown={e => { if (e.key === 'Enter') setParams(p => { p.set('loop', l.loopId); return p; }, { replace: true }); }}>
               <span>
                 <span className="cpm-event-row__title">{l.loopId}</span>
                 <div className="cpm-event-row__sub">{l.displayName} · {l.area ?? l.site}</div>
@@ -126,10 +154,19 @@ export const CpmOverview: React.FC = () => {
           ))}
         </section>
 
-        {selected
-          ? <LoopFocus loopId={selected.loopId} displayName={selected.displayName}
-              onOpenAnalysis={() => setDrawerLoop(selected.loopId)} />
-          : <section className="cpm-surface"><EmptyState title="Select a loop" /></section>}
+        {selected ? (
+          <LoopFocus loopId={selected.loopId} displayName={selected.displayName}
+            onOpenAnalysis={() => setDrawerLoop(selected.loopId)} />
+        ) : missingLoop ? (
+          <section className="cpm-surface">
+            <EmptyState
+              title={`Loop "${requestedId}" is not in the ranking`}
+              copy="It may be unmonitored, not yet evaluated, or no longer registered. Pick a loop from the priority queue, or search the full list in Performance."
+              action={{ label: 'Open Performance', onClick: () => navigate('/cpm/performance') }} />
+          </section>
+        ) : (
+          <section className="cpm-surface"><EmptyState title="Select a loop" /></section>
+        )}
       </div>
 
       <div className="cpm-grid-2">
@@ -157,7 +194,11 @@ export const CpmOverview: React.FC = () => {
         <section className="cpm-surface">
           <PanelHead eyebrow="Recent context" title="Event trail"
             right={<ObcButton variant="normal" onClick={() => navigate('/cpm/events')}>All events ›</ObcButton>} />
-          {(events.data?.events ?? []).length === 0 && <EmptyState title="No recent events" />}
+          {events.isError && (
+            <QueryError title="Event trail unavailable"
+              error={events.error} retry={() => void events.refetch()} />
+          )}
+          {!events.isError && (events.data?.events ?? []).length === 0 && <EmptyState title="No recent events" />}
           {(events.data?.events ?? []).map(e => (
             <KvRow key={e.id} label={fmtDateTime(e.opened_at)}>
               {e.loop_id} · {e.peak_diagnosis.replace(/_/g, ' ')}
@@ -176,17 +217,66 @@ export const CpmOverview: React.FC = () => {
 
 // ── live pipeline panel ────────────────────────────────────────────────────
 
-const WINDOW_ROWS = [
-  { label: 'Immediate quality', kind: '1 min tumbling', output: 'G0–G4 short result' },
-  { label: 'Moving behaviour', kind: '5 min / 1 min slide', output: 'Tracking & effort features' },
-  { label: 'Loop diagnosis', kind: '4h/12h/24h slices · 15 min cadence', output: 'Oscillation / stiction evidence' },
-  { label: 'Fused verdict', kind: 'fires on 12h & 24h records', output: 'G0–G15 diagnosis' },
-];
+/**
+ * Position of a window size on the ladder's shared axis. Log-scaled because the
+ * tiers span 1 minute to 24 hours: on a linear axis every short window would be an
+ * invisible sliver against 24h, which is the opposite of showing the range.
+ */
+const LADDER_MIN_MS = 60_000;
+const LADDER_MAX_MS = 24 * 3_600_000;
+const spanPct = (ms: number): number => {
+  if (!(ms > 0)) return 0;
+  const clamped = Math.min(Math.max(ms, LADDER_MIN_MS), LADDER_MAX_MS);
+  const pct = (Math.log(clamped / LADDER_MIN_MS) / Math.log(LADDER_MAX_MS / LADDER_MIN_MS)) * 100;
+  return Math.max(3, Math.min(100, pct)); // floor so the 1m bar is still visible
+};
+
+/** Human tier titles; anything unexpected from the API falls back to its own key. */
+const TIER_TITLES: Record<string, string> = {
+  short: 'Short features · G0–G4',
+  long: 'Long diagnostics · G5–G11',
+};
 
 const PipelinePanel: React.FC = () => {
   const pipeline = useCpmPipelineStatus();
   const jobs = pipeline.data?.jobs ?? [];
   const cplmJobs = jobs.filter(j => j.role === 'cplm');
+  // The ladder was four hardcoded rows that named ONE of the five sliding short
+  // windows ("5 min / 1 min slide") and omitted 10m/2m, 15m/5m, 30m/5m, 60m/5m —
+  // so it read as though the short tier had two windows when it has six, all six
+  // of which produce stored rows. It now renders the served contract.
+  const resolutions = useCpmResolutions();
+  // Names-only fallback if the API predates the contract, so the ladder still
+  // lists every window kind instead of collapsing to nothing.
+  const windows = windowSpecsOf(resolutions.data, () => 0);
+  const fusion = resolutions.data?.fusion;
+
+  // Group by tier and hoist whatever every row in the tier shares into its head.
+  // Computed, not hardcoded: if the server later gives 12h a different cadence,
+  // the caption drops back onto the rows instead of quietly becoming wrong.
+  const tiers = useMemo(() => {
+    const order = ['short', 'long'];
+    const keys = [...new Set(windows.map(w => w.tier))]
+      .sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
+    return keys.map(key => {
+      const rows = windows.filter(w => w.tier === key);
+      const uniq = <T,>(vals: T[]) => [...new Set(vals)];
+      const feeds = uniq(rows.map(r => r.feeds).filter(Boolean));
+      const cadences = uniq(rows.map(r => r.cadenceMs).filter((v): v is number => v != null));
+      const minSamples = uniq(rows.map(r => r.minSamples).filter((v): v is number => v != null));
+      // What got hoisted, so the rows can suppress exactly those facts.
+      const hoisted = {
+        cadence: cadences.length === 1 && rows.every(r => r.cadenceMs != null),
+        minSamples: minSamples.length === 1 && rows.every(r => r.minSamples != null),
+      };
+      const shared = [
+        hoisted.cadence ? `${fmtDuration(cadences[0])} cadence` : null,
+        hoisted.minSamples ? `needs ≥ ${minSamples[0]} samples` : null,
+        feeds.length === 1 ? `→ ${feeds[0]}` : null,
+      ].filter(Boolean).join(' · ');
+      return { key, title: TIER_TITLES[key] ?? key, rows, shared, hoisted };
+    });
+  }, [windows]);
 
   return (
     <section className="cpm-surface">
@@ -199,9 +289,15 @@ const PipelinePanel: React.FC = () => {
             </TonePill>
           : <TonePill tone="muted">CHECKING…</TonePill>}
       />
+      {/* The old copy said these metrics "await the Flink metrics proxy". The proxy
+          shipped (/pipeline-metrics) and deliberately reports watermark lag,
+          events/s and backpressure as unavailable rather than estimating them — so
+          the promise was of something that had been decided against. */}
       <p className="cpm-copy">
         A continuously running event-time pipeline — there is no report schedule or “run” button.
-        Watermark and throughput metrics await the Flink metrics proxy; job states below are live.
+        Job states below are live; checkpoint health is on Pipeline Health. Watermark lag,
+        events/s and backpressure are not reported — Flink does not expose them cheaply per
+        record, and an estimate would read as a measurement.
       </p>
       <div className="cpm-kpi-row" style={{ margin: '12px 0' }}>
         {cplmJobs.map(j => (
@@ -210,21 +306,83 @@ const PipelinePanel: React.FC = () => {
             value={j.state} />
         ))}
       </div>
-      {/* The window catalogue is static reference material — collapsed by default so
-          the live job states above stay the focus. */}
+      {/* Reference material — collapsed by default so the live job states above
+          stay the focus. */}
       <details className="cpm-window-disclosure">
         <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '13px', color: 'var(--element-active-color)', padding: '4px 0' }}>
           How the analysis windows work
         </summary>
         <div className="cpm-window-rows" style={{ marginTop: 8 }}>
-          {WINDOW_ROWS.map(w => (
-            <div key={w.label} className="cpm-window-row">
-              <strong>{w.label}</strong>
-              <span className="cpm-event-row__sub">{w.kind}</span>
-              <span className="cpm-event-row__sub">→ {w.output}</span>
+          {resolutions.isError && (
+            <QueryError title="Window contract unavailable"
+              error={resolutions.error} retry={() => void resolutions.refetch()} />
+          )}
+          {tiers.map(tier => (
+            <div key={tier.key} className="cpm-window-tier">
+              <div className="cpm-window-tier__head">
+                <span className="cpm-eyebrow">{tier.title}</span>
+                {/* Facts shared by every row in this tier, stated once instead of
+                    repeated down the column. */}
+                {tier.shared && <span className="cpm-event-row__sub">{tier.shared}</span>}
+              </div>
+              <div className="cpm-window-tier__rows">
+                {tier.rows.map(w => {
+                  // Anything hoisted into the tier head is suppressed here — the
+                  // first cut printed cadence and the min-sample floor in BOTH
+                  // places, which is the repetition the grouping existed to remove.
+                  const shape = fmtWindowShape(w, { omitCadence: tier.hoisted.cadence });
+                  const qualifier = w.allowedLatenessMs != null
+                    ? `${fmtDuration(w.allowedLatenessMs)} allowed lateness`
+                    : tier.hoisted.minSamples ? '' : fmtWindowLateness(w) ?? '';
+                  return (
+                    <div key={w.kind} className="cpm-window-lrow">
+                      <strong className="cpm-window-lrow__kind">{w.kind}</strong>
+                      <span className="cpm-window-scale" aria-hidden="true"
+                        title={`${w.kind} span`}>
+                        <span className="cpm-window-scale__fill"
+                          style={{ width: `${spanPct(w.sizeMs)}%` }} />
+                        {w.slideMs != null && (
+                          <span className="cpm-window-scale__slide"
+                            style={{ width: `${spanPct(w.slideMs)}%` }} />
+                        )}
+                      </span>
+                      <span className="cpm-event-row__sub">
+                        {shape || 'shape not reported by this API version'}
+                        {/* Overlap belongs beside the shape that causes it, and
+                            must not displace the lateness column. */}
+                        {w.slideMs != null ? ` · ${fmtDuration(w.sizeMs - w.slideMs)} overlap` : ''}
+                      </span>
+                      <span className="cpm-event-row__sub">{qualifier}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ))}
+          {fusion && (
+            <div className="cpm-window-tier">
+              <div className="cpm-window-tier__head">
+                <span className="cpm-eyebrow">Fused verdict · G12–G15</span>
+                <span className="cpm-event-row__sub">{fusion.produces}</span>
+              </div>
+              <div className="cpm-window-tier__rows">
+                <div className="cpm-window-lrow cpm-window-lrow--fusion">
+                  <strong className="cpm-window-lrow__kind">fusion</strong>
+                  <span className="cpm-window-scale" aria-hidden="true">
+                    <span className="cpm-window-scale__fill" style={{ width: '100%' }} />
+                  </span>
+                  <span className="cpm-event-row__sub">
+                    fires on {fusion.firesOn.join(' & ')} records
+                  </span>
+                  <span className="cpm-event-row__sub">no window of its own</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
+        {/* The min-sample floor is the usual answer to "why is there no verdict?",
+            and no screen stated it before. */}
+        {fusion && <p className="cpm-copy" style={{ marginTop: 8 }}>{fusion.note}</p>}
       </details>
     </section>
   );
@@ -239,12 +397,12 @@ const LoopFocus: React.FC<{
 }> = ({ loopId, displayName, onOpenAnalysis }) => {
   // The historian device for a loop follows the Phase 3 convention.
   const series = loopSeries(loopId);
-  const { start, end } = useMemo(() => {
-    const now = new Date();
-    return { start: new Date(now.getTime() - 8 * 3600_000), end: now };
-  }, [loopId]); // eslint-disable-line react-hooks/exhaustive-deps -- window anchors when the loop changes
+  // Rolling, not anchored-at-mount: this panel sits on an overview screen that is
+  // routinely left open, and a window frozen at click time is indistinguishable
+  // from a live one. pollDriven keeps the timer refetches off the session clock.
+  const { start, end } = useRollingWindow(TREND_SPAN_MS, TREND_TICK_MS);
 
-  const trend = useCpmTrend(series, start, end, 240);
+  const trend = useCpmTrend(series, start, end, 240, 'pv,sp,op', true, true);
   const points = useMemo(() => trend.data?.points ?? [], [trend.data]);
   // F0.5 — live plane: RBE deltas + snapshot-on-open for this loop's device.
   const live = useLoopLive(loopId);
@@ -259,7 +417,28 @@ const LoopFocus: React.FC<{
     const num = (v: unknown) => (typeof v === 'number' ? v : null);
     return {
       animation: false,
-      grid: { left: 42, right: 12, top: 18, bottom: 24 },
+      grid: { left: 42, right: 12, top: 30, bottom: 24 },
+      // No tooltip and no legend meant the shape of an oscillation was visible but
+      // not a single value readable off it.
+      legend: {
+        data: ['PV', 'SP', 'OP'], top: 0, right: 0,
+        textStyle: { color: grey }, inactiveColor: grey,
+      },
+      tooltip: {
+        trigger: 'axis',
+        // 'pv-min'/'pv-band' are stacked helpers that draw the envelope; their
+        // stacked values are not readable quantities, so report the real min–max.
+        formatter: (params: Array<{ seriesName: string; marker: string; value: number | null; dataIndex: number }>) => {
+          if (!params.length) return '';
+          const p = points[params[0].dataIndex];
+          const rows = params
+            .filter(x => x.seriesName !== 'pv-min' && x.seriesName !== 'pv-band')
+            .map(x => `${x.marker} ${x.seriesName}: ${x.value == null ? '—' : Number(x.value).toFixed(2)}`);
+          const lo = num(p?.pv_min); const hi = num(p?.pv_max);
+          if (lo != null && hi != null) rows.push(`PV range: ${lo.toFixed(2)} – ${hi.toFixed(2)}`);
+          return [`<strong>${fmtDateTime(p?.ts)}</strong>`, ...rows].join('<br/>');
+        },
+      },
       xAxis: {
         type: 'category',
         data: ts.map(t => new Date(t).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })),
@@ -304,13 +483,20 @@ const LoopFocus: React.FC<{
           {live.hasData && live.lastTs
             ? `live · last change ${new Date(live.lastTs).toLocaleTimeString()}`
             : 'no live publisher for this loop'}
-          {' · '}8 h envelope trend below
+          {/* State the window: it rolls, and a rolling window that has silently
+              stopped advancing looks identical to a live one otherwise. */}
+          {' · '}envelope {fmtDateTime(start.getTime())} → {fmtDateTime(end.getTime())}
         </span>
       </div>
       {trend.isLoading && <EmptyState title="Loading trend…" />}
-      {!trend.isLoading && points.length === 0 && (
+      {/* A 403/500 from the historian is not an empty historian — claiming "no
+          samples stored" for a failed read sends the reader to debug IoTDB. */}
+      {trend.isError && (
+        <QueryError title="Trend unavailable" error={trend.error} retry={() => void trend.refetch()} />
+      )}
+      {!trend.isLoading && !trend.isError && points.length === 0 && (
         <EmptyState title="No historian data for this loop"
-          copy={`No samples stored at ${series} in the last 8 hours.`} />
+          copy={`No samples stored at ${series} in this window.`} />
       )}
       {points.length > 0 && (
         <ReactECharts option={option} style={{ height: 260 }} notMerge />
@@ -327,7 +513,12 @@ const FocusedLoopDrawer: React.FC<{
   onExplore: () => void;
 }> = ({ loopId, onClose, onExplore }) => {
   const dialogRef = useDialogA11y<HTMLDivElement>(onClose);
-  const { data: matrix, isLoading } = useLatestGates(loopId, '24h');
+  const gates = useLatestGates(loopId, '24h');
+  const { data: matrix, isLoading } = gates;
+  // 404 means "no fused window yet" — a real answer. Anything else is a failure
+  // and must not be presented as an absence of evidence.
+  const fetchFailed = gates.isError
+    && !(gates.error instanceof ApiError && gates.error.status === 404);
   return (
     <>
       <div className="cpm-modal-backdrop" onClick={onClose} />
@@ -335,7 +526,11 @@ const FocusedLoopDrawer: React.FC<{
         <PanelHead eyebrow="Focused loop analysis" title={loopId}
           right={<ObcButton variant="normal" onClick={onClose}>Close</ObcButton>} />
         {isLoading && <EmptyState title="Loading latest verdict…" />}
-        {!isLoading && !matrix && (
+        {fetchFailed && (
+          <QueryError title="Verdict unavailable"
+            error={gates.error} retry={() => void gates.refetch()} />
+        )}
+        {!isLoading && !matrix && !fetchFailed && (
           <EmptyState title="No fused verdict yet"
             copy="This loop has not completed a 12h/24h evaluation window." />
         )}

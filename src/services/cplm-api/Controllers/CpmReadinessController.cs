@@ -5,6 +5,7 @@ using System.Text.Json;
 using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using Npgsql;
 
 namespace Traverse.CplmApi.Controllers;
@@ -27,6 +28,19 @@ public sealed class CpmReadinessController : ControllerBase
     /// The jobs CPLM needs. PipelineHealthService historically selected the job
     /// whose name merely CONTAINED "Alarm State Machine", so a healthy alarm job
     /// made the whole pipeline look healthy even with every CPLM job dead.
+    ///
+    /// This list must match what the launch paths actually submit
+    /// (infra/docker/flink-job-supervisor.sh and scripts/ensure_flink_jobs.py —
+    /// ten jobs). It listed seven, so the three "platform" jobs below ran happily
+    /// and were reported under `unexpectedJobs` — the field whose entire purpose is
+    /// to flag a rogue or duplicate submission. Three permanent false entries there
+    /// train the reader to ignore it.
+    ///
+    /// Roles: "alarm" and "cplm" gate the alarmRunning/cplmRunning flags the UI
+    /// keys on. "platform" jobs count toward allRequiredRunning (they ARE required
+    /// — STR-07/STR-08 added them precisely because their .NET consumers sat idle
+    /// forever with nothing producing to their topics) without being miscounted as
+    /// part of either pipeline.
     /// </summary>
     private static readonly (string Name, string Role)[] RequiredJobs =
     {
@@ -36,23 +50,38 @@ public sealed class CpmReadinessController : ControllerBase
         ("AMS - CPLM Short Feature Engine",   "cplm"),
         ("AMS - CPLM Long Diagnostics Engine","cplm"),
         ("AMS - CPLM Gate Fusion Engine",     "cplm"),
-        ("AMS - Loop Live RBE Engine",        "cplm")
+        ("AMS - Loop Live RBE Engine",        "cplm"),
+        ("AMS - Analysis Execution Engine",   "platform"),
+        ("AMS - Alarm KPI Engine",            "platform"),
+        ("AMS Alarm State Export Engine",     "platform")
     };
+
+    /// <summary>
+    /// How long a Flink /jobs/overview read is reused. Job states change on the
+    /// order of a restart, not a request, so a few seconds costs no accuracy —
+    /// and readiness is called per loop, so without this, clicking through the
+    /// Explorer's loop tree issued one Flink REST call per click.
+    /// </summary>
+    private static readonly TimeSpan JobStateTtl = TimeSpan.FromSeconds(5);
+    private const string JobStateCacheKey = "cplm:flink:job-states";
 
     private readonly NpgsqlDataSource _dataSource;
     private readonly IHttpClientFactory _httpFactory;
     private readonly IConfiguration _config;
+    private readonly IMemoryCache _cache;
     private readonly ILogger<CpmReadinessController> _logger;
 
     public CpmReadinessController(
         [FromKeyedServices("cplm")] NpgsqlDataSource dataSource,
         IHttpClientFactory httpFactory,
         IConfiguration config,
+        IMemoryCache cache,
         ILogger<CpmReadinessController> logger)
     {
         _dataSource = dataSource;
         _httpFactory = httpFactory;
         _config = config;
+        _cache = cache;
         _logger = logger;
     }
 
@@ -379,7 +408,24 @@ public sealed class CpmReadinessController : ControllerBase
     private string FlinkBaseUrl() =>
         (_config["Flink:JobManagerUrl"] ?? "http://ams-flink-jobmanager:8081").TrimEnd('/');
 
+    /// <summary>
+    /// Job name → state, cached for <see cref="JobStateTtl"/>. A FAILED read is
+    /// never cached: an empty dictionary means "JobManager unreachable", and
+    /// caching that would keep reporting a dead pipeline for seconds after it
+    /// came back (and vice versa).
+    /// </summary>
     private async Task<Dictionary<string, string>> GetJobStatesAsync(CancellationToken ct)
+    {
+        if (_cache.TryGetValue(JobStateCacheKey, out Dictionary<string, string>? cached) && cached is not null)
+            return cached;
+
+        var states = await FetchJobStatesAsync(ct);
+        if (states.Count > 0)
+            _cache.Set(JobStateCacheKey, states, JobStateTtl);
+        return states;
+    }
+
+    private async Task<Dictionary<string, string>> FetchJobStatesAsync(CancellationToken ct)
     {
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
         try
@@ -413,39 +459,70 @@ public sealed class CpmReadinessController : ControllerBase
     /// Asks binding-resolver whether each mapped signal resolves through the asset
     /// model or by path fallback. Fallback bindings derive a different sparkplug
     /// device id, so "resolved" alone does not mean "points at real data".
+    ///
+    /// The five role probes run CONCURRENTLY. Sequentially they were up to five
+    /// 5s timeouts in series, so on a degraded binding-resolver this single check
+    /// took ~25s and the Explorer's Signals tab hung behind it. They are
+    /// independent reads of the same service; there is no ordering to preserve.
     /// </summary>
     private async Task<(bool Ok, string? Message)> CheckBindingProvenanceAsync(JsonElement tags, CancellationToken ct)
     {
         if (tags.ValueKind != JsonValueKind.Object) return (false, "No signal mappings to check.");
         var baseUrl = (_config["Services:BindingResolver"] ?? "http://binding-resolver:5000").TrimEnd('/');
-        var fallbacks = new List<string>();
 
+        var probes = new List<Task<string?>>();
         foreach (var role in new[] { "pv", "sp", "op", "vp", "mode" })
         {
             if (!tags.TryGetProperty(role, out var t) || t.ValueKind != JsonValueKind.String) continue;
             var path = t.GetString();
             if (string.IsNullOrWhiteSpace(path)) continue;
-            try
-            {
-                var client = _httpFactory.CreateClient();
-                client.Timeout = TimeSpan.FromSeconds(5);
-                var res = await client.GetAsync($"{baseUrl}/resolve?path={Uri.EscapeDataString(path)}&roles=live", ct);
-                if (!res.IsSuccessStatusCode) { fallbacks.Add($"{role} (unreachable)"); continue; }
-                using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync(ct));
-                var provenance = doc.RootElement.TryGetProperty("provenance", out var p) ? p.GetString() : null;
-                if (!string.Equals(provenance, "asset-model", StringComparison.OrdinalIgnoreCase))
-                    fallbacks.Add(role);
-            }
-            catch
-            {
-                fallbacks.Add($"{role} (unreachable)");
-            }
+            probes.Add(ProbeRoleAsync(baseUrl, role, path!, ct));
         }
+
+        // Ordered by the probe order above, not by completion, so the message text
+        // is deterministic for the same loop.
+        var fallbacks = (await Task.WhenAll(probes)).Where(f => f is not null).ToList();
 
         return fallbacks.Count == 0
             ? (true, null)
             : (false, $"Resolved by path fallback, not the asset model: {string.Join(", ", fallbacks)}. " +
                       "Register these signals as assets — a fallback binding derives a different device id and may point at nothing.");
+    }
+
+    /// <summary>One role's provenance probe. Returns null when it resolves via the
+    /// asset model, or the label to report otherwise.</summary>
+    private async Task<string?> ProbeRoleAsync(string baseUrl, string role, string path, CancellationToken ct)
+    {
+        try
+        {
+            var client = _httpFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(5);
+            using var req = new HttpRequestMessage(
+                HttpMethod.Get, $"{baseUrl}/resolve?path={Uri.EscapeDataString(path)}&roles=live");
+            // Forward the gateway-injected identity. Since the Plan 04 lockdown,
+            // binding-resolver requires binding.resolve — an anonymous probe gets
+            // 401 and every role reported "(unreachable)", so this check could
+            // never pass for ANY loop. The caller reached this endpoint through
+            // the gateway, so these headers are present and already authorized.
+            foreach (var h in new[] { "X-Auth-Subject", "X-Auth-Username", "X-Auth-Role", "X-Auth-Permissions" })
+            {
+                var v = Request.Headers[h].ToString();
+                if (!string.IsNullOrEmpty(v)) req.Headers.TryAddWithoutValidation(h, v);
+            }
+            var res = await client.SendAsync(req, ct);
+            if (!res.IsSuccessStatusCode) return $"{role} (unreachable: HTTP {(int)res.StatusCode})";
+            using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync(ct));
+            var provenance = doc.RootElement.TryGetProperty("provenance", out var p) ? p.GetString() : null;
+            return string.Equals(provenance, "asset-model", StringComparison.OrdinalIgnoreCase) ? null : role;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw; // caller abandoned the request — not a provenance verdict
+        }
+        catch
+        {
+            return $"{role} (unreachable)";
+        }
     }
 
     private static JsonElement ParseJson(string? json)

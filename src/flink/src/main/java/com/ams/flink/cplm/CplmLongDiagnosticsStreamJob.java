@@ -18,11 +18,17 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * Stage 2 — Long-diagnostics job: rolling 4h/24h windows via KeyedProcessFunction
+ * Stage 2 — Long-diagnostics job: rolling 4h/12h/24h windows via KeyedProcessFunction
  * (NOT built-in sliding windows — see build prompt §2.2).
  *
  * <p>Key by loop_id, maintain ListState rolling buffer evicted at event_ts - 24h - 10min cushion,
- * register event-time timers on 15-minute cadence, compute both 4h and 24h slices on each timer.
+ * register event-time timers on 15-minute cadence, compute the 4h, 12h and 24h slices on each
+ * timer. A slice with fewer than {@link #MIN_SAMPLES} samples is not emitted at all, which is the
+ * usual reason a sparse loop never produces a verdict.
+ *
+ * <p>Only the 12h and 24h records trigger the fusion engine — see
+ * {@code CplmGateFusionStreamJob.processElement2}. The API mirrors all of this in
+ * {@code GET /api/v1/cpm/resolutions}; keep the two in step.
  *
  * <p>Source: cplm-normalized-source (existing topic, independent consumer group).
  * Sink: clpm.feature.long.v1 (matches existing topic name in CplmJobConfig defaults).
@@ -73,7 +79,7 @@ public class CplmLongDiagnosticsStreamJob {
      * <p>
      * Per build prompt §2.2: maintain ListState rolling buffer per loop_id,
      * evict at event_ts - 24h - 10min, register event-time timers every 15 minutes,
-     * compute 4h + 24h slices from buffer on each timer firing.
+     * compute 4h + 12h + 24h slices from buffer on each timer firing.
      * <p>
      * State size estimate: ~0.83–1.38 MB per loop at 5s sampling over 24h (17,280 samples).
      */

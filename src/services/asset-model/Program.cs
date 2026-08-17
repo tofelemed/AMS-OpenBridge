@@ -174,10 +174,15 @@ app.MapPost("/assets", async (CreateAssetRequest request, AssetDbContext db, ICo
         HiEngLimit = request.HiEngLimit,
         Template = request.Template,
         ParentId = request.ParentId,
+        IoTDbPathOverride = NormalizeOverride(request.IoTDbPathOverride),
+        SparkplugGroupOverride = NormalizeOverride(request.SparkplugGroupOverride),
+        SparkplugEdgeNodeOverride = NormalizeOverride(request.SparkplugEdgeNodeOverride),
+        SparkplugDeviceOverride = NormalizeOverride(request.SparkplugDeviceOverride),
+        SparkplugMetricOverride = NormalizeOverride(request.SparkplugMetricOverride),
         CreatedAt = DateTimeOffset.UtcNow,
         UpdatedAt = DateTimeOffset.UtcNow
     };
-    
+
     db.Assets.Add(asset);
     await db.SaveChangesAsync();
     
@@ -199,6 +204,18 @@ app.MapPut("/assets/{id:guid}", async (Guid id, UpdateAssetRequest request, Asse
     if (request.LoEngLimit.HasValue) asset.LoEngLimit = request.LoEngLimit;
     if (request.HiEngLimit.HasValue) asset.HiEngLimit = request.HiEngLimit;
     if (request.Template is not null) asset.Template = request.Template;
+
+    // Overrides: null = untouched, "" = clear back to path-derived, else set.
+    if (request.IoTDbPathOverride is not null)
+        asset.IoTDbPathOverride = NormalizeOverride(request.IoTDbPathOverride);
+    if (request.SparkplugGroupOverride is not null)
+        asset.SparkplugGroupOverride = NormalizeOverride(request.SparkplugGroupOverride);
+    if (request.SparkplugEdgeNodeOverride is not null)
+        asset.SparkplugEdgeNodeOverride = NormalizeOverride(request.SparkplugEdgeNodeOverride);
+    if (request.SparkplugDeviceOverride is not null)
+        asset.SparkplugDeviceOverride = NormalizeOverride(request.SparkplugDeviceOverride);
+    if (request.SparkplugMetricOverride is not null)
+        asset.SparkplugMetricOverride = NormalizeOverride(request.SparkplugMetricOverride);
 
     asset.UpdatedAt = DateTimeOffset.UtcNow;
     await db.SaveChangesAsync();
@@ -469,6 +486,10 @@ app.MapPost("/aliases", async (CreateAliasRequest request, AssetDbContext db) =>
 app.Run();
 
 // ── Helper Functions ─────────────────────────────────────────────────────────
+/// <summary>Override fields: whitespace-only means "clear" and stores as null.</summary>
+static string? NormalizeOverride(string? value) =>
+    string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
 static async Task PublishAssetEvent(IConnectionMultiplexer redis, string eventType, Asset asset)
 {
     var subscriber = redis.GetSubscriber();
@@ -516,7 +537,14 @@ record CreateAssetRequest(
     double? LoEngLimit,
     double? HiEngLimit,
     string? Template,
-    Guid? ParentId);
+    Guid? ParentId,
+    // Transport overrides — for assets whose data does not live where the path
+    // text implies (CPLM loop signals). Null = derive from the path as always.
+    string? IoTDbPathOverride = null,
+    string? SparkplugGroupOverride = null,
+    string? SparkplugEdgeNodeOverride = null,
+    string? SparkplugDeviceOverride = null,
+    string? SparkplugMetricOverride = null);
 
 record UpdateAssetRequest(
     string? Name,
@@ -524,7 +552,15 @@ record UpdateAssetRequest(
     string? EngineeringUnit,
     double? LoEngLimit,
     double? HiEngLimit,
-    string? Template);
+    string? Template,
+    // Override semantics on update: null = leave as-is, "" = clear back to
+    // derived, any other value = set. Without the empty-string form a caller
+    // could never UNDO an override through this PATCH-style endpoint.
+    string? IoTDbPathOverride = null,
+    string? SparkplugGroupOverride = null,
+    string? SparkplugEdgeNodeOverride = null,
+    string? SparkplugDeviceOverride = null,
+    string? SparkplugMetricOverride = null);
 
 record AssetSearchRequest(
     string? Root,

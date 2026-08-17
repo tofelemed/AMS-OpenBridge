@@ -33,6 +33,15 @@ public class AssetDbContext : DbContext
             entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
+
+            // Transport overrides (43_traverse_assets_transport_overrides.sql).
+            // Stored so an asset can state where its data ACTUALLY lives when the
+            // path-derived transport is wrong (CPLM loop signals). Null = derive.
+            entity.Property(e => e.IoTDbPathOverride).HasColumnName("iotdb_path_override");
+            entity.Property(e => e.SparkplugGroupOverride).HasColumnName("sparkplug_group_override");
+            entity.Property(e => e.SparkplugEdgeNodeOverride).HasColumnName("sparkplug_edge_override");
+            entity.Property(e => e.SparkplugDeviceOverride).HasColumnName("sparkplug_device_override");
+            entity.Property(e => e.SparkplugMetricOverride).HasColumnName("sparkplug_metric_override");
             
             entity.HasIndex(e => e.ContextualPath).IsUnique().HasFilter("NOT is_deleted");
             entity.HasIndex(e => e.ParentId);

@@ -96,11 +96,14 @@ public sealed class CpmLoopsController : ControllerBase
         // Re-project first: the caller's reason for republishing is usually that the
         // asset graph changed.
         var projected = await _registry.ProjectLinksAsync(loopId, ct);
+        // Signal assets re-project here too — this is also the BACKFILL path for
+        // loops onboarded before the projection existed.
+        var signalAssets = await _registry.ProjectSignalAssetsAsync(loopId, ct);
         await _registry.PublishEvidenceAsync(loopId, ct);
         var refreshed = await _registry.GetAsync(loopId, ct);
         _audit.Emit("CPM_EVIDENCE_REPUBLISHED", Actor(), "CpmLoop", loopId,
-            new { projected, links = refreshed!.Links.Count });
-        return Ok(new { loopId, republished = true, projected, links = refreshed!.Links.Count });
+            new { projected, signalAssets, links = refreshed!.Links.Count });
+        return Ok(new { loopId, republished = true, projected, signalAssets, links = refreshed!.Links.Count });
     }
 
     /// <summary>

@@ -160,8 +160,9 @@ CORE_JOBS = CORE_JOBS + (
         entry_class="com.ams.flink.cplm.CplmGateFusionStreamJob",
         extra_args=_CPLM_COMMON_ARGS + ("--job-name", "AMS - CPLM Gate Fusion Engine"),
     ),
-    # Phase 6.1 - live loop metrics. --live-topic is mandatory: the compiled
-    # default (live.metrics) already carries LiveStateJob's alarm payload.
+    # Phase 6.1 - live loop metrics. --live-topic is passed explicitly, though the
+    # compiled default now matches it; it used to be mandatory because the default
+    # was live.metrics, which already carries LiveStateJob's alarm payload.
     FlinkJobSpec(
         name="AMS - Loop Live RBE Engine",
         entry_class="com.ams.flink.cplm.LoopLiveRbeJob",

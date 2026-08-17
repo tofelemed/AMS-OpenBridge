@@ -36,6 +36,9 @@ public interface ICpmLoopRegistryService
     Task<bool> DeleteAsync(string loopId, CancellationToken ct);
     /// <summary>Re-publishes loop evidence (peer links, step test) onto the CPLM broadcast topic.</summary>
     Task PublishEvidenceAsync(string loopId, CancellationToken ct);
+    /// <summary>Upsert UNS assets (with transport overrides) for the loop's mapped
+    /// signal roles, so loop PV/SP/OP/VP/MODE resolve — and trend — through the UNS.</summary>
+    Task<int> ProjectSignalAssetsAsync(string loopId, CancellationToken ct);
     /// <summary>Projects asset-graph edges into loop-level links for a loop.</summary>
     Task<int> ProjectLinksAsync(string loopId, CancellationToken ct);
 }
@@ -105,6 +108,9 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
     private readonly ILogger<CpmLoopRegistryService> _logger;
     private readonly CpmRegistryOptions _options;
     private readonly IHttpClientFactory _httpFactory;
+    // Source of LoopRootPrefix + SafeNode — the historian device convention the
+    // signal-asset projection must mirror exactly (P1-5).
+    private readonly IotDbWriteClient _iotdb;
     private readonly IProducer<string, string> _producer;
     private static int _schemaEnsured;
 
@@ -112,11 +118,13 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
         [FromKeyedServices("cplm")] NpgsqlDataSource dataSource,
         IOptions<CpmRegistryOptions> options,
         IHttpClientFactory httpFactory,
+        IotDbWriteClient iotdb,
         ILogger<CpmLoopRegistryService> logger)
     {
         _dataSource = dataSource;
         _options = options.Value;
         _httpFactory = httpFactory;
+        _iotdb = iotdb;
         _logger = logger;
         _producer = new ProducerBuilder<string, string>(new ProducerConfig
         {
@@ -311,6 +319,9 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
         // Project asset edges first: PublishEvidenceAsync derives hasPeerLinks from
         // cpm.loop_link, so the projection must land before the broadcast is written.
         await ProjectLinksAsync(request.LoopId, ct);
+        // Signal assets ride the same onboarding step so a freshly activated loop
+        // is immediately trendable through the UNS (Trend page, displays).
+        await ProjectSignalAssetsAsync(request.LoopId, ct);
         await PublishEvidenceAsync(request.LoopId, ct);
         var dto = await GetAsync(request.LoopId, ct);
         return dto!;
@@ -458,6 +469,213 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
     }
 
     private sealed record AssetRelationshipView(Guid AssetId, string RelType, string? EffectiveRelType);
+
+    // ── Signal-asset projection (loops trendable through the UNS) ───────────
+    //
+    // Registers/updates a UNS asset for each mapped signal role, with transport
+    // OVERRIDES pointing at where the loop pipeline actually writes: history at
+    // root.<site>.cpm.<loopId>.<role> (RawLoopIotDbConsumer) and live under the
+    // ams edge with device = sanitized loopId (LoopLiveRbeJob → edge node).
+    // Without this, a loop tag resolved through binding-resolver "successfully"
+    // to path-derived transports nothing writes — which is why loop PV/SP/OP
+    // could not be trended on the Trend page (P2-10).
+
+    /// <summary>
+    /// The five measurements RawLoopIotDbConsumer actually stores per loop.
+    /// Roles outside this set (STATUS, QUALITY, UPSTREAM, UTILITY) are
+    /// deliberately not projected: their data never lands at the loop historian
+    /// device, and an override pointing there would recreate the exact
+    /// resolved-but-empty binding this projection exists to eliminate.
+    /// </summary>
+    private static readonly string[] StoredSignalRoles = { "PV", "SP", "OP", "VP", "MODE" };
+
+    /// <summary>
+    /// Sparkplug device id for a loop — the edge node's sanitizer
+    /// (AlarmMetricPublisher.processLoopMetricRecord): keeps [A-Za-z0-9_-], maps
+    /// the rest to '_'. NOTE: this is NOT IotDbWriteClient.SafeNode (which also
+    /// replaces '-' and prefixes a leading digit) — the two planes sanitize
+    /// differently and each override must use its own plane's rule.
+    /// </summary>
+    private static string SparkplugDeviceOf(string loopId) =>
+        System.Text.RegularExpressions.Regex.Replace(loopId, "[^a-zA-Z0-9_-]", "_");
+
+    public async Task<int> ProjectSignalAssetsAsync(string loopId, CancellationToken ct)
+    {
+        await EnsureSchemaAsync(ct);
+        await using var conn = await _dataSource.OpenConnectionAsync(ct);
+
+        var mapped = (await conn.QueryAsync<(string SignalRole, string UnsPath)>("""
+                SELECT signal_role, uns_path FROM cpm.loop_tag_map
+                WHERE loop_id = @loopId AND is_active
+                """, new { loopId }))
+            .Where(t => StoredSignalRoles.Contains(t.SignalRole.ToUpperInvariant()))
+            .GroupBy(t => t.SignalRole.ToUpperInvariant())
+            .ToDictionary(g => g.Key, g => g.First().UnsPath);
+
+        var ledger = (await conn.QueryAsync<LedgerRow>("""
+                SELECT signal_role AS SignalRole, contextual_path AS ContextualPath,
+                       asset_id AS AssetId, created_by_projection AS CreatedByProjection
+                FROM cpm.loop_signal_asset WHERE loop_id = @loopId
+                """, new { loopId }))
+            .ToDictionary(r => r.SignalRole, r => r);
+
+        var http = _httpFactory.CreateClient("AssetModel");
+        http.DefaultRequestHeaders.Remove("X-Service-Key");
+        http.DefaultRequestHeaders.Add("X-Service-Key", _options.ServiceKey);
+
+        var device = SparkplugDeviceOf(loopId);
+        var iotdbDevice = $"{_iotdb.LoopRootPrefix}.{IotDbWriteClient.SafeNode(loopId)}";
+        var projected = 0;
+
+        foreach (var (role, unsPath) in mapped)
+        {
+            var measurement = role.ToLowerInvariant();
+            try
+            {
+                // The role moved to a different tag path: retire the old
+                // projection first so it does not linger pointing at this loop.
+                if (ledger.TryGetValue(role, out var prev) && prev.ContextualPath != unsPath)
+                    await RetireProjectionAsync(http, conn, loopId, prev, ct);
+
+                var encoded = string.Join('/', unsPath.Split('/').Select(Uri.EscapeDataString));
+                var existing = await http.GetAsync($"/assets/by-path/{encoded}", ct);
+
+                // by-path answers 200 with an EMPTY body for a missing asset
+                // (Results.Ok(null)), not 404 — read the raw body and treat
+                // empty/"null" as not-found.
+                AssetView? view = null;
+                if (existing.IsSuccessStatusCode)
+                {
+                    var body = await existing.Content.ReadAsStringAsync(ct);
+                    if (!string.IsNullOrWhiteSpace(body) && body.Trim() != "null")
+                        view = System.Text.Json.JsonSerializer.Deserialize<AssetView>(
+                            body, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                }
+                else if (existing.StatusCode != System.Net.HttpStatusCode.NotFound)
+                {
+                    existing.EnsureSuccessStatusCode();
+                }
+
+                Guid assetId;
+                bool createdByUs;
+                if (view is not null)
+                {
+                    // Pre-existing asset: set ONLY the transport overrides. Its
+                    // name/template/description belong to whoever created it.
+                    var put = await http.PutAsJsonAsync($"/assets/{view.Id}", new
+                    {
+                        ioTDbPathOverride = $"{iotdbDevice}.{measurement}",
+                        sparkplugGroupOverride = _options.SparkplugGroup,
+                        sparkplugEdgeNodeOverride = _options.SparkplugEdge,
+                        sparkplugDeviceOverride = device,
+                        sparkplugMetricOverride = measurement
+                    }, ct);
+                    put.EnsureSuccessStatusCode();
+                    assetId = view.Id;
+                    createdByUs = ledger.TryGetValue(role, out var l) && l.AssetId == view.Id && l.CreatedByProjection;
+                }
+                else
+                {
+                    var post = await http.PostAsJsonAsync("/assets", new
+                    {
+                        contextualPath = unsPath,
+                        name = $"{loopId} {role}",
+                        type = 5, // Measurement
+                        description = $"CPLM loop-signal projection for {loopId} ({role}). " +
+                                      "Managed by cplm-api; transport overrides point at the loop pipeline.",
+                        template = "CpmLoopSignal",
+                        parentId = (Guid?)null,
+                        ioTDbPathOverride = $"{iotdbDevice}.{measurement}",
+                        sparkplugGroupOverride = _options.SparkplugGroup,
+                        sparkplugEdgeNodeOverride = _options.SparkplugEdge,
+                        sparkplugDeviceOverride = device,
+                        sparkplugMetricOverride = measurement
+                    }, ct);
+                    post.EnsureSuccessStatusCode();
+                    var createdAsset = await post.Content.ReadFromJsonAsync<AssetView>(cancellationToken: ct);
+                    if (createdAsset is null) continue;
+                    assetId = createdAsset.Id;
+                    createdByUs = true;
+                }
+
+                await conn.ExecuteAsync("""
+                    INSERT INTO cpm.loop_signal_asset
+                        (loop_id, signal_role, contextual_path, asset_id, created_by_projection, projected_at)
+                    VALUES (@loopId, @role, @path, @assetId, @created, NOW())
+                    ON CONFLICT (loop_id, signal_role) DO UPDATE SET
+                        contextual_path = EXCLUDED.contextual_path,
+                        asset_id = EXCLUDED.asset_id,
+                        created_by_projection = EXCLUDED.created_by_projection,
+                        projected_at = NOW()
+                    """, new { loopId, role, path = unsPath, assetId, created = createdByUs });
+                projected++;
+            }
+            catch (Exception ex)
+            {
+                // Same philosophy as ProjectLinksAsync: onboarding must not fail
+                // because asset-model is down. The binding_provenance readiness
+                // check surfaces the un-projected signal until a republish fixes it.
+                _logger.LogWarning(ex,
+                    "Could not project signal asset for loop {LoopId} role {Role} at {Path}",
+                    loopId, role, unsPath);
+            }
+        }
+
+        // Roles that used to be projected but are no longer mapped.
+        foreach (var (role, row) in ledger)
+        {
+            if (mapped.ContainsKey(role)) continue;
+            try
+            {
+                await RetireProjectionAsync(http, conn, loopId, row, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "Could not retire stale signal-asset projection for loop {LoopId} role {Role}",
+                    loopId, role);
+            }
+        }
+
+        _logger.LogInformation("Projected {Count} signal asset(s) for loop {LoopId}", projected, loopId);
+        return projected;
+    }
+
+    /// <summary>
+    /// Undo one projection. Assets WE created are soft-deleted; assets that
+    /// pre-existed only get their overrides cleared ("" = clear) — deleting a
+    /// user's asset because a loop stopped referencing it would be destruction
+    /// of someone else's configuration.
+    /// </summary>
+    private async Task RetireProjectionAsync(
+        HttpClient http, NpgsqlConnection conn, string loopId, LedgerRow row, CancellationToken ct)
+    {
+        if (row.CreatedByProjection)
+        {
+            var del = await http.DeleteAsync($"/assets/{row.AssetId}", ct);
+            if (!del.IsSuccessStatusCode && del.StatusCode != System.Net.HttpStatusCode.NotFound)
+                del.EnsureSuccessStatusCode();
+        }
+        else
+        {
+            var put = await http.PutAsJsonAsync($"/assets/{row.AssetId}", new
+            {
+                ioTDbPathOverride = "",
+                sparkplugGroupOverride = "",
+                sparkplugEdgeNodeOverride = "",
+                sparkplugDeviceOverride = "",
+                sparkplugMetricOverride = ""
+            }, ct);
+            if (put.StatusCode != System.Net.HttpStatusCode.NotFound)
+                put.EnsureSuccessStatusCode();
+        }
+        await conn.ExecuteAsync(
+            "DELETE FROM cpm.loop_signal_asset WHERE loop_id = @loopId AND signal_role = @role",
+            new { loopId, role = row.SignalRole });
+    }
+
+    private sealed record AssetView(Guid Id);
+    private sealed record LedgerRow(string SignalRole, string ContextualPath, Guid AssetId, bool CreatedByProjection);
 
     // ── Evidence publishing (the G13 path) ──────────────────────────────────
 
@@ -621,6 +839,19 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
                     engineering_unit VARCHAR(32),
                     discovered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     PRIMARY KEY (site, area, unit, source_system, raw_tag_name));
+                -- Ledger of the UNS assets this service projected for loop signals
+                -- (44_cpm_signal_asset_ledger.sql). Reconciliation needs to know
+                -- exactly what WE touched: assets we created may be deleted when a
+                -- role is unmapped; pre-existing assets we only overrode must have
+                -- their overrides cleared, never be deleted.
+                CREATE TABLE IF NOT EXISTS cpm.loop_signal_asset (
+                    loop_id VARCHAR(64) NOT NULL REFERENCES cpm.loop_registry(loop_id) ON DELETE CASCADE,
+                    signal_role VARCHAR(16) NOT NULL,
+                    contextual_path VARCHAR(512) NOT NULL,
+                    asset_id UUID NOT NULL,
+                    created_by_projection BOOLEAN NOT NULL DEFAULT FALSE,
+                    projected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    PRIMARY KEY (loop_id, signal_role));
                 """);
             _logger.LogInformation("CPM loop registry schema ensured");
         }
@@ -650,4 +881,12 @@ public sealed class CpmRegistryOptions
     public string AssetModelUrl { get; set; } = "http://asset-model:5000";
     /// <summary>Service-to-service key for asset-model calls that carry no user token.</summary>
     public string ServiceKey { get; set; } = "traverse-internal-dev-key";
+    /// <summary>
+    /// Sparkplug group/edge the loop live plane publishes under. Must match the
+    /// sparkplug-edge-node's SPARKPLUG_GROUP/SPARKPLUG_EDGE — these values go into
+    /// the projected assets' live-transport overrides, and a mismatch means the
+    /// Trend page subscribes to a topic nothing publishes.
+    /// </summary>
+    public string SparkplugGroup { get; set; } = "ams_site1";
+    public string SparkplugEdge { get; set; } = "ams_edge1";
 }

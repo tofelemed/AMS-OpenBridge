@@ -11,6 +11,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { KvRow, PanelHead, TonePill, toneFor, fmtDateTime } from './shared';
+import { ApiError } from '../../api/apiFetch';
 import { useCpmCalculations, useLatestGates } from '../../hooks/useCpm';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 
@@ -33,13 +34,22 @@ export const GateEvidenceDrawer: React.FC<{
 }> = ({ loopId, gateKey, windowKind = '24h', onClose }) => {
   const dialogRef = useDialogA11y<HTMLDivElement>(onClose);
   const navigate = useNavigate();
-  const { data: matrix } = useLatestGates(loopId, windowKind);
+  const gates = useLatestGates(loopId, windowKind);
+  const { data: matrix } = gates;
   const { data: calc } = useCpmCalculations();
 
   const def = calc?.gates.find(g => g.key === gateKey);
   const cell = matrix?.gates.find(g => g.key === gateKey);
   const role = GATE_ROLES[gateKey] ?? '—';
-  const status = cell?.status ?? 'NOT_EVALUATED';
+  // NOT_EVALUATED is a VERDICT — the engine looked and declined. It must not also
+  // stand in for "still loading", "no window yet" (404) or "the request failed",
+  // which is what a bare `?? 'NOT_EVALUATED'` on an unchecked query produced.
+  const noWindowYet = gates.isError && gates.error instanceof ApiError && gates.error.status === 404;
+  const fetchFailed = gates.isError && !noWindowYet;
+  const status = gates.isLoading ? 'LOADING'
+    : fetchFailed ? 'UNAVAILABLE'
+    : noWindowYet ? 'NO WINDOW YET'
+    : cell?.status ?? 'NOT_EVALUATED';
 
   return (
     <>
@@ -61,10 +71,22 @@ export const GateEvidenceDrawer: React.FC<{
         </p>
 
         <div className="cpm-kpi-row" style={{ margin: '12px 0' }}>
-          <div className={`cpm-kpi cpm-kpi--${toneFor(status)}`}>
+          <div className={`cpm-kpi cpm-kpi--${fetchFailed ? 'warn' : toneFor(status)}`}>
             <span className="cpm-kpi__caption">Result</span>
             <span className="cpm-kpi__value">{status.replace(/_/g, ' ')}</span>
-            {cell?.reason && <span className="cpm-kpi__sub">{cell.reason}</span>}
+            {fetchFailed && (
+              <span className="cpm-kpi__sub">
+                {gates.error instanceof Error ? gates.error.message : 'The service is unavailable.'}
+              </span>
+            )}
+            {noWindowYet && (
+              <span className="cpm-kpi__sub">
+                This loop has not completed a {windowKind} evaluation window.
+              </span>
+            )}
+            {!fetchFailed && !noWindowYet && cell?.reason && (
+              <span className="cpm-kpi__sub">{cell.reason}</span>
+            )}
           </div>
         </div>
 

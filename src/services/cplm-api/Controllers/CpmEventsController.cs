@@ -36,6 +36,18 @@ public sealed class CpmEventsController : ControllerBase
     /// <summary>
     /// A12 — event frames. Defaults to open frames, because "what is wrong right
     /// now" is the question an operator opens this screen to answer.
+    ///
+    /// <paramref name="sort"/> exists because the two consumers want genuinely
+    /// different orders and LIMIT makes the difference material, not cosmetic:
+    ///
+    ///   triage  (default) — open first, then highest peak confidence. The right
+    ///                       order for the Events screen: worst-first.
+    ///   recent            — strictly newest-opened first. The Explorer History
+    ///                       tab renders a chronological episode list, and under
+    ///                       'triage' its LIMIT kept the highest-CONFIDENCE
+    ///                       frames while the UI labelled them "latest" — so a
+    ///                       loop with more episodes than the limit silently hid
+    ///                       its recent ones behind old high-confidence ones.
     /// </summary>
     [HttpGet("events")]
     public async Task<IActionResult> GetEvents(
@@ -44,11 +56,23 @@ public sealed class CpmEventsController : ControllerBase
         [FromQuery] bool includeShelved = false,
         [FromQuery] DateTimeOffset? from = null,
         [FromQuery] int limit = 100,
+        [FromQuery] string sort = "triage",
         CancellationToken ct = default)
     {
         limit = Math.Clamp(limit, 1, 500);
+
+        // Whitelisted, never interpolated from raw input: this lands in ORDER BY.
+        var orderBy = sort?.Trim().ToLowerInvariant() switch
+        {
+            "recent" => "opened_at DESC, id DESC",
+            "triage" or null or "" => "closed_at IS NULL DESC, peak_confidence DESC, opened_at DESC",
+            _ => null
+        };
+        if (orderBy is null)
+            return BadRequest(new { error = $"Unknown sort '{sort}'", allowed = new[] { "triage", "recent" } });
+
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
-        var rows = await conn.QueryAsync("""
+        var rows = await conn.QueryAsync($"""
             SELECT id, loop_id, window_kind, family, opened_at, closed_at,
                    peak_diagnosis, peak_confidence, last_diagnosis, last_confidence,
                    severity, window_count, ack_state, acked_by, acked_at,
@@ -60,12 +84,14 @@ public sealed class CpmEventsController : ControllerBase
               -- A shelved frame is deliberately hidden until its shelve expires;
               -- an expired shelve must reappear rather than stay suppressed.
               AND (@includeShelved OR ack_state <> 'SHELVED' OR shelve_until IS NULL OR shelve_until <= NOW())
-            ORDER BY closed_at IS NULL DESC, peak_confidence DESC, opened_at DESC
+            ORDER BY {orderBy}
             LIMIT @limit
             """, new { loopId, openOnly, includeShelved, from, limit });
 
         var events = rows.ToList();
-        return Ok(new { count = events.Count, openOnly, events });
+        // `sort` echoes back so a caller can tell which order it actually got —
+        // a truncated list means something different in each order.
+        return Ok(new { count = events.Count, openOnly, sort = orderBy == "opened_at DESC, id DESC" ? "recent" : "triage", events });
     }
 
     /// <summary>A12 — acknowledge a frame.</summary>

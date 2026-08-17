@@ -9,8 +9,8 @@
 # NOT submitted here:
 #   - CplmGateStreamJob        (legacy monolith; would double-produce gate results)
 #   - CplmHistoricalReplayJob  (on-demand batch, per-request job name)
-#   - LoopLiveRbeJob           (Phase 6; needs --live-topic live.loop.metrics to avoid
-#                               colliding with LiveStateJob's live.metrics)
+#   - LoopLiveRbeJob           (Phase 6; produces to live.loop.metrics — its own topic,
+#                               kept apart from LiveStateJob's live.metrics)
 set -euo pipefail
 
 JOBMANAGER_HOST="${FLINK_JOBMANAGER_HOST:-ams-flink-jobmanager}"

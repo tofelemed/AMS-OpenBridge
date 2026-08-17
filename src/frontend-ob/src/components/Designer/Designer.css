@@ -2947,8 +2947,12 @@
 
 /* Full-page trend (/trend) */
 .trend-page { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 12px; gap: 8px; }
-.trend-page__head { display: flex; align-items: center; gap: 10px; }
+.trend-page__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .trend-page__title { font-size: 15px; font-weight: 600; color: var(--ams-text); }
+/* Custom-window controls (From/To datetime inputs beside the title). */
+.trend-page__field { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ams-text-dim); }
+.trend-page__field .ob-input { width: 180px; }
+.trend-page__error { font-size: 12px; color: var(--ams-crit); }
 .trend-page__chart {
   flex: 1; min-height: 0;
   background: var(--ams-panel-bg); border: 1px solid var(--ams-border); border-radius: 8px;
