@@ -17,6 +17,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import {
   EmptyState, KpiTile, KvRow, LoopSelect, PanelHead, TonePill, WorkspaceHeader, toneFor,
   fmtDateTime, QueryError, cpmChartColors } from './shared';
+import { ApiError } from '../../api/apiFetch';
 import type { CpmGateMatrix } from '../../api/cpmApi';
 import {
   useAcknowledgeEvent, useCpmEvents, useCpmLoops, useCpmTrend,
@@ -82,7 +83,11 @@ export const CpmInvestigation: React.FC = () => {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const loopsQuery = useCpmLoops();
-  const rankings = useFleetRankings();
+  // 200 = the server's max. The default page (50, confidence-ordered) made the
+  // case chips count a biased slice while the copy said "the fleet's verdicts";
+  // past 200 loops the chips would still undercount — the server aggregate
+  // endpoint would be the real fix at that scale.
+  const rankings = useFleetRankings(undefined, '24h', 'confidence', 200);
 
   const caseFilter = params.get('case');
   const allLoops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
@@ -116,29 +121,56 @@ export const CpmInvestigation: React.FC = () => {
   const matrix: CpmGateMatrix | undefined = mode === 'historical'
     ? (windows.find(w => w.windowEnd === selectedEnd) ?? windows[0])
     : latest.data;
+  // Deep-linked window not in the fetched set → fell back to newest; say so.
+  const windowFellBack = mode === 'historical' && !!selectedEnd && windows.length > 0
+    && !windows.some(w => w.windowEnd === selectedEnd);
+  // gates/latest answers 404 for "no fused window yet" — a real answer, not a
+  // failure; it must render as the no-verdict empty state, not an error card.
+  const noVerdictYet = latest.isError
+    && latest.error instanceof ApiError && latest.error.status === 404;
   const previous = matrix
     ? windows[windows.findIndex(w => w.windowEnd === matrix.windowEnd) + 1]
     : undefined;
 
   // Evidence chart over the verdict's own window.
   const series = loopId ? loopSeries(loopId) : undefined;
+  const loop = allLoops.find(l => l.loopId.toLowerCase() === (loopId ?? '').toLowerCase());
+  // I10: on a stiction-diagnosis investigation, VP-vs-OP is the direct visual
+  // signature of a sticking valve — draw the VP pen whenever the loop maps one.
+  const hasVp = !!loop?.tags['VP'];
   const { start, end } = useMemo(() => {
     if (matrix?.windowStart && matrix.windowEnd)
       return { start: new Date(matrix.windowStart), end: new Date(matrix.windowEnd) };
     const now = new Date();
     return { start: new Date(now.getTime() - 24 * 3600_000), end: now };
   }, [matrix?.windowStart, matrix?.windowEnd]);
-  const trend = useCpmTrend(series, start, end, 280, 'pv,sp,op', !!matrix); // C: hold until the verdict window is known
+  const trend = useCpmTrend(series, start, end, 280, hasVp ? 'pv,sp,op,vp' : 'pv,sp,op', !!matrix); // C: hold until the verdict window is known
   const points = useMemo(() => trend.data?.points ?? [], [trend.data]);
 
   const obcTheme = useObcTheme(); // C: re-derive chart colors on theme switch
   const chartOption = useMemo(() => {
-    const { good, amber, grey } = cpmChartColors();
+    const { good, amber, grey, pink } = cpmChartColors();
     const num = (v: unknown) => (typeof v === 'number' ? v : null);
     return {
       animation: false,
       grid: { left: 48, right: 16, top: 20, bottom: 30 },
-      tooltip: { trigger: 'axis' },
+      tooltip: {
+        trigger: 'axis',
+        // I14: filter the stacked envelope helpers — their values (min, and
+        // max-minus-min) are not signals; report the bucket's real min–max.
+        formatter: (ps: Array<{ seriesName: string; marker: string; value: [number, number | null] }>) => {
+          if (!ps.length) return '';
+          const ts = ps[0].value?.[0];
+          const p = points.find(pt => pt.ts === ts);
+          const rows = ps
+            .filter(x => x.seriesName !== 'pv-min' && x.seriesName !== 'pv-band')
+            .map(x => `${x.marker} ${x.seriesName}: ${x.value?.[1] == null ? '—' : Number(x.value[1]).toFixed(2)}`);
+          const lo = p && typeof p.pv_min === 'number' ? p.pv_min : null;
+          const hi = p && typeof p.pv_max === 'number' ? p.pv_max : null;
+          if (lo != null && hi != null) rows.push(`PV range: ${lo.toFixed(2)} – ${hi.toFixed(2)}`);
+          return [`<strong>${fmtDateTime(ts)}</strong>`, ...rows].join('<br/>');
+        },
+      },
       xAxis: { type: 'time', axisLabel: { color: grey } },
       yAxis: { type: 'value', scale: true, axisLabel: { color: grey }, splitLine: { lineStyle: { opacity: 0.2 } } },
       series: [
@@ -156,10 +188,14 @@ export const CpmInvestigation: React.FC = () => {
           data: points.map(p => [p.ts, num(p.sp)]) },
         { name: 'OP', type: 'line', symbol: 'none', lineStyle: { color: amber, width: 1.5 },
           data: points.map(p => [p.ts, num(p.op_avg) ?? num(p.op)]) },
+        ...(hasVp ? [
+          { name: 'VP', type: 'line', symbol: 'none', lineStyle: { color: pink, width: 1.5 },
+            data: points.map(p => [p.ts, num(p.vp_avg) ?? num(p.vp)]) },
+        ] : []),
       ],
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
-  }, [points, obcTheme]);
+  }, [points, hasVp, obcTheme]);
 
   const metrics = matrix?.metrics ?? {};
   const machineReason = matrix?.insufficientEvidenceReason
@@ -189,7 +225,7 @@ export const CpmInvestigation: React.FC = () => {
         <PanelHead eyebrow="Analysis cases" title="What the fleet's verdicts contain"
           right={caseFilter && (
             <ObcButton variant="normal"
-              onClick={() => setParams(p => { p.delete('case'); return p; })}>
+              onClick={() => setParams(p => { p.delete('case'); return p; }, { replace: true })}>
               Clear filter
             </ObcButton>
           )} />
@@ -197,7 +233,7 @@ export const CpmInvestigation: React.FC = () => {
         <div className="cpm-filter-row">
           {cases.map(([c, n]) => (
             <ObcButton key={c} variant={caseFilter === c ? 'raised' : 'normal'}
-              onClick={() => setParams(p => { p.set('case', c); p.delete('loop'); return p; })}>
+              onClick={() => setParams(p => { p.set('case', c); p.delete('loop'); return p; }, { replace: true })}>
               {c} · {n}
             </ObcButton>
           ))}
@@ -205,11 +241,11 @@ export const CpmInvestigation: React.FC = () => {
 
         <div className="cpm-toolbar" style={{ marginTop: 12 }}>
           <LoopSelect loops={filteredLoops.length ? filteredLoops : allLoops} value={loopId ?? ''}
-            onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; })} />
+            onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })} />
           <div className="cpm-filter-row">
             {(['live', 'historical'] as const).map(m => (
               <ObcButton key={m} variant={mode === m ? 'raised' : 'normal'}
-                onClick={() => setParams(p => { p.set('mode', m); return p; })}>
+                onClick={() => setParams(p => { p.set('mode', m); return p; }, { replace: true })}>
                 {m === 'live' ? 'Live (latest verdict)' : 'Historical'}
               </ObcButton>
             ))}
@@ -217,7 +253,7 @@ export const CpmInvestigation: React.FC = () => {
           <label className="cpm-field">
             <span className="cpm-field__label">Profile</span>
             <select className="cpm-select" value={windowKind}
-              onChange={e => setParams(p => { p.set('profile', e.target.value); p.delete('window'); return p; })}>
+              onChange={e => setParams(p => { p.set('profile', e.target.value); p.delete('window'); return p; }, { replace: true })}>
               <option value="24h">24h fused</option>
               <option value="12h">12h fused</option>
             </select>
@@ -226,7 +262,7 @@ export const CpmInvestigation: React.FC = () => {
             <label className="cpm-field">
               <span className="cpm-field__label">Evaluated window</span>
               <select className="cpm-select" value={matrix?.windowEnd ?? ''}
-                onChange={e => setParams(p => { p.set('window', e.target.value); return p; })}>
+                onChange={e => setParams(p => { p.set('window', e.target.value); return p; }, { replace: true })}>
                 {windows.map(w => (
                   <option key={w.windowEnd ?? ''} value={w.windowEnd ?? ''}>
                     ends {w.windowEnd ? fmtDateTime(w.windowEnd) : '—'}
@@ -238,8 +274,24 @@ export const CpmInvestigation: React.FC = () => {
         </div>
       </section>
 
-      {latest.isError && <QueryError title="Verdict unavailable" error={latest.error} retry={() => void latest.refetch()} />}
-      {!matrix && !latest.isLoading && !latest.isError && (
+      {/* I6: error/empty rendering keyed on the query the ACTIVE MODE reads.
+          Historical mode used to key on the live query — a failed gate-history
+          read showed "No fused verdict" while `latest` had quietly succeeded. */}
+      {mode === 'live' && latest.isError && !noVerdictYet && (
+        <QueryError title="Verdict unavailable" error={latest.error} retry={() => void latest.refetch()} />
+      )}
+      {mode === 'historical' && history.isError && (
+        <QueryError title="Gate history unavailable" error={history.error} retry={() => void history.refetch()} />
+      )}
+      {windowFellBack && (
+        <p className="cpm-copy" role="status">
+          The window this link pointed at is not among the fetched results — showing the
+          newest evaluated window instead.
+        </p>
+      )}
+      {!matrix
+        && !(mode === 'live' ? latest.isLoading : history.isLoading)
+        && !(mode === 'live' ? latest.isError && !noVerdictYet : history.isError) && (
         <section className="cpm-surface">
           <EmptyState title="No fused verdict for this loop"
             copy="Verdicts appear once the loop completes a 12h/24h evaluation window, or after a recompute." />
@@ -299,7 +351,10 @@ export const CpmInvestigation: React.FC = () => {
                 navigate(`/cpm/replay?${q.toString()}`);
               }}>Open in Evidence Replay ›</ObcButton>} />
             {trend.isLoading && <EmptyState title="Loading signals…" />}
-            {!trend.isLoading && points.length === 0 && (
+            {trend.isError && (
+              <QueryError title="Trend unavailable" error={trend.error} retry={() => void trend.refetch()} />
+            )}
+            {!trend.isLoading && !trend.isError && points.length === 0 && (
               <EmptyState title="No historian data for this window" copy={`Nothing stored at ${series}.`} />
             )}
             {points.length > 0 && <ReactECharts option={chartOption} style={{ height: 260 }} notMerge />}
@@ -381,7 +436,7 @@ export const CpmInvestigation: React.FC = () => {
                     p.set('mode', 'historical');
                     if (w.windowEnd) p.set('window', w.windowEnd);
                     return p;
-                  })}>
+                  }, { replace: true })}>
                   {w.windowEnd ? new Date(w.windowEnd).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'}
                   {' · '}{(w.diagnosis ?? '—').replace(/_/g, ' ').slice(0, 22)}
                 </ObcButton>
@@ -393,8 +448,10 @@ export const CpmInvestigation: React.FC = () => {
                   <thead>
                     <tr>
                       <th style={{ textAlign: 'left' }}>Metric</th>
-                      <th>PREVIOUS (ends {previous.windowEnd ? new Date(previous.windowEnd).toLocaleDateString() : '—'})</th>
-                      <th>CURRENT (ends {matrix.windowEnd ? new Date(matrix.windowEnd).toLocaleDateString() : '—'})</th>
+                      {/* P2-13: a 24h window ending near midnight lands on a
+                          different DAY in local vs UTC — name the instant+zone. */}
+                      <th>PREVIOUS (ends {previous.windowEnd ? fmtDateTime(previous.windowEnd) : '—'})</th>
+                      <th>CURRENT (ends {matrix.windowEnd ? fmtDateTime(matrix.windowEnd) : '—'})</th>
                       <th>Δ</th>
                     </tr>
                   </thead>
@@ -416,12 +473,17 @@ export const CpmInvestigation: React.FC = () => {
                       const prev = previous.metrics?.[f.field];
                       const cur = metrics[f.field];
                       if (prev == null && cur == null) return null;
+                      // I3: same scale/unit as the Key-facts tiles — this table
+                      // showed good_error_pct as 0.67 while the tile above said
+                      // 67%: one value, two units, one screen.
+                      const s = f.scale ?? 1;
+                      const u = f.unit;
                       return (
                         <tr key={f.field}>
                           <td style={{ textAlign: 'left' }}>{f.label}</td>
-                          <td>{fmt(prev)}</td>
-                          <td>{fmt(cur)}</td>
-                          <td>{prev != null && cur != null ? fmt(cur - prev) : '—'}</td>
+                          <td>{prev != null ? fmt(prev * s) + u : '—'}</td>
+                          <td>{cur != null ? fmt(cur * s) + u : '—'}</td>
+                          <td>{prev != null && cur != null ? fmt((cur - prev) * s) + u : '—'}</td>
                         </tr>
                       );
                     })}
