@@ -48,7 +48,16 @@ const GATE_METRICS: Record<string, { field: string; label: string }[]> = {
   G9: [{ field: 'corner_score', label: 'Corner score' }],
 };
 
-const STAGES = ['Raw historian', 'Normalize (5 s grid)', 'Feature windows', 'Gate evaluation', 'Fusion (G15)'];
+/** Stage labels; the normalize grid comes from the engine's per-window
+ * sample_period_sec when the KPI row carries one — this lab's loops run a
+ * 2.67 s grid, and the old hardcoded "5 s" was simply wrong for them. */
+const stageLabels = (gridS: number | null) => [
+  'Raw historian',
+  `Normalize (${gridS != null ? `${gridS % 1 === 0 ? gridS : gridS.toFixed(1)} s` : '5 s'} grid)`,
+  'Feature windows',
+  'Gate evaluation',
+  'Fusion (G15)',
+];
 
 /** Gates whose evidence is the PV–OP shape, shown as a phase plane. */
 const SHAPE_GATES = new Set(['G7', 'G8', 'G9', 'G10']);
@@ -76,6 +85,11 @@ export const CpmReplay: React.FC = () => {
   const windowEnd = params.get('window');
   const selected: CpmGateMatrix | undefined =
     windows.find(w => w.windowEnd === windowEnd) ?? windows[0];
+  // The deep-linked window may not be among the fetched newest 100 — keep the
+  // fallback (a blank replay helps nobody) but SAY it happened rather than
+  // silently replaying a different window than the link named.
+  const windowFellBack = !!windowEnd && windows.length > 0
+    && !windows.some(w => w.windowEnd === windowEnd);
 
   // The long-tier KPI row for the same 24h window carries the metric values.
   const kpiRow: CpmKpiRow | undefined = useCpmKpisRange(
@@ -88,7 +102,10 @@ export const CpmReplay: React.FC = () => {
   const series = loopId ? loopSeries(loopId) : undefined;
   const winStart = selected?.windowStart ? new Date(selected.windowStart) : undefined;
   const winEnd = selected?.windowEnd ? new Date(selected.windowEnd) : undefined;
-  const raw = useRawWindow(series, winStart, winEnd, 'pv,sp,op', 5000);
+  // 10 000 is the server's cap (historian-bff clamps there) — the old 5 000
+  // halved the evidence for free. Still one page: a 24h window on this lab's
+  // 2.67 s grid holds ~32k samples, so the truncation note below stays honest.
+  const raw = useRawWindow(series, winStart, winEnd, 'pv,sp,op', 10_000);
   const points = useMemo(() => raw.data?.points ?? [], [raw.data]);
 
   const [cursorPct, setCursorPct] = useState(100);
@@ -186,11 +203,11 @@ export const CpmReplay: React.FC = () => {
       <section className="cpm-surface">
         <div className="cpm-toolbar">
           <LoopSelect loops={loops} value={loopId ?? ''}
-            onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; })} />
+            onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })} />
           <label className="cpm-field">
             <span className="cpm-field__label">Evaluated window (24h)</span>
             <select className="cpm-select" value={selected?.windowEnd ?? ''}
-              onChange={e => setParams(p => { p.set('window', e.target.value); return p; })}>
+              onChange={e => setParams(p => { p.set('window', e.target.value); return p; }, { replace: true })}>
               {windows.map(w => (
                 <option key={w.windowEnd ?? ''} value={w.windowEnd ?? ''}>
                   ends {w.windowEnd ? fmtDateTime(w.windowEnd) : '—'} · {(w.diagnosis ?? '—').replace(/_/g, ' ')}
@@ -201,28 +218,45 @@ export const CpmReplay: React.FC = () => {
           <label className="cpm-field">
             <span className="cpm-field__label">Gate</span>
             <select className="cpm-select" value={gateKey}
-              onChange={e => setParams(p => { p.set('gate', e.target.value); return p; })}>
+              onChange={e => setParams(p => { p.set('gate', e.target.value); return p; }, { replace: true })}>
               {(calc.data?.gates ?? []).map(g => (
                 <option key={g.key} value={g.key}>{g.key} · {g.name}</option>
               ))}
             </select>
           </label>
+          {/* R8: a failed catalogue read left this select silently EMPTY — the
+              gate picker just vanished with no explanation. */}
+          {calc.isError && (
+            <span className="cpm-field__error">
+              Gate catalogue unavailable — the gate list cannot be shown.
+            </span>
+          )}
           <TonePill tone="muted">{role}</TonePill>
           {cell && <TonePill tone={toneFor(cell.status)}>{cell.status.replace(/_/g, ' ')}</TonePill>}
         </div>
 
+        {/* R3: the old stepper hardcoded stages 1–4 "done" and 5 "active" — static
+            decoration posing as pipeline state. For a STORED verdict every stage
+            has completed; with no verdict none are claimable. */}
         <div className="cpm-wizard-steps" aria-label="Transformation stages">
-          {STAGES.map((s, i) => (
-            <span key={s} className={`cpm-wizard-step${i < 4 ? ' cpm-wizard-step--done' : ' cpm-wizard-step--active'}`}>
-              {i + 1}. {s}
-            </span>
-          ))}
+          {stageLabels(typeof kpiRow?.sample_period_sec === 'number' ? kpiRow.sample_period_sec : null)
+            .map((s, i) => (
+              <span key={s} className={`cpm-wizard-step${selected ? ' cpm-wizard-step--done' : ''}`}>
+                {i + 1}. {s}
+              </span>
+            ))}
         </div>
         <p className="cpm-copy">
           Stages are the pipeline's fixed shape; the chart below shows the raw historian
           slice this window drew from{isShapeGate ? ' as a PV–OP phase plane (the shape this gate scores)' : ''}.
         </p>
 
+        {windowFellBack && (
+          <p className="cpm-copy" role="status">
+            The window this link pointed at is not among the fetched results —
+            replaying the newest evaluated window instead.
+          </p>
+        )}
         {history.isError && <QueryError title="Gate history unavailable" error={history.error} retry={() => void history.refetch()} />}
         {!selected && !history.isLoading && !history.isError && (
           <EmptyState title="No evaluated 24h windows for this loop"
@@ -241,8 +275,10 @@ export const CpmReplay: React.FC = () => {
               <input type="range" min={0} max={100} value={cursorPct}
                 onChange={e => setCursorPct(Number(e.target.value))}
                 aria-label="Replay cursor position" />
+              {/* P2-13: zone-labelled — the export writes UTC ISO, and a bare
+                  local time next to it read as a data error. */}
               <span className="cpm-mono">
-                {cursorTs != null ? new Date(cursorTs).toLocaleTimeString() : '—'}
+                {cursorTs != null ? fmtDateTime(cursorTs) : '—'}
               </span>
             </div>
             {raw.data?.hasMore && (
@@ -289,7 +325,11 @@ export const CpmReplay: React.FC = () => {
             <span className="cpm-lineage__arrow">→</span>
             <div className="cpm-lineage__node">
               <span className="cpm-eyebrow">Normalize</span>
-              <span>5 s grid · loop.samples.v1</span>
+              <span>
+                {typeof kpiRow?.sample_period_sec === 'number'
+                  ? `${kpiRow.sample_period_sec % 1 === 0 ? kpiRow.sample_period_sec : kpiRow.sample_period_sec.toFixed(1)} s grid`
+                  : 'engine grid'} · loop.samples.v1
+              </span>
             </div>
             <span className="cpm-lineage__arrow">→</span>
             <div className="cpm-lineage__node">

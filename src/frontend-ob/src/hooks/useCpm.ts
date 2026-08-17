@@ -290,6 +290,11 @@ export function useRecompute(loopId: string | undefined) {
     if (status.data?.finished) {
       void qc.invalidateQueries({ queryKey: ['cpm', 'gates'] });
       void qc.invalidateQueries({ queryKey: ['cpm', 'gate-history'] });
+      // A replay rewrites KPI rows too (source='flink-historical-replay') — the
+      // Replay page's metric panel reads kpis-range, and without this it kept
+      // showing the pre-recompute values next to the refreshed verdict.
+      void qc.invalidateQueries({ queryKey: ['cpm', 'kpis'] });
+      void qc.invalidateQueries({ queryKey: ['cpm', 'kpis-range'] });
     }
   }, [status.data?.finished, qc]);
   return { submit, status: handle ? status.data : null, reset: () => setHandle(null) };

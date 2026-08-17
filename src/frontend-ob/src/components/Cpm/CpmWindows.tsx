@@ -9,10 +9,11 @@
  * are DG-4 — the jobs do not record them today, so they render as "—".
  */
 import React, { useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KvRow, LoopSelect, PanelHead, TonePill, WorkspaceHeader,
-  fmtDateTime, fmtDuration, fmtWindowShape, windowSpecsOf, QueryError } from './shared';
+  fmtDateTime, fmtDuration, fmtWindowShape, loopTrendHref, windowSpecsOf, QueryError } from './shared';
 import type { CpmKpiRow } from '../../api/cpmApi';
 import {
   useCpmKpis, useCpmLoops, useCpmResolutions, usePipelineMetrics, useRawWindow,
@@ -45,43 +46,17 @@ function completenessOf(row: CpmKpiRow, profileS: number): number | null {
 }
 
 export const CpmWindows: React.FC = () => {
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const loopsQuery = useCpmLoops();
   const loops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
   const loopId = params.get('loop') ?? loops[0]?.loopId;
   const profile = params.get('profile') ?? '15m';
-  const profileS = PROFILE_SECONDS[profile] ?? 900;
 
   const resolutions = useCpmResolutions();
   const metrics = usePipelineMetrics();
-  const kpis = useCpmKpis(loopId, profile, 5);
-
-  const rows = useMemo(() => kpis.data?.samples ?? [], [kpis.data]);
-  const selectedEnd = params.get('window');
-  const selected = rows.find(r => r.window_end === selectedEnd) ?? rows[0];
-
-  // Sample density across the selected window from the raw historian slice.
-  const series = loopId ? loopSeries(loopId) : undefined;
-  const winStart = selected?.window_start ? new Date(selected.window_start) : undefined;
-  const winEnd = selected?.window_end ? new Date(selected.window_end) : undefined;
-  const raw = useRawWindow(series, winStart, winEnd, 'pv', 5000);
-
-  const BUCKETS = 24;
-  const density = useMemo(() => {
-    if (!winStart || !winEnd) return [];
-    const span = winEnd.getTime() - winStart.getTime();
-    if (span <= 0) return [];
-    const counts = new Array<number>(BUCKETS).fill(0);
-    for (const p of raw.data?.points ?? []) {
-      const i = Math.min(BUCKETS - 1, Math.floor(((p.ts - winStart.getTime()) / span) * BUCKETS));
-      if (i >= 0) counts[i] += 1;
-    }
-    const expectedPerBucket = span / 1000 / SAMPLE_PERIOD_S / BUCKETS;
-    return counts.map(c => ({ count: c, ratio: expectedPerBucket > 0 ? c / expectedPerBucket : 0 }));
-  }, [raw.data, winStart?.getTime(), winEnd?.getTime()]); // eslint-disable-line react-hooks/exhaustive-deps -- Date identity is unstable; time values are the real deps
-
-  const rawCapped = raw.data?.hasMore === true;
-  const expectedSamples = Math.round(profileS / SAMPLE_PERIOD_S);
+  // 12 windows: 5 was too thin for inspection (a single hour of 5m windows).
+  const kpis = useCpmKpis(loopId, profile, 12);
 
   // The served window contract — the authority on assigner/slide/lateness. This
   // page previously asserted its own version and got two facts wrong. windowSpecsOf
@@ -94,6 +69,62 @@ export const CpmWindows: React.FC = () => {
   const spec = specs.find(w => w.kind === profile);
   const isLong = spec ? spec.tier === 'long'
     : (resolutions.data?.longWindows ?? ['4h', '12h', '24h']).includes(profile);
+  // W4: window length prefers the SERVED contract; the local map is only the
+  // fallback. With `?? 900` alone, a window kind this map has never heard of
+  // silently billed its expectations against 15 minutes.
+  const profileS = spec?.sizeMs != null
+    ? spec.sizeMs / 1000
+    : PROFILE_SECONDS[profile] ?? 900;
+
+  const rows = useMemo(() => kpis.data?.samples ?? [], [kpis.data]);
+  const selectedEnd = params.get('window');
+  const selected = rows.find(r => r.window_end === selectedEnd) ?? rows[0];
+
+  // Sample density across the selected window from the raw historian slice.
+  const series = loopId ? loopSeries(loopId) : undefined;
+  const winStart = selected?.window_start ? new Date(selected.window_start) : undefined;
+  const winEnd = selected?.window_end ? new Date(selected.window_end) : undefined;
+  const raw = useRawWindow(series, winStart, winEnd, 'pv', 5000);
+
+  // W1: the density expectation uses the ENGINE'S per-window sample period when
+  // the selected row carries one — the metadata panel one column over already
+  // does (P2-11), but this strip kept billing every loop against the hardcoded
+  // 5s grid, so a 1s loop read ~500% and a 10s loop read "sparse" at perfect
+  // coverage.
+  const gridPeriodS = typeof selected?.sample_period_sec === 'number' && selected.sample_period_sec > 0
+    ? selected.sample_period_sec : SAMPLE_PERIOD_S;
+  const gridIsServed = typeof selected?.sample_period_sec === 'number' && selected.sample_period_sec > 0;
+
+  const BUCKETS = 24;
+  const density = useMemo(() => {
+    if (!winStart || !winEnd) return [];
+    const span = winEnd.getTime() - winStart.getTime();
+    if (span <= 0) return [];
+    const counts = new Array<number>(BUCKETS).fill(0);
+    let lastTs = winStart.getTime();
+    for (const p of raw.data?.points ?? []) {
+      const i = Math.min(BUCKETS - 1, Math.floor(((p.ts - winStart.getTime()) / span) * BUCKETS));
+      if (i >= 0) counts[i] += 1;
+      if (p.ts > lastTs) lastTs = p.ts;
+    }
+    // W2: when the raw page is CAPPED (hasMore), samples past the last fetched
+    // timestamp were never read — those buckets are UNKNOWN, not empty. Painting
+    // them grey made the back two-thirds of a 24h window look like a storage gap
+    // while the legend swore grey meant "no stored samples".
+    const capped = raw.data?.hasMore === true;
+    const fetchedUpTo = capped
+      ? Math.min(BUCKETS - 1, Math.floor(((lastTs - winStart.getTime()) / span) * BUCKETS))
+      : BUCKETS - 1;
+    const expectedPerBucket = span / 1000 / gridPeriodS / BUCKETS;
+    return counts.map((c, i) => ({
+      count: c,
+      ratio: expectedPerBucket > 0 ? c / expectedPerBucket : 0,
+      fetched: i <= fetchedUpTo,
+    }));
+  }, [raw.data, gridPeriodS, winStart?.getTime(), winEnd?.getTime()]); // eslint-disable-line react-hooks/exhaustive-deps -- Date identity is unstable; time values are the real deps
+
+  const rawCapped = raw.data?.hasMore === true;
+  const expectedSamples = Math.round(profileS / gridPeriodS);
 
   // Watermark chip: DG-1 gives job state + checkpoint age; watermark lag itself
   // is listed unavailable by the proxy, so the chip reports what is real.
@@ -123,11 +154,11 @@ export const CpmWindows: React.FC = () => {
       <section className="cpm-surface">
         <div className="cpm-toolbar">
           <LoopSelect loops={loops} value={loopId ?? ''}
-            onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; })} />
+            onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })} />
           <label className="cpm-field">
             <span className="cpm-field__label">Window profile</span>
             <select className="cpm-select" value={profile}
-              onChange={e => setParams(p => { p.set('profile', e.target.value); p.delete('window'); return p; })}>
+              onChange={e => setParams(p => { p.set('profile', e.target.value); p.delete('window'); return p; }, { replace: true })}>
               {/* Labels come from the served window contract. They used to be
                   hardcoded as "{w} tumbling" for every short kind — true only of
                   1m; 5m/10m/15m/30m/60m are SLIDING windows with overlap. */}
@@ -166,8 +197,14 @@ export const CpmWindows: React.FC = () => {
               className={`cpm-event-row${isSel ? ' cpm-event-row--selected' : ''}`}
               style={{ gridTemplateColumns: '1.6fr 1fr 1fr 0.8fr' }}
               role="button" tabIndex={0}
-              onClick={() => setParams(p => { if (r.window_end) p.set('window', r.window_end); return p; })}
-              onKeyDown={e => { if (e.key === 'Enter' && r.window_end) setParams(p => { p.set('window', r.window_end!); return p; }); }}>
+              aria-pressed={isSel}
+              onClick={() => setParams(p => { if (r.window_end) p.set('window', r.window_end); return p; }, { replace: true })}
+              onKeyDown={e => {
+                if ((e.key === 'Enter' || e.key === ' ') && r.window_end) {
+                  e.preventDefault();
+                  setParams(p => { p.set('window', r.window_end!); return p; }, { replace: true });
+                }
+              }}>
               <span>
                 <span className="cpm-event-row__title">
                   {r.window_end ? fmtDateTime(r.window_end) : '—'}
@@ -179,8 +216,10 @@ export const CpmWindows: React.FC = () => {
               <span className="cpm-event-row__sub">
                 {fmtBytesless(typeof r.sample_count === 'number' ? r.sample_count : null)} samples
               </span>
+              {/* P2-13: every CPM timestamp names its zone — this was the one
+                  bare toLocaleTimeString left on the page. */}
               <span className="cpm-event-row__sub">
-                emitted {new Date(r.created_at).toLocaleTimeString()}
+                emitted {fmtDateTime(r.created_at)}
               </span>
               <TonePill tone={comp == null ? 'muted' : comp >= 0.9 ? 'good' : comp >= 0.5 ? 'warn' : 'bad'}>
                 {comp != null ? `${Math.min(100, comp * 100).toFixed(0)}% full` : 'UNKNOWN'}
@@ -246,6 +285,35 @@ export const CpmWindows: React.FC = () => {
               )}
               <KvRow label="Late events">— (DG-4: not recorded by the jobs)</KvRow>
               <KvRow label="Out-of-order events">— (DG-4: not recorded by the jobs)</KvRow>
+              {/* W6: the inspector was a dead end — an incomplete window found
+                  here could go nowhere. Both targets take the window's own
+                  bounds: Historical for KPI/diagnosis context, Trend PINNED to
+                  the exact range for signal-level scrutiny. */}
+              {winStart && winEnd && (
+                <div className="cpm-filter-row" style={{ marginTop: 12 }}>
+                  <ObcButton variant="raised" onClick={() => {
+                    const q = new URLSearchParams({
+                      loop: loopId ?? '',
+                      from: winStart.toISOString(),
+                      to: winEnd.toISOString(),
+                    });
+                    navigate(`/cpm/historical?${q.toString()}`);
+                  }}>
+                    Open range in Historical ›
+                  </ObcButton>
+                  {(() => {
+                    const loop = loops.find(l => l.loopId === loopId);
+                    const href = loop
+                      ? loopTrendHref(loop.tags, '8h', { from: winStart, to: winEnd })
+                      : null;
+                    return href && (
+                      <ObcButton variant="normal" onClick={() => navigate(href)}>
+                        Open in Trend ›
+                      </ObcButton>
+                    );
+                  })()}
+                </div>
+              )}
             </>
           )}
         </section>
@@ -263,14 +331,20 @@ export const CpmWindows: React.FC = () => {
               <div className="cpm-density" aria-label="Sample density">
                 {density.map((b, i) => (
                   <div key={i}
-                    className={`cpm-density__bucket${b.count === 0 ? ' cpm-density__bucket--empty' : b.ratio < 0.6 ? ' cpm-density__bucket--sparse' : ''}`}
-                    style={{ height: `${Math.max(4, Math.min(100, b.ratio * 100))}%` }}
-                    title={`${b.count} sample(s) · ${(b.ratio * 100).toFixed(0)}% of the 5 s-grid expectation`} />
+                    className={`cpm-density__bucket${
+                      !b.fetched ? ' cpm-density__bucket--unfetched'
+                        : b.count === 0 ? ' cpm-density__bucket--empty'
+                        : b.ratio < 0.6 ? ' cpm-density__bucket--sparse' : ''}`}
+                    style={{ height: !b.fetched ? '100%' : `${Math.max(4, Math.min(100, b.ratio * 100))}%` }}
+                    title={!b.fetched
+                      ? 'not fetched — beyond the raw page cap, unknown coverage'
+                      : `${b.count} sample(s) · ${(b.ratio * 100).toFixed(0)}% of the ${gridPeriodS} s-grid expectation`} />
                 ))}
               </div>
               <p className="cpm-copy">
-                {BUCKETS} buckets · full-height = 100% of the 5 s-grid budget · amber = sparse ·
-                grey = empty.{rawCapped ? ' Density reflects the first raw page only; long windows exceed one page.' : ''}
+                {BUCKETS} buckets · full-height = 100% of the {gridPeriodS} s-grid budget
+                {gridIsServed ? ' (engine-reported)' : ' (assumed)'} · amber = sparse · grey = empty
+                {rawCapped ? ' · hatched = not fetched (raw page cap) — unknown, not missing' : ''}.
                 {' '}Bad-quality exclusion counts live in the G0 result, not the historian, and are not double-counted here.
               </p>
             </>

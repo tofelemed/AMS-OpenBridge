@@ -412,6 +412,15 @@
 }
 .cpm-density__bucket--sparse { background: var(--alert-caution-color); }
 .cpm-density__bucket--empty { background: var(--element-neutral-color); opacity: 0.25; }
+/* W2: beyond the raw page cap — UNKNOWN coverage, visually distinct from "empty"
+   (hatched, not solid) so a capped long window stops reading as a storage gap. */
+.cpm-density__bucket--unfetched {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--element-inactive-color) 0 3px,
+    transparent 3px 6px);
+  opacity: 0.35;
+}
 
 /* Replay cursor slider row (U8). */
 .cpm-slider-row { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
