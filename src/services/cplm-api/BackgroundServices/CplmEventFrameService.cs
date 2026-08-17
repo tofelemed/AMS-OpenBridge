@@ -246,6 +246,14 @@ public sealed class CplmEventFrameService : BackgroundService
                     ON analytics.cplm_event_frames (loop_id, opened_at DESC);
                 CREATE INDEX IF NOT EXISTS idx_cplm_event_frames_open
                     ON analytics.cplm_event_frames (closed_at, ack_state) WHERE closed_at IS NULL;
+                -- 42_cplm_event_frames_indexes.sql parity: every CPM read is
+                -- lower(loop_id) = lower($1), which none of the above can serve —
+                -- without these, a service-healed database seq-scans the events
+                -- list on every 30s poll (the exact defect the script fixed).
+                CREATE INDEX IF NOT EXISTS idx_cplm_event_frames_loop_lower
+                    ON analytics.cplm_event_frames (lower(loop_id));
+                CREATE INDEX IF NOT EXISTS idx_cplm_event_frames_loop_lower_opened
+                    ON analytics.cplm_event_frames (lower(loop_id), opened_at DESC);
                 """);
             _logger.LogInformation("CPLM event-frame schema ensured");
         }

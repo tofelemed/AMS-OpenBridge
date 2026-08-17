@@ -157,6 +157,57 @@ The deepest surface outside alarms. Review with `openbridge` skill loaded; honor
 5. API-test the endpoints the page reads (in-network curl with `X-Auth-*` headers).
 6. Commit per page/batch with the findings in the message; push to `main`.
 
+## CPM module coverage gaps (backend/jobs — carried from the module review)
+
+The CPM review covered UI, controllers, schemas, and Flink *structure* in depth; these
+are the layers it did **not** cover, ordered by value. Same cadence: review → fix →
+build → validate → test → commit.
+
+- [x] **GAP-1 — Execute a real A8 recompute end-to-end.** DONE 2026-08-18:
+      submitted on G13_LOOP_A → Flink batch FINISHED/succeeded → fresh rows in
+      `analytics.cplm_gate_results` with `source='flink-historical-replay'` and
+      `replay_id=208822d8a3fb` stamped. Verdict INSUFFICIENT_DATA at 0.00 —
+      correct: the lab's raw data island ended Aug 13, so the recent window has
+      too few samples. Mechanism proven; result honest.
+- [x] **GAP-2 — Review the Kafka→Postgres consumers.** DONE 2026-08-18. Both
+      sound: StoreOffset only after successful persist (poison JSON skips +
+      advances; DB errors retry), idempotent upserts with a fuller-window guard,
+      static membership + sole-member assertion, P1-8 null semantics, IoTDB
+      dual-write verified non-throwing (NonQueryAsync catches all → false), and
+      the frames episode logic converges under at-least-once redelivery.
+      **One fix shipped**: the frames self-healing DDL lacked the 42-script
+      `lower(loop_id)` indexes — a service-healed database would seq-scan the
+      events list (the exact defect B2 fixed). Added + deployed. Minor notes:
+      `window_count` can overcount on retried redeliveries (informational
+      field); a malformed no-diagnosis result closes open frames (rare).
+- [x] **GAP-3 — Review the small cplm-api services.** DONE 2026-08-18.
+      `SingleMemberGuard`: real partition-count comparison per assignment,
+      CRITICAL log + /health surfacing, deliberately non-throwing (dying would
+      hand partitions to the duplicate and hide the split) — it does what the
+      CLAUDE.md trap demands. `ConsumerHeartbeat`: per-consumer phase+beat every
+      500ms poll, surfaced with a stalled flag (P3-11). `CplmAuditEmitter`:
+      best-effort BY DESIGN — failed emit logs and drops, never blocks the
+      operation it records (matches display-service's emitter).
+- [~] **GAP-4 — Scripted E2E suites: CLASSIFIED STALE (pre-lockdown), not run.**
+      Verified 2026-08-18: they target `127.0.0.1:8000` (ams-api publishes no
+      host port since Plan 04 — confirmed against the running container) with
+      `Authorization: Bearer dev` (edge-only auth rejects it). Same staleness
+      class as `tests/integration`. They also test the ALARM ack pipeline, not
+      CPM. The CPM-side E2E is the GAP-1 recompute round trip (historian →
+      normalize → gates → Postgres), executed live. Porting the alarm E2E to the
+      gateway-auth world remains a cross-cutting item below.
+- [ ] **GAP-5 — Flink math internals**: `CplmGateEngine` / fusion scoring were
+      regression-covered (30/30 incl. golden-loop gate) but not re-reviewed
+      line-by-line. Only worth a pass with a concrete suspicion or a reference
+      dataset to pin against.
+- [ ] **GAP-6 — Gateway route map audit**: `docs/api-gateway.md` was trusted, not
+      verified against the nginx/gateway config (`/api/v1/cpm` → cplm-api:5000,
+      `/api/hist` → historian-bff:8090, header stripping of client-supplied
+      `X-Auth-*`).
+- [ ] **GAP-7 — Browser-level interaction pass**: all review testing was API and
+      bundle-level; rendering was verified via screenshots only. A click-through
+      of the 12 CPM pages in a real browser (both themes, one narrow viewport).
+
 ## Known cross-cutting items (not per-page)
 
 - [ ] `tests/integration` binding-resolver suite targets pre-lockdown anonymous `localhost:5001/5002` — port to gateway-auth world or retire
