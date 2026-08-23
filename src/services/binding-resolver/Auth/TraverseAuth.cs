@@ -52,6 +52,10 @@ public static class Perms
     public const string AnalyticsView = "analytics.view";
     public const string CpmManage = "cpm.manage";
     public const string SystemManage = "system.manage";
+    // OT data-source configuration (ingestion-service). Admin-only by decision;
+    // keys are seeded by 47_ingestion_permissions.sql.
+    public const string IngestionView = "ingestion.view";
+    public const string IngestionManage = "ingestion.manage";
 
     public static readonly string[] All =
     {
@@ -59,6 +63,7 @@ public static class Perms
         TemplateView, TemplateEdit, TemplatePublish, BindingResolve, HistorianView,
         AnalysisView, AnalysisEdit, AuditView,
         AnalyticsView, CpmManage, SystemManage,
+        IngestionView, IngestionManage,
     };
 }
 

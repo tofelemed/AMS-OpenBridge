@@ -6,6 +6,7 @@ import { UserManagementConfig }  from './UserManagementConfig';
 import { RolesConfig }           from './RolesConfig';
 import { AlarmFeedConfig }       from './AlarmFeedConfig';
 import { AlarmRulesConfig }      from './AlarmRulesConfig';
+import { DataSourcesConfig }     from './DataSourcesConfig';
 import { NotificationsConfig }   from './NotificationsConfig';
 import { SystemSettingsConfig }  from './SystemSettingsConfig';
 import AuditExplorer             from './AuditExplorer';
@@ -19,6 +20,7 @@ import { ObiListAltCheckGoogle } from '@oicl/openbridge-webcomponents-react/icon
 import { ObiNotification } from '@oicl/openbridge-webcomponents-react/icons/icon-notification';
 import { ObiClipboard } from '@oicl/openbridge-webcomponents-react/icons/icon-clipboard';
 import { ObiWrench } from '@oicl/openbridge-webcomponents-react/icons/icon-wrench';
+import { ObiDatabase } from '@oicl/openbridge-webcomponents-react/icons/icon-database';
 
 /* Design tokens (shared with Dashboard) */
 
@@ -26,6 +28,7 @@ const TABS = [
   { path: '/admin/users',         label: 'User Management',     Icon: ObiUser, permission: 'admin.users.edit' },
   { path: '/admin/roles',         label: 'Roles & Permissions', Icon: ObiSettingsUserIec, permission: 'rbac.manage' },
   { path: '/admin/alarm-feed',    label: 'Alarm Feed',          Icon: ObiMonitoring },
+  { path: '/admin/data-sources',  label: 'Data Sources',        Icon: ObiDatabase, permission: 'ingestion.view' },
   { path: '/admin/alarm-rules',   label: 'Alarm Rules',         Icon: ObiListAltCheckGoogle },
   { path: '/admin/notifications', label: 'Notifications',       Icon: ObiNotification },
   { path: '/admin/audit',         label: 'Audit Log',           Icon: ObiClipboard },
@@ -123,6 +126,10 @@ const Administration: React.FC = () => {
           />
           <Route path="alarm-feed"    element={<AlarmFeedConfig />} />
           <Route path="opc-servers"   element={<AlarmFeedConfig />} />
+          <Route
+            path="data-sources"
+            element={hasPermission('ingestion.view') ? <DataSourcesConfig /> : <Navigate to={visibleTabs[0]?.path ?? '/dashboard'} replace />}
+          />
           <Route path="alarm-rules"   element={<AlarmRulesConfig />} />
           <Route path="notifications" element={<NotificationsConfig />} />
           <Route path="audit"         element={<AuditExplorer />} />

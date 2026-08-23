@@ -30,6 +30,7 @@ The route table lives in [`appsettings.json`](../src/services/gateway/appsetting
 | `/api/bindings/**` | binding-resolver :5000 | strip `/api/bindings` → `/resolve`, `/preview`… | required | UNS path+role → transport resolution |
 | `/api/assets[/**]` | asset-model :5000 | strip `/api` → `/assets…` | required | UNS asset CRUD, search, hierarchy, relationships |
 | `/api/aliases/**` | asset-model :5000 | strip `/api` → `/aliases…` | required | legacy-tag alias resolution |
+| `/api/ingestion/**` | ingestion-service :5000 | strip `/api/ingestion` → `/data-sources…`, `/profiles` | required | OT data-source configs (MQTT broker connections, connection test) — `ingestion.view`/`ingestion.manage`, Admin-only |
 | `/api/templates[/**]` | template-service :5000 | strip `/api` → `/templates…` | required | element templates + instantiation |
 | `/api/analyses[/**]` | analysis-service :5000 | strip `/api` → `/analyses…` | required | derived calculations / analysis defs |
 | `/api/audit[/**]` | audit-service :8080 | → `/api/v1/audit…` | required | tamper-evident audit trail (browser alias) |

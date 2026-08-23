@@ -919,6 +919,74 @@ services:
       retries: 5
       start_period: 30s
 
+  # Test MQTT broker for the ingestion feature (opt-in: --profile mqtt-test).
+  # Authenticated (no anonymous) so connection tests exercise real credentials.
+  # In-network address: mqtt://mosquitto-test:1883 ; host address for manual
+  # tools: mqtt://localhost:1884 (1884 avoids clashing with a host Mosquitto).
+  mosquitto-test:
+    image: eclipse-mosquitto:2
+    container_name: ams-mosquitto-test
+    profiles: ["mqtt-test"]
+    logging: *default-logging
+    entrypoint: ["/bin/sh", "-c"]
+    # mosquitto drops to the 'mosquitto' user when started as root — the passwd
+    # file must be owned by it or startup fails with "Unable to open pwfile".
+    command:
+      - >-
+        rm -f /mosquitto/config/passwd;
+        mosquitto_passwd -b -c /mosquitto/config/passwd
+        ${MOSQUITTO_TEST_USER:-ams_ingest} ${MOSQUITTO_TEST_PASSWORD:-ams-ingest-test};
+        chown mosquitto:mosquitto /mosquitto/config/passwd;
+        chmod 0600 /mosquitto/config/passwd;
+        exec mosquitto -c /mosquitto/config/mosquitto.conf
+    volumes:
+      - ./mosquitto-test/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    ports:
+      - "1884:1883"
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -p 1883 -u ${MOSQUITTO_TEST_USER:-ams_ingest} -P ${MOSQUITTO_TEST_PASSWORD:-ams-ingest-test} -t '$$SYS/#' -C 1 -W 3 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # Ingestion Service (OT data-source configuration): MQTT broker connection
+  # configs + encrypted credential store + one-shot connection test. The phase-2
+  # MQTT subscriber pipeline lands in this same service (decrypted credentials
+  # never cross the network).
+  ingestion-service:
+    build:
+      context: ../../src/services/ingestion-service
+    container_name: traverse-ingestion-service
+    logging: *default-logging
+    <<: *default-restart
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:5000
+      ConnectionStrings__TraverseIngestion: Host=postgres;Port=5432;Database=traverse_ingestion;Username=ams_user;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      # Master secret for AES-256-GCM credential encryption (>= 32 chars).
+      # Rotating it orphans every stored broker password - operators re-enter them.
+      ENCRYPTION_KEY: ${INGESTION_ENCRYPTION_KEY:?INGESTION_ENCRYPTION_KEY must be set (>= 32 chars, generate with openssl rand -hex 24)}
+      # audit-events producer (fire-and-forget; empty disables)
+      Kafka__BootstrapServers: kafka:9092
+      # Platform auth (edge-only): authorize from gateway-injected X-Auth-* headers.
+      # No internal X-Service-Key callers - service principal scope stays empty.
+      Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
+      Auth__ServicePermissions: ""
+    # No published port - reachable only through the gateway (8081) / compose network.
+    networks:
+      - ams-backend
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/5000' || exit 1"]  # aspnet image has no wget/curl; /dev/tcp works
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
   # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   # Auth Service (Node/Express)
   # Login, RS256 JWTs (JWKS at /api/auth/.well-known/jwks.json), RBAC

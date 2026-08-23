@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Traverse.IngestionService</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Data access is Dapper over raw Npgsql (same as cplm-api). -->
+    <PackageReference Include="Npgsql" Version="8.0.3" />
+    <PackageReference Include="Dapper" Version="2.1.35" />
+    <!-- One-shot broker connection test (MQTT 5 capable). -->
+    <PackageReference Include="MQTTnet" Version="4.3.7.1207" />
+    <!-- audit-events producer (same version as cplm-api). -->
+    <PackageReference Include="Confluent.Kafka" Version="2.3.0" />
+  </ItemGroup>
+
+</Project>

@@ -77,6 +77,9 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
   { key: 'cpm.manage',              description: 'Onboard and configure control loops (CPLM)', category: 'cpm', roles: ENGINEER_UP },
   // ── System / ops (Admin only by decision) ────────────────────────────────
   { key: 'system.manage',           description: 'Manage pipeline jobs and OPC connections', category: 'system', roles: ADMIN_ONLY },
+  // ── OT data-source configuration (ingestion-service; Admin only by decision) ─
+  { key: 'ingestion.view',          description: 'View OT data-source configurations', category: 'ingestion', roles: ADMIN_ONLY },
+  { key: 'ingestion.manage',        description: 'Create/edit/test OT data-source configurations', category: 'ingestion', roles: ADMIN_ONLY },
   // ── Administration ───────────────────────────────────────────────────────
   { key: 'admin.users.edit',        description: 'Create/edit/delete users',      category: 'admin',     roles: ADMIN_ONLY },
   { key: 'admin.audit.view',        description: 'View the audit log',            category: 'admin',     roles: ADMIN_ONLY },

@@ -129,7 +129,11 @@ INSERT INTO permissions (permission_key, description, category) VALUES
     -- 33_cpm_permissions.sql on the docker-init path; rbac.manage gates role management.
     ('cpm.manage',              'Onboard and configure control loops (CPLM)', 'cpm'),
     ('system.manage',           'Manage pipeline jobs and OPC connections', 'system'),
-    ('rbac.manage',             'Manage roles and their permissions', 'admin')
+    ('rbac.manage',             'Manage roles and their permissions', 'admin'),
+    -- OT data-source configuration (ingestion-service). Admin-only by decision;
+    -- also seeded by 47_ingestion_permissions.sql on the docker-init path.
+    ('ingestion.view',          'View OT data-source configurations', 'ingestion'),
+    ('ingestion.manage',        'Create/edit/test OT data-source configurations', 'ingestion')
 ON CONFLICT (permission_key) DO NOTHING;
 
 -- =============================================
