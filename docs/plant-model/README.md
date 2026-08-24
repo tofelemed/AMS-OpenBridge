@@ -1,5 +1,11 @@
 # Plant model handoff — tags and loops
 
+> **Setting this up in production?** Read
+> [production-onboarding-flow.md](production-onboarding-flow.md) first — the
+> end-to-end data-entry flow (who types what, where, in what order) with the
+> go-live checklist and day-2 operations. This file is the column-level
+> reference for the two CSV handoffs.
+
 How the real HDPE instrument list and control-loop worksheet get into the platform.
 The hierarchy (Site → Area → Unit) is already seeded by
 [48_hdpe_plant_hierarchy.sql](../../database/scripts/48_hdpe_plant_hierarchy.sql);

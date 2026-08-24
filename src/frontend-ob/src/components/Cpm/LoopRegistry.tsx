@@ -8,7 +8,8 @@
  * report (the wizard shows readiness as its post-save validation step).
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObcProgressBar } from '@oicl/openbridge-webcomponents-react/components/progress-bar/progress-bar';
 import {
@@ -210,7 +211,25 @@ const ProfileAside: React.FC<{ loop: CpmLoop; onEdit: () => void }> = ({ loop, o
         }
       />
       <KvRow label="Loop type">{loop.loopType}</KvRow>
-      <KvRow label="Site / area / unit">{[loop.site, loop.area, loop.unit].filter(Boolean).join(' / ')}</KvRow>
+      <KvRow label="Site / area / unit">
+        {[loop.site, loop.area, loop.unit].filter(Boolean).join(' / ')}
+        {/* Reverse hop of the tree's CPM badge — the projection puts this loop's
+            Device + signal assets under its unit. Only rendered for users who
+            can actually reach Administration (asset.edit gates /admin). */}
+        {useAuthStore.getState().hasPermission('asset.edit') && (
+          <>
+            {' '}
+            <RouterLink
+              to={`/admin/plant-model?search=${encodeURIComponent(loop.loopId.toLowerCase())}`}
+              className="cpm-pill cpm-pill--muted"
+              style={{ textDecoration: 'none', marginLeft: 6 }}
+              title="Open this loop's device and signal assets in the plant model tree"
+            >
+              View in plant tree ↗
+            </RouterLink>
+          </>
+        )}
+      </KvRow>
       <KvRow label="Criticality">{loop.criticality}</KvRow>
       <KvRow label="Valve position">{loop.tags['VP'] ?? 'Not mapped — confidence capped at 0.89'}</KvRow>
       <KvRow label="Peer links">

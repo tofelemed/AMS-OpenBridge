@@ -56,6 +56,42 @@ try {
   const reactor = await page.getByText('1001-Polymerization Reactor 1', { exact: false }).count();
   step('plant-model: search finds unit by name', reactor > 0, `${reactor} match(es)`);
 
+  // ── Onboarding status strip ──────────────────────────────────────────────
+  const stageTitles = await Promise.all(
+    ['Hierarchy', 'Instruments & tags', 'OT aliases', 'Control loops', 'Ingestion sources']
+      .map(t => page.getByText(t, { exact: false }).count()));
+  step('plant-model: onboarding status strip shows all 5 stages',
+    stageTitles.every(c => c > 0), stageTitles.join('/'));
+
+  // ── CPM badge → Loop Registry deep link ──────────────────────────────────
+  await page.fill('input[placeholder*="Search by name or path"]', 'demo-fic-001');
+  const badge = page.getByText('CPM · DEMO-FIC-001', { exact: false }).first();
+  let badgeOk = true;
+  try { await badge.waitFor({ state: 'visible', timeout: 10000 }); } catch { badgeOk = false; }
+  step('plant-model: projected node wears the CPM badge', badgeOk);
+  if (badgeOk) {
+    await badge.click();
+    await page.waitForURL(u => u.pathname.includes('/cpm/registry'), { timeout: 15000 });
+    const loopSelected = page.getByText('DEMO-FIC-001', { exact: false }).first();
+    let sel = true;
+    try { await loopSelected.waitFor({ state: 'visible', timeout: 15000 }); } catch { sel = false; }
+    step('badge lands on the loop in the registry', sel, page.url());
+
+    // ── reverse hop: "View in plant tree" back to the searched tree ────────
+    const back = page.getByText('View in plant tree', { exact: false }).first();
+    let backOk = true;
+    try { await back.waitFor({ state: 'visible', timeout: 10000 }); } catch { backOk = false; }
+    step('loop detail offers "View in plant tree"', backOk);
+    if (backOk) {
+      await back.click();
+      await page.waitForURL(u => u.pathname.includes('/admin/plant-model'), { timeout: 15000 });
+      const treeHit = page.getByText('houston/crude1/demo-fic-001', { exact: false }).first();
+      let hit = true;
+      try { await treeHit.waitFor({ state: 'visible', timeout: 10000 }); } catch { hit = false; }
+      step('reverse hop pre-fills search and shows the loop assets', hit, page.url());
+    }
+  }
+
   // ── Tag Aliases tab ──────────────────────────────────────────────────────
   await page.goto(`${BASE}/admin/aliases`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(1500);

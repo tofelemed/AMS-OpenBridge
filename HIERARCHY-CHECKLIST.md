@@ -81,6 +81,13 @@ Legend: `[ ]` todo · `[x]` done · `[~]` in progress · `[-]` deferred (with re
 - [x] T.4 [scripts/import-cpm-loops.ps1](scripts/import-cpm-loops.ps1) — loop worksheet → bulk-activate; sets the fields the UI wizard cannot (`sourceTag`, `engineering` op range); derives signal paths by convention; `-WriteSignalAliases`, `-AllowUnmodelledLocation`, `-DryRun`
 - [x] T.5 **Pilot E2E (PowerShell 5.1, live stack)**: tag import 8 assets + 4 aliases → devices/measurements parented, EU/ranges stored, `45FT109.PV` alias-resolves to the asset, binding `provenance: asset-model` with `unit_device` id; re-run idempotent (exit 0); unknown-site row rejected alone (exit 1); loop import 2 loops → registry rows with sourceTags + opMin/opMax, CpmLoop devices + signals under the unit, readiness `ready: true`; retire released all 11 projected assets; pilot data fully cleaned (54 loops / 59 aliases baseline restored)
 
+## Round 4 — Plant Model ↔ Loop Registry glue + prod flow doc (2026-08-24)
+- [x] G.1 **CPM badge** on projection-managed tree nodes (`CpmLoop`/`CpmLoopSignal`): "CPM · <loopId> ↗" chip deep-linking to `/cpm/registry?loop=…` — makes registry ownership visible in the tree
+- [x] G.2 **"View in plant tree ↗"** on the loop detail card → `/admin/plant-model?search=<loopid>` (shown only to users who can reach Administration); Plant Model now seeds its search from `?search=`
+- [x] G.3 **Onboarding status strip** ([PlantModelStatus.tsx](src/frontend-ob/src/components/Administration/PlantModelStatus.tsx)) at the top of Plant Model: the doc-07 pipeline (hierarchy → tags → aliases → loops → ingestion) with live counts; permission-aware ("no access" instead of 403 noise)
+- [x] G.4 [docs/plant-model/production-onboarding-flow.md](docs/plant-model/production-onboarding-flow.md) — the production data-entry runbook: who types what, where, in what order; guardrails; go-live checklist; day-2 operations table; linked from the README and the status strip
+- [x] G.5 UI smoke extended to 14 checks incl. the full round-trip (badge → registry → back to searched tree) and the 5-stage strip — **14/14 on :3000**
+
 ## Deferred
 - [-] G-10 asset-scope filtering on reads — separate security workstream (must align with historian-bff `assetScope`)
 - [-] `is_active` lifecycle column — revisit after the purge has run

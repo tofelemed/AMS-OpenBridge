@@ -20,6 +20,7 @@
  * freely editable. See MIGRATION_LOG decision #17.
  */
 import React, { useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { Modal, FormField } from '../shared/Modal';
@@ -29,6 +30,7 @@ import { useAuthStore } from '../../store/authStore';
 import { toast } from 'react-toastify';
 import { T } from '../../styles/theme';
 import { ImportDialog } from './PlantModelImport';
+import { PlantModelStatus } from './PlantModelStatus';
 
 const ASSET_API = (import.meta.env.VITE_ASSET_SERVICE_URL as string | undefined) || '/api/assets';
 
@@ -120,12 +122,28 @@ const NodeRow: React.FC<{
         {node.engineeringUnit && (
           <span style={{ fontSize: '11px', color: T.textSecondary }}>[{node.engineeringUnit}]</span>
         )}
-        {node.template && (
+        {(node.template === 'CpmLoop' || node.template === 'CpmLoopSignal') ? (
+          // Projection-managed node: the Loop Registry owns it (transport
+          // overrides, lifecycle). The chip deep-links to the owning loop —
+          // the projection names a device by its loopId and a signal
+          // "<loopId> <ROLE>", so the first word is always the loop.
+          <Link
+            to={`/cpm/registry?loop=${encodeURIComponent(node.name.split(' ')[0])}`}
+            title="Managed by the CPM Loop Registry — open the loop"
+            style={{
+              fontSize: '10px', fontWeight: 700, color: T.blue,
+              border: `1px solid ${T.blueMuted}`, borderRadius: '999px',
+              padding: '1px 8px', textDecoration: 'none',
+            }}
+          >
+            CPM · {node.name.split(' ')[0]} ↗
+          </Link>
+        ) : node.template ? (
           <span style={{
             fontSize: '10px', color: T.textSecondary, border: `1px solid ${T.border}`,
             borderRadius: '999px', padding: '1px 8px',
           }}>{node.template}</span>
-        )}
+        ) : null}
         <span style={{ flex: 1 }} />
         {canEdit && (
           <span style={{ display: 'inline-flex', gap: 4 }}>
@@ -306,7 +324,8 @@ export const PlantModelConfig: React.FC = () => {
   const hasPermission = useAuthStore(s => s.hasPermission);
   const canEdit = hasPermission('asset.edit');
 
-  const [search, setSearch] = useState('');
+  const [params] = useSearchParams();
+  const [search, setSearch] = useState(() => params.get('search') ?? '');
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [importOpen, setImportOpen] = useState(false);
 
@@ -374,6 +393,8 @@ export const PlantModelConfig: React.FC = () => {
           </span>
         )}
       </div>
+
+      <PlantModelStatus />
 
       <input
         className="ob-input"
