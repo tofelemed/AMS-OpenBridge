@@ -35,7 +35,8 @@ Legend: `[ ]` todo · `[x]` done · `[~]` in progress · `[-]` deferred
 ### A3 — Explorer tree
 - [x] A3.1 Deepen `site → loops` to **site → area → unit → loop**
 - [x] A3.2 Widen search to match area, unit and loop type (today: id + display name only)
-- [x] A3.3 Auto-expand the branch containing the selected loop
+- [-] A3.3 Auto-expand the selected branch — **N/A**: the tree renders flat
+      location groups with no collapse state, so every branch is already open
 
 ### A4 — Loop Registry
 - [x] A4.1 Add the scope cascade beside the existing search box
@@ -52,10 +53,13 @@ Legend: `[ ]` todo · `[x]` done · `[~]` in progress · `[-]` deferred
 - [x] A6.1 Performance — scope filter → `useFleetSummary/Rankings/Heatmap`
 - [x] A6.2 Overview — scope filter → fleet summary + priority queue
 - [x] A6.3 Investigation — scope filter over the ranked case list
-- [x] A6.4 Events — scope filter + free-text search (loop id / tag / message)
+- [x] A6.4 Events — scope filter (loop location resolved through the registry, since
+      event frames carry only `loop_id`) + free text over loop / service / family /
+      diagnosis
 
 ### A7 — Lower tier
-- [x] A7.1 Governance — search by actor / loop / action (more useful than location here)
+- [x] A7.1 Governance — free text over user / action / entity (location filtering is
+      not meaningful for audit rows, which are actions rather than loops)
 - [-] A7.2 Pipeline — location filter deliberately skipped: runtime internals are
       fleet-wide by nature
 
@@ -68,11 +72,15 @@ Also serves the 400–500-line file ceiling (CLAUDE.md).
 ### B1 — Investigation (505 lines, 8 sections) — worst offender
 - [x] B1.1 Case list → selected case → tabs: **Conclusion · Evidence · Reasoning · Hypotheses**
 - [x] B1.2 Tab state in the URL (`?tab=`) so a case view is shareable
-- [x] B1.3 Split file if it stays over the ceiling
+- [~] B1.3 File is 539 lines — over the 400–500 ceiling. The tab split made the
+      structure separable; extracting the four tab bodies into their own file is
+      the follow-up (deliberately not bundled with a behaviour change)
 
 ### B2 — Overview (568 lines, 7 sections)
 - [x] B2.1 Keep as the operator dashboard: KPIs + priority queue + highest-impact finding
-- [x] B2.2 "Focused loop analysis" + "Evidence path" become a drill-through, not a stack
+- [~] B2.2 Not done. Overview is 571 lines and its focused-loop panels still stack.
+      B2.3 removed the duplication (the real defect); converting the focus panels
+      to a drill-through changes navigation semantics and is worth doing on its own
 - [x] B2.3 Remove the "Live Flink runtime" panel — it duplicates Pipeline; link instead
 
 ### B3 — Explorer detail pane (609 lines)

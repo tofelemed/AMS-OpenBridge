@@ -8,7 +8,7 @@
  * permission system actually enforces it. There is no server-side approval
  * workflow yet; the approval queue says so instead of simulating one.
  */
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ApiError } from '../../api/apiFetch';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
@@ -46,11 +46,26 @@ export const CpmGovernance: React.FC = () => {
   const canReadAudit = hasPermission('admin.audit.view');
 
   const [entityType, setEntityType] = useState('');
+  // A7.1: free text over actor / action / entity — location filtering is not
+  // useful here (audit rows are actions, not loops), but 'who touched FIC-109'
+  // is exactly what an audit trail gets asked.
+  const [search, setSearch] = useState('');
   const audit = useAuditEvents(
     { entityType: entityType || undefined, take: 100 },
     30_000,
     canReadAudit,
   );
+  const auditRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const rows = audit.data?.events ?? [];
+    if (!q) return rows;
+    return rows.filter(e =>
+      (e.userId ?? '').toLowerCase().includes(q)
+      || e.eventType.toLowerCase().includes(q)
+      || (e.entityType ?? '').toLowerCase().includes(q)
+      || (e.entityId ?? '').toLowerCase().includes(q));
+  }, [audit.data, search]);
+
   const verify = useVerifyAuditChain();
   const calc = useCpmCalculations();
   const loops = useCpmLoops();
@@ -93,7 +108,15 @@ export const CpmGovernance: React.FC = () => {
               {f.label}
             </ObcButton>
           ))}
-          {audit.data && <span className="cpm-filter-count">{audit.data.total} total · showing {audit.data.count}</span>}
+          <input className="cpm-input" style={{ minWidth: 220 }}
+            placeholder="Find by user, action or entity"
+            value={search} onChange={e => setSearch(e.target.value)} />
+          {audit.data && (
+            <span className="cpm-filter-count">
+              {audit.data.total} total · showing {auditRows.length}
+              {search ? ` matching “${search}”` : ''}
+            </span>
+          )}
         </div>
 
         {!canReadAudit && (
@@ -109,11 +132,11 @@ export const CpmGovernance: React.FC = () => {
           <EmptyState title="Audit service unreachable"
             copy={(audit.error as Error)?.message ?? 'unknown error'} />
         )}
-        {canReadAudit && audit.data && audit.data.events.length === 0 && (
+        {canReadAudit && audit.data && auditRows.length === 0 && (
           <EmptyState title="No governance events recorded yet"
             copy="CPM onboarding, ack/shelve, recompute and display changes emit here from now on." />
         )}
-        {(audit.data?.events ?? []).map(e => (
+        {auditRows.map(e => (
           <div key={e.eventId} className="cpm-event-row" style={{ gridTemplateColumns: '1fr 1.2fr 0.9fr 1fr' }}>
             <span>
               <span className="cpm-event-row__title">{fmtDateTime(e.timestampUtc)}</span>

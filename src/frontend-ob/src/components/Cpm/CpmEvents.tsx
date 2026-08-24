@@ -15,9 +15,10 @@ import {
   EmptyState, KvRow, PanelHead, QueryError, TonePill, WorkspaceHeader, toneFor,
   fmtDateTime,
 } from './shared';
+import { PlantScopeFilter, useCpmScope } from './plantScope';
 import { usePagedSlice } from '../shared/ListPager';
-import { useAcknowledgeEvent, useCpmEvents, useShelveEvent } from '../../hooks/useCpm';
-import type { CpmEventFrame } from '../../api/cpmApi';
+import { useAcknowledgeEvent, useCpmEvents, useCpmLoops, useShelveEvent } from '../../hooks/useCpm';
+import type { CpmEventFrame, CpmLoop } from '../../api/cpmApi';
 
 type FilterKey = 'all' | 'open' | 'unacknowledged' | 'acknowledged' | 'closed';
 
@@ -72,11 +73,37 @@ export const CpmEvents: React.FC = () => {
 
   // Fetch broadly (open + closed + shelved), filter client-side so tab switches
   // are instant; 30 s background refetch keeps the list current.
+  const [search, setSearch] = useState('');
+  const loopData = useCpmLoops().data;
   const { data, isLoading, isError, error, refetch } =
     useCpmEvents({ openOnly: false, includeShelved: true, limit: FETCH_LIMIT, sort });
-  const events = useMemo(
-    () => (data?.events ?? []).filter(e => matches(e, filter)),
-    [data, filter]);
+  // A6.4: an event list is where people hunt, so status tabs alone were not
+  // enough — scope narrows to a section/unit (event frames carry only loop_id,
+  // so the loop registry supplies the location) and free text matches the loop,
+  // family and diagnosis.
+  const scope = useCpmScope();
+  const loopIndex = useMemo(() => {
+    const m = new Map<string, CpmLoop>();
+    for (const l of loopData?.loops ?? []) m.set(l.loopId.toLowerCase(), l);
+    return m;
+  }, [loopData]);
+  const events = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (data?.events ?? [])
+      .filter(e => matches(e, filter))
+      .filter(e => {
+        if (!scope.active) return true;
+        const l = loopIndex.get(e.loop_id.toLowerCase());
+        // An event whose loop is not in the registry cannot be placed; hide it
+        // under a scope rather than pretend it belongs to the selected unit.
+        return l ? scope.matches(l) : false;
+      })
+      .filter(e => !q
+        || e.loop_id.toLowerCase().includes(q)
+        || (e.family ?? '').toLowerCase().includes(q)
+        || (e.peak_diagnosis ?? '').toLowerCase().includes(q)
+        || (loopIndex.get(e.loop_id.toLowerCase())?.displayName ?? '').toLowerCase().includes(q));
+  }, [data, filter, scope, loopIndex, search]);
   // E3: at the cap the filters are counting a slice, not the fleet.
   const truncated = (data?.events.length ?? 0) >= FETCH_LIMIT;
 
@@ -100,6 +127,12 @@ export const CpmEvents: React.FC = () => {
         title="Events"
         copy="Investigate diagnosis episodes with operating context and a traceable response history. One row is one episode of one fault family — confidence changes extend it rather than duplicating it."
       />
+      <PlantScopeFilter scope={scope}
+        summary={
+          <input className="cpm-input" style={{ minWidth: 240 }}
+            placeholder="Find by loop, service, family or diagnosis"
+            value={search} onChange={e => setSearch(e.target.value)} />
+        } />
 
       <div className="cpm-filter-row">
         {FILTERS.map(f => (
