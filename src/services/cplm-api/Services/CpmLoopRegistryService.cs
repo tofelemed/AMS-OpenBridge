@@ -54,6 +54,10 @@ public interface ICpmLoopRegistryService
     Task<int> ProjectSignalAssetsBatchAsync(IReadOnlyList<string> loopIds, CancellationToken ct);
     /// <summary>Projects asset-graph edges into loop-level links for a loop.</summary>
     Task<int> ProjectLinksAsync(string loopId, CancellationToken ct);
+    /// <summary>How many registered loops still reference an asset-model node —
+    /// asset-model's cross-database delete guard (G-02) asks this before letting
+    /// a hierarchy node or tag be deleted.</summary>
+    Task<int> CountReferencingLoopsAsync(string path, int assetType, CancellationToken ct);
 }
 
 public sealed record CpmTagMapEntry(string SignalRole, string UnsPath, string? SourceSystem = null, string? SourceTag = null);
@@ -71,7 +75,13 @@ public sealed record CpmLoopActivateRequest(
     string? ThresholdProfileId = null,
     bool EnableMonitoring = true,
     bool StepTestApproved = false,
-    CpmEngineeringRange? Engineering = null);
+    CpmEngineeringRange? Engineering = null,
+    // G-07: site/area/unit are validated against the asset model on activation —
+    // they become the loop's UNS signal paths, so a typo used to create phantom
+    // assets that resolved to nothing (live proof: a loop registered under a
+    // site that exists in no asset model). True = explicit operator opt-out:
+    // onboard anyway, signals sit outside the plant tree until modelled.
+    bool AllowUnmodelledLocation = false);
 
 /// <summary>
 /// P3-8 - the engineering range of the OP signal. The engine assumed OP is
@@ -140,6 +150,16 @@ public sealed class LoopIdCollisionException : InvalidOperationException
 {
     public string Code { get; }
     public LoopIdCollisionException(string code, string message) : base(message) => Code = code;
+}
+
+/// <summary>
+/// The loop's site/area/unit chain does not exist in the asset model (or could
+/// not be verified) and the caller did not pass allowUnmodelledLocation. Maps to
+/// HTTP 422 with code LOCATION_NOT_IN_UNS.
+/// </summary>
+public sealed class LoopLocationException : InvalidOperationException
+{
+    public LoopLocationException(string message) : base(message) { }
 }
 
 public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
@@ -266,6 +286,15 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
     {
         Validate(request);
         await EnsureSchemaAsync(ct);
+
+        // G-07: the location becomes the loop's signal paths, so an unmodelled
+        // site/area/unit is refused unless the caller explicitly opts out.
+        var locationError = (await ValidateLocationsAsync(new[] { request }, ct))
+            .GetValueOrDefault(request.LoopId);
+        if (locationError is not null && !request.AllowUnmodelledLocation)
+            throw new LoopLocationException(locationError +
+                " Pass allowUnmodelledLocation=true to onboard anyway — the loop's signals will sit " +
+                "outside the plant tree until the location is modelled in the asset model.");
 
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
         await using var tx = await conn.BeginTransactionAsync(ct);
@@ -396,7 +425,20 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
         await ProjectLinksAsync(request.LoopId, ct);
         // Signal assets ride the same onboarding step so a freshly activated loop
         // is immediately trendable through the UNS (Trend page, displays).
-        await ProjectSignalAssetsAsync(request.LoopId, ct);
+        // Wrapped: the registry row is already COMMITTED, so a projection failure
+        // (asset-model down) must degrade to a warning — failing the whole call
+        // would misreport "nothing happened". The readiness check surfaces the
+        // un-projected signals until a republish-evidence fixes them.
+        try
+        {
+            await ProjectSignalAssetsAsync(request.LoopId, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Signal-asset projection failed for {LoopId} — the loop is registered; " +
+                "republish-evidence will retry the projection", request.LoopId);
+        }
         await PublishEvidenceAsync(request.LoopId, ct);
         var dto = await GetAsync(request.LoopId, ct);
         return dto!;
@@ -444,6 +486,23 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
             {
                 Reject(id, "REGISTRY_VALIDATION", ex.Message);
             }
+        }
+
+        // ── 1b. Location check (G-07): ONE asset-model round trip for the batch ──
+        if (accepted.Count > 0)
+        {
+            var locationErrors = await ValidateLocationsAsync(accepted, ct);
+            var locationChecked = new List<CpmLoopActivateRequest>(accepted.Count);
+            foreach (var request in accepted)
+            {
+                var err = locationErrors.GetValueOrDefault(request.LoopId);
+                if (err is not null && !request.AllowUnmodelledLocation)
+                    Reject(request.LoopId, "LOCATION_NOT_IN_UNS", err +
+                        " Set allowUnmodelledLocation (or tick the import override) to onboard anyway.");
+                else
+                    locationChecked.Add(request);
+            }
+            accepted = locationChecked;
         }
 
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
@@ -1013,33 +1072,95 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
         var ids = loopIds.ToArray();
 
         // One query for every mapped role across the batch (was one per loop).
+        // loop_tag_map's PK is (loop_id, signal_role, uns_path), so a role CAN
+        // carry several paths — but the projection (and its ledger, keyed
+        // (loop_id, signal_role)) is one asset per role. Take the first path per
+        // role, like the old single-loop code did; without this, two rows for one
+        // role make the multi-row ledger upsert hit the same key twice and
+        // Postgres rejects the whole statement ("ON CONFLICT DO UPDATE command
+        // cannot affect row a second time").
         var mapped = (await conn.QueryAsync<(string LoopId, string SignalRole, string UnsPath)>("""
                 SELECT loop_id, signal_role, uns_path FROM cpm.loop_tag_map
                 WHERE loop_id = ANY(@ids) AND is_active
+                ORDER BY loop_id, signal_role, uns_path
                 """, new { ids }))
             .Where(t => StoredSignalRoles.Contains(t.SignalRole.ToUpperInvariant()))
+            .GroupBy(t => (t.LoopId, Role: t.SignalRole.ToUpperInvariant()))
+            .Select(g => g.First())
             .ToList();
-        if (mapped.Count == 0) return 0;
 
         var ledger = (await conn.QueryAsync<(string LoopId, string SignalRole, string ContextualPath, Guid AssetId, bool CreatedByProjection)>("""
                 SELECT loop_id, signal_role, contextual_path, asset_id, created_by_projection
                 FROM cpm.loop_signal_asset WHERE loop_id = ANY(@ids)
                 """, new { ids }))
             .ToDictionary(r => (r.LoopId, r.SignalRole), r => r);
+        if (mapped.Count == 0 && ledger.Count == 0) return 0;
 
         var http = _httpFactory.CreateClient("AssetModel");
         http.DefaultRequestHeaders.Remove("X-Service-Key");
         http.DefaultRequestHeaders.Add("X-Service-Key", _options.ServiceKey);
 
-        // ── resolve every path in ONE call ──────────────────────────────────
-        var paths = mapped.Select(m => m.UnsPath).Distinct(StringComparer.Ordinal).ToArray();
+        // ── loop device candidates (P5.2 — ISA-88: a loop is a Control Module) ──
+        // When a loop's mapped signal paths share one prefix (site/[area/]unit/
+        // <looptag>), that prefix is the loop's Device node. Ensuring it exists —
+        // and parenting the signal Measurements under it — is what makes loop
+        // signals visible in the plant tree instead of parentless (G-12).
+        var mappedByLoop = mapped
+            .GroupBy(m => m.LoopId, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key,
+                g => g.Select(x => (Role: x.SignalRole.ToUpperInvariant(), x.UnsPath)).ToList(),
+                StringComparer.Ordinal);
+        var devicePathByLoop = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (lid, list) in mappedByLoop)
+        {
+            var prefixes = list.Select(x => DevicePathOf(x.UnsPath)).Distinct(StringComparer.Ordinal).ToList();
+            if (prefixes.Count == 1 && prefixes[0] is { } devicePath)
+                devicePathByLoop[lid] = devicePath;
+        }
+
+        // ── retire moved/stale projections BEFORE writing the new state ─────
+        // A role that moved to a different path, or is no longer mapped, must not
+        // linger pointing at the loop pipeline. (DEVICE rows are ledger-only
+        // bookkeeping for the node above; they are released at loop retirement.)
+        foreach (var entry in ledger.Values.ToList())
+        {
+            if (string.Equals(entry.SignalRole, "DEVICE", StringComparison.OrdinalIgnoreCase)) continue;
+            var current = mappedByLoop.TryGetValue(entry.LoopId, out var list)
+                ? list.FirstOrDefault(x => x.Role == entry.SignalRole.ToUpperInvariant())
+                : default;
+            if (current.Role is not null && string.Equals(current.UnsPath, entry.ContextualPath, StringComparison.Ordinal))
+                continue;
+            try
+            {
+                await RetireProjectionAsync(http, conn, entry.LoopId,
+                    new LedgerRow(entry.SignalRole, entry.ContextualPath, entry.AssetId, entry.CreatedByProjection), ct);
+                ledger.Remove((entry.LoopId, entry.SignalRole));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "Could not retire stale signal-asset projection for loop {LoopId} role {Role}",
+                    entry.LoopId, entry.SignalRole);
+            }
+        }
+        if (mapped.Count == 0) return 0;
+
+        // ── resolve every path in ONE call (signals + device prefixes + units) ──
+        var devicePaths = devicePathByLoop.Values.Distinct(StringComparer.Ordinal).ToArray();
+        var unitPaths = devicePaths
+            .Where(p => p.Contains('/'))
+            .Select(p => p[..p.LastIndexOf('/')])
+            .Distinct(StringComparer.Ordinal);
+        var paths = mapped.Select(m => m.UnsPath)
+            .Concat(devicePaths).Concat(unitPaths)
+            .Distinct(StringComparer.Ordinal).ToArray();
         var existingByPath = await ResolvePathsAsync(http, paths, ct);
 
         // ── classify into creates and override-updates ──────────────────────
         var creates = new List<object>();
-        var updates = new List<object>();
         var ledgerRows = new List<(string LoopId, string Role, string Path, Guid AssetId, bool Created)>();
         var pendingCreates = new List<(string LoopId, string Role, string Path)>();
+        var updateSpecs = new List<(Guid AssetId, string LoopId, string Role, string UnsPath, bool WasOurs)>();
 
         foreach (var (loopId, roleRaw, unsPath) in mapped)
         {
@@ -1047,28 +1168,15 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
             var measurement = role.ToLowerInvariant();
             var device = SparkplugDeviceOf(loopId);
             var iotdbDevice = $"{_iotdb.LoopRootPrefix}.{IotDbWriteClient.SafeNode(loopId)}";
-            var overrides = new
-            {
-                ioTDbPathOverride = $"{iotdbDevice}.{measurement}",
-                sparkplugGroupOverride = _options.SparkplugGroup,
-                sparkplugEdgeNodeOverride = _options.SparkplugEdge,
-                sparkplugDeviceOverride = device,
-                sparkplugMetricOverride = measurement,
-            };
 
-            if (existingByPath.TryGetValue(unsPath, out var assetId))
+            if (existingByPath.TryGetValue(unsPath, out var hit))
             {
-                // Pre-existing asset: only the transport overrides are ours.
-                updates.Add(new
-                {
-                    id = assetId,
-                    overrides.ioTDbPathOverride, overrides.sparkplugGroupOverride,
-                    overrides.sparkplugEdgeNodeOverride, overrides.sparkplugDeviceOverride,
-                    overrides.sparkplugMetricOverride,
-                });
+                // Pre-existing asset: only the transport overrides (and, when we
+                // created it in an earlier projection, its parent) are ours.
                 var wasOurs = ledger.TryGetValue((loopId, role), out var l)
-                              && l.AssetId == assetId && l.CreatedByProjection;
-                ledgerRows.Add((loopId, role, unsPath, assetId, wasOurs));
+                              && l.AssetId == hit.Id && l.CreatedByProjection;
+                updateSpecs.Add((hit.Id, loopId, role, unsPath, wasOurs));
+                ledgerRows.Add((loopId, role, unsPath, hit.Id, wasOurs));
             }
             else
             {
@@ -1080,22 +1188,92 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
                     description = $"CPLM loop-signal projection for {loopId} ({role}). " +
                                   "Managed by cplm-api; transport overrides point at the loop pipeline.",
                     template = "CpmLoopSignal",
+                    // asset-model derives the parent from the path prefix — the
+                    // loop Device created in this same batch, when there is one.
                     parentId = (Guid?)null,
-                    overrides.ioTDbPathOverride, overrides.sparkplugGroupOverride,
-                    overrides.sparkplugEdgeNodeOverride, overrides.sparkplugDeviceOverride,
-                    overrides.sparkplugMetricOverride,
+                    ioTDbPathOverride = $"{iotdbDevice}.{measurement}",
+                    sparkplugGroupOverride = _options.SparkplugGroup,
+                    sparkplugEdgeNodeOverride = _options.SparkplugEdge,
+                    sparkplugDeviceOverride = device,
+                    sparkplugMetricOverride = measurement,
                 });
                 pendingCreates.Add((loopId, role, unsPath));
             }
         }
 
-        // ── write every asset in ONE call ───────────────────────────────────
-        var createdIds = await BulkUpsertAssetsAsync(http, creates, updates, ct);
+        // ── ensure the loop Device node (P5.2) ──────────────────────────────
+        var deviceIdByLoop = new Dictionary<string, Guid>(StringComparer.Ordinal);
+        var pendingDeviceCreates = new List<(string LoopId, string Path)>();
+        foreach (var (lid, devicePath) in devicePathByLoop)
+        {
+            if (existingByPath.TryGetValue(devicePath, out var dev))
+            {
+                // Exists already (Route A: the tag was modelled first). Use it as
+                // the parent, never rewrite it — it belongs to whoever made it.
+                if (dev.Type < 5) deviceIdByLoop[lid] = dev.Id;
+                continue;
+            }
+            // asset-model's grammar for a Device: 3–5 slash segments, dot-free
+            // last segment. Dotted loop tags (TIC.101) and 2-segment prefixes
+            // cannot be device nodes — those signals stay parentless, as before.
+            var segs = devicePath.Split('/');
+            if (segs.Length is < 3 or > 5 || segs[^1].Contains('.')) continue;
+            var unitPath = devicePath[..devicePath.LastIndexOf('/')];
+            if (!existingByPath.TryGetValue(unitPath, out var unitNode) || unitNode.Type >= 4) continue;
+
+            creates.Add(new
+            {
+                contextualPath = devicePath,
+                name = lid,
+                type = 4, // Device — the loop itself (ISA-88 control module)
+                description = $"Control loop {lid} (CPLM projection). Parents the loop's PV/SP/OP/VP/MODE signal assets.",
+                template = "CpmLoop",
+                parentId = (Guid?)null, // derived from the path prefix (the unit)
+            });
+            pendingDeviceCreates.Add((lid, devicePath));
+        }
+
+        // ── write: creates first, then updates (which may re-parent onto a
+        //    device created just above, so they need its id) ─────────────────
+        var createdIds = await BulkUpsertAssetsAsync(http, creates, Array.Empty<object>(), ct);
         foreach (var (loopId, role, path) in pendingCreates)
         {
             if (createdIds.TryGetValue(path, out var newId))
                 ledgerRows.Add((loopId, role, path, newId, true));
         }
+        foreach (var (lid, devicePath) in pendingDeviceCreates)
+        {
+            if (createdIds.TryGetValue(devicePath, out var newId))
+            {
+                deviceIdByLoop[lid] = newId;
+                ledgerRows.Add((lid, "DEVICE", devicePath, newId, true));
+            }
+        }
+
+        var updates = new List<object>();
+        foreach (var (assetId, loopId, role, unsPath, wasOurs) in updateSpecs)
+        {
+            var measurement = role.ToLowerInvariant();
+            var iotdbDevice = $"{_iotdb.LoopRootPrefix}.{IotDbWriteClient.SafeNode(loopId)}";
+            // Re-parent only assets THIS projection created (orphans from before
+            // the device node existed); a user's own asset keeps its parent.
+            Guid? parent = wasOurs
+                           && deviceIdByLoop.TryGetValue(loopId, out var did)
+                           && devicePathByLoop.TryGetValue(loopId, out var dpath)
+                           && string.Equals(DevicePathOf(unsPath), dpath, StringComparison.Ordinal)
+                ? did : null;
+            updates.Add(new
+            {
+                id = assetId,
+                ioTDbPathOverride = $"{iotdbDevice}.{measurement}",
+                sparkplugGroupOverride = _options.SparkplugGroup,
+                sparkplugEdgeNodeOverride = _options.SparkplugEdge,
+                sparkplugDeviceOverride = SparkplugDeviceOf(loopId),
+                sparkplugMetricOverride = measurement,
+                parentId = parent,
+            });
+        }
+        await BulkUpsertAssetsAsync(http, Array.Empty<object>(), updates, ct);
 
         // ── one multi-row upsert of the projection ledger ───────────────────
         if (ledgerRows.Count > 0)
@@ -1140,20 +1318,149 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
     private const int AssetLookupChunk = 1000;
     private const int AssetWriteChunk = 1000;
 
-    /// <summary>Resolve many contextual paths to asset ids, chunked.</summary>
-    private async Task<Dictionary<string, Guid>> ResolvePathsAsync(
+    /// <summary>Resolve many contextual paths to asset id+type, chunked.</summary>
+    private async Task<Dictionary<string, AssetPathView>> ResolvePathsAsync(
         HttpClient http, string[] paths, CancellationToken ct)
     {
-        var found = new Dictionary<string, Guid>(StringComparer.Ordinal);
+        var found = new Dictionary<string, AssetPathView>(StringComparer.Ordinal);
         foreach (var chunk in Chunk(paths, AssetLookupChunk))
         {
             var res = await http.PostAsJsonAsync("/assets/by-paths", new { paths = chunk }, ct);
             res.EnsureSuccessStatusCode();
             var hits = await res.Content.ReadFromJsonAsync<List<AssetPathView>>(cancellationToken: ct);
             foreach (var hit in hits ?? new List<AssetPathView>())
-                found[hit.ContextualPath] = hit.Id;
+                found[hit.ContextualPath] = hit;
         }
         return found;
+    }
+
+    /// <summary>
+    /// The device prefix of a signal path — the path with its '.role' suffix
+    /// removed (LAST dot: loop tags may themselves contain dots, TIC.101).
+    /// Null when the last segment carries no dot at all.
+    /// </summary>
+    private static string? DevicePathOf(string unsPath)
+    {
+        var lastSlash = unsPath.LastIndexOf('/');
+        var lastDot = unsPath.LastIndexOf('.');
+        return lastDot > lastSlash && lastDot > 0 ? unsPath[..lastDot] : null;
+    }
+
+    /// <summary>
+    /// G-07 — verifies each request's site/area/unit chain exists in the asset
+    /// model with the right node types (site→Site, area→Area, unit→Unit; the
+    /// values are path SEGMENTS, e.g. 'hdpe', 'section_100'). Returns
+    /// loopId → error message (null = location is modelled). When asset-model
+    /// does not answer, every row gets a "could not verify" error —
+    /// AllowUnmodelledLocation is the explicit override for both cases, so
+    /// onboarding never hard-depends on asset-model being up.
+    /// </summary>
+    private async Task<Dictionary<string, string?>> ValidateLocationsAsync(
+        IReadOnlyList<CpmLoopActivateRequest> requests, CancellationToken ct)
+    {
+        var result = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach (var r in requests) result[r.LoopId] = null;
+        if (requests.Count == 0) return result;
+
+        var wanted = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var r in requests)
+        {
+            var site = r.Site?.Trim();
+            if (string.IsNullOrEmpty(site)) continue;
+            var area = r.Area?.Trim();
+            var unit = r.Unit?.Trim();
+            wanted.Add(site);
+            if (!string.IsNullOrEmpty(area)) wanted.Add($"{site}/{area}");
+            if (!string.IsNullOrEmpty(unit))
+                wanted.Add(string.IsNullOrEmpty(area) ? $"{site}/{unit}" : $"{site}/{area}/{unit}");
+        }
+        if (wanted.Count == 0) return result;
+
+        Dictionary<string, AssetPathView> found;
+        try
+        {
+            var http = _httpFactory.CreateClient("AssetModel");
+            http.DefaultRequestHeaders.Remove("X-Service-Key");
+            http.DefaultRequestHeaders.Add("X-Service-Key", _options.ServiceKey);
+            found = await ResolvePathsAsync(http, wanted.ToArray(), ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not verify loop locations against asset-model");
+            foreach (var r in requests)
+                result[r.LoopId] = "The location could not be verified against the asset model (asset-model did not answer).";
+            return result;
+        }
+
+        foreach (var r in requests)
+        {
+            var site = r.Site?.Trim();
+            if (string.IsNullOrEmpty(site)) continue;
+            var area = r.Area?.Trim();
+            var unit = r.Unit?.Trim();
+
+            string? err = null;
+            if (!found.TryGetValue(site, out var siteNode))
+                err = $"Site '{site}' is not in the asset model.";
+            else if (siteNode.Type != 1)
+                err = $"'{site}' exists in the asset model but is not a Site.";
+            else if (!string.IsNullOrEmpty(area))
+            {
+                if (!found.TryGetValue($"{site}/{area}", out var areaNode))
+                    err = $"Area '{area}' is not in the asset model under site '{site}'.";
+                else if (areaNode.Type != 2)
+                    err = $"'{site}/{area}' exists in the asset model but is not an Area.";
+            }
+            if (err is null && !string.IsNullOrEmpty(unit))
+            {
+                var unitPath = string.IsNullOrEmpty(area) ? $"{site}/{unit}" : $"{site}/{area}/{unit}";
+                if (!found.TryGetValue(unitPath, out var unitNode))
+                    err = $"Unit '{unit}' is not in the asset model at '{unitPath}'.";
+                else if (unitNode.Type != 3)
+                    err = $"'{unitPath}' exists in the asset model but is not a Unit.";
+            }
+            result[r.LoopId] = err;
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Cross-database delete guard for asset-model (G-02): how many registered
+    /// loops still reference the asset at <paramref name="path"/>. Hierarchy
+    /// nodes match the registry's denormalised site/area/unit segments; every
+    /// node also matches loops whose mapped tag paths sit at or under it.
+    /// </summary>
+    public async Task<int> CountReferencingLoopsAsync(string path, int assetType, CancellationToken ct)
+    {
+        await EnsureSchemaAsync(ct);
+        await using var conn = await _dataSource.OpenConnectionAsync(ct);
+        var segments = path.Split('/');
+
+        var registryPredicate = (assetType, segments.Length) switch
+        {
+            (1, 1) => "r.site = @s1",
+            (2, 2) => "r.site = @s1 AND r.area = @s2",
+            (3, 2) => "r.site = @s1 AND COALESCE(r.area, '') = '' AND r.unit = @s2",
+            (3, 3) => "r.site = @s1 AND r.area = @s2 AND r.unit = @s3",
+            _ => "FALSE"
+        };
+
+        return await conn.ExecuteScalarAsync<int>($"""
+            SELECT COUNT(DISTINCT r.loop_id)
+            FROM cpm.loop_registry r
+            LEFT JOIN cpm.loop_tag_map t ON t.loop_id = r.loop_id AND t.is_active
+            WHERE ({registryPredicate})
+               OR t.uns_path = @p OR t.uns_path LIKE @slash OR t.uns_path LIKE @dot
+            """,
+            new
+            {
+                s1 = segments.Length > 0 ? segments[0] : "",
+                s2 = segments.Length > 1 ? segments[1] : "",
+                s3 = segments.Length > 2 ? segments[2] : "",
+                p = path,
+                slash = path + "/%",
+                dot = path + ".%"
+            });
     }
 
     /// <summary>Create/patch many assets, chunked; returns created path → id.</summary>
@@ -1177,150 +1484,14 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
         return created;
     }
 
-    private sealed record AssetPathView(Guid Id, string ContextualPath);
+    private sealed record AssetPathView(Guid Id, string ContextualPath, int Type);
     private sealed record BulkAssetResponse(List<AssetPathView> Created, int Updated);
 
-    public async Task<int> ProjectSignalAssetsAsync(string loopId, CancellationToken ct)
-    {
-        await EnsureSchemaAsync(ct);
-        await using var conn = await _dataSource.OpenConnectionAsync(ct);
-
-        var mapped = (await conn.QueryAsync<(string SignalRole, string UnsPath)>("""
-                SELECT signal_role, uns_path FROM cpm.loop_tag_map
-                WHERE loop_id = @loopId AND is_active
-                """, new { loopId }))
-            .Where(t => StoredSignalRoles.Contains(t.SignalRole.ToUpperInvariant()))
-            .GroupBy(t => t.SignalRole.ToUpperInvariant())
-            .ToDictionary(g => g.Key, g => g.First().UnsPath);
-
-        var ledger = (await conn.QueryAsync<LedgerRow>("""
-                SELECT signal_role AS SignalRole, contextual_path AS ContextualPath,
-                       asset_id AS AssetId, created_by_projection AS CreatedByProjection
-                FROM cpm.loop_signal_asset WHERE loop_id = @loopId
-                """, new { loopId }))
-            .ToDictionary(r => r.SignalRole, r => r);
-
-        var http = _httpFactory.CreateClient("AssetModel");
-        http.DefaultRequestHeaders.Remove("X-Service-Key");
-        http.DefaultRequestHeaders.Add("X-Service-Key", _options.ServiceKey);
-
-        var device = SparkplugDeviceOf(loopId);
-        var iotdbDevice = $"{_iotdb.LoopRootPrefix}.{IotDbWriteClient.SafeNode(loopId)}";
-        var projected = 0;
-
-        foreach (var (role, unsPath) in mapped)
-        {
-            var measurement = role.ToLowerInvariant();
-            try
-            {
-                // The role moved to a different tag path: retire the old
-                // projection first so it does not linger pointing at this loop.
-                if (ledger.TryGetValue(role, out var prev) && prev.ContextualPath != unsPath)
-                    await RetireProjectionAsync(http, conn, loopId, prev, ct);
-
-                var encoded = string.Join('/', unsPath.Split('/').Select(Uri.EscapeDataString));
-                var existing = await http.GetAsync($"/assets/by-path/{encoded}", ct);
-
-                // by-path answers 200 with an EMPTY body for a missing asset
-                // (Results.Ok(null)), not 404 — read the raw body and treat
-                // empty/"null" as not-found.
-                AssetView? view = null;
-                if (existing.IsSuccessStatusCode)
-                {
-                    var body = await existing.Content.ReadAsStringAsync(ct);
-                    if (!string.IsNullOrWhiteSpace(body) && body.Trim() != "null")
-                        view = System.Text.Json.JsonSerializer.Deserialize<AssetView>(
-                            body, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                }
-                else if (existing.StatusCode != System.Net.HttpStatusCode.NotFound)
-                {
-                    existing.EnsureSuccessStatusCode();
-                }
-
-                Guid assetId;
-                bool createdByUs;
-                if (view is not null)
-                {
-                    // Pre-existing asset: set ONLY the transport overrides. Its
-                    // name/template/description belong to whoever created it.
-                    var put = await http.PutAsJsonAsync($"/assets/{view.Id}", new
-                    {
-                        ioTDbPathOverride = $"{iotdbDevice}.{measurement}",
-                        sparkplugGroupOverride = _options.SparkplugGroup,
-                        sparkplugEdgeNodeOverride = _options.SparkplugEdge,
-                        sparkplugDeviceOverride = device,
-                        sparkplugMetricOverride = measurement
-                    }, ct);
-                    put.EnsureSuccessStatusCode();
-                    assetId = view.Id;
-                    createdByUs = ledger.TryGetValue(role, out var l) && l.AssetId == view.Id && l.CreatedByProjection;
-                }
-                else
-                {
-                    var post = await http.PostAsJsonAsync("/assets", new
-                    {
-                        contextualPath = unsPath,
-                        name = $"{loopId} {role}",
-                        type = 5, // Measurement
-                        description = $"CPLM loop-signal projection for {loopId} ({role}). " +
-                                      "Managed by cplm-api; transport overrides point at the loop pipeline.",
-                        template = "CpmLoopSignal",
-                        parentId = (Guid?)null,
-                        ioTDbPathOverride = $"{iotdbDevice}.{measurement}",
-                        sparkplugGroupOverride = _options.SparkplugGroup,
-                        sparkplugEdgeNodeOverride = _options.SparkplugEdge,
-                        sparkplugDeviceOverride = device,
-                        sparkplugMetricOverride = measurement
-                    }, ct);
-                    post.EnsureSuccessStatusCode();
-                    var createdAsset = await post.Content.ReadFromJsonAsync<AssetView>(cancellationToken: ct);
-                    if (createdAsset is null) continue;
-                    assetId = createdAsset.Id;
-                    createdByUs = true;
-                }
-
-                await conn.ExecuteAsync("""
-                    INSERT INTO cpm.loop_signal_asset
-                        (loop_id, signal_role, contextual_path, asset_id, created_by_projection, projected_at)
-                    VALUES (@loopId, @role, @path, @assetId, @created, NOW())
-                    ON CONFLICT (loop_id, signal_role) DO UPDATE SET
-                        contextual_path = EXCLUDED.contextual_path,
-                        asset_id = EXCLUDED.asset_id,
-                        created_by_projection = EXCLUDED.created_by_projection,
-                        projected_at = NOW()
-                    """, new { loopId, role, path = unsPath, assetId, created = createdByUs });
-                projected++;
-            }
-            catch (Exception ex)
-            {
-                // Same philosophy as ProjectLinksAsync: onboarding must not fail
-                // because asset-model is down. The binding_provenance readiness
-                // check surfaces the un-projected signal until a republish fixes it.
-                _logger.LogWarning(ex,
-                    "Could not project signal asset for loop {LoopId} role {Role} at {Path}",
-                    loopId, role, unsPath);
-            }
-        }
-
-        // Roles that used to be projected but are no longer mapped.
-        foreach (var (role, row) in ledger)
-        {
-            if (mapped.ContainsKey(role)) continue;
-            try
-            {
-                await RetireProjectionAsync(http, conn, loopId, row, ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex,
-                    "Could not retire stale signal-asset projection for loop {LoopId} role {Role}",
-                    loopId, role);
-            }
-        }
-
-        _logger.LogInformation("Projected {Count} signal asset(s) for loop {LoopId}", projected, loopId);
-        return projected;
-    }
+    /// <summary>Single-loop projection — the batch path with one id, so device
+    /// creation, re-parenting and stale-role retirement behave identically on
+    /// activate, republish-evidence and bulk import.</summary>
+    public Task<int> ProjectSignalAssetsAsync(string loopId, CancellationToken ct)
+        => ProjectSignalAssetsBatchAsync(new[] { loopId }, ct);
 
     /// <summary>
     /// Undo one projection. Assets WE created are soft-deleted; assets that
@@ -1355,7 +1526,6 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
             new { loopId, role = row.SignalRole });
     }
 
-    private sealed record AssetView(Guid Id);
     private sealed record LedgerRow(string SignalRole, string ContextualPath, Guid AssetId, bool CreatedByProjection);
 
     // ── Evidence publishing (the G13 path) ──────────────────────────────────

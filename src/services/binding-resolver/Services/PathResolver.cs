@@ -47,10 +47,12 @@ public class PathResolver
                 return BuildBindingFromAsset(asset, resolveLive, resolveHistory, resolveAlarm);
             }
 
-            // Fallback: derive bindings from the path string. This produces a
-            // different sparkplug device id than asset-model would, so the result is
-            // stamped Provenance="fallback" — callers that need a trustworthy binding
-            // (CPLM readiness, faceplates) must check it rather than Resolved alone.
+            // Fallback: derive bindings from the path string. The derivation now
+            // mirrors asset-model's rules (MIGRATION_LOG #17), but it can never see
+            // per-asset transport OVERRIDES (CPLM loop signals live elsewhere), so
+            // the result is stamped Provenance="fallback" — callers that need a
+            // trustworthy binding (CPLM readiness, faceplates) must check it rather
+            // than Resolved alone.
             _logger.LogWarning(
                 "No asset registered for {Path}; returning FALLBACK binding derived from the path string",
                 contextualPath);
@@ -166,9 +168,14 @@ public class PathResolver
         var device = dotIndex >= 0 ? lastPart[..dotIndex] : lastPart;
         var metric = dotIndex >= 0 ? lastPart[(dotIndex + 1)..] : null;
         
-        // Build device ID from unit + device (if available)
-        var deviceId = parts.Length >= 3 
-            ? $"{parts[^2]}_{device}" 
+        // Build device ID exactly like asset-model's Asset.SparkplugDevice does
+        // (MIGRATION_LOG #17): unit_device at ≥4 path segments (site/area/unit/…),
+        // bare device below that. This branched at ≥3 while asset-model branches
+        // at ≥4, so a 3-segment path (site/unit/device.meas) resolved to a
+        // DIFFERENT device id depending on whether the asset row existed — the
+        // fallback said crude1_pump101 while the catalog said pump101.
+        var deviceId = parts.Length >= 4
+            ? $"{parts[^2]}_{device}"
             : device;
         
         var sparkplugTopic = $"spBv1.0/{site}/DDATA/{edgeNode}/{deviceId}";

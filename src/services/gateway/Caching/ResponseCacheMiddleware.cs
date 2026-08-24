@@ -79,9 +79,24 @@ public sealed class ResponseCacheMiddleware
 
     public async Task InvokeAsync(HttpContext ctx)
     {
-        if (!_enabled || !HttpMethods.IsGet(ctx.Request.Method))
+        if (!_enabled)
         {
             await _next(ctx);
+            return;
+        }
+
+        if (!HttpMethods.IsGet(ctx.Request.Method))
+        {
+            // Write-through invalidation: a mutation that PASSES THROUGH a cached
+            // route family sweeps that class before the response returns, so the
+            // caller's immediate refetch can never hit its own pre-write entry.
+            // (The asset-events subscriber still covers writes that reach the
+            // service without traversing the gateway, e.g. the CPLM projection —
+            // but that path is asynchronous; this one is ordered.)
+            var mutatedRule = _rules.FirstOrDefault(r => ctx.Request.Path.StartsWithSegments(r.Prefix));
+            await _next(ctx);
+            if (mutatedRule is not null && ctx.Response.StatusCode < 400)
+                await TrySweepClassAsync(mutatedRule.Name);
             return;
         }
 
@@ -160,6 +175,32 @@ public sealed class ResponseCacheMiddleware
         finally
         {
             ctx.Response.Body = originalBody;
+        }
+    }
+
+    /// <summary>
+    /// Deletes every cached entry of one class (all users, all queries). Called
+    /// on the write-through path; fail-open like every other cache operation —
+    /// a failed sweep just means the entry ages out on its TTL.
+    /// </summary>
+    private async Task TrySweepClassAsync(string className)
+    {
+        try
+        {
+            var mux = await _redis.Value;
+            if (mux is null) return;
+            var db = mux.GetDatabase();
+            foreach (var endpoint in mux.GetEndPoints())
+            {
+                var server = mux.GetServer(endpoint);
+                if (!server.IsConnected || server.IsReplica) continue;
+                await foreach (var key in server.KeysAsync(pattern: $"cache:{className}:*", pageSize: 500))
+                    await db.KeyDeleteAsync(key, CommandFlags.FireAndForget);
+            }
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Write-through cache sweep failed for {Class} — entries will age out on TTL", className);
         }
     }
 

@@ -118,3 +118,7 @@ These are settled decisions (`MIGRATION_LOG.md` "Recorded Decisions", `src/Unifi
 ## State & realtime (frontend)
 
 - **Zustand** for state (`src/store/`), **@tanstack/react-query** for server data, **@microsoft/signalr** for the alarm hub, **mqtt** + `sparkplug-payload` for live edge values. Charts use **echarts** and **d3**; grids use **ag-grid**.
+
+
+
+400-500 lines of code maximun in file for maintainability and easy to debug and use

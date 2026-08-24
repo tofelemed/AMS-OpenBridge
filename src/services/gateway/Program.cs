@@ -48,6 +48,9 @@ builder.Services.AddSingleton<JwksKeyCache>();
 builder.Services.AddSingleton<RevocationCache>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<RevocationCache>());
 builder.Services.AddSingleton<RedisRateLimiter>();
+// asset-model publishes writes on Redis 'asset-events'; bust cache:assets:* on
+// each so the Master Data UI never reads a stale dropdown (P2.5).
+builder.Services.AddHostedService<Traverse.Gateway.Caching.AssetCacheInvalidator>();
 
 // Bounded connect timeout -> dead upstreams fail fast and feed the passive-health
 // circuit breaker (TransportFailureRate, configured per cluster in appsettings).

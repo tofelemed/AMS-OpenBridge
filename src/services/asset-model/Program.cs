@@ -26,6 +26,30 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(
 // Internal callers (e.g. binding-resolver → asset-model) authenticate with X-Service-Key.
 builder.AddTraverseAuth();
 
+// ── cplm-api client (cross-DB delete guard) ─────────────────────────────────
+// Loops in traverse_cplm reference this tree by free-text site/area/unit and by
+// tag paths; a cross-database FK is impossible, so DELETE asks cplm-api whether
+// anything still references the node. Configured via Services:CplmApi — when it
+// is unset (single-container dev) the guard is skipped; when set but the call
+// fails, the delete FAILS CLOSED (origin-spec rule: never delete a lookup row
+// out from under entities you cannot see).
+var cplmApiBase = builder.Configuration["Services:CplmApi"];
+builder.Services.AddHttpClient("CplmApi", client =>
+{
+    client.BaseAddress = new Uri(string.IsNullOrWhiteSpace(cplmApiBase) ? "http://cplm-api:5000" : cplmApiBase);
+    client.Timeout = TimeSpan.FromSeconds(5);
+    var serviceKey = builder.Configuration["Auth:ServiceKey"];
+    if (!string.IsNullOrEmpty(serviceKey))
+        client.DefaultRequestHeaders.Add(TraverseAuthExtensions.ServiceKeyHeader, serviceKey);
+});
+
+// ── Purge of soft-deleted rows (G-09) ───────────────────────────────────────
+// is_deleted rows were never removed (97.6% of the table at the time this was
+// added). Rows deleted longer ago than Maintenance:PurgeDeletedAfterDays are
+// hard-deleted daily; 0 disables. Rows still referenced as parent_id survive
+// (the FK has no cascade), so a purge can never orphan a live child.
+builder.Services.AddHostedService<Traverse.AssetModel.Services.DeletedAssetPurgeService>();
+
 var app = builder.Build();
 
 // Self-healing: add the `template` column (Phase 4) if an already-initialised DB predates it.
@@ -35,6 +59,16 @@ using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<AssetDbContext>();
         await db.Database.ExecuteSqlRawAsync("ALTER TABLE assets.assets ADD COLUMN IF NOT EXISTS template TEXT;");
+        // Transport overrides (43_traverse_assets_transport_overrides.sql). The EF model maps
+        // these columns unconditionally, so a pre-43 volume that never re-ran init would 500 on
+        // every read without this parity block (G-11).
+        await db.Database.ExecuteSqlRawAsync("""
+            ALTER TABLE assets.assets ADD COLUMN IF NOT EXISTS iotdb_path_override        TEXT NULL;
+            ALTER TABLE assets.assets ADD COLUMN IF NOT EXISTS sparkplug_group_override   TEXT NULL;
+            ALTER TABLE assets.assets ADD COLUMN IF NOT EXISTS sparkplug_edge_override    TEXT NULL;
+            ALTER TABLE assets.assets ADD COLUMN IF NOT EXISTS sparkplug_device_override  TEXT NULL;
+            ALTER TABLE assets.assets ADD COLUMN IF NOT EXISTS sparkplug_metric_override  TEXT NULL;
+            """);
         // CPLM Phase 4.1 — asset graph edges (PEER/UPSTREAM_OF/…). Same statements as
         // database/scripts/31_assets_relationships.sql, so already-initialised volumes
         // converge without a wipe (this service has no migration runner).
@@ -155,13 +189,44 @@ app.MapGet("/assets/by-path/{**path}", async (string path, AssetDbContext db) =>
 // ── POST /assets ─────────────────────────────────────────────────────────────
 app.MapPost("/assets", async (CreateAssetRequest request, AssetDbContext db, IConnectionMultiplexer redis) =>
 {
-    if (string.IsNullOrWhiteSpace(request.ContextualPath))
-        return Results.BadRequest("contextualPath is required");
-    
+    // P1: the contextual path IS the transport mapping (IoTDB path, Sparkplug
+    // topic, Redis key are all derived from it), so a malformed path is not a
+    // cosmetic problem — it resolves to a location nothing writes.
+    var pathError = HierarchyRules.GrammarError(request.ContextualPath, request.Type);
+    if (pathError is not null)
+        return Results.BadRequest(pathError);
+
     var existing = await db.Assets.AnyAsync(a => a.ContextualPath == request.ContextualPath && !a.IsDeleted);
     if (existing)
         return Results.Conflict($"Asset with path '{request.ContextualPath}' already exists");
-    
+
+    // Hierarchy is stored twice (path string + parent_id); keep them consistent.
+    // Explicit parentId must BE the path's natural parent; omitted parentId is
+    // DERIVED from the path prefix when that node is modelled — machine writers
+    // (CPLM projection, analysis-service derived measurements) get correctly
+    // parented leaves for free instead of tree-invisible orphans (G-12).
+    var parentId = request.ParentId;
+    var parentPath = HierarchyRules.ParentPathOf(request.ContextualPath, request.Type);
+    if (parentId.HasValue)
+    {
+        var parent = await db.Assets.FirstOrDefaultAsync(a => a.Id == parentId.Value && !a.IsDeleted);
+        if (parent is null)
+            return Results.BadRequest($"parentId {parentId} does not exist");
+        if (parent.Type >= request.Type)
+            return Results.BadRequest($"a {request.Type} cannot be a child of a {parent.Type}");
+        if (parent.ContextualPath != parentPath)
+            return Results.BadRequest(
+                $"parent '{parent.ContextualPath}' is not the path's natural parent '{parentPath}' — " +
+                "the contextual path itself encodes the hierarchy");
+    }
+    else if (parentPath is not null)
+    {
+        parentId = await db.Assets
+            .Where(a => a.ContextualPath == parentPath && !a.IsDeleted && a.Type < request.Type)
+            .Select(a => (Guid?)a.Id)
+            .FirstOrDefaultAsync();
+    }
+
     var asset = new Asset
     {
         Id = Guid.NewGuid(),
@@ -173,7 +238,7 @@ app.MapPost("/assets", async (CreateAssetRequest request, AssetDbContext db, ICo
         LoEngLimit = request.LoEngLimit,
         HiEngLimit = request.HiEngLimit,
         Template = request.Template,
-        ParentId = request.ParentId,
+        ParentId = parentId,
         IoTDbPathOverride = NormalizeOverride(request.IoTDbPathOverride),
         SparkplugGroupOverride = NormalizeOverride(request.SparkplugGroupOverride),
         SparkplugEdgeNodeOverride = NormalizeOverride(request.SparkplugEdgeNodeOverride),
@@ -245,9 +310,12 @@ app.MapPost("/assets/bulk", async (BulkAssetRequest request, AssetDbContext db, 
 
         foreach (var c in creates)
         {
-            if (string.IsNullOrWhiteSpace(c.ContextualPath))
+            // P1: same grammar gate as the single-create path — a bulk import is
+            // exactly where malformed paths arrive in volume.
+            var pathError = HierarchyRules.GrammarError(c.ContextualPath, c.Type);
+            if (pathError is not null)
             {
-                errors.Add(new { path = c.ContextualPath, error = "contextualPath is required" });
+                errors.Add(new { path = c.ContextualPath, error = pathError });
                 continue;
             }
             if (!taken.Add(c.ContextualPath))
@@ -276,6 +344,75 @@ app.MapPost("/assets/bulk", async (BulkAssetRequest request, AssetDbContext db, 
                 UpdatedAt = DateTimeOffset.UtcNow
             });
         }
+
+        // Second pass: parent wiring. Explicit parentIds are validated (exists,
+        // higher level, IS the path's natural parent); omitted ones are derived
+        // from the path prefix — resolved against the DB and against THIS batch,
+        // so a file carrying a device and its measurements wires them regardless
+        // of row order (G-03, G-12).
+        if (createdAssets.Count > 0)
+        {
+            var inBatchByPath = createdAssets.ToDictionary(a => a.ContextualPath, StringComparer.Ordinal);
+            var inBatchById = createdAssets.ToDictionary(a => a.Id);
+            var naturalParent = createdAssets.ToDictionary(
+                a => a.Id, a => HierarchyRules.ParentPathOf(a.ContextualPath, a.Type));
+
+            var lookupPaths = naturalParent.Values.Where(p => p is not null).Distinct(StringComparer.Ordinal).ToArray();
+            var explicitIds = createdAssets.Where(a => a.ParentId.HasValue).Select(a => a.ParentId!.Value).Distinct().ToArray();
+            var dbParents = await db.Assets
+                .Where(a => !a.IsDeleted && (lookupPaths.Contains(a.ContextualPath) || explicitIds.Contains(a.Id)))
+                .Select(a => new { a.Id, a.ContextualPath, a.Type })
+                .ToListAsync();
+            var dbParentByPath = dbParents.GroupBy(p => p.ContextualPath).ToDictionary(g => g.Key, g => g.First());
+            var dbParentById = dbParents.ToDictionary(p => p.Id);
+
+            var rejected = new HashSet<Guid>();
+            foreach (var a in createdAssets)
+            {
+                var parentPath = naturalParent[a.Id];
+                if (a.ParentId.HasValue)
+                {
+                    string? pPath = null; AssetType? pType = null;
+                    if (dbParentById.TryGetValue(a.ParentId.Value, out var dbp)) { pPath = dbp.ContextualPath; pType = dbp.Type; }
+                    else if (inBatchById.TryGetValue(a.ParentId.Value, out var ibp)) { pPath = ibp.ContextualPath; pType = ibp.Type; }
+
+                    if (pPath is null)
+                    {
+                        errors.Add(new { path = a.ContextualPath, error = $"parentId {a.ParentId} does not exist" });
+                        rejected.Add(a.Id);
+                    }
+                    else if (pType >= a.Type || pPath != parentPath)
+                    {
+                        errors.Add(new { path = a.ContextualPath, error = $"parent '{pPath}' is not the path's natural parent '{parentPath}'" });
+                        rejected.Add(a.Id);
+                    }
+                }
+                else if (parentPath is not null)
+                {
+                    if (inBatchByPath.TryGetValue(parentPath, out var ibp) && ibp.Type < a.Type)
+                        a.ParentId = ibp.Id;
+                    else if (dbParentByPath.TryGetValue(parentPath, out var dbp) && dbp.Type < a.Type)
+                        a.ParentId = dbp.Id;
+                }
+            }
+            if (rejected.Count > 0)
+            {
+                // Drop children whose in-batch parent was itself rejected.
+                bool again;
+                do
+                {
+                    again = false;
+                    foreach (var a in createdAssets)
+                        if (!rejected.Contains(a.Id) && a.ParentId.HasValue && rejected.Contains(a.ParentId.Value))
+                        {
+                            errors.Add(new { path = a.ContextualPath, error = "parent row was rejected in this batch" });
+                            rejected.Add(a.Id);
+                            again = true;
+                        }
+                } while (again);
+                createdAssets.RemoveAll(a => rejected.Contains(a.Id));
+            }
+        }
         if (createdAssets.Count > 0) db.Assets.AddRange(createdAssets);
     }
 
@@ -285,12 +422,36 @@ app.MapPost("/assets/bulk", async (BulkAssetRequest request, AssetDbContext db, 
         var ids = updates.Select(u => u.Id).Distinct().ToArray();
         var byId = (await db.Assets.Where(a => ids.Contains(a.Id) && !a.IsDeleted).ToListAsync())
             .ToDictionary(a => a.Id);
+        // Re-parent targets, fetched once. Used by the CPLM projection to attach
+        // previously orphaned signal assets under their loop device (G-12).
+        var newParentIds = updates.Where(u => u.ParentId.HasValue).Select(u => u.ParentId!.Value).Distinct().ToArray();
+        var newParents = newParentIds.Length == 0
+            ? new Dictionary<Guid, Asset>()
+            : await db.Assets.Where(a => newParentIds.Contains(a.Id) && !a.IsDeleted).ToDictionaryAsync(a => a.Id);
         foreach (var u in updates)
         {
             if (!byId.TryGetValue(u.Id, out var asset))
             {
                 errors.Add(new { id = u.Id, error = "not found" });
                 continue;
+            }
+            // Re-parent first — it can reject the whole item. Same rules as
+            // create: parent exists, is a higher level, and IS the path's
+            // natural parent (the path string stays the source of truth).
+            if (u.ParentId is Guid newPid)
+            {
+                if (!newParents.TryGetValue(newPid, out var newParent))
+                {
+                    errors.Add(new { id = u.Id, error = $"parentId {newPid} does not exist" });
+                    continue;
+                }
+                var naturalPath = HierarchyRules.ParentPathOf(asset.ContextualPath, asset.Type);
+                if (newParent.Type >= asset.Type || newParent.ContextualPath != naturalPath)
+                {
+                    errors.Add(new { id = u.Id, error = $"parent '{newParent.ContextualPath}' is not the path's natural parent '{naturalPath}'" });
+                    continue;
+                }
+                asset.ParentId = newPid;
             }
             // PATCH semantics, matching PUT /assets/{id}: null leaves the column
             // untouched, "" clears an override back to the derived value.
@@ -309,13 +470,30 @@ app.MapPost("/assets/bulk", async (BulkAssetRequest request, AssetDbContext db, 
 
     // Soft delete, same as DELETE /assets/{id} — an id that is already gone is
     // not an error, so a retry of a partly-applied batch stays idempotent.
+    // Child guard (G-02): a node keeping live children OUTSIDE this batch is
+    // refused — deleting it would strand them under a dead parent. The cross-DB
+    // loop guard deliberately does NOT run here: this is the machine path, and
+    // cplm-api's own retirement releases projected assets while the registry row
+    // still exists (guarding would deadlock that flow).
     var deletedAssets = new List<Asset>();
     if (deletes.Count > 0)
     {
         var ids = deletes.Distinct().ToArray();
         var live = await db.Assets.Where(a => ids.Contains(a.Id) && !a.IsDeleted).ToListAsync();
+        var blocked = (await db.Assets
+                .Where(a => !a.IsDeleted && a.ParentId != null
+                            && ids.Contains(a.ParentId.Value) && !ids.Contains(a.Id))
+                .GroupBy(a => a.ParentId!.Value)
+                .Select(g => new { ParentId = g.Key, Count = g.Count() })
+                .ToListAsync())
+            .ToDictionary(b => b.ParentId, b => b.Count);
         foreach (var asset in live)
         {
+            if (blocked.TryGetValue(asset.Id, out var childCount))
+            {
+                errors.Add(new { id = asset.Id, path = asset.ContextualPath, error = $"still has {childCount} live child asset(s) outside this batch" });
+                continue;
+            }
             asset.IsDeleted = true;
             asset.UpdatedAt = DateTimeOffset.UtcNow;
             deletedAssets.Add(asset);
@@ -374,20 +552,107 @@ app.MapPut("/assets/{id:guid}", async (Guid id, UpdateAssetRequest request, Asse
 }).RequireAuthorization("asset.edit");
 
 // ── DELETE /assets/{id} ──────────────────────────────────────────────────────
-app.MapDelete("/assets/{id:guid}", async (Guid id, AssetDbContext db, IConnectionMultiplexer redis) =>
+// Guarded (G-02): 409 while live children exist, and 409 while CPM loops still
+// reference the node (cross-database — asked via cplm-api, FAIL CLOSED when the
+// probe cannot answer, per the origin-spec delete rule).
+app.MapDelete("/assets/{id:guid}", async (
+    Guid id, AssetDbContext db, IConnectionMultiplexer redis,
+    IHttpClientFactory httpFactory, IConfiguration config, ILogger<Program> logger) =>
 {
     var asset = await db.Assets.FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
     if (asset is null)
         return Results.NotFound();
-    
+
+    var children = await db.Assets.CountAsync(a => a.ParentId == id && !a.IsDeleted);
+    if (children > 0)
+        return Results.Conflict(new
+        {
+            error = $"'{asset.ContextualPath}' still has {children} child asset(s). Delete those first.",
+            references = new { children }
+        });
+
+    if (!string.IsNullOrWhiteSpace(config["Services:CplmApi"]))
+    {
+        int? loops = null;
+        try
+        {
+            var res = await httpFactory.CreateClient("CplmApi").GetAsync(
+                $"/api/v1/cpm/loops/referencing?path={Uri.EscapeDataString(asset.ContextualPath)}&assetType={(int)asset.Type}");
+            if (res.IsSuccessStatusCode)
+                loops = (await res.Content.ReadFromJsonAsync<LoopReferenceCount>())?.Count;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "cplm-api unreachable during delete guard for {Path}", asset.ContextualPath);
+        }
+
+        if (loops is null)
+            return Results.Conflict(new
+            {
+                error = "Could not verify whether control loops still reference this asset " +
+                        "(cplm-api did not answer). Failing closed — retry when it is reachable.",
+                references = new { loops = (int?)null }
+            });
+        if (loops > 0)
+            return Results.Conflict(new
+            {
+                error = $"'{asset.ContextualPath}' is still referenced by {loops} control loop(s) in the CPM registry. Retire or relocate those first.",
+                references = new { loops }
+            });
+    }
+
     asset.IsDeleted = true;
     asset.UpdatedAt = DateTimeOffset.UtcNow;
     await db.SaveChangesAsync();
-    
+
     await PublishAssetEvent(redis, "asset.deleted", asset);
-    
+
     return Results.NoContent();
 }).RequireAuthorization("asset.edit");
+
+// ── GET /assets/filters/* — the cascade behind site/area/unit dropdowns ─────
+// Narrow, cacheable projections for filter bars (the origin spec's "filters"
+// surface, kept separate from CRUD). Contract: /areas requires site; /units
+// requires site with area optional (the legacy flat site/unit layout has units
+// directly under the site); /devices requires site+unit. Children resolve
+// through parent_id — the authoritative edge — not by string-splitting paths.
+app.MapGet("/assets/filters/sites", async (AssetDbContext db) =>
+{
+    var rows = await db.Assets
+        .Where(a => !a.IsDeleted && a.Type == AssetType.Site)
+        .OrderBy(a => a.Name)
+        .Select(a => new { a.ContextualPath, a.Name })
+        .ToListAsync();
+    return Results.Ok(rows.Select(r => new FilterNode(r.ContextualPath, r.Name, LastSegmentOf(r.ContextualPath))));
+}).RequireAuthorization("asset.view");
+
+app.MapGet("/assets/filters/areas", async (string? site, AssetDbContext db) =>
+{
+    if (string.IsNullOrWhiteSpace(site))
+        return Results.BadRequest("site is required");
+    var rows = await FilterChildrenAsync(db, site, AssetType.Site, AssetType.Area);
+    return Results.Ok(rows);
+}).RequireAuthorization("asset.view");
+
+app.MapGet("/assets/filters/units", async (string? site, string? area, AssetDbContext db) =>
+{
+    if (string.IsNullOrWhiteSpace(site))
+        return Results.BadRequest("site is required");
+    var (parentPath, parentType) = string.IsNullOrWhiteSpace(area)
+        ? (site, AssetType.Site)
+        : ($"{site}/{area}", AssetType.Area);
+    var rows = await FilterChildrenAsync(db, parentPath, parentType, AssetType.Unit);
+    return Results.Ok(rows);
+}).RequireAuthorization("asset.view");
+
+app.MapGet("/assets/filters/devices", async (string? site, string? area, string? unit, AssetDbContext db) =>
+{
+    if (string.IsNullOrWhiteSpace(site) || string.IsNullOrWhiteSpace(unit))
+        return Results.BadRequest("site and unit are required");
+    var parentPath = string.IsNullOrWhiteSpace(area) ? $"{site}/{unit}" : $"{site}/{area}/{unit}";
+    var rows = await FilterChildrenAsync(db, parentPath, AssetType.Unit, AssetType.Device);
+    return Results.Ok(rows);
+}).RequireAuthorization("asset.view");
 
 // ── POST /assets/search ───────────────────────────────────────────────────────
 // The one query surface for collections, dynamic search criteria, asset-comparison tables, and
@@ -609,26 +874,152 @@ app.MapGet("/aliases/resolve", async (string legacy, string? source, AssetDbCont
         : Results.Ok(new { canonicalPath = mapping.CanonicalPath, asset = AssetDto.From(asset) });
 }).RequireAuthorization("asset.view");
 
+// ── GET /aliases ─────────────────────────────────────────────────────────────
+// Admin listing (G-08): before this, the alias table was write-only — rows could
+// be created but never seen, corrected, or removed.
+app.MapGet("/aliases", async (
+    AssetDbContext db, string? search, string? source, bool includeInactive = false,
+    int skip = 0, int take = 100) =>
+{
+    var q = db.AliasMappings.AsQueryable();
+    if (!includeInactive) q = q.Where(a => a.IsActive);
+    if (!string.IsNullOrWhiteSpace(source)) q = q.Where(a => a.SourceSystem == source);
+    if (!string.IsNullOrWhiteSpace(search))
+        q = q.Where(a => a.LegacyPath.Contains(search) || a.CanonicalPath.Contains(search));
+
+    var total = await q.CountAsync();
+    var items = await q.OrderBy(a => a.SourceSystem).ThenBy(a => a.LegacyPath)
+        .Skip(skip).Take(Math.Min(take, 1000)).ToListAsync();
+    return Results.Ok(new { total, skip, take = items.Count, items });
+}).RequireAuthorization("asset.view");
+
 // POST /aliases
-app.MapPost("/aliases", async (CreateAliasRequest request, AssetDbContext db) =>
+app.MapPost("/aliases", async (CreateAliasRequest request, AssetDbContext db, IConnectionMultiplexer redis) =>
 {
     if (string.IsNullOrWhiteSpace(request.LegacyPath) || string.IsNullOrWhiteSpace(request.CanonicalPath))
         return Results.BadRequest("legacyPath and canonicalPath are required");
-    
+
+    var sourceSystem = request.SourceSystem ?? "unknown";
+    // Pre-check the (legacy_path, source_system) unique index so a duplicate is a
+    // 409 with a message instead of an unhandled 500.
+    var dup = await db.AliasMappings.AnyAsync(a => a.LegacyPath == request.LegacyPath && a.SourceSystem == sourceSystem);
+    if (dup)
+        return Results.Conflict($"Alias '{request.LegacyPath}' already exists for source '{sourceSystem}'");
+
     var alias = new AliasMapping
     {
         Id = Guid.NewGuid(),
         LegacyPath = request.LegacyPath,
         CanonicalPath = request.CanonicalPath,
-        SourceSystem = request.SourceSystem ?? "unknown",
+        SourceSystem = sourceSystem,
         IsActive = true,
         CreatedAt = DateTimeOffset.UtcNow
     };
-    
+
     db.AliasMappings.Add(alias);
     await db.SaveChangesAsync();
-    
+
+    await PublishAliasEvent(redis, "alias.created");
+
     return Results.Created($"/aliases/{alias.Id}", alias);
+}).RequireAuthorization("asset.edit");
+
+// ── PUT /aliases/{id} ────────────────────────────────────────────────────────
+// legacyPath/sourceSystem are the identity and stay immutable (origin-spec rule:
+// edit the label, never the ID); correcting those means delete + recreate.
+app.MapPut("/aliases/{id:guid}", async (Guid id, UpdateAliasRequest request, AssetDbContext db, IConnectionMultiplexer redis) =>
+{
+    var alias = await db.AliasMappings.FirstOrDefaultAsync(a => a.Id == id);
+    if (alias is null) return Results.NotFound();
+
+    if (request.CanonicalPath is not null)
+    {
+        if (string.IsNullOrWhiteSpace(request.CanonicalPath))
+            return Results.BadRequest("canonicalPath must not be blank");
+        alias.CanonicalPath = request.CanonicalPath;
+    }
+    if (request.IsActive.HasValue) alias.IsActive = request.IsActive.Value;
+
+    await db.SaveChangesAsync();
+    await PublishAliasEvent(redis, "alias.updated");
+    return Results.Ok(alias);
+}).RequireAuthorization("asset.edit");
+
+// ── DELETE /aliases/{id} ─────────────────────────────────────────────────────
+// Hard delete — an alias is configuration, not history.
+app.MapDelete("/aliases/{id:guid}", async (Guid id, AssetDbContext db, IConnectionMultiplexer redis) =>
+{
+    var alias = await db.AliasMappings.FirstOrDefaultAsync(a => a.Id == id);
+    if (alias is null) return Results.NotFound();
+    db.AliasMappings.Remove(alias);
+    await db.SaveChangesAsync();
+    await PublishAliasEvent(redis, "alias.deleted");
+    return Results.NoContent();
+}).RequireAuthorization("asset.edit");
+
+// ── POST /aliases/bulk ───────────────────────────────────────────────────────
+// Set-at-a-time create/delete for CSV import. Partial success like /assets/bulk.
+app.MapPost("/aliases/bulk", async (BulkAliasRequest request, AssetDbContext db, IConnectionMultiplexer redis) =>
+{
+    var creates = request.Creates ?? Array.Empty<CreateAliasRequest>();
+    var deletes = request.Deletes ?? Array.Empty<Guid>();
+    if (creates.Count + deletes.Count > 5000)
+        return Results.BadRequest("Maximum 5000 aliases per bulk request");
+
+    var errors = new List<object>();
+    var created = new List<AliasMapping>();
+
+    if (creates.Count > 0)
+    {
+        var wantedLegacy = creates
+            .Where(c => !string.IsNullOrWhiteSpace(c.LegacyPath))
+            .Select(c => c.LegacyPath).Distinct(StringComparer.Ordinal).ToArray();
+        // One existence probe for the batch; the (legacy, source) pair is checked in memory.
+        var takenPairs = (await db.AliasMappings
+                .Where(a => wantedLegacy.Contains(a.LegacyPath))
+                .Select(a => new { a.LegacyPath, a.SourceSystem })
+                .ToListAsync())
+            .Select(a => (a.LegacyPath, a.SourceSystem))
+            .ToHashSet();
+
+        foreach (var c in creates)
+        {
+            if (string.IsNullOrWhiteSpace(c.LegacyPath) || string.IsNullOrWhiteSpace(c.CanonicalPath))
+            {
+                errors.Add(new { legacyPath = c.LegacyPath, error = "legacyPath and canonicalPath are required" });
+                continue;
+            }
+            var sourceSystem = c.SourceSystem ?? "unknown";
+            if (!takenPairs.Add((c.LegacyPath, sourceSystem)))
+            {
+                errors.Add(new { legacyPath = c.LegacyPath, error = $"already exists for source '{sourceSystem}'" });
+                continue;
+            }
+            created.Add(new AliasMapping
+            {
+                Id = Guid.NewGuid(),
+                LegacyPath = c.LegacyPath,
+                CanonicalPath = c.CanonicalPath,
+                SourceSystem = sourceSystem,
+                IsActive = true,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+        }
+        if (created.Count > 0) db.AliasMappings.AddRange(created);
+    }
+
+    var deleted = 0;
+    if (deletes.Count > 0)
+    {
+        var ids = deletes.Distinct().ToArray();
+        var rows = await db.AliasMappings.Where(a => ids.Contains(a.Id)).ToListAsync();
+        db.AliasMappings.RemoveRange(rows);
+        deleted = rows.Count;
+    }
+
+    await db.SaveChangesAsync();
+    if (created.Count > 0 || deleted > 0) await PublishAliasEvent(redis, "alias.bulk");
+    return Results.Ok(new { created = created.Count, deleted, errors });
 }).RequireAuthorization("asset.edit");
 
 app.Run();
@@ -637,6 +1028,42 @@ app.Run();
 /// <summary>Override fields: whitespace-only means "clear" and stores as null.</summary>
 static string? NormalizeOverride(string? value) =>
     string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+static string LastSegmentOf(string path) => path[(path.LastIndexOf('/') + 1)..];
+
+/// <summary>Children of one tree node for the /assets/filters/* cascade —
+/// resolved by parent_id after locating the parent by path+type. An unknown
+/// parent yields an empty list (the dropdown shows nothing), not an error.</summary>
+static async Task<List<FilterNode>> FilterChildrenAsync(
+    AssetDbContext db, string parentPath, AssetType parentType, AssetType childType)
+{
+    var parentId = await db.Assets
+        .Where(a => a.ContextualPath == parentPath && a.Type == parentType && !a.IsDeleted)
+        .Select(a => (Guid?)a.Id)
+        .FirstOrDefaultAsync();
+    if (parentId is null) return new List<FilterNode>();
+
+    var rows = await db.Assets
+        .Where(a => !a.IsDeleted && a.Type == childType && a.ParentId == parentId)
+        .OrderBy(a => a.Name)
+        .Select(a => new { a.ContextualPath, a.Name })
+        .ToListAsync();
+    return rows.Select(r => new FilterNode(r.ContextualPath, r.Name, LastSegmentOf(r.ContextualPath))).ToList();
+}
+
+/// <summary>
+/// Alias writes ride the same 'asset-events' channel as asset writes: the
+/// gateway caches /api/aliases under the same "assets" response-cache class,
+/// and downstream tag-resolution caches (ingestion) key off this channel too.
+/// Without this, an alias change stayed invisible to other users for the full
+/// cache TTL.
+/// </summary>
+static async Task PublishAliasEvent(IConnectionMultiplexer redis, string eventType)
+{
+    var subscriber = redis.GetSubscriber();
+    var payload = JsonSerializer.Serialize(new { eventType });
+    await subscriber.PublishAsync(RedisChannel.Literal("asset-events"), payload);
+}
 
 static async Task PublishAssetEvent(IConnectionMultiplexer redis, string eventType, Asset asset)
 {
@@ -679,7 +1106,9 @@ record AssetDto(
 /// <summary>Batch path resolution — see POST /assets/by-paths.</summary>
 record BatchPathRequest(IReadOnlyList<string>? Paths);
 
-/// <summary>One PATCH in a bulk write: null leaves a column untouched.</summary>
+/// <summary>One PATCH in a bulk write: null leaves a column untouched.
+/// ParentId re-parents (validated against the path's natural parent) — there is
+/// deliberately no way to CLEAR a parent through this API.</summary>
 record BulkAssetUpdate(
     Guid Id,
     string? Name = null,
@@ -689,7 +1118,8 @@ record BulkAssetUpdate(
     string? SparkplugGroupOverride = null,
     string? SparkplugEdgeNodeOverride = null,
     string? SparkplugDeviceOverride = null,
-    string? SparkplugMetricOverride = null);
+    string? SparkplugMetricOverride = null,
+    Guid? ParentId = null);
 
 record BulkAssetRequest(
     IReadOnlyList<CreateAssetRequest>? Creates,
@@ -744,6 +1174,86 @@ record CreateAliasRequest(
     string CanonicalPath,
     string? SourceSystem);
 
+/// <summary>PATCH semantics; legacyPath/sourceSystem are immutable identity.</summary>
+record UpdateAliasRequest(
+    string? CanonicalPath = null,
+    bool? IsActive = null);
+
+record BulkAliasRequest(
+    IReadOnlyList<CreateAliasRequest>? Creates,
+    IReadOnlyList<Guid>? Deletes = null);
+
 record CreateRelationshipRequest(
     Guid ToAssetId,
     string RelType);
+
+/// <summary>One row of a /assets/filters/* cascade response.</summary>
+record FilterNode(string Path, string Name, string Segment);
+
+/// <summary>cplm-api GET /api/v1/cpm/loops/referencing response (delete guard).</summary>
+record LoopReferenceCount(int Count);
+
+/// <summary>
+/// Path grammar + level rules for the UNS tree (P1, decision B in MIGRATION_LOG
+/// #17). The contextual path is the transport mapping, so shape errors here are
+/// data-plane errors: they resolve to IoTDB series and MQTT topics nothing writes.
+/// </summary>
+static class HierarchyRules
+{
+    // Slash-separated segments of letters/digits/_/-. Dots are the measurement
+    // separator and may only appear in the LAST segment; multiple dots there are
+    // tolerated because plant loop tags legitimately contain dots (TIC.101 →
+    // device "site/unit/tic.101", measurement "…/tic.101.pv").
+    private static readonly System.Text.RegularExpressions.Regex InnerSegment =
+        new(@"^[A-Za-z0-9_-]+$", System.Text.RegularExpressions.RegexOptions.Compiled);
+    private static readonly System.Text.RegularExpressions.Regex FinalSegment =
+        new(@"^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>Null when the path is acceptable for the asset type, else the reason.</summary>
+    public static string? GrammarError(string? path, AssetType type)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return "contextualPath is required";
+        if (path.Length > 512) return "contextualPath must be at most 512 characters";
+
+        var segments = path.Split('/');
+        if (segments.Length > 6) return $"contextualPath has {segments.Length} segments; at most 6 are allowed";
+        for (var i = 0; i < segments.Length; i++)
+        {
+            var isLast = i == segments.Length - 1;
+            if (!(isLast ? FinalSegment : InnerSegment).IsMatch(segments[i]))
+                return $"segment '{segments[i]}' is invalid — segments are letters, digits, '_' or '-' " +
+                       "(a '.measurement' suffix is allowed on the last segment only)";
+        }
+
+        var hasDot = segments[^1].Contains('.');
+        return type switch
+        {
+            AssetType.Measurement when !hasDot =>
+                "a Measurement path must end in '.<measurement>' (e.g. site/area/unit/device.flow)",
+            not AssetType.Measurement when hasDot =>
+                $"a {type} path must not contain '.' — that suffix denotes a Measurement",
+            AssetType.Site when segments.Length != 1 => "a Site path is a single segment",
+            AssetType.Area when segments.Length != 2 => "an Area path is site/area (2 segments)",
+            AssetType.Unit when segments.Length is < 2 or > 3 => "a Unit path is site/unit or site/area/unit",
+            AssetType.Device when segments.Length is < 3 or > 5 => "a Device path is site/[area/]unit[/…]/device (3–5 segments)",
+            AssetType.Measurement when segments.Length is < 2 or > 6 => "a Measurement path has 2–6 segments",
+            _ => null
+        };
+    }
+
+    /// <summary>
+    /// The path's natural parent: strip '.measurement' for a Measurement (last
+    /// dot — loop-tag device names may themselves contain dots), else strip the
+    /// last '/segment'. Null for a root (Site).
+    /// </summary>
+    public static string? ParentPathOf(string path, AssetType type)
+    {
+        var lastSlash = path.LastIndexOf('/');
+        if (type == AssetType.Measurement)
+        {
+            var dot = path.LastIndexOf('.');
+            if (dot > lastSlash) return dot > 0 ? path[..dot] : null;
+        }
+        return lastSlash > 0 ? path[..lastSlash] : null;
+    }
+}

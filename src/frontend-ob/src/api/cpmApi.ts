@@ -58,6 +58,9 @@ export interface CpmActivateRequest {
   thresholdProfileId?: string | null;
   enableMonitoring?: boolean;
   stepTestApproved?: boolean;
+  /** G-07: cplm-api rejects a site/area/unit chain that is not in the asset
+   *  model (422 LOCATION_NOT_IN_UNS) unless this explicit opt-out is set. */
+  allowUnmodelledLocation?: boolean;
 }
 
 export interface CpmRegistryContract {

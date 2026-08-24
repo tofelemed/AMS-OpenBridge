@@ -46,6 +46,15 @@ public class AssetDbContext : DbContext
             entity.HasIndex(e => e.ContextualPath).IsUnique().HasFilter("NOT is_deleted");
             entity.HasIndex(e => e.ParentId);
             entity.HasIndex(e => e.Type);
+
+            // parent_id is a self-FK in the database. EF must KNOW that: a bulk
+            // create can hold a parent and its children in one SaveChanges, and
+            // without the mapped relationship EF orders same-table inserts by PK
+            // value (random GUIDs) — children could insert before their parent
+            // and trip assets_parent_id_fkey non-deterministically (seen live;
+            // only a Polly retry with luckier GUIDs masked it). With the
+            // relationship mapped, EF topologically orders the inserts.
+            entity.HasOne<Asset>().WithMany().HasForeignKey(e => e.ParentId);
             
             // Ignore computed properties
             entity.Ignore(e => e.IoTDbPath);

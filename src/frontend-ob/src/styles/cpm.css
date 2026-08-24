@@ -461,3 +461,13 @@
   border-color: var(--instrument-enhanced-primary-color);
   background: color-mix(in srgb, var(--instrument-enhanced-primary-color) 8%, transparent);
 }
+
+/* Outcome banner variants (bulk-import result step). */
+.cpm-banner--good {
+  border-color: var(--alert-running-color);
+  background: color-mix(in srgb, var(--alert-running-color) 8%, transparent);
+}
+.cpm-banner--bad {
+  border-color: var(--alert-alarm-color);
+  background: color-mix(in srgb, var(--alert-alarm-color) 8%, transparent);
+}

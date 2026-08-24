@@ -10,6 +10,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { ObcProgressBar } from '@oicl/openbridge-webcomponents-react/components/progress-bar/progress-bar';
 import {
   EmptyState, KvRow, PanelHead, QueryError, TonePill, WorkspaceHeader, fmtDuration,
   fmtWindowShape, windowSpecsOf,
@@ -325,12 +326,20 @@ const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; onClose
     mode: editLoop.tags['MODE'] ?? '', vp: editLoop.tags['VP'] ?? '',
     thresholdProfileId: editLoop.thresholdProfileId ?? '', enableMonitoring: editLoop.monitoringEnabled,
   } : {
-    loopId: '', displayName: '', site: 'site1', area: '', unit: '',
+    // site starts EMPTY: the old 'site1' placeholder was a site that exists in
+    // no asset model, and activation now rejects unmodelled locations (G-07) —
+    // a default that steers every new loop into a 422 is worse than forcing a
+    // pick from the cascade.
+    loopId: '', displayName: '', site: '', area: '', unit: '',
     loopType: 'FIC', criticality: 'medium',
     pv: '', sp: '', op: '', mode: '', vp: '',
     thresholdProfileId: '', enableMonitoring: true,
   });
   const readiness = useCpmReadiness(savedLoopId ?? undefined);
+  // P5.3: manual location entry (or an empty asset model) means the location is
+  // unchecked client-side; the server enforces G-07, so the activate request
+  // must carry the explicit override in that case.
+  const [manualLoc, setManualLoc] = useState(false);
 
   const set = (k: keyof WizardState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm(f => {
@@ -376,6 +385,7 @@ const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; onClose
       tags,
       thresholdProfileId: form.thresholdProfileId.trim() || null,
       enableMonitoring: form.enableMonitoring,
+      allowUnmodelledLocation: manualLoc,
     };
   };
 
@@ -424,6 +434,7 @@ const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; onClose
             <PlantLocationPicker
               value={{ site: form.site, area: form.area, unit: form.unit }}
               onChange={setLocation}
+              onManualModeChange={setManualLoc}
             />
             <label className="cpm-field">
               <span className="cpm-field__label">Loop type *</span>
@@ -594,6 +605,14 @@ const REQUIRED_COLUMNS = ['tag', 'service', 'site', 'loop_type'] as const;
 const MAX_CSV_BYTES = 2 * 1024 * 1024;
 /** Rows rendered in the preview; past this the table itself is the slow part. */
 const PREVIEW_LIMIT = 100;
+
+/** Source → Review → Activate. Validation is entirely client-side, so review is
+ *  a real gate rather than a formality: nothing is sent until the last step. */
+const IMPORT_STEPS = [
+  { title: 'Import file' },
+  { title: 'Review & validate' },
+  { title: 'Activate' },
+] as const;
 /**
  * Server-side ceiling for one bulk import (cplm-api MaxBulkLoops). The whole file
  * goes in ONE request, so the gateway's 120-mutations-per-minute window no longer
@@ -751,6 +770,11 @@ const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => void }> =
   const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(null);
   const qc = useQueryClient();
 
+  const [step, setStep] = useState(0);
+  // G-07: the server rejects site/area/unit chains that are not in the asset
+  // model; this dialog-level override forwards allowUnmodelledLocation on every
+  // row — an explicit choice, defaulting to the safe refusal.
+  const [allowUnmodelled, setAllowUnmodelled] = useState(false);
   const [importWarning, setImportWarning] = useState<string | null>(null);
   const [importStats, setImportStats] = useState<{ activated: number; failed: number; elapsedMs: number } | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -831,6 +855,7 @@ const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => void }> =
         .map(role => ({ signalRole: role.toUpperCase(), unsPath: row.paths[role].path })) as CpmTagMapEntry[],
       thresholdProfileId: row.values['profile'] || null,
       enableMonitoring: true,
+      allowUnmodelledLocation: allowUnmodelled,
     }));
 
     try {
@@ -857,71 +882,103 @@ const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => void }> =
     }
   };
 
+  const sourceReady = text.trim() !== '' && parsed.missing.length === 0 && parsed.rows.length > 0;
+  const tooMany = valid.length > MAX_BULK_LOOPS;
+  const failedRows = results?.filter(r => !r.ok) ?? [];
+
   return (
     <div className="cpm-modal-backdrop" onClick={e => { if (e.target === e.currentTarget && !importing) onClose(); }}>
       <div ref={dialogRef2} className="cpm-modal" role="dialog" aria-modal="true" tabIndex={-1} aria-label="Import loops from CSV">
-        <PanelHead eyebrow="Bulk registry workflow" title="Import loops from CSV"
-          right={<ObcButton variant="normal" onClick={downloadTemplate}>Download template</ObcButton>} />
+        <PanelHead
+          eyebrow="Bulk registry workflow"
+          title={`Import loops from CSV — ${IMPORT_STEPS[step].title}`}
+          right={step === 0
+            ? <ObcButton variant="normal" onClick={downloadTemplate}>Download template</ObcButton>
+            : undefined} />
 
-        {/* Upload or paste. A registry export is a file, so making people open it
-            and copy its contents was pure friction — and a truncated paste is a
-            silent partial import. */}
-        <div
-          className={`cpm-csv-drop${dragging ? ' cpm-csv-drop--over' : ''}`}
-          onDragOver={e => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={e => {
-            e.preventDefault();
-            setDragging(false);
-            void loadFile(e.dataTransfer.files?.[0]);
-          }}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,text/csv,text/plain"
-            style={{ display: 'none' }}
-            onChange={e => { void loadFile(e.target.files?.[0]); e.target.value = ''; }}
-          />
-          <ObcButton variant="raised" onClick={() => fileInputRef.current?.click()} disabled={importing}>
-            Choose CSV file
-          </ObcButton>
-          <span className="cpm-copy">or drop a .csv here — or paste below</span>
-          {fileName && (
-            <span className="cpm-pill cpm-pill--good" title={fileName}>
-              {fileName} · {parsed.rows.length} row(s)
-            </span>
-          )}
+        <div className="cpm-wizard-steps">
+          {IMPORT_STEPS.map((s, i) => (
+            <button
+              key={s.title}
+              type="button"
+              className={`cpm-wizard-step${i === step ? ' cpm-wizard-step--active' : ''}${i < step ? ' cpm-wizard-step--done' : ''}`}
+              // Only backwards, and never while the import is in flight.
+              onClick={() => { if (i < step && !importing && !results) setStep(i); }}
+            >
+              {i < step ? '✓ ' : `${i + 1}. `}{s.title}
+            </button>
+          ))}
         </div>
-        {fileError && <p className="cpm-field__error">{fileError}</p>}
 
-        <label className="cpm-field" style={{ minWidth: 0 }}>
-          <span className="cpm-field__label">CSV content{fileName ? ` (loaded from ${fileName}, editable)` : ''}</span>
-          <textarea
-            className="cpm-textarea cpm-mono"
-            rows={8}
-            value={text}
-            onChange={e => { setText(e.target.value); setResults(null); setFileName(null); }}
-            placeholder={CSV_HEADERS.join(',')}
-          />
-        </label>
+        {/* ── Step 1 · Source ─────────────────────────────────────────── */}
+        {step === 0 && (
+          <>
+            <p className="cpm-copy">
+              Upload the registry export or paste it below. Required columns:{' '}
+              <span className="cpm-mono">{REQUIRED_COLUMNS.join(', ')}</span>. Leave the signal
+              columns blank to derive{' '}
+              <span className="cpm-mono">site/[area/]unit/&lt;tag&gt;.&lt;role&gt;</span> — VP is only
+              mapped when given explicitly.
+            </p>
 
-        <p className="cpm-copy">
-          Required columns: <span className="cpm-mono">{REQUIRED_COLUMNS.join(', ')}</span>. Leave the
-          signal columns blank to derive <span className="cpm-mono">site/[area/]unit/&lt;tag&gt;.&lt;role&gt;</span> —
-          VP is only mapped when given explicitly.
-        </p>
+            <div
+              className={`cpm-csv-drop${dragging ? ' cpm-csv-drop--over' : ''}`}
+              onDragOver={e => { e.preventDefault(); setDragging(true); }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={e => {
+                e.preventDefault();
+                setDragging(false);
+                void loadFile(e.dataTransfer.files?.[0]);
+              }}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv,text/plain"
+                style={{ display: 'none' }}
+                onChange={e => { void loadFile(e.target.files?.[0]); e.target.value = ''; }}
+              />
+              <ObcButton variant="raised" onClick={() => fileInputRef.current?.click()}>
+                Choose CSV file
+              </ObcButton>
+              <span className="cpm-copy">or drop a .csv here — or paste below</span>
+              {fileName && (
+                <span className="cpm-pill cpm-pill--good" title={fileName}>
+                  {fileName} · {parsed.rows.length} row(s)
+                </span>
+              )}
+            </div>
+            {fileError && <p className="cpm-field__error">{fileError}</p>}
 
-        {text && parsed.missing.length > 0 && (
-          <p className="cpm-field__error">Missing required columns: {parsed.missing.join(', ')}</p>
+            <label className="cpm-field" style={{ minWidth: 0 }}>
+              <span className="cpm-field__label">
+                CSV content{fileName ? ` (loaded from ${fileName}, editable)` : ''}
+              </span>
+              <textarea
+                className="cpm-textarea cpm-mono"
+                rows={10}
+                value={text}
+                onChange={e => { setText(e.target.value); setResults(null); setFileName(null); }}
+                placeholder={CSV_HEADERS.join(',')}
+              />
+            </label>
+
+            {text && parsed.missing.length > 0 && (
+              <p className="cpm-field__error">Missing required columns: {parsed.missing.join(', ')}</p>
+            )}
+            {text && parsed.unknownColumns.length > 0 && (
+              <p className="cpm-field__error">
+                Unrecognised column(s): {parsed.unknownColumns.join(', ')} — values in them are ignored.
+              </p>
+            )}
+            {text.trim() !== '' && parsed.missing.length === 0 && parsed.rows.length === 0 && (
+              <p className="cpm-field__error">The file has a header row but no data rows.</p>
+            )}
+          </>
         )}
-        {text && parsed.unknownColumns.length > 0 && (
-          <p className="cpm-field__error">
-            Unrecognised column(s): {parsed.unknownColumns.join(', ')} — values in them are ignored.
-          </p>
-        )}
 
-        {text && parsed.missing.length === 0 && (
+        {/* ── Step 2 · Review ─────────────────────────────────────────── */}
+        {step === 1 && (
           <>
             <div className="cpm-csv-summary">
               <KpiSummary caption="Rows detected" value={parsed.rows.length} />
@@ -931,14 +988,26 @@ const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => void }> =
               <KpiSummary caption="Existing (will update)" value={parsed.rows.filter(r => r.existing).length} tone="warn" />
             </div>
 
-            {valid.length > MAX_BULK_LOOPS && (
+            {tooMany && (
               <p className="cpm-field__error">
                 {valid.length} rows exceeds the {MAX_BULK_LOOPS.toLocaleString()}-per-import limit —
                 split the file.
               </p>
             )}
+            {valid.length === 0 && (
+              <p className="cpm-field__error">
+                No row can be imported yet. Fix the problems listed below, then go back and paste
+                or upload the corrected file.
+              </p>
+            )}
+            {parsed.rows.length > valid.length && valid.length > 0 && (
+              <p className="cpm-copy cpm-tone-warn">
+                {parsed.rows.length - valid.length} row(s) will be skipped. Only the {valid.length} ready
+                row(s) are imported.
+              </p>
+            )}
 
-            {/* Preview what WILL be sent — derived paths included — so a wrong
+            {/* Exactly what WILL be sent — derived paths included — so a wrong
                 location is caught here rather than after N loops are activated. */}
             <div className="cpm-csv-preview">
               <table>
@@ -982,36 +1051,129 @@ const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => void }> =
           </>
         )}
 
-        {importStats && (
-          <p className="cpm-copy">
-            {importStats.activated} activated{importStats.failed > 0 ? `, ${importStats.failed} failed` : ''} in{' '}
-            {(importStats.elapsedMs / 1000).toFixed(1)}s.
-          </p>
-        )}
-        {importWarning && <p className="cpm-field__error">{importWarning}</p>}
+        {/* ── Step 3 · Activate ───────────────────────────────────────── */}
+        {step === 2 && (
+          <>
+            {!results && !importing && (
+              <>
+                <p className="cpm-copy">
+                  Ready to onboard <strong>{valid.length}</strong> loop(s) into the registry. Each one
+                  gets its role mappings and a UNS signal asset per stored role, so its PV/SP/OP
+                  resolve and trend immediately.
+                </p>
+                <div className="cpm-csv-summary">
+                  <KpiSummary caption="To activate" value={valid.length} tone="good" />
+                  <KpiSummary caption="New" value={valid.filter(r => !r.existing).length} />
+                  <KpiSummary caption="Updating existing" value={valid.filter(r => r.existing).length} tone="warn" />
+                  <KpiSummary caption="Skipped" value={parsed.rows.length - valid.length}
+                    tone={parsed.rows.length - valid.length > 0 ? 'bad' : 'good'} />
+                </div>
+                <label className="cpm-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                  <input type="checkbox" checked={allowUnmodelled}
+                    onChange={e => setAllowUnmodelled(e.target.checked)} />
+                  <span className="cpm-copy">
+                    Allow locations that are not in the asset model. Rows whose site/area/unit is
+                    unmodelled are otherwise rejected (their signals would sit outside the plant
+                    tree and resolve against nothing).
+                  </span>
+                </label>
+              </>
+            )}
 
-        {results && (
-          <div style={{ margin: '8px 0' }}>
-            {results.map(r => (
-              <KvRow key={r.tag} label={r.tag}>
-                <TonePill tone={r.ok ? 'good' : 'bad'}>{r.ok ? 'Activated' : r.message ?? 'Failed'}</TonePill>
-              </KvRow>
-            ))}
-          </div>
+            {importing && (
+              <div style={{ margin: '18px 0' }}>
+                {/* The whole file goes in ONE request, so there is no per-row
+                    signal to report — an indeterminate bar is the honest shape. */}
+                <ObcProgressBar type="linear" mode="indeterminate" style={{ width: '100%' }} />
+                <p className="cpm-copy" style={{ marginTop: 10 }} role="status">
+                  Activating {importProgress?.total ?? valid.length} loop(s)… this is a single
+                  request; leaving the dialog open until it finishes.
+                </p>
+              </div>
+            )}
+
+            {results && (
+              <>
+                <div
+                  role="status"
+                  className={`cpm-banner${failedRows.length === 0 ? ' cpm-banner--good' : ' cpm-banner--bad'}`}
+                >
+                  <span style={{ fontSize: '1.2rem' }}>{failedRows.length === 0 ? '✓' : '✗'}</span>
+                  <div>
+                    <strong>
+                      {failedRows.length === 0
+                        ? `All ${importStats?.activated ?? results.length} loop(s) activated`
+                        : `${importStats?.activated ?? 0} activated, ${failedRows.length} failed`}
+                    </strong>
+                    {importStats && (
+                      <div className="cpm-copy">
+                        Completed in {(importStats.elapsedMs / 1000).toFixed(1)}s.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {importWarning && <p className="cpm-field__error">{importWarning}</p>}
+
+                {/* Failures first and in full; successes are collapsed to a count
+                    so a 1000-row success does not bury the three that failed. */}
+                {failedRows.length > 0 && (
+                  <div className="cpm-csv-preview">
+                    <table>
+                      <thead><tr><th>Loop</th><th>Why it failed</th></tr></thead>
+                      <tbody>
+                        {failedRows.map(r => (
+                          <tr key={r.tag} className="is-bad">
+                            <td className="cpm-mono">{r.tag}</td>
+                            <td>{r.message ?? 'Failed'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
+          </>
         )}
 
+        {/* ── Footer navigation ───────────────────────────────────────── */}
         <div className="cpm-wizard-footer">
-          <ObcButton variant="normal" onClick={onClose}>Close</ObcButton>
-          <span className="cpm-copy">{valid.length} valid row(s)</span>
-          <ObcButton
-            variant="raised"
-            disabled={valid.length === 0 || parsed.missing.length > 0 || importing}
-            onClick={runImport}
-          >
-            {importing
-              ? `Importing ${importProgress?.total ?? valid.length} loop(s)…`
-              : 'Import & activate'}
+          <ObcButton variant="normal" onClick={onClose} disabled={importing}>
+            {results ? 'Close' : 'Cancel'}
           </ObcButton>
+
+          {!results && step > 0 && (
+            <ObcButton variant="normal" disabled={importing} onClick={() => setStep(step - 1)}>
+              ← Back
+            </ObcButton>
+          )}
+
+          <span className="cpm-copy">
+            {step === 0 && (parsed.rows.length > 0 ? `${parsed.rows.length} row(s) detected` : '')}
+            {step === 1 && `${valid.length} of ${parsed.rows.length} row(s) ready`}
+            {step === 2 && !results && !importing && `${valid.length} row(s) will be activated`}
+          </span>
+
+          {step < 2 && (
+            <ObcButton
+              variant="raised"
+              disabled={step === 0 ? !sourceReady : valid.length === 0 || tooMany}
+              onClick={() => setStep(step + 1)}
+            >
+              Next →
+            </ObcButton>
+          )}
+          {step === 2 && !results && (
+            <ObcButton variant="raised" disabled={valid.length === 0 || tooMany || importing} onClick={runImport}>
+              {importing ? 'Activating…' : `Submit & activate ${valid.length} loop(s)`}
+            </ObcButton>
+          )}
+          {step === 2 && results && failedRows.length > 0 && (
+            <ObcButton variant="normal" onClick={() => { setResults(null); setImportStats(null); setImportWarning(null); setStep(0); }}>
+              Fix and re-import
+            </ObcButton>
+          )}
         </div>
       </div>
     </div>

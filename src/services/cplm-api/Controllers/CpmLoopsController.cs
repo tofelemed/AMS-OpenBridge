@@ -87,10 +87,32 @@ public sealed class CpmLoopsController : ControllerBase
             // in a different casing, or one that sanitises to the same historian device.
             return Conflict(new { error = ex.Code, message = ex.Message });
         }
+        catch (LoopLocationException ex)
+        {
+            // 422: the site/area/unit chain is not in the asset model (G-07) and the
+            // caller did not opt out with allowUnmodelledLocation.
+            return UnprocessableEntity(new { error = "LOCATION_NOT_IN_UNS", message = ex.Message });
+        }
         catch (InvalidOperationException ex)
         {
             return Conflict(new { error = "LOOP_ID_CASE_COLLISION", message = ex.Message });
         }
+    }
+
+    /// <summary>
+    /// Cross-database delete guard for asset-model (G-02): how many registered
+    /// loops still reference the asset-model node at <paramref name="path"/> —
+    /// via the registry's denormalised site/area/unit or via mapped tag paths.
+    /// Called service-to-service (X-Service-Key) before a hierarchy delete.
+    /// </summary>
+    [HttpGet("referencing")]
+    [Authorize(Policy = "analytics.view")]
+    public async Task<IActionResult> Referencing([FromQuery] string path, [FromQuery] int assetType, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return BadRequest(new { error = "path is required" });
+        var count = await _registry.CountReferencingLoopsAsync(path, assetType, ct);
+        return Ok(new { count });
     }
 
     /// <summary>

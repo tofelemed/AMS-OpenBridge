@@ -58,6 +58,13 @@ declare module '@oicl/openbridge-webcomponents-react/components/progress-bar/pro
   export interface ObcProgressBarProps {
     value?: number;
     max?: number;
+    /** linear (default) | circular — see custom-elements.json. */
+    type?: 'linear' | 'circular';
+    /** indeterminate drives the bar with no value, for work whose length is unknown. */
+    mode?: 'determinate' | 'indeterminate';
+    showValue?: boolean;
+    hasDescription?: boolean;
+    description?: string;
     style?: CSSProperties;
   }
   export const ObcProgressBar: FC<ObcProgressBarProps>;

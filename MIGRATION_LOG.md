@@ -312,3 +312,18 @@ Per `Unified-HMI-Platform-Feasibility-and-Transition-Plan.md` §1–§2:
     library. Requires: services unreachable except via the gateway, header trust bound to mTLS, and
     internal service-to-service calls on mTLS/SPIFFE (not `X-Service-Key`). Fine-grained
     `RequireAuthorization` policies stay in-service, reading the injected `permission` claims.
+17. **Four-level UNS paths with Areas as real segments (2026-08-24).** The HDPE plant model adopts
+    `site/area/unit/device[.measurement]` — Areas (asset_type 2) are path segments, not labels
+    (assetmodel.md P0 Option B). Every HDPE unit sits under an area. The Sparkplug device-id
+    derivation stays asset-model's rule (`{unit}_{device}` at ≥4 path segments, bare device at 3);
+    binding-resolver's fallback is **aligned to the same ≥4 rule** (it branched at ≥3, so a
+    3-segment path resolved to a different device id depending on whether the asset row existed).
+    Control loops attach at the **Device level under their Unit** (ISA-88: a loop is a Control
+    Module, the lowest tier of Site→Area→Unit→Equipment Module→Control Module); the CPLM
+    signal-asset projection creates that Device node (template `CpmLoop`, ledgered as role
+    `DEVICE`) so loop signals are visible in the plant tree. Path segments are lowercase
+    `snake_case` slugs (`section_100`, `u1001_polymerization_reactor_1` — `u` prefix because IoTDB
+    path nodes must not start with a digit, same constraint IotDbWriteClient.SafeNode guards);
+    human labels live in `name`; origin Instrumental-Pro IDs (`Section 100`, `1001-Polymerization
+    Reactor 1`) stay resolvable through `assets.alias_mapping` rows with
+    `source_system='instrumental-pro'`.

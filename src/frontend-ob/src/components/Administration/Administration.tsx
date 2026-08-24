@@ -7,6 +7,8 @@ import { RolesConfig }           from './RolesConfig';
 import { AlarmFeedConfig }       from './AlarmFeedConfig';
 import { AlarmRulesConfig }      from './AlarmRulesConfig';
 import { DataSourcesConfig }     from './DataSourcesConfig';
+import { PlantModelConfig }      from './PlantModelConfig';
+import { AliasConfig }           from './AliasConfig';
 import { NotificationsConfig }   from './NotificationsConfig';
 import { SystemSettingsConfig }  from './SystemSettingsConfig';
 import AuditExplorer             from './AuditExplorer';
@@ -21,6 +23,10 @@ import { ObiNotification } from '@oicl/openbridge-webcomponents-react/icons/icon
 import { ObiClipboard } from '@oicl/openbridge-webcomponents-react/icons/icon-clipboard';
 import { ObiWrench } from '@oicl/openbridge-webcomponents-react/icons/icon-wrench';
 import { ObiDatabase } from '@oicl/openbridge-webcomponents-react/icons/icon-database';
+// Closest-semantic obi icons for the UNS pages: a structural grid for the plant
+// model tree, an id-tag for the OT tag→path aliases.
+import { ObiChartGridIec } from '@oicl/openbridge-webcomponents-react/icons/icon-chart-grid-iec';
+import { ObiIdTag } from '@oicl/openbridge-webcomponents-react/icons/icon-id-tag';
 
 /* Design tokens (shared with Dashboard) */
 
@@ -29,6 +35,9 @@ const TABS = [
   { path: '/admin/roles',         label: 'Roles & Permissions', Icon: ObiSettingsUserIec, permission: 'rbac.manage' },
   { path: '/admin/alarm-feed',    label: 'Alarm Feed',          Icon: ObiMonitoring },
   { path: '/admin/data-sources',  label: 'Data Sources',        Icon: ObiDatabase, permission: 'ingestion.view' },
+  // Reads gate on asset.view (any role); writes inside the pages need asset.edit.
+  { path: '/admin/plant-model',   label: 'Plant Model',         Icon: ObiChartGridIec, permission: 'asset.view' },
+  { path: '/admin/aliases',       label: 'Tag Aliases',         Icon: ObiIdTag, permission: 'asset.view' },
   { path: '/admin/alarm-rules',   label: 'Alarm Rules',         Icon: ObiListAltCheckGoogle },
   { path: '/admin/notifications', label: 'Notifications',       Icon: ObiNotification },
   { path: '/admin/audit',         label: 'Audit Log',           Icon: ObiClipboard },
@@ -129,6 +138,14 @@ const Administration: React.FC = () => {
           <Route
             path="data-sources"
             element={hasPermission('ingestion.view') ? <DataSourcesConfig /> : <Navigate to={visibleTabs[0]?.path ?? '/dashboard'} replace />}
+          />
+          <Route
+            path="plant-model"
+            element={hasPermission('asset.view') ? <PlantModelConfig /> : <Navigate to={visibleTabs[0]?.path ?? '/dashboard'} replace />}
+          />
+          <Route
+            path="aliases"
+            element={hasPermission('asset.view') ? <AliasConfig /> : <Navigate to={visibleTabs[0]?.path ?? '/dashboard'} replace />}
           />
           <Route path="alarm-rules"   element={<AlarmRulesConfig />} />
           <Route path="notifications" element={<NotificationsConfig />} />

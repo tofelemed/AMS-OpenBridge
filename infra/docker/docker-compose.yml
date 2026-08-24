@@ -909,6 +909,10 @@ services:
       # X-Service-Key calls â€” reads from binding-resolver/cplm-api (asset.view) and derived-asset
       # registration from analysis-service (asset.edit). Nothing else is granted.
       Auth__ServicePermissions: "asset.view,asset.edit"
+      # Cross-DB delete guard (G-02): before deleting a hierarchy node, ask
+      # cplm-api how many loops still reference it. Set -> fail closed when the
+      # probe cannot answer; unset -> guard skipped (single-container dev).
+      Services__CplmApi: http://cplm-api:5000
     # FINAL LOCKDOWN (Plan 04): no published port — reachable only through the gateway (8081) / compose network. See docs/api-gateway.md.
     networks:
       - ams-backend
@@ -1339,7 +1343,10 @@ services:
       Auth__Audience:  ams-services
       Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
       # Sends the key to asset-model but receives no internal calls itself â†’ principal can do nothing.
-      Auth__ServicePermissions: ""
+      # Receives ONE internal call: asset-model's cross-DB delete guard
+      # (GET /api/v1/cpm/loops/referencing, G-02) - a read, so the service
+      # principal gets exactly analytics.view and nothing else.
+      Auth__ServicePermissions: "analytics.view"
     volumes:
       # A8 recompute cannot work without the jar â€” verified at Phase 5.2, not first click.
       - ../../src/flink/target/ams-flink-1.0-SNAPSHOT.jar:/opt/ams/flink/ams-flink.jar:ro

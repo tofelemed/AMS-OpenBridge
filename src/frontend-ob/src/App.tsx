@@ -400,7 +400,7 @@ const App: React.FC = () => {
                       {/* Infrastructure */}
                       <Route path="/edge"       element={<RequirePermission permission="historian.view"><EdgeNodeMonitor /></RequirePermission>} />
                       {/* Administration — was reachable by ANY authenticated user via direct URL */}
-                      <Route path="/admin/*"    element={<RequirePermission permission="admin.users.edit" anyOf={['admin.users.edit', 'admin.audit.view', 'rbac.manage', 'ingestion.view', 'ingestion.manage']}><Administration /></RequirePermission>} />
+                      <Route path="/admin/*"    element={<RequirePermission permission="admin.users.edit" anyOf={['admin.users.edit', 'admin.audit.view', 'rbac.manage', 'ingestion.view', 'ingestion.manage', 'asset.edit']}><Administration /></RequirePermission>} />
                       <Route path="*"           element={<Navigate to="/dashboard" replace />} />
                     </Routes>
                   </React.Suspense>
