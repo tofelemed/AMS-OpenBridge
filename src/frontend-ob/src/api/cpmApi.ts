@@ -81,6 +81,38 @@ export const activateLoop = (request: CpmActivateRequest) =>
     body: JSON.stringify(request),
   });
 
+/** One outcome per submitted row; `code` mirrors the single-activate error codes. */
+export interface CpmBulkActivateItem {
+  loopId: string;
+  ok: boolean;
+  error?: string | null;
+  code?: string | null;
+}
+
+export interface CpmBulkActivateResult {
+  requested: number;
+  activated: number;
+  failed: number;
+  /** Server-side duration, excluding transport. */
+  elapsedMs: number;
+  results: CpmBulkActivateItem[];
+  /** Rows committed but a post-commit projection did not — the loops exist. */
+  warning?: string | null;
+}
+
+/**
+ * Onboards a whole batch in ONE request. This is deliberately not N calls: the
+ * gateway counts one mutation per request (120/minute/user), so a per-row import
+ * hit the limit at 120 loops, and the server can batch its own reads and writes
+ * only when it sees the whole set.
+ */
+export const bulkActivateLoops = (loops: CpmActivateRequest[]) =>
+  apiJson<CpmBulkActivateResult>(`${BASE}/loops/bulk-activate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ loops }),
+  });
+
 export const deleteLoop = (loopId: string) =>
   apiJson<{ loopId: string; deleted: boolean }>(
     `${BASE}/loops/${encodeURIComponent(loopId)}`, { method: 'DELETE' });

@@ -159,7 +159,7 @@ Recommendation: **Route A for production, Route B for pilots.** Route B is how y
 
 ### 3.3 What loop activation actually validates (and doesn't)
 
-- Validates: `loopId` matches `^[A-Za-z][A-Za-z0-9_]*$` (no dashes/dots — historian sanitization collides them), site present, loop type ∈ `FIC PIC PIC_GAS PIC_VAPOUR LIC TIC UNKNOWN`, criticality lowercase ∈ `low medium high critical`, and — when monitoring is enabled — **all four of PV/SP/OP/MODE mapped** (else HTTP 422).
+- Validates: `loopId` keeps the plant's own tag (dashes and dots are fine — `45FIC-109`, `B2-027PIC`); only whitespace and characters that break a URL path segment or a job argument (`/ \ ? # % & ; | $ " ' < > ` { } [ ]`) are refused, plus a **historian-collision check** — two ids that differ only in punctuation sanitise to one IoTDB device (`45FIC-109` and `45FIC.109` → `_45FIC_109`) and would merge their PV/SP/OP, so the second is rejected with HTTP 409 `LOOP_ID_HISTORIAN_COLLISION`. Also: site present, loop type ∈ `FIC PIC PIC_GAS PIC_VAPOUR LIC TIC UNKNOWN`, criticality lowercase ∈ `low medium high critical`, and — when monitoring is enabled — **all four of PV/SP/OP/MODE mapped** (else HTTP 422).
 - Does **not** validate: that the mapped UNS paths exist, parse, or receive data. That surfaces later in the readiness check (`GET /api/v1/cpm/loops/{id}/readiness`): blockers are the registry row, monitoring flag, the four required tags, and the four CPLM Flink jobs running; warnings include VP missing, no peer links, and `binding_provenance != asset-model`.
 
 ---
@@ -175,7 +175,7 @@ Recommendation: **Route A for production, Route B for pilots.** Route B is how y
 ```jsonc
 // POST /api/v1/cpm/loops/activate   (permission: cpm.manage; Cpm__EnableMutations must be true)
 {
-  "loopId": "FIC10409",             // ^[A-Za-z][A-Za-z0-9_]*$ — case-insensitively unique
+  "loopId": "45FIC-109",            // the plant's tag; unique case-insensitively AND after historian sanitisation
   "displayName": "Column feed flow",
   "site": "houston", "area": "crude", "unit": "crude1",
   "loopType": "FIC",                // drives dynamics profile selection

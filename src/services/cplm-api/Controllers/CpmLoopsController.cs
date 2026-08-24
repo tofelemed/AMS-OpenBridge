@@ -20,6 +20,11 @@ namespace Traverse.CplmApi.Controllers;
 [Authorize]
 public sealed class CpmLoopsController : ControllerBase
 {
+    /// <summary>Bulk ceiling. The work is one transaction plus a handful of
+    /// batched asset writes, so the bound is request size and gateway timeout,
+    /// not per-row cost.</summary>
+    private const int MaxBulkLoops = 5000;
+
     private readonly ICpmLoopRegistryService _registry;
     private readonly ICplmAuditEmitter _audit;
     private readonly ILogger<CpmLoopsController> _logger;
@@ -76,11 +81,69 @@ public sealed class CpmLoopsController : ControllerBase
             // 422: the request is well-formed JSON but not a viable loop definition.
             return UnprocessableEntity(new { error = "REGISTRY_VALIDATION", message = ex.Message });
         }
+        catch (LoopIdCollisionException ex)
+        {
+            // 409: the id cannot coexist with a registered loop - either the same id
+            // in a different casing, or one that sanitises to the same historian device.
+            return Conflict(new { error = ex.Code, message = ex.Message });
+        }
         catch (InvalidOperationException ex)
         {
-            // P3-9 - 409: the loop id collides case-insensitively with an existing loop.
             return Conflict(new { error = "LOOP_ID_CASE_COLLISION", message = ex.Message });
         }
+    }
+
+    /// <summary>
+    /// Onboard a batch of loops in one request. Returns a per-row outcome, so a
+    /// bad row fails alone; the whole call is ONE gateway mutation, which is what
+    /// keeps a large import from hitting the per-minute mutation window.
+    /// </summary>
+    [HttpPost("bulk-activate")]
+    [Authorize(Policy = "cpm.manage")]
+    public async Task<IActionResult> BulkActivate([FromBody] CpmBulkActivateRequest request, CancellationToken ct)
+    {
+        var loops = request?.Loops;
+        if (loops is null || loops.Count == 0)
+            return UnprocessableEntity(new { error = "REGISTRY_VALIDATION", message = "loops[] is required" });
+        if (loops.Count > MaxBulkLoops)
+            return UnprocessableEntity(new
+            {
+                error = "BULK_TOO_LARGE",
+                message = $"{loops.Count} loops exceeds the {MaxBulkLoops}-per-request limit; split the import.",
+            });
+
+        var result = await _registry.BulkActivateAsync(loops, ct);
+        _logger.LogInformation("Bulk activate: {Activated} activated, {Failed} failed in {Ms} ms",
+            result.Activated, result.Failed, result.ElapsedMs);
+        _audit.Emit("CPM_LOOPS_BULK_ACTIVATED", Actor(), "CpmLoop", $"bulk:{result.Activated}",
+            new { result.Requested, result.Activated, result.Failed, result.ElapsedMs });
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Retire a batch of loops in one request. Also releases the UNS assets each
+    /// loop projected — the per-loop DELETE used to leave them orphaned.
+    /// </summary>
+    [HttpPost("bulk-delete")]
+    [Authorize(Policy = "cpm.manage")]
+    public async Task<IActionResult> BulkDelete([FromBody] CpmBulkDeleteRequest request, CancellationToken ct)
+    {
+        var ids = request?.LoopIds;
+        if (ids is null || ids.Count == 0)
+            return UnprocessableEntity(new { error = "REGISTRY_VALIDATION", message = "loopIds[] is required" });
+        if (ids.Count > MaxBulkLoops)
+            return UnprocessableEntity(new
+            {
+                error = "BULK_TOO_LARGE",
+                message = $"{ids.Count} loops exceeds the {MaxBulkLoops}-per-request limit; split the batch.",
+            });
+
+        var result = await _registry.BulkDeleteAsync(ids, ct);
+        _logger.LogInformation("Bulk retire: {Deleted}/{Requested} in {Ms} ms",
+            result.Deleted, result.Requested, result.ElapsedMs);
+        _audit.Emit("CPM_LOOPS_BULK_RETIRED", Actor(), "CpmLoop", $"bulk:{result.Deleted}",
+            new { result.Requested, result.Deleted, result.AssetsReleased, notFound = result.NotFound.Count });
+        return Ok(result);
     }
 
     /// <summary>

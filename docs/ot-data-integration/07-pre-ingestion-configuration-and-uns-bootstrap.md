@@ -89,7 +89,7 @@ The loop case is the same idea with one extra hop: `45FIC109.PV` → `loop_tag_m
 
 ```mermaid
 flowchart TD
-    S0["0 · Naming design (half a day, on paper)<br/>site/unit/device names, lowercase snake_case,<br/>loop-id charset [A-Za-z0-9_] — no dashes/dots"]
+    S0["0 · Naming design (half a day, on paper)<br/>site/unit/device names, lowercase snake_case,<br/>loop ids = the plant's own tags (45FIC-109 is fine);<br/>just avoid two tags differing only in punctuation"]
     S1["1 · Seed the hierarchy (small + stable)<br/>Site → Unit → Device asset rows, device templates"]
     S2["2 · Display/trend tags (can be discovery-driven)<br/>Measurement assets (EU, ranges) + alias rows"]
     S3["3 · BULK-IMPORT LOOPS (script/CSV → activate API)<br/>loop_id, type, criticality, role→UNS path, sourceTag=OT tag<br/>→ activation auto-projects the signal assets"]

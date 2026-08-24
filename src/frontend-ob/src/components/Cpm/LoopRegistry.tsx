@@ -18,10 +18,16 @@ import {
   useActivateLoop, useCpmLoops, useCpmReadiness, useCpmRegistryContract,
   useCpmResolutions, useRepublishEvidence,
 } from '../../hooks/useCpm';
-import { activateLoop as activateLoopApi } from '../../api/cpmApi';
+import { bulkActivateLoops } from '../../api/cpmApi';
+import { ApiError } from '../../api/apiFetch';
 import type { CpmActivateRequest, CpmLoop, CpmTagMapEntry } from '../../api/cpmApi';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
+import {
+  PlantLocationPicker, SIGNAL_ROLES, areasOf, deriveSignalPath, historianNode,
+  isResolvablePath, loopIdProblem, unitsOf, usePlantLocations,
+} from './plantLocation';
+import type { PlantLocation, SignalRole } from './plantLocation';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -259,6 +265,27 @@ interface WizardState {
   thresholdProfileId: string; enableMonitoring: boolean;
 }
 
+/**
+ * Signal paths follow site/[area/]unit/<loopid>.<role>, so they are a pure
+ * function of the location + loop tag. Re-derive any path the user has not
+ * hand-edited (empty, or still equal to what the previous inputs derived) —
+ * that is what stops five long paths being retyped per loop, and stops the
+ * dotted IoTDB form being copied out of a placeholder. VP is opt-in: it is only
+ * refreshed once it holds a value, since most loops have no position feedback.
+ */
+function withDerivedPaths(prev: WizardState, next: WizardState): WizardState {
+  const prevLoc: PlantLocation = { site: prev.site, area: prev.area, unit: prev.unit };
+  const nextLoc: PlantLocation = { site: next.site, area: next.area, unit: next.unit };
+  const out = { ...next };
+  for (const role of SIGNAL_ROLES) {
+    const current = (prev[role] ?? '').trim();
+    if (role === 'vp' && current === '') continue;
+    if (current === '' || current === deriveSignalPath(prevLoc, prev.loopId, role))
+      out[role] = deriveSignalPath(nextLoc, next.loopId, role);
+  }
+  return out;
+}
+
 const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; onClose: () => void }> = ({ existing, editLoop, onClose }) => {
   const dialogRef = useDialogA11y<HTMLDivElement>(onClose);
   const contract = useCpmRegistryContract();
@@ -306,13 +333,27 @@ const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; onClose
   const readiness = useCpmReadiness(savedLoopId ?? undefined);
 
   const set = (k: keyof WizardState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setForm(f => ({ ...f, [k]: k === 'loopId' ? e.target.value.toUpperCase() : e.target.value }));
+    setForm(f => {
+      const next = { ...f, [k]: k === 'loopId' ? e.target.value.toUpperCase() : e.target.value };
+      return k === 'loopId' ? withDerivedPaths(f, next) : next;
+    });
+
+  const setLocation = (loc: PlantLocation) =>
+    setForm(f => withDerivedPaths(f, { ...f, ...loc }));
 
   // In edit mode the loopId is fixed (it's the identity we're updating), so it is
   // never a "duplicate" of itself.
   const duplicate = !isEdit && existing.some(l => l.loopId.toUpperCase() === form.loopId.toUpperCase());
-  const identityValid = form.loopId.trim() !== '' && form.displayName.trim() !== ''
-    && form.site.trim() !== '' && !duplicate;
+  // Plant tags keep their punctuation (45FIC-109); only characters that break a
+  // URL segment or a job argument are refused — mirrors the server.
+  const loopIdIssue = loopIdProblem(form.loopId);
+  // The real hazard behind the old charset ban: two ids differing only in
+  // punctuation sanitise to ONE historian device and merge their PV/SP/OP.
+  const nodeClash = !isEdit && form.loopId.trim() !== '' && !duplicate
+    ? existing.find(l => historianNode(l.loopId) === historianNode(form.loopId))?.loopId ?? null
+    : null;
+  const identityValid = form.loopId.trim() !== '' && !loopIdIssue && !nodeClash
+    && form.displayName.trim() !== '' && form.site.trim() !== '' && !duplicate;
   const signalsValid = !form.enableMonitoring
     || (form.pv.trim() !== '' && form.sp.trim() !== '' && form.op.trim() !== '' && form.mode.trim() !== '');
   const canContinue = step === 0 ? identityValid : step === 2 ? signalsValid : true;
@@ -365,21 +406,25 @@ const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; onClose
           <div className="cpm-wizard-grid">
             <label className="cpm-field">
               <span className="cpm-field__label">Loop tag *</span>
-              <input className={`cpm-input${duplicate ? ' cpm-input--error' : ''}`} value={form.loopId} onChange={set('loopId')} placeholder="FIC-10409" disabled={isEdit} title={isEdit ? 'Loop ID is the identity and cannot be changed' : undefined} />
+              <input className={`cpm-input${duplicate || loopIdIssue || nodeClash ? ' cpm-input--error' : ''}`} value={form.loopId} onChange={set('loopId')} placeholder="45FIC-109" disabled={isEdit} title={isEdit ? 'Loop ID is the identity and cannot be changed' : undefined} />
               {duplicate && <span className="cpm-field__error">This tag already exists</span>}
+              {loopIdIssue && <span className="cpm-field__error">{loopIdIssue}</span>}
+              {nodeClash && (
+                <span className="cpm-field__error">
+                  Collides with “{nodeClash}” in the historian — both become device{' '}
+                  <span className="cpm-mono">{historianNode(form.loopId)}</span>, so their trends
+                  would merge. Use an id that differs by more than punctuation.
+                </span>
+              )}
             </label>
             <label className="cpm-field">
               <span className="cpm-field__label">Service / description *</span>
               <input className="cpm-input" value={form.displayName} onChange={set('displayName')} placeholder="Natural gas feed flow" />
             </label>
-            <label className="cpm-field">
-              <span className="cpm-field__label">Site *</span>
-              <input className="cpm-input" value={form.site} onChange={set('site')} />
-            </label>
-            <label className="cpm-field">
-              <span className="cpm-field__label">Area / unit</span>
-              <input className="cpm-input" value={form.area} onChange={set('area')} placeholder="Primary reformer" />
-            </label>
+            <PlantLocationPicker
+              value={{ site: form.site, area: form.area, unit: form.unit }}
+              onChange={setLocation}
+            />
             <label className="cpm-field">
               <span className="cpm-field__label">Loop type *</span>
               <select className="cpm-select" value={form.loopType} onChange={set('loopType')}>
@@ -412,16 +457,38 @@ const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; onClose
 
         {step === 2 && (
           <>
+            <p className="cpm-copy" style={{ marginBottom: 12 }}>
+              Derived from the location and loop tag as
+              <code> site/[area/]unit/&lt;loop&gt;.&lt;role&gt;</code> — edit any path to override it.
+            </p>
             <div className="cpm-wizard-grid">
               {([['pv', 'PV · Process variable *'], ['sp', 'SP · Setpoint *'],
                  ['op', 'OP · Controller output *'], ['mode', 'MODE · Controller mode *'],
-                 ['vp', 'VP · Valve position · optional']] as const).map(([k, label]) => (
-                <label key={k} className="cpm-field">
-                  <span className="cpm-field__label">{label}</span>
-                  <input className="cpm-input" value={form[k]} onChange={set(k)}
-                    placeholder={`root.${form.site || 'site1'}.unit1.${form.loopId || 'LOOP'}.${k.toLowerCase()}`} />
-                </label>
-              ))}
+                 ['vp', 'VP · Valve position · optional']] as const).map(([k, label]) => {
+                const derived = deriveSignalPath(
+                  { site: form.site, area: form.area, unit: form.unit }, form.loopId, k);
+                const shaped = form[k].trim() === '' || isResolvablePath(form[k]);
+                return (
+                  <label key={k} className="cpm-field">
+                    <span className="cpm-field__label">{label}</span>
+                    <input className={`cpm-input cpm-mono${shaped ? '' : ' cpm-input--error'}`}
+                      value={form[k]} onChange={set(k)} placeholder={derived || 'site/unit/loop.role'} />
+                    {!shaped && (
+                      <span className="cpm-field__error">
+                        Not a UNS contextual path. Use slashes (site/unit/loop.{k}), not the dotted
+                        root.… historian form — the binding resolver cannot resolve it.
+                      </span>
+                    )}
+                    {k === 'vp' && form.vp.trim() === '' && derived && (
+                      <button type="button" className="cpm-pill cpm-pill--muted"
+                        style={{ cursor: 'pointer', marginTop: 4, alignSelf: 'flex-start' }}
+                        onClick={() => setForm(f => ({ ...f, vp: derived }))}>
+                        + add VP as {derived}
+                      </button>
+                    )}
+                  </label>
+                );
+              })}
             </div>
             <p className="cpm-copy" style={{ marginTop: 12 }}>
               Paths resolve through the binding resolver; the readiness report flags any
@@ -511,13 +578,42 @@ const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; onClose
 // ── bulk CSV import ────────────────────────────────────────────────────────
 
 const CSV_HEADERS = [
-  'tag', 'service', 'site', 'area', 'loop_type', 'criticality',
+  'tag', 'service', 'site', 'area', 'unit', 'loop_type', 'criticality',
   'pv_tag', 'sp_tag', 'op_tag', 'mode_tag', 'vp_tag', 'profile',
 ] as const;
 
+/**
+ * Only these columns must be present. The signal-path columns are optional
+ * because a blank one is DERIVED from site/[area/]unit + tag — hand-typing four
+ * long paths per row was the single largest source of import errors, and a
+ * mistyped one silently onboards a loop pointed at nothing.
+ */
+const REQUIRED_COLUMNS = ['tag', 'service', 'site', 'loop_type'] as const;
+
+/** Uploaded-file ceiling — 2 MB is roughly 20 000 rows, far past a sane batch. */
+const MAX_CSV_BYTES = 2 * 1024 * 1024;
+/** Rows rendered in the preview; past this the table itself is the slow part. */
+const PREVIEW_LIMIT = 100;
+/**
+ * Server-side ceiling for one bulk import (cplm-api MaxBulkLoops). The whole file
+ * goes in ONE request, so the gateway's 120-mutations-per-minute window no longer
+ * caps a batch — the bound is request size and the gateway's 120s timeout.
+ */
+const MAX_BULK_LOOPS = 5000;
+
+const ROLE_COLUMN: Record<SignalRole, string> = {
+  pv: 'pv_tag', sp: 'sp_tag', op: 'op_tag', mode: 'mode_tag', vp: 'vp_tag',
+};
+
 interface CsvRow {
   values: Record<string, string>;
+  tag: string;
+  location: PlantLocation;
+  loopType: string;
+  criticality: string;
+  paths: Record<SignalRole, { path: string; derived: boolean }>;
   problems: string[];
+  warnings: string[];
   existing: boolean;
 }
 
@@ -550,29 +646,101 @@ function splitCsvLine(line: string): string[] {
   return cells;
 }
 
-function parseCsv(text: string, existingTags: Set<string>): { missing: string[]; rows: CsvRow[] } {
-  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-  if (lines.length === 0) return { missing: [...CSV_HEADERS], rows: [] };
+type KnownLocations = ReturnType<typeof usePlantLocations>['data'];
+
+/** Non-blocking: a location outside the asset model still onboards, but its
+ *  signal assets land outside the plant hierarchy. Worth seeing before import. */
+function locationWarnings(known: KnownLocations, loc: PlantLocation): string[] {
+  if (!known || known.sites.length === 0 || !loc.site) return [];
+  const sites = known.sites.map(s => s.contextualPath.split('/')[0]);
+  if (!sites.includes(loc.site)) return [`site "${loc.site}" is not in the asset model`];
+  const out: string[] = [];
+  if (loc.area && !areasOf(known.areas, loc.site).includes(loc.area))
+    out.push(`area "${loc.area}" is not under site "${loc.site}"`);
+  if (loc.unit && !unitsOf(known.units, loc.site, loc.area).includes(loc.unit))
+    out.push(`unit "${loc.unit}" is not under ${[loc.site, loc.area].filter(Boolean).join('/')}`);
+  return out;
+}
+
+function parseCsv(
+  text: string, existingLoops: CpmLoop[], known: KnownLocations, loopTypes: string[],
+): { missing: string[]; unknownColumns: string[]; rows: CsvRow[] } {
+  const existingTags = new Set(existingLoops.map(l => l.loopId.toUpperCase()));
+  // Historian device node → the loop that already owns it (see the wizard's
+  // nodeClash): punctuation-only differences merge two loops onto one series.
+  const existingNodes = new Map(existingLoops.map(l => [historianNode(l.loopId), l.loopId]));
+  const seenNodes = new Map<string, string>();
+  // '#' starts a comment line: templates and generated fixtures annotate
+  // themselves, and '#' can never begin a real tag (it is a forbidden character).
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+  if (lines.length === 0) return { missing: [...REQUIRED_COLUMNS], unknownColumns: [], rows: [] };
   const headers = splitCsvLine(lines[0]).map(h => h.toLowerCase());
-  const missing = CSV_HEADERS.filter(h => !headers.includes(h));
+  const missing = REQUIRED_COLUMNS.filter(h => !headers.includes(h));
+  // A misspelled header would otherwise be read as "column absent" and its
+  // values silently dropped.
+  const unknownColumns = headers.filter(h => h && !CSV_HEADERS.includes(h as typeof CSV_HEADERS[number]));
   const seen = new Set<string>();
   const rows: CsvRow[] = lines.slice(1).map(line => {
     const cells = splitCsvLine(line);
     const values: Record<string, string> = {};
-    headers.forEach((h, i) => { values[h] = cells[i] ?? ''; });
+    headers.forEach((h, i) => { values[h] = (cells[i] ?? '').trim(); });
     const problems: string[] = [];
+    const warnings: string[] = [];
     // A mis-shaped row means every cell after the fault is in the wrong column —
     // never let it through on the strength of accidentally-non-empty cells.
     if (cells.length !== headers.length)
       problems.push(`${cells.length} cell(s) for ${headers.length} column(s) — quote any value containing a comma`);
+
     const tag = (values['tag'] ?? '').toUpperCase();
-    for (const req of ['tag', 'service', 'site', 'loop_type', 'pv_tag', 'sp_tag', 'op_tag', 'mode_tag'])
-      if (!values[req]) problems.push(`missing ${req}`);
-    if (tag && seen.has(tag)) problems.push('duplicate tag in file');
+    for (const req of REQUIRED_COLUMNS) if (!values[req]) problems.push(`missing ${req}`);
+    const idIssue = loopIdProblem(tag);
+    if (idIssue) problems.push(`loop tag "${tag}": ${idIssue}`);
+    const isDuplicate = !!tag && seen.has(tag);
+    if (isDuplicate) problems.push('duplicate tag in file');
     seen.add(tag);
-    return { values, problems, existing: existingTags.has(tag) };
+    // A duplicate necessarily collides with itself in the historian; reporting
+    // both would just be noise on the same row.
+    if (tag && !idIssue && !isDuplicate) {
+      const node = historianNode(tag);
+      const priorInFile = seenNodes.get(node);
+      const priorInRegistry = existingNodes.get(node);
+      if (priorInFile)
+        problems.push(`historian collision with "${priorInFile}" in this file — both become device ${node}`);
+      else if (priorInRegistry && priorInRegistry.toUpperCase() !== tag)
+        problems.push(`historian collision with registered loop "${priorInRegistry}" — both become device ${node}`);
+      seenNodes.set(node, tag);
+    }
+
+    const loopType = (values['loop_type'] ?? '').toUpperCase();
+    if (loopType && loopTypes.length && !loopTypes.includes(loopType))
+      problems.push(`loop_type "${loopType}" is not one of ${loopTypes.join(', ')}`);
+    // The server only accepts lowercase criticality; normalising is unambiguous
+    // so it is fixed rather than rejected.
+    const criticality = (values['criticality'] ?? '').toLowerCase();
+    if (criticality && !['low', 'medium', 'high', 'critical'].includes(criticality))
+      problems.push(`criticality "${values['criticality']}" must be low, medium, high or critical`);
+
+    const location: PlantLocation = {
+      site: values['site'] ?? '', area: values['area'] ?? '', unit: values['unit'] ?? '',
+    };
+    warnings.push(...locationWarnings(known, location));
+
+    const paths = {} as CsvRow['paths'];
+    for (const role of SIGNAL_ROLES) {
+      const given = values[ROLE_COLUMN[role]] ?? '';
+      if (given && !isResolvablePath(given))
+        problems.push(`${ROLE_COLUMN[role]} "${given}" is not a UNS contextual path (site/[area/]unit/loop.${role})`);
+      // VP is opt-in — deriving it for every loop would map a position signal
+      // most loops do not have.
+      const path = given || (role === 'vp' ? '' : deriveSignalPath(location, tag, role));
+      if (!path && role !== 'vp') problems.push(`cannot derive ${role} path — give ${ROLE_COLUMN[role]} or a site`);
+      paths[role] = { path, derived: !given && !!path };
+    }
+    if (Object.values(paths).some(p => p.derived)) warnings.push('signal paths derived from location');
+
+    return { values, tag, location, loopType, criticality, paths, problems, warnings, existing: existingTags.has(tag) };
   });
-  return { missing, rows };
+  return { missing, unknownColumns, rows };
 }
 
 const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => void }> = ({ existing, onClose }) => {
@@ -583,15 +751,52 @@ const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => void }> =
   const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(null);
   const qc = useQueryClient();
 
-  const existingTags = useMemo(
-    () => new Set(existing.map(l => l.loopId.toUpperCase())), [existing]);
-  const parsed = useMemo(() => parseCsv(text, existingTags), [text, existingTags]);
+  const [importWarning, setImportWarning] = useState<string | null>(null);
+  const [importStats, setImportStats] = useState<{ activated: number; failed: number; elapsedMs: number } | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const locations = usePlantLocations();
+  const contract = useCpmRegistryContract();
+  const loopTypes = useMemo(() => contract.data?.loopTypes ?? [], [contract.data]);
+
+  /** Read a dropped/chosen file into the textarea, which stays the single source
+   *  of truth so an uploaded file can still be corrected in place. */
+  const loadFile = async (file: File | undefined) => {
+    setFileError(null);
+    if (!file) return;
+    if (!/\.(csv|txt)$/i.test(file.name)) {
+      setFileError(`"${file.name}" is not a .csv file`);
+      return;
+    }
+    if (file.size > MAX_CSV_BYTES) {
+      setFileError(
+        `"${file.name}" is ${(file.size / 1024 / 1024).toFixed(1)} MB — larger than the ${MAX_CSV_BYTES / 1024 / 1024} MB limit. Split it into smaller batches.`);
+      return;
+    }
+    try {
+      const content = await file.text();
+      setText(content);
+      setFileName(file.name);
+      setResults(null);
+    } catch (err) {
+      setFileError(err instanceof Error ? err.message : 'Could not read the file');
+    }
+  };
+
+  const parsed = useMemo(
+    () => parseCsv(text, existing, locations.data, loopTypes),
+    [text, existing, locations.data, loopTypes]);
   const valid = parsed.rows.filter(r => r.problems.length === 0);
 
   const downloadTemplate = () => {
+    // Two rows on purpose: the first leaves the signal columns blank (paths are
+    // derived from site/area/unit + tag), the second overrides them explicitly.
     const sample = [
       CSV_HEADERS.join(','),
-      'FIC-80101,Hydrogen recycle flow,site1,reformer,FIC,high,site1/reformer/FIC-80101.pv,site1/reformer/FIC-80101.sp,site1/reformer/FIC-80101.op,site1/reformer/FIC-80101.mode,,',
+      '45FIC-109,Hydrogen recycle flow,houston,,crude1,FIC,high,,,,,,',
+      'TIC20501,Reactor bed temperature,houston,,crude1,TIC,medium,houston/crude1/tic20501.pv,houston/crude1/tic20501.sp,houston/crude1/tic20501.op,houston/crude1/tic20501.mode,houston/crude1/tic20501.vp,',
     ].join('\n');
     const blob = new Blob([sample], { type: 'text/csv' });
     const a = document.createElement('a');
@@ -602,53 +807,54 @@ const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => void }> =
   };
 
   const runImport = async () => {
-    // H: was N strictly-sequential mutateAsync calls, each invalidating the loops
-    // query while the list behind the modal was mounted → ~2N serial requests and
-    // no progress. Now: bounded concurrency, a live "k of N" counter, and a SINGLE
-    // invalidation at the end (the per-call mutation invalidation is bypassed by
-    // calling the API directly).
+    // ONE request for the whole file. Two reasons it is not N calls: the gateway
+    // counts a mutation per request (120/minute/user), so a per-row import
+    // stalled at 120 loops; and the server can only batch its own reads, writes
+    // and asset projection when it receives the whole set — measured at ~8 ms per
+    // loop for 1000, against ~33 ms row-by-row.
     setImporting(true);
     setResults(null);
+    setImportWarning(null);
+    setImportStats(null);
     setImportProgress({ done: 0, total: valid.length });
-    const outcome: { tag: string; ok: boolean; message?: string }[] = new Array(valid.length);
-    let cursor = 0;
-    let done = 0;
-    const CONCURRENCY = 4;
 
-    const worker = async () => {
-      // Work-stealing: each worker atomically grabs the next row via cursor++ and
-      // stops when the list is exhausted (bounded-concurrency bulk import).
-      for (let idx = cursor++; idx < valid.length; idx = cursor++) {
-        const v = valid[idx].values;
-        const tags: CpmTagMapEntry[] = [];
-        const add = (role: string, key: string) => { if (v[key]) tags.push({ signalRole: role, unsPath: v[key] }); };
-        add('PV', 'pv_tag'); add('SP', 'sp_tag'); add('OP', 'op_tag'); add('MODE', 'mode_tag'); add('VP', 'vp_tag');
-        try {
-          await activateLoopApi({
-            loopId: v['tag'].toUpperCase(),
-            displayName: v['service'],
-            site: v['site'],
-            area: v['area'] || null,
-            loopType: v['loop_type'].toUpperCase(),
-            criticality: v['criticality'] || null,
-            tags,
-            thresholdProfileId: v['profile'] || null,
-            enableMonitoring: true,
-          });
-          outcome[idx] = { tag: v['tag'], ok: true };
-        } catch (err) {
-          outcome[idx] = { tag: v['tag'], ok: false, message: err instanceof Error ? err.message : String(err) };
-        }
-        done++;
-        setImportProgress({ done, total: valid.length });
-      }
-    };
+    const loops = valid.map(row => ({
+      loopId: row.tag,
+      displayName: row.values['service'],
+      site: row.location.site,
+      area: row.location.area || null,
+      unit: row.location.unit || null,
+      loopType: row.loopType,
+      criticality: row.criticality || null,
+      tags: SIGNAL_ROLES
+        .filter(role => row.paths[role].path)
+        .map(role => ({ signalRole: role.toUpperCase(), unsPath: row.paths[role].path })) as CpmTagMapEntry[],
+      thresholdProfileId: row.values['profile'] || null,
+      enableMonitoring: true,
+    }));
 
-    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, valid.length) }, () => worker()));
-    void qc.invalidateQueries({ queryKey: ['cpm', 'loops'] }); // one refresh, not N
-    setResults(outcome);
-    setImportProgress(null);
-    setImporting(false);
+    try {
+      const result = await bulkActivateLoops(loops);
+      setResults(result.results.map(r => ({
+        tag: r.loopId,
+        ok: r.ok,
+        message: r.ok ? undefined : (r.error ?? r.code ?? 'Failed'),
+      })));
+      setImportWarning(result.warning ?? null);
+      setImportStats({ activated: result.activated, failed: result.failed, elapsedMs: result.elapsedMs });
+    } catch (err) {
+      // A whole-batch failure (transport, timeout, 413) is reported against every
+      // row rather than silently leaving the dialog blank.
+      const message = err instanceof ApiError
+        ? `${err.message}${err.status === 413 ? ' — split the file into smaller batches.' : ''}`
+        : err instanceof Error ? err.message : String(err);
+      setResults(valid.map(row => ({ tag: row.tag, ok: false, message })));
+      setImportStats(null);
+    } finally {
+      void qc.invalidateQueries({ queryKey: ['cpm', 'loops'] });
+      setImportProgress(null);
+      setImporting(false);
+    }
   };
 
   return (
@@ -657,30 +863,132 @@ const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => void }> =
         <PanelHead eyebrow="Bulk registry workflow" title="Import loops from CSV"
           right={<ObcButton variant="normal" onClick={downloadTemplate}>Download template</ObcButton>} />
 
+        {/* Upload or paste. A registry export is a file, so making people open it
+            and copy its contents was pure friction — and a truncated paste is a
+            silent partial import. */}
+        <div
+          className={`cpm-csv-drop${dragging ? ' cpm-csv-drop--over' : ''}`}
+          onDragOver={e => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={e => {
+            e.preventDefault();
+            setDragging(false);
+            void loadFile(e.dataTransfer.files?.[0]);
+          }}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv,text/plain"
+            style={{ display: 'none' }}
+            onChange={e => { void loadFile(e.target.files?.[0]); e.target.value = ''; }}
+          />
+          <ObcButton variant="raised" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+            Choose CSV file
+          </ObcButton>
+          <span className="cpm-copy">or drop a .csv here — or paste below</span>
+          {fileName && (
+            <span className="cpm-pill cpm-pill--good" title={fileName}>
+              {fileName} · {parsed.rows.length} row(s)
+            </span>
+          )}
+        </div>
+        {fileError && <p className="cpm-field__error">{fileError}</p>}
+
         <label className="cpm-field" style={{ minWidth: 0 }}>
-          <span className="cpm-field__label">CSV content</span>
+          <span className="cpm-field__label">CSV content{fileName ? ` (loaded from ${fileName}, editable)` : ''}</span>
           <textarea
             className="cpm-textarea cpm-mono"
             rows={8}
             value={text}
-            onChange={e => { setText(e.target.value); setResults(null); }}
+            onChange={e => { setText(e.target.value); setResults(null); setFileName(null); }}
             placeholder={CSV_HEADERS.join(',')}
           />
         </label>
 
+        <p className="cpm-copy">
+          Required columns: <span className="cpm-mono">{REQUIRED_COLUMNS.join(', ')}</span>. Leave the
+          signal columns blank to derive <span className="cpm-mono">site/[area/]unit/&lt;tag&gt;.&lt;role&gt;</span> —
+          VP is only mapped when given explicitly.
+        </p>
+
         {text && parsed.missing.length > 0 && (
           <p className="cpm-field__error">Missing required columns: {parsed.missing.join(', ')}</p>
         )}
+        {text && parsed.unknownColumns.length > 0 && (
+          <p className="cpm-field__error">
+            Unrecognised column(s): {parsed.unknownColumns.join(', ')} — values in them are ignored.
+          </p>
+        )}
 
         {text && parsed.missing.length === 0 && (
-          <div className="cpm-csv-summary">
-            <KpiSummary caption="Rows detected" value={parsed.rows.length} />
-            <KpiSummary caption="Ready" value={valid.length} tone="good" />
-            <KpiSummary caption="Need correction" value={parsed.rows.length - valid.length}
-              tone={parsed.rows.length - valid.length > 0 ? 'bad' : 'good'} />
-            <KpiSummary caption="Existing (will update)" value={parsed.rows.filter(r => r.existing).length} tone="warn" />
-          </div>
+          <>
+            <div className="cpm-csv-summary">
+              <KpiSummary caption="Rows detected" value={parsed.rows.length} />
+              <KpiSummary caption="Ready" value={valid.length} tone="good" />
+              <KpiSummary caption="Need correction" value={parsed.rows.length - valid.length}
+                tone={parsed.rows.length - valid.length > 0 ? 'bad' : 'good'} />
+              <KpiSummary caption="Existing (will update)" value={parsed.rows.filter(r => r.existing).length} tone="warn" />
+            </div>
+
+            {valid.length > MAX_BULK_LOOPS && (
+              <p className="cpm-field__error">
+                {valid.length} rows exceeds the {MAX_BULK_LOOPS.toLocaleString()}-per-import limit —
+                split the file.
+              </p>
+            )}
+
+            {/* Preview what WILL be sent — derived paths included — so a wrong
+                location is caught here rather than after N loops are activated. */}
+            <div className="cpm-csv-preview">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Loop</th><th>Location</th><th>Type</th><th>PV / SP / OP / MODE / VP</th><th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {parsed.rows.slice(0, PREVIEW_LIMIT).map((r, i) => (
+                    <tr key={`${r.tag}-${i}`} className={r.problems.length ? 'is-bad' : undefined}>
+                      <td className="cpm-mono">{r.tag || '—'}</td>
+                      <td>{[r.location.site, r.location.area, r.location.unit].filter(Boolean).join(' / ') || '—'}</td>
+                      <td>{r.loopType || '—'}</td>
+                      <td className="cpm-mono">
+                        {SIGNAL_ROLES.map(role => r.paths[role].path).filter(Boolean).join('  ·  ') || '—'}
+                      </td>
+                      <td>
+                        {r.problems.length > 0
+                          ? <TonePill tone="bad">{r.problems.join('; ')}</TonePill>
+                          : <TonePill tone={r.existing ? 'warn' : 'good'}>
+                              {r.existing ? 'Updates existing' : 'Ready'}
+                            </TonePill>}
+                        {r.problems.length === 0 && r.warnings.length > 0 && (
+                          <div className="cpm-copy cpm-tone-warn">{r.warnings.join('; ')}</div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {parsed.rows.length > PREVIEW_LIMIT && (
+                    <tr>
+                      <td colSpan={5} className="cpm-copy">
+                        … and {parsed.rows.length - PREVIEW_LIMIT} more row(s) not shown. All rows are
+                        still validated and imported — the counters above cover the whole file.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
+
+        {importStats && (
+          <p className="cpm-copy">
+            {importStats.activated} activated{importStats.failed > 0 ? `, ${importStats.failed} failed` : ''} in{' '}
+            {(importStats.elapsedMs / 1000).toFixed(1)}s.
+          </p>
+        )}
+        {importWarning && <p className="cpm-field__error">{importWarning}</p>}
 
         {results && (
           <div style={{ margin: '8px 0' }}>
@@ -700,7 +1008,9 @@ const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => void }> =
             disabled={valid.length === 0 || parsed.missing.length > 0 || importing}
             onClick={runImport}
           >
-            {importing ? `Importing… ${importProgress?.done ?? 0} of ${importProgress?.total ?? valid.length}` : 'Import & activate'}
+            {importing
+              ? `Importing ${importProgress?.total ?? valid.length} loop(s)…`
+              : 'Import & activate'}
           </ObcButton>
         </div>
       </div>

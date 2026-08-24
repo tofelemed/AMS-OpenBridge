@@ -197,7 +197,7 @@ Rules: steady 5 s grid per loop (forward-fill on-change signals into every tick)
 ### 3.3 Prerequisites on the platform side (order matters — doc 02 §3)
 
 1. The loop exists in the **CPM Loop Registry** (`/cpm/registry` or `POST /api/v1/cpm/loops/activate`) with PV/SP/OP/MODE role→UNS-path mappings — populate `sourceTag` with the OT tag names so ingestion can join without a second lookup.
-2. Loop ids on MQTT must match registry ids exactly (registry ids are `[A-Za-z][A-Za-z0-9_]*` — no dashes/dots, so agree the naming before the gateway hardcodes topics).
+2. Loop ids on MQTT must match registry ids exactly. Registry ids keep the plant's own tag (`45FIC-109` is fine); the only naming rule is that no two loops may differ solely in punctuation — the historian sanitises `-`, `.` and space to `_`, so `45FIC-109` and `45FIC.109` would share one device (the registry rejects the second with 409).
 3. First verdicts appear only after ≥ 12 h of continuous samples per loop — pilot 2–3 loops end-to-end before bulk onboarding.
 
 ---

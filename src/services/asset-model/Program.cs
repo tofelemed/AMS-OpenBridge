@@ -191,6 +191,154 @@ app.MapPost("/assets", async (CreateAssetRequest request, AssetDbContext db, ICo
     return Results.Created($"/assets/{asset.Id}", AssetDto.From(asset));
 }).RequireAuthorization("asset.edit");
 
+// ── POST /assets/by-paths ────────────────────────────────────────────────────
+// Batch form of GET /assets/by-path. Callers that resolve many paths at once
+// (the CPLM signal projection resolves five per loop) were making one request
+// per path; this answers all of them in a single query. Missing paths are simply
+// absent from the response, mirroring by-path's "absence is normal" contract.
+app.MapPost("/assets/by-paths", async (BatchPathRequest request, AssetDbContext db) =>
+{
+    var paths = (request.Paths ?? Array.Empty<string>())
+        .Where(p => !string.IsNullOrWhiteSpace(p))
+        .Distinct(StringComparer.Ordinal)
+        .ToArray();
+    if (paths.Length == 0) return Results.Ok(Array.Empty<AssetDto>());
+    if (paths.Length > 2000)
+        return Results.BadRequest("Maximum 2000 paths per request");
+
+    var found = await db.Assets
+        .Where(a => paths.Contains(a.ContextualPath) && !a.IsDeleted)
+        .ToListAsync();
+    return Results.Ok(found.Select(AssetDto.From));
+}).RequireAuthorization("asset.view");
+
+// ── POST /assets/bulk ────────────────────────────────────────────────────────
+// Creates and/or patches many assets in ONE round trip and ONE SaveChanges.
+// Per-item POST/PUT stays the norm for interactive edits; this exists for
+// machine callers doing set-at-a-time work, where the round trips dominate.
+// Partial success is deliberate: an item that collides is reported, the rest
+// still land, because a bulk import must not be all-or-nothing on one bad row.
+app.MapPost("/assets/bulk", async (BulkAssetRequest request, AssetDbContext db, IConnectionMultiplexer redis) =>
+{
+    var creates = request.Creates ?? Array.Empty<CreateAssetRequest>();
+    var updates = request.Updates ?? Array.Empty<BulkAssetUpdate>();
+    var deletes = request.Deletes ?? Array.Empty<Guid>();
+    if (creates.Count + updates.Count + deletes.Count > 5000)
+        return Results.BadRequest("Maximum 5000 assets per bulk request");
+
+    var errors = new List<object>();
+    var createdAssets = new List<Asset>();
+
+    if (creates.Count > 0)
+    {
+        var wanted = creates
+            .Where(c => !string.IsNullOrWhiteSpace(c.ContextualPath))
+            .Select(c => c.ContextualPath)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        // One existence check for the whole batch instead of one per asset.
+        var taken = (await db.Assets
+                .Where(a => wanted.Contains(a.ContextualPath) && !a.IsDeleted)
+                .Select(a => a.ContextualPath)
+                .ToListAsync())
+            .ToHashSet(StringComparer.Ordinal);
+
+        foreach (var c in creates)
+        {
+            if (string.IsNullOrWhiteSpace(c.ContextualPath))
+            {
+                errors.Add(new { path = c.ContextualPath, error = "contextualPath is required" });
+                continue;
+            }
+            if (!taken.Add(c.ContextualPath))
+            {
+                errors.Add(new { path = c.ContextualPath, error = "already exists" });
+                continue;
+            }
+            createdAssets.Add(new Asset
+            {
+                Id = Guid.NewGuid(),
+                ContextualPath = c.ContextualPath,
+                Name = c.Name ?? c.ContextualPath.Split('/')[^1],
+                Type = c.Type,
+                Description = c.Description,
+                EngineeringUnit = c.EngineeringUnit,
+                LoEngLimit = c.LoEngLimit,
+                HiEngLimit = c.HiEngLimit,
+                Template = c.Template,
+                ParentId = c.ParentId,
+                IoTDbPathOverride = NormalizeOverride(c.IoTDbPathOverride),
+                SparkplugGroupOverride = NormalizeOverride(c.SparkplugGroupOverride),
+                SparkplugEdgeNodeOverride = NormalizeOverride(c.SparkplugEdgeNodeOverride),
+                SparkplugDeviceOverride = NormalizeOverride(c.SparkplugDeviceOverride),
+                SparkplugMetricOverride = NormalizeOverride(c.SparkplugMetricOverride),
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            });
+        }
+        if (createdAssets.Count > 0) db.Assets.AddRange(createdAssets);
+    }
+
+    var updatedAssets = new List<Asset>();
+    if (updates.Count > 0)
+    {
+        var ids = updates.Select(u => u.Id).Distinct().ToArray();
+        var byId = (await db.Assets.Where(a => ids.Contains(a.Id) && !a.IsDeleted).ToListAsync())
+            .ToDictionary(a => a.Id);
+        foreach (var u in updates)
+        {
+            if (!byId.TryGetValue(u.Id, out var asset))
+            {
+                errors.Add(new { id = u.Id, error = "not found" });
+                continue;
+            }
+            // PATCH semantics, matching PUT /assets/{id}: null leaves the column
+            // untouched, "" clears an override back to the derived value.
+            if (u.Name is not null) asset.Name = u.Name;
+            if (u.Description is not null) asset.Description = u.Description;
+            if (u.Template is not null) asset.Template = u.Template;
+            if (u.IoTDbPathOverride is not null) asset.IoTDbPathOverride = NormalizeOverride(u.IoTDbPathOverride);
+            if (u.SparkplugGroupOverride is not null) asset.SparkplugGroupOverride = NormalizeOverride(u.SparkplugGroupOverride);
+            if (u.SparkplugEdgeNodeOverride is not null) asset.SparkplugEdgeNodeOverride = NormalizeOverride(u.SparkplugEdgeNodeOverride);
+            if (u.SparkplugDeviceOverride is not null) asset.SparkplugDeviceOverride = NormalizeOverride(u.SparkplugDeviceOverride);
+            if (u.SparkplugMetricOverride is not null) asset.SparkplugMetricOverride = NormalizeOverride(u.SparkplugMetricOverride);
+            asset.UpdatedAt = DateTimeOffset.UtcNow;
+            updatedAssets.Add(asset);
+        }
+    }
+
+    // Soft delete, same as DELETE /assets/{id} — an id that is already gone is
+    // not an error, so a retry of a partly-applied batch stays idempotent.
+    var deletedAssets = new List<Asset>();
+    if (deletes.Count > 0)
+    {
+        var ids = deletes.Distinct().ToArray();
+        var live = await db.Assets.Where(a => ids.Contains(a.Id) && !a.IsDeleted).ToListAsync();
+        foreach (var asset in live)
+        {
+            asset.IsDeleted = true;
+            asset.UpdatedAt = DateTimeOffset.UtcNow;
+            deletedAssets.Add(asset);
+        }
+    }
+
+    await db.SaveChangesAsync();
+
+    // Cache invalidation still has to reach every subscriber, but the publishes
+    // are fire-and-forget and no longer gate the write.
+    foreach (var a in createdAssets) await PublishAssetEvent(redis, "asset.created", a);
+    foreach (var a in updatedAssets) await PublishAssetEvent(redis, "asset.updated", a);
+    foreach (var a in deletedAssets) await PublishAssetEvent(redis, "asset.deleted", a);
+
+    return Results.Ok(new
+    {
+        created = createdAssets.Select(a => AssetDto.From(a)),
+        updated = updatedAssets.Count,
+        deleted = deletedAssets.Count,
+        errors,
+    });
+}).RequireAuthorization("asset.edit");
+
 // ── PUT /assets/{id} ─────────────────────────────────────────────────────────
 app.MapPut("/assets/{id:guid}", async (Guid id, UpdateAssetRequest request, AssetDbContext db, IConnectionMultiplexer redis) =>
 {
@@ -527,6 +675,27 @@ record AssetDto(
         a.IoTDbPath, a.SparkplugGroup, a.SparkplugEdgeNode, a.SparkplugDevice,
         a.SparkplugMetric, a.SparkplugTopic, a.AlarmSource, a.RedisSnapshotKey);
 }
+
+/// <summary>Batch path resolution — see POST /assets/by-paths.</summary>
+record BatchPathRequest(IReadOnlyList<string>? Paths);
+
+/// <summary>One PATCH in a bulk write: null leaves a column untouched.</summary>
+record BulkAssetUpdate(
+    Guid Id,
+    string? Name = null,
+    string? Description = null,
+    string? Template = null,
+    string? IoTDbPathOverride = null,
+    string? SparkplugGroupOverride = null,
+    string? SparkplugEdgeNodeOverride = null,
+    string? SparkplugDeviceOverride = null,
+    string? SparkplugMetricOverride = null);
+
+record BulkAssetRequest(
+    IReadOnlyList<CreateAssetRequest>? Creates,
+    IReadOnlyList<BulkAssetUpdate>? Updates,
+    /// <summary>Soft-deleted, like DELETE /assets/{id}.</summary>
+    IReadOnlyList<Guid>? Deletes = null);
 
 record CreateAssetRequest(
     string ContextualPath,

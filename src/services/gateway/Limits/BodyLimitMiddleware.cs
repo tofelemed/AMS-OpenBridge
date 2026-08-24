@@ -2,6 +2,7 @@
 //
 //   ACK endpoints ......... 4 KB   (an acknowledge carries an id + comment, nothing more)
 //   display JSON .......... 2 MB   (full display definitions are large but bounded)
+//   bulk imports .......... 8 MB   (a whole loop-registry batch in one request)
 //   default ............... 256 KB
 //
 // Enforced two ways: Content-Length is rejected up front with 413, and the per-request
@@ -18,6 +19,7 @@ public sealed class BodyLimitMiddleware
     private readonly long _defaultBytes;
     private readonly long _ackBytes;
     private readonly long _displayBytes;
+    private readonly long _bulkBytes;
 
     public BodyLimitMiddleware(RequestDelegate next, IConfiguration config)
     {
@@ -26,6 +28,7 @@ public sealed class BodyLimitMiddleware
         _defaultBytes = config.GetValue("BodyLimits:DefaultBytes", 262_144L);
         _ackBytes     = config.GetValue("BodyLimits:AckBytes", 4_096L);
         _displayBytes = config.GetValue("BodyLimits:DisplayBytes", 2_097_152L);
+        _bulkBytes    = config.GetValue("BodyLimits:BulkImportBytes", 8_388_608L);
     }
 
     public async Task InvokeAsync(HttpContext ctx)
@@ -45,6 +48,13 @@ public sealed class BodyLimitMiddleware
             limit = _ackBytes;
         else if (path.StartsWithSegments("/api/displays"))
             limit = _displayBytes;
+        // Bulk onboarding sends the whole batch in one body ON PURPOSE — that is
+        // what makes it one mutation instead of N. The 256 KB default rejected
+        // ~200 loops, so these routes carry their own (still bounded) cap.
+        else if (path.Value!.EndsWith("/bulk-activate", StringComparison.OrdinalIgnoreCase)
+                 || path.Value!.EndsWith("/assets/bulk", StringComparison.OrdinalIgnoreCase)
+                 || path.Value!.EndsWith("/assets/by-paths", StringComparison.OrdinalIgnoreCase))
+            limit = _bulkBytes;
         else
             limit = _defaultBytes;
 
