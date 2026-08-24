@@ -74,6 +74,13 @@ Legend: `[ ]` todo · `[x]` done · `[~]` in progress · `[-]` deferred (with re
 - [x] E.2 **Playwright UI E2E** ([scripts/validation/ui-hierarchy-smoke.mjs](scripts/validation/ui-hierarchy-smoke.mjs), chromium, against :3000): login → Plant Model tree renders HDPE → expand loads Sections → search finds units → Tag Aliases renders 59 rows → Loop Registry wizard cascade site→area→unit — **9/9, two consecutive runs**; only pre-existing noise (pre-login `/api/auth/refresh` 401, navigation-aborted SignalR negotiate) observed, whitelisted with rationale
 - [x] E.3 API regression on final images: grammar 400 ✓, bogus location 422 ✓, 2× activate→parented-signals→retire cycles ✓, 0 DbUpdateExceptions, 0 Polly retries
 
+## Round 3 — handoff tooling (2026-08-24)
+- [x] T.1 Feature committed (`hierarchy: HDPE Plant→Area→Unit tree live end-to-end`); PlantModelConfig split into Config+Import files per the new 400–500-line rule (CLAUDE.md)
+- [x] T.2 Handoff docs + templates: [docs/plant-model/README.md](docs/plant-model/README.md), [hdpe-tag-import-template.csv](docs/plant-model/hdpe-tag-import-template.csv), [hdpe-loop-worksheet-template.csv](docs/plant-model/hdpe-loop-worksheet-template.csv)
+- [x] T.3 [scripts/import-plant-tags.ps1](scripts/import-plant-tags.ps1) — tags+aliases CSV → gateway; one by-paths probe; hierarchy never auto-created without `-CreateMissingHierarchy`; idempotent re-runs (already-exists = skipped, exit 0); `-DryRun`
+- [x] T.4 [scripts/import-cpm-loops.ps1](scripts/import-cpm-loops.ps1) — loop worksheet → bulk-activate; sets the fields the UI wizard cannot (`sourceTag`, `engineering` op range); derives signal paths by convention; `-WriteSignalAliases`, `-AllowUnmodelledLocation`, `-DryRun`
+- [x] T.5 **Pilot E2E (PowerShell 5.1, live stack)**: tag import 8 assets + 4 aliases → devices/measurements parented, EU/ranges stored, `45FT109.PV` alias-resolves to the asset, binding `provenance: asset-model` with `unit_device` id; re-run idempotent (exit 0); unknown-site row rejected alone (exit 1); loop import 2 loops → registry rows with sourceTags + opMin/opMax, CpmLoop devices + signals under the unit, readiness `ready: true`; retire released all 11 projected assets; pilot data fully cleaned (54 loops / 59 aliases baseline restored)
+
 ## Deferred
 - [-] G-10 asset-scope filtering on reads — separate security workstream (must align with historian-bff `assetScope`)
 - [-] `is_active` lifecycle column — revisit after the purge has run

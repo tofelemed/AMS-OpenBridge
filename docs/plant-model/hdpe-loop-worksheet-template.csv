@@ -1,0 +1,3 @@
+loop_id,display_name,site,area,unit,loop_type,criticality,pv_ot_tag,sp_ot_tag,op_ot_tag,mode_ot_tag,vp_ot_tag,op_min,op_max,enable_monitoring,profile
+45FIC-109,Butene recycle flow,hdpe,section_300,u3005_butene_recovery,FIC,high,45FIC109.PV,45FIC109.SP,45FIC109.OP,45FIC109.MODE,45FIC109.VP,0,100,true,
+45TIC-110,Recovery column overhead temperature,hdpe,section_300,u3005_butene_recovery,TIC,medium,45TIC110.PV,45TIC110.SP,45TIC110.OP,45TIC110.MODE,,0,100,true,

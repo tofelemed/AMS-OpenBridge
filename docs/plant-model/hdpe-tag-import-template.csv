@@ -1,0 +1,6 @@
+site,area,unit,device,measurement,name,description,engineering_unit,range_lo,range_hi,device_template,ot_tag
+hdpe,section_300,u3005_butene_recovery,45ft109,pv,45FT-109 Flow,Butene recycle flow,m3/h,0,250,Transmitter,45FT109.PV
+hdpe,section_300,u3005_butene_recovery,45tt110,pv,45TT-110 Temperature,Recovery column overhead temperature,degC,0,200,Transmitter,45TT110.PV
+hdpe,section_300,u3005_butene_recovery,45pt111,pv,45PT-111 Pressure,Recovery column pressure,barg,0,25,Transmitter,45PT111.PV
+hdpe,section_100,u1001_polymerization_reactor_1,p1001a,,Slurry Feed Pump A,Reactor 1 slurry feed pump,,,,Pump,
+hdpe,section_100,u1001_polymerization_reactor_1,p1001a,speed,Pump Speed,Shaft speed,RPM,0,3600,,P1001A.SPEED
