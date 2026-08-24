@@ -218,16 +218,17 @@ export const ImportDialog: React.FC<{ onClose: (changed: boolean) => void }> = (
         errors.push(...(res.errors ?? []));
       }
       let aliases = 0;
-      if (plan.aliases.length > 0) {
+      // Chunked like the asset creates — /aliases/bulk caps at 5000 per request,
+      // and a big instrument list carries one ot_tag per measurement.
+      const aliasCreates = plan.aliases.map(a => ({ ...a, sourceSystem: 'ot-gateway' }));
+      for (let i = 0; i < aliasCreates.length; i += 2000) {
         const res = await apiJson<{ created: number; errors: { legacyPath?: string; error: string }[] }>(
           `${ALIAS_API}/bulk`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              creates: plan.aliases.map(a => ({ ...a, sourceSystem: 'ot-gateway' })),
-            }),
+            body: JSON.stringify({ creates: aliasCreates.slice(i, i + 2000) }),
           });
-        aliases = res.created;
+        aliases += res.created;
         errors.push(...(res.errors ?? []).map(e => ({ path: e.legacyPath, error: `alias: ${e.error}` })));
       }
       setResult({ created, aliases, errors });

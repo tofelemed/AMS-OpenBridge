@@ -112,13 +112,20 @@ const ImportAliasDialog: React.FC<{ onClose: (changed: boolean) => void }> = ({ 
         toast.error('No importable rows — legacy_path and canonical_path are required.');
         return;
       }
-      const res = await apiJson<{ created: number; errors: { legacyPath?: string; error: string }[] }>(
-        `${ALIAS_API}/bulk`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ creates }),
-        });
-      setResult(res);
+      // Chunked: /aliases/bulk caps at 5000 rows per request.
+      let created = 0;
+      const errors: { legacyPath?: string; error: string }[] = [];
+      for (let i = 0; i < creates.length; i += 2000) {
+        const res = await apiJson<{ created: number; errors: { legacyPath?: string; error: string }[] }>(
+          `${ALIAS_API}/bulk`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ creates: creates.slice(i, i + 2000) }),
+          });
+        created += res.created;
+        errors.push(...(res.errors ?? []));
+      }
+      setResult({ created, errors });
     } catch (e) {
       toast.error(e instanceof ApiError ? (e.detail ?? e.message) : String(e));
     } finally {

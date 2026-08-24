@@ -53,7 +53,8 @@ public sealed class BodyLimitMiddleware
         // ~200 loops, so these routes carry their own (still bounded) cap.
         else if (path.Value!.EndsWith("/bulk-activate", StringComparison.OrdinalIgnoreCase)
                  || path.Value!.EndsWith("/assets/bulk", StringComparison.OrdinalIgnoreCase)
-                 || path.Value!.EndsWith("/assets/by-paths", StringComparison.OrdinalIgnoreCase))
+                 || path.Value!.EndsWith("/assets/by-paths", StringComparison.OrdinalIgnoreCase)
+                 || path.Value!.EndsWith("/aliases/bulk", StringComparison.OrdinalIgnoreCase))
             limit = _bulkBytes;
         else
             limit = _defaultBytes;
