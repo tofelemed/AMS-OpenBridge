@@ -65,43 +65,34 @@ Legend: `[ ]` todo · `[x]` done · `[~]` in progress · `[-]` deferred
 
 ---
 
-## Workstream B — Page structure (stacked sections → sub-pages)
+## Workstream B — Page structure — **REVERTED (owner request, 2026-08-24)**
 
-Also serves the 400–500-line file ceiling (CLAUDE.md).
+Implemented, then reverted in full at the page owner's request: they are
+restructuring these screens one at a time themselves. Everything below is the
+*audit finding*, not work in the tree — the pages render exactly as they did
+before this workstream.
 
-### B1 — Investigation (505 lines, 8 sections) — worst offender
-- [x] B1.1 Case list → selected case → tabs: **Conclusion · Evidence · Reasoning · Hypotheses**
-- [x] B1.2 Tab state in the URL (`?tab=`) so a case view is shareable
-- [~] B1.3 File is 539 lines — over the 400–500 ceiling. The tab split made the
-      structure separable; extracting the four tab bodies into their own file is
-      the follow-up (deliberately not bundled with a behaviour change)
+Reverted: the shared `WorkspaceTabs`/`useWorkspaceTab` primitive and its CSS,
+Investigation's four sub-pages, Historical's two, Explorer's swap to the shared
+tab idiom (its own pre-existing `ObcButton` pills are back), and Overview's
+runtime-panel change. Recoverable from commit `e7f4a27` if any of it is wanted
+as a starting point.
 
-### B2 — Overview (568 lines, 7 sections)
-- [x] B2.1 Keep as the operator dashboard: KPIs + priority queue + highest-impact finding
-- [~] B2.2 Not done. Overview is 571 lines and its focused-loop panels still stack.
-      B2.3 removed the duplication (the real defect); converting the focus panels
-      to a drill-through changes navigation semantics and is worth doing on its own
-- [x] B2.3 Remove the "Live Flink runtime" panel — it duplicates Pipeline; link instead
+**Findings that still stand, for whoever picks each page up:**
 
-### B3 — Explorer detail pane (609 lines)
-- [x] B3.1 **Audit correction — already done.** The detail pane already had five
-      URL-persisted tabs (Summary/Signals/Calculations/Relationships/History);
-      the section eyebrows I read as "stacked" were *inside* those tab
-      components. Only change made: switched its `ObcButton` pills to the shared
-      `WorkspaceTabs` so all three tabbed screens share one idiom
-- [x] B3.2 Tab state in the URL alongside `?loop=` — was already correct
-
-### B4 — Historical (520 lines)
-- [x] B4.1 **Scoped down deliberately:** the trend, mode track and diagnosis bands are
-      aligned on ONE time axis — splitting them would break the comparison they exist
-      for. Two tabs instead: **Trend & diagnosis** / **Window detail**
-- [x] B4.2 Time range controls stay above the tabs
-
-### Unchanged by design
-- [-] Replay — already tabbed
-- [-] Windows, Pipeline, Performance, Calculations, Registry — 2–3 sections, fine
-
----
+- **Investigation** (539 lines, 8 stacked sections) — the strongest case for
+  sub-pages: Conclusion · Evidence · Reasoning & hypotheses · Window browser are
+  sequential steps in one investigation, not things to read at once.
+- **Overview** (571 lines) — its "Live Flink runtime" job tiles **duplicate
+  Pipeline Health**. Two places reporting job state will drift apart; one owner
+  plus a link is the fix. (This duplication is back in the tree after the revert.)
+- **Historical** — the trend, mode track and diagnosis bands are aligned on ONE
+  time axis and should **stay together**; only the window/maintenance detail is a
+  candidate for a sub-page.
+- **Explorer** — already correct: five URL-persisted tabs in the detail pane.
+- Replay, Windows, Pipeline, Performance, Calculations, Registry — 2–3 sections,
+  no change warranted.
+- Both Investigation and Overview exceed the 400–500-line ceiling (CLAUDE.md).
 
 ## Validation
 
@@ -127,7 +118,7 @@ Also serves the 400–500-line file ceiling (CLAUDE.md).
 ### V4 — UI walk
 - [x] V4.1 Playwright: scope cascade on a fleet page narrows the visible loop set
 - [x] V4.2 Playwright: loop picker type-ahead finds a loop by area/unit, not just id
-- [x] V4.3 Playwright: tabbed pages switch and deep-link (`?tab=`)
+- [-] V4.3 Tabbed-page deep-link check — removed with workstream B
 - [x] V4.4 Full smoke suite still green — **22/22**
 
 
@@ -151,11 +142,10 @@ every returned row matches, both echo back, and an area name from a *different*
 site returns nothing (no cross-site leak). Probes retired afterwards — 15 projected
 assets released, registry back to its 54-loop baseline.
 
-**UI walk — 22/22** (Playwright, production `:3000`): scope cascade present on
+**UI walk — 21/21 after the workstream-B revert** (was 22/22 with the tab checks) (Playwright, production `:3000`): scope cascade present on
 Performance and writes `?site=hdpe` to the URL; area cascade loads for the chosen
 site; Registry renders a scoped count; loop picker exposes the wide filter and
-groups options by location (8 groups); Investigation renders 4 workspace tabs and
-honours `?tab=evidence`; no console errors.
+groups options by location (8 groups); Investigation loads under a plant scope; no console errors.
 
 **Builds:** cplm-api ✓ · `tsc --noEmit` ✓ · `eslint --max-warnings 0` ✓ ·
 `vite build` ✓ · images rebuilt and healthy.

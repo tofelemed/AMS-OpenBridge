@@ -15,7 +15,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
-  EmptyState, KpiTile, KvRow, PanelHead, WorkspaceTabs, useWorkspaceTab, TonePill, WorkspaceHeader, toneFor,
+  EmptyState, KpiTile, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
   fmtDateTime, QueryError, cpmChartColors } from './shared';
 import { LoopPicker, PlantScopeFilter, useCpmScope } from './plantScope';
 import { ApiError } from '../../api/apiFetch';
@@ -80,19 +80,6 @@ function stageTone(matrix: CpmGateMatrix | undefined, gates: string[]): 'good' |
 
 const fmt = (v: number | undefined, digits = 2) => (v != null ? v.toFixed(digits) : '—');
 
-/**
- * B1: the workspace used to stack eight sections on one scroll — conclusion,
- * next action, key facts, evidence, reasoning, hypotheses, note and window
- * browser. They are sequential steps in one investigation, not things to read
- * at once, so they are sub-pages now (state in `?tab=`, so a case view stays
- * shareable).
- */
-const INVESTIGATION_TABS = [
-  { key: 'conclusion', label: 'Conclusion' },
-  { key: 'evidence',   label: 'Evidence' },
-  { key: 'reasoning',  label: 'Reasoning & hypotheses' },
-  { key: 'windows',    label: 'Window browser' },
-] as const;
 
 export const CpmInvestigation: React.FC = () => {
   const navigate = useNavigate();
@@ -104,7 +91,6 @@ export const CpmInvestigation: React.FC = () => {
   // endpoint would be the real fix at that scale.
   // Plant scope (A6.3): case list narrows to a section/unit.
   const scope = useCpmScope();
-  const [tab, setTab] = useWorkspaceTab(INVESTIGATION_TABS);
   const rankings = useFleetRankings(scope.params, '24h', 'confidence', 200);
 
   const caseFilter = params.get('case');
@@ -319,14 +305,7 @@ export const CpmInvestigation: React.FC = () => {
 
       {matrix && (
         <>
-          <WorkspaceTabs
-            tabs={INVESTIGATION_TABS}
-            active={tab}
-            onChange={setTab}
-            ariaLabel="Investigation sections"
-          />
 
-          {tab === 'conclusion' && (
           <div className="cpm-grid-2">
             <section className="cpm-surface">
               <PanelHead eyebrow="Final conclusion" title={(matrix.diagnosis ?? 'NONE').replace(/_/g, ' ')}
@@ -369,9 +348,7 @@ export const CpmInvestigation: React.FC = () => {
               </div>
             </section>
           </div>
-          )}
 
-          {tab === 'evidence' && (
           <section className="cpm-surface">
             <PanelHead eyebrow="Evidence" title="Signals over the evaluated window"
               right={<ObcButton variant="normal" onClick={() => {
@@ -388,9 +365,7 @@ export const CpmInvestigation: React.FC = () => {
             )}
             {points.length > 0 && <ReactECharts option={chartOption} style={{ height: 260 }} notMerge />}
           </section>
-          )}
 
-          {tab === 'reasoning' && (
           <div className="cpm-grid-2">
             <section className="cpm-surface">
               <PanelHead eyebrow="Reasoning chain" title="How the engine got there" />
@@ -456,9 +431,7 @@ export const CpmInvestigation: React.FC = () => {
               )}
             </section>
           </div>
-          )}
 
-          {tab === 'windows' && (
           <section className="cpm-surface">
             <PanelHead eyebrow="Window browser" title={`Recent ${windowKind} windows`}
               right={<span className="cpm-copy">newest first · click to pin as CURRENT</span>} />
@@ -529,7 +502,6 @@ export const CpmInvestigation: React.FC = () => {
               </p>
             )}
           </section>
-          )}
         </>
       )}
     </div>

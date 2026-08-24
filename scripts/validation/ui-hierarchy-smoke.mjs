@@ -160,13 +160,12 @@ try {
   const grouped = await page.locator('optgroup').count();
   step('loop picker groups options by location', grouped > 0, `${grouped} group(s)`);
 
-  // Investigation tabs deep-link
-  await page.goto(`${BASE}/cpm/investigation?tab=evidence`, { waitUntil: 'networkidle' });
+  // Investigation: sub-page tabs were reverted (the page owner is restructuring
+  // these screens one at a time); assert only that the scoped page still loads.
+  await page.goto(`${BASE}/cpm/investigation?site=houston`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(1500);
-  const tabs = await page.locator('[role="tab"]').count();
-  step('investigation renders workspace tabs', tabs >= 4, `${tabs} tabs`);
-  const selected = await page.locator('[role="tab"][aria-selected="true"]').first().textContent();
-  step('investigation honours ?tab= deep link', (selected ?? '').includes('Evidence'), selected ?? '');
+  step('investigation loads with a plant scope applied',
+    page.url().includes('site=houston') && await page.getByText('Root-cause workspace', { exact: false }).count() > 0);
 
   // Console errors: 401s on background polls etc. are real failures; filter
   // benign favicon/manifest noise plus two KNOWN pre-existing, walk-induced

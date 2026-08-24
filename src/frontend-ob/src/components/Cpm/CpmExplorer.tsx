@@ -12,7 +12,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
-  EmptyState, KvRow, PanelHead, QueryError, TonePill, WorkspaceHeader, WorkspaceTabs, toneFor,
+  EmptyState, KvRow, PanelHead, QueryError, TonePill, WorkspaceHeader, toneFor,
   fmtDateTime, cpmChartColors, loopTrendHref, useRollingWindow, TREND_SPAN_MS, TREND_TICK_MS,
 } from './shared';
 import { PlantScopeFilter, useCpmScope, loopMatchesQuery } from './plantScope';
@@ -209,14 +209,13 @@ const LoopWorkspace: React.FC<{
         </div>
       )}
 
-      {/* B3: same tab idiom as Investigation/Historical — this pane already had
-          URL-persisted tabs, it just looked different from the other two. */}
-      <WorkspaceTabs
-        tabs={TABS.map(t => ({ key: t, label: t }))}
-        active={tab}
-        onChange={t => onTab(t as Tab)}
-        ariaLabel="Loop detail sections"
-      />
+      <div className="cpm-filter-row" style={{ margin: '12px 0' }}>
+        {TABS.map(t => (
+          <ObcButton key={t} variant={tab === t ? 'raised' : 'normal'} onClick={() => onTab(t)}>
+            {t}
+          </ObcButton>
+        ))}
+      </div>
 
       {tab === 'Summary' && <SummaryTab loop={loop} />}
       {tab === 'Signals' && <SignalsTab loop={loop} />}
