@@ -124,14 +124,24 @@ export function useLatestGates(loopId: string | undefined, windowKind = '24h') {
   });
 }
 
-export function useFleetSummary(site?: string, windowKind = '24h') {
+/**
+ * Stable cache key for a plant scope. MUST be part of every fleet query key —
+ * otherwise a scoped view would be served the cached whole-plant answer.
+ */
+function scopeKey(scope?: cpm.CpmFleetScope | string): string {
+  if (!scope) return '';
+  if (typeof scope === 'string') return scope;
+  return [scope.site ?? '', scope.area ?? '', scope.unit ?? ''].join('|');
+}
+
+export function useFleetSummary(scope?: cpm.CpmFleetScope | string, windowKind = '24h') {
   // P10: this used to drop windowKind on the floor and always ask for 24h, while
   // the query key claimed to identify the result by site alone. Any caller behind
   // a 12h/24h toggle silently got 24h diagnosis counts — and cached them under a
   // key that could not tell the two apart.
   return useQuery({
-    queryKey: [...KEYS.fleetSummary(site), windowKind],
-    queryFn: backgroundPoll(() => cpm.getFleetSummary(site, windowKind)),
+    queryKey: [...KEYS.fleetSummary(scopeKey(scope)), windowKind],
+    queryFn: backgroundPoll(() => cpm.getFleetSummary(scope, windowKind)),
     refetchInterval: 60_000,
   });
 }
@@ -145,20 +155,20 @@ export function useCpmPipelineStatus(refetchMs = 15_000) {
 }
 
 export function useFleetRankings(
-  site?: string, windowKind = '24h',
+  scope?: cpm.CpmFleetScope | string, windowKind = '24h',
   orderBy: cpm.CpmRankingOrder = 'confidence', limit = 50,
 ) {
   return useQuery({
-    queryKey: ['cpm', 'fleet', 'rankings', site ?? '', windowKind, orderBy, limit],
-    queryFn: backgroundPoll(() => cpm.getFleetRankings(site, windowKind, limit, orderBy)),
+    queryKey: ['cpm', 'fleet', 'rankings', scopeKey(scope), windowKind, orderBy, limit],
+    queryFn: backgroundPoll(() => cpm.getFleetRankings(scope, windowKind, limit, orderBy)),
     refetchInterval: 60_000,
   });
 }
 
-export function useFleetHeatmap(site?: string, windowKind = '24h') {
+export function useFleetHeatmap(scope?: cpm.CpmFleetScope | string, windowKind = '24h') {
   return useQuery({
-    queryKey: ['cpm', 'fleet', 'heatmap', site ?? '', windowKind],
-    queryFn: backgroundPoll(() => cpm.getFleetHeatmap(site, windowKind)),
+    queryKey: ['cpm', 'fleet', 'heatmap', scopeKey(scope), windowKind],
+    queryFn: backgroundPoll(() => cpm.getFleetHeatmap(scope, windowKind)),
     refetchInterval: 60_000,
   });
 }

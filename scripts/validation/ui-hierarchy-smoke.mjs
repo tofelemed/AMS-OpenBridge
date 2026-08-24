@@ -129,6 +129,45 @@ try {
     }
   }
 
+  // ── CPM scope cascade + tabs (CPM-UX V4) ─────────────────────────────────
+  await page.goto(`${BASE}/cpm/performance`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1500);
+  const scopeSite = page.locator('select').filter({ has: page.locator('option', { hasText: 'HDPE Plant' }) }).first();
+  let scopeOk = await scopeSite.count() > 0;
+  step('performance: plant scope cascade present', scopeOk);
+  if (scopeOk) {
+    await scopeSite.selectOption('hdpe');
+    await page.waitForURL(u => u.search.includes('site=hdpe'), { timeout: 10000 }).catch(() => {});
+    step('scope writes itself to the URL', page.url().includes('site=hdpe'), page.url());
+    const areaOpt = page.locator('option', { hasText: 'Section 100' }).first();
+    let areaOk = true;
+    try { await areaOpt.waitFor({ state: 'attached', timeout: 10000 }); } catch { areaOk = false; }
+    step('scope area cascade loads for the chosen site', areaOk);
+  }
+
+  // Registry: scope + search intersect, count line reflects it
+  await page.goto(`${BASE}/cpm/registry?site=hdpe`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1800);
+  const scopedCount = await page.getByText('of 57 loops', { exact: false }).count()
+    + await page.getByText(/\d+ of \d+ loops/).count();
+  step('registry shows a scoped count line', scopedCount > 0);
+
+  // Loop picker type-ahead by UNIT (not just id) on a single-loop page
+  await page.goto(`${BASE}/cpm/windows`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1500);
+  const picker = page.locator('input[placeholder*="Filter by loop, service, area"]').first();
+  step('loop picker exposes the wide filter', await picker.count() > 0);
+  const grouped = await page.locator('optgroup').count();
+  step('loop picker groups options by location', grouped > 0, `${grouped} group(s)`);
+
+  // Investigation tabs deep-link
+  await page.goto(`${BASE}/cpm/investigation?tab=evidence`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1500);
+  const tabs = await page.locator('[role="tab"]').count();
+  step('investigation renders workspace tabs', tabs >= 4, `${tabs} tabs`);
+  const selected = await page.locator('[role="tab"][aria-selected="true"]').first().textContent();
+  step('investigation honours ?tab= deep link', (selected ?? '').includes('Evidence'), selected ?? '');
+
   // Console errors: 401s on background polls etc. are real failures; filter
   // benign favicon/manifest noise plus two KNOWN pre-existing, walk-induced
   // messages unrelated to the hierarchy surfaces:

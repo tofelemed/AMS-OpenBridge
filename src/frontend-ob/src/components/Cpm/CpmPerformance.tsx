@@ -13,6 +13,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import {
   EmptyState, KpiTile, PanelHead, TonePill, WorkspaceHeader, toneFor,
   fmtDateTime, QueryError } from './shared';
+import { PlantScopeFilter, useCpmScope } from './plantScope';
 import GateEvidenceDrawer from './GateEvidenceDrawer';
 import { useFleetHeatmap, useFleetRankings, useFleetSummary } from '../../hooks/useCpm';
 
@@ -47,12 +48,15 @@ export const CpmPerformance: React.FC = () => {
   const [drawer, setDrawer] = useState<{ loopId: string; gate: string } | null>(null);
   const [rankBy, setRankBy] = useState<'confidence' | 'error'>('confidence');
 
-  const summary = useFleetSummary(undefined, windowKind);
+  // Plant scope (A6.1): the fleet endpoints now filter server-side by
+  // site/area/unit, so "which section is worst" is answerable.
+  const scope = useCpmScope();
+  const summary = useFleetSummary(scope.params, windowKind);
   // The matrix/KPI feed stays confidence-ordered; the bad-actor panel asks the
   // SERVER for its own ordering (P3) instead of re-sorting this page of results.
-  const rankings = useFleetRankings(undefined, windowKind);
-  const badActors = useFleetRankings(undefined, windowKind, rankBy === 'error' ? 'error' : 'confidence', 8);
-  const heatmap = useFleetHeatmap(undefined, windowKind);
+  const rankings = useFleetRankings(scope.params, windowKind);
+  const badActors = useFleetRankings(scope.params, windowKind, rankBy === 'error' ? 'error' : 'confidence', 8);
+  const heatmap = useFleetHeatmap(scope.params, windowKind);
 
   const loops = useMemo(() => rankings.data?.loops ?? [], [rankings.data]);
   const evaluated = loops.filter(l => l.diagnosis !== 'NOT_EVALUATED');
@@ -123,6 +127,7 @@ export const CpmPerformance: React.FC = () => {
           </div>
         }
       />
+      <PlantScopeFilter scope={scope} summary={summary.data ? `${summary.data.loops.total} loop(s) in scope` : null} />
 
       <div className="cpm-kpi-row">
         {/* These are computed over the loops this page fetched — a capped,

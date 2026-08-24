@@ -6,6 +6,7 @@
  * prototype's tone vocabulary (good|warn|bad|muted) maps onto OpenBridge
  * status/alert token colors there, never onto raw hex here.
  */
+import { useSearchParams } from 'react-router-dom';
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmLoop, CpmWindowSpec } from '../../api/cpmApi';
@@ -380,3 +381,49 @@ export const QueryError: React.FC<{
     action={retry ? { label: 'Retry', onClick: retry } : undefined}
   />
 );
+
+/**
+ * Workspace tabs (CPM-UX B) — sub-page navigation for screens that used to
+ * stack five to eight sections on one scroll. Selection lives in the URL
+ * (`?tab=`) so a view is shareable and Back behaves, and it is `replace`d
+ * because switching a tab is in-page navigation, not a page visit.
+ */
+export interface WorkspaceTab {
+  key: string;
+  label: string;
+  /** Optional badge, e.g. an evidence count. */
+  count?: number;
+}
+
+export const WorkspaceTabs: React.FC<{
+  tabs: readonly WorkspaceTab[];
+  active: string;
+  onChange: (key: string) => void;
+  ariaLabel?: string;
+}> = ({ tabs, active, onChange, ariaLabel = 'Sections' }) => (
+  <div className="cpm-tabs" role="tablist" aria-label={ariaLabel}>
+    {tabs.map(t => (
+      <button
+        key={t.key}
+        type="button"
+        role="tab"
+        aria-selected={t.key === active}
+        className={`cpm-tab${t.key === active ? ' cpm-tab--active' : ''}`}
+        onClick={() => onChange(t.key)}
+      >
+        {t.label}
+        {typeof t.count === 'number' && <span className="cpm-tab__count">{t.count}</span>}
+      </button>
+    ))}
+  </div>
+);
+
+/** Reads/writes the `?tab=` param, falling back to the first tab. */
+export function useWorkspaceTab(tabs: readonly WorkspaceTab[], param = 'tab') {
+  const [params, setParams] = useSearchParams();
+  const requested = params.get(param) ?? '';
+  const active = tabs.some(t => t.key === requested) ? requested : tabs[0].key;
+  const setActive = (key: string) =>
+    setParams(p => { p.set(param, key); return p; }, { replace: true });
+  return [active, setActive] as const;
+}

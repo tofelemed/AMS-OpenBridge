@@ -12,9 +12,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
-  EmptyState, KvRow, PanelHead, QueryError, TonePill, WorkspaceHeader, toneFor,
+  EmptyState, KvRow, PanelHead, QueryError, TonePill, WorkspaceHeader, WorkspaceTabs, toneFor,
   fmtDateTime, cpmChartColors, loopTrendHref, useRollingWindow, TREND_SPAN_MS, TREND_TICK_MS,
 } from './shared';
+import { PlantScopeFilter, useCpmScope, loopMatchesQuery } from './plantScope';
 import {
   useCpmCalculations, useCpmEvents, useCpmLoops, useCpmReadiness, useCpmTrend,
   useLatestGates,
@@ -70,6 +71,7 @@ export const CpmExplorer: React.FC = () => {
   const rawTab = params.get('tab');
   const tab: Tab = TABS.includes(rawTab as Tab) ? (rawTab as Tab) : 'Summary';
   const [search, setSearch] = React.useState('');
+  const scope = useCpmScope();
 
   const { data, isLoading, isError, error, refetch } = useCpmLoops();
   const loops = useMemo(() => data?.loops ?? [], [data]);
@@ -85,21 +87,21 @@ export const CpmExplorer: React.FC = () => {
   // to a decommissioned loop silently read as its neighbour's.
   const missingLoop = !!requestedId && !loop && !isLoading && !isError && loops.length > 0;
 
-  // site → loops tree, filtered by a search that actually works.
+  // site → area → unit → loops (A3.1). The tree used to collapse everything to
+  // site → loops, which hid the two levels an operator actually navigates by;
+  // search now matches area, unit and loop type too, not just id + name (A3.2).
   const tree = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const visible = q
-      ? loops.filter(l => l.loopId.toLowerCase().includes(q)
-          || l.displayName.toLowerCase().includes(q))
-      : loops;
-    const bySite = new Map<string, CpmLoop[]>();
+    const visible = loops
+      .filter(l => scope.matches(l))
+      .filter(l => loopMatchesQuery(l, search));
+    const byLocation = new Map<string, CpmLoop[]>();
     for (const l of visible) {
-      const key = l.site || 'unassigned';
-      if (!bySite.has(key)) bySite.set(key, []);
-      bySite.get(key)!.push(l);
+      const key = [l.site || 'unassigned', l.area, l.unit].filter(Boolean).join(' / ');
+      if (!byLocation.has(key)) byLocation.set(key, []);
+      byLocation.get(key)!.push(l);
     }
-    return [...bySite.entries()];
-  }, [loops, search]);
+    return [...byLocation.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [loops, search, scope]);
 
   return (
     <div className="cpm-screen">
@@ -110,10 +112,11 @@ export const CpmExplorer: React.FC = () => {
       />
       <div className="cpm-explorer-layout">
         <aside className="cpm-surface">
+          <PlantScopeFilter scope={scope} />
           <input
             className="cpm-input"
             style={{ width: '100%', marginBottom: 10 }}
-            placeholder="Find a loop"
+            placeholder="Find by loop, service, area, unit or type"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -206,13 +209,14 @@ const LoopWorkspace: React.FC<{
         </div>
       )}
 
-      <div className="cpm-filter-row" style={{ margin: '12px 0' }}>
-        {TABS.map(t => (
-          <ObcButton key={t} variant={tab === t ? 'raised' : 'normal'} onClick={() => onTab(t)}>
-            {t}
-          </ObcButton>
-        ))}
-      </div>
+      {/* B3: same tab idiom as Investigation/Historical — this pane already had
+          URL-persisted tabs, it just looked different from the other two. */}
+      <WorkspaceTabs
+        tabs={TABS.map(t => ({ key: t, label: t }))}
+        active={tab}
+        onChange={t => onTab(t as Tab)}
+        ariaLabel="Loop detail sections"
+      />
 
       {tab === 'Summary' && <SummaryTab loop={loop} />}
       {tab === 'Signals' && <SignalsTab loop={loop} />}

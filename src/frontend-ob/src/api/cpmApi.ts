@@ -290,9 +290,25 @@ export interface CpmFleetSummary {
   };
 }
 
-export const getFleetSummary = (site?: string, windowKind = '24h') => {
+/**
+ * Plant scope for the fleet endpoints (CPM-UX A5/A6). All three levels are
+ * optional and narrow independently; cplm-api applies them against the
+ * registry's denormalised site/area/unit columns and echoes them back.
+ */
+export interface CpmFleetScope { site?: string; area?: string; unit?: string }
+
+/** Adds whichever scope levels are set to a query string. */
+function applyScope(params: URLSearchParams, scope?: CpmFleetScope | string): void {
+  // A bare string keeps the pre-scope call sites (site-only) working.
+  const s: CpmFleetScope = typeof scope === 'string' ? { site: scope } : (scope ?? {});
+  if (s.site) params.set('site', s.site);
+  if (s.area) params.set('area', s.area);
+  if (s.unit) params.set('unit', s.unit);
+}
+
+export const getFleetSummary = (scope?: CpmFleetScope | string, windowKind = '24h') => {
   const params = new URLSearchParams({ windowKind });
-  if (site) params.set('site', site);
+  applyScope(params, scope);
   return apiJson<CpmFleetSummary>(`${BASE}/fleet/summary?${params.toString()}`);
 };
 
@@ -367,10 +383,10 @@ export interface CpmRankedLoop {
 export type CpmRankingOrder = 'confidence' | 'error' | 'mae' | 'effort';
 
 export const getFleetRankings = (
-  site?: string, windowKind = '24h', limit = 50, orderBy: CpmRankingOrder = 'confidence',
+  scope?: CpmFleetScope | string, windowKind = '24h', limit = 50, orderBy: CpmRankingOrder = 'confidence',
 ) => {
   const params = new URLSearchParams({ windowKind, limit: String(limit), orderBy });
-  if (site) params.set('site', site);
+  applyScope(params, scope);
   return apiJson<{
     site: string | null; windowKind: string; orderBy: string;
     count: number; loops: CpmRankedLoop[];
@@ -387,9 +403,9 @@ export interface CpmHeatmapLoop {
   gates: Record<string, string>;
 }
 
-export const getFleetHeatmap = (site?: string, windowKind = '24h', limit = 100) => {
+export const getFleetHeatmap = (scope?: CpmFleetScope | string, windowKind = '24h', limit = 100) => {
   const params = new URLSearchParams({ windowKind, limit: String(limit) });
-  if (site) params.set('site', site);
+  applyScope(params, scope);
   return apiJson<{ site: string | null; windowKind: string; gateKeys: string[]; count: number; loops: CpmHeatmapLoop[] }>(
     `${BASE}/fleet/heatmap?${params.toString()}`);
 };

@@ -15,8 +15,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
-  EmptyState, KpiTile, KvRow, LoopSelect, PanelHead, TonePill, WorkspaceHeader, toneFor,
+  EmptyState, KpiTile, KvRow, PanelHead, WorkspaceTabs, useWorkspaceTab, TonePill, WorkspaceHeader, toneFor,
   fmtDateTime, QueryError, cpmChartColors } from './shared';
+import { LoopPicker, PlantScopeFilter, useCpmScope } from './plantScope';
 import { ApiError } from '../../api/apiFetch';
 import type { CpmGateMatrix } from '../../api/cpmApi';
 import {
@@ -79,6 +80,20 @@ function stageTone(matrix: CpmGateMatrix | undefined, gates: string[]): 'good' |
 
 const fmt = (v: number | undefined, digits = 2) => (v != null ? v.toFixed(digits) : '—');
 
+/**
+ * B1: the workspace used to stack eight sections on one scroll — conclusion,
+ * next action, key facts, evidence, reasoning, hypotheses, note and window
+ * browser. They are sequential steps in one investigation, not things to read
+ * at once, so they are sub-pages now (state in `?tab=`, so a case view stays
+ * shareable).
+ */
+const INVESTIGATION_TABS = [
+  { key: 'conclusion', label: 'Conclusion' },
+  { key: 'evidence',   label: 'Evidence' },
+  { key: 'reasoning',  label: 'Reasoning & hypotheses' },
+  { key: 'windows',    label: 'Window browser' },
+] as const;
+
 export const CpmInvestigation: React.FC = () => {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
@@ -87,7 +102,10 @@ export const CpmInvestigation: React.FC = () => {
   // case chips count a biased slice while the copy said "the fleet's verdicts";
   // past 200 loops the chips would still undercount — the server aggregate
   // endpoint would be the real fix at that scale.
-  const rankings = useFleetRankings(undefined, '24h', 'confidence', 200);
+  // Plant scope (A6.3): case list narrows to a section/unit.
+  const scope = useCpmScope();
+  const [tab, setTab] = useWorkspaceTab(INVESTIGATION_TABS);
+  const rankings = useFleetRankings(scope.params, '24h', 'confidence', 200);
 
   const caseFilter = params.get('case');
   const allLoops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
@@ -220,6 +238,7 @@ export const CpmInvestigation: React.FC = () => {
         title="Investigation"
         copy="Follow one loop's evidence from raw signals through the gate chain to the fused conclusion."
       />
+      <PlantScopeFilter scope={scope} summary={rankings.data ? `${rankings.data.count} loop(s) in scope` : null} />
 
       <section className="cpm-surface">
         <PanelHead eyebrow="Analysis cases" title="What the fleet's verdicts contain"
@@ -240,7 +259,7 @@ export const CpmInvestigation: React.FC = () => {
         </div>
 
         <div className="cpm-toolbar" style={{ marginTop: 12 }}>
-          <LoopSelect loops={filteredLoops.length ? filteredLoops : allLoops} value={loopId ?? ''}
+          <LoopPicker scope={scope} loops={filteredLoops.length ? filteredLoops : allLoops} value={loopId ?? ''}
             onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })} />
           <div className="cpm-filter-row">
             {(['live', 'historical'] as const).map(m => (
@@ -300,6 +319,14 @@ export const CpmInvestigation: React.FC = () => {
 
       {matrix && (
         <>
+          <WorkspaceTabs
+            tabs={INVESTIGATION_TABS}
+            active={tab}
+            onChange={setTab}
+            ariaLabel="Investigation sections"
+          />
+
+          {tab === 'conclusion' && (
           <div className="cpm-grid-2">
             <section className="cpm-surface">
               <PanelHead eyebrow="Final conclusion" title={(matrix.diagnosis ?? 'NONE').replace(/_/g, ' ')}
@@ -342,7 +369,9 @@ export const CpmInvestigation: React.FC = () => {
               </div>
             </section>
           </div>
+          )}
 
+          {tab === 'evidence' && (
           <section className="cpm-surface">
             <PanelHead eyebrow="Evidence" title="Signals over the evaluated window"
               right={<ObcButton variant="normal" onClick={() => {
@@ -359,7 +388,9 @@ export const CpmInvestigation: React.FC = () => {
             )}
             {points.length > 0 && <ReactECharts option={chartOption} style={{ height: 260 }} notMerge />}
           </section>
+          )}
 
+          {tab === 'reasoning' && (
           <div className="cpm-grid-2">
             <section className="cpm-surface">
               <PanelHead eyebrow="Reasoning chain" title="How the engine got there" />
@@ -425,7 +456,9 @@ export const CpmInvestigation: React.FC = () => {
               )}
             </section>
           </div>
+          )}
 
+          {tab === 'windows' && (
           <section className="cpm-surface">
             <PanelHead eyebrow="Window browser" title={`Recent ${windowKind} windows`}
               right={<span className="cpm-copy">newest first · click to pin as CURRENT</span>} />
@@ -496,6 +529,7 @@ export const CpmInvestigation: React.FC = () => {
               </p>
             )}
           </section>
+          )}
         </>
       )}
     </div>

@@ -12,9 +12,10 @@ import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
-  EmptyState, KvRow, LoopSelect, PanelHead, TonePill, WorkspaceHeader, toneFor,
+  EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
   fmtDateTime,
 } from './shared';
+import { LoopPicker, PlantScopeFilter, useCpmScope } from './plantScope';
 import {
   useCpmCalculations, useCpmEvents, useCpmKpis, useCpmLoops, useLatestGates,
 } from '../../hooks/useCpm';
@@ -78,6 +79,8 @@ export const CpmCalculations: React.FC = () => {
 
   const { data: loopData } = useCpmLoops();
   const loops = useMemo(() => loopData?.loops ?? [], [loopData]);
+  // Plant scope (CPM-UX A1): narrows the loop picker to a section/unit.
+  const scope = useCpmScope();
   // Case-insensitive, like every loop lookup in cplm-api.
   const loopId = params.get('loop') ?? loops[0]?.loopId;
   const loop = loops.find(l => l.loopId.toLowerCase() === (loopId ?? '').toLowerCase()) ?? loops[0];
@@ -160,8 +163,9 @@ export const CpmCalculations: React.FC = () => {
 
       <section className="cpm-surface">
         <PanelHead eyebrow="1 · Select the loop" title="Which loop do you want to evaluate?" />
+        <PlantScopeFilter scope={scope} />
         <div className="cpm-toolbar">
-          <LoopSelect loops={loops} value={loop?.loopId ?? ''}
+          <LoopPicker scope={scope} loops={loops} value={loop?.loopId ?? ''}
             onChange={id => { setParams(p => { p.set('loop', id); return p; }, { replace: true }); setPage(0); }} />
           {loop && (
             <>

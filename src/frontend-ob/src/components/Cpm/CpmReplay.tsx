@@ -15,8 +15,9 @@ import { useSearchParams } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
-  EmptyState, KvRow, LoopSelect, PanelHead, TonePill, WorkspaceHeader, toneFor,
+  EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
   fmtDateTime, QueryError, cpmChartColors } from './shared';
+import { LoopPicker, PlantScopeFilter, useCpmScope } from './plantScope';
 import type { CpmGateMatrix, CpmKpiRow } from '../../api/cpmApi';
 import {
   useAcknowledgeEvent, useCpmCalculations, useCpmEvents, useCpmKpisRange,
@@ -73,6 +74,8 @@ export const CpmReplay: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const loopsQuery = useCpmLoops();
   const loops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
+  // Plant scope (CPM-UX A1): narrows the loop picker to a section/unit.
+  const scope = useCpmScope();
   const loopId = params.get('loop') ?? loops[0]?.loopId;
   const gateKey = params.get('gate') ?? 'G15';
 
@@ -201,8 +204,9 @@ export const CpmReplay: React.FC = () => {
       />
 
       <section className="cpm-surface">
+        <PlantScopeFilter scope={scope} />
         <div className="cpm-toolbar">
-          <LoopSelect loops={loops} value={loopId ?? ''}
+          <LoopPicker scope={scope} loops={loops} value={loopId ?? ''}
             onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })} />
           <label className="cpm-field">
             <span className="cpm-field__label">Evaluated window (24h)</span>

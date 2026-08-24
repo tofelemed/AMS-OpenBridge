@@ -9,13 +9,14 @@
  * measure — job states — with the rest stated as unavailable rather than faked.
  */
 import React, { useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KpiTile, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
   fmtDateTime, fmtDuration, fmtWindowLateness, fmtWindowShape, QueryError, cpmChartColors,
   useRollingWindow, windowSpecsOf, TREND_SPAN_MS, TREND_TICK_MS } from './shared';
+import { PlantScopeFilter, useCpmScope } from './plantScope';
 import {
   useCpmEvents, useCpmPipelineStatus, useCpmResolutions, useCpmTrend, useFleetRankings,
   useFleetSummary, useLatestGates,
@@ -65,8 +66,11 @@ export const CpmOverview: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const [drawerLoop, setDrawerLoop] = useState<string | null>(null);
 
-  const summary = useFleetSummary();
-  const rankings = useFleetRankings();
+  // Plant scope (A6.2): a unit operator's priority queue should show their
+  // unit, not the whole plant.
+  const scope = useCpmScope();
+  const summary = useFleetSummary(scope.params);
+  const rankings = useFleetRankings(scope.params);
   // sort:'recent' — the panel below is titled "Recent context" and stamps each row
   // with opened_at, but the endpoint's default order is triage (open first, then
   // peak confidence), so with limit:3 it was showing the three HIGHEST-CONFIDENCE
@@ -104,6 +108,7 @@ export const CpmOverview: React.FC = () => {
         title="Operations overview"
         copy="Control performance across the plant, prioritised by operational impact."
       />
+      <PlantScopeFilter scope={scope} summary={summary.data ? `${summary.data.loops.total} loop(s) in scope` : null} />
 
       <div className="cpm-kpi-row">
         <KpiTile caption="Loops monitored" tone="good"
@@ -239,8 +244,6 @@ const TIER_TITLES: Record<string, string> = {
 
 const PipelinePanel: React.FC = () => {
   const pipeline = useCpmPipelineStatus();
-  const jobs = pipeline.data?.jobs ?? [];
-  const cplmJobs = jobs.filter(j => j.role === 'cplm');
   // The ladder was four hardcoded rows that named ONE of the five sliding short
   // windows ("5 min / 1 min slide") and omitted 10m/2m, 15m/5m, 30m/5m, 60m/5m —
   // so it read as though the short tier had two windows when it has six, all six
@@ -281,13 +284,21 @@ const PipelinePanel: React.FC = () => {
   return (
     <section className="cpm-surface">
       <PanelHead
-        eyebrow="Live Flink runtime"
-        title="How the current result is being produced"
-        right={pipeline.data
-          ? <TonePill tone={pipeline.data.cplmRunning ? 'good' : 'bad'}>
-              {pipeline.data.cplmRunning ? 'CPLM PIPELINE RUNNING' : 'CPLM PIPELINE DEGRADED'}
-            </TonePill>
-          : <TonePill tone="muted">CHECKING…</TonePill>}
+        eyebrow="How these numbers are produced"
+        title="Analysis windows and pipeline health"
+        right={
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            {pipeline.data
+              ? <TonePill tone={pipeline.data.cplmRunning ? 'good' : 'bad'}>
+                  {pipeline.data.cplmRunning ? 'PIPELINE RUNNING' : 'PIPELINE DEGRADED'}
+                </TonePill>
+              : <TonePill tone="muted">CHECKING…</TonePill>}
+            <RouterLink to="/cpm/pipeline" className="cpm-pill cpm-pill--muted"
+              style={{ textDecoration: 'none' }}>
+              Pipeline health ↗
+            </RouterLink>
+          </span>
+        }
       />
       {/* The old copy said these metrics "await the Flink metrics proxy". The proxy
           shipped (/pipeline-metrics) and deliberately reports watermark lag,
@@ -295,17 +306,9 @@ const PipelinePanel: React.FC = () => {
           the promise was of something that had been decided against. */}
       <p className="cpm-copy">
         A continuously running event-time pipeline — there is no report schedule or “run” button.
-        Job states below are live; checkpoint health is on Pipeline Health. Watermark lag,
-        events/s and backpressure are not reported — Flink does not expose them cheaply per
-        record, and an estimate would read as a measurement.
+        Per-job states, checkpoint health and end-to-end verification live on Pipeline Health;
+        this panel explains the windows behind the numbers above.
       </p>
-      <div className="cpm-kpi-row" style={{ margin: '12px 0' }}>
-        {cplmJobs.map(j => (
-          <KpiTile key={j.name} caption={j.name.replace('AMS - ', '')}
-            tone={j.running ? 'good' : 'bad'}
-            value={j.state} />
-        ))}
-      </div>
       {/* Reference material — collapsed by default so the live job states above
           stay the focus. */}
       <details className="cpm-window-disclosure">

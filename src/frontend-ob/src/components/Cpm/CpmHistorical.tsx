@@ -13,8 +13,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
-  EmptyState, KvRow, LoopSelect, PanelHead, TonePill, WorkspaceHeader, toneFor,
+  EmptyState, KvRow, PanelHead, WorkspaceTabs, useWorkspaceTab, TonePill, WorkspaceHeader, toneFor,
   classifyMode, fmtDateTime, loopTrendHref, QueryError, cpmChartColors } from './shared';
+import { LoopPicker, PlantScopeFilter, useCpmScope } from './plantScope';
 import type { CpmGateMatrix } from '../../api/cpmApi';
 import {
   useCpmKpisRange, useCpmLoops, useCpmModeTrack, useCpmTrend, useGateHistory,
@@ -57,11 +58,24 @@ function download(name: string, mime: string, body: string) {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * B4: the trend, mode track and diagnosis bands are aligned on ONE time axis —
+ * splitting them would break the comparison they exist for, so they stay
+ * together. Only the secondary window/maintenance detail becomes a sub-page.
+ */
+const HISTORICAL_TABS = [
+  { key: 'trend',  label: 'Trend & diagnosis' },
+  { key: 'detail', label: 'Window detail' },
+] as const;
+
 export const CpmHistorical: React.FC = () => {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const loopsQuery = useCpmLoops();
   const loops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
+  // Plant scope (CPM-UX A1): narrows the loop picker to a section/unit.
+  const scope = useCpmScope();
+  const [tab, setTab] = useWorkspaceTab(HISTORICAL_TABS);
 
   const loopId = params.get('loop') ?? loops[0]?.loopId;
   const loop = loops.find(l => l.loopId.toLowerCase() === (loopId ?? '').toLowerCase());
@@ -297,9 +311,14 @@ export const CpmHistorical: React.FC = () => {
         }
       />
 
+      <WorkspaceTabs tabs={HISTORICAL_TABS} active={tab} onChange={setTab}
+        ariaLabel="Historical views" />
+
+      {tab === 'trend' && (
       <section className="cpm-surface">
+        <PlantScopeFilter scope={scope} />
         <div className="cpm-toolbar">
-          <LoopSelect loops={loops} value={loopId ?? ''}
+          <LoopPicker scope={scope} loops={loops} value={loopId ?? ''}
             onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })} />
           <label className="cpm-field">
             <span className="cpm-field__label">From</span>
@@ -457,7 +476,9 @@ export const CpmHistorical: React.FC = () => {
           </div>
         )}
       </section>
+      )}
 
+      {tab === 'detail' && (
       <div className="cpm-grid-2">
         <section className="cpm-surface">
           <PanelHead eyebrow="Selected period" title={
@@ -513,6 +534,7 @@ export const CpmHistorical: React.FC = () => {
             copy="Maintenance events would be correlated here once a CMMS/work-order source is connected. Nothing is shown because nothing is known — not because nothing happened." />
         </section>
       </div>
+      )}
     </div>
   );
 };

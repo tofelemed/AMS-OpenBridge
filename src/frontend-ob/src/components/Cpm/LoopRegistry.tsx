@@ -29,6 +29,7 @@ import {
   PlantLocationPicker, SIGNAL_ROLES, areasOf, deriveSignalPath, historianNode,
   isResolvablePath, loopIdProblem, unitsOf, usePlantLocations,
 } from './plantLocation';
+import { PlantScopeFilter, useCpmScope, loopMatchesQuery } from './plantScope';
 import type { PlantLocation, SignalRole } from './plantLocation';
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -64,14 +65,12 @@ export const LoopRegistry: React.FC = () => {
   const { data, isLoading, isError, error, refetch } = useCpmLoops();
   const loops = useMemo(() => data?.loops ?? [], [data]);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return loops;
-    return loops.filter(l =>
-      l.loopId.toLowerCase().includes(q)
-      || l.displayName.toLowerCase().includes(q)
-      || (l.area ?? '').toLowerCase().includes(q));
-  }, [loops, search]);
+  // A4: scope cascade AND free-text, intersected — search used to match only
+  // id/name/area, so a unit or loop type could not be found at all.
+  const scope = useCpmScope();
+  const filtered = useMemo(
+    () => loops.filter(l => scope.matches(l) && loopMatchesQuery(l, search)),
+    [loops, search, scope]);
 
   // Case-insensitive, like every loop lookup in cplm-api.
   const selected = loops.find(l => l.loopId.toLowerCase() === selectedId.toLowerCase()) ?? filtered[0];
@@ -80,7 +79,7 @@ export const LoopRegistry: React.FC = () => {
   // resolves against the full list so the detail aside works across pages.
   const PAGE_SIZE = 25;
   const [page, setPage] = useState(0);
-  useEffect(() => { setPage(0); }, [search]);
+  useEffect(() => { setPage(0); }, [search, scope.site, scope.area, scope.unit]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
   const pagedLoops = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
@@ -105,6 +104,9 @@ export const LoopRegistry: React.FC = () => {
         G13 unevaluated. The readiness report after save lists exactly what is degraded.
       </div>
 
+      <PlantScopeFilter scope={scope}
+        summary={scope.active ? `${filtered.length} of ${loops.length} loops` : null} />
+
       <div className="cpm-grid-2">
         <section className="cpm-surface">
           <PanelHead
@@ -113,7 +115,7 @@ export const LoopRegistry: React.FC = () => {
             right={
               <input
                 className="cpm-input"
-                placeholder="Find loop or service"
+                placeholder="Find by loop, service, area, unit or type"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />

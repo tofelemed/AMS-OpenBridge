@@ -12,8 +12,9 @@ import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
-  EmptyState, KvRow, LoopSelect, PanelHead, TonePill, WorkspaceHeader,
+  EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader,
   fmtDateTime, fmtDuration, fmtWindowShape, loopTrendHref, windowSpecsOf, QueryError } from './shared';
+import { LoopPicker, PlantScopeFilter, useCpmScope } from './plantScope';
 import type { CpmKpiRow } from '../../api/cpmApi';
 import {
   useCpmKpis, useCpmLoops, useCpmResolutions, usePipelineMetrics, useRawWindow,
@@ -50,6 +51,8 @@ export const CpmWindows: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const loopsQuery = useCpmLoops();
   const loops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
+  // Plant scope (CPM-UX A1): narrows the loop picker to a section/unit.
+  const scope = useCpmScope();
   const loopId = params.get('loop') ?? loops[0]?.loopId;
   const profile = params.get('profile') ?? '15m';
 
@@ -152,8 +155,9 @@ export const CpmWindows: React.FC = () => {
       />
 
       <section className="cpm-surface">
+        <PlantScopeFilter scope={scope} />
         <div className="cpm-toolbar">
-          <LoopSelect loops={loops} value={loopId ?? ''}
+          <LoopPicker scope={scope} loops={loops} value={loopId ?? ''}
             onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })} />
           <label className="cpm-field">
             <span className="cpm-field__label">Window profile</span>

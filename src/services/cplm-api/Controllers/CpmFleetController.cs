@@ -33,6 +33,11 @@ public sealed class CpmFleetController : ControllerBase
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary(
         [FromQuery] string? site = null,
+        // Plant scope (CPM-UX A5). site was already honoured; area/unit complete the
+        // hierarchy so a section or unit owner sees only their own loops. All three are
+        // optional and narrow independently — the registry stores them denormalised.
+        [FromQuery] string? area = null,
+        [FromQuery] string? unit = null,
         [FromQuery] string windowKind = "24h",
         CancellationToken ct = default)
     {
@@ -45,7 +50,9 @@ public sealed class CpmFleetController : ControllerBase
                    COUNT(*) FILTER (WHERE tags ? 'vp')::int AS with_vp
             FROM cpm.loop_registry
             WHERE (@site::text IS NULL OR site = @site)
-            """, new { site });
+              AND (@area::text IS NULL OR area = @area)
+              AND (@unit::text IS NULL OR unit = @unit)
+            """, new { site, area, unit });
 
         // One row per loop: its newest real verdict at this resolution.
         var byDiagnosis = await conn.QueryAsync<(string Diagnosis, int Count)>("""
@@ -56,15 +63,17 @@ public sealed class CpmFleetController : ControllerBase
                 WHERE g.window_kind = @windowKind
                   AND g.diagnosis IS DISTINCT FROM 'INSUFFICIENT_DATA'
                   AND (@site::text IS NULL OR r.site = @site)
+                  AND (@area::text IS NULL OR r.area = @area)
+                  AND (@unit::text IS NULL OR r.unit = @unit)
                 ORDER BY g.loop_id, g.window_end DESC NULLS LAST, g.created_at DESC
             )
             SELECT diagnosis AS "Diagnosis", COUNT(*)::int AS "Count"
             FROM latest GROUP BY diagnosis ORDER BY 2 DESC
-            """, new { site, windowKind });
+            """, new { site, area, unit, windowKind });
 
         return Ok(new
         {
-            site,
+            site, area, unit,
             windowKind,
             loops = new
             {
@@ -93,6 +102,11 @@ public sealed class CpmFleetController : ControllerBase
     [HttpGet("rankings")]
     public async Task<IActionResult> GetRankings(
         [FromQuery] string? site = null,
+        // Plant scope (CPM-UX A5). site was already honoured; area/unit complete the
+        // hierarchy so a section or unit owner sees only their own loops. All three are
+        // optional and narrow independently — the registry stores them denormalised.
+        [FromQuery] string? area = null,
+        [FromQuery] string? unit = null,
         [FromQuery] string windowKind = "24h",
         [FromQuery] int limit = 50,
         [FromQuery] string orderBy = "confidence",
@@ -144,6 +158,8 @@ public sealed class CpmFleetController : ControllerBase
             FROM cpm.loop_registry r
             LEFT JOIN latest l ON lower(l.loop_id) = lower(r.loop_id)
             WHERE (@site::text IS NULL OR r.site = @site)
+              AND (@area::text IS NULL OR r.area = @area)
+              AND (@unit::text IS NULL OR r.unit = @unit)
               AND COALESCE((r.monitoring->>'enabled')::boolean, FALSE)
             ORDER BY
                 -- Real verdicts first, whatever the metric; unevaluated loops sink
@@ -152,7 +168,7 @@ public sealed class CpmFleetController : ControllerBase
                 {rankExpr},
                 r.loop_id
             LIMIT @limit
-            """, new { site, windowKind, limit });
+            """, new { site, area, unit, windowKind, limit });
 
         var ranked = rows.Select((r, i) => new
         {
@@ -182,7 +198,7 @@ public sealed class CpmFleetController : ControllerBase
 
         // orderBy echoes back: with a LIMIT, the ordering determines WHICH loops
         // are in the response, so a caller must be able to tell what it got.
-        return Ok(new { site, windowKind, orderBy, count = ranked.Count, loops = ranked });
+        return Ok(new { site, area, unit, windowKind, orderBy, count = ranked.Count, loops = ranked });
     }
 
     /// <summary>
@@ -192,6 +208,11 @@ public sealed class CpmFleetController : ControllerBase
     [HttpGet("heatmap")]
     public async Task<IActionResult> GetHeatmap(
         [FromQuery] string? site = null,
+        // Plant scope (CPM-UX A5). site was already honoured; area/unit complete the
+        // hierarchy so a section or unit owner sees only their own loops. All three are
+        // optional and narrow independently — the registry stores them denormalised.
+        [FromQuery] string? area = null,
+        [FromQuery] string? unit = null,
         [FromQuery] string windowKind = "24h",
         [FromQuery] int limit = 100,
         CancellationToken ct = default)
@@ -214,10 +235,12 @@ public sealed class CpmFleetController : ControllerBase
             FROM cpm.loop_registry r
             LEFT JOIN latest l ON lower(l.loop_id) = lower(r.loop_id)
             WHERE (@site::text IS NULL OR r.site = @site)
+              AND (@area::text IS NULL OR r.area = @area)
+              AND (@unit::text IS NULL OR r.unit = @unit)
               AND COALESCE((r.monitoring->>'enabled')::boolean, FALSE)
             ORDER BY r.loop_id
             LIMIT @limit
-            """, new { site, windowKind, limit });
+            """, new { site, area, unit, windowKind, limit });
 
         var gateKeys = new[] { "G0","G1","G2","G2r","G3","G4","G5","G6","G7","G8","G9","G10","G11","G12","G13","G14","G15" };
         var cells = rows.Select(r =>
@@ -237,7 +260,7 @@ public sealed class CpmFleetController : ControllerBase
             };
         }).ToList();
 
-        return Ok(new { site, windowKind, gateKeys, count = cells.Count, loops = cells });
+        return Ok(new { site, area, unit, windowKind, gateKeys, count = cells.Count, loops = cells });
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────
