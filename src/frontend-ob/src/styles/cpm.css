@@ -6,8 +6,14 @@
    nowhere else.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Tone mapping (single source of truth) ── */
-.cpm-tone-good  { --cpm-tone: var(--instrument-enhanced-secondary-color); }
+/* ── Tone mapping (single source of truth) ──
+   `good` is --alert-running-color (green), NOT
+   --instrument-enhanced-secondary-color, which resolves to rgb(45,84,139) —
+   navy — in the day theme. Every PASS pill and healthy KPI on every CPM screen
+   was rendering blue, which in a diagnostic context reads as "informational",
+   not "healthy". --alert-running-color is OpenBridge's token for the running /
+   normal state and is theme-aware in all four themes. */
+.cpm-tone-good  { --cpm-tone: var(--alert-running-color); }
 .cpm-tone-warn  { --cpm-tone: var(--alert-caution-color); }
 .cpm-tone-bad   { --cpm-tone: var(--alert-alarm-color); }
 .cpm-tone-muted { --cpm-tone: var(--element-neutral-color); }
@@ -59,7 +65,7 @@
   white-space: nowrap;
 }
 .cpm-pill__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cpm-tone, var(--element-neutral-color)); }
-.cpm-pill--good  { --cpm-tone: var(--instrument-enhanced-secondary-color); }
+.cpm-pill--good  { --cpm-tone: var(--alert-running-color); }
 .cpm-pill--warn  { --cpm-tone: var(--alert-caution-color); }
 .cpm-pill--bad   { --cpm-tone: var(--alert-alarm-color); }
 .cpm-pill--muted { --cpm-tone: var(--element-neutral-color); }
@@ -75,7 +81,7 @@
   border-radius: 8px;
   background: var(--container-backdrop-color);
 }
-.cpm-kpi--good  { --cpm-tone: var(--instrument-enhanced-secondary-color); }
+.cpm-kpi--good  { --cpm-tone: var(--alert-running-color); }
 .cpm-kpi--warn  { --cpm-tone: var(--alert-caution-color); }
 .cpm-kpi--bad   { --cpm-tone: var(--alert-alarm-color); }
 .cpm-kpi__caption { font-size: 0.75rem; color: var(--element-neutral-color); text-transform: uppercase; letter-spacing: 0.05em; }
@@ -216,15 +222,6 @@
   border-radius: 10px;
   width: min(860px, 92vw);
   max-height: 88vh;
-  overflow: auto;
-  padding: 20px;
-}
-.cpm-drawer {
-  position: fixed; top: 0; right: 0; bottom: 0;
-  width: min(480px, 94vw);
-  background: var(--container-backdrop-color);
-  border-left: 1px solid var(--border-divider-color);
-  z-index: 61;
   overflow: auto;
   padding: 20px;
 }
@@ -668,8 +665,238 @@
 }
 
 /* ── Explorer (U2) ── */
-.cpm-explorer-layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; }
-@media (max-width: 1000px) { .cpm-explorer-layout { grid-template-columns: 1fr; } }
+.cpm-explorer-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.cpm-explorer-layout--rail-closed { grid-template-columns: 52px minmax(0, 1fr); }
+@media (max-width: 1000px) {
+  .cpm-explorer-layout,
+  .cpm-explorer-layout--rail-closed { grid-template-columns: minmax(0, 1fr); }
+}
+
+.cpm-rail { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+.cpm-rail--collapsed { padding: 8px 6px; align-items: center; }
+.cpm-rail__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cpm-rail--collapsed .cpm-rail__head { justify-content: center; }
+
+/* ── Loop tree: collapsible site/area/unit groups with counts ── */
+.cpm-tree { display: flex; flex-direction: column; gap: 2px; max-height: 62vh; overflow: auto; }
+.cpm-tree__count { margin: 0; font-size: 0.78rem; color: var(--element-neutral-color); }
+.cpm-tree__foot { border-top: 1px solid var(--border-divider-color); padding-top: 6px; }
+.cpm-tree__group { display: flex; flex-direction: column; }
+.cpm-tree__group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 4px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--element-neutral-color);
+  font: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: left;
+}
+.cpm-tree__group-head:hover { background: var(--container-background-color); }
+.cpm-tree__group-head:focus-visible,
+.cpm-tree-item:focus-visible {
+  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
+  outline-offset: -2px;
+}
+.cpm-tree__caret { width: 10px; flex: 0 0 auto; }
+.cpm-tree__group-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cpm-tree__group-count {
+  flex: 0 0 auto;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border-divider-color);
+  font-size: 0.7rem;
+  letter-spacing: 0;
+}
+
+/* ── Loop breadcrumb ── */
+.cpm-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: var(--element-neutral-color);
+  margin-bottom: 6px;
+}
+.cpm-crumbs strong { color: var(--element-active-color); }
+.cpm-crumbs__sep { opacity: 0.7; }
+
+/* ── Consolidated readiness causes ── */
+.cpm-causes {
+  border: 1px solid var(--alert-caution-outline-color);
+  border-radius: 8px;
+  background: var(--alert-caution-container-background-color, var(--container-section-color));
+  margin: 10px 0 4px;
+  overflow: hidden;
+}
+.cpm-causes--blocking { border-color: var(--alert-alarm-outline-color); }
+.cpm-causes__head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--element-active-color);
+  font: inherit;
+  text-align: left;
+}
+.cpm-causes__head:focus-visible {
+  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
+  outline-offset: -2px;
+}
+.cpm-causes__caret { margin-left: auto; }
+.cpm-causes__list {
+  list-style: none;
+  margin: 0;
+  padding: 0 12px 10px;
+  display: grid;
+  gap: 6px;
+}
+.cpm-causes__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: baseline;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-divider-color);
+}
+.cpm-causes__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cpm-causes__action {
+  background: none;
+  border: 1px solid var(--border-divider-color);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  color: var(--element-active-color);
+  white-space: nowrap;
+}
+.cpm-causes__action:hover { border-color: var(--instrument-enhanced-primary-color); }
+@media (max-width: 700px) {
+  .cpm-causes__item { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Tabs + panel ──
+   obc-tab-item exposes no CSS parts, so its 140px hug floor cannot be overridden
+   from here. Below ~760px of workspace the row therefore scrolls inside its own
+   box rather than spilling out of the surface — the page body never scrolls
+   sideways. */
+.cpm-tabs {
+  margin: 12px 0 4px;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.cpm-tabpanel { min-height: 320px; padding-top: 12px; }
+
+/* ── Signals table ── */
+.cpm-signal-provenance { display: inline-flex; align-items: center; gap: 8px; }
+.cpm-signal-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.cpm-signal-table th, .cpm-signal-table td {
+  text-align: left;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border-divider-color);
+}
+.cpm-signal-table thead th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--element-neutral-color);
+  font-weight: 600;
+}
+
+/* ── Gate outcomes grouped by tier ── */
+.cpm-gate-tier { margin-bottom: 14px; }
+.cpm-gate-tier__label {
+  margin: 0 0 2px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--element-neutral-color);
+  font-weight: 600;
+}
+.cpm-gate-outcome { background: none; border: none; padding: 0; cursor: pointer; font: inherit; }
+.cpm-gate-outcome:focus-visible {
+  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+
+/* ── Episode runs (History tab) ── */
+.cpm-episode { border-bottom: 1px solid var(--border-divider-color); padding: 2px 0 6px; }
+.cpm-episode__main {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.6fr) auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  color: var(--element-active-color);
+  font: inherit;
+  text-align: left;
+}
+.cpm-episode__main:hover { background: var(--container-background-color); }
+.cpm-episode__main:focus-visible,
+.cpm-episode__toggle:focus-visible,
+.cpm-episode__frame:focus-visible {
+  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
+  outline-offset: -2px;
+}
+.cpm-episode__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cpm-episode__state { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.cpm-episode__toggle {
+  margin-left: 10px;
+  background: none;
+  border: none;
+  padding: 2px 6px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--element-neutral-color);
+}
+.cpm-episode__frame {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: calc(100% - 24px);
+  margin-left: 24px;
+  padding: 4px 8px;
+  background: none;
+  border: none;
+  border-left: 2px solid var(--border-divider-color);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.cpm-episode__frame:hover { background: var(--container-background-color); }
+@media (max-width: 800px) {
+  .cpm-episode__main { grid-template-columns: minmax(0, 1fr); }
+  .cpm-episode__state { justify-content: flex-start; }
+}
+
+.cpm-source-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+
 .cpm-tree-item {
   display: flex;
   flex-direction: column;
@@ -720,7 +947,7 @@
 }
 .cpm-band-seg:hover { opacity: 1; }
 .cpm-band-seg--selected { outline: 2px solid var(--instrument-enhanced-primary-color); opacity: 1; }
-.cpm-band-seg--good { background: var(--instrument-enhanced-secondary-color); }
+.cpm-band-seg--good { background: var(--alert-running-color); }
 .cpm-band-seg--warn { background: var(--alert-caution-color); }
 .cpm-band-seg--bad { background: var(--alert-alarm-color); }
 .cpm-band-seg--muted { background: var(--element-neutral-color); opacity: 0.35; }
@@ -795,3 +1022,254 @@
   background: color-mix(in srgb, var(--alert-alarm-color) 8%, transparent);
 }
 
+
+/* Visually-hidden text used to name icon-only controls whose accessible name
+   cannot be set from the host element (see CpmIconButton in shared.tsx). */
+.cpm-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Historical explorer (U6) ──────────────────────────────────────────────
+   The toolbar is grouped by QUESTION and narrows top to bottom:
+   SCOPE (where) → LOOP (which) → RANGE (when) → VIEW (what to draw).
+
+   It was one flex-wrap bucket of ten controls, and LoopPicker is three stacked
+   elements where its neighbours are one — which is what broke the declared row
+   into four ragged lines with a hole beside the scope selects. Each question
+   now owns a row with a label rail and its own baseline.
+
+   Colour discipline: the rails and surfaces are neutral OpenBridge tokens; the
+   only saturated colour in here is on the signal chips, where it carries the
+   pen identity of the line each chip draws. On a diagnostic screen, colour that
+   means nothing competes with colour that does. */
+.cpm-hist-toolbar {
+  display: flex;
+  flex-direction: column;
+  background: var(--container-section-color);
+  border: 1px solid var(--border-outline-color, var(--border-divider-color));
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.cpm-hist-row {
+  display: flex;
+  gap: 14px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-divider-color);
+}
+.cpm-hist-row:last-of-type { border-bottom: none; }
+.cpm-hist-row--end { align-items: flex-end; }
+.cpm-hist-row--start { align-items: flex-start; }
+/* The scope row is the widest question, so it reads as the top of the funnel. */
+.cpm-hist-row:first-child { background: var(--container-backdrop-color); }
+
+.cpm-hist-row__label {
+  flex: 0 0 64px;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  padding-left: 10px;
+  border-left: 3px solid var(--instrument-enhanced-primary-color);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--element-neutral-color);
+}
+.cpm-hist-row__body {
+  display: flex;
+  align-items: inherit;
+  gap: 14px;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.cpm-hist-row--end .cpm-hist-row__body { align-items: flex-end; }
+.cpm-hist-row--start .cpm-hist-row__body { align-items: flex-start; }
+.cpm-hist-row__end { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.cpm-hist-row .cpm-toolbar { flex: 1 1 auto; min-width: 0; }
+.cpm-field--compact { min-width: 0; }
+
+.cpm-hist-toolbar__foot {
+  padding: 8px 14px 10px 88px;
+  border-top: 1px solid var(--border-divider-color);
+  background: var(--container-backdrop-color);
+}
+
+/* Range stepper: the applied window, with one-span paging either side. */
+.cpm-hist-stepper {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+  border: 1px solid var(--border-divider-color);
+  border-radius: 8px;
+  background: var(--container-global-color);
+}
+.cpm-hist-stepper__text {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+  padding: 0 8px;
+  white-space: nowrap;
+  color: var(--element-active-color);
+}
+.cpm-hist-custom { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+
+/* ── Signal chips: the pen palette, on the control that toggles the pen ──
+   PV/SP/OP were three identical navy buttons, so nothing connected a toggle to
+   the line it draws. Each chip now carries the SAME --ams-pen-* token the chart
+   uses, which makes the toolbar double as the chart legend. */
+.cpm-pen-chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.cpm-pen-chip {
+  --pen: var(--element-neutral-color);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border: 1px solid var(--border-divider-color);
+  border-radius: 999px;
+  background: var(--container-global-color);
+  color: var(--element-neutral-color);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 32px;
+}
+.cpm-pen-chip[data-pen='pv'] { --pen: var(--ams-pen-2); }
+.cpm-pen-chip[data-pen='sp'] { --pen: var(--element-neutral-color); }
+.cpm-pen-chip[data-pen='op'] { --pen: var(--ams-pen-3); }
+.cpm-pen-chip[data-pen='vp'] { --pen: var(--ams-pen-4); }
+.cpm-pen-chip__swatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--pen);
+  opacity: 0.45;
+  flex: 0 0 auto;
+}
+.cpm-pen-chip[data-pen='sp'] .cpm-pen-chip__swatch {
+  /* SP is a dashed pen in the chart; the swatch says so. */
+  background: repeating-linear-gradient(90deg, var(--pen) 0 4px, transparent 4px 7px);
+}
+.cpm-pen-chip__note { font-weight: 400; font-size: 0.72rem; opacity: 0.75; }
+.cpm-pen-chip:hover { border-color: var(--pen); }
+.cpm-pen-chip--on {
+  background: color-mix(in srgb, var(--pen) 14%, var(--container-global-color));
+  border-color: var(--pen);
+  color: var(--element-active-color);
+}
+.cpm-pen-chip--on .cpm-pen-chip__swatch { opacity: 1; height: 4px; }
+.cpm-pen-chip:focus-visible {
+  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
+  outline-offset: 2px;
+}
+
+.cpm-hist-note {
+  font-size: 0.78rem;
+  color: var(--element-neutral-color);
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* The panel head's right slot had no shrink allowance, so the window count ran
+   off the surface edge ("click a band to inspec…"). */
+.cpm-panel-head__right { min-width: 0; flex: 0 1 auto; }
+
+.cpm-hist-captions { display: grid; gap: 4px; margin-top: 10px; }
+.cpm-hist-zoom {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-divider-color);
+  border-radius: 8px;
+  background: var(--container-section-color);
+}
+
+.cpm-window-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 24px; }
+.cpm-window-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-divider-color);
+}
+.cpm-window-actions .cpm-hist-note { flex: 1 1 320px; max-width: 60ch; }
+
+@media (max-width: 900px) {
+  .cpm-hist-row { flex-direction: column; gap: 8px; }
+  .cpm-hist-row__label { flex: 0 0 auto; align-self: flex-start; }
+  .cpm-hist-row__end { margin-left: 0; }
+  .cpm-hist-toolbar__foot { padding-left: 14px; }
+}
+
+
+/* Hypothesis score bars (U5). Was an inline style with a hardcoded token pair,
+   still pointing at the navy "good" colour the tone map has moved off. */
+.cpm-hypo { display: flex; align-items: center; gap: 8px; min-width: 180px; }
+.cpm-hypo__track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--container-section-color);
+  border: 1px solid var(--border-divider-color);
+  overflow: hidden;
+}
+.cpm-hypo__fill { display: block; height: 100%; background: var(--alert-running-color); }
+.cpm-hypo__fill--high { background: var(--alert-caution-color); }
+
+
+/* A definitional panel with three tabs and a key/value contract needs more than
+   the 480px the old side drawer gave it. */
+.cpm-inspector--wide { width: min(760px, 94vw); }
+
+/* The wizard / bulk-import footer lives inside `.cpm-modal`, which is a single
+   `overflow: auto` box — so on a long step (or a 100-row CSV preview) Back and
+   Next scrolled out of view and the dialog looked like it had no way forward. */
+.cpm-modal .cpm-wizard-footer {
+  position: sticky;
+  bottom: -20px;
+  z-index: 1;
+  margin-top: 16px;
+  padding: 12px 0;
+  background: var(--container-backdrop-color);
+  border-top: 1px solid var(--border-divider-color);
+}
+
+/* Governance RBAC matrix: permission rows x role columns, reusing the gate
+   matrix chips so "holds / does not hold" reads the same as "pass / not
+   evaluated" everywhere else. */
+.cpm-rbac th[scope='row'] { display: flex; flex-direction: column; gap: 2px; min-width: 220px; }
+.cpm-rbac thead th { white-space: nowrap; }
+
+/* Priority-queue good-error micro-bar (U1). Was inline styles naming tokens by
+   hand; the thresholds are the same good/warn/bad vocabulary as everywhere else. */
+.cpm-goodbar { display: flex; align-items: center; gap: 8px; margin-top: 5px; max-width: 220px; }
+.cpm-goodbar__track {
+  position: relative;
+  flex: 1;
+  min-width: 48px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--container-section-color);
+  overflow: hidden;
+}
+.cpm-goodbar__fill { position: absolute; inset: 0 auto 0 0; border-radius: 2px; }
+.cpm-goodbar__fill--good { background: var(--alert-running-color); }
+.cpm-goodbar__fill--warn { background: var(--alert-caution-color); }
+.cpm-goodbar__fill--bad  { background: var(--alert-alarm-color); }
+.cpm-goodbar__value { font-variant-numeric: tabular-nums; min-width: 46px; text-align: right; }

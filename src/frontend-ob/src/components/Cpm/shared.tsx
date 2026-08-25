@@ -8,6 +8,7 @@
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { ObcIconButton } from '@oicl/openbridge-webcomponents-react/components/icon-button/icon-button';
 import type { CpmLoop, CpmWindowSpec } from '../../api/cpmApi';
 
 export type CpmTone = 'good' | 'warn' | 'bad' | 'muted';
@@ -256,6 +257,45 @@ export function toneFor(value: string | null | undefined): CpmTone {
   return 'muted';
 }
 
+/**
+ * Concrete rgb() for the four tone tokens, for canvas renderers (echarts cannot
+ * consume var()). Same tone vocabulary as the CSS in styles/cpm.css — resolved
+ * here so a canvas lane and a DOM pill can never disagree about what "warn"
+ * looks like. Call inside a useMemo keyed on obcTheme so it re-resolves on a
+ * theme switch.
+ */
+export function cpmToneColors(): Record<CpmTone, string> {
+  return {
+    good: resolveCssColor('var(--alert-running-color)', '#008300'),
+    warn: resolveCssColor('var(--alert-caution-color)', '#ffdb42'),
+    bad: resolveCssColor('var(--alert-alarm-color)', '#e30019'),
+    muted: resolveCssColor('var(--element-neutral-color)', '#9aa6af'),
+  };
+}
+
+/**
+ * Diagnosis → the band vocabulary an engineer reads on a timeline
+ * (Normal / Developing / Suspected / Not evaluated).
+ *
+ * It lived privately in CpmHistorical, which made it a THIRD name for the same
+ * value: Performance shows the raw `SUSPECTED FINAL ELEMENT NONLINEARITY`,
+ * `toneFor` reduces it to a colour, and this reduced it to a band label. The
+ * abstraction is a good one — it just has to be shared so the three screens
+ * agree.
+ */
+export function diagnosisBand(diagnosis: string | null | undefined): {
+  label: string; tone: CpmTone;
+} {
+  if (!diagnosis || diagnosis === 'INSUFFICIENT_DATA') {
+    return { label: 'Not evaluated', tone: 'muted' };
+  }
+  const d = diagnosis.toUpperCase();
+  if (d.startsWith('CONFIRMED') || d.startsWith('SUSPECTED')) return { label: 'Suspected', tone: 'bad' };
+  if (d.startsWith('DETECTED') || d.startsWith('CLASSIFIED')) return { label: 'Developing', tone: 'warn' };
+  if (d === 'NORMAL' || d === 'NONE' || d === 'HEALTHY') return { label: 'Normal', tone: 'good' };
+  return { label: d.replace(/_/g, ' '), tone: 'warn' };
+}
+
 /** CPA's dot+label pill. */
 export const TonePill: React.FC<{ tone?: CpmTone; children: React.ReactNode }> = ({
   tone = 'muted',
@@ -334,6 +374,27 @@ export const LoopSelect: React.FC<{
       ))}
     </select>
   </label>
+);
+
+/**
+ * Icon button with an accessible name.
+ *
+ * `obc-icon-button` renders its own <button> in shadow DOM with no aria-label
+ * and no prop to set one, so an `aria-label` on the HOST never reaches it —
+ * every icon-only control announced as an unnamed button. The default slot IS
+ * inside that inner button, so visually-hidden slot text becomes its accessible
+ * name. Use this instead of ObcIconButton for any icon-only control.
+ */
+export const CpmIconButton: React.FC<{
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}> = ({ label, onClick, disabled, children }) => (
+  <ObcIconButton disabled={disabled} onClick={onClick}>
+    {children}
+    <span className="cpm-sr-only">{label}</span>
+  </ObcIconButton>
 );
 
 /** Key/value row (CPA's .kv). */

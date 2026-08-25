@@ -12,55 +12,20 @@ import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
-  EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
-  fmtDateTime,
+  EmptyState, PanelHead, TonePill, WorkspaceHeader, toneFor, fmtDateTime,
 } from './shared';
+import { gateTone } from './gateStatus';
 import { LoopPicker, PlantScopeFilter, useCpmScope } from './plantScope';
 import {
-  useCpmCalculations, useCpmEvents, useCpmKpis, useCpmLoops, useLatestGates,
+  useCpmCalculations, useCpmKpis, useCpmLoops, useLatestGates,
 } from '../../hooks/useCpm';
 import { ApiError } from '../../api/apiFetch';
-import { useDialogA11y } from '../../hooks/useDialogA11y';
+import CalcDrawer from './CalcDrawer';
+import { METRICS, type MetricDef } from './calcCatalogue';
 
 /** gates/latest 404 = "no fused window yet" — an answer, not a failure. */
 const isNoVerdict = (e: unknown) => e instanceof ApiError && e.status === 404;
 
-interface MetricDef {
-  id: string;
-  field: string;          // column in the feature/gate rows
-  name: string;
-  gate: string;
-  kind: 'Calculation' | 'Parameter' | 'Decision';
-  unit: string;
-  source: 'short' | 'long' | 'gate';
-  description: string;
-}
-
-/** Metrics our analytics tables actually store — the honest catalogue. */
-const METRICS: MetricDef[] = [
-  { id: 'CPLM-001', field: 'completeness', name: 'Sample completeness', gate: 'G0', kind: 'Calculation', unit: 'ratio', source: 'short', description: 'Fraction of expected samples present in the window.' },
-  { id: 'CPLM-002', field: 'sample_count', name: 'Sample count', gate: 'G0', kind: 'Calculation', unit: 'count', source: 'short', description: 'Samples evaluated in the window.' },
-  { id: 'CPLM-003', field: 'auto_pct', name: 'Automatic-mode fraction', gate: 'G1', kind: 'Calculation', unit: 'ratio', source: 'short', description: 'Time fraction the controller spent in AUTO.' },
-  { id: 'CPLM-010', field: 'mae', name: 'Mean absolute error', gate: 'G3', kind: 'Calculation', unit: 'PV units', source: 'short', description: 'Mean |PV − SP| over the window.' },
-  { id: 'CPLM-011', field: 'rmse', name: 'Root-mean-square error', gate: 'G3', kind: 'Calculation', unit: 'PV units', source: 'short', description: 'RMS control error.' },
-  { id: 'CPLM-012', field: 'iae', name: 'Integral absolute error', gate: 'G3', kind: 'Calculation', unit: 'PV·s', source: 'short', description: 'Accumulated absolute error.' },
-  { id: 'CPLM-013', field: 'ise', name: 'Integral squared error', gate: 'G3', kind: 'Calculation', unit: 'PV²·s', source: 'short', description: 'Accumulated squared error.' },
-  { id: 'CPLM-014', field: 'good_error_pct', name: 'Good-error time', gate: 'G3', kind: 'Calculation', unit: 'fraction', source: 'short', description: 'Time fraction (0-1) the error stayed inside the good band.' },
-  { id: 'CPLM-020', field: 'effort_ratio', name: 'Actuator effort ratio', gate: 'G4', kind: 'Calculation', unit: 'ratio', source: 'short', description: 'OP travel relative to the error it corrects.' },
-  { id: 'CPLM-021', field: 'travel_per_day', name: 'OP travel per day', gate: 'G4', kind: 'Calculation', unit: '%/day', source: 'long', description: 'Total actuator travel extrapolated to a day.' },
-  { id: 'CPLM-022', field: 'reversals_per_hour', name: 'OP reversals per hour', gate: 'G4', kind: 'Calculation', unit: 'per h', source: 'long', description: 'Direction changes of the actuator.' },
-  { id: 'CPLM-030', field: 'acf_period_s', name: 'Oscillation period (ACF)', gate: 'G5', kind: 'Calculation', unit: 's', source: 'long', description: 'Dominant period from the autocorrelation.' },
-  { id: 'CPLM-031', field: 'acf_regularity', name: 'Oscillation regularity', gate: 'G5', kind: 'Calculation', unit: 'ratio', source: 'long', description: 'How regular the oscillation is (0–1).' },
-  { id: 'CPLM-040', field: 'harmonic_amplitude_ratio', name: 'Harmonic amplitude ratio', gate: 'G6', kind: 'Calculation', unit: 'ratio', source: 'long', description: 'Harmonics vs fundamental amplitude.' },
-  { id: 'CPLM-041', field: 'harmonic_energy_ratio', name: 'Harmonic energy ratio', gate: 'G6', kind: 'Calculation', unit: 'ratio', source: 'long', description: 'Spectral energy in harmonics.' },
-  { id: 'CPLM-050', field: 'triangularity', name: 'OP triangularity', gate: 'G7', kind: 'Calculation', unit: 'score', source: 'long', description: 'Triangular-wave similarity of the actuator trace (stiction shape).' },
-  { id: 'CPLM-060', field: 'horch_oddness', name: 'Horch oddness', gate: 'G8', kind: 'Calculation', unit: 'score', source: 'long', description: 'Odd-symmetry of the PV–OP cross-correlation.' },
-  // P2-4: raw is noise-sensitive (near 0.9+ even on healthy 5s data) and the
-  // qualified variant reads 0.0 on the stiction reference loop, so NEITHER is a
-  // trustworthy headline alone - say so instead of pretending.
-  { id: 'CPLM-070', field: 'corner_score', name: 'Phase-portrait corner score (raw)', gate: 'G9', kind: 'Calculation', unit: 'score', source: 'long', description: 'Sharp-corner evidence in the PV–OP phase plot. CAUTION: the raw statistic reads high (~0.9) even on healthy noisy data; treat it only alongside the G9 verdict and phase-area band, never alone.' },
-  { id: 'CPLM-090', field: 'confidence', name: 'Fused confidence', gate: 'G15', kind: 'Decision', unit: 'ratio', source: 'gate', description: 'Final banded confidence of the selected family.' },
-];
 
 export const CpmCalculations: React.FC = () => {
   const [params, setParams] = useSearchParams();
@@ -130,13 +95,15 @@ export const CpmCalculations: React.FC = () => {
     // (i.e. out of spec), which is a verdict the engine never issued.
     if (!cell || ['NOT_EVALUATED', 'PENDING', 'INSUFFICIENT_EVIDENCE'].includes(cell.status))
       return { label: 'Not evaluated', tone: 'muted' };
-    const t = toneFor(cell.status);
+    const t = gateTone(cell.status);
     if (t === 'muted') return { label: cell.status.replace(/_/g, ' '), tone: t };
     return { label: t === 'good' ? 'Acceptable' : t === 'warn' ? 'Review' : 'Outside', tone: t };
   };
 
   const gateKeys = useMemo(
     () => ['all', ...new Set(METRICS.map(m => m.gate))], []);
+  const kindKeys = useMemo(
+    () => ['all', ...new Set(METRICS.map(m => m.kind))], []);
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return METRICS.filter(m =>
@@ -150,8 +117,28 @@ export const CpmCalculations: React.FC = () => {
   const safePage = Math.min(page, pages - 1);
   const rows = filtered.slice(safePage * PAGE, safePage * PAGE + PAGE);
 
+  // Position in the CURRENT result set, so prev/next walk what you filtered to.
+  const drawerIndex = drawer ? filtered.findIndex(m => m.id === drawer.id) : -1;
+
   const observed = METRICS.filter(m => valueOf(m) != null).length;
-  const review = METRICS.filter(m => statusOf(m).tone === 'warn' || statusOf(m).tone === 'bad').length;
+  /**
+   * The assessment is a GATE verdict, replicated onto each metric that gate
+   * covers — so counting metrics said "5 require review" when the truth was
+   * "one gate needs review and it happens to carry five metrics". Count the
+   * distinct gates, which is the unit actually being assessed.
+   */
+  const gateTally = useMemo(() => {
+    const byGate = new Map<string, 'good' | 'warn' | 'bad' | 'muted'>();
+    for (const m of METRICS) if (!byGate.has(m.gate)) byGate.set(m.gate, statusOf(m).tone);
+    const tones = [...byGate.values()];
+    return {
+      good: tones.filter(t => t === 'good').length,
+      review: tones.filter(t => t === 'warn' || t === 'bad').length,
+      muted: tones.filter(t => t === 'muted').length,
+      total: tones.length,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- statusOf closes over the gates query; the data identity below is the real dep.
+  }, [gates.data]);
 
   return (
     <div className="cpm-screen">
@@ -194,10 +181,13 @@ export const CpmCalculations: React.FC = () => {
 
       <div className="cpm-kpi-row">
         <StatTile caption={`Metrics stored for ${loop?.loopId ?? '—'}`} value={observed} />
-        <StatTile caption="Evidence gates (incl. G2r)" value={catalogue.data?.gates.length ?? 17} />
-        <StatTile caption="Acceptable" value={METRICS.filter(m => statusOf(m).tone === 'good').length} tone="good" />
-        <StatTile caption="Require review" value={review} tone={review > 0 ? 'warn' : 'good'} />
-        <StatTile caption="Not evaluated" value={METRICS.filter(m => statusOf(m).tone === 'muted').length} tone="muted" />
+        {/* The hardcoded 17 fallback is the exact claim the Relationships tab
+            stopped making — say nothing rather than assert a pack size. */}
+        <StatTile caption="Evidence gates in the pack" value={catalogue.data?.gates.length ?? '—'} />
+        <StatTile caption="Gates acceptable" value={`${gateTally.good}/${gateTally.total}`} tone="good" />
+        <StatTile caption="Gates needing review" value={gateTally.review}
+          tone={gateTally.review > 0 ? 'warn' : 'good'} />
+        <StatTile caption="Gates not evaluated" value={gateTally.muted} tone="muted" />
       </div>
 
       <section className="cpm-surface">
@@ -209,9 +199,12 @@ export const CpmCalculations: React.FC = () => {
             onChange={e => { setGateFilter(e.target.value); setPage(0); }}>
             {gateKeys.map(g => <option key={g} value={g}>{g === 'all' ? 'All gates' : g}</option>)}
           </select>
+          {/* The list was hardcoded and offered "Parameter", which no metric in
+              METRICS carries — a filter option that could only ever return zero
+              results. Derived from the catalogue instead. */}
           <select className="cpm-select" value={kindFilter}
             onChange={e => { setKindFilter(e.target.value); setPage(0); }}>
-            {['all', 'Calculation', 'Parameter', 'Decision'].map(k =>
+            {kindKeys.map(k =>
               <option key={k} value={k}>{k === 'all' ? 'All types' : k}</option>)}
           </select>
           <span className="cpm-filter-count">{filtered.length} result(s)</span>
@@ -263,13 +256,16 @@ export const CpmCalculations: React.FC = () => {
 
       {drawer && loop && (
         <CalcDrawer metric={drawer} loopId={loop.loopId}
+          onPrev={drawerIndex > 0 ? () => setDrawer(filtered[drawerIndex - 1]) : undefined}
+          onNext={drawerIndex >= 0 && drawerIndex < filtered.length - 1
+            ? () => setDrawer(filtered[drawerIndex + 1]) : undefined}
           value={valueOf(drawer)} status={statusOf(drawer)}
           disqualification={disqualificationOf(drawer)}
           windowEnd={windowEndOf(drawer)}
-          versions={{
-            calc: gates.data?.metadata.calculationVersion ?? catalogue.data?.calculationVersion ?? null,
-            profile: gates.data?.metadata.dynamicsProfileVersion ?? catalogue.data?.dynamicsProfileVersion ?? null,
-          }}
+          catalogue={catalogue.data}
+          gateMatrix={gates.data}
+          row={drawer.source === 'short' ? latestShort
+            : drawer.source === 'long' ? latestLong : undefined}
           onClose={() => setDrawer(null)} />
       )}
     </div>
@@ -283,100 +279,5 @@ const StatTile: React.FC<{ caption: string; value: React.ReactNode; tone?: 'good
       <span className="cpm-kpi__value">{value}</span>
     </div>
   );
-
-// ── calculation drawer ─────────────────────────────────────────────────────
-
-const DRAWER_TABS = ['Definition', 'Validation', 'History'] as const;
-
-const CalcDrawer: React.FC<{
-  metric: MetricDef;
-  loopId: string;
-  value: number | null;
-  status: { label: string; tone: 'good' | 'warn' | 'bad' | 'muted' };
-  disqualification: string | null;
-  windowEnd: string | null;
-  versions: { calc: string | null; profile: string | null };
-  onClose: () => void;
-}> = ({ metric, loopId, value, status, disqualification, windowEnd, versions, onClose }) => {
-  const dialogRef = useDialogA11y<HTMLDivElement>(onClose);
-  const [tab, setTab] = useState<typeof DRAWER_TABS[number]>('Definition');
-  // sort:'recent' — this tab is a timeline labelled by opened_at; the server's
-  // triage default would list highest-confidence episodes as if newest (B1).
-  const events = useCpmEvents({ loopId, openOnly: false, limit: 10, sort: 'recent' });
-
-  return (
-    <>
-      <div className="cpm-modal-backdrop" onClick={onClose} />
-      <div ref={dialogRef} className="cpm-drawer" role="dialog" aria-modal="true" tabIndex={-1} aria-label={`${metric.id} definition`}>
-        <PanelHead eyebrow={`${loopId} · ${metric.id}`} title={metric.name}
-          right={<ObcButton variant="normal" onClick={onClose}>Close</ObcButton>} />
-        <div className="cpm-kpi-row" style={{ margin: '12px 0' }}>
-          <div className={`cpm-kpi cpm-kpi--${disqualification ? 'warn' : status.tone}`}>
-            <span className="cpm-kpi__caption">Latest value</span>
-            <span className="cpm-kpi__value">
-              {disqualification ? '— (declined)' : value != null ? `${value.toFixed(3)} ${metric.unit}` : '—'}
-            </span>
-            <span className="cpm-kpi__sub">
-              {disqualification ?? status.label}
-              {windowEnd ? ` · window ends ${fmtDateTime(windowEnd)}` : ''}
-            </span>
-          </div>
-        </div>
-
-        <div className="cpm-filter-row" style={{ marginBottom: 12 }}>
-          {DRAWER_TABS.map(t => (
-            <ObcButton key={t} variant={tab === t ? 'raised' : 'normal'} onClick={() => setTab(t)}>{t}</ObcButton>
-          ))}
-        </div>
-
-        {tab === 'Definition' && (
-          <>
-            <p className="cpm-copy">{metric.description}</p>
-            <PanelHead eyebrow="Runtime configuration" title="Contract" />
-            <KvRow label="Loop">{loopId}</KvRow>
-            <KvRow label="Gate">{metric.gate}</KvRow>
-            <KvRow label="Kind">{metric.kind}</KvRow>
-            <KvRow label="Stored in">{metric.source === 'short' ? 'cplm_short_feature_results' : metric.source === 'long' ? 'cplm_long_feature_results' : 'cplm_gate_results'}</KvRow>
-            <KvRow label="Output unit">{metric.unit}</KvRow>
-            <KvRow label="Execution">Apache Flink · event time</KvRow>
-            <KvRow label="Calculation version">{versions.calc ?? '—'}</KvRow>
-            <KvRow label="Dynamics profile">{versions.profile ?? '—'}</KvRow>
-          </>
-        )}
-
-        {tab === 'Validation' && (
-          <>
-            <PanelHead eyebrow="Provenance" title="How this value is trusted" />
-            <KvRow label="Golden-loop regression">
-              <TonePill tone="good">CI-gated (Cplm*Test, 30 assertions)</TonePill>
-            </KvRow>
-            <KvRow label="Version stamped per window">
-              <TonePill tone={versions.calc ? 'good' : 'muted'}>{versions.calc ? 'Yes' : 'Not on this row'}</TonePill>
-            </KvRow>
-            <KvRow label="Idempotent storage">
-              <TonePill tone="good">Upsert on (loop, window, source)</TonePill>
-            </KvRow>
-            <p className="cpm-copy" style={{ marginTop: 8 }}>
-              Values are produced by the same fusion engine the golden reference test pins;
-              a change in the math fails CI before it can reach this screen.
-            </p>
-          </>
-        )}
-
-        {tab === 'History' && (
-          <>
-            <PanelHead eyebrow="Loop episodes" title="Recent diagnosis history" />
-            {(events.data?.events ?? []).length === 0 && <EmptyState title="No episodes recorded" />}
-            {(events.data?.events ?? []).map(e => (
-              <KvRow key={e.id} label={fmtDateTime(e.opened_at)}>
-                {e.peak_diagnosis.replace(/_/g, ' ')} · {(e.peak_confidence * 100).toFixed(0)}%
-              </KvRow>
-            ))}
-          </>
-        )}
-      </div>
-    </>
-  );
-};
 
 export default CpmCalculations;

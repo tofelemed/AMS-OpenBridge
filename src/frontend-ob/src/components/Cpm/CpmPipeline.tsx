@@ -14,7 +14,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
-  EmptyState, KpiTile, KvRow, PanelHead, TonePill, WorkspaceHeader, cpmChartColors,
+  EmptyState, KpiTile, KvRow, PanelHead, QueryError, TonePill, WorkspaceHeader,
+  cpmChartColors,
 } from './shared';
 import {
   useCpmLoops, useCpmPipelineStatus, useFleetRankings, usePipelineMetrics, useRecompute,
@@ -164,7 +165,14 @@ export const CpmPipeline: React.FC = () => {
             Latency / backpressure / parallelism are not exposed by the proxy — shown as “—”, not estimated.
           </span>} />
         {metrics.isLoading && <EmptyState title="Reading Flink metrics…" />}
-        {!metrics.isLoading && jobs.length === 0 && (
+        {/* The empty branch used to catch fetch FAILURES too, so a metrics proxy
+            that never answered rendered "No required jobs matched the overview"
+            — asserting the overview was read and came back empty. */}
+        {metrics.isError && (
+          <QueryError title="Flink metrics unavailable"
+            error={metrics.error} retry={() => void metrics.refetch()} />
+        )}
+        {!metrics.isLoading && !metrics.isError && jobs.length === 0 && (
           <EmptyState title="No job metrics"
             copy={metrics.data?.jobManagerReachable === false
               ? 'The Flink JobManager did not answer.' : 'No required jobs matched the overview.'} />
@@ -182,8 +190,6 @@ export const CpmPipeline: React.FC = () => {
                   <th>Last ckpt age</th>
                   <th>Last ckpt duration</th>
                   <th>State size</th>
-                  <th>Latency</th>
-                  <th>Backpressure</th>
                 </tr>
               </thead>
               <tbody>
@@ -197,8 +203,6 @@ export const CpmPipeline: React.FC = () => {
                     <td>{j.checkpoint?.lastCompletedAgeSec != null ? `${j.checkpoint.lastCompletedAgeSec}s` : '—'}</td>
                     <td>{j.checkpoint?.lastDurationMs != null ? `${j.checkpoint.lastDurationMs}ms` : '—'}</td>
                     <td>{fmtBytes(j.checkpoint?.lastSizeBytes)}</td>
-                    <td>—</td>
-                    <td>—</td>
                   </tr>
                 ))}
               </tbody>

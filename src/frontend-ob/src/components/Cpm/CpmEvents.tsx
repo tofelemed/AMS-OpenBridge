@@ -11,6 +11,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
+import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
 import {
   EmptyState, KvRow, PanelHead, QueryError, TonePill, WorkspaceHeader, toneFor,
   fmtDateTime,
@@ -30,6 +32,9 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'closed', label: 'Closed' },
 ];
 
+const isFilterKey = (v: string | null): v is FilterKey =>
+  FILTERS.some(f => f.key === v);
+
 function matches(e: CpmEventFrame, f: FilterKey): boolean {
   switch (f) {
     case 'open': return e.closed_at === null;
@@ -48,11 +53,22 @@ function severityOf(e: CpmEventFrame): { label: string; tone: 'good' | 'warn' | 
   return { label: 'Advisory', tone: 'muted' };
 }
 
-function stateLabel(e: CpmEventFrame): string {
-  if (e.closed_at !== null) return 'Closed';
-  if (e.ack_state === 'SHELVED') return 'Shelved';
-  if (e.ack_state === 'ACKNOWLEDGED') return 'Acknowledged';
-  return 'Unacknowledged';
+/**
+ * State carries the ACTION, and it rendered as bare text next to a severity
+ * pill — so the one column telling you something needs doing was the least
+ * prominent thing in the row. Toned like everything else on these screens.
+ */
+function stateOf(e: CpmEventFrame): { label: string; tone: 'good' | 'warn' | 'muted' } {
+  // An episode that closed without ever being acknowledged is an UNREVIEWED
+  // finding, not a resolved one — it does not get to read as neutral.
+  if (e.closed_at !== null) {
+    return e.ack_state === 'UNACKNOWLEDGED'
+      ? { label: 'Closed · unacked', tone: 'warn' }
+      : { label: 'Closed', tone: 'muted' };
+  }
+  if (e.ack_state === 'SHELVED') return { label: 'Shelved', tone: 'muted' };
+  if (e.ack_state === 'ACKNOWLEDGED') return { label: 'Acknowledged', tone: 'good' };
+  return { label: 'Unacknowledged', tone: 'warn' };
 }
 
 // E2 (P2-13): the page's local formatter carried no zone label — and this page
@@ -64,7 +80,11 @@ const FETCH_LIMIT = 200;
 
 export const CpmEvents: React.FC = () => {
   const [params, setParams] = useSearchParams();
-  const filter = (params.get('filter') as FilterKey) ?? 'all';
+  // Validated, not cast: `?filter=bogus` satisfied the cast, fell through
+  // `matches` to "show everything", and left no chip looking active — the list
+  // said one thing and the controls said another.
+  const filterParam = params.get('filter');
+  const filter: FilterKey = isFilterKey(filterParam) ? filterParam : 'all';
   const selectedId = params.get('event');
   // E1: both orders are legitimate here — triage (worst first) is the right
   // default for a response queue, but "what happened lately" needs opened_at.
@@ -113,6 +133,10 @@ export const CpmEvents: React.FC = () => {
   const selected = (data?.events ?? []).find(e => String(e.id) === selectedId) ?? events[0];
   const selectionHiddenByFilter =
     !!selected && !events.some(e => e.id === selected.id);
+  // Every sibling screen says when a deep link fell back; this one silently
+  // showed a different episode under a URL naming a missing one.
+  const selectionFellBack = !!selectedId && !!selected
+    && String(selected.id) !== selectedId;
 
   // Page the (filtered) event list so it isn't a 200-row scroll.
   const PAGE_SIZE = 20;
@@ -127,30 +151,54 @@ export const CpmEvents: React.FC = () => {
         title="Events"
         copy="Investigate diagnosis episodes with operating context and a traceable response history. One row is one episode of one fault family — confidence changes extend it rather than duplicating it."
       />
+      {/* The search box used to be passed as the scope filter's `summary` — a
+          slot documented for "12 of 54 loops" — which both misused it and left
+          the scope with no count. */}
       <PlantScopeFilter scope={scope}
-        summary={
-          <input className="cpm-input" style={{ minWidth: 240 }}
-            placeholder="Find by loop, service, family or diagnosis"
-            value={search} onChange={e => setSearch(e.target.value)} />
-        } />
+        summary={scope.active ? `${events.length} matching event(s)` : null} />
 
       <div className="cpm-filter-row">
-        {FILTERS.map(f => (
-          <ObcButton
-            key={f.key}
-            variant={filter === f.key ? 'raised' : 'normal'}
-            onClick={() => setParams(p => { p.set('filter', f.key); return p; }, { replace: true })}
+        <ObcToggleButtonGroup
+          value={filter}
+          aria-label="Event state"
+          onValue={(e: CustomEvent<{ value: string }>) => {
+            // Same empty-first-emit guard as the other segmented groups.
+            if (isFilterKey(e.detail.value)) {
+              const v = e.detail.value;
+              setParams(p => { p.set('filter', v); return p; }, { replace: true });
+            }
+          }}
+        >
+          {FILTERS.map(f => (
+            <ObcToggleButtonOption key={f.key} value={f.key}>{f.label}</ObcToggleButtonOption>
+          ))}
+        </ObcToggleButtonGroup>
+
+        <label className="cpm-field cpm-field--compact">
+          <span className="cpm-field__label">Order</span>
+          <ObcToggleButtonGroup
+            value={sort}
+            onValue={(e: CustomEvent<{ value: string }>) => {
+              const v = e.detail.value;
+              if (v !== 'triage' && v !== 'recent') return;
+              setParams(p => {
+                if (v === 'triage') p.delete('sort'); else p.set('sort', v);
+                return p;
+              }, { replace: true });
+            }}
           >
-            {f.label}
-          </ObcButton>
-        ))}
-        <span className="cpm-field__label" style={{ alignSelf: 'center', marginLeft: 8 }}>Order</span>
-        {([['triage', 'Triage (worst first)'], ['recent', 'Newest first']] as const).map(([k, label]) => (
-          <ObcButton key={k} variant={sort === k ? 'raised' : 'normal'}
-            onClick={() => setParams(p => { if (k === 'triage') p.delete('sort'); else p.set('sort', k); return p; }, { replace: true })}>
-            {label}
-          </ObcButton>
-        ))}
+            <ObcToggleButtonOption value="triage">Triage</ObcToggleButtonOption>
+            <ObcToggleButtonOption value="recent">Newest</ObcToggleButtonOption>
+          </ObcToggleButtonGroup>
+        </label>
+
+        <label className="cpm-field cpm-field--compact">
+          <span className="cpm-field__label">Find</span>
+          <input className="cpm-input" style={{ minWidth: 240 }}
+            placeholder="loop, service, family or diagnosis"
+            value={search} onChange={e => setSearch(e.target.value)} />
+        </label>
+
         <span className="cpm-filter-count">
           {events.length} event(s)
           {truncated ? ` · showing the ${sort === 'recent' ? 'newest' : 'highest-priority'} ${FETCH_LIMIT} — counts describe this slice, not the fleet` : ''}
@@ -170,6 +218,12 @@ export const CpmEvents: React.FC = () => {
               copy="Diagnosis episodes appear here when the gate engine reports a fault family."
             />
           )}
+          {selectionFellBack && (
+            <p className="cpm-copy" role="status" style={{ padding: '8px 12px' }}>
+              Event {selectedId} is not in the fetched set — showing the first event in this
+              view instead.
+            </p>
+          )}
           {selectionHiddenByFilter && (
             <p className="cpm-copy" role="status" style={{ padding: '8px 12px' }}>
               The selected event is hidden by the current filter — its detail stays open on the right.
@@ -177,6 +231,7 @@ export const CpmEvents: React.FC = () => {
           )}
           {pagedEvents.map(e => {
             const sev = severityOf(e);
+            const st = stateOf(e);
             return (
               <div
                 key={e.id}
@@ -197,7 +252,7 @@ export const CpmEvents: React.FC = () => {
                   <div className="cpm-event-row__sub">EVT-{e.id} · {e.loop_id} · {e.window_kind}</div>
                 </span>
                 <TonePill tone={sev.tone}>{sev.label}</TonePill>
-                <span>{stateLabel(e)}</span>
+                <TonePill tone={st.tone}>{st.label}</TonePill>
                 <span className="cpm-event-row__sub">{fmt(e.opened_at)}</span>
               </div>
             );
@@ -276,7 +331,17 @@ const EventDetail: React.FC<{ event: CpmEventFrame }> = ({ event }) => {
       )}
       {event.note && <KvRow label="Note">{event.note}</KvRow>}
 
-      {open && (
+      {/*
+        This block used to be gated on `open`, so a CLOSED, UNACKNOWLEDGED
+        episode could never be acknowledged from this screen — and that is the
+        common state, because an episode closes when the diagnosis stops
+        recurring, not when anyone reviews it. The API acknowledges any frame
+        regardless of closed_at (CpmEventsController.Acknowledge has no such
+        predicate), so the restriction was the UI inventing a rule and stranding
+        a backlog. Shelving still applies only to open episodes: suppressing an
+        episode that has already ended means nothing.
+      */}
+      {(open || event.ack_state === 'UNACKNOWLEDGED') && (
         <>
           <label className="cpm-field" style={{ marginTop: 12, minWidth: 0 }}>
             <span className="cpm-field__label">Note (optional)</span>
@@ -284,7 +349,7 @@ const EventDetail: React.FC<{ event: CpmEventFrame }> = ({ event }) => {
               placeholder="Why this was acknowledged or shelved" />
           </label>
           <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-            <ObcButton variant="normal" disabled={shelve.isPending}
+            <ObcButton variant="normal" disabled={!open || shelve.isPending}
               onClick={() => setShelveOpen(s => !s)}>
               Shelve…
             </ObcButton>
@@ -304,8 +369,19 @@ const EventDetail: React.FC<{ event: CpmEventFrame }> = ({ event }) => {
               <span className="cpm-copy">A shelve always expires; the episode returns to the list afterwards.</span>
             </div>
           )}
+          {!open && (
+            <p className="cpm-copy" style={{ marginTop: 8 }}>
+              This episode has closed but was never acknowledged — a closed, unacknowledged
+              episode is an unreviewed finding, not a resolved one. It can still be
+              acknowledged; shelving no longer applies.
+            </p>
+          )}
+          {ack.isSuccess && <TonePill tone="good">ACKNOWLEDGED</TonePill>}
           {(ack.isError || shelve.isError) && (
-            <p className="cpm-field__error">{String(ack.error ?? shelve.error)}</p>
+            <p className="cpm-field__error">
+              {(ack.error as Error)?.message ?? (shelve.error as Error)?.message
+                ?? 'The action failed.'}
+            </p>
           )}
         </>
       )}

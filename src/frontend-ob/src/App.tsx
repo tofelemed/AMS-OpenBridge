@@ -653,18 +653,20 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 // Navigation items — grouped by data source and function
 const navItems = [
-  // ── Live Operations (SignalR + MQTT real-time) ──────────────
+  // ── Operations ────────────────────────────────────────────
+  // Grouped by TASK, not by data source: "Historical (PostgreSQL + IoTDB)" and
+  // "Analysis" described where bytes come from, which is not a question anyone
+  // opens a nav with. Alarm History and Analytics answer the same question the
+  // live views do — "what is happening on my plant" — so they live here.
+  // (The group is no longer "Live Operations": it now holds history too.)
   // `permission` must match the route guard for the same path (see the Routes block) — a nav entry that
   // is visible but redirects on click is worse than no entry at all.
-  { path: '/dashboard',    label: 'Dashboard',          Icon: ObiDashboard, group: 'Live Operations',  badge: undefined as string | undefined, permission: 'alarm.view' },
-  { path: '/alarms',       label: 'Active Alarms',       Icon: ObiAlarm, group: 'Live Operations',  badge: 'alarms', permission: 'alarm.view' },
-  { path: '/live-events',  label: 'Live Events',         Icon: ObiMonitoring, group: 'Live Operations', permission: 'alarm.view' },
-  { path: '/soe',          label: 'Sequence of Events',  Icon: ObiTime,  group: 'Live Operations', permission: 'soe.view' },
-  // ── Historical (PostgreSQL + IoTDB) ───────────────────────
-  { path: '/historical', label: 'Alarm History',       Icon: ObiHistoryGoogle, group: 'Historical', permission: 'alarm.view' },
-  { path: '/trend',       label: 'Trend',               Icon: ObiTrend, group: 'Historical', permission: 'historian.view' },
-  // ── Analysis ──────────────────────────────────────────────
-  { path: '/analytics',  label: 'Analytics',           Icon: ObiChart, group: 'Analysis', permission: 'analytics.view' },
+  { path: '/dashboard',    label: 'Dashboard',          Icon: ObiDashboard, group: 'Operations',  badge: undefined as string | undefined, permission: 'alarm.view' },
+  { path: '/alarms',       label: 'Active Alarms',       Icon: ObiAlarm, group: 'Operations',  badge: 'alarms', permission: 'alarm.view' },
+  { path: '/live-events',  label: 'Live Events',         Icon: ObiMonitoring, group: 'Operations', permission: 'alarm.view' },
+  { path: '/soe',          label: 'Sequence of Events',  Icon: ObiTime,  group: 'Operations', permission: 'soe.view' },
+  { path: '/historical',   label: 'Alarm History',       Icon: ObiHistoryGoogle, group: 'Operations', permission: 'alarm.view' },
+  { path: '/analytics',    label: 'Analytics',           Icon: ObiChart, group: 'Operations', permission: 'analytics.view' },
   // ── Loop Performance (CPLM Phase 7) ───────────────────────
   { path: '/cpm',              label: 'Overview',           Icon: ObiDashboard, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/performance',  label: 'Performance',        Icon: ObiChart, group: 'Loop Performance', permission: 'analytics.view' },
@@ -673,25 +675,30 @@ const navItems = [
   { path: '/cpm/windows',      label: 'Window Inspector',   Icon: ObiTime, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/replay',       label: 'Evidence Replay',    Icon: ObiTrend, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/investigation', label: 'Investigation',     Icon: ObiEditGoogle, group: 'Loop Performance', permission: 'analytics.view' },
-  { path: '/cpm/pipeline',     label: 'Pipeline Health',    Icon: ObiMonitoring, group: 'Loop Performance', permission: 'analytics.view' },
-  { path: '/cpm/governance',   label: 'Governance',         Icon: ObiUser, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/calculations', label: 'Calculations',       Icon: ObiListAltCheckGoogle, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/registry',     label: 'Loop Registry',      Icon: ObiWrench, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/events',       label: 'Loop Events',        Icon: ObiNotification, group: 'Loop Performance', permission: 'analytics.view' },
-  // ── HMI displays (runtime for everyone, Designer for authors) ──
-  { path: '/displays',   label: 'HMI Displays',        Icon: ObiMonitoring, group: 'Design', permission: 'display.view' },
-  { path: '/designer',   label: 'HMI Designer',        Icon: ObiEditGoogle, group: 'Design', permission: 'display.edit' },
-  // ── Infrastructure (edge + system monitoring) ─────────────
+  // ── Engineering (authoring + the tag-level trend they author against) ──
+  { path: '/displays',   label: 'HMI Displays',        Icon: ObiMonitoring, group: 'Engineering', permission: 'display.view' },
+  { path: '/designer',   label: 'HMI Designer',        Icon: ObiEditGoogle, group: 'Engineering', permission: 'display.edit' },
+  { path: '/trend',      label: 'Trend',               Icon: ObiTrend, group: 'Engineering', permission: 'historian.view' },
+  // ── System (platform runtime, deep tooling, admin and change control) ──
   // SystemMonitor was removed in Phase 7 S6: its job table and latency metrics were
   // fabricated and its data endpoint never existed. /cpm/pipeline is the real one.
-  { path: '/edge',       label: 'Edge Node Monitor',   Icon: ObiPlaceholder,  group: 'Infrastructure', permission: 'historian.view' },
-  // ── Administration (ONE entry — the hub's own 7-tab bar handles the sections;
-  //    a bare /admin lands on the first tab the user can see via the hub's index
-  //    redirect). Visible to anyone holding ANY admin permission — matches the
-  //    /admin/* route's anyOf guard, so an auditor or rbac-manager still sees it. ──
-  { path: '/admin',      label: 'Administration',      Icon: ObiUser, group: 'Administration', permission: 'admin.users.edit', anyOf: ['admin.users.edit', 'admin.audit.view', 'rbac.manage'] },
-  // ── Diagnostics (engineer/E2E tooling — moved out of the primary Historical nav) ──
-  { path: '/iotdb-trend', label: 'IoTDB Trend Viewer',  Icon: ObiDatabase, group: 'Diagnostics', permission: 'historian.view' },
+  // Pipeline Health reports EVERY required Flink job by role (alarm / cplm /
+  // platform), so it is platform runtime rather than loop analytics; Governance
+  // audits HMI displays as well as CPM, so it is change control for the whole
+  // product. Routes stay under /cpm/* — the command palette and existing deep
+  // links point there, and a nav regrouping must not break bookmarks.
+  { path: '/cpm/pipeline', label: 'Pipeline Health',     Icon: ObiMonitoring, group: 'System', permission: 'analytics.view' },
+  { path: '/edge',       label: 'Edge Node Monitor',   Icon: ObiPlaceholder,  group: 'System', permission: 'historian.view' },
+  { path: '/iotdb-trend', label: 'IoTDB Trend Viewer',  Icon: ObiDatabase, group: 'System', permission: 'historian.view' },
+  // Administration is ONE entry — the hub's own 7-tab bar handles the sections;
+  // a bare /admin lands on the first tab the user can see via the hub's index
+  // redirect. Visible to anyone holding ANY admin permission — matches the
+  // /admin/* route's anyOf guard, so an auditor or rbac-manager still sees it.
+  { path: '/admin',      label: 'Administration',      Icon: ObiUser, group: 'System', permission: 'admin.users.edit', anyOf: ['admin.users.edit', 'admin.audit.view', 'rbac.manage'] },
+  { path: '/cpm/governance', label: 'Governance',      Icon: ObiListAltCheckGoogle, group: 'System', permission: 'analytics.view' },
 ];
 
 // Collapsed nav groups persist across navigation and reload, so an operator who

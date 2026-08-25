@@ -15,8 +15,9 @@ import { useSearchParams } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
-  EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
+  EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader,
   fmtDateTime, QueryError, cpmChartColors } from './shared';
+import { gateTone } from './gateStatus';
 import { LoopPicker, PlantScopeFilter, useCpmScope } from './plantScope';
 import type { CpmGateMatrix, CpmKpiRow } from '../../api/cpmApi';
 import {
@@ -97,7 +98,14 @@ export const CpmReplay: React.FC = () => {
   // The long-tier KPI row for the same 24h window carries the metric values.
   const kpiRow: CpmKpiRow | undefined = useCpmKpisRange(
     loopId, '24h',
-    selected?.windowStart ?? undefined, undefined, 10,
+    selected?.windowStart ?? undefined,
+    // `to` is load-bearing, not decoration: the endpoint filters
+    // window_end BETWEEN from AND to and then orders DESC LIMIT n, so leaving
+    // `to` open asked for the ten NEWEST windows since this one — which drops
+    // the selected window itself as soon as more than ten have been emitted
+    // since. Every gate metric then read "no long-tier row for this window",
+    // blaming the data for a query bug.
+    selected?.windowEnd ?? undefined, 10,
     !!selected?.windowStart, // C: don't fire with from='' then refetch with the real window
   ).data?.samples.find(r => r.window_end === selected?.windowEnd);
 
@@ -200,7 +208,11 @@ export const CpmReplay: React.FC = () => {
         eyebrow="Gate-level forensics"
         title="Evidence replay"
         copy="Walk the exact samples a window evaluated, see what the gate concluded, and re-run the computation to prove it."
-        actions={<ObcButton variant="normal" onClick={exportPackage}>Export package</ObcButton>}
+        actions={
+          <ObcButton variant="normal" disabled={!selected} onClick={exportPackage}>
+            Export package
+          </ObcButton>
+        }
       />
 
       <section className="cpm-surface">
@@ -236,7 +248,7 @@ export const CpmReplay: React.FC = () => {
             </span>
           )}
           <TonePill tone="muted">{role}</TonePill>
-          {cell && <TonePill tone={toneFor(cell.status)}>{cell.status.replace(/_/g, ' ')}</TonePill>}
+          {cell && <TonePill tone={gateTone(cell.status)}>{cell.status.replace(/_/g, ' ')}</TonePill>}
         </div>
 
         {/* R3: the old stepper hardcoded stages 1–4 "done" and 5 "active" — static
@@ -267,7 +279,11 @@ export const CpmReplay: React.FC = () => {
             copy="Replay needs a stored fused result; run the loop long enough to complete a window, or recompute from history." />
         )}
         {raw.isLoading && <EmptyState title="Loading raw slice…" />}
-        {selected && !raw.isLoading && points.length === 0 && (
+        {raw.isError && (
+          <QueryError title="Raw slice unavailable"
+            error={raw.error} retry={() => void raw.refetch()} />
+        )}
+        {selected && !raw.isLoading && !raw.isError && points.length === 0 && (
           <EmptyState title="No raw historian data for this window"
             copy={`Nothing stored at ${series} between the window bounds.`} />
         )}
@@ -300,7 +316,7 @@ export const CpmReplay: React.FC = () => {
           <PanelHead eyebrow="Summary" title={def ? `${gateKey} · ${def.name}` : gateKey} />
           <KvRow label="Question">{def?.question ?? '—'}</KvRow>
           <KvRow label="Result">
-            <TonePill tone={toneFor(cell?.status)}>{(cell?.status ?? 'NOT_EVALUATED').replace(/_/g, ' ')}</TonePill>
+            <TonePill tone={gateTone(cell?.status)}>{(cell?.status ?? 'NOT_EVALUATED').replace(/_/g, ' ')}</TonePill>
           </KvRow>
           {cell?.reason && <KvRow label="Reason">{cell.reason}</KvRow>}
           <KvRow label="Window">

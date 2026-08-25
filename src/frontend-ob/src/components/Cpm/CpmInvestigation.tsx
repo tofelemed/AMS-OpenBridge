@@ -14,9 +14,13 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { ObcFilterChip } from '@oicl/openbridge-webcomponents-react/components/filter-chip/filter-chip';
+import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
+import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
 import {
   EmptyState, KpiTile, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
   fmtDateTime, QueryError, cpmChartColors } from './shared';
+import { gateTone } from './gateStatus';
 import { LoopPicker, PlantScopeFilter, useCpmScope } from './plantScope';
 import { ApiError } from '../../api/apiFetch';
 import type { CpmGateMatrix } from '../../api/cpmApi';
@@ -69,12 +73,19 @@ const CHAIN: { label: string; gates: string[]; question: string }[] = [
   { label: 'Confirmation & fusion', gates: ['G12', 'G13', 'G14', 'G15'], question: 'Does context confirm it, and what verdict fuses out?' },
 ];
 
+/**
+ * Worst tone across a chain stage. It used to classify gate statuses inline — a
+ * FOURTH vocabulary, and one that disagreed with the others: STRONG read as warn
+ * here while the Performance matrix, the Explorer and Replay all read it as bad.
+ * Same gate, same window, a different colour depending on which screen you were
+ * on. It now defers to `gateTone`, the single source.
+ */
 function stageTone(matrix: CpmGateMatrix | undefined, gates: string[]): 'good' | 'warn' | 'bad' | 'muted' {
   if (!matrix) return 'muted';
-  const statuses = gates.map(g => matrix.gates.find(c => c.key === g)?.status ?? 'NOT_EVALUATED');
-  if (statuses.some(s => s === 'FAIL' || s.startsWith('EXCLUDED'))) return 'bad';
-  if (statuses.some(s => ['WARN', 'STRONG', 'REVIEW', 'SUSPECTED', 'INSUFFICIENT_EVIDENCE'].includes(s))) return 'warn';
-  if (statuses.every(s => s === 'NOT_EVALUATED')) return 'muted';
+  const tones = gates.map(g => gateTone(matrix.gates.find(c => c.key === g)?.status));
+  if (tones.includes('bad')) return 'bad';
+  if (tones.includes('warn')) return 'warn';
+  if (tones.every(t => t === 'muted')) return 'muted';
   return 'good';
 }
 
@@ -132,9 +143,16 @@ export const CpmInvestigation: React.FC = () => {
   // failure; it must render as the no-verdict empty state, not an error card.
   const noVerdictYet = latest.isError
     && latest.error instanceof ApiError && latest.error.status === 404;
-  const previous = matrix
-    ? windows[windows.findIndex(w => w.windowEnd === matrix.windowEnd) + 1]
-    : undefined;
+  // findIndex returns -1 when the current verdict is not among the fetched
+  // history — in live mode that happens whenever `latest` is newer than the
+  // gate-history page. `-1 + 1 = 0` then made windows[0], the NEWEST window, the
+  // "PREVIOUS" one, so the delta table compared the window against itself and
+  // reported "unchanged / 0 pt" as a finding.
+  const previous = useMemo(() => {
+    if (!matrix) return undefined;
+    const i = windows.findIndex(w => w.windowEnd === matrix.windowEnd);
+    return i >= 0 ? windows[i + 1] : undefined;
+  }, [matrix, windows]);
 
   // Evidence chart over the verdict's own window.
   const series = loopId ? loopSeries(loopId) : undefined;
@@ -237,24 +255,38 @@ export const CpmInvestigation: React.FC = () => {
         {cases.length === 0 && <EmptyState title="No evaluated loops yet" />}
         <div className="cpm-filter-row">
           {cases.map(([c, n]) => (
-            <ObcButton key={c} variant={caseFilter === c ? 'raised' : 'normal'}
-              onClick={() => setParams(p => { p.set('case', c); p.delete('loop'); return p; }, { replace: true })}>
-              {c} · {n}
-            </ObcButton>
+            <ObcFilterChip
+              key={c}
+              label={`${c} · ${n}`}
+              checked={caseFilter === c}
+              onChipToggle={() => setParams(p => {
+                if (caseFilter === c) p.delete('case');
+                else { p.set('case', c); p.delete('loop'); }
+                return p;
+              }, { replace: true })}
+            />
           ))}
         </div>
 
         <div className="cpm-toolbar" style={{ marginTop: 12 }}>
           <LoopPicker scope={scope} loops={filteredLoops.length ? filteredLoops : allLoops} value={loopId ?? ''}
             onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })} />
-          <div className="cpm-filter-row">
-            {(['live', 'historical'] as const).map(m => (
-              <ObcButton key={m} variant={mode === m ? 'raised' : 'normal'}
-                onClick={() => setParams(p => { p.set('mode', m); return p; }, { replace: true })}>
-                {m === 'live' ? 'Live (latest verdict)' : 'Historical'}
-              </ObcButton>
-            ))}
-          </div>
+          <label className="cpm-field">
+            <span className="cpm-field__label">Source</span>
+            <ObcToggleButtonGroup
+              value={mode}
+              onValue={(e: CustomEvent<{ value: string }>) => {
+                // Same empty-first-emit guard as the other segmented groups.
+                const v = e.detail.value;
+                if (v === 'live' || v === 'historical') {
+                  setParams(p => { p.set('mode', v); return p; }, { replace: true });
+                }
+              }}
+            >
+              <ObcToggleButtonOption value="live">Live</ObcToggleButtonOption>
+              <ObcToggleButtonOption value="historical">Historical</ObcToggleButtonOption>
+            </ObcToggleButtonGroup>
+          </label>
           <label className="cpm-field">
             <span className="cpm-field__label">Profile</span>
             <select className="cpm-select" value={windowKind}
@@ -277,6 +309,14 @@ export const CpmInvestigation: React.FC = () => {
             </label>
           )}
         </div>
+        {/* obc-toggle-button-option renders a plain inner <button> with a
+            `selected` CLASS and no ARIA state, so the segmented control above is
+            visual-only to assistive tech. State the resolved selection instead. */}
+        <span className="cpm-sr-only" aria-live="polite">
+          Source: {mode === 'live' ? 'live, the latest verdict' : 'historical'}.
+          Profile {windowKind} fused.
+          {caseFilter ? ` Case filter: ${caseFilter}.` : ' No case filter.'}
+        </span>
       </section>
 
       {/* I6: error/empty rendering keyed on the query the ACTIVE MODE reads.
@@ -395,10 +435,12 @@ export const CpmInvestigation: React.FC = () => {
               {hypothesisRows.map(h => (
                 <div key={h.field} className="cpm-kv">
                   <span className="cpm-kv__label">{h.label}</span>
-                  <span className="cpm-kv__value" style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 180 }}>
-                    <span style={{ flex: 1, height: 6, borderRadius: 3, background: 'var(--container-hover-color, rgba(128,128,128,0.15))', overflow: 'hidden' }}>
-                      <span style={{ display: 'block', height: '100%', width: `${Math.min(100, Math.max(0, h.value! * 100))}%`,
-                        background: h.value! >= 0.7 ? 'var(--alert-caution-color)' : 'var(--instrument-enhanced-secondary-color)' }} />
+                  <span className="cpm-kv__value cpm-hypo">
+                    <span className="cpm-hypo__track">
+                      <span
+                        className={`cpm-hypo__fill${h.value! >= 0.7 ? ' cpm-hypo__fill--high' : ''}`}
+                        style={{ width: `${Math.min(100, Math.max(0, h.value! * 100))}%` }}
+                      />
                     </span>
                     <span className="cpm-mono">{fmt(h.value)}</span>
                   </span>
@@ -443,7 +485,11 @@ export const CpmInvestigation: React.FC = () => {
                     if (w.windowEnd) p.set('window', w.windowEnd);
                     return p;
                   }, { replace: true })}>
-                  {w.windowEnd ? new Date(w.windowEnd).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'}
+                  {w.windowEnd
+                    ? new Date(w.windowEnd).toLocaleString(undefined, windowKind === '12h'
+                      ? { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
+                      : { month: 'short', day: 'numeric' })
+                    : '—'}
                   {' · '}{(w.diagnosis ?? '—').replace(/_/g, ' ').slice(0, 22)}
                 </ObcButton>
               ))}

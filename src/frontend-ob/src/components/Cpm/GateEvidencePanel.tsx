@@ -22,7 +22,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { ObcIconButton } from '@oicl/openbridge-webcomponents-react/components/icon-button/icon-button';
 import { ObiCloseGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-close-google';
 import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-left-google';
 import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-right-google';
@@ -30,7 +29,8 @@ import { ApiError } from '../../api/apiFetch';
 import type { CpmFleetSummary } from '../../api/cpmApi';
 import { useCpmCalculations, useLatestGates } from '../../hooks/useCpm';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
-import { KvRow, PanelHead, TonePill, fmtDateTime, toneFor } from './shared';
+import { CpmIconButton, KvRow, PanelHead, TonePill, fmtDateTime } from './shared';
+import { gateTone } from './gateStatus';
 
 /** Role per gate — the same static policy the registry aside shows. */
 const GATE_ROLES: Record<string, string> = {
@@ -87,7 +87,7 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
           ? ` · profile v${matrix.metadata.dynamicsProfileVersion}` : ''}
       </p>
 
-      <div className={`cpm-kpi cpm-kpi--${fetchFailed ? 'warn' : toneFor(status)}`}
+      <div className={`cpm-kpi cpm-kpi--${fetchFailed ? 'warn' : gateTone(status)}`}
         style={{ margin: '12px 0' }}>
         <span className="cpm-kpi__caption">Result</span>
         <span className="cpm-kpi__value">{status.replace(/_/g, ' ')}</span>
@@ -186,23 +186,23 @@ export const GateEvidencePanel: React.FC<GateEvidencePanelProps> = ({
         <h2 className="cpm-panel-title">Gate {gateKey} evidence</h2>
       </div>
       <div className="cpm-inspector__nav">
-        <ObcIconButton
-          aria-label={prev ? `Previous gate, ${prev}` : 'Previous gate'}
+        <CpmIconButton
+          label={prev ? `Previous gate, ${prev}` : 'Previous gate'}
           disabled={!prev}
-          onClick={() => prev && onSelectGate(prev)}
+          onClick={() => { if (prev) onSelectGate(prev); }}
         >
           <ObiChevronLeftGoogle />
-        </ObcIconButton>
-        <ObcIconButton
-          aria-label={next ? `Next gate, ${next}` : 'Next gate'}
+        </CpmIconButton>
+        <CpmIconButton
+          label={next ? `Next gate, ${next}` : 'Next gate'}
           disabled={!next}
-          onClick={() => next && onSelectGate(next)}
+          onClick={() => { if (next) onSelectGate(next); }}
         >
           <ObiChevronRightGoogle />
-        </ObcIconButton>
-        <ObcIconButton aria-label="Close evidence panel" onClick={onClose}>
+        </CpmIconButton>
+        <CpmIconButton label="Close evidence panel" onClick={onClose}>
           <ObiCloseGoogle />
-        </ObcIconButton>
+        </CpmIconButton>
       </div>
     </div>
   );
@@ -281,9 +281,9 @@ export const GateGuidePanel: React.FC<{
         <h2 className="cpm-panel-title">Gates tell you why.</h2>
       </div>
       <div className="cpm-inspector__nav">
-        <ObcIconButton aria-label="Close guidance" onClick={onClose}>
+        <CpmIconButton label="Close guidance" onClick={onClose}>
           <ObiCloseGoogle />
-        </ObcIconButton>
+        </CpmIconButton>
       </div>
     </div>
     <div className="cpm-inspector__body">

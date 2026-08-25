@@ -18,6 +18,34 @@ export const TIER_GROUPS: { label: string; keys: string[] }[] = [
   { label: 'Fusion', keys: ['G15'] },
 ];
 
+/**
+ * THE gate-status tone. Every screen that colours a gate must come through here.
+ *
+ * It exists because two mappings were live at once and they disagreed on the two
+ * statuses that matter most: the matrix's glyph map read STRONG as attention and
+ * EXCLUDED as failure, while shared.tsx's diagnosis-oriented `toneFor` read them
+ * the other way round. The same loop and window therefore rendered G1 red on
+ * Performance and amber on Explorer, and G4 the reverse.
+ *
+ * The resolution treats a gate status as SEVERITY, not as "did the gate run":
+ *   EXCLUDED — a blocking gate rejected the window, so there is no verdict at all
+ *   STRONG   — the engine found strong evidence, i.e. the finding driving a
+ *              SUSPECTED/CONFIRMED diagnosis
+ * Both are the reason an engineer is on the screen, so both read as bad. Flip the
+ * STRONG branch here if the site's alarm philosophy calls it evidence rather than
+ * severity — one line, and every screen follows.
+ *
+ * `toneFor` in shared.tsx keeps its own vocabulary for DIAGNOSES; the two are
+ * different value sets and must not be shared again.
+ */
+export function gateTone(status: string | null | undefined): CpmTone {
+  const s = (status ?? '').toUpperCase();
+  if (s === 'PASS') return 'good';
+  if (s === 'WARN' || s === 'REVIEW') return 'warn';
+  if (s === 'FAIL' || s === 'STRONG' || s.startsWith('EXCLUDED')) return 'bad';
+  return 'muted';
+}
+
 export interface GateGlyph {
   glyph: string;
   tone: CpmTone;
@@ -25,15 +53,17 @@ export interface GateGlyph {
   label: string;
 }
 
+const GLYPH_BY_TONE: Record<CpmTone, { glyph: string; label: string }> = {
+  good: { glyph: '✓', label: 'pass' },
+  warn: { glyph: '!', label: 'needs attention' },
+  bad: { glyph: '×', label: 'failed' },
+  muted: { glyph: '—', label: 'not evaluated' },
+};
+
 /** CPA glyph vocabulary: ✓ pass · ! attention · × failed · — not evaluated. */
 export function glyphFor(status: string | null | undefined): GateGlyph {
-  const s = (status ?? '').toUpperCase();
-  if (s === 'PASS') return { glyph: '✓', tone: 'good', label: 'pass' };
-  if (s === 'WARN' || s === 'STRONG' || s === 'REVIEW') {
-    return { glyph: '!', tone: 'warn', label: 'needs attention' };
-  }
-  if (s === 'FAIL' || s.startsWith('EXCLUDED')) return { glyph: '×', tone: 'bad', label: 'failed' };
-  return { glyph: '—', tone: 'muted', label: 'not evaluated' };
+  const tone = gateTone(status);
+  return { tone, ...GLYPH_BY_TONE[tone] };
 }
 
 /**

@@ -8,16 +8,22 @@
  * permission system actually enforces it. There is no server-side approval
  * workflow yet; the approval queue says so instead of simulating one.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../../api/apiFetch';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader,
   fmtDateTime,
 } from './shared';
+import { usePagedSlice } from '../shared/ListPager';
 import { useAuditEvents, useVerifyAuditChain } from '../../hooks/useAudit';
 import { useCpmCalculations, useCpmLoops } from '../../hooks/useCpm';
 import { useAuthStore } from '../../store/authStore';
+import { useRoleMatrix } from './useRoleMatrix';
+
+/** Rows fetched per request, and rows rendered per page of that fetch. */
+const AUDIT_TAKE = 200;
+const AUDIT_PAGE_SIZE = 25;
 
 const ENTITY_FILTERS = [
   { key: '', label: 'All entities' },
@@ -33,12 +39,17 @@ const EVENT_TONE = (t: string): 'good' | 'warn' | 'bad' | 'muted' => {
   return 'muted';
 };
 
-/** The real role → permission mapping this deployment enforces. */
-const DUTIES: { role: string; can: string; cannot: string }[] = [
-  { role: 'Admin', can: 'Everything, including user management and audit reads', cannot: '— (catch-all grant)' },
-  { role: 'Engineer', can: 'Onboard/configure loops (cpm.manage), view analytics, author displays', cannot: 'Manage users, read the audit trail' },
-  { role: 'Operator', can: 'View analytics, acknowledge/shelve where granted', cannot: 'Onboard loops, change pipeline or users' },
-  { role: 'Viewer', can: 'Read-only analytics and displays', cannot: 'Any mutation' },
+/**
+ * Permissions this page calls out by name, so the live matrix can show which
+ * roles actually hold each one instead of describing them in prose.
+ */
+const WATCHED_PERMISSIONS: { key: string; guards: string }[] = [
+  { key: 'cpm.manage', guards: 'Loop onboarding, event ack/shelve, recompute' },
+  { key: 'system.manage', guards: 'Pipeline and OPC mutations' },
+  { key: 'admin.audit.view', guards: 'Audit trail reads' },
+  { key: 'analytics.view', guards: 'Every CPM read' },
+  { key: 'rbac.manage', guards: 'Role and permission changes' },
+  { key: 'display.edit', guards: 'Authoring HMI displays' },
 ];
 
 export const CpmGovernance: React.FC = () => {
@@ -51,7 +62,7 @@ export const CpmGovernance: React.FC = () => {
   // is exactly what an audit trail gets asked.
   const [search, setSearch] = useState('');
   const audit = useAuditEvents(
-    { entityType: entityType || undefined, take: 100 },
+    { entityType: entityType || undefined, take: AUDIT_TAKE },
     30_000,
     canReadAudit,
   );
@@ -65,6 +76,15 @@ export const CpmGovernance: React.FC = () => {
       || (e.entityType ?? '').toLowerCase().includes(q)
       || (e.entityId ?? '').toLowerCase().includes(q));
   }, [audit.data, search]);
+
+  const matrix = useRoleMatrix();
+  // The endpoint is asked for `take` rows; paging walks what was fetched and
+  // the footer states the shortfall rather than leaving "3,412 total · showing
+  // 100" as a dead end.
+  const [page, setPage] = useState(0);
+  useEffect(() => { setPage(0); }, [entityType, search]);
+  const { pageCount, safePage, pageItems: pagedAudit } =
+    usePagedSlice(auditRows, page, AUDIT_PAGE_SIZE);
 
   const verify = useVerifyAuditChain();
   const calc = useCpmCalculations();
@@ -136,7 +156,14 @@ export const CpmGovernance: React.FC = () => {
           <EmptyState title="No governance events recorded yet"
             copy="CPM onboarding, ack/shelve, recompute and display changes emit here from now on." />
         )}
-        {auditRows.map(e => (
+        {/* Four unlabelled columns — the Events list has a head row and this
+            one did not, so the last column read as an unexplained string. */}
+        {auditRows.length > 0 && (
+          <div className="cpm-event-head" style={{ gridTemplateColumns: '1fr 1.2fr 0.9fr 1fr' }}>
+            <span>When / hash</span><span>Action</span><span>Actor</span><span>Entity</span>
+          </div>
+        )}
+        {pagedAudit.map(e => (
           <div key={e.eventId} className="cpm-event-row" style={{ gridTemplateColumns: '1fr 1.2fr 0.9fr 1fr' }}>
             <span>
               <span className="cpm-event-row__title">{fmtDateTime(e.timestampUtc)}</span>
@@ -147,6 +174,22 @@ export const CpmGovernance: React.FC = () => {
             <span className="cpm-event-row__sub">{e.entityType} · {e.entityId}</span>
           </div>
         ))}
+        {pageCount > 1 && (
+          <div className="cpm-pager">
+            <ObcButton variant="flat" disabled={safePage === 0}
+              onClick={() => setPage(p => Math.max(0, p - 1))}>← Prev</ObcButton>
+            <span className="cpm-event-row__sub">
+              {safePage * AUDIT_PAGE_SIZE + 1}–
+              {Math.min((safePage + 1) * AUDIT_PAGE_SIZE, auditRows.length)} of{' '}
+              {auditRows.length} fetched · page {safePage + 1} of {pageCount}
+              {(audit.data?.total ?? 0) > (audit.data?.events.length ?? 0)
+                ? ` · newest ${AUDIT_TAKE} of ${audit.data!.total} — older entries are not fetched`
+                : ''}
+            </span>
+            <ObcButton variant="flat" disabled={safePage >= pageCount - 1}
+              onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}>Next →</ObcButton>
+          </div>
+        )}
       </section>
 
       <div className="cpm-grid-2">
@@ -175,19 +218,74 @@ export const CpmGovernance: React.FC = () => {
         </section>
 
         <section className="cpm-surface">
-          <PanelHead eyebrow="Separation of duties" title="As enforced by the permission model" />
-          {DUTIES.map(d => (
-            <div key={d.role} className="cpm-window-row">
-              <strong>{d.role}</strong>
-              <span className="cpm-event-row__sub">Can: {d.can}</span>
-              <span className="cpm-event-row__sub">Cannot: {d.cannot}</span>
+          {/*
+            This panel used to be a four-row literal — Admin/Engineer/Operator/
+            Viewer with hand-written "can" and "cannot" prose — under a heading
+            claiming it was "as enforced by the permission model". It was not:
+            add a role or regrant a permission and the page kept asserting the
+            old model, on the one screen whose whole purpose is attribution.
+            It is now read from auth-service's RBAC API (roles + per-role
+            permissions), which is the thing that actually enforces.
+          */}
+          <PanelHead
+            eyebrow="Separation of duties"
+            title="As enforced by the permission model"
+            right={matrix.canRead && matrix.data
+              ? <span className="cpm-hist-note">{matrix.data.roles.length} role(s) · live</span>
+              : null}
+          />
+
+          {!matrix.canRead && (
+            <EmptyState
+              title="The live role matrix needs the rbac.manage permission"
+              copy="Your session can read the audit trail but not the RBAC model, so this panel will not describe a permission model it cannot verify. The enforcement points below are route guards in this build."
+            />
+          )}
+          {matrix.canRead && matrix.isLoading && <EmptyState title="Reading roles…" />}
+          {matrix.canRead && matrix.isError && (
+            <EmptyState title="RBAC model unavailable"
+              copy={(matrix.error as Error)?.message ?? 'auth-service did not answer.'} />
+          )}
+
+          {matrix.canRead && matrix.data && (
+            <div className="cpm-matrix-scroll">
+              <table className="cpm-matrix cpm-rbac">
+                <thead>
+                  <tr>
+                    <th scope="col" style={{ textAlign: 'left' }}>Permission</th>
+                    {matrix.data.roles.map(r => (
+                      <th key={r.role_name} scope="col">{r.role_name}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {WATCHED_PERMISSIONS.map(p => (
+                    <tr key={p.key}>
+                      <th scope="row" style={{ textAlign: 'left' }}>
+                        <span className="cpm-mono">{p.key}</span>
+                        <span className="cpm-event-row__sub">{p.guards}</span>
+                      </th>
+                      {matrix.data!.roles.map(r => {
+                        const held = matrix.data!.holders[r.role_name]?.has(p.key) ?? false;
+                        return (
+                          <td key={r.role_name}>
+                            <span
+                              className={`cpm-matrix__cell cpm-matrix__cell--${held ? 'good' : 'muted'}`}
+                              aria-label={`${r.role_name} ${held ? 'holds' : 'does not hold'} ${p.key}`}
+                            >
+                              <span aria-hidden>{held ? '✓' : '—'}</span>
+                            </span>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))}
-          <p className="cpm-copy">
-            Enforcement points: <span className="cpm-mono">cpm.manage</span> guards loop
-            onboarding, event ack/shelve and recompute; <span className="cpm-mono">system.manage</span>{' '}
-            guards pipeline and OPC mutations; <span className="cpm-mono">admin.audit.view</span>{' '}
-            guards audit reads; <span className="cpm-mono">analytics.view</span> guards every CPM read.
+          )}
+
+          <p className="cpm-copy" style={{ marginTop: 10 }}>
             {/* No hard-coded TTL: permission claims are read from the access token,
                 so they refresh on re-login/token refresh — the previous text
                 asserted a "15-minute token lifetime" this page cannot know. */}

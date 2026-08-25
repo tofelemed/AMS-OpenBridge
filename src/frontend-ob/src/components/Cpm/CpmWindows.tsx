@@ -126,6 +126,19 @@ export const CpmWindows: React.FC = () => {
     }));
   }, [raw.data, gridPeriodS, winStart?.getTime(), winEnd?.getTime()]); // eslint-disable-line react-hooks/exhaustive-deps -- Date identity is unstable; time values are the real deps
 
+  /** Spoken form of the density strip — see the role="img" below. */
+  const densitySummary = useMemo(() => {
+    if (density.length === 0) return 'Sample density unavailable.';
+    const fetched = density.filter(b => b.fetched);
+    const empty = fetched.filter(b => b.count === 0).length;
+    const sparse = fetched.filter(b => b.count > 0 && b.ratio < 0.6).length;
+    const unfetched = density.length - fetched.length;
+    return `Sample density across ${density.length} buckets: `
+      + `${fetched.length - empty - sparse} at or near the sample budget, `
+      + `${sparse} sparse, ${empty} empty`
+      + (unfetched ? `, ${unfetched} not fetched so coverage is unknown` : '') + '.';
+  }, [density]);
+
   const rawCapped = raw.data?.hasMore === true;
   const expectedSamples = Math.round(profileS / gridPeriodS);
 
@@ -180,10 +193,11 @@ export const CpmWindows: React.FC = () => {
               </optgroup>
             </select>
           </label>
-          <span className="cpm-filter-count">
-            Watermark lag: — (not exposed by the metrics proxy; job state and checkpoint age above are live)
-          </span>
         </div>
+        <p className="cpm-hist-note" style={{ marginTop: 6 }}>
+          Watermark lag: — (not exposed by the metrics proxy; job state and checkpoint
+          age in the header are live)
+        </p>
 
         <PanelHead eyebrow="Emitted windows" title={`Latest ${profile} results for ${loopId ?? '—'}`}
           right={<span className="cpm-copy">{rows.length} recent · newest first</span>} />
@@ -226,7 +240,7 @@ export const CpmWindows: React.FC = () => {
                 emitted {fmtDateTime(r.created_at)}
               </span>
               <TonePill tone={comp == null ? 'muted' : comp >= 0.9 ? 'good' : comp >= 0.5 ? 'warn' : 'bad'}>
-                {comp != null ? `${Math.min(100, comp * 100).toFixed(0)}% full` : 'UNKNOWN'}
+                {comp != null ? `${(comp * 100).toFixed(0)}% full` : 'UNKNOWN'}
               </TonePill>
             </div>
           );
@@ -326,13 +340,17 @@ export const CpmWindows: React.FC = () => {
           <PanelHead eyebrow="Sample density" title="Raw historian coverage across the window"
             right={raw.data ? <span className="cpm-copy">{raw.data.count.toLocaleString()} raw points{rawCapped ? ' (first page)' : ''}</span> : undefined} />
           {raw.isLoading && <EmptyState title="Counting raw samples…" />}
-          {!raw.isLoading && density.length === 0 && (
+          {raw.isError && (
+            <QueryError title="Raw slice unavailable"
+              error={raw.error} retry={() => void raw.refetch()} />
+          )}
+          {!raw.isLoading && !raw.isError && density.length === 0 && (
             <EmptyState title="No raw slice available"
               copy="Select a window with stored historian data to see its per-bucket sample density." />
           )}
           {density.length > 0 && (
             <>
-              <div className="cpm-density" aria-label="Sample density">
+              <div className="cpm-density" role="img" aria-label={densitySummary}>
                 {density.map((b, i) => (
                   <div key={i}
                     className={`cpm-density__bucket${
