@@ -237,27 +237,350 @@
 .cpm-csv-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
 .cpm-mono { font-family: var(--font-mono, monospace); font-size: 0.82rem; }
 
-/* ── Gate status matrix (U3) ── */
-.cpm-matrix-scroll { overflow-x: auto; }
-.cpm-matrix { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
-.cpm-matrix th, .cpm-matrix td { border: 1px solid var(--border-divider-color); padding: 4px 6px; text-align: center; }
+/* ── Gate status matrix (U3) ──────────────────────────────────────────────
+   Two rules earn their keep here.
+
+   1. STICKY. A 17-column glyph grid whose G0..G15 labels have scrolled out of
+      view is unreadable — nothing distinguishes G7 from G9. The tier row, the
+      gate row, the loop column and the result column all pin, and the scroll
+      box is height-bounded so a 200-row fleet cannot push the panels below it
+      off the page.
+   2. FILLED CELLS, NOT COLOURED GLYPHS. --alert-caution-color is rgb(255,219,66)
+      in the day theme: as TEXT on a light surface that is ~1.7:1, a hard WCAG
+      1.4.3 failure on the most important signal this screen carries. OpenBridge
+      ships the accessible pairing — the alert colour as a FILL with its
+      --on-*-color as the foreground — so warn/fail render as filled chips.
+      Pass and not-evaluated stay unfilled on purpose: ink belongs where the
+      problems are. */
+.cpm-matrix-scroll {
+  overflow: auto;
+  max-height: min(60vh, 720px);
+  border: 1px solid var(--border-divider-color);
+  border-radius: 8px;
+}
+.cpm-matrix {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  font-size: 0.85rem;
+  background: var(--container-global-color);
+}
+.cpm-matrix th, .cpm-matrix td {
+  border-right: 1px solid var(--border-divider-color);
+  border-bottom: 1px solid var(--border-divider-color);
+  padding: 3px 6px;
+  text-align: center;
+}
+.cpm-matrix thead th {
+  position: sticky;
+  z-index: 3;
+  background: var(--container-section-color);
+  border-bottom: 1px solid var(--border-outline-color);
+}
+.cpm-matrix thead tr:first-child th { top: 0; height: 26px; }
+.cpm-matrix thead tr:last-child th { top: 26px; height: 24px; }
+.cpm-matrix thead tr:first-child th[rowspan] { top: 0; }
 .cpm-matrix__tier { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--element-neutral-color); }
-.cpm-matrix__gate { font-size: 0.72rem; }
-.cpm-matrix__loop { text-align: left; min-width: 160px; }
-.cpm-matrix__result { min-width: 180px; }
-.cpm-matrix tbody tr { cursor: pointer; }
-.cpm-matrix tbody tr:hover { background: var(--container-hover-color, rgba(128,128,128,0.08)); }
-.cpm-matrix__row--selected { outline: 2px solid var(--instrument-enhanced-primary-color); }
-.cpm-matrix__cell {
+.cpm-matrix__gate { font-size: 0.72rem; font-weight: 600; }
+.cpm-matrix__loop {
+  text-align: left;
+  min-width: 190px;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--container-global-color);
+  font-weight: 400;
+}
+.cpm-matrix thead .cpm-matrix__loop,
+.cpm-matrix thead .cpm-matrix__result { z-index: 4; }
+.cpm-matrix__result {
+  min-width: 190px;
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  background: var(--container-global-color);
+  text-align: left;
+}
+.cpm-matrix tbody tr:hover .cpm-matrix__loop,
+.cpm-matrix tbody tr:hover .cpm-matrix__result,
+.cpm-matrix tbody tr:hover { background: var(--container-background-color); }
+.cpm-matrix__row--selected,
+.cpm-matrix__row--selected .cpm-matrix__loop,
+.cpm-matrix__row--selected .cpm-matrix__result { background: var(--container-section-color); }
+.cpm-matrix__row--selected .cpm-matrix__loop { box-shadow: inset 3px 0 0 var(--instrument-enhanced-primary-color); }
+
+.cpm-matrix__loop-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
   background: none;
   border: none;
+  padding: 2px 0;
   cursor: pointer;
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--cpm-tone, var(--element-neutral-color));
-  padding: 2px 6px;
+  color: inherit;
+  text-align: left;
+  font: inherit;
 }
-.cpm-matrix__cell:hover { outline: 1px solid var(--instrument-enhanced-primary-color); border-radius: 4px; }
+.cpm-matrix__cell-td { padding: 2px; }
+.cpm-matrix__cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  font-weight: 700;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  background: var(--cpm-chip-bg, transparent);
+  color: var(--cpm-chip-fg, var(--element-neutral-color));
+  border-color: var(--cpm-chip-border, transparent);
+}
+.cpm-matrix__cell--good  { --cpm-chip-fg: var(--element-neutral-color); }
+.cpm-matrix__cell--muted { --cpm-chip-fg: var(--element-inactive-color); }
+.cpm-matrix__cell--warn {
+  --cpm-chip-bg: var(--alert-caution-color);
+  --cpm-chip-fg: var(--on-caution-color);
+  --cpm-chip-border: var(--alert-caution-outline-color);
+}
+.cpm-matrix__cell--bad {
+  --cpm-chip-bg: var(--alert-alarm-color);
+  --cpm-chip-fg: var(--on-alarm-color);
+  --cpm-chip-border: var(--alert-alarm-outline-color);
+}
+.cpm-matrix__cell:hover { box-shadow: 0 0 0 1px var(--instrument-enhanced-primary-color); }
+.cpm-matrix__cell:focus-visible,
+.cpm-matrix__loop-btn:focus-visible {
+  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+/* ── Matrix toolbar / pager ── */
+.cpm-matrix-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 4px 0 10px;
+}
+.cpm-matrix-toolbar__search { min-width: 220px; flex: 0 1 280px; }
+.cpm-matrix-toolbar__count { margin-left: auto; color: var(--element-neutral-color); font-size: 0.8rem; }
+.cpm-matrix-pager { display: flex; justify-content: center; margin-top: 12px; }
+
+/* ── Freshness / staleness ── */
+.cpm-freshness { margin: 0 0 10px; font-size: 0.8rem; color: var(--element-neutral-color); }
+.cpm-freshness--stale {
+  color: var(--on-caution-color);
+  background: var(--alert-caution-container-background-color, var(--container-section-color));
+  border: 1px solid var(--alert-caution-outline-color);
+  border-radius: 6px;
+  padding: 4px 8px;
+  display: inline-block;
+  font-weight: 600;
+}
+
+/* ── Pathway header: legend + the on-demand guidance toggle ── */
+.cpm-pathway-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: flex-end; }
+.cpm-help-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-divider-color);
+  background: none;
+  color: var(--element-active-color);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cpm-help-toggle:hover { background: var(--container-background-color); }
+.cpm-help-toggle[aria-expanded='true'] {
+  border-color: var(--instrument-enhanced-primary-color);
+  background: var(--container-section-color);
+}
+.cpm-help-toggle:focus-visible {
+  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
+  outline-offset: 2px;
+}
+.cpm-help-toggle > *:first-child { width: 18px; height: 18px; flex: 0 0 auto; }
+
+/* ── Legend (paired with the cell chips so the key matches the ink) ── */
+.cpm-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.78rem; color: var(--element-neutral-color); }
+.cpm-legend__item { display: inline-flex; align-items: center; gap: 5px; }
+.cpm-legend__chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1px solid var(--cpm-chip-border, transparent);
+  background: var(--cpm-chip-bg, transparent);
+  color: var(--cpm-chip-fg, var(--element-neutral-color));
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+/* ── Fleet gate roll-up ── */
+.cpm-rollup { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; margin: 4px 0 14px; }
+.cpm-rollup__none { margin: 4px 0 12px; font-size: 0.85rem; }
+.cpm-rollup__tier { display: flex; flex-direction: column; gap: 4px; }
+.cpm-rollup__bars { display: flex; gap: 3px; align-items: flex-end; }
+.cpm-rollup__tier-label {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--element-neutral-color);
+  border-top: 1px solid var(--border-divider-color);
+  padding-top: 3px;
+}
+.cpm-rollup__bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  min-width: 30px;
+  padding: 2px 3px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--element-neutral-color);
+  font: inherit;
+}
+.cpm-rollup__bar:disabled { cursor: default; opacity: 0.55; }
+.cpm-rollup__bar:not(:disabled):hover { background: var(--container-background-color); }
+.cpm-rollup__bar--active {
+  border-color: var(--instrument-enhanced-primary-color);
+  background: var(--container-section-color);
+}
+.cpm-rollup__bar:focus-visible {
+  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
+  outline-offset: 1px;
+}
+.cpm-rollup__stack { display: flex; flex-direction: column-reverse; justify-content: flex-start; width: 16px; height: 46px; }
+.cpm-rollup__seg { width: 100%; border-radius: 2px 2px 0 0; }
+.cpm-rollup__seg--bad { background: var(--alert-alarm-color); }
+.cpm-rollup__seg--warn { background: var(--alert-caution-color); }
+.cpm-rollup__count { font-size: 0.72rem; font-weight: 600; color: var(--element-active-color); }
+.cpm-rollup__key { font-size: 0.66rem; }
+
+/* ── Matrix + evidence layout ── */
+.cpm-matrix-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.cpm-matrix-layout--split { grid-template-columns: minmax(0, 1fr) 420px; }
+.cpm-matrix-layout__main { min-width: 0; }
+
+/* ── Evidence inspector (docked, and the narrow-viewport modal fallback) ── */
+.cpm-inspector {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-divider-color);
+  border-radius: 8px;
+  background: var(--container-section-color);
+  max-height: min(78vh, 900px);
+  position: sticky;
+  top: 12px;
+  overflow: hidden;
+}
+.cpm-inspector__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-divider-color);
+  background: var(--container-section-color);
+  flex: 0 0 auto;
+}
+.cpm-inspector__title { min-width: 0; }
+.cpm-inspector__nav { display: flex; gap: 2px; align-items: center; flex: 0 0 auto; }
+.cpm-inspector__body { overflow: auto; padding: 12px; }
+.cpm-inspector__actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+.cpm-inspector--guide { background: var(--container-backdrop-color); }
+.cpm-guide-steps { padding-left: 18px; margin: 0 0 4px; display: grid; gap: 4px; }
+.cpm-guide-note { margin-top: 8px; font-size: 0.82rem; }
+.cpm-flag-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.cpm-inspector--modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, 94vw);
+  max-height: 88vh;
+  z-index: 61;
+  background: var(--container-backdrop-color);
+}
+/* Long values (a window bound with its zone label) must wrap inside the panel
+   instead of running under its edge and reading as cropped. */
+.cpm-inspector .cpm-kv { align-items: baseline; }
+.cpm-inspector .cpm-kv__label { flex: 0 0 auto; }
+.cpm-inspector .cpm-kv__value { min-width: 0; overflow-wrap: anywhere; }
+
+/* ── Attention list (opportunity ranking) ── */
+.cpm-attention { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.cpm-attention__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.9fr);
+  gap: 12px;
+  align-items: center;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+.cpm-attention__row:hover { background: var(--container-background-color); }
+.cpm-attention__row--selected {
+  border-color: var(--instrument-enhanced-primary-color);
+  background: var(--container-section-color);
+}
+.cpm-attention__main {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.cpm-attention__main:focus-visible,
+.cpm-attention__gate:focus-visible {
+  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.cpm-attention__rank { color: var(--element-neutral-color); font-variant-numeric: tabular-nums; }
+.cpm-attention__id { display: flex; flex-direction: column; min-width: 0; }
+.cpm-attention__verdict { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cpm-attention__metric { color: var(--element-neutral-color); font-size: 0.8rem; }
+.cpm-attention__gates { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.cpm-attention__gate {
+  background: var(--container-backdrop-color);
+  border: 1px solid var(--border-divider-color);
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--element-active-color);
+}
+.cpm-attention__gate:hover { border-color: var(--instrument-enhanced-primary-color); }
+.cpm-attention__footnote { margin-top: 10px; font-size: 0.8rem; }
+@media (max-width: 900px) {
+  .cpm-attention__row { grid-template-columns: 1fr; gap: 4px; }
+}
+
 .cpm-matrix-summary {
   display: flex;
   gap: 16px;

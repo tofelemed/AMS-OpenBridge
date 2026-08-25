@@ -119,7 +119,11 @@ export const PlantScopeFilter: React.FC<{
         <select className="cpm-select" value={scope.unit}
           disabled={!scope.site || unitOptions.length === 0}
           onChange={e => scope.set({ unit: e.target.value })}>
-          <option value="">{scope.site ? 'All units' : '— select a site —'}</option>
+          {/* Name the step that is actually missing — "select a site" on the Unit
+              field was wrong once a site had been chosen. */}
+          <option value="">
+            {!scope.site ? '— select a site —' : scope.area ? 'All units' : 'All units in site'}
+          </option>
           {unitOptions.map(u => <option key={u.segment} value={u.segment}>{label(u)}</option>)}
         </select>
       </label>

@@ -1,0 +1,156 @@
+/**
+ * Gate-status vocabulary shared by the Performance matrix, the fleet gate
+ * roll-up, the attention list and the evidence panel.
+ *
+ * Why it is its own module: the glyph mapping and the tier grouping used to
+ * live inside CpmPerformance, so every other surface that wanted to say
+ * "this gate failed" either re-derived it or drifted. One vocabulary, one file.
+ */
+import type { CpmHeatmapLoop } from '../../api/cpmApi';
+import type { CpmTone } from './shared';
+
+/** Declared tier order. Intersected with the served keys before rendering. */
+export const TIER_GROUPS: { label: string; keys: string[] }[] = [
+  { label: 'Eligibility', keys: ['G0', 'G1', 'G2', 'G2r'] },
+  { label: 'Performance', keys: ['G3', 'G4'] },
+  { label: 'Diagnostic evidence', keys: ['G5', 'G6', 'G7', 'G8', 'G9', 'G10', 'G11'] },
+  { label: 'Confirmation', keys: ['G12', 'G13', 'G14'] },
+  { label: 'Fusion', keys: ['G15'] },
+];
+
+export interface GateGlyph {
+  glyph: string;
+  tone: CpmTone;
+  /** Spoken form. The glyph alone gives a screen reader "✓ button" and nothing else. */
+  label: string;
+}
+
+/** CPA glyph vocabulary: ✓ pass · ! attention · × failed · — not evaluated. */
+export function glyphFor(status: string | null | undefined): GateGlyph {
+  const s = (status ?? '').toUpperCase();
+  if (s === 'PASS') return { glyph: '✓', tone: 'good', label: 'pass' };
+  if (s === 'WARN' || s === 'STRONG' || s === 'REVIEW') {
+    return { glyph: '!', tone: 'warn', label: 'needs attention' };
+  }
+  if (s === 'FAIL' || s.startsWith('EXCLUDED')) return { glyph: '×', tone: 'bad', label: 'failed' };
+  return { glyph: '—', tone: 'muted', label: 'not evaluated' };
+}
+
+/**
+ * Intersect the declared tiers with the keys the API actually served, so the
+ * grouped header spans can never drift from the body columns, and surface
+ * anything served but unclaimed under "Other" instead of silently misfiling it.
+ */
+export function buildTierGroups(gateKeys: string[]): { label: string; keys: string[] }[] {
+  const served = new Set(gateKeys);
+  const groups = TIER_GROUPS
+    .map(g => ({ label: g.label, keys: g.keys.filter(k => served.has(k)) }))
+    .filter(g => g.keys.length > 0);
+  const claimed = new Set(groups.flatMap(g => g.keys));
+  const ungrouped = gateKeys.filter(k => !claimed.has(k));
+  return ungrouped.length ? [...groups, { label: 'Other', keys: ungrouped }] : groups;
+}
+
+/** Which gates on this row are warn or fail — i.e. why the verdict is what it is. */
+export function drivingGates(row: CpmHeatmapLoop, gateKeys: string[]): string[] {
+  return gateKeys.filter(k => {
+    const tone = glyphFor(row.gates[k]).tone;
+    return tone === 'warn' || tone === 'bad';
+  });
+}
+
+export const isEvaluated = (row: CpmHeatmapLoop): boolean =>
+  row.diagnosis !== 'NOT_EVALUATED';
+
+/** Row-set the matrix is showing. `attention` is the default: see filterRows. */
+export type RowFilter = 'attention' | 'evaluated' | 'notEvaluated' | 'all';
+
+export const ROW_FILTERS: { value: RowFilter; label: string }[] = [
+  { value: 'attention', label: 'Needs attention' },
+  { value: 'evaluated', label: 'Evaluated' },
+  { value: 'notEvaluated', label: 'Not evaluated' },
+  { value: 'all', label: 'All' },
+];
+
+export const isRowFilter = (v: string | null): v is RowFilter =>
+  v === 'attention' || v === 'evaluated' || v === 'notEvaluated' || v === 'all';
+
+export interface MatrixFilter {
+  mode: RowFilter;
+  /** Set by clicking a bar in the roll-up: keep only loops failing THIS gate. */
+  gate: string | null;
+  /** Free-text over loopId + displayName. */
+  q: string;
+}
+
+function matchesMode(row: CpmHeatmapLoop, gateKeys: string[], mode: RowFilter): boolean {
+  switch (mode) {
+    case 'attention': return drivingGates(row, gateKeys).length > 0;
+    case 'evaluated': return isEvaluated(row);
+    case 'notEvaluated': return !isEvaluated(row);
+    default: return true;
+  }
+}
+
+export function filterRows(
+  loops: CpmHeatmapLoop[], gateKeys: string[], f: MatrixFilter,
+): CpmHeatmapLoop[] {
+  const q = f.q.trim().toLowerCase();
+  return loops.filter(row => {
+    if (!matchesMode(row, gateKeys, f.mode)) return false;
+    if (f.gate) {
+      const tone = glyphFor(row.gates[f.gate]).tone;
+      if (tone !== 'warn' && tone !== 'bad') return false;
+    }
+    if (q && !`${row.loopId} ${row.displayName}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+/**
+ * Counts for the segmented filter. These are the honest denominators the page
+ * shows: a "Needs attention 3" chip beside "Not evaluated 51" is the single
+ * fastest way to see that most of the fleet has no verdict yet.
+ */
+export function filterCounts(
+  loops: CpmHeatmapLoop[], gateKeys: string[],
+): Record<RowFilter, number> {
+  return {
+    attention: loops.filter(r => matchesMode(r, gateKeys, 'attention')).length,
+    evaluated: loops.filter(isEvaluated).length,
+    notEvaluated: loops.filter(r => !isEvaluated(r)).length,
+    all: loops.length,
+  };
+}
+
+export interface GateFailureCount { key: string; warn: number; bad: number; total: number }
+
+/**
+ * Fleet-level roll-up: how many loops each gate is holding back. This is the
+ * O(1) answer to "where is the fleet failing", which a per-loop matrix can only
+ * answer by scanning every row.
+ */
+export function gateFailureCounts(
+  loops: CpmHeatmapLoop[], gateKeys: string[],
+): GateFailureCount[] {
+  return gateKeys.map(key => {
+    let warn = 0, bad = 0;
+    for (const row of loops) {
+      const tone = glyphFor(row.gates[key]).tone;
+      if (tone === 'warn') warn++;
+      else if (tone === 'bad') bad++;
+    }
+    return { key, warn, bad, total: warn + bad };
+  });
+}
+
+/** Newest window end across the served rows — drives the staleness indicator. */
+export function latestWindowEnd(loops: CpmHeatmapLoop[]): number | null {
+  let newest: number | null = null;
+  for (const row of loops) {
+    if (!row.windowEnd) continue;
+    const t = Date.parse(row.windowEnd);
+    if (!Number.isNaN(t) && (newest == null || t > newest)) newest = t;
+  }
+  return newest;
+}
