@@ -34,6 +34,8 @@ public sealed class MqttConfig
 public sealed class ProfileConfig
 {
     [JsonPropertyName("mqtt")] public MqttConfig? Mqtt { get; set; }
+    /// <summary>MQTT_LOOP_SAMPLES pipeline settings (phase 2); null for other profiles.</summary>
+    [JsonPropertyName("loop_ingest")] public LoopIngestConfig? LoopIngest { get; set; }
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {

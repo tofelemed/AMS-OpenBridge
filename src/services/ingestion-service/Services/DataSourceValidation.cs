@@ -114,6 +114,51 @@ public static partial class DataSourceValidation
                 return ("This file contains a private key — upload the CA certificate, never a key", "tls");
         }
 
+        return ValidateLoopIngest(profileConfig);
+    }
+
+    /// <summary>Reserved names on the tuple wire — extension roles may not shadow them
+    /// (docs/ot-data-integration/09 §4: contract fields + enrichment extensions).</summary>
+    private static readonly HashSet<string> ReservedTupleFields = new(StringComparer.Ordinal)
+    { "loop_id", "event_ts_ms", "quality", "loop_type", "site", "area", "unit", "asset_uuid", "source_fcs" };
+
+    public static (string Error, string Field)? ValidateLoopIngest(ProfileConfig? profileConfig)
+    {
+        var li = profileConfig?.LoopIngest;
+        if (li is null) return null;
+
+        if (!string.IsNullOrWhiteSpace(li.TopicTemplate))
+        {
+            var captures = li.TopicTemplate.Split('/')
+                .Where(s => s.Length > 1 && s[0] == '{' && s[^1] == '}')
+                .Select(s => s[1..^1])
+                .ToHashSet(StringComparer.Ordinal);
+            foreach (var required in new[] { "site", "fcs", "loop", "param" })
+                if (!captures.Contains(required))
+                    return ($"topic_template must capture {{{required}}}", "loop_ingest.topic_template");
+        }
+        if (li.GridSeconds is <= 0)
+            return ("grid_seconds must be greater than 0", "loop_ingest.grid_seconds");
+        if (li.StaleAfterSeconds is <= 0)
+            return ("stale_after_seconds must be greater than 0", "loop_ingest.stale_after_seconds");
+        if (li.FutureSkewMaxSeconds is <= 0)
+            return ("future_skew_max_seconds must be greater than 0", "loop_ingest.future_skew_max_seconds");
+        if (li.RegistryRefreshSeconds is <= 0)
+            return ("registry_refresh_seconds must be greater than 0", "loop_ingest.registry_refresh_seconds");
+
+        if (li.ParamRoles is not null)
+        {
+            foreach (var (param, role) in li.ParamRoles)
+            {
+                if (string.IsNullOrWhiteSpace(param) || string.IsNullOrWhiteSpace(role))
+                    return ("param_roles entries must be non-blank", "loop_ingest.param_roles");
+                var r = role.Trim();
+                if (ReservedTupleFields.Contains(r))
+                    return ($"role '{r}' shadows a tuple contract field", "loop_ingest.param_roles");
+                if (!r.All(c => char.IsAsciiLetterLower(c) || char.IsAsciiDigit(c) || c == '_'))
+                    return ($"role '{r}' must be lowercase [a-z0-9_]", "loop_ingest.param_roles");
+            }
+        }
         return null;
     }
 
