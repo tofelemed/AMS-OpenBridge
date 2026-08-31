@@ -14,6 +14,7 @@ parking/DLQ path is exercised alongside the happy path. Pilot registration
 fixture: scripts/fixtures/hdpe-pilot-loops.csv (FIC99999 intentionally absent).
 """
 import argparse
+import csv
 import json
 import math
 import os
@@ -23,7 +24,9 @@ from datetime import datetime, timezone
 
 import paho.mqtt.client as mqtt
 
-# The lab plant: 4 loops meant to be registered + 1 deliberately unregistered.
+# Default lab plant: 4 loops meant to be registered + 1 deliberately unregistered.
+# For the full-plant feed pass --loops-csv scripts/fixtures/hdpe-all-loops.csv
+# (161 loops; FCS + class derived per row).
 LOOPS = [
     # (fcs,       process_class,  loop_tag,   base_pv, sp)
     ("FCS0101", "Flow",         "FIC10302", 60.0, 63.0),
@@ -32,6 +35,32 @@ LOOPS = [
     ("FCS0101", "Temperature",  "TIC10101", 180.0, 182.0),
     ("FCS0101", "Flow",         "FIC99999", 10.0, 10.0),  # NOT registered -> proves parking
 ]
+
+# loop_type -> (broker class level, base_pv, sp offset) for --loops-csv rows.
+TYPE_CLASS = {
+    "FIC": ("Flow", 60.0, 2.0),
+    "PIC": ("Pressure", 12.0, 0.5),
+    "LIC": ("Level", 55.0, 1.0),
+    "TIC": ("Temperature", 180.0, 2.0),
+}
+
+
+def load_loops_csv(path, include_unknown=True):
+    """Registry-import CSV (loop_id, loop_type, pv_ot_tag=FCS.LOOP.PV, ...) -> sim rows."""
+    rng = random.Random(48)
+    loops = []
+    with open(path, newline="", encoding="utf-8-sig") as f:
+        for row in csv.DictReader(f):
+            loop = row["loop_id"].strip()
+            if not loop:
+                continue
+            fcs = (row.get("pv_ot_tag") or "").split(".")[0] or "FCS0101"
+            cls, base, sp_off = TYPE_CLASS.get(row.get("loop_type", "")[:3], TYPE_CLASS["FIC"])
+            base = base + rng.uniform(-0.3, 0.3) * base  # spread the plant out a bit
+            loops.append((fcs, cls, loop, base, base + sp_off))
+    if include_unknown:
+        loops.append(("FCS0101", "Flow", "FIC99999", 10.0, 10.0))
+    return loops
 TUNING = {"P": (300.0, "%"), "I": (240.0, "s"), "D": (0.0, "s"), "GW": (0.0, "%")}
 TUNING_PERIOD_S = 30.0  # tuning params republished slowly, like a sane gateway would
 
@@ -54,14 +83,21 @@ def main():
     ap.add_argument("--password", default=os.environ.get("SIM_OT_MQTT_PASSWORD", "ams-ingest-test"))
     ap.add_argument("--interval", type=float, default=1.0, help="seconds between fast-param publishes")
     ap.add_argument("--minutes", type=float, default=0.0, help="stop after N minutes (0 = run forever)")
+    ap.add_argument("--loops-csv", default=None,
+                    help="registry-import CSV (e.g. scripts/fixtures/hdpe-all-loops.csv) - feed every loop in it")
+    ap.add_argument("--no-unknown", action="store_true",
+                    help="do not add the unregistered FIC99999 parking probe")
     args = ap.parse_args()
+
+    loops = load_loops_csv(args.loops_csv, include_unknown=not args.no_unknown) if args.loops_csv \
+        else [l for l in LOOPS if not (args.no_unknown and l[2] == "FIC99999")]
 
     client = mqtt.Client(client_id="sim-ot-gateway")
     client.username_pw_set(args.username, args.password)
     client.connect(args.host, args.port, keepalive=30)
     client.loop_start()
     print(f"[sim-ot-gateway] publishing to mqtt://{args.host}:{args.port} "
-          f"({len(LOOPS)} loops, every {args.interval}s)", flush=True)
+          f"({len(loops)} loops, every {args.interval}s)", flush=True)
 
     start = time.time()
     published = 0
@@ -70,7 +106,7 @@ def main():
         while args.minutes <= 0 or time.time() - start < args.minutes * 60:
             t = time.time() - start
             send_tuning = t - last_tuning >= TUNING_PERIOD_S
-            for fcs, cls, loop, base, sp in LOOPS:
+            for fcs, cls, loop, base, sp in loops:
                 pv = base + 2.0 * math.sin(t / 30.0) + random.gauss(0, 0.2)
                 op = 30.0 + 5.0 * math.sin(t / 45.0) + random.gauss(0, 0.5)
                 fast = {"PV": (pv, ""), "SP": (sp, ""), "OP": (op, "%"), "MODE": (4.0, "")}
