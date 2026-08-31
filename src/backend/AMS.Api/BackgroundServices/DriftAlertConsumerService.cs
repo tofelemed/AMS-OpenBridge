@@ -36,9 +36,9 @@ public sealed class DriftAlertConsumerService : BackgroundService
         };
 
         using var consumer = new ConsumerBuilder<Ignore, string>(config).Build();
-        consumer.Subscribe("system.state.drift.alerts");
+        consumer.Subscribe("traverse.system.state.drift.alerts");
 
-        _logger.LogInformation("Started DriftAlertConsumerService listening to system.state.drift.alerts");
+        _logger.LogInformation("Started DriftAlertConsumerService listening to traverse.system.state.drift.alerts");
 
         while (!stoppingToken.IsCancellationRequested)
         {

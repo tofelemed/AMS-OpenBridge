@@ -1,0 +1,369 @@
+/**
+ * Login page — split layout: plant visual on the left, credential column on the right.
+ *
+ * Every colour, border and radius here resolves to an OpenBridge token, so the page
+ * re-themes with `data-obc-theme` (day / dusk / night / bright) like the rest of the app.
+ * The input surface deliberately mirrors the exact tokens `obc-text-input-field` uses
+ * (`--normal-*`, `--on-normal-*`, `--border-focus-color`) — see Login.tsx for why the
+ * credential fields stay native <input> elements.
+ *
+ * Layout spacing is plain px: OpenBridge publishes no page-level spacing scale (its
+ * `--global-size-spacing-*` tokens are per-component), which is why app.css does the same.
+ */
+
+.login {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--container-backdrop-color);
+  color: var(--element-active-color);
+  font-family: var(--font-family-main), 'Noto Sans', sans-serif;
+}
+
+/* ── Left: plant visual ─────────────────────────────────────────────────── */
+
+.login__visual {
+  position: relative;
+  flex: 1 1 58%;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--container-section-color);
+}
+
+.login__visual-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* The render is centred with generous sky above; bias downward so a tall, narrow
+     column keeps the plant itself in frame instead of cropping to empty background. */
+  object-position: 50% 58%;
+}
+
+/* Feather the seam into the credential column instead of a hard image edge. */
+.login__visual::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    transparent 70%,
+    color-mix(in srgb, var(--container-background-color) 55%, transparent) 100%
+  );
+}
+
+/* Dark themes: the render is near-white. Left untouched it is a wall of glare in a
+   darkened control room, which is exactly what ISA-101 asks us not to build. */
+:root[data-obc-theme='night'] .login__visual-img {
+  filter: brightness(0.34) contrast(1.06) saturate(0.7);
+}
+
+:root[data-obc-theme='dusk'] .login__visual-img {
+  filter: brightness(0.62) contrast(1.03) saturate(0.85);
+}
+
+/* ── Right: credential column ───────────────────────────────────────────── */
+
+.login__panel {
+  flex: 0 0 clamp(380px, 42%, 640px);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--container-background-color);
+  border-left: 1px solid var(--border-divider-color);
+}
+
+.login__form {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+  padding: 48px clamp(28px, 5vw, 64px);
+  min-width: 0;
+}
+
+/* ── Identity block ─────────────────────────────────────────────────────── */
+
+.login__chip {
+  align-self: flex-start;
+  padding: 5px 10px;
+  border: 1px solid var(--border-divider-color);
+  border-radius: var(--border-radius-br-2);
+  background: var(--container-section-color);
+  color: var(--element-neutral-color);
+  font-family: 'Noto Sans Mono', monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.login__title {
+  margin: 4px 0 0;
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.1;
+  letter-spacing: -0.005em;
+  text-transform: uppercase;
+  color: var(--element-active-color);
+}
+
+.login__subtitle {
+  margin: 0;
+  font-family: 'Noto Sans Mono', monospace;
+  font-size: var(--font-size-075);
+  line-height: 1.5;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--element-neutral-color);
+}
+
+/* ── Authorized-use notice ──────────────────────────────────────────────── */
+
+.login__notice {
+  margin-top: 8px;
+  padding: 14px 16px;
+  border-left: 3px solid var(--border-focus-color);
+  border-radius: 0 var(--border-radius-br-4) var(--border-radius-br-4) 0;
+  background: var(--container-section-color);
+  color: var(--element-neutral-color);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.login__notice strong {
+  color: var(--element-active-color);
+  font-weight: var(--font-weight-bold);
+}
+
+/* ── Fields ─────────────────────────────────────────────────────────────── */
+
+.login__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.login__label {
+  font-family: 'Noto Sans Mono', monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--element-neutral-color);
+}
+
+.login__control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* obi-* icons paint an inline `fill: var(--element-active-color)` inside their shadow
+   root, so `color` cannot reach them — remap the token instead. They also carry no
+   intrinsic size (the inner svg is width/height 100%), so the host needs explicit
+   dimensions. Both apply to every icon holder on this page. */
+.login__control-icon,
+.login__reveal,
+.login__error-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login__control-icon > *,
+.login__reveal > *,
+.login__error-icon > * {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+.login__control-icon {
+  position: absolute;
+  left: 12px;
+  pointer-events: none;
+  --element-active-color: var(--element-inactive-color);
+}
+
+.login__input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 46px;
+  padding: 0 12px 0 40px;
+  background: var(--normal-enabled-background-color);
+  border: 1px solid var(--normal-enabled-border-color);
+  border-radius: var(--global-border-radius-border-radius-base);
+  color: var(--on-normal-active-color);
+  font-family: var(--font-family-main), 'Noto Sans', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+/* Room for the reveal control on the password field. */
+.login__input--revealable {
+  padding-right: 46px;
+}
+
+.login__input::placeholder {
+  color: var(--element-inactive-color);
+}
+
+.login__input:hover:not(:disabled) {
+  border-color: var(--normal-hover-border-color);
+}
+
+.login__input:focus {
+  border-color: var(--border-focus-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--border-focus-color) 30%, transparent);
+}
+
+.login__input:disabled {
+  background: var(--normal-disabled-background-color);
+  border-color: var(--normal-disabled-border-color);
+  color: var(--on-normal-disabled-color);
+  cursor: not-allowed;
+}
+
+.login__control:focus-within .login__control-icon {
+  --element-active-color: var(--element-neutral-color);
+}
+
+.login__reveal {
+  position: absolute;
+  right: 4px;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: none;
+  border-radius: var(--border-radius-br-4);
+  background: transparent;
+  cursor: pointer;
+  --element-active-color: var(--element-neutral-color);
+}
+
+.login__reveal:hover:not(:disabled) {
+  background: var(--normal-hover-background-color);
+  --element-active-color: var(--on-normal-active-color);
+}
+
+.login__reveal:focus-visible {
+  outline: 2px solid var(--border-focus-color);
+  outline-offset: -2px;
+}
+
+.login__reveal:disabled {
+  cursor: not-allowed;
+  --element-active-color: var(--element-disabled-color);
+}
+
+/* ── Submit ─────────────────────────────────────────────────────────────── */
+
+.login__submit {
+  margin-top: 4px;
+  /* Inherited typography reaches the button label inside the shadow root; the
+     component's own colours and geometry are left entirely to OpenBridge. */
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* The leading icon is a light-DOM child of obc-button, slotted into a fixed-size
+   box in its shadow root. Fill that box, and point its inline fill token at the
+   on-raised content colour — its default (--element-active-color) is near-black,
+   i.e. invisible on the raised surface. */
+.login__submit-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  --element-active-color: var(--on-raised-active-color);
+}
+
+/* ── Error ──────────────────────────────────────────────────────────────── */
+
+.login__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--alert-alarm-container-border-color);
+  border-radius: var(--border-radius-br-4);
+  background: var(--alert-alarm-container-background-color);
+  color: var(--element-active-color);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.login__error-icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  --element-active-color: var(--alert-alarm-color);
+}
+
+/* ── Footer status strip ────────────────────────────────────────────────── */
+
+.login__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  /* obc-status-indicator carries its own 48px target height — no vertical padding
+     here, or the strip grows to ~76px and dwarfs the rest of the footer. */
+  padding: 4px clamp(28px, 5vw, 64px);
+  min-height: 56px;
+  border-top: 1px solid var(--border-divider-color);
+  background: var(--container-section-color);
+  font-family: 'Noto Sans Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--element-neutral-color);
+  white-space: nowrap;
+}
+
+.login__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* The indicator's own 8px padding already supplies the gap to the label text. */
+.login__footer obc-status-indicator {
+  margin-left: -8px;
+}
+
+/* ── Narrow viewports: the visual is decoration, the form is the task ───── */
+
+@media (max-width: 900px) {
+  .login__visual {
+    display: none;
+  }
+
+  .login__panel {
+    flex: 1 1 auto;
+    border-left: none;
+  }
+
+  .login__form {
+    padding: 40px clamp(20px, 6vw, 40px);
+  }
+
+  .login__footer {
+    padding: 4px clamp(20px, 6vw, 40px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login__input {
+    transition: none;
+  }
+}

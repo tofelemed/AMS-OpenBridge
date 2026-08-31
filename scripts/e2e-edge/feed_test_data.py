@@ -3,8 +3,8 @@
 Feed synthetic alarm events into Kafka for edge-platform E2E testing.
 
 Pipeline exercised:
-  raw-alarms → Flink (OpcEventStreamJob + IoTDBPersistenceJob)
-            → current-alarm-state → LiveStateJob → live.alarms / live.metrics
+  traverse.alarm.raw-alarms → Flink (OpcEventStreamJob + IoTDBPersistenceJob)
+            → traverse.alarm.current-alarm-state → LiveStateJob → traverse.alarm.live.alarms / traverse.live.metrics
             → Sparkplug Edge Node → EMQX → Redis snapshot
             → Historian BFF / IoTDB / Frontend
 
@@ -43,7 +43,7 @@ def main() -> int:
     parser.add_argument(
         "--also-current-state",
         action="store_true",
-        help="Also publish ALARM_STATE_UPSERT to current-alarm-state (MQTT fast-path)",
+        help="Also publish ALARM_STATE_UPSERT to traverse.alarm.current-alarm-state (MQTT fast-path)",
     )
     parser.add_argument("--clear-one", action="store_true", help="Send a CLEARED event for alarm-001")
     args = parser.parse_args()
@@ -56,7 +56,7 @@ def main() -> int:
         source = f"{cfg.TEST_PREFIX}.Unit1.Tag_{i:03d}"
         raw = make_raw_alarm(alarm_id, source, "High", state="ACTIVE", priority="HIGH")
         kafka_publish(cfg.TOPIC_RAW_ALARMS, key=alarm_id, payload=raw)
-        log(f"Published raw-alarms  key={alarm_id}  source={source}")
+        log(f"Published traverse.alarm.raw-alarms  key={alarm_id}  source={source}")
         manifest.append({
             "alarmId": alarm_id,
             "sourceName": source,
@@ -66,7 +66,7 @@ def main() -> int:
         if args.also_current_state:
             upsert = make_current_state_upsert(raw)
             kafka_publish(cfg.TOPIC_CURRENT_STATE, key=alarm_id, payload=upsert)
-            log(f"Published current-alarm-state  key={alarm_id}")
+            log(f"Published traverse.alarm.current-alarm-state  key={alarm_id}")
 
     if args.clear_one and args.count >= 1:
         alarm_id = make_alarm_id(args.run_id, 1)
@@ -74,7 +74,7 @@ def main() -> int:
         cleared = make_raw_alarm(alarm_id, source, "High", state="CLEARED", priority="LOW", severity=100)
         cleared["conditionActive"] = False
         kafka_publish(cfg.TOPIC_RAW_ALARMS, key=alarm_id, payload=cleared)
-        log(f"Published CLEARED raw-alarms  key={alarm_id}")
+        log(f"Published CLEARED traverse.alarm.raw-alarms  key={alarm_id}")
 
     out_path = Path(__file__).resolve().parent / f"manifest_{args.run_id}.json"
     out_path.write_text(

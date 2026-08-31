@@ -17,15 +17,15 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
- * Flink job: current-alarm-state → live.alarms + live.alarm.metrics  (Report-by-Exception).
+ * Flink job: traverse.alarm.current-alarm-state → traverse.alarm.live.alarms + traverse.alarm.live.alarm.metrics  (Report-by-Exception).
  *
- * Reads the compacted current-alarm-state topic.  For every incoming event it compares
+ * Reads the compacted traverse.alarm.current-alarm-state topic.  For every incoming event it compares
  * the new state against the last published state (held in Flink ValueState keyed by alarmId).
  * Only changed fields are forwarded — this is the RBE filter that keeps MQTT payload small.
  *
  * Two output topics:
- *   live.alarms   — full alarm state envelope (for the HMI alarm list / faceplate)
- *   live.alarm.metrics — lightweight numeric metrics (severity, state) for dashboard widgets
+ *   traverse.alarm.live.alarms   — full alarm state envelope (for the HMI alarm list / faceplate)
+ *   traverse.alarm.live.alarm.metrics — lightweight numeric metrics (severity, state) for dashboard widgets
  *
  * Spec reference: §6 "Live-State Job", §8.2 "Kafka → MQTT bridge".
  */
@@ -34,12 +34,12 @@ public class LiveStateJob {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /**
-     * STR-12 — alarm-shaped numeric metrics. Deliberately NOT `live.metrics`: that topic
+     * STR-12 — alarm-shaped numeric metrics. Deliberately NOT `traverse.live.metrics`: that topic
      * carries the process-value schema ({device, metric, value}) that sparkplug-edge-node's
      * metric branch parses, and mixing the two shapes meant these records were silently
      * discarded by the consumer.
      */
-    private static final String ALARM_METRICS_TOPIC = "live.alarm.metrics";
+    private static final String ALARM_METRICS_TOPIC = "traverse.alarm.live.alarm.metrics";
 
     public static void main(String[] args) throws Exception {
         PipelineConfig cfg = PipelineConfig.fromArgs(args);
@@ -52,8 +52,8 @@ public class LiveStateJob {
 
         KafkaSource<String> source = KafkaSource.<String>builder()
                 .setBootstrapServers(cfg.brokers)
-                .setTopics("current-alarm-state")
-                .setGroupId("flink-ams-live-state")
+                .setTopics("traverse.alarm.current-alarm-state")
+                .setGroupId("traverse-alarm-flink-live-state")
                 .setStartingOffsets(OffsetsInitializer.latest())
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .setProperty("request.timeout.ms", "120000")
@@ -67,8 +67,8 @@ public class LiveStateJob {
                 .name("live-state-ingest")
                 .uid("live-state-ingest");
 
-        // ── live.alarms ── full envelope, RBE filtered
-        // Keyed by alarmId (PIPE-010): live.alarms has 4 partitions and the edge
+        // ── traverse.alarm.live.alarms ── full envelope, RBE filtered
+        // Keyed by alarmId (PIPE-010): traverse.alarm.live.alarms has 4 partitions and the edge
         // node must see one alarm's UPSERT/CLEAR sequence in order.
         currentState
                 .keyBy(LiveStateJob::extractAlarmId)
@@ -76,12 +76,12 @@ public class LiveStateJob {
                 .name("rbe-alarm-filter")
                 .uid("rbe-alarm-filter")
                 .filter(s -> s != null && !s.isEmpty())
-                .sinkTo(KafkaSinks.keyedByJsonField(cfg.brokers, "live.alarms", "alarmId"))
+                .sinkTo(KafkaSinks.keyedByJsonField(cfg.brokers, "traverse.alarm.live.alarms", "alarmId"))
                 .name("live-alarms-sink")
                 .uid("live-alarms-sink");
 
         // ── alarm numeric metrics ──
-        // STR-12: this used to sink to `live.metrics`, which is ALSO the process-value
+        // STR-12: this used to sink to `traverse.live.metrics`, which is ALSO the process-value
         // topic. The two payloads are incompatible: sparkplug-edge-node's metric branch
         // requires {device, metric, value} and RbeMetricsMap emits {alarmId, severity,
         // state, priority}. Every record produced here was therefore dropped by the edge
@@ -107,7 +107,7 @@ public class LiveStateJob {
     // ── RBE: full alarm state envelope ────────────────────────────────────
 
     /**
-     * Emits a JSON envelope to live.alarms only when at least one of:
+     * Emits a JSON envelope to traverse.alarm.live.alarms only when at least one of:
      *   state, severity, ackStatus, conditionActive, priority
      * has changed since the last published event for this alarmId.
      *
@@ -182,7 +182,7 @@ public class LiveStateJob {
     // ── RBE: numeric metrics only ──────────────────────────────────────────
 
     /**
-     * Emits a compact JSON to live.metrics only when severity or state changes.
+     * Emits a compact JSON to traverse.live.metrics only when severity or state changes.
      * Designed for dashboard sparklines and gauge widgets.
      *
      * Schema: { alarmId, severity, state, priority, conditionActive, rbeTs }

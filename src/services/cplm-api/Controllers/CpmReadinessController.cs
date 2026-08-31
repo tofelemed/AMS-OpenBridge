@@ -185,7 +185,7 @@ public sealed class CpmReadinessController : ControllerBase
             """, new { loopId = (string)reg.loop_id });
 
         Check("evidence_short", "Short features produced", (counts?.shorts ?? 0) > 0,
-            (counts?.shorts ?? 0) > 0 ? null : "No samples have reached loop.samples.v1 for this loop yet.", false);
+            (counts?.shorts ?? 0) > 0 ? null : "No samples have reached traverse.cpa.loop.samples.v1 for this loop yet.", false);
         Check("evidence_verdict", "Diagnosis produced", (counts?.verdicts ?? 0) > 0,
             (counts?.verdicts ?? 0) > 0 ? null
                 : "Fusion needs a 12h/24h window; verdicts appear once the long job's timers pass the window end.",

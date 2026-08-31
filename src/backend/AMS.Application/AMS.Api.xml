@@ -11,7 +11,7 @@
         </member>
         <member name="T:AMS.Application.Alarms.Commands.IOperatorActionPublisher">
             <summary>
-            Publishes operator lifecycle commands to Kafka operator-actions (command gateway).
+            Publishes operator lifecycle commands to Kafka traverse.alarm.operator-actions (command gateway).
             </summary>
         </member>
         <member name="T:AMS.Application.Alarms.Commands.IOpcDcsGateway">

@@ -54,6 +54,70 @@
 
   --hmi-btn-height:      36px;
   --hmi-input-height:    38px;
+
+  /* Label color on an accent-filled surface (header, primary button). Was hardcoded #FFFFFF. */
+  --hmi-on-accent:       #FFFFFF;
+  --hmi-text-secondary:  #4A5568;
+  --hmi-border-strong:   #B0BAC5;
+  --hmi-option-bg:       #FFFFFF;
+}
+
+/* ── Night theme (audit 06, finding F-09) ─────────────────────────────────────────────────
+ * This file was light-only: 63 color literals on a bare :root with NO [data-obc-theme] branch,
+ * loaded AFTER the token layer, so it won unconditionally. Every dialog, modal, detail panel,
+ * context menu and form opened as #FFFFFF at 21:1 against the black console — wiping out the
+ * operator's dark adaptation on a night shift.
+ *
+ * Values are the Candidate A graphite scale, pitched one step ABOVE the app canvas (#0A0A0A) so a
+ * dialog still reads as elevated. Text clears 12.21:1 on the dialog surface.
+ *
+ * The blue is DROPPED at night rather than darkened. IEC 60073 would justify blue for "mandatory
+ * action", but this platform's alarm mapping puts Low = cyan/blue, so a blue confirm button would
+ * compete with a Low-priority alarm — the same fault this audit set out to fix. Primary actions
+ * are distinguished by fill lightness + border instead. Revisit if audit OQ-2 resolves against
+ * blue for Low. */
+:root[data-obc-theme='night'] {
+  --hmi-blue:            #333333;
+  --hmi-blue-dark:       #3D3D3D;
+  --hmi-blue-darker:     #4A4A4A;
+  --hmi-blue-light:      #1E1E1E;
+  --hmi-blue-focus-ring: rgba(212, 212, 212, 0.22);
+  --hmi-blue-hover:      #8A8A8A;
+
+  --hmi-surface:         #161616;
+  --hmi-body-bg:         #101010;
+  --hmi-header-bg:       #1F1F1F;
+  --hmi-footer-bg:       #101010;
+
+  --hmi-border:          #333333;
+  --hmi-border-hover:    #5D5D5D;
+  --hmi-border-focus:    #8A8A8A;
+
+  --hmi-text:            #D4D4D4;
+  --hmi-text-muted:      #9A9A9A;
+  --hmi-text-label:      #B8B8B8;
+  --hmi-text-hint:       #8A8A8A;
+
+  --hmi-on-accent:       #E8E8E8;
+  --hmi-text-secondary:  #B8B8B8;
+  --hmi-border-strong:   #5D5D5D;
+  --hmi-option-bg:       #161616;
+
+  /* Shadows carry no light in a dark theme — deepen them so elevation still reads, and add a
+     hairline light rim, which is what actually separates a dark dialog from a dark backdrop. */
+  --hmi-shadow-dialog:
+    0 4px 6px -1px rgba(0, 0, 0, 0.50),
+    0 12px 32px -4px rgba(0, 0, 0, 0.62),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+
+  --hmi-shadow-panel:
+    -8px 0 32px rgba(0, 0, 0, 0.62),
+    -2px 0 8px  rgba(0, 0, 0, 0.45);
+
+  --hmi-shadow-menu:
+    0 2px 4px rgba(0, 0, 0, 0.45),
+    0 8px 24px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
 /* ============================================================
@@ -100,9 +164,12 @@
   flex-shrink: 0;
 }
 
-.dialog-content--warning::before { background: #F59E0B; }
-.dialog-content--danger::before  { background: #EF4444; }
-.dialog-content--success::before { background: #10B981; }
+/* F-10: these were Tailwind defaults (#F59E0B / #EF4444 / #10B981) — hues outside the alarm
+ * mapping and outside any governing standard. Now the OpenBridge alert tokens, so they re-theme
+ * and carry the same meaning as every other status surface in the app. */
+.dialog-content--warning::before { background: var(--alert-warning-color); }
+.dialog-content--danger::before  { background: var(--alert-alarm-color); }
+.dialog-content--success::before { background: var(--alert-running-color); }
 
 /* ============================================================
    DIALOG HEADER
@@ -115,9 +182,19 @@
   flex-shrink: 0;
 }
 
-.dialog-header--warning { background: #D97706 !important; }
-.dialog-header--danger  { background: #DC2626 !important; }
-.dialog-header--success { background: #059669 !important; }
+.dialog-header--warning { background: var(--alert-warning-color) !important; }
+.dialog-header--danger  { background: var(--alert-alarm-color) !important; }
+.dialog-header--success { background: var(--alert-running-color) !important; }
+
+/* The title/icon rules below hardcode a light label, which is wrong on day's orange warning fill
+ * (white on #FE9413 is ~2:1). --on-*-color already flips per theme — black on the light fills,
+ * white on the dark ones — so bind the label to the fill rather than assuming. */
+.dialog-header--warning .dialog-title,
+.dialog-header--warning [class*='dialog-header__icon'] { color: var(--on-warning-color) !important; }
+.dialog-header--danger  .dialog-title,
+.dialog-header--danger  [class*='dialog-header__icon'] { color: var(--on-alarm-color) !important; }
+.dialog-header--success .dialog-title,
+.dialog-header--success [class*='dialog-header__icon'] { color: var(--on-running-color) !important; }
 
 /* Remove accent bar inside header — header IS the accent */
 .dialog-header__accent { display: none; }
@@ -139,7 +216,7 @@
   flex-shrink: 0;
   background: rgba(255, 255, 255, 0.18);
   border: 1px solid rgba(255, 255, 255, 0.28);
-  color: #FFFFFF;
+  color: var(--hmi-on-accent);
 }
 
 /* All header icon variants white on colored header */
@@ -149,7 +226,7 @@
 .dialog-header__icon--success {
   background: rgba(255, 255, 255, 0.18);
   border-color: rgba(255, 255, 255, 0.28);
-  color: #FFFFFF;
+  color: var(--hmi-on-accent);
 }
 
 .dialog-header__text {
@@ -160,7 +237,7 @@
 .dialog-title {
   font-size: 18px;
   font-weight: 700;
-  color: #FFFFFF !important;
+  color: var(--hmi-on-accent) !important;
   margin: 0;
   line-height: 1.3;
   letter-spacing: -0.01em;
@@ -220,7 +297,7 @@
 .dialog-footer obc-button[variant="raised"],
 .dialog-footer obc-button[variant="raised"]::part(button) {
   background: var(--hmi-blue) !important;
-  color: #ffffff !important;
+  color: var(--hmi-on-accent) !important;
   border: none !important;
   border-radius: var(--hmi-radius-sm) !important;
   font-weight: 600 !important;
@@ -238,7 +315,7 @@
 .dialog-footer obc-button[variant="flat"],
 .dialog-footer obc-button[variant="flat"]::part(button) {
   background: var(--hmi-surface) !important;
-  color: #4A5568 !important;
+  color: var(--hmi-text-secondary) !important;
   border: 1px solid var(--hmi-border) !important;
   border-radius: var(--hmi-radius-sm) !important;
   font-weight: 500 !important;
@@ -249,7 +326,7 @@
 }
 .dialog-footer obc-button[variant="flat"]:hover::part(button) {
   background: var(--hmi-body-bg) !important;
-  border-color: #B0BAC5 !important;
+  border-color: var(--hmi-border-strong) !important;
 }
 
 /* ============================================================
@@ -288,7 +365,7 @@
 }
 
 .form-field__required {
-  color: #EF4444 !important;
+  color: var(--alert-alarm-color) !important;
   margin-left: 3px;
 }
 
@@ -301,7 +378,7 @@
 
 .form-field__error {
   font-size: 11.5px;
-  color: #DC2626 !important;
+  color: var(--alert-alarm-color) !important;
   margin-top: 5px;
   font-weight: 500;
 }
@@ -366,19 +443,19 @@
 
 .dialog-body select.ob-input option,
 .dialog-content select.ob-input option {
-  background: #ffffff;
+  background: var(--hmi-option-bg);
   color: var(--hmi-text);
 }
 
 /* Warning-variant dialogs */
 .dialog-content--warning .dialog-body .ob-input:focus {
-  border-color: #D97706 !important;
+  border-color: var(--alert-warning-color) !important;
   box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15) !important;
 }
 
 /* Danger-variant dialogs */
 .dialog-content--danger .dialog-body .ob-input:focus {
-  border-color: #DC2626 !important;
+  border-color: var(--alert-alarm-color) !important;
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
 }
 
@@ -518,26 +595,29 @@
   line-height: 1.5;
 }
 
+/* F-10: pastel fill + saturated rule + dark ink was a light-theme-only construction. The
+ * --alert-*-container-background-color tints are pastel by day and dark by night, and
+ * --element-active-color flips with them, so the same three lines now work in every theme. */
 .isa-notice--warning {
-  background: #FFFBEB !important;
-  border: 1.5px solid #F59E0B !important;
-  border-left: 4px solid #F59E0B !important;
-  color: #78350F !important;
+  background: var(--alert-warning-container-background-color) !important;
+  border: 1.5px solid var(--alert-warning-color) !important;
+  border-left: 4px solid var(--alert-warning-color) !important;
+  color: var(--element-active-color) !important;
 }
 
 .isa-notice--warning strong {
-  color: #92400E !important;
+  color: var(--element-active-color) !important;
 }
 
 .isa-notice--danger {
-  background: #FEF2F2 !important;
-  border: 1.5px solid #FCA5A5 !important;
-  border-left: 4px solid #EF4444 !important;
-  color: #7F1D1D !important;
+  background: var(--alert-alarm-container-background-color) !important;
+  border: 1.5px solid var(--alert-alarm-color) !important;
+  border-left: 4px solid var(--alert-alarm-color) !important;
+  color: var(--element-active-color) !important;
 }
 
 .isa-notice--danger strong {
-  color: #991B1B !important;
+  color: var(--element-active-color) !important;
 }
 
 /* ============================================================
@@ -545,10 +625,12 @@
    ============================================================ */
 .info-notice {
   font-size: 12px;
-  color: #1e40af !important;
+  /* Neutral, not blue: this platform's alarm mapping puts Low = cyan/blue, so an informational
+   * blue panel would compete with a Low-priority alarm (audit F-02 class). See decision D-3. */
+  color: var(--element-active-color) !important;
   padding: 10px 14px;
-  background: #EFF6FF !important;
-  border: 1px solid #BFDBFE !important;
+  background: var(--container-section-color) !important;
+  border: 1px solid var(--border-divider-color) !important;
   border-left: 3px solid var(--hmi-blue) !important;
   border-radius: var(--hmi-radius-sm) !important;
   line-height: 1.5;
@@ -610,7 +692,7 @@
 
 .duration-btn--active {
   background: var(--hmi-blue) !important;
-  color: #ffffff !important;
+  color: var(--hmi-on-accent) !important;
   border-color: var(--hmi-blue) !important;
   font-weight: 600 !important;
 }
@@ -628,9 +710,9 @@
 }
 
 .reason-btn--danger-active {
-  background: #FEF2F2 !important;
-  color: #DC2626 !important;
-  border-color: #FECACA !important;
+  background: var(--alert-alarm-container-background-color) !important;
+  color: var(--element-active-color) !important;
+  border-color: var(--alert-alarm-color) !important;
 }
 
 .reason-btn--block {
@@ -709,8 +791,8 @@
 }
 
 .context-menu__item--danger:hover:not(.context-menu__item--disabled) {
-  background: #FEF2F2 !important;
-  color: #DC2626 !important;
+  background: var(--alert-alarm-container-background-color) !important;
+  color: var(--element-active-color) !important;
 }
 
 .context-menu__icon {
@@ -789,7 +871,7 @@
   font-size: 15px;
   font-weight: 700;
   font-family: 'Noto Sans Mono', monospace;
-  color: #FFFFFF !important;
+  color: var(--hmi-on-accent) !important;
   word-break: break-all;
   margin: 0 0 4px;
   line-height: 1.35;
@@ -1100,7 +1182,7 @@
 .detail-panel__actions obc-button[variant="raised"],
 .detail-panel__actions obc-button[variant="raised"]::part(button) {
   background: var(--hmi-blue) !important;
-  color: #ffffff !important;
+  color: var(--hmi-on-accent) !important;
   border: none !important;
   border-radius: var(--hmi-radius-sm) !important;
   font-weight: 600 !important;
@@ -1114,7 +1196,7 @@
 .detail-panel__actions obc-button[variant="flat"],
 .detail-panel__actions obc-button[variant="flat"]::part(button) {
   background: var(--hmi-surface) !important;
-  color: #4A5568 !important;
+  color: var(--hmi-text-secondary) !important;
   border: 1px solid var(--hmi-border) !important;
   border-radius: var(--hmi-radius-sm) !important;
   transition: background 140ms ease, border-color 140ms ease !important;
@@ -1129,7 +1211,7 @@
 /* Disabled state */
 .detail-panel__actions obc-button[disabled]::part(button) {
   background: var(--hmi-body-bg) !important;
-  color: #B0BAC5 !important;
+  color: var(--hmi-border-strong) !important;
   border-color: var(--hmi-border) !important;
   cursor: not-allowed;
 }
@@ -1175,5 +1257,5 @@
 .dialog-body::-webkit-scrollbar-thumb:hover,
 .detail-panel__content::-webkit-scrollbar-thumb:hover,
 .dialog-batch-table::-webkit-scrollbar-thumb:hover {
-  background: #B0BAC5;
+  background: var(--hmi-border-strong);
 }

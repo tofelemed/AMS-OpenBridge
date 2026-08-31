@@ -9,9 +9,9 @@ namespace AMS.Api.BackgroundServices;
 public sealed class CplmOptions
 {
     public const string SectionName = "Cplm";
-    public string SamplesTopic { get; set; } = "loop.samples.v1";
-    public string GateResultsTopic { get; set; } = "clpm.gate.results.v1";
-    public string ShortFeatureTopic { get; set; } = "clpm.feature.short.v1";
-    public string LongFeatureTopic { get; set; } = "clpm.feature.long.v1";
-    public string ConsumerGroupId { get; set; } = "ams-api-cplm-results";
+    public string SamplesTopic { get; set; } = "traverse.cpa.loop.samples.v1";
+    public string GateResultsTopic { get; set; } = "traverse.cpa.clpm.gate.results.v1";
+    public string ShortFeatureTopic { get; set; } = "traverse.cpa.clpm.feature.short.v1";
+    public string LongFeatureTopic { get; set; } = "traverse.cpa.clpm.feature.long.v1";
+    public string ConsumerGroupId { get; set; } = "traverse-cpa-cplm-results";
 }

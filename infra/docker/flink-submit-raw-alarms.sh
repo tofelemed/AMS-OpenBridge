@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Submits OpcEventStreamJob (raw-alarms → current-alarm-state) once Flink cluster is ready.
+# Submits OpcEventStreamJob (traverse.alarm.raw-alarms → traverse.alarm.current-alarm-state) once Flink cluster is ready.
 set -euo pipefail
 
 JOBMANAGER_HOST="${FLINK_JOBMANAGER_HOST:-ams-flink-jobmanager}"
@@ -38,7 +38,7 @@ if /opt/flink/bin/flink list -m "${JOBMANAGER_HOST}:${JOBMANAGER_PORT}" 2>/dev/n
   exit 0
 fi
 
-echo "[Flink Submit] Submitting ${ENTRY_CLASS} (raw-alarms → current-alarm-state)..."
+echo "[Flink Submit] Submitting ${ENTRY_CLASS} (traverse.alarm.raw-alarms → traverse.alarm.current-alarm-state)..."
 /opt/flink/bin/flink run -d \
   -m "${JOBMANAGER_HOST}:${JOBMANAGER_PORT}" \
   -c "${ENTRY_CLASS}" \

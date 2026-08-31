@@ -92,7 +92,7 @@ Require new backend surface or an architectural decision; sequenced last.
 
 | # | Item | Why backend-first | Approach |
 |---|---|---|---|
-| 5.1 | **Controls write nothing** (buttons/sliders/toggles/inputs) | No command/write-back path exists. Safety-critical: needs authz, confirm, audit, and an OPC write channel | Add a guarded write endpoint (binding-resolver or a new command service) → Kafka `operator-actions` → OPC Gateway (the ACK path already exists); gate on a `command.write` permission + confirm dialog + audit event |
+| 5.1 | **Controls write nothing** (buttons/sliders/toggles/inputs) | No command/write-back path exists. Safety-critical: needs authz, confirm, audit, and an OPC write channel | Add a guarded write endpoint (binding-resolver or a new command service) → Kafka `traverse.alarm.operator-actions` → OPC Gateway (the ACK path already exists); gate on a `command.write` permission + confirm dialog + audit event |
 | 5.2 | **Event annotations + related/compare-events** | Needs an annotations store + query API | New `annotations` table/endpoints in a service; trend overlay + events pane |
 
 ---

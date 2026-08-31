@@ -31,7 +31,7 @@ import java.util.List;
  * {@code GET /api/v1/cpm/resolutions}; keep the two in step.
  *
  * <p>Source: cplm-normalized-source (existing topic, independent consumer group).
- * Sink: clpm.feature.long.v1 (matches existing topic name in CplmJobConfig defaults).
+ * Sink: traverse.cpa.clpm.feature.long.v1 (matches existing topic name in CplmJobConfig defaults).
  */
 public class CplmLongDiagnosticsStreamJob {
 

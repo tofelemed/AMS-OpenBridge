@@ -14,7 +14,7 @@ public interface ICplmAuditEmitter
 
 /// <summary>
 /// A15 — CPLM governance events onto the immutable audit trail (Kafka topic
-/// <c>audit-events</c>, consumed by audit-service into its hash-chained store).
+/// <c>traverse.cpa.audit-events</c>, consumed by audit-service into its hash-chained store).
 /// Mirrors display-service's AuditEmitter: best-effort by design — an audit
 /// emit must never fail the operation it records, so produce is fire-and-forget
 /// and a Kafka outage is logged, not surfaced. The event shape matches
@@ -25,7 +25,7 @@ public sealed class CplmAuditEmitter : ICplmAuditEmitter, IDisposable
 {
     private readonly IProducer<Null, string>? _producer;
     private readonly ILogger<CplmAuditEmitter> _logger;
-    private const string Topic = "audit-events";
+    private const string Topic = "traverse.cpa.audit-events";
 
     public CplmAuditEmitter(IConfiguration config, ILogger<CplmAuditEmitter> logger)
     {

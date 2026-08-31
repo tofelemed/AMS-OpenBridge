@@ -29,7 +29,7 @@ public class StateDriftDetectionJob {
         // Source 1: Raw Events
         KafkaSource<String> rawEventsSource = KafkaSource.<String>builder()
                 .setBootstrapServers(brokers)
-                .setTopics("alarm.events.raw")
+                .setTopics("traverse.alarm.events.raw")
                 .setGroupId("flink-drift-detector")
                 .setStartingOffsets(OffsetsInitializer.latest())
                 .setValueOnlyDeserializer(new SimpleStringSchema())
@@ -38,7 +38,7 @@ public class StateDriftDetectionJob {
         // Source 2: Active State
         KafkaSource<String> activeStateSource = KafkaSource.<String>builder()
                 .setBootstrapServers(brokers)
-                .setTopics("alarm.state.active")
+                .setTopics("traverse.alarm.state.active")
                 .setGroupId("flink-drift-detector")
                 .setStartingOffsets(OffsetsInitializer.latest())
                 .setValueOnlyDeserializer(new SimpleStringSchema())
@@ -60,7 +60,7 @@ public class StateDriftDetectionJob {
                 .setBootstrapServers(brokers)
                 .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .setRecordSerializer(KafkaRecordSerializationSchema.builder()
-                        .setTopic("system.state.drift.alerts")
+                        .setTopic("traverse.system.state.drift.alerts")
                         .setValueSerializationSchema(new SimpleStringSchema())
                         .build())
                 .build();

@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Resolve {@link CplmLoopDynamicsProfile} from {@code context.parameter-set.v1}
+ * Resolve {@link CplmLoopDynamicsProfile} from {@code traverse.cpa.context.parameter-set.v1}
  * payloads (class packs + per-loop overrides). Classpath YAML / embedded table remains
  * the first-hydration fallback when the spine map has no matching key.
  *

@@ -43,7 +43,7 @@ flowchart TB
 
   SRC --> SP --> K --> F
   F -->|IoTDBSink, tablet writes| IOTDB
-  F -->|live.metrics / live.alarms| K
+  F -->|traverse.live.metrics / traverse.alarm.live.alarms| K
   K --> EN --> MB
   MB --> SC
   F -->|alarm/event records| EVT
@@ -117,7 +117,7 @@ flowchart TB
 **Core jobs:**
 
 1. **Persistence job** — writes all (and derived) series to IoTDB via `flink-iotdb-connector` (`IoTDBSink`), batched `Tablet` inserts, server `enable_auto_create_schema=true`, schema/device templates registered for cardinality control. Tree paths follow §7.
-2. **Live-state job** — emits current value + quality per series to Kafka topic `live.metrics`, and current alarm state to `live.alarms`. Report-by-exception (only on change beyond deadband) to bound MQTT volume.
+2. **Live-state job** — emits current value + quality per series to Kafka topic `traverse.live.metrics`, and current alarm state to `traverse.alarm.live.alarms`. Report-by-exception (only on change beyond deadband) to bound MQTT volume.
 3. **Operations suite jobs** — §9.
 
 **Minimise code:** Prefer **Flink SQL** for threshold logic, deadbands, aggregations, and rollups; **MATCH_RECOGNIZE / flink-cep** for sequential alarm and predictive patterns; reserve Java DataStream + UDF/UDAF for stateful KPIs that SQL cannot express (e.g. Harris index). `flink-cep` version must match the deployed Flink version.
@@ -164,7 +164,7 @@ One identity must map cleanly across three representations. Define this mapping 
 - Idempotency via source-timestamp event time.
 
 ### 8.2 Flink → Sparkplug Edge Node (live hand-off)
-- Transport: Kafka topics `live.metrics`, `live.alarms` (report-by-exception, deadbanded).
+- Transport: Kafka topics `traverse.live.metrics`, `traverse.alarm.live.alarms` (report-by-exception, deadbanded).
 - Payload (JSON/Avro): `{ groupId, edgeNodeId, deviceId, metric, alias?, ts, value, quality, dataType }`.
 - Rationale for the hop: keeps Sparkplug lifecycle/sequence state out of Flink and isolated in one place.
 
@@ -195,7 +195,7 @@ One identity must map cleanly across three representations. Define this mapping 
 - BFF responsibilities: asset-model binding (resolve HMI tag → IoTDB path), authz, short-TTL result cache for hot "last N hours of unit X" queries, IoTDB session pooling. Stateless and horizontally scaled behind a load balancer.
 
 ### 8.8 Alarm acknowledge / write-back (conditional — see §13)
-- **Alarm ack (to event store):** `POST /alarms/{id}/ack` → update PostgreSQL state → republish updated alarm state to `live.alarms` → HMI banner updates via §8.6. No control-system contact.
+- **Alarm ack (to event store):** `POST /alarms/{id}/ack` → update PostgreSQL state → republish updated alarm state to `traverse.alarm.live.alarms` → HMI banner updates via §8.6. No control-system contact.
 - **Supervisory write-back (setpoint/mode):** if in scope, this is a **separate, authenticated, audited OPC UA channel** back to the control system across the IEC 62443 conduit. It **must not** traverse the historian, Kafka analytics topics, or the MQTT monitoring broker. Treated as a distinct module with its own threat model.
 
 ---
@@ -225,7 +225,7 @@ Each job is keyed by asset/loop, consumes the harmonised stream, and routes outp
   - Real-time: MQTT.js (WSS) + `sparkplug-payload`; bind decoded metrics to component attributes (OpenBridge components re-render on attribute change).
   - Snapshot: `/snapshot` on screen open.
   - Historical: `/trend` and `/raw` from the BFF for trend components.
-  - Alarms: list/ack via the event-store API; live banner via `live.alarms`.
+  - Alarms: list/ack via the event-store API; live banner via `traverse.alarm.live.alarms`.
 - **HPHMI design:** ISA-101 display hierarchy (Level 1 overview → Level 4 detail/faceplate), situational-awareness palette (muted base, colour reserved for abnormal), grey-scale process graphics, alarm prioritisation per ISA-18.2. OpenBridge aligns with these conventions and adds approval-oriented patterns.
 - **Performance:** subscribe per open screen only; virtualise long alarm/trend lists; cap live update rate to the display refresh (~1 s) regardless of underlying RBE rate.
 

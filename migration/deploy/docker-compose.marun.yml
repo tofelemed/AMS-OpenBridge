@@ -1,0 +1,251 @@
+# Marun overlay — use WITH infra/docker/docker-compose.yml
+#
+#   docker compose --env-file migration/.env \
+#     -f infra/docker/docker-compose.yml \
+#     -f migration/deploy/docker-compose.marun.yml \
+#     --profile cpa up -d
+#
+# Requires Compose v2.24+ (`!override` / `!reset`). Instrumental keeps :80.
+# Lab postgres/kafka are profiled off. CPA services join instrumental-network.
+# Flink HA does not use lab ZooKeeper (Instrumental owns the Kafka ensemble).
+
+name: ams-cpa
+
+networks:
+  instrumental-network:
+    external: true
+    name: ${DOCKER_NETWORK:-instrumental-network}
+
+x-cpa: &cpa
+  profiles: ["cpa"]
+  networks:
+    - ams-backend
+    - instrumental-network
+
+x-kafka: &kafka-env
+  KAFKA_BROKERS: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092,kafka-3:9092}
+  Kafka__BootstrapServers: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092,kafka-3:9092}
+  KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092,kafka-3:9092}
+  Cpm__BootstrapServers: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092,kafka-3:9092}
+
+services:
+  postgres:
+    profiles: ["lab-infra"]
+  kafka:
+    profiles: ["lab-infra"]
+  zookeeper:
+    profiles: ["lab-infra"]
+  kafka-ui:
+    profiles: ["lab-infra"]
+  mock-dcs:
+    profiles: ["lab-infra"]
+  pgadmin:
+    profiles: ["lab-infra"]
+  cloudbeaver:
+    profiles: ["lab-infra"]
+  mosquitto-test:
+    profiles: ["lab-infra"]
+  display-service:
+    profiles: ["later-module"]
+  template-service:
+    profiles: ["later-module"]
+  analysis-service:
+    profiles: ["later-module"]
+  notification-service:
+    profiles: ["later-module"]
+  prometheus:
+    profiles: ["lab-obs"]
+  grafana:
+    profiles: ["lab-obs"]
+  alertmanager:
+    profiles: ["lab-obs"]
+  redis-exporter:
+    profiles: ["lab-obs"]
+  postgres-exporter:
+    profiles: ["lab-obs"]
+  kafka-exporter:
+    profiles: ["lab-obs"]
+  flink-job-submit:
+    profiles: ["lab-alarm"]
+  flink-job-submit-iotdb:
+    profiles: ["lab-alarm"]
+  flink-job-submit-live-state:
+    profiles: ["lab-alarm"]
+  flink-job-submit-cplm:
+    profiles: ["lab-alarm"]
+  flink-job-supervisor:
+    profiles: ["lab-alarm"]
+
+  redis:
+    profiles: ["cpa"]
+  redis-contract:
+    profiles: ["cpa"]
+  iotdb:
+    profiles: ["cpa"]
+  iotdb-init:
+    profiles: ["cpa"]
+  minio:
+    profiles: ["cpa"]
+  minio-init:
+    profiles: ["cpa"]
+  emqx:
+    <<: *cpa
+    ports: !override
+      - "${EMQX_DASHBOARD_HOST_PORT:-18083}:18083"
+  emqx-init:
+    <<: *cpa
+
+  auth-service:
+    <<: *cpa
+    depends_on: !reset
+    environment:
+      <<: *kafka-env
+      DB_HOST: ${POSTGRES_HOST:-instrumental-postgres}
+      DB_USER: ${AMS_DB_USER:-ams_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      BOOTSTRAP_ADMIN_PASSWORD: ${AUTH_BOOTSTRAP_PASSWORD}
+      BOOTSTRAP_ADMIN_USERNAME: ${AUTH_BOOTSTRAP_USERNAME:-admin}
+      BOOTSTRAP_ADMIN_EMAIL: ${AUTH_BOOTSTRAP_EMAIL:-admin@local}
+      CORS_ORIGIN: http://localhost:${FRONTEND_HOST_PORT:-8088},http://localhost:5174
+
+  asset-model:
+    <<: *cpa
+    depends_on: !override
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *kafka-env
+      ConnectionStrings__TraverseAssets: Host=${POSTGRES_HOST:-instrumental-postgres};Port=5432;Database=traverse_assets;Username=${AMS_DB_USER:-ams_user};Password=${POSTGRES_PASSWORD}
+
+  binding-resolver:
+    <<: *cpa
+    environment:
+      <<: *kafka-env
+
+  cplm-api:
+    <<: *cpa
+    depends_on: !reset
+    environment:
+      <<: *kafka-env
+      ConnectionStrings__CplmDb: Host=${POSTGRES_HOST:-instrumental-postgres};Port=5432;Database=traverse_cplm;Username=${AMS_DB_USER:-ams_user};Password=${POSTGRES_PASSWORD}
+      Cplm__ConsumersEnabled: "true"
+
+  historian-bff:
+    <<: *cpa
+    environment:
+      <<: *kafka-env
+
+  ingestion-service:
+    <<: *cpa
+    depends_on: !reset
+    environment:
+      <<: *kafka-env
+      ConnectionStrings__TraverseIngestion: Host=${POSTGRES_HOST:-instrumental-postgres};Port=5432;Database=traverse_ingestion;Username=${AMS_DB_USER:-ams_user};Password=${POSTGRES_PASSWORD}
+
+  audit-service:
+    <<: *cpa
+    depends_on: !reset
+    environment:
+      <<: *kafka-env
+      ConnectionStrings__AuditDb: Host=${POSTGRES_HOST:-instrumental-postgres};Port=5432;Database=traverse_audit;Username=${AMS_DB_USER:-ams_user};Password=${POSTGRES_PASSWORD}
+
+  ams-api:
+    profiles: ["cpa-ams-api"]
+    networks:
+      - ams-backend
+      - instrumental-network
+    depends_on: !reset
+    environment:
+      <<: *kafka-env
+      AlarmIngestion__Enabled: "false"
+      Cplm__ConsumersEnabled: "false"
+      ConnectionStrings__AmsDb: Host=${POSTGRES_HOST:-instrumental-postgres};Port=5432;Database=ams;Username=${AMS_DB_USER:-ams_user};Password=${POSTGRES_PASSWORD}
+
+  gateway:
+    <<: *cpa
+    ports: !override
+      - "${GATEWAY_HOST_PORT:-8081}:8080"
+
+  ams-frontend:
+    <<: *cpa
+    ports: !override
+      - "${FRONTEND_HOST_PORT:-8088}:80"
+
+  sparkplug-edge-node:
+    <<: *cpa
+    depends_on: !override
+      emqx:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *kafka-env
+      LIVE_ALARMS_TOPIC: traverse.alarm.live.alarms
+      LIVE_METRICS_TOPIC: traverse.live.metrics
+      LIVE_LOOP_METRICS_TOPIC: traverse.cpa.live.loop.metrics
+      KAFKA_GROUP_ID: traverse-sparkplug-edge
+      MQTT_CLIENT_ID: ams-edge-node-1
+
+  flink-jobmanager:
+    <<: *cpa
+    depends_on: !override
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      KAFKA_BROKERS: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092,kafka-3:9092}
+      DB_URL: jdbc:postgresql://${POSTGRES_HOST:-instrumental-postgres}:5432/traverse_cplm
+      DB_USER: ${AMS_DB_USER:-ams_user}
+      DB_PASS: ${POSTGRES_PASSWORD}
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        jobmanager.memory.process.size: 1024m
+        parallelism.default: 1
+        state.backend: rocksdb
+        state.backend.incremental: true
+        state.checkpoints.dir: s3://ams-flink/checkpoints
+        state.savepoints.dir: s3://ams-flink/savepoints
+        s3.endpoint: http://minio:9000
+        s3.path.style.access: true
+        s3.access-key: ${MINIO_ROOT_USER:-ams_minio}
+        s3.secret-key: ${MINIO_ROOT_PASSWORD}
+        state.checkpoints.num-retained: 3
+        execution.checkpointing.interval: 60000
+        execution.checkpointing.min-pause: 30000
+        execution.checkpointing.mode: EXACTLY_ONCE
+        execution.checkpointing.timeout: 120000
+        execution.checkpointing.max-concurrent-checkpoints: 1
+        execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.port: 9249
+
+  flink-taskmanager:
+    <<: *cpa
+    depends_on: !override
+      flink-jobmanager:
+        condition: service_started
+    environment:
+      KAFKA_BROKERS: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092,kafka-3:9092}
+      DB_URL: jdbc:postgresql://${POSTGRES_HOST:-instrumental-postgres}:5432/traverse_cplm
+      DB_USER: ${AMS_DB_USER:-ams_user}
+      DB_PASS: ${POSTGRES_PASSWORD}
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.memory.process.size: 2048m
+        taskmanager.numberOfTaskSlots: 16
+        state.backend: rocksdb
+        state.backend.incremental: true
+        state.checkpoints.dir: s3://ams-flink/checkpoints
+        state.savepoints.dir: s3://ams-flink/savepoints
+        s3.endpoint: http://minio:9000
+        s3.path.style.access: true
+        s3.access-key: ${MINIO_ROOT_USER:-ams_minio}
+        s3.secret-key: ${MINIO_ROOT_PASSWORD}
+        state.checkpoints.num-retained: 3
+        execution.checkpointing.interval: 60000
+        execution.checkpointing.min-pause: 30000
+        execution.checkpointing.mode: EXACTLY_ONCE
+        execution.checkpointing.timeout: 120000
+        execution.checkpointing.max-concurrent-checkpoints: 1
+        execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.port: 9249

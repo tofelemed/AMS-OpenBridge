@@ -57,7 +57,7 @@ export interface LiveMetric {
   ts:      number;     // epoch ms
 }
 
-/** Compact live alarm from live.alarms / MQTT DDATA. */
+/** Compact live alarm from traverse.alarm.live.alarms / MQTT DDATA. */
 export interface LiveAlarm {
   alarmId:        string;
   state:          string;

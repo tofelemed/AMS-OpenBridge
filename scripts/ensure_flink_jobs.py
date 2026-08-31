@@ -118,7 +118,7 @@ CORE_JOBS: tuple[FlinkJobSpec, ...] = (
             "--bootstrap.servers", KAFKA_BROKERS,
         ),
     ),
-    # Phase 7 — evaluates calculation expressions (analysis.executions → analysis.results). Previously
+    # Phase 7 — evaluates calculation expressions (traverse.analysis.executions → traverse.analysis.results). Previously
     # analysis-service produced execution commands that no job consumed; this closes that loop.
     FlinkJobSpec(
         name="AMS - Analysis Execution Engine",
@@ -127,7 +127,7 @@ CORE_JOBS: tuple[FlinkJobSpec, ...] = (
             "--bootstrap.servers", KAFKA_BROKERS,
         ),
     ),
-    # CPLM three-stage pipeline (loop.samples.v1 → clpm.gate.results.v1).
+    # CPLM three-stage pipeline (traverse.cpa.loop.samples.v1 → traverse.cpa.clpm.gate.results.v1).
     # --input-topic MUST be passed explicitly: the compiled default is the dead
     # clpm.normalized.samples.v1. Do NOT add CplmGateStreamJob (legacy monolith —
     # would double-produce gate results) or CplmHistoricalReplayJob (on-demand
@@ -135,11 +135,11 @@ CORE_JOBS: tuple[FlinkJobSpec, ...] = (
 )
 _CPLM_COMMON_ARGS: tuple[str, ...] = (
     "--bootstrap.servers", KAFKA_BROKERS,
-    "--input-topic", "loop.samples.v1",
-    "--short-feature-topic", "clpm.feature.short.v1",
-    "--long-feature-topic", "clpm.feature.long.v1",
-    "--output-topic", "clpm.gate.results.v1",
-    "--consumer-group-id", "flink-ams-cplm",
+    "--input-topic", "traverse.cpa.loop.samples.v1",
+    "--short-feature-topic", "traverse.cpa.clpm.feature.short.v1",
+    "--long-feature-topic", "traverse.cpa.clpm.feature.long.v1",
+    "--output-topic", "traverse.cpa.clpm.gate.results.v1",
+    "--consumer-group-id", "traverse-cpa-flink-cplm",
 )
 CORE_JOBS = CORE_JOBS + (
     FlinkJobSpec(
@@ -162,15 +162,15 @@ CORE_JOBS = CORE_JOBS + (
     ),
     # Phase 6.1 - live loop metrics. --live-topic is passed explicitly, though the
     # compiled default now matches it; it used to be mandatory because the default
-    # was live.metrics, which already carries LiveStateJob's alarm payload.
+    # was traverse.live.metrics, which already carries LiveStateJob's alarm payload.
     FlinkJobSpec(
         name="AMS - Loop Live RBE Engine",
         entry_class="com.ams.flink.cplm.LoopLiveRbeJob",
         extra_args=(
             "--bootstrap.servers", KAFKA_BROKERS,
-            "--input-topic", "loop.samples.v1",
-            "--live-topic", "live.loop.metrics",
-            "--consumer-group-id", "flink-ams-cplm",
+            "--input-topic", "traverse.cpa.loop.samples.v1",
+            "--live-topic", "traverse.cpa.live.loop.metrics",
+            "--consumer-group-id", "traverse-cpa-flink-cplm",
             "--deadband", "0.05",
         ),
     ),

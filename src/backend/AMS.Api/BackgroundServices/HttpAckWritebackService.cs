@@ -46,7 +46,7 @@ public class HttpAckWritebackService : BackgroundService
             GroupId = $"{_kafka.ConsumerGroupId}-http-ack-writeback",
             AutoOffsetReset = AutoOffsetReset.Latest,
             // STR-10: manual commit. With auto-commit the offset could advance before the DCS
-            // POST and the ack-results publish had happened, so a crash in that window silently
+            // POST and the traverse.alarm.ack-results publish had happened, so a crash in that window silently
             // dropped an operator acknowledgement (at-most-once). We now commit only after the
             // full cycle is durable, making the writeback at-least-once; the DCS payload carries
             // an idempotency key so a redelivered ACK is a no-op rather than a duplicate action.
@@ -81,7 +81,7 @@ public class HttpAckWritebackService : BackgroundService
                     }
                     catch (JsonException jex)
                     {
-                        _logger.LogError(jex, "Malformed ack-writeback at offset {Offset}; skipping", cr.Offset.Value);
+                        _logger.LogError(jex, "Malformed traverse.alarm.ack-writeback at offset {Offset}; skipping", cr.Offset.Value);
                         consumer.Commit(cr); // poison message would never parse on retry
                         continue;
                     }

@@ -7,11 +7,11 @@
   
   Flow:
     1. Inject a raw alarm event into Kafka (raw-opc-events)
-    2. Flink normalizes → writes to current-alarm-state
+    2. Flink normalizes → writes to traverse.alarm.current-alarm-state
     3. .NET consumer persists to PostgreSQL and publishes via SignalR
     4. Script queries /api/v1/alarms/active to verify alarm arrived
     5. Script POSTs /api/v1/alarms/{id}/acknowledge
-    6. Flink ACK orchestrator → lifecycle-events + current-alarm-state
+    6. Flink ACK orchestrator → traverse.alarm.lifecycle-events + traverse.alarm.current-alarm-state
     7. Script verifies alarm is acknowledged in PostgreSQL
 
 .NOTES
@@ -251,11 +251,11 @@ if ($ackConfirmed) {
     Write-Host "  Flow validated:" -ForegroundColor Green
     Write-Host "    Raw event -> Kafka (raw-opc-events)" -ForegroundColor Green
     Write-Host "    -> Flink (normalize + dedup + state)" -ForegroundColor Green
-    Write-Host "    -> Kafka (current-alarm-state)" -ForegroundColor Green
+    Write-Host "    -> Kafka (traverse.alarm.current-alarm-state)" -ForegroundColor Green
     Write-Host "    -> .NET consumer -> PostgreSQL" -ForegroundColor Green
-    Write-Host "    -> ACK API -> Kafka (operator-actions)" -ForegroundColor Green
+    Write-Host "    -> ACK API -> Kafka (traverse.alarm.operator-actions)" -ForegroundColor Green
     Write-Host "    -> Flink (OperatorAckOrchestrator)" -ForegroundColor Green
-    Write-Host "    -> Kafka (lifecycle-events + state)" -ForegroundColor Green
+    Write-Host "    -> Kafka (traverse.alarm.lifecycle-events + state)" -ForegroundColor Green
     Write-Host "    -> .NET consumer -> PostgreSQL (acked)" -ForegroundColor Green
     Write-Host "    -> SignalR -> UI" -ForegroundColor Green
 } else {
@@ -265,10 +265,10 @@ if ($ackConfirmed) {
     Write-Host "  The alarm was ingested but ACK was not confirmed." -ForegroundColor Yellow
     Write-Host "  This may be expected if Flink ACK orchestrator" -ForegroundColor Yellow  
     Write-Host "  requires DCS writeback confirmation (OPC Gateway)." -ForegroundColor Yellow
-    Write-Host "  Check lifecycle-events topic for ACK_DISPATCHED." -ForegroundColor Yellow
+    Write-Host "  Check traverse.alarm.lifecycle-events topic for ACK_DISPATCHED." -ForegroundColor Yellow
     Write-Host ""
     Write-Host "  Debug:" -ForegroundColor Gray
-    Write-Host "    docker exec ams-kafka kafka-console-consumer --bootstrap-server kafka:9092 --topic lifecycle-events --from-beginning --max-messages 10" -ForegroundColor Gray
-    Write-Host "    docker exec ams-kafka kafka-console-consumer --bootstrap-server kafka:9092 --topic operator-actions --from-beginning --max-messages 10" -ForegroundColor Gray
+    Write-Host "    docker exec ams-kafka kafka-console-consumer --bootstrap-server kafka:9092 --topic traverse.alarm.lifecycle-events --from-beginning --max-messages 10" -ForegroundColor Gray
+    Write-Host "    docker exec ams-kafka kafka-console-consumer --bootstrap-server kafka:9092 --topic traverse.alarm.operator-actions --from-beginning --max-messages 10" -ForegroundColor Gray
 }
 Write-Host ""

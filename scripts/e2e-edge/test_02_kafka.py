@@ -23,29 +23,29 @@ def run(run_id: str | None = None) -> list:
     payload = make_raw_alarm(alarm_id, source, "Probe")
     try:
         kafka_publish(cfg.TOPIC_RAW_ALARMS, key=alarm_id, payload=payload)
-        results.append(ok("Kafka publish raw-alarms", alarm_id))
+        results.append(ok("Kafka publish traverse.alarm.raw-alarms", alarm_id))
     except Exception as exc:
-        results.append(fail("Kafka publish raw-alarms", str(exc)))
+        results.append(fail("Kafka publish traverse.alarm.raw-alarms", str(exc)))
         return results
 
     msgs = kafka_consume_latest(cfg.TOPIC_RAW_ALARMS, timeout_sec=15.0, contains=alarm_id)
     if msgs:
-        results.append(ok("Kafka consume raw-alarms", f"found message with {alarm_id}"))
+        results.append(ok("Kafka consume traverse.alarm.raw-alarms", f"found message with {alarm_id}"))
     else:
         results.append(
             fail(
-                "Kafka consume raw-alarms",
+                "Kafka consume traverse.alarm.raw-alarms",
                 "no matching message in 15s (consumer may need more time or job lag)",
             )
         )
 
-    # live.alarms — optional, may take longer via Flink chain
+    # traverse.alarm.live.alarms — optional, may take longer via Flink chain
     live = kafka_consume_latest(cfg.TOPIC_LIVE_ALARMS, timeout_sec=5.0)
     if live:
-        results.append(ok("Kafka live.alarms activity", f"{len(live)} recent message(s)"))
+        results.append(ok("Kafka traverse.alarm.live.alarms activity", f"{len(live)} recent message(s)"))
     else:
         from common import log
-        log("  INFO  live.alarms — no recent msgs yet (expected before full pipeline propagates)")
+        log("  INFO  traverse.alarm.live.alarms — no recent msgs yet (expected before full pipeline propagates)")
 
     return results
 

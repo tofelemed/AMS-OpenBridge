@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Flood / load test (run LAST — perturbs shared infra).
 
-Injects a high-rate raw-alarms burst and verifies:
+Injects a high-rate traverse.alarm.raw-alarms burst and verifies:
   - FloodDetectFilter drops severity >= 950 (flood-band records never reach
-    current-alarm-state)
-  - Report-by-Exception bounds live.alarms: repeated unchanged records for the
+    traverse.alarm.current-alarm-state)
+  - Report-by-Exception bounds traverse.alarm.live.alarms: repeated unchanged records for the
     same alarmId are suppressed (live.* growth << raw input)
   - no Flink checkpoint failures attributable to the burst; all jobs RUNNING
   - EMQX fan-out stays bounded (DDATA observed ~= RBE output, not raw volume)
@@ -77,9 +77,9 @@ def main() -> int:
         if jid:
             jids[name] = jid
             cp_before[name] = sl.flink_checkpoints(jid).get("failed", 0)
-    cas_before = sl.kafka_end_offset_sum("current-alarm-state")
-    la_before = sl.kafka_end_offset_sum("live.alarms")
-    raw_before = sl.kafka_end_offset_sum("raw-alarms")
+    cas_before = sl.kafka_end_offset_sum("traverse.alarm.current-alarm-state")
+    la_before = sl.kafka_end_offset_sum("traverse.alarm.live.alarms")
+    raw_before = sl.kafka_end_offset_sum("traverse.alarm.raw-alarms")
 
     # burst composition:
     #  - `count` distinct alarms, 25% in the flood band (>=950) -> must be dropped
@@ -102,7 +102,7 @@ def main() -> int:
     expected_pass = distinct - flood_band
 
     t0 = time.time()
-    n = sl.kafka_publish_batch("raw-alarms", records, interval=args.interval)
+    n = sl.kafka_publish_batch("traverse.alarm.raw-alarms", records, interval=args.interval)
     publish_secs = time.time() - t0
     sl.log(f"published {n} records in {publish_secs:.1f}s "
            f"({n / max(publish_secs, 0.001):.0f} msg/s); distinct={distinct} "
@@ -116,27 +116,27 @@ def main() -> int:
 
     # let the pipeline drain
     checks["cas_growth_appeared"] = sl.wait_until(
-        "current-alarm-state growth from burst",
-        lambda: sl.kafka_end_offset_sum("current-alarm-state") > cas_before,
+        "traverse.alarm.current-alarm-state growth from burst",
+        lambda: sl.kafka_end_offset_sum("traverse.alarm.current-alarm-state") > cas_before,
         timeout_sec=180)
     # allow the state machine to finish the whole burst
     stable_at = [0, 0]
 
     def drained() -> bool:
-        cur = sl.kafka_end_offset_sum("current-alarm-state")
+        cur = sl.kafka_end_offset_sum("traverse.alarm.current-alarm-state")
         stable_at[0], stable_at[1] = stable_at[1], cur
         return stable_at[0] == cur and cur > cas_before
 
-    sl.wait_until("current-alarm-state to stop growing (drained)", drained,
+    sl.wait_until("traverse.alarm.current-alarm-state to stop growing (drained)", drained,
                   timeout_sec=300, interval_sec=10)
 
-    cas_grown = sl.kafka_end_offset_sum("current-alarm-state") - cas_before
+    cas_grown = sl.kafka_end_offset_sum("traverse.alarm.current-alarm-state") - cas_before
     detail["cas_grown"] = cas_grown
     # In reality (PIPE-012) the whole distinct set reaches CAS; dedup must still
     # collapse the identical repeats (growth ~= distinct, NOT distinct*repeats).
     survived = expected_pass if args.expect_flood_drop else distinct
     if args.expect_flood_drop:
-        flood_msgs = sl.kafka_consume("current-alarm-state", max_messages=100,
+        flood_msgs = sl.kafka_consume("traverse.alarm.current-alarm-state", max_messages=100,
                                       timeout_sec=20, contains='"severity":960')
         ours_in_flood = [v for _, v in flood_msgs if f"FLD-{tag}-" in v]
         checks["flood_band_dropped"] = not ours_in_flood
@@ -144,8 +144,8 @@ def main() -> int:
     detail["cas_vs_expected"] = {"grown": cas_grown, "survived_expected": survived,
                                  "raw_published": n}
 
-    # RBE bounding on live.alarms
-    la_grown = sl.kafka_end_offset_sum("live.alarms") - la_before
+    # RBE bounding on traverse.alarm.live.alarms
+    la_grown = sl.kafka_end_offset_sum("traverse.alarm.live.alarms") - la_before
     detail["live_alarms_grown"] = la_grown
     checks["rbe_bounded_live_alarms"] = la_grown <= survived * 1.2 + 10
 
@@ -169,7 +169,7 @@ def main() -> int:
     checks["all_standing_jobs_running"] = all_running
     checks["no_new_checkpoint_failures"] = not cp_failures
     detail["checkpoint_failures"] = cp_failures
-    detail["raw_alarms_grown"] = sl.kafka_end_offset_sum("raw-alarms") - raw_before
+    detail["raw_alarms_grown"] = sl.kafka_end_offset_sum("traverse.alarm.raw-alarms") - raw_before
 
     report = {"sim": "sim_stress_flood", "run_tag": tag, "checks": checks,
               "detail": detail}

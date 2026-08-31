@@ -199,10 +199,10 @@ def consumer_thread(metrics: MetricsCollector, duration: int):
     conf = {'bootstrap.servers': 'localhost:29092', 'group.id': f'load-test-verifier-{uuid.uuid4().hex[:8]}',
             'auto.offset.reset': 'latest', 'enable.auto.commit': True}
     consumer = Consumer(conf)
-    consumer.subscribe(['active-alarms'])
+    consumer.subscribe(['traverse.alarm.active-alarms'])
     end_time = time.time() + duration + 30  # extra 30s drain
 
-    print("[CONSUMER] Listening on 'active-alarms' for latency measurement...")
+    print("[CONSUMER] Listening on 'traverse.alarm.active-alarms' for latency measurement...")
     while time.time() < end_time:
         msg = consumer.poll(1.0)
         if msg is None:

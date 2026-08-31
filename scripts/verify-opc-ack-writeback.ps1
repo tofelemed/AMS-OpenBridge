@@ -1,4 +1,4 @@
-﻿# Cross-verify operator ACK: UI/API → Kafka → Flink → OPC Gateway → ack-results → DB/UI
+﻿# Cross-verify operator ACK: UI/API → Kafka → Flink → OPC Gateway → traverse.alarm.ack-results → DB/UI
 param(
     [string]$ApiBase = "http://127.0.0.1:8000",
     [string]$GatewayBase = "http://127.0.0.1:5050",
@@ -40,7 +40,7 @@ $ackRes = Invoke-RestMethod -Method Post -Uri "$ApiBase/api/v1/alarms/acknowledg
     -Headers $headers -ContentType "application/json" -Body $body
 Record "Operator ACK dispatched" ($ackRes.successCount -gt 0) $ackRes.message
 
-# 3. Wait for ack-writeback + ack-results
+# 3. Wait for traverse.alarm.ack-writeback + traverse.alarm.ack-results
 $deadline = (Get-Date).AddSeconds($TimeoutSec)
 $seenWriteback = $false
 $seenConfirmed = $false
@@ -50,12 +50,12 @@ $ackResultJson = $null
 while ((Get-Date) -lt $deadline) {
     if (-not $seenWriteback) {
         $wb = docker exec ams-kafka kafka-console-consumer --bootstrap-server localhost:9092 `
-            --topic ack-writeback --timeout-ms 2000 2>$null | Select-String $alarm.id
+            --topic traverse.alarm.ack-writeback --timeout-ms 2000 2>$null | Select-String $alarm.id
         if ($wb) { $seenWriteback = $true; $writebackJson = $wb.Line }
     }
     if (-not $seenConfirmed) {
         $ar = docker exec ams-kafka kafka-console-consumer --bootstrap-server localhost:9092 `
-            --topic ack-results --timeout-ms 2000 2>$null | Select-String "ACK_CONFIRMED"
+            --topic traverse.alarm.ack-results --timeout-ms 2000 2>$null | Select-String "ACK_CONFIRMED"
         if ($ar -and $ar.Line -match $alarm.sourceName) {
             $seenConfirmed = $true
             $ackResultJson = $ar.Line
@@ -65,8 +65,8 @@ while ((Get-Date) -lt $deadline) {
     Start-Sleep -Seconds 3
 }
 
-Record "ack-writeback published" $seenWriteback $(if ($writebackJson) { "cookie in pipeline" } else { "timeout" })
-Record "ack-results ACK_CONFIRMED" $seenConfirmed $(if ($ackResultJson) { "OPC writeback confirmed" } else { "timeout" })
+Record "traverse.alarm.ack-writeback published" $seenWriteback $(if ($writebackJson) { "cookie in pipeline" } else { "timeout" })
+Record "traverse.alarm.ack-results ACK_CONFIRMED" $seenConfirmed $(if ($ackResultJson) { "OPC writeback confirmed" } else { "timeout" })
 
 # 4. DB projection — operator ack only
 Start-Sleep -Seconds 5

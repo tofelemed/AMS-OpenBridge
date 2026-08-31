@@ -147,7 +147,7 @@ const EdgeNodeMonitor: React.FC = () => {
       <MonitorCard title="Edge Data Flow" icon="⬡">
         <div style={{ padding: '16px 0', overflowX: 'auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0', minWidth: '700px' }}>
-            <EdgeNode label="Kafka" sub="live.alarms / live.metrics" status="active" />
+            <EdgeNode label="Kafka" sub="traverse.alarm.live.alarms / traverse.live.metrics" status="active" />
             <EdgeArrow />
             <EdgeNode label="Sparkplug Edge Node" sub="Java / Tahu" status="active" />
             <EdgeArrow />
@@ -156,7 +156,7 @@ const EdgeNodeMonitor: React.FC = () => {
             <EdgeNode label="Frontend" sub="MQTT.js · mqttStore" status={mqttConnected ? 'active' : 'warning'} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0', minWidth: '700px', marginTop: '16px' }}>
-            <EdgeNode label="Flink IoTDB Job" sub="raw-alarms" status="active" />
+            <EdgeNode label="Flink IoTDB Job" sub="traverse.alarm.raw-alarms" status="active" />
             <EdgeArrow />
             <EdgeNode label="IoTDB" sub="standalone" status={iotdbUp ? 'active' : 'warning'} />
             <EdgeArrow />

@@ -1,4 +1,4 @@
-# Inject sample live-alarm API records into raw-alarms for E2E pipeline verification.
+# Inject sample live-alarm API records into traverse.alarm.raw-alarms for E2E pipeline verification.
 # Production ingest remains AlarmIngestionService polling the live API.
 param([int]$WaitSeconds = 30)
 
@@ -100,7 +100,7 @@ Write-Host "Publishing $($sampleAlarms.Count) sample alarms to raw-alarms..." -F
 foreach ($alarm in $sampleAlarms) {
     $json = ($alarm | ConvertTo-Json -Compress -Depth 5)
     $json | docker exec -i ams-kafka kafka-console-producer `
-        --broker-list kafka:9092 --topic raw-alarms 2>&1 | Out-Null
+        --broker-list kafka:9092 --topic traverse.alarm.raw-alarms 2>&1 | Out-Null
     Write-Host "  -> $($alarm.alarmId)" -ForegroundColor Gray
 }
 
@@ -108,8 +108,8 @@ Write-Host "Waiting ${WaitSeconds}s for Flink + API projection..." -ForegroundCo
 Start-Sleep -Seconds $WaitSeconds
 
 Write-Host "`nKafka offsets:" -ForegroundColor Cyan
-docker exec ams-kafka kafka-run-class kafka.tools.GetOffsetShell --broker-list kafka:9092 --topic raw-alarms 2>&1
-docker exec ams-kafka kafka-run-class kafka.tools.GetOffsetShell --broker-list kafka:9092 --topic current-alarm-state 2>&1
+docker exec ams-kafka kafka-run-class kafka.tools.GetOffsetShell --broker-list kafka:9092 --topic traverse.alarm.raw-alarms 2>&1
+docker exec ams-kafka kafka-run-class kafka.tools.GetOffsetShell --broker-list kafka:9092 --topic traverse.alarm.current-alarm-state 2>&1
 
 Write-Host "`nPostgreSQL alarm_current count:" -ForegroundColor Cyan
 docker exec ams-postgres psql -U ams_user -d ams -t -c "SELECT COUNT(*) FROM alarms.alarm_current;" 2>&1

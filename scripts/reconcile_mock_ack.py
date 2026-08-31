@@ -5,8 +5,8 @@ from kafka import KafkaConsumer, KafkaProducer
 
 # Use localhost:9092 as default (inside Docker network it would be kafka:9092, from host localhost:9092)
 bootstrap_servers = ['localhost:9092']
-consumer_topic = 'ack-writeback'
-producer_topic = 'ack-results'
+consumer_topic = 'traverse.alarm.ack-writeback'
+producer_topic = 'traverse.alarm.ack-results'
 
 print(f"Starting mock ACK reconciler. Consuming from '{consumer_topic}', producing to '{producer_topic}'...", flush=True)
 
@@ -41,7 +41,7 @@ try:
         if not val:
             continue
             
-        print(f"Received ack-writeback: {val}", flush=True)
+        print(f"Received traverse.alarm.ack-writeback: {val}", flush=True)
         
         # Extract fields
         cmd_id = val.get('commandId') or val.get('CommandId') or val.get('actionId') or val.get('ActionId')

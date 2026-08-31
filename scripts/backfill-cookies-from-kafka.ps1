@@ -1,7 +1,7 @@
-# Backfill opc_attributes.cookieOffset from current-alarm-state when projection lagged.
+# Backfill opc_attributes.cookieOffset from traverse.alarm.current-alarm-state when projection lagged.
 param(
     [string]$Bootstrap = "localhost:9092",
-    [string]$Topic = "current-alarm-state",
+    [string]$Topic = "traverse.alarm.current-alarm-state",
     [string]$ServerId = "",
     [int]$PartitionCount = 8
 )

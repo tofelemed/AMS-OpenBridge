@@ -27,7 +27,7 @@ from common import fail, log, ok, print_banner, wait_until
 
 
 def _feed_live_alarm(run_id: str) -> bool:
-    """Publish a test alarm directly to live.alarms so edge node can emit DDATA."""
+    """Publish a test alarm directly to traverse.alarm.live.alarms so edge node can emit DDATA."""
     alarm_id = f"MQTT-{run_id}-{uuid.uuid4().hex[:8]}"
     ts = int(time.time() * 1000)
     payload = {
@@ -51,7 +51,7 @@ def _feed_live_alarm(run_id: str) -> bool:
             "docker", "exec", "-i", "ams-kafka",
             "kafka-console-producer",
             "--bootstrap-server", "localhost:9092",
-            "--topic", "live.alarms",
+            "--topic", "traverse.alarm.live.alarms",
             "--property", "parse.key=true",
             "--property", "key.separator=|",
         ]
@@ -63,13 +63,13 @@ def _feed_live_alarm(run_id: str) -> bool:
             timeout=10,
         )
         if proc.returncode == 0:
-            log(f"  Fed live.alarms: {alarm_id} -> MQTTTest.Unit1.{run_id}")
+            log(f"  Fed traverse.alarm.live.alarms: {alarm_id} -> MQTTTest.Unit1.{run_id}")
             return True
         else:
-            log(f"  [WARN] Failed to feed live.alarms: {proc.stderr}")
+            log(f"  [WARN] Failed to feed traverse.alarm.live.alarms: {proc.stderr}")
             return False
     except Exception as exc:
-        log(f"  [WARN] Failed to feed live.alarms: {exc}")
+        log(f"  [WARN] Failed to feed traverse.alarm.live.alarms: {exc}")
         return False
 
 
@@ -174,7 +174,7 @@ def run(run_id: str) -> list:
 
     results.append(ok("MQTT connect", f"{cfg.MQTT_HOST}:{cfg.MQTT_PORT}"))
 
-    # Feed fresh data to live.alarms so edge node publishes DDATA while we're subscribed
+    # Feed fresh data to traverse.alarm.live.alarms so edge node publishes DDATA while we're subscribed
     _feed_live_alarm(run_id)
 
     def has_ddata() -> bool:
@@ -186,7 +186,7 @@ def run(run_id: str) -> list:
         results.append(
             fail(
                 "Sparkplug DDATA",
-                f"no DDATA in {cfg.WAIT_MQTT_SEC}s — check live.alarms topic has data "
+                f"no DDATA in {cfg.WAIT_MQTT_SEC}s — check traverse.alarm.live.alarms topic has data "
                 "and sparkplug-edge-node container is RUNNING (connects to emqx:1883 internally)",
             )
         )

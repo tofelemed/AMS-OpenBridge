@@ -21,8 +21,8 @@ import java.util.Map;
 
 /**
  * P0.4 — hydrate CplmDynamicsParameterSetSupport from the spine.
- * When spine.consume.canonical=true: consume context.parameter-set.v1 (canonical Broadcast).
- * Always also consume ams.metadata.updates for staticAttributes (legacy Broadcast path) so
+ * When spine.consume.canonical=true: consume traverse.cpa.context.parameter-set.v1 (canonical Broadcast).
+ * Always also consume traverse.cpa.ams.metadata.updates for staticAttributes (legacy Broadcast path) so
  * Gate 2 SLA can compare canonical vs legacy apply latency in the same session.
  */
 public final class CplmParameterSetBroadcastSupport {
@@ -48,11 +48,11 @@ public final class CplmParameterSetBroadcastSupport {
 
     public static String parameterSetTopic() {
         return System.getenv().getOrDefault(
-                "IIMP_CANONICAL_PARAM_TOPIC", "context.parameter-set.v1");
+                "IIMP_CANONICAL_PARAM_TOPIC", "traverse.cpa.context.parameter-set.v1");
     }
 
     public static String legacyMetadataTopic() {
-        return System.getenv().getOrDefault("IIMP_META_TOPIC", "ams.metadata.updates");
+        return System.getenv().getOrDefault("IIMP_META_TOPIC", "traverse.cpa.ams.metadata.updates");
     }
 
     public static void wireParameterSetHydration(StreamExecutionEnvironment env, CplmJobConfig cfg) {
@@ -338,7 +338,7 @@ public final class CplmParameterSetBroadcastSupport {
         }
     }
 
-    /** Extract staticAttributes from legacy ams.metadata.updates MOC envelopes. */
+    /** Extract staticAttributes from legacy traverse.cpa.ams.metadata.updates MOC envelopes. */
     public static void applyLegacyMetadataEnvelope(String value) {
         if (value == null || value.isBlank()) {
             return;

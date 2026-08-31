@@ -68,10 +68,10 @@ public final class SparkplugConfig {
     public static SparkplugConfig fromEnv() {
         return new SparkplugConfig(
                 env("KAFKA_BROKERS",            "kafka:9092"),
-                env("LIVE_ALARMS_TOPIC",        "live.alarms"),
-                env("LIVE_METRICS_TOPIC",       "live.metrics"),
-                env("LIVE_LOOP_METRICS_TOPIC",  "live.loop.metrics"),
-                env("KAFKA_GROUP_ID",           "ams-sparkplug-edge-node"),
+                env("LIVE_ALARMS_TOPIC",        "traverse.alarm.live.alarms"),
+                env("LIVE_METRICS_TOPIC",       "traverse.live.metrics"),
+                env("LIVE_LOOP_METRICS_TOPIC",  "traverse.cpa.live.loop.metrics"),
+                env("KAFKA_GROUP_ID",           "traverse-sparkplug-edge"),
                 env("KAFKA_AUTO_OFFSET_RESET",  "earliest"),  // earliest = replay on startup
                 env("MQTT_HOST",                "emqx"),
                 intEnv("MQTT_PORT",       1883),

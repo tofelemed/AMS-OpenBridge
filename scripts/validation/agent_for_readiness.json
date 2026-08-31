@@ -21,7 +21,7 @@
                                               "Pass":  true,
                                               "At":  "2026-06-07T02:02:03.9016563Z"
                                           },
-                   "current-alarm-state sample":  {
+                   "traverse.alarm.current-alarm-state sample":  {
                                                       "Detail":  "no message in window",
                                                       "Pass":  false,
                                                       "At":  "2026-06-07T02:02:42.5577760Z"
@@ -31,7 +31,7 @@
                                              "Pass":  true,
                                              "At":  "2026-06-07T02:02:03.9096466Z"
                                          },
-                   "No client ui-* commandIds in operator-actions":  {
+                   "No client ui-* commandIds in traverse.alarm.operator-actions":  {
                                                                          "Detail":  "clean sample",
                                                                          "Pass":  true,
                                                                          "At":  "2026-06-07T02:03:00.5335627Z"

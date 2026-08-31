@@ -6,10 +6,10 @@ KAFKA_BOOTSTRAP = os.getenv("E2E_KAFKA_BOOTSTRAP", "localhost:9093")
 KAFKA_DOCKER_CONTAINER = os.getenv("E2E_KAFKA_DOCKER", "ams-kafka")
 # "true" = always docker exec; "false" = host:9093; "auto" = try host then docker
 KAFKA_VIA_DOCKER = os.getenv("E2E_KAFKA_VIA_DOCKER", "true")
-TOPIC_RAW_ALARMS = os.getenv("E2E_TOPIC_RAW_ALARMS", "raw-alarms")
-TOPIC_CURRENT_STATE = os.getenv("E2E_TOPIC_CURRENT_STATE", "current-alarm-state")
-TOPIC_LIVE_ALARMS = os.getenv("E2E_TOPIC_LIVE_ALARMS", "live.alarms")
-TOPIC_LIVE_METRICS = os.getenv("E2E_TOPIC_LIVE_METRICS", "live.metrics")
+TOPIC_RAW_ALARMS = os.getenv("E2E_TOPIC_RAW_ALARMS", "traverse.alarm.raw-alarms")
+TOPIC_CURRENT_STATE = os.getenv("E2E_TOPIC_CURRENT_STATE", "traverse.alarm.current-alarm-state")
+TOPIC_LIVE_ALARMS = os.getenv("E2E_TOPIC_LIVE_ALARMS", "traverse.alarm.live.alarms")
+TOPIC_LIVE_METRICS = os.getenv("E2E_TOPIC_LIVE_METRICS", "traverse.live.metrics")
 
 # Services
 API_BASE = os.getenv("E2E_API_BASE", "http://localhost:8081")

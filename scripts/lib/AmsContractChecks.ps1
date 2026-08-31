@@ -32,9 +32,9 @@ function Test-AmsRequiredKafkaTopics {
     param(
         [string]$Bootstrap = "localhost:9092",
         [string[]]$Topics = @(
-            "raw-opc-events", "operator-actions", "ack-writeback", "ack-results",
-            "lifecycle-events", "current-alarm-state", "root-cause-events",
-            "raw-opc-events-dlq", "ack-writeback-dlq"
+            "traverse.alarm.raw-alarms", "traverse.alarm.operator-actions", "traverse.alarm.ack-writeback", "traverse.alarm.ack-results",
+            "traverse.alarm.lifecycle-events", "traverse.alarm.current-alarm-state", "traverse.alarm.root-cause-events",
+            "traverse.alarm.raw-alarms-dlq", "traverse.alarm.ack-writeback-dlq"
         )
     )
     $list = docker exec ams-kafka kafka-topics --bootstrap-server $Bootstrap --list 2>$null
@@ -163,7 +163,7 @@ function Test-OperatorActionCommandId {
     )
     $lines = docker exec ams-kafka kafka-console-consumer `
         --bootstrap-server localhost:9092 `
-        --topic operator-actions `
+        --topic traverse.alarm.operator-actions `
         --timeout-ms $TimeoutMs `
         --max-messages 50 2>&1
     foreach ($line in $lines) {

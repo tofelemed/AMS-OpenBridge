@@ -50,14 +50,14 @@ public sealed class AlarmIngestionAdminController : ControllerBase
             ServerId: _opts.ServerId,
             ServerName: _opts.ServerName,
             Protocol: "HTTP-JSON",
-            KafkaTopic: _config["Kafka:RawAlarmsTopic"] ?? "raw-alarms",
+            KafkaTopic: _config["Kafka:RawAlarmsTopic"] ?? "traverse.alarm.raw-alarms",
             Status: !_opts.Enabled ? "Disabled" : probe.Success ? "Connected" : "Error",
             LastError: probe.Success ? null : probe.Message,
             HttpStatusCode: probe.StatusCode,
             TelemetryState: snap.State,
             SecondsSinceLastEvent: snap.SecondsSinceLastEvent,
             TotalEventsObserved: snap.TotalEventsObserved,
-            PipelinePath: "API → raw-alarms → Flink → current-alarm-state → PostgreSQL → SignalR → UI",
+            PipelinePath: "API → traverse.alarm.raw-alarms → Flink → traverse.alarm.current-alarm-state → PostgreSQL → SignalR → UI",
             ConfigNote: "Update AlarmIngestion in appsettings or docker-compose and restart ams-api to change the feed URL."));
     }
 

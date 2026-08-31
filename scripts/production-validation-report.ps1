@@ -158,9 +158,9 @@ try {
 # 8. ACK pipeline
 Write-Host "`n[8] ACK pipeline metrics" -ForegroundColor Yellow
 if ($pipeline) {
-    Record "operator-actions processed" ($pipeline.flink.operatorActionsProcessed -ge 0) `
+    Record "traverse.alarm.operator-actions processed" ($pipeline.flink.operatorActionsProcessed -ge 0) `
         "offset=$($pipeline.flink.operatorActionsProcessed)"
-    Record "ack-results processed" ($pipeline.flink.ackResultsProcessed -ge 0) `
+    Record "traverse.alarm.ack-results processed" ($pipeline.flink.ackResultsProcessed -ge 0) `
         "offset=$($pipeline.flink.ackResultsProcessed)"
 }
 

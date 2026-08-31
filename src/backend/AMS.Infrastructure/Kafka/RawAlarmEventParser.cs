@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace AMS.Infrastructure.Kafka;
 
-/// <summary>Parses timestamps from HTTP API raw-alarms payloads.</summary>
+/// <summary>Parses timestamps from HTTP API traverse.alarm.raw-alarms payloads.</summary>
 internal static class RawAlarmEventParser
 {
     public static long ResolveEventTimeEpochMs(JsonElement root)

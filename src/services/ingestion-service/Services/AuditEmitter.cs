@@ -17,7 +17,7 @@ public sealed class AuditEmitter : IAuditEmitter, IDisposable
 {
     private readonly IProducer<Null, string>? _producer;
     private readonly ILogger<AuditEmitter> _logger;
-    private const string Topic = "audit-events";
+    private const string Topic = "traverse.cpa.audit-events";
     private const string EntityType = "data-source-config";
 
     public AuditEmitter(IConfiguration config, ILogger<AuditEmitter> logger)

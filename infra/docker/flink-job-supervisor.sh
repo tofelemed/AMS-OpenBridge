@@ -24,15 +24,15 @@ RAW_ALARMS_OFFSETS="${RAW_ALARMS_STARTING_OFFSETS:-earliest}"
 IOTDB_HOST="${IOTDB_HOST:-iotdb}"
 IOTDB_PORT="${IOTDB_PORT:-6667}"
 
-# Explicit input topic: the compiled CPLM default (clpm.normalized.samples.v1)
+# Explicit input topic: the compiled CPLM default (traverse.cpa.clpm.normalized.samples.v1)
 # is a dead topic — never rely on it.
 CPLM_ARGS=(
   --bootstrap.servers "${KAFKA_BROKERS}"
-  --input-topic loop.samples.v1
-  --short-feature-topic clpm.feature.short.v1
-  --long-feature-topic clpm.feature.long.v1
-  --output-topic clpm.gate.results.v1
-  --consumer-group-id flink-ams-cplm
+  --input-topic traverse.cpa.loop.samples.v1
+  --short-feature-topic traverse.cpa.clpm.feature.short.v1
+  --long-feature-topic traverse.cpa.clpm.feature.long.v1
+  --output-topic traverse.cpa.clpm.gate.results.v1
+  --consumer-group-id traverse-cpa-flink-cplm
 )
 
 wait_jm() {
@@ -110,18 +110,18 @@ ensure_all() {
   # Phase 6.1 — live loop metrics (report-by-exception) for HMI badges.
   # Decision C-A put loop metrics on their own topic rather than adding a third
   # schema to a topic that already carries two. The compiled default is now
-  # live.loop.metrics, so this flag is belt-and-braces (and the override hook);
+  # traverse.cpa.live.loop.metrics, so this flag is belt-and-braces (and the override hook);
   # it used to be load-bearing, because the default was LiveStateJob's
-  # live.metrics and the edge node silently drops loop-shaped records there.
+  # traverse.live.metrics and the edge node silently drops loop-shaped records there.
   submit_if_missing "AMS - Loop Live RBE Engine" com.ams.flink.cplm.LoopLiveRbeJob \
     --bootstrap.servers "${KAFKA_BROKERS}" \
-    --input-topic loop.samples.v1 \
-    --live-topic "${CPLM_LIVE_TOPIC:-live.loop.metrics}" \
-    --consumer-group-id flink-ams-cplm \
+    --input-topic traverse.cpa.loop.samples.v1 \
+    --live-topic "${CPLM_LIVE_TOPIC:-traverse.cpa.live.loop.metrics}" \
+    --consumer-group-id traverse-cpa-flink-cplm \
     --deadband "${CPLM_LIVE_DEADBAND:-0.05}"
   # STR-07 — this job used to live only in scripts/ensure_flink_jobs.py, which the
   # stack never calls (only the validation/e2e scripts do). After any JobManager
-  # restart it stayed dead, analysis.executions piled up unconsumed and every
+  # restart it stayed dead, traverse.analysis.executions piled up unconsumed and every
   # analysis sat "pending" until a human ran the validation script by hand.
   submit_if_missing "AMS - Analysis Execution Engine" com.ams.flink.AnalysisExecutionJob \
     --bootstrap.servers "${KAFKA_BROKERS}"

@@ -7,12 +7,12 @@ re-run in isolation while debugging. Style and Kafka/config conventions follow
 
 | Script | Injects into | Exercises |
 |---|---|---|
-| `sim_alarm_feed.py` | `raw-alarms` | Pipeline A: Flink state machine → `current-alarm-state`/`lifecycle-events` → Postgres projection → SignalR |
-| `sim_ack_lifecycle.py` | API `acknowledge/batch` (or `operator-actions`) + synthetic `ack-results` | full ACK loop incl. `ACK_STATE_UPDATE` confirm branch |
-| `sim_loop_samples.py` | `loop.samples.v1` (backdated event time) | CPLM short/long/fusion, `RawLoopIotDbConsumer` raw historian, cplm-api dual-write, `LoopLiveRbeJob` |
-| `sim_live_mqtt_direct.py` | `live.alarms` (bypasses Flink) | sparkplug-edge-node → EMQX Sparkplug B → Redis snapshots, isolated |
+| `sim_alarm_feed.py` | `traverse.alarm.raw-alarms` | Pipeline A: Flink state machine → `traverse.alarm.current-alarm-state`/`traverse.alarm.lifecycle-events` → Postgres projection → SignalR |
+| `sim_ack_lifecycle.py` | API `acknowledge/batch` (or `traverse.alarm.operator-actions`) + synthetic `traverse.alarm.ack-results` | full ACK loop incl. `ACK_STATE_UPDATE` confirm branch |
+| `sim_loop_samples.py` | `traverse.cpa.loop.samples.v1` (backdated event time) | CPLM short/long/fusion, `RawLoopIotDbConsumer` raw historian, cplm-api dual-write, `LoopLiveRbeJob` |
+| `sim_live_mqtt_direct.py` | `traverse.alarm.live.alarms` (bypasses Flink) | sparkplug-edge-node → EMQX Sparkplug B → Redis snapshots, isolated |
 | `sim_binding_resolution.py` | HTTP `/api/bindings/resolve[,/batch]` | path+role → live/history/alarm transport descriptors |
-| `sim_stress_flood.py` | high-rate `raw-alarms` burst (**run last**) | FloodDetectFilter (sev ≥ 950), RBE bounding, checkpoint stability |
+| `sim_stress_flood.py` | high-rate `traverse.alarm.raw-alarms` burst (**run last**) | FloodDetectFilter (sev ≥ 950), RBE bounding, checkpoint stability |
 
 ## Running
 
@@ -42,7 +42,7 @@ The host-published listener (`localhost:9093`) advertises an **empty host**
 (`EXTERNAL://:9093` in compose), so host clients connect, then fail on the
 returned metadata (pipeline.md PIPE-001). The sims therefore pipe batches into
 one `kafka-console-producer` per run inside the broker container — with
-`parse.key=true`, because compacted topics (`current-alarm-state`, …) reject
+`parse.key=true`, because compacted topics (`traverse.alarm.current-alarm-state`, …) reject
 null-key records (`docs/alarm-history-flink-sink-stuck.md`).
 
 ## Notes / lab constraints
@@ -50,7 +50,7 @@ null-key records (`docs/alarm-history-flink-sink-stuck.md`).
 - `sim_ack_lifecycle.py`: the DCS ACK URL (`192.168.1.51:8010`) is unreachable
   in this lab, so the real HTTP leg ends `ACK_FAILED` (verified as such); the
   `ACK_CONFIRMED` branch is exercised by injecting the DCS reply into
-  `ack-results` (PIPE-002).
+  `traverse.alarm.ack-results` (PIPE-002).
 - `sim_loop_samples.py` compresses event time (backdated samples) so the
   long-diagnostics 15-minute event-time timers and gate fusion fire in-run.
 - `sim_live_mqtt_direct.py` decodes Sparkplug B with `spb_decode.py`, a

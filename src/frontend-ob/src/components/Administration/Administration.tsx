@@ -13,6 +13,7 @@ import { NotificationsConfig }   from './NotificationsConfig';
 import { SystemSettingsConfig }  from './SystemSettingsConfig';
 import AuditExplorer             from './AuditExplorer';
 import { useAuthStore }          from '../../store/authStore';
+import { HOME_PATH, isSliceAdminTab } from '../../productSlice';
 import { T } from '../../styles/theme';
 // obi-* icons (closest-semantic — no exact shield/lock icon exists in OpenBridge).
 import { ObiUser } from '@oicl/openbridge-webcomponents-react/icons/icon-user';
@@ -49,7 +50,8 @@ const Administration: React.FC = () => {
   const hasPermission = useAuthStore(s => s.hasPermission);
   const canManageUsers = hasPermission('admin.users.edit');
   const canManageRbac = hasPermission('rbac.manage');
-  const visibleTabs = TABS.filter(t => !t.permission || hasPermission(t.permission));
+  const visibleTabs = TABS.filter(t => isSliceAdminTab(t.path) && (!t.permission || hasPermission(t.permission)));
+  const fallback = visibleTabs[0]?.path ?? HOME_PATH;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px', padding: '4px 0' }}>
@@ -61,7 +63,7 @@ const Administration: React.FC = () => {
             System Administration
           </h1>
           <p style={{ color: T.textSecondary, fontSize: '13.5px', margin: '5px 0 0' }}>
-            User management, alarm configuration, and system settings
+            User management, plant model, data sources, and audit
           </p>
         </div>
       </div>
@@ -127,33 +129,32 @@ const Administration: React.FC = () => {
         <Routes>
           <Route
             path="users"
-            element={canManageUsers ? <UserManagementConfig /> : <Navigate to={visibleTabs[0]?.path ?? '/dashboard'} replace />}
+            element={canManageUsers ? <UserManagementConfig /> : <Navigate to={fallback} replace />}
           />
           <Route
             path="roles"
-            element={canManageRbac ? <RolesConfig /> : <Navigate to={visibleTabs[0]?.path ?? '/dashboard'} replace />}
+            element={canManageRbac ? <RolesConfig /> : <Navigate to={fallback} replace />}
           />
-          <Route path="alarm-feed"    element={<AlarmFeedConfig />} />
-          <Route path="opc-servers"   element={<AlarmFeedConfig />} />
+          <Route path="alarm-feed"    element={isSliceAdminTab('/admin/alarm-feed') ? <AlarmFeedConfig /> : <Navigate to={fallback} replace />} />
+          <Route path="opc-servers"   element={isSliceAdminTab('/admin/alarm-feed') ? <AlarmFeedConfig /> : <Navigate to={fallback} replace />} />
           <Route
             path="data-sources"
-            element={hasPermission('ingestion.view') ? <DataSourcesConfig /> : <Navigate to={visibleTabs[0]?.path ?? '/dashboard'} replace />}
+            element={hasPermission('ingestion.view') ? <DataSourcesConfig /> : <Navigate to={fallback} replace />}
           />
           <Route
             path="plant-model"
-            element={hasPermission('asset.view') ? <PlantModelConfig /> : <Navigate to={visibleTabs[0]?.path ?? '/dashboard'} replace />}
+            element={hasPermission('asset.view') ? <PlantModelConfig /> : <Navigate to={fallback} replace />}
           />
           <Route
             path="aliases"
-            element={hasPermission('asset.view') ? <AliasConfig /> : <Navigate to={visibleTabs[0]?.path ?? '/dashboard'} replace />}
+            element={hasPermission('asset.view') ? <AliasConfig /> : <Navigate to={fallback} replace />}
           />
-          <Route path="alarm-rules"   element={<AlarmRulesConfig />} />
-          <Route path="notifications" element={<NotificationsConfig />} />
+          <Route path="alarm-rules"   element={isSliceAdminTab('/admin/alarm-rules') ? <AlarmRulesConfig /> : <Navigate to={fallback} replace />} />
+          <Route path="notifications" element={isSliceAdminTab('/admin/notifications') ? <NotificationsConfig /> : <Navigate to={fallback} replace />} />
           <Route path="audit"         element={<AuditExplorer />} />
           <Route path="system"        element={<SystemSettingsConfig />} />
-          {/* F: bare /admin was an empty pane — land on the first tab the user can see. */}
-          <Route index element={<Navigate to={visibleTabs[0]?.path ?? '/dashboard'} replace />} />
-          <Route path="*" element={<Navigate to={visibleTabs[0]?.path ?? '/dashboard'} replace />} />
+          <Route index element={<Navigate to={fallback} replace />} />
+          <Route path="*" element={<Navigate to={fallback} replace />} />
         </Routes>
       </div>
 

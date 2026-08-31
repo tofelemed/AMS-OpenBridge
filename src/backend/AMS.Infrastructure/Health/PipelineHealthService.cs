@@ -185,11 +185,11 @@ public sealed class PipelineHealthService
         {
             var bootstrap = _config["Kafka:BootstrapServers"] ?? "localhost:9092";
             operatorActionsProcessed = await SumConsumerGroupOffsetsAsync(
-                bootstrap, "flink-ams-operator-actions", "operator-actions", ct);
+                bootstrap, "traverse-alarm-flink-operator-actions", "traverse.alarm.operator-actions", ct);
             ackResultsProcessed = await SumConsumerGroupOffsetsAsync(
-                bootstrap, "flink-ams-ack-results", "ack-results", ct);
+                bootstrap, "traverse-alarm-flink-ack-results", "traverse.alarm.ack-results", ct);
             rawAlarmsProcessed = await SumConsumerGroupOffsetsAsync(
-                bootstrap, "flink-ams-raw-alarms", "raw-alarms", ct);
+                bootstrap, "traverse-alarm-flink-raw-alarms", "traverse.alarm.raw-alarms", ct);
         }
         catch (Exception ex)
         {
@@ -220,14 +220,14 @@ public sealed class PipelineHealthService
         try
         {
             var bootstrap = _config["Kafka:BootstrapServers"] ?? "localhost:9092";
-            var rawTopic = _config["Kafka:RawAlarmsTopic"] ?? "raw-alarms";
+            var rawTopic = _config["Kafka:RawAlarmsTopic"] ?? "traverse.alarm.raw-alarms";
 
             var conf = new AdminClientConfig { BootstrapServers = bootstrap, SocketTimeoutMs = 5000 };
             using var adminClient = new AdminClientBuilder(conf).Build();
             var meta = adminClient.GetMetadata(rawTopic, TimeSpan.FromSeconds(5));
             broker = meta.Brokers.Count > 0 ? "Healthy" : "Offline";
             lag = await EstimateConsumerLagAsync(
-                bootstrap, "flink-ams-raw-alarms", rawTopic, ct);
+                bootstrap, "traverse-alarm-flink-raw-alarms", rawTopic, ct);
             tput = rawAlarmsProcessed > 0 ? rawAlarmsProcessed / 60.0 : 0;
         }
         catch

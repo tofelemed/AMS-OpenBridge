@@ -6,8 +6,8 @@ What it proves, live:
   • Governance (Phase 5)  — display CRUD, tags/search/sort, folders, versioning, personal views,
                             favorites/recent, audit trail, and OWNERSHIP ENFORCEMENT (a non-owner gets 403).
   • Compute   (Phase 7)  — create a calculation, execute it, and confirm the FULL loop ran:
-                            analysis-service → Kafka analysis.executions → Flink AnalysisExecutionJob →
-                            analysis.results → result consumer → execution "completed" + derived
+                            analysis-service → Kafka traverse.analysis.executions → Flink AnalysisExecutionJob →
+                            traverse.analysis.results → result consumer → execution "completed" + derived
                             measurement published to the UNS (Redis snapshot + asset-model registration).
   • Fidelity  (Phase 4/6)— asset-model unit/limits by-path, historian /summary aggregate.
   • Authz     (Phase 7.5)— binding-resolver resolves a tag (no-scope backward-compat; scope-denial needs

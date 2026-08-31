@@ -24,7 +24,7 @@ Write-Host "`n=== AMS Production Pipeline Validation ===" -ForegroundColor Cyan
 # Kafka topic statistics
 Write-Host "`n[1] Kafka topic statistics" -ForegroundColor Yellow
 $topicStats = [ordered]@{}
-$topics = @("raw-alarms", "current-alarm-state", "operator-actions", "ack-writeback", "ack-results", "lifecycle-events", "raw-alarms-dlq", "root-cause-events")
+$topics = @("traverse.alarm.raw-alarms", "traverse.alarm.current-alarm-state", "traverse.alarm.operator-actions", "traverse.alarm.ack-writeback", "traverse.alarm.ack-results", "traverse.alarm.lifecycle-events", "traverse.alarm.raw-alarms-dlq", "traverse.alarm.root-cause-events")
 foreach ($topic in $topics) {
     $offsets = docker exec ams-kafka kafka-run-class kafka.tools.GetOffsetShell `
         --broker-list kafka:9092 --topic $topic 2>&1 | Out-String
@@ -42,9 +42,9 @@ $report.metrics["kafkaTopicStatistics"] = $topicStats
 Write-Host "`n[2] Consumer lag" -ForegroundColor Yellow
 $lagReport = [ordered]@{}
 $groups = @(
-    @{ Name = "flink-ams-raw-alarms"; Topic = "raw-alarms" },
-    @{ Name = "ams-backend"; Topic = "current-alarm-state" },
-    @{ Name = "ams-backend-lifecycle"; Topic = "lifecycle-events" }
+    @{ Name = "traverse-alarm-flink-raw-alarms"; Topic = "traverse.alarm.raw-alarms" },
+    @{ Name = "ams-backend"; Topic = "traverse.alarm.current-alarm-state" },
+    @{ Name = "ams-backend-lifecycle"; Topic = "traverse.alarm.lifecycle-events" }
 )
 $maxLag = 0
 foreach ($g in $groups) {
@@ -83,7 +83,7 @@ try {
             $recv = [int64](($v.metrics | Where-Object { $_.id -match "records_in" } | Select-Object -First 1).value)
             $sent = [int64](($v.metrics | Where-Object { $_.id -match "records_out" } | Select-Object -First 1).value)
             $totalIn += $recv; $totalOut += $sent
-            if ($v.name -match "validation|raw-alarms|dedup|normalization|lifecycle|projection") {
+            if ($v.name -match "validation|traverse.alarm.raw-alarms|dedup|normalization|lifecycle|projection") {
                 Record "Flink $($v.name)" ($recv -gt 0 -or $sent -gt 0) "in=$recv out=$sent" "metrics"
             }
         }
@@ -128,17 +128,17 @@ Record "alarm_state_transitions accessible" ([bool]($transCount -match '\d+')) (
 
 # DLQ / failures
 Write-Host "`n[6] Failure report" -ForegroundColor Yellow
-$dlqCount = $topicStats["raw-alarms-dlq"]
-Record "raw-alarms-dlq empty" ($dlqCount -eq 0) "malformed=$dlqCount"
+$dlqCount = $topicStats["traverse.alarm.raw-alarms-dlq"]
+Record "traverse.alarm.raw-alarms-dlq empty" ($dlqCount -eq 0) "malformed=$dlqCount"
 $failedLifecycle = docker exec ams-postgres psql -U ams_user -d ams -t -c `
     "SELECT COUNT(*) FROM alarms.alarm_current WHERE opc_attributes->>'ackLifecycleState' = 'ACK_FAILED';" 2>&1
 Record "ACK_FAILED lifecycle visible" ($true) ($failedLifecycle.Trim())
 
 # Acceptance gates
-$ingestOk = ($topicStats["raw-alarms"] -gt 0) -and ($topicStats["current-alarm-state"] -gt 0)
-$projectOk = ($topicStats["current-alarm-state"] -gt 0) -and ($count -gt 0)
+$ingestOk = ($topicStats["traverse.alarm.raw-alarms"] -gt 0) -and ($topicStats["traverse.alarm.current-alarm-state"] -gt 0)
+$projectOk = ($topicStats["traverse.alarm.current-alarm-state"] -gt 0) -and ($count -gt 0)
 $report.acceptance["apiToKafkaToFlinkToPostgresToUi"] = $ingestOk -and $projectOk -and ($maxLag -eq 0)
-$report.acceptance["ackPathConfigured"] = $topicStats["operator-actions"] -ge 0
+$report.acceptance["ackPathConfigured"] = $topicStats["traverse.alarm.operator-actions"] -ge 0
 
 $outPath = Join-Path (Split-Path $PSScriptRoot) "reports\api-pipeline-validation-$ts.json"
 New-Item -ItemType Directory -Force -Path (Split-Path $outPath) | Out-Null
@@ -147,7 +147,7 @@ Write-Host "`nReport: $outPath" -ForegroundColor Cyan
 
 if ($report.acceptance["apiToKafkaToFlinkToPostgresToUi"]) {
     Write-Host "`nVALIDATION PASS - E2E acceptance gate met" -ForegroundColor Green
-    Write-Host "  raw-alarms=$($topicStats['raw-alarms']) current-alarm-state=$($topicStats['current-alarm-state']) dbRows=$count lag=$maxLag" -ForegroundColor Green
+    Write-Host "  traverse.alarm.raw-alarms=$($topicStats['traverse.alarm.raw-alarms']) traverse.alarm.current-alarm-state=$($topicStats['traverse.alarm.current-alarm-state']) dbRows=$count lag=$maxLag" -ForegroundColor Green
     exit 0
 }
 $failed = @($report.checks.Values | Where-Object { -not $_.pass })

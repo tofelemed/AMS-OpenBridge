@@ -6,7 +6,7 @@
     <members>
         <member name="T:AMS.Infrastructure.Health.FlinkOnlyIngestHealthCheck">
             <summary>
-            Enforces Flink-only orchestration: API ingestion → raw-alarms → Flink → projection consumers.
+            Enforces Flink-only orchestration: API ingestion → traverse.alarm.raw-alarms → Flink → projection consumers.
             </summary>
         </member>
         <member name="T:AMS.Infrastructure.Health.LiveReadinessScorer">
@@ -58,7 +58,7 @@
             <summary>Must be true: Flink is the sole lifecycle/ACK orchestration engine.</summary>
         </member>
         <member name="P:AMS.Infrastructure.Kafka.KafkaOptions.TelemetryStallThresholdSeconds">
-            <summary>Seconds without raw-alarms before TELEMETRY_STALLED alert.</summary>
+            <summary>Seconds without traverse.alarm.raw-alarms before TELEMETRY_STALLED alert.</summary>
         </member>
         <member name="P:AMS.Infrastructure.Kafka.KafkaOptions.IngestAuthority">
             <summary>Telemetry authority: gateway or streampipes.</summary>
@@ -68,7 +68,7 @@
         </member>
         <member name="T:AMS.Infrastructure.Kafka.NormalizedAlarmEvent">
             <summary>
-            Materialized alarm state projection (current-alarm-state topic).
+            Materialized alarm state projection (traverse.alarm.current-alarm-state topic).
             </summary>
         </member>
         <!-- Badly formed XML comment ignored for member "P:AMS.Infrastructure.Kafka.NormalizedAlarmEvent.AlarmEventKind" -->
@@ -85,13 +85,13 @@
             </summary>
         </member>
         <member name="T:AMS.Infrastructure.Kafka.LifecycleEventPublisher">
-            <summary>Append-only ACK lifecycle transitions → lifecycle-events topic.</summary>
+            <summary>Append-only ACK lifecycle transitions → traverse.alarm.lifecycle-events topic.</summary>
         </member>
         <member name="M:AMS.Infrastructure.Kafka.LifecycleEventPublisher.EmitAsync(System.String,System.String,System.String,System.String,System.String,System.Threading.CancellationToken)">
             <summary>Backward-compatible overload (maps actionId → commandId).</summary>
         </member>
         <member name="T:AMS.Infrastructure.Kafka.NormalizedAlarmEventJson">
-            <summary>Parses <see cref="T:AMS.Infrastructure.Kafka.NormalizedAlarmEvent"/> from Flink current-alarm-state JSON.</summary>
+            <summary>Parses <see cref="T:AMS.Infrastructure.Kafka.NormalizedAlarmEvent"/> from Flink traverse.alarm.current-alarm-state JSON.</summary>
         </member>
         <member name="T:AMS.Infrastructure.Kafka.NormalizedAlarmIngestor">
             <summary>
@@ -111,7 +111,7 @@
             </summary>
         </member>
         <member name="T:AMS.Infrastructure.Kafka.RawAlarmEventParser">
-            <summary>Parses timestamps from HTTP API raw-alarms payloads.</summary>
+            <summary>Parses timestamps from HTTP API traverse.alarm.raw-alarms payloads.</summary>
         </member>
         <member name="T:AMS.Infrastructure.Kafka.StreamSchemaVersion">
             <summary>Current schema version for all Kafka stream contracts (increment before Flink migration).</summary>
@@ -120,7 +120,7 @@
             <summary>ACK / lifecycle stream contracts.</summary>
         </member>
         <member name="F:AMS.Infrastructure.Kafka.StreamSchemaVersion.RawAlarms">
-            <summary>HTTP API raw-alarms envelope.</summary>
+            <summary>HTTP API traverse.alarm.raw-alarms envelope.</summary>
         </member>
         <member name="T:AMS.Infrastructure.Kafka.StreamEventTypes">
             <summary>Kafka event type discriminators (versioned contracts).</summary>
@@ -160,7 +160,7 @@
             <summary>Edge → stream: DCS writeback outcome.</summary>
         </member>
         <member name="T:AMS.Infrastructure.Kafka.OperatorActionMessage">
-            <summary>Operator command (UI → operator-actions).</summary>
+            <summary>Operator command (UI → traverse.alarm.operator-actions).</summary>
         </member>
         <member name="P:AMS.Infrastructure.Kafka.OperatorActionMessage.SourceAlarmId">
             <summary>Feed correlation id (e.g. BB26-BF402|Alarm high) for HTTP writeback.</summary>
@@ -176,7 +176,7 @@
         </member>
         <member name="T:AMS.Infrastructure.Kafka.TelemetryDeadmanWatchdogService">
             <summary>
-            Monitors raw-alarms for silence and emits TELEMETRY_STALLED lifecycle alerts.
+            Monitors traverse.alarm.raw-alarms for silence and emits TELEMETRY_STALLED lifecycle alerts.
             </summary>
         </member>
         <member name="T:AMS.Infrastructure.Kafka.TelemetryIngestState">

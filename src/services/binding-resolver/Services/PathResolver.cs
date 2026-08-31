@@ -257,7 +257,7 @@ public class PathResolver
             // There is no SubscribeToAlarms method — advertising it made every client
             // that honoured this binding fail its hub invocation.
             SubscribeMethod = "SubscribeToArea",
-            KafkaTopic = "live.alarms",
+            KafkaTopic = "traverse.alarm.live.alarms",
             // Real route is GET /api/v1/alarms/active?sourceNameContains= (AlarmsController).
             AlarmApiEndpoint = $"{alarmsApiBase}/active?sourceNameContains={Uri.EscapeDataString(alarmSource)}"
         };

@@ -603,10 +603,17 @@ const OperatorMetric: React.FC<{
 /* ═══════════════════════════════════════════════════════
    PRIORITY DISTRIBUTION
    ═══════════════════════════════════════════════════════ */
+// ISA-18.2 priority -> OpenBridge alert token, one per priority and no sharing. This row used to
+// paint High with --alert-caution-color (Medium's token) and Medium with --element-active-color —
+// the NAVIGATION TEXT token — so High wore Medium's color and Medium wore the app chrome's.
+// These are filled chips, so the label takes the matching --on-*-color (black on the saturated
+// fill, 4.55:1) instead of a hardcoded white / the non-existent --on-selected-color.
+// Low stays achromatic on purpose: audit OQ-2 records that Low/Journal/Shelved colors are asserted
+// but defined nowhere in this repo, and inventing a cyan here would repeat the fault being fixed.
 const PRIORITY_DEFS = [
-  { key: 'totalCritical' as const, label: 'Critical', color: T.critical,  textColor: '#fff' },
-  { key: 'totalHigh'     as const, label: 'High',     color: T.caution,   textColor: '#fff' },
-  { key: 'totalMedium'   as const, label: 'Medium',   color: 'var(--element-active-color)', textColor: 'var(--on-selected-color, #fff)' },
+  { key: 'totalCritical' as const, label: 'Critical', color: T.critical, textColor: 'var(--on-alarm-color)' },
+  { key: 'totalHigh'     as const, label: 'High',     color: T.warning,  textColor: 'var(--on-warning-color)' },
+  { key: 'totalMedium'   as const, label: 'Medium',   color: T.caution,  textColor: 'var(--on-caution-color)' },
   { key: 'totalLow'      as const, label: 'Low',      color: 'var(--container-section-color)', textColor: 'var(--element-active-color)' },
 ];
 

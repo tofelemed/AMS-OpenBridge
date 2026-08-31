@@ -152,7 +152,7 @@ def make_raw_alarm(
 
 
 def make_current_state_upsert(raw: dict[str, Any]) -> dict[str, Any]:
-    """ALARM_STATE_UPSERT envelope (Flink → current-alarm-state)."""
+    """ALARM_STATE_UPSERT envelope (Flink → traverse.alarm.current-alarm-state)."""
     now_ms = int(time.time() * 1000)
     return {
         "schemaVersion": 1,

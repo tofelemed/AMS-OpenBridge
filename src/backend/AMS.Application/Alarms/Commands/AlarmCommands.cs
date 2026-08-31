@@ -481,7 +481,7 @@ public class PurgeLabInjectedAlarmsCommandHandler : IRequestHandler<PurgeLabInje
 }
 
 /// <summary>
-/// Publishes operator lifecycle commands to Kafka operator-actions (command gateway).
+/// Publishes operator lifecycle commands to Kafka traverse.alarm.operator-actions (command gateway).
 /// </summary>
 public interface IOperatorActionPublisher
 {
@@ -926,7 +926,7 @@ public interface IOpcDcsGateway
 // }
 
 // /// <summary>
-// /// Publishes operator lifecycle commands to Kafka operator-actions (command gateway).
+// /// Publishes operator lifecycle commands to Kafka traverse.alarm.operator-actions (command gateway).
 // /// </summary>
 // public interface IOperatorActionPublisher
 // {

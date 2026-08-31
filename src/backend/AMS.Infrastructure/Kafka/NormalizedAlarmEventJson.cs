@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace AMS.Infrastructure.Kafka;
 
-/// <summary>Parses <see cref="NormalizedAlarmEvent"/> from Flink current-alarm-state JSON.</summary>
+/// <summary>Parses <see cref="NormalizedAlarmEvent"/> from Flink traverse.alarm.current-alarm-state JSON.</summary>
 internal static class NormalizedAlarmEventJson
 {
     private static readonly JsonSerializerOptions DeserializeOpts = new()

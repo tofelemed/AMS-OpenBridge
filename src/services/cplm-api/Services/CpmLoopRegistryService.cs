@@ -1829,7 +1829,7 @@ public sealed class CpmRegistryOptions
     public const string SectionName = "Cpm";
     public string BootstrapServers { get; set; } = "kafka:9092";
     /// <summary>Compacted topic every CPLM Flink job consumes unconditionally.</summary>
-    public string MetadataTopic { get; set; } = "ams.metadata.updates";
+    public string MetadataTopic { get; set; } = "traverse.cpa.ams.metadata.updates";
     /// <summary>asset-model base URL — the source of the asset graph projected into loop links.</summary>
     public string AssetModelUrl { get; set; } = "http://asset-model:5000";
     /// <summary>Service-to-service key for asset-model calls that carry no user token.</summary>

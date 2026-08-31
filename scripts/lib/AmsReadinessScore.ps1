@@ -110,10 +110,10 @@ function Get-DefaultSubsystemMap {
         )
         flink = @(
             "Flink OpcEventStreamJob RUNNING", "Flink job RUNNING",
-            "Flink checkpoint completed", "current-alarm-state projection"
+            "Flink checkpoint completed", "traverse.alarm.current-alarm-state projection"
         )
         ack = @(
-            "Full ACK pipeline E2E", "No client ui-* commandIds in operator-actions"
+            "Full ACK pipeline E2E", "No client ui-* commandIds in traverse.alarm.operator-actions"
         )
         database = @(
             "No duplicate active identity rows"

@@ -6,7 +6,7 @@ public static class StreamSchemaVersion
     /// <summary>ACK / lifecycle stream contracts.</summary>
     public const int Current = 1;
 
-    /// <summary>HTTP API raw-alarms envelope.</summary>
+    /// <summary>HTTP API traverse.alarm.raw-alarms envelope.</summary>
     public const int RawAlarms = 2;
 }
 

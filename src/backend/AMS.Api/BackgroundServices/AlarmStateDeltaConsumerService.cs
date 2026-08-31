@@ -36,9 +36,9 @@ public sealed class AlarmStateDeltaConsumerService : BackgroundService
         };
 
         using var consumer = new ConsumerBuilder<Ignore, string>(config).Build();
-        consumer.Subscribe("flink.state.alarm.delta");
+        consumer.Subscribe("traverse.alarm.flink.state.alarm.delta");
 
-        _logger.LogInformation("Started AlarmStateDeltaConsumerService listening to flink.state.alarm.delta");
+        _logger.LogInformation("Started AlarmStateDeltaConsumerService listening to traverse.alarm.flink.state.alarm.delta");
 
         while (!stoppingToken.IsCancellationRequested)
         {

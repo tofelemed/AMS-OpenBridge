@@ -17,8 +17,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 import java.time.OffsetDateTime;
 
 /**
- * API alarm state machine: raw-alarms → validation → dedup → normalization → SOE → lifecycle
- * → KPI → projection (current-alarm-state). ACK via operator-actions / ack-results.
+ * API alarm state machine: traverse.alarm.raw-alarms → validation → dedup → normalization → SOE → lifecycle
+ * → KPI → projection (traverse.alarm.current-alarm-state). ACK via traverse.alarm.operator-actions / ack-results.
  * PostgreSQL is updated only by the API projection consumer — no Flink JDBC sinks.
  */
 public class OpcEventStreamJob {
@@ -51,8 +51,8 @@ public class OpcEventStreamJob {
 
         KafkaSource<String> rawSource = KafkaSource.<String>builder()
                 .setBootstrapServers(cfg.brokers)
-                .setTopics("raw-alarms")
-                .setGroupId("flink-ams-raw-alarms")
+                .setTopics("traverse.alarm.raw-alarms")
+                .setGroupId("traverse-alarm-flink-raw-alarms")
                 .setStartingOffsets(rawOffsets)
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .setProperty("request.timeout.ms", "120000")
@@ -116,7 +116,7 @@ public class OpcEventStreamJob {
                 .uid("root-cause-analysis")
                 .setParallelism(cfg.correlation)
                 .filter(s -> s != null && !s.isEmpty());
-        rootCause.sinkTo(kafkaSink(cfg.brokers, "root-cause-events"))
+        rootCause.sinkTo(kafkaSink(cfg.brokers, "traverse.alarm.root-cause-events"))
                 .name("root-cause-sink")
                 .uid("root-cause-sink")
                 .setParallelism(cfg.correlation);
@@ -130,9 +130,9 @@ public class OpcEventStreamJob {
 
         DataStream<String> lifecycleEvents = floodFiltered
                 .map(PipelineOperators::toLifecycleJson)
-                .name("lifecycle-events")
-                .uid("lifecycle-events");
-        lifecycleEvents.sinkTo(kafkaSink(cfg.brokers, "lifecycle-events"));
+                .name("traverse.alarm.lifecycle-events")
+                .uid("traverse.alarm.lifecycle-events");
+        lifecycleEvents.sinkTo(kafkaSink(cfg.brokers, "traverse.alarm.lifecycle-events"));
 
         DataStream<String> currentState = floodFiltered
                 .map(e -> {
@@ -143,37 +143,37 @@ public class OpcEventStreamJob {
                 })
                 .name("projection-builder")
                 .uid("projection-builder");
-        // current-alarm-state is COMPACTED: records must be keyed (by alarmId) or the
+        // traverse.alarm.current-alarm-state is COMPACTED: records must be keyed (by alarmId) or the
         // broker rejects them — see docs/alarm-history-flink-sink-stuck.md.
-        currentState.sinkTo(KafkaSinks.keyedByJsonField(cfg.brokers, "current-alarm-state", "alarmId"))
+        currentState.sinkTo(KafkaSinks.keyedByJsonField(cfg.brokers, "traverse.alarm.current-alarm-state", "alarmId"))
                 .name("current-alarm-state-sink")
                 .uid("current-alarm-state-sink")
                 .setParallelism(cfg.projection);
 
-        // ACK orchestration: operator-actions → ack-writeback
-        KafkaSource<String> operatorSource = kafkaSource(cfg.brokers, "operator-actions", "flink-ams-operator-actions");
-        env.fromSource(operatorSource, WatermarkStrategy.noWatermarks(), "operator-actions")
+        // ACK orchestration: traverse.alarm.operator-actions → traverse.alarm.ack-writeback
+        KafkaSource<String> operatorSource = kafkaSource(cfg.brokers, "traverse.alarm.operator-actions", "traverse-alarm-flink-operator-actions");
+        env.fromSource(operatorSource, WatermarkStrategy.noWatermarks(), "traverse.alarm.operator-actions")
                 .setParallelism(cfg.ackProcessor)
                 .map(OpcEventStreamJob::toAckWriteback)
                 .name("ack-processor")
                 .uid("ack-processor")
                 .setParallelism(cfg.ackProcessor)
                 .filter(s -> s != null && !s.isEmpty())
-                .sinkTo(kafkaSink(cfg.brokers, "ack-writeback"));
+                .sinkTo(kafkaSink(cfg.brokers, "traverse.alarm.ack-writeback"));
 
-        // ACK results → lifecycle-events + current-alarm-state projection
-        KafkaSource<String> ackResultsSource = kafkaSource(cfg.brokers, "ack-results", "flink-ams-ack-results");
+        // ACK results → traverse.alarm.lifecycle-events + traverse.alarm.current-alarm-state projection
+        KafkaSource<String> ackResultsSource = kafkaSource(cfg.brokers, "traverse.alarm.ack-results", "traverse-alarm-flink-ack-results");
         DataStream<String> ackResults = env
-                .fromSource(ackResultsSource, WatermarkStrategy.noWatermarks(), "ack-results")
+                .fromSource(ackResultsSource, WatermarkStrategy.noWatermarks(), "traverse.alarm.ack-results")
                 .setParallelism(cfg.ackProcessor)
                 .filter(s -> s != null && !s.isEmpty())
-                .name("ack-results")
-                .uid("ack-results");
+                .name("traverse.alarm.ack-results")
+                .uid("traverse.alarm.ack-results");
 
         ackResults
                 .map(OpcEventStreamJob::toAckLifecycleEvent)
                 .filter(s -> s != null && !s.isEmpty())
-                .sinkTo(kafkaSink(cfg.brokers, "lifecycle-events"))
+                .sinkTo(kafkaSink(cfg.brokers, "traverse.alarm.lifecycle-events"))
                 .name("ack-lifecycle-sink")
                 .uid("ack-lifecycle-sink")
                 .setParallelism(cfg.ackProcessor);
@@ -182,7 +182,7 @@ public class OpcEventStreamJob {
                 .filter(OpcEventStreamJob::isAckConfirmed)
                 .map(OpcEventStreamJob::toAckConfirmedState)
                 .filter(s -> s != null && !s.isEmpty())
-                .sinkTo(KafkaSinks.keyedByJsonField(cfg.brokers, "current-alarm-state", "alarmId"))
+                .sinkTo(KafkaSinks.keyedByJsonField(cfg.brokers, "traverse.alarm.current-alarm-state", "alarmId"))
                 .name("ack-projection-sink")
                 .uid("ack-projection-sink")
                 .setParallelism(cfg.projection);

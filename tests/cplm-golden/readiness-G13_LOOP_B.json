@@ -56,7 +56,7 @@
   {
    "id": "evidence_short",
    "label": "Short features produced",
-   "message": "No samples have reached loop.samples.v1 for this loop yet.",
+   "message": "No samples have reached traverse.cpa.loop.samples.v1 for this loop yet.",
    "ok": false
   },
   {
@@ -83,7 +83,7 @@
  "warnings": [
   "No VP signal — G14 caps confidence at 0.89, so no diagnosis can reach CONFIRMED.",
   "Resolved by path fallback, not the asset model: pv (unreachable), sp (unreachable), op (unreachable), mode (unreachable). Register these signals as assets — a fallback binding derives a different device id and may point at nothing.",
-  "No samples have reached loop.samples.v1 for this loop yet.",
+  "No samples have reached traverse.cpa.loop.samples.v1 for this loop yet.",
   "Fusion needs a 12h/24h window; verdicts appear once the long job's timers pass the window end."
  ]
 }

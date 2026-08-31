@@ -1,8 +1,8 @@
 <#
 .SYNOPSIS
-  Replays a loop CSV (Timestamp,PV,OP,SP,Mode[,VP]) into Kafka loop.samples.v1 as LIVE
+  Replays a loop CSV (Timestamp,PV,OP,SP,Mode[,VP]) into Kafka traverse.cpa.loop.samples.v1 as LIVE
   data, one row per -IntervalMs, stamped with wall-clock time. This is the real ingress
-  for CPLM testing: CSV -> Kafka -> Flink CPLM jobs -> clpm.gate.results.v1.
+  for CPLM testing: CSV -> Kafka -> Flink CPLM jobs -> traverse.cpa.clpm.gate.results.v1.
 
 .DESCRIPTION
   Ported from CPA/CPAMAIN/scripts/replay-csv-live.ps1 with the intake-decision upgrades:
@@ -24,7 +24,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$LoopId,
     [string]$LoopType = "",
-    [string]$Topic = "loop.samples.v1",
+    [string]$Topic = "traverse.cpa.loop.samples.v1",
     [string]$KafkaContainer = "ams-kafka",
     [string]$Bootstrap = "kafka:9092",
     [int]$IntervalMs = 1000,

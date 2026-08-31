@@ -6,7 +6,7 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 
-Write-Host "`n=== Restart API + replay current-alarm-state ===" -ForegroundColor Cyan
+Write-Host "`n=== Restart API + replay traverse.alarm.current-alarm-state ===" -ForegroundColor Cyan
 
 Get-Process -Name "AMS.Api" -ErrorAction SilentlyContinue | Stop-Process -Force
 Get-Job | Where-Object { $_.Command -match "AMS.Api" } | Remove-Job -Force -ErrorAction SilentlyContinue

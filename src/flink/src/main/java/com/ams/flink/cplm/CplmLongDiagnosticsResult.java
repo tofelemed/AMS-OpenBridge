@@ -9,7 +9,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Long-window diagnostics — Gates 5–11 per reference architecture (clpm.feature.long.v1). */
+/** Long-window diagnostics — Gates 5–11 per reference architecture (traverse.cpa.clpm.feature.long.v1). */
 public final class CplmLongDiagnosticsResult implements Serializable {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 

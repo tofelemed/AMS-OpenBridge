@@ -1,4 +1,4 @@
-# Full E2E: GET alarms -> UI ACK -> operator-actions -> Flink -> ack-writeback -> OPC -> ack-results -> API confirm
+# Full E2E: GET alarms -> UI ACK -> traverse.alarm.operator-actions -> Flink -> traverse.alarm.ack-writeback -> OPC -> traverse.alarm.ack-results -> API confirm
 param(
     [string]$ApiBase = "http://127.0.0.1:8000",
     [string]$GatewayBase = "http://127.0.0.1:5050",
@@ -134,7 +134,7 @@ function Parse-LifecycleLine($line, $id) {
 
 while ((Get-Date) -lt $deadline) {
     Start-Sleep -Seconds 2
-    foreach ($topic in @('operator-actions', 'ack-writeback', 'lifecycle-events', 'ack-results')) {
+    foreach ($topic in @('traverse.alarm.operator-actions', 'traverse.alarm.ack-writeback', 'traverse.alarm.lifecycle-events', 'traverse.alarm.ack-results')) {
         $ErrorActionPreference = "Continue"
         $lines = Invoke-DockerQuiet exec ams-kafka kafka-console-consumer --bootstrap-server localhost:9092 `
             --topic $topic --timeout-ms 2500
@@ -142,10 +142,10 @@ while ((Get-Date) -lt $deadline) {
         foreach ($line in $lines) {
             if ($line -notmatch $alarmId) { continue }
             switch ($topic) {
-                'operator-actions' { $seen.opAction = $true }
-                'ack-writeback'    { $seen.writeback = $true }
-                'ack-results'      { $seen.ackResult = $true }
-                'lifecycle-events' {
+                'traverse.alarm.operator-actions' { $seen.opAction = $true }
+                'traverse.alarm.ack-writeback'    { $seen.writeback = $true }
+                'traverse.alarm.ack-results'      { $seen.ackResult = $true }
+                'traverse.alarm.lifecycle-events' {
                     $st = Parse-LifecycleLine $line $alarmId
                     if ($st -and -not $seen.lifecycle.ContainsKey($st)) {
                         $seen.lifecycle[$st] = $true
@@ -159,10 +159,10 @@ while ((Get-Date) -lt $deadline) {
 }
 $sw.Stop()
 
-Record "Kafka operator-actions" $seen.opAction "API published ACK command"
-Record "Flink sink ack-writeback" $seen.writeback "Flink routed to gateway"
+Record "Kafka traverse.alarm.operator-actions" $seen.opAction "API published ACK command"
+Record "Flink sink traverse.alarm.ack-writeback" $seen.writeback "Flink routed to gateway"
 Record "Lifecycle ACK_DISPATCHED" $seen.lifecycle.ContainsKey('ACK_DISPATCHED') $(if ($seen.lifecycle.ContainsKey('ACK_DISPATCHED')) { 'seen' } else { 'not seen' })
-Record "OPC writeback ack-results" $seen.ackResult "Gateway OPC AcknowledgeCondition"
+Record "OPC writeback traverse.alarm.ack-results" $seen.ackResult "Gateway OPC AcknowledgeCondition"
 Record "Lifecycle ACK_CONFIRMED" $seen.lifecycle.ContainsKey('ACK_CONFIRMED') $(if ($seen.lifecycle.ContainsKey('ACK_CONFIRMED')) { "$($sw.ElapsedMilliseconds)ms" } elseif ($seen.lifecycle.ContainsKey('ACK_FAILED')) { 'ACK_FAILED' } else { "timeout ${TimeoutSec}s" })
 
 # [8] Post-ACK API state
@@ -189,7 +189,7 @@ foreach ($k in $results.Keys) {
 }
 Write-Host ""
 
-$critical = @('POST acknowledge/batch', 'Flink sink ack-writeback', 'Lifecycle ACK_CONFIRMED', 'Alarm acknowledged in API')
+$critical = @('POST acknowledge/batch', 'Flink sink traverse.alarm.ack-writeback', 'Lifecycle ACK_CONFIRMED', 'Alarm acknowledged in API')
 $criticalFail = @($critical | Where-Object { $results.ContainsKey($_) -and -not $results[$_].Pass })
 if ($criticalFail.Count -gt 0) { exit 1 }
 if ($failed.Count -gt 0) { exit 2 }

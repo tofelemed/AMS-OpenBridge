@@ -42,10 +42,10 @@ mirrors it exactly rather than inventing a new one:
 
 ```
                  EXISTING ACK PATH                          NEW COMMAND PATH (5.1, mirrors it)
-UI ──ACK──▶ AMS API ──operator-actions──▶ Flink      UI ──POST /commands──▶ Command API ──operator-commands──▶ Flink
-   Flink ──ack-writeback──▶ HttpAckWritebackService      Flink ──command-writeback──▶ HttpCommandWritebackService
+UI ──ACK──▶ AMS API ──traverse.alarm.operator-actions──▶ Flink      UI ──POST /commands──▶ Command API ──operator-commands──▶ Flink
+   Flink ──traverse.alarm.ack-writeback──▶ HttpAckWritebackService      Flink ──command-writeback──▶ HttpCommandWritebackService
         ──HTTP──▶ OPC Gateway ──▶ DCS                          ──HTTP──▶ OPC Gateway ──OPC-UA write──▶ DCS
-   OPC Gateway ──ack-results──▶ Flink + AMS API          OPC Gateway ──command-results──▶ API ──SignalR──▶ UI
+   OPC Gateway ──traverse.alarm.ack-results──▶ Flink + AMS API          OPC Gateway ──command-results──▶ API ──SignalR──▶ UI
 ```
 
 Grounding (see `docs/migration/kafka-topic-catalog.md`, `src/backend/.../HttpAckWritebackService.cs`,
@@ -78,7 +78,7 @@ Write-back is guarded in **depth**; every layer independently refuses an unsafe 
    drag issues one command on release, not one per pixel.
 7. **Interlocks (optional, config-driven).** A command spec may name a boolean permissive tag; the command is
    refused if the permissive is false ("pump not ready"). This is resolved read-side at issue time.
-8. **Audit — always.** Every attempt (allowed *and* refused) emits an `AuditEvent` to `audit-events`
+8. **Audit — always.** Every attempt (allowed *and* refused) emits an `AuditEvent` to `traverse.cpa.audit-events`
    (the hash-chained store the audit-service already consumes): who, when, path, old→new, reason, result.
 9. **Config-only invariant is untouched.** The *command spec* is display configuration (target path, range,
    confirmation) — never a process value. Saved displays still carry zero live data.

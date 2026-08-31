@@ -1,4 +1,4 @@
-# Tests Flink ACK orchestration: operator-actions -> ack-writeback (+ lifecycle)
+# Tests Flink ACK orchestration: traverse.alarm.operator-actions -> traverse.alarm.ack-writeback (+ lifecycle)
 param(
     [string]$Bootstrap = "localhost:9092",
     [int]$TimeoutSec = 45
@@ -19,7 +19,7 @@ Write-Host "    JAR: $($jar.FullName)" -ForegroundColor Green
 
 # 2. Kafka topics
 Write-Host "`n[2] Ensuring Kafka topics exist..." -ForegroundColor Yellow
-$topics = @("operator-actions", "ack-writeback", "lifecycle-events", "current-alarm-state", "ack-results", "raw-opc-events")
+$topics = @("traverse.alarm.operator-actions", "traverse.alarm.ack-writeback", "traverse.alarm.lifecycle-events", "traverse.alarm.current-alarm-state", "traverse.alarm.ack-results", "raw-opc-events")
 foreach ($t in $topics) {
     docker exec ams-kafka kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic $t --partitions 3 --replication-factor 1 2>$null
 }
@@ -62,15 +62,15 @@ $payload = @{
 } | ConvertTo-Json -Compress
 
 Write-Host "`n[4] Publishing operator-action (commandId=$commandId)..." -ForegroundColor Yellow
-$payload | docker exec -i ams-kafka kafka-console-producer --bootstrap-server localhost:9092 --topic operator-actions 2>$null
+$payload | docker exec -i ams-kafka kafka-console-producer --bootstrap-server localhost:9092 --topic traverse.alarm.operator-actions 2>$null
 
-# 5. Consume ack-writeback
-Write-Host "`n[5] Waiting for ack-writeback on topic (timeout ${TimeoutSec}s)..." -ForegroundColor Yellow
+# 5. Consume traverse.alarm.ack-writeback
+Write-Host "`n[5] Waiting for traverse.alarm.ack-writeback on topic (timeout ${TimeoutSec}s)..." -ForegroundColor Yellow
 $found = $false
 $consumer = Start-Job -ScriptBlock {
     param($b, $t)
     docker exec ams-kafka kafka-console-consumer --bootstrap-server $b --topic $t --from-beginning --max-messages 20 --timeout-ms 40000 2>$null
-} -ArgumentList "localhost:9092", "ack-writeback"
+} -ArgumentList "localhost:9092", "traverse.alarm.ack-writeback"
 
 $deadline = (Get-Date).AddSeconds($TimeoutSec)
 while ((Get-Date) -lt $deadline -and -not $found) {
@@ -78,7 +78,7 @@ while ((Get-Date) -lt $deadline -and -not $found) {
     $out = Receive-Job $consumer -ErrorAction SilentlyContinue
     if ($out -match $commandId) {
         $found = $true
-        Write-Host "    PASS: ack-writeback contains commandId" -ForegroundColor Green
+        Write-Host "    PASS: traverse.alarm.ack-writeback contains commandId" -ForegroundColor Green
         $out | Where-Object { $_ -match $commandId } | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
     }
 }
@@ -86,7 +86,7 @@ Stop-Job $consumer -ErrorAction SilentlyContinue
 Remove-Job $consumer -Force -ErrorAction SilentlyContinue
 
 if (-not $found) {
-    Write-Host "    FAIL: No ack-writeback received for commandId=$commandId" -ForegroundColor Red
+    Write-Host "    FAIL: No traverse.alarm.ack-writeback received for commandId=$commandId" -ForegroundColor Red
     Write-Host "    Ensure Flink job is running and consuming operator-actions." -ForegroundColor Yellow
     exit 1
 }

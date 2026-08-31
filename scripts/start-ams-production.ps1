@@ -36,7 +36,7 @@ Write-Host "[3/4] Building Flink JAR..." -ForegroundColor Cyan
 
 
 
-Write-Host "[4/4] Submitting Flink job (raw-alarms, earliest offsets)..." -ForegroundColor Cyan
+Write-Host "[4/4] Submitting Flink job (traverse.alarm.raw-alarms, earliest offsets)..." -ForegroundColor Cyan
 
 $jar = Join-Path $root "src\flink\target\ams-flink-1.0-SNAPSHOT.jar"
 

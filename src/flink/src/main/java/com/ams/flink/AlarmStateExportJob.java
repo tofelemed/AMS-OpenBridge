@@ -23,7 +23,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 /**
  * Phase 2: AlarmStateExportJob
  * Subscribes to the active alarm state stream and emits DELTA changes (INSERT, UPDATE, REMOVE)
- * to flink.state.alarm.delta to be consumed by the frontend for real-time observability.
+ * to traverse.alarm.flink.state.alarm.delta to be consumed by the frontend for real-time observability.
  */
 public class AlarmStateExportJob {
 
@@ -40,10 +40,10 @@ public class AlarmStateExportJob {
         env.getCheckpointConfig().setMinPauseBetweenCheckpoints(10_000);
         env.getCheckpointConfig().setCheckpointTimeout(60_000);
 
-        // Consume current-alarm-state as the source of truth for "active state updates" in Flink
+        // Consume traverse.alarm.current-alarm-state as the source of truth for "active state updates" in Flink
         KafkaSource<String> stateSource = KafkaSource.<String>builder()
                 .setBootstrapServers(brokers)
-                .setTopics("current-alarm-state")
+                .setTopics("traverse.alarm.current-alarm-state")
                 .setGroupId("flink-state-export-job")
                 .setStartingOffsets(OffsetsInitializer.latest())
                 .setValueOnlyDeserializer(new SimpleStringSchema())
@@ -62,7 +62,7 @@ public class AlarmStateExportJob {
                 .setBootstrapServers(brokers)
                 .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .setRecordSerializer(KafkaRecordSerializationSchema.builder()
-                        .setTopic("flink.state.alarm.delta")
+                        .setTopic("traverse.alarm.flink.state.alarm.delta")
                         .setValueSerializationSchema(new SimpleStringSchema())
                         .build())
                 .build();
@@ -73,7 +73,7 @@ public class AlarmStateExportJob {
     }
 
     /**
-     * STR-08 — this read "Id"/"id", but current-alarm-state records carry the identity as
+     * STR-08 — this read "Id"/"id", but traverse.alarm.current-alarm-state records carry the identity as
      * "alarmId". Every record therefore fell through to the "unknown" fallback and the whole
      * stream keyed to a single partition, so the per-alarm delta state was meaningless (one
      * shared previousState for every alarm in the plant). "Id"/"id" are kept as fallbacks for

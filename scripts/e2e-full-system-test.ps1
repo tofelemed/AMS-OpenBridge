@@ -89,8 +89,8 @@ if ($raw) {
 # ── §3 Flink processing ───────────────────────────────────────
 Write-Host "`n§3 Flink processing" -ForegroundColor Yellow
 
-$state = Get-KafkaTopicSample -Topic "current-alarm-state" -TimeoutMs 12000
-Write-E2eCheck -Name "current-alarm-state projection" -Pass ($null -ne $state) `
+$state = Get-KafkaTopicSample -Topic "traverse.alarm.current-alarm-state" -TimeoutMs 12000
+Write-E2eCheck -Name "traverse.alarm.current-alarm-state projection" -Pass ($null -ne $state) `
     -Detail $(if ($state) { "ALARM_STATE sample received" } else { "no message in 12s" }) -Results $results
 
 if ($InjectLabEvents) {

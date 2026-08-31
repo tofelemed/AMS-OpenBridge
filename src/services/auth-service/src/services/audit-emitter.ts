@@ -1,5 +1,5 @@
 /**
- * Emits RBAC governance events to the platform audit trail (Kafka `audit-events`),
+ * Emits RBAC governance events to the platform audit trail (Kafka `traverse.cpa.audit-events`),
  * which audit-service consumes into its immutable hash-chained store (Phase 3).
  *
  * Previously auth-service logged role/permission changes to the app log only, so
@@ -15,7 +15,7 @@
 import { Kafka, Producer, logLevel } from 'kafkajs';
 import logger from '../config/logger';
 
-const TOPIC = 'audit-events';
+const TOPIC = 'traverse.cpa.audit-events';
 
 class AuditEmitter {
   private producer: Producer | null = null;

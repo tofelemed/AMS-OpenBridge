@@ -7,7 +7,7 @@ using Traverse.AnalysisService.Data;
 namespace Traverse.AnalysisService.Consumers;
 
 /// <summary>
-/// Phase 7 — closes the calculation loop. Consumes <c>analysis.results</c> (produced by the Flink
+/// Phase 7 — closes the calculation loop. Consumes <c>traverse.analysis.results</c> (produced by the Flink
 /// AnalysisExecutionJob) and (1) updates the execution row to completed/failed, (2) publishes the
 /// derived value to the UNS live plane by writing its Redis snapshot, and (3) registers the derived
 /// measurement in asset-model so binding-resolver can resolve it and any symbol can bind it like a tag.
@@ -51,10 +51,10 @@ public class AnalysisResultConsumer : BackgroundService
         };
 
         using var consumer = new ConsumerBuilder<Ignore, string>(config).Build();
-        try { consumer.Subscribe("analysis.results"); }
-        catch (Exception ex) { _logger.LogWarning(ex, "Could not subscribe to analysis.results"); return; }
+        try { consumer.Subscribe("traverse.analysis.results"); }
+        catch (Exception ex) { _logger.LogWarning(ex, "Could not subscribe to traverse.analysis.results"); return; }
 
-        _logger.LogInformation("Analysis result consumer listening on analysis.results");
+        _logger.LogInformation("Analysis result consumer listening on traverse.analysis.results");
         while (!ct.IsCancellationRequested)
         {
             try

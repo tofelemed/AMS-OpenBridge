@@ -4,17 +4,17 @@ Edge Platform — Full End-to-End Test Orchestrator
 
 Workflow:
   1. Health check all services
-  2. Feed synthetic alarms → Kafka raw-alarms (and current-alarm-state by default)
+  2. Feed synthetic alarms → Kafka traverse.alarm.raw-alarms (and traverse.alarm.current-alarm-state by default)
   3. Verify IoTDB persistence (Flink IoTDBPersistenceJob)
   4. Verify Historian BFF /trend, /raw, /snapshot
-  5. Verify MQTT Sparkplug B (live.alarms → edge node → EMQX)
-  6. Verify API + PostgreSQL (OpcEventStreamJob → current-alarm-state → API)
+  5. Verify MQTT Sparkplug B (traverse.alarm.live.alarms → edge node → EMQX)
+  6. Verify API + PostgreSQL (OpcEventStreamJob → traverse.alarm.current-alarm-state → API)
   7. Verify Prometheus targets
 
 Usage:
   python run_all.py
   python run_all.py --skip-feed --run-id abc12345
-  python run_all.py --no-current-state   # raw-alarms only (skips Postgres path acceleration)
+  python run_all.py --no-current-state   # traverse.alarm.raw-alarms only (skips Postgres path acceleration)
   python run_all.py --skip-prometheus
   python run_all.py --skip-health        # skip abort-on-health-failure (useful while stack is partly up)
 """
@@ -59,7 +59,7 @@ def main() -> int:
         "--no-current-state",
         action="store_true",
         help="Do NOT also publish to current-alarm-state. "
-             "By default both raw-alarms AND current-alarm-state are fed so "
+             "By default both traverse.alarm.raw-alarms AND traverse.alarm.current-alarm-state are fed so "
              "the Postgres/API path is exercised without waiting for Flink "
              "OpcEventStreamJob to process the E2E server ID.",
     )
@@ -119,7 +119,7 @@ def main() -> int:
         if rc != 0:
             all_results.append(StepResult("Feed test data", False, f"exit code {rc}"))
             return exit_code(all_results)
-        mode = "+current-alarm-state" if also_current_state else "raw-alarms only"
+        mode = "+traverse.alarm.current-alarm-state" if also_current_state else "traverse.alarm.raw-alarms only"
         all_results.append(StepResult("Feed test data", True, f"{args.count} alarm(s) ({mode})"))
     else:
         log(f"Skipping feed — using manifest_{args.run_id}.json")

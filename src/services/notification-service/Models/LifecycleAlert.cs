@@ -1,7 +1,7 @@
 namespace AMS.NotificationService.Models;
 
 /// <summary>
-/// A message on the <c>lifecycle-alerts</c> topic (STR-05).
+/// A message on the <c>traverse.alarm.lifecycle-alerts</c> topic (STR-05).
 ///
 /// Two producers write here, both of them safety-relevant watchdogs in ams-api:
 ///   TELEMETRY_STALLED — TelemetryDeadmanWatchdogService: no raw OPC events have

@@ -4,7 +4,7 @@ using Confluent.Kafka;
 namespace Traverse.DisplayService.Services;
 
 /// <summary>
-/// Emits governance audit events to the platform audit trail (Kafka topic <c>audit-events</c>), which
+/// Emits governance audit events to the platform audit trail (Kafka topic <c>traverse.cpa.audit-events</c>), which
 /// audit-service consumes into its immutable hash-chained store. Phase 5 — this connects the previously
 /// disconnected display-events stream to the real audit log instead of inventing a third path.
 ///
@@ -16,7 +16,7 @@ public sealed class AuditEmitter : IDisposable
 {
     private readonly IProducer<Null, string>? _producer;
     private readonly ILogger<AuditEmitter> _logger;
-    private const string Topic = "audit-events";
+    private const string Topic = "traverse.cpa.audit-events";
 
     public AuditEmitter(IConfiguration config, ILogger<AuditEmitter> logger)
     {

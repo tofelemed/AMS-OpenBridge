@@ -1,4 +1,4 @@
-# E2E: API (Flink orchestration) -> operator-actions -> Flink -> ack-writeback -> OPC Gateway -> ack-results -> SignalR lifecycle
+# E2E: API (Flink orchestration) -> traverse.alarm.operator-actions -> Flink -> traverse.alarm.ack-writeback -> OPC Gateway -> traverse.alarm.ack-results -> SignalR lifecycle
 param(
     [string]$ApiBase = "http://127.0.0.1:8000",
     [int]$TimeoutSec = 90
@@ -84,7 +84,7 @@ Write-Host "[Alarm] Acknowledging $alarmId ($($alarm.sourceName))" -ForegroundCo
 $lifecycleJob = Start-Job -ScriptBlock {
     param($cid)
     docker exec ams-kafka kafka-console-consumer --bootstrap-server localhost:9092 `
-        --topic lifecycle-events --from-beginning --max-messages 100 --timeout-ms 85000 2>$null
+        --topic traverse.alarm.lifecycle-events --from-beginning --max-messages 100 --timeout-ms 85000 2>$null
 } -ArgumentList $alarmId
 
 # Dispatch ACK (same as UI button)
@@ -126,7 +126,7 @@ Write-Host "`n--- Results ---" -ForegroundColor Cyan
 }
 
 if (-not $states.ContainsKey("ACK_DISPATCHED")) {
-    Write-Host "`nFAIL: ACK_DISPATCHED not seen on lifecycle-events" -ForegroundColor Red
+    Write-Host "`nFAIL: ACK_DISPATCHED not seen on traverse.alarm.lifecycle-events" -ForegroundColor Red
     exit 1
 }
 if (-not $states.ContainsKey("ACK_CONFIRMED")) {

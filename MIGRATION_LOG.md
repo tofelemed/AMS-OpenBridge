@@ -210,7 +210,7 @@ dotnet test --filter "Category=Integration"
 |----------|--------|----------|
 | Analysis Service | ✅ | `src/services/analysis-service/` |
 | traverse_analysis DB schema | ✅ | `database/scripts/14_traverse_analysis_schema.sql` |
-| Kafka topics | ✅ | `analysis.commands`, `analysis.executions` |
+| Kafka topics | ✅ | `traverse.analysis.commands`, `traverse.analysis.executions` |
 | Docker Compose | ✅ | Port 5005 |
 
 ### Acceptance Criteria

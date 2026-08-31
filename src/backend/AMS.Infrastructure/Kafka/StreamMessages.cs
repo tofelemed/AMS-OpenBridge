@@ -50,7 +50,7 @@ public sealed record AckResultMessage : IAckCorrelatedEvent
     public string ResolvedCommandId => !string.IsNullOrEmpty(CommandId) ? CommandId : ActionId ?? string.Empty;
 }
 
-/// <summary>Operator command (UI → operator-actions).</summary>
+/// <summary>Operator command (UI → traverse.alarm.operator-actions).</summary>
 public sealed record OperatorActionMessage : IAckCorrelatedEvent
 {
     public int SchemaVersion { get; init; } = StreamSchemaVersion.Current;

@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 
 namespace AMS.Infrastructure.Kafka;
 
-/// <summary>Append-only ACK lifecycle transitions → lifecycle-events topic.</summary>
+/// <summary>Append-only ACK lifecycle transitions → traverse.alarm.lifecycle-events topic.</summary>
 public sealed class LifecycleEventPublisher
 {
     private readonly AlarmEventProducer _producer;

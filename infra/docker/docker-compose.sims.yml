@@ -2,7 +2,7 @@
 # Live-data simulator + on-demand V2 pipeline validator.
 # Use TOGETHER with the main compose (they share the ams-backend network + project):
 #
-#   # start the live-data feed (Kafka live.metrics → edge → EMQX + Redis snapshots)
+#   # start the live-data feed (Kafka traverse.live.metrics → edge → EMQX + Redis snapshots)
 #   docker compose -f docker-compose.yml -f docker-compose.sims.yml up -d --build ams-sim
 #
 #   # run the validation suite once (governance + Flink compute loop + fidelity + authz)

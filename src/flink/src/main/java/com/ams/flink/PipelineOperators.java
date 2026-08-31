@@ -78,7 +78,7 @@ public final class PipelineOperators {
                 evt.opcDcsAcknowledged = root.has("acknowledged") && root.get("acknowledged").asBoolean();
                 // OPC A&E is authoritative for acknowledgment — accept for ALL sources, not just httpFeed.
                 // An external HMI/SCADA acknowledging via the OPC server will push acknowledged=true
-                // through the same raw-alarms pipeline; we must not discard it.
+                // through the same traverse.alarm.raw-alarms pipeline; we must not discard it.
                 evt.acknowledged = evt.opcDcsAcknowledged;
                 evt.cookieOffset = cookie(root);
                 evt.eventTimeEpochMs = eventTimeMs(root);

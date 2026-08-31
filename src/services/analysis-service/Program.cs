@@ -52,7 +52,7 @@ builder.Services.AddHttpClient("AssetModel", client =>
         client.DefaultRequestHeaders.Add(TraverseAuthExtensions.ServiceKeyHeader, serviceKey);
 });
 
-// Phase 7 — consume calculation results (analysis.results) and publish derived measurements to the UNS.
+// Phase 7 — consume calculation results (traverse.analysis.results) and publish derived measurements to the UNS.
 builder.Services.AddHostedService<AnalysisResultConsumer>();
 
 // ── Auth (platform RBAC) ────────────────────────────────────────────────────
@@ -190,7 +190,7 @@ app.MapPost("/analyses", async (CreateAnalysisRequest request, AnalysisDbContext
     // Publish to Kafka for Flink to pick up if enabled
     if (analysis.IsEnabled)
     {
-        await PublishAnalysisCommand(kafka, "analysis.created", analysis);
+        await PublishAnalysisCommand(kafka, "traverse.analysis.created", analysis);
     }
     
     return Results.Created($"/analyses/{analysis.Id}", new { id = analysis.Id, name = analysis.Name });
@@ -217,12 +217,12 @@ app.MapPut("/analyses/{id:guid}", async (Guid id, UpdateAnalysisRequest request,
     // Notify Flink of changes
     if (wasEnabled != analysis.IsEnabled)
     {
-        var command = analysis.IsEnabled ? "analysis.enabled" : "analysis.disabled";
+        var command = analysis.IsEnabled ? "traverse.analysis.enabled" : "traverse.analysis.disabled";
         await PublishAnalysisCommand(kafka, command, analysis);
     }
     else if (analysis.IsEnabled)
     {
-        await PublishAnalysisCommand(kafka, "analysis.updated", analysis);
+        await PublishAnalysisCommand(kafka, "traverse.analysis.updated", analysis);
     }
     
     return Results.Ok(new { id = analysis.Id, name = analysis.Name });
@@ -236,7 +236,7 @@ app.MapDelete("/analyses/{id:guid}", async (Guid id, AnalysisDbContext db, IProd
     
     if (analysis.IsEnabled)
     {
-        await PublishAnalysisCommand(kafka, "analysis.disabled", analysis);
+        await PublishAnalysisCommand(kafka, "traverse.analysis.disabled", analysis);
     }
     
     analysis.IsDeleted = true;
@@ -283,7 +283,7 @@ app.MapPost("/analyses/{id:guid}/execute", async (
     var inputValues = await CalcPayload.ReadInputsAsync(redis, inputs);
 
     // Publish execution command to Kafka
-    await kafka.ProduceAsync("analysis.executions", new Message<string, string>
+    await kafka.ProduceAsync("traverse.analysis.executions", new Message<string, string>
     {
         Key = execution.Id.ToString(),
         Value = JsonSerializer.Serialize(new
@@ -511,7 +511,7 @@ app.Run();
 // ── Helper Functions ─────────────────────────────────────────────────────────
 static async Task PublishAnalysisCommand(IProducer<string, string> kafka, string command, AnalysisDefinition analysis)
 {
-    await kafka.ProduceAsync("analysis.commands", new Message<string, string>
+    await kafka.ProduceAsync("traverse.analysis.commands", new Message<string, string>
     {
         Key = analysis.Id.ToString(),
         Value = JsonSerializer.Serialize(new

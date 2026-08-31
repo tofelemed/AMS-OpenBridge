@@ -4,7 +4,7 @@ Process-value simulator for the AMS/Traverse HMI live-data pipeline.
 
 Stands in for real OPC/field edge feeds. Publishes changing process values
 (tank level, pump speed, valve position, temperatures, flow, running status)
-for TWO sites (houston + dallas) onto Kafka `live.metrics`, from where the
+for TWO sites (houston + dallas) onto Kafka `traverse.live.metrics`, from where the
 sparkplug-edge-node bridges them to EMQX (Sparkplug B DDATA) + Redis snapshots,
 and the HMI Designer renders them live.
 
@@ -35,7 +35,7 @@ try:
 except ImportError:
     sys.exit("kafka-python not installed. pip install kafka-python")
 
-TOPIC = "live.metrics"
+TOPIC = "traverse.live.metrics"
 
 # ── 2-site plant model (must match database/scripts/15_traverse_assets_2site_plant.sql) ──
 # (site, unit, device, metric, lo, hi, kind)  kind: 'wave'|'ramp'|'bool'

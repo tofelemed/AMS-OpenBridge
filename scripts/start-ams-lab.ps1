@@ -315,7 +315,7 @@ function Start-FrontendDev {
 }
 
 function Show-IngestPathSummary {
-    $topics = @('raw-opc-events', 'current-alarm-state', 'alarm-created')
+    $topics = @('raw-opc-events', 'traverse.alarm.current-alarm-state', 'alarm-created')
     foreach ($topic in $topics) {
         try {
             $out = docker exec ams-kafka kafka-run-class kafka.tools.GetOffsetShell `

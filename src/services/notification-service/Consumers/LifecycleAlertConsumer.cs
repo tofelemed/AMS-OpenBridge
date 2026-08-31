@@ -7,7 +7,7 @@ using Prometheus;
 namespace AMS.NotificationService.Consumers;
 
 /// <summary>
-/// Consumes <c>lifecycle-alerts</c> and turns it into something an operator can see (STR-05).
+/// Consumes <c>traverse.alarm.lifecycle-alerts</c> and turns it into something an operator can see (STR-05).
 ///
 /// This topic had two producers and zero consumers: the telemetry deadman and the ACK-SLA
 /// watchdog were publishing into a void, so a dead OPC feed raised no alert anywhere. This
@@ -21,7 +21,7 @@ public class LifecycleAlertConsumer : BackgroundService
     /// <summary>Alert-rule source: any increase means the pipeline is telling us something is wrong.</summary>
     private static readonly Counter AlertsReceived = Metrics.CreateCounter(
         "ams_lifecycle_alerts_total",
-        "Lifecycle alerts consumed from the lifecycle-alerts topic.",
+        "Lifecycle alerts consumed from the traverse.alarm.lifecycle-alerts topic.",
         new CounterConfiguration { LabelNames = new[] { "event_type", "severity" } });
 
     private static readonly Counter DispatchFailures = Metrics.CreateCounter(
@@ -41,7 +41,7 @@ public class LifecycleAlertConsumer : BackgroundService
         _logger           = logger;
         _orchestrator     = orchestrator;
         _bootstrapServers = config.GetValue<string>("Kafka:BootstrapServers") ?? "localhost:9092";
-        _topic            = config.GetValue<string>("Kafka:LifecycleAlertsTopic") ?? "lifecycle-alerts";
+        _topic            = config.GetValue<string>("Kafka:LifecycleAlertsTopic") ?? "traverse.alarm.lifecycle-alerts";
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

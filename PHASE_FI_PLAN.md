@@ -38,7 +38,7 @@ convention). Types mirror the legacy importer's shape so I fills them 1:1.
    (time/source/priority/state), optionally filtered by area/source.
 6. **Real limit→alarm source (decision §6.1, recommend A):** a small `scripts/sim/limit_watchdog.py`
    (mirrors the sim) that reads live values and, on limit breach, publishes a real alarm event to the
-   alarm pipeline (`raw-alarms` → Flink → SignalR → `alarmStore`). First investigate the `raw-alarms`
+   alarm pipeline (`traverse.alarm.raw-alarms` → Flink → SignalR → `alarmStore`). First investigate the `traverse.alarm.raw-alarms`
    event schema Flink expects. Suppress via the real `POST /api/v1/alarms/{id}/suppress`.
 
 **GATE F evidence:** display with an alarm-beacon/banner bound to a tag's source, opened live

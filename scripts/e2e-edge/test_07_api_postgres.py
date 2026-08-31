@@ -3,14 +3,14 @@
 
 Why E2E alarms may not appear in /api/v1/alarms/active
 --------------------------------------------------------
-OpcEventStreamJob reads raw-alarms and writes to current-alarm-state.
-NormalizedAlarmConsumer (ams-api) consumes current-alarm-state and upserts
+OpcEventStreamJob reads traverse.alarm.raw-alarms and writes to current-alarm-state.
+NormalizedAlarmConsumer (ams-api) consumes traverse.alarm.current-alarm-state and upserts
 into alarms.alarm_current.  The API only returns alarms whose serverId
 matches a registered server — so E2E synthetic alarms (serverId=e2e-server-001)
 will not appear in /active unless that server is registered.
 
 To bypass this, run feed_test_data.py with --also-current-state so the E2E
-ALARM_STATE_UPSERT messages are injected directly into current-alarm-state,
+ALARM_STATE_UPSERT messages are injected directly into traverse.alarm.current-alarm-state,
 matching exactly what NormalizedAlarmConsumer expects.
 
 The PostgreSQL direct check uses column source_name (snake_case schema).
@@ -80,7 +80,7 @@ def run(run_id: str) -> list:
                     "API active alarms",
                     f"no {cfg.TEST_PREFIX} alarm after {cfg.WAIT_API_SEC}s. "
                     "Likely causes: (1) E2E serverId not registered — re-run with "
-                    "--also-current-state to inject directly into current-alarm-state; "
+                    "--also-current-state to inject directly into traverse.alarm.current-alarm-state; "
                     "(2) OpcEventStreamJob not running; (3) NormalizedAlarmConsumer "
                     "consumer group 'ams-backend-2' offset behind.",
                 )

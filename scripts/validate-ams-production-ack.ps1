@@ -115,7 +115,7 @@ if ($alarm) {
     while ((Get-Date) -lt $ackDeadline) {
         Start-Sleep -Milliseconds $LifecyclePollMs
         $lines = docker exec ams-kafka kafka-console-consumer --bootstrap-server localhost:9092 `
-            --topic lifecycle-events --timeout-ms 8000 2>&1
+            --topic traverse.alarm.lifecycle-events --timeout-ms 8000 2>&1
         foreach ($line in $lines) {
             if ($line -notmatch $alarm.id) { continue }
             try {

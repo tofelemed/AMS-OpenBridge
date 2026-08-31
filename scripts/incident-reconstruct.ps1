@@ -85,11 +85,11 @@ try {
     Write-Warning "transitions API: $($_.Exception.Message)"
 }
 
-# Optional Kafka lifecycle-events sample
+# Optional Kafka traverse.alarm.lifecycle-events sample
 if ($IncludeKafkaSample) {
     $lines = docker exec ams-kafka kafka-console-consumer `
         --bootstrap-server localhost:9092 `
-        --topic lifecycle-events `
+        --topic traverse.alarm.lifecycle-events `
         --timeout-ms 10000 `
         --max-messages 100 2>&1
     foreach ($line in $lines) {
@@ -98,7 +98,7 @@ if ($IncludeKafkaSample) {
         try {
             $o = $json | ConvertFrom-Json
             $events.Add(@{
-                source = "kafka:lifecycle-events"
+                source = "kafka:traverse.alarm.lifecycle-events"
                 timeAuthority = "eventTime"
                 eventTimeEpochMs = Get-PropValue $o @("timestampEpochMs", "TimestampEpochMs")
                 alarmId = Get-PropValue $o @("alarmId", "AlarmId")

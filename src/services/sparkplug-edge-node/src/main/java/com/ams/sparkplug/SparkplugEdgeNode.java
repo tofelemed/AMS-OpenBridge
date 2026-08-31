@@ -7,7 +7,7 @@ import org.slf4j.LoggerFactory;
  * Sparkplug B Edge Node publisher — entry point.
  *
  * Architecture:
- *   Kafka (live.alarms, live.metrics)
+ *   Kafka (traverse.alarm.live.alarms, traverse.live.metrics)
  *       ↓  AlarmMetricPublisher
  *   EMQX  (spBv1.0/ams_site1/NBIRTH|DBIRTH|DDATA/ams_edge1/...)
  *       ↓  also writes

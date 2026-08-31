@@ -45,6 +45,10 @@ infra/docker/certs/*
 !infra/docker/certs/.gitkeep
 !infra/docker/certs/README*
 
+# Air-gap transfer bundle (contains env.copyme secrets + docker save)
+/offline-bundle/
+migration/deploy/build-out/
+
 # -----------------------------------------------------------------------------
 # .NET / C# / Visual Studio
 # -----------------------------------------------------------------------------

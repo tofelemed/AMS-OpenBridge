@@ -153,7 +153,7 @@ The resolver maps `path + role` to a concrete transport using the **Asset Model*
 |---|---|---|
 | `live` | **Sparkplug B on EMQX** | Browser uses MQTT.js over WSS + `sparkplug-payload`; **snapshot-on-open from Redis** (`snapshot:metric:*`, `alias:*`) to defeat the QoS-0/no-retain blank-screen problem; then live `DDATA` deltas; alias→name resolution from the registry |
 | `history` | **IoTDB via `historian-bff`** | `/trend?series=&start=&end=&width=` (decimated to pixel width) and `/raw` for zoom/export |
-| `alarm` | **SignalR (Pipeline A)** and/or `live.alarms` | Live alarm banner/state; ack via the event-store API |
+| `alarm` | **SignalR (Pipeline A)** and/or `traverse.alarm.live.alarms` | Live alarm banner/state; ack via the event-store API |
 
 ### 5.3 Why not bind to raw paths directly
 
@@ -229,7 +229,7 @@ Notes: TimescaleDB is already present and is irrelevant to AF metadata (relation
 
 ### 6.3 Kafka — reuse, unify the topic catalog
 
-Reuse the existing cluster. Reconcile the two naming conventions (`af.*` from the reference app vs `raw-alarms`/`current-alarm-state`/`live.*` in AMS). Recommended: keep AMS topics as-is; bring asset/template/analysis events under a single documented convention (e.g. `asset.*`, `template.*`, `analysis.*`, or a UNS-prefixed scheme), and route computed/live tag data onto the existing `live.metrics` / `live.alarms` path so designed HMIs consume the **same** live plane as the AMS Live Events tab. Publish one unified topic catalog and avoid collisions.
+Reuse the existing cluster. Reconcile the two naming conventions (`af.*` from the reference app vs `traverse.alarm.raw-alarms`/`traverse.alarm.current-alarm-state`/`live.*` in AMS). Recommended: keep AMS topics as-is; bring asset/template/analysis events under a single documented convention (e.g. `asset.*`, `template.*`, `analysis.*`, or a UNS-prefixed scheme), and route computed/live tag data onto the existing `traverse.live.metrics` / `traverse.alarm.live.alarms` path so designed HMIs consume the **same** live plane as the AMS Live Events tab. Publish one unified topic catalog and avoid collisions.
 
 ### 6.4 EMQX / MQTT — the single live transport
 

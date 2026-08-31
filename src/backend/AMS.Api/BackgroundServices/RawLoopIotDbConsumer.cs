@@ -9,7 +9,7 @@ using System.Text.Json;
 namespace AMS.Api.BackgroundServices;
 
 /// <summary>
-/// CPLM Phase 3 (3.5) — loop historian writer: consumes loop.samples.v1 and
+/// CPLM Phase 3 (3.5) — loop historian writer: consumes traverse.cpa.loop.samples.v1 and
 /// persists samples into IoTDB at root.&lt;site&gt;.cpm.&lt;loop&gt;.{pv,sp,op,vp,mode}.
 /// Modelling the loop as ONE IoTDB device with pv/sp/op/vp/mode as measurements
 /// makes multi-signal trend reads align for free (intake decision, 6.4).
@@ -60,7 +60,7 @@ public sealed class RawLoopIotDbConsumer : BackgroundService
         var config = new ConsumerConfig
         {
             BootstrapServers = _bootstrap,
-            GroupId = "ams-iotdb-raw-loop",
+            GroupId = "traverse-cpa-iotdb-raw-loop",
             // Earliest: on first deploy, backfill the historian from what the
             // topic retains (7 d) so evidence trends have history immediately.
             AutoOffsetReset = AutoOffsetReset.Earliest,

@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Pipeline A: raw-alarms -> OpcEventStreamJob -> current-alarm-state /
-lifecycle-events -> NormalizedAlarmConsumerService -> alarms.alarm_current ->
+"""Pipeline A: traverse.alarm.raw-alarms -> OpcEventStreamJob -> traverse.alarm.current-alarm-state /
+traverse.alarm.lifecycle-events -> NormalizedAlarmConsumerService -> alarms.alarm_current ->
 SignalR /hubs/alarms.
 
 Verifies:
-  - keyed ALARM_STATE_UPSERT records (key == alarmId) land on current-alarm-state
+  - keyed ALARM_STATE_UPSERT records (key == alarmId) land on traverse.alarm.current-alarm-state
   - Postgres alarms.alarm_current rows appear with the correct identity columns
     (server_id + source + condition + sub_condition) and severity
   - severity -> priority mapping (CRITICAL>=900 / HIGH>=700 / MEDIUM>=400 / LOW>=100)
     as returned by GET /api/v1/alarms/active
   - SignalR OnNewAlarm / OnAlarmUpdated fires for the injected run
-  - lifecycle-events grows
+  - traverse.alarm.lifecycle-events grows
 
 Usage: python sim_alarm_feed.py [--count 12] [--interval 0.25] [--run-tag X]
 """
@@ -76,9 +76,9 @@ def main() -> int:
         conn = start_signalr_listener(token, signalr_events, signalr_errors)
         time.sleep(2)  # let the websocket settle before injecting
 
-    cas_before = sl.kafka_end_offset_sum("current-alarm-state")
-    lce_before = sl.kafka_end_offset_sum("lifecycle-events")
-    sl.log(f"baseline offsets: current-alarm-state={cas_before} lifecycle-events={lce_before}")
+    cas_before = sl.kafka_end_offset_sum("traverse.alarm.current-alarm-state")
+    lce_before = sl.kafka_end_offset_sum("traverse.alarm.lifecycle-events")
+    sl.log(f"baseline offsets: traverse.alarm.current-alarm-state={cas_before} traverse.alarm.lifecycle-events={lce_before}")
 
     records = []
     expected = {}
@@ -104,20 +104,20 @@ def main() -> int:
             "priority": priority if i != 0 else "LOW",
         }
 
-    n = sl.kafka_publish_batch("raw-alarms", records, interval=args.interval)
-    sl.log(f"published {n} raw alarms to raw-alarms")
+    n = sl.kafka_publish_batch("traverse.alarm.raw-alarms", records, interval=args.interval)
+    sl.log(f"published {n} raw alarms to traverse.alarm.raw-alarms")
 
     checks: dict[str, bool] = {}
     detail: dict = {}
 
-    # 1. current-alarm-state grew and our records are keyed upserts
+    # 1. traverse.alarm.current-alarm-state grew and our records are keyed upserts
     grew = sl.wait_until(
-        f"current-alarm-state to grow by {args.count}",
-        lambda: sl.kafka_end_offset_sum("current-alarm-state") >= cas_before + args.count,
+        f"traverse.alarm.current-alarm-state to grow by {args.count}",
+        lambda: sl.kafka_end_offset_sum("traverse.alarm.current-alarm-state") >= cas_before + args.count,
         timeout_sec=120,
     )
     checks["current_alarm_state_grew"] = grew
-    cas_msgs = sl.kafka_consume("current-alarm-state", max_messages=5000,
+    cas_msgs = sl.kafka_consume("traverse.alarm.current-alarm-state", max_messages=5000,
                                 timeout_sec=25, contains=f"SIM-{tag}-")
     keyed_ok = bool(cas_msgs) and all(k is not None and k.startswith(f"SIM-{tag}-") for k, _ in cas_msgs)
     upsert_ok = bool(cas_msgs) and all('"eventType":"ALARM_STATE_UPSERT"' in v for _, v in cas_msgs)
@@ -172,10 +172,10 @@ def main() -> int:
     detail["priority_mismatches"] = mismatches
     checks["api_priority_mapping"] = prio_ok
 
-    # 4. lifecycle-events grew
+    # 4. traverse.alarm.lifecycle-events grew
     checks["lifecycle_events_grew"] = sl.wait_until(
-        "lifecycle-events to grow",
-        lambda: sl.kafka_end_offset_sum("lifecycle-events") > lce_before, timeout_sec=60)
+        "traverse.alarm.lifecycle-events to grow",
+        lambda: sl.kafka_end_offset_sum("traverse.alarm.lifecycle-events") > lce_before, timeout_sec=60)
 
     # 5. SignalR
     if not args.skip_signalr:

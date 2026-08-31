@@ -74,7 +74,7 @@ public sealed class AlarmIngestionService : BackgroundService
         }
 
         _logger.LogInformation(
-            "AlarmIngestionService polling {Url} every {IntervalMs}ms → raw-alarms",
+            "AlarmIngestionService polling {Url} every {IntervalMs}ms → traverse.alarm.raw-alarms",
             _opts.FeedUrl, _opts.PollIntervalMs);
 
         var client = _httpClientFactory.CreateClient("AlarmFeed");
@@ -155,7 +155,7 @@ public sealed class AlarmIngestionService : BackgroundService
             rawPayload = ParseRawPayload(rawRecord?.RawPayload)
         };
 
-        await _producer.PublishAsync("raw-alarms", snapshot.AlarmId, payload, ct);
+        await _producer.PublishAsync("traverse.alarm.raw-alarms", snapshot.AlarmId, payload, ct);
     }
 
     private static object ParseRawPayload(string? rawPayload)

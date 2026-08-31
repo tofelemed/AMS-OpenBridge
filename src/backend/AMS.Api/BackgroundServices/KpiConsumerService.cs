@@ -16,11 +16,11 @@ public sealed class KpiConsumerService : BackgroundService
     private readonly IAlarmSignalRPublisher _publisher;
     private readonly string[] _topics = new[] 
     { 
-        "loop-kpis-5m", 
-        "kpi-alarm-rates", 
-        "kpi-standing-snapshots", 
-        "kpi-bad-actors", 
-        "kpi-health-scores" 
+        "traverse.cpa.loop-kpis-5m", 
+        "traverse.alarm.kpi-alarm-rates", 
+        "traverse.alarm.kpi-standing-snapshots", 
+        "traverse.alarm.kpi-bad-actors", 
+        "traverse.alarm.kpi-health-scores" 
     };
 
     public KpiConsumerService(
@@ -58,7 +58,7 @@ public sealed class KpiConsumerService : BackgroundService
                 var topic = consumeResult.Topic;
                 var json = consumeResult.Message.Value;
 
-                if (topic == "loop-kpis-5m")
+                if (topic == "traverse.cpa.loop-kpis-5m")
                 {
                     var payload = JsonSerializer.Deserialize<LoopKpiPayload>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                     if (payload != null)

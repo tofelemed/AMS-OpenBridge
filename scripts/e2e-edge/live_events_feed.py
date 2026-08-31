@@ -8,15 +8,15 @@ while this script runs.
 Pipeline by mode
 ----------------
   full  (default)
-    raw-alarms -> Flink OpcEventStreamJob -> current-alarm-state
-              -> LiveStateJob -> live.alarms -> sparkplug-edge-node -> EMQX -> MQTT -> HMI
+    traverse.alarm.raw-alarms -> Flink OpcEventStreamJob -> traverse.alarm.current-alarm-state
+              -> LiveStateJob -> traverse.alarm.live.alarms -> sparkplug-edge-node -> EMQX -> MQTT -> HMI
 
   fast
-    current-alarm-state -> LiveStateJob -> live.alarms -> sparkplug-edge-node -> EMQX -> MQTT
+    traverse.alarm.current-alarm-state -> LiveStateJob -> traverse.alarm.live.alarms -> sparkplug-edge-node -> EMQX -> MQTT
     (also updates API / alarm console via NormalizedAlarmIngestor)
 
   mqtt
-    live.alarms -> sparkplug-edge-node -> EMQX -> MQTT -> HMI  (skips Flink — no IoTDB writes)
+    traverse.alarm.live.alarms -> sparkplug-edge-node -> EMQX -> MQTT -> HMI  (skips Flink — no IoTDB writes)
 
 Each tick varies severity/priority so Flink RBE still emits to live.alarms.
 
@@ -62,7 +62,7 @@ def make_live_alarm(
     priority: str = "HIGH",
     severity: int = 700,
 ) -> dict:
-    """Envelope for live.alarms (matches LiveStateJob / sparkplug-edge-node)."""
+    """Envelope for traverse.alarm.live.alarms (matches LiveStateJob / sparkplug-edge-node)."""
     now_ms = int(time.time() * 1000)
     return {
         "alarmId": alarm_id,
@@ -113,7 +113,7 @@ def publish_tick(seq: int, run_tag: str, mode: str) -> None:
             severity=severity,
         )
         kafka_publish(cfg.TOPIC_LIVE_ALARMS, key=alarm_id, payload=payload)
-        log(f"#{seq:04d} mqtt  live.alarms  {alarm_id}  {source}  sev={severity}  {priority}")
+        log(f"#{seq:04d} mqtt  traverse.alarm.live.alarms  {alarm_id}  {source}  sev={severity}  {priority}")
         return
 
     raw = make_raw_alarm(
@@ -128,13 +128,13 @@ def publish_tick(seq: int, run_tag: str, mode: str) -> None:
 
     if mode == "full":
         kafka_publish(cfg.TOPIC_RAW_ALARMS, key=alarm_id, payload=raw)
-        log(f"#{seq:04d} full  raw-alarms  {alarm_id}  {source}  sev={severity}  {priority}")
+        log(f"#{seq:04d} full  traverse.alarm.raw-alarms  {alarm_id}  {source}  sev={severity}  {priority}")
         return
 
-    # fast: current-alarm-state only
+    # fast: traverse.alarm.current-alarm-state only
     upsert = make_current_state_upsert(raw)
     kafka_publish(cfg.TOPIC_CURRENT_STATE, key=alarm_id, payload=upsert)
-    log(f"#{seq:04d} fast  current-alarm-state  {alarm_id}  {source}  sev={severity}  {priority}")
+    log(f"#{seq:04d} fast  traverse.alarm.current-alarm-state  {alarm_id}  {source}  sev={severity}  {priority}")
 
 
 def main() -> int:
@@ -145,7 +145,7 @@ def main() -> int:
         "--mode",
         choices=("full", "fast", "mqtt"),
         default="full",
-        help="Pipeline path (default: full = raw-alarms through Flink)",
+        help="Pipeline path (default: full = traverse.alarm.raw-alarms through Flink)",
     )
     parser.add_argument("--interval", type=float, default=3.0, help="Seconds between events")
     parser.add_argument("--count", type=int, default=0, help="Stop after N events (0 = run forever)")
@@ -166,11 +166,11 @@ def main() -> int:
     print(f"  Count:    {'∞' if args.count == 0 else args.count}")
     print(f"  Run tag:  {args.run_tag}")
     if args.mode == "full":
-        print("  Path:     raw-alarms → Flink → live.alarms → MQTT → HMI")
+        print("  Path:     traverse.alarm.raw-alarms → Flink → traverse.alarm.live.alarms → MQTT → HMI")
     elif args.mode == "fast":
-        print("  Path:     current-alarm-state → Flink → live.alarms → MQTT → HMI")
+        print("  Path:     traverse.alarm.current-alarm-state → Flink → traverse.alarm.live.alarms → MQTT → HMI")
     else:
-        print("  Path:     live.alarms → sparkplug-edge-node → MQTT → HMI")
+        print("  Path:     traverse.alarm.live.alarms → sparkplug-edge-node → MQTT → HMI")
     print("=" * 62)
     print("  Press Ctrl+C to stop")
     print()

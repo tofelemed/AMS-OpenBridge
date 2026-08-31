@@ -41,8 +41,8 @@ public class AlarmKpiStreamJob {
         // Consume Lifecycle Events to detect ACTIVE and CLEARED transitions
         KafkaSource<String> lifecycleSource = KafkaSource.<String>builder()
                 .setBootstrapServers(cfg.brokers)
-                .setTopics("lifecycle-events")
-                .setGroupId("flink-ams-alarm-kpi")
+                .setTopics("traverse.alarm.lifecycle-events")
+                .setGroupId("traverse-alarm-flink-alarm-kpi")
                 .setStartingOffsets(OffsetsInitializer.latest())
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .setProperty("request.timeout.ms", "120000")
@@ -83,7 +83,7 @@ public class AlarmKpiStreamJob {
                 .setBootstrapServers(cfg.brokers)
                 .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .setRecordSerializer(KafkaRecordSerializationSchema.builder()
-                        .setTopic("kpi-alarm-rates")
+                        .setTopic("traverse.alarm.kpi-alarm-rates")
                         .setValueSerializationSchema(new SimpleStringSchema())
                         .build())
                 .build();
@@ -97,11 +97,11 @@ public class AlarmKpiStreamJob {
                 .name("standing-alarm-tracker")
                 .uid("standing-alarm-tracker");
 
-        // kpi-standing-snapshots is COMPACTED: records must be keyed or the broker
+        // traverse.alarm.kpi-standing-snapshots is COMPACTED: records must be keyed or the broker
         // rejects them — see docs/alarm-history-flink-sink-stuck.md. Key matches the
         // keyBy above: one global snapshot entity, compaction keeps the latest.
         KafkaSink<String> standingSink =
-                KafkaSinks.fixedKey(cfg.brokers, "kpi-standing-snapshots", "GLOBAL");
+                KafkaSinks.fixedKey(cfg.brokers, "traverse.alarm.kpi-standing-snapshots", "GLOBAL");
 
         standingSnapshot.map(AlarmKpiResult::toJson).sinkTo(standingSink).name("standing-sink");
 

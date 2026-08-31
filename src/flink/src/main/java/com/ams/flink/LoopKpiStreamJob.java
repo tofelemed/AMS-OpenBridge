@@ -35,8 +35,8 @@ public class LoopKpiStreamJob {
 
         KafkaSource<String> rawLoopSource = KafkaSource.<String>builder()
                 .setBootstrapServers(cfg.brokers)
-                .setTopics("loop-raw-data")
-                .setGroupId("flink-ams-loop-kpi")
+                .setTopics("traverse.cpa.loop-raw-data")
+                .setGroupId("traverse-cpa-flink-loop-kpi")
                 .setStartingOffsets(OffsetsInitializer.latest())
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .setProperty("request.timeout.ms", "120000")
@@ -69,7 +69,7 @@ public class LoopKpiStreamJob {
                 .setBootstrapServers(cfg.brokers)
                 .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .setRecordSerializer(KafkaRecordSerializationSchema.builder()
-                        .setTopic("loop-kpis-5m")
+                        .setTopic("traverse.cpa.loop-kpis-5m")
                         .setValueSerializationSchema(new SimpleStringSchema())
                         .build())
                 .build();

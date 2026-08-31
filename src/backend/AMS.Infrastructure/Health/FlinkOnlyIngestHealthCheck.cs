@@ -4,7 +4,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 namespace AMS.Infrastructure.Health;
 
 /// <summary>
-/// Enforces Flink-only orchestration: API ingestion → raw-alarms → Flink → projection consumers.
+/// Enforces Flink-only orchestration: API ingestion → traverse.alarm.raw-alarms → Flink → projection consumers.
 /// </summary>
 public sealed class FlinkOnlyIngestHealthCheck : IHealthCheck
 {
@@ -25,7 +25,7 @@ public sealed class FlinkOnlyIngestHealthCheck : IHealthCheck
         if (_config.GetValue("Kafka:LabDirectIngest", false))
         {
             return Task.FromResult(HealthCheckResult.Unhealthy(
-                "Kafka:LabDirectIngest is not permitted. Use API → raw-alarms → Flink only."));
+                "Kafka:LabDirectIngest is not permitted. Use API → traverse.alarm.raw-alarms → Flink only."));
         }
 
         var authority = (_config["Kafka:IngestAuthority"] ?? "api").Trim().ToLowerInvariant();
@@ -42,6 +42,6 @@ public sealed class FlinkOnlyIngestHealthCheck : IHealthCheck
         }
 
         return Task.FromResult(HealthCheckResult.Healthy(
-            "Flink-only orchestration: API → raw-alarms → Flink → current-alarm-state → PostgreSQL; API projection consumers only."));
+            "Flink-only orchestration: API → traverse.alarm.raw-alarms → Flink → traverse.alarm.current-alarm-state → PostgreSQL; API projection consumers only."));
     }
 }

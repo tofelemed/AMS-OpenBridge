@@ -39,11 +39,11 @@ public final class CplmJobConfig {
         return new CplmJobConfig(
                 m.getOrDefault("bootstrap.servers", System.getenv().getOrDefault("KAFKA_BROKERS", "kafka:9092")),
                 m.getOrDefault("job-name", "AMS - CPLM Job"),
-                m.getOrDefault("consumer-group-id", "flink-ams-cplm"),
-                m.getOrDefault("input-topic", "clpm.normalized.samples.v1"),
-                m.getOrDefault("output-topic", "clpm.gate.results.v1"),
-                m.getOrDefault("short-feature-topic", "clpm.feature.short.v1"),
-                m.getOrDefault("long-feature-topic", "clpm.feature.long.v1"),
+                m.getOrDefault("consumer-group-id", "traverse-cpa-flink-cplm"),
+                m.getOrDefault("input-topic", "traverse.cpa.clpm.normalized.samples.v1"),
+                m.getOrDefault("output-topic", "traverse.cpa.clpm.gate.results.v1"),
+                m.getOrDefault("short-feature-topic", "traverse.cpa.clpm.feature.short.v1"),
+                m.getOrDefault("long-feature-topic", "traverse.cpa.clpm.feature.long.v1"),
                 parseInt(m.getOrDefault("window-hours", "24"), 24),
                 parseInt(m.getOrDefault("out-of-orderness-minutes", "2"), 2)
         );

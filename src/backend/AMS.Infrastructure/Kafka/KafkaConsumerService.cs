@@ -22,41 +22,41 @@ public sealed class KafkaOptions
     public string BootstrapServers { get; set; } = "localhost:9092";
     public string SchemaRegistryUrl { get; set; } = "http://localhost:8081";
     public string ConsumerGroupId { get; set; } = "ams-backend";
-    public string RawAlarmsTopic { get; set; } = "raw-alarms";
-    public string OperatorActionsTopic { get; set; } = "operator-actions";
-    public string AckWritebackTopic { get; set; } = "ack-writeback";
-    public string LifecycleEventsTopic { get; set; } = "lifecycle-events";
-    public string LifecycleAlertsTopic { get; set; } = "lifecycle-alerts";
-    public string AckResultsTopic { get; set; } = "ack-results";
-    public string RawAlarmsDlqTopic { get; set; } = "raw-alarms-dlq";
-    public string AckWritebackDlqTopic { get; set; } = "ack-writeback-dlq";
-    public string NormalizedAlarmsTopic { get; set; } = "current-alarm-state";
+    public string RawAlarmsTopic { get; set; } = "traverse.alarm.raw-alarms";
+    public string OperatorActionsTopic { get; set; } = "traverse.alarm.operator-actions";
+    public string AckWritebackTopic { get; set; } = "traverse.alarm.ack-writeback";
+    public string LifecycleEventsTopic { get; set; } = "traverse.alarm.lifecycle-events";
+    public string LifecycleAlertsTopic { get; set; } = "traverse.alarm.lifecycle-alerts";
+    public string AckResultsTopic { get; set; } = "traverse.alarm.ack-results";
+    public string RawAlarmsDlqTopic { get; set; } = "traverse.alarm.raw-alarms-dlq";
+    public string AckWritebackDlqTopic { get; set; } = "traverse.alarm.ack-writeback-dlq";
+    public string NormalizedAlarmsTopic { get; set; } = "traverse.alarm.current-alarm-state";
     public int AckConfirmationTimeoutSeconds { get; set; } = 30;
     public string StreamProcessorGroupId { get; set; } = "ams-stream-processor";
     /// <summary>Must be true: Flink is the sole lifecycle/ACK orchestration engine.</summary>
     public bool UseFlinkOrchestration { get; set; } = true;
-    public string ActiveAlarmsTopic { get; set; } = "active-alarms";
-    public string HistoricalAlarmsTopic { get; set; } = "historical-alarms";
-    public string AlarmAnalyticsTopic { get; set; } = "alarm-analytics";
-    public string SoeEventsTopic { get; set; } = "soe-events";
-    public string NotificationEventsTopic { get; set; } = "notification-events";
-    public string DeadLetterTopic { get; set; } = "dead-letter-events";
+    public string ActiveAlarmsTopic { get; set; } = "traverse.alarm.active-alarms";
+    public string HistoricalAlarmsTopic { get; set; } = "traverse.alarm.historical-alarms";
+    public string AlarmAnalyticsTopic { get; set; } = "traverse.alarm.alarm-analytics";
+    public string SoeEventsTopic { get; set; } = "traverse.alarm.soe-events";
+    public string NotificationEventsTopic { get; set; } = "traverse.alarm.notification-events";
+    public string DeadLetterTopic { get; set; } = "traverse.alarm.dead-letter-events";
     public int MaxRetries { get; set; } = 3;
     public int RetryDelayMs { get; set; } = 1000;
     public bool EnableIdempotence { get; set; } = true;
     public int BatchSizeBytes { get; set; } = 131072;       // 128KB
     public int LingerMs { get; set; } = 5;
-    /// <summary>Seconds without raw-alarms before TELEMETRY_STALLED alert.</summary>
+    /// <summary>Seconds without traverse.alarm.raw-alarms before TELEMETRY_STALLED alert.</summary>
     public int TelemetryStallThresholdSeconds { get; set; } = 60;
     /// <summary>Telemetry authority: gateway or streampipes.</summary>
     public string IngestAuthority { get; set; } = "gateway";
     /// <summary>Deprecated — must remain false (Flink-only mode).</summary>
-    [Obsolete("LabDirectIngest is disabled. Use API → raw-alarms → Flink.")]
+    [Obsolete("LabDirectIngest is disabled. Use API → traverse.alarm.raw-alarms → Flink.")]
     public bool LabDirectIngest { get; set; }
 }
 
 /// <summary>
-/// Materialized alarm state projection (current-alarm-state topic).
+/// Materialized alarm state projection (traverse.alarm.current-alarm-state topic).
 /// </summary>
 public sealed record NormalizedAlarmEvent : IAckCorrelatedEvent
 {

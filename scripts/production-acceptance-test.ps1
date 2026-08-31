@@ -57,17 +57,17 @@ Test-Step "Test 2: Kafka raw-opc-events receiving" {
     Write-Host "  raw-opc-events: message(s) observed"
 }
 
-# Test 3 — Flink current-alarm-state
-Test-Step "Test 3: Flink current-alarm-state" {
+# Test 3 — Flink traverse.alarm.current-alarm-state
+Test-Step "Test 3: Flink traverse.alarm.current-alarm-state" {
     $out = docker exec ams-kafka kafka-console-consumer `
         --bootstrap-server $KafkaBootstrap `
-        --topic current-alarm-state `
+        --topic traverse.alarm.current-alarm-state `
         --timeout-ms 8000 `
         --max-messages 1 2>&1
     if ($LASTEXITCODE -ne 0 -and "$out" -notmatch ".") {
-        throw "No messages on current-alarm-state within 8s"
+        throw "No messages on traverse.alarm.current-alarm-state within 8s"
     }
-    Write-Host "  current-alarm-state: message(s) observed"
+    Write-Host "  traverse.alarm.current-alarm-state: message(s) observed"
 }
 
 # Test 4 — UI latency (API proxy for active alarms freshness)
@@ -81,7 +81,7 @@ Test-Step "Test 4: UI alarm freshness (<1s via API)" {
 
 # Test 5 — ACK lifecycle (informational — requires operator action)
 Test-Step "Test 5: ACK pipeline topics exist" {
-    foreach ($topic in @("operator-actions", "ack-writeback", "ack-results", "lifecycle-events")) {
+    foreach ($topic in @("traverse.alarm.operator-actions", "traverse.alarm.ack-writeback", "traverse.alarm.ack-results", "traverse.alarm.lifecycle-events")) {
         docker exec ams-kafka kafka-topics --bootstrap-server $KafkaBootstrap --list 2>$null | Select-String -Pattern "^$topic$" -Quiet
         if (-not $?) { throw "Topic $topic missing" }
     }

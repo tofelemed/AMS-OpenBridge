@@ -1,0 +1,27 @@
+# Canonical CPA Kafka topics for shared Marun broker
+#
+# Namespace: traverse.cpa.  (product prefix — Instrumental uses raw.instrument.* etc.)
+# This file is the ONLY CPA topic list. Phase 6 script 04 and Phase 8 script 05 MUST read it.
+# Alarm topics are traverse.alarm.* (lab: scripts/kafka-reset-lab-topics.ps1) — not created by 04 this cut.
+#
+# Format (TAB-separated):
+#   topic	partitions	cleanup.policy	retention.ms	compression	code_name
+#
+# code_name matches Flink/C#/Java (Phase 5 wired).
+# retention.ms: 604800000 = 7d; 2592000000 = 30d; empty = compact (no time retention)
+# compression: lz4 or - (broker default)
+#
+# Create flags (Phase 6): --if-not-exists --replication-factor 3 --config min.insync.replicas=2
+# Lab RF=1 is NOT for Marun.
+
+traverse.cpa.loop.samples.v1	16	delete	604800000	lz4	traverse.cpa.loop.samples.v1
+traverse.cpa.clpm.feature.short.v1	8	delete	604800000	-	traverse.cpa.clpm.feature.short.v1
+traverse.cpa.clpm.feature.long.v1	8	delete	604800000	-	traverse.cpa.clpm.feature.long.v1
+traverse.cpa.clpm.gate.results.v1	8	delete	2592000000	-	traverse.cpa.clpm.gate.results.v1
+traverse.cpa.ams.metadata.updates	3	compact		-	traverse.cpa.ams.metadata.updates
+traverse.cpa.context.parameter-set.v1	3	compact		-	traverse.cpa.context.parameter-set.v1
+traverse.cpa.live.loop.metrics	8	delete	604800000	lz4	traverse.cpa.live.loop.metrics
+traverse.cpa.audit-events	4	delete	604800000	-	traverse.cpa.audit-events
+
+# On-demand (do NOT pre-create in 04). Recompute job creates:
+#   traverse.cpa.cplm.replay.{id}	1	delete	7200000	-	cplm.replay.{id}

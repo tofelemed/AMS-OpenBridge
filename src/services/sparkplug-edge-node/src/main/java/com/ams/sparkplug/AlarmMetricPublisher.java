@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Core loop: Kafka(live.alarms, live.metrics) → Sparkplug B DDATA → EMQX.
+ * Core loop: Kafka(traverse.alarm.live.alarms, traverse.live.metrics) → Sparkplug B DDATA → EMQX.
  *
  * Protocol flow (Sparkplug B spec §6):
  *   1. Connect to EMQX with NDEATH as Last-Will.
@@ -277,7 +277,7 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
         LOG.info("Successfully processed alarm {} for device '{}'", alarmId, deviceId);
     }
 
-    // ── Generic process-metric branch (live.metrics) ───────────────────────
+    // ── Generic process-metric branch (traverse.live.metrics) ───────────────────────
     // Forwards arbitrary process values (level/speed/position/…) as Sparkplug
     // DDATA with the metric NAME included (receivers key by device/name, no alias
     // needed) and writes a Redis snapshot. group/edge are taken PER RECORD so a
@@ -332,7 +332,7 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
         LOG.info("Metric {}/{}={} → spBv1.0/{}/DDATA/{}/{}", device, metric, value, group, edge, device);
     }
 
-    // ── CPLM loop-metric branch (live.loop.metrics, Phase 6.2) ────────────
+    // ── CPLM loop-metric branch (traverse.cpa.live.loop.metrics, Phase 6.2) ────────────
     // LoopLiveRbeJob emits one report-by-exception record per changed signal:
     //   {loopId, metric, value, dataType, quality, ts}
     // The loop becomes the Sparkplug device and pv/sp/op/vp/mode its metrics, so

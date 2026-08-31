@@ -15,7 +15,7 @@ namespace Traverse.CplmApi.Services;
 /// Why this exists: the streaming pipeline only emits a verdict when the long
 /// job's event-time timers pass a full 12h/24h window, which takes tens of
 /// minutes of wall-clock after a backfill. The replay job runs in BATCH mode
-/// over a bounded slice of loop.samples.v1 and produces the same fused result in
+/// over a bounded slice of traverse.cpa.loop.samples.v1 and produces the same fused result in
 /// seconds. That is the difference between an evidence system you can
 /// interrogate and one you have to wait on.
 ///
@@ -295,7 +295,7 @@ public sealed class CplmRecomputeOptions
     public const string SectionName = "CplmRecompute";
     /// <summary>Path to the Flink jar inside the ams-api container (bind-mounted).</summary>
     public string JarPath { get; set; } = "/opt/ams/flink/ams-flink.jar";
-    public string SamplesTopic { get; set; } = "loop.samples.v1";
-    public string GateResultsTopic { get; set; } = "clpm.gate.results.v1";
+    public string SamplesTopic { get; set; } = "traverse.cpa.loop.samples.v1";
+    public string GateResultsTopic { get; set; } = "traverse.cpa.clpm.gate.results.v1";
     public string BootstrapServers { get; set; } = "kafka:9092";
 }

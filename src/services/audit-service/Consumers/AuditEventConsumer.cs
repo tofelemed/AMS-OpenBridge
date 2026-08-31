@@ -18,7 +18,7 @@ public class AuditEventConsumer : BackgroundService
         _logger = logger;
         _sp = sp;
         _bootstrapServers = config.GetValue<string>("Kafka:BootstrapServers") ?? "localhost:9092";
-        _topic = "audit-events";
+        _topic = "traverse.cpa.audit-events";
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -31,7 +31,7 @@ public class AuditEventConsumer : BackgroundService
         var config = new ConsumerConfig
         {
             BootstrapServers = _bootstrapServers,
-            GroupId = "audit-service-group",
+            GroupId = "traverse-cpa-audit",
             AutoOffsetReset = AutoOffsetReset.Earliest,
             EnableAutoCommit = false // Manual commit after DB persistence
         };

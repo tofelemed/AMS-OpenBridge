@@ -186,7 +186,7 @@ jobs:
           - audit-service
           - cplm-api
           # Added once it actually compiled (it was missing Serilog.Settings.Configuration)
-          # and became a deployed service — it now consumes lifecycle-alerts (STR-05).
+          # and became a deployed service — it now consumes traverse.alarm.lifecycle-alerts (STR-05).
           - notification-service
     steps:
       - uses: actions/checkout@v4

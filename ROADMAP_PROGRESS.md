@@ -6,7 +6,7 @@ Plan file: `~/.claude/plans/we-re-implementing-a-5-phase-ticklish-haven.md`.
 **Started:** 2026-07-05 · **Environment:** full Docker stack already up (21 containers, 32h; Flink jar built).
 
 ## Decisions locked (user-confirmed)
-- Gate A evidence via the real pipeline: **Python producer → Kafka `live.metrics` → sparkplug-edge-node → EMQX → frontend**, two sites.
+- Gate A evidence via the real pipeline: **Python producer → Kafka `traverse.live.metrics` → sparkplug-edge-node → EMQX → frontend**, two sites.
 - Sites: **houston + dallas**. Tag/asset model: **realistic 2-site plant model** (multiple devices & measurements) — this is the permanent UNS catalog the designer binds to (PI-Vision-AF style), not throwaway.
 - Designer binding UI: **TagPicker/AssetBrowser browse the live asset-model catalog**.
 - Test gate: **typecheck + build** (`npm run build`) + existing `dotnet test tests/integration/binding-resolver.test.csproj`. No new frontend test runner.
@@ -54,14 +54,14 @@ valve position across **houston + dallas**, observed in a real browser (Playwrig
   subscribe (`spBv1.0/+/…`) + env-overridable group/edge. `DisplayDesigner.tsx` load/save aligned to
   backend `snapshot` contract (was broken: sent/read `content`). `vite.config.ts` +`/api/assets`→asset-model
   proxy (AssetBrowser/TagPicker now browse the live UNS catalog).
-- Backend/infra: edge-node generic `live.metrics` branch (per-record group/edge). binding-resolver
+- Backend/infra: edge-node generic `traverse.live.metrics` branch (per-record group/edge). binding-resolver
   asset-model URL-encoding fix. historian-bff multi-site `/snapshot`. `database/scripts/15_*.sql` 2-site
   plant seed. `scripts/sim/process_value_sim.py`. Test expectations corrected in `BindingResolverTests.cs`
   (device `pump101` per asset-model source-of-truth; `ioTDbPath` casing).
 
 ## GATE C — evidence (PASSED 2026-07-05)
 Decision: **Both** (live buffer + IoTDB). Built process-value history: edge-node now also writes
-each numeric `live.metrics` sample to IoTDB via REST at `root.<site>.<unit>.<device>.<measurement>`
+each numeric `traverse.live.metrics` sample to IoTDB via REST at `root.<site>.<unit>.<device>.<measurement>`
 (sim carries the `path`). Verified: `root.houston` auto-created, 10 timeseries, historian `/trend`
 returns real points (28.64/57.77/74.38). Frontend: `mqttStore` live ring-buffer + `getLiveSeries`;
 `fetchTrend` gained `measurements`; new `TrendChart.tsx` (echarts) wired into `chart.trend`.
@@ -113,7 +113,7 @@ refused" was background-poller noise, not the cause.) Also fixed the vite dev pr
 Built: `rules[]`/`multiStateConfig`/`alarmSource` on `CanvasItem`; `ruleEngine.ts` (color/blink/hidden/
 rotate + multistate); alarm annunciators (beacon/banner/summary) + `alarm.table` wired to `alarmStore`
 (`SymbolRenderer.tsx`); viewer connects the alarm hub after login (App-level init); `scripts/sim/limit_watchdog.py`
-(real limit breach → real latched alarm through raw-alarms + current-alarm-state).
+(real limit breach → real latched alarm through traverse.alarm.raw-alarms + traverse.alarm.current-alarm-state).
 **Evidence** (Playwright, logged-in viewer of display `4c31517d`, source `houston/crude1/pump101`):
 | Stage | alarmStore (API `/active`) | Beacon | Banner | Table |
 |---|---|---|---|---|
@@ -568,4 +568,4 @@ unexpected 401/403** ✓. Builds: frontend ✓ 33.7s · display-service ✓ 0 er
 
 ## Change log
 - 2026-07-05: Roadmap kicked off; contract pinned from asset-model/binding-resolver; ROADMAP_PROGRESS created. Phase A started.
-- 2026-07-05: Data pipeline built + VERIFIED end-to-end for houston+dallas. Seeded 36 assets (15_*.sql). Extended edge-node with generic `live.metrics` branch (per-record group/edge). New `scripts/sim/process_value_sim.py`. Fixed binding-resolver asset-model URL-encoding bug (was 404→fallback→wrong device id) + historian-bff multi-site `/snapshot`. Rebuilt+restarted edge-node, binding-resolver, historian-bff. mqttStore de-hardcoded to wildcard subscribe. Observed: houston tank01.level 53.66→58.97→63.48, dallas valve02.position 67.33→74.89→79.99; historian /snapshot returns all 8 devices both sites. Remaining Phase A: A1 generic slots, A2 NE107 staleness, TagPicker catalog, browser evidence.
+- 2026-07-05: Data pipeline built + VERIFIED end-to-end for houston+dallas. Seeded 36 assets (15_*.sql). Extended edge-node with generic `traverse.live.metrics` branch (per-record group/edge). New `scripts/sim/process_value_sim.py`. Fixed binding-resolver asset-model URL-encoding bug (was 404→fallback→wrong device id) + historian-bff multi-site `/snapshot`. Rebuilt+restarted edge-node, binding-resolver, historian-bff. mqttStore de-hardcoded to wildcard subscribe. Observed: houston tank01.level 53.66→58.97→63.48, dallas valve02.position 67.33→74.89→79.99; historian /snapshot returns all 8 devices both sites. Remaining Phase A: A1 generic slots, A2 NE107 staleness, TagPicker catalog, browser evidence.

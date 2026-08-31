@@ -19,7 +19,7 @@ def cb(err, msg):
         print("produce OK to", msg.topic(), "partition", msg.partition(), "offset", msg.offset())
 
 
-p.produce("raw-alarms-dlq", key=b"sim-host-test",
+p.produce("traverse.alarm.raw-alarms-dlq", key=b"sim-host-test",
           value=json.dumps({"hostProduceTest": 1}).encode(), callback=cb)
 p.flush(15)
 print("errors:", errs or "none")

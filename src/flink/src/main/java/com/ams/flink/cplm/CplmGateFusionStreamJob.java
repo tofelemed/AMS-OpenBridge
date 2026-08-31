@@ -23,7 +23,7 @@ import java.util.List;
 /**
  * Stage 3 - Gate fusion job: join of short + long feature streams (Gates 12-15)
  * with keyed temporal persistence (calc v3.0.0).
- * Sources: clpm.feature.short.v1 + clpm.feature.long.v1. Sink: clpm.gate.results.v1
+ * Sources: traverse.cpa.clpm.feature.short.v1 + clpm.feature.long.v1. Sink: traverse.cpa.clpm.gate.results.v1
  */
 public class CplmGateFusionStreamJob {
 

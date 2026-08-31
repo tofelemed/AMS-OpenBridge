@@ -161,7 +161,7 @@ while ((Get-Date) -lt $deadline) {
     $prevEap3 = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     $batch = Invoke-DockerQuiet exec ams-kafka kafka-console-consumer --bootstrap-server localhost:9092 `
-        --topic lifecycle-events --timeout-ms 3000 2>&1
+        --topic traverse.alarm.lifecycle-events --timeout-ms 3000 2>&1
     $ErrorActionPreference = $prevEap3
     foreach ($line in $batch) {
         $st = Parse-LifecycleLine $line

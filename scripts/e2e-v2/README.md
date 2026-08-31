@@ -9,7 +9,7 @@ re-runnable.
 | Area | Checks |
 |---|---|
 | **Governance (P5)** | display create/save/publish, version history, tag filter + search + sort, folders, personal views, favorites, recent, CQRS-rejects-process-values, **ownership 403** (a non-owner Engineer cannot edit another user's display), **audit trail** (governance events land in audit-service) |
-| **Compute (P7)** | create a calculation → execute → the **full Flink loop closes** the execution (analysis-service → `analysis.executions` → `AnalysisExecutionJob` → `analysis.results` → result consumer → `completed`) → the **derived measurement is published to the UNS** (Redis snapshot + asset-model registration); calc **versioning** |
+| **Compute (P7)** | create a calculation → execute → the **full Flink loop closes** the execution (analysis-service → `traverse.analysis.executions` → `AnalysisExecutionJob` → `traverse.analysis.results` → result consumer → `completed`) → the **derived measurement is published to the UNS** (Redis snapshot + asset-model registration); calc **versioning** |
 | **Fidelity (P4/6)** | asset-model unit/limits `by-path`, historian `/summary` aggregate |
 | **Authz (P7.5)** | binding-resolver resolves a tag (no-scope backward-compat). Positive scope-denial needs an `assetScope`-claimed token, which auth-service does not mint yet — documented, skipped |
 
@@ -71,4 +71,4 @@ the containerized `v2-validator` overrides them with internal service DNS. Usefu
 If `compute.flinkLoopRan` fails with *"execution left 'pending'"*, the `AnalysisExecutionJob` is not
 running — rebuild the Flink JAR (`build-flink-jar.ps1`) and submit it (`-EnsureFlink`). If
 `compute.inputsLive` **skips**, the simulator isn't feeding — check `ams-sim` logs and that the
-sparkplug-edge-node is bridging `live.metrics` to Redis.
+sparkplug-edge-node is bridging `traverse.live.metrics` to Redis.

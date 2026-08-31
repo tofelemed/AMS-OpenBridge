@@ -39,7 +39,7 @@ public sealed class HealthPipelineController : ControllerBase
     public async Task<IActionResult> GetKafka(CancellationToken ct)
     {
         var report = await _health.GetAsync(ct, _opcConnections);
-        var topic = _config["Kafka:RawAlarmsTopic"] ?? "raw-alarms";
+        var topic = _config["Kafka:RawAlarmsTopic"] ?? "traverse.alarm.raw-alarms";
         var healthy = string.Equals(report.Kafka.BrokerHealth, "Healthy", StringComparison.OrdinalIgnoreCase);
         return Ok(new
         {

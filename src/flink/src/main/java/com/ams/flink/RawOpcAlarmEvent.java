@@ -21,7 +21,7 @@ public class RawOpcAlarmEvent implements java.io.Serializable {
     public boolean ackRequired;
     /** DCS/OPC ack bit from telemetry — informational only; never drives UI projection. */
     public boolean opcDcsAcknowledged;
-    /** Operator-confirmed ack — only set by ack-results / operator-actions path. */
+    /** Operator-confirmed ack — only set by traverse.alarm.ack-results / traverse.alarm.operator-actions path. */
     public boolean acknowledged;
     public int cookieOffset;
     public long eventTimeEpochMs;

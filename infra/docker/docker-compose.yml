@@ -380,8 +380,8 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       # PIPE-005 / Plan 09: auto-create OFF — a typo'd topic name must fail loudly,
       # not materialize a 4-partition 24h-retention topic. Every required topic is
-      # declared in scripts/kafka-reset-lab-topics.ps1 (incl. audit-events and
-      # lifecycle-alerts since PIPE-006).
+      # declared in scripts/kafka-reset-lab-topics.ps1 (incl. traverse.cpa.audit-events and
+      # traverse.alarm.lifecycle-alerts since PIPE-006).
       KAFKA_AUTO_CREATE_TOPICS_ENABLE:        "false"
       KAFKA_NUM_PARTITIONS:                   4
       KAFKA_HEAP_OPTS:                        "-Xmx1024M -Xms1024M"
@@ -405,7 +405,7 @@ services:
   # ────────────────────────────────────────────────
   # mock-dcs — lab stand-in for the DCS ACK endpoint (PIPE-002).
   # HttpAckWritebackService POSTs acknowledgements here and gets HTTP 200, so the
-  # full ACK loop (operator-actions → ack-writeback → HTTP → ack-results
+  # full ACK loop (traverse.alarm.operator-actions → traverse.alarm.ack-writeback → HTTP → traverse.alarm.ack-results
   # ACK_CONFIRMED → ACK_STATE_UPDATE → Postgres) is testable E2E without a real
   # DCS. Logs every ACK body to stdout for inspection. Remove/override
   # ACK_WRITEBACK_URL when a real feed host exists.
@@ -523,7 +523,7 @@ services:
         # single JM this persists submitted job graphs (ZK pointers + s3 blobs), so a
         # JobManager restart RECOVERS every job from its latest checkpoint instead of
         # wiping the registry and forcing fresh stateless resubmits (the 2026-08-13
-        # failure mode: lost dedup/RBE/CPLM-24h state + raw-alarms replay storms).
+        # failure mode: lost dedup/RBE/CPLM-24h state + traverse.alarm.raw-alarms replay storms).
         # MinIO (STR-02) was the prerequisite; ZK is the same ensemble Kafka uses.
         high-availability.type: zookeeper
         high-availability.zookeeper.quorum: zookeeper:2181
@@ -699,7 +699,7 @@ services:
       Kafka__BootstrapServers:  kafka:9092
       Kafka__IngestAuthority:        api
       Kafka__ConsumerGroupId:        ams-backend-2
-      Kafka__RawAlarmsTopic:         raw-alarms
+      Kafka__RawAlarmsTopic:         traverse.alarm.raw-alarms
       Flink__JobManagerUrl:          http://flink-jobmanager:8081
       AlarmIngestion__Enabled:       "true"
       AlarmIngestion__FeedUrl:          http://192.168.1.51:8010/api/current-alarms
@@ -795,7 +795,7 @@ services:
 
   # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   # Phase 3 â€” Sparkplug B Edge Node
-  # Kafka(live.alarms, live.metrics) â†’ EMQX â†’ HMI
+  # Kafka(traverse.alarm.live.alarms, traverse.live.metrics) â†’ EMQX â†’ HMI
   # Also writes Redis snapshot cache
   # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   sparkplug-edge-node:
@@ -813,9 +813,10 @@ services:
         condition: service_healthy
     environment:
       KAFKA_BROKERS:            kafka:9092
-      LIVE_ALARMS_TOPIC:        live.alarms
-      LIVE_METRICS_TOPIC:       live.metrics
-      KAFKA_GROUP_ID:           ams-sparkplug-edge-node
+      LIVE_ALARMS_TOPIC:        traverse.alarm.live.alarms
+      LIVE_METRICS_TOPIC:       traverse.live.metrics
+      LIVE_LOOP_METRICS_TOPIC:  traverse.cpa.live.loop.metrics
+      KAFKA_GROUP_ID:           traverse-sparkplug-edge
       # earliest = replay existing messages on startup (needed for E2E tests)
       KAFKA_AUTO_OFFSET_RESET:  earliest
       MQTT_HOST:                emqx
@@ -975,7 +976,7 @@ services:
       # Master secret for AES-256-GCM credential encryption (>= 32 chars).
       # Rotating it orphans every stored broker password - operators re-enter them.
       ENCRYPTION_KEY: ${INGESTION_ENCRYPTION_KEY:?INGESTION_ENCRYPTION_KEY must be set (>= 32 chars, generate with openssl rand -hex 24)}
-      # audit-events producer (fire-and-forget; empty disables)
+      # traverse.cpa.audit-events producer (fire-and-forget; empty disables)
       Kafka__BootstrapServers: kafka:9092
       # Platform auth (edge-only): authorize from gateway-injected X-Auth-* headers.
       # No internal X-Service-Key callers - service principal scope stays empty.
@@ -1015,7 +1016,7 @@ services:
       DB_USER: ams_user
       DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set â€” see infra/docker/.env.example}
       # RBAC governance audit trail (Phase 3): role/permission/user changes are emitted
-      # to audit-events for the tamper-evident store. Unset â†’ emit is a no-op (dev).
+      # to traverse.cpa.audit-events for the tamper-evident store. Unset â†’ emit is a no-op (dev).
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       # Stable RS256 key persisted in the auth-keys volume (generated on first start).
       JWT_PRIVATE_KEY_PATH: /app/keys/jwt-private.pem
@@ -1141,7 +1142,7 @@ services:
 
   # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   # Phase 5 (V2) â€” Audit Service
-  # Consumes audit-events (governance actions emitted by display-service) into an immutable, hash-chained
+  # Consumes traverse.cpa.audit-events (governance actions emitted by display-service) into an immutable, hash-chained
   # store and exposes GET /api/v1/audit. Without this the audit trail has a producer but no consumer.
   # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   audit-service:
@@ -1176,7 +1177,7 @@ services:
   # Notification Service â€” root-cause + platform lifecycle alerts
   #
   # STR-05: this service existed in the tree but was never deployed, which left
-  # the `lifecycle-alerts` topic with two producers (the telemetry deadman and the
+  # the `traverse.alarm.lifecycle-alerts` topic with two producers (the telemetry deadman and the
   # ACK-SLA watchdog in ams-api) and NO consumer â€” a dead OPC feed raised nothing
   # an operator could see. It also never compiled until Serilog.Settings.Configuration
   # was added, which is why CI excluded it from the build matrix.
@@ -1193,7 +1194,7 @@ services:
     environment:
       ASPNETCORE_URLS: http://0.0.0.0:8080
       Kafka__BootstrapServers: kafka:9092
-      Kafka__LifecycleAlertsTopic: lifecycle-alerts
+      Kafka__LifecycleAlertsTopic: traverse.alarm.lifecycle-alerts
       # Platform auth (AUTH-07): validate RS256 tokens from auth-service. No X-Service-Key is set â€”
       # this worker receives no internal calls â€” so the service-principal scope is empty.
       Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
@@ -1326,7 +1327,7 @@ services:
       # deleted in Phase 6.
       Cpm__EnableMutations:  "true"
       # Phase 4 cutover flag â€” CUTOVER DONE 2026-08-06: this service owns the
-      # ams-api-cplm-results(+-frames) groups. AMS.Api's matching flag must stay
+      # traverse-cpa-cplm-results(+-frames) groups. AMS.Api's matching flag must stay
       # false; two members in one group split partitions and silently halve
       # persistence.
       Cplm__ConsumersEnabled: "true"
@@ -1420,7 +1421,7 @@ services:
 
   # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   # Phase 2 â€” Flink live-state job submit
-  # Submits LiveStateJob (live.alarms, live.metrics RBE)
+  # Submits LiveStateJob (traverse.alarm.live.alarms, traverse.live.metrics RBE)
   # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   flink-job-submit-live-state:
     build:
@@ -1451,7 +1452,7 @@ services:
   # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   # Phase 2 (CPLM) â€” three-stage pipeline submit
   # Short Feature â†’ Long Diagnostics â†’ Gate Fusion
-  # (loop.samples.v1 â†’ clpm.gate.results.v1)
+  # (traverse.cpa.loop.samples.v1 â†’ traverse.cpa.clpm.gate.results.v1)
   # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   flink-job-submit-cplm:
     build:
@@ -1473,7 +1474,7 @@ services:
       FLINK_JOBMANAGER_PORT: "8081"
       KAFKA_BROKERS:         kafka:9092
       FLINK_JAR_PATH:        /opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar
-      CPLM_INPUT_TOPIC:      loop.samples.v1
+      CPLM_INPUT_TOPIC:      traverse.cpa.loop.samples.v1
     volumes:
       - ./flink-submit-cplm.sh:/opt/flink-submit-cplm.sh:ro
     networks:
@@ -1510,7 +1511,7 @@ services:
       SUPERVISOR_INTERVAL_SEC:     "60"
       # Prod item 4 (2026-08-17): resume from the consumer group's committed offsets
       # (earliest only on a true first deploy). "earliest" made every fresh submit
-      # replay the whole raw-alarms topic — idempotent downstream, but a burst of
+      # replay the whole traverse.alarm.raw-alarms topic — idempotent downstream, but a burst of
       # thousands of re-upserts through CAS/SignalR/historian on each JM incident.
       RAW_ALARMS_STARTING_OFFSETS: committed
       IOTDB_HOST:                  iotdb
@@ -1588,6 +1589,13 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?GRAFANA_PASSWORD must be set}
       GF_SERVER_ROOT_URL:         http://localhost:3001
       GF_USERS_ALLOW_SIGN_UP:     "false"
+      # Air-gap: never hit grafana.com on boot (plugin store / news / analytics).
+      GF_INSTALL_PLUGINS: ""
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_PLUGINS_PUBLIC_KEY_RETRIEVAL_DISABLED: "true"
+      GF_CHECK_FOR_UPDATES: "false"
       # Auto-provision Prometheus as default datasource
       GF_DATASOURCES_DEFAULT_URL: http://prometheus:9090
     volumes:

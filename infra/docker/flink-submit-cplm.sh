@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Submits the CPLM three-stage pipeline (loop.samples.v1 → clpm.gate.results.v1)
+# Submits the CPLM three-stage pipeline (traverse.cpa.loop.samples.v1 → traverse.cpa.clpm.gate.results.v1)
 # once the Flink cluster is ready: Short Feature → Long Diagnostics → Gate Fusion.
 #
 # Fusion is submitted LAST: its two Kafka sources start at OffsetsInitializer.latest(),
@@ -9,8 +9,8 @@
 # NOT submitted here:
 #   - CplmGateStreamJob        (legacy monolith; would double-produce gate results)
 #   - CplmHistoricalReplayJob  (on-demand batch, per-request job name)
-#   - LoopLiveRbeJob           (Phase 6; produces to live.loop.metrics — its own topic,
-#                               kept apart from LiveStateJob's live.metrics)
+#   - LoopLiveRbeJob           (Phase 6; produces to traverse.cpa.live.loop.metrics — its own topic,
+#                               kept apart from LiveStateJob's traverse.live.metrics)
 set -euo pipefail
 
 JOBMANAGER_HOST="${FLINK_JOBMANAGER_HOST:-ams-flink-jobmanager}"
@@ -20,14 +20,14 @@ KAFKA_BROKERS="${KAFKA_BROKERS:-kafka:9092}"
 JAR_PATH="${FLINK_JAR_PATH:-/opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar}"
 MAX_WAIT="${FLINK_SUBMIT_MAX_WAIT_SEC:-300}"
 
-# The compiled default input topic (clpm.normalized.samples.v1) is dead — every
+# The compiled default input topic (traverse.cpa.clpm.normalized.samples.v1) is dead — every
 # submit MUST pass --input-topic explicitly or the jobs silently consume an
 # auto-created empty topic.
-INPUT_TOPIC="${CPLM_INPUT_TOPIC:-loop.samples.v1}"
-SHORT_TOPIC="${CPLM_SHORT_FEATURE_TOPIC:-clpm.feature.short.v1}"
-LONG_TOPIC="${CPLM_LONG_FEATURE_TOPIC:-clpm.feature.long.v1}"
-OUTPUT_TOPIC="${CPLM_OUTPUT_TOPIC:-clpm.gate.results.v1}"
-CONSUMER_GROUP="${CPLM_CONSUMER_GROUP:-flink-ams-cplm}"
+INPUT_TOPIC="${CPLM_INPUT_TOPIC:-traverse.cpa.loop.samples.v1}"
+SHORT_TOPIC="${CPLM_SHORT_FEATURE_TOPIC:-traverse.cpa.clpm.feature.short.v1}"
+LONG_TOPIC="${CPLM_LONG_FEATURE_TOPIC:-traverse.cpa.clpm.feature.long.v1}"
+OUTPUT_TOPIC="${CPLM_OUTPUT_TOPIC:-traverse.cpa.clpm.gate.results.v1}"
+CONSUMER_GROUP="${CPLM_CONSUMER_GROUP:-traverse-cpa-flink-cplm}"
 WINDOW_HOURS="${CPLM_WINDOW_HOURS:-24}"
 
 echo "[CPLM Submit] Waiting for JobManager at ${JM_URL}..."

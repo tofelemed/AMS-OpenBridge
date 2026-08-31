@@ -96,7 +96,7 @@ public sealed class OperatorActionPublisher : IOperatorActionPublisher
 
         await _lifecycle.EmitAsync(correlation, alarm.Id.ToString(), partitionKey,
             AckLifecycleStates.Queued,
-            "Published to operator-actions topic",
+            "Published to traverse.alarm.operator-actions topic",
             AckLifecycleStates.Requested,
             ct);
 

@@ -59,7 +59,7 @@ try {
 
 Write-Section "Active ingest path"
 $raw = Test-KafkaTopicOffsets "raw-opc-events"
-$curr = Test-KafkaTopicOffsets "current-alarm-state"
+$curr = Test-KafkaTopicOffsets "traverse.alarm.current-alarm-state"
 $created = Test-KafkaTopicOffsets "alarm-created"
 
 foreach ($t in @($raw, $curr, $created)) {
@@ -75,7 +75,7 @@ $currTotal = if ($curr.TotalOffset) { $curr.TotalOffset } else { 0 }
 $createdTotal = if ($created.TotalOffset) { $created.TotalOffset } else { 0 }
 
 if ($rawTotal -gt 0 -and $currTotal -gt 0) {
-    Write-Host "`n  => Production path active: raw-opc-events -> Flink -> current-alarm-state" -ForegroundColor Green
+    Write-Host "`n  => Production path active: raw-opc-events -> Flink -> traverse.alarm.current-alarm-state" -ForegroundColor Green
     Write-Host "     NormalizedAlarmConsumerService should project to PostgreSQL." -ForegroundColor DarkGray
 } elseif ($createdTotal -gt 0) {
     Write-Host "`n  => Lab path active: alarm-* topics (OpcHttpIngestor)" -ForegroundColor Yellow
@@ -85,7 +85,7 @@ if ($rawTotal -gt 0 -and $currTotal -gt 0) {
     Write-Host "     - Kafka broker unhealthy (restart kafka)" -ForegroundColor DarkGray
     Write-Host "     - OPC simulator/gateway down (production path)" -ForegroundColor DarkGray
     Write-Host "     - OpcHttpIngest.FeedUrl unreachable (lab HTTP path)" -ForegroundColor DarkGray
-    Write-Host "     - AlarmIngestion:FeedUrl unreachable (ams-api polls the OPC feed into raw-alarms)" -ForegroundColor DarkGray
+    Write-Host "     - AlarmIngestion:FeedUrl unreachable (ams-api polls the OPC feed into traverse.alarm.raw-alarms)" -ForegroundColor DarkGray
 }
 
 Write-Section "Recommended actions"

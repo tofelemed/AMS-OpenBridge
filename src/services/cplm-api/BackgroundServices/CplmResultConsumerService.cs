@@ -16,9 +16,9 @@ namespace Traverse.CplmApi.BackgroundServices;
 
 /// <summary>
 /// CPLM Phase 3 — persists the three CPLM result streams into Postgres:
-///   clpm.gate.results.v1   → analytics.cplm_gate_results
-///   clpm.feature.short.v1  → analytics.cplm_short_feature_results
-///   clpm.feature.long.v1   → analytics.cplm_long_feature_results
+///   traverse.cpa.clpm.gate.results.v1   → analytics.cplm_gate_results
+///   traverse.cpa.clpm.feature.short.v1  → analytics.cplm_short_feature_results
+///   traverse.cpa.clpm.feature.long.v1   → analytics.cplm_long_feature_results
 ///
 /// Ported from the CPA reference KpiConsumerService with deliberate upgrades:
 ///   * self-healing DDL on startup (same statements as 30_cplm_analytics_schema.sql),
@@ -524,9 +524,9 @@ public sealed class CplmResultConsumerService : BackgroundService
 public sealed class CplmOptions
 {
     public const string SectionName = "Cplm";
-    public string SamplesTopic { get; set; } = "loop.samples.v1";
-    public string GateResultsTopic { get; set; } = "clpm.gate.results.v1";
-    public string ShortFeatureTopic { get; set; } = "clpm.feature.short.v1";
-    public string LongFeatureTopic { get; set; } = "clpm.feature.long.v1";
-    public string ConsumerGroupId { get; set; } = "ams-api-cplm-results";
+    public string SamplesTopic { get; set; } = "traverse.cpa.loop.samples.v1";
+    public string GateResultsTopic { get; set; } = "traverse.cpa.clpm.gate.results.v1";
+    public string ShortFeatureTopic { get; set; } = "traverse.cpa.clpm.feature.short.v1";
+    public string LongFeatureTopic { get; set; } = "traverse.cpa.clpm.feature.long.v1";
+    public string ConsumerGroupId { get; set; } = "traverse-cpa-cplm-results";
 }

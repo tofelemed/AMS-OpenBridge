@@ -103,8 +103,8 @@ public static class OperatorReadinessBuilder
                 kafka.BrokerHealth != "Healthy" ? "Check ams-kafka container and port 9092" : null),
             "flink" => (
                 $"{flink.Status}, restarts={flink.RestartCount}, checkpoint={flink.CheckpointLatencyMs}ms, "
-                + $"raw-alarms={flink.RawAlarmsProcessed}, in={flink.RecordsReceived}, out={flink.RecordsSent}, "
-                + $"operator-actions={flink.OperatorActionsProcessed}, ack-results={flink.AckResultsProcessed}",
+                + $"traverse.alarm.raw-alarms={flink.RawAlarmsProcessed}, in={flink.RecordsReceived}, out={flink.RecordsSent}, "
+                + $"traverse.alarm.operator-actions={flink.OperatorActionsProcessed}, traverse.alarm.ack-results={flink.AckResultsProcessed}",
                 flink.RestartCount > 0 ? "Inspect Flink UI :8082 for failed tasks" :
                 flink.Status != "Running" ? "Submit OpcEventStreamJob via stabilize-ams-e2e.ps1" : null),
             "ack" => (

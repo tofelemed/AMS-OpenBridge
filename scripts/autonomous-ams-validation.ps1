@@ -98,7 +98,7 @@ if (-not $SkipReset) {
         & $resetScript -Force 2>&1 | Out-Null
         $p1 = Test-Check $p1 "Kafka lab topics reset" ($LASTEXITCODE -eq 0) "kafka-reset-lab-topics.ps1"
     } else {
-        $topics = @("raw-opc-events", "current-alarm-state", "lifecycle-events", "ack-results", "ack-writeback", "operator-actions")
+        $topics = @("raw-opc-events", "traverse.alarm.current-alarm-state", "traverse.alarm.lifecycle-events", "traverse.alarm.ack-results", "traverse.alarm.ack-writeback", "traverse.alarm.operator-actions")
         foreach ($t in $topics) {
             docker exec ams-kafka kafka-topics --bootstrap-server localhost:9092 --delete --topic $t 2>$null | Out-Null
             docker exec ams-kafka kafka-topics --bootstrap-server localhost:9092 `

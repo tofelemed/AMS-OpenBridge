@@ -44,7 +44,7 @@ public final class CplmHistoricalReplayJob {
         String brokers = params.get("brokers",
                 System.getenv().getOrDefault("KAFKA_BROKERS", "kafka:9092"));
         String inputTopic = params.getRequired("input-topic");
-        String outputTopic = params.get("output-topic", "clpm.gate.results.v1");
+        String outputTopic = params.get("output-topic", "traverse.cpa.clpm.gate.results.v1");
         String loopId = params.getRequired("loop-id");
         String replayId = params.getRequired("replay-id");
         // Registry evidence for G12/G13. The streaming path receives these on the

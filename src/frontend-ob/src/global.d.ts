@@ -38,6 +38,13 @@ declare module '@oicl/openbridge-webcomponents-react/components/button/button' {
     variant?: 'flat' | 'normal' | 'raised' | 'amplified';
     size?: 'small' | 'regular' | 'large';
     disabled?: boolean;
+    /** Stretch the button to the full width of its container. */
+    fullWidth?: boolean;
+    /** Reveal the `leading-icon` slot (an icon child with slot="leading-icon"). */
+    showLeadingIcon?: boolean;
+    /** Reveal the `trailing-icon` slot. */
+    showTrailingIcon?: boolean;
+    className?: string;
     onClick?: () => void;
     children?: ReactNode;
   }
@@ -206,3 +213,9 @@ declare module '@oicl/openbridge-webcomponents-react/components/automation-butto
   import { FC } from 'react';
   export const ObcAutomationButtonReadoutStack: FC<Record<string, unknown>>;
 }
+
+/**
+ * Build version, injected by Vite's `define` from package.json (see vite.config.ts).
+ * Shown on the login status strip so an operator can report the exact build.
+ */
+declare const __APP_VERSION__: string;

@@ -50,7 +50,7 @@ graph TD
 
 **ACK control plane (optional Windows service):**
 
-- **Role:** Consume `ack-writeback`, publish `ack-results` / lifecycle (no telemetry publish).
+- **Role:** Consume `traverse.alarm.ack-writeback`, publish `traverse.alarm.ack-results` / lifecycle (no telemetry publish).
 - **Implementation:** `AMS.OpcGateway` ACK-only; OPC UA DCS writeback is the planned replacement for Classic A&E ACK.
 - Python simulators (`storm_generator.py`) remain for load testing only, not production.
 
@@ -64,14 +64,14 @@ graph TD
 - **Role:** The high-throughput, fault-tolerant telemetry backbone bridging the PCD and the IOC.
 - **Key Topics:** 
   - `raw-opc-events`: High-velocity ingestion of raw alarms from the edge.
-  - `current-alarm-state`: An upsert topic maintaining the precise, real-time state of all active alarms.
-  - `audit-events`: An append-only log recording every state transition, operator acknowledgment, and system configuration change.
+  - `traverse.alarm.current-alarm-state`: An upsert topic maintaining the precise, real-time state of all active alarms.
+  - `traverse.cpa.audit-events`: An append-only log recording every state transition, operator acknowledgment, and system configuration change.
 
 ### 3.3 Stream Processing Engine (Apache Flink)
 - **Role:** The core stateful correlation and alarm lifecycle engine designed to process events exactly-once.
-- **Job:** `AMS - Event-Sourced Alarm State Machine` (`OpcEventStreamJob.java`) with per-stage parallelism (ingest, dedup, ACK, ack-results, sinks).
-- **Ingest:** `raw-opc-events` → normalize → dedupe → `current-alarm-state`
-- **ACK commands:** `operator-actions` → Flink ACK Orchestrator → `ack-writeback` + `lifecycle-events` + `current-alarm-state` → OPC Gateway → DCS → `ack-results` reconciliation
+- **Job:** `AMS - Event-Sourced Alarm State Machine` (`OpcEventStreamJob.java`) with per-stage parallelism (ingest, dedup, ACK, traverse.alarm.ack-results, sinks).
+- **Ingest:** `raw-opc-events` → normalize → dedupe → `traverse.alarm.current-alarm-state`
+- **ACK commands:** `traverse.alarm.operator-actions` → Flink ACK Orchestrator → `traverse.alarm.ack-writeback` + `traverse.alarm.lifecycle-events` + `traverse.alarm.current-alarm-state` → OPC Gateway → DCS → `traverse.alarm.ack-results` reconciliation
 - **.NET fallback:** When `Kafka:UseFlinkOrchestration` is `false`, `AlarmStreamProcessorService` performs the same orchestration.
 
 ### 3.4 Central Backend (.NET 8 Web API)
@@ -89,7 +89,7 @@ graph TD
 ### 3.6 Control Loop Performance Service (`cplm-api`, .NET 8)
 - **Role:** Owns control-loop performance monitoring end to end — a separate deploy unit from the alarm backend so loop analytics can scale and release independently. Port **5006**; nginx proxies `/api/v1/cpm/*` to it.
 - **Boundary:** Its own logical database, `traverse_cplm` (schemas `analytics.*`, `cpm.*`), in the shared Postgres cluster. **No query joins CPLM data to alarm-core tables** — the two systems meet over Kafka and HTTP, never in SQL.
-- **Kafka (async data plane):** consumes `clpm.gate.results.v1`, `clpm.feature.short.v1`, `clpm.feature.long.v1`; produces `ams.metadata.updates` (loop evidence that makes G13 evaluable) and `audit-events`. It owns the consumer groups `ams-api-cplm-results` and `ams-api-cplm-results-frames` — **exactly one member process, ever** (see `docs/cplm-consumer-cutover-runbook.md`).
+- **Kafka (async data plane):** consumes `traverse.cpa.clpm.gate.results.v1`, `traverse.cpa.clpm.feature.short.v1`, `traverse.cpa.clpm.feature.long.v1`; produces `traverse.cpa.ams.metadata.updates` (loop evidence that makes G13 evaluable) and `traverse.cpa.audit-events`. It owns the consumer groups `traverse-cpa-cplm-results` and `ams-api-cplm-results-frames` — **exactly one member process, ever** (see `docs/cplm-consumer-cutover-runbook.md`).
 - **HTTP (sync control plane):** asset-model for peer-link projection, Flink REST for A8 batch recompute and pipeline metrics, binding-resolver for readiness provenance.
 - **Dual persistence:** gate/feature results into Postgres (idempotent upsert on `loop_id, window_kind, window_end, source`), KPI series into IoTDB at `root.site1.cpm.<loop>.kpi.<family>`.
 - **Not here:** `RawLoopIotDbConsumer` (raw loop samples → IoTDB historian) stays in the alarm backend with its own consumer group.

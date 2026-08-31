@@ -6,7 +6,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import java.io.Serializable;
 
 /**
- * Normalized control-loop sample — supports both legacy loop-raw-data ({@code tagId,timestamp})
+ * Normalized control-loop sample — supports both legacy traverse.cpa.loop-raw-data ({@code tagId,timestamp})
  * and CPLM reference format ({@code loop_id,event_ts_ms,quality,vp}).
  */
 public final class CplmNormalizedSample implements Serializable {

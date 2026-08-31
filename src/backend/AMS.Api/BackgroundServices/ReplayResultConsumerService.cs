@@ -36,9 +36,9 @@ public sealed class ReplayResultConsumerService : BackgroundService
         };
 
         using var consumer = new ConsumerBuilder<Ignore, string>(config).Build();
-        consumer.Subscribe("flink.state.alarm.replay");
+        consumer.Subscribe("traverse.alarm.flink.state.alarm.replay");
 
-        _logger.LogInformation("Started ReplayResultConsumerService listening to flink.state.alarm.replay");
+        _logger.LogInformation("Started ReplayResultConsumerService listening to traverse.alarm.flink.state.alarm.replay");
 
         while (!stoppingToken.IsCancellationRequested)
         {

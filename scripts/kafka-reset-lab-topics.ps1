@@ -16,75 +16,87 @@ $rf = if ($env:KAFKA_TOPIC_RF) { $env:KAFKA_TOPIC_RF } else { "1" }
 $minIsr = if ($env:KAFKA_TOPIC_MIN_ISR) { $env:KAFKA_TOPIC_MIN_ISR } else { "1" }
 
 $allowedTopics = @(
-    @{ Name = "raw-alarms"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
-    @{ Name = "raw-alarms-dlq"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "current-alarm-state"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=compact,min.insync.replicas=$minIsr" },
-    @{ Name = "operator-actions"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "ack-writeback"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "ack-results"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "lifecycle-events"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "root-cause-events"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "loop-raw-data"; Partitions = 16; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "loop-kpis-5m"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "kpi-alarm-rates"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "kpi-bad-actors"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "kpi-standing-snapshots"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=compact,min.insync.replicas=$minIsr" },
-    @{ Name = "kpi-health-scores"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "alarm.events.raw"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "alarm.state.delta"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "alarm.state.active"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=compact,min.insync.replicas=$minIsr" },
-    @{ Name = "flink.state.alarm.delta"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.alarm.raw-alarms"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
+    @{ Name = "traverse.alarm.raw-alarms-dlq"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.alarm.current-alarm-state"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=compact,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.alarm.operator-actions"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.alarm.ack-writeback"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.alarm.ack-results"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.alarm.lifecycle-events"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.alarm.root-cause-events"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.cpa.loop-raw-data"; Partitions = 16; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.cpa.loop-kpis-5m"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.alarm.kpi-alarm-rates"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.alarm.kpi-bad-actors"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.alarm.kpi-standing-snapshots"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=compact,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.alarm.kpi-health-scores"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.alarm.events.raw"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.alarm.state.delta"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.alarm.state.active"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=compact,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.alarm.flink.state.alarm.delta"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     # Written by AlarmReplayEngine, consumed by ams-api ReplayResultConsumerService.
     # Was missing here (auto-create used to paper over it; Plan 09 turns auto-create off).
-    @{ Name = "flink.state.alarm.replay"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    # Phase 7 calculation loop: analysis-service -> analysis.executions -> AnalysisExecutionJob
-    # -> analysis.results -> analysis-service. Also missing here until 2026-08-12 (same trap).
-    @{ Name = "analysis.executions"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "analysis.results"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "system.state.drift.alerts"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.alarm.flink.state.alarm.replay"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    # Phase 7 calculation loop: analysis-service -> traverse.analysis.executions -> AnalysisExecutionJob
+    # -> traverse.analysis.results -> analysis-service. Also missing here until 2026-08-12 (same trap).
+    @{ Name = "traverse.analysis.executions"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.analysis.results"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.system.state.drift.alerts"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
 
     # ── Phase 0: Edge platform live & telemetry topics ──────────────────────
     # Live state (Report-By-Exception): Flink LiveStateJob → Sparkplug Edge Node
-    @{ Name = "live.metrics"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
-    @{ Name = "live.alarms";  Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
+    @{ Name = "traverse.live.metrics"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
+    @{ Name = "traverse.alarm.live.alarms";  Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
     # STR-12 split: LiveStateJob's alarm-shaped numeric metrics go here, NOT to
-    # live.metrics (that carries the {device,metric,value} process-value schema).
+    # traverse.live.metrics (that carries the {device,metric,value} process-value schema).
     # Uncataloged until 2026-08-13: with auto-create now OFF (Plan 09/PIPE-005) a
     # missing topic stalls the producer at checkpoint flush and restart-loops the
     # Live State RBE job.
-    @{ Name = "live.alarm.metrics"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
+    @{ Name = "traverse.alarm.live.alarm.metrics"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
     # Raw telemetry (harmonised samples – StreamPipes path, future use)
-    @{ Name = "raw.telemetry.site1"; Partitions = 16; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" }
+    @{ Name = "traverse.raw.telemetry.site1"; Partitions = 16; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" }
 )
 
 # ── Phase 2 (CPLM): ensure-only topics — NEVER deleted by this script ─────────
-# clpm.gate.results.v1 is evidence data with 30 d retention and loop.samples.v1
+# traverse.cpa.clpm.gate.results.v1 is evidence data with 30 d retention and traverse.cpa.loop.samples.v1
 # feeds a job holding 24 h of keyed state; wiping them on every stack start
 # (start-ams-production.ps1 calls this script with -Force) would destroy replay
 # margin and diagnosis history. These are created if missing and their configs
 # are aligned if they already exist, but existing data is left alone.
-# NB: every CPLM job also subscribes to ams.metadata.updates unconditionally.
+# NB: every CPLM job also subscribes to traverse.cpa.ams.metadata.updates unconditionally.
 $cplmRetention30d = "2592000000"
 $ensureTopics = @(
-    @{ Name = "loop.samples.v1"; Partitions = 16; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
-    @{ Name = "clpm.feature.short.v1"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "clpm.feature.long.v1"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "clpm.gate.results.v1"; Partitions = 8; Config = "retention.ms=$cplmRetention30d,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "live.loop.metrics"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
-    @{ Name = "ams.metadata.updates"; Partitions = 3; Config = "cleanup.policy=compact,min.insync.replicas=$minIsr" },
-    @{ Name = "context.parameter-set.v1"; Partitions = 3; Config = "cleanup.policy=compact,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.cpa.loop.samples.v1"; Partitions = 16; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
+    @{ Name = "traverse.cpa.clpm.feature.short.v1"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.cpa.clpm.feature.long.v1"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.cpa.clpm.gate.results.v1"; Partitions = 8; Config = "retention.ms=$cplmRetention30d,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.cpa.live.loop.metrics"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
+    @{ Name = "traverse.cpa.ams.metadata.updates"; Partitions = 3; Config = "cleanup.policy=compact,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.cpa.context.parameter-set.v1"; Partitions = 3; Config = "cleanup.policy=compact,min.insync.replicas=$minIsr" },
     # PIPE-006: previously uncataloged — they existed only via broker auto-create
-    # (24 h retention). audit-events is the governance transport (display-service /
-    # cplm-api → audit-service); lifecycle-alerts carries the deadman + ACK-SLA
+    # (24 h retention). traverse.cpa.audit-events is the governance transport (display-service /
+    # cplm-api → audit-service); traverse.alarm.lifecycle-alerts carries the deadman + ACK-SLA
     # watchdog alerts consumed by notification-service (STR-05). Ensure-only:
     # audit/alert data is never wiped by a stack reset.
-    @{ Name = "audit-events"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "lifecycle-alerts"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" }
+    @{ Name = "traverse.cpa.audit-events"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.alarm.lifecycle-alerts"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" }
 )
 
 $legacyTopics = @(
     "raw-opc-events", "raw-opc-events-dlq", "current-opc-state", "opc-events", "opc-ack",
-    "alarm-created", "alarm-updated", "alarm-cleared", "alarm-acknowledged"
+    "alarm-created", "alarm-updated", "alarm-cleared", "alarm-acknowledged",
+    # Unprefixed names retired when topics moved to traverse.alarm.* / traverse.cpa.*
+    "raw-alarms", "raw-alarms-dlq", "current-alarm-state", "operator-actions",
+    "ack-writeback", "ack-results", "lifecycle-events", "root-cause-events",
+    "loop-raw-data", "loop-kpis-5m", "kpi-alarm-rates", "kpi-bad-actors",
+    "kpi-standing-snapshots", "kpi-health-scores",
+    "alarm.events.raw", "alarm.state.delta", "alarm.state.active",
+    "flink.state.alarm.delta", "flink.state.alarm.replay",
+    "analysis.executions", "analysis.results", "system.state.drift.alerts",
+    "live.metrics", "live.alarms", "live.alarm.metrics", "raw.telemetry.site1",
+    "loop.samples.v1", "clpm.feature.short.v1", "clpm.feature.long.v1", "clpm.gate.results.v1",
+    "live.loop.metrics", "ams.metadata.updates", "context.parameter-set.v1",
+    "audit-events", "lifecycle-alerts"
 )
 
 if (-not $Force) {

@@ -36,7 +36,7 @@ public class AlarmReplayEngine {
         
         KafkaSource<String> rawSource = KafkaSource.<String>builder()
                 .setBootstrapServers(brokers)
-                .setTopics("alarm.events.raw")
+                .setTopics("traverse.alarm.events.raw")
                 .setGroupId("ams-replay-cg-" + replayId)
                 .setStartingOffsets(OffsetsInitializer.timestamp(startTimestamp))
                 .setValueOnlyDeserializer(new SimpleStringSchema())
@@ -108,7 +108,7 @@ public class AlarmReplayEngine {
                 .setBootstrapServers(brokers)
                 .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .setRecordSerializer(KafkaRecordSerializationSchema.builder()
-                        .setTopic("flink.state.alarm.replay")
+                        .setTopic("traverse.alarm.flink.state.alarm.replay")
                         .setValueSerializationSchema(new SimpleStringSchema())
                         .build()
                 )

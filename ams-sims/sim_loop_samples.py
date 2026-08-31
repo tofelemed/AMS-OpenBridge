@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CPLM / loop path: loop.samples.v1 -> {CplmShortFeatureStreamJob,
+"""CPLM / loop path: traverse.cpa.loop.samples.v1 -> {CplmShortFeatureStreamJob,
 CplmLongDiagnosticsStreamJob, CplmGateFusionStreamJob} -> clpm.*.v1 ->
 cplm-api consumers -> traverse_cplm + IoTDB KPI dual-write; in parallel
 RawLoopIotDbConsumer -> root.site1.cpm.<loop>.{pv,sp,op,vp,mode} and
@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import simlib as sl
 
-CPLM_TOPICS = ["clpm.feature.short.v1", "clpm.feature.long.v1", "clpm.gate.results.v1"]
+CPLM_TOPICS = ["traverse.cpa.clpm.feature.short.v1", "traverse.cpa.clpm.feature.long.v1", "traverse.cpa.clpm.gate.results.v1"]
 
 
 def iotdb_count(loop: str, measurement: str = "pv") -> int:
@@ -67,7 +67,7 @@ def main() -> int:
     forbidden = [n for n in running_names if "Gate Engine" in n or "CplmGateStream" in n]
 
     baselines = {t: sl.kafka_end_offset_sum(t) for t in CPLM_TOPICS}
-    baselines["live.loop.metrics"] = sl.kafka_end_offset_sum("live.loop.metrics")
+    baselines["traverse.cpa.live.loop.metrics"] = sl.kafka_end_offset_sum("traverse.cpa.live.loop.metrics")
     iotdb_before = {l: iotdb_count(l) for l in loops}
     pg_gate_before = int(sl.pg_query(
         "SELECT count(*) FROM analytics.cplm_gate_results", db="traverse_cplm")[0][0])
@@ -94,7 +94,7 @@ def main() -> int:
                 loop, event_ts_ms=ts, pv=round(pv, 3), sp=sp, op=round(op, 3),
                 vp=round(op - 0.4, 3), mode="AUTO", quality="GOOD")))
 
-    n = sl.kafka_publish_batch("loop.samples.v1", records, interval=args.interval)
+    n = sl.kafka_publish_batch("traverse.cpa.loop.samples.v1", records, interval=args.interval)
     sl.log(f"published {n} samples ({per_loop} per loop, event time "
            f"{args.span_minutes:.0f}m compressed)")
 
@@ -105,20 +105,20 @@ def main() -> int:
 
     # 1. short features
     checks["short_features_grew"] = sl.wait_until(
-        "clpm.feature.short.v1 to grow",
-        lambda: sl.kafka_end_offset_sum("clpm.feature.short.v1") > baselines["clpm.feature.short.v1"],
+        "traverse.cpa.clpm.feature.short.v1 to grow",
+        lambda: sl.kafka_end_offset_sum("traverse.cpa.clpm.feature.short.v1") > baselines["traverse.cpa.clpm.feature.short.v1"],
         timeout_sec=240)
 
     # 2. long diagnostics (15-min event-time timers over the compressed span)
     checks["long_features_grew"] = sl.wait_until(
-        "clpm.feature.long.v1 to grow",
-        lambda: sl.kafka_end_offset_sum("clpm.feature.long.v1") > baselines["clpm.feature.long.v1"],
+        "traverse.cpa.clpm.feature.long.v1 to grow",
+        lambda: sl.kafka_end_offset_sum("traverse.cpa.clpm.feature.long.v1") > baselines["traverse.cpa.clpm.feature.long.v1"],
         timeout_sec=300)
 
     # 3. gate fusion
     checks["gate_results_grew"] = sl.wait_until(
-        "clpm.gate.results.v1 to grow",
-        lambda: sl.kafka_end_offset_sum("clpm.gate.results.v1") > baselines["clpm.gate.results.v1"],
+        "traverse.cpa.clpm.gate.results.v1 to grow",
+        lambda: sl.kafka_end_offset_sum("traverse.cpa.clpm.gate.results.v1") > baselines["traverse.cpa.clpm.gate.results.v1"],
         timeout_sec=300)
 
     # 4. raw historian: RawLoopIotDbConsumer -> root.site1.cpm.<loop>.*
@@ -166,12 +166,12 @@ def main() -> int:
 
     # 7. live RBE
     checks["live_loop_metrics_grew"] = sl.wait_until(
-        "live.loop.metrics to grow",
-        lambda: sl.kafka_end_offset_sum("live.loop.metrics") > baselines["live.loop.metrics"],
+        "traverse.cpa.live.loop.metrics to grow",
+        lambda: sl.kafka_end_offset_sum("traverse.cpa.live.loop.metrics") > baselines["traverse.cpa.live.loop.metrics"],
         timeout_sec=120)
 
     detail["final_offsets"] = {t: sl.kafka_end_offset_sum(t)
-                               for t in CPLM_TOPICS + ["live.loop.metrics"]}
+                               for t in CPLM_TOPICS + ["traverse.cpa.live.loop.metrics"]}
     report = {
         "sim": "sim_loop_samples", "run_tag": tag, "loops": loops,
         "count_per_loop": per_loop, "span_minutes": args.span_minutes,

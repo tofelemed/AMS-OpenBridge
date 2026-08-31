@@ -20,10 +20,10 @@ import java.util.Iterator;
 import java.util.Map;
 
 /**
- * Phase 7 — the previously-missing consumer of {@code analysis.executions}. Before this job existed the
+ * Phase 7 — the previously-missing consumer of {@code traverse.analysis.executions}. Before this job existed the
  * analysis-service produced execution commands that nothing read, so every analysis sat "pending"
  * forever (audit §7.3). This job evaluates a calculation's arithmetic expression over the input values
- * carried on the command and emits the derived result to {@code analysis.results}, which analysis-service
+ * carried on the command and emits the derived result to {@code traverse.analysis.results}, which analysis-service
  * consumes to update the execution and publish the value to the UNS as a derived measurement.
  *
  * Compute lives here (Flink), not in the browser or the service — honouring the Flink-only-compute
@@ -40,7 +40,7 @@ public class AnalysisExecutionJob {
 
         KafkaSource<String> source = KafkaSource.<String>builder()
                 .setBootstrapServers(cfg.brokers)
-                .setTopics("analysis.executions")
+                .setTopics("traverse.analysis.executions")
                 .setGroupId("flink-analysis-execution")
                 .setStartingOffsets(OffsetsInitializer.earliest())
                 .setValueOnlyDeserializer(new SimpleStringSchema())
@@ -59,7 +59,7 @@ public class AnalysisExecutionJob {
                 .setBootstrapServers(cfg.brokers)
                 .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .setRecordSerializer(KafkaRecordSerializationSchema.builder()
-                        .setTopic("analysis.results")
+                        .setTopic("traverse.analysis.results")
                         .setValueSerializationSchema(new SimpleStringSchema())
                         .build())
                 .build();

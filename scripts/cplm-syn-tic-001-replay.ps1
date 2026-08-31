@@ -6,18 +6,18 @@
 #
 # Ported from CPA/CPAMAIN/scripts/cplm-syn-tic-001-replay.ps1 with two upgrades:
 #   - canonical field names (loop_id / event_ts_ms)
-#   - records keyed by loop_id (parse.key), matching the loop.samples.v1 contract
+#   - records keyed by loop_id (parse.key), matching the traverse.cpa.loop.samples.v1 contract
 # The sample math is byte-equivalent to the CPA original - do not change it, the
 # expected metrics depend on it. Deliberately NO vp field: the golden expectation
 # includes the NO_VP observability flag and the 0.89 confidence cap.
 #
 # Usage (fast E2E without waiting 24h):
 #   .\scripts\cplm-syn-tic-001-replay.ps1 -TimeShiftToNow -IncludeWatermarkAdvancer
-# Then check clpm.gate.results.v1 for a SYN_TIC_001 record once the long job's
+# Then check traverse.cpa.clpm.gate.results.v1 for a SYN_TIC_001 record once the long job's
 # 15-min timer fires past the window.
 
 param(
-    [string]$Topic = "loop.samples.v1",
+    [string]$Topic = "traverse.cpa.loop.samples.v1",
     [string]$KafkaContainer = "ams-kafka",
     [string]$Bootstrap = "kafka:9092",
     [switch]$TimeShiftToNow,
@@ -111,5 +111,5 @@ try {
 finally { $ErrorActionPreference = $prevEap }
 
 Write-Host "Done. The CPLM long job emits 4h/12h/24h diagnostics on its next 15-min timer;" -ForegroundColor Green
-Write-Host "fusion emits the gate result from the 12h/24h records. Watch clpm.gate.results.v1:" -ForegroundColor Green
-Write-Host "  docker exec ams-kafka kafka-console-consumer --bootstrap-server kafka:9092 --topic clpm.gate.results.v1 --from-beginning --timeout-ms 15000" -ForegroundColor Yellow
+Write-Host "fusion emits the gate result from the 12h/24h records. Watch traverse.cpa.clpm.gate.results.v1:" -ForegroundColor Green
+Write-Host "  docker exec ams-kafka kafka-console-consumer --bootstrap-server kafka:9092 --topic traverse.cpa.clpm.gate.results.v1 --from-beginning --timeout-ms 15000" -ForegroundColor Yellow

@@ -3,10 +3,10 @@
 Live Alarm Generator - Continuously pushes alarms to Kafka for real-time testing.
 
 Usage:
-    python live_alarm_generator.py [--interval 5] [--topic live.alarms]
+    python live_alarm_generator.py [--interval 5] [--topic traverse.alarm.live.alarms]
 
 This script publishes unique alarms every N seconds to test the full pipeline:
-    Kafka -> LiveStateJob -> live.alarms -> sparkplug-edge-node -> EMQX -> MQTT
+    Kafka -> LiveStateJob -> traverse.alarm.live.alarms -> sparkplug-edge-node -> EMQX -> MQTT
 """
 
 import argparse
@@ -80,10 +80,10 @@ def main():
     parser = argparse.ArgumentParser(description="Generate live alarms to Kafka")
     parser.add_argument("--interval", type=float, default=3.0,
                         help="Seconds between alarms (default: 3)")
-    parser.add_argument("--topic", default="live.alarms",
-                        help="Kafka topic (default: live.alarms)")
+    parser.add_argument("--topic", default="traverse.alarm.live.alarms",
+                        help="Kafka topic (default: traverse.alarm.live.alarms)")
     parser.add_argument("--also-raw", action="store_true",
-                        help="Also publish to raw-alarms topic")
+                        help="Also publish to traverse.alarm.raw-alarms topic")
     parser.add_argument("--count", type=int, default=0,
                         help="Stop after N alarms (0 = infinite)")
     args = parser.parse_args()
@@ -105,16 +105,16 @@ def main():
         while args.count == 0 or seq <= args.count:
             alarm_id, alarm = generate_alarm(seq)
             
-            # Publish to live.alarms (direct to sparkplug-edge-node)
+            # Publish to traverse.alarm.live.alarms (direct to sparkplug-edge-node)
             ok = publish_to_kafka(args.topic, alarm_id, alarm)
             status = "OK" if ok else "FAIL"
             print(f"[{datetime.now().strftime('%H:%M:%S')}] #{seq:04d} -> {args.topic}: {alarm_id} [{status}]")
             
-            # Optionally also publish to raw-alarms (goes through Flink)
+            # Optionally also publish to traverse.alarm.raw-alarms (goes through Flink)
             if args.also_raw:
-                ok2 = publish_to_kafka("raw-alarms", alarm_id, alarm)
+                ok2 = publish_to_kafka("traverse.alarm.raw-alarms", alarm_id, alarm)
                 status2 = "OK" if ok2 else "FAIL"
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] #{seq:04d} -> raw-alarms: {alarm_id} [{status2}]")
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] #{seq:04d} -> traverse.alarm.raw-alarms: {alarm_id} [{status2}]")
             
             seq += 1
             

@@ -73,7 +73,7 @@
                                                      "name":  "PostgreSQL active_alarms truncate"
                                                  },
                                                  {
-                                                     "detail":  "raw-opc-events, current-alarm-state, lifecycle-events, ack-results, ack-writeback, operator-actions",
+                                                     "detail":  "raw-opc-events, traverse.alarm.current-alarm-state, traverse.alarm.lifecycle-events, traverse.alarm.ack-results, traverse.alarm.ack-writeback, traverse.alarm.operator-actions",
                                                      "pass":  true,
                                                      "name":  "Kafka topics recreated"
                                                  },

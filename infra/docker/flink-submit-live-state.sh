@@ -1,5 +1,5 @@
 #!/bin/bash
-# Submits LiveStateJob to Flink — publishes live.alarms and live.metrics (RBE).
+# Submits LiveStateJob to Flink — publishes traverse.alarm.live.alarms and traverse.live.metrics (RBE).
 # Called by the flink-job-submit-live-state container (restart: no).
 set -e
 

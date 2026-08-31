@@ -80,18 +80,18 @@ $rawCheck = Test-RawOpcEventContract -Event $raw
 Write-E2eCheck -Name "raw-opc-events contract" -Pass $rawCheck.Pass -Detail $rawCheck.Reason -Results $results
 if (-not $rawCheck.Pass) { $violations += "RAW_EVENT_CONTRACT:$($rawCheck.Reason)" }
 
-$state = Get-KafkaTopicSample -Topic "current-alarm-state" -TimeoutMs 10000
+$state = Get-KafkaTopicSample -Topic "traverse.alarm.current-alarm-state" -TimeoutMs 10000
 if ($state) {
     $stMs = $state.eventTimeEpochMs
     if (-not $stMs -and $state.eventTime) {
         try { $stMs = [DateTimeOffset]::Parse($state.eventTime).ToUnixTimeMilliseconds() } catch {}
     }
     $hasEventTime = ($null -ne $stMs -and $stMs -gt 0)
-    Write-E2eCheck -Name "current-alarm-state eventTime" -Pass $hasEventTime `
+    Write-E2eCheck -Name "traverse.alarm.current-alarm-state eventTime" -Pass $hasEventTime `
         -Detail $(if ($hasEventTime) { "eventTimeEpochMs=$stMs" } else { "missing eventTime" }) -Results $results
-    if (-not $hasEventTime) { $violations += "MISSING_EVENT_TIME:current-alarm-state" }
+    if (-not $hasEventTime) { $violations += "MISSING_EVENT_TIME:traverse.alarm.current-alarm-state" }
 } else {
-    Write-E2eCheck -Name "current-alarm-state sample" -Pass $false -Detail "no message in window" -Results $results
+    Write-E2eCheck -Name "traverse.alarm.current-alarm-state sample" -Pass $false -Detail "no message in window" -Results $results
 }
 
 try {
@@ -109,17 +109,17 @@ try {
     Write-E2eCheck -Name "API alarm identity fields" -Pass $false -Detail $_.Exception.Message -Results $results
 }
 
-# Scan operator-actions for client commandIds (contract violation)
+# Scan traverse.alarm.operator-actions for client commandIds (contract violation)
 Write-Host "`n[ACK identity scan]" -ForegroundColor Yellow
 $opLines = docker exec ams-kafka kafka-console-consumer `
     --bootstrap-server $KafkaBootstrap `
-    --topic operator-actions `
+    --topic traverse.alarm.operator-actions `
     --timeout-ms 8000 `
     --max-messages 30 2>&1
 $clientCmd = @($opLines | Where-Object { $_ -match '"commandId"\s*:\s*"ui-' })
-Write-E2eCheck -Name "No client ui-* commandIds in operator-actions" -Pass ($clientCmd.Count -eq 0) `
+Write-E2eCheck -Name "No client ui-* commandIds in traverse.alarm.operator-actions" -Pass ($clientCmd.Count -eq 0) `
     -Detail $(if ($clientCmd.Count -eq 0) { "clean sample" } else { "found $($clientCmd.Count) ui-* commandId(s)" }) -Results $results
-if ($clientCmd.Count -gt 0) { $violations += "CLIENT_COMMAND_ID:operator-actions" }
+if ($clientCmd.Count -gt 0) { $violations += "CLIENT_COMMAND_ID:traverse.alarm.operator-actions" }
 
 # Historical API event-time sort
 try {

@@ -1,8 +1,14 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import pkg from './package.json';
 
 export default defineConfig({
   plugins: [react()],
+  // Build identity for the login status strip — one place to read the real
+  // version from, instead of a hand-maintained literal that drifts.
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   server: {
     port: 5174,
     // Plan 04 item 7: dev proxies to the API GATEWAY (compose service, host

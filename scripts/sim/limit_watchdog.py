@@ -4,7 +4,7 @@ Limit watchdog — turns a REAL live-tag limit breach into a REAL alarm.
 
 Reads a process tag's live value from the Redis snapshot the edge-node writes, and when it
 crosses a HiHi limit publishes a genuine alarm event into the AMS alarm pipeline
-(raw-alarms + current-alarm-state → Flink → API → SignalR → frontend alarmStore). The alarm
+(traverse.alarm.raw-alarms + traverse.alarm.current-alarm-state → Flink → API → SignalR → frontend alarmStore). The alarm
 is LATCHED (ISA-18.2): it stays ACTIVE once breached until the value drops below a clear
 threshold (deadband), then a CLEARED event is published.
 

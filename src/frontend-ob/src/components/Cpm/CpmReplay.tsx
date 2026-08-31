@@ -348,7 +348,7 @@ export const CpmReplay: React.FC = () => {
               <span>
                 {typeof kpiRow?.sample_period_sec === 'number'
                   ? `${kpiRow.sample_period_sec % 1 === 0 ? kpiRow.sample_period_sec : kpiRow.sample_period_sec.toFixed(1)} s grid`
-                  : 'engine grid'} · loop.samples.v1
+                  : 'engine grid'} · traverse.cpa.loop.samples.v1
               </span>
             </div>
             <span className="cpm-lineage__arrow">→</span>

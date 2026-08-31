@@ -28,7 +28,7 @@ import java.util.List;
  * from the CPLM architecture report.
  *
  * <p>Source: cplm-normalized-source (existing topic).
- * Sink: clpm.feature.short.v1 (matches existing topic name in CplmJobConfig defaults).
+ * Sink: traverse.cpa.clpm.feature.short.v1 (matches existing topic name in CplmJobConfig defaults).
  */
 public class CplmShortFeatureStreamJob {
 

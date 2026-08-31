@@ -205,7 +205,7 @@ public class BindingResolverTests : IAsyncLifetime
         var alarm = root.GetProperty("alarm");
         alarm.GetProperty("alarmSource").GetString().Should().Be("houston:crude1:pump101");
         alarm.GetProperty("signalRHub").GetString().Should().Contain("/hubs/alarm");
-        alarm.GetProperty("kafkaTopic").GetString().Should().Be("live.alarms");
+        alarm.GetProperty("kafkaTopic").GetString().Should().Be("traverse.alarm.live.alarms");
     }
     
     // ═══════════════════════════════════════════════════════════════════════════

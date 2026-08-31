@@ -32,6 +32,7 @@ import SessionTimeoutDialog from './components/shared/SessionTimeoutDialog';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 import { DialogProvider } from './components/shared/dialogService';
 import { expiredReason, markApiActivity } from './auth/sessionClock';
+import { CPA_SLICE_ONLY, HOME_PATH, isSliceNavPath } from './productSlice';
 
 // H1: route-level boundary — a crashed page (or failed lazy chunk) renders a
 // recover screen instead of white-screening the whole app; keyed by pathname so
@@ -104,7 +105,11 @@ export const useTheme = () => useContext(ThemeContext);
 // were raw hex the app shell could never follow the day/night theme. They are now OpenBridge tokens
 // (valid inside an inline style value), so the shell re-themes with everything else.
 const TB = {
-  blue: 'var(--selected-enabled-background-color)',
+  // Foreground accent. This pointed at --selected-enabled-BACKGROUND-color, a surface token, while
+  // every use of it is a `color:` — at night that resolved to rgb(16,33,26) on black: 1.25:1, i.e.
+  // the selected theme button and the Show Events toggle were invisible. --element-active-color is
+  // the real foreground token (and matches T.blue in styles/theme.ts).
+  blue: 'var(--element-active-color)',
   blueLight: 'var(--container-section-color)',
   blueMuted: 'var(--border-divider-color)',
   bg: 'var(--container-backdrop-color)',
@@ -233,13 +238,15 @@ const App: React.FC = () => {
     if (!token) return;
 
     let cancelled = false;
-    void useAlarmStore
-      .getState()
-      .initialize(token)
-      .catch((e) => console.warn('[AMS] Live initialization failed, degraded mode', e));
+    if (!CPA_SLICE_ONLY) {
+      void useAlarmStore
+        .getState()
+        .initialize(token)
+        .catch((e) => console.warn('[AMS] Live initialization failed, degraded mode', e));
+    }
 
     const refreshId = setInterval(() => {
-      if (cancelled) return;
+      if (cancelled || CPA_SLICE_ONLY) return;
       const { connectionState } = useAlarmStore.getState();
       // SignalR pushes live updates; polling is a fallback when the hub is down.
       if (connectionState === HubConnectionState.Connected) return;
@@ -298,6 +305,9 @@ const App: React.FC = () => {
             <Route
               path="/designer/import"
               element={
+                CPA_SLICE_ONLY ? (
+                  <RequireAuth><Navigate to={HOME_PATH} replace /></RequireAuth>
+                ) : (
                 <RequireAuth>
                   <RequirePermission permission="display.edit">
                     <AppShell>
@@ -307,6 +317,7 @@ const App: React.FC = () => {
                     </AppShell>
                   </RequirePermission>
                 </RequireAuth>
+                )
               }
             />
             {/* The Designer runs full-viewport, OUTSIDE the app shell.
@@ -316,6 +327,9 @@ const App: React.FC = () => {
             <Route
               path="/designer/:id"
               element={
+                CPA_SLICE_ONLY ? (
+                  <RequireAuth><Navigate to={HOME_PATH} replace /></RequireAuth>
+                ) : (
                 <RequireAuth>
                   <RequirePermission permission="display.edit">
                     <React.Suspense fallback={<RouteFallback />}>
@@ -323,6 +337,7 @@ const App: React.FC = () => {
                     </React.Suspense>
                   </RequirePermission>
                 </RequireAuth>
+                )
               }
             />
             {/* Standalone runtime viewer — no sidebar/topbar, but NOT anonymous: Phase K requires a
@@ -330,6 +345,9 @@ const App: React.FC = () => {
             <Route
               path="/display/:id"
               element={
+                CPA_SLICE_ONLY ? (
+                  <RequireAuth><Navigate to={HOME_PATH} replace /></RequireAuth>
+                ) : (
                 <RequireAuth>
                   <RequirePermission permission="display.view">
                     <React.Suspense fallback={<RouteFallback />}>
@@ -337,12 +355,16 @@ const App: React.FC = () => {
                     </React.Suspense>
                   </RequirePermission>
                 </RequireAuth>
+                )
               }
             />
             {/* Phase 4 — personal (operator-owned) views render through the same runtime viewer. */}
             <Route
               path="/my-view/:id"
               element={
+                CPA_SLICE_ONLY ? (
+                  <RequireAuth><Navigate to={HOME_PATH} replace /></RequireAuth>
+                ) : (
                 <RequireAuth>
                   <RequirePermission permission="display.view">
                     <React.Suspense fallback={<RouteFallback />}>
@@ -350,6 +372,7 @@ const App: React.FC = () => {
                     </React.Suspense>
                   </RequirePermission>
                 </RequireAuth>
+                )
               }
             />
             {/* Everything else runs inside the app shell (auth-gated) */}
@@ -360,21 +383,21 @@ const App: React.FC = () => {
                 <AppShell>
                   <React.Suspense fallback={<RouteFallback />}>
                     <Routes>
-                      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                      <Route path="/" element={<Navigate to={HOME_PATH} replace />} />
                       {/* EVERY route carries the permission its APIs require, so a direct URL can never
                           render a page the role's token would only get 401/403 from. The service is still
                           the boundary that actually holds — this just stops us rendering a dead page. */}
-                      {/* Live Operations */}
-                      <Route path="/dashboard"    element={<RequirePermission permission="alarm.view"><Dashboard /></RequirePermission>} />
-                      <Route path="/alarms"       element={<RequirePermission permission="alarm.view"><AlarmConsole /></RequirePermission>} />
-                      <Route path="/live-events"  element={<RequirePermission permission="alarm.view"><LiveEventsPage /></RequirePermission>} />
-                      <Route path="/soe"          element={<RequirePermission permission="soe.view"><SoePanel /></RequirePermission>} />
+                      {/* Live Operations — hidden on the Marun CPA slice (D-SLICE). */}
+                      <Route path="/dashboard"    element={CPA_SLICE_ONLY ? <Navigate to={HOME_PATH} replace /> : <RequirePermission permission="alarm.view"><Dashboard /></RequirePermission>} />
+                      <Route path="/alarms"       element={CPA_SLICE_ONLY ? <Navigate to={HOME_PATH} replace /> : <RequirePermission permission="alarm.view"><AlarmConsole /></RequirePermission>} />
+                      <Route path="/live-events"  element={CPA_SLICE_ONLY ? <Navigate to={HOME_PATH} replace /> : <RequirePermission permission="alarm.view"><LiveEventsPage /></RequirePermission>} />
+                      <Route path="/soe"          element={CPA_SLICE_ONLY ? <Navigate to={HOME_PATH} replace /> : <RequirePermission permission="soe.view"><SoePanel /></RequirePermission>} />
                       {/* Historical */}
-                      <Route path="/historical"   element={<RequirePermission permission="alarm.view"><HistoricalViewer /></RequirePermission>} />
+                      <Route path="/historical"   element={CPA_SLICE_ONLY ? <Navigate to={HOME_PATH} replace /> : <RequirePermission permission="alarm.view"><HistoricalViewer /></RequirePermission>} />
                       {/* Legacy IoTDB explorer — moved off /trend, which is now the Phase J trend view */}
-                      <Route path="/iotdb-trend"  element={<RequirePermission permission="historian.view"><IoTDBTrendViewer /></RequirePermission>} />
+                      <Route path="/iotdb-trend"  element={CPA_SLICE_ONLY ? <Navigate to={HOME_PATH} replace /> : <RequirePermission permission="historian.view"><IoTDBTrendViewer /></RequirePermission>} />
                       {/* Analysis */}
-                      <Route path="/analytics"    element={<RequirePermission permission="analytics.view"><Analytics /></RequirePermission>} />
+                      <Route path="/analytics"    element={CPA_SLICE_ONLY ? <Navigate to={HOME_PATH} replace /> : <RequirePermission permission="analytics.view"><Analytics /></RequirePermission>} />
 
                       {/* ── Loop Performance (CPLM) ─────────────────── */}
                       <Route path="/cpm"             element={<RequirePermission permission="analytics.view"><CpmOverview /></RequirePermission>} />
@@ -390,18 +413,18 @@ const App: React.FC = () => {
                       <Route path="/cpm/registry"  element={<RequirePermission permission="analytics.view"><CpmLoopRegistry /></RequirePermission>} />
                       <Route path="/cpm/events"    element={<RequirePermission permission="analytics.view"><CpmEvents /></RequirePermission>} />
                       {/* Published-HMI launcher — every role with display.view */}
-                      <Route path="/displays"       element={<RequirePermission permission="display.view"><DisplayLauncher /></RequirePermission>} />
+                      <Route path="/displays"       element={CPA_SLICE_ONLY ? <Navigate to={HOME_PATH} replace /> : <RequirePermission permission="display.view"><DisplayLauncher /></RequirePermission>} />
                       {/* HMI Designer — authoring, Admin/Engineer only */}
-                      <Route path="/designer"       element={<RequirePermission permission="display.edit"><DisplayList /></RequirePermission>} />
+                      <Route path="/designer"       element={CPA_SLICE_ONLY ? <Navigate to={HOME_PATH} replace /> : <RequirePermission permission="display.edit"><DisplayList /></RequirePermission>} />
                       {/* /designer/import and /designer/:id are both standalone routes declared above,
                           outside this shell's nested <Routes> — see the top-level block for why. */}
                       {/* Dedicated trend view (Phase J) — needs history + binding resolution */}
                       <Route path="/trend"          element={<RequirePermission permission="historian.view"><TrendPage /></RequirePermission>} />
                       {/* Infrastructure */}
-                      <Route path="/edge"       element={<RequirePermission permission="historian.view"><EdgeNodeMonitor /></RequirePermission>} />
+                      <Route path="/edge"       element={CPA_SLICE_ONLY ? <Navigate to={HOME_PATH} replace /> : <RequirePermission permission="historian.view"><EdgeNodeMonitor /></RequirePermission>} />
                       {/* Administration — was reachable by ANY authenticated user via direct URL */}
                       <Route path="/admin/*"    element={<RequirePermission permission="admin.users.edit" anyOf={['admin.users.edit', 'admin.audit.view', 'rbac.manage', 'ingestion.view', 'ingestion.manage', 'asset.edit']}><Administration /></RequirePermission>} />
-                      <Route path="*"           element={<Navigate to="/dashboard" replace />} />
+                      <Route path="*"           element={<Navigate to={HOME_PATH} replace />} />
                     </Routes>
                   </React.Suspense>
                 </AppShell>
@@ -426,7 +449,9 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
   const user = useAuthStore(s => s.user);
   const logout = useAuthStore(s => s.logout);
-  const [showLiveEvents, setShowLiveEvents] = useState(readLiveEventsPreference);
+  const [showLiveEvents, setShowLiveEvents] = useState(
+    CPA_SLICE_ONLY ? false : readLiveEventsPreference,
+  );
 
   const handleLogout = async () => {
     await logout();
@@ -460,9 +485,9 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     <LiveEventsContext.Provider value={{ showLiveEvents, toggleLiveEvents }}>
     <div className={`app-root${showLiveEvents ? '' : ' app-root--events-hidden'}`}>
       {/* ⌘K / Ctrl+K palette (Phase 7 F0.4) — searches nav, loops, calculations */}
-      <CommandPalette navItems={navItems} />
+      <CommandPalette navItems={navItems.filter(i => isSliceNavPath(i.path))} />
       {/* Flood Alert Banner */}
-      {floodAlert && <FloodAlertBanner alert={floodAlert} />}
+      {!CPA_SLICE_ONLY && floodAlert && <FloodAlertBanner alert={floodAlert} />}
 
       {/* Top Bar — custom brand header (no hamburger / no "Page" suffix) */}
       <div className="app-topbar">
@@ -474,7 +499,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
           <div className="app-topbar__controls">
             {/* Critical / unacked summary (text only — no bell icons) */}
-            {(criticalCount > 0 || unackedCount > 0) && (
+            {!CPA_SLICE_ONLY && (criticalCount > 0 || unackedCount > 0) && (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: '8px',
                 padding: '5px 12px', borderRadius: TB.radiusSm,
@@ -498,7 +523,8 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               </div>
             )}
 
-            {/* Live events toggle */}
+            {/* Live events toggle — CAMS chrome, off on the CPA slice */}
+            {!CPA_SLICE_ONLY && (
             <button
               type="button"
               onClick={toggleLiveEvents}
@@ -524,6 +550,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             >
               {showLiveEvents ? 'Hide Events' : 'Show Events'}
             </button>
+            )}
 
             {/* Theme: Day | Bright */}
             <div style={{
@@ -624,14 +651,14 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           mqttStore) — a permanently-mounted-but-hidden panel meant every logged-in
           client streamed the whole plant forever. Unmounting runs its effect cleanup,
           which drops the firehose ref and unsubscribes at the broker. */}
-      {showLiveEvents && (
+      {showLiveEvents && !CPA_SLICE_ONLY && (
         <aside className="app-events">
           <LiveEventStream />
         </aside>
       )}
 
       {/* Re-open tab when panel is collapsed */}
-      {!showLiveEvents && (
+      {!showLiveEvents && !CPA_SLICE_ONLY && (
         <button
           type="button"
           className="live-events-expand-tab"
@@ -719,6 +746,7 @@ const Sidebar: React.FC<{ unackedCount: number }> = ({ unackedCount }) => {
   // `anyOf` (e.g. the single Administration entry) shows when the user holds ANY
   // of the listed permissions; otherwise fall back to the single `permission`.
   const visibleNavItems = navItems.filter(i => {
+    if (!isSliceNavPath(i.path)) return false;
     const anyOf = (i as { anyOf?: string[] }).anyOf;
     if (anyOf) return anyOf.some(p => hasPermission(p));
     return !i.permission || hasPermission(i.permission);
@@ -818,9 +846,9 @@ export const RequirePermission: React.FC<{
   const location = useLocation();
   const allowed = anyOf ? anyOf.some(p => hasPermission(p)) : hasPermission(permission);
   if (!allowed) {
-    // Land somewhere the role CAN use — the published-display launcher. If they can't use that either,
-    // say so rather than bouncing between two forbidden routes forever.
-    if (!hasPermission('display.view') || location.pathname === '/displays') {
+    // Land on Loop Performance. If they can't use that either, say so rather
+    // than bouncing between two forbidden routes forever.
+    if (!hasPermission('analytics.view') || location.pathname === HOME_PATH) {
       return (
         <div className="app-forbidden" data-testid="forbidden">
           <h2>Not authorized</h2>
@@ -828,7 +856,7 @@ export const RequirePermission: React.FC<{
         </div>
       );
     }
-    return <Navigate to="/displays" replace />;
+    return <Navigate to={HOME_PATH} replace />;
   }
   return <>{children}</>;
 };

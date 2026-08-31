@@ -82,7 +82,7 @@ app.MapPost("/api/v1/audit/rechain", async (ChainIntegrityVerifier verifier, Can
 // ── GET /api/v1/audit — query the immutable audit trail (Phase 5). ────────────
 // Filter by entity (e.g. entityType=Display, entityId=<guid>), actor, event type, and time window.
 // This is what surfaces "who changed this display, and when" now that display-service emits governance
-// events onto the audit-events topic. Read-only; the store itself is append-only + hash-chained.
+// events onto the traverse.cpa.audit-events topic. Read-only; the store itself is append-only + hash-chained.
 app.MapGet("/api/v1/audit", async (
     AuditDbContext db,
     string? entityType,

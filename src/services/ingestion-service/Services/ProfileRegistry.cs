@@ -22,7 +22,7 @@ public static class ProfileRegistry
             Description: "DCS alarm and event stream from the OT gateway. Each message is one alarm " +
                          "state change (active/cleared/acknowledged). Feeds the ISA-18.2 alarm state " +
                          "machine, the alarm console, and alarm history.",
-            Destination: "raw-alarms",
+            Destination: "traverse.alarm.raw-alarms",
             DefaultTopics: new[] { "ot/alarms/#" }),
         new(
             ProfileType: "MQTT_LOOP_SAMPLES",
@@ -32,7 +32,7 @@ public static class ProfileRegistry
             Description: "Per-tag control-loop signals (PV/SP/OP/VP/MODE) from the OT gateway. The " +
                          "ingestion pipeline joins them into per-loop tuples for the CPM diagnostics " +
                          "engine — loops must be registered in the CPM Loop Registry first.",
-            Destination: "loop.samples.v1",
+            Destination: "traverse.cpa.loop.samples.v1",
             DefaultTopics: new[] { "ot/loops/#" }),
         new(
             ProfileType: "MQTT_TELEMETRY",
@@ -42,7 +42,7 @@ public static class ProfileRegistry
             Description: "Process values (analog/discrete tag updates) for live HMI displays, Redis " +
                          "snapshots, and IoTDB trend history. Tags must be mapped in the UNS asset " +
                          "model (alias mapping) before their data can land.",
-            Destination: "live.metrics",
+            Destination: "traverse.live.metrics",
             DefaultTopics: new[] { "ot/telemetry/#" }),
         new(
             ProfileType: "MQTT_PRM",

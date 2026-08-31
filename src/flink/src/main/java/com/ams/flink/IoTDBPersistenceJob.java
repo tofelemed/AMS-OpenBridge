@@ -11,9 +11,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * Flink job: raw-alarms → Apache IoTDB historian.
+ * Flink job: traverse.alarm.raw-alarms → Apache IoTDB historian.
  *
- * Consumes every alarm event from raw-alarms, converts it to an
+ * Consumes every alarm event from traverse.alarm.raw-alarms, converts it to an
  * {@link IoTDBAlarmRow}, and writes via {@link FailLoudIoTDBSink} (checkpoint-
  * integrated batches; a failed write fails the checkpoint instead of dropping).
  *
@@ -46,8 +46,8 @@ public class IoTDBPersistenceJob {
 
         KafkaSource<String> rawSource = KafkaSource.<String>builder()
                 .setBootstrapServers(cfg.brokers)
-                .setTopics("raw-alarms")
-                .setGroupId("flink-ams-iotdb-persistence")
+                .setTopics("traverse.alarm.raw-alarms")
+                .setGroupId("traverse-alarm-flink-iotdb-persistence")
                 // committed-with-earliest-fallback: fresh submits continue where the
                 // group left off instead of replaying the whole topic (prod item 4).
                 .setStartingOffsets(OffsetsInitializer.committedOffsets(
@@ -104,7 +104,7 @@ public class IoTDBPersistenceJob {
     // ── JSON → IoTDBAlarmRow ───────────────────────────────────────────────
 
     /**
-     * Converts a raw-alarms JSON string to an {@link IoTDBAlarmRow}.
+     * Converts a traverse.alarm.raw-alarms JSON string to an {@link IoTDBAlarmRow}.
      * Handles both HTTP feed format (alarmId + state fields) and OPC feed format.
      * Returns null on parse failure or if required fields are missing.
      */

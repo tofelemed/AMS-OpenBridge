@@ -122,7 +122,7 @@ Everything here was blocked on Sprint 2B.
 
 PI Vision evaluates ad-hoc expressions client-side, per display. That **conflicts with two recorded decisions**: CQRS discipline and Flink-only compute. The checklist's own **L19** already says complex reusable logic belongs in the analysis engine.
 
-**Build instead:** a *calculation registry* in analysis-service where an expression is a **named, versioned artifact**; a Flink job that actually consumes `analysis.commands` (**today nothing does — the execution path is dead, and executions sit `pending` forever**); results published back onto the UNS as a **derived measurement**; and the designer binds to it **like any other tag**. That yields L11 (usable on any symbol) for free and honours L12/L13/L19.
+**Build instead:** a *calculation registry* in analysis-service where an expression is a **named, versioned artifact**; a Flink job that actually consumes `traverse.analysis.commands` (**today nothing does — the execution path is dead, and executions sit `pending` forever**); results published back onto the UNS as a **derived measurement**; and the designer binds to it **like any other tag**. That yields L11 (usable on any symbol) for free and honours L12/L13/L19.
 
 **Also fix:** `GET /analyses/types` currently returns a **hardcoded static literal** advertising an `expression` type that nothing can execute.
 

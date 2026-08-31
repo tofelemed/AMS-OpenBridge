@@ -23,7 +23,7 @@ public class RootCauseConsumer : BackgroundService
         _logger = logger;
         _orchestrator = orchestrator;
         _bootstrapServers = config.GetValue<string>("Kafka:BootstrapServers") ?? "localhost:9092";
-        _topic = "root-cause-events"; // The topic populated by Flink CEP
+        _topic = "traverse.alarm.root-cause-events"; // The topic populated by Flink CEP
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

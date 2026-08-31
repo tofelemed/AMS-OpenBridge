@@ -7,7 +7,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Short-window feature payload — Gates 0–4 per reference architecture (clpm.feature.short.v1). */
+/** Short-window feature payload — Gates 0–4 per reference architecture (traverse.cpa.clpm.feature.short.v1). */
 public final class CplmShortFeatureResult implements Serializable {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 

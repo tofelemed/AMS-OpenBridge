@@ -2,7 +2,7 @@
  * CPLM Phase 7 (F0.5) — live plane for one control loop.
  *
  * The LoopLiveRbeJob emits report-by-exception deltas per (loopId, metric) to
- * live.loop.metrics; sparkplug-edge-node bridges them to Sparkplug B DDATA on
+ * traverse.cpa.live.loop.metrics; sparkplug-edge-node bridges them to Sparkplug B DDATA on
  * device `<loopId sanitized>` under the configured group/edge, and mirrors
  * snapshots into Redis. Subscribing via mqttStore.subscribeScreen gives us the
  * exact-topic scoping (W10) plus snapshot-on-open (Phase 6.6), so a steady loop

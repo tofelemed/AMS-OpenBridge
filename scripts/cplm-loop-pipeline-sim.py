@@ -6,10 +6,10 @@ Two modes over the same merged dataset:
 
   historical  — publish the file's 4 days once, with ORIGINAL UTC timestamps.
                 Feeds: RawLoopIotDbConsumer → IoTDB history, streaming CPLM jobs,
-                and the A8 recompute (which re-reads loop.samples.v1).
+                and the A8 recompute (which re-reads traverse.cpa.loop.samples.v1).
   live        — replay the merged rows re-stamped to "now", one every 5 s,
                 looping forever. Feeds the live plane: short features,
-                LoopLiveRbeJob → live.loop.metrics → sparkplug-edge → EMQX/Redis.
+                LoopLiveRbeJob → traverse.cpa.live.loop.metrics → sparkplug-edge → EMQX/Redis.
 
 Merge rules (why, not just what):
   * PI compression stores on-change only. The CPLM engine bills completeness
@@ -44,7 +44,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "test data" / "B2_027PIC"
 LOOP_ID = "B2_027PIC"
-TOPIC = "loop.samples.v1"
+TOPIC = "traverse.cpa.loop.samples.v1"
 GRID_S = 5
 MODE_MAP = {"AUT": "AUTO", "MAN": "MANUAL"}
 
@@ -99,7 +99,7 @@ def merge_grid():
 
 
 def record(row, ts_ms):
-    """Canonical loop.samples.v1 record (CplmNormalizedSample field names)."""
+    """Canonical traverse.cpa.loop.samples.v1 record (CplmNormalizedSample field names)."""
     return json.dumps({
         "loop_id": LOOP_ID,
         "event_ts_ms": ts_ms,

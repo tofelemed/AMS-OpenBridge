@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Pipeline B isolated: live.alarms -> sparkplug-edge-node -> EMQX Sparkplug B
--> Redis snapshots, bypassing raw-alarms/Flink entirely (mqtt-mode pattern from
+"""Pipeline B isolated: traverse.alarm.live.alarms -> sparkplug-edge-node -> EMQX Sparkplug B
+-> Redis snapshots, bypassing traverse.alarm.raw-alarms/Flink entirely (mqtt-mode pattern from
 scripts/e2e-edge/live_events_feed.py).
 
 Verifies, with a live MQTT subscription on spBv1.0/<group>/#:
@@ -97,8 +97,8 @@ def main() -> int:
         records.append((alarm_id, make_live_alarm(alarm_id, source, i, severity)))
         sources[alarm_id] = {"source": source, "severity": severity}
 
-    n = sl.kafka_publish_batch("live.alarms", records, interval=args.interval)
-    sl.log(f"published {n} live.alarms records (Flink bypassed)")
+    n = sl.kafka_publish_batch("traverse.alarm.live.alarms", records, interval=args.interval)
+    sl.log(f"published {n} traverse.alarm.live.alarms records (Flink bypassed)")
 
     # wait for DDATA for all our devices (device id derives from sourceName)
     def our_msgs():

@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 namespace AMS.Infrastructure.Kafka;
 
 /// <summary>
-/// Monitors raw-alarms for silence and emits TELEMETRY_STALLED lifecycle alerts.
+/// Monitors traverse.alarm.raw-alarms for silence and emits TELEMETRY_STALLED lifecycle alerts.
 /// </summary>
 public sealed class TelemetryDeadmanWatchdogService : BackgroundService
 {

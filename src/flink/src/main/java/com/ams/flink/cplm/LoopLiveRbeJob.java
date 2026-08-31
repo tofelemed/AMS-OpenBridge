@@ -21,7 +21,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
  * Live-plane report-by-exception (RBE) job — feeds the Sparkplug route.
  *
  * <p>Consumes canonical loop samples and emits one compact delta per changed
- * {@code (loopId, metric)} pair to the {@code live.loop.metrics} topic, which the
+ * {@code (loopId, metric)} pair to the {@code traverse.cpa.live.loop.metrics} topic, which the
  * sparkplug-edge-node bridges to Sparkplug B DDATA on EMQX and mirrors into
  * Redis snapshot keys.
  *
@@ -47,17 +47,17 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
  * <p><b>Phase 0 status:</b> compiles and runs, but is intentionally NOT yet added
  * to {@code infra/docker/flink-job-supervisor.sh}. It is activated in Phase 3
  * alongside EMQX, Redis and the sparkplug-edge-node service. KPI metrics sourced
- * from {@code clpm.gate.results.v1} (confidence, diagnosis, OCE) are also wired
+ * from {@code traverse.cpa.clpm.gate.results.v1} (confidence, diagnosis, OCE) are also wired
  * in Phase 3 — this stage covers the raw signal metrics only.
  *
  * <p>Args: {@code --bootstrap.servers}, {@code --input-topic} (default
- * {@code loop.samples.v1}), {@code --live-topic} (default {@code live.loop.metrics}),
+ * {@code traverse.cpa.loop.samples.v1}), {@code --live-topic} (default {@code traverse.cpa.live.loop.metrics}),
  * {@code --deadband} (absolute EU, default 0.05), {@code --consumer-group-id}.
  */
 public final class LoopLiveRbeJob {
 
-    static final String DEFAULT_LIVE_TOPIC = "live.loop.metrics";
-    static final String DEFAULT_INPUT_TOPIC = "loop.samples.v1";
+    static final String DEFAULT_LIVE_TOPIC = "traverse.cpa.live.loop.metrics";
+    static final String DEFAULT_INPUT_TOPIC = "traverse.cpa.loop.samples.v1";
     static final double DEFAULT_DEADBAND = 0.05;
 
     private LoopLiveRbeJob() {
@@ -68,7 +68,7 @@ public final class LoopLiveRbeJob {
         String inputTopic = argOr(args, "input-topic", DEFAULT_INPUT_TOPIC);
         String liveTopic = argOr(args, "live-topic", DEFAULT_LIVE_TOPIC);
         double deadband = parseDouble(argOr(args, "deadband", String.valueOf(DEFAULT_DEADBAND)), DEFAULT_DEADBAND);
-        String groupId = argOr(args, "consumer-group-id", "flink-ams-cplm") + "-live-rbe";
+        String groupId = argOr(args, "consumer-group-id", "traverse-cpa-flink-cplm") + "-live-rbe";
 
         CplmJobConfig cfg = new CplmJobConfig(base.brokers, "AMS - Loop Live RBE Engine",
                 groupId, inputTopic, liveTopic,
@@ -99,7 +99,7 @@ public final class LoopLiveRbeJob {
                 .name("live-rbe-filter")
                 .uid("live-rbe-filter");
 
-        // Keyed by loopId (PIPE-010): per-loop ordering across live.loop.metrics partitions.
+        // Keyed by loopId (PIPE-010): per-loop ordering across traverse.cpa.live.loop.metrics partitions.
         CplmKafkaSink.attachKeyed(deltas, cfg, liveTopic, "live-metrics-sink", "loopId");
 
         env.execute(cfg.jobName);
