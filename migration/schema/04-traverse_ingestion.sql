@@ -47,6 +47,22 @@ CREATE TRIGGER trg_touch_data_source_configs
     BEFORE UPDATE ON ingestion.data_source_configs
     FOR EACH ROW EXECUTE FUNCTION ingestion.touch_data_source_configs();
 
+-- OT ingestion parking inventory (mirrors database/scripts/49_ingestion_unknown_sources.sql)
+CREATE TABLE IF NOT EXISTS ingestion.unknown_sources (
+    config_id     UUID         NOT NULL,
+    reason        VARCHAR(40)  NOT NULL,
+    source_key    VARCHAR(256) NOT NULL,
+    first_seen    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    last_seen     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    message_count BIGINT       NOT NULL DEFAULT 1,
+    last_topic    TEXT,
+    last_payload  JSONB,
+    PRIMARY KEY (config_id, reason, source_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_unknown_sources_last_seen
+    ON ingestion.unknown_sources(last_seen DESC);
+
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ams_user') THEN
