@@ -8,8 +8,10 @@
 using System.Security.Claims;
 using Dapper;
 using Npgsql;
+using Prometheus;
 using Traverse.Auth;
 using Traverse.IngestionService.Models;
+using Traverse.IngestionService.Pipeline;
 using Traverse.IngestionService.Services;
 
 DefaultTypeMap.MatchNamesWithUnderscores = true;
@@ -41,6 +43,13 @@ builder.Services.AddSingleton<DataSourceRepository>();
 builder.Services.AddSingleton<MqttConnectionTester>();
 builder.Services.AddSingleton<IAuditEmitter, AuditEmitter>();
 
+// ── Phase-2 OT subscriber pipeline ──────────────────────────────────────────
+builder.Services.AddSingleton<UnknownSourceRepository>();
+builder.Services.AddSingleton<UnknownSourceInventory>();
+builder.Services.AddSingleton<SubscriberStatusRegistry>();
+builder.Services.AddSingleton<ILoopSampleSink, LoopSamplePipelineProducer>();
+builder.Services.AddHttpClient<CplmRegistryClient>();
+
 // ── Auth (edge-only model: gateway-injected X-Auth-* headers) ───────────────
 builder.AddTraverseAuth();
 
@@ -70,7 +79,7 @@ static string HostOf(string url)
 }
 
 // ── GET /health ─────────────────────────────────────────────────────────────
-app.MapGet("/health", async (NpgsqlDataSource dataSource) =>
+app.MapGet("/health", async (NpgsqlDataSource dataSource, SubscriberStatusRegistry statusRegistry) =>
 {
     var checks = new Dictionary<string, object>();
     var healthy = true;
@@ -85,13 +94,37 @@ app.MapGet("/health", async (NpgsqlDataSource dataSource) =>
         healthy = false;
         checks["postgres"] = new { status = "Unhealthy", description = ex.Message };
     }
-    checks["subscriber"] = new { status = "NotBuilt", description = "MQTT subscriber pipeline arrives in phase 2" };
+
+    // Subscriber state is informational: an OT broker outage must not mark the whole
+    // service unhealthy (config CRUD keeps working; the managed client reconnects).
+    var subscribers = statusRegistry.List();
+    if (subscribers.Count == 0)
+    {
+        checks["subscriber"] = new { status = "NotConfigured", description = "no active MQTT_LOOP_SAMPLES data source" };
+    }
+    else
+    {
+        var disconnected = subscribers.Count(s => !s.Connected);
+        checks["subscriber"] = new
+        {
+            status = disconnected == 0 ? "Running" : "Degraded",
+            description = disconnected == 0
+                ? $"{subscribers.Count} subscriber(s) connected"
+                : $"{disconnected}/{subscribers.Count} subscriber(s) disconnected — " +
+                  string.Join("; ", subscribers.Where(s => !s.Connected)
+                      .Select(s => $"{s.Name}: {s.ConnectionError ?? "reconnecting"}")),
+        };
+    }
 
     var overall = healthy ? "Healthy" : "Degraded";
     return healthy
         ? Results.Json(new { status = overall, checks })
         : Results.Json(new { status = overall, checks }, statusCode: StatusCodes.Status503ServiceUnavailable);
 });
+
+app.UseHttpMetrics();
+app.MapMetrics();          // Prometheus scrape — anonymous, in-network only
+app.MapPipelineEndpoints();
 
 // ── GET /profiles ───────────────────────────────────────────────────────────
 app.MapGet("/profiles", () => Results.Ok(ProfileRegistry.All))

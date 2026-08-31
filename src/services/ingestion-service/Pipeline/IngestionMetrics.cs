@@ -1,0 +1,47 @@
+using Prometheus;
+
+namespace Traverse.IngestionService.Pipeline;
+
+/// <summary>
+/// Prometheus counters for the OT subscriber pipeline. Labels carry the data-source
+/// NAME (bounded cardinality) — never individual loop tags; per-loop truth lives in
+/// Kafka/IoTDB, per-reason truth in the reason label and the unknown_sources table.
+/// </summary>
+public static class IngestionMetrics
+{
+    private static readonly Counter Received = Metrics.CreateCounter(
+        "ingestion_mqtt_messages_received_total", "OT MQTT messages received", "source");
+    private static readonly Counter DeadLettered = Metrics.CreateCounter(
+        "ingestion_ot_deadletter_total", "Messages sent to the OT DLQ", "source", "reason");
+    private static readonly Counter Parked = Metrics.CreateCounter(
+        "ingestion_ot_parked_total", "Messages parked in the unknown-source inventory", "source", "reason");
+    private static readonly Counter Tuples = Metrics.CreateCounter(
+        "ingestion_loop_tuples_emitted_total", "Merged loop tuples published", "source");
+    private static readonly Counter KafkaFailures = Metrics.CreateCounter(
+        "ingestion_kafka_publish_failures_total", "Kafka publish failures (retried)", "source");
+    private static readonly Counter Reconnects = Metrics.CreateCounter(
+        "ingestion_mqtt_reconnects_total", "MQTT reconnect events", "source");
+    private static readonly Counter ClassMismatch = Metrics.CreateCounter(
+        "ingestion_class_mismatch_total", "Topic class vs payload line/process_unit disagreements (warn-only)", "source");
+    private static readonly Counter UnitMismatch = Metrics.CreateCounter(
+        "ingestion_unit_mismatch_total", "Source engineering-unit disagreements (warn-only)", "source");
+    private static readonly Gauge ActiveLoops = Metrics.CreateGauge(
+        "ingestion_joiner_active_loops", "Loops currently held in joiner state", "source");
+    private static readonly Histogram SourceLatencyMs = Metrics.CreateHistogram(
+        "ingestion_source_latency_ms", "Source timestamp → ingestion latency (ms)",
+        new HistogramConfiguration
+        {
+            Buckets = Histogram.ExponentialBuckets(50, 2, 12), // 50 ms … ~102 s
+        });
+
+    public static void MessagesReceived(string source) => Received.WithLabels(source).Inc();
+    public static void MessagesDeadLettered(string source, string reason) => DeadLettered.WithLabels(source, reason).Inc();
+    public static void MessagesParked(string source, string reason) => Parked.WithLabels(source, reason).Inc();
+    public static void TuplesEmitted(string source, double count = 1) => Tuples.WithLabels(source).Inc(count);
+    public static void KafkaPublishFailure(string source) => KafkaFailures.WithLabels(source).Inc();
+    public static void MqttReconnect(string source) => Reconnects.WithLabels(source).Inc();
+    public static void ClassMismatchWarning(string source) => ClassMismatch.WithLabels(source).Inc();
+    public static void UnitMismatchWarning(string source) => UnitMismatch.WithLabels(source).Inc();
+    public static void JoinerActiveLoops(string source, int count) => ActiveLoops.WithLabels(source).Set(count);
+    public static void SourceLatency(double ms) { if (ms >= 0) SourceLatencyMs.Observe(ms); }
+}

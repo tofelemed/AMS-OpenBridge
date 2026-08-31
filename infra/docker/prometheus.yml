@@ -106,3 +106,8 @@ scrape_configs:
     static_configs:
       - targets: ["cplm-api:5000"]
     metrics_path: /metrics
+
+  - job_name: ingestion-service
+    static_configs:
+      - targets: ["ingestion-service:5000"]
+    metrics_path: /metrics

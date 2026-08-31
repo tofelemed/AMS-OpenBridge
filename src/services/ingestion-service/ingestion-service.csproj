@@ -13,8 +13,10 @@
     <PackageReference Include="Dapper" Version="2.1.35" />
     <!-- One-shot broker connection test (MQTT 5 capable). -->
     <PackageReference Include="MQTTnet" Version="4.3.7.1207" />
-    <!-- audit-events producer (same version as cplm-api). -->
+    <!-- audit-events + loop-sample producer (same version as cplm-api). -->
     <PackageReference Include="Confluent.Kafka" Version="2.3.0" />
+    <!-- /metrics endpoint (same version as cplm-api / audit-service). -->
+    <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
   </ItemGroup>
 
 </Project>
