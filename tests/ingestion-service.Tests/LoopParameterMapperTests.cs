@@ -17,6 +17,8 @@ public class LoopParameterMapperTests
     [InlineData("PV", "pv", true)]
     [InlineData("SP", "sp", true)]
     [InlineData("OP", "op", true)]
+    [InlineData("SV", "sp", true)]   // Yokogawa alias: SV = setpoint
+    [InlineData("MV", "op", true)]   // Yokogawa alias: MV = controller output
     [InlineData("P", "p", false)]
     [InlineData("I", "i", false)]
     [InlineData("D", "d", false)]

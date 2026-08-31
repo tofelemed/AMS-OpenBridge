@@ -25,8 +25,8 @@ Identity mismatch (`=` rows) ⇒ DLQ, reasons `LOOP_IDENTITY_MISMATCH` / `PARAME
 | OT param | Canonical role | Tuple field | Notes |
 |---|---|---|---|
 | `PV` | PROCESS_VALUE | `pv` | required member — tuple invalid downstream without it |
-| `SP` | SETPOINT | `sp` | required member |
-| `OP` | OUTPUT | `op` | required member |
+| `SP` / `SV` | SETPOINT | `sp` | required member — `SV` is the Yokogawa name (the plant's loop export uses it; broker screenshots showed `SP`; both accepted by default) |
+| `OP` / `MV` | OUTPUT | `op` | required member — `MV` is the Yokogawa name (same duality) |
 | `MODE` | CONTROLLER_MODE | `mode` | numeric on the wire (`4.0`) → `mode_value_map` config → engine vocabulary (`AUT`, `CAS`, `MAN`…); unmapped ⇒ raw string + counter |
 | `P` | extension (tuning) | `p` | semantics unconfirmed (likely proportional band %) — carried opaque |
 | `I` | extension (tuning) | `i` | likely integral time s — carried opaque |

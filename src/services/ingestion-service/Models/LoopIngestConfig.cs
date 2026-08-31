@@ -24,6 +24,10 @@ public sealed class LoopIngestConfig
     public static readonly Dictionary<string, string> DefaultParamRoles = new(StringComparer.OrdinalIgnoreCase)
     {
         ["PV"] = "pv", ["SP"] = "sp", ["OP"] = "op", ["MODE"] = "mode",
+        // Yokogawa CENTUM aliases (the plant's own loop export uses SV = setpoint,
+        // MV = controller output, while the broker screenshots showed SP/OP —
+        // accept both so a gateway rename never silently parks a whole plant).
+        ["SV"] = "sp", ["MV"] = "op",
         ["P"] = "p", ["I"] = "i", ["D"] = "d", ["GW"] = "gw",
     };
 
