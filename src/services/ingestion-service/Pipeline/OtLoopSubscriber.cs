@@ -32,7 +32,7 @@ public sealed class OtLoopSubscriber : IAsyncDisposable
     private readonly SubscriberStatus _status;
     private readonly ILogger _logger;
 
-    private readonly LoopRegistryCache _registry = new();
+    private readonly LoopRegistryCache _registry;
     private readonly LoopJoiner _joiner = new();
     private readonly Channel<(string Topic, byte[] Payload)> _channel =
         Channel.CreateBounded<(string, byte[])>(new BoundedChannelOptions(10_000)
@@ -41,7 +41,7 @@ public sealed class OtLoopSubscriber : IAsyncDisposable
     private readonly CancellationTokenSource _cts = new();
     private readonly List<Task> _workers = new();
     private IManagedMqttClient? _client;
-    private long _lastTouchMs;
+    private long _lastTouchMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(); // first stamp ≥30 s after start
     private long _receivedSinceTouch;
 
     private string Name => _status.Name;
@@ -49,12 +49,14 @@ public sealed class OtLoopSubscriber : IAsyncDisposable
     public OtLoopSubscriber(DataSourceRow row, string password, LoopIngestSettings settings,
         IReadOnlyList<string> topics, int qos, CplmRegistryClient registryClient,
         ILoopSampleSink sink, UnknownSourceInventory inventory, UnknownSourceRepository unknownRepo,
-        DataSourceRepository configRepo, SubscriberStatus status, ILogger logger)
+        DataSourceRepository configRepo, SubscriberStatus status, ILogger logger,
+        LoopRegistryCache? registry = null)
     {
         _row = row; _password = password; _settings = settings; _topics = topics;
         _qos = (MqttQualityOfServiceLevel)Math.Clamp(qos, 0, 2);
         _registryClient = registryClient; _sink = sink; _inventory = inventory;
         _unknownRepo = unknownRepo; _configRepo = configRepo; _status = status; _logger = logger;
+        _registry = registry ?? new LoopRegistryCache(); // tests pre-seed; a failed refresh keeps the seed
     }
 
     public async Task StartAsync(CancellationToken hostCt)
