@@ -123,6 +123,17 @@ public sealed class DataSourceRepository
             new { configId, isActive, updatedBy });
     }
 
+    /// <summary>Subscriber liveness stamp (throttled by the caller). NOTE: the touch
+    /// trigger bumps version on this UPDATE too — config-change detection must compare
+    /// material fields, never version.</summary>
+    public async Task TouchLastDataReceivedAsync(Guid configId, CancellationToken ct)
+    {
+        await using var conn = await _dataSource.OpenConnectionAsync(ct);
+        await conn.ExecuteAsync(new CommandDefinition(
+            "UPDATE ingestion.data_source_configs SET last_data_received = NOW() WHERE config_id = @configId",
+            new { configId }, cancellationToken: ct));
+    }
+
     public async Task StoreTestResultAsync(Guid configId, bool ok, string? error)
     {
         await using var conn = await _dataSource.OpenConnectionAsync();

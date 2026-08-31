@@ -48,7 +48,11 @@ builder.Services.AddSingleton<UnknownSourceRepository>();
 builder.Services.AddSingleton<UnknownSourceInventory>();
 builder.Services.AddSingleton<SubscriberStatusRegistry>();
 builder.Services.AddSingleton<ILoopSampleSink, LoopSamplePipelineProducer>();
-builder.Services.AddHttpClient<CplmRegistryClient>();
+builder.Services.AddHttpClient(); // IHttpClientFactory for the registry client
+builder.Services.AddSingleton(sp => new CplmRegistryClient(
+    sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(CplmRegistryClient)),
+    sp.GetRequiredService<IConfiguration>()));
+builder.Services.AddHostedService<OtIngestionHostService>();
 
 // ── Auth (edge-only model: gateway-injected X-Auth-* headers) ───────────────
 builder.AddTraverseAuth();

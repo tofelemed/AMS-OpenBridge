@@ -13,6 +13,8 @@
     <PackageReference Include="Dapper" Version="2.1.35" />
     <!-- One-shot broker connection test (MQTT 5 capable). -->
     <PackageReference Include="MQTTnet" Version="4.3.7.1207" />
+    <!-- Managed client: auto-reconnect + resubscribe for the phase-2 subscriber. -->
+    <PackageReference Include="MQTTnet.Extensions.ManagedClient" Version="4.3.7.1207" />
     <!-- audit-events + loop-sample producer (same version as cplm-api). -->
     <PackageReference Include="Confluent.Kafka" Version="2.3.0" />
     <!-- /metrics endpoint (same version as cplm-api / audit-service). -->
