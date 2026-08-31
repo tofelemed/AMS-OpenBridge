@@ -29,11 +29,12 @@ public static class ProfileRegistry
             DisplayName: "Control-Loop Signals (CPA)",
             Module: "Loop Performance (CPM)",
             Transport: "MQTT",
-            Description: "Per-tag control-loop signals (PV/SP/OP/VP/MODE) from the OT gateway. The " +
-                         "ingestion pipeline joins them into per-loop tuples for the CPM diagnostics " +
-                         "engine — loops must be registered in the CPM Loop Registry first.",
+            Description: "Per-parameter control-loop feed (PV/SP/OP/MODE + tuning params) from the OT " +
+                         "gateway; the subscriber joins each loop's parameters onto a per-loop grid " +
+                         "tuple for the CPM diagnostics engine — loops must be registered in the CPM " +
+                         "Loop Registry first.",
             Destination: "traverse.cpa.loop.samples.v1",
-            DefaultTopics: new[] { "ot/loops/#" }),
+            DefaultTopics: new[] { "OT/+/+/+/+/PIDParams/+" }),
         new(
             ProfileType: "MQTT_TELEMETRY",
             DisplayName: "Process Telemetry",

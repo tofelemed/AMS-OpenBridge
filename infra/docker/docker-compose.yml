@@ -976,10 +976,16 @@ services:
       # Master secret for AES-256-GCM credential encryption (>= 32 chars).
       # Rotating it orphans every stored broker password - operators re-enter them.
       ENCRYPTION_KEY: ${INGESTION_ENCRYPTION_KEY:?INGESTION_ENCRYPTION_KEY must be set (>= 32 chars, generate with openssl rand -hex 24)}
-      # traverse.cpa.audit-events producer (fire-and-forget; empty disables)
+      # traverse.cpa.audit-events producer + phase-2 loop-sample/DLQ producer (empty disables)
       Kafka__BootstrapServers: kafka:9092
+      Kafka__LoopSamplesTopic: traverse.cpa.loop.samples.v1
+      Kafka__OtDlqTopic: traverse.ingestion.ot-dlq
+      # Phase-2 subscriber pulls the CPM Loop Registry (cplm-api grants internal
+      # X-Service-Key callers analytics.view - see cplm-api's Auth__ServicePermissions).
+      Services__CplmApi: http://cplm-api:5000
       # Platform auth (edge-only): authorize from gateway-injected X-Auth-* headers.
-      # No internal X-Service-Key callers - service principal scope stays empty.
+      # SENDS X-Service-Key to cplm-api (registry sync) but receives no internal
+      # calls itself - service principal scope stays empty.
       Auth__ServiceKey: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
       Auth__ServicePermissions: ""
     # No published port - reachable only through the gateway (8081) / compose network.

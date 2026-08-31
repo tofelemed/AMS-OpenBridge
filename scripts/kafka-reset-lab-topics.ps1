@@ -67,6 +67,10 @@ $allowedTopics = @(
 $cplmRetention30d = "2592000000"
 $ensureTopics = @(
     @{ Name = "traverse.cpa.loop.samples.v1"; Partitions = 16; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
+    # OT ingestion dead letters (ingestion-service subscriber): quarantined MQTT
+    # messages with reason codes. The -dlq suffix keys the DlqReceivingMessages
+    # Prometheus alert and scripts/replay-kafka-dlq.ps1. Ensure-only: evidence.
+    @{ Name = "traverse.ingestion.ot-dlq"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     @{ Name = "traverse.cpa.clpm.feature.short.v1"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     @{ Name = "traverse.cpa.clpm.feature.long.v1"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     @{ Name = "traverse.cpa.clpm.gate.results.v1"; Partitions = 8; Config = "retention.ms=$cplmRetention30d,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
