@@ -294,3 +294,13 @@ Follow the platform's established fail-loud posture:
 | 5 | Scale-out + multi-site naming review (group/edge per site vs the current `ams_site1` defaults) | second site onboards with config only |
 
 Existing assets to reuse while building: `ams-sims/sim_loop_samples.py` and `scripts/sim/process_value_sim.py` are reference producers for the exact target contracts; `scripts/cplm-replay-csv-live.ps1` and the B2_027PIC E2E report document the proven backfill+recompute path; `mock-dcs` stands in for the ACK endpoint.
+
+> **Status update (2026-08-31):** the **loop plane of phase 2 is implemented** — the
+> `MQTT_LOOP_SAMPLES` subscriber pipeline (topic/payload validation → loop-registry
+> resolution → enrichment → 5 s joiner → `traverse.cpa.loop.samples.v1`, with
+> `traverse.ingestion.ot-dlq` + `ingestion.unknown_sources` parking) now lives in
+> `src/services/ingestion-service/Pipeline/`. The real gateway hierarchy differs from
+> the `ot/loops/#` sketch above — see [08-ot-mqtt-loop-ingestion-assessment.md](08-ot-mqtt-loop-ingestion-assessment.md)
+> (decisions/evidence), [09-ot-mqtt-loop-mapping.md](09-ot-mqtt-loop-mapping.md)
+> (field contract) and [10-ot-loop-ingestion-runbook.md](10-ot-loop-ingestion-runbook.md)
+> (operations). Telemetry/alarm/PRM profiles remain per this design.
