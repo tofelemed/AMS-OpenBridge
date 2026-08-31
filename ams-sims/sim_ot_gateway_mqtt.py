@@ -45,7 +45,7 @@ TYPE_CLASS = {
 }
 
 
-def load_loops_csv(path, include_unknown=True):
+def load_loops_csv(path, include_unknown=True, limit=0):
     """Registry-import CSV (loop_id, loop_type, pv_ot_tag=FCS.LOOP.PV, ...) -> sim rows."""
     rng = random.Random(48)
     loops = []
@@ -58,6 +58,8 @@ def load_loops_csv(path, include_unknown=True):
             cls, base, sp_off = TYPE_CLASS.get(row.get("loop_type", "")[:3], TYPE_CLASS["FIC"])
             base = base + rng.uniform(-0.3, 0.3) * base  # spread the plant out a bit
             loops.append((fcs, cls, loop, base, base + sp_off))
+    if limit and limit > 0:
+        loops = loops[:limit]
     if include_unknown:
         loops.append(("FCS0101", "Flow", "FIC99999", 10.0, 10.0))
     return loops
@@ -85,11 +87,14 @@ def main():
     ap.add_argument("--minutes", type=float, default=0.0, help="stop after N minutes (0 = run forever)")
     ap.add_argument("--loops-csv", default=None,
                     help="registry-import CSV (e.g. scripts/fixtures/hdpe-all-loops.csv) - feed every loop in it")
+    ap.add_argument("--limit", type=int, default=0,
+                    help="feed only the first N loops from --loops-csv (0 = all)")
     ap.add_argument("--no-unknown", action="store_true",
                     help="do not add the unregistered FIC99999 parking probe")
     args = ap.parse_args()
 
-    loops = load_loops_csv(args.loops_csv, include_unknown=not args.no_unknown) if args.loops_csv \
+    loops = load_loops_csv(args.loops_csv, include_unknown=not args.no_unknown, limit=args.limit) \
+        if args.loops_csv \
         else [l for l in LOOPS if not (args.no_unknown and l[2] == "FIC99999")]
 
     client = mqtt.Client(client_id="sim-ot-gateway")
