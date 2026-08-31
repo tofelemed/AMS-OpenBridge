@@ -1,8 +1,6 @@
 using System.Diagnostics;
-using System.Security.Cryptography.X509Certificates;
 using MQTTnet;
 using MQTTnet.Client;
-using MQTTnet.Formatter;
 using Traverse.IngestionService.Models;
 
 namespace Traverse.IngestionService.Services;
@@ -12,6 +10,8 @@ namespace Traverse.IngestionService.Services;
 /// clean session + no reconnect — reusing the subscriber's stable id would make
 /// the broker evict the live connection, and a persistent session left by a test
 /// would make the broker queue messages forever for a client that never returns.
+/// Connect/TLS option building is shared with the subscriber via
+/// MqttClientOptionsFactory so the two paths cannot diverge.
 /// </summary>
 public sealed class MqttConnectionTester
 {
@@ -22,47 +22,12 @@ public sealed class MqttConnectionTester
     public async Task<ConnectionTestResult> TestAsync(DataSourceRow row, string password, CancellationToken cancellationToken)
     {
         var timeout = TimeSpan.FromSeconds(row.TimeoutSeconds > 0 ? row.TimeoutSeconds : 30);
-        var mqtt = ProfileConfig.FromJson(row.ProfileConfig).Mqtt;
 
-        Uri uri;
-        try
-        {
-            uri = new Uri(row.ConnectionUrl.Trim());
-        }
-        catch (UriFormatException)
-        {
-            return new ConnectionTestResult(false, $"Invalid broker URL: {row.ConnectionUrl}", 0);
-        }
-        var isTls = uri.Scheme is "mqtts" or "ssl";
-        var port = uri.IsDefaultPort || uri.Port <= 0 ? (isTls ? 8883 : 1883) : uri.Port;
-
-        var builder = new MqttClientOptionsBuilder()
-            .WithTcpServer(uri.Host, port)
-            .WithClientId($"test-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}")
-            .WithCleanSession(true)
-            .WithProtocolVersion(MqttProtocolVersion.V500)
-            .WithTimeout(timeout);
-        if (!string.IsNullOrEmpty(row.Username))
-            builder = builder.WithCredentials(row.Username, password);
-
-        if (isTls)
-        {
-            X509Certificate2Collection? caCerts = null;
-            var caError = TryLoadCaCertificates(mqtt?.Tls, out caCerts);
-            if (caError is not null)
-                return new ConnectionTestResult(false, caError, 0);
-
-            var skipVerify = row.InsecureSkipVerify;
-            var servername = mqtt?.Tls?.Servername;
-            builder = builder.WithTlsOptions(tls =>
-            {
-                tls.UseTls();
-                if (!string.IsNullOrWhiteSpace(servername))
-                    tls.WithTargetHost(servername.Trim());
-                tls.WithCertificateValidationHandler(args =>
-                    ValidateBrokerCertificate(args, caCerts, skipVerify));
-            });
-        }
+        if (!MqttClientOptionsFactory.TryBuild(row, password,
+                clientId: $"test-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}",
+                cleanSession: true, sessionExpirySeconds: 0, timeout,
+                out var options, out var buildError))
+            return new ConnectionTestResult(false, buildError, 0);
 
         var client = new MqttFactory().CreateMqttClient();
         var stopwatch = Stopwatch.StartNew();
@@ -70,7 +35,7 @@ public sealed class MqttConnectionTester
         {
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(timeout + TimeSpan.FromSeconds(1));
-            var result = await client.ConnectAsync(builder.Build(), timeoutCts.Token);
+            var result = await client.ConnectAsync(options!, timeoutCts.Token);
             stopwatch.Stop();
 
             if (result.ResultCode != MqttClientConnectResultCode.Success)
@@ -89,9 +54,12 @@ public sealed class MqttConnectionTester
             // the host used to reach the broker is not in the certificate's
             // subjectAltName list (spec §6 / Appendix A gotcha 3).
             var message = Flatten(ex);
-            if (isTls && LooksLikeTlsFailure(message))
+            if (MqttClientOptionsFactory.IsTlsUrl(row.ConnectionUrl) && LooksLikeTlsFailure(message))
+            {
+                var host = HostOf(row.ConnectionUrl);
                 message += $" (a bare protocol/certificate error usually means the broker's TLS certificate " +
-                           $"does not list \"{uri.Host}\" in its SANs — set tls.servername or fix the certificate)";
+                           $"does not list \"{host}\" in its SANs — set tls.servername or fix the certificate)";
+            }
             return new ConnectionTestResult(false, message, stopwatch.ElapsedMilliseconds);
         }
         finally
@@ -100,54 +68,9 @@ public sealed class MqttConnectionTester
         }
     }
 
-    /// <summary>Inline PEM preferred over a server-local CA path (spec: the path must be readable by the tester too).</summary>
-    private static string? TryLoadCaCertificates(MqttTlsConfig? tls, out X509Certificate2Collection? caCerts)
+    private static string HostOf(string url)
     {
-        caCerts = null;
-        try
-        {
-            if (!string.IsNullOrWhiteSpace(tls?.CaCertPem))
-            {
-                var certs = new X509Certificate2Collection();
-                certs.ImportFromPem(tls.CaCertPem);
-                if (certs.Count == 0) return "CA certificate PEM contained no certificates";
-                caCerts = certs;
-                return null;
-            }
-            if (!string.IsNullOrWhiteSpace(tls?.CaCertPath))
-            {
-                if (!File.Exists(tls.CaCertPath))
-                    return $"CA certificate not readable at {tls.CaCertPath}";
-                var certs = new X509Certificate2Collection();
-                certs.ImportFromPem(File.ReadAllText(tls.CaCertPath));
-                if (certs.Count == 0) return $"No certificate found in {tls.CaCertPath}";
-                caCerts = certs;
-                return null;
-            }
-            return null; // no CA configured — system roots decide
-        }
-        catch (Exception ex)
-        {
-            return $"Could not load CA certificate: {ex.Message}";
-        }
-    }
-
-    private static bool ValidateBrokerCertificate(
-        MqttClientCertificateValidationEventArgs args,
-        X509Certificate2Collection? caCerts,
-        bool insecureSkipVerify)
-    {
-        if (insecureSkipVerify) return true;
-        if (caCerts is { Count: > 0 } && args.Certificate is not null)
-        {
-            using var chain = new X509Chain();
-            chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-            chain.ChainPolicy.CustomTrustStore.AddRange(caCerts);
-            chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
-            using var endCert = new X509Certificate2(args.Certificate);
-            return chain.Build(endCert);
-        }
-        return args.SslPolicyErrors == System.Net.Security.SslPolicyErrors.None;
+        try { return new Uri(url.Trim()).Host; } catch { return url; }
     }
 
     private static string Flatten(Exception ex)
