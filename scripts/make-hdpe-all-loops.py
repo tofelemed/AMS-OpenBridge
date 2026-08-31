@@ -7,7 +7,14 @@ naming: SV = setpoint, MV = controller output). Unique loops embedded below:
 161 total = FCS0101:73 + FCS0102:68 + FCS0103:11 + FCS0104:9, matching the broker
 topic counts (584+544+88+72 topics / 8).
 
-Output columns match scripts/import-cpm-loops.ps1 / the Loop Registry bulk import.
+Two output files, one per import route (their templates differ!):
+  fixtures/hdpe-all-loops.csv     — scripts/import-cpm-loops.ps1 template
+        (loop_id/display_name/..._ot_tag/op_min/op_max/enable_monitoring).
+        PREFERRED: the only route that stores sourceTag + the OP range.
+  fixtures/hdpe-all-loops-ui.csv  — the CPM Loop Registry UI Bulk Import template
+        (tag/service/.../pv_tag..vp_tag as UNS PATHS, left blank = derived).
+        Loses sourceTag + OP range (the UI route cannot set them).
+
 Placement: site=hdpe, area/unit assigned pseudo-randomly (seeded — regeneration is
 stable) from the REAL seeded tree (database/scripts/48_hdpe_plant_hierarchy.sql).
 Source tags carry the full OT identity incl. the FCS (FCS0101.FIC10301.PV) — the
@@ -21,6 +28,7 @@ import re
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parent / "fixtures" / "hdpe-all-loops.csv"
+OUT_UI = Path(__file__).resolve().parent / "fixtures" / "hdpe-all-loops-ui.csv"
 
 # ── Unique loops from the export (verified against broker counts) ─────────────
 LOOPS = {
@@ -156,11 +164,31 @@ def main():
         writer.writeheader()
         writer.writerows(rows)
 
+    # UI Bulk Import template (src/frontend-ob/.../Cpm/csvImport.ts CSV_HEADERS):
+    # tag + service required; pv_tag..vp_tag are UNS PATHS — left blank so the
+    # dialog derives them from site/area/unit + tag (its safest path).
+    ui_fields = ["tag", "service", "site", "area", "unit", "loop_type",
+                 "criticality", "pv_tag", "sp_tag", "op_tag", "mode_tag", "vp_tag", "profile"]
+    with OUT_UI.open("w", newline="", encoding="ascii") as f:
+        f.write("# UI Bulk Import variant - signal paths derived; sourceTag/OP-range NOT settable "
+                "via this route (prefer import-cpm-loops.ps1 with hdpe-all-loops.csv)\n")
+        writer = csv.DictWriter(f, fieldnames=ui_fields)
+        writer.writeheader()
+        for r in rows:
+            writer.writerow({
+                "tag": r["loop_id"], "service": r["display_name"],
+                "site": r["site"], "area": r["area"], "unit": r["unit"],
+                "loop_type": r["loop_type"], "criticality": r["criticality"],
+                "pv_tag": "", "sp_tag": "", "op_tag": "", "mode_tag": "", "vp_tag": "",
+                "profile": "",
+            })
+
     per_fcs = {fcs: len(loops) for fcs, loops in LOOPS.items()}
     per_type = {}
     for loop in all_ids:
         per_type[loop[:3]] = per_type.get(loop[:3], 0) + 1
-    print(f"wrote {OUT} - {len(rows)} loops")
+    print(f"wrote {OUT} - {len(rows)} loops (import-cpm-loops.ps1 template)")
+    print(f"wrote {OUT_UI} - {len(rows)} loops (UI Bulk Import template)")
     print(f"  per FCS : {per_fcs}")
     print(f"  per type: {per_type}")
 
