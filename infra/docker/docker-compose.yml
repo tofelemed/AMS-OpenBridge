@@ -978,7 +978,9 @@ services:
       ENCRYPTION_KEY: ${INGESTION_ENCRYPTION_KEY:?INGESTION_ENCRYPTION_KEY must be set (>= 32 chars, generate with openssl rand -hex 24)}
       # traverse.cpa.audit-events producer + phase-2 loop-sample/DLQ producer (empty disables)
       Kafka__BootstrapServers: kafka:9092
-      Kafka__LoopSamplesTopic: traverse.cpa.loop.samples.v1
+      # Override in .env for labs whose Kafka volume still carries the legacy
+      # un-prefixed topic generation (e.g. INGESTION_LOOP_SAMPLES_TOPIC=loop.samples.v1).
+      Kafka__LoopSamplesTopic: ${INGESTION_LOOP_SAMPLES_TOPIC:-traverse.cpa.loop.samples.v1}
       Kafka__OtDlqTopic: traverse.ingestion.ot-dlq
       # Phase-2 subscriber pulls the CPM Loop Registry (cplm-api grants internal
       # X-Service-Key callers analytics.view - see cplm-api's Auth__ServicePermissions).

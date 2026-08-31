@@ -24,6 +24,9 @@ param(
     [string]$IotDbRest = 'http://localhost:8181',
     [string]$IotDbUser = 'root',
     [string]$IotDbPassword = 'root',
+    # Must match the service's Kafka__LoopSamplesTopic (INGESTION_LOOP_SAMPLES_TOPIC
+    # in .env; legacy-generation labs use loop.samples.v1).
+    [string]$LoopSamplesTopic = 'traverse.cpa.loop.samples.v1',
     [switch]$KeepConfig,      # leave the data source active after the test (soak mode)
     [switch]$SkipCleanup      # leave sim/config/loops in place
 )
@@ -82,8 +85,9 @@ Step 'mosquitto-test broker up' {
 
 Step 'DLQ topic exists (create if missing)' {
     cmd /c "docker exec ams-kafka kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic traverse.ingestion.ot-dlq --partitions 2 --replication-factor 1 --config retention.ms=604800000 >nul 2>&1"
-    $topics = cmd /c "docker exec ams-kafka kafka-topics --bootstrap-server localhost:9092 --list 2>nul"
-    Assert ($topics -match 'traverse\.ingestion\.ot-dlq') 'traverse.ingestion.ot-dlq missing'
+    $topics = @(cmd /c "docker exec ams-kafka kafka-topics --bootstrap-server localhost:9092 --list 2>nul")
+    Assert (@($topics | Where-Object { $_ -eq 'traverse.ingestion.ot-dlq' }).Count -ge 1) 'traverse.ingestion.ot-dlq missing'
+    Assert (@($topics | Where-Object { $_ -eq $LoopSamplesTopic }).Count -ge 1) "loop-samples topic '$LoopSamplesTopic' does not exist on this broker - pass -LoopSamplesTopic to match the lab's generation"
 }
 
 Step 'HDPE plant hierarchy seeded (script 48, idempotent)' {
@@ -157,9 +161,9 @@ Step 'start sim_ot_gateway_mqtt.py' {
 
 # ── 5. Tuples on Kafka (subscriber start ≤30 s + first grid ticks) ───────────
 function Read-LoopSamples([int]$timeoutMs = 15000, [int]$maxMessages = 40) {
-    return (cmd /c "docker exec ams-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic traverse.cpa.loop.samples.v1 --property print.key=true --timeout-ms $timeoutMs --max-messages $maxMessages 2>nul")
+    return (cmd /c "docker exec ams-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic $LoopSamplesTopic --property print.key=true --timeout-ms $timeoutMs --max-messages $maxMessages 2>nul")
 }
-Step 'enriched tuples for FIC10302 on traverse.cpa.loop.samples.v1' {
+Step "enriched tuples for FIC10302 on $LoopSamplesTopic" {
     $found = $null
     $deadline = (Get-Date).AddSeconds(120)
     while ((Get-Date) -lt $deadline -and -not $found) {
@@ -176,7 +180,22 @@ Step 'enriched tuples for FIC10302 on traverse.cpa.loop.samples.v1' {
     Assert ($json.site -eq 'hdpe') "site enrichment: $($json.site)"
     Assert ($json.area -eq 'section_100') "area enrichment: $($json.area)"
     Assert ($json.source_fcs -eq 'FCS0101') "source_fcs: $($json.source_fcs)"
-    Assert ($null -ne $json.p) 'tuning extension p missing'
+}
+
+Step 'tuning extensions (p/i/d/gw) ride the tuple once published' {
+    # The sim republishes tuning only every 30 s; a subscriber that connected just
+    # after a burst sees them on the NEXT burst - so wait for a tuple carrying p.
+    $withTuning = $null
+    $deadline = (Get-Date).AddSeconds(90)
+    while ((Get-Date) -lt $deadline -and -not $withTuning) {
+        foreach ($line in @(Read-LoopSamples)) {
+            if ($line -notmatch '^FIC10302\s') { continue }
+            $j = ($line -split "`t", 2)[1] | ConvertFrom-Json
+            if ($null -ne $j.p) { $withTuning = $j; break }
+        }
+    }
+    Assert ($null -ne $withTuning) 'no FIC10302 tuple carried tuning extension p within 90 s'
+    Assert ($null -ne $withTuning.i -and $null -ne $withTuning.d -and $null -ne $withTuning.gw) 'i/d/gw extensions missing'
 }
 
 # ── 6. Unknown loop parks (FIC99999 + not-yet-registered TIC10101) ───────────
@@ -237,11 +256,16 @@ Step 'register TIC10101 mid-run -> tuples within 2x refresh interval' {
 Step 'IoTDB row count grows for root.site1.cpm.FIC10302' {
     $auth = 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${IotDbUser}:${IotDbPassword}"))
     $q = @{ sql = 'select count(pv) from root.site1.cpm.FIC10302' } | ConvertTo-Json
+    function Get-PvCount($resp) {
+        # No device yet => IoTDB returns an error body / empty values: treat as 0 rows.
+        if ($resp.values -and $resp.values.Count -gt 0 -and $null -ne $resp.values[0]) { return [long]$resp.values[0][0] }
+        return 0
+    }
     $r1 = Invoke-RestMethod -Method Post -Uri "$IotDbRest/rest/v2/query" -Headers @{ Authorization = $auth } -ContentType 'application/json' -Body $q
-    $c1 = [long]$r1.values[0][0]
+    $c1 = Get-PvCount $r1
     Start-Sleep -Seconds 30
     $r2 = Invoke-RestMethod -Method Post -Uri "$IotDbRest/rest/v2/query" -Headers @{ Authorization = $auth } -ContentType 'application/json' -Body $q
-    $c2 = [long]$r2.values[0][0]
+    $c2 = Get-PvCount $r2
     Assert ($c2 -gt $c1) "IoTDB count not growing ($c1 -> $c2) - is ams-api's RawLoopIotDbConsumer running?"
 }
 

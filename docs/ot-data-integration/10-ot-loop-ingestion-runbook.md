@@ -88,6 +88,11 @@ through the config watch.
 ```powershell
 # full pipeline proof (registers pilot loops itself; needs the stack + rebuilt image):
 .\scripts\test-ot-loop-ingestion-e2e.ps1
+# on a lab whose Kafka volume still carries the legacy un-prefixed topic generation
+# (docker exec ams-kafka kafka-topics --list shows loop.samples.v1, not traverse.cpa.*):
+# set INGESTION_LOOP_SAMPLES_TOPIC=loop.samples.v1 in infra/docker/.env and pass
+# -LoopSamplesTopic loop.samples.v1 here. PS 5.1 note: use -GatewayBase http://127.0.0.1:8081
+# (localhost resolves to ::1 where the Docker proxy does not answer).
 
 # manual soak: keep the data source + sim running
 .\scripts\test-ot-loop-ingestion-e2e.ps1 -KeepConfig -SkipCleanup
