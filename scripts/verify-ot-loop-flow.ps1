@@ -59,10 +59,19 @@ Write-Host "`n=== OT loop pipeline flow check (target loop: $TargetLoop) ===" -F
 
 # ── 1. MQTT -> subscriber ────────────────────────────────────────────────────
 Step '1. subscriber connected and receiving (10 s window)' {
-    $s1 = @(Invoke-RestMethod -Uri "$GatewayBase/api/ingestion/stats" -Headers $H) | Where-Object { $_.connected } | Select-Object -First 1
+    # NB: enumerate with foreach - the stats payload is a JSON array and PS 5.1's
+    # pipeline does not reliably unroll it from Invoke-RestMethod.
+    function Get-BusiestSubscriber {
+        $best = $null
+        foreach ($s in (Invoke-RestMethod -Uri "$GatewayBase/api/ingestion/stats" -Headers $H)) {
+            if ($s.connected -and ($null -eq $best -or $s.messagesReceived -gt $best.messagesReceived)) { $best = $s }
+        }
+        return $best
+    }
+    $s1 = Get-BusiestSubscriber
     Assert ($null -ne $s1) 'no connected subscriber - start the soak first (.\scripts\start-ot-loop-soak.ps1)'
     Start-Sleep -Seconds 10
-    $s2 = @(Invoke-RestMethod -Uri "$GatewayBase/api/ingestion/stats" -Headers $H) | Where-Object { $_.configId -eq $s1.configId } | Select-Object -First 1
+    $s2 = Get-BusiestSubscriber
     Assert ($s2.messagesReceived -gt $s1.messagesReceived) "messagesReceived not growing ($($s1.messagesReceived) -> $($s2.messagesReceived)) - is the sim running?"
     Assert ($s2.tuplesEmitted -gt $s1.tuplesEmitted) "tuples not emitted ($($s1.tuplesEmitted) -> $($s2.tuplesEmitted)) - check Kafka publish failures ($($s2.kafkaFailures))"
     Write-Host "        subscriber '$($s2.name)': +$($s2.messagesReceived - $s1.messagesReceived) msgs, +$($s2.tuplesEmitted - $s1.tuplesEmitted) tuples, joiner holds $($s2.activeLoops) loops, registry $($s2.registryLoops)"
@@ -92,19 +101,22 @@ Step '3. Flink CPLM jobs RUNNING' {
 }
 
 # ── 4. Flink consuming the samples topic ─────────────────────────────────────
-Step '4. Flink consuming samples (offsets advance, 10 s window)' {
-    function ShortOffsets {
-        $lines = @(cmd /c "docker exec ams-kafka kafka-consumer-groups --bootstrap-server localhost:9092 --describe --group traverse-cpa-flink-cplm-short 2>nul")
-        $sum = 0L
-        foreach ($l in $lines) {
-            $cols = ($l -split '\s+') | Where-Object { $_ }
-            if ($cols.Count -ge 4 -and $cols[1] -eq $LoopSamplesTopic -and $cols[3] -match '^\d+$') { $sum += [long]$cols[3] }
+# Flink commits group offsets only on checkpoint completion (CPLM jobs checkpoint
+# every 180-300 s), so "committed offsets ever advanced" is the honest signal here;
+# stage 5 proves live consumption through the OUTPUT topics instead.
+Step '4. Flink short-feature group attached with committed progress' {
+    $lines = @(cmd /c "docker exec ams-kafka kafka-consumer-groups --bootstrap-server localhost:9092 --describe --group traverse-cpa-flink-cplm-short 2>nul")
+    $sum = 0L; $attached = $false
+    foreach ($l in $lines) {
+        $cols = ($l -split '\s+') | Where-Object { $_ }
+        if ($cols.Count -ge 4 -and $cols[1] -eq $LoopSamplesTopic) {
+            $attached = $true
+            if ($cols[3] -match '^\d+$') { $sum += [long]$cols[3] }
         }
-        return $sum
     }
-    $o1 = ShortOffsets; Start-Sleep -Seconds 10; $o2 = ShortOffsets
-    Assert ($o2 -gt $o1) "short-feature group offsets not advancing ($o1 -> $o2) - is the job reading $LoopSamplesTopic?"
-    Write-Host "        traverse-cpa-flink-cplm-short consumed +$($o2 - $o1) records"
+    Assert $attached "group traverse-cpa-flink-cplm-short is not attached to $LoopSamplesTopic"
+    Assert ($sum -gt 0) 'no committed offsets yet - wait one checkpoint interval (~3-5 min) and re-run'
+    Write-Host "        committed $sum records (advances every checkpoint, ~3-5 min)"
 }
 
 # ── 5. Flink producing (live metrics fast; features after ~2 min) ────────────
@@ -130,11 +142,20 @@ Step "6. IoTDB rows growing for root.site1.cpm.$TargetLoop" {
     Write-Host "        $c2 pv rows (+$($c2 - $c1) in 15 s)"
 }
 
-# ── 7. Postgres: CPLM result tables ──────────────────────────────────────────
-Step '7. Postgres traverse_cplm result activity' {
-    $rows = @(cmd /c "docker exec ams-postgres psql -U ams_user -d traverse_cplm -t -A -F'|' -c `"SELECT relname, n_live_tup FROM pg_stat_user_tables WHERE schemaname='cpm' AND relname NOT LIKE 'loop_%' AND n_live_tup > 0 ORDER BY n_live_tup DESC LIMIT 6`" 2>nul") | Where-Object { $_ }
-    if ($rows.Count -eq 0) { throw 'no rows in any cpm result table yet - feature/gate consumers write after Flink windows close (~2+ min); re-run shortly' }
-    foreach ($r in $rows) { Write-Host "        $r" }
+# ── 7. Postgres: CPLM result path ────────────────────────────────────────────
+# Gate verdicts need LONG-diagnostics windows + fusion: hours of soak, not minutes.
+# Young soak => gate.results topic empty => nothing for the consumers to persist;
+# that is healthy. FAIL only when gate results EXIST on Kafka but Postgres is empty.
+Step '7. Postgres result path (consumers caught up; rows once verdicts exist)' {
+    $gateRecords = Get-TopicEndOffsetSum 'traverse.cpa.clpm.gate.results.v1'
+    $rows = @(cmd /c "docker exec ams-postgres psql -U ams_user -d traverse_cplm -t -A -F'|' -c `"SELECT relname, n_live_tup FROM pg_stat_user_tables WHERE schemaname='cpm' AND relname NOT LIKE 'loop_%' AND relname NOT IN ('threshold_profile') AND n_live_tup > 0 ORDER BY n_live_tup DESC LIMIT 6`" 2>nul") | Where-Object { $_ }
+    if ($gateRecords -gt 0) {
+        Assert ($rows.Count -gt 0) "gate.results has $gateRecords records but no cpm result rows - cplm-api results consumers broken?"
+        foreach ($r in $rows) { Write-Host "        $r" }
+    } else {
+        Write-Host "        no gate verdicts on Kafka yet (long windows + fusion need hours of soak) - consumers attached and idle, as expected"
+        if ($rows.Count -gt 0) { foreach ($r in $rows) { Write-Host "        $r" } }
+    }
 }
 
 # ── 8. UI historical: gateway /api/hist/trend ────────────────────────────────
