@@ -113,6 +113,74 @@ CPA jobs after the JobManager is healthy.
 
 ---
 
+## Manual mode — same deploy, one script at a time
+
+`deploy.sh` is just a wrapper. Every stage is a standalone script (each loads `migration/.env`
+itself); run them individually from `/opt/AMS-open` when you want to verify between steps.
+Order matters. All are idempotent — re-running skips what already exists.
+
+**M1. Prerequisites (read-only, changes nothing)**
+```bash
+bash migration/00-prerequisites-check.sh
+```
+Verify: no `FAIL` lines. Warnings on bound ports/low disk are informational — read them.
+
+**M2. Create the 5 databases + ams_user (never drops anything)**
+```bash
+bash migration/01-create-databases.sh
+```
+Verify: `docker exec instrumental-postgres psql -U postgres -Atc "\l" | grep traverse_`
+→ `traverse_auth`, `traverse_assets`, `traverse_cplm`, `traverse_ingestion`, `traverse_audit`.
+
+**M3. Apply schemas (skips a DB whose base tables exist; `--force` is dev-only)**
+```bash
+bash migration/02-apply-schemas.sh
+```
+Verify: `docker exec instrumental-postgres psql -U postgres -d traverse_auth -Atc "\dt" | head`
+
+**M4. Seed — HDPE hierarchy, full RBAC catalog, bootstrap Admin**
+```bash
+bash migration/03-seed.sh
+```
+Needs `BOOTSTRAP_ADMIN_PASSWORD` in `.env` (bcrypt-hashed on the VM; falls back to the
+auth-service container seeding it at first start if hashing tools are missing).
+Verify: `docker exec instrumental-postgres psql -U postgres -d traverse_auth -Atc "select username, role from users;"`
+
+**M5. Start the services (the raw compose command behind `deploy.sh --prod`)**
+```bash
+cd /opt/AMS-open
+docker compose --env-file migration/.env \
+  -f infra/docker/docker-compose.yml \
+  -f migration/deploy/docker-compose.marun.yml \
+  --project-directory infra/docker \
+  --profile cpa up -d --no-build
+```
+Never drop `--no-build` on the VM. Verify: `docker ps --format '{{.Names}} {{.Status}}' | grep -E 'ams-|traverse-'`
+— everything `Up`/`healthy` (init containers exit 0 by design).
+
+**M6. Kafka topics (ops-gated — shared broker)**
+```bash
+# requires ALLOW_CREATE_PREFIXED_TOPICS=yes in migration/.env
+bash migration/04-create-kafka-topics.sh
+```
+Creates only `traverse.*` from [kafka/topics.txt](kafka/topics.txt), `--if-not-exists`, RF=3 minISR=2.
+Verify: `docker exec instrumental-kafka-1 kafka-topics --bootstrap-server kafka-1:9092 --list | grep '^traverse\.'`
+
+**M7. Submit the 4 Flink jobs (ops-gated; JobManager must be up — after M5)**
+```bash
+# requires ALLOW_FLINK_SUBMIT=yes in migration/.env
+bash migration/04b-submit-flink-jobs.sh
+```
+Verify: `docker exec ams-flink-jobmanager flink list -m localhost:8081` → 4 × RUNNING.
+
+**M8. Validate everything**
+```bash
+bash migration/05-validate.sh                                  # DBs + seed
+bash migration/05-validate.sh --require-kafka --require-flink  # strict, after M6/M7
+```
+
+---
+
 ## 7. Smoke test
 
 ```bash
