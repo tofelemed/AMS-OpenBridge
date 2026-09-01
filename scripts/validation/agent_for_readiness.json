@@ -2,64 +2,64 @@
     "total":  11,
     "checks":  {
                    "SignalR health":  {
-                                          "Detail":  "Healthy",
-                                          "Pass":  true,
-                                          "At":  "2026-06-07T02:02:04.0438738Z"
+                                          "Detail":  "degraded/unavailable",
+                                          "Pass":  false,
+                                          "At":  "2026-08-31T12:28:04.7684284Z"
                                       },
                    "raw-opc-events contract":  {
                                                    "Detail":  "no sample event",
                                                    "Pass":  false,
-                                                   "At":  "2026-06-07T02:02:24.4566225Z"
+                                                   "At":  "2026-08-31T12:28:17.2615315Z"
                                                },
                    "Flink checkpoint completed":  {
-                                                      "Detail":  "recent checkpoint exists",
-                                                      "Pass":  true,
-                                                      "At":  "2026-06-07T02:02:04.0368677Z"
+                                                      "Detail":  "The operation has timed out.",
+                                                      "Pass":  false,
+                                                      "At":  "2026-08-31T12:28:04.7654275Z"
                                                   },
                    "Kafka consumer lag":  {
-                                              "Detail":  "lag=0 threshold=5000",
-                                              "Pass":  true,
-                                              "At":  "2026-06-07T02:02:03.9016563Z"
+                                              "Detail":  "lag=-1 threshold=5000",
+                                              "Pass":  false,
+                                              "At":  "2026-08-31T12:27:56.7378637Z"
                                           },
                    "traverse.alarm.current-alarm-state sample":  {
-                                                      "Detail":  "no message in window",
-                                                      "Pass":  false,
-                                                      "At":  "2026-06-07T02:02:42.5577760Z"
-                                                  },
+                                                                     "Detail":  "no message in window",
+                                                                     "Pass":  false,
+                                                                     "At":  "2026-08-31T12:28:29.8765022Z"
+                                                                 },
                    "Flink job RUNNING":  {
                                              "Detail":  "running=1",
                                              "Pass":  true,
-                                             "At":  "2026-06-07T02:02:03.9096466Z"
+                                             "At":  "2026-08-31T12:27:56.7421305Z"
                                          },
                    "No client ui-* commandIds in traverse.alarm.operator-actions":  {
-                                                                         "Detail":  "clean sample",
-                                                                         "Pass":  true,
-                                                                         "At":  "2026-06-07T02:03:00.5335627Z"
-                                                                     },
+                                                                                        "Detail":  "clean sample",
+                                                                                        "Pass":  true,
+                                                                                        "At":  "2026-08-31T12:28:40.2036519Z"
+                                                                                    },
                    "API pipeline health":  {
-                                               "Detail":  "reachable",
-                                               "Pass":  true,
-                                               "At":  "2026-06-07T02:02:03.8776085Z"
+                                               "Detail":  "unreachable",
+                                               "Pass":  false,
+                                               "At":  "2026-08-31T12:27:56.7187396Z"
                                            },
                    "DLQ raw-opc-events size":  {
                                                    "Detail":  "messages=0 threshold=1000",
                                                    "Pass":  true,
-                                                   "At":  "2026-06-07T02:02:04.0578408Z"
+                                                   "At":  "2026-08-31T12:28:04.7729553Z"
                                                },
                    "API alarm identity fields":  {
-                                                     "Detail":  "checked 2 rows",
-                                                     "Pass":  true,
-                                                     "At":  "2026-06-07T02:02:42.6255444Z"
+                                                     "Detail":  "The remote server returned an error: (401) Unauthorized.",
+                                                     "Pass":  false,
+                                                     "At":  "2026-08-31T12:28:29.9222778Z"
                                                  },
                    "Historical API query":  {
-                                                "Detail":  "total=17997",
-                                                "Pass":  true,
-                                                "At":  "2026-06-07T02:03:00.7479558Z"
+                                                "Detail":  "The remote server returned an error: (401) Unauthorized.",
+                                                "Pass":  false,
+                                                "At":  "2026-08-31T12:28:40.2501048Z"
                                             }
                },
-    "generatedAt":  "2026-06-07T02:03:00.7689926Z",
-    "failed":  2,
-    "passed":  9,
+    "generatedAt":  "2026-08-31T12:28:40.2913345Z",
+    "failed":  8,
+    "passed":  3,
     "violations":  [
                        "RAW_EVENT_CONTRACT:no sample event"
                    ]

@@ -667,7 +667,10 @@ services:
       FLINK_JOBMANAGER_HOST:       ams-flink-jobmanager
       FLINK_JOBMANAGER_PORT:       "8081"
       KAFKA_BROKERS:               kafka:9092
-      RAW_ALARMS_STARTING_OFFSETS: earliest
+      # Phase J (audit-jobs.md finding 9): aligned with the supervisor and
+      # ensure_flink_jobs.py — "earliest" here made every stack start replay the
+      # whole raw-alarms topic through CAS/SignalR/historian.
+      RAW_ALARMS_STARTING_OFFSETS: committed
       FLINK_JAR_PATH:              /opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar
       FLINK_ENTRY_CLASS:           com.ams.flink.OpcEventStreamJob
     volumes:
@@ -1429,7 +1432,7 @@ services:
 
   # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   # Phase 2 â€” Flink live-state job submit
-  # Submits LiveStateJob (traverse.alarm.live.alarms, traverse.live.metrics RBE)
+  # Submits LiveStateJob (traverse.alarm.live.alarms + traverse.alarm.live.alarm.metrics RBE)
   # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   flink-job-submit-live-state:
     build:
@@ -1490,10 +1493,11 @@ services:
     restart: "no"
 
   # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  # Flink job supervisor â€” standing loop that resubmits any of the six core
-  # jobs (3 alarm baseline + 3 CPLM) that is not RUNNING. There is no JM HA:
-  # a JobManager restart or Docker daemon bounce loses every job, and the
-  # one-shot submit containers (restart: "no") do not rerun on their own.
+  # Flink job supervisor â€” standing loop that resubmits any of the TEN standing
+  # jobs (see flink-job-supervisor.sh, kept in step with ensure_flink_jobs.py)
+  # that is not RUNNING. The one-shot submit containers (restart: "no") do not
+  # rerun on their own; ZooKeeper JM HA exists but recovers OLD job graphs, so
+  # the supervisor remains the code-upgrade path (cancel -> resubmit).
   # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   flink-job-supervisor:
     build:

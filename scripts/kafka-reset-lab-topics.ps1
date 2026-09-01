@@ -24,15 +24,13 @@ $allowedTopics = @(
     @{ Name = "traverse.alarm.ack-results"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     @{ Name = "traverse.alarm.lifecycle-events"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     @{ Name = "traverse.alarm.root-cause-events"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "traverse.cpa.loop-raw-data"; Partitions = 16; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "traverse.cpa.loop-kpis-5m"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    # RETIRED topics removed (audit-jobs.md Phase G, 2026-09-01): loop-raw-data,
+    # loop-kpis-5m, kpi-bad-actors, kpi-health-scores, state.active,
+    # system.state.drift.alerts — producers/jobs retired; events.raw kept (AlarmReplayEngine source).
     @{ Name = "traverse.alarm.kpi-alarm-rates"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "traverse.alarm.kpi-bad-actors"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     @{ Name = "traverse.alarm.kpi-standing-snapshots"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=compact,min.insync.replicas=$minIsr" },
-    @{ Name = "traverse.alarm.kpi-health-scores"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     @{ Name = "traverse.alarm.events.raw"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     @{ Name = "traverse.alarm.state.delta"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "traverse.alarm.state.active"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=compact,min.insync.replicas=$minIsr" },
     @{ Name = "traverse.alarm.flink.state.alarm.delta"; Partitions = 4; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     # Written by AlarmReplayEngine, consumed by ams-api ReplayResultConsumerService.
     # Was missing here (auto-create used to paper over it; Plan 09 turns auto-create off).
@@ -41,7 +39,6 @@ $allowedTopics = @(
     # -> traverse.analysis.results -> analysis-service. Also missing here until 2026-08-12 (same trap).
     @{ Name = "traverse.analysis.executions"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     @{ Name = "traverse.analysis.results"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
-    @{ Name = "traverse.system.state.drift.alerts"; Partitions = 2; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
 
     # ── Phase 0: Edge platform live & telemetry topics ──────────────────────
     # Live state (Report-By-Exception): Flink LiveStateJob → Sparkplug Edge Node
@@ -100,7 +97,12 @@ $legacyTopics = @(
     "live.metrics", "live.alarms", "live.alarm.metrics", "raw.telemetry.site1",
     "loop.samples.v1", "clpm.feature.short.v1", "clpm.feature.long.v1", "clpm.gate.results.v1",
     "live.loop.metrics", "ams.metadata.updates", "context.parameter-set.v1",
-    "audit-events", "lifecycle-alerts"
+    "audit-events", "lifecycle-alerts",
+    # Phase G retirement (2026-09-01): full traverse.* names whose jobs/producers
+    # were retired — deleted on the next reset instead of recreated.
+    "traverse.cpa.loop-raw-data", "traverse.cpa.loop-kpis-5m",
+    "traverse.alarm.kpi-bad-actors", "traverse.alarm.kpi-health-scores",
+    "traverse.alarm.state.active", "traverse.system.state.drift.alerts"
 )
 
 if (-not $Force) {

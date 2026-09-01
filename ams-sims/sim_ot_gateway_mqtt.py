@@ -107,11 +107,23 @@ def main():
     start = time.time()
     published = 0
     last_tuning = -TUNING_PERIOD_S
+    # audit-jobs.md Phase F: the unregistered sentinel (FIC99999) proves the
+    # DLQ/parking path, but publishing it at full cadence flooded
+    # traverse.ingestion.ot-dlq with 50k+ identical LOOP_NOT_REGISTERED rows,
+    # burying any REAL DLQ signal. One probe every UNKNOWN_PERIOD_S keeps the
+    # negative path exercised without the noise.
+    UNKNOWN_PERIOD_S = 300.0
+    last_unknown = -UNKNOWN_PERIOD_S
     try:
         while args.minutes <= 0 or time.time() - start < args.minutes * 60:
             t = time.time() - start
             send_tuning = t - last_tuning >= TUNING_PERIOD_S
+            send_unknown = t - last_unknown >= UNKNOWN_PERIOD_S
+            if send_unknown:
+                last_unknown = t
             for fcs, cls, loop, base, sp in loops:
+                if loop == "FIC99999" and not send_unknown:
+                    continue
                 pv = base + 2.0 * math.sin(t / 30.0) + random.gauss(0, 0.2)
                 op = 30.0 + 5.0 * math.sin(t / 45.0) + random.gauss(0, 0.5)
                 fast = {"PV": (pv, ""), "SP": (sp, ""), "OP": (op, "%"), "MODE": (4.0, "")}

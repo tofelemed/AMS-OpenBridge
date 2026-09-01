@@ -351,3 +351,7 @@ src/xmlgraphics-batik-main ScreeN Import/
 # CPA reference / intake material (local only — large PDFs, sample data, drafts)
 CPA/
 backups/
+
+# Python bytecode (ams-sims)
+__pycache__/
+*.pyc

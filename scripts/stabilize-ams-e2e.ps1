@@ -31,17 +31,16 @@ Write-Host "[Flink] Ensure single RUNNING job (lab parallelism)..." -ForegroundC
 $jobId = Ensure-AmsFlinkAlarmJob -JarHostPath $jar -RawAlarmsStartingOffsets $RawAlarmsStartingOffsets -ForceResubmit:$ForceResubmit
 Write-Host "[Flink] Alarm JobId: $jobId" -ForegroundColor Green
 
-Write-Host "`n[Flink] Submitting Loop KPI Engine..." -ForegroundColor Yellow
-$kpiJobId = Ensure-LoopKpiFlinkJob -JarHostPath $jar -ForceResubmit:$ForceResubmit
-Write-Host "[Flink] Loop KPI JobId: $kpiJobId" -ForegroundColor Green
+# RETIRED (audit-jobs.md Phase G, 2026-09-01): Loop KPI Engine and State Drift
+# Detection Engine. Both consumed topics with NO producer (loop-raw-data /
+# events.raw / state.active), so they ran healthy while processing nothing, and
+# neither was in flink-job-supervisor.sh — this script was their only submitter.
+# CPLM (short/long/fusion) is the real loop-KPI path. See the Retirement record
+# in audit-jobs.md; the classes were removed from src/flink.
 
 Write-Host "`n[Flink] Submitting Alarm KPI Engine..." -ForegroundColor Yellow
 $alarmKpiJobId = Ensure-AlarmKpiFlinkJob -JarHostPath $jar -ForceResubmit:$ForceResubmit
 Write-Host "[Flink] Alarm KPI JobId: $alarmKpiJobId" -ForegroundColor Green
-
-Write-Host "`n[Flink] Submitting State Drift Detection Engine..." -ForegroundColor Yellow
-$driftJobId = Ensure-DriftDetectionFlinkJob -JarHostPath $jar -ForceResubmit:$ForceResubmit
-Write-Host "[Flink] State Drift Detection JobId: $driftJobId" -ForegroundColor Green
 
 Write-Host "`n[Flink] Submitting Alarm State Export Engine..." -ForegroundColor Yellow
 $exportJobId = Ensure-AlarmStateExportFlinkJob -JarHostPath $jar -ForceResubmit:$ForceResubmit
