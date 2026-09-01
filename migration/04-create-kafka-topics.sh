@@ -28,7 +28,10 @@ while IFS= read -r raw || [[ -n "$raw" ]]; do
   # compression.type). A non-whitespace IFS preserves empty fields.
   IFS='|' read -r topic parts cleanup retention compression lab <<<"${line//$'\t'/|}"
   [[ -n "$topic" ]] || continue
-  [[ "$topic" == "${TOPIC_PREFIX}"* ]] || die "topic '$topic' does not start with ${TOPIC_PREFIX}"
+  # Namespace guard for the shared broker: our prefixes only. topics.txt
+  # carries traverse.cpa.* plus traverse.ingestion.ot-dlq (DLQ namespace).
+  [[ "$topic" == "${TOPIC_PREFIX}"* || "$topic" == traverse.ingestion.* ]] \
+    || die "topic '$topic' is outside the allowed namespaces (${TOPIC_PREFIX}*, traverse.ingestion.*)"
   [[ "$parts" =~ ^[0-9]+$ ]] || die "bad partition count for $topic"
 
   args=(
