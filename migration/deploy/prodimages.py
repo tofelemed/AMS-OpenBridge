@@ -40,6 +40,9 @@ BUILD_SERVICES = [
     "sparkplug-edge-node",
     "flink-jobmanager",
     "ams-frontend",
+    # Opt-in /trend historian writer (profile cpa-ams-api). Built always; only
+    # SAVED into the bundle when START_AMS_API=yes at save time (compose images).
+    "ams-api",
 ]
 
 # Registry pulls (Marun reuses Instrumental Postgres/Kafka — do not pull those).

@@ -194,6 +194,8 @@ services:
       <<: *kafka-env
       AlarmIngestion__Enabled: "false"
       Cplm__ConsumersEnabled: "false"
+      # RawLoopIotDbConsumer credentials — IotDbOptions defaults to root/root.
+      IotDb__Password: ${IOTDB_PASSWORD:?IOTDB_PASSWORD must be set}
       ConnectionStrings__AmsDb: Host=${POSTGRES_HOST:-instrumental-postgres};Port=5432;Database=ams;Username=${AMS_DB_USER:-ams_user};Password=${POSTGRES_PASSWORD}
 
   gateway:
