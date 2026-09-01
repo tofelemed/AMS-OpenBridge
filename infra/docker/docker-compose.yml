@@ -187,6 +187,9 @@ services:
     environment:
       EMQX_NAME: "ams-emqx"
       EMQX_HOST: "127.0.0.1"
+      # Air-gap: OSS EMQX defaults telemetry.enable=true and posts to
+      # telemetry.emqx.io after boot and every 7 days. Never on-plant.
+      EMQX_TELEMETRY__ENABLE: "false"
       EMQX_MQTT__MAX_PACKET_SIZE: "1MB"
       # â”€â”€ Authentication (Plan 04 item 6, AUTH-03) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       # Anonymous access is CLOSED. Authenticator chain (first success wins):
@@ -463,6 +466,9 @@ services:
     environment:
       MINIO_ROOT_USER:     ${MINIO_ROOT_USER:-ams_minio}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set â€” see infra/docker/.env.example}
+      # Air-gap: default is an HTTPS update check against dl.min.io during
+      # server bootstrap; offline it stalls readiness into the healthcheck.
+      MINIO_UPDATE: "off"
     volumes:
       - minio-data:/data
     ports:
@@ -488,10 +494,12 @@ services:
     environment:
       MINIO_ROOT_USER:     ${MINIO_ROOT_USER:-ams_minio}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set â€” see infra/docker/.env.example}
+      MC_UPDATE: "off"   # air-gap: no mc self-update probe
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
       mc mb --ignore-existing local/ams-flink &&
+      mc mb --ignore-existing --with-lock local/ams-audit-archive-worm &&
       echo '[minio-init] buckets ready'
       "
     networks:
@@ -772,7 +780,7 @@ services:
     logging: *default-logging
     <<: *default-restart
     depends_on:
-      auth-service:
+      traverse-auth-service:
         condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Production
@@ -804,6 +812,9 @@ services:
   sparkplug-edge-node:
     build:
       context: ../../src/services/sparkplug-edge-node
+    # Explicit tag: without it the image name derives from the compose project
+    # name, and an offline `up` without --no-build could hit Maven Central.
+    image: ams-sparkplug-edge-node:1.0-SNAPSHOT
     container_name: ams-sparkplug-edge-node
     logging: *default-logging
     <<: *default-restart
@@ -964,7 +975,11 @@ services:
   # configs + encrypted credential store + one-shot connection test. The phase-2
   # MQTT subscriber pipeline lands in this same service (decrypted credentials
   # never cross the network).
-  ingestion-service:
+  # Service KEY is traverse-ingestion-service for the same reason as
+  # traverse-auth-service below: Instrumental's shared plant network already
+  # owns the DNS name `ingestion-service` (their MQTT ingest, a different
+  # product). Internal callers keep using `ingestion-service` via the alias.
+  traverse-ingestion-service:
     build:
       context: ../../src/services/ingestion-service
     container_name: traverse-ingestion-service
@@ -995,7 +1010,8 @@ services:
       Auth__ServicePermissions: ""
     # No published port - reachable only through the gateway (8081) / compose network.
     networks:
-      - ams-backend
+      ams-backend:
+        aliases: [ingestion-service]   # internal DNS name; never leaks onto shared networks
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/5000' || exit 1"]  # aspnet image has no wget/curl; /dev/tcp works
       interval: 10s
@@ -1007,7 +1023,13 @@ services:
   # Auth Service (Node/Express)
   # Login, RS256 JWTs (JWKS at /api/auth/.well-known/jwks.json), RBAC
   # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  auth-service:
+  # Service KEY is traverse-auth-service (not auth-service): Compose registers
+  # the service name as DNS on EVERY attached network — container_name/aliases
+  # do not replace it (measured 2026-08-30). Instrumental's shared plant network
+  # already owns `auth-service`, so a colliding key would round-robin THEIR
+  # lookups into our container. The `auth-service` DNS name every JWKS/auth URL
+  # uses lives on as an alias scoped to ams-backend below.
+  traverse-auth-service:
     build:
       context: ../../src/services/auth-service
     container_name: traverse-auth-service
@@ -1061,7 +1083,8 @@ services:
       - auth-keys:/app/keys
     # FINAL LOCKDOWN (Plan 04): no published port — reachable only through the gateway (8081) / compose network. See docs/api-gateway.md.
     networks:
-      - ams-backend
+      ams-backend:
+        aliases: [auth-service]   # internal DNS name; never leaks onto shared networks
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3002/health || exit 1"]
       interval: 10s

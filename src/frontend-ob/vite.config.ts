@@ -37,7 +37,10 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    // No production sourcemaps: 60+ .map files shipped the full TypeScript
+    // source to anyone with plant-network access. Dev debugging uses `npm run
+    // dev` (inline maps); set BUILD_SOURCEMAP=1 for a one-off diagnostic build.
+    sourcemap: process.env.BUILD_SOURCEMAP === '1',
     rollupOptions: {
       output: {
         // FE-07: the heavy vendors used to chunk only along route-lazy boundaries, so

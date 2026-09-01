@@ -32,14 +32,17 @@ builder.Services.AddScoped<ChainIntegrityVerifier>();
 
 // Add Background Workers
 builder.Services.AddHostedService<AuditEventConsumer>();
-// WORM archival to S3 is OPT-IN: AmazonS3Client() throws at construction when no AWS region/endpoint is
-// configured, so a stack without object storage (dev/compose) would crash-loop. Only run the archiver
-// when S3 is actually configured; the immutable hash-chained store + audit query work without it.
-var s3Configured = !string.IsNullOrWhiteSpace(builder.Configuration["S3:AuditBucket"])
-    || !string.IsNullOrWhiteSpace(builder.Configuration["AWS:Region"])
-    || !string.IsNullOrWhiteSpace(builder.Configuration["AWS_REGION"]);
+// WORM archival is OPT-IN and on-prem only: it arms solely on S3:ServiceUrl pointing at the
+// internal object store (MinIO), and the writer's constructor refuses public AWS endpoints.
+// The old gate armed on S3:AuditBucket / AWS_REGION alone, which silently produced an
+// AWS-bound client on an air-gapped plant — those now only draw a warning.
+var s3Configured = !string.IsNullOrWhiteSpace(builder.Configuration["S3:ServiceUrl"]);
 if (s3Configured)
     builder.Services.AddHostedService<WormArchiveWriter>();
+else if (!string.IsNullOrWhiteSpace(builder.Configuration["S3:AuditBucket"])
+    || !string.IsNullOrWhiteSpace(builder.Configuration["AWS:Region"])
+    || !string.IsNullOrWhiteSpace(builder.Configuration["AWS_REGION"]))
+    Console.WriteLine("[audit-service] WORM archival NOT started: set S3:ServiceUrl (internal object store) to enable it.");
 
 // Add basic healthcheck and metrics API
 builder.Services.AddHealthChecks();

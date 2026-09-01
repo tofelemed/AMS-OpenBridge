@@ -18,10 +18,11 @@ enableMapSet();
 
 /** Resolve MQTT WebSocket URL — supports full ws(s):// URLs and same-origin paths like /mqtt-ws. */
 function resolveMqttWsUrl(): string {
-  const configured = (import.meta.env.VITE_MQTT_WS_URL as string | undefined)?.trim();
-  if (!configured) {
-    return 'ws://localhost:8083/mqtt';
-  }
+  // Same-origin /mqtt-ws is the no-config default: nginx (prod) and the Vite
+  // dev server both proxy it to the gateway → EMQX. A localhost fallback would
+  // resolve to the OPERATOR'S OWN machine on a deployed plant and silently
+  // deliver no live data.
+  const configured = (import.meta.env.VITE_MQTT_WS_URL as string | undefined)?.trim() || '/mqtt-ws';
   if (/^wss?:\/\//i.test(configured)) {
     return configured;
   }
@@ -36,7 +37,7 @@ function resolveMqttWsUrl(): string {
 
 export function getMqttBrokerUrl(): string {
   if (typeof window === 'undefined') {
-    return (import.meta.env.VITE_MQTT_WS_URL as string | undefined) ?? 'ws://localhost:8083/mqtt';
+    return (import.meta.env.VITE_MQTT_WS_URL as string | undefined) ?? '/mqtt-ws';
   }
   return resolveMqttWsUrl();
 }

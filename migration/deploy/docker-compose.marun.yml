@@ -6,7 +6,21 @@
 #     --profile cpa up -d
 #
 # Requires Compose v2.24+ (`!override` / `!reset`). Instrumental keeps :80.
-# Lab postgres/kafka are profiled off. CPA services join instrumental-network.
+# Lab postgres/kafka are profiled off.
+#
+# NETWORK MODEL (VM audit 2026-09-01): instrumental-network already registers
+# the DNS names auth-service, ingestion-service, redis, postgres, kafka-1..3,
+# nginx, frontend, grafana, notification-service. Compose registers the SERVICE
+# KEY as a DNS record on every attached network (container_name / aliases do
+# not replace it — measured 2026-08-30), so:
+#   - only services that need Instrumental Postgres/Kafka join the shared
+#     network (*cpa-shared); everything else stays internal (*cpa);
+#   - the colliding keys were renamed in the base file to traverse-auth-service
+#     / traverse-ingestion-service, with the old names as ams-backend-scoped
+#     aliases — no URL anywhere changes;
+#   - dual-homed services pin Redis to ams-redis / ams-redis-contract instead
+#     of the bare names, which also exist on Instrumental's side (theirs is
+#     passwordless — never resolve `redis` from a shared-network container).
 # Flink HA does not use lab ZooKeeper (Instrumental owns the Kafka ensemble).
 
 name: ams-cpa
@@ -17,6 +31,11 @@ networks:
     name: ${DOCKER_NETWORK:-instrumental-network}
 
 x-cpa: &cpa
+  profiles: ["cpa"]
+  networks:
+    - ams-backend
+
+x-cpa-shared: &cpa-shared
   profiles: ["cpa"]
   networks:
     - ams-backend
@@ -82,10 +101,12 @@ services:
     profiles: ["cpa"]
   iotdb:
     profiles: ["cpa"]
+    ports: !override []   # in-network only; 6667/8181/9091 stay off the shared host
   iotdb-init:
     profiles: ["cpa"]
   minio:
     profiles: ["cpa"]
+    ports: !override []   # in-network only; 9000/9001 stay off the shared host
   minio-init:
     profiles: ["cpa"]
   emqx:
@@ -95,8 +116,8 @@ services:
   emqx-init:
     <<: *cpa
 
-  auth-service:
-    <<: *cpa
+  traverse-auth-service:
+    <<: *cpa-shared
     depends_on: !reset
     environment:
       <<: *kafka-env
@@ -106,24 +127,33 @@ services:
       BOOTSTRAP_ADMIN_PASSWORD: ${AUTH_BOOTSTRAP_PASSWORD}
       BOOTSTRAP_ADMIN_USERNAME: ${AUTH_BOOTSTRAP_USERNAME:-admin}
       BOOTSTRAP_ADMIN_EMAIL: ${AUTH_BOOTSTRAP_EMAIL:-admin@local}
-      CORS_ORIGIN: http://localhost:${FRONTEND_HOST_PORT:-8088},http://localhost:5174
+      CORS_ORIGIN: http://localhost:${FRONTEND_HOST_PORT:-8090},http://localhost:5174
+    networks: !override
+      ams-backend:
+        aliases: [auth-service]   # internal name for JWKS/auth URLs — ams-backend ONLY
+      instrumental-network: {}
 
   asset-model:
-    <<: *cpa
+    <<: *cpa-shared
     depends_on: !override
       redis:
         condition: service_healthy
     environment:
       <<: *kafka-env
+      Redis__Host: ams-redis   # dual-homed: never resolve the bare `redis` (also Instrumental's, passwordless)
       ConnectionStrings__TraverseAssets: Host=${POSTGRES_HOST:-instrumental-postgres};Port=5432;Database=traverse_assets;Username=${AMS_DB_USER:-ams_user};Password=${POSTGRES_PASSWORD}
 
   binding-resolver:
     <<: *cpa
     environment:
       <<: *kafka-env
+      # ams-api is off this cut: blank its targets so the SignalR client and
+      # HTTP forwarder stop retry-churning against a name that never resolves.
+      Services__AmsApi: ""
+      Services__SignalRHub: ""
 
   cplm-api:
-    <<: *cpa
+    <<: *cpa-shared
     depends_on: !reset
     environment:
       <<: *kafka-env
@@ -132,18 +162,20 @@ services:
 
   historian-bff:
     <<: *cpa
-    environment:
-      <<: *kafka-env
 
-  ingestion-service:
-    <<: *cpa
+  traverse-ingestion-service:
+    <<: *cpa-shared
     depends_on: !reset
     environment:
       <<: *kafka-env
       ConnectionStrings__TraverseIngestion: Host=${POSTGRES_HOST:-instrumental-postgres};Port=5432;Database=traverse_ingestion;Username=${AMS_DB_USER:-ams_user};Password=${POSTGRES_PASSWORD}
+    networks: !override
+      ams-backend:
+        aliases: [ingestion-service]   # internal name — ams-backend ONLY
+      instrumental-network: {}
 
   audit-service:
-    <<: *cpa
+    <<: *cpa-shared
     depends_on: !reset
     environment:
       <<: *kafka-env
@@ -169,10 +201,10 @@ services:
   ams-frontend:
     <<: *cpa
     ports: !override
-      - "${FRONTEND_HOST_PORT:-8088}:80"
+      - "${FRONTEND_HOST_PORT:-8090}:80"   # 8088 is taken on Marun (alarm_superset)
 
   sparkplug-edge-node:
-    <<: *cpa
+    <<: *cpa-shared
     depends_on: !override
       emqx:
         condition: service_healthy
@@ -185,9 +217,10 @@ services:
       LIVE_LOOP_METRICS_TOPIC: traverse.cpa.live.loop.metrics
       KAFKA_GROUP_ID: traverse-sparkplug-edge
       MQTT_CLIENT_ID: ams-edge-node-1
+      REDIS_HOST: ams-redis-contract   # dual-homed: never resolve the bare `redis-contract`
 
   flink-jobmanager:
-    <<: *cpa
+    <<: *cpa-shared
     depends_on: !override
       minio-init:
         condition: service_completed_successfully
@@ -207,7 +240,7 @@ services:
         s3.endpoint: http://minio:9000
         s3.path.style.access: true
         s3.access-key: ${MINIO_ROOT_USER:-ams_minio}
-        s3.secret-key: ${MINIO_ROOT_PASSWORD}
+        s3.secret-key: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}
         state.checkpoints.num-retained: 3
         execution.checkpointing.interval: 60000
         execution.checkpointing.min-pause: 30000
@@ -219,7 +252,7 @@ services:
         metrics.reporter.prom.port: 9249
 
   flink-taskmanager:
-    <<: *cpa
+    <<: *cpa-shared
     depends_on: !override
       flink-jobmanager:
         condition: service_started
@@ -239,7 +272,7 @@ services:
         s3.endpoint: http://minio:9000
         s3.path.style.access: true
         s3.access-key: ${MINIO_ROOT_USER:-ams_minio}
-        s3.secret-key: ${MINIO_ROOT_PASSWORD}
+        s3.secret-key: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}
         state.checkpoints.num-retained: 3
         execution.checkpointing.interval: 60000
         execution.checkpointing.min-pause: 30000

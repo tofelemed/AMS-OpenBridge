@@ -10,8 +10,8 @@
 #
 # Prerequisites:
 #   - docker stack up (run-all.ps1), ingestion-service image REBUILT with phase 2:
-#       docker compose -f infra/docker/docker-compose.yml build ingestion-service
-#       docker compose -f infra/docker/docker-compose.yml up -d ingestion-service
+#       docker compose -f infra/docker/docker-compose.yml build traverse-ingestion-service
+#       docker compose -f infra/docker/docker-compose.yml up -d traverse-ingestion-service
 #   - loops NOT yet required: this script registers the pilot fixture itself
 #     (scripts/fixtures/hdpe-pilot-loops.csv) via import-cpm-loops.ps1.
 #
@@ -70,7 +70,7 @@ Write-Host "gateway: $GatewayBase`n"
 Step 'gateway + ingestion-service healthy, phase-2 build deployed' {
     $h = Invoke-RestMethod -Method Get -Uri "$GatewayBase/gw/upstreams/ingestion-service/health" -TimeoutSec 15
     $body = $h | ConvertTo-Json -Depth 6
-    Assert ($body -notmatch 'NotBuilt') 'ingestion-service still runs the phase-1 image (subscriber NotBuilt) - rebuild: docker compose build ingestion-service && up -d ingestion-service'
+    Assert ($body -notmatch 'NotBuilt') 'ingestion-service still runs the phase-1 image (subscriber NotBuilt) - rebuild: docker compose build traverse-ingestion-service && up -d traverse-ingestion-service'
 }
 
 Step 'mosquitto-test broker up' {

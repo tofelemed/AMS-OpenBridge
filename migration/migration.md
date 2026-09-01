@@ -70,6 +70,8 @@ bash migration/run-migration.sh
 
 Do not set `ALLOW_*` on Marun until ops confirms topic create / Flink submit on the shared broker.
 
-Still open (ops): T1-lite (Timescale on `traverse_cplm` vs vanilla PG); HTTP hostname vs free port.
+**Resolved by the 2026-09-01 VM audit:** T1-lite → **vanilla PG** (`timescaledb` is absent from
+`pg_available_extensions` on `instrumental-postgres`; keep omitting `39_`). HTTP → free host port
+**8090** (`FRONTEND_HOST_PORT`; 8088 is taken by `alarm_superset`), gateway 8081.
 
 Air-gap images: [OFFLINE_DEPLOYMENT_GUIDE.md](OFFLINE_DEPLOYMENT_GUIDE.md) (build on an internet box, `docker save`, VM `--prod --no-build`). Do not build images on Marun.

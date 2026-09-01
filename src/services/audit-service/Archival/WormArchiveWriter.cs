@@ -16,9 +16,32 @@ public class WormArchiveWriter : BackgroundService
     {
         _sp = sp;
         _logger = logger;
-        
-        // In production, this S3 bucket MUST be configured with Object Lock (WORM compliance)
-        _s3Client = new AmazonS3Client(); 
+
+        // Air-gap: only the on-prem object store (MinIO) is ever a valid target.
+        // A bare AmazonS3Client() resolves the public AWS endpoint and probes the
+        // link-local IMDS credential chain, so an explicit internal endpoint plus
+        // static credentials are required; public AWS endpoints are refused.
+        var serviceUrl = config["S3:ServiceUrl"];
+        if (string.IsNullOrWhiteSpace(serviceUrl) ||
+            serviceUrl.Contains("amazonaws.com", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException(
+                "S3:ServiceUrl must point at the on-prem object store (e.g. http://minio:9000).");
+
+        var accessKey = config["S3:AccessKey"]
+            ?? throw new InvalidOperationException("S3:AccessKey must be set for WORM archival.");
+        var secretKey = config["S3:SecretKey"]
+            ?? throw new InvalidOperationException("S3:SecretKey must be set for WORM archival.");
+
+        // The bucket MUST be created with Object Lock for the WORM claim to hold
+        // (minio-init: `mc mb --with-lock local/ams-audit-archive-worm`).
+        _s3Client = new AmazonS3Client(
+            new Amazon.Runtime.BasicAWSCredentials(accessKey, secretKey),
+            new AmazonS3Config
+            {
+                ServiceURL = serviceUrl,
+                ForcePathStyle = true,              // MinIO is path-style
+                AuthenticationRegion = "us-east-1", // MinIO ignores it; the SDK signer needs a value
+            });
         _bucketName = config.GetValue<string>("S3:AuditBucket") ?? "ams-audit-archive-worm";
     }
 

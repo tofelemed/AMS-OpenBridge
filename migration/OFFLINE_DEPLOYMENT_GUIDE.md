@@ -31,7 +31,12 @@ Build-time fetches are allowed **only** on the internet box. The VM must never r
 | Google Fonts / `fonts.googleapis.com` | Browser **runtime** | **Fixed.** `src/frontend-ob` self-hosts Noto via `@fontsource-variable` (`src/styles/fonts.css`). `index.html` has no CDN `<link>`. OpenBridge package CSS does not `@import` Google Fonts. |
 | Vite `npm run dev` | Host **dev** | Never run on the plant. Prod image is `nginx` + `dist/`. |
 | Grafana plugin store / news / analytics | Container **start** | Grafana is **off** this cut (`lab-obs`). Env is still set so a later `up` does not call grafana.com: `GF_INSTALL_PLUGINS=""`, `GF_ANALYTICS_*=false`, `GF_NEWS_NEWS_FEED_ENABLED=false`, `GF_PLUGINS_PUBLIC_KEY_RETRIEVAL_DISABLED=true`, `GF_CHECK_FOR_UPDATES=false`. |
-| Compose `up` without the image | VM | `--no-build` so a missing image **fails** instead of `npm ci`. |
+| EMQX OSS telemetry → `telemetry.emqx.io` | Container **runtime** (post-boot + every 7 days) | **Fixed** (2026-09-01 audit): `EMQX_TELEMETRY__ENABLE: "false"` in compose. |
+| MinIO update check → `dl.min.io` | Container **start** (stalls readiness offline) | **Fixed**: `MINIO_UPDATE: "off"` on minio, `MC_UPDATE: "off"` on minio-init. |
+| audit-service `AmazonS3Client` → public AWS S3 | Runtime, if WORM archival enabled | **Fixed**: archiver requires `S3:ServiceUrl` (internal MinIO), refuses amazonaws.com; minio-init creates `ams-audit-archive-worm` with Object Lock. |
+| `dotnet` SDK CLI telemetry | Image **build** | Opted out in every SDK stage (`DOTNET_CLI_TELEMETRY_OPTOUT=1`). |
+| `bcrypt` prebuilt binary → github.com | Image **build** (auth-service `npm ci`) | Build box must reach github.com as well as the npm registry, or the install falls back to a node-gyp compile Alpine can't do. |
+| Compose `up` without the image | VM | `--no-build` so a missing image **fails** instead of `npm ci`. Both `deploy.sh` and `pull-images.sh` now refuse to build/pull when `instrumental-postgres` is present (plant detection). |
 | `cplm-api` bind-mount of `src/flink/target/*.jar` | Runtime (A8 recompute) | `target/` is **not** in git. `save-offline-bundle.py` copies the JAR into the bundle; `prepare-vm.sh <bundle>` copies it back. Standing Flink jobs use the JAR **inside** `ams-flink`. |
 | ECharts maps / ag-grid CDN / Mapbox | Runtime | Not used. |
 | Alarm feed `192.168.1.51` | `ams-api` if started | This cut does not start `ams-api`. Alarm ingest stays off. |
@@ -178,7 +183,7 @@ After `docker load` (or the same images with the NIC unplugged):
 bash migration/deploy/deploy.sh --prod --no-build --skip-migration
 ```
 
-- UI on `${FRONTEND_HOST_PORT:-8088}` and gateway `/gw/health` work
+- UI on `${FRONTEND_HOST_PORT:-8090}` and gateway `/gw/health` work
 - First paint does **not** request `fonts.googleapis.com`
 - No container log line about `npm ci` / `EAI_AGAIN` / `pull access denied`
 - Grafana is not started this cut; if it is later, it must start without waiting on grafana.com

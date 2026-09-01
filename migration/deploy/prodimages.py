@@ -23,13 +23,13 @@ BUNDLE_PREFIX = "ams-cpa"
 # Built one-at-a-time on the internet box. Frontend last (npm ci is slowest).
 # flink-taskmanager shares image ams-flink:1.0-SNAPSHOT — do not build it separately.
 BUILD_SERVICES = [
-    "auth-service",
+    "traverse-auth-service",       # renamed keys: shared-network DNS collision
     "gateway",
     "asset-model",
     "binding-resolver",
     "cplm-api",
     "historian-bff",
-    "ingestion-service",
+    "traverse-ingestion-service",  # (see docker-compose.marun.yml header)
     "audit-service",
     "sparkplug-edge-node",
     "flink-jobmanager",
@@ -50,6 +50,7 @@ PULL_SERVICES = [
 
 # compose `image:` overrides (not {project}-{service}).
 EXPLICIT_IMAGE = {
+    "sparkplug-edge-node": "ams-sparkplug-edge-node:1.0-SNAPSHOT",
     "flink-jobmanager": "ams-flink:1.0-SNAPSHOT",
     "flink-taskmanager": "ams-flink:1.0-SNAPSHOT",
     "flink-job-submit": "ams-flink:1.0-SNAPSHOT",
@@ -61,14 +62,14 @@ EXPLICIT_IMAGE = {
 
 # How to prove the image is the production Dockerfile, not a same-named dev tag.
 FINGERPRINT = {
-    "auth-service": "node-dist",
+    "traverse-auth-service": "node-dist",
     "ams-frontend": "nginx",
     "gateway": "dotnet",
     "asset-model": "dotnet",
     "binding-resolver": "dotnet",
     "cplm-api": "dotnet",
     "historian-bff": "dotnet",
-    "ingestion-service": "dotnet",
+    "traverse-ingestion-service": "dotnet",
     "audit-service": "dotnet",
     "ams-api": "dotnet",
     "sparkplug-edge-node": "java-jar",

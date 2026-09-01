@@ -68,9 +68,11 @@ if command -v df >/dev/null; then
   fi
 fi
 
-# This app's usual host ports. Instrumental keeps :80 — do not fail on 80/3000.
+# Ports the CPA overlay actually publishes (VM audit 2026-09-01: 8088 belongs
+# to alarm_superset, so the frontend moved to 8090; iotdb/minio/emqx-mqtt are
+# unpublished by the overlay). Instrumental keeps :80 — do not fail on 80/3000.
 if command -v ss >/dev/null; then
-  for p in 8081 8082 8088 1883 6667; do
+  for p in 8081 8082 8090 18083 9249 9250; do
     if ss -lnt 2>/dev/null | grep -q ":${p} "; then
       warn "host port ${p} is already bound (confirm it is not an unexpected collision)"
     fi

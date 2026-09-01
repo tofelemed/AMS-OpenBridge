@@ -110,13 +110,19 @@ if (( WITH_COMPOSE == 1 && SKIP_COMPOSE == 0 )); then
   require_compose_secrets
   info "===== compose up --profile cpa (no Instrumental postgres/kafka) ====="
   if (( NO_BUILD == 0 )); then
+    # Plant guard: building on the air-gapped VM would hit npm/NuGet/Maven.
+    # The Instrumental stack only exists on the shared Marun VM.
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^instrumental-postgres$'; then
+      err "instrumental-postgres is running — this is the PLANT VM. Use --prod (images arrive via docker load)."
+      exit 1
+    fi
     "${COMPOSE[@]}" build
     "${COMPOSE[@]}" up -d
   else
     info "up --no-build (missing image fails instead of npm ci / docker pull)"
     "${COMPOSE[@]}" up -d --no-build
   fi
-  info "HTTP: gateway host port ${GATEWAY_HOST_PORT:-8081} (Instrumental keeps :80). Frontend ${FRONTEND_HOST_PORT:-8088}."
+  info "HTTP: gateway host port ${GATEWAY_HOST_PORT:-8081} (Instrumental keeps :80). Frontend ${FRONTEND_HOST_PORT:-8090}."
 
   if [[ "${ALLOW_FLINK_SUBMIT:-}" == yes ]]; then
     if [[ "${ALLOW_CREATE_PREFIXED_TOPICS:-}" != yes ]]; then
