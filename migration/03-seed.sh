@@ -26,6 +26,7 @@ hash_admin_password() {
     out="$(python3 - "$pw" 2>/dev/null <<'PY' || true
 import sys
 pw = sys.argv[1]
+
 try:
     import bcrypt
     print(bcrypt.hashpw(pw.encode(), bcrypt.gensalt(rounds=10)).decode())
