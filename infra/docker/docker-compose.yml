@@ -869,6 +869,7 @@ services:
     environment:
       ASPNETCORE_URLS: http://0.0.0.0:8090
       IoTDB__RestUrl:  http://iotdb:8181
+      IoTDB__Password: ${IOTDB_PASSWORD:?IOTDB_PASSWORD must be set}   # reader Basic-auth; code defaults root/root
       Redis__Host:     redis-contract   # DATA-03: contract tier (snapshots)
       Redis__Password: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
       Redis__Port:     "6379"
@@ -1371,6 +1372,7 @@ services:
       # A8 recompute uploads this jar to the JobManager.
       CplmRecompute__JarPath: /opt/ams/flink/ams-flink.jar
       IotDb__RestUrl:        http://iotdb:8181
+      IotDb__Password:       ${IOTDB_PASSWORD:?IOTDB_PASSWORD must be set}   # KPI writer; code defaults root/root
       # Platform auth (RBAC): validate RS256 tokens from auth-service; X-Service-Key authenticates
       # internal service-to-service calls that carry no user token.
       Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
