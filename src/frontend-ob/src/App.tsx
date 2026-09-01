@@ -486,7 +486,9 @@ const App: React.FC = () => {
 
 const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const stats = useAlarmStore(s => s.stats);
-  const connSt = useAlarmStore(s => s.connectionState);
+  // connectionState selector removed with the parked connection chip — the
+  // ConnectivityBanner owns connectivity display now. If the chip returns:
+  // const connSt = useAlarmStore(s => s.connectionState);
   const floodAlert = useAlarmStore(s => s.floodAlert);
   const { theme, setTheme } = useTheme();
   const location = useLocation();
@@ -536,7 +538,8 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const criticalCount = stats.totalCritical;
   const unackedCount = stats.unacknowledged;
 
-  const isConnected = connSt === 'Connected';
+  // The connection chip is parked (commented out in the top bar below); if it
+  // returns, re-derive: const isConnected = connSt === 'Connected';
 
   return (
     <LiveEventsContext.Provider value={{ showLiveEvents, toggleLiveEvents }}>
@@ -550,7 +553,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <div className="app-topbar">
         <div className="app-topbar__inner">
           <div className="app-topbar__brand">
-            <div className="app-topbar__brand-title">Traverse AMS</div>
+            <div className="app-topbar__brand-title">Traverse CPA</div>
             <div className="app-topbar__brand-tagline">Lean Automation</div>
           </div>
 
@@ -635,7 +638,11 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               ))}
             </div>
 
-            {/* Connection status */}
+            {/* Connection status — hidden (the ConnectivityBanner carries this
+                now). Kept as a block comment, not deleted, in case the chip
+                comes back; note only the OUTER tags were commented before,
+                which left the style object as bare JSX and broke tsc. */}
+            {/*
             <div style={{
               display: 'flex', alignItems: 'center', gap: '7px',
               padding: '6px 12px', borderRadius: TB.radiusSm,
@@ -655,6 +662,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 {isConnected ? 'Live' : connSt}
               </span>
             </div>
+            */}
 
             {/* User + sign out */}
             <div style={{

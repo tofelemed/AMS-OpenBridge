@@ -172,7 +172,8 @@
    * or filled chip), not from thin colored glyphs competing on brightness.
    *
    * Reserved and deliberately NOT touched: --ams-crit/warn/caut/run/advisory and --ams-pen-*
-   * above, and every OpenBridge --alert-*/--alarm-*/--warning-*/--caution-* value.
+   * above, and every OpenBridge --alert-, --alarm-, --warning- and --caution- value.
+   * (Written without slashes on purpose: a star-slash pair closes the block early.)
    * Only the 18 amber tokens project code actually consumes are overridden. */
 
   /* Surfaces — canvas -> surface -> raised. Previously ALL FOUR were rgb(0,0,0): zero elevation. */

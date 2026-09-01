@@ -11,7 +11,8 @@ import { ObiVisibilityOnGoogle } from '@oicl/openbridge-webcomponents-react/icon
 import { ObiVisibilityOffGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-visibility-off-google';
 import { useAuthStore } from '../../store/authStore';
 import { postLoginPath } from '../../productSlice';
-import plantCover from '../../assets/plant-cover.jpg';
+import plantCoverWebp from '../../assets/plant-cover.webp';
+import plantCoverJpg from '../../assets/plant-cover.jpg';
 import './Login.css';
 
 /**
@@ -47,8 +48,10 @@ export const Login: React.FC = () => {
   const [revealPassword, setRevealPassword] = useState(false);
   const [clock, setClock] = useState(utcStamp);
   const [online, setOnline] = useState(() => navigator.onLine);
+  const [capsLock, setCapsLock] = useState(false);
   const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
 
   const submitting = status === 'authenticating';
   const redirectTo = postLoginPath(location.state?.from);
@@ -86,6 +89,13 @@ export const Login: React.FC = () => {
     };
   }, []);
 
+  // A rejected sign-in rendered its message at the bottom of the form with focus
+  // still in the password field — announced by role="alert", but a keyboard or
+  // screen-magnifier user had no idea where it went. Move to it once, on arrival.
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
+
   const doLogin = useCallback(async () => {
     // Read the LIVE DOM values (refs), not just state — the last-typed keystroke or
     // an autofill that hasn't synced to state yet is still the source of truth.
@@ -113,14 +123,33 @@ export const Login: React.FC = () => {
   return (
     <div className="login">
       <aside className="login__visual">
-        <img className="login__visual-img" src={plantCover} alt="" aria-hidden="true" />
+        {/* WebP first: the source render is a 2 MB PNG, which is the wrong
+            container for a photographic image and a real cost on a plant
+            network. 128 KB WebP / 203 KB JPEG fallback, same pixels. */}
+        <picture>
+          <source srcSet={plantCoverWebp} type="image/webp" />
+          <img className="login__visual-img" src={plantCoverJpg} alt="" aria-hidden="true" />
+        </picture>
+        {/*
+          The visual was pure wallpaper. It now carries the DEPLOYMENT identity —
+          which console this is — while the panel opposite carries the PRODUCT
+          identity. That removes the duplicated site chip from the form column and
+          gives a wall-mounted or projected login something readable across a
+          control room. aria-hidden: the same words are in the form's heading
+          block, so a screen reader should not hear them twice.
+        */}
+        <div className="login__visual-caption" aria-hidden="true">
+          <span className="login__visual-site">{SITE_LABEL}</span>
+          <span className="login__visual-system">
+            Traverse control-loop performance
+          </span>
+        </div>
       </aside>
 
       <main className="login__panel">
         <form className="login__form" onSubmit={handleSubmit}>
-          <div className="login__chip">{SITE_LABEL}</div>
           <h1 className="login__title">Traverse Edge</h1>
-          <p className="login__subtitle">Alarm Management &amp; Operations Display</p>
+          <p className="login__subtitle"> Control Loop Performance Management</p>
 
           <p className="login__notice">
             <strong>Authorized use notice:</strong> Access is restricted to authorized
@@ -165,8 +194,15 @@ export const Login: React.FC = () => {
                 className="login__input login__input--revealable"
                 type={revealPassword ? 'text' : 'password'}
                 autoComplete="current-password"
+                aria-describedby={capsLock ? 'login-capslock' : undefined}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                // Caps Lock is the commonest cause of a "wrong password" that is
+                // not one, and a masked field gives no clue. Read the modifier
+                // from the event rather than tracking keydown/keyup state.
+                onKeyDown={(e) => setCapsLock(e.getModifierState('CapsLock'))}
+                onKeyUp={(e) => setCapsLock(e.getModifierState('CapsLock'))}
+                onBlur={() => setCapsLock(false)}
                 disabled={submitting}
               />
               <button
@@ -180,7 +216,24 @@ export const Login: React.FC = () => {
                 {revealPassword ? <ObiVisibilityOffGoogle /> : <ObiVisibilityOnGoogle />}
               </button>
             </div>
+            {capsLock && (
+              <p className="login__hint" id="login-capslock" role="status">
+                Caps Lock is on.
+              </p>
+            )}
           </div>
+
+          {/*
+            Enter did not submit this form. HTML blocks implicit submission when a
+            form has two or more fields that block it and NO submit button — and
+            obc-button renders its <button> inside a shadow root, so the form has
+            none in its own tree. An operator typing their password and pressing
+            Enter got nothing. This hidden native submit restores it; the visible
+            OpenBridge button stays the affordance.
+          */}
+          <button type="submit" className="login__submit-fallback" tabIndex={-1} aria-hidden="true">
+            Sign in
+          </button>
 
           <ObcButton
             className="login__submit"
@@ -195,7 +248,7 @@ export const Login: React.FC = () => {
           </ObcButton>
 
           {error && (
-            <div className="login__error" role="alert">
+            <div className="login__error" role="alert" ref={errorRef} tabIndex={-1}>
               <span className="login__error-icon">
                 <ObiError />
               </span>

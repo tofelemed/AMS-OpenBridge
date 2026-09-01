@@ -11,10 +11,15 @@
  * `--global-size-spacing-*` tokens are per-component), which is why app.css does the same.
  */
 
+/* Exactly one screen, never a page scrollbar: `height` + `overflow: hidden`
+   (was `min-height`, which let a short viewport push the page past 100vh and
+   scroll). If a window is ever too small for the form, the credential column
+   scrolls INTERNALLY (see .login__form) — the page itself does not. */
 .login {
   display: flex;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background: var(--container-backdrop-color);
   color: var(--element-active-color);
   font-family: var(--font-family-main), 'Noto Sans', sans-serif;
@@ -30,14 +35,38 @@
   background: var(--container-section-color);
 }
 
+.login__visual picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .login__visual-img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* The render is centred with generous sky above; bias downward so a tall, narrow
-     column keeps the plant itself in frame instead of cropping to empty background. */
-  object-position: 50% 58%;
+  /* This render is centred in its frame with even margin on all sides, so the
+     crop stays centred — the previous 58% bias was tuned for a sky-heavy photo
+     and would now cut the cooling towers off the top. */
+  object-position: 50% 50%;
+}
+
+/* Glare control for the LIGHT themes too. The render is near-white end to end;
+   at full brightness on a bright console it is the most luminous thing on the
+   page, which is the opposite of where an operator's eye should land. A soft
+   vignette settles it without touching the day palette. */
+.login__visual::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(
+    130% 100% at 50% 42%,
+    transparent 45%,
+    color-mix(in srgb, var(--element-active-color) 10%, transparent) 100%
+  );
 }
 
 /* Feather the seam into the credential column instead of a hard image edge. */
@@ -45,6 +74,7 @@
   content: '';
   position: absolute;
   inset: 0;
+  z-index: 2;
   pointer-events: none;
   background: linear-gradient(
     to right,
@@ -63,6 +93,80 @@
   filter: brightness(0.62) contrast(1.03) saturate(0.85);
 }
 
+/* ── Deployment identity over the visual ─────────────────────────────────
+   The hero used to be decoration only. It now names the CONSOLE, while the
+   panel opposite names the product — so the two halves say different things
+   and the form column loses its duplicate site chip. The scrim is dark in
+   every theme because the render behind it is near-white in every theme. */
+.login__visual-caption {
+  position: absolute;
+  z-index: 3;
+  inset: auto 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 56px clamp(28px, 4vw, 56px) clamp(28px, 4vw, 48px);
+  background: linear-gradient(
+    to top,
+    rgb(0 0 0 / 62%) 0%,
+    rgb(0 0 0 / 34%) 45%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.login__visual-site {
+  font-size: clamp(22px, 2.6vw, 38px);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 96%);
+}
+
+.login__visual-system {
+  font-family: 'Noto Sans Mono', monospace;
+  font-size: clamp(10px, 1vw, 12.5px);
+  line-height: 1.5;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 74%);
+}
+
+/* ── Caps-lock hint / hidden native submit ───────────────────────────────
+   The submit button exists only so Enter submits: a form with two blocking
+   fields and no submit button in its own tree has no implicit submission, and
+   obc-button keeps its <button> in a shadow root. */
+.login__hint {
+  margin: 0;
+  font-family: 'Noto Sans Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--on-caution-color);
+}
+
+.login__submit-fallback {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  border: 0;
+}
+
+.login__error:focus-visible {
+  outline: 2px solid var(--border-focus-color);
+  outline-offset: 3px;
+  border-radius: var(--border-radius-br-4);
+}
+
+@media (max-width: 900px) {
+  .login__visual-caption { padding-top: 40px; }
+}
+
 /* ── Right: credential column ───────────────────────────────────────────── */
 
 .login__panel {
@@ -70,6 +174,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
   background: var(--container-background-color);
   border-left: 1px solid var(--border-divider-color);
 }
@@ -79,9 +184,14 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+  /* `safe center`: if the column ever overflows, fall back to top-aligned so
+     the internal scroll can reach everything (plain `center` clips the top). */
+  justify-content: safe center;
   gap: 20px;
   padding: 48px clamp(28px, 5vw, 64px);
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* ── Identity block ─────────────────────────────────────────────────────── */
@@ -359,6 +469,44 @@
 
   .login__footer {
     padding: 4px clamp(20px, 6vw, 40px);
+  }
+}
+
+/* ── Short viewports (laptops, 125% OS scaling): compact so it FITS on one
+   screen instead of falling back to the internal scroll. ─────────────────── */
+
+@media (max-height: 840px) {
+  .login__form {
+    gap: 14px;
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
+
+  .login__notice {
+    margin-top: 4px;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .login__input {
+    height: 42px;
+  }
+
+  .login__footer {
+    min-height: 44px;
+  }
+}
+
+@media (max-height: 700px) {
+  .login__form {
+    gap: 10px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+
+  .login__subtitle {
+    display: none;
   }
 }
 
