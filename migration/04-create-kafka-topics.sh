@@ -23,7 +23,10 @@ created=0
 while IFS= read -r raw || [[ -n "$raw" ]]; do
   line="${raw%%$'\r'}"
   [[ -z "$line" || "$line" == \#* ]] && continue
-  IFS=$'\t' read -r topic parts cleanup retention compression lab <<<"$line"
+  # TAB is IFS *whitespace*: consecutive tabs collapse, so the compact rows'
+  # empty retention field shifted every column left (code_name landed in
+  # compression.type). A non-whitespace IFS preserves empty fields.
+  IFS='|' read -r topic parts cleanup retention compression lab <<<"${line//$'\t'/|}"
   [[ -n "$topic" ]] || continue
   [[ "$topic" == "${TOPIC_PREFIX}"* ]] || die "topic '$topic' does not start with ${TOPIC_PREFIX}"
   [[ "$parts" =~ ^[0-9]+$ ]] || die "bad partition count for $topic"
