@@ -58,7 +58,8 @@ if (( FAILS == 0 )); then
     units="$(psql_scalar traverse_assets "SELECT COUNT(*) FROM assets.assets WHERE asset_type = 3 AND NOT is_deleted")"
     [[ "$sites" == 1 ]] && ok "HDPE site row present" || hit "expected 1 HDPE site, got ${sites:-0}"
     [[ "$areas" == 8 ]] && ok "HDPE areas=$areas" || hit "expected 8 HDPE areas, got ${areas:-0}"
-    [[ "$units" == 25 ]] && ok "HDPE units=$units" || hit "expected 25 HDPE units, got ${units:-0}"
+    # 25 plant units + the hdpe/unassigned catch-all (03-hdpe-hierarchy.sql)
+    [[ "$units" == 26 ]] && ok "HDPE units=$units" || hit "expected 26 HDPE units (25 plant + unassigned), got ${units:-0}"
   fi
 
   if table_exists traverse_auth public roles; then
