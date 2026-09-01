@@ -51,10 +51,12 @@ insert_admin() {
     return 0
   fi
   local existing
+  # -c must come LAST and consume the SQL string: `-tAc -v` made psql execute
+  # the literal "-v" as SQL (syntax error at "-") and ignore the real query.
   existing="$(docker exec -i "$POSTGRES_CONTAINER" \
-    psql -U "$POSTGRES_USER" -d traverse_auth -tAc \
+    psql -U "$POSTGRES_USER" -d traverse_auth -tA \
     -v "u=${user}" -v "e=${email}" \
-    "SELECT 1 FROM users WHERE username = :'u' OR email = :'e' LIMIT 1")"
+    -c "SELECT 1 FROM users WHERE username = :'u' OR email = :'e' LIMIT 1")"
   if [[ "$existing" == 1 ]]; then
     ok "Admin user '${user}' already exists — leave password unchanged"
     return 0
