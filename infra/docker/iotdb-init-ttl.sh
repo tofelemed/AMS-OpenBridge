@@ -48,6 +48,27 @@ run_sql() {
       -u "${IOTDB_USER}" -pw "${IOTDB_PASS}" -disableISO8601 2>/dev/null || true
 }
 
+# ── Enforce the configured password (Marun finding, 2026-09-02) ───────────────
+# A fresh IoTDB ships root/root; this script always LOGGED IN with IOTDB_PASS
+# but nothing ever SET it — so on first boot every statement below failed
+# silently and writers presenting the real password got 801 WRONG_LOGIN_PASSWORD.
+# Probe with the configured password; if rejected, rotate off the default.
+probe=$(echo "show databases;" | "${IOTDB_CLI}" -h "${IOTDB_HOST}" -p "${IOTDB_PORT}" \
+    -u "${IOTDB_USER}" -pw "${IOTDB_PASS}" -disableISO8601 2>&1) || true
+if echo "$probe" | grep -qiE "801|Authentication failed|WRONG_LOGIN_PASSWORD"; then
+  echo "[iotdb-init-ttl] Configured password rejected — rotating off factory default…"
+  echo "ALTER USER ${IOTDB_USER} SET PASSWORD '${IOTDB_PASS}';" | \
+    "${IOTDB_CLI}" -h "${IOTDB_HOST}" -p "${IOTDB_PORT}" \
+    -u "${IOTDB_USER}" -pw root -disableISO8601 2>&1 | tail -1
+  verify=$(echo "show databases;" | "${IOTDB_CLI}" -h "${IOTDB_HOST}" -p "${IOTDB_PORT}" \
+      -u "${IOTDB_USER}" -pw "${IOTDB_PASS}" -disableISO8601 2>&1) || true
+  if echo "$verify" | grep -qiE "801|Authentication failed"; then
+    echo "[iotdb-init-ttl] FATAL: cannot authenticate with configured password NOR rotate from the default." >&2
+    exit 1
+  fi
+  echo "[iotdb-init-ttl] Password enforced; proceeding."
+fi
+
 # IoTDB 1.3.2: no IF NOT EXISTS on CREATE DATABASE (parse error), and databases
 # are prefix-exclusive — auto_create_schema made root.ams the database when the
 # alarm sink first wrote, so root.ams.site1.alarms was never a database and the
