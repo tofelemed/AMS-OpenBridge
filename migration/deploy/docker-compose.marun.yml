@@ -127,7 +127,10 @@ services:
       BOOTSTRAP_ADMIN_PASSWORD: ${AUTH_BOOTSTRAP_PASSWORD}
       BOOTSTRAP_ADMIN_USERNAME: ${AUTH_BOOTSTRAP_USERNAME:-admin}
       BOOTSTRAP_ADMIN_EMAIL: ${AUTH_BOOTSTRAP_EMAIL:-admin@local}
-      CORS_ORIGIN: http://localhost:${FRONTEND_HOST_PORT:-8090},http://localhost:5174
+      # PUBLIC_ORIGIN = the URL operators actually type into the browser. The
+      # browser sends it as the Origin header even same-origin; a value missing
+      # from this list makes the cors middleware throw -> login 500s.
+      CORS_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:8090},http://localhost:${FRONTEND_HOST_PORT:-8090},http://localhost:5174
     networks: !override
       ams-backend:
         aliases: [auth-service]   # internal name for JWKS/auth URLs — ams-backend ONLY
