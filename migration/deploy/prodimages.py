@@ -18,6 +18,12 @@ BUILD_OUT = DEPLOY_DIR / "build-out"
 # Must match docker-compose.marun.yml `name:` and the VM .env.
 PROJECT = os.environ.get("COMPOSE_PROJECT_NAME", "ams-cpa")
 
+# Build-box interpolation defaults: on the VM deploy.sh derives these compose
+# names from AMS_DB_PASSWORD / BOOTSTRAP_ADMIN_PASSWORD. Here compose only
+# needs them non-empty to parse; the values are never baked into any image.
+os.environ.setdefault("POSTGRES_PASSWORD", "CHANGE_ME")
+os.environ.setdefault("AUTH_BOOTSTRAP_PASSWORD", "CHANGE_ME")
+
 BUNDLE_PREFIX = "ams-cpa"
 
 # Built one-at-a-time on the internet box. Frontend last (npm ci is slowest).
