@@ -13,17 +13,30 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Stage 3 - Gate fusion job: join of short + long feature streams (Gates 12-15)
- * with keyed temporal persistence (calc v3.0.0).
- * Sources: traverse.cpa.clpm.feature.short.v1 + clpm.feature.long.v1. Sink: traverse.cpa.clpm.gate.results.v1
+ * Stage 3 - Gate fusion job (Gates 12-15) with keyed temporal persistence
+ * (calc v3.0.0).
+ *
+ * <p>Source: traverse.cpa.clpm.feature.long.v1 ONLY. Sink: traverse.cpa.clpm.gate.results.v1.
+ *
+ * <p>audit-jobs.md B-F1 (Phase H): the job previously ALSO consumed the whole
+ * short-feature topic from earliest into a per-loop {@code shortByKind} MapState
+ * that a fallback ladder read — but the long job unconditionally embeds
+ * {@code alignedShort} on every slice, so the ladder never fired and the source
+ * was a full topic's worth of network, CPU and checkpointed state for no output.
+ * The aligned short slice on the long record is now the only short input; a
+ * record without one (which no current producer emits) fuses as
+ * insufficient-data, exactly as the old last-resort branch did.
+ *
+ * <p>The event-time watermark stage was removed with it (audit-jobs.md B-F3):
+ * this operator registers no timers, so the assigners did nothing but add
+ * overhead and a false impression of event-time ordering in the join.
  */
 public class CplmGateFusionStreamJob {
 
@@ -40,14 +53,6 @@ public class CplmGateFusionStreamJob {
         env.getCheckpointConfig().setExternalizedCheckpointCleanup(
                 CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
-        KafkaSource<String> shortSource = KafkaSource.<String>builder()
-                .setBootstrapServers(cfg.brokers)
-                .setTopics(cfg.shortFeatureTopic)
-                .setGroupId(cfg.consumerGroupId + "-short-in")
-                .setStartingOffsets(OffsetsInitializer.committedOffsets(OffsetResetStrategy.EARLIEST))
-                .setValueOnlyDeserializer(new SimpleStringSchema())
-                .build();
-
         KafkaSource<String> longSource = KafkaSource.<String>builder()
                 .setBootstrapServers(cfg.brokers)
                 .setTopics(cfg.longFeatureTopic)
@@ -55,26 +60,6 @@ public class CplmGateFusionStreamJob {
                 .setStartingOffsets(OffsetsInitializer.committedOffsets(OffsetResetStrategy.EARLIEST))
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .build();
-
-        WatermarkStrategy<CplmShortFeatureResult> shortWm = WatermarkStrategy
-                .<CplmShortFeatureResult>forBoundedOutOfOrderness(Duration.ofMinutes(2))
-                .withIdleness(Duration.ofMinutes(1))
-                .withTimestampAssigner((e, ts) -> e.windowEndMs);
-
-        WatermarkStrategy<CplmLongDiagnosticsResult> longWm = WatermarkStrategy
-                .<CplmLongDiagnosticsResult>forBoundedOutOfOrderness(Duration.ofMinutes(2))
-                .withIdleness(Duration.ofMinutes(1))
-                .withTimestampAssigner((e, ts) -> e.windowEndMs);
-
-        DataStream<CplmShortFeatureResult> shortStream = env
-                .fromSource(shortSource, WatermarkStrategy.noWatermarks(), "cplm-fusion-short-source")
-                .map(CplmShortFeatureResult::fromJson)
-                .filter(s -> s != null && s.loopId != null && !s.loopId.isEmpty())
-                .name("cplm-fusion-short-parse")
-                .uid("cplm-fusion-short-parse")
-                .assignTimestampsAndWatermarks(shortWm)
-                .name("cplm-fusion-short-watermarks")
-                .uid("cplm-fusion-short-watermarks");
 
         DataStream<CplmLongDiagnosticsResult> parsedLongStream = env
                 .fromSource(longSource, WatermarkStrategy.noWatermarks(), "cplm-fusion-long-source")
@@ -84,38 +69,31 @@ public class CplmGateFusionStreamJob {
                 .uid("cplm-fusion-long-parse");
 
         DataStream<CplmLongDiagnosticsResult> longStream =
-                CplmParameterSetBroadcastSupport.connectLongProfiles(parsedLongStream, env, cfg)
-                .assignTimestampsAndWatermarks(longWm)
-                .name("cplm-fusion-long-watermarks")
-                .uid("cplm-fusion-long-watermarks");
+                CplmParameterSetBroadcastSupport.connectLongProfiles(parsedLongStream, env, cfg);
 
-        DataStream<String> fused = shortStream
-                .keyBy(s -> s.loopId)
-                .connect(longStream.keyBy(l -> l.loopId))
-                .process(new GateFusionCoProcess())
+        DataStream<String> fused = longStream
+                .keyBy(l -> l.loopId)
+                .process(new GateFusionProcess())
                 .name("cplm-gate-fusion-join")
                 .uid("cplm-gate-fusion-join")
                 .map(CplmGateResult::toJson)
                 .name("cplm-gate-fusion-serialize")
                 .uid("cplm-gate-fusion-serialize");
 
-        CplmKafkaSink.attach(fused, cfg, cfg.outputTopic, "cplm-gate-fusion-sink");
+        // Keyed by loop_id (audit-jobs.md B-F6): CplmEventFrameService's
+        // open/extend/close lifecycle is order-sensitive per (loop, window_kind);
+        // unkeyed verdicts across 8 partitions could interleave and reopen a
+        // frame a later verdict had closed.
+        CplmKafkaSink.attachKeyed(fused, cfg, cfg.outputTopic, "cplm-gate-fusion-sink", "loop_id");
         env.execute(cfg.jobName);
     }
 
-    static class GateFusionCoProcess extends KeyedCoProcessFunction<String, CplmShortFeatureResult, CplmLongDiagnosticsResult, CplmGateResult> {
-        private transient MapState<String, CplmShortFeatureResult> shortByKind;
+    static class GateFusionProcess extends KeyedProcessFunction<String, CplmLongDiagnosticsResult, CplmGateResult> {
         /** Per windowKind: recent selectedFamily history for persistence. */
         private transient MapState<String, List<String>> familyHistoryByKind;
 
         @Override
         public void open(org.apache.flink.configuration.Configuration parameters) {
-            MapStateDescriptor<String, CplmShortFeatureResult> desc = new MapStateDescriptor<>(
-                    "short-features-by-kind",
-                    TypeInformation.of(String.class),
-                    TypeInformation.of(new TypeHint<CplmShortFeatureResult>() {}));
-            shortByKind = getRuntimeContext().getMapState(desc);
-
             MapStateDescriptor<String, List<String>> histDesc = new MapStateDescriptor<>(
                     "family-history-by-kind",
                     TypeInformation.of(String.class),
@@ -124,23 +102,16 @@ public class CplmGateFusionStreamJob {
         }
 
         @Override
-        public void processElement1(CplmShortFeatureResult shortF, Context ctx, Collector<CplmGateResult> out) throws Exception {
-            if (shortF.windowKind != null) {
-                shortByKind.put(shortF.windowKind, shortF);
-            }
-        }
-
-        @Override
-        public void processElement2(CplmLongDiagnosticsResult longD, Context ctx, Collector<CplmGateResult> out) throws Exception {
+        public void processElement(CplmLongDiagnosticsResult longD, Context ctx, Collector<CplmGateResult> out) throws Exception {
+            // Fusion fires on 12h/24h only; 4h slices are KPI-only (served by
+            // /kpis?resolution=4h), never fusion inputs.
             if (longD.windowKind == null || (!"24h".equals(longD.windowKind) && !"12h".equals(longD.windowKind))) {
                 return;
             }
             CplmShortFeatureResult shortF = longD.alignedShort;
-            if (shortF == null) shortF = shortByKind.get("60m");
-            if (shortF == null) shortF = shortByKind.get("15m");
-            if (shortF == null) shortF = shortByKind.get("5m");
-            if (shortF == null) shortF = shortByKind.get("1m");
             if (shortF == null) {
+                // No current producer emits a long record without alignedShort;
+                // if one ever does, fuse it as insufficient rather than dropping.
                 shortF = new CplmShortFeatureResult();
                 shortF.loopId = longD.loopId;
                 shortF.assetUuid = longD.assetUuid;

@@ -123,16 +123,49 @@ public final class CplmHistoricalReplayJob {
             long windowEnd,
             boolean hasStepTest,
             boolean hasPeerLinks) {
+        // audit-jobs.md C-F7: the grid was hardcoded to 5 s regardless of the
+        // loop's real publish rate — a 1 s loop was decimated 5:1 and a 30 s loop
+        // up-sampled 6:1 (inflating sample_count/completeness, depressing stds),
+        // so a recompute was computed on a different sample set than streaming by
+        // construction. Use the window's own median inter-sample period, clamped
+        // to a sane band, with the design default as fallback.
+        long periodMs = medianPeriodMs(samples, EVALUATION_PERIOD_MS);
         List<CplmNormalizedSample> evaluationSamples = materializeEvaluationSamples(
-                samples, windowStart, windowEnd, EVALUATION_PERIOD_MS);
+                samples, windowStart, windowEnd, periodMs);
         CplmNormalizedSample first = evaluationSamples.isEmpty()
                 ? null : evaluationSamples.get(0);
         CplmLoopDynamicsProfile profile = CplmDynamicsParameterSetSupport.resolveFromSpine(
                 first == null ? null : first.loopId,
                 first == null ? null : first.loopType,
                 first == null ? null : first.assetUuid);
-        return CplmGateFusionEngine.fuseFromSamples(
+        CplmGateResult result = CplmGateFusionEngine.fuseFromSamples(
                 evaluationSamples, windowStart, windowEnd, "24h", hasStepTest, hasPeerLinks, profile);
+        // audit-jobs.md C-F1: streaming caps a single-window SUSPECTED/CONFIRMED
+        // at DETECTED/0.54 unless 2-of-3 prior windows agree; this batch path
+        // skipped applyPersistence, so a recompute could return CONFIRMED at 0.95
+        // for a window streaming would have published at 0.54 — directly
+        // contradicting the recompute contract ("matches the streamed one").
+        // Batch has no window history, which is exactly a first-seen family:
+        // apply persistence with an empty history so the same cap applies.
+        CplmGateFusionEngine.applyPersistence(result, new ArrayList<>(), profile);
+        return result;
+    }
+
+    /** Median inter-sample gap of the source events, clamped to [1 s, 60 s]. */
+    static long medianPeriodMs(List<CplmNormalizedSample> samples, long fallbackMs) {
+        if (samples == null || samples.size() < 3) return fallbackMs;
+        List<Long> ts = new ArrayList<>(samples.size());
+        for (CplmNormalizedSample s : samples) ts.add(s.eventTsMs);
+        ts.sort(Long::compare);
+        List<Long> gaps = new ArrayList<>(ts.size() - 1);
+        for (int i = 1; i < ts.size(); i++) {
+            long g = ts.get(i) - ts.get(i - 1);
+            if (g > 0) gaps.add(g);
+        }
+        if (gaps.isEmpty()) return fallbackMs;
+        gaps.sort(Long::compare);
+        long median = gaps.get(gaps.size() / 2);
+        return Math.max(1_000L, Math.min(60_000L, median));
     }
 
     /**

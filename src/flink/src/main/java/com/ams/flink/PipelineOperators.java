@@ -113,9 +113,23 @@ public final class PipelineOperators {
         public void open(Configuration parameters) {
             recordsIn = getRuntimeContext().getMetricGroup().counter("records_in");
             recordsOut = getRuntimeContext().getMetricGroup().counter("records_out");
-            lastEventTime    = getRuntimeContext().getState(new ValueStateDescriptor<>("lastEventTime", Long.class));
-            lastConditionActive = getRuntimeContext().getState(new ValueStateDescriptor<>("lastConditionActive", Boolean.class));
-            lastAcknowledged = getRuntimeContext().getState(new ValueStateDescriptor<>("lastAcknowledged", Boolean.class));
+            // audit-jobs.md A8: these grew one RocksDB entry per alarm key forever.
+            // 7-day idle TTL — a key quiet for a week re-deduplicates from scratch,
+            // which at worst passes one duplicate through an idempotent projection.
+            var ttl = org.apache.flink.api.common.state.StateTtlConfig
+                    .newBuilder(org.apache.flink.api.common.time.Time.days(7))
+                    .setUpdateType(org.apache.flink.api.common.state.StateTtlConfig.UpdateType.OnCreateAndWrite)
+                    .setStateVisibility(org.apache.flink.api.common.state.StateTtlConfig.StateVisibility.NeverReturnExpired)
+                    .build();
+            var evDesc = new ValueStateDescriptor<>("lastEventTime", Long.class);
+            var actDesc = new ValueStateDescriptor<>("lastConditionActive", Boolean.class);
+            var ackDesc = new ValueStateDescriptor<>("lastAcknowledged", Boolean.class);
+            evDesc.enableTimeToLive(ttl);
+            actDesc.enableTimeToLive(ttl);
+            ackDesc.enableTimeToLive(ttl);
+            lastEventTime    = getRuntimeContext().getState(evDesc);
+            lastConditionActive = getRuntimeContext().getState(actDesc);
+            lastAcknowledged = getRuntimeContext().getState(ackDesc);
         }
 
         @Override
@@ -357,28 +371,56 @@ public final class PipelineOperators {
         }
     }
 
-    public static class FloodDetectFilter extends RichFilterFunction<RawOpcAlarmEvent> {
+    /**
+     * audit-jobs.md A4: the flood band (severity >= 950) used to be a silent
+     * filter — the MOST severe events in the plant were deleted with no DLQ, no
+     * side output, and no dedicated metric. Same predicate, but dropped events
+     * now leave through {@link #FLOOD_DROPPED} to traverse.alarm.raw-alarms-dlq
+     * so they are inspectable, and a records_flood_dropped counter is exposed.
+     */
+    public static final org.apache.flink.util.OutputTag<String> FLOOD_DROPPED =
+            new org.apache.flink.util.OutputTag<String>("flood-dropped") {};
+
+    public static class FloodDetectProcess
+            extends org.apache.flink.streaming.api.functions.ProcessFunction<RawOpcAlarmEvent, RawOpcAlarmEvent> {
         private transient Counter recordsIn;
         private transient Counter recordsOut;
+        private transient Counter recordsDropped;
 
         @Override
         public void open(Configuration parameters) {
             recordsIn = getRuntimeContext().getMetricGroup().counter("records_in");
             recordsOut = getRuntimeContext().getMetricGroup().counter("records_out");
+            recordsDropped = getRuntimeContext().getMetricGroup().counter("records_flood_dropped");
         }
 
         @Override
-        public boolean filter(RawOpcAlarmEvent evt) {
+        public void processElement(RawOpcAlarmEvent evt, Context ctx, org.apache.flink.util.Collector<RawOpcAlarmEvent> out) {
             recordsIn.inc();
-            if (evt == null) return false;
+            if (evt == null) return;
             // PIPE-012: test the wire severity, not the normalized one — http-feed
             // events are clamped to <= 900 by ValidationMap, so the flood band was
             // unreachable there. rawSeverity == severity on the non-http path.
             if (Math.max(evt.severity, evt.rawSeverity) >= 950) {
-                return false;
+                recordsDropped.inc();
+                try {
+                    ObjectNode dropped = MAPPER.createObjectNode();
+                    dropped.put("reason", "FLOOD_SEVERITY_BAND");
+                    dropped.put("alarmId", evt.alarmId);
+                    dropped.put("severity", evt.severity);
+                    dropped.put("rawSeverity", evt.rawSeverity);
+                    dropped.put("sourceName", evt.source != null ? evt.source : "");
+                    dropped.put("conditionName", evt.condition != null ? evt.condition : "");
+                    dropped.put("message", evt.message != null ? evt.message : "");
+                    dropped.put("eventTimeEpochMs", evt.eventTimeEpochMs);
+                    ctx.output(FLOOD_DROPPED, MAPPER.writeValueAsString(dropped));
+                } catch (Exception ignored) {
+                    // The drop itself must never fail the pipeline.
+                }
+                return;
             }
             recordsOut.inc();
-            return true;
+            out.collect(evt);
         }
     }
 

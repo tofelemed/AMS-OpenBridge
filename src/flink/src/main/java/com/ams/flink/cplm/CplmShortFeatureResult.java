@@ -191,6 +191,10 @@ public final class CplmShortFeatureResult implements Serializable {
             r.opStd = root.path("op_std").asDouble(0);
             r.freezeIndexS = root.path("freeze_index_s").asDouble(0);
             r.effortRatio = root.path("effort_ratio").asDouble(0);
+            // audit-jobs.md B-F7: never parsed back, so fusion (which sources its
+            // short features from the JSON-round-tripped alignedShort) published
+            // the P2-3 "unit-free, cross-loop comparable" metric as a constant 0.
+            r.effortRatioNormalized = root.path("effort_ratio_normalized").asDouble(0);
             r.opTravel = root.path("op_travel").asDouble(0);
             r.travelPerDay = root.path("travel_per_day").asDouble(0);
             r.reversalCount = root.path("reversal_count").asInt(0);

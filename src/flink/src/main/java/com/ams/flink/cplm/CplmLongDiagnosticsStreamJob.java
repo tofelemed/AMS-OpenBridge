@@ -70,7 +70,10 @@ public class CplmLongDiagnosticsStreamJob {
                 .name("cplm-long-diagnostics-serialize")
                 .uid("cplm-long-diagnostics-serialize");
 
-        CplmKafkaSink.attach(diagnostics, cfg, cfg.longFeatureTopic, "cplm-long-diagnostics-sink");
+        // Keyed by loop_id (audit-jobs.md A-F1): fusion's family-history persistence
+        // is order-sensitive per loop; unkeyed records round-robined across the
+        // 8 partitions could arrive out of emission order.
+        CplmKafkaSink.attachKeyed(diagnostics, cfg, cfg.longFeatureTopic, "cplm-long-diagnostics-sink", "loop_id");
         env.execute(cfg.jobName);
     }
 

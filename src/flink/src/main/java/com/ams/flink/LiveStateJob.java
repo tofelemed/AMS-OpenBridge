@@ -3,12 +3,15 @@ package com.ams.flink;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -54,7 +57,12 @@ public class LiveStateJob {
                 .setBootstrapServers(cfg.brokers)
                 .setTopics("traverse.alarm.current-alarm-state")
                 .setGroupId("traverse-alarm-flink-live-state")
-                .setStartingOffsets(OffsetsInitializer.latest())
+                // audit-jobs.md A7: latest() on a COMPACTED topic meant a fresh
+                // submit (no checkpoint — exactly the supervisor's cold-start path)
+                // skipped the entire retained alarm state, so the HMI live list
+                // stayed empty until each alarm next changed. Resume from committed
+                // offsets; on a true first start replay the compacted state.
+                .setStartingOffsets(OffsetsInitializer.committedOffsets(OffsetResetStrategy.EARLIEST))
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .setProperty("request.timeout.ms", "120000")
                 .setProperty("default.api.timeout.ms", "120000")
@@ -118,23 +126,43 @@ public class LiveStateJob {
 
         /** Last published state fingerprint: "<state>|<severity>|<ack>|<active>|<priority>" */
         private transient ValueState<String> lastFingerprint;
+        /** Last full UPSERT input for this alarm — the merge base for partial events. */
+        private transient ValueState<String> lastInput;
 
         @Override
         public void open(Configuration params) {
-            lastFingerprint = getRuntimeContext().getState(
-                    new ValueStateDescriptor<>("live-alarm-fp", Types.STRING));
+            ValueStateDescriptor<String> fpDesc = new ValueStateDescriptor<>("live-alarm-fp", Types.STRING);
+            ValueStateDescriptor<String> inDesc = new ValueStateDescriptor<>("live-alarm-last-input", Types.STRING);
+            // audit-jobs.md A8: no TTL meant one RocksDB entry per alarm key forever.
+            // DELETE clears eagerly below; the TTL is the backstop for alarms that
+            // never send a delete (e.g. decommissioned points).
+            fpDesc.enableTimeToLive(STATE_TTL);
+            inDesc.enableTimeToLive(STATE_TTL);
+            lastFingerprint = getRuntimeContext().getState(fpDesc);
+            lastInput = getRuntimeContext().getState(inDesc);
         }
 
         @Override
         public String map(String json) throws Exception {
             if (json == null || json.isBlank()) return null;
 
-            JsonNode node;
+            JsonNode raw;
             try {
-                node = MAPPER.readTree(json);
+                raw = MAPPER.readTree(json);
             } catch (Exception e) {
                 return null;
             }
+
+            // audit-jobs.md A1: ACK_STATE_UPDATE and ALARM_STATE_DELETE are PARTIAL
+            // records — the ack stub hardcodes severity=100/priority=LOW and omits
+            // conditionActive, the delete carries no severity/priority/message at
+            // all. Taking their fields verbatim downgraded a CRITICAL alarm to LOW
+            // on the HMI the moment an operator acknowledged it. Merge them onto
+            // the last full state instead.
+            String eventType = textOrEmpty(raw, "eventType");
+            boolean isAck = "ACK_STATE_UPDATE".equals(eventType);
+            boolean isDelete = "ALARM_STATE_DELETE".equals(eventType);
+            JsonNode node = (isAck || isDelete) ? mergeOntoLast(raw, lastInput, isAck, isDelete) : raw;
 
             // ── extract fields ─────────────────────────────────────────
             String alarmId       = textOrEmpty(node, "alarmId");
@@ -157,7 +185,6 @@ public class LiveStateJob {
             String prev = lastFingerprint.value();
 
             if (fp.equals(prev)) return null;   // no change — suppress
-            lastFingerprint.update(fp);
 
             // ── build output envelope ──────────────────────────────────
             ObjectNode out = MAPPER.createObjectNode();
@@ -175,6 +202,17 @@ public class LiveStateJob {
             if (node.has("eventTimeEpochMs"))
                 out.put("eventTimeEpochMs", node.get("eventTimeEpochMs").asLong());
 
+            if (isDelete) {
+                // Alarm removed: clear state so a recurrence re-emits (first-
+                // observation-always-emits) instead of RBE-suppressing against
+                // the dead entry.
+                lastFingerprint.clear();
+                lastInput.clear();
+            } else {
+                lastFingerprint.update(fp);
+                lastInput.update(MAPPER.writeValueAsString(node));
+            }
+
             return MAPPER.writeValueAsString(out);
         }
     }
@@ -182,8 +220,9 @@ public class LiveStateJob {
     // ── RBE: numeric metrics only ──────────────────────────────────────────
 
     /**
-     * Emits a compact JSON to traverse.live.metrics only when severity or state changes.
-     * Designed for dashboard sparklines and gauge widgets.
+     * Emits a compact JSON to traverse.alarm.live.alarm.metrics only when severity
+     * or state changes (STR-12 moved it off traverse.live.metrics — the class
+     * header explains why). Designed for dashboard sparklines and gauge widgets.
      *
      * Schema: { alarmId, severity, state, priority, conditionActive, rbeTs }
      */
@@ -192,23 +231,34 @@ public class LiveStateJob {
 
         /** "<severity>|<state>" */
         private transient ValueState<String> lastMetricFp;
+        /** Merge base for partial ACK/DELETE records — see RbeAlarmStateMap. */
+        private transient ValueState<String> lastInput;
 
         @Override
         public void open(Configuration params) {
-            lastMetricFp = getRuntimeContext().getState(
-                    new ValueStateDescriptor<>("live-metric-fp", Types.STRING));
+            ValueStateDescriptor<String> fpDesc = new ValueStateDescriptor<>("live-metric-fp", Types.STRING);
+            ValueStateDescriptor<String> inDesc = new ValueStateDescriptor<>("live-metric-last-input", Types.STRING);
+            fpDesc.enableTimeToLive(STATE_TTL);
+            inDesc.enableTimeToLive(STATE_TTL);
+            lastMetricFp = getRuntimeContext().getState(fpDesc);
+            lastInput = getRuntimeContext().getState(inDesc);
         }
 
         @Override
         public String map(String json) throws Exception {
             if (json == null || json.isBlank()) return null;
 
-            JsonNode node;
+            JsonNode raw;
             try {
-                node = MAPPER.readTree(json);
+                raw = MAPPER.readTree(json);
             } catch (Exception e) {
                 return null;
             }
+
+            String eventType = textOrEmpty(raw, "eventType");
+            boolean isAck = "ACK_STATE_UPDATE".equals(eventType);
+            boolean isDelete = "ALARM_STATE_DELETE".equals(eventType);
+            JsonNode node = (isAck || isDelete) ? mergeOntoLast(raw, lastInput, isAck, isDelete) : raw;
 
             String alarmId  = textOrEmpty(node, "alarmId");
             if (alarmId.isEmpty()) return null;
@@ -228,7 +278,6 @@ public class LiveStateJob {
             String prev = lastMetricFp.value();
 
             if (fp.equals(prev)) return null;   // no change — suppress
-            lastMetricFp.update(fp);
 
             ObjectNode out = MAPPER.createObjectNode();
             out.put("alarmId",        alarmId);
@@ -238,11 +287,48 @@ public class LiveStateJob {
             out.put("conditionActive",active);
             out.put("rbeTs",          System.currentTimeMillis());
 
+            if (isDelete) {
+                lastMetricFp.clear();
+                lastInput.clear();
+            } else {
+                lastMetricFp.update(fp);
+                lastInput.update(MAPPER.writeValueAsString(node));
+            }
+
             return MAPPER.writeValueAsString(out);
         }
     }
 
     // ── helpers ────────────────────────────────────────────────────────────
+
+    /** 7-day backstop TTL on per-alarm RBE state (audit-jobs.md A8). */
+    private static final StateTtlConfig STATE_TTL = StateTtlConfig
+            .newBuilder(Time.days(7))
+            .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
+            .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
+            .build();
+
+    /**
+     * Overlay a PARTIAL record (ack stub / delete marker) onto the last full
+     * upsert for the alarm: acknowledged and conditionActive come from the
+     * partial event; severity, priority, message and names keep their last real
+     * values. Cold start (no stored input) falls back to the partial record
+     * itself — still wrong-ish, but only until the alarm's next real state event,
+     * and strictly better than always taking the stub.
+     */
+    private static JsonNode mergeOntoLast(JsonNode partial, ValueState<String> lastInput,
+                                          boolean isAck, boolean isDelete) throws Exception {
+        String prevJson = lastInput.value();
+        if (prevJson == null) return partial;
+        ObjectNode merged = (ObjectNode) MAPPER.readTree(prevJson);
+        if (partial.has("acknowledged")) merged.put("acknowledged", partial.get("acknowledged").asBoolean());
+        else if (isAck) merged.put("acknowledged", true);
+        if (partial.has("conditionActive")) merged.put("conditionActive", partial.get("conditionActive").asBoolean(false));
+        else if (isDelete) merged.put("conditionActive", false);
+        if (partial.has("eventTimeEpochMs")) merged.put("eventTimeEpochMs", partial.get("eventTimeEpochMs").asLong());
+        merged.remove("state"); // re-derive from the merged ack/active pair
+        return merged;
+    }
 
     private static String extractAlarmId(String json) {
         try {

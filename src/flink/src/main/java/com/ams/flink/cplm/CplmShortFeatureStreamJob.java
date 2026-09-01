@@ -15,20 +15,27 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Stage 1 — Short-feature job (Gates 0–4): 1m tumbling + 5m/15m/60m sliding windows.
+ * Stage 1 — Short-feature job (Gates 0–4): 1m tumbling + five sliding windows.
  *
- * <p>Per build prompt §2.1:
+ * <p>Six parallel window branches, all keyed per loop, unioned into one sink.
+ * Only 1m is a TUMBLING window — every other kind is a sliding window whose
+ * records overlap their neighbours (a consumer must never sum/average across
+ * kinds):
  * <ul>
- *   <li>TumblingEventTimeWindows.of(1 min)  — allowed lateness 30s</li>
- *   <li>SlidingEventTimeWindows(5 min / 1 min slide) — allowed lateness 60s</li>
- *   <li>SlidingEventTimeWindows(15 min / 5 min slide) — allowed lateness 2min</li>
- *   <li>SlidingEventTimeWindows(60 min / 5 min slide) — allowed lateness 3min</li>
+ *   <li>TumblingEventTimeWindows.of(1 min)                — allowed lateness 30s</li>
+ *   <li>SlidingEventTimeWindows(5 min  / 1 min slide)     — allowed lateness 60s</li>
+ *   <li>SlidingEventTimeWindows(10 min / 2 min slide)     — allowed lateness 90s</li>
+ *   <li>SlidingEventTimeWindows(15 min / 5 min slide)     — allowed lateness 2min</li>
+ *   <li>SlidingEventTimeWindows(30 min / 5 min slide)     — allowed lateness 2min</li>
+ *   <li>SlidingEventTimeWindows(60 min / 5 min slide)     — allowed lateness 3min</li>
  * </ul>
- * Four parallel window branches unioned into one sink, exactly as in job_short_features
- * from the CPLM architecture report.
+ * This list is mirrored by cplm-api's window contract
+ * ({@code CpmAnalyticsController.WindowSpecs}, served at /api/v1/cpm/resolutions)
+ * — keep the two in step when adding or changing a branch.
  *
- * <p>Source: cplm-normalized-source (existing topic).
- * Sink: traverse.cpa.clpm.feature.short.v1 (matches existing topic name in CplmJobConfig defaults).
+ * <p>Source: the normalized loop-sample topic (submitters pass
+ * {@code --input-topic traverse.cpa.loop.samples.v1}).
+ * Sink: traverse.cpa.clpm.feature.short.v1, keyed by loop_id.
  */
 public class CplmShortFeatureStreamJob {
 
@@ -119,9 +126,11 @@ public class CplmShortFeatureStreamJob {
                 .name("cplm-short-serialize-60m")
                 .uid("cplm-short-serialize-60m");
 
-        // Union all four branches into one sink
+        // Union all six branches into one sink. Keyed by loop_id (audit.md F-2,
+        // same class as PIPE-010): all of one loop's windows land on one
+        // partition, so downstream consumers see them in emission order.
         DataStream<String> union = branch1m.union(branch5m).union(branch10m).union(branch15m).union(branch30m).union(branch60m);
-        CplmKafkaSink.attach(union, cfg, cfg.shortFeatureTopic, "cplm-short-feature-sink");
+        CplmKafkaSink.attachKeyed(union, cfg, cfg.shortFeatureTopic, "cplm-short-feature-sink", "loop_id");
 
         env.execute(cfg.jobName);
     }

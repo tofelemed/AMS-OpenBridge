@@ -40,7 +40,11 @@ public final class CplmJobConfig {
                 m.getOrDefault("bootstrap.servers", System.getenv().getOrDefault("KAFKA_BROKERS", "kafka:9092")),
                 m.getOrDefault("job-name", "AMS - CPLM Job"),
                 m.getOrDefault("consumer-group-id", "traverse-cpa-flink-cplm"),
-                m.getOrDefault("input-topic", "traverse.cpa.clpm.normalized.samples.v1"),
+                // Default = the LIVE samples topic. The old default
+                // (traverse.cpa.clpm.normalized.samples.v1) had no producer, so a
+                // submit that forgot --input-topic consumed an auto-created empty
+                // topic and produced nothing, with no error (audit.md F-5).
+                m.getOrDefault("input-topic", "traverse.cpa.loop.samples.v1"),
                 m.getOrDefault("output-topic", "traverse.cpa.clpm.gate.results.v1"),
                 m.getOrDefault("short-feature-topic", "traverse.cpa.clpm.feature.short.v1"),
                 m.getOrDefault("long-feature-topic", "traverse.cpa.clpm.feature.long.v1"),

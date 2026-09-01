@@ -2,14 +2,14 @@ package com.ams.flink;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.base.DeliveryGuarantee;
-import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
-import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -21,11 +21,20 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
- * Phase 2: AlarmStateExportJob
- * Subscribes to the active alarm state stream and emits DELTA changes (INSERT, UPDATE, REMOVE)
- * to traverse.alarm.flink.state.alarm.delta to be consumed by the frontend for real-time observability.
+ * AlarmStateExportJob — subscribes to traverse.alarm.current-alarm-state and emits
+ * DELTA changes (INSERT, UPDATE, REMOVE) to traverse.alarm.flink.state.alarm.delta,
+ * consumed by ams-api's AlarmStateDeltaConsumerService → ObservabilityHub.
+ *
+ * Delta semantics (audit-jobs.md A2 fix): the real delete signal is the state
+ * machine's eventType=ALARM_STATE_DELETE (emitted for ANY clear, acknowledged or
+ * not). The old heuristic (`conditionActive==false && acknowledged==true`) never
+ * matched an unacknowledged clear, so those alarms were exported as UPDATE forever
+ * and their keyed state never cleared. `action=="delete"` is kept as a legacy
+ * fallback only.
  */
 public class AlarmStateExportJob {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -40,16 +49,17 @@ public class AlarmStateExportJob {
         env.getCheckpointConfig().setMinPauseBetweenCheckpoints(10_000);
         env.getCheckpointConfig().setCheckpointTimeout(60_000);
 
-        // Consume traverse.alarm.current-alarm-state as the source of truth for "active state updates" in Flink
+        // audit-jobs.md A7: latest() on the compacted state topic skipped the whole
+        // retained alarm state on a cold submit. Committed offsets, earliest fallback.
         KafkaSource<String> stateSource = KafkaSource.<String>builder()
                 .setBootstrapServers(brokers)
                 .setTopics("traverse.alarm.current-alarm-state")
                 .setGroupId("flink-state-export-job")
-                .setStartingOffsets(OffsetsInitializer.latest())
+                .setStartingOffsets(OffsetsInitializer.committedOffsets(OffsetResetStrategy.EARLIEST))
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .build();
 
-        DataStream<String> stateUpdates = env.fromSource(stateSource, 
+        DataStream<String> stateUpdates = env.fromSource(stateSource,
                 WatermarkStrategy.noWatermarks(), "Current State Source");
 
         DataStream<String> deltaState = stateUpdates
@@ -58,16 +68,12 @@ public class AlarmStateExportJob {
                 .name("Delta State Computation")
                 .uid("Delta State Computation");
 
-        KafkaSink<String> sink = KafkaSink.<String>builder()
-                .setBootstrapServers(brokers)
-                .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
-                .setRecordSerializer(KafkaRecordSerializationSchema.builder()
-                        .setTopic("traverse.alarm.flink.state.alarm.delta")
-                        .setValueSerializationSchema(new SimpleStringSchema())
-                        .build())
-                .build();
-
-        deltaState.sinkTo(sink).name("Delta State Sink");
+        // audit-jobs.md A6: the stream is keyed by alarmId but the sink was unkeyed,
+        // so per-alarm delta ordering was lost across the topic's 4 partitions.
+        deltaState
+                .sinkTo(KafkaSinks.keyedByJsonField(brokers, "traverse.alarm.flink.state.alarm.delta", "correlation_id"))
+                .name("Delta State Sink")
+                .uid("Delta State Sink");
 
         env.execute("AMS Alarm State Export Engine");
     }
@@ -81,8 +87,7 @@ public class AlarmStateExportJob {
      */
     private static String extractId(String json) {
         try {
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode node = mapper.readTree(json);
+            JsonNode node = MAPPER.readTree(json);
             String id = AlarmJson.text(node, "alarmId", "AlarmId");
             if (id == null || id.isEmpty()) {
                 id = AlarmJson.text(node, "Id", "id");
@@ -94,29 +99,54 @@ public class AlarmStateExportJob {
     }
 
     public static class StateDeltaFunction extends KeyedProcessFunction<String, String, String> {
+        /** 7-day backstop TTL (audit-jobs.md A8); REMOVE clears eagerly. */
+        private static final StateTtlConfig STATE_TTL = StateTtlConfig
+                .newBuilder(Time.days(7))
+                .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
+                .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
+                .build();
+
         private transient ValueState<String> previousState;
         private transient ObjectMapper mapper;
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            previousState = getRuntimeContext().getState(new ValueStateDescriptor<>("previousAlarmState", String.class));
+            ValueStateDescriptor<String> desc = new ValueStateDescriptor<>("previousAlarmState", String.class);
+            desc.enableTimeToLive(STATE_TTL);
+            previousState = getRuntimeContext().getState(desc);
             mapper = new ObjectMapper();
         }
 
         @Override
         public void processElement(String currentJson, Context ctx, Collector<String> out) throws Exception {
+            // audit-jobs.md A12: an unguarded readTree here restart-looped the job
+            // on one malformed record. Skip it instead — the delta stream is an
+            // observability feed, not the system of record.
+            JsonNode current;
+            try {
+                current = mapper.readTree(currentJson);
+            } catch (Exception e) {
+                return;
+            }
             String prevJson = previousState.value();
-            
-            JsonNode current = mapper.readTree(currentJson);
             String id = ctx.getCurrentKey();
-            
-            // Check if this is a DELETE signal (e.g. condition no longer active and acknowledged)
-            boolean isDelete = false;
-            if (current.has("action") && "delete".equals(current.get("action").asText())) {
-                isDelete = true;
-            } else if (current.has("conditionActive") && !current.get("conditionActive").asBoolean() && 
-                       current.has("acknowledged") && current.get("acknowledged").asBoolean()) {
-                isDelete = true;
+
+            String eventType = current.has("eventType") ? current.get("eventType").asText("") : "";
+            boolean isDelete = "ALARM_STATE_DELETE".equals(eventType)
+                    || (current.has("action") && "delete".equals(current.get("action").asText()));
+
+            // audit-jobs.md A1: the ACK stub is a PARTIAL record (severity=100,
+            // priority=LOW hardcoded, conditionActive omitted). Exporting it as
+            // current_state repainted the alarm in the delta feed. Merge the ack
+            // onto the previous full state instead.
+            if ("ACK_STATE_UPDATE".equals(eventType) && prevJson != null) {
+                ObjectNode merged = (ObjectNode) mapper.readTree(prevJson);
+                merged.put("acknowledged",
+                        !current.has("acknowledged") || current.get("acknowledged").asBoolean(true));
+                if (current.has("ackLifecycleState"))
+                    merged.set("ackLifecycleState", current.get("ackLifecycleState"));
+                current = merged;
+                currentJson = mapper.writeValueAsString(merged);
             }
 
             ObjectNode deltaNode = mapper.createObjectNode();

@@ -104,10 +104,17 @@ public class OpcEventStreamJob {
                 .setParallelism(cfg.correlation)
                 .filter(e -> e != null);
 
+        // audit-jobs.md A4: flood-band drops (severity >= 950) leave through a
+        // side output to the DLQ instead of vanishing silently.
         SingleOutputStreamOperator<RawOpcAlarmEvent> floodFiltered = correlated
-                .filter(new PipelineOperators.FloodDetectFilter())
+                .process(new PipelineOperators.FloodDetectProcess())
                 .name("flood-detection")
                 .uid("flood-detection")
+                .setParallelism(cfg.flood);
+        floodFiltered.getSideOutput(PipelineOperators.FLOOD_DROPPED)
+                .sinkTo(kafkaSink(cfg.brokers, "traverse.alarm.raw-alarms-dlq"))
+                .name("flood-dropped-dlq-sink")
+                .uid("flood-dropped-dlq-sink")
                 .setParallelism(cfg.flood);
 
         DataStream<String> rootCause = floodFiltered
