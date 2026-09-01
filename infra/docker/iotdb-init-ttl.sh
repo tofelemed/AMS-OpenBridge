@@ -53,6 +53,12 @@ run_sql() {
 # but nothing ever SET it — so on first boot every statement below failed
 # silently and writers presenting the real password got 801 WRONG_LOGIN_PASSWORD.
 # Probe with the configured password; if rejected, rotate off the default.
+# IoTDB refuses passwords outside 4..32 chars (303 "illegal") — fail loudly
+# here instead of leaving the server on root/root with nobody noticing.
+if [ "${#IOTDB_PASS}" -gt 32 ] || [ "${#IOTDB_PASS}" -lt 4 ]; then
+  echo "[iotdb-init-ttl] FATAL: IOTDB_PASS is ${#IOTDB_PASS} chars; IoTDB allows 4..32. Regenerate (openssl rand -hex 12)." >&2
+  exit 1
+fi
 probe=$(echo "show databases;" | "${IOTDB_CLI}" -h "${IOTDB_HOST}" -p "${IOTDB_PORT}" \
     -u "${IOTDB_USER}" -pw "${IOTDB_PASS}" -disableISO8601 2>&1) || true
 if echo "$probe" | grep -qiE "801|Authentication failed|WRONG_LOGIN_PASSWORD"; then
