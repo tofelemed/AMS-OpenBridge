@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS assets.assets (
     engineering_unit           TEXT,
     lo_eng_limit               DOUBLE PRECISION,
     hi_eng_limit               DOUBLE PRECISION,
+    template                   TEXT,
     parent_id                  UUID REFERENCES assets.assets(id),
     is_deleted                 BOOLEAN NOT NULL DEFAULT FALSE,
     created_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW(),
