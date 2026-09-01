@@ -49,11 +49,51 @@ apply_one() {
   ok "applied $file"
 }
 
+# Schemas are applied by the postgres superuser, but the services connect as
+# ams_user and some run their own DDL at startup (cplm-api EnsureSchemaAsync,
+# auth-service migrations). Postgres-owned objects then fail those with
+# "42501: must be owner". Normalize every app object to ams_user after apply —
+# idempotent, and also heals databases applied before this step existed.
+normalize_ownership() {
+  local db="$1"
+  psql_db "$db" <<'SQL'
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN SELECT nspname FROM pg_namespace
+           WHERE nspname NOT LIKE 'pg\_%' AND nspname <> 'information_schema'
+  LOOP EXECUTE format('ALTER SCHEMA %I OWNER TO ams_user', r.nspname); END LOOP;
+  FOR r IN SELECT schemaname s, tablename t FROM pg_tables
+           WHERE schemaname NOT LIKE 'pg\_%' AND schemaname <> 'information_schema'
+  LOOP EXECUTE format('ALTER TABLE %I.%I OWNER TO ams_user', r.s, r.t); END LOOP;
+  FOR r IN SELECT schemaname s, sequencename q FROM pg_sequences
+           WHERE schemaname NOT LIKE 'pg\_%'
+  LOOP EXECUTE format('ALTER SEQUENCE %I.%I OWNER TO ams_user', r.s, r.q); END LOOP;
+  FOR r IN SELECT schemaname s, viewname v FROM pg_views
+           WHERE schemaname NOT LIKE 'pg\_%' AND schemaname <> 'information_schema'
+  LOOP EXECUTE format('ALTER VIEW %I.%I OWNER TO ams_user', r.s, r.v); END LOOP;
+  FOR r IN SELECT n.nspname s,
+                  p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' f
+           FROM pg_proc p
+           JOIN pg_namespace n ON n.oid = p.pronamespace
+           WHERE n.nspname NOT LIKE 'pg\_%' AND n.nspname <> 'information_schema'
+             AND NOT EXISTS (SELECT 1 FROM pg_depend d
+                             WHERE d.objid = p.oid AND d.deptype = 'e')  -- skip extension members
+  LOOP EXECUTE format('ALTER FUNCTION %I.%s OWNER TO ams_user', r.s, r.f); END LOOP;
+END$$;
+SQL
+  ok "ownership normalized to ams_user: $db"
+}
+
 # sentinel schema.table; empty table = always apply (audit is GRANT-only)
 apply_one traverse_auth       01-traverse_auth.sql       public    roles
 apply_one traverse_assets     02-traverse_assets.sql     assets    assets
 apply_one traverse_cplm       03-traverse_cplm.sql       cpm       loop_registry
 apply_one traverse_ingestion  04-traverse_ingestion.sql  ingestion data_source_configs
 apply_one traverse_audit      05-traverse_audit.sql      ""        ""
+
+for db in traverse_auth traverse_assets traverse_cplm traverse_ingestion traverse_audit; do
+  normalize_ownership "$db"
+done
 
 ok "02-apply-schemas complete"
