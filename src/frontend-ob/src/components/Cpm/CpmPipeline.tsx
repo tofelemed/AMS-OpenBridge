@@ -112,7 +112,10 @@ export const CpmPipeline: React.FC = () => {
   }, [telemetry, obcTheme]);
 
   // E2E verification: a real recompute round-trip on a reference loop.
-  const refLoop = loopsQuery.data?.loops.find(l => l.monitoringEnabled) ?? loopsQuery.data?.loops[0];
+  // Not a view selection: this is the SUBJECT of the round trip, picked as the
+  // first monitoring-enabled loop so the verification exercises a live path.
+  const refLoop = loopsQuery.data?.loops.find(l => l.monitoringEnabled)
+    ?? loopsQuery.data?.loops[0];
   const { submit, status: replayStatus, reset } = useRecompute(refLoop?.loopId);
   const [e2eStartedAt, setE2eStartedAt] = useState<number | null>(null);
   // PH2: elapsed is FROZEN at the moment the replay finishes. Computing
@@ -232,7 +235,8 @@ export const CpmPipeline: React.FC = () => {
               </TonePill>
             )} />
           <p className="cpm-copy">
-            Submits an A8 recompute on <strong>{refLoop?.loopId ?? '—'}</strong> and waits for the
+            Submits an A8 recompute on <strong>{refLoop?.loopId ?? '—'}</strong>
+            {refLoop?.monitoringEnabled ? ' (first monitored loop)' : ''} and waits for the
             batch verdict: historian read → normalize → gates → fused result in Postgres.
             {!canManage && ' Requires the cpm.manage permission.'}
           </p>

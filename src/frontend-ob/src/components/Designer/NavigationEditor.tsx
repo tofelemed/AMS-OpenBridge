@@ -56,7 +56,9 @@ export const NavigationEditor: React.FC<Props> = ({ item, onChange }) => {
     setAction(initialAction);
   }
 
-  const { data: displays } = useQuery({
+  // Without this, a display-service outage renders an EMPTY target picker —
+  // indistinguishable from "this deployment has no displays".
+  const { data: displays, isError: displaysError } = useQuery({
     queryKey: ['nav-displays', search],
     queryFn: () => apiJson<{ displays: DisplayOption[] }>(
       `${API_BASE}?take=100${search ? `&search=${encodeURIComponent(search)}` : ''}`),
@@ -123,7 +125,13 @@ export const NavigationEditor: React.FC<Props> = ({ item, onChange }) => {
                   <span className="nav-picker__meta">{d.hierarchyPath || d.category}</span>
                 </button>
               ))}
-              {displays && displays.displays.length === 0 && (
+              {displaysError && (
+                <div className="property-hint" role="status">
+                  Display list unavailable — the service did not answer. This is not an
+                  empty deployment.
+                </div>
+              )}
+              {!displaysError && displays && displays.displays.length === 0 && (
                 <div className="property-hint">No displays match.</div>
               )}
             </div>

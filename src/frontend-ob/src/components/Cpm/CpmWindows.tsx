@@ -14,12 +14,15 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import {
   EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader,
   fmtDateTime, fmtDuration, fmtWindowShape, loopTrendHref, windowSpecsOf, QueryError } from './shared';
-import { LoopPicker, PlantScopeFilter, useCpmScope } from './plantScope';
+import { PlantScopeFilter, useCpmScope } from './plantScope';
+import LoopCombobox from './LoopCombobox';
 import type { CpmKpiRow } from '../../api/cpmApi';
 import {
-  useCpmKpis, useCpmLoops, useCpmResolutions, usePipelineMetrics, useRawWindow,
+  useCpmKpisPaged, useCpmLoops, useCpmResolutions, usePipelineMetrics, useRawWindow,
 } from '../../hooks/useCpm';
 import { loopSeries } from '../../utils/loopSeries';
+import { GateStrip, WindowResultsPanel, isDeclined } from './windows/WindowResults';
+import CompareAcrossKinds from './windows/CompareAcrossKinds';
 
 /** The engine normalizes samples onto a 5 s grid; expectations derive from it. */
 const SAMPLE_PERIOD_S = 5; // fallback only - rows carry sample_period_sec since P2-11
@@ -53,13 +56,18 @@ export const CpmWindows: React.FC = () => {
   const loops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
   // Plant scope (CPM-UX A1): narrows the loop picker to a section/unit.
   const scope = useCpmScope();
-  const loopId = params.get('loop') ?? loops[0]?.loopId;
+  // No default selection: registry order is arbitrary, so `loops[0]` is a
+  // CHOICE presented as a default — the same lie the ?loop=-names-nothing
+  // fallback was fixed for, minus the URL. It also fired this page's whole
+  // query set for a loop nobody asked for.
+  const loopId = params.get('loop') ?? undefined;
   const profile = params.get('profile') ?? '15m';
 
   const resolutions = useCpmResolutions();
   const metrics = usePipelineMetrics();
-  // 12 windows: 5 was too thin for inspection (a single hour of 5m windows).
-  const kpis = useCpmKpis(loopId, profile, 12);
+  // Keyset-paged (audit.md B-7): the old fixed limit of 12 made 12 minutes of
+  // 1m history the most this page could ever show. Load-older walks the cursor.
+  const kpis = useCpmKpisPaged(loopId, profile, 24);
 
   // The served window contract — the authority on assigner/slide/lateness. This
   // page previously asserted its own version and got two facts wrong. windowSpecsOf
@@ -79,7 +87,7 @@ export const CpmWindows: React.FC = () => {
     ? spec.sizeMs / 1000
     : PROFILE_SECONDS[profile] ?? 900;
 
-  const rows = useMemo(() => kpis.data?.samples ?? [], [kpis.data]);
+  const rows = useMemo(() => kpis.data?.pages.flatMap(p => p.samples) ?? [], [kpis.data]);
   const selectedEnd = params.get('window');
   const selected = rows.find(r => r.window_end === selectedEnd) ?? rows[0];
 
@@ -170,8 +178,9 @@ export const CpmWindows: React.FC = () => {
       <section className="cpm-surface">
         <PlantScopeFilter scope={scope} />
         <div className="cpm-toolbar">
-          <LoopPicker scope={scope} loops={loops} value={loopId ?? ''}
-            onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })} />
+          <LoopCombobox scope={scope} loops={loops} value={loopId ?? ''}
+            onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })}
+            onClear={() => setParams(p => { p.delete('loop'); p.delete('window'); return p; }, { replace: true })} />
           <label className="cpm-field">
             <span className="cpm-field__label">Window profile</span>
             <select className="cpm-select" value={profile}
@@ -199,8 +208,13 @@ export const CpmWindows: React.FC = () => {
           age in the header are live)
         </p>
 
-        <PanelHead eyebrow="Emitted windows" title={`Latest ${profile} results for ${loopId ?? '—'}`}
-          right={<span className="cpm-copy">{rows.length} recent · newest first</span>} />
+        {!loopId && (
+          <EmptyState title="Select a loop"
+            copy="Pick a control loop above to inspect the windows the engine emitted for it." />
+        )}
+        {loopId && (<>
+        <PanelHead eyebrow="Emitted windows" title={`Latest ${profile} results for ${loopId}`}
+          right={<span className="cpm-copy">{rows.length} loaded · newest first</span>} />
         {kpis.isLoading && <EmptyState title="Loading windows…" />}
         {kpis.isError && <QueryError title="Window data unavailable" error={kpis.error} retry={() => void kpis.refetch()} />}
         {!kpis.isLoading && !kpis.isError && rows.length === 0 && (
@@ -210,10 +224,11 @@ export const CpmWindows: React.FC = () => {
         {rows.map(r => {
           const comp = completenessOf(r, profileS);
           const isSel = selected?.window_end === r.window_end;
+          const declined = isDeclined(r, isLong ? 'long' : 'short');
           return (
             <div key={r.window_end ?? r.created_at}
               className={`cpm-event-row${isSel ? ' cpm-event-row--selected' : ''}`}
-              style={{ gridTemplateColumns: '1.6fr 1fr 1fr 0.8fr' }}
+              style={{ gridTemplateColumns: isLong ? '1.6fr 1fr 1fr 0.8fr' : '1.6fr 0.8fr 0.9fr 1fr 0.9fr' }}
               role="button" tabIndex={0}
               aria-pressed={isSel}
               onClick={() => setParams(p => { if (r.window_end) p.set('window', r.window_end); return p; }, { replace: true })}
@@ -234,19 +249,39 @@ export const CpmWindows: React.FC = () => {
               <span className="cpm-event-row__sub">
                 {fmtBytesless(typeof r.sample_count === 'number' ? r.sample_count : null)} samples
               </span>
+              {/* Per-window gate verdicts (audit.md B-1): served since Phase A;
+                  fusion never fires on short windows so this is the only place
+                  G0–G4/G2r can be seen at these granularities. */}
+              {!isLong && <GateStrip row={r} />}
               {/* P2-13: every CPM timestamp names its zone — this was the one
                   bare toLocaleTimeString left on the page. */}
               <span className="cpm-event-row__sub">
                 emitted {fmtDateTime(r.created_at)}
               </span>
-              <TonePill tone={comp == null ? 'muted' : comp >= 0.9 ? 'good' : comp >= 0.5 ? 'warn' : 'bad'}>
-                {comp != null ? `${(comp * 100).toFixed(0)}% full` : 'UNKNOWN'}
-              </TonePill>
+              {declined
+                ? <TonePill tone="bad">DECLINED</TonePill>
+                : (
+                  <TonePill tone={comp == null ? 'muted' : comp >= 0.9 ? 'good' : comp >= 0.5 ? 'warn' : 'bad'}>
+                    {comp != null ? `${(comp * 100).toFixed(0)}% full` : 'UNKNOWN'}
+                  </TonePill>
+                )}
             </div>
           );
         })}
+        {rows.length > 0 && kpis.hasNextPage && (
+          <div className="cpm-filter-row" style={{ marginTop: 8 }}>
+            <ObcButton variant="normal" disabled={kpis.isFetchingNextPage}
+              onClick={() => void kpis.fetchNextPage()}>
+              {kpis.isFetchingNextPage ? 'Loading…' : 'Load older windows'}
+            </ObcButton>
+          </div>
+        )}
+        </>)}
       </section>
 
+      {loopId && <WindowResultsPanel row={selected} tier={isLong ? 'long' : 'short'} />}
+
+      {loopId && (
       <div className="cpm-grid-2">
         <section className="cpm-surface">
           <PanelHead eyebrow="Window metadata" title="Contract for the selected window" />
@@ -414,6 +449,12 @@ export const CpmWindows: React.FC = () => {
           </div>
         </section>
       </div>
+      )}
+
+      {loopId && shortSpecs.length > 0 && (
+        <CompareAcrossKinds loopId={loopId} shortSpecs={shortSpecs} activeKind={profile}
+          onPickKind={k => setParams(p => { p.set('profile', k); p.delete('window'); return p; }, { replace: true })} />
+      )}
     </div>
   );
 };

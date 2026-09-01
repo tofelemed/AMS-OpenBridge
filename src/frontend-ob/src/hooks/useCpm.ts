@@ -7,7 +7,7 @@ import React from 'react';
 // H2: interval-polling queryFns are wrapped in backgroundPoll so machine
 // refetches never extend the idle-session clock.
 import { ApiError, backgroundPoll } from '../api/apiFetch';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as cpm from '../api/cpmApi';
 
 const KEYS = {
@@ -234,6 +234,23 @@ export function useCpmKpis(loopId: string | undefined, resolution = '24h', limit
   return useQuery({
     queryKey: ['cpm', 'kpis', loopId ?? '', resolution, limit],
     queryFn: ({ signal }) => cpm.getKpis(loopId!, resolution, undefined, undefined, limit, signal),
+    enabled: !!loopId,
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * Keyset-paged KPI windows, newest first. Each page's `nextBefore` cursor
+ * fetches the next (older) page — so the finest granularities (1440 one-minute
+ * windows per day) are fully reachable instead of capped at one request.
+ */
+export function useCpmKpisPaged(loopId: string | undefined, resolution: string, pageSize = 24) {
+  return useInfiniteQuery({
+    queryKey: ['cpm', 'kpis-paged', loopId ?? '', resolution, pageSize],
+    queryFn: ({ signal, pageParam }) =>
+      cpm.getKpis(loopId!, resolution, undefined, undefined, pageSize, signal, pageParam || undefined),
+    initialPageParam: '',
+    getNextPageParam: (last) => last.nextBefore ?? undefined,
     enabled: !!loopId,
     staleTime: 60_000,
   });

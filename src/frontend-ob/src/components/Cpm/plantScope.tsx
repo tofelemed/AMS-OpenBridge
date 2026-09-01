@@ -14,7 +14,7 @@
  * asset-model cascade (the same endpoints the plant model uses), so a scope can
  * only ever name locations that exist.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { CpmLoop } from '../../api/cpmApi';
 import { useSiteFilters, useAreaFilters, useUnitFilters } from './plantLocation';
@@ -154,83 +154,3 @@ export function loopMatchesQuery(l: CpmLoop, q: string): boolean {
     || l.loopType.toLowerCase().includes(s);
 }
 
-/**
- * Searchable, location-grouped loop picker — replaces the flat LoopSelect on
- * Calculations / Historical / Windows / Replay. Type-ahead matches loop id,
- * service, site/area/unit and loop type; options are grouped by their location
- * so a fleet reads as a plant rather than an alphabetical list.
- *
- * A datalist-backed input keeps it a native control (keyboard, mobile, no
- * dropdown-portal machinery) while still allowing free typing.
- */
-export const LoopPicker: React.FC<{
-  loops: CpmLoop[];
-  value: string;
-  onChange: (loopId: string) => void;
-  label?: string;
-  /** When set, out-of-scope loops are hidden and reported as a count. */
-  scope?: CpmScope;
-}> = ({ loops, value, onChange, label = 'Control loop', scope }) => {
-  const [query, setQuery] = useState('');
-  const listId = React.useId();
-
-  const inScope = useMemo(
-    () => (scope ? loops.filter(l => scope.matches(l)) : loops),
-    [loops, scope]);
-  const hidden = loops.length - inScope.length;
-
-  const grouped = useMemo(() => {
-    const visible = inScope.filter(l => loopMatchesQuery(l, query));
-    const byLocation = new Map<string, CpmLoop[]>();
-    for (const l of visible) {
-      const key = [l.site, l.area, l.unit].filter(Boolean).join(' / ') || 'Unassigned';
-      if (!byLocation.has(key)) byLocation.set(key, []);
-      byLocation.get(key)!.push(l);
-    }
-    return [...byLocation.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [inScope, query]);
-
-  const total = grouped.reduce((n, [, ls]) => n + ls.length, 0);
-
-  return (
-    <label className="cpm-field" style={{ minWidth: 260 }}>
-      <span className="cpm-field__label">{label}</span>
-      <select
-        className="cpm-select"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-      >
-        {/* The current loop always stays selectable even if the query or scope
-            would hide it — otherwise typing would silently change the page. */}
-        {value && !grouped.some(([, ls]) => ls.some(l => l.loopId === value)) && (
-          <option value={value}>{value} (outside current filter)</option>
-        )}
-        {grouped.map(([location, ls]) => (
-          <optgroup key={location} label={location}>
-            {ls.map(l => (
-              <option key={l.loopId} value={l.loopId}>
-                {l.loopId} · {l.displayName} · {l.loopType}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
-      <input
-        className="cpm-input"
-        style={{ marginTop: 4 }}
-        list={listId}
-        placeholder="Filter by loop, service, area, unit or type…"
-        value={query}
-        onChange={e => setQuery(e.target.value)}
-      />
-      <datalist id={listId}>
-        {inScope.slice(0, 200).map(l => <option key={l.loopId} value={l.loopId} />)}
-      </datalist>
-      <span className="cpm-copy" style={{ fontSize: '11px' }}>
-        {total} loop{total === 1 ? '' : 's'} listed
-        {query ? ` matching “${query}”` : ''}
-        {hidden > 0 ? ` · ${hidden} hidden by scope` : ''}
-      </span>
-    </label>
-  );
-};

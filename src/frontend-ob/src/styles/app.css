@@ -202,6 +202,45 @@ body {
     "sidebar main";
 }
 
+/* Collapsed main nav (drawer) — the page gets the sidebar's 220px back */
+.app-root--nav-collapsed {
+  grid-template-columns: 1fr 280px;
+  grid-template-areas:
+    "topbar topbar"
+    "main events";
+}
+
+/* Both drawers collapsed — the page owns the full viewport width */
+.app-root--nav-collapsed.app-root--events-hidden {
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "topbar"
+    "main";
+}
+
+/* Pinned at the sidebar's foot (the nav above it is the flex:1 scroll region) */
+.sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2, 8px);
+  width: 100%;
+  padding: var(--spacing-2, 8px) var(--spacing-3, 12px);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--on-surface-neutral-color);
+  background: var(--surface-background-color);
+  border: none;
+  border-top: 1px solid var(--divider-color);
+  cursor: pointer;
+  text-align: left;
+}
+
+.sidebar-collapse-btn:hover {
+  background: var(--regular-hover-background-color);
+  color: var(--on-surface-active-color);
+}
+
 .app-events--hidden {
   display: none;
 }
@@ -909,6 +948,34 @@ body {
   background: var(--regular-hover-background-color);
 }
 
+/* Left-edge re-open tab for the collapsed main nav — mirror of the Live
+   Events tab on the right edge. */
+.main-nav-expand-tab {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 200;
+  padding: 12px 8px;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--on-surface-active-color);
+  background: var(--surface-background-color);
+  border: 1px solid var(--divider-color);
+  border-left: none;
+  border-radius: 0 var(--corner-radius, 4px) var(--corner-radius, 4px) 0;
+  cursor: pointer;
+  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15);
+}
+
+.main-nav-expand-tab:hover {
+  background: var(--regular-hover-background-color);
+}
+
 .events-empty {
   padding: var(--spacing-4, 16px);
   color: var(--on-container-neutral-color);
@@ -1587,4 +1654,46 @@ select.ob-input option {
   border-top: 1px solid var(--divider-color);
   color: var(--on-container-neutral-color);
   font-size: 0.75rem;
+}
+
+/* ── App-wide API condition strip ──────────────────────────────────────────
+   States a gateway outage ONCE. Panel-level QueryError cards stay: they name
+   which read failed, which the strip cannot and must not replace. */
+.ams-conn {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-divider-color);
+  background: color-mix(in srgb, var(--alert-caution-color) 12%, var(--container-background-color));
+  color: var(--element-active-color);
+  font-size: 0.85rem;
+}
+.ams-conn--unreachable,
+.ams-conn--offline {
+  background: color-mix(in srgb, var(--alert-alarm-color) 10%, var(--container-background-color));
+  border-bottom-color: var(--alert-alarm-outline-color);
+}
+.ams-conn__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.ams-conn__text span { color: var(--element-neutral-color); }
+.ams-conn__detail {
+  font-size: 0.75rem;
+  opacity: 0.75;
+  overflow-wrap: anywhere;
+}
+.ams-conn__retry {
+  flex: 0 0 auto;
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--normal-enabled-border-color);
+  background: var(--normal-enabled-background-color);
+  color: var(--on-normal-active-color);
+  font: inherit;
+  cursor: pointer;
+}
+.ams-conn__retry:hover { border-color: var(--instrument-enhanced-primary-color); }
+.ams-conn__retry:focus-visible {
+  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
+  outline-offset: 2px;
 }

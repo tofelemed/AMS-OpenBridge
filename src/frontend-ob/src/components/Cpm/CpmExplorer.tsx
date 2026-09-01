@@ -47,9 +47,11 @@ export const CpmExplorer: React.FC = () => {
   // lower($1)`) — a deep link whose case differs from the registry's should
   // resolve, not fall through to "not found".
   const requestedId = params.get('loop');
+  // No default: `inScope[0]` is registry order, i.e. an arbitrary loop shown as
+  // though it were chosen. The rail is right there to choose from.
   const loop = requestedId
     ? loops.find(l => l.loopId.toLowerCase() === requestedId.toLowerCase())
-    : inScope[0];
+    : undefined;
   // A ?loop= that names nothing must SAY so. Falling back to the first loop
   // showed a different loop's data under a URL naming the missing one.
   const missingLoop = !!requestedId && !loop && !isLoading && !isError && loops.length > 0;

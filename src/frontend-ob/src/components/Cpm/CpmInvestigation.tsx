@@ -21,7 +21,8 @@ import {
   EmptyState, KpiTile, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
   fmtDateTime, QueryError, cpmChartColors } from './shared';
 import { gateTone } from './gateStatus';
-import { LoopPicker, PlantScopeFilter, useCpmScope } from './plantScope';
+import { PlantScopeFilter, useCpmScope } from './plantScope';
+import LoopCombobox from './LoopCombobox';
 import { ApiError } from '../../api/apiFetch';
 import type { CpmGateMatrix } from '../../api/cpmApi';
 import {
@@ -121,7 +122,11 @@ export const CpmInvestigation: React.FC = () => {
     return allLoops.filter(l => ids.has(l.loopId));
   }, [allLoops, rankedLoops, caseFilter]);
 
-  const loopId = params.get('loop') ?? filteredLoops[0]?.loopId ?? allLoops[0]?.loopId;
+  // No default selection: registry order is arbitrary, so `loops[0]` is a
+  // CHOICE presented as a default — the same lie the ?loop=-names-nothing
+  // fallback was fixed for, minus the URL. It also fired this page's whole
+  // query set for a loop nobody asked for.
+  const loopId = params.get('loop') ?? undefined;
   const mode = params.get('mode') === 'historical' ? 'historical' : 'live';
   const windowKind = params.get('profile') === '12h' ? '12h' : '24h';
 
@@ -269,8 +274,10 @@ export const CpmInvestigation: React.FC = () => {
         </div>
 
         <div className="cpm-toolbar" style={{ marginTop: 12 }}>
-          <LoopPicker scope={scope} loops={filteredLoops.length ? filteredLoops : allLoops} value={loopId ?? ''}
-            onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })} />
+          <LoopCombobox scope={scope} loops={filteredLoops.length ? filteredLoops : allLoops}
+            value={loopId ?? ''}
+            onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })}
+            onClear={() => setParams(p => { p.delete('loop'); p.delete('window'); return p; }, { replace: true })} />
           <label className="cpm-field">
             <span className="cpm-field__label">Source</span>
             <ObcToggleButtonGroup
@@ -334,7 +341,13 @@ export const CpmInvestigation: React.FC = () => {
           newest evaluated window instead.
         </p>
       )}
-      {!matrix
+      {!loopId && (
+        <section className="cpm-surface">
+          <EmptyState title="Select a loop"
+            copy="Pick a loop above — or a case chip, then a loop — to follow its evidence from raw signals to the fused conclusion." />
+        </section>
+      )}
+      {loopId && !matrix
         && !(mode === 'live' ? latest.isLoading : history.isLoading)
         && !(mode === 'live' ? latest.isError && !noVerdictYet : history.isError) && (
         <section className="cpm-surface">

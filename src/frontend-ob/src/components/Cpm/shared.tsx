@@ -9,7 +9,7 @@
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObcIconButton } from '@oicl/openbridge-webcomponents-react/components/icon-button/icon-button';
-import type { CpmLoop, CpmWindowSpec } from '../../api/cpmApi';
+import type { CpmWindowSpec } from '../../api/cpmApi';
 
 export type CpmTone = 'good' | 'warn' | 'bad' | 'muted';
 
@@ -353,28 +353,6 @@ export const PanelHead: React.FC<{
   </div>
 );
 
-/** Loop dropdown fed by the registry; used by every toolbar (U5–U9 pattern). */
-export const LoopSelect: React.FC<{
-  loops: CpmLoop[];
-  value: string;
-  onChange: (loopId: string) => void;
-  label?: string;
-}> = ({ loops, value, onChange, label = 'Control loop' }) => (
-  <label className="cpm-field">
-    <span className="cpm-field__label">{label}</span>
-    <select
-      className="cpm-select"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      {loops.map((l) => (
-        <option key={l.loopId} value={l.loopId}>
-          {l.loopId} · {l.displayName}
-        </option>
-      ))}
-    </select>
-  </label>
-);
 
 /**
  * Icon button with an accessible name.

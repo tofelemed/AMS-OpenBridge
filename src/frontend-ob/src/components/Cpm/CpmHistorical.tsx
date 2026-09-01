@@ -62,7 +62,11 @@ export const CpmHistorical: React.FC = () => {
   const loops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
   const scope = useCpmScope();
 
-  const loopId = params.get('loop') ?? loops[0]?.loopId;
+  // No default selection: registry order is arbitrary, so `loops[0]` is a
+  // CHOICE presented as a default — the same lie the ?loop=-names-nothing
+  // fallback was fixed for, minus the URL. It also fired this page's whole
+  // query set for a loop nobody asked for.
+  const loopId = params.get('loop') ?? undefined;
   const loop = loops.find(l => l.loopId.toLowerCase() === (loopId ?? '').toLowerCase());
   const kpiKey = params.get('kpi') ?? KPI_OVERLAYS[0].key;
   const overlay = KPI_OVERLAYS.find(k => k.key === kpiKey) ?? KPI_OVERLAYS[0];
@@ -246,6 +250,7 @@ export const CpmHistorical: React.FC = () => {
           loop={loop}
           loopsInScope={loops.filter(l => scope.matches(l)).length}
           onLoopChange={id => write(p => { p.set('loop', id); p.delete('window'); })}
+          onLoopClear={() => write(p => { p.delete('loop'); p.delete('window'); })}
           from={from}
           to={to}
           preset={preset}

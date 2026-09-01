@@ -127,9 +127,10 @@ const HistoricalViewer: React.FC = () => {
     void downloadStream('/api/v1/alarms/historical/stream',
       `alarm-history-${new Date().toISOString().slice(0, 10)}.ndjson`);
 
-  const handleExportTransitions = () =>
-    void downloadStream('/api/v1/alarms/transitions/stream',
-      `alarm-transitions-${new Date().toISOString().slice(0, 10)}.ndjson`);
+  // audit-jobs.md F-10: the "Export Transitions" button called
+  // /api/v1/alarms/transitions/stream, but alarms.alarm_state_transitions has NO
+  // writer anywhere in the backend — it always downloaded an empty file. Removed
+  // until a transition writer exists (the endpoint itself remains).
 
   const totalCount = data?.totalCount ?? 0;
   const hasNext    = !!data?.items && data.items.length >= pageSize;
@@ -144,12 +145,11 @@ const HistoricalViewer: React.FC = () => {
             Alarm History
           </h1>
           <p style={{ color: T.textSecondary, fontSize: '13.5px', margin: '5px 0 0' }}>
-            PostgreSQL — query, filter, and export historical alarm events and state transitions
+            PostgreSQL — query, filter, and export historical alarm events
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexShrink: 0 }}>
           <ExportBtn onClick={handleExport}>↓ Export Alarms NDJSON</ExportBtn>
-          <ExportBtn onClick={handleExportTransitions}>↓ Export Transitions NDJSON</ExportBtn>
         </div>
       </div>
 

@@ -51,6 +51,8 @@ interface Run {
   endMs: number | null;
   peak: number;
   windows: number;
+  /** Distinct evaluation window sizes across the collapsed frames (12h/24h). */
+  kinds: Set<string>;
   anyOpen: boolean;
   anyInvalid: boolean;
   ackState: string;
@@ -69,6 +71,7 @@ function toRuns(rows: CpmEventFrame[]): Run[] {
         ? null : Math.max(head.endMs, span.endMs);
       head.peak = Math.max(head.peak, e.peak_confidence);
       head.windows += e.window_count;
+      head.kinds.add(e.window_kind);
       head.anyOpen = head.anyOpen || !e.closed_at;
       head.anyInvalid = head.anyInvalid || span.invalid;
       continue;
@@ -81,6 +84,7 @@ function toRuns(rows: CpmEventFrame[]): Run[] {
       endMs: span.endMs,
       peak: e.peak_confidence,
       windows: e.window_count,
+      kinds: new Set([e.window_kind]),
       anyOpen: !e.closed_at,
       anyInvalid: span.invalid,
       ackState: e.ack_state,
@@ -144,7 +148,10 @@ export const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
                 <span className="cpm-event-row__title">{run.diagnosis.replace(/_/g, ' ')}</span>
                 <span className="cpm-event-row__sub">
                   {run.frames.length > 1 ? `${run.frames.length} episodes · ` : ''}
-                  {run.windows} window(s) · peak {(run.peak * 100).toFixed(0)}%
+                  {/* The count without its size was ambiguous — "3 windows" is
+                      36 h of evidence at 12h and 72 h at 24h. */}
+                  {run.windows} × {[...run.kinds].sort().join('/')} window(s)
+                  {' '}· peak {(run.peak * 100).toFixed(0)}%
                 </span>
               </span>
               <span className="cpm-episode__state">
@@ -185,7 +192,7 @@ export const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
                       : span.endMs != null ? ` → ${fmtDateTime(span.endMs)}` : ' · open'}
                   </span>
                   <span className="cpm-event-row__sub">
-                    {e.window_count} window(s) · peak {(e.peak_confidence * 100).toFixed(0)}%
+                    {e.window_count} × {e.window_kind} window(s) · peak {(e.peak_confidence * 100).toFixed(0)}%
                   </span>
                 </button>
               );

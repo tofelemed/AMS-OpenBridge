@@ -16,7 +16,7 @@
  * Every figure is real; where a metric has no model yet the tile says so.
  */
 import React, { useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
 import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -30,7 +30,7 @@ import GateMatrix, { type MatrixScope } from './GateMatrix';
 import GateEvidencePanel, { GateGuidePanel } from './GateEvidencePanel';
 import AttentionList, { type RankBy } from './AttentionList';
 import { buildTierGroups, isRowFilter, latestWindowEnd } from './gateStatus';
-import { useFleetHeatmap, useFleetRankings, useFleetSummary } from '../../hooks/useCpm';
+import { useCpmResolutions, useFleetHeatmap, useFleetRankings, useFleetSummary } from '../../hooks/useCpm';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 /** Below this the workspace cannot carry a second column; evidence goes modal. */
@@ -100,6 +100,11 @@ export const CpmPerformance: React.FC = () => {
 
   // ── Data
   const scope = useCpmScope();
+  // The toggle options come from the served contract (`fusion.firesOn`), not
+  // literals: gate verdicts exist only where fusion fires, and a new trigger
+  // added server-side should appear here without a UI release (audit.md §4.1).
+  const resolutions = useCpmResolutions();
+  const fusionKinds = resolutions.data?.fusion.firesOn ?? ['12h', '24h'];
   const summary = useFleetSummary(scope.params, windowKind);
   const rankings = useFleetRankings(scope.params, windowKind);
   const badActors = useFleetRankings(
@@ -156,17 +161,33 @@ export const CpmPerformance: React.FC = () => {
         actions={
           <ObcToggleButtonGroup
             value={windowKind}
-            aria-label="Evaluation window"
+            aria-label="Fused evaluation window"
             onValue={(e: CustomEvent<{ value: string }>) => {
               const v = e.detail.value;
-              if (v === '12h' || v === '24h') write(p => p.set('window', v));
+              if (fusionKinds.includes(v)) write(p => p.set('window', v));
             }}
           >
-            <ObcToggleButtonOption value="12h">12h</ObcToggleButtonOption>
-            <ObcToggleButtonOption value="24h">24h</ObcToggleButtonOption>
+            {fusionKinds.map(k => (
+              <ObcToggleButtonOption key={k} value={k}>{k}</ObcToggleButtonOption>
+            ))}
           </ObcToggleButtonGroup>
         }
       />
+      {/* Why only these sizes: this screen shows FUSED verdicts, which fusion
+          produces on these windows alone. The finer 1m…60m results exist and
+          live in the Window Inspector — say so instead of looking like a
+          chart-range picker with two odd choices. */}
+      <p className="cpm-copy">
+        Verdicts fuse on {fusionKinds.join(' / ')} rolling windows
+        {(() => {
+          const cadence = resolutions.data?.windows.find(w => fusionKinds.includes(w.kind))?.cadenceMs;
+          return cadence ? ` (recomputed every ${Math.round(cadence / 60_000)} min)` : '';
+        })()} ·
+        per-window 1m–60m features are in the{' '}
+        <Link to={`/cpm/windows${selectedLoop ? `?loop=${encodeURIComponent(selectedLoop)}` : ''}`}>
+          Window Inspector ›
+        </Link>
+      </p>
       <PlantScopeFilter
         scope={scope}
         summary={fleetTotal != null ? `${fleetTotal} loop(s) in scope` : null}

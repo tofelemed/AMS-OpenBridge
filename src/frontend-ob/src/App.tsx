@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, createContext, useContext } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useAlarmStore } from './store/alarmStore';
@@ -27,9 +27,12 @@ import { ObiWrench } from '@oicl/openbridge-webcomponents-react/icons/icon-wrenc
 import { ObiPlaceholder } from '@oicl/openbridge-webcomponents-react/icons/icon-placeholder';
 import { ObiChevronDownGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-down-google';
 import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-right-google';
+import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-left-google';
 import CommandPalette from './components/CommandPalette';
 import SessionTimeoutDialog from './components/shared/SessionTimeoutDialog';
 import ErrorBoundary from './components/shared/ErrorBoundary';
+import ConnectivityBanner from './components/shared/ConnectivityBanner';
+import { reportApiError, reportApiSuccess } from './api/apiHealth';
 import { DialogProvider } from './components/shared/dialogService';
 import { expiredReason, markApiActivity } from './auth/sessionClock';
 import { CPA_SLICE_ONLY, HOME_PATH, isSliceNavPath } from './productSlice';
@@ -140,6 +143,32 @@ const readLiveEventsPreference = (): boolean => {
   return true;
 };
 
+// Main-nav drawer: mirrors the Live Events panel pattern — collapsible so wide
+// pages (gate matrix, designer, trends) get the sidebar's 220px back.
+const NAV_DRAWER_STORAGE_KEY = 'ams-show-main-nav';
+
+const readNavDrawerPreference = (): boolean => {
+  try {
+    const stored = localStorage.getItem(NAV_DRAWER_STORAGE_KEY);
+    if (stored === 'false') return false;
+    if (stored === 'true') return true;
+  } catch {
+    // ignore storage errors
+  }
+  return true;
+};
+
+/**
+ * Every query and mutation failure now passes through one place.
+ *
+ * Two gaps this closes. First, no API failure was ever logged or counted — each
+ * one was visible to the operator and invisible to us. Second, when the gateway
+ * is down every panel fails separately, so the screen filled with identical
+ * error cards and none of them said "the API is unreachable". `apiHealth`
+ * classifies the failure (transport vs 5xx vs a correct 4xx) and the
+ * ConnectivityBanner states it once. Panel-level errors are untouched: they name
+ * WHICH read failed, which is the thing this product must not hide.
+ */
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -148,6 +177,20 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
     },
   },
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      console.error('[query]', query.queryKey, error);
+      reportApiError(error);
+    },
+    onSuccess: () => reportApiSuccess(),
+  }),
+  mutationCache: new MutationCache({
+    onError: (error, _vars, _ctx, mutation) => {
+      console.error('[mutation]', mutation.options.mutationKey ?? '(unkeyed)', error);
+      reportApiError(error);
+    },
+    onSuccess: () => reportApiSuccess(),
+  }),
 });
 
 const App: React.FC = () => {
@@ -283,6 +326,7 @@ const App: React.FC = () => {
           {/* Why the session ended (idle/absolute) — survives the redirect to /login. */}
           <SessionTimeoutDialog />
           <DialogProvider>
+          <ConnectivityBanner />
           <RouteErrorBoundary>
           <Routes>
             {/* Login — standalone, no sidebar/topbar */}
@@ -452,6 +496,19 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [showLiveEvents, setShowLiveEvents] = useState(
     CPA_SLICE_ONLY ? false : readLiveEventsPreference,
   );
+  const [showNav, setShowNav] = useState(readNavDrawerPreference);
+
+  const toggleNav = () => {
+    setShowNav(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem(NAV_DRAWER_STORAGE_KEY, String(next));
+      } catch {
+        // ignore storage errors
+      }
+      return next;
+    });
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -483,7 +540,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   return (
     <LiveEventsContext.Provider value={{ showLiveEvents, toggleLiveEvents }}>
-    <div className={`app-root${showLiveEvents ? '' : ' app-root--events-hidden'}`}>
+    <div className={`app-root${showLiveEvents ? '' : ' app-root--events-hidden'}${showNav ? '' : ' app-root--nav-collapsed'}`}>
       {/* ⌘K / Ctrl+K palette (Phase 7 F0.4) — searches nav, loops, calculations */}
       <CommandPalette navItems={navItems.filter(i => isSliceNavPath(i.path))} />
       {/* Flood Alert Banner */}
@@ -630,10 +687,35 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </div>
       </div>
 
-      {/* Sidebar Navigation */}
-      <aside className="app-sidebar">
-        <Sidebar unackedCount={unackedCount} />
-      </aside>
+      {/* Sidebar Navigation — collapsible drawer (same pattern as the Live
+          Events panel): hide it and the grid gives the 220px to the page. */}
+      {showNav && (
+        <aside className="app-sidebar">
+          <Sidebar unackedCount={unackedCount} />
+          <button
+            type="button"
+            className="sidebar-collapse-btn"
+            onClick={toggleNav}
+            aria-label="Hide navigation menu"
+            title="Collapse the menu to give the page full width"
+          >
+            <span className="nav-item__icon"><ObiChevronLeftGoogle /></span>
+            Hide menu
+          </button>
+        </aside>
+      )}
+
+      {/* Re-open tab when the nav drawer is collapsed */}
+      {!showNav && (
+        <button
+          type="button"
+          className="main-nav-expand-tab"
+          onClick={toggleNav}
+          aria-label="Show navigation menu"
+        >
+          ◂ Menu
+        </button>
+      )}
 
       {/* Main Content Area */}
       <main className="app-main">

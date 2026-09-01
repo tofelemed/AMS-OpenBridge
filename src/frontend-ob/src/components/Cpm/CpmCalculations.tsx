@@ -13,11 +13,13 @@ import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, PanelHead, TonePill, WorkspaceHeader, toneFor, fmtDateTime,
+  fmtWindowShape, windowSpecsOf,
 } from './shared';
 import { gateTone } from './gateStatus';
-import { LoopPicker, PlantScopeFilter, useCpmScope } from './plantScope';
+import { PlantScopeFilter, useCpmScope } from './plantScope';
+import LoopCombobox from './LoopCombobox';
 import {
-  useCpmCalculations, useCpmKpis, useCpmLoops, useLatestGates,
+  useCpmCalculations, useCpmKpis, useCpmLoops, useCpmResolutions, useLatestGates,
 } from '../../hooks/useCpm';
 import { ApiError } from '../../api/apiFetch';
 import CalcDrawer from './CalcDrawer';
@@ -47,13 +49,28 @@ export const CpmCalculations: React.FC = () => {
   // Plant scope (CPM-UX A1): narrows the loop picker to a section/unit.
   const scope = useCpmScope();
   // Case-insensitive, like every loop lookup in cplm-api.
-  const loopId = params.get('loop') ?? loops[0]?.loopId;
-  const loop = loops.find(l => l.loopId.toLowerCase() === (loopId ?? '').toLowerCase()) ?? loops[0];
+  // No default selection: registry order is arbitrary, so `loops[0]` is a
+  // CHOICE presented as a default — the same lie the ?loop=-names-nothing
+  // fallback was fixed for, minus the URL. It also fired this page's whole
+  // query set for a loop nobody asked for.
+  const loopId = params.get('loop') ?? undefined;
+  const loop = loopId
+    ? loops.find(l => l.loopId.toLowerCase() === loopId.toLowerCase())
+    : undefined;
 
   const gates = useLatestGates(loop?.loopId, '24h');
   const shortKpis = useCpmKpis(loop?.loopId, '60m', 1);
   const longKpis = useCpmKpis(loop?.loopId, '24h', 1);
   const catalogue = useCpmCalculations();
+  // Honest window labels (audit.md §4.5): "60m" alone read as a tumbling
+  // minute-hour; it is a sliding window. The shape comes from the served
+  // contract, same source as the Window Inspector's selector.
+  const resolutions = useCpmResolutions();
+  const windowShapeOf = (kind: string): string => {
+    const s = windowSpecsOf(resolutions.data, () => 0).find(w => w.kind === kind);
+    const shape = s ? fmtWindowShape(s) : '';
+    return shape ? `${kind} — ${shape}` : kind;
+  };
 
   const latestShort = shortKpis.data?.samples[0];
   const latestLong = longKpis.data?.samples[0];
@@ -152,8 +169,9 @@ export const CpmCalculations: React.FC = () => {
         <PanelHead eyebrow="1 · Select the loop" title="Which loop do you want to evaluate?" />
         <PlantScopeFilter scope={scope} />
         <div className="cpm-toolbar">
-          <LoopPicker scope={scope} loops={loops} value={loop?.loopId ?? ''}
-            onChange={id => { setParams(p => { p.set('loop', id); return p; }, { replace: true }); setPage(0); }} />
+          <LoopCombobox scope={scope} loops={loops} value={loop?.loopId ?? ''}
+            onChange={id => { setParams(p => { p.set('loop', id); return p; }, { replace: true }); setPage(0); }}
+            onClear={() => { setParams(p => { p.delete('loop'); return p; }, { replace: true }); setPage(0); }} />
           {loop && (
             <>
               {/* C4: a FAILED gates fetch is not a NOT_EVALUATED verdict — the
@@ -179,8 +197,16 @@ export const CpmCalculations: React.FC = () => {
         </div>
       </section>
 
+      {!loop && (
+        <section className="cpm-surface">
+          <EmptyState title="Select a loop"
+            copy="The catalogue lists every stored metric with this loop's latest value and the gate that judges it." />
+        </section>
+      )}
+
+      {loop && (<>
       <div className="cpm-kpi-row">
-        <StatTile caption={`Metrics stored for ${loop?.loopId ?? '—'}`} value={observed} />
+        <StatTile caption={`Metrics stored for ${loop.loopId}`} value={observed} />
         {/* The hardcoded 17 fallback is the exact claim the Relationships tab
             stopped making — say nothing rather than assert a pack size. */}
         <StatTile caption="Evidence gates in the pack" value={catalogue.data?.gates.length ?? '—'} />
@@ -238,7 +264,8 @@ export const CpmCalculations: React.FC = () => {
               {/* C2: WHEN, not just which resolution — "latest" without a
                   timestamp reads as current on a stale historian. */}
               <span className="cpm-event-row__sub">
-                {m.source === 'short' ? '60m' : m.source === 'long' ? '24h' : '24h fused'}
+                {m.source === 'short' ? windowShapeOf('60m')
+                  : m.source === 'long' ? windowShapeOf('24h') : '24h fused'}
                 {wEnd ? ` · ends ${fmtDateTime(wEnd)}` : ''}
               </span>
               <TonePill tone={st.tone}>{st.label}</TonePill>
@@ -253,6 +280,8 @@ export const CpmCalculations: React.FC = () => {
           <ObcButton variant="normal" disabled={safePage >= pages - 1} onClick={() => setPage(Math.min(pages - 1, safePage + 1))}>Next</ObcButton>
         </div>
       </section>
+
+      </>)}
 
       {drawer && loop && (
         <CalcDrawer metric={drawer} loopId={loop.loopId}

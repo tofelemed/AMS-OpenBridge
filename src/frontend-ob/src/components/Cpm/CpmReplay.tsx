@@ -18,7 +18,8 @@ import {
   EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader,
   fmtDateTime, QueryError, cpmChartColors } from './shared';
 import { gateTone } from './gateStatus';
-import { LoopPicker, PlantScopeFilter, useCpmScope } from './plantScope';
+import { PlantScopeFilter, useCpmScope } from './plantScope';
+import LoopCombobox from './LoopCombobox';
 import type { CpmGateMatrix, CpmKpiRow } from '../../api/cpmApi';
 import {
   useAcknowledgeEvent, useCpmCalculations, useCpmEvents, useCpmKpisRange,
@@ -77,7 +78,11 @@ export const CpmReplay: React.FC = () => {
   const loops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
   // Plant scope (CPM-UX A1): narrows the loop picker to a section/unit.
   const scope = useCpmScope();
-  const loopId = params.get('loop') ?? loops[0]?.loopId;
+  // No default selection: registry order is arbitrary, so `loops[0]` is a
+  // CHOICE presented as a default — the same lie the ?loop=-names-nothing
+  // fallback was fixed for, minus the URL. It also fired this page's whole
+  // query set for a loop nobody asked for.
+  const loopId = params.get('loop') ?? undefined;
   const gateKey = params.get('gate') ?? 'G15';
 
   const calc = useCpmCalculations();
@@ -123,6 +128,19 @@ export const CpmReplay: React.FC = () => {
   const cursorTs = points.length > 0
     ? points[Math.min(points.length - 1, Math.floor((cursorPct / 100) * (points.length - 1)))].ts
     : null;
+
+  /**
+   * Gate options come from the served catalogue; when that read fails, the
+   * SELECTED WINDOW already carries its own gate cells (key + name), so the
+   * picker falls back to those rather than to a hardcoded list. Real data from
+   * a second source beats inventing gate names client-side, and it keeps replay
+   * usable through a catalogue outage.
+   */
+  const gatesFromWindow = calc.isError && (selected?.gates.length ?? 0) > 0;
+  const gateOptions = useMemo(
+    () => (calc.data?.gates ?? []).map(g => ({ key: g.key, name: g.name }))
+      .concat(calc.data ? [] : (selected?.gates ?? []).map(g => ({ key: g.key, name: g.name }))),
+    [calc.data, selected]);
 
   const def = calc.data?.gates.find(g => g.key === gateKey);
   const cell = selected?.gates.find(g => g.key === gateKey);
@@ -218,12 +236,29 @@ export const CpmReplay: React.FC = () => {
       <section className="cpm-surface">
         <PlantScopeFilter scope={scope} />
         <div className="cpm-toolbar">
-          <LoopPicker scope={scope} loops={loops} value={loopId ?? ''}
-            onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })} />
+          <LoopCombobox scope={scope} loops={loops} value={loopId ?? ''}
+            onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })}
+            onClear={() => setParams(p => { p.delete('loop'); p.delete('window'); return p; }, { replace: true })} />
+          {/*
+            These two selects DEPEND on the one above: no loop means no window
+            list, and no window means the gate fallback has nothing to read. An
+            empty <select> states none of that — it just looks broken, which is
+            exactly what it looked like once the arbitrary default selection was
+            removed. Each now carries a disabled option naming what is missing.
+          */}
           <label className="cpm-field">
             <span className="cpm-field__label">Evaluated window (24h)</span>
             <select className="cpm-select" value={selected?.windowEnd ?? ''}
+              disabled={windows.length === 0}
               onChange={e => setParams(p => { p.set('window', e.target.value); return p; }, { replace: true })}>
+              {windows.length === 0 && (
+                <option value="">
+                  {!loopId ? 'Select a loop first'
+                    : history.isLoading ? 'Loading windows…'
+                      : history.isError ? 'Window list unavailable'
+                        : 'No evaluated 24h windows for this loop'}
+                </option>
+              )}
               {windows.map(w => (
                 <option key={w.windowEnd ?? ''} value={w.windowEnd ?? ''}>
                   ends {w.windowEnd ? fmtDateTime(w.windowEnd) : '—'} · {(w.diagnosis ?? '—').replace(/_/g, ' ')}
@@ -234,17 +269,31 @@ export const CpmReplay: React.FC = () => {
           <label className="cpm-field">
             <span className="cpm-field__label">Gate</span>
             <select className="cpm-select" value={gateKey}
+              disabled={gateOptions.length === 0}
               onChange={e => setParams(p => { p.set('gate', e.target.value); return p; }, { replace: true })}>
-              {(calc.data?.gates ?? []).map(g => (
+              {gateOptions.length === 0 && (
+                <option value="">
+                  {calc.isLoading ? 'Loading gates…'
+                    : !loopId ? 'Select a loop first'
+                      : 'Gate list unavailable'}
+                </option>
+              )}
+              {gateOptions.map(g => (
                 <option key={g.key} value={g.key}>{g.key} · {g.name}</option>
               ))}
             </select>
           </label>
-          {/* R8: a failed catalogue read left this select silently EMPTY — the
-              gate picker just vanished with no explanation. */}
+          {/* R8: a failed catalogue read left this select silently EMPTY. It now
+              falls back to the window's own gate cells and offers a retry, so a
+              catalogue outage degrades the labels rather than blocking replay. */}
           {calc.isError && (
-            <span className="cpm-field__error">
-              Gate catalogue unavailable — the gate list cannot be shown.
+            <span className="cpm-replay-catalogue-note">
+              <span className="cpm-field__error">
+                {gatesFromWindow
+                  ? 'Gate catalogue unavailable — listing the gates this window evaluated instead.'
+                  : 'Gate catalogue unavailable.'}
+              </span>
+              <ObcButton variant="flat" onClick={() => void calc.refetch()}>Retry</ObcButton>
             </span>
           )}
           <TonePill tone="muted">{role}</TonePill>
@@ -273,8 +322,12 @@ export const CpmReplay: React.FC = () => {
             replaying the newest evaluated window instead.
           </p>
         )}
+        {!loopId && (
+          <EmptyState title="Select a loop"
+            copy="Replay walks the exact samples one evaluation window used — pick a loop above to begin." />
+        )}
         {history.isError && <QueryError title="Gate history unavailable" error={history.error} retry={() => void history.refetch()} />}
-        {!selected && !history.isLoading && !history.isError && (
+        {loopId && !selected && !history.isLoading && !history.isError && (
           <EmptyState title="No evaluated 24h windows for this loop"
             copy="Replay needs a stored fused result; run the loop long enough to complete a window, or recompute from history." />
         )}

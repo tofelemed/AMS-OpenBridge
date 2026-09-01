@@ -74,38 +74,55 @@ export const PlantModelStatus: React.FC = () => {
   });
 
   const t = tree.data;
+  /**
+   * A FAILED read is not a slow one. Every tile below rendered '…' whenever its
+   * data was absent, so an unreachable asset-service looked identical to a first
+   * load that had not finished — on the one strip whose job is to answer "is the
+   * plant model populated?". Failures now say so and keep their own tone, which
+   * is the same fix Pipeline Health's "Required jobs" tile needed.
+   */
+  const val = (q: { isError: boolean }, ready: boolean, text: string) =>
+    q.isError ? 'unavailable' : ready ? text : '…';
+  const tone = (q: { isError: boolean }, ready: boolean, ok: boolean): Stage['tone'] =>
+    q.isError ? 'warn' : ready ? (ok ? 'good' : 'warn') : 'muted';
+  const detailOf = (q: { isError: boolean }, normal: string) =>
+    q.isError ? 'could not be read' : normal;
+
   const stages: Stage[] = [
     {
       n: 1, title: 'Hierarchy',
-      value: t ? `${t.sites} / ${t.areas} / ${t.units}` : '…',
-      detail: 'sites / areas / units',
-      tone: t ? (t.sites > 0 && t.units > 0 ? 'good' : 'warn') : 'muted',
+      value: val(tree, !!t, t ? `${t.sites} / ${t.areas} / ${t.units}` : ''),
+      detail: detailOf(tree, 'sites / areas / units'),
+      tone: tone(tree, !!t, !!t && t.sites > 0 && t.units > 0),
     },
     {
       n: 2, title: 'Instruments & tags',
-      value: t ? `${t.devices} / ${t.measurements}` : '…',
-      detail: 'devices / measurements',
-      tone: t ? (t.measurements > 0 ? 'good' : 'warn') : 'muted',
+      value: val(tree, !!t, t ? `${t.devices} / ${t.measurements}` : ''),
+      detail: detailOf(tree, 'devices / measurements'),
+      tone: tone(tree, !!t, !!t && t.measurements > 0),
     },
     {
       n: 3, title: 'OT aliases',
-      value: aliases.data != null ? String(aliases.data) : '…',
-      detail: 'DCS tag → UNS path',
-      tone: aliases.data != null ? (aliases.data > 0 ? 'good' : 'warn') : 'muted',
+      value: val(aliases, aliases.data != null, String(aliases.data)),
+      detail: detailOf(aliases, 'DCS tag → UNS path'),
+      tone: tone(aliases, aliases.data != null, (aliases.data ?? 0) > 0),
     },
     {
       n: 4, title: 'Control loops',
-      value: canSeeLoops
-        ? (loops.data ? `${loops.data.total} (${loops.data.monitored} monitored)` : '…')
-        : 'no access',
-      detail: 'CPM → Loop Registry',
-      tone: canSeeLoops ? (loops.data && loops.data.total > 0 ? 'good' : 'warn') : 'muted',
+      value: !canSeeLoops ? 'no access'
+        : val(loops, !!loops.data, loops.data
+          ? `${loops.data.total} (${loops.data.monitored} monitored)` : ''),
+      detail: canSeeLoops ? detailOf(loops, 'CPM → Loop Registry') : 'CPM → Loop Registry',
+      tone: canSeeLoops ? tone(loops, !!loops.data, (loops.data?.total ?? 0) > 0) : 'muted',
     },
     {
       n: 5, title: 'Ingestion sources',
-      value: canSeeIngestion ? (sources.data != null ? String(sources.data) : '…') : 'no access',
-      detail: 'Administration → Data Sources',
-      tone: canSeeIngestion ? (sources.data != null && sources.data > 0 ? 'good' : 'warn') : 'muted',
+      value: !canSeeIngestion ? 'no access'
+        : val(sources, sources.data != null, String(sources.data)),
+      detail: canSeeIngestion
+        ? detailOf(sources, 'Administration → Data Sources')
+        : 'Administration → Data Sources',
+      tone: canSeeIngestion ? tone(sources, sources.data != null, (sources.data ?? 0) > 0) : 'muted',
     },
   ];
 

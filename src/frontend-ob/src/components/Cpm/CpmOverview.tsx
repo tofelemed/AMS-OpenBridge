@@ -39,9 +39,14 @@ export const CpmOverview: React.FC = () => {
   // Case-insensitive, like every loop lookup in cplm-api; and a ?loop= that names
   // nothing must not silently show a different loop's data under that URL.
   const requestedId = params.get('loop');
+  // Unlike the toolbar-driven screens, `loops[0]` here is NOT arbitrary: this
+  // list is the confidence-ordered ranking, so the default is the top finding —
+  // the right focus for a triage surface. It is labelled below so it does not
+  // read as the operator's own selection.
   const selected = requestedId
     ? loops.find(l => l.loopId.toLowerCase() === requestedId.toLowerCase())
     : loops[0];
+  const showingTopRanked = !requestedId && !!selected;
   const missingLoop = !!requestedId && !selected
     && !rankings.isLoading && !rankings.isError && loops.length > 0;
 
@@ -128,7 +133,10 @@ export const CpmOverview: React.FC = () => {
         </section>
 
         {selected ? (
-          <LoopFocus loopId={selected.loopId} displayName={selected.displayName}
+          <LoopFocus loopId={selected.loopId}
+            displayName={showingTopRanked
+              ? `${selected.displayName} · top-ranked loop`
+              : selected.displayName}
             onOpenAnalysis={() => setDrawerLoop(selected.loopId)} />
         ) : missingLoop ? (
           <section className="cpm-surface">

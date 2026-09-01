@@ -135,7 +135,10 @@ export const SummaryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
               <TonePill tone={live.hasData ? qualityLabel(live.quality ?? live.pv).tone : 'muted'}>
                 {live.hasData ? qualityLabel(live.quality ?? live.pv).label : 'NO LIVE PUBLISHER'}
               </TonePill>
-              {' '}Window {fmtDateTime(start.getTime())} → {fmtDateTime(end.getTime())}
+              {/* "Trend range", not "Window": this is the rolling historian
+                  envelope, not an engine evaluation window — the shared noun
+                  conflated the two on the one page where it matters most. */}
+              {' '}Trend range {fmtDateTime(start.getTime())} → {fmtDateTime(end.getTime())}
             </p>
           </>
         )}

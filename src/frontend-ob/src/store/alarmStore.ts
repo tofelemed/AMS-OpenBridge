@@ -108,15 +108,8 @@ export interface SoeEvent {
   isOutOfOrder: boolean;
 }
 
-export interface LoopKpiPayload {
-  tagId: string;
-  windowStartMs: number;
-  windowEndMs: number;
-  iae: number;
-  ise: number;
-  dominantMode: string;
-  sampleCount: number;
-}
+// LoopKpiPayload removed (audit-jobs.md Phase G): LoopKpiStreamJob retired —
+// per-loop KPIs come from the CPLM pipeline (/api/v1/cpm/loops/{id}/kpis).
 
 export interface AlarmKpiPayload {
   kpiType: string;
@@ -143,7 +136,6 @@ interface AlarmStore {
   serverStatuses: Map<string, ServerStatus>;
   connectedOpcServerIds: Set<string>;
   recentSoeEvents: SoeEvent[];
-  loopKpis: Record<string, LoopKpiPayload>;
   alarmKpis: Record<string, AlarmKpiPayload>;
   hubConnection: HubConnection | null;
   connectionState: HubConnectionState | 'uninitialized';
@@ -171,7 +163,6 @@ interface AlarmStore {
   setFloodAlert: (alert: FloodAlert | null) => void;
   setServerStatus: (status: ServerStatus) => void;
   addSoeEvent: (event: SoeEvent) => void;
-  setLoopKpi: (payload: LoopKpiPayload) => void;
   setAlarmKpi: (payload: AlarmKpiPayload) => void;
   toggleAlarmSelection: (id: string) => void;
   clearSelection: () => void;
@@ -460,7 +451,6 @@ export const useAlarmStore = create<AlarmStore>()(
     serverStatuses: new Map(),
     connectedOpcServerIds: new Set(),
     recentSoeEvents: [],
-    loopKpis: {},
     alarmKpis: {},
     hubConnection: null,
     connectionState: 'uninitialized',
@@ -555,9 +545,6 @@ export const useAlarmStore = create<AlarmStore>()(
           });
         });
 
-        connection.on('OnLoopKpiUpdate', (payload: LoopKpiPayload) => {
-          get().setLoopKpi(payload);
-        });
 
         connection.on('OnAlarmKpiUpdate', (payload: AlarmKpiPayload) => {
           get().setAlarmKpi(payload);
@@ -710,9 +697,6 @@ export const useAlarmStore = create<AlarmStore>()(
         if (state.recentSoeEvents.length > MAX_SOE_EVENTS)
           state.recentSoeEvents.pop();
       });
-    },
-    setLoopKpi: (payload) => {
-      set(state => { state.loopKpis[payload.tagId] = payload; });
     },
     setAlarmKpi: (payload) => {
       set(state => { state.alarmKpis[payload.kpiType] = payload; });

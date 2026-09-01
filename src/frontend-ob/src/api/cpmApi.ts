@@ -470,17 +470,34 @@ export interface CpmKpiRow {
    * mae/rmse/iae; those zeros must never render as perfect control) and
    * `long_metrics_qualified` (long rows — false means the metrics were computed
    * on a window that failed G0).
+   *
+   * Short rows also carry the per-window gate verdicts (`gate0_status` …
+   * `gate4_status`, `gate2r_status` — PASS/WARN/FAIL/EXCLUDED/STRONG/PENDING):
+   * fusion never fires on short windows, so these are the only gate evidence
+   * that exists at 1m…60m.
    */
   [metric: string]: number | string | boolean | null;
 }
 
+export interface CpmKpiPage {
+  loopId: string;
+  resolution: string;
+  tier: 'short' | 'long';
+  count: number;
+  /** Keyset cursor: pass as `before` to fetch the next (older) page; null at the end. */
+  nextBefore: string | null;
+  samples: CpmKpiRow[];
+}
+
 export const getKpis = (
   loopId: string, resolution = '24h', from?: string, to?: string, limit = 50, signal?: AbortSignal,
+  before?: string,
 ) => {
   const params = new URLSearchParams({ resolution, limit: String(limit) });
   if (from) params.set('from', from);
   if (to) params.set('to', to);
-  return apiJson<{ loopId: string; resolution: string; tier: 'short' | 'long'; count: number; samples: CpmKpiRow[] }>(
+  if (before) params.set('before', before);
+  return apiJson<CpmKpiPage>(
     `${BASE}/loops/${encodeURIComponent(loopId)}/kpis?${params.toString()}`, { signal });
 };
 

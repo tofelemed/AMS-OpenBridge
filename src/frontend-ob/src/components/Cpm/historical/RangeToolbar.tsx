@@ -4,11 +4,12 @@
  * Historical explorer toolbar — four labelled rows, narrowing left to right and
  * top to bottom: SCOPE (where) → LOOP (which) → RANGE (when) → VIEW (what to draw).
  *
- * It was one flex-wrap bucket holding ten controls. LoopPicker is three stacked
- * elements where its neighbours are one, so sharing a row with the scope selects
- * left a hole beside them and pushed Export onto its own line — four ragged
- * visual lines from one declared row. Each question now owns a row with its own
- * baseline, and the scope selects sit at the top where the narrowing starts.
+ * It was one flex-wrap bucket holding ten controls, and the loop picker of the
+ * day was three stacked elements where its neighbours were one — so sharing a
+ * row with the scope selects left a hole beside them and pushed Export onto its
+ * own line: four ragged visual lines from one declared row. Each question now
+ * owns a row with its own baseline, and the scope selects sit at the top where
+ * the narrowing starts.
  *
  * Colour here is functional, not decoration: the signal chips carry the SAME
  * --ams-pen-* token as the line each one draws, so the toggle and the pen are
@@ -20,7 +21,8 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
 import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
 import type { CpmLoop } from '../../../api/cpmApi';
-import { LoopPicker, PlantScopeFilter, type CpmScope } from '../plantScope';
+import { PlantScopeFilter, type CpmScope } from '../plantScope';
+import LoopCombobox from '../LoopCombobox';
 import { RANGE_PRESETS, fmtRange, toLocalInput } from './timeRange';
 
 const SIGNAL_KEYS = ['pv', 'sp', 'op', 'vp'] as const;
@@ -41,6 +43,7 @@ export interface RangeToolbarProps {
   loop: CpmLoop | undefined;
   loopsInScope: number;
   onLoopChange: (id: string) => void;
+  onLoopClear: () => void;
 
   from: Date;
   to: Date;
@@ -76,7 +79,7 @@ const Row: React.FC<{ label: string; children: React.ReactNode; align?: 'start' 
 );
 
 export const RangeToolbar: React.FC<RangeToolbarProps> = ({
-  scope, loops, loopId, loop, loopsInScope, onLoopChange,
+  scope, loops, loopId, loop, loopsInScope, onLoopChange, onLoopClear,
   from, to, preset, onPreset, onStep, onNow, onApplyCustom,
   signals, onToggleSignal, overlays, overlayKey, onOverlay,
   seriesPath, trendHref, onOpenTrend, exportDisabled, onExport,
@@ -108,7 +111,8 @@ export const RangeToolbar: React.FC<RangeToolbarProps> = ({
       </Row>
 
       <Row label="Loop" align="start">
-        <LoopPicker scope={scope} loops={loops} value={loopId} onChange={onLoopChange} />
+        <LoopCombobox scope={scope} loops={loops} value={loopId}
+          onChange={onLoopChange} onClear={onLoopClear} />
         <div className="cpm-hist-row__end">
           {/* Exporting the diagnosis windows with zero windows produced a file
               containing only its header row. */}

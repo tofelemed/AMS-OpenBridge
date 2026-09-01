@@ -79,7 +79,10 @@ export const DisplayLauncher: React.FC = () => {
   const [level, setLevel] = useState<number | 'all'>('all');
   const [area, setArea] = useState<string>('all');
   const qc = useQueryClient();
-  const { data: favData } = useQuery({
+  // An empty favourites list and a failed favourites READ look identical once
+  // rendered, so the failure is tracked and stated rather than passing as "you
+  // have not starred anything".
+  const { data: favData, isError: favError } = useQuery({
     queryKey: ['favorites'],
     queryFn: () => apiJson<{ favorites: FavRow[] }>(`${API_BASE}/me/favorites`),
   });
@@ -91,7 +94,7 @@ export const DisplayLauncher: React.FC = () => {
     (favData?.favorites ?? []).forEach(f => { if (f.displayId) m.set(f.displayId, f.id); });
     return m;
   }, [favData]);
-  const { data: recentData } = useQuery({
+  const { data: recentData, isError: recentError } = useQuery({
     queryKey: ['recents'],
     queryFn: () => apiJson<{ recents: { id: string }[] }>(`${API_BASE}/me/recent`),
   });
@@ -242,6 +245,17 @@ export const DisplayLauncher: React.FC = () => {
         )}
       </div>
 
+      {/* A failed read is not an empty list: the sections are hidden when you
+          genuinely have none, so without this an outage silently removed both
+          and looked like a reset preference. */}
+      {(favError || recentError) && (
+        <p className="property-hint" role="status">
+          {favError && recentError ? 'Favourites and recents could not be loaded'
+            : favError ? 'Favourites could not be loaded'
+              : 'Recently opened could not be loaded'} — the display service did not
+          answer. The full list below is unaffected.
+        </p>
+      )}
       {favDisplays.length > 0 && (
         <section data-testid="favourites">
           <div className="display-launcher__section">Favourites</div>
