@@ -157,7 +157,7 @@ services.Configure<AMS.Api.Services.IotDbWriteOptions>(
 services.AddHttpClient("IotDbWrite");
 services.AddSingleton<AMS.Api.Services.IotDbWriteClient>();
 services.AddHostedService<AMS.Api.BackgroundServices.RawLoopIotDbConsumer>();
-services.AddHostedService<AMS.Api.BackgroundServices.DriftAlertConsumerService>();
+// DriftAlertConsumerService removed (audit-jobs.md Phase G): StateDriftDetectionJob retired.
 // DOM-02: ShelveExpiryService was implemented but never registered, so the
 // ISA-18.2 shelving timeout never ran — a shelved alarm stayed shelved forever.
 services.AddHostedService<ShelveExpiryService>();

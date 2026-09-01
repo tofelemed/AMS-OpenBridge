@@ -86,16 +86,20 @@ public sealed class AlarmEnricher : IAlarmEnricher
             State:              effectiveState,
             ConditionActive:    effectiveState == AlarmState.AcknowledgedUncleared || effectiveState == AlarmState.UnacknowledgedUncleared,
             Acknowledged:       a.Acknowledged,
-            IsShelved:          false,
-            IsSuppressed:       false,
+            // Shelve state has been persisted since DOM-02; this projection kept
+            // hardcoding it false so a shelved alarm was unrenderable (C2).
+            IsShelved:          a.IsShelved,
+            IsSuppressed:       a.IsSuppressed,
             IsOutOfService:     false,
             QualityGood:        true,
             EventTime:          a.EventTime,
             ActiveTime:         a.EventTime,
-            AckTime:            a.Acknowledged ? DateTimeOffset.UtcNow : null,
-            AckedByUsername:    null,
-            AckComment:         null,
-            ShelveUntil:        null,
+            // Script 50: real persisted ack metadata. AckTime was previously
+            // FABRICATED as UtcNow on every read.
+            AckTime:            a.AckTime,
+            AckedByUsername:    a.AckedBy?.ToString(),
+            AckComment:         a.AckComment,
+            ShelveUntil:        a.ShelveUntil,
             ShelveComment:      null,
             SuppressionReason:  null,
             CorrelationId:      null,
@@ -107,7 +111,8 @@ public sealed class AlarmEnricher : IAlarmEnricher
             AreaPath:           null,
             ServerReceivedAt:   DateTimeOffset.UtcNow,
             LogicalAlarmFamilyId: $"{serverId}|{a.SourceName}|{a.ConditionName}|{a.SubConditionName}",
-            InstanceKeySchemaVersion: 1);
+            InstanceKeySchemaVersion: 1,
+            CustomAttributes:   new Dictionary<string, object>(a.CustomAttributes));
     }
 
     /// <summary>

@@ -29,6 +29,12 @@ public sealed class ActiveAlarmRepository : IActiveAlarmRepository
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == id, ct);
 
+    public async Task<ActiveAlarm?> GetByAlarmKeyAsync(string alarmId, CancellationToken ct = default)
+        => await _ctx.ActiveAlarms
+            .AsSplitQuery()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.AlarmId == alarmId, ct);
+
     /// <summary>
     /// DATA-10: this previously honoured only 3 of the 8 advertised filters — ServerId,
     /// Priority, Category, IsShelved and IsSuppressed were accepted by the API surface
@@ -193,6 +199,28 @@ public sealed class HistoricalAlarmRepository : IHistoricalAlarmRepository
             parameters.Add("Acked", query.IsAcknowledged.Value);
         }
 
+        // audit-jobs.md C4/F-9: Priority was accepted by the controller, carried
+        // through the query record, and then never appeared in the SQL — the
+        // Historical Viewer sends it on every request. History stores severity,
+        // so filter on the same bands the active-alarm projection uses.
+        if (query.Priority.HasValue)
+        {
+            var (sevMin, sevMax) = query.Priority.Value switch
+            {
+                AlarmPriority.Critical   => (900, 1000),
+                AlarmPriority.High       => (700, 899),
+                AlarmPriority.Medium     => (400, 699),
+                AlarmPriority.Low        => (100, 399),
+                _                        => (0, 99),
+            };
+            conditions.Add("severity BETWEEN @SevMin AND @SevMax");
+            parameters.Add("SevMin", sevMin);
+            parameters.Add("SevMax", sevMax);
+        }
+        // ServerId / Category remain unfilterable: alarm_history has no such
+        // columns (single-feed lab). Deliberately not silently dropped anymore —
+        // documented here and surfaced in the controller docs.
+
         var where  = string.Join(" AND ", conditions);
         var sortDir = query.SortDescending ? "DESC" : "ASC";
         var sortCol = query.SortBy switch
@@ -202,12 +230,31 @@ public sealed class HistoricalAlarmRepository : IHistoricalAlarmRepository
             _            => "event_time"
         };
 
+        // audit-jobs.md F-8: rows are serialized as Dapper dictionaries and MVC's
+        // CamelCase policy does NOT apply to dictionary keys — the old snake_case
+        // aliases (source_name, alarm_state, event_time) reached the frontend
+        // verbatim, whose mapper reads camelCase, so Source/Condition/State/Time
+        // rendered blank. Quoted camelCase aliases fix the contract at the source.
+        // priority is derived here (same severity bands as the active projection)
+        // because the mapper otherwise defaults every row to LOW.
         var sql = $@"
-            SELECT 
-                id, 'f0af9a6d-85f6-4c9f-a8ad-6de277d1d110'::UUID as server_id, source as source_name, 
-                condition as condition_name, sub_condition as sub_condition_name, message, severity, 
-                state as alarm_state, ack_status as acknowledged,
-                event_time, event_time as active_time, cleared_time
+            SELECT
+                id,
+                'f0af9a6d-85f6-4c9f-a8ad-6de277d1d110'::UUID AS ""serverId"",
+                source AS ""sourceName"",
+                condition AS ""conditionName"",
+                sub_condition AS ""subConditionName"",
+                message, severity,
+                CASE WHEN severity >= 900 THEN 'CRITICAL'
+                     WHEN severity >= 700 THEN 'HIGH'
+                     WHEN severity >= 400 THEN 'MEDIUM'
+                     WHEN severity >= 100 THEN 'LOW'
+                     ELSE 'DIAGNOSTIC' END AS priority,
+                state,
+                ack_status AS acknowledged,
+                event_time AS ""eventTime"",
+                event_time AS ""activeTime"",
+                cleared_time AS ""clearedTime""
             FROM alarms.alarm_history
             WHERE {where}
             ORDER BY {sortCol} {sortDir}
@@ -266,10 +313,11 @@ public sealed class HistoricalAlarmRepository : IHistoricalAlarmRepository
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
+        // Same camelCase contract as QueryAsync (F-8).
         var sql = @"
-            SELECT id, source as source_name, severity, 
-                   state as alarm_state, event_time, event_time as active_time,
-                   cleared_time, message, ack_status as acknowledged
+            SELECT id, source AS ""sourceName"", severity,
+                   state, event_time AS ""eventTime"", event_time AS ""activeTime"",
+                   cleared_time AS ""clearedTime"", message, ack_status AS acknowledged
             FROM alarms.alarm_history
             WHERE event_time BETWEEN @From AND @To
             ORDER BY event_time DESC";
@@ -278,16 +326,23 @@ public sealed class HistoricalAlarmRepository : IHistoricalAlarmRepository
             yield return row;
     }
 
+    /// <summary>
+    /// audit-jobs.md F-9: the projection writes state as ACTIVE / ACKNOWLEDGED /
+    /// CLEARED (NormalizedAlarmConsumerService.BuildHistoryRecords), but this
+    /// filter compared against the ISA vocabulary (UNACKNOWLEDGED_UNCLEARED, …)
+    /// that no writer ever stores — every state-filtered query returned zero rows.
+    /// Map to the STORED vocabulary.
+    /// </summary>
     private static string ConvertState(AlarmState state) => state switch
     {
-        AlarmState.UnacknowledgedUncleared => "UNACKNOWLEDGED_UNCLEARED",
-        AlarmState.AcknowledgedUncleared   => "ACKNOWLEDGED_UNCLEARED",
-        AlarmState.UnacknowledgedCleared   => "UNACKNOWLEDGED_CLEARED",
-        AlarmState.AcknowledgedCleared     => "ACKNOWLEDGED_CLEARED",
+        AlarmState.UnacknowledgedUncleared => "ACTIVE",
+        AlarmState.AcknowledgedUncleared   => "ACKNOWLEDGED",
+        AlarmState.UnacknowledgedCleared   => "CLEARED",
+        AlarmState.AcknowledgedCleared     => "CLEARED",
         AlarmState.Shelved                 => "SHELVED",
-        AlarmState.SuppressedByDesign      => "SUPPRESSED_BY_DESIGN",
+        AlarmState.SuppressedByDesign      => "SUPPRESSED",
         AlarmState.OutOfService            => "OUT_OF_SERVICE",
         AlarmState.Inhibited               => "INHIBITED",
-        _                                  => "UNACKNOWLEDGED_UNCLEARED"
+        _                                  => "ACTIVE"
     };
 }

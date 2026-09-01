@@ -156,7 +156,7 @@ public interface IAlarmHubClient
     /// <summary>Server heartbeat</summary>
     Task OnHeartbeat(HeartbeatPayload heartbeat);
 
-    Task OnLoopKpiUpdate(object payload);
+    // OnLoopKpiUpdate removed (Phase G): LoopKpiStreamJob retired; CPLM serves loop KPIs.
     Task OnAlarmKpiUpdate(object payload);
 }
 
@@ -191,7 +191,10 @@ public record AlarmHubPayload(
     string LogicalAlarmFamilyId,
     int InstanceKeySchemaVersion,
     string? AckComment = null,
-    IReadOnlyDictionary<string, object>? OpcAttributes = null
+    IReadOnlyDictionary<string, object>? OpcAttributes = null,
+    /// <summary>Carries ackLifecycleState etc. so an unrelated OnAlarmUpdated push
+    /// does not wipe the ACK column the lifecycle events populated (F-3).</summary>
+    IReadOnlyDictionary<string, object>? CustomAttributes = null
 );
 
 public record AckLifecyclePayload(
@@ -365,11 +368,6 @@ public sealed class AlarmSignalRPublisher : IAlarmSignalRPublisher
         await _hub.Clients.All.OnAckLifecycleUpdated(payload);
     }
 
-    public async Task PublishLoopKpiAsync(object payload, CancellationToken ct = default)
-    {
-        await _hub.Clients.All.OnLoopKpiUpdate(payload);
-    }
-
     public async Task PublishAlarmKpiAsync(object payload, CancellationToken ct = default)
     {
         await _hub.Clients.All.OnAlarmKpiUpdate(payload);
@@ -404,7 +402,8 @@ public sealed class AlarmSignalRPublisher : IAlarmSignalRPublisher
         LogicalAlarmFamilyId:  AlarmPartitionKeys.LogicalAlarmFamilyId(
             a.ServerId, a.SourceName, a.ConditionName ?? "", a.SubConditionName),
         InstanceKeySchemaVersion: AlarmPartitionKeys.InstanceKeySchemaVersion,
-        AckComment:            a.AckComment
+        AckComment:            a.AckComment,
+        CustomAttributes:      a.CustomAttributes
     );
 
     private static string ConvertState(AlarmState s) => s switch

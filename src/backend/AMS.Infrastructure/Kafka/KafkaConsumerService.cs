@@ -29,18 +29,14 @@ public sealed class KafkaOptions
     public string LifecycleAlertsTopic { get; set; } = "traverse.alarm.lifecycle-alerts";
     public string AckResultsTopic { get; set; } = "traverse.alarm.ack-results";
     public string RawAlarmsDlqTopic { get; set; } = "traverse.alarm.raw-alarms-dlq";
-    public string AckWritebackDlqTopic { get; set; } = "traverse.alarm.ack-writeback-dlq";
     public string NormalizedAlarmsTopic { get; set; } = "traverse.alarm.current-alarm-state";
     public int AckConfirmationTimeoutSeconds { get; set; } = 30;
-    public string StreamProcessorGroupId { get; set; } = "ams-stream-processor";
     /// <summary>Must be true: Flink is the sole lifecycle/ACK orchestration engine.</summary>
     public bool UseFlinkOrchestration { get; set; } = true;
-    public string ActiveAlarmsTopic { get; set; } = "traverse.alarm.active-alarms";
-    public string HistoricalAlarmsTopic { get; set; } = "traverse.alarm.historical-alarms";
-    public string AlarmAnalyticsTopic { get; set; } = "traverse.alarm.alarm-analytics";
-    public string SoeEventsTopic { get; set; } = "traverse.alarm.soe-events";
-    public string NotificationEventsTopic { get; set; } = "traverse.alarm.notification-events";
-    public string DeadLetterTopic { get; set; } = "traverse.alarm.dead-letter-events";
+    // Phase J (audit-jobs.md F-11): AckWritebackDlqTopic, StreamProcessorGroupId,
+    // ActiveAlarmsTopic, HistoricalAlarmsTopic, AlarmAnalyticsTopic, SoeEventsTopic,
+    // NotificationEventsTopic and DeadLetterTopic were removed — zero references in
+    // the whole solution; the named topics were never created nor produced to.
     public int MaxRetries { get; set; } = 3;
     public int RetryDelayMs { get; set; } = 1000;
     public bool EnableIdempotence { get; set; } = true;

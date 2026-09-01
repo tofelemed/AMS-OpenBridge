@@ -270,10 +270,20 @@ public sealed class AlarmIngestionService : BackgroundService
                     responseStr,
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             }
-            catch { /* empty */ }
+            catch { /* fall through — distinguished below */ }
         }
 
-        return records ?? new List<HttpFeedAlarmRecord>();
+        // audit-jobs.md F-12 (C3): both parse attempts failing used to return an
+        // EMPTY list, which PublishDeltaAsync reads as "every known alarm is gone"
+        // and answers with a synthetic CLEARED per alarm — a feed schema change or
+        // a 200-with-HTML response wiped the live alarm state plant-wide. Parse
+        // failure is "NO DATA", never "all clear": throw so the poll's catch
+        // logs-and-retries and the previous snapshot stays authoritative.
+        if (records is null)
+            throw new InvalidOperationException(
+                $"Alarm feed response unparseable ({responseStr.Length} chars, starts: '{responseStr[..Math.Min(80, responseStr.Length)]}')");
+
+        return records;
     }
 
     private sealed record AlarmSnapshot(

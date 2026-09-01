@@ -61,7 +61,11 @@ public record ActiveAlarmDto(
     string? AreaPath,
     DateTimeOffset ServerReceivedAt,
     string LogicalAlarmFamilyId,
-    int InstanceKeySchemaVersion
+    int InstanceKeySchemaVersion,
+    /// <summary>Ack-lifecycle projection (ackLifecycleState, …) — the frontend
+    /// mapper already read customAttributes.ackLifecycleState; the DTO just
+    /// never carried it, so the ACK column reset on every rehydrate (F-3).</summary>
+    Dictionary<string, object>? CustomAttributes = null
 );
 
 public record ActiveAlarmListResult(

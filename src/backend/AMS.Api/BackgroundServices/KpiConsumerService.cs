@@ -9,18 +9,25 @@ using System.Threading.Tasks;
 
 namespace AMS.Api.BackgroundServices;
 
+/// <summary>
+/// Consumes the alarm-KPI topics produced by AlarmKpiStreamJob and forwards them
+/// to the alarm hub (OnAlarmKpiUpdate).
+///
+/// RETIRED subscriptions (audit-jobs.md Phase G, 2026-09-01):
+///  - traverse.cpa.loop-kpis-5m       — LoopKpiStreamJob retired (input topic had
+///    no producer; CPLM short/long/fusion is the real loop-KPI path).
+///  - traverse.alarm.kpi-bad-actors   — the producing branch in AlarmKpiResult
+///  - traverse.alarm.kpi-health-scores  was unreachable; nothing ever emitted.
+/// </summary>
 public sealed class KpiConsumerService : BackgroundService
 {
     private readonly ILogger<KpiConsumerService> _logger;
     private readonly IConsumer<string, string> _consumer;
     private readonly IAlarmSignalRPublisher _publisher;
-    private readonly string[] _topics = new[] 
-    { 
-        "traverse.cpa.loop-kpis-5m", 
-        "traverse.alarm.kpi-alarm-rates", 
-        "traverse.alarm.kpi-standing-snapshots", 
-        "traverse.alarm.kpi-bad-actors", 
-        "traverse.alarm.kpi-health-scores" 
+    private readonly string[] _topics = new[]
+    {
+        "traverse.alarm.kpi-alarm-rates",
+        "traverse.alarm.kpi-standing-snapshots",
     };
 
     public KpiConsumerService(
@@ -55,31 +62,23 @@ public sealed class KpiConsumerService : BackgroundService
                 var consumeResult = _consumer.Consume(TimeSpan.FromMilliseconds(500));
                 if (consumeResult == null) continue;
 
-                var topic = consumeResult.Topic;
                 var json = consumeResult.Message.Value;
-
-                if (topic == "traverse.cpa.loop-kpis-5m")
-                {
-                    var payload = JsonSerializer.Deserialize<LoopKpiPayload>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                    if (payload != null)
-                        await _publisher.PublishLoopKpiAsync(payload, stoppingToken);
-                }
-                else
-                {
-                    // It's one of the Alarm KPIs
-                    var payload = JsonSerializer.Deserialize<AlarmKpiPayload>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                    if (payload != null)
-                        await _publisher.PublishAlarmKpiAsync(payload, stoppingToken);
-                }
+                var payload = JsonSerializer.Deserialize<AlarmKpiPayload>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (payload != null)
+                    await _publisher.PublishAlarmKpiAsync(payload, stoppingToken);
             }
             catch (ConsumeException ex)
             {
                 _logger.LogError(ex, "Kafka consume error in KpiConsumerService");
+                // audit-jobs.md F-14: no backoff meant a persistent broker error
+                // spun this thread at full rate; every sibling consumer sleeps.
+                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
             }
             catch (OperationCanceledException) { break; }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing KPI message");
+                await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
             }
         }
 
@@ -87,16 +86,11 @@ public sealed class KpiConsumerService : BackgroundService
     }
 }
 
-public record LoopKpiPayload(
-    string TagId,
-    long WindowStartMs,
-    long WindowEndMs,
-    double Iae,
-    double Ise,
-    string DominantMode,
-    int SampleCount
-);
-
+/// <summary>
+/// ALARM_RATE / STANDING_ALARM_SNAPSHOT payloads (AlarmKpiResult.toJson).
+/// The bad-actor/health-score fields were removed with their unreachable
+/// producer branches (Phase G).
+/// </summary>
 public record AlarmKpiPayload(
     string KpiType,
     long WindowStartMs,
@@ -104,11 +98,5 @@ public record AlarmKpiPayload(
     int AlarmCount,
     string? FloodStatus,
     int StandingCount,
-    long OldestStandingDurationMs,
-    string? AlarmId,
-    string? NuisanceType,
-    int Occurrences,
-    double HealthScore,
-    string? Area,
-    string? Priority
+    long OldestStandingDurationMs
 );

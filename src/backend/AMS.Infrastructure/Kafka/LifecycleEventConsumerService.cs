@@ -54,15 +54,36 @@ public sealed class LifecycleEventConsumerService : BackgroundService
                         continue;
 
                     var evt = JsonSerializer.Deserialize<LifecycleEventMessage>(cr.Message.Value, JsonOpts);
-                    if (evt is null || !Guid.TryParse(evt.AlarmId, out var alarmId))
+                    if (evt is null || string.IsNullOrWhiteSpace(evt.AlarmId))
+                        continue;
+
+                    // Two shapes ride this topic (audit-jobs.md C1). State
+                    // transitions (lifecycleState ACTIVE/CLEARED, from the Flink
+                    // state machine's main path) are owned by the projection
+                    // consumer — skip them DELIBERATELY, not by parse accident.
+                    if (evt.LifecycleState is null || !evt.LifecycleState.StartsWith("ACK_", StringComparison.Ordinal))
                         continue;
 
                     using var scope = _sp.CreateScope();
                     var publisher = scope.ServiceProvider.GetRequiredService<IAlarmSignalRPublisher>();
                     var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-                    var alarm = await uow.ActiveAlarms.GetByIdAsync(alarmId, stoppingToken);
-                    if (alarm is not null)
+                    // ams-api's own publisher uses the row GUID; Flink's ack path
+                    // carries the feed correlation key ("SOURCE|Condition"). The
+                    // old Guid.TryParse gate silently discarded every Flink-emitted
+                    // ack lifecycle event — including the DCS-confirmed terminal
+                    // states the operator was waiting on.
+                    var alarm = Guid.TryParse(evt.AlarmId, out var alarmGuid)
+                        ? await uow.ActiveAlarms.GetByIdAsync(alarmGuid, stoppingToken)
+                        : await uow.ActiveAlarms.GetByAlarmKeyAsync(evt.AlarmId, stoppingToken);
+                    if (alarm is null)
+                    {
+                        _logger.LogWarning(
+                            "Ack lifecycle {State} for unknown alarm id {AlarmId} — not applied",
+                            evt.LifecycleState, evt.AlarmId);
+                        continue;
+                    }
+                    var alarmId = alarm.Id;
                     {
                         // Do not regress terminal ACK states due to delayed out-of-order lifecycle events.
                         var currentLifecycle = alarm.GetAckLifecycleState();

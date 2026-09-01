@@ -9,6 +9,12 @@ namespace AMS.Domain.Repositories;
 public interface IActiveAlarmRepository
 {
     Task<ActiveAlarm?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    /// <summary>
+    /// Lookup by the feed correlation key (alarm_id column, e.g. "BB26-BF402|Alarm high").
+    /// Flink-emitted lifecycle events carry THIS id, not the row GUID — the lifecycle
+    /// consumer previously GUID-parsed and silently dropped every one of them.
+    /// </summary>
+    Task<ActiveAlarm?> GetByAlarmKeyAsync(string alarmId, CancellationToken ct = default);
     Task<IReadOnlyList<ActiveAlarm>> GetActiveAlarmsAsync(
         ActiveAlarmQuery query, CancellationToken ct = default);
     /// <summary>Counts with the SAME filters as GetActiveAlarmsAsync so totals match the page (DATA-10).</summary>

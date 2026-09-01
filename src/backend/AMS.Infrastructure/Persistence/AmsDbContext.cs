@@ -59,6 +59,22 @@ public sealed class ActiveAlarmConfiguration : IEntityTypeConfiguration<ActiveAl
                 v => JsonSerializer.Deserialize<Dictionary<string, object>>(
                     JsonSerializer.Serialize(v, JsonOpts), JsonOpts) ?? new Dictionary<string, object>()));
 
+        // Ack-lifecycle persistence (script 50): ApplyAckLifecycle writes here, and
+        // ignoring it meant every REST rehydrate wiped the ACK column back to "—".
+        b.Property(a => a.CustomAttributes)
+            .HasColumnName("custom_attributes")
+            .HasColumnType("jsonb")
+            .HasConversion(
+                v => JsonSerializer.Serialize(v, JsonOpts),
+                v => string.IsNullOrWhiteSpace(v)
+                    ? new Dictionary<string, object>()
+                    : JsonSerializer.Deserialize<Dictionary<string, object>>(v, JsonOpts) ?? new Dictionary<string, object>())
+            .Metadata.SetValueComparer(new ValueComparer<Dictionary<string, object>>(
+                (a, b) => JsonSerializer.Serialize(a, JsonOpts) == JsonSerializer.Serialize(b, JsonOpts),
+                v => JsonSerializer.Serialize(v, JsonOpts).GetHashCode(),
+                v => JsonSerializer.Deserialize<Dictionary<string, object>>(
+                    JsonSerializer.Serialize(v, JsonOpts), JsonOpts) ?? new Dictionary<string, object>()));
+
         // The schema uses "state" as VARCHAR(64). ActiveAlarm uses enum AlarmState.
         b.Property(a => a.State)
             .HasColumnName("state")
@@ -78,9 +94,12 @@ public sealed class ActiveAlarmConfiguration : IEntityTypeConfiguration<ActiveAl
         b.Ignore(a => a.QualityGood);
         b.Ignore(a => a.ConditionActive);
         b.Ignore(a => a.ActiveTime);
-        b.Ignore(a => a.AckTime);
-        b.Ignore(a => a.AckedBy);
-        b.Ignore(a => a.AckComment);
+        // Script 50: ack metadata is now persisted — AckTime was previously
+        // FABRICATED as UtcNow on every read (AlarmEnricher), AckedBy/AckComment
+        // returned null regardless of what the operator entered.
+        b.Property(a => a.AckTime).HasColumnName("ack_time").HasColumnType("timestamptz(3)");
+        b.Property(a => a.AckedBy).HasColumnName("acked_by");
+        b.Property(a => a.AckComment).HasColumnName("ack_comment");
         b.Ignore(a => a.ServerReceivedAt);
         // DOM-02: shelving is now persisted. These were ignored, so an operator's
         // shelve was lost on the next reload and shelve expiry had nothing to act on.
@@ -99,7 +118,6 @@ public sealed class ActiveAlarmConfiguration : IEntityTypeConfiguration<ActiveAl
         b.Ignore(a => a.IsRootCause);
         b.Ignore(a => a.ProcessValue);
         b.Ignore(a => a.ProcessUnit);
-        b.Ignore(a => a.CustomAttributes);
         b.Ignore(a => a.KafkaOffset);
         b.Ignore(a => a.KafkaPartition);
         b.Ignore(a => a.KafkaTopic);

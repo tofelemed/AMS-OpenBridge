@@ -448,7 +448,7 @@ public interface IAlarmSignalRPublisher
         long timestampEpochMs,
         long? latencyMs,
         CancellationToken ct = default);
-    Task PublishLoopKpiAsync(object payload, CancellationToken ct = default);
+    // PublishLoopKpiAsync removed (Phase G): LoopKpiStreamJob retired.
     Task PublishAlarmKpiAsync(object payload, CancellationToken ct = default);
 }
 

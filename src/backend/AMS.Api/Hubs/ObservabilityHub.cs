@@ -6,7 +6,8 @@ namespace AMS.Api.Hubs;
 
 public interface IObservabilityHubClient
 {
-    Task OnDriftAlertReceived(DriftAlertPayload payload);
+    // OnDriftAlertReceived removed (audit-jobs.md Phase G): StateDriftDetectionJob
+    // retired — its input topics never had a producer.
     Task OnAlarmStateDeltaReceived(AlarmStateDeltaPayload payload);
     Task OnReplayDeltaReceived(ReplayStateDeltaPayload payload);
 }
@@ -17,12 +18,6 @@ public sealed record ReplayStateDeltaPayload(
     [property: JsonPropertyName("change_type")] string ChangeType,
     [property: JsonPropertyName("timestamp")] long Timestamp,
     [property: JsonPropertyName("current_state")] object? CurrentState
-);
-
-public sealed record DriftAlertPayload(
-    [property: JsonPropertyName("alarmId")] string AlarmId,
-    [property: JsonPropertyName("type")] string Type,
-    [property: JsonPropertyName("timestamp")] long Timestamp
 );
 
 public sealed record AlarmStateDeltaPayload(
