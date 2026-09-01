@@ -123,12 +123,15 @@ CREATE INDEX IF NOT EXISTS idx_cplm_short_loop_lower
 -- Completeness-first tiebreak is load-bearing (kept verbatim from CPA):
 -- trailing partial windows fired by watermark advance carry all-zero metrics
 -- and would otherwise mask real values in "latest" tiles.
+-- Recency = window_end, NOT created_at (audit.md B-4, same bug class as the
+-- P1-3 gate-view fix): a replay REWRITING an old window bumps created_at, and
+-- with the old ordering that historical window became "latest".
 CREATE OR REPLACE VIEW analytics.cplm_short_feature_latest AS
 SELECT DISTINCT ON (loop_id, window_kind) *
 FROM analytics.cplm_short_feature_results
 ORDER BY loop_id, window_kind,
          (COALESCE(completeness, 0) >= 0.95 AND COALESCE(sample_count, 0) >= 10) DESC,
-         created_at DESC;
+         window_end DESC NULLS LAST;
 
 -- ── Long diagnostics (G5–G11 per 4h/12h/24h slice) ──────────────────────────
 CREATE TABLE IF NOT EXISTS analytics.cplm_long_feature_results (
@@ -162,7 +165,8 @@ CREATE INDEX IF NOT EXISTS idx_cplm_long_loop_kind_end
 CREATE INDEX IF NOT EXISTS idx_cplm_long_loop_lower
     ON analytics.cplm_long_feature_results (lower(loop_id));
 
+-- Recency = window_end, NOT created_at (audit.md B-4 — see the short view).
 CREATE OR REPLACE VIEW analytics.cplm_long_feature_latest AS
 SELECT DISTINCT ON (loop_id, window_kind) *
 FROM analytics.cplm_long_feature_results
-ORDER BY loop_id, window_kind, created_at DESC;
+ORDER BY loop_id, window_kind, window_end DESC NULLS LAST;

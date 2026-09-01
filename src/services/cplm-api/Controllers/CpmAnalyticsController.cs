@@ -180,6 +180,7 @@ public sealed class CpmAnalyticsController : ControllerBase
         [FromQuery] DateTimeOffset? from = null,
         [FromQuery] DateTimeOffset? to = null,
         [FromQuery] int limit = 200,
+        [FromQuery] DateTimeOffset? before = null,
         CancellationToken ct = default)
     {
         limit = Math.Clamp(limit, 1, 500);
@@ -202,14 +203,25 @@ public sealed class CpmAnalyticsController : ControllerBase
                      -- that failed G0 / had insufficient samples. They are kept
                      -- (they are the exclusion's decision inputs) but must not be
                      -- plotted beside full-window values without a marker.
-                     COALESCE((payload->>'long_metrics_qualified')::boolean, TRUE) AS long_metrics_qualified,
+                     -- audit-jobs.md BE-2: `long_metrics_qualified` only exists on
+                     -- GATE payloads; on long-feature rows the key was always
+                     -- absent, so this served TRUE unconditionally and the P1-10
+                     -- safeguard was silently disabled. Derive it from the
+                     -- embedded aligned-short slice (qualified = short passed G0).
+                     COALESCE((payload->>'long_metrics_qualified')::boolean,
+                              (payload->'short_features'->>'sufficient_data')::boolean,
+                              TRUE) AS long_metrics_qualified,
                      COALESCE((payload->>'freeze_fraction')::double precision, 0) AS freeze_fraction,
                      (payload->>'sample_period_sec')::double precision AS sample_period_sec,
-                     (payload->>'expected_sample_count')::int AS expected_sample_count
+                     -- audit-jobs.md BE-3: the long payload carries this only in
+                     -- the nested short_features object; the flat key was NULL.
+                     COALESCE((payload->>'expected_sample_count')::int,
+                              (payload->'short_features'->>'expected_sample_count')::int) AS expected_sample_count
               FROM analytics.cplm_long_feature_results
               WHERE lower(loop_id) = lower(@loopId) AND window_kind = @resolution
                 AND (@from::timestamptz IS NULL OR window_end >= @from::timestamptz)
                 AND (@to::timestamptz   IS NULL OR window_end <= @to::timestamptz)
+                AND (@before::timestamptz IS NULL OR window_end < @before::timestamptz)
               ORDER BY window_end DESC NULLS LAST LIMIT @limit
               """
             : """
@@ -224,22 +236,41 @@ public sealed class CpmAnalyticsController : ControllerBase
                      -- P2-11: the UI hardcoded a 5s sample period; the engine
                      -- publishes the real per-window values - serve them.
                      (payload->>'sample_period_sec')::double precision AS sample_period_sec,
-                     (payload->>'expected_sample_count')::int AS expected_sample_count
+                     (payload->>'expected_sample_count')::int AS expected_sample_count,
+                     -- Short-window gate verdicts exist only in the payload (no
+                     -- typed columns, and no row in cplm_gate_results — fusion
+                     -- fires on 12h/24h only). Serve them so per-window screens
+                     -- can show G0–G4/G2r beside the feature values.
+                     payload->>'gate0_status'  AS gate0_status,
+                     payload->>'gate1_status'  AS gate1_status,
+                     payload->>'gate2_status'  AS gate2_status,
+                     payload->>'gate2r_status' AS gate2r_status,
+                     payload->>'gate3_status'  AS gate3_status,
+                     payload->>'gate4_status'  AS gate4_status
               FROM analytics.cplm_short_feature_results
               WHERE lower(loop_id) = lower(@loopId) AND window_kind = @resolution
                 AND (@from::timestamptz IS NULL OR window_end >= @from::timestamptz)
                 AND (@to::timestamptz   IS NULL OR window_end <= @to::timestamptz)
+                AND (@before::timestamptz IS NULL OR window_end < @before::timestamptz)
               ORDER BY window_end DESC NULLS LAST LIMIT @limit
               """;
 
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
-        var rows = (await conn.QueryAsync(sql, new { loopId, resolution, from, to, limit })).ToList();
+        var rows = (await conn.QueryAsync(sql, new { loopId, resolution, from, to, limit, before })).ToList();
+        // Keyset cursor: rows are newest-first, so the oldest window_end on a full
+        // page is the `before` value for the next page. Null when this page is the
+        // end of the data (or the caller's range).
+        DateTimeOffset? nextBefore = null;
+        if (rows.Count == limit && rows[^1] is IDictionary<string, object?> last
+            && last.TryGetValue("window_end", out var lastEnd) && lastEnd is DateTime dt)
+            nextBefore = new DateTimeOffset(dt.ToUniversalTime());
         return Ok(new
         {
             loopId,
             resolution,
             tier = isLong ? "long" : "short",
             count = rows.Count,
+            nextBefore,
             samples = rows
         });
     }

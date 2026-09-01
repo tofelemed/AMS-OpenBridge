@@ -179,6 +179,17 @@ public sealed class CplmResultConsumerService : BackgroundService
             return true;
         }
 
+        // Poison-pill guard: window_end is the hypertable partition column
+        // (NOT NULL). Without this check a missing/zero windowEndMs threw on
+        // insert, the offset was never stored, and the 2s retry loop wedged all
+        // three result streams on one message. Skip + advance, loudly.
+        if (!HasUsableWindowEnd(root))
+        {
+            _logger.LogError("Gate result with missing/invalid windowEndMs skipped (loop {LoopId}): {Snippet}",
+                loopId, Snippet(json));
+            return true;
+        }
+
         const string sql = """
             INSERT INTO analytics.cplm_gate_results
                 (loop_id, window_kind, window_start, window_end, sample_count,
@@ -271,6 +282,14 @@ public sealed class CplmResultConsumerService : BackgroundService
         if (string.IsNullOrWhiteSpace(loopId))
         {
             _logger.LogWarning("{Kind} feature without loop_id skipped: {Snippet}", isLong ? "Long" : "Short", Snippet(json));
+            return true;
+        }
+
+        // Poison-pill guard — see PersistGateAsync; same NOT NULL partition column.
+        if (!HasUsableWindowEnd(root))
+        {
+            _logger.LogError("{Kind} feature with missing/invalid windowEndMs skipped (loop {LoopId}): {Snippet}",
+                isLong ? "Long" : "Short", loopId, Snippet(json));
             return true;
         }
 
@@ -444,11 +463,13 @@ public sealed class CplmResultConsumerService : BackgroundService
                 ON analytics.cplm_short_feature_results (loop_id, window_kind, window_end DESC);
             CREATE INDEX IF NOT EXISTS idx_cplm_short_loop_lower
                 ON analytics.cplm_short_feature_results (lower(loop_id));
+            -- Recency = window_end, not created_at (audit.md B-4): a replay
+            -- rewriting an old window bumps created_at and would become "latest".
             CREATE OR REPLACE VIEW analytics.cplm_short_feature_latest AS
                 SELECT DISTINCT ON (loop_id, window_kind) * FROM analytics.cplm_short_feature_results
                 ORDER BY loop_id, window_kind,
                          (COALESCE(completeness, 0) >= 0.95 AND COALESCE(sample_count, 0) >= 10) DESC,
-                         created_at DESC;
+                         window_end DESC NULLS LAST;
 
             CREATE TABLE IF NOT EXISTS analytics.cplm_long_feature_results (
                 id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -472,7 +493,7 @@ public sealed class CplmResultConsumerService : BackgroundService
                 ON analytics.cplm_long_feature_results (lower(loop_id));
             CREATE OR REPLACE VIEW analytics.cplm_long_feature_latest AS
                 SELECT DISTINCT ON (loop_id, window_kind) * FROM analytics.cplm_long_feature_results
-                ORDER BY loop_id, window_kind, created_at DESC;
+                ORDER BY loop_id, window_kind, window_end DESC NULLS LAST;
             """;
 
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
@@ -488,7 +509,8 @@ public sealed class CplmResultConsumerService : BackgroundService
 
     /// <summary>Missing/null/non-numeric → 0.0, never NULL (CPA-compatible; ranking depends on it).</summary>
     private static double GetDouble(JsonElement r, string name)
-        => r.TryGetProperty(name, out var p) && p.TryGetDouble(out var v) ? v : 0.0;
+        => r.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.Number
+           && p.TryGetDouble(out var v) ? v : 0.0;
 
     /// <summary>
     /// P1-8 - preserves "the engine did not compute this" as SQL NULL instead of
@@ -502,17 +524,25 @@ public sealed class CplmResultConsumerService : BackgroundService
     private static object GetDoubleOrNull(JsonElement r, string name)
     {
         if (!r.TryGetProperty(name, out var p)) return 0.0;              // key absent: legacy producer
-        if (p.ValueKind == JsonValueKind.Null) return DBNull.Value;       // explicit "not computed"
+        if (p.ValueKind != JsonValueKind.Number) return DBNull.Value;     // explicit null / wrong type: "not computed"
         return p.TryGetDouble(out var v) ? v : DBNull.Value;
     }
 
     private static int GetInt(JsonElement r, string name)
-        => r.TryGetProperty(name, out var p) && p.TryGetInt32(out var v) ? v : 0;
+        => r.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.Number
+           && p.TryGetInt32(out var v) ? v : 0;
+
+    /// <summary>True when windowEndMs is present, numeric and positive — the
+    /// minimum for a row keyed on the hypertable's NOT NULL window_end column.</summary>
+    private static bool HasUsableWindowEnd(JsonElement r)
+        => r.TryGetProperty("windowEndMs", out var p) && p.ValueKind == JsonValueKind.Number
+           && p.TryGetInt64(out var ms) && ms > 0;
 
     private static void AddTimestamp(NpgsqlCommand cmd, string param, JsonElement r, string msField)
     {
         object value = DBNull.Value;
-        if (r.TryGetProperty(msField, out var p) && p.TryGetInt64(out var ms) && ms > 0)
+        if (r.TryGetProperty(msField, out var p) && p.ValueKind == JsonValueKind.Number
+            && p.TryGetInt64(out var ms) && ms > 0)
             value = DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime;
         cmd.Parameters.AddWithValue(param, value);
     }

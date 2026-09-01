@@ -154,18 +154,28 @@ public sealed class CpmEventsController : ControllerBase
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
 
         // Only report gates that have actually produced a status in stored results.
+        // Set-returning function moved into a subquery: `SELECT DISTINCT srf(...)`
+        // is rejected by PostgreSQL ("set-valued function called in context that
+        // cannot accept a set"), which 500'd this whole endpoint on any database
+        // that actually had gate rows.
         var observed = (await conn.QueryAsync<string>("""
-            SELECT DISTINCT jsonb_object_keys(payload->'gates') AS gate
-            FROM analytics.cplm_gate_results
-            WHERE payload ? 'gates'
-            LIMIT 100
+            SELECT DISTINCT gate FROM (
+                SELECT jsonb_object_keys(payload->'gates') AS gate
+                FROM analytics.cplm_gate_results
+                WHERE payload ? 'gates'
+                LIMIT 2000
+            ) keys
             """)).ToHashSet(StringComparer.Ordinal);
 
+        // audit-jobs.md BE-1: the engine emits camelCase (calculationVersion) —
+        // the old snake_case-only filter matched NOTHING, so `versions` was
+        // permanently null and the catalogue reported no version. camelCase
+        // first, snake_case kept for any legacy rows.
         var versions = await conn.QueryFirstOrDefaultAsync("""
-            SELECT payload->>'calculation_version' AS calculation_version,
-                   payload->>'dynamics_profile_version' AS dynamics_profile_version
+            SELECT COALESCE(payload->>'calculationVersion',  payload->>'calculation_version')  AS calculation_version,
+                   COALESCE(payload->>'dynamicsProfileVersion', payload->>'dynamics_profile_version') AS dynamics_profile_version
             FROM analytics.cplm_gate_results
-            WHERE payload ? 'calculation_version'
+            WHERE payload ? 'calculationVersion' OR payload ? 'calculation_version'
             ORDER BY created_at DESC LIMIT 1
             """);
 
