@@ -25,6 +25,9 @@ public static class IngestionMetrics
         "ingestion_class_mismatch_total", "Topic class vs payload line/process_unit disagreements (warn-only)", "source");
     private static readonly Counter UnitMismatch = Metrics.CreateCounter(
         "ingestion_unit_mismatch_total", "Source engineering-unit disagreements (warn-only)", "source");
+    private static readonly Counter TicksSkipped_ = Metrics.CreateCounter(
+        "ingestion_loop_ticks_skipped_total",
+        "Grid ticks that produced no tuple because no source timestamp advanced", "source");
     private static readonly Gauge ActiveLoops = Metrics.CreateGauge(
         "ingestion_joiner_active_loops", "Loops currently held in joiner state", "source");
     private static readonly Histogram SourceLatencyMs = Metrics.CreateHistogram(
@@ -42,6 +45,7 @@ public static class IngestionMetrics
     public static void MqttReconnect(string source) => Reconnects.WithLabels(source).Inc();
     public static void ClassMismatchWarning(string source) => ClassMismatch.WithLabels(source).Inc();
     public static void UnitMismatchWarning(string source) => UnitMismatch.WithLabels(source).Inc();
+    public static void TicksSkipped(string source, double count) { if (count > 0) TicksSkipped_.WithLabels(source).Inc(count); }
     public static void JoinerActiveLoops(string source, int count) => ActiveLoops.WithLabels(source).Set(count);
     public static void SourceLatency(double ms) { if (ms >= 0) SourceLatencyMs.Observe(ms); }
 }

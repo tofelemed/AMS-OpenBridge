@@ -34,7 +34,7 @@ public class LoopJoinerTests
         var tuples = j.Tick(T0 + 10_000, Cfg);
         var t = Assert.Single(tuples);
         Assert.Equal("FIC10302", t.LoopId);
-        Assert.Equal(T0 + 10_000, t.EventTsMs);          // grid-boundary aligned
+        Assert.Equal(T0 + 5_100, t.EventTsMs);           // newest member's SOURCE ts, not the tick
         Assert.Equal(42.1, t.Pv);
         Assert.Equal(42.0, t.Sp);
         Assert.Equal(37.6, t.Op);
@@ -45,22 +45,59 @@ public class LoopJoinerTests
     }
 
     [Fact]
-    public void Forward_fills_between_updates_and_emits_every_grid_tick()
+    public void Forward_fills_slower_signals_onto_the_newest_source_timestamp()
     {
         var j = new LoopJoiner();
         Feed(j, "pv", 1, T0); Feed(j, "sp", 2, T0); Feed(j, "op", 3, T0);
         Assert.Single(j.Tick(T0 + 5_000, Cfg));
-        Assert.Single(j.Tick(T0 + 10_000, Cfg));         // no new data — forward-filled
-        Assert.Empty(j.Tick(T0 + 10_500, Cfg));          // same grid slot — no duplicate
+
+        Feed(j, "pv", 1.5, T0 + 6_000);                  // only PV advances
+        var t = Assert.Single(j.Tick(T0 + 10_000, Cfg));
+        Assert.Equal(T0 + 6_000, t.EventTsMs);           // PV's own timestamp
+        Assert.Equal(1.5, t.Pv);
+        Assert.Equal(2, t.Sp);                           // forward-filled
+        Assert.Equal(3, t.Op);
     }
 
     [Fact]
-    public void Off_boundary_tick_stamps_the_grid_boundary()
+    public void Quiet_loop_is_skipped_rather_than_restamped()
     {
+        // Re-emitting forward-filled values would repeat event_ts_ms, and IoTDB keys
+        // rows by (device, timestamp) — the repeat would overwrite the original.
         var j = new LoopJoiner();
         Feed(j, "pv", 1, T0); Feed(j, "sp", 2, T0); Feed(j, "op", 3, T0);
-        var t = Assert.Single(j.Tick(T0 + 5_300, Cfg));  // ticker fires slightly late
-        Assert.Equal(T0 + 5_000, t.EventTsMs);           // stamp stays on the steady grid
+        Assert.Single(j.Tick(T0 + 5_000, Cfg));
+        Assert.Empty(j.Tick(T0 + 10_000, Cfg));          // nothing advanced
+        Assert.Empty(j.Tick(T0 + 15_000, Cfg));
+        Assert.Equal(2, j.SkippedNoAdvance);
+    }
+
+    [Fact]
+    public void Event_ts_never_repeats_for_a_loop()
+    {
+        var j = new LoopJoiner();
+        var seen = new HashSet<long>();
+        for (var i = 0; i < 20; i++)
+        {
+            Feed(j, "pv", i, T0 + i * 1_000);
+            Feed(j, "sp", 2, T0 + i * 1_000);
+            Feed(j, "op", 3, T0 + i * 1_000);
+            foreach (var t in j.Tick(T0 + 5_000 + i * 5_000, Cfg))
+                Assert.True(seen.Add(t.EventTsMs), $"duplicate event_ts_ms {t.EventTsMs}");
+        }
+        Assert.NotEmpty(seen);
+    }
+
+    [Fact]
+    public void Server_clock_offset_does_not_turn_GOOD_into_BAD()
+    {
+        // Staleness is judged inside the source's own clock domain: the ticker's
+        // wall clock being hours ahead of the gateway must not flip quality.
+        var j = new LoopJoiner();
+        Feed(j, "pv", 1, T0); Feed(j, "sp", 2, T0); Feed(j, "op", 3, T0);
+        var t = Assert.Single(j.Tick(T0 + 3_600_000, Cfg));   // ticker 1 h ahead of source
+        Assert.Equal("GOOD", t.Quality);
+        Assert.Equal(T0, t.EventTsMs);
     }
 
     [Fact]
@@ -127,13 +164,14 @@ public class LoopJoinerTests
     [Fact]
     public void ToJson_matches_the_wire_contract()
     {
-        var tuple = new LoopTuple("FIC10302", T0, 42.1, 42.0, 37.6, null, "AUT", "GOOD", "FIC",
+        var tuple = new LoopTuple("FIC10302", T0, T0 + 120, 42.1, 42.0, 37.6, null, "AUT", "GOOD", "FIC",
             "hdpe", "section_100", "u1001_polymerization_reactor_1", "aaaa-bbbb", "FCS0101",
             new Dictionary<string, double> { ["p"] = 300.0 });
         using var doc = JsonDocument.Parse(tuple.ToJson());
         var r = doc.RootElement;
         Assert.Equal("FIC10302", r.GetProperty("loop_id").GetString());
         Assert.Equal(T0, r.GetProperty("event_ts_ms").GetInt64());
+        Assert.Equal(T0 + 120, r.GetProperty("ingest_ts_ms").GetInt64());
         Assert.Equal(42.1, r.GetProperty("pv").GetDouble());
         Assert.Equal(42.0, r.GetProperty("sp").GetDouble());
         Assert.Equal(37.6, r.GetProperty("op").GetDouble());

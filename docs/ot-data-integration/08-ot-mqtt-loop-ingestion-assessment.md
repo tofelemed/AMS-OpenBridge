@@ -112,7 +112,7 @@ Retained flags, QoS of the publisher, whether `seq` ever increments (both observ
 22. **Loop onboarding:** `/cpm/registry` UI wizard, bulk CSV import dialog, or `scripts/import-cpm-loops.ps1` → `POST /api/v1/cpm/loops/activate|bulk-activate` (upsert).
 23. **Dynamic registry updates:** yes — activate is an upsert; the ingestion registry cache refreshes on an interval (default 60 s) + on-demand, so a newly registered loop starts flowing without redeploy.
 24. **EU/ranges in metadata:** `assets.assets.engineering_unit/lo_eng_limit/hi_eng_limit` + `loop_registry.engineering{opMin,opMax}` — available, used for unit-mismatch warnings only in v1.
-25. **Source timestamp for event time:** the tuple's `event_ts_ms` is the **grid tick** (near-now by construction) so watermark discipline holds automatically; member source timestamps drive freshness/staleness. Late OT data cannot poison the stream — it only makes members stale (→ `quality: BAD` ticks). Historical backfill stays on the IoTDB+recompute door (doc 03 §6).
+25. **Source timestamp for event time:** ~~the tuple's `event_ts_ms` is the **grid tick**~~ — **superseded 2026-09-02**: `event_ts_ms` is the newest member's **OT source timestamp**. Process time is the record in an industrial system; stamping ingestion time made the historian and the DCS trend disagree. Watermark discipline is no longer automatic — see doc 10 §4 for the backlog consequence; member source timestamps drive freshness/staleness. Late OT data cannot poison the stream — it only makes members stale (→ `quality: BAD` ticks). Historical backfill stays on the IoTDB+recompute door (doc 03 §6).
 
 ---
 

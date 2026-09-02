@@ -55,10 +55,17 @@ are away. During the gap the joiner forward-fills; members turn stale after
 `stale_after_seconds` → tuples emit with `quality: "BAD"` (they feed exclusion gates
 instead of vanishing). Watch: `/health` (`subscriber` check), `/api/ingestion/stats`
 (`connected`, `connectionError`), Prometheus `ingestion_mqtt_reconnects_total`.
-Queued-backlog values older than the stale threshold refresh joiner state but never
-produce late `event_ts_ms` — tuples are stamped on the live grid, so the Flink
-watermark is never violated. Multi-hour history still goes through the backfill door
-(doc 03 §6), never this topic.
+Queued-backlog values carry their original OT timestamps, and `event_ts_ms` is that
+process time — so a long backlog CAN produce event times behind the watermark, and
+Flink drops what is more than its out-of-orderness bound (2 min) in the past. That is
+the deliberate trade for process-time fidelity: after an outage longer than a couple of
+minutes, treat the gap as history and replay it through the backfill door (doc 03 §6),
+never through this topic. `ingest_ts_ms` on every tuple makes the lag measurable, and
+`ingestion_source_latency_ms` graphs it.
+
+Because tuples now carry source time, a loop that goes quiet is **skipped** rather than
+re-stamped — watch `ingestion_loop_ticks_skipped_total` to see it, and note the loop
+will show as a gap (not steady data) in CPM.
 
 ## 5. Kafka outage
 

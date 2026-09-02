@@ -42,6 +42,7 @@ public sealed class OtLoopSubscriber : IAsyncDisposable
     private readonly List<Task> _workers = new();
     private IManagedMqttClient? _client;
     private long _lastTouchMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(); // first stamp ≥30 s after start
+    private long _lastSkipped;
     private long _receivedSinceTouch;
 
     private string Name => _status.Name;
@@ -233,6 +234,9 @@ public sealed class OtLoopSubscriber : IAsyncDisposable
         {
             var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             var tuples = _joiner.Tick(nowMs, _settings);
+            var skipped = _joiner.SkippedNoAdvance;
+            IngestionMetrics.TicksSkipped(Name, skipped - _lastSkipped);
+            _lastSkipped = skipped;
             _status.ActiveLoops = _joiner.ActiveLoops;
             IngestionMetrics.JoinerActiveLoops(Name, _joiner.ActiveLoops);
 

@@ -50,13 +50,20 @@ There is no VP in this feed → valve diagnostics report `INSUFFICIENT_EVIDENCE`
 
 ## 4. Enriched Kafka event (topic `traverse.cpa.loop.samples.v1`, key = `loop_id`)
 
-One tuple per registered loop per grid tick (default 5 s), `event_ts_ms` = tick time:
+One tuple per registered loop per grid tick (default 5 s). `event_ts_ms` is the **OT
+process timestamp** — the newest source `ts` among the tuple's members — never the
+tick and never ingestion time: an industrial record has to carry the instant the
+plant produced it so it lines up with the DCS trend, the SOE and the historian.
+A tick in which no member advanced is **skipped**, not re-stamped (a repeated
+`event_ts_ms` would overwrite the previous row in IoTDB, which keys by
+device+timestamp). The grid therefore sets the emission cadence, not the clock.
 
 ```jsonc
 {
   // ── contract fields read by Flink CplmNormalizedSample + RawLoopIotDbConsumer ──
   "loop_id":     "FIC10302",       // registry casing, = Kafka key
-  "event_ts_ms": 1756600000000,    // grid tick (event time; keeps watermark discipline)
+  "event_ts_ms": 1756600000000,    // OT process time: newest member source ts (event time)
+  "ingest_ts_ms": 1756600000504,   // wall clock at emission — lag/clock-drift observability only
   "pv": -0.236, "sp": 63.0, "op": 33.95,  // forward-filled last-known values
   "mode":     "AUT",               // via mode_value_map; raw string if unmapped
   "quality":  "GOOD",              // worst-of members; stale required member ⇒ "BAD"

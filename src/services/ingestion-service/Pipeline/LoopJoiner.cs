@@ -8,7 +8,7 @@ namespace Traverse.IngestionService.Pipeline;
 /// <summary>One merged loop sample on the traverse.cpa.loop.samples.v1 wire
 /// (docs/ot-data-integration/09 §4): frozen contract fields + additive enrichment.</summary>
 public sealed record LoopTuple(
-    string LoopId, long EventTsMs, double Pv, double Sp, double Op, double? Vp,
+    string LoopId, long EventTsMs, long IngestTsMs, double Pv, double Sp, double Op, double? Vp,
     string Mode, string Quality, string LoopType,
     string Site, string? Area, string? Unit, string? AssetUuid, string? SourceFcs,
     IReadOnlyDictionary<string, double> Extras)
@@ -24,6 +24,10 @@ public sealed record LoopTuple(
             w.WriteStartObject();
             w.WriteString("loop_id", LoopId);
             w.WriteNumber("event_ts_ms", EventTsMs);
+            // Wall clock at emission. event_ts_ms is the PROCESS time from OT; this
+            // is the only place ingestion time survives, so end-to-end lag and
+            // gateway clock drift stay measurable without polluting event time.
+            w.WriteNumber("ingest_ts_ms", IngestTsMs);
             w.WriteNumber("pv", Pv);
             w.WriteNumber("sp", Sp);
             w.WriteNumber("op", Op);
@@ -49,8 +53,10 @@ public sealed record LoopTuple(
 /// have each been seen — the Flink engine silently discards incomplete tuples. A
 /// stale or bad required member emits quality BAD instead of skipping the tick:
 /// bad ticks feed the exclusion gates, skipped ticks just vanish. Deterministic:
-/// all timing comes from the caller's nowMs, so tests drive a fake clock. Tuples
-/// are stamped on grid boundaries (event_ts_ms = the boundary, not wall clock).
+/// the emission CADENCE comes from the caller's nowMs, so tests drive a fake clock.
+/// Tuples are stamped with the newest OT source timestamp among their members —
+/// event_ts_ms is process time, not ingestion time — and a tick whose members have
+/// all gone quiet is skipped rather than re-stamped.
 /// </summary>
 public sealed class LoopJoiner
 {
@@ -63,6 +69,11 @@ public sealed class LoopJoiner
         public readonly Dictionary<string, Member> Members = new(StringComparer.Ordinal); // pv/sp/op/vp
         public readonly Dictionary<string, Member> Extras = new(StringComparer.Ordinal);  // p/i/d/gw/…
         public string? Mode;
+        public long ModeTsMs;
+        /// <summary>Newest source ts already published for this loop. event_ts_ms must
+        /// advance strictly: two tuples sharing a timestamp are ONE row in IoTDB
+        /// (device+timestamp is the key), so the second would silently overwrite.</summary>
+        public long LastEmittedTsMs;
         public long NextTickMs;
     }
 
@@ -70,6 +81,11 @@ public sealed class LoopJoiner
     private readonly object _gate = new();
 
     public int ActiveLoops { get { lock (_gate) return _loops.Count; } }
+
+    /// <summary>Ticks that produced no tuple because no member advanced. A steadily
+    /// climbing value means a loop has gone quiet — otherwise invisible, since the
+    /// old behaviour was to keep republishing the same forward-filled values.</summary>
+    public long SkippedNoAdvance { get; private set; }
 
     public void Accept(RegistryLoop loop, string sourceFcs, MappedParameter mapped,
         OtLoopPayload payload, LoopIngestSettings cfg, long nowMs)
@@ -84,6 +100,7 @@ public sealed class LoopJoiner
             if (mapped.Role == "mode")
             {
                 state.Mode = mapped.ModeString;
+                state.ModeTsMs = payload.TsMs;
                 return;
             }
 
@@ -116,15 +133,37 @@ public sealed class LoopJoiner
                     !state.Members.TryGetValue("op", out var op))
                     continue; // incomplete — downstream would silently discard anyway
 
-                var staleBefore = tick - cfg.StaleAfterSeconds * 1000L;
+                // event_ts_ms is the PROCESS timestamp from OT, never the grid boundary:
+                // an industrial record has to carry the instant the plant produced it, so
+                // it lines up with the DCS trend, the SOE and the historian. We take the
+                // newest source ts among the tuple members — the instant the tuple is
+                // "as of" — and never synthesise one.
+                var sourceTs = Math.Max(pv.TsMs, Math.Max(sp.TsMs, op.TsMs));
+                var hasVp = state.Members.TryGetValue("vp", out var vp);
+                if (hasVp) sourceTs = Math.Max(sourceTs, vp!.TsMs);
+                sourceTs = Math.Max(sourceTs, state.ModeTsMs);
+
+                // Nothing new arrived since the last publish: every member is a
+                // forward-fill of already-published values. Emitting would repeat an
+                // event_ts_ms, and IoTDB keys rows by (device, timestamp) — the repeat
+                // would overwrite the original rather than add a sample. Skip instead;
+                // a stalled loop must look like a gap, not like fresh steady data.
+                if (sourceTs <= state.LastEmittedTsMs) { SkippedNoAdvance++; continue; }
+                state.LastEmittedTsMs = sourceTs;
+
+                // Staleness is measured inside the SOURCE clock domain (newest member vs
+                // its siblings), not against our wall clock. A gateway whose clock is
+                // offset from ours no longer turns GOOD data into BAD.
+                var staleBefore = sourceTs - cfg.StaleAfterSeconds * 1000L;
                 var bad = !pv.Good || !sp.Good || !op.Good ||
                           pv.TsMs < staleBefore || sp.TsMs < staleBefore || op.TsMs < staleBefore;
 
                 output.Add(new LoopTuple(
                     LoopId: state.Loop.LoopId,
-                    EventTsMs: tick,
+                    EventTsMs: sourceTs,
+                    IngestTsMs: nowMs,
                     Pv: pv.Value, Sp: sp.Value, Op: op.Value,
-                    Vp: state.Members.TryGetValue("vp", out var vp) ? vp.Value : null,
+                    Vp: hasVp ? vp!.Value : null,
                     Mode: state.Mode ?? "UNKNOWN",
                     Quality: bad ? "BAD" : "GOOD",
                     LoopType: state.Loop.LoopType,
