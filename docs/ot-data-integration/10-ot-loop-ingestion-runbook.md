@@ -28,7 +28,6 @@ and set `profile_config.loop_ingest`:
 "loop_ingest": {
   "mode_value_map": { "4": "AUT", "3": "CAS", "2": "MAN" },   // pending OT confirmation!
   "grid_seconds": 5,
-  "stale_after_seconds": 30,
   "registry_refresh_seconds": 60,
   "topic_template": "{ns}/{site}/{fcs}/{class}/{loop}/{group}/{param}"
 }
@@ -51,9 +50,9 @@ Raw copies of every parked message are on `traverse.ingestion.ot-dlq` for replay
 
 The managed client auto-reconnects (5 s backoff) with a **persistent session**
 (`session_expiry_seconds`, default 86400) — the broker queues QoS-1 messages while we
-are away. During the gap the joiner forward-fills; members turn stale after
-`stale_after_seconds` → tuples emit with `quality: "BAD"` (they feed exclusion gates
-instead of vanishing). Watch: `/health` (`subscriber` check), `/api/ingestion/stats`
+are away. During the gap nothing new arrives, so no source timestamp advances and the
+joiner emits nothing — silence rather than republished forward-fills. Quality stays
+OT's verdict (worst-of the pv/sp/op quality tags); values are never aged out. Watch: `/health` (`subscriber` check), `/api/ingestion/stats`
 (`connected`, `connectionError`), Prometheus `ingestion_mqtt_reconnects_total`.
 Queued-backlog values carry their original OT timestamps, and `event_ts_ms` is that
 process time — so a long backlog CAN produce event times behind the watermark, and

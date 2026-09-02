@@ -66,7 +66,7 @@ device+timestamp). The grid therefore sets the emission cadence, not the clock.
   "ingest_ts_ms": 1756600000504,   // wall clock at emission — lag/clock-drift observability only
   "pv": -0.236, "sp": 63.0, "op": 33.95,  // forward-filled last-known values
   "mode":     "AUT",               // via mode_value_map; raw string if unmapped
-  "quality":  "GOOD",              // worst-of members; stale required member ⇒ "BAD"
+  "quality":  "GOOD",              // worst-of the OT quality tags on pv/sp/op
   "loop_type": "FIC",              // ← loop_registry.loop_type
 
   // ── enrichment extensions (ignored by today's consumers, kept for analytics) ──

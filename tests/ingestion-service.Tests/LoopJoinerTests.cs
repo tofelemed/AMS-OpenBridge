@@ -9,7 +9,7 @@ public class LoopJoinerTests
 {
     private static readonly RegistryLoop Loop = new("FIC10302", "aaaa-bbbb", "hdpe",
         "section_100", "u1001_polymerization_reactor_1", "FIC", true);
-    private static readonly LoopIngestSettings Cfg = new LoopIngestConfig().Resolve(); // grid 5 s, stale 30 s
+    private static readonly LoopIngestSettings Cfg = new LoopIngestConfig().Resolve(); // grid 5 s
     private const long T0 = 1_756_600_000_000; // multiple of 5000 for readable grid math
 
     private static OtLoopPayload P(long ts, string quality = "GOOD") =>
@@ -101,14 +101,17 @@ public class LoopJoinerTests
     }
 
     [Fact]
-    public void Stale_required_member_makes_quality_BAD_but_still_emits()
+    public void An_old_but_good_member_stays_GOOD()
     {
+        // Quality is OT's verdict only. A setpoint nobody has touched for minutes is
+        // unchanged, not untrustworthy — ageing it out would flag healthy loops BAD.
         var j = new LoopJoiner();
         Feed(j, "pv", 1, T0); Feed(j, "sp", 2, T0); Feed(j, "op", 3, T0);
-        var late = T0 + 40_000;                          // > stale_after 30 s
-        Feed(j, "pv", 1.5, late);                        // pv fresh again; sp/op stale
-        var t = Assert.Single(j.Tick(late + 5_000, Cfg));
-        Assert.Equal("BAD", t.Quality);
+        Assert.Single(j.Tick(T0 + 5_000, Cfg));
+        Feed(j, "pv", 1.5, T0 + 600_000);                // 10 min later, only PV moves
+        var t = Assert.Single(j.Tick(T0 + 605_000, Cfg));
+        Assert.Equal("GOOD", t.Quality);
+        Assert.Equal(2, t.Sp);                           // forward-filled, still good
     }
 
     [Fact]

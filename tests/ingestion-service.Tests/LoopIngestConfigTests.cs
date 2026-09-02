@@ -12,7 +12,6 @@ public class LoopIngestConfigTests
         var s = new LoopIngestConfig().Resolve();
         Assert.Equal("{ns}/{site}/{fcs}/{class}/{loop}/{group}/{param}", s.TopicTemplate);
         Assert.Equal(5, s.GridSeconds);
-        Assert.Equal(30, s.StaleAfterSeconds);
         Assert.Equal(300, s.FutureSkewMaxSeconds);
         Assert.Equal(60, s.RegistryRefreshSeconds);
         Assert.Equal("pv", s.ParamRoles["PV"]);

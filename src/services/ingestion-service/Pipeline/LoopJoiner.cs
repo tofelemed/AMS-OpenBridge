@@ -51,8 +51,8 @@ public sealed record LoopTuple(
 /// The stateful heart (doc 03 §5.2): per-loop last-known values, a steady grid
 /// (default 5 s), forward-fill for on-change signals. Never emits before pv/sp/op
 /// have each been seen — the Flink engine silently discards incomplete tuples. A
-/// stale or bad required member emits quality BAD instead of skipping the tick:
-/// bad ticks feed the exclusion gates, skipped ticks just vanish. Deterministic:
+/// member whose OT quality tag is bad emits quality BAD instead of skipping the
+/// tick: bad ticks feed the exclusion gates, skipped ticks just vanish. Deterministic:
 /// the emission CADENCE comes from the caller's nowMs, so tests drive a fake clock.
 /// Tuples are stamped with the newest OT source timestamp among their members —
 /// event_ts_ms is process time, not ingestion time — and a tick whose members have
@@ -151,12 +151,13 @@ public sealed class LoopJoiner
                 if (sourceTs <= state.LastEmittedTsMs) { SkippedNoAdvance++; continue; }
                 state.LastEmittedTsMs = sourceTs;
 
-                // Staleness is measured inside the SOURCE clock domain (newest member vs
-                // its siblings), not against our wall clock. A gateway whose clock is
-                // offset from ours no longer turns GOOD data into BAD.
-                var staleBefore = sourceTs - cfg.StaleAfterSeconds * 1000L;
-                var bad = !pv.Good || !sp.Good || !op.Good ||
-                          pv.TsMs < staleBefore || sp.TsMs < staleBefore || op.TsMs < staleBefore;
+                // Quality is OT's verdict, nothing else: worst-of the quality tags on
+                // pv/sp/op. We deliberately do NOT age values out — a setpoint untouched
+                // for an hour is unchanged, not untrustworthy, and only the source can
+                // say a value is bad. A gateway that stops publishing altogether is
+                // already covered by the no-advance skip above (it emits nothing rather
+                // than republishing forward-filled values).
+                var bad = !pv.Good || !sp.Good || !op.Good;
 
                 output.Add(new LoopTuple(
                     LoopId: state.Loop.LoopId,

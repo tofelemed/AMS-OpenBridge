@@ -13,7 +13,6 @@ public sealed class LoopIngestConfig
     /// <summary>'/'-separated; '{name}' captures a level. Must capture {site} {fcs} {loop} {param}.</summary>
     [JsonPropertyName("topic_template")] public string? TopicTemplate { get; set; }
     [JsonPropertyName("grid_seconds")] public int? GridSeconds { get; set; }
-    [JsonPropertyName("stale_after_seconds")] public int? StaleAfterSeconds { get; set; }
     [JsonPropertyName("future_skew_max_seconds")] public int? FutureSkewMaxSeconds { get; set; }
     /// <summary>Source parameter → canonical role (pv/sp/op/vp/mode = tuple members; anything else = numeric extension field).</summary>
     [JsonPropertyName("param_roles")] public Dictionary<string, string>? ParamRoles { get; set; }
@@ -35,7 +34,6 @@ public sealed class LoopIngestConfig
         TopicTemplate: string.IsNullOrWhiteSpace(TopicTemplate)
             ? "{ns}/{site}/{fcs}/{class}/{loop}/{group}/{param}" : TopicTemplate.Trim(),
         GridSeconds: GridSeconds is > 0 ? GridSeconds.Value : 5,
-        StaleAfterSeconds: StaleAfterSeconds is > 0 ? StaleAfterSeconds.Value : 30,
         FutureSkewMaxSeconds: FutureSkewMaxSeconds is > 0 ? FutureSkewMaxSeconds.Value : 300,
         ParamRoles: ParamRoles is { Count: > 0 }
             ? new Dictionary<string, string>(ParamRoles, StringComparer.OrdinalIgnoreCase)
@@ -48,7 +46,6 @@ public sealed class LoopIngestConfig
 public sealed record LoopIngestSettings(
     string TopicTemplate,
     int GridSeconds,
-    int StaleAfterSeconds,
     int FutureSkewMaxSeconds,
     IReadOnlyDictionary<string, string> ParamRoles,
     IReadOnlyDictionary<string, string> ModeValueMap,

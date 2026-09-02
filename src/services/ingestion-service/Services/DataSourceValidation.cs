@@ -139,8 +139,6 @@ public static partial class DataSourceValidation
         }
         if (li.GridSeconds is <= 0)
             return ("grid_seconds must be greater than 0", "loop_ingest.grid_seconds");
-        if (li.StaleAfterSeconds is <= 0)
-            return ("stale_after_seconds must be greater than 0", "loop_ingest.stale_after_seconds");
         if (li.FutureSkewMaxSeconds is <= 0)
             return ("future_skew_max_seconds must be greater than 0", "loop_ingest.future_skew_max_seconds");
         if (li.RegistryRefreshSeconds is <= 0)
