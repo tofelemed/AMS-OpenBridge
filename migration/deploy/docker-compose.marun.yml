@@ -25,6 +25,13 @@
 
 name: ams-cpa
 
+volumes:
+  # RocksDB working state + Flink temp write to /tmp; unmounted, that inflated
+  # the TM container layer to 6.6GB in one evening (Marun disk-full incident,
+  # 2026-09-02). A named volume makes the growth visible and layer-independent.
+  flink-jm-tmp:
+  flink-tm-tmp:
+
 networks:
   instrumental-network:
     external: true
@@ -226,6 +233,8 @@ services:
 
   flink-jobmanager:
     <<: *cpa-shared
+    volumes:
+      - flink-jm-tmp:/tmp
     depends_on: !override
       minio-init:
         condition: service_completed_successfully
@@ -258,6 +267,8 @@ services:
 
   flink-taskmanager:
     <<: *cpa-shared
+    volumes:
+      - flink-tm-tmp:/tmp
     depends_on: !override
       flink-jobmanager:
         condition: service_started
