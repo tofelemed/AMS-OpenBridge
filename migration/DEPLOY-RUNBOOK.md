@@ -3,6 +3,8 @@
 One page, in order, copy-paste. Scope: CPA-only cut (20 services, `--profile cpa`),
 reusing Instrumental's Postgres + Kafka. Background: [OFFLINE_DEPLOYMENT_GUIDE.md](OFFLINE_DEPLOYMENT_GUIDE.md),
 [migration.md](migration.md), audit: [docs/pre-prod/cpa-offline-audit.md](../docs/pre-prod/cpa-offline-audit.md).
+**Already-deployed plant?** Use [UPDATE-RUNBOOK.md](UPDATE-RUNBOOK.md) instead — service
+updates, rollback, and the disk-full emergency drill.
 
 ---
 
