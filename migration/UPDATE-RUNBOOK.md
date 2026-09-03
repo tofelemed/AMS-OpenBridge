@@ -156,9 +156,18 @@ sudo sh -c 'du -sh /var/lib/docker/containers/*/ 2>/dev/null' | sort -rh | head 
 docker ps -a --size --format 'table {{.Names}}\t{{.Size}}' | sort -k2 -rh | head -8  # writable layers
 sudo du -xh --max-depth=2 /var/lib/containerd 2>/dev/null | sort -rh | head -4
 ```
-Known hot spots from history: a Flink TM writable layer (if the `/tmp` volume mount is
-ever lost — check `docker inspect ams-flink-taskmanager` mounts), uncapped json-logs on
-other stacks' containers, forgotten install tarballs under `/home/lean`.
+Known hot spots from history: a Flink TM writable layer (2026-09-02: 6.6GB RocksDB
+in `/tmp` → fixed with a volume; 2026-09-03: **12.1GB again with the volume intact** —
+something else in the layer grows; `docker exec ams-flink-taskmanager sh -c "du -xh
+--max-depth=2 /opt/flink /tmp | sort -rh | head"` BEFORE rm'ing it, then `docker rm -f`
+both Flink containers + `deploy.sh --prod` recovers ~13GB, state resumes from MinIO);
+**our own Kafka topics on the shared brokers** (`traverse.cpa.loop.samples.v1` grows
+~4GB/day cluster-wide at 161 loops/5s — retention is 24h + 6h segments since
+2026-09-03, verify with `kafka-configs --describe`); uncapped json-logs on other
+stacks' containers; forgotten install tarballs under `/home/lean`.
+A full disk CRASHES the shared Kafka brokers (they restart themselves once space
+frees — verify with `kafka-topics --list`, not just `docker ps`). Never "fix" Kafka
+disk use by touching broker data volumes — retention config is the only lever.
 
 ### Step 4 — targeted removals (name things explicitly; get the owner's nod for theirs)
 Unused tagged images by **ID-verified** list only:

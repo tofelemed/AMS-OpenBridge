@@ -44,6 +44,13 @@ while IFS= read -r raw || [[ -n "$raw" ]]; do
   )
   if [[ "$cleanup" == delete && -n "${retention:-}" ]]; then
     args+=(--config "retention.ms=${retention}")
+    # Retention only deletes CLOSED segments. At low per-partition throughput the
+    # default 1GB/7d segments never roll, so a short retention.ms silently does
+    # nothing (2026-09-03 disk-full lesson). Roll at retention/4, floor 1h.
+    if (( retention < 604800000 )); then
+      seg=$(( retention / 4 )); (( seg < 3600000 )) && seg=3600000
+      args+=(--config "segment.ms=${seg}")
+    fi
   fi
   if [[ -n "${compression:-}" && "$compression" != - ]]; then
     args+=(--config "compression.type=${compression}")
