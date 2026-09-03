@@ -20,7 +20,7 @@ traverse.cpa.clpm.feature.long.v1	8	delete	604800000	-	traverse.cpa.clpm.feature
 traverse.cpa.clpm.gate.results.v1	8	delete	2592000000	-	traverse.cpa.clpm.gate.results.v1
 traverse.cpa.ams.metadata.updates	3	compact		-	traverse.cpa.ams.metadata.updates
 traverse.cpa.context.parameter-set.v1	3	compact		-	traverse.cpa.context.parameter-set.v1
-traverse.cpa.live.loop.metrics	8	delete	21600000	lz4	traverse.cpa.live.loop.metrics
+traverse.cpa.live.loop.metrics	8	delete	10800000	lz4	traverse.cpa.live.loop.metrics
 traverse.cpa.audit-events	4	delete	604800000	-	traverse.cpa.audit-events
 traverse.ingestion.ot-dlq	2	delete	604800000	-	traverse.ingestion.ot-dlq
 
