@@ -20,7 +20,7 @@ Linux `.sh` is what the VM runs.
 | Postgres / Kafka containers | Variables: `POSTGRES_CONTAINER` (Marun: `instrumental-postgres`), `KAFKA_CONTAINER` (`instrumental-kafka-1`) |
 | Topics | `--if-not-exists` only. Never the lab wipe script `scripts/kafka-reset-lab-topics.ps1`. |
 
-**Code uses prefixed topic names** (`traverse.cpa.loop.samples.v1`, `traverse.alarm.raw-alarms`, group `traverse-cpa-flink-cplm`). Compose Kafka bootstrap is `kafka-1:9092,kafka-2:9092,kafka-3:9092`.
+**Code uses prefixed topic names** (`traverse.cpa.loop.samples.v1`, `traverse.alarm.raw-alarms`, group `traverse-cpa-flink-cplm`). Compose Kafka bootstrap is `kafka-1:9092,kafka-2:9092`.
 
 ---
 
@@ -34,7 +34,7 @@ Linux `.sh` is what the VM runs.
 | **3** | `02-apply-schemas.sh` | apply `schema/*.sql`; skip if base tables exist unless `--force` (dev only) | Script present (`CONFIRM_FORCE=yes` required for `--force` on `instrumental-postgres`) |
 | **4** | `03-seed.sh` + `sql/` | HDPE hierarchy, full RBAC catalog, admin user. **Not** houston pumps. Loops = site CSV, not default | Scripts present. Admin needs `BOOTSTRAP_ADMIN_PASSWORD` + bcrypt (python3 or htpasswd) |
 | **5** | Wire prefixed topics in code + compose Kafka bootstrap | app/env | **Done.** Code uses `traverse.cpa.*` / `traverse.alarm.*`. Overlay sets Marun bootstrap. |
-| **6** | `04-create-kafka-topics.sh` | read **only** `kafka/topics.txt`; RF=3 minISR=2 on Marun | Script present; **refuses** until `ALLOW_CREATE_PREFIXED_TOPICS=yes` (ops confirm) |
+| **6** | `04-create-kafka-topics.sh` | read **only** `kafka/topics.txt`; RF=2 minISR=1 on Marun (3→2 brokers, 2026-09-05) | Script present; **refuses** until `ALLOW_CREATE_PREFIXED_TOPICS=yes` (ops confirm) |
 | **7** | `04b-submit-flink-jobs.sh` + `flink/` | four CPA jobs after topics exist | Script present; **refuses** until `ALLOW_FLINK_SUBMIT=yes` (ops confirm) |
 | **8** | `00-prerequisites-check.sh`, `05-validate.sh`, `run-migration.sh` | 00 no writes; 05 fails deploy on missing topic/job | Done. Default `run-migration.sh` skips 04 unless `--with-kafka` |
 | **9** | `deploy/prepare-vm.sh`, `deploy.sh` (tee log), compose overlay | one-shot Marun path | `bash migration/deploy/deploy.sh` (+ `--compose` when secrets are set) |

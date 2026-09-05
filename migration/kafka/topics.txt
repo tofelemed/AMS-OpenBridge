@@ -11,7 +11,7 @@
 # retention.ms: 604800000 = 7d; 2592000000 = 30d; empty = compact (no time retention)
 # compression: lz4 or - (broker default)
 #
-# Create flags (Phase 6): --if-not-exists --replication-factor 3 --config min.insync.replicas=2
+# Create flags (Phase 6): --if-not-exists --replication-factor 2 --config min.insync.replicas=1  # cluster went 3->2 brokers 2026-09-05
 # Lab RF=1 is NOT for Marun.
 
 traverse.cpa.loop.samples.v1	16	delete	86400000	lz4	traverse.cpa.loop.samples.v1

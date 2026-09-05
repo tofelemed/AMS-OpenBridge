@@ -2,7 +2,7 @@
 
 Submit **after** prefixed topics in `kafka/topics.txt` exist. Unique names (Instrumental has no Flink).
 
-`--bootstrap.servers` on Marun: `kafka-1:9092,kafka-2:9092,kafka-3:9092`  
+`--bootstrap.servers` on Marun: `kafka-1:9092,kafka-2:9092`  
 `--input-topic` / output flags must be the **prefixed** names (Phase 5). Lab defaults are in the last column of `topics.txt`.
 
 | Job name (Flink UI) | Class | Required this cut |

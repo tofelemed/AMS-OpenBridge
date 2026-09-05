@@ -53,16 +53,16 @@ x-cpa-shared: &cpa-shared
     - instrumental-network
 
 x-kafka: &kafka-env
-  KAFKA_BROKERS: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092,kafka-3:9092}
-  Kafka__BootstrapServers: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092,kafka-3:9092}
+  KAFKA_BROKERS: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092}
+  Kafka__BootstrapServers: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092}
   # Disk round 2 (2026-09-03): plant log floor for every .NET service that merges
   # this anchor (Node auth ignores it). Set SERVICE_LOG_LEVEL=Error in .env for
   # error-only plant logs; unset it and the lab-equivalent Warning applies.
   # NB: at Error, the runbook's health greps ("connected to mqtt", consumer joins)
   # go silent — that is the accepted trade.
   Logging__LogLevel__Default: ${SERVICE_LOG_LEVEL:-Warning}
-  KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092,kafka-3:9092}
-  Cpm__BootstrapServers: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092,kafka-3:9092}
+  KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092}
+  Cpm__BootstrapServers: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092}
 
 services:
   postgres:
@@ -252,7 +252,7 @@ services:
       minio-init:
         condition: service_completed_successfully
     environment:
-      KAFKA_BROKERS: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092,kafka-3:9092}
+      KAFKA_BROKERS: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092}
       DB_URL: jdbc:postgresql://${POSTGRES_HOST:-instrumental-postgres}:5432/traverse_cplm
       DB_USER: ${AMS_DB_USER:-ams_user}
       DB_PASS: ${POSTGRES_PASSWORD}
@@ -289,7 +289,7 @@ services:
       flink-jobmanager:
         condition: service_started
     environment:
-      KAFKA_BROKERS: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092,kafka-3:9092}
+      KAFKA_BROKERS: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092}
       DB_URL: jdbc:postgresql://${POSTGRES_HOST:-instrumental-postgres}:5432/traverse_cplm
       DB_USER: ${AMS_DB_USER:-ams_user}
       DB_PASS: ${POSTGRES_PASSWORD}

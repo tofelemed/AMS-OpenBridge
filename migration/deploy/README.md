@@ -34,7 +34,7 @@ Those two `ALLOW_*` flags are **ops confirms** on the shared broker. Code alread
 `docker-compose.marun.yml` + `infra/docker/docker-compose.yml`. Compose **v2.24+** (`!override`). Project name `ams-cpa`.
 
 - Joins external `instrumental-network`
-- Kafka bootstrap `kafka-1:9092,kafka-2:9092,kafka-3:9092`
+- Kafka bootstrap `kafka-1:9092,kafka-2:9092`
 - Postgres `Host=instrumental-postgres` (override with `POSTGRES_HOST`)
 - Host ports: gateway `${GATEWAY_HOST_PORT:-8081}`, frontend `${FRONTEND_HOST_PORT:-8090}` (8088 = alarm_superset on Marun); iotdb/minio unpublished; no `:80` / `:3000` / `:1883`
 - Flink HA does **not** use lab ZooKeeper

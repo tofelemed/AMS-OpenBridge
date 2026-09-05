@@ -110,7 +110,7 @@ nothing on the VM ever builds or pulls (the scripts refuse if tried).
 bash migration/deploy/deploy.sh --prod    # now also runs 04 (topics) and 04b (4 Flink jobs) + strict 05
 ```
 
-04 creates only `traverse.*` topics, `--if-not-exists`, RF=3 minISR=2. 04b submits the four
+04 creates only `traverse.*` topics, `--if-not-exists`, RF=2 minISR=1 (cluster went 3→2 brokers 2026-09-05). 04b submits the four
 CPA jobs after the JobManager is healthy.
 
 ---
@@ -165,7 +165,7 @@ Never drop `--no-build` on the VM. Verify: `docker ps --format '{{.Names}} {{.St
 # requires ALLOW_CREATE_PREFIXED_TOPICS=yes in migration/.env
 bash migration/04-create-kafka-topics.sh
 ```
-Creates only `traverse.*` from [kafka/topics.txt](kafka/topics.txt), `--if-not-exists`, RF=3 minISR=2.
+Creates only `traverse.*` from [kafka/topics.txt](kafka/topics.txt), `--if-not-exists`, RF=2 minISR=1 (cluster went 3→2 brokers 2026-09-05).
 Verify: `docker exec instrumental-kafka-1 kafka-topics --bootstrap-server kafka-1:9092 --list | grep '^traverse\.'`
 
 **M7. Submit the 4 Flink jobs (ops-gated; JobManager must be up — after M5)**
