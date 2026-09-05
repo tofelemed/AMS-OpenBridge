@@ -136,8 +136,9 @@ docker exec ams-redis redis-cli -a "$(grep '^REDIS_PASSWORD=' /opt/AMS-open/migr
 
 ### Step 2 — instant reclaims, in order (all proven safe)
 ```bash
-# a. leftover transfer archives (bundles already loaded = pure duplicates)
-ls -lh /tmp/*.tar.gz /tmp/offline-bundle/ 2>/dev/null      # review, then rm the loaded ones
+# a. leftover per-service transfer archives. KEEP /tmp/offline-bundle/ams-cpa-images.tar.gz —
+# on an air-gapped host it is the ONLY recovery path for a wrongly-removed image (2026-09-05).
+ls -lh /tmp/*.tar.gz /tmp/offline-bundle/ 2>/dev/null      # review, then rm only loaded single-service ones
 
 # b. journald
 sudo journalctl --vacuum-size=100M
@@ -145,7 +146,8 @@ sudo journalctl --vacuum-size=100M
 # c. oversized container logs — TRUNCATE, never rm (live fd; rm frees nothing + breaks docker logs)
 sudo find /var/lib/docker/containers -name '*-json.log' -size +50M -exec truncate -s 0 {} \;
 
-# d. dangling image layers (safe; touches nothing tagged or in use)
+# d. dangling image layers. NOT the free lunch it is on a connected host: anything removed
+# here cannot be re-pulled (see the air-gap caveat in step 4). Read the list it prints.
 docker image prune -f
 ```
 
@@ -178,6 +180,17 @@ awk -F'\t' 'NR==FNR{u[$1];next} !($1 in u){print $2"  "$3}' /tmp/used-ids.txt /t
 ```
 Keep always: build bases (`node:*-alpine`, `python:*-slim`), anything <1 week old,
 anything whose owner is unknown. `docker rmi` without `-f` refuses in-use images — the seatbelt.
+
+**Air-gap caveat (learned 2026-09-05): image removal here is a ONE-WAY DOOR.** On a
+connected host a wrongly-pruned image just re-pulls; on this VM it cannot, and the next
+`deploy.sh --prod` dies mid-compose trying to reach registry-1.docker.io. The small
+one-shot init images are the easy casualties — they are unreferenced whenever their
+container has been recreated, so they look disposable: `curlimages/curl:8.9.1`
+(emqx-init) and `minio/mc:RELEASE.*` (minio-init, a `service_completed_successfully`
+dependency of flink-jobmanager, so losing it blocks Flink too). Before ANY `docker rmi`
+or `image prune` on this host, check the name against the bundle manifest; recovery means
+`gunzip -c /tmp/offline-bundle/ams-cpa-images.tar.gz | docker load` (keep that bundle!) or
+a fresh transfer from the build box.
 
 ### Step 5 — NEVER, even at 0 bytes
 - `docker system prune` (kills other teams' stopped containers) / `prune -a` / `volume prune`
