@@ -631,6 +631,17 @@ which would have been read as instructions on the plant:
    `OPS_FILES` copies them to `ops/`, checksummed with the rest; a missing one now fails the
    build rather than the deployment.
 
+4. **A cp1252 stdout killed the v3 build after the work succeeded.** Found by running it:
+   Windows hands a *piped* child process a cp1252 stdout, and `build-prod-images.py` logs
+   `ok <svc> → <image>`. Printing that arrow raised `UnicodeEncodeError` and aborted the
+   release **with the image already built**. `build-release.py` guarded its own streams for
+   exactly this; the subprocess it spawns got its own. Now one `harden_stdio()` in
+   `prodimages.py`, called by all three entry points (`build-prod-images`, `build-release`,
+   `save-offline-bundle` — the last two had 4 and 6 unguarded non-ASCII strings of their own).
+   Verified both ways: the same print crashes without it and degrades to `?` with it.
+   Second-order trap worth knowing: the build was launched through `| tee`, so the pipeline
+   reported **exit 0** while the build had failed. Run releases unpiped.
+
 VM-STEPS also gained **step 0** (the MODE-map restore, which needs no deploy and is the step
 that unblocks the fleet), a `df -h /` headroom check before loading, the paced republish
 budget (120 mutations/min), and the CHG-012 warning not to edit these sources in the wizard.

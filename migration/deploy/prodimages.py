@@ -102,6 +102,22 @@ FLINK_JAR = REPO_ROOT / "src" / "flink" / "target" / "ams-flink-1.0-SNAPSHOT.jar
 FLINK_JAR_IN_IMAGE = "/opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar"
 
 
+
+def harden_stdio() -> None:
+    """Survive a cp1252 stdout.
+
+    Windows gives a piped child process a cp1252 stdout, and every script here logs
+    non-ASCII (arrows, em dashes, section marks). Printing one then raises
+    UnicodeEncodeError and kills the run AFTER the work succeeded -- a v3 build died
+    on the `ok <svc> -> <image>` line with the image already built (2026-09-10).
+    Call this first in every entry point; importing is not enough, since a subprocess
+    gets its own streams.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
+
+
 def compose_argv(*extra: str) -> list[str]:
     argv = [
         "docker",

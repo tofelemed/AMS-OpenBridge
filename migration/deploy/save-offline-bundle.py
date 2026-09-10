@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from prodimages import (
+    harden_stdio,
     BUNDLE_PREFIX,
     ENV_FILE,
     FLINK_JAR,
@@ -28,6 +29,8 @@ from prodimages import (
 
 def log(msg: str) -> None:
     print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] {msg}", flush=True)
+
+harden_stdio()
 
 
 def sha256_file(path: Path) -> str:

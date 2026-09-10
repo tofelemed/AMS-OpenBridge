@@ -12,6 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from prodimages import (
+    harden_stdio,
     BUILD_OUT,
     BUILD_SERVICES,
     ENV_FILE,
@@ -29,6 +30,8 @@ from prodimages import (
 
 def log(msg: str) -> None:
     print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] {msg}", flush=True)
+
+harden_stdio()
 
 
 def run(argv: list[str], log_file: Path | None = None, retries: int = 1) -> int:

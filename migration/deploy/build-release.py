@@ -33,6 +33,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from prodimages import (  # noqa: E402
+    harden_stdio,
     BUILD_SERVICES,
     DEPLOY_DIR,
     ENV_FILE,
@@ -63,10 +64,7 @@ def log(msg: str) -> None:
     print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] {msg}", flush=True)
 
 
-# Windows consoles default to cp1252; a stray non-ASCII byte must not abort a release.
-for _stream in (sys.stdout, sys.stderr):
-    if hasattr(_stream, "reconfigure"):
-        _stream.reconfigure(errors="replace")
+harden_stdio()
 
 
 def die(msg: str, rc: int = 1) -> int:
