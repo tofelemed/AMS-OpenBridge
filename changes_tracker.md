@@ -480,14 +480,16 @@ backfill path for loops onboarded without projection). **Verified on a fully cle
 signal-asset rows — PV, SP, OP, MODE and DEVICE.**
 
 **Verified on a live database, run in sequence from a cleared state:** script 1 inserts 14 + 56;
-script 2 stages 171, skips 1 (`TIC30206OLD`), and leaves **170 loops carrying all four bounds**.
+script 2 staged 171, skipped 1 (`TIC30206OLD`), and left **170 loops carrying all four bounds**.
 Re-running both changes nothing (`INSERT 0 0`, `UPDATE 0`).
 
-**⚠️ One decision outstanding.** The workbook's `TIC30206OLD` has no registered loop, while
-`TIC30206` is registered *and* modelled at `hdpe/section_100/u1001_polymerization_reactor_1`.
-Same digits, "OLD" suffix — almost certainly the superseded name of the same instrument, but
-merging tags is a plant call, so the row is skipped rather than guessed. `TIC30206` has no
-ranges until this is settled.
+**✅ The `TIC30206OLD` decision is settled (plant, 2026-09-10): only `TIC30206` is in service**,
+so the workbook row is now loaded onto it (`cpm-02` line 193, staged as `TIC30206`). Expect
+report 1 to read *SKIPPED — none* and the final count to be **171**, one more than the run above.
+That retarget is a one-line change to the staged loop id and has **not** been re-run against a
+database — the merge path is unchanged and `TIC30206` is registered and modelled at
+`hdpe/section_100/u1001_polymerization_reactor_1`, so it will match, but read report 1 on the
+`ROLLBACK` dry run to confirm before committing.
 
 **⚠️ Two OP ranges need DCS confirmation before prod.** `normalizeOp` is applied
 unconditionally, so a wrong range is worse than none: `TIC10704` declares OP **3..5** and

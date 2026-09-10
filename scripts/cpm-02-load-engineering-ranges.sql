@@ -8,7 +8,9 @@
 --   Generated: 2026-09-10
 --
 -- RUN SCRIPT 1 FIRST. Without it 15 rows have no loop to attach to; with it,
--- only TIC30206OLD stays unmatched (deliberately - see script 1).
+-- every workbook row matches a registered loop (report 1 should say SKIPPED - none).
+-- The workbook's TIC30206OLD is the superseded name of TIC30206: the plant confirmed
+-- on 2026-09-10 that only TIC30206 is in service, so the row is loaded onto it.
 --
 -- Reports print to the pgAdmin **Messages** tab. The final grid is the
 -- verification result. No psql meta-commands are used.
@@ -188,7 +190,7 @@ INSERT INTO cpm_eng_import (loop_id, pv_min, pv_max, op_min, op_max) VALUES
   ('TIC30107', 0, 200, 0, 100),
   ('TIC30109', 0, 200, 10, 100),
   ('TIC30110', 0, 160, 20, 85),
-  ('TIC30206OLD', 0, 400, 0, 35),
+  ('TIC30206',    0, 400, 0, 35),   -- workbook says TIC30206OLD; plant confirmed 2026-09-10 it is this loop
   ('TIC30304', 0, 200, 100, 155),
   ('TIC30306', 0, 200, 0, 100),
   ('TIC30309', 0, 300, 0, 100),

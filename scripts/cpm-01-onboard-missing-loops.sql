@@ -2,7 +2,7 @@
 -- 1/2  Onboard the 14 CPA loops that are not in the registry
 --
 --   Database : traverse_cplm          Run in : pgAdmin Query Tool (or psql)
---   Loops    : 14   (TIC30206OLD is deliberately NOT here - see note below)
+--   Loops    : 14   (TIC30206OLD is not a loop - see the note below)
 --   Generated: 2026-09-10
 --
 -- Reports print to the pgAdmin **Messages** tab; the final grid is the
@@ -26,9 +26,12 @@
 --   priorGeometry 0.0, so geometry-based diagnosis stays OFF for AIC30601,
 --   IIC20101A/B/C and NIC51101 until a real class is assigned.
 --
--- TIC30206OLD is skipped on purpose: TIC30206 is already registered AND modelled
--- at hdpe/section_100/u1001_polymerization_reactor_1. Same digits, "OLD" suffix -
--- merging the two tags is a plant decision, not a script's.
+-- TIC30206OLD is deliberately NOT onboarded as a new loop. The plant confirmed on
+-- 2026-09-10 that only TIC30206 is in service - "OLD" is its superseded name - and
+-- TIC30206 is already registered AND modelled at
+-- hdpe/section_100/u1001_polymerization_reactor_1. Script 2 therefore loads that
+-- workbook row's ranges onto TIC30206; creating a second loop here would have split
+-- one instrument across two registry rows.
 --
 -- WHAT THIS SCRIPT CANNOT DO  (see the follow-up at the bottom - it is required)
 --   * cpm.loop_signal_asset + the matching rows in the traverse_assets database.
