@@ -60,6 +60,44 @@ the mosquitto OT-broker stand-in.
 
 ---
 
+## v3 DEPLOYED to Marun — 2026-09-10
+
+Deployed from commit `78ef6ce`, release `release-out/v3-20260910` (968 MB). Order followed
+[migration/V3-DEPLOY.md](migration/V3-DEPLOY.md).
+
+| Step | Result |
+|---|---|
+| Transfer + `sha256sum -c` | 10/10 OK incl. every `ops/` path |
+| MODE map (CHG-003, no deploy) | `PUT 200`; wire went from raw `1`/`2` to **AUT 62% / MAN 7% / IMAN 6% / UNKNOWN 25%** |
+| 5 images loaded, all fingerprinted PROD | ingestion, cplm-api, historian-bff, ams-flink, frontend |
+| Flink (CHG-004 engine half) | JAR replaced, both containers removed, **4 × RUNNING** with fresh start times 17:46 |
+| `paramRoles` (CHG-010) | `"VP": "vp"` present |
+| historian-bff (CHG-009) | `/raw/cursor` returns JSON, no 500 |
+| cpm-01 | 14 registry + 56 tag-map rows |
+| cpm-02 | **171 loops with all four bounds**, `still_undeclared = 0` |
+| republish-evidence | **175/175 → 200**, zero 429s at `sleep 0.5`; the 14 new loops now carry 5 signal assets each |
+
+**Found during the deployment, all confirmed live:**
+
+- **The stored OP ranges were placeholders, not data.** All 157 "overwritten" rows held
+  `{"opMin":0,"opMax":100}` written at onboarding, so the workbook replaced a default rather
+  than a measurement. `LIC10601`'s impossible **OP 235.58 %** corroborates the workbook
+  independently: it only makes sense on that loop's real 0–300 range.
+- **`TIC10704` (3..5) and `TIC30304` (100..155) confirmed by the plant** and loaded with the rest.
+- **25 % of tuples carry `mode: UNKNOWN`** — a loop that has *never received* a MODE message,
+  not an unmapped value. MODE is published on change, so a subscriber that restarts cannot learn
+  a mode until it next changes. **OT question: does the gateway set the MQTT retain flag on MODE?**
+  Without it these loops stay excluded at G1 indefinitely. Re-measure once the stack has settled.
+- **`FIC30203` stopped publishing 2026-09-05 18:29** (IoTDB's last row) while `FIC10405` is
+  current — the IoTDB writer is healthy, that loop's data is absent upstream. OT question.
+- **`SERVICE_LOG_LEVEL=Error` is only partly applied.** It rides the `kafka-env` anchor, and
+  `historian-bff` (among others) does not merge that anchor — it still logs at Info. The 94e1f8f
+  log-volume fix is therefore incomplete; not a v3 blocker, but the disk lesson is only half learnt.
+- **V3-DEPLOY §F had a wrong URL**: `/api/hist/raw/cursor` binds `DateTimeOffset start/end`, so
+  epoch-ms values 400 with an empty body. ISO-8601 required; `/raw` additionally needs `offset`.
+
+---
+
 ## CHG-001 ✅ `event_ts_ms` carries OT process time
 
 **Commit:** `9612db4` · **Service:** ingestion-service
@@ -495,7 +533,8 @@ database — the merge path is unchanged and `TIC30206` is registered and modell
 `hdpe/section_100/u1001_polymerization_reactor_1`, so it will match, but read report 1 on the
 `ROLLBACK` dry run to confirm before committing.
 
-**⚠️ Two OP ranges need DCS confirmation before prod.** `normalizeOp` is applied
+**✅ The two OP ranges are confirmed (plant, 2026-09-10) and loaded.** Kept here because the
+reasoning still applies to any future range load: `normalizeOp` is applied
 unconditionally, so a wrong range is worse than none: `TIC10704` declares OP **3..5** and
 `TIC30304` declares **100..155**. If either signal actually arrives as 0-100 %, an OP of 50
 normalises to 2350 % / −91 %, G10 reads permanently saturated and G2r invalidates the window —
@@ -534,13 +573,15 @@ source in Edit, changing nothing, and clicking Save deleted the entire `loop_ing
 working default, so data keeps flowing and nothing logs an error; the only visible consequence
 is that MODE stops being translated.
 
-**This is the more likely origin of the CHG-003 symptom.** Live tuples pulled off
-`traverse.cpa.loop.samples.v1` on the plant (2026-09-05) carried `"mode":"2"` and `"mode":"1"` —
-**raw numerics**. Under the wrong-but-present map CHG-003 assumes was configured
-(`{"4":"AUT","3":"CAS","2":"MAN"}`) a `2` would render as `"MAN"`, not `"2"`. Raw pass-through
-means there was no map at all. CHG-003's diagnosis of the *consequence* stands unchanged; this
-is how the map came to be missing, and it is why CHG-003's new empty-map startup warning earns
-its place.
+**It was NOT what happened to this plant — corrected 2026-09-10 during the v3 deployment.**
+An earlier draft of this entry called wizard deletion the likely origin of the CHG-003 symptom.
+Reading the live config disproved it: `profile_config` held **`loop_ingest` as an empty object**,
+and a wizard save removes the key entirely rather than emptying it. So the MODE map was almost
+certainly **never configured**, not configured-then-wiped. What the plant did confirm is the
+*consequence*: live tuples carried `"mode":"1"`/`"2"` raw, so there was no map at all — which is
+exactly why CHG-003's empty-map startup warning earns its place. The wizard defect is real and
+worth having fixed; it just isn't this outage's cause. Everything else in `loop_ingest` was also
+empty, so nothing was lost — the defaults matched the gateway's real topic shape.
 
 **The fix** — the wizard now spreads the stored config and overrides only its own block:
 `profileConfig: { ...(existing?.profileConfig ?? {}), mqtt: {…} }`. `ProfileConfig` gains an
