@@ -1,6 +1,8 @@
 # Update & Emergency Runbook — live Marun VM
 
-Companion to [DEPLOY-RUNBOOK.md](DEPLOY-RUNBOOK.md) (first install). This one covers a
+Companion to [DEPLOY-RUNBOOK.md](DEPLOY-RUNBOOK.md) (first install).
+**Shipping v3 right now?** Follow [V3-DEPLOY.md](V3-DEPLOY.md) — the ordered
+checklist for that release; this file is the per-service reference behind it. This one covers a
 **running plant**: shipping a new version of one or more services, and the disk-full
 emergency drill. Every command here was proven during commissioning (2026-09-01/02).
 
