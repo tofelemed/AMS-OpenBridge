@@ -24,6 +24,15 @@ export interface MqttConfig {
 
 export interface ProfileConfig {
   mqtt?: MqttConfig;
+  /**
+   * Blocks this UI does not render — today `loop_ingest` (mode_value_map,
+   * param_roles, grid_seconds, topic_template), owned by ingestion-service.
+   * PUT /data-sources/{id} REPLACES profile_config wholesale, so anything missing
+   * from the body is deleted. Every writer must spread the stored config and
+   * override only its own block; dropping loop_ingest un-maps MODE, which
+   * excludes the whole fleet at G1 with no error anywhere.
+   */
+  [block: string]: unknown;
 }
 
 export interface DataSourceDto {

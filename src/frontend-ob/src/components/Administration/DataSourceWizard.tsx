@@ -181,6 +181,11 @@ export const DataSourceWizard: React.FC<{
         timeoutSeconds: form.timeoutSeconds,
         insecureSkipVerify: isTls && form.tlsMode === 'skip',
         profileConfig: {
+          // Carry every stored block across: PUT replaces profile_config wholesale,
+          // so a key absent here is DELETED. This wizard renders only `mqtt`, and
+          // rebuilding the object from scratch silently wiped `loop_ingest`
+          // (mode_value_map, param_roles, grid_seconds, topic_template) on any save.
+          ...(existing?.profileConfig ?? {}),
           mqtt: {
             topics: cleanTopics,
             qos: form.qos,

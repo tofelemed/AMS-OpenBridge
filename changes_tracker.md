@@ -33,6 +33,10 @@ default, and the `param_roles` config trap that could black out every loop from 
 closed (CHG-010). Ingestion-service only; the registry, Flink and the historian already
 handled VP.
 
+Sixth, **2026-09-10**: the Data Source wizard **deleted the whole `loop_ingest` block on every
+save** (CHG-012) — the most probable reason production's `mode_value_map` was missing rather
+than merely wrong. Frontend only, rides the CHG-006 rebuild.
+
 **Service rebuilds required:** `traverse-ingestion-service`, `cplm-api`, `historian-bff`, the
 **frontend**, and the **Flink jar** (the three CPLM jobs must be *cancelled and resubmitted* — a restart deploys
 nothing, see CHG-008). No database migration. One config edit per data source. The exact
@@ -514,6 +518,54 @@ is data, not code.
 
 ---
 
+## CHG-012 ✅ The wizard no longer deletes `loop_ingest` on save
+
+**Service:** frontend (rides the CHG-006 rebuild — no extra image) · **Found:** 2026-09-10
+**Files:** `components/Administration/DataSourceWizard.tsx`, `components/Administration/dataSourcesApi.ts`
+
+Found while answering "where in the UI do I set `mode_value_map`?". The answer is nowhere —
+and the reason matters more than the answer.
+
+**The defect.** The wizard rebuilt `profileConfig` from scratch on every save, writing
+`{ mqtt: {…} }` and nothing else, while `DataSourceRepository` replaces the column wholesale
+(`profile_config = @profileConfigJson::jsonb`, no merge). So **opening an `MQTT_LOOP_SAMPLES`
+source in Edit, changing nothing, and clicking Save deleted the entire `loop_ingest` block** —
+`mode_value_map`, `param_roles`, `grid_seconds`, `topic_template`. Every one of those has a
+working default, so data keeps flowing and nothing logs an error; the only visible consequence
+is that MODE stops being translated.
+
+**This is the more likely origin of the CHG-003 symptom.** Live tuples pulled off
+`traverse.cpa.loop.samples.v1` on the plant (2026-09-05) carried `"mode":"2"` and `"mode":"1"` —
+**raw numerics**. Under the wrong-but-present map CHG-003 assumes was configured
+(`{"4":"AUT","3":"CAS","2":"MAN"}`) a `2` would render as `"MAN"`, not `"2"`. Raw pass-through
+means there was no map at all. CHG-003's diagnosis of the *consequence* stands unchanged; this
+is how the map came to be missing, and it is why CHG-003's new empty-map startup warning earns
+its place.
+
+**The fix** — the wizard now spreads the stored config and overrides only its own block:
+`profileConfig: { ...(existing?.profileConfig ?? {}), mqtt: {…} }`. `ProfileConfig` gains an
+index signature documenting that unrendered blocks exist and that **any** writer must carry
+them through. The `mqtt` block itself was never at risk: every one of its keys, including
+`tls.ca_cert_pem`, already round-trips through the form.
+
+**Still no UI to *set* `loop_ingest`.** This stops the destruction; it does not add an editor.
+Setting the MODE map remains an API operation (checklist step 1), and it must be a
+read-modify-write — a hand-written `profileConfig` would drop the TLS `ca_cert_pem`, which is
+the whole certificate.
+
+**Verified:** `tsc --noEmit` clean, `eslint --max-warnings 0` clean. **No automated test** —
+`src/frontend-ob` has no test runner configured (no `test` script, no vitest/jest), so the wizard
+is covered only by typecheck, lint and build, exactly as CHG-006 notes.
+
+**⚠️ Operational, until the new frontend is deployed:** do **not** edit an `MQTT_LOOP_SAMPLES`
+data source in the wizard. Any save on the running build re-deletes `loop_ingest`, including a
+map you have just restored. After the CHG-006/012 frontend ships, editing is safe again.
+
+**Note:** `DataSourceWizard.tsx` is 605 lines, over the repo's 400–500 guideline (599 before this
+change). Splitting it mid-release adds risk for no functional gain — worth doing, separately.
+
+---
+
 ## CHG-005 ✅ Documentation & diagnostics
 
 - `docs/cpm-calculation-reference.md` — widened from the four Flink jobs to the whole CPA
@@ -540,8 +592,12 @@ Order matters: the config fix alone unblocks the fleet, so do it first and confi
 shipping binaries.
 
 1. ⬜ **Apply the MODE map** on each `MQTT_LOOP_SAMPLES` data source
-   (`{"1":"AUT","2":"MAN","3":"CAS","4":"IMAN"}`). No deploy. Confirm within ~1 minute:
-   `scripts/diagnose-gate-failures.sql` query 3 — `avg_auto_pct` should rise off zero.
+   (`{"1":"AUT","2":"MAN","3":"CAS","4":"IMAN"}`). No deploy. **Via the API, not the wizard**
+   (CHG-012: the shipped wizard deletes `loop_ingest` on save, and a hand-written
+   `profileConfig` would drop the TLS `ca_cert_pem`) — read the source, merge the map into
+   `profile_config.loop_ingest`, PUT the whole object back. Confirm within ~1 minute:
+   `scripts/diagnose-gate-failures.sql` query 3 — `avg_auto_pct` should rise off zero, and
+   tuples on `traverse.cpa.loop.samples.v1` carry `AUT`/`MAN`/`CAS` instead of `1`/`2`.
 2. ⬜ **Confirm verdicts appear**: query 2 — G1 should stop being the universal failure, and
    G12–G15 should stop being `—`. Expect real diagnoses on the loops already flagging G8/G5.
 3. ⬜ **Rebuild + deploy `traverse-ingestion-service`** (CHG-001/002/003/010).
@@ -564,7 +620,9 @@ shipping binaries.
    4. Resubmit (`compose up flink-job-submit-cplm`), then confirm each job's start time moved.
 6. ⬜ **Investigate the four `INSUFFICIENT DATA` loops** (FIC10403/10404/10501/10503) — a
    data-cadence question, not a gate one.
-7. ⬜ **Rebuild + deploy the frontend** (CHG-006 UI half).
+7. ⬜ **Rebuild + deploy the frontend** (CHG-006 UI half + CHG-012). Until this lands,
+   nobody may edit an `MQTT_LOOP_SAMPLES` source in the wizard — a save re-deletes
+   `loop_ingest`, including the map restored in step 1.
 8. ⬜ **Rebuild + deploy `historian-bff`** (CHG-009). Independent of every step above and of
    the frontend — it unblocks the Evidence Replay raw-slice trends on its own. Confirm a
    replay raw read answers 200 rather than 500:
@@ -613,7 +671,7 @@ untouched.
 | `cplm-api` | `ams-cpa-cplm-api` | CHG-004 (API half), 006 (read path) |
 | `historian-bff` | `ams-cpa-historian-bff` | CHG-009 |
 | `flink-jobmanager` (+ taskmanager, same image) | `ams-flink:1.0-SNAPSHOT` + the JAR file | CHG-004 (engine half) |
-| `ams-frontend` | `ams-cpa-ams-frontend` | CHG-006 (UI half), CHG-009 comment |
+| `ams-frontend` | `ams-cpa-ams-frontend` | CHG-006 (UI half), CHG-009 comment, **CHG-012** |
 
 Unchanged and **not** rebuilt: gateway, auth, asset-model, binding-resolver, audit-service,
 sparkplug-edge-node, ams-api.
