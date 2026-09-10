@@ -141,15 +141,29 @@ grep -v ' 200$' /tmp/republish.log      # empty = done; else re-run those ids (i
 
 ## F. Verify
 
+Every `/api/` route needs a bearer token (they all 401 without one):
 ```bash
-curl -s http://localhost:8081/api/ingestion/stats | grep -o '"VP":"vp"'        # paramRoles.VP
+TOKEN=$(curl -s -X POST http://localhost:8081/api/auth/login -H 'Content-Type: application/json' -d "{\"username\":\"admin\",\"password\":\"$ADMIN_PW\"}" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('accessToken') or d.get('token'))"); echo "len=${#TOKEN}"
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8081/api/ingestion/stats | grep -o '"VP":"vp"'   # paramRoles.VP
 docker exec instrumental-kafka-1 kafka-consumer-groups --bootstrap-server kafka-1:9092 --describe --group traverse-cpa-cplm-results | head -3   # ONE member
-curl -s -o /dev/null -w '%{http_code}\n' "http://localhost:8081/api/hist/raw/cursor?series=root.site1.cpm.FIC30203&start=$(( ($(date +%s)-3600) * 1000 ))&end=$(( $(date +%s) * 1000 ))&maxCount=10000&measurements=pv,sp,op"   # 200, not 500
+S=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ); E=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+# ISO-8601 ONLY: the endpoint binds DateTimeOffset, so epoch-ms 400s with an empty body.
+# Needs the bearer token like every /api route. Expect JSON, <=9999 points, never a 500.
+curl -s -H "Authorization: Bearer $TOKEN" "http://localhost:8081/api/hist/raw/cursor?series=root.site1.cpm.<loop-with-data>&start=$S&end=$E&maxCount=10000&measurements=pv,sp,op" | head -c 200
 curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8090/                # 200 — users Ctrl+F5
 docker exec ams-flink-jobmanager flink list -m localhost:8081                  # 4 × RUNNING
 df -h /
 ```
-Then re-run `ops/diagnose-gate-failures.sql` and confirm `good_error_pct` moved on one loop that got a tighter band.
+**The gate proof — use the SHORT windows.** Straight after D3 the long tables hold either
+pre-fix history or windows with minutes of data, so `diagnose-gate-failures.sql` (which reads
+`cplm_gate_results`) cannot answer yet. This is the query that can, ~20 min after D3:
+```bash
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "select window_kind, count(*) as windows, round(avg(auto_pct)::numeric,3) as avg_auto, count(*) filter (where payload->>'gate1_status'='PASS') as g1_pass, count(*) filter (where payload->>'gate1_status'='EXCLUDED') as g1_excl from analytics.cplm_short_feature_results where created_at > now() - interval '25 minutes' group by 1 order by 1;"
+```
+`avg_auto` off zero and a non-zero `g1_pass` = the MODE fix reached the engine. (Measured
+2026-09-10: 0.000 → **0.63**, 435 PASS vs 258 EXCLUDED on 1m windows.) The 60m row stays blank
+until a full hour has elapsed. Run `ops/diagnose-gate-failures.sql` for the fleet view tomorrow,
+once 12h/24h windows hold only post-deploy data.
 
 Browser: Administration → Data Sources → the loop-samples card now shows a **Loop ingest** panel with the MODE map (CHG-013).
 

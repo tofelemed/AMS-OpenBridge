@@ -15,7 +15,14 @@ ORDER BY windows DESC;
 \echo ''
 \echo '=== 2. Per-gate status counts (last 24h) — find the gate that never passes ==='
 SELECT g.key AS gate,
-       g.value ->> 'status' AS status,
+       -- payload->'gates' holds PLAIN STRINGS ({"G0":"FAIL"}), not {"status":...}
+       -- objects, so `->> 'status'` returned NULL for every row and this query --
+       -- the one meant to name the failing gate -- printed blanks (found on the
+       -- plant, 2026-09-10). #>> '{}' extracts a scalar; the CASE keeps it correct
+       -- if a gate ever becomes an object.
+       CASE WHEN jsonb_typeof(g.value) = 'object'
+            THEN g.value ->> 'status'
+            ELSE g.value #>> '{}' END AS status,
        count(*) AS windows
 FROM analytics.cplm_gate_results r,
      LATERAL jsonb_each(r.payload -> 'gates') AS g
