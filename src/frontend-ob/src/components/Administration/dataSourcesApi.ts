@@ -22,8 +22,25 @@ export interface MqttConfig {
   tls?: MqttTlsConfig;
 }
 
+/**
+ * profile_config.loop_ingest — owned by ingestion-service (LoopIngestConfig.cs).
+ * Only `mode_value_map` is editable in this UI; `param_roles` has overlay semantics
+ * and a server-side guard, so it stays an API operation.
+ */
+export interface LoopIngestConfig {
+  /** Source MODE value → engine token (AUT/MAN/CAS/IMAN). Absent = raw pass-through. */
+  mode_value_map?: Record<string, string>;
+  /** Overlay on the built-in map; a null value removes a built-in entry. */
+  param_roles?: Record<string, string | null>;
+  grid_seconds?: number;
+  topic_template?: string;
+  registry_refresh_seconds?: number;
+  future_skew_max_seconds?: number;
+}
+
 export interface ProfileConfig {
   mqtt?: MqttConfig;
+  loop_ingest?: LoopIngestConfig;
   /**
    * Blocks this UI does not render — today `loop_ingest` (mode_value_map,
    * param_roles, grid_seconds, topic_template), owned by ingestion-service.

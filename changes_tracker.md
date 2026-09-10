@@ -566,6 +566,84 @@ change). Splitting it mid-release adds risk for no functional gain — worth doi
 
 ---
 
+## CHG-013 ✅ `loop_ingest` is visible and the MODE map is editable
+
+**Services:** frontend (rides the CHG-006/012 rebuild) · **Found:** 2026-09-10
+**Files:** `components/Administration/LoopIngestPanel.tsx` (new), `adminUi.tsx` (new),
+`DataSourcesConfig.tsx`, `dataSourcesApi.ts`
+
+CHG-012 stopped the wizard deleting `loop_ingest`. It did not make it visible, and
+invisibility is the deeper defect: a fleet-critical setting could vanish and stay vanished
+because **the product never showed it**. Nobody could have noticed by looking.
+
+Loop-samples data-source cards now carry a **Loop ingest** panel showing the effective
+`mode_value_map`, grid, registry refresh, topic template and `param_roles` overlay — and,
+when the map is missing or maps nothing to AUTO, a banner naming the exact consequence
+("every sample counts as not-auto and Gate 1 excludes this source's whole fleet — with
+Gate 0 still green"). That is the state the plant sat in undiagnosed.
+
+The MODE map is **editable** (Admin only, `ingestion.manage`): value→token rows, a Yokogawa
+CENTUM preset, and per-row classification — `counts as AUTO` / `counts as MANUAL` /
+`NOT RECOGNISED`. `classifyMode()` mirrors ingestion-service `ModeVocabulary.cs`, which
+mirrors Flink `CplmNormalizedSample`; manual wins before auto, exactly as the engine does,
+so `4→IMAN` correctly shows as manual and `3→CAS` as auto. Saving is a read-modify-write of
+the whole `profile_config` (CHG-012's rule), so the mqtt block and its TLS certificate are
+carried across untouched.
+
+**Deliberately not editable here:** `param_roles` (overlay semantics + a server-side guard —
+it belongs in the API, and `scripts/set-mode-map.py` remains the bulk path), `grid_seconds`
+and `topic_template`. They are shown, not typed into.
+
+`Pill`/`Fact` moved to a shared `adminUi.tsx` — the panel needs them and importing from the
+page that renders it would be a circular import. `DataSourcesConfig.tsx` shrank 257→233 lines.
+
+**Verified:** `tsc --noEmit` clean · `eslint --max-warnings 0` clean · `npm run build` clean.
+**Not click-tested** — `src/frontend-ob` still has no test runner, so no automated coverage
+exists for this or any other wizard path (same limitation as CHG-006/012).
+
+---
+
+## CHG-014 ✅ Release tooling matches this plant
+
+**Files:** `migration/deploy/build-release.py`
+
+`build-release.py` generated `VM-STEPS.md` from **lab** assumptions. Three defects, all of
+which would have been read as instructions on the plant:
+
+1. **The Flink section was backwards for Marun.** It warned that "a RESTART DEPLOYS NOTHING
+   because the HA JobManager resumes the previous JobGraph and its jar blob" and told the
+   operator to `compose up flink-job-submit-cplm`. Marun has **no ZooKeeper HA** — the overlay
+   replaces `FLINK_PROPERTIES` with RocksDB + MinIO checkpoints only — and
+   `flink-job-submit-cplm` is profiled `lab-alarm`, absent from the `cpa` profile, so that
+   command does nothing at all. The trap that *does* apply here is the mirror image:
+   `04b-submit-flink-jobs.sh` uses `submit_if_missing`, so with the old JobManager still up it
+   prints `[OK]` for all four jobs while they keep executing the **old jar**. Rewritten: remove
+   both containers, `deploy.sh --prod` (04b resubmits all **four**, not three), verify start
+   times moved — plus the cost note that no HA and no `-s savepoint` means fresh window state,
+   so 12h/24h verdicts need up to a day.
+2. **`sha256sum -c` was run from the wrong directory.** Step 1 was
+   `cd /opt/AMS-open` … `sha256sum -c /tmp/v3/SHA256SUMS.txt`; sha256sum resolves each path
+   against the **CWD**, not the sums file, so every entry failed `open or read`. **Reproduced
+   deliberately** on a real release directory. Step 1 now runs from inside the release dir.
+3. **The release shipped no SQL.** Images and the JAR travelled; `cpm-01`, `cpm-02`,
+   `diagnose-gate-failures.sql` and `set-mode-map.py` did not — so a correctly deployed v3
+   could not run checklist steps 1, 2, 9 or 10, on a host that can fetch nothing. New
+   `OPS_FILES` copies them to `ops/`, checksummed with the rest; a missing one now fails the
+   build rather than the deployment.
+
+VM-STEPS also gained **step 0** (the MODE-map restore, which needs no deploy and is the step
+that unblocks the fleet), a `df -h /` headroom check before loading, the paced republish
+budget (120 mutations/min), and the CHG-012 warning not to edit these sources in the wizard.
+The ingestion post-check now reads `/api/ingestion/stats` instead of the startup log, which is
+silent at the plant's `SERVICE_LOG_LEVEL=Error`.
+
+**Verified:** `--dry-run` renders the full v3 plan and the rewritten Flink section; a **real**
+single-service build (`--only historian-bff --skip-build --skip-jar`) produced the directory,
+and `sha256sum -c SHA256SUMS.txt` from inside it returned **OK on all five files** including
+every `ops/` path — with the wrong-CWD run failing, as the fix predicts.
+
+---
+
 ## CHG-005 ✅ Documentation & diagnostics
 
 - `docs/cpm-calculation-reference.md` — widened from the four Flink jobs to the whole CPA
@@ -620,9 +698,11 @@ shipping binaries.
    4. Resubmit (`compose up flink-job-submit-cplm`), then confirm each job's start time moved.
 6. ⬜ **Investigate the four `INSUFFICIENT DATA` loops** (FIC10403/10404/10501/10503) — a
    data-cadence question, not a gate one.
-7. ⬜ **Rebuild + deploy the frontend** (CHG-006 UI half + CHG-012). Until this lands,
-   nobody may edit an `MQTT_LOOP_SAMPLES` source in the wizard — a save re-deletes
-   `loop_ingest`, including the map restored in step 1.
+7. ⬜ **Rebuild + deploy the frontend** (CHG-006 UI half + CHG-012 + CHG-013). Until this
+   lands, nobody may edit an `MQTT_LOOP_SAMPLES` source in the wizard — a save re-deletes
+   `loop_ingest`, including the map restored in step 1. Once it lands, the card's new **Loop
+   ingest** panel shows the MODE map and can edit it, so step 1's script becomes the bulk
+   path rather than the only one.
 8. ⬜ **Rebuild + deploy `historian-bff`** (CHG-009). Independent of every step above and of
    the frontend — it unblocks the Evidence Replay raw-slice trends on its own. Confirm a
    replay raw read answers 200 rather than 500:
@@ -671,7 +751,7 @@ untouched.
 | `cplm-api` | `ams-cpa-cplm-api` | CHG-004 (API half), 006 (read path) |
 | `historian-bff` | `ams-cpa-historian-bff` | CHG-009 |
 | `flink-jobmanager` (+ taskmanager, same image) | `ams-flink:1.0-SNAPSHOT` + the JAR file | CHG-004 (engine half) |
-| `ams-frontend` | `ams-cpa-ams-frontend` | CHG-006 (UI half), CHG-009 comment, **CHG-012** |
+| `ams-frontend` | `ams-cpa-ams-frontend` | CHG-006 (UI half), CHG-009 comment, **CHG-012**, **CHG-013** |
 
 Unchanged and **not** rebuilt: gateway, auth, asset-model, binding-resolver, audit-service,
 sparkplug-edge-node, ams-api.

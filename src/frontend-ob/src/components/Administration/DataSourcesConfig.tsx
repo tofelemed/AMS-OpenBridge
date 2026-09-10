@@ -10,6 +10,8 @@ import {
   setDataSourceActive, testDataSource,
 } from './dataSourcesApi';
 import DataSourceWizard from './DataSourceWizard';
+import LoopIngestPanel from './LoopIngestPanel';
+import { Fact, Pill } from './adminUi';
 
 type View = { kind: 'list' } | { kind: 'create' } | { kind: 'edit'; source: DataSourceDto };
 
@@ -187,6 +189,16 @@ export const DataSourcesConfig: React.FC = () => {
               />
             </div>
 
+            {/* loop_ingest — invisible in this product until 2026-09-10, which is how a
+                missing MODE map excluded the whole fleet unnoticed. Loop-samples only. */}
+            {source.profileType === 'MQTT_LOOP_SAMPLES' && (
+              <LoopIngestPanel
+                source={source}
+                canManage={canManage}
+                onSaved={saved => setSources(list => list.map(s => (s.configId === saved.configId ? saved : s)))}
+              />
+            )}
+
             {/* Test / error detail */}
             {lastTest && (
               <div role="status" style={{
@@ -227,31 +239,5 @@ export const DataSourcesConfig: React.FC = () => {
     </div>
   );
 };
-
-/* ── Sub-components ───────────────────────────────────── */
-
-const Pill: React.FC<{ text: string; color: string; mono?: boolean }> = ({ text, color, mono }) => (
-  <span style={{
-    fontSize: '11px', fontWeight: 700, color, border: `1px solid ${color}`,
-    borderRadius: '999px', padding: '2px 10px',
-    fontFamily: mono ? "'Noto Sans Mono', monospace" : 'inherit',
-  }}>
-    {text}
-  </span>
-);
-
-const Fact: React.FC<{ label: string; value: string; mono?: boolean; color?: string }> = ({ label, value, mono, color }) => (
-  <div>
-    <div style={{ fontSize: '10.5px', fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '3px' }}>
-      {label}
-    </div>
-    <div style={{
-      fontSize: '13px', color: color ?? T.textPrimary, wordBreak: 'break-all',
-      fontFamily: mono ? "'Noto Sans Mono', monospace" : 'inherit',
-    }}>
-      {value}
-    </div>
-  </div>
-);
 
 export default DataSourcesConfig;
