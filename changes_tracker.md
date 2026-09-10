@@ -1,0 +1,674 @@
+# Changes Tracker — pending production deployment
+
+Running log of every change made since **2026-09-09**, kept so the prod release can be
+reviewed as one set instead of reconstructed from git. Read top to bottom, then work the
+[Deployment checklist](#deployment-checklist).
+
+- **Branch:** `feat/ot-loop-ingestion`
+- **Target:** Marun on-prem (air-gapped — images move by file, see the migration runbook)
+- **Status legend:** ✅ done & verified · ⚠️ done, verification limited · ⬜ not started
+
+---
+
+## Summary — what a reviewer needs to know
+
+Three problems are addressed here, all found while diagnosing *"G0 passes but the fleet
+never produces a verdict"*:
+
+1. **The MODE map was inverted**, so every controlling loop was excluded on G1 and only
+   out-of-service loops were analysed. Root cause of the reported symptom. **Fixed by
+   configuration, not code** — plus code so it can never fail silently again (CHG-003).
+2. **The good-error band was a hardcoded 0.5 absolute EU**, making G3 unreachable for any
+   loop not scaled 0–100. Now a fraction of the declared PV span (CHG-004).
+3. Two ingestion changes committed earlier in the session (process-time `event_ts_ms`,
+   quality = OT's verdict) are on the branch but **not yet in prod** (CHG-001, CHG-002).
+
+Separately, a fourth defect found on **2026-09-10** while diagnosing the **/cpm/replay**
+page: every raw-slice trend read returned 500, because the historian asked IoTDB for exactly
+the one row count it refuses (CHG-009). Unrelated to the gate work and independently
+deployable.
+
+Fifth, also **2026-09-10**: **valve positioner feedback (VP)** is now carried end to end by
+default, and the `param_roles` config trap that could black out every loop from one save is
+closed (CHG-010). Ingestion-service only; the registry, Flink and the historian already
+handled VP.
+
+**Service rebuilds required:** `traverse-ingestion-service`, `cplm-api`, `historian-bff`, the
+**frontend**, and the **Flink jar** (the three CPLM jobs must be *cancelled and resubmitted* — a restart deploys
+nothing, see CHG-008). No database migration. One config edit per data source. The exact
+service list and the scripts to run are in [Release v3](#release-v3--what-to-build-and-run).
+
+### Verification status (2026-09-09)
+
+The whole set was built and run on a full local stack — infra, gateway, auth, asset-model,
+cplm-api, ingestion-service, frontend, Flink (10 jobs) — fed by the OT gateway simulator over
+the mosquitto OT-broker stand-in.
+
+| | Result |
+|---|---|
+| `test-ot-loop-ingestion-e2e.ps1` | **17 passed, 0 failed** (CHG-001/002/003 + CHG-007) |
+| CHG-004 band discrimination | **proven** on the clean production jar — see the table in CHG-004 |
+| CHG-006 registry round trip | **proven** against the live API — see CHG-006 |
+| CHG-009 replay raw slice (2026-09-10) | **proven** on the live stack — full cursor walk returns IoTDB's own row count, see CHG-009 |
+| CHG-010 VP end to end (2026-09-10) | `test-ot-loop-ingestion-e2e.ps1` **23 passed, 0 failed** on the rebuilt image (17 prior + 6 VP/overlay steps); ingestion unit tests **134/134** (was 115) |
+| Frontend | built, deployed, and the served `LoopRegistry` chunk carries the new UI |
+| Automated regression tests | ingestion-service only (134). The Flink suite still does not compile (Risks) |
+
+---
+
+## CHG-001 ✅ `event_ts_ms` carries OT process time
+
+**Commit:** `9612db4` · **Service:** ingestion-service
+
+`LoopJoiner` stamped tuples with the grid boundary from the *ingestion server's* wall clock.
+It now uses the newest OT source timestamp among the tuple's members, and adds
+`ingest_ts_ms` so lag and gateway clock drift stay measurable.
+
+- A tick where no member advanced is **skipped, not re-stamped** — a repeated `event_ts_ms`
+  would overwrite the previous row in IoTDB, which keys by device+timestamp.
+- New metric `ingestion_loop_ticks_skipped_total`.
+
+**Behaviour change downstream (no code):** Flink event time and IoTDB row timestamps become
+process time. After an outage longer than the 2-minute watermark, backlog is dropped as late
+— replay it through the IoTDB + recompute door, never the live topic.
+
+**Verified:** 115/115 unit tests; live stream showed 0/40 messages on a grid boundary
+(was 40/40), median source→ingest lag ~500 ms.
+
+---
+
+## CHG-002 ✅ Quality is OT's verdict only
+
+**Commit:** `b0a4d98` · **Service:** ingestion-service
+
+Tuple quality = worst-of the OT quality tags on pv/sp/op. The `stale_after_seconds` ageing
+rule is removed entirely (config key, validation and joiner logic), because a setpoint
+untouched for an hour is *unchanged*, not untrustworthy — and only the source may call a
+value bad.
+
+A stored `stale_after_seconds` in any existing config is now ignored — no migration needed.
+Silence is still not mistaken for good data: a gateway that stops publishing advances no
+timestamp, so the loop emits nothing (CHG-001's skip rule) rather than republishing
+forward-filled values as GOOD.
+
+**Verified:** 115/115 unit tests; live stream all `GOOD` with 4-day-old setpoints, which the
+old 30 s rule would have marked `BAD`.
+
+---
+
+## CHG-003 ✅ MODE map: correct values, and never fail silently again
+
+**Service:** ingestion-service · **Files:** `Pipeline/ModeVocabulary.cs` (new),
+`Pipeline/OtLoopSubscriber.cs`, `Pipeline/OtIngestionHostService.cs`,
+`Pipeline/IngestionMetrics.cs`
+
+**The production problem.** `mode_value_map` was configured `{"4":"AUT","3":"CAS","2":"MAN"}`
+— a guess, marked *"pending OT confirmation"*. The SME-confirmed CENTUM enum is
+**1=AUT, 2=MAN, 3=CAS, 4=MAN IMAN**. So `1` (the only controlling mode, 12 of 21 loops in the
+snapshot) was unmapped, passed through raw as `"1"`, failed the engine's auto vocabulary and
+was counted **not-auto** → **G1 excluded every real loop**, while `4` — idle, SP = OP = 0 —
+was labelled AUT and analysed. G0 stayed green throughout, which is why nothing looked wrong.
+
+**Config change (do this first — no redeploy needed):**
+
+```json
+"mode_value_map": { "1": "AUT", "2": "MAN", "3": "CAS", "4": "IMAN" }
+```
+
+Use those exact tokens: the engine tests set membership (manual first, then auto) before its
+substring fallback, and `AUT`/`MAN`/`CAS`/`IMAN` are all exact members. `3=CAS` **must** be
+mapped — a cascade slave counts as auto, and leaving it out repeats the same silent exclusion
+on a different subset. Saving changes the config fingerprint; the subscriber restarts itself
+within 30 s.
+
+**Code so this cannot recur silently:**
+
+- `ModeVocabulary` mirrors the engine's auto/manual token sets.
+- Per-value warning + `ingestion_mode_unrecognised_total` when a MODE the engine cannot
+  classify is about to be published, naming the loop and the offending value.
+- Startup warning when a `MQTT_LOOP_SAMPLES` source has an **empty** `mode_value_map`.
+
+**Verified:** builds clean; 115/115 unit tests. Confirmed live: with the corrected map every
+loop on `traverse.cpa.loop.samples.v1` carries `mode=AUT` and the CPLM jobs produce verdicts
+for them; E2E 17/17. The unrecognised-value warning path is still not exercised (it needs a
+deliberately bad map).
+
+---
+
+## CHG-004 ✅ Good-error band scales with the PV span
+
+**Services:** Flink jar (all four CPLM jobs) + cplm-api
+**Files:** `CplmLoopDynamicsProfile.java`, `CplmDynamicsParameterSetSupport.java`,
+`CplmGateEngine.java`, `cplm-api/Services/CpmLoopRegistryService.cs`
+
+`goodErrorPct` counted `|SP−PV| ≤ 0.5` in **absolute EU, hardcoded** — 0.5 % of span on a
+0–100 loop, 0.05 % on a 0–1000 t/h flow, 50 % on a 0–1 fraction. Measured on HDPE: **0 of 6
+temperature loops** inside the band (profile requires 50 % of samples), 3 of 6 level loops.
+G3 was therefore unreachable for whole equipment classes, and OCE ≡ 0 with it.
+
+The band is now `goodErrorBandPctOfSpan × (pvEngMax − pvEngMin)`, defaulting to
+`0.005 × (100 − 0) = 0.5` — **byte-for-byte the old behaviour for any loop that declares no
+PV range.** A declared range makes it proportional; an unusable range falls back to 0.5
+rather than to zero (a zero band would silently WARN every loop).
+
+- `CpmEngineeringRange` gains `PvMin`/`PvMax`, stored in `cpm.loop_registry.engineering`
+  alongside `opMin`/`opMax` and broadcast on `cplm.loop.engineering` as `pvEngMin`/`pvEngMax`.
+- The two evidence-publish sites (single + batch) were duplicate literals and are now one
+  `EngineeringParameter()` helper — that duplication is exactly how one of them would have
+  missed the new field.
+- `goodErrorBandPctOfSpan` is overridable per loop/class through the existing parameter-set
+  spine, so tuning it needs no code change.
+
+**No loop declares a PV range yet, so this is inert until ranges are populated.** Entry is now
+possible from the wizard, the CSV import or the API — see CHG-006. Rolling it out is a data
+task, not a deploy task.
+
+**Verified live (2026-09-09, full lab stack).** Three loops fed byte-identical PV/SP/OP/MODE
+with |SP−PV| pinned at 2.0 EU, differing only in what they declare:
+
+| loop | declares | band | `good_error_pct` | G3 |
+|---|---|---|---|---|
+| `ZZBAND_WIDE` | PV 0–100000 | 500.0 | **1.00** | **PASS** |
+| `ZZBAND_NONE` | nothing | 0.5 | 0.00 | WARN |
+| `ZZBAND_OPRNG` | OP 0–1 only | 0.5 | 0.00 | WARN |
+
+`mae` was 2.00 on all three, so the only variable is the declared span. `ZZBAND_NONE` confirms
+the undeclared case is unchanged, and `ZZBAND_OPRNG` confirms the merge is per-key: declaring
+an OP range leaves the PV band alone. That loop also re-proved the OP half — OP fed at 0.5 on a
+declared 0–1 range gave `saturation_pct 0.00`, i.e. it normalised to 50 % instead of reading as
+pinned at the low limit.
+
+**⚠️ Still not covered by an automated test** — see [Risks](#risks--pre-existing-issues). The
+proof above is a manual lab run, not a regression test.
+
+---
+
+## CHG-006 ✅ Engineering ranges are enterable (closes the CHG-004 UI gap)
+
+**Services:** cplm-api (read path) + frontend
+**Files:** `cplm-api/Services/CpmLoopRegistryService.cs`, `frontend-ob/src/api/cpmApi.ts`,
+`components/Cpm/AddLoopWizard.tsx`, `components/Cpm/csvImport.ts`,
+`components/Cpm/BulkImportDialog.tsx`
+
+CHG-004 shipped the mechanism but nothing could fill it: `CpmActivateRequest` had no
+`engineering` field, so neither the wizard nor the CSV import could carry a range, and
+`CpmLoopDto` did not return one — the wizard could not show or change a range it had never
+been told about. Both holes are closed.
+
+*Correction to an earlier draft of this entry:* an edit round-trip did **not** silently drop a
+stored range. CHG-004's upsert is `COALESCE(@engineering::jsonb, …existing)`, and a live
+round-trip confirms an omitted range is preserved. The real consequence of that same COALESCE
+is the opposite one, and it is a genuine limitation: **a declared range cannot be cleared**
+through the wizard or the API. Blanking the fields omits them, and omission means "keep".
+Clearing one today needs a direct SQL update. Worth an explicit "clear ranges" affordance if
+anyone asks for it; not a blocker, since a wrong range is corrected by overwriting it.
+
+- **Read path:** `CpmLoopDto` gains `Engineering`, hydrated from `cpm.loop_registry.engineering`
+  in both DTO SELECTs. Null when nothing is declared, so "absent" survives the round trip as
+  absent rather than becoming a zero the engine would read as a real bound.
+- **Wizard** (Classification step): PV min/max and OP min/max, prefilled in edit mode, with
+  copy explaining that PV range scales the G3/OCE band and OP range feeds G10/G2r. Non-numeric
+  input blocks Next; a **half-declared range is flagged** because the API defaults the missing
+  bound (0 / 100) and would invent a span nobody wrote down. The Review step shows the ranges,
+  or "not declared (PV band stays ±0.5 EU)".
+- **CSV import:** four optional columns `pv_min, pv_max, op_min, op_max`, parsed to declared
+  bounds only, with the same non-numeric error and half-declared warning per row. The
+  downloadable template demonstrates both (row 1 PV-only, row 2 both).
+
+**Verified live (2026-09-09):** against the running stack — `POST /loops/activate` with an
+`engineering` block persists only the declared bounds to `cpm.loop_registry.engineering`;
+`GET /loops` and `GET /loops/{id}` both return them; a wizard-shaped edit round-trip preserves
+them; a loop declaring nothing stores `{}`, returns `null`, and emits **no**
+`cplm.loop.engineering` parameter at all, so the engine keeps its 0.5 EU default. A
+half-declared range (`pvMax` only) broadcasts `{"pvEngMin":0,"pvEngMax":500}` — the API really
+does invent the missing bound, which is exactly what the wizard's half-declared warning and the
+CSV row warning exist to prevent.
+
+**Not verified:** the browser UI itself was not click-tested (no headless browser in this repo);
+the wizard and CSV paths are covered only by typecheck, lint and build.
+
+---
+
+## CHG-007 ✅ Test fixtures that were green on the broken config
+
+**Files:** `scripts/test-ot-loop-ingestion-e2e.ps1`, `ams-sims/sim_ot_gateway_mqtt.py`
+**Ships no runtime code** — test fixtures only, but they are why the MODE bug survived.
+
+Found while proving CHG-003 on the lab. The E2E created its data source with
+`mode_value_map = @{ '4' = 'AUT' }` — the same wrong map production was running — and then
+asserted `mode -eq 'AUT'`. **So the test passed green for exactly the reason the plant was
+broken.** It now creates the SME-confirmed map and says why in a comment.
+
+The simulator published `MODE = 4.0` unconditionally. Under the corrected map that is `IMAN`,
+i.e. manual, so every simulated loop is excluded at G1 and the CPLM chain downstream of
+ingestion proves nothing. `--mode` now selects the value, defaulting to `1` (AUT) so the feed
+lands in the analysed path; pass `--mode 4` to exercise the exclusion path deliberately.
+
+Two more fixture defects surfaced in the same run and are fixed here:
+
+- **The first gateway call of every run failed.** `$GatewayBase` defaulted to `localhost`,
+  which resolves to `::1` first; PS 5.1's `Invoke-RestMethod` blocks on the IPv6 attempt for
+  the full `-TimeoutSec` before falling back, so check 1 timed out while `curl` answered the
+  same URL in 0.75 s. Later calls reuse the fallen-back stack, which is why exactly one check
+  failed. Defaults are now `127.0.0.1`.
+- **The `FIC99999` parking probe was a race.** The sim published the unregistered sentinel at
+  `t=0` and then not again for 300 s, but the subscriber needs up to 30 s to connect — so the
+  only probe was lost and the check failed on timing, not behaviour. The sim now sends one
+  extra probe at `t=45 s`, leaving the 300 s steady rate (and the DLQ-flood protection it
+  exists for) untouched.
+
+**Verified:** after the fix every loop on `traverse.cpa.loop.samples.v1` carries `mode=AUT`,
+`quality=GOOD`, and the CPLM jobs produce gate verdicts for them.
+
+---
+
+## CHG-008 ⚠️ Deployment traps found while deploying this change set
+
+Not code — two ways this release can appear to deploy and not deploy. Both bit during the
+lab run, and the first would have shipped **nothing** to prod while looking successful.
+
+**1. A Flink jar rebuild does not reach a running HA cluster.** The cluster runs
+`high-availability.type: zookeeper`. On restart the JobManager logs
+`Recovered JobGraph(jobId: …)` and resumes the *previously submitted* JobGraph **and its jar
+blob** — the new jar sitting in `/opt/flink/usrlib` is never read. Rebuilding the image and
+running `compose up -d` therefore changes nothing, silently. Proof: with the new jar deployed
+and byte-verified in `usrlib`, a diagnostic print added to the engine never appeared, and the
+band stayed at the old value; after `PATCH /jobs/<id>?mode=cancel` on the CPLM jobs followed by
+`compose up flink-job-submit-cplm`, the same build printed immediately and the band changed.
+
+> **Deploying the Flink half means: cancel the CPLM jobs, then resubmit.** Restarting the
+> cluster is not a deployment step. Verify by checking each job's start time moved.
+
+**2. `-DskipTests` cannot build this repo's Flink jar.** It skips test *execution*, not test
+*compilation*, and the pre-existing `CplmLoopDynamicsAwareTest` compile failure still fails the
+build — after `clean` has already deleted the previous jar. Use **`-Dmaven.test.skip=true`**.
+`scripts/build-flink-jar.ps1` and the migration runbook should be checked against this before
+the release, or the first person to run the documented command is left with no jar at all.
+
+**Also seen (lab only, but nothing prevents it in prod):** two `MQTT_LOOP_SAMPLES` data sources
+were active on overlapping topic filters. Both subscribers emitted a tuple per loop per tick
+with the **same** `event_ts_ms` and *different* `mode` (one config carried the old map). IoTDB
+keys on device+timestamp, so it keeps one of the two arbitrarily. Nothing warns about the
+overlap. Deactivating the stale config resolved it; worth a duplicate-subscription guard.
+
+---
+
+## CHG-009 ✅ Replay raw-slice reads asked IoTDB for the one row count it refuses
+
+**Service:** historian-bff (+ one frontend comment) · **Found:** 2026-09-10
+
+`GET /api/hist/raw/cursor` returned **500 on every Evidence Replay raw-slice read**. Not an
+outage — "the service is currently unavailable" is only how the frontend renders a 500.
+IoTDB was refusing the query itself:
+
+```
+IoTDB query failed (code 708): Dataset row size exceeded the given max row size (10000)
+SQL: SELECT pv,sp,op FROM root.site1.cpm.FIC10301 ... ORDER BY time ASC LIMIT 10000
+```
+
+IoTDB REST v2 rejects a result set that **reaches** `rest_query_default_row_size_limit`
+(default 10 000), not one that exceeds it. Confirmed against the live engine: `LIMIT 9999`
+returns data; `LIMIT 10000` **and** `LIMIT 10001` both return code 708.
+
+historian-bff clamped `maxCount` to exactly `10_000`, and `CpmReplay.tsx` asked for exactly
+that figure — its comment asserted *"10 000 is the server's cap"*. So every replay read
+landed on the single forbidden value. `880b271` raised it 5 000 → 10 000 and walked it onto
+the boundary; P2-22's fail-loud check then surfaced it honestly as a 500 instead of a silently
+empty chart.
+
+**Fix** — one named ceiling, `IoTDbClient.MaxRowsPerQuery` = `IoTDB:RestRowSizeLimit - 1`
+(configurable, default 9 999). Both raw SQL builders and the `/raw/cursor` endpoint derive
+from it, so the cap the API advertises is always one IoTDB will actually serve.
+
+- The **endpoint** clamp had to move together with the builder clamp, not just the builder:
+  `nextCursor` is derived from `points.Count == maxCount`. A builder capped at 9 999 under an
+  endpoint still advertising 10 000 makes that equality unreachable — `nextCursor` comes back
+  `null` and the cursor walk silently declares itself complete partway through the window.
+  That is quiet data loss on an evidence screen, worse than the 500 it replaces.
+- `/raw` (clamped to 500) and `/trend` (GROUP BY, ≤ `width` rows) could never reach the
+  boundary; their builders were corrected anyway so no future caller can.
+
+**Verified** on the live stack against a rebuilt image:
+
+| | Result |
+|---|---|
+| The original failing URL | **HTTP 200** — 9 999 points, `hasMore=true`, non-null `nextCursor` |
+| Full cursor walk | 9 999 + 7 223 = **17 222 rows = IoTDB's own `count(pv)`** — contiguous, no gap, no overlap |
+| `/raw`, `/trend`, `/health` | 200 · zero `code 708` since restart |
+| Build · `tsc --noEmit` · eslint | clean |
+
+**Server-side fix — no frontend rebuild required** for it to take effect. The `.tsx` edit is a
+comment only (it removed the stale "10 000 is the server's cap" claim that invited the bug)
+and rides along with CHG-006's frontend rebuild.
+
+**Known limitation, deliberately not changed:** replay still renders only the first page —
+**9 999 of 17 222 samples, 58 % of a 24 h window** — behind an honest truncation note. The
+backend's cursor paging was built for exactly this (Phase 6.5), but its only consumer never
+uses it: `useRawWindow` passes `cursor: undefined` and never follows `nextCursor`. Two pages
+would cover the window. Fixing the 500 is the bug; wiring the pager is a feature, so it is
+left as a separate decision.
+
+---
+
+## CHG-010 ✅ Valve positioner (VP) end to end, and the `param_roles` trap closed
+
+**Service:** ingestion-service · **Found:** 2026-09-10 · **Files:** `Models/LoopIngestConfig.cs`,
+`Services/DataSourceValidation.cs`, `Pipeline/SubscriberStatusRegistry.cs`,
+`Pipeline/OtIngestionHostService.cs`; fixtures `ams-sims/sim_ot_gateway_mqtt.py`,
+`scripts/fixtures/hdpe-pilot-loops.csv`, `scripts/test-ot-loop-ingestion-e2e.ps1`;
+tests `tests/ingestion-service.Tests/*`.
+
+**What was already there.** `vp` is a first-class optional tuple member: the joiner carries it
+without gating emission (`LoopJoiner.cs`), the registry accepts the `VP` signal role, mirrors it
+into `tags.vp`, clears `NO_VP` and reports readiness `tag_vp` (`CpmLoopRegistryService.cs`,
+`CpmReadinessController.cs`), `RawLoopIotDbConsumer` persists it as the `vp` measurement, and
+Flink parses it (`CplmNormalizedSample.java:73`) so G14 becomes `CONFIRMED_CAPABLE` and the
+0.89 confidence cap lifts (`CplmGateFusionEngine.java:231-237`). **None of those changed.**
+
+**The gap.** The built-in `param_roles` map had no `VP` entry, so an OT `VP` leaf parked as
+`UNKNOWN_PARAMETER` — safe and visible, but valve diagnostics never arrived.
+
+**The trap.** `param_roles` *replaced* the built-in map. The natural edit, `{"VP":"vp"}`,
+un-mapped `PV/SP/OP/MODE`; every loop on the source produced **0 tuples** with four parked
+leaves (verified live before this change). On the plant that is the whole fleet going dark
+from one config save, with G0 green.
+
+**Changes (all ingestion-service):**
+
+- Built-in map gains `VP → vp`. An OT `VP` leaf flows with **no config edit**.
+- `param_roles` now **overlays** the built-ins (`LoopIngestConfig.EffectiveParamRoles`): an
+  entry adds or re-points one leaf, a `null`/blank value removes a built-in entry (the only
+  way to drop an alias, e.g. `{"MV": null}`), and everything unnamed stays.
+- Validation refuses (`400`, field `loop_ingest.param_roles`) any **effective** map with no
+  source parameter for `pv`, `sp`, `op` or `mode`, naming the role. Aliases count — un-mapping
+  `SP` alone still leaves `SV → sp`. `ingest_ts_ms` (CHG-001) joins the reserved tuple fields.
+- The effective map is **observable**: `GET /api/ingestion/stats` returns it as `paramRoles`
+  and the subscriber logs it at start. Live, from this run:
+  `effective param_roles D→d, GW→gw, I→i, MODE→mode, MV→op, OP→op, P→p, PV→pv, SP→sp, SV→sp, VP→vp`
+  and after the overlay PUT: the same list plus `POS→vp`.
+
+**Deliberately unchanged:** VP quality stays outside the tuple's GOOD/BAD verdict (worst-of
+pv/sp/op), so a flaky positioner costs the loop its valve diagnostics, not its analysis; a loop
+publishing no VP carries **no `vp` key** (never `0`), so `NO_VP` stays honest.
+
+**No database migration.** `cpm.loop_tag_map.signal_role` already admits `VP` (script 32), and
+because stored maps are now overlaid, every prod `param_roles` — full, partial or absent — is
+forward-compatible as it sits. **No change** to cplm-api, Flink, historian or frontend.
+
+**Verified (2026-09-10, full lab stack, rebuilt `traverse-ingestion-service`):**
+
+| | Result |
+|---|---|
+| Unit tests (`tests/ingestion-service.Tests`) | **134/134** — 19 new: VP default, overlay/un-map/round-trip, guard per role, joiner VP ts + bad-VP-quality |
+| `test-ot-loop-ingestion-e2e.ps1` | **23 passed, 0 failed** (~15 min; the 17 prior steps unchanged) |
+| VP on the tuple, no `param_roles` configured | FIC10302 tuple carries numeric `vp` tracking `op`; `quality GOOD` |
+| Loop without a positioner | FIC10405 tuple has **no `vp` key** |
+| Parking | no `UNKNOWN_PARAMETER` row for `…\|VP` |
+| IoTDB | `count(vp)` on `root.site1.cpm.FIC10302` > 0 |
+| Registry | FIC10302 (fixture `vp_ot_tag`) → `tag_vp` ok, no `NO_VP`; FIC10405 still `NO_VP` |
+| Overlay | PUT `param_roles {POS:vp}` → subscriber restarted (`startedAt` moved), `/stats.paramRoles` = built-ins + `POS`, FIC10302 tuples still `mode AUT`, `quality GOOD`, `vp` present |
+| Guard | PUT `param_roles {PV:null}` → **400** naming `loop_ingest.param_roles` and `'pv'`; running map untouched |
+
+**Not verified here:** the Flink G14 flip. `hasVp` is computed only in
+`computeLongDiagnostics` and G14 is stamped by the fusion engine from the long window, so it is
+not observable inside a 16-minute lab run; it was seen live on the probe loop before this
+change and the Flink code path is untouched. The Flink suite still does not compile (Risks).
+
+**Fixtures:** the sim publishes positioner feedback for `--vp-loops` (default `FIC10302`) under
+`--vp-item` (default `VP`; use `POS` to rehearse an overlay); the pilot fixture maps
+`FIC10302.VP`. Test-only: `Read-TupleFor` helper, steps 5b (VP present / absent / not parked)
+and 11 (overlay / 400). Docs: runbook 10 §2b rewritten, mapping 09 §2 gains the `VP` row,
+calculation reference §0 names the overlay rule.
+
+**Two things still to confirm with OT** (config, not code): the exact leaf name (`VP` needs
+nothing; anything else is one overlay entry), and that it is positioner **feedback**, not a
+second copy of the output demand — G14 compares the two.
+
+---
+
+## CHG-011 ✅ Plant engineering ranges loaded (171 loops from the CPA workbook)
+
+**Services:** none rebuilt — data + tooling only
+**Files:** `scripts/cpm-01-onboard-missing-loops.sql` (new),
+`scripts/cpm-02-load-engineering-ranges.sql` (new),
+`scripts/fixtures/cpa-missing-loops.csv` (new), `scripts/import-cpm-loops.ps1`
+
+CHG-004/006 built the mechanism; this is the data that makes it do anything.
+`Loops Data for CPA.xlsx` supplies `pvMin/pvMax` (sheet *SH&SL Final*, long format) and
+`opMin/opMax` (sheet *Loop Parameters*, wide format) for **171 loops** — both sheets cover the
+identical set, all four bounds on every row, no duplicates, every span positive.
+
+**Onboarding gap closed first.** 15 workbook rows had no registered loop; none of them were in
+`hdpe-all-loops.csv` and none exist in the asset model, so they were never part of the plant
+onboarding set. 14 are now registered from `cpa-missing-loops.csv`. `loop_type` mirrors the
+engine's own `inferFromTag` so the registry row and the dynamics profile agree — FQIC/FC→`FIC`,
+PDIC→`PIC`, and AIC/IIC/NIC→`UNKNOWN` (that pack has `priorGeometry 0.0`, so geometry-based
+diagnosis stays off for those four until a class is assigned).
+
+They sit at **`hdpe/unassigned/unassigned`** — a real node in the plant tree, not a guess. The
+tag number does not predict the unit (27 of 33 digit prefixes map to more than one), so a
+derived placement would have been an invention. Move them with the registry wizard once the
+plant confirms each one. OT tag columns are blank on purpose: they only record `sourceTag`
+metadata, and ingestion resolves by `loop_id` = the OT topic's loop level, so data flows
+without them.
+
+**`import-cpm-loops.ps1` now carries `pv_min`/`pv_max`.** It predated CHG-004 and could only
+write the OP half, so a sheet with PV ranges would have silently dropped them. Half-declared
+ranges warn, non-numeric values are a row error.
+
+**Two pgAdmin-ready scripts, run in order** (no psql meta-commands — reports go to the
+Messages tab via `RAISE NOTICE`, the final grid is the verification):
+
+1. `cpm-01-onboard-missing-loops.sql` — writes `cpm.loop_registry` (14) and `cpm.loop_tag_map`
+   (56 = 14 × 4 roles). **Verified byte-identical to what `POST /loops/activate` writes**: the
+   API-produced rows were captured, deleted, recreated by the script, and diffed — no
+   difference in either table.
+2. `cpm-02-load-engineering-ranges.sql` — merges all 171 ranges with `||`, so other keys
+   survive.
+
+Both touch only loops that exist, never create one outside their own set, are idempotent, and
+are transactional — swap the final `COMMIT` for `ROLLBACK` and every report still prints. The
+CSV + `import-cpm-loops.ps1` path remains as the API-based alternative where prod access allows
+it.
+
+**What SQL alone cannot do, and the one call that fixes it.** An activate also writes
+`cpm.loop_signal_asset` *and* the matching assets in the **traverse_assets** database — a
+cross-database projection — then broadcasts to Kafka. A script against `traverse_cplm` reaches
+neither, so the loops would exist with no UNS signals and Flink would never hear of them.
+`POST /api/v1/cpm/loops/{loopId}/republish-evidence` does both (the endpoint is explicitly the
+backfill path for loops onboarded without projection). **Verified on a fully cleared loop: 5
+signal-asset rows — PV, SP, OP, MODE and DEVICE.**
+
+**Verified on a live database, run in sequence from a cleared state:** script 1 inserts 14 + 56;
+script 2 stages 171, skips 1 (`TIC30206OLD`), and leaves **170 loops carrying all four bounds**.
+Re-running both changes nothing (`INSERT 0 0`, `UPDATE 0`).
+
+**⚠️ One decision outstanding.** The workbook's `TIC30206OLD` has no registered loop, while
+`TIC30206` is registered *and* modelled at `hdpe/section_100/u1001_polymerization_reactor_1`.
+Same digits, "OLD" suffix — almost certainly the superseded name of the same instrument, but
+merging tags is a plant call, so the row is skipped rather than guessed. `TIC30206` has no
+ranges until this is settled.
+
+**⚠️ Two OP ranges need DCS confirmation before prod.** `normalizeOp` is applied
+unconditionally, so a wrong range is worse than none: `TIC10704` declares OP **3..5** and
+`TIC30304` declares **100..155**. If either signal actually arrives as 0-100 %, an OP of 50
+normalises to 2350 % / −91 %, G10 reads permanently saturated and G2r invalidates the window —
+which **blocks the diagnosis**. Report 4 flags both. The wide ranges (0..300, 0..140) are the
+benign direction this feature exists for.
+
+**Not a uniform loosening.** Once the 14 are registered the split is **57 tighter / 59 looser /
+54 unchanged** against today's flat 0.5 EU band — the tightest being 0.005 EU on `PIC80150`
+(PV 0–1). Expect some G3 PASS → WARN; that is the fix working, not a regression.
+
+**Resolves a standing risk:** `LIC10601` declares OP 0–300, so the "OP = 235.58 %, an OT-side
+data question" in [Risks](#risks--pre-existing-issues) was never a data error — that loop's
+output range genuinely is 0–300, and loading it fixes its saturation and G2r readings.
+
+**Deployment note:** the SQL does not reach the engine. Flink reads these from the
+`cplm.loop.engineering` broadcast that cplm-api emits on activate/republish, and nothing
+re-reads the table — so `POST /api/v1/cpm/loops/{loopId}/republish-evidence` per updated loop
+is required, or the load looks like a no-op. Cancelling the Flink jobs is **not** needed; this
+is data, not code.
+
+---
+
+## CHG-005 ✅ Documentation & diagnostics
+
+- `docs/cpm-calculation-reference.md` — widened from the four Flink jobs to the whole CPA
+  chain: new **§0 ingestion layer** (incl. a per-gate table of what ingestion must deliver
+  and how each gate fails when it doesn't), **§9 cplm-api derived values**, **§10 historical
+  replay**, review flags 23–26. Review flags renumbered §9 → §11.
+- `docs/ot-data-integration/10-ot-loop-ingestion-runbook.md` — §2 now carries the
+  SME-confirmed MODE table, the exact-token reasoning and the "don't leave 3 unmapped"
+  warning; open question #1 marked resolved.
+- `scripts/diagnose-gate-failures.sql` (new) — six queries answering *which* gate is failing
+  and why. Gate statuses live only inside `payload->'gates'`, so this digs into the JSONB.
+- **Release tooling (CHG-008 follow-through):** `scripts/build-flink-jar.ps1` and
+  `migration/deploy/build-prod-images.py` built the jar with `-DskipTests`, which cannot build
+  this repo (CHG-008 §2); both now use `-Dmaven.test.skip=true`. New
+  `migration/deploy/build-release.py` + manifest `migration/deploy/releases/v3.txt` — see
+  [Release v3](#release-v3--what-to-build-and-run). `migration/UPDATE-RUNBOOK.md` §2 and
+  `migration/deploy/README.md` point at it.
+
+---
+
+## Deployment checklist
+
+Order matters: the config fix alone unblocks the fleet, so do it first and confirm before
+shipping binaries.
+
+1. ⬜ **Apply the MODE map** on each `MQTT_LOOP_SAMPLES` data source
+   (`{"1":"AUT","2":"MAN","3":"CAS","4":"IMAN"}`). No deploy. Confirm within ~1 minute:
+   `scripts/diagnose-gate-failures.sql` query 3 — `avg_auto_pct` should rise off zero.
+2. ⬜ **Confirm verdicts appear**: query 2 — G1 should stop being the universal failure, and
+   G12–G15 should stop being `—`. Expect real diagnoses on the loops already flagging G8/G5.
+3. ⬜ **Rebuild + deploy `traverse-ingestion-service`** (CHG-001/002/003/010).
+   After it comes up, confirm the effective map in the log
+   (`effective param_roles … VP→vp`) or `GET /api/ingestion/stats` → `paramRoles.VP == "vp"`.
+   If a prod data source carries an explicit `param_roles`, leave it: it is now an overlay and
+   VP comes from the built-ins. No `param_roles` edit is needed for VP.
+   Beware the compose rename: prod may still run a container created as `ingestion-service`
+   while compose now declares `traverse-ingestion-service`; if `compose up` reports a name
+   conflict, `docker rm -f traverse-ingestion-service` first (~30 s ingestion pause, QoS-1
+   persistent session covers it).
+4. ⬜ **Rebuild + deploy `cplm-api`** (CHG-004 API half).
+5. ⬜ **Build and deploy the Flink jar** (CHG-004 engine half). Inert until PV ranges are
+   declared, so it can follow at a quieter moment — but do it in this exact order, because a
+   restart alone deploys nothing (CHG-008):
+   1. `mvn -B -Dmaven.test.skip=true package` — **not** `-DskipTests`, which fails after
+      `clean` has removed the old jar.
+   2. Rebuild the `ams-flink` image so `/opt/flink/usrlib` carries the new jar.
+   3. **Cancel** the three CPLM jobs (`PATCH /jobs/<id>?mode=cancel`) and wait for CANCELED.
+   4. Resubmit (`compose up flink-job-submit-cplm`), then confirm each job's start time moved.
+6. ⬜ **Investigate the four `INSUFFICIENT DATA` loops** (FIC10403/10404/10501/10503) — a
+   data-cadence question, not a gate one.
+7. ⬜ **Rebuild + deploy the frontend** (CHG-006 UI half).
+8. ⬜ **Rebuild + deploy `historian-bff`** (CHG-009). Independent of every step above and of
+   the frontend — it unblocks the Evidence Replay raw-slice trends on its own. Confirm a
+   replay raw read answers 200 rather than 500:
+   `GET /api/hist/raw/cursor?series=root.site1.cpm.<loop>&start=…&end=…&maxCount=10000&measurements=pv,sp,op`
+   → `count: 9999`, `hasMore: true`, non-null `nextCursor`.
+9. ⬜ **Onboard the 14 unregistered CPA loops** (CHG-011) — `cpm-01-onboard-missing-loops.sql`
+   in pgAdmin against `traverse_cplm`. They park at `hdpe/unassigned/unassigned`; relocate each
+   once the plant confirms its unit.
+10. ⬜ **Load the engineering ranges** (CHG-011) — `cpm-02-load-engineering-ranges.sql`. Run
+    once with `COMMIT` changed to `ROLLBACK` and read the Messages tab first: confirm
+    `TIC10704` (OP 3..5) and `TIC30304` (OP 100..155) against the DCS. A wrong OP range blocks
+    the diagnosis outright — worse than leaving it undeclared.
+11. ⬜ **Republish evidence** for every touched loop
+    (`POST /api/v1/cpm/loops/{loopId}/republish-evidence`) — **mandatory, not optional**: it is
+    the only thing that projects the 14 loops' signal assets into the UNS tree *and* tells Flink
+    any of the ranges exist. Without it both scripts are invisible to the engine.
+    Then confirm `good_error_pct` moves on one loop from report 4 before trusting the fleet.
+    Expect G3 to move PASS → WARN on some loops: 52 get a *tighter* band than today.
+12. ⬜ *(when OT wires positioner feedback — data task)* Map each loop's `VP` role (wizard
+    "Valve position", worksheet `vp_ot_tag`, or the `tags` array). Ingestion needs nothing if
+    the leaf is `VP`; otherwise one overlay entry per data source, e.g.
+    `"param_roles": { "POS": "vp" }` — **never** resend the whole map, and never `null` a
+    primary (`PV/SP/OP/MODE`) — the API refuses it with 400. Confirm with
+    `unknown-sources` (no `UNKNOWN_PARAMETER … |VP`) and a tuple carrying `vp` on
+    `traverse.cpa.loop.samples.v1`. G14 flips to `CONFIRMED_CAPABLE` on the next long window.
+
+**Rollback:** every code change is additive and defaults to prior behaviour — CHG-004
+reproduces the old constant exactly when no PV range is declared, CHG-003 only adds
+warnings, and CHG-010 only widens the built-in map and turns a fleet-blackout save into a 400. The one behavioural change that cannot be reverted by config is CHG-001's
+process-time stamping; reverting it means redeploying the previous ingestion image.
+CHG-009 only lowers a request cap by one row — reverting it simply restores the 500.
+
+---
+
+## Release v3 — what to build and run
+
+Prod runs **v2** (the `b0a4d98` ingestion image and older everything else). v3 is this whole
+tracker. Nothing here needs a schema change, so `migration/schema/*` and steps 00–05 are
+untouched.
+
+**Updated services (build these, nothing else):**
+
+| Compose service | Image | Carries |
+|---|---|---|
+| `traverse-ingestion-service` | `ams-cpa-traverse-ingestion-service` | CHG-001, 002, 003, **010** |
+| `cplm-api` | `ams-cpa-cplm-api` | CHG-004 (API half), 006 (read path) |
+| `historian-bff` | `ams-cpa-historian-bff` | CHG-009 |
+| `flink-jobmanager` (+ taskmanager, same image) | `ams-flink:1.0-SNAPSHOT` + the JAR file | CHG-004 (engine half) |
+| `ams-frontend` | `ams-cpa-ams-frontend` | CHG-006 (UI half), CHG-009 comment |
+
+Unchanged and **not** rebuilt: gateway, auth, asset-model, binding-resolver, audit-service,
+sparkplug-edge-node, ams-api.
+
+**Scripts to run — build box (in this order):**
+
+```powershell
+# 0. commit first: bundles ship `git archive HEAD` (UPDATE-RUNBOOK rule 2)
+git status --short                                             # must be empty
+
+# 1. prove the change set on the lab before building anything for the plant
+dotnet test tests/ingestion-service.Tests                      # 134/134
+.\scripts\test-ot-loop-ingestion-e2e.ps1                       # 23/23, ~15 min, needs run-all.ps1 stack
+
+# 2. build + verify + save exactly the v3 set (jar with -Dmaven.test.skip=true, PROD
+#    fingerprints, one .tar.gz per image written by Python, SHA256SUMS, VM-STEPS.md)
+python migration/deploy/build-release.py --release v3 --dry-run   # read the plan
+python migration/deploy/build-release.py --release v3             # → release-out/v3-<date>/
+```
+
+The manifest is `migration/deploy/releases/v3.txt`; `--only <service>` narrows a re-run.
+
+**Scripts to run — plant VM:** the generated `release-out/v3-<date>/VM-STEPS.md`, which is
+UPDATE-RUNBOOK §1 for each image plus the Flink special case, in order: `sha256sum -c`,
+rollback point, `docker load` ×5, copy the JAR, `docker rm -f` the Flink JM/TM,
+`deploy.sh --prod`, then **cancel + resubmit the three CPLM jobs** (CHG-008 §1), then
+`deploy.sh --prod` again for the remaining containers. Do the
+[Deployment checklist](#deployment-checklist) config steps 1–2 **before** any of it.
+
+**Post-deploy proof (VM):** `scripts/diagnose-gate-failures.sql` queries 2–3 (G1 no longer
+universal, `avg_auto_pct` off zero), the CHG-009 cursor URL answering 200/9999/`hasMore`, and
+`/api/ingestion/stats` showing `paramRoles.VP == "vp"` on every `MQTT_LOOP_SAMPLES` source.
+
+---
+
+## Risks & pre-existing issues
+
+- **The CPLM Flink test suite does not compile** — `CplmLoopDynamicsAwareTest.java:304,312`
+  references `CplmGateFusionStreamJob.GateFusionCoProcess`, which exists nowhere in main
+  sources. Verified pre-existing: the identical failure reproduces on a **clean tree** with
+  my changes stashed. Consequence: **no engine change — including CHG-004 — is covered by
+  automated tests today.** Worth fixing before the next engine change, and the reason CHG-004
+  is marked ⚠️ rather than ✅.
+- **G3 stays WARN on temperature loops until PV ranges are declared.** Expected, not a
+  regression: CHG-004 only supplies the mechanism.
+- ~~**`LIC10601` reports OP = 235.58 %**~~ — **resolved by CHG-011**: the loop's declared OP
+  range is 0–300, so this was never bad data. Loading the range fixes saturation and G2r.
+- **Evidence Replay shows 58 % of a 24 h window** (first page only, 9 999 of ~17 222 samples),
+  labelled by a truncation note. Pre-existing and documented in the code; CHG-009 fixed the
+  500 that hid it, and did not change the paging. See CHG-009.
+- **Numeric `quality` is still ignored** (`OtPayloadParser` reads the field only when it is a
+  JSON string, defaulting to `GOOD`). Harmless while the gateway sends `"GOOD"`; a silent
+  integrity risk if it ever sends OPC integers. Deliberately deferred — see review flag 24.
+- **G14 / VP is proven to Kafka + IoTDB, not through Flink.** The G14 flip lives on the
+  long-diagnostics window, so no lab run under an hour can show it and the Flink suite cannot
+  run. The Flink VP path is unchanged code; first proof on the plant is the first long window
+  after a loop with a mapped, published VP.
+- **Evidence Replay does not draw `vp`** (`CpmReplay.tsx` asks the historian for `pv,sp,op`).
+  The rows are there (`count(vp)` > 0). A one-line measurement-list change plus a series;
+  left out of CHG-010 because it is a UI feature, not part of the data path.

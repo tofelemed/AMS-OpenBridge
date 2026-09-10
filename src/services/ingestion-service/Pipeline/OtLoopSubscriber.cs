@@ -198,6 +198,19 @@ public sealed class OtLoopSubscriber : IAsyncDisposable
             return;
         }
 
+        // A MODE the engine cannot read is not an error anywhere — it is simply
+        // counted not-auto, and G1 then excludes every window of the loop while G0
+        // stays green. Say so here, or the whole fleet goes dark in silence.
+        if (mapped!.Role == "mode" && !ModeVocabulary.IsRecognised(mapped.ModeString))
+        {
+            IngestionMetrics.ModeUnrecognised(Name);
+            RateLimitedLog($"mode-unrecognised-{mapped.ModeString}", LogLevel.Warning,
+                "[{Name}] MODE '{Mode}' (loop {Loop}) is not in the engine's vocabulary — " +
+                "it will count as NOT auto and G1 will exclude this loop. Add it to " +
+                "profile_config.loop_ingest.mode_value_map (e.g. 1=AUT, 2=MAN, 3=CAS, 4=IMAN).",
+                Name, mapped.ModeString ?? "(null)", loop.LoopId);
+        }
+
         IngestionMetrics.SourceLatency(nowMs - payload.TsMs);
         _joiner.Accept(loop, id.Fcs, mapped!, payload, _settings, nowMs);
     }

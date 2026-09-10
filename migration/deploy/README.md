@@ -47,10 +47,14 @@ Pull (optional, no start): `bash migration/deploy/pull-images.sh`
 Do not build on the VM. See [OFFLINE_DEPLOYMENT_GUIDE.md](../OFFLINE_DEPLOYMENT_GUIDE.md).
 
 ```text
-# internet box
+# internet box — first install (every image, one bundle)
 python migration/deploy/build-prod-images.py
 python migration/deploy/build-prod-images.py --verify-only
 python migration/deploy/save-offline-bundle.py
+
+# internet box — a named release onto a running plant (only the services in releases/<name>.txt)
+python migration/deploy/build-release.py --release v3 --dry-run
+python migration/deploy/build-release.py --release v3          # build + verify + save + VM-STEPS.md
 
 # VM after docker load
 bash migration/deploy/deploy.sh --prod --no-build

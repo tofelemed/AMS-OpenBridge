@@ -127,6 +127,23 @@ public sealed class OtIngestionHostService : BackgroundService
             return;
         }
         var settings = (profile.LoopIngest ?? new LoopIngestConfig()).Resolve();
+        status.ParamRoles = settings.ParamRoles;
+        _logger.LogInformation(
+            "Subscriber '{Name}': effective param_roles {Map}",
+            row.Name,
+            string.Join(", ", settings.ParamRoles
+                .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(kv => $"{kv.Key}→{kv.Value}")));
+
+        // An empty map means every numeric DCS mode reaches the engine raw, fails its
+        // vocabulary, and G1 excludes the loop — with no error anywhere. Announce it at
+        // startup; per-value detail follows from the subscriber as data arrives.
+        if (settings.ModeValueMap.Count == 0)
+            _logger.LogWarning(
+                "Subscriber '{Name}': profile_config.loop_ingest.mode_value_map is EMPTY. " +
+                "A numeric DCS MODE will reach the engine unmapped, count as NOT auto, and " +
+                "G1 will exclude every loop on this source. CENTUM: 1=AUT, 2=MAN, 3=CAS, 4=IMAN.",
+                row.Name);
 
         var subscriber = new OtLoopSubscriber(row, password, settings, topics,
             profile.Mqtt?.Qos ?? 1, _registryClient, _sink, _inventory, _unknownRepo, _repo,

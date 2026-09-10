@@ -153,6 +153,44 @@ public class LoopJoinerTests
     }
 
     [Fact]
+    public void Vp_rides_the_tuple_and_advances_event_ts()
+    {
+        var j = new LoopJoiner();
+        Feed(j, "pv", 1, T0); Feed(j, "sp", 2, T0); Feed(j, "op", 3, T0);
+        Feed(j, "vp", 39.277, T0 + 700);                 // positioner feedback arrives last
+        var t = Assert.Single(j.Tick(T0 + 5_000, Cfg));
+        Assert.Equal(39.277, t.Vp);
+        Assert.Equal(T0 + 700, t.EventTsMs);             // vp is a member: its ts counts
+        using var doc = JsonDocument.Parse(t.ToJson());
+        Assert.Equal(39.277, doc.RootElement.GetProperty("vp").GetDouble());
+    }
+
+    [Fact]
+    public void Vp_alone_advancing_emits_a_fresh_tuple()
+    {
+        var j = new LoopJoiner();
+        Feed(j, "pv", 1, T0); Feed(j, "sp", 2, T0); Feed(j, "op", 3, T0); Feed(j, "vp", 40, T0);
+        Assert.Single(j.Tick(T0 + 5_000, Cfg));
+        Feed(j, "vp", 41, T0 + 6_000);                   // only the positioner moved
+        var t = Assert.Single(j.Tick(T0 + 10_000, Cfg));
+        Assert.Equal(41, t.Vp);
+        Assert.Equal(T0 + 6_000, t.EventTsMs);
+    }
+
+    [Fact]
+    public void Bad_vp_quality_does_not_invalidate_the_tuple()
+    {
+        // Deliberate: quality is worst-of pv/sp/op ONLY. A flaky positioner signal
+        // must cost the loop its valve diagnostics, not its whole analysis.
+        var j = new LoopJoiner();
+        Feed(j, "pv", 1, T0); Feed(j, "sp", 2, T0); Feed(j, "op", 3, T0);
+        Feed(j, "vp", 40, T0, "BAD");
+        var t = Assert.Single(j.Tick(T0 + 5_000, Cfg));
+        Assert.Equal("GOOD", t.Quality);
+        Assert.Equal(40, t.Vp);                          // still carried, the engine sees it
+    }
+
+    [Fact]
     public void Two_loops_tick_independently()
     {
         var loop2 = Loop with { LoopId = "TIC10101", LoopType = "TIC" };

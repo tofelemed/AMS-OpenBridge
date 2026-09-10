@@ -120,7 +120,13 @@ public static partial class DataSourceValidation
     /// <summary>Reserved names on the tuple wire — extension roles may not shadow them
     /// (docs/ot-data-integration/09 §4: contract fields + enrichment extensions).</summary>
     private static readonly HashSet<string> ReservedTupleFields = new(StringComparer.Ordinal)
-    { "loop_id", "event_ts_ms", "quality", "loop_type", "site", "area", "unit", "asset_uuid", "source_fcs" };
+    { "loop_id", "event_ts_ms", "ingest_ts_ms", "quality", "loop_type", "site", "area", "unit", "asset_uuid", "source_fcs" };
+
+    /// <summary>Roles the pipeline cannot run without. No source for pv/sp/op means no
+    /// loop ever emits a tuple; no source for mode means every tuple is stamped
+    /// UNKNOWN and G1 excludes every loop. Either way the fleet goes dark from one
+    /// config save, with G0 green — so it is refused at save time instead.</summary>
+    private static readonly string[] RequiredRoles = { "pv", "sp", "op", "mode" };
 
     public static (string Error, string Field)? ValidateLoopIngest(ProfileConfig? profileConfig)
     {
@@ -148,13 +154,26 @@ public static partial class DataSourceValidation
         {
             foreach (var (param, role) in li.ParamRoles)
             {
-                if (string.IsNullOrWhiteSpace(param) || string.IsNullOrWhiteSpace(role))
-                    return ("param_roles entries must be non-blank", "loop_ingest.param_roles");
+                if (string.IsNullOrWhiteSpace(param))
+                    return ("param_roles keys must be non-blank", "loop_ingest.param_roles");
+                // A null/blank VALUE is the explicit un-map of a built-in entry (the map
+                // overlays the defaults) — legal, checked below against the effective map.
+                if (string.IsNullOrWhiteSpace(role)) continue;
                 var r = role.Trim();
                 if (ReservedTupleFields.Contains(r))
                     return ($"role '{r}' shadows a tuple contract field", "loop_ingest.param_roles");
                 if (!r.All(c => char.IsAsciiLetterLower(c) || char.IsAsciiDigit(c) || c == '_'))
                     return ($"role '{r}' must be lowercase [a-z0-9_]", "loop_ingest.param_roles");
+            }
+
+            var effective = LoopIngestConfig.EffectiveParamRoles(li.ParamRoles);
+            foreach (var required in RequiredRoles)
+            {
+                if (effective.Values.Any(v => v == required)) continue;
+                return ($"param_roles leaves no source parameter mapped to '{required}' — " +
+                        "every loop on this source would stop being analysed. Map a leaf to it " +
+                        "(the built-in map is overlaid, not replaced; a null value removes an entry).",
+                        "loop_ingest.param_roles");
             }
         }
         return null;

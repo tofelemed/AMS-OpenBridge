@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Bulk-onboards control loops into the CPM registry from a loop worksheet,
     through the API gateway (POST /api/v1/cpm/loops/bulk-activate).
@@ -10,7 +10,7 @@
     Worksheet columns (docs/plant-model/README.md):
       loop_id,display_name,site,area,unit,loop_type,criticality,
       pv_ot_tag,sp_ot_tag,op_ot_tag,mode_ot_tag,vp_ot_tag,
-      op_min,op_max,enable_monitoring,profile
+      op_min,op_max,pv_min,pv_max,enable_monitoring,profile
 
     UNS signal paths are derived by convention: {site}/[{area}/]{unit}/{loop_id_lower}.{role}
     (mirrors the UI's deriveSignalPath). Activation validates the location
@@ -102,10 +102,26 @@ foreach ($r in $rows) {
     if ($area) { $loop.area = $area }
     if ($unit) { $loop.unit = $unit }
     if (("$($r.profile)").Trim()) { $loop.thresholdProfileId = ("$($r.profile)").Trim() }
-    $opMin = 0.0; $opMax = 0.0
+    # Engineering ranges. Only a bound the sheet actually declares is sent: an
+    # omitted one must stay omitted, because the API defaults the missing half
+    # (0 / 100) and would invent a span nobody wrote down.
+    #   op_min/op_max -> normalizeOp, rescales OP before G2r/G4/G9/G10
+    #   pv_min/pv_max -> goodErrorBand = 0.5% of span, drives G3 and OCE
     $eng = @{}
-    if ([double]::TryParse("$($r.op_min)", [ref]$opMin)) { $eng.opMin = $opMin }
-    if ([double]::TryParse("$($r.op_max)", [ref]$opMax)) { $eng.opMax = $opMax }
+    foreach ($m in @(
+        @{ col = 'op_min'; key = 'opMin' }, @{ col = 'op_max'; key = 'opMax' },
+        @{ col = 'pv_min'; key = 'pvMin' }, @{ col = 'pv_max'; key = 'pvMax' })) {
+        $raw = "$($r.($m.col))".Trim()
+        if (-not $raw) { continue }
+        $val = 0.0
+        if ([double]::TryParse($raw, [ref]$val)) { $eng[$m.key] = $val }
+        else { $rowErrors += "line ${line} ($loopId): $($m.col) is not a number ('$raw')" }
+    }
+    foreach ($pair in @(@('pvMin','pvMax','PV'), @('opMin','opMax','OP'))) {
+        if ($eng.ContainsKey($pair[0]) -ne $eng.ContainsKey($pair[1])) {
+            Write-Warning "${loopId}: $($pair[2]) range is half-declared - the API defaults the missing bound (min 0, max 100), inventing a span. Give both or neither."
+        }
+    }
     if ($eng.Count -gt 0) { $loop.engineering = $eng }
 
     $loops += $loop

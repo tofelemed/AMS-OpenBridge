@@ -106,6 +106,31 @@ public final class CplmLoopDynamicsProfile implements Serializable {
     public double opEngMin = 0.0;
     public double opEngMax = 100.0;
 
+    // The PV engineering range, same mechanism and same discipline as the OP range
+    // above. It exists because goodErrorPct counted |SP-PV| against a HARDCODED 0.5
+    // absolute EU: on a 0-100 % loop that is 0.5 % of span, but on a 0-1000 t/h flow
+    // it is 0.05 % and G3 could never pass, while on a 0-1 fraction it is 50 % and G3
+    // could never fail. The band is now a FRACTION OF SPAN, and the 0-100 default
+    // reproduces the old constant exactly (0.005 * 100 = 0.5), so an undeclared loop
+    // is byte-for-byte unchanged.
+    public double pvEngMin = 0.0;
+    public double pvEngMax = 100.0;
+    /** Half-width of the "good error" band as a fraction of PV span (0.005 = 0.5 %). */
+    public double goodErrorBandPctOfSpan = 0.005;
+
+    /**
+     * Absolute EU half-width of the good-error band for this loop. Falls back to the
+     * historical 0.5 when the declared span is unusable, so a bad range degrades to
+     * the old behaviour rather than to zero (a zero band would make goodErrorPct 0
+     * and silently WARN every loop).
+     */
+    public double goodErrorBand() {
+        double span = pvEngMax - pvEngMin;
+        if (span <= 1e-12 || Double.isNaN(span) || Double.isInfinite(span)) return 0.5;
+        double band = goodErrorBandPctOfSpan * span;
+        return band > 1e-12 ? band : 0.5;
+    }
+
     /** Normalize one OP sample to 0-100 % of the declared engineering range. */
     public double normalizeOp(double op) {
         double span = opEngMax - opEngMin;
@@ -146,6 +171,9 @@ public final class CplmLoopDynamicsProfile implements Serializable {
         p.integrating = integrating;
         p.opEngMin = opEngMin;
         p.opEngMax = opEngMax;
+        p.pvEngMin = pvEngMin;
+        p.pvEngMax = pvEngMax;
+        p.goodErrorBandPctOfSpan = goodErrorBandPctOfSpan;
         p.geometryFamilyEnabled = geometryFamilyEnabled;
         p.pvFilterType = pvFilterType;
         p.pvFilterWindow = pvFilterWindow;

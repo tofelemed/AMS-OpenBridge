@@ -118,9 +118,12 @@ export const CpmReplay: React.FC = () => {
   const series = loopId ? loopSeries(loopId) : undefined;
   const winStart = selected?.windowStart ? new Date(selected.windowStart) : undefined;
   const winEnd = selected?.windowEnd ? new Date(selected.windowEnd) : undefined;
-  // 10 000 is the server's cap (historian-bff clamps there) — the old 5 000
-  // halved the evidence for free. Still one page: a 24h window on this lab's
-  // 2.67 s grid holds ~32k samples, so the truncation note below stays honest.
+  // Ask for a big page and let the historian clamp to whatever it can actually
+  // serve. Do NOT hardcode the ceiling here: it is IoTDB's REST row limit MINUS
+  // ONE (that engine rejects a result set which reaches the limit), and pinning
+  // this line to the round 10 000 is exactly how every replay read became a 500.
+  // Still one page: a 24h window on this lab's grid holds far more than a page,
+  // so the truncation note below stays honest.
   const raw = useRawWindow(series, winStart, winEnd, 'pv,sp,op', 10_000);
   const points = useMemo(() => raw.data?.points ?? [], [raw.data]);
 

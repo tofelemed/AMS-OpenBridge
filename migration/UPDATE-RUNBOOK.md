@@ -104,6 +104,14 @@ are idempotent). Tokens expire in 1 h — `echo ${#TOKEN}` before any loop.
 extract the new source tarball over `/opt/AMS-open` (`migration/.env` is not in the
 archive and survives), `docker load`, `deploy.sh --prod`. Steps 00–05 are idempotent.
 
+**Release of a named change set (v3+):** `python migration/deploy/build-release.py --release v3`
+on the build box does §1 for every service in `migration/deploy/releases/v3.txt` in one go —
+clean-tree and not-on-the-VM guards, the Flink JAR with the right Maven flag (CHG-008 §2),
+PROD-fingerprint verify, one `.tar.gz` per image written by Python (rule 5), the JAR beside
+them, `SHA256SUMS.txt`, and a generated `VM-STEPS.md` that includes the CPLM cancel + resubmit
+(CHG-008 §1). `--dry-run` prints the plan; `--only <service>` narrows it. The VM half stays
+manual and is in that file. Which services and why: `changes_tracker.md` → "Release v3".
+
 ---
 
 ## 3. Rollback

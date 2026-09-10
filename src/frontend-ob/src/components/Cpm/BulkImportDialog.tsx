@@ -85,11 +85,12 @@ export const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => vo
 
   const downloadTemplate = () => {
     // Two rows on purpose: the first leaves the signal columns blank (paths are
-    // derived from site/area/unit + tag), the second overrides them explicitly.
+    // derived from site/area/unit + tag) and declares only a PV range; the second
+    // spells the paths out and declares both ranges.
     const sample = [
       CSV_HEADERS.join(','),
-      '45FIC-109,Hydrogen recycle flow,houston,,crude1,FIC,high,,,,,,',
-      'TIC20501,Reactor bed temperature,houston,,crude1,TIC,medium,houston/crude1/tic20501.pv,houston/crude1/tic20501.sp,houston/crude1/tic20501.op,houston/crude1/tic20501.mode,houston/crude1/tic20501.vp,',
+      '45FIC-109,Hydrogen recycle flow,houston,,crude1,FIC,high,,,,,,,0,1200,,',
+      'TIC20501,Reactor bed temperature,houston,,crude1,TIC,medium,houston/crude1/tic20501.pv,houston/crude1/tic20501.sp,houston/crude1/tic20501.op,houston/crude1/tic20501.mode,houston/crude1/tic20501.vp,,0,250,0,100',
     ].join('\n');
     const blob = new Blob([sample], { type: 'text/csv' });
     const a = document.createElement('a');
@@ -124,6 +125,7 @@ export const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => vo
         .map(role => ({ signalRole: role.toUpperCase(), unsPath: row.paths[role].path })) as CpmTagMapEntry[],
       thresholdProfileId: row.values['profile'] || null,
       enableMonitoring: true,
+      engineering: row.engineering,
       allowUnmodelledLocation: allowUnmodelled,
     }));
 

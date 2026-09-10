@@ -1,5 +1,5 @@
 loop_id,display_name,site,area,unit,loop_type,criticality,pv_ot_tag,sp_ot_tag,op_ot_tag,mode_ot_tag,vp_ot_tag,op_min,op_max,enable_monitoring,profile
-FIC10302,Reactor feed flow,hdpe,section_100,u1001_polymerization_reactor_1,FIC,high,FIC10302.PV,FIC10302.SP,FIC10302.OP,FIC10302.MODE,,0,100,true,
+FIC10302,Reactor feed flow,hdpe,section_100,u1001_polymerization_reactor_1,FIC,high,FIC10302.PV,FIC10302.SP,FIC10302.OP,FIC10302.MODE,FIC10302.VP,0,100,true,
 FIC10405,Hexane feed flow,hdpe,section_100,u1001_polymerization_reactor_1,FIC,medium,FIC10405.PV,FIC10405.SP,FIC10405.OP,FIC10405.MODE,,0,100,true,
 PIC10201,Reactor pressure,hdpe,section_100,u1002_polymerization_ii_reactor_2,PIC,high,PIC10201.PV,PIC10201.SP,PIC10201.OP,PIC10201.MODE,,0,100,true,
 TIC10101,Reactor temperature,hdpe,section_100,u1001_polymerization_reactor_1,TIC,medium,TIC10101.PV,TIC10101.SP,TIC10101.OP,TIC10101.MODE,,0,100,true,

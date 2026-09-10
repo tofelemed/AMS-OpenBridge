@@ -18,6 +18,21 @@ public sealed class IoTDbClient(HttpClient http, IConfiguration cfg)
         Encoding.UTF8.GetBytes(
             $"{cfg["IoTDB:User"] ?? "root"}:{cfg["IoTDB:Password"] ?? "root"}"));
 
+    /// <summary>
+    /// Largest row count a single REST read may ask for.
+    ///
+    /// IoTDB REST v2 refuses a result set that REACHES
+    /// rest_query_default_row_size_limit (default 10 000) rather than one that
+    /// exceeds it, answering `code 708: Dataset row size exceeded the given max
+    /// row size`. So the largest satisfiable LIMIT is one BELOW that boundary:
+    /// asking for exactly the documented maximum is an error, not a full page.
+    /// Every row cap in this service derives from here so the value the API
+    /// advertises is always a value IoTDB will actually serve.
+    /// Set IoTDB:RestRowSizeLimit to match the server if that config is retuned.
+    /// </summary>
+    public int MaxRowsPerQuery { get; } =
+        Math.Max(1, cfg.GetValue("IoTDB:RestRowSizeLimit", 10_000) - 1);
+
     /// <summary>Executes a raw SQL query against IoTDB REST v2.</summary>
     public async Task<JsonElement> QueryAsync(string sql, CancellationToken ct = default)
     {
@@ -126,7 +141,7 @@ public sealed class IoTDbClient(HttpClient http, IConfiguration cfg)
     {
         long startMs = start.ToUnixTimeMilliseconds();
         long endMs   = end.ToUnixTimeMilliseconds();
-        int limit    = Math.Clamp(maxCount, 1, 10_000);
+        int limit    = Math.Clamp(maxCount, 1, MaxRowsPerQuery);
         int skip     = Math.Max(0, offset);
 
         string cols = string.IsNullOrWhiteSpace(measurements)
@@ -152,7 +167,7 @@ public sealed class IoTDbClient(HttpClient http, IConfiguration cfg)
     {
         long startMs = start.ToUnixTimeMilliseconds();
         long endMs   = end.ToUnixTimeMilliseconds();
-        int limit    = Math.Clamp(maxCount, 1, 10_000);
+        int limit    = Math.Clamp(maxCount, 1, MaxRowsPerQuery);
 
         string cols = string.IsNullOrWhiteSpace(measurements)
             ? "severity, state, ack_status, condition_name, source_name, priority"

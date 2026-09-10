@@ -28,13 +28,14 @@ Identity mismatch (`=` rows) ⇒ DLQ, reasons `LOOP_IDENTITY_MISMATCH` / `PARAME
 | `SP` / `SV` | SETPOINT | `sp` | required member — `SV` is the Yokogawa name (the plant's loop export uses it; broker screenshots showed `SP`; both accepted by default) |
 | `OP` / `MV` | OUTPUT | `op` | required member — `MV` is the Yokogawa name (same duality) |
 | `MODE` | CONTROLLER_MODE | `mode` | numeric on the wire (`4.0`) → `mode_value_map` config → engine vocabulary (`AUT`, `CAS`, `MAN`…); unmapped ⇒ raw string + counter |
+| `VP` | VALVE_POSITION | `vp` | **optional** member (CHG-010, on by default): positioner feedback for G14; never gates emission, not part of the GOOD/BAD verdict; absent from the tuple (not 0) when the loop publishes none |
 | `P` | extension (tuning) | `p` | semantics unconfirmed (likely proportional band %) — carried opaque |
 | `I` | extension (tuning) | `i` | likely integral time s — carried opaque |
 | `D` | extension (tuning) | `d` | likely derivative time s — carried opaque |
 | `GW` | extension (tuning) | `gw` | **unresolved** (candidate: Yokogawa gap width) — carried opaque |
 | anything else | — | — | DLQ `UNKNOWN_PARAMETER` + inventory |
 
-There is no VP in this feed → valve diagnostics report `INSUFFICIENT_EVIDENCE`, overall confidence capped at 0.89 (engine behavior, by design). If the site later wires positioner feedback, map it to role `vp` in config — no code change.
+The HDPE feed publishes no VP today → valve diagnostics report `INSUFFICIENT_EVIDENCE`, overall confidence capped at 0.89 (engine behavior, by design). When the site wires positioner feedback under the leaf `VP` it flows with **no config change**; under any other leaf name, add one overlay entry (`"POS": "vp"`) — `param_roles` overlays the built-in map, it does not replace it (runbook 10 §2b).
 
 ## 3. Payload fields
 

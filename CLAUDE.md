@@ -122,3 +122,9 @@ These are settled decisions (`MIGRATION_LOG.md` "Recorded Decisions", `src/Unifi
 
 
 400-500 lines of code maximun in file for maintainability and easy to debug and use
+
+
+
+we are in prod. we have deployed v2. noe we are upadting application and we must have to add changes - migration , service update and all 
+
+in the end changes_tracker.md mention list updated services , script to run for v3 

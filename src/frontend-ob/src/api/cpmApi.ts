@@ -36,6 +36,8 @@ export interface CpmLoop {
   links: CpmLoopLink[];
   stepTestApproved: boolean;
   thresholdProfileId: string | null;
+  /** Declared OP/PV ranges, null when the loop declares none. */
+  engineering?: CpmEngineeringRange | null;
 }
 
 export interface CpmTagMapEntry {
@@ -43,6 +45,24 @@ export interface CpmTagMapEntry {
   unsPath: string;
   sourceSystem?: string | null;
   sourceTag?: string | null;
+}
+
+/**
+ * Declared engineering ranges for the loop's signals. Both are optional and both
+ * change how gates are computed, so neither is cosmetic:
+ *  - OP range normalises the controller output to 0-100 before saturation (G10)
+ *    and operating-region (G2r) maths — a 0-1 valve fraction otherwise makes both
+ *    meaningless.
+ *  - PV range scales the "good error" band. Without it the band is a hardcoded
+ *    0.5 absolute EU, so G3 is unreachable on a 0-1000 t/h flow and trivial on a
+ *    0-1 fraction.
+ * Omit a bound to leave it undeclared; a zero would be read as a real bound.
+ */
+export interface CpmEngineeringRange {
+  opMin?: number | null;
+  opMax?: number | null;
+  pvMin?: number | null;
+  pvMax?: number | null;
 }
 
 export interface CpmActivateRequest {
@@ -58,6 +78,7 @@ export interface CpmActivateRequest {
   thresholdProfileId?: string | null;
   enableMonitoring?: boolean;
   stepTestApproved?: boolean;
+  engineering?: CpmEngineeringRange | null;
   /** G-07: cplm-api rejects a site/area/unit chain that is not in the asset
    *  model (422 LOCATION_NOT_IN_UNS) unless this explicit opt-out is set. */
   allowUnmodelledLocation?: boolean;

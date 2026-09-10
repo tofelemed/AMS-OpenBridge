@@ -186,7 +186,7 @@ app.MapGet("/raw/cursor", async (
     if (!IoTDbClient.IsValidMeasurements(measurements))
         return Results.BadRequest("'measurements' must be a comma-separated list of bare identifiers");
 
-    maxCount = Math.Clamp(maxCount <= 0 ? 1000 : maxCount, 1, 10_000);
+    maxCount = Math.Clamp(maxCount <= 0 ? 1000 : maxCount, 1, iotdb.MaxRowsPerQuery);
 
     var sql    = iotdb.BuildRawCursorSql(series, start, end, maxCount, cursor, measurements ?? "");
     var result = await iotdb.QueryAsync(sql, ct);

@@ -1,0 +1,15 @@
+# Release v3 — the change set in changes_tracker.md (CHG-001 … CHG-010).
+# One compose service per line; `#` comments and blank lines are ignored.
+# Consumed by: python migration/deploy/build-release.py --release v3
+#
+# Why each one is here:
+#   traverse-ingestion-service  CHG-001/002/003 + CHG-010 (VP by default, param_roles overlay + guard)
+#   cplm-api                    CHG-004 API half + CHG-006 read path
+#   historian-bff               CHG-009 (IoTDB row-size boundary)
+#   flink-jobmanager            CHG-004 engine half — the JAR; taskmanager shares the image
+#   ams-frontend                CHG-006 UI half (+ the CHG-009 comment)
+traverse-ingestion-service
+cplm-api
+historian-bff
+flink-jobmanager
+ams-frontend

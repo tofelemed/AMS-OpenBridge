@@ -14,6 +14,11 @@ import {
 export const CSV_HEADERS = [
   'tag', 'service', 'site', 'area', 'unit', 'loop_type', 'criticality',
   'pv_tag', 'sp_tag', 'op_tag', 'mode_tag', 'vp_tag', 'profile',
+  // Engineering ranges. Optional, but they change how gates compute: PV range
+  // scales the good-error band behind G3/OCE (undeclared it is a fixed +/-0.5 EU,
+  // unreachable for a loop in engineering units), OP range normalises the output
+  // to 0-100 before saturation (G10) and operating region (G2r).
+  'pv_min', 'pv_max', 'op_min', 'op_max',
 ] as const;
 
 /**
@@ -54,6 +59,8 @@ export interface CsvRow {
   loopType: string;
   criticality: string;
   paths: Record<SignalRole, { path: string; derived: boolean }>;
+  /** Declared bounds only — an omitted one must stay omitted, not become 0. */
+  engineering: Record<string, number> | null;
   problems: string[];
   warnings: string[];
   existing: boolean;
@@ -66,6 +73,18 @@ export interface CsvRow {
  * following column — and because the shifted row could still pass the
  * required-fields check, it ACTIVATED a loop with wrong tag paths.
  */
+/** pv_min -> pvMin, op_max -> opMax: the CSV is snake_case, the API camelCase. */
+const camelBound = (col: string): string =>
+  col.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+
+/** Blank -> undefined (undeclared); unparseable -> null (a row problem). */
+export function parseBound(text: string | undefined): number | null | undefined {
+  const t = (text ?? '').trim();
+  if (t === '') return undefined;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
+
 export function splitCsvLine(line: string): string[] {
   const cells: string[] = [];
   let cur = '';
@@ -180,7 +199,25 @@ export function parseCsv(
     }
     if (Object.values(paths).some(p => p.derived)) warnings.push('signal paths derived from location');
 
-    return { values, tag, location, loopType, criticality, paths, problems, warnings, existing: existingTags.has(tag) };
+    // Engineering ranges: only declared bounds ride along, and a half-declared
+    // pair is flagged because the API defaults the missing bound (0 / 100),
+    // inventing a span nobody wrote down.
+    const engineering: Record<string, number> = {};
+    for (const col of ['pv_min', 'pv_max', 'op_min', 'op_max'] as const) {
+      const bound = parseBound(values[col]);
+      if (bound === null) problems.push(`${col} '${values[col]}' is not a number`);
+      else if (bound !== undefined) engineering[camelBound(col)] = bound;
+    }
+    for (const [lo, hi, label] of [['pv_min', 'pv_max', 'PV'], ['op_min', 'op_max', 'OP']] as const) {
+      if ((values[lo] ?? '').trim() === '' !== ((values[hi] ?? '').trim() === ''))
+        warnings.push(`${label} range is half-declared — the missing bound defaults (0 / 100)`);
+    }
+
+    return {
+      values, tag, location, loopType, criticality, paths,
+      engineering: Object.keys(engineering).length > 0 ? engineering : null,
+      problems, warnings, existing: existingTags.has(tag),
+    };
   });
   return { missing, unknownColumns, rows };
 }

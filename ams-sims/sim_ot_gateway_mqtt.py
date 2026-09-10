@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """OT gateway stand-in: publishes the real HDPE hierarchy to the lab MQTT broker.
 
-Topic:   OT/HDPE/<FCS>/<class>/<loop>/PIDParams/<PARAM>   (8 params per loop)
+Topic:   OT/HDPE/<FCS>/<class>/<loop>/PIDParams/<PARAM>   (8 params per loop,
+         +1 positioner feedback leaf on the loops named by --vp-loops)
 Payload: the exact envelope observed on the production gateway
          (docs/ot-data-integration/08-ot-mqtt-loop-ingestion-assessment.md §1.3).
 
@@ -91,7 +92,22 @@ def main():
                     help="feed only the first N loops from --loops-csv (0 = all)")
     ap.add_argument("--no-unknown", action="store_true",
                     help="do not add the unregistered FIC99999 parking probe")
+    # CENTUM enum (SME-confirmed 2026-09-09): 1=AUT 2=MAN 3=CAS 4=MAN IMAN.
+    # Default 1 so the feed lands in the ANALYSED path — a sim pinned to 4 exercises
+    # ingestion but every loop is excluded at G1, so the CPLM chain proves nothing.
+    ap.add_argument("--mode", type=float, default=1.0,
+                    help="MODE value to publish (1=AUT 2=MAN 3=CAS 4=IMAN); default 1")
+    # Valve positioner feedback is OPTIONAL on the real plant — most loops have none.
+    # Publish it for a named subset so one run proves both paths: the loop with VP
+    # carries it on the tuple, the loop without it carries no vp key at all.
+    ap.add_argument("--vp-loops", default="FIC10302",
+                    help="loops that publish positioner feedback: comma list, 'all' or 'none' (default FIC10302)")
+    ap.add_argument("--vp-item", default="VP",
+                    help="leaf name for positioner feedback (default VP; use e.g. POS to rehearse a param_roles overlay)")
     args = ap.parse_args()
+    vp_all = args.vp_loops.strip().lower() == "all"
+    vp_loops = set() if args.vp_loops.strip().lower() in ("none", "") \
+        else {x.strip().upper() for x in args.vp_loops.split(",") if x.strip()}
 
     loops = load_loops_csv(args.loops_csv, include_unknown=not args.no_unknown, limit=args.limit) \
         if args.loops_csv \
@@ -114,19 +130,33 @@ def main():
     # negative path exercised without the noise.
     UNKNOWN_PERIOD_S = 300.0
     last_unknown = -UNKNOWN_PERIOD_S
+    # The t=0 probe is published before the subscriber has connected (it starts within
+    # ~30 s of the config being saved), so on its own the next evidence of the parking
+    # path is 5 minutes away and any test that checks sooner sees nothing. One extra
+    # early probe makes the negative path observable without changing the steady rate.
+    early_unknown_at = 45.0
+    early_unknown_sent = False
     try:
         while args.minutes <= 0 or time.time() - start < args.minutes * 60:
             t = time.time() - start
             send_tuning = t - last_tuning >= TUNING_PERIOD_S
             send_unknown = t - last_unknown >= UNKNOWN_PERIOD_S
-            if send_unknown:
+            if not send_unknown and not early_unknown_sent and t >= early_unknown_at:
+                send_unknown = True
+                early_unknown_sent = True
+            elif send_unknown:
                 last_unknown = t
             for fcs, cls, loop, base, sp in loops:
                 if loop == "FIC99999" and not send_unknown:
                     continue
                 pv = base + 2.0 * math.sin(t / 30.0) + random.gauss(0, 0.2)
                 op = 30.0 + 5.0 * math.sin(t / 45.0) + random.gauss(0, 0.5)
-                fast = {"PV": (pv, ""), "SP": (sp, ""), "OP": (op, "%"), "MODE": (4.0, "")}
+                fast = {"PV": (pv, ""), "SP": (sp, ""), "OP": (op, "%"), "MODE": (args.mode, "")}
+                if vp_all or loop.upper() in vp_loops:
+                    # Positioner feedback TRACKS the output demand with a small lag and
+                    # its own noise — G14 compares the two, so it must not be a copy of OP.
+                    vp = op - 0.8 + 0.4 * math.sin(t / 20.0) + random.gauss(0, 0.15)
+                    fast[args.vp_item] = (max(0.0, min(100.0, vp)), "%")
                 for item, (value, unit) in fast.items():
                     client.publish(f"OT/HDPE/{fcs}/{cls}/{loop}/PIDParams/{item}",
                                    envelope(fcs, cls, loop, item, value, unit), qos=1)

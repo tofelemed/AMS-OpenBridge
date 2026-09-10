@@ -21,7 +21,10 @@ if (Test-Path $jarOut -PathType Container) {
     Remove-Item -Recurse -Force $jarOut
 }
 
-$mvnGoals = if ($RunTests) { @("mvn", "-q", "package") } else { @("mvn", "-q", "package", "-DskipTests") }
+# -Dmaven.test.skip=true, NOT -DskipTests: the latter still COMPILES the tests, and the
+# pre-existing CplmLoopDynamicsAwareTest compile failure then fails the build after
+# `clean` has already deleted the previous jar (changes_tracker CHG-008 §2).
+$mvnGoals = if ($RunTests) { @("mvn", "-q", "package") } else { @("mvn", "-q", "package", "-Dmaven.test.skip=true") }
 Write-Host "[Flink] Building JAR via maven:3.9-eclipse-temurin-11 ($(if ($RunTests) { 'with tests' } else { 'tests skipped' }))..." -ForegroundColor Cyan
 docker run --rm `
     -v "${flinkDir}:/build" `

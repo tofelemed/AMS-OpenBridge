@@ -55,13 +55,15 @@ def ensure_flink_jar() -> None:
         return
     log("flink jar missing — mvn package (needs Maven Central)")
     rc = run(
-        ["mvn", "-f", str(REPO_ROOT / "src" / "flink" / "pom.xml"), "-q", "package", "-DskipTests"],
+        # -Dmaven.test.skip=true, not -DskipTests: the latter still compiles the tests and the
+        # pre-existing CplmLoopDynamicsAwareTest compile failure kills the build (CHG-008 §2).
+        ["mvn", "-f", str(REPO_ROOT / "src" / "flink" / "pom.xml"), "-q", "package", "-Dmaven.test.skip=true"],
         retries=2,
     )
     if rc != 0 or not FLINK_JAR.is_file():
         sys.stderr.write(
             "Flink JAR was not built. On the internet box run:\n"
-            "  mvn -f src/flink/pom.xml package -DskipTests\n"
+            "  mvn -f src/flink/pom.xml package -Dmaven.test.skip=true\n"
             "The VM must never mvn package.\n"
         )
         sys.exit(1)

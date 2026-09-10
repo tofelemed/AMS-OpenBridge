@@ -22,6 +22,9 @@ public sealed class SubscriberStatus
     public int RegistryLoops;
     public DateTimeOffset? RegistryRefreshedAt;
     public DateTimeOffset? LastMessageAt;
+    /// <summary>The parameter→role map this subscriber actually runs (built-ins +
+    /// overlay). Exposed so "is VP mapped?" is one GET away, not a log dive.</summary>
+    public IReadOnlyDictionary<string, string>? ParamRoles;
 
     public object Snapshot() => new
     {
@@ -40,6 +43,9 @@ public sealed class SubscriberStatus
         registryLoops = RegistryLoops,
         registryRefreshedAt = RegistryRefreshedAt,
         lastMessageAt = LastMessageAt,
+        paramRoles = ParamRoles?
+            .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(kv => kv.Key, kv => kv.Value),
     };
 }
 

@@ -356,3 +356,9 @@ backups/
 __pycache__/
 *.pyc
 __pycache__/
+
+# Release manifests for migration/deploy/build-release.py: the [Rr]eleases/ rule above is
+# the .NET build-output rule and must not swallow them. Built archives go to release-out/.
+!migration/deploy/releases/
+!migration/deploy/releases/*.txt
+/release-out/

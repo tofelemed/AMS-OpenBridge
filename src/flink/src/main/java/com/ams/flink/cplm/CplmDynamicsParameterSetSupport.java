@@ -130,6 +130,8 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
             if (n.isTextual()) n = MAPPER.readTree(n.asText());
             if (n.has("opEngMin")) p.opEngMin = n.path("opEngMin").asDouble(p.opEngMin);
             if (n.has("opEngMax")) p.opEngMax = n.path("opEngMax").asDouble(p.opEngMax);
+            if (n.has("pvEngMin")) p.pvEngMin = n.path("pvEngMin").asDouble(p.pvEngMin);
+            if (n.has("pvEngMax")) p.pvEngMax = n.path("pvEngMax").asDouble(p.pvEngMax);
         } catch (Exception ignored) {
             // a malformed range must never break gate evaluation
         }
@@ -200,6 +202,10 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
             if (root.has("integrating")) p.integrating = root.path("integrating").asBoolean(p.integrating);
             if (root.has("opEngMin")) p.opEngMin = root.path("opEngMin").asDouble(p.opEngMin);
             if (root.has("opEngMax")) p.opEngMax = root.path("opEngMax").asDouble(p.opEngMax);
+            if (root.has("pvEngMin")) p.pvEngMin = root.path("pvEngMin").asDouble(p.pvEngMin);
+            if (root.has("pvEngMax")) p.pvEngMax = root.path("pvEngMax").asDouble(p.pvEngMax);
+            if (root.has("goodErrorBandPctOfSpan"))
+                p.goodErrorBandPctOfSpan = root.path("goodErrorBandPctOfSpan").asDouble(p.goodErrorBandPctOfSpan);
             if (root.has("gateProfileId")) p.gateProfileId = root.path("gateProfileId").asText(p.gateProfileId);
             if (root.has("dynamicClass")) {
                 try {

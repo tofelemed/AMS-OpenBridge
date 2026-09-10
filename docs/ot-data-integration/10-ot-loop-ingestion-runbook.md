@@ -26,7 +26,7 @@ and set `profile_config.loop_ingest`:
 
 ```json
 "loop_ingest": {
-  "mode_value_map": { "4": "AUT", "3": "CAS", "2": "MAN" },   // pending OT confirmation!
+  "mode_value_map": { "1": "AUT", "2": "MAN", "3": "CAS", "4": "IMAN" },   // SME-confirmed, see §2
   "grid_seconds": 5,
   "registry_refresh_seconds": 60,
   "topic_template": "{ns}/{site}/{fcs}/{class}/{loop}/{group}/{param}"
@@ -37,6 +37,86 @@ Saving changes the config fingerprint → the subscriber restarts itself within 
 Unmapped mode values pass through as raw strings (visible in tuples) and hurt window
 eligibility — that is the signal the map is incomplete. **The real CENTUM enum must come
 from the OT team** (assessment §6 open question 1); do not guess.
+
+### MODE enum — SME-confirmed (2026-09-09)
+
+| MODE | CENTUM meaning | Map to | Engine reads it as | Loops analysed? |
+|---|---|---|---|---|
+| 1 | AUT | `AUT` | auto | yes |
+| 2 | MAN | `MAN` | manual | no — correctly excluded |
+| 3 | CAS | `CAS` | **auto** (a cascade slave is still under closed-loop control) | yes |
+| 4 | MAN IMAN (initialisation manual) | `IMAN` | manual | no — correctly excluded |
+
+```json
+"mode_value_map": { "1": "AUT", "2": "MAN", "3": "CAS", "4": "IMAN" }
+```
+
+Map to those **exact tokens**: `isAutoMode()` tests set membership (manual first, then auto)
+before falling back to a substring check, and `AUT`, `CAS`, `MAN` and `IMAN` are all exact
+members. Writing the SME's literal label `"MAN IMAN"` would also end up non-auto, but only by
+falling through every branch to the default — recognition is safer than luck.
+
+**Two values must not be left unmapped.** An unmapped value passes through raw (`"3"`), matches
+nothing, and is counted **not-auto**:
+
+- `3` unmapped ⇒ every cascade loop silently excluded from analysis.
+- `1` unmapped ⇒ every AUT loop excluded. This is what the plant was running: the previous map
+  guessed `4=AUT, 3=CAS, 2=MAN`, so `1` (12 of 21 loops in the snapshot, median |SP−PV| 0.755
+  with SP and OP always non-zero) was excluded, while `4` — idle, SP = OP = 0 — was labelled
+  AUT and analysed. G0 passed throughout because the data itself was healthy, which is why the
+  fleet produced no verdict while looking perfectly fed.
+
+A loop that never receives a MODE message at all is stamped `UNKNOWN` by the joiner, which the
+engine also treats as not-auto — so a missing MODE topic excludes the loop just as silently.
+
+## 2b. Valve positioner feedback (VP) — and adding any other parameter
+
+The pipeline carries `vp` as a first-class tuple member — optional, it does not gate
+emission, and the engine uses it for G14 (without it, valve diagnostics report
+`INSUFFICIENT_EVIDENCE` and overall confidence is capped at 0.89). **Since CHG-010 the
+built-in map already contains `VP → vp`**, so the day OT publishes a `VP` leaf it flows with
+no config change at all. What remains is per loop:
+
+1. Map the loop's `VP` signal role in the registry (wizard "Valve position", CSV `vp_tag` /
+   worksheet `vp_ot_tag`, or the `tags` array on activate). This clears the `NO_VP`
+   observability flag and turns readiness `tag_vp` green.
+2. Confirm with OT that the leaf **is the positioner feedback**, not a second copy of the
+   output demand — G14 compares the two.
+
+If OT's leaf is not literally `VP` (`POS`, `MV2`, …), add it to `param_roles` on the data
+source:
+
+```json
+"param_roles": { "POS": "vp" }
+```
+
+**`param_roles` OVERLAYS the built-in map** (CHG-010; before it the map was *replaced*, and
+this exact edit un-mapped `PV/SP/OP/MODE` and blacked out every loop on the source —
+verified live 2026-09-10, 0 tuples, four parked leaves). The rules now:
+
+- an entry **adds or re-points** one leaf; every built-in entry you do not name stays;
+- a **`null` (or blank) value removes** a built-in entry — the only way to drop one, e.g.
+  `{ "MV": null }` on a gateway whose `MV` is not the controller output;
+- a save that leaves **no source parameter for `pv`, `sp`, `op` or `mode`** is refused with
+  `400 loop_ingest.param_roles` naming the role — the "fleet goes dark from one config save"
+  outcome is no longer reachable (`SV`/`MV` count: un-mapping `SP` alone leaves `SV → sp`);
+- the **effective** map (built-ins + overlay) is on `GET /api/ingestion/stats` as
+  `paramRoles`, and logged when the subscriber starts — "is VP mapped?" is one GET, never a
+  log dive.
+
+Built-in map today: `PV→pv SP→sp OP→op MODE→mode VP→vp SV→sp MV→op P→p I→i D→d GW→gw`.
+`SV`/`MV` are the Yokogawa CENTUM aliases for setpoint/output. Anything mapped to a role
+other than `pv/sp/op/vp/mode` rides the tuple as a numeric extension field.
+
+A leaf the effective map does not know still parks as `UNKNOWN_PARAMETER` (raw message on
+the DLQ) while `pv/sp/op/mode` keep flowing — the loop stays analysed, just without valve
+diagnostics. VP quality is deliberately **not** part of the tuple's GOOD/BAD verdict, which
+is worst-of `pv`/`sp`/`op` only, so a faulty positioner signal cannot invalidate an
+otherwise healthy loop. A loop that publishes no VP carries **no `vp` key** on the tuple
+(never `0`), so the engine's `NO_VP` is honest.
+
+Lab proof: `scripts/test-ot-loop-ingestion-e2e.ps1` steps 5b and 11 (the sim publishes VP
+for `FIC10302` only — `--vp-loops`, `--vp-item` to rehearse another leaf name).
 
 ## 3. Reviewing unknown sources (the discovery workflow)
 
@@ -112,7 +192,8 @@ root.site1.cpm.<LOOP>`; CPM pages populate after ≥12 h of continuous samples.
 
 ## 9. Open OT-team questions (blocking full fidelity, not data flow)
 
-1. **CENTUM numeric MODE enum** → fills `mode_value_map` (§2).
+1. ~~**CENTUM numeric MODE enum**~~ — **resolved**,
+   answered by the SME 2026-09-09: 1=AUT, 2=MAN, 3=CAS, 4=MAN IMAN (see §2).
 2. **`GW` semantics** (candidate: gap width %) → until confirmed it rides tuples as an
    opaque `gw` extension field.
 3. Broker QoS/retained flags + our subscriber credentials on the production broker

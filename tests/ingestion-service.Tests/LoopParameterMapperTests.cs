@@ -19,6 +19,7 @@ public class LoopParameterMapperTests
     [InlineData("OP", "op", true)]
     [InlineData("SV", "sp", true)]   // Yokogawa alias: SV = setpoint
     [InlineData("MV", "op", true)]   // Yokogawa alias: MV = controller output
+    [InlineData("VP", "vp", true)]   // positioner feedback — optional tuple member, on by default
     [InlineData("P", "p", false)]
     [InlineData("I", "i", false)]
     [InlineData("D", "d", false)]

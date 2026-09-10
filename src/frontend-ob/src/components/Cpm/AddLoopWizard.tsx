@@ -32,6 +32,31 @@ interface WizardState {
   loopType: string; criticality: string;
   pv: string; sp: string; op: string; mode: string; vp: string;
   thresholdProfileId: string; enableMonitoring: boolean;
+  // Engineering ranges, held as strings so "not declared" stays distinguishable
+  // from 0 — the API treats an omitted bound as undeclared and a 0 as a real one.
+  pvMin: string; pvMax: string; opMin: string; opMax: string;
+}
+
+/** Blank stays blank: an undeclared bound must not round-trip as "0". */
+const numText = (v: number | null | undefined): string =>
+  v === null || v === undefined ? '' : String(v);
+
+/** Blank -> undefined (undeclared); unparseable -> null (a validation error). */
+function parseBound(text: string): number | null | undefined {
+  const t = text.trim();
+  if (t === '') return undefined;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Only declared bounds are sent, so an omitted one stays omitted server-side. */
+function engineeringOf(f: { pvMin: string; pvMax: string; opMin: string; opMax: string }) {
+  const range: Record<string, number> = {};
+  for (const k of ['pvMin', 'pvMax', 'opMin', 'opMax'] as const) {
+    const v = parseBound(f[k]);
+    if (typeof v === 'number') range[k] = v;
+  }
+  return Object.keys(range).length > 0 ? range : null;
 }
 
 /**
@@ -93,6 +118,8 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
     pv: editLoop.tags['PV'] ?? '', sp: editLoop.tags['SP'] ?? '', op: editLoop.tags['OP'] ?? '',
     mode: editLoop.tags['MODE'] ?? '', vp: editLoop.tags['VP'] ?? '',
     thresholdProfileId: editLoop.thresholdProfileId ?? '', enableMonitoring: editLoop.monitoringEnabled,
+    pvMin: numText(editLoop.engineering?.pvMin), pvMax: numText(editLoop.engineering?.pvMax),
+    opMin: numText(editLoop.engineering?.opMin), opMax: numText(editLoop.engineering?.opMax),
   } : {
     // site starts EMPTY: the old 'site1' placeholder was a site that exists in
     // no asset model, and activation now rejects unmodelled locations (G-07) —
@@ -102,6 +129,7 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
     loopType: 'FIC', criticality: 'medium',
     pv: '', sp: '', op: '', mode: '', vp: '',
     thresholdProfileId: '', enableMonitoring: true,
+    pvMin: '', pvMax: '', opMin: '', opMax: '',
   });
   const readiness = useCpmReadiness(savedLoopId ?? undefined);
   // P5.3: manual location entry (or an empty asset model) means the location is
@@ -133,7 +161,16 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
     && form.displayName.trim() !== '' && form.site.trim() !== '' && !duplicate;
   const signalsValid = !form.enableMonitoring
     || (form.pv.trim() !== '' && form.sp.trim() !== '' && form.op.trim() !== '' && form.mode.trim() !== '');
-  const canContinue = step === 0 ? identityValid : step === 2 ? signalsValid : true;
+  const rangeIssue = (['pvMin', 'pvMax', 'opMin', 'opMax'] as const)
+    .some(k => parseBound(form[k]) === null) ? 'Engineering ranges must be numbers' : null;
+  // Half a range is worse than none: the API defaults the missing bound (0 / 100),
+  // which silently invents a span nobody declared.
+  const halfRange = ([['pvMin', 'pvMax', 'PV'], ['opMin', 'opMax', 'OP']] as const)
+    .filter(([lo, hi]) => (form[lo].trim() === '') !== (form[hi].trim() === ''))
+    .map(([, , label]) => label);
+  const canContinue = step === 0 ? identityValid
+    : step === 1 ? rangeIssue === null
+    : step === 2 ? signalsValid : true;
 
   const buildRequest = (): CpmActivateRequest => {
     const tags: CpmTagMapEntry[] = [];
@@ -153,6 +190,7 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
       tags,
       thresholdProfileId: form.thresholdProfileId.trim() || null,
       enableMonitoring: form.enableMonitoring,
+      engineering: engineeringOf(form),
       allowUnmodelledLocation: manualLoc,
     };
   };
@@ -231,6 +269,34 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
               The dynamics class is resolved from the loop type ({form.loopType}). Selecting
               UNKNOWN disables geometry-based diagnosis (prior 0.0) until reclassified.
             </p>
+
+            <div className="cpm-field__label" style={{ marginTop: 18 }}>Engineering ranges</div>
+            <p className="cpm-copy" style={{ marginBottom: 10 }}>
+              Optional, and neither is cosmetic. <strong>PV range</strong> scales the good-error
+              band G3 and OCE use — undeclared, that band is a fixed ±0.5&nbsp;EU, which no
+              temperature or flow loop in engineering units can meet. <strong>OP range</strong>
+              normalises the output to 0–100 before saturation (G10) and operating-region (G2r)
+              maths. Leave both blank to keep today's behaviour.
+            </p>
+            <div className="cpm-wizard-grid">
+              {([['pvMin', 'PV minimum'], ['pvMax', 'PV maximum'],
+                 ['opMin', 'OP minimum'], ['opMax', 'OP maximum']] as const).map(([k, label]) => (
+                <label key={k} className="cpm-field">
+                  <span className="cpm-field__label">{label}</span>
+                  <input
+                    className={`cpm-input${parseBound(form[k]) === null ? ' cpm-input--error' : ''}`}
+                    value={form[k]} onChange={set(k)} inputMode="decimal"
+                    placeholder={k.startsWith('pv') ? 'e.g. 0 / 250' : 'e.g. 0 / 100'} />
+                </label>
+              ))}
+            </div>
+            {rangeIssue && <span className="cpm-field__error">{rangeIssue}</span>}
+            {halfRange.length > 0 && (
+              <span className="cpm-field__error">
+                {halfRange.join(' and ')} range is half-declared — the missing bound defaults
+                (min 0, max 100), inventing a span. Give both bounds or neither.
+              </span>
+            )}
           </>
         )}
 
@@ -308,6 +374,11 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
             <KvRow label="Location">{[form.site, form.area, form.unit].filter(Boolean).join(' / ')}</KvRow>
             <KvRow label="Type / criticality">{form.loopType} · {form.criticality}</KvRow>
             <KvRow label="Signals">{['pv', 'sp', 'op', 'mode', 'vp'].filter(k => form[k as keyof WizardState]).map(k => k.toUpperCase()).join(' · ') || 'none'}</KvRow>
+            <KvRow label="Engineering ranges">
+              {[form.pvMin || form.pvMax ? `PV ${form.pvMin || '0'}–${form.pvMax || '100'}` : null,
+                form.opMin || form.opMax ? `OP ${form.opMin || '0'}–${form.opMax || '100'}` : null]
+                .filter(Boolean).join(' · ') || 'not declared (PV band stays ±0.5 EU)'}
+            </KvRow>
             <KvRow label="Monitoring">{form.enableMonitoring ? 'Enabled on save' : 'Registered only'}</KvRow>
             {activate.isError && (
               <p className="cpm-field__error" style={{ marginTop: 8 }}>

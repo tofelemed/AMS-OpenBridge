@@ -20,7 +20,9 @@ import java.util.Set;
 public final class CplmGateEngine implements Serializable {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final double GOOD_ERROR_BAND = 0.5;
+    /** Historical fallback band, kept as the default when a loop declares no PV
+     *  span (CplmLoopDynamicsProfile.goodErrorBand() applies it). */
+    static final double GOOD_ERROR_BAND_DEFAULT = 0.5;
     private static final double SP_CHANGE_THRESHOLD = 1e-6;
     private static final double OP_REVERSAL_EPS = 1e-9;
     private static final double PV_FREEZE_EPS = 1e-9;
@@ -203,6 +205,10 @@ public final class CplmGateEngine implements Serializable {
         // anchored to windowStart, not the first present sample, so a late-
         // starting window no longer shifts every weight toward zero.
         double iae = 0, ise = 0, itae = 0;
+        // Half-width of the "good error" band in EU. Was the hardcoded 0.5 for every
+        // loop regardless of range; now a fraction of the declared PV span, with the
+        // 0-100 default reproducing 0.5 exactly for any loop that declares nothing.
+        final double goodErrorBand = profile.goodErrorBand();
         int goodErrorCount = 0;
         for (int i = 0; i < n; i++) {
             double dtSec = i < n - 1
@@ -212,7 +218,7 @@ public final class CplmGateEngine implements Serializable {
             iae += Math.abs(err[i]) * dtSec;
             ise += err[i] * err[i] * dtSec;
             itae += tSec * Math.abs(err[i]) * dtSec;
-            if (Math.abs(err[i]) <= GOOD_ERROR_BAND) goodErrorCount++;
+            if (Math.abs(err[i]) <= goodErrorBand) goodErrorCount++;
         }
         result.mae = mae;
         result.rmse = rmse;

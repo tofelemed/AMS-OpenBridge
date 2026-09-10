@@ -84,12 +84,19 @@ public sealed record CpmLoopActivateRequest(
     bool AllowUnmodelledLocation = false);
 
 /// <summary>
-/// P3-8 - the engineering range of the OP signal. The engine assumed OP is
+/// P3-8 - the engineering ranges of the OP and PV signals. The engine assumed OP is
 /// 0-100 %: a 0-1 valve fraction made G2r pass unconditionally and saturation
 /// read 0 forever. Declared here at onboarding, broadcast to Flink as
 /// cplm.loop.engineering, and used to normalize OP before gate evaluation.
 /// </summary>
-public sealed record CpmEngineeringRange(double? OpMin = null, double? OpMax = null);
+public sealed record CpmEngineeringRange(
+    double? OpMin = null, double? OpMax = null,
+    // The PV range serves the same purpose for the error band that the OP range
+    // serves for saturation: goodErrorPct measured |SP-PV| against a hardcoded
+    // 0.5 EU, which is 0.5 % of span on a 0-100 loop but 0.05 % on a 0-1000 t/h
+    // flow — so G3 could never pass there. Declared here, broadcast as
+    // cplm.loop.engineering, and turned into a fraction-of-span band by the engine.
+    double? PvMin = null, double? PvMax = null);
 
 public sealed record CpmLoopDto(
     string LoopId,
@@ -106,7 +113,10 @@ public sealed record CpmLoopDto(
     IReadOnlyList<string> ObservabilityFlags,
     IReadOnlyList<CpmLoopLinkDto> Links,
     bool StepTestApproved,
-    string? ThresholdProfileId);
+    string? ThresholdProfileId,
+    /// <summary>Declared OP/PV engineering ranges, or null when the loop declares none.
+    /// Returned so an edit round-trip cannot silently drop what onboarding stored.</summary>
+    CpmEngineeringRange? Engineering = null);
 
 public sealed record CpmLoopLinkDto(string ToLoopId, string RelType, string Origin);
 
@@ -217,7 +227,8 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
         var rows = await conn.QueryAsync("""
             SELECT loop_id, asset_id, display_name, site, area, unit, loop_type, criticality,
-                   is_active, monitoring::text AS monitoring, tags::text AS tags, threshold_profile_id
+                   is_active, monitoring::text AS monitoring, tags::text AS tags, threshold_profile_id,
+                   engineering::text AS engineering
             FROM cpm.loop_registry ORDER BY loop_id
             """);
         var result = new List<CpmLoopDto>();
@@ -232,7 +243,8 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
         var row = await conn.QueryFirstOrDefaultAsync("""
             SELECT loop_id, asset_id, display_name, site, area, unit, loop_type, criticality,
-                   is_active, monitoring::text AS monitoring, tags::text AS tags, threshold_profile_id
+                   is_active, monitoring::text AS monitoring, tags::text AS tags, threshold_profile_id,
+                   engineering::text AS engineering
             FROM cpm.loop_registry WHERE loop_id = @loopId
             """, new { loopId });
         return row is null ? null : await HydrateAsync(conn, row, ct);
@@ -263,7 +275,8 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
         return new CpmLoopDto(
             loopId, (Guid?)row.asset_id, row.display_name, row.site, row.area, row.unit,
             row.loop_type, row.criticality, row.is_active, enabled, tags,
-            BuildObservabilityFlags(tags.Keys, links), links, stepTest, row.threshold_profile_id);
+            BuildObservabilityFlags(tags.Keys, links), links, stepTest, row.threshold_profile_id,
+            ReadRange((string?)row.engineering));
     }
 
     /// <summary>
@@ -385,8 +398,8 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
                     criticality = (request.Criticality ?? "medium").ToLowerInvariant(),
                     monitoring = monitoringJson,
                     tags = tagsJson,
-                    engineering = request.Engineering is { OpMin: not null } or { OpMax: not null }
-                        ? JsonSerializer.Serialize(new { opMin = request.Engineering.OpMin, opMax = request.Engineering.OpMax })
+                    engineering = HasRange(request.Engineering)
+                        ? SerializeRange(request.Engineering!)
                         : null,
                     thresholdProfileId = request.ThresholdProfileId
                 }, tx);
@@ -692,8 +705,8 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
             }));
             p.Add($"t{i}", JsonSerializer.Serialize(
                 tags.ToDictionary(t => t.SignalRole.ToLowerInvariant(), t => t.UnsPath)));
-            p.Add($"e{i}", r.Engineering is { OpMin: not null } or { OpMax: not null }
-                ? JsonSerializer.Serialize(new { opMin = r.Engineering.OpMin, opMax = r.Engineering.OpMax })
+            p.Add($"e{i}", HasRange(r.Engineering)
+                ? SerializeRange(r.Engineering!)
                 : null);
             p.Add($"tp{i}", r.ThresholdProfileId);
             values.Add($"(@l{i}, @a{i}, @d{i}, @s{i}, @ar{i}, @u{i}, @lt{i}, @c{i}, TRUE, " +
@@ -752,6 +765,81 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
             VALUES {string.Join(", ", values)}
             ON CONFLICT (loop_id, signal_role, uns_path) DO NOTHING
             """, p, tx, cancellationToken: ct));
+    }
+
+    /// <summary>
+    /// The cplm.loop.engineering broadcast parameter, or null when the loop declares
+    /// no range. Shared by the single- and batch-publish paths: they were two copies
+    /// of the same literal, which is how one of them would have missed the PV range.
+    ///
+    /// The engine defaults are opEng 0-100 and pvEng 0-100, and it merges only the
+    /// keys present — so a loop that declares an OP range but no PV range keeps the
+    /// default PV band (0.5 EU), exactly as before.
+    /// </summary>
+    private static Dictionary<string, string>? EngineeringParameter(string? engineeringJson)
+    {
+        var engineering = ParseJson(engineeringJson);
+        if (engineering.ValueKind != JsonValueKind.Object) return null;
+
+        static double? Num(JsonElement root, string name) =>
+            root.TryGetProperty(name, out var e) && e.ValueKind == JsonValueKind.Number
+                ? e.GetDouble() : null;
+
+        var opMin = Num(engineering, "opMin");
+        var opMax = Num(engineering, "opMax");
+        var pvMin = Num(engineering, "pvMin");
+        var pvMax = Num(engineering, "pvMax");
+        if (opMin is null && opMax is null && pvMin is null && pvMax is null) return null;
+
+        var value = new Dictionary<string, double>();
+        if (opMin is not null || opMax is not null)
+        {
+            value["opEngMin"] = opMin ?? 0.0;
+            value["opEngMax"] = opMax ?? 100.0;
+        }
+        if (pvMin is not null || pvMax is not null)
+        {
+            value["pvEngMin"] = pvMin ?? 0.0;
+            value["pvEngMax"] = pvMax ?? 100.0;
+        }
+        return new Dictionary<string, string>
+        {
+            ["name"] = "cplm.loop.engineering",
+            ["value"] = JsonSerializer.Serialize(value),
+        };
+    }
+
+    /// <summary>Reads the stored engineering JSON back into the request-shaped record.
+    /// Null when nothing is declared, so "absent" survives the round trip as absent
+    /// rather than becoming a zero the engine would treat as a real bound.</summary>
+    private static CpmEngineeringRange? ReadRange(string? engineeringJson)
+    {
+        var e = ParseJson(engineeringJson);
+        if (e.ValueKind != JsonValueKind.Object) return null;
+
+        static double? Num(JsonElement root, string name) =>
+            root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number
+                ? v.GetDouble() : null;
+
+        var range = new CpmEngineeringRange(
+            Num(e, "opMin"), Num(e, "opMax"), Num(e, "pvMin"), Num(e, "pvMax"));
+        return HasRange(range) ? range : null;
+    }
+
+    /// <summary>Any declared bound makes the range worth storing.</summary>
+    private static bool HasRange(CpmEngineeringRange? r) =>
+        r is { OpMin: not null } or { OpMax: not null } or { PvMin: not null } or { PvMax: not null };
+
+    /// <summary>Only the declared bounds are written, so an omitted one stays absent
+    /// rather than being persisted as a zero the engine would treat as a real bound.</summary>
+    private static string SerializeRange(CpmEngineeringRange r)
+    {
+        var range = new Dictionary<string, double>();
+        if (r.OpMin is { } opMin) range["opMin"] = opMin;
+        if (r.OpMax is { } opMax) range["opMax"] = opMax;
+        if (r.PvMin is { } pvMin) range["pvMin"] = pvMin;
+        if (r.PvMax is { } pvMax) range["pvMax"] = pvMax;
+        return JsonSerializer.Serialize(range);
     }
 
     /// <summary>
@@ -1595,18 +1683,7 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
                 }
             };
 
-            var engineering = ParseJson(engineeringJson);
-            var hasEng = engineering.ValueKind == JsonValueKind.Object;
-            double? opMin = hasEng && engineering.TryGetProperty("opMin", out var mn) && mn.ValueKind == JsonValueKind.Number ? mn.GetDouble() : null;
-            double? opMax = hasEng && engineering.TryGetProperty("opMax", out var mx) && mx.ValueKind == JsonValueKind.Number ? mx.GetDouble() : null;
-            if (opMin != null || opMax != null)
-            {
-                parameters.Add(new Dictionary<string, string>
-                {
-                    ["name"] = "cplm.loop.engineering",
-                    ["value"] = JsonSerializer.Serialize(new { opEngMin = opMin ?? 0.0, opEngMax = opMax ?? 100.0 })
-                });
-            }
+            if (EngineeringParameter(engineeringJson) is { } engParam) parameters.Add(engParam);
 
             var envelope = JsonSerializer.Serialize(new Dictionary<string, object>
             {
@@ -1680,21 +1757,11 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
             new() { ["name"] = "cplm.loop.evidence", ["value"] = evidence }
         };
 
-        // P3-8 - broadcast the OP engineering range so the engine can normalize a
-        // non-0-100 OP (e.g. a 0-1 valve fraction) before gate evaluation. Merge-only
-        // key applied AFTER profile resolution; it can never clobber the class pack.
-        var engineering = ParseJson(row.Engineering);
-        var hasEng = engineering.ValueKind == JsonValueKind.Object;
-        double? opMin = hasEng && engineering.TryGetProperty("opMin", out var mn) && mn.ValueKind == JsonValueKind.Number ? mn.GetDouble() : null;
-        double? opMax = hasEng && engineering.TryGetProperty("opMax", out var mx) && mx.ValueKind == JsonValueKind.Number ? mx.GetDouble() : null;
-        if (opMin != null || opMax != null)
-        {
-            parameters.Add(new Dictionary<string, string>
-            {
-                ["name"] = "cplm.loop.engineering",
-                ["value"] = JsonSerializer.Serialize(new { opEngMin = opMin ?? 0.0, opEngMax = opMax ?? 100.0 })
-            });
-        }
+        // P3-8 - broadcast the OP and PV engineering ranges so the engine can normalize a
+        // non-0-100 OP (e.g. a 0-1 valve fraction) and scale the good-error band to the
+        // PV span before gate evaluation. Merge-only key applied AFTER profile
+        // resolution; it can never clobber the class pack.
+        if (EngineeringParameter(row.Engineering) is { } engParam) parameters.Add(engParam);
 
         var envelope = JsonSerializer.Serialize(new Dictionary<string, object>
         {

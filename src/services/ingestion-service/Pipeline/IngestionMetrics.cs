@@ -25,6 +25,9 @@ public static class IngestionMetrics
         "ingestion_class_mismatch_total", "Topic class vs payload line/process_unit disagreements (warn-only)", "source");
     private static readonly Counter UnitMismatch = Metrics.CreateCounter(
         "ingestion_unit_mismatch_total", "Source engineering-unit disagreements (warn-only)", "source");
+    private static readonly Counter ModeUnrecognised_ = Metrics.CreateCounter(
+        "ingestion_mode_unrecognised_total",
+        "MODE values the CPLM engine cannot classify (loop will be excluded on G1)", "source");
     private static readonly Counter TicksSkipped_ = Metrics.CreateCounter(
         "ingestion_loop_ticks_skipped_total",
         "Grid ticks that produced no tuple because no source timestamp advanced", "source");
@@ -45,6 +48,7 @@ public static class IngestionMetrics
     public static void MqttReconnect(string source) => Reconnects.WithLabels(source).Inc();
     public static void ClassMismatchWarning(string source) => ClassMismatch.WithLabels(source).Inc();
     public static void UnitMismatchWarning(string source) => UnitMismatch.WithLabels(source).Inc();
+    public static void ModeUnrecognised(string source) => ModeUnrecognised_.WithLabels(source).Inc();
     public static void TicksSkipped(string source, double count) { if (count > 0) TicksSkipped_.WithLabels(source).Inc(count); }
     public static void JoinerActiveLoops(string source, int count) => ActiveLoops.WithLabels(source).Set(count);
     public static void SourceLatency(double ms) { if (ms >= 0) SourceLatencyMs.Observe(ms); }
