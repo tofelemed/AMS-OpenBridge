@@ -9,11 +9,20 @@ Companions: [UPDATE-RUNBOOK.md](UPDATE-RUNBOOK.md) (per-service detail, rollback
 
 ## A. Plant — config first, no deploy (do this alone, confirm, then decide if B is urgent)
 
+Needs **no image, no restart, and no frontend** — the script calls the API, and the subscriber
+reloads itself within ~30 s. Independent of B–F; run it today.
+
+**A0.** Get the script onto the VM (skip if the v3 bundle is already there — it is at
+`/opt/ams-recovery/v3/ops/set-mode-map.py`). One 3.5 KB file, no bundle required:
+```powershell
+scp scripts\set-mode-map.py lean@192.168.190.91:/tmp/
+```
+
 **A1.** Restore the MODE map on every `MQTT_LOOP_SAMPLES` source.
 ```bash
 export ADMIN_PW='<admin password>'
-python3 /opt/ams-recovery/v3/ops/set-mode-map.py            # dry run — prints what is stored now
-python3 /opt/ams-recovery/v3/ops/set-mode-map.py --apply
+python3 /tmp/set-mode-map.py            # dry run — prints what is stored now
+python3 /tmp/set-mode-map.py --apply
 ```
 > If the dry run says `(no loop_ingest block at all)`, the wizard erased it — the script restores the map; `grid_seconds`/`topic_template` fall back to defaults.
 
@@ -24,7 +33,7 @@ docker exec instrumental-kafka-1 kafka-console-consumer --bootstrap-server kafka
 
 **A3.** OK when `avg_auto_pct` is off zero and G1 is no longer the universal failure:
 ```bash
-docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm < /opt/ams-recovery/v3/ops/diagnose-gate-failures.sql
+docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm < scripts/diagnose-gate-failures.sql   # or ops/ from the bundle
 ```
 
 ⚠ Until step D4 lands, **nobody edits these sources in the wizard** — a save deletes `loop_ingest` again.
