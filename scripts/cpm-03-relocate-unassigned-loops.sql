@@ -30,6 +30,12 @@
 --   only hears the cplm.loop.engineering broadcast). Without it the move is
 --   invisible outside this database.
 --
+-- HOW TO RUN. Prefer psql -- it always executes the whole file:
+--   docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < cpm-03-relocate-unassigned-loops.sql
+-- In pgAdmin, make sure NOTHING is selected before Execute (Ctrl+A, or click into
+-- the editor and press Escape). With a selection active pgAdmin runs only that
+-- fragment, which fails mid-statement with a misleading syntax error.
+--
 -- DRY RUN: change the final COMMIT to ROLLBACK. Every report still prints.
 -- =====================================================================
 
@@ -135,6 +141,8 @@ SELECT r.loop_id, r.area, r.unit, count(m.*) AS signal_roles
 FROM   cpm.loop_registry r
 LEFT   JOIN cpm.loop_tag_map m ON m.loop_id = r.loop_id
 GROUP  BY r.loop_id, r.area, r.unit
-HAVING r.unit = 'unassigned' OR count(m.*) <> 4
+HAVING r.unit = 'unassigned' OR count(m.*) < 4
 ORDER  BY r.loop_id;
--- An empty result means every loop is placed and fully mapped.
+-- An empty result means every loop is placed and fully mapped. `< 4` not `<> 4`:
+-- a loop with positioner feedback mapped has FIVE roles (PV/SP/OP/MODE/VP) and is
+-- correct, not suspect (lab run, 2026-09-10, flagged five healthy demo loops).
