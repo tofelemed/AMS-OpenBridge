@@ -1,10 +1,10 @@
 # Update & Emergency Runbook — live Marun VM
 
-Companion to [DEPLOY-RUNBOOK.md](DEPLOY-RUNBOOK.md) (first install).
-**Shipping v3 right now?** Follow [V3-DEPLOY.md](V3-DEPLOY.md) — the ordered
-checklist for that release; this file is the per-service reference behind it. This one covers a
+Companion to [DEPLOY-RUNBOOK.md](DEPLOY-RUNBOOK.md) (first install). This one covers a
 **running plant**: shipping a new version of one or more services, and the disk-full
 emergency drill. Every command here was proven during commissioning (2026-09-01/02).
+**Shipping v3 right now?** Follow [V3-DEPLOY.md](V3-DEPLOY.md) — the ordered checklist for
+that release; this file is the per-service reference behind it.
 
 ---
 
@@ -78,8 +78,12 @@ Compose recreates **only** containers whose image/env changed; everything else k
    bind-mounts it for recompute; `target/` is not in git).
 On the VM: load image, replace `/opt/AMS-open/src/flink/target/*.jar`, then
 `docker rm -f ams-flink-taskmanager ams-flink-jobmanager && bash migration/deploy/deploy.sh --prod`
-— 04b re-submits, jobs resume from MinIO checkpoints. Verify: 4 × RUNNING in the deploy tail,
-and `/tmp` still in `docker inspect ams-flink-taskmanager` mounts (RocksDB volume).
+— 04b re-submits all four. **Removing both containers is mandatory, not tidiness:** 04b uses
+`submit_if_missing`, so with the old JobManager still up it prints `[OK]` for every job while
+they keep executing the OLD jar. This overlay has no ZooKeeper HA, so `rm -f` really does clear
+them — and, with no HA and no `-s <savepoint>`, they come back with **fresh window state**
+(short windows rebuild within the hour; 12h/24h verdicts need up to a day). Verify: 4 × RUNNING
+with start times moved, and `/tmp` still in `docker inspect ams-flink-taskmanager` mounts.
 
 **Config-only change (env / compose / .env):** no image needed. Commit on build box,
 apply the same edit on the VM (scp the file or python patch), `deploy.sh --prod` —
@@ -110,9 +114,11 @@ archive and survives), `docker load`, `deploy.sh --prod`. Steps 00–05 are idem
 on the build box does §1 for every service in `migration/deploy/releases/v3.txt` in one go —
 clean-tree and not-on-the-VM guards, the Flink JAR with the right Maven flag (CHG-008 §2),
 PROD-fingerprint verify, one `.tar.gz` per image written by Python (rule 5), the JAR beside
-them, `SHA256SUMS.txt`, and a generated `VM-STEPS.md` that includes the CPLM cancel + resubmit
-(CHG-008 §1). `--dry-run` prints the plan; `--only <service>` narrows it. The VM half stays
-manual and is in that file. Which services and why: `changes_tracker.md` → "Release v3".
+them, the operator scripts under `ops/` (the MODE-map restore and the CPM SQL — a release
+cannot finish its own checklist without them), `SHA256SUMS.txt` written relative to the release
+dir, and a generated `VM-STEPS.md` carrying the plant's real Flink procedure (above), not the
+lab's. `--dry-run` prints the plan; `--only <service>` narrows it. The VM half stays manual and
+is in that file. Which services and why: `changes_tracker.md` → "Release v3".
 
 ---
 
