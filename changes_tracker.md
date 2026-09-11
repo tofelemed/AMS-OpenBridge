@@ -883,6 +883,39 @@ click-tested — `src/frontend-ob` still has no test runner.
 
 ---
 
+## CHG-018 ✅ Loop validation tooling (12 h gate investigation)
+
+**Services:** none — read-only tooling
+**Files:** `scripts/cpm-validate-loops.sql` (new),
+`docs/cpm-loop-validation-runbook.md` (new)
+
+A 13-section SQL investigation plus a 10-step runbook for validating a named set of
+loops against a 12 h window. Built for the post-deploy check on FIC10409, FIC10509,
+FIC10501, FIC10502, LIC10501, PIC00605, PIC80143, PIC80141, FIC80103, PIC80140 —
+the loop list is a temp table in section 0, so it re-targets without editing queries.
+
+Gate statuses live only inside `payload->'gates'` on `analytics.cplm_gate_results`;
+the promoted columns carry metrics, not verdicts. Gate rows exist at **12h and 24h**
+only — short features at 1/5/10/15/30/60m, long at 4/12/24h.
+
+Sections: configuration → feed → 16-gate verdict → stability across windows → one
+section per gate family with the numbers behind each status → first blocking
+exclusion → configuration cross-checks → single-loop raw payload. The runbook covers
+what SQL cannot see: tuple shape on Kafka, duplicate data sources, the
+`cplm.loop.engineering` broadcast, Flink job start times vs the deploy, and consumer
+group membership.
+
+**Verified:** every section executed against the lab (0 errors) using loops that have
+real 12 h history, including a deliberately absent loop to confirm missing data reads
+as `-` rather than dropping the row. §11 correctly named G0 as the first blocker on
+five loops; §12 caught NOT REGISTERED, missing verdicts and undeclared PV ranges.
+Real data also exercised the G14 path: two loops sat at confidence exactly **0.890**
+with `G14 INSUFFICIENT_EVIDENCE` — the no-VP cap demoting CONFIRMED to SUSPECTED.
+
+**Not verified:** never run against prod — that is the point of handing it over.
+
+---
+
 ## CHG-005 ✅ Documentation & diagnostics
 
 - `docs/cpm-calculation-reference.md` — widened from the four Flink jobs to the whole CPA
