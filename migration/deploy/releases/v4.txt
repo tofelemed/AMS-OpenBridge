@@ -1,0 +1,13 @@
+# Release v4 — the loop-visibility set (CHG-015, 016, 017).
+# One compose service per line; `#` comments and blank lines are ignored.
+# Consumed by: python migration/deploy/build-release.py --release v4
+#
+# Why each one is here:
+#   traverse-ingestion-service  CHG-015 loop-health audit (names the missing signal)
+#                               CHG-016 durable last-known values across restarts
+#   ams-frontend                CHG-017 MODE on the Loop Explorer summary
+#
+# NOT a schema deploy: ingestion.loop_state is created by the service's self-heal DDL
+# at startup, and is in migration/schema/04 for fresh installs. Steps 00-05 unchanged.
+traverse-ingestion-service
+ams-frontend
