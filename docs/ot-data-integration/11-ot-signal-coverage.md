@@ -17,6 +17,7 @@ and [10-ot-loop-ingestion-runbook.md](10-ot-loop-ingestion-runbook.md) (operatio
 | Published by the gateway | 151 |
 | **Registered but never published** | **24** |
 | Published **with PV + SP + OP** (analysable) | **37** |
+| Loops whose PV itself has not updated for days | 6 |
 | **Published but incomplete** | **114** |
 | Reaching the CPA pipeline today | 32 |
 
@@ -53,10 +54,21 @@ with almost perfect fidelity, which a configured tag list would not:
 | D | 17 | almost never |
 
 A configuration that published PV for 147 loops but SP for only 37 would be arbitrary;
-change frequency explains the ordering exactly. Retained timestamps confirm it: they span
-**2026-09-06 → 2026-09-11**, so values sit untouched for days — there is no periodic
-republish, and the newest SP/P/I/D values share a single instant (`06:00:50`), the
-signature of a change event rather than a refresh cycle.
+change frequency explains the ordering exactly.
+
+The retained **timestamps** settle it. Compare a signal that changes constantly against one
+that rarely does:
+
+| | Distribution of retained timestamps |
+|---|---|
+| **PV** | **141 of 147 share one minute** (`2026-09-11T06:53`) — all fresh |
+| **SP** | **spread over 21 distinct timestamps**, `2026-09-08` → `2026-09-11` |
+
+A periodic republish, or a full publish of the configured tag list, would stamp every SP
+with the same instant. Instead each setpoint carries the moment *it* last moved. There was
+a bulk event at `2026-09-11T06:00:50` (it also carried P/I/D/GW and one MODE), but it
+touched only **5 of 37** setpoints — an operator action or unit transition, not a refresh
+cycle. Values otherwise sit untouched for days.
 
 **Consequence:** the 114 loops below most likely *do* have a setpoint in the DCS. It simply
 has not moved, so it has never been published, so we cannot see it. From the broker alone
@@ -136,10 +148,17 @@ list.**
 
 ---
 
-## 2. Published, complete, but no MODE — 8
+## 2. Published, complete, but no MODE — 7
 
-  `FIC10303B`     `FIC10402`      `LIC20402`      `PIC10703`      `PIC80142`      `PIC80143`
-  `PIC80150`      `TIC20305`
+  `FIC10303B`     `FIC10402`      `LIC20402`      `PIC10703`      `PIC80142`
+  `PIC80143`      `PIC80150`
+
+> `TIC20305` was in this list when first measured and has since been removed: the gateway
+> published its MODE at `2026-09-11T06:00:50` — twelve hours after the census. **These
+> lists age**, exactly as §0 predicts: a loop leaves the list the moment its signal
+> happens to change. Re-measure before acting, and treat any single loop as provisional.
+> Verified absent for the seven above by a direct per-topic subscribe, which returns a
+> retained value instantly if one exists; it returned nothing.
 
 These have PV/SP/OP and **do** reach the system, but no MODE value has ever been published
 for them — the same baseline problem as §0 (a loop left in AUTO for weeks never generates a
@@ -200,6 +219,16 @@ gap is that values which never change never become retained in the first place.
 > **How to confirm §0 without guesswork:** the set of loops with a retained SP should
 > *grow* over days as more setpoints happen to move. If it is still exactly 37 next week,
 > SP really is configured for only those loops and reading 2 applies instead.
+
+### A separate, smaller finding: six dead PVs
+
+141 of the 147 retained PV values were published within the same minute; **six were not**,
+the oldest dating to `2026-09-08`. Those instruments have stopped reporting entirely — a
+different problem from a missing setpoint, and worth checking against the DCS separately:
+
+```bash
+sed -n 's#^1|OT/[^/]*/[^/]*/[^/]*/\([^/]*\)/PIDParams/PV|.*"ts": *"\([^"]*\)".*# #p' /tmp/retained-full.txt | sort | head -8
+```
 
 ### Regenerating this
 
