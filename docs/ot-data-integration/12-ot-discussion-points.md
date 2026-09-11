@@ -1,5 +1,33 @@
 # OT team — discussion points
 
+> ## ✅ RESOLVED 2026-09-11 — read this first
+>
+> The OT gateway was restarted, which published the current value of **every tag once**
+> before resuming on-change. That is exactly the baseline publish requested below, and the
+> result was immediate:
+>
+> | | Before | After |
+> |---|---|---|
+> | Loops analysable | 36 | **161** |
+> | Loops blocked by a missing signal | 114 | **0** |
+> | Loops with no MODE | 7 | **0** |
+>
+> **Every "missing" setpoint and output did exist.** They had simply not been published
+> since the broker's retained store was lost, so no client could read them. Nothing was
+> added or reconfigured on either side — one restart was enough.
+>
+> **What is still needed, and it is much smaller than what follows:**
+>
+> 1. **Publish a baseline at gateway startup.** Just proven to work. Our system now stores
+>    every value it receives and restores it after its own restarts, so a startup dump is
+>    sufficient — a periodic cycle is optional hardening rather than essential.
+> 2. **14 tags never appear at all** — listed in "Also to confirm" below. These are now the
+>    only loops unaccounted for.
+>
+> Everything below is kept as the record of how this was diagnosed.
+
+---
+
 **Date:** 2026-09-11 · **Subject:** loop signal availability on the OT gateway MQTT feed
 **Detail / evidence:** [11-ot-signal-coverage.md](11-ot-signal-coverage.md)
 
@@ -72,15 +100,22 @@ the missing setpoints most likely already exist in the DCS — they simply have 
 
 ### Also to confirm
 
-1. **Is SP configured for all 151 loops?** If yes, the change above is sufficient. If some
-   loops genuinely have no SP configured, we will provide the list to add.
+1. ~~Is SP configured for all 151 loops?~~ **Answered 2026-09-11: yes.** The restart
+   published a setpoint for every one of them. Nothing needs adding.
 2. **Why is nothing retained from before 2026-09-06 20:15?** Was `retain` enabled around
-   then, or was the broker's stored data cleared? We need to know whether this can recur.
-3. **24 loops in our system never appear on MQTT at all.** Do they exist in the DCS under
-   different tag names, or should we remove them? List in
-   [11-ot-signal-coverage.md §3](11-ot-signal-coverage.md).
-4. **Six instruments have stopped reporting PV entirely** (oldest since 2026-09-08). Are
-   those loops out of service, or is it a gateway problem?
+   then, or was the broker's stored data cleared? Still worth knowing — it tells us whether
+   this can recur, though we would now survive it.
+3. **14 tags never appear on MQTT at all.** After the restart, 10 of the original 24 turned
+   out to exist. The remaining 14 are exactly the loops onboarded from the CPA workbook on
+   2026-09-10, and the DCS publishes nothing for any of them:
+
+   `AIC30601` `FC10711` `FC10712` `FQIC10103` `FQIC10104` `FQIC10304` `FQIC40302`
+   `FQIC50102C` `IIC20101A` `IIC20101B` `IIC20101C` `NIC51101` `PDIC10407` `PDIC10418`
+
+   Do they exist in the DCS under different tag names, or should we retire them from our
+   registry? **These are the only loops still unaccounted for.**
+4. **Six instruments had stopped reporting PV entirely** (oldest since 2026-09-08). Worth
+   re-checking after the restart — are those loops out of service, or a gateway problem?
 
 ---
 
