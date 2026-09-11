@@ -111,6 +111,39 @@ public class LoopStateSeedTests
     }
 
     [Fact]
+    public void A_first_value_for_a_role_flags_an_immediate_save()
+    {
+        // The rare setpoint is the one hardest to re-acquire, so it must not wait on the
+        // 60 s cycle. A first value for ANY role raises the flag; steady updates do not.
+        var j = new LoopJoiner();
+        Assert.False(j.ConsumeNewMemberFlag(), "nothing has arrived yet");
+
+        Feed(j, "pv", 1, T0);
+        Assert.True(j.ConsumeNewMemberFlag(), "first PV should trigger a save");
+        Assert.False(j.ConsumeNewMemberFlag(), "reading the flag clears it");
+
+        Feed(j, "pv", 2, T0 + 1_000);
+        Assert.False(j.ConsumeNewMemberFlag(), "an update to a known role is not a new member");
+
+        Feed(j, "sp", 42, T0 + 2_000);
+        Assert.True(j.ConsumeNewMemberFlag(), "first SP should trigger a save");
+
+        Feed(j, "mode", 1, T0 + 3_000);
+        Assert.True(j.ConsumeNewMemberFlag(), "first MODE should trigger a save");
+        Feed(j, "mode", 1, T0 + 4_000);
+        Assert.False(j.ConsumeNewMemberFlag(), "a repeated MODE is not a new member");
+    }
+
+    [Fact]
+    public void A_restored_member_does_not_re_trigger_a_save()
+    {
+        // Seeding is not new information; only the wire is.
+        var j = new LoopJoiner();
+        j.Seed(L(), "FCS0101", M(("sp", 42.0, T0)), NoExtras, "AUT", T0, 0, Cfg, T0);
+        Assert.False(j.ConsumeNewMemberFlag());
+    }
+
+    [Fact]
     public void Snapshot_round_trips_through_a_second_joiner()
     {
         var a = new LoopJoiner();

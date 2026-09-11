@@ -89,6 +89,25 @@ public sealed class LoopJoiner
 
     public int ActiveLoops { get { lock (_gate) return _loops.Count; } }
 
+    private bool _newMemberSeen;
+
+    /// <summary>True once since the last call if a loop gained a role it did not have
+    /// before — a first PV, a first SP, a first MODE.
+    ///
+    /// These are the moments the state store exists for. A rare setpoint that publishes
+    /// twice a week is the value hardest to re-acquire, so it must not sit unsaved on a
+    /// 60 s cycle waiting to be lost to a restart. Reading the flag clears it; the
+    /// periodic save remains the backstop if the triggered save fails.</summary>
+    public bool ConsumeNewMemberFlag()
+    {
+        lock (_gate)
+        {
+            var seen = _newMemberSeen;
+            _newMemberSeen = false;
+            return seen;
+        }
+    }
+
     /// <summary>Ticks that produced no tuple because no member advanced. A steadily
     /// climbing value means a loop has gone quiet — otherwise invisible, since the
     /// old behaviour was to keep republishing the same forward-filled values.</summary>
@@ -226,6 +245,7 @@ public sealed class LoopJoiner
 
             if (mapped.Role == "mode")
             {
+                if (state.Mode is null) _newMemberSeen = true;   // first MODE for this loop
                 state.Mode = mapped.ModeString;
                 state.ModeTsMs = payload.TsMs;
                 return;
@@ -233,7 +253,10 @@ public sealed class LoopJoiner
 
             var bucket = mapped.IsTupleMember ? state.Members : state.Extras;
             if (!bucket.TryGetValue(mapped.Role, out var member))
+            {
                 bucket[mapped.Role] = member = new Member();
+                _newMemberSeen = true;   // first value for this role on this loop
+            }
             member.Value = mapped.NumericValue!.Value;
             member.TsMs = payload.TsMs;
             member.Good = IsGood(payload.Quality);

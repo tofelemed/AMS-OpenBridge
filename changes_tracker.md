@@ -790,6 +790,14 @@ once, it is captured permanently rather than until the next restart.
   behaviour (wait for the wire); a failed save is logged and retried. Persistence must
   never be able to stall ingestion.
 
+**Save cadence: every 60 s, on shutdown, AND immediately whenever a loop gains a role it
+did not have before.** That last trigger is the point of the feature: on a source that
+publishes a setpoint twice a week, the first arrival of that SP is the value hardest to
+re-acquire, and leaving it unsaved for up to a minute is exactly the window in which a
+restart would lose it. A steady update to a role already held does not trigger a save, so
+this costs nothing at the ~120 msg/s the plant runs at. Seeding never raises the flag —
+restoring is not new information.
+
 **Visible, not silent:** `Restored` on each `/loop-health` row says whether a loop is
 holding restored values, and the subscriber logs the seeded count at start.
 
@@ -799,9 +807,10 @@ publish remains the only fix for those** (see
 [docs/ot-data-integration/12-ot-discussion-points.md](docs/ot-data-integration/12-ot-discussion-points.md)).
 This is durability insurance, not a cure.
 
-**Verified:** build clean, 0 warnings; **147/147 tests** (7 new: restored SP completing a
+**Verified:** build clean, 0 warnings; **149/149 tests** (9 new: restored SP completing a
 PV-only loop, live-beats-restored, newer-restored-wins, watermark survives, watermark never
-rewinds, audit visibility, and a full snapshot→seed round trip through a second joiner).
+rewinds, audit visibility, a full snapshot→seed round trip through a second joiner, and the
+immediate-save trigger firing on a first value per role but not on updates or on seeding).
 **Not yet exercised against the plant** — first proof is the first restart after deploy.
 
 ---

@@ -353,7 +353,11 @@ public sealed class OtLoopSubscriber : IAsyncDisposable
             _status.ActiveLoops = _joiner.ActiveLoops;
             IngestionMetrics.JoinerActiveLoops(Name, _joiner.ActiveLoops);
             PublishLoopHealth(nowMs);
-            if (nowMs - _lastStateSaveMs >= StateSaveIntervalMs)
+            // A loop gaining a role it never had is exactly what the store exists to
+            // keep: on a source that publishes a setpoint twice a week, that value is
+            // the hardest to re-acquire. Save it now rather than risk the 60 s window.
+            var gainedMember = _joiner.ConsumeNewMemberFlag();
+            if (gainedMember || nowMs - _lastStateSaveMs >= StateSaveIntervalMs)
             {
                 _lastStateSaveMs = nowMs;
                 await SaveStateAsync(ct);
