@@ -752,6 +752,60 @@ naming `sp`. That is the whole OT conversation, without touching the broker.
 
 ---
 
+## CHG-016 ✅ Last-known loop values survive a restart
+
+**Service:** ingestion-service (+ DB script 51) · **Built:** 2026-09-11
+**Files:** `database/scripts/51_ingestion_loop_state.sql` (new),
+`Services/LoopStateRepository.cs` (new), `Pipeline/LoopJoiner.cs`, `LoopHealth.cs`,
+`OtLoopSubscriber.cs`, `OtIngestionHostService.cs`, `Program.cs`;
+tests `LoopStateSeedTests.cs` (new)
+
+**The gap.** The joiner held last-known values in memory only, so every restart threw
+away everything learned. Normally harmless — a fresh subscribe pulls the broker's
+retained set — but the plant proved the failure mode: the OT gateway publishes **only on
+change**, MQTT keeps exactly **one** retained message per topic, and this broker lost its
+retained store some time before 2026-09-06 20:15. A setpoint that last moved before that
+is unobtainable by any client until it next happens to change, which for a stable loop can
+be weeks. Every ingestion restart re-opened that hole.
+
+**What it does.** `ingestion.loop_state` (keyed `config_id, loop_id`) holds each loop's
+members, extras, mode token and emission watermark. The subscriber seeds the joiner from it
+at start, saves every 60 s, and saves again on shutdown. **Once a signal has been received
+it is never lost again** — and as each of the plant's quiet signals happens to change just
+once, it is captured permanently rather than until the next restart.
+
+**Safety rules, each with a test:**
+
+- **Nothing is invented.** Only values actually received are stored, with their original
+  source timestamp and quality. A restored member is indistinguishable from one that
+  arrived a second ago — precisely what would have been true had the process never stopped.
+- **Live data always wins.** A seed never displaces a member already present, and never
+  overwrites a newer timestamp.
+- **The emission watermark travels with the state, and never moves backwards.** IoTDB keys
+  rows by device+timestamp, so re-emitting a published `event_ts_ms` would *overwrite* the
+  original row rather than add one. A stale store must not license that.
+- **Retired loops are not resurrected** — a stored row is only seeded if the registry still
+  resolves that loop as active.
+- **Best-effort throughout.** An empty, unreachable or stale store degrades to today's
+  behaviour (wait for the wire); a failed save is logged and retried. Persistence must
+  never be able to stall ingestion.
+
+**Visible, not silent:** `Restored` on each `/loop-health` row says whether a loop is
+holding restored values, and the subscriber logs the seeded count at start.
+
+**What it does NOT do.** It cannot recover the 114 loops that have never sent SP — we never
+received those values, so there is nothing to have stored. **The gateway-side baseline
+publish remains the only fix for those** (see
+[docs/ot-data-integration/12-ot-discussion-points.md](docs/ot-data-integration/12-ot-discussion-points.md)).
+This is durability insurance, not a cure.
+
+**Verified:** build clean, 0 warnings; **147/147 tests** (7 new: restored SP completing a
+PV-only loop, live-beats-restored, newer-restored-wins, watermark survives, watermark never
+rewinds, audit visibility, and a full snapshot→seed round trip through a second joiner).
+**Not yet exercised against the plant** — first proof is the first restart after deploy.
+
+---
+
 ## CHG-005 ✅ Documentation & diagnostics
 
 - `docs/cpm-calculation-reference.md` — widened from the four Flink jobs to the whole CPA

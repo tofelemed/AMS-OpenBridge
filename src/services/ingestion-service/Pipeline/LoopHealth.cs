@@ -39,13 +39,28 @@ public sealed record LoopHealthRow(
     long? LastEmittedTsMs,
     long? SecondsSinceEmit,
     long SkippedTicks,
-    string? SourceFcs)
+    string? SourceFcs,
+    /// <summary>At least one member was restored from the state store after a restart
+    /// rather than received on the wire. Visible so "where did this value come from?"
+    /// is answerable without reading code.</summary>
+    bool Restored = false)
 {
     /// <summary>The three the joiner gates on. MODE is tracked but never gates:
     /// a loop with no MODE still emits, carrying "UNKNOWN" (and is then excluded at
     /// G1 downstream, which is a different and visible failure).</summary>
     public static readonly string[] RequiredRoles = { "pv", "sp", "op" };
 }
+
+/// <summary>What the joiner holds for one loop, for the durable state store. Mirrors
+/// the joiner's internals deliberately: the repository serialises this, nothing else.</summary>
+public sealed record LoopStateSnapshot(
+    string LoopId,
+    IReadOnlyDictionary<string, (double Value, long TsMs, bool Good)> Members,
+    IReadOnlyDictionary<string, (double Value, long TsMs, bool Good)> Extras,
+    string? ModeToken,
+    long ModeTsMs,
+    long LastEmittedTsMs,
+    string? SourceFcs);
 
 /// <summary>Fleet roll-up for /stats — the glance that answers "how much of the
 /// plant is actually reaching us, and what is holding the rest back".</summary>

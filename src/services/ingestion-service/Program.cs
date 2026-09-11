@@ -45,6 +45,7 @@ builder.Services.AddSingleton<IAuditEmitter, AuditEmitter>();
 
 // ── Phase-2 OT subscriber pipeline ──────────────────────────────────────────
 builder.Services.AddSingleton<UnknownSourceRepository>();
+builder.Services.AddSingleton<LoopStateRepository>();
 builder.Services.AddSingleton<UnknownSourceInventory>();
 builder.Services.AddSingleton<SubscriberStatusRegistry>();
 builder.Services.AddSingleton<ILoopSampleSink, LoopSamplePipelineProducer>();
@@ -336,6 +337,22 @@ internal static class SelfHeal
         )
         """,
         "CREATE INDEX IF NOT EXISTS idx_unknown_sources_last_seen ON ingestion.unknown_sources(last_seen DESC)",
+        // Mirrors database/scripts/51_ingestion_loop_state.sql — keep in sync.
+        """
+        CREATE TABLE IF NOT EXISTS ingestion.loop_state (
+            config_id          UUID         NOT NULL,
+            loop_id            VARCHAR(256) NOT NULL,
+            members            JSONB        NOT NULL DEFAULT '{}'::jsonb,
+            extras             JSONB        NOT NULL DEFAULT '{}'::jsonb,
+            mode_token         VARCHAR(64),
+            mode_ts_ms         BIGINT,
+            last_emitted_ts_ms BIGINT       NOT NULL DEFAULT 0,
+            source_fcs         VARCHAR(64),
+            updated_at         TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (config_id, loop_id)
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_loop_state_updated ON ingestion.loop_state(updated_at DESC)",
     };
 
     public static async Task EnsureDatabaseAndSchemaAsync(string connectionString, ILogger logger)

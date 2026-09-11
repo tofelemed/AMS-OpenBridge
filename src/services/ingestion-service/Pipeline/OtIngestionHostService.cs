@@ -21,6 +21,7 @@ public sealed class OtIngestionHostService : BackgroundService
     private readonly ILoopSampleSink _sink;
     private readonly UnknownSourceInventory _inventory;
     private readonly UnknownSourceRepository _unknownRepo;
+    private readonly LoopStateRepository _stateRepo;
     private readonly SubscriberStatusRegistry _statusRegistry;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<OtIngestionHostService> _logger;
@@ -36,8 +37,10 @@ public sealed class OtIngestionHostService : BackgroundService
         DataSourceRepository repo, CredentialCipher cipher, CplmRegistryClient registryClient,
         ILoopSampleSink sink, UnknownSourceInventory inventory, UnknownSourceRepository unknownRepo,
         SubscriberStatusRegistry statusRegistry, ILoggerFactory loggerFactory,
-        ILogger<OtIngestionHostService> logger)
+        ILogger<OtIngestionHostService> logger,
+        LoopStateRepository stateRepo)
     {
+        _stateRepo = stateRepo;
         _repo = repo; _cipher = cipher; _registryClient = registryClient; _sink = sink;
         _inventory = inventory; _unknownRepo = unknownRepo; _statusRegistry = statusRegistry;
         _loggerFactory = loggerFactory; _logger = logger;
@@ -147,7 +150,8 @@ public sealed class OtIngestionHostService : BackgroundService
 
         var subscriber = new OtLoopSubscriber(row, password, settings, topics,
             profile.Mqtt?.Qos ?? 1, _registryClient, _sink, _inventory, _unknownRepo, _repo,
-            status, _loggerFactory.CreateLogger($"OtLoopSubscriber.{row.Name}"));
+            status, _loggerFactory.CreateLogger($"OtLoopSubscriber.{row.Name}"),
+            registry: null, stateRepo: _stateRepo);
         _running[row.ConfigId] = new Running(subscriber, fingerprint, status);
         await subscriber.StartAsync(ct);
     }

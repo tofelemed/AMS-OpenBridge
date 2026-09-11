@@ -79,6 +79,8 @@ public sealed class LoopJoiner
         /// the plant), so comparing a source ts to now would mislabel healthy loops.</summary>
         public long LastEmittedWallMs;
         public long SkippedTicks;
+        /// <summary>Any member came back from the state store rather than the wire.</summary>
+        public bool Restored;
         public long NextTickMs;
     }
 
@@ -91,6 +93,78 @@ public sealed class LoopJoiner
     /// climbing value means a loop has gone quiet — otherwise invisible, since the
     /// old behaviour was to keep republishing the same forward-filled values.</summary>
     public long SkippedNoAdvance { get; private set; }
+
+    /// <summary>Restore last-known values saved before a restart.
+    ///
+    /// The gateway publishes only on change, so a signal that has not moved is not
+    /// republished, and a broker that has lost its retained copy cannot supply it
+    /// either. Without this, every restart discarded what we had already learned and
+    /// re-opened that hole (plant evidence 2026-09-11).
+    ///
+    /// Restores ONLY what was actually received, with the original source timestamp
+    /// and quality — a restored member is indistinguishable from one that arrived a
+    /// second ago, which is precisely what would have been true had the process never
+    /// stopped. `lastEmittedTsMs` comes back too: event_ts_ms must advance strictly,
+    /// because IoTDB keys rows by device+timestamp and a repeat would overwrite.
+    ///
+    /// Live data always wins: a seed never overwrites a member already present, and
+    /// never overwrites a newer timestamp.</summary>
+    public void Seed(RegistryLoop loop, string? sourceFcs,
+        IReadOnlyDictionary<string, (double Value, long TsMs, bool Good)> members,
+        IReadOnlyDictionary<string, (double Value, long TsMs, bool Good)> extras,
+        string? modeToken, long modeTsMs, long lastEmittedTsMs, LoopIngestSettings cfg, long nowMs)
+    {
+        lock (_gate)
+        {
+            if (!_loops.TryGetValue(loop.LoopId, out var state))
+                _loops[loop.LoopId] = state = new LoopState { NextTickMs = NextGridBoundary(nowMs, cfg.GridSeconds) };
+            state.Loop = loop;
+            state.SourceFcs ??= sourceFcs;
+            state.Restored = true;
+
+            SeedBucket(state.Members, members);
+            SeedBucket(state.Extras, extras);
+
+            if (modeToken is not null && (state.Mode is null || modeTsMs > state.ModeTsMs))
+            {
+                state.Mode = modeToken;
+                state.ModeTsMs = modeTsMs;
+            }
+            // Never move the emission watermark BACKWARDS: a lower value would let a
+            // timestamp we have already published be emitted again.
+            if (lastEmittedTsMs > state.LastEmittedTsMs) state.LastEmittedTsMs = lastEmittedTsMs;
+        }
+    }
+
+    private static void SeedBucket(Dictionary<string, Member> bucket,
+        IReadOnlyDictionary<string, (double Value, long TsMs, bool Good)> seeds)
+    {
+        foreach (var (role, seed) in seeds)
+        {
+            if (bucket.TryGetValue(role, out var existing) && existing.TsMs >= seed.TsMs)
+                continue;   // live data is never displaced by a restored value
+            bucket[role] = new Member { Value = seed.Value, TsMs = seed.TsMs, Good = seed.Good };
+        }
+    }
+
+    /// <summary>Everything worth persisting, for the state repository.</summary>
+    public IReadOnlyList<LoopStateSnapshot> StateSnapshot()
+    {
+        lock (_gate)
+        {
+            var rows = new List<LoopStateSnapshot>(_loops.Count);
+            foreach (var st in _loops.Values)
+            {
+                if (st.Loop is null) continue;
+                rows.Add(new LoopStateSnapshot(
+                    st.Loop.LoopId,
+                    st.Members.ToDictionary(kv => kv.Key, kv => (kv.Value.Value, kv.Value.TsMs, kv.Value.Good)),
+                    st.Extras.ToDictionary(kv => kv.Key, kv => (kv.Value.Value, kv.Value.TsMs, kv.Value.Good)),
+                    st.Mode, st.ModeTsMs, st.LastEmittedTsMs, st.SourceFcs));
+            }
+            return rows;
+        }
+    }
 
     /// <summary>Per-loop ingestion state, for the audit endpoint. Covers only loops
     /// the joiner has heard from; a registered loop that has never published anything
@@ -133,7 +207,8 @@ public sealed class LoopJoiner
                     LastEmittedTsMs: st.LastEmittedTsMs > 0 ? st.LastEmittedTsMs : null,
                     SecondsSinceEmit: sinceEmit,
                     SkippedTicks: st.SkippedTicks,
-                    SourceFcs: st.SourceFcs));
+                    SourceFcs: st.SourceFcs,
+                    Restored: st.Restored));
             }
             return rows;
         }

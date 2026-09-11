@@ -44,6 +44,12 @@ public sealed class OtLoopSubscriber : IAsyncDisposable
     private long _lastTouchMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(); // first stamp ≥30 s after start
     private long _lastSkipped;
     private long _lastHealthMs;
+    private readonly LoopStateRepository? _stateRepo;
+    private long _lastStateSaveMs;
+    /// <summary>Persist cadence. Slow on purpose: the value of the store is surviving a
+    /// restart, not being current to the second, and a write storm would cost more than
+    /// the few minutes of re-learning it saves.</summary>
+    private const int StateSaveIntervalMs = 60_000;
     /// <summary>A loop emitting nothing for this long is reported `idle`. Six grid
     /// ticks at the 5 s default: long enough that a steady loop with slow-moving
     /// signals is not flagged, short enough to notice a source going quiet.</summary>
@@ -56,8 +62,9 @@ public sealed class OtLoopSubscriber : IAsyncDisposable
         IReadOnlyList<string> topics, int qos, CplmRegistryClient registryClient,
         ILoopSampleSink sink, UnknownSourceInventory inventory, UnknownSourceRepository unknownRepo,
         DataSourceRepository configRepo, SubscriberStatus status, ILogger logger,
-        LoopRegistryCache? registry = null)
+        LoopRegistryCache? registry = null, LoopStateRepository? stateRepo = null)
     {
+        _stateRepo = stateRepo;
         _row = row; _password = password; _settings = settings; _topics = topics;
         _qos = (MqttQualityOfServiceLevel)Math.Clamp(qos, 0, 2);
         _registryClient = registryClient; _sink = sink; _inventory = inventory;
@@ -129,6 +136,8 @@ public sealed class OtLoopSubscriber : IAsyncDisposable
             new MqttTopicFilterBuilder().WithTopic(t).WithQualityOfServiceLevel(_qos).Build()).ToList());
         _logger.LogInformation("[{Name}] subscribed to {Topics} (qos {Qos}); registry has {Loops} loops",
             Name, string.Join(", ", _topics), (int)_qos, _registry.Count);
+
+        await SeedFromStateStoreAsync(ct);
 
         _workers.Add(Task.Run(() => ConsumeLoopAsync(ct), ct));
         _workers.Add(Task.Run(() => GridLoopAsync(ct), ct));
@@ -244,6 +253,61 @@ public sealed class OtLoopSubscriber : IAsyncDisposable
         }
     }
 
+    /// <summary>Restore last-known values saved by a previous run. Best-effort by
+    /// design: a state store that is empty, unreachable or stale must degrade to
+    /// today's behaviour (wait for the wire) and never block ingestion from starting.</summary>
+    private async Task SeedFromStateStoreAsync(CancellationToken ct)
+    {
+        if (_stateRepo is null) return;
+        try
+        {
+            var rows = await _stateRepo.LoadAsync(_row.ConfigId, ct);
+            if (rows.Count == 0) return;
+            var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var seeded = 0;
+            foreach (var row in rows)
+            {
+                // Only for loops still registered and active: a retired loop must not be
+                // resurrected from the store.
+                if (!_registry.TryResolve(row.LoopId, out var loop)) continue;
+                _joiner.Seed(loop, row.SourceFcs,
+                    row.Members.ToDictionary(kv => kv.Key, kv => (kv.Value.V, kv.Value.Ts, kv.Value.Good)),
+                    row.Extras.ToDictionary(kv => kv.Key, kv => (kv.Value.V, kv.Value.Ts, kv.Value.Good)),
+                    row.ModeToken, row.ModeTsMs ?? 0, row.LastEmittedTsMs, _settings, nowMs);
+                seeded++;
+            }
+            _logger.LogInformation(
+                "[{Name}] restored last-known values for {Seeded} loop(s) from the state store " +
+                "({Stored} stored) - signals that have not changed since are available immediately",
+                Name, seeded, rows.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[{Name}] could not restore loop state - starting from the wire only", Name);
+        }
+    }
+
+    /// <summary>Persist what we have learned. Failures are logged and retried on the next
+    /// cycle; losing a save costs re-learning, losing ingestion costs data.</summary>
+    private async Task SaveStateAsync(CancellationToken ct)
+    {
+        if (_stateRepo is null) return;
+        try
+        {
+            var snapshot = _joiner.StateSnapshot();
+            if (snapshot.Count == 0) return;
+            await _stateRepo.SaveAsync(_row.ConfigId, snapshot.Select(x => new LoopStateRow(
+                x.LoopId,
+                x.Members.ToDictionary(kv => kv.Key, kv => new StoredMember(kv.Value.Value, kv.Value.TsMs, kv.Value.Good)),
+                x.Extras.ToDictionary(kv => kv.Key, kv => new StoredMember(kv.Value.Value, kv.Value.TsMs, kv.Value.Good)),
+                x.ModeToken, x.ModeTsMs == 0 ? null : x.ModeTsMs, x.LastEmittedTsMs, x.SourceFcs)), ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[{Name}] loop-state save failed - will retry", Name);
+        }
+    }
+
     /// <summary>Merge what the joiner has heard with what the registry expects, so a
     /// loop that has never published anything appears as `silent` rather than simply
     /// being absent from the audit. Refreshed at most every 10 s -- the answer only
@@ -289,6 +353,11 @@ public sealed class OtLoopSubscriber : IAsyncDisposable
             _status.ActiveLoops = _joiner.ActiveLoops;
             IngestionMetrics.JoinerActiveLoops(Name, _joiner.ActiveLoops);
             PublishLoopHealth(nowMs);
+            if (nowMs - _lastStateSaveMs >= StateSaveIntervalMs)
+            {
+                _lastStateSaveMs = nowMs;
+                await SaveStateAsync(ct);
+            }
 
             foreach (var tuple in tuples)
             {
@@ -392,6 +461,10 @@ public sealed class OtLoopSubscriber : IAsyncDisposable
         catch { /* workers observed cancellation */ }
         try { await _inventory.FlushAsync(_unknownRepo, _logger, CancellationToken.None); }
         catch { /* final flush is best-effort */ }
+        // Save last-known values on the way out: a planned restart should lose nothing,
+        // and the periodic save may be up to a minute stale.
+        try { await SaveStateAsync(CancellationToken.None); }
+        catch { /* final save is best-effort */ }
         _cts.Dispose();
     }
 }
