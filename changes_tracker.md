@@ -825,7 +825,16 @@ PV-only loop, live-beats-restored, newer-restored-wins, watermark survives, wate
 rewinds, audit visibility, a full snapshot→seed round trip through a second joiner, and the
 immediate-save trigger firing on a first value per role but not on updates or on seeding,
 and a six-month-old setpoint still being used, still GOOD, with its age visible).
-**Not yet exercised against the plant** — first proof is the first restart after deploy.
+**PROVEN ON THE PLANT 2026-09-11.** The OT gateway was restarted (a full publish, then
+on-change) and the fleet went **36 → 161 flowing, 114 → 0 held, 7 → 0 without MODE** — every
+"missing" signal existed all along. `ingestion.loop_state` captured all 161 within seconds
+via the immediate-save trigger, and a subsequent restart of the ingestion service reported
+**161 of 175 loops restored from the state store**, with `held` still 0.
+
+One gap the live test exposed: the "restored N loops" startup message is `LogInformation`,
+which the plant suppresses at `SERVICE_LOG_LEVEL=Error` — the single number proving restart
+durability was invisible exactly where it mattered. The count is now on the `/stats`
+`loopHealth` roll-up as `restored`, where no log level can hide it.
 
 ---
 

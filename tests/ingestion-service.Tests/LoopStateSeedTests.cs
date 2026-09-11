@@ -107,6 +107,9 @@ public class LoopStateSeedTests
         j.Seed(L(), "FCS0101", M(("sp", 42.0, T0)), NoExtras, null, 0, 0, Cfg, T0);
         var row = Assert.Single(j.HealthSnapshot(T0, 30));
         Assert.True(row.Restored, "a loop holding restored values should say so");
+        // And it must be countable without reading logs: the plant runs at
+        // SERVICE_LOG_LEVEL=Error, where the startup message is suppressed.
+        Assert.Equal(1, LoopHealthSummary.From(j.HealthSnapshot(T0, 30)).Restored);
         Assert.Equal(new[] { "pv", "op" }, row.Missing);   // sp restored, the rest still absent
     }
 

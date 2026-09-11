@@ -73,7 +73,13 @@ public sealed record LoopStateSnapshot(
 public sealed record LoopHealthSummary(
     int Total, int Flowing, int Idle, int Held, int Silent,
     IReadOnlyDictionary<string, int> MissingByRole,
-    int NoMode)
+    int NoMode,
+    /// <summary>Loops holding at least one value reconstructed from the state store at
+    /// startup. Exposed here rather than left to a log line: the plant runs at
+    /// SERVICE_LOG_LEVEL=Error, where the startup message is suppressed — so the one
+    /// number proving restart durability worked was invisible exactly where it mattered
+    /// (found 2026-09-11, during the first live test).</summary>
+    int Restored)
 {
     public static LoopHealthSummary From(IReadOnlyList<LoopHealthRow> rows)
     {
@@ -96,7 +102,8 @@ public sealed record LoopHealthSummary(
             // all flowing, which is exactly the set worth chasing: they reach the
             // engine and are then excluded at G1 for want of one signal.
             NoMode: rows.Count(r => !r.ModeSeen &&
-                (r.State == LoopHealthState.Flowing || r.State == LoopHealthState.Idle)));
+                (r.State == LoopHealthState.Flowing || r.State == LoopHealthState.Idle)),
+            Restored: rows.Count(r => r.Restored));
     }
 
     public object ToPayload() => new
@@ -108,5 +115,6 @@ public sealed record LoopHealthSummary(
         silent = Silent,
         missingByRole = MissingByRole,
         noMode = NoMode,
+        restored = Restored,
     };
 }

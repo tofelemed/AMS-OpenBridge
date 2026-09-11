@@ -137,5 +137,7 @@ public class LoopHealthTests
         // Only GOOD1: a held loop's missing MODE is not the actionable fact (its
         // missing SP is), and a silent loop has no data at all.
         Assert.Equal(1, s.NoMode);
+        // Nothing here came from the state store.
+        Assert.Equal(0, s.Restored);
     }
 }
