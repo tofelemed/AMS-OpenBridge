@@ -23,28 +23,9 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import { T } from '../../styles/theme';
 import { Fact, Pill, monoFamily } from './adminUi';
 import { DataSourceDto, LoopIngestConfig, extractApiError, updateDataSource } from './dataSourcesApi';
-
-/** Mirror of ingestion-service ModeVocabulary.cs, itself a mirror of the Flink
- *  CplmNormalizedSample token sets. Keep the three in step. */
-const AUTO_TOKENS = new Set([
-  'AUTO', 'AUT', 'A', 'AUTOMATIC', 'NORMAL', 'NORM',
-  'CAS', 'CASC', 'CASCADE', 'RSP', 'DDC', 'SUP', 'SUPERVISORY',
-]);
-const MANUAL_TOKENS = new Set([
-  'MAN', 'MANUAL', 'M', 'IMAN', 'ROUT', 'LO', 'LOCAL', 'OFF', 'TRACK',
-]);
-
-type ModeClass = 'auto' | 'manual' | 'unrecognised';
-
-/** What the engine will make of this token. Manual wins before auto, as in the engine. */
-export function classifyMode(token: string): ModeClass {
-  const m = token.trim().toUpperCase();
-  if (!m || m === 'UNKNOWN') return 'unrecognised';
-  if (MANUAL_TOKENS.has(m)) return 'manual';
-  if (AUTO_TOKENS.has(m)) return 'auto';
-  if (m.includes('AUTO') || m.includes('CASCADE')) return 'auto';
-  return 'unrecognised';
-}
+// Single source of truth for the engine's mode tokens -- it must stay in step with
+// ingestion-service ModeVocabulary.cs, so it lives in one place, not three.
+import { classifyMode, type ModeClass } from '../../utils/modeVocabulary';
 
 /** SME-confirmed Yokogawa CENTUM enum (docs/ot-data-integration/10 §2). */
 const CENTUM_PRESET: Array<[string, string]> = [['1', 'AUT'], ['2', 'MAN'], ['3', 'CAS'], ['4', 'IMAN']];

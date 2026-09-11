@@ -829,6 +829,42 @@ and a six-month-old setpoint still being used, still GOOD, with its age visible)
 
 ---
 
+## CHG-017 ✅ MODE on the Loop Explorer summary
+
+**Service:** frontend · **Files:** `utils/modeVocabulary.ts` (new),
+`components/Cpm/explorer/SummaryTab.tsx`, `components/Administration/LoopIngestPanel.tsx`
+
+The Summary tab showed live **PV / SP / OP** and not MODE — while MODE is the field that
+decides whether any of it was scored at all. A loop in manual is excluded at Gate 1, so
+every verdict on that page was computed *without* it; three numbers with no mode invite
+the reader to judge performance that was never measured.
+
+**The API already carried it.** `useLoopLive` has exposed `mode` (and `vp`, `quality`)
+since Phase 7 — the tab simply rendered three of six fields. No backend change.
+
+A fourth tile now shows the token plus what it means for analysis:
+
+| Live value | Shown | Note |
+|---|---|---|
+| `AUT` / `CAS` | the token | closed loop · analysed |
+| `MAN` / `IMAN` | the token | manual · excluded at G1 |
+| `UNKNOWN` | `UNKNOWN` | **mode never published · excluded at G1** |
+| absent | `—` | no live publisher |
+
+`UNKNOWN` is deliberately its own case rather than folded into "manual": it means the
+source has never published a mode (7 loops on the plant, 2026-09-11), which is an OT gap,
+not an operator's choice — and the two need different people to fix them.
+
+**Vocabulary de-duplicated.** The token sets now live in `utils/modeVocabulary.ts`, used by
+both this tile and `LoopIngestPanel`'s per-row classifier. They must stay in step with
+ingestion-service `ModeVocabulary.cs` and Flink `CplmNormalizedSample`; three copies would
+have drifted. Manual-wins-before-auto is preserved, exactly as the engine resolves it.
+
+**Verified:** `tsc --noEmit`, `eslint --max-warnings 0` and `npm run build` all clean. Not
+click-tested — `src/frontend-ob` still has no test runner.
+
+---
+
 ## CHG-005 ✅ Documentation & diagnostics
 
 - `docs/cpm-calculation-reference.md` — widened from the four Flink jobs to the whole CPA

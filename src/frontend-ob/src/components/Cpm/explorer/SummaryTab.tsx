@@ -16,6 +16,7 @@ import { useCpmTrend, useLatestGates } from '../../../hooks/useCpm';
 import { useLoopLive, qualityLabel } from '../../../hooks/useLoopLive';
 import { useObcTheme } from '../../../hooks/useObcTheme';
 import { loopSeries } from '../../../utils/loopSeries';
+import { modeLabel } from '../../../utils/modeVocabulary';
 import {
   EmptyState, KvRow, PanelHead, QueryError, TonePill,
   cpmChartColors, fmtDateTime, useRollingWindow, TREND_SPAN_MS, TREND_TICK_MS,
@@ -128,6 +129,23 @@ export const SummaryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
                   </div>
                 );
               })}
+
+              {/* MODE completes the picture. A loop in manual is excluded at Gate 1, so
+                  every verdict on this page was computed WITHOUT it — showing PV/SP/OP
+                  alone invites the reader to judge performance that was never scored.
+                  UNKNOWN is its own case: the source has never published a mode at all
+                  (7 loops on the HDPE plant, 2026-09-11), which reads as manual to the
+                  engine and is an OT gap rather than an operator choice. */}
+              {(() => {
+                const m = modeLabel(live.mode?.value);
+                return (
+                  <div className="cpm-kpi">
+                    <span className="cpm-kpi__caption">MODE</span>
+                    <span className="cpm-kpi__value">{m.label}</span>
+                    <span className="cpm-kpi__sub">{m.note}</span>
+                  </div>
+                );
+              })()}
             </div>
             {/* Source quality belongs with the values it describes, not in the
                 panel head where it read as a loop verdict. */}
