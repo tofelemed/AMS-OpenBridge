@@ -40,7 +40,7 @@ export type ModeTone = 'good' | 'warn' | 'bad' | 'muted';
  */
 export function modeLabel(value: unknown): { label: string; note: string; tone: ModeTone } {
   if (value === undefined || value === null || value === '') {
-    return { label: '—', note: 'no live publisher', tone: 'muted' };
+    return { label: '—', note: 'no live value, none stored', tone: 'muted' };
   }
   const token = String(value).trim().toUpperCase();
   if (token === 'UNKNOWN') {

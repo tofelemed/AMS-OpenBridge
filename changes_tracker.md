@@ -869,6 +869,15 @@ both this tile and `LoopIngestPanel`'s per-row classifier. They must stay in ste
 ingestion-service `ModeVocabulary.cs` and Flink `CplmNormalizedSample`; three copies would
 have drifted. Manual-wins-before-auto is preserved, exactly as the engine resolves it.
 
+**Fixed on the plant the same day:** the first version read only the live Sparkplug plane
+and showed `—` for almost every loop. MODE is report-by-exception like everything else, and
+it changes so rarely that the live plane is normally silent for it — a loop sitting in AUT
+for a month publishes nothing, so there is no live value to read. The tile now uses the
+**same two-plane rule as PV/SP/OP**: live first, last stored value second, with the source
+named in the sub-line. The historian needed no change — its trend builder already decimates
+`mode` with `last_value()` rather than averaging it, because it is categorical; the tab
+simply was not asking for it.
+
 **Verified:** `tsc --noEmit`, `eslint --max-warnings 0` and `npm run build` all clean. Not
 click-tested — `src/frontend-ob` still has no test runner.
 

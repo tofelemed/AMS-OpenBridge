@@ -31,7 +31,7 @@ export const SummaryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   const series = loopSeries(loop.loopId);
   const { start, end } = useRollingWindow(TREND_SPAN_MS, TREND_TICK_MS);
   // pollDriven: the window advances on a timer, not because the operator asked.
-  const trend = useCpmTrend(series, start, end, 240, 'pv,sp,op', true, true);
+  const trend = useCpmTrend(series, start, end, 240, 'pv,sp,op,mode', true, true);
   const points = useMemo(() => trend.data?.points ?? [], [trend.data]);
   const last = points.length ? points[points.length - 1] : undefined;
 
@@ -137,12 +137,21 @@ export const SummaryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
                   (7 loops on the HDPE plant, 2026-09-11), which reads as manual to the
                   engine and is an OT gap rather than an operator choice. */}
               {(() => {
-                const m = modeLabel(live.mode?.value);
+                // Same two-plane rule as PV/SP/OP: live first, last stored value second.
+                // MODE changes so rarely that the RBE live plane is usually silent for it
+                // — a loop sitting in AUT for a month publishes nothing — so reading only
+                // the live plane rendered "—" for loops whose mode is perfectly well known.
+                const liveMode = live.mode?.value;
+                const storedMode = last?.mode;
+                const value = liveMode ?? storedMode;
+                const m = modeLabel(value);
+                const src = liveMode != null ? 'live (RBE)'
+                          : storedMode != null ? 'from historian' : null;
                 return (
                   <div className="cpm-kpi">
                     <span className="cpm-kpi__caption">MODE</span>
                     <span className="cpm-kpi__value">{m.label}</span>
-                    <span className="cpm-kpi__sub">{m.note}</span>
+                    <span className="cpm-kpi__sub">{src ? `${m.note} · ${src}` : m.note}</span>
                   </div>
                 );
               })()}
