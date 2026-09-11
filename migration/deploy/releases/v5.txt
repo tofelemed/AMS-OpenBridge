@@ -1,0 +1,18 @@
+# Release v5 — corrections found while proving v4 on the plant (2026-09-11).
+# One compose service per line; `#` comments and blank lines are ignored.
+# Consumed by: python migration/deploy/build-release.py --release v5
+#
+# Why each one is here:
+#   traverse-ingestion-service  restored-loop count on /stats. The startup message
+#                               reporting it is LogInformation, which the plant
+#                               suppresses at SERVICE_LOG_LEVEL=Error - so the one
+#                               number proving restart durability was invisible
+#                               exactly where it mattered.
+#   ams-frontend                MODE tile falls back to the last stored value. MODE is
+#                               report-by-exception, so the live plane is normally
+#                               silent for it and the tile showed "-" for almost every
+#                               loop.
+#
+# No schema change. Same two services as v4.
+traverse-ingestion-service
+ams-frontend
