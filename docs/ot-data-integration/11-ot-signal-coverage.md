@@ -26,6 +26,46 @@ diagnostics. A loop missing any of the three is not partially assessable — it 
 unassessable, and the pipeline correctly emits nothing for it rather than substituting a
 default that would produce confident wrong verdicts.
 
+> **The cause is almost certainly publishing behaviour, not a missing tag list.**
+> See [§0](#0-why-a-signal-is-absent-read-this-first) — the fix is one gateway setting,
+> not 114 tag additions.
+
+---
+
+## 0. Why a signal is absent — read this first
+
+The gateway publishes **strictly on change**, with the retain flag set, and **never
+publishes a baseline**. A tag that has not changed since the gateway last started has
+therefore never been published at all: the broker holds nothing, and **no subscriber —
+ours or anyone's — can obtain that value, ever.**
+
+The evidence is the retained inventory itself. Retained counts track change *frequency*
+with almost perfect fidelity, which a configured tag list would not:
+
+| Param | Loops with a retained value | How often it changes |
+|---|---|---|
+| PV | 147 | continuously |
+| OP | 86 | continuously (fixed-output valves aside) |
+| MODE | 55 | occasionally |
+| **SP** | **37** | **rarely** |
+| P / GW | 22 | almost never |
+| I | 20 | almost never |
+| D | 17 | almost never |
+
+A configuration that published PV for 147 loops but SP for only 37 would be arbitrary;
+change frequency explains the ordering exactly. Retained timestamps confirm it: they span
+**2026-09-06 → 2026-09-11**, so values sit untouched for days — there is no periodic
+republish, and the newest SP/P/I/D values share a single instant (`06:00:50`), the
+signature of a change event rather than a refresh cycle.
+
+**Consequence:** the 114 loops below most likely *do* have a setpoint in the DCS. It simply
+has not moved, so it has never been published, so we cannot see it. From the broker alone
+"configured but unchanged" and "not configured" are indistinguishable — but only the first
+is consistent with the pattern above.
+
+**This also explains the missing MODEs in §2**, and it is a standing fragility: every
+gateway restart resets the baseline to whatever happens to change afterwards.
+
 ### Every incomplete loop is missing SP
 
 | Missing | Loops |
@@ -48,8 +88,10 @@ default that would produce confident wrong verdicts.
 
 ## 1. Incomplete loops — 114
 
-These publish something (usually PV) but lack at least one required signal, so they
-produce no data at all downstream. **This is the main list.**
+These publish something (usually PV), but at least one required signal has **no value on
+the broker**, so they produce no data at all downstream. Per §0 the signal most likely
+exists in the DCS and simply has not changed since the gateway started. **This is the main
+list.**
 
 ### FCS0101 — 45 of 68 incomplete
 
@@ -99,9 +141,11 @@ produce no data at all downstream. **This is the main list.**
   `FIC10303B`     `FIC10402`      `LIC20402`      `PIC10703`      `PIC80142`      `PIC80143`
   `PIC80150`      `TIC20305`
 
-These have PV/SP/OP and **do** reach the system, but never publish MODE. Without it the
-engine cannot tell closed-loop from manual operation, counts the loop as not-auto, and
-**Gate 1 excludes it from analysis**. One extra signal brings each of these fully online.
+These have PV/SP/OP and **do** reach the system, but no MODE value has ever been published
+for them — the same baseline problem as §0 (a loop left in AUTO for weeks never generates a
+MODE change). Without it the engine cannot tell closed-loop from manual operation, counts
+the loop as not-auto, and **Gate 1 excludes it from analysis**. The §5 baseline fix covers
+these too.
 
 ---
 
@@ -138,15 +182,24 @@ they appear to be inactive in the CPA registry rather than a data problem:
 
 ## 5. What we are asking for, in priority order
 
-1. **Publish SP for the 114 loops in §1** (and OP for the 65 that also lack it). This is
-   the difference between 37 and 151 analysable loops. Nothing changes on the CPA side —
-   the 37 complete loops already flow end to end.
-2. **Publish MODE for the 8 loops in §2** — the cheapest win on the list: they are already
-   complete and merely excluded for want of one signal.
-3. **Confirm the 24 tags in §3** — real under another name, or retire them.
+1. **Publish a baseline for every configured tag — this is the whole fix.** On gateway
+   startup, and periodically thereafter (every 5–15 minutes is ample), publish the current
+   value of every configured tag rather than only on change. Retained + on-change is
+   correct for a tag that moves; for a setpoint that has sat still for a month it means the
+   value has never existed on the broker. **One setting takes us from 37 analysable loops
+   to potentially 151.** It also fixes §2 and removes the restart fragility.
+2. **Confirm SP is configured for all 151 loops.** If §0's reading is right, nothing needs
+   adding and step 1 is sufficient. If some genuinely are not configured, the loops in §1
+   are the list to add.
+3. **Confirm the 24 tags in §3** — real under another name, or retire them from our registry.
 
-Retention is set correctly on all 406 published topics; a reconnecting subscriber gets the
-current value immediately. No change is needed there.
+Retention itself is set correctly on all 406 published topics; a reconnecting subscriber
+gets every retained value immediately. **That part is right and should not change** — the
+gap is that values which never change never become retained in the first place.
+
+> **How to confirm §0 without guesswork:** the set of loops with a retained SP should
+> *grow* over days as more setpoints happen to move. If it is still exactly 37 next week,
+> SP really is configured for only those loops and reading 2 applies instead.
 
 ### Regenerating this
 
