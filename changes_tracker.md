@@ -696,6 +696,62 @@ every `ops/` path — with the wrong-CWD run failing, as the fix predicts.
 
 ---
 
+## CHG-015 ✅ Loop ingestion audit — "why is this loop dark?" in one GET
+
+**Service:** ingestion-service · **Found:** 2026-09-11 (on the plant, the hard way)
+**Files:** `Pipeline/LoopHealth.cs` (new), `LoopJoiner.cs`, `LoopRegistryCache.cs`,
+`OtLoopSubscriber.cs`, `SubscriberStatusRegistry.cs`, `IngestionMetrics.cs`,
+`PipelineEndpoints.cs`; tests `LoopHealthTests.cs` (new)
+
+**What prompted it.** After v3 went in, 143 of 175 registered loops were producing
+nothing. Establishing why took a two-hour MQTT inventory: capture every retained topic,
+derive which loops publish which parameters, cross-reference against the registry. The
+answer — **114 loops never publish SP** — had been sitting inside the joiner the entire
+time. It gates emission until pv, sp AND op have each been seen, and said nothing.
+
+**The gating is correct and is NOT relaxed.** Without SP there is no control error, so
+those loops are unassessable, and defaulting the missing member is worse than silence:
+`CplmNormalizedSample.java`'s P1-12 comment records a defaulted `op=0` once reading as
+"G4 PASS, actuator healthy" for a valve nobody was receiving data from. Flink would
+discard such tuples anyway (`isValid=false` on any non-numeric pv/sp/op), so emitting
+them would only add Kafka volume. **The defect was the reporting, not the rule.**
+
+**What was added:**
+
+- **`GET /api/ingestion/loop-health`** — one row per registered loop: `state`, the
+  `missing` required signals, which roles have been `seen`, `modeSeen`, last source
+  timestamp, seconds since last emit, skipped ticks, `sourceFcs`. Filters: `?state=held`,
+  `?loopId=`. Sorted worst-first so the actionable rows need no paging.
+- **Four states**, each implying a different fix: `flowing`; `idle` (complete, source
+  went quiet); **`held`** (a required signal has NEVER arrived — needs an OT change);
+  `silent` (registered, not one message ever). Held deliberately outranks idle: an
+  incomplete loop has also never emitted, but waiting will not fix it.
+- **`silent` needs the registry**, which the joiner cannot see — a loop that never
+  published has no joiner state at all. `OtLoopSubscriber` merges
+  `LoopRegistryCache.ActiveLoops()` with the joiner snapshot every 10 s.
+- **Roll-up on `/stats`** (`loopHealth`: total/flowing/idle/held/silent, missingByRole,
+  noMode) and **Prometheus gauges** `ingestion_loops_by_state{state}` and
+  `ingestion_loops_missing_role{role}` — so `held` climbing is alertable, not merely
+  inspectable.
+- Idle-ness is judged on **our** wall clock (`LastEmittedWallMs`), never the source's:
+  the plant's gateway runs +132 s ahead, so comparing a source ts to now would mislabel
+  healthy loops. Same lesson as CHG-001.
+
+**`noMode` counts only otherwise-analysable loops.** First cut counted held and silent
+loops too; a test caught it. A held loop's missing MODE is not the actionable fact — its
+missing SP is. On the plant the 8 MODE-less loops were all flowing, which is exactly the
+set worth chasing.
+
+**Verified:** build clean, 0 warnings; **140/140 tests** (6 new, each reproducing a shape
+seen on the plant: PV-only → held naming sp+op; PV+OP → held naming sp; complete → flowing
+then idle; held outranking idle; MODE never gating; and the fleet roll-up).
+**Not yet exercised against the plant** — first proof is the first deploy.
+
+**What it would have answered instantly:** `GET /loop-health?state=held` → 114 rows, each
+naming `sp`. That is the whole OT conversation, without touching the broker.
+
+---
+
 ## CHG-005 ✅ Documentation & diagnostics
 
 - `docs/cpm-calculation-reference.md` — widened from the four Flink jobs to the whole CPA

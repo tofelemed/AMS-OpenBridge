@@ -43,6 +43,11 @@ public sealed class OtLoopSubscriber : IAsyncDisposable
     private IManagedMqttClient? _client;
     private long _lastTouchMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(); // first stamp ≥30 s after start
     private long _lastSkipped;
+    private long _lastHealthMs;
+    /// <summary>A loop emitting nothing for this long is reported `idle`. Six grid
+    /// ticks at the 5 s default: long enough that a steady loop with slow-moving
+    /// signals is not flagged, short enough to notice a source going quiet.</summary>
+    private int IdleAfterSeconds => Math.Max(30, _settings.GridSeconds * 6);
     private long _receivedSinceTouch;
 
     private string Name => _status.Name;
@@ -239,6 +244,37 @@ public sealed class OtLoopSubscriber : IAsyncDisposable
         }
     }
 
+    /// <summary>Merge what the joiner has heard with what the registry expects, so a
+    /// loop that has never published anything appears as `silent` rather than simply
+    /// being absent from the audit. Refreshed at most every 10 s -- the answer only
+    /// changes on the grid cadence and this walks the whole fleet.</summary>
+    private void PublishLoopHealth(long nowMs)
+    {
+        if (nowMs - _lastHealthMs < 10_000) return;
+        _lastHealthMs = nowMs;
+
+        var rows = _joiner.HealthSnapshot(nowMs, IdleAfterSeconds).ToList();
+        var known = new HashSet<string>(rows.Select(r => r.LoopId), StringComparer.OrdinalIgnoreCase);
+        foreach (var loop in _registry.ActiveLoops())
+        {
+            if (known.Contains(loop.LoopId)) continue;
+            rows.Add(new LoopHealthRow(
+                LoopId: loop.LoopId,
+                State: LoopHealthState.Silent,
+                Missing: LoopHealthRow.RequiredRoles,   // nothing has ever arrived
+                Seen: Array.Empty<string>(),
+                ModeSeen: false,
+                LastSourceTsMs: null,
+                LastEmittedTsMs: null,
+                SecondsSinceEmit: null,
+                SkippedTicks: 0,
+                SourceFcs: null));
+        }
+
+        _status.LoopHealth = rows;
+        IngestionMetrics.LoopHealth(Name, LoopHealthSummary.From(rows));
+    }
+
     // ── grid ticker: emit merged tuples ─────────────────────────────────────
     private async Task GridLoopAsync(CancellationToken ct)
     {
@@ -252,6 +288,7 @@ public sealed class OtLoopSubscriber : IAsyncDisposable
             _lastSkipped = skipped;
             _status.ActiveLoops = _joiner.ActiveLoops;
             IngestionMetrics.JoinerActiveLoops(Name, _joiner.ActiveLoops);
+            PublishLoopHealth(nowMs);
 
             foreach (var tuple in tuples)
             {

@@ -74,6 +74,11 @@ public sealed class LoopJoiner
         /// advance strictly: two tuples sharing a timestamp are ONE row in IoTDB
         /// (device+timestamp is the key), so the second would silently overwrite.</summary>
         public long LastEmittedTsMs;
+        /// <summary>OUR wall clock at the last emission. Idle-ness must be judged in
+        /// our own clock domain: the gateway's clock runs ahead (measured +132 s on
+        /// the plant), so comparing a source ts to now would mislabel healthy loops.</summary>
+        public long LastEmittedWallMs;
+        public long SkippedTicks;
         public long NextTickMs;
     }
 
@@ -86,6 +91,53 @@ public sealed class LoopJoiner
     /// climbing value means a loop has gone quiet — otherwise invisible, since the
     /// old behaviour was to keep republishing the same forward-filled values.</summary>
     public long SkippedNoAdvance { get; private set; }
+
+    /// <summary>Per-loop ingestion state, for the audit endpoint. Covers only loops
+    /// the joiner has heard from; a registered loop that has never published anything
+    /// has no state here at all and is classified `silent` by the caller, which is the
+    /// one that knows the registry.</summary>
+    public IReadOnlyList<LoopHealthRow> HealthSnapshot(long nowMs, int idleAfterSeconds)
+    {
+        lock (_gate)
+        {
+            var rows = new List<LoopHealthRow>(_loops.Count);
+            foreach (var (loopId, st) in _loops)
+            {
+                var seen = st.Members.Keys.Concat(st.Extras.Keys)
+                    .OrderBy(k => k, StringComparer.Ordinal).ToArray();
+                var missing = LoopHealthRow.RequiredRoles
+                    .Where(r => !st.Members.ContainsKey(r)).ToArray();
+
+                long? lastSource = null;
+                foreach (var m in st.Members.Values)
+                    if (lastSource is null || m.TsMs > lastSource) lastSource = m.TsMs;
+                if (st.ModeTsMs > (lastSource ?? 0)) lastSource = st.ModeTsMs;
+
+                long? sinceEmit = st.LastEmittedWallMs > 0
+                    ? (nowMs - st.LastEmittedWallMs) / 1000 : null;
+
+                // Held beats idle: a loop missing SP is not quiet, it is unusable.
+                var state = missing.Length > 0
+                    ? LoopHealthState.Held
+                    : sinceEmit is null || sinceEmit > idleAfterSeconds
+                        ? LoopHealthState.Idle
+                        : LoopHealthState.Flowing;
+
+                rows.Add(new LoopHealthRow(
+                    LoopId: st.Loop?.LoopId ?? loopId,
+                    State: state,
+                    Missing: missing,
+                    Seen: seen,
+                    ModeSeen: st.Mode is not null,
+                    LastSourceTsMs: lastSource,
+                    LastEmittedTsMs: st.LastEmittedTsMs > 0 ? st.LastEmittedTsMs : null,
+                    SecondsSinceEmit: sinceEmit,
+                    SkippedTicks: st.SkippedTicks,
+                    SourceFcs: st.SourceFcs));
+            }
+            return rows;
+        }
+    }
 
     public void Accept(RegistryLoop loop, string sourceFcs, MappedParameter mapped,
         OtLoopPayload payload, LoopIngestSettings cfg, long nowMs)
@@ -148,8 +200,9 @@ public sealed class LoopJoiner
                 // event_ts_ms, and IoTDB keys rows by (device, timestamp) — the repeat
                 // would overwrite the original rather than add a sample. Skip instead;
                 // a stalled loop must look like a gap, not like fresh steady data.
-                if (sourceTs <= state.LastEmittedTsMs) { SkippedNoAdvance++; continue; }
+                if (sourceTs <= state.LastEmittedTsMs) { SkippedNoAdvance++; state.SkippedTicks++; continue; }
                 state.LastEmittedTsMs = sourceTs;
+                state.LastEmittedWallMs = nowMs;
 
                 // Quality is OT's verdict, nothing else: worst-of the quality tags on
                 // pv/sp/op. We deliberately do NOT age values out — a setpoint untouched

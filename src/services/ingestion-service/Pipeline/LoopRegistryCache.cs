@@ -78,6 +78,15 @@ public sealed class LoopRegistryCache
     public LoopRegistryCache() : this(Array.Empty<RegistryLoop>()) { }
     public LoopRegistryCache(IReadOnlyList<RegistryLoop> initial) => _byId = Build(initial);
 
+    /// <summary>Every ACTIVE registered loop. The audit needs this to distinguish a
+    /// loop that is publishing an incomplete signal set from one that has never sent
+    /// anything at all -- two different conversations with the OT team.</summary>
+    public IReadOnlyList<RegistryLoop> ActiveLoops() =>
+        _byId.Values.Where(l => l.IsActive)
+             .GroupBy(l => l.LoopId, StringComparer.OrdinalIgnoreCase)
+             .Select(g => g.First())
+             .ToList();
+
     public bool TryResolve(string loopTag, out RegistryLoop loop)
     {
         if (_byId.TryGetValue(loopTag, out var found) && found.IsActive)

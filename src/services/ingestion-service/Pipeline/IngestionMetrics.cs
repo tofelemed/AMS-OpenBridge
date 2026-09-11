@@ -31,6 +31,13 @@ public static class IngestionMetrics
     private static readonly Counter TicksSkipped_ = Metrics.CreateCounter(
         "ingestion_loop_ticks_skipped_total",
         "Grid ticks that produced no tuple because no source timestamp advanced", "source");
+    private static readonly Gauge LoopsByState = Metrics.CreateGauge(
+        "ingestion_loops_by_state",
+        "Registered loops by ingestion state (flowing/idle/held/silent)", "source", "state");
+    private static readonly Gauge LoopsMissingRole = Metrics.CreateGauge(
+        "ingestion_loops_missing_role",
+        "Loops that can never emit because this required signal has never been received",
+        "source", "role");
     private static readonly Gauge ActiveLoops = Metrics.CreateGauge(
         "ingestion_joiner_active_loops", "Loops currently held in joiner state", "source");
     private static readonly Histogram SourceLatencyMs = Metrics.CreateHistogram(
@@ -51,5 +58,17 @@ public static class IngestionMetrics
     public static void ModeUnrecognised(string source) => ModeUnrecognised_.WithLabels(source).Inc();
     public static void TicksSkipped(string source, double count) { if (count > 0) TicksSkipped_.WithLabels(source).Inc(count); }
     public static void JoinerActiveLoops(string source, int count) => ActiveLoops.WithLabels(source).Set(count);
+
+    /// <summary>Publish the fleet roll-up. Alert on `held` climbing: it means the OT
+    /// side stopped publishing a required signal and those loops are silently lost.</summary>
+    public static void LoopHealth(string source, LoopHealthSummary summary)
+    {
+        LoopsByState.WithLabels(source, LoopHealthState.Flowing).Set(summary.Flowing);
+        LoopsByState.WithLabels(source, LoopHealthState.Idle).Set(summary.Idle);
+        LoopsByState.WithLabels(source, LoopHealthState.Held).Set(summary.Held);
+        LoopsByState.WithLabels(source, LoopHealthState.Silent).Set(summary.Silent);
+        foreach (var (role, count) in summary.MissingByRole)
+            LoopsMissingRole.WithLabels(source, role).Set(count);
+    }
     public static void SourceLatency(double ms) { if (ms >= 0) SourceLatencyMs.Observe(ms); }
 }

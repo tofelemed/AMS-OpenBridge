@@ -25,6 +25,10 @@ public sealed class SubscriberStatus
     /// <summary>The parameter→role map this subscriber actually runs (built-ins +
     /// overlay). Exposed so "is VP mapped?" is one GET away, not a log dive.</summary>
     public IReadOnlyDictionary<string, string>? ParamRoles;
+    /// <summary>Per-loop ingestion state, refreshed on the tick loop. `held` rows name
+    /// the required signal the OT side is not publishing -- the answer to "why is this
+    /// loop dark?", which previously took an MQTT inventory to work out.</summary>
+    public volatile IReadOnlyList<LoopHealthRow>? LoopHealth;
 
     public object Snapshot() => new
     {
@@ -46,6 +50,8 @@ public sealed class SubscriberStatus
         paramRoles = ParamRoles?
             .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(kv => kv.Key, kv => kv.Value),
+        // Roll-up only; the per-loop detail is GET /loop-health so /stats stays small.
+        loopHealth = LoopHealth is { } rows ? LoopHealthSummary.From(rows).ToPayload() : null,
     };
 }
 
