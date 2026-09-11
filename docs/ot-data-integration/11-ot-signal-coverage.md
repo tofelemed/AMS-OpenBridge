@@ -70,8 +70,49 @@ a bulk event at `2026-09-11T06:00:50` (it also carried P/I/D/GW and one MODE), b
 touched only **5 of 37** setpoints — an operator action or unit transition, not a refresh
 cycle. Values otherwise sit untouched for days.
 
+### Nothing on the broker is retained from before 2026-09-06 20:15
+
+| Param | Oldest retained value |
+|---|---|
+| MODE | `2026-09-06T20:15` |
+| OP | `2026-09-07T00:27` |
+| PV | `2026-09-08T19:15` |
+| SP | `2026-09-08T21:02` |
+
+There is no retained value of any kind older than that. Either retain was enabled around
+then, or the broker's retained store was reset. **Either way, every signal whose last
+change predates 2026-09-06 is invisible to any client connecting afterwards** — which
+includes our subscriber (connected 2026-09-10 17:46).
+
+### Worked example: PIC80150
+
+Reproducible end to end, and it demonstrates the whole mechanism:
+
+| Evidence | Result |
+|---|---|
+| MQTT Explorer topic tree | shows all 8 params, MODE = `1.0` |
+| Its **History** for that MODE topic | **2 messages only — 2026-08-30 and 2026-09-05** |
+| Retained on the broker | **PV, OP, SP only** — no MODE |
+| Exact-topic subscribe to that MODE | **silence** |
+| Our tuple | `sp` matches the retained SP exactly; `mode` is `UNKNOWN` |
+
+MODE was published twice, on change, both times **before** the Sep-6 retained cutoff. There
+is no retained copy, so we never received it. Our tuple carrying the correct `sp` — from a
+value retained *before we connected* — proves retained delivery works on our side.
+
+> **Two traps when checking this with an MQTT browser.** It accumulates every message seen
+> **during its session**, so a long-running window shows values the broker no longer holds;
+> disconnect and reconnect and they vanish. And `ts` is the **DCS** timestamp of the value,
+> not the publish time — a mode unchanged since Sep 5 carries `2026-09-05` forever, however
+> recently it was sent.
+
+> **Not a numeric-format problem.** This gateway sends `1.0`, `2.0` for every value
+> including MODE. `LoopParameterMapper` keys integral numerics by their integer form
+> (`1.0` → `"1"` → `AUT`), proven by the 20+ loops mapping correctly today; an unmapped
+> value would appear in the tuple as a raw string, never as `UNKNOWN`.
+
 **Consequence:** the 114 loops below most likely *do* have a setpoint in the DCS. It simply
-has not moved, so it has never been published, so we cannot see it. From the broker alone
+has not moved since before the retained cutoff, so no copy exists for us to read. From the broker alone
 "configured but unchanged" and "not configured" are indistinguishable — but only the first
 is consistent with the pattern above.
 
