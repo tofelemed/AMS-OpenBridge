@@ -332,7 +332,8 @@ public sealed class OtLoopSubscriber : IAsyncDisposable
                 LastEmittedTsMs: null,
                 SecondsSinceEmit: null,
                 SkippedTicks: 0,
-                SourceFcs: null));
+                SourceFcs: null,
+                MemberTsMs: null));   // nothing has ever arrived, so there is nothing to date
         }
 
         _status.LoopHealth = rows;

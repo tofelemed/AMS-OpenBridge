@@ -144,6 +144,31 @@ public class LoopStateSeedTests
     }
 
     [Fact]
+    public void A_setpoint_months_old_is_still_used_and_still_GOOD()
+    {
+        // The whole point of the feature. A setpoint the plant has not touched since
+        // March is not stale data -- it IS the setpoint. Values never expire: CHG-002
+        // removed the ageing rule because ageing one out marked healthy loops BAD.
+        const long sixMonths = 182L * 24 * 60 * 60 * 1000;
+        var j = new LoopJoiner();
+        j.Seed(L(), "FCS0101",
+               M(("sp", 42.0, T0 - sixMonths), ("op", 37.6, T0 - sixMonths)),
+               NoExtras, "AUT", T0 - sixMonths, lastEmittedTsMs: 0, Cfg, T0);
+
+        Feed(j, "pv", 41.9, T0 + 1_000);
+        var t = Assert.Single(j.Tick(T0 + 5_000, Cfg));
+        Assert.Equal(42.0, t.Sp);
+        Assert.Equal("AUT", t.Mode);
+        Assert.Equal("GOOD", t.Quality);           // age is not a quality judgement
+        Assert.Equal(T0 + 1_000, t.EventTsMs);     // stamped by the newest member, the live PV
+
+        // ...and the age is visible rather than hidden.
+        var row = Assert.Single(j.HealthSnapshot(T0 + 5_000, 30));
+        Assert.Equal(T0 - sixMonths, row.MemberTsMs!["sp"]);
+        Assert.Equal(T0 + 1_000, row.MemberTsMs["pv"]);
+    }
+
+    [Fact]
     public void Snapshot_round_trips_through_a_second_joiner()
     {
         var a = new LoopJoiner();

@@ -798,6 +798,19 @@ restart would lose it. A steady update to a role already held does not trigger a
 this costs nothing at the ~120 msg/s the plant runs at. Seeding never raises the flag —
 restoring is not new information.
 
+**Values never expire — and that is the design, not an oversight.** A setpoint the plant
+has not touched since March is not stale data, it *is* the setpoint; CHG-002 removed the
+ageing rule because ageing one out marked healthy loops BAD. A restored member is used
+indefinitely, keeps quality GOOD, and never stamps the tuple's `event_ts_ms` (that comes
+from the newest member, normally the live PV). There is no TTL in the joiner, the
+repository or the table.
+
+**The counterweight is visibility, not expiry.** `/loop-health` now returns `memberTsMs` —
+the source timestamp of every member held — so "this loop is being scored against a
+setpoint from three months ago" is a fact you can read rather than infer. Raw timestamps
+rather than ages, because the gateway clock runs ahead of ours (+132 s measured) and any
+"seconds old" computed across the two would be wrong by that much.
+
 **Visible, not silent:** `Restored` on each `/loop-health` row says whether a loop is
 holding restored values, and the subscriber logs the seeded count at start.
 
@@ -807,10 +820,11 @@ publish remains the only fix for those** (see
 [docs/ot-data-integration/12-ot-discussion-points.md](docs/ot-data-integration/12-ot-discussion-points.md)).
 This is durability insurance, not a cure.
 
-**Verified:** build clean, 0 warnings; **149/149 tests** (9 new: restored SP completing a
+**Verified:** build clean, 0 warnings; **150/150 tests** (10 new: restored SP completing a
 PV-only loop, live-beats-restored, newer-restored-wins, watermark survives, watermark never
 rewinds, audit visibility, a full snapshot→seed round trip through a second joiner, and the
-immediate-save trigger firing on a first value per role but not on updates or on seeding).
+immediate-save trigger firing on a first value per role but not on updates or on seeding,
+and a six-month-old setpoint still being used, still GOOD, with its age visible).
 **Not yet exercised against the plant** — first proof is the first restart after deploy.
 
 ---

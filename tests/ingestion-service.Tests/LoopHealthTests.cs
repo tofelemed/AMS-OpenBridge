@@ -124,7 +124,7 @@ public class LoopHealthTests
         var rows = j.HealthSnapshot(T0 + 5_000, IdleAfter).ToList();
         // plus a registered loop nothing ever arrived for
         rows.Add(new LoopHealthRow("NEVER", LoopHealthState.Silent,
-            LoopHealthRow.RequiredRoles, Array.Empty<string>(), false, null, null, null, 0, null));
+            LoopHealthRow.RequiredRoles, Array.Empty<string>(), false, null, null, null, 0, null, null));
 
         var s = LoopHealthSummary.From(rows);
         Assert.Equal(4, s.Total);

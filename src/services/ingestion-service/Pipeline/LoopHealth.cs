@@ -40,6 +40,12 @@ public sealed record LoopHealthRow(
     long? SecondsSinceEmit,
     long SkippedTicks,
     string? SourceFcs,
+    /// <summary>Source timestamp of each member currently held. Values never expire --
+    /// an untouched setpoint is unchanged, not untrustworthy (CHG-002) -- so this is how
+    /// you see that a loop is being scored against a setpoint from three months ago.
+    /// Raw timestamps, not ages: the gateway clock runs ahead of ours (+132 s measured),
+    /// so any "seconds old" figure computed across the two is wrong by that much.</summary>
+    IReadOnlyDictionary<string, long>? MemberTsMs,
     /// <summary>At least one member was restored from the state store after a restart
     /// rather than received on the wire. Visible so "where did this value come from?"
     /// is answerable without reading code.</summary>

@@ -227,6 +227,7 @@ public sealed class LoopJoiner
                     SecondsSinceEmit: sinceEmit,
                     SkippedTicks: st.SkippedTicks,
                     SourceFcs: st.SourceFcs,
+                    MemberTsMs: st.Members.ToDictionary(kv => kv.Key, kv => kv.Value.TsMs),
                     Restored: st.Restored));
             }
             return rows;
