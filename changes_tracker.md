@@ -916,6 +916,58 @@ with `G14 INSUFFICIENT_EVIDENCE` — the no-VP cap demoting CONFIRMED to SUSPECT
 
 ---
 
+## CHG-022 ✅ validate-loops.sh — six bugs, found by running it on the plant
+
+**Services:** none. Diagnostic tooling only, nothing to deploy — copy the script to the VM.
+**Files:** `scripts/validate-loops.sh`
+
+Run on the plant 2026-09-12 to read the 12 h and 24 h verdicts for ten loops. The plant
+answers were sound; the tool around them was not. In order of how badly each misled:
+
+1. **Every healthy consumer group reported "2 members."** The check read the *partition*
+   view and counted distinct `$NF` — which is `CLIENT-ID`, not `CONSUMER-ID` — under
+   `awk 'NR>1'`. `kafka-consumer-groups` prints a **blank line before the header**, so
+   `NR>1` let the header through and the literal string `CLIENT-ID` counted as a member.
+   CLAUDE.md flags a split `cplm-results` group as silent data loss, so this alarm invites
+   an operator to kill a healthy consumer. Verified on the plant: `--members` shows one
+   consumer holding all 24 partitions.
+2. **And it failed the unsafe way round.** A group with no members prints a single
+   `has no active members.` line → counted 1 → reported `ok single consumer`.
+3. **It probed a frames group that cannot exist.** `CplmEventFrameService` derives its group
+   as `ConsumerGroupId + "-frames"` (`CplmEventFrameService.cs:66`) =
+   `traverse-cpa-cplm-results-frames`. The script asked for `ams-api-cplm-results-frames`, a
+   lab-era name from before CPLM moved out of ams-api — precisely the full-names trap
+   CLAUDE.md warns about. Combined with (2) it printed a clean bill of health for a group it
+   never looked at. The real group is present with one member on 8 partitions.
+4. **`-H 24` read 12 h results.** `HOURS` drove only the header and the short-feature
+   lookback; all four gate queries were pinned to `window_kind='12h'`. It printed
+   `window=24h` over 12 h verdicts.
+5. **`window_start >= NOW() - N hours` hid every long-window verdict.** A 12 h window ending
+   now *started* 12 h ago, right at the boundary — so section 8 printed `(0 rows)` and
+   `gates.csv` came out empty at 12 h while a 24 h run of the same data produced 432 rows.
+   Filters on `window_end` now.
+6. **Two notes asserted the opposite of the truth on Marun.** Engine health claimed
+   *"ZooKeeper HA recovers the previous JobGraph + jar on restart"* — Marun has **no** HA, and
+   an operator following that note would skip the mandatory container removal a deploy needs.
+   The G1 note blamed `mode_value_map` for any loop at zero auto, when sibling loops on the
+   same source reading `1.0000` prove the map is fine and the loop is genuinely in MAN.
+
+**Added: `-a <timestamp>`** — report the verdict **as of** a past instant. Without it the
+script always shows the *latest* verdict, which straight after a Flink restart is the
+worthless one: the rolling buffer is empty and the engine keeps emitting from a partial one.
+Today every loop read `INSUFFICIENT_DATA` at `conf 0.000`, with the 12 h and 24 h tables
+byte-identical because both slices held the same ~25 minutes of samples. Both headers and
+`run.txt` print the cutoff so a saved report cannot later be misread as current.
+
+**Plant findings that survived all of the above** (genuine, unrelated to the tooling):
+G0 fails on **completeness alone** — `bad_quality 0`, `dup_ts 0`, completeness 0.41–0.86
+against the 0.98 threshold with 21–32 s gaps on a 5 s grid; **three loops produce no data
+at all** (`FIC10501` — last verdict 09-03, `FIC10509`, `LIC10501`) despite being registered,
+role-mapped, ranged and broadcast to Flink; and `FIC80103` is parked in MAN (`auto_pct 0`,
+`saturation 1.0`, `op_std 0`, `SP=0` with `PV=420`), which is the plant, not the map.
+
+---
+
 ## CHG-021 ✅ ams-api honours the plant log floor (found during the v2.3 deploy)
 
 **Services:** ams-api (rebuild required — **not in v2.3**)
