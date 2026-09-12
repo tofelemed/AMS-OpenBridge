@@ -274,7 +274,15 @@ services:
         execution.checkpointing.mode: EXACTLY_ONCE
         execution.checkpointing.timeout: 120000
         execution.checkpointing.max-concurrent-checkpoints: 1
-        execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+        # DELETE_ON_CANCELLATION, not RETAIN: on this VM a retained checkpoint is never
+        # read. There is no ZooKeeper HA here (see FLINK_PROPERTIES above - no
+        # high-availability.* keys at all) and 04b-submit-flink-jobs.sh submits without
+        # `-s <savepoint>`, so every submit starts fresh with a new job id. RETAIN
+        # therefore orphaned one whole checkpoint tree per redeploy, with nothing
+        # pruning them: MinIO grew 868 MB -> 9.1 GB in two days of normal redeploys and
+        # took the plant disk to 97% (2026-09-12). The lab keeps RETAIN, where resuming
+        # a cancelled job from its checkpoint is a real workflow.
+        execution.checkpointing.externalized-checkpoint-retention: DELETE_ON_CANCELLATION
         metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
         metrics.reporter.prom.port: 9249
 
@@ -311,6 +319,14 @@ services:
         execution.checkpointing.mode: EXACTLY_ONCE
         execution.checkpointing.timeout: 120000
         execution.checkpointing.max-concurrent-checkpoints: 1
-        execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+        # DELETE_ON_CANCELLATION, not RETAIN: on this VM a retained checkpoint is never
+        # read. There is no ZooKeeper HA here (see FLINK_PROPERTIES above - no
+        # high-availability.* keys at all) and 04b-submit-flink-jobs.sh submits without
+        # `-s <savepoint>`, so every submit starts fresh with a new job id. RETAIN
+        # therefore orphaned one whole checkpoint tree per redeploy, with nothing
+        # pruning them: MinIO grew 868 MB -> 9.1 GB in two days of normal redeploys and
+        # took the plant disk to 97% (2026-09-12). The lab keeps RETAIN, where resuming
+        # a cancelled job from its checkpoint is a real workflow.
+        execution.checkpointing.externalized-checkpoint-retention: DELETE_ON_CANCELLATION
         metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
         metrics.reporter.prom.port: 9249
