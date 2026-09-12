@@ -245,8 +245,17 @@ POST_CHECKS: dict[str, str] = {
         "#                                START_AMS_API=yes, so without that env compose loads the new\n"
         "#                                image and leaves the OLD container running, reporting success:\n"
         "#                                  docker inspect -f '{{.Created}} {{.Image}}' ams-api\n"
-        "#                                then confirm the historian is still writing:\n"
-        "#                                  docker logs --since 5m ams-api | grep -c 'wrote .* samples'",
+        "#                                Do NOT grep the logs for 'wrote N samples' - ams-api merges the\n"
+        "#                                x-kafka anchor, so the plant's SERVICE_LOG_LEVEL=Error suppresses\n"
+        "#                                that LogInformation and the grep reads 0 on a healthy service.\n"
+        "#                                Prove liveness from Kafka instead (small, non-growing LAG):\n"
+        "#                                  docker exec instrumental-kafka-1 kafka-consumer-groups \\\n"
+        "#                                    --bootstrap-server kafka-1:9092 \\\n"
+        "#                                    --group traverse-cpa-iotdb-raw-loop --describe\n"
+        "#                                CHG-020 makes growing lag the CORRECT signal that IoTDB is\n"
+        "#                                refusing writes - samples are held in Kafka, not discarded.\n"
+        "#                                The stall log does survive Error level, and should be empty:\n"
+        "#                                  docker logs --since 15m ams-api 2>&1 | grep -i 'rejecting every write'",
 }
 
 
