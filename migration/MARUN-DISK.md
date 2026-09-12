@@ -154,7 +154,8 @@ docker rmi <repo>:<tag>          # by name, one at a time, never -f
 K="docker exec instrumental-kafka-1"
 $K kafka-configs --bootstrap-server kafka-1:9092 --describe --entity-type topics --entity-name traverse.cpa.loop.samples.v1
 $K kafka-log-dirs --bootstrap-server kafka-1:9092 --describe --topic-list traverse.cpa.loop.samples.v1,traverse.cpa.live.loop.metrics 2>/dev/null \
-  | python3 -c 'import sys,json;d=json.load(sys.stdin);print(sum(p["size"] for b in d["brokers"] for l in b["logDirs"] for p in l["partitions"])//2**20,"MB")'
+  | sed -n '/^{/,$p' \
+  | python3 -c 'import sys,json;d=json.load(sys.stdin);print(sum(p["size"] for b in d["brokers"] for l in b["logDirs"] for p in l["partitions"])//2**20,"MB on disk")'
 ```
 
 Expect `retention.ms=86400000` and `segment.ms=21600000` on samples, `10800000` / `3600000` on
@@ -167,7 +168,7 @@ delete-recreate a topic a live consumer polls.**
 ```bash
 IOTDB_PW=$(grep -E '^IOTDB_PASSWORD=' /opt/AMS-open/migration/.env | cut -d= -f2-)
 sudo du -sh "$(docker volume inspect -f '{{.Mountpoint}}' ams-cpa_iotdb-data)"
-docker exec ams-iotdb /iotdb/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw "$IOTDB_PW" -e "show ttl on root.site1.cpm.**"
+docker exec ams-iotdb /iotdb/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw "$IOTDB_PW" -e "show all ttl"
 ```
 
 Set a TTL rather than deleting rows — it is the historian, and gaps here are permanent.
