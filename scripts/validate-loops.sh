@@ -109,8 +109,17 @@ Q() { docker exec -i "$PG" psql -U "$PGUSER" -d "$PGDB" -c "$1" 2>&1; }
 
 IDS="$(sql_list)"
 SINCE="NOW() - INTERVAL '$HOURS hours'"
+# The gate engine only ever emits these two kinds (CplmGateFusionStreamJob:108 drops
+# anything else), and -H used to change only this header and the lookback while every
+# gate query stayed pinned to '12h' - so `-H 24` printed "window=24h" over 12 h results.
+case "$HOURS" in
+  12) WKIND=12h ;;
+  24) WKIND=24h ;;
+  *)  echo "ERROR: -H must be 12 or 24; the gate engine produces no other window kind." >&2
+      exit 2 ;;
+esac
 
-echo "${BOLD}CPM loop validation${OFF}   loops=$(echo "$LOOPS" | wc -w)   window=${HOURS}h   db=$PGDB"
+echo "${BOLD}CPM loop validation${OFF}   loops=$(echo "$LOOPS" | wc -w)   window=${HOURS}h (gate window_kind=$WKIND)   db=$PGDB"
 echo "$LOOPS" | tr ' ' '\n' | sed 's/^/   /' | paste -sd' ' -
 
 # ── 1. reachability ──────────────────────────────────────────────────
@@ -231,7 +240,7 @@ if ! skip 5; then
 hdr "5. Current 12h verdict — all 16 gates"
 Q "WITH latest AS (
      SELECT DISTINCT ON (g.loop_id) g.* FROM analytics.cplm_gate_results g
-      WHERE g.loop_id IN ($IDS) AND g.window_kind='12h'
+      WHERE g.loop_id IN ($IDS) AND g.window_kind='$WKIND'
       ORDER BY g.loop_id, g.window_end DESC)
 SELECT s.loop_id, COALESCE(to_char(l.window_end,'MM-DD HH24:MI'),'-') AS win,
        COALESCE(l.payload->'gates'->>'G0','-')  AS g0,
@@ -262,7 +271,7 @@ if ! skip 6; then
 hdr "6. What is blocking — first exclusion that fires"
 Q "WITH latest AS (
      SELECT DISTINCT ON (g.loop_id) g.* FROM analytics.cplm_gate_results g
-      WHERE g.loop_id IN ($IDS) AND g.window_kind='12h'
+      WHERE g.loop_id IN ($IDS) AND g.window_kind='$WKIND'
       ORDER BY g.loop_id, g.window_end DESC)
 SELECT s.loop_id, COALESCE(l.diagnosis,'NO 12h VERDICT') AS diagnosis,
        CASE WHEN l.loop_id IS NULL THEN 'no verdict row at all'
@@ -337,7 +346,7 @@ Q "SELECT g.loop_id, count(*) AS verdicts, count(DISTINCT g.diagnosis) AS distin
        round(min(g.confidence)::numeric,3) AS conf_min,
        round(max(g.confidence)::numeric,3) AS conf_max
 FROM analytics.cplm_gate_results g
-WHERE g.loop_id IN ($IDS) AND g.window_kind='12h' AND g.window_start >= $SINCE
+WHERE g.loop_id IN ($IDS) AND g.window_kind='$WKIND' AND g.window_start >= $SINCE
 GROUP BY 1 ORDER BY 1;"
 fi
 
@@ -397,7 +406,7 @@ hdr "11. Saving evidence to $OUTDIR"
 # One JSON per loop — the same payload you would otherwise copy by hand.
 for L in $LOOPS; do
   P=$(q "SELECT jsonb_pretty(payload) FROM analytics.cplm_gate_results
-          WHERE loop_id='$L' AND window_kind='12h'
+          WHERE loop_id='$L' AND window_kind='$WKIND'
           ORDER BY window_end DESC LIMIT 1;")
   if [ -n "$P" ] && [ "${P:0:1}" = "{" ]; then
     printf '%s\n' "$P" > "$OUTDIR/payload-$L.json"
@@ -438,7 +447,7 @@ grep -E 'FINDING' "$OUTDIR/report.txt" 2>/dev/null | sed 's/^ *//' > "$OUTDIR/fi
 nf=$(grep -c . "$OUTDIR/findings.txt" 2>/dev/null || echo 0)
 { echo "run:     $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "host:    $(hostname 2>/dev/null || echo '?')"
-  echo "window:  ${HOURS}h   db: $PGDB   gateway: $GW"
+  echo "window:  ${HOURS}h (gate window_kind=$WKIND)   db: $PGDB   gateway: $GW"
   echo "loops:   $LOOPS"
   echo "findings: $nf"; } > "$OUTDIR/run.txt"
 [ "$nf" = "0" ] && ok "findings.txt — none" || find_ "findings.txt — $nf line(s)"
