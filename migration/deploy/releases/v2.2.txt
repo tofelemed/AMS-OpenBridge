@@ -1,0 +1,20 @@
+# Release v2.2 — CHG-020 (the historian no longer discards samples it cannot write).
+# One compose service per line; `#` comments and blank lines are ignored.
+# Consumed by: python migration/deploy/build-release.py --release v2.2
+#
+# Why:
+#   ams-api   RawLoopIotDbConsumer is the ONLY writer of root.site1.cpm.<loop>. On the
+#             2026-09-12 disk-full it dropped every rejected row and committed the
+#             offsets, so samples that were still sitting in Kafka were walked past and
+#             the trend hole became permanent. It now distinguishes a refused statement
+#             from an unavailable server, holds the buffer, and pauses instead.
+#
+# No schema change. No Flink restart. Deliberately NOT bundled with v2.1: this is the
+# only change that prevents data loss, and it must not sit behind v2.1's Flink window.
+#
+# DEPLOY TRAP — ams-api is behind `profiles: ["cpa-ams-api"]` and deploy.sh only adds
+# that profile when START_AMS_API=yes. Without it compose loads the new image and
+# leaves the OLD container running, reporting success. After deploying, confirm the
+# container was actually recreated:
+#     docker inspect -f '{{.Created}} {{.Config.Image}}' ams-api
+ams-api
