@@ -248,7 +248,7 @@ fi
 
 # ── 5. verdict ───────────────────────────────────────────────────────
 if ! skip 5; then
-hdr "5. Current 12h verdict — all 16 gates"
+hdr "5. Current ${WKIND} verdict — all 16 gates"
 Q "WITH latest AS (
      SELECT DISTINCT ON (g.loop_id) g.* FROM analytics.cplm_gate_results g
       WHERE g.loop_id IN ($IDS) AND g.window_kind='$WKIND'
@@ -317,7 +317,7 @@ hdr "7b. G1 mode — auto_pct"
 Q "SELECT f.loop_id, round(avg(f.auto_pct)::numeric,4) AS auto_pct,
        round(min(f.auto_pct)::numeric,4) AS auto_min,
        count(*) FILTER (WHERE f.payload->>'gate1_status'='EXCLUDED') AS excluded_windows,
-       CASE WHEN avg(f.auto_pct)<0.05 THEN 'check mode_value_map, not the plant'
+       CASE WHEN avg(f.auto_pct)<0.05 THEN 'ZERO auto: if other loops here show 1.0 the map is fine and this loop is genuinely in MAN'
             WHEN avg(f.auto_pct)<0.70 THEN 'genuinely manual'
             ELSE 'ok' END AS note
 FROM analytics.cplm_short_feature_results f
@@ -357,7 +357,7 @@ Q "SELECT g.loop_id, count(*) AS verdicts, count(DISTINCT g.diagnosis) AS distin
        round(min(g.confidence)::numeric,3) AS conf_min,
        round(max(g.confidence)::numeric,3) AS conf_max
 FROM analytics.cplm_gate_results g
-WHERE g.loop_id IN ($IDS) AND g.window_kind='$WKIND' AND g.window_start >= $SINCE
+WHERE g.loop_id IN ($IDS) AND g.window_kind='$WKIND' AND g.window_end >= $SINCE
 GROUP BY 1 ORDER BY 1;"
 fi
 
@@ -400,7 +400,8 @@ for j in d.get("jobs",[]):
 ' 2>/dev/null || warn "Flink not reachable at $FLINK"
 fi
 warn "A job started BEFORE the last deploy is running the OLD jar."
-warn "ZooKeeper HA recovers the previous JobGraph + jar on restart — cancel and resubmit to deploy."
+warn "Lab only: ZooKeeper HA would recover the previous JobGraph + jar. Marun has NO HA -"
+warn "removing both Flink containers really does destroy every job, which is how a deploy lands."
 for G in traverse-cpa-cplm-results ams-api-cplm-results-frames; do
   m=$(docker exec "$KAFKA" bash -c \
       "kafka-consumer-groups --bootstrap-server $BROKER --describe --group $G 2>/dev/null" \
@@ -447,7 +448,7 @@ _pgexec psql -U "$PGUSER" -d "$PGDB" -qAt -F',' -c \
          g.payload->>'saturation_pct'      AS saturation_pct,
          g.payload->>'observability_flags' AS observability_flags
   FROM analytics.cplm_gate_results g
-  WHERE g.loop_id IN ($IDS) AND g.window_start >= $SINCE
+  WHERE g.loop_id IN ($IDS) AND g.window_end >= $SINCE
   ORDER BY g.loop_id, g.window_kind, g.window_end
 ) TO STDOUT WITH CSV HEADER;" > "$OUTDIR/gates.csv" 2>/dev/null
 
