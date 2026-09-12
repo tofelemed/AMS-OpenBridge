@@ -362,3 +362,8 @@ __pycache__/
 !migration/deploy/releases/
 !migration/deploy/releases/*.txt
 /release-out/
+
+# Plant validation output (validate-loops.sh -o): loop data, never committed.
+reports/
+cpm-validation-*/
+cpm-validation-*.tar.gz
