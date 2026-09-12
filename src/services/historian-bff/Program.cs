@@ -121,6 +121,45 @@ app.MapGet("/trend", async (
     return Results.Ok(new { series, start, end, width, envelope = wantEnvelope, points });
 }).RequireAuthorization("historian.view");
 
+// ── GET /last ──────────────────────────────────────────────────────────────
+// The last known value of each measurement, however old, with the timestamp it
+// was recorded at.
+//
+// Why this exists: /trend buckets a window and the caller reads the final
+// bucket, so a signal that did not move inside that window — a setpoint held for
+// a month, a loop parked in AUT — reads as null and the HMI shows nothing for a
+// value that is perfectly well known. /snapshot does not cover it either: that
+// is the Redis live plane, written report-by-exception with a TTL, so an
+// unchanged signal's key eventually expires.
+//
+// IoTDB is the durable answer. `SELECT last` is a native index lookup, not a
+// window scan, and it returns the age alongside the value so the UI can show a
+// month-old setpoint AS a month-old setpoint rather than as live data.
+app.MapGet("/last", async (
+    string series,
+    string? measurements,
+    ClaimsPrincipal user,
+    IoTDbClient iotdb,
+    CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(series))
+        return Results.BadRequest("'series' is required");
+    if (!AssetScope.SeriesInScope(user, series))
+        return Results.Forbid();
+    if (series.Contains('*'))
+        return Results.BadRequest("'series' must be a concrete device path (use /series to list devices)");
+    if (!IoTDbClient.IsValidSeries(series))
+        return Results.BadRequest("'series' must be a valid IoTDB path (root.<segment>[.<segment>...])");
+    if (!IoTDbClient.IsValidMeasurements(measurements))
+        return Results.BadRequest("'measurements' must be a comma-separated list of bare identifiers");
+
+    var sql    = IoTDbClient.BuildLastSql(series, measurements ?? "");
+    var result = await iotdb.QueryAsync(sql, ct);
+    var values = IoTDbClient.MapLastValues(result);
+
+    return Results.Ok(new { series, values });
+}).RequireAuthorization("historian.view");
+
 // ── GET /raw ───────────────────────────────────────────────────────────────
 // Returns raw (non-decimated) records. maxCount capped at 10 000.
 app.MapGet("/raw", async (

@@ -205,6 +205,22 @@ export function useCpmTrend(
 }
 
 /**
+ * Last stored value per measurement (IoTDB, unbounded in time).
+ *
+ * The third plane behind live and trend. Kept deliberately stale-tolerant: a
+ * setpoint that has not moved in a month is still the correct answer, so there
+ * is no point refetching it aggressively.
+ */
+export function useLoopLastValues(series: string | undefined, measurements = 'pv,sp,op,mode') {
+  return useQuery({
+    queryKey: ['cpm', 'last', series ?? '', measurements],
+    queryFn: ({ signal }) => cpm.getLastValues(series!, measurements, signal),
+    enabled: !!series,
+    staleTime: 300_000,
+  });
+}
+
+/**
  * U6 mode track (S7): coarse categorical ribbon — IoTDB last_value(mode) per
  * bucket via the trend endpoint. Quality has no stored series, so there is no
  * quality ribbon; this is the mode half only, honestly.

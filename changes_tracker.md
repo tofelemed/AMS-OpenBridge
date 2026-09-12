@@ -916,6 +916,85 @@ with `G14 INSUFFICIENT_EVIDENCE` — the no-VP cap demoting CONFIRMED to SUSPECT
 
 ---
 
+## CHG-019 ✅ SP and MODE stay visible when they never change
+
+**Services:** Flink jar (Loop Live RBE) + historian-bff + frontend
+**Files:** `LoopLiveRbeJob.java`, `historian-bff/Program.cs`, `historian-bff/IoTDbClient.cs`,
+`frontend-ob/src/api/cpmApi.ts`, `hooks/useCpm.ts`, `components/Cpm/explorer/SummaryTab.tsx`
+
+**The report.** LIC30102 showed PV and OP but `SP —` and `MODE — no live value, none
+stored`, on a loop that is plainly in AUT with a setpoint. Restarting the OT gateway
+republished every value and changed nothing.
+
+**Root cause — three correct pieces, wrong together.**
+`LoopLiveRbeJob` emits a metric only on first observation, a numeric move past the 0.05
+deadband, or a string change, and **it has no heartbeat**. `sparkplug-edge-node` writes each
+emission to Redis with `SETEX … 3600`. So **any signal that does not change for an hour loses
+its snapshot and can never regain it** — PV and OP move constantly and are refreshed; a held
+setpoint and a constant MODE are emitted once and expire. Republishing from OT cannot fix it:
+the filter compares against its own last emitted value and suppresses the unchanged repeat.
+The prod job had been up ~2 days, so those snapshots died ~1 h after startup.
+
+**Fix, in three layers.**
+
+1. **Heartbeat (`LoopLiveRbeJob`).** A per-key processing-time timer republishes the last known
+   value every `--heartbeat-seconds` (default 300). It carries the **original** sample
+   timestamp — inventing a fresh one would make a month-old setpoint look just measured — plus
+   a `heartbeat: true` marker. This also makes the existing 1 h TTL *correct* rather than
+   merely survivable: a key now lapses only when the producer really has stopped, which is what
+   makes "no live value" mean something. No TTL change needed.
+2. **`GET /api/hist/last` (historian-bff).** IoTDB already stores pv/sp/op/vp/mode on every
+   tuple, but nothing could ask it for a last value: `/trend` only sees inside its window and
+   `/snapshot` reads the same Redis live plane. The new endpoint uses IoTDB's native
+   `SELECT last` — an index lookup, not a window scan, with **no time bound** — and returns a
+   per-measurement timestamp so the UI can show age instead of implying the value is live.
+3. **Third plane in the UI.** `SummaryTab` now resolves live → trend bucket → last stored, and
+   labels the third case `last stored 2d ago`. This also fixes a separate blind spot: `last`
+   was the *final* bucket of 240, so any feed gap at the window edge rendered "—" even when the
+   series was full.
+
+**Verified:** Flink `mvn package` clean; historian-bff builds; frontend typecheck and lint
+(`--max-warnings 0`) clean. `/api/hist/last` exercised through the gateway against live IoTDB,
+returning `sp=63` and `mode=AUT` **47.6 h old** — exactly the values that render blank today.
+One bug caught in that test: `SELECT last` returns `column_names: null` and puts headers in
+`expressions`, so the first mapper returned an empty map.
+
+**Audit 2026-09-12 — three corrections, all applied.**
+
+1. **The heartbeat is correct and stays unbounded.** An audit first called the missing
+   termination a blocking defect; that was wrong. For a report-by-exception signal, silence
+   means *unchanged*, so republishing a held setpoint indefinitely is the right semantics —
+   terminating it would discard the value precisely for the signals this change exists to
+   serve. **But it does remove the previous staleness signal:** with a heartbeat, the key
+   never expires, `live.hasData` is true forever, and `NO LIVE PUBLISHER` becomes
+   unreachable. The Javadoc claimed the opposite ("letting the key lapse if the producer
+   genuinely dies"), which would have misled the next reader; it now states what the code
+   does and that **consumers MUST read the timestamp**.
+2. **Staleness now shows in the UI.** `lastPoint` is refreshed on every message received, so
+   a live loop's heartbeat carries a near-current ts while a dead one's freezes. The tiles
+   render `live · 4h ago` past two heartbeat intervals instead of a bare `live (RBE)`.
+   Without it a gateway outage would have shown every loop as live with frozen values — a
+   worse failure than the blank tile being fixed.
+3. **`noData` ignored the third plane.** A loop whose only evidence was a last stored value
+   still rendered "No operating data", hiding the tiles this change exists to fill.
+
+**Unaffected by any of this:** gates and trends. Both read
+`traverse.cpa.loop.samples.v1`, where the joiner forward-fills SP into **every** tuple, and
+`RawLoopIotDbConsumer` writes pv/sp/op/vp/mode on every one — so an unchanged setpoint is
+already scored by the gates and already drawn as a flat line on the trend. The heartbeat
+touches only the live plane.
+
+**Verified:** Flink jar rebuilt clean (`onTimer` confirmed present in the artifact);
+historian-bff builds; frontend typecheck, lint (`--max-warnings 0`) and build clean.
+**Not verified:** the heartbeat has not run against a live broker — that needs the jar deployed.
+
+**Still open (separate).** LIC30102's trend showed stored data ending ~11:49 against a 14:11
+window, while live PV/OP were current. That points at the IoTDB write path, not this bug. The
+`/last` call above is also the quickest probe: if it returns a fresh `ts`, the writer is fine
+and the gap is a rendering question; if `ts` is hours old, `RawLoopIotDbConsumer` has stopped.
+
+---
+
 ## CHG-005 ✅ Documentation & diagnostics
 
 - `docs/cpm-calculation-reference.md` — widened from the four Flink jobs to the whole CPA

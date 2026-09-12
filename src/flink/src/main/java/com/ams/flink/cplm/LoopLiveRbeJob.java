@@ -59,6 +59,33 @@ public final class LoopLiveRbeJob {
     static final String DEFAULT_LIVE_TOPIC = "traverse.cpa.live.loop.metrics";
     static final String DEFAULT_INPUT_TOPIC = "traverse.cpa.loop.samples.v1";
     static final double DEFAULT_DEADBAND = 0.05;
+    /**
+     * Re-publish every known signal this often even when it has not moved.
+     *
+     * <p>Report-by-exception alone cannot keep a live plane populated: a setpoint
+     * that holds for a month is emitted once and never again, so the downstream
+     * snapshot (written with a TTL) expires and the HMI shows nothing for a value
+     * that is perfectly well known. Republishing the source does not help either —
+     * the filter below compares against its own last emitted value and suppresses
+     * the unchanged repeat.
+     *
+     * <p>The heartbeat stays comfortably under the snapshot TTL (REDIS_TTL_SECS,
+     * 3600 s) so a key is refreshed many times before it could expire.
+     *
+     * <p>IMPORTANT — a key does NOT lapse when the source dies. The timer
+     * reschedules for as long as the job runs, so the snapshot is kept alive
+     * whether or not anything is still publishing. That is deliberate: for a
+     * setpoint or a mode, silence means "unchanged", and expiring the key would
+     * throw away a value that is perfectly well known.
+     *
+     * <p>Staleness is therefore signalled by the TIMESTAMP, not by absence.
+     * {@code lastPoint} is refreshed on every message received, so a live loop's
+     * heartbeat carries a near-current ts while a dead one's freezes and visibly
+     * ages. Consumers MUST read that ts — with heartbeats running, "no live
+     * value" no longer means "no publisher", and a UI that shows the value
+     * without its age will present a dead feed as current.
+     */
+    static final long DEFAULT_HEARTBEAT_SECONDS = 300;
 
     private LoopLiveRbeJob() {
     }
@@ -68,6 +95,9 @@ public final class LoopLiveRbeJob {
         String inputTopic = argOr(args, "input-topic", DEFAULT_INPUT_TOPIC);
         String liveTopic = argOr(args, "live-topic", DEFAULT_LIVE_TOPIC);
         double deadband = parseDouble(argOr(args, "deadband", String.valueOf(DEFAULT_DEADBAND)), DEFAULT_DEADBAND);
+        long heartbeatSec = (long) parseDouble(
+                argOr(args, "heartbeat-seconds", String.valueOf(DEFAULT_HEARTBEAT_SECONDS)),
+                DEFAULT_HEARTBEAT_SECONDS);
         String groupId = argOr(args, "consumer-group-id", "traverse-cpa-flink-cplm") + "-live-rbe";
 
         CplmJobConfig cfg = new CplmJobConfig(base.brokers, "AMS - Loop Live RBE Engine",
@@ -95,7 +125,7 @@ public final class LoopLiveRbeJob {
 
         DataStream<String> deltas = exploded
                 .keyBy(p -> p.loopId + "\0" + p.metric)
-                .process(new RbeFilter(deadband))
+                .process(new RbeFilter(deadband, heartbeatSec))
                 .name("live-rbe-filter")
                 .uid("live-rbe-filter");
 
@@ -168,18 +198,58 @@ public final class LoopLiveRbeJob {
      */
     public static class RbeFilter extends KeyedProcessFunction<String, MetricPoint, String> {
         private final double deadband;
+        private final long heartbeatMs;
         private transient ValueState<String> lastEmitted;
+        // The whole point carried forward, so the heartbeat can republish a
+        // faithful copy (metric name, quality, numeric-vs-text) rather than a
+        // reconstruction that guesses the type.
+        private transient ValueState<MetricPoint> lastPoint;
+        private transient ValueState<Long> timerAt;
         private transient ObjectMapper mapper;
 
         public RbeFilter(double deadband) {
+            this(deadband, DEFAULT_HEARTBEAT_SECONDS);
+        }
+
+        public RbeFilter(double deadband, long heartbeatSeconds) {
             this.deadband = deadband;
+            this.heartbeatMs = Math.max(0L, heartbeatSeconds) * 1000L;
         }
 
         @Override
         public void open(Configuration parameters) {
             lastEmitted = getRuntimeContext().getState(
                     new ValueStateDescriptor<>("lastEmittedValue", String.class));
+            lastPoint = getRuntimeContext().getState(
+                    new ValueStateDescriptor<>("lastPoint", MetricPoint.class));
+            timerAt = getRuntimeContext().getState(
+                    new ValueStateDescriptor<>("heartbeatTimerAt", Long.class));
             mapper = new ObjectMapper();
+        }
+
+        /** Keeps exactly one heartbeat timer per key, rolled forward on each emit. */
+        private void scheduleHeartbeat(Context ctx) throws Exception {
+            if (heartbeatMs <= 0) return;
+            Long prev = timerAt.value();
+            if (prev != null) ctx.timerService().deleteProcessingTimeTimer(prev);
+            long next = ctx.timerService().currentProcessingTime() + heartbeatMs;
+            ctx.timerService().registerProcessingTimeTimer(next);
+            timerAt.update(next);
+        }
+
+        /**
+         * Republishes the last known value so the downstream snapshot is refreshed
+         * before its TTL runs out. The payload is byte-identical to the original
+         * emit apart from a {@code heartbeat} marker, and it deliberately carries
+         * the ORIGINAL sample timestamp — inventing a fresh one would make a
+         * month-old setpoint look like it had just been measured.
+         */
+        @Override
+        public void onTimer(long ts, OnTimerContext ctx, Collector<String> out) throws Exception {
+            MetricPoint p = lastPoint.value();
+            if (p == null) return;
+            out.collect(render(p, true));
+            scheduleHeartbeat(ctx);
         }
 
         @Override
@@ -202,12 +272,21 @@ public final class LoopLiveRbeJob {
                 emit = !prev.equals(current);
             }
 
+            // Remember the point even when the value is unchanged: the heartbeat
+            // republishes the CURRENT quality and timestamp, not the stale ones
+            // from whenever the value last moved.
+            lastPoint.update(p);
+
             if (!emit) {
                 return;
             }
 
             lastEmitted.update(current);
+            out.collect(render(p, false));
+            scheduleHeartbeat(ctx);
+        }
 
+        private String render(MetricPoint p, boolean heartbeat) throws Exception {
             ObjectNode node = mapper.createObjectNode();
             node.put("loopId", p.loopId);
             node.put("metric", p.metric);
@@ -220,7 +299,10 @@ public final class LoopLiveRbeJob {
                 node.put("dataType", "string");
             }
             node.put("quality", p.quality);
-            out.collect(mapper.writeValueAsString(node));
+            // Consumers that only care about real movement can drop these; the
+            // snapshot writer wants them, which is the point.
+            if (heartbeat) node.put("heartbeat", true);
+            return mapper.writeValueAsString(node);
         }
     }
 

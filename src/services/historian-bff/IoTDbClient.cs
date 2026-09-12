@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -227,6 +228,94 @@ public sealed class IoTDbClient(HttpClient http, IConfiguration cfg)
             points.Add(point);
         }
         return points;
+    }
+
+    /// <summary>
+    /// `SELECT last` — IoTDB's native last-known-value lookup. It is an index
+    /// read rather than a window scan, and it has no time bound, so a setpoint
+    /// untouched for a month still answers. That is the whole point: the trend
+    /// endpoint can only see inside its window.
+    /// </summary>
+    public static string BuildLastSql(string series, string measurements)
+    {
+        var list = (measurements ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries
+                                                 | StringSplitOptions.TrimEntries);
+        // `SELECT last *` is legal and is the right default: callers that name
+        // nothing want whatever the device has.
+        var cols = list.Length == 0 ? "*" : string.Join(", ", list);
+        return $"SELECT last {cols} FROM {series}";
+    }
+
+    /// <summary>
+    /// Shapes a `SELECT last` result into { measurement: { value, ts } }.
+    ///
+    /// <para>This result set is row-oriented and completely unlike the aggregate
+    /// one MapPoints handles: one ROW per measurement, with the measurement name
+    /// in a `timeseries` column and everything — including numerics — rendered as
+    /// a string in `value`. Reusing MapPoints here would silently produce a single
+    /// point whose columns were "timeseries" and "value".</para>
+    ///
+    /// <para>The timestamp is per measurement, not per row-set, so the caller can
+    /// tell a live value from one that stopped updating weeks ago.</para>
+    /// </summary>
+    public static Dictionary<string, object?> MapLastValues(JsonElement result)
+    {
+        var outp = new Dictionary<string, object?>();
+
+        if (!result.TryGetProperty("timestamps", out var ts)
+            || !result.TryGetProperty("values", out var vals))
+            return outp;
+
+        // `SELECT last` returns column_names = null and puts the headers in
+        // `expressions` (["Timeseries","Value","DataType"]), the same way GROUP BY
+        // aggregates do. Reading only column_names returned an empty map.
+        JsonElement cols;
+        bool hasCols = result.TryGetProperty("column_names", out cols)
+                    && cols.ValueKind == JsonValueKind.Array;
+        if (!hasCols)
+        {
+            hasCols = result.TryGetProperty("expressions", out cols)
+                   && cols.ValueKind == JsonValueKind.Array;
+        }
+        if (!hasCols) return outp;
+
+        var columnNames = cols.EnumerateArray().Select(c => c.GetString() ?? "").ToList();
+        int tsIdx    = columnNames.FindIndex(c => c.Equals("timeseries", StringComparison.OrdinalIgnoreCase));
+        int valIdx   = columnNames.FindIndex(c => c.Equals("value", StringComparison.OrdinalIgnoreCase));
+        int dtypeIdx = columnNames.FindIndex(c => c.Equals("dataType", StringComparison.OrdinalIgnoreCase));
+        if (tsIdx < 0 || valIdx < 0) return outp;
+
+        var timestamps = ts.EnumerateArray().Select(t => t.GetInt64()).ToList();
+        var columns    = vals.EnumerateArray().Select(c => c.EnumerateArray().ToList()).ToList();
+        if (tsIdx >= columns.Count || valIdx >= columns.Count) return outp;
+
+        for (int row = 0; row < timestamps.Count; row++)
+        {
+            if (row >= columns[tsIdx].Count || row >= columns[valIdx].Count) continue;
+
+            var path = columns[tsIdx][row].GetString() ?? "";
+            int dot  = path.LastIndexOf('.');
+            var name = dot >= 0 ? path[(dot + 1)..] : path;
+            if (string.IsNullOrEmpty(name)) continue;
+
+            var raw   = columns[valIdx][row].GetString();
+            var dtype = (dtypeIdx >= 0 && dtypeIdx < columns.Count && row < columns[dtypeIdx].Count)
+                        ? columns[dtypeIdx][row].GetString() ?? "" : "";
+
+            // TEXT measurements (mode) stay strings; everything else is parsed so
+            // the client is not left doing type archaeology on a quoted number.
+            object? value = raw;
+            if (!dtype.Equals("TEXT", StringComparison.OrdinalIgnoreCase)
+                && double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var d))
+                value = d;
+
+            outp[name] = new Dictionary<string, object?>
+            {
+                ["value"] = value,
+                ["ts"]    = timestamps[row],
+            };
+        }
+        return outp;
     }
 
     private static string StripPrefix(string col)

@@ -12,7 +12,7 @@
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import type { CpmLoop } from '../../../api/cpmApi';
-import { useCpmTrend, useLatestGates } from '../../../hooks/useCpm';
+import { useCpmTrend, useLatestGates, useLoopLastValues } from '../../../hooks/useCpm';
 import { useLoopLive, qualityLabel } from '../../../hooks/useLoopLive';
 import { useObcTheme } from '../../../hooks/useObcTheme';
 import { loopSeries } from '../../../utils/loopSeries';
@@ -24,6 +24,32 @@ import {
 
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
 
+/** "live (RBE)" while the feed is current; "live · 4h ago" once it has stalled. */
+const liveSource = (ts: number | undefined): string =>
+  ts && Date.now() - ts > STALE_LIVE_MS ? `live · ${ageLabel(ts)}` : 'live (RBE)';
+
+/**
+ * Beyond this, a "live" value is shown with its age.
+ *
+ * The RBE job heartbeats every known signal every 300 s, so a key never expires and
+ * `live.hasData` stays true for as long as the job runs — which means absence no longer
+ * signals a dead feed. The heartbeat carries the timestamp of the last message actually
+ * RECEIVED, so a healthy loop reads seconds old and a stopped one visibly ages. Two
+ * heartbeat intervals is comfortably past normal jitter while still catching an outage
+ * within ~10 minutes. Without this, a dead gateway would render every loop as "live".
+ */
+const STALE_LIVE_MS = 10 * 60 * 1000;
+
+/** Age of a stored value, coarse on purpose: the point is "not live", not precision. */
+const ageLabel = (ts: number | undefined): string => {
+  if (!ts) return 'earlier';
+  const mins = Math.max(0, Math.round((Date.now() - ts) / 60000));
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 48) return `${hrs}h ago`;
+  return `${Math.round(hrs / 24)}d ago`;
+};
+
 export const SummaryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   const gates = useLatestGates(loop.loopId, '24h');
   // Live plane (RBE + snapshot-on-open); historian values remain the fallback.
@@ -32,6 +58,11 @@ export const SummaryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   const { start, end } = useRollingWindow(TREND_SPAN_MS, TREND_TICK_MS);
   // pollDriven: the window advances on a timer, not because the operator asked.
   const trend = useCpmTrend(series, start, end, 240, 'pv,sp,op,mode', true, true);
+  // Third plane. live -> trend bucket -> last stored value, which is the only one
+  // with no time bound: a setpoint held for a month and a loop parked in AUT are
+  // invisible to the other two, and rendering "—" for them reads as "no such
+  // signal" rather than "unchanged since before this window".
+  const lastStored = useLoopLastValues(series);
   const points = useMemo(() => trend.data?.points ?? [], [trend.data]);
   const last = points.length ? points[points.length - 1] : undefined;
 
@@ -87,7 +118,11 @@ export const SummaryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
   }, [points, obcTheme]);
 
-  const noData = !live.hasData && !trend.isLoading && !trend.isError && points.length === 0;
+  // The third plane counts: a loop whose only evidence is a last stored value must
+  // render its tiles, not the "nothing here" state this guard exists for.
+  const hasStored = Object.keys(lastStored.data?.values ?? {}).length > 0;
+  const noData = !live.hasData && !trend.isLoading && !trend.isError && points.length === 0
+                 && !lastStored.isLoading && !hasStored;
 
   return (
     <div className="cpm-grid-2">
@@ -115,16 +150,23 @@ export const SummaryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
                 const stored = m === 'sp'
                   ? num(last?.[m])
                   : num(last?.[`${m}_avg`]) ?? num(last?.[m]);
+                const held = num(lastStored.data?.values?.[m]?.value);
+                const shown = liveVal ?? (stored != null ? stored.toFixed(2)
+                                        : held != null ? held.toFixed(2) : null);
+                const heldTs = stored == null && held != null
+                  ? lastStored.data?.values?.[m]?.ts : undefined;
                 return (
                   <div key={m} className="cpm-kpi">
                     <span className="cpm-kpi__caption">{m.toUpperCase()}</span>
-                    <span className="cpm-kpi__value">
-                      {liveVal ?? (stored != null ? stored.toFixed(2) : '—')}
-                    </span>
+                    <span className="cpm-kpi__value">{shown ?? '—'}</span>
                     {/* OP is a percentage of span by definition in this engine.
                         PV/SP carry no engineering unit in the registry. */}
                     <span className="cpm-kpi__sub">
-                      {m === 'op' ? '% · ' : ''}{liveVal ? 'live (RBE)' : 'from historian'}
+                      {m === 'op' ? '% · ' : ''}
+                      {liveVal ? liveSource(lv?.ts)
+                       : stored != null ? 'from historian'
+                       : heldTs ? `last stored ${ageLabel(heldTs)}`
+                       : 'no value'}
                     </span>
                   </div>
                 );
@@ -143,10 +185,13 @@ export const SummaryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
                 // the live plane rendered "—" for loops whose mode is perfectly well known.
                 const liveMode = live.mode?.value;
                 const storedMode = last?.mode;
-                const value = liveMode ?? storedMode;
+                const heldMode = lastStored.data?.values?.mode;
+                const value = liveMode ?? storedMode ?? heldMode?.value;
                 const m = modeLabel(value);
-                const src = liveMode != null ? 'live (RBE)'
-                          : storedMode != null ? 'from historian' : null;
+                const src = liveMode != null ? liveSource(live.mode?.ts)
+                          : storedMode != null ? 'from historian'
+                          : heldMode?.value != null ? `last stored ${ageLabel(heldMode.ts)}`
+                          : null;
                 return (
                   <div className="cpm-kpi">
                     <span className="cpm-kpi__caption">MODE</span>

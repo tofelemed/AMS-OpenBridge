@@ -461,6 +461,27 @@ export interface CpmTrendPoint {
   [measurement: string]: number | string | null;
 }
 
+/** One measurement's last stored value, with the instant it was recorded. */
+export interface CpmLastValue { value: number | string | null; ts: number }
+
+/**
+ * Last known value per measurement, from IoTDB, with NO time bound.
+ *
+ * The trend endpoint can only answer about its window, so a signal that did not
+ * move inside it — a setpoint held for a month, a loop parked in AUT — reads as
+ * null there and the card renders "—" for a value that is perfectly well known.
+ * The live plane cannot cover it either: it is report-by-exception behind a TTL.
+ * `ts` comes back per measurement so the UI can show age rather than implying the
+ * value is live.
+ */
+export const getLastValues = (
+  series: string, measurements = 'pv,sp,op,mode', signal?: AbortSignal,
+) => {
+  const params = new URLSearchParams({ series, measurements });
+  return apiJson<{ series: string; values: Record<string, CpmLastValue> }>(
+    `/api/hist/last?${params.toString()}`, { signal });
+};
+
 /** envelope=true adds <m>_min/<m>_max/<m>_avg columns so oscillation renders truthfully. */
 export const getTrend = (
   series: string, start: Date, end: Date, width = 300,
