@@ -425,7 +425,13 @@ warn "removing both Flink containers really does destroy every job, which is how
 # member. Every healthy single-consumer group reported "2 members". It also failed
 # the unsafe way round: a group with no members prints one "has no active members."
 # line, counted 1, and was reported OK - a false all-clear on the worse condition.
-for G in traverse-cpa-cplm-results ams-api-cplm-results-frames; do
+# The frames group is DERIVED: CplmEventFrameService uses ConsumerGroupId + "-frames"
+# (CplmEventFrameService.cs:66). The old hardcoded "ams-api-cplm-results-frames" is a
+# lab-era name from before CPLM moved out of ams-api, so on the plant it probed a group
+# that cannot exist - "does not exist" then counted as one line and reported OK. This is
+# precisely the full-names trap CLAUDE.md flags.
+CPLM_GROUP="${CPLM_GROUP:-traverse-cpa-cplm-results}"
+for G in "$CPLM_GROUP" "$CPLM_GROUP-frames"; do
   m=$(docker exec "$KAFKA" bash -c       "kafka-consumer-groups --bootstrap-server $BROKER --describe --group $G --members 2>/dev/null"       | awk -v g="$G" '$1 == g {n++} END {print n+0}')
   case "$m" in
     1) ok "$G — single consumer" ;;
