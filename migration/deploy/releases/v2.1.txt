@@ -1,0 +1,24 @@
+# Release v2.1 — CHG-019 (SP/MODE stay visible when they never change), plus the
+# two corrections from proving v4 on the plant that may not have shipped yet.
+# One compose service per line; `#` comments and blank lines are ignored.
+# Consumed by: python migration/deploy/build-release.py --release v2.1
+#
+# Why each one is here:
+#   flink-jobmanager            CHG-019 RBE heartbeat. Taskmanager shares the image, and
+#                               the JAR travels as a separate file too (cplm-api
+#                               bind-mounts it) - three artifacts, one deploy.
+#   historian-bff               CHG-019 GET /api/hist/last - last known value, no time
+#                               bound, with a per-measurement timestamp.
+#   ams-frontend                CHG-019 third plane + live-value age; and the v5 MODE
+#                               historian fallback, in case v5 was not deployed.
+#   traverse-ingestion-service  v5's restored-loop count on /stats. Included because it
+#                               is unconfirmed whether v5 reached the plant; re-loading
+#                               an image the VM already has costs nothing.
+#
+# No schema change. Deploying the Flink half means REMOVING both Flink containers
+# before deploy.sh --prod: 04b skips a job whose name already exists, so with the old
+# JobManager up it reports [OK] while the old jar keeps running.
+flink-jobmanager
+historian-bff
+ams-frontend
+traverse-ingestion-service
