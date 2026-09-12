@@ -402,12 +402,21 @@ fi
 warn "A job started BEFORE the last deploy is running the OLD jar."
 warn "Lab only: ZooKeeper HA would recover the previous JobGraph + jar. Marun has NO HA -"
 warn "removing both Flink containers really does destroy every job, which is how a deploy lands."
+# Count REAL members from --members, where every member row begins with the group
+# name, so the header cannot be mistaken for one. The previous version read the
+# partition view and counted distinct $NF - which is CLIENT-ID, not CONSUMER-ID -
+# with awk NR>1, and kafka-consumer-groups prints a BLANK line before the header,
+# so NR>1 let the header through and the literal string "CLIENT-ID" counted as a
+# member. Every healthy single-consumer group reported "2 members". It also failed
+# the unsafe way round: a group with no members prints one "has no active members."
+# line, counted 1, and was reported OK - a false all-clear on the worse condition.
 for G in traverse-cpa-cplm-results ams-api-cplm-results-frames; do
-  m=$(docker exec "$KAFKA" bash -c \
-      "kafka-consumer-groups --bootstrap-server $BROKER --describe --group $G 2>/dev/null" \
-      | awk 'NR>1 && NF>1 {print $NF}' | grep -v '^-$' | sort -u | grep -c . )
-  [ "$m" = "1" ] && ok "$G — single consumer" \
-    || find_ "$G — $m members; two split the partitions and each persists a subset silently"
+  m=$(docker exec "$KAFKA" bash -c       "kafka-consumer-groups --bootstrap-server $BROKER --describe --group $G --members 2>/dev/null"       | awk -v g="$G" '$1 == g {n++} END {print n+0}')
+  case "$m" in
+    1) ok "$G — single consumer" ;;
+    0) find_ "$G — NO active member; nothing is persisting this stream" ;;
+    *) find_ "$G — $m members; they split the partitions and each persists a subset silently" ;;
+  esac
 done
 fi
 
