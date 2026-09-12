@@ -6,6 +6,7 @@
 #   ./scripts/validate-loops.sh -H 24           # 24 h window
 #   ./scripts/validate-loops.sh -l "FIC10409 LIC10501"
 #   ./scripts/validate-loops.sh -s 4            # jump straight to step 4
+#   ./scripts/validate-loops.sh -a '2026-09-12 14:36:00+00'   # verdict AS OF then
 #   ./scripts/validate-loops.sh -o              # ALSO keep the evidence on disk
 #   OUTDIR=/var/tmp/run1 ./scripts/validate-loops.sh -o     # choose the folder
 #
@@ -26,6 +27,13 @@ set -uo pipefail
 LOOPS_DEFAULT="FIC10409 FIC10509 FIC10501 FIC10502 LIC10501 PIC00605 PIC80143 PIC80141 FIC80103 PIC80140"
 LOOPS="${LOOPS:-$LOOPS_DEFAULT}"
 HOURS="${HOURS:-12}"
+# -a lets the run be made AS OF a past instant, so a verdict can be read as it
+# stood before some event. Restarting Flink empties the rolling buffer, and the
+# engine keeps emitting from a partial one - those windows carry
+# INSUFFICIENT_SAMPLES and say nothing about the plant. Without this the script
+# always reports the LATEST verdict, which straight after a restart is exactly
+# the useless one.
+AS_OF="${AS_OF:-}"
 ONLY_STEP=""
 
 PG="${PG:-ams-postgres}"
@@ -44,10 +52,11 @@ META_TOPIC="${META_TOPIC:-traverse.cpa.ams.metadata.updates}"
 # directory with OUTDIR=/path, or let it default to a timestamped one here.
 OUTDIR_SET=""
 OUTDIR="${OUTDIR:-}"
-while getopts "l:H:s:oh" o; do
+while getopts "l:H:s:a:oh" o; do
   case "$o" in
     l) LOOPS="$OPTARG" ;;
     H) HOURS="$OPTARG" ;;
+    a) AS_OF="$OPTARG" ;;
     s) ONLY_STEP="$OPTARG" ;;
     o) OUTDIR_SET=1 ;;
     h) sed -n '2,24p' "$0"; exit 0 ;;
@@ -130,7 +139,13 @@ case "$HOURS" in
       exit 2 ;;
 esac
 
-echo "${BOLD}CPM loop validation${OFF}   loops=$(echo "$LOOPS" | wc -w)   window=${HOURS}h (gate window_kind=$WKIND)   db=$PGDB"
+# Empty when not set, so it drops out of every query unchanged.
+ASOF_SQL=""
+if [ -n "$AS_OF" ]; then
+  ASOF_SQL=" AND g.window_end <= TIMESTAMPTZ '$AS_OF'"
+fi
+
+echo "${BOLD}CPM loop validation${OFF}   loops=$(echo "$LOOPS" | wc -w)   window=${HOURS}h (gate window_kind=$WKIND)   db=$PGDB${AS_OF:+   AS OF $AS_OF}"
 echo "$LOOPS" | tr ' ' '\n' | sed 's/^/   /' | paste -sd' ' -
 
 # ── 1. reachability ──────────────────────────────────────────────────
@@ -251,7 +266,7 @@ if ! skip 5; then
 hdr "5. Current ${WKIND} verdict — all 16 gates"
 Q "WITH latest AS (
      SELECT DISTINCT ON (g.loop_id) g.* FROM analytics.cplm_gate_results g
-      WHERE g.loop_id IN ($IDS) AND g.window_kind='$WKIND'
+      WHERE g.loop_id IN ($IDS) AND g.window_kind='$WKIND'$ASOF_SQL
       ORDER BY g.loop_id, g.window_end DESC)
 SELECT s.loop_id, COALESCE(to_char(l.window_end,'MM-DD HH24:MI'),'-') AS win,
        COALESCE(l.payload->'gates'->>'G0','-')  AS g0,
@@ -282,7 +297,7 @@ if ! skip 6; then
 hdr "6. What is blocking — first exclusion that fires"
 Q "WITH latest AS (
      SELECT DISTINCT ON (g.loop_id) g.* FROM analytics.cplm_gate_results g
-      WHERE g.loop_id IN ($IDS) AND g.window_kind='$WKIND'
+      WHERE g.loop_id IN ($IDS) AND g.window_kind='$WKIND'$ASOF_SQL
       ORDER BY g.loop_id, g.window_end DESC)
 SELECT s.loop_id, COALESCE(l.diagnosis,'NO 12h VERDICT') AS diagnosis,
        CASE WHEN l.loop_id IS NULL THEN 'no verdict row at all'
@@ -468,7 +483,7 @@ grep -E 'FINDING' "$OUTDIR/report.txt" 2>/dev/null | sed 's/^ *//' > "$OUTDIR/fi
 nf=$(grep -c . "$OUTDIR/findings.txt" 2>/dev/null || echo 0)
 { echo "run:     $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "host:    $(hostname 2>/dev/null || echo '?')"
-  echo "window:  ${HOURS}h (gate window_kind=$WKIND)   db: $PGDB   gateway: $GW"
+  echo "window:  ${HOURS}h (gate window_kind=$WKIND)   db: $PGDB   gateway: $GW${AS_OF:+   AS OF: $AS_OF}"
   echo "loops:   $LOOPS"
   echo "findings: $nf"; } > "$OUTDIR/run.txt"
 [ "$nf" = "0" ] && ok "findings.txt — none" || find_ "findings.txt — $nf line(s)"
