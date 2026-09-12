@@ -259,6 +259,13 @@ def vm_steps(release: str, commit: str, rows: list[tuple[str, str, str]],
     loads = "\n".join(
         f"gunzip -c /tmp/{release}/{img.replace('/', '_').replace(':', '_')}.tar.gz | docker load" for img in images
     )
+    # ams-api is profile-gated. Every deploy.sh call in this file must carry the env or
+    # compose silently leaves the old container running - and it is the only writer of
+    # the loop historian, so the no-op is invisible until a trend goes missing.
+    ams_api_env = ""
+    if "ams-api" in services:
+        ams_api_env = ("export START_AMS_API=yes   # REQUIRED: ams-api is behind "
+                       "profiles:[cpa-ams-api]; without this compose skips it\n")
     flink = ""
     if has_flink:
         flink = f"""
@@ -273,7 +280,7 @@ def vm_steps(release: str, commit: str, rows: list[tuple[str, str, str]],
 #    jobs while they keep executing the OLD jar. Removing both containers is mandatory.
 cp /tmp/{release}/{FLINK_JAR.name} /opt/AMS-open/src/flink/target/{FLINK_JAR.name}
 docker rm -f ams-flink-taskmanager ams-flink-jobmanager
-bash migration/deploy/deploy.sh --prod 2>&1 | tail -8          # 04b resubmits all FOUR jobs
+{ams_api_env}bash migration/deploy/deploy.sh --prod 2>&1 | tail -8          # 04b resubmits all FOUR jobs
 docker exec ams-flink-jobmanager flink list -m localhost:8081  # 4 x RUNNING, start times = now
 #
 #    Do NOT run `compose up flink-job-submit-cplm` here: that service is profiled
@@ -344,7 +351,7 @@ df -h /
 {flink}
 # 6. sync repo files that changed (compose/env/scripts) - rule 1: the repo is the truth
 #    then recreate only what changed:
-bash migration/deploy/deploy.sh --prod 2>&1 | tail -8{rename_trap}
+{ams_api_env}bash migration/deploy/deploy.sh --prod 2>&1 | tail -8{rename_trap}
 {data_block}
 # 8. post-update checks (UPDATE-RUNBOOK sec.1 table) - for {release} specifically:
 {checks}

@@ -1,0 +1,44 @@
+# Release v2.3 — v2.1 + v2.2 combined, deployed in one window by decision.
+# One compose service per line; `#` comments and blank lines are ignored.
+# Consumed by: python migration/deploy/build-release.py --release v2.3
+#
+# Supersedes v2.1 and v2.2 — deploy this INSTEAD of either, not after.
+#
+# From v2.2 (CHG-020):
+#   ams-api                     RawLoopIotDbConsumer is the ONLY writer of
+#                               root.site1.cpm.<loop>. On the 2026-09-12 disk-full it
+#                               dropped every rejected row and committed the offsets,
+#                               so samples still sitting in Kafka were walked past and
+#                               the trend hole became permanent. It now separates a
+#                               refused statement from an unavailable server, holds the
+#                               buffer and pauses instead of discarding.
+#
+# From v2.1 (CHG-019), plus the v4/v5 corrections that may not have reached the plant:
+#   flink-jobmanager            RBE heartbeat. Taskmanager shares the image, and the JAR
+#                               travels as a separate file too (cplm-api bind-mounts it)
+#                               - three artifacts, one deploy.
+#   historian-bff               GET /api/hist/last - last known value, no time bound,
+#                               with a per-measurement timestamp.
+#   ams-frontend                third plane + live-value age; and the v5 MODE historian
+#                               fallback, in case v5 was not deployed.
+#   traverse-ingestion-service  v5's restored-loop count on /stats.
+#
+# ams-frontend and historian-bff MUST ship together: the new SummaryTab calls
+# /api/hist/last, which exists only in the new bff. Frontend-without-bff = 404 per tile.
+#
+# No schema change. No !data-load: the MODE map and the CPM onboarding/ranges load were
+# one-time v3 actions and are already done on the plant.
+#
+# TWO TRAPS, both of which report success while doing nothing:
+#   1. Flink - 04b-submit-flink-jobs.sh uses submit_if_missing, so with the old
+#      JobManager still up it prints [OK] for all four jobs while they keep running the
+#      OLD jar. REMOVING BOTH FLINK CONTAINERS IS MANDATORY. Marun has no ZooKeeper HA,
+#      so removing the JobManager really does destroy every job (that is the intent).
+#   2. ams-api - behind profiles: ["cpa-ams-api"]; deploy.sh adds it only when
+#      START_AMS_API=yes. Without that env compose loads the new image and leaves the
+#      OLD container running. Every deploy.sh call in VM-STEPS.md carries the export.
+ams-api
+flink-jobmanager
+historian-bff
+ams-frontend
+traverse-ingestion-service
