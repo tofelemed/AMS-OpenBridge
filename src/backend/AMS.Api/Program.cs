@@ -29,17 +29,43 @@ using System.Reflection;
 var builder = WebApplication.CreateBuilder(args);
 
 // ---- Serilog structured logging ----
+// CHG-021 - Serilog REPLACES Microsoft.Extensions.Logging, and this configuration is
+// built in code with no ReadFrom.Configuration(). So the plant's error-only floor
+// (Logging__LogLevel__Default, set from SERVICE_LOG_LEVEL by the compose x-kafka anchor)
+// was silently ignored HERE while it applied to every other .NET service, and Serilog's
+// own default of Information stood. Honour it explicitly.
 var loggerConfig = new LoggerConfiguration()
+    .MinimumLevel.Is(ResolveMinimumLevel(builder.Configuration["Logging:LogLevel:Default"]))
     .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
     .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Warning)
+    // RawLoopIotDbConsumer issues one POST per device per flush - ~35/s on the HDPE fleet -
+    // and the HttpClient logger writes FOUR Information lines per round trip. Against the
+    // 30 MB json-file cap that left ~25 min of history, so the CHG-020 stall message would
+    // rotate away before anyone read it.
+    .MinimumLevel.Override("System.Net.Http", LogEventLevel.Warning)
     .Enrich.FromLogContext()
     .Enrich.WithProperty("Service", "AMS.Api")
     .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
     .WriteTo.Console(outputTemplate:
         "[{Timestamp:HH:mm:ss.fff} {Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}");
-if (!builder.Environment.IsDevelopment())
-    loggerConfig = loggerConfig.WriteTo.Seq(builder.Configuration["Seq:Url"] ?? "http://localhost:5341");
+// Only when a Seq server is actually configured. This defaulted to localhost:5341, and no
+// deployment in this repo runs Seq or sets Seq:Url - so every non-dev process has been
+// retrying a sink pointed at nothing.
+var seqUrl = builder.Configuration["Seq:Url"];
+if (!builder.Environment.IsDevelopment() && !string.IsNullOrWhiteSpace(seqUrl))
+    loggerConfig = loggerConfig.WriteTo.Seq(seqUrl);
 Log.Logger = loggerConfig.CreateLogger();
+
+// .NET level names mostly match Serilog's; the two that do not would otherwise fall back
+// to Information and quietly defeat a deliberate SERVICE_LOG_LEVEL setting.
+static LogEventLevel ResolveMinimumLevel(string? configured) => configured?.Trim() switch
+{
+    null or "" => LogEventLevel.Information,
+    "Trace" => LogEventLevel.Verbose,
+    "Critical" => LogEventLevel.Fatal,
+    var s when Enum.TryParse<LogEventLevel>(s, ignoreCase: true, out var parsed) => parsed,
+    _ => LogEventLevel.Information,
+};
 
 builder.Host.UseSerilog();
 

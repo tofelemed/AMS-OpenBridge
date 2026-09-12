@@ -916,6 +916,43 @@ with `G14 INSUFFICIENT_EVIDENCE` — the no-VP cap demoting CONFIRMED to SUSPECT
 
 ---
 
+## CHG-021 ✅ ams-api honours the plant log floor (found during the v2.3 deploy)
+
+**Services:** ams-api (rebuild required — **not in v2.3**)
+**Files:** `AMS.Api/Program.cs`
+
+**Found by reading the v2.3 post-deploy logs.** They printed `INF`, on a plant configured
+`SERVICE_LOG_LEVEL=Error`. Three separate causes, all in one block:
+
+1. **The plant log floor never applied to ams-api at all.** `builder.Host.UseSerilog()` makes
+   Serilog *replace* Microsoft.Extensions.Logging, and this configuration is built in code with
+   no `ReadFrom.Configuration()`. So `Logging__LogLevel__Default` — set from `SERVICE_LOG_LEVEL`
+   by the compose `x-kafka` anchor, and honoured by every other .NET service — was read by
+   nobody, and Serilog's own default of `Information` stood. Neither `Logging__*` nor
+   `Serilog__*` env vars could have fixed it from outside.
+2. **`System.Net.Http` was unmuted.** `RawLoopIotDbConsumer` issues one POST per device per
+   flush (~35/s across the HDPE fleet) and the HttpClient logger writes **four** Information
+   lines per round trip: ~140 lines/s of pure noise.
+3. **A Seq sink pointed at nothing.** `WriteTo.Seq(... ?? "http://localhost:5341")` ran in
+   every non-Development environment. No deployment in this repo runs Seq or sets `Seq:Url`,
+   so every prod process has been retrying a dead sink since it was written.
+
+**Not a disk risk, a diagnostic one.** `ams-api` carries `logging: *default-logging`
+(`max-size 10m`, `max-file 3`), so the json-file is capped at 30 MB — this could not refill the
+disk. But at ~140 lines/s that ring holds roughly **25 minutes** of history, which means
+CHG-020's once-a-minute stall message would rotate away before anyone read it. The change that
+exists to make an outage visible was being hidden by the noise floor.
+
+**Fix.** `MinimumLevel.Is()` from `Logging:LogLevel:Default` (mapping the two .NET names Serilog
+does not share — `Trace`→`Verbose`, `Critical`→`Fatal` — since a silent fallback to Information
+would defeat a deliberate setting); `MinimumLevel.Override("System.Net.Http", Warning)`; and the
+Seq sink only when a URL is actually configured.
+
+**Verified:** `dotnet build AMS.Api` clean, 0 warnings. **Not deployed** — v2.3 shipped before
+this was found, and it is not urgent: the 30 MB cap bounds it. Goes in the next ams-api build.
+
+---
+
 ## CHG-020 ✅ The historian no longer discards samples it cannot write
 
 **Services:** ams-api (rebuild required — **not in v2.1**)
