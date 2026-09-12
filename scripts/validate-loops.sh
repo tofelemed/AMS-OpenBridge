@@ -104,8 +104,19 @@ HAVE_PY3=""; have python3 && HAVE_PY3=1
 have docker || { echo "docker not on PATH — run as a user in the docker group, or with sudo" >&2; exit 1; }
 have curl   || echo "note: curl missing — the gateway and Flink checks will be skipped" >&2
 
-q() { docker exec -i "$PG" psql -U "$PGUSER" -d "$PGDB" -qAt -F'|' -c "$1" 2>&1; }
-Q() { docker exec -i "$PG" psql -U "$PGUSER" -d "$PGDB" -c "$1" 2>&1; }
+# Marun's Postgres is Instrumental's container, not ours, so its pg_hba may not
+# trust a local-socket connection for ams_user. Pass PGPASSWORD through when set;
+# an EMPTY one is worse than none (psql would send a blank password instead of
+# falling back), so the flag is only added when there is something to send.
+_pgexec() {
+  if [ -n "${PGPASSWORD:-}" ]; then
+    docker exec -i -e PGPASSWORD="$PGPASSWORD" "$PG" "$@"
+  else
+    docker exec -i "$PG" "$@"
+  fi
+}
+q() { _pgexec psql -U "$PGUSER" -d "$PGDB" -qAt -F'|' -c "$1" 2>&1; }
+Q() { _pgexec psql -U "$PGUSER" -d "$PGDB" -c "$1" 2>&1; }
 
 IDS="$(sql_list)"
 SINCE="NOW() - INTERVAL '$HOURS hours'"
@@ -417,7 +428,7 @@ for L in $LOOPS; do
 done
 
 # One CSV row per loop x window across the whole window: the review record.
-docker exec -i "$PG" psql -U "$PGUSER" -d "$PGDB" -qAt -F',' -c \
+_pgexec psql -U "$PGUSER" -d "$PGDB" -qAt -F',' -c \
 "COPY (
   SELECT g.loop_id, g.window_kind, g.window_start, g.window_end, g.sample_count,
          g.payload->'gates'->>'G0'  AS g0,  g.payload->'gates'->>'G1'  AS g1,
