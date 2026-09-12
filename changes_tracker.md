@@ -916,6 +916,71 @@ with `G14 INSUFFICIENT_EVIDENCE` — the no-VP cap demoting CONFIRMED to SUSPECT
 
 ---
 
+## CHG-020 ✅ The historian no longer discards samples it cannot write
+
+**Services:** ams-api (rebuild required — **not in v2.1**)
+**Files:** `AMS.Api/BackgroundServices/RawLoopIotDbConsumer.cs`, `AMS.Api/Services/IotDbWriteClient.cs`
+
+**The defect.** Chasing the PIC80105 trend gap (CHG-019) down to the write path found this.
+`IotDbWriteClient.NonQueryAsync` returned a bare `false` for *every* failure — HTTP 5xx,
+timeout, exception, and a statement IoTDB read and refused were indistinguishable. On a
+rejected batch `InsertBisectingAsync` split to single rows, logged `Dropping poison sample`,
+and **returned `true` regardless**, so `allOk` stayed true and the offsets were stored.
+
+Three consequences, all verified in the code rather than inferred:
+
+1. **On the 2026-09-12 disk-full, every row was dropped and every offset committed.** The
+   samples were still in Kafka, with 7 d of retention, and the consumer walked straight past
+   them. The resulting hole is permanent and cannot be backfilled — exactly the ~4 h gap seen
+   on PIC80105.
+2. `allOk = false` was **dead code**. The `"offsets not stored, batch will be redelivered"`
+   warning could not be reached from an insert failure, so the one log line that would have
+   revealed this never printed.
+3. The bisect never retried a **half** — it descended straight to singles, so a rejected
+   500-row batch always cost **501 statements**, never the `O(log n)` its comment claimed, and
+   during an outage every one of them failed and logged at Error.
+
+**Fix.**
+
+1. **`IotDbWriteOutcome { Ok, Rejected, Unavailable }`.** Transport/auth/timeout/exception →
+   `Unavailable` (the rows were never evaluated); HTTP 200 with a non-200 IoTDB code →
+   `Rejected` (the statement was read and refused, so it *may* be one bad row). Cancellation
+   now rethrows instead of being laundered into a write failure. `NonQueryAsync` survives as a
+   thin bool wrapper for callers with no recovery to do.
+2. **The batch-wide discriminator.** `Unavailable` is decisive but not sufficient: a disk-full
+   IoTDB answers `Rejected`. So the flush also rules on what landed — **a single bad value
+   cannot stop its 499 neighbours, so if nothing landed at all, the fault is the server.**
+   Rejected rows are now *collected* by the bisect and judged once per flush, not dropped
+   where they are found.
+3. **Hold, don't discard.** On an infrastructure verdict the consumer pauses its partitions,
+   keeps the buffer and the offsets, and retries the same rows until they land. IoTDB keys on
+   `(device, timestamp)`, so the replay is a no-op. It logs at Error once a minute saying it is
+   paused, for how long, and that the samples are safe only as long as topic retention.
+4. **The ambiguous case is not resolved by guessing.** With fewer than 5 rejected rows and
+   none landed there is genuinely not enough evidence, and pausing would be self-defeating —
+   it stops the very siblings arriving that would settle it. So the buffer is held *without*
+   pausing: the next flush either lands something (these are poison, drop them) or reaches the
+   threshold (the server is down, pause). At ~120 samples/s that resolves within one interval.
+5. Poison drops still happen — they are correct when siblings landed — but now carry a running
+   total. There is **no metrics surface in ams-api at all** (no `Meter` anywhere in the
+   project), so this is a log counter, not a Prometheus series; wiring one is a separate job.
+
+**The trade, stated plainly.** A genuinely stuck IoTDB now **blocks the partition** instead of
+discarding data. That is the intended direction — a loud stall with the data still in Kafka
+beats a silent unbackfillable hole — but it means an IoTDB outage lasting longer than the
+topic's retention still loses samples, and the consumer will not self-heal past a fault that
+never clears. The stall log says exactly that.
+
+**Verified:** `dotnet build AMS.Api` clean, 0 warnings. **Not verified:** no automated test —
+`IotDbWriteClient` is a sealed concrete class with no seam to fake, so covering the
+discriminator means extracting an interface first. The behaviour is reasoned from the code
+paths above, not exercised.
+
+**Deploy note.** This is **not** in the v2.1 release already built (`release-out/v2.1-20260912`);
+it needs an ams-api rebuild.
+
+---
+
 ## CHG-019 ✅ SP and MODE stay visible when they never change
 
 **Services:** Flink jar (Loop Live RBE) + historian-bff + frontend
@@ -988,10 +1053,26 @@ touches only the live plane.
 historian-bff builds; frontend typecheck, lint (`--max-warnings 0`) and build clean.
 **Not verified:** the heartbeat has not run against a live broker — that needs the jar deployed.
 
-**Still open (separate).** LIC30102's trend showed stored data ending ~11:49 against a 14:11
-window, while live PV/OP were current. That points at the IoTDB write path, not this bug. The
-`/last` call above is also the quickest probe: if it returns a fresh `ts`, the writer is fine
-and the gap is a rendering question; if `ts` is hours old, `RawLoopIotDbConsumer` has stopped.
+**Root cause of the trigger — corrected 2026-09-12.** The entry above explains why SP and
+MODE *stayed* blank; it named the wrong reason for why they went blank on that day. What
+actually happened: **the VM disk filled, IoTDB began rejecting writes, and the historian plane
+went dark.** PV and OP survived because they change constantly and so are refreshed on the
+live plane; SP and MODE change rarely, had already lost their 1 h Redis snapshot, and had no
+second plane to fall back to — so they rendered blank while their neighbours looked healthy.
+The same disk-full event is what produced the ~4 h hole in PIC80105's trend (~11:24–15:18).
+
+The RBE/TTL analysis is still correct and the defect it describes is real — an hour of no
+change did lose the snapshot regardless of disk. **But it was not the trigger**, and a
+deployment review that records it as such would draw the wrong conclusion about disk headroom.
+
+**What that makes CHG-019 worth.** Not "fixes the blank tiles on LIC30102" but: it gives SP
+and MODE a second plane, so the *next* historian outage degrades those fields to
+`last stored 3h ago` instead of a blank — and the heartbeat means "no live value" finally
+distinguishes a dead producer from a quiet one. It should still deploy, on that basis.
+
+**It also exposed a worse defect, one layer down — see CHG-020.** The historian did not lose
+those hours because writes were refused; it lost them because the consumer *discarded the
+rows and committed the offsets* while they were being refused.
 
 ---
 

@@ -36,6 +36,31 @@ public sealed class IotDbWriteOptions
     public string LoopRootPrefix { get; set; } = "root.site1.cpm";
 }
 
+/// <summary>
+/// Why a write did not land. Callers MUST treat the two failures differently.
+///
+/// CHG-020 — before this existed every failure collapsed to a bare <c>false</c>, so
+/// <see cref="AMS.Api.BackgroundServices.RawLoopIotDbConsumer"/> could not tell one bad value
+/// from a server that was refusing everything. On 2026-09-12 the VM filled, IoTDB rejected
+/// every insert, and the consumer dropped each row as "poison" and committed the offset —
+/// a permanent hole no retry could backfill.
+///
+///   * <see cref="Rejected"/> — HTTP 200 with a non-200 IoTDB code: the statement was read
+///     and refused. MAY be a single bad row, so it is worth isolating by bisection.
+///   * <see cref="Unavailable"/> — transport, auth, timeout or exception: nothing about the
+///     rows was even evaluated, so dropping them would discard good data.
+///
+/// Note a disk-full IoTDB answers <see cref="Rejected"/>, not <see cref="Unavailable"/> —
+/// this enum narrows the problem but does not settle it. The caller still needs the
+/// batch-wide rule: if not one row of a flush lands, it is not poison.
+/// </summary>
+public enum IotDbWriteOutcome
+{
+    Ok,
+    Rejected,
+    Unavailable,
+}
+
 public sealed class IotDbWriteClient
 {
     private readonly IHttpClientFactory _httpFactory;
@@ -101,10 +126,10 @@ public sealed class IotDbWriteClient
         }
     }
 
-    /// <summary>Execute a write/DDL statement (INSERT/CREATE/SET TTL).</summary>
-    public async Task<bool> NonQueryAsync(string sql, CancellationToken ct, bool expectAlreadyExists = false)
+    /// <summary>Execute a write/DDL statement (INSERT/CREATE/SET TTL), reporting why it failed.</summary>
+    public async Task<IotDbWriteOutcome> ExecuteAsync(string sql, CancellationToken ct, bool expectAlreadyExists = false)
     {
-        if (!_opts.Enabled) return false;
+        if (!_opts.Enabled) return IotDbWriteOutcome.Unavailable;
         try
         {
             using var http = CreateClient();
@@ -113,25 +138,39 @@ public sealed class IotDbWriteClient
             var json = await res.Content.ReadAsStringAsync(ct);
             if (!res.IsSuccessStatusCode)
             {
+                // Transport or auth: the statement was never evaluated, so this says
+                // nothing about the rows. 4xx included — a 401 is no more row-specific
+                // than a 503, and guessing wrong here loses data.
                 _logger.LogWarning("IoTDB nonQuery failed ({Status}): {Body} — SQL: {Sql}", res.StatusCode, Trim(json), Trim(sql));
-                return false;
+                return IotDbWriteOutcome.Unavailable;
             }
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.TryGetProperty("code", out var code) && code.GetInt32() != 200)
             {
                 if (expectAlreadyExists && json.Contains("already exist", StringComparison.OrdinalIgnoreCase))
-                    return true;
+                    return IotDbWriteOutcome.Ok;
                 _logger.LogWarning("IoTDB nonQuery rejected: {Body} — SQL: {Sql}", Trim(json), Trim(sql));
-                return false;
+                return IotDbWriteOutcome.Rejected;
             }
-            return true;
+            return IotDbWriteOutcome.Ok;
+        }
+        // Shutdown is not a write failure — let the host's cancellation unwind.
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
+            // Includes the HttpClient 30 s timeout, which surfaces as TaskCanceledException
+            // with ct un-cancelled — a stalled server, not a bad row.
             _logger.LogWarning(ex, "IoTDB nonQuery exception — SQL: {Sql}", Trim(sql));
-            return false;
+            return IotDbWriteOutcome.Unavailable;
         }
     }
+
+    /// <summary>Did-it-land form of <see cref="ExecuteAsync"/>, for callers with no recovery to do.</summary>
+    public async Task<bool> NonQueryAsync(string sql, CancellationToken ct, bool expectAlreadyExists = false)
+        => await ExecuteAsync(sql, ct, expectAlreadyExists) == IotDbWriteOutcome.Ok;
 
     /// <summary>Insert one record (used for low-rate KPI aggregates; samples use the batch path).</summary>
     public Task<bool> InsertAsync(string devicePath, long timestampMs,
@@ -151,13 +190,14 @@ public sealed class IotDbWriteClient
     }
 
     /// <summary>Insert many rows for one device in a single statement — the historian sample path.</summary>
-    public Task<bool> InsertBatchAsync(
+    public Task<IotDbWriteOutcome> InsertBatchAsync(
         string devicePath,
         IReadOnlyList<string> measurements,
         IReadOnlyList<(long TimestampMs, IReadOnlyList<object?> Values)> rows,
         CancellationToken ct)
     {
-        if (measurements.Count == 0 || rows.Count == 0) return Task.FromResult(false);
+        // Nothing to write is not a failure — there is no data here to lose.
+        if (measurements.Count == 0 || rows.Count == 0) return Task.FromResult(IotDbWriteOutcome.Ok);
 
         var valuesSql = new StringBuilder(rows.Count * 64);
         for (var i = 0; i < rows.Count; i++)
@@ -173,7 +213,7 @@ public sealed class IotDbWriteClient
         }
 
         var sql = $"insert into {devicePath}(timestamp,{string.Join(',', measurements)}) values{valuesSql}";
-        return NonQueryAsync(sql, ct);
+        return ExecuteAsync(sql, ct);
     }
 
     private HttpClient CreateClient()

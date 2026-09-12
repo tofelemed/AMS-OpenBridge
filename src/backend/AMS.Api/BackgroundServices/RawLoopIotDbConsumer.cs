@@ -30,6 +30,15 @@ public sealed class RawLoopIotDbConsumer : BackgroundService
     };
     private const int FlushRows = 500;
     private static readonly TimeSpan FlushInterval = TimeSpan.FromSeconds(5);
+    /// <summary>CHG-020 — pause between retries while IoTDB is refusing writes.</summary>
+    private static readonly TimeSpan StallBackoff = TimeSpan.FromSeconds(5);
+    /// <summary>
+    /// CHG-020 — how many rows must be rejected with none landing before we call it a
+    /// server fault rather than bad data. One rejected row on its own proves nothing;
+    /// five consecutive individually-rejected samples in a homogeneous stream is not a
+    /// data problem. At ~120 samples/s this threshold is reached within one flush.
+    /// </summary>
+    private const int MinRejectedForServerVerdict = 5;
 
     private readonly ILogger<RawLoopIotDbConsumer> _logger;
     private readonly IotDbWriteClient _iotdb;
@@ -77,6 +86,10 @@ public sealed class RawLoopIotDbConsumer : BackgroundService
         var pendingOffsets = new List<ConsumeResult<string, string>>();
         var lastFlush = DateTime.UtcNow;
         long written = 0;
+        // CHG-020 — while IoTDB refuses writes we stop consuming rather than keep
+        // buffering (or worse, keep discarding). The buffer is retried as-is.
+        var paused = false;
+        var stalledSince = DateTime.MinValue;
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -106,33 +119,70 @@ public sealed class RawLoopIotDbConsumer : BackgroundService
                 if (total == 0 || (total < FlushRows && DateTime.UtcNow - lastFlush < FlushInterval))
                     continue;
 
-                var allOk = true;
+                // CHG-020 - rejected rows are collected, not dropped in place. Whether
+                // they are poison or collateral of an unavailable server cannot be known
+                // per row; it is decided once, below, for the flush as a whole.
+                var rejected = new List<(string Device, long Ts, IReadOnlyList<object?> Values)>();
+                var landed = 0;
+                var serverDown = false;
                 foreach (var (device, rows) in pending)
                 {
                     await _iotdb.EnsureTimeseriesAsync(device, MeasurementTypes, stoppingToken);
-                    var ok = await _iotdb.InsertBatchAsync(device, Measurements, rows, stoppingToken);
-                    if (!ok)
-                    {
-                        // P2-17 - one malformed value used to reject the whole
-                        // 500-row statement; offsets were withheld, the identical
-                        // batch was redelivered, and the partition wedged forever
-                        // behind a single poison row. Bisect: good halves land,
-                        // the poison narrows to ONE row which is dropped loudly.
-                        ok = await InsertBisectingAsync(device, rows, stoppingToken);
-                    }
-                    if (ok) written += rows.Count; else allOk = false;
+                    var outcome = await InsertBisectingAsync(device, rows, rejected, stoppingToken);
+                    landed += outcome.Landed;
+                    if (outcome.ServerDown) { serverDown = true; break; }
                 }
 
-                if (allOk)
+                // The discriminator. A single bad value cannot stop its 499 neighbours from
+                // landing, so if NOTHING landed the fault is the server, not the data -
+                // hold the offsets and let Kafka keep the samples.
+                var infrastructureFault = serverDown || (landed == 0 && rejected.Count >= MinRejectedForServerVerdict);
+                if (infrastructureFault)
                 {
-                    foreach (var off in pendingOffsets) consumer.StoreOffset(off);
-                    if (written > 0 && written % 5000 < FlushRows)
-                        _logger.LogInformation("RawLoopIotDbConsumer wrote {Count} samples across {Devices} device(s)", written, pending.Count);
+                    if (stalledSince == DateTime.MinValue) stalledSince = DateTime.UtcNow;
+                    if (!paused && consumer.Assignment.Count > 0)
+                    {
+                        consumer.Pause(consumer.Assignment);
+                        paused = true;
+                    }
+                    LogStall(rejected.Count, stalledSince);
+                    // Buffer and offsets are deliberately KEPT: the same rows are retried
+                    // until they land. IoTDB keys on (device, timestamp), so replay is a
+                    // no-op once it recovers.
+                    await Task.Delay(StallBackoff, stoppingToken);
+                    continue;
                 }
-                else
+
+                if (landed == 0 && rejected.Count > 0)
                 {
-                    _logger.LogWarning("IoTDB flush failed for at least one device; offsets not stored, batch will be redelivered");
+                    // Too few rows to tell one bad value from a dead server, and pausing
+                    // here would be self-defeating: it stops the very siblings arriving
+                    // that would settle it. Keep the buffer, keep reading - the next flush
+                    // either lands something (so these are poison) or reaches the verdict
+                    // threshold (so the server is down).
+                    if (stalledSince == DateTime.MinValue) stalledSince = DateTime.UtcNow;
+                    lastFlush = DateTime.UtcNow;
+                    continue;
                 }
+
+                if (paused)
+                {
+                    consumer.Resume(consumer.Assignment);
+                    paused = false;
+                    _logger.LogWarning(
+                        "IoTDB writes recovered after {Stalled}; resuming consumption, {Landed} buffered sample(s) written",
+                        DateTime.UtcNow - stalledSince, landed);
+                }
+                stalledSince = DateTime.MinValue;
+
+                // Genuine poison: siblings landed, these did not. Dropping is correct -
+                // no retry will ever make a malformed value insertable.
+                foreach (var bad in rejected) LogPoisonDrop(bad.Device, bad.Ts, bad.Values);
+
+                written += landed;
+                foreach (var off in pendingOffsets) consumer.StoreOffset(off);
+                if (written > 0 && written % 5000 < FlushRows)
+                    _logger.LogInformation("RawLoopIotDbConsumer wrote {Count} samples across {Devices} device(s)", written, pending.Count);
                 pending.Clear();
                 pendingOffsets.Clear();
                 lastFlush = DateTime.UtcNow;
@@ -143,6 +193,14 @@ public sealed class RawLoopIotDbConsumer : BackgroundService
                 _logger.LogWarning(ex, "RawLoopIotDbConsumer error");
                 pending.Clear();
                 pendingOffsets.Clear();
+                // Never stay paused on a path that just discarded the buffer we were
+                // holding for - that would wedge the partition with nothing to retry.
+                if (paused)
+                {
+                    consumer.Resume(consumer.Assignment);
+                    paused = false;
+                    stalledSince = DateTime.MinValue;
+                }
                 await Task.Delay(500, stoppingToken);
             }
         }
@@ -193,35 +251,74 @@ public sealed class RawLoopIotDbConsumer : BackgroundService
         }
     }
 
+    /// <summary>How much of one device's batch landed, and whether the server was up at all.</summary>
+    private readonly record struct BatchOutcome(int Landed, bool ServerDown);
+
     /// <summary>
-    /// P2-17 - recursively split a rejected batch. IoTDB rejects a multi-row
-    /// INSERT atomically, so one bad value poisons all its neighbours; halving
-    /// isolates it in O(log n) inserts. A single failing row is dropped with a
-    /// loud log rather than wedging the partition forever - the historian is a
-    /// best-effort mirror (Postgres holds the evidence), so availability of the
-    /// other 499 rows wins over refusing to progress.
+    /// P2-17 - insert a device's batch, splitting it only as far as a rejection forces.
+    /// IoTDB rejects a multi-row INSERT atomically, so one bad value takes its neighbours
+    /// with it; halving isolates it in O(log n) statements.
+    ///
+    /// CHG-020 fixed two things here. It now retries each HALF before descending - the
+    /// previous version split straight to singles, so a rejected 500-row batch always cost
+    /// 500 statements, never the O(log n) the comment claimed. And it no longer decides on
+    /// its own that a row is poison: rejected rows go into <paramref name="rejected"/> and
+    /// the caller rules on them once it knows whether anything landed. An
+    /// <c>Unavailable</c> answer aborts the split immediately - there is no point bisecting
+    /// a server that is not reading the statements.
     /// </summary>
-    private async Task<bool> InsertBisectingAsync(
+    private async Task<BatchOutcome> InsertBisectingAsync(
         string device,
         IReadOnlyList<(long TimestampMs, IReadOnlyList<object?> Values)> rows,
+        List<(string Device, long Ts, IReadOnlyList<object?> Values)> rejected,
         CancellationToken ct)
     {
-        if (rows.Count == 0) return true;
+        if (rows.Count == 0) return new BatchOutcome(0, false);
+
+        var outcome = await _iotdb.InsertBatchAsync(device, Measurements, rows, ct);
+        if (outcome == IotDbWriteOutcome.Ok) return new BatchOutcome(rows.Count, false);
+        if (outcome == IotDbWriteOutcome.Unavailable) return new BatchOutcome(0, true);
+
         if (rows.Count == 1)
         {
-            var ok = await _iotdb.InsertBatchAsync(device, Measurements, rows, ct);
-            if (!ok)
-            {
-                _logger.LogError(
-                    "Dropping poison sample for {Device} at ts={Ts} after repeated IoTDB rejection: {Values}",
-                    device, rows[0].TimestampMs, string.Join(",", rows[0].Values));
-            }
-            return true; // the poison row is consumed either way
+            rejected.Add((device, rows[0].TimestampMs, rows[0].Values));
+            return new BatchOutcome(0, false);
         }
+
         var mid = rows.Count / 2;
-        var left = await InsertBisectingAsync(device, rows.Take(mid).ToList(), ct);
-        var right = await InsertBisectingAsync(device, rows.Skip(mid).ToList(), ct);
-        return left && right;
+        var left = await InsertBisectingAsync(device, rows.Take(mid).ToList(), rejected, ct);
+        if (left.ServerDown) return left;
+        var right = await InsertBisectingAsync(device, rows.Skip(mid).ToList(), rejected, ct);
+        return new BatchOutcome(left.Landed + right.Landed, right.ServerDown);
+    }
+
+    private long _poisonDrops;
+
+    /// <summary>Count every dropped sample - a silent drop is how the last hole went unnoticed.</summary>
+    private void LogPoisonDrop(string device, long ts, IReadOnlyList<object?> values)
+    {
+        _poisonDrops++;
+        _logger.LogError(
+            "Dropping poison sample for {Device} at ts={Ts} after IoTDB rejected it alone ({Total} dropped so far): {Values}",
+            device, ts, _poisonDrops, string.Join(",", values));
+    }
+
+    private DateTime _lastStallLog = DateTime.MinValue;
+
+    /// <summary>
+    /// The state the previous code could not report: IoTDB is refusing everything, so the
+    /// consumer is holding its offsets and no longer reading. Loud once a minute - the
+    /// samples are safe in Kafka for as long as its retention, and no longer after that.
+    /// </summary>
+    private void LogStall(int held, DateTime since)
+    {
+        if (DateTime.UtcNow - _lastStallLog < TimeSpan.FromMinutes(1)) return;
+        _lastStallLog = DateTime.UtcNow;
+        _logger.LogError(
+            "IoTDB is rejecting every write ({Held} sample(s) held, stalled for {For}). Consumption is PAUSED and "
+            + "offsets are NOT being stored - samples stay in Kafka and will be written on recovery, but are lost "
+            + "if the outage outlives topic retention. Check IoTDB disk and health.",
+            held, DateTime.UtcNow - since);
     }
 
     private long _parseDrops;
