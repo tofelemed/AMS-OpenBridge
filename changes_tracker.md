@@ -976,8 +976,27 @@ never clears. The stall log says exactly that.
 discriminator means extracting an interface first. The behaviour is reasoned from the code
 paths above, not exercised.
 
-**Deploy note.** This is **not** in the v2.1 release already built (`release-out/v2.1-20260912`);
-it needs an ams-api rebuild.
+**Deploy note — shipped as v2.2, deliberately NOT folded into v2.1.**
+`release-out/v2.2-20260912`, ams-api only, 110 MB, no schema change and no Flink restart.
+Kept separate because v2.1 carries the Flink jar, whose deploy needs both Flink containers
+removed on a cluster with no ZooKeeper HA — bundling would put the only change that prevents
+data loss behind the riskiest operation in the set.
+
+**Verified in the built image**, not just at the commit: `AMS.Api.dll` (UTF-16, so
+`tr -d '\0'` first) contains both `IoTDB is rejecting every write` and
+`after IoTDB rejected it alone`.
+
+**The trap that will silently no-op this deploy.** `ams-api` sits behind
+`profiles: ["cpa-ams-api"]` (`docker-compose.marun.yml:205`) and `deploy.sh:69` adds that
+profile only when `START_AMS_API=yes`. Without it, compose loads the new image, leaves the
+**old container running**, and reports success — the same shape as the Flink
+`submit_if_missing` trap. `RawLoopIotDbConsumer` is the only writer of `root.site1.cpm.*`
+(no Flink job touches that tree), so this is the whole loop-historian write path. Confirm:
+
+```bash
+docker inspect -f '{{.Created}} {{.Image}}' ams-api
+docker logs --since 5m ams-api | grep -c 'wrote .* samples'
+```
 
 ---
 
