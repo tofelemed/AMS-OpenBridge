@@ -424,11 +424,19 @@ export interface CpmHeatmapLoop {
   gates: Record<string, string>;
 }
 
-export const getFleetHeatmap = (scope?: CpmFleetScope | string, windowKind = '24h', limit = 100) => {
+/**
+ * CHG-025: the matrix pages and searches client-side over this payload, so ask for the
+ * server's whole allowance (it clamps at 2,000). `total` is the number of monitored loops
+ * in scope; `truncated` says the payload was cut — the matrix must then say so instead of
+ * answering "no loops match" for a loop that exists.
+ */
+export const getFleetHeatmap = (scope?: CpmFleetScope | string, windowKind = '24h', limit = 2000) => {
   const params = new URLSearchParams({ windowKind, limit: String(limit) });
   applyScope(params, scope);
-  return apiJson<{ site: string | null; windowKind: string; gateKeys: string[]; count: number; loops: CpmHeatmapLoop[] }>(
-    `${BASE}/fleet/heatmap?${params.toString()}`);
+  return apiJson<{
+    site: string | null; windowKind: string; gateKeys: string[];
+    count: number; total: number; truncated: boolean; loops: CpmHeatmapLoop[];
+  }>(`${BASE}/fleet/heatmap?${params.toString()}`);
 };
 
 // ── Calculations catalogue (U3 drawer, U9) ──────────────────────────────────
@@ -541,6 +549,24 @@ export const getKpis = (
   if (before) params.set('before', before);
   return apiJson<CpmKpiPage>(
     `${BASE}/loops/${encodeURIComponent(loopId)}/kpis?${params.toString()}`, { signal });
+};
+
+/**
+ * CHG-024 — several resolutions' newest rows in one request (the Windows comparator's six
+ * per-kind reads). Same rows as `getKpis(loopId, kind, undefined, undefined, limit)` per kind.
+ */
+export interface CpmKpisByResolution {
+  loopId: string;
+  limit: number;
+  byResolution: Record<string, { tier: 'short' | 'long'; count: number; samples: CpmKpiRow[] }>;
+}
+
+export const getKpisByResolution = (
+  loopId: string, resolutions: string[], limit = 12, signal?: AbortSignal,
+) => {
+  const params = new URLSearchParams({ resolutions: resolutions.join(','), limit: String(limit) });
+  return apiJson<CpmKpisByResolution>(
+    `${BASE}/loops/${encodeURIComponent(loopId)}/kpis/latest?${params.toString()}`, { signal });
 };
 
 // ── Resolutions catalogue (U7): windows the engine actually emits ───────────

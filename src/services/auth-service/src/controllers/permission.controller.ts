@@ -16,11 +16,14 @@ const actorOf = (req: Request): string | undefined =>
 
 export class PermissionController {
   /**
-   * GET /api/auth/roles
+   * GET /api/auth/roles            — the roles
+   * GET /api/auth/roles?include=permissions — CHG-024: each role with its permission keys, one query
    */
-  async getRoles(_req: Request, res: Response): Promise<void> {
+  async getRoles(req: Request, res: Response): Promise<void> {
     try {
-      const roles = await permissionService.getRoles();
+      const roles = req.query.include === 'permissions'
+        ? await permissionService.getRolesWithPermissions()
+        : await permissionService.getRoles();
       res.status(200).json({ success: true, data: roles });
     } catch (error: any) {
       res.status(error.statusCode || 500).json({

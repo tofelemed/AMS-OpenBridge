@@ -158,26 +158,17 @@ public sealed class CpmEventsController : ControllerBase
         // is rejected by PostgreSQL ("set-valued function called in context that
         // cannot accept a set"), which 500'd this whole endpoint on any database
         // that actually had gate rows.
-        var observed = (await conn.QueryAsync<string>("""
-            SELECT DISTINCT gate FROM (
-                SELECT jsonb_object_keys(payload->'gates') AS gate
-                FROM analytics.cplm_gate_results
-                WHERE payload ? 'gates'
-                LIMIT 2000
-            ) keys
-            """)).ToHashSet(StringComparer.Ordinal);
+        // CHG-023: sampled from the NEWEST 2,000 rows via the created_at index (the old
+        // shape took the oldest 2,000 in physical order) — see GateReadSql.ObservedGates.
+        var observed = (await conn.QueryAsync<string>(Traverse.CplmApi.Data.GateReadSql.ObservedGates)).ToHashSet(StringComparer.Ordinal);
 
         // audit-jobs.md BE-1: the engine emits camelCase (calculationVersion) —
         // the old snake_case-only filter matched NOTHING, so `versions` was
         // permanently null and the catalogue reported no version. camelCase
         // first, snake_case kept for any legacy rows.
-        var versions = await conn.QueryFirstOrDefaultAsync("""
-            SELECT COALESCE(payload->>'calculationVersion',  payload->>'calculation_version')  AS calculation_version,
-                   COALESCE(payload->>'dynamicsProfileVersion', payload->>'dynamics_profile_version') AS dynamics_profile_version
-            FROM analytics.cplm_gate_results
-            WHERE payload ? 'calculationVersion' OR payload ? 'calculation_version'
-            ORDER BY created_at DESC LIMIT 1
-            """);
+        // CHG-023: same query, now an index walk (CplmReadIndexes.CreatedAtIndex) instead of a
+        // whole-table detoast that timed out at 30 s once the table reached plant size.
+        var versions = await conn.QueryFirstOrDefaultAsync(Traverse.CplmApi.Data.GateReadSql.LatestVersions);
 
         var gates = new (string Key, string Name, string Tier, string Question)[]
         {

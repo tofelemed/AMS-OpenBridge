@@ -8,9 +8,9 @@
  * summed across kinds: all short kinds except 1m are SLIDING windows whose
  * samples overlap, so aggregation across kinds double-counts by construction.
  */
-import React, { useState } from 'react';
-import type { CpmWindowSpec } from '../../../api/cpmApi';
-import { useCpmKpis } from '../../../hooks/useCpm';
+import React, { useMemo, useState } from 'react';
+import type { CpmKpiRow, CpmWindowSpec } from '../../../api/cpmApi';
+import { useCpmKpisByResolution } from '../../../hooks/useCpm';
 import { PanelHead, TonePill, fmtWindowShape } from '../shared';
 import { fmtVal, isDeclined } from './WindowResults';
 
@@ -27,15 +27,14 @@ const METRIC_OPTIONS: { field: string; label: string; pct?: boolean }[] = [
 ];
 
 const KindRow: React.FC<{
-  loopId: string;
   spec: CpmWindowSpec;
+  rows: CpmKpiRow[];
+  isLoading: boolean;
   field: string;
   pct: boolean;
   active: boolean;
   onPick: (kind: string) => void;
-}> = ({ loopId, spec, field, pct, active, onPick }) => {
-  const kpis = useCpmKpis(loopId, spec.kind, 12);
-  const rows = kpis.data?.samples ?? [];
+}> = ({ spec, rows, isLoading, field, pct, active, onPick }) => {
   const qualified = rows.filter(r => !isDeclined(r, 'short') && typeof r[field] === 'number');
   const declinedCount = rows.filter(r => isDeclined(r, 'short')).length;
   const values = qualified.map(r => r[field] as number);
@@ -52,7 +51,7 @@ const KindRow: React.FC<{
         <div className="cpm-event-row__sub">{fmtWindowShape(spec)}</div>
       </td>
       <td className="cpm-mono">
-        {kpis.isLoading ? '…' : fmtVal(latest, pct)}
+        {isLoading ? '…' : fmtVal(latest, pct)}
       </td>
       <td className="cpm-mono">{fmtVal(median, pct)}</td>
       <td className="cpm-mono">
@@ -78,6 +77,9 @@ export const CompareAcrossKinds: React.FC<{
 }> = ({ loopId, shortSpecs, activeKind, onPickKind }) => {
   const [field, setField] = useState('mae');
   const metric = METRIC_OPTIONS.find(m => m.field === field) ?? METRIC_OPTIONS[0];
+  // CHG-024: one request for every short kind (was one per row, re-fired on every loop change).
+  const kinds = useMemo(() => shortSpecs.map(s => s.kind), [shortSpecs]);
+  const kpis = useCpmKpisByResolution(loopId, kinds, 12);
   return (
     <section className="cpm-surface">
       <PanelHead eyebrow="Across window sizes" title="Same loop, every short granularity"
@@ -102,7 +104,8 @@ export const CompareAcrossKinds: React.FC<{
           </thead>
           <tbody>
             {shortSpecs.map(spec => (
-              <KindRow key={spec.kind} loopId={loopId} spec={spec}
+              <KindRow key={spec.kind} spec={spec}
+                rows={kpis.data?.byResolution[spec.kind]?.samples ?? []} isLoading={kpis.isLoading}
                 field={metric.field} pct={metric.pct ?? false}
                 active={spec.kind === activeKind} onPick={onPickKind} />
             ))}

@@ -430,6 +430,10 @@ public sealed class CplmResultConsumerService : BackgroundService
                 ON analytics.cplm_gate_results (loop_id, window_kind, window_end DESC);
             CREATE INDEX IF NOT EXISTS idx_cplm_gate_results_loop_lower
                 ON analytics.cplm_gate_results (lower(loop_id));
+            """
+            // CHG-023: the two fleet "latest verdict" probe indexes come from the one
+            // definition the read path is written against, so they cannot drift from it.
+            + Traverse.CplmApi.Data.CplmReadIndexes.CreateAll + """
             -- P1-3: window_end must outrank "has a real diagnosis". Previously a
             -- historical-replay row with a verdict outranked EVERY live row forever,
             -- so the loop's "latest" 24h state was a week-old batch result while a

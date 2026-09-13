@@ -37,7 +37,19 @@ Sixth, **2026-09-10**: the Data Source wizard **deleted the whole `loop_ingest` 
 save** (CHG-012) — the most probable reason production's `mode_value_map` was missing rather
 than merely wrong. Frontend only, rides the CHG-006 rebuild.
 
-**Service rebuilds required:** `traverse-ingestion-service`, `cplm-api`, `historian-bff`, the
+Seventh, **2026-09-13**: the two CPM pages the plant reported as slow (**Overview**,
+**Performance**) sorted the whole gate table on every fleet read — at plant size that is an
+HTTP 500 at the 30 s timeout, not "slow". Fixed as **CHG-023**, shipped separately as
+**release v6** (cplm-api, ams-frontend, historian-bff + three online indexes); the page sweep
+also fixed `/calculations` (same failure), `/loops`, `gates/latest`, `/pipeline-metrics` and
+the snapshot seed. See [Release v6](#release-v6--what-to-build-and-run). **CHG-024** then turned
+the five remaining per-loop / per-item fan-outs into batch calls (readiness → resolver batch,
+resolver → asset-model by-paths, bulk republish-evidence, Windows comparator, Governance roles);
+it is **not in a release yet** — the four services to rebuild are listed in the entry.
+**CHG-025** (also unreleased) fixes the Performance matrix search (the heatmap payload was cut
+at 100 loops) and moves the Window inspector's detail sections onto a per-window sub-page.
+
+**Service rebuilds required (v3):** `traverse-ingestion-service`, `cplm-api`, `historian-bff`, the
 **frontend**, and the **Flink jar** (the three CPLM jobs must be *cancelled and resubmitted* — a restart deploys
 nothing, see CHG-008). No database migration. One config edit per data source. The exact
 service list and the scripts to run are in [Release v3](#release-v3--what-to-build-and-run).
@@ -1204,6 +1216,236 @@ rows and committed the offsets* while they were being refused.
 
 ---
 
+## CHG-023 ✅ CPM Overview / Performance were slow: the fleet reads sorted the whole gate table on every call
+
+**Reported (2026-09-13):** `/cpm` (Overview) and `/cpm/performance` take many seconds to show
+data on the plant. Audited `analysis.md` against the code and measured the read path on a
+prod-scale copy of the gate table (171 loops × 11 days = 361k rows, real 3.3 KB payloads).
+
+**Root cause.** `CpmFleetController` (`/api/v1/cpm/fleet/{summary,rankings,heatmap}`) found
+each loop's newest verdict with `DISTINCT ON (loop_id)` over the **entire**
+`analytics.cplm_gate_results` table, ordered by an expression no index serves, and rankings /
+heatmap dragged every row's TOASTed payload through that sort. Performance fires four of these
+per mount and again every 60 s; Overview two (and its trend chart waits for rankings). The
+gateway cache excludes CPM, so every console repeats it. At plant size the calls exceed
+Npgsql's 30 s command timeout → **HTTP 500** ("Timeout during reading attempt" ×11 in the
+old service log during the BEFORE run). The plant's table grows ~33k rows/day (12h + 24h every
+15 min per loop) with **no retention** — `migration/schema/03` never carried script 39's
+hypertable/retention — so it only got worse.
+
+The page sweep afterwards found the same class of defect on three more reads:
+`/calculations` (engine-version lookup: 30 s → HTTP 500 at plant size; Calculations, Explorer,
+Governance, Replay), `/loops/{id}/gates/latest` (per-loop expression sort on every click) and
+`/loops` (1 + 2 queries per loop, nine pages mount it), plus a serial Flink walk behind
+`/pipeline-metrics` (8.7 s cold) and a wildcard snapshot seed that paid for every dead device
+name ever written to Redis (the lab carried 3,282 names for ~30 live devices).
+
+### What changed
+
+| Area | Change | Files |
+|---|---|---|
+| cplm-api reads | Per-loop **two index probes** (newest real verdict, else newest row — the ordering the endpoints always used) instead of whole-table `DISTINCT ON`; only `payload->'observability_flags'` / `payload->'gates'` leave the DB | `Data/FleetLatestSql.cs`, `Data/GateReadSql.cs`, `Controllers/CpmFleetController.cs`, `CpmAnalyticsController.cs` (gates/latest), `CpmEventsController.cs` (calculations) |
+| Indexes | Three additive indexes, one definition, three mirrors | `Data/CplmReadIndexes.cs` (consumer self-heal DDL), `migration/schema/03-traverse_cplm.sql`, `database/scripts/52_cplm_fleet_latest_indexes.sql`, **plant:** `scripts/cpm-04-fleet-latest-indexes.sql` (CONCURRENTLY) |
+| Cache | 15 s single-flight cache on the three fleet reads (`Cpm:FleetCacheSeconds`, 0 disables) and 10 s on pipeline-metrics (`Cpm:PipelineMetricsCacheSeconds`); failures never cached; a leaving caller cannot abort the shared query; `X-Cpm-Cache: HIT|MISS` header | `Data/FleetReadCache.cs`, `Program.cs` |
+| Registry list | Tag map and links read once each and grouped in memory (3 queries, was 1 + 2L) | `Services/CpmLoopRegistryReads.cs`, `CpmLoopRegistryService.cs` |
+| Pipeline metrics | Per-job Flink walk runs concurrently (checkpoints ∥ vertex metrics) | `Services/FlinkPipelineMetricsCollector.cs`, `CpmReadinessController.cs` |
+| Frontend | Performance derives its 12 bad actors from its own 50-row ranking (no second rankings request; the "error" order still asks the server); `useFleetRankings` gains `enabled` | `components/Cpm/useBadActors.ts`, `CpmPerformance.tsx`, `hooks/useCpm.ts` |
+| Frontend test runner | vitest + jsdom + Testing Library added; `npm test` | `package.json`, `vitest.config.ts` |
+| nginx | gzip for JSON/JS/CSS (`gzip_proxied any`) — heatmap 112,059 B → 6,230 B | `src/frontend-ob/nginx.conf` |
+| historian-bff | `GET /snapshot` reads every device's index + values concurrently; dead device names are pruned from `snapshot:devices` (the edge node SADDs a live one back on its next publish) | `SnapshotReader.cs`, `Program.cs` |
+| Lab hygiene | Literal `</content></invoke>` removed from the tail of script 42 (a fresh lab volume stopped applying scripts there; prod unaffected) | `database/scripts/42_cplm_event_frames_indexes.sql` |
+| Ops | Retention facts script (read-only) and BEFORE/AFTER probe; both travel in the bundle | `scripts/cpm-05-gate-results-retention-check.sql`, `scripts/cpm-06-fleet-perf-probe.sql`, `migration/deploy/build-release.py` |
+
+### Measured (lab, 367k gate rows = plant scale; old image vs final image, via the gateway)
+
+| Read | Before | After (cache miss / hit) |
+|---|---:|---:|
+| `fleet/summary` | 0.8–7.4 s | 18 ms / 24 ms |
+| `fleet/rankings?limit=50` | 18.4 s once, **HTTP 500 at 30 s** otherwise | 57–95 ms / 17–31 ms |
+| `fleet/rankings?limit=12` | **HTTP 500 at 30 s** (3/3) | 70–96 ms / 11–39 ms |
+| `fleet/heatmap` | 30.0 s once, **HTTP 500** otherwise | 67–128 ms / 32–36 ms |
+| Performance mount (4 calls, wall clock) | **34.8 s** | **0.14–0.18 s** |
+| `/loops` (230 lab loops) | 0.44–0.52 s | 0.07–0.18 s |
+| `/calculations` | **HTTP 500 at 30 s** (2/3), 31 s | 0.37–0.56 s |
+| `/loops/{id}/gates/latest` | 0.15–0.34 s | 14–143 ms |
+| `/pipeline-metrics` | 8.65 s cold | 2.19 s cold / 14–24 ms cached |
+| `/api/hist/snapshot?assets=*` | 0.37–1.26 s | 37–84 ms (1,992 dead names pruned on first call) |
+
+Pure SQL on the scratch plain table (what the plant has): rankings 9.8–17.6 s → 19 ms, heatmap
+22.6 s → 20 ms, summary 532 ms → 1.8 ms; old-vs-new latest row per loop identical on all 171.
+Response bodies of the old and new `summary` and `rankings` are byte-identical in content
+(the other old bodies never arrived — they timed out).
+
+### Tests (all green)
+
+| Suite | What it proves | Count |
+|---|---:|---:|
+| `tests/cplm-api.Tests` (new; needs the lab Postgres on 5433) | new SQL returns exactly the legacy rows for rankings/heatmap/summary/gates-latest/calculations (legacy oracle verbatim, 600 s timeout — it needs it); plans use the new indexes; registry batch == per-loop hydration for every loop; pipeline-metrics walks concurrently and caches (stub Flink); cache single-flight/TTL/failure/cancellation semantics | 28 |
+| `tests/historian-bff.Tests` (new; throwaway Redis `docker run --rm -d --name snaptest-redis -p 6390:6379 redis:7.2-alpine`) | snapshot reader parity, stale pruning, dead-device pruning, site-scope filter | 4 |
+| `src/frontend-ob` `npm test` | bad actors = slice of the page ranking, one request; error order still fetched | 13 (incl. the 11 pre-existing time-expression specs, now runnable) |
+
+### Plant deployment (v6) — order matters
+
+1. `ops/cpm-06-fleet-perf-probe.sql` → keep the BEFORE output.
+2. **`ops/cpm-04-fleet-latest-indexes.sql` BEFORE loading the cplm-api image** (CONCURRENTLY, no
+   write lock, idempotent; prod's table is plain so CONCURRENTLY is allowed). Check the final
+   query prints all three indexes with `valid = t`.
+3. Load the three images, `deploy.sh --prod`. The self-heal DDL then finds the indexes present.
+4. Confirm one member per CPLM consumer group (unchanged rule), then cpm-06 again → AFTER.
+5. `ops/cpm-05-gate-results-retention-check.sql` (read-only) → decide P1-4 (TimescaleDB if the
+   extension exists, else a nightly delete). Not part of this release.
+
+**Rollback:** indexes are additive and can stay; reverting the cplm-api image restores the old
+queries (slow, still correct). Frontend and historian-bff revert independently.
+
+### Deferred, with reason
+
+- **P3-8** gateway rate limiter (two serial Redis INCRs → one Lua call): ~1 ms/request, not worth
+  the fail-open/fail-closed semantic risk in this release.
+- **F07** readiness holds a DB connection across the resolver/Flink probes (1.3 s cold on the lab,
+  then ~0.1 s): Explorer only, one call per loop click.
+- **P1-4** retention: needs the plant decision (script cpm-05 gives the facts).
+- The consumer's self-healed `cplm_gate_latest` VIEW orders recency-first (its "P1-3" fix) while
+  the controllers order real-verdict-first; the rewrite preserves the controllers' behaviour.
+  Aligning them is a product call.
+
+### Lab notes
+
+- The BEFORE/AFTER numbers come from 361,494 synthetic rows tagged `source = 'perf-synthetic'`
+  (removed again after the run: `DELETE FROM analytics.cplm_gate_results WHERE source = 'perf-synthetic'`).
+- The lab's contract Redis now holds ~1,290 device names instead of 3,282; the rest were dead.
+
+---
+
+## CHG-024 ✅ CPM batch APIs: the five fan-outs the batch audit ranked, built in order
+
+**Why (2026-09-13):** after CHG-023 the fleet pages needed no batching, but five per-loop and
+per-item fan-outs remained (`cpm-batch-api-candidates.md`). Each is now one request; the
+existing single-item endpoints are untouched, every batch reports per item, and the two batch
+endpoints that already existed (`POST /resolve/batch`, `POST /assets/by-paths`) are finally
+connected end to end. **Not yet in a release** — see "Release" below.
+
+### What changed
+
+| # | Fan-out | Now | Files |
+|---|---|---|---|
+| 1 | Readiness: one `GET /resolve` per mapped role (pv/sp/op/vp/mode), five awaited round trips per loop click | one `POST /resolve/batch`, provenance read per index; labels, order and message unchanged; a short/failed answer is reported, never assumed fine | `cplm-api/Services/BindingProvenanceProbe.cs` (new), `Controllers/CpmReadinessController.cs` |
+| 2 | binding-resolver `/resolve/batch`: one `GET /assets/by-path` per binding | `PathResolver.ResolveManyAsync` → one `POST /assets/by-paths` (≤ 2,000 paths); found → asset-model binding, absent → path fallback for that path only, asset-model down → all fallback (as today); results align with the input; the designer's H10 screen-open batch benefits too | `binding-resolver/Services/PathResolver.cs`, `Program.cs` |
+| 3 | Operations: `POST /loops/{id}/republish-evidence` ×N from a shell with `sleep 0.5` (v3: 175 calls) | `POST /api/v1/cpm/loops/bulk-republish-evidence` `{ loopIds[] }` (≤ 5,000): one existence query, link projection per loop, then the service's existing signal-asset and evidence **batch** forms once; per-item outcomes (`notFound`, a loop failing link projection fails alone, a failed batch step marks every covered loop failed); one audit event `CPM_EVIDENCE_REPUBLISHED_BULK`; policy `cpm.manage` | `cplm-api/Services/BulkRepublish.cs` (new, pure orchestration), `CpmLoopRegistryService.cs`, `Controllers/CpmLoopsController.cs` |
+| 4 | Windows comparator: six `GET /loops/{id}/kpis?resolution=K&limit=12` per loop selection | `GET /loops/{id}/kpis/latest?resolutions=1m,5m,10m,15m,30m,60m&limit=12` → `{ byResolution: { kind: { tier, count, samples } } }`; same SQL as the single read, now shared from `Data/KpiSql.cs` so the two cannot drift; 400 lists the unknown kinds | `cplm-api/Data/KpiSql.cs`, `Data/KpiReads.cs` (new), `Controllers/CpmAnalyticsController.cs`; frontend `api/cpmApi.ts`, `hooks/useCpm.ts` (`useCpmKpisByResolution`), `components/Cpm/windows/CompareAcrossKinds.tsx` |
+| 5 | Governance role matrix: `GET /roles` then `GET /roles/{role}/permissions` per role | `GET /api/auth/roles?include=permissions` — one JOIN query in auth-service; the per-role route stays for edits | `auth-service/src/services/permission.service.ts`, `controllers/permission.controller.ts`; frontend `api/rolesApi.ts`, `components/Cpm/useRoleMatrix.ts` |
+
+Not done, on purpose: Historical's trend + mode-track merge (2.6 in the audit) changes the mode
+ribbon's bucket boundaries — a product decision first.
+
+### Measured (lab, same three mapped loops and twenty mapped paths, old images → new images)
+
+| Read | Before | After |
+|---|---:|---:|
+| readiness, cold, per loop (3 loops) | 3.22 / 0.70 / 0.24 s | 1.81 / 0.38 / 0.18 s |
+| `POST /api/bindings/resolve/batch`, 20 paths | 0.93 / 0.17 / 0.41 s | 0.13 / 0.06 / 0.11 s |
+| Windows comparator, one loop selection | six calls, 1.14–1.60 s in series | one call, 0.34–0.38 s |
+| Governance matrix (4 roles) | five calls, 0.79–0.83 s in series | one call, 18–43 ms |
+| republish, 3 loops | three calls, 1.7–6.2 s in series | one call, **0.21 s** (per-item results, unknown id reported) |
+
+The BEFORE run's own republish step created AIC30601's four signal assets (10:01:19 UTC), which is
+why the same twenty paths resolved 16 via asset-model before and 20 after — a measurement-order
+artefact, not a code effect; the per-path contract is unchanged (proven by the resolver tests).
+
+### Tests (all green)
+
+| Suite | Added | Proves |
+|---|---:|---|
+| `tests/cplm-api.Tests` | `BindingProvenanceProbeTests` (6), `BulkRepublishTests` (5), `KpiReadsTests` (2, lab DB) | one batch request in role order with forwarded identity; short/failed answers reported; bulk order, per-item isolation, batch-step failure semantics, dedupe; by-resolution rows == single-read rows per kind, case-insensitive |
+| `tests/binding-resolver.Tests` (new project) | `PathResolverBatchTests` (5) | one by-paths call, input order kept, duplicates sent once, unreachable → all fallback, batch == single per path |
+| `src/frontend-ob` `npm test` | `useCpmKpisByResolution.test.tsx` (2), `useRoleMatrix.test.tsx` (2) | one request for all kinds / all roles; nothing fetched without a loop or without `rbac.manage` |
+
+Totals now: cplm-api 41, binding-resolver 5, historian-bff 4 (unchanged), frontend 17; lint clean;
+`tsc --noEmit` clean for the frontend and for auth-service (it has no unit-test harness — its change
+is one query, verified end to end above).
+
+### Release — NOT built (by request); fold into the next bundle
+
+**Services to rebuild:** `cplm-api`, `binding-resolver`, `traverse-auth-service`, `ams-frontend`.
+`cplm-api` and `ams-frontend` are already in `migration/deploy/releases/v6.txt`; add
+`binding-resolver` and `traverse-auth-service` to that manifest (or a `v7.txt`) at release time.
+**No schema change, no ops script, no Flink change.** No config knobs.
+
+**Build-box proof for the bundle:** `dotnet test tests/cplm-api.Tests` (lab Postgres),
+`dotnet test tests/binding-resolver.Tests`, `cd src/frontend-ob && npm test && npm run lint && npm run build`,
+`cd src/services/auth-service && npx tsc --noEmit`.
+
+**Plant proof after deploy:** `GET /api/v1/cpm/loops/<id>/readiness` (`binding_provenance` check
+still passes for a loop whose signals are registered assets); `GET /api/v1/cpm/loops/<id>/kpis/latest?resolutions=1m,5m,10m,15m,30m,60m&limit=12`
+answers 200 with six keys; `GET /api/auth/roles?include=permissions` answers 200 with
+`permissions[]` per role; `POST /api/v1/cpm/loops/bulk-republish-evidence` with the loops from the
+last data load replaces the shell loop (expect `republished == requested`, `notFound == []`).
+
+---
+
+## CHG-025 ✅ Performance matrix search could not find loops beyond the 100th; Window inspector detail moved to a sub-page
+
+**Reported (2026-09-13):** (1) on **Performance → Calculation pathway**, searching `pic80140`
+answered "No loops match" although the loop exists; (2) on the **Window inspector**, selecting
+a window rendered its details at the bottom of a long list, so the reader had to scroll to
+find what they had just clicked.
+
+### 1. Matrix search — root cause and fix
+
+The gate matrix pages and searches **client-side** over the `/fleet/heatmap` payload, and the
+request asked for the server default of **100** loops (server cap 300). The plant has 171
+monitored loops sorted by id; the lab has 230, cut at `G13_LOOP_B`; `PIC80140` sorts after the
+100th, so it was never in the payload and the search reported a miss. The footer did say
+"matrix serves the first 100 of N", but the empty state said "No loops match".
+
+| | Before | After |
+|---|---|---|
+| `GET /fleet/heatmap` default / cap | 100 / 300 | **500 / 2,000** |
+| response | `count`, `loops[]` | + **`total`** (monitored loops in scope) and **`truncated`** |
+| client request | default (100) | asks for the whole allowance (`limit=2000`) |
+| matrix footer shortfall | measured against the registry total from the summary | against the heatmap's own `total` |
+| search miss on a truncated payload | "No loops match" | says the loop may be beyond the N loaded and to narrow the scope |
+
+Files: `cplm-api/Controllers/CpmFleetController.cs`, `frontend-ob/src/api/cpmApi.ts`,
+`components/Cpm/CpmPerformance.tsx`, `components/Cpm/GateMatrix.tsx`.
+Cost: one extra `COUNT(*)` on the registry per (cached) heatmap call; the per-loop probes stay
+~0.1 ms each, so 171 loops ≈ the same 70–130 ms as before; payload ≈ 100 KB (6 KB gzipped).
+
+### 2. Window inspector — sub-page
+
+`?window=<end>` now opens that window's **sub-page** instead of rendering below the list: a
+header with **‹ All &lt;profile&gt; windows** (Back), "Window i of N loaded", and
+**Newer / Older** icon buttons over the loaded windows; then Window results, Window metadata
+(with the Historical/Trend links), Sample density + window contract, and Across window sizes.
+The list is hidden while a window is open; the loop/profile toolbar stays. A `?window=` that
+names no loaded row falls back to the list (it used to silently show the newest window). The
+raw historian slice is now only fetched on the sub-page, not on every list render.
+
+Files: `components/Cpm/CpmWindows.tsx` (462 → 225 lines), new `windows/WindowDetail.tsx`,
+`windows/windowNav.ts`, `windows/windowMath.ts` (shared arithmetic, unchanged).
+
+### Tests (green)
+
+| Suite | Added | Proves |
+|---|---:|---|
+| `src/frontend-ob` `npm test` | `api/cpmApi.heatmap.test.ts` (1), `windows/windowNav.test.ts` (4) | the heatmap request asks for ≥ 2,000 loops; list vs sub-page resolution, Newer/Older neighbours, stale `?window=` → list |
+| `tests/cplm-api.Tests` | `FleetHeatmapApiTests` (2, end to end through the lab gateway) | every monitored loop is in the payload and `total == count`, `truncated == false`; an explicit small `limit` reports `truncated == true` |
+
+Totals: frontend 22, cplm-api 43; lint and `tsc --noEmit` clean.
+
+### Lab verification (new images deployed)
+
+`GET /fleet/heatmap?windowKind=24h&limit=2000` → `count 230, total 230, truncated false`,
+113 KB in 0.09–0.14 s (gateway, cache miss); `PIC80140` is in the payload and a client-side
+search for `pic80140` now hits it. Before: `count 100`, last loop `G13_LOOP_B`, `PIC80140` absent.
+
+### Release — NOT built (by request)
+
+**Services to rebuild:** `cplm-api`, `ams-frontend` (both already in the pending set from
+CHG-023/024). No schema change, no ops script.
+
+---
+
 ## Deployment checklist
 
 Order matters: the config fix alone unblocks the fleet, so do it first and confirm before
@@ -1324,6 +1566,50 @@ rollback point, `docker load` ×5, copy the JAR, `docker rm -f` the Flink JM/TM,
 **Post-deploy proof (VM):** `scripts/diagnose-gate-failures.sql` queries 2–3 (G1 no longer
 universal, `avg_auto_pct` off zero), the CHG-009 cursor URL answering 200/9999/`hasMore`, and
 `/api/ingestion/stats` showing `paramRoles.VP == "vp"` on every `MQTT_LOOP_SAMPLES` source.
+
+---
+
+## Release v6 — what to build and run
+
+Prod runs v3 + v2.3. v6 is **CHG-023 only** (the CPM Overview / Performance read-path fix and
+the other reads the page sweep caught). Additive indexes, applied online before the swap.
+Step-by-step: [migration/V6-DEPLOY.md](migration/V6-DEPLOY.md).
+
+**Updated services (build these, nothing else):**
+
+| Compose service | Image | Carries |
+|---|---|---|
+| `cplm-api` | `ams-cpa-cplm-api` | fleet/gates-latest/calculations per-loop index probes, 15 s single-flight cache, batched registry list, concurrent + cached pipeline-metrics, self-heal DDL for the three indexes |
+| `ams-frontend` | `ams-cpa-ams-frontend` | Performance derives its bad-actor list from its own ranking (one request fewer per mount and per minute); nginx gzip |
+| `historian-bff` | `ams-cpa-historian-bff` | `/snapshot` concurrent Redis reads + dead-device pruning |
+
+Unchanged and **not** rebuilt: gateway, auth, asset-model, binding-resolver, audit-service,
+sparkplug-edge-node, ams-api, Flink (no jar change, **no job resubmission**).
+
+**Scripts to run — build box (in this order):**
+
+```powershell
+git status --short                                             # must be empty (bundles ship git archive HEAD)
+dotnet test tests/cplm-api.Tests                               # 28/28 — needs the lab Postgres (run-all.ps1); ~7 min
+docker run --rm -d --name snaptest-redis -p 6390:6379 redis:7.2-alpine
+dotnet test tests/historian-bff.Tests                          # 4/4
+docker rm -f snaptest-redis
+cd src/frontend-ob; npm test; npm run lint; npm run build; cd ..\..   # 13/13, clean, builds
+python migration/deploy/build-release.py --release v6 --dry-run
+python migration/deploy/build-release.py --release v6             # → release-out/v6-<date>/ (3 images + ops/)
+```
+
+The manifest is `migration/deploy/releases/v6.txt`. `ops/` now also carries
+`cpm-04-fleet-latest-indexes.sql` (run **before** the cplm-api swap),
+`cpm-05-gate-results-retention-check.sql` (read-only, retention decision) and
+`cpm-06-fleet-perf-probe.sql` (BEFORE/AFTER proof).
+
+**Scripts to run — plant VM:** [migration/V6-DEPLOY.md](migration/V6-DEPLOY.md) §C, in order:
+`sha256sum -c`, rollback point, cpm-06 (BEFORE), **cpm-04**, `docker load` ×3, `deploy.sh --prod`,
+consumer-group check, cpm-06 (AFTER), the curl timings.
+
+**Config knobs (env, optional):** `Cpm__FleetCacheSeconds` (default 15, 0 disables),
+`Cpm__PipelineMetricsCacheSeconds` (default 10).
 
 ---
 

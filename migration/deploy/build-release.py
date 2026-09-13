@@ -57,6 +57,9 @@ OPS_FILES = [
     "scripts/diagnose-gate-failures.sql",          # checklist 2  - and the post-deploy proof
     "scripts/cpm-01-onboard-missing-loops.sql",    # checklist 9  - 14 loops + 56 tag rows
     "scripts/cpm-02-load-engineering-ranges.sql",  # checklist 10 - 171 engineering ranges
+    "scripts/cpm-04-fleet-latest-indexes.sql",     # CHG-023     - fleet indexes, run BEFORE the cplm-api image swap
+    "scripts/cpm-05-gate-results-retention-check.sql",  # CHG-023 - read-only facts for the retention decision (P1-4)
+    "scripts/cpm-06-fleet-perf-probe.sql",         # CHG-023     - BEFORE/AFTER proof of the fleet read path
 ]
 
 

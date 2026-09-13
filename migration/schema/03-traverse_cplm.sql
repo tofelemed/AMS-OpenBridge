@@ -154,6 +154,18 @@ CREATE INDEX IF NOT EXISTS idx_cplm_gate_results_loop_kind_end
     ON analytics.cplm_gate_results (loop_id, window_kind, window_end DESC);
 CREATE INDEX IF NOT EXISTS idx_cplm_gate_results_loop_lower
     ON analytics.cplm_gate_results (lower(loop_id));
+-- CHG-023: fleet "latest verdict per loop" probes (newest real verdict / newest any row).
+-- Mirrors src/services/cplm-api/Data/FleetLatestSql.cs; live plants get them from
+-- scripts/cpm-04-fleet-latest-indexes.sql (CONCURRENTLY) before the image swap.
+CREATE INDEX IF NOT EXISTS idx_cplm_gate_results_latest_real
+    ON analytics.cplm_gate_results (lower(loop_id), window_kind, window_end DESC NULLS LAST, created_at DESC)
+    WHERE diagnosis IS NOT NULL AND diagnosis <> 'INSUFFICIENT_DATA';
+CREATE INDEX IF NOT EXISTS idx_cplm_gate_results_latest_any
+    ON analytics.cplm_gate_results (lower(loop_id), window_kind, window_end DESC NULLS LAST, created_at DESC);
+-- CHG-023: /calculations reads the engine versions from the newest row; without this it
+-- detoasted every payload in the table (30 s -> HTTP 500 at plant size).
+CREATE INDEX IF NOT EXISTS idx_cplm_gate_results_created_at
+    ON analytics.cplm_gate_results (created_at DESC);
 
 CREATE OR REPLACE VIEW analytics.cplm_gate_latest AS
 SELECT DISTINCT ON (loop_id, window_kind) *

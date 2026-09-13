@@ -1,0 +1,22 @@
+# Release v6 — CHG-023: CPM Overview / Performance read-path fix.
+# One compose service per line; `#` comments and blank lines are ignored.
+# Consumed by: python migration/deploy/build-release.py --release v6
+#
+# Why each one is here:
+#   cplm-api         fleet summary/rankings/heatmap resolve "latest verdict per loop" with two
+#                    index probes per loop instead of sorting the whole gate table (10–23 s →
+#                    ~20 ms at plant size); 15 s single-flight cache (Cpm:FleetCacheSeconds);
+#                    self-heal DDL creates the two indexes if ops/cpm-04 was not run first.
+#   ams-frontend     Performance derives the 12 bad actors from its own 50-row ranking instead of
+#                    a second rankings request; nginx gzip for JSON.
+#   historian-bff    GET /snapshot reads all devices' Redis keys concurrently and prunes dead
+#                    device names from snapshot:devices (the wildcard seed on MQTT connect).
+#
+# Schema: ADDITIVE INDEXES ONLY, applied online BEFORE the cplm-api image swap:
+#   ops/cpm-04-fleet-latest-indexes.sql   (CREATE INDEX CONCURRENTLY; plain table on the plant)
+# Steps 00–05 unchanged. No Flink change, no job resubmission, no data load.
+# ops/cpm-05-gate-results-retention-check.sql is READ-ONLY input to the retention decision (P1-4).
+# ops/cpm-06-fleet-perf-probe.sql records the BEFORE/AFTER numbers (run once before cpm-04, once after the swap).
+cplm-api
+ams-frontend
+historian-bff

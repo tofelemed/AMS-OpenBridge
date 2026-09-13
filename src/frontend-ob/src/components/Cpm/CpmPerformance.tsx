@@ -29,6 +29,7 @@ import GateRollup from './GateRollup';
 import GateMatrix, { type MatrixScope } from './GateMatrix';
 import GateEvidencePanel, { GateGuidePanel } from './GateEvidencePanel';
 import AttentionList, { type RankBy } from './AttentionList';
+import { useBadActors } from './useBadActors';
 import { buildTierGroups, isRowFilter, latestWindowEnd } from './gateStatus';
 import { useCpmResolutions, useFleetHeatmap, useFleetRankings, useFleetSummary } from '../../hooks/useCpm';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
@@ -107,8 +108,9 @@ export const CpmPerformance: React.FC = () => {
   const fusionKinds = resolutions.data?.fusion.firesOn ?? ['12h', '24h'];
   const summary = useFleetSummary(scope.params, windowKind);
   const rankings = useFleetRankings(scope.params, windowKind);
-  const badActors = useFleetRankings(
-    scope.params, windowKind, rankBy === 'error' ? 'error' : 'confidence', 12);
+  // CHG-023 (P0-2): by confidence this is a slice of `rankings` — no second request;
+  // only the "error" order (a different server ORDER BY) costs its own call.
+  const badActors = useBadActors(scope.params, windowKind, rankBy);
   const heatmap = useFleetHeatmap(scope.params, windowKind);
 
   const loops = useMemo(() => rankings.data?.loops ?? [], [rankings.data]);
@@ -288,7 +290,7 @@ export const CpmPerformance: React.FC = () => {
                   selectedLoopId={selectedLoop}
                   onSelectLoop={selectLoop}
                   onOpenGate={openEvidence}
-                  fleetTotal={fleetTotal}
+                  fleetTotal={heatmap.data?.total ?? fleetTotal}
                 />
 
                 {selectedRow && (

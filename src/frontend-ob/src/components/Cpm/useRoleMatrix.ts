@@ -12,8 +12,8 @@
  * read, and the panel says so rather than falling back to the literal it
  * replaced: a session that cannot verify the model does not get to assert one.
  */
-import { useQueries, useQuery } from '@tanstack/react-query';
-import { getRolePermissions, getRoles, type Role } from '../../api/rolesApi';
+import { useQuery } from '@tanstack/react-query';
+import { getRolesWithPermissions, type Role } from '../../api/rolesApi';
 import { useAuthStore } from '../../store/authStore';
 
 export interface RoleMatrix {
@@ -33,38 +33,21 @@ export interface RoleMatrixResult {
 export function useRoleMatrix(): RoleMatrixResult {
   const canRead = useAuthStore(s => s.hasPermission('rbac.manage'));
 
-  const roles = useQuery({
-    queryKey: ['rbac', 'roles'],
-    queryFn: getRoles,
+  // CHG-024: one request for the whole matrix (was GET /roles + one GET per role).
+  const matrix = useQuery({
+    queryKey: ['rbac', 'roles-with-permissions'],
+    queryFn: getRolesWithPermissions,
     enabled: canRead,
     staleTime: 5 * 60_000,
   });
 
-  // One request per role: the API has no bulk endpoint, and inventing the
-  // mapping client-side is exactly what this replaces.
-  const perms = useQueries({
-    queries: (roles.data ?? []).map(r => ({
-      queryKey: ['rbac', 'role-permissions', r.role_name],
-      queryFn: () => getRolePermissions(r.role_name),
-      enabled: canRead,
-      staleTime: 5 * 60_000,
-    })),
-  });
+  const isLoading = canRead && matrix.isLoading;
+  const isError = canRead && matrix.isError;
 
-  const isLoading = canRead && (roles.isLoading || perms.some(q => q.isLoading));
-  const failed = perms.find(q => q.isError);
-  const isError = canRead && (roles.isError || !!failed);
-
-  const ready = canRead && !isLoading && !isError && !!roles.data
-    && perms.length === (roles.data?.length ?? 0)
-    && perms.every(q => q.data != null);
-
-  const data: RoleMatrix | undefined = ready
+  const data: RoleMatrix | undefined = canRead && matrix.data
     ? {
-      roles: roles.data!,
-      holders: Object.fromEntries(
-        roles.data!.map((r, i) => [r.role_name, new Set(perms[i].data ?? [])]),
-      ),
+      roles: matrix.data.map(({ permissions: _p, ...role }) => role as Role),
+      holders: Object.fromEntries(matrix.data.map(r => [r.role_name, new Set(r.permissions ?? [])])),
     }
     : undefined;
 
@@ -72,7 +55,7 @@ export function useRoleMatrix(): RoleMatrixResult {
     canRead,
     isLoading,
     isError,
-    error: roles.error ?? failed?.error,
+    error: matrix.error,
     data,
   };
 }

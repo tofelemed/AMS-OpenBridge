@@ -1,11 +1,12 @@
-// Extraction Phase 3 COPY of AMS.Api Controllers/V1/CpmFleetController.cs — mechanical transforms only
-// (namespace, literal v1 routes, no Asp.Versioning). The AMS.Api original keeps
-// serving until Phase 6 deletes it; behavior changes are forbidden in either copy.
+// Fleet view — extracted from AMS.Api in Phase 3; CHG-023 replaced the whole-table
+// DISTINCT ON reads with the per-loop probes in Data/FleetLatestSql.cs and put the
+// three reads behind a short single-flight cache (Data/FleetReadCache.cs).
 using System.Text.Json;
 using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
+using Traverse.CplmApi.Data;
 
 namespace Traverse.CplmApi.Controllers;
 
@@ -16,6 +17,13 @@ namespace Traverse.CplmApi.Controllers;
 /// is onboarded but has produced no evidence yet appears with nulls rather than
 /// vanishing. A fleet screen that silently omits unevaluated loops is how loops
 /// stay unmonitored for months.
+///
+/// Read-path contract (CHG-023): each loop's "latest" verdict is its newest REAL
+/// verdict if it has one, else its newest row of any kind — resolved by two index
+/// probes per loop (see FleetLatestSql), not by sorting the gate table. The old
+/// shape cost 10–23 s per call at plant size; these are ~20 ms and stay flat as
+/// the table grows. Responses are cached for Cpm:FleetCacheSeconds (default 15) so
+/// N polling consoles cost one query per key per TTL; X-Cpm-Cache says HIT or MISS.
 /// </summary>
 [ApiController]
 [Route("api/v1/cpm/fleet")]
@@ -23,15 +31,23 @@ namespace Traverse.CplmApi.Controllers;
 public sealed class CpmFleetController : ControllerBase
 {
     private readonly NpgsqlDataSource _dataSource;
+    private readonly FleetReadCache _cache;
+    private readonly TimeSpan _ttl;
 
-    public CpmFleetController([FromKeyedServices("cplm")] NpgsqlDataSource dataSource) => _dataSource = dataSource;
+    public CpmFleetController(
+        [FromKeyedServices("cplm")] NpgsqlDataSource dataSource, FleetReadCache cache, IConfiguration config)
+    {
+        _dataSource = dataSource;
+        _cache = cache;
+        _ttl = TimeSpan.FromSeconds(config.GetValue("Cpm:FleetCacheSeconds", 15));
+    }
 
     /// <summary>
     /// A11 — headline counts: how many loops are registered, monitored, evaluated,
     /// and how the evaluated ones distribute across diagnosis families.
     /// </summary>
     [HttpGet("summary")]
-    public async Task<IActionResult> GetSummary(
+    public Task<IActionResult> GetSummary(
         [FromQuery] string? site = null,
         // Plant scope (CPM-UX A5). site was already honoured; area/unit complete the
         // hierarchy so a section or unit owner sees only their own loops. All three are
@@ -40,8 +56,9 @@ public sealed class CpmFleetController : ControllerBase
         [FromQuery] string? unit = null,
         [FromQuery] string windowKind = "24h",
         CancellationToken ct = default)
+        => CachedAsync($"summary|{site}|{area}|{unit}|{windowKind}", async token =>
     {
-        await using var conn = await _dataSource.OpenConnectionAsync(ct);
+        await using var conn = await _dataSource.OpenConnectionAsync(token);
 
         var registry = await conn.QueryFirstOrDefaultAsync("""
             SELECT COUNT(*)::int AS total,
@@ -55,23 +72,10 @@ public sealed class CpmFleetController : ControllerBase
             """, new { site, area, unit });
 
         // One row per loop: its newest real verdict at this resolution.
-        var byDiagnosis = await conn.QueryAsync<(string Diagnosis, int Count)>("""
-            WITH latest AS (
-                SELECT DISTINCT ON (g.loop_id) g.loop_id, g.diagnosis
-                FROM analytics.cplm_gate_results g
-                JOIN cpm.loop_registry r ON lower(r.loop_id) = lower(g.loop_id)
-                WHERE g.window_kind = @windowKind
-                  AND g.diagnosis IS DISTINCT FROM 'INSUFFICIENT_DATA'
-                  AND (@site::text IS NULL OR r.site = @site)
-                  AND (@area::text IS NULL OR r.area = @area)
-                  AND (@unit::text IS NULL OR r.unit = @unit)
-                ORDER BY g.loop_id, g.window_end DESC NULLS LAST, g.created_at DESC
-            )
-            SELECT diagnosis AS "Diagnosis", COUNT(*)::int AS "Count"
-            FROM latest GROUP BY diagnosis ORDER BY 2 DESC
-            """, new { site, area, unit, windowKind });
+        var byDiagnosis = await conn.QueryAsync<(string Diagnosis, int Count)>(
+            FleetLatestSql.SummaryByDiagnosis, new { site, area, unit, windowKind });
 
-        return Ok(new
+        return (object)new
         {
             site, area, unit,
             windowKind,
@@ -82,7 +86,7 @@ public sealed class CpmFleetController : ControllerBase
                 withPeerLinks = registry?.with_peer_links ?? 0,
                 withVp = registry?.with_vp ?? 0
             },
-            diagnoses = byDiagnosis.Select(d => new { diagnosis = d.Diagnosis, count = d.Count }),
+            diagnoses = byDiagnosis.Select(d => new { diagnosis = d.Diagnosis, count = d.Count }).ToList(),
             // Capability caveats, not decoration: a fleet without VP can never
             // report a CONFIRMED diagnosis, and one without peer links cannot
             // distinguish stiction from an upstream disturbance.
@@ -92,8 +96,8 @@ public sealed class CpmFleetController : ControllerBase
                 loopsCappedByMissingVp = (registry?.total ?? 0) - (registry?.with_vp ?? 0),
                 loopsWithoutDisturbanceContext = (registry?.total ?? 0) - (registry?.with_peer_links ?? 0)
             }
-        });
-    }
+        };
+    }, ct);
 
     /// <summary>
     /// A11 — bad-actor ranking. Ordered by confidence within a real diagnosis, so
@@ -137,68 +141,45 @@ public sealed class CpmFleetController : ControllerBase
                 allowed = new[] { "confidence", "error", "mae", "effort" }
             });
 
-        await using var conn = await _dataSource.OpenConnectionAsync(ct);
-
-        var rows = await conn.QueryAsync($"""
-            WITH latest AS (
-                SELECT DISTINCT ON (g.loop_id)
-                       g.loop_id, g.window_kind, g.window_end, g.diagnosis, g.severity,
-                       g.confidence, g.effort_ratio, g.triangularity, g.horch_oddness,
-                       g.acf_period_s, g.good_error_pct, g.mae, g.payload::text AS payload
-                FROM analytics.cplm_gate_results g
-                WHERE g.window_kind = @windowKind
-                ORDER BY g.loop_id,
-                         (g.diagnosis IS NOT NULL AND g.diagnosis <> 'INSUFFICIENT_DATA') DESC,
-                         g.window_end DESC NULLS LAST, g.created_at DESC
-            )
-            SELECT r.loop_id, r.display_name, r.site, r.area, r.unit, r.loop_type, r.criticality,
-                   l.window_end, l.diagnosis, l.severity, l.confidence,
-                   l.effort_ratio, l.triangularity, l.horch_oddness, l.acf_period_s,
-                   l.good_error_pct, l.mae, l.payload
-            FROM cpm.loop_registry r
-            LEFT JOIN latest l ON lower(l.loop_id) = lower(r.loop_id)
-            WHERE (@site::text IS NULL OR r.site = @site)
-              AND (@area::text IS NULL OR r.area = @area)
-              AND (@unit::text IS NULL OR r.unit = @unit)
-              AND COALESCE((r.monitoring->>'enabled')::boolean, FALSE)
-            ORDER BY
-                -- Real verdicts first, whatever the metric; unevaluated loops sink
-                -- to the bottom but are still listed.
-                (l.diagnosis IS NOT NULL AND l.diagnosis <> 'INSUFFICIENT_DATA') DESC,
-                {rankExpr},
-                r.loop_id
-            LIMIT @limit
-            """, new { site, area, unit, windowKind, limit });
-
-        var ranked = rows.Select((r, i) => new
+        return await CachedAsync($"rankings|{site}|{area}|{unit}|{windowKind}|{rankExpr}|{limit}", async token =>
         {
-            rank = i + 1,
-            loopId = r.loop_id,
-            displayName = r.display_name,
-            site = r.site,
-            area = r.area,
-            unit = r.unit,
-            loopType = r.loop_type,
-            criticality = r.criticality,
-            windowEnd = r.window_end,
-            diagnosis = (string?)r.diagnosis ?? "NOT_EVALUATED",
-            severity = r.severity,
-            confidence = r.confidence,
-            metrics = new
-            {
-                effortRatio = r.effort_ratio,
-                triangularity = r.triangularity,
-                horchOddness = r.horch_oddness,
-                acfPeriodS = r.acf_period_s,
-                goodErrorPct = r.good_error_pct,
-                mae = r.mae
-            },
-            observabilityFlags = ReadStringArray((string?)r.payload, "observability_flags")
-        }).ToList();
+            await using var conn = await _dataSource.OpenConnectionAsync(token);
 
-        // orderBy echoes back: with a LIMIT, the ordering determines WHICH loops
-        // are in the response, so a caller must be able to tell what it got.
-        return Ok(new { site, area, unit, windowKind, orderBy, count = ranked.Count, loops = ranked });
+            var rows = await conn.QueryAsync(FleetLatestSql.Rankings(rankExpr),
+                new { site, area, unit, windowKind, limit });
+
+            var ranked = rows.Select((r, i) => new
+            {
+                rank = i + 1,
+                loopId = r.loop_id,
+                displayName = r.display_name,
+                site = r.site,
+                area = r.area,
+                unit = r.unit,
+                loopType = r.loop_type,
+                criticality = r.criticality,
+                windowEnd = r.window_end,
+                diagnosis = (string?)r.diagnosis ?? "NOT_EVALUATED",
+                severity = r.severity,
+                confidence = r.confidence,
+                metrics = new
+                {
+                    effortRatio = r.effort_ratio,
+                    triangularity = r.triangularity,
+                    horchOddness = r.horch_oddness,
+                    acfPeriodS = r.acf_period_s,
+                    goodErrorPct = r.good_error_pct,
+                    mae = r.mae
+                },
+                // `flags` is payload->'observability_flags' — the only part of the 3 KB
+                // message this endpoint ever used.
+                observabilityFlags = ReadStringArray((string?)r.flags)
+            }).ToList();
+
+            // orderBy echoes back: with a LIMIT, the ordering determines WHICH loops
+            // are in the response, so a caller must be able to tell what it got.
+            return (object)new { site, area, unit, windowKind, orderBy, count = ranked.Count, loops = ranked };
+        }, ct);
     }
 
     /// <summary>
@@ -206,7 +187,7 @@ public sealed class CpmFleetController : ControllerBase
     /// can render the grid without issuing one request per loop.
     /// </summary>
     [HttpGet("heatmap")]
-    public async Task<IActionResult> GetHeatmap(
+    public Task<IActionResult> GetHeatmap(
         [FromQuery] string? site = null,
         // Plant scope (CPM-UX A5). site was already honoured; area/unit complete the
         // hierarchy so a section or unit owner sees only their own loops. All three are
@@ -214,62 +195,64 @@ public sealed class CpmFleetController : ControllerBase
         [FromQuery] string? area = null,
         [FromQuery] string? unit = null,
         [FromQuery] string windowKind = "24h",
-        [FromQuery] int limit = 100,
+        // CHG-025: the matrix pages and searches CLIENT-SIDE over this payload, so it must
+        // carry every monitored loop in scope. The old default of 100 (cap 300) cut a
+        // 171-loop plant after the 100th id and "PIC80140" could not be found. The answer
+        // says how many loops exist (`total`) and whether it was cut (`truncated`).
+        [FromQuery] int limit = 500,
         CancellationToken ct = default)
     {
-        limit = Math.Clamp(limit, 1, 300);
-        await using var conn = await _dataSource.OpenConnectionAsync(ct);
-
-        var rows = await conn.QueryAsync("""
-            WITH latest AS (
-                SELECT DISTINCT ON (g.loop_id)
-                       g.loop_id, g.window_end, g.diagnosis, g.confidence, g.payload::text AS payload
-                FROM analytics.cplm_gate_results g
-                WHERE g.window_kind = @windowKind
-                ORDER BY g.loop_id,
-                         (g.diagnosis IS NOT NULL AND g.diagnosis <> 'INSUFFICIENT_DATA') DESC,
-                         g.window_end DESC NULLS LAST, g.created_at DESC
-            )
-            SELECT r.loop_id, r.display_name, r.site, r.loop_type,
-                   l.window_end, l.diagnosis, l.confidence, l.payload
-            FROM cpm.loop_registry r
-            LEFT JOIN latest l ON lower(l.loop_id) = lower(r.loop_id)
-            WHERE (@site::text IS NULL OR r.site = @site)
-              AND (@area::text IS NULL OR r.area = @area)
-              AND (@unit::text IS NULL OR r.unit = @unit)
-              AND COALESCE((r.monitoring->>'enabled')::boolean, FALSE)
-            ORDER BY r.loop_id
-            LIMIT @limit
-            """, new { site, area, unit, windowKind, limit });
-
-        var gateKeys = new[] { "G0","G1","G2","G2r","G3","G4","G5","G6","G7","G8","G9","G10","G11","G12","G13","G14","G15" };
-        var cells = rows.Select(r =>
+        limit = Math.Clamp(limit, 1, 2000);
+        return CachedAsync($"heatmap|{site}|{area}|{unit}|{windowKind}|{limit}", async token =>
         {
-            var payload = ParseJson((string?)r.payload);
-            var gates = new Dictionary<string, string>();
-            foreach (var key in gateKeys) gates[key] = ReadGateStatus(payload, key);
-            return new
-            {
-                loopId = r.loop_id,
-                displayName = r.display_name,
-                loopType = r.loop_type,
-                windowEnd = r.window_end,
-                diagnosis = (string?)r.diagnosis ?? "NOT_EVALUATED",
-                confidence = r.confidence,
-                gates
-            };
-        }).ToList();
+            await using var conn = await _dataSource.OpenConnectionAsync(token);
 
-        return Ok(new { site, area, unit, windowKind, gateKeys, count = cells.Count, loops = cells });
+            var total = await conn.ExecuteScalarAsync<int>("""
+                SELECT COUNT(*)::int FROM cpm.loop_registry r
+                WHERE (@site::text IS NULL OR r.site = @site)
+                  AND (@area::text IS NULL OR r.area = @area)
+                  AND (@unit::text IS NULL OR r.unit = @unit)
+                  AND COALESCE((r.monitoring->>'enabled')::boolean, FALSE)
+                """, new { site, area, unit });
+
+            var rows = await conn.QueryAsync(FleetLatestSql.Heatmap, new { site, area, unit, windowKind, limit });
+
+            var gateKeys = new[] { "G0","G1","G2","G2r","G3","G4","G5","G6","G7","G8","G9","G10","G11","G12","G13","G14","G15" };
+            var cells = rows.Select(r =>
+            {
+                // `gates` is payload->'gates' ({"G0":"PASS",...}); never the whole message.
+                var stored = ParseJson((string?)r.gates);
+                var gates = new Dictionary<string, string>();
+                foreach (var key in gateKeys) gates[key] = ReadGateStatus(stored, key);
+                return new
+                {
+                    loopId = r.loop_id,
+                    displayName = r.display_name,
+                    loopType = r.loop_type,
+                    windowEnd = r.window_end,
+                    diagnosis = (string?)r.diagnosis ?? "NOT_EVALUATED",
+                    confidence = r.confidence,
+                    gates
+                };
+            }).ToList();
+
+            return (object)new { site, area, unit, windowKind, gateKeys, count = cells.Count, total, truncated = cells.Count < total, loops = cells };
+        }, ct);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────
 
-    private static string ReadGateStatus(JsonElement payload, string key)
+    /// <summary>Serve from the fleet cache (single-flight on a miss) and say which it was.</summary>
+    private async Task<IActionResult> CachedAsync(string key, Func<CancellationToken, Task<object>> build, CancellationToken ct)
     {
-        if (payload.ValueKind == JsonValueKind.Object
-            && payload.TryGetProperty("gates", out var gates)
-            && gates.ValueKind == JsonValueKind.Object
+        var (body, hit) = await _cache.GetOrCreateAsync(key, _ttl, build, ct);
+        Response.Headers["X-Cpm-Cache"] = hit ? "HIT" : "MISS";
+        return Ok(body);
+    }
+
+    private static string ReadGateStatus(JsonElement gates, string key)
+    {
+        if (gates.ValueKind == JsonValueKind.Object
             && gates.TryGetProperty(key, out var status)
             && status.ValueKind == JsonValueKind.String)
         {
@@ -285,11 +268,11 @@ public sealed class CpmFleetController : ControllerBase
         catch (JsonException) { return default; }
     }
 
-    private static string[] ReadStringArray(string? json, string name)
+    /// <summary>A JSON array fragment (e.g. <c>["VP_MISSING"]</c>) → its string members; anything else → empty.</summary>
+    private static string[] ReadStringArray(string? jsonArray)
     {
-        var el = ParseJson(json);
-        if (el.ValueKind != JsonValueKind.Object || !el.TryGetProperty(name, out var arr) || arr.ValueKind != JsonValueKind.Array)
-            return Array.Empty<string>();
-        return arr.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()!).ToArray();
+        var el = ParseJson(jsonArray);
+        if (el.ValueKind != JsonValueKind.Array) return Array.Empty<string>();
+        return el.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()!).ToArray();
     }
 }

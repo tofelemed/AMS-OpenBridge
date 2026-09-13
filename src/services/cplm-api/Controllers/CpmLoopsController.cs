@@ -192,6 +192,34 @@ public sealed class CpmLoopsController : ControllerBase
     }
 
     /// <summary>
+    /// CHG-024 — republish evidence for a whole set in ONE gateway mutation. The v3 data
+    /// load ran the per-loop POST 175 times from a shell with a sleep to stay under the
+    /// mutation rate class; this is that loop, server-side, with per-item outcomes (a
+    /// missing or failing loop fails alone) and one audit event.
+    /// </summary>
+    [HttpPost("bulk-republish-evidence")]
+    [Authorize(Policy = "cpm.manage")]
+    public async Task<IActionResult> BulkRepublishEvidence([FromBody] CpmBulkRepublishRequest request, CancellationToken ct)
+    {
+        var ids = request?.LoopIds;
+        if (ids is null || ids.Count == 0)
+            return UnprocessableEntity(new { error = "REGISTRY_VALIDATION", message = "loopIds[] is required" });
+        if (ids.Count > MaxBulkLoops)
+            return UnprocessableEntity(new
+            {
+                error = "BULK_TOO_LARGE",
+                message = $"{ids.Count} loops exceeds the {MaxBulkLoops}-per-request limit; split the batch.",
+            });
+
+        var result = await _registry.BulkRepublishEvidenceAsync(ids, ct);
+        _logger.LogInformation("Bulk republish: {Republished}/{Requested} republished, {NotFound} not found in {Ms} ms",
+            result.Republished, result.Requested, result.NotFound.Count, result.ElapsedMs);
+        _audit.Emit("CPM_EVIDENCE_REPUBLISHED_BULK", Actor(), "CpmLoop", $"bulk:{result.Republished}",
+            new { result.Requested, result.Republished, notFound = result.NotFound.Count, result.SignalAssets, result.ElapsedMs });
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Remove a loop from the registry. Analytics history is retained on purpose:
     /// gate results are evidence of what the loop actually did.
     /// </summary>

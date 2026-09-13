@@ -33,6 +33,10 @@ builder.Services.AddKeyedSingleton("cplm", dataSource);
 // PER LOOP — so browsing loops in the Explorer fanned one Flink REST call per
 // click on top of the pipeline panel's own poll.
 builder.Services.AddMemoryCache();
+// CHG-023: the fleet reads (summary/rankings/heatmap) share a short single-flight cache
+// so N polling consoles cost one query per key per TTL. Cpm:FleetCacheSeconds (default 15;
+// 0 disables) — see Data/FleetReadCache.cs.
+builder.Services.AddSingleton<Traverse.CplmApi.Data.FleetReadCache>();
 
 // ── HTTP control plane ─────────────────────────────────────────────────────
 // asset-model: peer-link projection at onboarding (service-principal call).

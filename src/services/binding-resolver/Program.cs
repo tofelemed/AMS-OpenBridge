@@ -107,15 +107,23 @@ app.MapPost("/resolve/batch", async (
 
     // Out-of-scope paths (Phase 7/R17) are returned unresolved rather than resolved, so a scoped user
     // never receives transport for a tag they may not see — but the response still aligns by index.
-    var results = await Task.WhenAll(
-        request.Bindings.Select(b => AssetScope.InScope(user, b.Path)
-            ? resolver.ResolveAsync(b.Path, b.Roles)
-            : Task.FromResult(new BindingResponse
-            {
-                ContextualPath = b.Path,
-                Resolved = false,
-                Error = "Path is outside your asset scope"
-            })));
+    // CHG-024: the in-scope paths are resolved with ONE asset-model call (ResolveManyAsync)
+    // instead of one GET per binding.
+    var inScope = request.Bindings
+        .Select((b, i) => (Binding: b, Index: i))
+        .Where(x => AssetScope.InScope(user, x.Binding.Path))
+        .ToList();
+    var resolved = await resolver.ResolveManyAsync(inScope.Select(x => (x.Binding.Path, x.Binding.Roles)).ToList());
+
+    var results = new BindingResponse[request.Bindings.Length];
+    for (var k = 0; k < inScope.Count; k++) results[inScope[k].Index] = resolved[k];
+    for (var i = 0; i < results.Length; i++)
+        results[i] ??= new BindingResponse
+        {
+            ContextualPath = request.Bindings[i].Path,
+            Resolved = false,
+            Error = "Path is outside your asset scope"
+        };
 
     return Results.Ok(new { bindings = results });
 }).RequireAuthorization("binding.resolve");

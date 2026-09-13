@@ -24,6 +24,16 @@ export async function getRoles(): Promise<Role[]> {
   return res.data.data;
 }
 
+export interface RoleWithPermissions extends Role {
+  permissions: string[];
+}
+
+/** CHG-024 — every role with its permission keys in one request (was 1 + one per role). */
+export async function getRolesWithPermissions(): Promise<RoleWithPermissions[]> {
+  const res = await authedAxios.get(`${BASE}/roles`, { params: { include: 'permissions' } });
+  return res.data.data;
+}
+
 export async function getPermissionCatalog(): Promise<PermissionDef[]> {
   const res = await authedAxios.get(`${BASE}/permissions`);
   return res.data.data;

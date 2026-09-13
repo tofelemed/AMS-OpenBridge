@@ -123,15 +123,9 @@ public sealed class CpmAnalyticsController : ControllerBase
         string loopId, [FromQuery] string windowKind = "24h", CancellationToken ct = default)
     {
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
-        var row = await conn.QueryFirstOrDefaultAsync("""
-            SELECT loop_id, window_kind, window_start, window_end, sample_count,
-                   diagnosis, severity, confidence, payload::text AS payload, created_at
-            FROM analytics.cplm_gate_results
-            WHERE lower(loop_id) = lower(@loopId) AND window_kind = @windowKind
-            ORDER BY (diagnosis IS NOT NULL AND diagnosis <> 'INSUFFICIENT_DATA') DESC,
-                     window_end DESC NULLS LAST, created_at DESC
-            LIMIT 1
-            """, new { loopId, windowKind });
+        // CHG-023: two index probes (newest real verdict, else newest row) instead of
+        // sorting the loop's rows by the expression on every click — see GateReadSql.
+        var row = await conn.QueryFirstOrDefaultAsync(Traverse.CplmApi.Data.GateReadSql.LatestForLoop, new { loopId, windowKind });
 
         if (row is null)
             return NotFound(new { error = $"No gate results for loop '{loopId}' at resolution '{windowKind}'" });
@@ -193,67 +187,7 @@ public sealed class CpmAnalyticsController : ControllerBase
                 longWindows = LongWindows
             });
 
-        var sql = isLong
-            ? """
-              SELECT window_start, window_end, sample_count, acf_period_s, acf_regularity,
-                     effort_ratio, triangularity, horch_oddness, corner_score,
-                     travel_per_day, reversals_per_hour,
-                     harmonic_amplitude_ratio, harmonic_energy_ratio, created_at,
-                     -- P1-10: false when these metrics were computed on a window
-                     -- that failed G0 / had insufficient samples. They are kept
-                     -- (they are the exclusion's decision inputs) but must not be
-                     -- plotted beside full-window values without a marker.
-                     -- audit-jobs.md BE-2: `long_metrics_qualified` only exists on
-                     -- GATE payloads; on long-feature rows the key was always
-                     -- absent, so this served TRUE unconditionally and the P1-10
-                     -- safeguard was silently disabled. Derive it from the
-                     -- embedded aligned-short slice (qualified = short passed G0).
-                     COALESCE((payload->>'long_metrics_qualified')::boolean,
-                              (payload->'short_features'->>'sufficient_data')::boolean,
-                              TRUE) AS long_metrics_qualified,
-                     COALESCE((payload->>'freeze_fraction')::double precision, 0) AS freeze_fraction,
-                     (payload->>'sample_period_sec')::double precision AS sample_period_sec,
-                     -- audit-jobs.md BE-3: the long payload carries this only in
-                     -- the nested short_features object; the flat key was NULL.
-                     COALESCE((payload->>'expected_sample_count')::int,
-                              (payload->'short_features'->>'expected_sample_count')::int) AS expected_sample_count
-              FROM analytics.cplm_long_feature_results
-              WHERE lower(loop_id) = lower(@loopId) AND window_kind = @resolution
-                AND (@from::timestamptz IS NULL OR window_end >= @from::timestamptz)
-                AND (@to::timestamptz   IS NULL OR window_end <= @to::timestamptz)
-                AND (@before::timestamptz IS NULL OR window_end < @before::timestamptz)
-              ORDER BY window_end DESC NULLS LAST LIMIT @limit
-              """
-            : """
-              SELECT window_start, window_end, sample_count, iae, ise, mae, rmse,
-                     good_error_pct, effort_ratio, travel_per_day, reversals_per_hour,
-                     auto_pct, completeness, created_at,
-                     -- P1-9: the engine zeroes mae/rmse/iae when it declines to
-                     -- evaluate a window, and the consumer stores 0.0 (never NULL).
-                     -- Without this flag a KPI chart draws those windows as
-                     -- perfect control. It lives in the payload, not a column.
-                     COALESCE((payload->>'sufficient_data')::boolean, TRUE) AS sufficient_data,
-                     -- P2-11: the UI hardcoded a 5s sample period; the engine
-                     -- publishes the real per-window values - serve them.
-                     (payload->>'sample_period_sec')::double precision AS sample_period_sec,
-                     (payload->>'expected_sample_count')::int AS expected_sample_count,
-                     -- Short-window gate verdicts exist only in the payload (no
-                     -- typed columns, and no row in cplm_gate_results — fusion
-                     -- fires on 12h/24h only). Serve them so per-window screens
-                     -- can show G0–G4/G2r beside the feature values.
-                     payload->>'gate0_status'  AS gate0_status,
-                     payload->>'gate1_status'  AS gate1_status,
-                     payload->>'gate2_status'  AS gate2_status,
-                     payload->>'gate2r_status' AS gate2r_status,
-                     payload->>'gate3_status'  AS gate3_status,
-                     payload->>'gate4_status'  AS gate4_status
-              FROM analytics.cplm_short_feature_results
-              WHERE lower(loop_id) = lower(@loopId) AND window_kind = @resolution
-                AND (@from::timestamptz IS NULL OR window_end >= @from::timestamptz)
-                AND (@to::timestamptz   IS NULL OR window_end <= @to::timestamptz)
-                AND (@before::timestamptz IS NULL OR window_end < @before::timestamptz)
-              ORDER BY window_end DESC NULLS LAST LIMIT @limit
-              """;
+        var sql = isLong ? Traverse.CplmApi.Data.KpiSql.Long : Traverse.CplmApi.Data.KpiSql.Short;
 
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
         var rows = (await conn.QueryAsync(sql, new { loopId, resolution, from, to, limit, before })).ToList();
@@ -272,6 +206,38 @@ public sealed class CpmAnalyticsController : ControllerBase
             count = rows.Count,
             nextBefore,
             samples = rows
+        });
+    }
+
+    /// <summary>
+    /// CHG-024 — several resolutions' newest rows in ONE request. The Windows comparator
+    /// used to issue six GET /kpis calls (one per short window kind) on every loop
+    /// selection; this answers the same rows keyed by kind (Data/KpiReads.cs).
+    /// </summary>
+    [HttpGet("loops/{loopId}/kpis/latest")]
+    public async Task<IActionResult> GetLatestKpisByResolution(
+        string loopId,
+        [FromQuery] string resolutions = "",
+        [FromQuery] int limit = 12,
+        CancellationToken ct = default)
+    {
+        limit = Math.Clamp(limit, 1, 500);
+        var kinds = resolutions.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.Ordinal).ToList();
+        if (kinds.Count == 0)
+            return BadRequest(new { error = "resolutions is required (comma-separated)", shortWindows = ShortWindows, longWindows = LongWindows });
+        var unknown = kinds.Where(k => !ShortWindows.Contains(k) && !LongWindows.Contains(k)).ToList();
+        if (unknown.Count > 0)
+            return BadRequest(new { error = $"Unknown resolution(s) '{string.Join(", ", unknown)}'", shortWindows = ShortWindows, longWindows = LongWindows });
+
+        await using var conn = await _dataSource.OpenConnectionAsync(ct);
+        var slices = await Traverse.CplmApi.Data.KpiReads.LatestByResolutionAsync(
+            conn, loopId, kinds.Select(k => (k, LongWindows.Contains(k))).ToList(), limit);
+        return Ok(new
+        {
+            loopId,
+            limit,
+            byResolution = slices.ToDictionary(kv => kv.Key, kv => new { tier = kv.Value.Tier, count = kv.Value.Count, samples = kv.Value.Samples }),
         });
     }
 

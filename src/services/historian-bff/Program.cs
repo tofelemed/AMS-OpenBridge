@@ -345,39 +345,9 @@ app.MapGet("/snapshot", async (
     var totalDevices = deviceList.Length;
     deviceList = deviceList.Skip(skip).Take(take).ToArray();
 
-    var result = new Dictionary<string, Dictionary<string, object?>>();
-    foreach (var device in deviceList)
-    {
-        var indexKey = $"snapshot:index:{device}";
-        var keys = await db.SetMembersAsync(indexKey);
-        if (keys.Length == 0) continue;
-
-        var redisKeys = keys.Select(k => (RedisKey)(string)k!).ToArray();
-        var values    = await db.StringGetAsync(redisKeys);
-
-        Dictionary<string, object?>? assetMetrics = null;
-        var stale = new List<RedisValue>();
-        for (var i = 0; i < redisKeys.Length; i++)
-        {
-            var keyStr = (string)redisKeys[i]!;
-            var parts  = keyStr.Split(':');
-            if (parts.Length < 6) continue;
-            if (values[i].IsNullOrEmpty) { stale.Add((string)redisKeys[i]!); continue; }  // TTL-expired -> prune
-            if (!GroupAllowed(parts[2])) continue;   // parts[2] = sparkplug group (site)
-
-            assetMetrics ??= result.TryGetValue(device, out var existing)
-                ? existing
-                : (result[device] = new Dictionary<string, object?>());
-
-            var metricName = parts[^1];
-            try   { assetMetrics[metricName] = JsonSerializer.Deserialize<JsonElement>(values[i]!); }
-            catch { assetMetrics[metricName] = (string?)values[i]; }
-        }
-
-        // Lazy index hygiene: drop members whose snapshot key expired (fire-and-forget).
-        if (stale.Count > 0)
-            _ = db.SetRemoveAsync(indexKey, stale.ToArray(), CommandFlags.FireAndForget);
-    }
+    // CHG-023 (P2-6): all devices' index + value reads in flight together, dead device
+    // names pruned from the wildcard set — see SnapshotReader.cs (tests/historian-bff.Tests).
+    var result = await SnapshotReader.ReadAsync(db, deviceList, GroupAllowed);
 
     var payload = new { assets = result, totalDevices };
     cache.Set(cacheKey, (object)payload, TimeSpan.FromSeconds(2));

@@ -171,11 +171,13 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
         <EmptyState
           title={filter.mode === 'attention' ? 'No loop needs attention' : 'No loops match'}
           copy={
-            filter.gate || q
-              ? 'Clear the gate or text filter to widen the view.'
-              : filter.mode === 'attention'
-                ? 'Every evaluated loop passed its gates in this window.'
-                : undefined
+            q && fleetTotal != null && fleetTotal > loops.length
+              ? `No match among the ${loops.length} loops loaded — the matrix serves the first ${loops.length} of ${fleetTotal} in scope, so this loop may be beyond them. Narrow the plant scope.`
+              : filter.gate || q
+                ? 'Clear the gate or text filter to widen the view.'
+                : filter.mode === 'attention'
+                  ? 'Every evaluated loop passed its gates in this window.'
+                  : undefined
           }
           action={
             filter.gate || q || filter.mode !== 'all'

@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using System.Text.Json;
 using StackExchange.Redis;
 using Traverse.BindingResolver.Models;
@@ -32,10 +33,7 @@ public class PathResolver
     /// </summary>
     public async Task<BindingResponse> ResolveAsync(string contextualPath, string[] roles)
     {
-        var resolveAll = roles.Contains("all", StringComparer.OrdinalIgnoreCase);
-        var resolveLive = resolveAll || roles.Contains("live", StringComparer.OrdinalIgnoreCase);
-        var resolveHistory = resolveAll || roles.Contains("history", StringComparer.OrdinalIgnoreCase);
-        var resolveAlarm = resolveAll || roles.Contains("alarm", StringComparer.OrdinalIgnoreCase);
+        var (resolveLive, resolveHistory, resolveAlarm) = RoleFlags(roles);
         
         try
         {
@@ -70,6 +68,80 @@ public class PathResolver
         }
     }
     
+    /// <summary>
+    /// CHG-024 — resolves many paths with ONE asset-model call (POST /assets/by-paths,
+    /// up to 2,000 paths). The per-path contract of <see cref="ResolveAsync"/> is kept exactly:
+    /// a registered path gets the authoritative binding; a path absent from the answer falls
+    /// back to path-derived bindings (provenance "fallback") for that path only; an
+    /// unreachable asset-model makes every path fall back. Results align with the input.
+    /// </summary>
+    public async Task<IReadOnlyList<BindingResponse>> ResolveManyAsync(IReadOnlyList<(string Path, string[] Roles)> requests)
+    {
+        if (requests.Count == 0) return Array.Empty<BindingResponse>();
+
+        var distinct = requests.Select(r => r.Path).Distinct(StringComparer.Ordinal).ToArray();
+        var assets = await TryResolveManyFromAssetModel(distinct);
+
+        var results = new BindingResponse[requests.Count];
+        for (var i = 0; i < requests.Count; i++)
+        {
+            var (path, roles) = requests[i];
+            var (live, history, alarm) = RoleFlags(roles);
+            try
+            {
+                if (assets.TryGetValue(path, out var asset))
+                {
+                    results[i] = BuildBindingFromAsset(asset, live, history, alarm);
+                    continue;
+                }
+                _logger.LogWarning(
+                    "No asset registered for {Path}; returning FALLBACK binding derived from the path string",
+                    path);
+                results[i] = BuildBindingFromPath(path, live, history, alarm);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to resolve path {Path}", path);
+                results[i] = new BindingResponse { ContextualPath = path, Resolved = false, Error = ex.Message };
+            }
+        }
+        return results;
+    }
+
+    private static (bool Live, bool History, bool Alarm) RoleFlags(string[] roles)
+    {
+        var all = roles.Contains("all", StringComparer.OrdinalIgnoreCase);
+        return (all || roles.Contains("live", StringComparer.OrdinalIgnoreCase),
+                all || roles.Contains("history", StringComparer.OrdinalIgnoreCase),
+                all || roles.Contains("alarm", StringComparer.OrdinalIgnoreCase));
+    }
+
+    /// <summary>Every registered asset among <paramref name="paths"/>, keyed by path; empty when asset-model is unreachable.</summary>
+    private async Task<Dictionary<string, AssetInfo>> TryResolveManyFromAssetModel(string[] paths)
+    {
+        var found = new Dictionary<string, AssetInfo>(StringComparer.Ordinal);
+        try
+        {
+            var client = _httpClientFactory.CreateClient("AssetModel");
+            var response = await client.PostAsJsonAsync("/assets/by-paths", new { paths });
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Asset Model by-paths answered HTTP {Status}; using path-based resolution for {Count} paths",
+                    (int)response.StatusCode, paths.Length);
+                return found;
+            }
+            var list = await response.Content.ReadFromJsonAsync<List<AssetInfo>>(
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            foreach (var asset in list ?? new List<AssetInfo>())
+                if (!string.IsNullOrEmpty(asset.ContextualPath)) found.TryAdd(asset.ContextualPath, asset);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Asset Model service unavailable, using path-based resolution for {Count} paths", paths.Length);
+        }
+        return found;
+    }
+
     /// <summary>
     /// Attempts to resolve the asset from the Asset Model service.
     /// Returns null if not found or service unavailable.

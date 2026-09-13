@@ -28,5 +28,3 @@ CREATE INDEX IF NOT EXISTS idx_cplm_event_frames_loop_lower
 -- sort=recent: newest-opened first, per loop.
 CREATE INDEX IF NOT EXISTS idx_cplm_event_frames_loop_lower_opened
     ON analytics.cplm_event_frames (lower(loop_id), opened_at DESC);
-</content>
-</invoke>

@@ -157,11 +157,15 @@ export function useCpmPipelineStatus(refetchMs = 15_000) {
 export function useFleetRankings(
   scope?: cpm.CpmFleetScope | string, windowKind = '24h',
   orderBy: cpm.CpmRankingOrder = 'confidence', limit = 50,
+  // CHG-023: lets a caller hold a variant it does not currently need (Performance's
+  // "error" order) instead of fetching it beside the page's own ranking every 60 s.
+  enabled = true,
 ) {
   return useQuery({
     queryKey: ['cpm', 'fleet', 'rankings', scopeKey(scope), windowKind, orderBy, limit],
     queryFn: backgroundPoll(() => cpm.getFleetRankings(scope, windowKind, limit, orderBy)),
     refetchInterval: 60_000,
+    enabled,
   });
 }
 
@@ -268,6 +272,19 @@ export function useCpmKpisPaged(loopId: string | undefined, resolution: string, 
     initialPageParam: '',
     getNextPageParam: (last) => last.nextBefore ?? undefined,
     enabled: !!loopId,
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * CHG-024 — the newest `limit` rows of several window kinds in ONE request (Windows
+ * comparator: was six `useCpmKpis` calls per loop selection).
+ */
+export function useCpmKpisByResolution(loopId: string | undefined, resolutions: string[], limit = 12) {
+  return useQuery({
+    queryKey: ['cpm', 'kpis-by-resolution', loopId ?? '', resolutions.join(','), limit],
+    queryFn: ({ signal }) => cpm.getKpisByResolution(loopId!, resolutions, limit, signal),
+    enabled: !!loopId && resolutions.length > 0,
     staleTime: 60_000,
   });
 }

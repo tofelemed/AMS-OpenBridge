@@ -71,18 +71,26 @@ public sealed class CpmReadinessController : ControllerBase
     private readonly IMemoryCache _cache;
     private readonly ILogger<CpmReadinessController> _logger;
 
+    private readonly Traverse.CplmApi.Data.FleetReadCache _fleetCache;
+    private readonly TimeSpan _metricsTtl;
+
     public CpmReadinessController(
         [FromKeyedServices("cplm")] NpgsqlDataSource dataSource,
         IHttpClientFactory httpFactory,
         IConfiguration config,
         IMemoryCache cache,
-        ILogger<CpmReadinessController> logger)
+        ILogger<CpmReadinessController> logger,
+        Traverse.CplmApi.Data.FleetReadCache fleetCache)
     {
         _dataSource = dataSource;
         _httpFactory = httpFactory;
         _config = config;
         _cache = cache;
         _logger = logger;
+        _fleetCache = fleetCache;
+        // CHG-023: the Flink walk behind /pipeline-metrics is shared by every polling console
+        // for this long (0 disables). collectedAt stays the time the walk actually ran.
+        _metricsTtl = TimeSpan.FromSeconds(config.GetValue("Cpm:PipelineMetricsCacheSeconds", 10));
     }
 
     /// <summary>A6 — readiness checklist for one loop.</summary>
@@ -251,156 +259,17 @@ public sealed class CpmReadinessController : ControllerBase
     [HttpGet("pipeline-metrics")]
     public async Task<IActionResult> GetPipelineMetrics(CancellationToken ct = default)
     {
-        var client = _httpFactory.CreateClient();
-        client.Timeout = TimeSpan.FromSeconds(10);
-        var baseUrl = FlinkBaseUrl();
-
-        var jobs = new List<object>();
-        var reachable = false;
-        try
+        // CHG-023: concurrent per-job walk (Services/FlinkPipelineMetricsCollector) behind
+        // the single-flight cache, so N consoles polling every 20 s cost one walk per TTL.
+        var (body, hit) = await _fleetCache.GetOrCreateAsync("pipeline-metrics", _metricsTtl, async token =>
         {
-            var overviewRes = await client.GetAsync($"{baseUrl}/jobs/overview", ct);
-            if (overviewRes.IsSuccessStatusCode)
-            {
-                reachable = true;
-                using var overview = JsonDocument.Parse(await overviewRes.Content.ReadAsStringAsync(ct));
-                // Flink's overview keeps terminal jobs (CANCELED/FINISHED/FAILED)
-                // in the list. Reporting them alongside the live one made the
-                // Pipeline Health screen show phantom duplicates of every job and
-                // made a real duplicate (two RUNNING copies sharing a consumer
-                // group) impossible to spot. Keep the RUNNING instance per name,
-                // falling back to the newest terminal one when nothing is running
-                // so a dead required job still shows up rather than vanishing.
-                var byName = new Dictionary<string, JsonElement>();
-                foreach (var job in overview.RootElement.GetProperty("jobs").EnumerateArray())
-                {
-                    var jn = job.TryGetProperty("name", out var nn) ? nn.GetString() : null;
-                    if (jn is null || !RequiredJobs.Any(r => r.Name == jn)) continue;
-                    var jstate = job.TryGetProperty("state", out var js) ? js.GetString() : null;
-                    if (!byName.TryGetValue(jn, out var kept))
-                    {
-                        byName[jn] = job;
-                        continue;
-                    }
-                    var keptState = kept.TryGetProperty("state", out var ks) ? ks.GetString() : null;
-                    var keptStart = kept.TryGetProperty("start-time", out var kst) ? kst.GetInt64() : 0;
-                    var thisStart = job.TryGetProperty("start-time", out var tst) ? tst.GetInt64() : 0;
-                    var preferThis = (jstate == "RUNNING" && keptState != "RUNNING")
-                                     || (jstate == keptState && thisStart > keptStart)
-                                     || (keptState != "RUNNING" && jstate != "RUNNING" && thisStart > keptStart);
-                    if (preferThis) byName[jn] = job;
-                }
-
-                foreach (var job in byName.Values)
-                {
-                    var name = job.TryGetProperty("name", out var n) ? n.GetString() : null;
-                    var jid = job.TryGetProperty("jid", out var j) ? j.GetString() : null;
-                    if (name is null || jid is null) continue;
-
-                    long startTime = job.TryGetProperty("start-time", out var st) ? st.GetInt64() : 0;
-                    var state = job.TryGetProperty("state", out var s) ? s.GetString() : "UNKNOWN";
-
-                    // Checkpoint statistics per job (restore/loss risk indicator).
-                    object? checkpoint = null;
-                    try
-                    {
-                        var cpRes = await client.GetAsync($"{baseUrl}/jobs/{jid}/checkpoints", ct);
-                        if (cpRes.IsSuccessStatusCode)
-                        {
-                            using var cp = JsonDocument.Parse(await cpRes.Content.ReadAsStringAsync(ct));
-                            var counts = cp.RootElement.GetProperty("counts");
-                            var latest = cp.RootElement.TryGetProperty("latest", out var l)
-                                && l.TryGetProperty("completed", out var comp)
-                                && comp.ValueKind == JsonValueKind.Object ? comp : (JsonElement?)null;
-                            checkpoint = new
-                            {
-                                completed = counts.TryGetProperty("completed", out var c1) ? c1.GetInt32() : 0,
-                                failed = counts.TryGetProperty("failed", out var c2) ? c2.GetInt32() : 0,
-                                lastDurationMs = latest?.TryGetProperty("end_to_end_duration", out var d) == true ? d.GetInt64() : (long?)null,
-                                lastSizeBytes = latest?.TryGetProperty("state_size", out var sz) == true ? sz.GetInt64() : (long?)null,
-                                lastCompletedAgeSec = latest?.TryGetProperty("latest_ack_timestamp", out var ts) == true && ts.GetInt64() > 0
-                                    ? (long?)Math.Max(0, (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - ts.GetInt64()) / 1000)
-                                    : null
-                            };
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogDebug(ex, "Checkpoint stats unavailable for {Job}", name);
-                    }
-
-                    // P1-6 — late-dropped record counts per window operator.
-                    // Windowed jobs discard records that arrive behind the
-                    // watermark, with no side output and no log line. Flink has
-                    // been counting them all along; nothing surfaced it, so a
-                    // backfill that vanished entirely looked like a healthy run.
-                    // This is the only signal that distinguishes "no data" from
-                    // "your data arrived too late to be windowed".
-                    long? lateDropped = null;
-                    try
-                    {
-                        var vertRes = await client.GetAsync($"{baseUrl}/jobs/{jid}", ct);
-                        if (vertRes.IsSuccessStatusCode)
-                        {
-                            using var vj = JsonDocument.Parse(await vertRes.Content.ReadAsStringAsync(ct));
-                            if (vj.RootElement.TryGetProperty("vertices", out var verts))
-                            {
-                                foreach (var v in verts.EnumerateArray())
-                                {
-                                    var vname = v.TryGetProperty("name", out var vn) ? vn.GetString() ?? "" : "";
-                                    var vid = v.TryGetProperty("id", out var vi) ? vi.GetString() : null;
-                                    if (vid is null || !vname.Contains("window", StringComparison.OrdinalIgnoreCase)) continue;
-                                    var metric = $"0.{vname.Split(" ->")[0]}.numLateRecordsDropped";
-                                    var mRes = await client.GetAsync(
-                                        $"{baseUrl}/jobs/{jid}/vertices/{vid}/metrics?get={Uri.EscapeDataString(metric)}", ct);
-                                    if (!mRes.IsSuccessStatusCode) continue;
-                                    using var md = JsonDocument.Parse(await mRes.Content.ReadAsStringAsync(ct));
-                                    foreach (var m in md.RootElement.EnumerateArray())
-                                    {
-                                        if (m.TryGetProperty("value", out var mv)
-                                            && long.TryParse(mv.GetString(), out var lv))
-                                        {
-                                            lateDropped = Math.Max(lateDropped ?? 0, lv);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogDebug(ex, "Late-record metrics unavailable for {Job}", name);
-                    }
-
-                    jobs.Add(new
-                    {
-                        name,
-                        jid,
-                        state,
-                        role = RequiredJobs.First(r => r.Name == name).Role,
-                        startTime = startTime > 0 ? DateTimeOffset.FromUnixTimeMilliseconds(startTime).UtcDateTime : (DateTime?)null,
-                        uptimeSec = startTime > 0 ? (long?)Math.Max(0, (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - startTime) / 1000) : null,
-                        checkpoint,
-                        // Max across this job's window operators (each counts the
-                        // same record independently, so a sum would multiply it).
-                        lateRecordsDropped = lateDropped
-                    });
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not read Flink metrics");
-        }
-
-        return Ok(new
-        {
-            jobManagerReachable = reachable,
-            collectedAt = DateTime.UtcNow,
-            jobs,
-            // Explicit about what is NOT here, so the UI renders honest gaps.
-            unavailable = new[] { "watermarkLagMs", "eventsPerSecond", "backpressure" }
-        });
+            var client = _httpFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(10);
+            return await Traverse.CplmApi.Services.FlinkPipelineMetricsCollector.CollectAsync(
+                client, FlinkBaseUrl(), RequiredJobs, _logger, token);
+        }, ct);
+        Response.Headers["X-Cpm-Cache"] = hit ? "HIT" : "MISS";
+        return Ok(body);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────
@@ -465,64 +334,20 @@ public sealed class CpmReadinessController : ControllerBase
     /// took ~25s and the Explorer's Signals tab hung behind it. They are
     /// independent reads of the same service; there is no ordering to preserve.
     /// </summary>
+    /// <summary>
+    /// CHG-024: the mapped roles are probed in ONE POST /resolve/batch (was one GET per
+    /// role) — see Services/BindingProvenanceProbe.cs for the contract and the tests.
+    /// </summary>
     private async Task<(bool Ok, string? Message)> CheckBindingProvenanceAsync(JsonElement tags, CancellationToken ct)
     {
-        if (tags.ValueKind != JsonValueKind.Object) return (false, "No signal mappings to check.");
         var baseUrl = (_config["Services:BindingResolver"] ?? "http://binding-resolver:5000").TrimEnd('/');
-
-        var probes = new List<Task<string?>>();
-        foreach (var role in new[] { "pv", "sp", "op", "vp", "mode" })
-        {
-            if (!tags.TryGetProperty(role, out var t) || t.ValueKind != JsonValueKind.String) continue;
-            var path = t.GetString();
-            if (string.IsNullOrWhiteSpace(path)) continue;
-            probes.Add(ProbeRoleAsync(baseUrl, role, path!, ct));
-        }
-
-        // Ordered by the probe order above, not by completion, so the message text
-        // is deterministic for the same loop.
-        var fallbacks = (await Task.WhenAll(probes)).Where(f => f is not null).ToList();
-
-        return fallbacks.Count == 0
-            ? (true, null)
-            : (false, $"Resolved by path fallback, not the asset model: {string.Join(", ", fallbacks)}. " +
-                      "Register these signals as assets — a fallback binding derives a different device id and may point at nothing.");
-    }
-
-    /// <summary>One role's provenance probe. Returns null when it resolves via the
-    /// asset model, or the label to report otherwise.</summary>
-    private async Task<string?> ProbeRoleAsync(string baseUrl, string role, string path, CancellationToken ct)
-    {
-        try
-        {
-            var client = _httpFactory.CreateClient();
-            client.Timeout = TimeSpan.FromSeconds(5);
-            using var req = new HttpRequestMessage(
-                HttpMethod.Get, $"{baseUrl}/resolve?path={Uri.EscapeDataString(path)}&roles=live");
-            // Forward the gateway-injected identity. Since the Plan 04 lockdown,
-            // binding-resolver requires binding.resolve — an anonymous probe gets
-            // 401 and every role reported "(unreachable)", so this check could
-            // never pass for ANY loop. The caller reached this endpoint through
-            // the gateway, so these headers are present and already authorized.
-            foreach (var h in new[] { "X-Auth-Subject", "X-Auth-Username", "X-Auth-Role", "X-Auth-Permissions" })
-            {
-                var v = Request.Headers[h].ToString();
-                if (!string.IsNullOrEmpty(v)) req.Headers.TryAddWithoutValidation(h, v);
-            }
-            var res = await client.SendAsync(req, ct);
-            if (!res.IsSuccessStatusCode) return $"{role} (unreachable: HTTP {(int)res.StatusCode})";
-            using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync(ct));
-            var provenance = doc.RootElement.TryGetProperty("provenance", out var p) ? p.GetString() : null;
-            return string.Equals(provenance, "asset-model", StringComparison.OrdinalIgnoreCase) ? null : role;
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            throw; // caller abandoned the request — not a provenance verdict
-        }
-        catch
-        {
-            return $"{role} (unreachable)";
-        }
+        var client = _httpFactory.CreateClient();
+        client.Timeout = TimeSpan.FromSeconds(5);
+        // The caller reached this endpoint through the gateway, so these identity headers
+        // are present and already authorized; the resolver requires them.
+        var forward = Traverse.CplmApi.Services.BindingProvenanceProbe.ForwardedHeaders
+            .ToDictionary(h => h, h => Request.Headers[h].ToString());
+        return await Traverse.CplmApi.Services.BindingProvenanceProbe.CheckAsync(client, baseUrl, tags, forward, _logger, ct);
     }
 
     private static JsonElement ParseJson(string? json)

@@ -46,6 +46,9 @@ public interface ICpmLoopRegistryService
     Task PublishEvidenceAsync(string loopId, CancellationToken ct);
     /// <summary>Batch form of <see cref="PublishEvidenceAsync"/>.</summary>
     Task PublishEvidenceBatchAsync(IReadOnlyList<string> loopIds, CancellationToken ct);
+    /// <summary>CHG-024: republish (links, signal assets, evidence) for a whole set in one
+    /// request — per-loop link projection, then the batch forms; per-item outcomes.</summary>
+    Task<CpmBulkRepublishResult> BulkRepublishEvidenceAsync(IReadOnlyList<string> loopIds, CancellationToken ct);
     /// <summary>Upsert UNS assets (with transport overrides) for the loop's mapped
     /// signal roles, so loop PV/SP/OP/VP/MODE resolve — and trend — through the UNS.</summary>
     Task<int> ProjectSignalAssetsAsync(string loopId, CancellationToken ct);
@@ -123,6 +126,7 @@ public sealed record CpmLoopLinkDto(string ToLoopId, string RelType, string Orig
 public sealed record CpmBulkActivateRequest(IReadOnlyList<CpmLoopActivateRequest> Loops);
 
 public sealed record CpmBulkDeleteRequest(IReadOnlyList<string> LoopIds);
+public sealed record CpmBulkRepublishRequest(IReadOnlyList<string> LoopIds);
 
 public sealed record CpmBulkDeleteResult(
     int Requested,
@@ -225,72 +229,15 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
     {
         await EnsureSchemaAsync(ct);
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
-        var rows = await conn.QueryAsync("""
-            SELECT loop_id, asset_id, display_name, site, area, unit, loop_type, criticality,
-                   is_active, monitoring::text AS monitoring, tags::text AS tags, threshold_profile_id,
-                   engineering::text AS engineering
-            FROM cpm.loop_registry ORDER BY loop_id
-            """);
-        var result = new List<CpmLoopDto>();
-        foreach (var row in rows)
-            result.Add(await HydrateAsync(conn, row, ct));
-        return result;
+        // CHG-023: three queries for the whole list instead of 1 + 2 per loop (CpmLoopRegistryReads).
+        return await CpmLoopRegistryReads.LoadAllAsync(conn);
     }
 
     public async Task<CpmLoopDto?> GetAsync(string loopId, CancellationToken ct)
     {
         await EnsureSchemaAsync(ct);
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
-        var row = await conn.QueryFirstOrDefaultAsync("""
-            SELECT loop_id, asset_id, display_name, site, area, unit, loop_type, criticality,
-                   is_active, monitoring::text AS monitoring, tags::text AS tags, threshold_profile_id,
-                   engineering::text AS engineering
-            FROM cpm.loop_registry WHERE loop_id = @loopId
-            """, new { loopId });
-        return row is null ? null : await HydrateAsync(conn, row, ct);
-    }
-
-    private async Task<CpmLoopDto> HydrateAsync(NpgsqlConnection conn, dynamic row, CancellationToken ct)
-    {
-        string loopId = row.loop_id;
-        var tagMap = (await conn.QueryAsync<(string SignalRole, string UnsPath)>("""
-            SELECT signal_role, uns_path FROM cpm.loop_tag_map
-            WHERE loop_id = @loopId AND is_active = TRUE
-            """, new { loopId })).ToList();
-
-        var links = (await conn.QueryAsync<CpmLoopLinkDto>("""
-            SELECT to_loop_id AS ToLoopId, rel_type AS RelType, origin AS Origin
-            FROM cpm.loop_link WHERE from_loop_id = @loopId
-            UNION
-            SELECT from_loop_id, rel_type, origin
-            FROM cpm.loop_link WHERE to_loop_id = @loopId AND rel_type = 'PEER'
-            """, new { loopId })).ToList();
-
-        var tags = tagMap.ToDictionary(t => t.SignalRole.ToUpperInvariant(), t => t.UnsPath);
-        var monitoring = ParseJson((string?)row.monitoring);
-        var enabled = monitoring.TryGetProperty("enabled", out var en) && en.ValueKind == JsonValueKind.True;
-        var stepTest = monitoring.TryGetProperty("evidence", out var ev)
-            && ev.TryGetProperty("stepTestApproved", out var st) && st.ValueKind == JsonValueKind.True;
-
-        return new CpmLoopDto(
-            loopId, (Guid?)row.asset_id, row.display_name, row.site, row.area, row.unit,
-            row.loop_type, row.criticality, row.is_active, enabled, tags,
-            BuildObservabilityFlags(tags.Keys, links), links, stepTest, row.threshold_profile_id,
-            ReadRange((string?)row.engineering));
-    }
-
-    /// <summary>
-    /// Negative flags only — the engine treats a missing positive as absent.
-    /// HAS_PEER_LINKS is not stamped here: it is published to the Flink broadcast
-    /// (see <see cref="PublishEvidenceAsync"/>), which is what the gate reads.
-    /// </summary>
-    private static List<string> BuildObservabilityFlags(IEnumerable<string> roles, IReadOnlyList<CpmLoopLinkDto> links)
-    {
-        var set = new HashSet<string>(roles, StringComparer.OrdinalIgnoreCase);
-        var flags = new List<string>();
-        if (!set.Contains("VP")) flags.Add("NO_VP");
-        if (links.Count == 0) flags.Add("NO_UPSTREAM_LINKS");
-        return flags;
+        return await CpmLoopRegistryReads.LoadOneAsync(conn, loopId);
     }
 
     // ── Onboarding ──────────────────────────────────────────────────────────
@@ -812,20 +759,6 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
     /// <summary>Reads the stored engineering JSON back into the request-shaped record.
     /// Null when nothing is declared, so "absent" survives the round trip as absent
     /// rather than becoming a zero the engine would treat as a real bound.</summary>
-    private static CpmEngineeringRange? ReadRange(string? engineeringJson)
-    {
-        var e = ParseJson(engineeringJson);
-        if (e.ValueKind != JsonValueKind.Object) return null;
-
-        static double? Num(JsonElement root, string name) =>
-            root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number
-                ? v.GetDouble() : null;
-
-        var range = new CpmEngineeringRange(
-            Num(e, "opMin"), Num(e, "opMax"), Num(e, "pvMin"), Num(e, "pvMax"));
-        return HasRange(range) ? range : null;
-    }
-
     /// <summary>Any declared bound makes the range worth storing.</summary>
     private static bool HasRange(CpmEngineeringRange? r) =>
         r is { OpMin: not null } or { OpMax: not null } or { PvMin: not null } or { PvMax: not null };
@@ -1617,6 +1550,25 @@ public sealed class CpmLoopRegistryService : ICpmLoopRegistryService
     private sealed record LedgerRow(string SignalRole, string ContextualPath, Guid AssetId, bool CreatedByProjection);
 
     // ── Evidence publishing (the G13 path) ──────────────────────────────────
+
+    public async Task<CpmBulkRepublishResult> BulkRepublishEvidenceAsync(IReadOnlyList<string> loopIds, CancellationToken ct)
+    {
+        await EnsureSchemaAsync(ct);
+        // One existence query for the whole set (was a 3-query GetAsync per loop).
+        HashSet<string> registered;
+        await using (var conn = await _dataSource.OpenConnectionAsync(ct))
+        {
+            registered = (await conn.QueryAsync<string>(
+                "SELECT loop_id FROM cpm.loop_registry WHERE loop_id = ANY(@ids)",
+                new { ids = loopIds.Distinct(StringComparer.Ordinal).ToArray() })).ToHashSet(StringComparer.Ordinal);
+        }
+        var steps = new BulkRepublish.Steps(
+            Exists: id => Task.FromResult(registered.Contains(id)),
+            ProjectLinks: id => ProjectLinksAsync(id, ct),
+            ProjectSignalAssets: ids => ProjectSignalAssetsBatchAsync(ids, ct),
+            PublishEvidence: ids => PublishEvidenceBatchAsync(ids, ct));
+        return await BulkRepublish.RunAsync(loopIds, steps, ct);
+    }
 
     /// <summary>
     /// Batch form of <see cref="PublishEvidenceAsync"/>. The per-loop version

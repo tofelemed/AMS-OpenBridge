@@ -38,6 +38,23 @@ export class PermissionService {
     return result.rows;
   }
 
+  /**
+   * CHG-024 — every role with its permission keys in ONE query. The Governance role
+   * matrix used to call GET /roles and then GET /roles/:role/permissions once per role.
+   */
+  async getRolesWithPermissions(): Promise<Array<Role & { permissions: string[] }>> {
+    const result = await pool.query(
+      `SELECT r.role_name, r.description, r.is_system_role, r.created_at,
+              COALESCE(array_agg(rp.permission_key ORDER BY rp.permission_key)
+                       FILTER (WHERE rp.permission_key IS NOT NULL), '{}') AS permissions
+       FROM roles r
+       LEFT JOIN role_permissions rp ON rp.role_name = r.role_name
+       GROUP BY r.role_name, r.description, r.is_system_role, r.created_at
+       ORDER BY r.role_name`
+    );
+    return result.rows;
+  }
+
   /** List the full functional permission catalog. */
   async getPermissionCatalog(): Promise<Permission[]> {
     const result = await pool.query(
