@@ -40,9 +40,9 @@ than merely wrong. Frontend only, rides the CHG-006 rebuild.
 Seventh, **2026-09-13**: the two CPM pages the plant reported as slow (**Overview**,
 **Performance**) sorted the whole gate table on every fleet read — at plant size that is an
 HTTP 500 at the 30 s timeout, not "slow". Fixed as **CHG-023**, shipped separately as
-**release v6** (cplm-api, ams-frontend, historian-bff + three online indexes); the page sweep
+**release v2.4** (cplm-api, ams-frontend, historian-bff + three online indexes); the page sweep
 also fixed `/calculations` (same failure), `/loops`, `gates/latest`, `/pipeline-metrics` and
-the snapshot seed. See [Release v6](#release-v6--what-to-build-and-run). **CHG-024** then turned
+the snapshot seed. See [Release v2.4](#release-v24--what-to-build-and-run). **CHG-024** then turned
 the five remaining per-loop / per-item fan-outs into batch calls (readiness → resolver batch,
 resolver → asset-model by-paths, bulk republish-evidence, Windows comparator, Governance roles);
 it is **not in a release yet** — the four services to rebuild are listed in the entry.
@@ -1284,7 +1284,7 @@ Response bodies of the old and new `summary` and `rankings` are byte-identical i
 | `tests/historian-bff.Tests` (new; throwaway Redis `docker run --rm -d --name snaptest-redis -p 6390:6379 redis:7.2-alpine`) | snapshot reader parity, stale pruning, dead-device pruning, site-scope filter | 4 |
 | `src/frontend-ob` `npm test` | bad actors = slice of the page ranking, one request; error order still fetched | 13 (incl. the 11 pre-existing time-expression specs, now runnable) |
 
-### Plant deployment (v6) — order matters
+### Plant deployment (v2.4) — order matters
 
 1. `ops/cpm-06-fleet-perf-probe.sql` → keep the BEFORE output.
 2. **`ops/cpm-04-fleet-latest-indexes.sql` BEFORE loading the cplm-api image** (CONCURRENTLY, no
@@ -1367,7 +1367,7 @@ is one query, verified end to end above).
 ### Release — NOT built (by request); fold into the next bundle
 
 **Services to rebuild:** `cplm-api`, `binding-resolver`, `traverse-auth-service`, `ams-frontend`.
-`cplm-api` and `ams-frontend` are already in `migration/deploy/releases/v6.txt`; add
+`cplm-api` and `ams-frontend` are already in `migration/deploy/releases/v2.4.txt`; add
 `binding-resolver` and `traverse-auth-service` to that manifest (or a `v7.txt`) at release time.
 **No schema change, no ops script, no Flink change.** No config knobs.
 
@@ -1569,43 +1569,51 @@ universal, `avg_auto_pct` off zero), the CHG-009 cursor URL answering 200/9999/`
 
 ---
 
-## Release v6 — what to build and run
+## Release v2.4 — what to build and run
 
-Prod runs v3 + v2.3. v6 is **CHG-023 only** (the CPM Overview / Performance read-path fix and
-the other reads the page sweep caught). Additive indexes, applied online before the swap.
-Step-by-step: [migration/V6-DEPLOY.md](migration/V6-DEPLOY.md).
+Prod runs v3 + v2.3. v2.4 (the release formerly drafted as "v6") carries **CHG-023, CHG-024 and CHG-025** (the CPM Overview /
+Performance read-path fix, the batch APIs, the matrix-search fix and the Window inspector
+sub-page). Additive indexes, applied online before the swap. Step-by-step:
+[migration/V2.4-DEPLOY.md](migration/V2.4-DEPLOY.md).
 
-**Updated services (build these, nothing else):**
+**Updated services (build these, nothing else) — manifest `migration/deploy/releases/v2.4.txt`:**
 
 | Compose service | Image | Carries |
 |---|---|---|
-| `cplm-api` | `ams-cpa-cplm-api` | fleet/gates-latest/calculations per-loop index probes, 15 s single-flight cache, batched registry list, concurrent + cached pipeline-metrics, self-heal DDL for the three indexes |
-| `ams-frontend` | `ams-cpa-ams-frontend` | Performance derives its bad-actor list from its own ranking (one request fewer per mount and per minute); nginx gzip |
-| `historian-bff` | `ams-cpa-historian-bff` | `/snapshot` concurrent Redis reads + dead-device pruning |
+| `cplm-api` | `ams-cpa-cplm-api` | CHG-023: fleet/gates-latest/calculations per-loop index probes, 15 s single-flight cache, batched registry list, concurrent + cached pipeline-metrics, self-heal DDL for the three indexes · CHG-024: readiness → one resolver batch call, `POST /loops/bulk-republish-evidence`, `GET /loops/{id}/kpis/latest` · CHG-025: heatmap default 500 / cap 2,000 with `total` + `truncated` |
+| `ams-frontend` | `ams-cpa-ams-frontend` | CHG-023: bad-actor list derived from the page ranking, nginx gzip · CHG-024: Windows comparator one request, Governance matrix one request · CHG-025: heatmap asks for the whole fleet, matrix says when truncated, Window inspector sub-page (Back / Newer / Older) |
+| `historian-bff` | `ams-cpa-historian-bff` | CHG-023: `/snapshot` concurrent Redis reads + dead-device pruning |
+| `binding-resolver` | `ams-cpa-binding-resolver` | CHG-024: `/resolve/batch` resolves every path with one asset-model `by-paths` call |
+| `traverse-auth-service` | `ams-cpa-traverse-auth-service` | CHG-024: `GET /api/auth/roles?include=permissions` |
 
-Unchanged and **not** rebuilt: gateway, auth, asset-model, binding-resolver, audit-service,
-sparkplug-edge-node, ams-api, Flink (no jar change, **no job resubmission**).
+Unchanged and **not** rebuilt: gateway, asset-model, audit-service, sparkplug-edge-node,
+ams-api, ingestion-service, Flink (no jar change, **no job resubmission**).
 
 **Scripts to run — build box (in this order):**
 
 ```powershell
 git status --short                                             # must be empty (bundles ship git archive HEAD)
-dotnet test tests/cplm-api.Tests                               # 28/28 — needs the lab Postgres (run-all.ps1); ~7 min
+dotnet test tests/cplm-api.Tests                               # 43/43 — needs the lab Postgres (run-all.ps1); ~7 min
+dotnet test tests/binding-resolver.Tests                       # 5/5
 docker run --rm -d --name snaptest-redis -p 6390:6379 redis:7.2-alpine
 dotnet test tests/historian-bff.Tests                          # 4/4
 docker rm -f snaptest-redis
-cd src/frontend-ob; npm test; npm run lint; npm run build; cd ..\..   # 13/13, clean, builds
-python migration/deploy/build-release.py --release v6 --dry-run
-python migration/deploy/build-release.py --release v6             # → release-out/v6-<date>/ (3 images + ops/)
+cd src/frontend-ob; npm test; npm run lint; npm run build; cd ..\..   # 22/22, lint clean, tsc clean
+cd src/services/auth-service; npx tsc --noEmit; cd ..\..\..
+python migration/deploy/build-release.py --release v2.4 --dry-run
+python migration/deploy/build-release.py --release v2.4             # → release-out/v2.4-<date>/ (5 images + ops/)
 ```
 
-The manifest is `migration/deploy/releases/v6.txt`. `ops/` now also carries
+The manifest is `migration/deploy/releases/v2.4.txt`. `ops/` now also carries
 `cpm-04-fleet-latest-indexes.sql` (run **before** the cplm-api swap),
 `cpm-05-gate-results-retention-check.sql` (read-only, retention decision) and
 `cpm-06-fleet-perf-probe.sql` (BEFORE/AFTER proof).
 
-**Scripts to run — plant VM:** [migration/V6-DEPLOY.md](migration/V6-DEPLOY.md) §C, in order:
-`sha256sum -c`, rollback point, cpm-06 (BEFORE), **cpm-04**, `docker load` ×3, `deploy.sh --prod`,
+**Test proof before building (all currently green):** cplm-api 43, binding-resolver 5,
+historian-bff 4, frontend 22; `npm run lint`, frontend and auth-service `tsc --noEmit` clean.
+
+**Scripts to run — plant VM:** [migration/V2.4-DEPLOY.md](migration/V2.4-DEPLOY.md) §C, in order:
+`sha256sum -c`, rollback point, cpm-06 (BEFORE), **cpm-04**, `docker load` ×5, `deploy.sh --prod`,
 consumer-group check, cpm-06 (AFTER), the curl timings.
 
 **Config knobs (env, optional):** `Cpm__FleetCacheSeconds` (default 15, 0 disables),

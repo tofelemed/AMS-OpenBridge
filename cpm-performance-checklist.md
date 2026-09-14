@@ -221,7 +221,7 @@ Not needed for the latency fix; needed before the host "fills for the fourth tim
 
 ---
 
-## 6. Release plan (proposed **v6**; confirm the number — manifests exist up to `v5.txt`)
+## 6. Release plan (shipped as **v2.4**)
 
 **Updated services (build these, nothing else):**
 
@@ -247,15 +247,15 @@ git status --short                                             # must be empty (
 cd src/frontend-ob; npm run lint; npm run build; cd ../..      # P0-2
 dotnet build src/services/cplm-api/cplm-api.csproj             # P0-1 / P1-3
 .\run-all.ps1 -SkipGoldenVerify                                # lab proof: parity query + curl timings (section 7)
-python migration/deploy/build-release.py --release v6 --dry-run
-python migration/deploy/build-release.py --release v6          # → release-out/v6-<date>/
+python migration/deploy/build-release.py --release v2.4 --dry-run
+python migration/deploy/build-release.py --release v2.4          # → release-out/v2.4-<date>/
 ```
 
 **Scripts to run — plant VM (in order):**
 
 ```bash
-cd /tmp/v6 && sha256sum -c SHA256SUMS.txt
-docker images --no-trunc --format '{{.ID}} {{.Repository}}:{{.Tag}}' > /tmp/pre-v6-images.txt   # rollback point
+cd /tmp/v2.4 && sha256sum -c SHA256SUMS.txt
+docker images --no-trunc --format '{{.ID}} {{.Repository}}:{{.Tag}}' > /tmp/pre-v2.4-images.txt   # rollback point
 # 1. BEFORE numbers (section 7) — keep the output
 # 2. indexes first, online, no write lock (seconds on ~400k rows)
 docker exec -i instrumental-postgres psql -U ams_user -d traverse_cplm -f - < ops/cpm-04-fleet-latest-indexes.sql
@@ -314,11 +314,11 @@ Record the BEFORE set once; the AFTER set is the acceptance evidence for CHG-023
 
 ---
 
-## 8. Implementation status and measured results (2026-09-13, CHG-023, release v6)
+## 8. Implementation status and measured results (2026-09-13, CHG-023, release v2.4)
 
 Everything below was built, tested and measured on the lab stack with the gate table inflated
 to plant scale (361,494 synthetic rows tagged `source = 'perf-synthetic'`, 367k total, 1.85 GB).
-BEFORE = the old cplm-api image on that data; AFTER = the final v6 images. Tests: 28 (cplm-api),
+BEFORE = the old cplm-api image on that data; AFTER = the final v2.4 images. Tests: 28 (cplm-api),
 4 (historian-bff), 13 (frontend) — all green; lint clean; production build passes.
 
 | ID | Status | Before → after (lab, plant-scale data) |
@@ -345,4 +345,4 @@ Fine as they are (measured): events list 20–80 ms, KPI reads 12–120 ms, gate
 (444 KB, now gzipped), readiness 1.3 s cold then ~0.1 s (F07, Explorer only, deferred),
 historian trend 0.7 s cold then 23–70 ms via the gateway cache, asset filters 11–104 ms.
 
-**Deploy:** [migration/V6-DEPLOY.md](migration/V6-DEPLOY.md); tracker entry CHG-023.
+**Deploy:** [migration/V2.4-DEPLOY.md](migration/V2.4-DEPLOY.md); tracker entry CHG-023.

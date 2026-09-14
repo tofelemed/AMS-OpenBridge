@@ -367,3 +367,6 @@ __pycache__/
 reports/
 cpm-validation-*/
 cpm-validation-*.tar.gz
+
+# local scratch, not release material
+/output/

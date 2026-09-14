@@ -1,6 +1,6 @@
-# Release v6 — CHG-023: CPM Overview / Performance read-path fix.
+# Release v2.4 — CHG-023: CPM Overview / Performance read-path fix.
 # One compose service per line; `#` comments and blank lines are ignored.
-# Consumed by: python migration/deploy/build-release.py --release v6
+# Consumed by: python migration/deploy/build-release.py --release v2.4
 #
 # Why each one is here:
 #   cplm-api         fleet summary/rankings/heatmap resolve "latest verdict per loop" with two
@@ -14,9 +14,18 @@
 #
 # Schema: ADDITIVE INDEXES ONLY, applied online BEFORE the cplm-api image swap:
 #   ops/cpm-04-fleet-latest-indexes.sql   (CREATE INDEX CONCURRENTLY; plain table on the plant)
+#   binding-resolver         CHG-024: POST /resolve/batch resolves every path with ONE asset-model
+#                            by-paths call (was one GET per binding); also the designer's screen-open batch.
+#   traverse-auth-service    CHG-024: GET /api/auth/roles?include=permissions (one JOIN query) for
+#                            the Governance role matrix (was 1 + one request per role).
+#   (cplm-api / ams-frontend also carry CHG-024 readiness→resolver batch, bulk republish-evidence,
+#    kpis/latest by-resolution, Windows comparator, and CHG-025 heatmap total/truncated + Window
+#    inspector sub-page.)
 # Steps 00–05 unchanged. No Flink change, no job resubmission, no data load.
 # ops/cpm-05-gate-results-retention-check.sql is READ-ONLY input to the retention decision (P1-4).
 # ops/cpm-06-fleet-perf-probe.sql records the BEFORE/AFTER numbers (run once before cpm-04, once after the swap).
 cplm-api
 ams-frontend
 historian-bff
+binding-resolver
+traverse-auth-service

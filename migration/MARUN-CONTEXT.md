@@ -25,7 +25,7 @@ Commands are copy-paste. Names are exact.
   migration/deploy/logs/deploy-<ts>.log every deploy run
   migration/0[0-5]*.sh, 04b-submit-flink-jobs.sh   deploy steps (deploy.sh runs them)
   migration/topics.txt                  the ONLY Kafka topic list (partitions, retention)
-  migration/V2.3-DEPLOY.md, V3-DEPLOY.md   release runbooks
+  migration/V2.3-DEPLOY.md, V3-DEPLOY.md, V2.4-DEPLOY.md   release runbooks
   migration/MARUN-DISK.md               disk checkup & cleanup
   src/flink/target/ams-flink-1.0-SNAPSHOT.jar   the Flink JAR; cplm-api bind-mounts it; copy new one here
   scripts/validate-loops.sh             loop validation (needs plant env, §13)
