@@ -68,7 +68,8 @@ public sealed class LoopIngestConfig
         FutureSkewMaxSeconds: FutureSkewMaxSeconds is > 0 ? FutureSkewMaxSeconds.Value : 300,
         ParamRoles: EffectiveParamRoles(ParamRoles),
         ModeValueMap: ModeValueMap ?? new Dictionary<string, string>(),
-        RegistryRefreshSeconds: RegistryRefreshSeconds is > 0 ? RegistryRefreshSeconds.Value : 60);
+        RegistryRefreshSeconds: RegistryRefreshSeconds is > 0 ? RegistryRefreshSeconds.Value : 60,
+        BindingRevision: LoopIngestSettings.ComputeBindingRevision(EffectiveParamRoles(ParamRoles), ModeValueMap));
 }
 
 /// <summary>Resolved, defaulted settings — what the pipeline stages actually consume.</summary>
@@ -78,4 +79,22 @@ public sealed record LoopIngestSettings(
     int FutureSkewMaxSeconds,
     IReadOnlyDictionary<string, string> ParamRoles,
     IReadOnlyDictionary<string, string> ModeValueMap,
-    int RegistryRefreshSeconds);
+    int RegistryRefreshSeconds,
+    /// <summary>v2.5 (R03): identifies the tag→role binding a tuple was assembled under.
+    /// A stable 63-bit FNV-1a hash of the effective param_roles and mode_value_map, so it
+    /// changes exactly when the binding changes — not on every config touch (the row
+    /// version bumps on last_data_received updates and would be meaningless here).</summary>
+    long BindingRevision = 0)
+{
+    public static long ComputeBindingRevision(
+        IReadOnlyDictionary<string, string> paramRoles, IReadOnlyDictionary<string, string>? modeValueMap)
+    {
+        ulong h = 14695981039346656037UL;
+        void Mix(string s) { foreach (var ch in s) { h ^= ch; h *= 1099511628211UL; } h ^= 0x1F; h *= 1099511628211UL; }
+        foreach (var kv in paramRoles.OrderBy(k => k.Key, StringComparer.Ordinal)) { Mix(kv.Key); Mix(kv.Value); }
+        Mix("|mode|");
+        if (modeValueMap is not null)
+            foreach (var kv in modeValueMap.OrderBy(k => k.Key, StringComparer.Ordinal)) { Mix(kv.Key); Mix(kv.Value); }
+        return (long)(h & 0x7FFF_FFFF_FFFF_FFFFUL);
+    }
+}

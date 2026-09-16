@@ -13,9 +13,16 @@ public sealed record LoopTuple(
     string Site, string? Area, string? Unit, string? AssetUuid, string? SourceFcs,
     IReadOnlyDictionary<string, double> Extras)
 {
+    /// <summary>v2.5 schema 1.1 (R03): per-role provenance. Null = emit the 1.0 shape only.</summary>
+    public IReadOnlyDictionary<string, RoleObservation>? Roles { get; init; }
+    /// <summary>Hash of the tag→role binding in force (LoopIngestSettings.BindingRevision).</summary>
+    public long BindingRevision { get; init; }
+    public int GridSeconds { get; init; }
+
     /// <summary>Contract fields first (read by Flink CplmNormalizedSample and
     /// RawLoopIotDbConsumer), enrichment extensions after — every existing consumer
-    /// reads named fields and ignores the rest.</summary>
+    /// reads named fields and ignores the rest. The 1.1 roles block comes LAST, after
+    /// the extras, so the 1.0 prefix of the document is byte-for-byte what it always was.</summary>
     public string ToJson()
     {
         var buffer = new ArrayBufferWriter<byte>(256);
@@ -41,6 +48,19 @@ public sealed record LoopTuple(
             if (!string.IsNullOrEmpty(AssetUuid)) w.WriteString("asset_uuid", AssetUuid);
             if (!string.IsNullOrEmpty(SourceFcs)) w.WriteString("source_fcs", SourceFcs);
             foreach (var (key, value) in Extras) w.WriteNumber(key, value);
+            if (Roles is not null)
+            {
+                w.WriteString("schema_version", "1.1");
+                w.WriteNumber("binding_revision", BindingRevision);
+                w.WriteNumber("grid_seconds", GridSeconds);
+                w.WriteStartObject("roles");
+                foreach (var role in new[] { "pv", "sp", "op", "vp", "mode" })
+                {
+                    if (Roles.TryGetValue(role, out var obs)) obs.WriteTo(w, role);
+                    else if (role == "vp") w.WriteNull("vp");
+                }
+                w.WriteEndObject();
+            }
             w.WriteEndObject();
         }
         return Encoding.UTF8.GetString(buffer.WrittenSpan);
@@ -60,7 +80,13 @@ public sealed record LoopTuple(
 /// </summary>
 public sealed class LoopJoiner
 {
-    private sealed class Member { public double Value; public long TsMs; public bool Good; }
+    private sealed class Member
+    {
+        public double Value; public long TsMs; public bool Good;
+        /// <summary>v2.5: the source's own quality token and unit, kept for roles{}.</summary>
+        public string QualityNative = "";
+        public string? Unit;
+    }
 
     private sealed class LoopState
     {
@@ -70,6 +96,10 @@ public sealed class LoopJoiner
         public readonly Dictionary<string, Member> Extras = new(StringComparer.Ordinal);  // p/i/d/gw/…
         public string? Mode;
         public long ModeTsMs;
+        /// <summary>v2.5: MODE's raw source token and quality (roles{}.mode).</summary>
+        public string? ModeNative;
+        public string ModeQualityNative = "";
+        public bool ModeGood = true;
         /// <summary>Newest source ts already published for this loop. event_ts_ms must
         /// advance strictly: two tuples sharing a timestamp are ONE row in IoTDB
         /// (device+timestamp is the key), so the second would silently overwrite.</summary>
@@ -249,6 +279,9 @@ public sealed class LoopJoiner
                 if (state.Mode is null) _newMemberSeen = true;   // first MODE for this loop
                 state.Mode = mapped.ModeString;
                 state.ModeTsMs = payload.TsMs;
+                state.ModeNative = payload.RawValue ?? payload.NumericValue?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                state.ModeQualityNative = payload.Quality;
+                state.ModeGood = IsGood(payload.Quality);
                 return;
             }
 
@@ -261,6 +294,8 @@ public sealed class LoopJoiner
             member.Value = mapped.NumericValue!.Value;
             member.TsMs = payload.TsMs;
             member.Good = IsGood(payload.Quality);
+            member.QualityNative = payload.Quality;
+            member.Unit = payload.Unit;
         }
     }
 
@@ -300,6 +335,9 @@ public sealed class LoopJoiner
                 // would overwrite the original rather than add a sample. Skip instead;
                 // a stalled loop must look like a gap, not like fresh steady data.
                 if (sourceTs <= state.LastEmittedTsMs) { SkippedNoAdvance++; state.SkippedTicks++; continue; }
+                // v2.5 roles{}: a member is "held" when it did not advance since the last
+                // publish — i.e. it is a forward-fill of an already-published value.
+                var heldBefore = state.LastEmittedTsMs;
                 state.LastEmittedTsMs = sourceTs;
                 state.LastEmittedWallMs = nowMs;
 
@@ -322,10 +360,44 @@ public sealed class LoopJoiner
                     LoopType: state.Loop.LoopType,
                     Site: state.Loop.Site, Area: state.Loop.Area, Unit: state.Loop.Unit,
                     AssetUuid: state.Loop.AssetUuid, SourceFcs: state.SourceFcs,
-                    Extras: state.Extras.ToDictionary(kv => kv.Key, kv => kv.Value.Value, StringComparer.Ordinal)));
+                    Extras: state.Extras.ToDictionary(kv => kv.Key, kv => kv.Value.Value, StringComparer.Ordinal))
+                {
+                    Roles = BuildRoles(state, sourceTs, heldBefore),
+                    BindingRevision = cfg.BindingRevision,
+                    GridSeconds = cfg.GridSeconds,
+                });
             }
         }
         return output;
+    }
+
+    /// <summary>The schema-1.1 roles block: one observation per tuple member plus MODE.
+    /// Per-role quality is THAT role's verdict (1.0's worst-of ignored vp/mode quality).</summary>
+    private static IReadOnlyDictionary<string, RoleObservation> BuildRoles(LoopState state, long tupleTs, long heldBefore)
+    {
+        var roles = new Dictionary<string, RoleObservation>(StringComparer.Ordinal);
+        foreach (var (role, m) in state.Members)
+        {
+            roles[role] = new RoleObservation(
+                Value: m.Value, StringValue: null,
+                SampleTsMs: m.TsMs, VerifiedTsMs: m.TsMs,
+                QualityNative: m.QualityNative, Quality: m.Good ? "GOOD" : "BAD",
+                Unit: m.Unit,
+                Held: heldBefore > 0 && m.TsMs <= heldBefore,
+                AgeMs: Math.Max(0, tupleTs - m.TsMs));
+        }
+        if (state.Mode is not null)
+        {
+            roles["mode"] = new RoleObservation(
+                Value: null, StringValue: state.Mode,
+                SampleTsMs: state.ModeTsMs, VerifiedTsMs: state.ModeTsMs,
+                QualityNative: state.ModeQualityNative, Quality: state.ModeGood ? "GOOD" : "BAD",
+                Unit: null,
+                Held: heldBefore > 0 && state.ModeTsMs <= heldBefore,
+                AgeMs: Math.Max(0, tupleTs - state.ModeTsMs),
+                ModeNative: state.ModeNative);
+        }
+        return roles;
     }
 
     internal static long NextGridBoundary(long nowMs, int gridSeconds)
