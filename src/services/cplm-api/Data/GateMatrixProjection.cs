@@ -45,6 +45,7 @@ public static class GateMatrixProjection
                 {
                     "G9" => ReadString(payload, "gate9_reason"),
                     "G13" => ReadString(payload, "gate13_reason"),                 // v2.5 (2F.1): the analysis state/reason, or the legacy flag label
+                    "G5" or "G6" or "G12" => LimitedReason(payload, key),           // v2.5 (2G.1, NR-016): BANDWIDTH when the grid limits the method
                     "G14" => verdictV2.Legacy ? "LEGACY_FLAG_ONLY" : verdictV2.Confirmation.Reason,
                     _ => null
                 }
@@ -72,6 +73,8 @@ public static class GateMatrixProjection
             ["gate13Method"] = ReadString(payload, "gate13_method"),
             ["gate13Reason"] = ReadString(payload, "gate13_reason"),
             ["interaction"] = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("interaction", out var ia) && ia.ValueKind == JsonValueKind.Object ? ia.Clone() : (JsonElement?)null,
+            // v2.5 (2G.1, NR-016): {G5|G6|G12: {state, reason, detail}} - what the acquisition grid lets each method claim
+            ["methodEligibility"] = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("method_eligibility", out var me) && me.ValueKind == JsonValueKind.Object ? me.Clone() : (JsonElement?)null,
             ["insufficientEvidenceReason"] = ReadString(payload, "insufficient_evidence_reason"),
             // U5 Investigation — the numeric evidence behind the verdict (family
             // scores, freeze index, shape metrics, …). All numeric payload fields
@@ -217,6 +220,16 @@ public static class GateMatrixProjection
         if (string.IsNullOrWhiteSpace(json)) return default;
         try { return JsonDocument.Parse(json).RootElement; }
         catch (JsonException) { return default; }
+    }
+
+    /// <summary>v2.5 (2G.1): the LIMITED reason of a method (BANDWIDTH), null when eligible or not assessed.</summary>
+    private static string? LimitedReason(JsonElement payload, string gate)
+    {
+        if (payload.ValueKind != JsonValueKind.Object || !payload.TryGetProperty("method_eligibility", out var me) || me.ValueKind != JsonValueKind.Object) return null;
+        if (!me.TryGetProperty(gate, out var v) || v.ValueKind != JsonValueKind.Object) return null;
+        var state = v.TryGetProperty("state", out var st) && st.ValueKind == JsonValueKind.String ? st.GetString() : null;
+        if (state != "LIMITED") return null;
+        return v.TryGetProperty("reason", out var r) && r.ValueKind == JsonValueKind.String && r.GetString() is { Length: > 0 } reason ? reason : "LIMITED";
     }
 
     private static string? ReadString(JsonElement el, string name) =>

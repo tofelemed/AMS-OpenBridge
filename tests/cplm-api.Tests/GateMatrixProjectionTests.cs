@@ -51,6 +51,13 @@ public sealed class GateMatrixProjectionTests
           },
           "score_semantics": "EVIDENCE_SCORE_UNCALIBRATED",
           "result_revision": 1,
+          "method_eligibility": {
+            "G5": { "state": "LIMITED", "reason": "BANDWIDTH", "detail": "2.0 samples per 10.0 s period < 8 (observed grid 5.0 s)" },
+            "G6": { "state": "LIMITED", "reason": "BANDWIDTH", "detail": "2.0 samples per 10.0 s period < 8 (observed grid 5.0 s)" },
+            "G12": { "state": "ELIGIBLE", "reason": "", "detail": "dead times down to 5.0 s resolvable" }
+          },
+          "gate13_method": "G13.ALIGNED_PEER_ANALYSIS_V1", "gate13_reason": "NO_PEER_LINKS",
+          "interaction": { "state": "NOT_CONFIGURED", "reason": "NO_PEER_LINKS", "peers": [] },
           "calculation_version": "3.0.0", "sourceCommit": "abc", "jarSha256": "def", "contractVersion": "v1"
         }
         """;
@@ -133,6 +140,22 @@ public sealed class GateMatrixProjectionTests
         var g14 = m.GetProperty("gates").EnumerateArray().Single(g => g.GetProperty("key").GetString() == "G14");
         g14.GetProperty("status").GetString().Should().Be("INSUFFICIENT_EVIDENCE");
         g14.GetProperty("reason").GetString().Should().Be("LEGACY_FLAG_ONLY");
+    }
+
+    [Fact]
+    public void Bandwidth_limited_methods_carry_their_reason_on_the_cell_and_the_row_carries_the_verdicts()
+    {
+        // v2.5 (2G.1, NR-016): the acquisition grid's verdict is visible next to the gate, never a silently weaker claim
+        var m = Serve(V2Payload);
+        var gates = m.GetProperty("gates").EnumerateArray().ToDictionary(g => g.GetProperty("key").GetString()!);
+        gates["G5"].GetProperty("reason").GetString().Should().Be("BANDWIDTH");
+        gates["G6"].GetProperty("reason").GetString().Should().Be("BANDWIDTH");
+        gates["G12"].GetProperty("reason").ValueKind.Should().Be(JsonValueKind.Null, because: "an eligible method has no limitation to state");
+        gates["G13"].GetProperty("reason").GetString().Should().Be("NO_PEER_LINKS");
+        m.GetProperty("methodEligibility").GetProperty("G5").GetProperty("state").GetString().Should().Be("LIMITED");
+        m.GetProperty("interaction").GetProperty("state").GetString().Should().Be("NOT_CONFIGURED");
+        m.GetProperty("gate13Method").GetString().Should().Be("G13.ALIGNED_PEER_ANALYSIS_V1");
+        Serve(LegacyPayload).GetProperty("methodEligibility").ValueKind.Should().Be(JsonValueKind.Null, because: "a legacy row assessed nothing");
     }
 
     [Fact]
