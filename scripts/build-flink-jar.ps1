@@ -1,4 +1,4 @@
-# Builds ams-flink JAR using Maven inside Docker (no local Maven required).
+﻿# Builds ams-flink JAR using Maven inside Docker (no local Maven required).
 # -RunTests additionally runs the unit suite (incl. the CPLM golden-loop gate,
 # Cplm*Test) inside the same container before packaging.
 param(
@@ -12,6 +12,16 @@ $jarOut = Join-Path $flinkDir "target\ams-flink-1.0-SNAPSHOT.jar"
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     throw "Docker is not on PATH. This build runs Maven in a container (maven:3.9-eclipse-temurin-11); start Docker Desktop first."
 }
+
+# v2.5 (R26/C07): the container only mounts src/flink, so .git is invisible to Maven.
+# Write the build identity here; BuildIdentity.java reads it from the jar and every
+# CPLM result carries sourceCommit + jarSha256 (docs/next-release/00-build-truth.md).
+$gitProps = Join-Path $flinkDir "src\main\resources\git.properties"
+$commit = (& git -C $root rev-parse HEAD 2>$null); if (-not $commit) { $commit = "unknown" }
+$dirty  = (& git -C $root status --porcelain 2>$null); if ($dirty) { $commit = "$commit-dirty" }
+$buildTime = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+@("git.commit.id.full=$commit", "git.build.time=$buildTime") | Set-Content -Path $gitProps -Encoding ascii
+Write-Host "[Flink] git.properties: $commit @ $buildTime" -ForegroundColor DarkGray
 
 # If the compose stack was ever started before the jar existed, Docker created a
 # DIRECTORY at the bind-mount path. Maven cannot overwrite it and every Flink

@@ -67,6 +67,10 @@ public final class CplmShortFeatureResult implements Serializable {
 
     public String calculationVersion = CplmLoopDynamicsProfile.CALCULATION_VERSION;
     public String dynamicsProfileVersion = CplmLoopDynamicsProfile.DYNAMICS_PROFILE_VERSION;
+    // v2.5 R26/C07: build identity stamped on every result (see identity/BuildIdentity).
+    public String sourceCommit = com.ams.flink.cplm.identity.BuildIdentity.current().sourceCommit;
+    public String jarSha256 = com.ams.flink.cplm.identity.BuildIdentity.current().jarSha256;
+    public String contractVersion = com.ams.flink.cplm.identity.BuildIdentity.CONTRACT_VERSION;
     public String dynamicsClass = "UNKNOWN";
     public String gateProfileId = "";
     public String loopType = "";
@@ -148,6 +152,9 @@ public final class CplmShortFeatureResult implements Serializable {
         out.put("operating_region_valid", operatingRegionValid);
         out.put("calculationVersion", calculationVersion);
         out.put("dynamicsProfileVersion", dynamicsProfileVersion);
+        out.put("sourceCommit", sourceCommit);
+        out.put("jarSha256", jarSha256);
+        out.put("contractVersion", contractVersion);
         out.put("dynamics_class", dynamicsClass);
         out.put("gate_profile_id", gateProfileId);
         out.put("loop_type", loopType);
@@ -210,6 +217,9 @@ public final class CplmShortFeatureResult implements Serializable {
             r.operatingRegionValid = root.path("operating_region_valid").asBoolean(true);
             r.calculationVersion = root.path("calculationVersion").asText(CplmLoopDynamicsProfile.CALCULATION_VERSION);
             r.dynamicsProfileVersion = root.path("dynamicsProfileVersion").asText(CplmLoopDynamicsProfile.DYNAMICS_PROFILE_VERSION);
+            r.sourceCommit = root.path("sourceCommit").asText(com.ams.flink.cplm.identity.BuildIdentity.UNKNOWN);
+            r.jarSha256 = root.path("jarSha256").asText(com.ams.flink.cplm.identity.BuildIdentity.UNKNOWN);
+            r.contractVersion = root.path("contractVersion").asText(com.ams.flink.cplm.identity.BuildIdentity.CONTRACT_VERSION);
             r.dynamicsClass = root.path("dynamics_class").asText("UNKNOWN");
             r.gateProfileId = root.path("gate_profile_id").asText("");
             r.loopType = root.path("loop_type").asText("");

@@ -125,6 +125,10 @@ public class CplmGateResult implements Serializable {
 
     public String calculationVersion = CplmLoopDynamicsProfile.CALCULATION_VERSION;
     public String dynamicsProfileVersion = CplmLoopDynamicsProfile.DYNAMICS_PROFILE_VERSION;
+    // v2.5 R26/C07: build identity stamped on every result (see identity/BuildIdentity).
+    public String sourceCommit = com.ams.flink.cplm.identity.BuildIdentity.current().sourceCommit;
+    public String jarSha256 = com.ams.flink.cplm.identity.BuildIdentity.current().jarSha256;
+    public String contractVersion = com.ams.flink.cplm.identity.BuildIdentity.CONTRACT_VERSION;
     public String dynamicsClass = "UNKNOWN";
     public String profileSource = "UNKNOWN";
     public String configurationVersion = "";
@@ -232,6 +236,9 @@ public class CplmGateResult implements Serializable {
         out.put("eventType", "CPLM_GATE_RESULT");
         out.put("calculationVersion", calculationVersion);
         out.put("dynamicsProfileVersion", dynamicsProfileVersion);
+        out.put("sourceCommit", sourceCommit);
+        out.put("jarSha256", jarSha256);
+        out.put("contractVersion", contractVersion);
         out.put("dynamics_class", dynamicsClass);
         out.put("profile_source", profileSource);
         out.put("gate_profile_id", gateProfileId);

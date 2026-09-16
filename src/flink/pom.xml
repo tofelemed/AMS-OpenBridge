@@ -84,6 +84,14 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- v2.5 (Task 0.3 / Phase 2A): numerical kernel for G12 system response -
+             Levenberg-Marquardt least squares, matrix exponential (exact ZOH), FFT/PSD,
+             statistics. Pure Java, Java-11 compatible, shaded into the fat jar. -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-math3</artifactId>
+            <version>3.6.1</version>
+        </dependency>
         <!-- CPLM gate-math regression tests (golden reference loop SYN_TIC_001).
              Test scope only: it does not enter the shaded jar. The tests need nothing beyond
              JUnit and flink-streaming-java, which is already declared 'provided' and is
