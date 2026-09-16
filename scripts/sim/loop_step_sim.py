@@ -9,6 +9,9 @@ Scenarios:
                PI-like closed-loop response; G12 reports the servo gain and routes to PEM.
   integrating  OP 50 -> 52 on a level-like path: PV slope changes from 0.010 to 0.030 EU/min after
                12 s (spec §2.11 LIC example); G12 reports an integrating gain and NO static Kp.
+  interrupted-step
+               OP 40 -> 45, then 45 -> 50 thirty seconds later (NR-007): the first event is CENSORED
+               (SUPERSEDED_BY_EVENT) and the second carries both steps in its input sequence.
 
 Publishes on the OT test broker exactly like ams-sims/sim_ot_gateway_mqtt.py
 (OT/HDPE/{fcs}/{cls}/{loop}/PIDParams/{item}); an MQTT_LOOP_SAMPLES data source must be active.
@@ -59,13 +62,23 @@ def scenario_values(name, t, t0):
         ki = 0.010 / 60.0                              # 0.000166667 EU/(s*pp)
         pv = 1.0 + v0 * t + ki * 2.0 * max(0.0, t - t0 - 12.0)
         return pv, 1.0, op
+    if name == "interrupted-step":
+        # NR-007: a second applied-input step 30 s after the first, before the first response settles.
+        # G12 must CENSOR the first event (SUPERSEDED_BY_EVENT) and open a second one whose input
+        # sequence carries both steps - never a single event with the steps collapsed.
+        t1 = t0 + 30.0
+        if t < t0:
+            return 100.0, 100.0, 40.0
+        if t < t1:
+            return fopdt(t, t0, 100.0, 15.0, 4.0, 20.0), 100.0, 45.0
+        return fopdt(t, t0, 100.0, 15.0, 4.0, 20.0) + fopdt(t, t1, 0.0, 15.0, 4.0, 20.0), 100.0, 50.0
     raise SystemExit(f"unknown scenario {name}")
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--loop", default="FIC10302")
-    ap.add_argument("--scenario", default="input-test", choices=["input-test", "servo-step", "integrating"])
+    ap.add_argument("--scenario", default="input-test", choices=["input-test", "servo-step", "integrating", "interrupted-step"])
     ap.add_argument("--fcs", default=None)
     ap.add_argument("--cls", default=None)
     ap.add_argument("--pre-s", type=float, default=150.0, help="stable pre-support before the step (s)")
