@@ -211,3 +211,40 @@ classloader); recreating the TaskManager cleared it. The plant runbook already r
   harmonic energy ratio 0.0139 → 0.0098, spectral entropy 0.0144 → 0.0315, peak-to-median 1.0e6 → 2.2e5 (gate ≥ 3 either way), peak
   "amplitude" 4.86 → 2.00 (a different quantity now: the RMS in the peak bin, not the sine amplitude — the UI must read the PSD).
   Fusion outputs (confidence 0.89, SUSPECTED_FINAL_ELEMENT_NONLINEARITY, VALID period from ACF) unchanged; golden tests unchanged.
+- 2C.1c (19727d1d, f83688d6): every gate emits its exact intermediates as artifacts with the workbook's field names
+  (`GateArtifactsTest` parses `xlsx_Gate_evidence.tsv`). Artifacts gained named per-sample columns with units and legends
+  (categoricals ride as codes, never strings in the payload); the chunker encodes them after x / y / mask; units and legends
+  also sit inside the manifest provenance because the store persists `columns` + `provenance` only. Live emission policy:
+  `--evidence-emit episodes|all|none` (default episodes = results with a finding); everything else is reconstructable on
+  demand. Lab: the first G0 manifests showed FIC10302's two-hour-old held VP as accepted - the artifact exclusion now applies
+  the codec's over-age rule (HELD_OVER_AGE). Volume note for the plant: a 24 h TIC long window carries ~30 cycle-fit artifacts
+  and a 16k-bin PSD; with `episodes` the lab produced ~30 manifests/hour for one probe loop with findings.
+- 2C.2 (38f42e73, 8dd09e33): `GET /method-runs/{id}` resolves through any tier's row or a response event; the evidence
+  manifest carries a content ETag (If-None-Match -> 304), a readiness summary and always the reconstruction action;
+  `GET /evidence/{id}/chunks/{n}` serves bytes with the chunk SHA-256 as ETag and `private, immutable`; PENDING 409, EXPIRED
+  404 EVIDENCE_EXPIRED; `X-Auth-Sites` scope (403). Reconstruction: `POST /analysis-runs {purpose: EVIDENCE_RECONSTRUCTION,
+  methodRunId}` runs the replay jar in a bounded mode over exactly the run's support and emits the gate's artifacts under the
+  SAME method_run_id. **Lab finding:** the first reconstruction produced its 3 manifests under a DIFFERENT run id: the streaming
+  jobs resolve profiles under the registry's broadcast parameter set (engineering ranges), the replay resolved from the bare
+  spine, so the bundle hash differed (`profile:ef9abb…` vs `profile:65efce…`). The reconstruction now reads the compacted
+  metadata topic to its end in the driver and applies every update before computing (`readParameterUpdates` /
+  `applyParameterUpdate`), and `GET /analysis-runs/{id}` reports `reconstructionOutcome` = ATTACHED |
+  IDENTITY_MISMATCH_CONFIGURATION_CHANGED | NO_EVIDENCE_YET with the attached count - a registry change since the original
+  run is reported, never hidden. Proof on the lab: manifest ETag/304, chunk ETag/304/immutable, 61x6 f64 columns decoded
+  from the chunk stream (cumulative IAE reproduced), G12 refused 422.
+- 2C.2 lab cycle (a7d7b2a7, 117a9622): reconstruction identity parity PROVEN - after the replay applies the registry's
+  broadcast parameter set, the rebuilt G5 artifacts carry the original run id and bundle hash (`profile:ef9abb…`).
+  Retention cycle PROVEN: evidence expired (404 EVIDENCE_EXPIRED + reconstruct hint) → POST reconstruction 202 → FINISHED,
+  3/3 manifests attached (`reconstructionOutcome=ATTACHED`) → all COMPLETE, chunks served again. Two pre-existing
+  recompute-path defects fixed on the way: the named jar-upload HTTP client was still under the factory's default 10 s / 30 s
+  resilience budget (a 45 MB upload or a slow job-graph build failed with a 500 while the retry had actually submitted the
+  job - the run stayed CREATED); the JobManager client is now a plain long-lived HttpClient with a six-minute ceiling. And an
+  EXPIRED / FAILED manifest could never return to COMPLETE (the store ignored re-delivered manifests, the consumer skipped
+  assembly for those states) - a re-delivery now revives it.
+- **Phase 4 reliability item (found here):** every bounded replay / reconstruction submitted through the REST API loads the fat
+  jar in a fresh user-code classloader; on the lab the TaskManager died of `OutOfMemoryError: Metaspace` on the second bounded
+  submission of a session at the 256m default (all streaming jobs restarted from checkpoints; the bounded job failed). The lab
+  compose now gives the TM 512m metaspace / 2560m process size (the plant compose is a runbook decision); the leak itself
+  (which classes pin the classloader - Kafka JMX reporters and shaded Jackson are the usual suspects) must be found or the
+  number of submissions per TM lifetime bounded before v2.5 ships. The recompute path existed before v2.5 (CHG-008); the
+  reconstruction feature makes it a routine operation, so this is a release blocker, not a footnote.

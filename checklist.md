@@ -6,7 +6,7 @@ audited base `5cec34ef`. Operational facts (what to run on the plant) live in `c
 
 Legend: ✅ done and committed · 🔄 in progress · ⬜ pending · commit ids are on this branch.
 
-_Last updated: 2026-09-16 18:40 (2B lab-proven and fixed; 2C.1a/2C.1b done; 2C.1c next)._
+_Last updated: 2026-09-17 00:25 (2B and 2C lab-proven; 2D next)._
 
 ## Phase 0 — build truth and test baseline ✅
 
@@ -54,8 +54,8 @@ _Last updated: 2026-09-16 18:40 (2B lab-proven and fixed; 2C.1a/2C.1b done; 2C.1
 | Subphase | Tasks | Status |
 |---|---|---|
 | 2A response kernel (commons-math3) | 2A.1 ✅ f3a91c84 (14) · 2A.2 ✅ 33e167a7 (15) · 2A.3 ✅ fbb2e8df (11) · 2A.4 ✅ ae226715 (10; noise-free spec FOPDT exact, noisy within the fit's own standard errors) · 2A.5 ✅ 1b0c6087 (9) · 2A.6 ✅ 79305f58 (4; all 52 catalogue quantities) | ✅ |
-| 2B `CplmResponseAnalysisJob` | 2B.1 ✅ 3599d519 (job + capture + evaluator, registered in all five submit paths, topic declared) · 2B.2 ✅ 01e8122a (schema 55 + mirrors, verbatim consumer, `/response-events`, `/models?at=`, `POST /models/{id}/review`) · lab fixes ✅ 81baa69c (gap restarts the ring), 14c3cff1 (stale held VP is not the applied input; irregular-grid crossings; capture closes on the settle band; pre/post slopes; qualified peaks) · lab proof ✅ first COMPLETE `INPUT_TEST` event 18:07Z: Kp 2.9999, τ 19.99 s, θ 2.8 ± 2.5 s, 12 evidence artifacts COMPLETE, FOPDT model CANDIDATE (second run for VALIDATED in flight) | ✅ |
-| 2C exact intermediates | 2C.1a ✅ c0e672dd (retained intermediates, no scalar change) · 2C.1b ✅ (Welch PSD G6: segment follows the band, lobe-aware peak ratio/entropy; movement on SYN-TIC-001 recorded in build-truth) · 2C.1c ⬜ artifact builders (`GateArtifacts`, side outputs, `GateArtifactsTest` vs `xlsx_Gate_evidence.tsv`) · 2C.2 ⬜ evidence API with ETag + reconstruction | 🔄 |
+| 2B `CplmResponseAnalysisJob` | 2B.1 ✅ 3599d519 · 2B.2 ✅ 01e8122a · lab fixes ✅ 81baa69c, 14c3cff1, 9bca728c (stale held VP is not the applied input; irregular-grid crossings; capture closes on the settle band measured from the band-entry sample; pre/post slopes; qualified peaks; millisecond event bounds) · lab proof ✅ COMPLETE `INPUT_TEST` events with Kp 3.000, τ 20.00 s, θ 2.7 ± 2.5 s, settle 80.1 s, 12 evidence artifacts; second event **VALIDATED** against the first (validation RMSE 0.36, prediction RMSE 0.23, fit improvement 0.97) | ✅ |
+| 2C exact intermediates | 2C.1a ✅ c0e672dd · 2C.1b ✅ dfc75202 (Welch PSD, segment follows the band) · 2C.1c ✅ 19727d1d + f83688d6 (every gate's artifacts with the workbook's field names; policy `--evidence-emit`; lab: short-tier manifests COMPLETE) · 2C.2 ✅ 38f42e73 + 8dd09e33 (method-run resolution across tiers, manifest ETag/304, chunk bytes with sha ETag + immutable, site scope, EVIDENCE_RECONSTRUCTION runs under the original identity) · lab ✅ a7d7b2a7 + 117a9622: identity parity (registry parameter set applied), retention cycle EXPIRED → reconstruct → ATTACHED/COMPLETE, chunk columns decoded | ✅ |
 | 2D API breadth | 2D.1 gate catalogue, investigation references (56) | ⬜ |
 | 2E frontend workbench | 2E.1 chart/state infra · 2E.2 historical axes/tooltip · 2E.3 `GateEvidenceWorkspace` · 2E.4 the 17 gate views · 2E.5 `ResponseWorkspace` | ⬜ |
 | 2F G13 interaction | 2F.1 `InteractionMath` + fusion + view | ⬜ |
@@ -82,8 +82,8 @@ _Last updated: 2026-09-16 18:40 (2B lab-proven and fixed; 2C.1a/2C.1b done; 2C.1
 
 | Suite / script | Result | When |
 |---|---|---|
-| Flink `mvn test` (Docker Maven, from PowerShell) | 199 run / 0 failures / 2 skipped | 2026-09-16 after 2B fixes + 2C.1b |
-| cplm-api tests (lab DB, run alone) | 105 / 105 | 2026-09-16 after 2B.2 |
+| Flink `mvn test` (Docker Maven, from PowerShell) | 213 run / 0 failures / 2 skipped | 2026-09-16 after 2C.2 |
+| cplm-api tests (lab DB, run alone) | 112 / 112 | 2026-09-17 after 2C.2 lab fixes |
 | ingestion-service tests | 212 / 212 (health 11) | 2026-09-16 |
 | frontend vitest / lint / build | 51 / 51 · clean · OK | 2026-09-16 after 1H.6 |
 | simulator pytest | 17 / 17 | 2026-09-16 after 547482a5 |
@@ -92,7 +92,7 @@ _Last updated: 2026-09-16 18:40 (2B lab-proven and fixed; 2C.1a/2C.1b done; 2C.1
 
 ## Lab state (for whoever picks this up)
 
-- Jar `8bdf0868…` deployed (2B fixes + 2C.1b); all six CPLM jobs RUNNING (Short, Long, Condition, Instrument Context, Fusion, Response); the earlier note follows: jar `e09d6f40…` had all five CPLM jobs RUNNING; fusion verdicts with `health_lanes` written on this jar (POJO fix proven under real records) (Short, Long, Condition, Instrument Context, Fusion). Deploy flow and its
+- Jar `2a6dd18a…` deployed (2B fixes, 2C.1b, 2C.1c, reconstruction mode); cplm-api image rebuilt with 2C.2; earlier: jar `8bdf0868…` (2B fixes + 2C.1b); all six CPLM jobs RUNNING (Short, Long, Condition, Instrument Context, Fusion, Response); the earlier note follows: jar `e09d6f40…` had all five CPLM jobs RUNNING; fusion verdicts with `health_lanes` written on this jar (POJO fix proven under real records) (Short, Long, Condition, Instrument Context, Fusion). Deploy flow and its
   traps: `docs/next-release/00-build-truth.md` (package first, entry-class check, supervisor log, no duplicate method refs).
 - cplm-api image rebuilt with 1H.5/1H.6; `/health` shows consumers `results`, `frames`, `evidence`, `health`, one member each.
 - Data sources: `INSTRUMENTAL_HEALTH` "Lab Instrumental NE107 (mosquitto-test)" active; the ingestion E2E's `MQTT_LOOP_SAMPLES`
@@ -107,3 +107,4 @@ _Last updated: 2026-09-16 18:40 (2B lab-proven and fixed; 2C.1a/2C.1b done; 2C.1
 - Every plant `MQTT_LOOP_SAMPLES` data source needs `quality_protocol` set (`STRING_ENUM`) or its loops read `UNKNOWN` quality (by design); tool ships in Phase 4.
 - The branch compiles from 06418b2c onward (the 1G commit carries whole files completed by 1H.5 classes) — stated in both messages.
 - Retention of the v1 gate rows stays an ops decision; the sweeper touches evidence only.
+- **Release blocker for Phase 4:** bounded replay / reconstruction submissions leak TaskManager metaspace (one user-code classloader per REST submission); the lab TM died of `OutOfMemoryError: Metaspace` on the second submission at 256m. Lab compose now 512m; find the leak or bound submissions per TM lifetime before v2.5 ships.
