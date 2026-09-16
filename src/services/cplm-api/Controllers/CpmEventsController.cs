@@ -195,6 +195,11 @@ public sealed class CpmEventsController : ControllerBase
         {
             calculationVersion = versions?.calculation_version,
             dynamicsProfileVersion = versions?.dynamics_profile_version,
+            // v2.5 R26/C07: version labels do not identify behaviour; the newest row's
+            // build identity rides along (null for rows written by pre-v2.5 jars).
+            sourceCommit = versions?.source_commit,
+            jarSha256 = versions?.jar_sha256,
+            contractVersion = versions?.contract_version,
             engine = "CplmGateFusionEngine (Flink)",
             gates = gates.Select(g => new
             {

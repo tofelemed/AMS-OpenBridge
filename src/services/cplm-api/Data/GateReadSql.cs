@@ -43,7 +43,10 @@ public static class GateReadSql
     /// </summary>
     public const string LatestVersions = """
         SELECT COALESCE(payload->>'calculationVersion',  payload->>'calculation_version')  AS calculation_version,
-               COALESCE(payload->>'dynamicsProfileVersion', payload->>'dynamics_profile_version') AS dynamics_profile_version
+               COALESCE(payload->>'dynamicsProfileVersion', payload->>'dynamics_profile_version') AS dynamics_profile_version,
+               payload->>'sourceCommit'    AS source_commit,
+               payload->>'jarSha256'       AS jar_sha256,
+               payload->>'contractVersion' AS contract_version
         FROM analytics.cplm_gate_results
         WHERE payload ? 'calculationVersion' OR payload ? 'calculation_version'
         ORDER BY created_at DESC LIMIT 1
@@ -66,5 +69,30 @@ public static class GateReadSql
                 LIMIT 2000
             ) newest
         ) keys
+        """;
+
+    /// <summary>
+    /// GET /capabilities — every distinct engine identity among the NEWEST 2,000 rows
+    /// (created_at index walk, same bound as <see cref="ObservedGates"/>). Two jars with
+    /// identical version labels but different commits/hashes are two rows (R26/C07).
+    /// Rows from jars older than v2.5 carry NULL commit/hash and are reported as such.
+    /// Column aliases match <c>Traverse.CplmApi.Services.EngineVersionRow</c> (Dapper, case-insensitive).
+    /// </summary>
+    public const string ObservedEngines = """
+        SELECT COALESCE(payload->>'calculationVersion',  payload->>'calculation_version')     AS CalculationVersion,
+               COALESCE(payload->>'dynamicsProfileVersion', payload->>'dynamics_profile_version') AS DynamicsProfileVersion,
+               payload->>'sourceCommit'    AS SourceCommit,
+               payload->>'jarSha256'       AS JarSha256,
+               payload->>'contractVersion' AS ContractVersion,
+               MAX(created_at)             AS LastSeen
+        FROM (
+            SELECT payload, created_at
+            FROM analytics.cplm_gate_results
+            WHERE payload ? 'calculationVersion' OR payload ? 'calculation_version'
+            ORDER BY created_at DESC
+            LIMIT 2000
+        ) newest
+        GROUP BY 1, 2, 3, 4, 5
+        ORDER BY LastSeen DESC
         """;
 }

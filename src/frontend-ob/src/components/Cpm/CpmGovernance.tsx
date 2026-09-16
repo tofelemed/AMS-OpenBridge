@@ -17,7 +17,8 @@ import {
 } from './shared';
 import { usePagedSlice } from '../shared/ListPager';
 import { useAuditEvents, useVerifyAuditChain } from '../../hooks/useAudit';
-import { useCpmCalculations, useCpmLoops } from '../../hooks/useCpm';
+import { useCpmCalculations, useCpmCapabilities, useCpmLoops } from '../../hooks/useCpm';
+import { shortIdentity } from '../../api/cpm/capabilities';
 import { useAuthStore } from '../../store/authStore';
 import { useRoleMatrix } from './useRoleMatrix';
 
@@ -88,6 +89,7 @@ export const CpmGovernance: React.FC = () => {
 
   const verify = useVerifyAuditChain();
   const calc = useCpmCalculations();
+  const caps = useCpmCapabilities();
   const loops = useCpmLoops();
 
   // Typed check — the old version substring-matched '403' in a message that
@@ -199,6 +201,18 @@ export const CpmGovernance: React.FC = () => {
             v{calc.data?.calculationVersion ?? '—'} · {calc.data?.engine ?? '—'}
           </KvRow>
           <KvRow label="Dynamics profile">v{calc.data?.dynamicsProfileVersion ?? '—'}</KvRow>
+          <KvRow label="cplm-api build">
+            {caps.data ? `${caps.data.service.version} · ${shortIdentity(caps.data.service.sourceCommit)}` : '—'}
+          </KvRow>
+          <KvRow label="Engine builds observed">
+            {caps.data
+              ? caps.data.engine.observed.length === 0
+                ? 'none stored yet'
+                : caps.data.engine.observed.map(e =>
+                    `calc ${e.calculationVersion ?? '?'} · commit ${shortIdentity(e.sourceCommit)} · jar ${shortIdentity(e.jarSha256)}`,
+                  ).join(' | ')
+              : '—'}
+          </KvRow>
           <KvRow label="Registered loops">{loops.data?.count ?? '—'}</KvRow>
           <KvRow label="Threshold profiles in use">
             {(() => {

@@ -9,6 +9,7 @@ import React from 'react';
 import { ApiError, backgroundPoll } from '../api/apiFetch';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as cpm from '../api/cpmApi';
+import { getCapabilities } from '../api/cpm/capabilities';
 
 const KEYS = {
   loops: ['cpm', 'loops'] as const,
@@ -174,6 +175,15 @@ export function useFleetHeatmap(scope?: cpm.CpmFleetScope | string, windowKind =
     queryKey: ['cpm', 'fleet', 'heatmap', scopeKey(scope), windowKind],
     queryFn: backgroundPoll(() => cpm.getFleetHeatmap(scope, windowKind)),
     refetchInterval: 60_000,
+  });
+}
+
+/** v2.5 — GET /capabilities: deployed build identity + installed methods (R26/C07). */
+export function useCpmCapabilities() {
+  return useQuery({
+    queryKey: ['cpm', 'capabilities'],
+    queryFn: getCapabilities,
+    staleTime: 5 * 60_000,
   });
 }
 
