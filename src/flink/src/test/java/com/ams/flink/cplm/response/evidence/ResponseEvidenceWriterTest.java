@@ -82,5 +82,14 @@ public class ResponseEvidenceWriterTest {
         assertEquals(band.x.length, band.columns.get("lower").length);
         assertEquals("PV_EU", band.columnUnits.get("lower"));
         assertEquals("1.5;2.5", ResponseEvidenceWriter.joined(new double[] {1.5, 2.5}));
+        // list provenance is ";"-joined text (the manifest stringifies values; model rows contain commas)
+        EvidenceArtifact table = a.stream().filter(x -> x.kind.equals("candidate_models")).findFirst().get();
+        String rows = (String) table.provenance.get("rows");
+        assertTrue(rows, rows.startsWith("FOPDT(OP_TO_PV:"));
+        assertFalse(rows, rows.startsWith("["));
+        EvidenceArtifact rej = a.stream().filter(x -> x.kind.equals("rejection_reasons")).findFirst().get();
+        assertEquals("SOPDT: NO_IMPROVEMENT", rej.provenance.get("reasons"));
+        EvidenceArtifact pi = a.stream().filter(x -> x.kind.equals("parameter_intervals")).findFirst().get();
+        assertTrue(pi.provenance.get("parameters") instanceof String);
     }
 }

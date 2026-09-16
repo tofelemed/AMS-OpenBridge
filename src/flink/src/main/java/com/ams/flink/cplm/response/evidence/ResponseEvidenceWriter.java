@@ -38,6 +38,11 @@ public final class ResponseEvidenceWriter {
         return sb.toString();
     }
 
+    /** A list of texts as "a;b;c" - the manifest stringifies provenance, and model rows contain commas. */
+    static String joined(List<String> values) {
+        return values == null ? "" : String.join(";", values);
+    }
+
     public static List<EvidenceArtifact> artifacts(String methodRunId, ResponseEvent e, EventDataset d, ZohSimulator.Result fit, double[] yPredict,
                                                    double[] predLo, double[] predHi, double y0, double r1, Map<String, Quantity> times, double[] residuals,
                                                    double[] residualAcf, EstimationResult est, FrequencyResponse.Result freq, List<String> rejectionReasons) {
@@ -97,7 +102,7 @@ public final class ResponseEvidenceWriter {
             for (EstimationResult.Candidate c : est.candidates) {
                 rows.add(c.model.toString() + " bounds_hit=" + c.boundsHit + " flat_delay=" + c.flatDelay + " sign_uncertain=" + c.signUncertain + " cond=" + c.conditionNumber);
             }
-            table.provenance.put("rows", rows);
+            table.provenance.put("rows", joined(rows));
             table.provenance.put("state", est.state.name());
             out.add(table);
             EstimationResult.Candidate best = est.best();
@@ -115,7 +120,7 @@ public final class ResponseEvidenceWriter {
                     py[i] = se == null ? Double.NaN : se;
                 }
                 EvidenceArtifact pi = EvidenceArtifact.series(methodRunId, GATE, "parameter_intervals", path, "parameter", "index", "std_error", "parameter_units", px, py, null);
-                pi.provenance.put("parameters", names);
+                pi.provenance.put("parameters", joined(names));
                 pi.provenance.put("method", "COVARIANCE");
                 pi.provenance.put("theta_uncertainty_s", best.thetaUncertaintyS);
                 out.add(pi);
@@ -132,7 +137,7 @@ public final class ResponseEvidenceWriter {
         double[] rx = new double[rejectionReasons == null ? 0 : rejectionReasons.size()];
         for (int i = 0; i < rx.length; i++) rx[i] = i;
         EvidenceArtifact rej = EvidenceArtifact.series(methodRunId, GATE, "rejection_reasons", path, "reason", "index", "count", "dimensionless", rx, rx.clone(), null);
-        rej.provenance.put("reasons", rejectionReasons == null ? new ArrayList<String>() : rejectionReasons);
+        rej.provenance.put("reasons", joined(rejectionReasons));
         out.add(rej);
         return out;
     }
