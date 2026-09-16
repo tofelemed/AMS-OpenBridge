@@ -39,12 +39,18 @@ public interface ICplmRecomputeService
         string? createdBy, string? idempotencyKey, ReplaySupport support, CancellationToken ct);
     Task<CplmRecomputeHandle> StartAsync(
         string loopId, bool hasStepTest, bool hasPeerLinks, long windowOffsetMs, CancellationToken ct);
+    /// <summary>v2.5 (2C.2, NR-057): rebuild ONE method run's evidence over exactly its support; no result row is written.</summary>
+    Task<CplmRecomputeHandle> StartReconstructionAsync(
+        string loopId, ReconstructionTarget target, ReplaySupport support, string? createdBy, string? idempotencyKey, CancellationToken ct);
     Task<CplmRecomputeStatus> GetStatusAsync(string replayId, string jobId, CancellationToken ct);
     /// <summary>Window-boundary offset that aligns the 24h window to this loop's data.</summary>
     Task<long> GetWindowOffsetMsAsync(string loopId, CancellationToken ct);
 }
 
 public sealed record CplmRecomputeHandle(string ReplayId, string JobId, string LoopId, Guid AnalysisRunId, string Purpose);
+
+/// <summary>v2.5 (2C.2): the method run an EVIDENCE_RECONSTRUCTION rebuilds - its gate and window kind; the support is the ReplaySupport.</summary>
+public sealed record ReconstructionTarget(Guid MethodRunId, string Gate, string WindowKind);
 
 /// <summary>
 /// v2.5 (1G.4): where a bounded run reads its support. KAFKA = the samples topic from its
@@ -56,10 +62,11 @@ public sealed record ReplaySupport(string Source, long FromMs, long ToMs, string
     public static ReplaySupport Kafka() => new("kafka", 0, 0, null, null);
 }
 
-/// <summary>v2.5 (1G.4): the analysis_run row plus the rows it has written so far.</summary>
+/// <summary>v2.5 (1G.4): the analysis_run row plus the rows it has written so far (2C.2: and the evidence manifests a reconstruction produced).</summary>
 public sealed record AnalysisRunView(
     Guid AnalysisRunId, string LoopId, string Purpose, string State, string? FlinkJobId, string? CreatedBy,
-    DateTime CreatedAt, DateTime? FinishedAt, string? Error, int GateResults, string? JobState);
+    DateTime CreatedAt, DateTime? FinishedAt, string? Error, int GateResults, string? JobState,
+    Guid? Reconstructs = null, int EvidenceManifests = 0, int EvidenceComplete = 0);
 
 public sealed record CplmRecomputeStatus(
     string ReplayId, string JobId, string State, bool Finished, bool Succeeded, int GateResults);
@@ -108,11 +115,22 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
         string? createdBy, string? idempotencyKey, CancellationToken ct)
         => StartAsync(loopId, hasStepTest, hasPeerLinks, windowOffsetMs, purpose, createdBy, idempotencyKey, ReplaySupport.Kafka(), ct);
 
-    public async Task<CplmRecomputeHandle> StartAsync(
+    public Task<CplmRecomputeHandle> StartReconstructionAsync(
+        string loopId, ReconstructionTarget target, ReplaySupport support, string? createdBy, string? idempotencyKey, CancellationToken ct)
+        => StartAsync(loopId, false, false, 0L, "EVIDENCE_RECONSTRUCTION", createdBy, idempotencyKey, support, target, ct);
+
+    public Task<CplmRecomputeHandle> StartAsync(
         string loopId, bool hasStepTest, bool hasPeerLinks, long windowOffsetMs, string purpose,
         string? createdBy, string? idempotencyKey, ReplaySupport support, CancellationToken ct)
+        => StartAsync(loopId, hasStepTest, hasPeerLinks, windowOffsetMs, purpose, createdBy, idempotencyKey, support, null, ct);
+
+    private async Task<CplmRecomputeHandle> StartAsync(
+        string loopId, bool hasStepTest, bool hasPeerLinks, long windowOffsetMs, string purpose,
+        string? createdBy, string? idempotencyKey, ReplaySupport support, ReconstructionTarget? reconstruct, CancellationToken ct)
     {
         purpose = purpose is "REPLAY" or "SHADOW" or "EVIDENCE_RECONSTRUCTION" ? purpose : "REPLAY";
+        if (reconstruct is not null && support.ToMs <= support.FromMs)
+            throw new InvalidOperationException("A reconstruction needs the method run's support (fromMs < toMs).");
         support ??= ReplaySupport.Kafka();
         bool historian = string.Equals(support.Source, "iotdb", StringComparison.OrdinalIgnoreCase);
         if (historian && (support.ToMs <= support.FromMs || string.IsNullOrWhiteSpace(support.Site)))
@@ -127,8 +145,8 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
         }
         var analysisRunId = Guid.NewGuid();
         var replayId = analysisRunId.ToString("N")[..12];
-        await InsertAnalysisRunAsync(analysisRunId, loopId, purpose, createdBy, idempotencyKey, ct);
-        if (historian) await SetRequestedRangeAsync(analysisRunId, support.FromMs, support.ToMs, ct);
+        await InsertAnalysisRunAsync(analysisRunId, loopId, purpose, createdBy, idempotencyKey, reconstruct, ct);
+        if (historian || reconstruct is not null) await SetRequestedRangeAsync(analysisRunId, support.FromMs, support.ToMs, ct);
         var jarId = await EnsureJarUploadedAsync(ct);
 
         // The job is bounded (earliest -> latest at submit time) and parallelism 1,
@@ -154,7 +172,11 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
             "--site", support.Site ?? "",
             "--loop-type", support.LoopType ?? "",
             "--from-ms", support.FromMs.ToString(),
-            "--to-ms", support.ToMs.ToString());
+            "--to-ms", support.ToMs.ToString(),
+            reconstruct is null ? "" : string.Join(' ',
+                "--reconstruct-method-run", reconstruct.MethodRunId.ToString(),
+                "--reconstruct-gate", reconstruct.Gate,
+                "--reconstruct-window-kind", reconstruct.WindowKind));
 
         var client = CreateClient();
         // /jars/:id/run blocks while the JobManager builds the job graph; on a busy cluster that is
@@ -195,7 +217,8 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
         return new CplmRecomputeHandle(replayId, jobId, loopId, analysisRunId, purpose);
     }
 
-    private async Task InsertAnalysisRunAsync(Guid id, string loopId, string purpose, string? createdBy, string? idempotencyKey, CancellationToken ct)
+    private async Task InsertAnalysisRunAsync(Guid id, string loopId, string purpose, string? createdBy, string? idempotencyKey,
+        ReconstructionTarget? reconstruct, CancellationToken ct)
     {
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
         await using var cmd = conn.CreateCommand();
@@ -207,7 +230,15 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
         cmd.Parameters.AddWithValue("loop", loopId);
         cmd.Parameters.AddWithValue("purpose", purpose);
         cmd.Parameters.AddWithValue("by", (object?)createdBy ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("manifest", idempotencyKey is null ? "{}" : JsonSerializer.Serialize(new { idempotency_key = idempotencyKey }));
+        var manifest = new Dictionary<string, object?>();
+        if (idempotencyKey is not null) manifest["idempotency_key"] = idempotencyKey;
+        if (reconstruct is not null)
+        {
+            manifest["reconstructs"] = reconstruct.MethodRunId;
+            manifest["gate"] = reconstruct.Gate;
+            manifest["window_kind"] = reconstruct.WindowKind;
+        }
+        cmd.Parameters.AddWithValue("manifest", JsonSerializer.Serialize(manifest));
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
@@ -258,12 +289,16 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
     public async Task<AnalysisRunView?> GetAnalysisRunAsync(Guid analysisRunId, CancellationToken ct)
     {
         string loopId, purpose, state; string? jobId, createdBy, error; DateTime createdAt; DateTime? finishedAt; int gateResults;
+        Guid? reconstructs = null; int manifests = 0, complete = 0;
         await using (var conn = await _dataSource.OpenConnectionAsync(ct))
         await using (var cmd = conn.CreateCommand())
         {
             cmd.CommandText = """
                 SELECT r.loop_id, r.purpose, r.state, r.flink_job_id, r.created_by, r.created_at, r.finished_at, r.error,
-                       (SELECT count(*) FROM analytics.cplm_gate_results g WHERE g.analysis_run_id = r.analysis_run_id) AS gate_results
+                       (SELECT count(*) FROM analytics.cplm_gate_results g WHERE g.analysis_run_id = r.analysis_run_id) AS gate_results,
+                       r.manifest->>'reconstructs' AS reconstructs,
+                       (SELECT count(*) FROM analytics.evidence_manifest m WHERE m.provenance->>'analysis_run_id' = r.analysis_run_id::text) AS manifests,
+                       (SELECT count(*) FROM analytics.evidence_manifest m WHERE m.provenance->>'analysis_run_id' = r.analysis_run_id::text AND m.readiness = 'COMPLETE') AS complete
                 FROM analytics.analysis_run r WHERE r.analysis_run_id = @id
                 """;
             cmd.Parameters.AddWithValue("id", analysisRunId);
@@ -276,6 +311,9 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
             finishedAt = rd.IsDBNull(6) ? null : rd.GetDateTime(6);
             error = rd.IsDBNull(7) ? null : rd.GetString(7);
             gateResults = Convert.ToInt32(rd.GetValue(8));
+            reconstructs = rd.IsDBNull(9) ? null : Guid.TryParse(rd.GetString(9), out var rg) ? rg : null;
+            manifests = Convert.ToInt32(rd.GetValue(10));
+            complete = Convert.ToInt32(rd.GetValue(11));
         }
         string? jobState = null;
         if (jobId is not null && state is not ("FINISHED" or "FAILED" or "CANCELED" or "SUBMIT_FAILED"))
@@ -288,7 +326,8 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
                 await MarkRunAsync(analysisRunId, state, null, null, ct);
             }
         }
-        return new AnalysisRunView(analysisRunId, loopId, purpose, state, jobId, createdBy, createdAt, finishedAt, error, gateResults, jobState);
+        return new AnalysisRunView(analysisRunId, loopId, purpose, state, jobId, createdBy, createdAt, finishedAt, error, gateResults, jobState,
+            reconstructs, manifests, complete);
     }
 
     public async Task<CplmRecomputeStatus> GetStatusAsync(string replayId, string jobId, CancellationToken ct)

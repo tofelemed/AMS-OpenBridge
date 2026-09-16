@@ -20,6 +20,8 @@ public interface IEvidenceBlobStore
     Task<bool> PutChunkAsync(Guid evidenceId, int chunkNo, string sha256, byte[] payload, CancellationToken ct);
     Task<StoredManifest?> GetManifestAsync(Guid evidenceId, CancellationToken ct);
     Task<IReadOnlyList<EvidenceChunkSpec>> GetChunksAsync(Guid evidenceId, CancellationToken ct);
+    /// <summary>v2.5 (2C.2): one chunk by number, or null when it is not stored.</summary>
+    Task<EvidenceChunkSpec?> GetChunkAsync(Guid evidenceId, int chunkNo, CancellationToken ct);
     Task SetReadinessAsync(Guid evidenceId, string readiness, string? reason, CancellationToken ct);
     /// <summary>Links manifests to the v1 result row that carries their method_run_id; returns rows linked.</summary>
     Task<int> ReconcileGateResultIdsAsync(CancellationToken ct);
@@ -114,6 +116,14 @@ public sealed class PostgresEvidenceBlobStore : IEvidenceBlobStore
         var rows = await conn.QueryAsync("SELECT chunk_no, sha256, payload FROM analytics.evidence_chunk WHERE evidence_id = @id ORDER BY chunk_no",
             new { id = evidenceId });
         return rows.Select(r => new EvidenceChunkSpec((int)r.chunk_no, (string)r.sha256, (byte[])r.payload)).ToList();
+    }
+
+    public async Task<EvidenceChunkSpec?> GetChunkAsync(Guid evidenceId, int chunkNo, CancellationToken ct)
+    {
+        await using var conn = await _db.OpenConnectionAsync(ct);
+        var r = await conn.QueryFirstOrDefaultAsync("SELECT chunk_no, sha256, payload FROM analytics.evidence_chunk WHERE evidence_id = @id AND chunk_no = @n",
+            new { id = evidenceId, n = chunkNo });
+        return r is null ? null : new EvidenceChunkSpec((int)r.chunk_no, (string)r.sha256, (byte[])r.payload);
     }
 
     public async Task SetReadinessAsync(Guid evidenceId, string readiness, string? reason, CancellationToken ct)

@@ -112,6 +112,30 @@ public final class CplmHistoricalReplayJob {
         }
         final boolean historianAssumed = "iotdb".equalsIgnoreCase(sourceKind);
 
+        // v2.5 (2C.2, NR-057): EVIDENCE_RECONSTRUCTION rebuilds ONE method run's artifacts over exactly
+        // its support and emits them under its identity to the evidence topic; no result row is written
+        // and the original verdict is never touched.
+        String reconstructRun = params.get("reconstruct-method-run", null);
+        if (reconstructRun != null && !reconstructRun.isEmpty()) {
+            String gate = params.getRequired("reconstruct-gate");
+            String windowKind = params.getRequired("reconstruct-window-kind");
+            if (toMs <= fromMs) throw new IllegalArgumentException("--reconstruct-method-run needs --from-ms < --to-ms (the run's support)");
+            String evidenceTopic = params.get("evidence-topic", com.ams.flink.cplm.contract.CplmTopics.GATE_EVIDENCE);
+            com.ams.flink.cplm.replay.EvidenceReconstruction.Target target =
+                    new com.ams.flink.cplm.replay.EvidenceReconstruction.Target(reconstructRun, gate, windowKind, fromMs, toMs);
+            samples.assignTimestampsAndWatermarks(watermarks)
+                    .keyBy(sample -> sample.loopId)
+                    .process(new com.ams.flink.cplm.replay.EvidenceReconstruction(target, analysisRunId))
+                    .name("cplm-evidence-reconstruction")
+                    .uid("cplm-evidence-reconstruction")
+                    .sinkTo(com.ams.flink.KafkaSinks.keyedByJsonField(brokers, evidenceTopic, com.ams.flink.cplm.evidence.EvidenceKafkaRecords.KEY_FIELD))
+                    .name("cplm-evidence-reconstruction-sink")
+                    .uid("cplm-evidence-reconstruction-sink")
+                    .setParallelism(1);
+            env.execute("AMS - CPLM Evidence Reconstruction [" + replayId + "]");
+            return;
+        }
+
         DataStream<String> results = samples
                 .assignTimestampsAndWatermarks(watermarks)
                 .keyBy(sample -> sample.loopId)

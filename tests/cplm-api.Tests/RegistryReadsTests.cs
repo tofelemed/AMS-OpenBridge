@@ -13,6 +13,7 @@ using Xunit;
 namespace Traverse.CplmApi.Tests;
 
 [Trait("Category", "Integration")]
+[Collection("instrument-bindings-lab")]                    // reads the whole registry: serialised with the tests that insert probe loops
 public sealed class RegistryReadsTests : IAsyncLifetime
 {
     private NpgsqlDataSource _db = null!;

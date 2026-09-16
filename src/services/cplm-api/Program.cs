@@ -120,6 +120,7 @@ builder.Services.AddSingleton(sp => new Traverse.CplmApi.Services.SingleMemberGu
     sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Traverse.CplmApi.Infrastructure.KafkaOptions>>()
       .Value.BootstrapServers));
 builder.Services.AddSingleton<Traverse.CplmApi.Services.IEvidenceBlobStore, Traverse.CplmApi.Services.PostgresEvidenceBlobStore>();
+builder.Services.AddSingleton<Traverse.CplmApi.Services.MethodRunResolver>();          // v2.5 (2C.2): any tier's row or a response event
 // v2.5 (1H.3): effective-dated primary Instrumental device bindings per loop signal.
 builder.Services.AddSingleton<Traverse.CplmApi.Services.IInstrumentBindingService, Traverse.CplmApi.Services.InstrumentBindingService>();
 builder.Services.AddSingleton<Traverse.CplmApi.Services.InstrumentHealthReads>();
