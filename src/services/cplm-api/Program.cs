@@ -41,14 +41,11 @@ builder.Services.AddSingleton<Traverse.CplmApi.Data.FleetReadCache>();
 // ── HTTP control plane ─────────────────────────────────────────────────────
 // asset-model: peer-link projection at onboarding (service-principal call).
 // RES-01: retry + circuit breaker + timeout on every outbound HttpClient in this service.
-builder.Services.ConfigureHttpClientDefaults(http =>
-{
-    // RES-01 / v2.5 (2C.2 lab finding): the defaults wrap EVERY client, including the named jar-upload
-    // client below, whose own 5-minute pipeline was therefore still capped by this 10 s attempt timeout -
-    // a 45 MB upload to a busy JobManager failed with a 500. The named client gets only its own pipeline.
-    if (http.Name == "FlinkJarUpload") return;
-    http.AddStandardResilienceHandler();
-});
+builder.Services.ConfigureHttpClientDefaults(http => http.AddStandardResilienceHandler());
+// RES-01 / v2.5 (2C.2 lab finding): the defaults wrap EVERY factory client - the named "FlinkJarUpload"
+// client's own 5-minute pipeline was still capped by the default 10 s attempt / 30 s total budget (the
+// defaults callback carries no client name in .NET 8, so it cannot exempt one). The recompute service
+// therefore talks to the JobManager through its own plain HttpClient (CplmRecomputeService.CreateClient).
 
 builder.Services.AddHttpClient("AssetModel", client =>
 {

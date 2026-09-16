@@ -85,9 +85,10 @@ public final class CplmParameterSetBroadcastSupport {
             java.util.Map<org.apache.kafka.common.TopicPartition, Long> end = consumer.endOffsets(partitions);
             java.util.Set<org.apache.kafka.common.TopicPartition> pending = new java.util.HashSet<>();
             for (org.apache.kafka.common.TopicPartition tp : partitions) if (consumer.position(tp) < end.get(tp)) pending.add(tp);
+            // compaction can leave the position short of the end offset for ever: a few idle polls end the read
             int idlePolls = 0;
-            while (!pending.isEmpty() && idlePolls < 10) {
-                org.apache.kafka.clients.consumer.ConsumerRecords<String, String> records = consumer.poll(java.time.Duration.ofSeconds(2));
+            while (!pending.isEmpty() && idlePolls < 3) {
+                org.apache.kafka.clients.consumer.ConsumerRecords<String, String> records = consumer.poll(java.time.Duration.ofSeconds(1));
                 if (records.isEmpty()) idlePolls++;
                 for (org.apache.kafka.clients.consumer.ConsumerRecord<String, String> r : records) if (r.value() != null) out.add(r.value());
                 for (org.apache.kafka.common.TopicPartition tp : new java.util.ArrayList<>(pending)) if (consumer.position(tp) >= end.get(tp)) pending.remove(tp);

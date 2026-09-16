@@ -204,7 +204,6 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
         var client = CreateClient();
         // /jars/:id/run blocks while the JobManager builds the job graph; on a busy cluster that is
         // tens of seconds. A timeout or connection failure is a submission failure (502), not a 500.
-        client.Timeout = TimeSpan.FromSeconds(120);
         HttpResponseMessage response;
         try
         {
@@ -422,11 +421,24 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
         }
     }
 
+    private HttpClient? _jobManagerClient;
+
     private HttpClient CreateClient()
     {
-        // RES-01: the named client carries base address + a 5-minute resilience budget
-        // (the default pipeline's 30s total would abort the ~40 MB jar upload).
-        return _httpFactory.CreateClient("FlinkJarUpload");
+        // RES-01 / v2.5 (2C.2): a plain client - the factory's default resilience pipeline (10 s attempt,
+        // 30 s total) cannot be exempted per client on .NET 8 and aborted both the ~45 MB jar upload and a
+        // /jars/:id/run whose job-graph build (the replay's driver-side reads) takes tens of seconds.
+        // One upstream, one long-lived client, a six-minute ceiling; failures surface as SUBMIT_FAILED / 502.
+        if (_jobManagerClient is null)
+        {
+            var baseUrl = (_config["Flink:JobManagerUrl"] ?? "http://ams-flink-jobmanager:8081").TrimEnd('/') + "/";
+            _jobManagerClient = new HttpClient(new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(10) })
+            {
+                BaseAddress = new Uri(baseUrl),
+                Timeout = TimeSpan.FromMinutes(6),
+            };
+        }
+        return _jobManagerClient;
     }
 
     private static string Trim(string s) => s.Length <= 400 ? s : s[..400] + "…";
