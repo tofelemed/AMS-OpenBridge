@@ -72,6 +72,12 @@ the mosquitto OT-broker stand-in.
 
 ---
 
+Eighth, **2026-09-16**: **v2.5 Phase 1** (spec v6 Slice 1) — per-role provenance on the samples tuple,
+protocol-specific quality, corrected G2/G4/G10/G11, fusion v2 with fault-scoped confirmation, episodes
+that survive missing evidence, immutable run identity + evidence store + replay isolation, and the
+Instrumental NE107 transmitter-health context end to end (CHG-026). Needs cpm-07 / cpm-07b / cpm-08,
+five new Kafka topics, two new Flink jobs and the `quality_protocol` config on every loop data source.
+
 ## v3 DEPLOYED to Marun — 2026-09-10
 
 Deployed from commit `78ef6ce`, release `release-out/v3-20260910` (968 MB). Order followed
@@ -1646,3 +1652,64 @@ consumer-group check, cpm-06 (AFTER), the curl timings.
 - **Evidence Replay does not draw `vp`** (`CpmReplay.tsx` asks the historian for `pv,sp,op`).
   The rows are there (`count(vp)` > 0). A one-line measurement-list change plus a series;
   left out of CHG-010 because it is a UI feature, not part of the data path.
+
+## CHG-026 ✅ v2.5 Slice 1 — qualification and safe semantics (spec v6 Phase 1, incl. Instrumental NE107 health)
+
+**Reported (spec v6 "Traverse CPA Next-release engineering specification", audited against the
+code on 2026-09-16 — `docs/next-release/01-audit-vs-code.md`):** the loop-performance product
+could not make an operational diagnosis it could defend. One timestamp and one quality stood for
+five roles; an unknown quality became `GOOD`; a heartbeat looked like a fresh sample; G2/G4 were
+unit-dependent; G10/G11 counted samples, not seconds; G14 "confirmed" a valve fault from the mere
+presence of VP; a window without evidence CLOSED an open episode; nothing carried a reproducible
+run identity and a replay wrote into the live timeline; there was no transmitter-health context
+at all. Phase 1 closes R02, R03, R04, R06, R08, R10, R11 (fast path), R15, R19, R20, R22 and R26,
+and demotes G8 to supporting evidence (R07). G12 (R01), the evidence workbench (R12–R14), the loop
+model (R05, R25) and governed configuration (R16–R18) are Phases 2–3.
+
+### What changed
+
+| Area | Before (audited at `5cec34ef`) | After |
+|---|---|---|
+| samples tuple (`traverse.cpa.loop.samples.v1`) | one `event_ts_ms` + one `quality` for pv/sp/op/vp/mode; VP/MODE held forever, hold invisible | **schema 1.1, additive, same topic**: `roles{}` with per-role `sample_ts_ms`, `verified_ts_ms`, `quality_native`/`quality_protocol`/`quality`, `unit`, `held`, `age_ms`; `binding_revision`. Every 1.0 reader proven unaffected (E2E 1A.3) |
+| quality | `Str(root,"quality") ?? "GOOD"`; numeric quality dropped; NaN accepted | `QualityDecoder` per protocol (OPC_DA, OPC_UA, SPARKPLUG, STRING_ENUM, NONE); `UNKNOWN` is never `GOOD`; non-finite → DLQ `NON_FINITE`; Flink G0 counts `unknown_quality_pct`, reason `QUALITY_UNKNOWN` |
+| live RBE | quality-only change never emitted; one `ts` | emits on a (value, quality) change; `source_ts` / `verified_ts` / `emission_ts` carried to the UI (source age shown) |
+| G2 / G4 | 1.0 EU band; `>8 / >3` hardcoded | band policy (EU objective or fraction of declared span, else NOT_EVALUATED `NO_OBJECTIVE`); profile thresholds; dimensionless `activity_ratio_norm` |
+| G10 / G11 | 5/95 % of samples; freeze ≥ 60 s **and** ≥ 10 % of the window | limits from the declared output range, dwell in **seconds**, `dwell_events[]`; freeze episodes retained (`freeze_events[]`), exclusion only on a material freeze; **fast path** `CplmConditionStreamJob` → `traverse.cpa.clpm.condition.v1` → `analytics.condition_event` → `/loops/{id}/conditions`, fused as evidence |
+| fusion | `conf ≥ 0.90 && VP present` ⇒ CONFIRMED; G8 decisive | observations → hypotheses → fault-scoped **Confirmation** (CONFIRMED only from measured VP non-following dwell; CONTRADICTED cap 0.54; NOT_CONFIRMED cap 0.89); `score_semantics = EVIDENCE_SCORE_UNCALIBRATED`; G8 `XCORR_ASYMMETRY_V1` supporting only; served as `verdictV2` |
+| episodes | EXCLUDED / INSUFFICIENT / NO_CALL closed open frames | `availability_state` vs `condition_state`; UNOBSERVABLE never closes; Clear only with `qualified_support_ms ≥ recovery_support_s`; overlapping windows add no support |
+| run identity / replay | upsert by `sample_count`; replay wrote the live topic; version strings only | `method_run_ids` (one deterministic v5 uuid per gate), `bundle_hash` **in the unique key** (a different configuration is a new row, never an overwrite), `purpose` + `analysis_run_id` + `analytics.analysis_run`, `source_commit` / `jar_sha256` / `dataset_hash` on every result; `POST /analysis-runs`; IoTDB-backed replay (`HISTORIAN_QUALITY_ASSUMED`); latest-row reads serve LIVE only |
+| evidence | scalars only | per-gate artifacts (f64le+gzip chunks ≤ 256 KiB, per-chunk + whole SHA-256) on `traverse.cpa.clpm.gate.evidence.v1` → `CplmEvidenceConsumerService` → `analytics.evidence_manifest` / `evidence_chunk`; `COMPLETE` **only** when every checksum verifies; `/method-runs/{id}[/evidence]`; daily retention sweeper (pinned never expires) |
+| Instrumental NE107 | nothing | contract v1 + simulator; `INSTRUMENTAL_HEALTH` ingestion profile (strict schema, dedupe/conflict, epoch discipline, DLQ) → `traverse.cpa.instrument.health.v1`; effective-dated device bindings; `CplmInstrumentContextJob` (device state machine + §4.6 eligibility policy) → `traverse.cpa.context.instrument-health.v1`; cplm-api mirror + `/loops/{id}/instrument-health[/history]`; `health_lanes` on every verdict (PV INELIGIBLE ⇒ `EXCLUDED_INSTRUMENT_HEALTH`); `TransmitterHealthPanel`, health lane in Historical/Investigation, fleet `?health=` filters |
+
+Commits (branch `feat/v25-next-release`, all with tests first): 1A `bbbbf083` `65db8eec` `5852567d` · 1B `4d311cdb` `5f31502e` ·
+1C `7b256208` · 1D `0ff8edc0` `83c4ad57` `08ea68a2` `25a8de85` · 1E `49938db1` `1ec96268` · 1F `3535c78a` · 1G `04bdb7d5` ·
+1H `eb56752c` `09d82159` `4ef64e9a` `9df8052e` `06418b2c` `210d26e9` `547482a5` · 1H.7 (this entry).
+Files: see each commit; the branch compiles from `06418b2c` onward (the 1G commit carries whole
+files that the 1H.5 commit's classes complete — stated in both messages).
+
+### Migration and service update (the v2.5 release manifest is Phase 4; these are the facts it will carry)
+
+| Step | What | Notes |
+|---|---|---|
+| SQL 1 | `scripts/cpm-07-v25-schema.sql` on `traverse_cplm` | additive (identity columns with defaults, new tables incl. the health mirror), before the image swap; idempotent |
+| SQL 2 | `scripts/cpm-07b-v25-result-key.sql` | swaps the result unique key to `(loop_id, window_kind, window_end, source, bundle_hash)`; **run with cplm-api stopped**; ends with `ANALYZE` (the planner picked the wrong index otherwise) |
+| SQL 3 | `scripts/cpm-08-v25-permissions.sql` on `traverse_auth` | ten `cpm.*` keys; Engineer gets six, Supervisor if present |
+| Kafka | `migration/kafka/topics.txt` | new: `traverse.cpa.clpm.condition.v1`, `traverse.cpa.clpm.gate.evidence.v1`, `traverse.cpa.instrument.health.v1`, `traverse.ingestion.health-dlq`, `traverse.cpa.context.instrument-health.v1` (compacted). **Create them before the jobs start** — the lab fusion job restarted for hours because the condition topic had never been created |
+| Flink | jar rebuilt (`mvn package` first — the image only COPIES the jar); cancel + resubmit the three CPLM jobs; submit the two NEW jobs `AMS - CPLM Condition Engine`, `AMS - CPLM Instrument Context Engine` (`migration/04b-submit-flink-jobs.sh`, `migration/flink/JOBS.md`); resubmit `AMS - Loop Live RBE Engine` | check `docker logs ams-flink-job-supervisor` for `ClassNotFoundException` and `/jobs/overview` for RESTARTING after the swap |
+| Images | `traverse-ingestion-service`, `cplm-api`, `ams-frontend`, `sparkplug-edge-node` (1C: `AlarmMetricPublisher` carries source/verified/emission time) and the Flink image | `binding-resolver`, `asset-model`, `audit-service`, `display-service`, `template-service`, `historian-bff`, `notification-service`, `analysis-service`: only the synced `TraverseAuth.cs` permission list changed (no behaviour) — rebuild optional; `ams-api`, gateway: unchanged |
+| Config | every `MQTT_LOOP_SAMPLES` data source needs `loop_ingest.quality_protocol` (`STRING_ENUM` for the CENTUM gateway's `"GOOD"` strings) or its loops become `UNKNOWN` quality — by design, never `GOOD` | `scripts/set-quality-protocol.py` ships with Phase 4; one `INSTRUMENTAL_HEALTH` data source per Instrumental publisher (none until Instrumental ships it — every loop shows `NOT_CONFIGURED` health until then, which is the intended state) |
+| Consumer groups | `traverse-cpa-cplm-results`, `…-frames`, `…-evidence`, `…-conditions`, `…-health` | exactly one member each; `/health` on cplm-api lists all with `projectionLag` |
+
+### Verification (lab, 2026-09-16)
+
+- Unit: Flink `mvn test` 114 run / 0 failures / 2 skipped; cplm-api 96/96 (lab DB); ingestion-service 212/212; frontend vitest 51/51, `npm run lint` clean, `npm run build` OK; simulator pytest 17/17.
+- `scripts/test-ot-loop-ingestion-e2e.ps1` **28/28** (three 1G steps added; the DLQ step now reads each partition's tail — the topic holds 168k records).
+- `scripts/test-cpm-v25-slice1-e2e.ps1` (new, 18 steps): **18/18** at 15:14 on the redeployed jar (jar e09d6f40; NE107 path, fusion v2 + identity + health lanes, evidence COMPLETE, fleet filters, availability)
+- Lab facts recorded in `docs/next-release/00-build-truth.md`: running jar `d382a97a…`; all five CPLM jobs RUNNING; health path proven MQTT → ingestion → Kafka → mirror → API and Flink context → eligibility; the evidence path emits only for episode-bearing long windows (`scripts/sim/loop_freeze_sim.py` exercises it).
+
+### Risks and deliberate limits
+
+- Instrumental's publisher is external; every plant loop reports `NOT_CONFIGURED` health until it ships (correct, not a defect).
+- Evidence artifacts exist only for windows with a limit-dwell or freeze episode until Phase 2C.1 adds the per-gate series artifacts.
+- The fast condition path covers G10/G11; the G12 response event path is Phase 2B.
+- Retention of the v1 gate rows stays an ops decision (the sweeper touches evidence only).

@@ -434,7 +434,7 @@ CREATE TABLE IF NOT EXISTS analytics.evidence_chunk (
 ```
 
 - Modify: `Data/FleetLatestSql.cs`, `Data/GateReadSql.cs` (the "newest row per loop" probes from CHG-023 must now pick `ORDER BY window_end DESC, result_revision DESC, created_at DESC` — existing `GateReadSqlTests` oracle pattern proves equivalence on legacy rows), `Data/CplmReadIndexes.cs` (self-heal DDL learns the new unique index name so a fresh lab volume matches).
-- [ ] **Step 1:** apply to lab (`docker exec -i ams-postgres psql -U postgres < database/scripts/53_…sql`), idempotent re-run OK. **Step 2:** `tests/cplm-api.Tests/SchemaV25Tests.cs` asserts the columns/tables/indexes exist on 5433 (Integration trait); `FleetLatestSqlTests`/`GateReadSqlTests` still equal their oracles. **Commit** `feat(db): identity columns on v1 result rows, analysis_run + evidence tables (53)`.
+- [x] **Step 1:** apply to lab (`docker exec -i ams-postgres psql -U postgres < database/scripts/53_…sql`), idempotent re-run OK. *(Done 2026-09-16: lab superuser is `ams_user`; `scripts/cpm-07-v25-schema.sql` = additive part, `scripts/cpm-07b-v25-result-key.sql` = unique-key swap run with cplm-api stopped; the evidence manifest carries no FK to the v1 row because `cplm_gate_results.id` is not unique on every volume.)* **Step 2:** `tests/cplm-api.Tests/SchemaV25Tests.cs` asserts the columns/tables/indexes exist on 5433 (Integration trait); `FleetLatestSqlTests`/`GateReadSqlTests` still equal their oracles. **Commit** `feat(db): identity columns on v1 result rows, analysis_run + evidence tables (53)`.
 
 ### Task 1G.2: Flink `RunIdentity` + evidence artifact writer (Kafka chunk records)
 
@@ -443,7 +443,7 @@ CREATE TABLE IF NOT EXISTS analytics.evidence_chunk (
 - Modify: `CplmKafkaSink.java` (+ `attachKeyedBytes` for chunk payload as base64 in JSON — keep one serialisation format), `CplmTopics`
 - Test: `EvidenceChunkerTest` (100k-point artifact → N chunks, reassembles bit-identical, manifest sha matches), `RunIdentityTest` (same inputs → same UUID; different bundle hash → different UUID).
 
-- [ ] Failing tests → implement → commit `feat(flink): deterministic method_run_id + evidence chunk transport`.
+- [x] Failing tests → implement → commit `feat(flink): deterministic method_run_id + evidence chunk transport`. *(Done 2026-09-16: `identity/{RunIdentity,GateMethodCatalog,ProfileHash,DatasetHash,ResultIdentity}`, `evidence/{EvidenceArtifact,EvidenceChunker,EvidenceKafkaRecords,LongEvidence}`; bundle_hash = content hash of the resolved profile until Phase 3.)*
 
 ### Task 1G.3: Every engine result carries its identity on the same v1 record; evidence persisted separately
 
@@ -453,7 +453,7 @@ CREATE TABLE IF NOT EXISTS analytics.evidence_chunk (
 - Create: `src/services/cplm-api/BackgroundServices/CplmEvidenceConsumerService.cs` (group `traverse-cpa-cplm-evidence`, single member; MANIFEST → insert PENDING (+ `gate_result_id` looked up by `method_run_ids @> {gate: id}` when the row already exists, else back-filled by a 60 s reconciler); CHUNK → insert; when all chunks present and per-chunk + total sha verify → `readiness=COMPLETE`; mismatch → `FAILED` + log; **never** marks COMPLETE early), `Services/EvidenceBlobStore.cs` (`IEvidenceBlobStore { Task PutChunk(...); Task<byte[]?> GetChunk(...); Task<ManifestStatus> Verify(...) }` + `PostgresEvidenceBlobStore`)
 - Test: `tests/cplm-api.Tests/EvidenceConsumerTests.cs` (pure `Apply` function: out-of-order chunks, duplicate chunk, corrupted chunk → FAILED, complete → COMPLETE), `ResultUpsertTests.cs` (same bundle + larger sample_count → update; different bundle → second row; legacy payload → `bundle_hash='legacy'`), Flink `CplmPipelineSynTic001Test` extended: results carry 17 `methodRunIds`, deterministic across two runs of the same fixture.
 
-- [ ] Failing tests → implement → E2E: after a 1-minute short window, the newest `cplm_gate_results` row has 17 `method_run_ids`, `bundle_hash <> 'legacy'`, `jar_sha256` = the running jar → commit `feat: run identity on v1 result rows; evidence persisted with checksum-verified COMPLETE`.
+- [x] Failing tests → implement → E2E: after a 1-minute short window, the newest `cplm_gate_results` row has 17 `method_run_ids`, `bundle_hash <> 'legacy'`, `jar_sha256` = the running jar → commit `feat: run identity on v1 result rows; evidence persisted with checksum-verified COMPLETE`. *(Done 2026-09-16: E2E asserts the short-stage row (6 ids) because a fused row needs a 12h/24h window; the long job emits G10/G11 episode tables as the first artifacts, the rest arrive with 2C.1; projection lag on /health.)*
 
 ### Task 1G.4: Replay isolation — purpose, namespace, IoTDB source
 
@@ -462,13 +462,15 @@ CREATE TABLE IF NOT EXISTS analytics.evidence_chunk (
 - IoTDB source: `cplm/replay/IotDbBoundedSource.java` (reads `root.<site>.cpm.<loop>.{pv,sp,op,vp,mode}` between from/to via the IoTDB session API already on the classpath (`flink-iotdb-connector`), materialises tuple v2 with `quality_protocol=HISTORIAN_HOLD`, `held` unknown ⇒ `hold_kind=HISTORIAN`), selected by `--source iotdb|kafka`; NR-056.
 - Test: `CplmHistoricalReplayJob` parity test extended: `purpose` and `analysis_run_id` present on every record; `tests/cplm-api.Tests/AnalysisRunsApiTests.cs` (202, GET state, duplicate Idempotency-Key returns same id).
 
-- [ ] Failing tests → implement → commit `feat: replay runs are analysis_runs with purpose, separate topic, IoTDB source`.
+- [x] Failing tests → implement → commit `feat: replay runs are analysis_runs with purpose, separate topic, IoTDB source`. *(Done 2026-09-16: same topic/table, isolation by `purpose` + `analysis_run_id`; `POST/GET /analysis-runs`, Idempotency-Key; `cplm/replay/IotDbBoundedSource` with the explicit HISTORIAN_QUALITY_ASSUMED flag (the historian stores no quality).)*
 
 ### Task 1G.5: Retention by record class
 
 **Files:**
 - Modify: `database/scripts/53_…sql` (retention policy table `analytics.retention_policy(record_class, days)`, seed `STANDARD=90`, `PINNED=NULL`), `Services/EvidenceRetentionSweeper.cs` (hosted, daily; marks manifests `EXPIRED` and deletes chunks for `STANDARD` beyond days unless `pinned`; never touches v1 rows — the retention decision for `cplm_gate_results` stays with ops per CHG-023 P1-4), `GET /method-runs/{id}/evidence` returns `EVIDENCE_EXPIRED` readiness (NR-060).
 - Test: `EvidenceRetentionTests.cs` (pinned survives, unpinned expired, chunks gone, manifest kept).
+
+- [x] Done 2026-09-16: `Services/EvidenceRetentionSweeper.cs` (daily, `retention_policy`), `EvidenceRetentionTests` (lab DB).
 
 ## Subphase 1H — Instrumental NE107 transmitter health (R15; NR-036…NR-045)
 
@@ -535,7 +537,7 @@ CREATE TABLE IF NOT EXISTS cpm.source_availability (
 - Submit-script/JOBS registration (job `AMS - CPLM Instrument Context Engine`).
 - Test: `DeviceStateMachineTest` (NR-037 empty verified state clears; NR-038 stale retained snapshot → STALE not clear; NR-040 epoch reset; NR-042 variable-specific fault leaves other channel ELIGIBLE; NR-045 late correction → revision 2 with original kept), `HealthEligibilityPolicyTest` (one test per policy row).
 
-- [ ] Failing tests → implement → commit `feat(flink): CplmInstrumentContextJob — NE107 device state → loop/role eligibility intervals`.
+- [x] Failing tests → implement → commit `feat(flink): CplmInstrumentContextJob — NE107 device state → loop/role eligibility intervals`. *(Done 2026-09-16: `health/{HealthObservation,HealthInterval,DeviceStateMachine,HealthEligibilityPolicy,LoopHealthContext,LoopBindings,CplmInstrumentContextJob}`, 17 tests; job registered in all five submit paths; bindings read from EARLIEST on start.)*
 
 ### Task 1H.5: cplm-api mirror consumer + `instrument-health` endpoints
 
@@ -544,6 +546,8 @@ CREATE TABLE IF NOT EXISTS cpm.source_availability (
 - Modify: `CplmGateFusionEngine`/long job: G11 emits `health_lanes` from the context stream (F/C/S/M intervals, `source_verified_time`, `measurement_impact`, `eligibility_intervals`) — **absence of health ≠ OK** (`NOT_CONFIGURED` shown).
 - Test: `InstrumentHealthReadsTests.cs` (as-of with replacement, stale age), E2E steps in `scripts/test-cpm-v25-slice1-e2e.ps1` using the simulator: publish F on PV → `/instrument-health` shows F within 30 s; publish `clear` with `state_complete=true` → NO_ACTIVE_DIAGNOSTIC; stop the sim (LWT) → OFFLINE with last observed status retained.
 
+- [x] Done 2026-09-16: `CplmInstrumentHealthMirrorService` + `InstrumentHealthMirrorWriter` (own group, insert-ignore / upsert-by-revision), `InstrumentHealthReads`, `CpmInstrumentHealthController` (`/instrument-health[?at=]`, `/history`; NOT_CONFIGURED without binding, UNKNOWN before context), `cpm.loop_health_context`; fusion carries `health_lanes` (`HealthLanes`, `FusionSideInput`, `LoopHealthContextRecord`; PV INELIGIBLE ⇒ `EXCLUDED_INSTRUMENT_HEALTH`); tests `InstrumentHealthReadsTests` 2 (lab), `FusionHealthLanesTest` 5; lab verified MQTT → API.
+
 ### Task 1H.6: UI — `TransmitterHealthPanel`, header indicators, G11 lanes, fleet filters
 
 **Files:**
@@ -551,11 +555,15 @@ CREATE TABLE IF NOT EXISTS cpm.source_availability (
 - Modify: `explorer/LoopWorkspace.tsx` header (+ health indicator), `CpmInvestigation` health timeline synced to selection, `CpmPerformance.tsx` fleet filter chips `missing binding | stale collection | active affected-device condition` (server-side param on `/fleet/rankings?health=`), `historical/chartOption.ts` (+ optional health lane)
 - Test: vitest `TransmitterHealthPanel.test.tsx` (NR-044: M-only renders "context only, measurement valid"; NOT_CONFIGURED renders unavailable state, not OK).
 
+- [x] Done 2026-09-16: `health/{TransmitterHealthPanel,HealthLane,useInstrumentHealth}`, `api/cpm/health.ts`, workspace header pill + drawer, Historical fifth lane, Investigation timeline, Performance chips → `GET /fleet/rankings?health=` (server-side; `FleetLatestSql.HealthFilter`, `FleetHealthFilterTests` 5); vitest 4 (suite 51), lint clean, build OK.
+
 ### Task 1H.7: Slice-1 E2E script and tracker entry
 
 **Files:**
 - Create: `scripts/test-cpm-v25-slice1-e2e.ps1` (copies the `Step`/`Assert` harness; steps: v2 tuple present; UNKNOWN quality loop → G0 FAIL reason; quality-only change emitted on live topic; freeze episode → `/conditions`; NR-026 fixture → SUSPECTED not CONFIRMED; method_run rows + COMPLETE evidence manifest; replay run → separate topic, no live episode; all 1H.5 health steps).
 - Modify: `changes_tracker.md` (new `## CHG-026 ✅ Slice 1 — qualification and safe semantics` entry in the house format: Reported/Root cause/What changed table/Measured/Verification), `docs/next-release/01-audit-vs-code.md` (verdicts flipped with commit ids).
+
+- [x] 1H.7 done 2026-09-16: `scripts/test-cpm-v25-slice1-e2e.ps1` (18 steps; **18/18** at 15:14 on the redeployed jar (jar e09d6f40; NE107 path, fusion v2 + identity + health lanes, evidence COMPLETE, fleet filters, availability)), `scripts/sim/loop_freeze_sim.py` (episode-bearing windows → evidence COMPLETE on the lab), `changes_tracker.md` CHG-026, `docs/next-release/01-audit-vs-code.md` disposition table, `checklist.md`.
 
 # Phase 2 — System response (G12), gate evidence workbench, interactions, loop model (spec Slice 2)
 
