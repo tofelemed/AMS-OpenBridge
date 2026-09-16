@@ -125,17 +125,30 @@ public class LoopJoinerTests
     [Fact]
     public void Uncertain_counts_as_not_good()
     {
+        // v2.5 R04: the 1.0 field carries the worst decoded verdict as its own token
+        // (UNCERTAIN, not collapsed to BAD); every reader treats anything but GOOD as not-good.
         var j = new LoopJoiner();
         Feed(j, "pv", 1, T0, "UNCERTAIN"); Feed(j, "sp", 2, T0); Feed(j, "op", 3, T0);
-        Assert.Equal("BAD", Assert.Single(j.Tick(T0 + 5_000, Cfg)).Quality);
+        var q = Assert.Single(j.Tick(T0 + 5_000, Cfg)).Quality;
+        Assert.Equal("UNCERTAIN", q);
+        Assert.NotEqual("GOOD", q);
     }
 
     [Fact]
-    public void Numeric_opc_quality_192_is_good()
+    public void Numeric_opc_quality_192_is_good_only_under_an_OPC_protocol()
     {
+        // v2.5 R04: a numeric word is decoded under the source's DECLARED protocol only.
+        // Under the default string vocabulary it is UNKNOWN - never GOOD by accident.
+        var opc = Cfg with { QualityProtocol = QualityProtocol.OPC_DA };
         var j = new LoopJoiner();
-        Feed(j, "pv", 1, T0, "192"); Feed(j, "sp", 2, T0); Feed(j, "op", 3, T0);
-        Assert.Equal("GOOD", Assert.Single(j.Tick(T0 + 5_000, Cfg)).Quality);
+        foreach (var (role, v) in new[] { ("pv", 1.0), ("sp", 2.0), ("op", 3.0) })
+            j.Accept(Loop, "FCS0101", new MappedParameter(role, true, v, null),
+                P(T0, "192") with { NumericValue = v }, opc, T0);          // decoded under OPC_DA
+        Assert.Equal("GOOD", Assert.Single(j.Tick(T0 + 5_000, opc)).Quality);
+
+        var j2 = new LoopJoiner();
+        Feed(j2, "pv", 1, T0, "192"); Feed(j2, "sp", 2, T0); Feed(j2, "op", 3, T0);
+        Assert.Equal("UNKNOWN", Assert.Single(j2.Tick(T0 + 5_000, Cfg)).Quality);
     }
 
     [Fact]

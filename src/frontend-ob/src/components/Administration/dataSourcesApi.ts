@@ -36,6 +36,9 @@ export interface LoopIngestConfig {
   topic_template?: string;
   registry_refresh_seconds?: number;
   future_skew_max_seconds?: number;
+  /** v2.5 (R04): how this source encodes quality. STRING_ENUM (GOOD|UNCERTAIN|BAD tokens, default),
+   *  OPC_DA, OPC_UA, SPARKPLUG or NONE. Decoded only under the declared protocol; anything else is UNKNOWN. */
+  quality_protocol?: 'STRING_ENUM' | 'OPC_DA' | 'OPC_UA' | 'SPARKPLUG' | 'NONE';
 }
 
 export interface ProfileConfig {

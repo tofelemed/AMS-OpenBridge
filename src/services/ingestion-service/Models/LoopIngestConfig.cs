@@ -26,6 +26,13 @@ public sealed class LoopIngestConfig
     /// <summary>Numeric MODE enum → engine vocabulary (e.g. {"4":"AUT"}). Unmapped values pass through raw.</summary>
     [JsonPropertyName("mode_value_map")] public Dictionary<string, string>? ModeValueMap { get; set; }
     [JsonPropertyName("registry_refresh_seconds")] public int? RegistryRefreshSeconds { get; set; }
+    /// <summary>
+    /// v2.5 (R04): how this source encodes quality — STRING_ENUM (GOOD|UNCERTAIN|BAD
+    /// tokens, the plant gateway's contract and the default), OPC_DA (8-bit word),
+    /// OPC_UA (32-bit StatusCode), SPARKPLUG (property codes) or NONE (no quality at
+    /// all). Decoding happens only under the declared protocol; anything else is UNKNOWN.
+    /// </summary>
+    [JsonPropertyName("quality_protocol")] public string? QualityProtocol { get; set; }
 
     public static readonly IReadOnlyDictionary<string, string> DefaultParamRoles =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -69,7 +76,9 @@ public sealed class LoopIngestConfig
         ParamRoles: EffectiveParamRoles(ParamRoles),
         ModeValueMap: ModeValueMap ?? new Dictionary<string, string>(),
         RegistryRefreshSeconds: RegistryRefreshSeconds is > 0 ? RegistryRefreshSeconds.Value : 60,
-        BindingRevision: LoopIngestSettings.ComputeBindingRevision(EffectiveParamRoles(ParamRoles), ModeValueMap));
+        QualityProtocol: Pipeline.QualityDecoder.TryParseProtocol(QualityProtocol, out var qp) ? qp : Pipeline.QualityProtocol.STRING_ENUM,
+        BindingRevision: LoopIngestSettings.ComputeBindingRevision(EffectiveParamRoles(ParamRoles), ModeValueMap,
+            Pipeline.QualityDecoder.TryParseProtocol(QualityProtocol, out var qp2) ? qp2 : Pipeline.QualityProtocol.STRING_ENUM));
 }
 
 /// <summary>Resolved, defaulted settings — what the pipeline stages actually consume.</summary>
@@ -84,10 +93,13 @@ public sealed record LoopIngestSettings(
     /// A stable 63-bit FNV-1a hash of the effective param_roles and mode_value_map, so it
     /// changes exactly when the binding changes — not on every config touch (the row
     /// version bumps on last_data_received updates and would be meaningless here).</summary>
-    long BindingRevision = 0)
+    long BindingRevision = 0,
+    /// <summary>v2.5 (R04): the declared quality encoding of this source.</summary>
+    Pipeline.QualityProtocol QualityProtocol = Pipeline.QualityProtocol.STRING_ENUM)
 {
     public static long ComputeBindingRevision(
-        IReadOnlyDictionary<string, string> paramRoles, IReadOnlyDictionary<string, string>? modeValueMap)
+        IReadOnlyDictionary<string, string> paramRoles, IReadOnlyDictionary<string, string>? modeValueMap,
+        Pipeline.QualityProtocol qualityProtocol = Pipeline.QualityProtocol.STRING_ENUM)
     {
         ulong h = 14695981039346656037UL;
         void Mix(string s) { foreach (var ch in s) { h ^= ch; h *= 1099511628211UL; } h ^= 0x1F; h *= 1099511628211UL; }
@@ -95,6 +107,7 @@ public sealed record LoopIngestSettings(
         Mix("|mode|");
         if (modeValueMap is not null)
             foreach (var kv in modeValueMap.OrderBy(k => k.Key, StringComparer.Ordinal)) { Mix(kv.Key); Mix(kv.Value); }
+        Mix("|quality|"); Mix(qualityProtocol.ToString());
         return (long)(h & 0x7FFF_FFFF_FFFF_FFFFUL);
     }
 }

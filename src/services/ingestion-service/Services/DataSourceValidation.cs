@@ -147,6 +147,8 @@ public static partial class DataSourceValidation
             return ("grid_seconds must be greater than 0", "loop_ingest.grid_seconds");
         if (li.FutureSkewMaxSeconds is <= 0)
             return ("future_skew_max_seconds must be greater than 0", "loop_ingest.future_skew_max_seconds");
+        if (li.QualityProtocol is not null && !Pipeline.QualityDecoder.TryParseProtocol(li.QualityProtocol, out _))
+            return ("quality_protocol must be one of STRING_ENUM, OPC_DA, OPC_UA, SPARKPLUG, NONE", "loop_ingest.quality_protocol");
         if (li.RegistryRefreshSeconds is <= 0)
             return ("registry_refresh_seconds must be greater than 0", "loop_ingest.registry_refresh_seconds");
 

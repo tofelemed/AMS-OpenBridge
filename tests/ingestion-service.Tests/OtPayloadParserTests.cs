@@ -71,10 +71,12 @@ public class OtPayloadParserTests
     }
 
     [Fact]
-    public void Quality_defaults_to_GOOD_when_absent()
+    public void Quality_is_null_when_absent_never_defaulted_to_GOOD()
     {
+        // v2.5 R04 (was: "defaults to GOOD when absent" - the exact defect spec v6 names).
+        // The parser keeps the native token; the decoder turns an absent one into UNKNOWN.
         var p = Parse("""{"value": 1, "ts": 1756599999000}""", out _, out _);
-        Assert.Equal("GOOD", p!.Quality);
+        Assert.Null(p!.Quality);
     }
 
     [Fact]

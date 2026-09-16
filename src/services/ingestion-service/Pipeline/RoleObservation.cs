@@ -29,7 +29,10 @@ public sealed record RoleObservation(
     bool Held,
     long AgeMs,
     /// <summary>MODE only: the source token before mode_value_map translation.</summary>
-    string? ModeNative = null)
+    string? ModeNative = null,
+    /// <summary>The protocol the native token was decoded under (v2.5 R04); RESTORED for
+    /// members that came back from the state store and have not republished.</summary>
+    string QualityProtocol = "STRING_ENUM")
 {
     public void WriteTo(Utf8JsonWriter w, string role)
     {
@@ -41,6 +44,7 @@ public sealed record RoleObservation(
         w.WriteNumber("sample_ts_ms", SampleTsMs);
         w.WriteNumber("verified_ts_ms", VerifiedTsMs);
         w.WriteString("quality_native", QualityNative);
+        w.WriteString("quality_protocol", QualityProtocol);
         w.WriteString("quality", Quality);
         if (Unit is not null) w.WriteString("unit", Unit);
         w.WriteBoolean("held", Held);

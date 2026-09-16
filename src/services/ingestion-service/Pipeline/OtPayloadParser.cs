@@ -4,8 +4,12 @@ using System.Text.Json;
 namespace Traverse.IngestionService.Pipeline;
 
 /// <summary>The gateway's per-leaf JSON envelope (docs/ot-data-integration/09 §3).</summary>
+/// <param name="Quality">The source's NATIVE quality token, verbatim: a string as sent, a
+/// number as its digits, or null when the envelope carries no quality. It is decoded under
+/// the data source's declared protocol by <see cref="QualityDecoder"/> — never here, and
+/// never defaulted to GOOD (v2.5 R04).</param>
 public sealed record OtLoopPayload(
-    double? NumericValue, string? RawValue, string? Unit, string Quality, long TsMs,
+    double? NumericValue, string? RawValue, string? Unit, string? Quality, long TsMs,
     string? Source, long Seq, string? Device, string? Area, string? Line, string? Site,
     string? ProcessUnit, string? Equipment, string? Item);
 
@@ -21,6 +25,8 @@ public static class DlqReasons
     public const string ParameterMismatch = "PARAMETER_MISMATCH";
     public const string LoopNotRegistered = "LOOP_NOT_REGISTERED";
     public const string UnknownParameter = "UNKNOWN_PARAMETER";
+    /// <summary>v2.5 R04: NaN / ±Infinity / overflow are not measurements.</summary>
+    public const string NonFinite = "NON_FINITE";
 }
 
 public static class OtPayloadParser
@@ -57,6 +63,10 @@ public static class OtPayloadParser
                 _ => null,
             };
             var raw = valueEl.ValueKind == JsonValueKind.String ? valueEl.GetString() : valueEl.GetRawText();
+            // v2.5 R04: double.TryParse accepts "NaN", "Infinity" and overflows to ±∞. None of
+            // those is a process value; they must be dead-lettered, not fed to the joiner.
+            if (numeric is { } nv && !double.IsFinite(nv))
+            { reason = DlqReasons.NonFinite; detail = raw; return null; }
 
             if (!root.TryGetProperty("ts", out var tsEl))
             { reason = DlqReasons.MissingField; detail = "ts"; return null; }
@@ -83,7 +93,17 @@ public static class OtPayloadParser
             var seq = root.TryGetProperty("seq", out var seqEl) &&
                       seqEl.ValueKind == JsonValueKind.Number && seqEl.TryGetInt64(out var sq) ? sq : 0;
 
-            return new OtLoopPayload(numeric, raw, Str(root, "unit"), Str(root, "quality") ?? "GOOD",
+            // v2.5 R04: keep the native token whatever its JSON kind; absent stays absent.
+            string? qualityNative = null;
+            if (root.TryGetProperty("quality", out var qEl))
+                qualityNative = qEl.ValueKind switch
+                {
+                    JsonValueKind.String => qEl.GetString(),
+                    JsonValueKind.Null or JsonValueKind.Undefined => null,
+                    _ => qEl.GetRawText(),
+                };
+
+            return new OtLoopPayload(numeric, raw, Str(root, "unit"), qualityNative,
                 tsMs, Str(root, "source"), seq, Str(root, "device"), Str(root, "area"), Str(root, "line"),
                 Str(root, "site"), Str(root, "process_unit"), Str(root, "equipment"), Str(root, "item"));
         }

@@ -86,6 +86,11 @@ public sealed class LoopJoiner
         /// <summary>v2.5: the source's own quality token and unit, kept for roles{}.</summary>
         public string QualityNative = "";
         public string? Unit;
+        /// <summary>v2.5 R04: the decoded verdict for THIS role. A restored member with
+        /// Good=false is reported BAD (the store keeps only the boolean; BAD is the
+        /// conservative reading of "was not good").</summary>
+        public NormalizedQuality Quality = NormalizedQuality.UNKNOWN;
+        public string QualityProtocol = "RESTORED";
     }
 
     private sealed class LoopState
@@ -100,6 +105,8 @@ public sealed class LoopJoiner
         public string? ModeNative;
         public string ModeQualityNative = "";
         public bool ModeGood = true;
+        public NormalizedQuality ModeQuality = NormalizedQuality.UNKNOWN;
+        public string ModeQualityProtocol = "RESTORED";
         /// <summary>Newest source ts already published for this loop. event_ts_ms must
         /// advance strictly: two tuples sharing a timestamp are ONE row in IoTDB
         /// (device+timestamp is the key), so the second would silently overwrite.</summary>
@@ -192,7 +199,11 @@ public sealed class LoopJoiner
         {
             if (bucket.TryGetValue(role, out var existing) && existing.TsMs >= seed.TsMs)
                 continue;   // live data is never displaced by a restored value
-            bucket[role] = new Member { Value = seed.Value, TsMs = seed.TsMs, Good = seed.Good };
+            bucket[role] = new Member
+            {
+                Value = seed.Value, TsMs = seed.TsMs, Good = seed.Good,
+                Quality = seed.Good ? NormalizedQuality.GOOD : NormalizedQuality.BAD,
+            };
         }
     }
 
@@ -280,8 +291,11 @@ public sealed class LoopJoiner
                 state.Mode = mapped.ModeString;
                 state.ModeTsMs = payload.TsMs;
                 state.ModeNative = payload.RawValue ?? payload.NumericValue?.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                state.ModeQualityNative = payload.Quality;
-                state.ModeGood = IsGood(payload.Quality);
+                var (mq, mNative, _) = QualityDecoder.Decode(cfg.QualityProtocol, payload.Quality);
+                state.ModeQuality = mq;
+                state.ModeQualityNative = mNative;
+                state.ModeQualityProtocol = cfg.QualityProtocol.ToString();
+                state.ModeGood = mq == NormalizedQuality.GOOD;
                 return;
             }
 
@@ -293,8 +307,12 @@ public sealed class LoopJoiner
             }
             member.Value = mapped.NumericValue!.Value;
             member.TsMs = payload.TsMs;
-            member.Good = IsGood(payload.Quality);
-            member.QualityNative = payload.Quality;
+            // v2.5 R04: decoded ONLY under the source's declared protocol. UNKNOWN is not GOOD.
+            var (q, native, _) = QualityDecoder.Decode(cfg.QualityProtocol, payload.Quality);
+            member.Quality = q;
+            member.Good = q == NormalizedQuality.GOOD;
+            member.QualityNative = native;
+            member.QualityProtocol = cfg.QualityProtocol.ToString();
             member.Unit = payload.Unit;
         }
     }
@@ -341,13 +359,14 @@ public sealed class LoopJoiner
                 state.LastEmittedTsMs = sourceTs;
                 state.LastEmittedWallMs = nowMs;
 
-                // Quality is OT's verdict, nothing else: worst-of the quality tags on
-                // pv/sp/op. We deliberately do NOT age values out — a setpoint untouched
-                // for an hour is unchanged, not untrustworthy, and only the source can
-                // say a value is bad. A gateway that stops publishing altogether is
-                // already covered by the no-advance skip above (it emits nothing rather
-                // than republishing forward-filled values).
-                var bad = !pv.Good || !sp.Good || !op.Good;
+                // Quality is OT's verdict, nothing else: worst-of the decoded qualities on
+                // pv/sp/op (BAD > UNCERTAIN > UNKNOWN > GOOD — v2.5 R04: an undecodable or
+                // missing quality is UNKNOWN, which is not GOOD). We deliberately do NOT age
+                // values out — a setpoint untouched for an hour is unchanged, not
+                // untrustworthy, and only the source can say a value is bad. A gateway that
+                // stops publishing altogether is already covered by the no-advance skip
+                // above (it emits nothing rather than republishing forward-filled values).
+                var worst = QualityDecoder.WorstOf(QualityDecoder.WorstOf(pv.Quality, sp.Quality), op.Quality);
 
                 output.Add(new LoopTuple(
                     LoopId: state.Loop.LoopId,
@@ -356,7 +375,7 @@ public sealed class LoopJoiner
                     Pv: pv.Value, Sp: sp.Value, Op: op.Value,
                     Vp: hasVp ? vp!.Value : null,
                     Mode: state.Mode ?? "UNKNOWN",
-                    Quality: bad ? "BAD" : "GOOD",
+                    Quality: worst.ToString(),
                     LoopType: state.Loop.LoopType,
                     Site: state.Loop.Site, Area: state.Loop.Area, Unit: state.Loop.Unit,
                     AssetUuid: state.Loop.AssetUuid, SourceFcs: state.SourceFcs,
@@ -381,21 +400,23 @@ public sealed class LoopJoiner
             roles[role] = new RoleObservation(
                 Value: m.Value, StringValue: null,
                 SampleTsMs: m.TsMs, VerifiedTsMs: m.TsMs,
-                QualityNative: m.QualityNative, Quality: m.Good ? "GOOD" : "BAD",
+                QualityNative: m.QualityNative, Quality: m.Quality.ToString(),
                 Unit: m.Unit,
                 Held: heldBefore > 0 && m.TsMs <= heldBefore,
-                AgeMs: Math.Max(0, tupleTs - m.TsMs));
+                AgeMs: Math.Max(0, tupleTs - m.TsMs),
+                QualityProtocol: m.QualityProtocol);
         }
         if (state.Mode is not null)
         {
             roles["mode"] = new RoleObservation(
                 Value: null, StringValue: state.Mode,
                 SampleTsMs: state.ModeTsMs, VerifiedTsMs: state.ModeTsMs,
-                QualityNative: state.ModeQualityNative, Quality: state.ModeGood ? "GOOD" : "BAD",
+                QualityNative: state.ModeQualityNative, Quality: state.ModeQuality.ToString(),
                 Unit: null,
                 Held: heldBefore > 0 && state.ModeTsMs <= heldBefore,
                 AgeMs: Math.Max(0, tupleTs - state.ModeTsMs),
-                ModeNative: state.ModeNative);
+                ModeNative: state.ModeNative,
+                QualityProtocol: state.ModeQualityProtocol);
         }
         return roles;
     }
@@ -406,8 +427,4 @@ public sealed class LoopJoiner
         return (nowMs / grid + 1) * grid;
     }
 
-    /// <summary>Same rule the Flink engine applies: good = starts with g/G or OPC numeric ≥ 192.</summary>
-    private static bool IsGood(string quality) =>
-        quality.StartsWith("g", StringComparison.OrdinalIgnoreCase) ||
-        (int.TryParse(quality, out var q) && q >= 192);
 }

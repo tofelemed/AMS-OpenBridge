@@ -134,6 +134,7 @@ const LoopIngestPanel: React.FC<{
           />
           <Fact label="Grid" value={`${li.grid_seconds ?? 5} s`} />
           <Fact label="Registry refresh" value={`${li.registry_refresh_seconds ?? 60} s`} />
+          <Fact label="Quality protocol" value={li.quality_protocol ?? 'STRING_ENUM (default)'} mono />
           <Fact label="Topic template" value={li.topic_template ?? '{ns}/{site}/{fcs}/{class}/{loop}/{group}/{param}'} mono />
           <Fact label="Param roles overlay" value={paramRoles} mono />
         </div>
