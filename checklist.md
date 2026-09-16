@@ -6,7 +6,7 @@ audited base `5cec34ef`. Operational facts (what to run on the plant) live in `c
 
 Legend: ✅ done and committed · 🔄 in progress · ⬜ pending · commit ids are on this branch.
 
-_Last updated: 2026-09-16 15:14 (Phase 1 closed; Phase 2 next)._
+_Last updated: 2026-09-16 15:45 (Phase 1 closed; Phase 2A in progress)._
 
 ## Phase 0 — build truth and test baseline ✅
 
@@ -49,11 +49,11 @@ _Last updated: 2026-09-16 15:14 (Phase 1 closed; Phase 2 next)._
 | 1H.6 UI panel, health lane, header pill, fleet `?health=` | ✅ | 210d26e9 | `TransmitterHealthPanel.test.tsx` (4), `FleetHealthFilterTests` (5); lint + build clean |
 | 1H.7 slice-1 E2E script, freeze publisher, tracker CHG-026, audit disposition, plan tick | ✅ | see git log (1H.7) | slice-1 E2E **18/18** at 15:14 on the redeployed jar (jar e09d6f40; NE107 path, fusion v2 + identity + health lanes, evidence COMPLETE, fleet filters, availability); evidence path proven (COMPLETE manifests from a frozen loop); CHG-026 + audit disposition written |
 
-## Phase 2 — G12 system response, evidence workbench, G13, loop model ⬜
+## Phase 2 — G12 system response, evidence workbench, G13, loop model 🔄 (2A started 2026-09-16)
 
 | Subphase | Tasks | Status |
 |---|---|---|
-| 2A response kernel (commons-math3) | 2A.1 models + ZOH simulators · 2A.2 metrics · 2A.3 events + capture state machine · 2A.4 estimators · 2A.5 validation / uncertainty / controller / frequency · 2A.6 G12 result + artifacts | ⬜ |
+| 2A response kernel (commons-math3) | 2A.1 models + ZOH simulators ✅ (plan `docs/superpowers/plans/2026-09-16-v25-phase-2a-response-kernel.md`; `MatrixExpTest` 3, `ProcessModelTest` 4, `ZohSimulatorTest` 7 incl. §2.11 numbers, repeated poles, fractional delay, gap policy) · 2A.2 metrics 🔄 (code + tests written, running) · 2A.3 events + capture state machine 🔄 (code + tests written, running) · 2A.4 estimators ⬜ · 2A.5 validation / uncertainty / controller / frequency ⬜ · 2A.6 G12 result + artifacts ⬜ | 🔄 |
 | 2B `CplmResponseAnalysisJob` | 2B.1 job + replay `--methods G12` · 2B.2 response consumer, tables (55), `/response-events`, `/models`, controller snapshots | ⬜ |
 | 2C exact intermediates | 2C.1 per-gate artifacts (G0–G11, G13–G15; Welch PSD) · 2C.2 evidence API with ETag + reconstruction | ⬜ |
 | 2D API breadth | 2D.1 gate catalogue, investigation references (56) | ⬜ |
@@ -92,7 +92,7 @@ _Last updated: 2026-09-16 15:14 (Phase 1 closed; Phase 2 next)._
 
 ## Lab state (for whoever picks this up)
 
-- Jar `e09d6f40…` deployed; all five CPLM jobs RUNNING (Short, Long, Condition, Instrument Context, Fusion). Deploy flow and its
+- Jar `e09d6f40…` deployed; all five CPLM jobs RUNNING; fusion verdicts with `health_lanes` written on this jar (POJO fix proven under real records) (Short, Long, Condition, Instrument Context, Fusion). Deploy flow and its
   traps: `docs/next-release/00-build-truth.md` (package first, entry-class check, supervisor log, no duplicate method refs).
 - cplm-api image rebuilt with 1H.5/1H.6; `/health` shows consumers `results`, `frames`, `evidence`, `health`, one member each.
 - Data sources: `INSTRUMENTAL_HEALTH` "Lab Instrumental NE107 (mosquitto-test)" active; the ingestion E2E's `MQTT_LOOP_SAMPLES`
