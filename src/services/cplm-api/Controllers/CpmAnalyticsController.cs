@@ -1,7 +1,6 @@
 // Extraction Phase 3 COPY of AMS.Api Controllers/V1/CpmAnalyticsController.cs — mechanical transforms only
 // (namespace, literal v1 routes, no Asp.Versioning). The AMS.Api original keeps
 // serving until Phase 6 deletes it; behavior changes are forbidden in either copy.
-using System.Text.Json;
 using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,8 +20,7 @@ public sealed class CpmAnalyticsController : ControllerBase
 {
     // v2.5 Task 0.4: gate and window catalogues moved to Services/GateCatalog and
     // Services/WindowCatalog so /capabilities, /resolutions and the tests share one copy.
-    private static readonly (string Key, string Name, string Tier)[] GateDefs =
-        Services.GateCatalog.Defs.Select(g => (g.Key, g.Name, g.Tier)).ToArray();
+    // v2.5 Task 1E.2: the row -> matrix projection moved to Data/GateMatrixProjection (pure, tested).
 
     private static readonly string[] ShortWindows = Services.WindowCatalog.ShortWindows;
     private static readonly string[] LongWindows = Services.WindowCatalog.LongWindows;
@@ -51,7 +49,7 @@ public sealed class CpmAnalyticsController : ControllerBase
         if (row is null)
             return NotFound(new { error = $"No gate results for loop '{loopId}' at resolution '{windowKind}'" });
 
-        return Ok(BuildGateMatrix(row));
+        return Ok(Traverse.CplmApi.Data.GateMatrixProjection.Build(row));
     }
 
     /// <summary>A3 (history) — gate verdicts over a time range, newest first.</summary>
@@ -79,7 +77,7 @@ public sealed class CpmAnalyticsController : ControllerBase
             LIMIT @limit
             """, new { loopId, windowKind, from, to, limit, includeInsufficient });
 
-        var results = rows.Select(r => (object)BuildGateMatrix(r)).ToList();
+        var results = rows.Select(r => (object)Traverse.CplmApi.Data.GateMatrixProjection.Build(r)).ToList();
         return Ok(new { loopId, windowKind, count = results.Count, windows = results });
     }
 
@@ -170,138 +168,4 @@ public sealed class CpmAnalyticsController : ControllerBase
     /// </summary>
     [HttpGet("resolutions")]
     public IActionResult GetResolutions() => Ok(Services.WindowCatalog.ResolutionsPayload());
-
-    // ── Shaping ─────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Projects a stored gate row into the matrix the UI binds to. The 17 statuses
-    /// and the version stamps live only in the payload JSONB (the typed columns
-    /// carry metrics), so they are read from there; A13 metadata rides along so a
-    /// window can always be attributed to the calculation that produced it.
-    /// </summary>
-    private static Dictionary<string, object?> BuildGateMatrix(dynamic row)
-    {
-        var payload = ParseJson((string?)row.payload);
-        var gates = new List<object>();
-        foreach (var (key, name, tier) in GateDefs)
-        {
-            gates.Add(new
-            {
-                key,
-                name,
-                tier,
-                status = ReadGateStatus(payload, key),
-                // Why a gate is not evaluated matters as much as its status:
-                // NO_VP, NO_UPSTREAM_LINKS and NO_STEP_TEST are configuration
-                // gaps the operator can close, not engine failures.
-                reason = key == "G9" ? ReadString(payload, "gate9_reason") : null
-            });
-        }
-
-        return new Dictionary<string, object?>
-        {
-            ["loopId"] = row.loop_id,
-            ["windowKind"] = row.window_kind,
-            ["windowStart"] = row.window_start,
-            ["windowEnd"] = row.window_end,
-            ["sampleCount"] = row.sample_count,
-            ["diagnosis"] = row.diagnosis,
-            ["severity"] = row.severity,
-            ["confidence"] = row.confidence,
-            ["gates"] = gates,
-            ["observabilityFlags"] = ReadStringArray(payload, "observability_flags"),
-            ["familyDisqualifiers"] = ReadStringArray(payload, "family_disqualifiers"),
-            ["hasPeerLinks"] = ReadBool(payload, "has_peer_links"),
-            ["insufficientEvidenceReason"] = ReadString(payload, "insufficient_evidence_reason"),
-            // U5 Investigation — the numeric evidence behind the verdict (family
-            // scores, freeze index, shape metrics, …). All numeric payload fields
-            // pass through as-is; inventing a curated subset here would just mean
-            // another schema to keep in sync with the engine.
-            ["metrics"] = ReadNumericFields(payload),
-            ["narrative"] = new
-            {
-                selectedFamily = ReadString(payload, "selected_family"),
-                statusReason = ReadString(payload, "status_reason"),
-                recommendation = ReadString(payload, "recommendation"),
-            },
-            // A13 — per-window provenance. Without these a stored verdict cannot be
-            // attributed to the formula version that produced it, which makes
-            // historical evidence unauditable after any engine change.
-            ["metadata"] = new
-            {
-                schemaVersion = ReadInt(payload, "schemaVersion"),
-                calculationVersion = ReadString(payload, "calculation_version") ?? ReadString(payload, "calculationVersion"),
-                dynamicsProfileVersion = ReadString(payload, "dynamics_profile_version") ?? ReadString(payload, "dynamicsProfileVersion"),
-                dynamicsClass = ReadString(payload, "dynamics_class"),
-                profileSource = ReadString(payload, "profile_source"),
-                calculationSource = ReadString(payload, "calculation_source"),
-                replayId = ReadString(payload, "replay_id"),
-                computedAt = row.created_at
-            }
-        };
-    }
-
-    private static string ReadGateStatus(JsonElement payload, string key)
-    {
-        // Preferred: the gates{} rollup the engine writes.
-        if (payload.ValueKind == JsonValueKind.Object
-            && payload.TryGetProperty("gates", out var gates)
-            && gates.ValueKind == JsonValueKind.Object
-            && gates.TryGetProperty(key, out var status)
-            && status.ValueKind == JsonValueKind.String)
-        {
-            return status.GetString() ?? "UNKNOWN";
-        }
-        // Fallback: the flat gateN_status fields, for rows written before the
-        // rollup existed. G2r and G10 do not follow the plain pattern.
-        var flat = key switch
-        {
-            "G2r" => "gate2r_status",
-            "G10" => "gate10_valve_output",
-            _ => $"gate{key[1..]}_status"
-        };
-        return ReadString(payload, flat) ?? "UNKNOWN";
-    }
-
-    private static JsonElement ParseJson(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json)) return default;
-        try { return JsonDocument.Parse(json).RootElement; }
-        catch (JsonException) { return default; }
-    }
-
-    private static string? ReadString(JsonElement el, string name) =>
-        el.ValueKind == JsonValueKind.Object && el.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String
-            ? p.GetString() : null;
-
-    private static bool ReadBool(JsonElement el, string name) =>
-        el.ValueKind == JsonValueKind.Object && el.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.True;
-
-    private static int? ReadInt(JsonElement el, string name) =>
-        el.ValueKind == JsonValueKind.Object && el.TryGetProperty(name, out var p) && p.TryGetInt32(out var v) ? v : null;
-
-    private static Dictionary<string, double> ReadNumericFields(JsonElement el)
-    {
-        var result = new Dictionary<string, double>();
-        if (el.ValueKind != JsonValueKind.Object) return result;
-        foreach (var prop in el.EnumerateObject())
-        {
-            if (prop.Value.ValueKind == JsonValueKind.Number && prop.Value.TryGetDouble(out var v)
-                && !double.IsNaN(v) && !double.IsInfinity(v))
-            {
-                result[prop.Name] = v;
-            }
-        }
-        return result;
-    }
-
-    private static string[] ReadStringArray(JsonElement el, string name)
-    {
-        if (el.ValueKind != JsonValueKind.Object || !el.TryGetProperty(name, out var arr) || arr.ValueKind != JsonValueKind.Array)
-            return Array.Empty<string>();
-        return arr.EnumerateArray()
-            .Where(x => x.ValueKind == JsonValueKind.String)
-            .Select(x => x.GetString()!)
-            .ToArray();
-    }
 }

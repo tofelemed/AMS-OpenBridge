@@ -21,6 +21,7 @@ import type { CpmActivateRequest, CpmLoop, CpmTagMapEntry } from '../../api/cpmA
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { PlantLocationPicker, SIGNAL_ROLES, deriveSignalPath, historianNode, isResolvablePath, loopIdProblem } from './plantLocation';
 import type { PlantLocation } from './plantLocation';
+import { NO_VP_COPY } from './investigation/confirmationCopy';
 
 
 // ── add-loop wizard (5 steps, maps 1:1 onto POST /cpm/loops/activate) ──────
@@ -338,7 +339,7 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
             <p className="cpm-copy" style={{ marginTop: 12 }}>
               Paths resolve through the binding resolver; the readiness report flags any
               signal that falls back to path-pattern resolution instead of the asset model.
-              Without VP, confidence is capped at 0.89 and no diagnosis can reach CONFIRMED.
+              {NO_VP_COPY}
             </p>
           </>
         )}

@@ -61,13 +61,14 @@ public static class FleetLatestSql
         SELECT r.loop_id, r.display_name, r.site, r.area, r.unit, r.loop_type, r.criticality,
                l.window_end, l.diagnosis, l.severity, l.confidence,
                l.effort_ratio, l.triangularity, l.horch_oddness, l.acf_period_s,
-               l.good_error_pct, l.mae, l.flags
+               l.good_error_pct, l.mae, l.flags, l.leading_hypothesis
         FROM cpm.loop_registry r
         {LatestProbe("""
             g.window_end, g.diagnosis, g.severity, g.confidence,
                     g.effort_ratio, g.triangularity, g.horch_oddness, g.acf_period_s,
                     g.good_error_pct, g.mae,
-                    (g.payload->'observability_flags')::text AS flags
+                    (g.payload->'observability_flags')::text AS flags,
+                    g.payload->>'leading_hypothesis' AS leading_hypothesis
             """)}
         {MonitoredInScope}
         ORDER BY

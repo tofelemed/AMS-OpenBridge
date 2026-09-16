@@ -43,6 +43,13 @@ export function gateTone(status: string | null | undefined): CpmTone {
   if (s === 'PASS') return 'good';
   if (s === 'WARN' || s === 'REVIEW') return 'warn';
   if (s === 'FAIL' || s === 'STRONG' || s.startsWith('EXCLUDED')) return 'bad';
+  // v2.5 (R02): G14 is a fault-scoped confirmation and G15 a verdict band, not pass/fail
+  // gates. CONFIRMED is the finding that brought the engineer here; SUSPECTED needs a
+  // look; CONTRADICTED means measured VP tracking argues AGAINST a valve fault; the
+  // NOT_CONFIRMED / NOT_APPLICABLE / LEGACY_FLAG_ONLY tokens carry no severity.
+  if (s === 'CONFIRMED') return 'bad';
+  if (s === 'SUSPECTED') return 'warn';
+  if (s === 'CONTRADICTED') return 'good';
   return 'muted';
 }
 

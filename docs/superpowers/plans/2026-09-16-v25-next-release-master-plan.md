@@ -356,7 +356,7 @@ public static class QualityDecoder {
 - Split `CpmInvestigation.tsx` (570) → `investigation/CaseTriage.tsx`, `investigation/HypothesisPanel.tsx`, `investigation/ReasoningChain.tsx`
 - Test: `tests/cplm-api.Tests/GateReadSqlTests` (+ v2 fields), vitest `HypothesisPanel.test.tsx`.
 
-- [ ] Failing tests → implement → commit `feat(cpm): fusion v2 surfaced in gates/latest and Investigation`.
+- [x] Failing tests → implement → commit `feat(cpm): fusion v2 surfaced in gates/latest and Investigation`. *(Done 2026-09-16: `Data/GateMatrixProjection.cs` (pure, tested) serves `verdictV2` + G14 reason; fleet rankings carry `leadingHypothesis`; UI `api/cpm/{verdict,gates,kpis,base}.ts`, `investigation/{CaseTriage,HypothesisPanel,ReasoningChain,WindowBrowser,cases,confirmationCopy,keyFacts}`; every "capped at 0.89" sentence replaced by served-confirmation prose; gate-tone vocabulary learns CONFIRMED/SUSPECTED/CONTRADICTED.)*
 
 ## Subphase 1F — Episodes: availability vs condition (R10; NR-029, NR-030)
 

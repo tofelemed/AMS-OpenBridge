@@ -28,6 +28,7 @@ import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icon
 import { ApiError } from '../../api/apiFetch';
 import type { CpmFleetSummary } from '../../api/cpmApi';
 import { useCpmCalculations, useLatestGates } from '../../hooks/useCpm';
+import { confirmationProse, noVpFleetCopy } from './investigation/confirmationCopy';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { CpmIconButton, KvRow, PanelHead, TonePill, fmtDateTime } from './shared';
 import { gateTone } from './gateStatus';
@@ -132,9 +133,7 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
         {gateKey === 'G13' && (matrix?.hasPeerLinks
           ? 'Peer links exist: oscillation without actuator stress disqualifies the stiction family as DISTURBANCE_CONTEXT.'
           : 'No peer links: G13 cannot evaluate, and stiction cannot be distinguished from an upstream disturbance.')}
-        {gateKey === 'G14' && (matrix?.observabilityFlags.includes('NO_VP')
-          ? 'No VP signal: confidence is capped at 0.89 and no diagnosis can reach CONFIRMED.'
-          : 'VP present: confirmation can lift the diagnosis to CONFIRMED.')}
+        {gateKey === 'G14' && confirmationProse(matrix?.verdictV2?.confirmation, matrix?.verdictV2?.legacy ?? true)}
         {gateKey !== 'G13' && gateKey !== 'G14' && (
           role === 'BLOCKING'
             ? 'A failure here excludes the whole window before any diagnosis is attempted.'
@@ -296,8 +295,7 @@ export const GateGuidePanel: React.FC<{
         <>
           <PanelHead eyebrow="Diagnostic capability" title="What this fleet cannot yet decide" />
           <p className="cpm-copy cpm-guide-note">
-            {summary.capability.loopsCappedByMissingVp} loop(s) have no VP signal, so their
-            confidence is capped at 0.89 and no diagnosis can reach CONFIRMED.{' '}
+            {noVpFleetCopy(summary.capability.loopsCappedByMissingVp)}{' '}
             {summary.capability.loopsWithoutDisturbanceContext} have no peer links, so
             stiction cannot be distinguished from an upstream disturbance.
           </p>

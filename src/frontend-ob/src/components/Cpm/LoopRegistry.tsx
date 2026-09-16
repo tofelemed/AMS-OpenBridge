@@ -68,8 +68,8 @@ export const LoopRegistry: React.FC = () => {
 
       <div className="cpm-banner">
         <strong>Readiness-gated configuration.</strong>&nbsp;A loop is only as good as its
-        signal mappings: missing VP caps confidence at 0.89, and missing peer links leaves
-        G13 unevaluated. The readiness report after save lists exactly what is degraded.
+        signal mappings: without VP, G14 cannot confirm a final-element fault (SUSPECTED at
+        most), and missing peer links leaves G13 unevaluated. The readiness report after save lists exactly what is degraded.
       </div>
 
       <PlantScopeFilter scope={scope}

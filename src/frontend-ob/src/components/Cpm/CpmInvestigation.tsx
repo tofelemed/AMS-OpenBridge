@@ -2,96 +2,41 @@
 
 /**
  * CPLM Phase 7 — U5 Investigation (/cpm/investigation?loop=&window=&case=).
- * CPA-prototype IA parity: analysis-case chips (derived from real fleet
- * verdicts, not a static library), live/historical controls, the
- * final-conclusion card, key-facts tiles, evidence chart, the
- * Eligibility→Evidence→Fusion reasoning chain with the machine reason code,
- * hypothesis comparison from real family scores, next-best action, and the
- * window browser with a PREVIOUS/CURRENT delta table. Case management beyond
- * a note on the event frame is DG-7 and is said so on screen.
+ * CPA-prototype IA parity: analysis-case chips (derived from the fleet's SERVED
+ * verdicts), live/historical controls, the final-conclusion card, key-facts
+ * tiles, evidence chart, the Eligibility→Evidence→Fusion reasoning chain with the
+ * machine reason code, the fusion v2 hypothesis comparison (observations /
+ * hypotheses / fault-scoped confirmation, v2.5 1E.2), next-best action, and the
+ * window browser with a PREVIOUS/CURRENT delta table. Case management beyond a
+ * note on the event frame is DG-7 and is said so on screen.
+ *
+ * Split in v2.5: investigation/{CaseTriage, HypothesisPanel, ReasoningChain,
+ * WindowBrowser, cases, confirmationCopy, keyFacts}.
  */
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { ObcFilterChip } from '@oicl/openbridge-webcomponents-react/components/filter-chip/filter-chip';
-import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
-import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
 import {
   EmptyState, KpiTile, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
   fmtDateTime, QueryError, cpmChartColors } from './shared';
-import { gateTone } from './gateStatus';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
-import LoopCombobox from './LoopCombobox';
 import { ApiError } from '../../api/apiFetch';
 import type { CpmGateMatrix } from '../../api/cpmApi';
+import { HYPOTHESIS_LABEL } from '../../api/cpm/verdict';
 import {
   useAcknowledgeEvent, useCpmEvents, useCpmLoops, useCpmTrend,
   useFleetRankings, useGateHistory, useLatestGates,
 } from '../../hooks/useCpm';
 import { loopSeries } from '../../utils/loopSeries';
 import { useObcTheme } from '../../hooks/useObcTheme';
-
-/** Diagnosis → analysis case, CPA's chip vocabulary grounded in our verdicts. */
-function caseFor(diagnosis: string): string {
-  const d = diagnosis.toUpperCase();
-  if (d.includes('FINAL_ELEMENT') || d.includes('STICTION')) return 'Valve / final element';
-  if (d.includes('OSCILLATION')) return 'Oscillation';
-  if (d.includes('TUNING')) return 'Tuning';
-  if (d.includes('DISTURBANCE')) return 'External disturbance';
-  if (d.includes('SENSOR') || d.includes('FREEZE')) return 'Sensor / measurement';
-  if (d.startsWith('EXCLUDED') || d.startsWith('INSUFFICIENT')) return 'Not evaluable';
-  if (d === 'NORMAL' || d === 'NONE') return 'Healthy';
-  return 'Other';
-}
-
-/** Key facts — real stored metric fields with honest units. */
-const KEY_FACTS: { field: string; label: string; unit: string; scale?: number }[] = [
-  { field: 'stiction_score', label: 'Stiction score', unit: '' },
-  { field: 'effort_ratio', label: 'Effort ratio', unit: '' },
-  { field: 'triangularity', label: 'OP triangularity', unit: '' },
-  { field: 'acf_period_s', label: 'Oscillation period', unit: 's' },
-  { field: 'freeze_index_s', label: 'Freeze index', unit: 's' },
-  // 0..1 fraction from the engine - scaled to percent by KEY_FACTS rendering.
-  { field: 'good_error_pct', label: 'Good-error time', unit: '%', scale: 100 },
-];
-
-/** Family / detector scores for hypothesis comparison. */
-const HYPOTHESES: { field: string; label: string }[] = [
-  { field: 'stiction_family_score', label: 'Stiction family' },
-  { field: 'effort_family_score', label: 'Actuator effort' },
-  { field: 'fft_score', label: 'Spectral (FFT)' },
-  { field: 'corner_score', label: 'Phase-portrait corners' },
-  { field: 'acf_regularity', label: 'ACF regularity' },
-  { field: 'raw_final_element_score', label: 'Weighted final-element' },
-];
-
-/** Reasoning-chain stages over the 17 gates. */
-const CHAIN: { label: string; gates: string[]; question: string }[] = [
-  { label: 'Eligibility', gates: ['G0', 'G1', 'G2', 'G2r'], question: 'Is the window evaluable at all?' },
-  { label: 'Performance', gates: ['G3', 'G4'], question: 'Is control effective, and at what actuator cost?' },
-  { label: 'Diagnostic evidence', gates: ['G5', 'G6', 'G7', 'G8', 'G9', 'G10', 'G11'], question: 'What failure signature does the data carry?' },
-  { label: 'Confirmation & fusion', gates: ['G12', 'G13', 'G14', 'G15'], question: 'Does context confirm it, and what verdict fuses out?' },
-];
-
-/**
- * Worst tone across a chain stage. It used to classify gate statuses inline — a
- * FOURTH vocabulary, and one that disagreed with the others: STRONG read as warn
- * here while the Performance matrix, the Explorer and Replay all read it as bad.
- * Same gate, same window, a different colour depending on which screen you were
- * on. It now defers to `gateTone`, the single source.
- */
-function stageTone(matrix: CpmGateMatrix | undefined, gates: string[]): 'good' | 'warn' | 'bad' | 'muted' {
-  if (!matrix) return 'muted';
-  const tones = gates.map(g => gateTone(matrix.gates.find(c => c.key === g)?.status));
-  if (tones.includes('bad')) return 'bad';
-  if (tones.includes('warn')) return 'warn';
-  if (tones.every(t => t === 'muted')) return 'muted';
-  return 'good';
-}
-
-const fmt = (v: number | undefined, digits = 2) => (v != null ? v.toFixed(digits) : '—');
-
+import { CaseTriage } from './investigation/CaseTriage';
+import { HypothesisPanel } from './investigation/HypothesisPanel';
+import { ReasoningChain } from './investigation/ReasoningChain';
+import { WindowBrowser } from './investigation/WindowBrowser';
+import { caseCounts, caseIdFor } from './investigation/cases';
+import { confirmationLabel } from './investigation/confirmationCopy';
+import { KEY_FACTS, fmt } from './investigation/keyFacts';
 
 export const CpmInvestigation: React.FC = () => {
   const navigate = useNavigate();
@@ -109,16 +54,12 @@ export const CpmInvestigation: React.FC = () => {
   const allLoops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
   const rankedLoops = useMemo(() => rankings.data?.loops ?? [], [rankings.data]);
 
-  // Case chips from the fleet's actual verdicts.
-  const cases = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const l of rankedLoops) counts.set(caseFor(l.diagnosis), (counts.get(caseFor(l.diagnosis)) ?? 0) + 1);
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
-  }, [rankedLoops]);
+  // Case chips from the fleet's actual verdicts (served leading hypothesis).
+  const cases = useMemo(() => caseCounts(rankedLoops), [rankedLoops]);
 
   const filteredLoops = useMemo(() => {
     if (!caseFilter) return allLoops;
-    const ids = new Set(rankedLoops.filter(l => caseFor(l.diagnosis) === caseFilter).map(l => l.loopId));
+    const ids = new Set(rankedLoops.filter(l => caseIdFor(l) === caseFilter).map(l => l.loopId));
     return allLoops.filter(l => ids.has(l.loopId));
   }, [allLoops, rankedLoops, caseFilter]);
 
@@ -229,16 +170,13 @@ export const CpmInvestigation: React.FC = () => {
     ?? matrix?.familyDisqualifiers[0]
     ?? matrix?.narrative?.statusReason
     ?? null;
+  const verdict = matrix?.verdictV2;
 
   // Investigation note → the loop's open event frame (full cases are DG-7).
   const events = useCpmEvents({ loopId, openOnly: true, limit: 5 }, 60_000, !!loopId); // C
   const openFrame = events.data?.events.find(e => e.ack_state === 'UNACKNOWLEDGED');
   const ack = useAcknowledgeEvent();
   const [note, setNote] = useState('');
-
-  const hypothesisRows = HYPOTHESES
-    .map(h => ({ ...h, value: metrics[h.field] }))
-    .filter(h => h.value != null);
 
   return (
     <div className="cpm-screen">
@@ -249,82 +187,9 @@ export const CpmInvestigation: React.FC = () => {
       />
       <PlantScopeFilter scope={scope} summary={rankings.data ? `${rankings.data.count} loop(s) in scope` : null} />
 
-      <section className="cpm-surface">
-        <PanelHead eyebrow="Analysis cases" title="What the fleet's verdicts contain"
-          right={caseFilter && (
-            <ObcButton variant="normal"
-              onClick={() => setParams(p => { p.delete('case'); return p; }, { replace: true })}>
-              Clear filter
-            </ObcButton>
-          )} />
-        {cases.length === 0 && <EmptyState title="No evaluated loops yet" />}
-        <div className="cpm-filter-row">
-          {cases.map(([c, n]) => (
-            <ObcFilterChip
-              key={c}
-              label={`${c} · ${n}`}
-              checked={caseFilter === c}
-              onChipToggle={() => setParams(p => {
-                if (caseFilter === c) p.delete('case');
-                else { p.set('case', c); p.delete('loop'); }
-                return p;
-              }, { replace: true })}
-            />
-          ))}
-        </div>
-
-        <div className="cpm-toolbar" style={{ marginTop: 12 }}>
-          <LoopCombobox scope={scope} loops={filteredLoops.length ? filteredLoops : allLoops}
-            value={loopId ?? ''}
-            onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })}
-            onClear={() => setParams(p => { p.delete('loop'); p.delete('window'); return p; }, { replace: true })} />
-          <label className="cpm-field">
-            <span className="cpm-field__label">Source</span>
-            <ObcToggleButtonGroup
-              value={mode}
-              onValue={(e: CustomEvent<{ value: string }>) => {
-                // Same empty-first-emit guard as the other segmented groups.
-                const v = e.detail.value;
-                if (v === 'live' || v === 'historical') {
-                  setParams(p => { p.set('mode', v); return p; }, { replace: true });
-                }
-              }}
-            >
-              <ObcToggleButtonOption value="live">Live</ObcToggleButtonOption>
-              <ObcToggleButtonOption value="historical">Historical</ObcToggleButtonOption>
-            </ObcToggleButtonGroup>
-          </label>
-          <label className="cpm-field">
-            <span className="cpm-field__label">Profile</span>
-            <select className="cpm-select" value={windowKind}
-              onChange={e => setParams(p => { p.set('profile', e.target.value); p.delete('window'); return p; }, { replace: true })}>
-              <option value="24h">24h fused</option>
-              <option value="12h">12h fused</option>
-            </select>
-          </label>
-          {mode === 'historical' && (
-            <label className="cpm-field">
-              <span className="cpm-field__label">Evaluated window</span>
-              <select className="cpm-select" value={matrix?.windowEnd ?? ''}
-                onChange={e => setParams(p => { p.set('window', e.target.value); return p; }, { replace: true })}>
-                {windows.map(w => (
-                  <option key={w.windowEnd ?? ''} value={w.windowEnd ?? ''}>
-                    ends {w.windowEnd ? fmtDateTime(w.windowEnd) : '—'}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-        </div>
-        {/* obc-toggle-button-option renders a plain inner <button> with a
-            `selected` CLASS and no ARIA state, so the segmented control above is
-            visual-only to assistive tech. State the resolved selection instead. */}
-        <span className="cpm-sr-only" aria-live="polite">
-          Source: {mode === 'live' ? 'live, the latest verdict' : 'historical'}.
-          Profile {windowKind} fused.
-          {caseFilter ? ` Case filter: ${caseFilter}.` : ' No case filter.'}
-        </span>
-      </section>
+      <CaseTriage scope={scope} cases={cases} caseFilter={caseFilter}
+        loops={filteredLoops.length ? filteredLoops : allLoops} loopId={loopId}
+        mode={mode} windowKind={windowKind} windows={windows} matrix={matrix} setParams={setParams} />
 
       {/* I6: error/empty rendering keyed on the query the ACTIVE MODE reads.
           Historical mode used to key on the live query — a failed gate-history
@@ -358,7 +223,6 @@ export const CpmInvestigation: React.FC = () => {
 
       {matrix && (
         <>
-
           <div className="cpm-grid-2">
             <section className="cpm-surface">
               <PanelHead eyebrow="Final conclusion" title={(matrix.diagnosis ?? 'NONE').replace(/_/g, ' ')}
@@ -371,6 +235,17 @@ export const CpmInvestigation: React.FC = () => {
               </KvRow>
               <KvRow label="Severity">{matrix.severity ?? '—'}</KvRow>
               <KvRow label="Selected family">{matrix.narrative?.selectedFamily ?? '—'}</KvRow>
+              <KvRow label="Leading hypothesis">
+                {verdict && !verdict.legacy && verdict.leadingHypothesis
+                  ? (HYPOTHESIS_LABEL[verdict.leadingHypothesis] ?? verdict.leadingHypothesis)
+                  : 'not served (pre-v2.5 result)'}
+              </KvRow>
+              <KvRow label="G14 confirmation">
+                <TonePill tone={verdict?.confirmation.state === 'CONFIRMED' ? 'bad'
+                  : verdict?.confirmation.state === 'CONTRADICTED' ? 'good' : 'muted'}>
+                  {confirmationLabel(verdict?.confirmation, verdict?.legacy ?? true)}
+                </TonePill>
+              </KvRow>
               <KvRow label="Machine reason">
                 <span className="cpm-mono">{machineReason ?? '—'}</span>
               </KvRow>
@@ -421,44 +296,11 @@ export const CpmInvestigation: React.FC = () => {
 
           <div className="cpm-grid-2">
             <section className="cpm-surface">
-              <PanelHead eyebrow="Reasoning chain" title="How the engine got there" />
-              {CHAIN.map((c, i) => {
-                const tone = stageTone(matrix, c.gates);
-                return (
-                  <div key={c.label} className="cpm-window-row">
-                    <strong>{i + 1}. {c.label} <TonePill tone={tone}>{tone.toUpperCase()}</TonePill></strong>
-                    <span className="cpm-event-row__sub">{c.question}</span>
-                    <span className="cpm-event-row__sub">
-                      {c.gates.map(g => `${g}:${(matrix.gates.find(x => x.key === g)?.status ?? '—').replace(/_/g, ' ')}`).join(' · ')}
-                    </span>
-                  </div>
-                );
-              })}
-              <KvRow label="Machine reason code">
-                <span className="cpm-mono">{machineReason ?? 'none — verdict fused cleanly'}</span>
-              </KvRow>
+              <ReasoningChain matrix={matrix} machineReason={machineReason} />
             </section>
 
             <section className="cpm-surface">
-              <PanelHead eyebrow="Hypothesis comparison" title="Family and detector scores" />
-              {hypothesisRows.length === 0 && (
-                <EmptyState title="No family scores on this window"
-                  copy="Scores are produced by the long-diagnostics tier; short-only windows carry none." />
-              )}
-              {hypothesisRows.map(h => (
-                <div key={h.field} className="cpm-kv">
-                  <span className="cpm-kv__label">{h.label}</span>
-                  <span className="cpm-kv__value cpm-hypo">
-                    <span className="cpm-hypo__track">
-                      <span
-                        className={`cpm-hypo__fill${h.value! >= 0.7 ? ' cpm-hypo__fill--high' : ''}`}
-                        style={{ width: `${Math.min(100, Math.max(0, h.value! * 100))}%` }}
-                      />
-                    </span>
-                    <span className="cpm-mono">{fmt(h.value)}</span>
-                  </span>
-                </div>
-              ))}
+              <HypothesisPanel verdict={verdict} metrics={metrics} />
 
               <PanelHead eyebrow="Record it" title="Investigation note" />
               {openFrame ? (
@@ -487,80 +329,8 @@ export const CpmInvestigation: React.FC = () => {
             </section>
           </div>
 
-          <section className="cpm-surface">
-            <PanelHead eyebrow="Window browser" title={`Recent ${windowKind} windows`}
-              right={<span className="cpm-copy">newest first · click to pin as CURRENT</span>} />
-            <div className="cpm-filter-row">
-              {windows.slice(0, 5).map(w => (
-                <ObcButton key={w.windowEnd ?? ''} variant={matrix.windowEnd === w.windowEnd ? 'raised' : 'normal'}
-                  onClick={() => setParams(p => {
-                    p.set('mode', 'historical');
-                    if (w.windowEnd) p.set('window', w.windowEnd);
-                    return p;
-                  }, { replace: true })}>
-                  {w.windowEnd
-                    ? new Date(w.windowEnd).toLocaleString(undefined, windowKind === '12h'
-                      ? { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
-                      : { month: 'short', day: 'numeric' })
-                    : '—'}
-                  {' · '}{(w.diagnosis ?? '—').replace(/_/g, ' ').slice(0, 22)}
-                </ObcButton>
-              ))}
-            </div>
-            {previous ? (
-              <div className="cpm-matrix-scroll" style={{ marginTop: 12 }}>
-                <table className="cpm-matrix">
-                  <thead>
-                    <tr>
-                      <th style={{ textAlign: 'left' }}>Metric</th>
-                      {/* P2-13: a 24h window ending near midnight lands on a
-                          different DAY in local vs UTC — name the instant+zone. */}
-                      <th>PREVIOUS (ends {previous.windowEnd ? fmtDateTime(previous.windowEnd) : '—'})</th>
-                      <th>CURRENT (ends {matrix.windowEnd ? fmtDateTime(matrix.windowEnd) : '—'})</th>
-                      <th>Δ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td style={{ textAlign: 'left' }}>Diagnosis</td>
-                      <td>{(previous.diagnosis ?? '—').replace(/_/g, ' ')}</td>
-                      <td>{(matrix.diagnosis ?? '—').replace(/_/g, ' ')}</td>
-                      <td>{previous.diagnosis === matrix.diagnosis ? 'unchanged' : 'changed'}</td>
-                    </tr>
-                    <tr>
-                      <td style={{ textAlign: 'left' }}>Confidence</td>
-                      <td>{previous.confidence != null ? (previous.confidence * 100).toFixed(0) + '%' : '—'}</td>
-                      <td>{matrix.confidence != null ? (matrix.confidence * 100).toFixed(0) + '%' : '—'}</td>
-                      <td>{previous.confidence != null && matrix.confidence != null
-                        ? `${((matrix.confidence - previous.confidence) * 100).toFixed(0)} pt` : '—'}</td>
-                    </tr>
-                    {KEY_FACTS.map(f => {
-                      const prev = previous.metrics?.[f.field];
-                      const cur = metrics[f.field];
-                      if (prev == null && cur == null) return null;
-                      // I3: same scale/unit as the Key-facts tiles — this table
-                      // showed good_error_pct as 0.67 while the tile above said
-                      // 67%: one value, two units, one screen.
-                      const s = f.scale ?? 1;
-                      const u = f.unit;
-                      return (
-                        <tr key={f.field}>
-                          <td style={{ textAlign: 'left' }}>{f.label}</td>
-                          <td>{prev != null ? fmt(prev * s) + u : '—'}</td>
-                          <td>{cur != null ? fmt(cur * s) + u : '—'}</td>
-                          <td>{prev != null && cur != null ? fmt((cur - prev) * s) + u : '—'}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="cpm-copy" style={{ marginTop: 8 }}>
-                Only one evaluated window stored — no PREVIOUS to compare against yet.
-              </p>
-            )}
-          </section>
+          <WindowBrowser windows={windows} matrix={matrix} previous={previous}
+            windowKind={windowKind} setParams={setParams} />
         </>
       )}
     </div>

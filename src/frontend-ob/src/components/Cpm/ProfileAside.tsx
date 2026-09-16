@@ -79,7 +79,7 @@ export const ProfileAside: React.FC<{ loop: CpmLoop; onEdit: () => void }> = ({ 
         )}
       </KvRow>
       <KvRow label="Criticality">{loop.criticality}</KvRow>
-      <KvRow label="Valve position">{loop.tags['VP'] ?? 'Not mapped — confidence capped at 0.89'}</KvRow>
+      <KvRow label="Valve position">{loop.tags['VP'] ?? 'Not mapped — G14 cannot confirm a final-element fault'}</KvRow>
       <KvRow label="Peer links">
         {loop.links.length > 0
           ? loop.links.map(l => `${l.relType} → ${l.toLoopId}`).join(', ')

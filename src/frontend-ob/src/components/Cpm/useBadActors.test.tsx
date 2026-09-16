@@ -22,7 +22,7 @@ const loop = (i: number): cpm.CpmRankedLoop => ({
   loopType: 'flow', criticality: 'B', windowEnd: null, diagnosis: 'STICTION', severity: 'HIGH',
   confidence: 1 - i / 100,
   metrics: { effortRatio: null, triangularity: null, horchOddness: null, acfPeriodS: null, goodErrorPct: null, mae: null },
-  observabilityFlags: [],
+  observabilityFlags: [], leadingHypothesis: null,
 });
 
 const fifty = { site: undefined, area: undefined, unit: undefined, windowKind: '24h', orderBy: 'confidence',

@@ -173,7 +173,11 @@ public sealed class CpmFleetController : ControllerBase
                 },
                 // `flags` is payload->'observability_flags' — the only part of the 3 KB
                 // message this endpoint ever used.
-                observabilityFlags = ReadStringArray((string?)r.flags)
+                observabilityFlags = ReadStringArray((string?)r.flags),
+                // v2.5 (1E.2): the fusion v2 leading hypothesis (STICTION | OSCILLATION_TUNING |
+                // EXTERNAL_DISTURBANCE | EXCESSIVE_EFFORT | NONE); null on pre-v2.5 rows so the
+                // UI's case vocabulary never has to string-match a diagnosis again.
+                leadingHypothesis = (string?)r.leading_hypothesis
             }).ToList();
 
             // orderBy echoes back: with a LIMIT, the ordering determines WHICH loops

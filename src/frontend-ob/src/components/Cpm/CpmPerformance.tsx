@@ -218,7 +218,7 @@ export const CpmPerformance: React.FC = () => {
           tone={capped != null && capped > 0 ? 'warn' : 'good'}
           value={capped != null && fleetTotal != null ? `${fleetTotal - capped}/${fleetTotal}` : '—'}
           sub={capped == null ? 'fleet capability unavailable'
-            : capped > 0 ? `${capped} loop(s) capped at 0.89 — no VP signal`
+            : capped > 0 ? `${capped} loop(s) without VP — final-element faults cannot be CONFIRMED there`
               : 'every loop can reach CONFIRMED'} />
       </div>
 
