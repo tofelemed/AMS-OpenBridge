@@ -19,6 +19,9 @@ import org.apache.flink.util.Collector;
 import com.ams.flink.cplm.condition.ConditionEvent;
 import com.ams.flink.cplm.condition.OpenConditions;
 import com.ams.flink.cplm.contract.CplmTopics;
+import com.ams.flink.cplm.fusion.FusionSideInput;
+import com.ams.flink.cplm.fusion.HealthLanes;
+import com.ams.flink.cplm.health.LoopHealthContextRecord;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -55,6 +58,8 @@ public class CplmGateFusionStreamJob {
         // window kinds fuse is configurable (4h is opt-in: every fused kind adds ~33k gate
         // rows/day at plant size to a table with no retention yet).
         final String conditionTopic = argOr(args, "condition-topic", CplmTopics.CONDITION_EVENTS);
+        // v2.5 (Task 1H.5): the Instrumental health contexts (compacted, one record per loop/role).
+        final String healthContextTopic = argOr(args, "health-context-topic", CplmTopics.INSTRUMENT_HEALTH_CONTEXT);
         final Set<String> fuseKinds = new HashSet<>(Arrays.asList(argOr(args, "fuse-window-kinds", "12h,24h").split(",")));
         cfg = new CplmJobConfig(cfg.brokers, "AMS - CPLM Gate Fusion Engine",
                 cfg.consumerGroupId + "-fusion", cfg.inputTopic, cfg.outputTopic,
@@ -99,9 +104,32 @@ public class CplmGateFusionStreamJob {
                 .name("cplm-fusion-condition-parse")
                 .uid("cplm-fusion-condition-parse");
 
+        // v2.5 (Task 1H.5): the health contexts join the same keyed side input as the conditions.
+        // The topic is compacted and small, so every start reads it from the beginning to rebuild
+        // the per-loop/role picture instead of depending on a committed offset.
+        KafkaSource<String> healthSource = KafkaSource.<String>builder()
+                .setBootstrapServers(cfg.brokers)
+                .setTopics(healthContextTopic)
+                .setGroupId(cfg.consumerGroupId + "-health-in")
+                .setStartingOffsets(OffsetsInitializer.earliest())
+                .setValueOnlyDeserializer(new SimpleStringSchema())
+                .build();
+        DataStream<FusionSideInput> healthStream = env
+                .fromSource(healthSource, WatermarkStrategy.noWatermarks(), "cplm-fusion-health-source")
+                .map(LoopHealthContextRecord::fromJson)
+                .filter(h -> h != null)
+                .map(h -> FusionSideInput.of(h))
+                .name("cplm-fusion-health-parse")
+                .uid("cplm-fusion-health-parse");
+        DataStream<FusionSideInput> sideInputs = conditionStream
+                .map(c -> FusionSideInput.of(c))
+                .name("cplm-fusion-condition-wrap")
+                .uid("cplm-fusion-condition-wrap")
+                .union(healthStream);
+
         DataStream<String> fused = longStream
                 .keyBy(l -> l.loopId)
-                .connect(conditionStream.keyBy(c -> c.loopId))
+                .connect(sideInputs.keyBy(s -> s.loopId()))
                 .process(new GateFusionProcess(fuseKinds))
                 .name("cplm-gate-fusion-join")
                 .uid("cplm-gate-fusion-join")
@@ -117,12 +145,14 @@ public class CplmGateFusionStreamJob {
         env.execute(cfg.jobName);
     }
 
-    static class GateFusionProcess extends KeyedCoProcessFunction<String, CplmLongDiagnosticsResult, ConditionEvent, CplmGateResult> {
+    static class GateFusionProcess extends KeyedCoProcessFunction<String, CplmLongDiagnosticsResult, FusionSideInput, CplmGateResult> {
         private final Set<String> fuseKinds;
         /** Per windowKind: recent selectedFamily history for persistence. */
         private transient MapState<String, List<String>> familyHistoryByKind;
         /** v2.5 R11: the fast-path conditions currently open for this loop (kind -> latest event). */
         private transient MapState<String, ConditionEvent> openConditions;
+        /** v2.5 R15: the latest Instrumental health context per signal role for this loop. */
+        private transient MapState<String, LoopHealthContextRecord> healthByRole;
 
         GateFusionProcess() {
             this(new HashSet<>(Arrays.asList("12h", "24h")));
@@ -141,11 +171,20 @@ public class CplmGateFusionStreamJob {
             familyHistoryByKind = getRuntimeContext().getMapState(histDesc);
             openConditions = getRuntimeContext().getMapState(new MapStateDescriptor<>(
                     "open-conditions", TypeInformation.of(String.class), TypeInformation.of(ConditionEvent.class)));
+            healthByRole = getRuntimeContext().getMapState(new MapStateDescriptor<>(
+                    "health-by-role", TypeInformation.of(String.class), TypeInformation.of(LoopHealthContextRecord.class)));
         }
 
         @Override
-        public void processElement2(ConditionEvent c, Context ctx, Collector<CplmGateResult> out) throws Exception {
-            if (c.kind == null) return;
+        public void processElement2(FusionSideInput s, Context ctx, Collector<CplmGateResult> out) throws Exception {
+            if (s == null) return;
+            if (s.health != null) {
+                // v2.5 1H.5: newest context per role wins (the compacted topic keeps only that per key anyway).
+                if (s.health.role != null && !s.health.role.isEmpty()) healthByRole.put(s.health.role, s.health);
+                return;
+            }
+            ConditionEvent c = s.condition;
+            if (c == null || c.kind == null) return;
             if ("CLOSED".equals(c.state)) openConditions.remove(c.kind);
             else openConditions.put(c.kind, c);
         }
@@ -185,7 +224,10 @@ public class CplmGateFusionStreamJob {
 
             Map<String, ConditionEvent> open = new HashMap<>();
             for (Map.Entry<String, ConditionEvent> e : openConditions.entries()) open.put(e.getKey(), e.getValue());
-            CplmGateResult fused = CplmGateFusionEngine.fuse(shortF, longD, hasStep, hasPeer, profile, OpenConditions.of(open));
+            Map<String, LoopHealthContextRecord> health = new HashMap<>();
+            for (Map.Entry<String, LoopHealthContextRecord> e : healthByRole.entries()) health.put(e.getKey(), e.getValue());
+            CplmGateResult fused = CplmGateFusionEngine.fuse(shortF, longD, hasStep, hasPeer, profile,
+                    OpenConditions.of(open), HealthLanes.of(health));
             String elevatedFamily = elevatedFamilyForHistory(fused);
 
             List<String> prior = familyHistoryByKind.get(longD.windowKind);
