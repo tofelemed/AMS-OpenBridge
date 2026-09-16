@@ -147,6 +147,8 @@ public final class CplmLongDiagnosticsResult implements Serializable {
      * gate result reports G0–G4 for the actual 4h/12h/24h analysis window.
      */
     public CplmShortFeatureResult alignedShort;
+    /** v2.5 (2C.1a): the exact intermediates for the evidence builders; transient, never serialised to the topic. */
+    public transient com.ams.flink.cplm.engine.LongIntermediates intermediates;
 
     public String toJson() {
         ObjectNode out = MAPPER.createObjectNode();

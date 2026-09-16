@@ -102,7 +102,14 @@ public final class LongDiagnosticsCalculator {
 
         double[] shapeDetrended = SignalMath.linearDetrend(shapeSignal);
         double[] shapeCentered = SignalMath.subtractMean(shapeDetrended);
+        LongIntermediates keep = new LongIntermediates();
+        result.intermediates = keep;
+        keep.tsSec = tsSec;
+        keep.pv = pv;
+        keep.op = op;
+        keep.shapeCentered = shapeCentered;
         OscillationMath.AcfResult acf = OscillationMath.computeAcfPeriod(shapeCentered, tsSec);
+        keep.acf = acf;
         result.acfPeriodS = acf.periodSec;
         result.acfRegularity = Math.min(1.0, acf.regularity);
         result.acfGamma0 = acf.gamma0;
@@ -112,6 +119,7 @@ public final class LongDiagnosticsCalculator {
 
         // Band-limited FFT: exclude periods > tauMax (kills near-DC cycle collapse).
         OscillationMath.FftResult fft = OscillationMath.computeFftBandLimited(shapeCentered, tsSec, profile);
+        keep.fft = fft;
         result.fftPeakBin = fft.peakBin;
         result.fftMaxBin = fft.maxBin;
         result.fftPeakAmplitude = fft.peakAmplitude;
@@ -148,6 +156,7 @@ public final class LongDiagnosticsCalculator {
         ShapeMath.TriangularityResult tri = cycleSamples >= profile.minSamplesPerPeriod
                 ? ShapeMath.computeTriangularity(shapeSignal, cycleSamples)
                 : new ShapeMath.TriangularityResult();
+        keep.triangularity = tri;
         result.triangularity = tri.triangularity;
         result.cycleSamples = cycleSamples >= profile.minSamplesPerPeriod ? cycleSamples : 0;
         result.cycleSource = result.cycleSamples > 0 ? cycleSource : "NONE";
@@ -163,12 +172,14 @@ public final class LongDiagnosticsCalculator {
         }
 
         ShapeMath.HorchResult horch = ShapeMath.computeHorch(op, pv);
+        keep.horch = horch;
         result.horchOddness = horch.oddness;
         result.horchOddSum = horch.oddSum;
         result.horchEvenSum = horch.evenSum;
         result.gate8Status = result.horchOddness > 0.7 ? "STRONG" : "PASS";
 
         ShapeMath.GeometryResult geo = ShapeMath.computeGeometry(pv, op, result.completedCycles, profile);
+        keep.geometry = geo;
         result.phaseAreaNormPerCycle = geo.cycleNormalizedArea;
         result.phaseBboxArea = geo.bboxArea;
         result.phasePathArea = geo.pathArea;
@@ -193,8 +204,10 @@ public final class LongDiagnosticsCalculator {
         result.limitHighPp = 100.0 - tolPp;
         result.limitSource = profile.opRangeDeclared ? "DECLARED_RANGE" : "FALLBACK_0_100";
         LimitMath.SaturationStats sat = LimitMath.computeSaturationStats(op, result.limitLowPp, result.limitHighPp);
+        keep.saturation = sat;
         long[] tsMs = new long[n];
         for (int i = 0; i < n; i++) tsMs[i] = samples.get(i).eventTsMs;
+        keep.tsMs = tsMs;
         result.dwellEvents = LimitMath.computeLimitEpisodes(op, tsMs, tolPp, tsSec * 1000.0);
         double maxDwellS = 0;
         for (LimitMath.DwellEvent e : result.dwellEvents) maxDwellS = Math.max(maxDwellS, e.durationS);
@@ -216,6 +229,7 @@ public final class LongDiagnosticsCalculator {
         result.pvQuantizationCount = LimitMath.countUniqueRounded(pv, 3);
         result.pvDriftPerDay = LimitMath.computePvDriftPerDay(pv, samples, windowSec);
         LimitMath.DeltaPvResult deltaPv = LimitMath.computeDeltaPvStats(pv);
+        keep.deltaPv = deltaPv;
         result.deltaPvMean = deltaPv.mean;
         result.deltaPvStd = deltaPv.std;
         result.spikeCount = LimitMath.computeSpikeCount(pv);

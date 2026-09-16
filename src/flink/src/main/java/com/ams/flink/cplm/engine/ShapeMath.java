@@ -61,7 +61,16 @@ public final class ShapeMath {
                 max = Math.max(max, v);
             }
             double span = max - min;
-            if (span < 1e-12) continue;
+            if (span < 1e-12) {
+                CycleFit rejected = new CycleFit();
+                rejected.cycleId = c;
+                rejected.startIndex = start;
+                rejected.length = cycleSamples;
+                rejected.accepted = false;
+                rejected.rejectReason = "FLAT_CYCLE";
+                r.cycles.add(rejected);
+                continue;
+            }
 
             double[] s = new double[cycleSamples];
             for (int i = 0; i < cycleSamples; i++) {
@@ -85,6 +94,8 @@ public final class ShapeMath {
             }
 
             double minSseTri = Double.POSITIVE_INFINITY;
+            int bestShift = 0;
+            double bestScale = 0;
             for (int shift = 0; shift < cycleSamples; shift++) {
                 double dot = 0, energy = 0;
                 for (int i = 0; i < cycleSamples; i++) {
@@ -101,7 +112,11 @@ public final class ShapeMath {
                     double e = s[i] - tri;
                     currentSseTri += e * e;
                 }
-                minSseTri = Math.min(minSseTri, currentSseTri);
+                if (currentSseTri < minSseTri) {
+                    minSseTri = currentSseTri;
+                    bestShift = shift;
+                    bestScale = scale;
+                }
             }
 
             double denom = sseSin + minSseTri;
@@ -112,6 +127,30 @@ public final class ShapeMath {
                 r.firstCycleSseTriangle = minSseTri;
             }
             validCycles++;
+
+            // v2.5 (2C.1a): the G7 evidence - the normalised cycle, both fits, and the score, per cycle
+            CycleFit fit = new CycleFit();
+            fit.cycleId = c;
+            fit.startIndex = start;
+            fit.length = cycleSamples;
+            fit.accepted = true;
+            fit.measured = s;
+            fit.phase = new double[cycleSamples];
+            fit.sineFit = new double[cycleSamples];
+            fit.triangleFit = new double[cycleSamples];
+            for (int i = 0; i < cycleSamples; i++) {
+                double t = (double) i / cycleSamples;
+                fit.phase[i] = t;
+                fit.sineFit[i] = sinA * Math.sin(2 * Math.PI * t) + sinB * Math.cos(2 * Math.PI * t);
+                double tt = (double) ((i + bestShift) % cycleSamples) / cycleSamples;
+                fit.triangleFit[i] = bestScale * (1.0 - 4.0 * Math.abs(tt - 0.5));
+            }
+            fit.amplitude = Math.hypot(sinA, sinB);
+            fit.phaseRad = Math.atan2(sinB, sinA);
+            fit.sseSine = sseSin;
+            fit.sseTriangle = minSseTri;
+            fit.score = cycleScore;
+            r.cycles.add(fit);
         }
         r.validCycles = validCycles;
         r.triangularity = validCycles > 0 ? scoreSum / validCycles : 0;
@@ -131,6 +170,11 @@ public final class ShapeMath {
 
         double oddSum = 0, evenSum = 0;
         int maxLag = Math.min(HORCH_MAX_LAG, n / 4);
+        r.lagIndex = new double[maxLag];
+        r.phiPositive = new double[maxLag];
+        r.phiNegative = new double[maxLag];
+        r.oddContribution = new double[maxLag];
+        r.evenContribution = new double[maxLag];
         for (int k = 1; k <= maxLag; k++) {
             double phiPos = 0, phiNeg = 0;
             int countPos = n - k;
@@ -147,6 +191,11 @@ public final class ShapeMath {
             phiNeg /= countNeg;
             oddSum += Math.abs(phiPos - phiNeg);
             evenSum += Math.abs(phiPos + phiNeg);
+            r.lagIndex[k - 1] = k;                               // lag in samples; the caller scales by the period
+            r.phiPositive[k - 1] = phiPos;
+            r.phiNegative[k - 1] = phiNeg;
+            r.oddContribution[k - 1] = Math.abs(phiPos - phiNeg);
+            r.evenContribution[k - 1] = Math.abs(phiPos + phiNeg);
         }
         r.oddSum = oddSum;
         r.evenSum = evenSum;
@@ -191,6 +240,20 @@ public final class ShapeMath {
                 }
                 a += pv[e - 1] * op[s] - pv[s] * op[e - 1]; // closure edge
                 absSum += 0.5 * Math.abs(a);
+                // v2.5 (2C.1a): the G9 evidence - each closed cycle polygon in normalised coordinates
+                CyclePolygon poly = new CyclePolygon();
+                poly.cycleId = c;
+                poly.startIndex = s;
+                poly.endIndex = e;
+                poly.pvNorm = new double[e - s];
+                poly.uNorm = new double[e - s];
+                for (int i = s; i < e; i++) {
+                    poly.pvNorm[i - s] = (pv[i] - pvMin) / (pvMax - pvMin);
+                    poly.uNorm[i - s] = (op[i] - opMin) / (opMax - opMin);
+                }
+                poly.area = 0.5 * Math.abs(a);
+                poly.bboxArea = bbox;
+                r.polygons.add(poly);
             }
             double perCycleArea = absSum / completedCycles;
             r.pathArea = absSum;
@@ -222,6 +285,9 @@ public final class ShapeMath {
         double sumAngleQual = 0, sumSharpQual = 0;
         int validAngles = 0;
         int validQual = 0;
+        r.turningAngleRad = new double[n];
+        r.cornerMask = new boolean[n];
+        r.qualifiedMask = new boolean[n];
         for (int i = 1; i < n - 1; i++) {
             double dx1 = pvForCorners[i] - pvForCorners[i - 1];
             double dy1 = op[i] - op[i - 1];
@@ -236,10 +302,13 @@ public final class ShapeMath {
             sumAngleRaw += angle;
             validAngles++;
             if (angle >= cornerRad) sumSharpRaw += angle;
+            r.turningAngleRad[i] = angle;
+            r.cornerMask[i] = angle >= cornerRad;
 
             // Qualified vertex: |ΔOP| at this step must exceed deadband (flat-OP zigzags score zero).
             double dOp = Math.max(Math.abs(dy1), Math.abs(dy2));
             if (dOp < opDeadband) continue;
+            r.qualifiedMask[i] = true;
             sumAngleQual += angle;
             validQual++;
             if (angle >= cornerRad) sumSharpQual += angle;
@@ -262,18 +331,40 @@ public final class ShapeMath {
         return r;
     }
 
+    /** v2.5 (2C.1a): one G7 cycle - the normalised measured cycle, both fits and the score; rejected cycles carry a reason. */
+    public static final class CycleFit implements java.io.Serializable {
+        private static final long serialVersionUID = 1L;
+        public int cycleId, startIndex, length;
+        public boolean accepted;
+        public String rejectReason = "";
+        public double[] phase = new double[0], measured = new double[0], sineFit = new double[0], triangleFit = new double[0];
+        public double amplitude, phaseRad, sseSine, sseTriangle, score;
+    }
+
+    /** v2.5 (2C.1a): one G9 closed cycle polygon in normalised PV / applied-input coordinates. */
+    public static final class CyclePolygon implements java.io.Serializable {
+        private static final long serialVersionUID = 1L;
+        public int cycleId, startIndex, endIndex;
+        public double[] pvNorm = new double[0], uNorm = new double[0];
+        public double area, bboxArea;
+    }
+
     public static class TriangularityResult {
         int completedCycles;
         int validCycles;
         double firstCycleSseSine;
         double firstCycleSseTriangle;
         double triangularity;
+        /** v2.5 (2C.1a) retained evidence: every cycle, accepted or rejected. */
+        public java.util.List<CycleFit> cycles = new java.util.ArrayList<>();
     }
 
     public static class HorchResult {
         double oddness;
         double oddSum;
         double evenSum;
+        /** v2.5 (2C.1a) retained evidence per lag (lag in samples; multiply by the period for seconds). */
+        public double[] lagIndex = new double[0], phiPositive = new double[0], phiNegative = new double[0], oddContribution = new double[0], evenContribution = new double[0];
     }
 
     public static class GeometryResult {
@@ -285,5 +376,9 @@ public final class ShapeMath {
         double cornerScore;
         double cornerScoreRaw;
         double cornerScoreQualified;
+        /** v2.5 (2C.1a) retained evidence: per-cycle polygons; per-sample turning angle, corner and qualification masks. */
+        public java.util.List<CyclePolygon> polygons = new java.util.ArrayList<>();
+        public double[] turningAngleRad = new double[0];
+        public boolean[] cornerMask = new boolean[0], qualifiedMask = new boolean[0];
     }
 }

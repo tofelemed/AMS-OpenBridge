@@ -35,13 +35,21 @@ public final class OscillationMath {
 
         int maxLag = Math.min(n / 2, 2000);
         double[] rho = new double[maxLag + 1];
+        int[] pairs = new int[maxLag + 1];
         rho[0] = 1.0;
+        pairs[0] = n;
         for (int k = 1; k <= maxLag; k++) {
             double gk = 0;
             for (int i = 0; i < n - k; i++) gk += x[i] * x[i + k];
             gk /= (n - k);
             rho[k] = gk / gamma0;
+            pairs[k] = n - k;
         }
+        // v2.5 (2C.1a): the ACF is the G5 evidence - retained verbatim (lags in seconds, pair counts)
+        r.acf = rho;
+        r.acfPairCount = pairs;
+        r.acfLagS = new double[maxLag + 1];
+        for (int k = 0; k <= maxLag; k++) r.acfLagS[k] = k * tsSec;
 
         List<Integer> zeroCrossings = new ArrayList<>();
         double lastSign = Math.signum(rho[0]);
@@ -63,6 +71,8 @@ public final class OscillationMath {
         }
         r.zeroCrossingCount = zeroCrossings.size();
         r.periodCandidateCount = periods.size();
+        r.crossingTimesS = new double[zeroCrossings.size()];
+        for (int j = 0; j < zeroCrossings.size(); j++) r.crossingTimesS[j] = zeroCrossings.get(j) * tsSec;
 
         if (!periods.isEmpty()) {
             Collections.sort(periods);
@@ -249,6 +259,11 @@ public final class OscillationMath {
         double gamma0;
         int zeroCrossingCount;
         int periodCandidateCount;
+        /** v2.5 (2C.1a) retained evidence: rho[k] at lag k (seconds in acfLagS), pairs per lag, zero-crossing times. */
+        public double[] acf = new double[0];
+        public double[] acfLagS = new double[0];
+        public int[] acfPairCount = new int[0];
+        public double[] crossingTimesS = new double[0];
     }
 
     public static class FftResult {

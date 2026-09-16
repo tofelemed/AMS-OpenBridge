@@ -40,8 +40,13 @@ public final class LimitMath {
         int maxDwell = 0;
         int exits = 0;
         boolean wasSat = false;
-        for (double v : op) {
+        s.activeLow = new boolean[op.length];
+        s.activeHigh = new boolean[op.length];
+        for (int idx = 0; idx < op.length; idx++) {
+            double v = op[idx];
             boolean atLimit = v <= lowPct || v >= highPct;
+            s.activeLow[idx] = v <= lowPct;
+            s.activeHigh[idx] = v >= highPct;
             if (atLimit) {
                 sat++;
                 dwell++;
@@ -64,6 +69,8 @@ public final class LimitMath {
         public double occupancy;
         public int maxDwellSamples;
         public boolean cyclingPattern;
+        /** v2.5 (2C.1a) retained evidence: per-sample limit occupancy. */
+        public boolean[] activeLow = new boolean[0], activeHigh = new boolean[0];
     }
 
     /** v2.5 R08 - one contiguous stay at a limit, in event time. */
@@ -209,6 +216,11 @@ public final class LimitMath {
         for (int i = 0; i < d.length; i++) d[i] = pv[i + 1] - pv[i];
         r.mean = SignalMath.mean(d);
         r.std = SignalMath.popStd(d, r.mean);
+        // v2.5 (2C.1a) retained evidence: the deltas, the 3-sigma noise band and the spike flags (computeSpikeCount's criterion)
+        r.deltaPv = d;
+        r.noiseBand = 3 * r.std;
+        r.spikeMask = new boolean[d.length];
+        if (r.std >= 1e-12) for (int i = 0; i < d.length; i++) r.spikeMask[i] = Math.abs(d[i] - r.mean) > 3 * r.std;
         return r;
     }
 
@@ -229,5 +241,9 @@ public final class LimitMath {
     public static class DeltaPvResult {
         double mean;
         double std;
+        /** v2.5 (2C.1a) retained evidence. */
+        public double[] deltaPv = new double[0];
+        public double noiseBand;
+        public boolean[] spikeMask = new boolean[0];
     }
 }

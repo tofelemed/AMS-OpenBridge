@@ -155,3 +155,8 @@ classloader); recreating the TaskManager cleared it. The plant runbook already r
   than `maxGapS` is a break in support (§2.7): the ring now restarts after it and already-captured candidates are skipped rather than terminal.
   Regression test `aScenarioAfterALongSilenceIsCapturedNotSwallowedByTheGap`. Lab publishers: `scripts/sim/loop_step_sim.py`
   (`input-test` = the §2.11 FOPDT, `servo-step`, `integrating`); 1 s or 5 s cadence both yield 12 tuples/min on the 5 s grid.
+- Lab fact (2026-09-16): the first G12 proof scenario overlapped a jar deploy; the Response Engine restarted 3 min into the scenario, its keyed
+  state (ring + open capture) was rebuilt empty from the committed offset and the new instance saw only the settled tail — no event, correctly.
+  The job checkpoints every 5 min: a capture younger than the last checkpoint does not survive a restart (it is neither emitted nor censored).
+  Phase 4.2's reliability scenario must prove the checkpointed path ("restart from checkpoint → the open capture continues"); the JM UI shows
+  container-local time (UTC+4) — compare with the DB's `now()` before reasoning about ordering.
