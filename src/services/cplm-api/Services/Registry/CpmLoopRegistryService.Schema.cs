@@ -43,6 +43,16 @@ public sealed partial class CpmLoopRegistryService
                     timezone VARCHAR(64) DEFAULT 'UTC',
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
+                -- v2.5 (2G.1): the loop model dimensions + acquisition contract (database/scripts/57); additive so an
+                -- existing lab volume gains them too. CHECK lists live in the script; the insert path validates in C#.
+                ALTER TABLE cpm.loop_registry
+                    ADD COLUMN IF NOT EXISTS service_family VARCHAR(40),
+                    ADD COLUMN IF NOT EXISTS dynamic_class VARCHAR(24),
+                    ADD COLUMN IF NOT EXISTS objective_type VARCHAR(16) NOT NULL DEFAULT 'UNSET',
+                    ADD COLUMN IF NOT EXISTS topology VARCHAR(24) NOT NULL DEFAULT 'UNKNOWN',
+                    ADD COLUMN IF NOT EXISTS command_path VARCHAR(16) NOT NULL DEFAULT 'UNKNOWN',
+                    ADD COLUMN IF NOT EXISTS acquisition JSONB NOT NULL DEFAULT '{}'::jsonb,
+                    ADD COLUMN IF NOT EXISTS classification_source VARCHAR(24) NOT NULL DEFAULT 'PRESET_FROM_LOOP_TYPE';
                 CREATE INDEX IF NOT EXISTS idx_cpm_loop_registry_asset ON cpm.loop_registry (asset_id);
                 CREATE INDEX IF NOT EXISTS idx_cpm_loop_registry_site ON cpm.loop_registry (site);
                 -- P3-9: analytics reads join on lower(loop_id); enforce one casing per loop.

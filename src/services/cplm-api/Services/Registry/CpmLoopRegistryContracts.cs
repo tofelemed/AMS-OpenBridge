@@ -61,6 +61,9 @@ public sealed record CpmLoopActivateRequest(
     bool EnableMonitoring = true,
     bool StepTestApproved = false,
     CpmEngineeringRange? Engineering = null,
+    // v2.5 (2G.1): the loop model dimensions + acquisition contract. Omitted = keep a stored
+    // EXPLICIT model, else the loop_type preset (stamped PRESET_FROM_LOOP_TYPE).
+    CpmLoopModel? Model = null,
     // G-07: site/area/unit are validated against the asset model on activation —
     // they become the loop's UNS signal paths, so a typo used to create phantom
     // assets that resolved to nothing (live proof: a loop registered under a
@@ -83,6 +86,28 @@ public sealed record CpmEngineeringRange(
     // cplm.loop.engineering, and turned into a fraction-of-span band by the engine.
     double? PvMin = null, double? PvMax = null);
 
+/// <summary>
+/// v2.5 (2G.1, spec v6 §6.1-6.3): what the loop IS, declared as five separate dimensions. Any field
+/// may be omitted (the loop_type preset fills it); a request with any field set is EXPLICIT.
+/// </summary>
+public sealed record CpmLoopModel(
+    string? ServiceFamily, string? DynamicClass, string? ObjectiveType, string? Topology, string? CommandPath,
+    CpmAcquisition? Acquisition)
+{
+    public bool IsEmpty => string.IsNullOrWhiteSpace(ServiceFamily) && string.IsNullOrWhiteSpace(DynamicClass) && string.IsNullOrWhiteSpace(ObjectiveType)
+        && string.IsNullOrWhiteSpace(Topology) && string.IsNullOrWhiteSpace(CommandPath) && Acquisition is null;
+}
+
+/// <summary>v2.5 (2G.1): the acquisition contract - how the source delivers samples (NR-016 bandwidth eligibility, NR-019 RBE holds).</summary>
+public sealed record CpmAcquisition(string Mode, int? GridSeconds, double? SourceFilterS, int? TimestampQuantizationMs, double? DeclaredScanS)
+{
+    public static readonly CpmAcquisition Default = new("PERIODIC", null, null, null, null);
+}
+
+/// <summary>v2.5 (2G.1): the effective loop model as stored, with its classification source.</summary>
+public sealed record CpmLoopModelDto(
+    string? ServiceFamily, string? DynamicClass, string ObjectiveType, string Topology, string CommandPath, CpmAcquisition Acquisition, string ClassificationSource);
+
 public sealed record CpmLoopDto(
     string LoopId,
     Guid? AssetId,
@@ -103,7 +128,9 @@ public sealed record CpmLoopDto(
     /// Returned so an edit round-trip cannot silently drop what onboarding stored.</summary>
     CpmEngineeringRange? Engineering = null,
     /// <summary>v2.5 (2E.2): the site zone every time on the loop's evidence is shown in (registry column; 'UTC' when undeclared).</summary>
-    string? Timezone = null);
+    string? Timezone = null,
+    /// <summary>v2.5 (2G.1): the loop model dimensions + acquisition contract and where they came from.</summary>
+    CpmLoopModelDto? Model = null);
 
 public sealed record CpmLoopLinkDto(string ToLoopId, string RelType, string Origin);
 

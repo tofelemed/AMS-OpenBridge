@@ -7,6 +7,7 @@ using Dapper;
 using Microsoft.Extensions.Options;
 using Npgsql;
 using NpgsqlTypes;
+using Traverse.CplmApi.Services.Registry;
 
 namespace Traverse.CplmApi.Services;
 
@@ -61,6 +62,9 @@ public sealed partial class CpmLoopRegistryService
             SELECT loop_id, monitoring::text, engineering::text
             FROM cpm.loop_registry WHERE loop_id = ANY(@ids)
             """, new { ids })).ToList();
+        // v2.5 (2G.1): the loop model dimensions ride the same envelope as cplm.loop.model
+        var models = (await conn.QueryAsync(CpmLoopRegistryReads.RegistrySelect + " WHERE loop_id = ANY(@ids)", new { ids }))
+            .ToDictionary(r => (string)r.loop_id, r => CpmLoopRegistryReads.ReadModel(r), StringComparer.Ordinal);
 
         // Keep the registry's own mirror of peer status truthful for readiness
         // reads — two set-based UPDATEs instead of one per loop.
@@ -100,6 +104,7 @@ public sealed partial class CpmLoopRegistryService
             };
 
             if (EngineeringParameter(engineeringJson) is { } engParam) parameters.Add(engParam);
+            if (models.TryGetValue(loopId, out var modelDto)) parameters.Add(ModelParameter(modelDto));
 
             var envelope = JsonSerializer.Serialize(new Dictionary<string, object>
             {
@@ -145,6 +150,7 @@ public sealed partial class CpmLoopRegistryService
 
         var row = await conn.QueryFirstOrDefaultAsync<(string? Monitoring, string? Engineering)>(
             "SELECT monitoring::text, engineering::text FROM cpm.loop_registry WHERE loop_id = @loopId", new { loopId });
+        var modelRow = await conn.QueryFirstOrDefaultAsync(CpmLoopRegistryReads.RegistrySelect + " WHERE loop_id = @loopId", new { loopId });
         var monitoringJson = row.Monitoring;
         var monitoring = ParseJson(monitoringJson);
         var stepTest = monitoring.TryGetProperty("evidence", out var ev)
@@ -178,6 +184,7 @@ public sealed partial class CpmLoopRegistryService
         // PV span before gate evaluation. Merge-only key applied AFTER profile
         // resolution; it can never clobber the class pack.
         if (EngineeringParameter(row.Engineering) is { } engParam) parameters.Add(engParam);
+        if (modelRow is not null) parameters.Add(ModelParameter(CpmLoopRegistryReads.ReadModel(modelRow)));
 
         var envelope = JsonSerializer.Serialize(new Dictionary<string, object>
         {
@@ -200,6 +207,13 @@ public sealed partial class CpmLoopRegistryService
             _logger.LogWarning(ex, "Could not publish loop evidence for {LoopId}", loopId);
         }
     }
+
+    /// <summary>v2.5 (2G.1): the cplm.loop.model attribute - the five dimensions, the acquisition contract and the classification source.</summary>
+    private static Dictionary<string, string> ModelParameter(CpmLoopModelDto m) => new()
+    {
+        ["name"] = "cplm.loop.model",
+        ["value"] = LoopModelDimensions.BroadcastJson(new LoopModelDimensions.Resolved(m.ServiceFamily, m.DynamicClass, m.ObjectiveType, m.Topology, m.CommandPath, m.Acquisition, m.ClassificationSource)),
+    };
 
     /// <summary>Retirement broadcast for one loop. Retained verbatim from the
     /// single-delete path so the broadcast consumer's contract does not move.</summary>

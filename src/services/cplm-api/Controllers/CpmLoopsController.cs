@@ -301,6 +301,22 @@ public sealed class CpmLoopsController : ControllerBase
         optionalSignalRoles = CpmLoopRegistryService.OptionalRoles,
         loopTypes = new[] { "FIC", "PIC", "PIC_GAS", "PIC_VAPOUR", "LIC", "TIC", "UNKNOWN" },
         relationshipTypes = new[] { "PEER", "UPSTREAM_OF", "DOWNSTREAM_OF", "CASCADE_PRIMARY", "CASCADE_SECONDARY" },
+        // v2.5 (2G.1): the loop model dimensions the wizard offers as explicit selects, and the preset per loop type
+        model = new
+        {
+            serviceFamilies = Services.Registry.LoopModelDimensions.Contract.ServiceFamilies,
+            dynamicClasses = Services.Registry.LoopModelDimensions.Contract.DynamicClasses,
+            objectiveTypes = Services.Registry.LoopModelDimensions.Contract.ObjectiveTypes,
+            topologies = Services.Registry.LoopModelDimensions.Contract.Topologies,
+            commandPaths = Services.Registry.LoopModelDimensions.Contract.CommandPaths,
+            acquisitionModes = Services.Registry.LoopModelDimensions.Contract.AcquisitionModes,
+            classificationSources = Services.Registry.LoopModelDimensions.Contract.ClassificationSources,
+            presets = new[] { "FIC", "PIC", "PIC_GAS", "PIC_VAPOUR", "LIC", "TIC", "UNKNOWN" }.ToDictionary(t => t, t =>
+            {
+                var p = Services.Registry.LoopModelDimensions.PresetFor(t);
+                return new { serviceFamily = p.ServiceFamily, dynamicClass = p.DynamicClass, objectiveType = p.ObjectiveType, topology = p.Topology, commandPath = p.CommandPath };
+            }),
+        },
         notes = new
         {
             loopType = "Mandatory. ISA first-letter inference fails on UNS-style tag names, and the UNKNOWN profile disables geometry-based diagnosis (prior 0.0).",

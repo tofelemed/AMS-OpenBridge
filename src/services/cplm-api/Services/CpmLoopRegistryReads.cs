@@ -19,7 +19,8 @@ public static class CpmLoopRegistryReads
     public const string RegistrySelect = """
         SELECT loop_id, asset_id, display_name, site, area, unit, loop_type, criticality,
                is_active, monitoring::text AS monitoring, tags::text AS tags, threshold_profile_id,
-               engineering::text AS engineering, timezone
+               engineering::text AS engineering, timezone,
+               service_family, dynamic_class, objective_type, topology, command_path, acquisition::text AS acquisition, classification_source
         FROM cpm.loop_registry
         """;
 
@@ -94,8 +95,21 @@ public static class CpmLoopRegistryReads
             loopId, (Guid?)row.asset_id, row.display_name, row.site, row.area, row.unit,
             row.loop_type, row.criticality, row.is_active, enabled, tags,
             BuildObservabilityFlags(tags.Keys, links), links, stepTest, row.threshold_profile_id,
-            ReadRange((string?)row.engineering), (string?)row.timezone);
+            ReadRange((string?)row.engineering), (string?)row.timezone, ReadModel(row));
     }
+
+    /// <summary>v2.5 (2G.1): the stored dimensions; a row that predates the columns reads as the loop_type preset.</summary>
+    internal static CpmLoopModelDto ReadModel(dynamic row)
+    {
+        var stored = Registry.LoopModelDimensions.FromRow((string?)row.service_family, (string?)row.dynamic_class, (string?)row.objective_type,
+            (string?)row.topology, (string?)row.command_path, (string?)row.acquisition, (string?)row.classification_source);
+        var d = stored ?? Registry.LoopModelDimensions.PresetFor((string)row.loop_type);
+        return new CpmLoopModelDto(d.ServiceFamily, d.DynamicClass, d.ObjectiveType, d.Topology, d.CommandPath, d.Acquisition, d.ClassificationSource);
+    }
+
+    internal static Registry.LoopModelDimensions.Resolved? StoredModel(dynamic? row) =>
+        row is null ? null : Registry.LoopModelDimensions.FromRow((string?)row.service_family, (string?)row.dynamic_class, (string?)row.objective_type,
+            (string?)row.topology, (string?)row.command_path, (string?)row.acquisition, (string?)row.classification_source);
 
     /// <summary>
     /// Flags derived from what the registry knows about the loop's signals and links.

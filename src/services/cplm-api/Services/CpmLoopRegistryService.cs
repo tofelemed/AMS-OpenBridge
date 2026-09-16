@@ -146,14 +146,24 @@ public sealed partial class CpmLoopRegistryService : ICpmLoopRegistryService
                 }
             });
 
+            // v2.5 (2G.1): the loop model dimensions - resolved in C# against the stored row so an
+            // EXPLICIT declaration is never overwritten by a loop_type preset (the resolution rule
+            // is LoopModelDimensions.Resolve; the SQL simply writes what it decided).
+            var storedRow = await conn.QueryFirstOrDefaultAsync(
+                "SELECT loop_id, service_family, dynamic_class, objective_type, topology, command_path, acquisition::text AS acquisition, classification_source FROM cpm.loop_registry WHERE loop_id = @loopId",
+                new { loopId = request.LoopId }, tx);
+            var model = Registry.LoopModelDimensions.Resolve(request.LoopType, request.Model, CpmLoopRegistryReads.StoredModel(storedRow));
+
             await conn.ExecuteAsync("""
                 INSERT INTO cpm.loop_registry
                     (loop_id, asset_id, display_name, site, area, unit, loop_type, criticality,
-                     is_active, monitoring, tags, engineering, threshold_profile_id, updated_at)
+                     is_active, monitoring, tags, engineering, threshold_profile_id, updated_at,
+                     service_family, dynamic_class, objective_type, topology, command_path, acquisition, classification_source)
                 VALUES
                     (@loopId, @assetId, @displayName, @site, @area, @unit, @loopType, @criticality,
                      TRUE, @monitoring::jsonb, @tags::jsonb, COALESCE(@engineering::jsonb, '{}'::jsonb),
-                     @thresholdProfileId, NOW())
+                     @thresholdProfileId, NOW(),
+                     @serviceFamily, @dynamicClass, @objectiveType, @topology, @commandPath, @acquisition::jsonb, @classificationSource)
                 ON CONFLICT (loop_id) DO UPDATE SET
                     asset_id = EXCLUDED.asset_id, display_name = EXCLUDED.display_name,
                     site = EXCLUDED.site, area = EXCLUDED.area, unit = EXCLUDED.unit,
@@ -165,10 +175,16 @@ public sealed partial class CpmLoopRegistryService : ICpmLoopRegistryService
                     monitoring = cpm.loop_registry.monitoring || EXCLUDED.monitoring,
                     -- P3-8: omitting engineering on re-activation keeps the stored range.
                     engineering = COALESCE(@engineering::jsonb, cpm.loop_registry.engineering),
+                    service_family = EXCLUDED.service_family, dynamic_class = EXCLUDED.dynamic_class, objective_type = EXCLUDED.objective_type,
+                    topology = EXCLUDED.topology, command_path = EXCLUDED.command_path, acquisition = EXCLUDED.acquisition,
+                    classification_source = EXCLUDED.classification_source,
                     updated_at = NOW()
                 """,
                 new
                 {
+                    serviceFamily = model.ServiceFamily, dynamicClass = model.DynamicClass, objectiveType = model.ObjectiveType,
+                    topology = model.Topology, commandPath = model.CommandPath, acquisition = Registry.LoopModelDimensions.AcquisitionJson(model.Acquisition),
+                    classificationSource = model.ClassificationSource,
                     loopId = request.LoopId,
                     assetId = request.AssetId,
                     displayName = request.DisplayName,
@@ -243,6 +259,9 @@ public sealed partial class CpmLoopRegistryService : ICpmLoopRegistryService
 
     private static void Validate(CpmLoopActivateRequest request)
     {
+        // v2.5 (2G.1): every dimension against the registry contract, one message per field
+        var modelErrors = Registry.LoopModelDimensions.Validate(request.Model);
+        if (modelErrors.Count > 0) throw new ArgumentException("model: " + string.Join("; ", modelErrors));
         if (string.IsNullOrWhiteSpace(request.LoopId))
             throw new ArgumentException("loopId is required");
         // P1-5 (relaxed 2026-08-24): plant tags routinely carry dashes and dots -

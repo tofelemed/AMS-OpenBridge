@@ -7,6 +7,7 @@ using Dapper;
 using Microsoft.Extensions.Options;
 using Npgsql;
 using NpgsqlTypes;
+using Traverse.CplmApi.Services.Registry;
 
 namespace Traverse.CplmApi.Services;
 
@@ -265,8 +266,19 @@ public sealed partial class CpmLoopRegistryService
                 ? SerializeRange(r.Engineering!)
                 : null);
             p.Add($"tp{i}", r.ThresholdProfileId);
+            // v2.5 (2G.1): bulk import writes the loop_type preset or the row's explicit model; a stored
+            // EXPLICIT model survives a bulk re-import that carries no model (see the ON CONFLICT rule).
+            var model = LoopModelDimensions.Resolve(r.LoopType, r.Model, stored: null);
+            p.Add($"sf{i}", model.ServiceFamily);
+            p.Add($"dc{i}", model.DynamicClass);
+            p.Add($"ot{i}", model.ObjectiveType);
+            p.Add($"tp2{i}", model.Topology);
+            p.Add($"cp{i}", model.CommandPath);
+            p.Add($"aq{i}", LoopModelDimensions.AcquisitionJson(model.Acquisition));
+            p.Add($"cs{i}", model.ClassificationSource);
             values.Add($"(@l{i}, @a{i}, @d{i}, @s{i}, @ar{i}, @u{i}, @lt{i}, @c{i}, TRUE, " +
-                       $"@m{i}::jsonb, @t{i}::jsonb, COALESCE(@e{i}::jsonb, @emptyJson::jsonb), @tp{i}, NOW())");
+                       $"@m{i}::jsonb, @t{i}::jsonb, COALESCE(@e{i}::jsonb, @emptyJson::jsonb), @tp{i}, NOW(), " +
+                       $"@sf{i}, @dc{i}, @ot{i}, @tp2{i}, @cp{i}, @aq{i}::jsonb, @cs{i})");
         }
         // Bound rather than inlined: '{}' inside an interpolated raw string would
         // be read as an interpolation hole.
@@ -275,7 +287,8 @@ public sealed partial class CpmLoopRegistryService
         await conn.ExecuteAsync(new CommandDefinition($"""
             INSERT INTO cpm.loop_registry
                 (loop_id, asset_id, display_name, site, area, unit, loop_type, criticality,
-                 is_active, monitoring, tags, engineering, threshold_profile_id, updated_at)
+                 is_active, monitoring, tags, engineering, threshold_profile_id, updated_at,
+                 service_family, dynamic_class, objective_type, topology, command_path, acquisition, classification_source)
             VALUES {string.Join(", ", values)}
             ON CONFLICT (loop_id) DO UPDATE SET
                 asset_id = EXCLUDED.asset_id, display_name = EXCLUDED.display_name,
@@ -286,6 +299,14 @@ public sealed partial class CpmLoopRegistryService
                 monitoring = cpm.loop_registry.monitoring || EXCLUDED.monitoring,
                 engineering = CASE WHEN EXCLUDED.engineering = @emptyJson::jsonb
                                    THEN cpm.loop_registry.engineering ELSE EXCLUDED.engineering END,
+                -- v2.5 (2G.1): a preset never overwrites a person's EXPLICIT model
+                service_family = CASE WHEN EXCLUDED.classification_source = 'EXPLICIT' OR cpm.loop_registry.classification_source <> 'EXPLICIT' THEN EXCLUDED.service_family ELSE cpm.loop_registry.service_family END,
+                dynamic_class = CASE WHEN EXCLUDED.classification_source = 'EXPLICIT' OR cpm.loop_registry.classification_source <> 'EXPLICIT' THEN EXCLUDED.dynamic_class ELSE cpm.loop_registry.dynamic_class END,
+                objective_type = CASE WHEN EXCLUDED.classification_source = 'EXPLICIT' OR cpm.loop_registry.classification_source <> 'EXPLICIT' THEN EXCLUDED.objective_type ELSE cpm.loop_registry.objective_type END,
+                topology = CASE WHEN EXCLUDED.classification_source = 'EXPLICIT' OR cpm.loop_registry.classification_source <> 'EXPLICIT' THEN EXCLUDED.topology ELSE cpm.loop_registry.topology END,
+                command_path = CASE WHEN EXCLUDED.classification_source = 'EXPLICIT' OR cpm.loop_registry.classification_source <> 'EXPLICIT' THEN EXCLUDED.command_path ELSE cpm.loop_registry.command_path END,
+                acquisition = CASE WHEN EXCLUDED.classification_source = 'EXPLICIT' OR cpm.loop_registry.classification_source <> 'EXPLICIT' THEN EXCLUDED.acquisition ELSE cpm.loop_registry.acquisition END,
+                classification_source = CASE WHEN EXCLUDED.classification_source = 'EXPLICIT' THEN 'EXPLICIT' ELSE cpm.loop_registry.classification_source END,
                 updated_at = NOW()
             """, p, tx, cancellationToken: ct));
     }
