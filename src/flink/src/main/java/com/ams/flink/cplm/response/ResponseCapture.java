@@ -211,8 +211,18 @@ public final class ResponseCapture implements Serializable {
         for (double[] row : ring) if (row[0] >= t0 - cfg.preSupportS && row[0] < t0 && row[4] > 0) pre.add(row[1]);
         double dy = pre.size() >= 3 ? yss - median(pre) : 0;
         double band = com.ams.flink.cplm.response.metrics.Settling.responseBand(cfg.absSettlingBandEu, cfg.relSettlingBand, dy, cfg.noiseFloorEu);
-        for (double v : tail) if (Math.abs(v - yss) > band) return false;
-        return true;
+        // the settle dwell is measured from the band ENTRY - the earliest sample from which every later sample is
+        // in band - exactly as the metric measures it; "every sample inside the trailing window is in band" is
+        // weaker when the window's start falls between samples (lab: entry 4.3 s inside the window -> censored)
+        double entry = Double.NaN;
+        for (int i = ring.size() - 1; i >= 0; i--) {
+            double[] row = ring.get(i);
+            if (row[0] < t0) break;
+            if (row[4] == 0) continue;
+            if (Math.abs(row[1] - yss) > band) break;
+            entry = row[0];
+        }
+        return !Double.isNaN(entry) && nowS - entry >= cfg.tailDwellS;
     }
 
     private static double median(List<Double> vals) {

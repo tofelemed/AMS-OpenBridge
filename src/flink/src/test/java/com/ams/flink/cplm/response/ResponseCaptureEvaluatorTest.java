@@ -371,11 +371,14 @@ public class ResponseCaptureEvaluatorTest {
         cap.setCommandPath("OP_TO_VALVE");
         ResponseEvaluator ev = new ResponseEvaluator(cfg);
         List<G12Result> results = new ArrayList<>();
-        double closedAt = Double.NaN;
-        for (double t = 0; t <= 600; t += 5) {
+        double closedAt = Double.NaN, firstInBand = Double.NaN;
+        // the lab grid: 5 s samples with one 7 s gap before the band entry, so the tail window's start falls BETWEEN
+        // samples (the first in-band sample lies inside the window) - exactly the case that fooled the range test
+        for (double t = 0; t <= 600; t += (t == 160 ? 7 : 5)) {
             double u = t < 100 ? 40 : 45;
             double real = t - 100 + 1.2;
             double pv = t < 100 || real <= 4 ? 100 : 100 + 15 * (1 - Math.exp(-(real - 4) / 20));
+            if (t >= 100 && Double.isNaN(firstInBand) && Math.abs(pv - 115) <= 0.3) firstInBand = t;
             for (ResponseCapture.Closed c : cap.onSample(sample("FIC10302", t, pv, 100, u, true), false)) {
                 closedAt = t;
                 results.add(ev.evaluate(c, ModelFamily.FOPDT, null, 0, ControllerSnapshot.unknown(), 0, "LIVE", "", 0).result);
@@ -384,10 +387,10 @@ public class ResponseCaptureEvaluatorTest {
         assertEquals(1, results.size());
         G12Result r = results.get(0);
         assertEquals("COMPLETE", r.subgates.get("B").outputs.get("capture_state"));
-        double bandEntry = 100 - 1.2 + 4 + 20 * Math.log(15.0 / 0.3);          // |y - 115| <= 0.3 from here on (~181 s)
-        assertTrue("closed no earlier than band entry + tail dwell", closedAt >= bandEntry + 120 - 5);
+        assertTrue("closed no earlier than the first in-band SAMPLE + tail dwell", closedAt - firstInBand >= 120);
         assertTrue("settle_response is observed, not censored, on a capture the job closed as settled", r.metrics.get("settle_response").available());
-        assertEquals(bandEntry - 100, r.metrics.get("settle_response").value, 6.0);
+        assertEquals(firstInBand - 100, r.metrics.get("settle_response").value, 1e-6);
+        assertEquals("the event end is the closing sample, to the millisecond", closedAt * 1000, r.windowEndMs, 0.0);
         assertTrue(r.metrics.get("t10").available());
         assertTrue(r.metrics.get("pre_slope").available());
         assertEquals(0.0, r.metrics.get("pre_slope").value, 1e-9);

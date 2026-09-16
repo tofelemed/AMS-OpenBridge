@@ -66,8 +66,8 @@ public final class ResponseEvaluator implements Serializable {
                             ControllerSnapshot controller, long nowMs, String purpose, String analysisRunId, int contextRevision) {
         G12Result g = G12Result.empty(c.event.loopId, c.event.pathId);
         g.eventId = c.event.eventId;
-        g.windowStartMs = (long) c.data.t0 * 1000L;
-        g.windowEndMs = (long) c.data.tEnd * 1000L;
+        g.windowStartMs = Math.round(c.data.t0 * 1000.0);                    // to the millisecond: (long) t0 * 1000 truncated to whole seconds
+        g.windowEndMs = Math.round(c.data.tEnd * 1000.0);
         g.emittedAtMs = nowMs;
         g.bundleHash = bundleHash;
         g.purpose = purpose;
