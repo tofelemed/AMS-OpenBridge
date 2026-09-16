@@ -8,6 +8,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.util.OutputTag;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import com.ams.flink.cplm.contract.CplmTopics;
+import com.ams.flink.cplm.evidence.EvidenceArtifact;
+import com.ams.flink.cplm.evidence.EvidenceKafkaRecords;
+import com.ams.flink.cplm.evidence.LongEvidence;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
@@ -61,20 +68,32 @@ public class CplmLongDiagnosticsStreamJob {
 
         DataStream<CplmNormalizedSample> normalized = CplmIngestPipeline.build(env, cfg, "cplm-long-normalized-source");
 
-        DataStream<String> diagnostics = normalized
+        SingleOutputStreamOperator<CplmLongDiagnosticsResult> processed = normalized
                 .keyBy(s -> s.loopId)
                 .process(new LongDiagnosticsProcessFunction())
                 .name("cplm-long-diagnostics-keyed-process")
-                .uid("cplm-long-diagnostics-keyed-process")
+                .uid("cplm-long-diagnostics-keyed-process");
+        DataStream<String> diagnostics = processed
                 .map(CplmLongDiagnosticsResult::toJson)
                 .name("cplm-long-diagnostics-serialize")
                 .uid("cplm-long-diagnostics-serialize");
+
+        // v2.5 (1G.3): evidence artifacts (manifest + chunks, keyed by method_run_id) ride a
+        // side output to the evidence topic; the results topic stays exactly as it was.
+        String evidenceTopic = argOr(args, "--evidence-topic", CplmTopics.GATE_EVIDENCE);
+        DataStream<String> evidence = processed.getSideOutput(LongDiagnosticsProcessFunction.EVIDENCE);
+        CplmKafkaSink.attachKeyed(evidence, cfg, evidenceTopic, "cplm-long-evidence-sink", EvidenceKafkaRecords.KEY_FIELD);
 
         // Keyed by loop_id (audit-jobs.md A-F1): fusion's family-history persistence
         // is order-sensitive per loop; unkeyed records round-robined across the
         // 8 partitions could arrive out of emission order.
         CplmKafkaSink.attachKeyed(diagnostics, cfg, cfg.longFeatureTopic, "cplm-long-diagnostics-sink", "loop_id");
         env.execute(cfg.jobName);
+    }
+
+    private static String argOr(String[] args, String name, String def) {
+        for (int i = 0; i + 1 < args.length; i++) if (name.equals(args[i])) return args[i + 1];
+        return def;
     }
 
     /**
@@ -89,8 +108,19 @@ public class CplmLongDiagnosticsStreamJob {
     static class LongDiagnosticsProcessFunction
             extends KeyedProcessFunction<String, CplmNormalizedSample, CplmLongDiagnosticsResult> {
 
+        /** v2.5 (1G.3): evidence records (EvidenceKafkaRecords JSON) leave through this side output. */
+        static final OutputTag<String> EVIDENCE = new OutputTag<String>("cplm-long-evidence") {
+        };
+        private static final ObjectMapper MAPPER = new ObjectMapper();
+
         private transient ListState<CplmNormalizedSample> rollingBuffer;
         private transient ValueState<Long> nextTimerTs;
+
+        private void emitEvidence(OnTimerContext ctx, CplmLongDiagnosticsResult r, long nowMs) {
+            for (EvidenceArtifact a : LongEvidence.artifacts(r)) {
+                for (String record : EvidenceKafkaRecords.records(a, MAPPER, nowMs)) ctx.output(EVIDENCE, record);
+            }
+        }
 
         @Override
         public void open(Configuration parameters) {
@@ -149,6 +179,7 @@ public class CplmLongDiagnosticsStreamJob {
                 r4h.alignedShort = CplmGateEngine.computeShortFeatures(
                         slice4h, cutoff4h, timestamp, "4h");
                 out.collect(r4h);
+                emitEvidence(ctx, r4h, timestamp);
             }
 
             // Compute 12h window slice
@@ -165,6 +196,7 @@ public class CplmLongDiagnosticsStreamJob {
                 r12h.alignedShort = CplmGateEngine.computeShortFeatures(
                         slice12h, cutoff12h, timestamp, "12h");
                 out.collect(r12h);
+                emitEvidence(ctx, r12h, timestamp);
             }
 
             // Compute 24h window slice
@@ -181,6 +213,7 @@ public class CplmLongDiagnosticsStreamJob {
                 r24h.alignedShort = CplmGateEngine.computeShortFeatures(
                         slice24h, cutoff24h, timestamp, "24h");
                 out.collect(r24h);
+                emitEvidence(ctx, r24h, timestamp);
             }
 
             // Register the next cadence timer. CRITICAL: skip ahead when the

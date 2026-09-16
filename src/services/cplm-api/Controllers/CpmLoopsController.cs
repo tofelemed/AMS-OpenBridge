@@ -260,14 +260,18 @@ public sealed class CpmLoopsController : ControllerBase
                 windowOffsetMs: await recompute.GetWindowOffsetMsAsync(loop.LoopId, ct),
                 ct);
             _audit.Emit("CPM_RECOMPUTE_STARTED", Actor(), "CpmLoop", loop.LoopId,
-                new { handle.ReplayId, handle.JobId, hasStepTest = loop.StepTestApproved, hasPeerLinks = loop.Links.Count > 0 });
+                new { handle.ReplayId, handle.JobId, handle.AnalysisRunId, hasStepTest = loop.StepTestApproved, hasPeerLinks = loop.Links.Count > 0 });
+            // v2.5 (1G.4): this endpoint is a thin adapter over POST /analysis-runs (purpose REPLAY).
             return Accepted(new
             {
                 handle.LoopId,
                 handle.ReplayId,
                 handle.JobId,
-                statusUrl = $"/api/v1/cpm/replays/{handle.ReplayId}?jobId={handle.JobId}",
-                note = "Results land in analytics.cplm_gate_results with source='flink-historical-replay'."
+                handle.AnalysisRunId,
+                handle.Purpose,
+                statusUrl = $"/api/v1/cpm/analysis-runs/{handle.AnalysisRunId}",
+                legacyStatusUrl = $"/api/v1/cpm/replays/{handle.ReplayId}?jobId={handle.JobId}",
+                note = "Results land in analytics.cplm_gate_results with source='flink-historical-replay', purpose='REPLAY' and this analysis_run_id; they never enter the live episode timeline."
             });
         }
         catch (InvalidOperationException ex)

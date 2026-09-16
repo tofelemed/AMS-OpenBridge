@@ -301,8 +301,20 @@ Step 'FIC99999 parked in unknown-sources + on the DLQ' {
     }
     Assert ($rows.Count -ge 1) 'no LOOP_NOT_REGISTERED row for FIC99999'
     Assert ($rows[0].messageCount -ge 4) "parking count not growing: $($rows[0].messageCount)"
-    $dlq = (cmd /c "docker exec ams-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic traverse.ingestion.ot-dlq --from-beginning --timeout-ms 15000 --max-messages 5 2>nul")
-    Assert (@($dlq | Where-Object { $_ -match 'LOOP_NOT_REGISTERED' }).Count -ge 1) 'no LOOP_NOT_REGISTERED record on the DLQ topic'
+    # The DLQ topic is long-lived (lab: >150k records, 7-day retention), so "first five from the
+    # beginning" never reaches this run. Read the TAIL of every partition (end offset - 400) and
+    # require a LOOP_NOT_REGISTERED record for THIS loop stamped today.
+    $today = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
+    $ends = @(cmd /c "docker exec ams-kafka kafka-run-class kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic traverse.ingestion.ot-dlq 2>nul")
+    $dlq = @()
+    foreach ($line in $ends) {
+        $parts = "$line".Trim() -split ':'
+        if ($parts.Count -lt 3) { continue }
+        $partition = $parts[1]; $end = [long]$parts[2]; $from = [Math]::Max(0, $end - 400)
+        $dlq += @(cmd /c "docker exec ams-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic traverse.ingestion.ot-dlq --partition $partition --offset $from --timeout-ms 10000 --max-messages 400 2>nul")
+    }
+    $hits = @($dlq | Where-Object { $_ -match 'LOOP_NOT_REGISTERED' -and $_ -match 'FIC99999' -and $_ -match $today })
+    Assert ($hits.Count -ge 1) "no LOOP_NOT_REGISTERED record for FIC99999 dated $today in the DLQ tail ($(@($dlq).Count) records read from $(@($ends).Count) partitions)"
 }
 
 # ── 7. Ops surfaces ──────────────────────────────────────────────────────────
@@ -448,6 +460,52 @@ Step 'un-mapping the last source of a required role is refused with 400 (fleet c
     # And the rejected save changed nothing: the subscriber is still on the overlay.
     $row = @((Invoke-RestMethod -Method Get -Uri "$ing/stats" -Headers $H) | Where-Object { $_.configId -eq $script:configId })[0]
     Assert ($row.paramRoles.PV -eq 'pv' -and $row.paramRoles.POS -eq 'vp') 'rejected save altered the running map'
+}
+
+# ── v2.5 Subphase 1G: run identity, evidence readiness, analysis runs ───────────
+function Invoke-CplmSql([string]$sql) {
+    $q = $sql.Replace('"', '\"')
+    return (cmd /c "docker exec ams-postgres psql -U ams_user -d traverse_cplm -t -A -c `"$q`" 2>nul")
+}
+
+Step 'short-feature rows carry the run identity (v2.5 1G.3): 6 method_run_ids, profile bundle hash, running jar sha' {
+    $jarSha = (cmd /c "docker exec ams-flink-jobmanager sha256sum /opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar 2>nul")
+    $jarSha = ($jarSha -split '\s+')[0]
+    Assert ($jarSha -match '^[0-9a-f]{64}$') "could not read the running jar's sha256: $jarSha"
+    $deadline = (Get-Date).AddSeconds(180)
+    $row = $null
+    do {
+        $out = Invoke-CplmSql "SELECT bundle_hash || '|' || purpose || '|' || COALESCE(jar_sha256,'') || '|' || (SELECT count(*) FROM jsonb_object_keys(method_run_ids)) || '|' || (method_run_ids->>'G0') FROM analytics.cplm_short_feature_results WHERE lower(loop_id) = 'fic10302' AND bundle_hash LIKE 'profile:%' ORDER BY window_end DESC LIMIT 1"
+        if ($out) { $row = ($out | Select-Object -First 1).Trim() }
+        if (-not $row) { Start-Sleep -Seconds 10 }
+    } while (-not $row -and (Get-Date) -lt $deadline)
+    Assert ($null -ne $row -and $row -ne '') 'no FIC10302 short-feature row with a profile bundle hash within 180 s - is the v2.5 jar running?'
+    $parts = $row.Split('|')
+    Assert ($parts[1] -eq 'LIVE') "purpose: $($parts[1])"
+    Assert ($parts[2] -eq $jarSha) "jar_sha256 on the row ($($parts[2])) is not the running jar ($jarSha)"
+    Assert ([int]$parts[3] -eq 6) "short stage must name 6 method runs, got $($parts[3])"
+    Assert ($parts[4] -match '^[0-9a-f-]{36}$') "G0 method_run_id is not a uuid: $($parts[4])"
+    $script:g0RunId = $parts[4]
+}
+
+Step 'method-runs evidence endpoint answers for a run id (v2.5 1G.3)' {
+    Assert ($null -ne $script:g0RunId) 'no run id from the previous step'
+    $r = Invoke-RestMethod -Method Get -Uri "$cpm/method-runs/$($script:g0RunId)/evidence" -Headers $H
+    Assert ($r.methodRunId -eq $script:g0RunId) "endpoint echoed a different run id: $($r.methodRunId)"
+    Assert ($r.count -ge 0) 'evidence count missing'
+}
+
+Step 'an analysis run (REPLAY) is registered, submitted and isolated by purpose (v2.5 1G.4)' {
+    $body = @{ loopId = 'FIC10302'; purpose = 'REPLAY' } | ConvertTo-Json
+    $r = Invoke-RestMethod -Method Post -Uri "$cpm/analysis-runs" -Headers $H -ContentType 'application/json' -Body $body
+    Assert ($r.analysisRunId -match '^[0-9a-f-]{36}$') "no analysisRunId: $($r | ConvertTo-Json -Compress)"
+    Assert ($r.purpose -eq 'REPLAY') "purpose: $($r.purpose)"
+    $run = Invoke-RestMethod -Method Get -Uri "$cpm/analysis-runs/$($r.analysisRunId)" -Headers $H
+    Assert ($run.purpose -eq 'REPLAY' -and $run.loopId -eq 'FIC10302') "run readback: $($run | ConvertTo-Json -Compress)"
+    Assert ($run.state -in @('SUBMITTED','FINISHED','RUNNING','CREATED')) "unexpected state: $($run.state)"
+    # Whatever the replay writes is REPLAY, never LIVE: it must not enter the live timeline.
+    $leak = (Invoke-CplmSql "SELECT count(*) FROM analytics.cplm_gate_results WHERE analysis_run_id = '$($r.analysisRunId)' AND purpose <> 'REPLAY'" | Select-Object -First 1)
+    Assert ([int]$leak -eq 0) "replay rows with purpose <> REPLAY: $leak"
 }
 
 # ── Cleanup ──────────────────────────────────────────────────────────────────

@@ -47,6 +47,21 @@ public final class CplmHistoricalReplayJob {
         String outputTopic = params.get("output-topic", "traverse.cpa.clpm.gate.results.v1");
         String loopId = params.getRequired("loop-id");
         String replayId = params.getRequired("replay-id");
+        // v2.5 (1G.4, R19): a recomputation names its purpose and its analysis run; isolation in
+        // the store is by these columns (plus source), never by topic.
+        String purpose = params.get("purpose", "REPLAY");
+        String analysisRunId = params.get("analysis-run-id", null);
+        // v2.5 (1G.4, NR-056): the support may come from the historian instead of the samples
+        // topic - a bounded time range of root.<site>.cpm.<loop> (IotDbBoundedSource).
+        String sourceKind = params.get("source", "kafka");
+        String iotdbHost = params.get("iotdb-host", System.getenv().getOrDefault("IOTDB_HOST", "ams-iotdb"));
+        int iotdbPort = params.getInt("iotdb-port", 6667);
+        String iotdbUser = params.get("iotdb-user", System.getenv().getOrDefault("IOTDB_USER", "root"));
+        String iotdbPassword = params.get("iotdb-password", System.getenv().getOrDefault("IOTDB_PASSWORD", "root"));
+        String site = params.get("site", "");
+        String loopType = params.get("loop-type", null);
+        long fromMs = params.getLong("from-ms", 0L);
+        long toMs = params.getLong("to-ms", 0L);
         // Registry evidence for G12/G13. The streaming path receives these on the
         // metadata broadcast, which a bounded BATCH job does not consume, so they
         // arrive as arguments instead. They were hardcoded false, which meant a
@@ -79,19 +94,33 @@ public final class CplmHistoricalReplayJob {
                 .<CplmNormalizedSample>forBoundedOutOfOrderness(Duration.ZERO)
                 .withTimestampAssigner((sample, ignored) -> sample.eventTsMs);
 
-        DataStream<String> results = env
-                .fromSource(source, WatermarkStrategy.noWatermarks(), "cplm-historical-replay-source")
-                .map(CplmNormalizedSample::fromJson)
-                .filter(sample -> sample != null
-                        && sample.isValid
-                        && loopId.equalsIgnoreCase(sample.loopId))
+        DataStream<CplmNormalizedSample> samples;
+        if ("iotdb".equalsIgnoreCase(sourceKind)) {
+            if (toMs <= fromMs) throw new IllegalArgumentException("--source iotdb needs --from-ms < --to-ms");
+            samples = env.addSource(new com.ams.flink.cplm.replay.IotDbBoundedSource(
+                            iotdbHost, iotdbPort, iotdbUser, iotdbPassword, site, loopId, loopType, fromMs, toMs))
+                    .name("cplm-historical-iotdb-source")
+                    .uid("cplm-historical-iotdb-source")
+                    .setParallelism(1);
+        } else {
+            samples = env
+                    .fromSource(source, WatermarkStrategy.noWatermarks(), "cplm-historical-replay-source")
+                    .map(CplmNormalizedSample::fromJson)
+                    .filter(sample -> sample != null
+                            && sample.isValid
+                            && loopId.equalsIgnoreCase(sample.loopId));
+        }
+        final boolean historianAssumed = "iotdb".equalsIgnoreCase(sourceKind);
+
+        DataStream<String> results = samples
                 .assignTimestampsAndWatermarks(watermarks)
                 .keyBy(sample -> sample.loopId)
                 .window(TumblingEventTimeWindows.of(Time.hours(24), Time.milliseconds(windowOffsetMs)))
                 .process(new HistoricalWindowFunction(replayId, hasStepTest, hasPeerLinks))
                 .name("cplm-historical-native-formula")
                 .uid("cplm-historical-native-formula")
-                .map(result -> withReplayLineage(result, replayId, inputTopic))
+                .map(result -> withReplayLineage(result, replayId, historianAssumed ? "iotdb:" + site : inputTopic,
+                        purpose, analysisRunId, historianAssumed))
                 .name("cplm-historical-lineage")
                 .uid("cplm-historical-lineage");
 
@@ -235,11 +264,20 @@ public final class CplmHistoricalReplayJob {
     private static String withReplayLineage(
             CplmGateResult result,
             String replayId,
-            String inputTopic) throws Exception {
+            String inputTopic,
+            String purpose,
+            String analysisRunId,
+            boolean historianAssumed) throws Exception {
+        if (historianAssumed && !result.observabilityFlags.contains(com.ams.flink.cplm.replay.IotDbBoundedSource.OBSERVABILITY_FLAG)) {
+            result.observabilityFlags.add(com.ams.flink.cplm.replay.IotDbBoundedSource.OBSERVABILITY_FLAG);
+        }
         ObjectNode root = (ObjectNode) MAPPER.readTree(result.toJson());
         root.put("replay_id", replayId);
         root.put("calculation_source", "flink-historical-replay");
         root.put("replay_input_topic", inputTopic);
+        root.put("purpose", purpose == null || purpose.isEmpty() ? "REPLAY" : purpose);
+        if (analysisRunId == null || analysisRunId.isEmpty()) root.putNull("analysis_run_id");
+        else root.put("analysis_run_id", analysisRunId);
         return MAPPER.writeValueAsString(root);
     }
 

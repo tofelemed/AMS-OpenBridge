@@ -57,7 +57,10 @@ public final class LongDiagnosticsCalculator {
         List<CplmNormalizedSample> samples = SignalMath.filterHalfOpen(rawSamples, windowStartMs, windowEndMs);
         int n = samples.size();
         result.sampleCount = n;
-        if (n < 10) return result;
+        if (n < 10) {
+            com.ams.flink.cplm.identity.ResultIdentity.stamp(result, samples, profile);
+            return result;
+        }
 
         double tsSec = SignalMath.inferSamplePeriodSec(samples);
         result.samplePeriodSec = tsSec;
@@ -242,6 +245,7 @@ public final class LongDiagnosticsCalculator {
             result.gate11Reason = "";
         }
 
+        com.ams.flink.cplm.identity.ResultIdentity.stamp(result, samples, profile);
         return result;
     }
 

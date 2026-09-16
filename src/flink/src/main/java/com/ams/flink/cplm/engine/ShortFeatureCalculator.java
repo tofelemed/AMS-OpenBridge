@@ -132,7 +132,8 @@ public final class ShortFeatureCalculator {
             result.opStd = 0.0;
             result.freezeIndexS = 0.0;
             result.saturationPct = 0.0;
-            return result;
+            com.ams.flink.cplm.identity.ResultIdentity.stamp(result, samples, profile);
+        return result;
         }
 
         double[] pv = new double[n];
@@ -278,6 +279,7 @@ public final class ShortFeatureCalculator {
             result.gate4Status = "PASS";
         }
         result.sufficientData = true;
+        com.ams.flink.cplm.identity.ResultIdentity.stamp(result, samples, profile);
         return result;
     }
 }

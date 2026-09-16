@@ -1,6 +1,7 @@
 package com.ams.flink.cplm;
 
 import com.ams.flink.cplm.condition.OpenConditions;
+import com.ams.flink.cplm.fusion.HealthLanes;
 import com.ams.flink.cplm.fusion.BlockingExclusions;
 import com.ams.flink.cplm.fusion.Confirmation;
 import com.ams.flink.cplm.fusion.DiagnosisBands;
@@ -70,6 +71,25 @@ public final class CplmGateFusionEngine implements Serializable {
             boolean hasPeerLinks,
             CplmLoopDynamicsProfile profileOrNull,
             OpenConditions openConditions) {
+        return fuse(shortF, longD, hasStepTestEvidence, hasPeerLinks, profileOrNull, openConditions, HealthLanes.none());
+    }
+
+    /**
+     * v2.5 (Task 1H.5, R15): as above, plus the Instrumental health lanes - the per-role
+     * eligibility the context job decided (spec v6 §4.6). A PV under a fault affecting the
+     * measurement (INELIGIBLE) excludes the window; LIMITED and not-configured are flagged on
+     * the verdict and carried verbatim in {@code health_lanes}. Absence of health is never OK.
+     *
+     * @param healthLanes latest context per role; null/none = no Instrumental context configured
+     */
+    public static CplmGateResult fuse(
+            CplmShortFeatureResult shortF,
+            CplmLongDiagnosticsResult longD,
+            boolean hasStepTestEvidence,
+            boolean hasPeerLinks,
+            CplmLoopDynamicsProfile profileOrNull,
+            OpenConditions openConditions,
+            HealthLanes healthLanes) {
         CplmGateResult result = new CplmGateResult();
         result.loopId = longD.loopId != null ? longD.loopId : shortF.loopId;
         String loopType = firstNonEmpty(longD.loopType, shortF.loopType);
@@ -78,11 +98,20 @@ public final class CplmGateFusionEngine implements Serializable {
                 : CplmDynamicsParameterSetSupport.resolveFromSpine(result.loopId, loopType, null);
         stampProfile(result, profile, longD);
         stampWindow(result, shortF, longD);
+        com.ams.flink.cplm.identity.ResultIdentity.stamp(result, longD, profile);
 
         FusionInputs.copyShort(result, shortF, longD);
         FusionInputs.copyLong(result, shortF, longD);
         OpenConditions oc = openConditions != null ? openConditions : OpenConditions.none();
         FusionInputs.applyOpenConditions(result, longD, oc);
+        HealthLanes hl = healthLanes != null ? healthLanes : HealthLanes.none();
+        result.healthLanes = hl;
+        if (!hl.configured() && !result.observabilityFlags.contains("HEALTH_NOT_CONFIGURED")) {
+            result.observabilityFlags.add("HEALTH_NOT_CONFIGURED");
+        }
+        if (hl.anyLimited() && !result.observabilityFlags.contains("HEALTH_LIMITED")) {
+            result.observabilityFlags.add("HEALTH_LIMITED");
+        }
 
         // P1-10: stamp the provenance of the long-tier metrics copied above
         // BEFORE any early return, so every row carries it.
@@ -102,6 +131,11 @@ public final class CplmGateFusionEngine implements Serializable {
         }
         if (!shortF.operatingRegionValid || "FAIL".equalsIgnoreCase(shortF.gate2rStatus)) {
             return BlockingExclusions.block(result, "EXCLUDED_OPERATING_REGION", "G2r operating region invalid");
+        }
+        // v2.5 R15 (§4.6): a fault affecting the PV measurement makes the window undiagnosable.
+        if (hl.pvIneligible()) {
+            return BlockingExclusions.block(result, "EXCLUDED_INSTRUMENT_HEALTH",
+                    "PV instrument INELIGIBLE: " + hl.pvReason());
         }
         // v2.5 R08: a freeze EPISODE is evidence (G11 WARN, retained); only a MATERIAL freeze
         // (>= 60 s AND >= 10 % of the window - the P1-1 rule) excludes the window.

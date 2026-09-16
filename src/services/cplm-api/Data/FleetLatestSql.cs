@@ -38,12 +38,14 @@ public static class FleetLatestSql
                  FROM analytics.cplm_gate_results g
                  WHERE lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind
                    AND g.diagnosis IS NOT NULL AND g.diagnosis <> 'INSUFFICIENT_DATA'
+                   AND g.purpose = 'LIVE'
                  ORDER BY g.window_end DESC NULLS LAST, g.created_at DESC
                  LIMIT 1)
                 UNION ALL
                 (SELECT {cols}, FALSE
                  FROM analytics.cplm_gate_results g
                  WHERE lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind
+                   AND g.purpose = 'LIVE'
                  ORDER BY g.window_end DESC NULLS LAST, g.created_at DESC
                  LIMIT 1)
             ) u
@@ -57,7 +59,37 @@ public static class FleetLatestSql
     /// fragment (e.g. <c>l.confidence DESC NULLS LAST</c>). Only the observability flags are
     /// pulled out of the payload — the old query shipped the whole 3 KB message per row.
     /// </summary>
-    public static string Rankings(string rankExpr) => $"""
+    /// <summary>
+    /// v2.5 (1H.6, spec §4.7): fleet health filters. Each is an AND-clause over the registry row
+    /// so a LIMITed page is filtered by the server, never re-filtered by the browser. Null for an
+    /// unknown filter (the controller answers 400). The filters read the mirror as-of now:
+    ///  - missing-binding: no PV device bound right now;
+    ///  - stale-collection: an open loop context whose collection is STALE/OFFLINE/UNKNOWN;
+    ///  - active-affected: an open loop context that is INELIGIBLE or LIMITED (a device condition
+    ///    affecting a bound signal).
+    /// </summary>
+    public static string? HealthFilter(string? health) => health?.Trim().ToLowerInvariant() switch
+    {
+        null or "" => "",
+        "missing-binding" => """
+              AND NOT EXISTS (SELECT 1 FROM cpm.signal_device_binding_history b
+                              WHERE b.loop_id = r.loop_id AND b.signal_role = 'PV'
+                                AND b.valid_from <= now() AND (b.valid_to IS NULL OR b.valid_to > now()))
+            """,
+        "stale-collection" => """
+              AND EXISTS (SELECT 1 FROM cpm.loop_health_context c
+                          WHERE c.loop_id = r.loop_id AND c.to_at IS NULL
+                            AND c.collection_state IN ('STALE','OFFLINE','UNKNOWN'))
+            """,
+        "active-affected" => """
+              AND EXISTS (SELECT 1 FROM cpm.loop_health_context c
+                          WHERE c.loop_id = r.loop_id AND c.to_at IS NULL
+                            AND c.eligibility IN ('INELIGIBLE','LIMITED'))
+            """,
+        _ => null,
+    };
+
+    public static string Rankings(string rankExpr, string healthWhere = "") => $"""
         SELECT r.loop_id, r.display_name, r.site, r.area, r.unit, r.loop_type, r.criticality,
                l.window_end, l.diagnosis, l.severity, l.confidence,
                l.effort_ratio, l.triangularity, l.horch_oddness, l.acf_period_s,
@@ -71,6 +103,7 @@ public static class FleetLatestSql
                     g.payload->>'leading_hypothesis' AS leading_hypothesis
             """)}
         {MonitoredInScope}
+        {healthWhere}
         ORDER BY
             (l.diagnosis IS NOT NULL AND l.diagnosis <> 'INSUFFICIENT_DATA') DESC,
             {rankExpr},

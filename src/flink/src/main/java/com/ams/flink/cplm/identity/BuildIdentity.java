@@ -81,7 +81,10 @@ public final class BuildIdentity implements Serializable {
             URL url = src.getLocation();
             if (url == null) return null;
             Path path = Paths.get(url.toURI());
-            return path.toString().endsWith(".jar") && Files.isRegularFile(path) ? path : null;
+            // Any regular file is digested: in a Flink cluster the TaskManager loads user code from
+            // a BlobServer copy named blob_p-<hash>-<id> (no .jar suffix) that is byte-identical to the
+            // submitted jar, so its digest equals the jar's. Only a directory (tests, IDE) has no jar.
+            return Files.isRegularFile(path) ? path : null;
         } catch (Exception e) {
             return null;
         }

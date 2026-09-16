@@ -14,6 +14,8 @@ using System.Text.Json;
 
 namespace Traverse.CplmApi.BackgroundServices;
 
+using static Traverse.CplmApi.Services.ResultPayloadReader;
+
 /// <summary>
 /// CPLM Phase 3 — persists the three CPLM result streams into Postgres:
 ///   traverse.cpa.clpm.gate.results.v1   → analytics.cplm_gate_results
@@ -141,7 +143,11 @@ public sealed class CplmResultConsumerService : BackgroundService
 
                 // Unparseable messages return true (skip + advance); only DB
                 // failures leave the offset unstored so the message is retried.
-                if (persisted) _consumer.StoreOffset(result);
+                if (persisted)
+                {
+                    _consumer.StoreOffset(result);
+                    _heartbeat.ReportLag("results", (long)(DateTimeOffset.UtcNow - result.Message.Timestamp.UtcDateTime).TotalMilliseconds);
+                }
             }
             catch (ConsumeException ex)
             {
@@ -190,22 +196,41 @@ public sealed class CplmResultConsumerService : BackgroundService
             return true;
         }
 
-        const string sql = """
+        const string sql = GateUpsertSql;
+
+        await using var conn = await _dataSource.OpenConnectionAsync(ct);
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        BindGateParameters(cmd, root, loopId, json);
+        await cmd.ExecuteNonQueryAsync(ct);
+        await AfterGatePersistedAsync(loopId, root, ct);
+        return true;
+    }
+
+    /// <summary>
+    /// v2.5 (1G.3, spec §1.6): the conflict target includes bundle_hash - the same window under
+    /// the SAME configuration is refined in place (late data, sample_count guard), under a
+    /// DIFFERENT configuration it is a new row. Public so ResultUpsertTests runs it verbatim.
+    /// </summary>
+    public const string GateUpsertSql = """
             INSERT INTO analytics.cplm_gate_results
                 (loop_id, window_kind, window_start, window_end, sample_count,
                  mae, rmse, iae, good_error_pct, acf_period_s, acf_regularity,
                  effort_ratio, triangularity, horch_oddness, phase_area_norm_per_cycle,
                  corner_score, travel_per_day, reversals_per_hour,
                  harmonic_amplitude_ratio, harmonic_energy_ratio,
-                 diagnosis, severity, confidence, payload, source)
+                 diagnosis, severity, confidence, payload, source,
+                 method_run_ids, bundle_hash, context_revision, result_revision, purpose,
+                 analysis_run_id, source_commit, jar_sha256, dataset_hash)
             VALUES
                 (@loopId, @windowKind, @winStart, @winEnd, @samples,
                  @mae, @rmse, @iae, @goodErrorPct, @acfPeriodS, @acfRegularity,
                  @effortRatio, @triangularity, @horchOddness, @phaseArea,
                  @cornerScore, @travelPerDay, @reversalsPerHour,
                  @harmAmpRatio, @harmEnergyRatio,
-                 @diagnosis, @severity, @confidence, @payload, @source)
-            ON CONFLICT (loop_id, window_kind, window_end, source) DO UPDATE SET
+                 @diagnosis, @severity, @confidence, @payload, @source,
+                 @methodRunIds, @bundleHash, @contextRevision, @resultRevision, @purpose,
+                 @analysisRunId, @sourceCommit, @jarSha256, @datasetHash)
+            ON CONFLICT (loop_id, window_kind, window_end, source, bundle_hash) DO UPDATE SET
                 window_start = EXCLUDED.window_start,
                 sample_count = EXCLUDED.sample_count,
                 mae = EXCLUDED.mae, rmse = EXCLUDED.rmse, iae = EXCLUDED.iae,
@@ -221,12 +246,16 @@ public sealed class CplmResultConsumerService : BackgroundService
                 harmonic_energy_ratio = EXCLUDED.harmonic_energy_ratio,
                 diagnosis = EXCLUDED.diagnosis, severity = EXCLUDED.severity,
                 confidence = EXCLUDED.confidence, payload = EXCLUDED.payload,
+                method_run_ids = EXCLUDED.method_run_ids, context_revision = EXCLUDED.context_revision,
+                result_revision = EXCLUDED.result_revision, purpose = EXCLUDED.purpose,
+                analysis_run_id = EXCLUDED.analysis_run_id, source_commit = EXCLUDED.source_commit,
+                jar_sha256 = EXCLUDED.jar_sha256, dataset_hash = EXCLUDED.dataset_hash,
                 created_at = NOW()
             WHERE EXCLUDED.sample_count >= analytics.cplm_gate_results.sample_count
             """;
 
-        await using var conn = await _dataSource.OpenConnectionAsync(ct);
-        await using var cmd = new NpgsqlCommand(sql, conn);
+    private static void BindGateParameters(NpgsqlCommand cmd, JsonElement root, string loopId, string json)
+    {
         cmd.Parameters.AddWithValue("loopId", loopId);
         cmd.Parameters.AddWithValue("windowKind", (object?)GetString(root, "window_kind") ?? "24h");
         AddTimestamp(cmd, "winStart", root, "windowStartMs");
@@ -252,8 +281,27 @@ public sealed class CplmResultConsumerService : BackgroundService
         cmd.Parameters.AddWithValue("confidence", GetDouble(root, "confidence"));
         cmd.Parameters.Add(new NpgsqlParameter("payload", NpgsqlDbType.Jsonb) { Value = json });
         cmd.Parameters.AddWithValue("source", GetString(root, "calculation_source") ?? "flink");
-        await cmd.ExecuteNonQueryAsync(ct);
+        AddIdentityParameters(cmd, root);
+    }
 
+    /// <summary>v2.5 (1G.3): the run identity every result carries (pre-v2.5 payloads: legacy defaults).</summary>
+    private static void AddIdentityParameters(NpgsqlCommand cmd, JsonElement root)
+    {
+        var ids = root.TryGetProperty("method_run_ids", out var m) && m.ValueKind == JsonValueKind.Object ? m.GetRawText() : "{}";
+        cmd.Parameters.Add(new NpgsqlParameter("methodRunIds", NpgsqlDbType.Jsonb) { Value = ids });
+        cmd.Parameters.AddWithValue("bundleHash", GetString(root, "bundle_hash") ?? "legacy");
+        cmd.Parameters.AddWithValue("contextRevision", GetInt(root, "context_revision"));
+        cmd.Parameters.AddWithValue("resultRevision", Math.Max(1, GetInt(root, "result_revision")));
+        cmd.Parameters.AddWithValue("purpose", GetString(root, "purpose") ?? "LIVE");
+        cmd.Parameters.Add(new NpgsqlParameter("analysisRunId", NpgsqlDbType.Uuid)
+            { Value = Guid.TryParse(GetString(root, "analysis_run_id"), out var g) ? g : DBNull.Value });
+        cmd.Parameters.AddWithValue("sourceCommit", (object?)GetString(root, "sourceCommit") ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("jarSha256", (object?)GetString(root, "jarSha256") ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("datasetHash", (object?)GetString(root, "dataset_hash") ?? DBNull.Value);
+    }
+
+    private async Task AfterGatePersistedAsync(string loopId, JsonElement root, CancellationToken ct)
+    {
         // Phase 3.6 — KPI series dual-write. Timestamp = window end, so replays
         // overwrite the same point (idempotent by window). Failure is logged by
         // the client and never fails the message: Postgres is the evidence store.
@@ -263,7 +311,6 @@ public sealed class CplmResultConsumerService : BackgroundService
                     "corner_score", "travel_per_day", "reversals_per_hour",
                     "harmonic_amplitude_ratio", "harmonic_energy_ratio", "confidence" },
             new[] { "diagnosis", "severity" }, ct);
-        return true;
     }
 
     // ── Short / long features ────────────────────────────────────────────────
@@ -299,11 +346,15 @@ public sealed class CplmResultConsumerService : BackgroundService
                   (loop_id, window_kind, window_start, window_end, sample_count,
                    acf_period_s, acf_regularity, effort_ratio, triangularity, horch_oddness,
                    corner_score, travel_per_day, reversals_per_hour,
-                   harmonic_amplitude_ratio, harmonic_energy_ratio, payload, source)
+                   harmonic_amplitude_ratio, harmonic_energy_ratio, payload, source,
+                   method_run_ids, bundle_hash, context_revision, result_revision, purpose,
+                   analysis_run_id, source_commit, jar_sha256, dataset_hash)
               VALUES
                   (@loopId, @windowKind, @winStart, @winEnd, @samples,
-                   @m1, @m2, @m3, @m4, @m5, @m6, @m7, @m8, @m9, @m10, @payload, @source)
-              ON CONFLICT (loop_id, window_kind, window_end, source) DO UPDATE SET
+                   @m1, @m2, @m3, @m4, @m5, @m6, @m7, @m8, @m9, @m10, @payload, @source,
+                   @methodRunIds, @bundleHash, @contextRevision, @resultRevision, @purpose,
+                   @analysisRunId, @sourceCommit, @jarSha256, @datasetHash)
+              ON CONFLICT (loop_id, window_kind, window_end, source, bundle_hash) DO UPDATE SET
                   window_start = EXCLUDED.window_start, sample_count = EXCLUDED.sample_count,
                   acf_period_s = EXCLUDED.acf_period_s, acf_regularity = EXCLUDED.acf_regularity,
                   effort_ratio = EXCLUDED.effort_ratio, triangularity = EXCLUDED.triangularity,
@@ -312,18 +363,27 @@ public sealed class CplmResultConsumerService : BackgroundService
                   reversals_per_hour = EXCLUDED.reversals_per_hour,
                   harmonic_amplitude_ratio = EXCLUDED.harmonic_amplitude_ratio,
                   harmonic_energy_ratio = EXCLUDED.harmonic_energy_ratio,
-                  payload = EXCLUDED.payload, created_at = NOW()
+                  payload = EXCLUDED.payload,
+                  method_run_ids = EXCLUDED.method_run_ids, context_revision = EXCLUDED.context_revision,
+                  result_revision = EXCLUDED.result_revision, purpose = EXCLUDED.purpose,
+                  analysis_run_id = EXCLUDED.analysis_run_id, source_commit = EXCLUDED.source_commit,
+                  jar_sha256 = EXCLUDED.jar_sha256, dataset_hash = EXCLUDED.dataset_hash,
+                  created_at = NOW()
               WHERE EXCLUDED.sample_count >= analytics.cplm_long_feature_results.sample_count
               """
             : """
               INSERT INTO analytics.cplm_short_feature_results
                   (loop_id, window_kind, window_start, window_end, sample_count,
                    iae, ise, mae, rmse, good_error_pct, effort_ratio,
-                   travel_per_day, reversals_per_hour, auto_pct, completeness, payload, source)
+                   travel_per_day, reversals_per_hour, auto_pct, completeness, payload, source,
+                   method_run_ids, bundle_hash, context_revision, result_revision, purpose,
+                   analysis_run_id, source_commit, jar_sha256, dataset_hash)
               VALUES
                   (@loopId, @windowKind, @winStart, @winEnd, @samples,
-                   @m1, @m2, @m3, @m4, @m5, @m6, @m7, @m8, @m9, @m10, @payload, @source)
-              ON CONFLICT (loop_id, window_kind, window_end, source) DO UPDATE SET
+                   @m1, @m2, @m3, @m4, @m5, @m6, @m7, @m8, @m9, @m10, @payload, @source,
+                   @methodRunIds, @bundleHash, @contextRevision, @resultRevision, @purpose,
+                   @analysisRunId, @sourceCommit, @jarSha256, @datasetHash)
+              ON CONFLICT (loop_id, window_kind, window_end, source, bundle_hash) DO UPDATE SET
                   window_start = EXCLUDED.window_start, sample_count = EXCLUDED.sample_count,
                   iae = EXCLUDED.iae, ise = EXCLUDED.ise, mae = EXCLUDED.mae,
                   rmse = EXCLUDED.rmse, good_error_pct = EXCLUDED.good_error_pct,
@@ -331,7 +391,12 @@ public sealed class CplmResultConsumerService : BackgroundService
                   travel_per_day = EXCLUDED.travel_per_day,
                   reversals_per_hour = EXCLUDED.reversals_per_hour,
                   auto_pct = EXCLUDED.auto_pct, completeness = EXCLUDED.completeness,
-                  payload = EXCLUDED.payload, created_at = NOW()
+                  payload = EXCLUDED.payload,
+                  method_run_ids = EXCLUDED.method_run_ids, context_revision = EXCLUDED.context_revision,
+                  result_revision = EXCLUDED.result_revision, purpose = EXCLUDED.purpose,
+                  analysis_run_id = EXCLUDED.analysis_run_id, source_commit = EXCLUDED.source_commit,
+                  jar_sha256 = EXCLUDED.jar_sha256, dataset_hash = EXCLUDED.dataset_hash,
+                  created_at = NOW()
               WHERE EXCLUDED.sample_count >= analytics.cplm_short_feature_results.sample_count
               """;
 
@@ -360,6 +425,7 @@ public sealed class CplmResultConsumerService : BackgroundService
         // no trace, and /gates returned the same windowEnd twice (different
         // sources) while the feature tables could not represent that at all.
         cmd.Parameters.AddWithValue("source", GetString(root, "calculation_source") ?? "flink");
+        AddIdentityParameters(cmd, root);
         await cmd.ExecuteNonQueryAsync(ct);
 
         var family = (isLong ? "long_" : "short_") + (GetString(root, "window_kind") ?? (isLong ? "24h" : "5m"));
@@ -404,101 +470,7 @@ public sealed class CplmResultConsumerService : BackgroundService
 
     private async Task EnsureSchemaAsync(CancellationToken ct)
     {
-        var ddl = """
-            CREATE SCHEMA IF NOT EXISTS analytics;
-            CREATE TABLE IF NOT EXISTS analytics.cplm_gate_results (
-                id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-                loop_id VARCHAR(256) NOT NULL,
-                window_kind VARCHAR(16) NOT NULL DEFAULT '24h',
-                window_start TIMESTAMPTZ, window_end TIMESTAMPTZ, sample_count INT,
-                mae DOUBLE PRECISION, rmse DOUBLE PRECISION, iae DOUBLE PRECISION,
-                good_error_pct DOUBLE PRECISION, acf_period_s DOUBLE PRECISION,
-                acf_regularity DOUBLE PRECISION, effort_ratio DOUBLE PRECISION,
-                triangularity DOUBLE PRECISION, horch_oddness DOUBLE PRECISION,
-                phase_area_norm_per_cycle DOUBLE PRECISION, corner_score DOUBLE PRECISION,
-                travel_per_day DOUBLE PRECISION, reversals_per_hour DOUBLE PRECISION,
-                harmonic_amplitude_ratio DOUBLE PRECISION, harmonic_energy_ratio DOUBLE PRECISION,
-                diagnosis VARCHAR(128), severity VARCHAR(32), confidence DOUBLE PRECISION,
-                payload JSONB NOT NULL DEFAULT '{}'::jsonb,
-                source VARCHAR(32) NOT NULL DEFAULT 'flink',
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-            CREATE UNIQUE INDEX IF NOT EXISTS uq_cplm_gate_results_window
-                ON analytics.cplm_gate_results (loop_id, window_kind, window_end, source);
-            CREATE INDEX IF NOT EXISTS idx_cplm_gate_results_loop_time
-                ON analytics.cplm_gate_results (loop_id, created_at DESC);
-            CREATE INDEX IF NOT EXISTS idx_cplm_gate_results_loop_kind_end
-                ON analytics.cplm_gate_results (loop_id, window_kind, window_end DESC);
-            CREATE INDEX IF NOT EXISTS idx_cplm_gate_results_loop_lower
-                ON analytics.cplm_gate_results (lower(loop_id));
-            """
-            // CHG-023: the two fleet "latest verdict" probe indexes come from the one
-            // definition the read path is written against, so they cannot drift from it.
-            + Traverse.CplmApi.Data.CplmReadIndexes.CreateAll + """
-            -- P1-3: window_end must outrank "has a real diagnosis". Previously a
-            -- historical-replay row with a verdict outranked EVERY live row forever,
-            -- so the loop's "latest" 24h state was a week-old batch result while a
-            -- current row sat in the same table. Recency first, then prefer a real
-            -- verdict over INSUFFICIENT_DATA within the same window.
-            DROP VIEW IF EXISTS analytics.cplm_gate_latest;
-            CREATE VIEW analytics.cplm_gate_latest AS
-                SELECT DISTINCT ON (loop_id, window_kind) * FROM analytics.cplm_gate_results
-                ORDER BY loop_id, window_kind,
-                         window_end DESC NULLS LAST,
-                         (diagnosis IS NOT NULL AND diagnosis <> 'INSUFFICIENT_DATA') DESC,
-                         created_at DESC;
-
-            CREATE TABLE IF NOT EXISTS analytics.cplm_short_feature_results (
-                id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-                loop_id VARCHAR(256) NOT NULL, window_kind VARCHAR(16) NOT NULL,
-                window_start TIMESTAMPTZ, window_end TIMESTAMPTZ, sample_count INT,
-                iae DOUBLE PRECISION, ise DOUBLE PRECISION, mae DOUBLE PRECISION,
-                rmse DOUBLE PRECISION, good_error_pct DOUBLE PRECISION,
-                effort_ratio DOUBLE PRECISION, travel_per_day DOUBLE PRECISION,
-                reversals_per_hour DOUBLE PRECISION, auto_pct DOUBLE PRECISION,
-                completeness DOUBLE PRECISION,
-                payload JSONB NOT NULL DEFAULT '{}'::jsonb,
-                source VARCHAR(32) NOT NULL DEFAULT 'flink',
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-            CREATE UNIQUE INDEX IF NOT EXISTS uq_cplm_short_window
-                ON analytics.cplm_short_feature_results (loop_id, window_kind, window_end, source);
-            CREATE INDEX IF NOT EXISTS idx_cplm_short_loop_kind_time
-                ON analytics.cplm_short_feature_results (loop_id, window_kind, created_at DESC);
-            CREATE INDEX IF NOT EXISTS idx_cplm_short_loop_kind_end
-                ON analytics.cplm_short_feature_results (loop_id, window_kind, window_end DESC);
-            CREATE INDEX IF NOT EXISTS idx_cplm_short_loop_lower
-                ON analytics.cplm_short_feature_results (lower(loop_id));
-            -- Recency = window_end, not created_at (audit.md B-4): a replay
-            -- rewriting an old window bumps created_at and would become "latest".
-            CREATE OR REPLACE VIEW analytics.cplm_short_feature_latest AS
-                SELECT DISTINCT ON (loop_id, window_kind) * FROM analytics.cplm_short_feature_results
-                ORDER BY loop_id, window_kind,
-                         (COALESCE(completeness, 0) >= 0.95 AND COALESCE(sample_count, 0) >= 10) DESC,
-                         window_end DESC NULLS LAST;
-
-            CREATE TABLE IF NOT EXISTS analytics.cplm_long_feature_results (
-                id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-                loop_id VARCHAR(256) NOT NULL, window_kind VARCHAR(16) NOT NULL,
-                window_start TIMESTAMPTZ, window_end TIMESTAMPTZ, sample_count INT,
-                acf_period_s DOUBLE PRECISION, acf_regularity DOUBLE PRECISION,
-                effort_ratio DOUBLE PRECISION, triangularity DOUBLE PRECISION,
-                horch_oddness DOUBLE PRECISION, corner_score DOUBLE PRECISION,
-                travel_per_day DOUBLE PRECISION, reversals_per_hour DOUBLE PRECISION,
-                harmonic_amplitude_ratio DOUBLE PRECISION, harmonic_energy_ratio DOUBLE PRECISION,
-                payload JSONB NOT NULL DEFAULT '{}'::jsonb,
-                source VARCHAR(32) NOT NULL DEFAULT 'flink',
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-            CREATE UNIQUE INDEX IF NOT EXISTS uq_cplm_long_window
-                ON analytics.cplm_long_feature_results (loop_id, window_kind, window_end, source);
-            CREATE INDEX IF NOT EXISTS idx_cplm_long_loop_kind_time
-                ON analytics.cplm_long_feature_results (loop_id, window_kind, created_at DESC);
-            CREATE INDEX IF NOT EXISTS idx_cplm_long_loop_kind_end
-                ON analytics.cplm_long_feature_results (loop_id, window_kind, window_end DESC);
-            CREATE INDEX IF NOT EXISTS idx_cplm_long_loop_lower
-                ON analytics.cplm_long_feature_results (lower(loop_id));
-            CREATE OR REPLACE VIEW analytics.cplm_long_feature_latest AS
-                SELECT DISTINCT ON (loop_id, window_kind) * FROM analytics.cplm_long_feature_results
-                ORDER BY loop_id, window_kind, window_end DESC NULLS LAST;
-            """;
+        var ddl = Traverse.CplmApi.Data.CplmResultSchema.Ddl;
 
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
         await using var cmd = new NpgsqlCommand(ddl, conn);
@@ -507,62 +479,4 @@ public sealed class CplmResultConsumerService : BackgroundService
     }
 
     // ── JSON helpers ─────────────────────────────────────────────────────────
-
-    private static string? GetString(JsonElement r, string name)
-        => r.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
-
-    /// <summary>Missing/null/non-numeric → 0.0, never NULL (CPA-compatible; ranking depends on it).</summary>
-    private static double GetDouble(JsonElement r, string name)
-        => r.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.Number
-           && p.TryGetDouble(out var v) ? v : 0.0;
-
-    /// <summary>
-    /// P1-8 - preserves "the engine did not compute this" as SQL NULL instead of
-    /// collapsing it to 0.0. The engine now emits JSON null for metrics it never
-    /// calculated (window failed G0 / too few samples); writing 0.0 made those
-    /// indistinguishable from a real measurement, so mae = 0 read as perfect
-    /// control and every fleet average was dragged toward zero by the windows
-    /// that never ran. A genuinely-absent key stays 0.0 for back-compat with
-    /// producers that predate the change.
-    /// </summary>
-    private static object GetDoubleOrNull(JsonElement r, string name)
-    {
-        if (!r.TryGetProperty(name, out var p)) return 0.0;              // key absent: legacy producer
-        if (p.ValueKind != JsonValueKind.Number) return DBNull.Value;     // explicit null / wrong type: "not computed"
-        return p.TryGetDouble(out var v) ? v : DBNull.Value;
-    }
-
-    private static int GetInt(JsonElement r, string name)
-        => r.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.Number
-           && p.TryGetInt32(out var v) ? v : 0;
-
-    /// <summary>True when windowEndMs is present, numeric and positive — the
-    /// minimum for a row keyed on the hypertable's NOT NULL window_end column.</summary>
-    private static bool HasUsableWindowEnd(JsonElement r)
-        => r.TryGetProperty("windowEndMs", out var p) && p.ValueKind == JsonValueKind.Number
-           && p.TryGetInt64(out var ms) && ms > 0;
-
-    private static void AddTimestamp(NpgsqlCommand cmd, string param, JsonElement r, string msField)
-    {
-        object value = DBNull.Value;
-        if (r.TryGetProperty(msField, out var p) && p.ValueKind == JsonValueKind.Number
-            && p.TryGetInt64(out var ms) && ms > 0)
-            value = DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime;
-        cmd.Parameters.AddWithValue(param, value);
-    }
-
-    private static string Snippet(string json) => json.Length <= 200 ? json : json[..200] + "…";
-}
-
-/// <summary>CPLM consumer configuration ("Cplm" section); defaults match the deployed topics.</summary>
-public sealed class CplmOptions
-{
-    public const string SectionName = "Cplm";
-    public string SamplesTopic { get; set; } = "traverse.cpa.loop.samples.v1";
-    public string GateResultsTopic { get; set; } = "traverse.cpa.clpm.gate.results.v1";
-    public string ShortFeatureTopic { get; set; } = "traverse.cpa.clpm.feature.short.v1";
-    public string LongFeatureTopic { get; set; } = "traverse.cpa.clpm.feature.long.v1";
-    /** v2.5 (Task 1D.5): fast-path G10/G11 conditions from CplmConditionStreamJob. */
-    public string ConditionTopic { get; set; } = "traverse.cpa.clpm.condition.v1";
-    public string ConsumerGroupId { get; set; } = "traverse-cpa-cplm-results";
 }

@@ -56,6 +56,18 @@ public static class Perms
     // keys are seeded by 47_ingestion_permissions.sql.
     public const string IngestionView = "ingestion.view";
     public const string IngestionManage = "ingestion.manage";
+    // CPA v2.5 (spec v6 §6.5): analysis runs, model review, analysis context, and the
+    // governed-configuration lifecycle. Keys are seeded by 59_cpm_v25_permissions.sql.
+    public const string CpmAnalysisCreate = "cpm.analysis.create";
+    public const string CpmModelReview = "cpm.model.review";
+    public const string CpmContextManage = "cpm.context.manage";
+    public const string CpmConfigRead = "cpm.config.read";
+    public const string CpmConfigDraft = "cpm.config.draft";
+    public const string CpmConfigValidate = "cpm.config.validate";
+    public const string CpmConfigShadow = "cpm.config.shadow";
+    public const string CpmConfigApprove = "cpm.config.approve";
+    public const string CpmConfigActivate = "cpm.config.activate";
+    public const string CpmConfigRollback = "cpm.config.rollback";
 
     public static readonly string[] All =
     {
@@ -64,6 +76,9 @@ public static class Perms
         AnalysisView, AnalysisEdit, AuditView,
         AnalyticsView, CpmManage, SystemManage,
         IngestionView, IngestionManage,
+        CpmAnalysisCreate, CpmModelReview, CpmContextManage,
+        CpmConfigRead, CpmConfigDraft, CpmConfigValidate, CpmConfigShadow,
+        CpmConfigApprove, CpmConfigActivate, CpmConfigRollback,
     };
 }
 

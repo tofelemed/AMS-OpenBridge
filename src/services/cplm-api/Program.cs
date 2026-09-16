@@ -119,12 +119,23 @@ builder.Services.AddSingleton(sp => new Traverse.CplmApi.Services.SingleMemberGu
     sp.GetRequiredService<Traverse.CplmApi.Services.ConsumerHeartbeat>(),
     sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Traverse.CplmApi.Infrastructure.KafkaOptions>>()
       .Value.BootstrapServers));
+builder.Services.AddSingleton<Traverse.CplmApi.Services.IEvidenceBlobStore, Traverse.CplmApi.Services.PostgresEvidenceBlobStore>();
+// v2.5 (1H.3): effective-dated primary Instrumental device bindings per loop signal.
+builder.Services.AddSingleton<Traverse.CplmApi.Services.IInstrumentBindingService, Traverse.CplmApi.Services.InstrumentBindingService>();
+builder.Services.AddSingleton<Traverse.CplmApi.Services.InstrumentHealthReads>();
+builder.Services.AddSingleton<Traverse.CplmApi.Services.InstrumentHealthMirrorWriter>();
 if (config.GetValue("Cplm:ConsumersEnabled", false))
 {
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmResultConsumerService>();
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmEventFrameService>();
     // v2.5 (Task 1D.5): fast-path condition events -> analytics.condition_event (own single-member group).
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmConditionConsumerService>();
+    // v2.5 (1G.3): evidence manifests + chunks -> analytics.evidence_manifest / evidence_chunk.
+    builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmEvidenceConsumerService>();
+    // v2.5 (1G.5): retention by record class (daily; pinned evidence never expires).
+    builder.Services.AddHostedService<Traverse.CplmApi.Services.EvidenceRetentionSweeper>();
+    // v2.5 (1H.5): the Instrumental health ledger + Flink context mirror (own group, single member).
+    builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmInstrumentHealthMirrorService>();
 }
 
 // ── Auth (platform RBAC): RS256 JWKS + one policy per permission key ───────
@@ -206,8 +217,14 @@ app.MapGet("/health", async (
 
         var r = ConsumerState("results");
         var f = ConsumerState("frames");
-        var results = new { state = r.State, phase = r.Phase, heartbeatAgeSeconds = r.AgeSeconds };
+        var e = ConsumerState("evidence");
+        var hl = ConsumerState("health");
+        // v2.5 (1G.3, NR-058): projection lag per consumer (persist time - record timestamp).
+        object? LagOf(string name) { var l = beats.Lag(name); return l is null ? null : new { lastMs = l.Value.Last, maxMsThisMinute = l.Value.MaxThisMinute }; }
+        var results = new { state = r.State, phase = r.Phase, heartbeatAgeSeconds = r.AgeSeconds, projectionLag = LagOf("results") };
         var frames = new { state = f.State, phase = f.Phase, heartbeatAgeSeconds = f.AgeSeconds };
+        var evidence = new { state = e.State, phase = e.Phase, heartbeatAgeSeconds = e.AgeSeconds, projectionLag = LagOf("evidence") };
+        var health = new { state = hl.State, phase = hl.Phase, heartbeatAgeSeconds = hl.AgeSeconds, projectionLag = LagOf("health") };
         // STR-06: a partition split means another member is persisting half the
         // windows. The heartbeat cannot see this — both members look "RUNNING".
         var degraded = r.State is "STALLED" or "NEVER_STARTED"
@@ -222,6 +239,8 @@ app.MapGet("/health", async (
                 enabled = cplmConsumersEnabled,
                 results,
                 frames,
+                evidence,
+                health,
                 groupSplitDetected = guard.SplitDetected,
                 groupSplitDetail = guard.SplitDetail
             }

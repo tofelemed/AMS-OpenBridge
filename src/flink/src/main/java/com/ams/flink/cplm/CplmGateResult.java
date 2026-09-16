@@ -76,6 +76,8 @@ public class CplmGateResult implements Serializable {
     public String gate11Reason = "";
     /** v2.5 R11: fast-path conditions open as of this verdict. */
     public com.ams.flink.cplm.condition.OpenConditions openConditions = com.ams.flink.cplm.condition.OpenConditions.none();
+    /** v2.5 R15: the Instrumental health context (per role) this verdict was formed under. */
+    public com.ams.flink.cplm.fusion.HealthLanes healthLanes = com.ams.flink.cplm.fusion.HealthLanes.none();
     /** v2.5 R02: observations / hypotheses / fault-scoped confirmation, beside the legacy fields. */
     public com.ams.flink.cplm.fusion.FusionVerdictV2 verdictV2 = new com.ams.flink.cplm.fusion.FusionVerdictV2();
     public int resultRevision = 1;
@@ -154,6 +156,13 @@ public class CplmGateResult implements Serializable {
     public String sourceCommit = com.ams.flink.cplm.identity.BuildIdentity.current().sourceCommit;
     public String jarSha256 = com.ams.flink.cplm.identity.BuildIdentity.current().jarSha256;
     public String contractVersion = com.ams.flink.cplm.identity.BuildIdentity.CONTRACT_VERSION;
+    // v2.5 R19: run identity (identity/ResultIdentity). LIVE rows have no analysis run.
+    public java.util.Map<String, String> methodRunIds = new java.util.LinkedHashMap<>();
+    public String bundleHash = com.ams.flink.cplm.identity.ProfileHash.LEGACY;
+    public int contextRevision = 0;
+    public String purpose = "LIVE";
+    public String analysisRunId = null;
+    public String datasetHash = com.ams.flink.cplm.identity.DatasetHash.EMPTY;
     public String dynamicsClass = "UNKNOWN";
     public String profileSource = "UNKNOWN";
     public String configurationVersion = "";
@@ -264,6 +273,13 @@ public class CplmGateResult implements Serializable {
         out.put("sourceCommit", sourceCommit);
         out.put("jarSha256", jarSha256);
         out.put("contractVersion", contractVersion);
+        ObjectNode runIds = out.putObject("method_run_ids");
+        for (java.util.Map.Entry<String, String> e : methodRunIds.entrySet()) runIds.put(e.getKey(), e.getValue());
+        out.put("bundle_hash", bundleHash);
+        out.put("context_revision", contextRevision);
+        out.put("purpose", purpose);
+        if (analysisRunId == null) out.putNull("analysis_run_id"); else out.put("analysis_run_id", analysisRunId);
+        out.put("dataset_hash", datasetHash);
         out.put("dynamics_class", dynamicsClass);
         out.put("profile_source", profileSource);
         out.put("gate_profile_id", gateProfileId);
@@ -352,6 +368,8 @@ public class CplmGateResult implements Serializable {
         out.put("gate11_reason", gate11Reason);
         out.set("open_conditions", (openConditions != null ? openConditions
                 : com.ams.flink.cplm.condition.OpenConditions.none()).toJson(MAPPER));
+        out.set("health_lanes", (healthLanes != null ? healthLanes
+                : com.ams.flink.cplm.fusion.HealthLanes.none()).toJson(MAPPER));
         (verdictV2 != null ? verdictV2 : new com.ams.flink.cplm.fusion.FusionVerdictV2()).writeTo(out, MAPPER);
         out.put("result_revision", resultRevision);
         out.put("qualified_support_ms", qualifiedSupportMs);

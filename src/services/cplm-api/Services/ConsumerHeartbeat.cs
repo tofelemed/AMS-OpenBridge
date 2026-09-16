@@ -20,6 +20,20 @@ public sealed class ConsumerHeartbeat
     public void Report(string consumer, string phase) =>
         _beats[consumer] = new Beat(phase, DateTimeOffset.UtcNow);
 
+    // v2.5 (1G.3, NR-058): projection lag = persist time - the Kafka record's own timestamp,
+    // per consumer; the last value and the worst seen in the current minute.
+    private readonly ConcurrentDictionary<string, (long Last, long MaxThisMinute, long Minute)> _lag = new();
+
+    public void ReportLag(string consumer, long lagMs)
+    {
+        var minute = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 60;
+        _lag.AddOrUpdate(consumer, (lagMs, lagMs, minute), (_, prev) =>
+            prev.Minute == minute ? (lagMs, Math.Max(prev.MaxThisMinute, lagMs), minute) : (lagMs, lagMs, minute));
+    }
+
+    public (long Last, long MaxThisMinute)? Lag(string consumer) =>
+        _lag.TryGetValue(consumer, out var l) ? (l.Last, l.MaxThisMinute) : null;
+
     public Beat? Get(string consumer) =>
         _beats.TryGetValue(consumer, out var b) ? b : null;
 }

@@ -1,5 +1,6 @@
 package com.ams.flink.cplm;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
@@ -86,6 +87,14 @@ public final class CplmShortFeatureResult implements Serializable {
     public String sourceCommit = com.ams.flink.cplm.identity.BuildIdentity.current().sourceCommit;
     public String jarSha256 = com.ams.flink.cplm.identity.BuildIdentity.current().jarSha256;
     public String contractVersion = com.ams.flink.cplm.identity.BuildIdentity.CONTRACT_VERSION;
+    public int resultRevision = 1;
+    // v2.5 R19: run identity (identity/ResultIdentity). LIVE rows have no analysis run.
+    public java.util.Map<String, String> methodRunIds = new java.util.LinkedHashMap<>();
+    public String bundleHash = com.ams.flink.cplm.identity.ProfileHash.LEGACY;
+    public int contextRevision = 0;
+    public String purpose = "LIVE";
+    public String analysisRunId = null;
+    public String datasetHash = com.ams.flink.cplm.identity.DatasetHash.EMPTY;
     public String dynamicsClass = "UNKNOWN";
     public String gateProfileId = "";
     public String loopType = "";
@@ -180,6 +189,14 @@ public final class CplmShortFeatureResult implements Serializable {
         out.put("sourceCommit", sourceCommit);
         out.put("jarSha256", jarSha256);
         out.put("contractVersion", contractVersion);
+        ObjectNode runIds = out.putObject("method_run_ids");
+        for (java.util.Map.Entry<String, String> e : methodRunIds.entrySet()) runIds.put(e.getKey(), e.getValue());
+        out.put("bundle_hash", bundleHash);
+        out.put("context_revision", contextRevision);
+        out.put("purpose", purpose);
+        if (analysisRunId == null) out.putNull("analysis_run_id"); else out.put("analysis_run_id", analysisRunId);
+        out.put("dataset_hash", datasetHash);
+        out.put("result_revision", resultRevision);
         out.put("dynamics_class", dynamicsClass);
         out.put("gate_profile_id", gateProfileId);
         out.put("loop_type", loopType);
@@ -255,6 +272,17 @@ public final class CplmShortFeatureResult implements Serializable {
             r.sourceCommit = root.path("sourceCommit").asText(com.ams.flink.cplm.identity.BuildIdentity.UNKNOWN);
             r.jarSha256 = root.path("jarSha256").asText(com.ams.flink.cplm.identity.BuildIdentity.UNKNOWN);
             r.contractVersion = root.path("contractVersion").asText(com.ams.flink.cplm.identity.BuildIdentity.CONTRACT_VERSION);
+            if (root.path("method_run_ids").isObject()) {
+                java.util.Iterator<java.util.Map.Entry<String, JsonNode>> it = root.path("method_run_ids").fields();
+                while (it.hasNext()) { java.util.Map.Entry<String, JsonNode> e = it.next(); r.methodRunIds.put(e.getKey(), e.getValue().asText()); }
+            }
+            r.bundleHash = root.path("bundle_hash").asText(com.ams.flink.cplm.identity.ProfileHash.LEGACY);
+            r.contextRevision = root.path("context_revision").asInt(0);
+            r.resultRevision = root.path("result_revision").asInt(1);
+            r.purpose = root.path("purpose").asText("LIVE");
+            r.analysisRunId = root.path("analysis_run_id").isNull() || root.path("analysis_run_id").isMissingNode()
+                    ? null : root.path("analysis_run_id").asText();
+            r.datasetHash = root.path("dataset_hash").asText(com.ams.flink.cplm.identity.DatasetHash.EMPTY);
             r.dynamicsClass = root.path("dynamics_class").asText("UNKNOWN");
             r.gateProfileId = root.path("gate_profile_id").asText("");
             r.loopType = root.path("loop_type").asText("");

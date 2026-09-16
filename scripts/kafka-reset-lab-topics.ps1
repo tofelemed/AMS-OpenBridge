@@ -73,6 +73,13 @@ $ensureTopics = @(
     @{ Name = "traverse.cpa.clpm.gate.results.v1"; Partitions = 8; Config = "retention.ms=$cplmRetention30d,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     # v2.5 (Task 1D.4): fast G10/G11 condition events (OPEN/UPDATE/CLOSED, keyed by loop_id).
     @{ Name = "traverse.cpa.clpm.condition.v1"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    # v2.5 (Task 1G.3): evidence manifests + chunks (<= 256 KiB gzip, base64 in JSON), keyed by method_run_id; 7 d.
+    @{ Name = "traverse.cpa.clpm.gate.evidence.v1"; Partitions = 8; Config = "retention.ms=604800000,segment.ms=$segmentMs,cleanup.policy=delete,max.message.bytes=1048576,min.insync.replicas=$minIsr" },
+    # v2.5 (Task 1H.2): Instrumental NE107 health observations (gateway-wrapped, keyed by device_id; 30 d) and their DLQ.
+    @{ Name = "traverse.cpa.instrument.health.v1"; Partitions = 8; Config = "retention.ms=2592000000,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.ingestion.health-dlq"; Partitions = 2; Config = "retention.ms=604800000,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    # v2.5 (Task 1H.4): per-device health intervals + per-loop/role eligibility contexts from CplmInstrumentContextJob; compacted by context_key.
+    @{ Name = "traverse.cpa.context.instrument-health.v1"; Partitions = 8; Config = "cleanup.policy=compact,segment.ms=$segmentMs,min.insync.replicas=$minIsr" },
     @{ Name = "traverse.cpa.live.loop.metrics"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
     @{ Name = "traverse.cpa.ams.metadata.updates"; Partitions = 3; Config = "cleanup.policy=compact,min.insync.replicas=$minIsr" },
     @{ Name = "traverse.cpa.context.parameter-set.v1"; Partitions = 3; Config = "cleanup.policy=compact,min.insync.replicas=$minIsr" },

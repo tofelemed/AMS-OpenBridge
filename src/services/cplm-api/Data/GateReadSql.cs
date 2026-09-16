@@ -21,6 +21,7 @@ public static class GateReadSql
              FROM analytics.cplm_gate_results
              WHERE lower(loop_id) = lower(@loopId) AND window_kind = @windowKind
                AND diagnosis IS NOT NULL AND diagnosis <> 'INSUFFICIENT_DATA'
+               AND purpose = 'LIVE'
              ORDER BY window_end DESC NULLS LAST, created_at DESC
              LIMIT 1)
             UNION ALL
@@ -28,6 +29,7 @@ public static class GateReadSql
                     diagnosis, severity, confidence, payload::text, created_at, FALSE
              FROM analytics.cplm_gate_results
              WHERE lower(loop_id) = lower(@loopId) AND window_kind = @windowKind
+               AND purpose = 'LIVE'
              ORDER BY window_end DESC NULLS LAST, created_at DESC
              LIMIT 1)
         ) u
