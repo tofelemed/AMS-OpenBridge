@@ -388,6 +388,25 @@ CREATE TABLE IF NOT EXISTS cpm.loop_objective_version (
 );
 CREATE INDEX IF NOT EXISTS ix_loop_objective_loop ON cpm.loop_objective_version (lower(loop_id), valid_from DESC);
 
+-- ---- v2.5 Task 2D.2: investigation references (mirror of database/scripts/56_cplm_investigation_refs.sql; additive) ----
+CREATE TABLE IF NOT EXISTS analytics.investigation_reference (
+    ref_id         uuid PRIMARY KEY,
+    loop_id        VARCHAR(256) NOT NULL,
+    method_run_id  uuid,
+    evidence_ids   uuid[] NOT NULL DEFAULT '{}',
+    note           text NOT NULL DEFAULT '',
+    outcome        text NOT NULL DEFAULT 'INCONCLUSIVE'
+                   CHECK (outcome IN ('WORK_COMPLETED', 'PERFORMANCE_RESTORED', 'INCONCLUSIVE')),
+    created_by     text,
+    created_at     timestamptz NOT NULL DEFAULT now(),
+    updated_by     text,
+    updated_at     timestamptz NOT NULL DEFAULT now(),
+    pinned         boolean NOT NULL DEFAULT true
+);
+CREATE INDEX IF NOT EXISTS ix_investigation_reference_loop ON analytics.investigation_reference (lower(loop_id), created_at DESC);
+CREATE INDEX IF NOT EXISTS ix_investigation_reference_run ON analytics.investigation_reference (method_run_id);
+
+
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ams_user') THEN
