@@ -82,6 +82,9 @@ $ensureTopics = @(
     @{ Name = "traverse.ingestion.health-dlq"; Partitions = 2; Config = "retention.ms=604800000,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     # v2.5 (Task 1H.4): per-device health intervals + per-loop/role eligibility contexts from CplmInstrumentContextJob; compacted by context_key.
     @{ Name = "traverse.cpa.context.instrument-health.v1"; Partitions = 8; Config = "cleanup.policy=compact,segment.ms=$segmentMs,min.insync.replicas=$minIsr" },
+    # v2.5 (Phase 3): governed gate configuration - immutable bundles keyed by bundle_id (compacted) and the workers' PREPARE / APPLY ACKs + CAPABILITY records (7 d).
+    @{ Name = "traverse.cpa.context.gate-config.v1"; Partitions = 3; Config = "cleanup.policy=compact,segment.ms=$segmentMs,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.cpa.context.gate-config.acks.v1"; Partitions = 3; Config = "retention.ms=604800000,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     @{ Name = "traverse.cpa.live.loop.metrics"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr,compression.type=lz4" },
     @{ Name = "traverse.cpa.ams.metadata.updates"; Partitions = 3; Config = "cleanup.policy=compact,min.insync.replicas=$minIsr" },
     @{ Name = "traverse.cpa.context.parameter-set.v1"; Partitions = 3; Config = "cleanup.policy=compact,min.insync.replicas=$minIsr" },
