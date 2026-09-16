@@ -73,9 +73,11 @@ public sealed class InstrumentHealthReads
                 """, new { device = b.DeviceId, at });
             if (obs is not null && sourceState is null)
             {
+                // The state known at `at` is the last availability RECEIVED by then (receipt order is the
+                // truthful sequence; `since` is the producer's claim and is displayed, not sorted on).
                 var av = await conn.QueryFirstOrDefaultAsync("""
-                    SELECT state, since_at FROM cpm.source_availability WHERE source_id = @source AND since_at <= @at
-                    ORDER BY since_at DESC LIMIT 1
+                    SELECT state, since_at FROM cpm.source_availability WHERE source_id = @source AND received_at <= @at
+                    ORDER BY received_at DESC LIMIT 1
                     """, new { source = (string)obs.source_id, at });
                 if (av is not null) { sourceState = (string)av.state; sourceSince = (DateTime?)av.since_at; }
             }

@@ -76,15 +76,21 @@ public static class FleetLatestSql
                               WHERE b.loop_id = r.loop_id AND b.signal_role = 'PV'
                                 AND b.valid_from <= now() AND (b.valid_to IS NULL OR b.valid_to > now()))
             """,
+        // "Current" = the newest context per signal role (from_at, then revision) - never "any row
+        // without to_at": a superseded interval whose close was not mirrored must not keep matching.
         "stale-collection" => """
-              AND EXISTS (SELECT 1 FROM cpm.loop_health_context c
-                          WHERE c.loop_id = r.loop_id AND c.to_at IS NULL
-                            AND c.collection_state IN ('STALE','OFFLINE','UNKNOWN'))
+              AND EXISTS (SELECT 1 FROM (
+                            SELECT DISTINCT ON (c.signal_role) c.collection_state
+                            FROM cpm.loop_health_context c WHERE c.loop_id = r.loop_id
+                            ORDER BY c.signal_role, c.from_at DESC, c.interval_revision DESC) cur
+                          WHERE cur.collection_state IN ('STALE','OFFLINE','UNKNOWN'))
             """,
         "active-affected" => """
-              AND EXISTS (SELECT 1 FROM cpm.loop_health_context c
-                          WHERE c.loop_id = r.loop_id AND c.to_at IS NULL
-                            AND c.eligibility IN ('INELIGIBLE','LIMITED'))
+              AND EXISTS (SELECT 1 FROM (
+                            SELECT DISTINCT ON (c.signal_role) c.eligibility
+                            FROM cpm.loop_health_context c WHERE c.loop_id = r.loop_id
+                            ORDER BY c.signal_role, c.from_at DESC, c.interval_revision DESC) cur
+                          WHERE cur.eligibility IN ('INELIGIBLE','LIMITED'))
             """,
         _ => null,
     };

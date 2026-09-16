@@ -282,8 +282,11 @@ def publish(messages, broker, port, username, password, producer: Producer, keep
     client.will_set(producer.topic_availability(), json.dumps(lwt), qos=1, retain=True)
     client.connect(broker, port, keepalive=30)
     client.loop_start()
-    online = availability(producer, "ONLINE", now())
-    client.publish(producer.topic_availability(), json.dumps(online), qos=1, retain=True).wait_for_publish(10)
+    # A scenario that states availability itself (offline / online) must not be preceded by a
+    # connect-time ONLINE whose `since` is later than the scenario's record.
+    if not any(topic == producer.topic_availability() for topic, _, _ in messages):
+        online = availability(producer, "ONLINE", now())
+        client.publish(producer.topic_availability(), json.dumps(online), qos=1, retain=True).wait_for_publish(10)
     for topic, payload, retain in messages:
         info = client.publish(topic, json.dumps(payload), qos=1, retain=retain)
         info.wait_for_publish(10)

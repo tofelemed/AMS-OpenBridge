@@ -159,4 +159,28 @@ public class DeviceStateMachineTest {
         assertEquals(T0 + 10 * MIN, m.current().fromMs);
         assertEquals(1, m.current().revision);
     }
+
+    @Test
+    public void anIdenticalStateObservedAgainRefreshesTheIntervalInsteadOfOpeningANewOne() {
+        DeviceStateMachine m = new DeviceStateMachine(2 * MIN);
+        HealthObservation first = snapshot(T0, T0, 1, 0, true, Arrays.asList("F"), "VERIFIED", "INVALID");
+        List<DeviceStateMachine.Transition> t1 = m.apply(first, T0 + 1000);
+        assertEquals(1, t1.size());
+        assertEquals("OPEN", t1.get(0).kind);
+
+        // the same state again: a heartbeat snapshot and an event restating the post-state
+        HealthObservation again = snapshot(T0 + 30 * 1000, T0 + 30 * 1000, 1, 1, true, Arrays.asList("F"), "VERIFIED", "INVALID");
+        assertTrue("identical snapshot must not open a new interval", m.apply(again, T0 + 31 * 1000).isEmpty());
+        HealthObservation restated = event(again, 1, 2, "DIAGNOSTIC_RAISED", null);
+        assertTrue("an event restating the same post-state must not open a new interval", m.apply(restated, T0 + 32 * 1000).isEmpty());
+
+        // a genuinely different state closes the one interval that was open and opens the next
+        HealthObservation cleared = snapshot(T0 + 60 * 1000, T0 + 60 * 1000, 1, 3, true, Collections.emptyList(), "VERIFIED", "VALID");
+        List<DeviceStateMachine.Transition> t2 = m.apply(cleared, T0 + 61 * 1000);
+        assertEquals(2, t2.size());
+        assertEquals("CLOSE", t2.get(0).kind);
+        assertEquals(Long.valueOf(T0 + 60 * 1000), t2.get(0).interval.toMs);
+        assertEquals("OPEN", t2.get(1).kind);
+        assertEquals(HealthInterval.NO_ACTIVE_DIAGNOSTIC, t2.get(1).interval.healthStateId);
+    }
 }

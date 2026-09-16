@@ -93,6 +93,15 @@ public final class DeviceStateMachine implements Serializable {
             next.measurementImpact = "UNKNOWN";
             next.healthStateId = current.healthStateId.equals(HealthInterval.NO_ACTIVE_DIAGNOSTIC) ? "INCOMPLETE" : current.healthStateId;
         }
+        if (current != null && sameState(current, next)) {
+            // The same state observed again (a heartbeat snapshot, an event restating the post-state):
+            // the interval continues - refresh its verification, never open a new one (NR-036/045).
+            current.verifiedAtMs = Math.max(current.verifiedAtMs, next.verifiedAtMs);
+            current.nativeStatus = next.nativeStatus;
+            current.producerEpoch = next.producerEpoch;
+            current.stateComplete = next.stateComplete;
+            return Collections.emptyList();
+        }
         List<Transition> out = new ArrayList<>(2);
         if (current != null) {
             HealthInterval closed = current.copy();
@@ -103,6 +112,16 @@ public final class DeviceStateMachine implements Serializable {
         current = next;
         out.add(new Transition("OPEN", next.copy()));
         return out;
+    }
+
+    /** The eligibility-relevant state: flags, collection, impact, health-state id, diagnostics, affected variables. */
+    static boolean sameState(HealthInterval a, HealthInterval b) {
+        return a.activeFlags.equals(b.activeFlags)
+                && a.collectionState.equals(b.collectionState)
+                && a.measurementImpact.equals(b.measurementImpact)
+                && a.healthStateId.equals(b.healthStateId)
+                && a.diagnosticIds.equals(b.diagnosticIds)
+                && a.affectedVariableIds.equals(b.affectedVariableIds);
     }
 
     /** Freshness policy tick: a VERIFIED interval whose verification aged out becomes STALE. */

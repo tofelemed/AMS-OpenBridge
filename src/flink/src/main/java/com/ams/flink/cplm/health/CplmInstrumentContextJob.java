@@ -230,7 +230,8 @@ public final class CplmInstrumentContextJob {
             List<String> out = new ArrayList<>();
             for (DeviceStateMachine.Transition t : transitions) {
                 out.add(LoopHealthContext.deviceInterval(MAPPER, t.interval, t.kind, now));
-                if ("CLOSE".equals(t.kind)) continue;
+                // CLOSE is rendered for the loops too: the mirror's loop_health_context row (keyed by
+                // loop/role/from/revision) only gets its to_at from a record that carries the closed interval.
                 long at = t.interval.toMs == null ? now : Math.max(t.interval.fromMs, t.interval.toMs - 1);
                 for (Map.Entry<String, String> e : control) {
                     if (!e.getKey().startsWith("binding:")) continue;

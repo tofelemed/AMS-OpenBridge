@@ -19,29 +19,37 @@ import java.util.TreeMap;
  * NOT_CONFIGURED - never as a healthy instrument.
  */
 public final class HealthLanes implements Serializable {
-    private static final long serialVersionUID = 1L;
-    private static final HealthLanes NONE = new HealthLanes(Collections.emptyMap());
+    private static final long serialVersionUID = 2L;
 
-    /** role -> latest context for that role (PV, SP, OP, VP, MODE). */
-    public final Map<String, LoopHealthContextRecord> byRole;
+    /**
+     * role -> latest context for that role (PV, SP, OP, VP, MODE). Public, mutable, no-arg
+     * constructor: this class rides inside CplmGateResult between chained operators, and Flink's
+     * chained copy rebuilds non-POJO values without running a constructor (a final unmodifiable
+     * map came back null on the lab). Every reader below tolerates null.
+     */
+    public Map<String, LoopHealthContextRecord> byRole = new TreeMap<>();
 
-    private HealthLanes(Map<String, LoopHealthContextRecord> byRole) {
-        this.byRole = Collections.unmodifiableMap(new TreeMap<>(byRole));
-    }
+    public HealthLanes() {}
 
-    public static HealthLanes none() { return NONE; }
+    public static HealthLanes none() { return new HealthLanes(); }
 
     public static HealthLanes of(Map<String, LoopHealthContextRecord> byRole) {
-        return byRole == null || byRole.isEmpty() ? NONE : new HealthLanes(byRole);
+        HealthLanes h = new HealthLanes();
+        if (byRole != null) h.byRole.putAll(byRole);
+        return h;
+    }
+
+    private Map<String, LoopHealthContextRecord> roles() {
+        return byRole == null ? Collections.emptyMap() : byRole;
     }
 
     /** True when at least one role has a context record with a device bound (NOT_CONFIGURED records do not count). */
     public boolean configured() {
-        for (LoopHealthContextRecord r : byRole.values()) if (!r.isNotConfigured()) return true;
+        for (LoopHealthContextRecord r : roles().values()) if (r != null && !r.isNotConfigured()) return true;
         return false;
     }
 
-    public LoopHealthContextRecord pv() { return byRole.get("PV"); }
+    public LoopHealthContextRecord pv() { return roles().get("PV"); }
 
     /** The measurement itself is under a fault affecting it: the window cannot be diagnosed. */
     public boolean pvIneligible() {
@@ -51,7 +59,7 @@ public final class HealthLanes implements Serializable {
 
     /** Any bound role is LIMITED (C/S, stale, unknown collection): findings carry a caveat. */
     public boolean anyLimited() {
-        for (LoopHealthContextRecord r : byRole.values()) if (r.isLimited()) return true;
+        for (LoopHealthContextRecord r : roles().values()) if (r != null && r.isLimited()) return true;
         return false;
     }
 
@@ -66,8 +74,9 @@ public final class HealthLanes implements Serializable {
         LoopHealthContextRecord pv = pv();
         n.put("pv_eligibility", pv == null ? "NOT_CONFIGURED" : pv.eligibility);
         ObjectNode roles = m.createObjectNode();
-        for (Map.Entry<String, LoopHealthContextRecord> e : byRole.entrySet()) {
+        for (Map.Entry<String, LoopHealthContextRecord> e : roles().entrySet()) {
             LoopHealthContextRecord r = e.getValue();
+            if (r == null) continue;
             ObjectNode o = m.createObjectNode();
             o.put("device_id", r.deviceId);
             o.put("binding_id", r.bindingId);
