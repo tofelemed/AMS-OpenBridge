@@ -1,0 +1,146 @@
+package com.ams.flink.cplm.engine;
+
+import com.ams.flink.cplm.CplmDynamicsParameterSetSupport;
+import com.ams.flink.cplm.CplmLongDiagnosticsResult;
+import com.ams.flink.cplm.CplmLoopDynamicsProfile;
+import com.ams.flink.cplm.CplmNormalizedSample;
+import com.ams.flink.cplm.CplmShortFeatureResult;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+/**
+ * G10 saturation/limit occupancy and dwell, and G11 sensor-health primitives (freeze run, quantisation, drift, delta-PV statistics, spikes).
+ *
+ * Moved verbatim out of CplmGateEngine in v2.5 (Task 1D.1, 400-line file rule);
+ * no formula changed - the SYN-TIC-001 golden tests pin the numbers.
+ */
+public final class LimitMath {
+    public static final double PV_FREEZE_EPS = 1e-9;
+
+    private LimitMath() {
+    }
+
+    public static double computeSaturationPct(double[] op) {
+        return computeSaturationPct(op, 5.0, 95.0);
+    }
+
+    public static double computeSaturationPct(double[] op, double lowPct, double highPct) {
+        return computeSaturationStats(op, lowPct, highPct).occupancy;
+    }
+
+    public static SaturationStats computeSaturationStats(double[] op, double lowPct, double highPct) {
+        SaturationStats s = new SaturationStats();
+        if (op.length == 0) return s;
+        int sat = 0;
+        int dwell = 0;
+        int maxDwell = 0;
+        int exits = 0;
+        boolean wasSat = false;
+        for (double v : op) {
+            boolean atLimit = v <= lowPct || v >= highPct;
+            if (atLimit) {
+                sat++;
+                dwell++;
+                maxDwell = Math.max(maxDwell, dwell);
+                wasSat = true;
+            } else {
+                if (wasSat) exits++;
+                dwell = 0;
+                wasSat = false;
+            }
+        }
+        s.occupancy = (double) sat / op.length;
+        s.maxDwellSamples = maxDwell;
+        // Limit cycling: repeated enter/exit of saturation band.
+        s.cyclingPattern = exits >= 3 && s.occupancy >= 0.02;
+        return s;
+    }
+
+    public static final class SaturationStats {
+        public double occupancy;
+        public int maxDwellSamples;
+        public boolean cyclingPattern;
+    }
+
+    /**
+     * Longest run of unchanged adjacent PV intervals (0 when PV always changes).
+     * Freeze index = run * dt, per as-built formula register: a single sample is
+     * not a freeze — only repeated unchanged intervals accumulate freeze time.
+     */
+    public static int computeFreezeRunSamples(double[] pv) {
+        int maxRun = 0, run = 0;
+        for (int i = 1; i < pv.length; i++) {
+            if (Math.abs(pv[i] - pv[i - 1]) <= PV_FREEZE_EPS) {
+                run++;
+            } else {
+                maxRun = Math.max(maxRun, run);
+                run = 0;
+            }
+        }
+        return Math.max(maxRun, run);
+    }
+
+    public static double computeFreezeIndex(double[] pv, double tsSec) {
+        return computeFreezeRunSamples(pv) * tsSec;
+    }
+
+    public static int countUniqueRounded(double[] v, int decimals) {
+        Set<Long> uniq = new HashSet<>();
+        double scale = Math.pow(10, decimals);
+        for (double d : v) {
+            uniq.add(Math.round(d * scale));
+        }
+        return uniq.size();
+    }
+
+    public static double computePvDriftPerDay(double[] pv, List<CplmNormalizedSample> samples, long windowSec) {
+        if (pv.length < 2) return 0;
+        double t0 = samples.get(0).eventTsMs / 1000.0;
+        double sumT = 0, sumV = 0, sumTV = 0, sumTT = 0;
+        for (int i = 0; i < pv.length; i++) {
+            double t = samples.get(i).eventTsMs / 1000.0 - t0;
+            sumT += t;
+            sumV += pv[i];
+            sumTV += t * pv[i];
+            sumTT += t * t;
+        }
+        double n = pv.length;
+        double denom = n * sumTT - sumT * sumT;
+        if (Math.abs(denom) < 1e-15) return 0;
+        double slope = (n * sumTV - sumT * sumV) / denom;
+        return slope * 86400.0;
+    }
+
+    public static DeltaPvResult computeDeltaPvStats(double[] pv) {
+        DeltaPvResult r = new DeltaPvResult();
+        if (pv.length < 2) return r;
+        double[] d = new double[pv.length - 1];
+        for (int i = 0; i < d.length; i++) d[i] = pv[i + 1] - pv[i];
+        r.mean = SignalMath.mean(d);
+        r.std = SignalMath.popStd(d, r.mean);
+        return r;
+    }
+
+    public static int computeSpikeCount(double[] pv) {
+        if (pv.length < 3) return 0;
+        double[] d = new double[pv.length - 1];
+        for (int i = 0; i < d.length; i++) d[i] = pv[i + 1] - pv[i];
+        double mean = SignalMath.mean(d);
+        double std = SignalMath.popStd(d, mean);
+        if (std < 1e-12) return 0;
+        int spikes = 0;
+        for (double v : d) {
+            if (Math.abs(v - mean) > 3 * std) spikes++;
+        }
+        return spikes;
+    }
+
+    public static class DeltaPvResult {
+        double mean;
+        double std;
+    }
+}
