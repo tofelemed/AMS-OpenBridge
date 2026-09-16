@@ -24,6 +24,7 @@ import './styles/app.css';
 // detail panels, context menus, and forms
 import './styles/hmi-dialogs.css';
 import './styles/cpm.css';
+import './styles/cpm-evidence.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

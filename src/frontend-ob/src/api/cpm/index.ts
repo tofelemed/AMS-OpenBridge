@@ -8,4 +8,5 @@ export * from './kpis';
 export * from './verdict';
 export * from './health';
 export * from './catalogue';
+export * from './response';
 export { CPM_BASE } from './base';

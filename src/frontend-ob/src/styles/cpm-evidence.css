@@ -1,0 +1,131 @@
+/* v2.5 Phase 2E — Gate Evidence Workbench and System Response workspaces.
+   Layout only; every colour, border and text token is OpenBridge's (see styles/cpm.css for the
+   base .cpm-* vocabulary these extend). Three columns collapse to one below 1200px. */
+
+/* ── Workbench shells ── */
+.cpm-evidence-columns,
+.cpm-response-columns {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(0, 2.6fr) minmax(280px, 1.2fr);
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1200px) {
+  .cpm-evidence-columns, .cpm-response-columns { grid-template-columns: 1fr; }
+}
+.cpm-evidence-centre,
+.cpm-response-centre,
+.cpm-response-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.cpm-evidence-gates,
+.cpm-response-events,
+.cpm-method-trace {
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+}
+
+/* ── Header ── */
+.cpm-evidence-header {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px 16px;
+}
+
+/* ── Gate / event lists (buttons styled as rows; selection uses the active-state tokens) ── */
+.cpm-evidence-gates__list,
+.cpm-response-events__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cpm-evidence-gate,
+.cpm-response-event {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--element-active-color);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cpm-evidence-gate { flex-direction: row; align-items: center; gap: 8px; }
+.cpm-evidence-gate:hover,
+.cpm-response-event:hover {
+  background: var(--flat-hover-background-color);
+}
+.cpm-evidence-gate--selected,
+.cpm-response-event--selected {
+  background: var(--selected-enabled-background-color);
+  border-color: var(--selected-enabled-border-color, var(--instrument-enhanced-primary-color));
+}
+
+/* ── Chart wrapper (CpmChart) ── */
+.cpm-chart { display: flex; flex-direction: column; gap: 4px; }
+.cpm-chart__bar { display: flex; align-items: center; gap: 8px; }
+.cpm-chart__title { flex: 1; font-size: 0.85rem; color: var(--element-neutral-color); }
+.cpm-chart__table {
+  margin: 0;
+  max-height: 320px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--border-divider-color);
+  border-radius: 6px;
+  background: var(--container-section-color);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.78rem;
+}
+
+/* ── Context lanes / interval lanes ── */
+.cpm-context-lanes { display: flex; flex-direction: column; gap: 8px; }
+.cpm-lane { display: flex; flex-direction: column; gap: 2px; }
+
+/* ── Tables shared by the views ── */
+.cpm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.cpm-table th,
+.cpm-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-divider-color);
+  text-align: left;
+  vertical-align: top;
+}
+.cpm-table th { color: var(--element-neutral-color); font-weight: 500; }
+.cpm-table tr[data-best="true"] td { color: var(--element-active-color); font-weight: 600; }
+.cpm-timeline-table { display: flex; flex-direction: column; gap: 6px; }
+.cpm-ranked { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.cpm-ranked li[data-leading="true"] { font-weight: 600; }
+
+/* ── Artifacts (generic renderer) ── */
+.cpm-artifacts { display: flex; flex-direction: column; gap: 12px; }
+.cpm-artifact { display: flex; flex-direction: column; gap: 6px; }
+.cpm-artifact__record { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 4px 16px; }
+
+/* ── Gate state panel ── */
+.cpm-gate-state { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.cpm-gate-state__valid { margin: 0; color: var(--element-neutral-color); font-size: 0.85rem; }
+
+/* ── Method trace ── */
+.cpm-method-trace__params { display: flex; flex-direction: column; }
+
+/* ── Response workspace specifics ── */
+.cpm-response-quantities { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 24px; margin-bottom: 8px; }
+.cpm-response-subgate { border-left: 2px solid var(--border-divider-color); padding-left: 8px; margin-bottom: 6px; }
+.cpm-muted { color: var(--element-neutral-color); font-size: 0.8rem; }

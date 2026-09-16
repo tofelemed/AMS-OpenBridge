@@ -73,6 +73,7 @@ const CpmHistorical    = React.lazy(() => import('./components/Cpm/CpmHistorical
 const CpmWindows       = React.lazy(() => import('./components/Cpm/CpmWindows'));
 const CpmReplay        = React.lazy(() => import('./components/Cpm/CpmReplay'));
 const GateEvidenceWorkspace = React.lazy(() => import('./components/Cpm/evidence/GateEvidenceWorkspace'));
+const ResponseWorkspace = React.lazy(() => import('./components/Cpm/response/ResponseWorkspace'));
 const CpmInvestigation = React.lazy(() => import('./components/Cpm/CpmInvestigation'));
 const CpmPipeline      = React.lazy(() => import('./components/Cpm/CpmPipeline'));
 const CpmGovernance    = React.lazy(() => import('./components/Cpm/CpmGovernance'));
@@ -453,6 +454,7 @@ const App: React.FC = () => {
                       <Route path="/cpm/windows"   element={<RequirePermission permission="analytics.view"><CpmWindows /></RequirePermission>} />
                       <Route path="/cpm/replay"    element={<RequirePermission permission="analytics.view"><CpmReplay /></RequirePermission>} />
                       <Route path="/cpm/evidence"  element={<RequirePermission permission="analytics.view"><GateEvidenceWorkspace /></RequirePermission>} />
+                      <Route path="/cpm/response"  element={<RequirePermission permission="analytics.view"><ResponseWorkspace /></RequirePermission>} />
                       <Route path="/cpm/investigation" element={<RequirePermission permission="analytics.view"><CpmInvestigation /></RequirePermission>} />
                       <Route path="/cpm/pipeline"  element={<RequirePermission permission="analytics.view"><CpmPipeline /></RequirePermission>} />
                       <Route path="/cpm/governance" element={<RequirePermission permission="analytics.view"><CpmGovernance /></RequirePermission>} />
@@ -794,6 +796,7 @@ const navItems = [
   { path: '/cpm/windows',      label: 'Window Inspector',   Icon: ObiTime, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/replay',       label: 'Evidence Replay',    Icon: ObiTrend, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/evidence',     label: 'Evidence Workbench', Icon: ObiListAltCheckGoogle, group: 'Loop Performance', permission: 'analytics.view' },
+  { path: '/cpm/response',     label: 'System Response',    Icon: ObiTrend, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/investigation', label: 'Investigation',     Icon: ObiEditGoogle, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/calculations', label: 'Calculations',       Icon: ObiListAltCheckGoogle, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/registry',     label: 'Loop Registry',      Icon: ObiWrench, group: 'Loop Performance', permission: 'analytics.view' },
