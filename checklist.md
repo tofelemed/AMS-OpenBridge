@@ -6,7 +6,7 @@ audited base `5cec34ef`. Operational facts (what to run on the plant) live in `c
 
 Legend: ✅ done and committed · 🔄 in progress · ⬜ pending · commit ids are on this branch.
 
-_Last updated: 2026-09-16 16:30 (Phase 1 closed; Phase 2A: 2A.1–2A.3 committed, 2A.4–2A.6 in test)._
+_Last updated: 2026-09-16 17:20 (Phase 2A closed; 2B code committed, lab deploy in progress)._
 
 ## Phase 0 — build truth and test baseline ✅
 
@@ -53,8 +53,8 @@ _Last updated: 2026-09-16 16:30 (Phase 1 closed; Phase 2A: 2A.1–2A.3 committed
 
 | Subphase | Tasks | Status |
 |---|---|---|
-| 2A response kernel (commons-math3) | 2A.1 models + ZOH simulators ✅ f3a91c84 (14 tests) · 2A.2 metrics ✅ 33e167a7 (15 tests; overshoot only outside the settling band) · 2A.3 events + capture state machine ✅ fbb2e8df (11 tests) · 2A.4 estimators 🔄 (OE delay-profile LM, integrating adapter, closed-loop ARMAX PEM, legality registry — noise-free recovery exact; noisy tolerances expressed as the fit's own standard errors) · 2A.5 validation / uncertainty / controller / frequency / SIMC 🔄 (code + tests written, running) · 2A.6 G12Result (52 catalogue quantities) + evidence writer 🔄 (code + tests written) | 🔄 |
-| 2B `CplmResponseAnalysisJob` | 2B.1 job + replay `--methods G12` · 2B.2 response consumer, tables (55), `/response-events`, `/models`, controller snapshots | ⬜ |
+| 2A response kernel (commons-math3) | 2A.1 ✅ f3a91c84 (14) · 2A.2 ✅ 33e167a7 (15) · 2A.3 ✅ fbb2e8df (11) · 2A.4 ✅ ae226715 (10; noise-free spec FOPDT exact, noisy within the fit's own standard errors) · 2A.5 ✅ 1b0c6087 (9) · 2A.6 ✅ 79305f58 (4; all 52 catalogue quantities) | ✅ |
+| 2B `CplmResponseAnalysisJob` | 2B.1 ✅ 3599d519 (job + capture + evaluator, registered in all five submit paths, topic declared; 6 tests) · 2B.2 ✅ 01e8122a (schema 55 + mirrors, verbatim consumer, `/response-events`, `/models?at=`, `POST /models/{id}/review`; 4 tests) · lab deploy 🔄 (jar + cplm-api image building; `scripts/sim/loop_step_sim.py` to drive an event) | 🔄 |
 | 2C exact intermediates | 2C.1 per-gate artifacts (G0–G11, G13–G15; Welch PSD) · 2C.2 evidence API with ETag + reconstruction | ⬜ |
 | 2D API breadth | 2D.1 gate catalogue, investigation references (56) | ⬜ |
 | 2E frontend workbench | 2E.1 chart/state infra · 2E.2 historical axes/tooltip · 2E.3 `GateEvidenceWorkspace` · 2E.4 the 17 gate views · 2E.5 `ResponseWorkspace` | ⬜ |
@@ -82,8 +82,8 @@ _Last updated: 2026-09-16 16:30 (Phase 1 closed; Phase 2A: 2A.1–2A.3 committed
 
 | Suite / script | Result | When |
 |---|---|---|
-| Flink `mvn test` (Docker Maven, from PowerShell) | 115 run / 0 failures / 2 skipped | 2026-09-16 15:10 (state-machine refresh + HealthLanes POJO fixes) |
-| cplm-api tests (lab DB, run alone) | 101 / 101 | 2026-09-16 15:15 |
+| Flink `mvn test` (Docker Maven, from PowerShell) | 182 run / 0 failures / 2 skipped | 2026-09-16 after 2B.1 |
+| cplm-api tests (lab DB, run alone) | 105 / 105 | 2026-09-16 after 2B.2 |
 | ingestion-service tests | 212 / 212 (health 11) | 2026-09-16 |
 | frontend vitest / lint / build | 51 / 51 · clean · OK | 2026-09-16 after 1H.6 |
 | simulator pytest | 17 / 17 | 2026-09-16 after 547482a5 |

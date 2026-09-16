@@ -87,13 +87,12 @@ public final class ResponseCapture implements Serializable {
         boolean auto = s.isAutoMode();
         boolean good = s.isGoodQuality() && Double.isFinite(s.pv) && Double.isFinite(s.sp) && Double.isFinite(s.op);
         double uApplied = vpMapped && s.vp != null && Double.isFinite(s.vp) ? s.vp : s.op;
-        ring.add(new double[] {tS, s.pv, s.sp, uApplied, good ? 1 : 0, auto ? 1 : 0});
-        evict(tS);
         List<Closed> closed = new ArrayList<>();
+        boolean gap = !Double.isNaN(lastTs) && tS - lastTs > cfg.maxGapS;
 
-        // segmentation triggers on the open capture
+        // segmentation triggers on the open capture (the gap is judged BEFORE the new sample joins the ring)
         if (machine.open() != null) {
-            if (!Double.isNaN(lastTs) && tS - lastTs > cfg.maxGapS) {
+            if (gap) {
                 machine.onSourceGap(lastTs);
                 closed.addAll(closeLast());
             } else if (lastMode != null && auto != "AUT".equals(lastMode) && !auto) {
@@ -101,6 +100,14 @@ public final class ResponseCapture implements Serializable {
                 closed.addAll(closeLast());
             }
         }
+        // a gap longer than maxGapS is a break in support (spec §2.7): samples before it can neither be
+        // pre-support for a new event nor be bridged into one, so the ring restarts after it
+        if (gap) {
+            ring.clear();
+            lastEventT0 = Double.NaN;
+        }
+        ring.add(new double[] {tS, s.pv, s.sp, uApplied, good ? 1 : 0, auto ? 1 : 0});
+        evict(tS);
         lastTs = tS;
         lastMode = auto ? "AUT" : "MAN";
         if (healthIneligible) return closed;
@@ -142,12 +149,13 @@ public final class ResponseCapture implements Serializable {
         }
         ResponseEventDetector.Settings ds = detectorSettings();
         ResponseEventDetector.Candidate ref = ResponseEventDetector.detect(t, sp, valid, ds);
+        if (ref != null && !Double.isNaN(lastEventT0) && t[ref.index] <= lastEventT0) ref = null;   // already captured
         ResponseEventDetector.Candidate inp = ref == null ? ResponseEventDetector.detect(t, u, valid, ds) : null;
+        if (inp != null && !Double.isNaN(lastEventT0) && t[inp.index] <= lastEventT0) inp = null;
         ResponseEventDetector.Candidate c = ref != null ? ref : inp;
         if (c == null) return;
         boolean isReference = ref != null;
         double t0 = t[c.index];
-        if (!Double.isNaN(lastEventT0) && t0 <= lastEventT0) return;         // already captured
         EventType type = isReference ? (c.type == EventType.RAMP_TRACKING ? EventType.RAMP_TRACKING : EventType.SERVO_STEP)
                 : EventType.INPUT_TEST;
         String pathId = InputPathResolver.resolve(commandPath, vpMapped, false).path.name();

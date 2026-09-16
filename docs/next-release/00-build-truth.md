@@ -132,3 +132,26 @@ classloader); recreating the TaskManager cleared it. The plant runbook already r
   interval; it no longer opens a new one. Loop-context CLOSE records are rendered too, so `cpm.loop_health_context.to_at` gets filled.
   The fleet health filters judge the newest context per role (DISTINCT ON), not "any row without to_at". The API's source-availability
   read follows receipt order (`received_at`), not the producer's `since`.
+
+## 2A/2B — G12 system response (2026-09-16)
+
+- Kernel `com.ams.flink.cplm.response.*` (2A.1-2A.6, six commits f3a91c84..79305f58): exact ZOH simulation (Padé expm; no 1/(τ1−τ2)), observed
+  metrics with censoring (§2.5 numbers pinned: t10 6.1072, t90 50.0517, 2 % settle 82.24), safe triggering + capture state machine (§2.4),
+  bounded OE with delay profile / integrating adapter / closed-loop ARMAX PEM / legality registry (§2.7), holdout validation with free-run
+  AND one-step errors, named uncertainty methods, controller adapters, model-domain frequency outputs, SIMC advisory (§2.8-2.9), `G12Result`
+  with all 52 catalogue quantities (null WITH reason) and the §2.10 artifacts. Estimator tolerances: the noise-free spec curve is recovered
+  exactly (3.000 / 4.001 / 19.999); noisy recovery is asserted within the fit's OWN standard errors — anything tighter is the false precision
+  the spec forbids. A bound counts as hit only on both yardsticks (fraction of the range AND of the parameter's own scale).
+- Job `AMS - CPLM Response Engine` (2B.1, 3599d519): keyed `ResponseCapture` + inline `ResponseEvaluator`; results on
+  `traverse.cpa.clpm.response.results.v1` keyed by loop_id; evidence on the gate-evidence topic keyed by method_run_id; the previous COMPLETE
+  event of a loop is the independent validation holdout. G12 settings come from job args (`--g12-*`, spec commissioning defaults) until Phase 3;
+  their content hash is the G12 `bundle_hash` (`g12:<sha256[:16]>`). Registered in all five submit paths; topic declared for lab + plant.
+- cplm-api (2B.2, 01e8122a): script 55 (+ 03 / cpm-07 mirrors), verbatim `ResponseResultStore`, consumer `response` (group
+  `traverse-cpa-cplm-response`), `/loops/{id}/response-events`, `/response-events/{id}`, `/loops/{id}/models?at=`, `/models/{id}`,
+  `POST /models/{id}/review` (If-Match on revision, audited, review survives job re-delivery). `ResultIdentityUuid.V5` = Flink's `RunIdentity`
+  derivation (RFC vector pinned on both sides).
+- Lab finding (fixed before commit): after a publisher stopped mid-capture and 40 min of silence, a clean scenario produced NO event. The
+  ring kept the pre-gap samples, the detector returned the OLD step first, and the "already captured" guard ended detection there. A gap longer
+  than `maxGapS` is a break in support (§2.7): the ring now restarts after it and already-captured candidates are skipped rather than terminal.
+  Regression test `aScenarioAfterALongSilenceIsCapturedNotSwallowedByTheGap`. Lab publishers: `scripts/sim/loop_step_sim.py`
+  (`input-test` = the §2.11 FOPDT, `servo-step`, `integrating`); 1 s or 5 s cadence both yield 12 tuples/min on the 5 s grid.

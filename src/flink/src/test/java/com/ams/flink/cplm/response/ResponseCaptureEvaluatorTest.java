@@ -228,4 +228,43 @@ public class ResponseCaptureEvaluatorTest {
         assertNotNull(G12Result.fromJson(o.result.toJson()).metrics.get("dead_time"));
         assertTrue(o.result.datasetHash.startsWith("ds:"));
     }
+
+    @Test
+    public void aScenarioAfterALongSilenceIsCapturedNotSwallowedByTheGap() {
+        // lab sequence: a run whose capture was open when the publisher stopped, 40 min of silence, a clean input test
+        ResponseJobConfig cfg = cfg();
+        ResponseCapture cap = new ResponseCapture("FIC10302", cfg);
+        cap.setCommandPath("OP_TO_VALVE");
+        ResponseEvaluator ev = new ResponseEvaluator(cfg);
+        List<G12Result> results = new ArrayList<>();
+        // run 1: a step whose tail never settles before the publisher stops at t = 300
+        for (double t = 0; t <= 300; t += 5) {
+            double u = t < 100 ? 40 : 45;
+            double pv = t < 104 ? 100 : 100 + 15 * (1 - Math.exp(-(t - 104) / 600));
+            for (ResponseCapture.Closed c : cap.onSample(sample("FIC10302", t, pv, 100, u, true), false)) {
+                results.add(ev.evaluate(c, ModelFamily.FOPDT, null, 0, ControllerSnapshot.unknown(), 0, "LIVE", "", 0).result);
+            }
+        }
+        assertEquals("the capture is still open when the publisher stops", 0, results.size());
+        // 40 min later: a clean scenario (180 s stable pre-support, step, 360 s settled tail) at 1 s
+        double base = 300 + 2400;
+        int n = 541;
+        double[] t = new double[n], u = new double[n];
+        for (int i = 0; i < n; i++) {
+            t[i] = base + i;
+            u[i] = t[i] < base + 180 ? 40 : 45;
+        }
+        ZohSimulator.Result sim = ZohSimulator.simulate(PLANT, t, u, 40, 100, 0, base + 180, 60);
+        for (int i = 0; i < n; i++) {
+            for (ResponseCapture.Closed c : cap.onSample(sample("FIC10302", t[i], sim.yHat[i], 100, u[i], true), false)) {
+                results.add(ev.evaluate(c, ModelFamily.FOPDT, null, 0, ControllerSnapshot.unknown(), 0, "LIVE", "", 0).result);
+            }
+        }
+        assertEquals("the stale capture is censored SOURCE_GAP and the new scenario is captured", 2, results.size());
+        assertEquals("SOURCE_GAP", results.get(0).finding);
+        G12Result fresh = results.get(1);
+        assertEquals("EVALUATED", fresh.evaluationState);
+        assertEquals("COMPLETE", fresh.subgates.get("B").outputs.get("capture_state"));
+        assertEquals(3.0, fresh.metrics.get("process_gain").value, 0.05);
+    }
 }
