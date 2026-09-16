@@ -18,6 +18,8 @@
 import React, { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
+import { ObcFilterChip } from '@oicl/openbridge-webcomponents-react/components/filter-chip/filter-chip';
+import type { CpmHealthFilter } from '../../api/cpmApi';
 import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObiHelp } from '@oicl/openbridge-webcomponents-react/icons/icon-help';
@@ -33,6 +35,13 @@ import { useBadActors } from './useBadActors';
 import { buildTierGroups, isRowFilter, latestWindowEnd } from './gateStatus';
 import { useCpmResolutions, useFleetHeatmap, useFleetRankings, useFleetSummary } from '../../hooks/useCpm';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+
+/** v2.5 (1H.6): the three fleet health filters the server understands (spec §4.7). */
+const HEALTH_FILTERS: { id: CpmHealthFilter; label: string }[] = [
+  { id: 'missing-binding', label: 'Missing binding' },
+  { id: 'stale-collection', label: 'Stale collection' },
+  { id: 'active-affected', label: 'Active affected-device condition' },
+];
 
 /** Below this the workspace cannot carry a second column; evidence goes modal. */
 const DOCK_QUERY = '(min-width: 1200px)';
@@ -107,7 +116,16 @@ export const CpmPerformance: React.FC = () => {
   const resolutions = useCpmResolutions();
   const fusionKinds = resolutions.data?.fusion.firesOn ?? ['12h', '24h'];
   const summary = useFleetSummary(scope.params, windowKind);
-  const rankings = useFleetRankings(scope.params, windowKind);
+  // v2.5 (1H.6, spec §4.7): Instrumental health filters are applied by the SERVER (?health=),
+  // because the rankings page is LIMITed — filtering a page in the browser would rank a subset.
+  const healthFilter = (params.get('health') as CpmHealthFilter | null) ?? undefined;
+  const setHealthFilter = (v?: CpmHealthFilter) => setParams(p => {
+    const n = new URLSearchParams(p);
+    if (v) n.set('health', v); else n.delete('health');
+    n.delete('page');
+    return n;
+  }, { replace: true });
+  const rankings = useFleetRankings(scope.params, windowKind, 'confidence', 50, true, healthFilter);
   // CHG-023 (P0-2): by confidence this is a slice of `rankings` — no second request;
   // only the "error" order (a different server ORDER BY) costs its own call.
   const badActors = useBadActors(scope.params, windowKind, rankBy);
@@ -194,6 +212,22 @@ export const CpmPerformance: React.FC = () => {
         scope={scope}
         summary={fleetTotal != null ? `${fleetTotal} loop(s) in scope` : null}
       />
+
+      <div className="cpm-chip-row" role="group" aria-label="Instrument health filter">
+        {HEALTH_FILTERS.map(f => (
+          <ObcFilterChip
+            key={f.id}
+            label={f.label}
+            checked={healthFilter === f.id}
+            onChipToggle={() => setHealthFilter(healthFilter === f.id ? undefined : f.id)}
+          />
+        ))}
+        {healthFilter && (
+          <span className="cpm-event-row__sub">
+            ranking only loops matching “{HEALTH_FILTERS.find(f => f.id === healthFilter)?.label}” (server-side)
+          </span>
+        )}
+      </div>
 
       <div className="cpm-kpi-row">
         <KpiTile caption="Good-error time"

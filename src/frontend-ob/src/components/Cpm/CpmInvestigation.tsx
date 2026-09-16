@@ -37,6 +37,8 @@ import { WindowBrowser } from './investigation/WindowBrowser';
 import { caseCounts, caseIdFor } from './investigation/cases';
 import { confirmationLabel } from './investigation/confirmationCopy';
 import { KEY_FACTS, fmt } from './investigation/keyFacts';
+import { HealthLane } from './health/HealthLane';
+import { useInstrumentHealthHistory } from './health/useInstrumentHealth';
 
 export const CpmInvestigation: React.FC = () => {
   const navigate = useNavigate();
@@ -114,6 +116,9 @@ export const CpmInvestigation: React.FC = () => {
   }, [matrix?.windowStart, matrix?.windowEnd]);
   const trend = useCpmTrend(series, start, end, 280, hasVp ? 'pv,sp,op,vp' : 'pv,sp,op', !!matrix); // C: hold until the verdict window is known
   const points = useMemo(() => trend.data?.points ?? [], [trend.data]);
+  // v2.5 (1H.6): the PV instrument's eligibility over the SAME window as the verdict, so a
+  // health exclusion or a device replacement is visible beside the evidence it affected.
+  const healthHistory = useInstrumentHealthHistory(matrix ? loopId : undefined, start, end);
 
   const obcTheme = useObcTheme(); // C: re-derive chart colors on theme switch
   const chartOption = useMemo(() => {
@@ -232,6 +237,9 @@ export const CpmInvestigation: React.FC = () => {
               <KvRow label="Window">
                 {matrix.windowStart ? fmtDateTime(matrix.windowStart) : '—'} →{' '}
                 {matrix.windowEnd ? fmtDateTime(matrix.windowEnd) : '—'} ({matrix.windowKind})
+              </KvRow>
+              <KvRow label="Instrument health">
+                <HealthLane rows={healthHistory.data?.intervals ?? []} from={start} to={end} role="PV" />
               </KvRow>
               <KvRow label="Severity">{matrix.severity ?? '—'}</KvRow>
               <KvRow label="Selected family">{matrix.narrative?.selectedFamily ?? '—'}</KvRow>

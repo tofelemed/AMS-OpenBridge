@@ -114,9 +114,18 @@ public sealed class CpmFleetController : ControllerBase
         [FromQuery] string windowKind = "24h",
         [FromQuery] int limit = 50,
         [FromQuery] string orderBy = "confidence",
+        // v2.5 (1H.6): server-side Instrumental health filter (see FleetLatestSql.HealthFilter).
+        [FromQuery] string? health = null,
         CancellationToken ct = default)
     {
         limit = Math.Clamp(limit, 1, 200);
+        var healthWhere = FleetLatestSql.HealthFilter(health);
+        if (healthWhere is null)
+            return BadRequest(new
+            {
+                error = $"Unknown health filter '{health}'",
+                allowed = new[] { "missing-binding", "stale-collection", "active-affected" }
+            });
 
         // Whitelisted — this is interpolated into ORDER BY.
         //
@@ -141,11 +150,11 @@ public sealed class CpmFleetController : ControllerBase
                 allowed = new[] { "confidence", "error", "mae", "effort" }
             });
 
-        return await CachedAsync($"rankings|{site}|{area}|{unit}|{windowKind}|{rankExpr}|{limit}", async token =>
+        return await CachedAsync($"rankings|{site}|{area}|{unit}|{windowKind}|{rankExpr}|{limit}|{health}", async token =>
         {
             await using var conn = await _dataSource.OpenConnectionAsync(token);
 
-            var rows = await conn.QueryAsync(FleetLatestSql.Rankings(rankExpr),
+            var rows = await conn.QueryAsync(FleetLatestSql.Rankings(rankExpr, healthWhere),
                 new { site, area, unit, windowKind, limit });
 
             var ranked = rows.Select((r, i) => new
@@ -182,7 +191,7 @@ public sealed class CpmFleetController : ControllerBase
 
             // orderBy echoes back: with a LIMIT, the ordering determines WHICH loops
             // are in the response, so a caller must be able to tell what it got.
-            return (object)new { site, area, unit, windowKind, orderBy, count = ranked.Count, loops = ranked };
+            return (object)new { site, area, unit, windowKind, orderBy, health, count = ranked.Count, loops = ranked };
         }, ct);
     }
 

@@ -30,6 +30,8 @@ import { useObcTheme } from '../../hooks/useObcTheme';
 import RangeToolbar, { SIGNAL_KEYS } from './historical/RangeToolbar';
 import SelectedWindowPanel from './historical/SelectedWindowPanel';
 import { CHART_HEIGHT, buildChartOption, type Segment } from './historical/chartOption';
+import { useInstrumentHealthHistory } from './health/useInstrumentHealth';
+import { healthSegments as toHealthSegments } from './health/HealthLane';
 import {
   RANGE_PRESETS, activePreset, presetRange, spanOf, stepRange,
 } from './historical/timeRange';
@@ -175,13 +177,21 @@ export const CpmHistorical: React.FC = () => {
   const hasAnyLane = hasPlottableSignal || verdictSegments.length > 0
     || modeSegments.length > 0 || kpiRows.length > 0;
 
+  // v2.5 (1H.6): the PV instrument's eligibility intervals as a fifth lane. The lane exists
+  // whenever the history answered (even empty — a gap is the truthful state); it is omitted only
+  // while the request is unanswered so the layout does not jump.
+  const healthHistory = useInstrumentHealthHistory(loopId, from, to);
+  const healthLane = useMemo(
+    () => healthHistory.data ? toHealthSegments(healthHistory.data.intervals, from, to, 'PV') : undefined,
+    [healthHistory.data, from, to]);
+
   const obcTheme = useObcTheme(); // re-derive chart colors on theme switch
   const option = useMemo(() => buildChartOption({
-    points, kpiRows, overlay, signals, modeSegments, verdictSegments, from, to,
+    points, kpiRows, overlay, signals, modeSegments, verdictSegments, healthSegments: healthLane, from, to,
     pens: cpmChartColors(), tones: cpmToneColors(),
   }),
   // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
-  [points, kpiRows, overlay, signals, modeSegments, verdictSegments, from, to, obcTheme]);
+  [points, kpiRows, overlay, signals, modeSegments, verdictSegments, healthLane, from, to, obcTheme]);
 
   // Zoom explores; Apply commits. The slider filters what is DRAWN; writing the
   // span back to ?from/?to is what makes the KPI and gate queries refetch at the

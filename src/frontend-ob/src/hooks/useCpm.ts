@@ -161,10 +161,12 @@ export function useFleetRankings(
   // CHG-023: lets a caller hold a variant it does not currently need (Performance's
   // "error" order) instead of fetching it beside the page's own ranking every 60 s.
   enabled = true,
+  // v2.5 (1H.6): optional server-side health filter (missing binding / stale / active affected).
+  health?: cpm.CpmHealthFilter,
 ) {
   return useQuery({
-    queryKey: ['cpm', 'fleet', 'rankings', scopeKey(scope), windowKind, orderBy, limit],
-    queryFn: backgroundPoll(() => cpm.getFleetRankings(scope, windowKind, limit, orderBy)),
+    queryKey: ['cpm', 'fleet', 'rankings', scopeKey(scope), windowKind, orderBy, limit, health ?? ''],
+    queryFn: backgroundPoll(() => cpm.getFleetRankings(scope, windowKind, limit, orderBy, health)),
     refetchInterval: 60_000,
     enabled,
   });

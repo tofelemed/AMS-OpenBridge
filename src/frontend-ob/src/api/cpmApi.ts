@@ -361,11 +361,15 @@ export interface CpmRankedLoop {
  * by confidence cannot surface the fleet's worst-controlled loop.
  */
 export type CpmRankingOrder = 'confidence' | 'error' | 'mae' | 'effort';
+/** v2.5 (1H.6): server-side fleet health filters — the server decides, the page never re-filters a LIMITed page. */
+export type CpmHealthFilter = 'missing-binding' | 'stale-collection' | 'active-affected';
 
 export const getFleetRankings = (
   scope?: CpmFleetScope | string, windowKind = '24h', limit = 50, orderBy: CpmRankingOrder = 'confidence',
+  health?: CpmHealthFilter,
 ) => {
   const params = new URLSearchParams({ windowKind, limit: String(limit), orderBy });
+  if (health) params.set('health', health);
   applyScope(params, scope);
   return apiJson<{
     site: string | null; windowKind: string; orderBy: string;

@@ -23,6 +23,8 @@ export const LANES = {
   overlay: { top: 232, height: 80 },
   mode: { top: 328, height: 14 },
   verdict: { top: 350, height: 20 },
+  /** v2.5 (1H.6): optional Instrumental health lane (PV eligibility intervals). */
+  health: { top: 378, height: 14 },
   axisLabels: 24,
   slider: { height: 20, bottom: 6 },
 };
@@ -44,6 +46,8 @@ export interface ChartInput {
   signals: string[];
   modeSegments: Segment[];
   verdictSegments: Segment[];
+  /** v2.5 (1H.6): PV instrument eligibility intervals; omitted = no health lane drawn. */
+  healthSegments?: Segment[];
   from: Date;
   to: Date;
   pens: { good: string; amber: string; grey: string; accent: string; pink: string };
@@ -53,7 +57,7 @@ export interface ChartInput {
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
 
 /** Series whose values are scaffolding, not readings — excluded from tooltips. */
-const HELPER_SERIES = new Set(['pv-min', 'pv-band', 'mode-track', 'verdict-track']);
+const HELPER_SERIES = new Set(['pv-min', 'pv-band', 'mode-track', 'verdict-track', 'health-track']);
 
 /** Which segment (if any) covers an instant. */
 const segmentAt = (segs: Segment[], ts: number) =>
@@ -63,7 +67,7 @@ const segmentAt = (segs: Segment[], ts: number) =>
  * Rect renderer for a lane. Clamped to the grid so a zoomed-in view cannot paint
  * a band over the axis gutter.
  */
-function laneRenderer(segments: Segment[], tones: Record<CpmTone, string>) {
+export function laneRenderer(segments: Segment[], tones: Record<CpmTone, string>) {
   return (
     params: { dataIndex: number; coordSys: { x: number; y: number; width: number; height: number } },
     api: { coord: (v: number[]) => number[] },
@@ -84,13 +88,14 @@ function laneRenderer(segments: Segment[], tones: Record<CpmTone, string>) {
 
 export function buildChartOption(input: ChartInput) {
   const {
-    points, kpiRows, overlay, signals, modeSegments, verdictSegments,
+    points, kpiRows, overlay, signals, modeSegments, verdictSegments, healthSegments,
     from, to, pens, tones,
   } = input;
   const { good, amber, grey, accent, pink } = pens;
 
   const domain = { min: from.getTime(), max: to.getTime() };
-  const zoomAxes = [0, 1, 2, 3];
+  const hasHealth = healthSegments != null;
+  const zoomAxes = hasHealth ? [0, 1, 2, 3, 4] : [0, 1, 2, 3];
 
   const overlayData = kpiRows
     .filter(r => r.window_end && typeof r[overlay.key] === 'number')
@@ -119,6 +124,7 @@ export function buildChartOption(input: ChartInput) {
       { left: 60, right: 24, top: LANES.overlay.top, height: LANES.overlay.height },
       { left: 60, right: 24, top: LANES.mode.top, height: LANES.mode.height },
       { left: 60, right: 24, top: LANES.verdict.top, height: LANES.verdict.height },
+      ...(hasHealth ? [{ left: 60, right: 24, top: LANES.health.top, height: LANES.health.height }] : []),
     ],
     // The point of the rebuild: one crosshair, four lanes.
     axisPointer: { link: [{ xAxisIndex: 'all' as const }], snap: false },
@@ -160,12 +166,15 @@ export function buildChartOption(input: ChartInput) {
         return [`<strong>${new Date(ts).toLocaleString()}</strong>`, ...rows].join('<br/>');
       },
     },
-    xAxis: [timeAxis(0, false), timeAxis(1, false), timeAxis(2, false), timeAxis(3, true)],
+    xAxis: hasHealth
+      ? [timeAxis(0, false), timeAxis(1, false), timeAxis(2, false), timeAxis(3, false), timeAxis(4, true)]
+      : [timeAxis(0, false), timeAxis(1, false), timeAxis(2, false), timeAxis(3, true)],
     yAxis: [
       { type: 'value', gridIndex: 0, scale: true, axisLabel: { color: grey }, splitLine: { lineStyle: { opacity: 0.2 } } },
       { type: 'value', gridIndex: 1, scale: true, name: overlay.unit, nameTextStyle: { color: grey, fontSize: 10 }, axisLabel: { color: grey }, splitLine: { show: false } },
       laneY(2),
       laneY(3),
+      ...(hasHealth ? [laneY(4)] : []),
     ],
     series: [
       // PV keeps its envelope: the band is the honest rendering of oscillation
@@ -208,6 +217,13 @@ export function buildChartOption(input: ChartInput) {
         renderItem: laneRenderer(verdictSegments, tones),
         data: verdictSegments.map(s => [s.startMs, 0.5]),
       },
+      // v2.5 (1H.6): the health lane is a step band of the PV instrument's eligibility intervals;
+      // gaps (not configured / not observed) stay empty — never painted as healthy.
+      ...(hasHealth ? [{
+        name: 'health-track', type: 'custom' as const, xAxisIndex: 4, yAxisIndex: 4, silent: true,
+        renderItem: laneRenderer(healthSegments!, tones),
+        data: healthSegments!.map(s => [s.startMs, 0.5]),
+      }] : []),
     ],
   };
 }

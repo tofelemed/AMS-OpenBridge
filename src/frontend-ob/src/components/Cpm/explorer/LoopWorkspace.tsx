@@ -22,6 +22,8 @@ import type { CpmLoop } from '../../../api/cpmApi';
 import { ApiError } from '../../../api/apiFetch';
 import { useCpmEvents, useCpmReadiness, useLatestGates } from '../../../hooks/useCpm';
 import { PanelHead, TonePill, toneFor } from '../shared';
+import { useInstrumentHealth } from '../health/useInstrumentHealth';
+import { TransmitterHealthPanel, loopHealthSummary } from '../health/TransmitterHealthPanel';
 import { readinessCauses, type ExplorerTab } from './readinessCauses';
 import SummaryTab from './SummaryTab';
 import SignalsTab from './SignalsTab';
@@ -84,6 +86,12 @@ export const LoopWorkspace: React.FC<{
 
   const crumbs = [loop.site, loop.area, loop.unit].filter(Boolean) as string[];
 
+  // v2.5 (1H.6): transmitter health beside the verdict. The pill is the worst-of across bound
+  // roles; NOT CONFIGURED is an unavailable state (never OK). Click opens the drawer.
+  const instrumentHealth = useInstrumentHealth(loop.loopId);
+  const [healthOpen, setHealthOpen] = React.useState(false);
+  const healthSummary = loopHealthSummary(instrumentHealth.data);
+
   return (
     <section className="cpm-surface">
       <nav className="cpm-crumbs" aria-label="Plant location">
@@ -101,11 +109,33 @@ export const LoopWorkspace: React.FC<{
         eyebrow={loop.displayName}
         title={loop.loopId}
         right={
-          <TonePill tone={gatesFailed ? 'warn' : toneFor(diagnosis)}>
-            {diagnosis.replace(/_/g, ' ')}
-          </TonePill>
+          <span className="cpm-head-pills">
+            <button
+              type="button"
+              className="cpm-pill-button"
+              aria-expanded={healthOpen}
+              aria-controls="cpm-transmitter-health"
+              title="Transmitter health (Instrumental NE107)"
+              onClick={() => setHealthOpen(v => !v)}
+            >
+              <TonePill tone={healthSummary.tone}>{healthSummary.label}</TonePill>
+            </button>
+            <TonePill tone={gatesFailed ? 'warn' : toneFor(diagnosis)}>
+              {diagnosis.replace(/_/g, ' ')}
+            </TonePill>
+          </span>
         }
       />
+
+      {healthOpen && (
+        <div id="cpm-transmitter-health" className="cpm-health-drawer">
+          <TransmitterHealthPanel
+            health={instrumentHealth.data}
+            loading={instrumentHealth.isLoading}
+            error={instrumentHealth.error}
+          />
+        </div>
+      )}
 
       {summary && (
         <div className={`cpm-causes${summary.blocking > 0 ? ' cpm-causes--blocking' : ''}`}>
