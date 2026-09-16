@@ -60,6 +60,9 @@ public final class CplmLoopDynamicsProfile implements Serializable {
     public int minValidCycles;
     public double cornerAngleDeg;
     public double opDeadbandPct;
+    /** v2.5 (R03): a held VP older than this is not evidence (seconds). */
+    public static final double VP_MAX_AGE_S_DEFAULT = 60.0;
+    public double vpMaxAgeS = VP_MAX_AGE_S_DEFAULT;
     public double opTravelFloorPct;
     public double effortRatioFloor;
     public double phaseAreaPerCycleLo;
@@ -160,6 +163,7 @@ public final class CplmLoopDynamicsProfile implements Serializable {
         p.minValidCycles = minValidCycles;
         p.cornerAngleDeg = cornerAngleDeg;
         p.opDeadbandPct = opDeadbandPct;
+        p.vpMaxAgeS = vpMaxAgeS;
         p.opTravelFloorPct = opTravelFloorPct;
         p.effortRatioFloor = effortRatioFloor;
         p.phaseAreaPerCycleLo = phaseAreaPerCycleLo;
@@ -480,6 +484,7 @@ public final class CplmLoopDynamicsProfile implements Serializable {
         p.minValidCycles = (int) dbl(block, "minValidCycles", p.minValidCycles);
         p.cornerAngleDeg = dbl(block, "cornerAngleDeg", p.cornerAngleDeg);
         p.opDeadbandPct = dbl(block, "opDeadbandPct", p.opDeadbandPct);
+        p.vpMaxAgeS = dbl(block, "vpMaxAgeS", p.vpMaxAgeS);
         p.opTravelFloorPct = dbl(block, "opTravelFloorPct", p.opTravelFloorPct);
         p.effortRatioFloor = dbl(block, "effortRatioFloor", p.effortRatioFloor);
         p.phaseAreaPerCycleLo = dbl(block, "phaseAreaPerCycleLo", p.phaseAreaPerCycleLo);

@@ -33,7 +33,35 @@ public final class CplmNormalizedSample implements Serializable {
      */
     public CplmLoopDynamicsProfile resolvedProfile;
 
+    // ── v2.5 schema 1.1 (spec v6 R03/C02): per-role provenance ─────────────────────
+    /** "1.0" (top-level fields only, roles synthesised) or "1.1" (producer wrote roles{}). */
+    public String schemaVersion = "1.0";
+    public long bindingRevision;
+    public int gridSeconds;
+    /** pv/sp/op/vp/mode → observation; never null after fromJson (may be empty when invalid). */
+    public java.util.Map<String, com.ams.flink.cplm.contract.RoleObservation> roles = new java.util.LinkedHashMap<>();
+
     public CplmNormalizedSample() {
+    }
+
+    /** The role's observation, or null when the tuple has no such role. */
+    public com.ams.flink.cplm.contract.RoleObservation role(String role) {
+        return roles == null ? null : roles.get(role);
+    }
+
+    /**
+     * Whether VP may be used as evidence for this sample. A 1.1 tuple exposes VP's own
+     * quality and hold age: a BAD or over-age held VP is not evidence (a stale positioner
+     * value next to a fresh OP must not read as "following"). A 1.0 tuple cannot say, so
+     * presence alone decides, exactly as before.
+     */
+    public boolean vpEligible(CplmLoopDynamicsProfile profile) {
+        if (vp == null) return false;
+        com.ams.flink.cplm.contract.RoleObservation o = role("vp");
+        if (o == null || com.ams.flink.cplm.contract.RoleObservation.SOURCE_LEGACY_TUPLE.equals(o.provenance)) return true;
+        if (!o.isGood()) return false;
+        double maxAgeS = profile == null ? CplmLoopDynamicsProfile.VP_MAX_AGE_S_DEFAULT : profile.vpMaxAgeS;
+        return !(o.held && o.ageMs > maxAgeS * 1000.0);
     }
 
     public static CplmNormalizedSample fromJson(String json) {
@@ -88,6 +116,7 @@ public final class CplmNormalizedSample implements Serializable {
             else if (root.has("assetUuid")) s.assetUuid = root.get("assetUuid").asText(null);
             if (root.has("dynamic_class")) s.dynamicClassOverride = root.get("dynamic_class").asText(null);
             else if (root.has("dynamicClass")) s.dynamicClassOverride = root.get("dynamicClass").asText(null);
+            com.ams.flink.cplm.contract.TupleCodec.applyRoles(root, s);
         } catch (Exception e) {
             s.isValid = false;
         }

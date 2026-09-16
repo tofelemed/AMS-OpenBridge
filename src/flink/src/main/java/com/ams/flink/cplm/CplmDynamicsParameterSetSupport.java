@@ -179,6 +179,7 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
             if (root.has("minValidCycles")) p.minValidCycles = root.path("minValidCycles").asInt(p.minValidCycles);
             if (root.has("cornerAngleDeg")) p.cornerAngleDeg = root.path("cornerAngleDeg").asDouble(p.cornerAngleDeg);
             if (root.has("opDeadbandPct")) p.opDeadbandPct = root.path("opDeadbandPct").asDouble(p.opDeadbandPct);
+            if (root.has("vpMaxAgeS")) p.vpMaxAgeS = root.path("vpMaxAgeS").asDouble(p.vpMaxAgeS);
             if (root.has("opTravelFloorPct")) p.opTravelFloorPct = root.path("opTravelFloorPct").asDouble(p.opTravelFloorPct);
             if (root.has("effortRatioFloor")) p.effortRatioFloor = root.path("effortRatioFloor").asDouble(p.effortRatioFloor);
             if (root.has("phaseAreaPerCycleLo")) p.phaseAreaPerCycleLo = root.path("phaseAreaPerCycleLo").asDouble(p.phaseAreaPerCycleLo);
