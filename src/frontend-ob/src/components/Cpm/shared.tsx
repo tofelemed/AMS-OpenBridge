@@ -46,6 +46,7 @@ export function cpmChartColors() {
     grey:   resolveCssColor('var(--element-neutral-color)', '#9aa6af'), // axis, grid, SP
     accent: resolveCssColor('var(--ams-pen-5)', '#7048e8'),          // overlay / evidence cursor
     pink:   resolveCssColor('var(--ams-pen-4)', '#e64980'),          // VP (valve position) pen
+    bad:    resolveCssColor('var(--alert-alarm-color)', '#e30019'),  // v2.5 evidence views: excluded / rejected / out-of-band
   };
 }
 
