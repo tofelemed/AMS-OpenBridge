@@ -61,6 +61,11 @@ public class ResponseEvidenceWriterTest {
             assertNotNull(x.yUnit);
         }
         for (String k : ResponseEvidenceWriter.REQUIRED_KINDS) assertTrue(k, kinds.contains(k));
+        // every conditional input was supplied here except a frequency result, so all but bode must be present
+        for (String k : ResponseEvidenceWriter.CONDITIONAL_KINDS) {
+            if (k.equals("bode")) continue;
+            assertTrue(k, kinds.contains(k));
+        }
         EvidenceArtifact samples = a.stream().filter(x -> x.kind.equals("accepted_samples")).findFirst().get();
         assertNotNull(samples.mask);
         assertFalse(samples.mask[10]);

@@ -13,6 +13,7 @@ Submit **after** prefixed topics in `kafka/topics.txt` exist. Unique names (Inst
 | `AMS - Loop Live RBE Engine` | `com.ams.flink.cplm.LoopLiveRbeJob` | yes (live PV/SP/OP) |
 | `AMS - CPLM Condition Engine` | `com.ams.flink.cplm.condition.CplmConditionStreamJob` | yes (v2.5: fast G10/G11 conditions → `traverse.cpa.clpm.condition.v1`) |
 | `AMS - CPLM Instrument Context Engine` | `com.ams.flink.cplm.health.CplmInstrumentContextJob` | yes (v2.5: Instrumental NE107 device intervals + per-loop/role eligibility → `traverse.cpa.context.instrument-health.v1`; bindings via `cplm.loop.binding` on the metadata topic) |
+| `AMS - CPLM Response Engine` | `com.ams.flink.cplm.response.CplmResponseAnalysisJob` | yes (v2.5: G12.SYSTEM_RESPONSE - reference/input event capture, observed-response metrics, bounded OE / PEM estimation with validation on the previous event, model-domain frequency outputs; results → `traverse.cpa.clpm.response.results.v1`, evidence → `traverse.cpa.clpm.gate.evidence.v1`) |
 
 On-demand (not in standing 04b): historical replay / A8 recompute from `cplm-api`.
 

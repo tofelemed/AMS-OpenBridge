@@ -22,9 +22,12 @@ import java.util.Map;
  */
 public final class ResponseEvidenceWriter {
     public static final String GATE = "G12";
+    /** Always written for an evaluated event. */
     public static final List<String> REQUIRED_KINDS = Arrays.asList(
-            "response_event", "accepted_samples", "input_reconstruction", "y_fit", "y_predict", "prediction_interval",
-            "baseline", "target", "response_times", "residuals", "residual_acf", "candidate_models", "delay_objective_curve", "rejection_reasons");
+            "response_event", "accepted_samples", "input_reconstruction", "baseline", "target", "response_times", "rejection_reasons");
+    /** Written only when the kernel produced the input (a fit, a holdout prediction, a noise model, a frequency result). */
+    public static final List<String> CONDITIONAL_KINDS = Arrays.asList(
+            "y_fit", "y_predict", "prediction_interval", "residuals", "residual_acf", "candidate_models", "delay_objective_curve", "parameter_intervals", "bode");
 
     private ResponseEvidenceWriter() {}
 

@@ -166,6 +166,13 @@ CORE_JOBS = CORE_JOBS + (
         extra_args=_CPLM_COMMON_ARGS + ("--health-topic", "traverse.cpa.instrument.health.v1",
                                         "--context-topic", "traverse.cpa.context.instrument-health.v1"),
     ),
+    # v2.5 (Task 2B.1): G12 system response - event capture, estimation, validation, evidence.
+    FlinkJobSpec(
+        name="AMS - CPLM Response Engine",
+        entry_class="com.ams.flink.cplm.response.CplmResponseAnalysisJob",
+        extra_args=_CPLM_COMMON_ARGS + ("--response-topic", "traverse.cpa.clpm.response.results.v1",
+                                        "--evidence-topic", "traverse.cpa.clpm.gate.evidence.v1"),
+    ),
     # Fusion last: both of its sources start at OffsetsInitializer.latest(), so the
     # feature topics should exist before it runs.
     FlinkJobSpec(

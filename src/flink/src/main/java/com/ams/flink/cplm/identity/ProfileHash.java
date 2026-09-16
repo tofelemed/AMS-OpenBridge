@@ -35,13 +35,22 @@ public final class ProfileHash {
                 Object v = f.get(p);
                 sb.append(f.getName()).append('=').append(v == null ? "null" : String.valueOf(v)).append('\n');
             }
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] h = md.digest(sb.toString().getBytes(StandardCharsets.UTF_8));
-            StringBuilder hex = new StringBuilder();
-            for (int i = 0; i < 8; i++) hex.append(String.format("%02x", h[i]));
-            return PREFIX + hex;
+            return PREFIX + sha256Prefix(sb.toString(), 16);
         } catch (Exception e) {
             return LEGACY;
+        }
+    }
+
+    /** The first {@code hexChars} hex characters of SHA-256 over the UTF-8 text (content hashes for identity fields). */
+    public static String sha256Prefix(String text, int hexChars) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] h = md.digest(text.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (int i = 0; i < h.length && hex.length() < hexChars; i++) hex.append(String.format("%02x", h[i]));
+            return hex.substring(0, Math.min(hexChars, hex.length()));
+        } catch (Exception e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
         }
     }
 }

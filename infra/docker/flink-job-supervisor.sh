@@ -112,6 +112,10 @@ ensure_all() {
   submit_if_missing "AMS - CPLM Instrument Context Engine" com.ams.flink.cplm.health.CplmInstrumentContextJob \
     "${CPLM_ARGS[@]}" --health-topic "${CPLM_HEALTH_TOPIC:-traverse.cpa.instrument.health.v1}" \
     --context-topic "${CPLM_HEALTH_CONTEXT_TOPIC:-traverse.cpa.context.instrument-health.v1}"
+  # v2.5 (Task 2B.1): G12 system response - event capture, estimation, validation, evidence.
+  submit_if_missing "AMS - CPLM Response Engine" com.ams.flink.cplm.response.CplmResponseAnalysisJob \
+    "${CPLM_ARGS[@]}" --response-topic "${CPLM_RESPONSE_TOPIC:-traverse.cpa.clpm.response.results.v1}" \
+    --evidence-topic "${CPLM_EVIDENCE_TOPIC:-traverse.cpa.clpm.gate.evidence.v1}"
   submit_if_missing "AMS - CPLM Gate Fusion Engine" com.ams.flink.cplm.CplmGateFusionStreamJob \
     "${CPLM_ARGS[@]}" --job-name "AMS - CPLM Gate Fusion Engine"
   # Phase 6.1 — live loop metrics (report-by-exception) for HMI badges.
