@@ -217,6 +217,17 @@ def main():
     text = json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
     if "--check" in sys.argv:
         problems = []
+        # the sibling contracts (unsupported declaration, installed plan) ship as copies too
+        for name, copies in {
+            "unsupported-in-build.json": ["src/services/cplm-api/Config/unsupported-in-build.json", "src/flink/src/main/resources/cplm/gate-config/unsupported-in-build.json"],
+            "execution-plan.installed.json": ["src/services/cplm-api/Config/execution-plan.installed.json"],
+        }.items():
+            canonical_path = os.path.join(ROOT, "contracts", "gate-config", "v1", name)
+            canonical_text = open(canonical_path, encoding="utf-8").read() if os.path.exists(canonical_path) else None
+            for rel in copies:
+                cp = os.path.join(ROOT, rel)
+                if canonical_text is None or not os.path.exists(cp) or open(cp, encoding="utf-8").read() != canonical_text:
+                    problems.append(cp)
         for path in [CANONICAL] + COPIES:
             if not os.path.exists(path) or open(path, encoding="utf-8").read() != text:
                 problems.append(path)

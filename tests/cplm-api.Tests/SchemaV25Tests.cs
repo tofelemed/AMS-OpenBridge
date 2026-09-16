@@ -52,6 +52,25 @@ public sealed class SchemaV25Tests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Governed_configuration_tables_exist_with_their_state_vocabularies()
+    {
+        // v2.5 Task 3B.1 (58): bundles, layers, approvals bound to a hash, deployments + worker ACK matrix, the active bundle per scope, worker capability
+        await using var conn = await _db.OpenConnectionAsync();
+        var tables = (await conn.QueryAsync<string>("SELECT table_name FROM information_schema.tables WHERE table_schema = 'cpm'")).ToHashSet();
+        tables.Should().Contain(new[] { "gate_config_bundle", "gate_config_layer", "config_approval", "config_deployment", "config_worker_ack", "config_active", "config_worker_capability" });
+        var check = await conn.ExecuteScalarAsync<string>("""
+            SELECT pg_get_constraintdef(c.oid) FROM pg_constraint c JOIN pg_class t ON t.oid = c.conrelid JOIN pg_namespace n ON n.oid = t.relnamespace
+            WHERE n.nspname = 'cpm' AND t.relname = 'gate_config_bundle' AND c.conname LIKE '%state%'
+            """);
+        check.Should().ContainAll("DRAFT", "VALIDATED", "SHADOW_EVALUATED", "APPROVED", "SCHEDULED", "PREPARED", "ACTIVE_VERIFIED", "REJECTED", "EXPIRED", "PARTIALLY_ACKNOWLEDGED", "ACTIVATION_FAILED", "ROLLED_BACK", "SUPERSEDED");
+        var ackPk = await conn.ExecuteScalarAsync<string>("""
+            SELECT pg_get_constraintdef(c.oid) FROM pg_constraint c JOIN pg_class t ON t.oid = c.conrelid JOIN pg_namespace n ON n.oid = t.relnamespace
+            WHERE n.nspname = 'cpm' AND t.relname = 'config_worker_ack' AND c.contype = 'p'
+            """);
+        ackPk.Should().ContainAll("deployment_id", "job_name", "subtask_index", "phase");
+    }
+
+    [Fact]
     public async Task The_result_unique_key_includes_bundle_hash_and_the_old_key_is_gone()
     {
         await using var conn = await _db.OpenConnectionAsync();
