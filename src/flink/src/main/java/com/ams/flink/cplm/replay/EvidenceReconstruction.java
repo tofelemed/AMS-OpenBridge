@@ -56,13 +56,20 @@ public final class EvidenceReconstruction extends KeyedProcessFunction<String, C
 
     private final Target target;
     private final String analysisRunId;
+    /** The registry's parameter-set updates (compacted metadata topic) so profiles resolve exactly as in streaming. */
+    private final List<String> parameterUpdates;
     private transient ListState<CplmNormalizedSample> buffer;
     private transient ValueState<Boolean> armed;
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     public EvidenceReconstruction(Target target, String analysisRunId) {
+        this(target, analysisRunId, new ArrayList<>());
+    }
+
+    public EvidenceReconstruction(Target target, String analysisRunId, List<String> parameterUpdates) {
         this.target = target;
         this.analysisRunId = analysisRunId == null ? "" : analysisRunId;
+        this.parameterUpdates = parameterUpdates == null ? new ArrayList<>() : new ArrayList<>(parameterUpdates);
     }
 
     /** short | long | fusion; G12 -> IllegalArgumentException("NOT_RECONSTRUCTABLE_EVENT_KEYED"). */
@@ -108,6 +115,9 @@ public final class EvidenceReconstruction extends KeyedProcessFunction<String, C
 
     @Override
     public void open(Configuration parameters) {
+        // the identity of a run includes its bundle hash: the profile must resolve as the streaming job resolved it,
+        // i.e. with the registry's parameter set (engineering ranges, overrides) applied, not the bare spine
+        for (String update : parameterUpdates) com.ams.flink.cplm.CplmParameterSetBroadcastSupport.applyParameterUpdate(update);
         buffer = getRuntimeContext().getListState(new ListStateDescriptor<>("reconstruction-buffer", TypeInformation.of(CplmNormalizedSample.class)));
         armed = getRuntimeContext().getState(new ValueStateDescriptor<>("reconstruction-armed", Boolean.class));
     }

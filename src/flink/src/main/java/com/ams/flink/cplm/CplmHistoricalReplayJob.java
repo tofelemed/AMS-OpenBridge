@@ -123,9 +123,11 @@ public final class CplmHistoricalReplayJob {
             String evidenceTopic = params.get("evidence-topic", com.ams.flink.cplm.contract.CplmTopics.GATE_EVIDENCE);
             com.ams.flink.cplm.replay.EvidenceReconstruction.Target target =
                     new com.ams.flink.cplm.replay.EvidenceReconstruction.Target(reconstructRun, gate, windowKind, fromMs, toMs);
+            // the streaming jobs resolve profiles under the registry's broadcast parameter set; so must this run
+            java.util.List<String> parameterUpdates = CplmParameterSetBroadcastSupport.readParameterUpdates(brokers);
             samples.assignTimestampsAndWatermarks(watermarks)
                     .keyBy(sample -> sample.loopId)
-                    .process(new com.ams.flink.cplm.replay.EvidenceReconstruction(target, analysisRunId))
+                    .process(new com.ams.flink.cplm.replay.EvidenceReconstruction(target, analysisRunId, parameterUpdates))
                     .name("cplm-evidence-reconstruction")
                     .uid("cplm-evidence-reconstruction")
                     .sinkTo(com.ams.flink.KafkaSinks.keyedByJsonField(brokers, evidenceTopic, com.ams.flink.cplm.evidence.EvidenceKafkaRecords.KEY_FIELD))

@@ -55,6 +55,53 @@ public final class CplmParameterSetBroadcastSupport {
         return System.getenv().getOrDefault("IIMP_META_TOPIC", "traverse.cpa.ams.metadata.updates");
     }
 
+    /**
+     * v2.5 (2C.2): the parameter-set updates a bounded job needs to resolve profiles exactly as the
+     * streaming jobs do - the compacted legacy metadata topic (and the canonical topic when consumed),
+     * read to their end offsets in the driver. Small: one envelope per loop, compacted.
+     */
+    public static java.util.List<String> readParameterUpdates(String brokers) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        java.util.List<String> topics = new java.util.ArrayList<>();
+        topics.add(legacyMetadataTopic());
+        if (consumeCanonical()) topics.add(parameterSetTopic());
+        java.util.Properties props = new java.util.Properties();
+        props.put("bootstrap.servers", brokers);
+        props.put("group.id", "cplm-reconstruction-profile-" + java.util.UUID.randomUUID());
+        props.put("enable.auto.commit", "false");
+        props.put("auto.offset.reset", "earliest");
+        props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+        props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+        try (org.apache.kafka.clients.consumer.KafkaConsumer<String, String> consumer = new org.apache.kafka.clients.consumer.KafkaConsumer<>(props)) {
+            java.util.List<org.apache.kafka.common.TopicPartition> partitions = new java.util.ArrayList<>();
+            for (String topic : topics) {
+                java.util.List<org.apache.kafka.common.PartitionInfo> infos = consumer.partitionsFor(topic);
+                if (infos == null) continue;
+                for (org.apache.kafka.common.PartitionInfo pi : infos) partitions.add(new org.apache.kafka.common.TopicPartition(topic, pi.partition()));
+            }
+            if (partitions.isEmpty()) return out;
+            consumer.assign(partitions);
+            consumer.seekToBeginning(partitions);
+            java.util.Map<org.apache.kafka.common.TopicPartition, Long> end = consumer.endOffsets(partitions);
+            java.util.Set<org.apache.kafka.common.TopicPartition> pending = new java.util.HashSet<>();
+            for (org.apache.kafka.common.TopicPartition tp : partitions) if (consumer.position(tp) < end.get(tp)) pending.add(tp);
+            int idlePolls = 0;
+            while (!pending.isEmpty() && idlePolls < 10) {
+                org.apache.kafka.clients.consumer.ConsumerRecords<String, String> records = consumer.poll(java.time.Duration.ofSeconds(2));
+                if (records.isEmpty()) idlePolls++;
+                for (org.apache.kafka.clients.consumer.ConsumerRecord<String, String> r : records) if (r.value() != null) out.add(r.value());
+                for (org.apache.kafka.common.TopicPartition tp : new java.util.ArrayList<>(pending)) if (consumer.position(tp) >= end.get(tp)) pending.remove(tp);
+            }
+        }
+        return out;
+    }
+
+    /** Applies one update exactly as the broadcast function does (state-free variant for bounded jobs). */
+    public static void applyParameterUpdate(String value) {
+        applyBroadcastPayload(value, "canonical-parameter");
+        applyLegacyMetadataEnvelope(value);
+    }
+
     public static void wireParameterSetHydration(StreamExecutionEnvironment env, CplmJobConfig cfg) {
         // Legacy path — always on so soak/SLA is not flag-only
         KafkaSource<String> legacy = KafkaSource.<String>builder()

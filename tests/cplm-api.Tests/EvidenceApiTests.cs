@@ -153,6 +153,36 @@ public sealed class EvidenceApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_redelivered_manifest_revives_an_expired_artifact_so_reconstruction_can_complete_it()
+    {
+        // NR-060: after retention the manifest is EXPIRED with no chunks; a reconstruction re-emits the SAME
+        // artifact (same evidence id). The store must take it back to PENDING and let the new chunks complete it.
+        var store = new PostgresEvidenceBlobStore(_db);
+        var manifest = System.Text.Json.JsonSerializer.SerializeToElement(new Dictionary<string, object?>
+        {
+            ["evidence_id"] = _expired.ToString(), ["method_run_id"] = _run.ToString(), ["gate_id"] = "G3", ["artifact_kind"] = "objective_error",
+            ["role_or_path"] = "ERROR", ["x_quantity"] = "sample_time", ["x_unit"] = "ms_epoch", ["y_quantity"] = "error", ["y_unit"] = "EU",
+            ["data_type"] = "f64", ["columns"] = new[] { "x", "y", "mask" }, ["encoding"] = "f64le+gzip", ["calculation_samples"] = 720,
+            ["display_points"] = 720, ["chunk_count"] = 2, ["total_bytes"] = (long)EvidenceChunkerBytes().Length, ["sha256"] = Sha(EvidenceChunkerBytes()),
+            ["chunk_sha256"] = new[] { Sha(Chunk0), Sha(Chunk1) },
+            ["provenance"] = new Dictionary<string, object?> { ["loop_id"] = _loop, ["window_kind"] = "60m", ["purpose"] = "EVIDENCE_RECONSTRUCTION" },
+        });
+        await store.UpsertManifestAsync(manifest, CancellationToken.None);
+        var revived = await store.GetManifestAsync(_expired, CancellationToken.None);
+        revived!.Readiness.Should().Be("PENDING", "an EXPIRED manifest re-delivered by a reconstruction is live again");
+        (await store.GetChunksAsync(_expired, CancellationToken.None)).Should().BeEmpty();
+        (await store.PutChunkAsync(_expired, 0, Sha(Chunk0), Chunk0, CancellationToken.None)).Should().BeTrue();
+        (await store.PutChunkAsync(_expired, 1, Sha(Chunk1), Chunk1, CancellationToken.None)).Should().BeTrue();
+        await store.SetReadinessAsync(_expired, "COMPLETE", null, CancellationToken.None);
+        (await store.GetManifestAsync(_expired, CancellationToken.None))!.Readiness.Should().Be("COMPLETE");
+        var served = await Evidence().GetChunk(_expired, 1, CancellationToken.None);
+        served.Should().BeOfType<FileContentResult>().Which.FileContents.Should().Equal(Chunk1);
+        // a COMPLETE manifest re-delivered (a duplicate) is left alone
+        await store.UpsertManifestAsync(manifest, CancellationToken.None);
+        (await store.GetManifestAsync(_expired, CancellationToken.None))!.Readiness.Should().Be("COMPLETE");
+    }
+
+    [Fact]
     public async Task The_resolver_names_the_support_and_tier_for_reconstruction_and_refuses_G12()
     {
         var resolver = new MethodRunResolver(_db);

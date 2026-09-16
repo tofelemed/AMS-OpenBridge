@@ -99,7 +99,9 @@ public sealed class AnalysisRunStore
                    (SELECT count(*) FROM analytics.cplm_gate_results g WHERE g.analysis_run_id = r.analysis_run_id) AS gate_results,
                    r.manifest->>'reconstructs' AS reconstructs,
                    (SELECT count(*) FROM analytics.evidence_manifest m WHERE m.provenance->>'analysis_run_id' = r.analysis_run_id::text) AS manifests,
-                   (SELECT count(*) FROM analytics.evidence_manifest m WHERE m.provenance->>'analysis_run_id' = r.analysis_run_id::text AND m.readiness = 'COMPLETE') AS complete
+                   (SELECT count(*) FROM analytics.evidence_manifest m WHERE m.provenance->>'analysis_run_id' = r.analysis_run_id::text AND m.readiness = 'COMPLETE') AS complete,
+                   (SELECT count(*) FROM analytics.evidence_manifest m WHERE m.method_run_id::text = r.manifest->>'reconstructs'
+                       AND m.readiness = 'COMPLETE') AS attached
             FROM analytics.analysis_run r WHERE r.analysis_run_id = @id
             """;
         cmd.Parameters.AddWithValue("id", analysisRunId);
@@ -108,6 +110,7 @@ public sealed class AnalysisRunStore
         return new AnalysisRunView(analysisRunId, rd.GetString(0), rd.GetString(1), rd.GetString(2),
             rd.IsDBNull(3) ? null : rd.GetString(3), rd.IsDBNull(4) ? null : rd.GetString(4), rd.GetDateTime(5),
             rd.IsDBNull(6) ? null : rd.GetDateTime(6), rd.IsDBNull(7) ? null : rd.GetString(7), Convert.ToInt32(rd.GetValue(8)), null,
-            rd.IsDBNull(9) ? null : Guid.TryParse(rd.GetString(9), out var rg) ? rg : null, Convert.ToInt32(rd.GetValue(10)), Convert.ToInt32(rd.GetValue(11)));
+            rd.IsDBNull(9) ? null : Guid.TryParse(rd.GetString(9), out var rg) ? rg : null, Convert.ToInt32(rd.GetValue(10)), Convert.ToInt32(rd.GetValue(11)),
+            Convert.ToInt32(rd.GetValue(12)));
     }
 }

@@ -46,6 +46,17 @@ public sealed class PostgresEvidenceBlobStore : IEvidenceBlobStore
         var chunkShas = m.TryGetProperty("chunk_sha256", out var cs) ? cs.GetRawText() : "[]";
         var provenance = m.TryGetProperty("provenance", out var pv) ? pv.GetRawText() : "{}";
         await using var conn = await _db.OpenConnectionAsync(ct);
+        // v2.5 (2C.2, NR-060): the same artifact re-emitted by a reconstruction has the same evidence id. An
+        // EXPIRED (retention) or FAILED (corrupt chunk) manifest is revived: back to PENDING, stale chunks dropped,
+        // the new chunk stream completes it. A live or COMPLETE manifest is never touched by a duplicate.
+        await using (var revive = new NpgsqlCommand("""
+            DELETE FROM analytics.evidence_chunk c USING analytics.evidence_manifest m
+            WHERE c.evidence_id = m.evidence_id AND m.evidence_id = @id AND m.readiness IN ('EXPIRED', 'FAILED')
+            """, conn))
+        {
+            revive.Parameters.AddWithValue("id", evidenceId);
+            await revive.ExecuteNonQueryAsync(ct);
+        }
         await using var cmd = new NpgsqlCommand("""
             INSERT INTO analytics.evidence_manifest
                 (evidence_id, method_run_id, gate_id, artifact_kind, role_or_path,
@@ -54,7 +65,13 @@ public sealed class PostgresEvidenceBlobStore : IEvidenceBlobStore
                  provenance, source_commit, jar_sha256)
             VALUES (@id, @run, @gate, @kind, @role, @xq, @xu, @yq, @yu, @dt, @cols, @enc,
                     @calc, @disp, @chunks, @bytes, @sha, @chunkShas, @prov, @commit, @jar)
-            ON CONFLICT (evidence_id) DO NOTHING
+            ON CONFLICT (evidence_id) DO UPDATE SET
+                readiness = 'PENDING', readiness_reason = NULL, completed_at = NULL, created_at = NOW(),
+                columns = EXCLUDED.columns, calculation_samples = EXCLUDED.calculation_samples, display_points = EXCLUDED.display_points,
+                chunk_count = EXCLUDED.chunk_count, total_bytes = EXCLUDED.total_bytes, sha256 = EXCLUDED.sha256,
+                chunk_sha256 = EXCLUDED.chunk_sha256, provenance = EXCLUDED.provenance,
+                source_commit = EXCLUDED.source_commit, jar_sha256 = EXCLUDED.jar_sha256
+            WHERE analytics.evidence_manifest.readiness IN ('EXPIRED', 'FAILED')
             """, conn);
         cmd.Parameters.AddWithValue("id", evidenceId);
         cmd.Parameters.AddWithValue("run", runId);

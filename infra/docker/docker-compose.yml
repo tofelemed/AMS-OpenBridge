@@ -607,7 +607,12 @@ services:
     environment:
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: flink-jobmanager
-        taskmanager.memory.process.size: 2048m
+        taskmanager.memory.process.size: 2560m
+        # v2.5 (2C.2 lab finding): every bounded replay / reconstruction submitted through the REST
+        # API loads the fat jar in a fresh user-code classloader; the TM died of a Metaspace OOM on
+        # the second reconstruction of a session at the 256m default. 512m buys headroom; the leak
+        # itself is on the Phase 4 reliability list (docs/next-release/00-build-truth.md).
+        taskmanager.memory.jvm-metaspace.size: 512m
         taskmanager.numberOfTaskSlots: 16
         # JM HA — must match the jobmanager exactly; the TM discovers the leading
         # JM through ZooKeeper once HA is on.

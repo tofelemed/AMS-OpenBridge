@@ -66,7 +66,18 @@ public sealed record ReplaySupport(string Source, long FromMs, long ToMs, string
 public sealed record AnalysisRunView(
     Guid AnalysisRunId, string LoopId, string Purpose, string State, string? FlinkJobId, string? CreatedBy,
     DateTime CreatedAt, DateTime? FinishedAt, string? Error, int GateResults, string? JobState,
-    Guid? Reconstructs = null, int EvidenceManifests = 0, int EvidenceComplete = 0);
+    Guid? Reconstructs = null, int EvidenceManifests = 0, int EvidenceComplete = 0, int EvidenceAttached = 0)
+{
+    /// <summary>
+    /// ATTACHED: COMPLETE evidence exists under the requested run id (this run's, or an identical earlier emission's).
+    /// IDENTITY_MISMATCH_CONFIGURATION_CHANGED: this run produced manifests under a different identity - the registry's
+    /// configuration changed since the original run. NO_EVIDENCE_YET: nothing landed (yet).
+    /// </summary>
+    public string? ReconstructionOutcome => Reconstructs is null ? null
+        : EvidenceAttached > 0 ? "ATTACHED"
+        : EvidenceManifests > 0 ? "IDENTITY_MISMATCH_CONFIGURATION_CHANGED"
+        : "NO_EVIDENCE_YET";
+}
 
 public sealed record CplmRecomputeStatus(
     string ReplayId, string JobId, string State, bool Finished, bool Succeeded, int GateResults);
@@ -149,7 +160,17 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
         var replayId = analysisRunId.ToString("N")[..12];
         await _runs.InsertAsync(analysisRunId, loopId, purpose, createdBy, idempotencyKey, reconstruct, ct);
         if (historian || reconstruct is not null) await _runs.SetRequestedRangeAsync(analysisRunId, support.FromMs, support.ToMs, ct);
-        var jarId = await EnsureJarUploadedAsync(ct);
+        string jarId;
+        try
+        {
+            jarId = await EnsureJarUploadedAsync(ct);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or TimeoutException or Polly.Timeout.TimeoutRejectedException)
+        {
+            _cachedJarId = null;
+            await _runs.MarkAsync(analysisRunId, "SUBMIT_FAILED", null, "jar upload: " + ex.Message, ct);
+            throw new InvalidOperationException($"The Flink jar upload did not complete: {ex.Message}", ex);
+        }
 
         // The job is bounded (earliest -> latest at submit time) and parallelism 1,
         // so it terminates on its own. Its output carries replay_id and
@@ -190,7 +211,7 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
             response = await client.PostAsJsonAsync($"/jars/{jarId}/run",
                 new { entryClass = EntryClass, programArgs = args, parallelism = 1 }, ct);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or TimeoutException or Polly.Timeout.TimeoutRejectedException)
         {
             _cachedJarId = null;
             await _runs.MarkAsync(analysisRunId, "SUBMIT_FAILED", null, ex.Message, ct);
