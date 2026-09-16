@@ -354,18 +354,16 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
         String group  = cfg.sparkplugGroup;
         String edge   = cfg.sparkplugEdge;
         long   ts     = node.hasNonNull("ts") ? node.get("ts").asLong() : System.currentTimeMillis();
+        // v2.5 R20: the three times are carried separately. ts stays the source time (1.0
+        // contract); sourceTs/verifiedTs/emissionTs are optional (older RBE jobs omit them)
+        // and are never invented here.
+        Long sourceTs   = node.hasNonNull("sourceTs")   ? node.get("sourceTs").asLong()   : null;
+        Long verifiedTs = node.hasNonNull("verifiedTs") ? node.get("verifiedTs").asLong() : null;
+        Long emissionTs = node.hasNonNull("emissionTs") ? node.get("emissionTs").asLong() : null;
 
-        // CPLM quality is a NAMUR/OPC string ("GOOD"/"BAD"/…); Sparkplug carries
-        // the OPC numeric. Map rather than defaulting, so a bad sensor does not
-        // arrive on the HMI looking healthy.
-        int quality = 192;
         JsonNode q = node.get("quality");
-        if (q != null && q.isNumber()) {
-            quality = q.asInt();
-        } else if (q != null && q.isTextual()) {
-            String qs = q.asText().toUpperCase();
-            quality = qs.startsWith("GOOD") ? 192 : qs.startsWith("UNCERTAIN") ? 64 : 0;
-        }
+        int quality = qualityCode(q);
+        String qualityToken = q != null && q.isTextual() ? q.asText() : null;
 
         JsonNode v = node.get("value");
         String dataType = text(node, "dataType").toLowerCase();
@@ -378,8 +376,8 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
         }
 
         ensureProcessDeviceBorn(group, edge, device, metric, dtype, value, ts);
-        publishMetricDData(group, edge, device, metric, dtype, value, ts, quality);
-        writeMetricSnapshot(group, edge, device, metric, value, quality, ts);
+        publishMetricDData(group, edge, device, metric, dtype, value, ts, quality, sourceTs, verifiedTs, emissionTs, qualityToken);
+        writeMetricSnapshot(group, edge, device, metric, value, quality, ts, sourceTs, verifiedTs, emissionTs, qualityToken);
         LOG.debug("Loop {}/{}={} q={} -> spBv1.0/{}/DDATA/{}/{}",
                 device, metric, value, quality, group, edge, device);
     }
@@ -444,24 +442,78 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
      */
     private void publishMetricDData(String group, String edge, String device, String metric,
                                     MetricDataType dtype, Object value, long ts, int quality) throws Exception {
+        publishMetricDData(group, edge, device, metric, dtype, value, ts, quality, null, null, null, null);
+    }
+
+    /**
+     * v2.5 R20: the source / verified / emission times and the verdict token ride as metric
+     * PROPERTIES (sourceTs, verifiedTs, emissionTs: Int64; qualityToken: String) next to the
+     * existing quality property, so the browser can show source age, not emission age.
+     */
+    private void publishMetricDData(String group, String edge, String device, String metric,
+                                    MetricDataType dtype, Object value, long ts, int quality,
+                                    Long sourceTs, Long verifiedTs, Long emissionTs, String qualityToken) throws Exception {
         String topic = "spBv1.0/" + group + "/DDATA/" + edge + "/" + device;
+        PropertySet.PropertySetBuilder props = new PropertySet.PropertySetBuilder()
+                .addProperty("quality", new PropertyValue(PropertyDataType.Int32, quality));
+        if (sourceTs != null)   props.addProperty("sourceTs",   new PropertyValue(PropertyDataType.Int64, sourceTs));
+        if (verifiedTs != null) props.addProperty("verifiedTs", new PropertyValue(PropertyDataType.Int64, verifiedTs));
+        if (emissionTs != null) props.addProperty("emissionTs", new PropertyValue(PropertyDataType.Int64, emissionTs));
+        if (qualityToken != null) props.addProperty("qualityToken", new PropertyValue(PropertyDataType.String, qualityToken));
         SparkplugBPayload payload = new SparkplugBPayload.SparkplugBPayloadBuilder(seq.getAndIncrement())
                 .setTimestamp(new Date(ts))
                 .addMetric(new Metric.MetricBuilder(metric, dtype, value)
-                        .properties(new PropertySet.PropertySetBuilder()
-                                .addProperty("quality",
-                                        new PropertyValue(PropertyDataType.Int32, quality))
-                                .createPropertySet())
+                        .properties(props.createPropertySet())
                         .createMetric())
                 .createPayload();
         byte[] encoded = new SparkplugBPayloadEncoder().getBytes(payload, false);
         publishMqtt(topic, encoded, false);
     }
 
+    /**
+     * CPLM quality arrives as the normalised verdict (GOOD | UNCERTAIN | BAD | UNKNOWN, v2.5)
+     * or, from older producers, an OPC numeric. Sparkplug carries the OPC numeric: exact
+     * GOOD -> 192, UNCERTAIN -> 64, everything else (BAD, UNKNOWN, unrecognised, absent) -> 0.
+     * The old rule was startsWith("GOOD"), which is how "goodish" reached the HMI as healthy.
+     */
+    static int qualityCode(JsonNode q) {
+        if (q == null || q.isNull()) return 0;
+        if (q.isNumber()) return q.asInt();
+        if (!q.isTextual()) return 0;
+        switch (q.asText().trim().toUpperCase()) {
+            case "GOOD": return 192;
+            case "UNCERTAIN": return 64;
+            default: return 0;
+        }
+    }
+
+    /**
+     * The Redis snapshot record read by historian-bff /snapshot and the browser. {v,q,ts}
+     * is the legacy shape (ts = source time); src/ver/emit are the v2.5 source, verified
+     * and emission times and qt the verdict token - present only when the record had them.
+     */
+    static String snapshotJson(Object value, int quality, long ts,
+                               Long sourceTs, Long verifiedTs, Long emissionTs, String qualityToken) {
+        StringBuilder sb = new StringBuilder(96);
+        sb.append("{\"v\":").append(valueJson(value)).append(",\"q\":").append(quality).append(",\"ts\":").append(ts);
+        if (sourceTs != null)   sb.append(",\"src\":").append(sourceTs);
+        if (verifiedTs != null) sb.append(",\"ver\":").append(verifiedTs);
+        if (emissionTs != null) sb.append(",\"emit\":").append(emissionTs);
+        if (qualityToken != null) sb.append(",\"qt\":").append(valueJson(qualityToken));
+        return sb.append('}').toString();
+    }
+
+    /** Pre-v2.5 shape for branches that carry no source/verified/emission times (alarm/process values). */
     private void writeMetricSnapshot(String group, String edge, String device, String metric,
                                      Object value, int quality, long ts) {
+        writeMetricSnapshot(group, edge, device, metric, value, quality, ts, null, null, null, null);
+    }
+
+    private void writeMetricSnapshot(String group, String edge, String device, String metric,
+                                     Object value, int quality, long ts,
+                                     Long sourceTs, Long verifiedTs, Long emissionTs, String qualityToken) {
         String key = "snapshot:metric:" + group + ":" + edge + ":" + device + ":" + metric;
-        String json = "{\"v\":" + valueJson(value) + ",\"q\":" + quality + ",\"ts\":" + ts + "}";
+        String json = snapshotJson(value, quality, ts, sourceTs, verifiedTs, emissionTs, qualityToken);
         try (Jedis jedis = jedisPool.getResource()) {
             Pipeline pipe = jedis.pipelined();
             pipe.setex(key, cfg.redisTtlSeconds, json);
@@ -576,7 +628,7 @@ public class AlarmMetricPublisher implements MqttCallbackExtended {
         pipe.setex(key, cfg.redisTtlSeconds, json);
     }
 
-    private String valueJson(Object v) {
+    private static String valueJson(Object v) {
         if (v instanceof String)  return "\"" + ((String) v).replace("\"", "\\\"") + "\"";
         if (v instanceof Boolean) return v.toString();
         return String.valueOf(v);

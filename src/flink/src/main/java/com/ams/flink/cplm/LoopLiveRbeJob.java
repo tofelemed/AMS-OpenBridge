@@ -139,7 +139,12 @@ public final class LoopLiveRbeJob {
     public static class MetricPoint {
         public String loopId;
         public String metric;
+        /** The SOURCE sample time of this metric (v2.5: per role, from roles{} when present). Never an emission time. */
         public long ts;
+        /** Same as {@link #ts}; spelled out on the wire so readers cannot mistake it (R20). */
+        public long sourceTs;
+        /** When the source last verified the value (may be later than sampled); defaults to sourceTs. */
+        public long verifiedTs;
         public double numeric;
         public String text;
         public boolean isNumeric;
@@ -153,6 +158,8 @@ public final class LoopLiveRbeJob {
             p.loopId = loopId;
             p.metric = metric;
             p.ts = ts;
+            p.sourceTs = ts;
+            p.verifiedTs = ts;
             p.numeric = v;
             p.isNumeric = true;
             p.quality = quality;
@@ -164,6 +171,8 @@ public final class LoopLiveRbeJob {
             p.loopId = loopId;
             p.metric = metric;
             p.ts = ts;
+            p.sourceTs = ts;
+            p.verifiedTs = ts;
             p.text = v;
             p.isNumeric = false;
             p.quality = quality;
@@ -171,23 +180,85 @@ public final class LoopLiveRbeJob {
         }
     }
 
+    /**
+     * v2.5 R03/R20: one canonical sample -> its constituent metrics, each stamped with ITS
+     * OWN source sample time and quality when the tuple carries roles{} (schema 1.1); a 1.0
+     * tuple has only the tuple time and verdict, so every role gets those. The tuple-level
+     * verdict is emitted as the "quality" metric; absent quality is UNKNOWN, never GOOD.
+     */
+    static java.util.List<MetricPoint> explode(CplmNormalizedSample s) {
+        java.util.List<MetricPoint> out = new java.util.ArrayList<>(6);
+        if (s == null || s.loopId == null || !s.isValid) return out;
+        String tupleQ = s.normalizedQuality();
+        out.add(stamp(MetricPoint.num(s.loopId, "pv", s.eventTsMs, s.pv, tupleQ), s.role("pv")));
+        out.add(stamp(MetricPoint.num(s.loopId, "sp", s.eventTsMs, s.sp, tupleQ), s.role("sp")));
+        out.add(stamp(MetricPoint.num(s.loopId, "op", s.eventTsMs, s.op, tupleQ), s.role("op")));
+        if (s.vp != null) {
+            out.add(stamp(MetricPoint.num(s.loopId, "vp", s.eventTsMs, s.vp, tupleQ), s.role("vp")));
+        }
+        out.add(stamp(MetricPoint.str(s.loopId, "mode", s.eventTsMs, s.mode, tupleQ), s.role("mode")));
+        out.add(MetricPoint.str(s.loopId, "quality", s.eventTsMs, tupleQ, tupleQ));
+        return out;
+    }
+
+    private static MetricPoint stamp(MetricPoint p, com.ams.flink.cplm.contract.RoleObservation o) {
+        if (o == null || com.ams.flink.cplm.contract.RoleObservation.SOURCE_LEGACY_TUPLE.equals(o.provenance)) return p;
+        if (o.sampleTsMs > 0) { p.ts = o.sampleTsMs; p.sourceTs = o.sampleTsMs; }
+        p.verifiedTs = o.verifiedTsMs > 0 ? o.verifiedTsMs : p.sourceTs;
+        if (o.quality != null && !o.quality.isEmpty()) p.quality = o.quality;
+        return p;
+    }
+
+    /**
+     * The report-by-exception decision (v2.5 R20 / NR-022): emit on the first observation,
+     * on a numeric move beyond the deadband, on any text change, and on ANY quality change -
+     * a BAD-to-GOOD or GOOD-to-BAD transition with an unchanged value must reach the screen.
+     */
+    static boolean shouldEmit(String prevValue, String prevQuality, MetricPoint p, double deadband) {
+        if (prevValue == null) return true;
+        String current = p.isNumeric ? Double.toString(p.numeric) : String.valueOf(p.text);
+        boolean moved;
+        if (p.isNumeric) {
+            double prevVal;
+            try { prevVal = Double.parseDouble(prevValue); } catch (NumberFormatException e) { prevVal = Double.NaN; }
+            moved = Double.isNaN(prevVal) || Math.abs(p.numeric - prevVal) > deadband;
+        } else {
+            moved = !prevValue.equals(current);
+        }
+        boolean qualityChanged = prevQuality != null && !prevQuality.equals(p.quality);
+        return moved || qualityChanged;
+    }
+
+    /**
+     * The live record. {@code ts} stays the SOURCE sample time (the 1.0 contract);
+     * {@code sourceTs}/{@code verifiedTs} spell it out; {@code emissionTs} is when THIS record
+     * was produced - the only field a heartbeat may advance (NR-023).
+     */
+    static String render(ObjectMapper mapper, MetricPoint p, boolean heartbeat, long emissionTs) throws Exception {
+        ObjectNode node = mapper.createObjectNode();
+        node.put("loopId", p.loopId);
+        node.put("metric", p.metric);
+        node.put("ts", p.ts);
+        node.put("sourceTs", p.sourceTs > 0 ? p.sourceTs : p.ts);
+        node.put("verifiedTs", p.verifiedTs > 0 ? p.verifiedTs : p.ts);
+        node.put("emissionTs", emissionTs);
+        if (p.isNumeric) {
+            node.put("value", p.numeric);
+            node.put("dataType", "double");
+        } else {
+            node.put("value", p.text);
+            node.put("dataType", "string");
+        }
+        node.put("quality", p.quality);
+        if (heartbeat) node.put("heartbeat", true);
+        return mapper.writeValueAsString(node);
+    }
+
     /** Fans one canonical sample out into its constituent metrics. */
     public static class ExplodeToMetrics extends ProcessFunction<String, MetricPoint> {
         @Override
         public void processElement(String json, Context ctx, Collector<MetricPoint> out) {
-            CplmNormalizedSample s = CplmNormalizedSample.fromJson(json);
-            if (s == null || s.loopId == null || !s.isValid) {
-                return;
-            }
-            String q = s.quality == null ? "GOOD" : s.quality;
-            out.collect(MetricPoint.num(s.loopId, "pv", s.eventTsMs, s.pv, q));
-            out.collect(MetricPoint.num(s.loopId, "sp", s.eventTsMs, s.sp, q));
-            out.collect(MetricPoint.num(s.loopId, "op", s.eventTsMs, s.op, q));
-            if (s.vp != null) {
-                out.collect(MetricPoint.num(s.loopId, "vp", s.eventTsMs, s.vp, q));
-            }
-            out.collect(MetricPoint.str(s.loopId, "mode", s.eventTsMs, s.mode, q));
-            out.collect(MetricPoint.str(s.loopId, "quality", s.eventTsMs, q, q));
+            for (MetricPoint p : explode(CplmNormalizedSample.fromJson(json))) out.collect(p);
         }
     }
 
@@ -200,6 +271,8 @@ public final class LoopLiveRbeJob {
         private final double deadband;
         private final long heartbeatMs;
         private transient ValueState<String> lastEmitted;
+        /** v2.5 R20: the quality last emitted, so a quality-only transition is not suppressed. */
+        private transient ValueState<String> lastEmittedQuality;
         // The whole point carried forward, so the heartbeat can republish a
         // faithful copy (metric name, quality, numeric-vs-text) rather than a
         // reconstruction that guesses the type.
@@ -220,6 +293,8 @@ public final class LoopLiveRbeJob {
         public void open(Configuration parameters) {
             lastEmitted = getRuntimeContext().getState(
                     new ValueStateDescriptor<>("lastEmittedValue", String.class));
+            lastEmittedQuality = getRuntimeContext().getState(
+                    new ValueStateDescriptor<>("lastEmittedQuality", String.class));
             lastPoint = getRuntimeContext().getState(
                     new ValueStateDescriptor<>("lastPoint", MetricPoint.class));
             timerAt = getRuntimeContext().getState(
@@ -248,7 +323,7 @@ public final class LoopLiveRbeJob {
         public void onTimer(long ts, OnTimerContext ctx, Collector<String> out) throws Exception {
             MetricPoint p = lastPoint.value();
             if (p == null) return;
-            out.collect(render(p, true));
+            out.collect(render(mapper, p, true, ctx.timerService().currentProcessingTime()));
             scheduleHeartbeat(ctx);
         }
 
@@ -256,21 +331,7 @@ public final class LoopLiveRbeJob {
         public void processElement(MetricPoint p, Context ctx, Collector<String> out) throws Exception {
             String prev = lastEmitted.value();
             String current = p.isNumeric ? Double.toString(p.numeric) : String.valueOf(p.text);
-
-            boolean emit;
-            if (prev == null) {
-                emit = true;
-            } else if (p.isNumeric) {
-                double prevVal;
-                try {
-                    prevVal = Double.parseDouble(prev);
-                } catch (NumberFormatException e) {
-                    prevVal = Double.NaN;
-                }
-                emit = Double.isNaN(prevVal) || Math.abs(p.numeric - prevVal) > deadband;
-            } else {
-                emit = !prev.equals(current);
-            }
+            boolean emit = shouldEmit(prev, lastEmittedQuality.value(), p, deadband);
 
             // Remember the point even when the value is unchanged: the heartbeat
             // republishes the CURRENT quality and timestamp, not the stale ones
@@ -282,27 +343,9 @@ public final class LoopLiveRbeJob {
             }
 
             lastEmitted.update(current);
-            out.collect(render(p, false));
+            lastEmittedQuality.update(p.quality);
+            out.collect(render(mapper, p, false, ctx.timerService().currentProcessingTime()));
             scheduleHeartbeat(ctx);
-        }
-
-        private String render(MetricPoint p, boolean heartbeat) throws Exception {
-            ObjectNode node = mapper.createObjectNode();
-            node.put("loopId", p.loopId);
-            node.put("metric", p.metric);
-            node.put("ts", p.ts);
-            if (p.isNumeric) {
-                node.put("value", p.numeric);
-                node.put("dataType", "double");
-            } else {
-                node.put("value", p.text);
-                node.put("dataType", "string");
-            }
-            node.put("quality", p.quality);
-            // Consumers that only care about real movement can drop these; the
-            // snapshot writer wants them, which is the point.
-            if (heartbeat) node.put("heartbeat", true);
-            return mapper.writeValueAsString(node);
         }
     }
 

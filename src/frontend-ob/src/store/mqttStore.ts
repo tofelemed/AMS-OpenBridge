@@ -52,11 +52,10 @@ const FIREHOSE_DDATA_TOPIC = 'spBv1.0/+/DDATA/+/#';
 // ── Types ──────────────────────────────────────────────────────────────────
 
 /** Current metric value from MQTT/snapshot. */
-export interface LiveMetric {
-  value:   number | string | boolean;
-  quality: number;     // 192 = GOOD (Sparkplug B quality code)
-  ts:      number;     // epoch ms
-}
+// v2.5 (R20): the live metric type and its parsers live in ./liveMetric (pure, tested);
+// re-exported here so existing imports keep working.
+import { parseSnapshotMetric, metricFromSparkplug, type LiveMetric } from './liveMetric';
+export type { LiveMetric } from './liveMetric';
 
 /** Compact live alarm from traverse.alarm.live.alarms / MQTT DDATA. */
 export interface LiveAlarm {
@@ -127,26 +126,7 @@ interface MqttStoreState {
   fetchSummary:      (series: string, start: Date, end: Date, measurement: string) => Promise<TrendSummary | null>;
 }
 
-/** Redis snapshot JSON: { v, q, ts } written by sparkplug-edge-node. */
-function parseSnapshotMetric(raw: unknown): LiveMetric | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const o = raw as Record<string, unknown>;
-  if ('v' in o && 'ts' in o) {
-    return {
-      value:   o.v as number | string | boolean,
-      quality: Number(o.q ?? 192),
-      ts:      Number(o.ts),
-    };
-  }
-  if ('value' in o && 'ts' in o) {
-    return {
-      value:   o.value as number | string | boolean,
-      quality: Number(o.quality ?? 192),
-      ts:      Number(o.ts),
-    };
-  }
-  return null;
-}
+// (parseSnapshotMetric moved to ./liveMetric - v2.5 R20: reads src/ver/emit/qt, never defaults quality to GOOD)
 
 function buildLiveAlarmFromMetrics(
   device: string,
@@ -674,11 +654,7 @@ function handleMessage(
             s.aliasMap.set(Number(m.alias), String(m.name));
           }
           if (m.name && m.value !== undefined) {
-            s.metrics.set(`${device}/${m.name}`, {
-              value:   m.value,
-              quality: m.properties?.quality?.value ?? 192,
-              ts:      Number(decoded.timestamp ?? Date.now()),
-            });
+            s.metrics.set(`${device}/${m.name}`, metricFromSparkplug(m, Number(decoded.timestamp ?? Date.now())));
           }
         }
       });
@@ -692,12 +668,9 @@ function handleMessage(
         const name = m.name
           ? String(m.name)
           : aliasMap.get(Number(m.alias)) ?? `alias_${m.alias}`;
-        pendingMetrics.set(`${device}/${name}`, {
-          value:   m.value,
-          quality: m.properties?.quality?.value ?? 192,
-          ts,
-        });
-        pushLiveSample(`${device}/${name}`, ts, m.value); // trend buffer: immediate, outside zustand
+        const lm = metricFromSparkplug(m, ts);
+        pendingMetrics.set(`${device}/${name}`, lm);
+        pushLiveSample(`${device}/${name}`, lm.ts, m.value); // trend buffer keyed by SOURCE time (R20)
         if (ALARM_FIELDS.has(name)) {
           pendingAlarmDevices.set(device, ts);
         }

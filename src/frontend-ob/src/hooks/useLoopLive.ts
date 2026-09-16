@@ -30,8 +30,13 @@ export interface LoopLiveState {
   quality: LiveMetric | undefined;
   /** True once any metric for this loop has arrived (snapshot or DDATA). */
   hasData: boolean;
-  /** Newest timestamp across the loop's metrics, for a staleness chip. */
+  /** Newest SOURCE sample time across the loop's metrics, for a staleness chip. */
   lastTs: number | null;
+  /** v2.5 (R20): same as lastTs, spelled out - the operator's staleness reference. */
+  lastSourceTs: number | null;
+  /** v2.5 (R20): newest emission time, or null when no producer reported one. A heartbeat
+   *  advances this and NOT lastSourceTs; "feed alive" and "value fresh" are different facts. */
+  lastEmissionTs: number | null;
 }
 
 export function useLoopLive(loopId: string | undefined): LoopLiveState {
@@ -59,12 +64,16 @@ export function useLoopLive(loopId: string | undefined): LoopLiveState {
   }, [device, subscribeScreen, unsubscribeScreen]);
 
   return useMemo(() => {
-    const all = [pv, sp, op, vp, mode, quality];
-    const stamps = all.filter((x): x is LiveMetric => x != null).map(x => x.ts);
+    const all = [pv, sp, op, vp, mode, quality].filter((x): x is LiveMetric => x != null);
+    const stamps = all.map(x => x.sourceTs ?? x.ts);
+    const emits = all.map(x => x.emissionTs).filter((x): x is number => x !== undefined);
+    const lastSourceTs = stamps.length ? Math.max(...stamps) : null;
     return {
       pv, sp, op, vp, mode, quality,
       hasData: stamps.length > 0,
-      lastTs: stamps.length ? Math.max(...stamps) : null,
+      lastTs: lastSourceTs,
+      lastSourceTs,
+      lastEmissionTs: emits.length ? Math.max(...emits) : null,
     };
   }, [pv, sp, op, vp, mode, quality]);
 }

@@ -290,7 +290,7 @@ public static class QualityDecoder {
 - Modify UI: `src/frontend-ob/src/store/mqttStore.ts:134-146` (parse `source_ts`/`emission_ts`), `src/hooks/useLoopLive.ts:33` (`lastSourceTs`, `lastEmissionTs`), `explorer/SummaryTab.tsx` + `overview/LoopFocus.tsx` staleness chip shows **source age**, tooltip shows emission age.
 - Test: `src/flink/src/test/java/com/ams/flink/cplm/LoopLiveRbeQualityTest.java` (same value, quality GOOD→BAD → emitted; heartbeat → `emission_ts` advances, `source_ts` unchanged); vitest `useLoopLive.test.tsx`.
 
-- [ ] Steps: failing tests → implement → `mvn test`, `npm test` → commit `fix(live): quality transitions bypass deadband; source vs emission time separated`.
+- [x] Steps: failing tests → implement → `mvn test`, `npm test` → commit `fix(live): quality transitions bypass deadband; source vs emission time separated`.
 
 ## Subphase 1D — Gate semantics corrections (R05, R06, R08, R11; NR-018, NR-024, NR-025)
 

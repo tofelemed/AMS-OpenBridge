@@ -106,8 +106,9 @@ export const LoopFocus: React.FC<{
         <TonePill tone="muted">MODE {fmtLive(live.mode)}</TonePill>
         <TonePill tone={q.tone}>{q.label}</TonePill>
         <span className="cpm-filter-count">
-          {live.hasData && live.lastTs
-            ? `live · last change ${new Date(live.lastTs).toLocaleTimeString()}`
+          {live.hasData && live.lastSourceTs
+            ? `live · source ${new Date(live.lastSourceTs).toLocaleTimeString()}`
+              + (live.lastEmissionTs ? ` · feed ${new Date(live.lastEmissionTs).toLocaleTimeString()}` : '')
             : 'no live publisher for this loop'}
           {/* State the window: it rolls, and a rolling window that has silently
               stopped advancing looks identical to a live one otherwise. */}
