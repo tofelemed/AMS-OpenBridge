@@ -31,6 +31,33 @@ public sealed class CpmCapabilitiesController : ControllerBase
         var rows = await conn.QueryAsync<EngineVersionRow>(Data.GateReadSql.ObservedEngines);
         return Ok(CapabilityManifest.Build(rows, ServiceIdentityProvider.Current));
     }
+
+    /// <summary>
+    /// v2.5 Task 2D.1 (spec §3.1, R13): the 17 gates as this build knows them - definition, role, installed
+    /// method and version, the artifact kinds the engine emits, property ids (Phase 3), capability state.
+    /// The workbench reads roles and definitions from here, never from a client-side table.
+    /// </summary>
+    [HttpGet("gate-catalogue")]
+    public IActionResult GetGateCatalogue() => GateCatalogue();
+
+    public static IActionResult GateCatalogue()
+    {
+        var gates = GateCatalog.Catalogue().Select(e => new
+        {
+            gate = e.Gate,
+            name = e.Name,
+            tier = e.Tier,
+            role = e.Role,
+            definition = e.Definition,
+            preconditions = e.Preconditions,
+            method = new { id = e.Method.MethodId, version = e.Method.Version, state = e.Method.State },
+            artifactKinds = e.ArtifactKinds,
+            propertyIds = e.PropertyIds,
+            capabilityState = e.CapabilityState,
+            capabilityReason = e.CapabilityReason,
+        }).ToList();
+        return new OkObjectResult(new { count = gates.Count, gates, service = ServiceIdentityProvider.Current });
+    }
 }
 
 /// <summary>

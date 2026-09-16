@@ -7,4 +7,5 @@ export * from './gates';
 export * from './kpis';
 export * from './verdict';
 export * from './health';
+export * from './catalogue';
 export { CPM_BASE } from './base';
