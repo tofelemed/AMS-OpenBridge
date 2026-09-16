@@ -283,6 +283,24 @@ CREATE INDEX IF NOT EXISTS idx_cplm_event_frames_loop_lower
     ON analytics.cplm_event_frames (lower(loop_id));
 CREATE INDEX IF NOT EXISTS idx_cplm_event_frames_loop_lower_opened
     ON analytics.cplm_event_frames (lower(loop_id), opened_at DESC);
+-- Part 1b (Task 1F.1, R10 / NR-029 / NR-030): availability vs condition on event frames.
+-- A window the engine could not judge marks the episode UNOBSERVABLE and leaves the condition
+-- OPEN; only an evaluable fault-free result with >= recovery_support_s of qualified support
+-- closes it; overlapping windows add only their non-overlapping support (support union).
+ALTER TABLE analytics.cplm_event_frames
+    ADD COLUMN IF NOT EXISTS availability_state   VARCHAR(16) NOT NULL DEFAULT 'OBSERVED',
+    ADD COLUMN IF NOT EXISTS condition_state      VARCHAR(16) NOT NULL DEFAULT 'OPEN',
+    ADD COLUMN IF NOT EXISTS result_revision      INT         NOT NULL DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS qualified_support_ms BIGINT      NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS support_until        TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS close_reason         VARCHAR(32);
+UPDATE analytics.cplm_event_frames SET condition_state = 'CLOSED'
+    WHERE closed_at IS NOT NULL AND condition_state = 'OPEN';
+COMMENT ON COLUMN analytics.cplm_event_frames.availability_state IS
+    'v2.5 R10: OBSERVED | UNOBSERVABLE - whether the newest result could judge the loop; independent of the condition.';
+COMMENT ON COLUMN analytics.cplm_event_frames.qualified_support_ms IS
+    'v2.5 NR-029: union of the qualified support the episode rests on; overlapping windows counted once.';
+
 COMMENT ON TABLE analytics.cplm_event_frames IS
     'Durable CPLM diagnosis episodes. Derived from cplm_gate_results and rebuildable; ack/shelve state is operator input and is not.';
 

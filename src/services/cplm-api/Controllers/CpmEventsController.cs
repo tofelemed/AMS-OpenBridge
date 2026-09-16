@@ -76,7 +76,9 @@ public sealed class CpmEventsController : ControllerBase
             SELECT id, loop_id, window_kind, family, opened_at, closed_at,
                    peak_diagnosis, peak_confidence, last_diagnosis, last_confidence,
                    severity, window_count, ack_state, acked_by, acked_at,
-                   shelve_until, note, calculation_version, dynamics_profile_version
+                   shelve_until, note, calculation_version, dynamics_profile_version,
+                   -- v2.5 (1F): availability vs condition, support union, revision, close reason
+                   availability_state, condition_state, result_revision, qualified_support_ms, close_reason
             FROM analytics.cplm_event_frames
             WHERE (@loopId::text IS NULL OR lower(loop_id) = lower(@loopId))
               AND (NOT @openOnly OR closed_at IS NULL)

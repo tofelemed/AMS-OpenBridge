@@ -118,6 +118,8 @@ public final class CplmLoopDynamicsProfile implements Serializable {
     /** v2.5 R02 - |OP - VP| at or above this (pp) is "not following"; a run of it >= nonfollowingDwellS is positive G14 evidence. */
     public double nonfollowingErrorPp = 5.0;
     public double nonfollowingDwellS = 60.0;
+    /** v2.5 R10 - an evaluable fault-free result must rest on at least this much qualified support (s) to close an episode. */
+    public double recoverySupportS = 21600.0;
 
     /** The effective G2 band in PV EU (see field docs). */
     public double spStabilityBandEu() {
@@ -244,6 +246,7 @@ public final class CplmLoopDynamicsProfile implements Serializable {
         p.freezeDwellS = freezeDwellS;
         p.nonfollowingErrorPp = nonfollowingErrorPp;
         p.nonfollowingDwellS = nonfollowingDwellS;
+        p.recoverySupportS = recoverySupportS;
         p.goodErrorPctPassMin = goodErrorPctPassMin;
         p.satLowPct = satLowPct;
         p.satHighPct = satHighPct;

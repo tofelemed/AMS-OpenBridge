@@ -283,6 +283,7 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
             if (root.has("freezeDwellS")) p.freezeDwellS = root.path("freezeDwellS").asDouble(p.freezeDwellS);
             if (root.has("nonfollowingErrorPp")) p.nonfollowingErrorPp = root.path("nonfollowingErrorPp").asDouble(p.nonfollowingErrorPp);
             if (root.has("nonfollowingDwellS")) p.nonfollowingDwellS = root.path("nonfollowingDwellS").asDouble(p.nonfollowingDwellS);
+            if (root.has("recoverySupportS")) p.recoverySupportS = root.path("recoverySupportS").asDouble(p.recoverySupportS);
             if (root.has("goodErrorPctPassMin")) p.goodErrorPctPassMin = root.path("goodErrorPctPassMin").asDouble(p.goodErrorPctPassMin);
             if (root.has("satLowPct")) p.satLowPct = root.path("satLowPct").asDouble(p.satLowPct);
             if (root.has("satHighPct")) p.satHighPct = root.path("satHighPct").asDouble(p.satHighPct);

@@ -39,7 +39,7 @@ public class FusionVerdictV2Test {
                                                    double corner, String g9, boolean hasVp) {
         CplmLongDiagnosticsResult r = new CplmLongDiagnosticsResult();
         r.loopId = "V2_LOOP"; r.loopType = "TIC"; r.windowKind = "24h";
-        r.windowStartMs = 0; r.windowEndMs = 86_400_000L; r.sampleCount = 17_280;
+        r.windowStartMs = 0; r.windowEndMs = 86_400_000L; r.sampleCount = 17_280; r.samplePeriodSec = 5;
         r.acfRegularity = 0.9; r.fftPeakRatio = 0.9; r.gate5Status = "WARN"; r.gate6Status = "WARN";
         r.periodStatus = "VALID"; r.validatedPeriodS = 600; r.completedCycles = 20;
         r.triangularity = triangularity; r.gate7Status = g7;
@@ -152,5 +152,8 @@ public class FusionVerdictV2Test {
         assertEquals("EVIDENCE_SCORE_UNCALIBRATED", n.path("score_semantics").asText());
         assertEquals(1, n.path("result_revision").asInt());
         assertEquals("CONFIRMED", n.path("gates").path("G14").asText());
+        // v2.5 R10: the episode lifecycle reads the support the verdict rests on and the recovery threshold.
+        assertEquals(86_400_000L, n.path("qualified_support_ms").asLong());   // 17_280 samples x 5 s = the whole window
+        assertTrue(n.path("recovery_support_s").asDouble() > 0);
     }
 }

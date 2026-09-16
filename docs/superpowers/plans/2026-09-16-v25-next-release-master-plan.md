@@ -367,13 +367,15 @@ public static class QualityDecoder {
 - Modify: `BackgroundServices/CplmEventFrameService.cs:33-40,144-153,168-196` — EXCLUDED/INSUFFICIENT/NO_CALL ⇒ `availability_state='UNOBSERVABLE'`, frame stays `condition_state='OPEN'`; close only on a **qualified** contrary result whose support ≥ `recoverySupportS` (from profile, surfaced in payload) on a comparable window kind; `window_count` increments only for **non-overlapping** support (`qualified_support_ms` union), NR-029.
 - Test: `tests/cplm-api.Tests/EventFrameLifecycleTests.cs` (pure: feed the `Apply(frame, result)` function — extract it from the consumer into `Services/EventFrameLifecycle.cs` so it is testable without Kafka).
 
-- [ ] Failing tests → implement → commit `fix(cplm-api): missing evidence never closes an episode; overlapping windows do not multiply persistence`.
+- [x] Failing tests → implement → commit `fix(cplm-api): missing evidence never closes an episode; overlapping windows do not multiply persistence`. *(Done 2026-09-16: `Services/EventFrameLifecycle.cs` pure + 12 tests; consumer reads the open frame, applies, writes; columns `availability_state/condition_state/result_revision/qualified_support_ms/support_until/close_reason` in 53 / migration 03 / cpm-07 / self-heal; Flink result carries `qualified_support_ms` + profile `recovery_support_s` (default 6 h).)*
 
 ### Task 1F.2: Events UI shows availability and condition separately
 
 **Files:**
 - Modify: `components/Cpm/CpmEvents.tsx` (two pills: condition state, availability state; filter chips), `CalcDrawer.tsx` episodes tab
 - Test: vitest `eventsState.test.ts` on the row classifier.
+
+- [x] Done 2026-09-16: `components/Cpm/events/eventsState.ts` (+4 tests); Events page shows condition and availability pills, `Open · unobservable` filter, support as non-overlapping windows + qualified hours; drawer episode rows flag open-unobservable.
 
 ## Subphase 1G — Immutable run identity, evidence blob store, replay isolation (R19, R22, R26; NR-056, NR-057, NR-058, NR-060)
 

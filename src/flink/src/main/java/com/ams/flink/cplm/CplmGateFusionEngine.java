@@ -219,6 +219,7 @@ public final class CplmGateFusionEngine implements Serializable {
                 ? longD.stictionSignal
                 : profile.stictionSignal();
         result.persistenceWindowsRequired = profile.persistenceWindows;
+        result.recoverySupportS = profile.recoverySupportS;
         if (longD.configurationVersion != null && !longD.configurationVersion.isEmpty()) {
             result.configurationVersion = longD.configurationVersion;
         }
@@ -231,6 +232,10 @@ public final class CplmGateFusionEngine implements Serializable {
         result.samplePeriodSec = longD.samplePeriodSec > 0 ? longD.samplePeriodSec : shortF.samplePeriodSec;
         result.expectedSampleCount = shortF.expectedSampleCount;
         result.sampleCount = longD.sampleCount > 0 ? longD.sampleCount : shortF.sampleCount;
+        // v2.5 R10: the support this verdict rests on - accepted samples x period, never more than the window.
+        long spanMs = Math.max(0, result.windowEndMs - result.windowStartMs);
+        long bySamples = result.samplePeriodSec > 0 ? (long) (result.sampleCount * result.samplePeriodSec * 1000.0) : spanMs;
+        result.qualifiedSupportMs = Math.max(0, Math.min(spanMs, bySamples));
     }
 
     /** G12 / G13 are still legacy flags in this release (LEGACY_FLAG_ONLY; Phase 2 replaces them). */

@@ -201,6 +201,15 @@ export interface CpmEventFrame {
   note: string | null;
   calculation_version: string | null;
   dynamics_profile_version: string | null;
+  /** v2.5 (1F): OBSERVED | UNOBSERVABLE — whether the newest result could judge the loop; absent on pre-v2.5 rows. */
+  availability_state: string | null;
+  /** v2.5 (1F): OPEN | CLOSED — whether the condition is still standing. */
+  condition_state: string | null;
+  result_revision: number | null;
+  /** v2.5 (1F, NR-029): union of the qualified support the episode rests on, ms. */
+  qualified_support_ms: number | null;
+  /** v2.5 (1F): RECOVERED | FAMILY_CHANGED on a closed frame. */
+  close_reason: string | null;
 }
 
 export interface CpmEventsQuery {

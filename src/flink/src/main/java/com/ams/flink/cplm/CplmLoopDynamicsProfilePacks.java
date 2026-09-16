@@ -238,6 +238,7 @@ final class CplmLoopDynamicsProfilePacks {
         p.freezeDwellS = dbl(block, "freezeDwellS", p.freezeDwellS);
         p.nonfollowingErrorPp = dbl(block, "nonfollowingErrorPp", p.nonfollowingErrorPp);
         p.nonfollowingDwellS = dbl(block, "nonfollowingDwellS", p.nonfollowingDwellS);
+        p.recoverySupportS = dbl(block, "recoverySupportS", p.recoverySupportS);
         p.goodErrorPctPassMin = dbl(block, "goodErrorPctPassMin", p.goodErrorPctPassMin);
         p.satLowPct = dbl(block, "satLowPct", p.satLowPct);
         p.satHighPct = dbl(block, "satHighPct", p.satHighPct);

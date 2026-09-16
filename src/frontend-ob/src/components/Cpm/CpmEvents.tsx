@@ -21,29 +21,12 @@ import { PlantScopeFilter, useCpmScope } from './plantScope';
 import { usePagedSlice } from '../shared/ListPager';
 import { useAcknowledgeEvent, useCpmEvents, useCpmLoops, useShelveEvent } from '../../hooks/useCpm';
 import type { CpmEventFrame, CpmLoop } from '../../api/cpmApi';
-
-type FilterKey = 'all' | 'open' | 'unacknowledged' | 'acknowledged' | 'closed';
-
-const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'open', label: 'Open' },
-  { key: 'unacknowledged', label: 'Unacknowledged' },
-  { key: 'acknowledged', label: 'Acknowledged' },
-  { key: 'closed', label: 'Closed' },
-];
-
-const isFilterKey = (v: string | null): v is FilterKey =>
-  FILTERS.some(f => f.key === v);
-
-function matches(e: CpmEventFrame, f: FilterKey): boolean {
-  switch (f) {
-    case 'open': return e.closed_at === null;
-    case 'unacknowledged': return e.ack_state === 'UNACKNOWLEDGED' && e.closed_at === null;
-    case 'acknowledged': return e.ack_state === 'ACKNOWLEDGED';
-    case 'closed': return e.closed_at !== null;
-    default: return true;
-  }
-}
+// v2.5 (1F.2): condition and availability are two states; the vocabulary lives in events/eventsState.
+import {
+  EVENT_FILTERS as FILTERS, availabilityCopy, availabilityPill, conditionOf, isEventFilterKey as isFilterKey,
+  matchesEventFilter as matches, supportCopy,
+} from './events/eventsState';
+import type { EventFilterKey as FilterKey } from './events/eventsState';
 
 /** peak confidence → CPA's severity vocabulary. */
 function severityOf(e: CpmEventFrame): { label: string; tone: 'good' | 'warn' | 'bad' | 'muted' } {
@@ -61,7 +44,7 @@ function severityOf(e: CpmEventFrame): { label: string; tone: 'good' | 'warn' | 
 function stateOf(e: CpmEventFrame): { label: string; tone: 'good' | 'warn' | 'muted' } {
   // An episode that closed without ever being acknowledged is an UNREVIEWED
   // finding, not a resolved one — it does not get to read as neutral.
-  if (e.closed_at !== null) {
+  if (conditionOf(e) === 'CLOSED') {
     return e.ack_state === 'UNACKNOWLEDGED'
       ? { label: 'Closed · unacked', tone: 'warn' }
       : { label: 'Closed', tone: 'muted' };
@@ -253,6 +236,7 @@ export const CpmEvents: React.FC = () => {
                 </span>
                 <TonePill tone={sev.tone}>{sev.label}</TonePill>
                 <TonePill tone={st.tone}>{st.label}</TonePill>
+                {(() => { const a = availabilityPill(e); return a ? <TonePill tone={a.tone}>{a.label}</TonePill> : null; })()}
                 <span className="cpm-event-row__sub">{fmt(e.opened_at)}</span>
               </div>
             );
@@ -289,7 +273,8 @@ const EventDetail: React.FC<{ event: CpmEventFrame }> = ({ event }) => {
   const [shelveOpen, setShelveOpen] = useState(false);
   const [note, setNote] = useState('');
   const sev = severityOf(event);
-  const open = event.closed_at === null;
+  const open = conditionOf(event) === 'OPEN';
+  const availability = availabilityPill(event);
 
   const doShelve = (hours: number) => {
     const until = new Date(Date.now() + hours * 3600_000).toISOString();
@@ -312,12 +297,21 @@ const EventDetail: React.FC<{ event: CpmEventFrame }> = ({ event }) => {
       <PanelHead eyebrow="What happened" title="Episode" />
       <p className="cpm-copy">
         The {event.family.replace(/_/g, ' ').toLowerCase()} family was reported across{' '}
-        {event.window_count} evaluation window(s), peaking at{' '}
+        {supportCopy(event)}, peaking at{' '}
         {(event.peak_confidence * 100).toFixed(0)}% confidence
         {event.last_diagnosis && event.last_diagnosis !== event.peak_diagnosis
           ? `; the latest window reports ${event.last_diagnosis.replace(/_/g, ' ')}.`
           : '.'}
       </p>
+      {/* v2.5 (1F.2, R10): condition and availability are separate facts. */}
+      <KvRow label="Condition">
+        <TonePill tone={open ? 'warn' : 'muted'}>{open ? 'OPEN' : 'CLOSED'}</TonePill>
+        {event.close_reason && <> {event.close_reason.replace(/_/g, ' ').toLowerCase()}</>}
+      </KvRow>
+      <KvRow label="Availability">
+        {availability ? <TonePill tone={availability.tone}>{availability.label}</TonePill> : <TonePill tone="good">Observed</TonePill>}
+      </KvRow>
+      <p className="cpm-copy">{availabilityCopy(event)}</p>
 
       <PanelHead eyebrow="Evidence" title="Provenance" />
       <KvRow label="Fault family">{event.family}</KvRow>

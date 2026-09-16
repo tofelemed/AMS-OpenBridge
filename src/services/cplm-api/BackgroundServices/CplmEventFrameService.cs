@@ -3,12 +3,19 @@
 // SAME consumer group id as the AMS.Api original: the two processes must
 // NEVER consume simultaneously (partition split = silent half-persistence).
 // Gated by Cplm:ConsumersEnabled. AMS.Api original deleted in Phase 6.
+//
+// v2.5 Task 1F.1 (spec v6 R10; NR-029, NR-030): the lifecycle decision moved to
+// Services/EventFrameLifecycle (pure, tested). This class only reads the open frame, applies
+// the transition and writes it. Missing evidence marks a frame UNOBSERVABLE and never closes
+// it; a clear result closes it only with enough qualified support; overlapping windows add
+// only their non-overlapping support.
 using System.Text.Json;
 using Confluent.Kafka;
 using Dapper;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using Traverse.CplmApi.Services;
 
 namespace Traverse.CplmApi.BackgroundServices;
 
@@ -29,30 +36,20 @@ namespace Traverse.CplmApi.BackgroundServices;
 /// </summary>
 public sealed class CplmEventFrameService : BackgroundService
 {
-    /// <summary>
-    /// Diagnoses that do not represent a fault episode. INSUFFICIENT_EVIDENCE and
-    /// the EXCLUDED_* family mean "we could not judge", which must not open a
-    /// frame — an unjudgeable loop is a readiness problem, not an event.
-    /// </summary>
-    private static bool IsFault(string? diagnosis) =>
-        !string.IsNullOrWhiteSpace(diagnosis)
-        && !diagnosis.StartsWith("EXCLUDED", StringComparison.Ordinal)
-        && diagnosis is not ("INSUFFICIENT_DATA" or "INSUFFICIENT_EVIDENCE" or "NO_CALL");
-
     private readonly ILogger<CplmEventFrameService> _logger;
     private readonly NpgsqlDataSource _dataSource;
     private readonly CplmOptions _options;
     private readonly IConsumer<string, string> _consumer;
-    private readonly Traverse.CplmApi.Services.ConsumerHeartbeat _heartbeat;
-    private readonly Traverse.CplmApi.Services.SingleMemberGuard _guard;
+    private readonly ConsumerHeartbeat _heartbeat;
+    private readonly SingleMemberGuard _guard;
     private static int _schemaEnsured;
 
     public CplmEventFrameService(
         ILogger<CplmEventFrameService> logger,
         IOptions<Traverse.CplmApi.Infrastructure.KafkaOptions> kafkaOptions,
         IOptions<CplmOptions> cplmOptions,
-        Traverse.CplmApi.Services.ConsumerHeartbeat heartbeat,
-        Traverse.CplmApi.Services.SingleMemberGuard guard,
+        ConsumerHeartbeat heartbeat,
+        SingleMemberGuard guard,
         [FromKeyedServices("cplm")] NpgsqlDataSource dataSource)
     {
         _logger = logger;
@@ -118,96 +115,138 @@ public sealed class CplmEventFrameService : BackgroundService
         _consumer.Close();
     }
 
+    /// <summary>Parses one fused verdict into what the lifecycle needs; null when it is not ours to apply.</summary>
+    internal static GateVerdict? ParseVerdict(JsonElement root)
+    {
+        var loopId = GetString(root, "loop_id") ?? GetString(root, "tagId");
+        if (string.IsNullOrWhiteSpace(loopId)) return null;
+
+        // Recomputed history must not rewrite the operational timeline: a replay
+        // of last month should not reopen a frame an operator already closed.
+        var source = GetString(root, "calculation_source");
+        if (!string.IsNullOrWhiteSpace(source) && source != "flink") return null;
+        var purpose = GetString(root, "purpose");
+        if (!string.IsNullOrWhiteSpace(purpose) && purpose != "LIVE") return null;
+
+        var windowEnd = GetTimestamp(root, "windowEndMs") ?? DateTime.UtcNow;
+        var windowStart = GetTimestamp(root, "windowStartMs") ?? windowEnd;
+        long spanMs = Math.Max(0, (long)(windowEnd - windowStart).TotalMilliseconds);
+        // Qualified support: the engine's figure when present (v2.5), else accepted samples ×
+        // period bounded by the window, else the window span (pre-v2.5 payloads).
+        long support = GetLong(root, "qualified_support_ms");
+        if (support <= 0)
+        {
+            var samples = GetLong(root, "sample_count");
+            var period = GetDouble(root, "sample_period_sec");
+            support = samples > 0 && period > 0 ? Math.Min(spanMs, (long)(samples * period * 1000.0)) : spanMs;
+        }
+        return new GateVerdict(
+            loopId,
+            GetString(root, "window_kind") ?? "24h",
+            GetString(root, "diagnosis"),
+            GetDouble(root, "confidence"),
+            GetString(root, "severity"),
+            windowStart, windowEnd, support,
+            GetDouble(root, "recovery_support_s"),
+            (int)Math.Max(1, GetLong(root, "result_revision")),
+            GetString(root, "calculation_version") ?? GetString(root, "calculationVersion"),
+            GetString(root, "dynamics_profile_version") ?? GetString(root, "dynamicsProfileVersion"));
+    }
+
     private async Task ApplyAsync(string json, CancellationToken ct)
     {
         JsonElement root;
         try { root = JsonDocument.Parse(json).RootElement; }
         catch (JsonException) { return; }
-
-        var loopId = GetString(root, "loop_id") ?? GetString(root, "tagId");
-        if (string.IsNullOrWhiteSpace(loopId)) return;
-
-        // Recomputed history must not rewrite the operational timeline: a replay
-        // of last month should not reopen a frame an operator already closed.
-        var source = GetString(root, "calculation_source");
-        if (!string.IsNullOrWhiteSpace(source) && source != "flink") return;
-
-        var windowKind = GetString(root, "window_kind") ?? "24h";
-        var diagnosis = GetString(root, "diagnosis");
-        var confidence = GetDouble(root, "confidence");
-        var windowEnd = GetTimestamp(root, "windowEndMs") ?? DateTime.UtcNow;
+        var v = ParseVerdict(root);
+        if (v is null) return;
 
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
-
-        if (!IsFault(diagnosis))
+        var open = await ReadOpenAsync(conn, v);
+        var t = EventFrameLifecycle.Apply(open.State, v);
+        switch (t.Kind)
         {
-            // Close any open frame for this loop/resolution — the fault stopped
-            // being reported. Closure is the event; the row stays forever.
-            var closed = await conn.ExecuteAsync("""
-                UPDATE analytics.cplm_event_frames
-                SET closed_at = @windowEnd, last_diagnosis = @diagnosis,
-                    last_confidence = @confidence, updated_at = NOW()
-                WHERE loop_id = @loopId AND window_kind = @windowKind AND closed_at IS NULL
-                """, new { loopId, windowKind, windowEnd, diagnosis, confidence });
-            if (closed > 0)
-                _logger.LogInformation("Closed {Count} CPLM event frame(s) for {LoopId} ({WindowKind})",
-                    closed, loopId, windowKind);
-            return;
+            case TransitionKind.Ignore:
+                return;
+            case TransitionKind.Open:
+                await InsertAsync(conn, v, t.Frame!);
+                break;
+            case TransitionKind.CloseAndOpen:
+                await UpdateAsync(conn, open.Id, t.Closed!);
+                await InsertAsync(conn, v, t.Frame!);
+                break;
+            default:
+                await UpdateAsync(conn, open.Id, t.Frame!);
+                break;
         }
-
-        var family = FamilyOf(diagnosis!);
-
-        // A different family means the previous episode ended and a new one began.
-        await conn.ExecuteAsync("""
-            UPDATE analytics.cplm_event_frames
-            SET closed_at = @windowEnd, updated_at = NOW()
-            WHERE loop_id = @loopId AND window_kind = @windowKind
-              AND closed_at IS NULL AND family <> @family
-            """, new { loopId, windowKind, family, windowEnd });
-
-        // Open or extend. peak_* only ever ratchets upward: an episode that
-        // reached CONFIRMED stays reported as having reached CONFIRMED even if
-        // later windows soften.
-        await conn.ExecuteAsync("""
-            INSERT INTO analytics.cplm_event_frames
-                (loop_id, window_kind, family, opened_at, peak_diagnosis, peak_confidence,
-                 last_diagnosis, last_confidence, severity, window_count,
-                 calculation_version, dynamics_profile_version)
-            VALUES
-                (@loopId, @windowKind, @family, @windowEnd, @diagnosis, @confidence,
-                 @diagnosis, @confidence, @severity, 1, @calcVersion, @profileVersion)
-            ON CONFLICT (loop_id, window_kind, family) WHERE closed_at IS NULL
-            DO UPDATE SET
-                peak_diagnosis = CASE WHEN EXCLUDED.peak_confidence > analytics.cplm_event_frames.peak_confidence
-                                      THEN EXCLUDED.peak_diagnosis ELSE analytics.cplm_event_frames.peak_diagnosis END,
-                peak_confidence = GREATEST(analytics.cplm_event_frames.peak_confidence, EXCLUDED.peak_confidence),
-                last_diagnosis = EXCLUDED.last_diagnosis,
-                last_confidence = EXCLUDED.last_confidence,
-                severity = COALESCE(EXCLUDED.severity, analytics.cplm_event_frames.severity),
-                window_count = analytics.cplm_event_frames.window_count + 1,
-                calculation_version = COALESCE(EXCLUDED.calculation_version, analytics.cplm_event_frames.calculation_version),
-                updated_at = NOW()
-            """,
-            new
-            {
-                loopId, windowKind, family, windowEnd, diagnosis, confidence,
-                severity = GetString(root, "severity"),
-                calcVersion = GetString(root, "calculation_version") ?? GetString(root, "calculationVersion"),
-                profileVersion = GetString(root, "dynamics_profile_version") ?? GetString(root, "dynamicsProfileVersion")
-            });
+        if (t.Kind is TransitionKind.Close or TransitionKind.CloseAndOpen or TransitionKind.MarkUnobservable)
+            _logger.LogInformation("CPLM event frame {Kind} for {LoopId} ({WindowKind}): {Reason}", t.Kind, v.LoopId, v.WindowKind, t.Reason);
     }
 
-    /// <summary>
-    /// Strips the DETECTED_/SUSPECTED_/CONFIRMED_ band prefix, leaving the fault
-    /// family that identifies the episode.
-    /// </summary>
-    internal static string FamilyOf(string diagnosis)
+    private static async Task<(long Id, FrameState? State)> ReadOpenAsync(NpgsqlConnection conn, GateVerdict v)
     {
-        foreach (var band in new[] { "CONFIRMED_", "SUSPECTED_", "DETECTED_", "CLASSIFIED_" })
-            if (diagnosis.StartsWith(band, StringComparison.Ordinal))
-                return diagnosis[band.Length..];
-        return diagnosis;
+        var r = await conn.QueryFirstOrDefaultAsync("""
+            SELECT id, family, opened_at, closed_at, peak_diagnosis, peak_confidence, last_diagnosis, last_confidence,
+                   severity, window_count, availability_state, condition_state, qualified_support_ms, support_until,
+                   result_revision, close_reason
+            FROM analytics.cplm_event_frames
+            WHERE loop_id = @loopId AND window_kind = @windowKind AND closed_at IS NULL
+            ORDER BY opened_at DESC LIMIT 1
+            """, new { loopId = v.LoopId, windowKind = v.WindowKind });
+        if (r is null) return (0, null);
+        return ((long)r.id, new FrameState(
+            (string)r.family, (DateTime)r.opened_at, (DateTime?)r.closed_at, (string)r.peak_diagnosis, (double)r.peak_confidence,
+            (string?)r.last_diagnosis, (double?)r.last_confidence, (string?)r.severity, (int)r.window_count,
+            (string?)r.availability_state ?? "OBSERVED", (string?)r.condition_state ?? "OPEN",
+            (long?)r.qualified_support_ms ?? 0, (DateTime?)r.support_until, (int?)r.result_revision ?? 1, (string?)r.close_reason));
     }
+
+    private static Task<int> InsertAsync(NpgsqlConnection conn, GateVerdict v, FrameState f) => conn.ExecuteAsync("""
+        INSERT INTO analytics.cplm_event_frames
+            (loop_id, window_kind, family, opened_at, peak_diagnosis, peak_confidence,
+             last_diagnosis, last_confidence, severity, window_count,
+             availability_state, condition_state, qualified_support_ms, support_until, result_revision,
+             calculation_version, dynamics_profile_version)
+        VALUES
+            (@loopId, @windowKind, @family, @openedAt, @peak, @peakConfidence,
+             @last, @lastConfidence, @severity, @windowCount,
+             @availability, @condition, @supportMs, @supportUntil, @revision,
+             @calcVersion, @profileVersion)
+        ON CONFLICT (loop_id, window_kind, family) WHERE closed_at IS NULL
+        DO UPDATE SET
+            peak_diagnosis = CASE WHEN EXCLUDED.peak_confidence > analytics.cplm_event_frames.peak_confidence
+                                  THEN EXCLUDED.peak_diagnosis ELSE analytics.cplm_event_frames.peak_diagnosis END,
+            peak_confidence = GREATEST(analytics.cplm_event_frames.peak_confidence, EXCLUDED.peak_confidence),
+            last_diagnosis = EXCLUDED.last_diagnosis, last_confidence = EXCLUDED.last_confidence,
+            severity = COALESCE(EXCLUDED.severity, analytics.cplm_event_frames.severity),
+            availability_state = 'OBSERVED', result_revision = EXCLUDED.result_revision, updated_at = NOW()
+        """, new
+        {
+            loopId = v.LoopId, windowKind = v.WindowKind, family = f.Family, openedAt = f.OpenedAt,
+            peak = f.PeakDiagnosis, peakConfidence = f.PeakConfidence, last = f.LastDiagnosis, lastConfidence = f.LastConfidence,
+            severity = f.Severity, windowCount = f.WindowCount, availability = f.AvailabilityState, condition = f.ConditionState,
+            supportMs = f.QualifiedSupportMs, supportUntil = f.SupportUntil, revision = f.ResultRevision,
+            calcVersion = v.CalculationVersion, profileVersion = v.DynamicsProfileVersion
+        });
+
+    private static Task<int> UpdateAsync(NpgsqlConnection conn, long id, FrameState f) => conn.ExecuteAsync("""
+        UPDATE analytics.cplm_event_frames
+        SET closed_at = @closedAt, peak_diagnosis = @peak, peak_confidence = @peakConfidence,
+            last_diagnosis = @last, last_confidence = @lastConfidence, severity = @severity,
+            window_count = @windowCount, availability_state = @availability, condition_state = @condition,
+            qualified_support_ms = @supportMs, support_until = @supportUntil, result_revision = @revision,
+            close_reason = @closeReason, updated_at = NOW()
+        WHERE id = @id
+        """, new
+        {
+            id, closedAt = f.ClosedAt, peak = f.PeakDiagnosis, peakConfidence = f.PeakConfidence,
+            last = f.LastDiagnosis, lastConfidence = f.LastConfidence, severity = f.Severity, windowCount = f.WindowCount,
+            availability = f.AvailabilityState, condition = f.ConditionState, supportMs = f.QualifiedSupportMs,
+            supportUntil = f.SupportUntil, revision = f.ResultRevision, closeReason = f.CloseReason
+        });
+
+    /// <summary>Kept for callers that only need the family (CpmEventsController).</summary>
+    internal static string FamilyOf(string diagnosis) => EventFrameLifecycle.FamilyOf(diagnosis);
 
     private async Task EnsureSchemaAsync(CancellationToken ct)
     {
@@ -240,6 +279,16 @@ public sealed class CplmEventFrameService : BackgroundService
                     mirrored_alarm_id VARCHAR(128),
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
+                -- v2.5 (1F.1): availability vs condition, support union, revision (53_cplm_v25 parity).
+                ALTER TABLE analytics.cplm_event_frames
+                    ADD COLUMN IF NOT EXISTS availability_state VARCHAR(16) NOT NULL DEFAULT 'OBSERVED',
+                    ADD COLUMN IF NOT EXISTS condition_state VARCHAR(16) NOT NULL DEFAULT 'OPEN',
+                    ADD COLUMN IF NOT EXISTS result_revision INT NOT NULL DEFAULT 1,
+                    ADD COLUMN IF NOT EXISTS qualified_support_ms BIGINT NOT NULL DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS support_until TIMESTAMPTZ,
+                    ADD COLUMN IF NOT EXISTS close_reason VARCHAR(32);
+                UPDATE analytics.cplm_event_frames SET condition_state = 'CLOSED'
+                    WHERE closed_at IS NOT NULL AND condition_state = 'OPEN';
                 CREATE UNIQUE INDEX IF NOT EXISTS uq_cplm_event_frames_open
                     ON analytics.cplm_event_frames (loop_id, window_kind, family) WHERE closed_at IS NULL;
                 CREATE INDEX IF NOT EXISTS idx_cplm_event_frames_loop_time
@@ -263,7 +312,9 @@ public sealed class CplmEventFrameService : BackgroundService
     private static string? GetString(JsonElement r, string n) =>
         r.TryGetProperty(n, out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
     private static double GetDouble(JsonElement r, string n) =>
-        r.TryGetProperty(n, out var p) && p.TryGetDouble(out var v) ? v : 0.0;
+        r.TryGetProperty(n, out var p) && p.ValueKind == JsonValueKind.Number && p.TryGetDouble(out var v) ? v : 0.0;
+    private static long GetLong(JsonElement r, string n) =>
+        r.TryGetProperty(n, out var p) && p.ValueKind == JsonValueKind.Number && p.TryGetInt64(out var v) ? v : 0;
     private static DateTime? GetTimestamp(JsonElement r, string n) =>
         r.TryGetProperty(n, out var p) && p.TryGetInt64(out var ms) && ms > 0
             ? DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime : null;

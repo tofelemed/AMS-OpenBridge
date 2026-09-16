@@ -79,6 +79,10 @@ public class CplmGateResult implements Serializable {
     /** v2.5 R02: observations / hypotheses / fault-scoped confirmation, beside the legacy fields. */
     public com.ams.flink.cplm.fusion.FusionVerdictV2 verdictV2 = new com.ams.flink.cplm.fusion.FusionVerdictV2();
     public int resultRevision = 1;
+    /** v2.5 R10: the support this verdict rests on (accepted samples x period, bounded by the window), ms. */
+    public long qualifiedSupportMs;
+    /** v2.5 R10: from the profile - a fault-free result needs this much qualified support (s) to close an episode. */
+    public double recoverySupportS;
     public double opTravel;
     public double travelPerDay;
     public int reversalCount;
@@ -350,6 +354,8 @@ public class CplmGateResult implements Serializable {
                 : com.ams.flink.cplm.condition.OpenConditions.none()).toJson(MAPPER));
         (verdictV2 != null ? verdictV2 : new com.ams.flink.cplm.fusion.FusionVerdictV2()).writeTo(out, MAPPER);
         out.put("result_revision", resultRevision);
+        out.put("qualified_support_ms", qualifiedSupportMs);
+        out.put("recovery_support_s", recoverySupportS);
         putMetric(out, "op_travel", opTravel);
         putMetric(out, "travel_per_day", travelPerDay);
         putMetric(out, "reversal_count", reversalCount);
