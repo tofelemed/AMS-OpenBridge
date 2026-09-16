@@ -1,9 +1,8 @@
 /**
  * v2.5 Task 2E.4 - the fusion-tier views: G12 (link to the response workspace + the run's own
- * artifacts), G13 (the capability record: UNSUPPORTED_METHOD with its reason - never a picture of
- * an uncomputed method), G14 (the confirmation record: claim, positive evidence, contradictions,
- * scope; no numeric certainty curve), G15 (the decision record in the argmax form fusion uses -
- * a ranked list, not a waterfall).
+ * artifacts), G14 (the confirmation record: claim, positive evidence, contradictions, scope; no
+ * numeric certainty curve), G15 (the decision record in the argmax form fusion uses - a ranked
+ * list, not a waterfall). G13 (the aligned peer analysis, 2F.1) lives in G13Interaction.tsx.
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -11,7 +10,6 @@ import { KvRow, PanelHead, TonePill } from '../../shared';
 import type { DecodedArtifact } from '../artifactCodec';
 import { useGateArtifacts } from '../useGateArtifacts';
 import type { GateViewProps } from '../EvidenceArtifactRenderer';
-import { GateResultStatePanel } from '../GateResultState';
 import { RequireKinds, first } from './viewSupport';
 import { formatInZone } from '../timezone';
 
@@ -33,20 +31,6 @@ export const G12Response: React.FC<GateViewProps> = ({ manifest }) => {
       </ObcButton>
     </section>
   );
-};
-
-// ── G13 ────────────────────────────────────────────────────────────────────────────────────────
-export const G13Body: React.FC<{ d: DecodedArtifact | undefined }> = ({ d }) => (
-  <GateResultStatePanel state={{
-    kind: 'UNSUPPORTED_METHOD', title: 'Interaction analysis not installed in this build',
-    detail: `${P(d, 'capability_reason') ?? 'INTERACTION_METHOD_NOT_INSTALLED'} — legacy link flag: ${P(d, 'legacy_link_flag') ?? '—'}. Aligned peer series, cross-correlation, coherence and lag are ${P(d, 'aligned_series') ?? 'UNAVAILABLE'}.`,
-    stillValid: 'A configured link is not a verdict: an unmapped or uncomputed peer neither proves nor rules out a disturbance. The other gates of this run are unaffected.',
-    action: 'NONE', tone: 'muted',
-  }} />
-);
-export const G13Interaction: React.FC<GateViewProps> = ({ manifest, gate }) => {
-  const arts = useGateArtifacts(manifest, gate);
-  return <G13Body d={first(arts, 'interaction')} />;
 };
 
 // ── G14 ────────────────────────────────────────────────────────────────────────────────────────

@@ -7,7 +7,8 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { decoded, times, T0 } from './fixtures';
 import { G0Body, G2rBody, G3Body, parseBounds } from './ShortViews';
 import { G6Body, G7Body, G10Body, G11Body, episodes } from './LongViews';
-import { G13Body, G14Body, G15Body, rankedHypotheses } from './FusionViews';
+import { G14Body, G15Body, rankedHypotheses } from './FusionViews';
+import { G13Body, peerRows } from './G13Interaction';
 import { RequireKinds } from './viewSupport';
 import type { GateArtifacts } from '../useGateArtifacts';
 
@@ -17,6 +18,7 @@ vi.mock('echarts-for-react', () => ({ default: (props: { option: unknown }) => {
 
 afterEach(() => { cleanup(); captured.length = 0; });
 
+const arts = (byKind: Record<string, ReturnType<typeof decoded>[]>): GateArtifacts => ({ byKind, loading: false, errors: [], unavailable: [] });
 const seriesOf = (o: unknown) => (o as { series: Array<{ name: string; connectNulls?: boolean; step?: string; yAxisIndex?: number; data: unknown[] }> }).series;
 const yAxesOf = (o: unknown) => (o as { yAxis: Array<{ name: string }> }).yAxis;
 
@@ -96,10 +98,38 @@ describe('gate views', () => {
     expect(screen.getByText(/No freeze episode retained/)).toBeTruthy();
   });
 
-  it('G13 / G14 / G15: capability, confirmation and decision records render as stated records', () => {
-    render(<G13Body d={decoded({ gate: 'G13', kind: 'interaction', x: [], y: [], provenance: { capability_state: 'UNAVAILABLE', capability_reason: 'INTERACTION_METHOD_NOT_INSTALLED', legacy_link_flag: 'PASS' } })} />);
+  it('G13: a legacy row is a stated UNSUPPORTED_METHOD; an analysed run draws the record, the graph and each peer pane', () => {
+    const legacy = arts({ interaction: [decoded({ gate: 'G13', kind: 'interaction', x: [], y: [], provenance: { capability_state: 'UNAVAILABLE', capability_reason: 'INTERACTION_NOT_ANALYSED_BY_LONG_TIER', legacy_link_flag: 'HAS_PEER_LINKS' } })] });
+    render(<G13Body arts={legacy} loopId="FIC10302" timeZone="UTC" />);
     expect(screen.getByText(/UNSUPPORTED METHOD/)).toBeTruthy();
-    expect(screen.getByText(/INTERACTION_METHOD_NOT_INSTALLED/)).toBeTruthy();
+    expect(screen.getByText(/INTERACTION_NOT_ANALYSED_BY_LONG_TIER/)).toBeTruthy();
+    expect(captured).toHaveLength(0);                                                           // never a picture of an uncomputed method
+    cleanup();
+    const record = decoded({ gate: 'G13', kind: 'interaction', x: [], y: [], provenance: {
+      method_id: 'G13.ALIGNED_PEER_ANALYSIS_V1', capability_state: 'INTERACTION_DETECTED', capability_reason: 'ASSOCIATED_PEERS:TIC10305',
+      peer_ids: 'TIC10305;LIC10320', peer_states: 'TIC10305:ANALYSED:ASSOCIATED:PEER_LEADS_LOOP;LIC10320:PEER_UNOBSERVED', lag_s: 'TIC10305:-60.0;LIC10320:NA', coherence: 'TIC10305:0.94;LIC10320:NA',
+      frequency_hz: '0.000277;0.0166', relationship_revision: '3', alternative_explanations: 'COMMON_UPSTREAM_DISTURBANCE_DRIVES_BOTH;PAIRWISE_ASSOCIATION_IS_NOT_CAUSAL_DIRECTION' } });
+    const t = times(4);
+    const aligned = decoded({ gate: 'G13', kind: 'aligned_series', role: 'TIC10305', x: t, y: [10, 11, 12, 13], yUnit: 'peer_EU', mask: [true, true, false, true], columns: { own_pv: [1, 2, 3, 4] }, units: { own_pv: 'EU' }, provenance: { peer_id: 'TIC10305', support_s: '900' } });
+    const xc = decoded({ gate: 'G13', kind: 'cross_correlation', role: 'TIC10305', x: [-10, -5, 0, 5, 10], y: [0.1, 0.9, 0.5, 0.2, 0.1], xQuantity: 'lag_s', xUnit: 's', yQuantity: 'xcorr', yUnit: '1', provenance: { peer_id: 'TIC10305', peak_xcorr: '0.9', lag_at_peak_s: '-5', lag_sign_convention: 'POSITIVE_WHEN_PEER_FOLLOWS_LOOP' } });
+    const coh = decoded({ gate: 'G13', kind: 'coherence', role: 'TIC10305', x: [0, 0.001, 0.002], y: [0.1, 0.94, 0.2], xQuantity: 'frequency_hz', xUnit: 'Hz', yQuantity: 'coherence', yUnit: '1', provenance: { peer_id: 'TIC10305', band_low_hz: '0.000277', band_high_hz: '0.0166', coherence_band_max: '0.94' } });
+    render(<G13Body arts={arts({ interaction: [record], aligned_series: [aligned], cross_correlation: [xc], coherence: [coh] })} loopId="FIC10302" timeZone="UTC" />);
+    expect(screen.getByText('INTERACTION_DETECTED')).toBeTruthy();
+    expect(screen.getByText('PEER_UNOBSERVED')).toBeTruthy();                                     // the unobserved peer is stated, not drawn
+    expect(screen.getByText(/graph relation is not proof/i)).toBeTruthy();
+    expect(peerRows(record)[0]).toMatchObject({ id: 'TIC10305', associated: true, direction: 'PEER_LEADS_LOOP', lagS: -60, coherence: 0.94 });
+    const graph = captured[0] as { series: Array<{ type: string; data: unknown[]; links: Array<{ source: string; target: string }> }> };
+    expect(graph.series[0].type).toBe('graph');
+    expect(graph.series[0].data).toHaveLength(3);
+    expect(graph.series[0].links[0]).toMatchObject({ source: 'TIC10305', target: 'FIC10302' });      // the peer leads: arrow into the loop
+    const pane = captured[1] as { series: Array<{ name: string; connectNulls: boolean; data: Array<[number, number | null]> }>; yAxis: Array<{ name: string }> };
+    expect(pane.yAxis.map(a => a.name)).toEqual(['EU', 'peer_EU']);                                // each signal keeps its unit
+    expect(pane.series[1].connectNulls).toBe(false);
+    expect(pane.series[1].data[2][1]).toBeNull();                                                  // unsupported sample is a gap
+    const lag = captured[2] as { xAxis: { name: string } };
+    expect(lag.xAxis.name).toBe('lag (s)');
+    const cohOpt = captured[3] as { xAxis: { name: string } };
+    expect(cohOpt.xAxis.name).toBe('frequency (Hz)');
     cleanup();
     render(<G14Body d={decoded({ gate: 'G14', kind: 'confirmation_record', x: [], y: [], provenance: { claim_type: 'FINAL_ELEMENT_NON_FOLLOWING', state: 'SUSPECTED', reason: 'VP_TRACKING_HEALTHY', positive_evidence_ids: '', contradictions: 'VP_TRACKING_HEALTHY', scope: 'VP tracking', confirmed_at: 'NOT_CONFIRMED', test_id: 'NONE', review_record: 'NONE' } })} timeZone="UTC" />);
     expect(screen.getByText('SUSPECTED')).toBeTruthy();
