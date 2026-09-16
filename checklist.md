@@ -6,7 +6,7 @@ audited base `5cec34ef`. Operational facts (what to run on the plant) live in `c
 
 Legend: ✅ done and committed · 🔄 in progress · ⬜ pending · commit ids are on this branch.
 
-_Last updated: 2026-09-17 00:25 (2B and 2C lab-proven; 2D next)._
+_Last updated: 2026-09-17 01:30 (2D + 2E committed with green suites; 2F next; lab still runs the 2C.1c jar - redeploy pending)._
 
 ## Phase 0 — build truth and test baseline ✅
 
@@ -56,8 +56,8 @@ _Last updated: 2026-09-17 00:25 (2B and 2C lab-proven; 2D next)._
 | 2A response kernel (commons-math3) | 2A.1 ✅ f3a91c84 (14) · 2A.2 ✅ 33e167a7 (15) · 2A.3 ✅ fbb2e8df (11) · 2A.4 ✅ ae226715 (10; noise-free spec FOPDT exact, noisy within the fit's own standard errors) · 2A.5 ✅ 1b0c6087 (9) · 2A.6 ✅ 79305f58 (4; all 52 catalogue quantities) | ✅ |
 | 2B `CplmResponseAnalysisJob` | 2B.1 ✅ 3599d519 · 2B.2 ✅ 01e8122a · lab fixes ✅ 81baa69c, 14c3cff1, 9bca728c (stale held VP is not the applied input; irregular-grid crossings; capture closes on the settle band measured from the band-entry sample; pre/post slopes; qualified peaks; millisecond event bounds) · lab proof ✅ COMPLETE `INPUT_TEST` events with Kp 3.000, τ 20.00 s, θ 2.7 ± 2.5 s, settle 80.1 s, 12 evidence artifacts; second event **VALIDATED** against the first (validation RMSE 0.36, prediction RMSE 0.23, fit improvement 0.97) | ✅ |
 | 2C exact intermediates | 2C.1a ✅ c0e672dd · 2C.1b ✅ dfc75202 (Welch PSD, segment follows the band) · 2C.1c ✅ 19727d1d + f83688d6 (every gate's artifacts with the workbook's field names; policy `--evidence-emit`; lab: short-tier manifests COMPLETE) · 2C.2 ✅ 38f42e73 + 8dd09e33 (method-run resolution across tiers, manifest ETag/304, chunk bytes with sha ETag + immutable, site scope, EVIDENCE_RECONSTRUCTION runs under the original identity) · lab ✅ a7d7b2a7 + 117a9622: identity parity (registry parameter set applied), retention cycle EXPIRED → reconstruct → ATTACHED/COMPLETE, chunk columns decoded | ✅ |
-| 2D API breadth | 2D.1 gate catalogue, investigation references (56) | ⬜ |
-| 2E frontend workbench | 2E.1 chart/state infra · 2E.2 historical axes/tooltip · 2E.3 `GateEvidenceWorkspace` · 2E.4 the 17 gate views · 2E.5 `ResponseWorkspace` | ⬜ |
+| 2D API breadth | 2D.1 ✅ a5cdf73c (`GET /gate-catalogue`, 17 entries once incl. G2r, capability state per gate) · 2D.2 ✅ 7af35971 (`analytics.investigation_reference` (56), `POST /investigations` pins evidence, explicit outcome WORK_COMPLETED / PERFORMANCE_RESTORED / INCONCLUSIVE - completed work ≠ restored) | ✅ |
+| 2E frontend workbench | 2E.1 ✅ 8ec77afb (`CpmChart` one axis per unit, no null bridging, stepped holds, labelled bands; `GateResultState` 9 states; site-zone times; artifact codec with checksum) · 2E.2 ✅ f909830e (historical + replay charts one axis per unit group, replay split ≤ 400 lines, raw slice walked to a budget) · 2E.3 ✅ 5c986106 (`GateEvidenceWorkspace` from an immutable URL selection, never `useLatestGates`; signal context lanes; method trace; launcher passes the clicked cell's `methodRunId`) · 2E.4 ✅ f5f4d20a (17 views on the exact artifacts, pure bodies tested) · 2E.5 ✅ c00629e9 (+ 7854ebb1, c73ef24d writer columns/lists: `ResponseWorkspace` events incl. rejected/censored, fits, labelled prediction band, residuals, candidate models, Bode only when written, model history as interval markers, server-owned review with If-Match) · frontend 93/93, lint + tsc clean · **not yet on the lab** (frontend + jar redeploy pending) | ✅ |
 | 2F G13 interaction | 2F.1 `InteractionMath` + fusion + view | ⬜ |
 | 2G loop model | 2G.1 registry dimensions (57), acquisition contract, wizard · 2G.2 slice-2 E2E + CHG-027 | ⬜ |
 
