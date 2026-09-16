@@ -335,7 +335,7 @@ public static class QualityDecoder {
 - Modify: `CplmGateFusionStreamJob.java:108-110` (fuse 4h as well; label `horizon`), `CplmGateFusionEngine` consumes open conditions from a broadcast of `traverse.cpa.clpm.condition.v1` (G10/G11 gate status from condition state, not only the long slice)
 - Test: `tests/cplm-api.Tests/ConditionConsumerTests.cs` (upsert idempotent on replayed message), Flink `CplmFusionConditionTest`.
 
-- [ ] Failing tests → implement → E2E step (1-hour freeze via simulator → `/conditions` returns it within 2 min) → commit `feat: condition events persisted and fused; 4h horizon fused`.
+- [x] Failing tests → implement → E2E step (1-hour freeze via simulator → `/conditions` returns it within 2 min) → commit `feat: condition events persisted and fused; 4h horizon fused`. *(Done 2026-09-16 except the lab E2E step, which needs the rebuilt lab jar and the Condition job running; it is tracked with the 1B.2/1C/1D live verification. 4h fusion is opt-in via `--fuse-window-kinds`.)*
 
 ## Subphase 1E — Fusion: observations, hypotheses, fault-scoped confirmation (R02, R07; NR-026, NR-027)
 
@@ -347,7 +347,7 @@ public static class QualityDecoder {
 - Modify: `CplmGateResult.java` (+ `observations`, `hypotheses`, `confirmation`, `score_semantics="EVIDENCE_SCORE_UNCALIBRATED"`, `result_revision`)
 - Test: `cplm/fusion/FusionVerdictV2Test.java` — NR-026 (effort-only + VP mapped, VP tracking healthy → stiction SUSPECTED, contradiction listed, G14 `NOT_CONFIRMED`), NR-027 (linear delayed plant fixture → geometry/lag cannot confirm), existing `CplmFormulaContractTest` weights/cap test rewritten to the new semantics.
 
-- [ ] Failing tests → implement → golden `CplmGateEngineSynTic001Test`: update expectation file only for the **added** fields (diff must show additions only) → commit `feat(flink): fusion v2 — observations/hypotheses/fault-scoped confirmation; no VP-presence confirmation`.
+- [x] Failing tests → implement → golden `CplmGateEngineSynTic001Test`: update expectation file only for the **added** fields (diff must show additions only) → commit `feat(flink): fusion v2 — observations/hypotheses/fault-scoped confirmation; no VP-presence confirmation`. *(Done 2026-09-16: golden unchanged; engine split into `fusion/{FusionInputs,BlockingExclusions,GeometryEvidence,FusionEvidence,VerdictAssembly,DiagnosisBands,Confirmation,Observation,Hypothesis,FusionVerdictV2}`; geometry counts as SHAPE only with corners ≥ 0.5.)*
 
 ### Task 1E.2: cplm-api and UI read fusion v2
 

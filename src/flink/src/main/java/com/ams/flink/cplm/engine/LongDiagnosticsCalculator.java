@@ -76,6 +76,14 @@ public final class LongDiagnosticsCalculator {
         }
         result.hasVp = hasVp;
         if (!hasVp) result.observabilityFlags.add("NO_VP");
+        // v2.5 R02: MEASURE how VP followed the demand - the positive evidence or the
+        // contradiction that G14 v2 needs. Presence alone is not evidence.
+        VpTrackingMath.VpTracking vt = VpTrackingMath.compute(samples, op, profile, tsSec * 1000.0);
+        result.vpEligibleSamples = vt.eligibleSamples;
+        result.vpTrackingErrorMeanPp = vt.errorMeanPp;
+        result.vpTrackingErrorP95Pp = vt.errorP95Pp;
+        result.vpNonFollowingDwellS = vt.nonFollowingDwellS;
+        result.vpTrackingHealthy = vt.healthy;
 
         // First integrating component after the valve: OP (self-reg) or PV (integrating).
         double[] shapeSignal = profile.integrating ? pv : op;

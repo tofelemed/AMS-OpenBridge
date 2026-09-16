@@ -218,7 +218,7 @@ public class CplmFormulaContractTest {
         Assert.assertNotEquals("NO_CALL", r.diagnosis);
         Assert.assertEquals("NOT_EVALUATED", r.gate12Status);
         Assert.assertEquals("NOT_EVALUATED", r.gate13Status);
-        Assert.assertEquals("INSUFFICIENT_EVIDENCE", r.gate14Status);
+        Assert.assertEquals("NOT_CONFIRMED", r.gate14Status);   // v2.5 R02: no VP -> not confirmed, never "insufficient"
         // Weighted includes Horch: 0.20*0.85 + 0.15*0.9 = 0.305
         Assert.assertEquals(0.30375, r.rawFinalElementScore, EPS); // 0.15*(1/8)+0.20*0.90+0.15*0.70
     }
@@ -262,6 +262,9 @@ public class CplmFormulaContractTest {
         longD.effortRatio = score * 8.0;
         longD.hasVp = hasVp;
         if (!hasVp) longD.observabilityFlags.add("NO_VP");
+        // v2.5 R02: "hasVp" in this table now means "VP present AND measured non-following"
+        // - VP presence alone never confirms (see FusionVerdictV2Test).
+        if (hasVp) { longD.vpEligibleSamples = 17_280; longD.vpNonFollowingDwellS = 120; }
 
         CplmGateResult r = CplmGateFusionEngine.fuse(shortF, longD,
                 false, false, CplmLoopDynamicsProfile.forClass(CplmLoopDynamicsProfile.LoopClass.TIC));
@@ -273,7 +276,7 @@ public class CplmFormulaContractTest {
         Assert.assertEquals(severity, r.severity);
         Assert.assertEquals("NOT_EVALUATED", r.gate12Status);
         Assert.assertEquals("NOT_EVALUATED", r.gate13Status);
-        Assert.assertEquals(hasVp ? "CONFIRMED_CAPABLE" : "INSUFFICIENT_EVIDENCE", r.gate14Status);
+        Assert.assertEquals(hasVp ? "CONFIRMED" : "NOT_CONFIRMED", r.gate14Status);
     }
 
     private static CplmShortFeatureResult populatedShortFeature() {
@@ -328,6 +331,9 @@ public class CplmFormulaContractTest {
         r.sampleCount = 17_280;
         r.samplePeriodSec = 5;
         r.hasVp = true;
+        // v2.5 R02: the fixture's VP is measured as non-following, so CONFIRMED stays reachable.
+        r.vpEligibleSamples = 17_280;
+        r.vpNonFollowingDwellS = 120;
         r.acfPeriodS = 100;
         r.acfRegularity = 1;
         r.fftPeakBin = 2;

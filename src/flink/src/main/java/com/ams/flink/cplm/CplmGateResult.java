@@ -74,6 +74,11 @@ public class CplmGateResult implements Serializable {
     public List<com.ams.flink.cplm.engine.LimitMath.FreezeEvent> freezeEvents = new ArrayList<>();
     public boolean freezeMaterial;
     public String gate11Reason = "";
+    /** v2.5 R11: fast-path conditions open as of this verdict. */
+    public com.ams.flink.cplm.condition.OpenConditions openConditions = com.ams.flink.cplm.condition.OpenConditions.none();
+    /** v2.5 R02: observations / hypotheses / fault-scoped confirmation, beside the legacy fields. */
+    public com.ams.flink.cplm.fusion.FusionVerdictV2 verdictV2 = new com.ams.flink.cplm.fusion.FusionVerdictV2();
+    public int resultRevision = 1;
     public double opTravel;
     public double travelPerDay;
     public int reversalCount;
@@ -341,6 +346,10 @@ public class CplmGateResult implements Serializable {
         out.set("freeze_events", freezes);
         out.put("freeze_material", freezeMaterial);
         out.put("gate11_reason", gate11Reason);
+        out.set("open_conditions", (openConditions != null ? openConditions
+                : com.ams.flink.cplm.condition.OpenConditions.none()).toJson(MAPPER));
+        (verdictV2 != null ? verdictV2 : new com.ams.flink.cplm.fusion.FusionVerdictV2()).writeTo(out, MAPPER);
+        out.put("result_revision", resultRevision);
         putMetric(out, "op_travel", opTravel);
         putMetric(out, "travel_per_day", travelPerDay);
         putMetric(out, "reversal_count", reversalCount);

@@ -108,6 +108,12 @@ public final class CplmLongDiagnosticsResult implements Serializable {
     public String gate11Reason = "";
     public double freezeDwellS;
     public double freezeToleranceEu;
+    /** v2.5 R02: how the valve position followed the demand (eligible VP samples only). */
+    public int vpEligibleSamples;
+    public double vpTrackingErrorMeanPp;
+    public double vpTrackingErrorP95Pp;
+    public double vpNonFollowingDwellS;
+    public boolean vpTrackingHealthy;
     /** P1-1 - longest unchanged run as a share of the window (0..1). */
     public double freezeFraction;
     public int pvQuantizationCount;
@@ -235,6 +241,11 @@ public final class CplmLongDiagnosticsResult implements Serializable {
         out.put("gate11_reason", gate11Reason);
         out.put("freeze_dwell_s", freezeDwellS);
         out.put("freeze_tolerance_eu", freezeToleranceEu);
+        out.put("vp_eligible_samples", vpEligibleSamples);
+        out.put("vp_tracking_error_mean_pp", vpTrackingErrorMeanPp);
+        out.put("vp_tracking_error_p95_pp", vpTrackingErrorP95Pp);
+        out.put("vp_nonfollowing_dwell_s", vpNonFollowingDwellS);
+        out.put("vp_tracking_healthy", vpTrackingHealthy);
         out.put("freeze_run_samples", freezeRunSamples);
         out.put("freeze_index_s", freezeIndexS);
         out.put("pv_quantization_count", pvQuantizationCount);
@@ -370,6 +381,11 @@ public final class CplmLongDiagnosticsResult implements Serializable {
             r.gate11Reason = root.path("gate11_reason").asText("");
             r.freezeDwellS = root.path("freeze_dwell_s").asDouble(0);
             r.freezeToleranceEu = root.path("freeze_tolerance_eu").asDouble(0);
+            r.vpEligibleSamples = root.path("vp_eligible_samples").asInt(0);
+            r.vpTrackingErrorMeanPp = root.path("vp_tracking_error_mean_pp").asDouble(0);
+            r.vpTrackingErrorP95Pp = root.path("vp_tracking_error_p95_pp").asDouble(0);
+            r.vpNonFollowingDwellS = root.path("vp_nonfollowing_dwell_s").asDouble(0);
+            r.vpTrackingHealthy = root.path("vp_tracking_healthy").asBoolean(false);
             r.freezeRunSamples = root.path("freeze_run_samples").asInt(0);
             r.freezeIndexS = root.path("freeze_index_s").asDouble(0);
             r.pvQuantizationCount = root.path("pv_quantization_count").asInt(0);

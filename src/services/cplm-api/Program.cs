@@ -123,6 +123,8 @@ if (config.GetValue("Cplm:ConsumersEnabled", false))
 {
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmResultConsumerService>();
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmEventFrameService>();
+    // v2.5 (Task 1D.5): fast-path condition events -> analytics.condition_event (own single-member group).
+    builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmConditionConsumerService>();
 }
 
 // ── Auth (platform RBAC): RS256 JWKS + one policy per permission key ───────

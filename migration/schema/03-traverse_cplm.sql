@@ -286,6 +286,32 @@ CREATE INDEX IF NOT EXISTS idx_cplm_event_frames_loop_lower_opened
 COMMENT ON TABLE analytics.cplm_event_frames IS
     'Durable CPLM diagnosis episodes. Derived from cplm_gate_results and rebuildable; ack/shelve state is operator input and is not.';
 
+-- ── v2.5 (Task 1D.5) — fast-path condition events (mirror of database/scripts/53, part 1) ──
+CREATE TABLE IF NOT EXISTS analytics.condition_event (
+    loop_id        VARCHAR(256) NOT NULL,
+    gate           VARCHAR(8)   NOT NULL,
+    kind           VARCHAR(32)  NOT NULL,
+    start_ms       BIGINT       NOT NULL,
+    last_ms        BIGINT       NOT NULL,
+    end_ms         BIGINT,
+    state          VARCHAR(16)  NOT NULL,
+    close_reason   VARCHAR(32)  NOT NULL DEFAULT '',
+    duration_s     DOUBLE PRECISION NOT NULL DEFAULT 0,
+    evidence       JSONB        NOT NULL DEFAULT '{}'::jsonb,
+    emitted_at_ms  BIGINT,
+    source_commit  VARCHAR(64),
+    jar_sha256     VARCHAR(64),
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (loop_id, gate, kind, start_ms)
+);
+CREATE INDEX IF NOT EXISTS idx_condition_event_loop_lower_start
+    ON analytics.condition_event (lower(loop_id), start_ms DESC);
+CREATE INDEX IF NOT EXISTS idx_condition_event_open
+    ON analytics.condition_event (state) WHERE state <> 'CLOSED';
+COMMENT ON TABLE analytics.condition_event IS
+    'v2.5 fast-path G10 limit-dwell / G11 freeze conditions from CplmConditionStreamJob. Evidence, not verdicts; rebuildable from Kafka within retention.';
+
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ams_user') THEN

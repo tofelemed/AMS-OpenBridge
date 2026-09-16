@@ -56,6 +56,40 @@ public final class ConditionEvent implements Serializable {
         return c;
     }
 
+    /** Parse a record written by {@link #toJson()}; null when it is not a condition record. */
+    public static ConditionEvent fromJson(String json) {
+        try {
+            org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode n = MAPPER.readTree(json);
+            if (n == null || !n.has("loop_id") || !"CPLM_CONDITION".equals(n.path("eventType").asText(""))) return null;
+            ConditionEvent e = new ConditionEvent();
+            e.loopId = n.get("loop_id").asText();
+            e.gate = n.path("gate").asText("");
+            e.kind = n.path("kind").asText("");
+            e.state = n.path("state").asText("");
+            e.startMs = n.path("start_ms").asLong(0);
+            e.lastMs = n.path("last_ms").asLong(0);
+            e.endMs = n.hasNonNull("end_ms") ? n.get("end_ms").asLong() : 0L;
+            e.durationS = n.path("duration_s").asDouble(0);
+            e.closeReason = n.path("close_reason").asText("");
+            e.emittedAtMs = n.path("emitted_at_ms").asLong(0);
+            org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode ev = n.get("evidence");
+            if (ev != null && ev.isObject()) {
+                java.util.Iterator<Map.Entry<String, org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode>> it = ev.fields();
+                while (it.hasNext()) {
+                    Map.Entry<String, org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode> f = it.next();
+                    org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode v = f.getValue();
+                    if (v.isNumber()) e.evidence.put(f.getKey(), v.asDouble());
+                    else if (v.isBoolean()) e.evidence.put(f.getKey(), v.asBoolean());
+                    else if (v.isNull()) e.evidence.put(f.getKey(), null);
+                    else e.evidence.put(f.getKey(), v.asText());
+                }
+            }
+            return e;
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
     public String toJson() {
         ObjectNode n = MAPPER.createObjectNode();
         n.put("schemaVersion", 1);

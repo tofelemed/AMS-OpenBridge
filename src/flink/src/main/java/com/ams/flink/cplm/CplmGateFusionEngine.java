@@ -1,5 +1,14 @@
 package com.ams.flink.cplm;
 
+import com.ams.flink.cplm.condition.OpenConditions;
+import com.ams.flink.cplm.fusion.BlockingExclusions;
+import com.ams.flink.cplm.fusion.Confirmation;
+import com.ams.flink.cplm.fusion.DiagnosisBands;
+import com.ams.flink.cplm.fusion.FusionEvidence;
+import com.ams.flink.cplm.fusion.FusionInputs;
+import com.ams.flink.cplm.fusion.FusionVerdictV2;
+import com.ams.flink.cplm.fusion.VerdictAssembly;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -7,9 +16,15 @@ import java.util.List;
 /**
  * Stage 3 - Gate fusion (Gates 12-15): join of short + long feature records.
  *
- * <p>Calculation v3.0.0 - loop-type / dynamic-class aware decision grammar:
- * blocking exclusions first, multi-evidence stiction rule, geometry never alone
- * on FAST_SELF_REG, G14 0.89 no-VP cap, optional temporal persistence.
+ * <p>Calculation v3.0.0 - loop-type / dynamic-class aware decision grammar: blocking
+ * exclusions first, multi-evidence stiction rule, geometry never alone on FAST_SELF_REG,
+ * optional temporal persistence.
+ *
+ * <p>v2.5 (1E.1, spec v6 R02/R07): the verdict separates what was OBSERVED
+ * ({@link FusionEvidence} / observations), what is HYPOTHESISED (hypotheses) and what is
+ * CONFIRMED ({@link Confirmation}, a fault-scoped claim needing positive evidence). VP presence
+ * confirms nothing; the confirmation cap applies to a final-element claim only. This class is
+ * the orchestrator; the stages live in {@code com.ams.flink.cplm.fusion}.
  */
 public final class CplmGateFusionEngine implements Serializable {
 
@@ -39,154 +54,35 @@ public final class CplmGateFusionEngine implements Serializable {
             boolean hasStepTestEvidence,
             boolean hasPeerLinks,
             CplmLoopDynamicsProfile profileOrNull) {
+        return fuse(shortF, longD, hasStepTestEvidence, hasPeerLinks, profileOrNull, null);
+    }
+
+    /**
+     * v2.5 (Task 1D.5, R11): as above, plus the fast-path conditions open as of this slice
+     * (see {@link FusionInputs#applyOpenConditions}).
+     *
+     * @param openConditions summary of the conditions open for this loop; null/none = no fast evidence
+     */
+    public static CplmGateResult fuse(
+            CplmShortFeatureResult shortF,
+            CplmLongDiagnosticsResult longD,
+            boolean hasStepTestEvidence,
+            boolean hasPeerLinks,
+            CplmLoopDynamicsProfile profileOrNull,
+            OpenConditions openConditions) {
         CplmGateResult result = new CplmGateResult();
         result.loopId = longD.loopId != null ? longD.loopId : shortF.loopId;
         String loopType = firstNonEmpty(longD.loopType, shortF.loopType);
         CplmLoopDynamicsProfile profile = profileOrNull != null
                 ? profileOrNull
                 : CplmDynamicsParameterSetSupport.resolveFromSpine(result.loopId, loopType, null);
-        result.calculationVersion = profile.calculationVersion;
-        result.dynamicsProfileVersion = profile.dynamicsProfileVersion;
-        result.dynamicsClass = profile.loopClass.name();
-        result.profileSource = profile.profileSource.name();
-        result.gateProfileId = profile.gateProfileId;
-        result.dynamicClass = profile.dynamicClass.name();
-        result.stictionSignal = longD.stictionSignal != null && !longD.stictionSignal.isEmpty()
-                ? longD.stictionSignal
-                : profile.stictionSignal();
-        result.persistenceWindowsRequired = profile.persistenceWindows;
-        if (longD.configurationVersion != null && !longD.configurationVersion.isEmpty()) {
-            result.configurationVersion = longD.configurationVersion;
-        }
+        stampProfile(result, profile, longD);
+        stampWindow(result, shortF, longD);
 
-        result.windowKind = longD.windowKind != null ? longD.windowKind : shortF.windowKind;
-        result.windowStartMs = longD.windowStartMs > 0 ? longD.windowStartMs : shortF.windowStartMs;
-        result.windowEndMs = longD.windowEndMs > 0 ? longD.windowEndMs : shortF.windowEndMs;
-        result.samplePeriodSec = longD.samplePeriodSec > 0 ? longD.samplePeriodSec : shortF.samplePeriodSec;
-        result.expectedSampleCount = shortF.expectedSampleCount;
-        result.sampleCount = longD.sampleCount > 0 ? longD.sampleCount : shortF.sampleCount;
-
-        // Gates 0-4 from short-feature stage
-        result.completeness = shortF.completeness;
-        result.badQualityPct = shortF.badQualityPct;
-        result.unknownQualityPct = shortF.unknownQualityPct;
-        result.gate0Reason = shortF.gate0Reason;
-        result.duplicateTimestamps = shortF.duplicateTimestamps;
-        result.samplingJitter = shortF.samplingJitter;
-        result.gapCount = shortF.gapCount;
-        result.maxGapS = shortF.maxGapS;
-        result.gate0Status = shortF.gate0Status;
-        result.autoPct = shortF.autoPct;
-        result.manualPct = shortF.manualPct;
-        result.modeChangesPerHour = shortF.modeChangesPerHour;
-        result.gate1Status = shortF.gate1Status;
-        result.spMin = shortF.spMin;
-        result.spMax = shortF.spMax;
-        result.spRange = shortF.spRange;
-        result.spChangesPerHour = shortF.spChangesPerHour;
-        result.gate2Status = shortF.gate2Status;
-        result.gate2rStatus = shortF.gate2rStatus;
-        result.operatingRegionValid = shortF.operatingRegionValid;
-        result.mae = shortF.mae;
-        result.rmse = shortF.rmse;
-        result.iae = shortF.iae;
-        result.ise = shortF.ise;
-        result.itae = shortF.itae;
-        result.goodErrorPct = shortF.goodErrorPct;
-        result.oce = shortF.oce;
-        result.pvStd = shortF.pvStd;
-        result.opStd = shortF.opStd;
-        // P2-6: "> 0" treated a genuine zero as missing and silently spliced in
-        // another stage's value computed on a different sample set. The honest
-        // predicate is whether the short stage actually ran.
-        result.effortRatio = shortF.sufficientData ? shortF.effortRatio : longD.effortRatio;
-        result.effortRatioNormalized = shortF.effortRatioNormalized; // P2-3
-        result.gate2BandEu = shortF.gate2BandEu;
-        result.gate2BandSource = shortF.gate2BandSource;
-        result.activityRatioNorm = shortF.activityRatioNorm;
-        result.activityBasis = shortF.activityBasis;
-        result.activityReason = shortF.activityReason;
-        result.gate4WarnRatio = shortF.gate4WarnRatio;
-        result.gate4HighRatio = shortF.gate4HighRatio;
-        result.opTravel = shortF.opTravel;
-        result.travelPerDay = shortF.travelPerDay;
-        result.reversalCount = shortF.reversalCount;
-        result.reversalsPerHour = shortF.reversalsPerHour;
-        result.saturationPct = shortF.sufficientData ? shortF.saturationPct : longD.saturationPct; // P2-6
-        result.gate3Status = shortF.gate3Status;
-        result.gate4Status = shortF.gate4Status;
-
-        // Gates 5-11 from long-diagnostics stage
-        result.acfPeriodS = longD.acfPeriodS;
-        result.acfRegularity = longD.acfRegularity;
-        result.acfGamma0 = longD.acfGamma0;
-        result.acfZeroCrossingCount = longD.acfZeroCrossingCount;
-        result.acfPeriodCandidateCount = longD.acfPeriodCandidateCount;
-        result.gate5Status = longD.gate5Status;
-        result.fftPeakBin = longD.fftPeakBin;
-        result.fftMaxBin = longD.fftMaxBin;
-        result.fftPeakAmplitude = longD.fftPeakAmplitude;
-        result.fftPeakFreqHz = longD.fftPeakFreqHz;
-        result.fftPeakPeriodS = longD.fftPeakPeriodS;
-        result.fftPeakToMedian = longD.fftPeakToMedian;
-        result.fftPeakRatio = longD.fftPeakRatio;
-        result.fftTotalEnergy = longD.fftTotalEnergy;
-        result.fftH2Amp = longD.fftH2Amp;
-        result.fftH3Amp = longD.fftH3Amp;
-        result.fftH5Amp = longD.fftH5Amp;
-        result.harmonicAmplitudeRatio = longD.harmonicAmplitudeRatio;
-        result.harmonicEnergyRatio = longD.harmonicEnergyRatio;
-        result.spectralEntropyBinCount = longD.spectralEntropyBinCount;
-        result.spectralEntropy = longD.spectralEntropy;
-        result.gate6Status = longD.gate6Status;
-        result.triangularity = longD.triangularity;
-        result.cycleSamples = longD.cycleSamples;
-        result.cycleSource = longD.cycleSource;
-        result.completedCycles = longD.completedCycles;
-        result.validCycles = longD.validCycles;
-        result.firstCycleSseSine = longD.firstCycleSseSine;
-        result.firstCycleSseTriangle = longD.firstCycleSseTriangle;
-        result.gate7Status = longD.gate7Status;
-        result.horchOddness = longD.horchOddness;
-        result.horchOddSum = longD.horchOddSum;
-        result.horchEvenSum = longD.horchEvenSum;
-        result.gate8Status = longD.gate8Status;
-        result.phaseAreaNormPerCycle = longD.phaseAreaNormPerCycle;
-        result.phaseBboxArea = longD.phaseBboxArea;
-        result.phasePathArea = longD.phasePathArea;
-        result.windowAreaNorm = longD.windowAreaNorm;
-        result.cornerScoreRaw = longD.cornerScoreRaw > 0 ? longD.cornerScoreRaw : longD.cornerScore;
-        result.cornerScoreQualified = longD.cornerScoreQualified;
-        result.cornerScore = result.cornerScoreRaw; // P2-4 reverted - see CplmGateEngine
-        result.validTurningAngles = longD.validTurningAngles;
-        result.gate9Status = longD.gate9Status;
-        result.gate9Reason = longD.gate9Reason;
-        result.periodStatus = longD.periodStatus != null ? longD.periodStatus : "NO_VALID_CYCLE";
-        result.validatedPeriodS = longD.validatedPeriodS;
-        result.periodRejectReason = longD.periodRejectReason;
-        result.opRangePct = longD.opRangePct > 0 ? longD.opRangePct : 0;
-        result.gate10Status = longD.gate10Status;
-        result.freezeRunSamples = longD.freezeRunSamples;
-        result.freezeIndexS = longD.freezeIndexS > 0 ? longD.freezeIndexS : shortF.freezeIndexS;
-        result.pvQuantizationCount = longD.pvQuantizationCount;
-        result.pvDriftPerDay = longD.pvDriftPerDay;
-        result.deltaPvMean = longD.deltaPvMean;
-        result.deltaPvStd = longD.deltaPvStd;
-        result.spikeCount = longD.spikeCount;
-        result.gate11Status = longD.gate11Status;
-        result.observabilityFlags.addAll(longD.observabilityFlags);
-        // Preserve every decision input even when fusion exits early for
-        // insufficient data or a blocking exclusion.
-        result.regionOutOfBandPct = shortF.regionOutOfBandPct;
-        result.satLimitDwellSamples = longD.satLimitDwellSamples;
-        result.satCyclingPattern = longD.satCyclingPattern;
-        result.satLimitDwellS = longD.satLimitDwellS;
-        result.limitSource = longD.limitSource;
-        result.limitDwellWarnS = longD.limitDwellWarnS;
-        result.dwellEvents = longD.dwellEvents;
-        result.freezeEvents = longD.freezeEvents;
-        result.freezeMaterial = longD.freezeMaterial;
-        result.gate11Reason = longD.gate11Reason;
+        FusionInputs.copyShort(result, shortF, longD);
+        FusionInputs.copyLong(result, shortF, longD);
+        OpenConditions oc = openConditions != null ? openConditions : OpenConditions.none();
+        FusionInputs.applyOpenConditions(result, longD, oc);
 
         // P1-10: stamp the provenance of the long-tier metrics copied above
         // BEFORE any early return, so every row carries it.
@@ -194,180 +90,51 @@ public final class CplmGateFusionEngine implements Serializable {
                 shortF.sufficientData && !"FAIL".equalsIgnoreCase(shortF.gate0Status);
 
         if (!shortF.sufficientData) {
-            result.diagnosis = "INSUFFICIENT_DATA";
-            result.severity = "LOW";
-            result.confidence = 0.0;
-            result.observabilityFlags.add("INSUFFICIENT_SAMPLES");
-            result.gate12Status = "NOT_EVALUATED";
-            result.gate13Status = "NOT_EVALUATED";
-            result.gate14Status = "INSUFFICIENT_EVIDENCE";
-            result.gate15Status = "INSUFFICIENT_EVIDENCE";
-            result.selectedFamily = "NONE";
-            return result;
+            return BlockingExclusions.insufficientData(result);
         }
 
         // --- BLOCKING exclusions (calc v3) ---
         if ("FAIL".equalsIgnoreCase(shortF.gate0Status)) {
-            return blockDiagnosis(result, "EXCLUDED_DATA_QUALITY", "G0 data quality FAIL");
+            return BlockingExclusions.block(result, "EXCLUDED_DATA_QUALITY", "G0 data quality FAIL");
         }
         if ("EXCLUDED".equalsIgnoreCase(shortF.gate1Status)) {
-            return blockDiagnosis(result, "EXCLUDED_MODE", "G1 mode/service EXCLUDED");
+            return BlockingExclusions.block(result, "EXCLUDED_MODE", "G1 mode/service EXCLUDED");
         }
         if (!shortF.operatingRegionValid || "FAIL".equalsIgnoreCase(shortF.gate2rStatus)) {
-            return blockDiagnosis(result, "EXCLUDED_OPERATING_REGION", "G2r operating region invalid");
+            return BlockingExclusions.block(result, "EXCLUDED_OPERATING_REGION", "G2r operating region invalid");
         }
         // v2.5 R08: a freeze EPISODE is evidence (G11 WARN, retained); only a MATERIAL freeze
         // (>= 60 s AND >= 10 % of the window - the P1-1 rule) excludes the window.
         if (longD.freezeMaterial) {
-            return blockDiagnosis(result, "EXCLUDED_SENSOR", "G11 sensor freeze dominant");
+            return BlockingExclusions.block(result, "EXCLUDED_SENSOR", "G11 sensor freeze dominant");
         }
 
-        if (hasStepTestEvidence) {
-            result.gate12Status = "PASS";
-            result.hasStepTestEvidence = true;
-        } else {
-            result.gate12Status = "NOT_EVALUATED";
-            result.hasStepTestEvidence = false;
-            if (!result.observabilityFlags.contains("NO_STEP_TEST")) {
-                result.observabilityFlags.add("NO_STEP_TEST");
-            }
-        }
-
-        if (hasPeerLinks) {
-            result.gate13Status = "PASS";
-            result.hasPeerLinks = true;
-            // When peer links exist and oscillation is present without actuator stress,
-            // treat as potential victim / disturbance context (soft block of stiction later).
-        } else {
-            result.gate13Status = "NOT_EVALUATED";
-            result.hasPeerLinks = false;
-            if (!result.observabilityFlags.contains("NO_UPSTREAM_LINKS")) {
-                result.observabilityFlags.add("NO_UPSTREAM_LINKS");
-            }
-        }
+        stampContextGates(result, hasStepTestEvidence, hasPeerLinks);
 
         boolean hasVp = longD.hasVp;
         result.vpAvailable = hasVp;
-        result.gate14Status = hasVp ? "CONFIRMED_CAPABLE" : "INSUFFICIENT_EVIDENCE";
         if (!hasVp && !result.observabilityFlags.contains("NO_VP")) {
             result.observabilityFlags.add("NO_VP");
         }
-        double g14Cap = hasVp ? 1.0 : 0.89;
+        // v2.5 R02: G14 is a fault-scoped confirmation from MEASURED VP tracking, never from
+        // VP presence. Its cap applies to a final-element claim only; the status is set once
+        // the family is known (NOT_APPLICABLE for symptom families).
+        Confirmation conf = Confirmation.evaluate(longD, profile);
+        double g14Cap = conf.capForFinalElement();
         result.g14ConfidenceCap = g14Cap;
+        FusionVerdictV2 v2 = result.verdictV2;
 
-        double oscillationScore = clamp01(result.acfRegularity);
-        double fftScore = clamp01(result.fftPeakRatio);
-        double effortScore = clamp01(result.effortRatio / 8.0);
-        double stictionScore = clamp01(result.triangularity);
-        double horchScore = clamp01(result.horchOddness);
-        double geometryScore = clamp01(result.cornerScoreQualified > 0 || "VALID".equals(result.periodStatus)
-                ? result.cornerScoreQualified
-                : 0);
-        result.oscillationScore = oscillationScore;
-        result.fftScore = fftScore;
-        result.effortScore = effortScore;
-        result.stictionScore = stictionScore;
-        result.horchScore = horchScore;
-        result.geometryScore = geometryScore;
-
-        boolean oscillationQualified = isQualified(Math.max(oscillationScore, fftScore),
-                result.gate5Status, result.gate6Status)
-                || (profile.dynamicClass == CplmLoopDynamicsProfile.DynamicClass.SLOW_SELF_REG
-                && isStrongOrWarn(result.gate8Status)
-                && "VALID".equals(result.periodStatus)
-                && result.completedCycles >= profile.minValidCycles);
-        boolean oscillationEvidence = oscillationQualified;
-        boolean harmonicOrShape = isStrongOrWarn(result.gate6Status) && result.harmonicAmplitudeRatio > 0.15
-                || isStrongOrWarn(result.gate7Status)
-                || isStrongOrWarn(result.gate8Status)
-                || stictionScore >= 0.55
-                || horchScore >= 0.55;
-        boolean actuatorStress = isStrongOrWarn(result.gate4Status)
-                || isStrongOrWarn(result.gate10Status)
-                || result.effortRatio >= profile.effortRatioFloor * 2
-                || result.opRangePct >= profile.opTravelFloorPct
-                || longD.satCyclingPattern
-                || result.reversalCount >= 3;
-
-        List<String> geoReasons = new ArrayList<>();
-        boolean geometryEvidenceOk = evaluateGeometryEvidence(result, profile, geoReasons);
-        // Geometry may contribute to family score only when prerequisites are met on FAST classes.
-        boolean geometryPrereqsMet = oscillationEvidence && harmonicOrShape && actuatorStress;
-        boolean geometrySelectable = geometryEvidenceOk
-                && profile.geometryFamilyEnabled
-                && profile.geometryRole != CplmLoopDynamicsProfile.GateRole.DISPLAY_ONLY
-                && (profile.geometryRole == CplmLoopDynamicsProfile.GateRole.PRIMARY
-                || geometryPrereqsMet);
-
-        double familyGeometry = geometrySelectable
-                ? clamp01(result.cornerScoreQualified) * profile.priorGeometry
-                : 0;
-
-        // Multi-evidence stiction path (never geometry alone).
-        boolean stictionMultiEvidence = (!profile.requireOscillationForStiction || oscillationEvidence)
-                && harmonicOrShape
-                && actuatorStress;
-        int nonGeoEvidence = 0;
-        if (oscillationEvidence) nonGeoEvidence++;
-        if (harmonicOrShape) nonGeoEvidence++;
-        if (actuatorStress) nonGeoEvidence++;
-        boolean stictionQualified = stictionMultiEvidence
-                && nonGeoEvidence >= Math.max(2, profile.minNonGeometryEvidences)
-                && (isStrongOrWarn(result.gate7Status) || isStrongOrWarn(result.gate8Status)
-                || stictionScore >= 0.55 || horchScore >= 0.55);
-
-        // Disturbance soft-block: peer links + oscillation without actuator stress.
-        if (hasPeerLinks && oscillationEvidence && !actuatorStress) {
-            stictionQualified = false;
-            result.familyDisqualifiers.add("stiction:DISTURBANCE_CONTEXT");
-            result.observabilityFlags.add("DISTURBANCE_CONTEXT");
-        }
-
-        double familyStiction = stictionQualified
-                ? Math.max(stictionScore, horchScore) * profile.priorStiction
-                : Math.max(stictionScore, horchScore);
-        double familyOscillation = oscillationQualified
-                ? Math.max(oscillationScore, fftScore) * profile.priorOscillation
-                : Math.max(oscillationScore, fftScore);
-        boolean effortQualified = isQualified(effortScore, result.gate4Status, result.gate10Status);
-        double familyEffort = effortQualified
-                ? effortScore * profile.priorEffort
-                : effortScore;
-
-        double weightedRaw =
-                0.15 * oscillationScore
-                + 0.15 * fftScore
-                + 0.15 * effortScore
-                + 0.20 * stictionScore
-                + 0.20 * horchScore
-                + 0.15 * geometryScore;
-        result.rawFinalElementScore = weightedRaw;
-
-        result.stictionFamilyScore = familyStiction;
-        result.oscillationFamilyScore = familyOscillation;
-        result.effortFamilyScore = familyEffort;
-        result.geometryFamilyScore = familyGeometry;
-        result.stictionQualified = stictionQualified;
-        result.oscillationQualified = oscillationQualified || oscillationEvidence;
-        result.effortQualified = effortQualified;
-        result.geometryQualified = geometrySelectable;
-
-        result.familyDisqualifiers = result.familyDisqualifiers == null ? new ArrayList<>() : result.familyDisqualifiers;
-        if (!stictionQualified) result.familyDisqualifiers.add("stiction:FAMILY_DISQUALIFIED");
-        if (!oscillationQualified) result.familyDisqualifiers.add("oscillation:FAMILY_DISQUALIFIED");
-        if (!effortQualified) result.familyDisqualifiers.add("effort:FAMILY_DISQUALIFIED");
-        if (!geometrySelectable) {
-            if (geometryEvidenceOk && profile.isGeometryDecisiveForbidden() && !geometryPrereqsMet) {
-                result.familyDisqualifiers.add("geometry:GEOMETRY_ALONE_FORBIDDEN");
-            } else {
-                String joined = geoReasons.isEmpty() ? "FAMILY_DISQUALIFIED" : String.join(",", geoReasons);
-                result.familyDisqualifiers.add("geometry:" + joined);
-            }
-        }
+        FusionEvidence ev = FusionEvidence.evaluate(result, longD, profile, hasPeerLinks);
+        VerdictAssembly.assemble(v2, ev, result, longD, oc, profile);
+        result.stictionQualified = ev.stictionQualified;
+        result.oscillationQualified = ev.oscillationQualified || ev.oscillationEvidence;
+        result.effortQualified = ev.effortQualified;
+        result.geometryQualified = ev.geometrySelectable;
+        recordDisqualifiers(result, ev, profile);
 
         String[] names = {"stiction", "oscillation", "effort", "geometry"};
-        double[] scores = {familyStiction, familyOscillation, familyEffort, familyGeometry};
-        boolean[] qualified = {stictionQualified, oscillationQualified, effortQualified, geometrySelectable};
+        double[] scores = {ev.familyStiction, ev.familyOscillation, ev.familyEffort, ev.familyGeometry};
+        boolean[] qualified = {ev.stictionQualified, ev.oscillationQualified, ev.effortQualified, ev.geometrySelectable};
 
         boolean anyQualified = false;
         for (boolean q : qualified) {
@@ -378,18 +145,12 @@ public final class CplmGateFusionEngine implements Serializable {
         }
 
         if (!anyQualified) {
-            result.selectedFamily = "NONE";
-            result.familyScore = 0;
-            result.confidence = 0;
-            result.diagnosis = "INSUFFICIENT_EVIDENCE";
-            result.gate15Status = "INSUFFICIENT_EVIDENCE";
-            result.severity = "LOW";
-            result.insufficientEvidenceReason = buildInsufficientEvidenceReason(result, hasVp);
+            noFamily(result, v2, conf, hasVp);
             result.recommendation = result.insufficientEvidenceReason
                     + " Bind VP or obtain a valid oscillation period before diagnosing.";
             result.statusReason = String.format(
                     "selected_family=NONE, family_score=0.000, weighted=%.3f, confidence=0.000, G14_cap=%.2f, reasons=%s",
-                    weightedRaw, g14Cap, String.join("; ", result.familyDisqualifiers));
+                    ev.weightedRaw, g14Cap, String.join("; ", result.familyDisqualifiers));
             return result;
         }
 
@@ -407,15 +168,9 @@ public final class CplmGateFusionEngine implements Serializable {
 
         // Hard rule: never allow geometry as sole selected family when forbidden.
         if ("geometry".equals(selected) && profile.isGeometryDecisiveForbidden()) {
-            if (!geometryPrereqsMet || !stictionQualified) {
-                result.selectedFamily = "NONE";
-                result.familyScore = 0;
-                result.confidence = 0;
-                result.diagnosis = "INSUFFICIENT_EVIDENCE";
-                result.gate15Status = "INSUFFICIENT_EVIDENCE";
-                result.severity = "LOW";
+            if (!ev.geometryPrereqsMet || !ev.stictionQualified) {
                 result.familyDisqualifiers.add("geometry:GEOMETRY_ALONE_FORBIDDEN");
-                result.insufficientEvidenceReason = buildInsufficientEvidenceReason(result, hasVp);
+                noFamily(result, v2, conf, hasVp);
                 result.recommendation = result.insufficientEvidenceReason
                         + " Geometry alone cannot diagnose valve nonlinearity on this loop class.";
                 result.statusReason = String.format(
@@ -427,10 +182,19 @@ public final class CplmGateFusionEngine implements Serializable {
 
         result.selectedFamily = selected;
         result.familyScore = familyScore;
-        double finalConfidence = Math.min(familyScore, g14Cap);
+        // v2.5 R02: the confirmation (and its cap) applies to a FINAL-ELEMENT claim only.
+        boolean finalElementClaim = "stiction".equals(selected) || "geometry".equals(selected);
+        double finalConfidence = Math.min(familyScore, finalElementClaim ? g14Cap : 1.0);
         result.confidence = finalConfidence;
+        result.gate14Status = finalElementClaim ? conf.state : "NOT_APPLICABLE";
+        v2.confirmation = finalElementClaim ? conf : conf.notApplicable();
+        if (finalElementClaim && "CONTRADICTED".equals(conf.state)) {
+            result.observabilityFlags.add("VP_TRACKING_CONTRADICTS");
+            v2.hypothesis("STICTION").contradictions.add("VP_TRACKING_HEALTHY");
+        }
+        v2.leadingHypothesis = DiagnosisBands.leadingHypothesisFor(selected, ev.disturbanceContext);
 
-        applyDiagnosisBands(result, finalConfidence, hasVp);
+        DiagnosisBands.apply(result, finalConfidence, DiagnosisBands.familyLabel(selected), result.gate14Status);
 
         result.recommendation = hasVp
                 ? "Review positioner/HART data and perform controlled bump test before retuning."
@@ -438,10 +202,89 @@ public final class CplmGateFusionEngine implements Serializable {
 
         result.statusReason = String.format(
                 "selected_family=%s, family_score=%.3f, weighted=%.3f, confidence=%.3f, G14_cap=%.2f, class=%s, profile=%s",
-                selected, familyScore, weightedRaw, finalConfidence, g14Cap,
+                selected, familyScore, ev.weightedRaw, finalConfidence, g14Cap,
                 profile.loopClass.name(), profile.gateProfileId);
 
         return result;
+    }
+
+    private static void stampProfile(CplmGateResult result, CplmLoopDynamicsProfile profile, CplmLongDiagnosticsResult longD) {
+        result.calculationVersion = profile.calculationVersion;
+        result.dynamicsProfileVersion = profile.dynamicsProfileVersion;
+        result.dynamicsClass = profile.loopClass.name();
+        result.profileSource = profile.profileSource.name();
+        result.gateProfileId = profile.gateProfileId;
+        result.dynamicClass = profile.dynamicClass.name();
+        result.stictionSignal = longD.stictionSignal != null && !longD.stictionSignal.isEmpty()
+                ? longD.stictionSignal
+                : profile.stictionSignal();
+        result.persistenceWindowsRequired = profile.persistenceWindows;
+        if (longD.configurationVersion != null && !longD.configurationVersion.isEmpty()) {
+            result.configurationVersion = longD.configurationVersion;
+        }
+    }
+
+    private static void stampWindow(CplmGateResult result, CplmShortFeatureResult shortF, CplmLongDiagnosticsResult longD) {
+        result.windowKind = longD.windowKind != null ? longD.windowKind : shortF.windowKind;
+        result.windowStartMs = longD.windowStartMs > 0 ? longD.windowStartMs : shortF.windowStartMs;
+        result.windowEndMs = longD.windowEndMs > 0 ? longD.windowEndMs : shortF.windowEndMs;
+        result.samplePeriodSec = longD.samplePeriodSec > 0 ? longD.samplePeriodSec : shortF.samplePeriodSec;
+        result.expectedSampleCount = shortF.expectedSampleCount;
+        result.sampleCount = longD.sampleCount > 0 ? longD.sampleCount : shortF.sampleCount;
+    }
+
+    /** G12 / G13 are still legacy flags in this release (LEGACY_FLAG_ONLY; Phase 2 replaces them). */
+    private static void stampContextGates(CplmGateResult result, boolean hasStepTestEvidence, boolean hasPeerLinks) {
+        if (hasStepTestEvidence) {
+            result.gate12Status = "PASS";
+            result.hasStepTestEvidence = true;
+        } else {
+            result.gate12Status = "NOT_EVALUATED";
+            result.hasStepTestEvidence = false;
+            if (!result.observabilityFlags.contains("NO_STEP_TEST")) {
+                result.observabilityFlags.add("NO_STEP_TEST");
+            }
+        }
+        if (hasPeerLinks) {
+            result.gate13Status = "PASS";
+            result.hasPeerLinks = true;
+            // When peer links exist and oscillation is present without actuator stress,
+            // treat as potential victim / disturbance context (soft block of stiction later).
+        } else {
+            result.gate13Status = "NOT_EVALUATED";
+            result.hasPeerLinks = false;
+            if (!result.observabilityFlags.contains("NO_UPSTREAM_LINKS")) {
+                result.observabilityFlags.add("NO_UPSTREAM_LINKS");
+            }
+        }
+    }
+
+    private static void recordDisqualifiers(CplmGateResult result, FusionEvidence ev, CplmLoopDynamicsProfile profile) {
+        result.familyDisqualifiers = result.familyDisqualifiers == null ? new ArrayList<>() : result.familyDisqualifiers;
+        if (!ev.stictionQualified) result.familyDisqualifiers.add("stiction:FAMILY_DISQUALIFIED");
+        if (!ev.oscillationQualified) result.familyDisqualifiers.add("oscillation:FAMILY_DISQUALIFIED");
+        if (!ev.effortQualified) result.familyDisqualifiers.add("effort:FAMILY_DISQUALIFIED");
+        if (!ev.geometrySelectable) {
+            if (ev.geometryEvidenceOk && profile.isGeometryDecisiveForbidden() && !ev.geometryPrereqsMet) {
+                result.familyDisqualifiers.add("geometry:GEOMETRY_ALONE_FORBIDDEN");
+            } else {
+                String joined = ev.geometryReasons.isEmpty() ? "FAMILY_DISQUALIFIED" : String.join(",", ev.geometryReasons);
+                result.familyDisqualifiers.add("geometry:" + joined);
+            }
+        }
+    }
+
+    /** No family qualified (or the only one is forbidden): INSUFFICIENT_EVIDENCE, G14 not applicable. */
+    private static void noFamily(CplmGateResult result, FusionVerdictV2 v2, Confirmation conf, boolean hasVp) {
+        result.selectedFamily = "NONE";
+        result.familyScore = 0;
+        result.confidence = 0;
+        result.diagnosis = "INSUFFICIENT_EVIDENCE";
+        result.gate15Status = "INSUFFICIENT_EVIDENCE";
+        result.severity = "LOW";
+        result.gate14Status = "NOT_APPLICABLE";
+        v2.confirmation = conf.notApplicable();
+        result.insufficientEvidenceReason = DiagnosisBands.insufficientEvidenceReason(result, hasVp);
     }
 
     /**
@@ -483,7 +326,7 @@ public final class CplmGateFusionEngine implements Serializable {
         if (!satisfied
                 && ("SUSPECTED".equals(result.gate15Status) || "CONFIRMED".equals(result.gate15Status))) {
             // Cap single-window calls at DETECTED.
-            result.diagnosis = "DETECTED_FINAL_ELEMENT_NONLINEARITY";
+            result.diagnosis = "DETECTED_" + DiagnosisBands.familyLabel(result.selectedFamily);
             result.gate15Status = "SUSPECTED";
             result.severity = "LOW";
             if (result.confidence > 0.54) {
@@ -496,169 +339,10 @@ public final class CplmGateFusionEngine implements Serializable {
         return result;
     }
 
-    /** P2-8 - what a person can DO about each blocking exclusion. */
-    private static String recommendationFor(String diagnosis, String reason) {
-        if ("EXCLUDED_DATA_QUALITY".equals(diagnosis)) {
-            return "Data quality blocked evaluation: check historian collection and "
-                    + "transmitter health for this loop's PV/SP/OP feeds.";
-        }
-        if ("EXCLUDED_MODE".equals(diagnosis)) {
-            return "The loop spent too little time in closed-loop control this window. If "
-                    + "manual operation was intentional, no action; otherwise check why the "
-                    + "operator or logic dropped it out of auto/cascade.";
-        }
-        if ("EXCLUDED_OPERATING_REGION".equals(diagnosis)) {
-            return "PV/OP ran outside the loop's declared operating region. Verify the region "
-                    + "limits in the loop's dynamics profile, or investigate the process excursion.";
-        }
-        if ("EXCLUDED_SENSOR".equals(diagnosis)) {
-            return "The PV signal froze for a material share of the window. Check the "
-                    + "transmitter and the historian scan/compression settings before trusting "
-                    + "any diagnosis on this loop.";
-        }
-        return "Evaluation was blocked (" + reason + "); resolve the exclusion before acting "
-                + "on any metric from this window.";
-    }
-
-    private static CplmGateResult blockDiagnosis(CplmGateResult result, String diagnosis, String reason) {
-        result.selectedFamily = "NONE";
-        result.familyScore = 0;
-        result.confidence = 0;
-        result.diagnosis = diagnosis;
-        result.gate15Status = "INSUFFICIENT_EVIDENCE";
-        result.severity = "LOW";
-        result.insufficientEvidenceReason = reason;
-        // P2-8: recommendation is surfaced by the UI as "Next-best action";
-        // echoing the gate code ("G1 mode/service EXCLUDED") told the operator
-        // nothing actionable. Map each blocking exclusion to what a person can
-        // actually do about it. The machine reason stays in
-        // insufficient_evidence_reason / status_reason.
-        result.recommendation = recommendationFor(diagnosis, reason);
-        result.statusReason = reason;
-        result.gate12Status = result.gate12Status == null || "PENDING".equals(result.gate12Status)
-                ? "NOT_EVALUATED" : result.gate12Status;
-        result.gate13Status = result.gate13Status == null || "PENDING".equals(result.gate13Status)
-                ? "NOT_EVALUATED" : result.gate13Status;
-        if (result.gate14Status == null || "PENDING".equals(result.gate14Status)) {
-            result.gate14Status = "INSUFFICIENT_EVIDENCE";
-        }
-        return result;
-    }
-
-    private static boolean evaluateGeometryEvidence(
-            CplmGateResult result, CplmLoopDynamicsProfile profile, List<String> reasons) {
-        if (!profile.geometryFamilyEnabled || profile.priorGeometry <= 0) {
-            reasons.add("FAMILY_DISQUALIFIED");
-            return false;
-        }
-        if (!"VALID".equals(result.periodStatus)) {
-            reasons.add("NO_VALID_CYCLE");
-            return false;
-        }
-        if (result.completedCycles < profile.minValidCycles) {
-            reasons.add("NO_VALID_CYCLE");
-            return false;
-        }
-        CplmLoopDynamicsProfile.PhaseAreaBand areaBand = profile.classifyPhaseArea(result.phaseAreaNormPerCycle);
-        if (areaBand == CplmLoopDynamicsProfile.PhaseAreaBand.ABOVE_BAND) {
-            reasons.add("AREA_OUT_OF_BAND");
-            return false;
-        }
-        if (areaBand == CplmLoopDynamicsProfile.PhaseAreaBand.BELOW_BAND) {
-            reasons.add("AREA_BELOW_BAND");
-            return false;
-        }
-        if (result.effortRatio < profile.effortRatioFloor) {
-            reasons.add("EFFORT_BELOW_FLOOR");
-            return false;
-        }
-        if (result.opRangePct < profile.opTravelFloorPct) {
-            reasons.add("OP_TRAVEL_BELOW_FLOOR");
-            return false;
-        }
-        if (result.cornerScoreQualified <= 0 && result.cornerScoreRaw > 0.5) {
-            reasons.add("CORNER_NOISE_FLOOR");
-            return false;
-        }
-        return true;
-    }
-
-    private static boolean isQualified(double score, String statusA, String statusB) {
-        if (score >= 0.55) return true;
-        if (isStrongOrWarn(statusA)) return true;
-        return isStrongOrWarn(statusB);
-    }
-
-    private static boolean isStrongOrWarn(String status) {
-        if (status == null) return false;
-        return "STRONG".equalsIgnoreCase(status) || "WARN".equalsIgnoreCase(status);
-    }
-
-    private static double clamp01(double v) {
-        if (Double.isNaN(v) || Double.isInfinite(v)) return 0;
-        return Math.max(0, Math.min(1.0, v));
-    }
-
     private static String firstNonEmpty(String a, String b) {
         if (a != null && !a.trim().isEmpty()) return a;
         if (b != null && !b.trim().isEmpty()) return b;
         return null;
-    }
-
-    private static void applyDiagnosisBands(CplmGateResult result, double confidence, boolean hasVp) {
-        if (confidence < 0.35) {
-            result.diagnosis = "NO_CALL";
-            result.gate15Status = "INSUFFICIENT_EVIDENCE";
-            result.severity = "LOW";
-        } else if (confidence < 0.55) {
-            result.diagnosis = "DETECTED_FINAL_ELEMENT_NONLINEARITY";
-            result.gate15Status = "SUSPECTED";
-            result.severity = "LOW";
-        } else if (confidence < 0.75) {
-            result.diagnosis = "CLASSIFIED_FINAL_ELEMENT_NONLINEARITY";
-            result.gate15Status = "SUSPECTED";
-            result.severity = "MEDIUM";
-        } else if (confidence < 0.90) {
-            result.diagnosis = "SUSPECTED_FINAL_ELEMENT_NONLINEARITY";
-            result.gate15Status = "SUSPECTED";
-            result.severity = "HIGH";
-        } else {
-            if (hasVp) {
-                result.diagnosis = "CONFIRMED_FINAL_ELEMENT_NONLINEARITY";
-                result.gate15Status = "CONFIRMED";
-                result.severity = "HIGH";
-            } else {
-                result.confidence = Math.min(confidence, 0.89);
-                result.diagnosis = "SUSPECTED_FINAL_ELEMENT_NONLINEARITY";
-                result.gate15Status = "SUSPECTED";
-                result.severity = "HIGH";
-            }
-        }
-    }
-
-    /** Human-readable zero-dead-end copy for G15 INSUFFICIENT_EVIDENCE (UI / KPI aggregation). */
-    static String buildInsufficientEvidenceReason(CplmGateResult result, boolean hasVp) {
-        java.util.LinkedHashSet<String> parts = new java.util.LinkedHashSet<>();
-        if (!"VALID".equals(result.periodStatus) || result.completedCycles < 1) {
-            parts.add("no valid oscillation cycle");
-        }
-        if (!hasVp) {
-            parts.add("valve position unavailable");
-        }
-        for (String d : result.familyDisqualifiers) {
-            if (d.contains("EFFORT_BELOW_FLOOR")) parts.add("actuator effort below floor");
-            if (d.contains("OP_TRAVEL_BELOW_FLOOR")) parts.add("OP travel below floor");
-            if (d.contains("AREA_BELOW_BAND")) parts.add("phase-portrait area below geometry band");
-            if (d.contains("AREA_OUT_OF_BAND")) parts.add("phase-portrait area out of band (artifact)");
-            if (d.contains("CORNER_NOISE_FLOOR")) parts.add("corner score not OP-qualified");
-            if (d.contains("NO_VALID_CYCLE")) parts.add("no valid oscillation cycle");
-            if (d.contains("GEOMETRY_ALONE_FORBIDDEN")) parts.add("geometry alone forbidden for this loop class");
-            if (d.contains("DISTURBANCE_CONTEXT")) parts.add("disturbance/interaction context");
-        }
-        if (parts.isEmpty()) {
-            parts.add("no diagnosis family qualified");
-        }
-        return "Insufficient evidence: " + String.join("; ", parts);
     }
 
     public static CplmGateResult fuseFromSamples(

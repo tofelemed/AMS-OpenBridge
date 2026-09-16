@@ -562,5 +562,7 @@ public sealed class CplmOptions
     public string GateResultsTopic { get; set; } = "traverse.cpa.clpm.gate.results.v1";
     public string ShortFeatureTopic { get; set; } = "traverse.cpa.clpm.feature.short.v1";
     public string LongFeatureTopic { get; set; } = "traverse.cpa.clpm.feature.long.v1";
+    /** v2.5 (Task 1D.5): fast-path G10/G11 conditions from CplmConditionStreamJob. */
+    public string ConditionTopic { get; set; } = "traverse.cpa.clpm.condition.v1";
     public string ConsumerGroupId { get; set; } = "traverse-cpa-cplm-results";
 }

@@ -140,12 +140,16 @@ public class CplmLoopDynamicsAwareTest {
         longD.gate8Status = "STRONG";
         longD.gate9Status = "STRONG";
         longD.hasVp = true;
+        // v2.5 R02: VP presence confirms nothing - the MEASURED non-following dwell does.
+        longD.vpEligibleSamples = 17_280;
+        longD.vpNonFollowingDwellS = 120;
 
         CplmGateResult r = CplmGateFusionEngine.fuse(
                 shortF, longD, false, false,
                 CplmLoopDynamicsProfile.forClass(CplmLoopDynamicsProfile.LoopClass.FIC));
 
         Assert.assertEquals("stiction", r.selectedFamily);
+        Assert.assertEquals("CONFIRMED", r.gate14Status);
         Assert.assertEquals("CONFIRMED", r.gate15Status);
         Assert.assertEquals("CONFIRMED_FINAL_ELEMENT_NONLINEARITY", r.diagnosis);
     }
@@ -277,6 +281,9 @@ public class CplmLoopDynamicsAwareTest {
         longD.gate7Status = "STRONG";
         longD.gate8Status = "STRONG";
         longD.hasVp = true;
+        // v2.5 R02: CONFIRMED needs the measured non-following dwell, not VP presence.
+        longD.vpEligibleSamples = 17_280;
+        longD.vpNonFollowingDwellS = 120;
 
         CplmLoopDynamicsProfile fic = CplmLoopDynamicsProfile.forClass(CplmLoopDynamicsProfile.LoopClass.FIC);
         CplmGateResult r = CplmGateFusionEngine.fuse(shortF, longD, false, false, fic);

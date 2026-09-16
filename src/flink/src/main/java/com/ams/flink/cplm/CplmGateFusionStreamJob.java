@@ -13,11 +13,20 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.util.Collector;
 
+import com.ams.flink.cplm.condition.ConditionEvent;
+import com.ams.flink.cplm.condition.OpenConditions;
+import com.ams.flink.cplm.contract.CplmTopics;
+
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Stage 3 - Gate fusion job (Gates 12-15) with keyed temporal persistence
@@ -42,6 +51,11 @@ public class CplmGateFusionStreamJob {
 
     public static void main(String[] args) throws Exception {
         CplmJobConfig cfg = CplmJobConfig.fromArgs(args);
+        // v2.5 (Task 1D.5): the fast-path condition topic joins the long slices; which long
+        // window kinds fuse is configurable (4h is opt-in: every fused kind adds ~33k gate
+        // rows/day at plant size to a table with no retention yet).
+        final String conditionTopic = argOr(args, "condition-topic", CplmTopics.CONDITION_EVENTS);
+        final Set<String> fuseKinds = new HashSet<>(Arrays.asList(argOr(args, "fuse-window-kinds", "12h,24h").split(",")));
         cfg = new CplmJobConfig(cfg.brokers, "AMS - CPLM Gate Fusion Engine",
                 cfg.consumerGroupId + "-fusion", cfg.inputTopic, cfg.outputTopic,
                 cfg.shortFeatureTopic, cfg.longFeatureTopic, cfg.windowHours, cfg.outOfOrdernessMinutes);
@@ -71,9 +85,24 @@ public class CplmGateFusionStreamJob {
         DataStream<CplmLongDiagnosticsResult> longStream =
                 CplmParameterSetBroadcastSupport.connectLongProfiles(parsedLongStream, env, cfg);
 
+        KafkaSource<String> conditionSource = KafkaSource.<String>builder()
+                .setBootstrapServers(cfg.brokers)
+                .setTopics(conditionTopic)
+                .setGroupId(cfg.consumerGroupId + "-conditions-in")
+                .setStartingOffsets(OffsetsInitializer.committedOffsets(OffsetResetStrategy.LATEST))
+                .setValueOnlyDeserializer(new SimpleStringSchema())
+                .build();
+        DataStream<ConditionEvent> conditionStream = env
+                .fromSource(conditionSource, WatermarkStrategy.noWatermarks(), "cplm-fusion-condition-source")
+                .map(ConditionEvent::fromJson)
+                .filter(c -> c != null && c.loopId != null && !c.loopId.isEmpty())
+                .name("cplm-fusion-condition-parse")
+                .uid("cplm-fusion-condition-parse");
+
         DataStream<String> fused = longStream
                 .keyBy(l -> l.loopId)
-                .process(new GateFusionProcess())
+                .connect(conditionStream.keyBy(c -> c.loopId))
+                .process(new GateFusionProcess(fuseKinds))
                 .name("cplm-gate-fusion-join")
                 .uid("cplm-gate-fusion-join")
                 .map(CplmGateResult::toJson)
@@ -88,9 +117,20 @@ public class CplmGateFusionStreamJob {
         env.execute(cfg.jobName);
     }
 
-    static class GateFusionProcess extends KeyedProcessFunction<String, CplmLongDiagnosticsResult, CplmGateResult> {
+    static class GateFusionProcess extends KeyedCoProcessFunction<String, CplmLongDiagnosticsResult, ConditionEvent, CplmGateResult> {
+        private final Set<String> fuseKinds;
         /** Per windowKind: recent selectedFamily history for persistence. */
         private transient MapState<String, List<String>> familyHistoryByKind;
+        /** v2.5 R11: the fast-path conditions currently open for this loop (kind -> latest event). */
+        private transient MapState<String, ConditionEvent> openConditions;
+
+        GateFusionProcess() {
+            this(new HashSet<>(Arrays.asList("12h", "24h")));
+        }
+
+        GateFusionProcess(Set<String> fuseKinds) {
+            this.fuseKinds = fuseKinds;
+        }
 
         @Override
         public void open(org.apache.flink.configuration.Configuration parameters) {
@@ -99,13 +139,21 @@ public class CplmGateFusionStreamJob {
                     TypeInformation.of(String.class),
                     TypeInformation.of(new TypeHint<List<String>>() {}));
             familyHistoryByKind = getRuntimeContext().getMapState(histDesc);
+            openConditions = getRuntimeContext().getMapState(new MapStateDescriptor<>(
+                    "open-conditions", TypeInformation.of(String.class), TypeInformation.of(ConditionEvent.class)));
         }
 
         @Override
-        public void processElement(CplmLongDiagnosticsResult longD, Context ctx, Collector<CplmGateResult> out) throws Exception {
-            // Fusion fires on 12h/24h only; 4h slices are KPI-only (served by
-            // /kpis?resolution=4h), never fusion inputs.
-            if (longD.windowKind == null || (!"24h".equals(longD.windowKind) && !"12h".equals(longD.windowKind))) {
+        public void processElement2(ConditionEvent c, Context ctx, Collector<CplmGateResult> out) throws Exception {
+            if (c.kind == null) return;
+            if ("CLOSED".equals(c.state)) openConditions.remove(c.kind);
+            else openConditions.put(c.kind, c);
+        }
+
+        @Override
+        public void processElement1(CplmLongDiagnosticsResult longD, Context ctx, Collector<CplmGateResult> out) throws Exception {
+            // Fusion fires on the configured long kinds (default 12h/24h; 4h opt-in).
+            if (longD.windowKind == null || !fuseKinds.contains(longD.windowKind)) {
                 return;
             }
             CplmShortFeatureResult shortF = longD.alignedShort;
@@ -135,7 +183,9 @@ public class CplmGateFusionStreamJob {
             boolean hasPeer = longD.observabilityFlags != null
                     && longD.observabilityFlags.contains("HAS_PEER_LINKS");
 
-            CplmGateResult fused = CplmGateFusionEngine.fuse(shortF, longD, hasStep, hasPeer, profile);
+            Map<String, ConditionEvent> open = new HashMap<>();
+            for (Map.Entry<String, ConditionEvent> e : openConditions.entries()) open.put(e.getKey(), e.getValue());
+            CplmGateResult fused = CplmGateFusionEngine.fuse(shortF, longD, hasStep, hasPeer, profile, OpenConditions.of(open));
             String elevatedFamily = elevatedFamilyForHistory(fused);
 
             List<String> prior = familyHistoryByKind.get(longD.windowKind);
@@ -171,5 +221,13 @@ public class CplmGateFusionStreamJob {
             if (b != null && !b.trim().isEmpty()) return b;
             return null;
         }
+    }
+
+    private static String argOr(String[] args, String key, String def) {
+        for (int i = 0; i < args.length - 1; i++) {
+            String a = args[i].startsWith("--") ? args[i].substring(2) : args[i];
+            if (a.equals(key)) return args[i + 1];
+        }
+        return def;
     }
 }
