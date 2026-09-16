@@ -123,19 +123,19 @@ Exit criteria: Flink test suite compiles and passes; every existing test project
 - Modify: `src/flink/src/test/java/com/ams/flink/cplm/CplmLoopDynamicsAwareTest.java:304,312` (`GateFusionCoProcess` → `GateFusionProcess`)
 - Test: whole `src/flink` suite
 
-- [ ] **Step 1: Reproduce** — `mvn -f src/flink/pom.xml -q test-compile`. Expected: `cannot find symbol GateFusionCoProcess`.
-- [ ] **Step 2: Fix** the two references to `CplmGateFusionStreamJob.GateFusionProcess.elevatedFamilyForHistory(...)`.
-- [ ] **Step 3: Run** `mvn -f src/flink/pom.xml test`. Expected: 30 tests, 0 failures. If any golden test (`CplmGateEngineSynTic001Test`) fails, record the delta in `docs/next-release/00-build-truth.md` — do not "fix" the golden.
-- [ ] **Step 4: Run the other baselines** and record counts in `docs/next-release/00-build-truth.md`: `dotnet test tests/ingestion-service.Tests` (expect 109), `dotnet test tests/cplm-api.Tests` (expect 43, needs lab Postgres on 5433), `dotnet test tests/binding-resolver.Tests`, `dotnet test tests/historian-bff.Tests`, `cd src/frontend-ob && npm test && npm run lint && npm run build`.
-- [ ] **Step 5: Commit** `test(flink): restore CPLM test compile (GateFusionProcess rename)`.
+- [x] **Step 1: Reproduce** — `mvn -f src/flink/pom.xml -q test-compile`. Expected: `cannot find symbol GateFusionCoProcess`.
+- [x] **Step 2: Fix** the two references to `CplmGateFusionStreamJob.GateFusionProcess.elevatedFamilyForHistory(...)`.
+- [x] **Step 3: Run** `mvn -f src/flink/pom.xml test`. Expected: 30 tests, 0 failures. If any golden test (`CplmGateEngineSynTic001Test`) fails, record the delta in `docs/next-release/00-build-truth.md` — do not "fix" the golden.
+- [x] **Step 4: Run the other baselines** and record counts in `docs/next-release/00-build-truth.md`: `dotnet test tests/ingestion-service.Tests` (expect 109), `dotnet test tests/cplm-api.Tests` (expect 43, needs lab Postgres on 5433), `dotnet test tests/binding-resolver.Tests`, `dotnet test tests/historian-bff.Tests`, `cd src/frontend-ob && npm test && npm run lint && npm run build`.
+- [x] **Step 5: Commit** `test(flink): restore CPLM test compile (GateFusionProcess rename)`.
 
 ### Task 0.2: Check the spec package and the code-audit into the repo
 
 **Files:**
 - Create: `docs/next-release/spec/` (copy of the four release-out files + the 12 `xlsx_*.tsv` exports), `docs/next-release/00-build-truth.md`, `docs/next-release/01-audit-vs-code.md` (the audit table from this plan, verbatim with file:line), `docs/next-release/conflicts.md` (C01–C07 with the disposition found in code, see "Build conflicts" above).
 
-- [ ] **Step 1: Write** the three markdown files. `conflicts.md` must state for each C0n: archive claim, doc claim, **code at 5cec34ef** (file:line), disposition.
-- [ ] **Step 2: Commit** `docs(next-release): spec v6 package + code audit of record`.
+- [x] **Step 1: Write** the three markdown files. `conflicts.md` must state for each C0n: archive claim, doc claim, **code at 5cec34ef** (file:line), disposition.
+- [x] **Step 2: Commit** `docs(next-release): spec v6 package + code audit of record`.
 
 ### Task 0.3: Build identity — stamp source commit and jar hash into every Flink result
 
@@ -158,12 +158,12 @@ public final class BuildIdentity implements java.io.Serializable {
 }
 ```
 
-- [ ] **Step 1: Failing test** — `BuildIdentityTest.currentReturnsCommitFromGitProperties()` writes a temp `git.properties` on the test classpath (`git.commit.id.full=abc…`), asserts `current().sourceCommit` equals it and `jarSha256` is `unknown-not-a-jar` when not running from a jar.
-- [ ] **Step 2: Run** `mvn -f src/flink/pom.xml -Dtest=BuildIdentityTest test` → FAIL (class missing).
-- [ ] **Step 3: Implement** `BuildIdentity` (read `/git.properties`, `MessageDigest SHA-256` over the jar file from `BuildIdentity.class.getProtectionDomain().getCodeSource().getLocation()` when it ends with `.jar`).
-- [ ] **Step 4: Pom** — add plugin + dependency; `mvn -q package -DskipTests` must still produce `target/ams-flink-1.0-SNAPSHOT.jar` (the name `scripts/build-flink-jar.ps1` and `CplmRecomputeService.cs:230` expect).
-- [ ] **Step 5: Stamp** in the four jobs; extend `CplmFormulaContractTest` JSON round-trip assertion to include the three new fields.
-- [ ] **Step 6: Run** full suite → PASS. **Commit** `feat(flink): build identity (source commit + jar sha256) on every CPLM result`.
+- [x] **Step 1: Failing test** — `BuildIdentityTest.currentReturnsCommitFromGitProperties()` writes a temp `git.properties` on the test classpath (`git.commit.id.full=abc…`), asserts `current().sourceCommit` equals it and `jarSha256` is `unknown-not-a-jar` when not running from a jar.
+- [x] **Step 2: Run** `mvn -f src/flink/pom.xml -Dtest=BuildIdentityTest test` → FAIL (class missing).
+- [x] **Step 3: Implement** `BuildIdentity` (read `/git.properties`, `MessageDigest SHA-256` over the jar file from `BuildIdentity.class.getProtectionDomain().getCodeSource().getLocation()` when it ends with `.jar`).
+- [x] **Step 4: Pom** — add plugin + dependency; `mvn -q package -DskipTests` must still produce `target/ams-flink-1.0-SNAPSHOT.jar` (the name `scripts/build-flink-jar.ps1` and `CplmRecomputeService.cs:230` expect).
+- [x] **Step 5: Stamp** in the four jobs; extend `CplmFormulaContractTest` JSON round-trip assertion to include the three new fields.
+- [x] **Step 6: Run** full suite → PASS. **Commit** `feat(flink): build identity (source commit + jar sha256) on every CPLM result`.
 
 ### Task 0.4: cplm-api reads and exposes the build identity; `/capabilities` v0
 
@@ -183,9 +183,9 @@ public final class BuildIdentity implements java.io.Serializable {
 ```
 The `methods` list is the **installed** catalogue; Phases 2–3 append `G12.SYSTEM_RESPONSE`, property support and execution-plan capacity. `CapabilityManifest.Build(IEnumerable<EngineVersionRow>, WindowSpecs)` is a pure function so it is unit-testable without a DB.
 
-- [ ] **Step 1: Failing test** `CapabilityManifestTests.ListsEveryGateOnceWithInstalledState()` — 17 gate entries exactly once (G0…G15 + G2r), G12/G13/G14 flagged `LEGACY_FLAG_ONLY`.
-- [ ] **Step 2: Implement** controller + manifest builder (reuse `CpmAnalyticsController.GateDefs/WindowSpecs`).
-- [ ] **Step 3: Run** `dotnet test tests/cplm-api.Tests --filter CapabilityManifest` → PASS. **Commit** `feat(cplm-api): GET /capabilities with build identity`.
+- [x] **Step 1: Failing test** `CapabilityManifestTests.ListsEveryGateOnceWithInstalledState()` — 17 gate entries exactly once (G0…G15 + G2r), G12/G13/G14 flagged `LEGACY_FLAG_ONLY`.
+- [x] **Step 2: Implement** controller + manifest builder (reuse `CpmAnalyticsController.GateDefs/WindowSpecs`).
+- [x] **Step 3: Run** `dotnet test tests/cplm-api.Tests --filter CapabilityManifest` → PASS. **Commit** `feat(cplm-api): GET /capabilities with build identity`.
 
 ### Task 0.5: Frontend shows build identity; `cpmApi.ts` split
 
@@ -194,7 +194,7 @@ The `methods` list is the **installed** catalogue; Phases 2–3 append `G12.SYST
 - Modify: `components/Cpm/CpmGovernance.tsx` version-provenance card shows `sourceCommit`/`jarSha256` (first 12 chars, full in tooltip) per observed engine.
 - Test: `src/api/cpm/capabilities.test.ts` (fetch mock → typed parse)
 
-- [ ] **Step 1: Failing test**, **Step 2: implement**, **Step 3:** `npm test && npm run lint && npm run build` → clean. **Commit** `feat(cpm-ui): build identity in Governance; api/cpm module split`.
+- [x] **Step 1: Failing test**, **Step 2: implement**, **Step 3:** `npm test && npm run lint && npm run build` → clean. **Commit** `feat(cpm-ui): build identity in Governance; api/cpm module split`.
 
 ---
 

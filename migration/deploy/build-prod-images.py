@@ -140,6 +140,15 @@ def main() -> int:
         sys.stderr.write(f"unknown service(s): {unknown}\n")
         return 1
 
+    # v2.5 R26: stamp the source commit into every image build (Dockerfiles that declare the
+    # SOURCE_COMMIT build arg expose it as an env var / OCI revision label; the others ignore it).
+    if not os.environ.get("SOURCE_COMMIT"):
+        try:
+            os.environ["SOURCE_COMMIT"] = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        except Exception:  # noqa: BLE001 - no git on the box: honest unknown, not a fake hash
+            os.environ["SOURCE_COMMIT"] = "unknown"
+    log(f"SOURCE_COMMIT={os.environ['SOURCE_COMMIT']}")
+
     status_rows: list[tuple[str, str, str, str]] = []
     for svc in services:
         img = image_name(svc)

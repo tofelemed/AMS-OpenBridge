@@ -10,6 +10,11 @@ COPY . .
 RUN dotnet publish -c Release -o /app --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+# v2.5 R26: build identity. compose passes SOURCE_COMMIT (lab: env; plant: build-prod-images.py
+# from git rev-parse HEAD). GET /api/v1/cpm/capabilities reports it; 'unknown' is never faked.
+ARG SOURCE_COMMIT=unknown
+ENV SOURCE_COMMIT=$SOURCE_COMMIT
+LABEL org.opencontainers.image.revision=$SOURCE_COMMIT
 WORKDIR /app
 COPY --from=build /app .
 

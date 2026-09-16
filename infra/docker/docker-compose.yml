@@ -1342,6 +1342,8 @@ services:
   cplm-api:
     build:
       context: ../../src/services/cplm-api
+      args:
+        SOURCE_COMMIT: ${SOURCE_COMMIT:-unknown}
     container_name: traverse-cplm-api
     logging: *default-logging
     <<: *default-restart
