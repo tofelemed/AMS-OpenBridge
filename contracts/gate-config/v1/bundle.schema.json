@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "traverse.cpa.gate-config.bundle/v1",
+  "title": "Gate configuration bundle (spec v6 §5.3–5.6)",
+  "description": "An IMMUTABLE resolved configuration: its layers (FACTORY → SITE → one PROFILE → LOOP → one REGIME), the resolved properties and execution plan, the catalogue it was validated against, and the approvals bound to its content hash. The hash is SHA-256 of the RFC 8785 canonical JSON of {scope, layers, resolved}. Flink consumes only complete bundles and pins the hash on every result.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["bundle_id", "version", "hash", "scope", "parent_hashes", "requires", "change_class", "layers", "resolved"],
+  "properties": {
+    "bundle_id": { "type": "string", "format": "uuid" },
+    "version": { "type": "integer", "minimum": 1 },
+    "hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenant", "site", "kind"],
+      "properties": {
+        "tenant": { "type": "string" },
+        "site": { "type": "string" },
+        "kind": { "type": "string", "enum": ["SITE", "PROFILE", "LOOP", "REGIME"] },
+        "profile_id": { "type": ["string", "null"] },
+        "loop_id": { "type": ["string", "null"] },
+        "regime_id": { "type": ["string", "null"] }
+      }
+    },
+    "parent_hashes": { "type": "array", "items": { "type": "string", "pattern": "^[0-9a-f]{64}$" } },
+    "requires": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["catalogue_hash", "schema_version"],
+      "properties": {
+        "catalogue_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "schema_version": { "type": "string" },
+        "method_versions": { "type": "object", "additionalProperties": { "type": "string" } },
+        "build_capability": { "type": ["string", "null"] }
+      }
+    },
+    "change_class": { "type": "string", "enum": ["POLICY", "STATE_BOUNDARY", "DEPLOYMENT"] },
+    "effective_from": { "type": ["string", "null"], "format": "date-time" },
+    "approvals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["approver", "role", "content_hash", "decision", "at"],
+        "properties": {
+          "approver": { "type": "string" },
+          "role": { "type": "string" },
+          "content_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "decision": { "type": "string", "enum": ["APPROVED", "REJECTED"] },
+          "at": { "type": "string", "format": "date-time" },
+          "expires_at": { "type": ["string", "null"], "format": "date-time" },
+          "note": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "constraints": { "type": "object" },
+    "layers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "ordinal", "content", "content_hash"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["FACTORY", "SITE", "PROFILE", "LOOP", "REGIME"] },
+          "ref": { "type": ["string", "null"] },
+          "ordinal": { "type": "integer", "minimum": 0 },
+          "content": { "type": "object", "description": "property -> value, or property -> \"RESET_TO_INHERITED\"" },
+          "content_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "resolved": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["properties", "execution_plan"],
+      "properties": {
+        "properties": { "type": "object", "description": "every catalogue property -> its effective value (null = NO_VALUE, stated)" },
+        "sources": { "type": "object", "description": "property -> the layer kind that supplied its value" },
+        "execution_plan": { "$ref": "execution-plan.schema.json" }
+      }
+    }
+  }
+}

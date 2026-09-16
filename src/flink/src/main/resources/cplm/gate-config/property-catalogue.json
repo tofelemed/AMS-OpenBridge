@@ -1,0 +1,3268 @@
+{
+  "schema": "traverse.cpa.gate-config.property-catalogue/v1",
+  "source": "docs/next-release/spec/xlsx_Gate_properties.tsv (spec v6 sheet '165 PROPOSED GATE PROPERTIES')",
+  "generated_by": "scripts/gen-property-catalogue.py",
+  "catalogue_hash": "8bbcbbbb7da04ddcd639454605d56a7f9edab7cde7585825672836e0aa93766d",
+  "count": 165,
+  "change_classes": [
+    "POLICY",
+    "STATE_BOUNDARY",
+    "DEPLOYMENT"
+  ],
+  "consumers": [
+    "api",
+    "flink:condition",
+    "flink:fusion",
+    "flink:long",
+    "flink:response",
+    "flink:short"
+  ],
+  "properties": [
+    {
+      "id": "CFG-001",
+      "gate": "G0",
+      "property": "G0.mode",
+      "type": "enum",
+      "unit": "state",
+      "default": "OPERATIONAL",
+      "validation": [
+        "OPERATIONAL",
+        "OBSERVE_ONLY",
+        "SHADOW",
+        "DISABLED"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled"
+    },
+    {
+      "id": "CFG-002",
+      "gate": "G0",
+      "property": "G0.role",
+      "type": "enum",
+      "unit": "role",
+      "default": "REQUIRED_CONTEXT",
+      "validation": [
+        "REQUIRED_CONTEXT",
+        "PRIMARY",
+        "SUPPORTING",
+        "DISPLAY_ONLY",
+        "INAPPLICABLE"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Validated method/profile restricts allowed role; no role can permit unsupported confirmation"
+    },
+    {
+      "id": "CFG-003",
+      "gate": "G0",
+      "property": "G0.evidence_retention_days",
+      "type": "integer",
+      "unit": "day",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 3650
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry"
+    },
+    {
+      "id": "CFG-004",
+      "gate": "G1",
+      "property": "G1.mode",
+      "type": "enum",
+      "unit": "state",
+      "default": "OPERATIONAL",
+      "validation": [
+        "OPERATIONAL",
+        "OBSERVE_ONLY",
+        "SHADOW",
+        "DISABLED"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled"
+    },
+    {
+      "id": "CFG-005",
+      "gate": "G1",
+      "property": "G1.role",
+      "type": "enum",
+      "unit": "role",
+      "default": "REQUIRED_CONTEXT",
+      "validation": [
+        "REQUIRED_CONTEXT",
+        "PRIMARY",
+        "SUPPORTING",
+        "DISPLAY_ONLY",
+        "INAPPLICABLE"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Validated method/profile restricts allowed role; no role can permit unsupported confirmation"
+    },
+    {
+      "id": "CFG-006",
+      "gate": "G1",
+      "property": "G1.evidence_retention_days",
+      "type": "integer",
+      "unit": "day",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 3650
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry"
+    },
+    {
+      "id": "CFG-007",
+      "gate": "G2",
+      "property": "G2.mode",
+      "type": "enum",
+      "unit": "state",
+      "default": "OPERATIONAL",
+      "validation": [
+        "OPERATIONAL",
+        "OBSERVE_ONLY",
+        "SHADOW",
+        "DISABLED"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled"
+    },
+    {
+      "id": "CFG-008",
+      "gate": "G2",
+      "property": "G2.role",
+      "type": "enum",
+      "unit": "role",
+      "default": "SUPPORTING",
+      "validation": [
+        "REQUIRED_CONTEXT",
+        "PRIMARY",
+        "SUPPORTING",
+        "DISPLAY_ONLY",
+        "INAPPLICABLE"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Validated method/profile restricts allowed role; no role can permit unsupported confirmation"
+    },
+    {
+      "id": "CFG-009",
+      "gate": "G2",
+      "property": "G2.evidence_retention_days",
+      "type": "integer",
+      "unit": "day",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 3650
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry"
+    },
+    {
+      "id": "CFG-010",
+      "gate": "G2r",
+      "property": "G2r.mode",
+      "type": "enum",
+      "unit": "state",
+      "default": "OPERATIONAL",
+      "validation": [
+        "OPERATIONAL",
+        "OBSERVE_ONLY",
+        "SHADOW",
+        "DISABLED"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled"
+    },
+    {
+      "id": "CFG-011",
+      "gate": "G2r",
+      "property": "G2r.role",
+      "type": "enum",
+      "unit": "role",
+      "default": "REQUIRED_CONTEXT",
+      "validation": [
+        "REQUIRED_CONTEXT",
+        "PRIMARY",
+        "SUPPORTING",
+        "DISPLAY_ONLY",
+        "INAPPLICABLE"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Validated method/profile restricts allowed role; no role can permit unsupported confirmation"
+    },
+    {
+      "id": "CFG-012",
+      "gate": "G2r",
+      "property": "G2r.evidence_retention_days",
+      "type": "integer",
+      "unit": "day",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 3650
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry"
+    },
+    {
+      "id": "CFG-013",
+      "gate": "G3",
+      "property": "G3.mode",
+      "type": "enum",
+      "unit": "state",
+      "default": "OPERATIONAL",
+      "validation": [
+        "OPERATIONAL",
+        "OBSERVE_ONLY",
+        "SHADOW",
+        "DISABLED"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled"
+    },
+    {
+      "id": "CFG-014",
+      "gate": "G3",
+      "property": "G3.role",
+      "type": "enum",
+      "unit": "role",
+      "default": "SUPPORTING",
+      "validation": [
+        "REQUIRED_CONTEXT",
+        "PRIMARY",
+        "SUPPORTING",
+        "DISPLAY_ONLY",
+        "INAPPLICABLE"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Validated method/profile restricts allowed role; no role can permit unsupported confirmation"
+    },
+    {
+      "id": "CFG-015",
+      "gate": "G3",
+      "property": "G3.evidence_retention_days",
+      "type": "integer",
+      "unit": "day",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 3650
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry"
+    },
+    {
+      "id": "CFG-016",
+      "gate": "G4",
+      "property": "G4.mode",
+      "type": "enum",
+      "unit": "state",
+      "default": "OPERATIONAL",
+      "validation": [
+        "OPERATIONAL",
+        "OBSERVE_ONLY",
+        "SHADOW",
+        "DISABLED"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled"
+    },
+    {
+      "id": "CFG-017",
+      "gate": "G4",
+      "property": "G4.role",
+      "type": "enum",
+      "unit": "role",
+      "default": "SUPPORTING",
+      "validation": [
+        "REQUIRED_CONTEXT",
+        "PRIMARY",
+        "SUPPORTING",
+        "DISPLAY_ONLY",
+        "INAPPLICABLE"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Validated method/profile restricts allowed role; no role can permit unsupported confirmation"
+    },
+    {
+      "id": "CFG-018",
+      "gate": "G4",
+      "property": "G4.evidence_retention_days",
+      "type": "integer",
+      "unit": "day",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 3650
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry"
+    },
+    {
+      "id": "CFG-019",
+      "gate": "G5",
+      "property": "G5.mode",
+      "type": "enum",
+      "unit": "state",
+      "default": "OPERATIONAL",
+      "validation": [
+        "OPERATIONAL",
+        "OBSERVE_ONLY",
+        "SHADOW",
+        "DISABLED"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled"
+    },
+    {
+      "id": "CFG-020",
+      "gate": "G5",
+      "property": "G5.role",
+      "type": "enum",
+      "unit": "role",
+      "default": "SUPPORTING",
+      "validation": [
+        "REQUIRED_CONTEXT",
+        "PRIMARY",
+        "SUPPORTING",
+        "DISPLAY_ONLY",
+        "INAPPLICABLE"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Validated method/profile restricts allowed role; no role can permit unsupported confirmation"
+    },
+    {
+      "id": "CFG-021",
+      "gate": "G5",
+      "property": "G5.evidence_retention_days",
+      "type": "integer",
+      "unit": "day",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 3650
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry"
+    },
+    {
+      "id": "CFG-022",
+      "gate": "G6",
+      "property": "G6.mode",
+      "type": "enum",
+      "unit": "state",
+      "default": "OPERATIONAL",
+      "validation": [
+        "OPERATIONAL",
+        "OBSERVE_ONLY",
+        "SHADOW",
+        "DISABLED"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled"
+    },
+    {
+      "id": "CFG-023",
+      "gate": "G6",
+      "property": "G6.role",
+      "type": "enum",
+      "unit": "role",
+      "default": "SUPPORTING",
+      "validation": [
+        "REQUIRED_CONTEXT",
+        "PRIMARY",
+        "SUPPORTING",
+        "DISPLAY_ONLY",
+        "INAPPLICABLE"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Validated method/profile restricts allowed role; no role can permit unsupported confirmation"
+    },
+    {
+      "id": "CFG-024",
+      "gate": "G6",
+      "property": "G6.evidence_retention_days",
+      "type": "integer",
+      "unit": "day",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 3650
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry"
+    },
+    {
+      "id": "CFG-025",
+      "gate": "G7",
+      "property": "G7.mode",
+      "type": "enum",
+      "unit": "state",
+      "default": "OPERATIONAL",
+      "validation": [
+        "OPERATIONAL",
+        "OBSERVE_ONLY",
+        "SHADOW",
+        "DISABLED"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled"
+    },
+    {
+      "id": "CFG-026",
+      "gate": "G7",
+      "property": "G7.role",
+      "type": "enum",
+      "unit": "role",
+      "default": "SUPPORTING",
+      "validation": [
+        "REQUIRED_CONTEXT",
+        "PRIMARY",
+        "SUPPORTING",
+        "DISPLAY_ONLY",
+        "INAPPLICABLE"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Validated method/profile restricts allowed role; no role can permit unsupported confirmation"
+    },
+    {
+      "id": "CFG-027",
+      "gate": "G7",
+      "property": "G7.evidence_retention_days",
+      "type": "integer",
+      "unit": "day",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 3650
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry"
+    },
+    {
+      "id": "CFG-028",
+      "gate": "G8",
+      "property": "G8.mode",
+      "type": "enum",
+      "unit": "state",
+      "default": "OPERATIONAL",
+      "validation": [
+        "OPERATIONAL",
+        "OBSERVE_ONLY",
+        "SHADOW",
+        "DISABLED"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled"
+    },
+    {
+      "id": "CFG-029",
+      "gate": "G8",
+      "property": "G8.role",
+      "type": "enum",
+      "unit": "role",
+      "default": "SUPPORTING",
+      "validation": [
+        "REQUIRED_CONTEXT",
+        "PRIMARY",
+        "SUPPORTING",
+        "DISPLAY_ONLY",
+        "INAPPLICABLE"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Validated method/profile restricts allowed role; no role can permit unsupported confirmation"
+    },
+    {
+      "id": "CFG-030",
+      "gate": "G8",
+      "property": "G8.evidence_retention_days",
+      "type": "integer",
+      "unit": "day",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 3650
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry"
+    },
+    {
+      "id": "CFG-031",
+      "gate": "G9",
+      "property": "G9.mode",
+      "type": "enum",
+      "unit": "state",
+      "default": "OPERATIONAL",
+      "validation": [
+        "OPERATIONAL",
+        "OBSERVE_ONLY",
+        "SHADOW",
+        "DISABLED"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled"
+    },
+    {
+      "id": "CFG-032",
+      "gate": "G9",
+      "property": "G9.role",
+      "type": "enum",
+      "unit": "role",
+      "default": "SUPPORTING",
+      "validation": [
+        "REQUIRED_CONTEXT",
+        "PRIMARY",
+        "SUPPORTING",
+        "DISPLAY_ONLY",
+        "INAPPLICABLE"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Validated method/profile restricts allowed role; no role can permit unsupported confirmation"
+    },
+    {
+      "id": "CFG-033",
+      "gate": "G9",
+      "property": "G9.evidence_retention_days",
+      "type": "integer",
+      "unit": "day",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 3650
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry"
+    },
+    {
+      "id": "CFG-034",
+      "gate": "G10",
+      "property": "G10.mode",
+      "type": "enum",
+      "unit": "state",
+      "default": "OPERATIONAL",
+      "validation": [
+        "OPERATIONAL",
+        "OBSERVE_ONLY",
+        "SHADOW",
+        "DISABLED"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled"
+    },
+    {
+      "id": "CFG-035",
+      "gate": "G10",
+      "property": "G10.role",
+      "type": "enum",
+      "unit": "role",
+      "default": "SUPPORTING",
+      "validation": [
+        "REQUIRED_CONTEXT",
+        "PRIMARY",
+        "SUPPORTING",
+        "DISPLAY_ONLY",
+        "INAPPLICABLE"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Validated method/profile restricts allowed role; no role can permit unsupported confirmation"
+    },
+    {
+      "id": "CFG-036",
+      "gate": "G10",
+      "property": "G10.evidence_retention_days",
+      "type": "integer",
+      "unit": "day",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 3650
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry"
+    },
+    {
+      "id": "CFG-037",
+      "gate": "G11",
+      "property": "G11.mode",
+      "type": "enum",
+      "unit": "state",
+      "default": "OPERATIONAL",
+      "validation": [
+        "OPERATIONAL",
+        "OBSERVE_ONLY",
+        "SHADOW",
+        "DISABLED"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled"
+    },
+    {
+      "id": "CFG-038",
+      "gate": "G11",
+      "property": "G11.role",
+      "type": "enum",
+      "unit": "role",
+      "default": "SUPPORTING",
+      "validation": [
+        "REQUIRED_CONTEXT",
+        "PRIMARY",
+        "SUPPORTING",
+        "DISPLAY_ONLY",
+        "INAPPLICABLE"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Validated method/profile restricts allowed role; no role can permit unsupported confirmation"
+    },
+    {
+      "id": "CFG-039",
+      "gate": "G11",
+      "property": "G11.evidence_retention_days",
+      "type": "integer",
+      "unit": "day",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 3650
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry"
+    },
+    {
+      "id": "CFG-040",
+      "gate": "G12",
+      "property": "G12.mode",
+      "type": "enum",
+      "unit": "state",
+      "default": "OPERATIONAL",
+      "validation": [
+        "OPERATIONAL",
+        "OBSERVE_ONLY",
+        "SHADOW",
+        "DISABLED"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:response",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled"
+    },
+    {
+      "id": "CFG-041",
+      "gate": "G12",
+      "property": "G12.role",
+      "type": "enum",
+      "unit": "role",
+      "default": "SUPPORTING",
+      "validation": [
+        "REQUIRED_CONTEXT",
+        "PRIMARY",
+        "SUPPORTING",
+        "DISPLAY_ONLY",
+        "INAPPLICABLE"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:response",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Validated method/profile restricts allowed role; no role can permit unsupported confirmation"
+    },
+    {
+      "id": "CFG-042",
+      "gate": "G12",
+      "property": "G12.evidence_retention_days",
+      "type": "integer",
+      "unit": "day",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 3650
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry"
+    },
+    {
+      "id": "CFG-043",
+      "gate": "G13",
+      "property": "G13.mode",
+      "type": "enum",
+      "unit": "state",
+      "default": "OPERATIONAL",
+      "validation": [
+        "OPERATIONAL",
+        "OBSERVE_ONLY",
+        "SHADOW",
+        "DISABLED"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled"
+    },
+    {
+      "id": "CFG-044",
+      "gate": "G13",
+      "property": "G13.role",
+      "type": "enum",
+      "unit": "role",
+      "default": "SUPPORTING",
+      "validation": [
+        "REQUIRED_CONTEXT",
+        "PRIMARY",
+        "SUPPORTING",
+        "DISPLAY_ONLY",
+        "INAPPLICABLE"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Validated method/profile restricts allowed role; no role can permit unsupported confirmation"
+    },
+    {
+      "id": "CFG-045",
+      "gate": "G13",
+      "property": "G13.evidence_retention_days",
+      "type": "integer",
+      "unit": "day",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 3650
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry"
+    },
+    {
+      "id": "CFG-046",
+      "gate": "G14",
+      "property": "G14.mode",
+      "type": "enum",
+      "unit": "state",
+      "default": "OPERATIONAL",
+      "validation": [
+        "OPERATIONAL",
+        "OBSERVE_ONLY",
+        "SHADOW",
+        "DISABLED"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:fusion",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled"
+    },
+    {
+      "id": "CFG-047",
+      "gate": "G14",
+      "property": "G14.role",
+      "type": "enum",
+      "unit": "role",
+      "default": "REQUIRED_CONTEXT",
+      "validation": [
+        "REQUIRED_CONTEXT",
+        "PRIMARY",
+        "SUPPORTING",
+        "DISPLAY_ONLY",
+        "INAPPLICABLE"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:fusion",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Validated method/profile restricts allowed role; no role can permit unsupported confirmation"
+    },
+    {
+      "id": "CFG-048",
+      "gate": "G14",
+      "property": "G14.evidence_retention_days",
+      "type": "integer",
+      "unit": "day",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 3650
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry"
+    },
+    {
+      "id": "CFG-049",
+      "gate": "G15",
+      "property": "G15.mode",
+      "type": "enum",
+      "unit": "state",
+      "default": "OPERATIONAL",
+      "validation": [
+        "OPERATIONAL",
+        "OBSERVE_ONLY",
+        "SHADOW",
+        "DISABLED"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:fusion",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled"
+    },
+    {
+      "id": "CFG-050",
+      "gate": "G15",
+      "property": "G15.role",
+      "type": "enum",
+      "unit": "role",
+      "default": "REQUIRED_CONTEXT",
+      "validation": [
+        "REQUIRED_CONTEXT",
+        "PRIMARY",
+        "SUPPORTING",
+        "DISPLAY_ONLY",
+        "INAPPLICABLE"
+      ],
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:fusion",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Validated method/profile restricts allowed role; no role can permit unsupported confirmation"
+    },
+    {
+      "id": "CFG-051",
+      "gate": "G15",
+      "property": "G15.evidence_retention_days",
+      "type": "integer",
+      "unit": "day",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 3650
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry"
+    },
+    {
+      "id": "CFG-052",
+      "gate": "G0",
+      "property": "G0.coverage_min",
+      "type": "number",
+      "unit": "fraction",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [],
+      "effect": "Minimum qualified time coverage for dependent method"
+    },
+    {
+      "id": "CFG-053",
+      "gate": "G0",
+      "property": "G0.bad_fraction_max",
+      "type": "number",
+      "unit": "fraction",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [],
+      "effect": "Worst permitted invalid support; native bad values never become usable"
+    },
+    {
+      "id": "CFG-054",
+      "gate": "G0",
+      "property": "G0.required_signal_max_age_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0.001,
+        "maximum": 86400
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [
+        "G0.acquisition_mode"
+      ],
+      "effect": "Per-role policy may be stricter; cannot replace actual source freshness"
+    },
+    {
+      "id": "CFG-055",
+      "gate": "G0",
+      "property": "G0.max_gap_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0.001,
+        "maximum": 86400
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [
+        "G0.acquisition_mode"
+      ],
+      "effect": "Largest allowed unsupported interval; event censor/split"
+    },
+    {
+      "id": "CFG-056",
+      "gate": "G0",
+      "property": "G0.alignment_tolerance_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 3600
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [
+        "G0.acquisition_mode"
+      ],
+      "effect": "Maximum verified role alignment uncertainty"
+    },
+    {
+      "id": "CFG-057",
+      "gate": "G0",
+      "property": "G0.min_samples",
+      "type": "integer",
+      "unit": "sample",
+      "default": 10,
+      "validation": {
+        "minimum": 2,
+        "maximum": 1000000
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [],
+      "effect": "Necessary but not sufficient method support"
+    },
+    {
+      "id": "CFG-058",
+      "gate": "G0",
+      "property": "G0.jitter_warn_fraction",
+      "type": "number",
+      "unit": "fraction",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 10
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [
+        "G0.acquisition_mode"
+      ],
+      "effect": "Observed interval variation warning, not interpolation permission"
+    },
+    {
+      "id": "CFG-059",
+      "gate": "G1",
+      "property": "G1.auto_fraction_min",
+      "type": "number",
+      "unit": "fraction",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [
+        "G1.auto_tokens"
+      ],
+      "effect": "Commissioned eligible control-authority duration, not merely string AUTO"
+    },
+    {
+      "id": "CFG-060",
+      "gate": "G1",
+      "property": "G1.transition_guard_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 86400
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [
+        "G1.auto_tokens"
+      ],
+      "effect": "Guard around actual mode/selector transitions"
+    },
+    {
+      "id": "CFG-061",
+      "gate": "G1",
+      "property": "G1.authority_max_age_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0.001,
+        "maximum": 86400
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [
+        "G1.auto_tokens"
+      ],
+      "effect": "Current authority validity threshold"
+    },
+    {
+      "id": "CFG-062",
+      "gate": "G2",
+      "property": "G2.stability_band_pv_eu",
+      "type": "number",
+      "unit": "PV_EU",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1000000000000.0
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [],
+      "effect": "Absolute SP stability band with explicit loop engineering unit"
+    },
+    {
+      "id": "CFG-063",
+      "gate": "G2",
+      "property": "G2.stability_band_span_fraction",
+      "type": "number",
+      "unit": "fraction",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [],
+      "effect": "Configured SP range criterion complementary to absolute threshold"
+    },
+    {
+      "id": "CFG-064",
+      "gate": "G2",
+      "property": "G2.step_min_pv_eu",
+      "type": "number",
+      "unit": "PV_EU",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1000000000000.0
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [
+        "G2.stability_band_pv_eu",
+        "G2.stability_band_span_fraction"
+      ],
+      "effect": "Event step threshold; actual effective SP"
+    },
+    {
+      "id": "CFG-065",
+      "gate": "G2",
+      "property": "G2.ramp_min_pv_eu_per_s",
+      "type": "number",
+      "unit": "PV_EU/s",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1000000000000.0
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [
+        "G2.stability_band_pv_eu",
+        "G2.stability_band_span_fraction"
+      ],
+      "effect": "Ramp detector threshold"
+    },
+    {
+      "id": "CFG-066",
+      "gate": "G2",
+      "property": "G2.event_dwell_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 86400
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [
+        "G2.step_min_pv_eu"
+      ],
+      "effect": "New SP event persistence"
+    },
+    {
+      "id": "CFG-067",
+      "gate": "G2r",
+      "property": "G2r.pv_region_min",
+      "type": "number",
+      "unit": "PV_EU",
+      "default": null,
+      "validation": {
+        "minimum": -1000000000000000.0,
+        "maximum": 1000000000000000.0
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [],
+      "effect": "Approved model/operating domain, not alarm/trip limit"
+    },
+    {
+      "id": "CFG-068",
+      "gate": "G2r",
+      "property": "G2r.pv_region_max",
+      "type": "number",
+      "unit": "PV_EU",
+      "default": null,
+      "validation": {
+        "minimum": -1000000000000000.0,
+        "maximum": 1000000000000000.0
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [
+        "G2r.pv_region_min"
+      ],
+      "effect": "Maximum greater than minimum"
+    },
+    {
+      "id": "CFG-069",
+      "gate": "G2r",
+      "property": "G2r.applied_input_region_min",
+      "type": "number",
+      "unit": "input_EU",
+      "default": null,
+      "validation": {
+        "minimum": -1000000000000000.0,
+        "maximum": 1000000000000000.0
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [],
+      "effect": "Actual command path operating domain"
+    },
+    {
+      "id": "CFG-070",
+      "gate": "G2r",
+      "property": "G2r.applied_input_region_max",
+      "type": "number",
+      "unit": "input_EU",
+      "default": null,
+      "validation": {
+        "minimum": -1000000000000000.0,
+        "maximum": 1000000000000000.0
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [
+        "G2r.applied_input_region_min"
+      ],
+      "effect": "Maximum greater than minimum"
+    },
+    {
+      "id": "CFG-071",
+      "gate": "G2r",
+      "property": "G2r.out_of_domain_warn_fraction",
+      "type": "number",
+      "unit": "fraction",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [
+        "G2r.pv_region_min",
+        "G2r.pv_region_max",
+        "G2r.applied_input_region_min",
+        "G2r.applied_input_region_max"
+      ],
+      "effect": "Domain-exposure warning; all physical excursions retained"
+    },
+    {
+      "id": "CFG-072",
+      "gate": "G3",
+      "property": "G3.error_band_abs_pv_eu",
+      "type": "number",
+      "unit": "PV_EU",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1000000000000.0
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [
+        "G3.objective_type"
+      ],
+      "effect": "Approved error band absolute contribution"
+    },
+    {
+      "id": "CFG-073",
+      "gate": "G3",
+      "property": "G3.error_band_span_fraction",
+      "type": "number",
+      "unit": "fraction",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [
+        "G3.objective_type"
+      ],
+      "effect": "Approved error band relative contribution"
+    },
+    {
+      "id": "CFG-074",
+      "gate": "G3",
+      "property": "G3.objective_compliance_min",
+      "type": "number",
+      "unit": "fraction",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [
+        "G3.error_band_abs_pv_eu",
+        "G3.error_band_span_fraction"
+      ],
+      "effect": "Time-based target; no generic 50 percent healthy claim"
+    },
+    {
+      "id": "CFG-075",
+      "gate": "G3",
+      "property": "G3.ewma_alpha",
+      "type": "number",
+      "unit": "fraction",
+      "default": 0.2,
+      "validation": {
+        "minimum": 0.001,
+        "maximum": 1
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [],
+      "effect": "Trend change detector alpha; baseline approval independent"
+    },
+    {
+      "id": "CFG-076",
+      "gate": "G3",
+      "property": "G3.baseline_min_valid_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [
+        "G3.ewma_alpha"
+      ],
+      "effect": "Minimum comparable baseline support"
+    },
+    {
+      "id": "CFG-077",
+      "gate": "G4",
+      "property": "G4.activity_warn_ratio",
+      "type": "number",
+      "unit": "dimensionless",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 10000
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [],
+      "effect": "Ratio versus approved regime-specific activity reference, not valve proof"
+    },
+    {
+      "id": "CFG-078",
+      "gate": "G4",
+      "property": "G4.activity_high_ratio",
+      "type": "number",
+      "unit": "dimensionless",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 10000
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [
+        "G4.activity_warn_ratio"
+      ],
+      "effect": "High ratio must exceed warning"
+    },
+    {
+      "id": "CFG-079",
+      "gate": "G4",
+      "property": "G4.reversal_deadband_pp",
+      "type": "number",
+      "unit": "percentage_point",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 100
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [],
+      "effect": "Meaningful command movement threshold"
+    },
+    {
+      "id": "CFG-080",
+      "gate": "G4",
+      "property": "G4.min_pv_excitation_pv_eu",
+      "type": "number",
+      "unit": "PV_EU",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1000000000000.0
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [],
+      "effect": "Avoid unstable near-zero denominator; return unavailable"
+    },
+    {
+      "id": "CFG-081",
+      "gate": "G4",
+      "property": "G4.travel_rate_min_support_s",
+      "type": "number",
+      "unit": "s",
+      "default": 3600.0,
+      "validation": {
+        "minimum": 1,
+        "maximum": 31536000
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [
+        "G4.reversal_deadband_pp"
+      ],
+      "effect": "Minimum duration before rate extrapolation"
+    },
+    {
+      "id": "CFG-082",
+      "gate": "G5",
+      "property": "G5.period_min_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0.001,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [],
+      "effect": "Lower resolvable period; must satisfy sampling contract"
+    },
+    {
+      "id": "CFG-083",
+      "gate": "G5",
+      "property": "G5.period_max_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0.001,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G5.period_min_s"
+      ],
+      "effect": "Upper period <= supported horizon/cycle policy"
+    },
+    {
+      "id": "CFG-084",
+      "gate": "G5",
+      "property": "G5.min_complete_cycles",
+      "type": "integer",
+      "unit": "cycle",
+      "default": 5,
+      "validation": {
+        "minimum": 2,
+        "maximum": 1000
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [],
+      "effect": "Commissioning starting proposal; accepted complete cycles"
+    },
+    {
+      "id": "CFG-085",
+      "gate": "G5",
+      "property": "G5.min_samples_per_period",
+      "type": "integer",
+      "unit": "sample/cycle",
+      "default": 8,
+      "validation": {
+        "minimum": 4,
+        "maximum": 1000
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G5.period_min_s",
+        "G0.acquisition_mode"
+      ],
+      "effect": "At least method capability floor; shape may require more"
+    },
+    {
+      "id": "CFG-086",
+      "gate": "G5",
+      "property": "G5.regularity_min",
+      "type": "number",
+      "unit": "fraction",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G5.min_complete_cycles"
+      ],
+      "effect": "Method-specific regularity criterion"
+    },
+    {
+      "id": "CFG-087",
+      "gate": "G5",
+      "property": "G5.acf_lag_max_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0.001,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G5.period_max_s"
+      ],
+      "effect": "Physical lag cap within signal support"
+    },
+    {
+      "id": "CFG-088",
+      "gate": "G6",
+      "property": "G6.period_min_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0.001,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [],
+      "effect": "Qualified period lower bound"
+    },
+    {
+      "id": "CFG-089",
+      "gate": "G6",
+      "property": "G6.period_max_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0.001,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G6.period_min_s"
+      ],
+      "effect": "Qualified period upper bound"
+    },
+    {
+      "id": "CFG-090",
+      "gate": "G6",
+      "property": "G6.peak_to_background_min",
+      "type": "number",
+      "unit": "ratio",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 100000
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G6.estimator"
+      ],
+      "effect": "Defined spectral estimator and background statistic"
+    },
+    {
+      "id": "CFG-091",
+      "gate": "G6",
+      "property": "G6.spectral_concentration_warn",
+      "type": "number",
+      "unit": "fraction",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G6.estimator"
+      ],
+      "effect": "Denominator and band declared by method"
+    },
+    {
+      "id": "CFG-092",
+      "gate": "G6",
+      "property": "G6.segment_samples",
+      "type": "integer",
+      "unit": "sample",
+      "default": 256,
+      "validation": {
+        "minimum": 16,
+        "maximum": 1048576
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G6.period_max_s",
+        "G6.estimator"
+      ],
+      "effect": "For installed Welch adapter only; enough segments required"
+    },
+    {
+      "id": "CFG-093",
+      "gate": "G6",
+      "property": "G6.overlap_fraction",
+      "type": "number",
+      "unit": "fraction",
+      "default": 0.5,
+      "validation": {
+        "minimum": 0,
+        "maximum": 0.95
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G6.segment_samples"
+      ],
+      "effect": "For installed segmented estimator; state budget checked"
+    },
+    {
+      "id": "CFG-094",
+      "gate": "G6",
+      "property": "G6.harmonic_max_order",
+      "type": "integer",
+      "unit": "harmonic",
+      "default": 5,
+      "validation": {
+        "minimum": 2,
+        "maximum": 20
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G6.period_min_s"
+      ],
+      "effect": "Only resolvable harmonics accepted"
+    },
+    {
+      "id": "CFG-095",
+      "gate": "G7",
+      "property": "G7.shape_score_warn",
+      "type": "number",
+      "unit": "fraction",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [],
+      "effect": "Exact template-fit score; non-unique fault evidence"
+    },
+    {
+      "id": "CFG-096",
+      "gate": "G7",
+      "property": "G7.shape_score_high",
+      "type": "number",
+      "unit": "fraction",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G7.shape_score_warn"
+      ],
+      "effect": "High >= warning"
+    },
+    {
+      "id": "CFG-097",
+      "gate": "G7",
+      "property": "G7.min_accepted_cycles",
+      "type": "integer",
+      "unit": "cycle",
+      "default": 5,
+      "validation": {
+        "minimum": 2,
+        "maximum": 1000
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G5.min_complete_cycles"
+      ],
+      "effect": "Cycle-qualified fit minimum"
+    },
+    {
+      "id": "CFG-098",
+      "gate": "G7",
+      "property": "G7.min_cycle_amplitude",
+      "type": "number",
+      "unit": "selected_signal_EU",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1000000000000.0
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G7.shape_method"
+      ],
+      "effect": "Cycle amplitude relative to commissioned noise floor"
+    },
+    {
+      "id": "CFG-099",
+      "gate": "G8",
+      "property": "G8.max_lag_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0.001,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G5.period_max_s"
+      ],
+      "effect": "Physical lag, not fixed 200-sample hidden domain"
+    },
+    {
+      "id": "CFG-100",
+      "gate": "G8",
+      "property": "G8.asymmetry_display_threshold",
+      "type": "number",
+      "unit": "fraction",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G8.method"
+      ],
+      "effect": "Display feature; cannot independently confirm nonlinearity"
+    },
+    {
+      "id": "CFG-101",
+      "gate": "G8",
+      "property": "G8.surrogate_repetitions",
+      "type": "integer",
+      "unit": "count",
+      "default": 199,
+      "validation": {
+        "minimum": 19,
+        "maximum": 9999
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [],
+      "effect": "Only installed validated surrogate adapter"
+    },
+    {
+      "id": "CFG-102",
+      "gate": "G8",
+      "property": "G8.significance_alpha",
+      "type": "number",
+      "unit": "fraction",
+      "default": 0.05,
+      "validation": {
+        "minimum": 0.001,
+        "maximum": 0.2
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G8.surrogate_repetitions"
+      ],
+      "effect": "Multiplicity/support correction still required"
+    },
+    {
+      "id": "CFG-103",
+      "gate": "G9",
+      "property": "G9.min_accepted_cycles",
+      "type": "integer",
+      "unit": "cycle",
+      "default": 5,
+      "validation": {
+        "minimum": 2,
+        "maximum": 1000
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G5.min_complete_cycles"
+      ],
+      "effect": "Actual complete phase-plane cycles"
+    },
+    {
+      "id": "CFG-104",
+      "gate": "G9",
+      "property": "G9.area_valid_min",
+      "type": "number",
+      "unit": "dimensionless",
+      "default": 0.05,
+      "validation": {
+        "minimum": 0,
+        "maximum": 10
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [],
+      "effect": "Estimator-specific normalized area qualification"
+    },
+    {
+      "id": "CFG-105",
+      "gate": "G9",
+      "property": "G9.area_valid_max",
+      "type": "number",
+      "unit": "dimensionless",
+      "default": 1.5,
+      "validation": {
+        "minimum": 0,
+        "maximum": 10
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G9.area_valid_min"
+      ],
+      "effect": "Upper bound above lower; not automatic diagnosis"
+    },
+    {
+      "id": "CFG-106",
+      "gate": "G9",
+      "property": "G9.area_display_threshold",
+      "type": "number",
+      "unit": "dimensionless",
+      "default": 0.3,
+      "validation": {
+        "minimum": 0,
+        "maximum": 10
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G9.area_valid_min",
+        "G9.area_valid_max"
+      ],
+      "effect": "Supporting geometry interpretation only"
+    },
+    {
+      "id": "CFG-107",
+      "gate": "G9",
+      "property": "G9.corner_angle_deg",
+      "type": "number",
+      "unit": "degree",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 180
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [],
+      "effect": "Exact cycle/corner method"
+    },
+    {
+      "id": "CFG-108",
+      "gate": "G9",
+      "property": "G9.min_command_range_pp",
+      "type": "number",
+      "unit": "percentage_point",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 100
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [],
+      "effect": "Observed command range floor"
+    },
+    {
+      "id": "CFG-109",
+      "gate": "G9",
+      "property": "G9.geometry_contribution_cap",
+      "type": "number",
+      "unit": "fraction",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G9.corner_angle_deg"
+      ],
+      "effect": "Evidence-group policy bound, cannot override capability restrictions"
+    },
+    {
+      "id": "CFG-110",
+      "gate": "G10",
+      "property": "G10.limit_tolerance_pp",
+      "type": "number",
+      "unit": "percentage_point",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 100
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long",
+        "flink:condition"
+      ],
+      "dependencies": [],
+      "effect": "Compare with actual time-valid output limits"
+    },
+    {
+      "id": "CFG-111",
+      "gate": "G10",
+      "property": "G10.limit_dwell_warn_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0.001,
+        "maximum": 86400
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long",
+        "flink:condition"
+      ],
+      "dependencies": [
+        "G10.limit_tolerance_pp"
+      ],
+      "effect": "Physical at-limit dwell"
+    },
+    {
+      "id": "CFG-112",
+      "gate": "G10",
+      "property": "G10.occupancy_warn_fraction",
+      "type": "number",
+      "unit": "fraction",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G10.limit_dwell_warn_s"
+      ],
+      "effect": "Valid-time occupancy"
+    },
+    {
+      "id": "CFG-113",
+      "gate": "G10",
+      "property": "G10.nonfollowing_error_pp",
+      "type": "number",
+      "unit": "percentage_point",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 100
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [],
+      "effect": "Aligned actual demand minus valid VP"
+    },
+    {
+      "id": "CFG-114",
+      "gate": "G10",
+      "property": "G10.nonfollowing_dwell_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0.001,
+        "maximum": 86400
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G10.nonfollowing_error_pp"
+      ],
+      "effect": "Beyond validated actuator delay/response allowance"
+    },
+    {
+      "id": "CFG-115",
+      "gate": "G10",
+      "property": "G10.movement_noise_floor_pp",
+      "type": "number",
+      "unit": "percentage_point",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 100
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [],
+      "effect": "VP movement noise/calibration-aware threshold"
+    },
+    {
+      "id": "CFG-116",
+      "gate": "G11",
+      "property": "G11.freeze_tolerance_pv_eu",
+      "type": "number",
+      "unit": "PV_EU",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1000000000000.0
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long",
+        "flink:condition"
+      ],
+      "dependencies": [],
+      "effect": "Resolution/source-aware flatness tolerance"
+    },
+    {
+      "id": "CFG-117",
+      "gate": "G11",
+      "property": "G11.freeze_dwell_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0.001,
+        "maximum": 86400
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long",
+        "flink:condition"
+      ],
+      "dependencies": [
+        "G11.freeze_tolerance_pv_eu"
+      ],
+      "effect": "Episode duration, no dilution by long-window fraction"
+    },
+    {
+      "id": "CFG-118",
+      "gate": "G11",
+      "property": "G11.spike_noise_multiplier",
+      "type": "number",
+      "unit": "ratio",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 1000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [],
+      "effect": "Robust noise qualification"
+    },
+    {
+      "id": "CFG-119",
+      "gate": "G11",
+      "property": "G11.instrument_verified_max_age_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 604800
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [],
+      "effect": "Instrumental verified source age, not broker emission age"
+    },
+    {
+      "id": "CFG-120",
+      "gate": "G11",
+      "property": "G11.late_health_correction_horizon_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G11.instrument_verified_max_age_s"
+      ],
+      "effect": "Revision policy; retained history remains immutable"
+    },
+    {
+      "id": "CFG-121",
+      "gate": "G12",
+      "property": "G12.step_min_input_eu",
+      "type": "number",
+      "unit": "input_EU",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1000000000000.0
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [],
+      "effect": "Declared applied-input/event path"
+    },
+    {
+      "id": "CFG-122",
+      "gate": "G12",
+      "property": "G12.step_min_span_fraction",
+      "type": "number",
+      "unit": "fraction",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [
+        "G12.step_min_input_eu"
+      ],
+      "effect": "Relative event threshold"
+    },
+    {
+      "id": "CFG-123",
+      "gate": "G12",
+      "property": "G12.noise_multiplier",
+      "type": "number",
+      "unit": "ratio",
+      "default": 5.0,
+      "validation": {
+        "minimum": 1,
+        "maximum": 1000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [],
+      "effect": "Commissioning proposal; qualified robust pre-noise"
+    },
+    {
+      "id": "CFG-124",
+      "gate": "G12",
+      "property": "G12.pre_support_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [],
+      "effect": "Qualified stable baseline support"
+    },
+    {
+      "id": "CFG-125",
+      "gate": "G12",
+      "property": "G12.post_support_min_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [
+        "G12.pre_support_s"
+      ],
+      "effect": "Minimum post-event support"
+    },
+    {
+      "id": "CFG-126",
+      "gate": "G12",
+      "property": "G12.capture_max_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [
+        "G12.post_support_min_s"
+      ],
+      "effect": "Must fit deployed state/capacity; censored on expiry"
+    },
+    {
+      "id": "CFG-127",
+      "gate": "G12",
+      "property": "G12.crossing_dwell_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 86400
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [],
+      "effect": "Sustained threshold crossing"
+    },
+    {
+      "id": "CFG-128",
+      "gate": "G12",
+      "property": "G12.settling_tail_dwell_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0.001,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [
+        "G12.crossing_dwell_s"
+      ],
+      "effect": "Minimum observed stable tail"
+    },
+    {
+      "id": "CFG-129",
+      "gate": "G12",
+      "property": "G12.settling_relative_band",
+      "type": "number",
+      "unit": "fraction",
+      "default": 0.02,
+      "validation": {
+        "minimum": 1e-06,
+        "maximum": 0.5
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [],
+      "effect": "Engineering starting convention, not universal objective"
+    },
+    {
+      "id": "CFG-130",
+      "gate": "G12",
+      "property": "G12.settling_abs_band_pv_eu",
+      "type": "number",
+      "unit": "PV_EU",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1000000000000.0
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [
+        "G12.settling_relative_band"
+      ],
+      "effect": "Noise/objective-aware absolute band"
+    },
+    {
+      "id": "CFG-131",
+      "gate": "G12",
+      "property": "G12.delay_min_s",
+      "type": "number",
+      "unit": "s",
+      "default": 0.0,
+      "validation": {
+        "minimum": 0,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [],
+      "effect": "Delay search bound; clock uncertainty retained"
+    },
+    {
+      "id": "CFG-132",
+      "gate": "G12",
+      "property": "G12.delay_max_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [
+        "G12.delay_min_s"
+      ],
+      "effect": "Qualified model path bound"
+    },
+    {
+      "id": "CFG-133",
+      "gate": "G12",
+      "property": "G12.tau_min_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 1e-06,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [],
+      "effect": "Self-regulating time-constant lower bound"
+    },
+    {
+      "id": "CFG-134",
+      "gate": "G12",
+      "property": "G12.tau_max_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 1e-06,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [
+        "G12.tau_min_s"
+      ],
+      "effect": "Self-regulating time-constant upper bound"
+    },
+    {
+      "id": "CFG-135",
+      "gate": "G12",
+      "property": "G12.gain_abs_max",
+      "type": "number",
+      "unit": "PV_EU/input_EU",
+      "default": null,
+      "validation": {
+        "minimum": 1e-06,
+        "maximum": 1000000000000000.0
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [],
+      "effect": "Signed gain bounded both ways if sign unknown"
+    },
+    {
+      "id": "CFG-136",
+      "gate": "G12",
+      "property": "G12.fit_max_iterations",
+      "type": "integer",
+      "unit": "iteration",
+      "default": 200,
+      "validation": {
+        "minimum": 10,
+        "maximum": 10000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [],
+      "effect": "Bounded solver resource"
+    },
+    {
+      "id": "CFG-137",
+      "gate": "G12",
+      "property": "G12.fit_relative_tolerance",
+      "type": "number",
+      "unit": "ratio",
+      "default": 1e-08,
+      "validation": {
+        "minimum": 1e-12,
+        "maximum": 0.01
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [
+        "G12.fit_max_iterations"
+      ],
+      "effect": "Solver convergence threshold"
+    },
+    {
+      "id": "CFG-138",
+      "gate": "G12",
+      "property": "G12.validation_rmse_max_pv_eu",
+      "type": "number",
+      "unit": "PV_EU",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1000000000000.0
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [
+        "G12.settling_abs_band_pv_eu"
+      ],
+      "effect": "Independent holdout criterion, approved per regime"
+    },
+    {
+      "id": "CFG-139",
+      "gate": "G12",
+      "property": "G12.confidence_level",
+      "type": "number",
+      "unit": "fraction",
+      "default": 0.95,
+      "validation": {
+        "minimum": 0.5,
+        "maximum": 0.999
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [
+        "G12.uncertainty_method"
+      ],
+      "effect": "Statistical interval level only with identified method"
+    },
+    {
+      "id": "CFG-140",
+      "gate": "G12",
+      "property": "G12.bootstrap_repetitions",
+      "type": "integer",
+      "unit": "count",
+      "default": 200,
+      "validation": {
+        "minimum": 20,
+        "maximum": 10000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [
+        "G12.uncertainty_method"
+      ],
+      "effect": "Block/event bootstrap if installed; not IID shortcut"
+    },
+    {
+      "id": "CFG-141",
+      "gate": "G12",
+      "property": "G12.model_max_age_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 315360000
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:response",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Context changes may expire earlier"
+    },
+    {
+      "id": "CFG-142",
+      "gate": "G12",
+      "property": "G12.lambda_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0.001,
+        "maximum": 31536000
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [
+        "G12.tau_min_s"
+      ],
+      "effect": "Approved advisory objective only; no automatic DCS write"
+    },
+    {
+      "id": "CFG-143",
+      "gate": "G13",
+      "property": "G13.lag_max_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0.001,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [],
+      "effect": "Aligned peer analysis physical lag bound"
+    },
+    {
+      "id": "CFG-144",
+      "gate": "G13",
+      "property": "G13.coherence_display_min",
+      "type": "number",
+      "unit": "fraction",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G13.lag_max_s"
+      ],
+      "effect": "Qualified association, not proof of causality"
+    },
+    {
+      "id": "CFG-145",
+      "gate": "G13",
+      "property": "G13.min_compatible_support_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G13.lag_max_s"
+      ],
+      "effect": "Both signals valid and regime-compatible"
+    },
+    {
+      "id": "CFG-146",
+      "gate": "G13",
+      "property": "G13.max_peers",
+      "type": "integer",
+      "unit": "count",
+      "default": 12,
+      "validation": {
+        "minimum": 1,
+        "maximum": 200
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [
+        "G13.peer_binding_ids"
+      ],
+      "effect": "Bounded graph/signal expansion"
+    },
+    {
+      "id": "CFG-147",
+      "gate": "G14",
+      "property": "G14.confirmation_record_max_age_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 315360000
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:fusion",
+        "api"
+      ],
+      "dependencies": [
+        "G14.allowed_evidence_types"
+      ],
+      "effect": "Fault-specific evidence validity; binding/config changes may invalidate"
+    },
+    {
+      "id": "CFG-148",
+      "gate": "G14",
+      "property": "G14.require_independent_review",
+      "type": "boolean",
+      "unit": "boolean",
+      "default": true,
+      "validation": {},
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:fusion",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Site may require stronger review; immutable mandatory policies cannot be weakened"
+    },
+    {
+      "id": "CFG-149",
+      "gate": "G15",
+      "property": "G15.episode_persistence_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:fusion",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Unique compatible observed support, not raw overlapping-window count"
+    },
+    {
+      "id": "CFG-150",
+      "gate": "G15",
+      "property": "G15.recovery_support_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 0.001,
+        "maximum": 31536000
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:fusion",
+        "api"
+      ],
+      "dependencies": [
+        "G15.episode_persistence_s"
+      ],
+      "effect": "Positive recovery evidence; missing data not recovery"
+    },
+    {
+      "id": "CFG-151",
+      "gate": "G15",
+      "property": "G15.minimum_evidence_groups",
+      "type": "integer",
+      "unit": "group",
+      "default": 2,
+      "validation": {
+        "minimum": 1,
+        "maximum": 20
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:fusion"
+      ],
+      "dependencies": [],
+      "effect": "Independent evidence groups and method capability constraints"
+    },
+    {
+      "id": "CFG-152",
+      "gate": "G15",
+      "property": "G15.hypothesis_score_display_min",
+      "type": "number",
+      "unit": "fraction",
+      "default": null,
+      "validation": {
+        "minimum": 0,
+        "maximum": 1
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:fusion"
+      ],
+      "dependencies": [
+        "G15.minimum_evidence_groups"
+      ],
+      "effect": "Uncalibrated evidence score not probability"
+    },
+    {
+      "id": "CFG-153",
+      "gate": "G15",
+      "property": "G15.notification_repeat_s",
+      "type": "number",
+      "unit": "s",
+      "default": null,
+      "validation": {
+        "minimum": 1,
+        "maximum": 31536000
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:fusion",
+        "api"
+      ],
+      "dependencies": [
+        "G15.episode_persistence_s"
+      ],
+      "effect": "Notification only, not physical episode closure"
+    },
+    {
+      "id": "CFG-154",
+      "gate": "G0",
+      "property": "G0.acquisition_mode",
+      "type": "enum",
+      "unit": "contract",
+      "default": null,
+      "validation": [
+        "PERIODIC_NATIVE",
+        "CHANGE_BASED",
+        "AVERAGED",
+        "INTERPOLATED"
+      ],
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:short",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Approved source contract, cannot be fabricated in UI"
+    },
+    {
+      "id": "CFG-155",
+      "gate": "G1",
+      "property": "G1.auto_tokens",
+      "type": "string_array",
+      "unit": "token",
+      "default": null,
+      "validation": {
+        "minItems": 1,
+        "maxItems": 50
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [],
+      "effect": "Vendor adapter map reviewed; unknown remains unknown"
+    },
+    {
+      "id": "CFG-156",
+      "gate": "G3",
+      "property": "G3.objective_type",
+      "type": "enum",
+      "unit": "objective",
+      "default": null,
+      "validation": [
+        "TIGHT_TRACKING",
+        "AVERAGING_INVENTORY",
+        "RAMP_TRACKING",
+        "CONSTRAINT_OPERATION"
+      ],
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:short"
+      ],
+      "dependencies": [],
+      "effect": "Separate objective from tag family"
+    },
+    {
+      "id": "CFG-157",
+      "gate": "G5",
+      "property": "G5.signal_role",
+      "type": "enum",
+      "unit": "role",
+      "default": null,
+      "validation": [
+        "PV",
+        "ERROR",
+        "APPLIED_INPUT",
+        "VP"
+      ],
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [],
+      "effect": "Oscillation signals may differ from curve-fitting signal"
+    },
+    {
+      "id": "CFG-158",
+      "gate": "G6",
+      "property": "G6.estimator",
+      "type": "enum",
+      "unit": "method",
+      "default": null,
+      "validation": [
+        "LEGACY_DFT",
+        "WELCH_PSD"
+      ],
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [],
+      "effect": "Only installed version selectable; no equivalence claim"
+    },
+    {
+      "id": "CFG-159",
+      "gate": "G7",
+      "property": "G7.shape_method",
+      "type": "enum",
+      "unit": "method",
+      "default": null,
+      "validation": [
+        "CYCLE_SINE_TRIANGLE_V1"
+      ],
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [],
+      "effect": "Exactly specified legacy-compatible or validated template adapter"
+    },
+    {
+      "id": "CFG-160",
+      "gate": "G8",
+      "property": "G8.method",
+      "type": "enum",
+      "unit": "method",
+      "default": null,
+      "validation": [
+        "LAG_ASYMMETRY_V1",
+        "BICOHERENCE_V1",
+        "SURROGATE_NONLINEARITY_V1"
+      ],
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long"
+      ],
+      "dependencies": [],
+      "effect": "Capability check rejects unimplemented methods"
+    },
+    {
+      "id": "CFG-161",
+      "gate": "G12",
+      "property": "G12.model_families",
+      "type": "string_array",
+      "unit": "model",
+      "default": null,
+      "validation": {
+        "minItems": 1,
+        "maxItems": 8
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [],
+      "effect": "Subset of installed and domain-validated families only"
+    },
+    {
+      "id": "CFG-162",
+      "gate": "G12",
+      "property": "G12.estimator",
+      "type": "enum",
+      "unit": "method",
+      "default": null,
+      "validation": [
+        "EXOGENOUS_OUTPUT_ERROR",
+        "CLOSED_LOOP_PEM",
+        "VALIDATED_IV"
+      ],
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [
+        "G12.model_families"
+      ],
+      "effect": "Estimator evidence prerequisites cannot be overridden"
+    },
+    {
+      "id": "CFG-163",
+      "gate": "G12",
+      "property": "G12.uncertainty_method",
+      "type": "enum",
+      "unit": "method",
+      "default": null,
+      "validation": [
+        "PROFILE_LIKELIHOOD",
+        "QUALIFIED_COVARIANCE",
+        "BLOCK_BOOTSTRAP",
+        "EVENT_BOOTSTRAP"
+      ],
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:response"
+      ],
+      "dependencies": [
+        "G12.estimator"
+      ],
+      "effect": "Identified statistical method, not G15 confidence"
+    },
+    {
+      "id": "CFG-164",
+      "gate": "G13",
+      "property": "G13.peer_binding_ids",
+      "type": "string_array",
+      "unit": "binding",
+      "default": null,
+      "validation": {
+        "minItems": 0,
+        "maxItems": 200
+      },
+      "change_class": "STATE_BOUNDARY",
+      "consumers": [
+        "flink:long",
+        "api"
+      ],
+      "dependencies": [],
+      "effect": "Qualified as-of bindings, not arbitrary query paths"
+    },
+    {
+      "id": "CFG-165",
+      "gate": "G14",
+      "property": "G14.allowed_evidence_types",
+      "type": "string_array",
+      "unit": "record",
+      "default": null,
+      "validation": {
+        "minItems": 1,
+        "maxItems": 20
+      },
+      "change_class": "POLICY",
+      "consumers": [
+        "flink:fusion"
+      ],
+      "dependencies": [],
+      "effect": "Subset of approved scoped proof types; VP presence not a proof type"
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "traverse.cpa.gate-config.execution-plan/v1",
+  "title": "Gate execution plan (spec v6 §5.2.1)",
+  "description": "Which horizon evaluates which gate, on which trigger, with what qualification. This release declares the COMPILED plan (fixed horizons short_1m…60m, long_4h/12h/24h, EVENT for G12, CONDITION_AND_WINDOW for G10/G11, EVIDENCE_UPDATE for G13–G15) and validates a requested plan against that capacity; a plan outside it is DEPLOYMENT_REQUIRED, never silently narrowed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["plan_version", "horizons", "assignments", "capacity_identity"],
+  "properties": {
+    "plan_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "scheduler_mode": { "type": "string", "enum": ["FIXED_COMPILED"], "default": "FIXED_COMPILED" },
+    "horizons": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["horizon_id", "tier", "duration_s", "slide_s"],
+        "properties": {
+          "horizon_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+          "tier": { "type": "string", "enum": ["short", "long", "event", "condition", "evidence"] },
+          "duration_s": { "type": "number", "exclusiveMinimum": 0 },
+          "slide_s": { "type": "number", "exclusiveMinimum": 0 },
+          "retention_s": { "type": "number", "exclusiveMinimum": 0 },
+          "min_samples": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "assignments": {
+      "type": "array",
+      "minItems": 17,
+      "maxItems": 17,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["gate", "horizon_id", "trigger"],
+        "properties": {
+          "gate": { "type": "string", "enum": ["G0", "G1", "G2", "G2r", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "G11", "G12", "G13", "G14", "G15"] },
+          "horizon_id": { "type": "string" },
+          "trigger": { "type": "string", "enum": ["WINDOW", "CONDITION_AND_WINDOW", "EVENT", "EVIDENCE_UPDATE"] },
+          "required_qualification": { "type": "array", "items": { "type": "string", "enum": ["G0", "G1", "G2r"] } }
+        }
+      }
+    },
+    "capacity_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_retention_s", "supported_slides_s", "max_active_horizons"],
+      "properties": {
+        "max_retention_s": { "type": "number", "exclusiveMinimum": 0 },
+        "supported_slides_s": { "type": "array", "items": { "type": "number", "exclusiveMinimum": 0 }, "minItems": 1 },
+        "max_active_horizons": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}
