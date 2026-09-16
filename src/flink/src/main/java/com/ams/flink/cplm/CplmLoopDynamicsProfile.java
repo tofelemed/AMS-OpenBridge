@@ -80,6 +80,14 @@ public final class CplmLoopDynamicsProfile implements Serializable {
     public double g6BandCyclesPerSegment = 4;
     public double vpMaxAgeS = VP_MAX_AGE_S_DEFAULT;
     /** v2.5 (2F.1, CFG-143..146): G13 aligned peer analysis - lag bound (s), coherence and |xcorr| floors, shared support (s), peer cap. */
+    /** v2.5 (3A.2): thresholds the catalogue governs, defaulting to the constants the engine used (C05). */
+    public double g0CoverageMin = 0.95;
+    public double g0CoveragePassMin = 0.98;
+    public double g0BadFractionMax = 0.05;
+    public double g1AutoFractionMin = 0.70;
+    public double g1AutoFractionPass = 0.90;
+    public double g7ShapeScoreHigh = 0.8;
+    public double g8AsymmetryDisplayThreshold = 0.7;
     public double g13LagMaxS = 600;
     public double g13CoherenceMin = 0.6;
     public double g13XcorrMin = 0.5;
@@ -248,6 +256,13 @@ public final class CplmLoopDynamicsProfile implements Serializable {
         p.cornerAngleDeg = cornerAngleDeg;
         p.opDeadbandPct = opDeadbandPct;
         p.vpMaxAgeS = vpMaxAgeS;
+        p.g0CoverageMin = g0CoverageMin;
+        p.g0CoveragePassMin = g0CoveragePassMin;
+        p.g0BadFractionMax = g0BadFractionMax;
+        p.g1AutoFractionMin = g1AutoFractionMin;
+        p.g1AutoFractionPass = g1AutoFractionPass;
+        p.g7ShapeScoreHigh = g7ShapeScoreHigh;
+        p.g8AsymmetryDisplayThreshold = g8AsymmetryDisplayThreshold;
         p.g13LagMaxS = g13LagMaxS;
         p.g13CoherenceMin = g13CoherenceMin;
         p.g13XcorrMin = g13XcorrMin;

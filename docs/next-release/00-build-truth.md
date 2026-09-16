@@ -248,3 +248,43 @@ classloader); recreating the TaskManager cleared it. The plant runbook already r
   (which classes pin the classloader - Kafka JMX reporters and shaded Jackson are the usual suspects) must be found or the
   number of submissions per TM lifetime bounded before v2.5 ships. The recompute path existed before v2.5 (CHG-008); the
   reconstruction feature makes it a routine operation, so this is a release blocker, not a footnote.
+
+## 2D / 2E / 2F / 2G — workbench, response workspace, G13, loop model (2026-09-17)
+
+- 2D (a5cdf73c, 7af35971): `GET /gate-catalogue` is the build's own 17-entry catalogue (G2r included, one row per gate, method id +
+  version + artifact kinds + capability state); `analytics.investigation_reference` (56) pins evidence with an explicit outcome
+  (`WORK_COMPLETED | PERFORMANCE_RESTORED | INCONCLUSIVE`, default INCONCLUSIVE - completed work is not restored performance).
+- 2E (8ec77afb … c00629e9): the browser only renders. `CpmChart` refuses mixed units on one axis and null bridging; a held series
+  steps; a band's meaning is part of its name; every time is the site zone from the registry (`timezone`, UTC when undeclared).
+  The workbench selection is the URL (`/cpm/evidence?loop=&methodRun=&gate=&mode=`) and never `useLatestGates`; "go to latest"
+  is an explicit navigation to a new selection. The artifact codec verifies every chunk SHA-256 before anything draws; a mismatch
+  is a stated state. `ResponseWorkspace` (`/cpm/response`) lists rejected and censored events with their reasons and draws only
+  the kernel's G12 artifacts; the prediction interval carries `lower` as a COLUMN (Java arrays leaked into provenance as
+  `[D@…` before 7854ebb1) and list provenance is `;`-joined (c73ef24d) because the manifest stringifies values.
+  The 2E.3 workspace classes had no CSS until 2E.5 (`styles/cpm-evidence.css`, OpenBridge tokens only).
+- 2F (47dfbaa0, a8d6df4e, 43b83a25, 22e56fa5): G13 is the LONG tier's aligned peer analysis. The long job connects the registry
+  broadcast a second time (`CplmPeerFanoutSupport`): every sample is emitted once for its own loop (stamped with its configured
+  peers) and once per loop that lists it as a peer (`peerOfLoopId`), keyed under that loop into a separate `peerBuffer`
+  ListState with the same 24 h retention. `InteractionMath`: nearest-sample alignment within 0.75 grid, shared support mask,
+  normalised cross-correlation over ±`g13LagMaxS` (periodic lag ambiguity resolves to the SMALLEST lag within 2 % of the peak
+  |r| - a pure sine peaked at 510 s for a 60 s delay otherwise), Welch magnitude-squared coherence (`WelchPsd.cross`) in the
+  loop's band [1/tauMaxS, 1/tauMinS]. Association needs coherence ≥ `g13CoherenceMin` (0.6) AND |peak r| ≥ `g13XcorrMin` (0.5)
+  on ≥ `g13MinCompatibleSupportS` (1800 s). The summary rides the long results JSON (`interaction`) and the fused row; the
+  arrays become artifacts under the long tier's G13 method run id, which the fused row SHARES (deterministic per
+  loop/support/bundle) - so `ResultIdentity.LONG_GATES` now names G13 and the fused row writes no second record. Fusion: the
+  disturbance soft-block fires only on `INTERACTION_DETECTED`; the old "peer link ⇒ G13 PASS" contract test is re-stated, not
+  fixed. Bounded replay has one loop's samples: a reconstructed long run reads G13 `LEGACY_FLAG_ONLY`.
+  `CplmGateResult` (516 lines) split into `CplmGateResultFields` + the JSON writer. Fixture trap: `FusionEvidence` counts
+  actuator stress from `effortRatio ≥ 2 × effortRatioFloor` (TIC floor 0.03) and `opRangePct ≥ opTravelFloorPct` (1.0) - a
+  "no stress" fixture needs effort < 0.06 and travel < 1.
+- 2G (1e7d2b8b … 459bec7e): `cpm.loop_registry` gains the five dimensions + `acquisition` + `classification_source` (57; also in
+  the self-heal DDL so a fresh lab volume has them). Resolution is in C# (`LoopModelDimensions.Resolve`): no request ⇒ keep a
+  stored EXPLICIT model, else the loop_type preset; a request ⇒ EXPLICIT field by field over that baseline. The bulk path
+  encodes the same rule in SQL (a preset never overwrites EXPLICIT). Flink: `cplm.loop.model` on the broadcast sets
+  acquisition / topology / command path always and overrides the pack's dynamic class + objective only when EXPLICIT
+  (`DynamicClass` gains INTEGRATING_LAG, UNDERDAMPED, UNKNOWN; `integrating` follows the class). `MethodEligibility` reads the
+  declared (else observed) grid against tauMinS: G5/G6 LIMITED:BANDWIDTH below `minSamplesPerPeriod`, G12 LIMITED when the grid
+  exceeds tauMinS/4; the response job's subgate A reports `sample_grid_s` and, with `--g12-delay-min-s`, its own bandwidth
+  verdict. RBE holds are `RBE_HOLD` in G0. `CpmLoopRegistryService` (1866 lines) is now seven partial files.
+- Lab deploy 2026-09-17: jar `37d11f25…` (2F + 2G) - all six CPLM jobs RUNNING, no ClassNotFound, cplm-api and frontend images
+  rebuilt and recreated. `scripts/test-cpm-v25-slice2-e2e.ps1`: __SLICE2_RESULT__

@@ -104,6 +104,10 @@ def main():
                     help="loops that publish positioner feedback: comma list, 'all' or 'none' (default FIC10302)")
     ap.add_argument("--vp-item", default="VP",
                     help="leaf name for positioner feedback (default VP; use e.g. POS to rehearse a param_roles overlay)")
+    # v2.5 (2G.2): a loop driven by another publisher (loop_step_sim.py's response scenarios) must not
+    # also be fed here - two publishers on one loop would corrupt the captured event.
+    ap.add_argument("--exclude", default="",
+                    help="comma list of loop tags NOT to publish (e.g. the loop a step scenario drives)")
     args = ap.parse_args()
     vp_all = args.vp_loops.strip().lower() == "all"
     vp_loops = set() if args.vp_loops.strip().lower() in ("none", "") \
@@ -112,6 +116,10 @@ def main():
     loops = load_loops_csv(args.loops_csv, include_unknown=not args.no_unknown, limit=args.limit) \
         if args.loops_csv \
         else [l for l in LOOPS if not (args.no_unknown and l[2] == "FIC99999")]
+
+    excluded = {x.strip().upper() for x in args.exclude.split(",") if x.strip()}
+    if excluded:
+        loops = [l for l in loops if l[2].upper() not in excluded]
 
     client = mqtt.Client(client_id="sim-ot-gateway")
     client.username_pw_set(args.username, args.password)

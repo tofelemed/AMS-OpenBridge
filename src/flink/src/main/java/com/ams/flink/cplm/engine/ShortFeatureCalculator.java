@@ -106,9 +106,9 @@ public final class ShortFeatureCalculator {
             // computed over dead data - dispatching an engineer to a valve
             // because a sensor died.
             result.gate0Status = "FAIL";
-        } else if (result.completeness >= 0.98 && result.badQualityPct < 0.05 && duplicateTs == 0) {
+        } else if (result.completeness >= profile.g0CoveragePassMin && result.badQualityPct < profile.g0BadFractionMax && duplicateTs == 0) {
             result.gate0Status = "PASS";
-        } else if (result.completeness >= 0.95) {
+        } else if (result.completeness >= profile.g0CoverageMin) {      // v2.5 (3A.2): G0.coverage_min / G0.bad_fraction_max govern these
             result.gate0Status = "WARN";
         } else {
             result.gate0Status = "FAIL";
@@ -173,9 +173,9 @@ public final class ShortFeatureCalculator {
         result.manualPct = 1.0 - result.autoPct;
         result.modeChangesPerHour = SignalMath.computeModeChangesPerHour(samples, windowSec);
         // Gate 1 — mode_service: >=0.90 PASS, >=0.70 WARN, else EXCLUDED (build prompt §2.3)
-        if (result.autoPct >= 0.90) {
+        if (result.autoPct >= profile.g1AutoFractionPass) {
             result.gate1Status = "PASS";
-        } else if (result.autoPct >= 0.70) {
+        } else if (result.autoPct >= profile.g1AutoFractionMin) {       // v2.5 (3A.2): G1.auto_fraction_min governs the exclusion floor
             result.gate1Status = "WARN";
         } else {
             result.gate1Status = "EXCLUDED";

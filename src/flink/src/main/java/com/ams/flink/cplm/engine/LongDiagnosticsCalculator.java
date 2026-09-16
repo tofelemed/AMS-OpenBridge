@@ -185,7 +185,7 @@ public final class LongDiagnosticsCalculator {
         if (!"VALID".equals(vp.status)) {
             result.gate7Status = "NOT_EVALUATED";
         } else {
-            result.gate7Status = tri.triangularity > 0.8 ? "STRONG" : "PASS";
+            result.gate7Status = tri.triangularity > profile.g7ShapeScoreHigh ? "STRONG" : "PASS";   // v2.5 (3A.2): G7.shape_score_high
         }
 
         ShapeMath.HorchResult horch = ShapeMath.computeHorch(op, pv);
@@ -193,7 +193,7 @@ public final class LongDiagnosticsCalculator {
         result.horchOddness = horch.oddness;
         result.horchOddSum = horch.oddSum;
         result.horchEvenSum = horch.evenSum;
-        result.gate8Status = result.horchOddness > 0.7 ? "STRONG" : "PASS";
+        result.gate8Status = result.horchOddness > profile.g8AsymmetryDisplayThreshold ? "STRONG" : "PASS";   // v2.5 (3A.2): G8.asymmetry_display_threshold
 
         ShapeMath.GeometryResult geo = ShapeMath.computeGeometry(pv, op, result.completedCycles, profile);
         keep.geometry = geo;

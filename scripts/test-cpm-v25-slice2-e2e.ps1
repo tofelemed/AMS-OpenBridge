@@ -91,19 +91,10 @@ Step 'gate catalogue lists the 17 gates once; G12 and G13 are installed methods 
     Assert ('G2r' -in $gates) 'G2r missing from the catalogue'
     $g12 = $c.gates | Where-Object { $_.gate -eq 'G12' }
     $g13 = $c.gates | Where-Object { $_.gate -eq 'G13' }
-    Assert ($g12.method.methodId -eq 'G12.SYSTEM_RESPONSE') "G12 method: $($g12.method.methodId)"
-    Assert ($g13.method.methodId -eq 'G13.ALIGNED_PEER_ANALYSIS_V1') "G13 method: $($g13.method.methodId)"
+    Assert ($g12.method.id -eq 'G12.SYSTEM_RESPONSE') "G12 method: $($g12.method.id)"
+    Assert ($g13.method.id -eq 'G13.ALIGNED_PEER_ANALYSIS_V1') "G13 method: $($g13.method.id)"
     Assert ($g13.capabilityState -eq 'INSTALLED') "G13 capability: $($g13.capabilityState)"
     Assert ('aligned_series' -in $g13.artifactKinds) 'G13 artifact kinds lack aligned_series'
-}
-
-Step 'capabilities: the running jar is what the tree built; every gate is an installed method (0.4 / 2F.1)' {
-    $m = Invoke-RestMethod -Method Get -Uri "$cpm/capabilities" -Headers $H
-    $hostJar = (Get-FileHash -Algorithm SHA256 (Join-Path $repoRoot 'src\flink\target\ams-flink-1.0-SNAPSHOT.jar')).Hash.ToLowerInvariant()
-    $observed = @($m.engine.observed | ForEach-Object { $_.jarSha256 })
-    Assert ($hostJar -in $observed) "no observed engine result carries the host jar $($hostJar.Substring(0,12)) (observed: $(($observed | ForEach-Object { $_.Substring(0, [Math]::Min(12, $_.Length)) }) -join ', '))"
-    $legacy = @($m.methods | Where-Object { $_.state -ne 'INSTALLED' })
-    Assert ($legacy.Count -eq 0) "flag-only methods remain: $(($legacy | ForEach-Object { $_.gate }) -join ', ')"
 }
 
 Step 'v2.5 schema: response tables, investigation references, loop model dimensions (2B.2 / 2D.2 / 2G.1)' {
@@ -142,6 +133,29 @@ Step 'an explicit LIC self-regulating model is stored EXPLICIT and survives a pr
     $bad = $base.Clone(); $bad.model = @{ dynamicClass = 'FAST' }
     try { Invoke-RestMethod -Method Post -Uri "$cpm/loops/activate" -Headers $HJ -Body ($bad | ConvertTo-Json -Depth 6) | Out-Null; throw 'an unknown dynamicClass was accepted' }
     catch { Assert ($_.Exception.Message -match '400|422|dynamicClass') "unexpected refusal: $($_.Exception.Message)" }
+}
+
+# ── 2b. Sample flow: the long tier needs samples (the lab's OT gateway sim is a host process) ──
+Step "sample flow: short-tier results are fresh, else the OT gateway simulator is started for this run (excluding $LoopId)" {
+    $fresh = (Invoke-CplmSql "SELECT count(*) FROM analytics.cplm_short_feature_results WHERE created_at > now() - interval '10 minutes'" | Select-Object -First 1) -as [int]
+    if ($fresh -gt 0) { Write-Host '        (samples already flowing)' -ForegroundColor DarkGray; return }
+    $sim = Join-Path $repoRoot 'ams-sims\sim_ot_gateway_mqtt.py'
+    # the step scenarios drive $LoopId themselves: two publishers on one loop would corrupt the event
+    $script:otSim = Start-Process -FilePath 'python' -ArgumentList "`"$sim`"", '--minutes', '90', '--exclude', $LoopId -PassThru -WindowStyle Hidden
+    Start-Sleep -Seconds 3
+    Assert (-not $script:otSim.HasExited) 'the OT gateway simulator exited immediately (paho-mqtt installed? mosquitto-test on :1884?)'
+    Assert (Wait-Until { (Invoke-CplmSql "SELECT count(*) FROM analytics.cplm_short_feature_results WHERE created_at > now() - interval '5 minutes'" | Select-Object -First 1) -as [int] -gt 0 } 240 10) 'no short-tier result within 4 min of starting the simulator'
+}
+
+Step 'capabilities: the running jar is what the tree built; every gate is an installed method (0.4 / 2F.1)' {
+    $hostJar = (Get-FileHash -Algorithm SHA256 (Join-Path $repoRoot 'src\flink\target\ams-flink-1.0-SNAPSHOT.jar')).Hash.ToLowerInvariant()
+    # the observed list comes from the newest results: give the freshly deployed jar a few short windows to show up
+    $seen = Wait-Until { $hostJar -in @((Invoke-RestMethod -Method Get -Uri "$cpm/capabilities" -Headers $H).engine.observed | ForEach-Object { $_.jarSha256 } | Where-Object { $_ }) } 300 15
+    $m = Invoke-RestMethod -Method Get -Uri "$cpm/capabilities" -Headers $H
+    $observed = @($m.engine.observed | ForEach-Object { $_.jarSha256 } | Where-Object { $_ })
+    Assert $seen "no observed engine result carries the host jar $($hostJar.Substring(0,12)) (observed: $(($observed | ForEach-Object { $_.Substring(0, [Math]::Min(12, $_.Length)) }) -join ', '))"
+    $legacy = @($m.methods | Where-Object { $_.state -ne 'INSTALLED' })
+    Assert ($legacy.Count -eq 0) "flag-only methods remain: $(($legacy | ForEach-Object { $_.gate }) -join ', ')"
 }
 
 # ── 3. Results world: G13, bandwidth eligibility, artifacts (2C / 2F / 2G) ─────
@@ -304,7 +318,8 @@ Step 'the SPA serves the new routes (/cpm/response, /cpm/evidence) through the n
 }
 
 # ── 6. Cleanup ───────────────────────────────────────────────────────────────
-Step 'cleanup: the dimensions probe loop is deleted' {
+Step 'cleanup: the dimensions probe loop is deleted; a simulator this run started is stopped' {
+    if ($script:otSim -and -not $script:otSim.HasExited) { Stop-Process -Id $script:otSim.Id -Force -ErrorAction SilentlyContinue }
     try { Invoke-RestMethod -Method Delete -Uri "$cpm/loops/$probe" -Headers $H | Out-Null } catch { if ($_.Exception.Message -notmatch '404') { throw } }
     $left = (Invoke-CplmSql "SELECT count(*) FROM cpm.loop_registry WHERE loop_id = '$probe'" | Select-Object -First 1)
     Assert ([int]$left -eq 0) 'probe loop still registered'

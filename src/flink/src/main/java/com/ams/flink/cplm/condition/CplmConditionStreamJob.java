@@ -50,6 +50,9 @@ public final class CplmConditionStreamJob {
                 .uid("cplm-condition-detect");
 
         CplmKafkaSink.attachKeyed(events, cfg, conditionTopic, "cplm-condition-sink", "loop_id");
+        // v2.5 (3A.2): announce what this job can be configured with (readable property ids, catalogue hash,
+        // compiled capacity) on the gate-config ACK topic at every start - capability from the RUNNING job
+        com.ams.flink.cplm.config.CapabilityRecord.announce(env, cfg, cfg.jobName, args);
         env.execute(cfg.jobName);
     }
 

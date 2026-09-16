@@ -160,6 +160,9 @@ public class CplmShortFeatureStreamJob {
         for (int i = 1; i < evidenceStreams.size(); i++) evidence = evidence.union(evidenceStreams.get(i));
         CplmKafkaSink.attachKeyed(evidence, cfg, evidenceTopic, "cplm-short-evidence-sink", EvidenceKafkaRecords.KEY_FIELD);
 
+        // v2.5 (3A.2): announce what this job can be configured with (readable property ids, catalogue hash,
+        // compiled capacity) on the gate-config ACK topic at every start - capability from the RUNNING job
+        com.ams.flink.cplm.config.CapabilityRecord.announce(env, cfg, cfg.jobName, args);
         env.execute(cfg.jobName);
     }
 

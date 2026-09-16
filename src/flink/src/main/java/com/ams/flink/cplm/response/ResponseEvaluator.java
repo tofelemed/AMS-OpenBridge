@@ -233,11 +233,30 @@ public final class ResponseEvaluator implements Serializable {
             f.state = "NOT_EVALUATED";
         }
 
-        // G - governance state; H - advisory (never without a validated model + approved lambda: Phase 3 supplies lambda)
+        // G - governance state; H - advisory: only a VALIDATED model, a known controller form and an APPROVED
+        // lambda (G12.lambda_s from the governed configuration, 3A.2) yield SIMC numbers - advisory, never applied
         g.subgates.get("G").state = "EVALUATED";
         g.subgates.get("G").outputs.put("model_state", g.modelState);
-        g.subgates.get("H").state = validated ? "WAITING" : "NOT_EVALUATED";
-        g.subgates.get("H").outputs.put("reason", validated ? "LAMBDA_NOT_APPROVED" : "MODEL_NOT_VALIDATED");
+        G12Result.Subgate h = g.subgates.get("H");
+        if (validated && est != null && est.best() != null) {
+            com.ams.flink.cplm.response.controller.SimcAdvisor.Advice adv = com.ams.flink.cplm.response.controller.SimcAdvisor.advise(
+                    est.best().model, true, controller, cfg.lambdaS > 0 ? cfg.lambdaS : null);
+            h.outputs.put("rule", adv.rule);
+            h.outputs.put("lambda_s", cfg.lambdaS > 0 ? cfg.lambdaS : null);
+            if (adv.kc != null) {
+                h.state = "EVALUATED";
+                h.outputs.put("kc", adv.kc);
+                h.outputs.put("ti_s", adv.ti);
+                h.outputs.put("td_s", adv.td);
+                h.outputs.put("reason", "ADVISORY_ONLY_NEVER_APPLIED");
+            } else {
+                h.state = "WAITING";
+                h.outputs.put("reason", adv.reason);
+            }
+        } else {
+            h.state = "NOT_EVALUATED";
+            h.outputs.put("reason", "MODEL_NOT_VALIDATED");
+        }
         if (!censored && g.finding.equals("NONE")) g.finding = est != null && est.best() != null ? "RESPONSE_CHARACTERISED" : "OBSERVED_ONLY";
 
         // evidence
@@ -287,6 +306,10 @@ public final class ResponseEvaluator implements Serializable {
         s.tauMaxS = cfg.tauMaxS;
         s.maxBridgeS = cfg.maxGapS;
         s.minInputEu = cfg.stepMinInputEu;
+        s.maxIterations = cfg.fitMaxIterations;
+        s.relTol = cfg.fitRelativeTolerance;
+        s.tauMinS = cfg.tauMinS;
+        s.gainAbsMax = cfg.gainAbsMax;
         return s;
     }
 

@@ -34,8 +34,8 @@ public final class ResponseJobConfig implements Serializable {
     public double rampMinSlopeEuPerS = 0.02, rampMinDurationS = 120;
     /** Response-metric settings. */
     public double absSettlingBandEu = 0.1, relSettlingBand = 0.02, noiseFloorEu = 0.05, crossingDwellS = 5, minResponseEu = 0.5, targetBandEu = 0.5;
-    /** Estimator settings. */
-    public double delayGridS = 5, thetaMaxS = 600, tauMaxS = 7200;
+    /** Estimator settings (G12.delay_max_s, G12.tau_min_s, G12.tau_max_s, G12.gain_abs_max govern these). */
+    public double delayGridS = 5, thetaMaxS = 600, tauMaxS = 7200, tauMinS = 0.5, gainAbsMax = 1e3;
     /** Wall-clock budget for one estimation (ms); exceeding it censors BUDGET_EXCEEDED, never a partial model. */
     public long fitBudgetMs = 20_000;
     /** Declared PV span for the trigger fraction when the profile declares none (EU). */
@@ -44,6 +44,11 @@ public final class ResponseJobConfig implements Serializable {
     public double vpMaxAgeS = com.ams.flink.cplm.CplmLoopDynamicsProfile.VP_MAX_AGE_S_DEFAULT;
     /** v2.5 (2G.1, NR-016): the smallest dead time the site needs resolved (s); a sample grid above it makes G12 LIMITED:BANDWIDTH. 0 = no claim. */
     public double delayMinS = 0;
+    /** v2.5 (3A.2): the bundle-governed estimator budget (G12.fit_max_iterations / G12.fit_relative_tolerance). */
+    public int fitMaxIterations = 200;
+    public double fitRelativeTolerance = 1e-9;
+    /** v2.5 (3A.2): the APPROVED closed-loop time constant for the SIMC advisory (G12.lambda_s); 0 = not approved, no advice. */
+    public double lambdaS = 0;
 
     public static ResponseJobConfig fromArgs(String[] args) {
         ResponseJobConfig c = new ResponseJobConfig();
@@ -63,6 +68,11 @@ public final class ResponseJobConfig implements Serializable {
         c.fitBudgetMs = (long) num(args, "g12-fit-budget-ms", c.fitBudgetMs);
         c.vpMaxAgeS = num(args, "g12-vp-max-age-s", c.vpMaxAgeS);
         c.delayMinS = num(args, "g12-delay-min-s", c.delayMinS);
+        c.fitMaxIterations = (int) num(args, "g12-fit-max-iterations", c.fitMaxIterations);
+        c.fitRelativeTolerance = num(args, "g12-fit-relative-tolerance", c.fitRelativeTolerance);
+        c.lambdaS = num(args, "g12-lambda-s", c.lambdaS);
+        c.tauMinS = num(args, "g12-tau-min-s", c.tauMinS);
+        c.gainAbsMax = num(args, "g12-gain-abs-max", c.gainAbsMax);
         return c;
     }
 
@@ -71,7 +81,8 @@ public final class ResponseJobConfig implements Serializable {
         String canonical = "g12|" + preSupportS + "|" + minCaptureS + "|" + maxCaptureS + "|" + maxGapS + "|" + tailDwellS + "|" + stableBandEu
                 + "|" + stepMinInputEu + "|" + stepMinSpanFraction + "|" + noiseMultiplier + "|" + eventDwellS + "|" + rampMinSlopeEuPerS + "|" + rampMinDurationS
                 + "|" + absSettlingBandEu + "|" + relSettlingBand + "|" + noiseFloorEu + "|" + crossingDwellS + "|" + minResponseEu + "|" + targetBandEu
-                + "|" + delayGridS + "|" + thetaMaxS + "|" + tauMaxS + "|" + fitBudgetMs + "|" + vpMaxAgeS + "|" + delayMinS;
+                + "|" + delayGridS + "|" + thetaMaxS + "|" + tauMaxS + "|" + fitBudgetMs + "|" + vpMaxAgeS + "|" + delayMinS
+                + "|" + fitMaxIterations + "|" + fitRelativeTolerance + "|" + lambdaS + "|" + tauMinS + "|" + gainAbsMax;
         return "g12:" + com.ams.flink.cplm.identity.ProfileHash.sha256Prefix(canonical, 16);
     }
 
