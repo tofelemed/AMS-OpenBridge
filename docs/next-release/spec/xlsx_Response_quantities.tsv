@@ -1,0 +1,56 @@
+G12 RESPONSE AND MODEL QUANTITIES					
+All 52 quantities are typed by meaning, units, path and applicability. Unsupported quantities return null plus a reason.					
+					
+Quantity	Group	Unit	Definition	Applicability	Unavailable reason
+input_step	event	input_EU	Robust post-minus-pre applied input	Qualified step path	NO_STEP_OR_UNKNOWN_INPUT
+sp_step	event	PV_EU	Effective reference post-minus-pre	Qualified reference step	NOT_REFERENCE_STEP
+baseline_pv	event	PV_EU	Qualified robust pre-event endpoint	Descriptive event	NO_VALID_BASELINE
+endpoint_pv	event	PV_EU	Qualified stable post-support endpoint, not last value	Settled response	NO_STABLE_ENDPOINT
+pre_slope	event	PV_EU/s	Robust pre-event rate	Valid pre-support	INSUFFICIENT_SUPPORT
+post_slope	event	PV_EU/s	Robust post-event rate	Integrating/ramp path	NO_VALID_SLOPE
+process_gain	model	PV_EU/input_EU	Signed local path DC gain Kp	Validated finite-gain path	INTEGRATING_OR_NOT_IDENTIFIABLE
+process_gain_normalized	model	dimensionless	Kp times input span / PV span	Valid Kp and both spans	INVALID_SPAN_OR_GAIN
+integrating_gain	model	PV_EU/(input_EU*s)	Change in slope per input Ki_process	Integrating path	NOT_INTEGRATING_OR_NOT_IDENTIFIABLE
+servo_gain	response	dimensionless	PV change / SP change	Qualified stable reference response	NO_REFERENCE_STEP_OR_ENDPOINT
+dead_time	model	s	Identified path delay theta with timing uncertainty	Identifiable path	DELAY_UNRESOLVED
+time_constant	model	s	FOPDT tau	FOPDT	INAPPLICABLE_MODEL
+time_constant_1	model	s	SOPDT ordered slower pole time constant	Real-pole SOPDT	INAPPLICABLE_OR_UNIDENTIFIABLE
+time_constant_2	model	s	SOPDT ordered faster pole time constant	Real-pole SOPDT	INAPPLICABLE_OR_UNIDENTIFIABLE
+damping_ratio	model	dimensionless	Zeta from qualified second-order model	Underdamped/second-order model	NOT_IDENTIFIABLE_FROM_RESPONSE
+natural_frequency	model	rad/s	Omega_n from second-order model	Second-order model	INAPPLICABLE_MODEL
+zero_time_constant	model	s	Signed zero parameter of supported inverse/lead path	Installed supported zero adapter	UNSUPPORTED_MODEL_OR_UNIDENTIFIABLE
+rise_time_10_90	response	s	Sustained t90 minus t10	Qualified nonzero endpoint response	CENSORED_OR_NO_ENDPOINT
+settle_response	response	s	Observed entry to attained endpoint band with valid tail	Qualified finite response	RIGHT_CENSORED_OR_INTEGRATING_OPEN_LOOP
+settle_target	response	s	Observed entry to approved reference band	Approved target and sufficient support	TARGET_NOT_REACHED_OR_NO_OBJECTIVE
+overshoot	response	% of response change	100 max(0,max(progress)-1)	Nonzero qualified endpoint response	NO_MEANINGFUL_RESPONSE
+undershoot	response	% of response change	100 max(0,-min(progress))	Nonzero qualified endpoint response	NO_MEANINGFUL_RESPONSE
+peak_time	response	s	Time from event start to applicable peak	Qualified response	NO_QUALIFIED_PEAK
+peak_pv	response	PV_EU	Observed applicable extremum	Qualified response	INSUFFICIENT_SUPPORT
+steady_error	response	PV_EU	Final effective SP minus qualified endpoint	Reference target	NO_STABLE_ENDPOINT
+decay_ratio	response	dimensionless	Same-side second-to-first peak magnitude ratio	At least two qualified like-side peaks	NO_QUALIFIED_PEAK_PAIR
+iae	performance	PV_EU*s	Integral absolute error over qualified support	Known reference and valid support	NO_VALID_REFERENCE_SUPPORT
+ise	performance	PV_EU^2*s	Integral squared error	Known reference and valid support	NO_VALID_REFERENCE_SUPPORT
+itae	performance	PV_EU*s^2	Integral elapsed-time times absolute error	Known reference and valid support	NO_VALID_REFERENCE_SUPPORT
+mae_time	performance	PV_EU	IAE / valid duration	Positive valid duration	NO_VALID_DURATION
+rmse_time	performance	PV_EU	sqrt(ISE / valid duration)	Positive valid duration	NO_VALID_DURATION
+valid_coverage	qualification	fraction	Unique qualified time / event elapsed support	All events	NO_DECLARED_INTERVAL
+constraint_duration	qualification	s	Union of valid time at actual applied limits	Known time-valid limits	LIMITS_UNKNOWN
+validation_rmse	validation	PV_EU	Free-run error on independent valid holdout	Candidate model with holdout	NO_INDEPENDENT_VALIDATION
+prediction_rmse	validation	PV_EU	One-step prediction error with stated noise model	Qualified predictor	PREDICTOR_UNAVAILABLE
+fit_improvement	validation	fraction	1 - weighted RMSE / baseline weighted RMSE	Nondegenerate named baseline	DEGENERATE_OR_UNSPECIFIED_BASELINE
+residual_bias	validation	PV_EU	Weighted residual mean	Qualified residual support	NO_RESIDUAL_SUPPORT
+gain_margin	robustness	dB	Model-derived gain margin at specified crossing	Known compatible open-loop path	UNKNOWN_CONTROLLER_OR_NO_VALID_CROSSING
+phase_margin	robustness	degree	Model-derived phase margin at specified crossing	Known compatible open-loop path	UNKNOWN_CONTROLLER_OR_NO_VALID_CROSSING
+gain_crossover	robustness	rad/s	All qualifying unity-gain crossings retained	Validated excited frequency range	NO_VALID_CROSSING
+phase_crossover	robustness	rad/s	All qualifying phase crossings retained	Validated excited frequency range	NO_VALID_CROSSING
+peak_sensitivity	robustness	dimensionless	Maximum |1/(1+L)| over validated domain	Compatible feedback transfer	MODEL_DOMAIN_UNAVAILABLE
+peak_complementary_sensitivity	robustness	dimensionless	Maximum |L/(1+L)| over validated domain	Compatible feedback transfer	MODEL_DOMAIN_UNAVAILABLE
+closed_loop_bandwidth	robustness	rad/s	Declared response -3dB convention and usable domain	Compatible reference path	NO_VALID_BANDWIDTH
+t10	response	s	First sustained 10% progress crossing, direction-normalized	Qualified endpoint response	CENSORED_OR_NO_ENDPOINT
+t50	response	s	First sustained 50% progress crossing, direction-normalized	Qualified endpoint response	CENSORED_OR_NO_ENDPOINT
+t63	response	s	First sustained 63% progress crossing, direction-normalized	Qualified endpoint response	CENSORED_OR_NO_ENDPOINT
+t90	response	s	First sustained 90% progress crossing, direction-normalized	Qualified endpoint response	CENSORED_OR_NO_ENDPOINT
+controller_gain	controller	native_units	Configured native proportional parameter with adapter meaning	Verified controller configuration	CONFIGURATION_UNKNOWN
+controller_ti	controller	s	Converted integral time; native form retained	Verified controller configuration	CONFIGURATION_UNKNOWN
+controller_td	controller	s	Converted derivative time; filter retained	Verified controller configuration	CONFIGURATION_UNKNOWN
+controller_scan	controller	s	Actual installed controller execution period	Verified controller configuration	CONFIGURATION_UNKNOWN

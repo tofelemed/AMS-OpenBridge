@@ -1,0 +1,20 @@
+TRAVERSE CPA  |  NEXT RELEASE v6							
+Read-only source audit + proposed engineering contracts | 16 September 2026							
+							
+Delivery is measured by release-commit and acceptance evidence—not by a similarly named screen or field.							
+							
+RELEASE SCOPE	COUNT	Meaning					
+Source-bound gaps	26	Archive / documents / inference separated					
+P0 gaps	22	Release priority, not incident frequency					
+Gaps accepted	0	Developer-controlled completion after evidence					
+Application scenarios	62	Unexecuted against the real application					
+Application passed	0	Must link test evidence and release commit					
+Proposed properties	165	Typed catalogue; runtime mutation proof required					
+Gate evidence views	17	Exact method artifacts; no browser KPI recompute					
+							
+Verification boundary							
+60 isolated Python reference tests passed. These check selected synthetic response math and contract protections—not the Java/Flink deployment, distributed configuration, MQTT publisher, or plant accuracy. All 62 application scenarios start Not executed.							
+							
+							
+Build identity: the ZIP declares revision 42135ceacf83369499c5398a59e44e14900f75a6. The newer as-built documents have no matching new commit attached. Resolve the seven conflicts before calling a change implemented or still defective.							
+							

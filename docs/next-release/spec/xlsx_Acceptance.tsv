@@ -1,0 +1,66 @@
+NEXT-RELEASE APPLICATION ACCEPTANCE									
+All 62 are unexecuted application scenarios. Isolated Python reference tests do not establish production acceptance.									
+									
+ID	Area	Scenario	Expected result	Gap IDs	Owner	Result	Release commit	Test evidence	Reviewer
+NR-001	G12	Synthetic FOPDT exogenous step	Recover Kp=3, theta=4s, tau=20s under documented solver tolerance; correct t10/t90 and units	R01	QA + discipline owner	Not executed			
+NR-002	G12	Negative gain step	Signed Kp negative; direction-normalized rise/overshoot remain correct	R01	QA + discipline owner	Not executed			
+NR-003	G12	Integrating level step	Ki slope-change/input reported; static Kp and open-loop settling null	R01 R25	QA + discipline owner	Not executed			
+NR-004	G12	Closed-loop level response	Finite servo response allowed despite integrating process; Kservo not Kp	R01 R25	QA + discipline owner	Not executed			
+NR-005	G12	Steady SP closed-loop routine noise	No endpoint-ratio identification; require eligible PEM/IV or abstain	R01	QA + discipline owner	Not executed			
+NR-006	G12	Poor excitation	No finite confident model invented from weak/constant input	R01	QA + discipline owner	Not executed			
+NR-007	G12	Step interrupted by another step	Segment/censor; preserve both event records and real input sequence	R01	QA + discipline owner	Not executed			
+NR-008	G12	No stable final endpoint	Settling/servo gain unavailable or censored; never use final chart sample	R01	QA + discipline owner	Not executed			
+NR-009	G12	Reference offset	Endpoint settling may pass while target settling fails; retain bias	R01	QA + discipline owner	Not executed			
+NR-010	G12	Delay below source-time uncertainty	Uncertainty/identifiability shown; no false sub-grid certainty	R01 R03	QA + discipline owner	Not executed			
+NR-011	G12	Independent model validation	Whole event/time holdout; free-run and prediction separately reported	R01	QA + discipline owner	Not executed			
+NR-012	G12	Correlated residuals or invalid instruments	Reject or limit model; lag/feedback interpretation is documented	R01	QA + discipline owner	Not executed			
+NR-013	G12	SOPDT repeated poles	Stable simulation; no divide-by-zero; distinguish unresolved poles	R01	QA + discipline owner	Not executed			
+NR-014	G12	Unknown controller form	No fabricated Kc conversion, stability margin or tuning-setting claim	R01	QA + discipline owner	Not executed			
+NR-015	G12	New controller/device/regime	Model expired or segmented; no reuse across incompatible context	R01 R19	QA + discipline owner	Not executed			
+NR-016	G12	5 s samples on fast flow dynamics	Method bandwidth reason; no arbitrary period/gain from aliased record	R03 R25	QA + discipline owner	Not executed			
+NR-017	G12	Longer than 24 h thermal event	Supported capture policy or explicit capacity rejection; no silent truncation	R11	QA + discipline owner	Not executed			
+NR-018	Signals	Unit conversion	Invariant normalized decisions and correct conversion of dimensional gain and bounds	R06	QA + discipline owner	Not executed			
+NR-019	Signals	Sparse change-based source	No periodic-completeness fiction or unbounded hold; source contract retained	R03 R04	QA + discipline owner	Not executed			
+NR-020	Signals	Stale optional VP/MODE	Unavailable relevant evidence; latest tuple time cannot freshen old member	R03	QA + discipline owner	Not executed			
+NR-021	Signals	BAD numeric/unknown quality	Strict decoding; not GOOD from null/numeric0/arbitrary g-prefix	R04	QA + discipline owner	Not executed			
+NR-022	Signals	Same numeric value, changed quality	Quality transition delivered immediately despite RBE deadband	R20	QA + discipline owner	Not executed			
+NR-023	Signals	Heartbeat only	Emission updated but source verified age unchanged	R20	QA + discipline owner	Not executed			
+NR-024	Signals	Known output maximum 80%	Limit detected using actual range, not 95% fallback	R08	QA + discipline owner	Not executed			
+NR-025	Signals	One-hour freeze in 24 h	Episode retained; legitimate historian hold distinguished	R08	QA + discipline owner	Not executed			
+NR-026	Fusion	Effort-only with VP mapped	No confirmed final-element nonlinearity without scoped physical proof	R02	QA + discipline owner	Not executed			
+NR-027	Fusion	Purely linear phase delay	G8/geometry cannot independently confirm stiction	R07	QA + discipline owner	Not executed			
+NR-028	Fusion	Upstream link but no peer measurements	No source/victim conclusion from link existence	R09	QA + discipline owner	Not executed			
+NR-029	Fusion	Repeated overlapping windows	Persistence based on qualified distinct support; no multiplied independent evidence	R10	QA + discipline owner	Not executed			
+NR-030	Fusion	No data or NAMUR source outage	Open condition not automatically recovered/closed	R10	QA + discipline owner	Not executed			
+NR-031	UI	Historical gate click	Exact methodRunId, not latest result or current profile	R12 R13	QA + discipline owner	Not executed			
+NR-032	UI	G5–G9 artifact panels	Actual ACF/PSD/cycle fits/lag functions/ordered geometry; no generic substitutes	R12	QA + discipline owner	Not executed			
+NR-033	UI	Mixed engineering units	Separate axes/panes and explicit units for PV/SP versus OP/VP	R14	QA + discipline owner	Not executed			
+NR-034	UI	Unavailable method artifact	Reason plus build capability; not empty zero chart or fabricated fit	R12	QA + discipline owner	Not executed			
+NR-035	UI	Model confidence/prediction bands	Different band meaning and support labelled; table export matches artifact	R12	QA + discipline owner	Not executed			
+NR-036	NAMUR	All F/C/S/M and simultaneous flags	Native flags preserved; app primary policy distinct and reversible	R15	QA + discipline owner	Not executed			
+NR-037	NAMUR	Complete verified empty state	Clear only after legitimate full state with verified source freshness	R15	QA + discipline owner	Not executed			
+NR-038	NAMUR	Stale retained snapshot	Displays stale/unknown; does not establish fresh clear or recovery	R15	QA + discipline owner	Not executed			
+NR-039	NAMUR	Duplicate and conflicting observation ID	Exact duplicate idempotent; differing payload quarantined	R15	QA + discipline owner	Not executed			
+NR-040	NAMUR	Restart/epoch and out-of-order event	New full snapshot/reconciliation; old sequence cannot overwrite newer state	R15	QA + discipline owner	Not executed			
+NR-041	NAMUR	Temporal hardware replacement	Correct source device for old interval; new transmitter not retroactively substituted	R15 R19	QA + discipline owner	Not executed			
+NR-042	NAMUR	Variable-specific fault	Affected PV qualifications updated; unrelated channel not blindly invalidated	R15	QA + discipline owner	Not executed			
+NR-043	NAMUR	Affected F or Function Check during response	Censor/qualify G12; no invalid interval training/confirmation	R15 R01	QA + discipline owner	Not executed			
+NR-044	NAMUR	M with valid measurement or missing integration	M is context, no false sensor invalidity; unconfigured integration explicitly unavailable	R15	QA + discipline owner	Not executed			
+NR-045	NAMUR	Late correction	Versioned historical revision; preserve original belief and no live replay side effects	R15 R19	QA + discipline owner	Not executed			
+NR-046	Config	Every exposed property mutation	165 catalogue fields bound to deployed readers or explicitly unsupported; tested behavioral effect	R16	QA + discipline owner	Not executed			
+NR-047	Config	Partial override inheritance	Deep deterministic merge; unrelated commissioned values preserved	R17	QA + discipline owner	Not executed			
+NR-048	Config	Wrong loop/site or unknown field	Reject without cross-loop leakage or silent ignore	R17 R23	QA + discipline owner	Not executed			
+NR-049	Config	Invalid scalar/bounds/dependent parameters	NaN/Inf, inverted limits, absent objectives and impossible periods rejected appropriately	R16	QA + discipline owner	Not executed			
+NR-050	Config	Attempted integrity bypass	Superadmin cannot enable source-invalid physical confirmation or rename gain semantics	R02 R16	QA + discipline owner	Not executed			
+NR-051	Config	Mixed worker versions/partial ACK	Not ACTIVE_VERIFIED; mixed composite result quarantined	R17 R26	QA + discipline owner	Not executed			
+NR-052	Config	Restart, restore and rescale	Same bundle per qualified event/support; no static cache leakage	R17	QA + discipline owner	Not executed			
+NR-053	Config	Stateful window/estimator change	New epoch/warmup and capacity validation, no mixed-event state	R18	QA + discipline owner	Not executed			
+NR-054	Config	Rollback and policy improvement	New activation retained; threshold-induced score change not physical restoration	R16 R24	QA + discipline owner	Not executed			
+NR-055	Config	Unsupported algorithm/new topology	Deployment-required rejection; no pretend no-code installation	R18	QA + discipline owner	Not executed			
+NR-056	Reliability	Bounded replay after Kafka expiry	Read qualified retained history and matching context or explicit unavailable	R19	QA + discipline owner	Not executed			
+NR-057	Reliability	Live/replay/shadow parallel	No writes into each other’s namespace or live episodes/notifications	R19	QA + discipline owner	Not executed			
+NR-058	Reliability	Crash/retry before downstream projection	No lost results/duplicate episodes; backlog and reconciliation visible	R22	QA + discipline owner	Not executed			
+NR-059	Reliability	Clean database and frontend CI	Old SQL markup/build-script issues checked and closed on actual commit	R23	QA + discipline owner	Not executed			
+NR-060	Reliability	Retention expiration with investigation evidence	Pinned immutable evidence remains readable and verifiable	R19 R24	QA + discipline owner	Not executed			
+NR-061	Performance	Declared target load and latency	Benchmark end-to-end sampling-aware p95/p99, state, checkpoint and queue cost	R21	QA + discipline owner	Not executed			
+NR-062	Operating model	Completed work but inconclusive response	Not verified restoration; owner and required further evidence retained	R24	QA + discipline owner	Not executed			

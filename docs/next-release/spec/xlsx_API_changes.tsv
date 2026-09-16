@@ -1,0 +1,29 @@
+PROPOSED API ADDITIONS / EXTENSIONS				
+25 operations. Server checks identity/scope/version. Asynchronous math remains in Flink. Routes here are not claimed deployed.				
+				
+Method	Path	Permission	Purpose	Status
+GET	/api/v1/cpm/capabilities	analytics.view	Installed build/methods/schemas/config property support	PROPOSED — extend existing cplm-api; no KPI recompute
+GET	/api/v1/cpm/gate-catalogue	analytics.view	All gate definitions, actual capability and property metadata	PROPOSED — extend existing cplm-api; no KPI recompute
+GET	/api/v1/cpm/loops/{id}/analysis-context?at=	analytics.view	As-of objectives, roles, binding, controller, acquisition, health references	PROPOSED — extend existing cplm-api; no KPI recompute
+POST	/api/v1/cpm/analysis-runs	cpm.analysis.create	Create bounded historical or what-if run, pinned support/purpose/context; 202 run ID	PROPOSED — extend existing cplm-api; no KPI recompute
+GET	/api/v1/cpm/analysis-runs/{id}	analytics.view	Expected/received outputs, progress, errors and versioned manifest	PROPOSED — extend existing cplm-api; no KPI recompute
+GET	/api/v1/cpm/method-runs/{id}	analytics.view	Immutable exact gate evaluation metadata/results	PROPOSED — extend existing cplm-api; no KPI recompute
+GET	/api/v1/cpm/method-runs/{id}/evidence	analytics.view	Evidence manifest and authorized chunk references	PROPOSED — extend existing cplm-api; no KPI recompute
+GET	/api/v1/cpm/evidence/{id}/chunks/{n}	analytics.view	Immutable compressed numerical data; checksum/ETag	PROPOSED — extend existing cplm-api; no KPI recompute
+GET	/api/v1/cpm/loops/{id}/response-events?from=&to=&cursor=	analytics.view	Versioned G12 response event list including rejected/censored	PROPOSED — extend existing cplm-api; no KPI recompute
+GET	/api/v1/cpm/response-events/{id}	analytics.view	Specific G12 event and subgate/model results	PROPOSED — extend existing cplm-api; no KPI recompute
+GET	/api/v1/cpm/loops/{id}/models?at=&regime=	analytics.view	Applicable validated/candidate models, not most recent indiscriminately	PROPOSED — extend existing cplm-api; no KPI recompute
+POST	/api/v1/cpm/models/{id}/review	cpm.model.review	Server-owned decision bound to model version, evidence and domain	PROPOSED — extend existing cplm-api; no KPI recompute
+POST	/api/v1/cpm/loops/{id}/controller-snapshots	cpm.context.manage	Read/import approved native settings; no DCS write	PROPOSED — extend existing cplm-api; no KPI recompute
+GET	/api/v1/cpm/loops/{id}/instrument-health?at=	analytics.view	Effective device and latest/as-of health with observed/verified age	PROPOSED — extend existing cplm-api; no KPI recompute
+GET	/api/v1/cpm/loops/{id}/instrument-health/history?from=&to=&cursor=	analytics.view	Interval/event history including source unavailability and replacements	PROPOSED — extend existing cplm-api; no KPI recompute
+POST	/api/v1/cpm/loops/{id}/instrument-bindings	cpm.context.manage	Approved effective-dated reference to primary device; no NAMUR-specific alias binding	PROPOSED — extend existing cplm-api; no KPI recompute
+GET	/api/v1/cpm/configuration/effective?loopId=&at=&regime=	cpm.config.read	Complete resolved bundle, sources and actual worker versions	PROPOSED — extend existing cplm-api; no KPI recompute
+POST	/api/v1/cpm/configuration/drafts	cpm.config.draft	New immutable candidate with parent version and intended scope	PROPOSED — extend existing cplm-api; no KPI recompute
+PATCH	/api/v1/cpm/configuration/drafts/{id}	cpm.config.draft	If-Match guarded change or reset; no direct active mutation	PROPOSED — extend existing cplm-api; no KPI recompute
+POST	/api/v1/cpm/configuration/drafts/{id}/validate	cpm.config.validate	Field/capability/cross-parameter/resource validation	PROPOSED — extend existing cplm-api; no KPI recompute
+POST	/api/v1/cpm/configuration/drafts/{id}/shadow	cpm.config.shadow	Isolated before/after assessment with no operational actions	PROPOSED — extend existing cplm-api; no KPI recompute
+POST	/api/v1/cpm/configuration/drafts/{id}/approve	cpm.config.approve	Independent review bound to exact content and context	PROPOSED — extend existing cplm-api; no KPI recompute
+POST	/api/v1/cpm/configuration/deployments	cpm.config.activate	Prepare/schedule versioned bounded deployment	PROPOSED — extend existing cplm-api; no KPI recompute
+GET	/api/v1/cpm/configuration/deployments/{id}	cpm.config.read	Required worker membership, ACKs, active/probe status	PROPOSED — extend existing cplm-api; no KPI recompute
+POST	/api/v1/cpm/configuration/deployments/{id}/rollback	cpm.config.rollback	New versioned activation; retains all history	PROPOSED — extend existing cplm-api; no KPI recompute

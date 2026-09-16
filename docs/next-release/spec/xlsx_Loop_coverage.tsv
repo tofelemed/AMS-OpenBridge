@@ -1,0 +1,16 @@
+DYNAMICS, SERVICE AND TOPOLOGY COVERAGE					
+Service family, dynamic class, objective, authority and acquisition are independent. Explicit abstention is required outside an installed method domain.					
+					
+Family	Dynamics	Objective	Response support	Required context	Critical guard
+FLOW	Often fast self-regulating; may be slow transport/inventory or nonlinear	Tight, ratio, or constraint	FOPDT/SOPDT when identifiable; servo separate	Actual applied valve/VFD command; fast native sampling	No stiction from normal lag/geometry; 5 s sampling cannot resolve a 5–10 s waveform with 8 points/cycle
+PRESSURE_LIQUID	Often fast, may be strongly coupled	Tight/constraint	FOPDT/SOPDT; process topology matters	Pressure taps, pumps/valves, measured load	Do not infer gas/volume dynamics from P tag alone
+PRESSURE_GAS	Finite-gain or integrating depending on mass balance/outflow	Tight or inventory buffering	FOPDT/IPDT/integrator+lag as identified	Volume/outflow, actual manipulated flow or command	Not every gas pressure loop is averaging or integrating
+PRESSURE_VAPOUR	Thermal/condensation delay plus inventory possible	Tight/constraint	FOPDT/SOPDT or explicit integrator	Utility/heat input, sensor/transport lag	Temperature-like default is a prior, not proof
+LEVEL	Integrating or self-regulating draining system	Tight or averaging inventory	IPDT/integrator+lag; FOPDT if finite-gain demonstrated	Inlet/outlet topology and controller action	No static Kp/open-loop settling for IPDT; closed-loop level CAN have finite servo settling
+TEMPERATURE	Slow, delayed, sometimes integrating/nonlinear	Tight, ramp or batch	FOPDT/SOPDT, gain scheduling by regime	Utilities, cascade slave, sensor lag, filters	Keep command dynamics separate from thermal process; quiet PV does not prove actuator fault
+COMPOSITION_ANALYZER	Sample-and-hold, irregular lab/analyzer updates, transport delay	Quality tracking or supervisory	Only acquisition-aware validated adapters	Analyzer sample/analysis/release times and calibration	Interpolation must not create artificial excitation or delay precision
+PH_CONDUCTIVITY	Strongly nonlinear local gain, mixing and sensor dynamics	Regime-dependent quality	Qualified local models; nonlinear adapter only if installed	Operating chemistry/regime and measurement condition	Do not extrapolate local gain across operating range
+SPEED_POSITION_POWER	Fast actuator/drive dynamics and limits	Tracking/ramp/constraint	Installed sufficiently sampled models	Applied drive command, feedback and selection	Insufficient bandwidth must return method unavailable
+CASCADE	Master/slave composition	Master quality and slave tracking	Individual paths and verified aggregate model	Master OP may be slave SP; actual slave demand required	No direct master-OP-to-valve comparison without command path
+SPLIT_RANGE_OVERRIDE_RATIO	Piecewise selection and characteristic	Constraint or ratio objective	Segment-specific model only when authority stable	Selector IDs, active range, ratio denominator and feedforward	No mixed-authority identification or linear model across branch transition
+UNKNOWN_UNSTABLE_INVERSE_MIMO	Unknown or exceptional dynamics	Explicit engineering objective	Descriptive metrics; unsupported models abstain	Additional context and validated specialist adapter	No claim of universal identification until required model/validation exists

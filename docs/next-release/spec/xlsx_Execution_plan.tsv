@@ -1,0 +1,21 @@
+WINDOW / TRIGGER CONFIGURATION CONTRACT				
+Synthetic contract example only. Separate from the 165 properties. Requires deployed capability, dependency, retention and resource checks before activation.				
+				
+Gate	Horizon IDs	Trigger	Required qualification	Status
+G0	"[""short_1m"", ""long_24h""]"	WINDOW	[]	Illustrative — not an operational plan
+G1	"[""short_1m"", ""long_24h""]"	WINDOW	"[""G0""]"	Illustrative — not an operational plan
+G2	"[""short_1m"", ""long_24h""]"	WINDOW	"[""G0""]"	Illustrative — not an operational plan
+G2r	"[""short_1m"", ""long_24h""]"	WINDOW	"[""G0""]"	Illustrative — not an operational plan
+G3	"[""short_1m"", ""long_24h""]"	WINDOW	"[""G0""]"	Illustrative — not an operational plan
+G4	"[""short_1m"", ""long_24h""]"	WINDOW	"[""G0""]"	Illustrative — not an operational plan
+G5	"[""long_24h""]"	WINDOW	"[""G0""]"	Illustrative — not an operational plan
+G6	"[""long_24h""]"	WINDOW	"[""G0""]"	Illustrative — not an operational plan
+G7	"[""long_24h""]"	WINDOW	"[""G0""]"	Illustrative — not an operational plan
+G8	"[""long_24h""]"	WINDOW	"[""G0""]"	Illustrative — not an operational plan
+G9	"[""long_24h""]"	WINDOW	"[""G0""]"	Illustrative — not an operational plan
+G10	"[""long_24h""]"	CONDITION_AND_WINDOW	"[""G0""]"	Illustrative — not an operational plan
+G11	"[""long_24h""]"	CONDITION_AND_WINDOW	"[""G0""]"	Illustrative — not an operational plan
+G12	[]	EVENT	"[""G0""]"	Illustrative — not an operational plan
+G13	[]	EVIDENCE_UPDATE	"[""G0""]"	Illustrative — not an operational plan
+G14	[]	EVIDENCE_UPDATE	"[""G0""]"	Illustrative — not an operational plan
+G15	[]	EVIDENCE_UPDATE	"[""G0""]"	Illustrative — not an operational plan

@@ -1,0 +1,169 @@
+165 PROPOSED GATE PROPERTIES										
+Typed specification, not implemented runtime coverage. Starting values are proposals. Missing objectives and source integrity cannot be overridden.										
+										
+ID	Gate	Property	Type	Unit	Starting value	Validation	Change class	Effect	Runtime evidence	Status
+CFG-001	G0	G0.mode	enum	state	OPERATIONAL	"[""OPERATIONAL"", ""OBSERVE_ONLY"", ""SHADOW"", ""DISABLED""]"	POLICY	Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled		Not assessed
+CFG-002	G0	G0.role	enum	role	REQUIRED_CONTEXT	"[""REQUIRED_CONTEXT"", ""PRIMARY"", ""SUPPORTING"", ""DISPLAY_ONLY"", ""INAPPLICABLE""]"	POLICY	Validated method/profile restricts allowed role; no role can permit unsupported confirmation		Not assessed
+CFG-003	G0	G0.evidence_retention_days	integer	day	Commissioning required	"{""minimum"": 1, ""maximum"": 3650}"	POLICY	Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry		Not assessed
+CFG-004	G1	G1.mode	enum	state	OPERATIONAL	"[""OPERATIONAL"", ""OBSERVE_ONLY"", ""SHADOW"", ""DISABLED""]"	POLICY	Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled		Not assessed
+CFG-005	G1	G1.role	enum	role	REQUIRED_CONTEXT	"[""REQUIRED_CONTEXT"", ""PRIMARY"", ""SUPPORTING"", ""DISPLAY_ONLY"", ""INAPPLICABLE""]"	POLICY	Validated method/profile restricts allowed role; no role can permit unsupported confirmation		Not assessed
+CFG-006	G1	G1.evidence_retention_days	integer	day	Commissioning required	"{""minimum"": 1, ""maximum"": 3650}"	POLICY	Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry		Not assessed
+CFG-007	G2	G2.mode	enum	state	OPERATIONAL	"[""OPERATIONAL"", ""OBSERVE_ONLY"", ""SHADOW"", ""DISABLED""]"	POLICY	Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled		Not assessed
+CFG-008	G2	G2.role	enum	role	SUPPORTING	"[""REQUIRED_CONTEXT"", ""PRIMARY"", ""SUPPORTING"", ""DISPLAY_ONLY"", ""INAPPLICABLE""]"	POLICY	Validated method/profile restricts allowed role; no role can permit unsupported confirmation		Not assessed
+CFG-009	G2	G2.evidence_retention_days	integer	day	Commissioning required	"{""minimum"": 1, ""maximum"": 3650}"	POLICY	Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry		Not assessed
+CFG-010	G2r	G2r.mode	enum	state	OPERATIONAL	"[""OPERATIONAL"", ""OBSERVE_ONLY"", ""SHADOW"", ""DISABLED""]"	POLICY	Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled		Not assessed
+CFG-011	G2r	G2r.role	enum	role	REQUIRED_CONTEXT	"[""REQUIRED_CONTEXT"", ""PRIMARY"", ""SUPPORTING"", ""DISPLAY_ONLY"", ""INAPPLICABLE""]"	POLICY	Validated method/profile restricts allowed role; no role can permit unsupported confirmation		Not assessed
+CFG-012	G2r	G2r.evidence_retention_days	integer	day	Commissioning required	"{""minimum"": 1, ""maximum"": 3650}"	POLICY	Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry		Not assessed
+CFG-013	G3	G3.mode	enum	state	OPERATIONAL	"[""OPERATIONAL"", ""OBSERVE_ONLY"", ""SHADOW"", ""DISABLED""]"	POLICY	Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled		Not assessed
+CFG-014	G3	G3.role	enum	role	SUPPORTING	"[""REQUIRED_CONTEXT"", ""PRIMARY"", ""SUPPORTING"", ""DISPLAY_ONLY"", ""INAPPLICABLE""]"	POLICY	Validated method/profile restricts allowed role; no role can permit unsupported confirmation		Not assessed
+CFG-015	G3	G3.evidence_retention_days	integer	day	Commissioning required	"{""minimum"": 1, ""maximum"": 3650}"	POLICY	Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry		Not assessed
+CFG-016	G4	G4.mode	enum	state	OPERATIONAL	"[""OPERATIONAL"", ""OBSERVE_ONLY"", ""SHADOW"", ""DISABLED""]"	POLICY	Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled		Not assessed
+CFG-017	G4	G4.role	enum	role	SUPPORTING	"[""REQUIRED_CONTEXT"", ""PRIMARY"", ""SUPPORTING"", ""DISPLAY_ONLY"", ""INAPPLICABLE""]"	POLICY	Validated method/profile restricts allowed role; no role can permit unsupported confirmation		Not assessed
+CFG-018	G4	G4.evidence_retention_days	integer	day	Commissioning required	"{""minimum"": 1, ""maximum"": 3650}"	POLICY	Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry		Not assessed
+CFG-019	G5	G5.mode	enum	state	OPERATIONAL	"[""OPERATIONAL"", ""OBSERVE_ONLY"", ""SHADOW"", ""DISABLED""]"	POLICY	Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled		Not assessed
+CFG-020	G5	G5.role	enum	role	SUPPORTING	"[""REQUIRED_CONTEXT"", ""PRIMARY"", ""SUPPORTING"", ""DISPLAY_ONLY"", ""INAPPLICABLE""]"	POLICY	Validated method/profile restricts allowed role; no role can permit unsupported confirmation		Not assessed
+CFG-021	G5	G5.evidence_retention_days	integer	day	Commissioning required	"{""minimum"": 1, ""maximum"": 3650}"	POLICY	Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry		Not assessed
+CFG-022	G6	G6.mode	enum	state	OPERATIONAL	"[""OPERATIONAL"", ""OBSERVE_ONLY"", ""SHADOW"", ""DISABLED""]"	POLICY	Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled		Not assessed
+CFG-023	G6	G6.role	enum	role	SUPPORTING	"[""REQUIRED_CONTEXT"", ""PRIMARY"", ""SUPPORTING"", ""DISPLAY_ONLY"", ""INAPPLICABLE""]"	POLICY	Validated method/profile restricts allowed role; no role can permit unsupported confirmation		Not assessed
+CFG-024	G6	G6.evidence_retention_days	integer	day	Commissioning required	"{""minimum"": 1, ""maximum"": 3650}"	POLICY	Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry		Not assessed
+CFG-025	G7	G7.mode	enum	state	OPERATIONAL	"[""OPERATIONAL"", ""OBSERVE_ONLY"", ""SHADOW"", ""DISABLED""]"	POLICY	Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled		Not assessed
+CFG-026	G7	G7.role	enum	role	SUPPORTING	"[""REQUIRED_CONTEXT"", ""PRIMARY"", ""SUPPORTING"", ""DISPLAY_ONLY"", ""INAPPLICABLE""]"	POLICY	Validated method/profile restricts allowed role; no role can permit unsupported confirmation		Not assessed
+CFG-027	G7	G7.evidence_retention_days	integer	day	Commissioning required	"{""minimum"": 1, ""maximum"": 3650}"	POLICY	Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry		Not assessed
+CFG-028	G8	G8.mode	enum	state	OPERATIONAL	"[""OPERATIONAL"", ""OBSERVE_ONLY"", ""SHADOW"", ""DISABLED""]"	POLICY	Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled		Not assessed
+CFG-029	G8	G8.role	enum	role	SUPPORTING	"[""REQUIRED_CONTEXT"", ""PRIMARY"", ""SUPPORTING"", ""DISPLAY_ONLY"", ""INAPPLICABLE""]"	POLICY	Validated method/profile restricts allowed role; no role can permit unsupported confirmation		Not assessed
+CFG-030	G8	G8.evidence_retention_days	integer	day	Commissioning required	"{""minimum"": 1, ""maximum"": 3650}"	POLICY	Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry		Not assessed
+CFG-031	G9	G9.mode	enum	state	OPERATIONAL	"[""OPERATIONAL"", ""OBSERVE_ONLY"", ""SHADOW"", ""DISABLED""]"	POLICY	Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled		Not assessed
+CFG-032	G9	G9.role	enum	role	SUPPORTING	"[""REQUIRED_CONTEXT"", ""PRIMARY"", ""SUPPORTING"", ""DISPLAY_ONLY"", ""INAPPLICABLE""]"	POLICY	Validated method/profile restricts allowed role; no role can permit unsupported confirmation		Not assessed
+CFG-033	G9	G9.evidence_retention_days	integer	day	Commissioning required	"{""minimum"": 1, ""maximum"": 3650}"	POLICY	Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry		Not assessed
+CFG-034	G10	G10.mode	enum	state	OPERATIONAL	"[""OPERATIONAL"", ""OBSERVE_ONLY"", ""SHADOW"", ""DISABLED""]"	POLICY	Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled		Not assessed
+CFG-035	G10	G10.role	enum	role	SUPPORTING	"[""REQUIRED_CONTEXT"", ""PRIMARY"", ""SUPPORTING"", ""DISPLAY_ONLY"", ""INAPPLICABLE""]"	POLICY	Validated method/profile restricts allowed role; no role can permit unsupported confirmation		Not assessed
+CFG-036	G10	G10.evidence_retention_days	integer	day	Commissioning required	"{""minimum"": 1, ""maximum"": 3650}"	POLICY	Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry		Not assessed
+CFG-037	G11	G11.mode	enum	state	OPERATIONAL	"[""OPERATIONAL"", ""OBSERVE_ONLY"", ""SHADOW"", ""DISABLED""]"	POLICY	Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled		Not assessed
+CFG-038	G11	G11.role	enum	role	SUPPORTING	"[""REQUIRED_CONTEXT"", ""PRIMARY"", ""SUPPORTING"", ""DISPLAY_ONLY"", ""INAPPLICABLE""]"	POLICY	Validated method/profile restricts allowed role; no role can permit unsupported confirmation		Not assessed
+CFG-039	G11	G11.evidence_retention_days	integer	day	Commissioning required	"{""minimum"": 1, ""maximum"": 3650}"	POLICY	Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry		Not assessed
+CFG-040	G12	G12.mode	enum	state	OPERATIONAL	"[""OPERATIONAL"", ""OBSERVE_ONLY"", ""SHADOW"", ""DISABLED""]"	POLICY	Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled		Not assessed
+CFG-041	G12	G12.role	enum	role	SUPPORTING	"[""REQUIRED_CONTEXT"", ""PRIMARY"", ""SUPPORTING"", ""DISPLAY_ONLY"", ""INAPPLICABLE""]"	POLICY	Validated method/profile restricts allowed role; no role can permit unsupported confirmation		Not assessed
+CFG-042	G12	G12.evidence_retention_days	integer	day	Commissioning required	"{""minimum"": 1, ""maximum"": 3650}"	POLICY	Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry		Not assessed
+CFG-043	G13	G13.mode	enum	state	OPERATIONAL	"[""OPERATIONAL"", ""OBSERVE_ONLY"", ""SHADOW"", ""DISABLED""]"	POLICY	Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled		Not assessed
+CFG-044	G13	G13.role	enum	role	SUPPORTING	"[""REQUIRED_CONTEXT"", ""PRIMARY"", ""SUPPORTING"", ""DISPLAY_ONLY"", ""INAPPLICABLE""]"	POLICY	Validated method/profile restricts allowed role; no role can permit unsupported confirmation		Not assessed
+CFG-045	G13	G13.evidence_retention_days	integer	day	Commissioning required	"{""minimum"": 1, ""maximum"": 3650}"	POLICY	Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry		Not assessed
+CFG-046	G14	G14.mode	enum	state	OPERATIONAL	"[""OPERATIONAL"", ""OBSERVE_ONLY"", ""SHADOW"", ""DISABLED""]"	POLICY	Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled		Not assessed
+CFG-047	G14	G14.role	enum	role	REQUIRED_CONTEXT	"[""REQUIRED_CONTEXT"", ""PRIMARY"", ""SUPPORTING"", ""DISPLAY_ONLY"", ""INAPPLICABLE""]"	POLICY	Validated method/profile restricts allowed role; no role can permit unsupported confirmation		Not assessed
+CFG-048	G14	G14.evidence_retention_days	integer	day	Commissioning required	"{""minimum"": 1, ""maximum"": 3650}"	POLICY	Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry		Not assessed
+CFG-049	G15	G15.mode	enum	state	OPERATIONAL	"[""OPERATIONAL"", ""OBSERVE_ONLY"", ""SHADOW"", ""DISABLED""]"	POLICY	Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled		Not assessed
+CFG-050	G15	G15.role	enum	role	REQUIRED_CONTEXT	"[""REQUIRED_CONTEXT"", ""PRIMARY"", ""SUPPORTING"", ""DISPLAY_ONLY"", ""INAPPLICABLE""]"	POLICY	Validated method/profile restricts allowed role; no role can permit unsupported confirmation		Not assessed
+CFG-051	G15	G15.evidence_retention_days	integer	day	Commissioning required	"{""minimum"": 1, ""maximum"": 3650}"	POLICY	Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry		Not assessed
+CFG-052	G0	G0.coverage_min	number	fraction	Commissioning required	"{""minimum"": 0, ""maximum"": 1}"	POLICY	Minimum qualified time coverage for dependent method		Not assessed
+CFG-053	G0	G0.bad_fraction_max	number	fraction	Commissioning required	"{""minimum"": 0, ""maximum"": 1}"	POLICY	Worst permitted invalid support; native bad values never become usable		Not assessed
+CFG-054	G0	G0.required_signal_max_age_s	number	s	Commissioning required	"{""minimum"": 0.001, ""maximum"": 86400}"	STATE_BOUNDARY	Per-role policy may be stricter; cannot replace actual source freshness		Not assessed
+CFG-055	G0	G0.max_gap_s	number	s	Commissioning required	"{""minimum"": 0.001, ""maximum"": 86400}"	STATE_BOUNDARY	Largest allowed unsupported interval; event censor/split		Not assessed
+CFG-056	G0	G0.alignment_tolerance_s	number	s	Commissioning required	"{""minimum"": 0, ""maximum"": 3600}"	STATE_BOUNDARY	Maximum verified role alignment uncertainty		Not assessed
+CFG-057	G0	G0.min_samples	integer	sample	10	"{""minimum"": 2, ""maximum"": 1000000}"	POLICY	Necessary but not sufficient method support		Not assessed
+CFG-058	G0	G0.jitter_warn_fraction	number	fraction	Commissioning required	"{""minimum"": 0, ""maximum"": 10}"	POLICY	Observed interval variation warning, not interpolation permission		Not assessed
+CFG-059	G1	G1.auto_fraction_min	number	fraction	Commissioning required	"{""minimum"": 0, ""maximum"": 1}"	POLICY	Commissioned eligible control-authority duration, not merely string AUTO		Not assessed
+CFG-060	G1	G1.transition_guard_s	number	s	Commissioning required	"{""minimum"": 0, ""maximum"": 86400}"	STATE_BOUNDARY	Guard around actual mode/selector transitions		Not assessed
+CFG-061	G1	G1.authority_max_age_s	number	s	Commissioning required	"{""minimum"": 0.001, ""maximum"": 86400}"	STATE_BOUNDARY	Current authority validity threshold		Not assessed
+CFG-062	G2	G2.stability_band_pv_eu	number	PV_EU	Commissioning required	"{""minimum"": 0, ""maximum"": 1000000000000.0}"	POLICY	Absolute SP stability band with explicit loop engineering unit		Not assessed
+CFG-063	G2	G2.stability_band_span_fraction	number	fraction	Commissioning required	"{""minimum"": 0, ""maximum"": 1}"	POLICY	Configured SP range criterion complementary to absolute threshold		Not assessed
+CFG-064	G2	G2.step_min_pv_eu	number	PV_EU	Commissioning required	"{""minimum"": 0, ""maximum"": 1000000000000.0}"	STATE_BOUNDARY	Event step threshold; actual effective SP		Not assessed
+CFG-065	G2	G2.ramp_min_pv_eu_per_s	number	PV_EU/s	Commissioning required	"{""minimum"": 0, ""maximum"": 1000000000000.0}"	STATE_BOUNDARY	Ramp detector threshold		Not assessed
+CFG-066	G2	G2.event_dwell_s	number	s	Commissioning required	"{""minimum"": 0, ""maximum"": 86400}"	STATE_BOUNDARY	New SP event persistence		Not assessed
+CFG-067	G2r	G2r.pv_region_min	number	PV_EU	Commissioning required	"{""minimum"": -1000000000000000.0, ""maximum"": 1000000000000000.0}"	POLICY	Approved model/operating domain, not alarm/trip limit		Not assessed
+CFG-068	G2r	G2r.pv_region_max	number	PV_EU	Commissioning required	"{""minimum"": -1000000000000000.0, ""maximum"": 1000000000000000.0}"	POLICY	Maximum greater than minimum		Not assessed
+CFG-069	G2r	G2r.applied_input_region_min	number	input_EU	Commissioning required	"{""minimum"": -1000000000000000.0, ""maximum"": 1000000000000000.0}"	POLICY	Actual command path operating domain		Not assessed
+CFG-070	G2r	G2r.applied_input_region_max	number	input_EU	Commissioning required	"{""minimum"": -1000000000000000.0, ""maximum"": 1000000000000000.0}"	POLICY	Maximum greater than minimum		Not assessed
+CFG-071	G2r	G2r.out_of_domain_warn_fraction	number	fraction	Commissioning required	"{""minimum"": 0, ""maximum"": 1}"	POLICY	Domain-exposure warning; all physical excursions retained		Not assessed
+CFG-072	G3	G3.error_band_abs_pv_eu	number	PV_EU	Commissioning required	"{""minimum"": 0, ""maximum"": 1000000000000.0}"	POLICY	Approved error band absolute contribution		Not assessed
+CFG-073	G3	G3.error_band_span_fraction	number	fraction	Commissioning required	"{""minimum"": 0, ""maximum"": 1}"	POLICY	Approved error band relative contribution		Not assessed
+CFG-074	G3	G3.objective_compliance_min	number	fraction	Commissioning required	"{""minimum"": 0, ""maximum"": 1}"	POLICY	Time-based target; no generic 50 percent healthy claim		Not assessed
+CFG-075	G3	G3.ewma_alpha	number	fraction	0.2	"{""minimum"": 0.001, ""maximum"": 1}"	STATE_BOUNDARY	Trend change detector alpha; baseline approval independent		Not assessed
+CFG-076	G3	G3.baseline_min_valid_s	number	s	Commissioning required	"{""minimum"": 1, ""maximum"": 31536000}"	STATE_BOUNDARY	Minimum comparable baseline support		Not assessed
+CFG-077	G4	G4.activity_warn_ratio	number	dimensionless	Commissioning required	"{""minimum"": 0, ""maximum"": 10000}"	POLICY	Ratio versus approved regime-specific activity reference, not valve proof		Not assessed
+CFG-078	G4	G4.activity_high_ratio	number	dimensionless	Commissioning required	"{""minimum"": 0, ""maximum"": 10000}"	POLICY	High ratio must exceed warning		Not assessed
+CFG-079	G4	G4.reversal_deadband_pp	number	percentage_point	Commissioning required	"{""minimum"": 0, ""maximum"": 100}"	STATE_BOUNDARY	Meaningful command movement threshold		Not assessed
+CFG-080	G4	G4.min_pv_excitation_pv_eu	number	PV_EU	Commissioning required	"{""minimum"": 0, ""maximum"": 1000000000000.0}"	STATE_BOUNDARY	Avoid unstable near-zero denominator; return unavailable		Not assessed
+CFG-081	G4	G4.travel_rate_min_support_s	number	s	3600	"{""minimum"": 1, ""maximum"": 31536000}"	POLICY	Minimum duration before rate extrapolation		Not assessed
+CFG-082	G5	G5.period_min_s	number	s	Commissioning required	"{""minimum"": 0.001, ""maximum"": 31536000}"	STATE_BOUNDARY	Lower resolvable period; must satisfy sampling contract		Not assessed
+CFG-083	G5	G5.period_max_s	number	s	Commissioning required	"{""minimum"": 0.001, ""maximum"": 31536000}"	STATE_BOUNDARY	Upper period <= supported horizon/cycle policy		Not assessed
+CFG-084	G5	G5.min_complete_cycles	integer	cycle	5	"{""minimum"": 2, ""maximum"": 1000}"	POLICY	Commissioning starting proposal; accepted complete cycles		Not assessed
+CFG-085	G5	G5.min_samples_per_period	integer	sample/cycle	8	"{""minimum"": 4, ""maximum"": 1000}"	POLICY	At least method capability floor; shape may require more		Not assessed
+CFG-086	G5	G5.regularity_min	number	fraction	Commissioning required	"{""minimum"": 0, ""maximum"": 1}"	POLICY	Method-specific regularity criterion		Not assessed
+CFG-087	G5	G5.acf_lag_max_s	number	s	Commissioning required	"{""minimum"": 0.001, ""maximum"": 31536000}"	STATE_BOUNDARY	Physical lag cap within signal support		Not assessed
+CFG-088	G6	G6.period_min_s	number	s	Commissioning required	"{""minimum"": 0.001, ""maximum"": 31536000}"	STATE_BOUNDARY	Qualified period lower bound		Not assessed
+CFG-089	G6	G6.period_max_s	number	s	Commissioning required	"{""minimum"": 0.001, ""maximum"": 31536000}"	STATE_BOUNDARY	Qualified period upper bound		Not assessed
+CFG-090	G6	G6.peak_to_background_min	number	ratio	Commissioning required	"{""minimum"": 1, ""maximum"": 100000}"	POLICY	Defined spectral estimator and background statistic		Not assessed
+CFG-091	G6	G6.spectral_concentration_warn	number	fraction	Commissioning required	"{""minimum"": 0, ""maximum"": 1}"	POLICY	Denominator and band declared by method		Not assessed
+CFG-092	G6	G6.segment_samples	integer	sample	256	"{""minimum"": 16, ""maximum"": 1048576}"	STATE_BOUNDARY	For installed Welch adapter only; enough segments required		Not assessed
+CFG-093	G6	G6.overlap_fraction	number	fraction	0.5	"{""minimum"": 0, ""maximum"": 0.95}"	STATE_BOUNDARY	For installed segmented estimator; state budget checked		Not assessed
+CFG-094	G6	G6.harmonic_max_order	integer	harmonic	5	"{""minimum"": 2, ""maximum"": 20}"	STATE_BOUNDARY	Only resolvable harmonics accepted		Not assessed
+CFG-095	G7	G7.shape_score_warn	number	fraction	Commissioning required	"{""minimum"": 0, ""maximum"": 1}"	POLICY	Exact template-fit score; non-unique fault evidence		Not assessed
+CFG-096	G7	G7.shape_score_high	number	fraction	Commissioning required	"{""minimum"": 0, ""maximum"": 1}"	POLICY	High >= warning		Not assessed
+CFG-097	G7	G7.min_accepted_cycles	integer	cycle	5	"{""minimum"": 2, ""maximum"": 1000}"	POLICY	Cycle-qualified fit minimum		Not assessed
+CFG-098	G7	G7.min_cycle_amplitude	number	selected_signal_EU	Commissioning required	"{""minimum"": 0, ""maximum"": 1000000000000.0}"	STATE_BOUNDARY	Cycle amplitude relative to commissioned noise floor		Not assessed
+CFG-099	G8	G8.max_lag_s	number	s	Commissioning required	"{""minimum"": 0.001, ""maximum"": 31536000}"	STATE_BOUNDARY	Physical lag, not fixed 200-sample hidden domain		Not assessed
+CFG-100	G8	G8.asymmetry_display_threshold	number	fraction	Commissioning required	"{""minimum"": 0, ""maximum"": 1}"	POLICY	Display feature; cannot independently confirm nonlinearity		Not assessed
+CFG-101	G8	G8.surrogate_repetitions	integer	count	199	"{""minimum"": 19, ""maximum"": 9999}"	STATE_BOUNDARY	Only installed validated surrogate adapter		Not assessed
+CFG-102	G8	G8.significance_alpha	number	fraction	0.05	"{""minimum"": 0.001, ""maximum"": 0.2}"	POLICY	Multiplicity/support correction still required		Not assessed
+CFG-103	G9	G9.min_accepted_cycles	integer	cycle	5	"{""minimum"": 2, ""maximum"": 1000}"	POLICY	Actual complete phase-plane cycles		Not assessed
+CFG-104	G9	G9.area_valid_min	number	dimensionless	0.05	"{""minimum"": 0, ""maximum"": 10}"	POLICY	Estimator-specific normalized area qualification		Not assessed
+CFG-105	G9	G9.area_valid_max	number	dimensionless	1.5	"{""minimum"": 0, ""maximum"": 10}"	POLICY	Upper bound above lower; not automatic diagnosis		Not assessed
+CFG-106	G9	G9.area_display_threshold	number	dimensionless	0.3	"{""minimum"": 0, ""maximum"": 10}"	POLICY	Supporting geometry interpretation only		Not assessed
+CFG-107	G9	G9.corner_angle_deg	number	degree	Commissioning required	"{""minimum"": 0, ""maximum"": 180}"	STATE_BOUNDARY	Exact cycle/corner method		Not assessed
+CFG-108	G9	G9.min_command_range_pp	number	percentage_point	Commissioning required	"{""minimum"": 0, ""maximum"": 100}"	POLICY	Observed command range floor		Not assessed
+CFG-109	G9	G9.geometry_contribution_cap	number	fraction	Commissioning required	"{""minimum"": 0, ""maximum"": 1}"	POLICY	Evidence-group policy bound, cannot override capability restrictions		Not assessed
+CFG-110	G10	G10.limit_tolerance_pp	number	percentage_point	Commissioning required	"{""minimum"": 0, ""maximum"": 100}"	STATE_BOUNDARY	Compare with actual time-valid output limits		Not assessed
+CFG-111	G10	G10.limit_dwell_warn_s	number	s	Commissioning required	"{""minimum"": 0.001, ""maximum"": 86400}"	POLICY	Physical at-limit dwell		Not assessed
+CFG-112	G10	G10.occupancy_warn_fraction	number	fraction	Commissioning required	"{""minimum"": 0, ""maximum"": 1}"	POLICY	Valid-time occupancy		Not assessed
+CFG-113	G10	G10.nonfollowing_error_pp	number	percentage_point	Commissioning required	"{""minimum"": 0, ""maximum"": 100}"	STATE_BOUNDARY	Aligned actual demand minus valid VP		Not assessed
+CFG-114	G10	G10.nonfollowing_dwell_s	number	s	Commissioning required	"{""minimum"": 0.001, ""maximum"": 86400}"	STATE_BOUNDARY	Beyond validated actuator delay/response allowance		Not assessed
+CFG-115	G10	G10.movement_noise_floor_pp	number	percentage_point	Commissioning required	"{""minimum"": 0, ""maximum"": 100}"	STATE_BOUNDARY	VP movement noise/calibration-aware threshold		Not assessed
+CFG-116	G11	G11.freeze_tolerance_pv_eu	number	PV_EU	Commissioning required	"{""minimum"": 0, ""maximum"": 1000000000000.0}"	STATE_BOUNDARY	Resolution/source-aware flatness tolerance		Not assessed
+CFG-117	G11	G11.freeze_dwell_s	number	s	Commissioning required	"{""minimum"": 0.001, ""maximum"": 86400}"	STATE_BOUNDARY	Episode duration, no dilution by long-window fraction		Not assessed
+CFG-118	G11	G11.spike_noise_multiplier	number	ratio	Commissioning required	"{""minimum"": 1, ""maximum"": 1000}"	STATE_BOUNDARY	Robust noise qualification		Not assessed
+CFG-119	G11	G11.instrument_verified_max_age_s	number	s	Commissioning required	"{""minimum"": 1, ""maximum"": 604800}"	STATE_BOUNDARY	Instrumental verified source age, not broker emission age		Not assessed
+CFG-120	G11	G11.late_health_correction_horizon_s	number	s	Commissioning required	"{""minimum"": 0, ""maximum"": 31536000}"	STATE_BOUNDARY	Revision policy; retained history remains immutable		Not assessed
+CFG-121	G12	G12.step_min_input_eu	number	input_EU	Commissioning required	"{""minimum"": 0, ""maximum"": 1000000000000.0}"	STATE_BOUNDARY	Declared applied-input/event path		Not assessed
+CFG-122	G12	G12.step_min_span_fraction	number	fraction	Commissioning required	"{""minimum"": 0, ""maximum"": 1}"	STATE_BOUNDARY	Relative event threshold		Not assessed
+CFG-123	G12	G12.noise_multiplier	number	ratio	5	"{""minimum"": 1, ""maximum"": 1000}"	STATE_BOUNDARY	Commissioning proposal; qualified robust pre-noise		Not assessed
+CFG-124	G12	G12.pre_support_s	number	s	Commissioning required	"{""minimum"": 1, ""maximum"": 31536000}"	STATE_BOUNDARY	Qualified stable baseline support		Not assessed
+CFG-125	G12	G12.post_support_min_s	number	s	Commissioning required	"{""minimum"": 1, ""maximum"": 31536000}"	STATE_BOUNDARY	Minimum post-event support		Not assessed
+CFG-126	G12	G12.capture_max_s	number	s	Commissioning required	"{""minimum"": 1, ""maximum"": 31536000}"	STATE_BOUNDARY	Must fit deployed state/capacity; censored on expiry		Not assessed
+CFG-127	G12	G12.crossing_dwell_s	number	s	Commissioning required	"{""minimum"": 0, ""maximum"": 86400}"	STATE_BOUNDARY	Sustained threshold crossing		Not assessed
+CFG-128	G12	G12.settling_tail_dwell_s	number	s	Commissioning required	"{""minimum"": 0.001, ""maximum"": 31536000}"	STATE_BOUNDARY	Minimum observed stable tail		Not assessed
+CFG-129	G12	G12.settling_relative_band	number	fraction	0.02	"{""minimum"": 1e-06, ""maximum"": 0.5}"	POLICY	Engineering starting convention, not universal objective		Not assessed
+CFG-130	G12	G12.settling_abs_band_pv_eu	number	PV_EU	Commissioning required	"{""minimum"": 0, ""maximum"": 1000000000000.0}"	POLICY	Noise/objective-aware absolute band		Not assessed
+CFG-131	G12	G12.delay_min_s	number	s	0	"{""minimum"": 0, ""maximum"": 31536000}"	STATE_BOUNDARY	Delay search bound; clock uncertainty retained		Not assessed
+CFG-132	G12	G12.delay_max_s	number	s	Commissioning required	"{""minimum"": 0, ""maximum"": 31536000}"	STATE_BOUNDARY	Qualified model path bound		Not assessed
+CFG-133	G12	G12.tau_min_s	number	s	Commissioning required	"{""minimum"": 1e-06, ""maximum"": 31536000}"	STATE_BOUNDARY	Self-regulating time-constant lower bound		Not assessed
+CFG-134	G12	G12.tau_max_s	number	s	Commissioning required	"{""minimum"": 1e-06, ""maximum"": 31536000}"	STATE_BOUNDARY	Self-regulating time-constant upper bound		Not assessed
+CFG-135	G12	G12.gain_abs_max	number	PV_EU/input_EU	Commissioning required	"{""minimum"": 1e-06, ""maximum"": 1000000000000000.0}"	STATE_BOUNDARY	Signed gain bounded both ways if sign unknown		Not assessed
+CFG-136	G12	G12.fit_max_iterations	integer	iteration	200	"{""minimum"": 10, ""maximum"": 10000}"	STATE_BOUNDARY	Bounded solver resource		Not assessed
+CFG-137	G12	G12.fit_relative_tolerance	number	ratio	1e-08	"{""minimum"": 1e-12, ""maximum"": 0.01}"	STATE_BOUNDARY	Solver convergence threshold		Not assessed
+CFG-138	G12	G12.validation_rmse_max_pv_eu	number	PV_EU	Commissioning required	"{""minimum"": 0, ""maximum"": 1000000000000.0}"	POLICY	Independent holdout criterion, approved per regime		Not assessed
+CFG-139	G12	G12.confidence_level	number	fraction	0.95	"{""minimum"": 0.5, ""maximum"": 0.999}"	POLICY	Statistical interval level only with identified method		Not assessed
+CFG-140	G12	G12.bootstrap_repetitions	integer	count	200	"{""minimum"": 20, ""maximum"": 10000}"	STATE_BOUNDARY	Block/event bootstrap if installed; not IID shortcut		Not assessed
+CFG-141	G12	G12.model_max_age_s	number	s	Commissioning required	"{""minimum"": 1, ""maximum"": 315360000}"	POLICY	Context changes may expire earlier		Not assessed
+CFG-142	G12	G12.lambda_s	number	s	Commissioning required	"{""minimum"": 0.001, ""maximum"": 31536000}"	POLICY	Approved advisory objective only; no automatic DCS write		Not assessed
+CFG-143	G13	G13.lag_max_s	number	s	Commissioning required	"{""minimum"": 0.001, ""maximum"": 31536000}"	STATE_BOUNDARY	Aligned peer analysis physical lag bound		Not assessed
+CFG-144	G13	G13.coherence_display_min	number	fraction	Commissioning required	"{""minimum"": 0, ""maximum"": 1}"	POLICY	Qualified association, not proof of causality		Not assessed
+CFG-145	G13	G13.min_compatible_support_s	number	s	Commissioning required	"{""minimum"": 1, ""maximum"": 31536000}"	STATE_BOUNDARY	Both signals valid and regime-compatible		Not assessed
+CFG-146	G13	G13.max_peers	integer	count	12	"{""minimum"": 1, ""maximum"": 200}"	STATE_BOUNDARY	Bounded graph/signal expansion		Not assessed
+CFG-147	G14	G14.confirmation_record_max_age_s	number	s	Commissioning required	"{""minimum"": 1, ""maximum"": 315360000}"	POLICY	Fault-specific evidence validity; binding/config changes may invalidate		Not assessed
+CFG-148	G14	G14.require_independent_review	boolean	boolean	True	{}	POLICY	Site may require stronger review; immutable mandatory policies cannot be weakened		Not assessed
+CFG-149	G15	G15.episode_persistence_s	number	s	Commissioning required	"{""minimum"": 0, ""maximum"": 31536000}"	STATE_BOUNDARY	Unique compatible observed support, not raw overlapping-window count		Not assessed
+CFG-150	G15	G15.recovery_support_s	number	s	Commissioning required	"{""minimum"": 0.001, ""maximum"": 31536000}"	STATE_BOUNDARY	Positive recovery evidence; missing data not recovery		Not assessed
+CFG-151	G15	G15.minimum_evidence_groups	integer	group	2	"{""minimum"": 1, ""maximum"": 20}"	POLICY	Independent evidence groups and method capability constraints		Not assessed
+CFG-152	G15	G15.hypothesis_score_display_min	number	fraction	Commissioning required	"{""minimum"": 0, ""maximum"": 1}"	POLICY	Uncalibrated evidence score not probability		Not assessed
+CFG-153	G15	G15.notification_repeat_s	number	s	Commissioning required	"{""minimum"": 1, ""maximum"": 31536000}"	POLICY	Notification only, not physical episode closure		Not assessed
+CFG-154	G0	G0.acquisition_mode	enum	contract	Commissioning required	"[""PERIODIC_NATIVE"", ""CHANGE_BASED"", ""AVERAGED"", ""INTERPOLATED""]"	STATE_BOUNDARY	Approved source contract, cannot be fabricated in UI		Not assessed
+CFG-155	G1	G1.auto_tokens	string_array	token	Commissioning required	"{""minItems"": 1, ""maxItems"": 50}"	STATE_BOUNDARY	Vendor adapter map reviewed; unknown remains unknown		Not assessed
+CFG-156	G3	G3.objective_type	enum	objective	Commissioning required	"[""TIGHT_TRACKING"", ""AVERAGING_INVENTORY"", ""RAMP_TRACKING"", ""CONSTRAINT_OPERATION""]"	STATE_BOUNDARY	Separate objective from tag family		Not assessed
+CFG-157	G5	G5.signal_role	enum	role	Commissioning required	"[""PV"", ""ERROR"", ""APPLIED_INPUT"", ""VP""]"	STATE_BOUNDARY	Oscillation signals may differ from curve-fitting signal		Not assessed
+CFG-158	G6	G6.estimator	enum	method	Commissioning required	"[""LEGACY_DFT"", ""WELCH_PSD""]"	STATE_BOUNDARY	Only installed version selectable; no equivalence claim		Not assessed
+CFG-159	G7	G7.shape_method	enum	method	Commissioning required	"[""CYCLE_SINE_TRIANGLE_V1""]"	STATE_BOUNDARY	Exactly specified legacy-compatible or validated template adapter		Not assessed
+CFG-160	G8	G8.method	enum	method	Commissioning required	"[""LAG_ASYMMETRY_V1"", ""BICOHERENCE_V1"", ""SURROGATE_NONLINEARITY_V1""]"	STATE_BOUNDARY	Capability check rejects unimplemented methods		Not assessed
+CFG-161	G12	G12.model_families	string_array	model	Commissioning required	"{""minItems"": 1, ""maxItems"": 8}"	STATE_BOUNDARY	Subset of installed and domain-validated families only		Not assessed
+CFG-162	G12	G12.estimator	enum	method	Commissioning required	"[""EXOGENOUS_OUTPUT_ERROR"", ""CLOSED_LOOP_PEM"", ""VALIDATED_IV""]"	STATE_BOUNDARY	Estimator evidence prerequisites cannot be overridden		Not assessed
+CFG-163	G12	G12.uncertainty_method	enum	method	Commissioning required	"[""PROFILE_LIKELIHOOD"", ""QUALIFIED_COVARIANCE"", ""BLOCK_BOOTSTRAP"", ""EVENT_BOOTSTRAP""]"	STATE_BOUNDARY	Identified statistical method, not G15 confidence		Not assessed
+CFG-164	G13	G13.peer_binding_ids	string_array	binding	Commissioning required	"{""minItems"": 0, ""maxItems"": 200}"	STATE_BOUNDARY	Qualified as-of bindings, not arbitrary query paths		Not assessed
+CFG-165	G14	G14.allowed_evidence_types	string_array	record	Commissioning required	"{""minItems"": 1, ""maxItems"": 20}"	POLICY	Subset of approved scoped proof types; VP presence not a proof type		Not assessed

@@ -1,0 +1,11 @@
+SOURCE / DOCUMENT DIFFERENCES				
+Do not silently reconcile these seven differences or mark an old defect as currently present without the matching code.				
+				
+ID	Topic	Archive source	New document	Required disposition
+C01	G3 error band	Archive uses fixed 0.5 in computeShortFeatures.	V §4.1 now says 0.005 × declared PV span.	Treat span support as DOCUMENT-REPORTED UPDATE; do not repeat fixed-band defect as current fact. Verify actual arithmetic AND propagation of pvEng ranges in deployed jar.
+C02	Tuple cadence and timestamp	Archive LoopJoiner emits every grid with grid timestamp and age checks.	A B2 / V §2 say quiet ticks skipped and newest source timestamp is tuple event time.	These represent materially different acquisition semantics. Release needs per-role time/freshness and explicit source contract for either behavior.
+C03	Live heartbeat	Archive RBE has value-only change filter and no heartbeat.	A A4/B9 says 300-second heartbeat, with fresh ts.	Do not claim heartbeat absent on current branch. Verify quality-only emission and source-versus-heartbeat timestamp separation.
+C04	Long minimum sample count	Older PDF and source do not consistently state the same threshold.	A/V specify at least 32 per long slice.	Use 32 as documented current minimum, but method eligibility still needs bandwidth, cycles, coverage and event support.
+C05	Everything overridable	Archive parser exposes a subset; several constants remain embedded.	V §9 says G4 3/8 hardcoded then says all overridable.	Contradiction is unresolved. Require catalogue-to-runtime mutation tests; never trust a profile ID or JSON acceptance as proof.
+C06	Event-time lateness	Static short windows specify allowed lateness; long keyed timers differ.	A/V summarize all samples beyond 2-min watermark as dropped.	Verify each operator side-output/correction policy. A watermark does not alone specify late-data treatment for every custom process operator.
+C07	Build identity	Archive comment identifies one revision; formulas and line counts differ from new documents.	Both report calc 3.0.0 and dynamics 2.0.0.	Display artifact SHA, source commit, schema version, method version and config hash. Version strings alone do not identify identical code.
