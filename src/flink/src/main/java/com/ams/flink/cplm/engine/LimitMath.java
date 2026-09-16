@@ -66,6 +66,93 @@ public final class LimitMath {
         public boolean cyclingPattern;
     }
 
+    /** v2.5 R08 - one contiguous stay at a limit, in event time. */
+    public static final class DwellEvent implements java.io.Serializable {
+        private static final long serialVersionUID = 1L;
+        public long startMs;
+        public long endMs;
+        public double durationS;
+        public String side;          // LOW | HIGH
+        public int samples;
+    }
+
+    /** v2.5 R08 - one contiguous flat run of PV at or beyond the freeze dwell, in event time. */
+    public static final class FreezeEvent implements java.io.Serializable {
+        private static final long serialVersionUID = 1L;
+        public long startMs;
+        public long endMs;
+        public double durationS;
+        public int samples;
+    }
+
+    /**
+     * v2.5 R08 - limit episodes with physical duration. {@code op} is already normalised to
+     * 0-100 pp of the declared (or assumed) range; a sample is at the LOW limit when
+     * {@code op <= tolPp} and at the HIGH limit when {@code op >= 100 - tolPp}. An episode
+     * ends when the sample leaves the limit; the final sample's interval is one median grid.
+     */
+    public static java.util.List<DwellEvent> computeLimitEpisodes(double[] op, long[] tsMs, double tolPp, double gridMs) {
+        java.util.List<DwellEvent> out = new java.util.ArrayList<>();
+        int n = Math.min(op.length, tsMs.length);
+        DwellEvent cur = null;
+        for (int i = 0; i < n; i++) {
+            String side = op[i] <= tolPp ? "LOW" : op[i] >= 100.0 - tolPp ? "HIGH" : null;
+            if (side != null && cur != null && cur.side.equals(side)) {
+                cur.endMs = tsMs[i];
+                cur.samples++;
+                continue;
+            }
+            if (cur != null) { close(cur, gridMs); out.add(cur); cur = null; }
+            if (side != null) {
+                cur = new DwellEvent();
+                cur.startMs = tsMs[i];
+                cur.endMs = tsMs[i];
+                cur.side = side;
+                cur.samples = 1;
+            }
+        }
+        if (cur != null) { close(cur, gridMs); out.add(cur); }
+        return out;
+    }
+
+    private static void close(DwellEvent e, double gridMs) {
+        e.endMs = (long) (e.endMs + gridMs);            // the last sample holds for one grid
+        e.durationS = (e.endMs - e.startMs) / 1000.0;
+    }
+
+    /**
+     * v2.5 R08 / NR-025 - every flat run of PV lasting at least {@code dwellS}. Adjacent
+     * samples are "unchanged" when they differ by at most {@code tolEu} (0 = exact, the
+     * legacy PV_FREEZE_EPS). Episodes are evidence and are always retained, however small
+     * their share of the window; materiality is a separate judgement.
+     */
+    public static java.util.List<FreezeEvent> computeFreezeEpisodes(double[] pv, long[] tsMs, double tolEu, double dwellS, double gridMs) {
+        java.util.List<FreezeEvent> out = new java.util.ArrayList<>();
+        int n = Math.min(pv.length, tsMs.length);
+        if (n < 2) return out;
+        double tol = tolEu > 0 ? tolEu : PV_FREEZE_EPS;
+        int runStart = 0;
+        for (int i = 1; i <= n; i++) {
+            boolean same = i < n && Math.abs(pv[i] - pv[i - 1]) <= tol;
+            if (same) continue;
+            int runEnd = i - 1;                          // inclusive index of the last sample in the run
+            if (runEnd > runStart) {
+                long endMs = (long) (tsMs[runEnd] + gridMs);
+                double durationS = (endMs - tsMs[runStart]) / 1000.0;
+                if (durationS >= dwellS) {
+                    FreezeEvent f = new FreezeEvent();
+                    f.startMs = tsMs[runStart];
+                    f.endMs = endMs;
+                    f.durationS = durationS;
+                    f.samples = runEnd - runStart + 1;
+                    out.add(f);
+                }
+            }
+            runStart = i;
+        }
+        return out;
+    }
+
     /**
      * Longest run of unchanged adjacent PV intervals (0 when PV always changes).
      * Freeze index = run * dt, per as-built formula register: a single sample is

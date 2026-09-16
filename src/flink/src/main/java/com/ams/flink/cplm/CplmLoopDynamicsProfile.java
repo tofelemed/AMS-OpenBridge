@@ -110,6 +110,20 @@ public final class CplmLoopDynamicsProfile implements Serializable {
     public double g4ActivityHighRatio = 8.0;
     /** v2.5 - true when the loop DECLARED its PV range (registry/broadcast); the 0-100 default is not a declaration. */
     public boolean pvRangeDeclared = false;
+    /** v2.5 - true when the loop DECLARED its OP range; limits are then the declared min/max (R08, NR-024). */
+    public boolean opRangeDeclared = false;
+    /**
+     * v2.5 R08 - G10 limit policy in normalised percentage points: a sample is "at limit" when
+     * within {@link #limitTolerancePp} of 0 or 100 pp of the (declared or assumed) range. The
+     * default 5.0 reproduces the historical 5 / 95 thresholds exactly.
+     */
+    public double limitTolerancePp = 5.0;
+    /** v2.5 R08 - limit dwell that warns, in SECONDS; 0 = legacy (satLimitDwellSamplesWarn samples). */
+    public double limitDwellWarnS = 0.0;
+    /** v2.5 R08 - PV change at or below this is "unchanged" (EU); 0 = exact equality (legacy). */
+    public double freezeToleranceEu = 0.0;
+    /** v2.5 R08 - a flat run at least this long (seconds) is a freeze episode (evidence, always retained). */
+    public double freezeDwellS = 60.0;
 
     /** The effective G2 band in PV EU (see field docs). */
     public double spStabilityBandEu() {
@@ -231,6 +245,11 @@ public final class CplmLoopDynamicsProfile implements Serializable {
         p.g4ActivityWarnRatio = g4ActivityWarnRatio;
         p.g4ActivityHighRatio = g4ActivityHighRatio;
         p.pvRangeDeclared = pvRangeDeclared;
+        p.opRangeDeclared = opRangeDeclared;
+        p.limitTolerancePp = limitTolerancePp;
+        p.limitDwellWarnS = limitDwellWarnS;
+        p.freezeToleranceEu = freezeToleranceEu;
+        p.freezeDwellS = freezeDwellS;
         p.goodErrorPctPassMin = goodErrorPctPassMin;
         p.satLowPct = satLowPct;
         p.satHighPct = satHighPct;
@@ -570,6 +589,10 @@ public final class CplmLoopDynamicsProfile implements Serializable {
         p.spStabilityBandSpanFraction = dbl(block, "spStabilityBandSpanFraction", p.spStabilityBandSpanFraction);
         p.g4ActivityWarnRatio = dbl(block, "g4ActivityWarnRatio", p.g4ActivityWarnRatio);
         p.g4ActivityHighRatio = dbl(block, "g4ActivityHighRatio", p.g4ActivityHighRatio);
+        p.limitTolerancePp = dbl(block, "limitTolerancePp", p.limitTolerancePp);
+        p.limitDwellWarnS = dbl(block, "limitDwellWarnS", p.limitDwellWarnS);
+        p.freezeToleranceEu = dbl(block, "freezeToleranceEu", p.freezeToleranceEu);
+        p.freezeDwellS = dbl(block, "freezeDwellS", p.freezeDwellS);
         p.goodErrorPctPassMin = dbl(block, "goodErrorPctPassMin", p.goodErrorPctPassMin);
         p.satLowPct = dbl(block, "satLowPct", p.satLowPct);
         p.satHighPct = dbl(block, "satHighPct", p.satHighPct);

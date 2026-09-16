@@ -93,8 +93,21 @@ public final class CplmLongDiagnosticsResult implements Serializable {
     public double saturationPct;
     public int satLimitDwellSamples;
     public boolean satCyclingPattern;
+    /** v2.5 R08: limit dwell in seconds, the limits used (pp), where they came from, the warning dwell, and the episodes. */
+    public double satLimitDwellS;
+    public double limitLowPp;
+    public double limitHighPp;
+    public String limitSource = "";
+    public double limitDwellWarnS;
+    public List<com.ams.flink.cplm.engine.LimitMath.DwellEvent> dwellEvents = new ArrayList<>();
     public int freezeRunSamples;
     public double freezeIndexS;
+    /** v2.5 R08: freeze episodes (>= freezeDwellS) - always retained; materiality separately. */
+    public List<com.ams.flink.cplm.engine.LimitMath.FreezeEvent> freezeEvents = new ArrayList<>();
+    public boolean freezeMaterial;
+    public String gate11Reason = "";
+    public double freezeDwellS;
+    public double freezeToleranceEu;
     /** P1-1 - longest unchanged run as a share of the window (0..1). */
     public double freezeFraction;
     public int pvQuantizationCount;
@@ -198,6 +211,30 @@ public final class CplmLongDiagnosticsResult implements Serializable {
         out.put("saturation_pct", saturationPct);
         out.put("sat_limit_dwell_samples", satLimitDwellSamples);
         out.put("sat_cycling_pattern", satCyclingPattern);
+        out.put("sat_limit_dwell_s", satLimitDwellS);
+        out.put("limit_low_pp", limitLowPp);
+        out.put("limit_high_pp", limitHighPp);
+        out.put("limit_source", limitSource);
+        out.put("limit_dwell_warn_s", limitDwellWarnS);
+        ArrayNode dwell = MAPPER.createArrayNode();
+        for (com.ams.flink.cplm.engine.LimitMath.DwellEvent e : dwellEvents) {
+            ObjectNode o = MAPPER.createObjectNode();
+            o.put("start_ms", e.startMs); o.put("end_ms", e.endMs); o.put("duration_s", e.durationS);
+            o.put("side", e.side); o.put("samples", e.samples);
+            dwell.add(o);
+        }
+        out.set("dwell_events", dwell);
+        ArrayNode freezes = MAPPER.createArrayNode();
+        for (com.ams.flink.cplm.engine.LimitMath.FreezeEvent f : freezeEvents) {
+            ObjectNode o = MAPPER.createObjectNode();
+            o.put("start_ms", f.startMs); o.put("end_ms", f.endMs); o.put("duration_s", f.durationS); o.put("samples", f.samples);
+            freezes.add(o);
+        }
+        out.set("freeze_events", freezes);
+        out.put("freeze_material", freezeMaterial);
+        out.put("gate11_reason", gate11Reason);
+        out.put("freeze_dwell_s", freezeDwellS);
+        out.put("freeze_tolerance_eu", freezeToleranceEu);
         out.put("freeze_run_samples", freezeRunSamples);
         out.put("freeze_index_s", freezeIndexS);
         out.put("pv_quantization_count", pvQuantizationCount);
@@ -312,6 +349,27 @@ public final class CplmLongDiagnosticsResult implements Serializable {
             r.saturationPct = root.path("saturation_pct").asDouble(0);
             r.satLimitDwellSamples = root.path("sat_limit_dwell_samples").asInt(0);
             r.satCyclingPattern = root.path("sat_cycling_pattern").asBoolean(false);
+            r.satLimitDwellS = root.path("sat_limit_dwell_s").asDouble(0);
+            r.limitLowPp = root.path("limit_low_pp").asDouble(0);
+            r.limitHighPp = root.path("limit_high_pp").asDouble(0);
+            r.limitSource = root.path("limit_source").asText("");
+            r.limitDwellWarnS = root.path("limit_dwell_warn_s").asDouble(0);
+            for (JsonNode e : root.path("dwell_events")) {
+                com.ams.flink.cplm.engine.LimitMath.DwellEvent d = new com.ams.flink.cplm.engine.LimitMath.DwellEvent();
+                d.startMs = e.path("start_ms").asLong(); d.endMs = e.path("end_ms").asLong();
+                d.durationS = e.path("duration_s").asDouble(); d.side = e.path("side").asText(""); d.samples = e.path("samples").asInt();
+                r.dwellEvents.add(d);
+            }
+            for (JsonNode e : root.path("freeze_events")) {
+                com.ams.flink.cplm.engine.LimitMath.FreezeEvent f = new com.ams.flink.cplm.engine.LimitMath.FreezeEvent();
+                f.startMs = e.path("start_ms").asLong(); f.endMs = e.path("end_ms").asLong();
+                f.durationS = e.path("duration_s").asDouble(); f.samples = e.path("samples").asInt();
+                r.freezeEvents.add(f);
+            }
+            r.freezeMaterial = root.path("freeze_material").asBoolean(false);
+            r.gate11Reason = root.path("gate11_reason").asText("");
+            r.freezeDwellS = root.path("freeze_dwell_s").asDouble(0);
+            r.freezeToleranceEu = root.path("freeze_tolerance_eu").asDouble(0);
             r.freezeRunSamples = root.path("freeze_run_samples").asInt(0);
             r.freezeIndexS = root.path("freeze_index_s").asDouble(0);
             r.pvQuantizationCount = root.path("pv_quantization_count").asInt(0);

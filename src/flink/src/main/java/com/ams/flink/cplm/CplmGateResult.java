@@ -67,6 +67,13 @@ public class CplmGateResult implements Serializable {
     public String activityReason = "";
     public double gate4WarnRatio;
     public double gate4HighRatio;
+    public double satLimitDwellS;
+    public String limitSource = "";
+    public double limitDwellWarnS;
+    public List<com.ams.flink.cplm.engine.LimitMath.DwellEvent> dwellEvents = new ArrayList<>();
+    public List<com.ams.flink.cplm.engine.LimitMath.FreezeEvent> freezeEvents = new ArrayList<>();
+    public boolean freezeMaterial;
+    public String gate11Reason = "";
     public double opTravel;
     public double travelPerDay;
     public int reversalCount;
@@ -314,6 +321,26 @@ public class CplmGateResult implements Serializable {
         out.put("activity_reason", activityReason);
         putMetric(out, "gate4_warn_ratio", gate4WarnRatio);
         putMetric(out, "gate4_high_ratio", gate4HighRatio);
+        out.put("sat_limit_dwell_s", satLimitDwellS);
+        out.put("limit_source", limitSource);
+        out.put("limit_dwell_warn_s", limitDwellWarnS);
+        ArrayNode dwell = MAPPER.createArrayNode();
+        for (com.ams.flink.cplm.engine.LimitMath.DwellEvent e : dwellEvents) {
+            ObjectNode o = MAPPER.createObjectNode();
+            o.put("start_ms", e.startMs); o.put("end_ms", e.endMs); o.put("duration_s", e.durationS);
+            o.put("side", e.side); o.put("samples", e.samples);
+            dwell.add(o);
+        }
+        out.set("dwell_events", dwell);
+        ArrayNode freezes = MAPPER.createArrayNode();
+        for (com.ams.flink.cplm.engine.LimitMath.FreezeEvent f : freezeEvents) {
+            ObjectNode o = MAPPER.createObjectNode();
+            o.put("start_ms", f.startMs); o.put("end_ms", f.endMs); o.put("duration_s", f.durationS); o.put("samples", f.samples);
+            freezes.add(o);
+        }
+        out.set("freeze_events", freezes);
+        out.put("freeze_material", freezeMaterial);
+        out.put("gate11_reason", gate11Reason);
         putMetric(out, "op_travel", opTravel);
         putMetric(out, "travel_per_day", travelPerDay);
         putMetric(out, "reversal_count", reversalCount);

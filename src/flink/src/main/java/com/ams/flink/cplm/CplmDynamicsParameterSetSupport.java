@@ -132,8 +132,10 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
             if (n.has("opEngMax")) p.opEngMax = n.path("opEngMax").asDouble(p.opEngMax);
             if (n.has("pvEngMin")) p.pvEngMin = n.path("pvEngMin").asDouble(p.pvEngMin);
             if (n.has("pvEngMax")) p.pvEngMax = n.path("pvEngMax").asDouble(p.pvEngMax);
-            // v2.5: a declared PV range is what makes span-relative G2/G4 metrics legitimate.
+            // v2.5: a declared PV range is what makes span-relative G2/G4 metrics legitimate,
+            // and a declared OP range is what makes its min/max the G10 limits (R08).
             if (n.has("pvEngMin") && n.has("pvEngMax") && p.pvEngMax - p.pvEngMin > 1e-12) p.pvRangeDeclared = true;
+            if (n.has("opEngMin") && n.has("opEngMax") && p.opEngMax - p.opEngMin > 1e-12) p.opRangeDeclared = true;
         } catch (Exception ignored) {
             // a malformed range must never break gate evaluation
         }
@@ -275,6 +277,10 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
             if (root.has("spStabilityBandSpanFraction")) p.spStabilityBandSpanFraction = root.path("spStabilityBandSpanFraction").asDouble(p.spStabilityBandSpanFraction);
             if (root.has("g4ActivityWarnRatio")) p.g4ActivityWarnRatio = root.path("g4ActivityWarnRatio").asDouble(p.g4ActivityWarnRatio);
             if (root.has("g4ActivityHighRatio")) p.g4ActivityHighRatio = root.path("g4ActivityHighRatio").asDouble(p.g4ActivityHighRatio);
+            if (root.has("limitTolerancePp")) p.limitTolerancePp = root.path("limitTolerancePp").asDouble(p.limitTolerancePp);
+            if (root.has("limitDwellWarnS")) p.limitDwellWarnS = root.path("limitDwellWarnS").asDouble(p.limitDwellWarnS);
+            if (root.has("freezeToleranceEu")) p.freezeToleranceEu = root.path("freezeToleranceEu").asDouble(p.freezeToleranceEu);
+            if (root.has("freezeDwellS")) p.freezeDwellS = root.path("freezeDwellS").asDouble(p.freezeDwellS);
             if (root.has("goodErrorPctPassMin")) p.goodErrorPctPassMin = root.path("goodErrorPctPassMin").asDouble(p.goodErrorPctPassMin);
             if (root.has("satLowPct")) p.satLowPct = root.path("satLowPct").asDouble(p.satLowPct);
             if (root.has("satHighPct")) p.satHighPct = root.path("satHighPct").asDouble(p.satHighPct);

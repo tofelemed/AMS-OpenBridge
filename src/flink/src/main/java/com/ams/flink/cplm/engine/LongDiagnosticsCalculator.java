@@ -173,12 +173,27 @@ public final class LongDiagnosticsCalculator {
             result.observabilityFlags.add(result.gate9Reason);
         }
 
-        LimitMath.SaturationStats sat = LimitMath.computeSaturationStats(op, profile.satLowPct, profile.satHighPct);
+        // G10 (v2.5 R08): op[] is normalised to 0-100 pp of the DECLARED range when one exists,
+        // so the declared min/max ARE the limits (an 80 % maximum is a limit, NR-024); without a
+        // declaration the 0-100 assumption is a fallback and the record says so. The tolerance
+        // default (5 pp) reproduces the historical 5 / 95 thresholds; dwell is judged in seconds.
+        double tolPp = profile.limitTolerancePp;
+        result.limitLowPp = tolPp;
+        result.limitHighPp = 100.0 - tolPp;
+        result.limitSource = profile.opRangeDeclared ? "DECLARED_RANGE" : "FALLBACK_0_100";
+        LimitMath.SaturationStats sat = LimitMath.computeSaturationStats(op, result.limitLowPp, result.limitHighPp);
+        long[] tsMs = new long[n];
+        for (int i = 0; i < n; i++) tsMs[i] = samples.get(i).eventTsMs;
+        result.dwellEvents = LimitMath.computeLimitEpisodes(op, tsMs, tolPp, tsSec * 1000.0);
+        double maxDwellS = 0;
+        for (LimitMath.DwellEvent e : result.dwellEvents) maxDwellS = Math.max(maxDwellS, e.durationS);
         result.saturationPct = sat.occupancy;
         result.satLimitDwellSamples = sat.maxDwellSamples;
+        result.satLimitDwellS = maxDwellS;
         result.satCyclingPattern = sat.cyclingPattern;
+        result.limitDwellWarnS = profile.limitDwellWarnS > 0 ? profile.limitDwellWarnS : profile.satLimitDwellSamplesWarn * tsSec;
         if (sat.occupancy >= profile.satWarnOccupancy
-                || sat.maxDwellSamples >= profile.satLimitDwellSamplesWarn
+                || maxDwellS >= result.limitDwellWarnS
                 || sat.cyclingPattern) {
             result.gate10Status = "WARN";
         } else {
@@ -201,7 +216,23 @@ public final class LongDiagnosticsCalculator {
         // 24 h window. Require both an absolute floor and a share of the window.
         result.freezeFraction = n > 0 ? (double) result.freezeRunSamples / n : 0.0;
         boolean materialFreeze = result.freezeIndexS >= 60 && result.freezeFraction >= 0.10;
-        result.gate11Status = materialFreeze ? "WARN" : "PASS";
+        // v2.5 R08 / NR-025: every flat run >= freezeDwellS is a retained EPISODE and makes G11
+        // WARN (visible in a 24 h window); only a MATERIAL freeze (the rule above) excludes the
+        // window in fusion, so a compressed-historian hold cannot blank a whole day.
+        result.freezeDwellS = profile.freezeDwellS;
+        result.freezeToleranceEu = profile.freezeToleranceEu;
+        result.freezeEvents = LimitMath.computeFreezeEpisodes(pv, tsMs, profile.freezeToleranceEu, profile.freezeDwellS, tsSec * 1000.0);
+        result.freezeMaterial = materialFreeze;
+        if (materialFreeze) {
+            result.gate11Status = "WARN";
+            result.gate11Reason = "MATERIAL_FREEZE";
+        } else if (!result.freezeEvents.isEmpty()) {
+            result.gate11Status = "WARN";
+            result.gate11Reason = "FREEZE_EPISODE";
+        } else {
+            result.gate11Status = "PASS";
+            result.gate11Reason = "";
+        }
 
         return result;
     }

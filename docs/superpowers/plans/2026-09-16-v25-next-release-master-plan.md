@@ -317,7 +317,7 @@ public static class QualityDecoder {
 - Modify: `CplmLongDiagnosticsResult.java`, `CplmShortFeatureResult.java` (+ arrays `dwellEvents`, `freezeEvents`)
 - Test: `LimitMathTest` (1-hour freeze inside 24 h → `freeze_events.size()==1`, G11 WARN; OP pinned at 80 with `opMax=80` → G10 `active_high`), `CplmFormulaContractTest` round-trip includes the arrays.
 
-- [ ] Failing test → implement → commit `fix(flink): G10 limits from engineering range in seconds; G11 freeze episodes retained`.
+- [x] Failing test → implement → commit `fix(flink): G10 limits from engineering range in seconds; G11 freeze episodes retained`.
 
 ### Task 1D.4: Fast condition path — `CplmConditionStreamJob` (R11 part 1)
 

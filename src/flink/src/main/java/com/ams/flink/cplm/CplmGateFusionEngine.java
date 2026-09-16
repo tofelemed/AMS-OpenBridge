@@ -180,6 +180,13 @@ public final class CplmGateFusionEngine implements Serializable {
         result.regionOutOfBandPct = shortF.regionOutOfBandPct;
         result.satLimitDwellSamples = longD.satLimitDwellSamples;
         result.satCyclingPattern = longD.satCyclingPattern;
+        result.satLimitDwellS = longD.satLimitDwellS;
+        result.limitSource = longD.limitSource;
+        result.limitDwellWarnS = longD.limitDwellWarnS;
+        result.dwellEvents = longD.dwellEvents;
+        result.freezeEvents = longD.freezeEvents;
+        result.freezeMaterial = longD.freezeMaterial;
+        result.gate11Reason = longD.gate11Reason;
 
         // P1-10: stamp the provenance of the long-tier metrics copied above
         // BEFORE any early return, so every row carries it.
@@ -209,7 +216,9 @@ public final class CplmGateFusionEngine implements Serializable {
         if (!shortF.operatingRegionValid || "FAIL".equalsIgnoreCase(shortF.gate2rStatus)) {
             return blockDiagnosis(result, "EXCLUDED_OPERATING_REGION", "G2r operating region invalid");
         }
-        if ("WARN".equalsIgnoreCase(longD.gate11Status) && longD.freezeIndexS >= 60) {
+        // v2.5 R08: a freeze EPISODE is evidence (G11 WARN, retained); only a MATERIAL freeze
+        // (>= 60 s AND >= 10 % of the window - the P1-1 rule) excludes the window.
+        if (longD.freezeMaterial) {
             return blockDiagnosis(result, "EXCLUDED_SENSOR", "G11 sensor freeze dominant");
         }
 
