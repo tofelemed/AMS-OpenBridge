@@ -15,7 +15,7 @@ import { useCpmLoops } from '../../hooks/useCpm';
 import type { CpmLoop } from '../../api/cpmApi';
 import { PlantScopeFilter, useCpmScope, loopMatchesQuery } from './plantScope';
 
-import { dynamicClassOf, stateOf } from './registryShared';
+import { modelLabel, stateOf } from './registryShared';
 import ProfileAside from './ProfileAside';
 import AddLoopWizard from './AddLoopWizard';
 import BulkImportDialog from './BulkImportDialog';
@@ -90,7 +90,7 @@ export const LoopRegistry: React.FC = () => {
             }
           />
           <div className="cpm-reg-head">
-            <span>Loop / service</span><span>Dynamic class (derived)</span><span>Type</span>
+            <span>Loop / service</span><span>Loop model (registry)</span><span>Type</span>
             <span>VP</span><span>Profile</span><span>State</span>
           </div>
           {isLoading && <EmptyState title="Loading registry…" />}
@@ -123,7 +123,7 @@ export const LoopRegistry: React.FC = () => {
                   <strong>{loop.loopId}</strong>
                   <div className="cpm-event-row__sub">{loop.displayName} · {loop.area ?? loop.site}</div>
                 </span>
-                <span>{dynamicClassOf(loop)}</span>
+                <span title={loop.model?.classificationSource}>{modelLabel(loop)}</span>
                 <span>{loop.loopType}</span>
                 <span>{loop.tags['VP'] ? 'AVAILABLE' : 'NOT MAPPED'}</span>
                 <span>{loop.thresholdProfileId ?? '—'}</span>

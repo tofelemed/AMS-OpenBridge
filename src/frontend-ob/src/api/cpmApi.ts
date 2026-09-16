@@ -45,6 +45,38 @@ export interface CpmLoop {
   engineering?: CpmEngineeringRange | null;
   /** v2.5 (2E.2): the site zone the loop's times are shown in; 'UTC' when the registry declares none. */
   timezone?: string | null;
+  /** v2.5 (2G.1): the loop model dimensions + acquisition contract, with where they came from. */
+  model?: CpmLoopModelDto | null;
+}
+
+/** v2.5 (2G.1): how the source delivers samples - what bounds the methods (NR-016) and names a hold (NR-019). */
+export interface CpmAcquisition {
+  mode: string;
+  gridSeconds?: number | null;
+  sourceFilterS?: number | null;
+  timestampQuantizationMs?: number | null;
+  declaredScanS?: number | null;
+}
+
+/** v2.5 (2G.1): the five explicit dimensions; any omitted field takes the loop_type preset. */
+export interface CpmLoopModel {
+  serviceFamily?: string | null;
+  dynamicClass?: string | null;
+  objectiveType?: string | null;
+  topology?: string | null;
+  commandPath?: string | null;
+  acquisition?: CpmAcquisition | null;
+}
+
+export interface CpmLoopModelDto {
+  serviceFamily: string | null;
+  dynamicClass: string | null;
+  objectiveType: string;
+  topology: string;
+  commandPath: string;
+  acquisition: CpmAcquisition;
+  /** PRESET_FROM_LOOP_TYPE (derived from the tag type) or EXPLICIT (a person declared it; presets never overwrite it). */
+  classificationSource: string;
 }
 
 export interface CpmTagMapEntry {
@@ -89,7 +121,11 @@ export interface CpmActivateRequest {
   /** G-07: cplm-api rejects a site/area/unit chain that is not in the asset
    *  model (422 LOCATION_NOT_IN_UNS) unless this explicit opt-out is set. */
   allowUnmodelledLocation?: boolean;
+  /** v2.5 (2G.1): explicit loop model; omit to keep a stored EXPLICIT model or take the preset. */
+  model?: CpmLoopModel | null;
 }
+
+export interface CpmLoopModelPreset { serviceFamily: string | null; dynamicClass: string | null; objectiveType: string; topology: string; commandPath: string }
 
 export interface CpmRegistryContract {
   requiredSignalRoles: string[];
@@ -97,6 +133,11 @@ export interface CpmRegistryContract {
   loopTypes: string[];
   relationshipTypes: string[];
   notes: { loopType: string; vp: string; peerLinks: string };
+  /** v2.5 (2G.1): the loop model enums the wizard offers and the preset per loop type. */
+  model?: {
+    serviceFamilies: string[]; dynamicClasses: string[]; objectiveTypes: string[]; topologies: string[]; commandPaths: string[];
+    acquisitionModes: string[]; classificationSources: string[]; presets: Record<string, CpmLoopModelPreset>;
+  };
 }
 
 export const getLoops = () =>

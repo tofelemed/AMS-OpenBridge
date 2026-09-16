@@ -18,6 +18,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import { KvRow, PanelHead, TonePill, fmtDuration, fmtWindowShape, windowSpecsOf } from './shared';
 import { useActivateLoop, useCpmReadiness, useCpmRegistryContract, useCpmResolutions } from '../../hooks/useCpm';
 import type { CpmActivateRequest, CpmLoop, CpmTagMapEntry } from '../../api/cpmApi';
+import { ClassificationStep, emptyModelForm, isExplicit, modelOf, type ModelForm } from './registry/wizard/ClassificationStep';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { PlantLocationPicker, SIGNAL_ROLES, deriveSignalPath, historianNode, isResolvablePath, loopIdProblem } from './plantLocation';
 import type { PlantLocation } from './plantLocation';
@@ -31,11 +32,22 @@ const STEPS = ['Identity', 'Classification', 'Signal mappings', 'Windows & profi
 interface WizardState {
   loopId: string; displayName: string; site: string; area: string; unit: string;
   loopType: string; criticality: string;
+  /** v2.5 (2G.1): the explicit loop model (blank = the loop_type preset). */
+  model: ModelForm;
   pv: string; sp: string; op: string; mode: string; vp: string;
   thresholdProfileId: string; enableMonitoring: boolean;
   // Engineering ranges, held as strings so "not declared" stays distinguishable
   // from 0 — the API treats an omitted bound as undeclared and a 0 as a real one.
   pvMin: string; pvMax: string; opMin: string; opMax: string;
+}
+
+/** v2.5 (2G.1): an EXPLICIT stored model prefills the selects; a preset leaves them blank (so a preset is never re-sent as explicit). */
+function modelFormOf(m: CpmLoop['model']): ModelForm {
+  const f = emptyModelForm();
+  if (!m || m.classificationSource !== 'EXPLICIT') return f;
+  const t = (v: number | null | undefined) => (v === null || v === undefined ? '' : String(v));
+  return { ...f, serviceFamily: m.serviceFamily ?? '', dynamicClass: m.dynamicClass ?? '', objectiveType: m.objectiveType ?? '', topology: m.topology ?? '', commandPath: m.commandPath ?? '',
+    acqMode: m.acquisition?.mode ?? '', gridSeconds: t(m.acquisition?.gridSeconds), sourceFilterS: t(m.acquisition?.sourceFilterS), tsQuantMs: t(m.acquisition?.timestampQuantizationMs), declaredScanS: t(m.acquisition?.declaredScanS) };
 }
 
 /** Blank stays blank: an undeclared bound must not round-trip as "0". */
@@ -121,6 +133,7 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
     thresholdProfileId: editLoop.thresholdProfileId ?? '', enableMonitoring: editLoop.monitoringEnabled,
     pvMin: numText(editLoop.engineering?.pvMin), pvMax: numText(editLoop.engineering?.pvMax),
     opMin: numText(editLoop.engineering?.opMin), opMax: numText(editLoop.engineering?.opMax),
+    model: modelFormOf(editLoop.model),
   } : {
     // site starts EMPTY: the old 'site1' placeholder was a site that exists in
     // no asset model, and activation now rejects unmodelled locations (G-07) —
@@ -131,6 +144,7 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
     pv: '', sp: '', op: '', mode: '', vp: '',
     thresholdProfileId: '', enableMonitoring: true,
     pvMin: '', pvMax: '', opMin: '', opMax: '',
+    model: emptyModelForm(),
   });
   const readiness = useCpmReadiness(savedLoopId ?? undefined);
   // P5.3: manual location entry (or an empty asset model) means the location is
@@ -169,8 +183,9 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
   const halfRange = ([['pvMin', 'pvMax', 'PV'], ['opMin', 'opMax', 'OP']] as const)
     .filter(([lo, hi]) => (form[lo].trim() === '') !== (form[hi].trim() === ''))
     .map(([, , label]) => label);
+  const modelIssue = isExplicit(form.model) && modelOf(form.model) === null;
   const canContinue = step === 0 ? identityValid
-    : step === 1 ? rangeIssue === null
+    : step === 1 ? rangeIssue === null && !modelIssue
     : step === 2 ? signalsValid : true;
 
   const buildRequest = (): CpmActivateRequest => {
@@ -193,6 +208,8 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
       enableMonitoring: form.enableMonitoring,
       engineering: engineeringOf(form),
       allowUnmodelledLocation: manualLoc,
+      // v2.5 (2G.1): only an explicit declaration is sent; omitted keeps a stored EXPLICIT model or takes the preset
+      model: modelOf(form.model),
     };
   };
 
@@ -266,10 +283,7 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
                 <input className="cpm-input" value={form.thresholdProfileId} onChange={set('thresholdProfileId')} placeholder="default" />
               </label>
             </div>
-            <p className="cpm-copy" style={{ marginTop: 12 }}>
-              The dynamics class is resolved from the loop type ({form.loopType}). Selecting
-              UNKNOWN disables geometry-based diagnosis (prior 0.0) until reclassified.
-            </p>
+            <ClassificationStep loopType={form.loopType} contract={contract.data?.model} form={form.model} onChange={m => setForm(f => ({ ...f, model: m }))} />
 
             <div className="cpm-field__label" style={{ marginTop: 18 }}>Engineering ranges</div>
             <p className="cpm-copy" style={{ marginBottom: 10 }}>
@@ -374,6 +388,7 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
             <KvRow label="Service">{form.displayName}</KvRow>
             <KvRow label="Location">{[form.site, form.area, form.unit].filter(Boolean).join(' / ')}</KvRow>
             <KvRow label="Type / criticality">{form.loopType} · {form.criticality}</KvRow>
+            <KvRow label="Loop model">{isExplicit(form.model) ? `EXPLICIT — ${[form.model.serviceFamily, form.model.dynamicClass, form.model.objectiveType, form.model.topology, form.model.commandPath].filter(Boolean).join(' · ') || 'acquisition only'}` : `preset from loop type ${form.loopType}`}</KvRow>
             <KvRow label="Signals">{['pv', 'sp', 'op', 'mode', 'vp'].filter(k => form[k as keyof WizardState]).map(k => k.toUpperCase()).join(' · ') || 'none'}</KvRow>
             <KvRow label="Engineering ranges">
               {[form.pvMin || form.pvMax ? `PV ${form.pvMin || '0'}–${form.pvMax || '100'}` : null,

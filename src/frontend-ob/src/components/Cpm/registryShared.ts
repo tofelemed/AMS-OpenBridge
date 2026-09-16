@@ -6,21 +6,14 @@
 import type { CpmLoop } from '../../api/cpmApi';
 
 /**
- * Dynamic class DERIVED from loop type.
- *
- * A client-side stand-in, not the engine's answer: the fusion engine resolves a
- * `dynamicsClass` per window and reports it — with whether the profile was
- * INFERRED — in the gate metadata, which is what the Explorer Summary tab
- * shows. The registry list has no per-loop gate payload, so it derives. Every
- * surface showing this must SAY it is a derivation, or it reads as the engine's
- * resolution and can silently disagree with it.
+ * v2.5 (2G.1, R25): the loop model as the REGISTRY stores it (service family · dynamic class),
+ * never a client-side derivation from the tag type. A row the API served without a model
+ * (pre-2G.1 service) reads as "not served".
  */
-export function dynamicClassOf(loop: CpmLoop): string {
-  switch (loop.loopType) {
-    case 'LIC': return 'INTEGRATING';
-    case 'TIC': return 'SLOW_SELF_REG';
-    default: return 'FAST_SELF_REG';
-  }
+export function modelLabel(loop: CpmLoop): string {
+  const m = loop.model;
+  if (!m) return 'model not served';
+  return `${m.serviceFamily ?? '—'} · ${m.dynamicClass ?? '—'}`;
 }
 
 export function stateOf(loop: CpmLoop): { label: string; tone: 'good' | 'warn' | 'muted' } {

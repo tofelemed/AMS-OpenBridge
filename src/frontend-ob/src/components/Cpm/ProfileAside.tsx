@@ -22,7 +22,7 @@ import { useGateCatalogue, useRepublishEvidence } from '../../hooks/useCpm';
 import type { GateCatalogue } from '../../api/cpm/catalogue';
 import type { CpmLoop } from '../../api/cpmApi';
 
-import { dynamicClassOf, stateOf } from './registryShared';
+import { modelLabel, stateOf } from './registryShared';
 
 // ── profile detail aside ───────────────────────────────────────────────────
 
@@ -52,13 +52,17 @@ export const ProfileAside: React.FC<{ loop: CpmLoop; onEdit: () => void }> = ({ 
           </span>
         }
       />
-      {/* Derived from loop type here; the engine resolves its own dynamicsClass
-          per window (and reports whether the profile was INFERRED), which the
-          Explorer Summary tab shows. Naming the derivation stops this reading as
-          the engine's answer. */}
-      <KvRow label="Dynamic class">
-        {dynamicClassOf(loop)} <span className="cpm-event-row__sub">(derived from loop type)</span>
+      {/* v2.5 (2G.1): the registry's stored model with its source - never a client-side
+          derivation from the tag type. The engine resolves its profile from this. */}
+      <KvRow label="Loop model">
+        {modelLabel(loop)} <span className="cpm-event-row__sub">({loop.model?.classificationSource === 'EXPLICIT' ? 'declared' : 'preset from loop type'})</span>
       </KvRow>
+      {loop.model && (
+        <KvRow label="Objective / topology / command">{loop.model.objectiveType} · {loop.model.topology} · {loop.model.commandPath}</KvRow>
+      )}
+      {loop.model?.acquisition && (
+        <KvRow label="Acquisition">{loop.model.acquisition.mode}{loop.model.acquisition.gridSeconds != null ? ` · grid ${loop.model.acquisition.gridSeconds} s` : ' · grid undeclared'}</KvRow>
+      )}
       <KvRow label="Loop type">{loop.loopType}</KvRow>
       <KvRow label="Site / area / unit">
         {[loop.site, loop.area, loop.unit].filter(Boolean).join(' / ')}
