@@ -58,6 +58,7 @@ public final class ShortArtifacts {
         boolean[] accepted = new boolean[n];
         ArtifactSupport.Coder qNative = new ArtifactSupport.Coder(n), qNorm = new ArtifactSupport.Coder(n), hold = new ArtifactSupport.Coder(n), excl = new ArtifactSupport.Coder(n);
         ArtifactSupport.Coder modeCodes = "mode".equals(role) ? new ArtifactSupport.Coder(n) : null;
+        double vpMaxAgeMs = (k.profile == null ? com.ams.flink.cplm.CplmLoopDynamicsProfile.VP_MAX_AGE_S_DEFAULT : k.profile.vpMaxAgeS) * 1000.0;
         boolean any = false;
         double prevT = Double.NaN;
         for (int i = 0; i < n; i++) {
@@ -97,6 +98,7 @@ public final class ShortArtifacts {
             if (o.reason != null && !o.reason.isEmpty()) reason = o.reason;
             else if (!"GOOD".equals(o.quality)) reason = o.quality + "_QUALITY";
             else if (modeCodes == null && (o.value == null || !Double.isFinite(o.value))) reason = "NON_FINITE";
+            else if ("vp".equals(role) && o.held && o.ageMs > vpMaxAgeMs) reason = "HELD_OVER_AGE";   // spec §2.7: a held VP past vp_max_age_s is not evidence
             excl.put(i, reason);
             accepted[i] = "NONE".equals(reason);
         }

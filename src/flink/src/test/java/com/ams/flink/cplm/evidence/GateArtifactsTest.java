@@ -210,6 +210,37 @@ public class GateArtifactsTest {
     }
 
     @Test
+    public void g0MarksAnOverAgeHeldVpAsExcludedNotAccepted() {
+        // lab manifest (FIC10302): a positioner value held for two hours read hold_kind=HELD_PREVIOUS, exclusion=NONE, accepted
+        List<CplmNormalizedSample> samples = SynTic001ReferenceGenerator.generate();
+        long start = SynTic001ReferenceGenerator.windowStartMs();
+        int i = 0;
+        for (CplmNormalizedSample s : samples) {
+            if (s.roles.isEmpty()) {
+                s.roles.put("pv", obs("pv", s.pv, null, s.eventTsMs, "192", "GOOD", false));
+                s.roles.put("sp", obs("sp", s.sp, null, s.eventTsMs, "192", "GOOD", false));
+                s.roles.put("op", obs("op", s.op, null, s.eventTsMs, "192", "GOOD", false));
+                s.roles.put("mode", obs("mode", null, s.mode, s.eventTsMs, "192", "GOOD", false));
+            }
+            boolean stale = i++ % 2 == 1;                                       // every other sample: held for two hours
+            s.vp = 29.33;
+            RoleObservation vp = obs("vp", 29.33, null, s.eventTsMs - (stale ? 7_000_000L : 0L), "192", "GOOD", stale);
+            vp.ageMs = stale ? 7_000_000L : 0L;
+            s.roles.put("vp", vp);
+        }
+        CplmShortFeatureResult r = CplmGateEngine.computeShortFeatures(samples, start, start + 3_600_000L, "60m");
+        EvidenceArtifact vpArt = null;
+        for (EvidenceArtifact a : ShortArtifacts.artifacts(r)) if ("G0".equals(a.gate) && "VP".equals(a.roleOrPath)) vpArt = a;
+        assertNotNull(vpArt);
+        assertTrue(vpArt.legends.get("exclusion_reason").contains("HELD_OVER_AGE"));
+        assertTrue(vpArt.legends.get("hold_kind").contains("HELD_PREVIOUS"));
+        int excluded = 0, accepted = 0;
+        for (boolean m : vpArt.mask) if (m) accepted++; else excluded++;
+        assertEquals("every stale sample is excluded", vpArt.mask.length / 2, excluded);
+        assertEquals(vpArt.mask.length - vpArt.mask.length / 2, accepted);
+    }
+
+    @Test
     public void thePolicyPushesFindingsLiveAndLeavesTheRestToReconstruction() {
         EvidencePolicy episodes = new EvidencePolicy(EvidencePolicy.Mode.EPISODES);
         CplmShortFeatureResult clean = new CplmShortFeatureResult();
