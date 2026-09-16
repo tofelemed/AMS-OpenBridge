@@ -102,6 +102,13 @@ submit_if_missing "AMS - CPLM Condition Engine" \
   "${COMMON_ARGS[@]}" \
   --condition-topic "${CPLM_CONDITION_TOPIC:-traverse.cpa.clpm.condition.v1}"
 
+# v2.5 (Task 1H.4): Instrumental NE107 device intervals -> per-loop/role eligibility contexts.
+submit_if_missing "AMS - CPLM Instrument Context Engine" \
+  com.ams.flink.cplm.health.CplmInstrumentContextJob \
+  "${COMMON_ARGS[@]}" \
+  --health-topic "${CPLM_HEALTH_TOPIC:-traverse.cpa.instrument.health.v1}" \
+  --context-topic "${CPLM_HEALTH_CONTEXT_TOPIC:-traverse.cpa.context.instrument-health.v1}"
+
 submit_if_missing "AMS - CPLM Gate Fusion Engine" \
   com.ams.flink.cplm.CplmGateFusionStreamJob \
   "${COMMON_ARGS[@]}" \
@@ -109,7 +116,7 @@ submit_if_missing "AMS - CPLM Gate Fusion Engine" \
 
 sleep 5
 fail=0
-for name in "AMS - CPLM Short Feature Engine" "AMS - CPLM Long Diagnostics Engine" "AMS - CPLM Condition Engine" "AMS - CPLM Gate Fusion Engine"; do
+for name in "AMS - CPLM Short Feature Engine" "AMS - CPLM Long Diagnostics Engine" "AMS - CPLM Condition Engine" "AMS - CPLM Instrument Context Engine" "AMS - CPLM Gate Fusion Engine"; do
   if job_running "$name"; then
     echo "[CPLM Submit] OK: '${name}' RUNNING."
   else

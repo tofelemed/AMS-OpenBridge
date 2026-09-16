@@ -159,6 +159,13 @@ CORE_JOBS = CORE_JOBS + (
         entry_class="com.ams.flink.cplm.condition.CplmConditionStreamJob",
         extra_args=_CPLM_COMMON_ARGS + ("--condition-topic", "traverse.cpa.clpm.condition.v1"),
     ),
+    # v2.5 (Task 1H.4): Instrumental NE107 device intervals -> per-loop/role eligibility contexts.
+    FlinkJobSpec(
+        name="AMS - CPLM Instrument Context Engine",
+        entry_class="com.ams.flink.cplm.health.CplmInstrumentContextJob",
+        extra_args=_CPLM_COMMON_ARGS + ("--health-topic", "traverse.cpa.instrument.health.v1",
+                                        "--context-topic", "traverse.cpa.context.instrument-health.v1"),
+    ),
     # Fusion last: both of its sources start at OffsetsInitializer.latest(), so the
     # feature topics should exist before it runs.
     FlinkJobSpec(

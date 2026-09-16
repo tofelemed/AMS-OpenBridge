@@ -105,6 +105,13 @@ submit_if_missing "AMS - CPLM Condition Engine" \
   "${COMMON[@]}" \
   --condition-topic "${CPLM_CONDITION_TOPIC:-traverse.cpa.clpm.condition.v1}"
 
+# v2.5 (Task 1H.4): Instrumental NE107 device intervals -> per-loop/role eligibility contexts.
+submit_if_missing "AMS - CPLM Instrument Context Engine" \
+  com.ams.flink.cplm.health.CplmInstrumentContextJob \
+  "${COMMON[@]}" \
+  --health-topic "${CPLM_HEALTH_TOPIC:-traverse.cpa.instrument.health.v1}" \
+  --context-topic "${CPLM_HEALTH_CONTEXT_TOPIC:-traverse.cpa.context.instrument-health.v1}"
+
 submit_if_missing "AMS - CPLM Gate Fusion Engine" \
   com.ams.flink.cplm.CplmGateFusionStreamJob \
   "${COMMON[@]}" \
@@ -116,6 +123,7 @@ for name in \
   "AMS - CPLM Long Diagnostics Engine" \
   "AMS - Loop Live RBE Engine" \
   "AMS - CPLM Condition Engine" \
+  "AMS - CPLM Instrument Context Engine" \
   "AMS - CPLM Gate Fusion Engine"
 do
   if job_present "$name"; then
