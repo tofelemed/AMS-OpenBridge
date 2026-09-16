@@ -53,6 +53,15 @@ public final class CplmLoopDynamicsProfile implements Serializable {
     public double opDeadbandPct;
     /** v2.5 (R03): a held VP older than this is not evidence (seconds). */
     public static final double VP_MAX_AGE_S_DEFAULT = 60.0;
+    /** v2.5 (2C.1b): G6 Welch PSD settings - segment length in samples, overlap fraction, detrend mode. */
+    public int g6SegmentSamples = 256;
+    public double g6OverlapFraction = 0.5;
+    public String g6DetrendMode = "LINEAR";
+    /**
+     * v2.5 (2C.1b): a Welch segment spans at least this many cycles of the longest in-band period
+     * (tauMaxS), so the spectrum can resolve the band it is asked about; g6SegmentSamples is the floor.
+     */
+    public double g6BandCyclesPerSegment = 4;
     public double vpMaxAgeS = VP_MAX_AGE_S_DEFAULT;
     public double opTravelFloorPct;
     public double effortRatioFloor;
@@ -196,6 +205,10 @@ public final class CplmLoopDynamicsProfile implements Serializable {
         p.gateProfileId = gateProfileId;
         p.dynamicClass = dynamicClass;
         p.serviceObjective = serviceObjective;
+        p.g6SegmentSamples = g6SegmentSamples;
+        p.g6OverlapFraction = g6OverlapFraction;
+        p.g6DetrendMode = g6DetrendMode;
+        p.g6BandCyclesPerSegment = g6BandCyclesPerSegment;
         p.tauMinS = tauMinS;
         p.tauMaxS = tauMaxS;
         p.minSamplesPerPeriod = minSamplesPerPeriod;

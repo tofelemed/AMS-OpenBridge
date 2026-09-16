@@ -279,6 +279,10 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
             if (root.has("g4ActivityHighRatio")) p.g4ActivityHighRatio = root.path("g4ActivityHighRatio").asDouble(p.g4ActivityHighRatio);
             if (root.has("limitTolerancePp")) p.limitTolerancePp = root.path("limitTolerancePp").asDouble(p.limitTolerancePp);
             if (root.has("limitDwellWarnS")) p.limitDwellWarnS = root.path("limitDwellWarnS").asDouble(p.limitDwellWarnS);
+            if (root.has("g6SegmentSamples")) p.g6SegmentSamples = root.path("g6SegmentSamples").asInt(p.g6SegmentSamples);
+            if (root.has("g6OverlapFraction")) p.g6OverlapFraction = root.path("g6OverlapFraction").asDouble(p.g6OverlapFraction);
+            if (root.has("g6DetrendMode")) p.g6DetrendMode = root.path("g6DetrendMode").asText(p.g6DetrendMode);
+            if (root.has("g6BandCyclesPerSegment")) p.g6BandCyclesPerSegment = root.path("g6BandCyclesPerSegment").asDouble(p.g6BandCyclesPerSegment);
             if (root.has("freezeToleranceEu")) p.freezeToleranceEu = root.path("freezeToleranceEu").asDouble(p.freezeToleranceEu);
             if (root.has("freezeDwellS")) p.freezeDwellS = root.path("freezeDwellS").asDouble(p.freezeDwellS);
             if (root.has("nonfollowingErrorPp")) p.nonfollowingErrorPp = root.path("nonfollowingErrorPp").asDouble(p.nonfollowingErrorPp);

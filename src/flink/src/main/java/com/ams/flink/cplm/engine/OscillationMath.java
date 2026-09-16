@@ -93,27 +93,41 @@ public final class OscillationMath {
      * FFT peak search restricted to periods in {@code [tauMinS, tauMaxS]} with peak-to-median quality.
      * Near-DC bins (period &gt; tauMax) are excluded by construction.
      */
+    /**
+     * v2.5 (2C.1b, spec §3.2): the band-limited spectrum is a Welch PSD in signal^2/Hz (Hann,
+     * declared segment / overlap, zero-padded to a power of two). Every legacy scalar keeps its
+     * name and meaning, derived from the PSD: bin "amplitude" = sqrt(psd * df) (the RMS in the bin),
+     * peak ratio = peak bin energy / in-band energy, harmonic ratios from those amplitudes, entropy
+     * over the normalised in-band energy. The spectrum itself is retained for the G6 evidence.
+     */
     public static FftResult computeFftBandLimited(double[] x, double tsSec, CplmLoopDynamicsProfile profile) {
         FftResult r = new FftResult();
         int n = x.length;
         if (n < 8) return r;
-
-        double fs = 1.0 / tsSec;
-        double df = fs / n;
-        int kMax = n / 2;
+        int segment = segmentSamplesForBand(n, tsSec, profile);
+        double overlap = profile != null ? profile.g6OverlapFraction : 0.5;
+        WelchPsd.Result w = WelchPsd.compute(x, tsSec, segment, overlap);
+        if (w.psd.length == 0) return r;
+        r.freqHz = w.freqHz;
+        r.psd = w.psd;
+        r.ordinateKind = WelchPsd.ORDINATE_KIND;
+        r.spectralWindow = WelchPsd.WINDOW;
+        r.fftSize = w.fftSize;
+        r.resolutionHz = w.resolutionHz;
+        r.segments = w.segments;
+        r.segmentSamples = w.segmentSamples;
+        r.overlapFraction = w.overlapFraction;
+        // a Hann line occupies +-1 bin at native resolution; zero-padding to fftSize widens it by the same factor
+        int lobe = (int) Math.ceil(1.0 * w.fftSize / w.segmentSamples);
+        r.lobeHalfWidthBins = lobe;
+        double df = w.resolutionHz;
+        int kMax = w.psd.length - 1;
         double[] amplitudes = new double[kMax + 1];
         double bandEnergy = 0;
         int unboundedPeakBin = 1;
         double unboundedPeakAmp = 0;
-
         for (int k = 1; k <= kMax; k++) {
-            double re = 0, im = 0;
-            for (int t = 0; t < n; t++) {
-                double angle = -2.0 * Math.PI * k * t / n;
-                re += x[t] * Math.cos(angle);
-                im += x[t] * Math.sin(angle);
-            }
-            double amp = 2.0 * Math.sqrt(re * re + im * im) / n;
+            double amp = Math.sqrt(Math.max(0, w.psd[k]) * df);
             amplitudes[k] = amp;
             bandEnergy += amp * amp;
             if (amp > unboundedPeakAmp) {
@@ -121,25 +135,22 @@ public final class OscillationMath {
                 unboundedPeakBin = k;
             }
         }
-
         double unboundedPeriod = (unboundedPeakBin * df) > 1e-15 ? 1.0 / (unboundedPeakBin * df) : 0;
         r.unboundedPeakPeriodSec = unboundedPeriod;
 
-        // Median of in-band amplitudes for quality ratio.
-        // P2-1: also require >= 3 completed cycles inside the record. Bin 1 IS
-        // the record length and dominates any detrended signal; when the
-        // profile band reaches the window length (UNKNOWN tauMax = 86400) it
-        // passed the band check and became a "validated 24h oscillation" with
-        // completed_cycles = 1.
+        // P2-1 (kept): a period must complete >= 3 cycles inside the record to be a candidate.
         double maxObservablePeriod = (n * tsSec) / 3.0;
         java.util.ArrayList<Double> inBandAmps = new java.util.ArrayList<>();
+        java.util.ArrayList<Integer> inBandBins = new java.util.ArrayList<>();
         int peakBin = -1;
         double peakAmp = 0;
+        double tauMin = profile != null ? profile.tauMinS : 0, tauMax = profile != null ? profile.tauMaxS : Double.POSITIVE_INFINITY;
         for (int k = 1; k <= kMax; k++) {
             double period = (k * df) > 1e-15 ? 1.0 / (k * df) : Double.POSITIVE_INFINITY;
-            if (period < profile.tauMinS || period > profile.tauMaxS) continue;
+            if (period < tauMin || period > tauMax) continue;
             if (period > maxObservablePeriod) continue;
             inBandAmps.add(amplitudes[k]);
+            inBandBins.add(k);
             if (amplitudes[k] > peakAmp) {
                 peakAmp = amplitudes[k];
                 peakBin = k;
@@ -147,13 +158,14 @@ public final class OscillationMath {
         }
         double median = 0;
         if (!inBandAmps.isEmpty()) {
-            java.util.Collections.sort(inBandAmps);
-            median = inBandAmps.get(inBandAmps.size() / 2);
+            java.util.ArrayList<Double> sorted = new java.util.ArrayList<>(inBandAmps);
+            java.util.Collections.sort(sorted);
+            median = sorted.get(sorted.size() / 2);
         }
         r.peakToMedian = median > 1e-15 ? peakAmp / median : 0;
+        r.noiseReference = median * median / Math.max(df, 1e-15);      // the in-band median PSD level
 
         if (peakBin < 1) {
-            // No in-band bin — report unbounded peak for diagnostics but zero usable period.
             r.peakBin = unboundedPeakBin;
             r.maxBin = kMax;
             r.peakAmplitude = unboundedPeakAmp;
@@ -161,6 +173,8 @@ public final class OscillationMath {
             r.peakPeriodSec = 0;
             r.totalEnergy = bandEnergy;
             r.peakRatio = bandEnergy > 1e-15 ? (unboundedPeakAmp * unboundedPeakAmp) / bandEnergy : 0;
+            r.peakIndices = new int[] {unboundedPeakBin};
+            r.harmonicIndices = new int[0];
             return r;
         }
 
@@ -169,9 +183,11 @@ public final class OscillationMath {
         r.peakAmplitude = peakAmp;
         r.peakFreqHz = peakBin * df;
         r.peakPeriodSec = r.peakFreqHz > 1e-15 ? 1.0 / r.peakFreqHz : 0;
-        double peakEnergy = peakAmp * peakAmp;
+        // A Hann-windowed peak occupies a main lobe, not one bin: the oscillation's energy is the lobe's,
+        // so the ratio (the oscillation's share of the band energy) sums the lobe.
+        double peakEnergy = lobeEnergy(amplitudes, peakBin, kMax, lobe);
         r.totalEnergy = bandEnergy;
-        r.peakRatio = bandEnergy > 1e-15 ? peakEnergy / bandEnergy : 0;
+        r.peakRatio = bandEnergy > 1e-15 ? Math.min(1.0, peakEnergy / bandEnergy) : 0;
 
         double a1 = amplitudes[peakBin];
         double a2 = peakBin * 2 <= kMax ? amplitudes[peakBin * 2] : 0;
@@ -182,21 +198,68 @@ public final class OscillationMath {
         r.h5Amp = a5;
         r.harmonicAmplitudeRatio = a1 > 1e-15 ? (a2 + a3 + a5) / a1 : 0;
         r.harmonicEnergyRatio = a1 > 1e-15 ? (a2 * a2 + a3 * a3 + a5 * a5) / (a1 * a1) : 0;
+        r.peakIndices = new int[] {peakBin};
+        java.util.ArrayList<Integer> harmonics = new java.util.ArrayList<>();
+        for (int m : new int[] {2, 3, 5}) if (peakBin * m <= kMax) harmonics.add(peakBin * m);
+        r.harmonicIndices = new int[harmonics.size()];
+        for (int i = 0; i < harmonics.size(); i++) r.harmonicIndices[i] = harmonics.get(i);
 
+        // Entropy over the normalised band energy with each main lobe merged into its centre bin
+        // (a windowed line is ONE component, not three): a pure sine stays near 0, noise near 1.
         int kBand = Math.min(kMax, Math.max(peakBin * 3, 32));
         r.entropyBinCount = kBand;
+        double[] comp = new double[kBand + 1];
+        for (int k = 1; k <= kBand; k++) comp[k] = amplitudes[k] * amplitudes[k];
+        for (int centre : lobeCentres(peakBin, kMax, kBand)) {
+            for (int k = centre - lobe; k <= centre + lobe; k++) {
+                if (k < 1 || k > kBand || k == centre) continue;
+                comp[centre] += comp[k];
+                comp[k] = 0;
+            }
+        }
         double sumE = 0;
-        for (int k = 1; k <= kBand; k++) sumE += amplitudes[k] * amplitudes[k];
+        for (int k = 1; k <= kBand; k++) sumE += comp[k];
         double entropy = 0;
         if (sumE > 1e-15) {
             for (int k = 1; k <= kBand; k++) {
-                double p = (amplitudes[k] * amplitudes[k]) / sumE;
+                double p = comp[k] / sumE;
                 if (p > 1e-15) entropy -= p * Math.log(p);
             }
             entropy /= Math.log(kBand);
         }
         r.spectralEntropy = entropy;
         return r;
+    }
+
+    private static double lobeEnergy(double[] amplitudes, int centre, int kMax, int lobe) {
+        double e = 0;
+        for (int k = Math.max(1, centre - lobe); k <= Math.min(kMax, centre + lobe); k++) e += amplitudes[k] * amplitudes[k];
+        return e;
+    }
+
+    /**
+     * The Welch segment: at least the profile floor, raised so one segment spans g6BandCyclesPerSegment
+     * cycles of the longest in-band period (tauMaxS) - a spectrum that cannot resolve its own band is not
+     * a spectrum of that band - rounded up to a power of two while that fits, and never longer than the record
+     * (then it is one Hann periodogram of the whole record).
+     */
+    static int segmentSamplesForBand(int n, double tsSec, CplmLoopDynamicsProfile profile) {
+        int floor = profile != null && profile.g6SegmentSamples > 0 ? profile.g6SegmentSamples : 256;
+        double cycles = profile != null && profile.g6BandCyclesPerSegment > 0 ? profile.g6BandCyclesPerSegment : 4;
+        double tauMax = profile != null && Double.isFinite(profile.tauMaxS) && profile.tauMaxS > 0 ? profile.tauMaxS : 0;
+        int needed = tauMax > 0 && tsSec > 0 ? (int) Math.ceil(cycles * tauMax / tsSec) : floor;
+        int segment = Math.max(floor, needed);
+        if (segment >= n) return n;
+        int pow2 = Integer.highestOneBit(segment);
+        if (pow2 < segment) pow2 <<= 1;
+        return pow2 <= n ? pow2 : n;
+    }
+
+    /** The fundamental and its 2nd/3rd/5th harmonics inside the entropy band, each treated as one component. */
+    private static java.util.List<Integer> lobeCentres(int peakBin, int kMax, int kBand) {
+        java.util.List<Integer> c = new java.util.ArrayList<>();
+        for (int m : new int[] {1, 2, 3, 5}) if (peakBin * m <= Math.min(kMax, kBand)) c.add(peakBin * m);
+        return c;
     }
 
     public static ValidPeriod resolveValidPeriod(
@@ -283,6 +346,12 @@ public final class OscillationMath {
         double spectralEntropy;
         double peakToMedian;
         double unboundedPeakPeriodSec;
+        /** v2.5 (2C.1b) retained evidence: the PSD itself and how it was made (spec §3.2 G6 artifact fields). */
+        public double[] freqHz = new double[0], psd = new double[0];
+        public String ordinateKind = "NONE", spectralWindow = "NONE";
+        public int fftSize, segments, segmentSamples, lobeHalfWidthBins;
+        public double resolutionHz, noiseReference, overlapFraction;
+        public int[] peakIndices = new int[0], harmonicIndices = new int[0];
     }
 
     public static class ValidPeriod {

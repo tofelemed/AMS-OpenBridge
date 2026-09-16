@@ -192,3 +192,22 @@ classloader); recreating the TaskManager cleared it. The plant runbook already r
   Also: `peak_time`/`peak_pv` reported the LAST sample of a monotone response as its peak; a peak is now qualified exactly as the
   decay-ratio code qualifies one (an excursion beyond the endpoint by more than the band), else NO_QUALIFIED_PEAK.
   Tuple-grid fact for the record: 108 of 109 intervals in the window were 5.0 s; the others 3.0/4.1/6.0/7.0 s (newest-member time).
+
+## 2C — exact intermediates and the G6 Welch PSD (2026-09-16)
+
+- 2C.1a (c0e672dd): every long-window calculator retains the intermediates its gate used (ACF arrays with lag seconds and pair
+  counts, per-cycle fits incl. rejected cycles with reasons, Horch lag structure, cycle polygons + corner masks, saturation and
+  delta-PV masks) on a transient `LongIntermediates` companion — no published scalar changed (goldens byte-identical).
+- 2C.1b: G6 is a Welch PSD in signal^2/Hz (Hann, declared overlap, power-of-two FFT, one-sided, window-power corrected; Parseval
+  within 2 % asserted). Every legacy scalar keeps its name and is derived from the PSD: bin "amplitude" = sqrt(psd·df), peak ratio =
+  main-lobe energy / band energy (a Hann line occupies a lobe, not a bin; lobe half-width scales with the zero-padding factor),
+  harmonic ratios from those amplitudes, entropy over the band energy with each lobe merged into one component (a windowed line is
+  ONE component: a pure sine stays ≈ 0, noise ≈ 1). **The segment follows the band:** one segment spans ≥ `g6BandCyclesPerSegment`
+  (4) cycles of the profile's `tauMaxS`, floored by `g6SegmentSamples` (256) and capped by the record (then one Hann periodogram of
+  the whole window). A fixed 256-sample segment (21 min at 5 s) had folded SYN-TIC-001's 2700 s cycle onto bin 1 (1280 s) — caught
+  by measuring, not by the golden, which pins fusion outputs only.
+  G6 movement on SYN-TIC-001 (op shape signal, 24 h at 5 s; old naive DFT → Welch PSD): peak period 2700.0 → 2685.9 s (one padded
+  bin: 2700 s is bin 60.68 of the 32768-point zero-padded record), peak ratio 0.9855 → 0.9673, harmonic amplitude ratio 0.151 → 0.121,
+  harmonic energy ratio 0.0139 → 0.0098, spectral entropy 0.0144 → 0.0315, peak-to-median 1.0e6 → 2.2e5 (gate ≥ 3 either way), peak
+  "amplitude" 4.86 → 2.00 (a different quantity now: the RMS in the peak bin, not the sine amplitude — the UI must read the PSD).
+  Fusion outputs (confidence 0.89, SUSPECTED_FINAL_ELEMENT_NONLINEARITY, VALID period from ACF) unchanged; golden tests unchanged.
