@@ -15,6 +15,8 @@ export interface CpmGateCell {
   tier: 'short' | 'long' | 'fusion';
   status: string;
   reason: string | null;
+  /** v2.5 (2E.3, R13): the immutable method run this cell IS; null on pre-v2.5 rows (nothing immutable to open). */
+  methodRunId?: string | null;
 }
 
 export interface CpmGateMatrix {
@@ -27,6 +29,10 @@ export interface CpmGateMatrix {
   severity: string | null;
   confidence: number | null;
   gates: CpmGateCell[];
+  /** v2.5 (2E.3): gate -> method run id of this row (sibling runs of the same window); empty on pre-v2.5 rows. */
+  methodRunIds?: Record<string, string>;
+  bundleHash?: string | null;
+  resultRevision?: number | null;
   observabilityFlags: string[];
   familyDisqualifiers: string[];
   hasPeerLinks: boolean;

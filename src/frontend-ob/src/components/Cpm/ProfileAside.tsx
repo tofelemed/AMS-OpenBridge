@@ -18,26 +18,27 @@ import { Link as RouterLink } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { KvRow, PanelHead, TonePill } from './shared';
-import { useRepublishEvidence } from '../../hooks/useCpm';
+import { useGateCatalogue, useRepublishEvidence } from '../../hooks/useCpm';
+import type { GateCatalogue } from '../../api/cpm/catalogue';
 import type { CpmLoop } from '../../api/cpmApi';
 
 import { dynamicClassOf, stateOf } from './registryShared';
 
 // ── profile detail aside ───────────────────────────────────────────────────
 
-const GATE_ROLE_POLICY: [string, string][] = [
-  ['BLOCKING', 'G0 · G1 · G11'],
-  ['ELIGIBILITY', 'G2 · G2r'],
-  ['PERFORMANCE', 'G3 · G4'],
-  ['PRIMARY', 'G5 · G6 · G10'],
-  ['SUPPORTING', 'G7 · G8 · G9'],
-  ['CONTEXT', 'G12 · G13'],
-  ['CONFIRMATION', 'G14'],
-  ['FUSION', 'G15'],
-];
+const ROLE_ORDER = ['BLOCKING', 'ELIGIBILITY', 'PERFORMANCE', 'PRIMARY', 'SUPPORTING', 'CONTEXT', 'CONFIRMATION', 'FUSION'];
+
+/** v2.5 (2D.1 / 2E.3): the role policy is the BUILD's gate catalogue, grouped by role - never a client-side table. */
+export function rolePolicyOf(catalogue: GateCatalogue | undefined): [string, string][] {
+  if (!catalogue) return [];
+  return ROLE_ORDER.map(role => [role, catalogue.gates.filter(g => g.role === role).map(g => g.gate).join(' · ')] as [string, string])
+    .filter(([, gates]) => gates.length > 0);
+}
 
 export const ProfileAside: React.FC<{ loop: CpmLoop; onEdit: () => void }> = ({ loop, onEdit }) => {
   const republish = useRepublishEvidence();
+  const catalogue = useGateCatalogue();
+  const rolePolicy = rolePolicyOf(catalogue.data);
   const st = stateOf(loop);
   return (
     <aside className="cpm-surface">
@@ -93,7 +94,8 @@ export const ProfileAside: React.FC<{ loop: CpmLoop; onEdit: () => void }> = ({ 
       </KvRow>
 
       <PanelHead eyebrow="Gate role policy" title="Roles per gate" />
-      {GATE_ROLE_POLICY.map(([role, gates]) => (
+      {rolePolicy.length === 0 && <p className="cpm-copy">{catalogue.isError ? 'Gate catalogue unavailable.' : 'Loading the gate catalogue…'}</p>}
+      {rolePolicy.map(([role, gates]) => (
         <KvRow key={role} label={role}>{gates}</KvRow>
       ))}
       <p className="cpm-copy" style={{ marginTop: 8 }}>

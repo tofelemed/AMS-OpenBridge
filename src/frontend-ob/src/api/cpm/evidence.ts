@@ -31,6 +31,8 @@ export interface MethodRun {
   verdictV2: unknown;
   /** The tier row's payload (short / long) or the response event's result JSON. */
   result: Record<string, unknown> | null;
+  /** gate -> method run id of the same row (the sibling runs of this window); empty for a response event. */
+  methodRunIds: Record<string, string>;
   reconstruction: { supported: boolean; reason: string };
   computedAt: string;
 }

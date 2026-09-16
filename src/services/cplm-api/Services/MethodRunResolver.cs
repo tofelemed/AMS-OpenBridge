@@ -7,7 +7,9 @@ namespace Traverse.CplmApi.Services;
 public sealed record MethodRunLocation(
     string Tier, string Gate, string LoopId, string WindowKind, long FromMs, long ToMs, string BundleHash,
     int ContextRevision, int ResultRevision, string Purpose, Guid? AnalysisRunId, string? SourceCommit, string? JarSha256,
-    string? DatasetHash, string Source, long RowId, string PayloadJson, DateTime CreatedAt, string? Site, int? SampleCount);
+    string? DatasetHash, string Source, long RowId, string PayloadJson, DateTime CreatedAt, string? Site, int? SampleCount,
+    /// <summary>The row's whole gate -> method_run_id map (the sibling runs of the same window); empty for a response event.</summary>
+    IReadOnlyDictionary<string, string>? MethodRunIds = null);
 
 /// <summary>
 /// v2.5 Task 2C.2 (spec §3.2-3.3): a method_run_id names one gate of one evaluation. The fused row
@@ -54,7 +56,7 @@ public sealed class MethodRunResolver
                 (string)row.loop_id, (string)row.window_kind, ToMs(row.window_start), ToMs(row.window_end), (string)row.bundle_hash,
                 (int)row.context_revision, (int)row.result_revision, (string)row.purpose, (Guid?)row.analysis_run_id,
                 (string?)row.source_commit, (string?)row.jar_sha256, (string?)row.dataset_hash, (string)row.source, (long)row.id,
-                (string)row.payload, (DateTime)row.created_at, (string?)row.site, (int?)row.sample_count);
+                (string)row.payload, (DateTime)row.created_at, (string?)row.site, (int?)row.sample_count, MapOf((string)row.method_run_ids));
         }
         var ev = await conn.QueryFirstOrDefaultAsync("""
             SELECT e.event_id, e.loop_id, e.t0_ms, e.t_end_ms, e.bundle_hash, e.context_revision, e.result_revision, e.purpose, e.analysis_run_id,
@@ -67,6 +69,14 @@ public sealed class MethodRunResolver
             (string)ev.bundle_hash, (int)ev.context_revision, (int)ev.result_revision, (string)ev.purpose, (Guid?)ev.analysis_run_id,
             (string?)ev.source_commit, (string?)ev.jar_sha256, (string?)ev.dataset_hash, "flink-response", 0L, (string)ev.result,
             (DateTime)ev.created_at, (string?)ev.site, null);
+    }
+
+    public static IReadOnlyDictionary<string, string> MapOf(string methodRunIdsJson)
+    {
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var p in System.Text.Json.JsonDocument.Parse(methodRunIdsJson).RootElement.EnumerateObject())
+            if (p.Value.ValueKind == System.Text.Json.JsonValueKind.String) map[p.Name] = p.Value.GetString()!;
+        return map;
     }
 
     public static string? GateOf(string methodRunIdsJson, Guid id)

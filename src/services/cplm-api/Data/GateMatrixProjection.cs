@@ -23,6 +23,9 @@ public static class GateMatrixProjection
     {
         var payload = ParseJson((string?)row.payload);
         var verdictV2 = ReadVerdictV2(payload);
+        // v2.5 (2E.3, R13): every cell names its immutable method run so the workbench opens THAT
+        // evaluation, never "latest"; pre-v2.5 rows have no ids and the cell says so with null.
+        var methodRunIds = ReadStringMap(payload, "method_run_ids");
         var gates = new List<object>();
         foreach (var (key, name, tier) in GateDefs)
         {
@@ -31,6 +34,7 @@ public static class GateMatrixProjection
                 key,
                 name,
                 tier,
+                methodRunId = methodRunIds.TryGetValue(key, out var mr) ? mr : null,
                 status = ReadGateStatus(payload, key),
                 // Why a gate is not evaluated matters as much as its status:
                 // NO_VP, NO_UPSTREAM_LINKS and NO_STEP_TEST are configuration
@@ -57,6 +61,9 @@ public static class GateMatrixProjection
             ["severity"] = row.severity,
             ["confidence"] = row.confidence,
             ["gates"] = gates,
+            ["methodRunIds"] = methodRunIds,
+            ["bundleHash"] = ReadString(payload, "bundle_hash"),
+            ["resultRevision"] = ReadInt(payload, "result_revision"),
             ["observabilityFlags"] = ReadStringArray(payload, "observability_flags"),
             ["familyDisqualifiers"] = ReadStringArray(payload, "family_disqualifiers"),
             ["hasPeerLinks"] = ReadBool(payload, "has_peer_links"),
@@ -239,6 +246,14 @@ public static class GateMatrixProjection
             }
         }
         return result;
+    }
+
+    private static Dictionary<string, string> ReadStringMap(JsonElement el, string name)
+    {
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (el.ValueKind != JsonValueKind.Object || !el.TryGetProperty(name, out var obj) || obj.ValueKind != JsonValueKind.Object) return map;
+        foreach (var p in obj.EnumerateObject()) if (p.Value.ValueKind == JsonValueKind.String) map[p.Name] = p.Value.GetString()!;
+        return map;
     }
 
     private static string[] ReadStringArray(JsonElement el, string name)

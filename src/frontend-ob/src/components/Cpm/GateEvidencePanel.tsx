@@ -27,23 +27,15 @@ import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons
 import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-right-google';
 import { ApiError } from '../../api/apiFetch';
 import type { CpmFleetSummary } from '../../api/cpmApi';
-import { useCpmCalculations, useLatestGates } from '../../hooks/useCpm';
+import { useCpmCalculations, useGateCatalogue, useLatestGates } from '../../hooks/useCpm';
+import { gateRole } from '../../api/cpm/catalogue';
+import { workbenchHref } from './evidence/selection';
 import { confirmationProse, noVpFleetCopy } from './investigation/confirmationCopy';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { CpmIconButton, KvRow, PanelHead, TonePill, fmtDateTime } from './shared';
 import { gateTone } from './gateStatus';
 
 /** Role per gate — the same static policy the registry aside shows. */
-const GATE_ROLES: Record<string, string> = {
-  G0: 'BLOCKING', G1: 'BLOCKING', G11: 'BLOCKING',
-  G2: 'ELIGIBILITY', G2r: 'ELIGIBILITY',
-  G3: 'PERFORMANCE', G4: 'PERFORMANCE',
-  G5: 'PRIMARY', G6: 'PRIMARY', G10: 'PRIMARY',
-  G7: 'SUPPORTING', G8: 'SUPPORTING', G9: 'SUPPORTING',
-  G12: 'CONTEXT', G13: 'CONTEXT',
-  G14: 'CONFIRMATION', G15: 'FUSION',
-};
-
 export interface GateEvidencePanelProps {
   loopId: string;
   gateKey: string;
@@ -67,7 +59,8 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
 
   const def = calc?.gates.find(g => g.key === gateKey);
   const cell = matrix?.gates.find(g => g.key === gateKey);
-  const role = GATE_ROLES[gateKey] ?? '—';
+  const catalogue = useGateCatalogue();
+  const role = gateRole(catalogue.data, gateKey);                    // the build's catalogue (2D.1), never a client-side table
 
   // NOT_EVALUATED is a VERDICT — the engine looked and declined. It must not also
   // stand in for "still loading", "no window yet" (404) or "the request failed".
@@ -154,7 +147,15 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
       )}
 
       <div className="cpm-inspector__actions">
-        <ObcButton variant="raised" onClick={() => {
+        {/* v2.5 (2E.3, R13): the workbench opens THIS cell's immutable method run - never "latest".
+            A pre-v2.5 row carries no run id, and then there is nothing immutable to open. */}
+        <span title={cell?.methodRunId ? `Open method run ${cell.methodRunId}` : 'This result predates run identity (v2.5); no immutable run to open'}>
+          <ObcButton variant="raised" disabled={!cell?.methodRunId}
+            onClick={() => { if (cell?.methodRunId) navigate(workbenchHref(loopId, cell.methodRunId, gateKey)); }}>
+            Open in workbench ›
+          </ObcButton>
+        </span>
+        <ObcButton variant="normal" onClick={() => {
           const q = new URLSearchParams({ loop: loopId, gate: gateKey });
           if (matrix?.windowEnd) q.set('window', matrix.windowEnd);
           navigate(`/cpm/replay?${q.toString()}`);
@@ -176,7 +177,8 @@ export const GateEvidencePanel: React.FC<GateEvidencePanelProps> = ({
   const idx = gateKeys.indexOf(gateKey);
   const prev = idx > 0 ? gateKeys[idx - 1] : null;
   const next = idx >= 0 && idx < gateKeys.length - 1 ? gateKeys[idx + 1] : null;
-  const role = GATE_ROLES[gateKey] ?? '—';
+  const catalogue = useGateCatalogue();
+  const role = gateRole(catalogue.data, gateKey);
 
   const head = (
     <div className="cpm-inspector__head">

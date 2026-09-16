@@ -73,6 +73,7 @@ public sealed class CpmMethodRunsController : ControllerBase
             cell,
             verdictV2,
             result,
+            methodRunIds = loc.MethodRunIds ?? new Dictionary<string, string>(),
             reconstruction = MethodRunResolver.ReconstructionTier(loc.Gate) is null
                 ? new { supported = false, reason = loc.Gate == "G12" ? "NOT_RECONSTRUCTABLE_EVENT_KEYED" : "UNKNOWN_GATE" }
                 : new { supported = true, reason = "" },
