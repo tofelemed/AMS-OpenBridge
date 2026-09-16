@@ -156,6 +156,15 @@ public final class ResponseEvaluator implements Serializable {
             }
         }
 
+        // post_slope: the robust post-event rate, meaningful on integrating / ramp paths only (catalogue)
+        boolean integratingOrRamp = family == ModelFamily.IPDT || family == ModelFamily.INTEGRATOR_LAG
+                || c.event.type == com.ams.flink.cplm.response.event.EventType.RAMP_TRACKING;
+        if (!censored && integratingOrRamp) {
+            double theta = est != null && est.best() != null ? Math.max(0, est.best().model.theta) : 0;
+            Double postSlope = com.ams.flink.cplm.response.metrics.Slopes.theilSen(c.data, c.data.t0 + theta, c.data.tEnd, true, 3);
+            if (postSlope != null) g.put(Quantity.of("post_slope", postSlope, "PV_EU/s", com.ams.flink.cplm.response.metrics.Slopes.METHOD));
+        }
+
         // E - validation on the PRIOR event (independent support); this event becomes the next holdout
         G12Result.Subgate e = g.subgates.get("E");
         ModelValidator.Report report = null;

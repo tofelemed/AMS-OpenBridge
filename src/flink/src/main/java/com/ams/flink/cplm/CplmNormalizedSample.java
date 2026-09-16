@@ -59,11 +59,15 @@ public final class CplmNormalizedSample implements Serializable {
      * presence alone decides, exactly as before.
      */
     public boolean vpEligible(CplmLoopDynamicsProfile profile) {
+        return vpEligible(profile == null ? CplmLoopDynamicsProfile.VP_MAX_AGE_S_DEFAULT : profile.vpMaxAgeS);
+    }
+
+    /** The same rule with the hold-age limit given directly (the response job carries it in its own settings). */
+    public boolean vpEligible(double maxAgeS) {
         if (vp == null) return false;
         com.ams.flink.cplm.contract.RoleObservation o = role("vp");
         if (o == null || com.ams.flink.cplm.contract.RoleObservation.SOURCE_LEGACY_TUPLE.equals(o.provenance)) return true;
         if (!o.isGood()) return false;
-        double maxAgeS = profile == null ? CplmLoopDynamicsProfile.VP_MAX_AGE_S_DEFAULT : profile.vpMaxAgeS;
         return !(o.held && o.ageMs > maxAgeS * 1000.0);
     }
 

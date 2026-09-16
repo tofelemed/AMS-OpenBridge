@@ -46,10 +46,11 @@ public final class Overshoot {
             if (p[i] < minP) minP = p[i];
         }
         if (iMax < 0) return new Peaks(null, null, null, null, null);
-        double overshoot = maxP - 1.0 > bandP ? 100.0 * (maxP - 1.0) : 0.0;
+        boolean qualifiedPeak = maxP - 1.0 > bandP;                        // a peak is an excursion beyond the endpoint, not the endpoint itself
+        double overshoot = qualifiedPeak ? 100.0 * (maxP - 1.0) : 0.0;
         double undershoot = -minP > bandP ? 100.0 * (-minP) : 0.0;
         Double decay = decayRatio(d, p, bandP);
-        return new Peaks(overshoot, undershoot, d.t[iMax] - d.t0, d.y[iMax], decay);
+        return new Peaks(overshoot, undershoot, qualifiedPeak ? d.t[iMax] - d.t0 : null, qualifiedPeak ? d.y[iMax] : null, decay);
     }
 
     /**

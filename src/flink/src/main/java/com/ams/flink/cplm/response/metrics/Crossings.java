@@ -33,13 +33,18 @@ public final class Crossings {
         return null;
     }
 
+    /**
+     * Sustained means observed: every valid sample from the crossing up to the end of the dwell stays at or
+     * above the level AND the first valid sample at or after the dwell's end is above it too. Between samples
+     * nothing is assumed - an irregular grid (a 7 s gap round a 5 s dwell) must not refuse a crossing that the
+     * next observations confirm, and a declared record end must not vouch for a dwell no sample observed.
+     */
     private static boolean sustained(EventDataset d, double[] p, double level, int from, double until) {
-        double lastValid = Double.NaN;
-        for (int j = from; j < d.size() && d.t[j] <= until; j++) {
+        for (int j = from; j < d.size(); j++) {
             if (Double.isNaN(p[j])) continue;
             if (p[j] < level) return false;
-            lastValid = d.t[j];
+            if (d.t[j] >= until) return true;                              // the dwell's end is observed above the level
         }
-        return !Double.isNaN(lastValid) && d.tEnd >= until;             // the dwell must be observed, not assumed
+        return false;                                                      // the dwell ran past the last observation
     }
 }

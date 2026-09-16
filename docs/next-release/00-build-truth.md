@@ -160,3 +160,35 @@ classloader); recreating the TaskManager cleared it. The plant runbook already r
   The job checkpoints every 5 min: a capture younger than the last checkpoint does not survive a restart (it is neither emitted nor censored).
   Phase 4.2's reliability scenario must prove the checkpointed path ("restart from checkpoint → the open capture continues"); the JM UI shows
   container-local time (UTC+4) — compare with the DB's `now()` before reasoning about ordering.
+- Lab finding 2 (2026-09-16, the real reason the stable job produced no event): every FIC10302 tuple carried `vp: 29.33` with
+  `roles.vp.held=true, age_ms≈7,000,000` — a positioner value held for two hours from the earlier soak next to a fresh OP. The response job
+  took "VP present" as "VP is the applied input" (`s.vp != null`), so `u_applied` was frozen at the stale VP and the OP step 40→45 was
+  invisible; the earlier CENSORED events were only ever closed by the next run's first sample tripping the time gap. The codec already
+  says when VP is evidence (`vpEligible`: mapped, GOOD, not held past `vpMaxAgeS`); the job now asks that, with the limit as its own
+  setting (`--g12-vp-max-age-s`, default 60 s, part of the G12 bundle hash). A change of applied-input source (VP going stale, or a
+  stale VP coming back) is a gap in the applied-input support: an open capture is CENSORED SOURCE_GAP at the last sample before it and
+  the ring restarts, so the switch between the OP and VP scales can never read as an input step. Tests:
+  `aStaleHeldVpIsNotTheAppliedInput_theOpStepIsCapturedOnTheOpPath`, `theVpTurningStaleDuringACaptureCensorsItAsASourceGap`,
+  `aPositionerFeedReturningWhileIdleIsNotAnInputStep`.
+- Tooling trap (same day): a "traced" jar was never on the lab — `target/ams-flink-1.0-SNAPSHOT.jar` (21:00) predated the trace edits
+  (21:30) and the deploy had run before them. The scratchpad deploy script now refuses a jar older than any `src/main` file. Rule: after
+  ANY source edit the proof is the jar's mtime vs the newest source, not the deploy log.
+- Lab proof, first COMPLETE G12 event (2026-09-16 18:07Z, FIC10302, `input-test`): `INPUT_TEST | COMPLETE | EVALUATED |
+  RESPONSE_CHARACTERISED | CANDIDATE | OP_TO_PV`; process_gain 2.9999 ± 0.00003 (true 3), time_constant 19.994 ± 0.001 s (true 20),
+  dead_time 2.84 ± 2.5 s (true 4; the uncertainty is the 5 s grid's half-step floor), t63 22.9 s, t90 48.7 s, 12 evidence artifacts
+  COMPLETE in `analytics.evidence_manifest`, a FOPDT `analytics.system_model` row CANDIDATE. Three quantities on that real capture
+  exposed kernel defects the synthetic tests had not, all fixed test-first the same day:
+  1. `t10` null: the tuples sit on an irregular grid (0, 4.1, 11.1, 16.1 … s after the step — the ingestion stamps the newest
+     member's time), the 10 % crossing fell at 5.1 s and NO sample lay inside its 5 s dwell, so `Crossings.sustained` refused it.
+     Sustained now means observed at the sampling resolution: every valid sample up to the dwell's end is above the level and the
+     first valid sample at or after it is too; a declared record end no longer vouches for an unobserved dwell (the converse defect).
+  2. `settle_response` right-censored on a capture the job had closed as settled: the capture's close test was a 0.5 EU range over
+     the tail dwell while the spec's settle band (B_resp = 0.3 EU here) had only 105 s of tail. The capture now closes only when the
+     tail is a stable endpoint support AND inside B_resp around its median for the whole tail dwell — the metric can then never be
+     censored by construction on a COMPLETE capture. Cost: the capture ran ~15 s longer on this scenario.
+  3. `pre_slope` and `post_slope` were catalogue quantities nobody produced (always "INSUFFICIENT_SUPPORT"): pre_slope is now the
+     Theil-Sen rate of the valid pre-support; post_slope the Theil-Sen rate of the tail beyond the estimated delay on integrating /
+     ramp paths only (catalogue support rule), else NO_VALID_SLOPE.
+  Also: `peak_time`/`peak_pv` reported the LAST sample of a monotone response as its peak; a peak is now qualified exactly as the
+  decay-ratio code qualifies one (an excursion beyond the endpoint by more than the band), else NO_QUALIFIED_PEAK.
+  Tuple-grid fact for the record: 108 of 109 intervals in the window were 5.0 s; the others 3.0/4.1/6.0/7.0 s (newest-member time).

@@ -57,6 +57,7 @@ public final class ResponseCapture implements Serializable {
     private String commandPath = "OP_TO_VALVE";
     private boolean healthIneligible;
     private boolean vpMappedAtCapture;
+    private Boolean lastVpUsable;
     private double lastEventT0 = Double.NaN;
 
     public ResponseCapture(String loopId, ResponseJobConfig cfg) {
@@ -81,14 +82,23 @@ public final class ResponseCapture implements Serializable {
         return Collections.emptyList();
     }
 
-    /** One accepted sample; returns the captures closed by it (usually none). */
-    public List<Closed> onSample(CplmNormalizedSample s, boolean vpMapped) {
+    /**
+     * One accepted sample; returns the captures closed by it (usually none). {@code vpUsable} says whether
+     * VP is evidence for THIS sample (mapped, good, not held past vp_max_age_s): then VP is the applied
+     * input, otherwise OP is (spec §2.3, §2.7).
+     */
+    public List<Closed> onSample(CplmNormalizedSample s, boolean vpUsable) {
         double tS = s.eventTsMs / 1000.0;
         boolean auto = s.isAutoMode();
         boolean good = s.isGoodQuality() && Double.isFinite(s.pv) && Double.isFinite(s.sp) && Double.isFinite(s.op);
-        double uApplied = vpMapped && s.vp != null && Double.isFinite(s.vp) ? s.vp : s.op;
+        boolean vpMapped = vpUsable && s.vp != null && Double.isFinite(s.vp);
+        double uApplied = vpMapped ? s.vp : s.op;
         List<Closed> closed = new ArrayList<>();
-        boolean gap = !Double.isNaN(lastTs) && tS - lastTs > cfg.maxGapS;
+        boolean timeGap = !Double.isNaN(lastTs) && tS - lastTs > cfg.maxGapS;
+        // the applied input changing source (VP going stale, or a stale VP coming back) is a gap in the
+        // applied-input support: samples on either side of it are not one series, so it is treated like one
+        boolean inputSourceChange = lastVpUsable != null && lastVpUsable.booleanValue() != vpMapped;
+        boolean gap = timeGap || inputSourceChange;
 
         // segmentation triggers on the open capture (the gap is judged BEFORE the new sample joins the ring)
         if (machine.open() != null) {
@@ -110,6 +120,7 @@ public final class ResponseCapture implements Serializable {
         evict(tS);
         lastTs = tS;
         lastMode = auto ? "AUT" : "MAN";
+        lastVpUsable = vpMapped;
         if (healthIneligible) return closed;
 
         if (machine.open() == null) {
@@ -169,23 +180,46 @@ public final class ResponseCapture implements Serializable {
         machine.onSample(nowS);
     }
 
+    /**
+     * The capture may close as settled only when the tail is BOTH a stable endpoint support (range within
+     * stableBandEu over tailDwellS, spec §2.5 endpoints) AND inside the settle band around that endpoint for the
+     * whole tail dwell - the same B_resp = max(abs, rel x |dy|, noise floor) the metric uses. Closing on the range
+     * test alone left settle_response right-censored on captures the job itself had declared settled (lab, 2B).
+     */
     private boolean settled(double nowS) {
         ResponseEvent e = machine.open();
         if (e == null) return false;
         double t0 = e.t0Ms / 1000.0;
         if (nowS - t0 < cfg.minCaptureS) return false;
         double from = nowS - cfg.tailDwellS;
-        double min = Double.POSITIVE_INFINITY, max = Double.NEGATIVE_INFINITY;
-        int count = 0;
+        List<Double> tail = new ArrayList<>();
         for (int i = ring.size() - 1; i >= 0; i--) {
             double[] row = ring.get(i);
             if (row[0] < from) break;
             if (row[4] == 0) continue;
-            min = Math.min(min, row[1]);
-            max = Math.max(max, row[1]);
-            count++;
+            tail.add(row[1]);
         }
-        return count >= 3 && max - min <= cfg.stableBandEu;
+        if (tail.size() < 3) return false;
+        double min = Double.POSITIVE_INFINITY, max = Double.NEGATIVE_INFINITY;
+        for (double v : tail) {
+            min = Math.min(min, v);
+            max = Math.max(max, v);
+        }
+        if (max - min > cfg.stableBandEu) return false;
+        double yss = median(tail);
+        List<Double> pre = new ArrayList<>();
+        for (double[] row : ring) if (row[0] >= t0 - cfg.preSupportS && row[0] < t0 && row[4] > 0) pre.add(row[1]);
+        double dy = pre.size() >= 3 ? yss - median(pre) : 0;
+        double band = com.ams.flink.cplm.response.metrics.Settling.responseBand(cfg.absSettlingBandEu, cfg.relSettlingBand, dy, cfg.noiseFloorEu);
+        for (double v : tail) if (Math.abs(v - yss) > band) return false;
+        return true;
+    }
+
+    private static double median(List<Double> vals) {
+        List<Double> s = new ArrayList<>(vals);
+        java.util.Collections.sort(s);
+        int n = s.size();
+        return n % 2 == 1 ? s.get(n / 2) : 0.5 * (s.get(n / 2 - 1) + s.get(n / 2));
     }
 
     private List<Closed> closeLast() {

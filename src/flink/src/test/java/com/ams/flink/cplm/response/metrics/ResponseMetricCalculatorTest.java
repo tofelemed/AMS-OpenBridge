@@ -51,6 +51,11 @@ public class ResponseMetricCalculatorTest {
         // the robust endpoint (tail median) sits a hair below the asymptote: that is not an overshoot
         assertEquals(0.0, q.get("overshoot").value, 1e-9);
         assertEquals(ResponseMetricCalculator.PCT_OF_RESPONSE, q.get("overshoot").unit);
+        // a monotone response has no qualified peak: its maximum is the endpoint, not a peak time to report
+        assertFalse(q.get("peak_time").available());
+        assertEquals("NO_QUALIFIED_PEAK", q.get("peak_time").reasonIfNull);
+        assertFalse(q.get("peak_pv").available());
+        assertEquals("NO_QUALIFIED_PEAK", q.get("peak_pv").reasonIfNull);
         assertEquals(0.0, q.get("steady_error").value, 0.02);
         assertEquals(4 + 20 * Math.log(15.0 / 0.3), q.get("settle_response").value, 0.6);
         assertFalse(q.get("decay_ratio").available());
@@ -99,5 +104,84 @@ public class ResponseMetricCalculatorTest {
         assertEquals(Math.PI / wd, q.get("peak_time").value, 0.6);
         assertTrue(q.get("decay_ratio").available());
         assertEquals(Math.exp(-2 * zeta * Math.PI / Math.sqrt(1 - zeta * zeta)), q.get("decay_ratio").value, 0.03);
+    }
+
+    @Test
+    public void aSustainedCrossingIsRecognisedWhenNoSampleFallsInsideTheDwell() {
+        // lab finding (2B): the tuple grid was 0, 4.1, 11.1, 16.1, ... s after the step (newest-member time), so the 10 %
+        // crossing at ~5.1 s had NO sample inside its 5 s dwell and was refused although every later sample was above it
+        double[] rel = {-20, -15, -10, -5, 0, 4.1, 11.1, 16.1, 21.1, 26.1, 31.1, 36.1, 41.1, 46.1, 51.1, 56.1, 61.1, 66.1, 71.1, 76.1, 81.1, 86.1, 91.1, 96.1,
+                101.1, 106.1, 111.1, 116.1, 121.1, 126.1, 131.1, 136.1, 141.1, 146.1, 151.1, 156.1, 161.1, 166.1, 171.1, 176.1, 181.1, 186.1, 191.1, 196.1, 201.1};
+        int n = rel.length;
+        double[] t = new double[n], y = new double[n], r = new double[n], u = new double[n];
+        boolean[] v = new boolean[n];
+        for (int i = 0; i < n; i++) {
+            t[i] = rel[i];
+            double real = rel[i] + 1.2;                                        // the step happened 1.2 s before its tuple
+            y[i] = rel[i] < 0 || real <= 4 ? 100 : 100 + 15 * (1 - Math.exp(-(real - 4) / 20));
+            r[i] = 100;
+            u[i] = rel[i] < 0 ? 40 : 45;
+            v[i] = true;
+        }
+        ResponseMetricCalculator.Settings s = settings();
+        s.preSupportS = 20;
+        s.tailDwellS = 120;
+        Map<String, Quantity> q = ResponseMetricCalculator.compute(new EventDataset(t, y, r, u, v, 0, 201.1), 100, 100, 5.0, s);
+        assertTrue(q.get("baseline_pv").available());
+        assertTrue(q.get("endpoint_pv").available());
+        assertTrue("t10 is a sustained crossing: the next observations confirm it", q.get("t10").available());
+        assertEquals(5.1, q.get("t10").value, 0.6);                         // interpolated between 4.1 s (6 %) and 11.1 s (34 %)
+        assertTrue(q.get("t90").available());
+        assertTrue(q.get("rise_time_10_90").available());
+    }
+
+    @Test
+    public void aCrossingWhoseDwellIsNotObservedIsCensoredNotAssumed() {
+        // PV jumps to its endpoint at 46 s; the samples after 50 s are BAD and the retained record ends at 52 s.
+        // The 90 % crossing at 45.9 s needs its 5 s dwell OBSERVED: no valid sample at or after 50.9 s -> null,
+        // even though the declared record end (52 s) lies beyond the dwell.
+        int n = 63;
+        double[] t = new double[n], y = new double[n], r = new double[n], u = new double[n];
+        boolean[] v = new boolean[n];
+        for (int i = 0; i < n; i++) {
+            t[i] = -10 + i;
+            y[i] = t[i] < 46 ? 100 : 115;
+            r[i] = 100;
+            u[i] = t[i] < 0 ? 40 : 45;
+            v[i] = t[i] <= 50;
+        }
+        ResponseMetricCalculator.Settings s = settings();
+        s.tailDwellS = 5;
+        Map<String, Quantity> q = ResponseMetricCalculator.compute(new EventDataset(t, y, r, u, v, 0, 52), 100, 100, 5.0, s);
+        assertEquals(115.0, q.get("endpoint_pv").value, 1e-9);
+        assertFalse("the dwell after the 90 % crossing has no valid observation at its end", q.get("t90").available());
+        assertEquals("CENSORED_OR_NO_ENDPOINT", q.get("t90").reasonIfNull);
+    }
+
+    @Test
+    public void preSlopeIsTheRobustRateOfThePreSupport() {
+        int n = 2701;
+        double[] t = new double[n], y = new double[n], r = new double[n], u = new double[n];
+        boolean[] v = new boolean[n];
+        for (int i = 0; i < n; i++) {
+            t[i] = -20 + 0.1 * i;
+            double drift = t[i] < 0 ? 0.02 * (t[i] + 20) : 0.4;               // the pre-support drifts at 0.02 EU/s
+            y[i] = drift + (t[i] <= 4 ? 100 : 100 + 15 * (1 - Math.exp(-(t[i] - 4) / 20)));
+            r[i] = 100;
+            u[i] = t[i] < 0 ? 40 : 45;
+            v[i] = true;
+        }
+        Map<String, Quantity> q = ResponseMetricCalculator.compute(new EventDataset(t, y, r, u, v, 0, 250), 100, 100, 5.0, settings());
+        assertTrue(q.get("pre_slope").available());
+        assertEquals(0.02, q.get("pre_slope").value, 1e-6);
+        assertEquals("PV_EU/s", q.get("pre_slope").unit);
+        assertEquals("THEIL_SEN", q.get("pre_slope").method);
+        // two pre samples are not support for a rate
+        double[] t2 = {-1, 0, 5, 10, 15, 20, 25, 30, 35, 40}, y2 = new double[10], r2 = new double[10], u2 = new double[10];
+        boolean[] v2 = new boolean[10];
+        for (int i = 0; i < 10; i++) { y2[i] = 100; r2[i] = 100; u2[i] = 40; v2[i] = true; }
+        Map<String, Quantity> q2 = ResponseMetricCalculator.compute(new EventDataset(t2, y2, r2, u2, v2, 0, 40), 100, 100, null, settings());
+        assertFalse(q2.get("pre_slope").available());
+        assertEquals("INSUFFICIENT_SUPPORT", q2.get("pre_slope").reasonIfNull);
     }
 }

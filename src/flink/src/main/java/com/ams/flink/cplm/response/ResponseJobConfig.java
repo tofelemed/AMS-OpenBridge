@@ -40,6 +40,8 @@ public final class ResponseJobConfig implements Serializable {
     public long fitBudgetMs = 20_000;
     /** Declared PV span for the trigger fraction when the profile declares none (EU). */
     public double fallbackSpanEu = 100;
+    /** A held VP older than this is not the applied input (spec §2.7); u_applied falls back to OP. */
+    public double vpMaxAgeS = com.ams.flink.cplm.CplmLoopDynamicsProfile.VP_MAX_AGE_S_DEFAULT;
 
     public static ResponseJobConfig fromArgs(String[] args) {
         ResponseJobConfig c = new ResponseJobConfig();
@@ -57,6 +59,7 @@ public final class ResponseJobConfig implements Serializable {
         c.thetaMaxS = num(args, "g12-theta-max-s", c.thetaMaxS);
         c.tauMaxS = num(args, "g12-tau-max-s", c.tauMaxS);
         c.fitBudgetMs = (long) num(args, "g12-fit-budget-ms", c.fitBudgetMs);
+        c.vpMaxAgeS = num(args, "g12-vp-max-age-s", c.vpMaxAgeS);
         return c;
     }
 
@@ -65,7 +68,7 @@ public final class ResponseJobConfig implements Serializable {
         String canonical = "g12|" + preSupportS + "|" + minCaptureS + "|" + maxCaptureS + "|" + maxGapS + "|" + tailDwellS + "|" + stableBandEu
                 + "|" + stepMinInputEu + "|" + stepMinSpanFraction + "|" + noiseMultiplier + "|" + eventDwellS + "|" + rampMinSlopeEuPerS + "|" + rampMinDurationS
                 + "|" + absSettlingBandEu + "|" + relSettlingBand + "|" + noiseFloorEu + "|" + crossingDwellS + "|" + minResponseEu + "|" + targetBandEu
-                + "|" + delayGridS + "|" + thetaMaxS + "|" + tauMaxS + "|" + fitBudgetMs;
+                + "|" + delayGridS + "|" + thetaMaxS + "|" + tauMaxS + "|" + fitBudgetMs + "|" + vpMaxAgeS;
         return "g12:" + com.ams.flink.cplm.identity.ProfileHash.sha256Prefix(canonical, 16);
     }
 

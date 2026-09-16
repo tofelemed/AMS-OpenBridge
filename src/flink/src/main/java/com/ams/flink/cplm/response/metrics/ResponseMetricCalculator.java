@@ -41,6 +41,11 @@ public final class ResponseMetricCalculator {
                 ? Quantity.unavailable("endpoint_pv", "PV_EU", Endpoints.NO_STABLE_ENDPOINT)
                 : Quantity.of("endpoint_pv", ysse.value, "PV_EU", "ROBUST_MEDIAN_STABLE_TAIL"));
 
+        Double preSlope = Slopes.theilSen(d, d.t0 - s.preSupportS, d.t0, false, s.minSamples);
+        q.put("pre_slope", preSlope == null
+                ? Quantity.unavailable("pre_slope", "PV_EU/s", "INSUFFICIENT_SUPPORT")
+                : Quantity.of("pre_slope", preSlope, "PV_EU/s", Slopes.METHOD));
+
         ErrorIntegrals.Result e = ErrorIntegrals.over(d);
         boolean hasRef = e.validDuration > 0;
         q.put("iae", hasRef ? Quantity.of("iae", e.iae, "PV_EU*s", ErrorIntegrals.METHOD) : Quantity.unavailable("iae", "PV_EU*s", "NO_VALID_REFERENCE_SUPPORT"));
@@ -98,7 +103,7 @@ public final class ResponseMetricCalculator {
                 ? Quantity.unavailable("undershoot", PCT_OF_RESPONSE, "NO_MEANINGFUL_RESPONSE")
                 : Quantity.of("undershoot", pk.undershootPct, PCT_OF_RESPONSE, METHOD));
         q.put("peak_time", pk.peakTimeS == null ? Quantity.unavailable("peak_time", "s", "NO_QUALIFIED_PEAK") : Quantity.of("peak_time", pk.peakTimeS, "s", METHOD));
-        q.put("peak_pv", pk.peakValue == null ? Quantity.unavailable("peak_pv", "PV_EU", "INSUFFICIENT_SUPPORT") : Quantity.of("peak_pv", pk.peakValue, "PV_EU", METHOD));
+        q.put("peak_pv", pk.peakValue == null ? Quantity.unavailable("peak_pv", "PV_EU", "NO_QUALIFIED_PEAK") : Quantity.of("peak_pv", pk.peakValue, "PV_EU", METHOD));
         q.put("steady_error", refStep ? Quantity.of("steady_error", r1 - yss, "PV_EU", METHOD) : Quantity.unavailable("steady_error", "PV_EU", Endpoints.NO_STABLE_ENDPOINT));
         q.put("decay_ratio", pk.decayRatio == null
                 ? Quantity.unavailable("decay_ratio", "dimensionless", "NO_QUALIFIED_PEAK_PAIR")

@@ -1,6 +1,7 @@
 package com.ams.flink.cplm.response;
 
 import com.ams.flink.cplm.CplmNormalizedSample;
+import com.ams.flink.cplm.contract.RoleObservation;
 import com.ams.flink.cplm.evidence.EvidenceArtifact;
 import com.ams.flink.cplm.response.controller.ControllerSnapshot;
 import com.ams.flink.cplm.response.metrics.EventDataset;
@@ -18,6 +19,7 @@ import java.util.Set;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -57,6 +59,21 @@ public class ResponseCaptureEvaluatorTest {
         x.op = op;
         x.mode = auto ? "AUT" : "MAN";
         x.quality = "GOOD";
+        return x;
+    }
+
+    /** A 1.1 tuple whose VP role carries its own hold flag and age (the codec's provenance for VP evidence). */
+    private static CplmNormalizedSample withVp(CplmNormalizedSample x, double vp, boolean held, long ageMs) {
+        x.vp = vp;
+        RoleObservation o = new RoleObservation();
+        o.role = "vp";
+        o.value = vp;
+        o.quality = "GOOD";
+        o.held = held;
+        o.ageMs = ageMs;
+        o.sampleTsMs = x.eventTsMs - ageMs;
+        o.verifiedTsMs = o.sampleTsMs;
+        x.roles.put("vp", o);
         return x;
     }
 
@@ -266,5 +283,113 @@ public class ResponseCaptureEvaluatorTest {
         assertEquals("EVALUATED", fresh.evaluationState);
         assertEquals("COMPLETE", fresh.subgates.get("B").outputs.get("capture_state"));
         assertEquals(3.0, fresh.metrics.get("process_gain").value, 0.05);
+    }
+
+    @Test
+    public void aStaleHeldVpIsNotTheAppliedInput_theOpStepIsCapturedOnTheOpPath() {
+        // lab finding (2B): a positioner value held for hours next to a fresh OP froze u_applied at the stale VP,
+        // so the OP step was invisible. A held VP beyond vp_max_age_s is not evidence (spec §2.7): OP is the input.
+        ResponseJobConfig cfg = cfg();
+        ResponseCapture cap = new ResponseCapture("FIC10302", cfg);
+        cap.setCommandPath("OP_TO_VALVE");
+        List<ResponseCapture.Closed> closed = new ArrayList<>();
+        int n = 101;
+        double[] t = new double[n], u = new double[n];
+        for (int i = 0; i < n; i++) {
+            t[i] = 5 * i;
+            u[i] = t[i] < 100 ? 40 : 45;
+        }
+        ZohSimulator.Result sim = ZohSimulator.simulate(PLANT, t, u, 40, 100, 0, 100, 60);
+        for (int i = 0; i < n; i++) {
+            CplmNormalizedSample s = withVp(sample("FIC10302", t[i], sim.yHat[i], 100, u[i], true), 29.33, true, 7_000_000L + (long) (t[i] * 1000));
+            assertFalse("a two-hour-old held VP is not eligible", s.vpEligible(cfg.vpMaxAgeS));
+            closed.addAll(cap.onSample(s, s.vpEligible(cfg.vpMaxAgeS)));
+        }
+        assertEquals(1, closed.size());
+        ResponseCapture.Closed c = closed.get(0);
+        assertEquals("INPUT_TEST", c.event.type.name());
+        assertEquals("OP_TO_PV", c.event.pathId);
+        assertEquals(5.0, c.duApplied, 1e-9);
+        assertEquals("the applied input is OP, not the frozen VP", 45.0, c.data.u[c.data.u.length - 1], 1e-9);
+    }
+
+    @Test
+    public void theVpTurningStaleDuringACaptureCensorsItAsASourceGap() {
+        // VP is the applied input (VP_TO_PV) until the positioner feed stops at t = 160 and its hold age passes
+        // vp_max_age_s: from then on u_applied is unknown, so the capture ends there - never spliced onto OP.
+        ResponseJobConfig cfg = cfg();
+        ResponseCapture cap = new ResponseCapture("FIC10302", cfg);
+        cap.setCommandPath("OP_TO_VALVE");
+        ResponseEvaluator ev = new ResponseEvaluator(cfg);
+        List<G12Result> results = new ArrayList<>();
+        for (double t = 0; t <= 400; t += 5) {
+            double u = t < 100 ? 40 : 45;
+            double pv = t < 104 ? 100 : 100 + 15 * (1 - Math.exp(-(t - 104) / 20));
+            boolean fresh = t < 160;
+            long age = fresh ? 0 : (long) ((t - 160) * 1000) + 5000;
+            CplmNormalizedSample s = withVp(sample("FIC10302", t, pv, 100, u, true), fresh ? u * 0.98 : 44.1, !fresh, age);
+            for (ResponseCapture.Closed c : cap.onSample(s, s.vpEligible(cfg.vpMaxAgeS))) {
+                results.add(ev.evaluate(c, ModelFamily.FOPDT, null, 0, ControllerSnapshot.unknown(), 0, "LIVE", "", 0).result);
+            }
+        }
+        assertEquals(1, results.size());
+        G12Result r = results.get(0);
+        assertEquals("CENSORED", r.evaluationState);
+        assertEquals("SOURCE_GAP", r.finding);
+        assertEquals("VP_TO_PV", r.pathId);
+        assertNull("nothing is open after the source change", cap.machine().open());
+    }
+
+    @Test
+    public void aPositionerFeedReturningWhileIdleIsNotAnInputStep() {
+        // u_applied switches from OP (stale VP) to VP (fresh again) at t = 200 with OP flat at 40 and VP at 29.4:
+        // the switch restarts the support; it must not be read as a 40 -> 29.4 input step.
+        ResponseJobConfig cfg = cfg();
+        ResponseCapture cap = new ResponseCapture("FIC10302", cfg);
+        cap.setCommandPath("OP_TO_VALVE");
+        List<ResponseCapture.Closed> closed = new ArrayList<>();
+        for (double t = 0; t <= 400; t += 5) {
+            boolean fresh = t >= 200;
+            CplmNormalizedSample s = withVp(sample("FIC10302", t, 100, 100, 40, true), fresh ? 29.4 : 29.33, !fresh, fresh ? 0 : 7_000_000L);
+            closed.addAll(cap.onSample(s, s.vpEligible(cfg.vpMaxAgeS)));
+        }
+        assertTrue(closed.isEmpty());
+        assertNull(cap.machine().open());
+        assertTrue("no event was ever recorded", cap.machine().events().isEmpty());
+    }
+
+    @Test
+    public void aCaptureClosesOnlyWhenTheSettleMetricCanBeSatisfied() {
+        // lab finding (2B): the capture closed "settled" on a 0.5 EU range test at 186 s while the spec's settle band
+        // (0.3 EU around the attained endpoint) had only 105 s of tail - so settle_response was right-censored on a
+        // capture the job itself had declared settled. The capture must hold until the settle band holds for the tail dwell.
+        ResponseJobConfig cfg = cfg();
+        cfg.minCaptureS = 180;
+        cfg.tailDwellS = 120;
+        cfg.stableBandEu = 0.5;
+        ResponseCapture cap = new ResponseCapture("FIC10302", cfg);
+        cap.setCommandPath("OP_TO_VALVE");
+        ResponseEvaluator ev = new ResponseEvaluator(cfg);
+        List<G12Result> results = new ArrayList<>();
+        double closedAt = Double.NaN;
+        for (double t = 0; t <= 600; t += 5) {
+            double u = t < 100 ? 40 : 45;
+            double real = t - 100 + 1.2;
+            double pv = t < 100 || real <= 4 ? 100 : 100 + 15 * (1 - Math.exp(-(real - 4) / 20));
+            for (ResponseCapture.Closed c : cap.onSample(sample("FIC10302", t, pv, 100, u, true), false)) {
+                closedAt = t;
+                results.add(ev.evaluate(c, ModelFamily.FOPDT, null, 0, ControllerSnapshot.unknown(), 0, "LIVE", "", 0).result);
+            }
+        }
+        assertEquals(1, results.size());
+        G12Result r = results.get(0);
+        assertEquals("COMPLETE", r.subgates.get("B").outputs.get("capture_state"));
+        double bandEntry = 100 - 1.2 + 4 + 20 * Math.log(15.0 / 0.3);          // |y - 115| <= 0.3 from here on (~181 s)
+        assertTrue("closed no earlier than band entry + tail dwell", closedAt >= bandEntry + 120 - 5);
+        assertTrue("settle_response is observed, not censored, on a capture the job closed as settled", r.metrics.get("settle_response").available());
+        assertEquals(bandEntry - 100, r.metrics.get("settle_response").value, 6.0);
+        assertTrue(r.metrics.get("t10").available());
+        assertTrue(r.metrics.get("pre_slope").available());
+        assertEquals(0.0, r.metrics.get("pre_slope").value, 1e-9);
     }
 }

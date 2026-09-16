@@ -95,8 +95,10 @@ public final class CplmResponseAnalysisJob {
         public void processElement(CplmNormalizedSample s, Context ctx, Collector<String> out) throws Exception {
             ResponseCapture c = capture.value();
             if (c == null) c = new ResponseCapture(s.loopId, cfg);
-            boolean vpMapped = s.vp != null;
-            for (ResponseCapture.Closed closed : c.onSample(s, vpMapped)) {
+            // VP is the applied input only while it is evidence: a held positioner value past vp_max_age_s
+            // is not (spec §2.7) - presence alone froze u_applied on the lab and hid every OP step
+            boolean vpUsable = s.vpEligible(cfg.vpMaxAgeS);
+            for (ResponseCapture.Closed closed : c.onSample(s, vpUsable)) {
                 ModelFamily family = familyFor(s);
                 ResponseEvaluator.Outcome o = evaluator.evaluate(closed, family, holdout.value(), holdoutU0.value() == null ? 0 : holdoutU0.value(),
                         ControllerSnapshot.unknown(), ctx.timerService().currentProcessingTime(), purpose, analysisRunId, 0);
