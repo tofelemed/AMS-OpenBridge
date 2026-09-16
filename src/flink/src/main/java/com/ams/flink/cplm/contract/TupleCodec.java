@@ -31,6 +31,7 @@ public final class TupleCodec {
     public static void applyRoles(JsonNode root, CplmNormalizedSample s) {
         s.schemaVersion = root.has("schema_version") ? root.get("schema_version").asText("1.0") : "1.0";
         s.bindingRevision = root.path("binding_revision").asLong(0L);
+        s.ingestTsMs = root.path("ingest_ts_ms").asLong(0L);
         s.gridSeconds = root.path("grid_seconds").asInt(0);
         JsonNode block = root.get("roles");
         Map<String, RoleObservation> roles = new LinkedHashMap<>();

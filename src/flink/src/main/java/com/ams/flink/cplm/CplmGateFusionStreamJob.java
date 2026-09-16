@@ -127,15 +127,20 @@ public class CplmGateFusionStreamJob {
                 .uid("cplm-fusion-condition-wrap")
                 .union(healthStream);
 
-        DataStream<String> fused = longStream
+        org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator<CplmGateResult> joined = longStream
                 .keyBy(l -> l.loopId)
                 .connect(sideInputs.keyBy(s -> s.loopId()))
-                .process(new GateFusionProcess(fuseKinds))
+                .process(new GateFusionProcess(fuseKinds, com.ams.flink.cplm.evidence.EvidencePolicy.fromArgs(args)))
                 .name("cplm-gate-fusion-join")
-                .uid("cplm-gate-fusion-join")
+                .uid("cplm-gate-fusion-join");
+        DataStream<String> fused = joined
                 .map(CplmGateResult::toJson)
                 .name("cplm-gate-fusion-serialize")
                 .uid("cplm-gate-fusion-serialize");
+        // v2.5 (2C.1c): the fused verdict's evidence (G11 lanes, G13 capability, G14/G15 records) on a side output
+        String evidenceTopic = argOr(args, "evidence-topic", com.ams.flink.cplm.contract.CplmTopics.GATE_EVIDENCE);
+        CplmKafkaSink.attachKeyed(joined.getSideOutput(GateFusionProcess.EVIDENCE), cfg, evidenceTopic, "cplm-fusion-evidence-sink",
+                com.ams.flink.cplm.evidence.EvidenceKafkaRecords.KEY_FIELD);
 
         // Keyed by loop_id (audit-jobs.md B-F6): CplmEventFrameService's
         // open/extend/close lifecycle is order-sensitive per (loop, window_kind);
@@ -146,7 +151,13 @@ public class CplmGateFusionStreamJob {
     }
 
     static class GateFusionProcess extends KeyedCoProcessFunction<String, CplmLongDiagnosticsResult, FusionSideInput, CplmGateResult> {
+        /** v2.5 (2C.1c): evidence records (EvidenceKafkaRecords JSON) leave through this side output. */
+        static final org.apache.flink.util.OutputTag<String> EVIDENCE = new org.apache.flink.util.OutputTag<String>("cplm-fusion-evidence") {
+        };
+        private static final org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper EVIDENCE_MAPPER =
+                new org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper();
         private final Set<String> fuseKinds;
+        private final com.ams.flink.cplm.evidence.EvidencePolicy policy;
         /** Per windowKind: recent selectedFamily history for persistence. */
         private transient MapState<String, List<String>> familyHistoryByKind;
         /** v2.5 R11: the fast-path conditions currently open for this loop (kind -> latest event). */
@@ -159,7 +170,12 @@ public class CplmGateFusionStreamJob {
         }
 
         GateFusionProcess(Set<String> fuseKinds) {
+            this(fuseKinds, new com.ams.flink.cplm.evidence.EvidencePolicy(com.ams.flink.cplm.evidence.EvidencePolicy.Mode.EPISODES));
+        }
+
+        GateFusionProcess(Set<String> fuseKinds, com.ams.flink.cplm.evidence.EvidencePolicy policy) {
             this.fuseKinds = fuseKinds;
+            this.policy = policy;
         }
 
         @Override
@@ -243,6 +259,12 @@ public class CplmGateFusionStreamJob {
             while (next.size() > keep) next.remove(0);
             familyHistoryByKind.put(longD.windowKind, next);
 
+            if (policy.emit(fused)) {
+                long nowMs = System.currentTimeMillis();
+                for (com.ams.flink.cplm.evidence.EvidenceArtifact a : com.ams.flink.cplm.evidence.FusionArtifacts.artifacts(fused)) {
+                    for (String record : com.ams.flink.cplm.evidence.EvidenceKafkaRecords.records(a, EVIDENCE_MAPPER, nowMs)) ctx.output(EVIDENCE, record);
+                }
+            }
             out.collect(fused);
         }
 

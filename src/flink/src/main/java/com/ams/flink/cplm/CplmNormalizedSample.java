@@ -14,6 +14,8 @@ public final class CplmNormalizedSample implements Serializable {
 
     public String loopId;
     public long eventTsMs;
+    /** v2.5 (2C.1c): the tuple's ingest_ts_ms - when the ingestion emitted it (G0 arrival_time); 0 when absent. */
+    public long ingestTsMs;
     public double pv;
     public double sp;
     public double op;

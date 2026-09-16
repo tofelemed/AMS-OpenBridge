@@ -32,6 +32,12 @@ public final class EvidenceArtifact implements Serializable {
     public double[] y;
     /** Optional: true where the point was accepted by the method. */
     public boolean[] mask;
+    /** v2.5 (2C.1c): further per-sample columns by the workbook's field name, each aligned to x. */
+    public Map<String, double[]> columns = new LinkedHashMap<>();
+    /** Unit per extra column (a coded categorical column has unit "code" and a legend). */
+    public Map<String, String> columnUnits = new LinkedHashMap<>();
+    /** Legend of a coded column: "0=LABEL;1=LABEL;..." - strings never ride the payload, codes do. */
+    public Map<String, String> legends = new LinkedHashMap<>();
     public Map<String, Object> provenance = new LinkedHashMap<>();
 
     public EvidenceArtifact() {
@@ -70,11 +76,34 @@ public final class EvidenceArtifact implements Serializable {
         return Math.min(calculationSamples(), DEFAULT_DISPLAY_POINTS);
     }
 
+    /** Adds a numeric per-sample column (workbook field name, unit, values aligned to x). */
+    public EvidenceArtifact column(String name, String unit, double[] values) {
+        if (values == null || values.length != calculationSamples()) throw new IllegalArgumentException("column " + name + " length");
+        columns.put(name, values);
+        columnUnits.put(name, unit);
+        return this;
+    }
+
+    /** Adds a categorical per-sample column as codes with its legend (index -> label). */
+    public EvidenceArtifact codedColumn(String name, double[] codes, String[] labels) {
+        column(name, "code", codes);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < labels.length; i++) sb.append(i == 0 ? "" : ";").append(i).append('=').append(labels[i]);
+        legends.put(name, sb.toString());
+        return this;
+    }
+
     public int columnCount() {
-        return mask == null ? 2 : 3;
+        return (mask == null ? 2 : 3) + columns.size();
     }
 
     public String[] columns() {
-        return mask == null ? new String[]{"x", "y"} : new String[]{"x", "y", "mask"};
+        String[] out = new String[columnCount()];
+        int k = 0;
+        out[k++] = "x";
+        out[k++] = "y";
+        if (mask != null) out[k++] = "mask";
+        for (String name : columns.keySet()) out[k++] = name;
+        return out;
     }
 }

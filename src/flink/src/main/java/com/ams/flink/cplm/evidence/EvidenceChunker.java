@@ -32,6 +32,7 @@ public final class EvidenceChunker {
         for (int i = 0; i < n; i++) bb.putDouble(a.x[i]);
         for (int i = 0; i < n; i++) bb.putDouble(a.y[i]);
         if (a.mask != null) for (int i = 0; i < n; i++) bb.putDouble(a.mask[i] ? 1.0 : 0.0);
+        for (double[] col : a.columns.values()) for (int i = 0; i < n; i++) bb.putDouble(col[i]);
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             try (GZIPOutputStream gz = new GZIPOutputStream(out)) {
@@ -43,7 +44,7 @@ public final class EvidenceChunker {
         }
     }
 
-    /** Inverse of {@link #encode}: columns x, y (, mask as 0/1) each of {@code n} doubles. */
+    /** Inverse of {@link #encode}: columns x, y (, mask as 0/1)(, named columns in manifest order) each of {@code n} doubles. */
     public static double[][] decode(byte[] encoded, int columns, int n) {
         try {
             ByteArrayOutputStream raw = new ByteArrayOutputStream();

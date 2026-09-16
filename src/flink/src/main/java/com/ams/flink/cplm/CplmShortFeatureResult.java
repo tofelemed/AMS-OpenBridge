@@ -124,6 +124,9 @@ public final class CplmShortFeatureResult implements Serializable {
     private void putMetric(ObjectNode out, String name, int value) {
         if (sufficientData) out.put(name, value); else out.putNull(name);
     }
+    /** v2.5 (2C.1c): the exact intermediates for the evidence builders; transient, never serialised to the topic. */
+    public transient com.ams.flink.cplm.engine.ShortIntermediates intermediates;
+
     public String toJson() {
         ObjectNode out = MAPPER.createObjectNode();
         out.put("schemaVersion", 1);

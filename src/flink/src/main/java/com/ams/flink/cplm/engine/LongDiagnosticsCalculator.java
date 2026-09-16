@@ -108,6 +108,7 @@ public final class LongDiagnosticsCalculator {
         keep.pv = pv;
         keep.op = op;
         keep.shapeCentered = shapeCentered;
+        keep.shapeRole = profile.integrating ? "PV" : "OP";
         OscillationMath.AcfResult acf = OscillationMath.computeAcfPeriod(shapeCentered, tsSec);
         keep.acf = acf;
         result.acfPeriodS = acf.periodSec;

@@ -39,7 +39,7 @@ public final class HealthLanes implements Serializable {
         return h;
     }
 
-    private Map<String, LoopHealthContextRecord> roles() {
+    public Map<String, LoopHealthContextRecord> roles() {
         return byRole == null ? Collections.emptyMap() : byRole;
     }
 

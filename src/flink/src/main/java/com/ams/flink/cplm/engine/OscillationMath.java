@@ -327,6 +327,10 @@ public final class OscillationMath {
         public double[] acfLagS = new double[0];
         public int[] acfPairCount = new int[0];
         public double[] crossingTimesS = new double[0];
+
+        public double periodSec() { return periodSec; }
+        public double regularity() { return regularity; }
+        public int periodCandidateCount() { return periodCandidateCount; }
     }
 
     public static class FftResult {

@@ -14,7 +14,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import com.ams.flink.cplm.contract.CplmTopics;
 import com.ams.flink.cplm.evidence.EvidenceArtifact;
 import com.ams.flink.cplm.evidence.EvidenceKafkaRecords;
-import com.ams.flink.cplm.evidence.LongEvidence;
+import com.ams.flink.cplm.evidence.EvidencePolicy;
+import com.ams.flink.cplm.evidence.LongArtifacts;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
@@ -70,7 +71,7 @@ public class CplmLongDiagnosticsStreamJob {
 
         SingleOutputStreamOperator<CplmLongDiagnosticsResult> processed = normalized
                 .keyBy(s -> s.loopId)
-                .process(new LongDiagnosticsProcessFunction())
+                .process(new LongDiagnosticsProcessFunction(EvidencePolicy.fromArgs(args)))
                 .name("cplm-long-diagnostics-keyed-process")
                 .uid("cplm-long-diagnostics-keyed-process");
         DataStream<String> diagnostics = processed
@@ -112,12 +113,24 @@ public class CplmLongDiagnosticsStreamJob {
         static final OutputTag<String> EVIDENCE = new OutputTag<String>("cplm-long-evidence") {
         };
         private static final ObjectMapper MAPPER = new ObjectMapper();
+        private final EvidencePolicy policy;
 
         private transient ListState<CplmNormalizedSample> rollingBuffer;
         private transient ValueState<Long> nextTimerTs;
 
+        LongDiagnosticsProcessFunction() {
+            this(new EvidencePolicy(EvidencePolicy.Mode.EPISODES));
+        }
+
+        LongDiagnosticsProcessFunction(EvidencePolicy policy) {
+            this.policy = policy;
+        }
+
+        /** v2.5 (2C.1c): every gate's exact intermediates (LongArtifacts) when the policy says so; the
+         *  intermediates are transient, so this runs before the result leaves the operator. */
         private void emitEvidence(OnTimerContext ctx, CplmLongDiagnosticsResult r, long nowMs) {
-            for (EvidenceArtifact a : LongEvidence.artifacts(r)) {
+            if (!policy.emit(r)) return;
+            for (EvidenceArtifact a : LongArtifacts.artifacts(r)) {
                 for (String record : EvidenceKafkaRecords.records(a, MAPPER, nowMs)) ctx.output(EVIDENCE, record);
             }
         }

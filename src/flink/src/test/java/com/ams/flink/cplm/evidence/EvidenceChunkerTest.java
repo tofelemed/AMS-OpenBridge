@@ -84,4 +84,38 @@ public class EvidenceChunkerTest {
         assertEquals(3_000, a.calculationSamples());
         assertEquals(Math.min(3_000, EvidenceArtifact.DEFAULT_DISPLAY_POINTS), a.displayPoints());
     }
+
+    @Test
+    public void namedColumnsAndLegendsRideTheSameTransport() throws Exception {                 // 2C.1c
+        // a G0 role artifact: x = sample_time, y = value, mask = accepted, plus verified_time, age_s and a coded
+        // quality column whose legend (code -> label) rides the manifest provenance
+        int n = 500;
+        double[] x = new double[n], y = new double[n], verified = new double[n], age = new double[n], q = new double[n];
+        boolean[] mask = new boolean[n];
+        for (int i = 0; i < n; i++) {
+            x[i] = 1_756_600_000_000L + i * 5000.0;
+            y[i] = 50 + i % 7;
+            verified[i] = x[i] - 100;
+            age[i] = 0.1 * (i % 3);
+            q[i] = i % 11 == 0 ? 2 : 0;
+            mask[i] = q[i] == 0;
+        }
+        EvidenceArtifact a = EvidenceArtifact.series("m-run-9", "G0", "ROLE_QUALIFICATION", "PV", "sample_time", "ms_epoch", "value", "PV_EU", x, y, mask);
+        a.column("verified_time", "ms_epoch", verified);
+        a.column("age_s", "s", age);
+        a.codedColumn("quality_normalized", q, new String[] {"GOOD", "UNCERTAIN", "BAD", "UNKNOWN"});
+        assertEquals(6, a.columnCount());
+        assertEquals("[x, y, mask, verified_time, age_s, quality_normalized]", java.util.Arrays.toString(a.columns()));
+        byte[] encoded = EvidenceChunker.encode(a);
+        double[][] cols = EvidenceChunker.decode(encoded, a.columnCount(), n);
+        assertArrayEquals(verified, cols[3], 0.0);
+        assertArrayEquals(age, cols[4], 0.0);
+        assertArrayEquals(q, cols[5], 0.0);
+        List<String> records = EvidenceKafkaRecords.records(a, MAPPER, 1L);
+        JsonNode manifest = MAPPER.readTree(records.get(0));
+        assertEquals("[\"x\",\"y\",\"mask\",\"verified_time\",\"age_s\",\"quality_normalized\"]", manifest.path("columns").toString());
+        assertEquals("ms_epoch", manifest.path("column_units").path("verified_time").asText());
+        assertEquals("0=GOOD;1=UNCERTAIN;2=BAD;3=UNKNOWN", manifest.path("legends").path("quality_normalized").asText());
+        assertEquals(6, manifest.path("column_count").asInt());
+    }
 }

@@ -142,6 +142,19 @@ public final class ShortFeatureCalculator {
         double[] err = new double[n];
         int autoCount = 0;
         int regionOut = 0;
+        ShortIntermediates keep = new ShortIntermediates();
+        result.intermediates = keep;
+        keep.samples = samples;
+        keep.profile = profile;
+        keep.tsSec = tsSec;
+        keep.windowStartMs = windowStartMs;
+        keep.windowEndMs = windowEndMs;
+        keep.pv = pv;
+        keep.sp = sp;
+        keep.op = op;
+        keep.err = err;
+        keep.autoMask = new boolean[n];
+        keep.domainMask = new boolean[n];
         for (int i = 0; i < n; i++) {
             CplmNormalizedSample s = samples.get(i);
             pv[i] = s.pv;
@@ -149,8 +162,10 @@ public final class ShortFeatureCalculator {
             op[i] = profile.normalizeOp(s.op); // P3-8: identity unless a range is declared
             err[i] = sp[i] - pv[i];
             if (s.isAutoMode()) autoCount++;
+            keep.autoMask[i] = s.isAutoMode();
             boolean pvOk = pv[i] >= profile.regionPvMin && pv[i] <= profile.regionPvMax;
             boolean opOk = op[i] >= profile.regionOpMin && op[i] <= profile.regionOpMax;
+            keep.domainMask[i] = pvOk && opOk;
             if (!pvOk || !opOk) regionOut++;
         }
 
@@ -175,6 +190,13 @@ public final class ShortFeatureCalculator {
         result.gate2BandEu = profile.spStabilityBandEu();
         result.gate2BandSource = profile.spStabilityBandSource();
         result.gate2Status = result.spRange < result.gate2BandEu ? "PASS" : "WARN";
+        keep.spStabilityBandEu = result.gate2BandEu;
+        keep.spStabilityBandSource = result.gate2BandSource;
+        keep.dSpDt = new double[n];
+        for (int i = 1; i < n; i++) {
+            double dt = (samples.get(i).eventTsMs - samples.get(i - 1).eventTsMs) / 1000.0;
+            keep.dSpDt[i] = dt > 0 ? (sp[i] - sp[i - 1]) / dt : 0.0;
+        }
 
         // G2r — operating region validity
         result.regionOutOfBandPct = (double) regionOut / n;
@@ -206,6 +228,11 @@ public final class ShortFeatureCalculator {
         // 0-100 default reproducing 0.5 exactly for any loop that declares nothing.
         final double goodErrorBand = profile.goodErrorBand();
         int goodErrorCount = 0;
+        keep.goodErrorBand = goodErrorBand;
+        keep.goodErrorMask = new boolean[n];
+        keep.cumIae = new double[n];
+        keep.cumIse = new double[n];
+        keep.cumItae = new double[n];
         for (int i = 0; i < n; i++) {
             double dtSec = i < n - 1
                     ? (samples.get(i + 1).eventTsMs - samples.get(i).eventTsMs) / 1000.0
@@ -215,6 +242,10 @@ public final class ShortFeatureCalculator {
             ise += err[i] * err[i] * dtSec;
             itae += tSec * Math.abs(err[i]) * dtSec;
             if (Math.abs(err[i]) <= goodErrorBand) goodErrorCount++;
+            keep.goodErrorMask[i] = Math.abs(err[i]) <= goodErrorBand;
+            keep.cumIae[i] = iae;
+            keep.cumIse[i] = ise;
+            keep.cumItae[i] = itae;
         }
         result.mae = mae;
         result.rmse = rmse;
@@ -223,6 +254,7 @@ public final class ShortFeatureCalculator {
         result.itae = itae;
         result.goodErrorPct = n > 0 ? (double) goodErrorCount / n : 0.0;
         result.saturationPct = LimitMath.computeSaturationPct(op, profile.satLowPct, profile.satHighPct);
+        keep.saturation = LimitMath.computeSaturationStats(op, profile.satLowPct, profile.satHighPct);
         result.oce = result.autoPct * result.goodErrorPct * (1.0 - result.saturationPct);
         // Gate 3 — base_performance (class-aware floor for averaging level loops)
         result.gate3Status = result.goodErrorPct >= profile.goodErrorPctPassMin ? "PASS" : "WARN";
@@ -243,6 +275,21 @@ public final class ShortFeatureCalculator {
         result.opTravel = SignalMath.computeOpTravel(op);
         result.travelPerDay = SignalMath.computeTravelPerDay(op, tsSec, windowSec);
         result.reversalCount = SignalMath.computeReversalCount(op);
+        keep.commandTotalVariation = result.opTravel;
+        keep.deltaU = new double[n];
+        keep.reversalMask = new boolean[n];
+        double lastDirection = 0;
+        for (int i = 1; i < n; i++) {
+            double diff = op[i] - op[i - 1];
+            keep.deltaU[i] = diff;
+            if (Math.abs(diff) > SignalMath.OP_REVERSAL_EPS) {                  // the same criterion as computeReversalCount
+                double dir = Math.signum(diff);
+                if (lastDirection != 0 && dir != lastDirection) keep.reversalMask[i] = true;
+                lastDirection = dir;
+            }
+        }
+        keep.sigmaUNorm = stdOp / 100.0;
+        keep.sigmaPvNorm = profile.pvRangeDeclared && (profile.pvEngMax - profile.pvEngMin) > 1e-12 ? stdPv / (profile.pvEngMax - profile.pvEngMin) : Double.NaN;
         result.reversalsPerHour = SignalMath.computeReversalsPerHour(op, tsSec, windowSec);
         result.freezeIndexS = LimitMath.computeFreezeIndex(pv, tsSec);
         // Gate 4 - activity (v2.5 R06): thresholds from the profile; judged on the

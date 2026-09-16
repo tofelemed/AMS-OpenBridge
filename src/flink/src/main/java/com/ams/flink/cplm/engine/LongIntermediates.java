@@ -19,6 +19,8 @@ public final class LongIntermediates implements Serializable {
     public double[] vp;
     /** The shape signal the oscillation gates ran on (op, or pv for integrating loops), detrended and centred. */
     public double[] shapeCentered = new double[0];
+    /** Which role the shape signal is: "OP", or "PV" on integrating loops. */
+    public String shapeRole = "OP";
     public double tsSec;
 
     public OscillationMath.AcfResult acf;

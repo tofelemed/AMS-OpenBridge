@@ -45,6 +45,14 @@ public final class EvidenceKafkaRecords {
         manifest.put("data_type", "f64");
         ArrayNode cols = manifest.putArray("columns");
         for (String c : a.columns()) cols.add(c);
+        manifest.put("column_count", a.columnCount());
+        ObjectNode units = manifest.putObject("column_units");
+        units.put("x", a.xUnit);
+        units.put("y", a.yUnit);
+        if (a.mask != null) units.put("mask", "boolean");
+        for (Map.Entry<String, String> e : a.columnUnits.entrySet()) units.put(e.getKey(), e.getValue());
+        ObjectNode legends = manifest.putObject("legends");
+        for (Map.Entry<String, String> e : a.legends.entrySet()) legends.put(e.getKey(), e.getValue());
         manifest.put("encoding", EvidenceChunker.ENCODING);
         manifest.put("calculation_samples", a.calculationSamples());
         manifest.put("display_points", a.displayPoints());
@@ -55,6 +63,9 @@ public final class EvidenceKafkaRecords {
         for (byte[] c : chunks) chunkShas.add(EvidenceChunker.sha256Hex(c));
         ObjectNode prov = manifest.putObject("provenance");
         for (Map.Entry<String, Object> e : a.provenance.entrySet()) prov.put(e.getKey(), String.valueOf(e.getValue()));
+        // the store persists columns + provenance only: units and legends travel inside provenance as well
+        if (!a.columnUnits.isEmpty()) prov.put("column_units", units.toString());
+        if (!a.legends.isEmpty()) prov.put("legends", legends.toString());
         manifest.put("sourceCommit", id.sourceCommit);
         manifest.put("jarSha256", id.jarSha256);
         manifest.put("contractVersion", BuildIdentity.CONTRACT_VERSION);
