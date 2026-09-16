@@ -93,7 +93,7 @@ public final class ShortArtifacts {
             prevT = sampleTime[i];
             qNative.put(i, o.qualityNative == null || o.qualityNative.isEmpty() ? "NONE" : o.qualityNative);
             qNorm.put(i, o.quality);
-            hold.put(i, RoleObservation.SOURCE_LEGACY_TUPLE.equals(o.provenance) ? "LEGACY_TUPLE" : o.held ? "HELD_PREVIOUS" : "NONE");
+            hold.put(i, RoleObservation.SOURCE_LEGACY_TUPLE.equals(o.provenance) ? "LEGACY_TUPLE" : com.ams.flink.cplm.engine.MethodEligibility.holdKind(k.profile, o.held));
             String reason = "NONE";
             if (o.reason != null && !o.reason.isEmpty()) reason = o.reason;
             else if (!"GOOD".equals(o.quality)) reason = o.quality + "_QUALITY";

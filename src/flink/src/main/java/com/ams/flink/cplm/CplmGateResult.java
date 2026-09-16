@@ -223,6 +223,7 @@ public class CplmGateResult extends CplmGateResultFields {
         out.put("vp_available", vpAvailable);
         out.put("has_step_test_evidence", hasStepTestEvidence);
         out.put("has_peer_links", hasPeerLinks);
+        com.ams.flink.cplm.engine.MethodEligibility.write(out.putObject("method_eligibility"), methodEligibility);
         out.put("gate13_method", gate13Method);
         out.put("gate13_reason", gate13Reason);
         if (interaction != null) interaction.write(out.putObject("interaction")); else out.putNull("interaction");

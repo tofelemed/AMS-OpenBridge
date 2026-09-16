@@ -151,6 +151,8 @@ public final class CplmLongDiagnosticsResult implements Serializable {
     public transient com.ams.flink.cplm.engine.LongIntermediates intermediates;
     /** v2.5 (2F.1): G13 aligned peer analysis outcome (scalars); null on rows from a jar without the method. */
     public com.ams.flink.cplm.engine.InteractionSummary interaction;
+    /** v2.5 (2G.1, NR-016): what the acquisition grid lets G5/G6/G12 claim (ELIGIBLE / LIMITED:BANDWIDTH / UNKNOWN). */
+    public java.util.Map<String, com.ams.flink.cplm.engine.MethodEligibility.Verdict> methodEligibility = new java.util.LinkedHashMap<>();
 
     public String toJson() {
         ObjectNode out = MAPPER.createObjectNode();
@@ -258,6 +260,7 @@ public final class CplmLongDiagnosticsResult implements Serializable {
         }
         out.set("freeze_events", freezes);
         if (interaction != null) interaction.write(out.putObject("interaction"));
+        com.ams.flink.cplm.engine.MethodEligibility.write(out.putObject("method_eligibility"), methodEligibility);
         out.put("freeze_material", freezeMaterial);
         out.put("gate11_reason", gate11Reason);
         out.put("freeze_dwell_s", freezeDwellS);
@@ -411,6 +414,7 @@ public final class CplmLongDiagnosticsResult implements Serializable {
             }
             r.freezeMaterial = root.path("freeze_material").asBoolean(false);
             r.interaction = com.ams.flink.cplm.engine.InteractionSummary.read(root.get("interaction"));
+            r.methodEligibility = com.ams.flink.cplm.engine.MethodEligibility.read(root.get("method_eligibility"));
             r.gate11Reason = root.path("gate11_reason").asText("");
             r.freezeDwellS = root.path("freeze_dwell_s").asDouble(0);
             r.freezeToleranceEu = root.path("freeze_tolerance_eu").asDouble(0);

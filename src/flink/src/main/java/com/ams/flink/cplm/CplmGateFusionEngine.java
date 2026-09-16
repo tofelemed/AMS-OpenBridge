@@ -144,6 +144,14 @@ public final class CplmGateFusionEngine implements Serializable {
         }
 
         stampContextGates(result, hasStepTestEvidence, hasPeerLinks, longD);
+        // v2.5 (2G.1, NR-016): the acquisition grid's verdict on G5/G6/G12 rides the fused row; a LIMITED
+        // method is flagged so the reader sees BANDWIDTH next to the gate, never a silently weaker claim.
+        if (longD.methodEligibility != null) {
+            result.methodEligibility = new java.util.LinkedHashMap<>(longD.methodEligibility);
+            if (com.ams.flink.cplm.engine.MethodEligibility.anyLimited(longD.methodEligibility) && !result.observabilityFlags.contains("BANDWIDTH_LIMITED")) {
+                result.observabilityFlags.add("BANDWIDTH_LIMITED");
+            }
+        }
 
         boolean hasVp = longD.hasVp;
         result.vpAvailable = hasVp;

@@ -79,6 +79,7 @@ public final class LongDiagnosticsCalculator {
 
         double tsSec = SignalMath.inferSamplePeriodSec(samples);
         result.samplePeriodSec = tsSec;
+        result.methodEligibility = MethodEligibility.evaluate(profile, tsSec);              // v2.5 (2G.1, NR-016)
         long windowSec = Math.max(1, (windowEndMs - windowStartMs) / 1000);
 
         double[] pv = new double[n];

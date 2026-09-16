@@ -22,7 +22,23 @@ public final class CplmLoopDynamicsProfile implements Serializable {
     }
 
     public enum DynamicClass {
-        FAST_SELF_REG, SLOW_SELF_REG, INTEGRATING, NEAR_INTEGRATING
+        FAST_SELF_REG, SLOW_SELF_REG, INTEGRATING, NEAR_INTEGRATING,
+        /** v2.5 (2G.1, spec v6 §6.1): the registry's dynamic classes beyond the legacy packs. */
+        INTEGRATING_LAG, UNDERDAMPED, UNKNOWN;
+
+        public boolean integrating() {
+            return this == INTEGRATING || this == NEAR_INTEGRATING || this == INTEGRATING_LAG;
+        }
+
+        /** The registry's value; anything outside the vocabulary is UNKNOWN (never a guess). */
+        public static DynamicClass parse(String s) {
+            if (s == null) return UNKNOWN;
+            try {
+                return valueOf(s.trim().toUpperCase(java.util.Locale.ROOT));
+            } catch (IllegalArgumentException e) {
+                return UNKNOWN;
+            }
+        }
     }
 
     public enum ServiceObjective {
@@ -78,6 +94,16 @@ public final class CplmLoopDynamicsProfile implements Serializable {
     public double priorEffort = 1.0;
     public double priorGeometry = 1.0;
     public boolean integrating;
+    /**
+     * v2.5 (2G.1): the registry's loop model - where the class came from (PRESET_FROM_LOOP_TYPE |
+     * EXPLICIT), the topology and command path, and the acquisition contract (mode, declared grid in
+     * seconds; 0 = undeclared, the observed period is used).
+     */
+    public String classificationSource = "PRESET_FROM_LOOP_TYPE";
+    public String topology = "UNKNOWN";
+    public String commandPath = "UNKNOWN";
+    public String acquisitionMode = "PERIODIC";
+    public double acquisitionGridS;
     public boolean geometryFamilyEnabled = true;
     public String pvFilterType = "ewma";
     public int pvFilterWindow = 5;
@@ -236,6 +262,11 @@ public final class CplmLoopDynamicsProfile implements Serializable {
         p.priorEffort = priorEffort;
         p.priorGeometry = priorGeometry;
         p.integrating = integrating;
+        p.classificationSource = classificationSource;
+        p.topology = topology;
+        p.commandPath = commandPath;
+        p.acquisitionMode = acquisitionMode;
+        p.acquisitionGridS = acquisitionGridS;
         p.opEngMin = opEngMin;
         p.opEngMax = opEngMax;
         p.pvEngMin = pvEngMin;

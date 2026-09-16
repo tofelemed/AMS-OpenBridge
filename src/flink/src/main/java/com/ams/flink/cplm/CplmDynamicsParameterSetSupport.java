@@ -29,6 +29,8 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
      * merge, never as an override: it cannot clobber the class pack.
      */
     public static final String ATTR_ENGINEERING = "cplm.loop.engineering";
+    /** v2.5 (2G.1): the registry's loop model dimensions + acquisition contract (LoopModelDimensions.BroadcastJson). */
+    public static final String ATTR_LOOP_MODEL = "cplm.loop.model";
     public static final String ATTR_PROFILE_VERSION = "cplm.dynamicsProfileVersion";
     public static final String ATTR_CALC_VERSION = "cplm.calculationVersion";
     public static final String ATTR_CLASS_PREFIX = "cplm.dynamics.class.";
@@ -104,11 +106,13 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
                     override.profileSource = CplmLoopDynamicsProfile.ProfileSource.OVERRIDE;
                     stampVersions(override);
                     applyEngineering(override, loopId);
+                    applyLoopModel(override, loopId);
                     return override;
                 }
                 fromSpine.loopClass = cls;
                 stampVersions(fromSpine);
                 applyEngineering(fromSpine, loopId);
+                applyLoopModel(fromSpine, loopId);
                 return fromSpine;
             }
         }
@@ -116,7 +120,49 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
         CplmLoopDynamicsProfile fallback = CplmLoopDynamicsProfile.resolve(loopId, loopType, override);
         stampVersions(fallback);
         applyEngineering(fallback, loopId);
+        applyLoopModel(fallback, loopId);
         return fallback;
+    }
+
+    /**
+     * v2.5 (2G.1, R25): the registry's loop model. The acquisition contract, topology and command
+     * path are always taken; the dynamic class and objective override the loop_type pack ONLY when
+     * the model is EXPLICIT (a person's declaration) - a preset restates the pack and changes nothing.
+     */
+    static void applyLoopModel(CplmLoopDynamicsProfile p, String loopId) {
+        if (p == null || loopId == null || loopId.isEmpty()) return;
+        String json = SPINE.get(loopId + ":" + ATTR_LOOP_MODEL);
+        if (json == null) json = SPINE.get(ATTR_LOOP_MODEL + ":" + loopId);
+        if (json == null) return;
+        try {
+            JsonNode n = MAPPER.readTree(json);
+            if (n.isTextual()) n = MAPPER.readTree(n.asText());
+            p.classificationSource = n.path("classification_source").asText(p.classificationSource);
+            p.topology = n.path("topology").asText(p.topology);
+            p.commandPath = n.path("command_path").asText(p.commandPath);
+            JsonNode acq = n.path("acquisition");
+            if (acq.isObject()) {
+                p.acquisitionMode = acq.path("mode").asText(p.acquisitionMode);
+                p.acquisitionGridS = acq.path("grid_seconds").isNumber() ? acq.path("grid_seconds").asDouble() : 0;
+            }
+            if (!"EXPLICIT".equals(p.classificationSource)) return;
+            if (n.hasNonNull("dynamic_class")) {
+                CplmLoopDynamicsProfile.DynamicClass dc = CplmLoopDynamicsProfile.DynamicClass.parse(n.path("dynamic_class").asText());
+                if (dc != CplmLoopDynamicsProfile.DynamicClass.UNKNOWN) {
+                    p.dynamicClass = dc;
+                    p.integrating = dc.integrating();
+                }
+            }
+            if (n.hasNonNull("objective_type")) {
+                try {
+                    p.serviceObjective = CplmLoopDynamicsProfile.ServiceObjective.valueOf(n.path("objective_type").asText().toUpperCase(Locale.ROOT));
+                } catch (IllegalArgumentException ignored) {
+                    // RATIO / RAMP / BATCH / SUPERVISORY / UNSET have no engine objective yet: the pack's stays
+                }
+            }
+        } catch (Exception ignored) {
+            // a malformed model must never break gate evaluation
+        }
     }
 
     /** P3-8 - merge the loop's declared OP engineering range onto the resolved profile. */

@@ -42,6 +42,8 @@ public final class ResponseJobConfig implements Serializable {
     public double fallbackSpanEu = 100;
     /** A held VP older than this is not the applied input (spec §2.7); u_applied falls back to OP. */
     public double vpMaxAgeS = com.ams.flink.cplm.CplmLoopDynamicsProfile.VP_MAX_AGE_S_DEFAULT;
+    /** v2.5 (2G.1, NR-016): the smallest dead time the site needs resolved (s); a sample grid above it makes G12 LIMITED:BANDWIDTH. 0 = no claim. */
+    public double delayMinS = 0;
 
     public static ResponseJobConfig fromArgs(String[] args) {
         ResponseJobConfig c = new ResponseJobConfig();
@@ -60,6 +62,7 @@ public final class ResponseJobConfig implements Serializable {
         c.tauMaxS = num(args, "g12-tau-max-s", c.tauMaxS);
         c.fitBudgetMs = (long) num(args, "g12-fit-budget-ms", c.fitBudgetMs);
         c.vpMaxAgeS = num(args, "g12-vp-max-age-s", c.vpMaxAgeS);
+        c.delayMinS = num(args, "g12-delay-min-s", c.delayMinS);
         return c;
     }
 
@@ -68,7 +71,7 @@ public final class ResponseJobConfig implements Serializable {
         String canonical = "g12|" + preSupportS + "|" + minCaptureS + "|" + maxCaptureS + "|" + maxGapS + "|" + tailDwellS + "|" + stableBandEu
                 + "|" + stepMinInputEu + "|" + stepMinSpanFraction + "|" + noiseMultiplier + "|" + eventDwellS + "|" + rampMinSlopeEuPerS + "|" + rampMinDurationS
                 + "|" + absSettlingBandEu + "|" + relSettlingBand + "|" + noiseFloorEu + "|" + crossingDwellS + "|" + minResponseEu + "|" + targetBandEu
-                + "|" + delayGridS + "|" + thetaMaxS + "|" + tauMaxS + "|" + fitBudgetMs + "|" + vpMaxAgeS;
+                + "|" + delayGridS + "|" + thetaMaxS + "|" + tauMaxS + "|" + fitBudgetMs + "|" + vpMaxAgeS + "|" + delayMinS;
         return "g12:" + com.ams.flink.cplm.identity.ProfileHash.sha256Prefix(canonical, 16);
     }
 

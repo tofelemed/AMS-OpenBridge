@@ -199,6 +199,8 @@ public abstract class CplmGateResultFields implements Serializable {
     public String gate13Status = "PENDING";
     /** v2.5 (2F.1): G13 aligned peer analysis as the long tier reported it; null when the long row predates the method. */
     public com.ams.flink.cplm.engine.InteractionSummary interaction;
+    /** v2.5 (2G.1, NR-016): the long tier's bandwidth eligibility per method (G5 / G6 / G12). */
+    public java.util.Map<String, com.ams.flink.cplm.engine.MethodEligibility.Verdict> methodEligibility = new java.util.LinkedHashMap<>();
     /** v2.5 (2F.1): G13 verdict source - the analysis method id, or LEGACY_FLAG_ONLY (long row without the analysis). */
     public String gate13Method = "LEGACY_FLAG_ONLY";
     public String gate13Reason = "";

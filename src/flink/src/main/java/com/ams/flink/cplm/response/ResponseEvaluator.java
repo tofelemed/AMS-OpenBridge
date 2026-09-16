@@ -62,6 +62,16 @@ public final class ResponseEvaluator implements Serializable {
         this.bundleHash = cfg.bundleHash();
     }
 
+    /** The median sample interval of the event (s); 0 when fewer than two samples. */
+    static double medianStep(double[] t) {
+        if (t == null || t.length < 2) return 0;
+        double[] d = new double[t.length - 1];
+        for (int i = 1; i < t.length; i++) d[i - 1] = t[i] - t[i - 1];
+        java.util.Arrays.sort(d);
+        int m = d.length / 2;
+        return d.length % 2 == 1 ? d[m] : 0.5 * (d[m - 1] + d[m]);
+    }
+
     public Outcome evaluate(ResponseCapture.Closed c, ModelFamily family, EventDataset priorHoldout, double priorU0,
                             ControllerSnapshot controller, long nowMs, String purpose, String analysisRunId, int contextRevision) {
         G12Result g = G12Result.empty(c.event.loopId, c.event.pathId);
@@ -89,6 +99,16 @@ public final class ResponseEvaluator implements Serializable {
         a.outputs.put("u_applied_available", c.uAppliedAvailable);
         boolean censored = "CENSORED".equals(c.event.captureState) || "REJECTED".equals(c.event.captureState);
         g.eligibility = c.uAppliedAvailable ? "ELIGIBLE" : "LIMITED";
+        // v2.5 (2G.1, NR-016): the sample grid bounds the dead time this event can resolve
+        double gridS = medianStep(c.data.t);
+        a.outputs.put("sample_grid_s", gridS);
+        if (cfg.delayMinS > 0 && gridS > cfg.delayMinS) {
+            g.eligibility = "LIMITED";
+            a.outputs.put("bandwidth", "LIMITED");
+            a.outputs.put("bandwidth_reason", "BANDWIDTH: grid " + gridS + " s > delay_min_s " + cfg.delayMinS + " - dead times below the grid cannot be resolved");
+        } else {
+            a.outputs.put("bandwidth", cfg.delayMinS > 0 ? "ELIGIBLE" : "NOT_ASSESSED");
+        }
         a.state = "EVALUATED";
 
         // B - the event
