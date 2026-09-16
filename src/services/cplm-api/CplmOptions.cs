@@ -17,5 +17,8 @@ public sealed class CplmOptions
     public string InstrumentHealthContextTopic { get; set; } = "traverse.cpa.context.instrument-health.v1";
     /** v2.5 (Task 2B.2): G12 system-response results, one record per captured event. */
     public string ResponseTopic { get; set; } = "traverse.cpa.clpm.response.results.v1";
+    /// <summary>v2.5 (Phase 3): governed gate configuration - immutable bundles out, worker ACKs / CAPABILITY records in.</summary>
+    public string GateConfigTopic { get; set; } = "traverse.cpa.context.gate-config.v1";
+    public string GateConfigAcksTopic { get; set; } = "traverse.cpa.context.gate-config.acks.v1";
     public string ConsumerGroupId { get; set; } = "traverse-cpa-cplm-results";
 }

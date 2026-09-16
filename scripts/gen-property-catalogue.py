@@ -221,6 +221,8 @@ def main():
         for name, copies in {
             "unsupported-in-build.json": ["src/services/cplm-api/Config/unsupported-in-build.json", "src/flink/src/main/resources/cplm/gate-config/unsupported-in-build.json"],
             "execution-plan.installed.json": ["src/services/cplm-api/Config/execution-plan.installed.json"],
+            # exported by the jar (mvn -Dtest=FactoryLayerParityTest -Dfactory.layer.write=true test) into its own resources, copied outward
+            "factory-layer.json": ["src/services/cplm-api/Config/factory-layer.json", "src/flink/src/main/resources/cplm/gate-config/factory-layer.json"],
         }.items():
             canonical_path = os.path.join(ROOT, "contracts", "gate-config", "v1", name)
             canonical_text = open(canonical_path, encoding="utf-8").read() if os.path.exists(canonical_path) else None

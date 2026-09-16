@@ -126,6 +126,10 @@ builder.Services.AddSingleton(sp => new Traverse.CplmApi.Services.SingleMemberGu
 builder.Services.AddSingleton<Traverse.CplmApi.Services.IEvidenceBlobStore, Traverse.CplmApi.Services.PostgresEvidenceBlobStore>();
 builder.Services.AddSingleton<Traverse.CplmApi.Services.MethodRunResolver>();          // v2.5 (2C.2): any tier's row or a response event
 builder.Services.AddSingleton<Traverse.CplmApi.Services.InvestigationStore>();          // v2.5 (2D.2): pinned evidence references with an explicit outcome
+// v2.5 (3B.3): governed configuration - the store, the deployment state machine, the bundle publisher (control plane)
+builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.ConfigStore>();
+builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.IGateConfigPublisher, Traverse.CplmApi.Services.Config.KafkaGateConfigPublisher>();
+builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.ConfigDeploymentService>();
 // v2.5 (1H.3): effective-dated primary Instrumental device bindings per loop signal.
 builder.Services.AddSingleton<Traverse.CplmApi.Services.IInstrumentBindingService, Traverse.CplmApi.Services.InstrumentBindingService>();
 builder.Services.AddSingleton<Traverse.CplmApi.Services.InstrumentHealthReads>();
@@ -145,6 +149,8 @@ if (config.GetValue("Cplm:ConsumersEnabled", false))
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmInstrumentHealthMirrorService>();
     // v2.5 (2B.2): G12 response results (own group, single member).
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmResponseConsumerService>();
+    // v2.5 (3B.3 / 3A.2): worker CAPABILITY records and deployment ACKs (own group, single member).
+    builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmConfigAckConsumerService>();
 }
 
 // ── Auth (platform RBAC): RS256 JWKS + one policy per permission key ───────

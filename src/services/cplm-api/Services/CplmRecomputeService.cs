@@ -43,6 +43,8 @@ public interface ICplmRecomputeService
     Task<CplmRecomputeHandle> StartReconstructionAsync(
         string loopId, ReconstructionTarget target, ReplaySupport support, string? createdBy, string? idempotencyKey, CancellationToken ct);
     Task<CplmRecomputeStatus> GetStatusAsync(string replayId, string jobId, CancellationToken ct);
+    /// <summary>v2.5 (3B.3): a SHADOW run under a draft bundle's resolved properties - no operational output, isolated by purpose.</summary>
+    Task<CplmRecomputeHandle> StartShadowAsync(string loopId, string bundleHash, string resolvedPropertiesJson, long windowOffsetMs, string? createdBy, ReplaySupport support, CancellationToken ct);
     /// <summary>Window-boundary offset that aligns the 24h window to this loop's data.</summary>
     Task<long> GetWindowOffsetMsAsync(string loopId, CancellationToken ct);
 }
@@ -132,6 +134,13 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
         string loopId, ReconstructionTarget target, ReplaySupport support, string? createdBy, string? idempotencyKey, CancellationToken ct)
         => StartAsync(loopId, false, false, 0L, "EVIDENCE_RECONSTRUCTION", createdBy, idempotencyKey, support, target, ct);
 
+    public Task<CplmRecomputeHandle> StartShadowAsync(string loopId, string bundleHash, string resolvedPropertiesJson, long windowOffsetMs, string? createdBy, ReplaySupport support, CancellationToken ct)
+        => StartAsync(loopId, false, false, windowOffsetMs, "SHADOW", createdBy, null, support, null, ct,
+            new ShadowBundle(bundleHash, Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(resolvedPropertiesJson))));
+
+    /// <summary>v2.5 (3B.3): the draft bundle a SHADOW run evaluates under (hash + base64 resolved properties, applied by the replay job through BundleProfileMapper).</summary>
+    public sealed record ShadowBundle(string Hash, string PropertiesB64);
+
     public Task<CplmRecomputeHandle> StartAsync(
         string loopId, bool hasStepTest, bool hasPeerLinks, long windowOffsetMs, string purpose,
         string? createdBy, string? idempotencyKey, ReplaySupport support, CancellationToken ct)
@@ -139,7 +148,7 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
 
     private async Task<CplmRecomputeHandle> StartAsync(
         string loopId, bool hasStepTest, bool hasPeerLinks, long windowOffsetMs, string purpose,
-        string? createdBy, string? idempotencyKey, ReplaySupport support, ReconstructionTarget? reconstruct, CancellationToken ct)
+        string? createdBy, string? idempotencyKey, ReplaySupport support, ReconstructionTarget? reconstruct, CancellationToken ct, ShadowBundle? shadow = null)
     {
         purpose = purpose is "REPLAY" or "SHADOW" or "EVIDENCE_RECONSTRUCTION" ? purpose : "REPLAY";
         if (reconstruct is not null && support.ToMs <= support.FromMs)
@@ -199,7 +208,8 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
             reconstruct is null ? "" : string.Join(' ',
                 "--reconstruct-method-run", reconstruct.MethodRunId.ToString(),
                 "--reconstruct-gate", reconstruct.Gate,
-                "--reconstruct-window-kind", reconstruct.WindowKind));
+                "--reconstruct-window-kind", reconstruct.WindowKind),
+            shadow is null ? "" : string.Join(' ', "--bundle-hash", shadow.Hash, "--bundle-properties-b64", shadow.PropertiesB64));
 
         var client = CreateClient();
         // /jars/:id/run blocks while the JobManager builds the job graph; on a busy cluster that is
