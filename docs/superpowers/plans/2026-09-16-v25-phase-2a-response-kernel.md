@@ -672,7 +672,7 @@ public final class ZohSimulator {
 ```
 
 - [ ] **Step 4: Run** the three test classes → PASS. Then `mvn -q test` (whole suite) → 115 + 15 new, 0 failures.
-- [ ] **Step 5: Commit** `git add src/flink/src/main/java/com/ams/flink/cplm/response src/flink/src/test/java/com/ams/flink/cplm/response && git commit -m "feat(response): model bank + exact ZOH simulators (Padé expm, fractional delay, gap policy) (2A.1)"`.
+- [x] **Step 5: Commit** — done f3a91c84 (14 tests).
 
 ---
 
@@ -1276,7 +1276,7 @@ public final class ResponseMetricCalculator {
 ```
 
 - [ ] **Step 4: Run** the four test classes → PASS; whole suite → PASS.
-- [ ] **Step 5: Commit** `feat(response): observed-response metrics with censoring - endpoints, sustained crossings, exact held-interval integrals, settling, peaks (2A.2)`.
+- [x] **Step 5: Commit** — done 33e167a7 (15 tests; Overshoot gained a settling-band argument so endpoint-estimation noise is not an overshoot, and a real underdamped overshoot test).
 
 ---
 
@@ -1762,7 +1762,7 @@ public final class CaptureStateMachine {
 ```
 
 - [ ] **Step 4: Run** → PASS; whole suite → PASS.
-- [ ] **Step 5: Commit** `feat(response): safe event triggering and the capture state machine with named censoring (2A.3)`.
+- [x] **Step 5: Commit** — done fbb2e8df (11 tests).
 
 ---
 

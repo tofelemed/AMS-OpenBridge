@@ -6,7 +6,7 @@ audited base `5cec34ef`. Operational facts (what to run on the plant) live in `c
 
 Legend: ✅ done and committed · 🔄 in progress · ⬜ pending · commit ids are on this branch.
 
-_Last updated: 2026-09-16 15:45 (Phase 1 closed; Phase 2A in progress)._
+_Last updated: 2026-09-16 16:30 (Phase 1 closed; Phase 2A: 2A.1–2A.3 committed, 2A.4–2A.6 in test)._
 
 ## Phase 0 — build truth and test baseline ✅
 
@@ -53,7 +53,7 @@ _Last updated: 2026-09-16 15:45 (Phase 1 closed; Phase 2A in progress)._
 
 | Subphase | Tasks | Status |
 |---|---|---|
-| 2A response kernel (commons-math3) | 2A.1 models + ZOH simulators ✅ (plan `docs/superpowers/plans/2026-09-16-v25-phase-2a-response-kernel.md`; `MatrixExpTest` 3, `ProcessModelTest` 4, `ZohSimulatorTest` 7 incl. §2.11 numbers, repeated poles, fractional delay, gap policy) · 2A.2 metrics 🔄 (code + tests written, running) · 2A.3 events + capture state machine 🔄 (code + tests written, running) · 2A.4 estimators ⬜ · 2A.5 validation / uncertainty / controller / frequency ⬜ · 2A.6 G12 result + artifacts ⬜ | 🔄 |
+| 2A response kernel (commons-math3) | 2A.1 models + ZOH simulators ✅ f3a91c84 (14 tests) · 2A.2 metrics ✅ 33e167a7 (15 tests; overshoot only outside the settling band) · 2A.3 events + capture state machine ✅ fbb2e8df (11 tests) · 2A.4 estimators 🔄 (OE delay-profile LM, integrating adapter, closed-loop ARMAX PEM, legality registry — noise-free recovery exact; noisy tolerances expressed as the fit's own standard errors) · 2A.5 validation / uncertainty / controller / frequency / SIMC 🔄 (code + tests written, running) · 2A.6 G12Result (52 catalogue quantities) + evidence writer 🔄 (code + tests written) | 🔄 |
 | 2B `CplmResponseAnalysisJob` | 2B.1 job + replay `--methods G12` · 2B.2 response consumer, tables (55), `/response-events`, `/models`, controller snapshots | ⬜ |
 | 2C exact intermediates | 2C.1 per-gate artifacts (G0–G11, G13–G15; Welch PSD) · 2C.2 evidence API with ETag + reconstruction | ⬜ |
 | 2D API breadth | 2D.1 gate catalogue, investigation references (56) | ⬜ |
