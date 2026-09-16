@@ -19,6 +19,8 @@ Scenarios (--scenario): f-on-pv | c-test | s-degraded | m-only | clear | stale |
   python scripts/sim/instrumental_health_sim.py --scenario f-on-pv --loop FIC10302 --broker 127.0.0.1 --port 1884
 """
 import argparse
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)  # paho 2.x callback-API notice; the v1 API is used deliberately
 import json
 import os
 import sys
@@ -181,8 +183,10 @@ def scenarios(p: Producer, device, loop, installation="inst-1"):
         obs = f"obs-{uuid.uuid4()}"
         return [
             (p.topic_state(device), snapshot(p, device, t - timedelta(minutes=2), t, st, installation=installation, observation_id=obs), True),
+            # the event is its OWN observation (fresh observation_id): reusing the snapshot's id is an
+            # INTEGRITY_CONFLICT at the gateway (same id, different payload) - see the 'conflict' scenario.
             (p.topic_events(device), event(p, device, t - timedelta(minutes=2), t, st, "DIAGNOSTIC_RAISED", ["occ-F-0001"],
-                                           installation=installation, observation_id=obs), False),
+                                           installation=installation), False),
         ]
 
     def c_test():

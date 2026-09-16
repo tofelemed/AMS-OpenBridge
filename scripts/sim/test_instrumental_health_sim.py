@@ -61,11 +61,15 @@ def test_every_scenario_payload_validates(name):
             assert parts[6] == payload["source_id"]
 
 
-def test_snapshot_and_event_of_one_observation_share_the_observation_id():
+def test_snapshot_and_event_are_distinct_observations_with_distinct_ids():
+    # The gateway dedupes by tenant/site/source/observation_id and treats a second record with the SAME id
+    # and a different payload as INTEGRITY_CONFLICT (-> DLQ). A state event is therefore its own
+    # observation: it carries the full post-state and its own observation_id (event_id correlates it).
     msgs = sim.scenarios(producer(), "TT-10302", "FIC10302")["f-on-pv"]()
     snap, ev = msgs[0][1], msgs[1][1]
     assert snap["message_kind"] == "STATE_SNAPSHOT" and ev["message_kind"] == "STATE_EVENT"
-    assert snap["observation_id"] == ev["observation_id"]
+    assert snap["observation_id"] != ev["observation_id"]
+    assert ev["event_id"].startswith("evt-")
     assert ev["state"] == snap["state"], "an event carries the same full post-state as the snapshot"
     assert msgs[0][2] is True and msgs[1][2] is False, "snapshots are retained, events are not"
 
