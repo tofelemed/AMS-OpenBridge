@@ -33,6 +33,7 @@ classes:
     minNonGeometryEvidences: 2
     geometryAloneForbidden: true
     spRangePassMax: 1.0
+    spStabilityBandSpanFraction: 0.01   # v2.5 R06: 1 % of the declared PV span (= the old 1.0 EU on a 0-100 span)
     goodErrorPctPassMin: 0.5
     satLowPct: 5.0
     satHighPct: 95.0
@@ -70,6 +71,7 @@ classes:
     minNonGeometryEvidences: 2
     geometryAloneForbidden: true
     spRangePassMax: 1.0
+    spStabilityBandSpanFraction: 0.01   # v2.5 R06: 1 % of the declared PV span (= the old 1.0 EU on a 0-100 span)
     goodErrorPctPassMin: 0.5
     persistenceWindows: 3
     persistenceMinAgree: 2
@@ -104,6 +106,7 @@ classes:
     minNonGeometryEvidences: 2
     geometryAloneForbidden: true
     spRangePassMax: 5.0
+    spStabilityBandSpanFraction: 0.05   # v2.5 R06: averaging service, 5 % of span
     goodErrorPctPassMin: 0.30
     persistenceWindows: 3
     persistenceMinAgree: 2
@@ -138,6 +141,7 @@ classes:
     minNonGeometryEvidences: 2
     geometryAloneForbidden: false
     spRangePassMax: 1.0
+    spStabilityBandSpanFraction: 0.01   # v2.5 R06: 1 % of the declared PV span (= the old 1.0 EU on a 0-100 span)
     goodErrorPctPassMin: 0.5
     persistenceWindows: 3
     persistenceMinAgree: 2
@@ -172,6 +176,7 @@ classes:
     minNonGeometryEvidences: 2
     geometryAloneForbidden: true
     spRangePassMax: 5.0
+    spStabilityBandSpanFraction: 0.05   # v2.5 R06: averaging service, 5 % of span
     goodErrorPctPassMin: 0.30
     persistenceWindows: 3
     persistenceMinAgree: 2
@@ -206,6 +211,7 @@ classes:
     minNonGeometryEvidences: 2
     geometryAloneForbidden: false
     spRangePassMax: 1.0
+    spStabilityBandSpanFraction: 0.01   # v2.5 R06: 1 % of the declared PV span (= the old 1.0 EU on a 0-100 span)
     goodErrorPctPassMin: 0.5
     persistenceWindows: 3
     persistenceMinAgree: 2

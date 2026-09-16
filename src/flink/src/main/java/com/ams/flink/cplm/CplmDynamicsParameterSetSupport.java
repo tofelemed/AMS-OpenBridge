@@ -132,6 +132,8 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
             if (n.has("opEngMax")) p.opEngMax = n.path("opEngMax").asDouble(p.opEngMax);
             if (n.has("pvEngMin")) p.pvEngMin = n.path("pvEngMin").asDouble(p.pvEngMin);
             if (n.has("pvEngMax")) p.pvEngMax = n.path("pvEngMax").asDouble(p.pvEngMax);
+            // v2.5: a declared PV range is what makes span-relative G2/G4 metrics legitimate.
+            if (n.has("pvEngMin") && n.has("pvEngMax") && p.pvEngMax - p.pvEngMin > 1e-12) p.pvRangeDeclared = true;
         } catch (Exception ignored) {
             // a malformed range must never break gate evaluation
         }
@@ -263,7 +265,16 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
             if (root.has("regionPvMax")) p.regionPvMax = root.path("regionPvMax").asDouble(p.regionPvMax);
             if (root.has("regionOpMin")) p.regionOpMin = root.path("regionOpMin").asDouble(p.regionOpMin);
             if (root.has("regionOpMax")) p.regionOpMax = root.path("regionOpMax").asDouble(p.regionOpMax);
-            if (root.has("spRangePassMax")) p.spRangePassMax = root.path("spRangePassMax").asDouble(p.spRangePassMax);
+            if (root.has("spRangePassMax")) {                     // legacy alias: an EU band
+                p.spRangePassMax = root.path("spRangePassMax").asDouble(p.spRangePassMax);
+                p.spStabilityBandPvEu = p.spRangePassMax;
+            }
+            if (root.has("spStabilityBandPvEu") && !root.get("spStabilityBandPvEu").isNull()) {
+                p.spStabilityBandPvEu = root.path("spStabilityBandPvEu").asDouble();
+            }
+            if (root.has("spStabilityBandSpanFraction")) p.spStabilityBandSpanFraction = root.path("spStabilityBandSpanFraction").asDouble(p.spStabilityBandSpanFraction);
+            if (root.has("g4ActivityWarnRatio")) p.g4ActivityWarnRatio = root.path("g4ActivityWarnRatio").asDouble(p.g4ActivityWarnRatio);
+            if (root.has("g4ActivityHighRatio")) p.g4ActivityHighRatio = root.path("g4ActivityHighRatio").asDouble(p.g4ActivityHighRatio);
             if (root.has("goodErrorPctPassMin")) p.goodErrorPctPassMin = root.path("goodErrorPctPassMin").asDouble(p.goodErrorPctPassMin);
             if (root.has("satLowPct")) p.satLowPct = root.path("satLowPct").asDouble(p.satLowPct);
             if (root.has("satHighPct")) p.satHighPct = root.path("satHighPct").asDouble(p.satHighPct);

@@ -169,7 +169,11 @@ public final class ShortFeatureCalculator {
         result.spMax = SignalMath.max(sp);
         result.spRange = result.spMax - result.spMin;
         result.spChangesPerHour = SignalMath.computeSpChangesPerHour(sp, tsSec, windowSec);
-        result.gate2Status = result.spRange < profile.spRangePassMax ? "PASS" : "WARN";
+        // v2.5 R06: the band is a policy (EU objective or fraction of the DECLARED span),
+        // published with its provenance so a LEGACY_DEFAULT band is never mistaken for one.
+        result.gate2BandEu = profile.spStabilityBandEu();
+        result.gate2BandSource = profile.spStabilityBandSource();
+        result.gate2Status = result.spRange < result.gate2BandEu ? "PASS" : "WARN";
 
         // G2r — operating region validity
         result.regionOutOfBandPct = (double) regionOut / n;
@@ -240,10 +244,35 @@ public final class ShortFeatureCalculator {
         result.reversalCount = SignalMath.computeReversalCount(op);
         result.reversalsPerHour = SignalMath.computeReversalsPerHour(op, tsSec, windowSec);
         result.freezeIndexS = LimitMath.computeFreezeIndex(pv, tsSec);
-        // Gate 4 — effort: ratio > 8 STRONG, > 3 WARN, else PASS
-        if (result.effortRatio > 8.0) {
+        // Gate 4 - activity (v2.5 R06): thresholds from the profile; judged on the
+        // dimensionless (sigma_u/span_u)/(sigma_pv/span_pv) when the PV span is DECLARED
+        // (unit-invariant, NR-018), else on the legacy observed ratio, and the record says
+        // which. OP is already normalised to 0-100 pp above, so span_u = 100.
+        result.gate4WarnRatio = profile.g4ActivityWarnRatio;
+        result.gate4HighRatio = profile.g4ActivityHighRatio;
+        double activity;
+        double pvSpanDeclared = profile.pvEngMax - profile.pvEngMin;
+        if (profile.pvRangeDeclared && pvSpanDeclared > 1e-12) {
+            if (stdPv > 1e-12) {
+                result.activityRatioNorm = (stdOp / 100.0) / (stdPv / pvSpanDeclared);
+                result.activityBasis = "NORMALIZED_DECLARED_SPAN";
+                result.activityReason = "";
+                activity = result.activityRatioNorm;
+            } else {
+                result.activityRatioNorm = null;
+                result.activityBasis = "OBSERVED_RATIO_LEGACY";
+                result.activityReason = "NO_PV_VARIATION";
+                activity = result.effortRatio;
+            }
+        } else {
+            result.activityRatioNorm = null;
+            result.activityBasis = "OBSERVED_RATIO_LEGACY";
+            result.activityReason = "NO_PV_SPAN";
+            activity = result.effortRatio;
+        }
+        if (activity > result.gate4HighRatio) {
             result.gate4Status = "STRONG";
-        } else if (result.effortRatio > 3.0) {
+        } else if (activity > result.gate4WarnRatio) {
             result.gate4Status = "WARN";
         } else {
             result.gate4Status = "PASS";

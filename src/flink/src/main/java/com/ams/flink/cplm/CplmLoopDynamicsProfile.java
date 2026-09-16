@@ -92,8 +92,39 @@ public final class CplmLoopDynamicsProfile implements Serializable {
     public double regionPvMax = Double.POSITIVE_INFINITY;
     public double regionOpMin = 0.0;
     public double regionOpMax = 100.0;
+    /**
+     * v2.5 R06 - the G2 stability band is a POLICY, not a universal 1 EU:
+     * {@link #spStabilityBandPvEu} when an objective is commissioned in PV EU, otherwise
+     * {@link #spStabilityBandSpanFraction} x the declared PV span. The 0-100 default span
+     * x 1 % reproduces the historical 1.0 EU for undeclared loops (golden unchanged) and
+     * is labelled LEGACY_DEFAULT by {@link #spStabilityBandSource()}.
+     */
+    public Double spStabilityBandPvEu = null;
+    public double spStabilityBandSpanFraction = 0.01;
+    /** @deprecated v2.5: alias kept for old JSON/YAML overrides; writes {@link #spStabilityBandPvEu}. */
+    @Deprecated
     public double spRangePassMax = 1.0;
     public double goodErrorPctPassMin = 0.5;
+    /** v2.5 R06 - G4 activity thresholds (were the hardcoded 3.0 / 8.0 in the engine). */
+    public double g4ActivityWarnRatio = 3.0;
+    public double g4ActivityHighRatio = 8.0;
+    /** v2.5 - true when the loop DECLARED its PV range (registry/broadcast); the 0-100 default is not a declaration. */
+    public boolean pvRangeDeclared = false;
+
+    /** The effective G2 band in PV EU (see field docs). */
+    public double spStabilityBandEu() {
+        if (spStabilityBandPvEu != null && spStabilityBandPvEu > 0) return spStabilityBandPvEu;
+        double span = pvEngMax - pvEngMin;
+        if (span <= 1e-12 || Double.isNaN(span) || Double.isInfinite(span)) return 1.0;
+        double band = spStabilityBandSpanFraction * span;
+        return band > 1e-12 ? band : 1.0;
+    }
+
+    /** COMMISSIONED_EU | COMMISSIONED_SPAN_FRACTION | LEGACY_DEFAULT (span fraction on an undeclared span). */
+    public String spStabilityBandSource() {
+        if (spStabilityBandPvEu != null && spStabilityBandPvEu > 0) return "COMMISSIONED_EU";
+        return pvRangeDeclared ? "COMMISSIONED_SPAN_FRACTION" : "LEGACY_DEFAULT";
+    }
     public double satLowPct = 5.0;
     public double satHighPct = 95.0;
     public double satWarnOccupancy = 0.05;
@@ -195,6 +226,11 @@ public final class CplmLoopDynamicsProfile implements Serializable {
         p.regionOpMin = regionOpMin;
         p.regionOpMax = regionOpMax;
         p.spRangePassMax = spRangePassMax;
+        p.spStabilityBandPvEu = spStabilityBandPvEu;
+        p.spStabilityBandSpanFraction = spStabilityBandSpanFraction;
+        p.g4ActivityWarnRatio = g4ActivityWarnRatio;
+        p.g4ActivityHighRatio = g4ActivityHighRatio;
+        p.pvRangeDeclared = pvRangeDeclared;
         p.goodErrorPctPassMin = goodErrorPctPassMin;
         p.satLowPct = satLowPct;
         p.satHighPct = satHighPct;
@@ -389,6 +425,7 @@ public final class CplmLoopDynamicsProfile implements Serializable {
         p.geometryAloneForbidden = geoAloneForbidden;
         if (svc == ServiceObjective.AVERAGING) {
             p.spRangePassMax = 5.0;
+            p.spStabilityBandSpanFraction = 0.05;   // v2.5: 5 % of span (= the old 5.0 EU on a 0-100 span)
             p.goodErrorPctPassMin = 0.30;
         }
         return p;
@@ -525,7 +562,14 @@ public final class CplmLoopDynamicsProfile implements Serializable {
         if (block.containsKey("geometryAloneForbidden")) {
             p.geometryAloneForbidden = Boolean.parseBoolean(block.get("geometryAloneForbidden"));
         }
+        // The YAML packs are the FACTORY layer: a class default is a span FRACTION, never a
+        // commissioned EU objective. spRangePassMax stays readable for old packs but no longer
+        // implies COMMISSIONED_EU (that alias applies only to per-loop JSON overrides).
         p.spRangePassMax = dbl(block, "spRangePassMax", p.spRangePassMax);
+        if (block.containsKey("spStabilityBandPvEu")) p.spStabilityBandPvEu = dbl(block, "spStabilityBandPvEu", 0);
+        p.spStabilityBandSpanFraction = dbl(block, "spStabilityBandSpanFraction", p.spStabilityBandSpanFraction);
+        p.g4ActivityWarnRatio = dbl(block, "g4ActivityWarnRatio", p.g4ActivityWarnRatio);
+        p.g4ActivityHighRatio = dbl(block, "g4ActivityHighRatio", p.g4ActivityHighRatio);
         p.goodErrorPctPassMin = dbl(block, "goodErrorPctPassMin", p.goodErrorPctPassMin);
         p.satLowPct = dbl(block, "satLowPct", p.satLowPct);
         p.satHighPct = dbl(block, "satHighPct", p.satHighPct);

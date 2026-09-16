@@ -101,6 +101,13 @@ public final class CplmGateFusionEngine implements Serializable {
         // predicate is whether the short stage actually ran.
         result.effortRatio = shortF.sufficientData ? shortF.effortRatio : longD.effortRatio;
         result.effortRatioNormalized = shortF.effortRatioNormalized; // P2-3
+        result.gate2BandEu = shortF.gate2BandEu;
+        result.gate2BandSource = shortF.gate2BandSource;
+        result.activityRatioNorm = shortF.activityRatioNorm;
+        result.activityBasis = shortF.activityBasis;
+        result.activityReason = shortF.activityReason;
+        result.gate4WarnRatio = shortF.gate4WarnRatio;
+        result.gate4HighRatio = shortF.gate4HighRatio;
         result.opTravel = shortF.opTravel;
         result.travelPerDay = shortF.travelPerDay;
         result.reversalCount = shortF.reversalCount;

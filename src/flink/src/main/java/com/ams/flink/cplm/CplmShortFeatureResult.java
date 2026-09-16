@@ -39,6 +39,9 @@ public final class CplmShortFeatureResult implements Serializable {
     public double spMin;
     public double spMax;
     public double spRange;
+    /** v2.5 R06: the effective G2 band (PV EU) and where it came from. */
+    public double gate2BandEu;
+    public String gate2BandSource = "";
     public double spChangesPerHour;
     public String gate2Status = "PENDING";
 
@@ -57,6 +60,14 @@ public final class CplmShortFeatureResult implements Serializable {
     public double effortRatio;
     /** P2-3 - (sigmaOP/opSpan)/(sigmaPV/pvSpan): unit-free, cross-loop comparable. */
     public double effortRatioNormalized;
+    /** v2.5 R06: (sigma_u/span_u)/(sigma_pv/span_pv) on DECLARED spans; null with a reason when not computable. */
+    public Double activityRatioNorm;
+    /** NORMALIZED_DECLARED_SPAN | OBSERVED_RATIO_LEGACY - which quantity gate4Status was judged on. */
+    public String activityBasis = "";
+    public String activityReason = "";
+    /** The effective G4 thresholds (exact effective thresholds are evidence, spec v6 s1.3). */
+    public double gate4WarnRatio;
+    public double gate4HighRatio;
     public double opTravel;
     public double travelPerDay;
     public int reversalCount;
@@ -134,6 +145,8 @@ public final class CplmShortFeatureResult implements Serializable {
         putMetric(out, "sp_range", spRange);
         putMetric(out, "sp_changes_per_h", spChangesPerHour);
         out.put("gate2_status", gate2Status);
+        putMetric(out, "gate2_band_eu", gate2BandEu);
+        out.put("gate2_band_source", gate2BandSource);
         putMetric(out, "mae", mae);
         putMetric(out, "rmse", rmse);
         putMetric(out, "iae", iae);
@@ -147,6 +160,12 @@ public final class CplmShortFeatureResult implements Serializable {
         out.put("gate3_status", gate3Status);
         putMetric(out, "effort_ratio", effortRatio);
         putMetric(out, "effort_ratio_normalized", effortRatioNormalized);
+        if (activityRatioNorm != null && sufficientData) out.put("activity_ratio_norm", activityRatioNorm);
+        else out.putNull("activity_ratio_norm");
+        out.put("activity_basis", activityBasis);
+        out.put("activity_reason", activityReason);
+        putMetric(out, "gate4_warn_ratio", gate4WarnRatio);
+        putMetric(out, "gate4_high_ratio", gate4HighRatio);
         putMetric(out, "op_travel", opTravel);
         putMetric(out, "travel_per_day", travelPerDay);
         putMetric(out, "reversal_count", reversalCount);
@@ -194,6 +213,14 @@ public final class CplmShortFeatureResult implements Serializable {
             r.spMin = root.path("sp_min").asDouble(0);
             r.spMax = root.path("sp_max").asDouble(0);
             r.spRange = root.path("sp_range").asDouble(0);
+            r.gate2BandEu = root.path("gate2_band_eu").asDouble(0);
+            r.gate2BandSource = root.path("gate2_band_source").asText("");
+            r.activityRatioNorm = root.has("activity_ratio_norm") && !root.get("activity_ratio_norm").isNull()
+                    ? root.get("activity_ratio_norm").asDouble() : null;
+            r.activityBasis = root.path("activity_basis").asText("");
+            r.activityReason = root.path("activity_reason").asText("");
+            r.gate4WarnRatio = root.path("gate4_warn_ratio").asDouble(0);
+            r.gate4HighRatio = root.path("gate4_high_ratio").asDouble(0);
             r.spChangesPerHour = root.path("sp_changes_per_h").asDouble(0);
             r.mae = root.path("mae").asDouble(0);
             r.rmse = root.path("rmse").asDouble(0);

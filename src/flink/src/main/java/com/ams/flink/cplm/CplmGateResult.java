@@ -60,6 +60,13 @@ public class CplmGateResult implements Serializable {
     public double effortRatio;
     /** P2-3 - unit-free effort variant; see CplmShortFeatureResult. */
     public double effortRatioNormalized;
+    public double gate2BandEu;
+    public String gate2BandSource = "";
+    public Double activityRatioNorm;
+    public String activityBasis = "";
+    public String activityReason = "";
+    public double gate4WarnRatio;
+    public double gate4HighRatio;
     public double opTravel;
     public double travelPerDay;
     public int reversalCount;
@@ -300,6 +307,13 @@ public class CplmGateResult implements Serializable {
         putMetric(out, "op_std", opStd);
         putMetric(out, "effort_ratio", effortRatio);
         putMetric(out, "effort_ratio_normalized", effortRatioNormalized);
+        putMetric(out, "gate2_band_eu", gate2BandEu);
+        out.put("gate2_band_source", gate2BandSource);
+        if (activityRatioNorm != null) out.put("activity_ratio_norm", activityRatioNorm); else out.putNull("activity_ratio_norm");
+        out.put("activity_basis", activityBasis);
+        out.put("activity_reason", activityReason);
+        putMetric(out, "gate4_warn_ratio", gate4WarnRatio);
+        putMetric(out, "gate4_high_ratio", gate4HighRatio);
         putMetric(out, "op_travel", opTravel);
         putMetric(out, "travel_per_day", travelPerDay);
         putMetric(out, "reversal_count", reversalCount);

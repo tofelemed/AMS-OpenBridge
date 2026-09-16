@@ -300,7 +300,7 @@ public static class QualityDecoder {
 - Create: `cplm/engine/ShortFeatureCalculator.java` (G0–G4 from `computeShortFeatures :55-262`), `cplm/engine/LongDiagnosticsCalculator.java` (`computeLongDiagnostics :301-476`), `cplm/engine/OscillationMath.java` (`computeAcfPeriod`, `computeFftBandLimited`, `resolveValidPeriod`), `cplm/engine/ShapeMath.java` (`computeTriangularity`, `computeHorch`, `computeGeometry`), `cplm/engine/LimitMath.java` (`computeSaturationStats`, freeze)
 - Modify: `CplmGateEngine.java` becomes a ≤150-line façade delegating to the above (public signatures unchanged so `CplmGateEngineSynTic001Test` golden passes unchanged).
 
-- [ ] **Step 1:** run golden tests → PASS (baseline). **Step 2:** move code, no edits. **Step 3:** golden → PASS byte-identical. **Commit** `refactor(flink): split CplmGateEngine into engine/* (≤400 lines each)`.
+- [x] **Step 1:** run golden tests → PASS (baseline). **Step 2:** move code, no edits. **Step 3:** golden → PASS byte-identical. **Commit** `refactor(flink): split CplmGateEngine into engine/* (≤400 lines each)`.
 
 ### Task 1D.2: G2 span/EU policy, G4 profile thresholds and dimensionless activity (R06)
 
@@ -308,7 +308,7 @@ public static class QualityDecoder {
 - Modify: `CplmLoopDynamicsProfile.java` (+ `spStabilityBandSpanFraction` (default null), `spStabilityBandPvEu` (default null), `g4ActivityWarnRatio` 3.0, `g4ActivityHighRatio` 8.0, `g4ReversalDeadbandPp`), `CplmDynamicsParameterSetSupport.parseProfileJson` (+ fields), `cplm/engine/ShortFeatureCalculator.java` (G2: band = `max(pvEu, spanFraction×span)`; if both null → `G2 = NOT_EVALUATED reason NO_OBJECTIVE`; G4: thresholds from profile; `activity_ratio_norm = (σ_u/span_u)/(σ_pv/span_pv)` only when both spans valid, else `null`+reason `NO_SPAN`)
 - Test: `cplm/engine/ShortFeatureCalculatorTest.java` — unit invariance: same trace in °C and in K×10 gives identical G2/G4 statuses when spans are declared (NR-018); missing objective → NOT_EVALUATED not PASS.
 
-- [ ] Failing test → implement → `mvn test` → commit `fix(flink): G2 span/EU stability policy; G4 profile-driven dimensionless activity`.
+- [x] Failing test → implement → `mvn test` → commit `fix(flink): G2 span/EU stability policy; G4 profile-driven dimensionless activity`.
 
 ### Task 1D.3: G10 time-based limits from engineering range; G11 source-qualified freeze episodes (R08)
 
