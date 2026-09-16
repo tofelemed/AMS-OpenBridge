@@ -35,12 +35,7 @@ public final class CplmIngestPipeline {
                 .setProperty("default.api.timeout.ms", "120000")
                 .build();
 
-        // withIdleness: keyed backfills land on one Kafka partition; idle partitions
-        // must not stall event-time watermarks (otherwise long-job timers never fire).
-        WatermarkStrategy<CplmNormalizedSample> wm = WatermarkStrategy
-                .<CplmNormalizedSample>forBoundedOutOfOrderness(Duration.ofMinutes(cfg.outOfOrdernessMinutes))
-                .withIdleness(Duration.ofMinutes(1))
-                .withTimestampAssigner((event, ts) -> event.eventTsMs);
+        WatermarkStrategy<CplmNormalizedSample> wm = watermarks(cfg);
 
         // STR-11: uid() mirrors name() so savepoints survive topology changes.
         // sourceOperatorName is per-job, which keeps these unique across the CPLM jobs
@@ -61,5 +56,20 @@ public final class CplmIngestPipeline {
                 .assignTimestampsAndWatermarks(wm)
                 .name(sourceOperatorName + "-watermarks")
                 .uid(sourceOperatorName + "-watermarks");
+    }
+
+    /**
+     * The sample watermark strategy. withIdleness: keyed backfills land on one Kafka partition; idle
+     * partitions must not stall event-time watermarks (otherwise long-job timers never fire).
+     * ANY operator that connects the samples with a no-watermark control stream (profiles, peer
+     * fan-out) must re-assign this strategy downstream: a two-input operator's watermark is the
+     * minimum of its inputs, and the control stream's is minus infinity - the lab long job emitted
+     * nothing for an hour when the 2F.1 fan-out was connected after the assigner (2026-09-16).
+     */
+    public static WatermarkStrategy<CplmNormalizedSample> watermarks(CplmJobConfig cfg) {
+        return WatermarkStrategy
+                .<CplmNormalizedSample>forBoundedOutOfOrderness(Duration.ofMinutes(cfg.outOfOrdernessMinutes))
+                .withIdleness(Duration.ofMinutes(1))
+                .withTimestampAssigner((event, ts) -> event.eventTsMs);
     }
 }
