@@ -19,8 +19,11 @@ public final class CplmNormalizedSample implements Serializable {
     public double op;
     public Double vp;
     public String mode = "UNKNOWN";
-    public String quality = "GOOD";
+    /** Normalised verdict of the 1.0 field: GOOD | UNCERTAIN | BAD | UNKNOWN. Absent = UNKNOWN (v2.5 R04). */
+    public String quality = "UNKNOWN";
     public boolean isValid = true;
+    /** Why isValid is false (v2.5): NON_FINITE, MISSING_ID, MISSING_TS, MISSING_REQUIRED_ROLE, PARSE_ERROR. */
+    public String invalidReason;
     /** Optional registry loop type (FLOW/PRESSURE/LEVEL/TEMPERATURE or class id). */
     public String loopType;
     /** Optional asset UUID for spine override lookup. */
@@ -74,6 +77,7 @@ public final class CplmNormalizedSample implements Serializable {
                 s.loopId = cleanId(root.get("tagId").asText());
             } else {
                 s.isValid = false;
+                s.invalidReason = "MISSING_ID";
                 return s;
             }
 
@@ -83,6 +87,7 @@ public final class CplmNormalizedSample implements Serializable {
                 s.eventTsMs = root.get("timestamp").asLong();
             } else {
                 s.isValid = false;
+                s.invalidReason = "MISSING_TS";
                 return s;
             }
 
@@ -93,19 +98,31 @@ public final class CplmNormalizedSample implements Serializable {
             // healthy" for a valve nobody was receiving data from.
             if (!isNumeric(root, "pv") || !isNumeric(root, "sp") || !isNumeric(root, "op")) {
                 s.isValid = false;
+                s.invalidReason = "MISSING_REQUIRED_ROLE";
                 return s;
             }
             s.pv = root.get("pv").asDouble();
             s.sp = root.get("sp").asDouble();
             s.op = root.get("op").asDouble();
+            // v2.5 R04: Double.parseDouble("NaN") / "1e309" succeed. A non-finite required
+            // role would turn every window statistic into NaN; reject the tuple with a reason.
+            if (!Double.isFinite(s.pv) || !Double.isFinite(s.sp) || !Double.isFinite(s.op)) {
+                s.isValid = false;
+                s.invalidReason = "NON_FINITE";
+                return s;
+            }
             if (root.has("vp") && !root.get("vp").isNull()) {
-                s.vp = root.get("vp").asDouble();
+                double v = root.get("vp").asDouble();
+                s.vp = Double.isFinite(v) ? v : null;   // optional: dropped, never a NaN in the engine
             }
             s.mode = root.has("mode") ? root.get("mode").asText("UNKNOWN") : "UNKNOWN";
-            if (root.has("quality")) {
-                s.quality = root.get("quality").asText("GOOD");
+            JsonNode q = root.get("quality");
+            if (q != null && !q.isNull() && !q.asText().trim().isEmpty()) {
+                s.quality = q.asText().trim();
             } else if (root.has("is_good_quality")) {
-                s.quality = root.get("is_good_quality").asBoolean(true) ? "GOOD" : "BAD";
+                s.quality = root.get("is_good_quality").asBoolean(false) ? "GOOD" : "BAD";
+            } else {
+                s.quality = "UNKNOWN";                 // absent is UNKNOWN, never GOOD (R04)
             }
             if (root.has("isValid") && !root.get("isValid").asBoolean(true)) {
                 s.isValid = false;
@@ -119,30 +136,32 @@ public final class CplmNormalizedSample implements Serializable {
             com.ams.flink.cplm.contract.TupleCodec.applyRoles(root, s);
         } catch (Exception e) {
             s.isValid = false;
+            s.invalidReason = "PARSE_ERROR";
         }
         return s;
     }
 
     /**
-     * P2-20 - the engine accepted only the exact string "GOOD"; the standard
-     * OPC-UA vocabulary ("Good_NonSpecific", "GoodNonSpecific"), the numeric
-     * OPC form (192/64/0) and NE107 states all counted as bad, so a healthy
-     * OPC-fed loop read bad_quality_pct = 1.0 and (post-P1-11) failed G0.
-     * Good = anything starting with "good" or an OPC numeric >= 192.
-     * UNCERTAIN deliberately counts as not-good: the engine has no partial
-     * weighting, and treating uncertain data as trustworthy is the worse error.
+     * v2.5 R04 (replaces P2-20). Quality is decoded ONCE, at ingestion, under the data
+     * source's declared protocol (ingestion-service QualityDecoder), and arrives here as a
+     * normalised verdict. The engine therefore accepts exactly one token as good: GOOD.
+     * A raw vendor string ("Good_NonSpecific"), a raw OPC word ("192"), an absent field
+     * and anything unrecognised are all NOT good - the old rule let every one of them
+     * pass G0. UNCERTAIN still counts as not-good: the engine has no partial weighting.
      */
     public boolean isGoodQuality() {
-        if (quality == null) return true;              // absent field: legacy producers
-        String q = quality.trim();
-        if (q.isEmpty()) return true;
-        char c = q.charAt(0);
-        if (c == 'g' || c == 'G') return true;          // GOOD, Good_NonSpecific, ...
-        if (Character.isDigit(c)) {
-            try { return Integer.parseInt(q) >= 192; }  // OPC numeric
-            catch (NumberFormatException e) { return false; }
+        return "GOOD".equals(normalizedQuality());
+    }
+
+    /** GOOD | UNCERTAIN | BAD | UNKNOWN - anything outside the vocabulary is UNKNOWN. */
+    public String normalizedQuality() {
+        if (quality == null) return "UNKNOWN";
+        switch (quality.trim().toUpperCase()) {
+            case "GOOD": return "GOOD";
+            case "UNCERTAIN": return "UNCERTAIN";
+            case "BAD": return "BAD";
+            default: return "UNKNOWN";
         }
-        return false;
     }
 
     /**

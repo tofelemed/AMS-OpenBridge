@@ -220,6 +220,11 @@ public final class CplmHistoricalReplayJob {
         copy.mode = source.mode;
         copy.quality = source.quality;
         copy.isValid = source.isValid;
+        copy.invalidReason = source.invalidReason;
+        copy.schemaVersion = source.schemaVersion;
+        copy.bindingRevision = source.bindingRevision;
+        copy.gridSeconds = source.gridSeconds;
+        copy.roles = source.roles;
         copy.loopType = source.loopType;
         copy.assetUuid = source.assetUuid;
         copy.dynamicClassOverride = source.dynamicClassOverride;

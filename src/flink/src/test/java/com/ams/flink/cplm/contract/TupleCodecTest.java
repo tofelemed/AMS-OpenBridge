@@ -98,6 +98,32 @@ public class TupleCodecTest {
     }
 
     @Test
+    public void nonFiniteRequiredRoleInvalidatesTheTupleInsteadOfPoisoningTheMath() {
+        // JSON cannot carry NaN as a number, but a numeric-looking STRING can, and
+        // Double.parseDouble("NaN") succeeds. A NaN pv would turn every window statistic
+        // into NaN; the tuple is rejected with a reason rather than fed to the engine.
+        CplmNormalizedSample s = TupleCodec.fromJson(V10.replace("\"pv\":101.2", "\"pv\":\"NaN\""));
+        assertFalse(s.isValid);
+        assertEquals("NON_FINITE", s.invalidReason);
+        CplmNormalizedSample inf = TupleCodec.fromJson(V10.replace("\"op\":42.1", "\"op\":\"1e309\""));
+        assertFalse(inf.isValid);
+        assertEquals("NON_FINITE", inf.invalidReason);
+    }
+
+    @Test
+    public void nonFiniteOptionalVpIsDroppedAndItsRoleMarkedBad() {
+        CplmNormalizedSample s = TupleCodec.fromJson(V11.replace("\"vp\":41.8,", "\"vp\":\"NaN\",")
+                .replace("\"vp\":{\"value\":41.8", "\"vp\":{\"value\":\"NaN\""));
+        assertTrue(s.isValid);                      // pv/sp/op are fine: the tuple stays
+        assertNull(s.vp);                           // never a NaN in the engine
+        RoleObservation vp = s.role("vp");
+        assertNotNull(vp);
+        assertEquals("BAD", vp.quality);
+        assertEquals("NON_FINITE", vp.reason);
+        assertNull(vp.value);
+    }
+
+    @Test
     public void topicCatalogueNamesTheLiveContracts() {
         assertEquals("traverse.cpa.loop.samples.v1", CplmTopics.LOOP_SAMPLES);
         assertEquals("traverse.cpa.clpm.gate.results.v1", CplmTopics.GATE_RESULTS);

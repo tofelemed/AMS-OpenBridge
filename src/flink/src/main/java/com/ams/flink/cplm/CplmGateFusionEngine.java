@@ -69,6 +69,8 @@ public final class CplmGateFusionEngine implements Serializable {
         // Gates 0-4 from short-feature stage
         result.completeness = shortF.completeness;
         result.badQualityPct = shortF.badQualityPct;
+        result.unknownQualityPct = shortF.unknownQualityPct;
+        result.gate0Reason = shortF.gate0Reason;
         result.duplicateTimestamps = shortF.duplicateTimestamps;
         result.samplingJitter = shortF.samplingJitter;
         result.gapCount = shortF.gapCount;

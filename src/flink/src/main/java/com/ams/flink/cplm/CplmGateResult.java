@@ -23,6 +23,8 @@ public class CplmGateResult implements Serializable {
     // Gate 0
     public double completeness;
     public double badQualityPct;
+    public double unknownQualityPct;
+    public String gate0Reason = "";
     public int duplicateTimestamps;
     public double samplingJitter;
     public int gapCount;
@@ -266,11 +268,13 @@ public class CplmGateResult implements Serializable {
 
         out.put("completeness", completeness);
         out.put("bad_quality_pct", badQualityPct);
+        out.put("unknown_quality_pct", unknownQualityPct);
         out.put("duplicate_timestamps", duplicateTimestamps);
         out.put("sampling_jitter", samplingJitter);
         out.put("gap_count", gapCount);
         out.put("max_gap_s", maxGapS);
         out.put("gate0_status", pubStatus(gate0Status));
+        out.put("gate0_reason", gate0Reason);
 
         putMetric(out, "auto_pct", autoPct);
         putMetric(out, "manual_pct", manualPct);

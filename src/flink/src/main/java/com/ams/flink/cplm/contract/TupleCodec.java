@@ -67,6 +67,11 @@ public final class TupleCodec {
         o.held = n.path("held").asBoolean(false);
         o.ageMs = n.path("age_ms").asLong(0L);
         o.provenance = RoleObservation.SOURCE_ROLES_BLOCK;
+        if (o.value != null && !Double.isFinite(o.value)) {   // v2.5 R04: never a NaN in the engine
+            o.value = null;
+            o.quality = "BAD";
+            o.reason = "NON_FINITE";
+        }
         return o;
     }
 

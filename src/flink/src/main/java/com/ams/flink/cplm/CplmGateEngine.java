@@ -96,13 +96,17 @@ public final class CplmGateEngine implements Serializable {
         result.completeness = (double) n / expectedSamples;
 
         int badQuality = 0;
+        int unknownQuality = 0;
         int duplicateTs = 0;
         Set<Long> seenTs = new HashSet<>();
         for (CplmNormalizedSample s : samples) {
-            if (!s.isGoodQuality()) badQuality++;
+            String nq = s.normalizedQuality();
+            if (!"GOOD".equals(nq)) badQuality++;          // not-good share (UNKNOWN included, v2.5 R04)
+            if ("UNKNOWN".equals(nq)) unknownQuality++;    // of which: no usable verdict at all
             if (!seenTs.add(s.eventTsMs)) duplicateTs++;
         }
         result.badQualityPct = n > 0 ? (double) badQuality / n : 0.0;
+        result.unknownQualityPct = n > 0 ? (double) unknownQuality / n : 0.0;
         result.duplicateTimestamps = duplicateTs;
         result.samplingJitter = computeSamplingJitter(samples);
 
@@ -132,6 +136,17 @@ public final class CplmGateEngine implements Serializable {
             result.gate0Status = "WARN";
         } else {
             result.gate0Status = "FAIL";
+        }
+        // v2.5: say WHY. "No quality information" (QUALITY_UNKNOWN) is a different
+        // operator action from "the source says the data is bad" (BAD_QUALITY).
+        if ("FAIL".equals(result.gate0Status)) {
+            if (result.badQualityPct >= 0.50) {
+                result.gate0Reason = unknownQuality * 2 >= badQuality ? "QUALITY_UNKNOWN" : "BAD_QUALITY";
+            } else {
+                result.gate0Reason = "INCOMPLETE";
+            }
+        } else {
+            result.gate0Reason = "";
         }
         boolean gate0Pass = !"FAIL".equals(result.gate0Status);
 

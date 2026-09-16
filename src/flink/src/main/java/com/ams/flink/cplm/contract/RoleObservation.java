@@ -32,6 +32,8 @@ public final class RoleObservation implements Serializable {
     public boolean held;
     public long ageMs;
     public String provenance = SOURCE_ROLES_BLOCK;
+    /** Why the value is unusable when it is (v2.5): NON_FINITE, or null. */
+    public String reason;
 
     public RoleObservation() {
     }

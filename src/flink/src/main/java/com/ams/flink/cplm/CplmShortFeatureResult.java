@@ -21,6 +21,10 @@ public final class CplmShortFeatureResult implements Serializable {
 
     public double completeness;
     public double badQualityPct;
+    /** v2.5 R04: share of the window whose quality was UNKNOWN (no usable verdict), separately from BAD. */
+    public double unknownQualityPct;
+    /** v2.5: "" | BAD_QUALITY | QUALITY_UNKNOWN | INCOMPLETE - why G0 failed. */
+    public String gate0Reason = "";
     public int duplicateTimestamps;
     public double samplingJitter;
     public int gapCount;
@@ -114,11 +118,13 @@ public final class CplmShortFeatureResult implements Serializable {
         out.put("sample_count", sampleCount);
         out.put("completeness", completeness);
         out.put("bad_quality_pct", badQualityPct);
+        out.put("unknown_quality_pct", unknownQualityPct);
         out.put("duplicate_timestamps", duplicateTimestamps);
         out.put("sampling_jitter", samplingJitter);
         out.put("gap_count", gapCount);
         out.put("max_gap_s", maxGapS);
         out.put("gate0_status", gate0Status);
+        out.put("gate0_reason", gate0Reason);
         putMetric(out, "auto_pct", autoPct);
         putMetric(out, "manual_pct", manualPct);
         putMetric(out, "mode_changes_per_h", modeChangesPerHour);
@@ -176,6 +182,8 @@ public final class CplmShortFeatureResult implements Serializable {
             r.sampleCount = root.path("sample_count").asInt(0);
             r.completeness = root.path("completeness").asDouble(0);
             r.badQualityPct = root.path("bad_quality_pct").asDouble(0);
+            r.unknownQualityPct = root.path("unknown_quality_pct").asDouble(0);
+            r.gate0Reason = root.path("gate0_reason").asText("");
             r.duplicateTimestamps = root.path("duplicate_timestamps").asInt(0);
             r.samplingJitter = root.path("sampling_jitter").asDouble(0);
             r.gapCount = root.path("gap_count").asInt(0);
