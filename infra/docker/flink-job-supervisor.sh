@@ -105,6 +105,9 @@ ensure_all() {
     "${CPLM_ARGS[@]}" --job-name "AMS - CPLM Short Feature Engine"
   submit_if_missing "AMS - CPLM Long Diagnostics Engine" com.ams.flink.cplm.CplmLongDiagnosticsStreamJob \
     "${CPLM_ARGS[@]}" --job-name "AMS - CPLM Long Diagnostics Engine" --window-hours 24
+  # v2.5 (Task 1D.4): fast G10/G11 condition path.
+  submit_if_missing "AMS - CPLM Condition Engine" com.ams.flink.cplm.condition.CplmConditionStreamJob \
+    "${CPLM_ARGS[@]}" --condition-topic "${CPLM_CONDITION_TOPIC:-traverse.cpa.clpm.condition.v1}"
   submit_if_missing "AMS - CPLM Gate Fusion Engine" com.ams.flink.cplm.CplmGateFusionStreamJob \
     "${CPLM_ARGS[@]}" --job-name "AMS - CPLM Gate Fusion Engine"
   # Phase 6.1 — live loop metrics (report-by-exception) for HMI badges.

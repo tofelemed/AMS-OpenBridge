@@ -326,7 +326,7 @@ public static class QualityDecoder {
 - Modify: `infra/docker/flink-submit-cplm.sh`, `flink-job-supervisor.sh`, `scripts/ensure_flink_jobs.py`, `migration/04b-submit-flink-jobs.sh`, `migration/flink/JOBS.md` (job `AMS - CPLM Condition Engine`)
 - Test: `cplm/condition/ConditionDetectorTest.java` (harness `KeyedOneInputStreamOperatorTestHarness`: 70 s flat PV → OPEN at 60 s; value resumes → CLOSED with duration)
 
-- [ ] Failing test → implement → commit `feat(flink): CplmConditionStreamJob (fast G10/G11 condition evidence)`.
+- [x] Failing test → implement → commit `feat(flink): CplmConditionStreamJob (fast G10/G11 condition evidence)`.
 
 ### Task 1D.5: cplm-api condition consumer + `condition_event` table; fuse 4h and conditions
 

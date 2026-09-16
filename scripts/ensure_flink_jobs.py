@@ -153,6 +153,12 @@ CORE_JOBS = CORE_JOBS + (
         extra_args=_CPLM_COMMON_ARGS
         + ("--job-name", "AMS - CPLM Long Diagnostics Engine", "--window-hours", "24"),
     ),
+    # v2.5 (Task 1D.4): fast G10/G11 condition path (own consumer group, derived in-job).
+    FlinkJobSpec(
+        name="AMS - CPLM Condition Engine",
+        entry_class="com.ams.flink.cplm.condition.CplmConditionStreamJob",
+        extra_args=_CPLM_COMMON_ARGS + ("--condition-topic", "traverse.cpa.clpm.condition.v1"),
+    ),
     # Fusion last: both of its sources start at OffsetsInitializer.latest(), so the
     # feature topics should exist before it runs.
     FlinkJobSpec(

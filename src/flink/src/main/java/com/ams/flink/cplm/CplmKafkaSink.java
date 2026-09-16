@@ -7,11 +7,11 @@ import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 
-final class CplmKafkaSink {
+public final class CplmKafkaSink {
     private CplmKafkaSink() {
     }
 
-    static DataStreamSink<String> attach(DataStream<String> stream, CplmJobConfig cfg, String topic, String sinkName) {
+    public static DataStreamSink<String> attach(DataStream<String> stream, CplmJobConfig cfg, String topic, String sinkName) {
         KafkaSink<String> sink = KafkaSink.<String>builder()
                 .setBootstrapServers(cfg.brokers)
                 .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
@@ -31,7 +31,7 @@ final class CplmKafkaSink {
      * Delegates to the shared {@link com.ams.flink.KafkaSinks} builder (explicit
      * producer timeouts, never emits a null key).
      */
-    static DataStreamSink<String> attachKeyed(
+    public static DataStreamSink<String> attachKeyed(
             DataStream<String> stream, CplmJobConfig cfg, String topic, String sinkName, String keyField) {
         return stream
                 .sinkTo(com.ams.flink.KafkaSinks.keyedByJsonField(cfg.brokers, topic, keyField))

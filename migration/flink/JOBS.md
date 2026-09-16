@@ -11,6 +11,7 @@ Submit **after** prefixed topics in `kafka/topics.txt` exist. Unique names (Inst
 | `AMS - CPLM Long Diagnostics Engine` | `com.ams.flink.cplm.CplmLongDiagnosticsStreamJob` | yes |
 | `AMS - CPLM Gate Fusion Engine` | `com.ams.flink.cplm.CplmGateFusionStreamJob` | yes (submit last) |
 | `AMS - Loop Live RBE Engine` | `com.ams.flink.cplm.LoopLiveRbeJob` | yes (live PV/SP/OP) |
+| `AMS - CPLM Condition Engine` | `com.ams.flink.cplm.condition.CplmConditionStreamJob` | yes (v2.5: fast G10/G11 conditions → `traverse.cpa.clpm.condition.v1`) |
 
 On-demand (not in standing 04b): historical replay / A8 recompute from `cplm-api`.
 

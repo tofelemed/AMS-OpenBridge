@@ -99,6 +99,12 @@ submit_if_missing "AMS - Loop Live RBE Engine" \
   --consumer-group-id "$GROUP" \
   --deadband "${CPLM_LIVE_DEADBAND:-0.05}"
 
+# v2.5 (Task 1D.4): fast G10/G11 condition path.
+submit_if_missing "AMS - CPLM Condition Engine" \
+  com.ams.flink.cplm.condition.CplmConditionStreamJob \
+  "${COMMON[@]}" \
+  --condition-topic "${CPLM_CONDITION_TOPIC:-traverse.cpa.clpm.condition.v1}"
+
 submit_if_missing "AMS - CPLM Gate Fusion Engine" \
   com.ams.flink.cplm.CplmGateFusionStreamJob \
   "${COMMON[@]}" \
@@ -109,6 +115,7 @@ for name in \
   "AMS - CPLM Short Feature Engine" \
   "AMS - CPLM Long Diagnostics Engine" \
   "AMS - Loop Live RBE Engine" \
+  "AMS - CPLM Condition Engine" \
   "AMS - CPLM Gate Fusion Engine"
 do
   if job_present "$name"; then

@@ -96,6 +96,12 @@ submit_if_missing "AMS - CPLM Long Diagnostics Engine" \
   --job-name "AMS - CPLM Long Diagnostics Engine" \
   --window-hours "${WINDOW_HOURS}"
 
+# v2.5 (Task 1D.4): fast G10/G11 condition path, same input, own consumer group.
+submit_if_missing "AMS - CPLM Condition Engine" \
+  com.ams.flink.cplm.condition.CplmConditionStreamJob \
+  "${COMMON_ARGS[@]}" \
+  --condition-topic "${CPLM_CONDITION_TOPIC:-traverse.cpa.clpm.condition.v1}"
+
 submit_if_missing "AMS - CPLM Gate Fusion Engine" \
   com.ams.flink.cplm.CplmGateFusionStreamJob \
   "${COMMON_ARGS[@]}" \
@@ -103,7 +109,7 @@ submit_if_missing "AMS - CPLM Gate Fusion Engine" \
 
 sleep 5
 fail=0
-for name in "AMS - CPLM Short Feature Engine" "AMS - CPLM Long Diagnostics Engine" "AMS - CPLM Gate Fusion Engine"; do
+for name in "AMS - CPLM Short Feature Engine" "AMS - CPLM Long Diagnostics Engine" "AMS - CPLM Condition Engine" "AMS - CPLM Gate Fusion Engine"; do
   if job_running "$name"; then
     echo "[CPLM Submit] OK: '${name}' RUNNING."
   else
