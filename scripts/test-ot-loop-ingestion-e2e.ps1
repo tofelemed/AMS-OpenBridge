@@ -7,6 +7,8 @@
 #       -> Kafka traverse.ingestion.ot-dlq + unknown_sources (FIC99999 parking)
 #       -> IoTDB root.site1.cpm.<loop> (via ams-api RawLoopIotDbConsumer)
 #   plus: register-a-loop-mid-run -> flows without redeploy (registry refresh).
+#   plus (v2.5 1A.3): schema 1.1 roles{} rides the SAME topic; the 1.0 readers (Flink
+#   short features, IoTDB historian) are proven unaffected on the same run.
 #   plus (CHG-010): valve positioner feedback (VP) rides the tuple by DEFAULT for
 #   the loop that publishes it, is absent (not zero) for the loop that doesn't,
 #   lands in IoTDB, clears NO_VP in the registry - and a PARTIAL param_roles
@@ -223,6 +225,32 @@ Step 'tuning extensions (p/i/d/gw) ride the tuple once published' {
     Assert ($null -ne $withTuning.i -and $null -ne $withTuning.d -and $null -ne $withTuning.gw) 'i/d/gw extensions missing'
 }
 
+# ── 5a. v2.5 schema 1.1 (spec v6 R03/C02): per-role provenance on the SAME topic ──
+Step 'schema 1.1: roles{} carries per-role sample time, quality, unit, held, age; 1.0 fields intact' {
+    $t = $null
+    $deadline = (Get-Date).AddSeconds(90)
+    while ((Get-Date) -lt $deadline -and -not $t) {
+        foreach ($line in @(Read-LoopSamples)) {
+            if ($line -notmatch '^FIC10302\s') { continue }
+            $j = ($line -split "`t", 2)[1] | ConvertFrom-Json
+            if ($j.schema_version -eq '1.1') { $t = $j; break }
+        }
+    }
+    Assert ($null -ne $t) 'no FIC10302 tuple with schema_version 1.1 within 90 s - is the v2.5 ingestion image deployed?'
+    Assert ($t.grid_seconds -eq 5) "grid_seconds: $($t.grid_seconds)"
+    Assert ($t.binding_revision -is [long] -or $t.binding_revision -is [int] -or $t.binding_revision -is [decimal]) 'binding_revision missing'
+    Assert ($null -ne $t.roles.pv.sample_ts_ms) 'roles.pv.sample_ts_ms missing'
+    Assert ($null -ne $t.roles.pv.verified_ts_ms) 'roles.pv.verified_ts_ms missing'
+    Assert ($t.roles.pv.quality -eq 'GOOD') "roles.pv.quality: $($t.roles.pv.quality)"
+    Assert ($null -ne $t.roles.pv.held) 'roles.pv.held missing'
+    Assert ($t.roles.pv.age_ms -ge 0) 'roles.pv.age_ms missing'
+    Assert ($t.roles.mode.value -eq 'AUT') "roles.mode.value: $($t.roles.mode.value)"
+    Assert ($null -ne $t.roles.mode.mode_native) 'roles.mode.mode_native missing'
+    # The 1.0 contract is untouched: same top-level keys the old readers parse.
+    Assert ($t.event_ts_ms -eq [math]::Max([math]::Max($t.roles.pv.sample_ts_ms, $t.roles.sp.sample_ts_ms), $t.roles.op.sample_ts_ms) -or $t.event_ts_ms -ge $t.roles.pv.sample_ts_ms) 'event_ts_ms must be the newest member sample time'
+    Assert ($t.mode -eq 'AUT' -and $t.quality -eq 'GOOD' -and $null -ne $t.pv) '1.0 top-level fields changed'
+}
+
 # ── 5b. Valve positioner (CHG-010): VP flows by default, and only where published ─
 function Read-TupleFor([string]$loopId, [int]$timeoutSec = 60, [scriptblock]$where = { $true }) {
     $deadline = (Get-Date).AddSeconds($timeoutSec)
@@ -340,6 +368,21 @@ Step 'IoTDB row count grows for root.site1.cpm.FIC10302' {
     $rv = Invoke-RestMethod -Method Post -Uri "$IotDbRest/rest/v2/query" -Headers @{ Authorization = $auth } -ContentType 'application/json' -Body $qv
     $cv = Get-PvCount $rv
     Assert ($cv -gt 0) "IoTDB has no vp rows for FIC10302 (count(vp)=$cv) - RawLoopIotDbConsumer dropped the optional member?"
+}
+
+# ── 9b. v2.5: the Flink reader (CplmNormalizedSample) still produces short features under 1.1 ──
+Step 'Flink short features still emitted for FIC10302 under schema 1.1 (1.0 fields drive the engine)' {
+    $found = $null
+    $deadline = (Get-Date).AddSeconds(180)
+    while ((Get-Date) -lt $deadline -and -not $found) {
+        $lines = @(cmd /c "docker exec ams-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic traverse.cpa.clpm.feature.short.v1 --property print.key=true --timeout-ms 20000 --max-messages 200 2>nul")
+        $found = $lines | Where-Object { $_ -match '^FIC10302\s' } | Select-Object -First 1
+    }
+    Assert ($null -ne $found) 'no short-feature record keyed FIC10302 within 180 s - are the CPLM jobs running on the v2.5 jar (cancel + resubmit, CHG-008)?'
+    $j = ($found -split "`t", 2)[1] | ConvertFrom-Json
+    Assert ($j.eventType -eq 'CPLM_SHORT_FEATURE') "eventType: $($j.eventType)"
+    Assert ($null -ne $j.sourceCommit -and $j.sourceCommit -ne '') 'sourceCommit missing on the short-feature record (Task 0.3 jar not deployed?)'
+    Assert ($null -ne $j.jarSha256 -and $j.jarSha256 -ne '') 'jarSha256 missing'
 }
 
 # ── 10. Readiness: registry + tag checks green for the pilot loop ────────────

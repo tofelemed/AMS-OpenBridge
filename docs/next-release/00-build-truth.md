@@ -26,3 +26,22 @@ Both are in `CplmLoopDynamicsAwareTest` and both describe **replay divergence** 
 ## Golden fixtures
 
 `CplmGateEngineSynTic001Test` and `CplmPipelineSynTic001Test` (SYN-TIC-001 golden) **pass unchanged** at base. Any later re-baseline must be recorded here with the tolerance and reason (Task 2C.1 G6 PSD).
+
+## Lab deploy trap found in Phase 1 (adds to CHG-008)
+
+The Flink jar is **baked into the `ams-flink:1.0-SNAPSHOT` image** (`infra/docker/flink/Dockerfile`
+`COPY target/ams-flink-1.0-SNAPSHOT.jar /opt/flink/usrlib/`); no container bind-mounts it. Rebuilding the
+jar on the host therefore changes nothing in the lab until the image is rebuilt **and** every container
+using it is recreated. The proven sequence (2026-09-16):
+
+1. cancel the CPLM jobs (`PATCH /jobs/{id}?mode=cancel`) - otherwise ZooKeeper HA recovers them with the old blob;
+2. `docker compose build flink-jobmanager` (rebuilds the image with the current jar);
+3. `docker compose up -d --force-recreate flink-jobmanager flink-taskmanager flink-job-supervisor`;
+4. the supervisor resubmits the three CPLM jobs from the new image (do **not** also recreate
+   `flink-job-submit-cplm` at the same time - the two race and submit duplicates);
+5. verify: `docker exec ams-flink-jobmanager sha256sum /opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar` equals the host jar,
+   and a fresh short-feature record carries `sourceCommit` (E2E step 9b).
+
+Also seen: after several cancel/resubmit cycles on one TaskManager the Fusion job entered a restart loop with
+`NoClassDefFoundError: Could not initialize class org.apache.kafka.common.protocol.Errors` (poisoned
+classloader); recreating the TaskManager cleared it. The plant runbook already recreates JM/TM (UPDATE-RUNBOOK).

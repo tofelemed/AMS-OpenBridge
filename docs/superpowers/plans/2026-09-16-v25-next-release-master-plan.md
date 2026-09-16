@@ -225,9 +225,9 @@ Design decision: **no new topic.** The v1 message keeps every existing top-level
 ```
 Per-role `quality` ∈ `GOOD|UNCERTAIN|BAD|UNKNOWN` (never defaulted, see 1B). `held=true` means the value was carried from a previous tick; `age_ms = event_ts_ms − sample_ts_ms`. The top-level `quality` stays the 1.0 worst-of(pv,sp,op) for old readers.
 
-- [ ] **Step 1: Failing tests** — `Tick_EmitsRolesWithPerRoleTimesAndHeldFlag()` (feed pv/sp/op at t, vp at t−90 s → `roles.vp.held=true, age_ms=90000`, `roles.pv.held=false`), `Tick_RoleQualityIsPerRoleNotWorstOf()`, `Tick_TopLevelFieldsUnchanged()` (golden: strip `schema_version/binding_revision/grid_seconds/roles` and the JSON must equal today's 1.0 output byte-for-byte).
-- [ ] **Step 2: Run** `dotnet test tests/ingestion-service.Tests --filter LoopTupleRoles|LoopJoiner` → FAIL.
-- [ ] **Step 3: Implement**. **Step 4: Run** → PASS (109 + new). **Commit** `feat(ingestion): samples schema 1.1 — per-role sample/verified time, quality, unit, held flag`.
+- [x] **Step 1: Failing tests** — `Tick_EmitsRolesWithPerRoleTimesAndHeldFlag()` (feed pv/sp/op at t, vp at t−90 s → `roles.vp.held=true, age_ms=90000`, `roles.pv.held=false`), `Tick_RoleQualityIsPerRoleNotWorstOf()`, `Tick_TopLevelFieldsUnchanged()` (golden: strip `schema_version/binding_revision/grid_seconds/roles` and the JSON must equal today's 1.0 output byte-for-byte).
+- [x] **Step 2: Run** `dotnet test tests/ingestion-service.Tests --filter LoopTupleRoles|LoopJoiner` → FAIL.
+- [x] **Step 3: Implement**. **Step 4: Run** → PASS (109 + new). **Commit** `feat(ingestion): samples schema 1.1 — per-role sample/verified time, quality, unit, held flag`.
 
 ### Task 1A.2: Flink reads `roles{}` with 1.0 fallback; topic catalogue
 
@@ -236,8 +236,8 @@ Per-role `quality` ∈ `GOOD|UNCERTAIN|BAD|UNKNOWN` (never defaulted, see 1B). `
 - Modify: `CplmNormalizedSample.java:39-75` (`fromJson` delegates to `TupleCodec`; existing getters `pv()/sp()/op()/vp()` unchanged so `CplmGateEngine` compiles untouched; new `role(String)` accessor), `CplmIngestPipeline.java:40-54` (watermark from `max(role.sample_ts)` when roles present)
 - Test: `src/flink/src/test/java/com/ams/flink/cplm/contract/TupleCodecTest.java`
 
-- [ ] **Step 1: Failing tests** — 1.1 JSON round-trip; 1.0 JSON → roles with `LEGACY_TUPLE`; held vp excluded when `age_ms > profile.vpMaxAgeS*1000` (new profile field, default 60 s) → `vpEligible()==false`; the existing golden `CplmGateEngineSynTic001Test` (1.0 fixtures) still passes unchanged.
-- [ ] **Step 2–4:** implement, run, commit `feat(flink): samples schema 1.1 codec + topic catalogue; 1.0 fallback`.
+- [x] **Step 1: Failing tests** — 1.1 JSON round-trip; 1.0 JSON → roles with `LEGACY_TUPLE`; held vp excluded when `age_ms > profile.vpMaxAgeS*1000` (new profile field, default 60 s) → `vpEligible()==false`; the existing golden `CplmGateEngineSynTic001Test` (1.0 fixtures) still passes unchanged.
+- [x] **Step 2–4:** implement, run, commit `feat(flink): samples schema 1.1 codec + topic catalogue; 1.0 fallback`.
 
 ### Task 1A.3: Prove the additive change on every reader (no topic/env changes)
 
@@ -245,7 +245,7 @@ Per-role `quality` ∈ `GOOD|UNCERTAIN|BAD|UNKNOWN` (never defaulted, see 1B). `
 - Modify: `scripts/test-ot-loop-ingestion-e2e.ps1` — new steps: (a) 5 messages from `traverse.cpa.loop.samples.v1` carry `schema_version=="1.1"` and `roles.pv.sample_ts_ms`; (b) IoTDB `root.<site>.cpm.<loop>.pv` still receives rows (historian reader unaffected); (c) `/api/v1/cpm/loops/{id}/readiness` still reports samples flowing; (d) a short window still produces a gate row (Flink reader unaffected).
 - Verify also with `ams-api` unit tests if any cover `RawLoopIotDbConsumer` (grep `tests/` and `src/backend/AMS.Tests.*`); add a tolerant-parse test with a 1.1 fixture if none exists.
 
-- [ ] **Step 1:** add the steps, run → (a) FAIL until 1A.1 image is rebuilt, (b)–(d) PASS on the old image (baseline). **Step 2:** rebuild ingestion + jar (`docker compose -f infra/docker/docker-compose.yml build traverse-ingestion-service`, `scripts/build-flink-jar.ps1`, cancel+resubmit the three CPLM jobs). **Step 3:** run → 27/27. **Commit** `test(e2e): samples 1.1 additive contract proven on all readers`.
+- [x] **Step 1:** add the steps, run → (a) FAIL until 1A.1 image is rebuilt, (b)–(d) PASS on the old image (baseline). **Step 2:** rebuild ingestion + jar (`docker compose -f infra/docker/docker-compose.yml build traverse-ingestion-service`, `scripts/build-flink-jar.ps1`, cancel+resubmit the three CPLM jobs). **Step 3:** run → 27/27. **Commit** `test(e2e): samples 1.1 additive contract proven on all readers`.
 
 ## Subphase 1B — Protocol-specific quality, finite numerics (R04; NR-021)
 
@@ -269,9 +269,9 @@ public static class QualityDecoder {
 }
 ```
 
-- [ ] **Step 1: Failing tests** (table-driven `[Theory]`): OPC_DA 0→BAD, 64→UNCERTAIN, 192→GOOD, 200→GOOD; OPC_UA 0x00000000→GOOD, 0x80000000→BAD, 0x40000000→UNCERTAIN; SPARKPLUG 192/500/0; STRING_ENUM "good"→GOOD, "goodish"→UNKNOWN, "GARBAGE"→UNKNOWN; NONE null→UNKNOWN; `Parse` with `"value":"NaN"` → DLQ `NON_FINITE`; `"value":"1e309"` → `NON_FINITE`.
-- [ ] **Step 2–4:** implement, run (`dotnet test tests/ingestion-service.Tests`), commit `fix(ingestion): protocol-specific quality decoder; UNKNOWN != GOOD; reject non-finite`.
-- [ ] **Step 5: Fixture regression** — `scripts/sim/process_value_sim.py` and `scripts/fixtures/*` must set `quality_protocol` on the data-source config (`STRING_ENUM`) or the pilot loops go UNKNOWN; update `test-ot-loop-ingestion-e2e.ps1` data-source JSON accordingly and re-run 24/24.
+- [x] **Step 1: Failing tests** (table-driven `[Theory]`): OPC_DA 0→BAD, 64→UNCERTAIN, 192→GOOD, 200→GOOD; OPC_UA 0x00000000→GOOD, 0x80000000→BAD, 0x40000000→UNCERTAIN; SPARKPLUG 192/500/0; STRING_ENUM "good"→GOOD, "goodish"→UNKNOWN, "GARBAGE"→UNKNOWN; NONE null→UNKNOWN; `Parse` with `"value":"NaN"` → DLQ `NON_FINITE`; `"value":"1e309"` → `NON_FINITE`.
+- [x] **Step 2–4:** implement, run (`dotnet test tests/ingestion-service.Tests`), commit `fix(ingestion): protocol-specific quality decoder; UNKNOWN != GOOD; reject non-finite`.
+- [x] **Step 5: Fixture regression** — `scripts/sim/process_value_sim.py` and `scripts/fixtures/*` must set `quality_protocol` on the data-source config (`STRING_ENUM`) or the pilot loops go UNKNOWN; update `test-ot-loop-ingestion-e2e.ps1` data-source JSON accordingly and re-run 24/24.
 
 ### Task 1B.2: Flink strict finiteness + quality use
 
@@ -279,7 +279,7 @@ public static class QualityDecoder {
 - Modify: `cplm/contract/TupleCodec.java` (reject non-finite per role → role `quality=BAD, reason=NON_FINITE`, never drop the tuple), `CplmNormalizedSample.java:106-117` (`isGoodQuality` → `roleQuality(role)==GOOD`; null ⇒ UNKNOWN), `CplmGateEngine.java:102-128` (G0 counts `unknown_quality_pct` separately; UNKNOWN never counted as good in `completeness`), `CplmIngestPipeline.java:54`
 - Test: `TupleCodecTest` + `CplmGateEngineQualityTest` (new; G0 with 100 % UNKNOWN → `FAIL`, reason `QUALITY_UNKNOWN`)
 
-- [ ] Steps 1–4 as above; commit `fix(flink): UNKNOWN quality is not GOOD; non-finite roles marked BAD`.
+- [x] Steps 1–4 as above; commit `fix(flink): UNKNOWN quality is not GOOD; non-finite roles marked BAD`.
 
 ## Subphase 1C — Heartbeat and quality transitions (R20, C03; NR-022, NR-023)
 
