@@ -43,6 +43,8 @@ export interface CpmLoop {
   thresholdProfileId: string | null;
   /** Declared OP/PV ranges, null when the loop declares none. */
   engineering?: CpmEngineeringRange | null;
+  /** v2.5 (2E.2): the site zone the loop's times are shown in; 'UTC' when the registry declares none. */
+  timezone?: string | null;
 }
 
 export interface CpmTagMapEntry {

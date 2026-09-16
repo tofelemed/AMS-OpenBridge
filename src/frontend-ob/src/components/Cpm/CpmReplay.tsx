@@ -12,31 +12,23 @@
  */
 import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader,
-  fmtDateTime, QueryError, cpmChartColors } from './shared';
+  fmtDateTime, QueryError } from './shared';
 import { gateTone } from './gateStatus';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
 import LoopCombobox from './LoopCombobox';
 import type { CpmGateMatrix, CpmKpiRow } from '../../api/cpmApi';
+import { gateRole } from '../../api/cpm/catalogue';
 import {
   useAcknowledgeEvent, useCpmCalculations, useCpmEvents, useCpmKpisRange,
-  useCpmLoops, useGateHistory, useRawWindow, useRecompute,
+  useCpmLoops, useGateCatalogue, useGateHistory, useRawSlice, useRecompute,
 } from '../../hooks/useCpm';
 import { loopSeries } from '../../utils/loopSeries';
-import { useObcTheme } from '../../hooks/useObcTheme';
-
-const GATE_ROLES: Record<string, string> = {
-  G0: 'BLOCKING', G1: 'BLOCKING', G11: 'BLOCKING',
-  G2: 'ELIGIBILITY', G2r: 'ELIGIBILITY',
-  G3: 'PERFORMANCE', G4: 'PERFORMANCE',
-  G5: 'PRIMARY', G6: 'PRIMARY', G10: 'PRIMARY',
-  G7: 'SUPPORTING', G8: 'SUPPORTING', G9: 'SUPPORTING',
-  G12: 'CONTEXT', G13: 'CONTEXT',
-  G14: 'CONFIRMATION', G15: 'FUSION',
-};
+import { ReplayChart } from './replay/ReplayChart';
+import { TransformationStepper } from './replay/TransformationStepper';
+import { LineageStrip } from './replay/LineageStrip';
 
 /** Long-tier metric fields relevant per gate (real stored fields only). */
 const GATE_METRICS: Record<string, { field: string; label: string }[]> = {
@@ -50,17 +42,6 @@ const GATE_METRICS: Record<string, { field: string; label: string }[]> = {
   G8: [{ field: 'horch_oddness', label: 'Horch oddness' }],
   G9: [{ field: 'corner_score', label: 'Corner score' }],
 };
-
-/** Stage labels; the normalize grid comes from the engine's per-window
- * sample_period_sec when the KPI row carries one — this lab's loops run a
- * 2.67 s grid, and the old hardcoded "5 s" was simply wrong for them. */
-const stageLabels = (gridS: number | null) => [
-  'Raw historian',
-  `Normalize (${gridS != null ? `${gridS % 1 === 0 ? gridS : gridS.toFixed(1)} s` : '5 s'} grid)`,
-  'Feature windows',
-  'Gate evaluation',
-  'Fusion (G15)',
-];
 
 /** Gates whose evidence is the PV–OP shape, shown as a phase plane. */
 const SHAPE_GATES = new Set(['G7', 'G8', 'G9', 'G10']);
@@ -118,19 +99,14 @@ export const CpmReplay: React.FC = () => {
   const series = loopId ? loopSeries(loopId) : undefined;
   const winStart = selected?.windowStart ? new Date(selected.windowStart) : undefined;
   const winEnd = selected?.windowEnd ? new Date(selected.windowEnd) : undefined;
-  // Ask for a big page and let the historian clamp to whatever it can actually
-  // serve. Do NOT hardcode the ceiling here: it is IoTDB's REST row limit MINUS
-  // ONE (that engine rejects a result set which reaches the limit), and pinning
-  // this line to the round 10 000 is exactly how every replay read became a 500.
-  // Still one page: a 24h window on this lab's grid holds far more than a page,
-  // so the truncation note below stays honest.
-  const raw = useRawWindow(series, winStart, winEnd, 'pv,sp,op', 10_000);
+  // v2.5 (2E.2): the slice is walked page by page (each below IoTDB's REST row limit) until
+  // the window is complete or the 200k-point budget is reached - and a cut is SAID, never implied.
+  const raw = useRawSlice(series, winStart, winEnd, 'pv,sp,op,vp', 9_000, 200_000);
   const points = useMemo(() => raw.data?.points ?? [], [raw.data]);
-
   const [cursorPct, setCursorPct] = useState(100);
-  const cursorTs = points.length > 0
-    ? points[Math.min(points.length - 1, Math.floor((cursorPct / 100) * (points.length - 1)))].ts
-    : null;
+  const loop = loops.find(l => l.loopId.toLowerCase() === (loopId ?? '').toLowerCase());
+  const timeZone = loop?.timezone || 'UTC';
+  const catalogue = useGateCatalogue();
 
   /**
    * Gate options come from the served catalogue; when that read fails, the
@@ -147,54 +123,10 @@ export const CpmReplay: React.FC = () => {
 
   const def = calc.data?.gates.find(g => g.key === gateKey);
   const cell = selected?.gates.find(g => g.key === gateKey);
-  const role = GATE_ROLES[gateKey] ?? '—';
+  // the role comes from the build's catalogue (2D.1); '—' until it is fetched, never a guessed table
+  const role = gateRole(catalogue.data, gateKey);
   const isShapeGate = SHAPE_GATES.has(gateKey);
-
-  const obcTheme = useObcTheme(); // C: re-derive chart colors on theme switch
-  const chartOption = useMemo(() => {
-    const { good, amber, grey, accent } = cpmChartColors();
-    const num = (v: unknown) => (typeof v === 'number' ? v : null);
-    if (isShapeGate) {
-      // Phase plane: PV vs OP over the window, with the cursor-side points highlighted.
-      const pairs = points
-        .map(p => ({ ts: p.ts, pv: num(p.pv), op: num(p.op) }))
-        .filter(p => p.pv != null && p.op != null);
-      return {
-        animation: false,
-        grid: { left: 52, right: 16, top: 20, bottom: 34 },
-        tooltip: { trigger: 'item' },
-        xAxis: { type: 'value', name: 'OP', scale: true, axisLabel: { color: grey } },
-        yAxis: { type: 'value', name: 'PV', scale: true, axisLabel: { color: grey }, splitLine: { lineStyle: { opacity: 0.2 } } },
-        series: [
-          { name: 'trajectory', type: 'scatter', symbolSize: 3, itemStyle: { color: grey, opacity: 0.35 },
-            data: pairs.filter(p => cursorTs == null || p.ts > cursorTs).map(p => [p.op, p.pv]) },
-          { name: 'up to cursor', type: 'scatter', symbolSize: 4, itemStyle: { color: accent, opacity: 0.8 },
-            data: pairs.filter(p => cursorTs != null && p.ts <= cursorTs).map(p => [p.op, p.pv]) },
-        ],
-      };
-    }
-    return {
-      animation: false,
-      grid: { left: 52, right: 16, top: 20, bottom: 34 },
-      tooltip: { trigger: 'axis' },
-      xAxis: { type: 'time', axisLabel: { color: grey } },
-      yAxis: { type: 'value', scale: true, axisLabel: { color: grey }, splitLine: { lineStyle: { opacity: 0.2 } } },
-      series: [
-        { name: 'PV', type: 'line', symbol: 'none', lineStyle: { color: good, width: 1.5 },
-          data: points.map(p => [p.ts, num(p.pv)]),
-          markLine: cursorTs != null ? {
-            symbol: 'none', label: { show: false },
-            lineStyle: { color: accent, width: 2 },
-            data: [{ xAxis: cursorTs }],
-          } : undefined },
-        { name: 'SP', type: 'line', symbol: 'none', lineStyle: { color: grey, width: 1, type: 'dashed' },
-          data: points.map(p => [p.ts, num(p.sp)]) },
-        { name: 'OP', type: 'line', symbol: 'none', lineStyle: { color: amber, width: 1 },
-          data: points.map(p => [p.ts, num(p.op)]) },
-      ],
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
-  }, [points, cursorTs, isShapeGate, obcTheme]);
+  const gridS = typeof kpiRow?.sample_period_sec === 'number' ? kpiRow.sample_period_sec : null;
 
   // A8 recompute round trip.
   const { submit, status, reset } = useRecompute(loopId);
@@ -219,7 +151,7 @@ export const CpmReplay: React.FC = () => {
       },
       metadata: selected.metadata,
       metrics: kpiRow ?? null,
-      rawSlice: { series, count: points.length, truncated: raw.data?.hasMore ?? false, points },
+      rawSlice: { series, count: points.length, truncated: raw.data?.truncated ?? false, points },
     }, null, 2));
   };
 
@@ -303,21 +235,7 @@ export const CpmReplay: React.FC = () => {
           {cell && <TonePill tone={gateTone(cell.status)}>{cell.status.replace(/_/g, ' ')}</TonePill>}
         </div>
 
-        {/* R3: the old stepper hardcoded stages 1–4 "done" and 5 "active" — static
-            decoration posing as pipeline state. For a STORED verdict every stage
-            has completed; with no verdict none are claimable. */}
-        <div className="cpm-wizard-steps" aria-label="Transformation stages">
-          {stageLabels(typeof kpiRow?.sample_period_sec === 'number' ? kpiRow.sample_period_sec : null)
-            .map((s, i) => (
-              <span key={s} className={`cpm-wizard-step${selected ? ' cpm-wizard-step--done' : ''}`}>
-                {i + 1}. {s}
-              </span>
-            ))}
-        </div>
-        <p className="cpm-copy">
-          Stages are the pipeline's fixed shape; the chart below shows the raw historian
-          slice this window drew from{isShapeGate ? ' as a PV–OP phase plane (the shape this gate scores)' : ''}.
-        </p>
+        <TransformationStepper gridS={gridS} hasVerdict={!!selected} phasePlane={isShapeGate} />
 
         {windowFellBack && (
           <p className="cpm-copy" role="status">
@@ -344,26 +262,8 @@ export const CpmReplay: React.FC = () => {
             copy={`Nothing stored at ${series} between the window bounds.`} />
         )}
         {points.length > 0 && (
-          <>
-            <ReactECharts option={chartOption} style={{ height: 300 }} notMerge />
-            <div className="cpm-slider-row">
-              <span className="cpm-copy">Replay cursor</span>
-              <input type="range" min={0} max={100} value={cursorPct}
-                onChange={e => setCursorPct(Number(e.target.value))}
-                aria-label="Replay cursor position" />
-              {/* P2-13: zone-labelled — the export writes UTC ISO, and a bare
-                  local time next to it read as a data error. */}
-              <span className="cpm-mono">
-                {cursorTs != null ? fmtDateTime(cursorTs) : '—'}
-              </span>
-            </div>
-            {raw.data?.hasMore && (
-              <p className="cpm-copy">
-                Showing the first {points.length.toLocaleString()} raw points of the window — the
-                slice is paged; export includes only what is shown.
-              </p>
-            )}
-          </>
+          <ReplayChart points={points} phasePlane={isShapeGate} cursorPct={cursorPct} onCursor={setCursorPct}
+            truncated={raw.data?.truncated ?? false} timeZone={timeZone} />
         )}
       </section>
 
@@ -392,32 +292,7 @@ export const CpmReplay: React.FC = () => {
             </KvRow>
           ))}
 
-          <PanelHead eyebrow="Input lineage" title="Where this evidence came from" />
-          <div className="cpm-lineage">
-            <div className="cpm-lineage__node">
-              <span className="cpm-eyebrow">IoTDB raw</span>
-              <span className="cpm-mono">{series ?? '—'}</span>
-            </div>
-            <span className="cpm-lineage__arrow">→</span>
-            <div className="cpm-lineage__node">
-              <span className="cpm-eyebrow">Normalize</span>
-              <span>
-                {typeof kpiRow?.sample_period_sec === 'number'
-                  ? `${kpiRow.sample_period_sec % 1 === 0 ? kpiRow.sample_period_sec : kpiRow.sample_period_sec.toFixed(1)} s grid`
-                  : 'engine grid'} · traverse.cpa.loop.samples.v1
-              </span>
-            </div>
-            <span className="cpm-lineage__arrow">→</span>
-            <div className="cpm-lineage__node">
-              <span className="cpm-eyebrow">Gate tier</span>
-              <span>{gateKey} · {role}</span>
-            </div>
-            <span className="cpm-lineage__arrow">→</span>
-            <div className="cpm-lineage__node">
-              <span className="cpm-eyebrow">Fused verdict</span>
-              <span>{(selected?.diagnosis ?? '—').replace(/_/g, ' ')}</span>
-            </div>
-          </div>
+          <LineageStrip series={series} gridS={gridS} gateKey={gateKey} role={role} diagnosis={selected?.diagnosis} />
         </section>
 
         <section className="cpm-surface">

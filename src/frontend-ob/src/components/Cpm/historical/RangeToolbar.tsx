@@ -66,6 +66,9 @@ export interface RangeToolbarProps {
 
   exportDisabled: boolean;
   onExport: (fmt: 'json' | 'csv') => void;
+  /** v2.5 (2E.2, R14): explicit Normalise toggle - one "fraction of own span" axis instead of EU + pp axes. */
+  normalize: boolean;
+  onToggleNormalize: () => void;
 }
 
 /** One labelled row of the toolbar. */
@@ -82,7 +85,7 @@ export const RangeToolbar: React.FC<RangeToolbarProps> = ({
   scope, loops, loopId, loop, loopsInScope, onLoopChange, onLoopClear,
   from, to, preset, onPreset, onStep, onNow, onApplyCustom,
   signals, onToggleSignal, overlays, overlayKey, onOverlay,
-  seriesPath, trendHref, onOpenTrend, exportDisabled, onExport,
+  seriesPath, trendHref, onOpenTrend, exportDisabled, onExport, normalize, onToggleNormalize,
 }) => {
   const [draftFrom, setDraftFrom] = React.useState(() => toLocalInput(from));
   const [draftTo, setDraftTo] = React.useState(() => toLocalInput(to));
@@ -197,6 +200,18 @@ export const RangeToolbar: React.FC<RangeToolbarProps> = ({
               </button>
             );
           })}
+          {/* v2.5 (2E.2, R14): PV/SP live on the EU axis and OP/VP on a percentage-point axis; Normalise
+              is an explicit choice that names its conversion, never a silent shared axis. */}
+          <button
+            type="button"
+            className={`cpm-pen-chip${normalize ? ' cpm-pen-chip--on' : ''}`}
+            data-pen="normalize"
+            aria-pressed={normalize}
+            onClick={onToggleNormalize}
+            title="Show every signal as a fraction of its own observed span (the tooltip keeps the original values and units)"
+          >
+            <span className="cpm-pen-chip__label">{normalize ? 'Normalised (÷ own span)' : 'Normalise'}</span>
+          </button>
         </div>
 
         <label className="cpm-field cpm-field--compact">

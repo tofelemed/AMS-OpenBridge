@@ -186,12 +186,16 @@ export const CpmHistorical: React.FC = () => {
     [healthHistory.data, from, to]);
 
   const obcTheme = useObcTheme(); // re-derive chart colors on theme switch
+  // v2.5 (2E.2, R14): the chart's units and zone come from the registry (PV unit is not declared
+  // there yet - 'EU' until 2G adds it); Normalise is an explicit URL choice (?normalize=1).
+  const normalize = params.get('normalize') === '1';
+  const timeZone = loop?.timezone || 'UTC';
   const option = useMemo(() => buildChartOption({
     points, kpiRows, overlay, signals, modeSegments, verdictSegments, healthSegments: healthLane, from, to,
-    pens: cpmChartColors(), tones: cpmToneColors(),
+    pens: cpmChartColors(), tones: cpmToneColors(), pvUnit: 'EU', timeZone, normalize,
   }),
   // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
-  [points, kpiRows, overlay, signals, modeSegments, verdictSegments, healthLane, from, to, obcTheme]);
+  [points, kpiRows, overlay, signals, modeSegments, verdictSegments, healthLane, from, to, obcTheme, timeZone, normalize]);
 
   // Zoom explores; Apply commits. The slider filters what is DRAWN; writing the
   // span back to ?from/?to is what makes the KPI and gate queries refetch at the
@@ -294,6 +298,8 @@ export const CpmHistorical: React.FC = () => {
           onOpenTrend={href => navigate(href)}
           exportDisabled={windows.length === 0}
           onExport={exportEvidence}
+          normalize={normalize}
+          onToggleNormalize={() => write(p => { if (normalize) p.delete('normalize'); else p.set('normalize', '1'); })}
         />
 
         <PanelHead

@@ -119,7 +119,9 @@ public sealed record CpmLoopDto(
     string? ThresholdProfileId,
     /// <summary>Declared OP/PV engineering ranges, or null when the loop declares none.
     /// Returned so an edit round-trip cannot silently drop what onboarding stored.</summary>
-    CpmEngineeringRange? Engineering = null);
+    CpmEngineeringRange? Engineering = null,
+    /// <summary>v2.5 (2E.2): the site zone every time on the loop's evidence is shown in (registry column; 'UTC' when undeclared).</summary>
+    string? Timezone = null);
 
 public sealed record CpmLoopLinkDto(string ToLoopId, string RelType, string Origin);
 

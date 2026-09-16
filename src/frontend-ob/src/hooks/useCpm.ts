@@ -10,6 +10,7 @@ import { ApiError, backgroundPoll } from '../api/apiFetch';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as cpm from '../api/cpmApi';
 import { getCapabilities } from '../api/cpm/capabilities';
+import { getGateCatalogue } from '../api/cpm/catalogue';
 
 const KEYS = {
   loops: ['cpm', 'loops'] as const,
@@ -333,6 +334,44 @@ export function useRawWindow(
     queryFn: ({ signal }) => cpm.getRawCursor(series!, start!, end!, maxCount, undefined, measurements, signal),
     enabled: !!series && !!start && !!end,
     staleTime: 5 * 60_000,
+  });
+}
+
+/**
+ * v2.5 (2E.2): the replay walks the raw cursor to a budget instead of showing one page and calling
+ * it "truncated": pages of `pageSize` until hasMore is false or `budget` points are held. What was
+ * cut is SAID (truncated) so an export never passes for the whole window.
+ */
+export function useRawSlice(
+  series: string | undefined, start: Date | undefined, end: Date | undefined,
+  measurements = 'pv,sp,op,vp', pageSize = 9_000, budget = 200_000,
+) {
+  return useQuery({
+    queryKey: ['cpm', 'raw-slice', series ?? '', start?.getTime() ?? 0, end?.getTime() ?? 0, measurements, budget],
+    queryFn: async ({ signal }) => {
+      const points: cpm.CpmTrendPoint[] = [];
+      let cursor: number | undefined;
+      let truncated = false;
+      for (;;) {
+        const page = await cpm.getRawCursor(series!, start!, end!, pageSize, cursor, measurements, signal);
+        points.push(...page.points);
+        if (!page.hasMore || page.nextCursor == null) break;
+        if (points.length >= budget) { truncated = true; break; }
+        cursor = page.nextCursor;
+      }
+      return { series: series!, points, truncated, count: points.length };
+    },
+    enabled: !!series && !!start && !!end,
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** v2.5 (2D.1 / 2E): the build's gate catalogue - roles, definitions, methods, artifact kinds. */
+export function useGateCatalogue() {
+  return useQuery({
+    queryKey: ['cpm', 'gate-catalogue'],
+    queryFn: getGateCatalogue,
+    staleTime: 60 * 60_000,
   });
 }
 

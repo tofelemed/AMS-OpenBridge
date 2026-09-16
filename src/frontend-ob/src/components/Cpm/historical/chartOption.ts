@@ -16,6 +16,7 @@
  */
 import type { CpmKpiRow, CpmTrendPoint } from '../../../api/cpmApi';
 import type { CpmTone } from '../shared';
+import { formatInZone, zoneLabel } from '../evidence/timezone';
 
 /** Grid geometry, in px from the top of the canvas. Lane labels reuse these. */
 export const LANES = {
@@ -52,6 +53,12 @@ export interface ChartInput {
   to: Date;
   pens: { good: string; amber: string; grey: string; accent: string; pink: string };
   tones: Record<CpmTone, string>;
+  /** v2.5 (2E.2, R14): the PV engineering unit for the EU axis (SP shares it); 'EU' when the registry declares none. */
+  pvUnit?: string;
+  /** v2.5 (2E.2): the site zone every time is shown in (UTC when undeclared). */
+  timeZone?: string;
+  /** v2.5 (2E.2): explicit Normalise toggle - every signal on one "fraction of own span" axis, labelled as such. */
+  normalize?: boolean;
 }
 
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
@@ -96,6 +103,34 @@ export function buildChartOption(input: ChartInput) {
   const domain = { min: from.getTime(), max: to.getTime() };
   const hasHealth = healthSegments != null;
   const zoomAxes = hasHealth ? [0, 1, 2, 3, 4] : [0, 1, 2, 3];
+  const pvUnit = input.pvUnit || 'EU';
+  const tz = input.timeZone || 'UTC';
+  const normalize = !!input.normalize;
+  // v2.5 (2E.2, R14): a 400 °C PV and a 0-100 pp OP never share an axis. The signals grid carries
+  // an EU axis (PV / SP) and a percentage-point axis (OP / VP); the pp axis is appended AFTER the
+  // lane axes so their indices stay put. Normalise collapses both onto "fraction of own span".
+  const ppAxisIndex = hasHealth ? 5 : 4;
+  const spanOf = (get: (p: CpmTrendPoint) => number | null) => {
+    let lo = Infinity, hi = -Infinity;
+    for (const p of points) { const v = get(p); if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }
+    return { lo, hi };
+  };
+  const norm = (v: number | null, span: { lo: number; hi: number }) =>
+    v == null ? null : span.hi > span.lo ? (v - span.lo) / (span.hi - span.lo) : 0;
+  const pvGet = (p: CpmTrendPoint) => num(p.pv_avg) ?? num(p.pv);
+  const spGet = (p: CpmTrendPoint) => num(p.sp);
+  const opGet = (p: CpmTrendPoint) => num(p.op_avg) ?? num(p.op);
+  const vpGet = (p: CpmTrendPoint) => num(p.vp_avg) ?? num(p.vp);
+  const spans = { pv: spanOf(pvGet), sp: spanOf(spGet), op: spanOf(opGet), vp: spanOf(vpGet) };
+  const sig = (name: string) => (normalize ? `${name} (÷ own span)` : name);
+  const dataOf = (get: (p: CpmTrendPoint) => number | null, span: { lo: number; hi: number }) =>
+    points.map(p => [p.ts, normalize ? norm(get(p), span) : get(p)] as [number, number | null]);
+  const unitOf = (name: string) => (name === 'PV' || name === 'SP' ? pvUnit : 'pp');
+  const originalAt = (name: string, ts: number): number | null => {
+    const p = points.find(pt => pt.ts === ts);
+    if (!p) return null;
+    return name === 'PV' ? pvGet(p) : name === 'SP' ? spGet(p) : name === 'OP' ? opGet(p) : name === 'VP' ? vpGet(p) : null;
+  };
 
   const overlayData = kpiRows
     .filter(r => r.window_end && typeof r[overlay.key] === 'number')
@@ -151,8 +186,14 @@ export function buildChartOption(input: ChartInput) {
         const rows = params
           .filter(x => !HELPER_SERIES.has(x.seriesName))
           .map(x => {
+            const base = x.seriesName.replace(' (÷ own span)', '');
+            const isSignal = base === 'PV' || base === 'SP' || base === 'OP' || base === 'VP';
             const v = x.value?.[1];
-            return `${x.marker} ${x.seriesName}: ${v == null ? '—' : Number(v).toFixed(2)}`;
+            if (!isSignal) return `${x.marker} ${x.seriesName}: ${v == null ? '—' : Number(v).toFixed(2)}${x.seriesName === overlay.label ? ` ${overlay.unit}` : ''}`;
+            const original = typeof ts === 'number' ? originalAt(base, ts) : null;
+            const shown = original ?? v;
+            const frac = normalize && v != null ? ` (${Number(v).toFixed(2)} of own span)` : '';
+            return `${x.marker} ${base}: ${shown == null ? '— (no sample)' : `${Number(shown).toFixed(2)} ${unitOf(base)}`}${frac}`;
           });
         const lo = num(p?.pv_min); const hi = num(p?.pv_max);
         if (lo != null && hi != null) rows.push(`PV range: ${lo.toFixed(2)} – ${hi.toFixed(2)}`);
@@ -163,48 +204,56 @@ export function buildChartOption(input: ChartInput) {
         const verdict = typeof ts === 'number' ? segmentAt(verdictSegments, ts) : undefined;
         if (mode) rows.push(`Mode: ${mode.label}`);
         if (verdict) rows.push(`Verdict: ${verdict.label}`);
-        return [`<strong>${new Date(ts).toLocaleString()}</strong>`, ...rows].join('<br/>');
+        const when = typeof ts === 'number' ? `${formatInZone(ts, tz)} — ${zoneLabel(tz, ts)}` : String(ts);
+        return [`<strong>${when}</strong>`, ...rows].join('<br/>');
       },
     },
     xAxis: hasHealth
       ? [timeAxis(0, false), timeAxis(1, false), timeAxis(2, false), timeAxis(3, false), timeAxis(4, true)]
       : [timeAxis(0, false), timeAxis(1, false), timeAxis(2, false), timeAxis(3, true)],
     yAxis: [
-      { type: 'value', gridIndex: 0, scale: true, axisLabel: { color: grey }, splitLine: { lineStyle: { opacity: 0.2 } } },
+      { type: 'value', gridIndex: 0, scale: !normalize, ...(normalize ? { min: 0, max: 1 } : {}),
+        name: normalize ? 'fraction of own span (normalised)' : pvUnit, nameTextStyle: { color: grey, fontSize: 10 },
+        axisLabel: { color: grey }, splitLine: { lineStyle: { opacity: 0.2 } } },
       { type: 'value', gridIndex: 1, scale: true, name: overlay.unit, nameTextStyle: { color: grey, fontSize: 10 }, axisLabel: { color: grey }, splitLine: { show: false } },
       laneY(2),
       laneY(3),
       ...(hasHealth ? [laneY(4)] : []),
+      // the percentage-point axis of the signals grid (OP / VP), on the right; absent when normalised
+      ...(normalize ? [] : [{ type: 'value' as const, gridIndex: 0, scale: true, position: 'right' as const, name: 'pp',
+        nameTextStyle: { color: grey, fontSize: 10 }, axisLabel: { color: grey }, splitLine: { show: false } }]),
     ],
     series: [
       // PV keeps its envelope: the band is the honest rendering of oscillation
       // inside a decimation bucket. VP gets its own pen — VP tracking OP is a
       // healthy valve, VP staircasing against a smooth OP is stiction.
-      ...(signals.includes('pv') ? [
-        { name: 'pv-min', type: 'line', stack: 'pv-band', silent: true, symbol: 'none',
+      ...(signals.includes('pv') && !normalize ? [
+        { name: 'pv-min', type: 'line', stack: 'pv-band', silent: true, symbol: 'none', connectNulls: false,
           lineStyle: { width: 0 }, data: points.map(p => [p.ts, num(p.pv_min)]) },
-        { name: 'pv-band', type: 'line', stack: 'pv-band', silent: true, symbol: 'none',
+        { name: 'pv-band', type: 'line', stack: 'pv-band', silent: true, symbol: 'none', connectNulls: false,
           lineStyle: { width: 0 }, areaStyle: { color: good, opacity: 0.18 },
           data: points.map(p => {
             const lo = num(p.pv_min); const hi = num(p.pv_max);
             return [p.ts, lo != null && hi != null ? hi - lo : null];
           }) },
-        { name: 'PV', type: 'line', symbol: 'none', lineStyle: { color: good, width: 2 },
-          data: points.map(p => [p.ts, num(p.pv_avg) ?? num(p.pv)]) },
+      ] : []),
+      ...(signals.includes('pv') ? [
+        { name: sig('PV'), type: 'line', symbol: 'none', connectNulls: false, yAxisIndex: 0, lineStyle: { color: good, width: 2 },
+          data: dataOf(pvGet, spans.pv) },
       ] : []),
       ...(signals.includes('sp') ? [
-        { name: 'SP', type: 'line', symbol: 'none', lineStyle: { color: grey, width: 1, type: 'dashed' },
-          data: points.map(p => [p.ts, num(p.sp)]) },
+        { name: sig('SP'), type: 'line', symbol: 'none', connectNulls: false, yAxisIndex: 0, lineStyle: { color: grey, width: 1, type: 'dashed' },
+          data: dataOf(spGet, spans.sp) },
       ] : []),
       ...(signals.includes('op') ? [
-        { name: 'OP', type: 'line', symbol: 'none', lineStyle: { color: amber, width: 1.5 },
-          data: points.map(p => [p.ts, num(p.op_avg) ?? num(p.op)]) },
+        { name: sig('OP'), type: 'line', symbol: 'none', connectNulls: false, lineStyle: { color: amber, width: 1.5 },
+          ...(normalize ? {} : { yAxisIndex: ppAxisIndex }), data: dataOf(opGet, spans.op) },
       ] : []),
       ...(signals.includes('vp') ? [
-        { name: 'VP', type: 'line', symbol: 'none', lineStyle: { color: pink, width: 1.5 },
-          data: points.map(p => [p.ts, num(p.vp_avg) ?? num(p.vp)]) },
+        { name: sig('VP'), type: 'line', symbol: 'none', connectNulls: false, lineStyle: { color: pink, width: 1.5 },
+          ...(normalize ? {} : { yAxisIndex: ppAxisIndex }), data: dataOf(vpGet, spans.vp) },
       ] : []),
-      { name: overlay.label, type: 'line', xAxisIndex: 1, yAxisIndex: 1, symbol: 'circle',
+      { name: overlay.label, type: 'line', xAxisIndex: 1, yAxisIndex: 1, symbol: 'circle', connectNulls: false,
         symbolSize: 5, lineStyle: { color: accent, width: 1.5 }, itemStyle: { color: accent },
         data: overlayData },
       {

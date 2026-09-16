@@ -19,7 +19,7 @@ public static class CpmLoopRegistryReads
     public const string RegistrySelect = """
         SELECT loop_id, asset_id, display_name, site, area, unit, loop_type, criticality,
                is_active, monitoring::text AS monitoring, tags::text AS tags, threshold_profile_id,
-               engineering::text AS engineering
+               engineering::text AS engineering, timezone
         FROM cpm.loop_registry
         """;
 
@@ -94,7 +94,7 @@ public static class CpmLoopRegistryReads
             loopId, (Guid?)row.asset_id, row.display_name, row.site, row.area, row.unit,
             row.loop_type, row.criticality, row.is_active, enabled, tags,
             BuildObservabilityFlags(tags.Keys, links), links, stepTest, row.threshold_profile_id,
-            ReadRange((string?)row.engineering));
+            ReadRange((string?)row.engineering), (string?)row.timezone);
     }
 
     /// <summary>
