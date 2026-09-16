@@ -124,6 +124,7 @@ builder.Services.AddSingleton<Traverse.CplmApi.Services.IEvidenceBlobStore, Trav
 builder.Services.AddSingleton<Traverse.CplmApi.Services.IInstrumentBindingService, Traverse.CplmApi.Services.InstrumentBindingService>();
 builder.Services.AddSingleton<Traverse.CplmApi.Services.InstrumentHealthReads>();
 builder.Services.AddSingleton<Traverse.CplmApi.Services.InstrumentHealthMirrorWriter>();
+builder.Services.AddSingleton<Traverse.CplmApi.Services.ResponseResultStore>();
 if (config.GetValue("Cplm:ConsumersEnabled", false))
 {
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmResultConsumerService>();
@@ -136,6 +137,8 @@ if (config.GetValue("Cplm:ConsumersEnabled", false))
     builder.Services.AddHostedService<Traverse.CplmApi.Services.EvidenceRetentionSweeper>();
     // v2.5 (1H.5): the Instrumental health ledger + Flink context mirror (own group, single member).
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmInstrumentHealthMirrorService>();
+    // v2.5 (2B.2): G12 response results (own group, single member).
+    builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmResponseConsumerService>();
 }
 
 // ── Auth (platform RBAC): RS256 JWKS + one policy per permission key ───────
@@ -219,12 +222,14 @@ app.MapGet("/health", async (
         var f = ConsumerState("frames");
         var e = ConsumerState("evidence");
         var hl = ConsumerState("health");
+        var rs = ConsumerState("response");
         // v2.5 (1G.3, NR-058): projection lag per consumer (persist time - record timestamp).
         object? LagOf(string name) { var l = beats.Lag(name); return l is null ? null : new { lastMs = l.Value.Last, maxMsThisMinute = l.Value.MaxThisMinute }; }
         var results = new { state = r.State, phase = r.Phase, heartbeatAgeSeconds = r.AgeSeconds, projectionLag = LagOf("results") };
         var frames = new { state = f.State, phase = f.Phase, heartbeatAgeSeconds = f.AgeSeconds };
         var evidence = new { state = e.State, phase = e.Phase, heartbeatAgeSeconds = e.AgeSeconds, projectionLag = LagOf("evidence") };
         var health = new { state = hl.State, phase = hl.Phase, heartbeatAgeSeconds = hl.AgeSeconds, projectionLag = LagOf("health") };
+        var response = new { state = rs.State, phase = rs.Phase, heartbeatAgeSeconds = rs.AgeSeconds, projectionLag = LagOf("response") };
         // STR-06: a partition split means another member is persisting half the
         // windows. The heartbeat cannot see this — both members look "RUNNING".
         var degraded = r.State is "STALLED" or "NEVER_STARTED"
@@ -241,6 +246,7 @@ app.MapGet("/health", async (
                 frames,
                 evidence,
                 health,
+                response,
                 groupSplitDetected = guard.SplitDetected,
                 groupSplitDetail = guard.SplitDetail
             }

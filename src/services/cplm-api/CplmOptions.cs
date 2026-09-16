@@ -15,5 +15,7 @@ public sealed class CplmOptions
     /** v2.5 (Task 1H.5): Instrumental NE107 observations (gateway-wrapped) and the Flink health contexts. */
     public string InstrumentHealthTopic { get; set; } = "traverse.cpa.instrument.health.v1";
     public string InstrumentHealthContextTopic { get; set; } = "traverse.cpa.context.instrument-health.v1";
+    /** v2.5 (Task 2B.2): G12 system-response results, one record per captured event. */
+    public string ResponseTopic { get; set; } = "traverse.cpa.clpm.response.results.v1";
     public string ConsumerGroupId { get; set; } = "traverse-cpa-cplm-results";
 }
