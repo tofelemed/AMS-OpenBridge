@@ -77,5 +77,10 @@ public class ResponseEvidenceWriterTest {
         assertNull("no frequency result -> no bode artifact (never a fabricated one)", bode);
         EvidenceArtifact band = a.stream().filter(x -> x.kind.equals("prediction_interval")).findFirst().get();
         assertEquals("PREDICTION_INTERVAL_OF_OUTPUT_NOT_PARAMETER_CONFIDENCE", band.provenance.get("band_meaning"));
+        // 2E.5: the lower bound is an aligned COLUMN of the band artifact (a Java array in provenance was an object reference)
+        assertTrue(band.columns.containsKey("lower"));
+        assertEquals(band.x.length, band.columns.get("lower").length);
+        assertEquals("PV_EU", band.columnUnits.get("lower"));
+        assertEquals("1.5;2.5", ResponseEvidenceWriter.joined(new double[] {1.5, 2.5}));
     }
 }

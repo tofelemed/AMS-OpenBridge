@@ -31,6 +31,13 @@ public final class ResponseEvidenceWriter {
 
     private ResponseEvidenceWriter() {}
 
+    /** A short list of instants as "a;b;c" - a Java array's toString is an object reference, not a value. */
+    static String joined(double[] values) {
+        StringBuilder sb = new StringBuilder();
+        if (values != null) for (double v : values) sb.append(sb.length() == 0 ? "" : ";").append(v);
+        return sb.toString();
+    }
+
     public static List<EvidenceArtifact> artifacts(String methodRunId, ResponseEvent e, EventDataset d, ZohSimulator.Result fit, double[] yPredict,
                                                    double[] predLo, double[] predHi, double y0, double r1, Map<String, Quantity> times, double[] residuals,
                                                    double[] residualAcf, EstimationResult est, FrequencyResponse.Result freq, List<String> rejectionReasons) {
@@ -51,8 +58,8 @@ public final class ResponseEvidenceWriter {
             out.add(EvidenceArtifact.series(methodRunId, GATE, "y_predict", path, "time", "s", "pv_predict", "PV_EU", d.t, yPredict, fit == null ? null : fit.valid));
         }
         if (predLo != null && predHi != null) {
-            EvidenceArtifact band = EvidenceArtifact.series(methodRunId, GATE, "prediction_interval", path, "time", "s", "pv_prediction_band", "PV_EU", d.t, predHi, null);
-            band.provenance.put("lower", predLo);
+            EvidenceArtifact band = EvidenceArtifact.series(methodRunId, GATE, "prediction_interval", path, "time", "s", "pv_prediction_upper", "PV_EU", d.t, predHi, null);
+            band.column("lower", "PV_EU", predLo);                           // an aligned array is a column, never a provenance string
             band.provenance.put("band_meaning", "PREDICTION_INTERVAL_OF_OUTPUT_NOT_PARAMETER_CONFIDENCE");
             out.add(band);
         }
@@ -116,9 +123,9 @@ public final class ResponseEvidenceWriter {
         }
         if (freq != null && freq.omega.length > 0 && freq.gainMarginDb.available()) {
             EvidenceArtifact bode = EvidenceArtifact.series(methodRunId, GATE, "bode", path, "omega", "rad/s", "magnitude_L", "dimensionless", freq.omega, freq.magL, null);
-            bode.provenance.put("phase_deg", freq.phaseL);
-            bode.provenance.put("gain_crossings", freq.gainCrossings);
-            bode.provenance.put("phase_crossings", freq.phaseCrossings);
+            bode.column("phase_deg", "degree", freq.phaseL);
+            bode.provenance.put("gain_crossings", joined(freq.gainCrossings));
+            bode.provenance.put("phase_crossings", joined(freq.phaseCrossings));
             bode.provenance.put("note", "MODEL_DOMAIN_ESTIMATE_NOT_A_SAFETY_GUARANTEE");
             out.add(bode);
         }
