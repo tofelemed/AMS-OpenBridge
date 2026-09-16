@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://traverse.cpa/contracts/instrumental-health/v1/state.schema.json",
+  "title": "Instrumental NE107 device state snapshot (v1)",
+  "description": "Full current state of one device, published retained with QoS 1 on traverse/instrumental/v1/{tenant_id}/{site_id}/devices/{device_id}/state. A complete snapshot carries an explicit active_flags list (possibly empty) when the source has actually verified it; missing fields are schema failures, never an implicit clear (spec v6 §4.3-4.4).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "message_kind", "observation_id", "tenant_id", "site_id", "producer_id", "producer_epoch",
+    "sequence", "source_id", "device_id", "observed_at", "verified_at", "published_at", "state_revision",
+    "state_complete", "verification_kind", "state"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "message_kind": { "const": "STATE_SNAPSHOT" },
+    "observation_id": { "$ref": "#/definitions/id" },
+    "tenant_id": { "$ref": "#/definitions/id" },
+    "site_id": { "$ref": "#/definitions/id" },
+    "producer_id": { "$ref": "#/definitions/id" },
+    "producer_epoch": { "type": "integer", "minimum": 0 },
+    "sequence": { "type": "integer", "minimum": 0, "description": "Monotonic within (producer_epoch, device_id)." },
+    "source_id": { "$ref": "#/definitions/id" },
+    "device_id": { "$ref": "#/definitions/id" },
+    "installation_id": { "$ref": "#/definitions/id" },
+    "observed_at": { "$ref": "#/definitions/timestamp", "description": "When this state was observed/changed at source (declared clock)." },
+    "verified_at": { "$ref": "#/definitions/timestamp", "description": "Most recent successful verification of the source/device state, even if unchanged." },
+    "published_at": { "$ref": "#/definitions/timestamp" },
+    "state_revision": { "type": "integer", "minimum": 0 },
+    "state_complete": { "type": "boolean", "description": "true only when the source verified the whole state (an empty active_flags then means NO_ACTIVE_DIAGNOSTIC)." },
+    "verification_kind": { "type": "string", "enum": ["DEVICE_DIRECT", "UPSTREAM_DATABASE_POLL"] },
+    "scan_interval_s": { "type": "number", "exclusiveMinimum": 0, "maximum": 86400 },
+    "mapping_version": { "type": "string", "maxLength": 64 },
+    "state": { "$ref": "#/definitions/state" }
+  },
+  "definitions": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$" },
+    "timestamp": { "type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$" },
+    "flag": { "type": "string", "enum": ["F", "C", "S", "M"] },
+    "impact": { "type": "string", "enum": ["VALID", "INVALID", "DEGRADED", "UNKNOWN"] },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["active_flags", "native_status", "collection_state", "measurement_impact", "diagnostics"],
+      "properties": {
+        "active_flags": { "type": "array", "items": { "$ref": "#/definitions/flag" }, "uniqueItems": true, "maxItems": 4 },
+        "native_status": { "type": "string", "maxLength": 256 },
+        "primary_flag": { "$ref": "#/definitions/flag", "description": "Producer-selected display category under its own policy version; never a CPA severity." },
+        "primary_flag_policy_version": { "type": "string", "maxLength": 64 },
+        "collection_state": { "type": "string", "enum": ["VERIFIED", "STALE", "UNKNOWN", "OFFLINE"] },
+        "measurement_impact": { "$ref": "#/definitions/impact" },
+        "diagnostics": { "type": "array", "maxItems": 64, "items": { "$ref": "#/definitions/diagnostic" } }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["diagnostic_id", "native_code", "message", "flags", "affected_variable_ids", "measurement_impact", "first_observed_at", "cause", "remedy", "source_record_ref"],
+      "properties": {
+        "diagnostic_id": { "$ref": "#/definitions/id", "description": "Occurrence-unique identifier, not a reusable code." },
+        "native_code": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "native_category": { "type": "string", "maxLength": 128 },
+        "message": { "type": "string", "maxLength": 1024 },
+        "flags": { "type": "array", "items": { "$ref": "#/definitions/flag" }, "minItems": 1, "uniqueItems": true, "maxItems": 4 },
+        "affected_variable_ids": { "type": "array", "items": { "$ref": "#/definitions/id" }, "maxItems": 32, "description": "Signal ids (incl. compensation variables); empty = the whole device." },
+        "measurement_impact": { "$ref": "#/definitions/impact" },
+        "first_observed_at": { "$ref": "#/definitions/timestamp" },
+        "last_observed_at": { "$ref": "#/definitions/timestamp" },
+        "cause": { "type": "string", "maxLength": 1024 },
+        "remedy": { "type": "string", "maxLength": 1024 },
+        "source_record_ref": { "type": "string", "maxLength": 512, "description": "Allow-listed application reference resolved by the connector; never an arbitrary URL rendered as HTML." },
+        "source_acknowledgement": {
+          "type": "object", "additionalProperties": false,
+          "properties": { "acknowledged": { "type": "boolean" }, "by": { "type": "string", "maxLength": 128 }, "at": { "$ref": "#/definitions/timestamp" } },
+          "required": ["acknowledged"]
+        },
+        "source_shelving": {
+          "type": "object", "additionalProperties": false,
+          "properties": { "shelved": { "type": "boolean" }, "until": { "$ref": "#/definitions/timestamp" }, "by": { "type": "string", "maxLength": 128 } },
+          "required": ["shelved"]
+        }
+      }
+    }
+  }
+}

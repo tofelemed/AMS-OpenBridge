@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://traverse.cpa/contracts/instrumental-health/v1/availability.schema.json",
+  "title": "Instrumental source availability (v1)",
+  "description": "Retained on traverse/instrumental/v1/{tenant_id}/{site_id}/sources/{source_id}/availability with authenticated online/offline state; the broker's last-will publishes OFFLINE when the producer drops. Transport availability is never proof that the device state was refreshed (spec v6 §4.3).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "message_kind", "tenant_id", "site_id", "source_id", "producer_id", "producer_epoch", "state", "since", "published_at"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "message_kind": { "const": "SOURCE_AVAILABILITY" },
+    "tenant_id": { "$ref": "state.schema.json#/definitions/id" },
+    "site_id": { "$ref": "state.schema.json#/definitions/id" },
+    "source_id": { "$ref": "state.schema.json#/definitions/id" },
+    "producer_id": { "$ref": "state.schema.json#/definitions/id" },
+    "producer_epoch": { "type": "integer", "minimum": 0 },
+    "state": { "type": "string", "enum": ["ONLINE", "OFFLINE", "DEGRADED"] },
+    "since": { "$ref": "state.schema.json#/definitions/timestamp" },
+    "published_at": { "$ref": "state.schema.json#/definitions/timestamp" },
+    "last_will": { "type": "boolean", "description": "true when the broker published this on the producer's behalf (LWT)." },
+    "scan_interval_s": { "type": "number", "exclusiveMinimum": 0, "maximum": 86400 },
+    "expected_collection_latency_s": { "type": "number", "minimum": 0, "maximum": 86400 }
+  }
+}
