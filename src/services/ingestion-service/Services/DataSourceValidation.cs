@@ -114,7 +114,8 @@ public static partial class DataSourceValidation
                 return ("This file contains a private key — upload the CA certificate, never a key", "tls");
         }
 
-        return ValidateLoopIngest(profileConfig);
+        return ValidateLoopIngest(profileConfig)
+            ?? Traverse.IngestionService.Health.InstrumentalHealthConfig.Validate(profileConfig?.InstrumentalHealth);
     }
 
     /// <summary>Reserved names on the tuple wire — extension roles may not shadow them

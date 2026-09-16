@@ -49,6 +49,8 @@ builder.Services.AddSingleton<LoopStateRepository>();
 builder.Services.AddSingleton<UnknownSourceInventory>();
 builder.Services.AddSingleton<SubscriberStatusRegistry>();
 builder.Services.AddSingleton<ILoopSampleSink, LoopSamplePipelineProducer>();
+// v2.5 (1H.2): the Instrumental NE107 health plane has its own producer and DLQ.
+builder.Services.AddSingleton<Traverse.IngestionService.Health.IInstrumentalHealthSink, Traverse.IngestionService.Health.InstrumentalHealthProducer>();
 builder.Services.AddHttpClient(); // IHttpClientFactory for the registry client
 builder.Services.AddSingleton(sp => new CplmRegistryClient(
     sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(CplmRegistryClient)),

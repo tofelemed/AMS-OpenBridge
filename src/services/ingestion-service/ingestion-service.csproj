@@ -17,8 +17,15 @@
     <PackageReference Include="MQTTnet.Extensions.ManagedClient" Version="4.3.7.1207" />
     <!-- audit-events + loop-sample producer (same version as cplm-api). -->
     <PackageReference Include="Confluent.Kafka" Version="2.3.0" />
+    <!-- v2.5 (1H.2): strict validation of the Instrumental NE107 health contract -->
+    <PackageReference Include="JsonSchema.Net" Version="7.3.4" />
     <!-- /metrics endpoint (same version as cplm-api / audit-service). -->
     <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- copies of contracts/ (scripts/sync-contracts.ps1); the Docker context is this directory only -->
+    <EmbeddedResource Include="Contracts\**\*.json" />
   </ItemGroup>
 
 </Project>

@@ -46,6 +46,20 @@ public static class ProfileRegistry
             Destination: "traverse.live.metrics",
             DefaultTopics: new[] { "ot/telemetry/#" }),
         new(
+            ProfileType: "INSTRUMENTAL_HEALTH",
+            DisplayName: "Transmitter Health (Instrumental NE107)",
+            Module: "Loop Performance (CPM)",
+            Transport: "MQTT",
+            Description: "Instrumental's NAMUR NE107 device-state publisher (F/C/S/M flags, native " +
+                         "diagnostics, source availability) on traverse/instrumental/v1/{tenant}/{site}/... " +
+                         "Strictly validated against the v1 contract, deduplicated, and forwarded verbatim " +
+                         "with the gateway's receipt facts; feeds the CPM instrument-health context " +
+                         "(G11 lanes, G12 eligibility). Read-only: CPA never acknowledges or commands.",
+            Destination: "traverse.cpa.instrument.health.v1",
+            DefaultTopics: new[] { "traverse/instrumental/v1/{tenant}/{site}/devices/+/state",
+                                   "traverse/instrumental/v1/{tenant}/{site}/devices/+/events",
+                                   "traverse/instrumental/v1/{tenant}/{site}/sources/+/availability" }),
+        new ProfileInfo(
             ProfileType: "MQTT_PRM",
             DisplayName: "PRM (MQTT Gateway)",
             Module: "Device Diagnostics (PRM)",

@@ -14,6 +14,8 @@ namespace Traverse.IngestionService.Pipeline;
 public sealed class OtIngestionHostService : BackgroundService
 {
     private const string SupportedProfile = "MQTT_LOOP_SAMPLES";
+    /// <summary>v2.5 (1H.2): the Instrumental NE107 health feed has its own, isolated subscriber.</summary>
+    private const string HealthProfile = "INSTRUMENTAL_HEALTH";
 
     private readonly DataSourceRepository _repo;
     private readonly CredentialCipher _cipher;
@@ -25,11 +27,12 @@ public sealed class OtIngestionHostService : BackgroundService
     private readonly SubscriberStatusRegistry _statusRegistry;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<OtIngestionHostService> _logger;
+    private readonly Traverse.IngestionService.Health.IInstrumentalHealthSink _healthSink;
 
     /// <summary>Subscriber is null when pre-start failed (decrypt/topics) — the entry
     /// still holds the fingerprint slot so we don't retry every 30 s; a config edit
     /// changes the fingerprint and triggers the restart path.</summary>
-    private sealed record Running(OtLoopSubscriber? Subscriber, string Fingerprint, SubscriberStatus Status);
+    private sealed record Running(IAsyncDisposable? Subscriber, string Fingerprint, SubscriberStatus Status);
     private readonly Dictionary<Guid, Running> _running = new();
     private readonly HashSet<Guid> _unsupportedLogged = new();
 
@@ -38,9 +41,11 @@ public sealed class OtIngestionHostService : BackgroundService
         ILoopSampleSink sink, UnknownSourceInventory inventory, UnknownSourceRepository unknownRepo,
         SubscriberStatusRegistry statusRegistry, ILoggerFactory loggerFactory,
         ILogger<OtIngestionHostService> logger,
-        LoopStateRepository stateRepo)
+        LoopStateRepository stateRepo,
+        Traverse.IngestionService.Health.IInstrumentalHealthSink healthSink)
     {
         _stateRepo = stateRepo;
+        _healthSink = healthSink;
         _repo = repo; _cipher = cipher; _registryClient = registryClient; _sink = sink;
         _inventory = inventory; _unknownRepo = unknownRepo; _statusRegistry = statusRegistry;
         _loggerFactory = loggerFactory; _logger = logger;
@@ -71,7 +76,8 @@ public sealed class OtIngestionHostService : BackgroundService
         var wanted = new Dictionary<Guid, DataSourceRow>();
         foreach (var row in rows)
         {
-            if (string.Equals(row.ProfileType, SupportedProfile, StringComparison.Ordinal))
+            if (string.Equals(row.ProfileType, SupportedProfile, StringComparison.Ordinal)
+                || string.Equals(row.ProfileType, HealthProfile, StringComparison.Ordinal))
                 wanted[row.ConfigId] = row;
             else if (_unsupportedLogged.Add(row.ConfigId))
                 _logger.LogInformation("Data source '{Name}' has profile {Profile} — no subscriber pipeline for it yet",
@@ -120,6 +126,11 @@ public sealed class OtIngestionHostService : BackgroundService
         }
 
         var profile = ProfileConfig.FromJson(row.ProfileConfig);
+        if (string.Equals(row.ProfileType, HealthProfile, StringComparison.Ordinal))
+        {
+            await StartHealthAsync(row, password, profile, fingerprint, status, ct);
+            return;
+        }
         var topics = (profile.Mqtt?.Topics ?? new List<string>())
             .Where(t => !string.IsNullOrWhiteSpace(t)).ToList();
         if (topics.Count == 0)
@@ -152,6 +163,28 @@ public sealed class OtIngestionHostService : BackgroundService
             profile.Mqtt?.Qos ?? 1, _registryClient, _sink, _inventory, _unknownRepo, _repo,
             status, _loggerFactory.CreateLogger($"OtLoopSubscriber.{row.Name}"),
             registry: null, stateRepo: _stateRepo);
+        _running[row.ConfigId] = new Running(subscriber, fingerprint, status);
+        await subscriber.StartAsync(ct);
+    }
+
+    private async Task StartHealthAsync(DataSourceRow row, string password, ProfileConfig profile, string fingerprint,
+        SubscriberStatus status, CancellationToken ct)
+    {
+        var err = profile.InstrumentalHealth is null
+            ? null
+            : Traverse.IngestionService.Health.InstrumentalHealthConfig.Validate(profile.InstrumentalHealth);
+        if (profile.InstrumentalHealth is null || err is not null)
+        {
+            status.ConnectionError = profile.InstrumentalHealth is null
+                ? "profile_config.instrumental_health missing (tenant_id, site_id, allowed_source_ids)"
+                : $"{err!.Value.Field}: {err.Value.Error}";
+            _logger.LogError("Health subscriber '{Name}' not started: {Error}", row.Name, status.ConnectionError);
+            _running[row.ConfigId] = new Running(null, fingerprint, status);
+            return;
+        }
+        var settings = profile.InstrumentalHealth.Resolve();
+        var subscriber = new Traverse.IngestionService.Health.InstrumentalHealthSubscriber(row, password, settings, _healthSink,
+            status, _loggerFactory.CreateLogger($"InstrumentalHealthSubscriber.{row.Name}"));
         _running[row.ConfigId] = new Running(subscriber, fingerprint, status);
         await subscriber.StartAsync(ct);
     }

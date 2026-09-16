@@ -18,6 +18,9 @@ public sealed class SubscriberStatus
     public long DeadLettered;
     public long Parked;
     public long KafkaFailures;
+    /// <summary>v2.5 (1H.2) INSTRUMENTAL_HEALTH only: idempotent re-deliveries and integrity conflicts.</summary>
+    public long HealthDuplicates;
+    public long HealthConflicts;
     public int ActiveLoops;
     public int RegistryLoops;
     public DateTimeOffset? RegistryRefreshedAt;
@@ -52,6 +55,16 @@ public sealed class SubscriberStatus
             .ToDictionary(kv => kv.Key, kv => kv.Value),
         // Roll-up only; the per-loop detail is GET /loop-health so /stats stays small.
         loopHealth = LoopHealth is { } rows ? LoopHealthSummary.From(rows).ToPayload() : null,
+        // v2.5 (1H.2): the health subscriber's own ledger (received / forwarded / dlq / conflicts / parked).
+        instrumentalHealth = ProfileType == "INSTRUMENTAL_HEALTH" ? new
+        {
+            received = Interlocked.Read(ref MessagesReceived),
+            forwarded = Interlocked.Read(ref TuplesEmitted),
+            duplicates = Interlocked.Read(ref HealthDuplicates),
+            dlq = Interlocked.Read(ref DeadLettered),
+            conflicts = Interlocked.Read(ref HealthConflicts),
+            parked = Interlocked.Read(ref Parked),
+        } : null,
     };
 }
 

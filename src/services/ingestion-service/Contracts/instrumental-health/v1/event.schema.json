@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://traverse.cpa/contracts/instrumental-health/v1/event.schema.json",
+  "title": "Instrumental NE107 device state change event (v1)",
+  "description": "A change notification on traverse/instrumental/v1/{tenant_id}/{site_id}/devices/{device_id}/events (QoS 1, not retained). It carries event_id, the diagnostic occurrence references it concerns, the source sequence/epoch and the SAME full post-state object as a snapshot, so the loss of one delta can never create an impossible state. A snapshot and an event that represent the same source observation share observation_id (spec v6 §4.3-4.4).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "message_kind", "event_id", "observation_id", "tenant_id", "site_id", "producer_id", "producer_epoch",
+    "sequence", "source_id", "device_id", "observed_at", "verified_at", "published_at", "state_revision",
+    "state_complete", "verification_kind", "change_kind", "diagnostic_ids", "state"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "message_kind": { "const": "STATE_EVENT" },
+    "event_id": { "$ref": "state.schema.json#/definitions/id" },
+    "observation_id": { "$ref": "state.schema.json#/definitions/id" },
+    "tenant_id": { "$ref": "state.schema.json#/definitions/id" },
+    "site_id": { "$ref": "state.schema.json#/definitions/id" },
+    "producer_id": { "$ref": "state.schema.json#/definitions/id" },
+    "producer_epoch": { "type": "integer", "minimum": 0 },
+    "sequence": { "type": "integer", "minimum": 0 },
+    "source_id": { "$ref": "state.schema.json#/definitions/id" },
+    "device_id": { "$ref": "state.schema.json#/definitions/id" },
+    "installation_id": { "$ref": "state.schema.json#/definitions/id" },
+    "observed_at": { "$ref": "state.schema.json#/definitions/timestamp" },
+    "verified_at": { "$ref": "state.schema.json#/definitions/timestamp" },
+    "published_at": { "$ref": "state.schema.json#/definitions/timestamp" },
+    "state_revision": { "type": "integer", "minimum": 0 },
+    "state_complete": { "type": "boolean" },
+    "verification_kind": { "type": "string", "enum": ["DEVICE_DIRECT", "UPSTREAM_DATABASE_POLL"] },
+    "scan_interval_s": { "type": "number", "exclusiveMinimum": 0, "maximum": 86400 },
+    "mapping_version": { "type": "string", "maxLength": 64 },
+    "change_kind": { "type": "string", "enum": ["DIAGNOSTIC_RAISED", "DIAGNOSTIC_UPDATED", "DIAGNOSTIC_CLEARED", "STATE_RESYNC", "LATE_CORRECTION"] },
+    "diagnostic_ids": { "type": "array", "items": { "$ref": "state.schema.json#/definitions/id" }, "maxItems": 64, "description": "The occurrences this change concerns (empty for a resync)." },
+    "corrects_observation_id": { "$ref": "state.schema.json#/definitions/id", "description": "LATE_CORRECTION only: the earlier observation whose interpretation this revises; the original is kept." },
+    "state": { "$ref": "state.schema.json#/definitions/state" }
+  }
+}

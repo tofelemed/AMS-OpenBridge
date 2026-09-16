@@ -36,6 +36,8 @@ public sealed class ProfileConfig
     [JsonPropertyName("mqtt")] public MqttConfig? Mqtt { get; set; }
     /// <summary>MQTT_LOOP_SAMPLES pipeline settings (phase 2); null for other profiles.</summary>
     [JsonPropertyName("loop_ingest")] public LoopIngestConfig? LoopIngest { get; set; }
+    /// <summary>INSTRUMENTAL_HEALTH settings (v2.5 1H.2); null for other profiles.</summary>
+    [JsonPropertyName("instrumental_health")] public Traverse.IngestionService.Health.InstrumentalHealthConfig? InstrumentalHealth { get; set; }
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
