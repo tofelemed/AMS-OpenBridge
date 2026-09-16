@@ -44,6 +44,7 @@ public static class GateMatrixProjection
                 reason = key switch
                 {
                     "G9" => ReadString(payload, "gate9_reason"),
+                    "G13" => ReadString(payload, "gate13_reason"),                 // v2.5 (2F.1): the analysis state/reason, or the legacy flag label
                     "G14" => verdictV2.Legacy ? "LEGACY_FLAG_ONLY" : verdictV2.Confirmation.Reason,
                     _ => null
                 }
@@ -67,6 +68,10 @@ public static class GateMatrixProjection
             ["observabilityFlags"] = ReadStringArray(payload, "observability_flags"),
             ["familyDisqualifiers"] = ReadStringArray(payload, "family_disqualifiers"),
             ["hasPeerLinks"] = ReadBool(payload, "has_peer_links"),
+            // v2.5 (2F.1): the G13 aligned peer analysis as the long tier reported it (null on legacy rows)
+            ["gate13Method"] = ReadString(payload, "gate13_method"),
+            ["gate13Reason"] = ReadString(payload, "gate13_reason"),
+            ["interaction"] = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("interaction", out var ia) && ia.ValueKind == JsonValueKind.Object ? ia.Clone() : (JsonElement?)null,
             ["insufficientEvidenceReason"] = ReadString(payload, "insufficient_evidence_reason"),
             // U5 Investigation — the numeric evidence behind the verdict (family
             // scores, freeze index, shape metrics, …). All numeric payload fields

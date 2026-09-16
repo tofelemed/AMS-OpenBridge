@@ -26,18 +26,18 @@ public sealed class CapabilityManifestTests
     }
 
     [Fact]
-    public void Flag_only_gates_are_declared_legacy_not_installed()
+    public void Every_gate_is_an_installed_method_after_2F()
     {
-        // v2.5: G12 is the system-response analysis (2A/2B) and G14 the fault-scoped confirmation (1E);
-        // G13 stays a link flag until the interaction analysis ships (2F).
+        // v2.5: G12 is the system-response analysis (2A/2B), G14 the fault-scoped confirmation (1E),
+        // G13 the aligned peer analysis (2F) - no flag-only gate remains.
         var m = CapabilityManifest.Build(new[] { Engine }, new ServiceIdentity("1.0.0", "deadbeef"));
 
-        m.Methods.Single(x => x.Gate == "G13").State.Should().Be("LEGACY_FLAG_ONLY", because: "G13 is a boolean link flag until 2F");
+        m.Methods.Single(x => x.Gate == "G13").Should().BeEquivalentTo(new { MethodId = "G13.ALIGNED_PEER_ANALYSIS_V1", Version = "1.0.0", State = "INSTALLED" });
         m.Methods.Single(x => x.Gate == "G12").Should().BeEquivalentTo(new { MethodId = "G12.SYSTEM_RESPONSE", Version = "1.0.0", State = "INSTALLED" });
         m.Methods.Single(x => x.Gate == "G14").Should().BeEquivalentTo(new { MethodId = "G14.FAULT_SCOPED_CONFIRMATION", State = "INSTALLED" });
         m.Methods.Single(x => x.Gate == "G6").MethodId.Should().Be("G6.WELCH_PSD");
         m.Methods.Where(x => x.State == "INSTALLED").Select(x => x.Gate)
-            .Should().BeEquivalentTo(new[] { "G0", "G1", "G2", "G2r", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "G11", "G12", "G14", "G15" });
+            .Should().BeEquivalentTo(new[] { "G0", "G1", "G2", "G2r", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "G11", "G12", "G13", "G14", "G15" });
     }
 
     [Fact]

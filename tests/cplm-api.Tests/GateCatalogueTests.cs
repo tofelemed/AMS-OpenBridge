@@ -28,10 +28,10 @@ public sealed class GateCatalogueTests
     }
 
     [Fact]
-    public void Installed_gates_name_their_artifact_kinds_and_G13_is_unavailable_with_a_reason()
+    public void Installed_gates_name_their_artifact_kinds_and_G13_is_the_aligned_peer_analysis()
     {
         var entries = GateCatalog.Catalogue().ToDictionary(e => e.Gate);
-        foreach (var g in new[] { "G0", "G1", "G2", "G2r", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "G11", "G12", "G14", "G15" })
+        foreach (var g in new[] { "G0", "G1", "G2", "G2r", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "G11", "G12", "G13", "G14", "G15" })
         {
             entries[g].CapabilityState.Should().Be("INSTALLED", g);
             entries[g].ArtifactKinds.Should().NotBeEmpty(g);
@@ -42,9 +42,9 @@ public sealed class GateCatalogueTests
         entries["G10"].ArtifactKinds.Should().Contain(new[] { "actuator_limits", "dwell_events" });
         entries["G11"].ArtifactKinds.Should().Contain(new[] { "measurement", "freeze_events", "eligibility_intervals" });
         entries["G12"].ArtifactKinds.Should().Contain(new[] { "response_event", "y_fit", "residuals", "candidate_models" });
-        entries["G13"].CapabilityState.Should().Be("UNAVAILABLE");
-        entries["G13"].CapabilityReason.Should().Be("INTERACTION_METHOD_NOT_INSTALLED");
-        entries["G13"].ArtifactKinds.Should().Equal("interaction");
+        entries["G13"].Method.MethodId.Should().Be("G13.ALIGNED_PEER_ANALYSIS_V1");
+        entries["G13"].Tier.Should().Be("long", because: "the long tier analyses peers; the fused row shares the run id");
+        entries["G13"].ArtifactKinds.Should().Equal("interaction", "aligned_series", "cross_correlation", "coherence");
         entries["G8"].Method.MethodId.Should().Be("G8.XCORR_ASYMMETRY_V1");
         entries["G8"].Definition.Should().Contain("not an odd-harmonic");
     }

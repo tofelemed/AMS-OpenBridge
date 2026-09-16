@@ -8,7 +8,7 @@ namespace Traverse.CplmApi.Services;
 ///
 /// <para>State semantics (spec v6 §5.3): INSTALLED = a numerical method produces the gate;
 /// LEGACY_FLAG_ONLY = a boolean stamped from registry/broadcast evidence, not an analysis
-/// (R09 G13 until 2F); capability state UNAVAILABLE carries the reason the workbench shows.</para>
+/// (none left after 2F; G13 is the aligned peer analysis); capability state UNAVAILABLE carries the reason the workbench shows.</para>
 /// </summary>
 public static class GateCatalog
 {
@@ -80,10 +80,10 @@ public static class GateCatalog
             "Event-keyed response analysis: eligibility, event capture, observed metrics with censoring, bounded estimation on the actual applied input, holdout validation, model-domain controller outputs; no process gain from set-point response alone.",
             "A qualified reference or applied-input event with stable pre-support; VP fresh when it is the applied input.",
             "G12.SYSTEM_RESPONSE", "1.0.0", new[] { "response_event", "accepted_samples", "input_reconstruction", "y_fit", "y_predict", "prediction_interval", "confidence_interval", "baseline", "target", "response_times", "residuals", "residual_acf", "excitation_rank", "candidate_models", "delay_objective_curve", "parameter_intervals", "bode", "rejection_reasons" }),
-        new GateEntry("G13", "Interaction", "fusion", "CONTEXT",
-            "Aligned peer analysis (cross-correlation, coherence, lag) over the loop's accepted support. Not installed in this build: a configured link is a boolean flag, and an unmapped or uncomputed peer proves nothing.",
-            "Peer bindings and their samples over compatible support (Phase 2F).",
-            new GateMethod("G13", "G13.PEER_LINK_FLAG", "legacy", "LEGACY_FLAG_ONLY"), new[] { "interaction" }, NoProperties, "UNAVAILABLE", "INTERACTION_METHOD_NOT_INSTALLED"),
+        E("G13", "Interaction", "long", "SUPPORTING",                    // analysed on the long tier; the fused row shares its method run id
+            "Aligned peer analysis over the loop's accepted support: per configured peer the nearest-sample alignment with a shared support mask, normalised cross-correlation over +/- lag_max_s and Welch magnitude-squared coherence in the loop's band. A peer is associated only when coherence and |xcorr| both clear their floors on enough shared support; an unobserved peer is UNAVAILABLE, no peers is NOT_CONFIGURED. Pairwise association is not causal direction.",
+            "Peer links in the registry; the peers' samples over compatible support (min_compatible_support_s).",
+            "G13.ALIGNED_PEER_ANALYSIS_V1", "1.0.0", new[] { "interaction", "aligned_series", "cross_correlation", "coherence" }),
         E("G14", "Final-element confirmation", "fusion", "CONFIRMATION",
             "Fault-scoped confirmation: CONFIRMED only from a positive non-following record (VP tracking error over a dwell with valid VP quality, or an approved test record); healthy tracking contradicts; the subtype cannot exceed the evidence scope.",
             "VP mapped, fresh and GOOD over the qualifying interval.",
