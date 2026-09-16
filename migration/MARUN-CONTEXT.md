@@ -227,7 +227,7 @@ docker logs --since 15m ams-api 2>&1 | grep -iE 'rejecting every write|poison'  
 
 ```bash
 # login → bearer (field is `token`; rate limit 10/min/IP; mutations 120/min GLOBAL; expires 1 h)
-ADMIN_PW='...'
+ADMIN_PW=$(grep -E '^BOOTSTRAP_ADMIN_PASSWORD=' migration/.env | cut -d= -f2-)   # plant name; the lab's is AUTH_BOOTSTRAP_PASSWORD
 TOKEN=$(curl -s -X POST http://localhost:8081/api/auth/login -H 'Content-Type: application/json' \
   -d "{\"username\":\"admin\",\"password\":\"$ADMIN_PW\"}" \
   | python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('token') or d.get('accessToken'))")

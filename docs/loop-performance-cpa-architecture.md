@@ -1,6 +1,9 @@
 # AMS / Traverse Edge — Complete Architecture  
 ## Reference Blueprint for Loop Performance CPA Replication
 
+> **Status: pre-build blueprint (superseded).** The as-built CPA system and application architecture — including the live route (RBE → Sparkplug → EMQX/Redis) and the historical route (IoTDB raw + Postgres results) — is [cpa-system-and-application-architecture.md](cpa-system-and-application-architecture.md). Keep this file for design rationale only.
+
+
 **Document type:** Architectural reference (as-built + replication guide)  
 **Audience:** Platform architects, streaming engineers, CPA / loop-performance product teams  
 **Source of truth (infra):** `infra/docker/docker-compose.yml`  
