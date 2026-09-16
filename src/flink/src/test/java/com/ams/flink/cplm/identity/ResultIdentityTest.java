@@ -59,7 +59,7 @@ public class ResultIdentityTest {
                 CplmGateEngine.computeLongDiagnostics(samples, T0, end, "24h", profile), false, false, profile);
 
         assertEquals(6, s1.methodRunIds.size());
-        assertEquals(7, l1.methodRunIds.size());
+        assertEquals("G5-G11 + G13 (2F.1)", 8, l1.methodRunIds.size());
         assertEquals(17, f1.methodRunIds.size());
         assertEquals(f1.methodRunIds, f2.methodRunIds);
         assertEquals(s1.methodRunIds.get("G0"), f1.methodRunIds.get("G0"));      // a stage id IS the fused id

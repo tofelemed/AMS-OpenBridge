@@ -40,7 +40,10 @@ public final class FusionEvidence {
     public boolean stictionQualified;
     public boolean effortQualified;
     public boolean disturbanceContext;
+    /** The legacy link flag (display only; never a verdict). */
     public boolean hasPeerLinks;
+    /** v2.5 (2F.1): the long tier's aligned analysis found a coherent, correlated peer. */
+    public boolean interactionDetected;
 
     public double familyStiction;
     public double familyOscillation;
@@ -55,6 +58,7 @@ public final class FusionEvidence {
                                           CplmLoopDynamicsProfile profile, boolean hasPeerLinks) {
         FusionEvidence e = new FusionEvidence();
         e.hasPeerLinks = hasPeerLinks;
+        e.interactionDetected = result.interaction != null && result.interaction.detected();
 
         e.oscillationScore = clamp01(result.acfRegularity);
         e.fftScore = clamp01(result.fftPeakRatio);
@@ -124,8 +128,9 @@ public final class FusionEvidence {
                 && e.shapeEvidence;
         if (!e.shapeEvidence && e.asymmetrySupport) result.familyDisqualifiers.add("stiction:NO_SHAPE_EVIDENCE");
 
-        // Disturbance soft-block: peer links + oscillation without actuator stress.
-        e.disturbanceContext = hasPeerLinks && e.oscillationEvidence && !e.actuatorStress;
+        // Disturbance soft-block (R09): a DETECTED peer interaction + oscillation without actuator
+        // stress. A configured link alone (legacy flag) never blocks or supports anything.
+        e.disturbanceContext = e.interactionDetected && e.oscillationEvidence && !e.actuatorStress;
         if (e.disturbanceContext) {
             e.stictionQualified = false;
             result.familyDisqualifiers.add("stiction:DISTURBANCE_CONTEXT");

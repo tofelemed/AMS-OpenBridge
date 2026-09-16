@@ -32,4 +32,6 @@ public final class LongIntermediates implements Serializable {
     public LimitMath.DeltaPvResult deltaPv;
     /** Per-sample |delta PV| spike flags (LimitMath.computeSpikeCount's criterion). */
     public boolean[] spikeMask = new boolean[0];
+    /** v2.5 (2F.1): the G13 aligned peer analysis with its arrays (aligned series, xcorr, coherence per peer). */
+    public InteractionMath.Result interaction;
 }

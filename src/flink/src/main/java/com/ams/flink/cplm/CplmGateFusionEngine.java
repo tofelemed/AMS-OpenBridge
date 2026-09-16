@@ -143,7 +143,7 @@ public final class CplmGateFusionEngine implements Serializable {
             return BlockingExclusions.block(result, "EXCLUDED_SENSOR", "G11 sensor freeze dominant");
         }
 
-        stampContextGates(result, hasStepTestEvidence, hasPeerLinks);
+        stampContextGates(result, hasStepTestEvidence, hasPeerLinks, longD);
 
         boolean hasVp = longD.hasVp;
         result.vpAvailable = hasVp;
@@ -272,8 +272,44 @@ public final class CplmGateFusionEngine implements Serializable {
         result.qualifiedSupportMs = Math.max(0, Math.min(spanMs, bySamples));
     }
 
-    /** G12 / G13 are still legacy flags in this release (LEGACY_FLAG_ONLY; Phase 2 replaces them). */
-    private static void stampContextGates(CplmGateResult result, boolean hasStepTestEvidence, boolean hasPeerLinks) {
+    /**
+     * G12 stays a legacy flag on the fused row (the response job owns the real G12, event-keyed).
+     * G13 (v2.5 2F.1, R09) is the long tier's aligned peer analysis: INTERACTION_DETECTED -> WARN,
+     * NO_INTERACTION -> PASS, UNAVAILABLE / NOT_CONFIGURED -> NOT_EVALUATED with the reason. A long
+     * row without the analysis keeps the legacy link flag, labelled LEGACY_FLAG_ONLY, and that
+     * flag never drives a verdict.
+     */
+    private static void stampContextGates(CplmGateResult result, boolean hasStepTestEvidence, boolean hasPeerLinks, CplmLongDiagnosticsResult longD) {
+        com.ams.flink.cplm.engine.InteractionSummary ia = longD == null ? null : longD.interaction;
+        result.interaction = ia;
+        if (ia != null) {
+            result.gate13Method = ia.methodId;
+            result.gate13Reason = ia.reason;
+            result.hasPeerLinks = !ia.peers.isEmpty();
+            switch (ia.state) {
+                case "INTERACTION_DETECTED":
+                    result.gate13Status = "WARN";
+                    if (!result.observabilityFlags.contains("INTERACTION_DETECTED")) result.observabilityFlags.add("INTERACTION_DETECTED");
+                    break;
+                case "NO_INTERACTION":
+                    result.gate13Status = "PASS";
+                    break;
+                case "NOT_CONFIGURED":
+                    result.gate13Status = "NOT_EVALUATED";
+                    if (!result.observabilityFlags.contains("NO_UPSTREAM_LINKS")) result.observabilityFlags.add("NO_UPSTREAM_LINKS");
+                    break;
+                default:
+                    result.gate13Status = "NOT_EVALUATED";
+                    if (!result.observabilityFlags.contains("PEER_UNOBSERVED")) result.observabilityFlags.add("PEER_UNOBSERVED");
+            }
+        } else {
+            result.gate13Method = "LEGACY_FLAG_ONLY";
+            result.gate13Reason = hasPeerLinks ? "LINK_FLAG_ONLY_NO_ANALYSIS" : "NO_UPSTREAM_LINKS";
+            result.gate13Status = "NOT_EVALUATED";
+            result.hasPeerLinks = hasPeerLinks;
+            String flag = hasPeerLinks ? "G13_LEGACY_FLAG_ONLY" : "NO_UPSTREAM_LINKS";
+            if (!result.observabilityFlags.contains(flag)) result.observabilityFlags.add(flag);
+        }
         if (hasStepTestEvidence) {
             result.gate12Status = "PASS";
             result.hasStepTestEvidence = true;
@@ -282,18 +318,6 @@ public final class CplmGateFusionEngine implements Serializable {
             result.hasStepTestEvidence = false;
             if (!result.observabilityFlags.contains("NO_STEP_TEST")) {
                 result.observabilityFlags.add("NO_STEP_TEST");
-            }
-        }
-        if (hasPeerLinks) {
-            result.gate13Status = "PASS";
-            result.hasPeerLinks = true;
-            // When peer links exist and oscillation is present without actuator stress,
-            // treat as potential victim / disturbance context (soft block of stiction later).
-        } else {
-            result.gate13Status = "NOT_EVALUATED";
-            result.hasPeerLinks = false;
-            if (!result.observabilityFlags.contains("NO_UPSTREAM_LINKS")) {
-                result.observabilityFlags.add("NO_UPSTREAM_LINKS");
             }
         }
     }

@@ -21,9 +21,13 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
 
+import com.ams.flink.cplm.engine.LongDiagnosticsCalculator;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Stage 2 — Long-diagnostics job: rolling 4h/12h/24h windows via KeyedProcessFunction
@@ -69,8 +73,12 @@ public class CplmLongDiagnosticsStreamJob {
 
         DataStream<CplmNormalizedSample> normalized = CplmIngestPipeline.build(env, cfg, "cplm-long-normalized-source");
 
-        SingleOutputStreamOperator<CplmLongDiagnosticsResult> processed = normalized
-                .keyBy(s -> s.loopId)
+        // v2.5 (2F.1): every sample also reaches the loops that list its loop as a peer (tagged
+        // peerOfLoopId), so one keyed window holds a loop's own samples AND its peers' for G13.
+        DataStream<CplmNormalizedSample> withPeers = CplmPeerFanoutSupport.connectPeerFanout(normalized, env, cfg);
+
+        SingleOutputStreamOperator<CplmLongDiagnosticsResult> processed = withPeers
+                .keyBy(CplmPeerFanoutSupport::windowKey)
                 .process(new LongDiagnosticsProcessFunction(EvidencePolicy.fromArgs(args)))
                 .name("cplm-long-diagnostics-keyed-process")
                 .uid("cplm-long-diagnostics-keyed-process");
@@ -116,6 +124,8 @@ public class CplmLongDiagnosticsStreamJob {
         private final EvidencePolicy policy;
 
         private transient ListState<CplmNormalizedSample> rollingBuffer;
+        /** v2.5 (2F.1): the peers' samples fanned out to this loop (peerOfLoopId == this key). */
+        private transient ListState<CplmNormalizedSample> peerBuffer;
         private transient ValueState<Long> nextTimerTs;
 
         LongDiagnosticsProcessFunction() {
@@ -140,6 +150,9 @@ public class CplmLongDiagnosticsStreamJob {
             rollingBuffer = getRuntimeContext().getListState(
                     new ListStateDescriptor<>("cplm-rolling-buffer",
                             TypeInformation.of(CplmNormalizedSample.class)));
+            peerBuffer = getRuntimeContext().getListState(
+                    new ListStateDescriptor<>("cplm-peer-buffer",
+                            TypeInformation.of(CplmNormalizedSample.class)));
             nextTimerTs = getRuntimeContext().getState(
                     new ValueStateDescriptor<>("next-timer-ts", Long.class));
         }
@@ -147,6 +160,11 @@ public class CplmLongDiagnosticsStreamJob {
         @Override
         public void processElement(CplmNormalizedSample sample, Context ctx,
                                    Collector<CplmLongDiagnosticsResult> out) throws Exception {
+            if (sample.peerOfLoopId != null) {
+                // a peer's sample: buffered for G13, never a timer trigger (the loop's own cadence drives)
+                peerBuffer.add(sample);
+                return;
+            }
             // Add sample to rolling buffer
             rollingBuffer.add(sample);
 
@@ -178,6 +196,20 @@ public class CplmLongDiagnosticsStreamJob {
             }
             rollingBuffer.update(retained);
 
+            // v2.5 (2F.1): the peers' samples over the same retention, grouped by peer; the configured
+            // peer list is the one the newest own sample carried from the registry broadcast
+            List<CplmNormalizedSample> peerRetained = new ArrayList<>();
+            Map<String, List<CplmNormalizedSample>> peersById = new HashMap<>();
+            for (CplmNormalizedSample s : peerBuffer.get()) {
+                if (s.eventTsMs < evictBefore) continue;
+                peerRetained.add(s);
+                peersById.computeIfAbsent(s.loopId, k -> new ArrayList<>()).add(s);
+            }
+            peerBuffer.update(peerRetained);
+            CplmNormalizedSample newest = retained.isEmpty() ? null : retained.get(retained.size() - 1);
+            LongDiagnosticsCalculator.PeerContext peers = new LongDiagnosticsCalculator.PeerContext(
+                    newest == null ? null : newest.configuredPeers, peersById, newest == null ? 0 : newest.relationshipRevision);
+
             // Compute 4h window slice
             long cutoff4h = timestamp - WINDOW_4H_MS;
             List<CplmNormalizedSample> slice4h = new ArrayList<>();
@@ -188,7 +220,7 @@ public class CplmLongDiagnosticsStreamJob {
             }
             if (slice4h.size() >= MIN_SAMPLES) {
                 CplmLongDiagnosticsResult r4h = CplmGateEngine.computeLongDiagnostics(
-                        slice4h, cutoff4h, timestamp, "4h");
+                        slice4h, cutoff4h, timestamp, "4h", null, peers);
                 r4h.alignedShort = CplmGateEngine.computeShortFeatures(
                         slice4h, cutoff4h, timestamp, "4h");
                 out.collect(r4h);
@@ -205,7 +237,7 @@ public class CplmLongDiagnosticsStreamJob {
             }
             if (slice12h.size() >= MIN_SAMPLES) {
                 CplmLongDiagnosticsResult r12h = CplmGateEngine.computeLongDiagnostics(
-                        slice12h, cutoff12h, timestamp, "12h");
+                        slice12h, cutoff12h, timestamp, "12h", null, peers);
                 r12h.alignedShort = CplmGateEngine.computeShortFeatures(
                         slice12h, cutoff12h, timestamp, "12h");
                 out.collect(r12h);
@@ -222,7 +254,7 @@ public class CplmLongDiagnosticsStreamJob {
             }
             if (slice24h.size() >= MIN_SAMPLES) {
                 CplmLongDiagnosticsResult r24h = CplmGateEngine.computeLongDiagnostics(
-                        slice24h, cutoff24h, timestamp, "24h");
+                        slice24h, cutoff24h, timestamp, "24h", null, peers);
                 r24h.alignedShort = CplmGateEngine.computeShortFeatures(
                         slice24h, cutoff24h, timestamp, "24h");
                 out.collect(r24h);

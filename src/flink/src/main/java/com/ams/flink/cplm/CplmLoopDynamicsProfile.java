@@ -63,6 +63,12 @@ public final class CplmLoopDynamicsProfile implements Serializable {
      */
     public double g6BandCyclesPerSegment = 4;
     public double vpMaxAgeS = VP_MAX_AGE_S_DEFAULT;
+    /** v2.5 (2F.1, CFG-143..146): G13 aligned peer analysis - lag bound (s), coherence and |xcorr| floors, shared support (s), peer cap. */
+    public double g13LagMaxS = 600;
+    public double g13CoherenceMin = 0.6;
+    public double g13XcorrMin = 0.5;
+    public double g13MinCompatibleSupportS = 1800;
+    public int g13MaxPeers = 12;
     public double opTravelFloorPct;
     public double effortRatioFloor;
     public double phaseAreaPerCycleLo;
@@ -216,6 +222,11 @@ public final class CplmLoopDynamicsProfile implements Serializable {
         p.cornerAngleDeg = cornerAngleDeg;
         p.opDeadbandPct = opDeadbandPct;
         p.vpMaxAgeS = vpMaxAgeS;
+        p.g13LagMaxS = g13LagMaxS;
+        p.g13CoherenceMin = g13CoherenceMin;
+        p.g13XcorrMin = g13XcorrMin;
+        p.g13MinCompatibleSupportS = g13MinCompatibleSupportS;
+        p.g13MaxPeers = g13MaxPeers;
         p.opTravelFloorPct = opTravelFloorPct;
         p.effortRatioFloor = effortRatioFloor;
         p.phaseAreaPerCycleLo = phaseAreaPerCycleLo;

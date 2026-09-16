@@ -28,7 +28,7 @@ import java.util.Map;
 public final class CplmParameterSetBroadcastSupport {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final MapStateDescriptor<String, String> PROFILE_STATE =
+    static final MapStateDescriptor<String, String> PROFILE_STATE =
             new MapStateDescriptor<>(
                     "cplm-governed-profile-state",
                     BasicTypeInfo.STRING_TYPE_INFO,
@@ -169,7 +169,7 @@ public final class CplmParameterSetBroadcastSupport {
                 .uid("cplm-fusion-profile-broadcast");
     }
 
-    private static DataStream<String> buildParameterUpdateStream(
+    static DataStream<String> buildParameterUpdateStream(
             StreamExecutionEnvironment env,
             CplmJobConfig cfg) {
         KafkaSource<String> legacy = KafkaSource.<String>builder()

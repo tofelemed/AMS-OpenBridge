@@ -66,4 +66,15 @@ public final class CplmGateEngine implements Serializable {
             CplmLoopDynamicsProfile profileOrNull) {
         return LongDiagnosticsCalculator.computeLongDiagnostics(rawSamples, windowStartMs, windowEndMs, windowKind, profileOrNull);
     }
+
+    /** v2.5 (2F.1): long diagnostics with the G13 peer context (peers' samples + configured peer list). */
+    public static CplmLongDiagnosticsResult computeLongDiagnostics(
+            List<CplmNormalizedSample> rawSamples,
+            long windowStartMs,
+            long windowEndMs,
+            String windowKind,
+            CplmLoopDynamicsProfile profileOrNull,
+            LongDiagnosticsCalculator.PeerContext peers) {
+        return LongDiagnosticsCalculator.computeLongDiagnostics(rawSamples, windowStartMs, windowEndMs, windowKind, profileOrNull, peers);
+    }
 }

@@ -38,6 +38,8 @@ public class GateArtifactsTest {
     private static Map<String, List<String>> WORKBOOK;
     private static List<EvidenceArtifact> SHORT, LONG, FUSION;
     private static CplmShortFeatureResult SHORT_RESULT;
+    private static CplmLongDiagnosticsResult LONG_RESULT;
+    private static CplmGateResult FUSED;
 
     @BeforeClass
     public static void build() throws Exception {
@@ -57,8 +59,10 @@ public class GateArtifactsTest {
         SHORT_RESULT = CplmGateEngine.computeShortFeatures(samples, start, start + 3_600_000L, "60m");
         SHORT = ShortArtifacts.artifacts(SHORT_RESULT);
         CplmLongDiagnosticsResult longD = CplmGateEngine.computeLongDiagnostics(samples, start, end, "24h");
+        LONG_RESULT = longD;
         LONG = LongArtifacts.artifacts(longD);
         CplmGateResult fused = CplmGateFusionEngine.fuse(CplmGateEngine.computeShortFeatures(samples, start, end, "24h"), longD);
+        FUSED = fused;
         FUSION = FusionArtifacts.artifacts(fused);
     }
 
@@ -141,8 +145,15 @@ public class GateArtifactsTest {
     }
 
     @Test
-    public void fusionTierCoversG13ToG15AndTheHealthLanes() {
-        for (String g : new String[] {"G13", "G14", "G15"}) assertCovered(FUSION, g);
+    public void fusionTierCoversG14G15AndTheHealthLanesAndG13RidesTheLongTierUnderTheSameRunId() {
+        for (String g : new String[] {"G14", "G15"}) assertCovered(FUSION, g);
+        // v2.5 (2F.1): G13's record and series are the long tier's; the fused row names the same run id
+        assertCovered(LONG, "G13");
+        assertEquals(LONG_RESULT.methodRunIds.get("G13"), FUSED.methodRunIds.get("G13"));
+        assertNotNull(FUSED.methodRunIds.get("G13"));
+        int fusedG13 = 0;
+        for (EvidenceArtifact a : FUSION) if ("G13".equals(a.gate)) fusedG13++;
+        assertEquals("the fused row adds no second G13 record when the long tier analysed", 0, fusedG13);
         Set<String> g11 = carried(FUSION, "G11");
         for (String f : new String[] {"F", "C", "S", "M", "health_state_id", "source_verified_time", "measurement_impact", "eligibility_intervals"}) assertTrue(f, g11.contains(f));
     }
@@ -187,13 +198,60 @@ public class GateArtifactsTest {
     }
 
     @Test
-    public void g13IsAnUnavailableRecordWithAReasonNotAChart() {
+    public void g13WithoutPeersIsANotConfiguredRecordWithAReasonNotAChart() {
         EvidenceArtifact g13 = null;
-        for (EvidenceArtifact a : FUSION) if ("G13".equals(a.gate)) g13 = a;
+        for (EvidenceArtifact a : LONG) if ("G13".equals(a.gate)) g13 = a;
         assertNotNull(g13);
+        assertEquals("interaction", g13.kind);
         assertEquals(0, g13.calculationSamples());
-        assertEquals("UNAVAILABLE", g13.provenance.get("capability_state"));
-        assertEquals(FusionArtifacts.G13_CAPABILITY_REASON, g13.provenance.get("capability_reason"));
+        assertEquals("NOT_CONFIGURED", g13.provenance.get("capability_state"));
+        assertEquals("NO_PEER_LINKS", g13.provenance.get("capability_reason"));
+        assertEquals("G13.ALIGNED_PEER_ANALYSIS_V1", g13.provenance.get("method_id"));
+        assertEquals("NOT_EVALUATED", FUSED.gate13Status);
+        assertEquals("G13.ALIGNED_PEER_ANALYSIS_V1", FUSED.gate13Method);
+    }
+
+    @Test
+    public void g13WithAnAnalysedPeerWritesAlignedSeriesXcorrAndCoherenceUnderTheLongRunId() {
+        List<CplmNormalizedSample> samples = SynTic001ReferenceGenerator.generate();
+        long start = SynTic001ReferenceGenerator.windowStartMs(), end = SynTic001ReferenceGenerator.windowEndMs();
+        // a peer that is the loop's own PV delayed by two samples - detectable by construction
+        List<CplmNormalizedSample> peer = new ArrayList<>();
+        for (int i = 2; i < samples.size(); i++) {
+            CplmNormalizedSample c = samples.get(i - 2).peerCopy(samples.get(0).loopId);
+            c.loopId = "PEER-1";
+            c.eventTsMs = samples.get(i).eventTsMs;
+            peer.add(c);
+        }
+        java.util.Map<String, List<CplmNormalizedSample>> byPeer = new java.util.HashMap<>();
+        byPeer.put("PEER-1", peer);
+        com.ams.flink.cplm.engine.LongDiagnosticsCalculator.PeerContext ctx =
+                new com.ams.flink.cplm.engine.LongDiagnosticsCalculator.PeerContext(java.util.Collections.singletonList("PEER-1"), byPeer, 7);
+        CplmLongDiagnosticsResult longD = CplmGateEngine.computeLongDiagnostics(samples, start, end, "24h", null, ctx);
+        assertNotNull(longD.interaction);
+        assertEquals("INTERACTION_DETECTED", longD.interaction.state);
+        assertEquals(7, longD.interaction.relationshipRevision);
+        List<EvidenceArtifact> arts = LongArtifacts.artifacts(longD);
+        Set<String> kinds = new HashSet<>();
+        for (EvidenceArtifact a : arts) if ("G13".equals(a.gate)) { kinds.add(a.kind); assertEquals(longD.methodRunIds.get("G13"), a.methodRunId); }
+        assertTrue(kinds.containsAll(java.util.Arrays.asList("interaction", "aligned_series", "cross_correlation", "coherence")));
+        EvidenceArtifact aligned = null;
+        for (EvidenceArtifact a : arts) if ("aligned_series".equals(a.kind)) aligned = a;
+        assertNotNull(aligned);
+        assertEquals("PEER-1", aligned.roleOrPath);
+        assertNotNull(aligned.mask);
+        assertTrue(aligned.columns.containsKey("own_pv"));
+        // the fused row inherits the analysis and the SAME run id, and writes no second record
+        CplmGateResult fused = CplmGateFusionEngine.fuse(CplmGateEngine.computeShortFeatures(samples, start, end, "24h"), longD);
+        assertEquals("WARN", fused.gate13Status);
+        assertEquals(longD.methodRunIds.get("G13"), fused.methodRunIds.get("G13"));
+        for (EvidenceArtifact a : FusionArtifacts.artifacts(fused)) assertFalse("G13".equals(a.gate));
+        // the results-topic JSON round-trips the summary the fusion job reads
+        CplmLongDiagnosticsResult back = CplmLongDiagnosticsResult.fromJson(longD.toJson());
+        assertNotNull(back.interaction);
+        assertEquals("INTERACTION_DETECTED", back.interaction.state);
+        assertEquals(1, back.interaction.peers.size());
+        assertTrue(back.interaction.peers.get(0).associated);
     }
 
     @Test

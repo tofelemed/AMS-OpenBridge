@@ -52,6 +52,9 @@ public final class LongArtifacts {
         if (g10 != null && k.saturation != null) out.add(stamp(actuatorLimits(g10, k, r), r));
         String g11 = r.methodRunIds.get("G11");
         if (g11 != null && k.deltaPv != null) out.add(stamp(measurement(g11, k, r), r));
+        // v2.5 (2F.1): G13 lives on the long tier - the record plus per-peer aligned series, xcorr, coherence
+        String g13 = r.methodRunIds.get("G13");
+        if (g13 != null && k.interaction != null) for (EvidenceArtifact a : InteractionArtifacts.artifacts(g13, k.interaction, r.interaction)) out.add(stamp(a, r));
         return out;
     }
 

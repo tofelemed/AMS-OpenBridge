@@ -20,7 +20,8 @@ import java.util.Map;
  * never OK). Records carry their fields in provenance; only the lanes are a series.
  */
 public final class FusionArtifacts {
-    public static final String G13_CAPABILITY_REASON = "INTERACTION_METHOD_NOT_INSTALLED";
+    /** The fused row's G13 record when the long row carried no analysis (a jar without 2F.1). */
+    public static final String G13_CAPABILITY_REASON = "INTERACTION_NOT_ANALYSED_BY_LONG_TIER";
 
     private FusionArtifacts() {}
 
@@ -29,8 +30,11 @@ public final class FusionArtifacts {
         if (r == null || r.methodRunIds == null) return out;
         String g11 = r.methodRunIds.get("G11");
         if (g11 != null) out.add(stamp(eligibilityIntervals(g11, r), r));
+        // v2.5 (2F.1): G13's evidence (record + per-peer series) is written by the long tier under the
+        // SAME method run id (deterministic per loop/support/bundle); the fused row adds a record only
+        // when the long row carried no analysis, so a manifest never holds two G13 records.
         String g13 = r.methodRunIds.get("G13");
-        if (g13 != null) out.add(stamp(interactionUnavailable(g13, r), r));
+        if (g13 != null && r.interaction == null) out.add(stamp(interactionUnavailable(g13, r), r));
         String g14 = r.methodRunIds.get("G14");
         if (g14 != null) out.add(stamp(confirmationRecord(g14, r), r));
         String g15 = r.methodRunIds.get("G15");
@@ -88,7 +92,8 @@ public final class FusionArtifacts {
         for (String field : new String[] {"peer_ids", "relationship_revision", "aligned_series", "cross_correlation", "coherence", "frequency_hz", "lag_s", "support_mask", "alternative_explanations"}) {
             a.provenance.put(field, "UNAVAILABLE");
         }
-        a.provenance.put("legacy_link_flag", r.gate13Status);
+        a.provenance.put("legacy_link_flag", r.hasPeerLinks ? "HAS_PEER_LINKS" : "NO_UPSTREAM_LINKS");
+        a.provenance.put("gate13_method", r.gate13Method);
         return a;
     }
 

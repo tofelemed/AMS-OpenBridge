@@ -37,6 +37,15 @@ public final class CplmNormalizedSample implements Serializable {
      * with the sample so downstream windows do not depend on JVM-local state.
      */
     public CplmLoopDynamicsProfile resolvedProfile;
+    /**
+     * v2.5 (2F.1): set on a COPY of this sample fanned out to a loop that lists this loop as a
+     * peer; the long job keys such copies under that loop for the G13 aligned analysis. Null on
+     * the loop's own samples. Never serialised to a topic.
+     */
+    public String peerOfLoopId;
+    /** v2.5 (2F.1): the registry's configured peers of this loop as of the broadcast (own samples only). */
+    public java.util.List<String> configuredPeers;
+    public long relationshipRevision;
 
     // ── v2.5 schema 1.1 (spec v6 R03/C02): per-role provenance ─────────────────────
     /** "1.0" (top-level fields only, roles synthesised) or "1.1" (producer wrote roles{}). */
@@ -71,6 +80,34 @@ public final class CplmNormalizedSample implements Serializable {
         if (o == null || com.ams.flink.cplm.contract.RoleObservation.SOURCE_LEGACY_TUPLE.equals(o.provenance)) return true;
         if (!o.isGood()) return false;
         return !(o.held && o.ageMs > maxAgeS * 1000.0);
+    }
+
+    /**
+     * v2.5 (2F.1): a copy of this sample for the keyed window of {@code peerOf} - the signal, its
+     * instant and quality, no resolved profile (the peer's profile is not the loop's) and no
+     * configured-peer list (that belongs to the loop's own samples).
+     */
+    public CplmNormalizedSample peerCopy(String peerOf) {
+        CplmNormalizedSample c = new CplmNormalizedSample();
+        c.loopId = loopId;
+        c.eventTsMs = eventTsMs;
+        c.ingestTsMs = ingestTsMs;
+        c.pv = pv;
+        c.sp = sp;
+        c.op = op;
+        c.vp = vp;
+        c.mode = mode;
+        c.quality = quality;
+        c.isValid = isValid;
+        c.invalidReason = invalidReason;
+        c.loopType = loopType;
+        c.assetUuid = assetUuid;
+        c.schemaVersion = schemaVersion;
+        c.bindingRevision = bindingRevision;
+        c.gridSeconds = gridSeconds;
+        c.roles = roles;
+        c.peerOfLoopId = peerOf;
+        return c;
     }
 
     public static CplmNormalizedSample fromJson(String json) {

@@ -13,13 +13,13 @@ import java.util.Map;
 
 /**
  * v2.5 Task 1G.3 (R19 / R26): stamps the run identity on each result tier. The short stage
- * owns G0-G4, the long stage G5-G11, and the fused result is the run of record for all 17
+ * owns G0-G4, the long stage G5-G11 and G13 (aligned peer analysis, 2F.1), and the fused result is the run of record for all 17
  * gates; the fused ids for G0-G11 equal the stage ids (same loop, support, bundle, revision),
  * so evidence emitted by a stage attaches to the fused row's method_run_ids.
  */
 public final class ResultIdentity {
     public static final List<String> SHORT_GATES = Arrays.asList("G0", "G1", "G2", "G2r", "G3", "G4");
-    public static final List<String> LONG_GATES = Arrays.asList("G5", "G6", "G7", "G8", "G9", "G10", "G11");
+    public static final List<String> LONG_GATES = Arrays.asList("G5", "G6", "G7", "G8", "G9", "G10", "G11", "G13");
 
     private ResultIdentity() {
     }

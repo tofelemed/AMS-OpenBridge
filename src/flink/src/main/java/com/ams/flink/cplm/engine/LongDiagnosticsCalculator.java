@@ -35,6 +35,21 @@ public final class LongDiagnosticsCalculator {
             long windowEndMs,
             String windowKind,
             CplmLoopDynamicsProfile profileOrNull) {
+        return computeLongDiagnostics(rawSamples, windowStartMs, windowEndMs, windowKind, profileOrNull, null);
+    }
+
+    /**
+     * v2.5 (2F.1): as above with the G13 peer context - the peers' samples keyed by peer id (as the
+     * long job's fan-out delivered them) and the registry's configured peer list. A null context
+     * evaluates G13 as NOT_CONFIGURED.
+     */
+    public static CplmLongDiagnosticsResult computeLongDiagnostics(
+            List<CplmNormalizedSample> rawSamples,
+            long windowStartMs,
+            long windowEndMs,
+            String windowKind,
+            CplmLoopDynamicsProfile profileOrNull,
+            PeerContext peers) {
         CplmLongDiagnosticsResult result = new CplmLongDiagnosticsResult();
         result.windowKind = windowKind;
         result.windowStartMs = windowStartMs;
@@ -260,8 +275,32 @@ public final class LongDiagnosticsCalculator {
             result.gate11Reason = "";
         }
 
+        InteractionGate.apply(result, samples, peers == null ? null : peers.samplesInWindow(windowStartMs, windowEndMs),
+                peers == null ? java.util.Collections.emptyList() : peers.configuredPeers, peers == null ? 0 : peers.relationshipRevision, profile);
         com.ams.flink.cplm.identity.ResultIdentity.stamp(result, samples, profile);
         return result;
+    }
+
+    /** v2.5 (2F.1): the peers' samples and the configured peer list for one loop's G13 evaluation. */
+    public static final class PeerContext implements java.io.Serializable {
+        private static final long serialVersionUID = 1L;
+        public final List<String> configuredPeers;
+        public final java.util.Map<String, List<CplmNormalizedSample>> samples;
+        public final long relationshipRevision;
+
+        public PeerContext(List<String> configuredPeers, java.util.Map<String, List<CplmNormalizedSample>> samples, long relationshipRevision) {
+            this.configuredPeers = configuredPeers == null ? java.util.Collections.emptyList() : configuredPeers;
+            this.samples = samples == null ? java.util.Collections.emptyMap() : samples;
+            this.relationshipRevision = relationshipRevision;
+        }
+
+        java.util.Map<String, List<CplmNormalizedSample>> samplesInWindow(long fromMs, long toMs) {
+            java.util.Map<String, List<CplmNormalizedSample>> out = new java.util.HashMap<>();
+            for (java.util.Map.Entry<String, List<CplmNormalizedSample>> e : samples.entrySet()) {
+                out.put(e.getKey(), SignalMath.filterHalfOpen(e.getValue(), fromMs, toMs));
+            }
+            return out;
+        }
     }
 
     public static void stampProfile(CplmLongDiagnosticsResult result, CplmLoopDynamicsProfile profile) {

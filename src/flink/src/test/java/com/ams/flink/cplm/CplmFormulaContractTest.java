@@ -237,7 +237,11 @@ public class CplmFormulaContractTest {
 
         CplmGateResult both = CplmGateFusionEngine.fuse(shortF, longD, true, true);
         Assert.assertEquals("PASS", both.gate12Status);
-        Assert.assertEquals("PASS", both.gate13Status);
+        // v2.5 (2F.1, R09): a configured peer LINK no longer lifts G13 - only the long tier's aligned
+        // analysis does. A long row without the analysis keeps the flag, labelled LEGACY_FLAG_ONLY.
+        Assert.assertEquals("NOT_EVALUATED", both.gate13Status);
+        Assert.assertEquals("LEGACY_FLAG_ONLY", both.gate13Method);
+        Assert.assertTrue(both.observabilityFlags.contains("G13_LEGACY_FLAG_ONLY"));
         Assert.assertTrue(both.hasStepTestEvidence);
         Assert.assertTrue(both.hasPeerLinks);
     }

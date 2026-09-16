@@ -42,8 +42,17 @@ public final class VerdictAssembly {
                 "G10.SATURATION", "SUPPORTING", "G10=" + result.gate10Status));
         v2.observe(Observation.of("FREEZE", freezeSeen, longD.freezeMaterial ? 1.0 : 0.5,
                 "G11.SENSOR_FREEZE", "PRIMARY", "G11=" + result.gate11Status));
-        v2.observe(Observation.of("PEER_LINKS", e.hasPeerLinks, e.hasPeerLinks ? 1.0 : 0.0,
-                "G13.PEER_LINK_FLAG", "DISPLAY_ONLY", "LEGACY_FLAG_ONLY"));
+        if (result.interaction != null) {
+            double best = 0;
+            for (com.ams.flink.cplm.engine.InteractionSummary.PeerRow p : result.interaction.peers) {
+                if (p.associated && Double.isFinite(p.coherenceBandMax)) best = Math.max(best, p.coherenceBandMax);
+            }
+            v2.observe(Observation.of("PEER_INTERACTION", e.interactionDetected, best,
+                    result.interaction.methodId, "SUPPORTING", "G13=" + result.gate13Status + ":" + result.interaction.state));
+        } else {
+            v2.observe(Observation.of("PEER_LINKS", e.hasPeerLinks, e.hasPeerLinks ? 1.0 : 0.0,
+                    "G13.PEER_LINK_FLAG", "DISPLAY_ONLY", "LEGACY_FLAG_ONLY"));
+        }
 
         Hypothesis stiction = Hypothesis.of("STICTION", e.stictionQualified ? e.familyStiction : 0, e.stictionQualified);
         if (e.shapeEvidence) stiction.evidenceGroups.add("SHAPE_TRIANGULARITY");
@@ -63,7 +72,7 @@ public final class VerdictAssembly {
         Hypothesis disturbance = Hypothesis.of("EXTERNAL_DISTURBANCE",
                 e.disturbanceContext ? e.familyOscillation : 0, e.disturbanceContext);
         disturbance.evidenceGroups.add("OSCILLATION");
-        if (e.hasPeerLinks) disturbance.evidenceGroups.add("PEER_LINKS");
+        if (e.interactionDetected) disturbance.evidenceGroups.add("PEER_INTERACTION");
         v2.hypotheses.put("EXTERNAL_DISTURBANCE", disturbance);
 
         Hypothesis effort = Hypothesis.of("EXCESSIVE_EFFORT", e.effortQualified ? e.familyEffort : 0, e.effortQualified);

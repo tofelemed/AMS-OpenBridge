@@ -283,6 +283,11 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
             if (root.has("g6OverlapFraction")) p.g6OverlapFraction = root.path("g6OverlapFraction").asDouble(p.g6OverlapFraction);
             if (root.has("g6DetrendMode")) p.g6DetrendMode = root.path("g6DetrendMode").asText(p.g6DetrendMode);
             if (root.has("g6BandCyclesPerSegment")) p.g6BandCyclesPerSegment = root.path("g6BandCyclesPerSegment").asDouble(p.g6BandCyclesPerSegment);
+            if (root.has("g13LagMaxS")) p.g13LagMaxS = root.path("g13LagMaxS").asDouble(p.g13LagMaxS);
+            if (root.has("g13CoherenceMin")) p.g13CoherenceMin = root.path("g13CoherenceMin").asDouble(p.g13CoherenceMin);
+            if (root.has("g13XcorrMin")) p.g13XcorrMin = root.path("g13XcorrMin").asDouble(p.g13XcorrMin);
+            if (root.has("g13MinCompatibleSupportS")) p.g13MinCompatibleSupportS = root.path("g13MinCompatibleSupportS").asDouble(p.g13MinCompatibleSupportS);
+            if (root.has("g13MaxPeers")) p.g13MaxPeers = root.path("g13MaxPeers").asInt(p.g13MaxPeers);
             if (root.has("freezeToleranceEu")) p.freezeToleranceEu = root.path("freezeToleranceEu").asDouble(p.freezeToleranceEu);
             if (root.has("freezeDwellS")) p.freezeDwellS = root.path("freezeDwellS").asDouble(p.freezeDwellS);
             if (root.has("nonfollowingErrorPp")) p.nonfollowingErrorPp = root.path("nonfollowingErrorPp").asDouble(p.nonfollowingErrorPp);
