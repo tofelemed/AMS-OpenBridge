@@ -74,6 +74,30 @@
   border-color: var(--selected-enabled-border-color, var(--instrument-enhanced-primary-color));
 }
 
+/* ── Header fact row (v2.5 workbench redesign): labelled facts that wrap, never overlap ── */
+.cpm-fact-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border-divider-color);
+  border-bottom: 1px solid var(--border-divider-color);
+}
+.cpm-fact-row__facts { display: flex; flex-wrap: wrap; gap: 6px 20px; min-width: 0; flex: 1 1 auto; }
+.cpm-fact { display: inline-flex; align-items: center; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+.cpm-fact__label {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--element-neutral-color);
+  white-space: nowrap;
+}
+.cpm-fact__value { display: inline-flex; align-items: center; gap: 6px; }
+.cpm-fact-row__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+.cpm-copy-id { display: inline-flex; align-items: center; gap: 2px; }
+.cpm-copy-id__status { font-size: 0.75rem; color: var(--element-neutral-color); min-width: 0; }
+
 /* ── Gate strip (v2.5 workbench redesign): one row of status chips grouped by tier ── */
 .cpm-gate-strip {
   display: flex;
