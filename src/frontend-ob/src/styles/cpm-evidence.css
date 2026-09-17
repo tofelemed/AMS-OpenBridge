@@ -352,12 +352,12 @@
 .cpm-config-tabpanel { display: flex; flex-direction: column; gap: 8px; }
 .cpm-config-table__wrap { overflow-x: auto; }
 .cpm-config-table { table-layout: fixed; }
-.cpm-config-table th:nth-child(1) { width: 34%; }
+.cpm-config-table th:nth-child(1) { width: 30%; }
 .cpm-config-table th:nth-child(2) { width: 26%; }
-.cpm-config-table th:nth-child(3) { width: 20%; }
-.cpm-config-table th:nth-child(4) { width: 20%; }
-.cpm-config-table td { overflow-wrap: anywhere; }
-.cpm-config-table .cpm-pill { white-space: normal; }
+.cpm-config-table th:nth-child(3) { width: 22%; }
+.cpm-config-table th:nth-child(4) { width: 22%; }
+.cpm-config-table td .cpm-mono { overflow-wrap: anywhere; }
+.cpm-config-table .cpm-pill { white-space: normal; overflow-wrap: normal; }
 .cpm-config-table__from { display: block; }
 .cpm-config-table__flags { display: flex; flex-wrap: wrap; gap: 4px; }
 .cpm-config-deployment .cpm-panel-head { flex-wrap: wrap; }
