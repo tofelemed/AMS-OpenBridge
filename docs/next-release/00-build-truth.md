@@ -287,7 +287,10 @@ classloader); recreating the TaskManager cleared it. The plant runbook already r
   exceeds tauMinS/4; the response job's subgate A reports `sample_grid_s` and, with `--g12-delay-min-s`, its own bandwidth
   verdict. RBE holds are `RBE_HOLD` in G0. `CpmLoopRegistryService` (1866 lines) is now seven partial files.
 - Lab deploy 2026-09-17: jar `37d11f25…` (2F + 2G) - all six CPLM jobs RUNNING, no ClassNotFound, cplm-api and frontend images
-  rebuilt and recreated. `scripts/test-cpm-v25-slice2-e2e.ps1`: __SLICE2_RESULT__
+  rebuilt and recreated. `scripts/test-cpm-v25-slice2-e2e.ps1`: first green run **19/19** on 2026-09-17 04:45 (jar `4ea1da78…`), after five lab runs
+  that each found a real defect on the cold lab (watermarks after the peer fan-out; G13 identity and method eligibility on
+  excluded fused rows; the streaming capture never superseding on a second step; the fusion job selecting no bundle without a
+  site so the tiers' method run ids forked) - all fixed and unit-pinned. Result: CHG-027.
 
 ## 3A / 3B / 3C / 3D — governed runtime configuration (2026-09-17)
 

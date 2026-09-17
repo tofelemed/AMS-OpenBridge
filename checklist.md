@@ -6,7 +6,7 @@ audited base `5cec34ef`. Operational facts (what to run on the plant) live in `c
 
 Legend: ✅ done and committed · 🔄 in progress · ⬜ pending · commit ids are on this branch.
 
-_Last updated: 2026-09-17 (Phase 3 implemented and committed through 3D.1; jar 03d04d12 + the 3D images on the lab; slice-2 / slice-3 E2E runs in progress; Phase 4.1 / 4.2 next; 4.3 (the bundle build + tag) deliberately NOT run - stop point agreed with the user)._
+_Last updated: 2026-09-17 04:50 (Phases 0-3 implemented, committed and lab-proven: slice-1 18/18, slice-2 19/19, slice-3 14/14; jar 4ea1da78 + the 3D images on the lab; Phase 4 halted by the user - no bundle, no tag)._
 
 ## Phase 0 — build truth and test baseline ✅
 
@@ -49,7 +49,7 @@ _Last updated: 2026-09-17 (Phase 3 implemented and committed through 3D.1; jar 0
 | 1H.6 UI panel, health lane, header pill, fleet `?health=` | ✅ | 210d26e9 | `TransmitterHealthPanel.test.tsx` (4), `FleetHealthFilterTests` (5); lint + build clean |
 | 1H.7 slice-1 E2E script, freeze publisher, tracker CHG-026, audit disposition, plan tick | ✅ | see git log (1H.7) | slice-1 E2E **18/18** at 15:14 on the redeployed jar (jar e09d6f40; NE107 path, fusion v2 + identity + health lanes, evidence COMPLETE, fleet filters, availability); evidence path proven (COMPLETE manifests from a frozen loop); CHG-026 + audit disposition written |
 
-## Phase 2 — G12 system response, evidence workbench, G13, loop model 🔄 (2A started 2026-09-16)
+## Phase 2 — G12 system response, evidence workbench, G13, loop model ✅ (closed 2026-09-17; CHG-027)
 
 | Subphase | Tasks | Status |
 |---|---|---|
@@ -59,7 +59,7 @@ _Last updated: 2026-09-17 (Phase 3 implemented and committed through 3D.1; jar 0
 | 2D API breadth | 2D.1 ✅ a5cdf73c (`GET /gate-catalogue`, 17 entries once incl. G2r, capability state per gate) · 2D.2 ✅ 7af35971 (`analytics.investigation_reference` (56), `POST /investigations` pins evidence, explicit outcome WORK_COMPLETED / PERFORMANCE_RESTORED / INCONCLUSIVE - completed work ≠ restored) | ✅ |
 | 2E frontend workbench | 2E.1 ✅ 8ec77afb (`CpmChart` one axis per unit, no null bridging, stepped holds, labelled bands; `GateResultState` 9 states; site-zone times; artifact codec with checksum) · 2E.2 ✅ f909830e (historical + replay charts one axis per unit group, replay split ≤ 400 lines, raw slice walked to a budget) · 2E.3 ✅ 5c986106 (`GateEvidenceWorkspace` from an immutable URL selection, never `useLatestGates`; signal context lanes; method trace; launcher passes the clicked cell's `methodRunId`) · 2E.4 ✅ f5f4d20a (17 views on the exact artifacts, pure bodies tested) · 2E.5 ✅ c00629e9 (+ 7854ebb1, c73ef24d writer columns/lists: `ResponseWorkspace` events incl. rejected/censored, fits, labelled prediction band, residuals, candidate models, Bode only when written, model history as interval markers, server-owned review with If-Match) · frontend 93/93, lint + tsc clean · **not yet on the lab** (frontend + jar redeploy pending) | ✅ |
 | 2F G13 interaction | 2F.1 ✅ 47dfbaa0 (`InteractionMath`: nearest alignment, normalised xcorr with the smallest-lag tie rule, Welch MSC) · a8d6df4e (long-job peer fan-out `CplmPeerFanoutSupport`, `INTERACTION_DETECTED / NO_INTERACTION / UNAVAILABLE`, fusion soft-block only on INTERACTION_DETECTED, legacy rows `LEGACY_FLAG_ONLY`) · 43b83a25 API · 22e56fa5 `G13Interaction` view · ea8ed2c7 **lab finding**: the no-watermark control stream held every long-job timer - watermarks re-assigned after the fan-out (`LongJobTopologyTest` pins it) | ✅ |
-| 2G loop model | 2G.1 ✅ 1e7d2b8b (registry split) + 910c5b93 (57: service family / dynamic class / objective / topology / command path / acquisition / classification source; EXPLICIT never overwritten by a preset; `cplm.loop.model` broadcast) + 48695ba8 (Flink `applyLoopModel`, `MethodEligibility` BANDWIDTH on G5/G6/G12) + 52b4d4a6 (API eligibility) + 459bec7e (`ClassificationStep`) · 2G.2 🔄 `scripts/test-cpm-v25-slice2-e2e.ps1` written (729ae54e); lab run + CHG-027 pending the run | 🔄 |
+| 2G loop model | 2G.1 ✅ 1e7d2b8b (registry split) + 910c5b93 (57: service family / dynamic class / objective / topology / command path / acquisition / classification source; EXPLICIT never overwritten by a preset; `cplm.loop.model` broadcast) + 48695ba8 (Flink `applyLoopModel`, `MethodEligibility` BANDWIDTH on G5/G6/G12) + 52b4d4a6 (API eligibility) + 459bec7e (`ClassificationStep`) · 2G.2 ✅ `scripts/test-cpm-v25-slice2-e2e.ps1` **19/19** on the lab at 04:45 (jar 4ea1da78) after four lab defects were fixed on the way (ea8ed2c7 watermarks, 6bdcfd78 + 95f25b74 G13 identity / eligibility on excluded rows, 770e3315 NR-007 streaming supersede, d0003ba5 fused identity inherits the long tier's bundle); CHG-027 written | ✅ |
 
 ## Phase 3 — governed runtime configuration ✅ (implemented and lab-proven 2026-09-17)
 

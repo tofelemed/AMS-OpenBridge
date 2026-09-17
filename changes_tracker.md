@@ -1781,7 +1781,15 @@ Commits (branch `feat/v25-next-release`, tests first): 2A `f3a91c84` `33e167a7` 
 - Unit (at 2G.2 close, 2026-09-17): Flink `mvn test` **264 run / 0 failures / 2 skipped**; cplm-api **159/159** (lab DB); frontend vitest **101/101**, `npm run lint` clean, `tsc` clean.
 - 2B lab proof (jar `2a6dd18a…`): COMPLETE `INPUT_TEST` events (Kp 3.000, τ 20.00 s, θ 2.7 ± 2.5 s, settle 80.1 s, 12 artifacts); second event VALIDATED (validation RMSE 0.36, prediction RMSE 0.23, fit improvement 0.97).
 - 2C lab proof: short-tier manifests COMPLETE; `/method-runs/{id}/evidence` ETag / 304; chunk bytes decoded to 61 × 6 columns; reconstruction under the original identity; retention cycle EXPIRED → reconstruct → ATTACHED / COMPLETE; G12 reconstruction refused 422.
-- `scripts/test-cpm-v25-slice2-e2e.ps1` (new, 17 steps): __SLICE2_RESULT__
+- `scripts/test-cpm-v25-slice2-e2e.ps1` (new, 19 steps): **19 passed, 0 failed** at 04:45 on jar `4ea1da78…` (the fused-identity
+  fix) - catalogue 17 once; schema 55/56/57; registry contract + an EXPLICIT LIC model surviving a preset re-activation; the
+  running jar observed on results; G13 as the aligned analysis on the newest fused row with the API cell matching its own
+  window; bandwidth eligibility on the long + fused rows; G5 `acf_series` / G6 `psd` on a COMPLETE manifest; the G13 evidence
+  record under the long tier's run id shared with the fused row; a COMPLETE `INPUT_TEST` event (Kp 3.000); **NR-007: the second
+  step censored the first (`SUPERSEDED_BY_EVENT`) and opened a second on the running job**; manifest ETag / 304 and chunk sha;
+  `/method-runs` resolves the newest run's id (a pre-1G verdict-aware "latest" cell states null, never a made-up id);
+  investigation outcome; SPA routes. Earlier runs on the cold lab found four defects fixed in this set (see the findings above
+  and 6bdcfd78, 95f25b74, 770e3315, d0003ba5).
 - `scripts/sim/loop_step_sim.py` gains `interrupted-step` (NR-007: a second step 30 s after the first).
 - Lab findings while proving Slice 2 (all fixed in this set): the no-watermark control stream held every long-job timer
   (ea8ed2c7, `LongJobTopologyTest`); an EXCLUDED fused window (cold 24 h, G0 FAIL) read G13 as `LEGACY_FLAG_ONLY` as if an
@@ -1789,7 +1797,10 @@ Commits (branch `feat/v25-next-release`, tests first): 2A `f3a91c84` `33e167a7` 
   eligibility now ride every fused row (6bdcfd78, 95f25b74); **the streaming capture never looked for a second step while
   one was open** (the machine's SUPERSEDED_BY_EVENT path was only ever driven by its own unit test), so the interrupted-step
   scenario read COMPLETE on the lab - a sustained change of the open event's driving signal now supersedes it and the second
-  event carries the whole input sequence (NR-007, `ResponseCaptureEvaluatorTest`).
+  event carries the whole input sequence (NR-007, `ResponseCaptureEvaluatorTest`); **the fusion job selected no bundle** (no site on
+  the long result) while the long job had, so the two tiers computed different method run ids for one window - the long
+  result now carries `site`, the fused row inherits the long tier's bundle identity and flags a divergence
+  `BUNDLE_MISMATCH_FUSION` instead of forking the ids (d0003ba5, `ResultIdentityTest`).
 
 ### Risks and deliberate limits
 
