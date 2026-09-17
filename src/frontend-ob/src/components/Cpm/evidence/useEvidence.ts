@@ -4,8 +4,10 @@
  * decoded artifacts are cached by evidence id + checksum.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchChunk, getEvidenceManifest, getMethodRun, postReconstruction, type EvidenceArtifactMeta } from '../../../api/cpm/evidence';
+import { getMethodRun, postReconstruction, type EvidenceArtifactMeta } from '../../../api/cpm/evidence';
 import { loadArtifact, type DecodedArtifact } from './artifactCodec';
+import { bundledChunkFetcher } from './chunkSource';
+import { loadManifest } from './manifestBatcher';
 
 export function useMethodRun(methodRunId: string | undefined) {
   return useQuery({
@@ -19,7 +21,7 @@ export function useMethodRun(methodRunId: string | undefined) {
 export function useEvidenceManifest(methodRunId: string | undefined, refetchMs?: number) {
   return useQuery({
     queryKey: ['cpm', 'evidence-manifest', methodRunId ?? ''],
-    queryFn: ({ signal }) => getEvidenceManifest(methodRunId!, signal),
+    queryFn: ({ signal }) => loadManifest(methodRunId!, signal),           // v2.5 batching: coalesced with the sibling reads
     enabled: !!methodRunId,
     staleTime: 30_000,
     refetchInterval: refetchMs,
@@ -29,7 +31,7 @@ export function useEvidenceManifest(methodRunId: string | undefined, refetchMs?:
 export function useArtifact(meta: EvidenceArtifactMeta | undefined) {
   return useQuery<DecodedArtifact>({
     queryKey: ['cpm', 'artifact', meta?.artifactId ?? '', meta?.checksum ?? ''],
-    queryFn: ({ signal }) => loadArtifact(meta!, fetchChunk, signal),
+    queryFn: ({ signal }) => loadArtifact(meta!, bundledChunkFetcher(meta!.methodRunId), signal),   // the run bundle first
     enabled: !!meta && meta.readiness === 'COMPLETE',
     staleTime: Infinity,                                   // immutable bytes
     retry: false,                                          // a checksum mismatch is a fact, not a hiccup

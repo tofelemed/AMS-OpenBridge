@@ -48,6 +48,35 @@ public sealed class KpiReadsTests : IAsyncLifetime
         batch.Values.Sum(s => s.Count).Should().BeGreaterThan(0, "the chosen loop has rows");
     }
 
+    // v2.5 workbench: a short (1m…60m) or long window is opened by its per-gate method run ids, so the
+    // KPI rows must carry the identity columns the 53 migration added (method_run_ids, bundle_hash,
+    // purpose) - the rows are the window picker's source for the non-fused tiers.
+    [Theory]
+    [InlineData("15m", false)]
+    [InlineData("24h", true)]
+    public async Task Every_kpi_row_names_its_run_identity(string kind, bool isLong)
+    {
+        await using var conn = await _db.OpenConnectionAsync();
+        var loopId = await conn.ExecuteScalarAsync<string?>(
+            $"SELECT loop_id FROM analytics.{(isLong ? "cplm_long_feature_results" : "cplm_short_feature_results")} WHERE window_kind = @kind AND method_run_ids <> '{{}}'::jsonb ORDER BY created_at DESC LIMIT 1",
+            new { kind });
+        loopId.Should().NotBeNull($"the lab has {kind} rows with run identity (v2.5 jar)");
+        var rows = (await conn.QueryAsync(isLong ? KpiSql.Long : KpiSql.Short,
+            new { loopId, resolution = kind, from = (DateTimeOffset?)null, to = (DateTimeOffset?)null, limit = 3, before = (DateTimeOffset?)null })).ToList();
+        rows.Should().NotBeEmpty();
+        var first = (IDictionary<string, object?>)rows[0];
+        first.Should().ContainKeys("method_run_ids", "bundle_hash", "purpose");
+        var ids = System.Text.Json.JsonDocument.Parse((string)first["method_run_ids"]!).RootElement;
+        ids.EnumerateObject().Should().NotBeEmpty("the row was written by a v2.5 jar");
+        ids.EnumerateObject().Select(p => p.Name).Should().Contain(isLong ? "G5" : "G0");
+        ((string)first["purpose"]!).Should().Be("LIVE");
+        ((string)first["bundle_hash"]!).Should().NotBeNullOrWhiteSpace();
+        if (!isLong)
+        {
+            first.Should().ContainKeys("gate0_reason", "evaluation_state", "evaluation_reason");
+        }
+    }
+
     [Fact]
     public async Task An_unknown_loop_yields_empty_slices_for_every_requested_kind()
     {

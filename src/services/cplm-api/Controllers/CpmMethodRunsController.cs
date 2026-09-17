@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Dapper;
@@ -25,11 +24,13 @@ public sealed class CpmMethodRunsController : ControllerBase
 {
     private readonly NpgsqlDataSource _db;
     private readonly MethodRunResolver _resolver;
+    private readonly EvidenceManifestReader _manifests;
 
     public CpmMethodRunsController([FromKeyedServices("cplm")] NpgsqlDataSource db, MethodRunResolver resolver)
     {
         _db = db;
         _resolver = resolver;
+        _manifests = new EvidenceManifestReader(resolver);
     }
 
     [HttpGet("method-runs/{id:guid}")]
@@ -85,77 +86,74 @@ public sealed class CpmMethodRunsController : ControllerBase
     public async Task<IActionResult> GetEvidence(Guid id, CancellationToken ct)
     {
         await using var conn = await _db.OpenConnectionAsync(ct);
-        var site = await conn.ExecuteScalarAsync<string?>("""
-            SELECT l.site FROM analytics.evidence_manifest m JOIN cpm.loop_registry l ON l.loop_id = m.provenance->>'loop_id'
-            WHERE m.method_run_id = @id LIMIT 1
-            """, new { id });
-        if (site is null)
-        {
-            var loc = await _resolver.ResolveAsync(id, ct);
-            site = loc?.Site;
-        }
+        var site = await _manifests.SiteOfAsync(conn, id, ct);
         if (!SiteScope.Allows(Request, site)) return StatusCode(StatusCodes.Status403Forbidden, SiteScope.Forbidden(site));
 
-        var rows = await conn.QueryAsync("""
-            SELECT evidence_id, method_run_id, gate_id, artifact_kind, role_or_path, x_quantity, x_unit, y_quantity, y_unit,
-                   data_type, columns::text AS columns, encoding, calculation_samples, display_points, chunk_count, total_bytes,
-                   sha256, chunk_sha256::text AS chunk_sha256, readiness, readiness_reason, provenance::text AS provenance, retention_class, pinned,
-                   source_commit, jar_sha256, created_at, completed_at, gate_result_id
-            FROM analytics.evidence_manifest WHERE method_run_id = @id ORDER BY artifact_kind, role_or_path, evidence_id
-            """, new { id });
-        var artifacts = rows.Select(r => new
-        {
-            artifactId = (Guid)r.evidence_id,
-            methodRunId = (Guid)r.method_run_id,
-            gate = (string)r.gate_id,
-            kind = (string)r.artifact_kind,
-            roleOrPath = (string?)r.role_or_path,
-            x = new { quantity = (string?)r.x_quantity, unit = (string?)r.x_unit },
-            y = new { quantity = (string?)r.y_quantity, unit = (string?)r.y_unit },
-            dataType = (string)r.data_type,
-            columns = JsonDocument.Parse((string)r.columns).RootElement,
-            encoding = (string)r.encoding,
-            calculationSamples = (int?)r.calculation_samples,
-            displayPoints = (int?)r.display_points,
-            chunkCount = (int)r.chunk_count,
-            totalBytes = (long)r.total_bytes,
-            checksum = (string)r.sha256,
-            chunkChecksums = r.chunk_sha256 is null ? JsonDocument.Parse("[]").RootElement : JsonDocument.Parse((string)r.chunk_sha256).RootElement,
-            chunksUrl = $"/api/v1/cpm/evidence/{(Guid)r.evidence_id}/chunks/{{n}}",
-            readiness = (string)r.readiness,
-            readinessReason = (string?)r.readiness_reason,
-            provenance = JsonDocument.Parse((string)r.provenance).RootElement,
-            retentionClass = (string)r.retention_class,
-            pinned = (bool)r.pinned,
-            sourceCommit = (string?)r.source_commit,
-            jarSha256 = (string?)r.jar_sha256,
-            createdAt = r.created_at,
-            completedAt = r.completed_at,
-            gateResultId = (long?)r.gate_result_id,
-        }).ToList();
-
-        var readiness = artifacts.Count == 0 ? "NONE"
-            : artifacts.All(a => a.readiness == "COMPLETE") ? "COMPLETE"
-            : artifacts.Any(a => a.readiness == "FAILED") ? "FAILED"
-            : artifacts.Any(a => a.readiness == "PENDING") ? "PENDING"
-            : artifacts.All(a => a.readiness == "EXPIRED") ? "EXPIRED" : "PARTIAL";
-        var etag = "\"" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
-            string.Join("|", artifacts.Select(a => $"{a.artifactId}:{a.readiness}:{a.checksum}:{a.chunkCount}"))))).ToLowerInvariant() + "\"";
-        Response.Headers[HeaderNames.ETag] = etag;
+        var manifest = await _manifests.ReadAsync(conn, id, site, ct);
+        Response.Headers[HeaderNames.ETag] = manifest.Etag;
         Response.Headers[HeaderNames.CacheControl] = "private, no-cache";
-        if (Request.Headers.TryGetValue(HeaderNames.IfNoneMatch, out var inm) && inm.Any(v => v is not null && v.Trim() == etag))
-            return StatusCode(StatusCodes.Status304NotModified);
-        return Ok(new
-        {
-            methodRunId = id,
-            etag,
-            readiness,
-            count = artifacts.Count,
-            reconstructable = true,
-            reconstruct = new { purpose = "EVIDENCE_RECONSTRUCTION", methodRunId = id, endpoint = "/api/v1/cpm/analysis-runs" },
-            artifacts,
-        });
+        if (IfNoneMatchHits(manifest.Etag)) return StatusCode(StatusCodes.Status304NotModified);
+        return Ok(manifest.ToResponse());
     }
+
+    /// <summary>
+    /// v2.5 workbench batching: the manifests of several runs in one call (the selected gate plus the
+    /// G0 / G1 / G11 context-lane siblings). Unknown ids - and ids outside the caller's site scope - are
+    /// served as null, never as an error for the whole batch. At most 20 ids.
+    /// </summary>
+    [HttpPost("method-runs/evidence/batch")]
+    public async Task<IActionResult> GetEvidenceBatch([FromBody] EvidenceBatchRequest body, CancellationToken ct)
+    {
+        var ids = (body.MethodRunIds ?? Array.Empty<Guid>()).Distinct().ToArray();
+        if (ids.Length == 0 || ids.Length > 20)
+            return BadRequest(new { error = "BATCH_SIZE", detail = "methodRunIds must name 1..20 runs", count = ids.Length });
+        await using var conn = await _db.OpenConnectionAsync(ct);
+        var manifests = new Dictionary<string, object?>(StringComparer.Ordinal);
+        foreach (var id in ids)
+        {
+            var site = await _manifests.SiteOfAsync(conn, id, ct);
+            if (site is null || !SiteScope.Allows(Request, site)) { manifests[id.ToString()] = null; continue; }
+            var m = await _manifests.ReadAsync(conn, id, site, ct);
+            manifests[id.ToString()] = m.Metas.Count == 0 ? null : m.ToResponse();
+        }
+        Response.Headers[HeaderNames.CacheControl] = "private, no-cache";
+        return Ok(new { count = ids.Length, manifests });
+    }
+
+    /// <summary>
+    /// v2.5 workbench batching: every COMPLETE artifact of the run in one framed body (see
+    /// <see cref="EvidenceManifestReader.BundleAsync"/>), under the manifest's ETag so If-None-Match and
+    /// the browser cache behave exactly as for the manifest. PENDING / EXPIRED artifacts are omitted -
+    /// the manifest says why; a run without evidence is 404 with the reconstruction pointer.
+    /// </summary>
+    [HttpGet("method-runs/{id:guid}/evidence/bundle")]
+    public async Task<IActionResult> GetEvidenceBundle(Guid id, CancellationToken ct)
+    {
+        await using var conn = await _db.OpenConnectionAsync(ct);
+        var site = await _manifests.SiteOfAsync(conn, id, ct);
+        if (!SiteScope.Allows(Request, site)) return StatusCode(StatusCodes.Status403Forbidden, SiteScope.Forbidden(site));
+        var manifest = await _manifests.ReadAsync(conn, id, site, ct);
+        if (manifest.Metas.Count == 0)
+            return NotFound(new { error = "EVIDENCE_NOT_FOUND", methodRunId = id, reconstructable = true, reconstruct = new { purpose = "EVIDENCE_RECONSTRUCTION", methodRunId = id, endpoint = "/api/v1/cpm/analysis-runs" } });
+
+        var etag = new EntityTagHeaderValue(manifest.Etag);
+        Response.Headers[HeaderNames.CacheControl] = CpmEvidenceController.CacheControl;
+        Response.Headers["X-Evidence-Bundle"] = "v1";
+        Response.Headers["X-Evidence-Encoding"] = "f64le+gzip";
+        Response.Headers["X-Evidence-Readiness"] = manifest.Readiness;
+        if (IfNoneMatchHits(manifest.Etag))
+        {
+            Response.Headers[HeaderNames.ETag] = manifest.Etag;
+            return StatusCode(StatusCodes.Status304NotModified);
+        }
+        var bytes = await EvidenceManifestReader.BundleAsync(conn, manifest, ct);
+        var file = File(bytes, "application/octet-stream");
+        file.EntityTag = etag;
+        return file;
+    }
+
+    private bool IfNoneMatchHits(string etag) =>
+        Request.Headers.TryGetValue(HeaderNames.IfNoneMatch, out var inm) && inm.Any(v => v is not null && v.Trim() == etag);
 
     private async Task<dynamic?> FusedRowAsync(long rowId, CancellationToken ct)
     {
@@ -168,3 +166,6 @@ public sealed class CpmMethodRunsController : ControllerBase
             """, new { id = rowId });
     }
 }
+
+/// <summary>Body of <c>POST /method-runs/evidence/batch</c>.</summary>
+public sealed record EvidenceBatchRequest(Guid[] MethodRunIds);

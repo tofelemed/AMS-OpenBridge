@@ -108,6 +108,51 @@ public static class GateMatrixProjection
         };
     }
 
+    /// <summary>
+    /// v2.5 workbench: the window picker's row - the identity, the verdict, the 17 statuses / reasons /
+    /// run ids and the flags, without the metric block, the narrative, the v2 verdict and the metadata
+    /// (~0.5 KB instead of ~7.5 KB). Served by <c>GET /loops/{id}/gates?projection=summary</c>; a strict
+    /// subset of <see cref="Build"/> so the two can never disagree.
+    /// </summary>
+    public static Dictionary<string, object?> Summary(dynamic row)
+    {
+        var full = Build(row);
+        var gates = ((List<object>)full["gates"]!).Select(g =>
+        {
+            var t = g.GetType();
+            return (object)new
+            {
+                key = t.GetProperty("key")!.GetValue(g),
+                status = t.GetProperty("status")!.GetValue(g),
+                reason = t.GetProperty("reason")!.GetValue(g),
+                methodRunId = t.GetProperty("methodRunId")!.GetValue(g),
+            };
+        }).ToList();
+        var meta = full["metadata"]!;
+        var metaType = meta.GetType();
+        return new Dictionary<string, object?>
+        {
+            ["loopId"] = full["loopId"],
+            ["windowKind"] = full["windowKind"],
+            ["windowStart"] = full["windowStart"],
+            ["windowEnd"] = full["windowEnd"],
+            ["sampleCount"] = full["sampleCount"],
+            ["diagnosis"] = full["diagnosis"],
+            ["severity"] = full["severity"],
+            ["confidence"] = full["confidence"],
+            ["gates"] = gates,
+            ["methodRunIds"] = full["methodRunIds"],
+            ["bundleHash"] = full["bundleHash"],
+            ["resultRevision"] = full["resultRevision"],
+            ["observabilityFlags"] = full["observabilityFlags"],
+            ["familyDisqualifiers"] = full["familyDisqualifiers"],
+            ["insufficientEvidenceReason"] = full["insufficientEvidenceReason"],
+            ["methodEligibility"] = full["methodEligibility"],
+            ["computedAt"] = metaType.GetProperty("computedAt")!.GetValue(meta),
+            ["jarSha256"] = metaType.GetProperty("jarSha256")!.GetValue(meta),
+        };
+    }
+
     // ── fusion v2 ─────────────────────────────────────────────────────────
 
     public sealed record ObservationView(bool Present, double Score, string MethodId, string Role, string Basis);

@@ -61,9 +61,12 @@ public sealed class CpmAnalyticsController : ControllerBase
         [FromQuery] DateTimeOffset? to = null,
         [FromQuery] int limit = 100,
         [FromQuery] bool includeInsufficient = false,
+        [FromQuery] string? projection = null,
         CancellationToken ct = default)
     {
         limit = Math.Clamp(limit, 1, 500);
+        // v2.5 workbench: `projection=summary` serves the picker's ~0.5 KB row instead of the ~7.5 KB matrix
+        var summary = string.Equals(projection, "summary", StringComparison.OrdinalIgnoreCase);
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
         var rows = await conn.QueryAsync("""
             SELECT loop_id, window_kind, window_start, window_end, sample_count,
@@ -77,8 +80,10 @@ public sealed class CpmAnalyticsController : ControllerBase
             LIMIT @limit
             """, new { loopId, windowKind, from, to, limit, includeInsufficient });
 
-        var results = rows.Select(r => (object)Traverse.CplmApi.Data.GateMatrixProjection.Build(r)).ToList();
-        return Ok(new { loopId, windowKind, count = results.Count, windows = results });
+        var results = rows.Select(r => summary
+            ? (object)Traverse.CplmApi.Data.GateMatrixProjection.Summary(r)
+            : (object)Traverse.CplmApi.Data.GateMatrixProjection.Build(r)).ToList();
+        return Ok(new { loopId, windowKind, count = results.Count, projection = summary ? "summary" : "full", windows = results });
     }
 
     /// <summary>

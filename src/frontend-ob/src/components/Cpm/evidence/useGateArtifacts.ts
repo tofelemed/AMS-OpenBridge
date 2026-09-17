@@ -4,8 +4,8 @@
  */
 import { useQueries } from '@tanstack/react-query';
 import type { EvidenceManifest } from '../../../api/cpm/evidence';
-import { fetchChunk } from '../../../api/cpm/evidence';
 import { loadArtifact, type DecodedArtifact } from './artifactCodec';
+import { bundledChunkFetcher } from './chunkSource';
 
 export interface GateArtifacts {
   byKind: Record<string, DecodedArtifact[]>;
@@ -21,7 +21,7 @@ export function useGateArtifacts(manifest: EvidenceManifest | undefined, gate: s
   const results = useQueries({
     queries: complete.map(meta => ({
       queryKey: ['cpm', 'artifact', meta.artifactId, meta.checksum],
-      queryFn: ({ signal }: { signal?: AbortSignal }) => loadArtifact(meta, fetchChunk, signal),
+      queryFn: ({ signal }: { signal?: AbortSignal }) => loadArtifact(meta, bundledChunkFetcher(meta.methodRunId), signal),   // v2.5 batching: one bundle per run
       staleTime: Infinity,
       retry: false,
     })),

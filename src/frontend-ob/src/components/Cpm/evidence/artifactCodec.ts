@@ -112,6 +112,55 @@ export async function decodeArtifact(meta: ArtifactMeta, chunks: Uint8Array[], p
   return { meta, n, columns, mask, units, legends };
 }
 
+// ── run bundle framing (v2.5 batching; mirror of cplm-api EvidenceManifestReader.BundleAsync) ──
+// per artifact: 36 ASCII bytes of the uuid, u32 LE chunk count, then per chunk u32 LE chunk_no,
+// u32 LE byte_length and the chunk bytes (still individually gzipped and sha-verified by decodeArtifact).
+
+export interface BundledArtifact { artifactId: string; chunks: Uint8Array[] }
+
+export function frameBundle(artifacts: BundledArtifact[]): Uint8Array {
+  const total = artifacts.reduce((n, a) => n + 40 + a.chunks.reduce((m, c) => m + 8 + c.length, 0), 0);
+  const out = new Uint8Array(total);
+  const view = new DataView(out.buffer);
+  let off = 0;
+  for (const a of artifacts) {
+    for (let i = 0; i < 36; i++) out[off + i] = a.artifactId.charCodeAt(i);
+    off += 36;
+    view.setUint32(off, a.chunks.length, true); off += 4;
+    a.chunks.forEach((c, no) => {
+      view.setUint32(off, no, true); off += 4;
+      view.setUint32(off, c.length, true); off += 4;
+      out.set(c, off); off += c.length;
+    });
+  }
+  return out;
+}
+
+/** artifact id -> chunks by chunk_no. A frame that ends early is refused whole: no partial artifact is ever decoded. */
+export function parseBundle(bytes: Uint8Array): Map<string, Uint8Array[]> {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const out = new Map<string, Uint8Array[]>();
+  let off = 0;
+  const need = (n: number) => { if (off + n > bytes.length) throw new Error(`BUNDLE_TRUNCATED at ${off}`); };
+  while (off < bytes.length) {
+    need(40);
+    let id = '';
+    for (let i = 0; i < 36; i++) id += String.fromCharCode(bytes[off + i]);
+    off += 36;
+    const count = view.getUint32(off, true); off += 4;
+    const chunks: Uint8Array[] = [];
+    for (let i = 0; i < count; i++) {
+      need(8);
+      const no = view.getUint32(off, true); off += 4;
+      const len = view.getUint32(off, true); off += 4;
+      need(len);
+      chunks[no] = bytes.slice(off, off + len); off += len;
+    }
+    out.set(id, chunks);
+  }
+  return out;
+}
+
 /** Decoded artifacts by evidence id (per page load; the HTTP layer's immutable caching does the rest). */
 const memory = new Map<string, DecodedArtifact>();
 

@@ -30,7 +30,10 @@ public static class KpiSql
            -- audit-jobs.md BE-3: the long payload carries this only in
            -- the nested short_features object; the flat key was NULL.
            COALESCE((payload->>'expected_sample_count')::int,
-                    (payload->'short_features'->>'expected_sample_count')::int) AS expected_sample_count
+                    (payload->'short_features'->>'expected_sample_count')::int) AS expected_sample_count,
+           -- v2.5 workbench: a window is opened by its per-gate run ids (53 identity columns);
+           -- the JSON is served as text and parsed by the client (Dapper-dynamic rows).
+           method_run_ids::text AS method_run_ids, bundle_hash, purpose
     FROM analytics.cplm_long_feature_results
     WHERE lower(loop_id) = lower(@loopId) AND window_kind = @resolution
       AND (@from::timestamptz IS NULL OR window_end >= @from::timestamptz)
@@ -62,7 +65,14 @@ public static class KpiSql
            payload->>'gate2_status'  AS gate2_status,
            payload->>'gate2r_status' AS gate2r_status,
            payload->>'gate3_status'  AS gate3_status,
-           payload->>'gate4_status'  AS gate4_status
+           payload->>'gate4_status'  AS gate4_status,
+           -- v2.5: the reasons the short tier records (G0 names why it failed; the window's
+           -- evaluation state says WAITING/WARMUP after a STATE_BOUNDARY bundle) ...
+           payload->>'gate0_reason'       AS gate0_reason,
+           payload->>'evaluation_state'   AS evaluation_state,
+           payload->>'evaluation_reason'  AS evaluation_reason,
+           -- ... and the run identity the evidence workbench opens the window by.
+           method_run_ids::text AS method_run_ids, bundle_hash, purpose
     FROM analytics.cplm_short_feature_results
     WHERE lower(loop_id) = lower(@loopId) AND window_kind = @resolution
       AND (@from::timestamptz IS NULL OR window_end >= @from::timestamptz)

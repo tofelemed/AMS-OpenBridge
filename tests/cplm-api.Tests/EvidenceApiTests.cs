@@ -114,6 +114,69 @@ public sealed class EvidenceApiTests : IAsyncLifetime
         notModified.Should().BeOfType<StatusCodeResult>().Which.StatusCode.Should().Be(StatusCodes.Status304NotModified);
     }
 
+    // v2.5 workbench batching: one gate open used to be one request per chunk (G9 averages 48 artifacts on
+    // the lab) plus one manifest per context-lane sibling. The batch serves several manifests in one
+    // call; the bundle serves every COMPLETE artifact of a run in one framed body carrying the
+    // manifest's ETag, so the browser cache and If-None-Match work exactly as for the manifest.
+    [Fact]
+    public async Task The_batch_serves_the_same_manifest_per_run_and_null_for_an_unknown_id()
+    {
+        var single = System.Text.Json.JsonSerializer.SerializeToElement(
+            ((OkObjectResult)await Runs().GetEvidence(_run, CancellationToken.None)).Value);
+        var unknown = Guid.NewGuid();
+        var res = await Runs().GetEvidenceBatch(new EvidenceBatchRequest(new[] { _run, unknown }), CancellationToken.None);
+        var json = System.Text.Json.JsonSerializer.SerializeToElement(res.Should().BeOfType<OkObjectResult>().Subject.Value);
+        var manifests = json.GetProperty("manifests");
+        manifests.GetProperty(_run.ToString()).GetProperty("etag").GetString().Should().Be(single.GetProperty("etag").GetString());
+        manifests.GetProperty(_run.ToString()).GetProperty("count").GetInt32().Should().Be(3);
+        manifests.GetProperty(unknown.ToString()).ValueKind.Should().Be(System.Text.Json.JsonValueKind.Null);
+
+        var tooMany = await Runs().GetEvidenceBatch(new EvidenceBatchRequest(Enumerable.Range(0, 21).Select(_ => Guid.NewGuid()).ToArray()), CancellationToken.None);
+        tooMany.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task The_bundle_frames_every_complete_artifact_of_the_run_under_the_manifest_etag()
+    {
+        var manifest = System.Text.Json.JsonSerializer.SerializeToElement(
+            ((OkObjectResult)await Runs().GetEvidence(_run, CancellationToken.None)).Value);
+        var etag = manifest.GetProperty("etag").GetString()!;
+
+        var ctl = Runs();
+        var res = await ctl.GetEvidenceBundle(_run, CancellationToken.None);
+        var file = res.Should().BeOfType<FileContentResult>().Subject;
+        file.ContentType.Should().Be("application/octet-stream");
+        file.EntityTag!.Tag.ToString().Should().Be(etag, "the bundle is a function of the manifest");
+        ctl.Response.Headers["Cache-Control"].ToString().Should().Contain("immutable");
+        ctl.Response.Headers["X-Evidence-Bundle"].ToString().Should().Be("v1");
+
+        // framing: [36 ascii uuid][u32 chunk_count]{[u32 chunk_no][u32 byte_length][bytes]}...
+        var b = file.FileContents;
+        var pos = 0;
+        var artifacts = new List<(Guid id, List<(int no, byte[] bytes)> chunks)>();
+        while (pos < b.Length)
+        {
+            var id = Guid.Parse(Encoding.ASCII.GetString(b, pos, 36)); pos += 36;
+            var chunkCount = BitConverter.ToInt32(b, pos); pos += 4;
+            var chunks = new List<(int, byte[])>();
+            for (var i = 0; i < chunkCount; i++)
+            {
+                var no = BitConverter.ToInt32(b, pos); pos += 4;
+                var len = BitConverter.ToInt32(b, pos); pos += 4;
+                chunks.Add((no, b[pos..(pos + len)])); pos += len;
+            }
+            artifacts.Add((id, chunks));
+        }
+        artifacts.Should().HaveCount(1, "only the COMPLETE artifact is bundled; PENDING and EXPIRED are stated by the manifest");
+        artifacts[0].id.Should().Be(_complete);
+        artifacts[0].chunks.Select(c => c.no).Should().Equal(0, 1);
+        artifacts[0].chunks[0].bytes.Should().Equal(Chunk0);
+        artifacts[0].chunks[1].bytes.Should().Equal(Chunk1);
+
+        var cached = await Runs(("If-None-Match", etag)).GetEvidenceBundle(_run, CancellationToken.None);
+        cached.Should().BeOfType<StatusCodeResult>().Which.StatusCode.Should().Be(StatusCodes.Status304NotModified);
+    }
+
     [Fact]
     public async Task A_complete_chunk_is_served_as_immutable_bytes_with_its_sha_as_etag()
     {

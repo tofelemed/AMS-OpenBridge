@@ -158,6 +158,32 @@ public sealed class GateMatrixProjectionTests
         Serve(LegacyPayload).GetProperty("methodEligibility").ValueKind.Should().Be(JsonValueKind.Null, because: "a legacy row assessed nothing");
     }
 
+    // v2.5 workbench: the window picker lists a hundred windows per loop; a full row is ~7.5 KB
+    // (metrics, narrative, verdictV2, metadata), the picker needs ~0.5 KB - the identity, the
+    // verdict, the 17 statuses/reasons and the flags. The summary is a strict subset of Build().
+    [Fact]
+    public void The_summary_projection_is_the_picker_subset_of_the_full_row()
+    {
+        JsonElement full = JsonSerializer.SerializeToElement((Dictionary<string, object?>)GateMatrixProjection.Build(Row(V2Payload)), Web);
+        JsonElement summary = JsonSerializer.SerializeToElement((Dictionary<string, object?>)GateMatrixProjection.Summary(Row(V2Payload)), Web);
+
+        summary.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo(new[]
+        {
+            "loopId", "windowKind", "windowStart", "windowEnd", "sampleCount", "diagnosis", "severity", "confidence",
+            "gates", "methodRunIds", "bundleHash", "resultRevision", "observabilityFlags", "familyDisqualifiers",
+            "insufficientEvidenceReason", "methodEligibility", "computedAt", "jarSha256",
+        });
+        foreach (var name in new[] { "loopId", "windowKind", "windowEnd", "diagnosis", "methodRunIds", "observabilityFlags", "bundleHash" })
+            summary.GetProperty(name).GetRawText().Should().Be(full.GetProperty(name).GetRawText(), name);
+        summary.GetProperty("gates").GetArrayLength().Should().Be(17);
+        var g14 = summary.GetProperty("gates").EnumerateArray().Single(g => g.GetProperty("key").GetString() == "G14");
+        g14.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo(new[] { "key", "status", "reason", "methodRunId" });
+        g14.GetProperty("status").GetString().Should().Be("NOT_CONFIRMED");
+        summary.GetProperty("computedAt").GetRawText().Should().Be(full.GetProperty("metadata").GetProperty("computedAt").GetRawText());
+        summary.TryGetProperty("metrics", out _).Should().BeFalse("the picker never needs the metric block");
+        summary.TryGetProperty("verdictV2", out _).Should().BeFalse();
+    }
+
     [Fact]
     public void An_unparseable_payload_still_projects_the_typed_columns()
     {

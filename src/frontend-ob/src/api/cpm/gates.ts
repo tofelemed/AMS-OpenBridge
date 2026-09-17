@@ -65,6 +65,42 @@ export const getLatestGates = (loopId: string, windowKind = '24h', signal?: Abor
   apiJson<CpmGateMatrix>(
     `${BASE}/loops/${encodeURIComponent(loopId)}/gates/latest?windowKind=${windowKind}`, { signal });
 
+/**
+ * v2.5 workbench: one evaluated window as the picker sees it - the identity, the verdict, the 17
+ * statuses / reasons / run ids and the flags (~0.5 KB; `GET …/gates?projection=summary`). A window
+ * without run ids predates v2.5 and cannot be opened in the workbench.
+ */
+export interface CpmWindowSummary {
+  loopId: string;
+  windowKind: string;
+  windowStart: string | null;
+  windowEnd: string;
+  sampleCount: number | null;
+  diagnosis: string | null;
+  severity: string | null;
+  confidence: number | null;
+  gates: Array<{ key: string; status: string | null; reason: string | null; methodRunId: string | null }>;
+  methodRunIds: Record<string, string>;
+  bundleHash: string | null;
+  resultRevision: number | null;
+  observabilityFlags: string[];
+  familyDisqualifiers: string[];
+  insufficientEvidenceReason: string | null;
+  methodEligibility: Record<string, { state: string; reason: string | null; detail: string | null }> | null;
+  computedAt: string;
+  jarSha256: string | null;
+}
+
+export interface WindowSummaryOptions { to?: string; limit?: number; includeInsufficient?: boolean }
+
+/** Every evaluated window of the loop, newest first; `to` pages backwards from the oldest loaded window. */
+export const getWindowSummaries = (loopId: string, windowKind = '24h', opts: WindowSummaryOptions = {}, signal?: AbortSignal) => {
+  const params = new URLSearchParams({ windowKind, limit: String(opts.limit ?? 100), projection: 'summary', includeInsufficient: String(opts.includeInsufficient ?? true) });
+  if (opts.to) params.set('to', opts.to);
+  return apiJson<{ loopId: string; windowKind: string; count: number; projection: string; windows: CpmWindowSummary[] }>(
+    `${BASE}/loops/${encodeURIComponent(loopId)}/gates?${params.toString()}`, { signal });
+};
+
 export const getGateHistory = (
   loopId: string, windowKind = '24h', from?: string, to?: string, limit = 100, signal?: AbortSignal,
 ) => {

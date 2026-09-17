@@ -69,6 +69,11 @@ export interface CpmKpiRow {
    * `gate4_status`, `gate2r_status` — PASS/WARN/FAIL/EXCLUDED/STRONG/PENDING):
    * fusion never fires on short windows, so these are the only gate evidence
    * that exists at 1m…60m.
+   *
+   * v2.5 workbench: every row also carries its run identity - `method_run_ids` (JSON text,
+   * gate -> uuid), `bundle_hash`, `purpose` - and the short rows their recorded reasons
+   * (`gate0_reason`, `evaluation_state`, `evaluation_reason`); rows written before v2.5 carry
+   * `'{}'` and cannot be opened in the workbench.
    */
   [metric: string]: number | string | boolean | null;
 }

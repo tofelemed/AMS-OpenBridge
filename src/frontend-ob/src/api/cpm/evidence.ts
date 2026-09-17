@@ -2,7 +2,9 @@
  * v2.5 Task 2E.1 (spec §3.2–3.3): the immutable method-run and evidence API.
  * GET /method-runs/{id} (any tier's row or a response event), GET /method-runs/{id}/evidence
  * (manifest with ETag + readiness summary + reconstruction action), GET /evidence/{id}/chunks/{n}
- * (immutable bytes), POST /analysis-runs {purpose: EVIDENCE_RECONSTRUCTION}. Mirrors
+ * (immutable bytes), POST /method-runs/evidence/batch and GET /method-runs/{id}/evidence/bundle
+ * (v2.5 batching: many manifests / all of a run's bytes in one call), POST /analysis-runs
+ * {purpose: EVIDENCE_RECONSTRUCTION}. Mirrors
  * CpmMethodRunsController / CpmEvidenceController / CpmAnalysisRunsController.
  */
 import { apiFetch, apiJson, ApiError } from '../apiFetch';
@@ -94,6 +96,25 @@ export async function fetchChunk(evidenceId: string, n: number, signal?: AbortSi
     let detail: string | undefined;
     try { detail = ((await res.json()) as { error?: string }).error; } catch { /* binary or empty */ }
     throw new ApiError(res.status, detail ?? `chunk ${n} unavailable (HTTP ${res.status})`, detail);
+  }
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+/** v2.5 batching: several runs' manifests in one call (null = unknown run or nothing retained). */
+export const getEvidenceBatch = (methodRunIds: string[], signal?: AbortSignal) =>
+  apiJson<{ count: number; manifests: Record<string, EvidenceManifest | null> }>(`${CPM_BASE}/method-runs/evidence/batch`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ methodRunIds }), signal,
+  });
+
+/** v2.5 batching: every COMPLETE artifact of a run in one framed body (see artifactCodec.parseBundle). */
+export async function fetchBundle(methodRunId: string, signal?: AbortSignal): Promise<Uint8Array> {
+  const res = await apiFetch(`${CPM_BASE}/method-runs/${encodeURIComponent(methodRunId)}/evidence/bundle`, {
+    signal, headers: { Accept: 'application/octet-stream' },
+  });
+  if (!res.ok) {
+    let detail: string | undefined;
+    try { detail = ((await res.json()) as { error?: string }).error; } catch { /* binary or empty */ }
+    throw new ApiError(res.status, detail ?? `bundle unavailable (HTTP ${res.status})`, detail);
   }
   return new Uint8Array(await res.arrayBuffer());
 }
