@@ -195,6 +195,18 @@ public sealed class ConfigStore
         return (await GetAsync(id, ct))!;
     }
 
+    public sealed record ApprovalView(Guid ApprovalId, string ContentHash, string Approver, string Role, string Decision, string? Note, DateTimeOffset? ExpiresAt, DateTimeOffset CreatedAt, bool BindsCurrentContent);
+
+    /// <summary>Every approval decision recorded on the bundle, newest first, flagged when it binds the CURRENT content hash.</summary>
+    public async Task<IReadOnlyList<ApprovalView>> ApprovalsAsync(Guid id, string currentHash, CancellationToken ct)
+    {
+        await using var conn = await _db.OpenConnectionAsync(ct);
+        var rows = await conn.QueryAsync("SELECT approval_id, content_hash, approver, role, decision, note, expires_at, created_at FROM cpm.config_approval WHERE bundle_id = @id ORDER BY created_at DESC", new { id });
+        return rows.Select(r => new ApprovalView((Guid)r.approval_id, (string)r.content_hash, (string)r.approver, (string)r.role, (string)r.decision, (string?)r.note,
+            r.expires_at is DateTime e ? new DateTimeOffset(DateTime.SpecifyKind(e, DateTimeKind.Utc)) : null,
+            new DateTimeOffset(DateTime.SpecifyKind((DateTime)r.created_at, DateTimeKind.Utc)), (string)r.content_hash == currentHash)).ToList();
+    }
+
     /// <summary>A valid (unexpired, hash-bound) approval of the bundle's current content, or null.</summary>
     public async Task<(string Approver, DateTimeOffset? ExpiresAt)?> ValidApprovalAsync(Guid id, string contentHash, CancellationToken ct)
     {

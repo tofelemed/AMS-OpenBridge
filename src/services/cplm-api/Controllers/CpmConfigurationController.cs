@@ -28,10 +28,12 @@ public sealed class CpmConfigurationController : ControllerBase
     private readonly ICpmLoopRegistryService _registry;
     private readonly ICplmRecomputeService _recompute;
     private readonly ICplmAuditEmitter _audit;
+    private readonly ShadowComparison _shadow;
 
-    public CpmConfigurationController(ConfigStore store, ConfigDeploymentService deployments, ICpmLoopRegistryService registry, ICplmRecomputeService recompute, ICplmAuditEmitter audit)
+    public CpmConfigurationController(ConfigStore store, ConfigDeploymentService deployments, ICpmLoopRegistryService registry, ICplmRecomputeService recompute, ICplmAuditEmitter audit, ShadowComparison shadow)
     {
         _store = store; _deployments = deployments; _registry = registry; _recompute = recompute; _audit = audit;
+        _shadow = shadow;
     }
 
     // identity comes from the principal the edge-trust handler built (TraverseAuth maps the gateway's X-Auth-* headers to claims); never from a raw header here
@@ -99,7 +101,16 @@ public sealed class CpmConfigurationController : ControllerBase
         var b = await _store.GetAsync(id, ct);
         if (b is null) return NotFound(new { error = $"bundle {id} not found" });
         Response.Headers.ETag = $"\"{b.Etag}\"";
-        return Ok(Shape(b));
+        return Ok(ShapeWithApprovals(b, await _store.ApprovalsAsync(id, b.ContentHash, ct)));
+    }
+
+    /// <summary>The shadow run's before / after gate matrix (SHADOW rows vs the LIVE rows of the same windows), materialised server-side; marks POLICY_RECLASSIFICATION when symptoms disappear.</summary>
+    [HttpGet("drafts/{id:guid}/shadow")]
+    [Authorize(Policy = "cpm.config.read")]
+    public async Task<IActionResult> ShadowReport(Guid id, CancellationToken ct)
+    {
+        var report = await _shadow.CompareAsync(id, ct);
+        return report is null ? NotFound(new { error = $"bundle {id} not found" }) : Ok(report);
     }
 
     [HttpPost("drafts")]
@@ -215,6 +226,12 @@ public sealed class CpmConfigurationController : ControllerBase
         }
         return false;
     }
+
+    internal static object ShapeWithApprovals(BundleView b, IReadOnlyList<ConfigStore.ApprovalView> approvals) => new
+    {
+        b.BundleId, b.Version, b.ContentHash, b.Site, b.ScopeKind, b.ScopeRef, b.ParentBundleId, b.ParentHash, b.CatalogueHash, b.ExecutionPlanHash, b.ChangeClass, b.State,
+        b.Layers, b.Resolved, b.Validation, b.Shadow, b.EffectiveFrom, b.CreatedBy, b.CreatedAt, b.UpdatedAt, b.Etag, b.Note, approvals,
+    };
 
     internal static object Shape(BundleView b) => new
     {

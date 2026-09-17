@@ -39,6 +39,15 @@ public sealed class CpmConfigDeploymentsController : ControllerBase
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
     }
 
+    [HttpGet]
+    [Authorize(Policy = "cpm.config.read")]
+    public async Task<IActionResult> List([FromQuery] Guid? bundleId, [FromQuery] string? site, [FromQuery] int limit = 20, CancellationToken ct = default)
+    {
+        if (bundleId is null && string.IsNullOrWhiteSpace(site)) return BadRequest(new { error = "bundleId or site is required" });
+        var list = await _deployments.ListAsync(bundleId, string.IsNullOrWhiteSpace(site) ? null : site, limit, ct);
+        return Ok(new { count = list.Count, deployments = list.Select(Shape) });
+    }
+
     [HttpGet("{id:guid}")]
     [Authorize(Policy = "cpm.config.read")]
     public async Task<IActionResult> Get(Guid id, CancellationToken ct)

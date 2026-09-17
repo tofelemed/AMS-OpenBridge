@@ -4,8 +4,10 @@
  * artifacts' provenance and the run's result, never today's editor values), why / why not, the
  * exclusions, and the next valid action. Roles and preconditions come from the build's catalogue.
  */
-import React from 'react';
+import React, { useState } from 'react';
+import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { MethodRun, EvidenceManifest } from '../../../api/cpm/evidence';
+import { EffectiveConfigDrawer } from '../config/EffectiveConfigDrawer';
 import type { GateCatalogueEntry } from '../../../api/cpm/catalogue';
 import { KvRow, PanelHead, TonePill } from '../shared';
 import { gateTone } from '../gateStatus';
@@ -35,6 +37,8 @@ export const MethodTracePanel: React.FC<{
   const status = cell?.status ?? (run?.result as Record<string, unknown> | null)?.[`gate${gate.replace('G', '').toLowerCase()}_status`] as string | undefined;
   const reason = cell?.reason ?? ((run?.result as Record<string, unknown> | null)?.[`gate${gate.replace('G', '')}_reason`] as string | undefined) ?? null;
   const params = parametersOf(manifest, gate);
+  // v2.5 (3D.1): the configuration THIS run used is named by its bundle hash; the drawer is read-only and says when it is no longer the active one
+  const [showConfig, setShowConfig] = useState(false);
   return (
     <section className="cpm-surface cpm-method-trace">
       <PanelHead eyebrow="Method trace" title={entry ? `${gate} · ${entry.name}` : gate}
@@ -71,6 +75,10 @@ export const MethodTracePanel: React.FC<{
           bundle {run.identity.bundleHash} · dataset {(run.identity.datasetHash ?? '—').slice(0, 16)} · {run.identity.source}
         </p>
       )}
+      {run && (
+        <ObcButton variant="flat" onClick={() => setShowConfig(v => !v)}>{showConfig ? 'Hide configuration used' : 'Configuration this run used ›'}</ObcButton>
+      )}
+      {run && showConfig && <EffectiveConfigDrawer loopId={run.loopId} runBundleHash={run.identity.bundleHash} gateFilter={gate} onClose={() => setShowConfig(false)} />}
     </section>
   );
 };

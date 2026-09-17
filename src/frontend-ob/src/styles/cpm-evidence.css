@@ -129,3 +129,87 @@
 .cpm-response-quantities { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 24px; margin-bottom: 8px; }
 .cpm-response-subgate { border-left: 2px solid var(--border-divider-color); padding-left: 8px; margin-bottom: 6px; }
 .cpm-muted { color: var(--element-neutral-color); font-size: 0.8rem; }
+
+/* ── v2.5 Phase 3D: Gate Configuration workspace (layout only; tokens as above) ── */
+.cpm-config-columns {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(0, 2.4fr) minmax(300px, 1.3fr);
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1300px) {
+  .cpm-config-columns { grid-template-columns: 1fr; }
+}
+.cpm-config-nav, .cpm-config-centre, .cpm-config-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.cpm-config-bundles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cpm-config-bundle {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--element-active-color);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cpm-config-bundle:hover { background: var(--flat-hover-background-color); }
+.cpm-config-bundle--selected {
+  background: var(--selected-enabled-background-color);
+  border-color: var(--selected-enabled-border-color, var(--instrument-enhanced-primary-color));
+}
+.cpm-config-gates { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
+.cpm-config-gate {
+  padding: 4px 10px;
+  border: 1px solid var(--border-outline-color);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--element-active-color);
+  font: inherit;
+  cursor: pointer;
+}
+.cpm-config-gate:hover { background: var(--flat-hover-background-color); }
+.cpm-config-gate--selected { background: var(--selected-enabled-background-color); border-color: var(--selected-enabled-border-color, var(--instrument-enhanced-primary-color)); }
+.cpm-config-property {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border-divider-color);
+}
+.cpm-config-property--invalid { border-left: 3px solid var(--alert-alarm-color); padding-left: 8px; }
+.cpm-config-property__head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cpm-config-property__name { font-weight: 600; }
+.cpm-config-property__meta { color: var(--element-neutral-color); font-size: 0.85rem; }
+.cpm-config-property__values {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 12px;
+  margin: 0;
+}
+.cpm-config-property__values dt { color: var(--element-neutral-color); }
+.cpm-config-property__values dd { margin: 0; }
+.cpm-config-property__source { color: var(--element-neutral-color); }
+.cpm-config-property__edit { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cpm-config-inline { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.cpm-config-ack { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cpm-config-ack__jar { color: var(--element-neutral-color); font-size: 0.85rem; }
+.cpm-config-ack__reason { color: var(--alert-alarm-color); font-size: 0.85rem; }
+.cpm-config-approval--stale { color: var(--element-neutral-color); }
+.cpm-config-effective__filter { display: flex; gap: 8px; margin: 8px 0; }

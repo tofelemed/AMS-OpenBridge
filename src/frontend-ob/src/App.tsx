@@ -24,6 +24,7 @@ import { ObiUser } from '@oicl/openbridge-webcomponents-react/icons/icon-user';
 import { ObiNotification } from '@oicl/openbridge-webcomponents-react/icons/icon-notification';
 import { ObiListAltCheckGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-list-alt-check-google';
 import { ObiWrench } from '@oicl/openbridge-webcomponents-react/icons/icon-wrench';
+import { ObiSettingsDefaultIec } from '@oicl/openbridge-webcomponents-react/icons/icon-settings-default-iec';
 import { ObiPlaceholder } from '@oicl/openbridge-webcomponents-react/icons/icon-placeholder';
 import { ObiChevronDownGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-down-google';
 import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-right-google';
@@ -74,6 +75,7 @@ const CpmWindows       = React.lazy(() => import('./components/Cpm/CpmWindows'))
 const CpmReplay        = React.lazy(() => import('./components/Cpm/CpmReplay'));
 const GateEvidenceWorkspace = React.lazy(() => import('./components/Cpm/evidence/GateEvidenceWorkspace'));
 const ResponseWorkspace = React.lazy(() => import('./components/Cpm/response/ResponseWorkspace'));
+const GateConfigurationWorkspace = React.lazy(() => import('./components/Cpm/config/GateConfigurationWorkspace'));
 const CpmInvestigation = React.lazy(() => import('./components/Cpm/CpmInvestigation'));
 const CpmPipeline      = React.lazy(() => import('./components/Cpm/CpmPipeline'));
 const CpmGovernance    = React.lazy(() => import('./components/Cpm/CpmGovernance'));
@@ -455,6 +457,8 @@ const App: React.FC = () => {
                       <Route path="/cpm/replay"    element={<RequirePermission permission="analytics.view"><CpmReplay /></RequirePermission>} />
                       <Route path="/cpm/evidence"  element={<RequirePermission permission="analytics.view"><GateEvidenceWorkspace /></RequirePermission>} />
                       <Route path="/cpm/response"  element={<RequirePermission permission="analytics.view"><ResponseWorkspace /></RequirePermission>} />
+                      {/* v2.5 (3D.1): the governed gate configuration - reading needs cpm.config.read; every step beyond is its own permission on the server */}
+                      <Route path="/cpm/config"    element={<RequirePermission permission="cpm.config.read"><GateConfigurationWorkspace /></RequirePermission>} />
                       <Route path="/cpm/investigation" element={<RequirePermission permission="analytics.view"><CpmInvestigation /></RequirePermission>} />
                       <Route path="/cpm/pipeline"  element={<RequirePermission permission="analytics.view"><CpmPipeline /></RequirePermission>} />
                       <Route path="/cpm/governance" element={<RequirePermission permission="analytics.view"><CpmGovernance /></RequirePermission>} />
@@ -797,6 +801,7 @@ const navItems = [
   { path: '/cpm/replay',       label: 'Evidence Replay',    Icon: ObiTrend, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/evidence',     label: 'Evidence Workbench', Icon: ObiListAltCheckGoogle, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/response',     label: 'System Response',    Icon: ObiTrend, group: 'Loop Performance', permission: 'analytics.view' },
+  { path: '/cpm/config',       label: 'Gate Configuration', Icon: ObiSettingsDefaultIec, group: 'Loop Performance', permission: 'cpm.config.read' },
   { path: '/cpm/investigation', label: 'Investigation',     Icon: ObiEditGoogle, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/calculations', label: 'Calculations',       Icon: ObiListAltCheckGoogle, group: 'Loop Performance', permission: 'analytics.view' },
   { path: '/cpm/registry',     label: 'Loop Registry',      Icon: ObiWrench, group: 'Loop Performance', permission: 'analytics.view' },

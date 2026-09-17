@@ -130,6 +130,7 @@ builder.Services.AddSingleton<Traverse.CplmApi.Services.InvestigationStore>();  
 builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.ConfigStore>();
 builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.IGateConfigPublisher, Traverse.CplmApi.Services.Config.KafkaGateConfigPublisher>();
 builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.ConfigDeploymentService>();
+builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.ShadowComparison>();
 // v2.5 (1H.3): effective-dated primary Instrumental device bindings per loop signal.
 builder.Services.AddSingleton<Traverse.CplmApi.Services.IInstrumentBindingService, Traverse.CplmApi.Services.InstrumentBindingService>();
 builder.Services.AddSingleton<Traverse.CplmApi.Services.InstrumentHealthReads>();

@@ -256,6 +256,20 @@ public sealed class ConfigDeploymentService
             (string)r.created_by, new DateTimeOffset(DateTime.SpecifyKind((DateTime)r.created_at, DateTimeKind.Utc)), new DateTimeOffset(DateTime.SpecifyKind((DateTime)r.updated_at, DateTimeKind.Utc)));
     }
 
+    /// <summary>The deployments of a bundle (or of a site, through its bundles), newest first - the workspace lists them without knowing their ids.</summary>
+    public async Task<IReadOnlyList<DeploymentView>> ListAsync(Guid? bundleId, string? site, int limit, CancellationToken ct)
+    {
+        await using var conn = await _db.OpenConnectionAsync(ct);
+        var ids = (await conn.QueryAsync<Guid>("""
+            SELECT d.deployment_id FROM cpm.config_deployment d JOIN cpm.gate_config_bundle b ON b.bundle_id = d.bundle_id
+             WHERE (@bundleId::uuid IS NULL OR d.bundle_id = @bundleId) AND (@site::text IS NULL OR b.site = @site)
+             ORDER BY d.created_at DESC LIMIT @limit
+            """, new { bundleId, site, limit = Math.Clamp(limit, 1, 200) })).ToList();
+        var views = new List<DeploymentView>();
+        foreach (var id in ids) { var v = await GetAsync(id, ct); if (v is not null) views.Add(v); }
+        return views;
+    }
+
     public async Task<IReadOnlyList<Guid>> OpenDeploymentIdsAsync(CancellationToken ct)
     {
         await using var conn = await _db.OpenConnectionAsync(ct);

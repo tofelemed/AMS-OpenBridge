@@ -51,20 +51,39 @@ public sealed class ConfigLifecycleTests : IAsyncLifetime
         _impatient = new ConfigDeploymentService(_db, _store, _publisher, _audit, impatient, NullLogger<ConfigDeploymentService>.Instance);
         await using var conn = await _db.OpenConnectionAsync();
         await Cleanup(conn);
+        // the membership the ACK matrix must cover is what the RUNNING jobs announced; on the shared lab database that is the
+        // real fleet, so the test snapshots the table, replaces it with its three workers, and restores it afterwards
+        _capabilitySnapshot = (await conn.QueryAsync("""
+            SELECT job_name, jar_sha256, source_commit, catalogue_hash, readable_property_ids::text AS readable_property_ids, unsupported::text AS unsupported,
+                   execution_plan_capacity::text AS execution_plan_capacity, payload::text AS payload, announced_at_ms FROM cpm.config_worker_capability
+            """)).ToList();
+        await conn.ExecuteAsync("DELETE FROM cpm.config_worker_capability");
         foreach (var job in Jobs)
         {
             await conn.ExecuteAsync("""
                 INSERT INTO cpm.config_worker_capability (job_name, jar_sha256, source_commit, catalogue_hash, readable_property_ids, unsupported, execution_plan_capacity, payload, announced_at_ms)
                 VALUES (@job, 'jar-A', 'abc', @catalogue, '[]'::jsonb, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, 1)
-                ON CONFLICT (job_name) DO UPDATE SET jar_sha256 = 'jar-A', catalogue_hash = EXCLUDED.catalogue_hash, announced_at_ms = 1
                 """, new { job, catalogue = PropertyCatalogue.Current.CatalogueHash });
         }
     }
+
+    private List<dynamic> _capabilitySnapshot = new();
 
     public async Task DisposeAsync()
     {
         await using var conn = await _db.OpenConnectionAsync();
         await Cleanup(conn);
+        await conn.ExecuteAsync("DELETE FROM cpm.config_worker_capability");
+        foreach (var r in _capabilitySnapshot)
+        {
+            await conn.ExecuteAsync("""
+                INSERT INTO cpm.config_worker_capability (job_name, jar_sha256, source_commit, catalogue_hash, readable_property_ids, unsupported, execution_plan_capacity, payload, announced_at_ms)
+                VALUES (@job_name, @jar_sha256, @source_commit, @catalogue_hash, @readable_property_ids::jsonb, @unsupported::jsonb, @execution_plan_capacity::jsonb, @payload::jsonb, @announced_at_ms)
+                ON CONFLICT (job_name) DO NOTHING
+                """, new { job_name = (string)r.job_name, jar_sha256 = (string)r.jar_sha256, source_commit = (string?)r.source_commit, catalogue_hash = (string)r.catalogue_hash,
+                    readable_property_ids = (string)r.readable_property_ids, unsupported = (string)r.unsupported, execution_plan_capacity = (string)r.execution_plan_capacity,
+                    payload = (string)r.payload, announced_at_ms = (long)r.announced_at_ms });
+        }
         await _db.DisposeAsync();
     }
 

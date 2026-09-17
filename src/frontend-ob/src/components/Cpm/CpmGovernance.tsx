@@ -16,6 +16,7 @@ import {
   fmtDateTime,
 } from './shared';
 import { usePagedSlice } from '../shared/ListPager';
+import { ConfigApprovalQueue } from './config/ConfigApprovalQueue';
 import { useAuditEvents, useVerifyAuditChain } from '../../hooks/useAudit';
 import { useCpmCalculations, useCpmCapabilities, useCpmLoops } from '../../hooks/useCpm';
 import { shortIdentity } from '../../api/cpm/capabilities';
@@ -226,9 +227,8 @@ export const CpmGovernance: React.FC = () => {
             verdict can be attributed to the formula that produced it.
           </p>
 
-          <PanelHead eyebrow="Approvals" title="Change approval queue" />
-          <EmptyState title="No approval workflow configured"
-            copy="Stage 1 governance is observe-and-attribute (this page). A server-side draft/approve flow is data-gap DG-8; loops activate directly under cpm.manage today, and every activation is audited above." />
+          <PanelHead eyebrow="Approvals" title="Gate configuration awaiting approval" />
+          <ConfigApprovalQueue />
         </section>
 
         <section className="cpm-surface">
