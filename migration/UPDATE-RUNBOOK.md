@@ -63,9 +63,10 @@ Compose recreates **only** containers whose image/env changed; everything else k
 | ams-frontend | `curl -s -o /dev/null -w '%{http_code}' http://localhost:8090/` = 200; users hard-refresh (Ctrl+F5) |
 | traverse-auth-service | login returns a token; `docker logs` clean |
 | traverse-ingestion-service | subscriber reconnects ≤30 s: logs show `connected to mqtt...`; `/api/ingestion/stats` tuples climbing |
-| cplm-api | groups `traverse-cpa-cplm-results` (+`-frames`) each have exactly **one** member |
+| cplm-api | groups `traverse-cpa-cplm-results` (+`-frames`, and since v2.5 `-evidence`, `-response`, `-conditions`, `-health`, `-config-acks`) each have exactly **one** member (`GET /api/v1/cpm/health` lists them); v2.5: `GET /api/v1/cpm/capabilities` names the running jar under `engine.observed` and the announced workers under `config` |
 | ams-api | `docker logs` free of `Unauthorized`/`WRONG_LOGIN` (NOT `grep 401` — loop ids contain "401"!); `select last * from root.site1.cpm.<loop>` fresh |
 | historian-bff | a `/trend` chart draws |
+| flink-jobmanager / taskmanager | `flink list` shows every job in `migration/flink/JOBS.md` RUNNING (v2.5: 7 - Short, Long, Fusion, Condition, Instrument Context, Response, Live RBE); the TM env carries `CPLM_GATE_CONFIG_KEY` (`docker exec ams-flink-taskmanager sh -c 'test -n "$CPLM_GATE_CONFIG_KEY" && echo ok'`) or no configuration bundle can ever verify |
 | asset-model | Plant Model page: hierarchy + tags panels populate |
 
 ---
@@ -245,3 +246,6 @@ too small for both stacks plus ingestion. Target steady state: **≥15 GB free**
 - Fresh IoTDB is root/root until init rotates it — init now enforces, but verify on new sites.
 - `docker restart` keeps a bloated writable layer — only recreate drops it.
 - VM edits die at the next update unless committed to the repo the same day.
+- v2.5 `cpm-07b` swaps the result unique keys: run it with cplm-api STOPPED, between cpm-07 and the new image (the old consumer needs the old key, the new one the new key).
+- v2.5 Flink jobs without `CPLM_GATE_CONFIG_KEY` NACK every configuration bundle `UNSIGNED` - the deployment shows `ACTIVATION_FAILED` with that word; fix the env, recreate JM/TM, deploy the bundle again.
+- v2.5 `ConfigLifecycleTests` and the slice-3 E2E share the lab database with the running fleet: the tests snapshot / restore `cpm.config_worker_capability`; the E2E keeps its bundles (deleting a bundle the jobs still run under leaves unexplained hashes).

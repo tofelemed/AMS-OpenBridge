@@ -1,0 +1,50 @@
+# Release v2.5 — spec v6 "Traverse CPA Next-release": qualification and safe semantics (CHG-026),
+# G12 system response + evidence workbench + G13 + loop model (CHG-027), governed gate
+# configuration (CHG-028). One compose service per line; `#` comments and blank lines are ignored.
+# Consumed by: python migration/deploy/build-release.py --release v2.5
+#
+# Why each one is here:
+#   traverse-ingestion-service  CHG-026: samples schema 1.1 (per-role time / quality / held), protocol-specific
+#                               quality decoder (UNKNOWN != GOOD, non-finite -> DLQ), Instrumental NE107 health
+#                               subscriber -> traverse.cpa.instrument.health.v1 (+ DLQ)
+#   cplm-api                    CHG-026/027/028: identity columns + analysis runs + evidence store, condition /
+#                               response / health / config consumers (each its own single-member group), the 25
+#                               new endpoints (/capabilities, /gate-catalogue, /method-runs, /evidence, /analysis-runs,
+#                               /response-events, /models, /instrument-health, /conditions, /investigations,
+#                               /configuration/*), fusion v2 reads, episode availability vs condition
+#   historian-bff               CHG-026: three timestamps (source / verified / emission) on the live snapshot
+#   flink-jobmanager            CHG-026/027/028: the JAR - schema 1.1 codec, strict quality, RBE quality transitions,
+#                               G2/G4/G10/G11 semantics, fusion v2, run identity + evidence artifacts, G12 response
+#                               kernel + job, condition job, instrument context job, G13 aligned analysis, loop
+#                               model, governed bundles (signed PREPARE/APPLY, ACKs, effective selection);
+#                               taskmanager shares the image and now needs CPLM_GATE_CONFIG_KEY (compose carries it)
+#   ams-frontend                CHG-026/027/028: Governance build identity, transmitter health panel + lanes, events
+#                               availability/condition, evidence workbench (17 views), system response workspace,
+#                               registry classification step, gate configuration workspace
+#
+# NOT rebuilt (unchanged since v2.4): binding-resolver, traverse-auth-service, asset-model, audit-service,
+#   display-service, template-service, analysis-service, notification-service, sparkplug-edge-node, ams-api, gateway.
+#
+# Schema: ADDITIVE (new tables + columns + a widened unique key), applied online BEFORE the cplm-api image swap:
+#   ops/cpm-07-v25-schema.sql          (database/scripts/53..58 merged, idempotent; metadata-only ADD COLUMN)
+#   ops/cpm-07b-v25-result-key.sql     (the result unique keys gain bundle_hash; plain index builds, seconds at plant
+#                                       size - run WITH cplm-api STOPPED, after cpm-07, right before the new image starts:
+#                                       the old consumer needs the OLD key, the new one the NEW key)
+#   ops/cpm-08-v25-permissions.sql     (traverse_auth: cpm.analysis.create, cpm.model.review, cpm.context.manage,
+#                                       cpm.config.* + role grants)
+# Kafka: 7 NEW topics in migration/kafka/topics.txt (instrument health + context, response results, gate evidence,
+#   conditions, gate-config bundles + acks) - create them BEFORE the jobs start (04-create-kafka-topics.sh,
+#   ALLOW_CREATE_PREFIXED_TOPICS=yes, --if-not-exists). traverse.cpa.loop.samples.v1 and
+#   traverse.cpa.clpm.gate.results.v1 are UNCHANGED (additive JSON only).
+# Flink: the JAR is rebuilt; EVERY CPLM job is cancelled and resubmitted (no savepoint restore across this release:
+#   operator chains changed) and three NEW jobs are submitted by 04b (Condition, Instrument Context, Response).
+#   The Live RBE job is resubmitted too (quality / timestamp change).
+# Config: every MQTT_LOOP_SAMPLES data source declares quality_protocol (ops/set-quality-protocol.py, STRING_ENUM
+#   for the OT gateway); one INSTRUMENTAL_HEALTH data source per Instrumental publisher when Instrumental ships it
+#   (until then every loop reads NOT_CONFIGURED health - by design, not a defect).
+!v25-upgrade
+traverse-ingestion-service
+cplm-api
+historian-bff
+flink-jobmanager
+ams-frontend
