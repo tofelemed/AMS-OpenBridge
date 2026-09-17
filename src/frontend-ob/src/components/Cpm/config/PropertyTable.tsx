@@ -1,6 +1,6 @@
 /**
- * 2026-09-17 audit F18: the properties of one gate as a table - name · effective value · the layer it
- * comes from · change class · flags (commissioning required, not read by this build, invalid) - with
+ * 2026-09-17 audit F18: the properties of one gate as a table - name · effective value with the layer
+ * it comes from · change class · flags (commissioning required, not read by this build, invalid) - with
  * one row expanded at a time into the editor (PropertyForm: definition, inherited, bounds, read-by,
  * set / reset). A wall of every property fully expanded was unreadable at 165 properties.
  */
@@ -28,7 +28,7 @@ export const PropertyTable: React.FC<PropertyTableProps> = ({ entries, bundle, e
     <div className="cpm-config-table__wrap">
       <table className="cpm-table cpm-config-table" aria-label="Properties">
         <thead>
-          <tr><th>property</th><th>effective</th><th>from</th><th>class</th><th>flags</th></tr>
+          <tr><th>property</th><th>effective · from</th><th>class</th><th>flags</th></tr>
         </thead>
         <tbody>
           {entries.map(p => {
@@ -47,8 +47,10 @@ export const PropertyTable: React.FC<PropertyTableProps> = ({ entries, bundle, e
                       <span className="cpm-config-property__meta">{p.id} · {p.unit || p.type}</span>
                     </button>
                   </td>
-                  <td className="cpm-mono">{valueText(effective)}</td>
-                  <td className="cpm-mono">{source ?? '—'}</td>
+                  <td>
+                    <span className="cpm-mono">{valueText(effective)}</span>
+                    <span className="cpm-config-property__meta cpm-config-table__from">{source ? `from ${source}` : 'no layer sets it'}</span>
+                  </td>
                   <td><TonePill tone={p.changeClass === 'DEPLOYMENT' ? 'bad' : p.changeClass === 'STATE_BOUNDARY' ? 'warn' : 'muted'}>{p.changeClass}</TonePill></td>
                   <td className="cpm-config-table__flags">
                     {/* short words in the row; the editor below spells each one out */}
@@ -59,7 +61,7 @@ export const PropertyTable: React.FC<PropertyTableProps> = ({ entries, bundle, e
                 </tr>
                 {open && (
                   <tr className="cpm-config-table__editor" id={editorId}>
-                    <td colSpan={5}>
+                    <td colSpan={4}>
                       <PropertyForm entry={p} layers={bundle.layers} scopeKind={bundle.scopeKind} effective={effective} source={source}
                         errors={errors} editable={editable} pending={pending} onOp={onOp} />
                     </td>
