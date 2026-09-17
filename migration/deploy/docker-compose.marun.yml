@@ -252,6 +252,8 @@ services:
       minio-init:
         condition: service_completed_successfully
     environment:
+      # v2.5 (3C.1): the CPLM jobs verify gate-config bundles with the platform service key (HMAC-SHA256)
+      CPLM_GATE_CONFIG_KEY: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set}
       KAFKA_BROKERS: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092}
       DB_URL: jdbc:postgresql://${POSTGRES_HOST:-instrumental-postgres}:5432/traverse_cplm
       DB_USER: ${AMS_DB_USER:-ams_user}
@@ -297,6 +299,8 @@ services:
       flink-jobmanager:
         condition: service_started
     environment:
+      # v2.5 (3C.1): the CPLM jobs verify gate-config bundles with the platform service key (HMAC-SHA256)
+      CPLM_GATE_CONFIG_KEY: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set}
       KAFKA_BROKERS: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092}
       DB_URL: jdbc:postgresql://${POSTGRES_HOST:-instrumental-postgres}:5432/traverse_cplm
       DB_USER: ${AMS_DB_USER:-ams_user}

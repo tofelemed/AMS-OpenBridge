@@ -49,7 +49,7 @@ public final class CplmWindowCertificationCli {
 
         CplmLoopDynamicsProfile profile;
         if (classArg == null || classArg.isEmpty() || "AUTO".equalsIgnoreCase(classArg)) {
-            profile = CplmDynamicsParameterSetSupport.resolveFromSpine(loopId, null, null);
+            profile = CplmDynamicsParameterSetSupport.resolveDefault(loopId, null, null);
         } else {
             CplmLoopDynamicsProfile.LoopClass cls = CplmLoopDynamicsProfile.parseClass(classArg);
             if (cls == null) cls = CplmLoopDynamicsProfile.LoopClass.UNKNOWN;

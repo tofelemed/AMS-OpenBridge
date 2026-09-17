@@ -1,33 +1,30 @@
 package com.ams.flink.cplm;
 
+import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Resolve {@link CplmLoopDynamicsProfile} from {@code traverse.cpa.context.parameter-set.v1}
- * payloads (class packs + per-loop overrides). Classpath YAML / embedded table remains
- * the first-hydration fallback when the spine map has no matching key.
+ * Resolves {@link CplmLoopDynamicsProfile} for a loop from the class pack (the FACTORY + PROFILE
+ * layers, see config/FactoryLayer) plus the registry attributes on the metadata plane - the loop
+ * model (2G.1), the engineering range (P3-8), the legacy per-loop override - read through a
+ * {@link Lookup} over the operator's own checkpointed broadcast state (3C.1, R17: the static
+ * process-wide map is gone; a restore reproduces the state, not a JVM's history). The governed
+ * bundle is layered on top by config/EffectiveBundleSelector.
  *
- * Expected parameter names inside a parameter-set envelope:
- * <ul>
- *   <li>{@code cplm.dynamics.class.FIC|PIC|PIC_GAS|PIC_VAPOUR|LIC|TIC|UNKNOWN} - JSON blob</li>
- *   <li>{@code cplm.dynamics.override} - per-loop JSON blob</li>
- *   <li>{@code cplm.dynamicsProfileVersion}, {@code cplm.calculationVersion}</li>
- * </ul>
+ * Attribute keys inside the metadata envelope: {@code cplm.dynamics.class.<CLASS>} (JSON blob),
+ * {@code cplm.dynamics.override} (per-loop JSON blob), {@code cplm.dynamicsProfileVersion},
+ * {@code cplm.calculationVersion}, {@code cplm.loop.engineering}, {@code cplm.loop.model}.
  */
 public final class CplmDynamicsParameterSetSupport implements Serializable {
 
     public static final String ATTR_OVERRIDE = "cplm.dynamics.override";
-    /**
-     * P3-8 - per-loop OP engineering range published by the registry
-     * (cpm.loop_registry.engineering). Applied AFTER profile resolution as a
-     * merge, never as an override: it cannot clobber the class pack.
-     */
+    /** P3-8 - per-loop OP engineering range published by the registry; merged after profile resolution, never an override. */
     public static final String ATTR_ENGINEERING = "cplm.loop.engineering";
     /** v2.5 (2G.1): the registry's loop model dimensions + acquisition contract (LoopModelDimensions.BroadcastJson). */
     public static final String ATTR_LOOP_MODEL = "cplm.loop.model";
@@ -37,102 +34,105 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    /** In-process hydration cache (broadcast state / CLI / tests). */
-    private static final Map<String, String> SPINE = new ConcurrentHashMap<>();
-
     private CplmDynamicsParameterSetSupport() {
     }
 
-    /** Apply one parameter-set JSON envelope (or clear on tombstone null). */
-    public static void applyParameterSetJson(String key, String jsonOrNull) {
-        if (jsonOrNull == null || jsonOrNull.isEmpty() || "null".equalsIgnoreCase(jsonOrNull)) {
-            if (key != null) {
-                SPINE.entrySet().removeIf(e -> e.getKey().startsWith(key + ":") || e.getKey().equals(key));
-            }
-            return;
+    /** Where attribute values come from: the broadcast state of the operator, or a map a bounded job filled. */
+    public interface Lookup extends Serializable {
+        String get(String key);
+    }
+
+    /** No attributes at all: the class pack alone. */
+    public static final Lookup NONE = key -> null;
+
+    /** A bounded job's attributes (CplmParameterUpdateReader fills it from the compacted topics). */
+    public static final class MapLookup implements Lookup {
+        private static final long serialVersionUID = 1L;
+        private final Map<String, String> map = new HashMap<>();
+
+        @Override
+        public String get(String key) {
+            return map.get(key);
         }
-        try {
-            JsonNode root = MAPPER.readTree(jsonOrNull);
-            String calcId = root.path("calcInstanceId").asText(key != null ? key : "");
-            JsonNode params = root.path("parameters");
-            if (!params.isArray()) return;
-            for (JsonNode p : params) {
-                String name = p.path("name").asText("");
-                String value = p.path("value").asText("");
-                if (name.isEmpty()) continue;
-                SPINE.put(calcId + ":" + name, value);
-                SPINE.put(name, value);
-            }
-        } catch (Exception ignored) {
-            // never break gate evaluation on bad spine payloads
+
+        public void put(String key, String value) {
+            if (key != null && value != null) map.put(key, value);
+        }
+
+        public void removePrefix(String key) {
+            map.entrySet().removeIf(e -> e.getKey().equals(key) || e.getKey().startsWith(key + ":"));
+        }
+
+        public int size() {
+            return map.size();
         }
     }
 
-    /** Test/seed helper: put a raw attr value. */
-    public static void putRaw(String attrName, String jsonValue) {
-        if (attrName != null && jsonValue != null) SPINE.put(attrName, jsonValue);
+    public static Lookup of(ReadOnlyBroadcastState<String, String> state) {
+        return key -> {
+            try {
+                return state.get(key);
+            } catch (Exception e) {
+                throw new IllegalStateException("broadcast state read failed for " + key, e);
+            }
+        };
     }
 
-    public static void clear() {
-        SPINE.clear();
+    /** The class pack (plus nothing): what a job resolves when it has no broadcast at hand (tests, bounded fallbacks). */
+    public static CplmLoopDynamicsProfile resolveDefault(String loopId, String loopType, String assetUuid) {
+        return resolve(loopId, loopType, assetUuid, NONE);
     }
 
-    /**
-     * Resolution: per-loop override -> class pack from spine -> classpath/embedded fallback.
-     */
-    public static CplmLoopDynamicsProfile resolveFromSpine(String loopId, String loopType, String assetUuid) {
+    /** Resolution: per-loop override -> class pack from the attributes -> classpath/embedded pack; then engineering + loop model. */
+    public static CplmLoopDynamicsProfile resolve(String loopId, String loopType, String assetUuid, Lookup lookup) {
+        if (lookup == null) lookup = NONE;
         CplmLoopDynamicsProfile override = null;
         if (assetUuid != null && !assetUuid.isEmpty()) {
-            String o = SPINE.get(assetUuid + ":" + ATTR_OVERRIDE);
-            if (o == null) o = firstMatchingSuffix(":" + assetUuid + ":" + ATTR_OVERRIDE);
-            if (o != null) override = parseProfileJson(o, CplmLoopDynamicsProfile.ProfileSource.OVERRIDE);
+            String o = lookup.get(assetUuid + ":" + ATTR_OVERRIDE);
+            if (o != null) override = CplmProfileJsonParser.parse(o, CplmLoopDynamicsProfile.ProfileSource.OVERRIDE);
         }
         if (override == null && loopId != null) {
-            String o = SPINE.get(loopId + ":" + ATTR_OVERRIDE);
-            if (o == null) o = SPINE.get(ATTR_OVERRIDE + ":" + loopId);
-            if (o != null) override = parseProfileJson(o, CplmLoopDynamicsProfile.ProfileSource.OVERRIDE);
+            String o = lookup.get(loopId + ":" + ATTR_OVERRIDE);
+            if (o == null) o = lookup.get(ATTR_OVERRIDE + ":" + loopId);
+            if (o != null) override = CplmProfileJsonParser.parse(o, CplmLoopDynamicsProfile.ProfileSource.OVERRIDE);
         }
 
         CplmLoopDynamicsProfile.LoopClass cls = CplmLoopDynamicsProfile.parseClass(loopType);
         if (cls == null || cls == CplmLoopDynamicsProfile.LoopClass.UNKNOWN) {
             cls = CplmLoopDynamicsProfile.inferFromTag(loopId);
         }
-        String classAttr = ATTR_CLASS_PREFIX + cls.name();
-        String classJson = SPINE.get(classAttr);
+        String classJson = lookup.get(ATTR_CLASS_PREFIX + cls.name());
         if (classJson != null) {
-            CplmLoopDynamicsProfile fromSpine = parseProfileJson(classJson, CplmLoopDynamicsProfile.ProfileSource.LOOP_TYPE);
-            if (fromSpine != null) {
-                if (override != null) {
-                    override.profileSource = CplmLoopDynamicsProfile.ProfileSource.OVERRIDE;
-                    stampVersions(override);
-                    applyEngineering(override, loopId);
-                    applyLoopModel(override, loopId);
-                    return override;
-                }
-                fromSpine.loopClass = cls;
-                stampVersions(fromSpine);
-                applyEngineering(fromSpine, loopId);
-                applyLoopModel(fromSpine, loopId);
-                return fromSpine;
+            CplmLoopDynamicsProfile fromAttributes = CplmProfileJsonParser.parse(classJson, CplmLoopDynamicsProfile.ProfileSource.LOOP_TYPE);
+            if (override != null) {
+                override.profileSource = CplmLoopDynamicsProfile.ProfileSource.OVERRIDE;
+                return finish(override, loopId, lookup);
             }
+            fromAttributes.loopClass = cls;
+            return finish(fromAttributes, loopId, lookup);
         }
 
         CplmLoopDynamicsProfile fallback = CplmLoopDynamicsProfile.resolve(loopId, loopType, override);
-        stampVersions(fallback);
-        applyEngineering(fallback, loopId);
-        applyLoopModel(fallback, loopId);
-        return fallback;
+        return finish(fallback, loopId, lookup);
+    }
+
+    private static CplmLoopDynamicsProfile finish(CplmLoopDynamicsProfile p, String loopId, Lookup lookup) {
+        stampVersions(p, lookup);
+        applyEngineering(p, loopId, lookup);
+        applyLoopModel(p, loopId, lookup);
+        return p;
     }
 
     /**
      * v2.5 (2G.1, R25): the registry's loop model. The acquisition contract, topology and command
      * path are always taken; the dynamic class and objective override the loop_type pack ONLY when
      * the model is EXPLICIT (a person's declaration) - a preset restates the pack and changes nothing.
+     * A malformed model is reported (never applied, never fatal to the stream).
      */
-    static void applyLoopModel(CplmLoopDynamicsProfile p, String loopId) {
+    static void applyLoopModel(CplmLoopDynamicsProfile p, String loopId, Lookup lookup) {
         if (p == null || loopId == null || loopId.isEmpty()) return;
-        String json = SPINE.get(loopId + ":" + ATTR_LOOP_MODEL);
-        if (json == null) json = SPINE.get(ATTR_LOOP_MODEL + ":" + loopId);
+        String json = lookup.get(loopId + ":" + ATTR_LOOP_MODEL);
+        if (json == null) json = lookup.get(ATTR_LOOP_MODEL + ":" + loopId);
         if (json == null) return;
         try {
             JsonNode n = MAPPER.readTree(json);
@@ -160,16 +160,17 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
                     // RATIO / RAMP / BATCH / SUPERVISORY / UNSET have no engine objective yet: the pack's stays
                 }
             }
-        } catch (Exception ignored) {
-            // a malformed model must never break gate evaluation
+        } catch (Exception e) {
+            com.ams.flink.cplm.config.ConfigRejections.count("LOOP_MODEL_PARSE_ERROR");
+            System.out.println("CPLM_LOOP_MODEL_REJECTED loop=" + loopId + " reason=" + e.getMessage());
         }
     }
 
-    /** P3-8 - merge the loop's declared OP engineering range onto the resolved profile. */
-    private static void applyEngineering(CplmLoopDynamicsProfile p, String loopId) {
+    /** P3-8 - merge the loop's declared OP / PV engineering range onto the resolved profile. */
+    private static void applyEngineering(CplmLoopDynamicsProfile p, String loopId, Lookup lookup) {
         if (p == null || loopId == null || loopId.isEmpty()) return;
-        String eng = SPINE.get(loopId + ":" + ATTR_ENGINEERING);
-        if (eng == null) eng = SPINE.get(ATTR_ENGINEERING + ":" + loopId);
+        String eng = lookup.get(loopId + ":" + ATTR_ENGINEERING);
+        if (eng == null) eng = lookup.get(ATTR_ENGINEERING + ":" + loopId);
         if (eng == null) return;
         try {
             JsonNode n = MAPPER.readTree(eng);
@@ -182,180 +183,21 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
             // and a declared OP range is what makes its min/max the G10 limits (R08).
             if (n.has("pvEngMin") && n.has("pvEngMax") && p.pvEngMax - p.pvEngMin > 1e-12) p.pvRangeDeclared = true;
             if (n.has("opEngMin") && n.has("opEngMax") && p.opEngMax - p.opEngMin > 1e-12) p.opRangeDeclared = true;
-        } catch (Exception ignored) {
-            // a malformed range must never break gate evaluation
-        }
-    }
-
-    private static String firstMatchingSuffix(String suffix) {
-        for (Map.Entry<String, String> e : SPINE.entrySet()) {
-            if (e.getKey().endsWith(suffix)) return e.getValue();
-        }
-        return null;
-    }
-
-    private static void stampVersions(CplmLoopDynamicsProfile p) {
-        String dyn = SPINE.get(ATTR_PROFILE_VERSION);
-        String calc = SPINE.get(ATTR_CALC_VERSION);
-        if (dyn != null && !dyn.isEmpty()) {
-            p.dynamicsProfileVersion = dyn.replace("\"", "");
-        }
-        if (calc != null && !calc.isEmpty()) {
-            p.calculationVersion = calc.replace("\"", "");
-        }
-    }
-
-    static CplmLoopDynamicsProfile parseProfileJson(String json, CplmLoopDynamicsProfile.ProfileSource source) {
-        try {
-            JsonNode root = MAPPER.readTree(json);
-            if (root.isTextual()) root = MAPPER.readTree(root.asText());
-            CplmLoopDynamicsProfile.LoopClass cls = CplmLoopDynamicsProfile.LoopClass.UNKNOWN;
-            String c = root.path("class").asText("");
-            if (!c.isEmpty()) {
-                try {
-                    cls = CplmLoopDynamicsProfile.LoopClass.valueOf(c.toUpperCase(Locale.ROOT));
-                } catch (Exception ignored) { /* keep UNKNOWN */ }
-            }
-            if (cls == CplmLoopDynamicsProfile.LoopClass.UNKNOWN) {
-                String gp = root.path("gateProfileId").asText("");
-                CplmLoopDynamicsProfile.LoopClass parsed = CplmLoopDynamicsProfile.parseClass(gp);
-                if (parsed != null) cls = parsed;
-            }
-            CplmLoopDynamicsProfile p = CplmLoopDynamicsProfile.forClass(cls);
-            p.profileSource = source;
-            if (root.has("tauMinS")) p.tauMinS = root.path("tauMinS").asDouble(p.tauMinS);
-            if (root.has("tauMaxS")) p.tauMaxS = root.path("tauMaxS").asDouble(p.tauMaxS);
-            if (root.has("minSamplesPerPeriod")) p.minSamplesPerPeriod = root.path("minSamplesPerPeriod").asInt(p.minSamplesPerPeriod);
-            if (root.has("minValidCycles")) p.minValidCycles = root.path("minValidCycles").asInt(p.minValidCycles);
-            if (root.has("cornerAngleDeg")) p.cornerAngleDeg = root.path("cornerAngleDeg").asDouble(p.cornerAngleDeg);
-            if (root.has("opDeadbandPct")) p.opDeadbandPct = root.path("opDeadbandPct").asDouble(p.opDeadbandPct);
-            if (root.has("vpMaxAgeS")) p.vpMaxAgeS = root.path("vpMaxAgeS").asDouble(p.vpMaxAgeS);
-            if (root.has("opTravelFloorPct")) p.opTravelFloorPct = root.path("opTravelFloorPct").asDouble(p.opTravelFloorPct);
-            if (root.has("effortRatioFloor")) p.effortRatioFloor = root.path("effortRatioFloor").asDouble(p.effortRatioFloor);
-            if (root.has("phaseAreaPerCycleLo")) p.phaseAreaPerCycleLo = root.path("phaseAreaPerCycleLo").asDouble(p.phaseAreaPerCycleLo);
-            if (root.has("phaseAreaPerCycleHi")) p.phaseAreaPerCycleHi = root.path("phaseAreaPerCycleHi").asDouble(p.phaseAreaPerCycleHi);
-            if (root.has("priorStiction")) p.priorStiction = root.path("priorStiction").asDouble(p.priorStiction);
-            if (root.has("stictionPrior")) p.priorStiction = root.path("stictionPrior").asDouble(p.priorStiction);
-            if (root.has("priorOscillation")) p.priorOscillation = root.path("priorOscillation").asDouble(p.priorOscillation);
-            if (root.has("oscillationPrior")) p.priorOscillation = root.path("oscillationPrior").asDouble(p.priorOscillation);
-            if (root.has("priorEffort")) p.priorEffort = root.path("priorEffort").asDouble(p.priorEffort);
-            if (root.has("effortPrior")) p.priorEffort = root.path("effortPrior").asDouble(p.priorEffort);
-            if (root.has("priorGeometry")) p.priorGeometry = root.path("priorGeometry").asDouble(p.priorGeometry);
-            if (root.has("geometryPrior")) p.priorGeometry = root.path("geometryPrior").asDouble(p.priorGeometry);
-            if (root.path("familyPriors").isObject()) {
-                JsonNode priors = root.path("familyPriors");
-                if (priors.has("stiction")) p.priorStiction = priors.path("stiction").asDouble(p.priorStiction);
-                if (priors.has("oscillation")) p.priorOscillation = priors.path("oscillation").asDouble(p.priorOscillation);
-                if (priors.has("effort")) p.priorEffort = priors.path("effort").asDouble(p.priorEffort);
-                if (priors.has("geometry")) p.priorGeometry = priors.path("geometry").asDouble(p.priorGeometry);
-            }
-            if (root.has("geometryFamilyEnabled")) p.geometryFamilyEnabled = root.path("geometryFamilyEnabled").asBoolean(p.geometryFamilyEnabled);
-            if (root.has("integrating")) p.integrating = root.path("integrating").asBoolean(p.integrating);
-            if (root.has("opEngMin")) p.opEngMin = root.path("opEngMin").asDouble(p.opEngMin);
-            if (root.has("opEngMax")) p.opEngMax = root.path("opEngMax").asDouble(p.opEngMax);
-            if (root.has("pvEngMin")) p.pvEngMin = root.path("pvEngMin").asDouble(p.pvEngMin);
-            if (root.has("pvEngMax")) p.pvEngMax = root.path("pvEngMax").asDouble(p.pvEngMax);
-            if (root.has("goodErrorBandPctOfSpan"))
-                p.goodErrorBandPctOfSpan = root.path("goodErrorBandPctOfSpan").asDouble(p.goodErrorBandPctOfSpan);
-            if (root.has("gateProfileId")) p.gateProfileId = root.path("gateProfileId").asText(p.gateProfileId);
-            if (root.has("dynamicClass")) {
-                try {
-                    p.dynamicClass = CplmLoopDynamicsProfile.DynamicClass.valueOf(
-                            root.path("dynamicClass").asText().toUpperCase(Locale.ROOT));
-                } catch (Exception ignored) { /* keep */ }
-            }
-            if (root.has("serviceObjective")) {
-                try {
-                    p.serviceObjective = CplmLoopDynamicsProfile.ServiceObjective.valueOf(
-                            root.path("serviceObjective").asText().toUpperCase(Locale.ROOT));
-                } catch (Exception ignored) { /* keep */ }
-            }
-            if (root.has("geometryRole")) {
-                try {
-                    p.geometryRole = CplmLoopDynamicsProfile.GateRole.valueOf(
-                            root.path("geometryRole").asText().toUpperCase(Locale.ROOT));
-                } catch (Exception ignored) { /* keep */ }
-            }
-            if (root.has("shapeRole")) {
-                try {
-                    p.shapeRole = CplmLoopDynamicsProfile.GateRole.valueOf(
-                            root.path("shapeRole").asText().toUpperCase(Locale.ROOT));
-                } catch (Exception ignored) { /* keep */ }
-            }
-            if (root.has("horchRole")) {
-                try {
-                    p.horchRole = CplmLoopDynamicsProfile.GateRole.valueOf(
-                            root.path("horchRole").asText().toUpperCase(Locale.ROOT));
-                } catch (Exception ignored) { /* keep */ }
-            }
-            if (root.has("saturationRole")) {
-                try {
-                    p.saturationRole = CplmLoopDynamicsProfile.GateRole.valueOf(
-                            root.path("saturationRole").asText().toUpperCase(Locale.ROOT));
-                } catch (Exception ignored) { /* keep */ }
-            }
-            if (root.has("geometryAloneForbidden")) {
-                p.geometryAloneForbidden = root.path("geometryAloneForbidden").asBoolean(p.geometryAloneForbidden);
-            }
-            if (root.has("requireOscillationForStiction")) {
-                p.requireOscillationForStiction = root.path("requireOscillationForStiction").asBoolean(p.requireOscillationForStiction);
-            }
-            if (root.has("minNonGeometryEvidences")) {
-                p.minNonGeometryEvidences = root.path("minNonGeometryEvidences").asInt(p.minNonGeometryEvidences);
-            }
-            if (root.has("persistenceWindows")) {
-                p.persistenceWindows = root.path("persistenceWindows").asInt(p.persistenceWindows);
-            }
-            if (root.has("persistenceMinAgree")) {
-                p.persistenceMinAgree = root.path("persistenceMinAgree").asInt(p.persistenceMinAgree);
-            }
-            if (root.has("regionPvMin")) p.regionPvMin = root.path("regionPvMin").asDouble(p.regionPvMin);
-            if (root.has("regionPvMax")) p.regionPvMax = root.path("regionPvMax").asDouble(p.regionPvMax);
-            if (root.has("regionOpMin")) p.regionOpMin = root.path("regionOpMin").asDouble(p.regionOpMin);
-            if (root.has("regionOpMax")) p.regionOpMax = root.path("regionOpMax").asDouble(p.regionOpMax);
-            if (root.has("spRangePassMax")) {                     // legacy alias: an EU band
-                p.spRangePassMax = root.path("spRangePassMax").asDouble(p.spRangePassMax);
-                p.spStabilityBandPvEu = p.spRangePassMax;
-            }
-            if (root.has("spStabilityBandPvEu") && !root.get("spStabilityBandPvEu").isNull()) {
-                p.spStabilityBandPvEu = root.path("spStabilityBandPvEu").asDouble();
-            }
-            if (root.has("spStabilityBandSpanFraction")) p.spStabilityBandSpanFraction = root.path("spStabilityBandSpanFraction").asDouble(p.spStabilityBandSpanFraction);
-            if (root.has("g4ActivityWarnRatio")) p.g4ActivityWarnRatio = root.path("g4ActivityWarnRatio").asDouble(p.g4ActivityWarnRatio);
-            if (root.has("g4ActivityHighRatio")) p.g4ActivityHighRatio = root.path("g4ActivityHighRatio").asDouble(p.g4ActivityHighRatio);
-            if (root.has("limitTolerancePp")) p.limitTolerancePp = root.path("limitTolerancePp").asDouble(p.limitTolerancePp);
-            if (root.has("limitDwellWarnS")) p.limitDwellWarnS = root.path("limitDwellWarnS").asDouble(p.limitDwellWarnS);
-            if (root.has("g6SegmentSamples")) p.g6SegmentSamples = root.path("g6SegmentSamples").asInt(p.g6SegmentSamples);
-            if (root.has("g6OverlapFraction")) p.g6OverlapFraction = root.path("g6OverlapFraction").asDouble(p.g6OverlapFraction);
-            if (root.has("g6DetrendMode")) p.g6DetrendMode = root.path("g6DetrendMode").asText(p.g6DetrendMode);
-            if (root.has("g6BandCyclesPerSegment")) p.g6BandCyclesPerSegment = root.path("g6BandCyclesPerSegment").asDouble(p.g6BandCyclesPerSegment);
-            if (root.has("g13LagMaxS")) p.g13LagMaxS = root.path("g13LagMaxS").asDouble(p.g13LagMaxS);
-            if (root.has("g13CoherenceMin")) p.g13CoherenceMin = root.path("g13CoherenceMin").asDouble(p.g13CoherenceMin);
-            if (root.has("g13XcorrMin")) p.g13XcorrMin = root.path("g13XcorrMin").asDouble(p.g13XcorrMin);
-            if (root.has("g13MinCompatibleSupportS")) p.g13MinCompatibleSupportS = root.path("g13MinCompatibleSupportS").asDouble(p.g13MinCompatibleSupportS);
-            if (root.has("g13MaxPeers")) p.g13MaxPeers = root.path("g13MaxPeers").asInt(p.g13MaxPeers);
-            if (root.has("freezeToleranceEu")) p.freezeToleranceEu = root.path("freezeToleranceEu").asDouble(p.freezeToleranceEu);
-            if (root.has("freezeDwellS")) p.freezeDwellS = root.path("freezeDwellS").asDouble(p.freezeDwellS);
-            if (root.has("nonfollowingErrorPp")) p.nonfollowingErrorPp = root.path("nonfollowingErrorPp").asDouble(p.nonfollowingErrorPp);
-            if (root.has("nonfollowingDwellS")) p.nonfollowingDwellS = root.path("nonfollowingDwellS").asDouble(p.nonfollowingDwellS);
-            if (root.has("recoverySupportS")) p.recoverySupportS = root.path("recoverySupportS").asDouble(p.recoverySupportS);
-            if (root.has("goodErrorPctPassMin")) p.goodErrorPctPassMin = root.path("goodErrorPctPassMin").asDouble(p.goodErrorPctPassMin);
-            if (root.has("satLowPct")) p.satLowPct = root.path("satLowPct").asDouble(p.satLowPct);
-            if (root.has("satHighPct")) p.satHighPct = root.path("satHighPct").asDouble(p.satHighPct);
-            if (root.has("satWarnOccupancy")) p.satWarnOccupancy = root.path("satWarnOccupancy").asDouble(p.satWarnOccupancy);
-            if (root.has("satLimitDwellSamplesWarn")) p.satLimitDwellSamplesWarn = root.path("satLimitDwellSamplesWarn").asInt(p.satLimitDwellSamplesWarn);
-            if (root.has("pvFilterType")) p.pvFilterType = root.path("pvFilterType").asText(p.pvFilterType);
-            if (root.has("pvFilterWindow")) p.pvFilterWindow = root.path("pvFilterWindow").asInt(p.pvFilterWindow);
-            if (root.path("pvFilter").isObject()) {
-                JsonNode filter = root.path("pvFilter");
-                if (filter.has("type")) p.pvFilterType = filter.path("type").asText(p.pvFilterType);
-                if (filter.has("window")) p.pvFilterWindow = filter.path("window").asInt(p.pvFilterWindow);
-            }
-            if (root.has("acfRegularityMin")) p.acfRegularityMin = root.path("acfRegularityMin").asDouble(p.acfRegularityMin);
-            if (root.has("fftPeakToMedianMin")) p.fftPeakToMedianMin = root.path("fftPeakToMedianMin").asDouble(p.fftPeakToMedianMin);
-            return p;
         } catch (Exception e) {
-            return null;
+            com.ams.flink.cplm.config.ConfigRejections.count("ENGINEERING_PARSE_ERROR");
+            System.out.println("CPLM_ENGINEERING_REJECTED loop=" + loopId + " reason=" + e.getMessage());
         }
+    }
+
+    private static void stampVersions(CplmLoopDynamicsProfile p, Lookup lookup) {
+        String dyn = lookup.get(ATTR_PROFILE_VERSION);
+        String calc = lookup.get(ATTR_CALC_VERSION);
+        if (dyn != null && !dyn.isEmpty()) p.dynamicsProfileVersion = dyn.replace("\"", "");
+        if (calc != null && !calc.isEmpty()) p.calculationVersion = calc.replace("\"", "");
+    }
+
+    /** The legacy per-blob reader (tests and tools). */
+    static CplmLoopDynamicsProfile parseProfileJson(String json, CplmLoopDynamicsProfile.ProfileSource source) {
+        return CplmProfileJsonParser.parse(json, source);
     }
 }

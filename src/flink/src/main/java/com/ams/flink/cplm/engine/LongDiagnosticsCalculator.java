@@ -58,12 +58,12 @@ public final class LongDiagnosticsCalculator {
 
         String loopType = SignalMath.firstNonBlank(rawSamples, rawSamples, s -> s.loopType);
         String assetUuid = SignalMath.firstNonBlank(rawSamples, rawSamples, s -> s.assetUuid);
-        CplmLoopDynamicsProfile carriedProfile = SignalMath.firstResolvedProfile(rawSamples, rawSamples);
+        CplmLoopDynamicsProfile carriedProfile = SignalMath.latestResolvedProfile(rawSamples, rawSamples);
         CplmLoopDynamicsProfile profile = profileOrNull != null
                 ? profileOrNull
                 : carriedProfile != null
                 ? carriedProfile
-                : CplmDynamicsParameterSetSupport.resolveFromSpine(result.loopId, loopType, assetUuid);
+                : CplmDynamicsParameterSetSupport.resolveDefault(result.loopId, loopType, assetUuid);
         stampProfile(result, profile);
         result.loopType = loopType != null ? loopType : "";
         result.assetUuid = assetUuid != null ? assetUuid : "";

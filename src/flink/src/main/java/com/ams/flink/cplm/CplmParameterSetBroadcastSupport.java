@@ -1,29 +1,44 @@
 package com.ams.flink.cplm;
 
+import com.ams.flink.cplm.config.BundleBroadcastHandler;
+import com.ams.flink.cplm.config.ConfigAck;
+import com.ams.flink.cplm.config.ConfigRejections;
+import com.ams.flink.cplm.config.EffectiveBundleSelector;
+import com.ams.flink.cplm.config.GateConfigBundle;
+import com.ams.flink.cplm.identity.BuildIdentity;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
-import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
-import org.apache.flink.streaming.api.datastream.BroadcastStream;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
-import org.apache.flink.streaming.api.functions.ProcessFunction;
-import org.apache.flink.util.Collector;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.datastream.BroadcastStream;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
+import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * P0.4 — hydrate CplmDynamicsParameterSetSupport from the spine.
- * When spine.consume.canonical=true: consume traverse.cpa.context.parameter-set.v1 (canonical Broadcast).
- * Always also consume traverse.cpa.ams.metadata.updates for staticAttributes (legacy Broadcast path) so
- * Gate 2 SLA can compare canonical vs legacy apply latency in the same session.
+ * The control plane of every CPLM job, connected as ONE broadcast: the registry's metadata plane
+ * (loop model, engineering range, evidence links, legacy profile attributes) and, since v2.5 (3C.1),
+ * the governed configuration bundles on traverse.cpa.context.gate-config.v1. The broadcast state is
+ * operator-owned and checkpointed - there is no static map - so a restore reproduces exactly the
+ * attributes and bundles that were in force. PREPARE / APPLY acknowledgements leave through a side
+ * output to the ACK topic. The resolved profile is attached to each sample / long result, so the
+ * downstream window task depends on nothing JVM-local.
  */
 public final class CplmParameterSetBroadcastSupport {
 
@@ -33,11 +48,14 @@ public final class CplmParameterSetBroadcastSupport {
                     "cplm-governed-profile-state",
                     BasicTypeInfo.STRING_TYPE_INFO,
                     BasicTypeInfo.STRING_TYPE_INFO);
+    /** The PREPARE / APPLY ACK and NACK records (ConfigAck) the broadcast function emits. */
+    public static final OutputTag<String> ACKS = new OutputTag<String>("cplm-gate-config-acks") {
+    };
 
     private CplmParameterSetBroadcastSupport() {
     }
 
-    /** Env/system property spine.consume.canonical — default false. */
+    /** Env/system property spine.consume.canonical - default false. */
     public static boolean consumeCanonical() {
         String env = System.getenv("SPINE_CONSUME_CANONICAL");
         if (env != null && !env.isBlank()) {
@@ -56,229 +74,241 @@ public final class CplmParameterSetBroadcastSupport {
     }
 
     /**
-     * v2.5 (2C.2): the parameter-set updates a bounded job needs to resolve profiles exactly as the
-     * streaming jobs do - the compacted legacy metadata topic (and the canonical topic when consumed),
-     * read to their end offsets in the driver. Small: one envelope per loop, compacted.
-     */
-    public static java.util.List<String> readParameterUpdates(String brokers) {
-        java.util.List<String> out = new java.util.ArrayList<>();
-        java.util.List<String> topics = new java.util.ArrayList<>();
-        topics.add(legacyMetadataTopic());
-        if (consumeCanonical()) topics.add(parameterSetTopic());
-        java.util.Properties props = new java.util.Properties();
-        props.put("bootstrap.servers", brokers);
-        props.put("group.id", "cplm-reconstruction-profile-" + java.util.UUID.randomUUID());
-        props.put("enable.auto.commit", "false");
-        props.put("auto.offset.reset", "earliest");
-        props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
-        props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
-        try (org.apache.kafka.clients.consumer.KafkaConsumer<String, String> consumer = new org.apache.kafka.clients.consumer.KafkaConsumer<>(props)) {
-            java.util.List<org.apache.kafka.common.TopicPartition> partitions = new java.util.ArrayList<>();
-            for (String topic : topics) {
-                java.util.List<org.apache.kafka.common.PartitionInfo> infos = consumer.partitionsFor(topic);
-                if (infos == null) continue;
-                for (org.apache.kafka.common.PartitionInfo pi : infos) partitions.add(new org.apache.kafka.common.TopicPartition(topic, pi.partition()));
-            }
-            if (partitions.isEmpty()) return out;
-            consumer.assign(partitions);
-            consumer.seekToBeginning(partitions);
-            java.util.Map<org.apache.kafka.common.TopicPartition, Long> end = consumer.endOffsets(partitions);
-            java.util.Set<org.apache.kafka.common.TopicPartition> pending = new java.util.HashSet<>();
-            for (org.apache.kafka.common.TopicPartition tp : partitions) if (consumer.position(tp) < end.get(tp)) pending.add(tp);
-            // compaction can leave the position short of the end offset for ever: a few idle polls end the read
-            int idlePolls = 0;
-            while (!pending.isEmpty() && idlePolls < 3) {
-                org.apache.kafka.clients.consumer.ConsumerRecords<String, String> records = consumer.poll(java.time.Duration.ofSeconds(1));
-                if (records.isEmpty()) idlePolls++;
-                for (org.apache.kafka.clients.consumer.ConsumerRecord<String, String> r : records) if (r.value() != null) out.add(r.value());
-                for (org.apache.kafka.common.TopicPartition tp : new java.util.ArrayList<>(pending)) if (consumer.position(tp) >= end.get(tp)) pending.remove(tp);
-            }
-        }
-        return out;
-    }
-
-    /** Applies one update exactly as the broadcast function does (state-free variant for bounded jobs). */
-    public static void applyParameterUpdate(String value) {
-        applyBroadcastPayload(value, "canonical-parameter");
-        applyLegacyMetadataEnvelope(value);
-    }
-
-    public static void wireParameterSetHydration(StreamExecutionEnvironment env, CplmJobConfig cfg) {
-        // Legacy path — always on so soak/SLA is not flag-only
-        KafkaSource<String> legacy = KafkaSource.<String>builder()
-                .setBootstrapServers(cfg.brokers)
-                .setTopics(legacyMetadataTopic())
-                .setGroupId(cfg.consumerGroupId + "-parameter-legacy")
-                .setStartingOffsets(OffsetsInitializer.earliest())
-                .setValueOnlyDeserializer(new SimpleStringSchema())
-                .build();
-        env.fromSource(legacy, org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks(),
-                        "cplm-parameter-legacy-source")
-                .process(new LegacyParameterHydrateFn())
-                .setParallelism(1)
-                .name("cplm-parameter-legacy-hydrate")
-                .uid("cplm-parameter-legacy-hydrate");
-
-        if (!consumeCanonical()) {
-            return;
-        }
-        KafkaSource<String> source = KafkaSource.<String>builder()
-                .setBootstrapServers(cfg.brokers)
-                .setTopics(parameterSetTopic())
-                .setGroupId(cfg.consumerGroupId + "-parameter-set")
-                .setStartingOffsets(OffsetsInitializer.earliest())
-                .setValueOnlyDeserializer(new SimpleStringSchema())
-                .build();
-
-        env.fromSource(source, org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks(),
-                        "cplm-parameter-set-source")
-                .process(new ParameterSetHydrateFn())
-                .setParallelism(1)
-                .name("cplm-parameter-set-hydrate")
-                .uid("cplm-parameter-set-hydrate");
-    }
-
-    /**
-     * Broadcast-connect governed profiles before event-time windowing. The
-     * parsed profile is cached per loop and attached to each sample, so the
-     * downstream window task does not rely on TaskManager-local static state.
+     * Broadcast-connect the control plane before event-time windowing: the profile (pack + registry
+     * attributes + the effective bundle at the sample's event time) rides on each sample. The ACK
+     * side output is sunk to the ACK topic.
      */
     public static DataStream<CplmNormalizedSample> connectSampleProfiles(
             DataStream<CplmNormalizedSample> samples,
             StreamExecutionEnvironment env,
             CplmJobConfig cfg) {
-        BroadcastStream<String> profiles = buildParameterUpdateStream(env, cfg).broadcast(PROFILE_STATE);
-        return samples.connect(profiles)
-                .process(new SampleProfileBroadcastFn())
+        BroadcastStream<String> control = buildParameterUpdateStream(env, cfg).broadcast(PROFILE_STATE);
+        SingleOutputStreamOperator<CplmNormalizedSample> stamped = samples.connect(control)
+                .process(new SampleProfileBroadcastFn(cfg))
                 .name("cplm-sample-profile-broadcast")
                 .uid("cplm-sample-profile-broadcast");
+        attachAckSink(stamped, cfg, "cplm-gate-config-ack-sink");
+        return stamped;
     }
 
-    /**
-     * Resolve the same governed profile inside the fusion job and carry it with
-     * the long feature to the keyed join.
-     */
+    /** The same control plane inside the fusion job; the profile is carried with the long feature to the keyed join. */
     public static DataStream<CplmLongDiagnosticsResult> connectLongProfiles(
             DataStream<CplmLongDiagnosticsResult> diagnostics,
             StreamExecutionEnvironment env,
             CplmJobConfig cfg) {
-        BroadcastStream<String> profiles = buildParameterUpdateStream(env, cfg).broadcast(PROFILE_STATE);
-        return diagnostics.connect(profiles)
-                .process(new LongProfileBroadcastFn())
+        BroadcastStream<String> control = buildParameterUpdateStream(env, cfg).broadcast(PROFILE_STATE);
+        SingleOutputStreamOperator<CplmLongDiagnosticsResult> stamped = diagnostics.connect(control)
+                .process(new LongProfileBroadcastFn(cfg))
                 .name("cplm-fusion-profile-broadcast")
                 .uid("cplm-fusion-profile-broadcast");
+        attachAckSink(stamped, cfg, "cplm-fusion-gate-config-ack-sink");
+        return stamped;
+    }
+
+    private static void attachAckSink(SingleOutputStreamOperator<?> op, CplmJobConfig cfg, String sinkName) {
+        if (cfg.gateConfigAcksTopic == null || cfg.gateConfigAcksTopic.isEmpty()) return;
+        CplmKafkaSink.attachKeyed(op.getSideOutput(ACKS), cfg, cfg.gateConfigAcksTopic, sinkName, "bundle_id");
     }
 
     static DataStream<String> buildParameterUpdateStream(
             StreamExecutionEnvironment env,
             CplmJobConfig cfg) {
-        KafkaSource<String> legacy = KafkaSource.<String>builder()
-                .setBootstrapServers(cfg.brokers)
-                .setTopics(legacyMetadataTopic())
-                .setGroupId(cfg.consumerGroupId + "-profile-broadcast-legacy")
-                .setStartingOffsets(OffsetsInitializer.earliest())
-                .setValueOnlyDeserializer(new SimpleStringSchema())
-                .build();
         DataStream<String> updates = env.fromSource(
-                legacy,
+                source(cfg, legacyMetadataTopic(), cfg.consumerGroupId + "-profile-broadcast-legacy"),
                 org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks(),
                 "cplm-profile-broadcast-legacy-source");
+        if (cfg.gateConfigTopic != null && !cfg.gateConfigTopic.isEmpty()) {
+            updates = updates.union(env.fromSource(
+                    source(cfg, cfg.gateConfigTopic, cfg.consumerGroupId + "-gate-config-broadcast"),
+                    org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks(),
+                    "cplm-gate-config-broadcast-source"));
+        }
         if (!consumeCanonical()) return updates;
-
-        KafkaSource<String> canonical = KafkaSource.<String>builder()
-                .setBootstrapServers(cfg.brokers)
-                .setTopics(parameterSetTopic())
-                .setGroupId(cfg.consumerGroupId + "-profile-broadcast-canonical")
-                .setStartingOffsets(OffsetsInitializer.earliest())
-                .setValueOnlyDeserializer(new SimpleStringSchema())
-                .build();
         return updates.union(env.fromSource(
-                canonical,
+                source(cfg, parameterSetTopic(), cfg.consumerGroupId + "-profile-broadcast-canonical"),
                 org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks(),
                 "cplm-profile-broadcast-canonical-source"));
     }
 
-    private abstract static class ProfileBroadcastFn<T> extends BroadcastProcessFunction<T, String, T> {
-        private transient Map<String, CplmLoopDynamicsProfile> resolvedCache;
-        private transient boolean restored;
+    private static KafkaSource<String> source(CplmJobConfig cfg, String topic, String group) {
+        return KafkaSource.<String>builder()
+                .setBootstrapServers(cfg.brokers)
+                .setTopics(topic)
+                .setGroupId(group)
+                .setStartingOffsets(OffsetsInitializer.earliest())
+                .setValueOnlyDeserializer(new SimpleStringSchema())
+                .build();
+    }
+
+    /** A resolved profile and how long the selection holds (the next bundle effective time). */
+    private static final class Cached {
+        final CplmLoopDynamicsProfile profile;
+        final long validUntilMs;
+
+        Cached(CplmLoopDynamicsProfile profile, long validUntilMs) {
+            this.profile = profile;
+            this.validUntilMs = validUntilMs;
+        }
+    }
+
+    private abstract static class ProfileBroadcastFn<T> extends BroadcastProcessFunction<T, String, T> implements CheckpointedFunction {
+        private final String jobName;
+        private final String keyArg;
+        private final String site;
+        private transient Map<String, Cached> resolvedCache;
+        private transient Map<String, GateConfigBundle> parsedBundles;
+        private transient ConfigAck.WorkerIdentity identity;
+        private transient String hmacKey;
+        private transient long restoredCheckpointId = -1;
+
+        ProfileBroadcastFn(CplmJobConfig cfg) {
+            this.jobName = cfg.jobName;
+            this.keyArg = cfg.gateConfigKey;
+            this.site = cfg.site;
+        }
+
+        @Override
+        public void open(Configuration parameters) {
+            hmacKey = keyArg != null && !keyArg.isEmpty() ? keyArg : CplmJobConfig.envKey();      // the TaskManager's env, when the arg is absent
+        }
+
+        @Override
+        public void initializeState(FunctionInitializationContext context) {
+            restoredCheckpointId = context.getRestoredCheckpointId().orElse(-1L);
+        }
+
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) {
+        }
+
+        /** The job, its subtask, the build and the topology generation (job id / parallelism / restored checkpoint) that answers. */
+        ConfigAck.WorkerIdentity identity() {
+            if (identity == null) {
+                BuildIdentity build = BuildIdentity.current();
+                String jobId = String.valueOf(getRuntimeContext().getJobId());
+                String generation = jobId + "/p" + getRuntimeContext().getNumberOfParallelSubtasks() + "/cp" + restoredCheckpointId;
+                identity = new ConfigAck.WorkerIdentity(jobName, getRuntimeContext().getIndexOfThisSubtask(), build.jarSha256, build.sourceCommit, generation);
+            }
+            return identity;
+        }
 
         @Override
         public void processBroadcastElement(String value, Context ctx, Collector<T> out) throws Exception {
-            applyUpdateToState(value, ctx.getBroadcastState(PROFILE_STATE));
-            applyBroadcastPayload(value, "canonical-parameter");
-            applyLegacyMetadataEnvelope(value);
-            cache().clear();
-            restored = true;
-        }
-
-        CplmLoopDynamicsProfile resolve(
-                String loopId,
-                String loopType,
-                String assetUuid,
-                ReadOnlyContext ctx) throws Exception {
-            if (!restored) {
-                ReadOnlyBroadcastState<String, String> state = ctx.getBroadcastState(PROFILE_STATE);
-                for (Map.Entry<String, String> entry : state.immutableEntries()) {
-                    CplmDynamicsParameterSetSupport.putRaw(entry.getKey(), entry.getValue());
+            BroadcastState<String, String> state = ctx.getBroadcastState(PROFILE_STATE);
+            JsonNode root;
+            try {
+                root = MAPPER.readTree(value);
+            } catch (Exception e) {
+                ConfigRejections.count("PARSE_ERROR");
+                System.out.println("CPLM_CONTROL_RECORD_REJECTED job=" + jobName + " reason=" + e.getMessage());
+                return;
+            }
+            if (BundleBroadcastHandler.isBundleRecord(root)) {
+                for (String ack : BundleBroadcastHandler.handle(value, state, identity(), hmacKey)) ctx.output(ACKS, ack);
+            } else if (CplmMetadataEnvelope.isEnvelope(root)) {
+                try {
+                    CplmMetadataEnvelope.applyUpdate(root, (k, v) -> put(state, k, v), prefix -> removePrefixed(state, prefix));
+                } catch (Exception e) {
+                    ConfigRejections.count("PARSE_ERROR");
+                    System.out.println("CPLM_METADATA_REJECTED job=" + jobName + " reason=" + e.getMessage());
                 }
-                restored = true;
             }
-            String key = String.valueOf(loopId) + "|" + String.valueOf(loopType) + "|" + String.valueOf(assetUuid);
-            CplmLoopDynamicsProfile cached = cache().get(key);
-            if (cached == null) {
-                cached = CplmDynamicsParameterSetSupport.resolveFromSpine(loopId, loopType, assetUuid);
-                cache().put(key, cached);
-            }
-            return cached;
+            cache().clear();
+            bundles().clear();
         }
 
-        private Map<String, CplmLoopDynamicsProfile> cache() {
+        private static void put(BroadcastState<String, String> state, String k, String v) {
+            try {
+                state.put(k, v);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        private static void removePrefixed(BroadcastState<String, String> state, String key) {
+            try {
+                ArrayList<String> remove = new ArrayList<>();
+                for (Map.Entry<String, String> entry : state.entries()) {
+                    if (entry.getKey().equals(key) || entry.getKey().startsWith(key + ":")) remove.add(entry.getKey());
+                }
+                for (String item : remove) state.remove(item);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        /**
+         * The profile in force for the loop at the decision time: pack + registry attributes, then the
+         * effective bundle (LOOP > PROFILE > SITE, by effective time). Cached per loop until the next
+         * bundle effective time, cleared on every control record.
+         */
+        CplmLoopDynamicsProfile resolve(String loopId, String loopType, String assetUuid, String sampleSite, long decisionTimeMs, ReadOnlyContext ctx) throws Exception {
+            String key = String.valueOf(loopId) + "|" + String.valueOf(loopType) + "|" + String.valueOf(assetUuid) + "|" + String.valueOf(sampleSite);
+            Cached cached = cache().get(key);
+            if (cached != null && decisionTimeMs < cached.validUntilMs) return cached.profile;
+            ReadOnlyBroadcastState<String, String> state = ctx.getBroadcastState(PROFILE_STATE);
+            CplmDynamicsParameterSetSupport.Lookup lookup = CplmDynamicsParameterSetSupport.of(state);
+            CplmLoopDynamicsProfile profile;
+            try {
+                profile = CplmDynamicsParameterSetSupport.resolve(loopId, loopType, assetUuid, lookup);
+            } catch (IllegalArgumentException e) {
+                ConfigRejections.count("PROFILE_ATTRIBUTE_REJECTED");
+                System.out.println("CPLM_PROFILE_ATTRIBUTE_REJECTED loop=" + loopId + " reason=" + e.getMessage());
+                profile = CplmDynamicsParameterSetSupport.resolveDefault(loopId, loopType, assetUuid);
+            }
+            String effectiveSite = sampleSite != null && !sampleSite.isEmpty() ? sampleSite : site;
+            EffectiveBundleSelector.Selected sel = EffectiveBundleSelector.select(state, effectiveSite, loopId, profile.gateProfileId, decisionTimeMs, bundles());
+            if (sel.bundle != null) EffectiveBundleSelector.apply(profile, sel);
+            cache().put(key, new Cached(profile, sel.validUntilMs));
+            return profile;
+        }
+
+        private Map<String, Cached> cache() {
             if (resolvedCache == null) resolvedCache = new HashMap<>();
             return resolvedCache;
+        }
+
+        private Map<String, GateConfigBundle> bundles() {
+            if (parsedBundles == null) parsedBundles = new HashMap<>();
+            return parsedBundles;
         }
     }
 
     static final class SampleProfileBroadcastFn extends ProfileBroadcastFn<CplmNormalizedSample> {
+        SampleProfileBroadcastFn(CplmJobConfig cfg) {
+            super(cfg);
+        }
+
         @Override
         public void processElement(CplmNormalizedSample sample, ReadOnlyContext ctx,
                                    Collector<CplmNormalizedSample> out) throws Exception {
-            sample.resolvedProfile = resolve(sample.loopId, sample.loopType, sample.assetUuid, ctx);
+            sample.resolvedProfile = resolve(sample.loopId, sample.loopType, sample.assetUuid, sample.site, sample.eventTsMs, ctx);
             out.collect(sample);
         }
     }
 
     static final class LongProfileBroadcastFn extends ProfileBroadcastFn<CplmLongDiagnosticsResult> {
+        LongProfileBroadcastFn(CplmJobConfig cfg) {
+            super(cfg);
+        }
+
         @Override
         public void processElement(CplmLongDiagnosticsResult diagnostic, ReadOnlyContext ctx,
                                    Collector<CplmLongDiagnosticsResult> out) throws Exception {
-            diagnostic.resolvedProfile = resolve(
-                    diagnostic.loopId, diagnostic.loopType, diagnostic.assetUuid, ctx);
+            // the fused row shares the long tier's bundle: the same decision time (the window end) selects the same bundle
+            diagnostic.resolvedProfile = resolve(diagnostic.loopId, diagnostic.loopType, diagnostic.assetUuid, null, diagnostic.windowEndMs, ctx);
             applyLoopEvidence(diagnostic, ctx.getBroadcastState(PROFILE_STATE));
             out.collect(diagnostic);
         }
     }
 
     /**
-     * Attribute key carrying per-loop registry evidence (peer/upstream links and
-     * approved step tests). Published to the metadata broadcast topic by the CPLM
-     * onboarding service as
-     * {@code {"calcInstanceId":"<loopId>","parameters":[{"name":"cplm.loop.evidence","value":"{...}"}]}},
-     * which {@link #applyUpdateToState} stores under {@code <loopId>:cplm.loop.evidence}.
+     * Attribute key carrying per-loop registry evidence (peer/upstream links and approved step
+     * tests), stored under {@code <loopId>:cplm.loop.evidence} by the envelope reader.
      */
     public static final String ATTR_LOOP_EVIDENCE = "cplm.loop.evidence";
 
-    /**
-     * Stamps HAS_PEER_LINKS / HAS_STEP_TEST onto a long-diagnostics record from
-     * broadcast state, before the fusion join reads those flags.
-     *
-     * <p>This closes a real gap: the fusion job has always read these two flags
-     * ({@code CplmGateFusionStreamJob}), but nothing in the pipeline ever wrote
-     * them — so G13 was permanently NOT_EVALUATED/NO_UPSTREAM_LINKS and the
-     * disturbance soft-block could never fire, meaning an oscillating loop being
-     * disturbed from upstream was diagnosed as stiction. Topology is
-     * configuration, so it arrives on the broadcast (control) plane rather than
-     * on the sample stream.
-     */
+    /** Stamps HAS_PEER_LINKS / HAS_STEP_TEST onto a long-diagnostics record from broadcast state, before the fusion join reads those flags. */
     static void applyLoopEvidence(CplmLongDiagnosticsResult diagnostic,
                                   ReadOnlyBroadcastState<String, String> state) throws Exception {
         if (diagnostic == null || diagnostic.loopId == null || state == null) return;
@@ -289,7 +319,8 @@ public final class CplmParameterSetBroadcastSupport {
         try {
             evidence = MAPPER.readTree(json);
         } catch (Exception ex) {
-            return; // malformed evidence must never break the diagnostics stream
+            ConfigRejections.count("LOOP_EVIDENCE_PARSE_ERROR");
+            return;
         }
         if (diagnostic.observabilityFlags == null) {
             diagnostic.observabilityFlags = new java.util.ArrayList<>();
@@ -298,8 +329,7 @@ public final class CplmParameterSetBroadcastSupport {
             if (!diagnostic.observabilityFlags.contains("HAS_PEER_LINKS")) {
                 diagnostic.observabilityFlags.add("HAS_PEER_LINKS");
             }
-            // The engine re-adds NO_UPSTREAM_LINKS itself when peers are absent;
-            // strip the stale negative so the two never coexist.
+            // The engine re-adds NO_UPSTREAM_LINKS itself when peers are absent; strip the stale negative so the two never coexist.
             diagnostic.observabilityFlags.remove("NO_UPSTREAM_LINKS");
         }
         if (evidence.path("hasStepTest").asBoolean(false)) {
@@ -310,141 +340,8 @@ public final class CplmParameterSetBroadcastSupport {
         }
     }
 
+    /** Test seam: applies one metadata-plane update to a broadcast state exactly as the function does. */
     static void applyUpdateToState(String value, BroadcastState<String, String> state) throws Exception {
-        if (value == null || value.isBlank()) return;
-        JsonNode root = MAPPER.readTree(value);
-        if (root.has("__tombstone") && root.path("__tombstone").asBoolean(false)) {
-            String key = text(root, "key", null);
-            if (key != null) {
-                java.util.ArrayList<String> remove = new java.util.ArrayList<>();
-                for (Map.Entry<String, String> entry : state.entries()) {
-                    if (entry.getKey().equals(key) || entry.getKey().startsWith(key + ":")) {
-                        remove.add(entry.getKey());
-                    }
-                }
-                for (String item : remove) state.remove(item);
-            }
-            return;
-        }
-
-        JsonNode parameters = root.path("parameters");
-        if (parameters.isArray()) {
-            String calcId = text(root, "calcInstanceId", text(root, "key", ""));
-            for (JsonNode parameter : parameters) {
-                String name = text(parameter, "name", "");
-                if (name.isEmpty()) continue;
-                String parameterValue = text(parameter, "value", "");
-                state.put(name, parameterValue);
-                if (!calcId.isEmpty()) state.put(calcId + ":" + name, parameterValue);
-            }
-        }
-
-        JsonNode payload = root.has("payload") ? root.get("payload") : root;
-        if (payload != null && payload.isTextual()) payload = MAPPER.readTree(payload.asText());
-        if (payload != null && payload.path("staticAttributes").isArray()) {
-            for (JsonNode attribute : payload.path("staticAttributes")) {
-                String assetUuid = text(attribute, "assetUuid", null);
-                String attrKey = text(attribute, "attrKey", null);
-                if (assetUuid == null || attrKey == null) continue;
-                JsonNode valueNode = attribute.get("value");
-                String attributeValue = "";
-                if (valueNode != null) {
-                    attributeValue = valueNode.isObject() && valueNode.has("value")
-                            ? valueNode.get("value").asText("")
-                            : valueNode.asText("");
-                }
-                state.put(assetUuid + ":" + attrKey, attributeValue);
-                state.put(attrKey, attributeValue);
-            }
-        }
-    }
-
-    public static void applyBroadcastPayload(String value) {
-        applyBroadcastPayload(value, "canonical-parameter");
-    }
-
-    public static void applyBroadcastPayload(String value, String mode) {
-        if (value == null || value.isBlank()) {
-            return;
-        }
-        try {
-            JsonNode root = MAPPER.readTree(value);
-            if (root.has("__tombstone") && root.get("__tombstone").asBoolean(false)) {
-                String key = text(root, "key", null);
-                CplmDynamicsParameterSetSupport.applyParameterSetJson(key, null);
-                System.out.println("SPINE_BS_APPLIED mode=tombstone key=" + key
-                        + " tsMs=" + System.currentTimeMillis()
-                        + " canonical=" + consumeCanonical());
-                return;
-            }
-            String key = text(root, "calcInstanceId", text(root, "key", null));
-            CplmDynamicsParameterSetSupport.applyParameterSetJson(key, value);
-            System.out.println("SPINE_BS_APPLIED mode=" + mode + " key=" + key
-                    + " tsMs=" + System.currentTimeMillis()
-                    + " canonical=" + consumeCanonical());
-        } catch (Exception ignored) {
-        }
-    }
-
-    /** Extract staticAttributes from legacy traverse.cpa.ams.metadata.updates MOC envelopes. */
-    public static void applyLegacyMetadataEnvelope(String value) {
-        if (value == null || value.isBlank()) {
-            return;
-        }
-        try {
-            JsonNode root = MAPPER.readTree(value);
-            JsonNode payload = root.has("payload") ? root.get("payload") : root;
-            if (payload == null || payload.isNull()) {
-                return;
-            }
-            // payload may be a JSON string
-            if (payload.isTextual()) {
-                payload = MAPPER.readTree(payload.asText());
-            }
-            if (!payload.has("staticAttributes") || !payload.get("staticAttributes").isArray()) {
-                return;
-            }
-            for (JsonNode a : payload.get("staticAttributes")) {
-                String assetUuid = text(a, "assetUuid", null);
-                String attrKey = text(a, "attrKey", null);
-                if (assetUuid == null || attrKey == null) {
-                    continue;
-                }
-                String val = "";
-                if (a.has("value")) {
-                    JsonNode vNode = a.get("value");
-                    if (vNode.isObject() && vNode.has("value")) {
-                        val = vNode.get("value").asText("");
-                    } else {
-                        val = vNode.asText("");
-                    }
-                }
-                String key = assetUuid + ":" + attrKey;
-                CplmDynamicsParameterSetSupport.putRaw(key, val);
-                CplmDynamicsParameterSetSupport.putRaw(attrKey, val);
-                System.out.println("SPINE_BS_APPLIED mode=legacy-parameter key=" + key
-                        + " tsMs=" + System.currentTimeMillis()
-                        + " canonical=" + consumeCanonical());
-            }
-        } catch (Exception ignored) {
-        }
-    }
-
-    private static String text(JsonNode n, String field, String def) {
-        return n != null && n.has(field) && !n.get(field).isNull() ? n.get(field).asText() : def;
-    }
-
-    static final class ParameterSetHydrateFn extends ProcessFunction<String, String> {
-        @Override
-        public void processElement(String value, Context ctx, Collector<String> out) {
-            applyBroadcastPayload(value, "canonical-parameter");
-        }
-    }
-
-    static final class LegacyParameterHydrateFn extends ProcessFunction<String, String> {
-        @Override
-        public void processElement(String value, Context ctx, Collector<String> out) {
-            applyLegacyMetadataEnvelope(value);
-        }
+        CplmMetadataEnvelope.applyUpdate(value, (k, v) -> ProfileBroadcastFn.put(state, k, v), prefix -> ProfileBroadcastFn.removePrefixed(state, prefix));
     }
 }

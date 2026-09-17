@@ -76,8 +76,41 @@ public final class ResponseJobConfig implements Serializable {
         return c;
     }
 
-    /** A stable content hash of the settings, the G12 bundle identity until Phase 3 (spec §1.6 / R26). */
+    /** v2.5 (3C.1): the governing bundle's content hash when the settings came from a bundle; null = the job defaults (hash = settings hash). */
+    public String governingBundleHash;
+
+    /**
+     * v2.5 (3C.1): these settings under a bundle - the bundle's G12.* values applied through
+     * BundleProfileMapper on a copy of the job defaults, answering to the bundle's hash. The
+     * capture that starts under it is pinned to it for its whole event.
+     */
+    public ResponseJobConfig underBundle(String bundleHash, java.util.Map<String, Double> g12Values) {
+        ResponseJobConfig c = copy();
+        if (g12Values != null && !g12Values.isEmpty()) {
+            org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode n = new org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
+            for (java.util.Map.Entry<String, Double> e : g12Values.entrySet()) n.put(e.getKey(), e.getValue());
+            com.ams.flink.cplm.config.BundleProfileMapper.apply(c, n);
+        }
+        c.governingBundleHash = bundleHash;
+        return c;
+    }
+
+    public ResponseJobConfig copy() {
+        ResponseJobConfig c = new ResponseJobConfig();
+        c.preSupportS = preSupportS; c.minCaptureS = minCaptureS; c.maxCaptureS = maxCaptureS; c.maxGapS = maxGapS; c.tailDwellS = tailDwellS;
+        c.stableBandEu = stableBandEu; c.stepMinInputEu = stepMinInputEu; c.stepMinSpanFraction = stepMinSpanFraction; c.noiseMultiplier = noiseMultiplier;
+        c.eventDwellS = eventDwellS; c.rampMinSlopeEuPerS = rampMinSlopeEuPerS; c.rampMinDurationS = rampMinDurationS;
+        c.absSettlingBandEu = absSettlingBandEu; c.relSettlingBand = relSettlingBand; c.noiseFloorEu = noiseFloorEu; c.crossingDwellS = crossingDwellS;
+        c.minResponseEu = minResponseEu; c.targetBandEu = targetBandEu; c.delayGridS = delayGridS; c.thetaMaxS = thetaMaxS; c.tauMaxS = tauMaxS;
+        c.tauMinS = tauMinS; c.gainAbsMax = gainAbsMax; c.fitBudgetMs = fitBudgetMs; c.fallbackSpanEu = fallbackSpanEu; c.vpMaxAgeS = vpMaxAgeS;
+        c.delayMinS = delayMinS; c.fitMaxIterations = fitMaxIterations; c.fitRelativeTolerance = fitRelativeTolerance; c.lambdaS = lambdaS;
+        c.governingBundleHash = governingBundleHash;
+        return c;
+    }
+
+    /** The bundle identity of a G12 result: the governing bundle's content hash, else a stable content hash of the settings (spec §1.6 / R26). */
     public String bundleHash() {
+        if (governingBundleHash != null && !governingBundleHash.isEmpty()) return governingBundleHash;
         String canonical = "g12|" + preSupportS + "|" + minCaptureS + "|" + maxCaptureS + "|" + maxGapS + "|" + tailDwellS + "|" + stableBandEu
                 + "|" + stepMinInputEu + "|" + stepMinSpanFraction + "|" + noiseMultiplier + "|" + eventDwellS + "|" + rampMinSlopeEuPerS + "|" + rampMinDurationS
                 + "|" + absSettlingBandEu + "|" + relSettlingBand + "|" + noiseFloorEu + "|" + crossingDwellS + "|" + minResponseEu + "|" + targetBandEu

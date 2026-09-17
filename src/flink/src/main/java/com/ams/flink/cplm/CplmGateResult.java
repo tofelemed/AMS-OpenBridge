@@ -48,6 +48,8 @@ public class CplmGateResult extends CplmGateResultFields {
         for (java.util.Map.Entry<String, String> e : methodRunIds.entrySet()) runIds.put(e.getKey(), e.getValue());
         out.put("bundle_hash", bundleHash);
         out.put("context_revision", contextRevision);
+        out.put("evaluation_state", evaluationState);
+        out.put("evaluation_reason", evaluationReason);
         out.put("purpose", purpose);
         if (analysisRunId == null) out.putNull("analysis_run_id"); else out.put("analysis_run_id", analysisRunId);
         out.put("dataset_hash", datasetHash);

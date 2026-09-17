@@ -523,6 +523,8 @@ services:
       minio-init:
         condition: service_completed_successfully
     environment:
+      # v2.5 (3C.1): the CPLM jobs verify gate-config bundles with the platform service key (HMAC-SHA256); no key = every bundle NACKed UNSIGNED
+      CPLM_GATE_CONFIG_KEY: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: flink-jobmanager
         jobmanager.memory.process.size: 1024m
@@ -605,6 +607,8 @@ services:
     # holds up to 24 h of samples per loop in keyed RocksDB state (~1 MB/loop at 5 s
     # sampling); actual usage is governed by taskmanager.memory.process.size below.
     environment:
+      # v2.5 (3C.1): the CPLM jobs verify gate-config bundles with the platform service key (HMAC-SHA256); no key = every bundle NACKed UNSIGNED
+      CPLM_GATE_CONFIG_KEY: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: flink-jobmanager
         taskmanager.memory.process.size: 2560m

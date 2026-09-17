@@ -54,16 +54,7 @@ public class CplmGateFusionStreamJob {
 
     public static void main(String[] args) throws Exception {
         CplmJobConfig cfg = CplmJobConfig.fromArgs(args);
-        // v2.5 (Task 1D.5): the fast-path condition topic joins the long slices; which long
-        // window kinds fuse is configurable (4h is opt-in: every fused kind adds ~33k gate
-        // rows/day at plant size to a table with no retention yet).
-        final String conditionTopic = argOr(args, "condition-topic", CplmTopics.CONDITION_EVENTS);
-        // v2.5 (Task 1H.5): the Instrumental health contexts (compacted, one record per loop/role).
-        final String healthContextTopic = argOr(args, "health-context-topic", CplmTopics.INSTRUMENT_HEALTH_CONTEXT);
-        final Set<String> fuseKinds = new HashSet<>(Arrays.asList(argOr(args, "fuse-window-kinds", "12h,24h").split(",")));
-        cfg = new CplmJobConfig(cfg.brokers, "AMS - CPLM Gate Fusion Engine",
-                cfg.consumerGroupId + "-fusion", cfg.inputTopic, cfg.outputTopic,
-                cfg.shortFeatureTopic, cfg.longFeatureTopic, cfg.windowHours, cfg.outOfOrdernessMinutes);
+        cfg = cfg.forJob("AMS - CPLM Gate Fusion Engine", "-fusion", null);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(180_000, CheckpointingMode.EXACTLY_ONCE);
@@ -71,6 +62,19 @@ public class CplmGateFusionStreamJob {
         env.getCheckpointConfig().setCheckpointTimeout(300_000);
         env.getCheckpointConfig().setExternalizedCheckpointCleanup(
                 CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+        build(env, cfg, args);
+        env.execute(cfg.jobName);
+    }
+
+    /** The job graph without execution (a test inspects its operators). */
+    public static void build(StreamExecutionEnvironment env, CplmJobConfig cfg, String[] args) {
+        // v2.5 (Task 1D.5): the fast-path condition topic joins the long slices; which long
+        // window kinds fuse is configurable (4h is opt-in: every fused kind adds ~33k gate
+        // rows/day at plant size to a table with no retention yet).
+        final String conditionTopic = argOr(args, "condition-topic", CplmTopics.CONDITION_EVENTS);
+        // v2.5 (Task 1H.5): the Instrumental health contexts (compacted, one record per loop/role).
+        final String healthContextTopic = argOr(args, "health-context-topic", CplmTopics.INSTRUMENT_HEALTH_CONTEXT);
+        final Set<String> fuseKinds = new HashSet<>(Arrays.asList(argOr(args, "fuse-window-kinds", "12h,24h").split(",")));
 
         KafkaSource<String> longSource = KafkaSource.<String>builder()
                 .setBootstrapServers(cfg.brokers)
@@ -150,7 +154,6 @@ public class CplmGateFusionStreamJob {
         // v2.5 (3A.2): announce what this job can be configured with (readable property ids, catalogue hash,
         // compiled capacity) on the gate-config ACK topic at every start - capability from the RUNNING job
         com.ams.flink.cplm.config.CapabilityRecord.announce(env, cfg, cfg.jobName, args);
-        env.execute(cfg.jobName);
     }
 
     static class GateFusionProcess extends KeyedCoProcessFunction<String, CplmLongDiagnosticsResult, FusionSideInput, CplmGateResult> {
@@ -232,7 +235,7 @@ public class CplmGateFusionStreamJob {
             String assetUuid = firstNonEmpty(longD.assetUuid, shortF.assetUuid);
             CplmLoopDynamicsProfile profile = longD.resolvedProfile != null
                     ? longD.resolvedProfile
-                    : CplmDynamicsParameterSetSupport.resolveFromSpine(
+                    : CplmDynamicsParameterSetSupport.resolveDefault(
                             longD.loopId, loopType, assetUuid);
 
             boolean hasStep = longD.observabilityFlags != null

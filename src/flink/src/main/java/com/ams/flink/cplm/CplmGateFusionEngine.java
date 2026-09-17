@@ -95,7 +95,7 @@ public final class CplmGateFusionEngine implements Serializable {
         String loopType = firstNonEmpty(longD.loopType, shortF.loopType);
         CplmLoopDynamicsProfile profile = profileOrNull != null
                 ? profileOrNull
-                : CplmDynamicsParameterSetSupport.resolveFromSpine(result.loopId, loopType, null);
+                : CplmDynamicsParameterSetSupport.resolveDefault(result.loopId, loopType, null);
         stampProfile(result, profile, longD);
         stampWindow(result, shortF, longD);
         com.ams.flink.cplm.identity.ResultIdentity.stamp(result, longD, profile);
@@ -371,7 +371,7 @@ public final class CplmGateFusionEngine implements Serializable {
         if (result == null) return null;
         CplmLoopDynamicsProfile profile = profileOrNull != null
                 ? profileOrNull
-                : CplmDynamicsParameterSetSupport.resolveFromSpine(result.loopId, null, null);
+                : CplmDynamicsParameterSetSupport.resolveDefault(result.loopId, null, null);
         int need = Math.max(1, profile.persistenceMinAgree);
         int window = Math.max(need, profile.persistenceWindows);
         result.persistenceWindowsRequired = window;
@@ -450,7 +450,7 @@ public final class CplmGateFusionEngine implements Serializable {
         }
         CplmLoopDynamicsProfile profile = profileOrNull != null
                 ? profileOrNull
-                : CplmDynamicsParameterSetSupport.resolveFromSpine(loopId, loopType, assetUuid);
+                : CplmDynamicsParameterSetSupport.resolveDefault(loopId, loopType, assetUuid);
         CplmShortFeatureResult shortF = CplmGateEngine.computeShortFeatures(
                 samples, windowStartMs, windowEndMs, windowKind, profile);
         // P2-5: previously an EMPTY long result was substituted when short data

@@ -60,6 +60,19 @@ public final class ResponseCapture implements Serializable {
     private Boolean lastVpUsable;
     private double lastEventT0 = Double.NaN;
 
+    /** The settings this capture runs under (a bundle pins a capture for its whole event; a new bundle takes effect between events). */
+    public ResponseJobConfig config() {
+        return cfg;
+    }
+
+    /** True while no event is being captured: a new bundle may take over here without cutting an event. */
+    public boolean idle() {
+        return machine.state() == CaptureStateMachine.State.IDLE
+                || machine.state() == CaptureStateMachine.State.COMPLETE
+                || machine.state() == CaptureStateMachine.State.REJECTED
+                || machine.state() == CaptureStateMachine.State.CENSORED;
+    }
+
     public ResponseCapture(String loopId, ResponseJobConfig cfg) {
         this.loopId = loopId;
         this.cfg = cfg;

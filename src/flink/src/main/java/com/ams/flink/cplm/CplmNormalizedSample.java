@@ -30,6 +30,8 @@ public final class CplmNormalizedSample implements Serializable {
     public String loopType;
     /** Optional asset UUID for spine override lookup. */
     public String assetUuid;
+    /** v2.5 (3C.1): the site of the loop (the samples message's {@code site}) - the scope key of SITE / PROFILE bundles. */
+    public String site;
     /** Optional dynamic-class override (FAST_SELF_REG / INTEGRATING / …). */
     public String dynamicClassOverride;
     /**
@@ -102,6 +104,7 @@ public final class CplmNormalizedSample implements Serializable {
         c.invalidReason = invalidReason;
         c.loopType = loopType;
         c.assetUuid = assetUuid;
+        c.site = site;
         c.schemaVersion = schemaVersion;
         c.bindingRevision = bindingRevision;
         c.gridSeconds = gridSeconds;
@@ -172,6 +175,7 @@ public final class CplmNormalizedSample implements Serializable {
             }
             if (root.has("loop_type")) s.loopType = root.get("loop_type").asText(null);
             else if (root.has("loopType")) s.loopType = root.get("loopType").asText(null);
+            if (root.has("site") && !root.get("site").isNull()) s.site = root.get("site").asText(null);
             if (root.has("asset_uuid")) s.assetUuid = root.get("asset_uuid").asText(null);
             else if (root.has("assetUuid")) s.assetUuid = root.get("assetUuid").asText(null);
             if (root.has("dynamic_class")) s.dynamicClassOverride = root.get("dynamic_class").asText(null);

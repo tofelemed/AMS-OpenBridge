@@ -90,6 +90,9 @@ public final class CplmLongDiagnosticsResult implements Serializable {
     public java.util.Map<String, String> methodRunIds = new java.util.LinkedHashMap<>();
     public String bundleHash = com.ams.flink.cplm.identity.ProfileHash.LEGACY;
     public int contextRevision = 0;
+    /** v2.5 (3C.1, NR-053): EVALUATED, or WAITING with the reason (WARMUP after a STATE_BOUNDARY bundle) - never a mixed-epoch result. */
+    public String evaluationState = "EVALUATED";
+    public String evaluationReason = "";
     public String purpose = "LIVE";
     public String analysisRunId = null;
     public String datasetHash = com.ams.flink.cplm.identity.DatasetHash.EMPTY;
@@ -225,6 +228,8 @@ public final class CplmLongDiagnosticsResult implements Serializable {
         for (java.util.Map.Entry<String, String> e : methodRunIds.entrySet()) runIds.put(e.getKey(), e.getValue());
         out.put("bundle_hash", bundleHash);
         out.put("context_revision", contextRevision);
+        out.put("evaluation_state", evaluationState);
+        out.put("evaluation_reason", evaluationReason);
         out.put("purpose", purpose);
         if (analysisRunId == null) out.putNull("analysis_run_id"); else out.put("analysis_run_id", analysisRunId);
         out.put("dataset_hash", datasetHash);
@@ -375,6 +380,8 @@ public final class CplmLongDiagnosticsResult implements Serializable {
             }
             r.bundleHash = root.path("bundle_hash").asText(com.ams.flink.cplm.identity.ProfileHash.LEGACY);
             r.contextRevision = root.path("context_revision").asInt(0);
+            r.evaluationState = root.path("evaluation_state").asText("EVALUATED");
+            r.evaluationReason = root.path("evaluation_reason").asText("");
             r.resultRevision = root.path("result_revision").asInt(1);
             r.purpose = root.path("purpose").asText("LIVE");
             r.analysisRunId = root.path("analysis_run_id").isNull() || root.path("analysis_run_id").isMissingNode()

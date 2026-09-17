@@ -74,6 +74,9 @@ public final class CplmHistoricalReplayJob {
         // both of which fail G0 completeness and return INSUFFICIENT_DATA. The
         // offset shifts the window boundary onto the data's own start.
         long windowOffsetMs = params.getLong("window-offset-ms", 0L);
+        // v2.5 (3B.3 / 3C.1): a SHADOW run evaluates under a draft bundle; a reconstruction under the original run's bundle
+        com.ams.flink.cplm.replay.BoundedBundle bundle = com.ams.flink.cplm.replay.BoundedBundle.fromArgs(
+                params.get("bundle-hash", null), params.get("bundle-properties-b64", null));
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -124,10 +127,10 @@ public final class CplmHistoricalReplayJob {
             com.ams.flink.cplm.replay.EvidenceReconstruction.Target target =
                     new com.ams.flink.cplm.replay.EvidenceReconstruction.Target(reconstructRun, gate, windowKind, fromMs, toMs);
             // the streaming jobs resolve profiles under the registry's broadcast parameter set; so must this run
-            java.util.List<String> parameterUpdates = CplmParameterSetBroadcastSupport.readParameterUpdates(brokers);
+            java.util.List<String> parameterUpdates = CplmParameterUpdateReader.readParameterUpdates(brokers);
             samples.assignTimestampsAndWatermarks(watermarks)
                     .keyBy(sample -> sample.loopId)
-                    .process(new com.ams.flink.cplm.replay.EvidenceReconstruction(target, analysisRunId, parameterUpdates))
+                    .process(new com.ams.flink.cplm.replay.EvidenceReconstruction(target, analysisRunId, parameterUpdates, bundle))
                     .name("cplm-evidence-reconstruction")
                     .uid("cplm-evidence-reconstruction")
                     .sinkTo(com.ams.flink.KafkaSinks.keyedByJsonField(brokers, evidenceTopic, com.ams.flink.cplm.evidence.EvidenceKafkaRecords.KEY_FIELD))
@@ -138,11 +141,13 @@ public final class CplmHistoricalReplayJob {
             return;
         }
 
+        // the streaming jobs resolve profiles under the registry's broadcast attributes; so must a replay (3C.1: no static map)
+        java.util.List<String> parameterUpdates = CplmParameterUpdateReader.readParameterUpdates(brokers);
         DataStream<String> results = samples
                 .assignTimestampsAndWatermarks(watermarks)
                 .keyBy(sample -> sample.loopId)
                 .window(TumblingEventTimeWindows.of(Time.hours(24), Time.milliseconds(windowOffsetMs)))
-                .process(new HistoricalWindowFunction(replayId, hasStepTest, hasPeerLinks))
+                .process(new HistoricalWindowFunction(replayId, hasStepTest, hasPeerLinks, parameterUpdates, bundle))
                 .name("cplm-historical-native-formula")
                 .uid("cplm-historical-native-formula")
                 .map(result -> withReplayLineage(result, replayId, historianAssumed ? "iotdb:" + site : inputTopic,
@@ -178,6 +183,17 @@ public final class CplmHistoricalReplayJob {
             long windowEnd,
             boolean hasStepTest,
             boolean hasPeerLinks) {
+        return computeWindow(samples, windowStart, windowEnd, hasStepTest, hasPeerLinks, CplmDynamicsParameterSetSupport.NONE, null);
+    }
+
+    static CplmGateResult computeWindow(
+            List<CplmNormalizedSample> samples,
+            long windowStart,
+            long windowEnd,
+            boolean hasStepTest,
+            boolean hasPeerLinks,
+            CplmDynamicsParameterSetSupport.Lookup lookup,
+            com.ams.flink.cplm.replay.BoundedBundle bundle) {
         // audit-jobs.md C-F7: the grid was hardcoded to 5 s regardless of the
         // loop's real publish rate — a 1 s loop was decimated 5:1 and a 30 s loop
         // up-sampled 6:1 (inflating sample_count/completeness, depressing stds),
@@ -189,10 +205,13 @@ public final class CplmHistoricalReplayJob {
                 samples, windowStart, windowEnd, periodMs);
         CplmNormalizedSample first = evaluationSamples.isEmpty()
                 ? null : evaluationSamples.get(0);
-        CplmLoopDynamicsProfile profile = CplmDynamicsParameterSetSupport.resolveFromSpine(
+        CplmLoopDynamicsProfile profile = CplmDynamicsParameterSetSupport.resolve(
                 first == null ? null : first.loopId,
                 first == null ? null : first.loopType,
-                first == null ? null : first.assetUuid);
+                first == null ? null : first.assetUuid,
+                lookup);
+        if (bundle != null) profile = bundle.apply(profile);
+        for (CplmNormalizedSample s : evaluationSamples) s.resolvedProfile = profile;
         CplmGateResult result = CplmGateFusionEngine.fuseFromSamples(
                 evaluationSamples, windowStart, windowEnd, "24h", hasStepTest, hasPeerLinks, profile);
         // audit-jobs.md C-F1: streaming caps a single-window SUSPECTED/CONFIRMED
@@ -312,11 +331,25 @@ public final class CplmHistoricalReplayJob {
         private final String replayId;
         private final boolean hasStepTest;
         private final boolean hasPeerLinks;
+        private final List<String> parameterUpdates;
+        private final com.ams.flink.cplm.replay.BoundedBundle bundle;
+        private transient CplmDynamicsParameterSetSupport.MapLookup lookup;
 
         HistoricalWindowFunction(String replayId, boolean hasStepTest, boolean hasPeerLinks) {
+            this(replayId, hasStepTest, hasPeerLinks, new ArrayList<>(), null);
+        }
+
+        HistoricalWindowFunction(String replayId, boolean hasStepTest, boolean hasPeerLinks, List<String> parameterUpdates, com.ams.flink.cplm.replay.BoundedBundle bundle) {
             this.replayId = replayId;
             this.hasStepTest = hasStepTest;
             this.hasPeerLinks = hasPeerLinks;
+            this.parameterUpdates = parameterUpdates == null ? new ArrayList<>() : new ArrayList<>(parameterUpdates);
+            this.bundle = bundle;
+        }
+
+        @Override
+        public void open(org.apache.flink.configuration.Configuration parameters) {
+            lookup = CplmParameterUpdateReader.lookupFrom(parameterUpdates);
         }
 
         @Override
@@ -336,7 +369,7 @@ public final class CplmHistoricalReplayJob {
             if (!samples.isEmpty()) {
                 out.collect(computeWindow(
                         samples, context.window().getStart(), context.window().getEnd(),
-                        hasStepTest, hasPeerLinks));
+                        hasStepTest, hasPeerLinks, lookup, bundle));
             }
         }
 

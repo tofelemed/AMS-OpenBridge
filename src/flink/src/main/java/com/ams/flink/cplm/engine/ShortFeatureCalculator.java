@@ -47,12 +47,12 @@ public final class ShortFeatureCalculator {
 
         String loopType = SignalMath.firstNonBlank(samples, rawSamples, s -> s.loopType);
         String assetUuid = SignalMath.firstNonBlank(samples, rawSamples, s -> s.assetUuid);
-        CplmLoopDynamicsProfile carriedProfile = SignalMath.firstResolvedProfile(samples, rawSamples);
+        CplmLoopDynamicsProfile carriedProfile = SignalMath.latestResolvedProfile(samples, rawSamples);
         CplmLoopDynamicsProfile profile = profileOrNull != null
                 ? profileOrNull
                 : carriedProfile != null
                 ? carriedProfile
-                : CplmDynamicsParameterSetSupport.resolveFromSpine(result.loopId, loopType, assetUuid);
+                : CplmDynamicsParameterSetSupport.resolveDefault(result.loopId, loopType, assetUuid);
         result.calculationVersion = profile.calculationVersion;
         result.dynamicsProfileVersion = profile.dynamicsProfileVersion;
         result.dynamicsClass = profile.loopClass.name();

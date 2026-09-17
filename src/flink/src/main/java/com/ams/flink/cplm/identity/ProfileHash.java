@@ -25,6 +25,7 @@ public final class ProfileHash {
 
     public static String of(CplmLoopDynamicsProfile p) {
         if (p == null) return LEGACY;
+        if (p.bundleHash != null && !p.bundleHash.isEmpty()) return p.bundleHash;     // 3C.1: the activated bundle's content hash
         try {
             Field[] fields = CplmLoopDynamicsProfile.class.getFields();
             Arrays.sort(fields, Comparator.comparing(Field::getName));
@@ -32,6 +33,7 @@ public final class ProfileHash {
             for (Field f : fields) {
                 if (Modifier.isStatic(f.getModifiers())) continue;
                 if ("profileSource".equals(f.getName())) continue;
+                if (f.getName().startsWith("bundle")) continue;            // 3C.1: bundle identity is not a value of the profile
                 Object v = f.get(p);
                 sb.append(f.getName()).append('=').append(v == null ? "null" : String.valueOf(v)).append('\n');
             }

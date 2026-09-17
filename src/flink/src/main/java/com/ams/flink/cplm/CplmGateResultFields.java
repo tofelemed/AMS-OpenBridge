@@ -160,6 +160,9 @@ public abstract class CplmGateResultFields implements Serializable {
     public java.util.Map<String, String> methodRunIds = new java.util.LinkedHashMap<>();
     public String bundleHash = com.ams.flink.cplm.identity.ProfileHash.LEGACY;
     public int contextRevision = 0;
+    /** v2.5 (3C.1, NR-053): EVALUATED, or WAITING with the reason (WARMUP after a STATE_BOUNDARY bundle). */
+    public String evaluationState = "EVALUATED";
+    public String evaluationReason = "";
     public String purpose = "LIVE";
     public String analysisRunId = null;
     public String datasetHash = com.ams.flink.cplm.identity.DatasetHash.EMPTY;

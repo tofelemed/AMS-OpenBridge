@@ -107,7 +107,7 @@ public sealed class CpmAnalysisRunsController : ControllerBase
         var actor = User.FindFirst("preferred_username")?.Value ?? User.Identity?.Name ?? "unknown";   // claims from the edge-trust handler, never a raw header
         try
         {
-            var handle = await _recompute.StartReconstructionAsync(loc.LoopId, new ReconstructionTarget(req.MethodRunId.Value, loc.Gate, loc.WindowKind),
+            var handle = await _recompute.StartReconstructionAsync(loc.LoopId, new ReconstructionTarget(req.MethodRunId.Value, loc.Gate, loc.WindowKind, loc.BundleHash),
                 support, string.IsNullOrWhiteSpace(actor) ? null : actor, string.IsNullOrWhiteSpace(idempotencyKey) ? null : idempotencyKey, ct);
             return Accepted($"/api/v1/cpm/analysis-runs/{handle.AnalysisRunId}", new
             {

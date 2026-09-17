@@ -60,9 +60,7 @@ public class CplmLongDiagnosticsStreamJob {
 
     public static void main(String[] args) throws Exception {
         CplmJobConfig cfg = CplmJobConfig.fromArgs(args);
-        cfg = new CplmJobConfig(cfg.brokers, "AMS - CPLM Long Diagnostics Engine",
-                cfg.consumerGroupId + "-long", cfg.inputTopic, cfg.outputTopic,
-                cfg.shortFeatureTopic, cfg.longFeatureTopic, cfg.windowHours, cfg.outOfOrdernessMinutes);
+        cfg = cfg.forJob("AMS - CPLM Long Diagnostics Engine", "-long", null);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(300_000, CheckpointingMode.EXACTLY_ONCE);
@@ -76,7 +74,7 @@ public class CplmLongDiagnosticsStreamJob {
     }
 
     /** The job graph without execution (a test inspects its operator order). */
-    static void build(StreamExecutionEnvironment env, CplmJobConfig cfg, String[] args) {
+    public static void build(StreamExecutionEnvironment env, CplmJobConfig cfg, String[] args) {
         DataStream<CplmNormalizedSample> normalized = CplmIngestPipeline.build(env, cfg, "cplm-long-normalized-source");
 
         // v2.5 (2F.1): every sample also reaches the loops that list its loop as a peer (tagged

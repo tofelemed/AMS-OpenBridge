@@ -58,6 +58,8 @@ public final class EvidenceReconstruction extends KeyedProcessFunction<String, C
     private final String analysisRunId;
     /** The registry's parameter-set updates (compacted metadata topic) so profiles resolve exactly as in streaming. */
     private final List<String> parameterUpdates;
+    private final BoundedBundle bundle;
+    private transient com.ams.flink.cplm.CplmDynamicsParameterSetSupport.MapLookup lookup;
     private transient ListState<CplmNormalizedSample> buffer;
     private transient ValueState<Boolean> armed;
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -67,6 +69,12 @@ public final class EvidenceReconstruction extends KeyedProcessFunction<String, C
     }
 
     public EvidenceReconstruction(Target target, String analysisRunId, List<String> parameterUpdates) {
+        this(target, analysisRunId, parameterUpdates, null);
+    }
+
+    /** With the bundle the original run carried (3C.1): the reconstruction evaluates under the same configuration. */
+    public EvidenceReconstruction(Target target, String analysisRunId, List<String> parameterUpdates, BoundedBundle bundle) {
+        this.bundle = bundle;
         this.target = target;
         this.analysisRunId = analysisRunId == null ? "" : analysisRunId;
         this.parameterUpdates = parameterUpdates == null ? new ArrayList<>() : new ArrayList<>(parameterUpdates);
@@ -117,7 +125,7 @@ public final class EvidenceReconstruction extends KeyedProcessFunction<String, C
     public void open(Configuration parameters) {
         // the identity of a run includes its bundle hash: the profile must resolve as the streaming job resolved it,
         // i.e. with the registry's parameter set (engineering ranges, overrides) applied, not the bare spine
-        for (String update : parameterUpdates) com.ams.flink.cplm.CplmParameterSetBroadcastSupport.applyParameterUpdate(update);
+        lookup = com.ams.flink.cplm.CplmParameterUpdateReader.lookupFrom(parameterUpdates);
         buffer = getRuntimeContext().getListState(new ListStateDescriptor<>("reconstruction-buffer", TypeInformation.of(CplmNormalizedSample.class)));
         armed = getRuntimeContext().getState(new ValueStateDescriptor<>("reconstruction-armed", Boolean.class));
     }
@@ -139,6 +147,13 @@ public final class EvidenceReconstruction extends KeyedProcessFunction<String, C
         for (CplmNormalizedSample s : buffer.get()) samples.add(s);
         samples.sort((a, b) -> Long.compare(a.eventTsMs, b.eventTsMs));
         buffer.clear();
+        if (!samples.isEmpty()) {
+            // the profile as the streaming job resolved it (registry attributes), plus the run's bundle when it carried one
+            CplmNormalizedSample first = samples.get(0);
+            com.ams.flink.cplm.CplmLoopDynamicsProfile profile = com.ams.flink.cplm.CplmDynamicsParameterSetSupport.resolve(first.loopId, first.loopType, first.assetUuid, lookup);
+            if (bundle != null) profile = bundle.apply(profile);
+            for (CplmNormalizedSample s : samples) s.resolvedProfile = profile;
+        }
         long nowMs = System.currentTimeMillis();
         for (EvidenceArtifact a : rebuild(samples, target)) {
             if (!analysisRunId.isEmpty()) a.provenance.put("analysis_run_id", analysisRunId);

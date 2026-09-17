@@ -49,9 +49,7 @@ public class CplmShortFeatureStreamJob {
 
     public static void main(String[] args) throws Exception {
         CplmJobConfig cfg = CplmJobConfig.fromArgs(args);
-        cfg = new CplmJobConfig(cfg.brokers, "AMS - CPLM Short Feature Engine",
-                cfg.consumerGroupId + "-short", cfg.inputTopic, cfg.outputTopic,
-                cfg.shortFeatureTopic, cfg.longFeatureTopic, cfg.windowHours, cfg.outOfOrdernessMinutes);
+        cfg = cfg.forJob("AMS - CPLM Short Feature Engine", "-short", null);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(180_000, CheckpointingMode.EXACTLY_ONCE);
@@ -60,6 +58,12 @@ public class CplmShortFeatureStreamJob {
         env.getCheckpointConfig().setExternalizedCheckpointCleanup(
                 CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
+        build(env, cfg, args);
+        env.execute(cfg.jobName);
+    }
+
+    /** The job graph without execution (a test inspects its operators). */
+    public static void build(StreamExecutionEnvironment env, CplmJobConfig cfg, String[] args) {
         DataStream<CplmNormalizedSample> normalized = CplmIngestPipeline.build(env, cfg, "cplm-short-normalized-source");
         // v2.5 (2C.1c): every branch emits its gates' exact intermediates on a side output when the
         // policy says so (findings by default, --evidence-emit all|episodes|none); one evidence sink.
@@ -163,7 +167,6 @@ public class CplmShortFeatureStreamJob {
         // v2.5 (3A.2): announce what this job can be configured with (readable property ids, catalogue hash,
         // compiled capacity) on the gate-config ACK topic at every start - capability from the RUNNING job
         com.ams.flink.cplm.config.CapabilityRecord.announce(env, cfg, cfg.jobName, args);
-        env.execute(cfg.jobName);
     }
 
     static class ShortFeatureWindowFn extends ProcessWindowFunction<CplmNormalizedSample, CplmShortFeatureResult, String, TimeWindow> {

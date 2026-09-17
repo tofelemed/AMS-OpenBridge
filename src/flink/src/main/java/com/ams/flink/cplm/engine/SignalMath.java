@@ -42,6 +42,28 @@ public final class SignalMath {
         return null;
     }
 
+    /**
+     * v2.5 (3C.1): the profile resolved for the newest sample - a window decides at its end time, so
+     * a bundle effective inside the window governs it (window_end >= effective_from) and one effective
+     * after the window does not; the whole window is computed under that one profile, never mixed.
+     */
+    public static CplmLoopDynamicsProfile latestResolvedProfile(
+            List<CplmNormalizedSample> primary,
+            List<CplmNormalizedSample> fallback) {
+        CplmLoopDynamicsProfile best = null;
+        long bestTs = Long.MIN_VALUE;
+        for (List<CplmNormalizedSample> list : new List[] {primary, fallback}) {
+            if (list == null) continue;
+            for (CplmNormalizedSample sample : list) {
+                if (sample != null && sample.resolvedProfile != null && sample.eventTsMs >= bestTs) {
+                    best = sample.resolvedProfile;
+                    bestTs = sample.eventTsMs;
+                }
+            }
+        }
+        return best;
+    }
+
     public static CplmLoopDynamicsProfile firstResolvedProfile(
             List<CplmNormalizedSample> primary,
             List<CplmNormalizedSample> fallback) {

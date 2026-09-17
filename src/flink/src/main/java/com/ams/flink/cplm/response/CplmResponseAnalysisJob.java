@@ -44,8 +44,7 @@ public final class CplmResponseAnalysisJob {
         String evidenceTopic = argOr(args, "evidence-topic", CplmTopics.GATE_EVIDENCE);
         String purpose = argOr(args, "purpose", "LIVE");
         String analysisRunId = argOr(args, "analysis-run-id", "");
-        CplmJobConfig cfg = new CplmJobConfig(base.brokers, JOB_NAME, base.consumerGroupId + "-response", base.inputTopic, resultsTopic,
-                base.shortFeatureTopic, base.longFeatureTopic, base.windowHours, base.outOfOrdernessMinutes);
+        CplmJobConfig cfg = base.forJob(JOB_NAME, "-response", resultsTopic);
         ResponseJobConfig rcfg = ResponseJobConfig.fromArgs(args);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -79,6 +78,7 @@ public final class CplmResponseAnalysisJob {
         private transient ValueState<EventDataset> holdout;
         private transient ValueState<Double> holdoutU0;
         private transient ResponseEvaluator evaluator;
+        private transient java.util.Map<String, ResponseEvaluator> bundleEvaluators;
 
         public ResponseProcessFunction(ResponseJobConfig cfg, String purpose, String analysisRunId) {
             this.cfg = cfg;
@@ -94,10 +94,30 @@ public final class CplmResponseAnalysisJob {
             evaluator = new ResponseEvaluator(cfg);
         }
 
+        /**
+         * v2.5 (3C.1): the settings for this loop under the bundle its profile carries - pinned for a
+         * capture in flight (G12 pins at event start), taken over between events.
+         */
+        ResponseCapture captureFor(CplmNormalizedSample s, ResponseCapture current) {
+            String hash = s.resolvedProfile == null ? null : s.resolvedProfile.bundleHash;
+            String currentHash = current == null ? null : current.config().governingBundleHash;
+            boolean same = hash == null ? currentHash == null : hash.equals(currentHash);
+            if (current != null && (same || !current.idle())) return current;
+            ResponseJobConfig settings = hash == null ? cfg : cfg.underBundle(hash, s.resolvedProfile.bundleResponseValues);
+            return new ResponseCapture(s.loopId, settings);
+        }
+
+        ResponseEvaluator evaluatorFor(ResponseJobConfig settings) {
+            if (settings.governingBundleHash == null) return evaluator;
+            if (bundleEvaluators == null) bundleEvaluators = new java.util.HashMap<>();
+            return bundleEvaluators.computeIfAbsent(settings.governingBundleHash, h -> new ResponseEvaluator(settings));
+        }
+
         @Override
         public void processElement(CplmNormalizedSample s, Context ctx, Collector<String> out) throws Exception {
-            ResponseCapture c = capture.value();
-            if (c == null) c = new ResponseCapture(s.loopId, cfg);
+            ResponseCapture c = captureFor(s, capture.value());
+            ResponseEvaluator evaluator = evaluatorFor(c.config());
+            ResponseJobConfig cfg = c.config();
             // VP is the applied input only while it is evidence: a held positioner value past vp_max_age_s
             // is not (spec §2.7) - presence alone froze u_applied on the lab and hid every OP step
             boolean vpUsable = s.vpEligible(cfg.vpMaxAgeS);

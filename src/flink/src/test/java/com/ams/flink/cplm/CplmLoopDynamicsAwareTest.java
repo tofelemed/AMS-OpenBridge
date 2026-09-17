@@ -13,9 +13,11 @@ import java.util.List;
 /** Calc v3.0.0 - loop-type / dynamic-class aware decision grammar. */
 public class CplmLoopDynamicsAwareTest {
 
+    private final CplmDynamicsParameterSetSupport.MapLookup attributes = new CplmDynamicsParameterSetSupport.MapLookup();
+
     @Before
-    public void clearSpine() {
-        CplmDynamicsParameterSetSupport.clear();
+    public void clearAttributes() {
+        // 3C.1: attributes live in the operator's broadcast state (here: a lookup map), never in a static map
     }
 
     @Test
@@ -343,11 +345,11 @@ public class CplmLoopDynamicsAwareTest {
 
     @Test
     public void spineClassPackHydratesPicGas() {
-        CplmDynamicsParameterSetSupport.putRaw(
+        attributes.put(
                 "cplm.dynamics.class.PIC_GAS",
                 "{\"class\":\"PIC_GAS\",\"geometryPrior\":0.25,\"integrating\":true}");
-        CplmLoopDynamicsProfile p = CplmDynamicsParameterSetSupport.resolveFromSpine(
-                "VESSEL_P1", "PRESSURE_GAS_INTEGRATING", null);
+        CplmLoopDynamicsProfile p = CplmDynamicsParameterSetSupport.resolve(
+                "VESSEL_P1", "PRESSURE_GAS_INTEGRATING", null, attributes);
         Assert.assertEquals(CplmLoopDynamicsProfile.LoopClass.PIC_GAS, p.loopClass);
         Assert.assertTrue(p.integrating);
         Assert.assertEquals(0.25, p.priorGeometry, 1e-9);
@@ -435,7 +437,7 @@ public class CplmLoopDynamicsAwareTest {
                 CplmHistoricalReplayJob.materializeEvaluationSamples(
                         samples, 0, 128_000, 5_000);
         CplmLoopDynamicsProfile profile =
-                CplmDynamicsParameterSetSupport.resolveFromSpine("FIC_REPLAY", null, null);
+                CplmDynamicsParameterSetSupport.resolveDefault("FIC_REPLAY", null, null);
 
         CplmGateResult expected = CplmGateFusionEngine.fuseFromSamples(
                 evaluationSamples, 0, 128_000, "24h", false, false, profile);

@@ -19,9 +19,11 @@ import static org.junit.Assert.assertTrue;
  * and a preset never overrides an explicit one.
  */
 public class MethodEligibilityTest {
+    private final CplmDynamicsParameterSetSupport.MapLookup attributes = new CplmDynamicsParameterSetSupport.MapLookup();
+
     @After
     public void clear() {
-        CplmDynamicsParameterSetSupport.clear();
+        // 3C.1: the attributes are a per-test lookup, never a static map
     }
 
     private static CplmLoopDynamicsProfile fastFlow() {
@@ -79,10 +81,10 @@ public class MethodEligibilityTest {
 
     @Test
     public void anExplicitLoopModelOverridesTheLoopTypePresetAndAPresetDoesNot() {
-        CplmDynamicsParameterSetSupport.putRaw("LIC-1:cplm.loop.model",
+        attributes.put("LIC-1:cplm.loop.model",
                 "{\"service_family\":\"LEVEL\",\"dynamic_class\":\"SLOW_SELF_REG\",\"objective_type\":\"TIGHT\",\"topology\":\"CASCADE_SLAVE\",\"command_path\":\"OP_TO_VALVE\","
                         + "\"acquisition\":{\"mode\":\"RBE\",\"grid_seconds\":5,\"declared_scan_s\":1.0},\"classification_source\":\"EXPLICIT\"}");
-        CplmLoopDynamicsProfile explicit = CplmDynamicsParameterSetSupport.resolveFromSpine("LIC-1", "LIC", null);
+        CplmLoopDynamicsProfile explicit = CplmDynamicsParameterSetSupport.resolve("LIC-1", "LIC", null, attributes);
         assertEquals(CplmLoopDynamicsProfile.DynamicClass.SLOW_SELF_REG, explicit.dynamicClass);
         assertEquals(CplmLoopDynamicsProfile.ServiceObjective.TIGHT, explicit.serviceObjective);
         assertFalse("a self-regulating level loop is NOT integrating: the shape signal is OP", explicit.integrating);
@@ -93,10 +95,10 @@ public class MethodEligibilityTest {
         assertEquals("CASCADE_SLAVE", explicit.topology);
         assertEquals("OP_TO_VALVE", explicit.commandPath);
 
-        CplmDynamicsParameterSetSupport.putRaw("LIC-2:cplm.loop.model",
+        attributes.put("LIC-2:cplm.loop.model",
                 "{\"service_family\":\"LEVEL\",\"dynamic_class\":\"INTEGRATING\",\"objective_type\":\"AVERAGING\",\"topology\":\"SINGLE\",\"command_path\":\"OP_TO_VALVE\","
                         + "\"acquisition\":{\"mode\":\"PERIODIC\"},\"classification_source\":\"PRESET_FROM_LOOP_TYPE\"}");
-        CplmLoopDynamicsProfile preset = CplmDynamicsParameterSetSupport.resolveFromSpine("LIC-2", "LIC", null);
+        CplmLoopDynamicsProfile preset = CplmDynamicsParameterSetSupport.resolve("LIC-2", "LIC", null, attributes);
         assertEquals("the loop_type pack stays the source of the class when the model is only a preset",
                 CplmLoopDynamicsProfile.DynamicClass.INTEGRATING, preset.dynamicClass);
         assertEquals("PRESET_FROM_LOOP_TYPE", preset.classificationSource);

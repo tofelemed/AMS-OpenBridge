@@ -48,9 +48,7 @@ public final class CplmInstrumentContextJob {
 
     public static void main(String[] args) throws Exception {
         CplmJobConfig base = CplmJobConfig.fromArgs(args);
-        CplmJobConfig cfg = new CplmJobConfig(base.brokers, "AMS - CPLM Instrument Context Engine",
-                base.consumerGroupId + "-health", base.inputTopic, base.outputTopic,
-                base.shortFeatureTopic, base.longFeatureTopic, base.windowHours, base.outOfOrdernessMinutes);
+        CplmJobConfig cfg = base.forJob("AMS - CPLM Instrument Context Engine", "-health", null);
         final String healthTopic = argOr(args, "--health-topic", CplmTopics.INSTRUMENT_HEALTH);
         final String contextTopic = argOr(args, "--context-topic", CplmTopics.INSTRUMENT_HEALTH_CONTEXT);
         final String metadataTopic = argOr(args, "--metadata-topic", CplmTopics.METADATA_UPDATES);

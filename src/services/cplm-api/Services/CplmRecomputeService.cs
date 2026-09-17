@@ -52,7 +52,8 @@ public interface ICplmRecomputeService
 public sealed record CplmRecomputeHandle(string ReplayId, string JobId, string LoopId, Guid AnalysisRunId, string Purpose);
 
 /// <summary>v2.5 (2C.2): the method run an EVIDENCE_RECONSTRUCTION rebuilds - its gate and window kind; the support is the ReplaySupport.</summary>
-public sealed record ReconstructionTarget(Guid MethodRunId, string Gate, string WindowKind);
+/// <summary>The run to rebuild; BundleHash = the bundle the original run carried (a governed bundle is passed to the job so the rebuild evaluates under the same configuration, 3C.1).</summary>
+public sealed record ReconstructionTarget(Guid MethodRunId, string Gate, string WindowKind, string? BundleHash = null);
 
 /// <summary>
 /// v2.5 (1G.4): where a bounded run reads its support. KAFKA = the samples topic from its
@@ -141,6 +142,15 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
     /// <summary>v2.5 (3B.3): the draft bundle a SHADOW run evaluates under (hash + base64 resolved properties, applied by the replay job through BundleProfileMapper).</summary>
     public sealed record ShadowBundle(string Hash, string PropertiesB64);
 
+    /// <summary>v2.5 (3C.1): the governed bundle behind a result's bundle_hash, when it is one (a legacy / profile hash has no bundle: the pack governs the rebuild too).</summary>
+    private async Task<ShadowBundle?> GovernedBundleAsync(string bundleHash, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(bundleHash) || bundleHash.Length != 64) return null;
+        await using var conn = await _dataSource.OpenConnectionAsync(ct);
+        var props = await conn.ExecuteScalarAsync<string?>("SELECT (resolved->'properties')::text FROM cpm.gate_config_bundle WHERE content_hash = @h ORDER BY created_at DESC LIMIT 1", new { h = bundleHash });
+        return props is null ? null : new ShadowBundle(bundleHash, Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(props)));
+    }
+
     public Task<CplmRecomputeHandle> StartAsync(
         string loopId, bool hasStepTest, bool hasPeerLinks, long windowOffsetMs, string purpose,
         string? createdBy, string? idempotencyKey, ReplaySupport support, CancellationToken ct)
@@ -209,7 +219,9 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
                 "--reconstruct-method-run", reconstruct.MethodRunId.ToString(),
                 "--reconstruct-gate", reconstruct.Gate,
                 "--reconstruct-window-kind", reconstruct.WindowKind),
-            shadow is null ? "" : string.Join(' ', "--bundle-hash", shadow.Hash, "--bundle-properties-b64", shadow.PropertiesB64));
+            shadow is null ? "" : string.Join(' ', "--bundle-hash", shadow.Hash, "--bundle-properties-b64", shadow.PropertiesB64),
+            shadow is null && reconstruct?.BundleHash is { } rh && await GovernedBundleAsync(rh, ct) is { } rb
+                ? string.Join(' ', "--bundle-hash", rb.Hash, "--bundle-properties-b64", rb.PropertiesB64) : "");
 
         var client = CreateClient();
         // /jars/:id/run blocks while the JobManager builds the job graph; on a busy cluster that is

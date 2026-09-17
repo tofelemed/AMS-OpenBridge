@@ -112,6 +112,13 @@ public final class CplmLoopDynamicsProfile implements Serializable {
     public String commandPath = "UNKNOWN";
     public String acquisitionMode = "PERIODIC";
     public double acquisitionGridS;
+    /** v2.5 (3C.1): the governing configuration bundle (null / 0 = the class pack governs, hash = ProfileHash). */
+    public String bundleHash;
+    public int bundleEpoch;
+    public long bundleEffectiveFromMs;
+    public String bundleChangeClass;
+    /** The bundle's G12.* numeric values for the response job (null = the job defaults). */
+    public java.util.LinkedHashMap<String, Double> bundleResponseValues;
     public boolean geometryFamilyEnabled = true;
     public String pvFilterType = "ewma";
     public int pvFilterWindow = 5;
@@ -282,6 +289,11 @@ public final class CplmLoopDynamicsProfile implements Serializable {
         p.commandPath = commandPath;
         p.acquisitionMode = acquisitionMode;
         p.acquisitionGridS = acquisitionGridS;
+        p.bundleHash = bundleHash;
+        p.bundleEpoch = bundleEpoch;
+        p.bundleEffectiveFromMs = bundleEffectiveFromMs;
+        p.bundleChangeClass = bundleChangeClass;
+        p.bundleResponseValues = bundleResponseValues == null ? null : new java.util.LinkedHashMap<>(bundleResponseValues);
         p.opEngMin = opEngMin;
         p.opEngMax = opEngMax;
         p.pvEngMin = pvEngMin;

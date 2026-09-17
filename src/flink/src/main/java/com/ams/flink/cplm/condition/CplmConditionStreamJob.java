@@ -33,10 +33,7 @@ public final class CplmConditionStreamJob {
     public static void main(String[] args) throws Exception {
         CplmJobConfig base = CplmJobConfig.fromArgs(args);
         String conditionTopic = argOr(args, "condition-topic", CplmTopics.CONDITION_EVENTS);
-        CplmJobConfig cfg = new CplmJobConfig(base.brokers, "AMS - CPLM Condition Engine",
-                base.consumerGroupId + "-condition", base.inputTopic, conditionTopic,
-                base.shortFeatureTopic, base.longFeatureTopic,
-                base.windowHours, base.outOfOrdernessMinutes);
+        CplmJobConfig cfg = base.forJob("AMS - CPLM Condition Engine", "-condition", conditionTopic);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(60_000, CheckpointingMode.EXACTLY_ONCE);
@@ -71,7 +68,7 @@ public final class CplmConditionStreamJob {
             if (d == null) d = new ConditionDetector();
             CplmLoopDynamicsProfile profile = s.resolvedProfile != null
                     ? s.resolvedProfile
-                    : CplmDynamicsParameterSetSupport.resolveFromSpine(s.loopId, s.loopType, s.assetUuid);
+                    : CplmDynamicsParameterSetSupport.resolveDefault(s.loopId, s.loopType, s.assetUuid);
             for (ConditionEvent e : d.onSample(s, profile)) out.collect(e.toJson());
             detector.update(d);
         }

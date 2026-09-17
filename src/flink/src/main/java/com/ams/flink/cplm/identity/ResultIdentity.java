@@ -26,6 +26,9 @@ public final class ResultIdentity {
 
     public static void stamp(CplmShortFeatureResult r, List<CplmNormalizedSample> samples, CplmLoopDynamicsProfile profile) {
         r.bundleHash = ProfileHash.of(profile);
+        r.contextRevision = profile == null ? 0 : profile.bundleEpoch;
+        String warmup = warmup(profile, r.windowStartMs);
+        if (warmup != null) { r.evaluationState = "WAITING"; r.evaluationReason = warmup; }
         r.datasetHash = DatasetHash.of(samples);
         r.methodRunIds = subset(RunIdentity.forGates(r.loopId, r.windowStartMs, r.windowEndMs, r.bundleHash,
                 r.contextRevision, r.resultRevision), SHORT_GATES);
@@ -33,6 +36,13 @@ public final class ResultIdentity {
 
     public static void stamp(CplmLongDiagnosticsResult r, List<CplmNormalizedSample> samples, CplmLoopDynamicsProfile profile) {
         r.bundleHash = ProfileHash.of(profile);
+        r.contextRevision = profile == null ? 0 : profile.bundleEpoch;
+        String warmup = warmup(profile, r.windowStartMs);
+        if (warmup != null) {
+            r.evaluationState = "WAITING";
+            r.evaluationReason = warmup;
+            if (r.observabilityFlags != null && !r.observabilityFlags.contains("WARMUP")) r.observabilityFlags.add("WARMUP");
+        }
         r.datasetHash = DatasetHash.of(samples);
         r.methodRunIds = subset(RunIdentity.forGates(r.loopId, r.windowStartMs, r.windowEndMs, r.bundleHash,
                 r.contextRevision, r.resultRevision), LONG_GATES);
@@ -45,8 +55,25 @@ public final class ResultIdentity {
         r.purpose = longD.purpose == null || longD.purpose.isEmpty() ? "LIVE" : longD.purpose;
         r.analysisRunId = longD.analysisRunId;
         r.contextRevision = longD.contextRevision;
+        if ("WAITING".equals(longD.evaluationState)) {
+            r.evaluationState = "WAITING";
+            r.evaluationReason = longD.evaluationReason;
+            if (r.observabilityFlags != null && !r.observabilityFlags.contains("WARMUP")) r.observabilityFlags.add("WARMUP");
+        }
         r.methodRunIds = RunIdentity.forGates(r.loopId, r.windowStartMs, r.windowEndMs, r.bundleHash,
                 r.contextRevision, r.resultRevision);
+    }
+
+    /**
+     * v2.5 (3C.1, NR-053): a STATE_BOUNDARY bundle opens a new epoch; a window whose support began
+     * before the bundle became effective still holds the old epoch's state and is WAITING (warm-up),
+     * never a result computed under two epochs.
+     */
+    static String warmup(CplmLoopDynamicsProfile profile, long windowStartMs) {
+        if (profile == null || profile.bundleHash == null || !"STATE_BOUNDARY".equals(profile.bundleChangeClass)) return null;
+        if (windowStartMs >= profile.bundleEffectiveFromMs) return null;
+        return "WARMUP: support began before the STATE_BOUNDARY bundle " + profile.bundleHash.substring(0, Math.min(12, profile.bundleHash.length()))
+                + " became effective at " + java.time.Instant.ofEpochMilli(profile.bundleEffectiveFromMs) + " (epoch " + profile.bundleEpoch + ")";
     }
 
     private static Map<String, String> subset(Map<String, String> all, List<String> gates) {
