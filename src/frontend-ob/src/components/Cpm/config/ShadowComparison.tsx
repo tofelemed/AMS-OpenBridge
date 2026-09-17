@@ -39,7 +39,7 @@ export const ShadowComparison: React.FC<{
   const report = useShadowReport(bundle.bundleId, !!shadow?.analysisRunId);
   const startable = (bundle.state === 'VALIDATED' || bundle.state === 'SHADOW_EVALUATED') && canShadow;
   return (
-    <section className="cpm-surface" data-testid="shadow-comparison">
+    <section className="cpm-config-tabpanel" data-testid="shadow-comparison">
       <PanelHead eyebrow="Shadow evaluation" title={shadow?.analysisRunId ? `run ${shadow.analysisRunId.slice(0, 8)} on ${shadow.loopId}` : 'not run'}
         right={report.data ? <TonePill tone={report.data.runState === 'FINISHED' ? 'good' : report.data.runState === 'RUNNING' ? 'warn' : 'muted'}>{report.data.runState}</TonePill> : undefined} />
       <p className="cpm-copy">A shadow run re-evaluates a retained interval of one loop under this draft, isolated by purpose - no episode, no operational result. The comparison is against the LIVE results of the same windows.</p>

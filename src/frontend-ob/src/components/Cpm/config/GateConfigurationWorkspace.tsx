@@ -4,30 +4,39 @@
  * version → gate → properties → effective values → diff / impact → shadow → review / activation →
  * deployment status. Every state and every value on this screen is the server's record; the
  * browser only edits requested changes and renders what came back.
+ * 2026-09-17 audit F18: the centre is a property TABLE per gate (one editor open at a time) with
+ * Diff & impact and Shadow as tabs; the right column is the lifecycle (steps, actions in order with
+ * their blocking reason) and the deployments as a timeline with the ACK matrix folded.
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { ObcTabRow } from '@oicl/openbridge-webcomponents-react/components/tab-row/tab-row';
 import { EmptyState, KvRow, PanelHead, QueryError, TonePill, WorkspaceHeader, fmtDateTime } from '../shared';
 import { useCpmLoops } from '../../../hooks/useCpm';
 import { useAuthStore } from '../../../store/authStore';
 import type { Bundle, CatalogueEntry, PatchOp, ScopeKind } from '../../../api/cpm/config';
 import { useBundle, useBundles, useConfigActions, useConfigCatalogue, useDeployments } from './useConfig';
-import { PropertyForm } from './PropertyForm';
+import { PropertyTable } from './PropertyTable';
 import { DiffImpactPanel } from './DiffImpactPanel';
 import { ShadowComparison } from './ShadowComparison';
-import { ApprovalPanel } from './ApprovalPanel';
+import { LifecyclePanel } from './LifecyclePanel';
 import { DeploymentStatus } from './DeploymentStatus';
 import { EffectiveConfigDrawer } from './EffectiveConfigDrawer';
 import { bundleStateTone, shortHash } from './configSupport';
 
-export const configHref = (q: { site?: string; scope?: ScopeKind; ref?: string; bundle?: string; gate?: string }) => {
+export type ConfigTab = 'properties' | 'diff' | 'shadow';
+const TABS: ConfigTab[] = ['properties', 'diff', 'shadow'];
+const TAB_TITLE: Record<ConfigTab, string> = { properties: 'Properties', diff: 'Diff & impact', shadow: 'Shadow' };
+
+export const configHref = (q: { site?: string; scope?: ScopeKind; ref?: string; bundle?: string; gate?: string; tab?: ConfigTab }) => {
   const p = new URLSearchParams();
   if (q.site) p.set('site', q.site);
   if (q.scope) p.set('scope', q.scope);
   if (q.ref) p.set('ref', q.ref);
   if (q.bundle) p.set('bundle', q.bundle);
   if (q.gate) p.set('gate', q.gate);
+  if (q.tab && q.tab !== 'properties') p.set('tab', q.tab);
   const s = p.toString();
   return `/cpm/config${s ? `?${s}` : ''}`;
 };
@@ -45,8 +54,10 @@ export const GateConfigurationWorkspace: React.FC = () => {
   const ref = params.get('ref') || '';
   const bundleId = params.get('bundle') || undefined;
   const gate = params.get('gate') || 'G0';
-  const go = (q: Partial<{ site: string; scope: ScopeKind; ref: string; bundle: string; gate: string }>) =>
-    navigate(configHref({ site, scope, ref, bundle: bundleId, gate, ...q }));
+  const tabParam = params.get('tab');
+  const tab: ConfigTab = TABS.includes(tabParam as ConfigTab) ? (tabParam as ConfigTab) : 'properties';
+  const go = (q: Partial<{ site: string; scope: ScopeKind; ref: string; bundle: string; gate: string; tab: ConfigTab }>) =>
+    navigate(configHref({ site, scope, ref, bundle: bundleId, gate, tab, ...q }));
 
   const perms = {
     read: useAuthStore(s => s.hasPermission('cpm.config.read')), draft: useAuthStore(s => s.hasPermission('cpm.config.draft')),
@@ -70,10 +81,13 @@ export const GateConfigurationWorkspace: React.FC = () => {
   const b: Bundle | undefined = bundle.data;
   const editable = !!b && EDITABLE_STATES.has(b.state) && perms.draft;
   const gateProps = useMemo(() => (catalogue.data?.properties ?? []).filter(p => p.gate === gate), [catalogue.data, gate]);
-  const propertyErrors = (property: string): string[] => (b?.validation?.errors ?? []).filter(e => e.includes(`'${property}'`) || e.includes(property + ' '));
   const onOp = (op: PatchOp) => { if (b) actions.patch.mutate({ id: b.bundleId, etag: b.etag, ops: [op] }); };
   const loopIdOfScope = scope === 'LOOP' ? ref : undefined;
   const siteLoopCount = (loops.data?.loops ?? []).filter(l => l.site === site).length;
+  const deploymentList = deployments.data?.deployments ?? [];
+  const verifiedActivation = deploymentList.find(d => d.state === 'ACTIVE_VERIFIED' && d.kind === 'ACTIVATE');
+  const invalidCount = b?.validation?.errors.length ?? 0;
+  const tabs = useMemo(() => TABS.map(t => ({ id: t, title: t === 'properties' && invalidCount ? `${TAB_TITLE[t]} · ${invalidCount} invalid` : TAB_TITLE[t], hasLeadingIcon: false, hasTrailingIcon: false })), [invalidCount]);
 
   if (!perms.read) return <div className="cpm-screen"><EmptyState title="Gate configuration" copy="Reading the governed configuration needs cpm.config.read." /></div>;
 
@@ -133,41 +147,56 @@ export const GateConfigurationWorkspace: React.FC = () => {
           {!b && <EmptyState title="No bundle selected" copy="Choose a scope and a bundle version on the left, or create a draft. A draft starts from the parent version - the factory layer and the class pack for a first draft." />}
           {bundle.isError && <QueryError error={bundle.error} retry={() => void bundle.refetch()} />}
           {b && (
-            <>
-              <section className="cpm-surface">
-                <PanelHead eyebrow={`${b.scopeKind}${b.scopeRef ? ` ${b.scopeRef}` : ''} · v${b.version}`} title={`Properties · ${gate}`}
-                  right={<TonePill tone={bundleStateTone(b.state)}>{b.state}</TonePill>} />
-                <KvRow label="hash / etag"><span className="cpm-mono">{shortHash(b.contentHash, 16)} · {b.etag}</span></KvRow>
-                {!editable && perms.draft && <p className="cpm-copy">This version is {b.state}: create a new version to change it.</p>}
-                {actions.patch.isError && <p className="cpm-field__error" role="alert">{actions.patch.error instanceof Error ? actions.patch.error.message : String(actions.patch.error)}</p>}
-                <div className="cpm-config-gates">
-                  {GATES.map(g => <button key={g} type="button" className={`cpm-config-gate${g === gate ? ' cpm-config-gate--selected' : ''}`} onClick={() => go({ gate: g })}>{g}</button>)}
-                </div>
-                {gateProps.map(p => (
-                  <PropertyForm key={p.property} entry={p} layers={b.layers} scopeKind={b.scopeKind} effective={b.resolved.properties[p.property]} source={b.resolved.sources[p.property]}
-                    errors={propertyErrors(p.property)} editable={editable} pending={actions.patch.isPending} onOp={onOp} />
-                ))}
-              </section>
-              <DiffImpactPanel bundle={b} parent={parent.data} catalogue={byProperty} siteLoopCount={siteLoopCount} />
-              <ShadowComparison bundle={b} defaultLoopId={loopIdOfScope} canShadow={perms.shadow} pending={actions.shadow.isPending} error={actions.shadow.error}
-                onStart={a => actions.shadow.mutate({ id: b.bundleId, ...a })} />
-            </>
+            <section className="cpm-surface">
+              <PanelHead eyebrow={`${b.scopeKind}${b.scopeRef ? ` ${b.scopeRef}` : ''} · v${b.version}`} title={tab === 'properties' ? `Properties · ${gate}` : TAB_TITLE[tab]}
+                right={<TonePill tone={bundleStateTone(b.state)}>{b.state}</TonePill>} />
+              <KvRow label="hash / etag"><span className="cpm-mono">{shortHash(b.contentHash, 16)} · {b.etag}</span></KvRow>
+              {!editable && perms.draft && <p className="cpm-copy">This version is {b.state}: create a new version to change it.</p>}
+              {actions.patch.isError && <p className="cpm-field__error" role="alert">{actions.patch.error instanceof Error ? actions.patch.error.message : String(actions.patch.error)}</p>}
+              <div className="cpm-tabs">
+                {/* `hug`: obc-tab-item is 240px wide by default; three would demand 720px of a column that can be narrower */}
+                <ObcTabRow hug tabs={tabs} selectedTabId={tab}
+                  onTabSelected={(e: CustomEvent<{ id: string }>) => { if (TABS.includes(e.detail.id as ConfigTab)) go({ tab: e.detail.id as ConfigTab }); }} />
+              </div>
+              {tab === 'properties' && (
+                <>
+                  <div className="cpm-config-gates" role="tablist" aria-label="Gate">
+                    {GATES.map(g => <button key={g} type="button" role="tab" aria-selected={g === gate} className={`cpm-config-gate${g === gate ? ' cpm-config-gate--selected' : ''}`} onClick={() => go({ gate: g })}>{g}</button>)}
+                  </div>
+                  <PropertyTable entries={gateProps} bundle={b} editable={editable} pending={actions.patch.isPending} onOp={onOp} />
+                </>
+              )}
+              {tab === 'diff' && <DiffImpactPanel bundle={b} parent={parent.data} catalogue={byProperty} siteLoopCount={siteLoopCount} />}
+              {tab === 'shadow' && (
+                <ShadowComparison bundle={b} defaultLoopId={loopIdOfScope} canShadow={perms.shadow} pending={actions.shadow.isPending} error={actions.shadow.error}
+                  onStart={a => actions.shadow.mutate({ id: b.bundleId, ...a })} />
+              )}
+            </section>
           )}
         </main>
 
         <aside className="cpm-config-side">
           {b && (
-            <ApprovalPanel bundle={b} perms={{ validate: perms.validate, approve: perms.approve, activate: perms.activate }}
-              pending={{ validate: actions.validate.isPending, approve: actions.approve.isPending, deploy: actions.deploy.isPending }}
-              errors={{ validate: actions.validate.error, approve: actions.approve.error, deploy: actions.deploy.error }}
-              onValidate={() => actions.validate.mutate(b.bundleId)} onApprove={a => actions.approve.mutate({ id: b.bundleId, ...a })}
-              onDeploy={a => actions.deploy.mutate({ bundleId: b.bundleId, ...a })} />
+            <LifecyclePanel bundle={b} perms={{ validate: perms.validate, shadow: perms.shadow, approve: perms.approve, activate: perms.activate, rollback: perms.rollback }}
+              pending={{ validate: actions.validate.isPending, approve: actions.approve.isPending, deploy: actions.deploy.isPending, rollback: actions.rollback.isPending }}
+              errors={{ validate: actions.validate.error, approve: actions.approve.error, deploy: actions.deploy.error, rollback: actions.rollback.error }}
+              hasVerifiedActivation={!!verifiedActivation}
+              onValidate={() => actions.validate.mutate(b.bundleId)} onShadow={() => go({ tab: 'shadow' })}
+              onApprove={a => actions.approve.mutate({ id: b.bundleId, ...a })}
+              onDeploy={a => actions.deploy.mutate({ bundleId: b.bundleId, ...a })}
+              onRollback={() => { if (verifiedActivation) actions.rollback.mutate(verifiedActivation.deploymentId); }} />
           )}
           {deployments.isError && <QueryError error={deployments.error} retry={() => void deployments.refetch()} />}
-          {(deployments.data?.deployments ?? []).map(d => (
-            <DeploymentStatus key={d.deploymentId} deployment={d} canRollback={perms.rollback} rollbackPending={actions.rollback.isPending} onRollback={id => actions.rollback.mutate(id)} />
-          ))}
-          {actions.rollback.isError && <p className="cpm-field__error" role="alert">{actions.rollback.error instanceof Error ? actions.rollback.error.message : String(actions.rollback.error)}</p>}
+          {b && deploymentList.length > 0 && (
+            <>
+              <PanelHead eyebrow="Deployments" title={`${deploymentList.length} of this version, newest first`} />
+              <ol className="cpm-config-deployments" aria-label="Deployments">
+                {deploymentList.map(d => (
+                  <DeploymentStatus key={d.deploymentId} deployment={d} canRollback={perms.rollback} rollbackPending={actions.rollback.isPending} onRollback={id => actions.rollback.mutate(id)} />
+                ))}
+              </ol>
+            </>
+          )}
         </aside>
       </div>
     </div>

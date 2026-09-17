@@ -25,7 +25,7 @@ export const DiffImpactPanel: React.FC<{
     : bundle.scopeKind === 'PROFILE' ? `every loop of ${bundle.site} whose class pack is ${bundle.scopeRef} and that has no LOOP bundle`
     : `every loop of ${bundle.site} without a PROFILE or LOOP bundle${siteLoopCount != null ? ` (site has ${siteLoopCount} registered loops)` : ''}`;
   return (
-    <section className="cpm-surface" data-testid="diff-impact">
+    <section className="cpm-config-tabpanel" data-testid="diff-impact">
       <PanelHead eyebrow="Diff & impact" title={`${diff.length} propert${diff.length === 1 ? 'y' : 'ies'} differ from ${parent ? `v${parent.version}` : 'the factory layer'}`}
         right={<TonePill tone={bundle.changeClass === 'DEPLOYMENT' ? 'bad' : bundle.changeClass === 'STATE_BOUNDARY' ? 'warn' : 'muted'}>{bundle.changeClass}</TonePill>} />
       <KvRow label="affects">{affected}</KvRow>

@@ -267,7 +267,8 @@
 /* ── v2.5 Phase 3D: Gate Configuration workspace (layout only; tokens as above) ── */
 .cpm-config-columns {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(0, 2.4fr) minmax(300px, 1.3fr);
+  /* audit F18: every column minmax(0, …) - a min-content table (approvals, ACK matrix) can no longer widen a column past the page */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr) minmax(0, 1.3fr);
   gap: 16px;
   align-items: start;
 }
@@ -347,3 +348,30 @@
 .cpm-config-ack__reason { color: var(--alert-alarm-color); font-size: 0.85rem; }
 .cpm-config-approval--stale { color: var(--element-neutral-color); }
 .cpm-config-effective__filter { display: flex; gap: 8px; margin: 8px 0; }
+/* audit F18: property table with one expanded editor; lifecycle stepper + ordered actions; deployments timeline */
+.cpm-config-tabpanel { display: flex; flex-direction: column; gap: 8px; }
+.cpm-config-table th:first-child { min-width: 220px; }
+.cpm-config-table__name { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 4px 0; border: 0; background: transparent; color: var(--element-active-color); font: inherit; text-align: left; cursor: pointer; }
+.cpm-config-table__name:hover .cpm-mono, .cpm-config-table__name[aria-expanded="true"] .cpm-mono { text-decoration: underline; text-underline-offset: 3px; }
+.cpm-config-table__name:focus-visible { outline: 2px solid var(--instrument-enhanced-primary-color); outline-offset: 2px; border-radius: 4px; }
+.cpm-config-table__flags { display: flex; flex-wrap: wrap; gap: 4px; }
+.cpm-config-row--invalid td:first-child { box-shadow: inset 3px 0 0 var(--alert-alarm-color); }
+.cpm-config-table__editor > td { background: var(--container-backdrop-color); }
+.cpm-config-table__editor .cpm-config-property { border-top: 0; padding: 4px 0 8px; }
+.cpm-lifecycle__steps { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.cpm-lifecycle__step { display: inline-flex; align-items: center; gap: 6px; color: var(--element-neutral-color); font-size: 0.85rem; }
+.cpm-lifecycle__dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--cpm-tone, var(--element-neutral-color)); background: transparent; }
+.cpm-lifecycle__step--done .cpm-lifecycle__dot, .cpm-lifecycle__step--current .cpm-lifecycle__dot { background: var(--cpm-tone); }
+.cpm-lifecycle__step--current { color: var(--element-active-color); font-weight: 600; }
+.cpm-lifecycle__actions { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cpm-lifecycle__action { display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; border-bottom: 1px solid var(--border-divider-color); }
+.cpm-lifecycle__action-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.cpm-lifecycle__reason { flex: 1 1 200px; margin: 0; }
+.cpm-lifecycle__form { display: flex; flex-wrap: wrap; gap: 8px; }
+.cpm-lifecycle__approvals { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cpm-lifecycle__approval { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 0; overflow-wrap: anywhere; }
+.cpm-config-deployments { list-style: none; margin: 0; padding: 0 0 0 12px; border-left: 2px solid var(--border-divider-color); display: flex; flex-direction: column; gap: 12px; }
+.cpm-config-deployment { position: relative; border-left: 4px solid var(--cpm-tone, var(--border-divider-color)); }
+.cpm-config-deployment::before { content: ''; position: absolute; left: -21px; top: 18px; width: 10px; height: 10px; border-radius: 50%; background: var(--cpm-tone, var(--element-neutral-color)); }
+.cpm-config-deployment__matrix > summary { cursor: pointer; padding: 6px 0; }
+.cpm-config-deployment__partial { color: var(--alert-caution-color); font-weight: 600; }
