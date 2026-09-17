@@ -43,8 +43,12 @@ public sealed class InvestigationsApiTests : IAsyncLifetime
 
     private CpmInvestigationsController Controller(string user = "engineer.a")
     {
-        var http = new DefaultHttpContext();
-        http.Request.Headers["X-Auth-User"] = user;
+        // the principal the edge-trust handler builds from the gateway headers (TraverseAuth): the controller reads claims, never a raw header
+        var http = new DefaultHttpContext
+        {
+            User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(
+                new[] { new System.Security.Claims.Claim("preferred_username", user), new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, user) }, "TraverseEdge")),
+        };
         return new CpmInvestigationsController(new InvestigationStore(_db)) { ControllerContext = new ControllerContext { HttpContext = http } };
     }
 
