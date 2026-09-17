@@ -199,13 +199,18 @@ configuration it ran under), `jar_sha256` + `source_commit` (the build), `purpos
 exact intermediate arrays they computed from (ACF, PSD, cycle fits, lag structure, polygons, dwell
 events, health lanes, …) as checksummed evidence chunks stored in PostgreSQL.
 
-- **Where:** Performance → click any gate cell → inspector → **Open in workbench ›** (disabled on
-  rows older than v2.5, which have no run id). Or the nav entry **Evidence Workbench**
-  (`/cpm/evidence?loop=&methodRun=&gate=`). The page opens one immutable run: header (loop, gate,
-  window, time zone, build, bundle, readiness), left = the other gates of the same window, centre =
-  signal context lanes (PV/SP, OP/VP, mode, health, availability) + the gate's own view, right =
-  **Method trace** (formula, parameters actually used, why / why not, next valid action, and a link
-  to the *Effective configuration* the run used).
+- **Where:** the nav entry **Evidence Workbench** opens like every other page: scope filter, loop
+  search, then **Window** (24h / 12h fused verdicts, 1m–60m short features, 4h long diagnostics) and
+  **Evaluated window** (newest first, each with its state and age; *Load older windows*, *Jump to
+  date*). Picking a loop lands on its newest window that carries run identity; the URL always names
+  the run, so a link is shareable. Or Performance → click any gate cell → **Open in workbench ›**
+  (disabled on rows older than v2.5). The page: one fact row (window in the site zone, samples,
+  mode, evidence readiness, age, copyable run id, Newer / Older / Newest), a **gate strip** (the 17
+  gates as status chips — ✓ ! ✕ — grouped by tier, click or arrow keys to switch), then the reading
+  column — **verdict card** (status, one sentence, key numbers), signal context lanes (the run's own
+  qualified samples, or the historian's trend labelled as such when the run kept no arrays), the
+  gate's charts (data table / CSV behind a disclosure), flags — and a collapsible **Explain** column
+  (what the gate asks, method, why this result, parameters used, configuration the run used, identity).
 - 17 views: G0 data qualification, G1 mode/authority, G2 SP events, G2r operating region, G3 objective
   error, G4 control activity, G5 oscillation (real ACF), G6 spectrum (Welch PSD in signal²/Hz),
   G7 waveform fits, G8 lag structure, G9 cycle geometry, G10 actuator, G11 measurement + NE107
