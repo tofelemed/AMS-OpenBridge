@@ -70,13 +70,13 @@ _Last updated: 2026-09-17 (Phase 3 implemented and committed through 3D.1; jar 0
 | 3C Flink bundles | 3C.1 ✅ b3eb83c6 (`CanonicalJson` = the API's bytes (Python-pinned HMAC), `GateConfigBundle` local validation, `BundleBroadcastHandler` PREPARE/APPLY → ACK/NACK with jar + topology generation, UNSIGNED / NOT_PREPARED / PARSE_ERROR counted, `EffectiveBundleSelector` LOOP>PROFILE>SITE by effective event time, STATE_BOUNDARY epoch + WARMUP `evaluation_state`, static `SPINE` deleted → `Lookup` over the checkpointed broadcast state, bounded jobs via `CplmParameterUpdateReader`, response captures pinned per bundle, replay `--bundle-hash`; `CPLM_GATE_CONFIG_KEY` on the Flink containers; 4 new test classes) · 3C.2 ✅ 96036c50 (`ExecutionPlanCapacityTest`: installed plan == Java declaration; long_30h / moved gate / other scheduler / six-hour G5 period DEPLOYMENT_REQUIRED by name) | ✅ |
 | 3D UI | 3D.1 ✅ 1b853e89 (`/cpm/config` workspace: scope → bundle → gate → `PropertyForm` (typed, fraction≠percent, arrays whole, reset, locked with the build's reason), `EffectiveConfigDrawer` (read-only; from the Method Trace names the run's bundle and says when it is no longer active), `DiffImpactPanel`, `ShadowComparison`, `ApprovalPanel`, `DeploymentStatus` (ACK matrix - a partial matrix never reads as active), Governance approvals queue real; tests 6; lint + build clean) · 3D.2 🔄 `scripts/test-cpm-v25-slice3-e2e.ps1` written; lab run + CHG-028 pending the run | 🔄 |
 
-## Phase 4 — release engineering v2.5 ⬜
+## Phase 4 — release engineering v2.5 ⏸ HALTED by the user on 2026-09-17 ("Dont start phase4") - the artifacts below were committed before that message and are NOT to be executed; no bundle, no tag
 
 | Task | Status |
 |---|---|
-| 4.1 manifest `migration/deploy/releases/v2.5.txt`, ops files (cpm-07/07b/08, topics, `set-quality-protocol.py`), `V2.5-DEPLOY.md`, runbook, mirrors | ⬜ (cpm-07 / cpm-07b / cpm-08 and the topic lists already exist from Phase 1) |
-| 4.2 full verification on a clean tree (all suites, three slice E2Es, reliability + load probes, acceptance evidence NR-001…062) | ⬜ |
-| 4.3 build the bundle; `changes_tracker.md` "Release v2.5 — what to build and run"; tag `v2.5` | ⬜ |
+| 4.1 manifest `migration/deploy/releases/v2.5.txt`, ops files (cpm-07/07b/08, topics, `set-quality-protocol.py`), `V2.5-DEPLOY.md`, runbook, mirrors | ✅ written and committed (1cd299b6, 3e87aea2: `!v25-upgrade` VM steps in `build-release.py`, `V2.5-DEPLOY.md`, `UPDATE-RUNBOOK.md` checks + traps, `set-quality-protocol.py`; auth-service joins the manifest) - dry-run only, nothing built |
+| 4.2 full verification on a clean tree (all suites, three slice E2Es, reliability + load probes, acceptance evidence NR-001…062) | ⏸ scripts written (`test-cpm-v25-reliability.ps1`, `cpm-v25-load-probe.py`) and `docs/next-release/03-acceptance-evidence.md` committed (6bdcfd78, 75744c77, 33c007ae); the reliability / load runs were NOT executed (halted); the slice E2Es run under Phases 2/3 |
+| 4.3 build the bundle; `changes_tracker.md` "Release v2.5 — what to build and run"; tag `v2.5` | ⬜ NOT STARTED (by agreement) |
 
 ## Verification status (last runs, lab)
 
