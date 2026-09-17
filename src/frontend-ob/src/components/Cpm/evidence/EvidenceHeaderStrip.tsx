@@ -69,9 +69,16 @@ export const EvidenceHeaderStrip: React.FC<EvidenceHeaderStripProps> = ({ select
           <Fact label="Run"><CopyableId label="run id" value={selection.methodRunId} /></Fact>
         </div>
         <div className="cpm-fact-row__actions">
-          <ObcButton variant="flat" disabled={!nav.newer} title={!nav.inList ? notListed : nav.atNewest ? 'Already the newest window' : undefined} onClick={() => nav.newer?.()}>‹ Newer</ObcButton>
-          <ObcButton variant="flat" disabled={!nav.older} title={!nav.inList ? notListed : undefined} onClick={() => nav.older?.()}>Older ›</ObcButton>
-          <ObcButton variant="normal" disabled={!nav.newest || nav.atNewest} title={nav.atNewest ? 'Already the newest window' : undefined} onClick={() => nav.newest?.()}>Newest</ObcButton>
+          {/* the reason a stepper is disabled rides on a wrapping span: ObcButton takes no title */}
+          <span title={!nav.inList ? notListed : nav.atNewest ? 'Already the newest window' : undefined}>
+            <ObcButton variant="flat" disabled={!nav.newer} onClick={() => nav.newer?.()}>‹ Newer</ObcButton>
+          </span>
+          <span title={!nav.inList ? notListed : undefined}>
+            <ObcButton variant="flat" disabled={!nav.older} onClick={() => nav.older?.()}>Older ›</ObcButton>
+          </span>
+          <span title={nav.atNewest ? 'Already the newest window' : undefined}>
+            <ObcButton variant="normal" disabled={!nav.newest || nav.atNewest} onClick={() => nav.newest?.()}>Newest</ObcButton>
+          </span>
           {reconstruct && (
             <ObcButton variant="normal" disabled={reconstruct.busy} onClick={reconstruct.onClick}>{reconstruct.busy ? 'Reconstruction requested…' : 'Reconstruct evidence'}</ObcButton>
           )}

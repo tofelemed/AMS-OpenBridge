@@ -8,7 +8,7 @@ import { EvidenceHeaderStrip } from './EvidenceHeaderStrip';
 import type { MethodRun } from '../../../api/cpm/evidence';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
-  ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean; title?: string }) => React.createElement('button', { onClick: p.onClick, disabled: p.disabled, title: p.title }, p.children),
+  ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) => React.createElement('button', { onClick: p.onClick, disabled: p.disabled }, p.children),
 }));
 vi.mock('@oicl/openbridge-webcomponents-react/components/icon-button/icon-button', () => ({
   ObcIconButton: (p: { children?: React.ReactNode; onClick?: () => void }) => React.createElement('button', { onClick: p.onClick }, p.children),
@@ -49,7 +49,7 @@ describe('EvidenceHeaderStrip', () => {
     expect((screen.getByRole('button', { name: /Older/ }) as HTMLButtonElement).disabled).toBe(false);
     rerender(<EvidenceHeaderStrip selection={selection} run={run} entry={entry} loopName={undefined} timeZone="UTC" readiness="COMPLETE"
       nav={{ newer: null, older: null, newest: () => {}, atNewest: false, inList: false }} />);
-    expect(screen.getByRole('button', { name: /Older/ }).getAttribute('title')).toMatch(/not in the listed/);
+    expect(screen.getByRole('button', { name: /Older/ }).parentElement!.getAttribute('title')).toMatch(/not in the listed/);
   });
 
   it('offers reconstruction only when asked to, and a SHADOW purpose is stated', () => {
