@@ -91,6 +91,8 @@ public static class CplmResultSchema
             CREATE UNIQUE INDEX IF NOT EXISTS uq_cplm_short_window_bundle
                 ON analytics.cplm_short_feature_results (loop_id, window_kind, window_end, source, bundle_hash);
             DROP INDEX IF EXISTS analytics.uq_cplm_short_window;
+            CREATE INDEX IF NOT EXISTS ix_cplm_short_feature_results_method_run_ids
+                ON analytics.cplm_short_feature_results USING gin (method_run_ids);
             CREATE INDEX IF NOT EXISTS idx_cplm_short_loop_kind_time
                 ON analytics.cplm_short_feature_results (loop_id, window_kind, created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_cplm_short_loop_kind_end
@@ -130,6 +132,8 @@ public static class CplmResultSchema
             CREATE UNIQUE INDEX IF NOT EXISTS uq_cplm_long_window_bundle
                 ON analytics.cplm_long_feature_results (loop_id, window_kind, window_end, source, bundle_hash);
             DROP INDEX IF EXISTS analytics.uq_cplm_long_window;
+            CREATE INDEX IF NOT EXISTS ix_cplm_long_feature_results_method_run_ids
+                ON analytics.cplm_long_feature_results USING gin (method_run_ids);
             CREATE INDEX IF NOT EXISTS idx_cplm_long_loop_kind_time
                 ON analytics.cplm_long_feature_results (loop_id, window_kind, created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_cplm_long_loop_kind_end
