@@ -75,7 +75,7 @@ describe('GateEvidenceWorkspace', () => {
 
   it('shows a stated evidence state with the reconstruction action when nothing is retained', async () => {
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
-    await waitFor(() => expect(screen.getAllByText(/No evidence retained for this run/).length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText(/Evidence not retained for this run/).length).toBeGreaterThan(0));   // NOT_RETAINED: policy, not a wait
     expect(screen.getAllByText(/Reconstruct evidence/).length).toBeGreaterThan(0);
   });
 
