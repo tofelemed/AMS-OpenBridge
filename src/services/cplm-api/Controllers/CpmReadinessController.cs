@@ -51,10 +51,19 @@ public sealed class CpmReadinessController : ControllerBase
         ("AMS - CPLM Long Diagnostics Engine","cplm"),
         ("AMS - CPLM Gate Fusion Engine",     "cplm"),
         ("AMS - Loop Live RBE Engine",        "cplm"),
+        // v2.5: the three new engines (2026-09-17 audit F10 - they were submitted but unsupervised)
+        ("AMS - CPLM Condition Engine",       "cplm"),
+        ("AMS - CPLM Instrument Context Engine", "cplm"),
+        ("AMS - CPLM Response Engine",        "cplm"),
         ("AMS - Analysis Execution Engine",   "platform"),
         ("AMS - Alarm KPI Engine",            "platform"),
         ("AMS Alarm State Export Engine",     "platform")
     };
+
+    /// <summary>The supervised job names (pinned against flink-job-supervisor.sh by ReadinessJobsTests).</summary>
+    public static IReadOnlyList<string> RequiredJobNames => RequiredJobs.Select(j => j.Name).ToList();
+
+    public static string? RoleOf(string jobName) => RequiredJobs.FirstOrDefault(j => j.Name == jobName).Role;
 
     /// <summary>
     /// How long a Flink /jobs/overview read is reused. Job states change on the
