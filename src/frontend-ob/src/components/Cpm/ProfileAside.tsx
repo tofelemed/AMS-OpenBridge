@@ -13,11 +13,12 @@
  * The prototype's "draft" concept maps to our immediate activate + readiness
  * report (the wizard shows readiness as its post-save validation step).
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { KvRow, PanelHead, TonePill } from './shared';
+import { EffectiveConfigDrawer } from './config/EffectiveConfigDrawer';
 import { useGateCatalogue, useRepublishEvidence } from '../../hooks/useCpm';
 import type { GateCatalogue } from '../../api/cpm/catalogue';
 import type { CpmLoop } from '../../api/cpmApi';
@@ -36,6 +37,7 @@ export function rolePolicyOf(catalogue: GateCatalogue | undefined): [string, str
 }
 
 export const ProfileAside: React.FC<{ loop: CpmLoop; onEdit: () => void }> = ({ loop, onEdit }) => {
+  const [showConfig, setShowConfig] = useState(false);
   const republish = useRepublishEvidence();
   const catalogue = useGateCatalogue();
   const rolePolicy = rolePolicyOf(catalogue.data);
@@ -96,6 +98,13 @@ export const ProfileAside: React.FC<{ loop: CpmLoop; onEdit: () => void }> = ({ 
           ? loop.observabilityFlags.map(f => <TonePill key={f} tone="warn">{f}</TonePill>)
           : <TonePill tone="good">CLEAR</TonePill>}
       </KvRow>
+
+      {/* v2.5 (audit F21): the governed configuration this loop runs under, read-only, from the registry as well */}
+      <div className="cpm-loop-model__links">
+        <ObcButton variant="flat" onClick={() => setShowConfig(v => !v)}>{showConfig ? 'Hide effective configuration' : 'Effective configuration ›'}</ObcButton>
+        <RouterLink className="cpm-link" to={`/cpm/evidence?loop=${encodeURIComponent(loop.loopId)}`}>Evidence workbench ›</RouterLink>
+      </div>
+      {showConfig && <EffectiveConfigDrawer loopId={loop.loopId} onClose={() => setShowConfig(false)} />}
 
       <PanelHead eyebrow="Gate role policy" title="Roles per gate" />
       {rolePolicy.length === 0 && <p className="cpm-copy">{catalogue.isError ? 'Gate catalogue unavailable.' : 'Loading the gate catalogue…'}</p>}

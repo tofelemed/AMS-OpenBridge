@@ -1,0 +1,57 @@
+/**
+ * 2026-09-17 audit F12: the loop as the engines see it - the v2.5 loop-model dimensions (2G.1) with
+ * where the classification came from, the acquisition contract that bounds the methods, and the three
+ * ways into the loop's evidence: the workbench, the response page, the configuration it runs under.
+ */
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import type { CpmLoop } from '../../../api/cpmApi';
+import { KvRow, PanelHead, TonePill } from '../shared';
+import { EffectiveConfigDrawer } from '../config/EffectiveConfigDrawer';
+
+const acquisitionText = (a: NonNullable<CpmLoop['model']>['acquisition'] | null | undefined): string => {
+  if (!a) return '—';
+  const parts = [a.mode];
+  if (a.gridSeconds != null) parts.push(`${a.gridSeconds} s grid`);
+  if (a.declaredScanS != null) parts.push(`declared scan ${a.declaredScanS} s`);
+  if (a.sourceFilterS != null) parts.push(`source filter ${a.sourceFilterS} s`);
+  return parts.join(' · ');
+};
+
+export const LoopModelCard: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
+  const [showConfig, setShowConfig] = useState(false);
+  const m = loop.model;
+  const explicit = m?.classificationSource === 'EXPLICIT';
+  return (
+    <div>
+      <PanelHead eyebrow="Context" title="Loop model"
+        right={m ? <TonePill tone={explicit ? 'good' : 'muted'}>{explicit ? 'EXPLICIT' : 'PRESET'}</TonePill> : undefined} />
+      {m ? (
+        <>
+          <KvRow label="Service family">{m.serviceFamily ?? '—'}</KvRow>
+          <KvRow label="Dynamic class">{m.dynamicClass ?? '—'}</KvRow>
+          <KvRow label="Objective">{m.objectiveType}</KvRow>
+          <KvRow label="Topology">{m.topology}</KvRow>
+          <KvRow label="Command path">{m.commandPath}</KvRow>
+          <KvRow label="Acquisition">{acquisitionText(m.acquisition)}</KvRow>
+          <p className="cpm-copy">
+            {explicit
+              ? 'Classification declared by a person in the registry; a tag-type preset never overwrites it.'
+              : 'Classification derived from the tag type; declare it in the registry to make it explicit.'}
+          </p>
+        </>
+      ) : (
+        <p className="cpm-copy">Loop model not served by this registry; the engines run on the tag-type preset.</p>
+      )}
+      <KvRow label="Loop type">{loop.loopType}</KvRow>
+      <KvRow label="Criticality">{loop.criticality}</KvRow>
+      <div className="cpm-loop-model__links">
+        <Link className="cpm-link" to={`/cpm/evidence?loop=${encodeURIComponent(loop.loopId)}`}>Evidence workbench ›</Link>
+        <Link className="cpm-link" to={`/cpm/response?loop=${encodeURIComponent(loop.loopId)}`}>System response ›</Link>
+        <ObcButton variant="flat" onClick={() => setShowConfig(v => !v)}>{showConfig ? 'Hide effective configuration' : 'Effective configuration ›'}</ObcButton>
+      </div>
+      {showConfig && <EffectiveConfigDrawer loopId={loop.loopId} onClose={() => setShowConfig(false)} />}
+    </div>
+  );
+};

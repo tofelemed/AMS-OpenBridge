@@ -12,10 +12,11 @@
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import type { CpmLoop } from '../../../api/cpmApi';
-import { useCpmTrend, useLatestGates, useLoopLastValues } from '../../../hooks/useCpm';
+import { useCpmTrend, useLoopLastValues } from '../../../hooks/useCpm';
 import { useLoopLive, qualityLabel } from '../../../hooks/useLoopLive';
 import { useObcTheme } from '../../../hooks/useObcTheme';
 import { loopSeries } from '../../../utils/loopSeries';
+import { LoopModelCard } from './LoopModelCard';
 import { modeLabel } from '../../../utils/modeVocabulary';
 import {
   EmptyState, KvRow, PanelHead, QueryError, TonePill,
@@ -51,7 +52,6 @@ const ageLabel = (ts: number | undefined): string => {
 };
 
 export const SummaryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
-  const gates = useLatestGates(loop.loopId, '24h');
   // Live plane (RBE + snapshot-on-open); historian values remain the fallback.
   const live = useLoopLive(loop.loopId);
   const series = loopSeries(loop.loopId);
@@ -223,14 +223,10 @@ export const SummaryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
         {points.length > 0 && <ReactECharts option={option} style={{ height: 240 }} notMerge />}
       </div>
 
+      {/* v2.5 (audit F12): the loop model the engines run on, with the ways into its evidence - not a version string (R26) */}
       <div>
-        <PanelHead eyebrow="Context" title="Configuration" />
-        <KvRow label="Loop type">{loop.loopType}</KvRow>
-        <KvRow label="Criticality">{loop.criticality}</KvRow>
+        <LoopModelCard loop={loop} />
         <KvRow label="Gate profile">{loop.thresholdProfileId ?? 'default'}</KvRow>
-        <KvRow label="Dynamics class">{gates.data?.metadata.dynamicsClass ?? 'resolved from loop type'}</KvRow>
-        <KvRow label="Profile source">{gates.data?.metadata.profileSource ?? '—'}</KvRow>
-        <KvRow label="Calculation version">{gates.data?.metadata.calculationVersion ?? '—'}</KvRow>
         <KvRow label="Historian device">{series}</KvRow>
       </div>
     </div>
