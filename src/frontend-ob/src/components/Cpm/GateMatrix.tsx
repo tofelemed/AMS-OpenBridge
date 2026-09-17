@@ -24,6 +24,7 @@ import { ObcTextInputField } from '@oicl/openbridge-webcomponents-react/componen
 import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
 import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
 import type { CpmHeatmapLoop } from '../../api/cpmApi';
+import { staleVerdictLine } from './verdictAge';
 import { useDebounce } from '../../hooks/useDebounce';
 import { EmptyState, TonePill, toneFor } from './shared';
 import {
@@ -262,6 +263,10 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
                         <TonePill tone={toneFor(row.diagnosis)}>
                           {row.diagnosis.replace(/_/g, ' ')}
                         </TonePill>
+                        {/* audit F4: the row is the NEWEST window; an older verdict is named as older, with its age */}
+                        {staleVerdictLine(row.lastVerdict) && (
+                          <span className="cpm-event-row__sub cpm-matrix__stale" title={row.lastVerdict?.windowEnd ?? undefined}>{staleVerdictLine(row.lastVerdict)}</span>
+                        )}
                       </td>
                     </tr>
                   );

@@ -58,20 +58,26 @@ public sealed class FleetLatestSqlTests : IAsyncLifetime
         LIMIT @limit
         """;
 
-    private const string LegacyHeatmap = """
+    // 2026-09-17 audit F4: the heatmap row is the loop's NEWEST evaluated window (no verdict preference);
+    // the newest OLDER real verdict rides beside it. Both pinned against plain DISTINCT ON oracles.
+    private const string OracleHeatmapNewest = """
         WITH latest AS (
             SELECT DISTINCT ON (g.loop_id)
                    g.loop_id, g.window_end, g.diagnosis, g.confidence, g.payload::text AS payload
             FROM analytics.cplm_gate_results g
-            WHERE g.window_kind = @windowKind
-            ORDER BY g.loop_id,
-                     (g.diagnosis IS NOT NULL AND g.diagnosis <> 'INSUFFICIENT_DATA') DESC,
-                     g.window_end DESC NULLS LAST, g.created_at DESC
+            WHERE g.window_kind = @windowKind AND g.purpose = 'LIVE'
+            ORDER BY g.loop_id, g.window_end DESC NULLS LAST, g.created_at DESC
         )
-        SELECT r.loop_id, r.display_name, r.site, r.loop_type,
-               l.window_end, l.diagnosis, l.confidence, l.payload
+        SELECT r.loop_id, l.window_end, l.diagnosis, l.confidence, l.payload,
+               v.window_end AS v_window_end, v.diagnosis AS v_diagnosis
         FROM cpm.loop_registry r
         LEFT JOIN latest l ON lower(l.loop_id) = lower(r.loop_id)
+        LEFT JOIN LATERAL (
+            SELECT g.window_end, g.diagnosis FROM analytics.cplm_gate_results g
+            WHERE lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind AND g.purpose = 'LIVE'
+              AND g.diagnosis IS NOT NULL AND g.diagnosis <> 'INSUFFICIENT_DATA' AND g.window_end < l.window_end
+            ORDER BY g.window_end DESC NULLS LAST, g.created_at DESC LIMIT 1
+        ) v ON TRUE
         WHERE (@site::text IS NULL OR r.site = @site)
           AND (@area::text IS NULL OR r.area = @area)
           AND (@unit::text IS NULL OR r.unit = @unit)
@@ -191,20 +197,22 @@ public sealed class FleetLatestSqlTests : IAsyncLifetime
     [Theory]
     [InlineData("24h")]
     [InlineData("12h")]
-    public async Task Heatmap_per_loop_probe_returns_the_same_gate_cells_as_legacy(string windowKind)
+    public async Task Heatmap_row_is_the_newest_window_with_the_last_older_verdict_beside_it(string windowKind)
     {
         await using var conn = await _db.OpenConnectionAsync();
-        var legacy = (await conn.QueryAsync(LegacyHeatmap, Args(windowKind, limit: 300), commandTimeout: OracleTimeoutSeconds))
-            .Select(r => $"{r.loop_id}|{r.window_end}|{r.diagnosis}|{r.confidence}|" +
+        var oracle = (await conn.QueryAsync(OracleHeatmapNewest, Args(windowKind, limit: 300), commandTimeout: OracleTimeoutSeconds))
+            .Select(r => $"{r.loop_id}|{r.window_end}|{r.diagnosis}|{r.confidence}|{r.v_window_end}|{r.v_diagnosis}|" +
                          string.Join(',', GatesFromPayload((string?)r.payload).OrderBy(k => k.Key).Select(k => $"{k.Key}={k.Value}")))
             .ToList();
         var fresh = (await conn.QueryAsync(FleetLatestSql.Heatmap, Args(windowKind, limit: 300)))
-            .Select(r => $"{r.loop_id}|{r.window_end}|{r.diagnosis}|{r.confidence}|" +
+            .Select(r => $"{r.loop_id}|{r.window_end}|{r.diagnosis}|{r.confidence}|{r.v_window_end}|{r.v_diagnosis}|" +
                          string.Join(',', GatesFromFragment((string?)r.gates).OrderBy(k => k.Key).Select(k => $"{k.Key}={k.Value}")))
             .ToList();
 
-        legacy.Should().NotBeEmpty();
-        fresh.Should().Equal(legacy);
+        oracle.Should().NotBeEmpty();
+        fresh.Should().Equal(oracle);
+        // on the lab at least one loop carries an older verdict beside a newer insufficient window - the case the audit found
+        fresh.Any(x => x.Split('|')[4] != "" && x.Split('|')[2] == "INSUFFICIENT_DATA").Should().BeTrue("the heatmap states a stale verdict as stale");
     }
 
     [Theory]

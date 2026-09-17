@@ -117,12 +117,34 @@ public static class FleetLatestSql
         LIMIT @limit
         """;
 
-    /// <summary>Loop × gate heatmap; only <c>payload->'gates'</c> leaves the database.</summary>
+    /// <summary>
+    /// Loop × gate heatmap. 2026-09-17 audit F4: the row is the loop's NEWEST evaluated window (whatever
+    /// its diagnosis) with its gate statuses and run ids; the newest real verdict rides beside it
+    /// (<c>v_*</c> columns, null when the newest row is itself a verdict or none exists) so the UI can
+    /// show a stale verdict AS stale instead of presenting it as the current window.
+    /// </summary>
     public static string Heatmap => $"""
         SELECT r.loop_id, r.display_name, r.site, r.loop_type,
-               l.window_end, l.diagnosis, l.confidence, l.gates
+               n.window_end, n.diagnosis, n.confidence, n.gates, n.method_run_ids, n.insufficient_reason,
+               v.window_end AS v_window_end, v.diagnosis AS v_diagnosis, v.confidence AS v_confidence
         FROM cpm.loop_registry r
-        {LatestProbe("g.window_end, g.diagnosis, g.confidence, (g.payload->'gates')::text AS gates")}
+        LEFT JOIN LATERAL (
+            SELECT g.window_end, g.diagnosis, g.confidence, (g.payload->'gates')::text AS gates,
+                   g.method_run_ids::text AS method_run_ids, g.payload->>'insufficient_evidence_reason' AS insufficient_reason
+            FROM analytics.cplm_gate_results g
+            WHERE lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind AND g.purpose = 'LIVE'
+            ORDER BY g.window_end DESC NULLS LAST, g.created_at DESC
+            LIMIT 1
+        ) n ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT g.window_end, g.diagnosis, g.confidence
+            FROM analytics.cplm_gate_results g
+            WHERE lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind AND g.purpose = 'LIVE'
+              AND g.diagnosis IS NOT NULL AND g.diagnosis <> 'INSUFFICIENT_DATA'
+              AND g.window_end < n.window_end
+            ORDER BY g.window_end DESC NULLS LAST, g.created_at DESC
+            LIMIT 1
+        ) v ON TRUE
         {MonitoredInScope}
         ORDER BY r.loop_id
         LIMIT @limit

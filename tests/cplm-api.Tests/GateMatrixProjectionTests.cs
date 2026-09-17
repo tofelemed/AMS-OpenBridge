@@ -184,6 +184,23 @@ public sealed class GateMatrixProjectionTests
         summary.TryGetProperty("verdictV2", out _).Should().BeFalse();
     }
 
+    // audit F4: a served matrix names its companion window - the last real verdict when the served row is the
+    // newest window without one, or the newest window when the served row is an older verdict - with its age.
+    [Fact]
+    public void A_window_reference_carries_the_identity_the_reader_needs_to_judge_its_age()
+    {
+        dynamic older = Row(V2Payload);
+        older.window_end = new DateTime(2026, 9, 2, 20, 45, 0, DateTimeKind.Utc);
+        var now = new DateTime(2026, 9, 17, 8, 0, 0, DateTimeKind.Utc);
+        JsonElement r = JsonSerializer.SerializeToElement((Dictionary<string, object?>)GateMatrixProjection.WindowReference(older, now), Web);
+        r.GetProperty("windowEnd").GetDateTime().Should().Be(older.window_end);
+        r.GetProperty("diagnosis").GetString().Should().Be("SUSPECTED_FINAL_ELEMENT_NONLINEARITY");
+        r.GetProperty("confidence").GetDouble().Should().Be(0.89);
+        r.GetProperty("ageMs").GetInt64().Should().Be((long)(now - (DateTime)older.window_end).TotalMilliseconds);
+        r.GetProperty("methodRunIds").ValueKind.Should().Be(JsonValueKind.Object, "the run ids ride along (empty on this fixture, which carries none)");
+        r.GetProperty("insufficientEvidenceReason").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
     [Fact]
     public void An_unparseable_payload_still_projects_the_typed_columns()
     {

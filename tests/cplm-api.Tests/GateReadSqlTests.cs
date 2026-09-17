@@ -76,6 +76,43 @@ public sealed class GateReadSqlTests : IAsyncLifetime
         }
     }
 
+    // 2026-09-17 audit F4: "latest" used to be the newest row WITH a verdict, so after any data gap a page showed a
+    // weeks-old verdict as current. The newest window (any diagnosis) and the newest real verdict are now two
+    // probes, served together; each is pinned against a plain DISTINCT ON oracle.
+    private const string OracleNewest = """
+        SELECT loop_id, window_kind, window_start, window_end, sample_count, diagnosis, severity, confidence, payload::text AS payload, created_at
+        FROM analytics.cplm_gate_results
+        WHERE lower(loop_id) = lower(@loopId) AND window_kind = @windowKind AND purpose = 'LIVE'
+        ORDER BY window_end DESC NULLS LAST, created_at DESC LIMIT 1
+        """;
+    private const string OracleNewestVerdict = """
+        SELECT loop_id, window_kind, window_start, window_end, sample_count, diagnosis, severity, confidence, payload::text AS payload, created_at
+        FROM analytics.cplm_gate_results
+        WHERE lower(loop_id) = lower(@loopId) AND window_kind = @windowKind AND purpose = 'LIVE'
+          AND diagnosis IS NOT NULL AND diagnosis <> 'INSUFFICIENT_DATA'
+        ORDER BY window_end DESC NULLS LAST, created_at DESC LIMIT 1
+        """;
+
+    [Theory]
+    [InlineData("24h")]
+    [InlineData("12h")]
+    public async Task Newest_window_and_newest_verdict_probes_match_their_oracles(string windowKind)
+    {
+        await using var conn = await _db.OpenConnectionAsync();
+        var loops = (await conn.QueryAsync<string>("SELECT DISTINCT loop_id FROM analytics.cplm_gate_results WHERE window_kind = @windowKind ORDER BY loop_id LIMIT 12", new { windowKind })).ToList();
+        loops.Should().NotBeEmpty();
+        foreach (var loopId in loops)
+        {
+            var newestOracle = await conn.QueryFirstOrDefaultAsync(OracleNewest, new { loopId, windowKind });
+            var newest = await conn.QueryFirstOrDefaultAsync(GateReadSql.NewestForLoop, new { loopId, windowKind });
+            ((string)Row(newest)).Should().Be((string)Row(newestOracle), $"newest {loopId}");
+            var verdictOracle = await conn.QueryFirstOrDefaultAsync(OracleNewestVerdict, new { loopId, windowKind });
+            var verdict = await conn.QueryFirstOrDefaultAsync(GateReadSql.NewestVerdictForLoop, new { loopId, windowKind });
+            if (verdictOracle is null) ((object?)verdict).Should().BeNull($"verdict {loopId}");
+            else ((string)Row(verdict)).Should().Be((string)Row(verdictOracle), $"verdict {loopId}");
+        }
+    }
+
     [Fact]
     public async Task Latest_gate_row_for_an_unknown_loop_is_null()
     {

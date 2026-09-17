@@ -7,7 +7,32 @@ namespace Traverse.CplmApi.Data;
 public static class GateReadSql
 {
     /// <summary>
-    /// GET /loops/{id}/gates/latest — the loop's newest REAL verdict, else its newest row
+    /// 2026-09-17 audit F4: the loop's NEWEST evaluated window of the kind, whatever its diagnosis
+    /// (one index probe). Served as the matrix of GET /loops/{id}/gates/latest by default; the
+    /// newest real verdict rides beside it as a reference (<see cref="NewestVerdictForLoop"/>).
+    /// </summary>
+    public const string NewestForLoop = """
+        SELECT loop_id, window_kind, window_start, window_end, sample_count,
+               diagnosis, severity, confidence, payload::text AS payload, created_at
+        FROM analytics.cplm_gate_results
+        WHERE lower(loop_id) = lower(@loopId) AND window_kind = @windowKind AND purpose = 'LIVE'
+        ORDER BY window_end DESC NULLS LAST, created_at DESC
+        LIMIT 1
+        """;
+
+    /// <summary>The loop's newest REAL verdict (diagnosis other than INSUFFICIENT_DATA), or no row.</summary>
+    public const string NewestVerdictForLoop = """
+        SELECT loop_id, window_kind, window_start, window_end, sample_count,
+               diagnosis, severity, confidence, payload::text AS payload, created_at
+        FROM analytics.cplm_gate_results
+        WHERE lower(loop_id) = lower(@loopId) AND window_kind = @windowKind AND purpose = 'LIVE'
+          AND diagnosis IS NOT NULL AND diagnosis <> 'INSUFFICIENT_DATA'
+        ORDER BY window_end DESC NULLS LAST, created_at DESC
+        LIMIT 1
+        """;
+
+    /// <summary>
+    /// GET /loops/{id}/gates/latest?prefer=verdict — the loop's newest REAL verdict, else its newest row
     /// of any kind (real-verdict-first, then window_end, then created_at: the ordering this
     /// endpoint has always used). Two index probes instead of sorting the loop's rows by
     /// an expression on every click.

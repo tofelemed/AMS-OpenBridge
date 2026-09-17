@@ -1336,3 +1336,7 @@
 .cpm-loop-model__links { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 8px; }
 .cpm-link { color: var(--element-active-color); text-decoration: underline; text-underline-offset: 3px; }
 .cpm-link:hover { color: var(--instrument-enhanced-primary-color); }
+
+/* audit F4: an older verdict named under the newest window's result, as older */
+.cpm-matrix__result { white-space: normal; }
+.cpm-matrix__stale { display: block; margin-top: 2px; }

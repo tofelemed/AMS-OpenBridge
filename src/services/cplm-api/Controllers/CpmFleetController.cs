@@ -236,6 +236,11 @@ public sealed class CpmFleetController : ControllerBase
                 var stored = ParseJson((string?)r.gates);
                 var gates = new Dictionary<string, string>();
                 foreach (var key in gateKeys) gates[key] = ReadGateStatus(stored, key);
+                var runIds = ParseJson((string?)r.method_run_ids);
+                var methodRunIds = new Dictionary<string, string>();
+                if (runIds.ValueKind == JsonValueKind.Object)
+                    foreach (var p in runIds.EnumerateObject()) if (p.Value.ValueKind == JsonValueKind.String) methodRunIds[p.Name] = p.Value.GetString()!;
+                DateTime? vEnd = r.v_window_end is DateTime vd ? DateTime.SpecifyKind(vd, DateTimeKind.Utc) : (DateTime?)null;
                 return new
                 {
                     loopId = r.loop_id,
@@ -244,7 +249,16 @@ public sealed class CpmFleetController : ControllerBase
                     windowEnd = r.window_end,
                     diagnosis = (string?)r.diagnosis ?? "NOT_EVALUATED",
                     confidence = r.confidence,
-                    gates
+                    insufficientEvidenceReason = (string?)r.insufficient_reason,
+                    gates,
+                    // 2026-09-17 audit F4: the newest window's run ids (the workbench launcher) and the last real
+                    // verdict when it is an OLDER window than the one shown - stated with its age, never as current
+                    methodRunIds,
+                    lastVerdict = vEnd is null ? null : new
+                    {
+                        windowEnd = r.v_window_end, diagnosis = (string?)r.v_diagnosis, confidence = r.v_confidence,
+                        ageMs = (long)(DateTime.UtcNow - vEnd.Value).TotalMilliseconds,
+                    },
                 };
             }).ToList();
 

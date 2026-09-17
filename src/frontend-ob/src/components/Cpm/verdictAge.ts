@@ -1,0 +1,26 @@
+/**
+ * 2026-09-17 audit F4: the page shows the loop's NEWEST evaluated window; a verdict from an older
+ * window is named beside it with its age - stated as older, never presented as current.
+ */
+
+export interface VerdictReference {
+  diagnosis: string | null;
+  confidence: number | null;
+  ageMs: number | null;
+}
+
+export function ageText(ms: number | null | undefined): string {
+  if (ms == null || !Number.isFinite(ms)) return '';
+  if (ms < 60_000) return `${Math.round(ms / 1000)} s ago`;
+  if (ms < 3_600_000) return `${Math.round(ms / 60_000)} min ago`;
+  if (ms < 36 * 3_600_000) return `${Math.round(ms / 3_600_000)} h ago`;
+  return `${Math.round(ms / 86_400_000)} d ago`;
+}
+
+/** "last verdict SUSPECTED FINAL ELEMENT NONLINEARITY 89% · 15 d ago", or null without a reference. */
+export function staleVerdictLine(ref: VerdictReference | null | undefined): string | null {
+  if (!ref || !ref.diagnosis) return null;
+  const conf = ref.confidence != null ? ` ${Math.round(ref.confidence * 100)}%` : '';
+  const age = ageText(ref.ageMs);
+  return `last verdict ${ref.diagnosis.replace(/_/g, ' ')}${conf}${age ? ` · ${age}` : ''}`;
+}

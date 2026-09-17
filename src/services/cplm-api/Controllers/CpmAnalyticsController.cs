@@ -39,17 +39,26 @@ public sealed class CpmAnalyticsController : ControllerBase
     /// </summary>
     [HttpGet("loops/{loopId}/gates/latest")]
     public async Task<IActionResult> GetLatestGateMatrix(
-        string loopId, [FromQuery] string windowKind = "24h", CancellationToken ct = default)
+        string loopId, [FromQuery] string windowKind = "24h", [FromQuery] string? prefer = null, CancellationToken ct = default)
     {
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
-        // CHG-023: two index probes (newest real verdict, else newest row) instead of
-        // sorting the loop's rows by the expression on every click — see GateReadSql.
-        var row = await conn.QueryFirstOrDefaultAsync(Traverse.CplmApi.Data.GateReadSql.LatestForLoop, new { loopId, windowKind });
-
-        if (row is null)
+        // 2026-09-17 audit F4: the matrix served is the loop's NEWEST evaluated window (whatever its
+        // diagnosis), never a weeks-old verdict presented as current; the newest real verdict rides
+        // beside it as `lastVerdict` (null when the served row IS the verdict). `prefer=verdict` keeps
+        // the pre-audit choice for a caller that wants the verdict row itself, with `newestWindow` beside it.
+        var newest = await conn.QueryFirstOrDefaultAsync(Traverse.CplmApi.Data.GateReadSql.NewestForLoop, new { loopId, windowKind });
+        if (newest is null)
             return NotFound(new { error = $"No gate results for loop '{loopId}' at resolution '{windowKind}'" });
-
-        return Ok(Traverse.CplmApi.Data.GateMatrixProjection.Build(row));
+        var verdict = await conn.QueryFirstOrDefaultAsync(Traverse.CplmApi.Data.GateReadSql.NewestVerdictForLoop, new { loopId, windowKind });
+        var now = DateTime.UtcNow;
+        var preferVerdict = string.Equals(prefer, "verdict", StringComparison.OrdinalIgnoreCase) && verdict is not null;
+        var served = preferVerdict ? verdict! : newest;
+        var matrix = Traverse.CplmApi.Data.GateMatrixProjection.Build(served);
+        var sameRow = verdict is not null && (DateTime?)verdict.window_end == (DateTime?)newest.window_end && (DateTime?)verdict.created_at == (DateTime?)newest.created_at;
+        matrix["served"] = preferVerdict ? "verdict" : "newest";
+        matrix["lastVerdict"] = verdict is null || sameRow || preferVerdict ? null : Traverse.CplmApi.Data.GateMatrixProjection.WindowReference(verdict, now);
+        matrix["newestWindow"] = preferVerdict && !sameRow ? Traverse.CplmApi.Data.GateMatrixProjection.WindowReference(newest, now) : null;
+        return Ok(matrix);
     }
 
     /// <summary>A3 (history) — gate verdicts over a time range, newest first.</summary>

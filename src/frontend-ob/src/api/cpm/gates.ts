@@ -19,7 +19,27 @@ export interface CpmGateCell {
   methodRunId?: string | null;
 }
 
+/** 2026-09-17 audit F4: a companion window named beside a served matrix (the last verdict, or the newest window). */
+export interface CpmWindowReference {
+  windowKind: string;
+  windowStart: string | null;
+  windowEnd: string | null;
+  diagnosis: string | null;
+  severity: string | null;
+  confidence: number | null;
+  ageMs: number | null;
+  insufficientEvidenceReason: string | null;
+  methodRunIds: Record<string, string>;
+  computedAt: string;
+}
+
 export interface CpmGateMatrix {
+  /** 'newest' (default: the loop's newest evaluated window) or 'verdict' (?prefer=verdict). */
+  served?: 'newest' | 'verdict';
+  /** The newest OLDER real verdict when the served row is a newer window without one; null otherwise. */
+  lastVerdict?: CpmWindowReference | null;
+  /** With ?prefer=verdict: the newer window the verdict row is not. */
+  newestWindow?: CpmWindowReference | null;
   loopId: string;
   windowKind: string;
   windowStart: string | null;

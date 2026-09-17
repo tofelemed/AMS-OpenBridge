@@ -423,10 +423,16 @@ export interface CpmHeatmapLoop {
   loopId: string;
   displayName: string;
   loopType: string;
+  /** 2026-09-17 audit F4: the loop's NEWEST evaluated window of the kind - whatever its diagnosis. */
   windowEnd: string | null;
   diagnosis: string;
   confidence: number | null;
+  insufficientEvidenceReason?: string | null;
   gates: Record<string, string>;
+  /** gate -> method run id of the newest window (the workbench launcher); empty on pre-v2.5 rows. */
+  methodRunIds?: Record<string, string>;
+  /** The newest OLDER real verdict, when the shown window is not one - stated with its age, never as current. */
+  lastVerdict?: { windowEnd: string | null; diagnosis: string | null; confidence: number | null; ageMs: number } | null;
 }
 
 /**

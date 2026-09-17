@@ -28,6 +28,7 @@ import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icon
 import { ApiError } from '../../api/apiFetch';
 import type { CpmFleetSummary } from '../../api/cpmApi';
 import { useCpmCalculations, useGateCatalogue, useLatestGates } from '../../hooks/useCpm';
+import { staleVerdictLine } from './verdictAge';
 import { gateRole } from '../../api/cpm/catalogue';
 import { workbenchHref } from './evidence/selection';
 import { confirmationProse, noVpFleetCopy } from './investigation/confirmationCopy';
@@ -105,6 +106,10 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
           overflowed the panel and read as a cropped value. */}
       <KvRow label="Window from">{matrix?.windowStart ? fmtDateTime(matrix.windowStart) : '—'}</KvRow>
       <KvRow label="Window to">{matrix?.windowEnd ? fmtDateTime(matrix.windowEnd) : '—'}</KvRow>
+      {/* audit F4: this is the loop's newest window; an older verdict is stated as older, with its age */}
+      {matrix?.lastVerdict && (
+        <KvRow label="Last verdict"><span title={matrix.lastVerdict.windowEnd ?? undefined}>{staleVerdictLine(matrix.lastVerdict)?.replace(/^last verdict /, '')}</span></KvRow>
+      )}
       <KvRow label="Gate role">{role}</KvRow>
       <KvRow label="Samples">{matrix?.sampleCount ?? '—'}</KvRow>
       <KvRow label="Source">{matrix?.metadata.calculationSource ?? 'flink'}</KvRow>

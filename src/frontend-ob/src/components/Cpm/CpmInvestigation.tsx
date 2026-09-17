@@ -21,6 +21,7 @@ import {
   EmptyState, KpiTile, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
   fmtDateTime, QueryError, cpmChartColors } from './shared';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
+import { staleVerdictLine } from './verdictAge';
 import { ApiError } from '../../api/apiFetch';
 import type { CpmGateMatrix } from '../../api/cpmApi';
 import { HYPOTHESIS_LABEL } from '../../api/cpm/verdict';
@@ -238,6 +239,12 @@ export const CpmInvestigation: React.FC = () => {
                 {matrix.windowStart ? fmtDateTime(matrix.windowStart) : '—'} →{' '}
                 {matrix.windowEnd ? fmtDateTime(matrix.windowEnd) : '—'} ({matrix.windowKind})
               </KvRow>
+              {/* audit F4: the newest window is what is shown; an older verdict is named as older, with its age */}
+              {matrix.lastVerdict && (
+                <KvRow label="Last verdict">
+                  <span title={matrix.lastVerdict.windowEnd ?? undefined}>{staleVerdictLine(matrix.lastVerdict)?.replace(/^last verdict /, '')}</span>
+                </KvRow>
+              )}
               <KvRow label="Instrument health">
                 <HealthLane rows={healthHistory.data?.intervals ?? []} from={start} to={end} role="PV" />
               </KvRow>

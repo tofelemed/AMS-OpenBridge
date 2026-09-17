@@ -109,6 +109,30 @@ public static class GateMatrixProjection
     }
 
     /// <summary>
+    /// 2026-09-17 audit F4: a companion window named beside a served matrix - the last real verdict when the
+    /// served row is the newest window without one, or the newest window when an older verdict was asked for
+    /// - with what the reader needs to judge it: when it ended, how old it is, what it said, and its run ids.
+    /// </summary>
+    public static Dictionary<string, object?> WindowReference(dynamic row, DateTime nowUtc)
+    {
+        var payload = ParseJson((string?)row.payload);
+        DateTime? end = row.window_end is DateTime d ? DateTime.SpecifyKind(d, DateTimeKind.Utc) : (DateTime?)null;
+        return new Dictionary<string, object?>
+        {
+            ["windowKind"] = row.window_kind,
+            ["windowStart"] = row.window_start,
+            ["windowEnd"] = row.window_end,
+            ["diagnosis"] = row.diagnosis,
+            ["severity"] = row.severity,
+            ["confidence"] = row.confidence,
+            ["ageMs"] = end is null ? null : (long)(nowUtc - end.Value).TotalMilliseconds,
+            ["insufficientEvidenceReason"] = ReadString(payload, "insufficient_evidence_reason"),
+            ["methodRunIds"] = ReadStringMap(payload, "method_run_ids"),
+            ["computedAt"] = row.created_at,
+        };
+    }
+
+    /// <summary>
     /// v2.5 workbench: the window picker's row - the identity, the verdict, the 17 statuses / reasons /
     /// run ids and the flags, without the metric block, the narrative, the v2 verdict and the metadata
     /// (~0.5 KB instead of ~7.5 KB). Served by <c>GET /loops/{id}/gates?projection=summary</c>; a strict
