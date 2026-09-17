@@ -176,6 +176,9 @@ CREATE TABLE IF NOT EXISTS analytics.evidence_manifest (
 );
 CREATE INDEX IF NOT EXISTS ix_evidence_manifest_method_run ON analytics.evidence_manifest (method_run_id);
 CREATE INDEX IF NOT EXISTS ix_evidence_manifest_readiness ON analytics.evidence_manifest (readiness, created_at);
+-- the evidence reconciler's manifest side: the still-unlinked recent manifests, never a table walk
+CREATE INDEX IF NOT EXISTS ix_evidence_manifest_unlinked
+    ON analytics.evidence_manifest (created_at) WHERE gate_result_id IS NULL;
 CREATE TABLE IF NOT EXISTS analytics.evidence_chunk (
     evidence_id  uuid NOT NULL REFERENCES analytics.evidence_manifest(evidence_id) ON DELETE CASCADE,
     chunk_no     int NOT NULL,

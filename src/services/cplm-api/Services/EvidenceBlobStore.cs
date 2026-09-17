@@ -154,17 +154,34 @@ public sealed class PostgresEvidenceBlobStore : IEvidenceBlobStore
             """, new { id = evidenceId, readiness, reason });
     }
 
+    /// <summary>
+    /// 2026-09-17: one bounded statement per result table. The rows of the last 20 minutes are expanded to
+    /// (gate, run id) and index-joined to the still-unlinked manifests of the last 15 minutes. The previous
+    /// form joined every unlinked manifest of the day (108k on the lab: 97 %, because it looked only in the
+    /// fusion table while G0-G11 runs live in the short / long tables) with a per-row containment probe -
+    /// a three-minute UPDATE re-run every minute, holding locks the evidence reads waited on. gate_result_id
+    /// is informational (the manifest says which row carried the run); a row that lands later than 15
+    /// minutes after its manifest stays unlinked, which the manifest states as null.
+    /// </summary>
+    public static string ReconcileSql(string table) => $"""
+        UPDATE analytics.evidence_manifest m
+        SET gate_result_id = g.id
+        FROM (SELECT r.id, kv.key AS gate_id, kv.value AS run
+              FROM {table} r, jsonb_each_text(r.method_run_ids) kv
+              WHERE r.created_at > NOW() - INTERVAL '20 minutes') g
+        WHERE m.gate_result_id IS NULL AND m.created_at > NOW() - INTERVAL '15 minutes'
+          AND m.method_run_id::text = g.run AND m.gate_id = g.gate_id
+        """;
+
     public async Task<int> ReconcileGateResultIdsAsync(CancellationToken ct)
     {
         await using var conn = await _db.OpenConnectionAsync(ct);
-        // Manifests younger than a day with no linked row: find the v1 row whose method_run_ids
-        // carries this run under this gate (GIN-served containment probe).
-        return await conn.ExecuteAsync("""
-            UPDATE analytics.evidence_manifest m
-            SET gate_result_id = g.id
-            FROM analytics.cplm_gate_results g
-            WHERE m.gate_result_id IS NULL AND m.created_at > NOW() - INTERVAL '1 day'
-              AND g.method_run_ids @> jsonb_build_object(m.gate_id, m.method_run_id::text)
-            """);
+        var linked = 0;
+        foreach (var (tier, table) in MethodRunResolver.ProbeOrder)
+        {
+            if (tier == "response") continue;                                        // a G12 run is event-keyed, no result row
+            linked += await conn.ExecuteAsync(ReconcileSql(table));
+        }
+        return linked;
     }
 }
