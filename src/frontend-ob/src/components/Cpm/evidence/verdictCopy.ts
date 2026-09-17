@@ -40,10 +40,12 @@ export function statusWord(status: string | null): string {
   return /^[A-Z_]+$/.test(status) && status.includes('_') ? humanise(status) : status;
 }
 
-/** "3.4 samples per 17 s period < 4 (declared 5 s)" -> "5 s"; otherwise nothing. */
+/** "2.0 samples per 10.0 s period < 8 (observed grid 5.0 s)" / "(declared 5 s)" -> "5 s"; otherwise nothing. */
 function gridOf(detail?: string | null): string | null {
-  const m = detail?.match(/declared\s+([\d.]+\s*s)/i) ?? detail?.match(/\(([\d.]+\s*s)\s*grid\)/i);
-  return m ? m[1].replace(/\s+/, ' ') : null;
+  const m = detail?.match(/(?:observed|declared)\s+(?:grid\s+)?([\d.]+)\s*s/i) ?? detail?.match(/\(([\d.]+)\s*s\s*grid\)/i);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) ? `${Number(n.toFixed(1))} s` : null;
 }
 
 export function reasonSentence(reason: string | null, ctx: { gate: string; eligibilityDetail?: string | null }): string | null {

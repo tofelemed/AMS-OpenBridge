@@ -26,10 +26,14 @@ export function episodes(d: DecodedArtifact | undefined, labelOf: (i: number) =>
 }
 
 // ── G5 ─────────────────────────────────────────────────────────────────────────────────────────
-/** crossing_times: x = seconds from the window start (provenance window_start_ms), y = ordinal. */
-export function crossingInstantsMs(crossings: DecodedArtifact, fallbackStartMs: number | undefined): number[] {
-  const start = Number(P(crossings, 'window_start_ms'));
-  const base = Number.isFinite(start) ? start : (fallbackStartMs ?? NaN);
+/**
+ * crossing_times: x = sample index x sample period of the preprocessed signal (OscillationMath.crossingTimesS),
+ * i.e. seconds from the signal's FIRST SAMPLE - which is the accepted support, not necessarily the window start
+ * (lab: the signal held the last 2.5 h of a 24 h window). The window start is only the fallback without a signal.
+ */
+export function crossingInstantsMs(crossings: DecodedArtifact, signalStartMs: number | undefined): number[] {
+  const windowStart = Number(P(crossings, 'window_start_ms'));
+  const base = signalStartMs != null && Number.isFinite(signalStartMs) ? signalStartMs : Number.isFinite(windowStart) ? windowStart : NaN;
   return Number.isFinite(base) ? Array.from(crossings.columns.x, s => base + s * 1000) : [];
 }
 

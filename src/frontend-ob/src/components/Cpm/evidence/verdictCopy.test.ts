@@ -10,6 +10,7 @@ const ready: GateState = { kind: 'READY', title: 'Ready', detail: '', stillValid
 describe('verdict copy', () => {
   it('turns a reason token into a sentence fragment, using the grid from the eligibility detail when it names one', () => {
     expect(reasonSentence('BANDWIDTH', { gate: 'G5', eligibilityDetail: '3.4 samples per 17 s period < 4 (declared 5 s)' })).toBe('limited by the 5 s acquisition grid (BANDWIDTH)');
+    expect(reasonSentence('BANDWIDTH', { gate: 'G5', eligibilityDetail: '2.0 samples per 10.0 s period < 8 (observed grid 5.0 s)' })).toBe('limited by the 5 s acquisition grid (BANDWIDTH)');
     expect(reasonSentence('BANDWIDTH', { gate: 'G5' })).toBe('limited by the acquisition grid (BANDWIDTH)');
     expect(reasonSentence('NO_VP', { gate: 'G14' })).toBe('no valve-position signal is mapped (NO_VP)');
     expect(reasonSentence('INSUFFICIENT_SAMPLES', { gate: 'G5' })).toBe('too few qualified samples in the window (INSUFFICIENT_SAMPLES)');

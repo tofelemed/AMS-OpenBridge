@@ -60,7 +60,8 @@ describe('gate views', () => {
   });
 
   it('G5: crossing_times are markers on the preprocessed signal and a table, never a y = 0 chart of their own (audit F17)', () => {
-    const t = times(6, 1000);
+    // the signal is the accepted support: it starts 2 h after the window start, and the crossing seconds count from ITS first sample
+    const t = times(6, 1000).map(ms => ms + 7_200_000);
     const signal = decoded({ gate: 'G5', kind: 'preprocessed_signal', x: t, y: [1, -1, 1, -1, 1, -1], yUnit: 'EU_centred', provenance: { preprocessing: 'LINEAR_DETREND;SUBTRACT_MEAN' } });
     const acf = decoded({ gate: 'G5', kind: 'acf_series', x: [0, 1, 2], y: [1, 0.5, 0.1], xQuantity: 'acf_lag_s', xUnit: 's', columns: { acf_pair_count: [6, 5, 4] }, provenance: { period_s: '290.23199999999997', regularity: '1.0', accepted_cycles: '33', regularity_method: 'ACF_PEAK_REGULARITY_V1' } });
     const crossings = decoded({ gate: 'G5', kind: 'crossing_times', x: [0.5, 1.5, 2.5], y: [0, 1, 2], xQuantity: 'crossing_times', xUnit: 's', provenance: { window_start_ms: String(T0) } });
@@ -71,7 +72,7 @@ describe('gate views', () => {
     expect(marks).toBeTruthy();
     const points = marks.data as Array<[number, number | null]>;
     expect(points.filter(p => p[1] != null)).toHaveLength(3);
-    expect(points[0][0]).toBe(T0 + 500);
+    expect(points[0][0]).toBe(T0 + 7_200_000 + 500);                                            // from the signal's first sample, not the window start
     expect(points.every(p => p[1] === 0)).toBe(true);
     expect(screen.getByText(/period 290.2 s/)).toBeTruthy();                                        // formatted, not 290.23199999999997
     expect(screen.getByRole('table', { name: /crossings/i }).querySelectorAll('tbody tr')).toHaveLength(3);

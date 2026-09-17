@@ -92,7 +92,7 @@ export function buildCpmChartOption(input: CpmChartInput) {
   });
   return {
     animation: false,
-    grid: { left: 64, right: 24 + Math.max(0, units.length - 2) * 48, top: 24, bottom: 56 },
+    grid: { left: 64, right: 24 + Math.max(0, units.length - 2) * 48, top: 40, bottom: 56 },   // room for the legend above the axis name
     xAxis,
     yAxis,
     legend: { top: 0, textStyle: { color: pens.grey } },
