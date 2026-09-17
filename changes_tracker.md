@@ -1692,8 +1692,9 @@ have grown with the manifests). Result: a Response event opens in 1–2.6 s inst
 | `flink-jobmanager` (+ `flink-taskmanager`, same image) | `ams-flink:1.0-SNAPSHOT` | the JAR: schema 1.1 codec, strict quality, RBE quality transitions, G2/G4/G10/G11 semantics, fusion v2, run identity + evidence artifacts, G12 kernel + Response job, Condition job, Instrument Context job, G13 aligned analysis, loop model, governed bundles (signed PREPARE/APPLY, ACKs, effective selection, no static SPINE); the TM needs `CPLM_GATE_CONFIG_KEY` (compose carries it) |
 | `ams-frontend` | `ams-cpa-ams-frontend` | Governance build identity + approvals queue, transmitter health panel + lanes, events availability/condition, Evidence Workbench (17 views), System Response workspace, registry Classification step, Gate Configuration workspace |
 | `traverse-auth-service` | `ams-cpa-traverse-auth-service` | CHG-028 lab finding: the revocation feed floors `credentials_changed_at` (a token issued in the same second as a credential change read as revoked) |
+| `gateway` | `ams-cpa-gateway` | 2026-09-17 lab finding: the rate limiter failed CLOSED on a Redis timeout and token refresh was a "mutation" - one 1 s Redis stall logged every user out and held every request ~7 s. Now a `session` class (fail-open), one bounded Redis round trip, a circuit breaker with in-process counters (fail-closed = enforced locally), `GET /gw/ratelimit`, `X-RateLimit-Source`; `docs/api-gateway.md` §3; proofs `scripts/test-gateway-redis-outage.ps1` (Pause / Stop, 9/9 each), `scripts/validation/gw-redis-stall-load.mjs`, `scripts/validation/ui-refresh-resilience.mjs` |
 
-Unchanged and **not** rebuilt: gateway, asset-model, binding-resolver, audit-service, display-service,
+Unchanged and **not** rebuilt: asset-model, binding-resolver, audit-service, display-service,
 template-service, analysis-service, notification-service, sparkplug-edge-node, ams-api.
 
 **Scripts to run — build box (in this order):**
@@ -1705,6 +1706,7 @@ docker run --rm -v "D:\HMI_Project_Usama\AMS-open\src\flink:/build" -v "$env:USE
 dotnet test tests/ingestion-service.Tests                            # 212
 dotnet test tests/cplm-api.Tests                                     # 176 (lab Postgres on 5433)
 dotnet test tests/binding-resolver.Tests
+dotnet test tests/gateway.Tests                                      # 17 (no lab needed)
 docker run --rm -d --name snaptest-redis -p 6390:6379 redis:7.2-alpine; dotnet test tests/historian-bff.Tests; docker rm -f snaptest-redis
 cd src/frontend-ob; npm test; npm run lint; npm run build; cd ..\..    # 225, lint + build clean
 cd src/services/auth-service; npx tsc --noEmit; cd ..\..\..
@@ -1715,6 +1717,7 @@ python -m pytest scripts/sim -q                                      # 17
 .\scripts\test-cpm-v25-slice2-e2e.ps1
 .\scripts\test-cpm-v25-slice3-e2e.ps1
 .\scripts\test-cpm-v25-reliability.ps1 -LoopId FIC10405
+.\scripts\test-gateway-redis-outage.ps1 -AdminPassword <pw>            # 9/9; and -Mode Stop 9/9 (pauses / stops ams-redis ~25 s)
 python scripts/cpm-v25-load-probe.py --minutes 30                    # -> docs/next-release/04-load-report.md
 python migration/deploy/build-release.py --release v2.5 --dry-run
 python migration/deploy/build-release.py --release v2.5              # NOT YET RUN - after the go

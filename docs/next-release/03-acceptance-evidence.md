@@ -128,12 +128,25 @@ it now links per tier from the last 20 minutes of rows, index-joined (`ix_eviden
 On the lab the two oldest short-table chunks are TimescaleDB-compressed and are decompressed on every short-tier
 probe (~0.5 s; prod tables are plain and fully indexed).
 
-**Observed, not fixed (outside the pages; needs a decision):** the gateway's rate limiter fails CLOSED on a
-Redis timeout for the "mutation" class, and `POST /api/auth/refresh` is in that class - a 1.1 s Redis stall on
-the lab host (slowlog: `INFO replication` 1,139 ms; Redis otherwise 0–1 ms, 1 op/s) turned into a 429 on refresh
-and the SPA stayed blank until the next reload; in the same minutes every in-flight gateway request took +7 s
-(`/gw/metrics` 6.4 s), i.e. the gateway stalls as a whole while its Redis client times out. A token refresh
-is not a plant-state mutation: it should fail OPEN like reads, and the limiter must not hold request threads.
+**Gateway under a Redis stall - found, then fixed on the user's go (2026-09-17 evening).** The gateway's rate
+limiter failed CLOSED on a Redis timeout for the "mutation" class, and `POST /api/auth/refresh` was in that class:
+a 1.1 s Redis stall on the lab host (slowlog `INFO replication` 1,139 ms; Redis otherwise 0–1 ms) became a 429 on
+refresh, the SPA ended its session, and every in-flight gateway request took +7 s (`/gw/metrics` 6.4 s). Reproduced
+on purpose with `scripts/test-gateway-redis-outage.ps1` against the old image (Redis paused 20 s): refresh → **429**,
+reads **5,018 ms** each, login **deny-all** (12 × 429). Fixed in three places, each test-first: the gateway
+(`RateLimit/*`: a `session` class that fails open, one bounded 300 ms Redis round trip with no backlog, a circuit
+breaker, in-process counters so fail-closed means enforced-locally; `tests/gateway.Tests` 17/17), the SPA
+(`auth/refreshPolicy.ts` + `authStore.refresh/bootstrap`: a 429 / 5xx / network failure keeps a still-valid token and
+retries after Retry-After, a bootstrap retries three times; 9 unit tests) and the docs (`docs/api-gateway.md` §3).
+Lab proofs on the new images: `test-gateway-redis-outage.ps1` **9/9 in Pause mode** (refresh 200 during the stall,
+reads 321 / 257 ms for the two bounded timeouts then 14–19 ms with the breaker open, login 10 × reach auth-service
+then 429 from the local counters, breaker trips and closes, the session refreshes afterwards) and **9/9 in Stop
+mode** (connection refused: reads 22–38 ms throughout); `gw-redis-stall-load.mjs` 40 concurrent reads × 3 rounds
+under the pause: p99 **395 ms** for the round that paid the timeout, **~50 ms** after, 0 non-200 (was +7 s across
+the board); `ui-refresh-resilience.mjs` 6/6 (a page load during the stall lands on the app in 0.97 s with the
+refresh answering 200; the SPA's bootstrap rides out two injected 429s in 2.5 s; a 401 still ends the session).
+The gateway image joins the v2.5 manifest (stateless recreate). Left as it is, by design: a Redis stall still
+costs the first few requests one 300 ms timeout each before the breaker opens.
 
 ## Not automated (stated)
 

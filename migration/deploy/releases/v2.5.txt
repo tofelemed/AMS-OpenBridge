@@ -25,9 +25,16 @@
 #   traverse-auth-service       CHG-028 lab finding: the revocation feed rounded credentials_changed_at to the nearest second,
 #                               so a token issued in the same second as a user creation / password change read as revoked
 #                               (401 on the first login for up to a second) - floor() now
+#   gateway                     2026-09-17 lab finding: the rate limiter failed CLOSED on a Redis timeout for the "mutation"
+#                               class and token refresh was in it - one 1 s Redis stall = 429 on /api/auth/refresh = every
+#                               user logged out, and every in-flight request held ~7 s. Now: a session class (refresh /
+#                               logout, fail-open), one bounded Redis round trip (300 ms, no backlog), a circuit breaker,
+#                               in-process counters while Redis is away (fail-closed = enforced locally, never deny-all),
+#                               /gw/ratelimit + metrics. Stateless: a plain recreate (~5 s of 502 for open browsers, which
+#                               the new frontend rides out).
 #
 # NOT rebuilt (unchanged since v2.4): binding-resolver, asset-model, audit-service, display-service, template-service,
-#   analysis-service, notification-service, sparkplug-edge-node, ams-api, gateway.
+#   analysis-service, notification-service, sparkplug-edge-node, ams-api.
 #
 # Schema: ADDITIVE (new tables + columns + a widened unique key), applied online BEFORE the cplm-api image swap:
 #   ops/cpm-07-v25-schema.sql          (database/scripts/53..58 merged, idempotent; metadata-only ADD COLUMN)
@@ -53,3 +60,4 @@ historian-bff
 flink-jobmanager
 ams-frontend
 traverse-auth-service
+gateway

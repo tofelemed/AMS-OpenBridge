@@ -70,20 +70,23 @@ Decided in MIGRATION_LOG **decision #16**: the gateway is the platform's **singl
 
 ---
 
-## 3. Rate limiting (Redis)
+## 3. Rate limiting (Redis, with in-process fallback)
 
-Fixed 60-second windows, keys `rl:{class}:{clientId}:{windowStart}` (`INCR` + expiry). `clientId` = token `sub` when authenticated, else client IP. Config: `RateLimiting` section.
+Fixed 60-second windows, keys `rl:{class}:{clientId}:{windowStart}`. `clientId` = token `sub` when authenticated, else client IP. Config: `RateLimiting` section. **One bounded Redis round trip per request** (a Lua script increments the class window and the global window together; `RedisTimeoutMs`, default 300 ms; no command backlog). Every response carries `X-RateLimit-Source`: `redis`, `local` or `open`.
 
-| Class | Matches | Limit/min | Keyed by | On Redis outage |
+| Class | Matches | Limit/min | Keyed by | While Redis cannot answer |
 |---|---|---|---|---|
-| `login` | `POST /api/auth/login` | **10** | IP | **fail CLOSED** (never drop brute-force protection) |
-| `snapshot` | `GET /api/hist/snapshot*` | 30 | user | fail OPEN |
-| `historian` | `GET /api/hist/*` (other) | 120 | user | fail OPEN |
-| `mutation` | any non-GET (except login) | 120 | user | **fail CLOSED** |
-| `read` | any other GET | 600 | user | fail OPEN (operators never lose alarm visibility to a dead cache) |
-| `global` | everything | 2000 | IP | fail OPEN |
+| `login` | `POST /api/auth/login` | **10** | IP | **enforced in-process** (brute-force protection never lapses) |
+| `session` | `POST /api/auth/refresh`, `POST /api/auth/logout` | 60 | IP | passes (a token refresh never dies with the cache) |
+| `snapshot` | `GET /api/hist/snapshot*` | 30 | user | passes |
+| `historian` | `GET /api/hist/*` (other) | 120 | user | passes |
+| `mutation` | any other non-GET | 120 | user | **enforced in-process** (write protection never lapses) |
+| `read` | any other GET | 600 | user | passes (operators never lose alarm visibility to a dead cache) |
+| `global` | everything | 2000 | IP | passes |
 
-Over-limit → `429` + `Retry-After` (seconds to window end). Denials are logged and counted in metrics.
+Over-limit → `429` + `Retry-After` (seconds to window end) + `limitedBy`. Denials are logged and counted (`gateway_ratelimit_denied_total{class}`).
+
+**Redis failure semantics (rewritten 2026-09-17).** A 1 s Redis stall on the lab used to answer every in-flight token refresh with 429 (refresh was a "mutation"; fail-closed meant deny) and to hold every other request for ~7 s (two unbounded awaits per request). Now: a Redis call is bounded; after `CircuitFailureThreshold` (3) consecutive failures the **circuit breaker** opens for `CircuitOpenSeconds` (30) and no request asks Redis - the gateway decides from its own per-window counters (`LocalWindowCounter`; the plant runs one gateway, so they are exact for it) - then one request probes Redis (half-open) and a success closes it. "Fail closed" therefore means *enforced locally*, never *deny everyone*. `GET /gw/ratelimit` shows the breaker (`circuitOpen`, `consecutiveFailures`, `trips`) and the decision counters; Prometheus: `gateway_ratelimit_decisions_total{source,outcome}`, `gateway_ratelimit_redis_circuit_open`. Proof on the lab: `scripts/test-gateway-redis-outage.ps1` (pause / stop Redis mid-session: refresh 200, reads bounded, login capped in-process, breaker opens and closes), `scripts/validation/gw-redis-stall-load.mjs` (40 concurrent under the stall: p99 395 ms for the first round, ~50 ms after), `scripts/validation/ui-refresh-resilience.mjs` (the SPA keeps its session).
 
 ---
 
