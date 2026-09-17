@@ -856,11 +856,14 @@ const Sidebar: React.FC<{ unackedCount: number }> = ({ unackedCount }) => {
 
   const [collapsed, setCollapsed] = useState<Set<string>>(readCollapsedGroups);
 
-  // F: exact, or a real path-segment boundary — the old startsWith kept '/cpm'
-  // active on every '/cpm/*' page, double-highlighting the sidebar.
-  const isActivePath = (path: string) =>
+  // Exactly one entry is active: the LONGEST nav path the location sits under. A plain
+  // segment-boundary test kept '/cpm' (Overview) lit on every '/cpm/*' page, so the sidebar
+  // showed two active entries (2026-09-17 UI audit).
+  const matches = (path: string) =>
     location.pathname === path || (path !== '/' && location.pathname.startsWith(path + '/'));
-  const activeGroup = visibleNavItems.find(i => isActivePath(i.path))?.group;
+  const activePath = visibleNavItems.map(i => i.path).filter(matches).sort((a, b) => b.length - a.length)[0];
+  const isActivePath = (path: string) => path === activePath;
+  const activeGroup = visibleNavItems.find(i => i.path === activePath)?.group;
 
   const toggleGroup = (group: string) => {
     setCollapsed(prev => {

@@ -75,7 +75,9 @@ export const G6Spectrum: React.FC<GateViewProps> = ({ manifest, gate, onNavigate
 // ── G7 ─────────────────────────────────────────────────────────────────────────────────────────
 export const G7Body: React.FC<{ cycles: DecodedArtifact[] }> = ({ cycles }) => {
   const accepted = cycles.filter(c => P(c, 'accepted') === 'true');
-  const overlays: CpmSeries[] = accepted.slice(0, 12).flatMap(c => [col(c, 'y', `cycle ${P(c, 'cycle_id')} measured`, 'good', { unit: c.units.y ?? 'EU_centred' })]);
+  // one series id per cycle: `col` ids a series by its column name, and twelve overlays named 'y' made echarts
+  // throw "id duplicates: y" (the error boundary then blanked the whole workbench - 2026-09-17 UI audit)
+  const overlays: CpmSeries[] = accepted.slice(0, 12).map(c => ({ ...col(c, 'y', `cycle ${P(c, 'cycle_id')} measured`, 'good', { unit: c.units.y ?? 'EU_centred' }), id: `y:${P(c, 'cycle_id')}` }));
   const fits: CpmSeries[] = accepted.length > 0 ? [col(accepted[0], 'sine_fit', 'sine_fit (first accepted cycle)', 'accent', { dashed: true }), col(accepted[0], 'triangle_fit', 'triangle_fit (first accepted cycle)', 'pink', { dashed: true })] : [];
   return (
     <section className="cpm-surface">

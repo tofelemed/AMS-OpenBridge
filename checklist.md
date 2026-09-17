@@ -77,7 +77,8 @@ _Last updated: 2026-09-17 11:00 (Phases 0-3 implemented, committed and lab-prove
 | 4.1 manifest `migration/deploy/releases/v2.5.txt`, ops files (cpm-07/07b/08, topics, `set-quality-protocol.py`), `V2.5-DEPLOY.md`, runbook, mirrors | ✅ 1cd299b6, 3e87aea2 (`!v25-upgrade` VM steps in `build-release.py`, `V2.5-DEPLOY.md`, `UPDATE-RUNBOOK.md` checks + traps, `set-quality-protocol.py`; auth-service in the manifest); `--dry-run` clean |
 | 4.2 full verification on a clean tree | 🔄 **suites re-run 2026-09-17 10:43–10:52 on the clean tree at 1cc8a8b4, all green** (table below); the five v2.5 images rebuilt from HEAD with `SOURCE_COMMIT` and recreated on the lab (all healthy; `/capabilities` service commit = HEAD, six workers on jar 4ea1da78, 70 readable ids intact after the cplm-api tests); the slice E2Es stand from Phases 1–3 (18/18, 19/19, 14/14). **Pending:** `test-cpm-v25-reliability.ps1` and `cpm-v25-load-probe.py --minutes 30` → `04-load-report.md` (they kill cplm-api / stop Postgres / restart jobs, so they run after the user's manual test tour, not during it); NR table in `03-acceptance-evidence.md` then finalised |
 | 4.2b user test tour | 🔄 `WHATS-NEW-v2.5.md` (repo root) — what was added, where in the UI, how to try it, the OT/Instrumental ingestion contract, how it fits; lab prepared: OT sim on the pilot loops for 8 h (pid 16756, `--exclude FIC10302`) |
-| 4.3 build the bundle (`build-release.py --release v2.5`); tracker release section final; tag `v2.5` | ⬜ after the user's testing (needs a clean tree; bundle = `git archive HEAD`) |
+| 4.2c frontend audit (user: "audit the system - check that what you are telling me really implemented") | 🔄 `docs/next-release/05-frontend-audit-2026-09-17.md` — rendered audit of 18 pages + 3 flows + all 17 gate views with Playwright (`scripts/validation/ui-v25-{audit,probe,gates}.mjs`): 0 console errors / 0 failed calls; **three defects fixed** (v2.5 pages missing from the sidebar/palette — slice whitelist; two active nav entries; G7 view crashed the workbench on >1 accepted cycle) with tests (frontend 121/121); **22 findings** ranked, F4 (stale "latest" verdict disables the workbench launcher fleet-wide) and F10 (three v2.5 jobs unsupervised) are API-side; redesign proposal for the three new pages awaits the user's go |
+| 4.3 build the bundle (`build-release.py --release v2.5`); tracker release section final; tag `v2.5` | ⬜ after the user's testing and the audit follow-up (needs a clean tree; bundle = `git archive HEAD`) |
 
 ## Verification status (last runs, lab)
 
@@ -87,7 +88,8 @@ _Last updated: 2026-09-17 11:00 (Phases 0-3 implemented, committed and lab-prove
 | cplm-api tests (lab DB, run alone) | **159 / 159** | 2026-09-17 10:51 |
 | ingestion-service tests | **212 / 212** | 2026-09-17 10:44 |
 | binding-resolver / historian-bff tests | 5 / 5 · 4 / 4 | 2026-09-17 10:44 |
-| frontend vitest / lint / build | **101 / 101 · clean · OK** | 2026-09-17 10:52 |
+| frontend vitest / lint / build | **121 / 121 · clean · OK** (101 + the audit's 20) | 2026-09-17 13:05 |
+| `scripts/validation/ui-v25-audit.mjs` (rendered UI audit, lab) | 18 pages + 3 flows, 0 console errors, 0 failed calls; 17/17 gate views open after the G7 fix | 2026-09-17 13:10 |
 | auth-service `tsc --noEmit` | clean | 2026-09-17 10:45 |
 | simulator pytest | 17 / 17 | 2026-09-17 10:45 |
 | `gen-property-catalogue.py --check` | 165 properties, 4 copies identical | 2026-09-17 10:45 |

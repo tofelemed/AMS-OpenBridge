@@ -82,6 +82,16 @@ describe('gate views', () => {
     expect(seriesOf(captured[0]).map(s => s.name)).toEqual(['cycle 0 measured', 'sine_fit (first accepted cycle)', 'triangle_fit (first accepted cycle)']);
   });
 
+  it('G7: every accepted cycle overlay carries its own series id (echarts refuses duplicate ids and the page would blank)', () => {
+    const cycle = (id: string) => decoded({ gate: 'G7', kind: 'cycle_fit', role: `CYCLE_${id}`, x: [0, 0.5, 1], y: [0, 1, 0], xQuantity: 'phase', xUnit: 'cycle_fraction',
+      columns: { sine_fit: [0, 1, 0], triangle_fit: [0, 1, 0], original_indices: [0, 1, 2] },
+      provenance: { cycle_id: id, accepted: 'true', reject_reason: '', sse_sine: '0.1', sse_triangle: '0.4', cycle_score: '0.8', amplitudes: '1', phases: '0' } });
+    render(<G7Body cycles={[cycle('0'), cycle('1'), cycle('2')]} />);
+    const ids = (seriesOf(captured[0]) as Array<{ id?: string }>).map(s => s.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.length).toBe(5);                                                                  // 3 overlays + sine + triangle
+  });
+
   it('G10 / G11: episodes come from the tables, limits and lanes are intervals, pressures are NOT_MAPPED', () => {
     const t = times(4);
     const lim = decoded({ gate: 'G10', kind: 'actuator_limits', x: t, y: [99, 100, 100, 50], yUnit: 'pp', columns: { u_requested: [99, 100, 100, 50], vp: [NaN, NaN, NaN, NaN], tracking_error: [NaN, NaN, NaN, NaN], active_low: [0, 0, 0, 0], active_high: [0, 1, 1, 0], validity: [1, 1, 1, 1] },

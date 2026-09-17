@@ -14,6 +14,10 @@ const SLICE_NAV = new Set([
   '/cpm/historical',
   '/cpm/windows',
   '/cpm/replay',
+  // v2.5: the evidence workbench, system response and the governed gate configuration
+  '/cpm/evidence',
+  '/cpm/response',
+  '/cpm/config',
   '/cpm/investigation',
   '/cpm/calculations',
   '/cpm/registry',
