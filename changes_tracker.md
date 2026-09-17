@@ -1698,7 +1698,7 @@ dotnet test tests/ingestion-service.Tests                            # 212
 dotnet test tests/cplm-api.Tests                                     # 171 (lab Postgres on 5433)
 dotnet test tests/binding-resolver.Tests
 docker run --rm -d --name snaptest-redis -p 6390:6379 redis:7.2-alpine; dotnet test tests/historian-bff.Tests; docker rm -f snaptest-redis
-cd src/frontend-ob; npm test; npm run lint; npm run build; cd ..\..    # 101, lint + build clean
+cd src/frontend-ob; npm test; npm run lint; npm run build; cd ..\..    # 225, lint + build clean
 cd src/services/auth-service; npx tsc --noEmit; cd ..\..\..
 python -m pytest scripts/sim -q                                      # 17
 .\run-all.ps1                                                        # then the lab proofs, each N passed / 0 failed:
