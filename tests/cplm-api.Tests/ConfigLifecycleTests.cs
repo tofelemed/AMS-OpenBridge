@@ -62,9 +62,15 @@ public sealed class ConfigLifecycleTests : IAsyncLifetime
         {
             await conn.ExecuteAsync("""
                 INSERT INTO cpm.config_worker_capability (job_name, jar_sha256, source_commit, catalogue_hash, readable_property_ids, unsupported, execution_plan_capacity, payload, announced_at_ms)
-                VALUES (@job, 'jar-A', 'abc', @catalogue, '[]'::jsonb, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, 1)
+                VALUES (@job, 'jar-A', 'abc', @catalogue, '["G4.activity_warn_ratio"]'::jsonb, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, 1)
                 """, new { job, catalogue = PropertyCatalogue.Current.CatalogueHash });
         }
+        // a job that reads NO property announces too (the Instrument Context engine on the lab): it is an observer of the
+        // record and never a required answer, or no deployment could ever verify
+        await conn.ExecuteAsync("""
+            INSERT INTO cpm.config_worker_capability (job_name, jar_sha256, source_commit, catalogue_hash, readable_property_ids, unsupported, execution_plan_capacity, payload, announced_at_ms)
+            VALUES ('AMS - CPLM Instrument Context Engine', 'jar-A', 'abc', @catalogue, '[]'::jsonb, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, 1)
+            """, new { catalogue = PropertyCatalogue.Current.CatalogueHash });
     }
 
     private List<dynamic> _capabilitySnapshot = new();
@@ -101,6 +107,10 @@ public sealed class ConfigLifecycleTests : IAsyncLifetime
         d = await _store.PatchAsync(d.BundleId, d.Etag, new[] { new ConfigStore.PatchOp("set", "G4.activity_warn_ratio", JsonDocument.Parse(warnRatio.ToString(System.Globalization.CultureInfo.InvariantCulture)).RootElement) }, author, default);
         d = await _store.ValidateAsync(d.BundleId, default);
         d.State.Should().Be("VALIDATED", d.Validation?.GetRawText());
+        // lab finding (2026-09-17): validation classified EVERY resolved property and reported a warn-ratio edit as
+        // STATE_BOUNDARY; the class of a bundle is the class of what it changes
+        d.ChangeClass.Should().Be("POLICY", because: "the only edit is G4.activity_warn_ratio, a POLICY property whose dependants are POLICY");
+        d.Validation!.Value.GetProperty("edited").EnumerateArray().Select(e => e.GetString()).Should().Equal("G4.activity_warn_ratio");
         return await _store.ApproveAsync(d.BundleId, approver, "Supervisor", "ok", TimeSpan.FromHours(1), false, new[] { "Supervisor" }, default);
     }
 
@@ -166,6 +176,8 @@ public sealed class ConfigLifecycleTests : IAsyncLifetime
         var first = await ApprovedDraftAsync(4.5);
         var dep1 = await _deployments.CreateAsync(first.BundleId, "ACTIVATE", null, null, "carol", default);
         dep1.State.Should().Be("PREPARING");
+        dep1.RequiredMembers.EnumerateArray().Where(m => m.GetProperty("parallelism").GetInt32() > 0).Select(m => m.GetProperty("job_name").GetString()).Should().BeEquivalentTo(Jobs);
+        dep1.RequiredMembers.EnumerateArray().Where(m => m.GetProperty("parallelism").GetInt32() == 0).Select(m => m.GetProperty("job_name").GetString()).Should().Equal("AMS - CPLM Instrument Context Engine");
         _publisher.Sent.Should().ContainSingle(m => m.Message.GetProperty("phase").GetString() == "PREPARE" && m.Message.GetProperty("hash").GetString() == first.ContentHash);
         _publisher.Sent[0].Message.GetProperty("signature").GetString().Should().MatchRegex("^[0-9a-f]{64}$");
         _publisher.Sent[0].Message.GetProperty("bundle").GetProperty("resolved").GetProperty("properties").GetProperty("G4.activity_warn_ratio").GetDouble().Should().Be(4.5);

@@ -64,6 +64,15 @@ function Login([string]$user, [string]$password) {
 function StatusOf($err) {
     try { return [int]$err.Exception.Response.StatusCode } catch { return 0 }
 }
+function BodyOf($err) {
+    # Windows PowerShell 5.1 leaves ErrorDetails empty for Invoke-RestMethod failures: read the response stream
+    try { if ($err.ErrorDetails -and $err.ErrorDetails.Message) { return $err.ErrorDetails.Message } } catch { }
+    try {
+        $stream = $err.Exception.Response.GetResponseStream()
+        $reader = New-Object System.IO.StreamReader($stream)
+        return $reader.ReadToEnd()
+    } catch { return '' }
+}
 
 $cpm = "$GatewayBase/api/v1/cpm"
 Write-Host "`n=== v2.5 Slice 3 E2E against $GatewayBase ===`n"
@@ -148,7 +157,7 @@ Step 'a stale If-Match is 409; an unknown field is refused naming it (NR-048); a
     catch {
         $status = StatusOf $_
         Assert ($status -in 400, 422) "unknown field: HTTP $status"
-        $body = try { $_.ErrorDetails.Message } catch { '' }
+        $body = BodyOf $_
         Assert ($body -match 'G4.activity_warn_ratioX') "the refusal does not name the field: $body"
     }
     $fresh = Invoke-RestMethod -Method Get -Uri "$cpm/configuration/drafts/$($b.bundleId)" -Headers $E
@@ -256,7 +265,11 @@ Step 'the SPA serves /cpm/config through the nginx fallback (3D.1)' {
 Step 'cleanup: the e2e bundles stay (v1 is the active, verified bundle of the loop) unless -RemoveBundles' {
     # the running jobs hold the last APPLYd bundle in their checkpointed broadcast state; deleting its row would leave
     # results carrying a hash no bundle explains - so by default the bundles stay and the loop runs under v1 (G4 warn +1.5)
-    if (-not $RemoveBundles) { Write-Host "        bundles kept: v1 $($script:bundle.contentHash.Substring(0,12)) is ACTIVE_VERIFIED for $LoopId (-RemoveBundles deletes them)" -ForegroundColor DarkGray; return }
+    if (-not $RemoveBundles) {
+        $h = if ($script:bundle -and $script:bundle.contentHash) { $script:bundle.contentHash.Substring(0, 12) } else { '(none)' }
+        Write-Host "        bundles kept: v1 $h is the bundle of $LoopId (-RemoveBundles deletes them)" -ForegroundColor DarkGray
+        return
+    }
     $ids = @($script:bundle.bundleId, $script:v2.bundleId) | Where-Object { $_ }
     foreach ($id in $ids) {
         Invoke-CplmSql "DELETE FROM cpm.config_active WHERE bundle_id = '$id'" | Out-Null

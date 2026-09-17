@@ -55,6 +55,7 @@ export const DeploymentStatus: React.FC<{
           ))}
         </tbody>
       </table>
+      {d.observers && d.observers.length > 0 && <KvRow label="observers">{d.observers.join(', ')} (read no catalogue property; not required to answer)</KvRow>}
       {probe && <KvRow label="probe">{probe.pinnedResults ?? 0} result(s) pinned to this hash{probe.checkedAt ? ` · checked ${fmtDateTime(probe.checkedAt)}` : ''}</KvRow>}
       <p className="cpm-copy">{d.semantics}</p>
       {d.state === 'ACTIVE_VERIFIED' && d.kind === 'ACTIVATE' && (

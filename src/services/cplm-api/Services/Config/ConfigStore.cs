@@ -169,10 +169,24 @@ public sealed class ConfigStore
     {
         var b = await GetAsync(id, ct) ?? throw new KeyNotFoundException($"bundle {id} not found");
         if (b.State is not ("DRAFT" or "VALIDATED" or "REJECTED" or "SHADOW_EVALUATED")) throw new ConfigStateException($"cannot validate a bundle in state {b.State}");
-        var report = BundleValidator.Report(b.Resolved.GetProperty("properties"), b.Resolved.GetProperty("execution_plan"));
-        var state = report.Errors.Count == 0 ? "VALIDATED" : "REJECTED";
-        var validation = JsonSerializer.Serialize(new { errors = report.Errors, warnings = report.Warnings, notReadByBuild = report.NotReadByBuild, changeClass = report.ChangeClass, validatedAt = DateTimeOffset.UtcNow, catalogueHash = PropertyCatalogue.Current.CatalogueHash });
+        // the change class is the class of what THIS bundle changes: its own layer's edits, plus whatever differs from
+        // the parent version's resolved values - never every resolved property (a factory value is not an edit)
+        var edited = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var layer in b.Layers.EnumerateArray())
+        {
+            if (layer.GetProperty("kind").GetString() != b.ScopeKind || layer.GetProperty("content").ValueKind != JsonValueKind.Object) continue;
+            foreach (var prop in layer.GetProperty("content").EnumerateObject()) edited.Add(prop.Name);
+        }
         await using var conn = await _db.OpenConnectionAsync(ct);
+        if (b.ParentBundleId is { } parentId)
+        {
+            var parentResolved = await conn.ExecuteScalarAsync<string?>("SELECT (resolved->'properties')::text FROM cpm.gate_config_bundle WHERE bundle_id = @parentId", new { parentId });
+            if (parentResolved is not null)
+                foreach (var d in ChangeClassifier.Diff(JsonDocument.Parse(parentResolved).RootElement, b.Resolved.GetProperty("properties"))) edited.Add(d);
+        }
+        var report = BundleValidator.Report(b.Resolved.GetProperty("properties"), b.Resolved.GetProperty("execution_plan"), edited);
+        var state = report.Errors.Count == 0 ? "VALIDATED" : "REJECTED";
+        var validation = JsonSerializer.Serialize(new { errors = report.Errors, warnings = report.Warnings, notReadByBuild = report.NotReadByBuild, changeClass = report.ChangeClass, edited, validatedAt = DateTimeOffset.UtcNow, catalogueHash = PropertyCatalogue.Current.CatalogueHash });
         await conn.ExecuteAsync("UPDATE cpm.gate_config_bundle SET state = @state, validation = @validation::jsonb, change_class = @cc, etag = @etag, updated_at = now() WHERE bundle_id = @id",
             new { id, state, validation, cc = report.ChangeClass, etag = NewEtag(id) });
         return (await GetAsync(id, ct))!;

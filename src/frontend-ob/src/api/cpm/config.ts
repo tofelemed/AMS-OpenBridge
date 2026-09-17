@@ -56,6 +56,8 @@ export interface Deployment {
   deploymentId: string; bundleId: string; contentHash: string; kind: 'ACTIVATE' | 'ROLLBACK'; rollbackOf: string | null; scheduledFor: string | null;
   state: DeploymentState; error: string | null; epoch: number | null; probeResults: Record<string, unknown> | null; createdBy: string; createdAt: string; updatedAt: string;
   requiredMembers: string[];
+  /** Announced jobs that read no catalogue property: listed, never a required answer. */
+  observers?: string[];
   ackMatrix: Array<{ jobName: string; prepare: WorkerAck | null; apply: WorkerAck | null }>;
   active: boolean; semantics: string;
 }

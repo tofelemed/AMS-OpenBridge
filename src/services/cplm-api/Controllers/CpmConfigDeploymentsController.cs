@@ -71,7 +71,8 @@ public sealed class CpmConfigDeploymentsController : ControllerBase
 
     internal static object Shape(DeploymentView d)
     {
-        var required = d.RequiredMembers.EnumerateArray().Select(m => m.GetProperty("job_name").GetString()!).ToList();
+        var required = d.RequiredMembers.EnumerateArray().Where(m => !m.TryGetProperty("parallelism", out var par) || par.GetInt32() > 0).Select(m => m.GetProperty("job_name").GetString()!).ToList();
+        var observers = d.RequiredMembers.EnumerateArray().Where(m => m.TryGetProperty("parallelism", out var par) && par.GetInt32() == 0).Select(m => m.GetProperty("job_name").GetString()!).ToList();
         var matrix = required.Select(job => new
         {
             jobName = job,
@@ -81,7 +82,7 @@ public sealed class CpmConfigDeploymentsController : ControllerBase
         return new
         {
             d.DeploymentId, d.BundleId, d.ContentHash, d.Kind, d.RollbackOf, d.ScheduledFor, d.State, d.Error, d.Epoch, d.ProbeResults, d.CreatedBy, d.CreatedAt, d.UpdatedAt,
-            requiredMembers = required, ackMatrix = matrix, acks = d.Acks,
+            requiredMembers = required, observers, ackMatrix = matrix, acks = d.Acks,
             active = d.State == "ACTIVE_VERIFIED",
             semantics = "ACTIVE_VERIFIED only after every required worker ACKed PREPARE and APPLY with this hash on one jar and a pinned result appeared; a partial matrix is PARTIALLY_ACKNOWLEDGED, never active",
         };

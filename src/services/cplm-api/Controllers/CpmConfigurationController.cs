@@ -53,7 +53,7 @@ public sealed class CpmConfigurationController : ControllerBase
             catalogueHash = c.CatalogueHash, count = c.Count, executionPlanHash = ExecutionPlans.InstalledHash(),
             properties = c.Properties.Select(p => new { p.Id, p.Gate, p.Property, p.Type, p.Unit, @default = p.Default, commissioningRequired = p.CommissioningRequired, validation = p.Validation, p.ChangeClass, p.Consumers, p.Dependencies, p.Effect,
                 notReadByBuild = UnsupportedInBuild.Reasons.TryGetValue(p.Property, out var reason) ? reason : null }),
-            workers = members.Select(m => new { jobName = m.JobName, jarSha256 = m.JarSha256, catalogueHash = m.CatalogueHash, catalogueMatches = m.CatalogueHash == c.CatalogueHash }),
+            workers = members.Select(m => new { jobName = m.JobName, jarSha256 = m.JarSha256, catalogueHash = m.CatalogueHash, catalogueMatches = m.CatalogueHash == c.CatalogueHash, readsProperties = m.ReadsProperties }),
             factoryLayerAvailable = FactoryLayers.Available, profileIds = FactoryLayers.ProfileIds(), executionPlan = ExecutionPlans.Installed(),
         });
     }

@@ -65,12 +65,12 @@ public sealed class ConfigDeploymentService
         ProbeWindow = TimeSpan.FromMinutes(Math.Clamp(config.GetValue("Cpm:ConfigProbeWindowMinutes", 5.0), 0.0, 120.0));
     }
 
-    /// <summary>The jobs that announced a capability (the membership the ACK matrix must cover), with the catalogue hash each runs.</summary>
-    public async Task<IReadOnlyList<(string JobName, string JarSha256, string CatalogueHash)>> MembershipAsync(CancellationToken ct)
+    /// <summary>The jobs that announced a capability, with the catalogue hash each runs and whether it reads any catalogue property at all.</summary>
+    public async Task<IReadOnlyList<(string JobName, string JarSha256, string CatalogueHash, bool ReadsProperties)>> MembershipAsync(CancellationToken ct)
     {
         await using var conn = await _db.OpenConnectionAsync(ct);
-        var rows = await conn.QueryAsync("SELECT job_name, jar_sha256, catalogue_hash FROM cpm.config_worker_capability ORDER BY job_name");
-        return rows.Select(r => ((string)r.job_name, (string)r.jar_sha256, (string)r.catalogue_hash)).ToList();
+        var rows = await conn.QueryAsync("SELECT job_name, jar_sha256, catalogue_hash, jsonb_array_length(readable_property_ids) AS readable FROM cpm.config_worker_capability ORDER BY job_name");
+        return rows.Select(r => ((string)r.job_name, (string)r.jar_sha256, (string)r.catalogue_hash, ((int)r.readable) > 0)).ToList();
     }
 
     public async Task<DeploymentView> CreateAsync(Guid bundleId, string kind, DateTimeOffset? scheduledFor, Guid? rollbackOf, string actor, CancellationToken ct)
@@ -84,13 +84,19 @@ public sealed class ConfigDeploymentService
             var approval = await _store.ValidApprovalAsync(bundleId, b.ContentHash, ct) ?? throw new ConfigStateException("no approval binds to the bundle's current content hash");
             if (approval.ExpiresAt is { } exp && exp < DateTimeOffset.UtcNow) throw new ConfigConflictException($"the approval expired at {exp:O}; approve again");
         }
-        var members = await MembershipAsync(ct);
-        if (members.Count == 0) throw new ConfigStateException("no CPLM job has announced a capability yet: nothing can acknowledge the bundle");
-        var foreign = members.Where(m => m.CatalogueHash != b.CatalogueHash).Select(m => m.JobName).ToList();
+        var announced = await MembershipAsync(ct);
+        if (announced.Count == 0) throw new ConfigStateException("no CPLM job has announced a capability yet: nothing can acknowledge the bundle");
+        var foreign = announced.Where(m => m.CatalogueHash != b.CatalogueHash).Select(m => m.JobName).ToList();
         if (foreign.Count > 0) throw new ConfigStateException("the bundle was validated against catalogue " + b.CatalogueHash[..12] + " but these jobs run another: " + string.Join(", ", foreign));
+        // lab finding (2026-09-17): a job that reads NO catalogue property (the Instrument Context engine) announces a
+        // capability but consumes no bundle, so it never answers - the matrix must cover the jobs a bundle can reach.
+        // The others are listed as observers on the record, never counted.
+        var members = announced.Where(m => m.ReadsProperties).ToList();
+        if (members.Count == 0) throw new ConfigStateException("no announced CPLM job reads a catalogue property: nothing can apply the bundle");
         var id = Guid.NewGuid();
         var effective = scheduledFor ?? DateTimeOffset.UtcNow;
-        var required = JsonSerializer.Serialize(members.Select(m => new { job_name = m.JobName, parallelism = 1, jar_sha256 = m.JarSha256 }));
+        var required = JsonSerializer.Serialize(members.Select(m => new { job_name = m.JobName, parallelism = 1, jar_sha256 = m.JarSha256 })
+            .Concat(announced.Where(m => !m.ReadsProperties).Select(m => new { job_name = m.JobName, parallelism = 0, jar_sha256 = m.JarSha256 })));
         await using var conn = await _db.OpenConnectionAsync(ct);
         await conn.ExecuteAsync("""
             INSERT INTO cpm.config_deployment (deployment_id, bundle_id, content_hash, kind, rollback_of, scheduled_for, required_members, state, created_by)
@@ -132,7 +138,8 @@ public sealed class ConfigDeploymentService
     {
         var d = await GetAsync(deploymentId, ct);
         if (d is null) return null;
-        var required = d.RequiredMembers.EnumerateArray().Select(m => m.GetProperty("job_name").GetString()!).ToList();
+        // parallelism 0 marks an announced job that reads no property: an observer of the record, never a required answer
+        var required = d.RequiredMembers.EnumerateArray().Where(m => !m.TryGetProperty("parallelism", out var par) || par.GetInt32() > 0).Select(m => m.GetProperty("job_name").GetString()!).ToList();
         var b = await _store.GetAsync(d.BundleId, ct);
         if (b is null) return d;
         await using var conn = await _db.OpenConnectionAsync(ct);
