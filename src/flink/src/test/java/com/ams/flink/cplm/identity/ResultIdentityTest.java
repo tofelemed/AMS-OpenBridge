@@ -85,6 +85,34 @@ public class ResultIdentityTest {
         assertEquals(l1.bundleHash, back.bundleHash);
     }
 
+    private static final String BUNDLE_B = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+    @Test
+    public void theFusedRowInheritsTheLongTiersBundleAndFlagsAFusionSideDivergence() {
+        // lab finding (2026-09-17): the long job selected the loop's bundle (it had the sample's site) while the fusion
+        // job selected none (no site) - the two tiers computed different method run ids for the same window
+        List<CplmNormalizedSample> samples = fixture();
+        long end = T0 + 17_280 * 5000L;
+        CplmLoopDynamicsProfile longProfile = CplmLoopDynamicsProfile.forClass(CplmLoopDynamicsProfile.LoopClass.TIC);
+        longProfile.bundleHash = BUNDLE_B;
+        longProfile.bundleEpoch = 2;
+        CplmLongDiagnosticsResult l = CplmGateEngine.computeLongDiagnostics(samples, T0, end, "24h", longProfile);
+        assertEquals(BUNDLE_B, l.bundleHash);
+        CplmLoopDynamicsProfile fusionProfile = CplmLoopDynamicsProfile.forClass(CplmLoopDynamicsProfile.LoopClass.TIC);   // no bundle on this side
+        CplmShortFeatureResult sh = CplmGateEngine.computeShortFeatures(samples, T0, end, "24h", fusionProfile);
+        CplmGateResult fused = CplmGateFusionEngine.fuse(sh, l, false, false, fusionProfile);
+        assertEquals("the fused row is the long tier's run of record", l.bundleHash, fused.bundleHash);
+        assertEquals(l.contextRevision, fused.contextRevision);
+        assertEquals(l.methodRunIds.get("G5"), fused.methodRunIds.get("G5"));
+        assertTrue(fused.observabilityFlags.contains("BUNDLE_MISMATCH_FUSION"));
+
+        CplmLoopDynamicsProfile agreeing = fusionProfile.copy();
+        agreeing.bundleHash = BUNDLE_B;
+        CplmGateResult agreed = CplmGateFusionEngine.fuse(sh, l, false, false, agreeing);
+        assertEquals(l.bundleHash, agreed.bundleHash);
+        assertTrue(!agreed.observabilityFlags.contains("BUNDLE_MISMATCH_FUSION"));
+    }
+
     @Test
     public void aDifferentConfigurationIsADifferentRun() {
         List<CplmNormalizedSample> samples = fixture();

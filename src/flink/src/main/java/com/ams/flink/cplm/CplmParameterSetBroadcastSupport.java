@@ -296,7 +296,7 @@ public final class CplmParameterSetBroadcastSupport {
         public void processElement(CplmLongDiagnosticsResult diagnostic, ReadOnlyContext ctx,
                                    Collector<CplmLongDiagnosticsResult> out) throws Exception {
             // the fused row shares the long tier's bundle: the same decision time (the window end) selects the same bundle
-            diagnostic.resolvedProfile = resolve(diagnostic.loopId, diagnostic.loopType, diagnostic.assetUuid, null, diagnostic.windowEndMs, ctx);
+            diagnostic.resolvedProfile = resolve(diagnostic.loopId, diagnostic.loopType, diagnostic.assetUuid, diagnostic.site, diagnostic.windowEndMs, ctx);
             applyLoopEvidence(diagnostic, ctx.getBroadcastState(PROFILE_STATE));
             out.collect(diagnostic);
         }

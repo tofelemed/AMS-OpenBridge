@@ -50,7 +50,15 @@ public final class ResultIdentity {
 
     /** The fused result inherits support identity from the long slice and names every gate. */
     public static void stamp(CplmGateResult r, CplmLongDiagnosticsResult longD, CplmLoopDynamicsProfile profile) {
-        r.bundleHash = ProfileHash.of(profile);
+        // the fused row is the run of record for the long tier's gates too, so its identity IS the long row's bundle
+        // identity; the fusion job's own resolution must agree - when it does not (lab: the fusion job had no site and
+        // selected no bundle while the long job had), the row says so instead of silently forking the method run ids
+        String own = ProfileHash.of(profile);
+        String inherited = longD.bundleHash == null || longD.bundleHash.isEmpty() ? own : longD.bundleHash;
+        r.bundleHash = inherited;
+        if (!own.equals(inherited) && r.observabilityFlags != null && !r.observabilityFlags.contains("BUNDLE_MISMATCH_FUSION")) {
+            r.observabilityFlags.add("BUNDLE_MISMATCH_FUSION");
+        }
         r.datasetHash = longD.datasetHash == null ? DatasetHash.EMPTY : longD.datasetHash;
         r.purpose = longD.purpose == null || longD.purpose.isEmpty() ? "LIVE" : longD.purpose;
         r.analysisRunId = longD.analysisRunId;

@@ -177,7 +177,8 @@ Step 'the newest LIVE fused row carries G13 as the aligned analysis (state + rea
     $o = $own -split '\|'
     $apiReason = if ($null -eq $cell.reason) { '' } else { [string]$cell.reason }
     Assert ($apiReason -eq $o[0]) "gates/latest G13 reason '$apiReason' <> that window's payload '$($o[0])'"
-    Assert ($g.gate13Method -eq $o[1]) "gates/latest gate13Method '$($g.gate13Method)' <> that window's payload '$($o[1])'"
+    $apiMethod = if ($null -eq $g.gate13Method) { '' } else { [string]$g.gate13Method }
+    Assert ($apiMethod -eq $o[1]) "gates/latest gate13Method '$apiMethod' <> that window's payload '$($o[1])'"
     if ($g.gate13Method -ne 'G13.ALIGNED_PEER_ANALYSIS_V1') { Write-Host "        (the verdict-aware latest 24h window of $($p[0]) predates the 2F jar: $($g.gate13Method))" -ForegroundColor DarkGray }
 }
 
@@ -195,13 +196,21 @@ Step 'bandwidth eligibility rides the long and fused rows and the gate cells (2G
     $p = $row -split '\|'
     Assert ($p[0] -in @('ELIGIBLE', 'LIMITED', 'UNKNOWN')) "G5 eligibility: $($p[0])"
     if ($p[0] -eq 'LIMITED') { Assert ($p[1] -eq 'BANDWIDTH') "LIMITED without BANDWIDTH reason: $($p[1])" }
-    $fused = (Invoke-CplmSql "SELECT loop_id || '|' || (payload->'method_eligibility'->'G5'->>'state') FROM analytics.cplm_gate_results WHERE purpose='LIVE' AND payload ? 'method_eligibility' ORDER BY window_end DESC LIMIT 1" | Select-Object -First 1)
-    Assert (-not [string]::IsNullOrWhiteSpace($fused)) 'no fused row with method_eligibility'
+    $fused = (Invoke-CplmSql "SELECT loop_id || '|' || (payload->'method_eligibility'->'G5'->>'state') FROM analytics.cplm_gate_results WHERE purpose='LIVE' AND payload->'method_eligibility' ? 'G5' ORDER BY window_end DESC LIMIT 1" | Select-Object -First 1)
+    Assert (-not [string]::IsNullOrWhiteSpace($fused)) 'no fused row with method_eligibility (excluded rows must carry it too)'
     $f = $fused -split '\|'
+    # gates/latest is verdict-aware: on a cold lab the newest REAL verdict may predate 2G - compare the cell with that window's own payload
     $g = Invoke-RestMethod -Method Get -Uri "$cpm/loops/$($f[0])/gates/latest?windowKind=24h" -Headers $H
-    Assert ($null -ne $g.methodEligibility) 'gates/latest lacks methodEligibility'
+    $ownState = (Invoke-CplmSql "SELECT COALESCE(payload->'method_eligibility'->'G5'->>'state','') FROM analytics.cplm_gate_results WHERE loop_id = '$($f[0])' AND window_kind = '24h' AND purpose = 'LIVE' AND source = 'flink' AND window_end = '$($g.windowEnd)'::timestamptz ORDER BY result_revision DESC, created_at DESC LIMIT 1" | Select-Object -First 1)
     $g5 = $g.gates | Where-Object { $_.key -eq 'G5' }
-    if ($f[1] -eq 'LIMITED') { Assert ($g5.reason -eq 'BANDWIDTH') "G5 cell reason: $($g5.reason)" } else { Assert ([string]::IsNullOrEmpty($g5.reason)) "an eligible G5 states no limitation, got '$($g5.reason)'" }
+    if ([string]::IsNullOrWhiteSpace($ownState)) {
+        Write-Host "        (the verdict-aware latest 24h window of $($f[0]) predates 2G: no eligibility on it, none claimed by the API)" -ForegroundColor DarkGray
+        Assert ($null -eq $g.methodEligibility) 'the API claims an eligibility the window never carried'
+    } else {
+        Assert ($null -ne $g.methodEligibility) 'gates/latest lacks methodEligibility although its window carries it'
+        Assert ($g.methodEligibility.G5.state -eq $ownState) "API G5 eligibility '$($g.methodEligibility.G5.state)' <> the window's '$ownState'"
+        if ($ownState -eq 'LIMITED') { Assert ($g5.reason -eq 'BANDWIDTH') "G5 cell reason: $($g5.reason)" } else { Assert ([string]::IsNullOrEmpty($g5.reason)) "an eligible G5 states no limitation, got '$($g5.reason)'" }
+    }
 }
 
 Step 'G5 acf_series has length and G6 psd declares ordinate_kind PSD on a COMPLETE long-tier manifest (2C.1)' {
@@ -290,16 +299,25 @@ Step 'the response event evidence: manifest COMPLETE, ETag honoured (304), chunk
 
 # ── 5. Workbench entry points (2E.3) and investigations (2D.2) ───────────────
 Step 'the gate cells carry the immutable method_run_id the workbench opens; /method-runs resolves it (2E.3, R13)' {
-    $loop = (Invoke-CplmSql "SELECT loop_id FROM analytics.cplm_gate_results WHERE purpose='LIVE' AND method_run_ids ? 'G5' ORDER BY window_end DESC LIMIT 1" | Select-Object -First 1)
-    Assert (-not [string]::IsNullOrWhiteSpace($loop)) 'no fused row with method_run_ids'
+    $newest = (Invoke-CplmSql "SELECT loop_id || '|' || (method_run_ids->>'G5') FROM analytics.cplm_gate_results WHERE purpose='LIVE' AND method_run_ids ? 'G5' ORDER BY window_end DESC LIMIT 1" | Select-Object -First 1)
+    Assert (-not [string]::IsNullOrWhiteSpace($newest)) 'no fused row with method_run_ids'
+    $n = $newest -split '\|'
+    $loop = $n[0]
+    $mr = Invoke-RestMethod -Method Get -Uri "$cpm/method-runs/$($n[1])" -Headers $H
+    Assert ($mr.gate -eq 'G5' -and $mr.loopId -eq $loop) "method-run resolved to $($mr.gate) / $($mr.loopId)"
+    # the cell the workbench opens names the run of ITS window (verdict-aware latest may predate 1G on a cold lab: then null, stated)
     $g = Invoke-RestMethod -Method Get -Uri "$cpm/loops/$loop/gates/latest?windowKind=24h" -Headers $H
     $cell = $g.gates | Where-Object { $_.key -eq 'G5' }
-    Assert (-not [string]::IsNullOrEmpty($cell.methodRunId)) 'G5 cell carries no methodRunId'
-    Assert ($g.methodRunIds.G5 -eq $cell.methodRunId) 'cell methodRunId <> row methodRunIds.G5'
-    $mr = Invoke-RestMethod -Method Get -Uri "$cpm/method-runs/$($cell.methodRunId)" -Headers $H
-    Assert ($mr.gate -eq 'G5' -and $mr.loopId -eq $loop) "method-run resolved to $($mr.gate) / $($mr.loopId)"
-    Assert ($mr.methodRunIds.G13 -eq $g.methodRunIds.G13) 'sibling run ids differ between the cell row and the resolved run'
-    $script:workbenchUrl = "/cpm/evidence?loop=$loop&methodRun=$($cell.methodRunId)&gate=G5&mode=FIXED"
+    $ownId = (Invoke-CplmSql "SELECT COALESCE(method_run_ids->>'G5','') FROM analytics.cplm_gate_results WHERE loop_id = '$loop' AND window_kind = '24h' AND purpose = 'LIVE' AND source = 'flink' AND window_end = '$($g.windowEnd)'::timestamptz ORDER BY result_revision DESC, created_at DESC LIMIT 1" | Select-Object -First 1)
+    if ([string]::IsNullOrWhiteSpace($ownId)) {
+        Write-Host "        (the verdict-aware latest 24h window of $loop predates 1G: the cell states null, never a made-up id)" -ForegroundColor DarkGray
+        Assert ([string]::IsNullOrEmpty($cell.methodRunId)) 'the cell names a run its window never carried'
+    } else {
+        Assert ($cell.methodRunId -eq $ownId) "G5 cell '$($cell.methodRunId)' <> the window's run '$ownId'"
+        Assert ($g.methodRunIds.G5 -eq $cell.methodRunId) 'cell methodRunId <> row methodRunIds.G5'
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ownId)) { Assert ($mr.methodRunIds.G13 -eq $g.methodRunIds.G13) 'sibling run ids differ between the cell row and the resolved run' }
+    $script:workbenchUrl = "/cpm/evidence?loop=$loop&methodRun=$($n[1])&gate=G5&mode=FIXED"
     Write-Host "        workbench: $($script:workbenchUrl)" -ForegroundColor DarkGray
 }
 

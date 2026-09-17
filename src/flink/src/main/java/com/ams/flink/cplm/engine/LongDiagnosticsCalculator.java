@@ -67,6 +67,8 @@ public final class LongDiagnosticsCalculator {
         stampProfile(result, profile);
         result.loopType = loopType != null ? loopType : "";
         result.assetUuid = assetUuid != null ? assetUuid : "";
+        String site = SignalMath.firstNonBlank(rawSamples, rawSamples, s -> s.site);
+        result.site = site != null ? site : "";
         result.stictionSignal = profile.stictionSignal();
 
         List<CplmNormalizedSample> samples = SignalMath.filterHalfOpen(rawSamples, windowStartMs, windowEndMs);

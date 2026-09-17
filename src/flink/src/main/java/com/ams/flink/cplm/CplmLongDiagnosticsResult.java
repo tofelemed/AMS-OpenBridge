@@ -15,6 +15,8 @@ public final class CplmLongDiagnosticsResult implements Serializable {
 
     public String loopId;
     public String assetUuid = "";
+    /** v2.5 (3C.1): the site of the loop (from the samples) - the fusion job selects the same bundle scope with it. */
+    public String site = "";
     public String windowKind;
     public long windowStartMs;
     public long windowEndMs;
@@ -163,6 +165,7 @@ public final class CplmLongDiagnosticsResult implements Serializable {
         out.put("eventType", "CPLM_LONG_DIAGNOSTIC");
         out.put("loop_id", loopId);
         out.put("asset_uuid", assetUuid);
+        out.put("site", site == null ? "" : site);
         out.put("window_kind", windowKind);
         out.put("windowStartMs", windowStartMs);
         out.put("windowEndMs", windowEndMs);
@@ -314,6 +317,7 @@ public final class CplmLongDiagnosticsResult implements Serializable {
             CplmLongDiagnosticsResult r = new CplmLongDiagnosticsResult();
             r.loopId = root.path("loop_id").asText("");
             r.assetUuid = root.path("asset_uuid").asText("");
+            r.site = root.path("site").asText("");
             r.windowKind = root.path("window_kind").asText("24h");
             r.windowStartMs = root.path("windowStartMs").asLong(0);
             r.windowEndMs = root.path("windowEndMs").asLong(0);
