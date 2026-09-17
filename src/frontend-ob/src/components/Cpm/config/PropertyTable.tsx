@@ -25,7 +25,7 @@ export const PropertyTable: React.FC<PropertyTableProps> = ({ entries, bundle, e
   const [expanded, setExpanded] = useState<string | null>(null);
   if (entries.length === 0) return <p className="cpm-copy">The catalogue has no property for this gate.</p>;
   return (
-    <div className="cpm-matrix-scroll">
+    <div className="cpm-config-table__wrap">
       <table className="cpm-table cpm-config-table" aria-label="Properties">
         <thead>
           <tr><th>property</th><th>effective</th><th>from</th><th>class</th><th>flags</th></tr>

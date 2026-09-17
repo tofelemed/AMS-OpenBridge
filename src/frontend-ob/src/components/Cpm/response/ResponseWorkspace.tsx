@@ -73,10 +73,10 @@ export const ResponseWorkspace: React.FC = () => {
   const [reviewing, setReviewing] = useState<SystemModel | null>(null);
   useEffect(() => { if (review.isSuccess) setReviewing(null); }, [review.isSuccess]);
 
-  const inScope = loopList.filter(l => scope.matches(l)).length;
   const picker = (
     <section className="cpm-surface cpm-evidence-toolbar">
-      <PlantScopeFilter scope={scope} summary={`${inScope} of ${loopList.length} loop(s) in scope`} />
+      {/* the combobox states the in-scope count itself; a second count beside the filter was noise */}
+      <PlantScopeFilter scope={scope} />
       <div className="cpm-toolbar">
         <LoopCombobox scope={scope} loops={loopList} value={loopId ?? ''}
           onChange={id => setParams(p => { p.set('loop', id); p.delete('event'); p.delete('methodRun'); return p; })}
@@ -141,7 +141,7 @@ export const ResponseWorkspace: React.FC = () => {
 
         <aside className="cpm-response-detail">
           {eventParam && result && (
-            <EventAside result={result} metrics={detail.data?.metrics} timeZone={timeZone} methodRunId={methodRunId} loopId={loopId} resultRevision={selected?.resultRevision} />
+            <EventAside result={result} metrics={detail.data?.metrics} timeZone={timeZone} methodRunId={methodRunId} loopId={loopId} resultRevision={selected?.resultRevision} eventType={selected?.eventType} />
           )}
           {eventParam && !result && !detail.isError && (
             <div className="cpm-surface cpm-skeleton cpm-skeleton--result" role="status" aria-busy="true" aria-label="Loading the event">

@@ -11,6 +11,8 @@ import { EmptyState, PanelHead, QueryError, TonePill, fmtDateTime, fmtDuration }
 import { ageText } from '../verdictAge';
 
 const KIND_LABEL: Record<string, string> = { FREEZE: 'Freeze', LIMIT_LOW: 'Limit low', LIMIT_HIGH: 'Limit high' };
+/** An OPEN condition the engine has not updated for this long is stale: its job restarted or the loop's samples stopped. */
+export const STALE_AFTER_MS = 10 * 60_000;
 
 export interface ConditionRow {
   key: string;
@@ -19,8 +21,11 @@ export interface ConditionRow {
   gateLabel: string;
   label: string;
   open: boolean;
+  /** Open on record but not updated for STALE_AFTER_MS - said, never shown as live. */
+  stale: boolean;
   state: string;
   since: string;
+  lastUpdate: string;
   startedAt: string;
   duration: string;
   reason: string;
@@ -34,11 +39,13 @@ export function conditionRows(conditions: CpmCondition[], now: number): Conditio
     gateLabel: c.gate,
     label: KIND_LABEL[c.kind] ?? c.kind.toLowerCase().replace(/_/g, ' '),
     open: c.state !== 'CLOSED',
+    stale: c.state !== 'CLOSED' && now - c.lastMs > STALE_AFTER_MS,
     state: c.state === 'CLOSED' ? 'CLOSED' : 'OPEN',
     since: ageText(Math.max(0, now - c.startMs)),
+    lastUpdate: ageText(Math.max(0, now - c.lastMs)),
     startedAt: fmtDateTime(new Date(c.startMs).toISOString()),
     duration: fmtDuration(c.durationS * 1000),
-    reason: c.closeReason ?? '',
+    reason: (c.closeReason ?? '').toLowerCase().replace(/_/g, ' '),
   }));
 }
 
@@ -63,8 +70,11 @@ export const ConditionsPanel: React.FC<{ conditions: CpmCondition[]; isLoading: 
               </thead>
               <tbody>
                 {rows.map(r => (
-                  <tr key={r.key} data-open={r.open}>
-                    <td><TonePill tone={r.open ? 'warn' : 'muted'}>{r.state}</TonePill></td>
+                  <tr key={r.key} data-open={r.open} data-stale={r.stale || undefined}>
+                    <td>
+                      <TonePill tone={r.open && !r.stale ? 'warn' : 'muted'}>{r.state}</TonePill>
+                      {r.stale && <span className="cpm-event-row__sub" title="Open on record but not updated - the engine restarted or the loop's samples stopped"> stale · last update {r.lastUpdate}</span>}
+                    </td>
                     <td>
                       <Link className="cpm-link" to={`/cpm/evidence?loop=${encodeURIComponent(r.loopId)}&kind=15m`} title={`Open the 15m windows of ${r.loopId} in the workbench`}>{r.loopId}</Link>
                       <span className="cpm-event-row__sub"> {r.displayName}</span>

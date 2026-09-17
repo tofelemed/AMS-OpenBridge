@@ -26,8 +26,9 @@ export const ModelHistoryBody: React.FC<{ models: SystemModel[]; timeZone: strin
           { id: `${param}_upper`, label: `${param} upper (value + uncertainty)`, unit: points[0].unit, x, y: points.map(p => p.upper), pen: 'grey', markers: true },
           { id: `${param}_lower`, label: `${param} lower (value − uncertainty)`, unit: points[0].unit, x, y: points.map(p => p.lower), pen: 'grey', markers: true },
         ];
-        return <CpmChart key={param} title={param} series={series} xKind="time" timeZone={timeZone} height={160} />;
+        return <CpmChart key={param} title={param} series={series} xKind="time" timeZone={timeZone} height={220} />;
       })}
+      <div className="cpm-matrix-scroll">
       <table className="cpm-table" data-table="models">
         <thead><tr><th>created</th><th>family</th><th>path</th><th>estimator</th><th>state</th><th>rev</th><th>review</th><th /></tr></thead>
         <tbody>
@@ -47,6 +48,7 @@ export const ModelHistoryBody: React.FC<{ models: SystemModel[]; timeZone: strin
           ))}
         </tbody>
       </table>
+      </div>
       <p className="cpm-copy">Markers, not a line: each model is an estimate from its own event; the interval is value ± the kernel's uncertainty. A baseline is chosen by review, never by recency.</p>
     </section>
   );

@@ -42,6 +42,9 @@ export const LifecyclePanel: React.FC<LifecyclePanelProps> = ({ bundle, perms, p
   const expired = current?.expiresAt ? new Date(current.expiresAt).getTime() < Date.now() : false;
   const steps = lifecycleSteps(bundle.state);
   const actions = lifecycleActions(bundle, perms, expired, hasVerifiedActivation);
+  // a frozen version blocks every editing action for the same reason: say it once, not under each button
+  const shared = actions.filter(a => !a.enabled && a.reason?.startsWith('This version is ')).map(a => a.reason);
+  const frozenReason = shared.length >= 2 && shared.every(r => r === shared[0]) ? shared[0] : null;
 
   const busy: Record<LifecycleAction['key'], boolean> = { validate: pending.validate, shadow: false, approve: pending.approve, deploy: pending.deploy, rollback: pending.rollback };
   const busyLabel: Record<LifecycleAction['key'], string> = { validate: 'Validating…', shadow: 'Shadow', approve: 'Recording…', deploy: 'Scheduling…', rollback: 'Rolling back…' };
@@ -69,12 +72,13 @@ export const LifecyclePanel: React.FC<LifecyclePanelProps> = ({ bundle, perms, p
       {bundle.note && <KvRow label="note">{bundle.note}</KvRow>}
 
       <PanelHead eyebrow="Actions" title="In order" />
+      {frozenReason && <p className="cpm-copy cpm-lifecycle__frozen">{frozenReason}</p>}
       <ol className="cpm-lifecycle__actions" aria-label="Lifecycle actions">
         {actions.map(a => (
           <li key={a.key} className="cpm-lifecycle__action" data-action={a.key} data-enabled={a.enabled}>
             <div className="cpm-lifecycle__action-row">
               <ObcButton variant={a.enabled ? 'raised' : 'flat'} disabled={!a.enabled || busy[a.key]} onClick={run[a.key]}>{busy[a.key] ? busyLabel[a.key] : a.label}</ObcButton>
-              {a.reason && <span className="cpm-copy cpm-lifecycle__reason">{a.reason}</span>}
+              {a.reason && a.reason !== frozenReason && <span className="cpm-copy cpm-lifecycle__reason">{a.reason}</span>}
               {errorText(err[a.key]) && <span className="cpm-field__error" role="alert">{errorText(err[a.key])}</span>}
             </div>
             {a.key === 'approve' && a.enabled && (

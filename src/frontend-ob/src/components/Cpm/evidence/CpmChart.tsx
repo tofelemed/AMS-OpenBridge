@@ -5,7 +5,7 @@
  * in the axis name, bands labelled with their meaning, and a data-table / CSV companion that shows
  * the same values the chart draws. Colours come from the CPM pens (OpenBridge tokens), never literals.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { cpmChartColors } from '../shared';
@@ -42,12 +42,27 @@ export interface CpmChartInput {
   pens: Pens;
   height?: number;
   logY?: boolean;
+  /** The drawn width in px when known (measured by CpmChart): the legend's row count depends on it. */
+  width?: number;
 }
 
 const nan = (v: number | null | undefined) => v == null || !Number.isFinite(v) ? null : v;
 
 /** Above this many points a series is decimated for drawing (never for the data table / CSV). */
 export const SAMPLE_ABOVE = 5000;
+
+/** Rows a horizontal legend needs: each entry is its marker + text (~7 px a character) + the item gap; without a width, four per row. */
+export function legendRowsFor(names: string[], width: number | undefined): number {
+  if (names.length === 0) return 1;
+  if (!width) return Math.max(1, Math.ceil(names.length / 4));
+  const usable = Math.max(160, width - 48);
+  let rows = 1, line = 0;
+  for (const n of names) {
+    const w = 26 + n.length * 7 + 14;
+    if (line > 0 && line + w > usable) { rows++; line = w; } else line += w;
+  }
+  return Math.min(rows, 5);
+}
 
 /** Pure option builder (tested): one axis per unit group, no null bridging, stepped holds, labelled bands. */
 export function buildCpmChartOption(input: CpmChartInput) {
@@ -57,9 +72,9 @@ export function buildCpmChartOption(input: CpmChartInput) {
   const firstX = series.find(s => s.x.length > 0)?.x[0] ?? Date.now();
   const xAxis = xKind === 'time'
     ? { type: 'time' as const, name: `time — ${zoneLabel(timeZone, firstX)}`, nameLocation: 'middle' as const, nameGap: 28,
-        axisLabel: { color: pens.grey, formatter: (v: number) => formatTimeInZone(v, timeZone) }, axisLine: { lineStyle: { color: pens.grey } }, splitLine: { show: false } }
+        axisLabel: { color: pens.grey, hideOverlap: true, formatter: (v: number) => formatTimeInZone(v, timeZone) }, axisLine: { lineStyle: { color: pens.grey } }, splitLine: { show: false } }
     : { type: 'value' as const, name: input.xUnit ? `${input.xLabel ?? 'x'} (${input.xUnit})` : (input.xLabel ?? 'x'), nameLocation: 'middle' as const, nameGap: 28,
-        axisLabel: { color: pens.grey }, axisLine: { lineStyle: { color: pens.grey } }, splitLine: { show: false }, scale: true };
+        axisLabel: { color: pens.grey, hideOverlap: true }, axisLine: { lineStyle: { color: pens.grey } }, splitLine: { show: false }, scale: true };
   const yAxis = units.map((u, i) => ({
     type: (input.logY ? 'log' : 'value') as 'log' | 'value', name: u, position: i % 2 === 0 ? 'left' : 'right', offset: Math.floor(i / 2) * 48,
     scale: true, axisLabel: { color: pens.grey }, nameTextStyle: { color: pens.grey }, splitLine: { show: i === 0, lineStyle: { opacity: 0.2 } },
@@ -91,8 +106,8 @@ export function buildCpmChartOption(input: CpmChartInput) {
     };
   });
   // audit F19: the legend sits BELOW the plot and the x-axis name, never over the y-axis name; the bottom
-  // margin grows with the rows the legend will take (about four entries per row at the widths we draw)
-  const legendRows = Math.max(1, Math.ceil(series.length / 4));
+  // margin reserves the rows the legend will take, estimated from the label widths against the drawn width
+  const legendRows = legendRowsFor(echartsSeries.map(s => s.name), input.width);
   return {
     animation: false,
     grid: { left: 64, right: 24 + Math.max(0, units.length - 2) * 48, top: 28, bottom: 64 + legendRows * 22 },
@@ -130,9 +145,19 @@ export function toCsv(series: CpmSeries[]): string {
   return [head, ...rows].join('\n');
 }
 
-export const CpmChart: React.FC<Omit<CpmChartInput, 'pens'> & { title?: string; onClick?: (seriesId: string, index: number) => void }> = (props) => {
+export const CpmChart: React.FC<Omit<CpmChartInput, 'pens' | 'width'> & { title?: string; onClick?: (seriesId: string, index: number) => void }> = (props) => {
   const pens: Pens = cpmChartColors();
-  const option = useMemo(() => buildCpmChartOption({ ...props, pens }), [props, pens]);
+  // the legend's rows depend on the drawn width: measure the wrapper and rebuild when it changes
+  const wrap = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(entries => { const w = Math.round(entries[0]?.contentRect.width ?? 0); if (w > 0) setWidth(w); });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const option = useMemo(() => buildCpmChartOption({ ...props, pens, width }), [props, pens, width]);
   const [table, setTable] = useState(false);
   const onEvents = useMemo(() => ({ click: (e: { seriesId?: string; dataIndex?: number }) => { if (props.onClick && e.seriesId != null && e.dataIndex != null) props.onClick(e.seriesId, e.dataIndex); } }), [props]);
   const csv = () => {
@@ -145,7 +170,7 @@ export const CpmChart: React.FC<Omit<CpmChartInput, 'pens'> & { title?: string; 
   };
   const drawn = props.series.reduce((n, s) => n + s.x.length, 0);
   return (
-    <div className="cpm-chart">
+    <div className="cpm-chart" ref={wrap}>
       <div className="cpm-chart__bar">
         {props.title && <span className="cpm-chart__title">{props.title}</span>}
         {drawn > SAMPLE_ABOVE && <span className="cpm-chart__note" title="The data table and the CSV carry every value; only the drawing is decimated.">{drawn.toLocaleString('en-GB')} points, drawn sampled</span>}

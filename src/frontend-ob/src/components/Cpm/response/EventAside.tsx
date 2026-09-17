@@ -22,16 +22,18 @@ export interface EventAsideProps {
   methodRunId: string | undefined;
   loopId: string;
   resultRevision: number | undefined;
+  /** From the list row; the result JSON keeps the type inside subgate B. */
+  eventType?: string;
 }
 
-export const EventAside: React.FC<EventAsideProps> = ({ result, metrics, timeZone, methodRunId, loopId, resultRevision }) => {
+export const EventAside: React.FC<EventAsideProps> = ({ result, metrics, timeZone, methodRunId, loopId, resultRevision, eventType }) => {
   const steps = subgateSteps(result.subgates);
   const key = keyResults(metrics);
   const all = metrics ?? [];
   const applicable = all.filter(q => q.value != null).length;
   return (
     <section className="cpm-surface cpm-response-aside">
-      <PanelHead eyebrow="Event" title={`${String(result.event_type ?? 'event')} · ${result.path_id}`} right={<TonePill tone={stateTone(result.evaluation_state)}>{result.evaluation_state}</TonePill>} />
+      <PanelHead eyebrow="Event" title={`${eventType ?? String(result.event_type ?? result.subgates?.B?.outputs?.event_type ?? 'event')} · ${result.path_id}`} right={<TonePill tone={stateTone(result.evaluation_state)}>{result.evaluation_state}</TonePill>} />
       <KvRow label="Window">{formatInZone(result.window_start_ms, timeZone)} → {result.window_end_ms ? formatInZone(result.window_end_ms, timeZone) : 'open'}</KvRow>
       <KvRow label="Eligibility · finding">{result.eligibility} · {String(result.finding ?? '—').replace(/_/g, ' ').toLowerCase()}</KvRow>
       <KvRow label="Method">{String(result.method_id ?? 'G12.SYSTEM_RESPONSE')} {String(result.method_version ?? '')}</KvRow>

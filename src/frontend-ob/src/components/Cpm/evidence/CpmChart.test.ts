@@ -53,6 +53,12 @@ describe('buildCpmChartOption', () => {
     const many = buildCpmChartOption({ series: [pv, op, band, { ...pv, id: 'a' }, { ...pv, id: 'b' }, { ...pv, id: 'c' }, { ...pv, id: 'd' }], xKind: 'time', pens });
     expect(many.grid.bottom).toBeGreaterThan(few.grid.bottom);
     expect(few.grid.top).toBeLessThan(40);                                                       // no legend row reserved above the plot
+    // a narrow chart with long names wraps its legend: the margin follows the measured width
+    const long = [pv, op, band].map((s, i) => ({ ...s, id: `l${i}`, label: `process_gain upper (value + uncertainty) ${i}` }));
+    const narrow = buildCpmChartOption({ series: long, xKind: 'time', pens, width: 300 });
+    const wide = buildCpmChartOption({ series: long, xKind: 'time', pens, width: 1400 });
+    expect(narrow.grid.bottom).toBeGreaterThan(wide.grid.bottom);
+    expect(narrow.xAxis.axisLabel.hideOverlap).toBe(true);
   });
 
   it('exports the same values as CSV', () => {

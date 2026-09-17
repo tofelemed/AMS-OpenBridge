@@ -350,7 +350,11 @@
 .cpm-config-effective__filter { display: flex; gap: 8px; margin: 8px 0; }
 /* audit F18: property table with one expanded editor; lifecycle stepper + ordered actions; deployments timeline */
 .cpm-config-tabpanel { display: flex; flex-direction: column; gap: 8px; }
-.cpm-config-table th:first-child { min-width: 220px; }
+.cpm-config-table__wrap { overflow-x: auto; }
+.cpm-config-table th:first-child { width: 34%; }
+.cpm-config-table__flags .cpm-pill { white-space: normal; }
+.cpm-config-deployment .cpm-panel-head { flex-wrap: wrap; }
+.cpm-lifecycle__frozen { margin: 0 0 8px; }
 .cpm-config-table__name { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 4px 0; border: 0; background: transparent; color: var(--element-active-color); font: inherit; text-align: left; cursor: pointer; }
 .cpm-config-table__name:hover .cpm-mono, .cpm-config-table__name[aria-expanded="true"] .cpm-mono { text-decoration: underline; text-underline-offset: 3px; }
 .cpm-config-table__name:focus-visible { outline: 2px solid var(--instrument-enhanced-primary-color); outline-offset: 2px; border-radius: 4px; }

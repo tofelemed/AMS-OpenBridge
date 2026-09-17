@@ -19,7 +19,12 @@ describe('conditionRows', () => {
   it('reads an open condition as open with its age and a closed one with its reason', () => {
     const rows = conditionRows([c({}), c({ gate: 'G10', kind: 'LIMIT_LOW', state: 'CLOSED', endMs: NOW - 3_600_000, closeReason: 'RECOVERED', durationS: 90 })], NOW);
     expect(rows[0]).toMatchObject({ open: true, label: 'Freeze', gateLabel: 'G11', since: '5 min ago', duration: '4 min', reason: '' });
-    expect(rows[1]).toMatchObject({ open: false, label: 'Limit low', gateLabel: 'G10', duration: '1.5 min', reason: 'RECOVERED' });
+    expect(rows[1]).toMatchObject({ open: false, label: 'Limit low', gateLabel: 'G10', duration: '1.5 min', reason: 'recovered' });
+  });
+  it('an open condition the engine stopped updating is stale, never live', () => {
+    const rows = conditionRows([c({ startMs: NOW - 17 * 3_600_000, lastMs: NOW - 17 * 3_600_000 + 90_000 })], NOW);
+    expect(rows[0]).toMatchObject({ open: true, stale: true, lastUpdate: '17 h ago' });
+    expect(conditionRows([c({})], NOW)[0].stale).toBe(false);
   });
 });
 
@@ -29,7 +34,7 @@ describe('ConditionsPanel', () => {
     const rows = screen.getAllByRole('row').slice(1);
     expect(rows).toHaveLength(2);
     expect(rows[0].textContent).toMatch(/OPEN/);
-    expect(rows[1].textContent).toMatch(/RECOVERED/);
+    expect(rows[1].textContent).toMatch(/recovered/);
     expect(screen.getAllByRole('link', { name: /FIC10301/ })[0].getAttribute('href')).toBe('/cpm/evidence?loop=FIC10301&kind=15m');
   });
 
