@@ -74,6 +74,11 @@
   border-color: var(--selected-enabled-border-color, var(--instrument-enhanced-primary-color));
 }
 
+/* ── Toolbar (v2.5 workbench redesign): scope + loop + window pickers, as on every CPM page ── */
+.cpm-evidence-toolbar { display: flex; flex-direction: column; gap: 12px; }
+.cpm-evidence-toolbar__window { flex: 1 1 360px; min-width: 260px; }
+.cpm-evidence-toolbar__jump { display: flex; align-items: flex-end; gap: 8px; }
+
 /* ── Header fact row (v2.5 workbench redesign): labelled facts that wrap, never overlap ── */
 .cpm-fact-row {
   display: flex;

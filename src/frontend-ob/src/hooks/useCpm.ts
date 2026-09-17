@@ -263,21 +263,6 @@ export function useGateHistory(
   });
 }
 
-/**
- * v2.5 workbench: the evaluated windows of one loop and kind as summary rows (see getWindowSummaries),
- * paged backwards with "Load older" (`to` = the oldest loaded windowEnd). Immutable rows: 5 min stale.
- */
-export function useWindowSummaries(loopId: string | undefined, windowKind: string, enabled = true) {
-  return useInfiniteQuery({
-    queryKey: ['cpm', 'window-summaries', loopId ?? '', windowKind],
-    queryFn: ({ pageParam, signal }) => cpm.getWindowSummaries(loopId!, windowKind, { to: pageParam as string | undefined }, signal),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: last => last.windows.length >= 100 ? last.windows[last.windows.length - 1].windowEnd : undefined,
-    enabled: !!loopId && enabled,
-    staleTime: 5 * 60_000,
-  });
-}
-
 export function useCpmKpis(loopId: string | undefined, resolution = '24h', limit = 50) {
   return useQuery({
     queryKey: ['cpm', 'kpis', loopId ?? '', resolution, limit],
