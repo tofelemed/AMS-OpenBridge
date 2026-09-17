@@ -65,7 +65,7 @@ export const HistorianLanes: React.FC<{
   const to = useMemo(() => new Date(toMs), [toMs]);
   const trend = useCpmTrend(series, from, to, 1000, 'pv,sp,op,vp');
   const modes = useCpmModeTrack(series, from, to, 400);
-  const points = trend.data?.points ?? [];
+  const points = useMemo(() => trend.data?.points ?? [], [trend.data]);
   const eu = useMemo(() => [trendRoleSeries(points, 'pv', 'EU', timeFmt), trendRoleSeries(points, 'sp', 'EU', timeFmt)].filter((s): s is CpmSeries => !!s), [points, timeFmt]);
   const pp = useMemo(() => [trendRoleSeries(points, 'op', 'pp', timeFmt), trendRoleSeries(points, 'vp', 'pp', timeFmt)].filter((s): s is CpmSeries => !!s), [points, timeFmt]);
   const modeIntervals = useMemo(() => modeIntervalsFromTrend(modes.data?.points ?? [], toMs), [modes.data, toMs]);
