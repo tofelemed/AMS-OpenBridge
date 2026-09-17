@@ -33,7 +33,7 @@ describe('verdict copy', () => {
   });
 
   it('explains why in paragraphs that end with the next valid action', () => {
-    const p = whyParagraphs({ gate: 'G5', name: 'Oscillation (ACF)', status: 'WARN', reason: 'BANDWIDTH', state: ready, entry: { definition: 'Dominant period from the autocorrelation.', preconditions: 'Enough cycles.' } });
+    const p = whyParagraphs({ gate: 'G5', name: 'Oscillation (ACF)', status: 'WARN', reason: 'BANDWIDTH', state: ready });
     expect(p[0]).toMatch(/^The engine judged G5 Oscillation \(ACF\) WARN/);
     expect(p.join(' ')).toMatch(/limited by the acquisition grid/);
     expect(p[p.length - 1]).toMatch(/Read the evidence below/);

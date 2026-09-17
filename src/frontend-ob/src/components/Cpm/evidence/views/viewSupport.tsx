@@ -8,6 +8,7 @@ import { EmptyState, KvRow, TonePill } from '../../shared';
 import type { DecodedArtifact } from '../artifactCodec';
 import type { GateArtifacts } from '../useGateArtifacts';
 import type { CpmSeries, Pen } from '../CpmChart';
+import { fmtQuantity, labelForKey, unitForKey } from '../format';
 
 export const RequireKinds: React.FC<{ arts: GateArtifacts; kinds: string[]; children: React.ReactNode }> = ({ arts, kinds, children }) => {
   const missing = kinds.filter(k => !arts.byKind[k] || arts.byKind[k].length === 0);
@@ -41,6 +42,11 @@ export function col(d: DecodedArtifact, name: string, label: string, pen: Pen, o
   return { id: name, label, unit: opts.unit ?? d.units[name] ?? (name === 'y' ? (d.units.y ?? d.meta.y.unit ?? '') : ''), x: opts.x ?? d.columns.x, y, pen, held: opts.held, markers: opts.markers, dashed: opts.dashed, bandMeaning: opts.bandMeaning };
 }
 
+/** Marker points at given x instants on a fixed y (e.g. zero crossings on a centred signal). */
+export function markersAt(x: ArrayLike<number>, y: number, id: string, label: string, pen: Pen, unit: string): CpmSeries {
+  return { id, label, unit, x, y: Array.from(x, () => y), pen, markers: true };
+}
+
 /** A boolean (0/1) column as marker points on another series' values. */
 export function markersWhere(d: DecodedArtifact, flagColumn: string, valueColumn: string, label: string, pen: Pen, unit?: string): CpmSeries {
   const flags = d.columns[flagColumn];
@@ -49,9 +55,17 @@ export function markersWhere(d: DecodedArtifact, flagColumn: string, valueColumn
   return { id: `${flagColumn}@${valueColumn}`, label, unit: unit ?? d.units[valueColumn] ?? '', x: d.columns.x, y, pen, markers: true };
 }
 
+/** Provenance rows with the reader's label (raw key on hover) and the formatted value (raw on hover). */
 export const Provenance: React.FC<{ d: DecodedArtifact; keys: string[] }> = ({ d, keys }) => (
   <>
-    {keys.map(k => <KvRow key={k} label={k}>{d.meta.provenance?.[k] ?? <TonePill tone="muted">not declared</TonePill>}</KvRow>)}
+    {keys.map(k => {
+      const raw = d.meta.provenance?.[k];
+      return (
+        <KvRow key={k} label={labelForKey(k)}>
+          {raw == null ? <TonePill tone="muted">not declared</TonePill> : <span title={`${k} = ${raw}`}>{fmtQuantity(raw, unitForKey(k), k)}</span>}
+        </KvRow>
+      );
+    })}
   </>
 );
 

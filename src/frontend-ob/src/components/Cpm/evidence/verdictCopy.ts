@@ -71,7 +71,7 @@ export function verdictSentence(i: VerdictInput): string {
 
 export interface WhyInput {
   gate: string; name: string; status: string | null; reason: string | null; state: GateState;
-  entry?: { definition?: string; preconditions?: string } | null; eligibilityDetail?: string | null;
+  eligibilityDetail?: string | null;
 }
 
 /** The explain panel's "why this result" - plain sentences, ending with what to do next. */
@@ -84,8 +84,7 @@ export function whyParagraphs(i: WhyInput): string[] {
   } else {
     out.push(`No verdict cell of ${name} exists for this run's tier.`);
   }
-  if (i.entry?.definition) out.push(`What it measures: ${i.entry.definition}`);
-  if (i.entry?.preconditions) out.push(`It needs: ${i.entry.preconditions}`);
+  // the definition and preconditions are stated once, in "What this gate asks" - not repeated here
   switch (i.state.kind) {
     case 'READY': out.push('Read the evidence below; every value is this run\'s own, computed under the configuration named on the right.'); break;
     case 'NOT_EVALUATED': out.push('Meet the prerequisite the reason names and the next window will evaluate the gate; this is a verdict, not missing data.'); break;

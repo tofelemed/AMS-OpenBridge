@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { decoded, times, T0 } from './fixtures';
 import { G0Body, G2rBody, G3Body, parseBounds } from './ShortViews';
-import { G6Body, G7Body, G10Body, G11Body, episodes } from './LongViews';
+import { G5Body, G6Body, G7Body, G10Body, G11Body, episodes } from './LongViews';
 import { G14Body, G15Body, rankedHypotheses } from './FusionViews';
 import { G13Body, peerRows } from './G13Interaction';
 import { RequireKinds } from './viewSupport';
@@ -57,6 +57,24 @@ describe('gate views', () => {
     expect(errorChart.find(s => s.name.startsWith('tolerance band —'))!.name).toContain('|error| <= 0.5 EU');
     expect(yAxesOf(captured[1]).map(a => a.name)).toEqual(['EU*s']);
     expect(yAxesOf(captured[3]).map(a => a.name)).toEqual(['EU*s^2']);
+  });
+
+  it('G5: crossing_times are markers on the preprocessed signal and a table, never a y = 0 chart of their own (audit F17)', () => {
+    const t = times(6, 1000);
+    const signal = decoded({ gate: 'G5', kind: 'preprocessed_signal', x: t, y: [1, -1, 1, -1, 1, -1], yUnit: 'EU_centred', provenance: { preprocessing: 'LINEAR_DETREND;SUBTRACT_MEAN' } });
+    const acf = decoded({ gate: 'G5', kind: 'acf_series', x: [0, 1, 2], y: [1, 0.5, 0.1], xQuantity: 'acf_lag_s', xUnit: 's', columns: { acf_pair_count: [6, 5, 4] }, provenance: { period_s: '290.23199999999997', regularity: '1.0', accepted_cycles: '33', regularity_method: 'ACF_PEAK_REGULARITY_V1' } });
+    const crossings = decoded({ gate: 'G5', kind: 'crossing_times', x: [0.5, 1.5, 2.5], y: [0, 1, 2], xQuantity: 'crossing_times', xUnit: 's', provenance: { window_start_ms: String(T0) } });
+    render(<G5Body acf={acf} signal={signal} crossings={crossings} timeZone="UTC" />);
+    expect(captured).toHaveLength(2);                                                              // signal + ACF; no crossing_times chart
+    const signalSeries = seriesOf(captured[0]);
+    const marks = signalSeries.find(s => s.name === 'zero crossings')!;
+    expect(marks).toBeTruthy();
+    const points = marks.data as Array<[number, number | null]>;
+    expect(points.filter(p => p[1] != null)).toHaveLength(3);
+    expect(points[0][0]).toBe(T0 + 500);
+    expect(points.every(p => p[1] === 0)).toBe(true);
+    expect(screen.getByText(/period 290.2 s/)).toBeTruthy();                                        // formatted, not 290.23199999999997
+    expect(screen.getByRole('table', { name: /crossings/i }).querySelectorAll('tbody tr')).toHaveLength(3);
   });
 
   it('G6: the ordinate kind and unit come from the artifact, the peak bins are markers, and the axis is log', () => {

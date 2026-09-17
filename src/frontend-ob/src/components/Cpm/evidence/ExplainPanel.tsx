@@ -58,7 +58,7 @@ export const ExplainPanel: React.FC<ExplainPanelProps> = ({ gate, run, entry, ma
   }
   const name = entry?.name ?? gate;
   const params = parametersOf(manifest, gate);
-  const why = whyParagraphs({ gate, name, status, reason, state, entry, eligibilityDetail });
+  const why = whyParagraphs({ gate, name, status, reason, state, eligibilityDetail });
   return (
     <aside className="cpm-explain cpm-surface" aria-label="Explain">
       <div className="cpm-explain__head">

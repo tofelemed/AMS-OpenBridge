@@ -140,18 +140,24 @@ export const CpmChart: React.FC<Omit<CpmChartInput, 'pens'> & { title?: string; 
     a.click();
     URL.revokeObjectURL(a.href);
   };
+  const drawn = props.series.reduce((n, s) => n + s.x.length, 0);
   return (
     <div className="cpm-chart">
       <div className="cpm-chart__bar">
         {props.title && <span className="cpm-chart__title">{props.title}</span>}
-        <ObcButton variant="flat" onClick={() => setTable(t => !t)}>{table ? 'Chart' : 'Data table'}</ObcButton>
-        <ObcButton variant="flat" onClick={csv}>Export CSV</ObcButton>
+        {drawn > SAMPLE_ABOVE && <span className="cpm-chart__note" title="The data table and the CSV carry every value; only the drawing is decimated.">{drawn.toLocaleString('en-GB')} points, drawn sampled</span>}
       </div>
-      {table ? (
-        <pre className="cpm-chart__table" data-testid="cpm-chart-table">{toCsv(props.series)}</pre>
-      ) : (
-        <ReactECharts option={option} notMerge style={{ height: props.height ?? 320 }} onEvents={onEvents} />
-      )}
+      <ReactECharts option={option} notMerge style={{ height: props.height ?? 320 }} onEvents={onEvents} />
+      {/* progressive disclosure: the numbers behind the picture, on request (audit: the two buttons on every chart were noise) */}
+      <details className="cpm-chart__more" onToggle={e => setTable((e.target as HTMLDetailsElement).open)}>
+        <summary>Data table / CSV</summary>
+        {table && (
+          <>
+            <ObcButton variant="flat" onClick={csv}>Export CSV</ObcButton>
+            <pre className="cpm-chart__table" data-testid="cpm-chart-table">{toCsv(props.series)}</pre>
+          </>
+        )}
+      </details>
     </div>
   );
 };

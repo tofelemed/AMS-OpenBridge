@@ -13,7 +13,9 @@ import type { GateViewProps } from '../EvidenceArtifactRenderer';
 import { IntervalLane, type LaneInterval } from './primitives/IntervalLane';
 import { Trajectory } from './primitives/Trajectory';
 import { TimelineTable, type TimelineRow } from './primitives/TimelineTable';
-import { RequireKinds, col, first, markersWhere } from './viewSupport';
+import { RequireKinds, col, first, markersAt, markersWhere } from './viewSupport';
+import { fmtQuantity } from '../format';
+import { formatInZone } from '../timezone';
 
 const P = (d: DecodedArtifact, k: string) => d.meta.provenance?.[k];
 
@@ -24,17 +26,42 @@ export function episodes(d: DecodedArtifact | undefined, labelOf: (i: number) =>
 }
 
 // ── G5 ─────────────────────────────────────────────────────────────────────────────────────────
+/** crossing_times: x = seconds from the window start (provenance window_start_ms), y = ordinal. */
+export function crossingInstantsMs(crossings: DecodedArtifact, fallbackStartMs: number | undefined): number[] {
+  const start = Number(P(crossings, 'window_start_ms'));
+  const base = Number.isFinite(start) ? start : (fallbackStartMs ?? NaN);
+  return Number.isFinite(base) ? Array.from(crossings.columns.x, s => base + s * 1000) : [];
+}
+
 export const G5Body: React.FC<{ acf: DecodedArtifact; signal: DecodedArtifact | undefined; crossings: DecodedArtifact | undefined; timeZone: string }> = ({ acf, signal, crossings, timeZone }) => {
   const acfSeries = col(acf, 'y', 'acf_value', 'accent', { unit: '1', markers: false });
   const pairs = col(acf, 'acf_pair_count', 'acf_pair_count', 'grey', { unit: 'count', dashed: true });
-  const crossingMarkers: CpmSeries | null = crossings ? { id: 'crossings', label: 'crossing_times', unit: '1', x: crossings.columns.x, y: Array.from(crossings.columns.x, () => 0), pen: 'bad', markers: true } : null;
+  // audit F17: the crossings are instants ON the centred signal (y = 0), not a chart of their own
+  const instants = crossings ? crossingInstantsMs(crossings, signal?.columns.x[0]) : [];
+  const signalUnit = signal?.units.y ?? 'EU_centred';
+  const signalSeries: CpmSeries[] = signal ? [col(signal, 'y', 'preprocessed_signal', 'good', { unit: signalUnit })] : [];
+  if (signal && instants.length) signalSeries.push(markersAt(instants, 0, 'crossings', 'zero crossings', 'bad', signalUnit));
   return (
     <section className="cpm-surface">
-      <PanelHead eyebrow="G5" title="Oscillation from the autocorrelation" right={<TonePill tone="muted">period {P(acf, 'period_s') ?? '—'} s · regularity {P(acf, 'regularity') ?? '—'}</TonePill>} />
-      {signal && <CpmChart title={`preprocessed_signal (${P(signal, 'preprocessing') ?? 'basis not declared'})`} series={[col(signal, 'y', 'preprocessed_signal', 'good', { unit: signal.units.y ?? 'EU_centred' })]} xKind="time" timeZone={timeZone} height={160} />}
+      <PanelHead eyebrow="G5" title="Oscillation from the autocorrelation"
+        right={<TonePill tone="muted">period {fmtQuantity(P(acf, 'period_s'), 's')} · regularity {fmtQuantity(P(acf, 'regularity'), '1')}</TonePill>} />
+      {signal && <CpmChart title={`preprocessed signal (${P(signal, 'preprocessing')?.replace(/;/g, ' · ') ?? 'basis not declared'}) with the zero crossings`} series={signalSeries} xKind="time" timeZone={timeZone} height={200} />}
       <CpmChart title="ACF versus lag (s); pair counts on their own axis" series={[acfSeries, pairs]} xKind="value" xLabel="acf_lag_s" xUnit="s" height={220} />
-      {crossingMarkers && <CpmChart title="crossing_times (s from window start)" series={[crossingMarkers]} xKind="value" xLabel="crossing_times" xUnit="s" height={110} />}
-      <KvRow label="accepted_cycles / regularity_method">{P(acf, 'accepted_cycles') ?? '—'} / {P(acf, 'regularity_method') ?? '—'} — too few cycles or inadequate sampling reject the estimate</KvRow>
+      {crossings && instants.length > 0 && (
+        <details className="cpm-chart__more">
+          <summary>{instants.length} zero crossings</summary>
+          <table className="cpm-table" aria-label="Zero crossings" data-table="crossings">
+            <thead><tr><th>#</th><th>t from window start</th><th>instant</th><th>Δ to previous</th></tr></thead>
+            <tbody>
+              {Array.from(crossings.columns.x).slice(0, 500).map((s, i, all) => (
+                <tr key={i}><td>{i + 1}</td><td>{fmtQuantity(s, 's')}</td><td>{formatInZone(instants[i], timeZone)}</td><td>{i > 0 ? fmtQuantity(s - all[i - 1], 's') : '—'}</td></tr>
+              ))}
+            </tbody>
+          </table>
+          {crossings.columns.x.length > 500 && <p className="cpm-copy">First 500 of {crossings.columns.x.length}; the CSV of the signal chart carries every instant.</p>}
+        </details>
+      )}
+      <KvRow label="Accepted cycles / regularity method">{fmtQuantity(P(acf, 'accepted_cycles'), 'count')} / {P(acf, 'regularity_method') ?? '—'} — too few cycles or inadequate sampling reject the estimate</KvRow>
     </section>
   );
 };
@@ -90,8 +117,8 @@ export const G7Body: React.FC<{ cycles: DecodedArtifact[] }> = ({ cycles }) => {
         <tbody>
           {cycles.map(c => (
             <tr key={c.meta.artifactId} data-accepted={P(c, 'accepted')}>
-              <td>{P(c, 'cycle_id')}</td><td>{P(c, 'accepted')}</td><td>{Number(P(c, 'sse_sine')).toPrecision(4)}</td><td>{Number(P(c, 'sse_triangle')).toPrecision(4)}</td>
-              <td>{Number(P(c, 'cycle_score')).toPrecision(3)}</td><td>{Number(P(c, 'amplitudes')).toPrecision(4)}</td><td>{Number(P(c, 'phases')).toPrecision(3)}</td><td>{P(c, 'reject_reason') || '—'}</td>
+              <td>{P(c, 'cycle_id')}</td><td>{P(c, 'accepted')}</td><td>{fmtQuantity(P(c, 'sse_sine'), 'EU')}</td><td>{fmtQuantity(P(c, 'sse_triangle'), 'EU')}</td>
+              <td>{fmtQuantity(P(c, 'cycle_score'), 'fraction')}</td><td>{fmtQuantity(P(c, 'amplitudes'), 'EU')}</td><td>{fmtQuantity(P(c, 'phases'), 'fraction')}</td><td>{P(c, 'reject_reason') || '—'}</td>
             </tr>
           ))}
         </tbody>
@@ -133,7 +160,7 @@ export const G9Body: React.FC<{ polygons: DecodedArtifact[]; pairs: DecodedArtif
       {corners && <CpmChart title="turning angle per sample (corner mask as markers)" series={[col(corners, 'y', 'turning_angle', 'accent', { unit: 'rad' }), markersWhere(corners, 'mask', 'y', 'corners', 'bad', 'rad')]} xKind="time" timeZone={timeZone} height={160} />}
       <table className="cpm-table">
         <thead><tr><th>cycle_id</th><th>area</th><th>bbox_area</th><th>points scored</th></tr></thead>
-        <tbody>{polygons.map(p => <tr key={p.meta.artifactId}><td>{P(p, 'cycle_id')}</td><td>{Number(P(p, 'area')).toPrecision(4)}</td><td>{Number(P(p, 'bbox_area')).toPrecision(4)}</td><td>{p.n}</td></tr>)}</tbody>
+        <tbody>{polygons.map(p => <tr key={p.meta.artifactId}><td>{P(p, 'cycle_id')}</td><td>{fmtQuantity(P(p, 'area'), 'fraction')}</td><td>{fmtQuantity(P(p, 'bbox_area'), 'fraction')}</td><td>{p.n}</td></tr>)}</tbody>
       </table>
       <KvRow label="qualification_steps">{firstPoly ? P(firstPoly, 'qualification_steps') ?? '—' : '—'} — geometry stays supporting under the correct policy</KvRow>
     </section>

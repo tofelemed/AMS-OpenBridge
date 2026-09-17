@@ -192,6 +192,10 @@
 .cpm-chart { display: flex; flex-direction: column; gap: 4px; }
 .cpm-chart__bar { display: flex; align-items: center; gap: 8px; }
 .cpm-chart__title { flex: 1; font-size: 0.85rem; color: var(--element-neutral-color); }
+.cpm-chart__note { font-size: 0.75rem; color: var(--element-neutral-color); }
+.cpm-chart__more { font-size: 0.8rem; }
+.cpm-chart__more > summary { cursor: pointer; color: var(--element-neutral-color); padding: 4px 0; }
+.cpm-chart__more > summary:hover { color: var(--element-active-color); }
 .cpm-chart__table {
   margin: 0;
   max-height: 320px;
