@@ -1659,6 +1659,12 @@ cplm-api, stop Postgres and restart jobs): `test-cpm-v25-reliability.ps1`, `cpm-
 (→ `docs/next-release/04-load-report.md`). **The bundle is NOT built and the tag is NOT set yet** -
 `build-release.py --release v2.5` runs after the tour, from a clean tree.
 
+**Evidence Workbench redesign (2026-09-17, after the rendered frontend audit — `docs/next-release/05-frontend-audit-2026-09-17.md`):**
+`cplm-api` gains the KPI rows' run identity, `GET /loops/{id}/gates?projection=summary`, `POST /method-runs/evidence/batch`
+and `GET /method-runs/{id}/evidence/bundle` (all additive; `EvidenceApiTests`, `KpiReadsTests`, `GateMatrixProjectionTests`);
+`ams-frontend` carries the redesigned workbench (`WHATS-NEW-v2.5.md` §3.5 describes the new flow). Both images are on the lab;
+they are in the v2.5 manifest already, nothing else changes for the plant.
+
 **Updated services (build these, nothing else) — manifest `migration/deploy/releases/v2.5.txt`:**
 
 | Compose service | Image | Carries |

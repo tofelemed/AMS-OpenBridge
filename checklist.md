@@ -78,6 +78,7 @@ _Last updated: 2026-09-17 11:00 (Phases 0-3 implemented, committed and lab-prove
 | 4.2 full verification on a clean tree | 🔄 **suites re-run 2026-09-17 10:43–10:52 on the clean tree at 1cc8a8b4, all green** (table below); the five v2.5 images rebuilt from HEAD with `SOURCE_COMMIT` and recreated on the lab (all healthy; `/capabilities` service commit = HEAD, six workers on jar 4ea1da78, 70 readable ids intact after the cplm-api tests); the slice E2Es stand from Phases 1–3 (18/18, 19/19, 14/14). **Pending:** `test-cpm-v25-reliability.ps1` and `cpm-v25-load-probe.py --minutes 30` → `04-load-report.md` (they kill cplm-api / stop Postgres / restart jobs, so they run after the user's manual test tour, not during it); NR table in `03-acceptance-evidence.md` then finalised |
 | 4.2b user test tour | 🔄 `WHATS-NEW-v2.5.md` (repo root) — what was added, where in the UI, how to try it, the OT/Instrumental ingestion contract, how it fits; lab prepared: OT sim on the pilot loops for 8 h (pid 16756, `--exclude FIC10302`) |
 | 4.2c frontend audit (user: "audit the system - check that what you are telling me really implemented") | 🔄 `docs/next-release/05-frontend-audit-2026-09-17.md` — rendered audit of 18 pages + 3 flows + all 17 gate views with Playwright (`scripts/validation/ui-v25-{audit,probe,gates}.mjs`): 0 console errors / 0 failed calls; **three defects fixed** (v2.5 pages missing from the sidebar/palette — slice whitelist; two active nav entries; G7 view crashed the workbench on >1 accepted cycle) with tests (frontend 121/121); **22 findings** ranked, F4 (stale "latest" verdict disables the workbench launcher fleet-wide) and F10 (three v2.5 jobs unsupervised) are API-side; redesign proposal for the three new pages awaits the user's go |
+| 4.2d Evidence Workbench redesign (user-approved plan 2026-09-17: gate strip, collapsible explain column, fused + short windows, batch APIs, performance budget) | ✅ 13 tasks, TDD, one commit each (87858877 … 4e62b25a): cplm-api KPI run ids + `projection=summary` + `POST /method-runs/evidence/batch` + `GET /method-runs/{id}/evidence/bundle` (`KpiReadsTests`, `GateMatrixProjectionTests`, `EvidenceApiTests`; cplm-api 164/164); frontend `format`, state vocabulary (NOT_RETAINED / SHORT_TIER), `gateFacts` / `verdictCopy` / `headlines`, `GateChipStrip`, `EvidenceHeaderStrip` + `CopyableId`, `VerdictCard` + `WindowFlags`, `ExplainPanel`, `useEvidenceWindows` + `EvidenceToolbar`, shell rewrite (toolbar → facts → strip → reading + explain), `HistorianLanes` fallback, chart disclosure + LTTB sampling + G5 crossings as markers; frontend **191/191**, lint + build clean; lab re-audit `ui-v25-gates.mjs` 17/17 render, 12–13 requests per cold gate open (G9 was ~50), first chart 0.9–2.6 s |
 | 4.3 build the bundle (`build-release.py --release v2.5`); tracker release section final; tag `v2.5` | ⬜ after the user's testing and the audit follow-up (needs a clean tree; bundle = `git archive HEAD`) |
 
 ## Verification status (last runs, lab)
@@ -85,10 +86,10 @@ _Last updated: 2026-09-17 11:00 (Phases 0-3 implemented, committed and lab-prove
 | Suite / script | Result | When |
 |---|---|---|
 | Flink `mvn -o test` (Docker Maven) | **266 run / 0 failures / 2 skipped** | 2026-09-17 10:50 (Phase 4.2, clean tree 1cc8a8b4) |
-| cplm-api tests (lab DB, run alone) | **159 / 159** | 2026-09-17 10:51 |
+| cplm-api tests (lab DB, run alone) | **164 / 164** | 2026-09-17 (batch APIs) |
 | ingestion-service tests | **212 / 212** | 2026-09-17 10:44 |
 | binding-resolver / historian-bff tests | 5 / 5 · 4 / 4 | 2026-09-17 10:44 |
-| frontend vitest / lint / build | **121 / 121 · clean · OK** (101 + the audit's 20) | 2026-09-17 13:05 |
+| frontend vitest / lint / build | **191 / 191 · clean · OK** | 2026-09-17 (workbench redesign) |
 | `scripts/validation/ui-v25-audit.mjs` (rendered UI audit, lab) | 18 pages + 3 flows, 0 console errors, 0 failed calls; 17/17 gate views open after the G7 fix | 2026-09-17 13:10 |
 | auth-service `tsc --noEmit` | clean | 2026-09-17 10:45 |
 | simulator pytest | 17 / 17 | 2026-09-17 10:45 |

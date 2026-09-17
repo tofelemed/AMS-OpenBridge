@@ -34,6 +34,12 @@ describe('gate facts', () => {
     expect(p.find(x => x.key === 'acf_series.period_s')).toMatchObject({ raw: '290.23199999999997', text: '290.2 s', kind: 'acf_series' });
     expect(p.find(x => x.label === 'Preprocessing')!.text).toBe('LINEAR_DETREND · SUBTRACT_MEAN');
     expect(p.some(x => x.key.includes('loop_id'))).toBe(false);
+    // per-item artifacts (one per cycle) are results, not parameters
+    const perCycle = { artifacts: [
+      { gate: 'G9', kind: 'cycle_polygon', provenance: { cycle_id: '0', area: '1' } }, { gate: 'G9', kind: 'cycle_polygon', provenance: { cycle_id: '1', area: '2' } },
+      { gate: 'G9', kind: 'corners', provenance: { mask: 'x' } },
+    ] } as unknown as EvidenceManifest;
+    expect(parametersOf(perCycle, 'G9')).toEqual([]);
   });
 
   it('names the identity of a run as labelled values', () => {

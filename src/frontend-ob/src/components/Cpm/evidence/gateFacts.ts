@@ -35,8 +35,13 @@ export interface RunParameter { key: string; kind: string; raw: string; label: s
 
 export function parametersOf(manifest: EvidenceManifest | undefined, gate: string): RunParameter[] {
   const out = new Map<string, RunParameter>();
-  for (const a of manifest?.artifacts ?? []) {
-    if (a.gate !== gate) continue;
+  const own = (manifest?.artifacts ?? []).filter(a => a.gate === gate);
+  // a kind that appears many times (cycle_fit x N, cycle_polygon x N) carries per-item RESULTS, not the
+  // parameters the run used; only singleton artifacts' provenance is a parameter (lab: G9 showed "Cycle 9, Area 19.58")
+  const kindCount = new Map<string, number>();
+  for (const a of own) kindCount.set(a.kind, (kindCount.get(a.kind) ?? 0) + 1);
+  for (const a of own) {
+    if ((kindCount.get(a.kind) ?? 0) > 1) continue;
     for (const [k, v] of Object.entries(a.provenance ?? {})) {
       if (IDENTITY_KEYS.has(k)) continue;
       const raw = String(v);

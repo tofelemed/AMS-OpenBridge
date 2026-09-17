@@ -43,7 +43,7 @@ clean; `pytest scripts/sim` **17 / 17**. Lab E2E results are recorded in `change
 | 028 | Upstream link but no peer measurements | `InteractionMathTest`, `FusionInteractionTest` (`UNAVAILABLE / PEER_UNOBSERVED`, never a disturbance context); lab: slice-2 E2E G13 steps | 47dfbaa0, a8d6df4e, 6bdcfd78 | unit pass; lab per CHG-027 |
 | 029 | Repeated overlapping windows | `EventFrameLifecycleTests` (`qualified_support_ms` union; overlapping windows do not multiply persistence) | 3535c78a | unit pass |
 | 030 | No data or NAMUR source outage | `EventFrameLifecycleTests` (missing evidence never closes an episode: `availability_state`), `eventsState.test.ts`; slice-1 E2E availability step | 3535c78a | unit + lab pass |
-| 031 | Historical gate click (UI) | `GateEvidenceWorkspace.test.tsx` (renders from an immutable selection, never `/gates/latest`; URL restores the selection) | 5c986106 | unit pass |
+| 031 | Historical gate click (UI) | `GateEvidenceWorkspace.test.tsx` (renders from an immutable selection, never `/gates/latest`; URL restores the selection; a loop alone lands on its newest window with run identity, URL replaced; the gate strip, the steppers and Newest navigate within the loaded windows) | 5c986106, dc8b7cef | unit pass; lab: `ui-v25-gates.mjs` 17/17 gate views open (2026-09-17) |
 | 032 | G5–G9 artifact panels | `GateArtifactsTest` (every gate's artifact set equals the workbook field list), 17 views (`views.test.tsx`); lab: slice-2 E2E "G5 acf_series has length and G6 psd declares ordinate_kind PSD" | 19727d1d, f5f4d20a | unit pass; lab per CHG-027 |
 | 033 | Mixed engineering units | `CpmChart.test.ts`, `chartOption.test.ts` (one axis per unit group; 400 °C PV and 0–100 pp OP both legible) | 8ec77afb, f909830e | unit pass |
 | 034 | Unavailable method artifact | `classifyGateResult.test.ts` (9 states), `views.test.tsx` (unavailable artifact → `GateResultState`, never an empty chart), `EvidenceApiTests` (EXPIRED → 410) | 8ec77afb, f5f4d20a, 38f42e73 | unit pass |
@@ -75,6 +75,20 @@ clean; `pytest scripts/sim` **17 / 17**. Lab E2E results are recorded in `change
 | 060 | Retention expiration with investigation evidence | `EvidenceRetentionTests` (pinned survives, unpinned EXPIRED, chunks gone, manifest kept), `EvidenceApiTests` (410 `EVIDENCE_EXPIRED`), `InvestigationsApiTests` (a pin survives the sweeper); lab: CHG-027 retention cycle EXPIRED → reconstruct → ATTACHED | 04bdb7d5, 7af35971, 117a9622 | unit + lab pass |
 | 061 | Declared target load and latency | `scripts/cpm-v25-load-probe.py` → `docs/next-release/04-load-report.md` (this host's numbers: source → emission, source → tuple, checkpoints, consumer lag, evidence rate; stated deviations: one response event per ~8 min scenario, not five per minute) | 75744c77 | measured on the lab (see the report) |
 | 062 | Completed work but inconclusive response | `InvestigationsApiTests` (outcome explicit, default INCONCLUSIVE; WORK_COMPLETED ≠ PERFORMANCE_RESTORED); lab: slice-2 E2E investigation step | 7af35971, 729ae54e | unit pass; lab per CHG-027 |
+
+## Rendered audit of the Evidence Workbench (2026-09-17, redesign)
+
+`scripts/validation/ui-v25-gates.mjs` opens every gate of one fused window of FIC10405 (24h, INSUFFICIENT_DATA,
+run ids present) on the lab frontend and records what renders, the API requests issued for the page load and the
+time from navigation to the first drawn chart or stated panel. Result at commit `4e62b25a` (frontend image
+built from it): **17 / 17 gates render**, 0 page errors, no horizontal overflow at 1600 px; every gate open is
+**12–13 requests** on a cold page load (6 of them the app's own bootstrap: auth refresh + me, filters, loops,
+resolutions, catalogue; the workbench's own are the method run, the summary window list, ONE batch-manifests
+POST, ONE bundle per run read - G9's 34 polygon artifacts arrive in one response - and the two bucketed
+historian trend reads for the context lanes); first chart in **0.9–2.6 s** (G5 1.2 s, G7 1.0 s, G9 2.1 s, G15
+2.6 s). Before the redesign G9 was ~50 requests and the G7 view crashed the page. A token refresh crossing the
+probe made two gates stall once (`POST /api/auth/refresh` mid-run; the batch fell back to single reads) - an
+app-level refresh race noted for the Response/Config follow-up, not a workbench defect.
 
 ## Not automated (stated)
 

@@ -148,6 +148,17 @@ a picker), and **the columns carry meaning** (navigate · read · explain), not 
 F4 (latest semantics) and F10 (supervise the three jobs) are cplm-api changes with UI follow-up;
 F11, F12, F21, F22 are small UI changes on existing pages.
 
+## 4.5 Done — the Evidence Workbench redesign (same day)
+
+Approved and implemented as 13 test-first commits (`87858877` … `4e62b25a`): F5 (skeletons; `aria-busy`), F6
+(landing = scope filter + loop search + window kind + evaluated window, newest window with run identity
+auto-selected), F7 (historian fallback lanes, labelled), F8 (SHORT_TIER state with a link to the short windows),
+F9 (NOT_RETAINED), F13 (one fact row, copyable ids), F14 (`fmtQuantity`, provenance labels), F15 (gate strip with
+statuses), F16 (plain "why this result"), F17 (crossings as markers + table), plus the performance budget:
+`projection=summary` picker rows, batch manifests, one bundle per run, LTTB sampling, disclosure for data
+tables. Measured on the lab: 17/17 gate views, 12–13 requests per cold gate open (G9 was ~50), first chart
+0.9–2.6 s. Still open from this list: F4 (fleet "latest" semantics), F10–F12, F18–F22.
+
 ## 5. Suggested order (each a commit with tests; lab re-audit with the scripts at the end)
 
 1. F4 latest semantics (API + matrix + launcher) — unblocks the workbench for the whole fleet.
