@@ -182,6 +182,18 @@ counted rather than listed. Observed while re-auditing: five probe runs inside 1
 limit on `POST /api/auth/refresh` (one 429 on the Performance page in the fifth run) - a probe cadence
 artefact, not a page defect.
 
+**Performance of the two redesigned pages (user: "also performance?"):** measured with
+`scripts/validation/ui-v25-pages-perf.mjs` (requests, bytes, per-call ms, time to first chart / table, idle
+polling) - numbers in `03-acceptance-evidence.md`. What bounds each page: Response - the event list is
+cursor-paged (50) and leaves the censored candidates out by default (7 rows instead of 328 on the lab), the event
+detail is immutable (`staleTime: Infinity`), the evidence arrives as ONE batch-manifest POST + ONE bundle per run,
+a COMPLETE manifest is never polled (it was, every 15 s - fixed), charts sample above 5k points, the 52-row
+catalogue renders inside a closed disclosure; Configuration - one catalogue read (71 KB, cached 5 min), one
+bundle read, the table renders only the selected gate's properties with ONE editor mounted, the ACK matrix is
+folded, deployments are limited to 20. The probe found the real cost on the server: the run lookup behind every
+evidence read (unindexed short / long tables) and an unbounded minute reconcile - both fixed (`48a36cd4`,
+`dd09fec6`): opening an event went from 15.3 s to 1.0–2.6 s on a cold document load.
+
 ## 5. Suggested order (each a commit with tests; lab re-audit with the scripts at the end)
 
 1. F4 latest semantics (API + matrix + launcher) — unblocks the workbench for the whole fleet.

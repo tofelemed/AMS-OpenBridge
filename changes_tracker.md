@@ -1674,6 +1674,14 @@ redesigned System Response and Gate Configuration pages, the Loop Explorer loop 
 on Loop Events and the "latest is the newest window" reading everywhere (frontend tests 225/225). Same two
 images, same manifest; test counts below are the current ones.
 
+**Performance follow-up, same day (`03-acceptance-evidence.md`, "System Response and Gate Configuration measured"):**
+`scripts/cpm-07-v25-schema.sql` (and `database/scripts/53`) gain three indexes - GIN on `method_run_ids` for
+`cplm_short_feature_results` and `cplm_long_feature_results`, partial `ix_evidence_manifest_unlinked` - all
+`IF NOT EXISTS`, online, minutes on a plant-sized short table; the plant applies cpm-07 before the swap exactly as
+listed (no extra step). `cplm-api` probes `response_event` first and through a materialized CTE, and its minute
+reconcile is bounded (was a three-minute UPDATE every minute on a lab-sized manifest table - on the plant it would
+have grown with the manifests). Result: a Response event opens in 1–2.6 s instead of 15 s; nothing else changes.
+
 **Updated services (build these, nothing else) — manifest `migration/deploy/releases/v2.5.txt`:**
 
 | Compose service | Image | Carries |
@@ -1695,7 +1703,7 @@ git status --short                                                   # must be e
 python scripts/gen-property-catalogue.py --check                     # the four catalogue copies are identical
 docker run --rm -v "D:\HMI_Project_Usama\AMS-open\src\flink:/build" -v "$env:USERPROFILE\.m2:/root/.m2" -w /build maven:3.9-eclipse-temurin-11 mvn -q -o test   # 0 failures
 dotnet test tests/ingestion-service.Tests                            # 212
-dotnet test tests/cplm-api.Tests                                     # 171 (lab Postgres on 5433)
+dotnet test tests/cplm-api.Tests                                     # 176 (lab Postgres on 5433)
 dotnet test tests/binding-resolver.Tests
 docker run --rm -d --name snaptest-redis -p 6390:6379 redis:7.2-alpine; dotnet test tests/historian-bff.Tests; docker rm -f snaptest-redis
 cd src/frontend-ob; npm test; npm run lint; npm run build; cd ..\..    # 225, lint + build clean

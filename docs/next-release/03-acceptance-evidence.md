@@ -101,6 +101,40 @@ cadence, not a page defect. Screenshots reviewed: System Response (result card, 
 candidates counted, steps A–H, key results, catalogue folded), Gate Configuration (property table, tabs,
 lifecycle column, deployments timeline), Loop Events (fast conditions with stale opens stated).
 
+**System Response and Gate Configuration measured (`scripts/validation/ui-v25-pages-perf.mjs`, 2026-09-17
+18:40–19:30; each step is a cold document load, so the app's own bootstrap - refresh + me, filters, the 177 KB
+loop list - is inside every number; an in-app navigation pays none of it):**
+
+| Step | Requests | Bytes | Ready (first chart / property table) | Idle 60 s |
+|---|---|---|---|---|
+| Response landing | 5 | 180 KB | 0.5 s | 0 requests |
+| Response, loop chosen (event list) | 6 | 196 KB | 0.5–2.0 s | 0 |
+| Response, one event (result card, 7 charts, aside) | 9 | 239 KB | **1.0–2.6 s** (was **15.3 s**) | **0** (was 3 manifest polls / min) |
+| Config landing | 5 | 340 KB | 0.2–0.5 s | 0 |
+| Config, loop scope (bundle list) | 5 | 323 KB | 0.4–1.4 s | 0 |
+| Config, active bundle, G0 (21 rows) | 7 | 363 KB | **0.3 s** | 0 |
+| Config, same bundle, G12 (38 rows) | 7 | 363 KB | 0.2–1.3 s | 0 |
+
+The probe found two cplm-api defects behind the 15 s, both fixed and pinned by tests (`48a36cd4`, `dd09fec6`):
+(1) every evidence read (manifest, batch, bundle) resolves the run's location through `MethodRunResolver`,
+whose containment probe seq-scanned the short (119k rows) and long result tables - only the fusion table had a
+GIN index on `method_run_ids`, and the planner walked `created_at` under `LIMIT 1` even there; the two tables
+gain GIN indexes (scripts 53 / `cpm-07-v25-schema.sql`, boot schema parity), the probe runs in a MATERIALIZED CTE
+and `response_event` is probed first - a G12 manifest read went 2.3–3.3 s → 0.25 s; (2) the evidence consumer's
+minute reconcile joined every unlinked manifest of the day (108k on the lab, 97 % of them, because it looked only
+in the fusion table) with a per-row containment probe - a three-minute UPDATE re-run every minute whose lock
+queue the reads waited on (a 27 s manifest read; the "cold-start 9–16 s" gate opens recorded above were this) -
+it now links per tier from the last 20 minutes of rows, index-joined (`ix_evidence_manifest_unlinked`): 18 ms.
+On the lab the two oldest short-table chunks are TimescaleDB-compressed and are decompressed on every short-tier
+probe (~0.5 s; prod tables are plain and fully indexed).
+
+**Observed, not fixed (outside the pages; needs a decision):** the gateway's rate limiter fails CLOSED on a
+Redis timeout for the "mutation" class, and `POST /api/auth/refresh` is in that class - a 1.1 s Redis stall on
+the lab host (slowlog: `INFO replication` 1,139 ms; Redis otherwise 0–1 ms, 1 op/s) turned into a 429 on refresh
+and the SPA stayed blank until the next reload; in the same minutes every in-flight gateway request took +7 s
+(`/gw/metrics` 6.4 s), i.e. the gateway stalls as a whole while its Redis client times out. A token refresh
+is not a plant-state mutation: it should fail OPEN like reads, and the limiter must not hold request threads.
+
 ## Not automated (stated)
 
 - **NR-061 target load**: the spec's declared load (171 loops × 5 s + 20 % quality-only + 5 response events / min) is approximated - the response event rate is bounded by the step simulator (one loop, ~8 min per event). The report says so.
