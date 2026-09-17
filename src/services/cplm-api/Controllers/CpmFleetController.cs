@@ -92,7 +92,6 @@ public sealed class CpmFleetController : ControllerBase
             // distinguish stiction from an upstream disturbance.
             capability = new
             {
-                confidenceCappedWithoutVp = 0.89,
                 loopsCappedByMissingVp = (registry?.total ?? 0) - (registry?.with_vp ?? 0),
                 loopsWithoutDisturbanceContext = (registry?.total ?? 0) - (registry?.with_peer_links ?? 0)
             }

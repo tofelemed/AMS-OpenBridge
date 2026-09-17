@@ -16,6 +16,7 @@ import { PlantScopeFilter, useCpmScope } from './plantScope';
 import { useCpmEvents, useFleetRankings, useFleetSummary } from '../../hooks/useCpm';
 import GoodErrorBar from './overview/GoodErrorBar';
 import PipelinePanel from './overview/PipelinePanel';
+import { peersCopy, positionerCopy } from './overview/capabilityCopy';
 import LoopFocus from './overview/LoopFocus';
 import FocusedLoopDrawer from './overview/FocusedLoopDrawer';
 
@@ -85,12 +86,13 @@ export const CpmOverview: React.FC = () => {
         <KpiTile caption="Need attention" tone={needAttention > 0 ? 'warn' : 'good'}
           value={summary.data ? needAttention : '…'}
           sub={summary.data ? `${fleetEvaluated} loop(s) evaluated` : undefined} />
-        <KpiTile caption="Confidence-capped (no VP)" tone={summary.data && summary.data.capability.loopsCappedByMissingVp > 0 ? 'warn' : 'good'}
+        {/* v2.5 (audit F11): the registry counts are the same; what they mean under fusion v2 is said (capabilityCopy) */}
+        <KpiTile caption={positionerCopy(summary.data?.capability.loopsCappedByMissingVp ?? 0).caption} tone={summary.data && summary.data.capability.loopsCappedByMissingVp > 0 ? 'warn' : 'good'}
           value={summary.data?.capability.loopsCappedByMissingVp ?? '…'}
-          sub="cannot reach CONFIRMED" />
-        <KpiTile caption="Without disturbance context" tone={summary.data && summary.data.capability.loopsWithoutDisturbanceContext > 0 ? 'warn' : 'good'}
+          sub={summary.data ? positionerCopy(summary.data.capability.loopsCappedByMissingVp).sub : undefined} />
+        <KpiTile caption={peersCopy(summary.data?.capability.loopsWithoutDisturbanceContext ?? 0).caption} tone={summary.data && summary.data.capability.loopsWithoutDisturbanceContext > 0 ? 'warn' : 'good'}
           value={summary.data?.capability.loopsWithoutDisturbanceContext ?? '…'}
-          sub="no peer links (G13)" />
+          sub={summary.data ? peersCopy(summary.data.capability.loopsWithoutDisturbanceContext).sub : undefined} />
       </div>
 
       <PipelinePanel />

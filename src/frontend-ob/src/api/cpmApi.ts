@@ -305,7 +305,6 @@ export interface CpmFleetSummary {
   loops: { total: number; monitored: number; withPeerLinks: number; withVp: number };
   diagnoses: { diagnosis: string; count: number }[];
   capability: {
-    confidenceCappedWithoutVp: number;
     loopsCappedByMissingVp: number;
     loopsWithoutDisturbanceContext: number;
   };

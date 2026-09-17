@@ -30,6 +30,7 @@ import { PlantScopeFilter, useCpmScope } from './plantScope';
 import GateRollup from './GateRollup';
 import GateMatrix, { type MatrixScope } from './GateMatrix';
 import GateEvidencePanel, { GateGuidePanel } from './GateEvidencePanel';
+import { diagnosticCapabilityCopy } from './overview/capabilityCopy';
 import AttentionList, { type RankBy } from './AttentionList';
 import { useBadActors } from './useBadActors';
 import { buildTierGroups, isRowFilter, latestWindowEnd } from './gateStatus';
@@ -250,10 +251,8 @@ export const CpmPerformance: React.FC = () => {
             fleet fact that changes what an engineer does next. */}
         <KpiTile caption="Diagnostic capability"
           tone={capped != null && capped > 0 ? 'warn' : 'good'}
-          value={capped != null && fleetTotal != null ? `${fleetTotal - capped}/${fleetTotal}` : '—'}
-          sub={capped == null ? 'fleet capability unavailable'
-            : capped > 0 ? `${capped} loop(s) without VP — final-element faults cannot be CONFIRMED there`
-              : 'every loop can reach CONFIRMED'} />
+          value={diagnosticCapabilityCopy(fleetTotal ?? null, capped).value}
+          sub={diagnosticCapabilityCopy(fleetTotal ?? null, capped).sub} />
       </div>
 
       <section className="cpm-surface">
