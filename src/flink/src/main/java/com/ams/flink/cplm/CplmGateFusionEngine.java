@@ -117,6 +117,10 @@ public final class CplmGateFusionEngine implements Serializable {
         // BEFORE any early return, so every row carries it.
         result.longMetricsQualified =
                 shortF.sufficientData && !"FAIL".equalsIgnoreCase(shortF.gate0Status);
+        // v2.5 (2F.1): the long tier's G13 analysis identity rides the fused row even when the window is
+        // excluded below - an excluded window reads NOT_EVALUATED with the analysis state and reason, never
+        // "LEGACY_FLAG_ONLY" (that label is reserved for a long row that carries no analysis at all).
+        carryInteractionIdentity(result, longD);
 
         if (!shortF.sufficientData) {
             return BlockingExclusions.insufficientData(result);
@@ -287,6 +291,15 @@ public final class CplmGateFusionEngine implements Serializable {
      * row without the analysis keeps the legacy link flag, labelled LEGACY_FLAG_ONLY, and that
      * flag never drives a verdict.
      */
+    private static void carryInteractionIdentity(CplmGateResult result, CplmLongDiagnosticsResult longD) {
+        com.ams.flink.cplm.engine.InteractionSummary ia = longD == null ? null : longD.interaction;
+        if (ia == null) return;
+        result.interaction = ia;
+        result.gate13Method = ia.methodId;
+        result.gate13Reason = ia.reason;
+        result.hasPeerLinks = !ia.peers.isEmpty();
+    }
+
     private static void stampContextGates(CplmGateResult result, boolean hasStepTestEvidence, boolean hasPeerLinks, CplmLongDiagnosticsResult longD) {
         com.ams.flink.cplm.engine.InteractionSummary ia = longD == null ? null : longD.interaction;
         result.interaction = ia;

@@ -13,6 +13,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -101,6 +102,24 @@ public class FusionInteractionTest {
         assertTrue(o.present);
         assertEquals(0.94, o.score, 1e-9);
         assertEquals("SUPPORTING", o.role);
+    }
+
+    @Test
+    public void anExcludedWindowStillNamesTheAnalysisAndItsReasonNeverLegacy() {
+        // lab finding (2026-09-17): a cold 24 h window fails G0, the fused row is EXCLUDED before the context
+        // gates are stamped, and read "LEGACY_FLAG_ONLY" as if an old jar had produced it
+        CplmLongDiagnosticsResult l = oscillating();
+        l.interaction = summary("NOT_CONFIGURED", "NO_PEER_LINKS", "NONE", false, Double.NaN);
+        l.interaction.peers.clear();
+        CplmShortFeatureResult s = shortF();
+        s.gate0Status = "FAIL";
+        CplmGateResult r = CplmGateFusionEngine.fuse(s, l, false, false, tic());
+        assertEquals("EXCLUDED_DATA_QUALITY", r.diagnosis);
+        assertEquals("NOT_EVALUATED", r.gate13Status);
+        assertEquals(InteractionMath.METHOD_ID, r.gate13Method);
+        assertEquals("NO_PEER_LINKS", r.gate13Reason);
+        assertNotNull(r.interaction);
+        assertFalse(r.hasPeerLinks);
     }
 
     @Test
