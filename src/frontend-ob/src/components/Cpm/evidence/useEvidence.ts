@@ -18,13 +18,14 @@ export function useMethodRun(methodRunId: string | undefined) {
   });
 }
 
+/** `refetchMs` polls only while artifacts are still arriving (PENDING / PARTIAL); a COMPLETE manifest is immutable and never re-read. */
 export function useEvidenceManifest(methodRunId: string | undefined, refetchMs?: number) {
   return useQuery({
     queryKey: ['cpm', 'evidence-manifest', methodRunId ?? ''],
     queryFn: ({ signal }) => loadManifest(methodRunId!, signal),           // v2.5 batching: coalesced with the sibling reads
     enabled: !!methodRunId,
-    staleTime: 30_000,
-    refetchInterval: refetchMs,
+    staleTime: (q) => (q.state.data?.readiness === 'COMPLETE' ? Infinity : 30_000),
+    refetchInterval: refetchMs ? (q) => (q.state.data && q.state.data.readiness !== 'COMPLETE' ? refetchMs : false) : undefined,
   });
 }
 

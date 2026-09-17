@@ -37,19 +37,44 @@ public sealed class MethodRunResolver
     public static string? ReconstructionTier(string gate) =>
         ShortGates.Contains(gate) ? "short" : LongGates.Contains(gate) ? "long" : FusionGates.Contains(gate) ? "fusion" : null;
 
+    /// <summary>
+    /// 2026-09-17 (Response page 7-15 s per event): the tables in the order they are probed - the response
+    /// event first (a btree point lookup; a G12 run lives nowhere else), then the fusion, long and short
+    /// result tables through their GIN indexes on method_run_ids, the largest last.
+    /// </summary>
+    public static readonly (string tier, string table)[] ProbeOrder =
+    {
+        ("response", "analytics.response_event"),
+        ("fusion", "analytics.cplm_gate_results"),
+        ("long", "analytics.cplm_long_feature_results"),
+        ("short", "analytics.cplm_short_feature_results"),
+    };
+
+    /// <summary>
+    /// The row of a result table that carries the run. The containment probe runs in a MATERIALIZED CTE so the
+    /// planner answers it from the GIN index; with the probe inline under ORDER BY created_at LIMIT 1 it walked
+    /// the created_at index and filtered every row of every chunk on a miss (and most probes miss).
+    /// </summary>
+    public static string LookupSql(string table) => $"""
+        WITH hits AS MATERIALIZED (
+            SELECT id, loop_id, window_kind, window_start, window_end, sample_count, payload, created_at, method_run_ids, bundle_hash,
+                   context_revision, result_revision, purpose, analysis_run_id, source_commit, jar_sha256, dataset_hash, source
+            FROM {table} WHERE {ContainmentPredicate("@id")})
+        SELECT r.id, r.loop_id, r.window_kind, r.window_start, r.window_end, r.sample_count, r.payload::text AS payload, r.created_at,
+               r.method_run_ids::text AS method_run_ids, r.bundle_hash, r.context_revision, r.result_revision, r.purpose, r.analysis_run_id,
+               r.source_commit, r.jar_sha256, r.dataset_hash, r.source, l.site
+        FROM hits r LEFT JOIN cpm.loop_registry l ON l.loop_id = r.loop_id
+        ORDER BY r.created_at DESC LIMIT 1
+        """;
+
     public async Task<MethodRunLocation?> ResolveAsync(Guid id, CancellationToken ct)
     {
         await using var conn = await _db.OpenConnectionAsync(ct);
-        foreach (var (tier, table) in new[] { ("fusion", "analytics.cplm_gate_results"), ("short", "analytics.cplm_short_feature_results"), ("long", "analytics.cplm_long_feature_results") })
+        var fromEvent = await ResolveEventAsync(conn, id);
+        if (fromEvent is not null) return fromEvent;
+        foreach (var (tier, table) in ProbeOrder.Where(p => p.tier != "response"))
         {
-            var row = await conn.QueryFirstOrDefaultAsync($"""
-                SELECT r.id, r.loop_id, r.window_kind, r.window_start, r.window_end, r.sample_count, r.payload::text AS payload, r.created_at,
-                       r.method_run_ids::text AS method_run_ids, r.bundle_hash, r.context_revision, r.result_revision, r.purpose, r.analysis_run_id,
-                       r.source_commit, r.jar_sha256, r.dataset_hash, r.source, l.site
-                FROM {table} r LEFT JOIN cpm.loop_registry l ON l.loop_id = r.loop_id
-                WHERE {ContainmentPredicate("@id")}
-                ORDER BY r.created_at DESC LIMIT 1
-                """, new { id });
+            var row = await conn.QueryFirstOrDefaultAsync(LookupSql(table), new { id });
             if (row is null) continue;
             var gate = GateOf((string)row.method_run_ids, id) ?? "";
             return new MethodRunLocation(tier, gate,
@@ -58,6 +83,11 @@ public sealed class MethodRunResolver
                 (string?)row.source_commit, (string?)row.jar_sha256, (string?)row.dataset_hash, (string)row.source, (long)row.id,
                 (string)row.payload, (DateTime)row.created_at, (string?)row.site, (int?)row.sample_count, MapOf((string)row.method_run_ids));
         }
+        return null;
+    }
+
+    private static async Task<MethodRunLocation?> ResolveEventAsync(NpgsqlConnection conn, Guid id)
+    {
         var ev = await conn.QueryFirstOrDefaultAsync("""
             SELECT e.event_id, e.loop_id, e.t0_ms, e.t_end_ms, e.bundle_hash, e.context_revision, e.result_revision, e.purpose, e.analysis_run_id,
                    e.source_commit, e.jar_sha256, e.dataset_hash, e.result::text AS result, e.created_at, l.site

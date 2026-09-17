@@ -75,6 +75,12 @@ DO $$ DECLARE t text; BEGIN
   END LOOP; END $$;
 CREATE INDEX IF NOT EXISTS ix_cplm_gate_results_method_run_ids
     ON analytics.cplm_gate_results USING gin (method_run_ids);
+-- 2026-09-17: the run lookup (MethodRunResolver, behind every evidence read) probes the short and long
+-- tables too; without these two the probe seq-scanned 119k short rows per manifest read (Response page 7-15 s).
+CREATE INDEX IF NOT EXISTS ix_cplm_short_feature_results_method_run_ids
+    ON analytics.cplm_short_feature_results USING gin (method_run_ids);
+CREATE INDEX IF NOT EXISTS ix_cplm_long_feature_results_method_run_ids
+    ON analytics.cplm_long_feature_results USING gin (method_run_ids);
 CREATE INDEX IF NOT EXISTS ix_cplm_gate_results_analysis_run
     ON analytics.cplm_gate_results (analysis_run_id) WHERE analysis_run_id IS NOT NULL;
 
