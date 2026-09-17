@@ -27,6 +27,8 @@ import {
   matchesEventFilter as matches, supportCopy,
 } from './events/eventsState';
 import type { EventFilterKey as FilterKey } from './events/eventsState';
+import { ConditionsPanel } from './events/ConditionsPanel';
+import { useCpmConditions } from './events/useConditions';
 
 /** peak confidence → CPA's severity vocabulary. */
 function severityOf(e: CpmEventFrame): { label: string; tone: 'good' | 'warn' | 'bad' | 'muted' } {
@@ -85,6 +87,7 @@ export const CpmEvents: React.FC = () => {
   // so the loop registry supplies the location) and free text matches the loop,
   // family and diagnosis.
   const scope = useCpmScope();
+  const conditions = useCpmConditions(scope.params, false);
   const loopIndex = useMemo(() => {
     const m = new Map<string, CpmLoop>();
     for (const l of loopData?.loops ?? []) m.set(l.loopId.toLowerCase(), l);
@@ -254,6 +257,10 @@ export const CpmEvents: React.FC = () => {
           ? <EventDetail key={selected.id} event={selected} />
           : <section className="cpm-surface"><EmptyState title="Select an event" /></section>}
       </div>
+
+      {/* audit F22: the fast G10/G11 conditions (minutes) beside the fused episodes (hours) */}
+      <ConditionsPanel conditions={conditions.data?.conditions ?? []} isLoading={conditions.isLoading}
+        error={conditions.isError ? conditions.error : null} onRetry={() => void conditions.refetch()} />
     </div>
   );
 };

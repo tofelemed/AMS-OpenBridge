@@ -108,6 +108,23 @@ public static class ConditionEventStore
         LIMIT @limit
         """;
 
+    /// <summary>
+    /// 2026-09-17 audit F22: the fleet-wide list (registry scope; monitored or not - a condition is a
+    /// fact about the loop), open conditions first, then newest; the registry name rides along.
+    /// </summary>
+    public const string SelectFleetSql = """
+        SELECT c.loop_id, r.display_name, r.site, r.area, r.unit, c.gate, c.kind, c.state, c.start_ms, c.last_ms, c.end_ms,
+               c.duration_s, c.close_reason, c.evidence::text AS evidence, c.updated_at
+        FROM analytics.condition_event c
+        JOIN cpm.loop_registry r ON lower(r.loop_id) = lower(c.loop_id)
+        WHERE (@site::text IS NULL OR r.site = @site)
+          AND (@area::text IS NULL OR r.area = @area)
+          AND (@unit::text IS NULL OR r.unit = @unit)
+          AND (NOT @openOnly OR c.state <> 'CLOSED')
+        ORDER BY (c.state = 'CLOSED'), c.last_ms DESC
+        LIMIT @limit
+        """;
+
     private static string? Str(JsonElement r, string name) =>
         r.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
 

@@ -65,6 +65,34 @@ public sealed class CpmConditionsController : ControllerBase
         return Ok(new { loopId, count = conditions.Count, openOnly, conditions });
     }
 
+    /// <summary>2026-09-17 audit F22: every loop's fast conditions in scope, open first (the Loop Events page's Conditions section).</summary>
+    [HttpGet("conditions")]
+    public async Task<IActionResult> GetFleetConditions(
+        [FromQuery] string? site = null, [FromQuery] string? area = null, [FromQuery] string? unit = null,
+        [FromQuery] bool openOnly = false, [FromQuery] int limit = 200, CancellationToken ct = default)
+    {
+        limit = Math.Clamp(limit, 1, 2000);
+        await using var conn = await _dataSource.OpenConnectionAsync(ct);
+        var rows = await conn.QueryAsync(ConditionEventStore.SelectFleetSql, new { site, area, unit, openOnly, limit });
+        var conditions = rows.Select(r => new
+        {
+            loopId = (string)r.loop_id,
+            displayName = (string?)r.display_name,
+            site = (string?)r.site,
+            gate = (string)r.gate,
+            kind = (string)r.kind,
+            state = (string)r.state,
+            startMs = (long)r.start_ms,
+            lastMs = (long)r.last_ms,
+            endMs = (long?)r.end_ms,
+            durationS = (double)r.duration_s,
+            closeReason = (string)r.close_reason,
+            evidence = ParseJson((string?)r.evidence),
+            updatedAt = (DateTime)r.updated_at,
+        }).ToList();
+        return Ok(new { site, area, unit, openOnly, count = conditions.Count, conditions });
+    }
+
     private static JsonElement ParseJson(string? json)
     {
         try { return JsonDocument.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json).RootElement.Clone(); }
