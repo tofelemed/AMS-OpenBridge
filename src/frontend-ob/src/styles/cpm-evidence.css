@@ -74,6 +74,52 @@
   border-color: var(--selected-enabled-border-color, var(--instrument-enhanced-primary-color));
 }
 
+/* ── Gate strip (v2.5 workbench redesign): one row of status chips grouped by tier ── */
+.cpm-gate-strip {
+  display: flex;
+  flex-wrap: wrap;                 /* whole tier groups wrap; nothing is clipped */
+  gap: 8px 20px;
+  padding: 4px 0;
+}
+.cpm-gate-strip__tier { display: flex; flex-direction: column; gap: 4px; flex: 0 0 auto; }
+.cpm-gate-strip__tier-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--element-neutral-color);
+}
+.cpm-gate-strip__chips { display: flex; gap: 6px; }
+.cpm-gate-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;                /* visible control; the 44px touch target comes from the row padding + gap */
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--cpm-chip-border, var(--border-divider-color));
+  background: var(--cpm-chip-bg, transparent);
+  color: var(--cpm-chip-fg, var(--element-active-color));
+  font: inherit;
+  cursor: pointer;
+  transition: box-shadow 150ms ease, transform 150ms ease;
+}
+.cpm-gate-chip__glyph { font-weight: 700; }
+.cpm-gate-chip:hover { box-shadow: 0 0 0 1px var(--instrument-enhanced-primary-color); }
+.cpm-gate-chip--selected {
+  outline: 2px solid var(--instrument-enhanced-primary-color);
+  outline-offset: 1px;
+  transform: translateY(-1px);
+}
+.cpm-gate-chip:disabled { opacity: 0.5; cursor: not-allowed; }
+.cpm-gate-chip:focus-visible {
+  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cpm-gate-chip { transition: none; }
+  .cpm-gate-chip--selected { transform: none; }
+}
+
 /* ── Chart wrapper (CpmChart) ── */
 .cpm-chart { display: flex; flex-direction: column; gap: 4px; }
 .cpm-chart__bar { display: flex; align-items: center; gap: 8px; }
