@@ -46,6 +46,9 @@ export interface CpmChartInput {
 
 const nan = (v: number | null | undefined) => v == null || !Number.isFinite(v) ? null : v;
 
+/** Above this many points a series is decimated for drawing (never for the data table / CSV). */
+export const SAMPLE_ABOVE = 5000;
+
 /** Pure option builder (tested): one axis per unit group, no null bridging, stepped holds, labelled bands. */
 export function buildCpmChartOption(input: CpmChartInput) {
   const { series, xKind, timeZone = 'UTC', pens } = input;
@@ -77,6 +80,11 @@ export function buildCpmChartOption(input: CpmChartInput) {
       itemStyle: { color: pens[s.pen] },
       areaStyle: s.area ? { color: pens[s.pen], opacity: 0.12 } : undefined,
       ...(s.held ? { step: 'end' as const } : {}),
+      // performance budget: a 24h window at 5 s is ~17k points per role; above SAMPLE_ABOVE points a line is
+      // drawn through LTTB (shape-preserving) and markers through echarts' large mode - the data table / CSV
+      // still carry every value, only the pixels are decimated
+      ...(!s.markers && data.length > SAMPLE_ABOVE ? { sampling: 'lttb' as const } : {}),
+      ...(s.markers && data.length > SAMPLE_ABOVE ? { large: true, largeThreshold: SAMPLE_ABOVE } : {}),
       data,
       __meta: s.meta,
       __unit: s.unit,

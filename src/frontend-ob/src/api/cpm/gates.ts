@@ -37,6 +37,8 @@ export interface CpmGateMatrix {
   familyDisqualifiers: string[];
   hasPeerLinks: boolean;
   insufficientEvidenceReason: string | null;
+  /** v2.5 (2G.1, NR-016): {G5|G6|G12: {state, reason, detail}} - what the acquisition grid lets each method claim (served, typed here for the workbench). */
+  methodEligibility?: Record<string, { state: string; reason: string | null; detail: string | null }> | null;
   /** All numeric payload fields (family scores, freeze index, shape metrics, …). */
   metrics: Record<string, number>;
   narrative: {

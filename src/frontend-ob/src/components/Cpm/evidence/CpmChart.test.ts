@@ -34,6 +34,18 @@ describe('buildCpmChartOption', () => {
     expect(o.xAxis.type).toBe('value');
     expect(o.xAxis.name).toBe('lag (s)');
   });
+  it('samples long line series (LTTB) and draws long marker series in large mode, and leaves short ones alone', () => {
+    const n = 6000;
+    const xs = Array.from({ length: n }, (_, i) => i * 1000);
+    const long: CpmSeries = { id: 'pv', label: 'PV', unit: 'EU', x: xs, y: xs.map(v => Math.sin(v)), pen: 'good' };
+    const marks: CpmSeries = { id: 'ev', label: 'events', unit: 'EU', x: xs, y: xs.map(() => 0), pen: 'bad', markers: true };
+    const o = buildCpmChartOption({ series: [long, marks, pv], xKind: 'time', pens });
+    expect(o.series[0].sampling).toBe('lttb');
+    expect(o.series[1].large).toBe(true);
+    expect(o.series[2].sampling).toBeUndefined();
+    expect(o.series[2].large).toBeUndefined();
+  });
+
   it('exports the same values as CSV', () => {
     expect(toCsv([pv])).toBe('x,PV (°C)\n0,400\n60000,\n120000,402');
   });
