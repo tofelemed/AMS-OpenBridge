@@ -1,9 +1,10 @@
 /* v2.5 Phase 2E — Gate Evidence Workbench and System Response workspaces.
    Layout only; every colour, border and text token is OpenBridge's (see styles/cpm.css for the
-   base .cpm-* vocabulary these extend). Three columns collapse to one below 1200px. */
+   base .cpm-* vocabulary these extend). The workbench (redesigned 2026-09-17) is toolbar → header
+   facts → gate strip → reading column + collapsible explain column; the response workspace keeps
+   its three columns. Columns collapse to one below 1200px. */
 
-/* ── Workbench shells ── */
-.cpm-evidence-columns,
+/* ── Response workspace shell ── */
 .cpm-response-columns {
   display: grid;
   grid-template-columns: minmax(220px, 0.9fr) minmax(0, 2.6fr) minmax(280px, 1.2fr);
@@ -11,7 +12,7 @@
   align-items: start;
 }
 @media (max-width: 1200px) {
-  .cpm-evidence-columns, .cpm-response-columns { grid-template-columns: 1fr; }
+  .cpm-response-columns { grid-template-columns: 1fr; }
 }
 .cpm-evidence-centre,
 .cpm-response-centre,
@@ -21,24 +22,33 @@
   gap: 16px;
   min-width: 0;
 }
-.cpm-evidence-gates,
-.cpm-response-events,
-.cpm-method-trace {
+.cpm-response-events {
   position: sticky;
   top: 16px;
   max-height: calc(100vh - 32px);
   overflow: auto;
 }
 
-/* ── Header ── */
-.cpm-evidence-header {
+/* ── Workbench body (v2.5 redesign): reading column + explain column ── */
+.cpm-evidence-body {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 8px 16px;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  align-items: start;
 }
+.cpm-evidence-body--explain-closed { grid-template-columns: minmax(0, 1fr) 48px; }
+@media (max-width: 1200px) {
+  .cpm-evidence-body, .cpm-evidence-body--explain-closed { grid-template-columns: 1fr; }
+  .cpm-explain { position: static; max-height: none; }
+}
+/* skeletons reserve the height a panel will take (no layout shift while artifacts decode) */
+.cpm-skeleton { min-height: 120px; border-radius: 8px; background: var(--container-backdrop-color); opacity: 0.6; animation: cpm-skeleton-pulse 1.4s ease-in-out infinite; }
+.cpm-skeleton--lanes { min-height: 260px; }
+.cpm-skeleton--evidence { min-height: 360px; }
+@keyframes cpm-skeleton-pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.8; } }
+@media (prefers-reduced-motion: reduce) { .cpm-skeleton { animation: none; } }
 
-/* ── Gate / event lists (buttons styled as rows; selection uses the active-state tokens) ── */
-.cpm-evidence-gates__list,
+/* ── Event list (System Response; buttons styled as rows; selection uses the active-state tokens) ── */
 .cpm-response-events__list {
   list-style: none;
   margin: 0;
@@ -47,7 +57,6 @@
   flex-direction: column;
   gap: 4px;
 }
-.cpm-evidence-gate,
 .cpm-response-event {
   width: 100%;
   display: flex;
@@ -63,12 +72,9 @@
   text-align: left;
   cursor: pointer;
 }
-.cpm-evidence-gate { flex-direction: row; align-items: center; gap: 8px; }
-.cpm-evidence-gate:hover,
 .cpm-response-event:hover {
   background: var(--flat-hover-background-color);
 }
-.cpm-evidence-gate--selected,
 .cpm-response-event--selected {
   background: var(--selected-enabled-background-color);
   border-color: var(--selected-enabled-border-color, var(--instrument-enhanced-primary-color));
@@ -229,9 +235,7 @@
 /* ── Gate state panel ── */
 .cpm-gate-state { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .cpm-gate-state__valid { margin: 0; color: var(--element-neutral-color); font-size: 0.85rem; }
-
-/* ── Method trace ── */
-.cpm-method-trace__params { display: flex; flex-direction: column; }
+.cpm-gate-state__link { color: var(--element-active-color); }
 
 /* ── Response workspace specifics ── */
 .cpm-response-quantities { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 24px; margin-bottom: 8px; }
