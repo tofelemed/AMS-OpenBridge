@@ -6,7 +6,7 @@ audited base `5cec34ef`. Operational facts (what to run on the plant) live in `c
 
 Legend: ✅ done and committed · 🔄 in progress · ⬜ pending · commit ids are on this branch.
 
-_Last updated: 2026-09-17 04:50 (Phases 0-3 implemented, committed and lab-proven: slice-1 18/18, slice-2 19/19, slice-3 14/14; jar 4ea1da78 + the 3D images on the lab; Phase 4 halted by the user - no bundle, no tag)._
+_Last updated: 2026-09-17 11:00 (Phases 0-3 implemented, committed and lab-proven: slice-1 18/18, slice-2 19/19, slice-3 14/14; Phase 4 started on the user's go at 10:42 ("start phase 4 - build images - i want to test it"): every suite re-run green on the clean tree, the five v2.5 images rebuilt from HEAD and running on the lab, `WHATS-NEW-v2.5.md` written for the user's test tour; the reliability / load probes, the bundle and the tag wait for the user's testing to finish)._
 
 ## Phase 0 — build truth and test baseline ✅
 
@@ -70,36 +70,52 @@ _Last updated: 2026-09-17 04:50 (Phases 0-3 implemented, committed and lab-prove
 | 3C Flink bundles | 3C.1 ✅ b3eb83c6 (`CanonicalJson` = the API's bytes (Python-pinned HMAC), `GateConfigBundle` local validation, `BundleBroadcastHandler` PREPARE/APPLY → ACK/NACK with jar + topology generation, UNSIGNED / NOT_PREPARED / PARSE_ERROR counted, `EffectiveBundleSelector` LOOP>PROFILE>SITE by effective event time, STATE_BOUNDARY epoch + WARMUP `evaluation_state`, static `SPINE` deleted → `Lookup` over the checkpointed broadcast state, bounded jobs via `CplmParameterUpdateReader`, response captures pinned per bundle, replay `--bundle-hash`; `CPLM_GATE_CONFIG_KEY` on the Flink containers; 4 new test classes) · 3C.2 ✅ 96036c50 (`ExecutionPlanCapacityTest`: installed plan == Java declaration; long_30h / moved gate / other scheduler / six-hour G5 period DEPLOYMENT_REQUIRED by name) | ✅ |
 | 3D UI | 3D.1 ✅ 1b853e89 (`/cpm/config` workspace: scope → bundle → gate → `PropertyForm` (typed, fraction≠percent, arrays whole, reset, locked with the build's reason), `EffectiveConfigDrawer` (read-only; from the Method Trace names the run's bundle and says when it is no longer active), `DiffImpactPanel`, `ShadowComparison`, `ApprovalPanel`, `DeploymentStatus` (ACK matrix - a partial matrix never reads as active), Governance approvals queue real; tests 6; lint + build clean) · 3D.2 ✅ `scripts/test-cpm-v25-slice3-e2e.ps1` **14/14** on the lab at 02:52 (jar 27544b6f: PREPARE/APPLY ACKs from the five property-reading jobs, ACTIVE_VERIFIED with pinned results, effective config, rollback); five lab findings fixed on the way (observer jobs 80d68b56, change class 80d68b56, edit-time refusal 3de059b8, auth revocation epoch 3e87aea2, G13 identity on excluded rows 6bdcfd78); CHG-028 written | ✅ |
 
-## Phase 4 — release engineering v2.5 ⏸ HALTED by the user on 2026-09-17 ("Dont start phase4") - the artifacts below were committed before that message and are NOT to be executed; no bundle, no tag
+## Phase 4 — release engineering v2.5 🔄 started 2026-09-17 10:42 on the user's go (halted 04:50 → resumed: "start phase 4 - build images - i want to test it")
 
 | Task | Status |
 |---|---|
-| 4.1 manifest `migration/deploy/releases/v2.5.txt`, ops files (cpm-07/07b/08, topics, `set-quality-protocol.py`), `V2.5-DEPLOY.md`, runbook, mirrors | ✅ written and committed (1cd299b6, 3e87aea2: `!v25-upgrade` VM steps in `build-release.py`, `V2.5-DEPLOY.md`, `UPDATE-RUNBOOK.md` checks + traps, `set-quality-protocol.py`; auth-service joins the manifest) - dry-run only, nothing built |
-| 4.2 full verification on a clean tree (all suites, three slice E2Es, reliability + load probes, acceptance evidence NR-001…062) | ⏸ scripts written (`test-cpm-v25-reliability.ps1`, `cpm-v25-load-probe.py`) and `docs/next-release/03-acceptance-evidence.md` committed (6bdcfd78, 75744c77, 33c007ae); the reliability / load runs were NOT executed (halted); the slice E2Es run under Phases 2/3 |
-| 4.3 build the bundle; `changes_tracker.md` "Release v2.5 — what to build and run"; tag `v2.5` | ⬜ NOT STARTED (by agreement) |
+| 4.1 manifest `migration/deploy/releases/v2.5.txt`, ops files (cpm-07/07b/08, topics, `set-quality-protocol.py`), `V2.5-DEPLOY.md`, runbook, mirrors | ✅ 1cd299b6, 3e87aea2 (`!v25-upgrade` VM steps in `build-release.py`, `V2.5-DEPLOY.md`, `UPDATE-RUNBOOK.md` checks + traps, `set-quality-protocol.py`; auth-service in the manifest); `--dry-run` clean |
+| 4.2 full verification on a clean tree | 🔄 **suites re-run 2026-09-17 10:43–10:52 on the clean tree at 1cc8a8b4, all green** (table below); the five v2.5 images rebuilt from HEAD with `SOURCE_COMMIT` and recreated on the lab (all healthy; `/capabilities` service commit = HEAD, six workers on jar 4ea1da78, 70 readable ids intact after the cplm-api tests); the slice E2Es stand from Phases 1–3 (18/18, 19/19, 14/14). **Pending:** `test-cpm-v25-reliability.ps1` and `cpm-v25-load-probe.py --minutes 30` → `04-load-report.md` (they kill cplm-api / stop Postgres / restart jobs, so they run after the user's manual test tour, not during it); NR table in `03-acceptance-evidence.md` then finalised |
+| 4.2b user test tour | 🔄 `WHATS-NEW-v2.5.md` (repo root) — what was added, where in the UI, how to try it, the OT/Instrumental ingestion contract, how it fits; lab prepared: OT sim on the pilot loops for 8 h (pid 16756, `--exclude FIC10302`) |
+| 4.3 build the bundle (`build-release.py --release v2.5`); tracker release section final; tag `v2.5` | ⬜ after the user's testing (needs a clean tree; bundle = `git archive HEAD`) |
 
 ## Verification status (last runs, lab)
 
 | Suite / script | Result | When |
 |---|---|---|
-| Flink `mvn test` (Docker Maven, from PowerShell) | 213 run / 0 failures / 2 skipped | 2026-09-16 after 2C.2 |
-| cplm-api tests (lab DB, run alone) | 112 / 112 | 2026-09-17 after 2C.2 lab fixes |
-| ingestion-service tests | 212 / 212 (health 11) | 2026-09-16 |
-| frontend vitest / lint / build | 51 / 51 · clean · OK | 2026-09-16 after 1H.6 |
-| simulator pytest | 17 / 17 | 2026-09-16 after 547482a5 |
+| Flink `mvn -o test` (Docker Maven) | **266 run / 0 failures / 2 skipped** | 2026-09-17 10:50 (Phase 4.2, clean tree 1cc8a8b4) |
+| cplm-api tests (lab DB, run alone) | **159 / 159** | 2026-09-17 10:51 |
+| ingestion-service tests | **212 / 212** | 2026-09-17 10:44 |
+| binding-resolver / historian-bff tests | 5 / 5 · 4 / 4 | 2026-09-17 10:44 |
+| frontend vitest / lint / build | **101 / 101 · clean · OK** | 2026-09-17 10:52 |
+| auth-service `tsc --noEmit` | clean | 2026-09-17 10:45 |
+| simulator pytest | 17 / 17 | 2026-09-17 10:45 |
+| `gen-property-catalogue.py --check` | 165 properties, 4 copies identical | 2026-09-17 10:45 |
 | `scripts/test-ot-loop-ingestion-e2e.ps1` | **28 / 28** | 2026-09-16 14:45 (corrected jar) |
 | `scripts/test-cpm-v25-slice1-e2e.ps1` | 18 / 18 | 2026-09-16 15:14 (jar e09d6f…) |
+| `scripts/test-cpm-v25-slice2-e2e.ps1` | **19 / 19** | 2026-09-17 04:45 (jar 4ea1da78) |
+| `scripts/test-cpm-v25-slice3-e2e.ps1` | **14 / 14** | 2026-09-17 02:52 (jar 27544b6f; jar 4ea1da78 since) |
+| `scripts/test-cpm-v25-reliability.ps1`, `cpm-v25-load-probe.py` | not run yet | after the user's test tour |
 
 ## Lab state (for whoever picks this up)
 
-- Jar `2a6dd18a…` deployed (2B fixes, 2C.1b, 2C.1c, reconstruction mode); cplm-api image rebuilt with 2C.2; earlier: jar `8bdf0868…` (2B fixes + 2C.1b); all six CPLM jobs RUNNING (Short, Long, Condition, Instrument Context, Fusion, Response); the earlier note follows: jar `e09d6f40…` had all five CPLM jobs RUNNING; fusion verdicts with `health_lanes` written on this jar (POJO fix proven under real records) (Short, Long, Condition, Instrument Context, Fusion). Deploy flow and its
-  traps: `docs/next-release/00-build-truth.md` (package first, entry-class check, supervisor log, no duplicate method refs).
-- cplm-api image rebuilt with 1H.5/1H.6; `/health` shows consumers `results`, `frames`, `evidence`, `health`, one member each.
-- Data sources: `INSTRUMENTAL_HEALTH` "Lab Instrumental NE107 (mosquitto-test)" active; the ingestion E2E's `MQTT_LOOP_SAMPLES`
-  config kept active (`-KeepConfig`) for the freeze publisher. PV binding FIC10302 → TT-10302 (instr-prm-1).
-- G12 on the lab: `scripts/sim/loop_step_sim.py --loop FIC10302 --scenario input-test --pre-s 180 --post-s 360 --interval 1` yields one COMPLETE event per run (~9 min); run it twice ≥ 90 s apart for a VALIDATED model. FIC10302's tuples carry a stale held VP from an old soak - by design it is ignored (held past 60 s).
-- Evidence path: emits only for episode-bearing long windows; `scripts/sim/loop_freeze_sim.py --loop FIC10301` was run 14:29–14:35;
-  the first long window carrying it is awaited (then `analytics.evidence_manifest` must show COMPLETE rows).
+- 2026-09-17 10:52: the five v2.5 service images (`traverse-ingestion-service`, `cplm-api`, `historian-bff`,
+  `ams-frontend`, `traverse-auth-service`) rebuilt from HEAD 1cc8a8b4 (`SOURCE_COMMIT` set) and recreated - all
+  healthy; `/capabilities.service.sourceCommit` = 1cc8a8b4. Jar `4ea1da78…` on all six CPLM engine jobs (Short,
+  Long, Condition, Instrument Context, Fusion, Response) + Live RBE; one jar in `/capabilities.config.jarSha256s`.
+  Deploy flow and its traps: `docs/next-release/00-build-truth.md` and the scratchpad `deploy_flink_lab.py`
+  (package first, entry-class check, supervisor log, cancel any worker announcing another jar after a ZK-HA recreate).
+- `/health` of cplm-api shows the consumers `results`, `frames`, `evidence`, `health`, `response` (one member each);
+  the conditions and config-ACK consumers run in the groups `traverse-cpa-cplm-results-conditions` and
+  `traverse-cpa-cplm-results-config-acks` (not in `/health`; check with `kafka-consumer-groups --describe`).
+- Data sources: `INSTRUMENTAL_HEALTH` "Lab Instrumental NE107 (mosquitto-test)" active (tenant `default`, site `hdpe`,
+  source `instr-prm-1`); `MQTT_LOOP_SAMPLES` "E2E OT Gateway (mosquitto-test)" active (`quality_protocol` unset →
+  STRING_ENUM default; `param_roles POS→vp`). PV binding FIC10302 → TT-10302 (instr-prm-1).
+- Feeds: OT sim `ams-sims/sim_ot_gateway_mqtt.py --minutes 480 --exclude FIC10302` started 10:52 (pid 16756) on the
+  four pilot loops; FIC10302 is the step-sim loop and runs under the slice-3 bundle v1 (hash f9153b00, G4 warn 4.5).
+- G12 on the lab: `scripts/sim/loop_step_sim.py --loop FIC10302 --scenario input-test --pre-s 180 --post-s 360 --interval 1`
+  yields one COMPLETE event per run (~9 min); run it twice ≥ 90 s apart for a VALIDATED model.
+- The user's tour: `WHATS-NEW-v2.5.md` (root).
 
 ## Open items and risks carried
 

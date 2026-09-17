@@ -86,8 +86,9 @@ end to end - a 165-property catalogue as code with one hash, drafts → validate
 signed bundles that every property-reading Flink job ACKs before they take effect, one effective bundle per loop by
 event time, rollback as a new deployment (CHG-028). Adds two Kafka topics, the Response job, `CPLM_GATE_CONFIG_KEY`
 on the Flink containers and `traverse-auth-service` to the rebuild list (a revocation-epoch rounding found on the lab).
-**Phase 4 (the v2.5 bundle build and tag) is halted by the user**: the manifest, ops files and runbook exist and are
-dry-run only - see [Release v2.5](#release-v25--what-to-build-and-run).
+**Phase 4 started 2026-09-17 on the user's go**: every suite green on the clean tree, the five v2.5 images rebuilt
+and running on the lab for the user's test tour ([WHATS-NEW-v2.5.md](WHATS-NEW-v2.5.md)); the reliability / load
+probes, the bundle build and the tag follow that tour - see [Release v2.5](#release-v25--what-to-build-and-run).
 
 ## v3 DEPLOYED to Marun — 2026-09-10
 
@@ -1645,8 +1646,18 @@ Instrumental NE107 health), **CHG-027** (G12 system response, the evidence workb
 interaction, the loop model) and **CHG-028** (governed gate configuration). Additive schema applied
 before the swap, seven new Kafka topics created before the jobs start, every CPLM job resubmitted plus
 three new jobs, one configuration step per loop data source. Step by step:
-[migration/V2.5-DEPLOY.md](migration/V2.5-DEPLOY.md). **The bundle is NOT built and the tag is NOT set
-yet** - `build-release.py --release v2.5` runs only after the operator's go, from a clean tree.
+[migration/V2.5-DEPLOY.md](migration/V2.5-DEPLOY.md). A plain-words tour of what the release adds, where it
+is in the UI, how to try it on the lab and what the OT side must send: [WHATS-NEW-v2.5.md](WHATS-NEW-v2.5.md).
+
+**Phase 4.2 verification, 2026-09-17 10:43–10:52, clean tree at 1cc8a8b4:** Flink 266 run / 0 failures / 2 skipped ·
+cplm-api 159/159 · ingestion 212/212 · binding-resolver 5/5 · historian-bff 4/4 · frontend 101/101 + lint + build
+clean · auth-service `tsc` clean · simulators 17/17 · catalogue 165 properties, 4 copies identical. The five images
+(`traverse-ingestion-service`, `cplm-api`, `historian-bff`, `ams-frontend`, `traverse-auth-service`) were rebuilt
+from that commit with `SOURCE_COMMIT` and recreated on the lab (all healthy; `/capabilities` service commit =
+1cc8a8b4, six engine workers on jar 4ea1da78). Still to run, after the user's manual test tour (they kill
+cplm-api, stop Postgres and restart jobs): `test-cpm-v25-reliability.ps1`, `cpm-v25-load-probe.py --minutes 30`
+(→ `docs/next-release/04-load-report.md`). **The bundle is NOT built and the tag is NOT set yet** -
+`build-release.py --release v2.5` runs after the tour, from a clean tree.
 
 **Updated services (build these, nothing else) — manifest `migration/deploy/releases/v2.5.txt`:**
 
