@@ -68,9 +68,9 @@ TUNING = {"P": (300.0, "%"), "I": (240.0, "s"), "D": (0.0, "s"), "GW": (0.0, "%"
 TUNING_PERIOD_S = 30.0  # tuning params republished slowly, like a sane gateway would
 
 
-def envelope(fcs, cls, loop, item, value, unit):
+def envelope(fcs, cls, loop, item, value, unit, quality="GOOD"):
     return json.dumps({
-        "value": value, "unit": unit, "quality": "GOOD",
+        "value": value, "unit": unit, "quality": quality,
         "ts": datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
         "source": "opc_ua", "seq": 0,
         "device": loop, "area": fcs, "line": cls, "enterprise": "",
@@ -106,6 +106,9 @@ def main():
                     help="leaf name for positioner feedback (default VP; use e.g. POS to rehearse a param_roles overlay)")
     # v2.5 (2G.2): a loop driven by another publisher (loop_step_sim.py's response scenarios) must not
     # also be fed here - two publishers on one loop would corrupt the captured event.
+    ap.add_argument("--quality-flip", type=float, default=0.0,
+                    help="v2.5 load probe: fraction of publishes that re-send the SAME value with quality UNCERTAIN "
+                         "(a quality-only change, R20 / NR-022) - 0.2 = one in five")
     ap.add_argument("--exclude", default="",
                     help="comma list of loop tags NOT to publish (e.g. the loop a step scenario drives)")
     args = ap.parse_args()
@@ -169,6 +172,11 @@ def main():
                     client.publish(f"OT/HDPE/{fcs}/{cls}/{loop}/PIDParams/{item}",
                                    envelope(fcs, cls, loop, item, value, unit), qos=1)
                     published += 1
+                    if args.quality_flip > 0 and item == "PV" and random.random() < args.quality_flip:
+                        # the same value again with another quality: a quality-only transition must pass the RBE
+                        client.publish(f"OT/HDPE/{fcs}/{cls}/{loop}/PIDParams/{item}",
+                                       envelope(fcs, cls, loop, item, value, unit, "UNCERTAIN"), qos=1)
+                        published += 1
                 if send_tuning:
                     for item, (value, unit) in TUNING.items():
                         client.publish(f"OT/HDPE/{fcs}/{cls}/{loop}/PIDParams/{item}",

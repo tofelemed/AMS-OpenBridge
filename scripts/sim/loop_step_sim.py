@@ -84,6 +84,7 @@ def main(argv=None):
     ap.add_argument("--pre-s", type=float, default=150.0, help="stable pre-support before the step (s)")
     ap.add_argument("--post-s", type=float, default=330.0, help="capture + settled tail after the step (s)")
     ap.add_argument("--interval", type=float, default=5.0)
+    ap.add_argument("--repeat", type=int, default=1, help="run the scenario N times back to back (v2.5 load probe)")
     ap.add_argument("--host", default=os.environ.get("SIM_OT_MQTT_HOST", "127.0.0.1"))
     ap.add_argument("--port", type=int, default=int(os.environ.get("SIM_OT_MQTT_PORT", "1884")))
     ap.add_argument("--username", default=os.environ.get("SIM_OT_MQTT_USERNAME", "ams_ingest"))
@@ -101,13 +102,18 @@ def main(argv=None):
     t0 = args.pre_s
     started = time.time()
     n = 0
-    print(f"{args.scenario} on {loop}: pre {args.pre_s:.0f}s, step at t0, post {args.post_s:.0f}s, every {args.interval}s "
+    runs = 0
+    print(f"{args.scenario} on {loop}: pre {args.pre_s:.0f}s, step at t0, post {args.post_s:.0f}s, every {args.interval}s, x{max(1, args.repeat)} "
           f"(OT/HDPE/{fcs}/{cls}/{loop}/PIDParams/*)", flush=True)
     try:
         while True:
             t = time.time() - started
             if t > total:
-                break
+                runs += 1
+                if runs >= max(1, args.repeat):
+                    break
+                started = time.time()            # the next scenario starts from its own stable pre-support
+                t = 0.0
             pv, sp, op = scenario_values(args.scenario, t, t0)
             for item, (value, unit) in {"PV": (round(pv, 4), ""), "SP": (sp, ""), "OP": (round(op, 4), "%"), "MODE": (1.0, "")}.items():
                 client.publish(f"OT/HDPE/{fcs}/{cls}/{loop}/PIDParams/{item}", envelope(fcs, cls, loop, item, value, unit), qos=1)
