@@ -288,3 +288,54 @@ classloader); recreating the TaskManager cleared it. The plant runbook already r
   verdict. RBE holds are `RBE_HOLD` in G0. `CpmLoopRegistryService` (1866 lines) is now seven partial files.
 - Lab deploy 2026-09-17: jar `37d11f25…` (2F + 2G) - all six CPLM jobs RUNNING, no ClassNotFound, cplm-api and frontend images
   rebuilt and recreated. `scripts/test-cpm-v25-slice2-e2e.ps1`: __SLICE2_RESULT__
+
+## 3A / 3B / 3C / 3D — governed runtime configuration (2026-09-17)
+
+- 3A (45a8567f, c62cfe66, 2cc34ed5): the 165-property catalogue is generated ONCE from the spec sheet
+  (`scripts/gen-property-catalogue.py`) into four identical copies (contract, API embedded resource, jar resource, UI
+  generated types) under one `catalogue_hash` - SHA-256 of the Python canonical JSON (`sort_keys, separators=(",",":"),
+  ensure_ascii=False`), reproduced in C# (`PropertyCatalogue.HashOf`) and Java (`PropertyCatalogue.hashOf`) with Python's
+  float repr rules (`1e-06`, `1000000000000000.0`). Trap: the Write tool resolves `\uXXXX` escapes inside string content - a
+  unicode fixture (``) must be built with explicit escapes. Capability is what the RUNNING jobs announce: every job emits
+  a `CAPABILITY` record on the ACK topic at start; `BundleProfileMapper` is the only property → setting table;
+  `unsupported-in-build.json` names the 78 properties no job reads (`CapabilityCoverageTest` fails the build otherwise).
+- 3B (8a0a6084, 9de5eb45, 1b853e89): schema 58; RFC 8785 canonical JSON; resolver / classifier / validator are pure; the
+  deployment state machine has TWO windows (`Cpm:ConfigAckWindowMinutes` for the matrix, `Cpm:ConfigProbeWindowMinutes` for the
+  pinned-result probe) - a single zero window marked a deployment partial on its first lone ACK before the second could arrive
+  (the first NR-051 test found it). A PARTIALLY_ACKNOWLEDGED or ACTIVATION_FAILED bundle may be deployed again under its still-
+  valid hash-bound approval. `ConfigLifecycleTests` share the lab database with the RUNNING fleet: the tests snapshot / restore
+  `cpm.config_worker_capability` (the first version overwrote three real workers with `jar-A`, and the lab's capability read
+  "mixed jars" until the three jobs were restarted to re-announce). FACTORY layer parity: the jar exports the packs
+  (`FactoryLayer`, `FactoryLayerParityTest`); pack sentinels below the catalogue minimum (G12.lambda_s 0, G10.limit_dwell_warn_s
+  0) are OMITTED so they resolve to NO_VALUE, stated.
+- 3C (b3eb83c6, 96036c50): the static `SPINE` is gone. `CplmDynamicsParameterSetSupport.resolve(..., Lookup)` reads the
+  operator's checkpointed broadcast state; the metadata envelope reader (`CplmMetadataEnvelope`) and the bounded-job reader
+  (`CplmParameterUpdateReader`) share one parser; a parse failure is a `cplm_config_rejected` counter, never a swallowed
+  exception. Bundles ride the SAME control broadcast as the registry metadata (one more Kafka source unioned in);
+  `BundleBroadcastHandler` verifies the HMAC-SHA256 signature with `CPLM_GATE_CONFIG_KEY` (= `TRAVERSE_SERVICE_KEY`, now on the
+  Flink containers in both compose files), validates locally and ACKs / NACKs through a side output sunk to the ACK topic with
+  the worker's jar, commit and topology generation (job id / parallelism / restored checkpoint id via `CheckpointedFunction`).
+  Java canonicalises byte-identically to the API (`CanonicalJsonTest` carries the API's vectors and a Python-pinned HMAC).
+  Selection: LOOP > PROFILE > SITE, by effective-from event time; a window decides at its END (`SignalMath.latestResolvedProfile`,
+  was "first") so `window_end ≥ effective_from` uses the new bundle and never a mixed one; `ResultIdentity` stamps the bundle
+  hash and the epoch (`context_revision`, previously always 0) and WAITING / WARMUP on windows that began before a
+  STATE_BOUNDARY effective time (`evaluation_state`, additive JSON on every tier). A bundle overlays the class pack with its
+  SITE / PROFILE / LOOP layer CONTENTS (not the fully resolved block: a SITE bundle must not reset a TIC loop to factory values).
+  The sample now carries `site` (the scope key) - `--site` on the job is the fallback. The response job pins a capture to the
+  bundle in force at its start (`ResponseJobConfig.underBundle`). Bounded runs take `--bundle-hash / --bundle-properties-b64`
+  (shadow runs; reconstructions under the governed bundle behind the run's hash). `CplmJobConfig.forJob()` keeps the
+  control-plane settings across the per-job re-creation (the 9-arg constructor silently dropped them). The compiled capacity is
+  declared (`ExecutionPlanCapacity`) and the installed plan JSON now ships in the jar (`ExecutionPlanCapacityTest` parity).
+- 3D (1b853e89): the workspace renders the server's record and edits requested changes only. `ShadowComparison` materialises the
+  before / after gate matrix server-side (SHADOW rows vs the LIVE rows of the same windows) and writes `POLICY_RECLASSIFICATION`
+  on the bundle's shadow record only when the numbers moved (a read must not churn the etag).
+- Lab findings 2026-09-17: (1) a cold 24 h window fails G0 and the fused row was EXCLUDED before the context gates were stamped,
+  so G13 read `LEGACY_FLAG_ONLY` as if an old jar had produced it - the long tier's analysis identity now rides every fused row
+  (6bdcfd78); (2) `/capabilities.config` on the lab: `ANNOUNCED`, 6 workers on one jar, catalogue matching, 70 readable ids;
+  (3) the security review flagged raw `X-Auth-User` fallbacks in five controllers - a header the gateway never sends; identity
+  is now the claims principal the edge-trust handler builds (2cc34ed5).
+- Release engineering (1cd299b6 …): `migration/deploy/releases/v2.5.txt` + `!v25-upgrade` steps in `build-release.py`
+  (schema → cplm-api stopped for cpm-07b → topics → images → seven jobs → the signing key proven → quality protocol declared),
+  `migration/V2.5-DEPLOY.md`, `scripts/set-quality-protocol.py`, `scripts/test-cpm-v25-reliability.ps1`,
+  `scripts/cpm-v25-load-probe.py`, `docs/next-release/03-acceptance-evidence.md`. **The bundle build and the tag (4.3) are
+  deliberately not run** - the agreed stop point.
