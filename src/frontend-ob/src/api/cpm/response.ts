@@ -12,7 +12,8 @@ export interface ResponseEventSummary {
   purpose: string; bundleHash: string; resultRevision: number; emittedAtMs: number | null;
 }
 
-export interface ResponseEventPage { loopId: string; purpose: string; count: number; nextCursor: number | null; events: ResponseEventSummary[] }
+/** 2026-09-17 audit F19/F20: `censoredCount` is the range's censored candidates, listed only with includeCensored. */
+export interface ResponseEventPage { loopId: string; purpose: string; count: number; censoredCount?: number; includeCensored?: boolean; nextCursor: number | null; events: ResponseEventSummary[] }
 
 export interface ResponseQuantity {
   quantityId: string; value: number | null; unit: string; pathId: string; uncertainty: number | null; method: string;
@@ -38,13 +39,14 @@ export interface SystemModel {
   reviewNote: string | null; createdAt: string; supersededBy: string | null;
 }
 
-export const getResponseEvents = (loopId: string, opts: { from?: string; to?: string; cursor?: number; limit?: number; purpose?: string } = {}, signal?: AbortSignal) => {
+export const getResponseEvents = (loopId: string, opts: { from?: string; to?: string; cursor?: number; limit?: number; purpose?: string; includeCensored?: boolean } = {}, signal?: AbortSignal) => {
   const p = new URLSearchParams();
   if (opts.from) p.set('from', opts.from);
   if (opts.to) p.set('to', opts.to);
   if (opts.cursor != null) p.set('cursor', String(opts.cursor));
   if (opts.limit) p.set('limit', String(opts.limit));
   if (opts.purpose) p.set('purpose', opts.purpose);
+  if (opts.includeCensored === false) p.set('includeCensored', 'false');
   const q = p.toString();
   return apiJson<ResponseEventPage>(`${CPM_BASE}/loops/${encodeURIComponent(loopId)}/response-events${q ? `?${q}` : ''}`, { signal });
 };

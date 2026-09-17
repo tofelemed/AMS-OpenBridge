@@ -7,9 +7,11 @@ import React from 'react';
 import { EmptyState, KvRow, PanelHead, TonePill } from '../shared';
 import type { DecodedArtifact } from '../evidence/artifactCodec';
 import { CpmChart } from '../evidence/CpmChart';
+import { ArtifactSkeleton } from '../evidence/views/viewSupport';
 import { candidateRows, fmt, prov, provList } from './responseSupport';
 
-export const CandidateModelsTable: React.FC<{ table: DecodedArtifact | undefined; delayCurve: DecodedArtifact | undefined; intervals: DecodedArtifact | undefined; rejections: DecodedArtifact | undefined }> = ({ table, delayCurve, intervals, rejections }) => {
+export const CandidateModelsTable: React.FC<{ table: DecodedArtifact | undefined; delayCurve: DecodedArtifact | undefined; intervals: DecodedArtifact | undefined; rejections: DecodedArtifact | undefined; loading?: boolean }> = ({ table, delayCurve, intervals, rejections, loading }) => {
+  if (!table && !rejections && loading) return <ArtifactSkeleton kinds={['candidate_models', 'rejection_reasons']} />;
   const rows = candidateRows(prov(table, 'rows'));
   const objective = table?.columns.y;
   const names = provList(intervals, 'parameters');

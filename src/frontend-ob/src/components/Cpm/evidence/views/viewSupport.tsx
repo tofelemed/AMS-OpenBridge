@@ -10,9 +10,16 @@ import type { GateArtifacts } from '../useGateArtifacts';
 import type { CpmSeries, Pen } from '../CpmChart';
 import { fmtQuantity, labelForKey, unitForKey } from '../format';
 
-export const RequireKinds: React.FC<{ arts: GateArtifacts; kinds: string[]; children: React.ReactNode }> = ({ arts, kinds, children }) => {
+/** audit F5: while artifacts decode the panel keeps its height as a skeleton that names what it waits for. */
+export const ArtifactSkeleton: React.FC<{ kinds: string[]; size?: 'lanes' | 'evidence' | 'result' }> = ({ kinds, size = 'evidence' }) => (
+  <div className={`cpm-surface cpm-skeleton cpm-skeleton--${size}`} role="status" aria-busy="true" aria-label={`Decoding ${kinds.join(', ')}`}>
+    <span className="cpm-skeleton__label">Decoding {kinds.join(', ')}…</span>
+  </div>
+);
+
+export const RequireKinds: React.FC<{ arts: GateArtifacts; kinds: string[]; skeleton?: 'lanes' | 'evidence' | 'result'; children: React.ReactNode }> = ({ arts, kinds, skeleton, children }) => {
   const missing = kinds.filter(k => !arts.byKind[k] || arts.byKind[k].length === 0);
-  if (arts.loading && missing.length > 0) return <EmptyState title="Decoding artifacts…" copy={`Waiting for ${missing.join(', ')}.`} />;
+  if (arts.loading && missing.length > 0) return <ArtifactSkeleton kinds={missing} size={skeleton ?? 'evidence'} />;
   if (arts.errors.length > 0) {
     return (
       <EmptyState title="An artifact did not verify"

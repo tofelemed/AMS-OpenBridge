@@ -6,10 +6,11 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getModels, getResponseEvent, getResponseEvents, reviewModel, type ReviewDecision } from '../../../api/cpm/response';
 
-export function useResponseEvents(loopId: string | undefined, purpose = 'LIVE') {
+/** audit F19/F20: censored candidates (most of the table) are left out by default; the page still counts them. */
+export function useResponseEvents(loopId: string | undefined, purpose = 'LIVE', includeCensored = false) {
   return useInfiniteQuery({
-    queryKey: ['cpm', 'response-events', loopId ?? '', purpose],
-    queryFn: ({ pageParam, signal }) => getResponseEvents(loopId!, { cursor: pageParam ?? undefined, limit: 50, purpose }, signal),
+    queryKey: ['cpm', 'response-events', loopId ?? '', purpose, includeCensored],
+    queryFn: ({ pageParam, signal }) => getResponseEvents(loopId!, { cursor: pageParam ?? undefined, limit: 50, purpose, includeCensored }, signal),
     initialPageParam: null as number | null,
     getNextPageParam: last => last.nextCursor,
     enabled: !!loopId,

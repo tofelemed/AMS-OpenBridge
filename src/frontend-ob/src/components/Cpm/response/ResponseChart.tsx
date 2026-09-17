@@ -3,23 +3,16 @@
  * rejected samples as gaps, baseline and target as the kernel's constants, the fit, the holdout
  * prediction, the prediction band NAMED with its meaning, and the response-time markers on their
  * own progress axis. Input pane: the reconstructed applied input as a held step on its own unit.
- * Health exclusions are stated. Key quantities are text with unit and uncertainty, null with reason.
+ * Health exclusions are stated. (2026-09-17 audit F19: the key quantities moved to the result card and
+ * the aside's key results; this panel is the picture.)
  */
 import React from 'react';
-import { KvRow, PanelHead, TonePill } from '../shared';
-import type { ResponseQuantity } from '../../../api/cpm/response';
-import type { EvidenceManifest } from '../../../api/cpm/evidence';
+import { PanelHead, TonePill } from '../shared';
 import type { DecodedArtifact } from '../evidence/artifactCodec';
 import { CpmChart, type CpmSeries } from '../evidence/CpmChart';
-import { useGateArtifacts } from '../evidence/useGateArtifacts';
+import type { GateArtifacts } from '../evidence/useGateArtifacts';
 import { RequireKinds } from '../evidence/views/viewSupport';
-import { afterT0Ms, bandMeaningText, epochMs, metricOf, prov, quantityText } from './responseSupport';
-
-const KEY_QUANTITIES: Array<[string, string]> = [
-  ['process_gain', 'Process gain'], ['integrating_gain', 'Integrating gain'], ['dead_time', 'Dead time'], ['time_constant', 'Time constant'],
-  ['time_constant_2', 'Second time constant'], ['damping_ratio', 'Damping ratio'], ['t10', 't10'], ['t50', 't50'], ['t63', 't63'], ['t90', 't90'],
-  ['settle_response', 'Settling (response band)'], ['settle_target', 'Settling (target band)'], ['overshoot_response', 'Overshoot (response)'], ['steady_error', 'Steady-state error'],
-];
+import { afterT0Ms, bandMeaningText, epochMs, prov } from './responseSupport';
 
 function timeSeries(d: DecodedArtifact, id: string, label: string, pen: CpmSeries['pen'], opts: Partial<CpmSeries> & { masked?: boolean; column?: string } = {}): CpmSeries {
   const raw = d.columns[opts.column ?? 'y'];
@@ -29,8 +22,8 @@ function timeSeries(d: DecodedArtifact, id: string, label: string, pen: CpmSerie
 }
 
 export const ResponseChartBody: React.FC<{
-  byKind: Record<string, DecodedArtifact[]>; timeZone: string; t0Ms: number; metrics: ResponseQuantity[] | undefined; healthExclusions: string[];
-}> = ({ byKind, timeZone, t0Ms, metrics, healthExclusions }) => {
+  byKind: Record<string, DecodedArtifact[]>; timeZone: string; t0Ms: number; healthExclusions: string[];
+}> = ({ byKind, timeZone, t0Ms, healthExclusions }) => {
   const one = (k: string) => byKind[k]?.[0];
   const samples = one('accepted_samples');
   const output: CpmSeries[] = [];
@@ -57,13 +50,6 @@ export const ResponseChartBody: React.FC<{
   return (
     <section className="cpm-surface">
       <PanelHead eyebrow="G12" title="Response" right={<TonePill tone="muted">{samples?.meta.roleOrPath ?? '—'}</TonePill>} />
-      <div className="cpm-response-quantities" data-table="quantities">
-        {KEY_QUANTITIES.map(([id, label]) => {
-          const q = metricOf(metrics, id);
-          if (!q) return null;
-          return <KvRow key={id} label={label}>{quantityText(q)}{q.method ? <span className="cpm-muted"> · {q.method}</span> : null}</KvRow>;
-        })}
-      </div>
       {output.length > 0 && <CpmChart title="Output" series={output} xKind="time" timeZone={timeZone} height={320} />}
       {inputSeries.length > 0 && <CpmChart title="Input" series={inputSeries} xKind="time" timeZone={timeZone} height={180} />}
       {healthExclusions.length > 0 && (
@@ -74,11 +60,8 @@ export const ResponseChartBody: React.FC<{
   );
 };
 
-export const ResponseChart: React.FC<{ manifest: EvidenceManifest; timeZone: string; t0Ms: number; metrics: ResponseQuantity[] | undefined; healthExclusions: string[] }> = ({ manifest, timeZone, t0Ms, metrics, healthExclusions }) => {
-  const arts = useGateArtifacts(manifest, 'G12');
-  return (
-    <RequireKinds arts={arts} kinds={['accepted_samples']}>
-      <ResponseChartBody byKind={arts.byKind} timeZone={timeZone} t0Ms={t0Ms} metrics={metrics} healthExclusions={healthExclusions} />
-    </RequireKinds>
-  );
-};
+export const ResponseChart: React.FC<{ arts: GateArtifacts; timeZone: string; t0Ms: number; healthExclusions: string[] }> = ({ arts, timeZone, t0Ms, healthExclusions }) => (
+  <RequireKinds arts={arts} kinds={['accepted_samples']} skeleton="evidence">
+    <ResponseChartBody byKind={arts.byKind} timeZone={timeZone} t0Ms={t0Ms} healthExclusions={healthExclusions} />
+  </RequireKinds>
+);

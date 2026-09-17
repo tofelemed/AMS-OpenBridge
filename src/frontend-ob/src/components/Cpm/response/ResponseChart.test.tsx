@@ -34,7 +34,7 @@ describe('ResponseChart', () => {
       target: [decoded({ gate: 'G12', kind: 'target', role: 'OP_TO_PV', x: [T0S, T0S + 20], y: [115, 115], xQuantity: 'time', xUnit: 's', yQuantity: 'reference', yUnit: 'PV_EU' })],
       response_times: [decoded({ gate: 'G12', kind: 'response_times', role: 'OP_TO_PV', x: [6.1, 50.0], y: [10, 90], xQuantity: 'time_after_t0', xUnit: 's', yQuantity: 'progress_level', yUnit: '%' })],
     };
-    render(<ResponseChartBody byKind={byKind} timeZone="UTC" t0Ms={T0S * 1000} metrics={[q({ quantityId: 'process_gain', value: 3, unit: 'PV_EU/input_EU', uncertainty: 0.02 })]} healthExclusions={[]} />);
+    render(<ResponseChartBody byKind={byKind} timeZone="UTC" t0Ms={T0S * 1000} healthExclusions={[]} />);
     const out = captured[0] as Opt;
     const band = out.series.filter(s => /prediction interval of the output/i.test(s.name));
     expect(band).toHaveLength(2);                                                                // upper and lower, both named with the meaning
@@ -47,16 +47,13 @@ describe('ResponseChart', () => {
     const input = captured[1] as Opt;
     expect(input.series[0].step).toBe('end');                                                    // held input
     expect(input.yAxis.map(a => a.name)).toEqual(['input_EU']);
-    expect(screen.getByText(/3\.00 PV_EU\/input_EU ± 0\.02/)).toBeTruthy();
   });
 
-  it('integrating loop: process_gain is "not applicable (integrating)" - never 0', () => {
+  it('integrating loop: process_gain is "not applicable (integrating)" - never 0 (quantityText); the chart states the exclusions', () => {
     const t = ts(3);
     const byKind = { accepted_samples: [decoded({ gate: 'G12', kind: 'accepted_samples', role: 'OP_TO_PV', x: t, y: [1, 1.1, 1.3], xQuantity: 'time', xUnit: 's', yQuantity: 'pv', yUnit: 'm' })] };
-    render(<ResponseChartBody byKind={byKind} timeZone="UTC" t0Ms={T0S * 1000} healthExclusions={['F on PV 12:00-12:01']}
-      metrics={[q({ quantityId: 'process_gain', value: null, unit: 'PV_EU/input_EU', reasonIfNull: 'INTEGRATING' }), q({ quantityId: 'integrating_gain', value: 0.000166667, unit: 'm/(s·pp)', method: 'IPDT_SLOPE_FIT' })]} />);
-    expect(screen.getByText(/not applicable \(integrating\)/)).toBeTruthy();
-    expect(screen.queryByText(/process gain[^]*\b0\.00\b/)).toBeNull();
+    render(<ResponseChartBody byKind={byKind} timeZone="UTC" t0Ms={T0S * 1000} healthExclusions={['F on PV 12:00-12:01']} />);
+    expect(quantityText(q({ quantityId: 'process_gain', value: null, unit: 'PV_EU/input_EU', reasonIfNull: 'INTEGRATING' }))).toBe('not applicable (integrating)');
     expect(screen.getByText(/F on PV 12:00-12:01/)).toBeTruthy();                                // exclusions are stated
   });
 

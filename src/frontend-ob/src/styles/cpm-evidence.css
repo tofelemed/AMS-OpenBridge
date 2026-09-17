@@ -243,8 +243,26 @@
 
 /* ── Response workspace specifics ── */
 .cpm-response-quantities { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 24px; margin-bottom: 8px; }
-.cpm-response-subgate { border-left: 2px solid var(--border-divider-color); padding-left: 8px; margin-bottom: 6px; }
 .cpm-muted { color: var(--element-neutral-color); font-size: 0.8rem; }
+/* 2026-09-17 audit F5/F19/F20: compact event rows, one state each; censored rows dimmed; skeletons that
+   say what they wait for; the subgates as steps; the catalogue behind a disclosure with its
+   not-applicable rows greyed. Tokens only. */
+.cpm-response-event__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; }
+.cpm-response-event__what { font-weight: 600; }
+.cpm-response-event--censored { opacity: 0.7; }
+.cpm-response-events__censored { align-self: flex-start; margin-bottom: 8px; }
+.cpm-skeleton--result { min-height: 160px; }
+.cpm-skeleton { display: flex; align-items: center; justify-content: center; }
+.cpm-skeleton__label { color: var(--element-neutral-color); font-size: 0.85rem; }
+.cpm-response-aside__ids { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 8px 0 12px; }
+.cpm-response-aside__all { margin-top: 8px; }
+.cpm-response-aside__all > summary { cursor: pointer; color: var(--element-active-color); padding: 8px 0; }
+.cpm-row--muted td { color: var(--element-neutral-color); }
+.cpm-steps { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.cpm-step { border-left: 3px solid var(--cpm-tone, var(--border-divider-color)); padding: 4px 0 4px 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cpm-step__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cpm-step__name { font-weight: 600; }
+.cpm-step__outputs > summary { cursor: pointer; font-size: 0.8rem; color: var(--element-neutral-color); }
 
 /* ── v2.5 Phase 3D: Gate Configuration workspace (layout only; tokens as above) ── */
 .cpm-config-columns {

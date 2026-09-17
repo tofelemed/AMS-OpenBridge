@@ -46,6 +46,15 @@ describe('buildCpmChartOption', () => {
     expect(o.series[2].large).toBeUndefined();
   });
 
+  it('keeps the legend below the plot, clear of the axis name, growing the margin with the series count (audit F19)', () => {
+    const few = buildCpmChartOption({ series: [pv, op], xKind: 'time', pens });
+    expect(few.legend.bottom).toBe(0);
+    expect(few.legend.top).toBeUndefined();
+    const many = buildCpmChartOption({ series: [pv, op, band, { ...pv, id: 'a' }, { ...pv, id: 'b' }, { ...pv, id: 'c' }, { ...pv, id: 'd' }], xKind: 'time', pens });
+    expect(many.grid.bottom).toBeGreaterThan(few.grid.bottom);
+    expect(few.grid.top).toBeLessThan(40);                                                       // no legend row reserved above the plot
+  });
+
   it('exports the same values as CSV', () => {
     expect(toCsv([pv])).toBe('x,PV (°C)\n0,400\n60000,\n120000,402');
   });

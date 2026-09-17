@@ -90,12 +90,15 @@ export function buildCpmChartOption(input: CpmChartInput) {
       __unit: s.unit,
     };
   });
+  // audit F19: the legend sits BELOW the plot and the x-axis name, never over the y-axis name; the bottom
+  // margin grows with the rows the legend will take (about four entries per row at the widths we draw)
+  const legendRows = Math.max(1, Math.ceil(series.length / 4));
   return {
     animation: false,
-    grid: { left: 64, right: 24 + Math.max(0, units.length - 2) * 48, top: 40, bottom: 56 },   // room for the legend above the axis name
+    grid: { left: 64, right: 24 + Math.max(0, units.length - 2) * 48, top: 28, bottom: 64 + legendRows * 22 },
     xAxis,
     yAxis,
-    legend: { top: 0, textStyle: { color: pens.grey } },
+    legend: { bottom: 0, textStyle: { color: pens.grey }, itemGap: 14 },
     tooltip: {
       trigger: 'axis' as const,
       formatter: (params: unknown) => {

@@ -7,10 +7,12 @@ import { KvRow, PanelHead } from '../shared';
 import type { ResponseSubgate } from '../../../api/cpm/response';
 import type { DecodedArtifact } from '../evidence/artifactCodec';
 import { CpmChart } from '../evidence/CpmChart';
+import { ArtifactSkeleton } from '../evidence/views/viewSupport';
 import { EmptyState } from '../shared';
 import { epochMs } from './responseSupport';
 
-export const ResidualPanel: React.FC<{ residuals: DecodedArtifact | undefined; acf: DecodedArtifact | undefined; timeZone: string; validation: ResponseSubgate | undefined }> = ({ residuals, acf, timeZone, validation }) => {
+export const ResidualPanel: React.FC<{ residuals: DecodedArtifact | undefined; acf: DecodedArtifact | undefined; timeZone: string; validation: ResponseSubgate | undefined; loading?: boolean }> = ({ residuals, acf, timeZone, validation, loading }) => {
+  if (!residuals && !acf && loading) return <ArtifactSkeleton kinds={['residuals', 'residual_acf']} />;
   if (!residuals && !acf) {
     return <EmptyState title="No residuals for this event" copy="The kernel produced no fit here (no estimation, or the event was rejected / censored before estimation), so there is nothing to draw." />;
   }

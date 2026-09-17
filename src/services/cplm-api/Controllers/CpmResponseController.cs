@@ -20,12 +20,19 @@ public sealed class CpmResponseController : ControllerBase
 
     public CpmResponseController([FromKeyedServices("cplm")] NpgsqlDataSource db) => _db = db;
 
+    /// <summary>
+    /// 2026-09-17 audit F19/F20: <c>includeCensored=false</c> leaves the censored candidates (superseded, source
+    /// gap - on the lab 321 of 328 events) out of the page; <c>censoredCount</c> always says how many the range
+    /// holds so the reader knows they exist and can ask for them.
+    /// </summary>
     [HttpGet("loops/{loopId}/response-events")]
     public async Task<IActionResult> List(string loopId, [FromQuery] DateTimeOffset? from, [FromQuery] DateTimeOffset? to,
-        [FromQuery] long? cursor, [FromQuery] int limit = 50, [FromQuery] string purpose = "LIVE", CancellationToken ct = default)
+        [FromQuery] long? cursor, [FromQuery] int limit = 50, [FromQuery] string purpose = "LIVE", [FromQuery] bool includeCensored = true,
+        CancellationToken ct = default)
     {
         limit = Math.Clamp(limit, 1, 500);
         await using var conn = await _db.OpenConnectionAsync(ct);
+        var args = new { loopId, purpose, fromMs = from?.ToUnixTimeMilliseconds(), toMs = to?.ToUnixTimeMilliseconds(), cursor, limit, includeCensored };
         var rows = (await conn.QueryAsync("""
             SELECT event_id, method_run_id, event_type, path_id, t0_ms, t_end_ms, capture_state, censor_reason, evaluation_state, eligibility,
                    finding, model_state, purpose, bundle_hash, result_revision, emitted_at_ms
@@ -33,8 +40,14 @@ public sealed class CpmResponseController : ControllerBase
             WHERE lower(loop_id) = lower(@loopId) AND purpose = @purpose
               AND (@fromMs::bigint IS NULL OR t0_ms >= @fromMs) AND (@toMs::bigint IS NULL OR t0_ms < @toMs)
               AND (@cursor::bigint IS NULL OR t0_ms < @cursor)
+              AND (@includeCensored OR capture_state <> 'CENSORED')
             ORDER BY t0_ms DESC LIMIT @limit
-            """, new { loopId, purpose, fromMs = from?.ToUnixTimeMilliseconds(), toMs = to?.ToUnixTimeMilliseconds(), cursor, limit })).ToList();
+            """, args)).ToList();
+        var censoredCount = await conn.ExecuteScalarAsync<long>("""
+            SELECT count(*) FROM analytics.response_event
+            WHERE lower(loop_id) = lower(@loopId) AND purpose = @purpose AND capture_state = 'CENSORED'
+              AND (@fromMs::bigint IS NULL OR t0_ms >= @fromMs) AND (@toMs::bigint IS NULL OR t0_ms < @toMs)
+            """, args);
         var events = rows.Select(r => new
         {
             eventId = (Guid)r.event_id, methodRunId = (Guid)r.method_run_id, eventType = (string)r.event_type, pathId = (string)r.path_id,
@@ -43,7 +56,7 @@ public sealed class CpmResponseController : ControllerBase
             modelState = (string)r.model_state, purpose = (string)r.purpose, bundleHash = (string)r.bundle_hash,
             resultRevision = (int)r.result_revision, emittedAtMs = (long?)r.emitted_at_ms,
         }).ToList();
-        return Ok(new { loopId, purpose, count = events.Count, nextCursor = events.Count == limit ? events[^1].t0Ms : (long?)null, events });
+        return Ok(new { loopId, purpose, count = events.Count, censoredCount, includeCensored, nextCursor = events.Count == limit ? events[^1].t0Ms : (long?)null, events });
     }
 
     /// <summary>One event in full: subgates, the 52 quantities, identity. Immutable for its method_run_id.</summary>
