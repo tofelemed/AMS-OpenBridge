@@ -1783,7 +1783,13 @@ Commits (branch `feat/v25-next-release`, tests first): 2A `f3a91c84` `33e167a7` 
 - 2C lab proof: short-tier manifests COMPLETE; `/method-runs/{id}/evidence` ETag / 304; chunk bytes decoded to 61 × 6 columns; reconstruction under the original identity; retention cycle EXPIRED → reconstruct → ATTACHED / COMPLETE; G12 reconstruction refused 422.
 - `scripts/test-cpm-v25-slice2-e2e.ps1` (new, 17 steps): __SLICE2_RESULT__
 - `scripts/sim/loop_step_sim.py` gains `interrupted-step` (NR-007: a second step 30 s after the first).
-- Lab findings while proving 2F/2G (fixed in this set): the no-watermark control stream held every long-job timer (ea8ed2c7, `LongJobTopologyTest`); an EXCLUDED fused window (cold 24 h, G0 FAIL) read G13 as `LEGACY_FLAG_ONLY` as if an old jar had produced it - the long tier's analysis identity now rides every fused row (6bdcfd78).
+- Lab findings while proving Slice 2 (all fixed in this set): the no-watermark control stream held every long-job timer
+  (ea8ed2c7, `LongJobTopologyTest`); an EXCLUDED fused window (cold 24 h, G0 FAIL) read G13 as `LEGACY_FLAG_ONLY` as if an
+  old jar had produced it, and carried an empty `method_eligibility` - the long tier's G13 identity and the grid's
+  eligibility now ride every fused row (6bdcfd78, 95f25b74); **the streaming capture never looked for a second step while
+  one was open** (the machine's SUPERSEDED_BY_EVENT path was only ever driven by its own unit test), so the interrupted-step
+  scenario read COMPLETE on the lab - a sustained change of the open event's driving signal now supersedes it and the second
+  event carries the whole input sequence (NR-007, `ResponseCaptureEvaluatorTest`).
 
 ### Risks and deliberate limits
 

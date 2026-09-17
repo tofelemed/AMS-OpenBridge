@@ -6,7 +6,7 @@ on `feat/v25-next-release`, and the result. "Unit" evidence proves the mechanism
 the running application - the spec's own rule ("isolated Python reference tests do not establish
 production acceptance") is why every slice also has an E2E script against the running stack.
 
-Suite state at the time of writing (2026-09-17): Flink `mvn test` **264 / 0 failures / 2 skipped**;
+Suite state at the time of writing (2026-09-17): Flink `mvn test` **265 / 0 failures / 2 skipped**;
 cplm-api **159 / 159**; ingestion-service **212 / 212**; frontend vitest **101 / 101**, lint + build
 clean; `pytest scripts/sim` **17 / 17**. Lab E2E results are recorded in `changes_tracker.md`
 (CHG-026 slice 1 **18/18**; CHG-027 slice 2 and CHG-028 slice 3: the entries carry the run results).
@@ -19,7 +19,7 @@ clean; `pytest scripts/sim` **17 / 17**. Lab E2E results are recorded in `change
 | 004 | Closed-loop level response | `ClosedLoopPemEstimatorTest`, `ResponseCaptureEvaluatorTest` (servo path, `process_gain` `PATH_NOT_EXOGENOUS`) | ae226715, 3599d519 | unit pass |
 | 005 | Steady SP closed-loop routine noise | `ClosedLoopPemEstimatorTest` (abstains: `NO_EXCITATION`) | ae226715 | unit pass |
 | 006 | Poor excitation | `ResponseEventDetectorTest` (no candidate), `OutputErrorEstimatorTest` (`NOT_ESTIMATED`) | fbb2e8df, ae226715 | unit pass |
-| 007 | Step interrupted by another step | `CaptureStateMachineTest` (`SUPERSEDED_BY_EVENT`); lab: slice-2 E2E "a second step 30 s after the first CENSORS the first" (`loop_step_sim.py --scenario interrupted-step`) | fbb2e8df, 729ae54e | unit pass; lab per CHG-027 |
+| 007 | Step interrupted by another step | `CaptureStateMachineTest` (`SUPERSEDED_BY_EVENT`), `ResponseCaptureEvaluatorTest.nr007…` (the STREAMING capture supersedes on a second step - the lab found the machine path was unit-only); lab: slice-2 E2E "a second step 30 s after the first CENSORS the first" (`loop_step_sim.py --scenario interrupted-step`) | fbb2e8df, 729ae54e, 770e3315 | unit pass; lab per CHG-027 |
 | 008 | No stable final endpoint | `EndpointsAndSettlingTest` (`RIGHT_CENSORED`) | 33e167a7 | unit pass |
 | 009 | Reference offset | `EndpointsAndSettlingTest` (response settle finite, target settle `TARGET_BAND_NOT_ENTERED`, steady error 2) | 33e167a7 | unit pass |
 | 010 | Delay below source-time uncertainty | `OutputErrorEstimatorTest` (θ 0.5 s on a 5 s grid → uncertainty ≥ 2.5 s, `FLAT_DELAY`) | ae226715 | unit pass |
