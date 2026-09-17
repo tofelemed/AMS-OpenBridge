@@ -51,9 +51,10 @@ export const PropertyTable: React.FC<PropertyTableProps> = ({ entries, bundle, e
                   <td className="cpm-mono">{source ?? '—'}</td>
                   <td><TonePill tone={p.changeClass === 'DEPLOYMENT' ? 'bad' : p.changeClass === 'STATE_BOUNDARY' ? 'warn' : 'muted'}>{p.changeClass}</TonePill></td>
                   <td className="cpm-config-table__flags">
-                    {commissioning && <TonePill tone="bad">Commissioning required</TonePill>}
-                    {p.notReadByBuild != null && <TonePill tone="muted">not read by this build</TonePill>}
-                    {errors.length > 0 && <TonePill tone="bad">invalid</TonePill>}
+                    {/* short words in the row; the editor below spells each one out */}
+                    {commissioning && <span title="Commissioning required: the catalogue has no starting value"><TonePill tone="bad">commissioning</TonePill></span>}
+                    {p.notReadByBuild != null && <span title={`Not read by this build: ${p.notReadByBuild}`}><TonePill tone="muted">unread by build</TonePill></span>}
+                    {errors.length > 0 && <span title={errors.join(' · ')}><TonePill tone="bad">invalid</TonePill></span>}
                   </td>
                 </tr>
                 {open && (

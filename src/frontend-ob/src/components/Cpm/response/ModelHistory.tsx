@@ -26,7 +26,7 @@ export const ModelHistoryBody: React.FC<{ models: SystemModel[]; timeZone: strin
           { id: `${param}_upper`, label: `${param} upper (value + uncertainty)`, unit: points[0].unit, x, y: points.map(p => p.upper), pen: 'grey', markers: true },
           { id: `${param}_lower`, label: `${param} lower (value − uncertainty)`, unit: points[0].unit, x, y: points.map(p => p.lower), pen: 'grey', markers: true },
         ];
-        return <CpmChart key={param} title={param} series={series} xKind="time" timeZone={timeZone} height={220} />;
+        return <CpmChart key={param} title={param} series={series} xKind="time" timeZone={timeZone} height={280} />;
       })}
       <div className="cpm-matrix-scroll">
       <table className="cpm-table" data-table="models">

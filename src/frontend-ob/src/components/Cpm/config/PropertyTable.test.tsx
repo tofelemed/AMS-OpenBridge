@@ -39,8 +39,8 @@ describe('PropertyTable', () => {
     expect(rows[1].textContent).toMatch(/LOOP/);
     expect(rows[1].textContent).toMatch(/STATE_BOUNDARY/);
     expect(rows[1].getAttribute('data-invalid')).toBe('true');
-    expect(rows[2].textContent).toMatch(/Commissioning required/);
-    expect(rows[2].textContent).toMatch(/not read by this build/);
+    expect(rows[2].textContent).toMatch(/commissioning/);
+    expect(rows[2].textContent).toMatch(/unread by build/);
     expect(screen.queryAllByTestId('property-form')).toHaveLength(0);
 
     fireEvent.click(screen.getByRole('button', { name: /G0\.max_gap_s/ }));
