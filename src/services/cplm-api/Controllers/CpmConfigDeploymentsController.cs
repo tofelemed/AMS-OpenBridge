@@ -21,7 +21,8 @@ public sealed class CpmConfigDeploymentsController : ControllerBase
 
     public CpmConfigDeploymentsController(ConfigDeploymentService deployments) => _deployments = deployments;
 
-    private string Actor() => User.Identity?.Name ?? Request.Headers["X-Auth-User"].ToString();
+    // identity comes from the principal the edge-trust handler built (TraverseAuth maps the gateway's X-Auth-* headers to claims); never from a raw header here
+    private string Actor() => User.FindFirst("preferred_username")?.Value ?? User.Identity?.Name ?? "unknown";
 
     [HttpPost]
     [Authorize(Policy = "cpm.config.activate")]

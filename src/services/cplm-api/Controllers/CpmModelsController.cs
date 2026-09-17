@@ -77,7 +77,7 @@ public sealed class CpmModelsController : ControllerBase
     {
         if (req is null || string.IsNullOrWhiteSpace(req.Decision) || !Decisions.Contains(req.Decision))
             return UnprocessableEntity(new { error = "decision must be one of VALIDATED, REJECTED, ACTIVE_BASELINE, EXPIRED", field = "decision" });
-        var actor = User.Identity?.Name ?? Request.Headers["X-Auth-User"].ToString();
+        var actor = User.FindFirst("preferred_username")?.Value ?? User.Identity?.Name ?? "unknown";   // claims from the edge-trust handler, never a raw header
         if (string.IsNullOrWhiteSpace(actor)) return Forbid();
         int? expected = null;
         if (Request.Headers.TryGetValue("If-Match", out var ifMatch) && int.TryParse(ifMatch.ToString().Trim('"', ' '), out var rev)) expected = rev;

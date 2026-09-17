@@ -29,7 +29,13 @@ public sealed class CpmCapabilitiesController : ControllerBase
     {
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
         var rows = await conn.QueryAsync<EngineVersionRow>(Data.GateReadSql.ObservedEngines);
-        return Ok(CapabilityManifest.Build(rows, ServiceIdentityProvider.Current));
+        // v2.5 3A.2: what the RUNNING jobs announced (CAPABILITY records) - the config section reads nothing from the JSON alone
+        var workers = await conn.QueryAsync<WorkerCapabilityRow>("""
+            SELECT job_name AS JobName, jar_sha256 AS JarSha256, source_commit AS SourceCommit, catalogue_hash AS CatalogueHash,
+                   payload::text AS Payload, received_at AS ReceivedAt
+              FROM cpm.config_worker_capability ORDER BY job_name
+            """);
+        return Ok(CapabilityManifest.Build(rows, ServiceIdentityProvider.Current, workers));
     }
 
     /// <summary>

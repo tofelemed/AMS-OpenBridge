@@ -47,7 +47,7 @@ public sealed class CpmAnalysisRunsController : ControllerBase
         if (loop is null) return NotFound(new { error = $"Loop '{req.LoopId}' is not registered" });
 
         var idempotencyKey = Request.Headers.TryGetValue("Idempotency-Key", out var k) ? k.ToString() : null;
-        var actor = User.Identity?.Name ?? Request.Headers["X-Auth-User"].ToString();
+        var actor = User.FindFirst("preferred_username")?.Value ?? User.Identity?.Name ?? "unknown";   // claims from the edge-trust handler, never a raw header
         var source = (req.Source ?? "kafka").Trim().ToLowerInvariant();
         if (source is not ("kafka" or "iotdb"))
             return BadRequest(new { error = $"Unknown source '{req.Source}'", allowed = new[] { "kafka", "iotdb" } });
@@ -104,7 +104,7 @@ public sealed class CpmAnalysisRunsController : ControllerBase
             return BadRequest(new { error = $"Unknown source '{req.Source}'", allowed = new[] { "kafka", "iotdb" } });
         var support = new ReplaySupport(source, loc.FromMs, loc.ToMs, loc.Site, null);
         var idempotencyKey = Request.Headers.TryGetValue("Idempotency-Key", out var k) ? k.ToString() : null;
-        var actor = User.Identity?.Name ?? Request.Headers["X-Auth-User"].ToString();
+        var actor = User.FindFirst("preferred_username")?.Value ?? User.Identity?.Name ?? "unknown";   // claims from the edge-trust handler, never a raw header
         try
         {
             var handle = await _recompute.StartReconstructionAsync(loc.LoopId, new ReconstructionTarget(req.MethodRunId.Value, loc.Gate, loc.WindowKind),

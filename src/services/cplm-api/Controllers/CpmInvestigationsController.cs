@@ -22,7 +22,7 @@ public sealed class CpmInvestigationsController : ControllerBase
 
     public CpmInvestigationsController(InvestigationStore store) => _store = store;
 
-    private string Actor() => User.FindFirst("preferred_username")?.Value ?? User.Identity?.Name ?? Request.Headers["X-Auth-User"].ToString();
+    private string Actor() => User.FindFirst("preferred_username")?.Value ?? User.Identity?.Name ?? "unknown";   // claims from the edge-trust handler, never a raw header
 
     [HttpPost("investigations")]
     [Authorize(Policy = "cpm.manage")]

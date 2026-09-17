@@ -34,9 +34,10 @@ public sealed class CpmConfigurationController : ControllerBase
         _store = store; _deployments = deployments; _registry = registry; _recompute = recompute; _audit = audit;
     }
 
-    private string Actor() => User.Identity?.Name ?? Request.Headers["X-Auth-User"].ToString();
-    private IReadOnlyList<string> Roles() => User.Claims.Where(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value)
-        .Concat(Request.Headers["X-Auth-Role"].ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).Distinct().ToList();
+    // identity comes from the principal the edge-trust handler built (TraverseAuth maps the gateway's X-Auth-* headers to claims); never from a raw header here
+    private string Actor() => User.FindFirst("preferred_username")?.Value ?? User.Identity?.Name ?? "unknown";
+    private IReadOnlyList<string> Roles() => User.Claims.Where(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role)
+        .SelectMany(c => c.Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).Distinct(StringComparer.Ordinal).ToList();
 
     /// <summary>The catalogue this build carries (typed, with defaults, validation, change class, consumers, dependencies) and what the running jobs read.</summary>
     [HttpGet("catalogue")]
