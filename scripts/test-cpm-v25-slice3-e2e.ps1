@@ -80,6 +80,9 @@ Step 'login as the admin (reviewer / activator); create or reuse an Engineer aut
             -Body (@{ username = $EngineerUser; email = "$EngineerUser@e2e.local"; password = $EngineerPassword; fullName = 'E2E config engineer'; role = 'Engineer' } | ConvertTo-Json)
         Assert ($u.success -eq $true) "could not create the engineer user: $($u | ConvertTo-Json -Compress)"
         $script:createdEngineer = $EngineerUser
+        # a token issued in the same second as the credential change reads as revoked on a pre-v2.5 auth-service
+        # (the revocation epoch was rounded, not floored); v2.5 fixes it, the wait keeps the script honest on either
+        Start-Sleep -Seconds 2
     } elseif (-not $EngineerPassword) { $EngineerPassword = $AdminPassword }
     $script:eng = Login $EngineerUser $EngineerPassword
 }
@@ -89,6 +92,8 @@ $A = @{ Authorization = "Bearer $($script:adm)"; 'Content-Type' = 'application/j
 
 # ── 1. Build truth (3A) ──────────────────────────────────────────────────────
 Step 'capabilities.config: every CPLM job announced on ONE jar with the catalogue this build carries (3A.2, NR-046)' {
+    # right after a jar deploy the jobs re-announce one by one: wait for the fleet to be one jar before judging it
+    $ok = Wait-Until { $x = (Invoke-RestMethod -Method Get -Uri "$cpm/capabilities" -Headers $A).config; $script:cap = $x; $x.state -eq 'ANNOUNCED' -and @($x.jarSha256s).Count -eq 1 -and @($x.workers).Count -ge 6 } 180 10
     $cap = Invoke-RestMethod -Method Get -Uri "$cpm/capabilities" -Headers $A
     $c = $cap.config
     Assert ($c.state -eq 'ANNOUNCED') "config state: $($c.state)"

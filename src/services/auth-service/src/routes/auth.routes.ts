@@ -42,13 +42,16 @@ router.get('/internal/revocations', async (req: Request, res: Response) => {
     return;
   }
 
+  // v2.5 lab finding (2026-09-17): ::bigint ROUNDS the epoch, so a user created at hh:mm:48.84 got changed = 49 and a token
+  // issued in the same second (iat 48) read as revoked (gateway: iat < changed) - the first login after a credential change
+  // failed with 401 until the next second. floor() makes "changed" the second the change happened in, which is what iat is.
   const since = Number.parseInt(String(req.query.sinceEpoch ?? ''), 10);
   const sinceEpoch = Number.isFinite(since) ? since : Math.floor(Date.now() / 1000) - 1800;
 
   try {
     const result = await pool.query(
       `SELECT user_id,
-              EXTRACT(EPOCH FROM credentials_changed_at)::bigint AS changed,
+              floor(EXTRACT(EPOCH FROM credentials_changed_at))::bigint AS changed,
               is_active
          FROM users
         WHERE credentials_changed_at > to_timestamp($1)
