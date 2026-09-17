@@ -1,0 +1,40 @@
+{
+  "plan_version": "1.0.0",
+  "scheduler_mode": "FIXED_COMPILED",
+  "horizons": [
+    { "horizon_id": "short_1m", "tier": "short", "duration_s": 60.0, "slide_s": 60.0, "min_samples": 4 },
+    { "horizon_id": "short_5m", "tier": "short", "duration_s": 300.0, "slide_s": 60.0, "min_samples": 10 },
+    { "horizon_id": "short_10m", "tier": "short", "duration_s": 600.0, "slide_s": 120.0, "min_samples": 10 },
+    { "horizon_id": "short_15m", "tier": "short", "duration_s": 900.0, "slide_s": 300.0, "min_samples": 10 },
+    { "horizon_id": "short_30m", "tier": "short", "duration_s": 1800.0, "slide_s": 300.0, "min_samples": 10 },
+    { "horizon_id": "short_60m", "tier": "short", "duration_s": 3600.0, "slide_s": 300.0, "min_samples": 10 },
+    { "horizon_id": "long_4h", "tier": "long", "duration_s": 14400.0, "slide_s": 900.0, "min_samples": 32, "retention_s": 87000.0 },
+    { "horizon_id": "long_12h", "tier": "long", "duration_s": 43200.0, "slide_s": 900.0, "min_samples": 32, "retention_s": 87000.0 },
+    { "horizon_id": "long_24h", "tier": "long", "duration_s": 86400.0, "slide_s": 900.0, "min_samples": 32, "retention_s": 87000.0 },
+    { "horizon_id": "event", "tier": "event", "duration_s": 0.0, "slide_s": 0.0, "min_samples": 4 }
+  ],
+  "assignments": [
+    { "gate": "G0", "horizon_id": "short_60m", "trigger": "WINDOW" },
+    { "gate": "G1", "horizon_id": "short_60m", "trigger": "WINDOW", "required_qualification": ["G0"] },
+    { "gate": "G2", "horizon_id": "short_60m", "trigger": "WINDOW", "required_qualification": ["G0", "G1"] },
+    { "gate": "G2r", "horizon_id": "short_60m", "trigger": "WINDOW", "required_qualification": ["G0", "G1"] },
+    { "gate": "G3", "horizon_id": "short_60m", "trigger": "WINDOW", "required_qualification": ["G0", "G1", "G2r"] },
+    { "gate": "G4", "horizon_id": "short_60m", "trigger": "WINDOW", "required_qualification": ["G0", "G1", "G2r"] },
+    { "gate": "G5", "horizon_id": "long_24h", "trigger": "WINDOW", "required_qualification": ["G0", "G1"] },
+    { "gate": "G6", "horizon_id": "long_24h", "trigger": "WINDOW", "required_qualification": ["G0", "G1"] },
+    { "gate": "G7", "horizon_id": "long_24h", "trigger": "WINDOW", "required_qualification": ["G0", "G1"] },
+    { "gate": "G8", "horizon_id": "long_24h", "trigger": "WINDOW", "required_qualification": ["G0", "G1"] },
+    { "gate": "G9", "horizon_id": "long_24h", "trigger": "WINDOW", "required_qualification": ["G0", "G1", "G2r"] },
+    { "gate": "G10", "horizon_id": "long_24h", "trigger": "CONDITION_AND_WINDOW", "required_qualification": ["G0"] },
+    { "gate": "G11", "horizon_id": "long_24h", "trigger": "CONDITION_AND_WINDOW", "required_qualification": ["G0"] },
+    { "gate": "G12", "horizon_id": "event", "trigger": "EVENT", "required_qualification": ["G0", "G1"] },
+    { "gate": "G13", "horizon_id": "long_24h", "trigger": "EVIDENCE_UPDATE", "required_qualification": ["G0"] },
+    { "gate": "G14", "horizon_id": "long_24h", "trigger": "EVIDENCE_UPDATE", "required_qualification": ["G0", "G1"] },
+    { "gate": "G15", "horizon_id": "long_24h", "trigger": "EVIDENCE_UPDATE", "required_qualification": ["G0", "G1"] }
+  ],
+  "capacity_identity": {
+    "max_retention_s": 87000.0,
+    "supported_slides_s": [60.0, 120.0, 300.0, 900.0],
+    "max_active_horizons": 10
+  }
+}

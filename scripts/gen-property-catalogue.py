@@ -220,7 +220,7 @@ def main():
         # the sibling contracts (unsupported declaration, installed plan) ship as copies too
         for name, copies in {
             "unsupported-in-build.json": ["src/services/cplm-api/Config/unsupported-in-build.json", "src/flink/src/main/resources/cplm/gate-config/unsupported-in-build.json"],
-            "execution-plan.installed.json": ["src/services/cplm-api/Config/execution-plan.installed.json"],
+            "execution-plan.installed.json": ["src/services/cplm-api/Config/execution-plan.installed.json", "src/flink/src/main/resources/cplm/gate-config/execution-plan.installed.json"],
             # exported by the jar (mvn -Dtest=FactoryLayerParityTest -Dfactory.layer.write=true test) into its own resources, copied outward
             "factory-layer.json": ["src/services/cplm-api/Config/factory-layer.json", "src/flink/src/main/resources/cplm/gate-config/factory-layer.json"],
         }.items():
