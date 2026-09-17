@@ -1665,6 +1665,15 @@ and `GET /method-runs/{id}/evidence/bundle` (all additive; `EvidenceApiTests`, `
 `ams-frontend` carries the redesigned workbench (`WHATS-NEW-v2.5.md` §3.5 describes the new flow). Both images are on the lab;
 they are in the v2.5 manifest already, nothing else changes for the plant.
 
+**Audit follow-up, same day (every remaining finding, `05-frontend-audit` §4.6):** `cplm-api` additionally gains
+`GET /loops/{id}/gates/latest` = the NEWEST evaluated window with `lastVerdict` (`?prefer=verdict` for the old
+behaviour; the heatmap row follows), `RequiredJobs` covering the three v2.5 engines (readiness), the fleet
+capability wording, `GET /conditions` (fleet-wide fast conditions) and `response-events?includeCensored=false`
++ `censoredCount` - all additive, no schema change (cplm-api tests 171/171). `ams-frontend` carries the
+redesigned System Response and Gate Configuration pages, the Loop Explorer loop model, the fast-conditions table
+on Loop Events and the "latest is the newest window" reading everywhere (frontend tests 225/225). Same two
+images, same manifest; test counts below are the current ones.
+
 **Updated services (build these, nothing else) — manifest `migration/deploy/releases/v2.5.txt`:**
 
 | Compose service | Image | Carries |
@@ -1686,7 +1695,7 @@ git status --short                                                   # must be e
 python scripts/gen-property-catalogue.py --check                     # the four catalogue copies are identical
 docker run --rm -v "D:\HMI_Project_Usama\AMS-open\src\flink:/build" -v "$env:USERPROFILE\.m2:/root/.m2" -w /build maven:3.9-eclipse-temurin-11 mvn -q -o test   # 0 failures
 dotnet test tests/ingestion-service.Tests                            # 212
-dotnet test tests/cplm-api.Tests                                     # 159 (lab Postgres on 5433)
+dotnet test tests/cplm-api.Tests                                     # 171 (lab Postgres on 5433)
 dotnet test tests/binding-resolver.Tests
 docker run --rm -d --name snaptest-redis -p 6390:6379 redis:7.2-alpine; dotnet test tests/historian-bff.Tests; docker rm -f snaptest-redis
 cd src/frontend-ob; npm test; npm run lint; npm run build; cd ..\..    # 101, lint + build clean

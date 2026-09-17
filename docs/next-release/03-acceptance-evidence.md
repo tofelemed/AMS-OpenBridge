@@ -90,6 +90,17 @@ historian trend reads for the context lanes); first chart in **0.9–2.6 s** (G5
 probe made two gates stall once (`POST /api/auth/refresh` mid-run; the batch fell back to single reads) - an
 app-level refresh race noted for the Response/Config follow-up, not a workbench defect.
 
+**Re-audit after the remaining findings (2026-09-17 17:20–17:40, frontend `7c0cb089`, cplm-api `638865f7`):**
+`ui-v25-audit.mjs` 18 pages + 3 flows (matrix → inspector → workbench; response → event; config → active
+bundle): 0 console errors, 0 failed calls, no horizontal overflow at 1600 px; `ui-v25-gates.mjs` 17 / 17 gate
+views, 0 page errors, 12–13 requests per gate, first chart 0.9–2.5 s warm (G5 1.0 s, G9 1.5 s, G14 1.9 s,
+G15 2.5 s). The first probe right after recreating cplm-api measured G9 10.3 s / G14 9.2 s / G15 16.5 s - a
+cold service (JIT + cold bundle reads), repeated warm at the numbers above. Five probe runs inside 15 min
+tripped the gateway's rate limit on `POST /api/auth/refresh` once (429 on the Performance page) - probe
+cadence, not a page defect. Screenshots reviewed: System Response (result card, compact rows, censored
+candidates counted, steps A–H, key results, catalogue folded), Gate Configuration (property table, tabs,
+lifecycle column, deployments timeline), Loop Events (fast conditions with stale opens stated).
+
 ## Not automated (stated)
 
 - **NR-061 target load**: the spec's declared load (171 loops × 5 s + 20 % quality-only + 5 response events / min) is approximated - the response event rate is bounded by the step simulator (one loop, ~8 min per event). The report says so.

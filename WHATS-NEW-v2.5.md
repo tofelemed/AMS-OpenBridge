@@ -237,11 +237,18 @@ unit, path and a reason when null (an integrating loop has no static gain — `p
 reason INTEGRATING`). Controller form/frequency margins and a SIMC tuning *suggestion* are computed
 only when the model is validated and the controller form is known; nothing is ever written to the DCS.
 
-- **Where:** nav **System Response** (`/cpm/response?loop=FIC10302`): left = every event including
-  rejected/censored ones with reasons; centre = input/PV/SP panes with fit, labelled prediction vs
-  confidence bands, response-time markers, residuals + residual ACF, candidate models with the
-  delay-objective curve, Bode only when valid, model history as interval markers; **Review model**
-  dialog (permission `cpm.model.review`) to validate / reject / promote / expire a model with a note.
+- **Where:** nav **System Response**: pick the loop with the scope filter + loop search (as on every
+  CPM page) or arrive from a G12 view in the workbench. Left = the loop's real events, newest first,
+  one line each (time · type · path · one state · the finding in words); the censored candidates
+  (superseded by a later change, source gap - most of what the detector captures) are **counted**,
+  "Show n censored candidates" lists them with their reason. Centre = the **result card** first (model
+  family, K / θ / τ with ± and units, the validation verdict, one sentence on identifiability), then
+  the response chart (PV, fit, labelled prediction band, response-time markers, held input), residuals
+  + residual ACF, candidate models with the delay-objective curve, Bode only when valid - every panel
+  keeps its place as a skeleton while its artifacts decode, nothing is blank. Right = the event's
+  steps A–H with their reason, the **key results**, the whole 52-row catalogue folded away (not-
+  applicable rows greyed with their reason, never 0), the model history; **Review model** dialog
+  (permission `cpm.model.review`) to validate / reject / promote / expire a model with a note.
 - **Try (≈9 min per run):**
   `python scripts/sim/loop_step_sim.py --loop FIC10302 --scenario input-test --pre-s 180 --post-s 360 --interval 1`
   → one `INPUT_TEST` event `COMPLETE` with Kp ≈ 3, τ ≈ 20 s, θ ≈ 2.7 s. Run it a second time
@@ -292,10 +299,17 @@ and hashed; that hash is what every result is pinned to.
 Lifecycle (every step is a server-side permission):
 
 1. **Draft** — Gate Configuration → choose Site → Scope (SITE / PROFILE / LOOP) → reference → *New
-   draft* (or *New version* of the selected bundle). Pick a gate; the property form shows the
-   effective value, the inherited value and its source layer, bounds, change class; type a new
-   value (a fraction field refuses `50`, arrays are replaced whole, *reset to inherited* removes an
-   override; a value the catalogue forbids is refused at edit time naming the field).
+   draft* (or *New version* of the selected bundle). Pick a gate; its properties are a **table**
+   (name · effective value and the layer it comes from · change class · flags such as
+   *commissioning* or *unread by build*); click a row to open its editor (definition, inherited
+   value, bounds, read-by, set / reset - one open at a time). Type a new value (a fraction field
+   refuses `50`, arrays are replaced whole, *reset to inherited* removes an override; a value the
+   catalogue forbids is refused at edit time naming the field). *Diff & impact* and *Shadow* are
+   tabs beside *Properties*. The right column is the **lifecycle**: the steps (draft → validated →
+   shadow → approved → deploying → active) with the current one marked, the actions in that order -
+   a disabled one says why (the state, or the permission you lack) - and the deployments as a
+   timeline whose worker ACK matrix is summarised in one line and unfolds when something is not
+   verified.
 2. **Validate** — types, bounds, forbidden combinations, execution-plan capacity. The draft is
    classified by its own edits: `POLICY` (thresholds, hot), `STATE_BOUNDARY` (changes what an event
    detector sees → engines start a new epoch and report `WAITING / WARMUP` until warm), or

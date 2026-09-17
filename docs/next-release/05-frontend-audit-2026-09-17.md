@@ -159,6 +159,29 @@ statuses), F16 (plain "why this result"), F17 (crossings as markers + table), pl
 tables. Measured on the lab: 17/17 gate views, 12–13 requests per cold gate open (G9 was ~50), first chart
 0.9–2.6 s. Still open from this list: F4 (fleet "latest" semantics), F10–F12, F18–F22.
 
+## 4.6 Done — every remaining finding (same day, "first fix all F open tasks")
+
+Each a test-first commit; cplm-api **171/171**, frontend **225/225**, lint + build clean; both images rebuilt
+and re-audited on the lab (`ui-v25-audit.mjs`: 18 pages + 3 flows, 0 console errors, 0 failed calls, no
+horizontal overflow; `ui-v25-gates.mjs`: 17/17 gate views, 12–13 requests per gate, first chart 0.9–2.5 s warm).
+
+| # | Closed by | What changed |
+|---|---|---|
+| F4 | `51408de3` | `GET /loops/{id}/gates/latest` serves the loop's NEWEST evaluated window (any diagnosis) with `lastVerdict` beside it (`?prefer=verdict` keeps the verdict row with `newestWindow`); the fleet heatmap row is the newest window with its run ids and the last older verdict; the matrix, the inspector and the Investigation card state an older verdict as older with its age; the workbench launcher opens the newest window's run |
+| F10 | `5b2260d1` | `RequiredJobs` = what `flink-job-supervisor.sh` submits, pinned by `ReadinessJobsTests`; Overview and Pipeline Health list the three v2.5 engines |
+| F11 | `07b34062` | fleet capability tiles speak fusion v2 (G14 test record / G13 configured peers); the 0.89 cap constant leaves the summary API |
+| F12, F21 | `ac28100d` | Loop Explorer shows the loop model with links to the workbench, the response page and the effective configuration; the registry aside links them too |
+| F22 | `9210d67a` | `GET /api/v1/cpm/conditions` (registry scope, open first) and a "Fast conditions" table on Loop Events; an OPEN condition not updated for 10 min is said to be stale with its last-update age (`1a6f2b7a`) |
+| F5, F19, F20 | `638865f7` | System Response: lands with scope filter + loop search; result card first (family, K/θ/τ with ± and units, validation verdict, identifiability); skeletons with `aria-busy` naming what they decode; event rows = time · type · path · one state · one-line finding; censored candidates counted, listed on request (`?includeCensored=false` + `censoredCount` - 321 of 328 lab events); aside = steps A–H with reason, key results, the 52-row catalogue folded with not-applicable rows greyed; legends below the plot (rows from the measured width, `1a6f2b7a`); Bode margins use the catalogue ids (`gain_crossover`, `peak_complementary_sensitivity`, `closed_loop_bandwidth` - the `*_hz` ids never rendered) |
+| F18 | `a49b0851` + `3c0ae161`, `d35f5369`, `7c0cb089` | Gate Configuration: property table (name · effective/from · class · flags) with one expanded editor; Properties / Diff & impact / Shadow as tabs (`?tab=`); lifecycle column = steps with the current one + actions in order with the blocking reason (a frozen version says it once) + compact approvals; deployments as a timeline with the ACK matrix summarised in one line and folded when verified; every column `minmax(0, …)`, fixed table layout, pills wrap at spaces |
+
+F20's engine side, checked and reported (no change): the step detector's floor is `max(1 EU, 1 % of span,
+4 × 1.4826 × MAD of the 60 s pre-window)` (`ResponseEventDetector`); the OT sim's OP walk crosses it, the
+candidate is captured and then censored `SUPERSEDED_BY_EVENT` / `SOURCE_GAP` - correct behaviour, now
+counted rather than listed. Observed while re-auditing: five probe runs inside 15 min hit the gateway's rate
+limit on `POST /api/auth/refresh` (one 429 on the Performance page in the fifth run) - a probe cadence
+artefact, not a page defect.
+
 ## 5. Suggested order (each a commit with tests; lab re-audit with the scripts at the end)
 
 1. F4 latest semantics (API + matrix + launcher) — unblocks the workbench for the whole fleet.
