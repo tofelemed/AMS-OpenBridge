@@ -16,6 +16,7 @@ import {
   expiredReason,
   getPolicy,
 } from '../auth/sessionClock';
+import { classifyRefreshFailure, retryAfterMs, retryDelayMs, tokenStillValid } from '../auth/refreshPolicy';
 
 export type AuthStatus =
   | 'idle' // not yet checked
@@ -109,6 +110,34 @@ function cancelProactiveRefresh(): void {
   proactiveTimer = null;
 }
 
+// ── Transient refresh failures ───────────────────────────────────────────────
+// 2026-09-17: a 429 (the gateway's limiter behind one Redis hiccup), a 5xx or a dropped
+// connection is not the server ending the session. With a still-valid access token the
+// session stands and the refresh is retried after Retry-After / a short backoff; the
+// count resets on success. A bootstrap (no token yet) retries a few times before it
+// gives up, so a page load during a blip lands on the app, not on the login form.
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let retryAttempt = 0;
+const BOOTSTRAP_ATTEMPTS = 3;
+const BOOTSTRAP_BACKOFF_MS = 2_000;
+const MAX_BOOTSTRAP_WAIT_MS = 5_000;
+
+function cancelRetry(): void {
+  if (retryTimer) clearTimeout(retryTimer);
+  retryTimer = null;
+}
+
+function scheduleRetry(error: unknown): void {
+  cancelRetry();
+  const delay = retryDelayMs(error, retryAttempt++);
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    if (useAuthStore.getState().status === 'authenticated') void useAuthStore.getState().refresh();
+  }, delay);
+}
+
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
   user: null,
@@ -179,6 +208,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       try {
         const { token, sessionPolicy } = await refreshRequest();
         if (sessionPolicy) updatePolicy(sessionPolicy); // policy only — clocks untouched
+        cancelRetry();
+        retryAttempt = 0;
         scheduleProactiveRefresh(token);
         set({ accessToken: token, status: 'authenticated' });
         if (!get().user) {
@@ -191,9 +222,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
         return true;
       } catch (error) {
+        // A transient failure with a token still worth keeping: the session stands, retry later.
+        if (classifyRefreshFailure(error) === 'transient' && tokenStillValid(get().accessToken, Date.now())) {
+          scheduleRetry(error);
+          return true;
+        }
         // Server-enforced idle/absolute → surface the typed reason in the dialog.
         const reason = sessionEndCodeOf(error);
         cancelProactiveRefresh();
+        cancelRetry();
         clearSessionClocks();
         set({
           accessToken: null,
@@ -211,9 +248,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   bootstrap: async () => {
-    const restored = await get().refresh();
-    if (!restored) set({ status: 'unauthenticated' });
-    return restored;
+    // No token yet, so a transient failure cannot be ridden out on the token: retry a few times
+    // (Retry-After when the server says, else 2 s) before deciding there is no session.
+    for (let attempt = 0; ; attempt++) {
+      let failure: unknown = null;
+      try {
+        const { token, sessionPolicy } = await refreshRequest();
+        if (sessionPolicy) updatePolicy(sessionPolicy);
+        retryAttempt = 0;
+        scheduleProactiveRefresh(token);
+        set({ accessToken: token, status: 'authenticated' });
+        try { set({ user: await meRequest(token) }); } catch { /* profile is non-fatal */ }
+        return true;
+      } catch (error) {
+        failure = error;
+      }
+      if (classifyRefreshFailure(failure) === 'terminal' || attempt + 1 >= BOOTSTRAP_ATTEMPTS) break;
+      const ra = retryAfterMs(failure);
+      await sleep(ra != null ? Math.min(ra, MAX_BOOTSTRAP_WAIT_MS) : BOOTSTRAP_BACKOFF_MS);
+    }
+    set({ accessToken: null, user: null, status: 'unauthenticated' });
+    return false;
   },
 
   hasPermission: (key) => !!get().user?.permissions?.includes(key),

@@ -1,96 +1,132 @@
-// Per-client, per-route-class rate limiting on Redis counters (Plan 04 item 3, GW-03).
+// Per-client, per-route-class rate limiting (Plan 04 item 3, GW-03).
 //
-// Fixed one-minute windows exactly as the plan's key schema describes:
-//   rl:{routeClass}:{clientId}:{windowStart}  → INCR, EXPIRE = window
-// clientId = the token's `sub` when authenticated, else the client IP.
+// Fixed one-minute windows, keys rl:{routeClass}:{clientId}:{windowStart}; clientId = the token's
+// `sub` when authenticated, else the client IP. The shared counters live on Redis; the gateway
+// keeps its own counters for the moments Redis cannot answer.
 //
-// Failure semantics (the part that matters in a control room):
-//   - READ classes fail OPEN on a Redis outage — operators must never lose alarm
-//     visibility because a cache died.
-//   - LOGIN and MUTATION classes fail CLOSED — brute-force protection and write
-//     protection are never silently dropped.
-using StackExchange.Redis;
+// Failure semantics (the part that matters in a control room), rewritten 2026-09-17 after a 1 s
+// Redis stall on the lab answered every in-flight token refresh with 429 and stalled every other
+// request by ~7 s:
+//   - A Redis call is bounded (RateLimiting:RedisTimeoutMs, default 300 ms) and ONE round trip.
+//   - After RateLimiting:CircuitFailureThreshold consecutive failures the breaker opens for
+//     RateLimiting:CircuitOpenSeconds: no request asks Redis, so a sick Redis costs nothing further.
+//   - While Redis is unreachable a fail-CLOSED class (login, mutation) is enforced from the
+//     in-process counters - brute-force and write protection never lapse - and a fail-OPEN class
+//     (reads, historian, session) passes. "Fail closed" never again means "deny everyone".
+using Prometheus;
 
 namespace Traverse.Gateway.RateLimit;
 
-public sealed record RateLimitClass(string Name, int Limit, bool PerIp, bool FailClosed);
+/// <param name="Source">redis | local (Redis unreachable, enforced in-process) | open (Redis unreachable, class passes)</param>
+public sealed record RateLimitDecision(bool Allowed, int RetryAfter, string Source, string? LimitedBy);
 
 public sealed class RedisRateLimiter
 {
-    private readonly ILogger<RedisRateLimiter> _log;
-    private readonly Lazy<Task<IConnectionMultiplexer?>> _redis;
-    private readonly int _windowSeconds;
+    private static readonly Counter Decisions = Metrics.CreateCounter("gateway_ratelimit_decisions_total",
+        "Rate-limit decisions by source (redis / local / open) and outcome (allowed / denied).", new CounterConfiguration { LabelNames = new[] { "source", "outcome" } });
+    private static readonly Counter Denied = Metrics.CreateCounter("gateway_ratelimit_denied_total",
+        "Requests denied by the rate limiter, by class.", new CounterConfiguration { LabelNames = new[] { "class" } });
+    private static readonly Gauge CircuitOpen = Metrics.CreateGauge("gateway_ratelimit_redis_circuit_open",
+        "1 while the limiter's Redis circuit breaker is open (deciding from in-process counters).");
 
-    public RedisRateLimiter(IConfiguration config, ILogger<RedisRateLimiter> log)
+    private readonly ILogger<RedisRateLimiter> _log;
+    private readonly IRateLimitCounters _counters;
+    private readonly LocalWindowCounter _local;
+    private readonly RedisCircuit _circuit;
+    private readonly RateLimitClass _global;
+    private readonly int _windowSeconds;
+    private readonly TimeSpan _timeout;
+    private readonly TimeProvider _time;
+    private long _redisDecisions, _localDecisions, _openDecisions, _denied;
+
+    public RedisRateLimiter(IRateLimitCounters counters, LocalWindowCounter local, RedisCircuit circuit, RateLimitClasses classes,
+                            IConfiguration config, ILogger<RedisRateLimiter> log, TimeProvider? time = null)
     {
+        _counters = counters;
+        _local = local;
+        _circuit = circuit;
+        _global = classes.Global;
         _log = log;
+        _time = time ?? TimeProvider.System;
         _windowSeconds = config.GetValue("RateLimiting:WindowSeconds", 60);
-        var host = config["Redis:Host"] ?? "redis";
-        var port = config.GetValue("Redis:Port", 6379);
-        _redis = new Lazy<Task<IConnectionMultiplexer?>>(async () =>
+        _timeout = TimeSpan.FromMilliseconds(config.GetValue("RateLimiting:RedisTimeoutMs", 300));
+    }
+
+    /// <summary>Count this request against its class window and the global per-IP window; one decision.</summary>
+    public async Task<RateLimitDecision> CheckAsync(RateLimitClass cls, string clientId, string ip, CancellationToken ct = default)
+    {
+        var now = _time.GetUtcNow();
+        var nowEpoch = now.ToUnixTimeSeconds();
+        var windowStart = nowEpoch - (nowEpoch % _windowSeconds);
+        var retryAfter = (int)(windowStart + _windowSeconds - nowEpoch);
+        var classKey = $"rl:{cls.Name}:{clientId}:{windowStart}";
+        var globalKey = $"rl:{_global.Name}:{ip}:{windowStart}";
+
+        if (!_circuit.IsOpen(now))
         {
             try
             {
-                var options = new ConfigurationOptions
+                var (a, b) = await _counters.IncrementAsync(classKey, globalKey, _windowSeconds + 5, ct).WaitAsync(_timeout, ct);
+                _circuit.RecordSuccess();
+                CircuitOpen.Set(0);
+                Interlocked.Increment(ref _redisDecisions);
+                return Record(Decide(cls, a, b, retryAfter, "redis"));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+            {
+                var tripped = _circuit.RecordFailure(now);
+                if (tripped)
                 {
-                    EndPoints = { $"{host}:{port}" },
-                    AbortOnConnectFail = false,   // gateway must start even if Redis is down
-                    ConnectTimeout = 2000,
-                    SyncTimeout = 1000,
-                    Password = config["Redis:Password"],
-                };
-                var mux = await ConnectionMultiplexer.ConnectAsync(options);
-                _log.LogInformation("Rate-limit Redis connected: {Host}:{Port}", host, port);
-                return (IConnectionMultiplexer)mux;
+                    CircuitOpen.Set(1);
+                    _log.LogWarning(ex, "Rate-limit Redis failed {Failures}× in a row - circuit OPEN for {Seconds} s; fail-closed classes are enforced in-process, fail-open classes pass",
+                        _circuit.Status(now).ConsecutiveFailures, (int)(_circuit.Status(now).OpenUntil! - now).Value.TotalSeconds);
+                }
+                else if (!_circuit.IsOpen(now))
+                {
+                    _log.LogWarning("Rate-limit Redis call failed ({Reason}); this request is decided in-process", ex.GetType().Name);
+                }
             }
-            catch (Exception ex)
-            {
-                _log.LogError(ex, "Rate-limit Redis unavailable at {Host}:{Port}", host, port);
-                return null;
-            }
-        });
+        }
+
+        // Redis unreachable (or the breaker is open): enforce what must never lapse from our own counters
+        if (!cls.FailClosed && !_global.FailClosed)
+        {
+            Interlocked.Increment(ref _openDecisions);
+            return Record(new RateLimitDecision(true, 0, "open", null));
+        }
+        var la = cls.FailClosed ? _local.Increment(classKey, windowStart, _windowSeconds) : 0;
+        var lb = _global.FailClosed ? _local.Increment(globalKey, windowStart, _windowSeconds) : 0;
+        Interlocked.Increment(ref _localDecisions);
+        return Record(Decide(cls, la, lb, retryAfter, "local"));
     }
 
-    /// <summary>
-    /// Count this request against a class window. Returns (allowed, retryAfterSeconds).
-    /// On a Redis failure: fail-open classes allow, fail-closed classes deny.
-    /// </summary>
-    public async Task<(bool Allowed, int RetryAfter)> CheckAsync(RateLimitClass cls, string clientId)
+    private RateLimitDecision Decide(RateLimitClass cls, long classCount, long globalCount, int retryAfter, string source)
     {
-        var nowEpoch = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var windowStart = nowEpoch - (nowEpoch % _windowSeconds);
-        var retryAfter = (int)(windowStart + _windowSeconds - nowEpoch);
-
-        try
-        {
-            var mux = await _redis.Value;
-            if (mux is null)
-            {
-                _log.LogWarning("Rate-limit Redis never connected — class {Class} {Mode}",
-                    cls.Name, cls.FailClosed ? "failing CLOSED" : "failing OPEN");
-                return Fail(cls, retryAfter);
-            }
-
-            // Deliberately no IsConnected pre-check: the multiplexer flaps that flag
-            // transiently (e.g. idle teardown behind Docker's port proxy) and a silent
-            // fail-open here would drop increments without a trace. Attempt the op;
-            // a real outage throws and is handled (and logged) below.
-            var db = mux.GetDatabase();
-            var key = $"rl:{cls.Name}:{clientId}:{windowStart}";
-            var count = await db.StringIncrementAsync(key);
-            if (count == 1)
-                await db.KeyExpireAsync(key, TimeSpan.FromSeconds(_windowSeconds + 5));
-
-            return count <= cls.Limit ? (true, 0) : (false, retryAfter);
-        }
-        catch (Exception ex)
-        {
-            _log.LogWarning(ex, "Rate-limit check failed for class {Class} — {Mode}",
-                cls.Name, cls.FailClosed ? "failing CLOSED" : "failing OPEN");
-            return Fail(cls, retryAfter);
-        }
+        if (classCount > cls.Limit) return new(false, retryAfter, source, cls.Name);
+        if (globalCount > _global.Limit) return new(false, retryAfter, source, _global.Name);
+        return new(true, 0, source, null);
     }
 
-    private static (bool, int) Fail(RateLimitClass cls, int retryAfter)
-        => cls.FailClosed ? (false, retryAfter) : (true, 0);
+    private RateLimitDecision Record(RateLimitDecision d)
+    {
+        Decisions.WithLabels(d.Source, d.Allowed ? "allowed" : "denied").Inc();
+        if (!d.Allowed)
+        {
+            Denied.WithLabels(d.LimitedBy ?? "unknown").Inc();
+            Interlocked.Increment(ref _denied);
+        }
+        return d;
+    }
+
+    /// <summary>What /gw/ratelimit shows: the breaker and the decision counters since start.</summary>
+    public object Status()
+    {
+        var s = _circuit.Status(_time.GetUtcNow());
+        return new
+        {
+            redis = new { circuitOpen = s.Open, consecutiveFailures = s.ConsecutiveFailures, openUntil = s.OpenUntil, lastFailure = s.LastFailure, trips = s.Trips, timeoutMs = (int)_timeout.TotalMilliseconds },
+            decisions = new { redis = Interlocked.Read(ref _redisDecisions), local = Interlocked.Read(ref _localDecisions), open = Interlocked.Read(ref _openDecisions), denied = Interlocked.Read(ref _denied) },
+            localCounters = _local.Size,
+        };
+    }
 }

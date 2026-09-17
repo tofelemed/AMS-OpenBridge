@@ -63,8 +63,11 @@ public sealed class ResponseCacheMiddleware
                 {
                     EndPoints = { $"{host}:{port}" },
                     AbortOnConnectFail = false,
-                    ConnectTimeout = 2000,
-                    SyncTimeout = 1000,
+                    ConnectTimeout = 1000,
+                    // bounded like the limiter's connection: a cache lookup never holds a request for a second
+                    SyncTimeout = config.GetValue("ResponseCache:RedisTimeoutMs", 300),
+                    AsyncTimeout = config.GetValue("ResponseCache:RedisTimeoutMs", 300),
+                    BacklogPolicy = BacklogPolicy.FailFast,
                     Password = config["Redis:Password"],
                 });
                 return (IConnectionMultiplexer)mux;

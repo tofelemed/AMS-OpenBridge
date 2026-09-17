@@ -47,6 +47,14 @@ builder.Services.AddHttpClient();
 builder.Services.AddSingleton<JwksKeyCache>();
 builder.Services.AddSingleton<RevocationCache>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<RevocationCache>());
+// GW-03 rate limiting: shared counters on Redis (one bounded round trip), in-process counters and
+// a circuit breaker for the moments Redis cannot answer (RateLimit/RedisRateLimiter.cs).
+builder.Services.AddSingleton(RateLimitClasses.FromConfig(config));
+builder.Services.AddSingleton<IRateLimitCounters, RedisRateLimitCounters>();
+builder.Services.AddSingleton<LocalWindowCounter>();
+builder.Services.AddSingleton(sp => new RedisCircuit(
+    config.GetValue("RateLimiting:CircuitFailureThreshold", 3),
+    TimeSpan.FromSeconds(config.GetValue("RateLimiting:CircuitOpenSeconds", 30))));
 builder.Services.AddSingleton<RedisRateLimiter>();
 // asset-model publishes writes on Redis 'asset-events'; bust cache:assets:* on
 // each so the Master Data UI never reads a stale dropdown (P2.5).
@@ -259,16 +267,14 @@ app.Use(async (ctx, next) =>
 });
 
 // ---- Per-client, per-route-class rate limiting (GW-03, Plan 04 item 3) ----
-// Classes and failure semantics per the plan: login 10/min/IP (fail-closed),
-// snapshot 30/min, historian 120/min, mutations 120/min (fail-closed),
-// other reads 600/min (fail-open), plus a 2000/min global per-IP ceiling.
+// Classes (RateLimit/RateLimitClasses.cs): login 10/min/IP (fail-closed), session (refresh /
+// logout) 60/min/IP (fail-open), snapshot 30/min, historian 120/min, mutations 120/min
+// (fail-closed), other reads 600/min (fail-open), plus a 2000/min global per-IP ceiling.
+// One decision per request; the source (redis / local / open) rides in a response header.
 var rlEnabled = config.GetValue("RateLimiting:Enabled", true);
-var rlLogin     = new RateLimitClass("login",     config.GetValue("RateLimiting:LoginPerMinutePerIp", 10),  PerIp: true,  FailClosed: true);
-var rlSnapshot  = new RateLimitClass("snapshot",  config.GetValue("RateLimiting:SnapshotPerMinute",   30),  PerIp: false, FailClosed: false);
-var rlHistorian = new RateLimitClass("historian", config.GetValue("RateLimiting:HistorianPerMinute",  120), PerIp: false, FailClosed: false);
-var rlMutation  = new RateLimitClass("mutation",  config.GetValue("RateLimiting:MutationPerMinute",   120), PerIp: false, FailClosed: true);
-var rlRead      = new RateLimitClass("read",      config.GetValue("RateLimiting:ReadPerMinute",       600), PerIp: false, FailClosed: false);
-var rlGlobal    = new RateLimitClass("global",    config.GetValue("RateLimiting:GlobalPerMinutePerIp", 2000), PerIp: true, FailClosed: false);
+var rlClasses = app.Services.GetRequiredService<RateLimitClasses>();
+
+app.MapGet("/gw/ratelimit", (RedisRateLimiter limiter) => Results.Ok(limiter.Status()));
 
 app.Use(async (ctx, next) =>
 {
@@ -278,39 +284,24 @@ app.Use(async (ctx, next) =>
         return;
     }
 
-    var path = ctx.Request.Path;
-    var method = ctx.Request.Method;
-    var isRead = HttpMethods.IsGet(method) || HttpMethods.IsHead(method) || HttpMethods.IsOptions(method);
-
-    RateLimitClass cls;
-    if (HttpMethods.IsPost(method) && path.StartsWithSegments("/api/auth/login"))
-        cls = rlLogin;
-    else if (isRead && path.StartsWithSegments("/api/hist/snapshot"))
-        cls = rlSnapshot;
-    else if (isRead && path.StartsWithSegments("/api/hist"))
-        cls = rlHistorian;
-    else if (!isRead)
-        cls = rlMutation;
-    else
-        cls = rlRead;
-
+    var cls = rlClasses.Classify(ctx.Request.Method, ctx.Request.Path);
     var ip = ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     var sub = ctx.User.Identity?.IsAuthenticated == true ? ctx.User.FindFirst("sub")?.Value : null;
     var clientId = cls.PerIp ? ip : (sub ?? ip);
 
     var limiter = ctx.RequestServices.GetRequiredService<RedisRateLimiter>();
-    var (allowed, retryAfter) = await limiter.CheckAsync(cls, clientId);
-    if (allowed)
-        (allowed, retryAfter) = await limiter.CheckAsync(rlGlobal, ip);
+    var decision = await limiter.CheckAsync(cls, clientId, ip, ctx.RequestAborted);
+    ctx.Response.Headers["X-RateLimit-Source"] = decision.Source;
 
-    if (!allowed)
+    if (!decision.Allowed)
     {
         ctx.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-        ctx.Response.Headers.RetryAfter = retryAfter.ToString();
+        ctx.Response.Headers.RetryAfter = decision.RetryAfter.ToString();
         await ctx.Response.WriteAsJsonAsync(new
         {
             error = "Rate limit exceeded.",
-            retryAfterSeconds = retryAfter,
+            limitedBy = decision.LimitedBy,
+            retryAfterSeconds = decision.RetryAfter,
         });
         return;
     }
