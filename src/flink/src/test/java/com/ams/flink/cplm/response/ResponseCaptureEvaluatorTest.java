@@ -145,6 +145,30 @@ public class ResponseCaptureEvaluatorTest {
     }
 
     @Test
+    public void nr007ASecondInputStepDuringTheCaptureSupersedesTheFirstAndTheSecondCarriesBothChanges() {
+        // lab finding (2026-09-17): the streaming capture never looked for a second step while one was open, so the
+        // interrupted-step scenario read COMPLETE; the machine's supersede path was only ever driven by its own unit test
+        ResponseJobConfig cfg = cfg();
+        ResponseCapture cap = new ResponseCapture("FIC10302", cfg);
+        List<ResponseCapture.Closed> closed = new ArrayList<>();
+        for (double t = 0; t <= 700; t += 5) {
+            double u = t < 100 ? 40 : t < 130 ? 45 : 50;                          // 40 -> 45 at 100 s, 45 -> 50 at 130 s
+            double pv = 100 + (t < 104 ? 0 : 15 * (1 - Math.exp(-(t - 104) / 20))) + (t < 134 ? 0 : 15 * (1 - Math.exp(-(t - 134) / 20)));
+            closed.addAll(cap.onSample(sample("FIC10302", t, pv, 100, u, true), false));
+        }
+        assertEquals(2, closed.size());
+        ResponseCapture.Closed first = closed.get(0), second = closed.get(1);
+        assertEquals("CENSORED", first.event.captureState);
+        assertEquals("SUPERSEDED_BY_EVENT", first.event.censorReason);
+        assertEquals(100_000.0, first.event.t0Ms, 1e-6);
+        assertEquals("COMPLETE", second.event.captureState);
+        assertEquals(130_000.0, second.event.t0Ms, 1e-6);
+        assertEquals("the second event carries the whole input sequence", 2, second.event.inputSequence.size());
+        assertEquals(45.0, second.event.inputSequence.get(0)[1], 1e-9);
+        assertEquals(50.0, second.event.inputSequence.get(1)[1], 1e-9);
+    }
+
+    @Test
     public void aModeTransferDuringACaptureCensorsIt() {
         ResponseJobConfig cfg = cfg();
         ResponseCapture cap = new ResponseCapture("FIC10302", cfg);

@@ -59,6 +59,10 @@ public final class ResponseCapture implements Serializable {
     private boolean vpMappedAtCapture;
     private Boolean lastVpUsable;
     private double lastEventT0 = Double.NaN;
+    /** A change of the open event's driving signal seen since (s) and its value - a second step supersedes after eventDwellS (NR-007). */
+    private double changeSinceS = Double.NaN;
+    private double changeValue = Double.NaN;
+    private final java.util.Set<String> emitted = new java.util.HashSet<>();
 
     /** The settings this capture runs under (a bundle pins a capture for its whole event; a new bundle takes effect between events). */
     public ResponseJobConfig config() {
@@ -139,6 +143,10 @@ public final class ResponseCapture implements Serializable {
         if (machine.open() == null) {
             if (auto && good) detect(vpMapped, tS);                              // no authority, no capture (spec §2.4)
         } else {
+            // NR-007 (lab finding: the streaming capture never looked for a second step while one was open, so an interrupted
+            // step read COMPLETE): a sustained change of the open event's driving signal supersedes it - the first event is
+            // CENSORED SUPERSEDED_BY_EVENT and emitted, the second carries the whole input sequence
+            if (good && auto && supersedeOnChange(s.sp, uApplied, tS, vpMapped)) closed.addAll(closeSuperseded());
             machine.onSample(tS);
             if (machine.state() == CaptureStateMachine.State.CENSORED) {
                 closed.addAll(closeLast());
@@ -153,6 +161,32 @@ public final class ResponseCapture implements Serializable {
             }
         }
         return closed;
+    }
+
+    /** True when a new step of the open event's driving signal has held for eventDwellS and the machine was handed the new event. */
+    private boolean supersedeOnChange(double sp, double uApplied, double nowS, boolean vpMapped) {
+        ResponseEvent open = machine.open();
+        if (open == null || nowS - open.t0Ms / 1000.0 < cfg.eventDwellS) return false;
+        boolean isReference = open.type != EventType.INPUT_TEST;
+        double now = isReference ? sp : uApplied;
+        if (Double.isNaN(now)) return false;
+        double threshold = Math.max(cfg.stepMinInputEu, cfg.stepMinSpanFraction * cfg.fallbackSpanEu);
+        // the signal's level after the LAST change of the open event (its post amplitude, or the newest carried change)
+        double level = open.postAmplitude;
+        if (!open.inputSequence.isEmpty()) level = open.inputSequence.get(open.inputSequence.size() - 1)[1];
+        if (Math.abs(now - level) < threshold) { changeSinceS = Double.NaN; return false; }
+        if (Double.isNaN(changeSinceS)) { changeSinceS = nowS; changeValue = now; return false; }
+        if (Math.abs(now - changeValue) >= threshold) { changeSinceS = nowS; changeValue = now; return false; }   // still moving: not a step yet
+        if (nowS - changeSinceS < cfg.eventDwellS) return false;
+        double t0 = changeSinceS;
+        EventType type = open.type;
+        String pathId = InputPathResolver.resolve(commandPath, vpMapped, false).path.name();
+        ResponseEvent next = new ResponseEvent(ResponseEvent.idFor(loopId, (long) (t0 * 1000), type, bundleHash), loopId, type, pathId,
+                t0 * 1000, level, changeValue, Collections.singletonList(new double[] {t0 * 1000, changeValue}));
+        lastEventT0 = t0;
+        changeSinceS = Double.NaN;
+        machine.onCandidate(next, nowS);                                          // censors the open one (SUPERSEDED_BY_EVENT) and opens the merged next
+        return true;
     }
 
     private void detect(boolean vpMapped, double nowS) {
@@ -248,8 +282,18 @@ public final class ResponseCapture implements Serializable {
     private List<Closed> closeLast() {
         List<ResponseEvent> events = machine.events();
         if (events.isEmpty()) return Collections.emptyList();
-        ResponseEvent e = events.get(events.size() - 1);
-        if (Double.isNaN(e.tEndMs)) return Collections.emptyList();
+        return close(events.get(events.size() - 1));
+    }
+
+    /** The event a supersede just censored: the one before the newly opened event. */
+    private List<Closed> closeSuperseded() {
+        List<ResponseEvent> events = machine.events();
+        if (events.size() < 2) return Collections.emptyList();
+        return close(events.get(events.size() - 2));
+    }
+
+    private List<Closed> close(ResponseEvent e) {
+        if (Double.isNaN(e.tEndMs) || !emitted.add(e.eventId)) return Collections.emptyList();
         double t0 = e.t0Ms / 1000.0, tEnd = e.tEndMs / 1000.0, from = t0 - cfg.preSupportS;
         List<double[]> rows = new ArrayList<>();
         for (double[] row : ring) if (row[0] >= from && row[0] <= tEnd) rows.add(row);
