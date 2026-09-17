@@ -2,7 +2,9 @@
  * v2.5 Task 2E.3 (spec §3.2 centre column): the signal context of the SAME window - PV / SP pane
  * (EU), OP / VP pane (pp), mode lane, health lane - drawn from the sibling G0 / G1 / G11 runs'
  * artifacts (the row's method_run_ids). Held samples step; excluded samples are visible as gaps;
- * nothing here is re-derived. When a sibling's evidence is not retained the lane says so.
+ * nothing here is re-derived. When the G0 sibling kept no arrays (retention keeps them only for
+ * windows with a finding) the PV/SP, OP/VP and MODE lanes come from the historian's bucketed trend,
+ * labelled as such (2026-09-17 audit F7); the G11 health lane stays the run's own.
  */
 import React, { useMemo } from 'react';
 import type { EvidenceManifest } from '../../../api/cpm/evidence';
@@ -11,6 +13,7 @@ import { labelsOf, type DecodedArtifact } from './artifactCodec';
 import { useArtifact, useEvidenceManifest } from './useEvidence';
 import { IntervalLane, type LaneInterval } from './views/primitives/IntervalLane';
 import type { CpmTone } from '../shared';
+import { HistorianLanes, laneSource } from './HistorianLanes';
 
 const ROLE_PENS = { PV: 'good', SP: 'grey', OP: 'amber', VP: 'pink' } as const;
 
@@ -52,12 +55,13 @@ const RoleArtifact: React.FC<{ manifest: EvidenceManifest | undefined; role: 'PV
   };
 
 export const SignalContextLanes: React.FC<{
+  loopId: string;
   methodRunIds: Record<string, string>;
   fromMs: number;
   toMs: number;
   timeZone: string;
   timeFmt: (ms: number) => string;
-}> = ({ methodRunIds, fromMs, toMs, timeZone, timeFmt }) => {
+}> = ({ loopId, methodRunIds, fromMs, toMs, timeZone, timeFmt }) => {
   const g0 = useEvidenceManifest(methodRunIds.G0);
   const g1 = useEvidenceManifest(methodRunIds.G1);
   const g11 = useEvidenceManifest(methodRunIds.G11);
@@ -73,20 +77,27 @@ export const SignalContextLanes: React.FC<{
   const modeIntervals = useMemo(() => states.data ? intervalsFromArtifact(states.data, 'state', l => (l === 'AUT' || l === 'CAS' ? 'good' : l === 'MAN' ? 'warn' : 'muted')) : [], [states.data]);
   const healthIntervals = useMemo(() => health.data ? intervalsFromArtifact(health.data, 'eligibility', l => (l === 'ELIGIBLE' ? 'good' : l === 'LIMITED' ? 'warn' : l === 'INELIGIBLE' ? 'bad' : 'muted')) : [], [health.data]);
   const g0Readiness = g0.data?.readiness;
+  const source = laneSource({ isLoading: g0.isLoading, data: g0.data }, !!methodRunIds.G0);
+  const healthLane = (
+    <IntervalLane title="HEALTH — run's own G11 evidence" intervals={healthIntervals} fromMs={fromMs} toMs={toMs} timeZone={timeZone}
+      empty={methodRunIds.G11 ? `G11 eligibility intervals ${g11.data?.readiness ?? 'loading'} — absence of health is not OK` : 'no G11 run on this row — health not configured'} />
+  );
+
+  if (source === 'loading') return <div className="cpm-context-lanes cpm-skeleton cpm-skeleton--lanes" aria-busy />;
+  if (source === 'historian') return <HistorianLanes loopId={loopId} fromMs={fromMs} toMs={toMs} timeZone={timeZone} timeFmt={timeFmt} healthLane={healthLane} />;
 
   return (
     <div className="cpm-context-lanes">
       {(['PV', 'SP', 'OP', 'VP'] as const).map(r => <RoleArtifact key={r} manifest={g0.data} role={r} onSeries={onSeries} timeFmt={timeFmt} />)}
       {euSeries.length > 0
-        ? <CpmChart title="PV / SP" series={euSeries} xKind="time" timeZone={timeZone} height={200} />
-        : <p className="cpm-copy" data-lane="PV/SP">PV / SP lane: {methodRunIds.G0 ? `G0 evidence ${g0Readiness ?? 'loading'} for this window` : 'no G0 run on this row'}.</p>}
+        ? <CpmChart title="PV / SP — the run's own qualified samples" series={euSeries} xKind="time" timeZone={timeZone} height={200} />
+        : <p className="cpm-copy" data-lane="PV/SP">PV / SP lane: G0 evidence {g0Readiness ?? 'loading'} for this window.</p>}
       {ppSeries.length > 0
-        ? <CpmChart title="OP / VP" series={ppSeries} xKind="time" timeZone={timeZone} height={160} />
-        : <p className="cpm-copy" data-lane="OP/VP">OP / VP lane: {methodRunIds.G0 ? `G0 evidence ${g0Readiness ?? 'loading'}` : 'no G0 run on this row'}.</p>}
-      <IntervalLane title="MODE" intervals={modeIntervals} fromMs={fromMs} toMs={toMs} timeZone={timeZone}
+        ? <CpmChart title="OP / VP — the run's own qualified samples" series={ppSeries} xKind="time" timeZone={timeZone} height={160} />
+        : <p className="cpm-copy" data-lane="OP/VP">OP / VP lane: G0 evidence {g0Readiness ?? 'loading'}.</p>}
+      <IntervalLane title="MODE — run's own G1 evidence" intervals={modeIntervals} fromMs={fromMs} toMs={toMs} timeZone={timeZone}
         empty={methodRunIds.G1 ? `G1 state intervals ${g1.data?.readiness ?? 'loading'}` : 'no G1 run on this row'} />
-      <IntervalLane title="HEALTH" intervals={healthIntervals} fromMs={fromMs} toMs={toMs} timeZone={timeZone}
-        empty={methodRunIds.G11 ? `G11 eligibility intervals ${g11.data?.readiness ?? 'loading'} — absence of health is not OK` : 'no G11 run on this row — health not configured'} />
+      {healthLane}
     </div>
   );
 };

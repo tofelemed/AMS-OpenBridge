@@ -155,7 +155,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
         <main className="cpm-evidence-centre" aria-busy={run.isLoading || manifest.isLoading}>
           <VerdictCard gate={selection.gate} name={entry?.name ?? selection.gate} status={status} reason={reason} state={state} sentence={sentence} headline={headline} />
           {run.data ? (
-            <SignalContextLanes methodRunIds={run.data.methodRunIds} fromMs={run.data.support.fromMs} toMs={run.data.support.toMs} timeZone={timeZone} timeFmt={timeFmt} />
+            <SignalContextLanes loopId={run.data.loopId} methodRunIds={run.data.methodRunIds} fromMs={run.data.support.fromMs} toMs={run.data.support.toMs} timeZone={timeZone} timeFmt={timeFmt} />
           ) : <div className="cpm-surface cpm-skeleton cpm-skeleton--lanes" aria-hidden />}
           {state.kind === 'READY' && manifest.data ? (
             <EvidenceArtifactRenderer gate={selection.gate} manifest={manifest.data} timeZone={timeZone} timeFmt={timeFmt}
