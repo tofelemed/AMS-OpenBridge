@@ -199,7 +199,10 @@ Step 'activation: every announced worker ACKs PREPARE and APPLY on one jar; the 
     $b = $script:bundle
     $d = Invoke-RestMethod -Method Post -Uri "$cpm/configuration/deployments" -Headers $A -Body (@{ bundleId = $b.bundleId } | ConvertTo-Json)
     Assert ($d.state -in 'SCHEDULED', 'PREPARING') "initial deployment state: $($d.state)"
-    Assert (@($d.requiredMembers).Count -ge 6) "required members: $(@($d.requiredMembers).Count)"
+    # the five property-reading jobs must answer; the Instrument Context engine reads no catalogue property and is an observer
+    Assert (@($d.requiredMembers).Count -ge 5) "required members: $(@($d.requiredMembers).Count)"
+    Assert ('AMS - CPLM Instrument Context Engine' -in @($d.observers)) "observers: $(@($d.observers) -join ', ')"
+    Assert ('AMS - CPLM Instrument Context Engine' -notin @($d.requiredMembers)) 'a job that reads nothing is required to answer'
     $script:deployment = $d
     $prepared = Wait-Until { $x = Invoke-RestMethod -Method Get -Uri "$cpm/configuration/deployments/$($d.deploymentId)" -Headers $A; $script:deployment = $x; @($x.ackMatrix | Where-Object { $_.prepare.status -eq 'ACK' }).Count -eq @($x.requiredMembers).Count } 180 5
     Assert $prepared "not every worker ACKed PREPARE in 180 s: $(($script:deployment.ackMatrix | ForEach-Object { "$($_.jobName)=$($_.prepare.status)" }) -join ', ') state=$($script:deployment.state) error=$($script:deployment.error)"
@@ -217,7 +220,7 @@ Step 'the effective configuration names the bundle and its APPLY ACKs; the edite
     Assert ($eff.state -eq 'ACTIVE_VERIFIED') "effective state: $($eff.state)"
     Assert ($eff.bundle.contentHash -eq $script:bundle.contentHash) 'effective bundle hash differs from the deployed one'
     Assert ([double]$eff.properties.'G4.activity_warn_ratio' -eq $script:g4Value) "effective G4.activity_warn_ratio: $($eff.properties.'G4.activity_warn_ratio')"
-    Assert (@($eff.workers | Where-Object { $_.ack.status -eq 'ACK' -and $_.ack.bundleHash -eq $script:bundle.contentHash }).Count -ge 6) 'not every worker shows an APPLY ACK for the active bundle'
+    Assert (@($eff.workers | Where-Object { $_.ack.status -eq 'ACK' -and $_.ack.bundleHash -eq $script:bundle.contentHash }).Count -ge 5) 'not every property-reading worker shows an APPLY ACK for the active bundle'
 }
 
 Step 'the next short windows of the loop carry the bundle hash (results pinned to the activated configuration) (3C.1, R26)' {

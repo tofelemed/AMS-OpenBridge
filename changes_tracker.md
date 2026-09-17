@@ -78,6 +78,17 @@ that survive missing evidence, immutable run identity + evidence store + replay 
 Instrumental NE107 transmitter-health context end to end (CHG-026). Needs cpm-07 / cpm-07b / cpm-08,
 five new Kafka topics, two new Flink jobs and the `quality_protocol` config on every loop data source.
 
+Ninth, **2026-09-17**: **v2.5 Phases 2 and 3** — G12 is a real system-response analysis (event capture, bounded
+estimation, holdout validation, model-domain frequency outputs), every gate emits its exact intermediates into a
+checksum-verified evidence store with an immutable-selection workbench (17 views), G13 is an aligned peer analysis,
+the registry stores the loop model separately from the tag prefix (CHG-027); and the gate configuration is governed
+end to end - a 165-property catalogue as code with one hash, drafts → validate → shadow → hash-bound approval →
+signed bundles that every property-reading Flink job ACKs before they take effect, one effective bundle per loop by
+event time, rollback as a new deployment (CHG-028). Adds two Kafka topics, the Response job, `CPLM_GATE_CONFIG_KEY`
+on the Flink containers and `traverse-auth-service` to the rebuild list (a revocation-epoch rounding found on the lab).
+**Phase 4 (the v2.5 bundle build and tag) is halted by the user**: the manifest, ops files and runbook exist and are
+dry-run only - see [Release v2.5](#release-v25--what-to-build-and-run).
+
 ## v3 DEPLOYED to Marun — 2026-09-10
 
 Deployed from commit `78ef6ce`, release `release-out/v3-20260910` (968 MB). Order followed
@@ -1627,6 +1638,76 @@ consumer-group check, cpm-06 (AFTER), the curl timings.
 
 ---
 
+## Release v2.5 — what to build and run
+
+Prod runs v3 + v2.3 + v2.4. v2.5 is the spec v6 set: **CHG-026** (qualification and safe semantics,
+Instrumental NE107 health), **CHG-027** (G12 system response, the evidence workbench, G13 aligned
+interaction, the loop model) and **CHG-028** (governed gate configuration). Additive schema applied
+before the swap, seven new Kafka topics created before the jobs start, every CPLM job resubmitted plus
+three new jobs, one configuration step per loop data source. Step by step:
+[migration/V2.5-DEPLOY.md](migration/V2.5-DEPLOY.md). **The bundle is NOT built and the tag is NOT set
+yet** - `build-release.py --release v2.5` runs only after the operator's go, from a clean tree.
+
+**Updated services (build these, nothing else) — manifest `migration/deploy/releases/v2.5.txt`:**
+
+| Compose service | Image | Carries |
+|---|---|---|
+| `traverse-ingestion-service` | `ams-cpa-traverse-ingestion-service` | CHG-026: samples schema 1.1 (`roles{}` per-role time / quality / held), protocol-specific quality decoder (UNKNOWN ≠ GOOD, non-finite → DLQ), Instrumental NE107 health subscriber → `traverse.cpa.instrument.health.v1` + DLQ |
+| `cplm-api` | `ams-cpa-cplm-api` | CHG-026/027/028: identity columns + `analysis_run` + evidence store, the five new consumers (conditions, evidence, response, health, config-acks - each one member), the 25 new endpoints (`/capabilities` + config section, `/gate-catalogue`, `/method-runs`, `/evidence`, `/analysis-runs`, `/response-events`, `/models`, `/instrument-health`, `/conditions`, `/investigations`, `/configuration/*`), fusion v2 reads, episode availability vs condition, claims-only identity |
+| `historian-bff` | `ams-cpa-historian-bff` | CHG-026: source / verified / emission timestamps on the live snapshot |
+| `flink-jobmanager` (+ `flink-taskmanager`, same image) | `ams-flink:1.0-SNAPSHOT` | the JAR: schema 1.1 codec, strict quality, RBE quality transitions, G2/G4/G10/G11 semantics, fusion v2, run identity + evidence artifacts, G12 kernel + Response job, Condition job, Instrument Context job, G13 aligned analysis, loop model, governed bundles (signed PREPARE/APPLY, ACKs, effective selection, no static SPINE); the TM needs `CPLM_GATE_CONFIG_KEY` (compose carries it) |
+| `ams-frontend` | `ams-cpa-ams-frontend` | Governance build identity + approvals queue, transmitter health panel + lanes, events availability/condition, Evidence Workbench (17 views), System Response workspace, registry Classification step, Gate Configuration workspace |
+| `traverse-auth-service` | `ams-cpa-traverse-auth-service` | CHG-028 lab finding: the revocation feed floors `credentials_changed_at` (a token issued in the same second as a credential change read as revoked) |
+
+Unchanged and **not** rebuilt: gateway, asset-model, binding-resolver, audit-service, display-service,
+template-service, analysis-service, notification-service, sparkplug-edge-node, ams-api.
+
+**Scripts to run — build box (in this order):**
+
+```powershell
+git status --short                                                   # must be empty (bundles ship git archive HEAD)
+python scripts/gen-property-catalogue.py --check                     # the four catalogue copies are identical
+docker run --rm -v "D:\HMI_Project_Usama\AMS-open\src\flink:/build" -v "$env:USERPROFILE\.m2:/root/.m2" -w /build maven:3.9-eclipse-temurin-11 mvn -q -o test   # 0 failures
+dotnet test tests/ingestion-service.Tests                            # 212
+dotnet test tests/cplm-api.Tests                                     # 159 (lab Postgres on 5433)
+dotnet test tests/binding-resolver.Tests
+docker run --rm -d --name snaptest-redis -p 6390:6379 redis:7.2-alpine; dotnet test tests/historian-bff.Tests; docker rm -f snaptest-redis
+cd src/frontend-ob; npm test; npm run lint; npm run build; cd ..\..    # 101, lint + build clean
+cd src/services/auth-service; npx tsc --noEmit; cd ..\..\..
+python -m pytest scripts/sim -q                                      # 17
+.\run-all.ps1                                                        # then the lab proofs, each N passed / 0 failed:
+.\scripts\test-ot-loop-ingestion-e2e.ps1
+.\scripts\test-cpm-v25-slice1-e2e.ps1
+.\scripts\test-cpm-v25-slice2-e2e.ps1
+.\scripts\test-cpm-v25-slice3-e2e.ps1
+.\scripts\test-cpm-v25-reliability.ps1 -LoopId FIC10405
+python scripts/cpm-v25-load-probe.py --minutes 30                    # -> docs/next-release/04-load-report.md
+python migration/deploy/build-release.py --release v2.5 --dry-run
+python migration/deploy/build-release.py --release v2.5              # NOT YET RUN - after the go
+```
+
+The manifest carries `!v25-upgrade`: `VM-STEPS.md` then emits the schema → cplm-api stopped for cpm-07b →
+topics → images → seven jobs → signing-key proof → quality-protocol steps. `ops/` gains
+`cpm-07-v25-schema.sql`, `cpm-07b-v25-result-key.sql`, `cpm-08-v25-permissions.sql`,
+`set-quality-protocol.py` and `topics.txt`.
+
+**Scripts to run — plant VM:** [migration/V2.5-DEPLOY.md](migration/V2.5-DEPLOY.md) §C, in order:
+`sha256sum -c`, rollback point, `df -h`, **cpm-07** (online), `docker stop traverse-cplm-api`, **cpm-07b**,
+**cpm-08**, `04-create-kafka-topics.sh` (`ALLOW_CREATE_PREFIXED_TOPICS=yes`), `docker load` ×6, JAR copy,
+`docker rm -f` JM + TM, `deploy.sh --prod` (04b submits the seven jobs), the `CPLM_GATE_CONFIG_KEY` proof,
+`set-quality-protocol.py --apply`, then the post-deploy proof (seven consumer groups with one member,
+`/capabilities` jar + `config` section, `/gate-catalogue` 17).
+
+**Post-deploy proof:** within the hour short windows carry `bundle_hash` / `method_run_ids` and COMPLETE
+evidence manifests; Investigation shows hypotheses and the confirmation record; Evidence Workbench,
+System Response and Gate Configuration appear in the navigation; health reads `NOT_CONFIGURED` for every
+loop (expected until Instrumental publishes). 12 h / 24 h verdicts and G13 need up to a day.
+
+**Config knobs (env, optional):** `Cpm__ConfigAckWindowMinutes` (5), `Cpm__ConfigProbeWindowMinutes` (5),
+Flink job args `--evidence-emit ALL|EPISODES|NONE`, `--g12-delay-min-s`, `--gate-config-key`, `--site`.
+
+---
+
 ## Risks & pre-existing issues
 
 - **The CPLM Flink test suite does not compile** — `CplmLoopDynamicsAwareTest.java:304,312`
@@ -1652,6 +1733,140 @@ consumer-group check, cpm-06 (AFTER), the curl timings.
 - **Evidence Replay does not draw `vp`** (`CpmReplay.tsx` asks the historian for `pv,sp,op`).
   The rows are there (`count(vp)` > 0). A one-line measurement-list change plus a series;
   left out of CHG-010 because it is a UI feature, not part of the data path.
+
+
+## CHG-027 ✅ v2.5 Slice 2 — G12 system response, evidence workbench, G13 interaction, loop model (spec v6 Phase 2)
+
+**Reported (spec v6, audited against the code on 2026-09-16 — `docs/next-release/01-audit-vs-code.md`):**
+G12 was a boolean "step test approved" flag (R01); per-gate evidence was scalars only and the
+UI drew eight generic charts from summaries (R12); the evidence drawer opened "latest" instead of
+the run a cell IS (R13); PV and OP shared one axis (R14); G13 was a boolean "has peer links" that
+lifted a gate to PASS and fired the disturbance soft-block from the mere existence of a link (R09);
+the loop's class was derived from its tag prefix on the client (R25) and nothing declared what the
+data source can resolve (R05). Phase 2 closes R01, R05, R09, R12, R13, R14, R24 and R25.
+
+### What changed
+
+| Area | Before (audited at `5cec34ef`) | After |
+|---|---|---|
+| G12 kernel (`com.ams.flink.cplm.response.*`, commons-math3) | boolean flag → PASS / `NO_STEP_TEST` | model bank (FOPDT / SOPDT / SO_UNDERDAMPED / IPDT / INTEGRATOR_LAG) with exact ZOH simulators (Padé `expm`, fractional delay, gap policy); observed metrics with named censoring (robust endpoints, sustained crossings on the observed grid, exact ITAE, settling from band entry, qualified peaks, Theil-Sen slopes); safe event triggering + capture state machine (`SUPERSEDED_BY_EVENT`, `MODE_TRANSFER`, `HEALTH_INELIGIBLE`, `CAPTURE_MAX`, `BUDGET_EXCEEDED`); bounded output-error estimator with delay profile, integrating adapter (no static Kp), closed-loop PEM that abstains (`NO_EXCITATION`, `AMBIGUOUS_MODELS`); holdout validation (free-run vs one-step), covariance / profile-likelihood / block-bootstrap uncertainty, controller form adapters, model-domain frequency response, SIMC advisory (never applied); `G12Result` with the 52 catalogue quantities `{value|null, unit, path, uncertainty, method, support, config_hash, reason_if_null}` |
+| `CplmResponseAnalysisJob` | — | event-time capture per loop (a stale held VP is not the applied input; a gap restarts the ring), bounded fits, results on `traverse.cpa.clpm.response.results.v1`, evidence on the evidence topic; lab-proven: COMPLETE `INPUT_TEST` events with Kp 3.000, τ 20.00 s, θ 2.7 ± 2.5 s; a second event VALIDATED against the first (validation RMSE 0.36, prediction RMSE 0.23) |
+| cplm-api response | — | `analytics.response_event` / `response_metric` / `system_model` / `model_validation`, `cpm.controller_snapshot`, `cpm.loop_objective_version` (55); verbatim consumer `traverse-cpa-cplm-response`; `GET /loops/{id}/response-events` (rejected and censored listed, cursor-paged), `GET /response-events/{id}` (subgates A–H + quantities), `GET /loops/{id}/models?at` (as-of, never "latest"), `POST /models/{id}/review` (server-owned, If-Match, audited, perm `cpm.model.review`) |
+| exact intermediates (G0–G11, G13–G15) | scalars | every gate emits its arrays with the workbook's field names through `EvidenceArtifact` (named columns, coded columns with legends, masks): G0 per-role qualification, G1 authority intervals, G2 events, G2r region, G3 error + cumulative integrals, G4 activity, G5 full ACF + crossings, **G6 Welch PSD in signal²/Hz whose segment follows the declared band**, G7 every cycle fit incl. rejected, G8 lag structure (`XCORR_ASYMMETRY_V1`; bicoherence stated NOT_INSTALLED), G9 polygons / corners, G10 limits + dwell episodes, G11 measurement + freeze episodes + NE107 lanes, G14 confirmation record, G15 decision record (argmax form). `EvidencePolicy --evidence-emit` (EPISODES default, ALL, NONE); replay mode `EVIDENCE_RECONSTRUCTION` applies the registry parameter set so a reconstructed run carries the original identity |
+| evidence API | `/method-runs/{id}` only | manifests with `ETag` / 304, `GET /evidence/{id}/chunks/{n}` immutable bytes (sha ETag, site scope), readiness `PENDING/COMPLETE/FAILED/EXPIRED/PARTIAL`, `POST /analysis-runs {purpose: EVIDENCE_RECONSTRUCTION}` → ATTACHED under the original run; EXPIRED manifests revive on re-delivery; the JobManager client is a plain long-lived `HttpClient` (the resilience handler cut uploads at 10 s) |
+| catalogue + investigations | static `GATE_ROLES` in three UI files; notes on acknowledge | `GET /gate-catalogue` (17 entries once incl. G2r, installed method/version, artifact kinds, capability state); `analytics.investigation_reference` (56) — `POST /investigations` pins evidence, outcome `WORK_COMPLETED / PERFORMANCE_RESTORED / INCONCLUSIVE` set explicitly (default INCONCLUSIVE) |
+| evidence workbench (UI) | 8 generic charts; drawer on "latest"; mixed axes | `CpmChart` (one axis per unit group, `connectNulls:false`, stepped holds, bands named with their meaning, site zone, data table + CSV); `GateResultState` (9 stated states, never an empty chart); artifact codec (gzip + SHA-256 verified before anything draws); `GateEvidenceWorkspace` from an **immutable URL selection** (`/cpm/evidence?loop=&methodRun=&gate=`), signal context lanes, method trace from the run; 17 gate views on the exact artifacts; heatmap / gates cells carry `methodRunId`; historical + replay charts split by unit group with the site zone; `ResponseWorkspace` (`/cpm/response?loop=&event=`): events incl. rejected/censored, labelled prediction band, response-time markers, residuals + ACF, candidate models + delay objective curve + parameter intervals, Bode only when the kernel wrote it, model history as interval markers (no line), server-owned review; `styles/cpm-evidence.css` layout from OpenBridge tokens |
+| G13 | boolean link flag; link ⇒ PASS and soft-block | `InteractionMath` on the long tier: peers' samples fanned out to the loops that list them (registry `cplm.loop.evidence` broadcast, reverse-indexed, keyed under the loop), nearest-sample alignment with a shared support mask, normalised cross-correlation over ±`g13LagMaxS`, Welch coherence in the loop's band; a peer is associated only when both floors clear on enough support; `INTERACTION_DETECTED → WARN` + soft-block, `NO_INTERACTION → PASS`, `UNAVAILABLE / NOT_CONFIGURED → NOT_EVALUATED` with the reason; the fused row shares the long tier's G13 run id (evidence: `interaction` record + per-peer `aligned_series` / `cross_correlation` / `coherence`); a long row without the analysis is `LEGACY_FLAG_ONLY` and drives nothing; G13 view with force graph ("graph relation is not proof"), lag / coherence panes, propagation table |
+| loop model (registry) | `loop_type` CHECK + client `dynamicClassOf` | `cpm.loop_registry` gains `service_family`, `dynamic_class`, `objective_type`, `topology`, `command_path`, `acquisition{}`, `classification_source` (57); a `loop_type` only suggests a preset (`PRESET_FROM_LOOP_TYPE`), an explicit value is `EXPLICIT` and no later preset (single or bulk) overwrites it; validation names the field; `GET /registry-contract` lists the enums + presets; broadcast `cplm.loop.model` → Flink profile resolution (explicit class/objective override the pack; `DynamicClass` gains `INTEGRATING_LAG`, `UNDERDAMPED`, `UNKNOWN`); `MethodEligibility`: declared (else observed) grid vs the fastest period → G5/G6/G12 `LIMITED:BANDWIDTH` on the long + fused rows and the gate cells (NR-016); RBE holds are `RBE_HOLD` in G0 (NR-019); wizard `ClassificationStep` (five explicit selects, preset shown, typed acquisition); registry list / aside show the stored model with its source; `CpmLoopRegistryService` split into partial files |
+
+Commits (branch `feat/v25-next-release`, tests first): 2A `f3a91c84` `33e167a7` `fbb2e8df` `ae226715` `1b0c6087` `79305f58` ·
+2B `3599d519` `01e8122a` `81baa69c` `14c3cff1` `9bca728c` · 2C `c0e672dd` `dfc75202` `19727d1d` `f83688d6` `38f42e73` `8dd09e33` `a7d7b2a7` `117a9622` ·
+2D `a5cdf73c` `7af35971` · 2E `8ec77afb` `f909830e` `5c986106` `f5f4d20a` `7854ebb1` `c73ef24d` `c00629e9` ·
+2F `47dfbaa0` `a8d6df4e` `43b83a25` `22e56fa5` · 2G `1e7d2b8b` `910c5b93` `48695ba8` `52b4d4a6` `459bec7e` · 2G.2 (this entry).
+
+### Migration and service update (facts the v2.5 release manifest carries; Phase 4 packages them)
+
+| Step | What | Notes |
+|---|---|---|
+| SQL | `scripts/cpm-07-v25-schema.sql` on `traverse_cplm` now also carries 55 (response), 56 (investigations), 57 (loop model dimensions) | additive, idempotent, before the image swap; `migration/schema/03-traverse_cplm.sql` mirrors all of it for a fresh plant |
+| Kafka | `traverse.cpa.clpm.response.results.v1` (new, 8 partitions, delete 30 d) | in `migration/kafka/topics.txt` / `scripts/kafka-reset-lab-topics.ps1`; **create before the jobs start** |
+| Flink | jar rebuilt; the three CPLM jobs + Condition + Instrument Context are CANCELLED AND RESUBMITTED (the long job's operator chain changed: peer fan-out + peer buffer state, so no savepoint restore across this release); the NEW job `AMS - CPLM Response Engine` is submitted (`migration/04b-submit-flink-jobs.sh`, `migration/flink/JOBS.md`); optional job args `--evidence-emit ALL|EPISODES|NONE`, `--g12-delay-min-s` | check `docker logs ams-flink-job-supervisor` for `ClassNotFoundException`, `/jobs/overview` for RESTARTING; the TaskManager needs metaspace ≥ 512m for bounded replay submissions (see Risks) |
+| Images | `cplm-api`, `ams-frontend`, the Flink image | `traverse-ingestion-service` unchanged since CHG-026; `ams-api`, gateway, the other Traverse services: unchanged |
+| Config | every loop keeps its `loop_type` preset until a person declares the model in the wizard (Classification step) — `classification_source` tells which; peers come from `cpm.loop_link` (asset relationships or manual) and reach the long job through the registry broadcast (`republish-evidence` after linking) | G12 events need `u_applied`: VP fresh (`vpMaxAgeS`) or OP on `OP_TO_VALVE`; `--g12-delay-min-s` declares the smallest dead time the site needs resolved (0 = no bandwidth claim) |
+| Consumer groups | + `traverse-cpa-cplm-response` | one member; listed on cplm-api `/health` |
+| Permissions | `cpm.model.review` (review a system model), `cpm.analysis.create` (reconstruction / replay) | already in `cpm-08-v25-permissions.sql` (Phase 1) |
+
+### Verification (lab, 2026-09-17)
+
+- Unit (at 2G.2 close, 2026-09-17): Flink `mvn test` **264 run / 0 failures / 2 skipped**; cplm-api **159/159** (lab DB); frontend vitest **101/101**, `npm run lint` clean, `tsc` clean.
+- 2B lab proof (jar `2a6dd18a…`): COMPLETE `INPUT_TEST` events (Kp 3.000, τ 20.00 s, θ 2.7 ± 2.5 s, settle 80.1 s, 12 artifacts); second event VALIDATED (validation RMSE 0.36, prediction RMSE 0.23, fit improvement 0.97).
+- 2C lab proof: short-tier manifests COMPLETE; `/method-runs/{id}/evidence` ETag / 304; chunk bytes decoded to 61 × 6 columns; reconstruction under the original identity; retention cycle EXPIRED → reconstruct → ATTACHED / COMPLETE; G12 reconstruction refused 422.
+- `scripts/test-cpm-v25-slice2-e2e.ps1` (new, 17 steps): __SLICE2_RESULT__
+- `scripts/sim/loop_step_sim.py` gains `interrupted-step` (NR-007: a second step 30 s after the first).
+- Lab findings while proving 2F/2G (fixed in this set): the no-watermark control stream held every long-job timer (ea8ed2c7, `LongJobTopologyTest`); an EXCLUDED fused window (cold 24 h, G0 FAIL) read G13 as `LEGACY_FLAG_ONLY` as if an old jar had produced it - the long tier's analysis identity now rides every fused row (6bdcfd78).
+
+### Risks and deliberate limits
+
+- **Release blocker (Phase 4):** bounded replay / reconstruction submissions leak TaskManager metaspace (one user-code classloader per REST submission); the lab TM died of `OutOfMemoryError: Metaspace` at 256m. Lab compose runs 512m; find the leak or bound submissions per TM lifetime before v2.5 ships.
+- Bounded replay evaluates G13 without peers (the replay source is one loop): a reconstructed long run reads `LEGACY_FLAG_ONLY` for G13 while its other gates reconstruct exactly.
+- The G12 bandwidth claim needs `--g12-delay-min-s` > 0; unset, subgate A reports `NOT_ASSESSED` for bandwidth (the long tier's `method_eligibility` still bounds G5/G6/G12 from the profile's fastest period).
+- Model promotion (VALIDATED → ACTIVE_BASELINE) is a person's review; the kernel never promotes.
+- Objective types `RATIO / RAMP / BATCH / SUPERVISORY` are stored and displayed but map to no engine objective yet (the pack's objective stays).
+
+## CHG-028 ✅ v2.5 Slice 3 — governed gate configuration (spec v6 Phase 3)
+
+**Reported (spec v6, audited against the code on 2026-09-16 — `docs/next-release/01-audit-vs-code.md`):**
+the only configuration surface was a free-text `thresholdProfileId` and a fire-and-forget metadata
+broadcast (R16); Flink hydrated profiles from a process-wide static map (`SPINE`) fed by a broadcast
+whose parse failures were swallowed, with a per-field overlay on the class pack and the canonical
+topic gated off (R17); windows and estimator settings were compiled in with no change-class model,
+so nothing distinguished a hot policy change from one that needs a build (R18). Phase 3 closes
+R16, R17 and R18 (capacity declaration + validation; the bounded keyed scheduler stays a later
+deployment, as spec §5.2 allows).
+
+### What changed
+
+| Area | Before (audited at `5cec34ef`) | After |
+|---|---|---|
+| catalogue as code (3A.1) | ~45 parser fields, G4 3/8 hardcoded, no typed inventory | `contracts/gate-config/v1/property-catalogue.json`: the 165 properties of the spec sheet (`CFG-001…165`) generated by `scripts/gen-property-catalogue.py` with type, unit, default (null = commissioning required), validation, change class, consumers, dependencies; ONE `catalogue_hash` (SHA-256 of the canonical document) carried by cplm-api (embedded), the jar (resource) and the UI (generated types); `--check` fails when any copy drifts |
+| capability from the running jobs (3A.2) | version strings | `BundleProfileMapper` is the only table property → engine setting; `PropertyReaders` per job; every job announces a `CAPABILITY` record on `traverse.cpa.context.gate-config.acks.v1` at start (readable ids, catalogue hash, jar, compiled `ExecutionPlanCapacity`); `unsupported-in-build.json` names the 78 catalogue properties no job reads and why (`CapabilityCoverageTest` fails the build otherwise); `GET /capabilities.config` is what the RUNNING jobs announced: readable ids per job, not-read properties, mixed jars, `CATALOGUE_MISMATCH` stated |
+| store + pure library (3B.1 / 3B.2) | — | schema 58 (`cpm.gate_config_bundle`, `gate_config_layer`, `config_approval`, `config_deployment`, `config_worker_ack`, `config_active`, `config_worker_capability`); RFC 8785 `CanonicalJson` (content hash); `EffectiveConfigResolver` FACTORY → SITE → exactly one PROFILE → LOOP → exactly one REGIME with `RESET_TO_INHERITED`, explicit null refused, `NO_VALUE` stated; `ChangeClassifier` promotes through the catalogue's dependants; `BundleValidator` (typed / finite / bounds / fraction ≠ percent / unknown field named; G9 never PRIMARY; uninstalled G6/G8 methods `DEPLOYMENT_REQUIRED`; G5 capacity vs 24 h; execution plan vs compiled capacity); the FACTORY layer is exported from the jar (`FactoryLayer` = catalogue starting values + the class packs; `FactoryLayerParityTest` fails the build when `factory-layer.json` drifts from the packs) |
+| lifecycle (3B.3) | none | `GET /configuration/{catalogue,effective}`, drafts: `POST` (from the parent version or the factory + pack), `PATCH` requested changes under `If-Match` (409 stale), `validate`, `shadow` (a SHADOW analysis run over a retained interval through the replay job with `--bundle-hash / --bundle-properties-b64`; server-materialised before/after gate matrix; `POLICY_RECLASSIFICATION` when symptoms disappear), `approve` (an independent reviewer - self-approval 403 - bound to the content hash with an expiry; site-wide / objective / test-permission changes need `ControlAuthority`); deployments: `POST` (APPROVED only) → SCHEDULED → PREPARING → PREPARED → APPLYING → PROBING → `ACTIVE_VERIFIED` (a result pinned to the hash, or complete APPLY ACKs after the probe window); a NACK, a foreign hash or **mixed jars** → `ACTIVATION_FAILED` (NR-051); an incomplete matrix past the ACK window → `PARTIALLY_ACKNOWLEDGED`, never active; rollback = a new deployment of the previous bundle (NR-054); every transition audited; `CplmConfigAckConsumerService` (`…-config-acks`, one member) records CAPABILITY and ACK/NACK records; bundles leave signed (HMAC-SHA256 of the canonical bundle with `Auth:ServiceKey`) |
+| Flink bundles (3C.1) | static `SPINE`, swallowed parse failures | the bundle topic joins the registry metadata on ONE control broadcast; `BundleBroadcastHandler`: PREPARE verifies the signature (`UNSIGNED`), validates locally (`GateConfigBundle`: catalogue identity, content hash, selectable scope, every property known / typed / in bounds, G5 period capacity, execution plan within capacity) and ACKs or NACKs naming every reason with its jar, commit and topology generation; APPLY needs a PREPARE (`NOT_PREPARED`); a `STATE_BOUNDARY` bundle opens a new epoch; garbage is `PARSE_ERROR` + `cplm_config_rejected` counter; `EffectiveBundleSelector`: LOOP > PROFILE > SITE, by effective-from event time within a scope - a window decides at its end, so `window_end ≥ effective_from` uses the new bundle and older windows keep the old, never mixed (NR-052); windows whose support began before a STATE_BOUNDARY effective time report `evaluation_state = WAITING / WARMUP` (NR-053); the bundle hash is the `bundle_hash` of every result, its epoch the `context_revision`; the static map is gone (`CplmDynamicsParameterSetSupport.resolve(..., Lookup)` over the operator's checkpointed broadcast state; bounded jobs build theirs with `CplmParameterUpdateReader`); the response job pins a capture to the bundle in force at its start; replays and reconstructions evaluate under `--bundle-hash` (the governed bundle behind the run's hash) |
+| capacity (3C.2) | — | `ExecutionPlanCapacity` declares the compiled horizons (short 1m…60m, long 4h/12h/24h, event), 24 h + 10 min retention, 10 active horizons, `FIXED_COMPILED`; `execution-plan.installed.json` ships in the jar and the API; `ExecutionPlanCapacityTest`: the installed plan validates and equals the Java declaration; `long_30h`, a moved gate, another scheduler mode or a six-hour G5 period are `DEPLOYMENT_REQUIRED` by name (NR-055) |
+| UI (3D.1) | free-text profile id | `/cpm/config` Gate Configuration workspace (nav; `cpm.config.read`): site → scope → reference → bundle version → gate → properties; `PropertyForm` (definition, unit, effective value + source layer, inherited value, Commissioning required, bounds, change class, dependencies, the build's not-read reason (locked), validation errors; typed inputs - a fraction refuses a percent, arrays replaced whole, reset to inherited); `EffectiveConfigDrawer` (read-only; from the Method Trace it names the bundle THAT run used and says when it is no longer the active one); `DiffImpactPanel` (per-property class, affected scope, no phased rollout in this build stated); `ShadowComparison`; `ApprovalPanel` (hash-bound approvals with expiry; the server's 403 / 409 shown as such); `DeploymentStatus` (ACK matrix per worker, NACK reasons, mixed jars called out, the active bundle per job, the probe, rollback) - a partial matrix never reads as active; Governance's approval queue is real |
+
+Commits (branch `feat/v25-next-release`, tests first): 3A `45a8567f` `c62cfe66` `2cc34ed5` · 3B `8a0a6084` `9de5eb45` `5003d1cf` ·
+3C `b3eb83c6` `96036c50` · 3D `1b853e89` · 3D.2 (this entry) · topics `c9ad3afb`.
+
+### Migration and service update (facts the v2.5 release manifest carries; Phase 4 packages them)
+
+| Step | What | Notes |
+|---|---|---|
+| SQL | `scripts/cpm-07-v25-schema.sql` on `traverse_cplm` now also carries 58 (config governance) | additive, idempotent, before the image swap; `migration/schema/03-traverse_cplm.sql` mirrors it |
+| Kafka | `traverse.cpa.context.gate-config.v1` (compacted, 3 partitions, key `bundle_id`), `traverse.cpa.context.gate-config.acks.v1` (delete 7 d, 3 partitions) | in `migration/kafka/topics.txt` / `scripts/kafka-reset-lab-topics.ps1`; **create before the jobs start** (the jobs announce their capability on the ACK topic at start) |
+| Flink | jar rebuilt; ALL six CPLM jobs are CANCELLED AND RESUBMITTED (the control broadcast gained the bundle source and a side output; no savepoint restore across this release); the Flink JobManager and TaskManager containers need `CPLM_GATE_CONFIG_KEY` = the platform `TRAVERSE_SERVICE_KEY` (compose: base + `docker-compose.marun.yml`) - without it every bundle is NACKed `UNSIGNED` and no deployment can verify | optional job args `--gate-config-topic`, `--gate-config-acks-topic`, `--gate-config-key`, `--site` |
+| Images | `cplm-api`, `ams-frontend`, the Flink image | `traverse-ingestion-service` unchanged since CHG-026 |
+| Config | until a site activates a bundle, every loop runs the FACTORY layer = the class packs exactly as before (the effective endpoint says `NO_ACTIVE_BUNDLE`); `Cpm:ConfigAckWindowMinutes` (default 5) and `Cpm:ConfigProbeWindowMinutes` (default 5) on cplm-api | a REGIME-scoped bundle and a DEPLOYMENT-class change are refused by the workers by design |
+| Consumer groups | + `traverse-cpa-cplm-results-config-acks` | one member; listed on cplm-api `/health` |
+| Permissions | `cpm.config.read / draft / validate / shadow / approve / activate / rollback` (Engineer: read…shadow; Supervisor: approve; Admin: all) | in `cpm-08-v25-permissions.sql` (Phase 1) |
+
+### Verification (lab, 2026-09-17)
+
+- Unit: Flink `mvn test` **263 run / 0 failures / 2 skipped** (CanonicalJson vectors = the API's + a Python-pinned HMAC; BundleBroadcastHandler 8; EffectiveBundleSelector 5; GateConfigTopology 3; ExecutionPlanCapacity 3; FactoryLayerParity; CapabilityCoverage; PropertyCatalogue); cplm-api **159/159** (lab DB; ConfigLifecycleTests 5, CapabilityManifest 6, PropertyCatalogue, ConfigLibrary); frontend vitest **101/101** (PropertyForm 3, DeploymentStatus 3), `npm run lint` clean, build clean.
+- Lab (jar `03d04d12…`, six jobs RUNNING, `CPLM_GATE_CONFIG_KEY` set): `/capabilities.config` = `ANNOUNCED`, 6 workers on one jar, catalogue matches, 70 readable property ids, 78 declared unsupported.
+- `scripts/test-cpm-v25-slice3-e2e.ps1` (new, 14 steps): **14 passed, 0 failed** at 02:52 on jar `27544b6f…` - fleet on one jar and one
+  catalogue; a LOOP draft from the factory + pack; the typed edit under If-Match; stale etag 409; unknown field and a percent for a
+  fraction refused by name; VALIDATED with class POLICY; self-approval 403, admin approval hash-bound; deployment: the five
+  property-reading jobs ACKed PREPARE and APPLY (the Instrument Context engine listed as observer) → **ACTIVE_VERIFIED with 2
+  results pinned to `f9153b00…`**; the effective configuration names the bundle and the edited value; v2 activated then rolled
+  back → the previous bundle active again (`ROLLED_BACK` / `ACTIVE_VERIFIED`), v1 rows 7 → 7 untouched, v2 rows kept 3; SPA route.
+  The bundles stay on the lab (v1 active for FIC10302: G4 warn ratio 4.5).
+
+### Lab findings while proving Slice 3 (all fixed in this set)
+
+- The Instrument Context engine announces a capability but reads no catalogue property and consumes no bundle, so it never
+  answered and no deployment could verify: a job that reads nothing is an **observer** of a deployment (listed, parallelism 0),
+  never a required ACK (80d68b56).
+- Validation classified EVERY resolved property and reported a warn-ratio edit as STATE_BOUNDARY: the class of a bundle is the
+  class of what it changes (its own layer + the diff to its parent) (80d68b56).
+- A value the catalogue forbids (a percent for a fraction, out of bounds) landed in the draft and only validation refused it:
+  the PATCH now refuses it by name and changes nothing (3de059b8); validation keeps the cross-field checks.
+- With ZooKeeper HA on the lab, the recreated JobManager restored one job from its OLD jar blob (it was not RUNNING at cancel
+  time) and the fleet ran two jars - `/capabilities.config` said so (`jarSha256s` = 2), the deploy helper now cancels any
+  worker announcing another jar. Marun has no ZK HA; the runbook's post-check catches it either way.
+- The auth-service revocation feed rounded `credentials_changed_at` to the nearest second, so a token issued in the same second
+  as a credential change read as revoked (first login 401): floor() now, and `traverse-auth-service` joins the v2.5 manifest
+  (3e87aea2).
+
+### Risks and deliberate limits
+
+- A worker holds the last APPLYd bundle in its checkpointed broadcast state; there is no "deactivate" (return to the factory layer) operation - the first bundle of a scope has no previous bundle to roll back to. Deleting a bundle row while the jobs still run under it leaves results whose hash no bundle explains; the E2E therefore keeps its bundles.
+- The bounded keyed scheduler is not implemented: an execution plan beyond the compiled horizons is `DEPLOYMENT_REQUIRED` (capacity declaration + validation only, spec §5.2 option).
+- A REGIME scope is refused by the workers (no regime selector in the engine); the API accepts REGIME drafts and the workers NACK them on PREPARE.
+- Properties the build declares unsupported (78, `unsupported-in-build.json`) are accepted in a bundle and stated, not applied.
+- The shadow comparison compares against the LIVE rows of the same windows; a loop without live results over the interval compares nothing (stated).
+- Phased rollout with stop criteria is not part of this build: a deployment switches its whole scope at the effective time.
 
 ## CHG-026 ✅ v2.5 Slice 1 — qualification and safe semantics (spec v6 Phase 1, incl. Instrumental NE107 health)
 
