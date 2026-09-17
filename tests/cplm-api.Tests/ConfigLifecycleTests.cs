@@ -138,6 +138,10 @@ public sealed class ConfigLifecycleTests : IAsyncLifetime
         await stale.Should().ThrowAsync<ConfigConflictException>();
         var unknown = async () => await _store.PatchAsync(d.BundleId, edited.Etag, new[] { new ConfigStore.PatchOp("set", "G4.activity_warn_ratioo", JsonDocument.Parse("4").RootElement) }, "alice", default);
         (await unknown.Should().ThrowAsync<ArgumentException>()).WithMessage("*G4.activity_warn_ratioo*");
+        // NR-049 at edit time (lab finding): a draft never holds a value the catalogue forbids - a percent for a fraction, a value out of bounds
+        var percent = async () => await _store.PatchAsync(d.BundleId, edited.Etag, new[] { new ConfigStore.PatchOp("set", "G3.error_band_span_fraction", JsonDocument.Parse("50").RootElement) }, "alice", default);
+        (await percent.Should().ThrowAsync<ArgumentException>()).WithMessage("*G3.error_band_span_fraction*");
+        (await _store.GetAsync(d.BundleId, default))!.Etag.Should().Be(edited.Etag, because: "a refused edit changes nothing");
         // reset removes the loop override: back to the pack's value
         var reset = await _store.PatchAsync(d.BundleId, edited.Etag, new[] { new ConfigStore.PatchOp("reset", "G2.stability_band_pv_eu", null) }, "alice", default);
         reset.Resolved.GetProperty("sources").GetProperty("G2.stability_band_pv_eu").GetString().Should().NotBe("LOOP");
@@ -147,10 +151,14 @@ public sealed class ConfigLifecycleTests : IAsyncLifetime
     public async Task Nr049_validation_rejects_a_bad_value_naming_the_field_and_the_state_is_rejected()
     {
         var d = await _store.CreateDraftAsync(Site, "LOOP", "FIC10302", null, "FLOW_FAST_SELF_REG", "alice", null, default);
-        d = await _store.PatchAsync(d.BundleId, d.Etag, new[] { new ConfigStore.PatchOp("set", "G6.overlap_fraction", JsonDocument.Parse("50").RootElement) }, "alice", default);
+        // a single bad value is refused at edit time, naming the field (it never lands in the draft)
+        var bad = async () => await _store.PatchAsync(d.BundleId, d.Etag, new[] { new ConfigStore.PatchOp("set", "G6.overlap_fraction", JsonDocument.Parse("50").RootElement) }, "alice", default);
+        (await bad.Should().ThrowAsync<ArgumentException>()).WithMessage("*G6.overlap_fraction*fraction*");
+        // a cross-field problem (each value in bounds, the range inverted) lands and VALIDATION rejects it naming both fields
+        d = await _store.PatchAsync(d.BundleId, d.Etag, new[] { new ConfigStore.PatchOp("set", "G5.period_min_s", JsonDocument.Parse("3600").RootElement), new ConfigStore.PatchOp("set", "G5.period_max_s", JsonDocument.Parse("60").RootElement) }, "alice", default);
         d = await _store.ValidateAsync(d.BundleId, default);
         d.State.Should().Be("REJECTED");
-        d.Validation!.Value.GetProperty("errors").EnumerateArray().Select(e => e.GetString()).Should().Contain(e => e!.Contains("G6.overlap_fraction") && e.Contains("fraction"));
+        d.Validation!.Value.GetProperty("errors").EnumerateArray().Select(e => e.GetString()).Should().Contain(e => e!.Contains("G5.period_max_s") && e.Contains("G5.period_min_s"));
         var approve = async () => await _store.ApproveAsync(d.BundleId, "bob", "Supervisor", null, TimeSpan.FromHours(1), false, new[] { "Supervisor" }, default);
         await approve.Should().ThrowAsync<ConfigStateException>();
     }

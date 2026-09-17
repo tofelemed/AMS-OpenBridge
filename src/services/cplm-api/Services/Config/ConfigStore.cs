@@ -141,6 +141,11 @@ public sealed class ConfigStore
             {
                 case "set":
                     if (op.Value is null || op.Value.Value.ValueKind == JsonValueKind.Null) throw new ArgumentException($"'{op.Property}': set needs a value (use reset to inherit)");
+                    // lab finding (2026-09-17): a draft must never hold a value the catalogue forbids - the type / bounds /
+                    // enum / fraction-vs-percent check runs on the requested value itself, naming the field (NR-048/049)
+                    var single = JsonDocument.Parse(JsonSerializer.Serialize(new Dictionary<string, JsonElement> { [op.Property] = op.Value.Value })).RootElement;
+                    var valueErrors = BundleValidator.ValidateProperties(single).Where(e => e.Contains(op.Property, StringComparison.Ordinal)).ToList();
+                    if (valueErrors.Count > 0) throw new ArgumentException(string.Join("; ", valueErrors));
                     content[op.Property] = op.Value.Value;
                     break;
                 case "reset":
