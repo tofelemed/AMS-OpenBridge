@@ -113,8 +113,11 @@ public class FusionInteractionTest {
         l.interaction.peers.clear();
         CplmShortFeatureResult s = shortF();
         s.gate0Status = "FAIL";
+        l.methodEligibility = new java.util.LinkedHashMap<>();
+        l.methodEligibility.put("G5", new com.ams.flink.cplm.engine.MethodEligibility.Verdict("LIMITED", "BANDWIDTH", "grid 5 s vs period 10 s"));
         CplmGateResult r = CplmGateFusionEngine.fuse(s, l, false, false, tic());
         assertEquals("EXCLUDED_DATA_QUALITY", r.diagnosis);
+        assertEquals("the grid's verdict rides an excluded row too", "LIMITED", r.methodEligibility.get("G5").state);
         assertEquals("NOT_EVALUATED", r.gate13Status);
         assertEquals(InteractionMath.METHOD_ID, r.gate13Method);
         assertEquals("NO_PEER_LINKS", r.gate13Reason);

@@ -292,6 +292,11 @@ public final class CplmGateFusionEngine implements Serializable {
      * flag never drives a verdict.
      */
     private static void carryInteractionIdentity(CplmGateResult result, CplmLongDiagnosticsResult longD) {
+        // the acquisition grid's verdict on G5/G6/G12 (2G.1) is a fact about the data source, not about this window's
+        // outcome: it rides every fused row, excluded or not (lab finding: excluded rows carried an empty map)
+        if (longD != null && longD.methodEligibility != null && !longD.methodEligibility.isEmpty()) {
+            result.methodEligibility = new java.util.LinkedHashMap<>(longD.methodEligibility);
+        }
         com.ams.flink.cplm.engine.InteractionSummary ia = longD == null ? null : longD.interaction;
         if (ia == null) return;
         result.interaction = ia;

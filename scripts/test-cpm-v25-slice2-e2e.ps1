@@ -168,10 +168,17 @@ Step 'the newest LIVE fused row carries G13 as the aligned analysis (state + rea
     Assert (-not [string]::IsNullOrWhiteSpace($p[2])) 'gate13_reason is empty'
     if ($p[1] -eq 'NOT_CONFIGURED') { Assert ($p[3] -eq 'NOT_EVALUATED' -and $p[2] -eq 'NO_PEER_LINKS') "NOT_CONFIGURED must read NOT_EVALUATED / NO_PEER_LINKS, got $($p[3]) / $($p[2])" }
     if ($p[1] -eq 'UNAVAILABLE') { Assert ($p[3] -eq 'NOT_EVALUATED') "UNAVAILABLE must be NOT_EVALUATED, got $($p[3])" }
+    # gates/latest is verdict-aware (it prefers the newest row WITH a verdict over an INSUFFICIENT/EXCLUDED one), so it may
+    # name another window than the newest payload row: compare the API cell with the payload of ITS OWN window
     $g = Invoke-RestMethod -Method Get -Uri "$cpm/loops/$($p[0])/gates/latest?windowKind=24h" -Headers $H
     $cell = $g.gates | Where-Object { $_.key -eq 'G13' }
-    Assert ($cell.reason -eq $p[2]) "gates/latest G13 reason '$($cell.reason)' <> payload '$($p[2])'"
-    Assert ($g.gate13Method -eq 'G13.ALIGNED_PEER_ANALYSIS_V1') "gate13Method: $($g.gate13Method)"
+    $own = (Invoke-CplmSql "SELECT COALESCE(payload->>'gate13_reason','') || '|' || COALESCE(payload->>'gate13_method','') FROM analytics.cplm_gate_results WHERE loop_id = '$($p[0])' AND window_kind = '24h' AND purpose = 'LIVE' AND source = 'flink' AND window_end = '$($g.windowEnd)'::timestamptz ORDER BY result_revision DESC, created_at DESC LIMIT 1" | Select-Object -First 1)
+    Assert (-not [string]::IsNullOrWhiteSpace($own)) "no payload row for the window gates/latest returned ($($g.windowEnd))"
+    $o = $own -split '\|'
+    $apiReason = if ($null -eq $cell.reason) { '' } else { [string]$cell.reason }
+    Assert ($apiReason -eq $o[0]) "gates/latest G13 reason '$apiReason' <> that window's payload '$($o[0])'"
+    Assert ($g.gate13Method -eq $o[1]) "gates/latest gate13Method '$($g.gate13Method)' <> that window's payload '$($o[1])'"
+    if ($g.gate13Method -ne 'G13.ALIGNED_PEER_ANALYSIS_V1') { Write-Host "        (the verdict-aware latest 24h window of $($p[0]) predates the 2F jar: $($g.gate13Method))" -ForegroundColor DarkGray }
 }
 
 Step 'a loop with a configured but unobserved peer is UNAVAILABLE / PEER_UNOBSERVED - a link is not a verdict (2F.1, NR-028)' {
