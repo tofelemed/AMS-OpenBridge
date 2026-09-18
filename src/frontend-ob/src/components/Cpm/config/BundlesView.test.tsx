@@ -66,7 +66,8 @@ describe('LoopConfigHeader', () => {
   it('states what the loop runs under, its profile and the workers in one row', () => {
     render(<LoopConfigHeader loopId="FIC10302" displayName="Reactor feed flow" eff={eff} loading={false} catalogueHash="8bbcbbbb7da0" />);
     expect(screen.getByText(/FIC10302 · Reactor feed flow/)).toBeTruthy();
-    expect(screen.getByText(/LOOP v2 · f9153b00/)).toBeTruthy();
+    expect(screen.getByText(/ACTIVE_VERIFIED · LOOP v2/)).toBeTruthy();
+    expect(screen.getByTitle('f9153b00aaf3ba1a')).toBeTruthy();                  // the hash once, copyable
     expect(screen.getByText('FLOW_FAST_SELF_REG')).toBeTruthy();
     expect(screen.getByText(/1 of 1 applied · one jar 4ea1da78 · catalogue matches/)).toBeTruthy();
   });

@@ -9,7 +9,7 @@
 import React, { useMemo, useState } from 'react';
 import { EmptyState, KvRow, PanelHead, TonePill, fmtDateTime } from '../shared';
 import type { CatalogueEntry, EffectiveConfig } from '../../../api/cpm/config';
-import { bundleLabel, layerStack, overridesByGate, shortHash, valueText, workersSummary } from './configSupport';
+import { bundleLabel, isLayerSource, layerStack, overridesByGate, shortHash, valueText, workersSummary } from './configSupport';
 
 const GATE_ORDER = ['G0', 'G1', 'G2', 'G2r', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10', 'G11', 'G12', 'G13', 'G14', 'G15'];
 const gateRank = (g: string) => { const i = GATE_ORDER.indexOf(g); return i < 0 ? 99 : i; };
@@ -93,7 +93,7 @@ export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, runBundleHash
                 <tr key={k} data-source={src}>
                   <td><span className="cpm-mono">{k}</span>{entry ? <span className="cpm-config-property__meta cpm-config-table__from">{entry.id} · {entry.unit || entry.type}</span> : null}</td>
                   <td className="cpm-mono">{valueText(eff.properties[k])}</td>
-                  <td><TonePill tone={src === 'FACTORY' ? 'muted' : 'good'}>{src}</TonePill></td>
+                  <td>{isLayerSource(src) ? <TonePill tone={src === 'FACTORY' ? 'muted' : 'good'}>{src}</TonePill> : <span className="cpm-muted">unset</span>}</td>
                   <td>{entry ? <TonePill tone={classTone(entry.changeClass)}>{entry.changeClass}</TonePill> : '—'}</td>
                 </tr>
               );
@@ -110,7 +110,7 @@ export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, runBundleHash
             {eff.workers.map(w => (
               <tr key={w.jobName}>
                 <td>{w.jobName}</td><td className="cpm-mono">{shortHash(w.jarSha256, 8)}</td><td className="cpm-mono">{shortHash(w.catalogueHash, 8)}</td>
-                <td>{w.ack ? <><TonePill tone={w.ack.status === 'ACK' ? 'good' : 'bad'}>{w.ack.status}</TonePill> <span className="cpm-mono">{shortHash(w.ack.bundleHash, 8)}</span></> : eff.bundle ? <TonePill tone="muted">no ACK recorded</TonePill> : <span className="cpm-copy">factory layer</span>}</td>
+                <td>{w.required === false ? <span className="cpm-muted">observer · reads no property</span> : w.ack ? <><TonePill tone={w.ack.status === 'ACK' ? 'good' : 'bad'}>{w.ack.status}</TonePill> <span className="cpm-mono">{shortHash(w.ack.bundleHash, 8)}</span></> : eff.bundle ? <TonePill tone="muted">no ACK recorded</TonePill> : <span className="cpm-copy">factory layer</span>}</td>
               </tr>
             ))}
           </tbody>

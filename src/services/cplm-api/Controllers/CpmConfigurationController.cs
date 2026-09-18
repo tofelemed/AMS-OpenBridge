@@ -76,7 +76,7 @@ public sealed class CpmConfigurationController : ControllerBase
             if (profile is { } p) layers.Add(new ConfigLayer("PROFILE", profileId, p));
             var r = EffectiveConfigResolver.Resolve(layers);
             return Ok(new { loopId = loop.LoopId, site = loop.Site, profileId, bundle = (object?)null, state = "NO_ACTIVE_BUNDLE", note = "no governed bundle is active for this loop: the engine runs the factory layer (class packs) exactly as before v2.5",
-                properties = r.Properties, sources = r.Sources, effectiveHash = r.Hash, workers = members.Select(m => new { m.JobName, m.JarSha256, m.CatalogueHash }) });
+                properties = r.Properties, sources = r.Sources, effectiveHash = r.Hash, workers = members.Select(m => new { m.JobName, m.JarSha256, m.CatalogueHash, required = m.ReadsProperties }) });
         }
         var activeRow = (await _store.ActiveAsync(loop.Site, ct)).FirstOrDefault(a => a.BundleId == active.BundleId);
         var acks = activeRow?.DeploymentId is { } did ? await _deployments.GetAsync(did, ct) : null;
@@ -85,7 +85,7 @@ public sealed class CpmConfigurationController : ControllerBase
             loopId = loop.LoopId, site = loop.Site, profileId, at, regime, state = active.State,
             bundle = new { active.BundleId, active.Version, active.ContentHash, active.ScopeKind, active.ScopeRef, active.ChangeClass, active.EffectiveFrom, active.CatalogueHash },
             properties = active.Resolved.GetProperty("properties"), sources = active.Resolved.GetProperty("sources"), layers = active.Layers,
-            workers = members.Select(m => new { m.JobName, m.JarSha256, m.CatalogueHash, ack = acks?.Acks.Where(a => a.JobName == m.JobName && a.Phase == "APPLY").Select(a => new { a.Status, a.BundleHash, a.JarSha256, a.ReceivedAt }).LastOrDefault() }),
+            workers = members.Select(m => new { m.JobName, m.JarSha256, m.CatalogueHash, required = m.ReadsProperties, ack = acks?.Acks.Where(a => a.JobName == m.JobName && a.Phase == "APPLY").Select(a => new { a.Status, a.BundleHash, a.JarSha256, a.ReceivedAt }).LastOrDefault() }),
         });
     }
 

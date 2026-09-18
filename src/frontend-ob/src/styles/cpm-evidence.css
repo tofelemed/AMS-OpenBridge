@@ -359,7 +359,8 @@
 .cpm-config-layer__count { font-size: 0.9rem; }
 .cpm-config-effective__bar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; }
 .cpm-config-effective__bar .cpm-config-gates { margin: 0; }
-.cpm-config-gate__badge { display: inline-block; min-width: 1.2em; padding: 0 4px; margin-left: 2px; border-radius: 999px; font-size: 0.75rem; background: var(--selected-enabled-background-color); color: var(--element-active-color); }
+.cpm-config-gate__badge { display: inline-block; min-width: 1.4em; padding: 0 5px; margin-left: 4px; border-radius: 999px; font-size: 0.75rem; line-height: 1.4; text-align: center; border: 1px solid var(--border-outline-color); background: var(--container-backdrop-color); color: var(--element-active-color); }
+.cpm-config-gate--selected .cpm-config-gate__badge { background: var(--container-backdrop-color); }
 .cpm-config-workers > summary { cursor: pointer; padding: 6px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .cpm-config-effective-drawer { margin-top: 8px; }
 /* the loop's three levels (Bundles view) */

@@ -101,7 +101,7 @@ describe('GateConfigurationWorkspace', () => {
     renderAt('?loop=FIC10302');
     await waitFor(() => expect(loc()).toBe('/cpm/config?loop=FIC10302&view=effective'));
     await waitFor(() => expect(screen.getByRole('list', { name: 'Layers' })).toBeTruthy());
-    expect(screen.getByText(/ACTIVE_VERIFIED · LOOP v2 · f9153b00/)).toBeTruthy();
+    expect(screen.getByText(/ACTIVE_VERIFIED · LOOP v2/)).toBeTruthy();
     expect(urls().some(u => u.includes('/configuration/drafts?'))).toBe(false);                    // the levels load only on the Bundles view
   });
 

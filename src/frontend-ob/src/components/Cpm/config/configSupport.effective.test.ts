@@ -64,6 +64,23 @@ describe('workersSummary', () => {
   });
 });
 
+describe('real-data semantics (lab 2026-09-18)', () => {
+  it('a NO_VALUE source is "unset", never an override; an observer worker is neither counted nor blamed', () => {
+    const e = eff({
+      properties: { 'G0.mode': 'OPERATIONAL', 'G0.max_gap_s': null, 'G4.activity_warn_ratio': 4.5 },
+      sources: { 'G0.mode': 'FACTORY', 'G0.max_gap_s': 'NO_VALUE', 'G4.activity_warn_ratio': 'PROFILE' },
+      bundle: { bundleId: 'b', version: 1, contentHash: 'h', scopeKind: 'LOOP', scopeRef: 'x', changeClass: 'POLICY', effectiveFrom: null, catalogueHash: '8bbcbbbb' },
+      workers: [
+        { jobName: 'short', jarSha256: '4ea1da78aaaa', catalogueHash: '8bbcbbbb', required: true, ack: { status: 'ACK', bundleHash: 'h', jarSha256: '4ea1da78aaaa', receivedAt: 't' } },
+        { jobName: 'instrument context', jarSha256: '4ea1da78aaaa', catalogueHash: '8bbcbbbb', required: false, ack: null },
+      ],
+    });
+    expect(overridesByGate(e).G0).toEqual({ total: 2, overridden: 0 });
+    expect(layerStack(e).map(l => l.count)).toEqual([1, 1, 0, 0]);
+    expect(workersSummary(e)).toEqual({ text: '1 of 1 applied · one jar 4ea1da78 · catalogue matches', tone: 'good' });
+  });
+});
+
 describe('bundleLabel', () => {
   it('names a bundle by level, version and short hash', () => {
     expect(bundleLabel({ scopeKind: 'LOOP', version: 2, contentHash: 'f9153b00aaf3ba1a3b19' })).toBe('LOOP v2 · f9153b00');

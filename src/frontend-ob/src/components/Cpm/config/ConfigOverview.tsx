@@ -34,7 +34,9 @@ export const ConfigOverview: React.FC<ConfigOverviewProps> = ({ loops, loopsLoad
   const [page, setPage] = useState(0);
   useEffect(() => { setPage(0); }, [query]);
   const q = query.trim().toLowerCase();
-  const filtered = useMemo(() => loops.filter(l => !q || l.loopId.toLowerCase().includes(q) || l.displayName.toLowerCase().includes(q) || l.profileId.toLowerCase().includes(q) || (l.unit ?? '').toLowerCase().includes(q)), [loops, q]);
+  // governed loops first (the answer to "who runs a bundle" is on page 1), then by loop id
+  const filtered = useMemo(() => loops.filter(l => !q || l.loopId.toLowerCase().includes(q) || l.displayName.toLowerCase().includes(q) || l.profileId.toLowerCase().includes(q) || (l.unit ?? '').toLowerCase().includes(q))
+    .sort((a, b) => Number(!!b.bundle) - Number(!!a.bundle) || a.loopId.localeCompare(b.loopId)), [loops, q]);
   const { pageCount, safePage, pageItems } = usePagedSlice(filtered, page, PAGE);
   const governed = loops.filter(l => l.bundle).length;
   const inProgress = useMemo(() => bundles.filter(b => !SETTLED.has(b.state)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [bundles]);

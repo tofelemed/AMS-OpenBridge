@@ -62,7 +62,8 @@ export interface Deployment {
   active: boolean; semantics: string;
 }
 
-export interface EffectiveWorker { jobName: string; jarSha256: string; catalogueHash: string; ack?: { status: string; bundleHash: string; jarSha256: string; receivedAt: string } | null }
+/** `required` (2026-09-18): the worker reads catalogue properties and must acknowledge; an observer (false) reads none and never does. */
+export interface EffectiveWorker { jobName: string; jarSha256: string; catalogueHash: string; required?: boolean; ack?: { status: string; bundleHash: string; jarSha256: string; receivedAt: string } | null }
 
 export interface EffectiveConfig {
   loopId: string; site: string; profileId: string; state: BundleState | 'NO_ACTIVE_BUNDLE'; note?: string;

@@ -7,7 +7,7 @@ import React from 'react';
 import { TonePill, WorkspaceHeader } from '../shared';
 import type { EffectiveConfig } from '../../../api/cpm/config';
 import { CopyableId } from '../evidence/CopyableId';
-import { bundleLabel, bundleStateTone, shortHash, workersSummary } from './configSupport';
+import { bundleStateTone, shortHash, workersSummary } from './configSupport';
 
 export interface LoopConfigHeaderProps {
   loopId: string;
@@ -35,7 +35,7 @@ export const LoopConfigHeader: React.FC<LoopConfigHeaderProps> = ({ loopId, disp
             <span className="cpm-fact">
               <span className="cpm-fact__label">runs under</span>
               <span className="cpm-fact__value">
-                <TonePill tone={eff.bundle ? bundleStateTone(eff.state) : 'muted'}>{eff.bundle ? `${eff.state} · ${bundleLabel(eff.bundle)}` : 'NO_ACTIVE_BUNDLE · factory layer'}</TonePill>
+                <TonePill tone={eff.bundle ? bundleStateTone(eff.state) : 'muted'}>{eff.bundle ? `${eff.state} · ${eff.bundle.scopeKind} v${eff.bundle.version}` : 'NO_ACTIVE_BUNDLE · factory layer'}</TonePill>
                 {eff.bundle && <CopyableId label="bundle hash" value={eff.bundle.contentHash} />}
               </span>
             </span>

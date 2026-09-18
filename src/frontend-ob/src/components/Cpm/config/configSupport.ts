@@ -113,9 +113,13 @@ export function diffProperties(before: Record<string, unknown>, after: Record<st
 export interface LayerCard { kind: 'FACTORY' | 'SITE' | 'PROFILE' | 'LOOP'; ref: string; count: number; present: boolean; origin: string }
 
 /** The layers a loop resolves through, bottom-up, each with what it sets; a missing level is stated as "no bundle". */
+const LAYER_KINDS = new Set(['FACTORY', 'SITE', 'PROFILE', 'LOOP', 'REGIME']);
+/** A source that names no layer (NO_VALUE: the property is unset everywhere) sets nothing. */
+export const isLayerSource = (src: string | undefined): boolean => !!src && LAYER_KINDS.has(src);
+
 export function layerStack(eff: EffectiveConfig): LayerCard[] {
   const counts: Record<string, number> = {};
-  for (const src of Object.values(eff.sources)) counts[src] = (counts[src] ?? 0) + 1;
+  for (const src of Object.values(eff.sources)) if (isLayerSource(src)) counts[src] = (counts[src] ?? 0) + 1;
   const b = eff.bundle;
   const bundleAt = (kind: string) => (b && b.scopeKind === kind ? `bundle ${bundleLabel(b)}` : null);
   return [
@@ -133,14 +137,16 @@ export function overridesByGate(eff: EffectiveConfig): Record<string, { total: n
     const gate = key.split('.')[0];
     const g = (out[gate] ??= { total: 0, overridden: 0 });
     g.total++;
-    if ((eff.sources[key] ?? 'FACTORY') !== 'FACTORY') g.overridden++;
+    const src = eff.sources[key];
+    if (isLayerSource(src) && src !== 'FACTORY') g.overridden++;
   }
   return out;
 }
 
 /** One line for the workers: applied ACKs, jar count, catalogue agreement - and its tone. */
 export function workersSummary(eff: EffectiveConfig): { text: string; tone: CpmTone } {
-  const ws = eff.workers;
+  // an observer reads no property and never acknowledges: it is neither counted nor blamed
+  const ws = eff.workers.filter(w => w.required !== false);
   const jars = [...new Set(ws.map(w => w.jarSha256))];
   const jarText = jars.length === 1 ? `one jar ${shortHash(jars[0], 8)}` : `${jars.length} jars`;
   const catalogueOff = eff.bundle ? ws.filter(w => w.catalogueHash !== eff.bundle!.catalogueHash).length : 0;
