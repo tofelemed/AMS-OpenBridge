@@ -77,8 +77,10 @@ if (evt) await step('response-event', `/cpm/response?loop=${RESP_LOOP}&event=${e
 else console.log('response-event        no event to open');
 
 // Gate Configuration: landing, the loop scope (bundle list), the active bundle (property table + lifecycle + deployments)
-await step('config-landing', '/cpm/config', '.cpm-config-nav');
-await step('config-loop', `/cpm/config?site=hdpe&scope=LOOP&ref=${CFG_LOOP}`, '.cpm-config-bundle');
+// Gate Configuration (2026-09-18 redesign): overview, the loop's effective view, its levels, the editor
+await step('config-overview', '/cpm/config', '.cpm-config-overview tbody tr');
+await step('config-effective', `/cpm/config?loop=${CFG_LOOP}&view=effective`, '.cpm-config-layers');
+await step('config-bundles', `/cpm/config?loop=${CFG_LOOP}&view=bundles`, '.cpm-config-level');
 const bundleId = await page.evaluate(() => {
   const btn = [...document.querySelectorAll('button.cpm-config-bundle')].find(b => /ACTIVE_VERIFIED/.test(b.textContent)) ?? document.querySelector('button.cpm-config-bundle');
   btn?.click();
@@ -86,9 +88,9 @@ const bundleId = await page.evaluate(() => {
 });
 await page.waitForTimeout(800);
 const bundle = bundleId ?? new URL(page.url()).searchParams.get('bundle');
-if (bundle) await step('config-bundle', `/cpm/config?site=hdpe&scope=LOOP&ref=${CFG_LOOP}&bundle=${bundle}&gate=G0`, '.cpm-config-table tbody tr');
-else console.log('config-bundle         no bundle to open');
-if (bundle) await step('config-bundle-G12', `/cpm/config?site=hdpe&scope=LOOP&ref=${CFG_LOOP}&bundle=${bundle}&gate=G12`, '.cpm-config-table tbody tr');
+if (bundle) await step('config-editor', `/cpm/config?loop=${CFG_LOOP}&view=editor&bundle=${bundle}&gate=G0`, '.cpm-config-table tbody tr');
+else console.log('config-editor         no bundle to open');
+if (bundle) await step('config-editor-G12', `/cpm/config?loop=${CFG_LOOP}&view=editor&bundle=${bundle}&gate=G12`, '.cpm-config-table tbody tr');
 
 console.log('pageerrors', errors);
 writeFileSync(join(outDir, 'pages-perf.json'), JSON.stringify({ steps, errors }, null, 2));

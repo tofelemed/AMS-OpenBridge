@@ -267,15 +267,16 @@
 /* ── v2.5 Phase 3D: Gate Configuration workspace (layout only; tokens as above) ── */
 .cpm-config-columns {
   display: grid;
-  /* audit F18: every column minmax(0, …) - a min-content table (approvals, ACK matrix) can no longer widen a column past the page */
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr) minmax(0, 1.3fr);
+  /* 2026-09-18: two columns (the left navigation moved to the top toolbar); every column minmax(0, …) so a
+     min-content table (approvals, ACK matrix) can never widen a column past the page (audit F18) */
+  grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.3fr);
   gap: 16px;
   align-items: start;
 }
-@media (max-width: 1300px) {
+@media (max-width: 1200px) {
   .cpm-config-columns { grid-template-columns: 1fr; }
 }
-.cpm-config-nav, .cpm-config-centre, .cpm-config-side {
+.cpm-config-centre, .cpm-config-side {
   display: flex;
   flex-direction: column;
   gap: 16px;

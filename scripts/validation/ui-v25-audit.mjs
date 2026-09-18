@@ -33,7 +33,8 @@ const PAGES = [
   ['evidence', RUN ? `/cpm/evidence?loop=${LOOP}&methodRun=${RUN}&gate=${GATE}&mode=FIXED` : '/cpm/evidence'],
   ['response', `/cpm/response?loop=${RESP_LOOP}`],
   ['config', '/cpm/config'],
-  ['config-loop', `/cpm/config?site=hdpe&scope=LOOP&ref=${RESP_LOOP}`],
+  ['config-loop', `/cpm/config?loop=${RESP_LOOP}&view=effective`],
+  ['config-bundles', `/cpm/config?loop=${RESP_LOOP}&view=bundles`],
   ['investigation', `/cpm/investigation?loop=${LOOP}`],
   ['calculations', `/cpm/calculations?loop=${LOOP}`],
   ['registry', '/cpm/registry'],
@@ -162,7 +163,7 @@ try {
   // flow: config → select the active bundle
   consoleErrors.length = 0; failed.length = 0;
   const cflow = { name: 'config→bundle', steps: [] };
-  await page.goto(`${BASE}/cpm/config?site=hdpe&scope=LOOP&ref=${RESP_LOOP}`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}/cpm/config?loop=${RESP_LOOP}&view=bundles`, { waitUntil: 'domcontentloaded' });
   await settle(page, 3000);
   const bundleBtn = page.locator('button.cpm-config-bundle').filter({ hasText: /ACTIVE_VERIFIED/ }).first();
   const bc = await bundleBtn.count();
