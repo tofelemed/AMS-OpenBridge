@@ -89,10 +89,51 @@ public sealed class CpmConfigurationController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// 2026-09-18 (Gate Configuration overview): what every loop in scope runs under, in one read - the
+    /// registry loops of the scope, the active rows per site, the per-loop rule of /effective applied in
+    /// memory, and the light rows of the bundles named. No /effective call per loop.
+    /// </summary>
+    [HttpGet("effective/summary")]
+    [Authorize(Policy = "cpm.config.read")]
+    public async Task<IActionResult> EffectiveSummary([FromQuery] string? site, [FromQuery] string? area, [FromQuery] string? unit, CancellationToken ct)
+    {
+        var loops = (await _registry.GetAllAsync(ct))
+            .Where(l => l.IsActive)
+            .Where(l => site is null || string.Equals(l.Site, site, StringComparison.OrdinalIgnoreCase))
+            .Where(l => area is null || string.Equals(l.Area, area, StringComparison.OrdinalIgnoreCase))
+            .Where(l => unit is null || string.Equals(l.Unit, unit, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(l => l.LoopId, StringComparer.Ordinal).ToList();
+        var activeBySite = new Dictionary<string, IReadOnlyList<ConfigStore.ActiveRow>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var s in loops.Select(l => l.Site).Distinct(StringComparer.OrdinalIgnoreCase)) activeBySite[s] = await _store.ActiveAsync(s, ct);
+        var rows = Services.Config.EffectiveSummary.Resolve(loops, activeBySite);
+        var bundles = (await _store.SummariesAsync(rows.Where(r => r.BundleId is not null).Select(r => r.BundleId!.Value).Distinct().ToList(), ct)).ToDictionary(b => b.BundleId);
+        return Ok(new
+        {
+            count = rows.Count,
+            loops = rows.Select(r =>
+            {
+                var b = r.BundleId is { } id && bundles.TryGetValue(id, out var found) ? found : null;
+                return new
+                {
+                    r.LoopId, r.DisplayName, r.Site, r.Area, r.Unit, r.LoopType, r.ProfileId,
+                    state = b?.State ?? Services.Config.EffectiveSummary.NoActiveBundle,
+                    bundle = b is null ? null : new { b.BundleId, b.Version, b.ContentHash, b.ScopeKind, b.ScopeRef, b.ChangeClass, b.EffectiveFrom, since = r.Since },
+                };
+            }),
+        });
+    }
+
+    /// <param name="projection">`summary` (2026-09-18): the identity, state and class of each bundle without layers / resolved / shadow - a list row is a few hundred bytes instead of tens of KB.</param>
     [HttpGet("drafts")]
     [Authorize(Policy = "cpm.config.read")]
-    public async Task<IActionResult> List([FromQuery] string site, [FromQuery] string? scopeKind, [FromQuery] string? scopeRef, [FromQuery] string? state, CancellationToken ct)
-        => Ok(new { site, bundles = (await _store.ListAsync(site, scopeKind?.ToUpperInvariant(), scopeRef, state?.ToUpperInvariant(), ct)).Select(Shape) });
+    public async Task<IActionResult> List([FromQuery] string site, [FromQuery] string? scopeKind, [FromQuery] string? scopeRef, [FromQuery] string? state, [FromQuery] string? projection, CancellationToken ct)
+    {
+        var rows = await _store.ListAsync(site, scopeKind?.ToUpperInvariant(), scopeRef, state?.ToUpperInvariant(), ct);
+        return string.Equals(projection, "summary", StringComparison.OrdinalIgnoreCase)
+            ? Ok(new { site, projection = "summary", bundles = rows.Select(ShapeSummary) })
+            : Ok(new { site, bundles = rows.Select(Shape) });
+    }
 
     [HttpGet("drafts/{id:guid}")]
     [Authorize(Policy = "cpm.config.read")]
@@ -231,6 +272,12 @@ public sealed class CpmConfigurationController : ControllerBase
     {
         b.BundleId, b.Version, b.ContentHash, b.Site, b.ScopeKind, b.ScopeRef, b.ParentBundleId, b.ParentHash, b.CatalogueHash, b.ExecutionPlanHash, b.ChangeClass, b.State,
         b.Layers, b.Resolved, b.Validation, b.Shadow, b.EffectiveFrom, b.CreatedBy, b.CreatedAt, b.UpdatedAt, b.Etag, b.Note, approvals,
+    };
+
+    public static object ShapeSummary(BundleView b) => new
+    {
+        b.BundleId, b.Version, b.ContentHash, b.Site, b.ScopeKind, b.ScopeRef, b.ParentBundleId, b.ChangeClass, b.State, b.EffectiveFrom, b.CreatedBy, b.CreatedAt, b.UpdatedAt, b.Note,
+        validationErrors = b.Validation is { } v && v.ValueKind == JsonValueKind.Object && v.TryGetProperty("errors", out var e) && e.ValueKind == JsonValueKind.Array ? e.GetArrayLength() : 0,
     };
 
     internal static object Shape(BundleView b) => new

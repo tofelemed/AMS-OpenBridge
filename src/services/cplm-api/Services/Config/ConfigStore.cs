@@ -71,6 +71,24 @@ public sealed class ConfigStore
 
     public sealed record ActiveRow(string ScopeKind, string ScopeRef, Guid BundleId, string ContentHash, DateTimeOffset Since, Guid? DeploymentId);
 
+    /// <summary>2026-09-18: the identity, state and class of bundles, without their content - what a list needs.</summary>
+    public sealed record BundleSummary(Guid BundleId, int Version, string ContentHash, string Site, string ScopeKind, string? ScopeRef, string ChangeClass, string State,
+        DateTimeOffset? EffectiveFrom, string CreatedBy, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, string? Note);
+
+    public async Task<IReadOnlyList<BundleSummary>> SummariesAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
+    {
+        if (ids.Count == 0) return Array.Empty<BundleSummary>();
+        await using var conn = await _db.OpenConnectionAsync(ct);
+        var rows = await conn.QueryAsync("""
+            SELECT bundle_id, version, content_hash, site, scope_kind, scope_ref, change_class, state, effective_from, created_by, created_at, updated_at, note
+            FROM cpm.gate_config_bundle WHERE bundle_id = ANY(@ids)
+            """, new { ids = ids.ToArray() });
+        return rows.Select(r => new BundleSummary((Guid)r.bundle_id, (int)r.version, (string)r.content_hash, (string)r.site, (string)r.scope_kind, (string?)r.scope_ref,
+            (string)r.change_class, (string)r.state, r.effective_from is DateTime ef ? new DateTimeOffset(DateTime.SpecifyKind(ef, DateTimeKind.Utc)) : null,
+            (string)r.created_by, new DateTimeOffset(DateTime.SpecifyKind((DateTime)r.created_at, DateTimeKind.Utc)),
+            new DateTimeOffset(DateTime.SpecifyKind((DateTime)r.updated_at, DateTimeKind.Utc)), (string?)r.note)).ToList();
+    }
+
     public async Task<IReadOnlyList<ActiveRow>> ActiveAsync(string site, CancellationToken ct)
     {
         await using var conn = await _db.OpenConnectionAsync(ct);

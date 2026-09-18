@@ -73,6 +73,21 @@ export interface EffectiveConfig {
 
 export interface PatchOp { op: 'set' | 'reset'; property: string; value?: unknown }
 
+/** 2026-09-18 (Gate Configuration overview): a bundle's identity, state and class - a list row, no content. */
+export interface BundleSummary {
+  bundleId: string; version: number; contentHash: string; site: string; scopeKind: ScopeKind; scopeRef: string | null; parentBundleId: string | null;
+  changeClass: ChangeClass; state: BundleState; effectiveFrom: string | null; createdBy: string; createdAt: string; updatedAt: string; note: string | null;
+  validationErrors: number;
+}
+
+/** What one loop runs under today, from the fleet read (the per-loop rule of /effective applied in memory). */
+export interface EffectiveSummaryLoop {
+  loopId: string; displayName: string; site: string; area: string | null; unit: string | null; loopType: string; profileId: string;
+  state: BundleState | 'NO_ACTIVE_BUNDLE';
+  bundle: { bundleId: string; version: number; contentHash: string; scopeKind: ScopeKind; scopeRef: string | null; changeClass: ChangeClass; effectiveFrom: string | null; since: string | null } | null;
+}
+export interface EffectiveSummary { count: number; loops: EffectiveSummaryLoop[] }
+
 export const getConfigCatalogue = (signal?: AbortSignal) => apiJson<ConfigCatalogue>(`${CPM_BASE}/configuration/catalogue`, { signal });
 
 export const getEffectiveConfig = (loopId: string, at?: string, signal?: AbortSignal) =>
@@ -84,6 +99,24 @@ export const listBundles = (site: string, opts: { scopeKind?: ScopeKind; scopeRe
   if (opts.scopeRef) p.set('scopeRef', opts.scopeRef);
   if (opts.state) p.set('state', opts.state);
   return apiJson<{ site: string; bundles: Bundle[] }>(`${CPM_BASE}/configuration/drafts?${p.toString()}`, { signal });
+};
+
+/** The same list as summary rows (no layers / resolved / shadow): what the overview and the level view read. */
+export const listBundleSummaries = (site: string, opts: { scopeKind?: ScopeKind; scopeRef?: string; state?: string } = {}, signal?: AbortSignal) => {
+  const p = new URLSearchParams({ site, projection: 'summary' });
+  if (opts.scopeKind) p.set('scopeKind', opts.scopeKind);
+  if (opts.scopeRef) p.set('scopeRef', opts.scopeRef);
+  if (opts.state) p.set('state', opts.state);
+  return apiJson<{ site: string; bundles: BundleSummary[] }>(`${CPM_BASE}/configuration/drafts?${p.toString()}`, { signal });
+};
+
+export const getEffectiveSummary = (scope: { site?: string; area?: string; unit?: string } = {}, signal?: AbortSignal) => {
+  const p = new URLSearchParams();
+  if (scope.site) p.set('site', scope.site);
+  if (scope.area) p.set('area', scope.area);
+  if (scope.unit) p.set('unit', scope.unit);
+  const q = p.toString();
+  return apiJson<EffectiveSummary>(`${CPM_BASE}/configuration/effective/summary${q ? `?${q}` : ''}`, { signal });
 };
 
 export const getBundle = (id: string, signal?: AbortSignal) => apiJson<Bundle>(`${CPM_BASE}/configuration/drafts/${encodeURIComponent(id)}`, { signal });

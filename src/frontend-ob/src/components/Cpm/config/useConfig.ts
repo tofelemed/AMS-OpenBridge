@@ -5,7 +5,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  approveDraft, createDeployment, createDraft, getBundle, getConfigCatalogue, getDeployment, getEffectiveConfig, listBundles, listDeployments,
+  approveDraft, createDeployment, createDraft, getBundle, getConfigCatalogue, getDeployment, getEffectiveConfig, getEffectiveSummary, listBundles, listBundleSummaries, listDeployments,
   patchDraft, rollbackDeployment, shadowDraft, validateDraft, type Deployment, type PatchOp, type ScopeKind,
 } from '../../../api/cpm/config';
 
@@ -18,6 +18,22 @@ export const useEffectiveConfig = (loopId: string | undefined, at?: string) => u
   queryFn: ({ signal }) => getEffectiveConfig(loopId!, at, signal),
   enabled: !!loopId,
   staleTime: 30_000,
+});
+
+/** 2026-09-18: the overview's fleet read - what every loop in scope runs under; only while the overview is open. */
+export const useEffectiveSummary = (scope: { site?: string; area?: string; unit?: string }, enabled = true) => useQuery({
+  queryKey: ['cpm', 'config', 'effective-summary', scope.site ?? '', scope.area ?? '', scope.unit ?? ''],
+  queryFn: ({ signal }) => getEffectiveSummary(scope, signal),
+  enabled,
+  staleTime: 30_000,
+});
+
+/** Summary rows of a level's bundles (no content); the level views and the overview list read these. */
+export const useBundleSummaries = (site: string | undefined, scopeKind?: ScopeKind, scopeRef?: string, enabled = true) => useQuery({
+  queryKey: ['cpm', 'config', 'bundle-summaries', site ?? '', scopeKind ?? '', scopeRef ?? ''],
+  queryFn: ({ signal }) => listBundleSummaries(site!, { scopeKind, scopeRef }, signal),
+  enabled: !!site && enabled,
+  staleTime: 15_000,
 });
 
 export const useBundles = (site: string | undefined, scopeKind?: ScopeKind, scopeRef?: string) => useQuery({
@@ -53,6 +69,8 @@ export function useConfigActions(site: string | undefined) {
   const qc = useQueryClient();
   const settle = (bundleId?: string) => {
     void qc.invalidateQueries({ queryKey: ['cpm', 'config', 'bundles', site ?? ''] });
+    void qc.invalidateQueries({ queryKey: ['cpm', 'config', 'bundle-summaries', site ?? ''] });
+    void qc.invalidateQueries({ queryKey: ['cpm', 'config', 'effective-summary'] });
     if (bundleId) void qc.invalidateQueries({ queryKey: ['cpm', 'config', 'bundle', bundleId] });
     if (bundleId) void qc.invalidateQueries({ queryKey: ['cpm', 'config', 'deployments', bundleId] });
     void qc.invalidateQueries({ queryKey: ['cpm', 'config', 'effective'] });
