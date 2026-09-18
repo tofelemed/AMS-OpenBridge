@@ -184,6 +184,23 @@ docker exec ams-iotdb /iotdb/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw 
 
 Set a TTL rather than deleting rows — it is the historian, and gaps here are permanent.
 
+### I. Not ours, same disk — know before you hunt (2026-09-18 survey)
+
+The 87 GB is shared. On 2026-09-18 the split was: Instrumental Kafka volumes 30 GB (of which
+**20 GB was our `feature.short` topic**), `/var/lib/containerd` 19 GB (61 images), `/home/lean/traverse`
+8.7 GB, Instrumental Postgres 5.1 GB, alarm-stack MSSQL 4.4 GB, all `ams-cpa_*` volumes ~1.3 GB.
+
+| Path | What | Owner | Cleanup |
+|---|---|---|---|
+| `/home/lean/traverse/scripts/ces_export*` | CES data export (`values.csv.gz` 450 MB + …), 4.6 GB | alarm project (`traverse-alarm-offline-alert-1` mounts it as `/app/ces_export`) | delete only when they confirm the export is consumed |
+| `/home/lean/traverse/proxy_logs` | PI-archiver proxy inbox/outbox, root-owned, **live** (written daily); 950 MB older than 14 d | Instrumental / PI pipeline | their retention cron; at most `find outbox -mtime +14 -delete` with their OK |
+| `dlq.ingestion.failed` (Kafka) | Instrumental ingestion DLQ, 3.3 GB at 7 d | Instrumental | set to 1 d / 6 h segments on 2026-09-18 (`kafka-configs --alter`) |
+| `traverse-alarm-offline-alert-1` layer | a VS Code dev-container server (`/app/.vscode-server`, 675 MB) | whoever attached VS Code | `docker exec … rm -rf /app/.vscode-server /app/.copilot /app/.cache` — harmless |
+| `<untagged>` images marked `U` | in use by running Instrumental / alarm containers that were never re-tagged | theirs | leave; `docker rmi` skips them anyway |
+
+First command when the disk is full is now the **per-topic Kafka size** in §3 G — it found the
+20 GB in one line.
+
 ## 4. Full cleanup — order of operations
 
 1. **Measure** (§1). Know which of A–H is the actual problem before deleting anything.
