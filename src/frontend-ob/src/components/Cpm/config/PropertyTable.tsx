@@ -8,7 +8,7 @@ import React, { useState } from 'react';
 import { TonePill } from '../shared';
 import type { Bundle, CatalogueEntry, PatchOp } from '../../../api/cpm/config';
 import { PropertyForm } from './PropertyForm';
-import { valueText } from './configSupport';
+import { isLayerSource, valueText } from './configSupport';
 
 export interface PropertyTableProps {
   entries: CatalogueEntry[];
@@ -49,7 +49,7 @@ export const PropertyTable: React.FC<PropertyTableProps> = ({ entries, bundle, e
                   </td>
                   <td>
                     <span className="cpm-mono">{valueText(effective)}</span>
-                    <span className="cpm-config-property__meta cpm-config-table__from">{source ? `from ${source}` : 'no layer sets it'}</span>
+                    <span className="cpm-config-property__meta cpm-config-table__from">{isLayerSource(source) ? `from ${source}` : 'unset - no layer sets it'}</span>
                   </td>
                   <td><TonePill tone={p.changeClass === 'DEPLOYMENT' ? 'bad' : p.changeClass === 'STATE_BOUNDARY' ? 'warn' : 'muted'}>{p.changeClass}</TonePill></td>
                   <td className="cpm-config-table__flags">

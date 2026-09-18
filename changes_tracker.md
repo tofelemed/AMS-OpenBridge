@@ -1674,6 +1674,12 @@ redesigned System Response and Gate Configuration pages, the Loop Explorer loop 
 on Loop Events and the "latest is the newest window" reading everywhere (frontend tests 225/225). Same two
 images, same manifest; test counts below are the current ones.
 
+**Gate Configuration frame redesign (2026-09-18, `05-frontend-audit` §4.7):** `cplm-api` gains two additive reads -
+`GET /configuration/effective/summary?site&area&unit` (what every loop in scope runs under, one read) and
+`GET /configuration/drafts?projection=summary` (list rows without layers / resolved / shadow); no schema change.
+`ams-frontend` carries the new page frame (scope filter + loop search at the top, overview landing, Effective /
+Bundles / Editor views). Same two images, same manifest.
+
 **Performance follow-up, same day (`03-acceptance-evidence.md`, "System Response and Gate Configuration measured"):**
 `scripts/cpm-07-v25-schema.sql` (and `database/scripts/53`) gain three indexes - GIN on `method_run_ids` for
 `cplm_short_feature_results` and `cplm_long_feature_results`, partial `ix_evidence_manifest_unlinked` - all

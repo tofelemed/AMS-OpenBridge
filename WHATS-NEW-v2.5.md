@@ -298,8 +298,10 @@ and hashed; that hash is what every result is pinned to.
 
 Lifecycle (every step is a server-side permission):
 
-1. **Draft** — Gate Configuration → choose Site → Scope (SITE / PROFILE / LOOP) → reference → *New
-   draft* (or *New version* of the selected bundle). Pick a gate; its properties are a **table**
+1. **Draft** — Gate Configuration → pick the loop (scope filter + loop search at the top, as on every
+   page) → **Bundles** tab → the loop's three levels (LOOP: this loop only · PROFILE: every loop of its
+   class pack · SITE: every loop without a more specific bundle) → *New draft* / *New version* at the
+   level you mean. Pick a gate; its properties are a **table**
    (name · effective value and the layer it comes from · change class · flags such as
    *commissioning* or *unread by build*); click a row to open its editor (definition, inherited
    value, bounds, read-by, set / reset - one open at a time). Type a new value (a fraction field
@@ -328,10 +330,17 @@ Lifecycle (every step is a server-side permission):
    `ACTIVATION_FAILED`; a slow member → `PARTIALLY_ACKNOWLEDGED` (redeployable).
 6. **Roll back** — a new deployment of the previously active bundle; old results are untouched.
 
-- **Where:** nav **Gate Configuration** (`/cpm/config`, needs `cpm.config.read`); *Show effective*
-  opens the read-only **Effective configuration** drawer (also reachable from the workbench's Method
-  trace: it names the bundle *that run* used and says when that bundle is no longer active);
-  Governance → **Approvals** queue lists validated drafts awaiting approval/activation.
+- **Where:** nav **Gate Configuration** (`/cpm/config`, needs `cpm.config.read`). With no loop chosen
+  it is an **overview**: *Configuration by loop* (what every loop in scope runs under - the factory
+  layer, or a bundle by level / version / hash) and *Bundles in progress*. Pick a loop and the page
+  answers in this order: a fact row (**runs under** · profile · workers · catalogue), then the tabs
+  **Effective** (the resolved configuration as a layer stack FACTORY → PROFILE → SITE → LOOP with what
+  each layer sets, a gate strip with override badges, one gate's table at a time, a property search),
+  **Bundles** (the three levels with their versions) and **Editor** (one bundle with its lifecycle).
+  Every selection is in the address, so a page can be linked. The workbench's "Configuration this
+  run used ›" and the Loop Explorer open the same Effective view as a drawer (naming the bundle *that
+  run* used and saying when it is no longer active). Governance → **Approvals** queue lists validated
+  drafts awaiting approval / activation.
 - **Try it in the UI:** create an Engineer user (Administration → Users), log in as that user, draft
   a LOOP bundle for a flowing loop (e.g. FIC10405), set `G4.activity_warn_ratio`, Validate, Shadow;
   log in as admin, Approve, Deploy; watch the ACK matrix reach ACTIVE_VERIFIED (a few minutes: the

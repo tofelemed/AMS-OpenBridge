@@ -182,6 +182,19 @@ counted rather than listed. Observed while re-auditing: five probe runs inside 1
 limit on `POST /api/auth/refresh` (one 429 on the Performance page in the fifth run) - a probe cadence
 artefact, not a page defect.
 
+## 4.7 Gate Configuration frame (2026-09-18, user: "we still have filters and drop down on left column")
+
+The editor was fixed on 09-17 (F18) but the page's frame was not: the left column still carried the Site /
+Scope / Loop dropdowns and the bundle list, and *Show effective* dumped a 165-row block under it. Redesigned
+on the user's approved plan (tabs on one route, fleet overview landing, level derived from the loop):
+toolbar = scope filter + loop search like every page; landing = *Configuration by loop* + *Bundles in
+progress* (new `GET /configuration/effective/summary`, `GET /configuration/drafts?projection=summary`);
+loop page = fact row (runs under · profile · workers · catalogue) + tabs **Effective** (layer stack, badged
+gate strip, one gate's table, search; the drawer is now a thin wrapper of it) / **Bundles** (the loop's
+LOOP · PROFILE · SITE levels, read on demand) / **Editor** (the F18 editor, two columns). URL
+`?loop&view&bundle&gate&tab`, `?loop=` alone replaced with `view=effective`. Commits `3fc02496` …
+`d60d050c`; cplm-api 179/179, frontend 256/256. Lab numbers in `03-acceptance-evidence.md`.
+
 **Performance of the two redesigned pages (user: "also performance?"):** measured with
 `scripts/validation/ui-v25-pages-perf.mjs` (requests, bytes, per-call ms, time to first chart / table, idle
 polling) - numbers in `03-acceptance-evidence.md`. What bounds each page: Response - the event list is

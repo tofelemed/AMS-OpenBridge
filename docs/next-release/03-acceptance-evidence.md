@@ -128,6 +128,16 @@ it now links per tier from the last 20 minutes of rows, index-joined (`ix_eviden
 On the lab the two oldest short-table chunks are TimescaleDB-compressed and are decompressed on every short-tier
 probe (~0.5 s; prod tables are plain and fully indexed).
 
+**Gate Configuration frame redesign measured (2026-09-18, `ui-v25-pages-perf.mjs`, cold document loads incl. the
+app's bootstrap):** Overview 10 requests / 303 KB, ready **0.27 s** (the fleet summary is ONE 49 KB read for 230
+loops; the bundles in progress are 1.9 KB of summary rows instead of 25 KB per bundle); Effective view 6 / 268 KB,
+**0.21 s** (one 16.6 KB effective read; 17 rows on screen instead of 165); Bundles view 9 / 270 KB, **0.20 s**
+(three summary reads, ≤ 1.5 KB each, only when the view opens); Editor 8 / 315 KB, **0.18–1.4 s**; idle 30 s:
+**0 requests** on every view. `ui-v25-audit.mjs` (config, config-loop, config-bundles, config → bundle flow):
+0 console errors, 0 failed calls, no horizontal overflow. Real-data corrections made on the lab and pinned by tests:
+a `NO_VALUE` source reads as *unset* (it was counted as an override), an observer worker (Instrument Context) is
+neither counted nor blamed (the header said "5 of 6 applied" in red), the active version card keeps its contrast.
+
 **Gateway under a Redis stall - found, then fixed on the user's go (2026-09-17 evening).** The gateway's rate
 limiter failed CLOSED on a Redis timeout for the "mutation" class, and `POST /api/auth/refresh` was in that class:
 a 1.1 s Redis stall on the lab host (slowlog `INFO replication` 1,139 ms; Redis otherwise 0–1 ms) became a 429 on
