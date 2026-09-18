@@ -59,7 +59,7 @@ docker images -f dangling=true
 | 2026-09-12 | **MinIO checkpoints** | 868 MB → **9.1 GB** in 2 days | `RETAIN_ON_CANCELLATION` + every resubmit orphaned a checkpoint tree | `DELETE_ON_CANCELLATION` (live since v2.3) |
 | 2026-09-12 | Flink tmp volumes | ~5 GB | RocksDB working state across resubmits | cleared with Flink down; recreated empty |
 | 2026-09-12 | Old release bundles in `/tmp` | ~1 GB each | never deleted after load | delete after every successful deploy |
-| 2026-09-18 | **`traverse.cpa.clpm.feature.short.v1`** | 20 GB (10 GB × RF 2) of Kafka's 30 GB; disk 100 % | 7 d retention, uncompressed, and script 04 set no `segment.ms` on 7 d topics (the `<` excluded them) — 1-min features at plant rate | retention **3 d** + lz4 + `segment.ms` 6 h via `kafka-configs --alter`; topics.txt + 04 updated; alter, never delete |
+| 2026-09-18 | **`traverse.cpa.clpm.feature.short.v1`** | 20 GB (10 GB × RF 2) of Kafka's 30 GB; disk 100 % | 7 d retention, uncompressed, and script 04 set no `segment.ms` on 7 d topics (the `<` excluded them) — 1-min features at plant rate | retention **1 d** + lz4 + `segment.ms` 6 h via `kafka-configs --alter` (Instrumental's `dlq.ingestion.failed`, 3.3 GB, also → 1 d); topics.txt + 04 updated; alter, never delete |
 | 2026-09-12 | ams-api HttpClient INFO | bounded 30 MB, but ~25 min history | Serilog ignored the plant log floor | CHG-021 (built, not yet deployed) |
 
 **Consequence of a full disk here, twice observed:** IoTDB rejects writes → the historian consumer
@@ -154,7 +154,7 @@ docker rmi <repo>:<tag>          # by name, one at a time, never -f
 ```bash
 K="docker exec instrumental-kafka-1"
 $K kafka-configs --bootstrap-server kafka-1:9092 --describe --entity-type topics --entity-name traverse.cpa.loop.samples.v1
-$K kafka-configs --bootstrap-server kafka-1:9092 --describe --entity-type topics --entity-name traverse.cpa.clpm.feature.short.v1   # retention 259200000, segment 21600000, lz4
+$K kafka-configs --bootstrap-server kafka-1:9092 --describe --entity-type topics --entity-name traverse.cpa.clpm.feature.short.v1   # retention 86400000, segment 21600000, lz4
 
 # per-topic size, biggest first — the first thing to run when the disk is full
 $K kafka-log-dirs --bootstrap-server kafka-1:9092 --describe 2>/dev/null | sed -n '/^{/,$p' | python3 -c '

@@ -10,14 +10,14 @@
 # code_name matches Flink/C#/Java (Phase 5 wired).
 # retention.ms: 604800000 = 7d; 2592000000 = 30d; empty = compact (no time retention)
 # compression: lz4 or - (broker default)
-# 2026-09-18 disk-full: feature.short at 7 d uncompressed was 10 GB/replica on the plant. Now 3 d + lz4;
+# 2026-09-18 disk-full: feature.short at 7 d uncompressed was 10 GB/replica on the plant. Now 1 d + lz4;
 #   the three CPLM streams are lz4. Existing topics: apply with kafka-configs --alter (04 only creates).
 #
 # Create flags (Phase 6): --if-not-exists --replication-factor 2 --config min.insync.replicas=1  # cluster went 3->2 brokers 2026-09-05
 # Lab RF=1 is NOT for Marun.
 
 traverse.cpa.loop.samples.v1	16	delete	86400000	lz4	traverse.cpa.loop.samples.v1
-traverse.cpa.clpm.feature.short.v1	8	delete	259200000	lz4	traverse.cpa.clpm.feature.short.v1
+traverse.cpa.clpm.feature.short.v1	8	delete	86400000	lz4	traverse.cpa.clpm.feature.short.v1
 traverse.cpa.clpm.feature.long.v1	8	delete	604800000	lz4	traverse.cpa.clpm.feature.long.v1
 traverse.cpa.clpm.gate.results.v1	8	delete	2592000000	lz4	traverse.cpa.clpm.gate.results.v1
 traverse.cpa.clpm.condition.v1	8	delete	604800000	-	traverse.cpa.clpm.condition.v1
