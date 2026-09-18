@@ -5,7 +5,7 @@
  * server validates again; this only keeps an obviously wrong value from being sent.
  */
 import type { CpmTone } from '../shared';
-import type { CatalogueEntry, DeploymentState } from '../../../api/cpm/config';
+import type { CatalogueEntry, DeploymentState, EffectiveConfig } from '../../../api/cpm/config';
 
 export function bundleStateTone(state: string | null | undefined): CpmTone {
   switch (state) {
@@ -108,3 +108,49 @@ export function diffProperties(before: Record<string, unknown>, after: Record<st
   }
   return out;
 }
+
+// ── 2026-09-18 Gate Configuration redesign: the effective configuration in words ────────────────
+export interface LayerCard { kind: 'FACTORY' | 'SITE' | 'PROFILE' | 'LOOP'; ref: string; count: number; present: boolean; origin: string }
+
+/** The layers a loop resolves through, bottom-up, each with what it sets; a missing level is stated as "no bundle". */
+export function layerStack(eff: EffectiveConfig): LayerCard[] {
+  const counts: Record<string, number> = {};
+  for (const src of Object.values(eff.sources)) counts[src] = (counts[src] ?? 0) + 1;
+  const b = eff.bundle;
+  const bundleAt = (kind: string) => (b && b.scopeKind === kind ? `bundle ${bundleLabel(b)}` : null);
+  return [
+    { kind: 'FACTORY', ref: 'shipped', count: counts.FACTORY ?? 0, present: true, origin: 'shipped defaults' },
+    { kind: 'PROFILE', ref: eff.profileId, count: counts.PROFILE ?? 0, present: (counts.PROFILE ?? 0) > 0 || bundleAt('PROFILE') != null, origin: bundleAt('PROFILE') ?? 'class pack' },
+    { kind: 'SITE', ref: eff.site, count: counts.SITE ?? 0, present: (counts.SITE ?? 0) > 0 || bundleAt('SITE') != null, origin: bundleAt('SITE') ?? 'no bundle' },
+    { kind: 'LOOP', ref: eff.loopId, count: counts.LOOP ?? 0, present: (counts.LOOP ?? 0) > 0 || bundleAt('LOOP') != null, origin: bundleAt('LOOP') ?? 'no bundle' },
+  ];
+}
+
+/** Per gate (in catalogue order of appearance): how many properties it has and how many a layer above FACTORY sets. */
+export function overridesByGate(eff: EffectiveConfig): Record<string, { total: number; overridden: number }> {
+  const out: Record<string, { total: number; overridden: number }> = {};
+  for (const key of Object.keys(eff.properties)) {
+    const gate = key.split('.')[0];
+    const g = (out[gate] ??= { total: 0, overridden: 0 });
+    g.total++;
+    if ((eff.sources[key] ?? 'FACTORY') !== 'FACTORY') g.overridden++;
+  }
+  return out;
+}
+
+/** One line for the workers: applied ACKs, jar count, catalogue agreement - and its tone. */
+export function workersSummary(eff: EffectiveConfig): { text: string; tone: CpmTone } {
+  const ws = eff.workers;
+  const jars = [...new Set(ws.map(w => w.jarSha256))];
+  const jarText = jars.length === 1 ? `one jar ${shortHash(jars[0], 8)}` : `${jars.length} jars`;
+  const catalogueOff = eff.bundle ? ws.filter(w => w.catalogueHash !== eff.bundle!.catalogueHash).length : 0;
+  if (!eff.bundle) return { text: `${ws.length} worker${ws.length === 1 ? '' : 's'} on ${jarText} · factory layer (nothing to acknowledge)`, tone: jars.length > 1 ? 'warn' : 'muted' };
+  const applied = ws.filter(w => w.ack?.status === 'ACK' && w.ack.bundleHash === eff.bundle!.contentHash).length;
+  const parts = [`${applied} of ${ws.length} applied`, jarText, catalogueOff ? `catalogue differs on ${catalogueOff}` : 'catalogue matches'];
+  const bad = applied < ws.length || jars.length > 1 || catalogueOff > 0;
+  return { text: parts.join(' · '), tone: bad ? 'bad' : 'good' };
+}
+
+/** "LOOP v2 · f9153b00" - how a bundle is named everywhere on the page; null is the factory layer. */
+export const bundleLabel = (b: { scopeKind: string; version: number; contentHash: string } | null | undefined): string =>
+  b ? `${b.scopeKind} v${b.version} · ${shortHash(b.contentHash, 8)}` : 'factory layer';
