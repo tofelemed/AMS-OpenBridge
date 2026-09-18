@@ -309,7 +309,11 @@
 .cpm-config-bundle--selected {
   background: var(--selected-enabled-background-color);
   border-color: var(--selected-enabled-border-color, var(--instrument-enhanced-primary-color));
+  color: var(--on-selected-active-color);
 }
+/* the sub-line and the pill keep their contrast on the selected surface */
+.cpm-config-bundle--selected .cpm-event-row__sub { color: var(--on-selected-neutral-color); }
+.cpm-config-bundle--selected .cpm-pill { color: var(--on-selected-active-color); border-color: var(--on-selected-neutral-color); }
 .cpm-config-gates { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
 .cpm-config-gate {
   padding: 4px 10px;
