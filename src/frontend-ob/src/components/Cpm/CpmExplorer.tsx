@@ -14,6 +14,7 @@
  * The rail also collapses: once a loop is selected the picker is not what you
  * are looking at, and both the trend chart and the episode list want the width.
  */
+import { cpaHref, selectLoop as changeLoop } from './navigation';
 import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-left-google';
@@ -32,7 +33,7 @@ export const CpmExplorer: React.FC = () => {
   // Validate rather than cast: `?tab=Foo` used to satisfy the cast, match none
   // of the render branches, and leave an empty workspace with no explanation —
   // which is what a stale bookmark from a renamed tab produces.
-  const rawTab = params.get('tab');
+  const rawTab = TABS.find(t => t.toLowerCase() === params.get('tab')?.toLowerCase());
   const tab: ExplorerTab = TABS.includes(rawTab as ExplorerTab)
     ? (rawTab as ExplorerTab) : 'Summary';
 
@@ -60,12 +61,12 @@ export const CpmExplorer: React.FC = () => {
     // replace: selecting a loop is in-page selection in a master-detail view,
     // not a page visit — browsing eight loops left eight history entries
     // between the operator and Back, while the URL stays just as shareable.
-    setParams(p => { p.set('loop', loopId); return p; }, { replace: true });
+    setParams(p => changeLoop(p, loopId), { replace: true });
 
-  const openRegistry = () => navigate('/cpm/registry');
+  const openRegistry = () => navigate(cpaHref('/cpm/registry', params));
 
   return (
-    <div className="cpm-screen">
+    <div className="cpm-screen" data-cpa-ready={!!data && !requestedId}>
       <WorkspaceHeader
         eyebrow="Asset-centric operational context"
         title="Explorer"

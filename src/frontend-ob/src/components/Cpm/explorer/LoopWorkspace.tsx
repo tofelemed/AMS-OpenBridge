@@ -15,8 +15,9 @@
  * 3. A breadcrumb. "CONTROL LOOP · SITE1" did not say where in the hierarchy
  *    you were, which is the one thing an asset-centric screen owes you.
  */
+import { windowKind } from '../navigation';
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcTabRow } from '@oicl/openbridge-webcomponents-react/components/tab-row/tab-row';
 import type { CpmLoop } from '../../../api/cpmApi';
 import { ApiError } from '../../../api/apiFetch';
@@ -46,7 +47,8 @@ export const LoopWorkspace: React.FC<{
   onTab: (t: ExplorerTab) => void;
 }> = ({ loop, tab, onTab }) => {
   const navigate = useNavigate();
-  const gates = useLatestGates(loop.loopId, '24h');
+  const [params] = useSearchParams();
+  const gates = useLatestGates(loop.loopId, windowKind(params));
   const readiness = useCpmReadiness(loop.loopId);
   // Same query key as HistoryTab's, so react-query serves the badge count and
   // the tab body from one fetch.
@@ -93,7 +95,7 @@ export const LoopWorkspace: React.FC<{
   const healthSummary = loopHealthSummary(instrumentHealth.data);
 
   return (
-    <section className="cpm-surface">
+    <section className="cpm-surface" data-cpa-ready={!!gates.data && !!readiness.data}>
       <nav className="cpm-crumbs" aria-label="Plant location">
         {crumbs.map((c, i) => (
           <React.Fragment key={`${c}-${i}`}>

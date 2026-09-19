@@ -70,7 +70,7 @@ export const CpmOverview: React.FC = () => {
     .reduce((n, d) => n + d.count, 0);
 
   return (
-    <div className="cpm-screen">
+    <div className="cpm-screen" data-cpa-ready={!!summary.data && !!rankings.data}>
       <WorkspaceHeader
         eyebrow="Live operating view"
         title="Operations overview"

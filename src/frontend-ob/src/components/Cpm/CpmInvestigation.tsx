@@ -13,6 +13,7 @@
  * Split in v2.5: investigation/{CaseTriage, HypothesisPanel, ReasoningChain,
  * WindowBrowser, cases, confirmationCopy, keyFacts}.
  */
+import { windowKind as readKind, windowEnd, selectedWindow } from './navigation';
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
@@ -71,8 +72,8 @@ export const CpmInvestigation: React.FC = () => {
   // fallback was fixed for, minus the URL. It also fired this page's whole
   // query set for a loop nobody asked for.
   const loopId = params.get('loop') ?? undefined;
-  const mode = params.get('mode') === 'historical' ? 'historical' : 'live';
-  const windowKind = params.get('profile') === '12h' ? '12h' : '24h';
+  const mode = windowEnd(params) || params.get('mode') === 'historical' ? 'historical' : 'live';
+  const windowKind = readKind(params);
 
   const latest = useLatestGates(loopId, windowKind);
   const history = useGateHistory(loopId, windowKind);
@@ -81,13 +82,12 @@ export const CpmInvestigation: React.FC = () => {
     return [...rows].sort((a, b) => (b.windowEnd ?? '').localeCompare(a.windowEnd ?? ''));
   }, [history.data]);
 
-  const selectedEnd = params.get('window');
+  const selectedEnd = windowEnd(params);
   const matrix: CpmGateMatrix | undefined = mode === 'historical'
-    ? (windows.find(w => w.windowEnd === selectedEnd) ?? windows[0])
+    ? (selectedWindow(windows, selectedEnd) ?? (latest.data?.windowEnd === selectedEnd ? latest.data : undefined))
     : latest.data;
-  // Deep-linked window not in the fetched set → fell back to newest; say so.
-  const windowFellBack = mode === 'historical' && !!selectedEnd && windows.length > 0
-    && !windows.some(w => w.windowEnd === selectedEnd);
+  // Preserve an explicit window even when the loaded history cannot resolve it.
+  const windowFellBack = mode === 'historical' && !!selectedEnd && !history.isLoading && !matrix;
   // gates/latest answers 404 for "no fused window yet" — a real answer, not a
   // failure; it must render as the no-verdict empty state, not an error card.
   const noVerdictYet = latest.isError
@@ -185,7 +185,7 @@ export const CpmInvestigation: React.FC = () => {
   const [note, setNote] = useState('');
 
   return (
-    <div className="cpm-screen">
+    <div className="cpm-screen" data-cpa-ready={!!matrix}>
       <WorkspaceHeader
         eyebrow="Root-cause workspace"
         title="Investigation"
@@ -208,8 +208,7 @@ export const CpmInvestigation: React.FC = () => {
       )}
       {windowFellBack && (
         <p className="cpm-copy" role="status">
-          The window this link pointed at is not among the fetched results — showing the
-          newest evaluated window instead.
+          The window this link pointed at is not among the fetched results — the requested selection is preserved. Choose another window explicitly.
         </p>
       )}
       {!loopId && (

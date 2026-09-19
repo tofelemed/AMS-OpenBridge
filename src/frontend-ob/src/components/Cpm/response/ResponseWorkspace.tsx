@@ -7,6 +7,7 @@
  * 2026-09-17 audit F5/F19/F20: lands like every CPM page (scope filter + loop search), every centre
  * panel keeps its height as a skeleton while it loads, the censored candidates are counted not listed.
  */
+import { cpaHref, selectLoop } from '../navigation';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -30,7 +31,7 @@ import { ModelHistoryBody } from './ModelHistory';
 import { ModelReviewDialog } from './ModelReviewDialog';
 import { useModels, useResponseEvent, useResponseEvents, useReviewModel } from './useResponse';
 
-export const responseHref = (loopId: string, eventId?: string) => `/cpm/response?loop=${encodeURIComponent(loopId)}${eventId ? `&event=${encodeURIComponent(eventId)}` : ''}`;
+export const responseHref = (loopId: string, eventId?: string, context = new URLSearchParams()) => cpaHref('/cpm/response', context, { loop: loopId, event: eventId });
 
 export const ResponseWorkspace: React.FC = () => {
   const [params, setParams] = useSearchParams();
@@ -55,8 +56,8 @@ export const ResponseWorkspace: React.FC = () => {
   const runLookup = useMethodRun(!eventParam && methodRunParam ? methodRunParam : undefined);
   useEffect(() => {
     const id = runLookup.data?.result?.event_id;
-    if (!eventParam && loopId && typeof id === 'string' && id) navigate(responseHref(loopId, id), { replace: true });
-  }, [runLookup.data, eventParam, loopId, navigate]);
+    if (!eventParam && loopId && typeof id === 'string' && id) navigate(responseHref(loopId, id, params), { replace: true });
+  }, [runLookup.data, eventParam, loopId, navigate, params]);
 
   const selected: ResponseEventSummary | undefined = flat.find(e => e.eventId === eventParam);
   const detail = useResponseEvent(eventParam);
@@ -79,8 +80,8 @@ export const ResponseWorkspace: React.FC = () => {
       <PlantScopeFilter scope={scope} />
       <div className="cpm-toolbar">
         <LoopCombobox scope={scope} loops={loopList} value={loopId ?? ''}
-          onChange={id => setParams(p => { p.set('loop', id); p.delete('event'); p.delete('methodRun'); return p; })}
-          onClear={() => setParams(p => { p.delete('loop'); p.delete('event'); p.delete('methodRun'); return p; })} />
+          onChange={id => setParams(p => selectLoop(p, id), { replace: true })}
+          onClear={() => setParams(p => selectLoop(p, ''), { replace: true })} />
       </div>
     </section>
   );
@@ -104,14 +105,14 @@ export const ResponseWorkspace: React.FC = () => {
   const decoding = arts.loading;
 
   return (
-    <div className="cpm-screen cpm-response-workspace">
+    <div className="cpm-screen cpm-response-workspace" data-cpa-ready={!!events.data && (!eventParam || !!detail.data)}>
       <WorkspaceHeader eyebrow="Loop performance" title={`System response — ${loop?.displayName ?? loopId}`}
         copy={`Site zone ${timeZone}. Every event is listed with its state and reason; the selection is explicit and never "latest".`}
-        actions={<ObcButton variant="flat" onClick={() => navigate('/cpm/response')}>Change loop</ObcButton>} />
+        actions={<ObcButton variant="flat" onClick={() => setParams(p => selectLoop(p, ''), { replace: true })}>Change loop</ObcButton>} />
       {picker}
       <div className="cpm-response-columns">
         <EventList events={flat} selectedId={eventParam} timeZone={timeZone} loading={events.isLoading || events.isFetchingNextPage}
-          hasMore={!!events.hasNextPage} onMore={() => void events.fetchNextPage()} onSelect={e => navigate(responseHref(loopId, e.eventId))}
+          hasMore={!!events.hasNextPage} onMore={() => void events.fetchNextPage()} onSelect={e => navigate(cpaHref('/cpm/response', params, { loop: loopId, event: e.eventId, methodRun: e.methodRunId, gate: 'G12' }))}
           censoredCount={censoredCount} showCensored={showCensored} onToggleCensored={setShowCensored} />
 
         <main className="cpm-response-centre" aria-busy={eventLoading || decoding || undefined}>

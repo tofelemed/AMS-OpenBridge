@@ -12,7 +12,8 @@
  * flex segments beside a time-axis chart, so the two could not be read against
  * each other — which is the only reason this screen exists.
  */
-import React, { useMemo, useState } from 'react';
+import { windowKind, windowEnd, selectedWindow as resolveWindow, cpaHref, selectLoop } from './navigation';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -84,16 +85,28 @@ export const CpmHistorical: React.FC = () => {
     return parsed.length ? parsed : ['pv', 'sp', 'op'];
   }, [params]);
 
-  // Applied range comes from the URL (deep-linkable, always absolute).
+  // Keep the default range stable across gate/filter changes and browser Back.
+  const [rangeAnchor] = useState(() => new Date(Math.floor(Date.now() / 60_000) * 60_000));
+  const fromParam = params.get('from');
+  const toParam = params.get('to');
   const { from, to } = useMemo(() => {
-    const now = new Date();
-    const toIso = params.get('to');
-    const fromIso = params.get('from');
+    const now = rangeAnchor;
+    const toIso = toParam;
+    const fromIso = fromParam;
     return {
       from: fromIso ? new Date(fromIso) : new Date(now.getTime() - 3 * 24 * 3600_000),
       to: toIso ? new Date(toIso) : now,
     };
-  }, [params]);
+  }, [fromParam, toParam, rangeAnchor]);
+  useEffect(() => {
+    if (fromParam && toParam) return;
+    setParams(p => {
+      const next = new URLSearchParams(p);
+      if (!fromParam) next.set('from', from.toISOString());
+      if (!toParam) next.set('to', to.toISOString());
+      return next;
+    }, { replace: true });
+  }, [fromParam, toParam, from, to, setParams]);
   const preset = activePreset(from, to);
 
   const write = (mutate: (p: URLSearchParams) => void) =>
@@ -111,7 +124,8 @@ export const CpmHistorical: React.FC = () => {
   const trend = useCpmTrend(series, from, to, 300, signals.join(','));
   const modeTrack = useCpmModeTrack(series, from, to, 96);
   const kpis = useCpmKpisRange(loopId, overlay.resolution, from.toISOString(), to.toISOString());
-  const history = useGateHistory(loopId, '24h', from.toISOString(), to.toISOString());
+  const kind = windowKind(params);
+  const history = useGateHistory(loopId, kind, from.toISOString(), to.toISOString());
 
   const points = useMemo(() => trend.data?.points ?? [], [trend.data]);
   const kpiRows = useMemo(() => kpis.data?.samples ?? [], [kpis.data]);
@@ -121,11 +135,10 @@ export const CpmHistorical: React.FC = () => {
     const rows = history.data?.windows ?? [];
     return [...rows].sort((a, b) => (a.windowEnd ?? '').localeCompare(b.windowEnd ?? ''));
   }, [history.data]);
-  const selectedWindowEnd = params.get('window');
+  const selectedWindowEnd = windowEnd(params);
   const selectedWindow: CpmGateMatrix | undefined =
-    windows.find(w => w.windowEnd === selectedWindowEnd) ?? windows[windows.length - 1];
-  const windowFellBack = !!selectedWindowEnd && windows.length > 0
-    && !windows.some(w => w.windowEnd === selectedWindowEnd);
+    resolveWindow([...windows].reverse(), selectedWindowEnd);
+  const windowFellBack = !!selectedWindowEnd && !history.isLoading && !selectedWindow;
 
   // ── Lane segments, from real instants.
   const modeSegments = useMemo<Segment[]>(() => {
@@ -253,7 +266,7 @@ export const CpmHistorical: React.FC = () => {
       .filter(([, path]) => path));
 
   return (
-    <div className="cpm-screen">
+    <div className="cpm-screen" data-cpa-ready={!!trend.data}>
       <WorkspaceHeader eyebrow="Evidence over time" title="Historical explorer" />
 
       <section className="cpm-surface">
@@ -263,8 +276,8 @@ export const CpmHistorical: React.FC = () => {
           loopId={loopId ?? ''}
           loop={loop}
           loopsInScope={loops.filter(l => scope.matches(l)).length}
-          onLoopChange={id => write(p => { p.set('loop', id); p.delete('window'); })}
-          onLoopClear={() => write(p => { p.delete('loop'); p.delete('window'); })}
+          onLoopChange={id => setParams(p => selectLoop(p, id), { replace: true })}
+          onLoopClear={() => setParams(p => selectLoop(p, ''), { replace: true })}
           from={from}
           to={to}
           preset={preset}
@@ -399,9 +412,7 @@ export const CpmHistorical: React.FC = () => {
           applyRange(r.from, r.to);
         }}
         onReplay={windowEnd => {
-          const q = new URLSearchParams({ loop: loopId ?? '' });
-          if (windowEnd) q.set('window', windowEnd);
-          navigate(`/cpm/replay?${q.toString()}`);
+          navigate(cpaHref('/cpm/replay', params, { loop: loopId, kind, window: windowEnd }));
         }}
       />
     </div>

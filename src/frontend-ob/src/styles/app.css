@@ -1697,3 +1697,6 @@ select.ob-input option {
   outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
   outline-offset: 2px;
 }
+
+/* OpenBridge owns the navigation button surface, spacing and icon sizing. */
+.cpa-nav-button { display: block; width: 100%; }

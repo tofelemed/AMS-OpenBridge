@@ -19,8 +19,9 @@
  * "how to read this" guidance that used to occupy a permanent card on a screen
  * engineers visit daily.
  */
+import { cpaHref, windowEnd } from './navigation';
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObiCloseGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-close-google';
 import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-left-google';
@@ -30,10 +31,9 @@ import type { CpmFleetSummary } from '../../api/cpmApi';
 import { useCpmCalculations, useGateCatalogue, useLatestGates } from '../../hooks/useCpm';
 import { staleVerdictLine } from './verdictAge';
 import { gateRole } from '../../api/cpm/catalogue';
-import { workbenchHref } from './evidence/selection';
 import { confirmationProse, noVpFleetCopy } from './investigation/confirmationCopy';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
-import { CpmIconButton, KvRow, PanelHead, TonePill, fmtDateTime } from './shared';
+import { CpmIconButton, EmptyState, KvRow, PanelHead, TonePill, fmtDateTime } from './shared';
 import { gateTone } from './gateStatus';
 
 /** Role per gate — the same static policy the registry aside shows. */
@@ -54,6 +54,7 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
   loopId, gateKey, windowKind,
 }) => {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const gates = useLatestGates(loopId, windowKind);
   const { data: matrix } = gates;
   const { data: calc } = useCpmCalculations();
@@ -71,6 +72,13 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
     : fetchFailed ? 'UNAVAILABLE'
       : noWindowYet ? 'NO WINDOW YET'
         : cell?.status ?? 'NOT_EVALUATED';
+
+  const requestedEnd = windowEnd(params);
+  if (requestedEnd && matrix && Date.parse(requestedEnd) !== Date.parse(matrix.windowEnd ?? '')) {
+    return <EmptyState title="Selected window is not the latest result"
+      copy="Performance shows the latest fleet matrix. Your evaluated window remains selected."
+      action={params.get('methodRun') ? { label: 'Open selected evidence', onClick: () => navigate(cpaHref('/cpm/evidence', params)) } : undefined} />;
+  }
 
   return (
     <>
@@ -156,19 +164,19 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
             A pre-v2.5 row carries no run id, and then there is nothing immutable to open. */}
         <span title={cell?.methodRunId ? `Open method run ${cell.methodRunId}` : 'This result predates run identity (v2.5); no immutable run to open'}>
           <ObcButton variant="raised" disabled={!cell?.methodRunId}
-            onClick={() => { if (cell?.methodRunId) navigate(workbenchHref(loopId, cell.methodRunId, gateKey)); }}>
+            onClick={() => { if (cell?.methodRunId) navigate(cpaHref('/cpm/evidence', params, { loop: loopId, methodRun: cell.methodRunId, gate: gateKey, kind: windowKind, window: matrix?.windowEnd })); }}>
             Open in workbench ›
           </ObcButton>
         </span>
         <ObcButton variant="normal" onClick={() => {
-          const q = new URLSearchParams({ loop: loopId, gate: gateKey });
+          const q = new URLSearchParams({ loop: loopId, gate: gateKey, kind: windowKind });
           if (matrix?.windowEnd) q.set('window', matrix.windowEnd);
           navigate(`/cpm/replay?${q.toString()}`);
         }}>
           Open in Evidence Replay ›
         </ObcButton>
         <ObcButton variant="normal"
-          onClick={() => navigate(`/cpm/explorer?loop=${encodeURIComponent(loopId)}&tab=calculations`)}>
+          onClick={() => navigate(cpaHref('/cpm/explorer', params, { loop: loopId, kind: windowKind, window: matrix?.windowEnd, gate: gateKey, tab: 'Summary' }))}>
           Open full loop ›
         </ObcButton>
       </div>

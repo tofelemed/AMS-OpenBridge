@@ -11,6 +11,7 @@
  * walk the loaded windows. Late/out-of-order counts are DG-4 — the jobs do not
  * record them today, so they render as "—".
  */
+import { windowKind, selectLoop } from './navigation';
 import React, { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -38,7 +39,7 @@ export const CpmWindows: React.FC = () => {
   // fallback was fixed for, minus the URL. It also fired this page's whole
   // query set for a loop nobody asked for.
   const loopId = params.get('loop') ?? undefined;
-  const profile = params.get('profile') ?? '15m';
+  const profile = windowKind(params, '15m');
 
   const resolutions = useCpmResolutions();
   const metrics = usePipelineMetrics();
@@ -69,7 +70,7 @@ export const CpmWindows: React.FC = () => {
   // no LOADED row falls back to the list rather than opening a different window.
   const view = resolveWindowView(rows, params.get('window'));
   const selectWindow = (windowEnd: string) =>
-    setParams(p => { p.set('window', windowEnd); return p; }, { replace: true });
+    setParams(p => { p.set('window', windowEnd); return p; });
   const backToList = () => setParams(p => { p.delete('window'); return p; }, { replace: true });
 
   // Watermark chip: DG-1 gives job state + checkpoint age; watermark lag itself
@@ -101,12 +102,12 @@ export const CpmWindows: React.FC = () => {
         <PlantScopeFilter scope={scope} />
         <div className="cpm-toolbar">
           <LoopCombobox scope={scope} loops={loops} value={loopId ?? ''}
-            onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })}
-            onClear={() => setParams(p => { p.delete('loop'); p.delete('window'); return p; }, { replace: true })} />
+            onChange={id => setParams(p => selectLoop(p, id), { replace: true })}
+            onClear={() => setParams(p => selectLoop(p, ''), { replace: true })} />
           <label className="cpm-field">
             <span className="cpm-field__label">Window profile</span>
             <select className="cpm-select" value={profile}
-              onChange={e => setParams(p => { p.set('profile', e.target.value); p.delete('window'); return p; }, { replace: true })}>
+              onChange={e => setParams(p => { p.set('kind', e.target.value); p.delete('profile'); p.delete('window'); p.delete('methodRun'); return p; }, { replace: true })}>
               {/* Labels come from the served window contract. They used to be
                   hardcoded as "{w} tumbling" for every short kind — true only of
                   1m; 5m/10m/15m/30m/60m are SLIDING windows with overlap. */}
@@ -215,7 +216,7 @@ export const CpmWindows: React.FC = () => {
           shortSpecs={shortSpecs}
           onBack={backToList}
           onSelect={selectWindow}
-          onPickKind={k => setParams(p => { p.set('profile', k); p.delete('window'); return p; }, { replace: true })}
+          onPickKind={k => setParams(p => { p.set('kind', k); p.delete('profile'); p.delete('window'); p.delete('methodRun'); return p; }, { replace: true })}
         />
       )}
     </div>

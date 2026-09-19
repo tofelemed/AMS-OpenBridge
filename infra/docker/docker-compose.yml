@@ -543,6 +543,13 @@ services:
         # Phase 6: RocksDB state backend for large keyed state (RBE fingerprints)
         state.backend: rocksdb
         state.backend.incremental: true
+        # Lab disk retention: keep native logs with their disposable DB, not
+        # /opt/flink/log where every recovered operator leaves another log family.
+        # Flink 1.18 documents /dev/null as the per-database logging fallback.
+        state.backend.rocksdb.log.dir: /dev/null
+        state.backend.rocksdb.log.level: WARN_LEVEL
+        state.backend.rocksdb.log.max-file-size: 1 mb
+        state.backend.rocksdb.log.file-num: 2
         # STR-02 â€” durable object storage. Was file:///flink-checkpoints (a host-local
         # Docker volume): losing the host lost all exactly-once state. Savepoints get an
         # explicit home too, which STR-11's upgrade procedure depends on.
@@ -582,6 +589,7 @@ services:
     volumes:
       - flink-checkpoints:/flink-checkpoints
       - ./flink-entrypoint.sh:/opt/flink-entrypoint.sh:ro
+      - ./flink-log4j-lab.properties:/opt/flink/conf/log4j-console.properties:ro
     ports:
       - "8082:8081"
       - "9249:9249"
@@ -628,6 +636,13 @@ services:
         # Phase 6: consistent settings with jobmanager
         state.backend: rocksdb
         state.backend.incremental: true
+        # Lab disk retention: keep native logs with their disposable DB, not
+        # /opt/flink/log where every recovered operator leaves another log family.
+        # Flink 1.18 documents /dev/null as the per-database logging fallback.
+        state.backend.rocksdb.log.dir: /dev/null
+        state.backend.rocksdb.log.level: WARN_LEVEL
+        state.backend.rocksdb.log.max-file-size: 1 mb
+        state.backend.rocksdb.log.file-num: 2
         # STR-02 â€” must match the jobmanager exactly; the TM writes the actual
         # checkpoint data, so a TM still pointing at file:// would silently keep
         # state on the host while the JM believed it was durable.
@@ -658,6 +673,7 @@ services:
     volumes:
       - flink-checkpoints:/flink-checkpoints
       - ./flink-entrypoint.sh:/opt/flink-entrypoint.sh:ro
+      - ./flink-log4j-lab.properties:/opt/flink/conf/log4j-console.properties:ro
     ports:
       # Prometheus scrapes this in-network; the host mapping is for manual inspection of
       # state size during the CPLM long-job sizing work.

@@ -131,7 +131,7 @@ export const CpmEvents: React.FC = () => {
   const { pageCount, safePage, pageItems: pagedEvents } = usePagedSlice(events, page, PAGE_SIZE);
 
   return (
-    <div className="cpm-screen">
+    <div className="cpm-screen" data-cpa-ready={!!data}>
       <WorkspaceHeader
         eyebrow="Conditions, notifications, and cases"
         title="Events"

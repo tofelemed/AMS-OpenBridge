@@ -1,6 +1,22 @@
 #!/usr/bin/env bash
 set -e
 
+# A restarted container retains its writable layer. These process-local files
+# are disposable; HA job graphs/checkpoints/savepoints live outside /tmp in
+# ZooKeeper/MinIO (or /flink-checkpoints). Run only before starting the JVM.
+# Never follow symlinks, cross mounts, or touch durable state locations.
+if [ "$$" -eq 1 ] && { [ "$1" = jobmanager ] || [ "$1" = taskmanager ]; }; then
+  find /tmp -xdev -depth -mindepth 1 \
+    \( -path '/tmp/tm_*' -o -path '/tmp/jm_*' -o -path '/tmp/flink-io-*' \
+       -o -path '/tmp/flink-netty-shuffle-*' -o -path '/tmp/flink-dist-cache-*' \
+       -o -path '/tmp/flink-web-*' -o -path '/tmp/executionGraphStore-*' \) -delete
+  # Prior log families contain no application state. Console logs remain in
+  # Docker's rotated logging stream; RocksDB now keeps logs in its DB folder.
+  find /opt/flink/log -xdev -maxdepth 1 -type f \
+    \( -name 'flink-*.log*' -o -name 'tmp_tm_*_LOG*' \) -delete
+  echo "[flink-entrypoint] removed prior process temporary files"
+fi
+
 # STR-02 — install the S3 filesystem plugin so checkpoints and savepoints can live
 # on durable object storage (MinIO) instead of a host-local Docker volume.
 #

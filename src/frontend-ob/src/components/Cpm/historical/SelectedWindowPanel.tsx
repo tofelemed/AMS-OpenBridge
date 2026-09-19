@@ -27,7 +27,7 @@ export const SelectedWindowPanel: React.FC<{
     <PanelHead
       eyebrow="Selected period"
       title={win?.windowEnd
-        ? `24h window ending ${fmtDateTime(win.windowEnd)}`
+        ? `${win.windowKind} window ending ${fmtDateTime(win.windowEnd)}`
         : noWindows ? 'Nothing to inspect in this range' : 'No window selected'}
     />
 
@@ -36,17 +36,17 @@ export const SelectedWindowPanel: React.FC<{
         a way out. */}
     {!win && noWindows && (
       <EmptyState
-        title="This loop completed no 24h windows in this range"
+        title="No evaluated windows returned in this range"
         copy="Fused verdicts exist only where a full evaluation window closed."
         action={{ label: 'Widen to 30 days', onClick: onWiden }}
       />
     )}
-    {!win && !noWindows && <EmptyState title="Click a verdict band in the chart above" />}
+    {!win && !noWindows && !fellBack && <EmptyState title="Click a verdict band in the chart above" />}
 
     {fellBack && (
       <p className="cpm-copy" role="status">
-        The window this link pointed at is not in the current range — showing the
-        newest evaluated window instead.
+        The requested window is not in the returned results. Its selection is preserved;
+        widen the range or explicitly choose another evaluated window.
       </p>
     )}
 

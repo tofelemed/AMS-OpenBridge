@@ -1988,3 +1988,31 @@ files that the 1H.5 commit's classes complete — stated in both messages).
 - Evidence artifacts exist only for windows with a limit-dwell or freeze episode until Phase 2C.1 adds the per-gate series artifacts.
 - The fast condition path covers G10/G11; the G12 response event path is Phase 2B.
 - Retention of the v1 gate rows stays an ops decision (the sweeper touches evidence only).
+
+
+## CHG-029 — Lab Docker disk exhaustion and Flink retention (2026-09-20)
+
+**Scope:** lab runtime configuration and Windows Docker storage recovery. No CPA
+API contracts or calculation algorithms changed.
+
+C: exhausted while the Docker VHDX occupied about 173 GiB. Inside it, Flink had
+accumulated old process-local temporary directories and RocksDB/file-log families.
+The lab now uses INFO console logs under Docker's existing 10 MB x 3 rotation,
+WARN RocksDB logs capped at 1 MB x 2 per database and stored with that database,
+and startup-only cleanup of recognized temporary files. HA/checkpoint/savepoint
+volumes are preserved. A duplicate crash-looping long-diagnostics job was stopped
+after verifying the other copy's successful checkpoints.
+
+Components: infra/docker/docker-compose.yml, infra/docker/flink-entrypoint.sh,
+infra/docker/flink-log4j-lab.properties, scripts/test-flink-startup-cleanup.sh,
+scripts/compact-lab-docker-disk.ps1, scripts/start-lab-docker.ps1. Host-only changes move WSL swap to D: and
+reduce Docker builder GC's target to 5 GB; original configs are backed up.
+Redis contract AOF recovery removed an invalid 688-byte tail after a complete
+backup to D:. See [incident evidence and recovery record](docs/docker-disk-recovery-2026-09-20.md).
+
+Validation: Compose config, shell/PowerShell syntax, and the isolated cleanup
+regression passed. Offline compaction reclaimed 102.81 GiB; C: reached 107.2 GiB
+free. After restart, Flink reported 13 running jobs / zero failed, no running
+container was unhealthy/restarting, and Explorer loaded loop data in Chrome.
+The Desktop stale-socket error was recovered separately; the guarded startup
+helper is a workaround, not a vendor bug fix.

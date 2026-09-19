@@ -15,6 +15,7 @@
  *
  * Every figure is real; where a metric has no model yet the tile says so.
  */
+import { windowKind as readWindowKind } from './navigation';
 import React, { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
@@ -61,7 +62,7 @@ const fmtAge = (ms: number) =>
 
 export const CpmPerformance: React.FC = () => {
   const [params, setParams] = useSearchParams();
-  const windowKind = params.get('window') ?? '24h';
+  const windowKind = readWindowKind(params);
   const selectedLoop = params.get('loop');
   const openGate = params.get('gate');
   const [rankBy, setRankBy] = React.useState<RankBy>('confidence');
@@ -171,7 +172,7 @@ export const CpmPerformance: React.FC = () => {
     l => l.loopId.toLowerCase() === (selectedLoop ?? '').toLowerCase());
 
   return (
-    <div className="cpm-screen">
+    <div className="cpm-screen" data-cpa-ready={!!summary.data && !!rankings.data}>
       <WorkspaceHeader
         eyebrow="Fleet and loop analytics"
         title="Performance"
@@ -185,7 +186,7 @@ export const CpmPerformance: React.FC = () => {
             aria-label="Fused evaluation window"
             onValue={(e: CustomEvent<{ value: string }>) => {
               const v = e.detail.value;
-              if (fusionKinds.includes(v)) write(p => p.set('window', v));
+              if (fusionKinds.includes(v)) write(p => { p.set('kind', v); p.delete('window'); p.delete('methodRun'); });
             }}
           >
             {fusionKinds.map(k => (
