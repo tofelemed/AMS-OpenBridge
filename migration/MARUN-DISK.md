@@ -116,9 +116,12 @@ Keep the **current** release's `pre-<name>-images.txt` until you are sure you wi
 
 ### D. Container logs — truncate, never delete
 
-`rm` on a live container's json-log breaks its logging until restart. Truncate in place:
+`rm` on a live container's json-log breaks its logging until restart. Truncate in place — but
+**save the incident evidence first** (2026-09-18: truncating erased the historian's stall lines
+and the ingestion producer's last words, and the diagnosis took hours longer):
 
 ```bash
+D=/var/tmp/logs-$(date -u +%Y%m%dT%H%M); mkdir -p $D; for c in ams-api traverse-ingestion-service traverse-cplm-api ams-iotdb ams-flink-jobmanager instrumental-kafka-1; do docker logs --since 24h $c > $D/$c.log 2>&1; done
 docker ps --format '{{.Names}}' | while read -r c; do
   f=$(docker inspect --format='{{.LogPath}}' "$c")
   [ -n "$f" ] && [ -f "$f" ] && sudo truncate -s 0 "$f" && echo "truncated $c"

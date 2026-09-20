@@ -2016,3 +2016,41 @@ free. After restart, Flink reported 13 running jobs / zero failed, no running
 container was unhealthy/restarting, and Explorer loaded loop data in Chrome.
 The Desktop stale-socket error was recovered separately; the guarded startup
 helper is a workaround, not a vendor bug fix.
+
+## CHG-031 — Plant: disk-full → Kafka down → ingestion producer never reconnected (2026-09-18 → 09-20)
+
+**Scope:** plant operations, Kafka topic retention, one new OT data source. No image rebuilt.
+
+**What happened.** The VM filled (475 MB free). Root cause was ours: `traverse.cpa.clpm.feature.short.v1`
+at 7 d retention, uncompressed, with no `segment.ms` (script 04's `<` excluded 7 d topics) — 20 GB
+of Kafka's 30 GB. At 10:00:36 UTC Kafka logged `No space left on device` and
+`Shutdown broker because all log dirs … have failed`; both brokers restarted. Every consumer
+reconnected — **except the ingestion service's rdkafka producer**, which logged `2/2 brokers are
+down` once and then stayed silent and "healthy" for 6 h, publishing nothing. The OT gateway does
+not buffer, so 10:00 → restart on 2026-09-18 is an unrecoverable gap in samples, features and gates.
+
+**What worked.** The historian consumer (CHG-020) held ~8 h of samples in Kafka while IoTDB was
+refusing writes and replayed all of them in 24 s once space returned — every 30-min bucket before
+10:00 is complete for every loop. First live proof of the hold-and-retry path.
+
+**Fixes applied on the plant (online, no deletion):** `feature.short` → retention 1 d, lz4,
+`segment.ms` 6 h; `dlq.ingestion.failed` (Instrumental's) → 1 d. Disk 475 MB → 16 GB free within
+minutes. Repo made to match: `migration/kafka/topics.txt`, `04-create-kafka-topics.sh` (segment.ms
+for every topic ≤ 30 d, cap 6 h), MARUN-DISK §2 incident row, §3 G per-topic probe, §3 I shared-disk
+survey, §3 D "save logs before truncating".
+
+**Ingestion recovery.** The data source had to be recreated: `HDPE OT loops`,
+`mqtts://192.168.190.91:8883` (the **piarchiver-broker** mosquitto — not EMQX), inline CA
+(PIArchiver Local CA), `servername: localhost`, new broker user `traverse-ingestion`, filter
+`OT/HDPE/+/+/+/diagnostics/+`, plant mode map. Result: connected, 142/175 loops flowing within
+60 s, Kafka log-end growing at ~28 samples/s, 0 dead-lettered. Facts recorded in MARUN-CONTEXT §12b.
+
+**Defect to fix (open):** `traverse-ingestion-service` — `LoopSamplePipelineProducer` does not
+recover from a total-broker outage (librdkafka all-brokers-down) and `/health` does not reflect
+it. Fix: on a fatal producer error or an all-brokers-down window longer than N s, dispose and
+rebuild the producer; expose `lastDeliveredAt` and fail health when it lags the source's
+`lastMessageAt` by more than a threshold. Interim runbook: after any Kafka restart, check
+`loop.samples` log-end is growing; restart the service if not.
+
+**Also open:** `RawLoopIotDbConsumer` generic `catch` (line ~191) clears the held buffer on a
+non-write exception (e.g. `EnsureTimeseriesAsync`) — those rows are re-read only after a restart.
