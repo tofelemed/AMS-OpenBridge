@@ -310,8 +310,9 @@ services:
         # v2.5 (pre-prod gap G3): seven standing jobs plus the bounded shadow / replay /
         # reconstruction submissions share this TM, and every REST submission leaves a
         # user-code classloader behind (the lab TM died of OutOfMemoryError: Metaspace on
-        # the second submission at the 256m default). 512m matches the lab; the process
-        # size grows by the same 512m so heap and managed memory are unchanged.
+        # the second submission at the 256m default). 512m matches the lab; the process size
+        # grows by 512m (Flink 1.18 derives JVM overhead as 10 % of it, so heap and managed
+        # memory each gain ~15 % rather than staying exactly as before - same values as the lab).
         taskmanager.memory.process.size: 2560m
         taskmanager.memory.jvm-metaspace.size: 512m
         taskmanager.numberOfTaskSlots: 16

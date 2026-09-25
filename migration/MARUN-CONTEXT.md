@@ -34,7 +34,10 @@ Commands are copy-paste. Names are exact.
 /var/tmp/cpm-*                          validate-loops output (keep it OUT of /opt/AMS-open)
 ```
 
-`git -C /opt/AMS-open status --porcelain` must be **clean** before a deploy.
+`git -C /opt/AMS-open status --porcelain` must be **clean** before a deploy - with one defined exception since v2.5:
+a release bundle overlays the checkout with its `src-<commit>.tar.gz` (V2.5-DEPLOY C1), after which the status shows
+exactly the release's delta and `RELEASE-COMMIT` names the commit the tree is. Patch the repo, never the VM; the next
+release overlays again. Never `git checkout -- .` on the VM after an overlay.
 
 ## 3. Compose
 

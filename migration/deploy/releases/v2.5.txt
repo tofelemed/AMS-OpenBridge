@@ -48,7 +48,7 @@
 #                                       cpm.config.* + role grants)
 #   ops/cpm-09-event-shelving.sql      (CHG-032: shelf_state + shelf columns + cplm_event_actions on traverse_cplm; converts
 #                                       legacy ack_state = SHELVED rows; additive, online, re-runnable; BEFORE the cplm-api swap)
-# Kafka: 7 NEW topics in migration/kafka/topics.txt (instrument health + context, response results, gate evidence,
+# Kafka: 8 NEW topics in migration/kafka/topics.txt (instrument health + context, response results, gate evidence,
 #   conditions, gate-config bundles + acks) - create them BEFORE the jobs start (04-create-kafka-topics.sh,
 #   ALLOW_CREATE_PREFIXED_TOPICS=yes, --if-not-exists). traverse.cpa.loop.samples.v1 and
 #   traverse.cpa.clpm.gate.results.v1 are UNCHANGED (additive JSON only).

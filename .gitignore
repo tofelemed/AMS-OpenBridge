@@ -371,3 +371,4 @@ cpm-validation-*.tar.gz
 # local scratch, not release material
 /output/
 /src/flink/src/main/resources/git.properties
+scripts/validation/*-out/

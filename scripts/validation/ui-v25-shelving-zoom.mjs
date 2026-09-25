@@ -30,7 +30,13 @@ async function settle(page, ms = 1200) {
 const exact = label => new RegExp('^\\s*' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$');
 const obc = (page, label) => page.locator('obc-button', { hasText: label instanceof RegExp ? label : exact(label) });
 const isDisabled = loc => loc.first().evaluate(el => el.disabled === true || el.hasAttribute('disabled'));
-const bodyText = page => page.evaluate(() => (document.body.textContent || '').replace(/\s+/g, ' '));
+// The episode DETAIL panel only (aside.cpm-surface headed by EVT-<id>): the page around it always shows
+// "Acknowledged" / "Shelved" filter chips and other rows' pills, which would make a whole-page text test
+// pass for the wrong reason (review finding I6).
+const bodyText = page => page.evaluate(() => {
+  const aside = [...document.querySelectorAll('aside.cpm-surface')].find(a => /EVT-\d+/.test(a.textContent || ''));
+  return ((aside || document.body).textContent || '').replace(/\s+/g, ' ');
+});
 
 let browser;
 try {
@@ -157,8 +163,10 @@ try {
   check('response: tables, key/value rows and the aside stay inside the main column', contained <= 2, `${contained}px past the edge`);
   await page.screenshot({ path: join(OUT, '05-response.png') });
 
-  // The SPA's bootstrap asks /api/auth/refresh before anyone is logged in; that 401 is expected on the login page.
-  const afterLogin = x => !x.startsWith('[login]');
+  // The SPA's bootstrap asks /api/auth/refresh before anyone is logged in; that one 401 is expected on the login
+  // page. Nothing else in the login phase is excused.
+  const expectedPreLogin = x => x.startsWith('[login]') && /401 POST \/api\/auth\/refresh|401 \(Unauthorized\)/.test(x);
+  const afterLogin = x => !expectedPreLogin(x);
   check('no console or page errors after login', consoleErrors.filter(afterLogin).length === 0, consoleErrors.filter(afterLogin).slice(0, 3).join(' | '));
   check('no failed API responses after login', failed.filter(afterLogin).length === 0, failed.filter(afterLogin).slice(0, 3).join(' | ') || (failed.length ? `pre-login only: ${failed.join(' | ')}` : ''));
 } catch (e) {

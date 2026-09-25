@@ -65,7 +65,7 @@ OPS_FILES = [
     "scripts/cpm-08-v25-permissions.sql",          # v2.5        - traverse_auth: the new cpm.* permissions + role grants
     "scripts/cpm-09-event-shelving.sql",           # CHG-032     - episode shelving lifecycle + action history (BEFORE the cplm-api swap)
     "scripts/set-quality-protocol.py",             # v2.5        - declare quality_protocol on every MQTT_LOOP_SAMPLES source
-    "migration/kafka/topics.txt",                  # v2.5        - the 7 new topics (04-create-kafka-topics.sh reads it)
+    "migration/kafka/topics.txt",                  # v2.5        - the 8 new topics (reference copy; 04 reads the extracted tree's)
 ]
 
 
@@ -221,7 +221,11 @@ def make_source_archive(out: Path, commit: str, dry_run: bool) -> Path:
     log(f"git archive HEAD -> {dest.name}")
     if dry_run:
         return dest
-    r = subprocess.run(["git", "-C", str(REPO_ROOT), "archive", "--format=tar", "HEAD"], capture_output=True)
+    # -c core.autocrlf=false: this build box checks out with autocrlf=true, and `git archive` applies the same
+    # conversion to every file without an explicit eol attribute (topics.txt, the ops SQL, the log4j properties
+    # all came out CRLF). The plant must get the repo's LF blobs - rule 1, the repo is the truth.
+    r = subprocess.run(["git", "-C", str(REPO_ROOT), "-c", "core.autocrlf=false", "archive", "--format=tar", "HEAD"],
+                       capture_output=True)
     if r.returncode != 0 or not r.stdout:
         sys.exit(f"git archive failed: {r.stderr.decode(errors='replace').strip()}")
     with gzip.open(dest, "wb", compresslevel=6) as fh:
@@ -312,10 +316,15 @@ def vm_steps(release: str, commit: str, rows: list[tuple[str, str, str]],
         exports.append("START_AMS_API=yes")
     if has_flink:
         exports.append("ALLOW_FLINK_SUBMIT=yes")
+    if v25:
+        # 04 is --if-not-exists, so re-running it is free; with the flag deploy.sh's final 05-validate runs
+        # --require-kafka and the new topics are a hard check at the moment of proof, not a warning.
+        exports.append("ALLOW_CREATE_PREFIXED_TOPICS=yes")
     ams_api_env = ""
     if exports:
         ams_api_env = (f"export {' '.join(exports)}   # REQUIRED: ams-api is behind profiles:[cpa-ams-api] "
                        "(compose skips it otherwise); 04b submits jobs only under ALLOW_FLINK_SUBMIT\n")
+    job_count = "SEVEN" if v25 else "FOUR"
     flink = ""
     if has_flink:
         flink = f"""
@@ -326,11 +335,11 @@ def vm_steps(release: str, commit: str, rows: list[tuple[str, str, str]],
 #    resumes the previous JobGraph and its jar blob") is a LAB behaviour and does not
 #    apply here - removing the JobManager really does destroy every job.
 #    The trap that DOES apply is the mirror image: 04b-submit-flink-jobs.sh uses
-#    submit_if_missing, so with the old JobManager still up it prints [OK] for all four
-#    jobs while they keep executing the OLD jar. Removing both containers is mandatory.
+#    submit_if_missing, so with the old JobManager still up it prints [OK] for every job
+#    while they keep executing the OLD jar. Removing both containers is mandatory.
 cp /tmp/{release}/{FLINK_JAR.name} /opt/AMS-open/src/flink/target/{FLINK_JAR.name}
 docker rm -f ams-flink-taskmanager ams-flink-jobmanager
-{ams_api_env}bash migration/deploy/deploy.sh --prod 2>&1 | tail -8          # 04b resubmits all {"SEVEN" if v25 else "FOUR"} jobs
+{ams_api_env}bash migration/deploy/deploy.sh --prod 2>&1 | tail -8          # 04b resubmits all {job_count} jobs
 docker exec ams-flink-jobmanager flink list -m localhost:8081  # {"7 x RUNNING (4 + Condition, Instrument Context, Response)" if v25 else "4 x RUNNING"}, start times = now
 #
 #    Do NOT run `compose up flink-job-submit-cplm` here: that service is profiled
@@ -380,9 +389,12 @@ docker exec instrumental-kafka-1 kafka-console-consumer --bootstrap-server kafka
 # 4a. v2.5 source tree - BEFORE any script or compose step below runs from /opt/AMS-open (pre-prod gap G1):
 #    the topic list (04), the seven-job submitter (04b), the validator (05) and both compose files (base +
 #    marun overlay, which carry CPLM_GATE_CONFIG_KEY on JM/TM) are files, not images. migration/.env is
-#    untracked, so it is not in the archive and survives the extraction.
+#    untracked, so it is not in the archive and survives the extraction. The checkout must be clean first:
+#    a locally patched file would be overwritten silently (MARUN-CONTEXT rule 1 - patch the repo, not the VM).
+git -C /opt/AMS-open status --porcelain                                  # must print nothing
 cp /opt/AMS-open/migration/.env /tmp/{release}/env-backup-$(date +%Y%m%d%H%M)   # belt and braces
 tar -xzf /tmp/{release}/src-{commit}.tar.gz -C /opt/AMS-open
+echo {commit} > /opt/AMS-open/RELEASE-COMMIT                            # provenance: the tree now IS this commit
 grep -c CPLM_GATE_CONFIG_KEY migration/deploy/docker-compose.marun.yml   # 2 (JM + TM)
 grep -c submit_if_missing migration/04b-submit-flink-jobs.sh             # >= 8 (7 jobs + the function)
 # 4b. v2.5 schema + permissions - ALL BEFORE the image swap (additive, re-runnable):
@@ -403,6 +415,11 @@ docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select
 #    prove the schema landed before touching an image:
 docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select count(*) from information_schema.tables where table_schema in ('analytics','cpm') and table_name in ('analysis_run','evidence_manifest','response_event','gate_config_bundle','config_worker_capability','instrument_health_observation','condition_event','investigation_reference')"  # 8
 docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select count(*) from analytics.cplm_event_frames where ack_state='SHELVED'"   # 0 after the cpm-09 conversion
+# 4b2. evidence retention - measured at 161 loops: 336k-361k manifests and 0.6-0.7 GB of chunk bytes PER DAY. The
+#    shipped STANDARD class is 90 d (~60 GB of Postgres on this 87 GB shared disk). 7 d keeps a week of drill-down;
+#    the sweeper expires daily (chunks gone, row kept 7 more days so a reader is told EVIDENCE_EXPIRED) then purges.
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "UPDATE analytics.retention_policy SET days = 7 WHERE record_class = 'STANDARD'"
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select record_class, days from analytics.retention_policy"   # STANDARD|7 and PINNED|
 # 4c. the 8 new topics, BEFORE the jobs start (idempotent --if-not-exists; samples / gate-results topics untouched):
 ALLOW_CREATE_PREFIXED_TOPICS=yes bash migration/04-create-kafka-topics.sh
 docker exec instrumental-kafka-1 kafka-topics --bootstrap-server kafka-1:9092 --list | grep -c 'traverse.cpa'   # 15 (+ any traverse.cpa.cplm.replay.* left by recompute runs)
@@ -447,12 +464,13 @@ python3 /tmp/{release}/ops/set-quality-protocol.py --apply
 cd /tmp/{release} && sha256sum -c SHA256SUMS.txt && cd /opt/AMS-open
 # 2. rollback point
 docker images --no-trunc --format '{{{{.ID}}}} {{{{.Repository}}}}:{{{{.Tag}}}}' > /tmp/pre-{release}-images.txt
-# 3. disk headroom - this host has filled three times; a load with no room corrupts more
-#    than it deploys. Want several GB free before starting.
+# 3. disk headroom - this host has filled four times; a load with no room corrupts more
+#    than it deploys. Want >= 20 GB free before starting.
 df -h /
+{v25_block}
 # 4. load
 {loads}
-{v25_block}{flink}
+{flink}
 # 6. sync repo files that changed (compose/env/scripts) - rule 1: the repo is the truth
 #    then recreate only what changed:
 {ams_api_env}bash migration/deploy/deploy.sh --prod 2>&1 | tail -8{rename_trap}

@@ -1,5 +1,6 @@
 // v2.5 Task 1G.5 (NR-060) — retention by record class on the lab traverse_cplm: an unpinned
-// STANDARD manifest past its days loses its chunks and reads EXPIRED (the manifest stays); a
+// STANDARD manifest past its days loses its chunks and reads EXPIRED (the manifest stays for the
+// grace period, then the purge tier removes it - 2026-09-25); a
 // pinned one survives; a fresh one is untouched.
 using Dapper;
 using FluentAssertions;
@@ -10,6 +11,7 @@ using Xunit;
 namespace Traverse.CplmApi.Tests;
 
 [Trait("Category", "Integration")]
+[Collection("instrument-bindings-lab")]   // every class that sweeps the shared lab table runs serially with the others
 public sealed class EvidenceRetentionTests : IAsyncLifetime
 {
     private NpgsqlDataSource _db = null!;
@@ -20,7 +22,8 @@ public sealed class EvidenceRetentionTests : IAsyncLifetime
     {
         _db = NpgsqlDataSource.Create(TestDb.ConnectionString());
         await using var conn = await _db.OpenConnectionAsync();
-        foreach (var (id, ageDays, pinned) in new[] { (_old, 120, false), (_pinned, 120, true), (_fresh, 1, false) })
+        // _old at 93 d: past the 90 d class, inside the 7 d grace (a row older than 97 d is purged - EvidenceRetentionSweeperTests)
+        foreach (var (id, ageDays, pinned) in new[] { (_old, 93, false), (_pinned, 120, true), (_fresh, 1, false) })
         {
             await conn.ExecuteAsync("""
                 INSERT INTO analytics.evidence_manifest (evidence_id, method_run_id, gate_id, artifact_kind, chunk_count, total_bytes, sha256, readiness, pinned, created_at)
@@ -41,7 +44,7 @@ public sealed class EvidenceRetentionTests : IAsyncLifetime
     [Fact]
     public async Task Unpinned_expired_manifest_loses_chunks_and_reads_EXPIRED_while_pinned_and_fresh_survive()
     {
-        var (expired, chunks) = await EvidenceRetentionSweeper.SweepOnceAsync(_db, CancellationToken.None);
+        var (expired, chunks, _) = await EvidenceRetentionSweeper.SweepOnceAsync(_db, CancellationToken.None);
         expired.Should().BeGreaterOrEqualTo(1);
         chunks.Should().BeGreaterOrEqualTo(1);
 

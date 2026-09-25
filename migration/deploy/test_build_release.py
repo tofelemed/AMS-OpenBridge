@@ -64,6 +64,39 @@ def test_v25_steps_declare_the_quality_protocol_only_after_the_new_images_run():
     assert steps.index("deploy.sh --prod") < steps.index("set-quality-protocol.py --apply")
 
 
+def test_v25_steps_set_the_evidence_retention_after_ownership_and_before_the_topics():
+    steps = v25_steps()
+    retention = steps.index("UPDATE analytics.retention_policy SET days = 7")
+    assert steps.index("02-apply-schemas.sh") < retention < steps.index("04-create-kafka-topics.sh")
+
+
+def test_v25_steps_load_the_images_after_the_schema_and_the_topics():
+    steps = v25_steps()
+    assert steps.index("04-create-kafka-topics.sh") < steps.index("docker load") < steps.index("deploy.sh --prod")
+
+
+def test_v25_steps_export_topic_creation_so_the_validator_requires_the_topics():
+    steps = v25_steps()
+    exports = line_with(steps, "ALLOW_FLINK_SUBMIT=yes")
+    assert "ALLOW_CREATE_PREFIXED_TOPICS=yes" in exports
+    assert "all four" not in steps.lower()
+
+
+def test_v25_steps_check_the_checkout_before_the_overlay_and_record_the_release_commit():
+    steps = v25_steps()
+    status = steps.index("git -C /opt/AMS-open status --porcelain")
+    assert status < steps.index("src-abc1234.tar.gz")
+    assert "RELEASE-COMMIT" in steps
+
+
+def test_source_archive_keeps_lf_line_endings_whatever_the_build_box_autocrlf(tmp_path):
+    archive = br.make_source_archive(tmp_path, "abc1234", dry_run=False)
+    with tarfile.open(archive) as tar:
+        for name in ("migration/kafka/topics.txt", "scripts/cpm-07-v25-schema.sql", "infra/docker/flink-log4j-console.properties"):
+            data = tar.extractfile(name).read()
+            assert b"\r" not in data, f"{name} carries CR bytes - the archive must ship the repo's LF blobs"
+
+
 def test_source_archive_contains_the_deploy_scripts_but_not_the_env(tmp_path):
     archive = br.make_source_archive(tmp_path, "abc1234", dry_run=False)
     assert archive == tmp_path / "src-abc1234.tar.gz"
