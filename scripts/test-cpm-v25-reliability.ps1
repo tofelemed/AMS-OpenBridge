@@ -116,13 +116,14 @@ Step 'R2 TaskManager restarted: every CPLM job RUNNING again; the next result ca
 # ── R3. duplicate evidence chunk ────────────────────────────────────────────
 Step 'R3 a duplicate delivery of an evidence CHUNK record is idempotent: chunk count and readiness unchanged (NR-058)' {
     $row = Invoke-CplmSql "SELECT m.evidence_id, m.method_run_id, m.chunk_count, m.readiness FROM analytics.evidence_manifest m WHERE m.readiness = 'COMPLETE' AND m.created_at > now() - interval '1 day' ORDER BY m.created_at DESC LIMIT 1" | Select-Object -First 1
-    Assert ($row) 'no COMPLETE manifest in the last day to replay a chunk of'
+    $row = @($row | Where-Object { "$_".Trim() })[0]   # psql returns strings; Assert takes a boolean (R3 failed on PS 5.1 binding a string to [bool])
+    Assert (-not [string]::IsNullOrWhiteSpace($row)) 'no COMPLETE manifest in the last day to replay a chunk of'
     $p = $row.Split('|'); $evidenceId = $p[0]; $runId = $p[1]; $chunkCount = [int]$p[2]
     $chunksBefore = [int](Invoke-CplmSql "SELECT count(*) FROM analytics.evidence_chunk WHERE evidence_id = '$evidenceId'" | Select-Object -First 1)
     # take one CHUNK record of that evidence from the topic and produce it again, with its key
     $raw = cmd /c "docker exec ams-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic traverse.cpa.clpm.gate.evidence.v1 --from-beginning --max-messages 4000 --timeout-ms 20000 2>nul"
     $chunk = $raw | Where-Object { $_ -match '"record_kind":"EVIDENCE_CHUNK"' -and $_ -match ('"evidence_id":"' + $evidenceId + '"') } | Select-Object -First 1
-    Assert ($chunk) "no CHUNK record of evidence $evidenceId found in the first 4000 messages of the topic (retention rolled it off?)"
+    Assert (-not [string]::IsNullOrWhiteSpace($chunk)) "no CHUNK record of evidence $evidenceId found in the first 4000 messages of the topic (retention rolled it off?)"
     $tmp = Join-Path $env:TEMP 'cplm-dup-chunk.txt'
     [System.IO.File]::WriteAllText($tmp, "$runId|$chunk`n")
     cmd /c "docker exec -i ams-kafka kafka-console-producer --bootstrap-server localhost:9092 --topic traverse.cpa.clpm.gate.evidence.v1 --property parse.key=true --property key.separator=| < `"$tmp`"" | Out-Null
