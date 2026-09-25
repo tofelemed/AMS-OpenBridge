@@ -477,11 +477,11 @@ Step 'short-feature rows carry the run identity (v2.5 1G.3): 6 method_run_ids, a
     $deadline = (Get-Date).AddSeconds(180)
     $row = $null
     do {
-        $out = Invoke-CplmSql "SELECT bundle_hash || '|' || purpose || '|' || COALESCE(jar_sha256,'') || '|' || (SELECT count(*) FROM jsonb_object_keys(method_run_ids)) || '|' || (method_run_ids->>'G0') FROM analytics.cplm_short_feature_results WHERE lower(loop_id) = 'fic10302' AND bundle_hash <> 'legacy' ORDER BY window_end DESC LIMIT 1"
+        $out = Invoke-CplmSql "SELECT bundle_hash || '|' || purpose || '|' || COALESCE(jar_sha256,'') || '|' || (SELECT count(*) FROM jsonb_object_keys(method_run_ids)) || '|' || (method_run_ids->>'G0') FROM analytics.cplm_short_feature_results WHERE lower(loop_id) = 'fic10302' AND bundle_hash <> 'legacy' AND purpose = 'LIVE' ORDER BY window_end DESC LIMIT 1"
         if ($out) { $row = ($out | Select-Object -First 1).Trim() }
         if (-not $row) { Start-Sleep -Seconds 10 }
     } while (-not $row -and (Get-Date) -lt $deadline)
-    Assert ($null -ne $row -and $row -ne '') 'no FIC10302 short-feature row with a profile bundle hash within 180 s - is the v2.5 jar running?'
+    Assert ($null -ne $row -and $row -ne '') 'no LIVE FIC10302 short-feature row with a run identity (a profile or governed bundle hash) within 180 s - is the v2.5 jar running?'
     $parts = $row.Split('|')
     Assert ($parts[1] -eq 'LIVE') "purpose: $($parts[1])"
     Assert ($parts[2] -eq $jarSha) "jar_sha256 on the row ($($parts[2])) is not the running jar ($jarSha)"

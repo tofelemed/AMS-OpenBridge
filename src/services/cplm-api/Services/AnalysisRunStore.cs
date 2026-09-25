@@ -104,7 +104,8 @@ public sealed class AnalysisRunStore
                (SELECT count(*) FROM analytics.evidence_manifest m WHERE m.provenance->>'analysis_run_id' = r.analysis_run_id::text) AS manifests,
                (SELECT count(*) FROM analytics.evidence_manifest m WHERE m.provenance->>'analysis_run_id' = r.analysis_run_id::text AND m.readiness = 'COMPLETE') AS complete,
                (SELECT count(*) FROM analytics.evidence_manifest m
-                 WHERE m.method_run_id = (CASE WHEN r.manifest->>'reconstructs' ~ '^[0-9a-fA-F-]{36}$' THEN (r.manifest->>'reconstructs')::uuid END)
+                 WHERE m.method_run_id = (CASE WHEN r.manifest->>'reconstructs' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                                               THEN (r.manifest->>'reconstructs')::uuid END)
                    AND m.readiness = 'COMPLETE') AS attached
         FROM analytics.analysis_run r WHERE r.analysis_run_id = @id
         """;
