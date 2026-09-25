@@ -117,7 +117,14 @@ if container_running "$FLINK_JOBMANAGER_CONTAINER"; then
     if docker exec "$FLINK_JOBMANAGER_CONTAINER" \
          /opt/flink/bin/flink list -m "localhost:${FLINK_JOBMANAGER_PORT}" 2>/dev/null \
          | grep -F "$name" | grep -qE '\((CREATED|INITIALIZING|RUNNING|RESTARTING|RECONCILING)\)'; then
-      ok "Flink job '$name'"
+      # v2.5 (lab 2026-09-25, V2.5-DEPLOY trap 10): a job stuck in a restart loop is present but not working
+      if docker exec "$FLINK_JOBMANAGER_CONTAINER" \
+           /opt/flink/bin/flink list -m "localhost:${FLINK_JOBMANAGER_PORT}" 2>/dev/null \
+           | grep -F "$name" | grep -qE '\(RESTARTING\)'; then
+        warn "Flink job '$name' is RESTARTING - read its Exceptions tab; if it names FLINK-25920, cancel it and re-run 04b"
+      else
+        ok "Flink job '$name'"
+      fi
     else
       if (( require_flink == 1 )); then
         hit "Flink job '$name' not RUNNING"

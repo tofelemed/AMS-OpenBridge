@@ -53,11 +53,15 @@ public final class CapabilityRecord {
         return n.toString();
     }
 
-    /** One record per job start, from a bounded source into the ACK topic (parallelism 1, keyed by the job's capability key). */
+    /**
+     * One record per (re)start of the announce task into the ACK topic (parallelism 1, keyed by the job's capability
+     * key) from an UNBOUNDED source - see {@link AnnounceOnceSource} for why a bounded one put three engines into a
+     * permanent restart loop after a restore (FLINK-25920, lab 2026-09-25).
+     */
     public static void announce(StreamExecutionEnvironment env, CplmJobConfig cfg, String jobName, String[] args) {
         BuildIdentity id = BuildIdentity.current();
         String record = json(jobName, id.jarSha256, id.sourceCommit);
-        DataStream<String> once = env.fromElements(record).name("cplm-capability-announce").uid("cplm-capability-announce-" + jobName.hashCode());
+        DataStream<String> once = env.addSource(new AnnounceOnceSource(record)).name("cplm-capability-announce").uid("cplm-capability-announce-" + jobName.hashCode());
         String topic = argOr(args, "--gate-config-acks-topic", CplmTopics.GATE_CONFIG_ACKS);
         CplmKafkaSink.attachKeyed(once, cfg, topic, "cplm-capability-sink", "bundle_id");
     }

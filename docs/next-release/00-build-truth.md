@@ -352,3 +352,12 @@ present and submitted nothing, and `/capabilities` kept naming the old jar. The 
 poll until every CPLM-family job is CANCELED, only then recreate (or just let the supervisor resubmit from the new
 image: 7 RUNNING after 150 s). Also measured: a worker in a 1 s restart loop re-ACKs every retained bundle on each
 restart - an hour left ~2,200 ACK records and the config-acks consumer 10 minutes behind.
+
+**Second variant, measured the same evening (21:06):** the cancel-and-wait was right, but the *supervisor container
+kept running through the 4-minute jar build* and resubmitted all seven cancelled jobs to the old JobManager from
+the old jar; the recreate then recovered those fourteen graphs from ZooKeeper and restored the CPLM ones from
+chk-1 - which also exposed the FLINK-25920 announce-source loop (three engines RESTARTING for ever; fixed, see
+`AnnounceOnceSource`). The file check (`sha256sum` of the jar inside the JM container) passed while every job
+announced the previous jar. Sequence that holds: **stop the supervisor first**, cancel, wait for CANCELED, build,
+recreate JM + TM + supervisor, then verify the jar through the `CAPABILITY` records the RUNNING jobs write to
+`traverse.cpa.context.gate-config.acks.v1` (`jar_sha256`, `source_commit`) - never through the file.
