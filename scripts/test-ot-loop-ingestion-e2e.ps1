@@ -311,7 +311,7 @@ Step 'FIC99999 parked in unknown-sources + on the DLQ' {
         $parts = "$line".Trim() -split ':'
         if ($parts.Count -lt 3) { continue }
         $partition = $parts[1]; $end = [long]$parts[2]; $from = [Math]::Max(0, $end - 400)
-        $dlq += @(cmd /c "docker exec ams-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic traverse.ingestion.ot-dlq --partition $partition --offset $from --timeout-ms 10000 --max-messages 400 2>nul")
+        $dlq += @(cmd /c "docker exec ams-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic traverse.ingestion.ot-dlq --partition $partition --offset $from --timeout-ms 30000 --max-messages 400 2>nul")
     }
     $hits = @($dlq | Where-Object { $_ -match 'LOOP_NOT_REGISTERED' -and $_ -match 'FIC99999' -and $_ -match $today })
     Assert ($hits.Count -ge 1) "no LOOP_NOT_REGISTERED record for FIC99999 dated $today in the DLQ tail ($(@($dlq).Count) records read from $(@($ends).Count) partitions)"
@@ -468,14 +468,16 @@ function Invoke-CplmSql([string]$sql) {
     return (cmd /c "docker exec ams-postgres psql -U ams_user -d traverse_cplm -t -A -c `"$q`" 2>nul")
 }
 
-Step 'short-feature rows carry the run identity (v2.5 1G.3): 6 method_run_ids, profile bundle hash, running jar sha' {
+# A loop under an ACTIVE governed bundle (CHG-028; the slice-3 proof leaves FIC10302 on one) carries that bundle's
+# content hash, not 'profile:<pack>' - both are a real run identity; only 'legacy' (pre-v2.5 jar) is not.
+Step 'short-feature rows carry the run identity (v2.5 1G.3): 6 method_run_ids, a bundle hash (profile or governed), running jar sha' {
     $jarSha = (cmd /c "docker exec ams-flink-jobmanager sha256sum /opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar 2>nul")
     $jarSha = ($jarSha -split '\s+')[0]
     Assert ($jarSha -match '^[0-9a-f]{64}$') "could not read the running jar's sha256: $jarSha"
     $deadline = (Get-Date).AddSeconds(180)
     $row = $null
     do {
-        $out = Invoke-CplmSql "SELECT bundle_hash || '|' || purpose || '|' || COALESCE(jar_sha256,'') || '|' || (SELECT count(*) FROM jsonb_object_keys(method_run_ids)) || '|' || (method_run_ids->>'G0') FROM analytics.cplm_short_feature_results WHERE lower(loop_id) = 'fic10302' AND bundle_hash LIKE 'profile:%' ORDER BY window_end DESC LIMIT 1"
+        $out = Invoke-CplmSql "SELECT bundle_hash || '|' || purpose || '|' || COALESCE(jar_sha256,'') || '|' || (SELECT count(*) FROM jsonb_object_keys(method_run_ids)) || '|' || (method_run_ids->>'G0') FROM analytics.cplm_short_feature_results WHERE lower(loop_id) = 'fic10302' AND bundle_hash <> 'legacy' ORDER BY window_end DESC LIMIT 1"
         if ($out) { $row = ($out | Select-Object -First 1).Trim() }
         if (-not $row) { Start-Sleep -Seconds 10 }
     } while (-not $row -and (Get-Date) -lt $deadline)

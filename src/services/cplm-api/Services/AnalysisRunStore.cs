@@ -89,21 +89,32 @@ public sealed class AnalysisRunStore
         return new CplmRecomputeHandle(id.ToString("N")[..12], r.IsDBNull(3) ? "" : r.GetString(3), r.GetString(1), id, r.GetString(2));
     }
 
+    /// <summary>
+    /// The read behind GET /analysis-runs/{id}; public so AnalysisRunReadIndexTests can pin its plan. The UI polls
+    /// it during every shadow / replay / reconstruction run. The manifest counts are answered from
+    /// ix_evidence_manifest_analysis_run (an expression index on provenance->>'analysis_run_id') and the
+    /// reconstructs probe compares uuid to uuid so ix_evidence_manifest_method_run applies - the former
+    /// `method_run_id::text = ...` cast and the un-indexed provenance lookups walked the whole table (827k rows on
+    /// the lab, 18 s each, a 30 s timeout in the pre-prod run of 2026-09-25).
+    /// </summary>
+    public const string ReadSql = """
+        SELECT r.loop_id, r.purpose, r.state, r.flink_job_id, r.created_by, r.created_at, r.finished_at, r.error,
+               (SELECT count(*) FROM analytics.cplm_gate_results g WHERE g.analysis_run_id = r.analysis_run_id) AS gate_results,
+               r.manifest->>'reconstructs' AS reconstructs,
+               (SELECT count(*) FROM analytics.evidence_manifest m WHERE m.provenance->>'analysis_run_id' = r.analysis_run_id::text) AS manifests,
+               (SELECT count(*) FROM analytics.evidence_manifest m WHERE m.provenance->>'analysis_run_id' = r.analysis_run_id::text AND m.readiness = 'COMPLETE') AS complete,
+               (SELECT count(*) FROM analytics.evidence_manifest m
+                 WHERE m.method_run_id = (CASE WHEN r.manifest->>'reconstructs' ~ '^[0-9a-fA-F-]{36}$' THEN (r.manifest->>'reconstructs')::uuid END)
+                   AND m.readiness = 'COMPLETE') AS attached
+        FROM analytics.analysis_run r WHERE r.analysis_run_id = @id
+        """;
+
     /// <summary>The row as stored (JobState is filled by the caller from Flink).</summary>
     public async Task<AnalysisRunView?> ReadAsync(Guid analysisRunId, CancellationToken ct)
     {
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = """
-            SELECT r.loop_id, r.purpose, r.state, r.flink_job_id, r.created_by, r.created_at, r.finished_at, r.error,
-                   (SELECT count(*) FROM analytics.cplm_gate_results g WHERE g.analysis_run_id = r.analysis_run_id) AS gate_results,
-                   r.manifest->>'reconstructs' AS reconstructs,
-                   (SELECT count(*) FROM analytics.evidence_manifest m WHERE m.provenance->>'analysis_run_id' = r.analysis_run_id::text) AS manifests,
-                   (SELECT count(*) FROM analytics.evidence_manifest m WHERE m.provenance->>'analysis_run_id' = r.analysis_run_id::text AND m.readiness = 'COMPLETE') AS complete,
-                   (SELECT count(*) FROM analytics.evidence_manifest m WHERE m.method_run_id::text = r.manifest->>'reconstructs'
-                       AND m.readiness = 'COMPLETE') AS attached
-            FROM analytics.analysis_run r WHERE r.analysis_run_id = @id
-            """;
+        cmd.CommandText = ReadSql;
         cmd.Parameters.AddWithValue("id", analysisRunId);
         await using var rd = await cmd.ExecuteReaderAsync(ct);
         if (!await rd.ReadAsync(ct)) return null;

@@ -512,6 +512,9 @@ CREATE INDEX IF NOT EXISTS ix_evidence_manifest_unlinked
 -- the retention sweeper's side (2026-09-25): the not-yet-expired, unpinned manifests by class and age
 CREATE INDEX IF NOT EXISTS ix_evidence_manifest_retention_due
     ON analytics.evidence_manifest (retention_class, created_at) WHERE pinned = FALSE AND readiness <> 'EXPIRED';
+-- the analysis-run read's side (2026-09-25): a run's manifests by provenance->>'analysis_run_id'
+CREATE INDEX IF NOT EXISTS ix_evidence_manifest_analysis_run
+    ON analytics.evidence_manifest ((provenance->>'analysis_run_id')) WHERE (provenance->>'analysis_run_id') IS NOT NULL;
 CREATE TABLE IF NOT EXISTS analytics.evidence_chunk (
     evidence_id  uuid NOT NULL REFERENCES analytics.evidence_manifest(evidence_id) ON DELETE CASCADE,
     chunk_no     int NOT NULL,
