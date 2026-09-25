@@ -102,10 +102,16 @@ else
 fi
 
 if container_running "$FLINK_JOBMANAGER_CONTAINER"; then
+  # v2.5 (pre-prod gap G4): the three new engines are required too - a validate that
+  # checked only the four pre-v2.5 jobs read green with Condition / Instrument Context /
+  # Response missing. Keep this list equal to 04b-submit-flink-jobs.sh and flink/JOBS.md.
   for name in \
     "AMS - CPLM Short Feature Engine" \
     "AMS - CPLM Long Diagnostics Engine" \
     "AMS - Loop Live RBE Engine" \
+    "AMS - CPLM Condition Engine" \
+    "AMS - CPLM Instrument Context Engine" \
+    "AMS - CPLM Response Engine" \
     "AMS - CPLM Gate Fusion Engine"
   do
     if docker exec "$FLINK_JOBMANAGER_CONTAINER" \

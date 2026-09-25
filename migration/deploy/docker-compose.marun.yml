@@ -307,7 +307,13 @@ services:
       DB_PASS: ${POSTGRES_PASSWORD}
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: flink-jobmanager
-        taskmanager.memory.process.size: 2048m
+        # v2.5 (pre-prod gap G3): seven standing jobs plus the bounded shadow / replay /
+        # reconstruction submissions share this TM, and every REST submission leaves a
+        # user-code classloader behind (the lab TM died of OutOfMemoryError: Metaspace on
+        # the second submission at the 256m default). 512m matches the lab; the process
+        # size grows by the same 512m so heap and managed memory are unchanged.
+        taskmanager.memory.process.size: 2560m
+        taskmanager.memory.jvm-metaspace.size: 512m
         taskmanager.numberOfTaskSlots: 16
         state.backend: rocksdb
         state.backend.incremental: true

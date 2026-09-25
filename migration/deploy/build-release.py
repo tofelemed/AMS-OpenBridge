@@ -207,6 +207,28 @@ def copy_jar(out: Path, dry_run: bool) -> Path:
     return dest
 
 
+def make_source_archive(out: Path, commit: str, dry_run: bool) -> Path:
+    """`git archive HEAD` as src-<commit>.tar.gz beside the images (v2.5 pre-prod gap G1).
+
+    The VM runs 04-create-kafka-topics.sh, 04b-submit-flink-jobs.sh and deploy.sh from
+    /opt/AMS-open, and compose reads infra/docker/docker-compose.yml plus the marun overlay
+    from there. A release that only ships images leaves those copies at the previous
+    release: v2.5's topic list, the seven-job submitter and CPLM_GATE_CONFIG_KEY on the
+    Flink containers all live in files, not images. The archive is 1,700 tracked files
+    (~10 MB); migration/.env is untracked and therefore never inside it.
+    """
+    dest = out / f"src-{commit}.tar.gz"
+    log(f"git archive HEAD -> {dest.name}")
+    if dry_run:
+        return dest
+    r = subprocess.run(["git", "-C", str(REPO_ROOT), "archive", "--format=tar", "HEAD"], capture_output=True)
+    if r.returncode != 0 or not r.stdout:
+        sys.exit(f"git archive failed: {r.stderr.decode(errors='replace').strip()}")
+    with gzip.open(dest, "wb", compresslevel=6) as fh:
+        fh.write(r.stdout)
+    return dest
+
+
 def copy_ops_files(out: Path, dry_run: bool) -> list[Path]:
     """SQL and operator scripts the deployment checklist needs on the VM."""
     copied: list[Path] = []
@@ -282,11 +304,18 @@ def vm_steps(release: str, commit: str, rows: list[tuple[str, str, str]],
     )
     # ams-api is profile-gated. Every deploy.sh call in this file must carry the env or
     # compose silently leaves the old container running - and it is the only writer of
-    # the loop historian, so the no-op is invisible until a trend goes missing.
+    # the loop historian, so the no-op is invisible until a trend goes missing. The plant
+    # runs ams-api since Phase 10, so a v2.5 upgrade carries it whether or not the image
+    # ships. 04b runs from deploy.sh only under ALLOW_FLINK_SUBMIT=yes (pre-prod gap G6).
+    exports: list[str] = []
+    if "ams-api" in services or v25:
+        exports.append("START_AMS_API=yes")
+    if has_flink:
+        exports.append("ALLOW_FLINK_SUBMIT=yes")
     ams_api_env = ""
-    if "ams-api" in services:
-        ams_api_env = ("export START_AMS_API=yes   # REQUIRED: ams-api is behind "
-                       "profiles:[cpa-ams-api]; without this compose skips it\n")
+    if exports:
+        ams_api_env = (f"export {' '.join(exports)}   # REQUIRED: ams-api is behind profiles:[cpa-ams-api] "
+                       "(compose skips it otherwise); 04b submits jobs only under ALLOW_FLINK_SUBMIT\n")
     flink = ""
     if has_flink:
         flink = f"""
@@ -301,7 +330,7 @@ def vm_steps(release: str, commit: str, rows: list[tuple[str, str, str]],
 #    jobs while they keep executing the OLD jar. Removing both containers is mandatory.
 cp /tmp/{release}/{FLINK_JAR.name} /opt/AMS-open/src/flink/target/{FLINK_JAR.name}
 docker rm -f ams-flink-taskmanager ams-flink-jobmanager
-{ams_api_env}bash migration/deploy/deploy.sh --prod 2>&1 | tail -8          # 04b resubmits all FOUR jobs
+{ams_api_env}bash migration/deploy/deploy.sh --prod 2>&1 | tail -8          # 04b resubmits all {"SEVEN" if v25 else "FOUR"} jobs
 docker exec ams-flink-jobmanager flink list -m localhost:8081  # {"7 x RUNNING (4 + Condition, Instrument Context, Response)" if v25 else "4 x RUNNING"}, start times = now
 #
 #    Do NOT run `compose up flink-job-submit-cplm` here: that service is profiled
@@ -345,9 +374,18 @@ docker exec instrumental-kafka-1 kafka-console-consumer --bootstrap-server kafka
 #    a save re-deletes loop_ingest, including the map you just restored (CHG-012).
 """
     v25_block = ""
+    v25_config_block = ""
     if v25:
         v25_block = f"""
-# 4a. v2.5 schema + permissions + topics - ALL BEFORE the image swap (additive, re-runnable):
+# 4a. v2.5 source tree - BEFORE any script or compose step below runs from /opt/AMS-open (pre-prod gap G1):
+#    the topic list (04), the seven-job submitter (04b), the validator (05) and both compose files (base +
+#    marun overlay, which carry CPLM_GATE_CONFIG_KEY on JM/TM) are files, not images. migration/.env is
+#    untracked, so it is not in the archive and survives the extraction.
+cp /opt/AMS-open/migration/.env /tmp/{release}/env-backup-$(date +%Y%m%d%H%M)   # belt and braces
+tar -xzf /tmp/{release}/src-{commit}.tar.gz -C /opt/AMS-open
+grep -c CPLM_GATE_CONFIG_KEY migration/deploy/docker-compose.marun.yml   # 2 (JM + TM)
+grep -c submit_if_missing migration/04b-submit-flink-jobs.sh             # >= 8 (7 jobs + the function)
+# 4b. v2.5 schema + permissions - ALL BEFORE the image swap (additive, re-runnable):
 docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-07-v25-schema.sql
 #    cpm-07b swaps the result unique keys (old key -> key + bundle_hash). The OLD consumer needs the old key and the
 #    NEW one the new key, so it runs with cplm-api STOPPED (plain index builds: seconds at plant size); the new image
@@ -357,12 +395,21 @@ docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERR
 docker exec -i instrumental-postgres psql -U postgres -d traverse_auth -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-08-v25-permissions.sql
 #    CHG-032 shelving lifecycle (additive; converts legacy ack_state = SHELVED rows; re-runnable):
 docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-09-event-shelving.sql
-#    the 7 new topics (idempotent --if-not-exists; the samples and gate-results topics are untouched):
-ALLOW_CREATE_PREFIXED_TOPICS=yes bash migration/04-create-kafka-topics.sh
-docker exec instrumental-kafka-1 kafka-topics --bootstrap-server kafka-1:9092 --list | grep -c 'traverse.cpa' # was 29, now 36
+#    the files above ran as postgres, so the new tables are postgres-owned - the go-live 42501 bug: cplm-api's
+#    self-heal DDL (ALTER TABLE / CREATE INDEX IF NOT EXISTS) fails on them and its consumers never join (gap G2).
+#    02 sentinel-skips every DDL file and runs normalize_ownership on all five databases:
+bash migration/02-apply-schemas.sh
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select count(*) from pg_tables where schemaname in ('analytics','cpm') and tableowner<>'ams_user'"   # 0
 #    prove the schema landed before touching an image:
 docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select count(*) from information_schema.tables where table_schema in ('analytics','cpm') and table_name in ('analysis_run','evidence_manifest','response_event','gate_config_bundle','config_worker_capability','instrument_health_observation','condition_event','investigation_reference')"  # 8
-# 4b. v2.5 configuration - declare the quality protocol on every loop data source (read-modify-write, keeps the TLS cert):
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select count(*) from analytics.cplm_event_frames where ack_state='SHELVED'"   # 0 after the cpm-09 conversion
+# 4c. the 8 new topics, BEFORE the jobs start (idempotent --if-not-exists; samples / gate-results topics untouched):
+ALLOW_CREATE_PREFIXED_TOPICS=yes bash migration/04-create-kafka-topics.sh
+docker exec instrumental-kafka-1 kafka-topics --bootstrap-server kafka-1:9092 --list | grep -c 'traverse.cpa'   # 15 (+ any traverse.cpa.cplm.replay.* left by recompute runs)
+"""
+        v25_config_block = f"""
+# 6b. v2.5 configuration, AFTER the new ingestion image is up (it validates the field; the old one only stored it):
+#    declare the quality protocol on every loop data source (read-modify-write, keeps the TLS cert and the MODE map)
 export ADMIN_PW='...'
 python3 /tmp/{release}/ops/set-quality-protocol.py            # dry run
 python3 /tmp/{release}/ops/set-quality-protocol.py --apply
@@ -409,7 +456,7 @@ df -h /
 # 6. sync repo files that changed (compose/env/scripts) - rule 1: the repo is the truth
 #    then recreate only what changed:
 {ams_api_env}bash migration/deploy/deploy.sh --prod 2>&1 | tail -8{rename_trap}
-{data_block}
+{v25_config_block}{data_block}
 # 8. post-update checks (UPDATE-RUNBOOK sec.1 table) - for {release} specifically:
 {checks}
 """
@@ -476,6 +523,7 @@ def main() -> int:
     if has_flink:
         files.append(copy_jar(out, args.dry_run))
     files.extend(copy_ops_files(out, args.dry_run))
+    files.append(make_source_archive(out, commit, args.dry_run))
 
     steps = vm_steps(args.release, commit, rows, has_flink, services, "data-load" in flags, "v25-upgrade" in flags)
     if not args.dry_run:

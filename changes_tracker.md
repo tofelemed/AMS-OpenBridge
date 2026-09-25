@@ -1644,7 +1644,7 @@ consumer-group check, cpm-06 (AFTER), the curl timings.
 Prod runs v3 + v2.3 + v2.4. v2.5 is the spec v6 set: **CHG-026** (qualification and safe semantics,
 Instrumental NE107 health), **CHG-027** (G12 system response, the evidence workbench, G13 aligned
 interaction, the loop model) and **CHG-028** (governed gate configuration). Additive schema applied
-before the swap, seven new Kafka topics created before the jobs start, every CPLM job resubmitted plus
+before the swap, eight new Kafka topics created before the jobs start, every CPLM job resubmitted plus
 three new jobs, one configuration step per loop data source. Step by step:
 [migration/V2.5-DEPLOY.md](migration/V2.5-DEPLOY.md). A plain-words tour of what the release adds, where it
 is in the UI, how to try it on the lab and what the OT side must send: [WHATS-NEW-v2.5.md](WHATS-NEW-v2.5.md).
@@ -1747,15 +1747,20 @@ python migration/deploy/build-release.py --release v2.5 --dry-run
 python migration/deploy/build-release.py --release v2.5              # NOT YET RUN - after the go
 ```
 
-The manifest carries `!v25-upgrade`: `VM-STEPS.md` then emits the schema → cplm-api stopped for cpm-07b →
-topics → images → seven jobs → signing-key proof → quality-protocol steps. `ops/` gains
-`cpm-07-v25-schema.sql`, `cpm-07b-v25-result-key.sql`, `cpm-08-v25-permissions.sql`,
-`set-quality-protocol.py` and `topics.txt`.
+The manifest carries `!v25-upgrade`: `VM-STEPS.md` then emits the source-tree sync → the schema → cplm-api
+stopped for cpm-07b → cpm-08 / cpm-09 → ownership normalization → topics → images → seven jobs →
+signing-key proof → quality-protocol steps (`migration/deploy/test_build_release.py` pins that order). The bundle
+carries `src-<commit>.tar.gz` (`git archive HEAD`, ~10 MB) beside the images since 2026-09-25 (pre-prod gap G1: the
+VM's 04 / 04b / 05 scripts and both compose files are not in any image) and `ops/` gains `cpm-07-v25-schema.sql`,
+`cpm-07b-v25-result-key.sql`, `cpm-08-v25-permissions.sql`, `cpm-09-event-shelving.sql`, `set-quality-protocol.py`
+and `topics.txt`.
 
 **Scripts to run — plant VM:** [migration/V2.5-DEPLOY.md](migration/V2.5-DEPLOY.md) §C, in order:
-`sha256sum -c`, rollback point, `df -h`, **cpm-07** (online), `docker stop traverse-cplm-api`, **cpm-07b**,
-**cpm-08**, `04-create-kafka-topics.sh` (`ALLOW_CREATE_PREFIXED_TOPICS=yes`), `docker load` ×6, JAR copy,
-`docker rm -f` JM + TM, `deploy.sh --prod` (04b submits the seven jobs), the `CPLM_GATE_CONFIG_KEY` proof,
+`sha256sum -c`, rollback point, `df -h`, **source tree** (`tar -xzf src-<commit>.tar.gz -C /opt/AMS-open`),
+**cpm-07** (online), `docker stop traverse-cplm-api`, **cpm-07b**, **cpm-08**, **cpm-09**, `02-apply-schemas.sh`
+(ownership normalization - gap G2), `04-create-kafka-topics.sh` (`ALLOW_CREATE_PREFIXED_TOPICS=yes`, 8 new topics,
+15 `traverse.cpa.*`), `docker load` ×7, JAR copy, `docker rm -f` JM + TM, `export START_AMS_API=yes
+ALLOW_FLINK_SUBMIT=yes`, `deploy.sh --prod` (04b submits the seven jobs), the `CPLM_GATE_CONFIG_KEY` proof,
 `set-quality-protocol.py --apply`, then the post-deploy proof (seven consumer groups with one member,
 `/capabilities` jar + `config` section, `/gate-catalogue` 17).
 
