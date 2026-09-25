@@ -1749,7 +1749,7 @@ node scripts/validation/ui-v25-shelving-zoom.mjs                     # 19/19 - C
 # run the lab scripts one at a time on a quiet host: slice2's G12 capture censors on the source gaps a concurrent
 # image build causes, and the ranking oracles compare two reads seconds apart
 python migration/deploy/build-release.py --release v2.5 --dry-run
-python migration/deploy/build-release.py --release v2.5              # NOT YET RUN - after the go
+python migration/deploy/build-release.py --release v2.5 --skip-jar --out release-out/v2.5-20260925-r2   # RUN 2026-09-25 23:00 from the tagged commit (v2.5); --skip-jar ships the lab-proven jar 2dc8788aa07f
 ```
 
 The manifest carries `!v25-upgrade`: `VM-STEPS.md` then emits the source-tree sync → the schema → cplm-api
@@ -1785,7 +1785,7 @@ Flink job args `--evidence-emit ALL|EPISODES|NONE`, `--g12-delay-min-s`, `--gate
 ## Risks & pre-existing issues
 
 - ~~**The CPLM Flink test suite does not compile**~~ — resolved in the v2.5 work: the suite runs
-  (`mvn -o test` 534 run / 0 failures / 4 skipped on 2026-09-25) and every engine change since is
+  (`mvn -o test` 269 run / 0 failures / 2 skipped on 2026-09-25 after 888e1963; an earlier "534 / 4" figure was one run counted twice) and every engine change since is
   covered; CHG-004's ⚠️ stands only for its own missing test.
 - **G3 stays WARN on temperature loops until PV ranges are declared.** Expected, not a
   regression: CHG-004 only supplies the mechanism.
