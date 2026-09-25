@@ -3,7 +3,7 @@
 # This deliberately targets only this lab's verified Docker Desktop data disk.
 $ErrorActionPreference = 'Stop'
 $diskPath = 'C:\Users\Admin\DockerDesktopWSL\disk\docker_data.vhdx'
-$reportPath = 'D:\DockerSupport\compact-docker-20260920.log'
+$reportPath = "D:\DockerSupport\compact-docker-$(Get-Date -Format yyyyMMdd-HHmmss).log"
 try {
     "Started $(Get-Date -Format o)" | Out-File -LiteralPath $reportPath
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()

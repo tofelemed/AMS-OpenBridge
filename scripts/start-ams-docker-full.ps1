@@ -150,6 +150,12 @@ $upArgs = @("up", "-d")
 if (-not $SkipBuild) { $upArgs += "--build" }
 if ($RemoveOrphans) { $upArgs += "--remove-orphans" }
 Invoke-Compose -ExtraArgs $upArgs
+if (-not $SkipBuild) {
+    # CHG-032: every rebuild leaves the previous image layers dangling (16.6 GB by 2026-09-20).
+    # Dangling only - pulled base images and other tags are untouched.
+    Write-Step "Pruning dangling images left by the rebuild"
+    docker image prune -f 2>&1 | Select-Object -Last 1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+}
 
 Write-Step "Waiting for core services"
 Wait-Healthy @(
