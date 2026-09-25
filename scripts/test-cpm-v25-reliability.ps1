@@ -21,7 +21,8 @@ param(
     [string]$AdminUser = 'admin',
     [string]$AdminPassword = '',
     [string]$LoopId = 'FIC10101',
-    [int]$PauseSeconds = 60
+    [int]$PauseSeconds = 60,
+    [string[]]$Steps = @()                  # e.g. -Steps R3 : run only the probes whose name starts with one of these
 )
 
 $ErrorActionPreference = 'Stop'
@@ -29,6 +30,7 @@ $script:failed = 0
 $script:passed = 0
 
 function Step([string]$name, [scriptblock]$body) {
+    if ($Steps.Count -gt 0 -and -not ($Steps | Where-Object { $name.StartsWith($_) }) -and -not $name.StartsWith('login')) { Write-Host "  SKIP  $name" -ForegroundColor DarkGray; return }
     try {
         & $body
         $script:passed++
@@ -136,7 +138,9 @@ Step 'R3 a duplicate delivery of an evidence CHUNK record is idempotent: chunk c
     Assert (-not [string]::IsNullOrWhiteSpace($chunk)) "no CHUNK record of evidence $evidenceId found in the first 4000 messages of the topic (retention rolled it off?)"
     $tmp = Join-Path $env:TEMP 'cplm-dup-chunk.txt'
     [System.IO.File]::WriteAllText($tmp, "$runId|$chunk`n")
-    cmd /c "docker exec -i ams-kafka kafka-console-producer --bootstrap-server localhost:9092 --topic traverse.cpa.clpm.gate.evidence.v1 --property parse.key=true --property key.separator=| < `"$tmp`"" | Out-Null
+    # PowerShell-native stdin piping: under `cmd /c "..."` the nested quotes ended the quoted string before `|`, cmd
+    # read it as a pipe and answered "The syntax of the command is incorrect" (R3 never ran before 2026-09-25)
+    "$runId|$chunk" | & docker exec -i ams-kafka kafka-console-producer --bootstrap-server localhost:9092 --topic traverse.cpa.clpm.gate.evidence.v1 --property parse.key=true --property 'key.separator=|' 2>$null | Out-Null
     Start-Sleep -Seconds 15
     $chunksAfter = [int](Invoke-CplmSql "SELECT count(*) FROM analytics.evidence_chunk WHERE evidence_id = '$evidenceId'" | Select-Object -First 1)
     $readiness = (Invoke-CplmSql "SELECT readiness FROM analytics.evidence_manifest WHERE evidence_id = '$evidenceId'" | Select-Object -First 1)
