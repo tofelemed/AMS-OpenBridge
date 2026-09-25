@@ -15,9 +15,8 @@
  *
  * Every figure is real; where a metric has no model yet the tile says so.
  */
-import { windowKind as readWindowKind } from './navigation';
 import React, { useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
 import { ObcFilterChip } from '@oicl/openbridge-webcomponents-react/components/filter-chip/filter-chip';
 import type { CpmHealthFilter } from '../../api/cpmApi';
@@ -37,6 +36,7 @@ import { useBadActors } from './useBadActors';
 import { buildTierGroups, isRowFilter, latestWindowEnd } from './gateStatus';
 import { useCpmResolutions, useFleetHeatmap, useFleetRankings, useFleetSummary } from '../../hooks/useCpm';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { explorerHref, pipelineHref, windowsHref } from './cpaHref';
 
 /** v2.5 (1H.6): the three fleet health filters the server understands (spec §4.7). */
 const HEALTH_FILTERS: { id: CpmHealthFilter; label: string }[] = [
@@ -62,7 +62,7 @@ const fmtAge = (ms: number) =>
 
 export const CpmPerformance: React.FC = () => {
   const [params, setParams] = useSearchParams();
-  const windowKind = readWindowKind(params);
+  const windowKind = params.get('window') ?? '24h';
   const selectedLoop = params.get('loop');
   const openGate = params.get('gate');
   const [rankBy, setRankBy] = React.useState<RankBy>('confidence');
@@ -95,6 +95,13 @@ export const CpmPerformance: React.FC = () => {
   const selectLoop = React.useCallback((loopId: string) => {
     write(p => p.set('loop', loopId));
   }, [write]);
+
+  // A loop id is a route (cpa-ui-fix-plan Phase 2): the matrix loop cell and the
+  // attention list open the loop hub; selection stays with the gate cells.
+  const navigate = useNavigate();
+  const openLoop = React.useCallback((loopId: string) => {
+    navigate(explorerHref(loopId, { tab: 'Summary' }));
+  }, [navigate]);
 
   // Guidance is ephemeral and personal — it does not belong in a shareable URL
   // the way the row filter and the open gate do. Opening evidence takes the
@@ -172,7 +179,7 @@ export const CpmPerformance: React.FC = () => {
     l => l.loopId.toLowerCase() === (selectedLoop ?? '').toLowerCase());
 
   return (
-    <div className="cpm-screen" data-cpa-ready={!!summary.data && !!rankings.data}>
+    <div className="cpm-screen">
       <WorkspaceHeader
         eyebrow="Fleet and loop analytics"
         title="Performance"
@@ -186,7 +193,7 @@ export const CpmPerformance: React.FC = () => {
             aria-label="Fused evaluation window"
             onValue={(e: CustomEvent<{ value: string }>) => {
               const v = e.detail.value;
-              if (fusionKinds.includes(v)) write(p => { p.set('kind', v); p.delete('window'); p.delete('methodRun'); });
+              if (fusionKinds.includes(v)) write(p => p.set('window', v));
             }}
           >
             {fusionKinds.map(k => (
@@ -206,9 +213,12 @@ export const CpmPerformance: React.FC = () => {
           return cadence ? ` (recomputed every ${Math.round(cadence / 60_000)} min)` : '';
         })()} ·
         per-window 1m–60m features are in the{' '}
-        <Link to={`/cpm/windows${selectedLoop ? `?loop=${encodeURIComponent(selectedLoop)}` : ''}`}>
+        <ObcButton variant="flat"
+          title={selectedLoop ? `Per-window results for ${selectedLoop}` : 'Select a loop in the matrix to open its per-window results'}
+          disabled={!selectedLoop}
+          onClick={() => { if (selectedLoop) navigate(windowsHref(selectedLoop)); }}>
           Window Inspector ›
-        </Link>
+        </ObcButton>
       </p>
       <PlantScopeFilter
         scope={scope}
@@ -286,6 +296,11 @@ export const CpmPerformance: React.FC = () => {
           <p className={`cpm-freshness${stale ? ' cpm-freshness--stale' : ''}`} role="status">
             {stale ? 'Stale · ' : ''}Newest fused window emitted {fmtAge(windowAgeMs)} ago
             {newestWindow != null ? ` (${fmtDateTime(new Date(newestWindow).toISOString())})` : ''}
+            {/* A5: a verdict's age is explained by the engine, not by this screen. */}
+            <ObcButton variant="flat" title="Job states and checkpoint health of the CPLM engines"
+              onClick={() => navigate(pipelineHref())}>
+              Pipeline Health ›
+            </ObcButton>
           </p>
         )}
 
@@ -323,6 +338,7 @@ export const CpmPerformance: React.FC = () => {
                   onPageChange={setPage}
                   selectedLoopId={selectedLoop}
                   onSelectLoop={selectLoop}
+                  onOpenLoop={openLoop}
                   onOpenGate={openEvidence}
                   fleetTotal={heatmap.data?.total ?? fleetTotal}
                 />
@@ -341,10 +357,16 @@ export const CpmPerformance: React.FC = () => {
                       {selectedRow.confidence != null
                         ? ` (${(selectedRow.confidence * 100).toFixed(0)}%)` : ''}
                     </span>
-                    <ObcButton variant="raised"
-                      onClick={() => openEvidence(selectedRow.loopId, 'G15')}>
-                      Open fused evidence ›
-                    </ObcButton>
+                    <div className="cpm-filter-row">
+                      <ObcButton variant="raised"
+                        onClick={() => openEvidence(selectedRow.loopId, 'G15')}>
+                        Open fused evidence ›
+                      </ObcButton>
+                      <ObcButton variant="normal" title={`Open ${selectedRow.loopId} in the Loop Explorer`}
+                        onClick={() => openLoop(selectedRow.loopId)}>
+                        Open loop ›
+                      </ObcButton>
+                    </div>
                   </div>
                 )}
               </div>
@@ -382,6 +404,7 @@ export const CpmPerformance: React.FC = () => {
         retry={() => void badActors.refetch()}
         selectedLoopId={selectedLoop}
         onSelectLoop={selectLoop}
+        onOpenLoop={openLoop}
         onOpenGate={openEvidence}
       />
 

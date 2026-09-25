@@ -1698,5 +1698,7 @@ select.ob-input option {
   outline-offset: 2px;
 }
 
-/* OpenBridge owns the navigation button surface, spacing and icon sizing. */
-.cpa-nav-button { display: block; width: 100%; }
+/* ── Chart zoom bar (Phase 5, docs/cpa-ui-fix-plan.md): OpenBridge buttons that
+   drive ECharts' rectangle zoom; layout only, colours come from the buttons. */
+.chart-zoombar { display: flex; align-items: center; gap: 2px 8px; flex-wrap: wrap; }
+.chart-zoombar__note { font-size: 0.78rem; color: var(--element-neutral-color); }

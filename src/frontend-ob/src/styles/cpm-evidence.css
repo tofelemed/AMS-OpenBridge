@@ -411,3 +411,31 @@
 .cpm-config-deployment::before { content: ''; position: absolute; left: -21px; top: 18px; width: 10px; height: 10px; border-radius: 50%; background: var(--cpm-tone, var(--element-neutral-color)); }
 .cpm-config-deployment__matrix > summary { cursor: pointer; padding: 6px 0; }
 .cpm-config-deployment__partial { color: var(--alert-caution-color); font-weight: 600; }
+
+/* ── 2026-09-20 cpa-ui-fix-plan Phase 7: System Response containment ──
+   Three columns that give the centre the width; the context column stacks under
+   the centre before it gets too narrow to hold a value; nothing escapes its box. */
+.cpm-response-columns {
+  grid-template-columns: minmax(260px, 1fr) minmax(0, 3fr) minmax(320px, 1.4fr);
+}
+@media (max-width: 1400px) {
+  .cpm-response-columns { grid-template-columns: minmax(240px, 1fr) minmax(0, 3fr); }
+  .cpm-response-detail { grid-column: 2; }
+}
+@media (max-width: 1200px) {
+  .cpm-response-columns { grid-template-columns: 1fr; }
+  .cpm-response-detail { grid-column: auto; }
+}
+.cpm-response-event__time { white-space: nowrap; }
+.cpm-response-events__censored { align-self: stretch; }
+.cpm-table-wrap { max-width: 100%; overflow-x: auto; }
+.cpm-wrap { overflow-wrap: anywhere; word-break: break-word; }
+.cpm-nowrap { white-space: nowrap; }
+.cpm-response-aside { min-width: 0; }
+.cpm-response-aside .cpm-kv { align-items: baseline; min-width: 0; }
+.cpm-response-aside .cpm-kv__label { flex: 0 0 auto; }
+.cpm-response-aside .cpm-kv__value { min-width: 0; overflow-wrap: anywhere; }
+.cpm-step__outputs .cpm-kv { flex-direction: column; align-items: flex-start; gap: 2px; }
+.cpm-step__outputs .cpm-kv__value { text-align: left; max-width: 100%; }
+.cpm-response-quantities { grid-template-columns: 1fr; }
+.cpm-table td .cpm-mono { overflow-wrap: anywhere; }

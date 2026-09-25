@@ -23,7 +23,7 @@ export const CandidateModelsTable: React.FC<{ table: DecodedArtifact | undefined
     <section className="cpm-surface">
       <PanelHead eyebrow="Subgate D" title="Candidate models" right={table ? <TonePill tone={prov(table, 'state') === 'ESTIMATED' ? 'good' : 'warn'}>{prov(table, 'state') ?? '—'}</TonePill> : undefined} />
       {rows.length > 0 && (
-        <table className="cpm-table" data-table="candidates">
+        <div className="cpm-table-wrap"><table className="cpm-table" data-table="candidates">
           <thead><tr><th>#</th><th>family</th><th>path</th><th>parameters</th><th>objective ({table?.units.y ?? 'PV_EU^2'})</th><th>identifiability</th></tr></thead>
           <tbody>
             {rows.map((r, i) => (
@@ -42,7 +42,7 @@ export const CandidateModelsTable: React.FC<{ table: DecodedArtifact | undefined
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
       {delayCurve && delayCurve.n > 0 && (
         <CpmChart title="Delay objective curve (best candidate)" xKind="value" xLabel={delayCurve.meta.x.quantity ?? 'dead_time'} xUnit={delayCurve.units.x ?? 's'} height={200}
@@ -52,14 +52,14 @@ export const CandidateModelsTable: React.FC<{ table: DecodedArtifact | undefined
       {intervals && (
         <>
           <PanelHead eyebrow="Subgate D" title="Parameter uncertainty" right={<TonePill tone="muted">{prov(intervals, 'method') ?? '—'}</TonePill>} />
-          <table className="cpm-table" data-table="parameter-intervals">
+          <div className="cpm-table-wrap"><table className="cpm-table" data-table="parameter-intervals">
             <thead><tr><th>parameter</th><th>std. error ({intervals.units.y ?? 'parameter units'})</th></tr></thead>
             <tbody>
               {Array.from(intervals.columns.y, (se, i) => (
                 <tr key={i}><td className="cpm-mono">{names[i] ?? `p${i}`}</td><td className="cpm-mono">{Number.isFinite(se) ? fmt(se) : 'not available'}</td></tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
           <KvRow label="theta_uncertainty_s">{prov(intervals, 'theta_uncertainty_s') ?? '—'} s (delay grid resolution bound)</KvRow>
         </>
       )}

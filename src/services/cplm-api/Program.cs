@@ -126,6 +126,10 @@ builder.Services.AddSingleton(sp => new Traverse.CplmApi.Services.SingleMemberGu
 builder.Services.AddSingleton<Traverse.CplmApi.Services.IEvidenceBlobStore, Traverse.CplmApi.Services.PostgresEvidenceBlobStore>();
 builder.Services.AddSingleton<Traverse.CplmApi.Services.MethodRunResolver>();          // v2.5 (2C.2): any tier's row or a response event
 builder.Services.AddSingleton<Traverse.CplmApi.Services.InvestigationStore>();          // v2.5 (2D.2): pinned evidence references with an explicit outcome
+// CHG-032: episode shelving as its own lifecycle (acknowledge / shelve / unshelve + history).
+builder.Services.Configure<Traverse.CplmApi.Services.ShelvingOptions>(
+    config.GetSection(Traverse.CplmApi.Services.ShelvingOptions.SectionName));
+builder.Services.AddSingleton<Traverse.CplmApi.Services.EventActionStore>();
 // v2.5 (3B.3): governed configuration - the store, the deployment state machine, the bundle publisher (control plane)
 builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.ConfigStore>();
 builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.IGateConfigPublisher, Traverse.CplmApi.Services.Config.KafkaGateConfigPublisher>();
@@ -153,6 +157,10 @@ if (config.GetValue("Cplm:ConsumersEnabled", false))
     // v2.5 (3B.3 / 3A.2): worker CAPABILITY records and deployment ACKs (own group, single member).
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmConfigAckConsumerService>();
 }
+
+// CHG-032: shelves end when their expiry passes (SHELVED -> EXPIRED once a minute), consumers or not.
+// Cplm:Shelving:SweepEnabled=false turns it off; the UPDATE ... RETURNING makes a second instance harmless.
+builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmShelfExpirySweeper>();
 
 // ── Auth (platform RBAC): RS256 JWKS + one policy per permission key ───────
 // analytics.view / cpm.manage / system.manage ride Perms.All in the shared

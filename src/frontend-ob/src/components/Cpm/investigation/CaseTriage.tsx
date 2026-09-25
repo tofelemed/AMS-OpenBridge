@@ -66,7 +66,7 @@ export const CaseTriage: React.FC<{
             // Same empty-first-emit guard as the other segmented groups.
             const v = e.detail.value;
             if (v === 'live' || v === 'historical') {
-              setParams(p => { p.set('mode', v); if (v === 'live') { p.delete('window'); p.delete('methodRun'); } return p; }, { replace: true });
+              setParams(p => { p.set('mode', v); return p; }, { replace: true });
             }
           }}
         >
@@ -77,7 +77,7 @@ export const CaseTriage: React.FC<{
       <label className="cpm-field">
         <span className="cpm-field__label">Profile</span>
         <select className="cpm-select" value={windowKind}
-          onChange={e => setParams(p => { p.set('kind', e.target.value); p.delete('profile'); p.delete('window'); p.delete('methodRun'); return p; }, { replace: true })}>
+          onChange={e => setParams(p => { p.set('profile', e.target.value); p.delete('window'); return p; }, { replace: true })}>
           <option value="24h">24h fused</option>
           <option value="12h">12h fused</option>
         </select>

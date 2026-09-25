@@ -2,7 +2,9 @@
 
 /**
  * Loop focus panel: the live signal row and an 8h rolling PV/SP/OP envelope
- * for the selected loop.
+ * for the selected loop. Phase 5 (cpa-ui-fix-plan): rectangle zoom on the
+ * already loaded window; the rolling refetch keeps the zoom (it lives in the
+ * option) and the bar says the viewport is held while zoomed.
  */
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
@@ -12,7 +14,9 @@ import { useCpmTrend } from '../../../hooks/useCpm';
 import { useLoopLive, qualityLabel } from '../../../hooks/useLoopLive';
 import { loopSeries } from '../../../utils/loopSeries';
 import { useObcTheme } from '../../../hooks/useObcTheme';
-
+import { boxZoomOption } from '../../charts/boxZoom';
+import { useBoxZoom, useKeepSelecting } from '../../charts/useBoxZoom';
+import ChartZoomBar from '../../charts/ChartZoomBar';
 
 // ── loop focus panel (signal row + envelope trend) ─────────────────────────
 
@@ -36,6 +40,7 @@ export const LoopFocus: React.FC<{
   const fmtLive = (m: { value: number | string | boolean } | undefined, digits = 1) =>
     m == null ? '—' : typeof m.value === 'number' ? m.value.toFixed(digits) : String(m.value);
 
+  const box = useBoxZoom({ hasY: true });
   const obcTheme = useObcTheme(); // C: re-derive chart colors on theme switch
   const option = useMemo(() => {
     const { good, amber, grey } = cpmChartColors();
@@ -44,6 +49,7 @@ export const LoopFocus: React.FC<{
     return {
       animation: false,
       grid: { left: 42, right: 12, top: 30, bottom: 24 },
+      ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: 0 }, box.zoom),
       // No tooltip and no legend meant the shape of an oscillation was visible but
       // not a single value readable off it.
       legend: {
@@ -82,21 +88,22 @@ export const LoopFocus: React.FC<{
             const lo = num(p.pv_min); const hi = num(p.pv_max);
             return lo != null && hi != null ? hi - lo : null;
           }) },
-        { name: 'PV', type: 'line', symbol: 'none', lineStyle: { color: good, width: 2 },
+        { name: 'PV', type: 'line', symbol: 'none', color: good, lineStyle: { color: good, width: 2 },
           data: points.map(p => num(p.pv_avg) ?? num(p.pv)) },
-        { name: 'SP', type: 'line', symbol: 'none', lineStyle: { color: grey, width: 1, type: 'dashed' },
+        { name: 'SP', type: 'line', symbol: 'none', color: grey, lineStyle: { color: grey, width: 1, type: 'dashed' },
           data: points.map(p => num(p.sp)) },
-        { name: 'OP', type: 'line', symbol: 'none', lineStyle: { color: amber, width: 1.5 },
+        { name: 'OP', type: 'line', symbol: 'none', color: amber, lineStyle: { color: amber, width: 1.5 },
           data: points.map(p => num(p.op_avg) ?? num(p.op)) },
       ],
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
-  }, [points, obcTheme]);
+  }, [points, obcTheme, box.zoom]);
+  useKeepSelecting(box, option);
 
   return (
     <section className="cpm-surface">
       <PanelHead eyebrow={displayName} title={loopId}
-        right={<ObcButton variant="raised" onClick={onOpenAnalysis}>Open analysis →</ObcButton>} />
+        right={<ObcButton variant="raised" onClick={onOpenAnalysis}>Open analysis ›</ObcButton>} />
       <div className="cpm-filter-row" style={{ marginBottom: 8 }}>
         {/* Live signal row (F0.5): RBE means "no update" ≠ 0 — absent renders as —.
             PV pill tone follows the signal QUALITY so a bad-quality PV reads bad. */}
@@ -126,7 +133,11 @@ export const LoopFocus: React.FC<{
           copy={`No samples stored at ${series} in this window.`} />
       )}
       {points.length > 0 && (
-        <ReactECharts option={option} style={{ height: 260 }} notMerge />
+        <>
+          <ReactECharts option={option} style={{ height: 260 }} notMerge
+            onChartReady={box.onChartReady} onEvents={{ datazoom: box.onDataZoom }} />
+          <ChartZoomBar box={box} hasData={points.length > 0} live />
+        </>
       )}
     </section>
   );

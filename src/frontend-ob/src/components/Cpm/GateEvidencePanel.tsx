@@ -19,9 +19,8 @@
  * "how to read this" guidance that used to occupy a permanent card on a screen
  * engineers visit daily.
  */
-import { cpaHref, windowEnd } from './navigation';
 import React from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObiCloseGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-close-google';
 import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-left-google';
@@ -31,9 +30,11 @@ import type { CpmFleetSummary } from '../../api/cpmApi';
 import { useCpmCalculations, useGateCatalogue, useLatestGates } from '../../hooks/useCpm';
 import { staleVerdictLine } from './verdictAge';
 import { gateRole } from '../../api/cpm/catalogue';
+import { workbenchHref } from './evidence/selection';
+import { explorerHref, replayHref, windowsHref } from './cpaHref';
 import { confirmationProse, noVpFleetCopy } from './investigation/confirmationCopy';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
-import { CpmIconButton, EmptyState, KvRow, PanelHead, TonePill, fmtDateTime } from './shared';
+import { CpmIconButton, KvRow, PanelHead, TonePill, fmtDateTime } from './shared';
 import { gateTone } from './gateStatus';
 
 /** Role per gate — the same static policy the registry aside shows. */
@@ -54,7 +55,6 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
   loopId, gateKey, windowKind,
 }) => {
   const navigate = useNavigate();
-  const [params] = useSearchParams();
   const gates = useLatestGates(loopId, windowKind);
   const { data: matrix } = gates;
   const { data: calc } = useCpmCalculations();
@@ -72,13 +72,6 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
     : fetchFailed ? 'UNAVAILABLE'
       : noWindowYet ? 'NO WINDOW YET'
         : cell?.status ?? 'NOT_EVALUATED';
-
-  const requestedEnd = windowEnd(params);
-  if (requestedEnd && matrix && Date.parse(requestedEnd) !== Date.parse(matrix.windowEnd ?? '')) {
-    return <EmptyState title="Selected window is not the latest result"
-      copy="Performance shows the latest fleet matrix. Your evaluated window remains selected."
-      action={params.get('methodRun') ? { label: 'Open selected evidence', onClick: () => navigate(cpaHref('/cpm/evidence', params)) } : undefined} />;
-  }
 
   return (
     <>
@@ -159,27 +152,47 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
         </>
       )}
 
-      <div className="cpm-inspector__actions">
-        {/* v2.5 (2E.3, R13): the workbench opens THIS cell's immutable method run - never "latest".
-            A pre-v2.5 row carries no run id, and then there is nothing immutable to open. */}
-        <span title={cell?.methodRunId ? `Open method run ${cell.methodRunId}` : 'This result predates run identity (v2.5); no immutable run to open'}>
-          <ObcButton variant="raised" disabled={!cell?.methodRunId}
-            onClick={() => { if (cell?.methodRunId) navigate(cpaHref('/cpm/evidence', params, { loop: loopId, methodRun: cell.methodRunId, gate: gateKey, kind: windowKind, window: matrix?.windowEnd })); }}>
-            Open in workbench ›
-          </ObcButton>
-        </span>
-        <ObcButton variant="normal" onClick={() => {
-          const q = new URLSearchParams({ loop: loopId, gate: gateKey, kind: windowKind });
-          if (matrix?.windowEnd) q.set('window', matrix.windowEnd);
-          navigate(`/cpm/replay?${q.toString()}`);
-        }}>
-          Open in Evidence Replay ›
-        </ObcButton>
-        <ObcButton variant="normal"
-          onClick={() => navigate(cpaHref('/cpm/explorer', params, { loop: loopId, kind: windowKind, window: matrix?.windowEnd, gate: gateKey, tab: 'Summary' }))}>
-          Open full loop ›
-        </ObcButton>
-      </div>
+      {/* v2.5 (2E.3, R13): the workbench opens THIS cell's immutable method run - never "latest".
+          2026-09-20 (cpa-ui-fix-plan Phase 2): the five reasons the run cannot be opened are
+          different states and are named as such - "still loading" was reading as "legacy row".
+          Without a run there is nothing immutable to open, so Replay becomes the primary exit. */}
+      {(() => {
+        const runId = cell?.methodRunId ?? null;
+        const workbench = gates.isLoading
+          ? { disabled: true, title: 'Loading the latest result…' }
+          : fetchFailed
+            ? { disabled: true, title: 'The latest result could not be loaded; retry above' }
+            : noWindowYet
+              ? { disabled: true, title: `No ${windowKind} window has been evaluated for this loop yet` }
+              : !cell
+                ? { disabled: true, title: `${gateKey} is not part of this loop's latest ${windowKind} result` }
+                : !runId
+                  ? { disabled: true, title: 'This row predates run identity (v2.5); open Evidence Replay or the Window Inspector instead' }
+                  : { disabled: false, title: `Open method run ${runId}` };
+        const replayPrimary = workbench.disabled && !gates.isLoading && !fetchFailed && !noWindowYet;
+        const replay = replayHref(loopId, { gate: gateKey, window: matrix?.windowEnd, kind: windowKind });
+        return (
+          <div className="cpm-inspector__actions">
+            <ObcButton variant={replayPrimary ? 'normal' : 'raised'} disabled={workbench.disabled} title={workbench.title}
+              onClick={() => { if (runId) navigate(workbenchHref(loopId, runId, gateKey)); }}>
+              Open in workbench ›
+            </ObcButton>
+            <ObcButton variant={replayPrimary ? 'raised' : 'normal'}
+              title={matrix?.windowEnd ? `Replay the ${windowKind} window ending ${fmtDateTime(matrix.windowEnd)}` : `Replay this loop's newest ${windowKind} window`}
+              onClick={() => navigate(replay)}>
+              Open in Evidence Replay ›
+            </ObcButton>
+            <ObcButton variant="normal" title={`Per-window results for ${loopId} in the Window Inspector`}
+              onClick={() => navigate(windowsHref(loopId, { profile: windowKind }))}>
+              Window Inspector ›
+            </ObcButton>
+            <ObcButton variant="normal" title={`Open ${loopId} in the Loop Explorer, Calculations tab`}
+              onClick={() => navigate(explorerHref(loopId, { tab: 'Calculations' }))}>
+              Open full loop ›
+            </ObcButton>
+          </div>
+        );
+      })()}
     </>
   );
 };

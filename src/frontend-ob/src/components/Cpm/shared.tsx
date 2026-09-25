@@ -308,17 +308,19 @@ export const TonePill: React.FC<{ tone?: CpmTone; children: React.ReactNode }> =
   </span>
 );
 
-/** CPA's KPI tile: caption / value / sub, toned. */
+/** CPA's KPI tile: caption / value / sub, toned; `action` is the route behind the number. */
 export const KpiTile: React.FC<{
   caption: string;
   value: React.ReactNode;
   sub?: React.ReactNode;
   tone?: CpmTone;
-}> = ({ caption, value, sub, tone = 'muted' }) => (
+  action?: React.ReactNode;
+}> = ({ caption, value, sub, tone = 'muted', action }) => (
   <div className={`cpm-kpi cpm-kpi--${tone}`}>
     <span className="cpm-kpi__caption">{caption}</span>
     <span className="cpm-kpi__value">{value}</span>
     {sub != null && <span className="cpm-kpi__sub">{sub}</span>}
+    {action != null && <span className="cpm-kpi__action">{action}</span>}
   </div>
 );
 

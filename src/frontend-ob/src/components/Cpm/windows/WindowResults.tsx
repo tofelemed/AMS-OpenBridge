@@ -35,7 +35,7 @@ const SHORT_METRICS: { field: string; label: string; pct?: boolean }[] = [
   { field: 'completeness', label: 'Completeness', pct: true },
 ];
 
-const LONG_METRICS: { field: string; label: string; pct?: boolean }[] = [
+export const LONG_METRICS: { field: string; label: string; pct?: boolean }[] = [
   { field: 'acf_period_s', label: 'ACF period (s)' },
   { field: 'acf_regularity', label: 'ACF regularity' },
   { field: 'triangularity', label: 'Triangularity' },

@@ -10,7 +10,6 @@
  * note is stored honestly: it acknowledges the loop's open event frame with
  * the note attached — there is no other server-side note store.
  */
-import { windowKind, windowEnd as readWindowEnd, selectedWindow, selectLoop } from './navigation';
 import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -68,21 +67,23 @@ export const CpmReplay: React.FC = () => {
   const gateKey = params.get('gate') ?? 'G15';
 
   const calc = useCpmCalculations();
-  const kind = windowKind(params);
-  const history = useGateHistory(loopId, kind);
+  const history = useGateHistory(loopId, '24h');
   const windows = useMemo(() => {
     const rows = history.data?.windows ?? [];
     return [...rows].sort((a, b) => (b.windowEnd ?? '').localeCompare(a.windowEnd ?? ''));
   }, [history.data]);
-  const windowEnd = readWindowEnd(params);
+  const windowEnd = params.get('window');
   const selected: CpmGateMatrix | undefined =
-    selectedWindow(windows, windowEnd);
-  // Missing explicit windows remain missing; never replay another window's samples.
-  const windowFellBack = !!windowEnd && !history.isLoading && !selected;
+    windows.find(w => w.windowEnd === windowEnd) ?? windows[0];
+  // The deep-linked window may not be among the fetched newest 100 — keep the
+  // fallback (a blank replay helps nobody) but SAY it happened rather than
+  // silently replaying a different window than the link named.
+  const windowFellBack = !!windowEnd && windows.length > 0
+    && !windows.some(w => w.windowEnd === windowEnd);
 
-  // The KPI row for the selected kind/window carries the metric values.
+  // The long-tier KPI row for the same 24h window carries the metric values.
   const kpiRow: CpmKpiRow | undefined = useCpmKpisRange(
-    loopId, kind,
+    loopId, '24h',
     selected?.windowStart ?? undefined,
     // `to` is load-bearing, not decoration: the endpoint filters
     // window_end BETWEEN from AND to and then orders DESC LIMIT n, so leaving
@@ -171,8 +172,8 @@ export const CpmReplay: React.FC = () => {
         <PlantScopeFilter scope={scope} />
         <div className="cpm-toolbar">
           <LoopCombobox scope={scope} loops={loops} value={loopId ?? ''}
-            onChange={id => setParams(p => selectLoop(p, id), { replace: true })}
-            onClear={() => setParams(p => selectLoop(p, ''), { replace: true })} />
+            onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })}
+            onClear={() => setParams(p => { p.delete('loop'); p.delete('window'); return p; }, { replace: true })} />
           {/*
             These two selects DEPEND on the one above: no loop means no window
             list, and no window means the gate fallback has nothing to read. An
@@ -181,16 +182,16 @@ export const CpmReplay: React.FC = () => {
             removed. Each now carries a disabled option naming what is missing.
           */}
           <label className="cpm-field">
-            <span className="cpm-field__label">Evaluated window ({kind})</span>
+            <span className="cpm-field__label">Evaluated window (24h)</span>
             <select className="cpm-select" value={selected?.windowEnd ?? ''}
               disabled={windows.length === 0}
-              onChange={e => setParams(p => { p.set('window', e.target.value); p.set('kind', kind); p.delete('methodRun'); return p; })}>
+              onChange={e => setParams(p => { p.set('window', e.target.value); return p; }, { replace: true })}>
               {windows.length === 0 && (
                 <option value="">
                   {!loopId ? 'Select a loop first'
                     : history.isLoading ? 'Loading windows…'
                       : history.isError ? 'Window list unavailable'
-                        : 'No evaluated windows for this kind'}
+                        : 'No evaluated 24h windows for this loop'}
                 </option>
               )}
               {windows.map(w => (
@@ -239,7 +240,7 @@ export const CpmReplay: React.FC = () => {
         {windowFellBack && (
           <p className="cpm-copy" role="status">
             The window this link pointed at is not among the fetched results —
-            the requested selection is preserved. Choose another window explicitly.
+            replaying the newest evaluated window instead.
           </p>
         )}
         {!loopId && (
@@ -248,7 +249,7 @@ export const CpmReplay: React.FC = () => {
         )}
         {history.isError && <QueryError title="Gate history unavailable" error={history.error} retry={() => void history.refetch()} />}
         {loopId && !selected && !history.isLoading && !history.isError && (
-          <EmptyState title={windowEnd ? "Requested window unavailable" : "No evaluated windows for this kind"}
+          <EmptyState title="No evaluated 24h windows for this loop"
             copy="Replay needs a stored fused result; run the loop long enough to complete a window, or recompute from history." />
         )}
         {raw.isLoading && <EmptyState title="Loading raw slice…" />}

@@ -1,234 +1,125 @@
 'use client';
 
 /**
- * Explorer › Summary. Live/last-stored operating state, an 8h rolling trend and
- * the loop's configuration.
+ * Explorer › Summary — composition (cpa-ui-fix-plan Phase 3).
  *
- * One change from the previous version: when there is no live publisher AND no
- * historian data, it no longer renders three empty PV/SP/OP tiles above an empty
- * chart region. Three tiles reading "—" look like measurements that happen to be
- * zero; one honest empty state says what is actually true.
+ * Top: the operating state and 8 h trend (./summary/OperatingState) beside the
+ * loop model. Then the gates of the latest fused window as a strip fed from the
+ * gates/latest row the workspace already holds (no request); selecting a gate
+ * (`?gate=`, replace) opens its detail and evidence below, lazily. Then the
+ * calculations at any served window kind, lazily on request.
+ *
+ * The rolling trend is captioned as a trend range and the gate strip as an
+ * evaluated window, so the two are never read as the same thing.
  */
-import React, { useMemo } from 'react';
-import ReactECharts from 'echarts-for-react';
+import React, { Suspense, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmLoop } from '../../../api/cpmApi';
-import { useCpmTrend, useLoopLastValues } from '../../../hooks/useCpm';
-import { useLoopLive, qualityLabel } from '../../../hooks/useLoopLive';
-import { useObcTheme } from '../../../hooks/useObcTheme';
+import { ApiError } from '../../../api/apiFetch';
+import { useLatestGates } from '../../../hooks/useCpm';
 import { loopSeries } from '../../../utils/loopSeries';
+import { EmptyState, KvRow, PanelHead, QueryError, TonePill, fmtDateTime, toneFor } from '../shared';
+import { evidenceHref } from '../cpaHref';
+import { workbenchHref } from '../evidence/selection';
 import { LoopModelCard } from './LoopModelCard';
-import { modeLabel } from '../../../utils/modeVocabulary';
-import {
-  EmptyState, KvRow, PanelHead, QueryError, TonePill,
-  cpmChartColors, fmtDateTime, useRollingWindow, TREND_SPAN_MS, TREND_TICK_MS,
-} from '../shared';
+import OperatingState from './summary/OperatingState';
+import SummaryGateStrip from './summary/SummaryGateStrip';
 
-const num = (v: unknown) => (typeof v === 'number' ? v : null);
+const SummaryGateDetail = React.lazy(() => import('./summary/SummaryGateDetail'));
+const SummaryCalculations = React.lazy(() => import('./summary/SummaryCalculations'));
 
-/** "live (RBE)" while the feed is current; "live · 4h ago" once it has stalled. */
-const liveSource = (ts: number | undefined): string =>
-  ts && Date.now() - ts > STALE_LIVE_MS ? `live · ${ageLabel(ts)}` : 'live (RBE)';
+/** The fused kind the workspace verdict pill and this strip read; same query key as LoopWorkspace. */
+const WINDOW_KIND = '24h';
 
-/**
- * Beyond this, a "live" value is shown with its age.
- *
- * The RBE job heartbeats every known signal every 300 s, so a key never expires and
- * `live.hasData` stays true for as long as the job runs — which means absence no longer
- * signals a dead feed. The heartbeat carries the timestamp of the last message actually
- * RECEIVED, so a healthy loop reads seconds old and a stopped one visibly ages. Two
- * heartbeat intervals is comfortably past normal jitter while still catching an outage
- * within ~10 minutes. Without this, a dead gateway would render every loop as "live".
- */
-const STALE_LIVE_MS = 10 * 60 * 1000;
-
-/** Age of a stored value, coarse on purpose: the point is "not live", not precision. */
-const ageLabel = (ts: number | undefined): string => {
-  if (!ts) return 'earlier';
-  const mins = Math.max(0, Math.round((Date.now() - ts) / 60000));
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 48) return `${hrs}h ago`;
-  return `${Math.round(hrs / 24)}d ago`;
-};
+const isNoVerdictYet = (e: unknown) => e instanceof ApiError && e.status === 404;
 
 export const SummaryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
-  // Live plane (RBE + snapshot-on-open); historian values remain the fallback.
-  const live = useLoopLive(loop.loopId);
-  const series = loopSeries(loop.loopId);
-  const { start, end } = useRollingWindow(TREND_SPAN_MS, TREND_TICK_MS);
-  // pollDriven: the window advances on a timer, not because the operator asked.
-  const trend = useCpmTrend(series, start, end, 240, 'pv,sp,op,mode', true, true);
-  // Third plane. live -> trend bucket -> last stored value, which is the only one
-  // with no time bound: a setpoint held for a month and a loop parked in AUT are
-  // invisible to the other two, and rendering "—" for them reads as "no such
-  // signal" rather than "unchanged since before this window".
-  const lastStored = useLoopLastValues(series);
-  const points = useMemo(() => trend.data?.points ?? [], [trend.data]);
-  const last = points.length ? points[points.length - 1] : undefined;
+  const [params, setParams] = useSearchParams();
+  const gates = useLatestGates(loop.loopId, WINDOW_KIND);
+  const matrix = gates.data;
+  const cells = matrix?.gates ?? [];
+  const noVerdictYet = gates.isError && isNoVerdictYet(gates.error);
+  const failed = gates.isError && !noVerdictYet;
 
-  const obcTheme = useObcTheme(); // re-derive chart colors on theme switch
-  const option = useMemo(() => {
-    const { good, amber, grey } = cpmChartColors();
-    return {
-      animation: false,
-      grid: { left: 42, right: 12, top: 30, bottom: 24 },
-      legend: {
-        data: ['PV', 'SP', 'OP'], top: 0, right: 0,
-        textStyle: { color: grey }, inactiveColor: grey,
-      },
-      tooltip: {
-        trigger: 'axis',
-        // 'pv-min'/'pv-band' are stacked helper series that draw the envelope;
-        // their STACKED values are not readable quantities, so they are filtered
-        // out and the bucket's real min–max is reported instead.
-        formatter: (params: Array<{ seriesName: string; marker: string; value: number | null; dataIndex: number }>) => {
-          if (!params.length) return '';
-          const p = points[params[0].dataIndex];
-          const rows = params
-            .filter(x => x.seriesName !== 'pv-min' && x.seriesName !== 'pv-band')
-            .map(x => `${x.marker} ${x.seriesName}: ${x.value == null ? '—' : Number(x.value).toFixed(2)}`);
-          const lo = num(p?.pv_min); const hi = num(p?.pv_max);
-          if (lo != null && hi != null) rows.push(`PV range: ${lo.toFixed(2)} – ${hi.toFixed(2)}`);
-          return [`<strong>${fmtDateTime(p?.ts)}</strong>`, ...rows].join('<br/>');
-        },
-      },
-      xAxis: {
-        type: 'category',
-        data: points.map(p => new Date(p.ts).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })),
-        axisLabel: { color: grey }, axisLine: { lineStyle: { color: grey } },
-      },
-      yAxis: { type: 'value', scale: true, axisLabel: { color: grey }, splitLine: { lineStyle: { opacity: 0.2 } } },
-      series: [
-        { name: 'pv-min', type: 'line', stack: 'band', silent: true, symbol: 'none',
-          lineStyle: { width: 0 }, data: points.map(p => num(p.pv_min)) },
-        { name: 'pv-band', type: 'line', stack: 'band', silent: true, symbol: 'none',
-          lineStyle: { width: 0 }, areaStyle: { color: good, opacity: 0.18 },
-          data: points.map(p => {
-            const lo = num(p.pv_min); const hi = num(p.pv_max);
-            return lo != null && hi != null ? hi - lo : null;
-          }) },
-        { name: 'PV', type: 'line', symbol: 'none', lineStyle: { color: good, width: 2 },
-          data: points.map(p => num(p.pv_avg) ?? num(p.pv)) },
-        { name: 'SP', type: 'line', symbol: 'none', lineStyle: { color: grey, width: 1, type: 'dashed' },
-          data: points.map(p => num(p.sp)) },
-        { name: 'OP', type: 'line', symbol: 'none', lineStyle: { color: amber, width: 1.5 },
-          data: points.map(p => num(p.op_avg) ?? num(p.op)) },
-      ],
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
-  }, [points, obcTheme]);
+  // The selected gate lives in the URL (replace: an in-page selection). A gate
+  // the served row does not carry is ignored rather than shown empty.
+  const requestedGate = params.get('gate');
+  const selectedGate = requestedGate && cells.some(c => c.key === requestedGate) ? requestedGate : null;
+  const selectGate = (gate: string | null) => setParams(p => {
+    if (gate && gate !== p.get('gate')) p.set('gate', gate); else p.delete('gate');
+    return p;
+  }, { replace: true });
 
-  // The third plane counts: a loop whose only evidence is a last stored value must
-  // render its tiles, not the "nothing here" state this guard exists for.
-  const hasStored = Object.keys(lastStored.data?.values ?? {}).length > 0;
-  const noData = !live.hasData && !trend.isLoading && !trend.isError && points.length === 0
-                 && !lastStored.isLoading && !hasStored;
+  const [calcOpen, setCalcOpen] = useState(false);
+
+  // The Workbench exit opens the exact fused run when the row carries one, else
+  // the loop-level landing (its newest window with run identity).
+  const g15 = matrix?.methodRunIds?.G15 ?? matrix?.gates.find(g => g.key === 'G15')?.methodRunId ?? null;
+  const workbench = g15
+    ? { href: workbenchHref(loop.loopId, g15, 'G15'), title: `Open the fused ${WINDOW_KIND} run ${g15} in the Evidence Workbench` }
+    : { href: evidenceHref(loop.loopId, { kind: WINDOW_KIND }), title: 'Open the newest window with run identity in the Evidence Workbench' };
 
   return (
-    <div className="cpm-grid-2">
-      <div>
+    <div>
+      <div className="cpm-grid-2">
+        <OperatingState loop={loop} />
+        {/* v2.5 (audit F12): the loop model the engines run on, with the ways into its evidence */}
+        <div>
+          <LoopModelCard loop={loop} workbenchHref={workbench.href} workbenchTitle={workbench.title} />
+          <KvRow label="Gate profile">{loop.thresholdProfileId ?? 'default'}</KvRow>
+          <KvRow label="Historian device">{loopSeries(loop.loopId)}</KvRow>
+        </div>
+      </div>
+
+      <section className="cpm-summary-section" aria-label="Gates on the latest fused window">
         <PanelHead
-          eyebrow={live.hasData ? 'Live operating state' : 'Last stored samples'}
-          title="Operating state"
+          eyebrow={`Evaluated ${WINDOW_KIND} window${matrix?.windowEnd ? ` · ending ${fmtDateTime(matrix.windowEnd)}` : ''}`}
+          title="Gates on the latest fused result"
+          right={matrix ? (
+            <TonePill tone={toneFor(matrix.diagnosis)}>
+              {(matrix.diagnosis ?? 'NONE').replace(/_/g, ' ')}
+              {matrix.confidence != null ? ` · ${(matrix.confidence * 100).toFixed(0)}%` : ''}
+            </TonePill>
+          ) : undefined}
         />
-
-        {/* Neither plane has anything: say that once instead of rendering three
-            "—" tiles that read like measured zeros. */}
-        {noData ? (
-          <EmptyState
-            title="No operating data"
-            copy={`No live publisher, and no samples stored at ${series} in the last 8 hours.`}
-          />
-        ) : (
+        {gates.isLoading && <EmptyState title="Loading the latest fused result…" />}
+        {failed && <QueryError title="Gate outcomes unavailable" error={gates.error} retry={() => void gates.refetch()} />}
+        {noVerdictYet && (
+          <EmptyState title={`No fused ${WINDOW_KIND} verdict yet`}
+            copy="Gate outcomes appear once this loop completes an evaluation window." />
+        )}
+        {cells.length > 0 && (
           <>
-            <div className="cpm-kpi-row" style={{ marginBottom: 12 }}>
-              {(['pv', 'sp', 'op'] as const).map(m => {
-                const lv = live[m];
-                const liveVal = lv && typeof lv.value === 'number' ? lv.value.toFixed(2) : null;
-                // Read the SAME aggregate the chart pen draws: PV/OP from the
-                // bucket average, SP from last_value.
-                const stored = m === 'sp'
-                  ? num(last?.[m])
-                  : num(last?.[`${m}_avg`]) ?? num(last?.[m]);
-                const held = num(lastStored.data?.values?.[m]?.value);
-                const shown = liveVal ?? (stored != null ? stored.toFixed(2)
-                                        : held != null ? held.toFixed(2) : null);
-                const heldTs = stored == null && held != null
-                  ? lastStored.data?.values?.[m]?.ts : undefined;
-                return (
-                  <div key={m} className="cpm-kpi">
-                    <span className="cpm-kpi__caption">{m.toUpperCase()}</span>
-                    <span className="cpm-kpi__value">{shown ?? '—'}</span>
-                    {/* OP is a percentage of span by definition in this engine.
-                        PV/SP carry no engineering unit in the registry. */}
-                    <span className="cpm-kpi__sub">
-                      {m === 'op' ? '% · ' : ''}
-                      {liveVal ? liveSource(lv?.ts)
-                       : stored != null ? 'from historian'
-                       : heldTs ? `last stored ${ageLabel(heldTs)}`
-                       : 'no value'}
-                    </span>
-                  </div>
-                );
-              })}
-
-              {/* MODE completes the picture. A loop in manual is excluded at Gate 1, so
-                  every verdict on this page was computed WITHOUT it — showing PV/SP/OP
-                  alone invites the reader to judge performance that was never scored.
-                  UNKNOWN is its own case: the source has never published a mode at all
-                  (7 loops on the HDPE plant, 2026-09-11), which reads as manual to the
-                  engine and is an OT gap rather than an operator choice. */}
-              {(() => {
-                // Same two-plane rule as PV/SP/OP: live first, last stored value second.
-                // MODE changes so rarely that the RBE live plane is usually silent for it
-                // — a loop sitting in AUT for a month publishes nothing — so reading only
-                // the live plane rendered "—" for loops whose mode is perfectly well known.
-                const liveMode = live.mode?.value;
-                const storedMode = last?.mode;
-                const heldMode = lastStored.data?.values?.mode;
-                const value = liveMode ?? storedMode ?? heldMode?.value;
-                const m = modeLabel(value);
-                const src = liveMode != null ? liveSource(live.mode?.ts)
-                          : storedMode != null ? 'from historian'
-                          : heldMode?.value != null ? `last stored ${ageLabel(heldMode.ts)}`
-                          : null;
-                return (
-                  <div className="cpm-kpi">
-                    <span className="cpm-kpi__caption">MODE</span>
-                    <span className="cpm-kpi__value">{m.label}</span>
-                    <span className="cpm-kpi__sub">{src ? `${m.note} · ${src}` : m.note}</span>
-                  </div>
-                );
-              })()}
-            </div>
-            {/* Source quality belongs with the values it describes, not in the
-                panel head where it read as a loop verdict. */}
-            <p className="cpm-copy cpm-source-line">
-              <TonePill tone={live.hasData ? qualityLabel(live.quality ?? live.pv).tone : 'muted'}>
-                {live.hasData ? qualityLabel(live.quality ?? live.pv).label : 'NO LIVE PUBLISHER'}
-              </TonePill>
-              {/* "Trend range", not "Window": this is the rolling historian
-                  envelope, not an engine evaluation window — the shared noun
-                  conflated the two on the one page where it matters most. */}
-              {' '}Trend range {fmtDateTime(start.getTime())} → {fmtDateTime(end.getTime())}
-            </p>
+            <SummaryGateStrip cells={cells} selected={selectedGate} onSelect={g => selectGate(g === selectedGate ? null : g)} />
+            {selectedGate && matrix ? (
+              <Suspense fallback={<EmptyState title={`Loading ${selectedGate}…`} />}>
+                <SummaryGateDetail loop={loop} gate={selectedGate} matrix={matrix} windowKind={WINDOW_KIND}
+                  onClose={() => selectGate(null)} />
+              </Suspense>
+            ) : (
+              <p className="cpm-copy cpm-summary-hint">
+                Select a gate to read its verdict, window and evidence here; the Evidence Workbench holds the full run.
+              </p>
+            )}
           </>
         )}
+      </section>
 
-        {trend.isLoading && <EmptyState title="Loading trend…" />}
-        {/* A historian 403/500 is not an empty historian. */}
-        {trend.isError && (
-          <QueryError title="Trend unavailable" error={trend.error} retry={() => void trend.refetch()} />
+      <section className="cpm-summary-section" aria-label="Calculations">
+        <PanelHead eyebrow="Long and short windows" title="Calculations"
+          right={
+            <ObcButton variant="flat" title={calcOpen ? 'Collapse the calculations' : 'Newest result at every served window kind'}
+              onClick={() => setCalcOpen(v => !v)}>
+              {calcOpen ? 'Hide calculations' : 'Show calculations ›'}
+            </ObcButton>
+          } />
+        {calcOpen && (
+          <Suspense fallback={<EmptyState title="Loading calculations…" />}>
+            <SummaryCalculations loop={loop} defaultKind={WINDOW_KIND} />
+          </Suspense>
         )}
-        {points.length > 0 && <ReactECharts option={option} style={{ height: 240 }} notMerge />}
-      </div>
-
-      {/* v2.5 (audit F12): the loop model the engines run on, with the ways into its evidence - not a version string (R26) */}
-      <div>
-        <LoopModelCard loop={loop} />
-        <KvRow label="Gate profile">{loop.thresholdProfileId ?? 'default'}</KvRow>
-        <KvRow label="Historian device">{series}</KvRow>
-      </div>
+      </section>
     </div>
   );
 };

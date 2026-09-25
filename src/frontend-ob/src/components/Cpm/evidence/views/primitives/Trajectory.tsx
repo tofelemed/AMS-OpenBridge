@@ -2,10 +2,14 @@
  * v2.5 Task 2E.4 primitive: an ORDERED trajectory of (x, y) pairs (PV versus applied input) drawn in
  * sample order with start / end markers and optional highlighted points (corners, out-of-domain).
  * Units on both axes; the points are the ones the gate scored, never a resampled scatter.
+ * Phase 5 (cpa-ui-fix-plan): rectangle zoom on both axes.
  */
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { cpmChartColors } from '../../../shared';
+import { FULL_ZOOM, boxZoomOption, type ZoomState } from '../../../../charts/boxZoom';
+import { useBoxZoom, useKeepSelecting } from '../../../../charts/useBoxZoom';
+import ChartZoomBar from '../../../../charts/ChartZoomBar';
 
 export interface TrajectoryInput {
   x: ArrayLike<number>;
@@ -18,6 +22,7 @@ export interface TrajectoryInput {
   highlightLabel?: string;
   bounds?: { xMin?: number; xMax?: number; yMin?: number; yMax?: number };
   pens: { good: string; amber: string; grey: string; accent: string; pink: string; bad: string };
+  zoom?: ZoomState;
 }
 
 export function buildTrajectoryOption(i: TrajectoryInput) {
@@ -32,6 +37,7 @@ export function buildTrajectoryOption(i: TrajectoryInput) {
   return {
     animation: false,
     grid: { left: 64, right: 24, top: 24, bottom: 48 },
+    ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: 0 }, i.zoom ?? FULL_ZOOM),
     tooltip: { trigger: 'item' as const, formatter: (p: { value: [number, number] }) => `${i.xLabel}: ${p.value[0]} ${i.xUnit}<br/>${i.yLabel}: ${p.value[1]} ${i.yUnit}` },
     xAxis: { type: 'value' as const, name: `${i.xLabel} (${i.xUnit})`, nameLocation: 'middle' as const, nameGap: 28, scale: true, axisLabel: { color: i.pens.grey } },
     yAxis: { type: 'value' as const, name: `${i.yLabel} (${i.yUnit})`, scale: true, axisLabel: { color: i.pens.grey }, splitLine: { lineStyle: { opacity: 0.2 } } },
@@ -44,13 +50,19 @@ export function buildTrajectoryOption(i: TrajectoryInput) {
   };
 }
 
-export const Trajectory: React.FC<Omit<TrajectoryInput, 'pens'> & { title: string; height?: number }> = (props) => {
+export const Trajectory: React.FC<Omit<TrajectoryInput, 'pens' | 'zoom'> & { title: string; height?: number }> = (props) => {
   const pens = cpmChartColors();
-  const option = useMemo(() => buildTrajectoryOption({ ...props, pens }), [props, pens]);
+  const box = useBoxZoom({ hasY: true });
+  const option = useMemo(() => buildTrajectoryOption({ ...props, pens, zoom: box.zoom }), [props, pens, box.zoom]);
+  useKeepSelecting(box, option);
   return (
     <div className="cpm-chart" data-chart={props.title}>
-      <span className="cpm-chart__title">{props.title}</span>
-      <ReactECharts option={option} notMerge style={{ height: props.height ?? 320 }} />
+      <div className="cpm-chart__bar">
+        <span className="cpm-chart__title">{props.title}</span>
+        <ChartZoomBar box={box} hasData={props.x.length > 0} />
+      </div>
+      <ReactECharts option={option} notMerge style={{ height: props.height ?? 320 }}
+        onChartReady={box.onChartReady} onEvents={{ datazoom: box.onDataZoom }} />
     </div>
   );
 };

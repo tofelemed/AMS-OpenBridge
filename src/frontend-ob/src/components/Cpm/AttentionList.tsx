@@ -10,8 +10,12 @@
  *    bridge between this panel and the matrix — previously the ranking told you
  *    WHICH loop and the matrix told you WHY, with no link between them. Clicking
  *    a row now selects it in the matrix and jumps to the driving gate.
+ *
+ * 2026-09-20 (cpa-ui-fix-plan Phase 2): every row also carries a route to the
+ * loop hub, so the ranking is not a dead end for someone who already knows why.
  */
 import React from 'react';
+import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObcDropdownButton } from '@oicl/openbridge-webcomponents-react/components/dropdown-button/dropdown-button';
 import type { CpmHeatmapLoop, CpmRankedLoop } from '../../api/cpmApi';
 import { EmptyState, PanelHead, QueryError, TonePill, toneFor } from './shared';
@@ -36,12 +40,14 @@ export interface AttentionListProps {
   retry: () => void;
   selectedLoopId: string | null;
   onSelectLoop: (loopId: string) => void;
+  /** Open the loop hub (a route, push). */
+  onOpenLoop: (loopId: string) => void;
   onOpenGate: (loopId: string, gate: string) => void;
 }
 
 export const AttentionList: React.FC<AttentionListProps> = ({
   ranked, heatmapLoops, gateKeys, rankBy, onRankByChange,
-  isLoading, isError, error, retry, selectedLoopId, onSelectLoop, onOpenGate,
+  isLoading, isError, error, retry, selectedLoopId, onSelectLoop, onOpenLoop, onOpenGate,
 }) => {
   // Gate detail lives in the heatmap feed, the ranking feed carries metrics —
   // join them on loopId so a ranked row can name its own driving gates.
@@ -102,6 +108,7 @@ export const AttentionList: React.FC<AttentionListProps> = ({
                   type="button"
                   className="cpm-attention__main"
                   aria-current={selected ? 'true' : undefined}
+                  title="Select this loop in the matrix"
                   onClick={() => onSelectLoop(l.loopId)}
                 >
                   <span className="cpm-attention__rank" aria-hidden>#{i + 1}</span>
@@ -139,6 +146,11 @@ export const AttentionList: React.FC<AttentionListProps> = ({
                     </>
                   )}
                 </span>
+
+                <ObcButton variant="flat" title={`Open ${l.loopId} in the Loop Explorer`}
+                  onClick={() => onOpenLoop(l.loopId)}>
+                  Open loop ›
+                </ObcButton>
               </li>
             );
           })}

@@ -11,10 +11,11 @@
  * the only scrollable column ~300px — four loops above the fold. It now sits
  * full-width under the header, exactly as it does on Performance.
  *
- * The rail also collapses: once a loop is selected the picker is not what you
- * are looking at, and both the trend chart and the episode list want the width.
+ * The rail collapses on its own (cpa-ui-fix-plan Phase 3): whenever the URL
+ * names a loop — a pick from the search, a deep link, Back/Forward — the picker
+ * is not what you are looking at, and both the trend and the gate strip want
+ * the width. Clearing the loop reopens it; the chevron still toggles it by hand.
  */
-import { cpaHref, selectLoop as changeLoop } from './navigation';
 import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-left-google';
@@ -33,11 +34,10 @@ export const CpmExplorer: React.FC = () => {
   // Validate rather than cast: `?tab=Foo` used to satisfy the cast, match none
   // of the render branches, and leave an empty workspace with no explanation —
   // which is what a stale bookmark from a renamed tab produces.
-  const rawTab = TABS.find(t => t.toLowerCase() === params.get('tab')?.toLowerCase());
+  const rawTab = params.get('tab');
   const tab: ExplorerTab = TABS.includes(rawTab as ExplorerTab)
     ? (rawTab as ExplorerTab) : 'Summary';
 
-  const [railOpen, setRailOpen] = React.useState(true);
   const scope = useCpmScope();
 
   const { data, isLoading, isError, error, refetch } = useCpmLoops();
@@ -48,6 +48,12 @@ export const CpmExplorer: React.FC = () => {
   // lower($1)`) — a deep link whose case differs from the registry's should
   // resolve, not fall through to "not found".
   const requestedId = params.get('loop');
+  // The URL decides the rail: closed while a loop is named, open otherwise. The
+  // effect re-applies that on every loop change (search pick, deep link, Back),
+  // and the chevron overrides it until the next change.
+  const [railOpen, setRailOpen] = React.useState(() => !requestedId);
+  React.useEffect(() => { setRailOpen(!requestedId); }, [requestedId]);
+
   // No default: `inScope[0]` is registry order, i.e. an arbitrary loop shown as
   // though it were chosen. The rail is right there to choose from.
   const loop = requestedId
@@ -61,12 +67,13 @@ export const CpmExplorer: React.FC = () => {
     // replace: selecting a loop is in-page selection in a master-detail view,
     // not a page visit — browsing eight loops left eight history entries
     // between the operator and Back, while the URL stays just as shareable.
-    setParams(p => changeLoop(p, loopId), { replace: true });
+    // A gate selected on the previous loop's Summary does not carry over.
+    setParams(p => { p.set('loop', loopId); p.delete('gate'); return p; }, { replace: true });
 
-  const openRegistry = () => navigate(cpaHref('/cpm/registry', params));
+  const openRegistry = () => navigate('/cpm/registry');
 
   return (
-    <div className="cpm-screen" data-cpa-ready={!!data && !requestedId}>
+    <div className="cpm-screen">
       <WorkspaceHeader
         eyebrow="Asset-centric operational context"
         title="Explorer"

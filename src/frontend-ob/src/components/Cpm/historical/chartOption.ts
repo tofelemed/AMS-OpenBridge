@@ -13,10 +13,14 @@
  * start/end instants on grids that share the signals' x domain, so a band's
  * WIDTH is its duration, every lane is pinned to the same [from, to] domain, and
  * one linked axisPointer crosses all four.
+ *
+ * Phase 5 (cpa-ui-fix-plan): rectangle zoom — x across every lane, y on the
+ * signals grid only; the box components, the slider and the wheel share state.
  */
 import type { CpmKpiRow, CpmTrendPoint } from '../../../api/cpmApi';
 import type { CpmTone } from '../shared';
 import { formatInZone, zoneLabel } from '../evidence/timezone';
+import { FULL_ZOOM, boxZoomOption, type ZoomState } from '../../charts/boxZoom';
 
 /** Grid geometry, in px from the top of the canvas. Lane labels reuse these. */
 export const LANES = {
@@ -59,6 +63,8 @@ export interface ChartInput {
   timeZone?: string;
   /** v2.5 (2E.2): explicit Normalise toggle - every signal on one "fraction of own span" axis, labelled as such. */
   normalize?: boolean;
+  /** Phase 5: the current rectangle / slider zoom (percent ranges), so a re-applied option keeps it. */
+  zoom?: ZoomState;
 }
 
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
@@ -110,6 +116,12 @@ export function buildChartOption(input: ChartInput) {
   // an EU axis (PV / SP) and a percentage-point axis (OP / VP); the pp axis is appended AFTER the
   // lane axes so their indices stay put. Normalise collapses both onto "fraction of own span".
   const ppAxisIndex = hasHealth ? 5 : 4;
+  // Phase 5: the box zooms x on every lane and y on the signals grid's own axes only (the lanes'
+  // 0..1 band axes must never zoom). The slider stays as the coarse x control on the same axes.
+  const box = boxZoomOption(
+    { xAxisIndex: zoomAxes, yAxisIndex: normalize ? [0] : [0, ppAxisIndex], panOnDrag: true },
+    input.zoom ?? FULL_ZOOM,
+  );
   const spanOf = (get: (p: CpmTrendPoint) => number | null) => {
     let lo = Infinity, hi = -Infinity;
     for (const p of points) { const v = get(p); if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }
@@ -167,10 +179,12 @@ export function buildChartOption(input: ChartInput) {
       { type: 'text', left: 8, top: LANES.mode.top, style: { text: 'MODE', fill: grey, font: '10px sans-serif' } },
       { type: 'text', left: 8, top: LANES.verdict.top + 4, style: { text: 'VERDICT', fill: grey, font: '10px sans-serif' } },
     ],
+    toolbox: box.toolbox,
     dataZoom: [
-      { type: 'inside', xAxisIndex: zoomAxes, filterMode: 'none' },
+      ...box.dataZoom,
       {
         type: 'slider', xAxisIndex: zoomAxes, filterMode: 'none',
+        start: (input.zoom ?? FULL_ZOOM).x.start, end: (input.zoom ?? FULL_ZOOM).x.end,
         height: LANES.slider.height, bottom: LANES.slider.bottom,
         borderColor: grey, textStyle: { color: grey },
       },
@@ -238,19 +252,19 @@ export function buildChartOption(input: ChartInput) {
           }) },
       ] : []),
       ...(signals.includes('pv') ? [
-        { name: sig('PV'), type: 'line', symbol: 'none', connectNulls: false, yAxisIndex: 0, lineStyle: { color: good, width: 2 },
+        { name: sig('PV'), type: 'line', symbol: 'none', connectNulls: false, yAxisIndex: 0, color: good, lineStyle: { color: good, width: 2 },
           data: dataOf(pvGet, spans.pv) },
       ] : []),
       ...(signals.includes('sp') ? [
-        { name: sig('SP'), type: 'line', symbol: 'none', connectNulls: false, yAxisIndex: 0, lineStyle: { color: grey, width: 1, type: 'dashed' },
+        { name: sig('SP'), type: 'line', symbol: 'none', connectNulls: false, yAxisIndex: 0, color: grey, lineStyle: { color: grey, width: 1, type: 'dashed' },
           data: dataOf(spGet, spans.sp) },
       ] : []),
       ...(signals.includes('op') ? [
-        { name: sig('OP'), type: 'line', symbol: 'none', connectNulls: false, lineStyle: { color: amber, width: 1.5 },
+        { name: sig('OP'), type: 'line', symbol: 'none', connectNulls: false, color: amber, lineStyle: { color: amber, width: 1.5 },
           ...(normalize ? {} : { yAxisIndex: ppAxisIndex }), data: dataOf(opGet, spans.op) },
       ] : []),
       ...(signals.includes('vp') ? [
-        { name: sig('VP'), type: 'line', symbol: 'none', connectNulls: false, lineStyle: { color: pink, width: 1.5 },
+        { name: sig('VP'), type: 'line', symbol: 'none', connectNulls: false, color: pink, lineStyle: { color: pink, width: 1.5 },
           ...(normalize ? {} : { yAxisIndex: ppAxisIndex }), data: dataOf(vpGet, spans.vp) },
       ] : []),
       { name: overlay.label, type: 'line', xAxisIndex: 1, yAxisIndex: 1, symbol: 'circle', connectNulls: false,

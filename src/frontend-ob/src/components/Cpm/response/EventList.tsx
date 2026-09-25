@@ -4,6 +4,8 @@
  * 2026-09-17 audit F19/F20: one row is time · type · path · ONE state · a one-line finding; the
  * censored candidates (superseded / source gap - most of the table) stay out until asked for, and
  * the list always says how many there are.
+ * 2026-09-20 (cpa-ui-fix-plan Phase 7): the timestamp stays on one line and the censored toggle is
+ * a full-width button, so the narrow column no longer wraps them into three lines each.
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -29,7 +31,9 @@ export const EventList: React.FC<EventListProps> = ({ events, selectedId, timeZo
   <aside className="cpm-surface cpm-response-events" aria-busy={loading || undefined}>
     <PanelHead eyebrow="Events" title={`Response events (${events.length}${hasMore ? '+' : ''})`} />
     {censoredCount > 0 && (
-      <ObcButton variant="flat" className="cpm-response-events__censored" onClick={() => onToggleCensored(!showCensored)}>
+      <ObcButton variant="flat" fullWidth className="cpm-response-events__censored"
+        title={showCensored ? 'Hide the censored candidates' : 'Censored candidates were superseded by a later change or hit a source gap'}
+        onClick={() => onToggleCensored(!showCensored)}>
         {showCensored ? 'Hide' : 'Show'} {censoredCount} censored candidate{censoredCount === 1 ? '' : 's'}
       </ObcButton>
     )}
@@ -49,7 +53,7 @@ export const EventList: React.FC<EventListProps> = ({ events, selectedId, timeZo
             <button type="button" className={`cpm-response-event${selected ? ' cpm-response-event--selected' : ''}${v.censored ? ' cpm-response-event--censored' : ''}`}
               aria-current={selected ? 'true' : undefined} onClick={() => onSelect(e)}>
               <span className="cpm-response-event__head">
-                <span className="cpm-mono">{formatInZone(e.t0Ms, timeZone)}</span>
+                <span className="cpm-mono cpm-response-event__time">{formatInZone(e.t0Ms, timeZone)}</span>
                 <TonePill tone={v.tone}>{v.state}</TonePill>
               </span>
               <span className="cpm-response-event__what">{e.eventType} · {e.pathId}</span>
@@ -59,6 +63,6 @@ export const EventList: React.FC<EventListProps> = ({ events, selectedId, timeZo
         );
       })}
     </ul>
-    {hasMore && <ObcButton variant="flat" disabled={loading} onClick={onMore}>{loading ? 'Loading…' : 'Older events'}</ObcButton>}
+    {hasMore && <ObcButton variant="flat" fullWidth disabled={loading} onClick={onMore}>{loading ? 'Loading…' : 'Older events'}</ObcButton>}
   </aside>
 );

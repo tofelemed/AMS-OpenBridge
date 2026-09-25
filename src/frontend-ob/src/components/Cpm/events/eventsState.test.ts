@@ -10,7 +10,7 @@ const frame = (over: Partial<CpmEventFrame>): CpmEventFrame => ({
   last_confidence: 0.8, severity: 'HIGH', window_count: 2, ack_state: 'UNACKNOWLEDGED', acked_by: null, acked_at: null,
   shelve_until: null, note: null, calculation_version: '3.0.0', dynamics_profile_version: '2.0.0',
   availability_state: 'OBSERVED', condition_state: 'OPEN', result_revision: 1, qualified_support_ms: 2 * 86_400_000,
-  close_reason: null, ...over,
+  close_reason: null, shelf_state: 'NONE', shelved_by: null, shelved_at: null, shelve_reason: null, ...over,
 });
 
 describe('eventsState', () => {

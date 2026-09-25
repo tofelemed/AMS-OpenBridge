@@ -16,6 +16,13 @@
  * 3. It is a real ARIA grid with one tab stop and arrow-key navigation. The old
  *    markup nested 17 buttons inside a row that was itself role="button" — both
  *    invalid and an 18-stop tab detour per row.
+ *
+ * 2026-09-20 (cpa-ui-fix-plan Phase 2): the loop cell is a ROUTE to the loop hub
+ * (Explorer › Summary); selection stays with the gate cells, which also open the
+ * evidence panel. The cell remains a native button on purpose: the grid's roving
+ * tabindex moves focus with `element.focus()`, and `obc-button` renders its
+ * <button> inside a shadow root without delegatesFocus, so it can neither take
+ * that focus nor give up its own tab stop — 25 rows would become 25 extra stops.
  */
 import React from 'react';
 import { ObcFilterChip } from '@oicl/openbridge-webcomponents-react/components/filter-chip/filter-chip';
@@ -47,6 +54,8 @@ export interface GateMatrixProps {
   onPageChange: (page: number) => void;
   selectedLoopId: string | null;
   onSelectLoop: (loopId: string) => void;
+  /** The loop cell: open the loop hub (a route, push). */
+  onOpenLoop: (loopId: string) => void;
   onOpenGate: (loopId: string, gate: string) => void;
   /** Fleet total from the summary endpoint, so the footer can name the shortfall. */
   fleetTotal?: number | null;
@@ -54,7 +63,7 @@ export interface GateMatrixProps {
 
 export const GateMatrix: React.FC<GateMatrixProps> = ({
   loops, orderedGateKeys, tierGroups, filter, onFilterChange,
-  page, onPageChange, selectedLoopId, onSelectLoop, onOpenGate, fleetTotal,
+  page, onPageChange, selectedLoopId, onSelectLoop, onOpenLoop, onOpenGate, fleetTotal,
 }) => {
   // The text box is deliberately NOT in the URL: it churns one history entry per
   // keystroke and nobody shares "loops matching FIC-0". Mode and gate are, because
@@ -231,11 +240,12 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
                           data-r={r}
                           data-c={0}
                           tabIndex={tabIndexOf(r, 0)}
-                          aria-label={`Select ${row.loopId}, ${row.displayName}`}
+                          title="Open in the Loop Explorer"
+                          aria-label={`Open ${row.loopId}, ${row.displayName}, in the Loop Explorer`}
                           onFocus={() => setCursor({ r, c: 0 })}
-                          onClick={() => onSelectLoop(row.loopId)}
+                          onClick={() => onOpenLoop(row.loopId)}
                         >
-                          <strong>{row.loopId}</strong>
+                          <strong>{row.loopId} ›</strong>
                           <span className="cpm-event-row__sub">{row.displayName}</span>
                         </button>
                       </th>

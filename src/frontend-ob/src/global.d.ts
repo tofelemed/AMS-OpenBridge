@@ -45,6 +45,10 @@ declare module '@oicl/openbridge-webcomponents-react/components/button/button' {
     /** Reveal the `trailing-icon` slot. */
     showTrailingIcon?: boolean;
     className?: string;
+    /** Toggle state for mode buttons (host attribute). */
+    'aria-pressed'?: boolean;
+    /** Native tooltip / disabled reason; forwarded to the host element. */
+    title?: string;
     onClick?: () => void;
     children?: ReactNode;
   }

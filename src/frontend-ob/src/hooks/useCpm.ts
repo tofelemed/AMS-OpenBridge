@@ -18,6 +18,8 @@ const KEYS = {
   contract: ['cpm', 'registry-contract'] as const,
   readiness: (id: string) => ['cpm', 'readiness', id] as const,
   events: (q: cpm.CpmEventsQuery) => ['cpm', 'events', q] as const,
+  // CHG-032: under the 'events' prefix on purpose - an ack/shelve invalidation refreshes the history too.
+  eventActions: (id: number) => ['cpm', 'events', 'actions', id] as const,
   gatesLatest: (id: string, wk: string) => ['cpm', 'gates', id, wk] as const,
   fleetSummary: (site?: string) => ['cpm', 'fleet', 'summary', site ?? ''] as const,
   pipeline: ['cpm', 'pipeline-status'] as const,
@@ -107,9 +109,28 @@ export function useAcknowledgeEvent() {
 export function useShelveEvent() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, until, note }: { id: number; until: string; note?: string }) =>
-      cpm.shelveEvent(id, until, note),
+    mutationFn: ({ id, until, reason }: { id: number; until: string; reason: string }) =>
+      cpm.shelveEvent(id, until, reason),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['cpm', 'events'] }),
+  });
+}
+
+/** CHG-032: ends a shelf; the ack state is untouched. */
+export function useUnshelveEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: number; reason?: string }) => cpm.unshelveEvent(id, reason),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['cpm', 'events'] }),
+  });
+}
+
+/** CHG-032: the episode's operator history. Fetched only while a caller shows it (no eager load). */
+export function useEventActions(id: number | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: KEYS.eventActions(id ?? 0),
+    queryFn: ({ signal }) => cpm.getEventActions(id!, signal),
+    enabled: enabled && id !== undefined,
+    staleTime: 15_000,
   });
 }
 

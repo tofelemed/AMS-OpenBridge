@@ -12,6 +12,8 @@
 #                               new endpoints (/capabilities, /gate-catalogue, /method-runs, /evidence, /analysis-runs,
 #                               /response-events, /models, /instrument-health, /conditions, /investigations,
 #                               /configuration/*), fusion v2 reads, episode availability vs condition
+#                               CHG-032 (2026-09-20): episode shelving lifecycle - /events/{id}/unshelve, /events/{id}/actions,
+#                               /events/shelving-policy, the shelf expiry sweeper (needs ops/cpm-09-event-shelving.sql FIRST)
 #   historian-bff               CHG-026: three timestamps (source / verified / emission) on the live snapshot
 #   flink-jobmanager            CHG-026/027/028: the JAR - schema 1.1 codec, strict quality, RBE quality transitions,
 #                               G2/G4/G10/G11 semantics, fusion v2, run identity + evidence artifacts, G12 response
@@ -21,6 +23,7 @@
 #   ams-frontend                CHG-026/027/028: Governance build identity, transmitter health panel + lanes, events
 #                               availability/condition, evidence workbench (17 views), system response workspace,
 #                               registry classification step, gate configuration workspace
+#                               CHG-030 (2026-09-20): CPA navigation / UI repair; CHG-032: shelve / unshelve / history
 #
 #   traverse-auth-service       CHG-028 lab finding: the revocation feed rounded credentials_changed_at to the nearest second,
 #                               so a token issued in the same second as a user creation / password change read as revoked
@@ -43,6 +46,8 @@
 #                                       the old consumer needs the OLD key, the new one the NEW key)
 #   ops/cpm-08-v25-permissions.sql     (traverse_auth: cpm.analysis.create, cpm.model.review, cpm.context.manage,
 #                                       cpm.config.* + role grants)
+#   ops/cpm-09-event-shelving.sql      (CHG-032: shelf_state + shelf columns + cplm_event_actions on traverse_cplm; converts
+#                                       legacy ack_state = SHELVED rows; additive, online, re-runnable; BEFORE the cplm-api swap)
 # Kafka: 7 NEW topics in migration/kafka/topics.txt (instrument health + context, response results, gate evidence,
 #   conditions, gate-config bundles + acks) - create them BEFORE the jobs start (04-create-kafka-topics.sh,
 #   ALLOW_CREATE_PREFIXED_TOPICS=yes, --if-not-exists). traverse.cpa.loop.samples.v1 and

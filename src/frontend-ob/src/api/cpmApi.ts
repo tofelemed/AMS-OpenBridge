@@ -237,6 +237,7 @@ export interface CpmEventFrame {
   last_confidence: number | null;
   severity: string | null;
   window_count: number;
+  /** UNACKNOWLEDGED | ACKNOWLEDGED. 'SHELVED' only on a row the CHG-032 script has not converted yet. */
   ack_state: 'UNACKNOWLEDGED' | 'ACKNOWLEDGED' | 'SHELVED';
   acked_by: string | null;
   acked_at: string | null;
@@ -253,7 +254,29 @@ export interface CpmEventFrame {
   qualified_support_ms: number | null;
   /** v2.5 (1F): RECOVERED | FAMILY_CHANGED on a closed frame. */
   close_reason: string | null;
+  /**
+   * CHG-032: the shelf is its own lifecycle, independent of the ack. NONE | SHELVED | EXPIRED
+   * (EXPIRED = returned from the shelf, not yet reviewed); absent on a pre-CHG-032 API.
+   */
+  shelf_state: 'NONE' | 'SHELVED' | 'EXPIRED' | null;
+  shelved_by: string | null;
+  shelved_at: string | null;
+  shelve_reason: string | null;
 }
+
+/** CHG-032: one row of the episode's operator history (GET /events/{id}/actions). */
+export interface CpmEventAction {
+  id: number;
+  eventId: number;
+  action: 'ACKNOWLEDGED' | 'SHELVED' | 'SHELVE_UPDATED' | 'UNSHELVED' | 'SHELVE_EXPIRED';
+  actor: string;
+  at: string;
+  until: string | null;
+  reason: string | null;
+}
+
+/** What a valid shelve request must respect; rides on the events read and /events/shelving-policy. */
+export interface CpmShelvePolicy { maxHours: number }
 
 export interface CpmEventsQuery {
   loopId?: string;
@@ -278,7 +301,7 @@ export const getEvents = (q: CpmEventsQuery = {}, signal?: AbortSignal) => {
   if (q.from) params.set('from', q.from);
   if (q.limit) params.set('limit', String(q.limit));
   if (q.sort) params.set('sort', q.sort);
-  return apiJson<{ count: number; openOnly: boolean; sort: string; events: CpmEventFrame[] }>(
+  return apiJson<{ count: number; openOnly: boolean; sort: string; shelvePolicy?: CpmShelvePolicy; events: CpmEventFrame[] }>(
     `${BASE}/events?${params.toString()}`, { signal });
 };
 
@@ -289,13 +312,26 @@ export const acknowledgeEvent = (id: number, note?: string) =>
     body: JSON.stringify({ note: note ?? null }),
   });
 
-export const shelveEvent = (id: number, until: string, note?: string) =>
-  apiJson<{ id: number; ackState: string; shelveUntil: string }>(
+/** CHG-032: a shelf needs an expiry inside the site limit and a reason; on an active shelf it is an update. */
+export const shelveEvent = (id: number, until: string, reason: string) =>
+  apiJson<{ id: number; shelfState: 'SHELVED'; shelveUntil: string; updated: boolean }>(
     `${BASE}/events/${id}/shelve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ until, note: note ?? null }),
+      body: JSON.stringify({ until, reason }),
     });
+
+/** CHG-032: ends an active or expired shelf; the episode keeps the ack state it has. */
+export const unshelveEvent = (id: number, reason?: string) =>
+  apiJson<{ id: number; shelfState: 'NONE'; ackState: string }>(
+    `${BASE}/events/${id}/unshelve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: reason ?? null }),
+    });
+
+export const getEventActions = (id: number, signal?: AbortSignal) =>
+  apiJson<{ eventId: number; count: number; actions: CpmEventAction[] }>(`${BASE}/events/${id}/actions`, { signal });
 
 // ── Fleet (U1/U3) ───────────────────────────────────────────────────────────
 

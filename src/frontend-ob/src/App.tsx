@@ -30,9 +30,6 @@ import { ObiChevronDownGoogle } from '@oicl/openbridge-webcomponents-react/icons
 import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-right-google';
 import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-left-google';
 import CommandPalette from './components/CommandPalette';
-import { CpaAuditProbe } from './components/Cpm/CpaAuditProbe';
-import { cpaHref } from './components/Cpm/navigation';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import SessionTimeoutDialog from './components/shared/SessionTimeoutDialog';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 import ConnectivityBanner from './components/shared/ConnectivityBanner';
@@ -319,7 +316,6 @@ const App: React.FC = () => {
     <ThemeContext.Provider value={{ theme, setTheme }}>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <CpaAuditProbe />
           <ToastContainer
             position="bottom-right"
             autoClose={3000}
@@ -901,22 +897,20 @@ const Sidebar: React.FC<{ unackedCount: number }> = ({ unackedCount }) => {
             {open && groupItems.map(item => {
               const isActive = isActivePath(item.path);
               return (
-                <ObcButton variant={isActive ? "normal" : "flat"} fullWidth showLeadingIcon
-                  aria-current={isActive ? "page" : undefined}
+                <button
                   key={item.path}
-                  className="cpa-nav-button"
-                  onClick={() => navigate(item.path.startsWith('/cpm')
-                    ? cpaHref(item.path, new URLSearchParams(location.search)) : item.path)}
+                  className={`nav-item ${isActive ? 'nav-item--active' : ''}`}
+                  onClick={() => navigate(item.path)}
                 >
                   {/* OpenBridge icons, not emoji: emoji render differently per-OS, ignore the theme, and
                       are not part of the design system. Where OpenBridge has no matching icon we use
                       ObiPlaceholder rather than inventing one. */}
-                  <item.Icon slot="leading-icon" />
-                  <span>{item.label}</span>
+                  <span className="nav-item__icon"><item.Icon /></span>
+                  <span style={{ flex: 1 }}>{item.label}</span>
                   {item.badge === 'alarms' && unackedCount > 0 && (
                     <span className="nav-item__badge">{unackedCount}</span>
                   )}
-                </ObcButton>
+                </button>
               );
             })}
           </div>

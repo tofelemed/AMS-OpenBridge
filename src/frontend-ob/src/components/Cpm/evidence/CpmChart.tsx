@@ -4,12 +4,16 @@
  * line across unsupported gaps), `step: 'end'` for held series, times in the site zone with the zone
  * in the axis name, bands labelled with their meaning, and a data-table / CSV companion that shows
  * the same values the chart draws. Colours come from the CPM pens (OpenBridge tokens), never literals.
+ * Phase 5 (cpa-ui-fix-plan): rectangle zoom on x and on every unit axis, from the title bar.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { cpmChartColors } from '../shared';
 import { formatInZone, formatTimeInZone, zoneLabel } from './timezone';
+import { FULL_ZOOM, boxZoomOption, type ZoomState } from '../../charts/boxZoom';
+import { useBoxZoom, useKeepSelecting } from '../../charts/useBoxZoom';
+import ChartZoomBar from '../../charts/ChartZoomBar';
 
 export type Pen = 'good' | 'amber' | 'grey' | 'accent' | 'pink' | 'bad';
 export type Pens = Record<Pen, string>;
@@ -44,6 +48,8 @@ export interface CpmChartInput {
   logY?: boolean;
   /** The drawn width in px when known (measured by CpmChart): the legend's row count depends on it. */
   width?: number;
+  /** Phase 5: the current rectangle zoom, carried in the option so a re-applied option keeps it. */
+  zoom?: ZoomState;
 }
 
 const nan = (v: number | null | undefined) => v == null || !Number.isFinite(v) ? null : v;
@@ -111,6 +117,7 @@ export function buildCpmChartOption(input: CpmChartInput) {
   return {
     animation: false,
     grid: { left: 64, right: 24 + Math.max(0, units.length - 2) * 48, top: 28, bottom: 64 + legendRows * 22 },
+    ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: units.map((_, i) => i) }, input.zoom ?? FULL_ZOOM),
     xAxis,
     yAxis,
     legend: { bottom: 0, textStyle: { color: pens.grey }, itemGap: 14 },
@@ -145,7 +152,7 @@ export function toCsv(series: CpmSeries[]): string {
   return [head, ...rows].join('\n');
 }
 
-export const CpmChart: React.FC<Omit<CpmChartInput, 'pens' | 'width'> & { title?: string; onClick?: (seriesId: string, index: number) => void }> = (props) => {
+export const CpmChart: React.FC<Omit<CpmChartInput, 'pens' | 'width' | 'zoom'> & { title?: string; onClick?: (seriesId: string, index: number) => void }> = (props) => {
   const pens: Pens = cpmChartColors();
   // the legend's rows depend on the drawn width: measure the wrapper and rebuild when it changes
   const wrap = useRef<HTMLDivElement>(null);
@@ -157,9 +164,14 @@ export const CpmChart: React.FC<Omit<CpmChartInput, 'pens' | 'width'> & { title?
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const option = useMemo(() => buildCpmChartOption({ ...props, pens, width }), [props, pens, width]);
+  const box = useBoxZoom({ hasY: true });
+  const option = useMemo(() => buildCpmChartOption({ ...props, pens, width, zoom: box.zoom }), [props, pens, width, box.zoom]);
+  useKeepSelecting(box, option);
   const [table, setTable] = useState(false);
-  const onEvents = useMemo(() => ({ click: (e: { seriesId?: string; dataIndex?: number }) => { if (props.onClick && e.seriesId != null && e.dataIndex != null) props.onClick(e.seriesId, e.dataIndex); } }), [props]);
+  const onEvents = useMemo(() => ({
+    click: (e: { seriesId?: string; dataIndex?: number }) => { if (props.onClick && e.seriesId != null && e.dataIndex != null) props.onClick(e.seriesId, e.dataIndex); },
+    datazoom: box.onDataZoom,
+  }), [props, box.onDataZoom]);
   const csv = () => {
     const blob = new Blob([toCsv(props.series)], { type: 'text/csv' });
     const a = document.createElement('a');
@@ -174,8 +186,9 @@ export const CpmChart: React.FC<Omit<CpmChartInput, 'pens' | 'width'> & { title?
       <div className="cpm-chart__bar">
         {props.title && <span className="cpm-chart__title">{props.title}</span>}
         {drawn > SAMPLE_ABOVE && <span className="cpm-chart__note" title="The data table and the CSV carry every value; only the drawing is decimated.">{drawn.toLocaleString('en-GB')} points, drawn sampled</span>}
+        <ChartZoomBar box={box} hasData={drawn > 0} />
       </div>
-      <ReactECharts option={option} notMerge style={{ height: props.height ?? 320 }} onEvents={onEvents} />
+      <ReactECharts option={option} notMerge style={{ height: props.height ?? 320 }} onChartReady={box.onChartReady} onEvents={onEvents} />
       {/* progressive disclosure: the numbers behind the picture, on request (audit: the two buttons on every chart were noise) */}
       <details className="cpm-chart__more" onToggle={e => setTable((e.target as HTMLDetailsElement).open)}>
         <summary>Data table / CSV</summary>

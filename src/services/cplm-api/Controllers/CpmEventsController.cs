@@ -1,17 +1,20 @@
 // Extraction Phase 3 COPY of AMS.Api Controllers/V1/CpmEventsController.cs — mechanical transforms only
 // (namespace, literal v1 routes, no Asp.Versioning). The AMS.Api original keeps
 // serving until Phase 6 deletes it; behavior changes are forbidden in either copy.
-using Traverse.CplmApi.Services;
+//
+// CHG-032: acknowledge / shelve moved to CpmEventActionsController (same routes, plus
+// unshelve and the action history); this controller is the read path only.
 using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Npgsql;
+using Traverse.CplmApi.Services;
 
 namespace Traverse.CplmApi.Controllers;
 
 /// <summary>
-/// CPLM Phase 5 — A12 event frames (read + operator state) and A14 the
-/// calculations catalogue.
+/// CPLM Phase 5 — A12 event frames (read) and A14 the calculations catalogue.
 /// </summary>
 [ApiController]
 [Route("api/v1/cpm")]
@@ -19,19 +22,13 @@ namespace Traverse.CplmApi.Controllers;
 public sealed class CpmEventsController : ControllerBase
 {
     private readonly NpgsqlDataSource _dataSource;
-    private readonly ICplmAuditEmitter _audit;
-    private readonly ILogger<CpmEventsController> _logger;
+    private readonly ShelvingOptions _shelving;
 
-    public CpmEventsController(
-        [FromKeyedServices("cplm")] NpgsqlDataSource dataSource, ICplmAuditEmitter audit, ILogger<CpmEventsController> logger)
+    public CpmEventsController([FromKeyedServices("cplm")] NpgsqlDataSource dataSource, IOptions<ShelvingOptions> shelving)
     {
         _dataSource = dataSource;
-        _audit = audit;
-        _logger = logger;
+        _shelving = shelving.Value;
     }
-
-    private string Actor() =>
-        User.FindFirst("preferred_username")?.Value ?? User.Identity?.Name ?? "unknown";
 
     /// <summary>
     /// A12 — event frames. Defaults to open frames, because "what is wrong right
@@ -78,14 +75,16 @@ public sealed class CpmEventsController : ControllerBase
                    severity, window_count, ack_state, acked_by, acked_at,
                    shelve_until, note, calculation_version, dynamics_profile_version,
                    -- v2.5 (1F): availability vs condition, support union, revision, close reason
-                   availability_state, condition_state, result_revision, qualified_support_ms, close_reason
+                   availability_state, condition_state, result_revision, qualified_support_ms, close_reason,
+                   -- CHG-032: the shelf is its own lifecycle, independent of the ack
+                   shelf_state, shelved_by, shelved_at, shelve_reason
             FROM analytics.cplm_event_frames
             WHERE (@loopId::text IS NULL OR lower(loop_id) = lower(@loopId))
               AND (NOT @openOnly OR closed_at IS NULL)
               AND (@from::timestamptz IS NULL OR opened_at >= @from::timestamptz)
-              -- A shelved frame is deliberately hidden until its shelve expires;
-              -- an expired shelve must reappear rather than stay suppressed.
-              AND (@includeShelved OR ack_state <> 'SHELVED' OR shelve_until IS NULL OR shelve_until <= NOW())
+              -- An active shelf is deliberately hidden until it expires; an expired
+              -- shelf reappears at once, even before the sweeper has marked it EXPIRED.
+              AND (@includeShelved OR shelf_state <> 'SHELVED' OR shelve_until IS NULL OR shelve_until <= NOW())
             ORDER BY {orderBy}
             LIMIT @limit
             """, new { loopId, openOnly, includeShelved, from, limit });
@@ -93,52 +92,14 @@ public sealed class CpmEventsController : ControllerBase
         var events = rows.ToList();
         // `sort` echoes back so a caller can tell which order it actually got —
         // a truncated list means something different in each order.
-        return Ok(new { count = events.Count, openOnly, sort = orderBy == "opened_at DESC, id DESC" ? "recent" : "triage", events });
-    }
-
-    /// <summary>A12 — acknowledge a frame.</summary>
-    [HttpPost("events/{id:long}/acknowledge")]
-    [Authorize(Policy = "cpm.manage")]
-    public async Task<IActionResult> Acknowledge(long id, [FromBody] AckRequest? request, CancellationToken ct)
-    {
-        await using var conn = await _dataSource.OpenConnectionAsync(ct);
-        var affected = await conn.ExecuteAsync("""
-            UPDATE analytics.cplm_event_frames
-            SET ack_state = 'ACKNOWLEDGED', acked_by = @user, acked_at = NOW(),
-                note = COALESCE(@note, note), shelve_until = NULL, updated_at = NOW()
-            WHERE id = @id
-            """, new { id, user = Actor(), note = request?.Note }); // P2-14 - same claim as the audit trail
-        if (affected == 0) return NotFound();
-        _logger.LogInformation("CPLM event frame {Id} acknowledged by {User}", id, User.Identity?.Name);
-        _audit.Emit("CPM_EVENT_ACKNOWLEDGED", Actor(), "CpmEventFrame", id.ToString(),
-            new { note = request?.Note });
-        return Ok(new { id, ackState = "ACKNOWLEDGED" });
-    }
-
-    /// <summary>
-    /// A12 — shelve a frame until a time. A shelve without an expiry is how
-    /// diagnoses get forgotten, so <c>until</c> is required.
-    /// </summary>
-    [HttpPost("events/{id:long}/shelve")]
-    [Authorize(Policy = "cpm.manage")]
-    public async Task<IActionResult> Shelve(long id, [FromBody] ShelveRequest request, CancellationToken ct)
-    {
-        if (request.Until <= DateTimeOffset.UtcNow)
-            return BadRequest(new { error = "shelve 'until' must be in the future" });
-
-        await using var conn = await _dataSource.OpenConnectionAsync(ct);
-        var affected = await conn.ExecuteAsync("""
-            UPDATE analytics.cplm_event_frames
-            SET ack_state = 'SHELVED', shelve_until = @until, acked_by = @user,
-                acked_at = NOW(), note = COALESCE(@note, note), updated_at = NOW()
-            WHERE id = @id
-            """, new { id, until = request.Until, user = Actor(), note = request.Note }); // P2-14
-        if (affected == 0) return NotFound();
-        _logger.LogInformation("CPLM event frame {Id} shelved until {Until} by {User}",
-            id, request.Until, User.Identity?.Name);
-        _audit.Emit("CPM_EVENT_SHELVED", Actor(), "CpmEventFrame", id.ToString(),
-            new { until = request.Until, note = request.Note });
-        return Ok(new { id, ackState = "SHELVED", shelveUntil = request.Until });
+        return Ok(new
+        {
+            count = events.Count,
+            openOnly,
+            sort = orderBy == "opened_at DESC, id DESC" ? "recent" : "triage",
+            shelvePolicy = new { maxHours = _shelving.MaxHours },
+            events,
+        });
     }
 
     /// <summary>
@@ -231,7 +192,4 @@ public sealed class CpmEventsController : ControllerBase
             note = "CONFIRMED requires a VP signal; without it G14 caps confidence at 0.89."
         });
     }
-
-    public sealed record AckRequest(string? Note);
-    public sealed record ShelveRequest(DateTimeOffset Until, string? Note);
 }

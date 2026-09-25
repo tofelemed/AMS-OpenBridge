@@ -22,6 +22,7 @@ import type { CpmEventFrame, CpmLoop } from '../../../api/cpmApi';
 import { useCpmEvents } from '../../../hooks/useCpm';
 import { EmptyState, QueryError, TonePill, fmtDateTime } from '../shared';
 import { usePagedSlice } from '../../shared/ListPager';
+import { shelfState } from '../events/shelfState';
 
 /**
  * sort:'recent' is load-bearing, not a preference: the endpoint's default order
@@ -87,7 +88,8 @@ function toRuns(rows: CpmEventFrame[]): Run[] {
       kinds: new Set([e.window_kind]),
       anyOpen: !e.closed_at,
       anyInvalid: span.invalid,
-      ackState: e.ack_state,
+      // CHG-032: the shelf left ack_state; an active shelf still reads SHELVED here
+      ackState: shelfState(e, Date.now()) === 'ACTIVE' ? 'SHELVED' : e.ack_state,
     });
   }
   return runs;

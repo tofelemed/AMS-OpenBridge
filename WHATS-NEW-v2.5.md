@@ -191,6 +191,19 @@ enough support closes it, and overlapping windows no longer multiply persistence
 
 - **Where:** Loop Events → each row shows both pills; filters for each.
 
+**Shelving is its own lifecycle (CHG-032, 2026-09-20).** A shelf now has who / until / reason
+of its own and never touches the acknowledgement: you can acknowledge a shelved episode (it stays
+shelved) and unshelve an acknowledged one (it stays acknowledged). Shelve needs an expiry inside
+the site limit (7 days by default) and a reason; **Unshelve…** ends a shelf early; when the expiry
+passes the service returns the episode within a minute and marks it *Shelf expired · unreviewed*
+until somebody acknowledges, unshelves or re-shelves it. **History ›** on the episode lists every
+acknowledge / shelve / update / unshelve / expiry with actor and time.
+
+- **Where:** Loop Events → detail → *Review and shelf*; filters *Shelved* and *Shelf expired*.
+- **Try:** shelve an open episode for 1 hour with a reason → it leaves *Unacknowledged* and appears
+  under *Shelved* with the countdown; acknowledge it → still shelved; *Unshelve…* → back in the
+  list, still acknowledged; *History ›* shows the four rows.
+
 ### 3.5 Run identity and the Evidence Workbench (the biggest UI addition)
 
 Every gate result row now carries `method_run_ids` (one id per gate), `bundle_hash` (the

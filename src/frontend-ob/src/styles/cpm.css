@@ -212,7 +212,7 @@
 .cpm-modal-backdrop {
   position: fixed; inset: 0;
   background: rgba(0, 0, 0, 0.45);
-  z-index: 60;
+  z-index: 1000;
   display: flex; align-items: center; justify-content: center;
 }
 .cpm-modal {
@@ -513,7 +513,7 @@
   transform: translate(-50%, -50%);
   width: min(560px, 94vw);
   max-height: 88vh;
-  z-index: 61;
+  z-index: 1001;
   background: var(--container-backdrop-color);
 }
 /* Long values (a window bound with its zone label) must wrap inside the panel
@@ -526,7 +526,7 @@
 .cpm-attention { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .cpm-attention__row {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.9fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.9fr) auto;
   gap: 12px;
   align-items: center;
   padding: 5px 8px;
@@ -1340,3 +1340,114 @@
 /* audit F4: an older verdict named under the newest window's result, as older */
 .cpm-matrix__result { white-space: normal; }
 .cpm-matrix__stale { display: block; margin-top: 2px; }
+
+/* ── 2026-09-20 CPA fix plan, Phase 1 (docs/cpa-ui-fix-plan.md) ──
+   Inspector shells: the body is the only scroller and the footer (actions) is
+   always visible; the modal layer sits with the app dialogs (backdrop 1000 /
+   panel 1001 above, in the modal scaffolding), above the grid-item top bar. */
+.cpm-inspector__body { flex: 1 1 auto; min-height: 0; }
+.cpm-inspector__foot {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-divider-color);
+  background: var(--container-section-color);
+}
+
+/* Overview priority queue: the loop id is a route, the description is the
+   in-page preview; siblings, never a button inside a button. */
+.cpm-queue-row { grid-template-columns: 1.4fr 0.8fr 1fr; cursor: default; }
+.cpm-queue-row__main { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.cpm-queue-row__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  border-radius: 4px;
+}
+.cpm-queue-row__preview:focus-visible {
+  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
+  outline-offset: 2px;
+}
+
+/* Overview event trail: time · loop (route) + diagnosis · episode (route). */
+.cpm-trail-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-divider-color);
+}
+.cpm-trail-row:last-child { border-bottom: none; }
+.cpm-trail-row__what { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+
+/* KPI tile: the route behind the number, under the sub line. */
+.cpm-kpi__action { margin-top: 4px; }
+/* A button in a panel head never wraps mid-label; the title side shrinks instead. */
+.cpm-panel-head > div:first-child { min-width: 0; }
+.cpm-panel-head__right > obc-button { white-space: nowrap; }
+/* Drawer gate rows: the flat button already carries the touch target, so the
+   row adds no padding of its own (17 rows must stay scannable). */
+.cpm-gate-tier .cpm-kv { padding: 0; align-items: center; }
+/* The route under a KPI number stays on one line inside a narrow tile. */
+.cpm-kpi__action > obc-button { white-space: nowrap; }
+
+/* ── Phase 2 (Performance): freshness line carries its Pipeline Health route;
+   the matrix loop cell reads as a route (chevron), still a native grid cell. */
+.cpm-freshness { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cpm-matrix__loop-btn:hover strong { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ── Phase 3 (Explorer › Summary): gate strip + selected gate + calculations ── */
+.cpm-summary-section { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-divider-color); }
+.cpm-summary-detail {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-divider-color);
+  border-left: 3px solid var(--cpm-tone, var(--border-divider-color));
+  background: var(--container-section-color);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cpm-summary-detail .cpm-verdict__sentence { margin: 0; }
+/* Prose rows (definition, preconditions) stack label over text instead of
+   fighting for one line. */
+.cpm-summary-detail__prose .cpm-kv { flex-direction: column; align-items: flex-start; gap: 2px; }
+.cpm-summary-detail__prose .cpm-kv__value { text-align: left; }
+
+/* ── Phase 6 (Loop Events): the episode row holds two controls side by side —
+   the episode (in-page selection) and the loop (a route); shelve panel. */
+.cpm-event-row__main { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.cpm-event-row__select {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  border-radius: 4px;
+}
+.cpm-event-row__select:focus-visible {
+  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
+  outline-offset: 2px;
+}
+.cpm-event-row__states { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.cpm-shelve { margin-top: 8px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-divider-color); background: var(--container-section-color); display: flex; flex-direction: column; gap: 8px; }

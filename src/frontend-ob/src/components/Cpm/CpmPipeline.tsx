@@ -22,6 +22,9 @@ import {
 } from '../../hooks/useCpm';
 import { useAuthStore } from '../../store/authStore';
 import { useObcTheme } from '../../hooks/useObcTheme';
+import { boxZoomOption } from '../charts/boxZoom';
+import { useBoxZoom, useKeepSelecting } from '../charts/useBoxZoom';
+import ChartZoomBar from '../charts/ChartZoomBar';
 
 const fmtUptime = (sec: number | null | undefined) => {
   if (sec == null) return '—';
@@ -88,12 +91,14 @@ export const CpmPipeline: React.FC = () => {
     setTelemetry(prev => [...prev.slice(-119), { t: new Date(d.collectedAt).getTime(), ckptAgeSec: age, ckptDurMs: dur }]);
   }, [metrics.data]);
 
+  const box = useBoxZoom({ hasY: true }); // Phase 5: rectangle zoom on the accumulated telemetry
   const obcTheme = useObcTheme(); // C: re-derive chart colors on theme switch
   const telemetryOption = useMemo(() => {
     const { good, amber, grey } = cpmChartColors();
     return {
       animation: false,
       grid: { left: 48, right: 48, top: 24, bottom: 24 },
+      ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: [0, 1] }, box.zoom),
       tooltip: { trigger: 'axis' },
       legend: { textStyle: { color: grey }, top: 0 },
       xAxis: { type: 'time', axisLabel: { color: grey } },
@@ -109,7 +114,8 @@ export const CpmPipeline: React.FC = () => {
       ],
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
-  }, [telemetry, obcTheme]);
+  }, [telemetry, obcTheme, box.zoom]);
+  useKeepSelecting(box, telemetryOption);
 
   // E2E verification: a real recompute round-trip on a reference loop.
   // Not a view selection: this is the SUBJECT of the round trip, picked as the
@@ -224,7 +230,13 @@ export const CpmPipeline: React.FC = () => {
           </p>
           {telemetry.length < 2
             ? <EmptyState title="Collecting…" copy="Two or more polls are needed before a line makes sense." />
-            : <ReactECharts option={telemetryOption} style={{ height: 220 }} notMerge />}
+            : (
+              <>
+                <ReactECharts option={telemetryOption} style={{ height: 220 }} notMerge
+                  onChartReady={box.onChartReady} onEvents={{ datazoom: box.onDataZoom }} />
+                <ChartZoomBar box={box} hasData live />
+              </>
+            )}
         </section>
 
         <section className="cpm-surface">

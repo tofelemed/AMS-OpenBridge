@@ -1,13 +1,14 @@
 // 2026-09-17 audit F5/F19: the result card opens the centre with the answer - model family, parameters
 // with ± and units, the validation verdict and one identifiability sentence - and reserves its height
 // with a skeleton while the event loads (never a blank centre). The aside puts the subgates as steps,
-// the key results first and the 52-row catalogue behind a disclosure with not-applicable rows greyed.
+// the key results first; the 52-row catalogue opens as a wide centre card (Phase 7), not-applicable rows greyed.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { ResultCard } from './ResultCard';
 import { EventAside } from './EventAside';
+import { QuantityCatalogue } from './QuantityCatalogue';
 import type { ResponseEventDetail, ResponseQuantity } from '../../../api/cpm/response';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
@@ -54,19 +55,38 @@ describe('ResultCard', () => {
 });
 
 describe('EventAside', () => {
-  it('steps the subgates with their reason, lists the key results and folds the catalogue with not-applicable rows greyed', () => {
-    render(<MemoryRouter><EventAside result={result} metrics={metrics} timeZone="UTC" methodRunId="r1" loopId="FIC10302" resultRevision={1} /></MemoryRouter>);
+  // cpa-ui-fix-plan Phase 7: the 52-row catalogue is a wide centre card opened from the aside (it
+  // overflowed the 284 px column); the Workbench exit is a button that navigates with the run.
+  it('steps the subgates with their reason, lists the key results, offers the catalogue and routes to the workbench run', () => {
+    const toggle = vi.fn();
+    const Probe: React.FC = () => { const l = useLocation(); return <div data-testid="location">{l.pathname}{l.search}</div>; };
+    render(
+      <MemoryRouter initialEntries={['/cpm/response?loop=FIC10302&event=e1']}>
+        <Routes><Route path="*" element={<>
+          <EventAside result={result} metrics={metrics} timeZone="UTC" methodRunId="r1" loopId="FIC10302" resultRevision={1}
+            catalogueOpen={false} onToggleCatalogue={toggle} />
+          <Probe />
+        </>} /></Routes>
+      </MemoryRouter>);
     const steps = screen.getAllByRole('listitem').filter(li => li.getAttribute('data-subgate'));
     expect(steps).toHaveLength(8);
     expect(steps[4].textContent).toMatch(/E Validation/);
     expect(steps[4].textContent).toMatch(/WAITING/);
     expect(steps[4].textContent).toMatch(/no independent event yet/);
     expect(screen.getByText('Key results')).toBeTruthy();
-    const all = screen.getByText(/All 6 quantities/).closest('details')!;
-    expect(all.hasAttribute('open')).toBe(false);
-    const rows = all.querySelectorAll('tbody tr');
+    expect(screen.getByText(/Window from/).parentElement!.textContent).toMatch(/2026-09-17/);
+    fireEvent.click(screen.getByRole('button', { name: /All 6 quantities/ }));
+    expect(toggle).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: /Open in Evidence Workbench/ }));
+    expect(screen.getByTestId('location').textContent).toContain('methodRun=r1');
+    expect(screen.getByTestId('location').textContent).toContain('gate=G12');
+  });
+
+  it('QuantityCatalogue lists every quantity with not-applicable rows greyed, never as 0', () => {
+    render(<QuantityCatalogue metrics={metrics} onClose={() => {}} />);
+    const rows = document.querySelectorAll('tbody tr');
     expect(rows).toHaveLength(6);
-    expect(all.querySelectorAll('tbody tr[data-applicable="false"]')).toHaveLength(2);         // integrating_gain, baseline_pv: stated, greyed, never 0
-    expect(screen.getByRole('link', { name: /Open in Evidence Workbench/ }).getAttribute('href')).toContain('methodRun=r1');
+    expect(document.querySelectorAll('tbody tr[data-applicable="false"]')).toHaveLength(2);   // integrating_gain, baseline_pv
+    expect(screen.getByText(/not applicable \(no valid baseline\)/)).toBeTruthy();
   });
 });

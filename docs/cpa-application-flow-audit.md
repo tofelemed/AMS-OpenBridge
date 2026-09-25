@@ -270,7 +270,20 @@ sequenceDiagram
 | A6 | Notes written in Investigation, Replay and Events appear in one episode thread |
 | A7 | Browser back returns to the previous page **with** its loop/window/gate selection |
 
----
+### Status (docs/cpa-ui-fix-plan.md, updated per phase)
+
+Last update 2026-09-20 after Phases 1–7 (code complete; lint / tsc / 272 unit tests / build green).
+Browser verification on the lab: Phases 1–4 done; Phases 5–7 pending — the lab Docker engine went down (C: drive full) before they could be exercised.
+
+| # | Status | Evidence |
+|---|---|---|
+| A1 | **Partial.** Every assigned page now carries `?loop=` on every in-page exit: Overview (queue, drawer, trail, fleet exits), Performance (loop cell, attention list, gate panel, Window Inspector, Pipeline Health), Explorer (Context, gate detail, calculations), Historical (Replay, Workbench), Events (loop buttons, `?loop=` honoured), System Response (Open loop, Workbench). The sidebar still navigates to bare routes (out of scope by assignment), so "from any page in one click" is not fully met. | Browser: Phases 1–4; unit: `cpaHref.test.ts` |
+| A2 | **Partial, data-blocked.** An episode reaches its loop hub in one click; its evaluated window / run cannot be reached because the event frame carries no window end or run id (plan §5.2). | `CpmEvents.tsx`, `events/EventDetail.tsx` |
+| A3 | **Progress.** Events is no longer a dead end; Explorer Summary reaches Inspector / Workbench / Replay / Performance; Historical reaches Workbench. Replay, Calculations, Pipeline Health and Governance keep their existing (missing) exits — not in this assignment. | plan §3 |
+| A4 | **Progress.** Explorer › Summary › Calculations routes each result to the Window Inspector at its kind; the standalone Calculations / Windows pages are unchanged. | `explorer/summary/SummaryCalculations.tsx` |
+| A5 | **Partial.** The Performance freshness line ("Stale · emitted N h ago") now routes to Pipeline Health; no "next evaluation at" is shown (needs cadence + last-emit per loop, not served). | `CpmPerformance.tsx` |
+| A6 | Not included (needs an episode note thread; separate design + API). | plan §5 |
+| A7 | **Verified** for every Overview, Performance and Explorer journey exercised in the lab (Back restores `loop`, `gate`, `tab`); Events / Historical / Response use the same push/replace contract but await their browser pass. | Browser: Phases 1–3 |
 
 ## 7. Source map for this audit
 

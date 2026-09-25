@@ -2,13 +2,16 @@
  * 2026-09-17 audit F12: the loop as the engines see it - the v2.5 loop-model dimensions (2G.1) with
  * where the classification came from, the acquisition contract that bounds the methods, and the three
  * ways into the loop's evidence: the workbench, the response page, the configuration it runs under.
+ * 2026-09-20 (cpa-ui-fix-plan Phase 3): the two routes are OpenBridge buttons; the Workbench one opens
+ * the exact fused run when the Summary knows it (passed in), else the loop-level landing.
  */
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmLoop } from '../../../api/cpmApi';
 import { KvRow, PanelHead, TonePill } from '../shared';
 import { EffectiveConfigDrawer } from '../config/EffectiveConfigDrawer';
+import { evidenceHref, responseHref } from '../cpaHref';
 
 const acquisitionText = (a: NonNullable<CpmLoop['model']>['acquisition'] | null | undefined): string => {
   if (!a) return '—';
@@ -19,7 +22,12 @@ const acquisitionText = (a: NonNullable<CpmLoop['model']>['acquisition'] | null 
   return parts.join(' · ');
 };
 
-export const LoopModelCard: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
+export const LoopModelCard: React.FC<{ loop: CpmLoop; workbenchHref?: string; workbenchTitle?: string }> = ({
+  loop,
+  workbenchHref = evidenceHref(loop.loopId, { kind: '24h' }),
+  workbenchTitle = 'Open the newest window with run identity in the Evidence Workbench',
+}) => {
+  const navigate = useNavigate();
   const [showConfig, setShowConfig] = useState(false);
   const m = loop.model;
   const explicit = m?.classificationSource === 'EXPLICIT';
@@ -47,8 +55,13 @@ export const LoopModelCard: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
       <KvRow label="Loop type">{loop.loopType}</KvRow>
       <KvRow label="Criticality">{loop.criticality}</KvRow>
       <div className="cpm-loop-model__links">
-        <Link className="cpm-link" to={`/cpm/evidence?loop=${encodeURIComponent(loop.loopId)}`}>Evidence workbench ›</Link>
-        <Link className="cpm-link" to={`/cpm/response?loop=${encodeURIComponent(loop.loopId)}`}>System response ›</Link>
+        <ObcButton variant="raised" title={workbenchTitle} onClick={() => navigate(workbenchHref)}>
+          Evidence workbench ›
+        </ObcButton>
+        <ObcButton variant="normal" title={`Response events and system models of ${loop.loopId}`}
+          onClick={() => navigate(responseHref(loop.loopId))}>
+          System response ›
+        </ObcButton>
         <ObcButton variant="flat" onClick={() => setShowConfig(v => !v)}>{showConfig ? 'Hide effective configuration' : 'Effective configuration ›'}</ObcButton>
       </div>
       {showConfig && <EffectiveConfigDrawer loopId={loop.loopId} onClose={() => setShowConfig(false)} />}

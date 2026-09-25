@@ -5,7 +5,6 @@
  * within the loaded window list, never a "latest" read. Layout: toolbar → header facts → gate strip
  * → reading column (verdict, signal context, evidence, flags) + collapsible explain column.
  */
-import { windowEnd, selectedWindow, selectLoop } from '../navigation';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -38,7 +37,6 @@ export const GateEvidenceWorkspace: React.FC = () => {
   const selection = useMemo(() => parseSelection(params), [params]);
   const loopId = selection?.loopId ?? params.get('loop')?.trim() ?? undefined;
   const wantedGate = params.get('gate')?.trim() || null;
-  const requestedEnd = windowEnd(params);
   const before = params.get('before') ?? undefined;
 
   const scope = useCpmScope();
@@ -74,31 +72,23 @@ export const GateEvidenceWorkspace: React.FC = () => {
   const goTo = useCallback((methodRunId: string, gate: string, replace = false) => {
     const p = new URLSearchParams(params);
     p.set('loop', loopId ?? ''); p.set('methodRun', methodRunId); p.set('gate', gate); p.set('mode', selection?.mode ?? 'FIXED');
-    const option = windows.options.find(w => Object.values(w.methodRunIds).includes(methodRunId));
-    p.set('kind', option?.kind ?? kind);
-    if (option) p.set('window', option.windowEnd);
+    if (kindParam) p.set('kind', kindParam);
     navigate(`?${p.toString()}`, { replace });
-  }, [params, loopId, selection?.mode, kind, windows.options, navigate]);
+  }, [params, loopId, selection?.mode, kindParam, navigate]);
 
   // landing: a loop without a run opens its newest window that carries run identity
   useEffect(() => {
     if (selection || !loopId || windows.isLoading || windows.options.length === 0) return;
-    const exact = requestedEnd ? selectedWindow(windows.options, requestedEnd) : undefined;
-    const options = requestedEnd ? (exact ? [exact] : []) : windows.options;
-    const target = wantedGate ? (() => {
-      const option = options.find(w => w.hasRunIds);
-      const id = option?.methodRunIds[wantedGate];
-      return id ? { methodRunId: id, gate: wantedGate } : null;
-    })() : resolveLanding(options, null);
+    const target = resolveLanding(windows.options, wantedGate);
     if (target) goTo(target.methodRunId, target.gate, true);
-  }, [selection, loopId, windows.isLoading, windows.options, wantedGate, requestedEnd, goTo]);
+  }, [selection, loopId, windows.isLoading, windows.options, wantedGate, goTo]);
 
   const optionIndex = findOptionOfRun(windows.options, selection?.methodRunId);
   const currentOption: WindowOption | undefined = optionIndex >= 0 ? windows.options[optionIndex] : undefined;
   const nav = neighbours(windows.options, optionIndex);
   const openWindow = (w: WindowOption | null) => {
-    if (!w) return;
-    const t = runInWindow(w, selection?.gate ?? wantedGate ?? 'G15');
+    if (!w || !selection) return;
+    const t = runInWindow(w, selection.gate);
     if (t) goTo(t.methodRunId, t.gate);
   };
 
@@ -128,24 +118,18 @@ export const GateEvidenceWorkspace: React.FC = () => {
     <EvidenceToolbar scope={scope} loops={loops.data?.loops ?? []} loopId={loopId} kind={kind} kinds={kinds}
       windows={windows.options} windowsLoading={windows.isLoading} windowsError={windows.error} onRetryWindows={windows.refetch}
       currentMethodRunId={selection?.methodRunId} hasMore={windows.hasMore} onLoadMore={windows.loadMore} loadingMore={windows.isLoadingMore}
-      onLoop={id => setParams(p => selectLoop(p, id), { replace: true })}
-      onClearLoop={() => setParams(p => selectLoop(p, ''), { replace: true })}
-      onKind={k => setParams(p => { p.set('kind', k); for (const key of ['window', 'methodRun', 'before']) p.delete(key); return p; }, { replace: true })}
+      onLoop={id => setParams(p => { p.set('loop', id); for (const k of ['methodRun', 'gate', 'mode', 'kind', 'before']) p.delete(k); return p; }, { replace: true })}
+      onClearLoop={() => setParams(p => { for (const k of ['loop', 'methodRun', 'gate', 'mode', 'kind', 'before']) p.delete(k); return p; }, { replace: true })}
+      onKind={k => setParams(p => { p.set('kind', k); p.delete('before'); return p; }, { replace: true })}
       onWindow={openWindow}
       onJump={iso => setParams(p => { p.set('before', iso); return p; }, { replace: true })} />
   );
-
-  const wrongIdentity = run.data && selection && (run.data.loopId.toLowerCase() !== selection.loopId.toLowerCase() || run.data.gate !== selection.gate);
-  if (wrongIdentity) return <div className="cpm-screen">{toolbar}<EmptyState title="Evidence identity mismatch"
-    copy="The returned run does not match the selected loop and gate. Choose the correct evaluated window." /></div>;
 
   if (!selection) {
     return (
       <div className="cpm-screen cpm-evidence-workspace">
         {toolbar}
         {!loopId && <EmptyState title="Pick a loop" copy="Its evaluated windows and gates appear here. A gate cell on Performance, Investigation or System Response opens the workbench on that run directly." />}
-        {loopId && (requestedEnd || wantedGate) && !windows.isLoading && <EmptyState title="Selected window or gate has no available run"
-          copy="The requested selection is preserved. Choose a listed window with run identity, or load older windows." />}
         {loopId && windows.isLoading && <EmptyState title="Listing the evaluated windows…" />}
         {loopId && windows.error != null && <QueryError error={windows.error} retry={windows.refetch} />}
         {loopId && !windows.isLoading && windows.error == null && windows.options.length === 0 && (
@@ -159,7 +143,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
   }
 
   return (
-    <div className="cpm-screen cpm-evidence-workspace" data-cpa-ready={!!run.data}>
+    <div className="cpm-screen cpm-evidence-workspace">
       {toolbar}
       <EvidenceHeaderStrip selection={selection} run={run.data} entry={entry} loopName={loop?.displayName} timeZone={timeZone}
         readiness={manifest.data?.readiness}

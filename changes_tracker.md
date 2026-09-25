@@ -1649,6 +1649,24 @@ three new jobs, one configuration step per loop data source. Step by step:
 [migration/V2.5-DEPLOY.md](migration/V2.5-DEPLOY.md). A plain-words tour of what the release adds, where it
 is in the UI, how to try it on the lab and what the OT side must send: [WHATS-NEW-v2.5.md](WHATS-NEW-v2.5.md).
 
+**Pre-production review (2026-09-25):** [docs/pre-prod/v2.5-pre-prod-readiness.md](docs/pre-prod/v2.5-pre-prod-readiness.md)
+(baseline, delta, the gaps found in the plant procedure - source sync, ownership normalization, TM metaspace, validator
+job list, topic counts - what operators will see, go / no-go) and
+[docs/pre-prod/v2.5-ot-instrumental-requests.md](docs/pre-prod/v2.5-ot-instrumental-requests.md) (the MUST / SHOULD /
+OPTIONAL requests to the OT gateway team and to Instrumental, and how a transmitter is mapped to a loop).
+
+**CPA navigation and UI repair (2026-09-20, [CHG-030](#chg-030--cpa-navigation-and-ui-repair-overview-performance-explorer-historical-all-trends-events-system-response-2026-09-20)):**
+`ams-frontend` only - context-carrying `ObcButton` navigation on Overview / Performance / Explorer / Historical /
+Events / System Response, drag-rectangle zoom on every trend, clock-derived shelf state, contained Response layout.
+No API, schema, topic or job change; same image, same manifest. Browser passes for Phases 5-7 are still owed
+(the lab Docker engine went down, C: full).
+
+**Episode shelving lifecycle (2026-09-20, [CHG-032](#chg-032--episode-shelving-as-its-own-lifecycle-shelve--update--unshelve--expiry--history-2026-09-20)):**
+`cplm-api` (three new routes, the expiry sweeper, the action history) + `ams-frontend` (Review and shelf
+section, Unshelve, History). **One new plant step:** `ops/cpm-09-event-shelving.sql` on `traverse_cplm` before
+the cplm-api swap (additive, converts legacy `ack_state = SHELVED` rows; re-runnable) — already in C1 of
+`V2.5-DEPLOY.md` and in `build-release.py`'s ops list.
+
 **Phase 4.2 verification, 2026-09-17 10:43–10:52, clean tree at 1cc8a8b4:** Flink 266 run / 0 failures / 2 skipped ·
 cplm-api 159/159 · ingestion 212/212 · binding-resolver 5/5 · historian-bff 4/4 · frontend 101/101 + lint + build
 clean · auth-service `tsc` clean · simulators 17/17 · catalogue 165 properties, 4 copies identical. The five images
@@ -1693,10 +1711,10 @@ have grown with the manifests). Result: a Response event opens in 1–2.6 s inst
 | Compose service | Image | Carries |
 |---|---|---|
 | `traverse-ingestion-service` | `ams-cpa-traverse-ingestion-service` | CHG-026: samples schema 1.1 (`roles{}` per-role time / quality / held), protocol-specific quality decoder (UNKNOWN ≠ GOOD, non-finite → DLQ), Instrumental NE107 health subscriber → `traverse.cpa.instrument.health.v1` + DLQ |
-| `cplm-api` | `ams-cpa-cplm-api` | CHG-026/027/028: identity columns + `analysis_run` + evidence store, the five new consumers (conditions, evidence, response, health, config-acks - each one member), the 25 new endpoints (`/capabilities` + config section, `/gate-catalogue`, `/method-runs`, `/evidence`, `/analysis-runs`, `/response-events`, `/models`, `/instrument-health`, `/conditions`, `/investigations`, `/configuration/*`), fusion v2 reads, episode availability vs condition, claims-only identity |
+| `cplm-api` | `ams-cpa-cplm-api` | CHG-026/027/028: identity columns + `analysis_run` + evidence store, the five new consumers (conditions, evidence, response, health, config-acks - each one member), the 25 new endpoints (`/capabilities` + config section, `/gate-catalogue`, `/method-runs`, `/evidence`, `/analysis-runs`, `/response-events`, `/models`, `/instrument-health`, `/conditions`, `/investigations`, `/configuration/*`), fusion v2 reads, episode availability vs condition, claims-only identity · **CHG-032**: episode shelving lifecycle (`/events/{id}/unshelve`, `/events/{id}/actions`, `/events/shelving-policy`, expiry sweeper; needs `ops/cpm-09-event-shelving.sql` first) |
 | `historian-bff` | `ams-cpa-historian-bff` | CHG-026: source / verified / emission timestamps on the live snapshot |
 | `flink-jobmanager` (+ `flink-taskmanager`, same image) | `ams-flink:1.0-SNAPSHOT` | the JAR: schema 1.1 codec, strict quality, RBE quality transitions, G2/G4/G10/G11 semantics, fusion v2, run identity + evidence artifacts, G12 kernel + Response job, Condition job, Instrument Context job, G13 aligned analysis, loop model, governed bundles (signed PREPARE/APPLY, ACKs, effective selection, no static SPINE); the TM needs `CPLM_GATE_CONFIG_KEY` (compose carries it) |
-| `ams-frontend` | `ams-cpa-ams-frontend` | Governance build identity + approvals queue, transmitter health panel + lanes, events availability/condition, Evidence Workbench (17 views), System Response workspace, registry Classification step, Gate Configuration workspace |
+| `ams-frontend` | `ams-cpa-ams-frontend` | Governance build identity + approvals queue, transmitter health panel + lanes, events availability/condition, Evidence Workbench (17 views), System Response workspace, registry Classification step, Gate Configuration workspace · **CHG-030** CPA navigation/UI repair · **CHG-032** shelve / unshelve / history on Loop Events |
 | `traverse-auth-service` | `ams-cpa-traverse-auth-service` | CHG-028 lab finding: the revocation feed floors `credentials_changed_at` (a token issued in the same second as a credential change read as revoked) |
 | `gateway` | `ams-cpa-gateway` | 2026-09-17 lab finding: the rate limiter failed CLOSED on a Redis timeout and token refresh was a "mutation" - one 1 s Redis stall logged every user out and held every request ~7 s. Now a `session` class (fail-open), one bounded Redis round trip, a circuit breaker with in-process counters (fail-closed = enforced locally), `GET /gw/ratelimit`, `X-RateLimit-Source`; `docs/api-gateway.md` §3; proofs `scripts/test-gateway-redis-outage.ps1` (Pause / Stop, 9/9 each), `scripts/validation/gw-redis-stall-load.mjs`, `scripts/validation/ui-refresh-resilience.mjs` |
 
@@ -2017,6 +2035,75 @@ container was unhealthy/restarting, and Explorer loaded loop data in Chrome.
 The Desktop stale-socket error was recovered separately; the guarded startup
 helper is a workaround, not a vendor bug fix.
 
+
+## CHG-030 — CPA navigation and UI repair: Overview, Performance, Explorer, Historical, all trends, Events, System Response (2026-09-20)
+
+**Scope:** frontend only (`src/frontend-ob`). No API contract, backend, database script or Flink
+job changed. Plan and per-phase findings: [docs/cpa-ui-fix-plan.md](docs/cpa-ui-fix-plan.md);
+acceptance status: [docs/cpa-application-flow-audit.md](docs/cpa-application-flow-audit.md) §6.
+Rules followed: every in-page route carries `?loop=` (plus `window` / `gate` / `kind` when
+window-scoped), every navigation affordance is an `ObcButton`, no new eager fetch, disabled-with-
+reason instead of hidden, `push` for visits and `replace` for in-page selection, files ≤ 500 lines,
+`npm run lint --max-warnings 0` clean, the nav sidebar untouched.
+
+### What was wrong and what changed
+
+| Page | Defect (measured on the lab) | Fix |
+|---|---|---|
+| Overview | Analysis dialog painted under the top bar (modal z-index 60/61 vs a grid-item top bar at 100); its only action sat below 17 gate rows and opened the fleet matrix; the Flink runtime panel cost 2 requests + a 15 s poll; loop ids were text | Modal layer 1000/1001 with a fixed footer; `Open loop ›` (Explorer) / `Fleet matrix ›`; gate rows route to the gate panel; queue rows, event trail and the "Need attention" tile route with context; `PipelinePanel` removed. Initial calls 9 → 7, poll gone |
+| Performance | Loop cell only selected; `Open in workbench` disabled for loading, absent and pre-v2.5 cells with one misleading title; `tab=calculations` case bug; `Window Inspector` was a text link; stale line had no route | Loop cell routes to the Explorer (native grid cell kept: `obc-button` has no `delegatesFocus`, so it cannot take the roving focus); five named button states with Replay promoted for legacy rows; `tab=Calculations`; Window Inspector / Pipeline Health / `Open loop ›` buttons. Initial calls unchanged (5) |
+| Explorer | Rail stayed open with a loop selected; Summary had no gates or calculations; Workbench / Response were text links | Rail follows the URL (collapsed when a loop is named, on deep links and Back); Summary gate strip from the cached `gates/latest` row (0 requests) with a lazy gate detail that fetches that run's manifest + bundle only on click and renders the Workbench gate view; lazy Long / Short calculations (fused row from cache, one `kpis?limit=1` call per short kind picked); Context buttons open the exact fused run. Initial calls unchanged (9) |
+| Historical + every PV/SP/OP chart | Legend swatches and tooltip markers used the ECharts palette (yellow/red/blue) while lines used the pens | `color` set beside `lineStyle.color` on every signal series (Historical, Overview focus, Explorer, Replay, Investigation); Historical gains an `Evidence Workbench ›` exit for the selected window |
+| All trends | No drag-rectangle zoom | Shared `components/charts/{boxZoom,useBoxZoom,ChartZoomBar}`: ECharts' toolbox dataZoom feature shown to ECharts but off-canvas, driven by OpenBridge buttons (Zoom area · Undo · Reset, Escape cancels); the zoom rides in the option so live ticks keep it; wired into Historical (x on every lane, y on the signals grid), Overview focus, Explorer operating state, Investigation, Replay (time + phase plane), CpmChart (Workbench / Response / model history), Trajectory, Pipeline telemetry and TrendCore (Trend page, dialog, canvas symbol; split into `Designer/trend/*`, 583 → 366 lines). Zero requests on zoom |
+| Loop Events | Expired shelves read "Shelved" for ever (EVT-833 three days past expiry); no Shelved views; four fixed durations; loop id text; `?loop=` ignored | `events/shelfState` derives ACTIVE / EXPIRED from the clock; filters Shelved and Shelf expired (expired also counts as unacknowledged); lazy shelve panel with presets, custom expiry, reason and Update shelf; a visible disabled Unshelve naming the missing endpoint; `?loop=` scopes the single events request; loop buttons everywhere; ack / shelve gated on `cpm.manage` |
+| System Response | Context column 284 px; expanded outputs and the 52-row catalogue escaped it by 248 px; timestamps wrapped to three lines; censored events kept "Decoding…" skeletons; Workbench was a text link | Columns `1fr / 3fr / 1.4fr` (context stacks under the centre below 1400 px); contained key/value rows; catalogue as a lazy wide centre card; tables get a scroll wrapper; panels wait only for artifact kinds the manifest declares; `Open in Evidence Workbench ›` and `Open loop ›` buttons; missing timestamps read "unknown" |
+
+### Changed components
+
+- New: `components/Cpm/cpaHref.ts` (+test), `components/charts/boxZoom.ts` (+test), `useBoxZoom.ts`, `ChartZoomBar.tsx`, `components/Cpm/explorer/summary/{OperatingState,SummaryGateStrip,SummaryGateDetail,SummaryCalculations}.tsx`, `components/Cpm/events/{shelfState.ts,EventDetail.tsx,ShelvePanel.tsx}` (+test), `components/Cpm/response/QuantityCatalogue.tsx`, `components/Designer/trend/{trendSupport.ts,trendOption.ts,TrendLegend.tsx,TrendTimeBar.tsx}`.
+- Changed: `CpmOverview`, `overview/{FocusedLoopDrawer,LoopFocus}`, `CpmPerformance`, `GateMatrix`, `GateEvidencePanel`, `AttentionList`, `CpmExplorer`, `explorer/{SummaryTab,LoopModelCard}`, `CpmHistorical`, `historical/{chartOption,SelectedWindowPanel}`, `CpmInvestigation`, `CpmPipeline`, `replay/ReplayChart`, `evidence/CpmChart`, `evidence/views/primitives/Trajectory`, `windows/WindowResults` (export), `CpmEvents`, `response/{ResponseWorkspace,EventAside,EventList,CandidateModelsTable}`, `Designer/TrendCore`, `shared.tsx` (KpiTile `action`), `global.d.ts` (`title`, `aria-pressed` on `ObcButton`), `styles/{app,cpm,cpm-evidence}.css`.
+- Removed: `components/Cpm/overview/PipelinePanel.tsx` (only consumer was the Overview).
+
+### Validation
+
+- Unit: `npx vitest run` 62 files / 272 tests; `npm run lint` clean; `npx tsc --noEmit` clean; `npm run build` OK.
+- Browser (lab Vite dev build, 1440×900 and 1036×647, Day / Night): Phase 1–4 journeys exercised with real clicks — Overview dialog above the top bar, every Overview / Performance / Explorer route lands with context and Back restores `loop` / `gate` / `tab`; Performance keyboard grid still one tab stop; Explorer deep link with `gate=` opens the detail; gate click adds only `method-runs/evidence/batch` + `…/evidence/bundle`; Short-window toggle adds exactly one `kpis` call; Historical tooltip markers match the pens.
+- **Pending browser verification:** Phases 5–7 (box zoom on each chart, Events shelving, Response layout). The lab Docker engine failed during the run (C: full, see below); the box-zoom mechanism itself was proven with a real drag on a standalone ECharts instance in the same page (x 37.6–59.8 %, y 31.5–69.4 %).
+
+### API gaps (frontend cannot close)
+
+1. `POST /api/v1/cpm/events/{id}/unshelve` does not exist (only acknowledge, which clears the shelf, and shelve). The Unshelve button is visible and disabled with that reason.
+2. Event frames carry no evaluated-window end or run id, so an episode cannot open its own evidence in one click (audit A2).
+3. Rows without `method_run_id` (all prod v2 rows) cannot open the immutable Workbench; Replay / Window Inspector are the offered fallbacks.
+
+### Release impact — updated services and the script to run
+
+Only `ams-frontend` (`ams-cpa-ams-frontend`) changes; no other service, no database script, no Kafka
+topic, no Flink artefact. It ships inside the v2.5 bundle (the image is already in
+`migration/deploy/releases/v2.5.txt`), so the plant steps in
+[migration/V2.5-DEPLOY.md](migration/V2.5-DEPLOY.md) are unchanged. If the frontend has to go out
+alone (a v2.5 hotfix after the bundle is built):
+
+```powershell
+cd src/frontend-ob; npm run lint; npm run build                 # both must be clean
+cd ../..; git status --short                                    # must be empty (bundles ship git archive HEAD)
+python migration/deploy/build-release.py --release v2.5 --only ams-frontend
+```
+
+Plant: UPDATE-RUNBOOK §1 for that one image (`sha256sum -c`, rollback point, `docker load`,
+`deploy.sh --prod`), then 200 on `/` and users press Ctrl+F5.
+
+### Lab incident during this change (2026-09-20, ops)
+
+The Docker engine on the lab PC answered HTTP 500 at ~10:45, was restarted (Docker Desktop restart,
+then `scripts/start-lab-docker.ps1` after a stale-socket refusal) and the stack was healthy at
+~11:00; by ~11:30 the engine was unreachable again. Cause: **C: had 244 MB free**;
+`C:\Users\Admin\DockerDesktopWSL\disk\docker_data.vhdx` had grown to 166 GB (this morning's
+CHG-029 compaction had left 107 GB free). Docker Desktop was stopped at 11:37 to halt the growth;
+nothing was deleted. Next steps for ops: find what filled the VHDX in nine hours (Flink / Kafka
+state under `infra/docker` retention), then run the elevated `scripts/compact-lab-docker-disk.ps1`
+or move the VHDX to D:, then `scripts/start-lab-docker.ps1`.
+
 ## CHG-031 — Plant: disk-full → Kafka down → ingestion producer never reconnected (2026-09-18 → 09-20)
 
 **Scope:** plant operations, Kafka topic retention, one new OT data source. No image rebuilt.
@@ -2054,3 +2141,120 @@ rebuild the producer; expose `lastDeliveredAt` and fail health when it lags the 
 
 **Also open:** `RawLoopIotDbConsumer` generic `catch` (line ~191) clears the held buffer on a
 non-write exception (e.g. `EnsureTimeseriesAsync`) — those rows are re-read only after a restart.
+
+## CHG-032 — Episode shelving as its own lifecycle: shelve / update / unshelve / expiry / history (2026-09-20)
+
+**Scope:** `cplm-api` (API + schema + sweeper), `ams-frontend` (Loop Events), one new plant SQL step.
+Design and runbook: [docs/cpa-event-shelving.md](docs/cpa-event-shelving.md). User request: "proper
+shelve / unshelve management as we have acknowledge management", API changes allowed.
+
+**What was wrong.** A shelf was stored by overwriting `ack_state` with `SHELVED`, so shelving forgot
+the review; nothing but an acknowledgement could end a shelf (no unshelve route); nothing ran at
+expiry, so an expired shelf stayed `SHELVED` for ever (lab EVT-833); who / when / why lived only on
+the Kafka audit trail; there was no maximum duration.
+
+**What changed.**
+
+- Schema (additive, idempotent): `analytics.cplm_event_frames` gains `shelf_state` (NONE | SHELVED |
+  EXPIRED), `shelved_by`, `shelved_at`, `shelve_reason` and a partial index on live shelves;
+  new `analytics.cplm_event_actions` (ACKNOWLEDGED / SHELVED / SHELVE_UPDATED / UNSHELVED /
+  SHELVE_EXPIRED with actor, at, until, reason). Legacy `ack_state = 'SHELVED'` rows are converted
+  (shelf columns filled, history row written, ack reset to UNACKNOWLEDGED — a shelf never meant
+  reviewed). Three identical copies: `database/scripts/60_cplm_event_shelving.sql` (lab),
+  `scripts/cpm-09-event-shelving.sql` (plant, in `build-release.py` OPS_FILES and the VM steps),
+  `migration/schema/03-traverse_cplm.sql` (fresh installs); `CplmEventFrameService.EnsureSchemaAsync`
+  self-heals the same DDL.
+- `cplm-api`: `Services/EventShelvingRules.cs` (pure transitions with explicit refusals),
+  `Services/EventActionStore.cs` (frame + history row in one transaction; the sweeper's
+  `UPDATE … RETURNING`), `Services/ShelvingOptions.cs` (`Cplm:Shelving` — MaxHours 168, SweepSeconds
+  60, SweepEnabled), `Controllers/CpmEventActionsController.cs` (acknowledge and shelve moved here,
+  unchanged routes; new `POST /events/{id}/unshelve`, `GET /events/{id}/actions`,
+  `GET /events/shelving-policy`), `BackgroundServices/CplmShelfExpirySweeper.cs` (registered always,
+  own switch). `CpmEventsController` is read-only: rows carry the shelf columns, the envelope carries
+  `shelvePolicy.maxHours`, `includeShelved=false` hides active shelves only. Semantics: acknowledge
+  leaves an active shelf and clears an expired one; shelve on an active shelf is an update; unshelve
+  keeps the ack. Audit: `CPM_EVENT_SHELVE_UPDATED`, `CPM_EVENT_UNSHELVED`, `CPM_EVENT_SHELF_EXPIRED` added.
+- `ams-frontend`: `api/cpmApi.ts` (`shelf_state` + shelf columns, `CpmEventAction`, `unshelveEvent`,
+  `getEventActions`, `shelvePolicy`), `hooks/useCpm.ts` (`useUnshelveEvent`, `useEventActions`),
+  `events/shelfState.ts` (shelf column first, clock second, legacy rows still read), `events/EventDetail.tsx`
+  (Review and shelf section; Acknowledge / Shelve… / Unshelve… / History › with disabled-with-reason),
+  `events/ShelvePanel.tsx` (presets within the site limit, capped custom expiry, required reason),
+  new `events/UnshelvePanel.tsx` and `events/EventHistory.tsx` (lazy; the history fetches only while open),
+  `explorer/HistoryTab.tsx` (active shelf still reads SHELVED). No new eager request on any page.
+
+**Validation.** cplm-api build clean; unit suite 117/117 (`EventShelvingRulesTests` 5 new);
+frontend lint / tsc clean, vitest 277/277 (`shelfState.test.ts` rewritten, `EventDetail.test.tsx` new),
+`npm run build` OK. **Pending the lab (Docker down, C: full):** `EventActionsApiTests` (Integration:
+transaction pairing, shelf/ack independence, sweeper once-only, events read + policy) and the browser
+pass of Loop Events (shelve → Shelved with countdown, acknowledge keeps the shelf, Unshelve keeps the
+ack, History rows, expiry return within a minute).
+
+**Release v2.5 — updated services and scripts.** Images: `cplm-api`, `ams-frontend` (both already in
+`migration/deploy/releases/v2.5.txt`). Plant, in C1 of [migration/V2.5-DEPLOY.md](migration/V2.5-DEPLOY.md)
+right after cpm-08 and **before the cplm-api swap**:
+
+```bash
+docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/v2.5/ops/cpm-09-event-shelving.sql
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select count(*) from analytics.cplm_event_frames where ack_state='SHELVED'"   # 0 after the conversion
+```
+
+Build box: `python migration/deploy/build-release.py --release v2.5` (cpm-09 rides under `ops/`
+automatically). Lab: `.\run-all.ps1 -SkipBuild` after rebuilding the two images; the consumer's
+self-heal DDL applies the schema, or run `database/scripts/60_cplm_event_shelving.sql` by hand.
+Rollback: the columns and table are additive and ignored by the previous image; a previous image
+would again write `ack_state = 'SHELVED'` on shelve, which the new one still reads.
+
+## CHG-032 — Lab Docker disk exhaustion, second time: uncapped VHDX, no TRIM, broken vendor compaction, Flink HA repair (2026-09-20)
+
+**Scope:** lab host operations and Flink HA recovery. No application code, images or
+compose services changed; `scripts/start-ams-docker-full.ps1` gained an image prune step.
+
+**What happened.** Nine hours after CHG-029's compaction, C: hit 0 again: `docker_data.vhdx`
+regrew 75.6 GB → 166.4 GB while the ext4 inside held ~57 GB. Root cause is the disk, not
+the data: a 1 TB dynamically expanding VHDX on a 480 GB C:, a Docker VM that never runs
+`fstrim` and mounts without `discard`, and Docker Desktop's shutdown trim+compaction
+skipped since last night's 4.91 / WSL 2.7.14 update (`wsl --unmount` "failed to detach").
+When C: reached 0 the VM took I/O errors, ext4 went read-only, and MinIO lost one Flink HA
+handle object; ZooKeeper still referenced it, so the JobManager crash-looped (19 fatals)
+and the TaskManager re-restored RocksDB state at ~60 GB/h until it was stopped.
+Full evidence and timeline: [docs/docker-disk-recovery-2026-09-20.md](docs/docker-disk-recovery-2026-09-20.md) (second section).
+
+**Recovery done (12:10–12:30):** fsck (clean) → `fstrim` inside the VM → `Optimize-VHD`
+166.4 → 70.5 GB, C: 96 GB free → Docker Desktop restarted, 31 containers up, Redis contract
+AOF intact, gateway 200. JobManager left **stopped** pending the HA repair below.
+
+**Permanent fix added (see the table in the doc):** `scripts/reclaim-lab-docker-disk.ps1`
+(nightly trim+compact+verify), `scripts/watch-lab-disk.ps1` (10-min guard, graceful stop
+< 20 GB), `scripts/install-lab-disk-guard.ps1` (registers both tasks),
+`scripts/cap-lab-docker-disk.ps1` (one-time 160 GB hard cap), `scripts/repair-flink-ha-checkpoints.ps1`,
+`scripts/gc-flink-checkpoints.ps1`, dangling-image prune in `scripts/start-ams-docker-full.ps1`,
+timestamped log in `scripts/compact-lab-docker-disk.ps1`.
+
+**Updated services:** none rebuilt (host/ops scripts only).
+
+**Scripts to run for v3 (lab host, in this order):**
+1. `docker stop ams-flink-jobmanager` → `.\scripts\repair-flink-ha-checkpoints.ps1 -Apply` → `docker start ams-flink-jobmanager` → expect 13 RUNNING at http://localhost:8082.
+2. Admin: `.\scripts\install-lab-disk-guard.ps1` (nightly 03:30 reclaim + 10-min watch).
+3. Admin, ~10 min stack downtime, after Flink is healthy: `.\scripts\cap-lab-docker-disk.ps1 -NewSizeGB 160`.
+4. Once Flink REST is up: `.\scripts\gc-flink-checkpoints.ps1` (review) then `-Apply`.
+5. Every `run-all.ps1` build now prunes dangling images automatically.
+
+**Verification (2026-09-20 13:00-13:20):**
+- Step 1 done: `repair-flink-ha-checkpoints.ps1 -Apply` removed the one broken reference
+  (38/39 intact); JobManager restarted with 0 restarts, 13 RUNNING, *AMS - Alarm State
+  Machine* logged "Restoring job ... from Checkpoint 12804".
+- Step 2 done: tasks `AMS Lab Docker Disk Reclaim` (daily 03:30) and `AMS Lab Disk Watch`
+  (10 min) registered as OWS02W\Admin, highest; event source registered; watch samples
+  land in `D:\DockerSupport\disk-watch.csv` (last result 0).
+- Step 4 done: `gc-flink-checkpoints.ps1 -Apply` deleted 61 of 61 orphaned directories
+  (303 MB); 106 kept (13 live + newer than 7 days).
+- Step 3 NOT applied: first run aborted at `resize2fs` because PowerShell turned the
+  tool's stderr banner into a terminating error under `$ErrorActionPreference = 'Stop'`.
+  Filesystem verified unchanged afterwards (block count 268435456, state clean, last
+  checked by the run's own fsck). Fixed in `reclaim-lab-docker-disk.ps1` and
+  `cap-lab-docker-disk.ps1` (stderr treated as text, guest tools `2>&1`, docker calls
+  wrapped). Second launch: UAC prompt cancelled. Re-run when ~10 min of stack downtime
+  is acceptable: elevated `.\scripts\cap-lab-docker-disk.ps1 -NewSizeGB 160`. If it logs
+  "Hyper-V minimum size ... exceeds target" or `Resize-VHD` fails, the fallback is a
+  rebuild into a new 160 GB disk (export volumes, recreate, re-import).
+- First nightly reclaim log expected 2026-09-21 03:30 in `D:\DockerSupport\reclaim-docker-*.log`.

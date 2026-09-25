@@ -63,6 +63,7 @@ OPS_FILES = [
     "scripts/cpm-07-v25-schema.sql",               # v2.5        - 53..58 merged: identity, evidence, response, health, loop model, config (BEFORE the swap)
     "scripts/cpm-07b-v25-result-key.sql",          # v2.5        - the result unique keys gain bundle_hash (cplm-api STOPPED, after cpm-07)
     "scripts/cpm-08-v25-permissions.sql",          # v2.5        - traverse_auth: the new cpm.* permissions + role grants
+    "scripts/cpm-09-event-shelving.sql",           # CHG-032     - episode shelving lifecycle + action history (BEFORE the cplm-api swap)
     "scripts/set-quality-protocol.py",             # v2.5        - declare quality_protocol on every MQTT_LOOP_SAMPLES source
     "migration/kafka/topics.txt",                  # v2.5        - the 7 new topics (04-create-kafka-topics.sh reads it)
 ]
@@ -354,6 +355,8 @@ docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERR
 docker stop traverse-cplm-api
 docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-07b-v25-result-key.sql
 docker exec -i instrumental-postgres psql -U postgres -d traverse_auth -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-08-v25-permissions.sql
+#    CHG-032 shelving lifecycle (additive; converts legacy ack_state = SHELVED rows; re-runnable):
+docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-09-event-shelving.sql
 #    the 7 new topics (idempotent --if-not-exists; the samples and gate-results topics are untouched):
 ALLOW_CREATE_PREFIXED_TOPICS=yes bash migration/04-create-kafka-topics.sh
 docker exec instrumental-kafka-1 kafka-topics --bootstrap-server kafka-1:9092 --list | grep -c 'traverse.cpa' # was 29, now 36

@@ -2,6 +2,7 @@
  * v2.5 Task 2E.2: the replay's evidence chart, split out of CpmReplay (file-size rule) and given
  * the R14 axes - PV / SP on the EU axis, OP / VP on a percentage-point axis - plus the replay
  * cursor. Shape gates (G7-G10) see the PV-OP phase plane instead. The option builder is pure.
+ * Phase 5 (cpa-ui-fix-plan): rectangle zoom on both views (x + y), held across cursor moves.
  */
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
@@ -9,6 +10,9 @@ import type { CpmTrendPoint } from '../../../api/cpm/kpis';
 import { cpmChartColors, fmtDateTime } from '../shared';
 import { useObcTheme } from '../../../hooks/useObcTheme';
 import { formatInZone, zoneLabel } from '../evidence/timezone';
+import { FULL_ZOOM, boxZoomOption, type ZoomState } from '../../charts/boxZoom';
+import { useBoxZoom, useKeepSelecting } from '../../charts/useBoxZoom';
+import ChartZoomBar from '../../charts/ChartZoomBar';
 
 export interface ReplayChartInput {
   points: CpmTrendPoint[];
@@ -17,6 +21,7 @@ export interface ReplayChartInput {
   pens: { good: string; amber: string; grey: string; accent: string; pink: string };
   pvUnit: string;
   timeZone: string;
+  zoom?: ZoomState;
 }
 
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
@@ -24,11 +29,13 @@ const num = (v: unknown) => (typeof v === 'number' ? v : null);
 export function buildReplayOption(i: ReplayChartInput) {
   const { points, cursorTs, pens, pvUnit, timeZone } = i;
   const { good, amber, grey, accent, pink } = pens;
+  const zoom = i.zoom ?? FULL_ZOOM;
   if (i.phasePlane) {
     const pairs = points.map(p => ({ ts: p.ts, pv: num(p.pv), op: num(p.op) })).filter(p => p.pv != null && p.op != null);
     return {
       animation: false,
       grid: { left: 52, right: 16, top: 20, bottom: 34 },
+      ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: 0 }, zoom),
       tooltip: { trigger: 'item' as const },
       xAxis: { type: 'value' as const, name: 'OP (pp)', scale: true, axisLabel: { color: grey } },
       yAxis: { type: 'value' as const, name: `PV (${pvUnit})`, scale: true, axisLabel: { color: grey }, splitLine: { lineStyle: { opacity: 0.2 } } },
@@ -44,6 +51,7 @@ export function buildReplayOption(i: ReplayChartInput) {
   return {
     animation: false,
     grid: { left: 56, right: 56, top: 24, bottom: 34 },
+    ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: [0, 1] }, zoom),
     tooltip: {
       trigger: 'axis' as const,
       formatter: (params: Array<{ seriesName: string; marker: string; value: [number, number | null] }>) => {
@@ -60,14 +68,14 @@ export function buildReplayOption(i: ReplayChartInput) {
       { type: 'value' as const, name: 'pp', position: 'right' as const, scale: true, axisLabel: { color: grey }, nameTextStyle: { color: grey, fontSize: 10 }, splitLine: { show: false } },
     ],
     series: [
-      { name: 'PV', type: 'line' as const, symbol: 'none', connectNulls: false, yAxisIndex: 0, lineStyle: { color: good, width: 1.5 },
+      { name: 'PV', type: 'line' as const, symbol: 'none', connectNulls: false, yAxisIndex: 0, color: good, lineStyle: { color: good, width: 1.5 },
         data: points.map(p => [p.ts, num(p.pv)]),
         markLine: cursorTs != null ? { symbol: 'none', label: { show: false }, lineStyle: { color: accent, width: 2 }, data: [{ xAxis: cursorTs }] } : undefined },
-      { name: 'SP', type: 'line' as const, symbol: 'none', connectNulls: false, yAxisIndex: 0, lineStyle: { color: grey, width: 1, type: 'dashed' as const },
+      { name: 'SP', type: 'line' as const, symbol: 'none', connectNulls: false, yAxisIndex: 0, color: grey, lineStyle: { color: grey, width: 1, type: 'dashed' as const },
         data: points.map(p => [p.ts, num(p.sp)]) },
-      { name: 'OP', type: 'line' as const, symbol: 'none', connectNulls: false, yAxisIndex: 1, lineStyle: { color: amber, width: 1 },
+      { name: 'OP', type: 'line' as const, symbol: 'none', connectNulls: false, yAxisIndex: 1, color: amber, lineStyle: { color: amber, width: 1 },
         data: points.map(p => [p.ts, num(p.op)]) },
-      ...(hasVp ? [{ name: 'VP', type: 'line' as const, symbol: 'none', connectNulls: false, yAxisIndex: 1, lineStyle: { color: pink, width: 1 },
+      ...(hasVp ? [{ name: 'VP', type: 'line' as const, symbol: 'none', connectNulls: false, yAxisIndex: 1, color: pink, lineStyle: { color: pink, width: 1 },
         data: points.map(p => [p.ts, num(p.vp)]) }] : []),
     ],
   };
@@ -83,13 +91,17 @@ export const ReplayChart: React.FC<{
   pvUnit?: string;
 }> = ({ points, phasePlane, cursorPct, onCursor, truncated, timeZone, pvUnit = 'EU' }) => {
   const cursorTs = points.length > 0 ? points[Math.min(points.length - 1, Math.floor((cursorPct / 100) * (points.length - 1)))].ts : null;
+  const box = useBoxZoom({ hasY: true });
   const obcTheme = useObcTheme(); // re-derive chart colors on theme switch
-  const option = useMemo(() => buildReplayOption({ points, cursorTs, phasePlane, pens: cpmChartColors(), pvUnit, timeZone }),
+  const option = useMemo(() => buildReplayOption({ points, cursorTs, phasePlane, pens: cpmChartColors(), pvUnit, timeZone, zoom: box.zoom }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
-    [points, cursorTs, phasePlane, pvUnit, timeZone, obcTheme]);
+    [points, cursorTs, phasePlane, pvUnit, timeZone, obcTheme, box.zoom]);
+  useKeepSelecting(box, option);
   return (
     <>
-      <ReactECharts option={option} style={{ height: 300 }} notMerge />
+      <ReactECharts option={option} style={{ height: 300 }} notMerge
+        onChartReady={box.onChartReady} onEvents={{ datazoom: box.onDataZoom }} />
+      <ChartZoomBar box={box} hasData={points.length > 0} />
       <div className="cpm-slider-row">
         <span className="cpm-copy">Replay cursor</span>
         <input type="range" min={0} max={100} value={cursorPct} onChange={e => onCursor(Number(e.target.value))} aria-label="Replay cursor position" />

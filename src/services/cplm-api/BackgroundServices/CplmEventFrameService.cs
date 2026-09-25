@@ -303,6 +303,34 @@ public sealed class CplmEventFrameService : BackgroundService
                     ON analytics.cplm_event_frames (lower(loop_id));
                 CREATE INDEX IF NOT EXISTS idx_cplm_event_frames_loop_lower_opened
                     ON analytics.cplm_event_frames (lower(loop_id), opened_at DESC);
+                -- CHG-032 (60_cplm_event_shelving.sql parity): the shelf's own lifecycle + action history.
+                ALTER TABLE analytics.cplm_event_frames
+                    ADD COLUMN IF NOT EXISTS shelf_state   VARCHAR(16) NOT NULL DEFAULT 'NONE',
+                    ADD COLUMN IF NOT EXISTS shelved_by    VARCHAR(128),
+                    ADD COLUMN IF NOT EXISTS shelved_at    TIMESTAMPTZ,
+                    ADD COLUMN IF NOT EXISTS shelve_reason TEXT;
+                CREATE INDEX IF NOT EXISTS idx_cplm_event_frames_shelved
+                    ON analytics.cplm_event_frames (shelve_until) WHERE shelf_state = 'SHELVED';
+                CREATE TABLE IF NOT EXISTS analytics.cplm_event_actions (
+                    id        BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                    event_id  BIGINT      NOT NULL REFERENCES analytics.cplm_event_frames (id) ON DELETE CASCADE,
+                    action    VARCHAR(24) NOT NULL
+                              CHECK (action IN ('ACKNOWLEDGED', 'SHELVED', 'SHELVE_UPDATED', 'UNSHELVED', 'SHELVE_EXPIRED')),
+                    actor     VARCHAR(128) NOT NULL,
+                    at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    until     TIMESTAMPTZ,
+                    reason    TEXT);
+                CREATE INDEX IF NOT EXISTS idx_cplm_event_actions_event
+                    ON analytics.cplm_event_actions (event_id, at DESC);
+                -- legacy shelves (ack_state = 'SHELVED') move to the shelf columns, history row included
+                INSERT INTO analytics.cplm_event_actions (event_id, action, actor, at, until, reason)
+                SELECT id, 'SHELVED', COALESCE(acked_by, 'unknown'), COALESCE(acked_at, updated_at), shelve_until, note
+                FROM analytics.cplm_event_frames WHERE ack_state = 'SHELVED';
+                UPDATE analytics.cplm_event_frames
+                SET shelf_state = CASE WHEN shelve_until IS NOT NULL AND shelve_until > NOW() THEN 'SHELVED' ELSE 'EXPIRED' END,
+                    shelved_by = acked_by, shelved_at = acked_at, shelve_reason = note, note = NULL,
+                    ack_state = 'UNACKNOWLEDGED', acked_by = NULL, acked_at = NULL, updated_at = NOW()
+                WHERE ack_state = 'SHELVED';
                 """);
             _logger.LogInformation("CPLM event-frame schema ensured");
         }

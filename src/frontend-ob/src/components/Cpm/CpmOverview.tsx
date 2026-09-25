@@ -2,23 +2,29 @@
 
 /**
  * CPLM Phase 7 — U1 Overview.
- * CPA-prototype IA parity: KPI row, live pipeline panel, priority queue,
- * loop-focus panel with an 8-hour envelope trend, focused-loop drawer with the
- * real evidence path, insight card, and event trail. The prototype's fabricated
- * live numbers (events/s, watermark lag) are replaced by what we can actually
- * measure — job states — with the rest stated as unavailable rather than faked.
+ * CPA-prototype IA parity: KPI row, priority queue, loop-focus panel with an
+ * 8-hour envelope trend, focused-loop drawer with the real evidence path,
+ * insight card, and event trail. The prototype's fabricated live numbers are
+ * not reproduced; what cannot be measured is stated as unavailable.
+ *
+ * 2026-09-20 (docs/cpa-ui-fix-plan.md, Phase 1): the "Live Flink runtime"
+ * panel left this screen — its job states live on Pipeline Health, and on a
+ * triage surface it cost two requests plus a 15 s poll. Every loop named here
+ * is now a route: queue rows and the event trail open the loop in the
+ * Explorer, the drawer opens the loop or the fleet matrix, and the fleet exits
+ * carry the operator's explicit ?loop= selection.
  */
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { EmptyState, KpiTile, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor, fmtDateTime, QueryError } from './shared';
+import { EmptyState, KpiTile, PanelHead, TonePill, WorkspaceHeader, toneFor, fmtDateTime, QueryError } from './shared';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
 import { useCpmEvents, useFleetRankings, useFleetSummary } from '../../hooks/useCpm';
 import GoodErrorBar from './overview/GoodErrorBar';
-import PipelinePanel from './overview/PipelinePanel';
 import { peersCopy, positionerCopy } from './overview/capabilityCopy';
 import LoopFocus from './overview/LoopFocus';
 import FocusedLoopDrawer from './overview/FocusedLoopDrawer';
+import { eventsHref, explorerHref, performanceHref } from './cpaHref';
 
 export const CpmOverview: React.FC = () => {
   const navigate = useNavigate();
@@ -50,6 +56,11 @@ export const CpmOverview: React.FC = () => {
   const showingTopRanked = !requestedId && !!selected;
   const missingLoop = !!requestedId && !selected
     && !rankings.isLoading && !rankings.isError && loops.length > 0;
+  // The loop the operator CHOSE, as opposed to the top-ranked default. The fleet
+  // exits ("View all", "All events", "Show in Performance") carry only an
+  // explicit choice: scoping the fleet to a loop nobody picked would read as a
+  // filter they never set.
+  const explicitLoop = requestedId && selected ? selected.loopId : undefined;
 
   // Position in the ranked queue, so the drawer's prev/next walk it in order.
   const drawerIndex = drawerLoop
@@ -69,8 +80,15 @@ export const CpmOverview: React.FC = () => {
     .filter(d => toneFor(d.diagnosis) !== 'good')
     .reduce((n, d) => n + d.count, 0);
 
+  // replace: previewing a row in the focus panel is in-page selection, not a
+  // page visit. Opening a loop IS a visit (push), so Back returns here with
+  // the selection intact.
+  const preview = (loopId: string) =>
+    setParams(p => { p.set('loop', loopId); return p; }, { replace: true });
+  const openLoop = (loopId: string) => navigate(explorerHref(loopId, { tab: 'Summary' }));
+
   return (
-    <div className="cpm-screen" data-cpa-ready={!!summary.data && !!rankings.data}>
+    <div className="cpm-screen">
       <WorkspaceHeader
         eyebrow="Live operating view"
         title="Operations overview"
@@ -85,7 +103,14 @@ export const CpmOverview: React.FC = () => {
           sub={summary.data ? `of ${summary.data.loops.total} registered` : undefined} />
         <KpiTile caption="Need attention" tone={needAttention > 0 ? 'warn' : 'good'}
           value={summary.data ? needAttention : '…'}
-          sub={summary.data ? `${fleetEvaluated} loop(s) evaluated` : undefined} />
+          sub={summary.data ? `${fleetEvaluated} loop(s) evaluated` : undefined}
+          action={
+            <ObcButton variant="flat" disabled={!summary.data}
+              title={summary.data ? 'The loops behind this count, in the Performance matrix' : 'Waiting for the fleet summary'}
+              onClick={() => navigate(performanceHref({ rows: 'attention', loop: explicitLoop }))}>
+              Show loops ›
+            </ObcButton>
+          } />
         {/* v2.5 (audit F11): the registry counts are the same; what they mean under fusion v2 is said (capabilityCopy) */}
         <KpiTile caption={positionerCopy(summary.data?.capability.loopsCappedByMissingVp ?? 0).caption} tone={summary.data && summary.data.capability.loopsCappedByMissingVp > 0 ? 'warn' : 'good'}
           value={summary.data?.capability.loopsCappedByMissingVp ?? '…'}
@@ -95,12 +120,14 @@ export const CpmOverview: React.FC = () => {
           sub={summary.data ? peersCopy(summary.data.capability.loopsWithoutDisturbanceContext).sub : undefined} />
       </div>
 
-      <PipelinePanel />
-
       <div className="cpm-grid-2">
         <section className="cpm-surface">
           <PanelHead eyebrow="Priority queue" title="Loops requiring review"
-            right={<ObcButton variant="normal" onClick={() => navigate('/cpm/performance')}>View all ›</ObcButton>} />
+            right={
+              <ObcButton variant="normal" onClick={() => navigate(performanceHref({ loop: explicitLoop }))}>
+                View all ›
+              </ObcButton>
+            } />
           {rankings.isLoading && <EmptyState title="Loading…" />}
           {rankings.isError && <QueryError title="Rankings unavailable" error={rankings.error} retry={() => void rankings.refetch()} />}
           {!rankings.isLoading && !rankings.isError && loops.length === 0 && (
@@ -108,30 +135,35 @@ export const CpmOverview: React.FC = () => {
               copy="Onboard loops in the Loop Registry to populate this queue."
               action={{ label: 'Open Loop Registry', onClick: () => navigate('/cpm/registry') }} />
           )}
-          {loops.slice(0, 6).map(l => (
-            <div key={l.loopId}
-              className={`cpm-event-row${selected?.loopId === l.loopId ? ' cpm-event-row--selected' : ''}`}
-              style={{ gridTemplateColumns: '1.4fr 0.8fr 1fr' }}
-              // replace: picking a row is in-page selection, not a page visit.
-              onClick={() => setParams(p => { p.set('loop', l.loopId); return p; }, { replace: true })}
-              role="button" tabIndex={0}
-              onKeyDown={e => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  setParams(p => { p.set('loop', l.loopId); return p; }, { replace: true });
-                }
-              }}>
-              <span>
-                <span className="cpm-event-row__title">{l.loopId}</span>
-                <div className="cpm-event-row__sub">{l.displayName} · {l.area ?? l.site}</div>
-                <GoodErrorBar pct={l.metrics.goodErrorPct} mae={l.metrics.mae} />
-              </span>
-              <span className="cpm-event-row__sub">
-                {l.confidence != null ? `${(l.confidence * 100).toFixed(0)}% conf` : '—'}
-              </span>
-              <TonePill tone={toneFor(l.diagnosis)}>{l.diagnosis.replace(/_/g, ' ')}</TonePill>
-            </div>
-          ))}
+          {loops.slice(0, 6).map(l => {
+            const isSelected = selected?.loopId === l.loopId;
+            return (
+              // Two controls, two jobs: the loop id opens the loop (a route); the
+              // description previews it in the focus panel (a selection). They
+              // are siblings, not nested, so neither is a button inside a button.
+              <div key={l.loopId}
+                className={`cpm-event-row cpm-queue-row${isSelected ? ' cpm-event-row--selected' : ''}`}>
+                <div className="cpm-queue-row__main">
+                  <ObcButton variant="flat" className="cpm-queue-row__loop"
+                    title={`Open ${l.loopId} in the Loop Explorer`}
+                    onClick={() => openLoop(l.loopId)}>
+                    {l.loopId} ›
+                  </ObcButton>
+                  <button type="button" className="cpm-queue-row__preview"
+                    aria-pressed={isSelected}
+                    aria-label={`Preview ${l.loopId} in the focus panel`}
+                    onClick={() => preview(l.loopId)}>
+                    <span className="cpm-event-row__sub">{l.displayName} · {l.area ?? l.site}</span>
+                    <GoodErrorBar pct={l.metrics.goodErrorPct} mae={l.metrics.mae} />
+                  </button>
+                </div>
+                <span className="cpm-event-row__sub">
+                  {l.confidence != null ? `${(l.confidence * 100).toFixed(0)}% conf` : '—'}
+                </span>
+                <TonePill tone={toneFor(l.diagnosis)}>{l.diagnosis.replace(/_/g, ' ')}</TonePill>
+              </div>
+            );
+          })}
         </section>
 
         {selected ? (
@@ -145,7 +177,7 @@ export const CpmOverview: React.FC = () => {
             <EmptyState
               title={`Loop "${requestedId}" is not in the ranking`}
               copy="It may be unmonitored, not yet evaluated, or no longer registered. Pick a loop from the priority queue, or search the full list in Performance."
-              action={{ label: 'Open Performance', onClick: () => navigate('/cpm/performance') }} />
+              action={{ label: 'Open Performance', onClick: () => navigate(performanceHref()) }} />
           </section>
         ) : (
           <section className="cpm-surface"><EmptyState title="Select a loop" /></section>
@@ -165,9 +197,15 @@ export const CpmOverview: React.FC = () => {
                 {topFinding.loopId} ({topFinding.displayName}) at{' '}
                 {topFinding.confidence != null ? `${(topFinding.confidence * 100).toFixed(0)}%` : 'unknown'} confidence.
               </p>
-              <ObcButton variant="raised" onClick={() => setDrawerLoop(topFinding.loopId)}>
-                Review evidence ›
-              </ObcButton>
+              <div className="cpm-filter-row">
+                <ObcButton variant="raised" onClick={() => setDrawerLoop(topFinding.loopId)}>
+                  Review evidence ›
+                </ObcButton>
+                <ObcButton variant="normal" title={`Open ${topFinding.loopId} in the Loop Explorer`}
+                  onClick={() => openLoop(topFinding.loopId)}>
+                  Open {topFinding.loopId} ›
+                </ObcButton>
+              </div>
             </>
           ) : (
             <p className="cpm-copy">Verdicts appear once a loop accumulates a 12h window of samples.</p>
@@ -176,7 +214,11 @@ export const CpmOverview: React.FC = () => {
 
         <section className="cpm-surface">
           <PanelHead eyebrow="Recent context" title="Event trail"
-            right={<ObcButton variant="normal" onClick={() => navigate('/cpm/events')}>All events ›</ObcButton>} />
+            right={
+              <ObcButton variant="normal" onClick={() => navigate(eventsHref({ loop: explicitLoop }))}>
+                All events ›
+              </ObcButton>
+            } />
           {events.isError && (
             <QueryError title="Event trail unavailable"
               error={events.error} retry={() => void events.refetch()} />
@@ -186,9 +228,20 @@ export const CpmOverview: React.FC = () => {
             <EmptyState title="No recent events" />
           )}
           {(events.data?.events ?? []).map(e => (
-            <KvRow key={e.id} label={fmtDateTime(e.opened_at)}>
-              {e.loop_id} · {e.peak_diagnosis.replace(/_/g, ' ')}
-            </KvRow>
+            <div key={e.id} className="cpm-trail-row">
+              <span className="cpm-event-row__sub">{fmtDateTime(e.opened_at)}</span>
+              <span className="cpm-trail-row__what">
+                <ObcButton variant="flat" title={`Open ${e.loop_id} in the Loop Explorer`}
+                  onClick={() => openLoop(e.loop_id)}>
+                  {e.loop_id} ›
+                </ObcButton>
+                <span>{e.peak_diagnosis.replace(/_/g, ' ')}</span>
+              </span>
+              <ObcButton variant="flat" title={`Open episode EVT-${e.id} in Loop Events`}
+                onClick={() => navigate(eventsHref({ event: e.id, loop: e.loop_id }))}>
+                Episode ›
+              </ObcButton>
+            </div>
           ))}
         </section>
       </div>
@@ -200,7 +253,9 @@ export const CpmOverview: React.FC = () => {
           onPrev={drawerIndex > 0 ? () => setDrawerLoop(loops[drawerIndex - 1].loopId) : undefined}
           onNext={drawerIndex >= 0 && drawerIndex < loops.length - 1
             ? () => setDrawerLoop(loops[drawerIndex + 1].loopId) : undefined}
-          onExplore={() => { setDrawerLoop(null); navigate(`/cpm/performance?loop=${encodeURIComponent(drawerLoop)}`); }} />
+          onOpenLoop={() => { setDrawerLoop(null); openLoop(drawerLoop); }}
+          onOpenMatrix={() => { setDrawerLoop(null); navigate(performanceHref({ loop: drawerLoop })); }}
+          onOpenGate={gate => { setDrawerLoop(null); navigate(performanceHref({ loop: drawerLoop, gate })); }} />
       )}
     </div>
   );

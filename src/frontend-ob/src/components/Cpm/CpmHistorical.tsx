@@ -12,8 +12,7 @@
  * flex segments beside a time-axis chart, so the two could not be read against
  * each other — which is the only reason this screen exists.
  */
-import { windowKind, windowEnd, selectedWindow as resolveWindow, cpaHref, selectLoop } from './navigation';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -32,6 +31,9 @@ import RangeToolbar, { SIGNAL_KEYS } from './historical/RangeToolbar';
 import SelectedWindowPanel from './historical/SelectedWindowPanel';
 import { CHART_HEIGHT, buildChartOption, type Segment } from './historical/chartOption';
 import { useInstrumentHealthHistory } from './health/useInstrumentHealth';
+import { replayHref } from './cpaHref';
+import { useBoxZoom, useKeepSelecting } from '../charts/useBoxZoom';
+import ChartZoomBar from '../charts/ChartZoomBar';
 import { healthSegments as toHealthSegments } from './health/HealthLane';
 import {
   RANGE_PRESETS, activePreset, presetRange, spanOf, stepRange,
@@ -85,28 +87,16 @@ export const CpmHistorical: React.FC = () => {
     return parsed.length ? parsed : ['pv', 'sp', 'op'];
   }, [params]);
 
-  // Keep the default range stable across gate/filter changes and browser Back.
-  const [rangeAnchor] = useState(() => new Date(Math.floor(Date.now() / 60_000) * 60_000));
-  const fromParam = params.get('from');
-  const toParam = params.get('to');
+  // Applied range comes from the URL (deep-linkable, always absolute).
   const { from, to } = useMemo(() => {
-    const now = rangeAnchor;
-    const toIso = toParam;
-    const fromIso = fromParam;
+    const now = new Date();
+    const toIso = params.get('to');
+    const fromIso = params.get('from');
     return {
       from: fromIso ? new Date(fromIso) : new Date(now.getTime() - 3 * 24 * 3600_000),
       to: toIso ? new Date(toIso) : now,
     };
-  }, [fromParam, toParam, rangeAnchor]);
-  useEffect(() => {
-    if (fromParam && toParam) return;
-    setParams(p => {
-      const next = new URLSearchParams(p);
-      if (!fromParam) next.set('from', from.toISOString());
-      if (!toParam) next.set('to', to.toISOString());
-      return next;
-    }, { replace: true });
-  }, [fromParam, toParam, from, to, setParams]);
+  }, [params]);
   const preset = activePreset(from, to);
 
   const write = (mutate: (p: URLSearchParams) => void) =>
@@ -124,8 +114,7 @@ export const CpmHistorical: React.FC = () => {
   const trend = useCpmTrend(series, from, to, 300, signals.join(','));
   const modeTrack = useCpmModeTrack(series, from, to, 96);
   const kpis = useCpmKpisRange(loopId, overlay.resolution, from.toISOString(), to.toISOString());
-  const kind = windowKind(params);
-  const history = useGateHistory(loopId, kind, from.toISOString(), to.toISOString());
+  const history = useGateHistory(loopId, '24h', from.toISOString(), to.toISOString());
 
   const points = useMemo(() => trend.data?.points ?? [], [trend.data]);
   const kpiRows = useMemo(() => kpis.data?.samples ?? [], [kpis.data]);
@@ -135,10 +124,11 @@ export const CpmHistorical: React.FC = () => {
     const rows = history.data?.windows ?? [];
     return [...rows].sort((a, b) => (a.windowEnd ?? '').localeCompare(b.windowEnd ?? ''));
   }, [history.data]);
-  const selectedWindowEnd = windowEnd(params);
+  const selectedWindowEnd = params.get('window');
   const selectedWindow: CpmGateMatrix | undefined =
-    resolveWindow([...windows].reverse(), selectedWindowEnd);
-  const windowFellBack = !!selectedWindowEnd && !history.isLoading && !selectedWindow;
+    windows.find(w => w.windowEnd === selectedWindowEnd) ?? windows[windows.length - 1];
+  const windowFellBack = !!selectedWindowEnd && windows.length > 0
+    && !windows.some(w => w.windowEnd === selectedWindowEnd);
 
   // ── Lane segments, from real instants.
   const modeSegments = useMemo<Segment[]>(() => {
@@ -203,31 +193,29 @@ export const CpmHistorical: React.FC = () => {
   // there yet - 'EU' until 2G adds it); Normalise is an explicit URL choice (?normalize=1).
   const normalize = params.get('normalize') === '1';
   const timeZone = loop?.timezone || 'UTC';
+  // Phase 5: rectangle zoom across every lane on x, on the signals grid for y; the
+  // slider, the wheel and the box all land in the same state (linked axes).
+  const box = useBoxZoom({ hasY: true });
   const option = useMemo(() => buildChartOption({
     points, kpiRows, overlay, signals, modeSegments, verdictSegments, healthSegments: healthLane, from, to,
-    pens: cpmChartColors(), tones: cpmToneColors(), pvUnit: 'EU', timeZone, normalize,
+    pens: cpmChartColors(), tones: cpmToneColors(), pvUnit: 'EU', timeZone, normalize, zoom: box.zoom,
   }),
   // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
-  [points, kpiRows, overlay, signals, modeSegments, verdictSegments, healthLane, from, to, obcTheme, timeZone, normalize]);
+  [points, kpiRows, overlay, signals, modeSegments, verdictSegments, healthLane, from, to, obcTheme, timeZone, normalize, box.zoom]);
+  useKeepSelecting(box, option);
 
-  // Zoom explores; Apply commits. The slider filters what is DRAWN; writing the
-  // span back to ?from/?to is what makes the KPI and gate queries refetch at the
-  // tighter range.
-  const [zoom, setZoom] = useState<{ start: number; end: number } | null>(null);
-  const onZoom = (e: { batch?: { start?: number; end?: number }[]; start?: number; end?: number }) => {
-    const z = e.batch?.[0] ?? e;
-    const s = typeof z.start === 'number' ? z.start : 0;
-    const t = typeof z.end === 'number' ? z.end : 100;
-    setZoom(s > 0.5 || t < 99.5 ? { start: s, end: t } : null);
-  };
+  // Zoom explores; Apply commits. Any zoom (slider, wheel or box) filters what is
+  // DRAWN; writing the x span back to ?from/?to is what makes the KPI and gate
+  // queries refetch at the tighter range.
+  const xZoom = box.zoom.x.start > 0.5 || box.zoom.x.end < 99.5 ? box.zoom.x : null;
   const applyZoom = () => {
-    if (!zoom) return;
+    if (!xZoom) return;
     const span = spanOf(from, to);
     applyRange(
-      new Date(from.getTime() + (zoom.start / 100) * span),
-      new Date(from.getTime() + (zoom.end / 100) * span),
+      new Date(from.getTime() + (xZoom.start / 100) * span),
+      new Date(from.getTime() + (xZoom.end / 100) * span),
     );
-    setZoom(null);
+    box.reset();
   };
 
   const onChartClick = (e: { seriesName?: string; dataIndex?: number }) => {
@@ -266,7 +254,7 @@ export const CpmHistorical: React.FC = () => {
       .filter(([, path]) => path));
 
   return (
-    <div className="cpm-screen" data-cpa-ready={!!trend.data}>
+    <div className="cpm-screen">
       <WorkspaceHeader eyebrow="Evidence over time" title="Historical explorer" />
 
       <section className="cpm-surface">
@@ -276,8 +264,8 @@ export const CpmHistorical: React.FC = () => {
           loopId={loopId ?? ''}
           loop={loop}
           loopsInScope={loops.filter(l => scope.matches(l)).length}
-          onLoopChange={id => setParams(p => selectLoop(p, id), { replace: true })}
-          onLoopClear={() => setParams(p => selectLoop(p, ''), { replace: true })}
+          onLoopChange={id => write(p => { p.set('loop', id); p.delete('window'); })}
+          onLoopClear={() => write(p => { p.delete('loop'); p.delete('window'); })}
           from={from}
           to={to}
           preset={preset}
@@ -348,17 +336,22 @@ export const CpmHistorical: React.FC = () => {
               option={option}
               style={{ height: CHART_HEIGHT }}
               notMerge
-              onEvents={{ dataZoom: onZoom, click: onChartClick }}
+              onChartReady={box.onChartReady}
+              onEvents={{ datazoom: box.onDataZoom, click: onChartClick }}
             />
-            {zoom && (
-              <div className="cpm-hist-zoom" role="status">
-                <span className="cpm-copy">
-                  Zoomed view only — the overlay and verdict feeds are still loaded for
-                  the applied range.
-                </span>
-                <ObcButton variant="raised" onClick={applyZoom}>Apply zoom to range ›</ObcButton>
-              </div>
-            )}
+            <div className="cpm-hist-zoom" role="status">
+              <ChartZoomBar box={box} hasData={hasAnyLane}>
+                {xZoom && (
+                  <>
+                    <span className="cpm-copy">
+                      Zoomed view only — the overlay and verdict feeds are still loaded for
+                      the applied range.
+                    </span>
+                    <ObcButton variant="raised" onClick={applyZoom}>Apply zoom to range ›</ObcButton>
+                  </>
+                )}
+              </ChartZoomBar>
+            </div>
           </>
         )}
 
@@ -404,6 +397,7 @@ export const CpmHistorical: React.FC = () => {
       </section>
 
       <SelectedWindowPanel
+        loopId={loopId}
         window={windows.length > 0 ? selectedWindow : undefined}
         fellBack={windowFellBack}
         noWindows={windows.length === 0 && !history.isLoading && !history.isError}
@@ -412,7 +406,7 @@ export const CpmHistorical: React.FC = () => {
           applyRange(r.from, r.to);
         }}
         onReplay={windowEnd => {
-          navigate(cpaHref('/cpm/replay', params, { loop: loopId, kind, window: windowEnd }));
+          if (loopId) navigate(replayHref(loopId, { window: windowEnd, kind: '24h' }));
         }}
       />
     </div>
