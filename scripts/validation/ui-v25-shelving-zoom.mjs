@@ -38,8 +38,11 @@ try {
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   const consoleErrors = [];
-  page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 300)); });
-  page.on('pageerror', e => consoleErrors.push('pageerror: ' + String(e).slice(0, 300)));
+  const failed = [];
+  let phase = 'login';
+  page.on('console', m => { if (m.type() === 'error') consoleErrors.push(`[${phase}] ` + m.text().slice(0, 200)); });
+  page.on('pageerror', e => consoleErrors.push(`[${phase}] pageerror: ` + String(e).slice(0, 200)));
+  page.on('response', r => { if (r.status() >= 400) failed.push(`[${phase}] ${r.status()} ${r.request().method()} ${r.url().replace(BASE, '')}`); });
 
   await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
   await page.fill('input[type="text"], input[name="username"], input[autocomplete="username"]', USER);
@@ -47,6 +50,7 @@ try {
   await page.press('input[type="password"]', 'Enter');
   await page.waitForURL(u => !u.pathname.includes('/login'), { timeout: 20000 });
   await settle(page);
+  phase = 'events';
 
   // ── 1. CHG-032: shelve -> acknowledge (shelf kept) -> unshelve (ack kept) -> history ──
   await page.goto(`${BASE}/cpm/events?filter=open`);   // Shelve… is offered on OPEN episodes only
@@ -107,6 +111,7 @@ try {
   }
 
   // ── 2. CHG-030 phase 5: drag-rectangle zoom on the Historical trend ──
+  phase = 'historical';
   await page.goto(`${BASE}/cpm/historical?loop=${LOOP}`);
   await settle(page, 3000);
   const zoomArea = obc(page, 'Zoom area');
@@ -134,6 +139,7 @@ try {
   check('Reset returns to the whole range (Reset disabled again)', await isDisabled(resetBtn));
 
   // ── 3. CHG-030 phase 7: System Response layout stays contained ──
+  phase = 'response';
   await page.goto(`${BASE}/cpm/response?loop=FIC10302`);
   await settle(page, 3000);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -151,7 +157,10 @@ try {
   check('response: tables, key/value rows and the aside stay inside the main column', contained <= 2, `${contained}px past the edge`);
   await page.screenshot({ path: join(OUT, '05-response.png') });
 
-  check('no console or page errors during the pass', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
+  // The SPA's bootstrap asks /api/auth/refresh before anyone is logged in; that 401 is expected on the login page.
+  const afterLogin = x => !x.startsWith('[login]');
+  check('no console or page errors after login', consoleErrors.filter(afterLogin).length === 0, consoleErrors.filter(afterLogin).slice(0, 3).join(' | '));
+  check('no failed API responses after login', failed.filter(afterLogin).length === 0, failed.filter(afterLogin).slice(0, 3).join(' | ') || (failed.length ? `pre-login only: ${failed.join(' | ')}` : ''));
 } catch (e) {
   check('probe completed without an exception', false, String(e).slice(0, 300));
 } finally {
