@@ -1711,9 +1711,9 @@ have grown with the manifests). Result: a Response event opens in 1–2.6 s inst
 | Compose service | Image | Carries |
 |---|---|---|
 | `traverse-ingestion-service` | `ams-cpa-traverse-ingestion-service` | CHG-026: samples schema 1.1 (`roles{}` per-role time / quality / held), protocol-specific quality decoder (UNKNOWN ≠ GOOD, non-finite → DLQ), Instrumental NE107 health subscriber → `traverse.cpa.instrument.health.v1` + DLQ |
-| `cplm-api` | `ams-cpa-cplm-api` | CHG-026/027/028: identity columns + `analysis_run` + evidence store, the five new consumers (conditions, evidence, response, health, config-acks - each one member), the 25 new endpoints (`/capabilities` + config section, `/gate-catalogue`, `/method-runs`, `/evidence`, `/analysis-runs`, `/response-events`, `/models`, `/instrument-health`, `/conditions`, `/investigations`, `/configuration/*`), fusion v2 reads, episode availability vs condition, claims-only identity · **CHG-032**: episode shelving lifecycle (`/events/{id}/unshelve`, `/events/{id}/actions`, `/events/shelving-policy`, expiry sweeper; needs `ops/cpm-09-event-shelving.sql` first) |
+| `cplm-api` | `ams-cpa-cplm-api` | CHG-026/027/028: identity columns + `analysis_run` + evidence store, the five new consumers (conditions, evidence, response, health, config-acks - each one member), the 25 new endpoints (`/capabilities` + config section, `/gate-catalogue`, `/method-runs`, `/evidence`, `/analysis-runs`, `/response-events`, `/models`, `/instrument-health`, `/conditions`, `/investigations`, `/configuration/*`), fusion v2 reads, episode availability vs condition, claims-only identity · **CHG-032**: episode shelving lifecycle (`/events/{id}/unshelve`, `/events/{id}/actions`, `/events/shelving-policy`, expiry sweeper; needs `ops/cpm-09-event-shelving.sql` first) · **2026-09-25 pre-prod fixes (965b72bc, e24aac9e, 52664843, d5113d6e):** `GET /events/{id}/actions` no longer throws on real history; the evidence sweeper runs per policy row in batches, indexed, and **purges** expired manifests after a 7 d grace (none were ever removed before); `GET /analysis-runs/{id}` is index-served at plant-size manifest tables (was a 30 s timeout) |
 | `historian-bff` | `ams-cpa-historian-bff` | CHG-026: source / verified / emission timestamps on the live snapshot |
-| `flink-jobmanager` (+ `flink-taskmanager`, same image) | `ams-flink:1.0-SNAPSHOT` | the JAR: schema 1.1 codec, strict quality, RBE quality transitions, G2/G4/G10/G11 semantics, fusion v2, run identity + evidence artifacts, G12 kernel + Response job, Condition job, Instrument Context job, G13 aligned analysis, loop model, governed bundles (signed PREPARE/APPLY, ACKs, effective selection, no static SPINE); the TM needs `CPLM_GATE_CONFIG_KEY` (compose carries it) |
+| `flink-jobmanager` (+ `flink-taskmanager`, same image) | `ams-flink:1.0-SNAPSHOT` | the JAR: schema 1.1 codec, strict quality, RBE quality transitions, G2/G4/G10/G11 semantics, fusion v2, run identity + evidence artifacts, G12 kernel + Response job, Condition job, Instrument Context job, G13 aligned analysis, loop model, governed bundles (signed PREPARE/APPLY, ACKs, effective selection, no static SPINE); the TM needs `CPLM_GATE_CONFIG_KEY` (compose carries it) · **2026-09-25 (90fc8d56):** the Response Engine no longer crash-loops on a re-delivered sample (a duplicate event time entered the capture ring, `close()` threw out of `processElement`, Flink restored the same state and threw again for ever - found after an hour of lab running; `ResponseCaptureEvaluatorTest`) |
 | `ams-frontend` | `ams-cpa-ams-frontend` | Governance build identity + approvals queue, transmitter health panel + lanes, events availability/condition, Evidence Workbench (17 views), System Response workspace, registry Classification step, Gate Configuration workspace · **CHG-030** CPA navigation/UI repair · **CHG-032** shelve / unshelve / history on Loop Events |
 | `traverse-auth-service` | `ams-cpa-traverse-auth-service` | CHG-028 lab finding: the revocation feed floors `credentials_changed_at` (a token issued in the same second as a credential change read as revoked) |
 | `gateway` | `ams-cpa-gateway` | 2026-09-17 lab finding: the rate limiter failed CLOSED on a Redis timeout and token refresh was a "mutation" - one 1 s Redis stall logged every user out and held every request ~7 s. Now a `session` class (fail-open), one bounded Redis round trip, a circuit breaker with in-process counters (fail-closed = enforced locally), `GET /gw/ratelimit`, `X-RateLimit-Source`; `docs/api-gateway.md` §3; proofs `scripts/test-gateway-redis-outage.ps1` (Pause / Stop, 9/9 each), `scripts/validation/gw-redis-stall-load.mjs`, `scripts/validation/ui-refresh-resilience.mjs` |
@@ -1759,7 +1759,10 @@ and `topics.txt`.
 `sha256sum -c`, rollback point, `df -h`, **source tree** (`tar -xzf src-<commit>.tar.gz -C /opt/AMS-open`),
 **cpm-07** (online), `docker stop traverse-cplm-api`, **cpm-07b**, **cpm-08**, **cpm-09**, `02-apply-schemas.sh`
 (ownership normalization - gap G2), `04-create-kafka-topics.sh` (`ALLOW_CREATE_PREFIXED_TOPICS=yes`, 8 new topics,
-15 `traverse.cpa.*`), `docker load` ×7, JAR copy, `docker rm -f` JM + TM, `export START_AMS_API=yes
+15 `traverse.cpa.*`), **`04c-apply-topic-retention.sh`** (the minimum retention per consumer on the topics that already exist -
+user decision 2026-09-25: samples 12 h, feature / evidence streams 6 h, record-bearing topics 3 d, live metrics 1 h),
+the `retention_policy` STANDARD → 7 d step (evidence measured at 0.6-0.7 GB of chunks + ~0.4 GB of manifests per day at
+161 loops), `docker load` ×7, JAR copy, `docker rm -f` JM + TM, `export START_AMS_API=yes
 ALLOW_FLINK_SUBMIT=yes`, `deploy.sh --prod` (04b submits the seven jobs), the `CPLM_GATE_CONFIG_KEY` proof,
 `set-quality-protocol.py --apply`, then the post-deploy proof (seven consumer groups with one member,
 `/capabilities` jar + `config` section, `/gate-catalogue` 17).
@@ -1776,12 +1779,9 @@ Flink job args `--evidence-emit ALL|EPISODES|NONE`, `--g12-delay-min-s`, `--gate
 
 ## Risks & pre-existing issues
 
-- **The CPLM Flink test suite does not compile** — `CplmLoopDynamicsAwareTest.java:304,312`
-  references `CplmGateFusionStreamJob.GateFusionCoProcess`, which exists nowhere in main
-  sources. Verified pre-existing: the identical failure reproduces on a **clean tree** with
-  my changes stashed. Consequence: **no engine change — including CHG-004 — is covered by
-  automated tests today.** Worth fixing before the next engine change, and the reason CHG-004
-  is marked ⚠️ rather than ✅.
+- ~~**The CPLM Flink test suite does not compile**~~ — resolved in the v2.5 work: the suite runs
+  (`mvn -o test` 534 run / 0 failures / 4 skipped on 2026-09-25) and every engine change since is
+  covered; CHG-004's ⚠️ stands only for its own missing test.
 - **G3 stays WARN on temperature loops until PV ranges are declared.** Expected, not a
   regression: CHG-004 only supplies the mechanism.
 - ~~**`LIC10601` reports OP = 235.58 %**~~ — **resolved by CHG-011**: the loop's declared OP

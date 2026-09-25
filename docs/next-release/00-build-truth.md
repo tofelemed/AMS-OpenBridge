@@ -342,3 +342,13 @@ classloader); recreating the TaskManager cleared it. The plant runbook already r
   `migration/V2.5-DEPLOY.md`, `scripts/set-quality-protocol.py`, `scripts/test-cpm-v25-reliability.ps1`,
   `scripts/cpm-v25-load-probe.py`, `docs/next-release/03-acceptance-evidence.md`. **The bundle build and the tag (4.3) are
   deliberately not run** - the agreed stop point.
+
+
+## 2026-09-25 — lab redeploy trap, measured
+
+A JobManager recreate with ZooKeeper HA restores every job whose cancel had not reached CANCELED - all seven CPLM jobs
+came back from their OLD jar blobs (one was mid-restart-loop when cancelled 8 s earlier), the supervisor saw the names
+present and submitted nothing, and `/capabilities` kept naming the old jar. The working sequence: cancel via REST,
+poll until every CPLM-family job is CANCELED, only then recreate (or just let the supervisor resubmit from the new
+image: 7 RUNNING after 150 s). Also measured: a worker in a 1 s restart loop re-ACKs every retained bundle on each
+restart - an hour left ~2,200 ACK records and the config-acks consumer 10 minutes behind.
