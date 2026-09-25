@@ -306,11 +306,21 @@ Step 'FIC99999 parked in unknown-sources + on the DLQ' {
     # require a LOOP_NOT_REGISTERED record for THIS loop stamped today.
     $today = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
     $ends = @(cmd /c "docker exec ams-kafka kafka-run-class kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic traverse.ingestion.ot-dlq 2>nul")
+    # the earliest offset per partition: after retention deleted old segments a partition may hold fewer than 400
+    # records, and an --offset before the log start makes the console consumer reset to LATEST and read nothing
+    $starts = @{}
+    foreach ($line in @(cmd /c "docker exec ams-kafka kafka-run-class kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic traverse.ingestion.ot-dlq --time -2 2>nul")) {
+        $s = "$line".Trim() -split ':'
+        if ($s.Count -ge 3) { $starts[$s[1]] = [long]$s[2] }
+    }
     $dlq = @()
     foreach ($line in $ends) {
         $parts = "$line".Trim() -split ':'
         if ($parts.Count -lt 3) { continue }
-        $partition = $parts[1]; $end = [long]$parts[2]; $from = [Math]::Max(0, $end - 400)
+        $partition = $parts[1]; $end = [long]$parts[2]
+        $start = if ($starts.ContainsKey($partition)) { $starts[$partition] } else { 0 }
+        $from = [Math]::Max($start, $end - 400)
+        if ($end -le $start) { continue }
         $dlq += @(cmd /c "docker exec ams-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic traverse.ingestion.ot-dlq --partition $partition --offset $from --timeout-ms 30000 --max-messages 400 2>nul")
     }
     $hits = @($dlq | Where-Object { $_ -match 'LOOP_NOT_REGISTERED' -and $_ -match 'FIC99999' -and $_ -match $today })

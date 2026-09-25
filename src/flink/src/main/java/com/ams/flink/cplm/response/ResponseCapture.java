@@ -111,6 +111,11 @@ public final class ResponseCapture implements Serializable {
         boolean vpMapped = vpUsable && s.vp != null && Double.isFinite(s.vp);
         double uApplied = vpMapped ? s.vp : s.op;
         List<Closed> closed = new ArrayList<>();
+        // At-least-once transport: a re-delivered sample (same event time) or a late one (earlier time) is not a new
+        // observation on the response grid and must never enter the ring - close() builds an EventDataset from the
+        // ring, where a non-increasing time is an invariant violation. Lab 2026-09-25: that exception escaped
+        // processElement, Flink restored the same ring from the checkpoint and threw again, for ever.
+        if (!Double.isNaN(lastTs) && tS <= lastTs) return closed;
         boolean timeGap = !Double.isNaN(lastTs) && tS - lastTs > cfg.maxGapS;
         // the applied input changing source (VP going stale, or a stale VP coming back) is a gap in the
         // applied-input support: samples on either side of it are not one series, so it is treated like one

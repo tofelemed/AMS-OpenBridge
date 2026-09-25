@@ -169,6 +169,28 @@ public class ResponseCaptureEvaluatorTest {
     }
 
     @Test
+    public void aReDeliveredOrLateSampleDuringACaptureIsIgnoredNeverFatal() {
+        // lab finding (2026-09-25): an at-least-once re-delivery of a sample (same event time) entered the capture ring;
+        // close() then built an EventDataset whose time did not strictly increase, the exception escaped processElement,
+        // Flink restored the same ring from the checkpoint and threw again - the Response Engine crash-looped for ever
+        ResponseJobConfig cfg = cfg();
+        ResponseCapture cap = new ResponseCapture("FIC10302", cfg);
+        List<ResponseCapture.Closed> closed = new ArrayList<>();
+        for (double t = 0; t <= 700; t += 5) {
+            double u = t < 100 ? 40 : 45;
+            double pv = 100 + (t < 104 ? 0 : 15 * (1 - Math.exp(-(t - 104) / 20)));
+            closed.addAll(cap.onSample(sample("FIC10302", t, pv, 100, u, true), false));
+            if (((int) t) % 50 == 0) closed.addAll(cap.onSample(sample("FIC10302", t, pv, 100, u, true), false));   // re-delivered
+            if (t == 200) closed.addAll(cap.onSample(sample("FIC10302", t - 5, pv, 100, u, true), false));         // late
+        }
+        assertEquals(1, closed.size());
+        ResponseCapture.Closed c = closed.get(0);
+        assertEquals("COMPLETE", c.event.captureState);
+        assertEquals(100_000.0, c.event.t0Ms, 1e-6);
+        for (int i = 1; i < c.data.t.length; i++) assertTrue("time strictly increases", c.data.t[i] > c.data.t[i - 1]);
+    }
+
+    @Test
     public void aModeTransferDuringACaptureCensorsIt() {
         ResponseJobConfig cfg = cfg();
         ResponseCapture cap = new ResponseCapture("FIC10302", cfg);
