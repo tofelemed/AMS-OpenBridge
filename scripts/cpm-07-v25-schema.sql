@@ -149,6 +149,11 @@ CREATE INDEX IF NOT EXISTS ix_evidence_manifest_readiness ON analytics.evidence_
 -- the evidence reconciler's manifest side: the still-unlinked recent manifests, never a table walk
 CREATE INDEX IF NOT EXISTS ix_evidence_manifest_unlinked
     ON analytics.evidence_manifest (created_at) WHERE gate_result_id IS NULL;
+-- 2026-09-25: the retention sweeper's side (EvidenceRetentionSweeper): the not-yet-expired, unpinned
+-- manifests by class and age. Without it the daily sweep walked the whole table (827k rows on the lab,
+-- 30 s timeout under load) and nothing ever expired.
+CREATE INDEX IF NOT EXISTS ix_evidence_manifest_retention_due
+    ON analytics.evidence_manifest (retention_class, created_at) WHERE pinned = FALSE AND readiness <> 'EXPIRED';
 CREATE TABLE IF NOT EXISTS analytics.evidence_chunk (
     evidence_id  uuid NOT NULL REFERENCES analytics.evidence_manifest(evidence_id) ON DELETE CASCADE,
     chunk_no     int NOT NULL,

@@ -506,6 +506,12 @@ CREATE TABLE IF NOT EXISTS analytics.evidence_manifest (
 );
 CREATE INDEX IF NOT EXISTS ix_evidence_manifest_method_run ON analytics.evidence_manifest (method_run_id);
 CREATE INDEX IF NOT EXISTS ix_evidence_manifest_readiness ON analytics.evidence_manifest (readiness, created_at);
+-- the evidence reconciler's manifest side (mirror of database/scripts/53): the still-unlinked recent manifests
+CREATE INDEX IF NOT EXISTS ix_evidence_manifest_unlinked
+    ON analytics.evidence_manifest (created_at) WHERE gate_result_id IS NULL;
+-- the retention sweeper's side (2026-09-25): the not-yet-expired, unpinned manifests by class and age
+CREATE INDEX IF NOT EXISTS ix_evidence_manifest_retention_due
+    ON analytics.evidence_manifest (retention_class, created_at) WHERE pinned = FALSE AND readiness <> 'EXPIRED';
 CREATE TABLE IF NOT EXISTS analytics.evidence_chunk (
     evidence_id  uuid NOT NULL REFERENCES analytics.evidence_manifest(evidence_id) ON DELETE CASCADE,
     chunk_no     int NOT NULL,

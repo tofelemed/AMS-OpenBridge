@@ -101,12 +101,20 @@ public sealed class EventActionStore
     public async Task<IReadOnlyList<EventActionRow>> HistoryAsync(long id, CancellationToken ct)
     {
         await using var conn = await _db.OpenConnectionAsync(ct);
-        return (await conn.QueryAsync<EventActionRow>("""
-            SELECT id AS Id, event_id AS EventId, action AS Action, actor AS Actor, at AS At, until AS Until, reason AS Reason
+        // timestamptz arrives as a UTC DateTime (Npgsql 6+) and Dapper matches a record constructor
+        // by exact parameter type, so a DateTimeOffset record has no constructor it can use and the
+        // read throws on any real history (found by EventActionsApiTests on the lab, 2026-09-25).
+        // Read the row with DateTime - the shape ReadAsync / ExpireDueAsync already use - and project.
+        var rows = await conn.QueryAsync<(long id, long eventId, string action, string actor, DateTime at, DateTime? until, string? reason)>("""
+            SELECT id, event_id, action, actor, at, until, reason
             FROM analytics.cplm_event_actions WHERE event_id = @id
             ORDER BY at DESC, id DESC
-            """, new { id })).ToList();
+            """, new { id });
+        return rows.Select(r => new EventActionRow(r.id, r.eventId, r.action, r.actor, Utc(r.at),
+            r.until is { } u ? Utc(u) : null, r.reason)).ToList();
     }
+
+    private static DateTimeOffset Utc(DateTime t) => new(DateTime.SpecifyKind(t, DateTimeKind.Utc));
 
     private static Task RecordAsync(NpgsqlConnection conn, NpgsqlTransaction tx, long id, string action, string actor, DateTimeOffset? until, string? reason) =>
         conn.ExecuteAsync("""
