@@ -412,8 +412,13 @@ The scripted proofs of the whole release (each prints N passed / 0 failed):
   why the running sim excludes it.
 - `STATE_BOUNDARY` bundles restart the engines' window state: expect `WAITING / WARMUP` results
   for one window length after activation.
-- Bounded replay / reconstruction runs leak TaskManager metaspace on the lab (one classloader per
-  REST submission; the TM is at 512 m). This is the one open release blocker recorded in
-  `checklist.md`.
+- Bounded replay / reconstruction / shadow runs leak TaskManager metaspace (one classloader per
+  REST submission). Decided 2026-09-25 (`checklist.md`): the plant TaskManager ships with the lab's
+  512 m headroom and an operating rule of at most ~10 such runs between TaskManager recreates; the
+  leak itself is v2.6 work.
+- Evidence volume is large: at 161 loops the engines wrote 336k–361k manifests and 0.6–0.7 GB of
+  chunk bytes per day on the lab. The plant sets the STANDARD retention to 7 days and the sweeper
+  purges expired manifests a week later (`migration/V2.5-DEPLOY.md` C3b); on the lab the 90-day
+  default stays, so expect the evidence tables to grow.
 - Plant deployment order and post-deploy proof: `migration/V2.5-DEPLOY.md`; what to build:
   `changes_tracker.md` → "Release v2.5 — what to build and run".
