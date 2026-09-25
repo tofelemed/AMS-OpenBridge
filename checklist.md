@@ -110,7 +110,7 @@ _Last updated: 2026-09-17 17:45 (audit follow-up: all 22 frontend findings fixed
 | `scripts/test-cpm-v25-slice3-e2e.ps1` | **14 / 14** | 2026-09-25 18:32 |
 | `scripts/test-cpm-v25-reliability.ps1` | **R1 / R2 / R4 pass** (6-min warm feed; an empty 1-min window before the kill reads as a gap), **R3 pass** alone (`-Steps R3`; its producer call never worked before 2026-09-25) | 2026-09-25 20:15 / 20:22 |
 | `scripts/test-gateway-redis-outage.ps1` | **9 / 9 Pause · 9 / 9 Stop** | 2026-09-25 18:44 / 18:45 |
-| `python scripts/cpm-v25-load-probe.py --minutes 30` | running (tap bounded 2026-09-25; the first attempt hung on a busy topic) → `docs/next-release/04-load-report.md` | 2026-09-25 20:20 |
+| `python scripts/cpm-v25-load-probe.py --minutes 30` | **done** — 230 loops at 5 s + response scenarios on FIC10302; source→tuple p95 ≈ 2.9–4.1 s over 30 min (the 5 s grid tick dominates), consumer lag flat at 4, chunks +4,121, no errors → `docs/next-release/04-load-report.md` (the first attempt's tap hung on a busy topic; bounded since) | 2026-09-25 20:52 |
 
 ## Lab state (for whoever picks this up)
 
