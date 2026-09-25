@@ -12,6 +12,8 @@
 # compression: lz4 or - (broker default)
 # 2026-09-18 disk-full: feature.short at 7 d uncompressed was 10 GB/replica on the plant. Now 1 d + lz4;
 #   the three CPLM streams are lz4. Existing topics: apply with kafka-configs --alter (04 only creates).
+# 2026-09-25 pre-prod: gate.evidence at 7 d would be ~5 GB x RF on the shared brokers (measured 0.6-0.7 GB/day of
+#   gzip chunks at 161 loops on the lab, 09-18/19); its consumer lags minutes, so 1 d - the samples topic's posture.
 #
 # Create flags (Phase 6): --if-not-exists --replication-factor 2 --config min.insync.replicas=1  # cluster went 3->2 brokers 2026-09-05
 # Lab RF=1 is NOT for Marun.
@@ -21,7 +23,7 @@ traverse.cpa.clpm.feature.short.v1	8	delete	86400000	lz4	traverse.cpa.clpm.featu
 traverse.cpa.clpm.feature.long.v1	8	delete	604800000	lz4	traverse.cpa.clpm.feature.long.v1
 traverse.cpa.clpm.gate.results.v1	8	delete	2592000000	lz4	traverse.cpa.clpm.gate.results.v1
 traverse.cpa.clpm.condition.v1	8	delete	604800000	-	traverse.cpa.clpm.condition.v1
-traverse.cpa.clpm.gate.evidence.v1	8	delete	604800000	-	traverse.cpa.clpm.gate.evidence.v1
+traverse.cpa.clpm.gate.evidence.v1	8	delete	86400000	-	traverse.cpa.clpm.gate.evidence.v1
 traverse.cpa.clpm.response.results.v1	8	delete	2592000000	-	traverse.cpa.clpm.response.results.v1
 traverse.cpa.instrument.health.v1	8	delete	2592000000	-	traverse.cpa.instrument.health.v1
 traverse.ingestion.health-dlq	2	delete	604800000	-	traverse.ingestion.health-dlq
