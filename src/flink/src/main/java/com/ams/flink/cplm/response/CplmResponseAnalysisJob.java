@@ -69,6 +69,7 @@ public final class CplmResponseAnalysisJob {
 
     /** Keyed wrapper: capture state + the loop's holdout, checkpointed; evaluation inline. */
     public static class ResponseProcessFunction extends KeyedProcessFunction<String, CplmNormalizedSample, String> {
+        private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(ResponseProcessFunction.class);
         static final OutputTag<String> EVIDENCE = new OutputTag<String>("cplm-response-evidence") {
         };
         private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -79,6 +80,8 @@ public final class CplmResponseAnalysisJob {
         private transient ValueState<Double> holdoutU0;
         private transient ResponseEvaluator evaluator;
         private transient java.util.Map<String, ResponseEvaluator> bundleEvaluators;
+        // review I1/I2 (2026-09-25): what the capture dropped, and how often a loop's capture had to be reset
+        private transient org.apache.flink.metrics.Counter droppedDuplicate, droppedLate, captureReset;
 
         public ResponseProcessFunction(ResponseJobConfig cfg, String purpose, String analysisRunId) {
             this.cfg = cfg;
@@ -92,6 +95,10 @@ public final class CplmResponseAnalysisJob {
             holdout = getRuntimeContext().getState(new ValueStateDescriptor<>("responseHoldout", TypeInformation.of(EventDataset.class)));
             holdoutU0 = getRuntimeContext().getState(new ValueStateDescriptor<>("responseHoldoutU0", Double.class));
             evaluator = new ResponseEvaluator(cfg);
+            org.apache.flink.metrics.MetricGroup mg = getRuntimeContext().getMetricGroup();
+            droppedDuplicate = mg.counter("response_samples_dropped_duplicate");
+            droppedLate = mg.counter("response_samples_dropped_late");
+            captureReset = mg.counter("response_capture_reset");
         }
 
         /**
@@ -121,7 +128,22 @@ public final class CplmResponseAnalysisJob {
             // VP is the applied input only while it is evidence: a held positioner value past vp_max_age_s
             // is not (spec §2.7) - presence alone froze u_applied on the lab and hid every OP step
             boolean vpUsable = s.vpEligible(cfg.vpMaxAgeS);
-            for (ResponseCapture.Closed closed : c.onSample(s, vpUsable)) {
+            long dup0 = c.droppedDuplicate, late0 = c.droppedLate;
+            java.util.List<ResponseCapture.Closed> closedNow;
+            try {
+                closedNow = c.onSample(s, vpUsable);
+            } catch (IllegalArgumentException | IllegalStateException poisoned) {
+                // A deterministic exception from this loop's capture state must not become the engine's: with the
+                // default restart strategy it restarted every second for an hour on the lab (2026-09-25) and starved the
+                // shared TaskManager. Drop THIS loop's capture (its open event, if any, is lost - counted, logged) and go on.
+                LOG.warn("response capture reset for {} after {}: {}", s.loopId, poisoned.getClass().getSimpleName(), poisoned.getMessage());
+                captureReset.inc();
+                capture.clear();
+                return;
+            }
+            if (c.droppedDuplicate > dup0) droppedDuplicate.inc(c.droppedDuplicate - dup0);
+            if (c.droppedLate > late0) droppedLate.inc(c.droppedLate - late0);
+            for (ResponseCapture.Closed closed : closedNow) {
                 ModelFamily family = familyFor(s);
                 ResponseEvaluator.Outcome o = evaluator.evaluate(closed, family, holdout.value(), holdoutU0.value() == null ? 0 : holdoutU0.value(),
                         ControllerSnapshot.unknown(), ctx.timerService().currentProcessingTime(), purpose, analysisRunId, 0);

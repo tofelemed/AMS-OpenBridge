@@ -53,6 +53,8 @@ public final class ResponseCapture implements Serializable {
     private final CaptureStateMachine machine;
     private final double retainedS;
     private double lastTs = Double.NaN;
+    /** Samples ignored at the boundary (checkpointed with the capture; the job mirrors them as Flink counters). */
+    public long droppedDuplicate, droppedLate;
     private String lastMode = null;
     private String commandPath = "OP_TO_VALVE";
     private boolean healthIneligible;
@@ -111,11 +113,17 @@ public final class ResponseCapture implements Serializable {
         boolean vpMapped = vpUsable && s.vp != null && Double.isFinite(s.vp);
         double uApplied = vpMapped ? s.vp : s.op;
         List<Closed> closed = new ArrayList<>();
-        // At-least-once transport: a re-delivered sample (same event time) or a late one (earlier time) is not a new
-        // observation on the response grid and must never enter the ring - close() builds an EventDataset from the
-        // ring, where a non-increasing time is an invariant violation. Lab 2026-09-25: that exception escaped
-        // processElement, Flink restored the same ring from the checkpoint and threw again, for ever.
-        if (!Double.isNaN(lastTs) && tS <= lastTs) return closed;
+        // A re-delivered sample (same event time) or a late one (earlier time) is not a new observation on the
+        // response grid and must never enter the ring - close() builds an EventDataset from the ring, where a
+        // non-increasing time is an invariant violation. Lab 2026-09-25: that exception escaped processElement,
+        // Flink restored the same ring from the checkpoint and threw again, for ever. Kafka into this job is
+        // offset-checkpointed with the state and the producer is idempotent, so such a sample originates upstream
+        // (an ingestion re-emit, both MQTT groups subscribed, a gateway with non-monotonic event times, a lab
+        // simulator); it is counted, never silently absorbed - the job mirrors the counters to Prometheus.
+        if (!Double.isNaN(lastTs) && tS <= lastTs) {
+            if (tS == lastTs) droppedDuplicate++; else droppedLate++;
+            return closed;
+        }
         boolean timeGap = !Double.isNaN(lastTs) && tS - lastTs > cfg.maxGapS;
         // the applied input changing source (VP going stale, or a stale VP coming back) is a gap in the
         // applied-input support: samples on either side of it are not one series, so it is treated like one
@@ -301,7 +309,13 @@ public final class ResponseCapture implements Serializable {
         if (Double.isNaN(e.tEndMs) || !emitted.add(e.eventId)) return Collections.emptyList();
         double t0 = e.t0Ms / 1000.0, tEnd = e.tEndMs / 1000.0, from = t0 - cfg.preSupportS;
         List<double[]> rows = new ArrayList<>();
-        for (double[] row : ring) if (row[0] >= from && row[0] <= tEnd) rows.add(row);
+        // strictly increasing by construction since the guard in onSample; a ring restored from a checkpoint taken
+        // before it could still carry a duplicate, so the closer skips any row whose time does not advance (review I2)
+        for (double[] row : ring) {
+            if (row[0] < from || row[0] > tEnd) continue;
+            if (!rows.isEmpty() && !(row[0] > rows.get(rows.size() - 1)[0])) continue;
+            rows.add(row);
+        }
         if (rows.size() < 4) return Collections.emptyList();
         int m = rows.size();
         double[] t = new double[m], y = new double[m], r = new double[m], u = new double[m];

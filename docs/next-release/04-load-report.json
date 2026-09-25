@@ -1,0 +1,2940 @@
+{
+ "hardware": {
+  "host": "OWS02W",
+  "os": "Windows-11-10.0.26200-SP0",
+  "python": "3.13.4",
+  "docker_cpus": 6,
+  "docker_mem_gb": 12.5
+ },
+ "samples": [
+  {
+   "minute": 1,
+   "at": "2026-09-25T16:22:10+00:00",
+   "live_records": 13,
+   "tuples": 40,
+   "quality_non_good_live": 2,
+   "src_to_emit_ms": {
+    "50": 4771,
+    "95": 4774,
+    "99": 5243
+   },
+   "emit_to_reader_ms": {
+    "50": 3910,
+    "95": 8921,
+    "99": 13441
+   },
+   "src_to_tuple_ms": {
+    "50": 4687,
+    "95": 4718,
+    "99": 4724
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 1,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 1042,
+     "size_bytes": 9725406,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 213,
+     "size_bytes": 102727,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 486,
+     "size_bytes": 162409,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 300,
+     "size_bytes": 1406850,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 89,
+     "size_bytes": 87385,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 96,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 860,
+     "size_bytes": 82922,
+     "failed": 1
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 24,
+    "analytics.cplm_long_feature_results": 0,
+    "analytics.cplm_gate_results": 0,
+    "analytics.evidence_chunk": 253,
+    "analytics.response_event": 1
+   }
+  },
+  {
+   "minute": 2,
+   "at": "2026-09-25T16:24:05+00:00",
+   "live_records": 8,
+   "tuples": 40,
+   "quality_non_good_live": 0,
+   "src_to_emit_ms": {
+    "50": 4018,
+    "95": 4046,
+    "99": 4046
+   },
+   "emit_to_reader_ms": {
+    "50": 3939,
+    "95": 3939,
+    "99": 3939
+   },
+   "src_to_tuple_ms": {
+    "50": 4041,
+    "95": 4105,
+    "99": 4115
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 1,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 5957,
+     "size_bytes": 89547,
+     "failed": 1
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 327,
+     "size_bytes": 89860,
+     "failed": 0
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 1042,
+     "size_bytes": 9725406,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 213,
+     "size_bytes": 102727,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 4605,
+     "size_bytes": 176844,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 300,
+     "size_bytes": 1406850,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 1256,
+     "size_bytes": 29625,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 143,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 44,
+    "analytics.cplm_long_feature_results": 0,
+    "analytics.cplm_gate_results": 0,
+    "analytics.evidence_chunk": 455,
+    "analytics.response_event": 2
+   }
+  },
+  {
+   "minute": 3,
+   "at": "2026-09-25T16:25:26+00:00",
+   "live_records": 15,
+   "tuples": 40,
+   "quality_non_good_live": 2,
+   "src_to_emit_ms": {
+    "50": 3598,
+    "95": 3691,
+    "99": 3691
+   },
+   "emit_to_reader_ms": {
+    "50": 10320,
+    "95": 10423,
+    "99": 10428
+   },
+   "src_to_tuple_ms": {
+    "50": 3622,
+    "95": 3835,
+    "99": 3862
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 40608,
+     "size_bytes": 12570068,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 300,
+     "size_bytes": 1406850,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 4605,
+     "size_bytes": 176844,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 1256,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 97,
+     "size_bytes": 86377,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 169,
+     "size_bytes": 100326,
+     "failed": 1
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 7586,
+     "size_bytes": 103827,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 52,
+    "analytics.cplm_long_feature_results": 0,
+    "analytics.cplm_gate_results": 0,
+    "analytics.evidence_chunk": 537,
+    "analytics.response_event": 2
+   }
+  },
+  {
+   "minute": 4,
+   "at": "2026-09-25T16:26:26+00:00",
+   "live_records": 21,
+   "tuples": 40,
+   "quality_non_good_live": 10,
+   "src_to_emit_ms": {
+    "50": 3549,
+    "95": 3650,
+    "99": 3651
+   },
+   "emit_to_reader_ms": {
+    "50": 10488,
+    "95": 15495,
+    "99": 15496
+   },
+   "src_to_tuple_ms": {
+    "50": 3698,
+    "95": 3854,
+    "99": 3875
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 2,
+    "99": 2
+   },
+   "checkpoints": {
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 1256,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 421,
+     "size_bytes": 1707603,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 159,
+     "size_bytes": 87620,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 7586,
+     "size_bytes": 103827,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 251,
+     "size_bytes": 104904,
+     "failed": 1
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 1880,
+     "size_bytes": 14327372,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 4605,
+     "size_bytes": 176844,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 64,
+    "analytics.cplm_long_feature_results": 0,
+    "analytics.cplm_gate_results": 0,
+    "analytics.evidence_chunk": 681,
+    "analytics.response_event": 4
+   }
+  },
+  {
+   "minute": 5,
+   "at": "2026-09-25T16:27:26+00:00",
+   "live_records": 11,
+   "tuples": 40,
+   "quality_non_good_live": 2,
+   "src_to_emit_ms": {
+    "50": 3592,
+    "95": 3801,
+    "99": 3801
+   },
+   "emit_to_reader_ms": {
+    "50": 10215,
+    "95": 10429,
+    "99": 10429
+   },
+   "src_to_tuple_ms": {
+    "50": 3628,
+    "95": 3809,
+    "99": 3817
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 207,
+     "size_bytes": 101394,
+     "failed": 1
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 1880,
+     "size_bytes": 14327372,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 1256,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 7586,
+     "size_bytes": 103827,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 35,
+     "size_bytes": 88855,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 421,
+     "size_bytes": 1707603,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 4605,
+     "size_bytes": 176844,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 84,
+    "analytics.cplm_long_feature_results": 0,
+    "analytics.cplm_gate_results": 0,
+    "analytics.evidence_chunk": 886,
+    "analytics.response_event": 4
+   }
+  },
+  {
+   "minute": 6,
+   "at": "2026-09-25T16:28:26+00:00",
+   "live_records": 23,
+   "tuples": 40,
+   "quality_non_good_live": 4,
+   "src_to_emit_ms": {
+    "50": 3555,
+    "95": 3561,
+    "99": 3588
+   },
+   "emit_to_reader_ms": {
+    "50": 10432,
+    "95": 15440,
+    "99": 15441
+   },
+   "src_to_tuple_ms": {
+    "50": 3608,
+    "95": 3795,
+    "99": 3802
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 1,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 27,
+     "size_bytes": 90094,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 167,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 122,
+     "size_bytes": 103827,
+     "failed": 0
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 1880,
+     "size_bytes": 14327372,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 205,
+     "size_bytes": 103240,
+     "failed": 1
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 421,
+     "size_bytes": 1707603,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 165,
+     "size_bytes": 136197,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 96,
+    "analytics.cplm_long_feature_results": 0,
+    "analytics.cplm_gate_results": 0,
+    "analytics.evidence_chunk": 1020,
+    "analytics.response_event": 7
+   }
+  },
+  {
+   "minute": 7,
+   "at": "2026-09-25T16:29:25+00:00",
+   "live_records": 21,
+   "tuples": 57,
+   "quality_non_good_live": 5,
+   "src_to_emit_ms": {
+    "50": 3510,
+    "95": 3542,
+    "99": 3543
+   },
+   "emit_to_reader_ms": {
+    "50": 9940,
+    "95": 14968,
+    "99": 14969
+   },
+   "src_to_tuple_ms": {
+    "50": 3588,
+    "95": 3790,
+    "99": 3793
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 106,
+     "size_bytes": 87009,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 167,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 165,
+     "size_bytes": 136197,
+     "failed": 0
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 1880,
+     "size_bytes": 14327372,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 421,
+     "size_bytes": 1707603,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 122,
+     "size_bytes": 103827,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 810,
+     "size_bytes": 105374,
+     "failed": 1
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 104,
+    "analytics.cplm_long_feature_results": 0,
+    "analytics.cplm_gate_results": 0,
+    "analytics.evidence_chunk": 1102,
+    "analytics.response_event": 7
+   }
+  },
+  {
+   "minute": 8,
+   "at": "2026-09-25T16:30:26+00:00",
+   "live_records": 16,
+   "tuples": 40,
+   "quality_non_good_live": 0,
+   "src_to_emit_ms": {
+    "50": 3380,
+    "95": 4282,
+    "99": 4282
+   },
+   "emit_to_reader_ms": {
+    "50": 10423,
+    "95": 14625,
+    "99": 14626
+   },
+   "src_to_tuple_ms": {
+    "50": 3471,
+    "95": 3772,
+    "99": 3863
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 167,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 320,
+     "size_bytes": 114833,
+     "failed": 1
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 165,
+     "size_bytes": 136197,
+     "failed": 0
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 9921,
+     "size_bytes": 16495373,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 421,
+     "size_bytes": 1707603,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 122,
+     "size_bytes": 103827,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 319,
+     "size_bytes": 88380,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 116,
+    "analytics.cplm_long_feature_results": 0,
+    "analytics.cplm_gate_results": 0,
+    "analytics.evidence_chunk": 1232,
+    "analytics.response_event": 8
+   }
+  },
+  {
+   "minute": 9,
+   "at": "2026-09-25T16:31:26+00:00",
+   "live_records": 25,
+   "tuples": 52,
+   "quality_non_good_live": 4,
+   "src_to_emit_ms": {
+    "50": 3350,
+    "95": 3663,
+    "99": 3670
+   },
+   "emit_to_reader_ms": {
+    "50": 10373,
+    "95": 15381,
+    "99": 15382
+   },
+   "src_to_tuple_ms": {
+    "50": 3445,
+    "95": 3750,
+    "99": 3812
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 1671,
+     "size_bytes": 110551,
+     "failed": 1
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 205,
+     "size_bytes": 1001796,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 165,
+     "size_bytes": 136197,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 145,
+     "size_bytes": 104927,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 167,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 17,
+     "size_bytes": 89612,
+     "failed": 0
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 9921,
+     "size_bytes": 16495373,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 124,
+    "analytics.cplm_long_feature_results": 0,
+    "analytics.cplm_gate_results": 0,
+    "analytics.evidence_chunk": 1321,
+    "analytics.response_event": 9
+   }
+  },
+  {
+   "minute": 10,
+   "at": "2026-09-25T16:32:31+00:00",
+   "live_records": 20,
+   "tuples": 40,
+   "quality_non_good_live": 4,
+   "src_to_emit_ms": {
+    "50": 3356,
+    "95": 3683,
+    "99": 4023
+   },
+   "emit_to_reader_ms": {
+    "50": 10359,
+    "95": 15324,
+    "99": 15325
+   },
+   "src_to_tuple_ms": {
+    "50": 3390,
+    "95": 3720,
+    "99": 3737
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 165,
+     "size_bytes": 136197,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 483,
+     "size_bytes": 90857,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 2088,
+     "size_bytes": 107931,
+     "failed": 1
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 205,
+     "size_bytes": 1001796,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 145,
+     "size_bytes": 104927,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 167,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 9921,
+     "size_bytes": 16495373,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 76,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 148,
+    "analytics.cplm_long_feature_results": 12,
+    "analytics.cplm_gate_results": 8,
+    "analytics.evidence_chunk": 1690,
+    "analytics.response_event": 9
+   }
+  },
+  {
+   "minute": 11,
+   "at": "2026-09-25T16:33:31+00:00",
+   "live_records": 23,
+   "tuples": 40,
+   "quality_non_good_live": 6,
+   "src_to_emit_ms": {
+    "50": 3312,
+    "95": 3444,
+    "99": 3444
+   },
+   "emit_to_reader_ms": {
+    "50": 9997,
+    "95": 14921,
+    "99": 14922
+   },
+   "src_to_tuple_ms": {
+    "50": 3355,
+    "95": 3701,
+    "99": 3707
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 1,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 57,
+     "size_bytes": 87345,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 98,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 94,
+     "size_bytes": 115976,
+     "failed": 1
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 12419,
+     "size_bytes": 18754934,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 205,
+     "size_bytes": 1001796,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 127,
+     "size_bytes": 185346,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 145,
+     "size_bytes": 104927,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 156,
+    "analytics.cplm_long_feature_results": 12,
+    "analytics.cplm_gate_results": 8,
+    "analytics.evidence_chunk": 1772,
+    "analytics.response_event": 9
+   }
+  },
+  {
+   "minute": 12,
+   "at": "2026-09-25T16:34:30+00:00",
+   "live_records": 19,
+   "tuples": 48,
+   "quality_non_good_live": 2,
+   "src_to_emit_ms": {
+    "50": 3239,
+    "95": 3275,
+    "99": 3275
+   },
+   "emit_to_reader_ms": {
+    "50": 9943,
+    "95": 14917,
+    "99": 14917
+   },
+   "src_to_tuple_ms": {
+    "50": 3335,
+    "95": 3689,
+    "99": 3693
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 93,
+     "size_bytes": 106174,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 98,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 144,
+     "size_bytes": 125561,
+     "failed": 1
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 127,
+     "size_bytes": 185346,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 205,
+     "size_bytes": 1001796,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 74,
+     "size_bytes": 88583,
+     "failed": 0
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 12419,
+     "size_bytes": 18754934,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 168,
+    "analytics.cplm_long_feature_results": 12,
+    "analytics.cplm_gate_results": 8,
+    "analytics.evidence_chunk": 1909,
+    "analytics.response_event": 10
+   }
+  },
+  {
+   "minute": 13,
+   "at": "2026-09-25T16:35:30+00:00",
+   "live_records": 18,
+   "tuples": 48,
+   "quality_non_good_live": 1,
+   "src_to_emit_ms": {
+    "50": 3247,
+    "95": 4344,
+    "99": 4345
+   },
+   "emit_to_reader_ms": {
+    "50": 9001,
+    "95": 14926,
+    "99": 14927
+   },
+   "src_to_tuple_ms": {
+    "50": 3559,
+    "95": 4120,
+    "99": 4510
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 98,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 385,
+     "size_bytes": 119494,
+     "failed": 1
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 205,
+     "size_bytes": 1001796,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 127,
+     "size_bytes": 185346,
+     "failed": 0
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 1769,
+     "size_bytes": 19887940,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 93,
+     "size_bytes": 106174,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 80,
+     "size_bytes": 89826,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 176,
+    "analytics.cplm_long_feature_results": 12,
+    "analytics.cplm_gate_results": 8,
+    "analytics.evidence_chunk": 2005,
+    "analytics.response_event": 12
+   }
+  },
+  {
+   "minute": 14,
+   "at": "2026-09-25T16:36:30+00:00",
+   "live_records": 19,
+   "tuples": 56,
+   "quality_non_good_live": 0,
+   "src_to_emit_ms": {
+    "50": 3238,
+    "95": 3267,
+    "99": 3267
+   },
+   "emit_to_reader_ms": {
+    "50": 10028,
+    "95": 15016,
+    "99": 15017
+   },
+   "src_to_tuple_ms": {
+    "50": 3282,
+    "95": 3657,
+    "99": 3665
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 195,
+     "size_bytes": 125472,
+     "failed": 1
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 93,
+     "size_bytes": 106174,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 98,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 1769,
+     "size_bytes": 19887940,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 973,
+     "size_bytes": 1731277,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 127,
+     "size_bytes": 185346,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 62,
+     "size_bytes": 91065,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 188,
+    "analytics.cplm_long_feature_results": 12,
+    "analytics.cplm_gate_results": 8,
+    "analytics.evidence_chunk": 2128,
+    "analytics.response_event": 12
+   }
+  },
+  {
+   "minute": 15,
+   "at": "2026-09-25T16:37:35+00:00",
+   "live_records": 21,
+   "tuples": 20,
+   "quality_non_good_live": 4,
+   "src_to_emit_ms": {
+    "50": 3223,
+    "95": 3298,
+    "99": 3298
+   },
+   "emit_to_reader_ms": {
+    "50": 9831,
+    "95": 14744,
+    "99": 14745
+   },
+   "src_to_tuple_ms": {
+    "50": 3991,
+    "95": 4490,
+    "99": 5874
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 127,
+     "size_bytes": 185346,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 102,
+     "size_bytes": 87961,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 195,
+     "size_bytes": 125472,
+     "failed": 1
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 98,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 1769,
+     "size_bytes": 19887940,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 973,
+     "size_bytes": 1731277,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 5167,
+     "size_bytes": 107274,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 17,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 208,
+    "analytics.cplm_long_feature_results": 12,
+    "analytics.cplm_gate_results": 8,
+    "analytics.evidence_chunk": 2340,
+    "analytics.response_event": 13
+   }
+  },
+  {
+   "minute": 16,
+   "at": "2026-09-25T16:38:36+00:00",
+   "live_records": 28,
+   "tuples": 52,
+   "quality_non_good_live": 8,
+   "src_to_emit_ms": {
+    "50": 3259,
+    "95": 3349,
+    "99": 3658
+   },
+   "emit_to_reader_ms": {
+    "50": 5870,
+    "95": 10877,
+    "99": 10877
+   },
+   "src_to_tuple_ms": {
+    "50": 3723,
+    "95": 4114,
+    "99": 4157
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 1,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 5167,
+     "size_bytes": 107274,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 337,
+     "size_bytes": 129773,
+     "failed": 1
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 973,
+     "size_bytes": 1731277,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 563,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 109,
+     "size_bytes": 191620,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 244,
+     "size_bytes": 89338,
+     "failed": 0
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 869,
+     "size_bytes": 22008832,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 220,
+    "analytics.cplm_long_feature_results": 12,
+    "analytics.cplm_gate_results": 8,
+    "analytics.evidence_chunk": 2463,
+    "analytics.response_event": 14
+   }
+  },
+  {
+   "minute": 17,
+   "at": "2026-09-25T16:39:36+00:00",
+   "live_records": 35,
+   "tuples": 40,
+   "quality_non_good_live": 9,
+   "src_to_emit_ms": {
+    "50": 3200,
+    "95": 3599,
+    "99": 3611
+   },
+   "emit_to_reader_ms": {
+    "50": 5885,
+    "95": 15919,
+    "99": 15920
+   },
+   "src_to_tuple_ms": {
+    "50": 3689,
+    "95": 4091,
+    "99": 4154
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 1,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 143,
+     "size_bytes": 134540,
+     "failed": 1
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 563,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 61,
+     "size_bytes": 90573,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 5167,
+     "size_bytes": 107274,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 973,
+     "size_bytes": 1731277,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 109,
+     "size_bytes": 191620,
+     "failed": 0
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 869,
+     "size_bytes": 22008832,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 228,
+    "analytics.cplm_long_feature_results": 12,
+    "analytics.cplm_gate_results": 8,
+    "analytics.evidence_chunk": 2559,
+    "analytics.response_event": 15
+   }
+  },
+  {
+   "minute": 18,
+   "at": "2026-09-25T16:40:36+00:00",
+   "live_records": 23,
+   "tuples": 40,
+   "quality_non_good_live": 4,
+   "src_to_emit_ms": {
+    "50": 3151,
+    "95": 3287,
+    "99": 3571
+   },
+   "emit_to_reader_ms": {
+    "50": 5770,
+    "95": 10877,
+    "99": 10877
+   },
+   "src_to_tuple_ms": {
+    "50": 3662,
+    "95": 4081,
+    "99": 4155
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 869,
+     "size_bytes": 22008832,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 109,
+     "size_bytes": 191620,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 41,
+     "size_bytes": 91813,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 973,
+     "size_bytes": 1731277,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 95,
+     "size_bytes": 108750,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 563,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 162,
+     "size_bytes": 136549,
+     "failed": 1
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 240,
+    "analytics.cplm_long_feature_results": 12,
+    "analytics.cplm_gate_results": 8,
+    "analytics.evidence_chunk": 2682,
+    "analytics.response_event": 15
+   }
+  },
+  {
+   "minute": 19,
+   "at": "2026-09-25T16:41:36+00:00",
+   "live_records": 26,
+   "tuples": 52,
+   "quality_non_good_live": 6,
+   "src_to_emit_ms": {
+    "50": 3115,
+    "95": 3213,
+    "99": 3213
+   },
+   "emit_to_reader_ms": {
+    "50": 5857,
+    "95": 15871,
+    "99": 15871
+   },
+   "src_to_tuple_ms": {
+    "50": 3636,
+    "95": 4062,
+    "99": 4098
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 89,
+     "size_bytes": 143466,
+     "failed": 1
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 34,
+     "size_bytes": 88300,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 563,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 95,
+     "size_bytes": 108750,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 161,
+     "size_bytes": 2048139,
+     "failed": 0
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 378,
+     "size_bytes": 23357367,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 109,
+     "size_bytes": 191620,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 248,
+    "analytics.cplm_long_feature_results": 12,
+    "analytics.cplm_gate_results": 8,
+    "analytics.evidence_chunk": 2778,
+    "analytics.response_event": 16
+   }
+  },
+  {
+   "minute": 20,
+   "at": "2026-09-25T16:42:37+00:00",
+   "live_records": 12,
+   "tuples": 40,
+   "quality_non_good_live": 0,
+   "src_to_emit_ms": {
+    "50": 3256,
+    "95": 3341,
+    "99": 3341
+   },
+   "emit_to_reader_ms": {
+    "50": 6088,
+    "95": 6188,
+    "99": 6189
+   },
+   "src_to_tuple_ms": {
+    "50": 3324,
+    "95": 3573,
+    "99": 3932
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 109,
+     "size_bytes": 191620,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 98,
+     "size_bytes": 89542,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 563,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 378,
+     "size_bytes": 23357367,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 161,
+     "size_bytes": 2048139,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 95,
+     "size_bytes": 108750,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 1452,
+     "size_bytes": 144459,
+     "failed": 1
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 272,
+    "analytics.cplm_long_feature_results": 12,
+    "analytics.cplm_gate_results": 8,
+    "analytics.evidence_chunk": 3038,
+    "analytics.response_event": 18
+   }
+  },
+  {
+   "minute": 21,
+   "at": "2026-09-25T16:43:37+00:00",
+   "live_records": 20,
+   "tuples": 40,
+   "quality_non_good_live": 3,
+   "src_to_emit_ms": {
+    "50": 3160,
+    "95": 3166,
+    "99": 3166
+   },
+   "emit_to_reader_ms": {
+    "50": 5887,
+    "95": 10895,
+    "99": 10895
+   },
+   "src_to_tuple_ms": {
+    "50": 3093,
+    "95": 3550,
+    "99": 4074
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 378,
+     "size_bytes": 23357367,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 59,
+     "size_bytes": 90777,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 147,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 133,
+     "size_bytes": 181049,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 465,
+     "size_bytes": 108750,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 161,
+     "size_bytes": 2048139,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 185,
+     "size_bytes": 145861,
+     "failed": 1
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 280,
+    "analytics.cplm_long_feature_results": 12,
+    "analytics.cplm_gate_results": 8,
+    "analytics.evidence_chunk": 3120,
+    "analytics.response_event": 18
+   }
+  },
+  {
+   "minute": 22,
+   "at": "2026-09-25T16:44:36+00:00",
+   "live_records": 22,
+   "tuples": 30,
+   "quality_non_good_live": 8,
+   "src_to_emit_ms": {
+    "50": 3134,
+    "95": 3318,
+    "99": 3318
+   },
+   "emit_to_reader_ms": {
+    "50": 5683,
+    "95": 10920,
+    "99": 10921
+   },
+   "src_to_tuple_ms": {
+    "50": 3129,
+    "95": 3225,
+    "99": 3247
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 147,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 133,
+     "size_bytes": 181049,
+     "failed": 0
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 378,
+     "size_bytes": 23357367,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 161,
+     "size_bytes": 2048139,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 199,
+     "size_bytes": 92156,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 465,
+     "size_bytes": 108750,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 1602,
+     "size_bytes": 149633,
+     "failed": 1
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 292,
+    "analytics.cplm_long_feature_results": 12,
+    "analytics.cplm_gate_results": 8,
+    "analytics.evidence_chunk": 3243,
+    "analytics.response_event": 18
+   }
+  },
+  {
+   "minute": 23,
+   "at": "2026-09-25T16:45:37+00:00",
+   "live_records": 26,
+   "tuples": 30,
+   "quality_non_good_live": 2,
+   "src_to_emit_ms": {
+    "50": 3115,
+    "95": 3126,
+    "99": 3214
+   },
+   "emit_to_reader_ms": {
+    "50": 5860,
+    "95": 15875,
+    "99": 15875
+   },
+   "src_to_tuple_ms": {
+    "50": 3031,
+    "95": 3043,
+    "99": 3043
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 127,
+     "size_bytes": 155233,
+     "failed": 1
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 32,
+     "size_bytes": 88880,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 465,
+     "size_bytes": 108750,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 133,
+     "size_bytes": 181049,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 147,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 24266,
+     "size_bytes": 25005025,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 161,
+     "size_bytes": 2048139,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 300,
+    "analytics.cplm_long_feature_results": 12,
+    "analytics.cplm_gate_results": 8,
+    "analytics.evidence_chunk": 3325,
+    "analytics.response_event": 18
+   }
+  },
+  {
+   "minute": 24,
+   "at": "2026-09-25T16:46:37+00:00",
+   "live_records": 26,
+   "tuples": 30,
+   "quality_non_good_live": 9,
+   "src_to_emit_ms": {
+    "50": 3074,
+    "95": 3081,
+    "99": 3081
+   },
+   "emit_to_reader_ms": {
+    "50": 5868,
+    "95": 10877,
+    "99": 10878
+   },
+   "src_to_tuple_ms": {
+    "50": 3005,
+    "95": 3022,
+    "99": 3024
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 147,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 111,
+     "size_bytes": 110001,
+     "failed": 0
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 24266,
+     "size_bytes": 25005025,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 263,
+     "size_bytes": 2323513,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 27,
+     "size_bytes": 90076,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 133,
+     "size_bytes": 181049,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 174,
+     "size_bytes": 157428,
+     "failed": 1
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 312,
+    "analytics.cplm_long_feature_results": 12,
+    "analytics.cplm_gate_results": 8,
+    "analytics.evidence_chunk": 3448,
+    "analytics.response_event": 18
+   }
+  },
+  {
+   "minute": 25,
+   "at": "2026-09-25T16:47:37+00:00",
+   "live_records": 18,
+   "tuples": 30,
+   "quality_non_good_live": 0,
+   "src_to_emit_ms": {
+    "50": 3044,
+    "95": 3294,
+    "99": 3295
+   },
+   "emit_to_reader_ms": {
+    "50": 5819,
+    "95": 10573,
+    "99": 10574
+   },
+   "src_to_tuple_ms": {
+    "50": 2976,
+    "95": 2989,
+    "99": 2989
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 263,
+     "size_bytes": 2323513,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 147,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 111,
+     "size_bytes": 110001,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 98,
+     "size_bytes": 149137,
+     "failed": 1
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 36,
+     "size_bytes": 91277,
+     "failed": 0
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 963,
+     "size_bytes": 26167929,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 133,
+     "size_bytes": 181049,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 331,
+    "analytics.cplm_long_feature_results": 24,
+    "analytics.cplm_gate_results": 16,
+    "analytics.evidence_chunk": 3772,
+    "analytics.response_event": 19
+   }
+  },
+  {
+   "minute": 26,
+   "at": "2026-09-25T16:48:37+00:00",
+   "live_records": 25,
+   "tuples": 30,
+   "quality_non_good_live": 8,
+   "src_to_emit_ms": {
+    "50": 2971,
+    "95": 2979,
+    "99": 2982
+   },
+   "emit_to_reader_ms": {
+    "50": 5934,
+    "95": 10945,
+    "99": 10945
+   },
+   "src_to_tuple_ms": {
+    "50": 2960,
+    "95": 2976,
+    "99": 2976
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 38,
+     "size_bytes": 92476,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 215,
+     "size_bytes": 155524,
+     "failed": 1
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 963,
+     "size_bytes": 26167929,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 263,
+     "size_bytes": 2323513,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 111,
+     "size_bytes": 110001,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 120,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 129,
+     "size_bytes": 297617,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 342,
+    "analytics.cplm_long_feature_results": 24,
+    "analytics.cplm_gate_results": 16,
+    "analytics.evidence_chunk": 3884,
+    "analytics.response_event": 19
+   }
+  },
+  {
+   "minute": 27,
+   "at": "2026-09-25T16:49:39+00:00",
+   "live_records": 14,
+   "tuples": 15,
+   "quality_non_good_live": 3,
+   "src_to_emit_ms": {
+    "50": 3004,
+    "95": 3138,
+    "99": 3139
+   },
+   "emit_to_reader_ms": {
+    "50": 7184,
+    "95": 12192,
+    "99": 12194
+   },
+   "src_to_tuple_ms": {
+    "50": 2914,
+    "95": 2932,
+    "99": 2956
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 0,
+    "99": 0
+   },
+   "checkpoints": {
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 129,
+     "size_bytes": 297617,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 120,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 139,
+     "size_bytes": 111256,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 5458,
+     "size_bytes": 160524,
+     "failed": 1
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 963,
+     "size_bytes": 26167929,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 263,
+     "size_bytes": 2323513,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 279,
+     "size_bytes": 89361,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 349,
+    "analytics.cplm_long_feature_results": 24,
+    "analytics.cplm_gate_results": 16,
+    "analytics.evidence_chunk": 3942,
+    "analytics.response_event": 20
+   }
+  },
+  {
+   "minute": 28,
+   "at": "2026-09-25T16:50:37+00:00",
+   "live_records": 13,
+   "tuples": 30,
+   "quality_non_good_live": 2,
+   "src_to_emit_ms": {
+    "50": 3082,
+    "95": 3205,
+    "99": 3205
+   },
+   "emit_to_reader_ms": {
+    "50": 6484,
+    "95": 11352,
+    "99": 11357
+   },
+   "src_to_tuple_ms": {
+    "50": 2889,
+    "95": 2940,
+    "99": 2940
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 139,
+     "size_bytes": 111256,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 120,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 129,
+     "size_bytes": 297617,
+     "failed": 0
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 331,
+     "size_bytes": 90559,
+     "failed": 0
+    },
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 724,
+     "size_bytes": 27261263,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 170,
+     "size_bytes": 163851,
+     "failed": 1
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 263,
+     "size_bytes": 2323513,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 360,
+    "analytics.cplm_long_feature_results": 24,
+    "analytics.cplm_gate_results": 16,
+    "analytics.evidence_chunk": 4054,
+    "analytics.response_event": 20
+   }
+  },
+  {
+   "minute": 29,
+   "at": "2026-09-25T16:51:37+00:00",
+   "live_records": 17,
+   "tuples": 30,
+   "quality_non_good_live": 1,
+   "src_to_emit_ms": {
+    "50": 2919,
+    "95": 2921,
+    "99": 2922
+   },
+   "emit_to_reader_ms": {
+    "50": 10950,
+    "95": 15965,
+    "99": 15965
+   },
+   "src_to_tuple_ms": {
+    "50": 2857,
+    "95": 2909,
+    "99": 2913
+   },
+   "role_sample_to_tuple_ms": {
+    "50": 0,
+    "95": 1,
+    "99": 1
+   },
+   "checkpoints": {
+    "AMS - CPLM Short Feature Engine": {
+     "duration_ms": 724,
+     "size_bytes": 27261263,
+     "failed": 0
+    },
+    "AMS - CPLM Instrument Context Engine": {
+     "duration_ms": 120,
+     "size_bytes": 29625,
+     "failed": 0
+    },
+    "AMS - CPLM Gate Fusion Engine": {
+     "duration_ms": 139,
+     "size_bytes": 111256,
+     "failed": 0
+    },
+    "AMS - Loop Live RBE Engine": {
+     "duration_ms": 782,
+     "size_bytes": 166781,
+     "failed": 1
+    },
+    "AMS - CPLM Condition Engine": {
+     "duration_ms": 30,
+     "size_bytes": 91763,
+     "failed": 0
+    },
+    "AMS - CPLM Long Diagnostics Engine": {
+     "duration_ms": 332,
+     "size_bytes": 2158478,
+     "failed": 0
+    },
+    "AMS - CPLM Response Engine": {
+     "duration_ms": 129,
+     "size_bytes": 297617,
+     "failed": 0
+    }
+   },
+   "lags": {
+    "traverse-cpa-cplm-results": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-frames": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-evidence": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-response": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-conditions": {
+     "lag": 0,
+     "members": 0
+    },
+    "traverse-cpa-cplm-health": {
+     "lag": 0,
+     "members": 1
+    },
+    "traverse-cpa-cplm-results-config-acks": {
+     "lag": 4,
+     "members": 1
+    }
+   },
+   "rows": {
+    "analytics.cplm_short_feature_results": 366,
+    "analytics.cplm_long_feature_results": 24,
+    "analytics.cplm_gate_results": 16,
+    "analytics.evidence_chunk": 4121,
+    "analytics.response_event": 21
+   }
+  }
+ ]
+}

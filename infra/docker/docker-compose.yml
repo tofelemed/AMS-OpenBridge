@@ -564,6 +564,15 @@ services:
         state.checkpoints.num-retained: 3
         # Phase 6: checkpoint hardening â€” 60s interval, 30s min pause, EXACTLY_ONCE
         execution.checkpointing.interval: 60000
+        # 2026-09-25 (review I2): a job that throws deterministically restarted every second for an hour and starved
+        # the shared TaskManager (Flink's default with checkpointing = fixed-delay, 1 s, unlimited). Back off instead.
+        restart-strategy: exponential-delay
+        restart-strategy.type: exponential-delay
+        restart-strategy.exponential-delay.initial-backoff: 1 s
+        restart-strategy.exponential-delay.max-backoff: 5 min
+        restart-strategy.exponential-delay.backoff-multiplier: 2.0
+        restart-strategy.exponential-delay.reset-backoff-threshold: 10 min
+        restart-strategy.exponential-delay.jitter-factor: 0.1
         execution.checkpointing.min-pause: 30000
         execution.checkpointing.mode: EXACTLY_ONCE
         execution.checkpointing.timeout: 120000
@@ -654,6 +663,15 @@ services:
         s3.secret-key: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set â€” see infra/docker/.env.example}
         state.checkpoints.num-retained: 3
         execution.checkpointing.interval: 60000
+        # 2026-09-25 (review I2): a job that throws deterministically restarted every second for an hour and starved
+        # the shared TaskManager (Flink's default with checkpointing = fixed-delay, 1 s, unlimited). Back off instead.
+        restart-strategy: exponential-delay
+        restart-strategy.type: exponential-delay
+        restart-strategy.exponential-delay.initial-backoff: 1 s
+        restart-strategy.exponential-delay.max-backoff: 5 min
+        restart-strategy.exponential-delay.backoff-multiplier: 2.0
+        restart-strategy.exponential-delay.reset-backoff-threshold: 10 min
+        restart-strategy.exponential-delay.jitter-factor: 0.1
         execution.checkpointing.min-pause: 30000
         execution.checkpointing.mode: EXACTLY_ONCE
         execution.checkpointing.timeout: 120000

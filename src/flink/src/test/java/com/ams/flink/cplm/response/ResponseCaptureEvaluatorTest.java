@@ -181,11 +181,15 @@ public class ResponseCaptureEvaluatorTest {
             double pv = 100 + (t < 104 ? 0 : 15 * (1 - Math.exp(-(t - 104) / 20)));
             closed.addAll(cap.onSample(sample("FIC10302", t, pv, 100, u, true), false));
             if (((int) t) % 50 == 0) closed.addAll(cap.onSample(sample("FIC10302", t, pv, 100, u, true), false));   // re-delivered
-            if (t == 200) closed.addAll(cap.onSample(sample("FIC10302", t - 5, pv, 100, u, true), false));         // late
+            // late AND in MAN: placed after the segmentation block the guard would let this sample censor the capture as a
+            // MODE_TRANSFER before being dropped - the guard must precede every state change (review M1)
+            if (t == 200) closed.addAll(cap.onSample(sample("FIC10302", t - 5, pv, 100, u, false), false));        // late
         }
         assertEquals(1, closed.size());
         ResponseCapture.Closed c = closed.get(0);
         assertEquals("COMPLETE", c.event.captureState);
+        assertEquals("every re-delivery counted", 15, cap.droppedDuplicate);
+        assertEquals("the late sample counted separately", 1, cap.droppedLate);
         assertEquals(100_000.0, c.event.t0Ms, 1e-6);
         for (int i = 1; i < c.data.t.length; i++) assertTrue("time strictly increases", c.data.t[i] > c.data.t[i - 1]);
     }
