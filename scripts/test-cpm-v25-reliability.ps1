@@ -121,7 +121,17 @@ Step 'R3 a duplicate delivery of an evidence CHUNK record is idempotent: chunk c
     $p = $row.Split('|'); $evidenceId = $p[0]; $runId = $p[1]; $chunkCount = [int]$p[2]
     $chunksBefore = [int](Invoke-CplmSql "SELECT count(*) FROM analytics.evidence_chunk WHERE evidence_id = '$evidenceId'" | Select-Object -First 1)
     # take one CHUNK record of that evidence from the topic and produce it again, with its key
-    $raw = cmd /c "docker exec ams-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic traverse.cpa.clpm.gate.evidence.v1 --from-beginning --max-messages 4000 --timeout-ms 20000 2>nul"
+    # ...from the TAIL of every partition: the head of a lived-in topic is days old (1.7 GB on the lab), so "first 4000
+    # from the beginning" never held a recent manifest's chunk (R3 false FAIL, 2026-09-25).
+    $ends = @(cmd /c "docker exec ams-kafka kafka-run-class kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic traverse.cpa.clpm.gate.evidence.v1 2>nul")
+    $raw = @()
+    foreach ($line in $ends) {
+        $o = "$line".Trim() -split ':'
+        if ($o.Count -lt 3) { continue }
+        $partition = $o[1]; $end = [long]$o[2]; $from = [Math]::Max(0, $end - 800)
+        if ($end -le 0) { continue }
+        $raw += @(cmd /c "docker exec ams-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic traverse.cpa.clpm.gate.evidence.v1 --partition $partition --offset $from --timeout-ms 30000 --max-messages 800 2>nul")
+    }
     $chunk = $raw | Where-Object { $_ -match '"record_kind":"EVIDENCE_CHUNK"' -and $_ -match ('"evidence_id":"' + $evidenceId + '"') } | Select-Object -First 1
     Assert (-not [string]::IsNullOrWhiteSpace($chunk)) "no CHUNK record of evidence $evidenceId found in the first 4000 messages of the topic (retention rolled it off?)"
     $tmp = Join-Path $env:TEMP 'cplm-dup-chunk.txt'

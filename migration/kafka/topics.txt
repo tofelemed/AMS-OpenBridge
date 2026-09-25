@@ -12,29 +12,33 @@
 # compression: lz4 or - (broker default)
 # 2026-09-18 disk-full: feature.short at 7 d uncompressed was 10 GB/replica on the plant. Now 1 d + lz4;
 #   the three CPLM streams are lz4. Existing topics: apply with kafka-configs --alter (04 only creates).
-# 2026-09-25 pre-prod: gate.evidence at 7 d would be ~5 GB x RF on the shared brokers (measured 0.6-0.7 GB/day of
-#   gzip chunks at 161 loops on the lab, 09-18/19); its consumer lags minutes, so 1 d - the samples topic's posture.
+# 2026-09-25 pre-prod (user decision: the minimum retention we can): Kafka is transport plus a recovery buffer here -
+#   IoTDB / Postgres are the records. Floors: samples 12 h (the historian held 8 h through the 09-18 IoTDB refusal
+#   and replayed it - CHG-020); the Flink feature / evidence streams 6 h (live consumers, re-derivable); the small
+#   record-bearing topics (gate results, response, health, DLQs, ACKs, audit) 3 d so a weekend outage of their
+#   consumer loses nothing (MBs, not GBs); live metrics 1 h; compacted topics never time-limited. Existing plant
+#   topics: migration/04c-apply-topic-retention.sh applies these with kafka-configs --alter (04 only creates).
 #
 # Create flags (Phase 6): --if-not-exists --replication-factor 2 --config min.insync.replicas=1  # cluster went 3->2 brokers 2026-09-05
 # Lab RF=1 is NOT for Marun.
 
-traverse.cpa.loop.samples.v1	16	delete	86400000	lz4	traverse.cpa.loop.samples.v1
-traverse.cpa.clpm.feature.short.v1	8	delete	86400000	lz4	traverse.cpa.clpm.feature.short.v1
-traverse.cpa.clpm.feature.long.v1	8	delete	604800000	lz4	traverse.cpa.clpm.feature.long.v1
-traverse.cpa.clpm.gate.results.v1	8	delete	2592000000	lz4	traverse.cpa.clpm.gate.results.v1
-traverse.cpa.clpm.condition.v1	8	delete	604800000	-	traverse.cpa.clpm.condition.v1
-traverse.cpa.clpm.gate.evidence.v1	8	delete	86400000	-	traverse.cpa.clpm.gate.evidence.v1
-traverse.cpa.clpm.response.results.v1	8	delete	2592000000	-	traverse.cpa.clpm.response.results.v1
-traverse.cpa.instrument.health.v1	8	delete	2592000000	-	traverse.cpa.instrument.health.v1
-traverse.ingestion.health-dlq	2	delete	604800000	-	traverse.ingestion.health-dlq
+traverse.cpa.loop.samples.v1	16	delete	43200000	lz4	traverse.cpa.loop.samples.v1
+traverse.cpa.clpm.feature.short.v1	8	delete	21600000	lz4	traverse.cpa.clpm.feature.short.v1
+traverse.cpa.clpm.feature.long.v1	8	delete	21600000	lz4	traverse.cpa.clpm.feature.long.v1
+traverse.cpa.clpm.gate.results.v1	8	delete	259200000	lz4	traverse.cpa.clpm.gate.results.v1
+traverse.cpa.clpm.condition.v1	8	delete	86400000	-	traverse.cpa.clpm.condition.v1
+traverse.cpa.clpm.gate.evidence.v1	8	delete	21600000	-	traverse.cpa.clpm.gate.evidence.v1
+traverse.cpa.clpm.response.results.v1	8	delete	259200000	-	traverse.cpa.clpm.response.results.v1
+traverse.cpa.instrument.health.v1	8	delete	259200000	-	traverse.cpa.instrument.health.v1
+traverse.ingestion.health-dlq	2	delete	259200000	-	traverse.ingestion.health-dlq
 traverse.cpa.context.instrument-health.v1	8	compact		-	traverse.cpa.context.instrument-health.v1
 traverse.cpa.context.gate-config.v1	3	compact		-	traverse.cpa.context.gate-config.v1
-traverse.cpa.context.gate-config.acks.v1	3	delete	604800000	-	traverse.cpa.context.gate-config.acks.v1
+traverse.cpa.context.gate-config.acks.v1	3	delete	259200000	-	traverse.cpa.context.gate-config.acks.v1
 traverse.cpa.ams.metadata.updates	3	compact		-	traverse.cpa.ams.metadata.updates
 traverse.cpa.context.parameter-set.v1	3	compact		-	traverse.cpa.context.parameter-set.v1
-traverse.cpa.live.loop.metrics	8	delete	10800000	lz4	traverse.cpa.live.loop.metrics
-traverse.cpa.audit-events	4	delete	604800000	-	traverse.cpa.audit-events
-traverse.ingestion.ot-dlq	2	delete	604800000	-	traverse.ingestion.ot-dlq
+traverse.cpa.live.loop.metrics	8	delete	3600000	lz4	traverse.cpa.live.loop.metrics
+traverse.cpa.audit-events	4	delete	259200000	-	traverse.cpa.audit-events
+traverse.ingestion.ot-dlq	2	delete	259200000	-	traverse.ingestion.ot-dlq
 
 # On-demand (do NOT pre-create in 04). Recompute job creates:
 #   traverse.cpa.cplm.replay.{id}	1	delete	7200000	-	cplm.replay.{id}

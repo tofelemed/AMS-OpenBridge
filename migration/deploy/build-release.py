@@ -423,6 +423,11 @@ docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select
 # 4c. the 8 new topics, BEFORE the jobs start (idempotent --if-not-exists; samples / gate-results topics untouched):
 ALLOW_CREATE_PREFIXED_TOPICS=yes bash migration/04-create-kafka-topics.sh
 docker exec instrumental-kafka-1 kafka-topics --bootstrap-server kafka-1:9092 --list | grep -c 'traverse.cpa'   # 15 (+ any traverse.cpa.cplm.replay.* left by recompute runs)
+#    the topics that already existed keep their OLD retention (04 only creates): apply the minimum-retention list
+#    (samples 12 h, feature / evidence streams 6 h, record-bearing topics 3 d, live metrics 1 h; compacted untouched)
+bash migration/04c-apply-topic-retention.sh --dry-run                    # read the commands first
+ALLOW_CREATE_PREFIXED_TOPICS=yes bash migration/04c-apply-topic-retention.sh
+docker exec instrumental-kafka-1 kafka-configs --bootstrap-server kafka-1:9092 --describe --entity-type topics --entity-name traverse.cpa.loop.samples.v1 | grep -o 'retention.ms=[0-9]*'   # 43200000
 """
         v25_config_block = f"""
 # 6b. v2.5 configuration, AFTER the new ingestion image is up (it validates the field; the old one only stored it):

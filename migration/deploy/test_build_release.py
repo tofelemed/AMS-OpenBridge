@@ -70,6 +70,12 @@ def test_v25_steps_set_the_evidence_retention_after_ownership_and_before_the_top
     assert steps.index("02-apply-schemas.sh") < retention < steps.index("04-create-kafka-topics.sh")
 
 
+def test_v25_steps_apply_the_retention_to_the_existing_topics_after_creating_the_new_ones():
+    steps = v25_steps()
+    apply = steps.index("04c-apply-topic-retention.sh")
+    assert steps.index("04-create-kafka-topics.sh") < apply < steps.index("docker load")
+
+
 def test_v25_steps_load_the_images_after_the_schema_and_the_topics():
     steps = v25_steps()
     assert steps.index("04-create-kafka-topics.sh") < steps.index("docker load") < steps.index("deploy.sh --prod")
