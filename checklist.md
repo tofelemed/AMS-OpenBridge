@@ -92,21 +92,25 @@ _Last updated: 2026-09-17 17:45 (audit follow-up: all 22 frontend findings fixed
 
 | Suite / script | Result | When |
 |---|---|---|
-| Flink `mvn -o test` (Docker Maven) | **266 run / 0 failures / 2 skipped** | 2026-09-17 10:50 (Phase 4.2, clean tree 1cc8a8b4) |
-| cplm-api tests (lab DB, run alone) | **164 / 164** | 2026-09-17 (batch APIs) |
-| ingestion-service tests | **212 / 212** | 2026-09-17 10:44 |
-| binding-resolver / historian-bff tests | 5 / 5 · 4 / 4 | 2026-09-17 10:44 |
-| frontend vitest / lint / build | **191 / 191 · clean · OK** | 2026-09-17 (workbench redesign) |
-| `scripts/validation/ui-v25-audit.mjs` (rendered UI audit, lab) | 18 pages + 3 flows, 0 console errors, 0 failed calls, no horizontal overflow; all 22 findings closed | 2026-09-17 17:40 |
-| `scripts/validation/ui-v25-gates.mjs` (17 gate views, lab) | 17/17 render, 0 page errors, 12–13 requests per gate, first chart 0.9–2.5 s warm (9–16 s on a cold cplm-api right after recreate) | 2026-09-17 17:20 |
-| auth-service `tsc --noEmit` | clean | 2026-09-17 10:45 |
-| simulator pytest | 17 / 17 | 2026-09-17 10:45 |
-| `gen-property-catalogue.py --check` | 165 properties, 4 copies identical | 2026-09-17 10:45 |
-| `scripts/test-ot-loop-ingestion-e2e.ps1` | **28 / 28** | 2026-09-16 14:45 (corrected jar) |
-| `scripts/test-cpm-v25-slice1-e2e.ps1` | 18 / 18 | 2026-09-16 15:14 (jar e09d6f…) |
-| `scripts/test-cpm-v25-slice2-e2e.ps1` | **19 / 19** | 2026-09-17 04:45 (jar 4ea1da78) |
-| `scripts/test-cpm-v25-slice3-e2e.ps1` | **14 / 14** | 2026-09-17 02:52 (jar 27544b6f; jar 4ea1da78 since) |
-| `scripts/test-cpm-v25-reliability.ps1`, `cpm-v25-load-probe.py` | not run yet | after the user's test tour |
+| Flink `mvn -o test` (Docker Maven) | **534 run / 0 failures / 4 skipped** (incl. the Response-capture re-delivery test) | 2026-09-25 19:31 (after 90fc8d56) |
+| cplm-api tests (lab DB, run alone) | **191 / 191** — 188 + 3 on a quiet feed (the 3 FleetLatestSql ranking oracles compare two reads seconds apart and flip when a window lands between them); 2026-09-25 found and fixed 3 real defects in this suite (history read, sweeper, analysis-run read) | 2026-09-25 19:57 / 20:16 |
+| ingestion-service tests | **212 / 212** | 2026-09-25 17:29 |
+| binding-resolver / gateway / historian-bff tests | 5 / 5 · 17 / 17 · 4 / 4 | 2026-09-25 17:29 |
+| frontend vitest / lint / tsc | **277 / 277 · clean · clean** (build proven by the image build) | 2026-09-25 17:31 |
+| release tooling `pytest migration/deploy` | **13 / 13** (source archive LF, VM step order, numbers) | 2026-09-25 20:0x |
+| `scripts/validation/ui-v25-audit.mjs` (rendered UI audit, lab) | 19 pages, 0 console errors, 0 failed responses | 2026-09-25 17:40 |
+| `scripts/validation/ui-v25-shelving-zoom.mjs` (CHG-032 lifecycle + CHG-030 zoom / Response layout, real clicks) | **19 / 19** (detail-scoped assertions) | 2026-09-25 18:31 |
+| `scripts/validation/ui-v25-gates.mjs` (17 gate views, lab) | 17/17 render, 0 page errors, 12–13 requests per gate, first chart 0.9–2.5 s warm | 2026-09-17 17:20 |
+| auth-service `tsc --noEmit` | clean | 2026-09-25 17:29 |
+| simulator pytest | 17 / 17 | 2026-09-25 17:29 |
+| `gen-property-catalogue.py --check` | 165 properties, 4 copies identical | 2026-09-25 17:29 |
+| `scripts/test-ot-loop-ingestion-e2e.ps1` | **28 / 28** (jar b2ba6e8e, cplm-api d5113d6e) | 2026-09-25 19:50 |
+| `scripts/test-cpm-v25-slice1-e2e.ps1` | **18 / 18** | 2026-09-25 18:29 |
+| `scripts/test-cpm-v25-slice2-e2e.ps1` | **16 / 19** — the G12 response path passes end to end; the 3 fails read the newest *fused* row, which exists on the new jar only after its first 4 h window → **re-run after ≥ 4 h on jar b2ba6e8e** (pending proof) | 2026-09-25 19:56 |
+| `scripts/test-cpm-v25-slice3-e2e.ps1` | **14 / 14** | 2026-09-25 18:32 |
+| `scripts/test-cpm-v25-reliability.ps1` | **R1 / R2 / R4 pass** (6-min warm feed; an empty 1-min window before the kill reads as a gap), **R3 pass** alone (`-Steps R3`; its producer call never worked before 2026-09-25) | 2026-09-25 20:15 / 20:22 |
+| `scripts/test-gateway-redis-outage.ps1` | **9 / 9 Pause · 9 / 9 Stop** | 2026-09-25 18:44 / 18:45 |
+| `python scripts/cpm-v25-load-probe.py --minutes 30` | running (tap bounded 2026-09-25; the first attempt hung on a busy topic) → `docs/next-release/04-load-report.md` | 2026-09-25 20:20 |
 
 ## Lab state (for whoever picks this up)
 

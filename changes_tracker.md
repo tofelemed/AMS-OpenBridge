@@ -1727,8 +1727,9 @@ template-service, analysis-service, notification-service, sparkplug-edge-node, a
 git status --short                                                   # must be empty (bundles ship git archive HEAD)
 python scripts/gen-property-catalogue.py --check                     # the four catalogue copies are identical
 docker run --rm -v "D:\HMI_Project_Usama\AMS-open\src\flink:/build" -v "$env:USERPROFILE\.m2:/root/.m2" -w /build maven:3.9-eclipse-temurin-11 mvn -q -o test   # 0 failures
+python -m pytest migration/deploy -q                                 # 13 - release tooling: source archive (LF), VM step order, numbers
 dotnet test tests/ingestion-service.Tests                            # 212
-dotnet test tests/cplm-api.Tests                                     # 176 (lab Postgres on 5433)
+dotnet test tests/cplm-api.Tests                                     # 191 (lab Postgres on 5433; the 3 FleetLatestSql ranking oracles need a QUIET feed - two non-atomic reads)
 dotnet test tests/binding-resolver.Tests
 dotnet test tests/gateway.Tests                                      # 17 (no lab needed)
 docker run --rm -d --name snaptest-redis -p 6390:6379 redis:7.2-alpine; dotnet test tests/historian-bff.Tests; docker rm -f snaptest-redis
@@ -1740,9 +1741,13 @@ python -m pytest scripts/sim -q                                      # 17
 .\scripts\test-cpm-v25-slice1-e2e.ps1
 .\scripts\test-cpm-v25-slice2-e2e.ps1
 .\scripts\test-cpm-v25-slice3-e2e.ps1
-.\scripts\test-cpm-v25-reliability.ps1 -LoopId FIC10405
+.\scripts\test-cpm-v25-reliability.ps1 -LoopId FIC10405              # feed the loop >= 6 min first (an empty 1-min window reads as a gap); -Steps R3 re-runs one probe
 .\scripts\test-gateway-redis-outage.ps1 -AdminPassword <pw>            # 9/9; and -Mode Stop 9/9 (pauses / stops ams-redis ~25 s)
 python scripts/cpm-v25-load-probe.py --minutes 30                    # -> docs/next-release/04-load-report.md
+node scripts/validation/ui-v25-audit.mjs                             # 19 pages, 0 console errors / 0 failed responses
+node scripts/validation/ui-v25-shelving-zoom.mjs                     # 19/19 - CHG-032 lifecycle + CHG-030 zoom / Response layout, real clicks
+# run the lab scripts one at a time on a quiet host: slice2's G12 capture censors on the source gaps a concurrent
+# image build causes, and the ranking oracles compare two reads seconds apart
 python migration/deploy/build-release.py --release v2.5 --dry-run
 python migration/deploy/build-release.py --release v2.5              # NOT YET RUN - after the go
 ```
