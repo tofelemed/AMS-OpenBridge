@@ -52,8 +52,15 @@ def pct(values, p):
 
 
 def tap(topic, seconds, ts_field_of):
-    """Consume the tail of a topic for N seconds; return (append_ts_ms, record) pairs."""
-    out = sh(["docker", "exec", "ams-kafka", "kafka-console-consumer", "--bootstrap-server", "localhost:9092", "--topic", topic,
+    """Consume the tail of a topic for N seconds; return (append_ts_ms, record) pairs.
+
+    --timeout-ms alone ends the consumer only after N s of SILENCE: on a busy topic (230 simulated loops on
+    live.loop.metrics) it never returned and the subprocess timeout killed the whole probe (2026-09-25).
+    The consumer therefore runs under the container's `timeout`, which ends it after N s whatever arrives;
+    --preserve-status keeps its exit code out of docker's; what it printed until then is the tail.
+    """
+    out = sh(["docker", "exec", "ams-kafka", "timeout", "--preserve-status", str(seconds), "kafka-console-consumer",
+              "--bootstrap-server", "localhost:9092", "--topic", topic,
               "--property", "print.timestamp=true", "--timeout-ms", str(seconds * 1000)], timeout=seconds + 60)
     rows = []
     for line in out.splitlines():
