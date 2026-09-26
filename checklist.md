@@ -88,6 +88,16 @@ _Last updated: 2026-09-17 17:45 (audit follow-up: all 22 frontend findings fixed
 | 4.2k pre-production review (user: "do a complete pre-prod", 2026-09-25) | ✅ `docs/pre-prod/v2.5-pre-prod-readiness.md` + `v2.5-ot-instrumental-requests.md`; seven procedure gaps closed in the tooling: G1 `build-release.py` ships `src-<commit>.tar.gz` and VM-STEPS extracts it first (`migration/deploy/test_build_release.py` 7/7), G2 ownership normalization step after cpm-09, G3 TM metaspace decision (above), G4 `05-validate.sh` checks the seven jobs, G5 topic numbers (8 new / 15), G6 env exports before `deploy.sh`, G7 tree committed (e654e8e6, fc444112) |
 | 4.3 build the bundle (`build-release.py --release v2.5`); tracker release section final; tag `v2.5` | ✅ 2026-09-25 23:00: bundle `release-out/v2.5-20260925-r2` (`--skip-jar`, the lab-proven jar `2dc8788aa07f`) from the tagged commit; tag `v2.5`; the 35b29aa1 bundle set aside as SUPERSEDED (its jobs had never run on the lab — the supervisor resubmitted the old jar during the build). 2026-09-26 06:49 slice2 on the shipped jar **18/19** after the overnight Docker outage (all seven jobs restored from chk-64..337, 0 exceptions); the two remaining E2E failures are script expectations (slice1 `profile:*` hash; slice2 newest-row query mixing 12 h / 24 h windows) — user's call (readiness §7.1) |
 
+## Production deployment — Marun
+
+| | |
+|---|---|
+| Released | **v2.5 deployed 2026-09-26 ~07:20 UTC** from `release-out/v2.5-20260925-r2` (tag `v2.5` = aae3c77a, jar `2dc8788aa07f`) |
+| Result | every `VM-STEPS.md` step clean: 8 new tables, 0 non-`ams_user` owners, 15 `traverse.cpa.*` topics, 13 retention-aligned, 7 Flink jobs RUNNING, 6 workers ANNOUNCED on one jar, 17 gates, tuple 1.1, quality protocol STRING_ENUM |
+| Decisions taken at the window | evidence `STANDARD` retention **3 days** (not the planned 7, and not the shipped 90) after the disk survey; Kafka minimum retention applied ahead of the window to reclaim space |
+| Found at the plant | disk had 11 GB free (recovered to 24 GB via `resize2fs` +9 GB and log truncation; 15 GB after the load); `/opt/AMS-open` is **not** a git checkout so the dirty-tree guard is a no-op; ~14.6% of OT messages park correctly (one Bender insulation monitor is 99.8% of them) |
+| Still open | narrow the MQTT subscription to exclude `OT/HDPE/BENDER/#`; `command_path` per loop + `bulk-republish-evidence`; watch `df -h /` daily for a week; rotate the admin password (it was pasted into a session transcript) |
+
 ## Verification status (last runs, lab)
 
 | Suite / script | Result | When |
