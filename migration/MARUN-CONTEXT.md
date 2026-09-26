@@ -260,22 +260,24 @@ docker exec ams-minio du -sh /data/ams-flink/* 2>/dev/null
 
 ## 12b. The OT MQTT broker (where the loop samples come from)
 
-The OT gateway publishes into **`piarchiver-broker`** (PIArchiver's mosquitto, image
-`piarchiver-broker:1.9.0`) — not our EMQX, not the stopped `mosquitto` container. **Their
-container, recreated without warning**; every recreate so far has cost us the feed (§15).
+The OT gateway publishes into **`piarchiver-broker`** — PIArchiver's mosquitto, image
+`piarchiver-broker:1.9.0`, compose service **`mosquitto`** in
+`/home/lean/traverse/traverse-agent-v9/docker-compose.yaml`, `network_mode: host`, so it binds
+this host's `1883` / `9001` directly (no `docker port` mapping to find). Their stack, our feed.
 
 | | |
 |---|---|
-| Listeners | `1883` plain + `9001` websockets. **`8883` TLS existed until their 2026-09-22 recreate and is now gone** — `/mosquitto/certs` is empty and no config file mentions it. Use `mqtt://192.168.190.91:1883` (container-to-container, authenticated, same trust boundary as our Postgres/Kafka hops). If 8883 returns: server cert only, `CN=localhost`, SAN `localhost/127.0.0.1`, self-signed `PIArchiver Local CA`; the CA is the 2nd cert of `openssl s_client -connect …:8883 -showcerts` and connecting by IP needs `servername: localhost` |
-| Auth | `allow_anonymous false`, `password_file /mosquitto/config/passwd`, no ACL. Users: `piarchiver` (theirs) and **`traverse-ingestion`** (ours) |
-| **The recurring trap** | `/mosquitto/config` is **not** a volume. Every recreate of their container **deletes our user** and the connection dies silently — the ingestion source just reports `NotAuthorized` and nothing reaches Kafka. Re-add: `docker exec piarchiver-broker mosquitto_passwd -b /mosquitto/config/passwd traverse-ingestion '<pw>' && docker kill -s HUP piarchiver-broker`. The durable fix is theirs: put the user in the stack's config source under `/home/lean/traverse/traverse-agent-v9/config` |
-| Topics | `OT/HDPE/<fcs>/<class>/<loop>/<group>/<PARAM>` = the ingestion default template `{ns}/{site}/{fcs}/{class}/{loop}/{group}/{param}`. Two groups, **`diagnostics` and `PIDParams`, carry identical values** — subscribe exactly one, or every sample is duplicated into Kafka and Flink double-counts |
-| Data source | one active row, `mqtt://192.168.190.91:1883`, user `traverse-ingestion`, filter `OT/HDPE/+/+/+/PIDParams/+`, `mode_value_map {1:AUT,2:MAN,3:CAS,4:IMAN}`. Create with `POST /api/ingestion/data-sources` (camelCase body, snake_case inside `profileConfig`); `PUT` **replaces `profileConfig` wholesale** — GET it, edit, PUT it back. `username`/`password` are mandatory (no anonymous) |
+| Connection | `mqtt://192.168.190.91:1883`. Websockets `9001`. **`8883` exists only while `server.crt` + `server.key` sit in `/home/lean/traverse/traverse-agent-v9/config/certs`** (bind-mounted ro) — their entrypoint appends the TLS listener to `mosquitto.runtime.conf` when it finds them. That directory is empty since 2026-09-22, so TLS is off; restore the certs and it returns by itself |
+| Users | provisioned **from their `.env` on every start**: `UNS_MQTT_USER`/`UNS_MQTT_PASSWORD` for `piarchiver`, and **`MQTT_EXTRA_USERS="name:pw,name:pw"`** for everyone else. **Ours is `traverse-ingestion`, set permanently in `MQTT_EXTRA_USERS` on 2026-09-26** — the password lives only in that `.env` (backed up next to it) and in our encrypted data-source row. This replaces the old `mosquitto_passwd` hack, which was lost on every recreate |
+| **Their crash-loop bug** | the entrypoint runs `mosquitto_passwd -b -c "$CONF/passwd"` unconditionally, and mosquitto 2.1.2 refuses `-c` when the file exists. So the container **works on first start and crash-loops on every restart after** (`Unable to open file /mosquitto/config/passwd for writing. File exists.`, exit 1). Only a **recreate** clears it — `cd /home/lean/traverse/traverse-agent-v9 && docker compose up -d --force-recreate mosquitto` — because that gives a fresh writable layer. Deleting `passwd` from the layer does **not** work: the image ships its own 0-byte copy underneath, and overlayfs needs a whiteout. Report to them: `-c` only when the file is absent |
+| Topics | `OT/HDPE/<fcs>/<class>/<loop>/<group>/<PARAM>` = the ingestion default template `{ns}/{site}/{fcs}/{class}/{loop}/{group}/{param}`. The groups **`diagnostics` and `PIDParams` carry identical values** — subscribe exactly one, or every sample is duplicated and Flink double-counts |
+| Data source | one active row, `HDPE OT loops (PIDParams)`, `mqtt://192.168.190.91:1883`, user `traverse-ingestion`, filter `OT/HDPE/+/+/+/PIDParams/+`, `mode_value_map {1:AUT,2:MAN,3:CAS,4:IMAN}`. `POST /api/ingestion/data-sources` (camelCase body, snake_case inside `profileConfig`); `PUT` **replaces `profileConfig` wholesale** — GET, edit, PUT back. Username and password are mandatory; the broker denies anonymous |
+| MQTT Explorer | host `192.168.190.91`, port `1883`, **TLS off**, user `traverse-ingestion` + the `.env` password, and **a client ID of your own** — reusing `traverse-ingestion-pidparams` kicks the live subscriber off and the two fight in a reconnect loop |
 
 ```bash
-# is the OT feed alive? (the broker container has the clients)
-docker exec piarchiver-broker sh -c 'timeout 10 mosquitto_sub -h 127.0.0.1 -p 1883 -u traverse-ingestion -P "<pw>" -v -t "OT/HDPE/+/+/+/PIDParams/PV" | head -3'
-# is ingestion turning it into samples?  connected / msgs / tuples / flowing / held
+# is the OT gateway publishing?  (count > 0 after the retained burst)
+docker exec piarchiver-broker sh -c 'timeout 20 mosquitto_sub -h 127.0.0.1 -p 1883 -u traverse-ingestion -P "<pw>" -t "OT/HDPE/#" -v 2>/dev/null | wc -l'
+# is ingestion turning it into samples?  connected / msgs / tuples / flowing / silent
 curl -s -H "$H" http://localhost:8081/api/ingestion/stats | python3 -m json.tool | head -40
 # is Kafka receiving?  must grow between two calls
 docker exec instrumental-kafka-1 kafka-run-class kafka.tools.GetOffsetShell --broker-list kafka-1:9092 --topic traverse.cpa.loop.samples.v1 --time -1 | awk -F: '{s+=$3} END {print s}'
@@ -323,5 +325,6 @@ Rollback = re-tag the image id from `/tmp/pre-<name>-images.txt` and `deploy.sh 
 - **2026-09-18, a full disk takes Kafka down** (`Shutdown broker because all log dirs … have failed`) and **the ingestion service's producer never reconnects** — it logged `2/2 brokers are down` once and sat "healthy" for 6 h producing nothing. After any broker outage: check `loop.samples` log-end is growing; `docker restart traverse-ingestion-service` if not. The historian consumer held 8 h of samples through the same outage and replayed them in 24 s (CHG-020 proven).
 - **Truncating container logs mid-incident destroys the evidence.** Copy `docker logs` of ams-api / traverse-ingestion-service / ams-iotdb to `/var/tmp` first (MARUN-DISK §3 D).
 - **The OT feed has now died twice from things outside our stack** (MARUN-DISK §2, CHG-031): a full disk took Kafka down and the ingestion producer never reconnected (2026-09-18, 6 h), and PIArchiver recreated their broker (2026-09-22) which deleted our user *and* the TLS listener — 3 days of samples lost, noticed only when someone looked. Neither showed up as an unhealthy container. Until the producer fix lands, the one check that catches both is **`loop.samples` log-end growing**.
+- **2026-09-26, the disk filled again and killed the OT feed for ~1.5 h** — not our stack: ENOSPC hit mosquitto mid-write (`Error during saving in-memory database`), it took SIGSEGV, and their `-c` bug then crash-looped it permanently (§12b). Recovery was a recreate plus re-adding our user. A full disk on this host never stops at the thing that filled it.
 - MQTT Explorer shows session history the broker no longer holds; `ts` is DCS change time. Judge availability only with a fresh clean-session client.
 - Windows side: .NET DLL strings are UTF-16 (`tr -d '\0'` before grep); Python needs `harden_stdio()`; Docker 29's containerd snapshotter leaves `GraphDriver.Data.UpperDir` empty.
