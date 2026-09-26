@@ -95,6 +95,16 @@ def test_v25_steps_check_the_checkout_before_the_overlay_and_record_the_release_
     assert "RELEASE-COMMIT" in steps
 
 
+def test_v25_steps_survive_a_checkout_that_is_not_a_git_repository():
+    """Marun 2026-09-26: /opt/AMS-open is NOT a git checkout, so the dirty-tree guard printed
+    'fatal: not a git repository' and the overlay proceeded with no way to detect a local patch.
+    The step must say so instead of failing silently."""
+    steps = v25_steps()
+    guard = [l for l in steps.splitlines() if "status --porcelain" in l][0]
+    assert "2>/dev/null ||" in guard, "the guard must not die on a non-git checkout"
+    assert "NOT A GIT CHECKOUT" in guard
+
+
 def test_source_archive_keeps_lf_line_endings_whatever_the_build_box_autocrlf(tmp_path):
     archive = br.make_source_archive(tmp_path, "abc1234", dry_run=False)
     with tarfile.open(archive) as tar:

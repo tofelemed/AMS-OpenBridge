@@ -391,7 +391,7 @@ docker exec instrumental-kafka-1 kafka-console-consumer --bootstrap-server kafka
 #    marun overlay, which carry CPLM_GATE_CONFIG_KEY on JM/TM) are files, not images. migration/.env is
 #    untracked, so it is not in the archive and survives the extraction. The checkout must be clean first:
 #    a locally patched file would be overwritten silently (MARUN-CONTEXT rule 1 - patch the repo, not the VM).
-git -C /opt/AMS-open status --porcelain                                  # must print nothing
+git -C /opt/AMS-open status --porcelain 2>/dev/null || echo "NOT A GIT CHECKOUT - local edits cannot be detected; confirm nobody has patched files on the VM (MARUN-CONTEXT rule 1) before extracting"   # git repo: must print nothing
 cp /opt/AMS-open/migration/.env /tmp/{release}/env-backup-$(date +%Y%m%d%H%M)   # belt and braces
 tar -xzf /tmp/{release}/src-{commit}.tar.gz -C /opt/AMS-open
 echo {commit} > /opt/AMS-open/RELEASE-COMMIT                            # provenance: the tree now IS this commit
