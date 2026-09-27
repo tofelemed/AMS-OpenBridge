@@ -190,3 +190,9 @@ def test_v26_steps_headroom_rule_works_before_cpm10b_creates_the_row():
     rule = line_with(steps, "'GATE_RESULTS', 14")
     assert "ON CONFLICT (record_class) DO UPDATE" in rule
     assert steps.index(rule) < steps.index("cpm-10b-result-partitions.sql")
+
+
+def test_v26_steps_relkind_proof_casts_the_char_column():
+    # lab E2E 2026-09-27: relname || relkind is "operator is not unique: text || \"char\"" on PG15
+    steps = v26_steps()
+    assert "relkind::text" in line_with(steps, "3 x p")

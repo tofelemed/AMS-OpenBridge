@@ -128,13 +128,14 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] **Phase 3 — partitions (plant)** (2026-09-27)
   - [x] 6 (81e373a2; suite 212/212) `scripts/cpm-10b-result-partitions.sql` (short, long, gate) + `CplmResultSchema` created_at indexes + mirrors — `FeaturePartitionTests`
   - [x] 7 (44b3ead3; suite 216/216) `FeaturePartitions` / `FeaturePartitionMaintenance` / options + `Program.cs` — `FeaturePartitionTests`
-- [ ] **Phase 4 — release**
+- [x] **Phase 4 — release** (2026-09-27; lab end-to-end passed)
   - [x] 8 (stub-04b: Short none, others episodes; bash -n ok) `migration/04b` Short job `--evidence-emit "${CPLM_SHORT_EVIDENCE_EMIT:-none}"` first — `bash -n` + stub run
   - [x] 9 (pytest migration/deploy 18/18) `releases/v2.6.txt`, `build-release.py` OPS_FILES + VM-STEPS, cron line removed, `prune-short-features.sh` deleted — `test_build_release.py`
   - [x] docs (2026-09-27): `changes_tracker.md` CHG-033 + "Release v2.6 — what to build and run", `MARUN-DISK.md`, `marun-capacity-remediation.md`, release-note addendum
-  - [x] full suites green (cplm-api 217/217 after the fix pass; pytest 20/20; stub-04b); bundle `release-out/v2.6-20260927-r2` (src-e3cc0b01, cplm-api image PROD)
+  - [x] full suites green (cplm-api 217/217 after the fix pass; pytest 20/20; stub-04b); bundle `release-out/v2.6-20260927-r3` (src-e3cc0b01, cplm-api image PROD)
   - [x] final whole-branch review (fresh reviewer): 10 findings; fixed 1 (critical: no source overlay in the VM steps), 2 (headroom UPDATE before the row exists), 5 (Enabled ignored at startup), 8a (vacuous plan assertion) in e3cc0b01; 3/4/6/7/8b/8c/9/10 deferred as minors (ledger)
   - [x] `prod_decision.md` created (production settings of record)
+  - [x] **End-to-end on the lab (2026-09-27 12:05-12:35 UTC, new image `docker-cplm-api` as `traverse-cplm-api`):** records produced into the lab Kafka exactly as Flink emits them (manifest + chunk, fused LOW verdict naming a stored run and a late one, HIGH verdict, clear verdict with support) → the real consumers: manifests COMPLETE and TRANSIENT, the frame OPEN → ESCALATE → CLOSE (RECOVERED) with capture rows OPEN x2 / ESCALATE / CLOSE and `capture_count` 3, three artifacts promoted to EPISODE in the frame transaction, the late one by the first sweep (`Evidence retention: 1 promoted to EPISODE`), the reconciler linking, the gateway API `/api/v1/cpm/method-runs/{id}/evidence` returning both as COMPLETE / EPISODE with an admin token; a second instance of the same image against a plain database built from `03` + `cpm-10b` (`cplm_plain_e2e`, own consumer groups): self-heal DDL clean on the partitioned tables, feature records routed into today's partition, a 30-day replay into DEFAULT, a duplicate key upserted (6 rows / 6 window_ends, ids 1-6 from the new sequence), long rows in their partition, 256 replayed real verdicts, real Flink manifests classified TRANSIENT, no errors. Found and fixed: the VM step 6d relkind proof used `relname||relkind` (ambiguous on PG15) - now `relkind::text` with a pytest.
 - [ ] **Phase 5 — plant rollout** (user runs; ticked from pasted output)
   - [ ] 5.0 source archive extracted over `/opt/AMS-open` (new `04b`, cron drop-in); `grep -c CPLM_SHORT_EVIDENCE_EMIT migration/04b-submit-flink-jobs.sh` ≥ 1
   - [ ] 5.1 `cpm-10a` online + `02-apply-schemas.sh` + proof queries

@@ -1787,7 +1787,7 @@ Flink job args `--evidence-emit ALL|EPISODES|NONE`, `--g12-delay-min-s`, `--gate
 Prod runs v2.5 (2026-09-26) plus the two Flink engine patches of 2026-09-27. v2.6 is **CHG-033** only: the
 space fix after the 26 September outage. **Updated service: `cplm-api`** (the only image; no Flink jar, no
 frontend). Build: `python migration/deploy/build-release.py --release v2.6` (manifest
-`migration/deploy/releases/v2.6.txt`); built 2026-09-27 as `release-out/v2.6-20260927-r2` (source archive e3cc0b01, the
+`migration/deploy/releases/v2.6.txt`); built 2026-09-27 as `release-out/v2.6-20260927-r3` (source archive e3cc0b01, the
 reviewed and fixed tree); the generated `VM-STEPS.md` carries every command with its expected output.
 Production settings of record: [prod_decision.md](prod_decision.md). Scripts and steps to run at the plant, in order:
 
@@ -2353,6 +2353,15 @@ for ever and nothing was a property of the product.
 `cplm_plain_test` built from `migration/schema/03` + the self-heal DDL + cpm-10b, `SchemaV25Tests` +1);
 `python -m pytest migration/deploy` 18; `bash migration/deploy/stub-04b.sh` (Short = none, others = episodes, override honoured).
 Every task RED -> GREEN with the full suite before its commit (ledger `.superpowers/sdd/melodic-tumbling-bubble/progress.md`).
+
+**End-to-end on the lab (2026-09-27).** The new image ran as the lab's `traverse-cplm-api` and, as a second instance with its
+own consumer groups, against a plain database built from `migration/schema/03` + `cpm-10b`. Records produced into the lab Kafka
+in Flink's shape drove the real consumers: manifest + chunk -> COMPLETE / TRANSIENT; fused verdicts -> OPEN -> ESCALATE -> CLOSE
+with the four capture rows and three in-transaction promotions; the late artifact promoted by the first sweep and logged; the
+gateway API returned the artifacts as COMPLETE / EPISODE; on the partitioned database the feature upserts landed in today's
+partition (a 30-day replay in DEFAULT, a duplicate key upserted, ids from the new sequence), 256 replayed real verdicts and 8 real
+Flink manifests (TRANSIENT) went through without an error. One defect found and fixed: the VM step 6d proof query
+(`relname||relkind` is ambiguous on PG15; now `relkind::text`, pytest-pinned).
 
 **Migration / service update.** See "Release v2.6 - what to build and run" above. Order matters: cpm-10a online -> image
 swap -> evidence on + three jobs resubmitted -> 24 h measurement -> cpm-10b in a stop -> cron file.

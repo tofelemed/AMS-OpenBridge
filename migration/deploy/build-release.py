@@ -481,7 +481,7 @@ docker stop traverse-cplm-api
 docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-10b-result-partitions.sql
 docker start traverse-cplm-api
 docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm < /tmp/{release}/ops/cpm-06-fleet-perf-probe.sql | tail -5   # AFTER, same order of magnitude
-docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select relname||' '||relkind from pg_class where relname in ('cplm_short_feature_results','cplm_long_feature_results','cplm_gate_results')"   # 3 x p
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select relname||' '||relkind::text from pg_class where relname in ('cplm_short_feature_results','cplm_long_feature_results','cplm_gate_results')"   # 3 x p
 docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select count(*) from analytics.cplm_short_feature_results_default"   # 0
 docker logs --since 5m traverse-cplm-api 2>&1 | grep -E 'Partitions|schema ensured' | tail -3
 #    the interim cron line goes (retention is the partitions now); cap-iotdb-logs.sh stays:
