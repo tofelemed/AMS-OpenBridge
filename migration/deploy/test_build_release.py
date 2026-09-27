@@ -240,3 +240,10 @@ def test_v26_without_flink_still_cancels_and_resubmits_the_three_emitters():
     steps = v26_steps()
     assert "flink cancel" in steps
     assert steps.index("CPLM_EVIDENCE_EMIT=episodes") > steps.index("deploy.sh --prod")
+
+
+def test_v26_steps_export_start_ams_api_like_every_plant_deploy():
+    # ams-api is profile-gated and runs at the plant since Phase 10: every deploy.sh call must carry the env
+    for steps in (v26_steps(), v261_steps()):
+        exports = line_with(steps, "ALLOW_FLINK_SUBMIT=yes")
+        assert "START_AMS_API=yes" in exports

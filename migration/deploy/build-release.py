@@ -314,7 +314,7 @@ def vm_steps(release: str, commit: str, rows: list[tuple[str, str, str]],
     # runs ams-api since Phase 10, so a v2.5 upgrade carries it whether or not the image
     # ships. 04b runs from deploy.sh only under ALLOW_FLINK_SUBMIT=yes (pre-prod gap G6).
     exports: list[str] = []
-    if "ams-api" in services or v25:
+    if "ams-api" in services or v25 or v26:
         exports.append("START_AMS_API=yes")
     if has_flink:
         exports.append("ALLOW_FLINK_SUBMIT=yes")
