@@ -72,6 +72,9 @@ public class IngestPipelineWatermarkTest {
                 isPlainNoWatermarks(samples.getWatermarkStrategy()));
         assertTrue("with idleness, so a quiet partition cannot stall the fleet",
                 generatorOf(samples.getWatermarkStrategy()).contains("Idleness"));
+        assertTrue("idleness measured in tens of minutes, never one: a back-pressured reader drains one partition "
+                        + "at a time and a short threshold lets the others drop out of the minimum",
+                CplmIngestPipeline.SAMPLE_IDLENESS.toMinutes() >= 20);
     }
 
     @Test

@@ -68,9 +68,19 @@ public final class CplmIngestPipeline {
     public static WatermarkStrategy<String> sourceWatermarks(CplmJobConfig cfg) {
         return WatermarkStrategy
                 .<String>forBoundedOutOfOrderness(Duration.ofMinutes(cfg.outOfOrdernessMinutes))
-                .withIdleness(Duration.ofMinutes(1))
+                .withIdleness(SAMPLE_IDLENESS)
                 .withTimestampAssigner((raw, recordTs) -> eventTsOf(raw, recordTs));
     }
+
+    /**
+     * How long a partition must be silent before it stops holding the watermark. Marun 2026-09-27,
+     * second finding of the day: at one minute, a back-pressured reader that drains one partition's
+     * batch at a time let the other fifteen cross the threshold, the minimum collapsed to whichever
+     * partition was being drained, and 73 % of the samples were late again - every late record
+     * re-fired twelve 60m windows, which is what saturated the core and caused the back-pressure.
+     * Thirty minutes still excludes a partition that has genuinely died and never triggers on draining.
+     */
+    public static final Duration SAMPLE_IDLENESS = Duration.ofMinutes(30);
 
     /**
      * The sample watermark strategy. withIdleness: keyed backfills land on one Kafka partition; idle
