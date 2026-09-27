@@ -4,121 +4,92 @@ using Npgsql;
 
 namespace Traverse.CplmApi.Services;
 
+/// <summary>What one sweep did; every count is rows.</summary>
+public sealed record SweepResult(int Promoted, int TransientPurged, int Expired, int ChunksDeleted, int Purged);
+
 /// <summary>
-/// v2.5 Task 1G.5 (spec v6 §1.6 retention; NR-060): evidence is retained by RECORD CLASS.
-/// STANDARD manifests older than analytics.retention_policy.days lose their chunks and are
-/// marked EXPIRED (the manifest row stays, so a reader is told EVIDENCE_EXPIRED rather than
-/// 404); PINNED manifests (an investigation reference) are never touched. The v1 result rows
-/// are NOT swept here - their retention stays an ops decision (CHG-023 P1-4).
+/// v2.5 Task 1G.5 (spec v6 §1.6 retention; NR-060) + CHG-033: evidence is retained by RECORD CLASS.
+///   TRANSIENT  every live artifact: deleted outright past Cplm:EvidenceTransientHours (6) and, oldest first,
+///              whenever the class exceeds Cplm:EvidenceTransientBudgetBytes (2 GiB) - no grace, no EXPIRED row;
+///   EPISODE    captured at an episode transition (EpisodeCaptureStore): expires retention_policy.EPISODE days
+///              after the episode CLOSED, never while it is open; then purged after the grace like STANDARD;
+///   STANDARD   reconstructions / replays: retention_policy days, then EXPIRED for Cplm:EvidenceExpiredGraceDays,
+///              then purged;
+///   PINNED     an investigation reference: never touched.
+/// The sweep runs every Cplm:EvidenceSweepIntervalMinutes (15): it must run several times inside the TRANSIENT
+/// lifetime, because it also promotes the captured manifests that arrived after their verdict. The v1 result
+/// rows are NOT swept here (FeaturePartitionMaintenance owns those).
 /// </summary>
 public sealed class EvidenceRetentionSweeper : BackgroundService
 {
     private readonly NpgsqlDataSource _db;
     private readonly ILogger<EvidenceRetentionSweeper> _logger;
     private readonly TimeSpan _interval;
+    private readonly int _expiredGraceDays, _transientHours;
+    private readonly long _transientBudgetBytes;
 
     public EvidenceRetentionSweeper([FromKeyedServices("cplm")] NpgsqlDataSource db, ILogger<EvidenceRetentionSweeper> logger,
         IConfiguration config)
     {
         _db = db;
         _logger = logger;
-        _interval = TimeSpan.FromHours(Math.Max(1, config.GetValue("Cplm:EvidenceSweepIntervalHours", 24)));
+        // the pre-CHG-033 setting (hours) is honoured when it is the only one given
+        var minutes = config.GetValue<int?>("Cplm:EvidenceSweepIntervalMinutes")
+            ?? (config.GetValue<int?>("Cplm:EvidenceSweepIntervalHours") is { } hours ? hours * 60 : 15);
+        _interval = TimeSpan.FromMinutes(Math.Max(5, minutes));
         _expiredGraceDays = Math.Max(0, config.GetValue("Cplm:EvidenceExpiredGraceDays", 7));
+        _transientHours = Math.Max(1, config.GetValue("Cplm:EvidenceTransientHours", 6));
+        _transientBudgetBytes = Math.Max(1L << 20, config.GetValue("Cplm:EvidenceTransientBudgetBytes", 2L * 1024 * 1024 * 1024));
     }
-
-    /// <summary>How long an EXPIRED, unpinned manifest row is kept (so a reader is told EVIDENCE_EXPIRED) before it is purged.</summary>
-    private readonly int _expiredGraceDays;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await Task.Yield();
-        // First sweep shortly after start (not at start: the schema may still be arriving), then daily.
+        _logger.LogInformation("Evidence retention: every {Minutes} min; TRANSIENT {Hours} h / {Budget} MiB; EXPIRED grace {Grace} d",
+            _interval.TotalMinutes, _transientHours, _transientBudgetBytes >> 20, _expiredGraceDays);
+        // First sweep shortly after start (not at start: the schema may still be arriving).
         try { await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken); } catch (OperationCanceledException) { return; }
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                var (expired, chunks, purged) = await SweepOnceAsync(_db, stoppingToken, _expiredGraceDays);
-                if (expired > 0 || purged > 0)
-                    _logger.LogInformation("Evidence retention: {Manifests} manifest(s) expired, {Chunks} chunk(s) deleted, {Purged} expired manifest(s) purged",
-                        expired, chunks, purged);
+                var r = await SweepOnceAsync(_db, stoppingToken, _expiredGraceDays, 20_000, _transientHours, _transientBudgetBytes);
+                if (r.Promoted + r.TransientPurged + r.Expired + r.Purged > 0)
+                    _logger.LogInformation("Evidence retention: {Promoted} promoted to EPISODE, {Transient} TRANSIENT deleted, {Expired} expired, {Chunks} chunk(s) deleted, {Purged} purged",
+                        r.Promoted, r.TransientPurged, r.Expired, r.ChunksDeleted, r.Purged);
             }
             catch (Exception ex) { _logger.LogWarning(ex, "Evidence retention sweep failed; will retry next interval"); }
             try { await Task.Delay(_interval, stoppingToken); } catch (OperationCanceledException) { return; }
         }
     }
 
-    /// <summary>A maintenance statement, not a request: the default 30 s command timeout is for readers.</summary>
-    private const int SweepCommandTimeoutSeconds = 600;
+    private static readonly string[] NotEvidenceClasses = { "TRANSIENT", "SHORT_FEATURES", "LONG_FEATURES", "GATE_RESULTS" };
 
     /// <summary>One sweep. Static so a test can drive it against the lab database.</summary>
-    public static async Task<(int Expired, int ChunksDeleted, int Purged)> SweepOnceAsync(NpgsqlDataSource db, CancellationToken ct,
-        int expiredGraceDays = 7, int batchSize = 20_000)
+    public static async Task<SweepResult> SweepOnceAsync(NpgsqlDataSource db, CancellationToken ct,
+        int expiredGraceDays = 7, int batchSize = 20_000, int transientHours = 6, long transientBudgetBytes = 2L * 1024 * 1024 * 1024)
     {
-        // Two tiers per policy row (a NULL days means "never" = PINNED's class; pinned manifests are excluded
-        // regardless of class), each in batches with one transaction per batch, so a backlog after an outage
-        // is drained in bounded pieces instead of one statement that outgrows its timeout and is retried
-        // bigger the next day (pre-prod review I5). Every batch is idempotent, so a committed batch is progress.
-        //   1. expire:  due rows -> readiness EXPIRED, their chunks deleted; the row stays so a reader is told
-        //               EVIDENCE_EXPIRED (spec §1.6) - for expiredGraceDays more days;
-        //   2. purge:   EXPIRED, unpinned rows older than days + grace are deleted (~1.2 KB each; at plant scale
-        //               336k-361k rows a day, i.e. ~0.4 GB/day kept for ever before this tier existed - review C1).
-        // The plain parameterised predicates are served by ix_evidence_manifest_retention_due (tier 1) and
-        // ix_evidence_manifest_readiness (tier 2); the former single UPDATE joined retention_policy and applied
-        // `created_at < NOW() - p.days` as a join filter over the whole table (827k rows, 30 s timeout under load).
+        var size = Math.Max(1, batchSize);
+        // 1. captures whose artifacts arrived after the verdict (lookback = the transient lifetime + 1 h)
+        var promoted = await EpisodeCaptureStore.PromoteCapturedAsync(db, transientHours + 1, ct);
+        // 2. TRANSIENT by age, then by budget (DELETE cascades the chunks: smaller batches)
+        var transient = await EvidenceRetentionTiers.PurgeTransientByAgeAsync(db, transientHours, Math.Min(size, 5_000), ct);
+        transient += await EvidenceRetentionTiers.PurgeTransientOverBudgetAsync(db, transientHours, transientBudgetBytes, Math.Min(size, 2_000), ct);
+        // 3. the day-based classes: EPISODE (clock = the episode close) and every other row of retention_policy
         List<(string recordClass, int days)> policies;
         await using (var conn = await db.OpenConnectionAsync(ct))
             policies = (await conn.QueryAsync<(string recordClass, int days)>(
-                "SELECT record_class, days FROM analytics.retention_policy WHERE days IS NOT NULL")).ToList();
-
+                "SELECT record_class, days FROM analytics.retention_policy WHERE days IS NOT NULL AND NOT (record_class = ANY(@skip))",
+                new { skip = NotEvidenceClasses })).ToList();
+        if (policies.All(p => p.recordClass != "EPISODE")) policies.Add(("EPISODE", 90));   // the row ships as ops SQL (cpm-10a)
         int expired = 0, chunks = 0, purged = 0;
-        var size = Math.Max(1, batchSize);
         foreach (var (recordClass, days) in policies)
         {
-            while (true)
-            {
-                await using var conn = await db.OpenConnectionAsync(ct);
-                await using var tx = await conn.BeginTransactionAsync(ct);
-                var ids = (await conn.QueryAsync<Guid>(new CommandDefinition("""
-                    UPDATE analytics.evidence_manifest
-                    SET readiness = 'EXPIRED', readiness_reason = 'RETENTION'
-                    WHERE evidence_id IN (
-                        SELECT evidence_id FROM analytics.evidence_manifest
-                        WHERE retention_class = @recordClass
-                          AND pinned = FALSE AND readiness <> 'EXPIRED'
-                          AND created_at < NOW() - make_interval(days => @days)
-                        ORDER BY created_at
-                        LIMIT @size
-                        FOR UPDATE SKIP LOCKED)
-                    RETURNING evidence_id
-                    """, new { recordClass, days, size }, transaction: tx, commandTimeout: SweepCommandTimeoutSeconds, cancellationToken: ct))).ToList();
-                if (ids.Count > 0)
-                    chunks += await conn.ExecuteAsync(new CommandDefinition("DELETE FROM analytics.evidence_chunk WHERE evidence_id = ANY(@ids)",
-                        new { ids = ids.ToArray() }, transaction: tx, commandTimeout: SweepCommandTimeoutSeconds, cancellationToken: ct));
-                await tx.CommitAsync(ct);
-                expired += ids.Count;
-                if (ids.Count < size) break;
-            }
-
-            while (true)
-            {
-                await using var conn = await db.OpenConnectionAsync(ct);
-                var n = await conn.ExecuteAsync(new CommandDefinition("""
-                    DELETE FROM analytics.evidence_manifest
-                    WHERE evidence_id IN (
-                        SELECT evidence_id FROM analytics.evidence_manifest
-                        WHERE retention_class = @recordClass
-                          AND pinned = FALSE AND readiness = 'EXPIRED'
-                          AND created_at < NOW() - make_interval(days => @days + @grace)
-                        ORDER BY created_at
-                        LIMIT @size
-                        FOR UPDATE SKIP LOCKED)
-                    """, new { recordClass, days, grace = Math.Max(0, expiredGraceDays), size },
-                    commandTimeout: SweepCommandTimeoutSeconds, cancellationToken: ct));
-                purged += n;
-                if (n < size) break;
-            }
+            var extra = recordClass == "EPISODE" ? EvidenceRetentionTiers.EpisodeStillProtected : "";
+            var (e, c) = await EvidenceRetentionTiers.ExpireAsync(db, recordClass, days, extra, size, ct);
+            expired += e; chunks += c;
+            purged += await EvidenceRetentionTiers.PurgeExpiredAsync(db, recordClass, days, expiredGraceDays, size, ct);
         }
-        return (expired, chunks, purged);
+        return new SweepResult(promoted, transient, expired, chunks, purged);
     }
 }

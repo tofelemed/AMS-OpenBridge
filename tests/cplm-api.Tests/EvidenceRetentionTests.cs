@@ -44,7 +44,8 @@ public sealed class EvidenceRetentionTests : IAsyncLifetime
     [Fact]
     public async Task Unpinned_expired_manifest_loses_chunks_and_reads_EXPIRED_while_pinned_and_fresh_survive()
     {
-        var (expired, chunks, _) = await EvidenceRetentionSweeper.SweepOnceAsync(_db, CancellationToken.None);
+        var sweep = await EvidenceRetentionSweeper.SweepOnceAsync(_db, CancellationToken.None);   // CHG-033: a SweepResult now
+        var (expired, chunks) = (sweep.Expired, sweep.ChunksDeleted);
         expired.Should().BeGreaterOrEqualTo(1);
         chunks.Should().BeGreaterOrEqualTo(1);
 
