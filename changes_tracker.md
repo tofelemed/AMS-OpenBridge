@@ -2343,7 +2343,7 @@ for ever and nothing was a property of the product.
 - **Release wiring:** `migration/deploy/releases/v2.6.txt` (`!v26-retention`, cplm-api only), `build-release.py` OPS_FILES +
   VM-STEPS blocks 4d / 6c / 6d; `migration/cron.d/cpa-capacity` without the prune line.
 
-**Tests.** cplm-api suite on the lab: **192** (new: `EventFrameLifecycleTests` +4, `EvidenceClassTests` 3,
+**Tests.** cplm-api suite on the lab: **216 / 216** (new: `EventFrameLifecycleTests` +4, `EvidenceClassTests` 3,
 `EpisodeCaptureTests` 4, `EvidenceClassSweepTests` 3, `FeaturePartitionTests` 10 on a throwaway plain database
 `cplm_plain_test` built from `migration/schema/03` + the self-heal DDL + cpm-10b, `SchemaV25Tests` +1);
 `python -m pytest migration/deploy` 18; `bash migration/deploy/stub-04b.sh` (Short = none, others = episodes, override honoured).
