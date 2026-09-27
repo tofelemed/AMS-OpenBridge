@@ -260,3 +260,13 @@ in §5 is not live.
 - Delete-recreate a Kafka topic with a live consumer.
 - `docker pull` or `docker build` on this host.
 - Clean the MinIO tree with Flink **running** — it will write into the directory you are deleting.
+
+## 8. v2.5 analytics tables - installed 2026-09-26, permanent form pending
+
+The four high-volume analytics tables have no retention in production (the retention work in the
+repository is TimescaleDB-only and the plant has no such extension). Until they are time-partitioned
+(`docs/marun-capacity-remediation.md`, item 2), two scripts run from `/etc/cron.d/cpa-capacity`:
+`prune-short-features.sh` (short features 6 h, long features 24 h, gate results untouched) and
+`cap-iotdb-logs.sh` (four named IoTDB log files, 200 MB). Both live in `migration/`; the cron file is
+`migration/cron.d/cpa-capacity`. Evidence artifact emission is off via `CPLM_EVIDENCE_EMIT=none` in
+`migration/.env`; the evidence class is `STANDARD = 3` days for whenever it is switched back on.

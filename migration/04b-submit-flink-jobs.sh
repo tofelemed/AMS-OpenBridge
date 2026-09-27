@@ -71,6 +71,11 @@ docker exec "$JM" curl -sf "http://localhost:${JM_PORT}/overview" >/dev/null \
 docker exec "$JM" test -f "$JAR" || die "JAR missing inside $JM at $JAR"
 
 COMMON=(
+  # Marun 2026-09-26: evidence volume ran ~20x the lab estimate (nearly every window has a finding,
+  # so EPISODES behaves like ALL) and filled the shared disk in three hours. Put
+  # CPLM_EVIDENCE_EMIT=none in migration/.env (deploy.sh exports it) to switch artifact emission
+  # off; verdicts are unaffected. all|episodes|none.
+  --evidence-emit "${CPLM_EVIDENCE_EMIT:-episodes}"
   --bootstrap.servers "$BROKERS"
   --input-topic "$INPUT_TOPIC"
   --short-feature-topic "$SHORT_TOPIC"

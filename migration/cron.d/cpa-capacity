@@ -1,0 +1,3 @@
+# install: sudo cp migration/cron.d/cpa-capacity /etc/cron.d/ && sudo chmod 644 /etc/cron.d/cpa-capacity
+*/30 * * * * root /opt/AMS-open/migration/prune-short-features.sh >/dev/null 2>&1
+17 * * * * root /opt/AMS-open/migration/cap-iotdb-logs.sh >/dev/null 2>&1
