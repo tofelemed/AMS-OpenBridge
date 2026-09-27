@@ -28,4 +28,9 @@
     <EmbeddedResource Include="Config\factory-layer.json" LogicalName="Traverse.CplmApi.Config.factory-layer.json" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- CHG-033: the tests read the internal verdict parser (CplmEventFrameService.ParseVerdict). -->
+    <InternalsVisibleTo Include="cplm-api.Tests" />
+  </ItemGroup>
+
 </Project>

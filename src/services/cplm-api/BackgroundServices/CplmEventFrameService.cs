@@ -42,6 +42,8 @@ public sealed class CplmEventFrameService : BackgroundService
     private readonly IConsumer<string, string> _consumer;
     private readonly ConsumerHeartbeat _heartbeat;
     private readonly SingleMemberGuard _guard;
+    /// <summary>CHG-033: OPEN + ESCALATE evidence captures allowed per episode (CLOSE always captures).</summary>
+    private readonly int _captureMax;
     private static int _schemaEnsured;
 
     public CplmEventFrameService(
@@ -50,9 +52,11 @@ public sealed class CplmEventFrameService : BackgroundService
         IOptions<CplmOptions> cplmOptions,
         ConsumerHeartbeat heartbeat,
         SingleMemberGuard guard,
+        IConfiguration config,
         [FromKeyedServices("cplm")] NpgsqlDataSource dataSource)
     {
         _logger = logger;
+        _captureMax = Math.Max(0, config.GetValue("Cplm:EpisodeCaptureMax", 3));
         _dataSource = dataSource;
         _options = cplmOptions.Value;
         _heartbeat = heartbeat;
@@ -140,6 +144,15 @@ public sealed class CplmEventFrameService : BackgroundService
             var period = GetDouble(root, "sample_period_sec");
             support = samples > 0 && period > 0 ? Math.Min(spanMs, (long)(samples * period * 1000.0)) : spanMs;
         }
+        // CHG-033: the fused verdict names every gate's method run; an episode transition captures them.
+        IReadOnlyList<Guid>? runIds = null;
+        if (root.TryGetProperty("method_run_ids", out var ids) && ids.ValueKind == JsonValueKind.Object)
+        {
+            var list = new List<Guid>();
+            foreach (var kv in ids.EnumerateObject())
+                if (kv.Value.ValueKind == JsonValueKind.String && Guid.TryParse(kv.Value.GetString(), out var g) && !list.Contains(g)) list.Add(g);
+            runIds = list;
+        }
         return new GateVerdict(
             loopId,
             GetString(root, "window_kind") ?? "24h",
@@ -150,7 +163,8 @@ public sealed class CplmEventFrameService : BackgroundService
             GetDouble(root, "recovery_support_s"),
             (int)Math.Max(1, GetLong(root, "result_revision")),
             GetString(root, "calculation_version") ?? GetString(root, "calculationVersion"),
-            GetString(root, "dynamics_profile_version") ?? GetString(root, "dynamicsProfileVersion"));
+            GetString(root, "dynamics_profile_version") ?? GetString(root, "dynamicsProfileVersion"),
+            runIds);
     }
 
     private async Task ApplyAsync(string json, CancellationToken ct)
@@ -162,28 +176,48 @@ public sealed class CplmEventFrameService : BackgroundService
         if (v is null) return;
 
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
-        var open = await ReadOpenAsync(conn, v);
+        // CHG-033: the frame row and its evidence capture land together or not at all.
+        await using var tx = await conn.BeginTransactionAsync(ct);
+        var open = await ReadOpenAsync(conn, tx, v);
         var t = EventFrameLifecycle.Apply(open.State, v);
         switch (t.Kind)
         {
             case TransitionKind.Ignore:
                 return;
             case TransitionKind.Open:
-                await InsertAsync(conn, v, t.Frame!);
+                await CaptureAsync(conn, tx, await InsertAsync(conn, tx, v, t.Frame!), "OPEN", v);
                 break;
             case TransitionKind.CloseAndOpen:
-                await UpdateAsync(conn, open.Id, t.Closed!);
-                await InsertAsync(conn, v, t.Frame!);
+                await UpdateAsync(conn, tx, open.Id, t.Closed!);
+                await CaptureAsync(conn, tx, open.Id, "CLOSE", v);
+                await CaptureAsync(conn, tx, await InsertAsync(conn, tx, v, t.Frame!), "OPEN", v);
+                break;
+            case TransitionKind.Close:
+                await UpdateAsync(conn, tx, open.Id, t.Frame!);
+                await CaptureAsync(conn, tx, open.Id, "CLOSE", v);
+                break;
+            case TransitionKind.Escalate:
+                await UpdateAsync(conn, tx, open.Id, t.Frame!);
+                await CaptureAsync(conn, tx, open.Id, "ESCALATE", v);
                 break;
             default:
-                await UpdateAsync(conn, open.Id, t.Frame!);
+                await UpdateAsync(conn, tx, open.Id, t.Frame!);
                 break;
         }
-        if (t.Kind is TransitionKind.Close or TransitionKind.CloseAndOpen or TransitionKind.MarkUnobservable)
+        await tx.CommitAsync(ct);
+        if (t.Kind is TransitionKind.Close or TransitionKind.CloseAndOpen or TransitionKind.MarkUnobservable or TransitionKind.Escalate)
             _logger.LogInformation("CPLM event frame {Kind} for {LoopId} ({WindowKind}): {Reason}", t.Kind, v.LoopId, v.WindowKind, t.Reason);
     }
 
-    private static async Task<(long Id, FrameState? State)> ReadOpenAsync(NpgsqlConnection conn, GateVerdict v)
+    /// <summary>CHG-033: records the verdict's method runs against the frame; a pre-v2.5 payload without them captures nothing.</summary>
+    private async Task CaptureAsync(NpgsqlConnection conn, NpgsqlTransaction tx, long frameId, string kind, GateVerdict v)
+    {
+        if (v.MethodRunIds is null || v.MethodRunIds.Count == 0) return;
+        var taken = await EpisodeCaptureStore.CaptureAsync(conn, tx, frameId, kind, v.MethodRunIds, _captureMax);
+        if (!taken) _logger.LogDebug("Episode {Id} capture {Kind} skipped: automatic cap {Cap} reached", frameId, kind, _captureMax);
+    }
+
+    private static async Task<(long Id, FrameState? State)> ReadOpenAsync(NpgsqlConnection conn, NpgsqlTransaction tx, GateVerdict v)
     {
         var r = await conn.QueryFirstOrDefaultAsync("""
             SELECT id, family, opened_at, closed_at, peak_diagnosis, peak_confidence, last_diagnosis, last_confidence,
@@ -192,7 +226,7 @@ public sealed class CplmEventFrameService : BackgroundService
             FROM analytics.cplm_event_frames
             WHERE loop_id = @loopId AND window_kind = @windowKind AND closed_at IS NULL
             ORDER BY opened_at DESC LIMIT 1
-            """, new { loopId = v.LoopId, windowKind = v.WindowKind });
+            """, new { loopId = v.LoopId, windowKind = v.WindowKind }, tx);
         if (r is null) return (0, null);
         return ((long)r.id, new FrameState(
             (string)r.family, (DateTime)r.opened_at, (DateTime?)r.closed_at, (string)r.peak_diagnosis, (double)r.peak_confidence,
@@ -201,7 +235,7 @@ public sealed class CplmEventFrameService : BackgroundService
             (long?)r.qualified_support_ms ?? 0, (DateTime?)r.support_until, (int?)r.result_revision ?? 1, (string?)r.close_reason));
     }
 
-    private static Task<int> InsertAsync(NpgsqlConnection conn, GateVerdict v, FrameState f) => conn.ExecuteAsync("""
+    private static Task<long> InsertAsync(NpgsqlConnection conn, NpgsqlTransaction tx, GateVerdict v, FrameState f) => conn.ExecuteScalarAsync<long>("""
         INSERT INTO analytics.cplm_event_frames
             (loop_id, window_kind, family, opened_at, peak_diagnosis, peak_confidence,
              last_diagnosis, last_confidence, severity, window_count,
@@ -220,6 +254,7 @@ public sealed class CplmEventFrameService : BackgroundService
             last_diagnosis = EXCLUDED.last_diagnosis, last_confidence = EXCLUDED.last_confidence,
             severity = COALESCE(EXCLUDED.severity, analytics.cplm_event_frames.severity),
             availability_state = 'OBSERVED', result_revision = EXCLUDED.result_revision, updated_at = NOW()
+        RETURNING id
         """, new
         {
             loopId = v.LoopId, windowKind = v.WindowKind, family = f.Family, openedAt = f.OpenedAt,
@@ -227,9 +262,9 @@ public sealed class CplmEventFrameService : BackgroundService
             severity = f.Severity, windowCount = f.WindowCount, availability = f.AvailabilityState, condition = f.ConditionState,
             supportMs = f.QualifiedSupportMs, supportUntil = f.SupportUntil, revision = f.ResultRevision,
             calcVersion = v.CalculationVersion, profileVersion = v.DynamicsProfileVersion
-        });
+        }, tx);
 
-    private static Task<int> UpdateAsync(NpgsqlConnection conn, long id, FrameState f) => conn.ExecuteAsync("""
+    private static Task<int> UpdateAsync(NpgsqlConnection conn, NpgsqlTransaction tx, long id, FrameState f) => conn.ExecuteAsync("""
         UPDATE analytics.cplm_event_frames
         SET closed_at = @closedAt, peak_diagnosis = @peak, peak_confidence = @peakConfidence,
             last_diagnosis = @last, last_confidence = @lastConfidence, severity = @severity,
@@ -243,7 +278,7 @@ public sealed class CplmEventFrameService : BackgroundService
             last = f.LastDiagnosis, lastConfidence = f.LastConfidence, severity = f.Severity, windowCount = f.WindowCount,
             availability = f.AvailabilityState, condition = f.ConditionState, supportMs = f.QualifiedSupportMs,
             supportUntil = f.SupportUntil, revision = f.ResultRevision, closeReason = f.CloseReason
-        });
+        }, tx);
 
     /// <summary>Kept for callers that only need the family (CpmEventsController).</summary>
     internal static string FamilyOf(string diagnosis) => EventFrameLifecycle.FamilyOf(diagnosis);
