@@ -119,6 +119,8 @@ CREATE INDEX IF NOT EXISTS idx_cplm_short_loop_kind_end
     ON analytics.cplm_short_feature_results (loop_id, window_kind, window_end DESC);
 CREATE INDEX IF NOT EXISTS idx_cplm_short_loop_lower
     ON analytics.cplm_short_feature_results (lower(loop_id));
+CREATE INDEX IF NOT EXISTS idx_cplm_short_created_at
+    ON analytics.cplm_short_feature_results (created_at);
 
 -- Completeness-first tiebreak is load-bearing (kept verbatim from CPA):
 -- trailing partial windows fired by watermark advance carry all-zero metrics
@@ -164,6 +166,8 @@ CREATE INDEX IF NOT EXISTS idx_cplm_long_loop_kind_end
     ON analytics.cplm_long_feature_results (loop_id, window_kind, window_end DESC);
 CREATE INDEX IF NOT EXISTS idx_cplm_long_loop_lower
     ON analytics.cplm_long_feature_results (lower(loop_id));
+CREATE INDEX IF NOT EXISTS idx_cplm_long_created_at
+    ON analytics.cplm_long_feature_results (created_at);
 
 -- Recency = window_end, NOT created_at (audit.md B-4 — see the short view).
 CREATE OR REPLACE VIEW analytics.cplm_long_feature_latest AS

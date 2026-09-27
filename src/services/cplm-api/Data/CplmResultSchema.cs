@@ -6,6 +6,14 @@ namespace Traverse.CplmApi.Data;
 /// bundle-aware unique key). Runs at cplm-api startup before consuming, so a fresh lab volume
 /// and an upgraded plant converge on the same shape. New v2.5 tables (analysis_run, evidence,
 /// condition_event) are NOT self-healed here: they ship as ops SQL applied before the swap.
+///
+/// CHG-033: at the plant the three result tables are range-partitioned by window_end (scripts/cpm-10b).
+/// Every statement here is a no-op on that shape and must stay so: CREATE TABLE IF NOT EXISTS skips on
+/// the existing name (the identity column is never evaluated), ADD COLUMN IF NOT EXISTS is a no-op,
+/// every index name below is created by cpm-10b with the same name, and the views have the same
+/// column list. FeaturePartitionTests runs this DDL against the partitioned shape and proves it.
+/// The created_at indexes exist because the evidence reconciler scans created_at every minute; on a
+/// partitioned table without them that is a sequential scan of every partition.
 /// </summary>
 public static class CplmResultSchema
 {
@@ -99,6 +107,8 @@ public static class CplmResultSchema
                 ON analytics.cplm_short_feature_results (loop_id, window_kind, window_end DESC);
             CREATE INDEX IF NOT EXISTS idx_cplm_short_loop_lower
                 ON analytics.cplm_short_feature_results (lower(loop_id));
+            CREATE INDEX IF NOT EXISTS idx_cplm_short_created_at
+                ON analytics.cplm_short_feature_results (created_at);
             -- Recency = window_end, not created_at (audit.md B-4): a replay
             -- rewriting an old window bumps created_at and would become "latest".
             CREATE OR REPLACE VIEW analytics.cplm_short_feature_latest AS
@@ -140,6 +150,8 @@ public static class CplmResultSchema
                 ON analytics.cplm_long_feature_results (loop_id, window_kind, window_end DESC);
             CREATE INDEX IF NOT EXISTS idx_cplm_long_loop_lower
                 ON analytics.cplm_long_feature_results (lower(loop_id));
+            CREATE INDEX IF NOT EXISTS idx_cplm_long_created_at
+                ON analytics.cplm_long_feature_results (created_at);
             CREATE OR REPLACE VIEW analytics.cplm_long_feature_latest AS
                 SELECT DISTINCT ON (loop_id, window_kind) * FROM analytics.cplm_long_feature_results
                 ORDER BY loop_id, window_kind, window_end DESC NULLS LAST;
