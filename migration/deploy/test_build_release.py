@@ -244,6 +244,7 @@ def test_v26_without_flink_still_cancels_and_resubmits_the_three_emitters():
 
 def test_v26_steps_export_start_ams_api_like_every_plant_deploy():
     # ams-api is profile-gated and runs at the plant since Phase 10: every deploy.sh call must carry the env
-    for steps in (v26_steps(), v261_steps()):
-        exports = line_with(steps, "ALLOW_FLINK_SUBMIT=yes")
-        assert "START_AMS_API=yes" in exports
+    exports = line_with(v26_steps(), "export START_AMS_API=yes")
+    assert "ALLOW_FLINK_SUBMIT=yes" not in exports        # cplm-api only: no Flink submit (the comment mentions the flag)
+    exports = line_with(v261_steps(), "export START_AMS_API=yes")
+    assert "ALLOW_FLINK_SUBMIT=yes" in exports
