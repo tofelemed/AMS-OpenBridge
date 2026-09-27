@@ -196,3 +196,47 @@ def test_v26_steps_relkind_proof_casts_the_char_column():
     # lab E2E 2026-09-27: relname || relkind is "operator is not unique: text || \"char\"" on PG15
     steps = v26_steps()
     assert "relkind::text" in line_with(steps, "3 x p")
+
+
+# ── v2.6.1 (v2.6 + Flink patch 2 in one deployment) ─────────────────────────
+COMBINED_ROWS = [("flink-jobmanager", "ams-flink:1.0-SNAPSHOT", "PROD"), ("cplm-api", "ams-cpa-cplm-api", "PROD")]
+
+
+def v261_steps() -> str:
+    return br.vm_steps("v2.6.1", "abc1234", COMBINED_ROWS, True, ["flink-jobmanager", "cplm-api"], False, False, True)
+
+
+def test_v261_manifest_ships_the_flink_image_and_cplm_api_with_the_retention_directive():
+    services, flags = br.read_manifest("v2.6.1")
+    assert set(services) == {"flink-jobmanager", "cplm-api"}
+    assert "v26-retention" in flags
+
+
+def test_v261_steps_set_the_env_switches_before_the_flink_swap_and_do_not_resubmit_again():
+    # 04b reads CPLM_EVIDENCE_EMIT / CPLM_SHORT_PARALLELISM at submit time; step 5 (docker rm -f JM+TM, deploy.sh)
+    # resubmits every job with the new 04b, so the switches must be in .env BEFORE it and 6c must not cancel again
+    steps = v261_steps()
+    evidence = line_with(steps, "CPLM_EVIDENCE_EMIT=episodes")
+    parallel = line_with(steps, "CPLM_SHORT_PARALLELISM=4")
+    swap = steps.index("deploy.sh --prod")
+    assert steps.index(evidence) < swap and steps.index(parallel) < swap
+    assert steps.index("tar -xzf") < steps.index(evidence)
+    assert "flink cancel" not in steps
+    assert "SEVEN" in steps
+    assert steps.index("docker rm -f ams-flink-taskmanager ams-flink-jobmanager") < swap
+    assert "slots-available" in steps
+
+
+def test_v261_steps_keep_the_v26_order_around_the_combined_swap():
+    steps = v261_steps()
+    a = steps.index("cpm-10a-episode-evidence.sql")
+    swap = steps.index("deploy.sh --prod")
+    proof = steps.index("gate_id, count(*)")
+    b = steps.index("cpm-10b-result-partitions.sql")
+    assert steps.index("tar -xzf") < a < swap < proof < b
+
+
+def test_v26_without_flink_still_cancels_and_resubmits_the_three_emitters():
+    steps = v26_steps()
+    assert "flink cancel" in steps
+    assert steps.index("CPLM_EVIDENCE_EMIT=episodes") > steps.index("deploy.sh --prod")

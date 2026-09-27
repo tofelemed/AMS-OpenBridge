@@ -1,5 +1,11 @@
 # Release note — v2.6 (CHG-033): evidence back on, disk bounded
 
+**v2.6.1 (combined deployment):** this note also covers the Flink engine patch of 27 September (sample
+idleness 30 minutes instead of 1; the Short Feature job on four processor slots). Both go in one window:
+the Flink image and the `cplm-api` image, the switches set once before the jobs are resubmitted. If patch 2
+is already running at the plant, the jar is the same one and nothing changes for the engines except a
+restart with fresh window state.
+
 **For:** the Marun plant owner and the operators of the loop performance system. **Applies to:** the v2.5
 installation of 26 September 2026 with its two Flink patches. **Changes one service:** `cplm-api`. No
 change to the OT gateway, to Instrumental, to the DCS or to the user interface.

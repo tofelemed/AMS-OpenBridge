@@ -1,0 +1,31 @@
+# Release v2.6.1 — v2.6 (CHG-033: bounded evidence + partitioned result tables) AND Flink patch 2 of
+# 2026-09-27 (sample idleness 30 min; Short Feature job parallelism from CPLM_SHORT_PARALLELISM) in ONE
+# deployment. Two images: the Flink image (JobManager + TaskManager share it; the jar lives inside it)
+# and cplm-api. Consumed by: python migration/deploy/build-release.py --release v2.6.1 --skip-jar
+#
+# --skip-jar is deliberate: src/flink/target/ams-flink-1.0-SNAPSHOT.jar IS the patch-2 jar
+# (sha256 f7c99294e0767ea9..., release-out/v2.5-flink-patch2-20260927) and no Flink source changed since
+# 3d6a905e; rebuilding would only change the fingerprint of a jar the plant already validated. If that file
+# is missing or its sha differs, stop and restore it from the patch-2 bundle before building.
+#
+# Why each one is here:
+#   flink-jobmanager  patch 2 (3d6a905e, 04b0c2ce): idleness 30 min at the sample source (1 min collapsed the
+#                     per-partition minimum under back-pressure: 73 % late); the submitter takes
+#                     CPLM_SHORT_PARALLELISM (plant: 4 of 16 slots). Deploy = the image, docker rm -f of JM + TM,
+#                     deploy.sh resubmits all SEVEN jobs with the NEW 04b (evidence switches included)
+#   cplm-api          CHG-033: evidence by class (TRANSIENT hours + budget, EPISODE 90 d after the episode closed,
+#                     captured at OPEN / ESCALATE / CLOSE), the 15-min sweep, FeaturePartitionMaintenance,
+#                     created_at indexes in the self-heal, CplmFeatureUpsertSql
+#
+# Schema (under ops/): cpm-10a-episode-evidence.sql (online, BEFORE the swap, then 02-apply-schemas.sh);
+#   cpm-10b-result-partitions.sql (cplm-api STOPPED, AFTER the 24 h measurement; >= 20 GB free)
+# Source archive (not images): migration/04b-submit-flink-jobs.sh (CPLM_SHORT_PARALLELISM + the Short job's
+#   CPLM_SHORT_EVIDENCE_EMIT switch, default none), migration/cron.d/cpa-capacity, migration/deploy/stub-04b.sh
+# Env (BEFORE step 5, 04b reads them at submit time): CPLM_EVIDENCE_EMIT=episodes, CPLM_SHORT_PARALLELISM=4,
+#   CPLM_SHORT_EVIDENCE_EMIT unset. Flink: every job resubmitted by step 5 - fresh window state (short windows
+#   within the hour, 12h/24h verdicts within a day), no jar-only cancel step.
+#
+# NOT rebuilt (unchanged since v2.5): everything else.
+!v26-retention
+flink-jobmanager
+cplm-api

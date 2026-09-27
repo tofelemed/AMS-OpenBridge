@@ -1782,6 +1782,19 @@ Flink job args `--evidence-emit ALL|EPISODES|NONE`, `--g12-delay-min-s`, `--gate
 
 ---
 
+## Release v2.6.1 — what to build and run (v2.6 + Flink patch 2, one deployment)
+
+The user's call on 2026-09-27: deploy the patch-2 jar and v2.6 together. **Updated services: `flink-jobmanager` (the
+image the JobManager and TaskManager share; the jar inside it is the validated patch-2 jar f7c99294e0767ea9, shipped with
+`--skip-jar`) and `cplm-api`.** Build: `python migration/deploy/build-release.py --release v2.6.1 --skip-jar` (manifest
+`migration/deploy/releases/v2.6.1.txt`). The order differs from v2.6 alone in one place: the `.env` switches
+(`CPLM_EVIDENCE_EMIT=episodes`, `CPLM_SHORT_PARALLELISM=4`, `CPLM_SHORT_EVIDENCE_EMIT` unset) are written in step 4a,
+BEFORE step 5, because step 5 (`docker rm -f` JM + TM, `deploy.sh --prod`) resubmits all seven jobs with the new 04b;
+6c then only proves (G5 and up only; `slots-available` 6; the jar in every worker's capability) - no cancel. Everything
+else is the v2.6 list below: 4a overlay, 4d cpm-10a + ownership, step 5 + the cplm-api swap, 6c measurement for 24 h with
+the headroom rule, 6d cpm-10b inside a stop, the cron file. Tests: the v2.6 suites plus `test_build_release.py` (25).
+Plant note: [release-note-V2.6.md](release-note-V2.6.md) (v2.6.1 adds patch 2, see its top).
+
 ## Release v2.6 — what to build and run
 
 Prod runs v2.5 (2026-09-26) plus the two Flink engine patches of 2026-09-27. v2.6 is **CHG-033** only: the

@@ -26,7 +26,7 @@ Last updated: 2026-09-27 (v2.6 / CHG-033 built, plant rollout pending).
 | 2026-09-26 07:20 | v2.5 (CHG-026 / 027 / 028 / 030 / 032) | `release-out/v2.5-20260925-r2`, tag `v2.5` = aae3c77a, jar 2dc8788aa07f |
 | 2026-09-27 05:24 | Flink patch 1: G0 completeness from the declared grid; per-partition watermarks; control streams marked idle | jar b4a10e5474e7a557 |
 | 2026-09-27 | Flink patch 2: sample idleness 30 min; Short job parallelism from `CPLM_SHORT_PARALLELISM` | `release-out/v2.5-flink-patch2-20260927`, jar f7c99294e0767ea9 |
-| pending | v2.6 (CHG-033): bounded evidence + partitioned result tables; `cplm-api` only | `release-out/v2.6-<date>`; `changes_tracker.md` "Release v2.6" |
+| pending | v2.6.1 = v2.6 (CHG-033: bounded evidence + partitioned result tables, `cplm-api`) + Flink patch 2 (the same jar f7c99294e0767ea9, shipped in the Flink image) in one deployment | `release-out/v2.6.1-20260927`; `changes_tracker.md` "Release v2.6.1" |
 
 ## 3. Retention: what we keep and for how long
 
