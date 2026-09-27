@@ -261,7 +261,7 @@ in §5 is not live.
 - `docker pull` or `docker build` on this host.
 - Clean the MinIO tree with Flink **running** — it will write into the directory you are deleting.
 
-## 8. v2.5 analytics tables - installed 2026-09-26, permanent form pending
+## 8. v2.5 analytics tables - installed 2026-09-26; permanent form shipped in v2.6 (CHG-033)
 
 The four high-volume analytics tables have no retention in production (the retention work in the
 repository is TimescaleDB-only and the plant has no such extension). Until they are time-partitioned
@@ -270,3 +270,15 @@ repository is TimescaleDB-only and the plant has no such extension). Until they 
 `cap-iotdb-logs.sh` (four named IoTDB log files, 200 MB). Both live in `migration/`; the cron file is
 `migration/cron.d/cpa-capacity`. Evidence artifact emission is off via `CPLM_EVIDENCE_EMIT=none` in
 `migration/.env`; the evidence class is `STANDARD = 3` days for whenever it is switched back on.
+
+**v2.6 (CHG-033, 2026-09-27) replaces the interim form.** The three result tables become daily range
+partitions (`ops/cpm-10b-result-partitions.sql`, cplm-api stopped) and cplm-api's `FeaturePartitionMaintenance`
+drops the days past `retention_policy` (`SHORT_FEATURES` 3, `LONG_FEATURES` 30, `GATE_RESULTS` 30; one
+`UPDATE` changes them, no restart) - a dropped partition returns its space at once. Evidence is on again
+(`CPLM_EVIDENCE_EMIT=episodes`) but bounded: every live artifact is `TRANSIENT` (6 h and 2 GiB, whichever
+first), an episode transition promotes what it captured to `EPISODE` (90 d after the episode closed), and the
+Short job emits nothing (`CPLM_SHORT_EVIDENCE_EMIT` unset = none in `04b`). `prune-short-features.sh` is
+deleted and its cron line gone; `cap-iotdb-logs.sh` stays. Steady state ≈ 25-45 GB depending on the
+`GATE_RESULTS` days; the 24 h measurement in the v2.6 VM steps decides. Watch: `df -h /` weekly,
+`select retention_class, count(*) from analytics.evidence_manifest group by 1`, and the partition list
+(`\d+ analytics.cplm_short_feature_results`) reaching no further back than the retention days.

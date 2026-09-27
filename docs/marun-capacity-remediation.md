@@ -1,6 +1,6 @@
 # Marun capacity remediation — what must change after the 26 September 2026 outage
 
-**Status:** interim controls in place, permanent work not started.
+**Status:** items 2 and 3 shipped as v2.6 (CHG-033, 2026-09-27; plant rollout pending); items 1, 4 and 5 open.
 **Decision needed from:** whoever owns the plant host, plus the engineering backlog.
 **Related:** [MARUN-DISK.md](../migration/MARUN-DISK.md) covers cleanup and the log and checkpoint
 controls already shipped. This document covers what that runbook does not: the analytics data volume
@@ -93,6 +93,8 @@ rather than repartitioning.
 
 ### Item 2 — Ship retention as part of the schema
 
+**Shipped in v2.6:** `ops/cpm-10b-result-partitions.sql` + `FeaturePartitionMaintenance` (daily partitions, `retention_policy` days). Gate results included at 30 d.
+
 **Owner:** engineering. **Effort:** one release. **Applies to:** the four high-volume analytics tables.
 
 Range-partition by time, with a scheduled job that detaches and drops partitions past the retention
@@ -107,6 +109,8 @@ Retention windows belong in configuration with defaults that assume a plant like
 laboratory.
 
 ### Item 3 — Make evidence emission bounded
+
+**Shipped in v2.6:** per-episode capture (OPEN / ESCALATE / CLOSE) with a TRANSIENT cache bounded by hours and bytes; the Short tier stopped at the source. Artifact bytes stay in PostgreSQL (MinIO not done - the budget makes it unnecessary for space).
 
 **Owner:** engineering. **Effort:** one release. Two changes, either of which helps, both of which
 together are decisive.

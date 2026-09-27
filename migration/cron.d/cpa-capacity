@@ -1,3 +1,5 @@
 # install: sudo cp migration/cron.d/cpa-capacity /etc/cron.d/ && sudo chmod 644 /etc/cron.d/cpa-capacity
-*/30 * * * * root /opt/AMS-open/migration/prune-short-features.sh >/dev/null 2>&1
+# CHG-033 (v2.6): the prune-short-features.sh line is gone - result-table retention is now the daily
+# partitions (scripts/cpm-10b) and cplm-api's FeaturePartitionMaintenance; retention_policy rows
+# SHORT_FEATURES / LONG_FEATURES / GATE_RESULTS set the days. Reinstall this file after cpm-10b.
 17 * * * * root /opt/AMS-open/migration/cap-iotdb-logs.sh >/dev/null 2>&1

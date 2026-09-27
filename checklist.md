@@ -110,6 +110,37 @@ _Last updated: 2026-09-17 17:45 (audit follow-up: all 22 frontend findings fixed
 | Lever used twice | cancel the Short job, `kafka-consumer-groups --reset-offsets --to-latest`, resubmit: evens the partitions instantly; the backlog it skips was being discarded anyway |
 | Proof on fresh rows (patch 1 + reset) | 1m windows: 141 loops, completeness **1.000**, 12 of 12 samples; longer kinds fill over their own length after any restart |
 
+## CHG-033 / v2.6 — bounded evidence + partitioned result tables (started 2026-09-27; plan: melodic-tumbling-bubble)
+
+Space fix after the 2026-09-26 outage: evidence kept by class (TRANSIENT hours + budget, EPISODE 90 d after the episode closes,
+promoted at OPEN / ESCALATE / CLOSE), the three result tables range-partitioned by day at the plant (PG15, no Timescale) with a
+maintenance loop that drops partitions past `retention_policy`, the Short job's artifacts stopped at the source (04b flag).
+Ticked with commit id + verification as each lands. Every file stays under 500 lines.
+
+- [x] **Phase 0 — bookkeeping** (2026-09-27): this section; ledger `.superpowers/sdd/melodic-tumbling-bubble/progress.md`
+- [x] **Phase 1 — evidence classes** (2026-09-27)
+  - [x] 1 (54d0ebfd; suite 192/192) `scripts/cpm-10a-episode-evidence.sql` + `database/scripts/61_cplm_episode_capture.sql` + `migration/schema/03` + `CplmEventFrameService.EnsureSchemaAsync` — `SchemaV25Tests`
+  - [x] 2 (b3402a53; suite 196/196) `TransitionKind.Escalate`, `GateVerdict.MethodRunIds`, `BandRank` — `EventFrameLifecycleTests`
+  - [x] 3 (4559bc1e; suite 199/199) manifest INSERT sets `retention_class` TRANSIENT / STANDARD — `EvidenceClassTests`
+- [x] **Phase 2 — capture + sweeper** (2026-09-27)
+  - [x] 4 (11fa8e03; suite 203/203) `EpisodeCaptureStore` + frame-service transaction + `ParseVerdict` run ids — `EpisodeCaptureTests`
+  - [x] 5 (139d1202; suite 206/206) sweeper: 15-min interval, `SweepResult`, promote / TRANSIENT age + budget / EPISODE tiers — `EvidenceRetentionSweeperTests`
+- [x] **Phase 3 — partitions (plant)** (2026-09-27)
+  - [x] 6 (81e373a2; suite 212/212) `scripts/cpm-10b-result-partitions.sql` (short, long, gate) + `CplmResultSchema` created_at indexes + mirrors — `FeaturePartitionTests`
+  - [x] 7 (44b3ead3; suite 216/216) `FeaturePartitions` / `FeaturePartitionMaintenance` / options + `Program.cs` — `FeaturePartitionTests`
+- [ ] **Phase 4 — release**
+  - [x] 8 (stub-04b: Short none, others episodes; bash -n ok) `migration/04b` Short job `--evidence-emit "${CPLM_SHORT_EVIDENCE_EMIT:-none}"` first — `bash -n` + stub run
+  - [x] 9 (pytest migration/deploy 18/18) `releases/v2.6.txt`, `build-release.py` OPS_FILES + VM-STEPS, cron line removed, `prune-short-features.sh` deleted — `test_build_release.py`
+  - [x] docs (2026-09-27): `changes_tracker.md` CHG-033 + "Release v2.6 — what to build and run", `MARUN-DISK.md`, `marun-capacity-remediation.md`, release-note addendum
+  - [x] full suites green (cplm-api 216/216 final run; pytest 18/18); bundle + final review: see below
+- [ ] **Phase 5 — plant rollout** (user runs; ticked from pasted output)
+  - [ ] 5.1 `cpm-10a` online + `02-apply-schemas.sh` + proof queries
+  - [ ] 5.2 cplm-api image swap + `/health` + first `Evidence retention:` log line
+  - [ ] 5.3 04b overlay, `CPLM_EVIDENCE_EMIT=episodes`, cancel/resubmit Short-Long-Fusion, G5+-only proof
+  - [ ] 5.4 24 h measurement + headroom rule (`GATE_RESULTS` 30 → 14 if needed)
+  - [ ] 5.5 `cpm-06` probe → stop → `cpm-10b` → start → probe → partition proofs
+  - [ ] 5.6 cron file updated; next-day partition drop + `df` confirmed
+
 ## Verification status (last runs, lab)
 
 | Suite / script | Result | When |

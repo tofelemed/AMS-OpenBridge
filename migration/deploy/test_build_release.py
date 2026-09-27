@@ -128,3 +128,46 @@ def test_source_archive_dry_run_writes_nothing(tmp_path):
     archive = br.make_source_archive(tmp_path, "abc1234", dry_run=True)
     assert archive == tmp_path / "src-abc1234.tar.gz"
     assert not archive.exists()
+
+
+# ── v2.6 (CHG-033: bounded evidence + partitioned result tables) ──────────────
+CPLM_ROWS = [("cplm-api", "ams-cpa-cplm-api", "PROD")]
+
+
+def v26_steps() -> str:
+    return br.vm_steps("v2.6", "abc1234", CPLM_ROWS, False, ["cplm-api"], False, False, True)
+
+
+def test_v26_ops_files_ship_the_two_retention_scripts():
+    names = [Path(o).name for o in br.OPS_FILES]
+    assert "cpm-10a-episode-evidence.sql" in names
+    assert "cpm-10b-result-partitions.sql" in names
+
+
+def test_v26_manifest_is_cplm_api_only_with_the_retention_directive():
+    services, flags = br.read_manifest("v2.6")
+    assert services == ["cplm-api"]
+    assert "v26-retention" in flags
+
+
+def test_v26_steps_apply_cpm10a_online_before_the_swap_and_cpm10b_only_inside_a_stop():
+    steps = v26_steps()
+    a = steps.index("cpm-10a-episode-evidence.sql")
+    own = steps.index("02-apply-schemas.sh")
+    swap = steps.index("deploy.sh --prod")
+    b = steps.index("cpm-10b-result-partitions.sql")
+    assert a < own < swap < b
+    stop = steps.index("docker stop traverse-cplm-api", swap)
+    start = steps.index("docker start traverse-cplm-api", stop)
+    assert stop < b < start
+
+
+def test_v26_steps_turn_evidence_back_on_with_the_short_tier_off_and_measure_before_partitioning():
+    steps = v26_steps()
+    on = line_with(steps, "CPLM_EVIDENCE_EMIT=episodes")
+    assert steps.index(on) > steps.index("deploy.sh --prod")
+    assert steps.index(on) < steps.index("cpm-10b-result-partitions.sql")
+    assert "CPLM_SHORT_EVIDENCE_EMIT" in steps
+    assert "retention_class, count(*)" in steps            # the hourly measurement query
+    assert "GATE_RESULTS" in steps                          # the headroom rule names the row to lower
+    assert steps.index("cpa-capacity") > steps.index("cpm-10b-result-partitions.sql")

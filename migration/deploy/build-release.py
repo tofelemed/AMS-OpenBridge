@@ -64,6 +64,8 @@ OPS_FILES = [
     "scripts/cpm-07b-v25-result-key.sql",          # v2.5        - the result unique keys gain bundle_hash (cplm-api STOPPED, after cpm-07)
     "scripts/cpm-08-v25-permissions.sql",          # v2.5        - traverse_auth: the new cpm.* permissions + role grants
     "scripts/cpm-09-event-shelving.sql",           # CHG-032     - episode shelving lifecycle + action history (BEFORE the cplm-api swap)
+    "scripts/cpm-10a-episode-evidence.sql",        # CHG-033     - episode capture ledger + EPISODE class (online, BEFORE the cplm-api swap)
+    "scripts/cpm-10b-result-partitions.sql",       # CHG-033     - the three result tables as daily partitions (cplm-api STOPPED, after the 24 h measurement)
     "scripts/set-quality-protocol.py",             # v2.5        - declare quality_protocol on every MQTT_LOOP_SAMPLES source
     "migration/kafka/topics.txt",                  # v2.5        - the 8 new topics (reference copy; 04 reads the extracted tree's)
 ]
@@ -117,9 +119,9 @@ def read_manifest(release: str) -> tuple[list[str], set[str]]:
     unknown = [s for s in services if s not in BUILD_SERVICES and s != "ams-api"]
     if unknown:
         sys.exit(f"{path.name}: unknown compose service(s) {unknown} - must be in prodimages.BUILD_SERVICES")
-    unknown_flags = flags - {"data-load", "v25-upgrade"}
+    unknown_flags = flags - {"data-load", "v25-upgrade", "v26-retention"}
     if unknown_flags:
-        sys.exit(f"{path.name}: unknown directive(s) {sorted(unknown_flags)} - only !data-load and !v25-upgrade are defined")
+        sys.exit(f"{path.name}: unknown directive(s) {sorted(unknown_flags)} - only !data-load, !v25-upgrade and !v26-retention are defined")
     return services, flags
 
 
@@ -298,7 +300,7 @@ POST_CHECKS: dict[str, str] = {
 
 
 def vm_steps(release: str, commit: str, rows: list[tuple[str, str, str]],
-             has_flink: bool, services: list[str], data_load: bool, v25: bool = False) -> str:
+             has_flink: bool, services: list[str], data_load: bool, v25: bool = False, v26: bool = False) -> str:
     images = []
     for _, image, _ in rows:
         if image not in images:
@@ -436,6 +438,47 @@ export ADMIN_PW='...'
 python3 /tmp/{release}/ops/set-quality-protocol.py            # dry run
 python3 /tmp/{release}/ops/set-quality-protocol.py --apply
 """
+    v26_block = ""
+    v26_post_block = ""
+    if v26:
+        v26_block = f"""
+# 4d. CHG-033 schema - online, additive, BEFORE the image swap (the capture ledger, capture_count, EPISODE = 90 d):
+docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-10a-episode-evidence.sql
+bash migration/02-apply-schemas.sh                                       # ownership -> ams_user (the go-live 42501 trap)
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select count(*) from pg_tables where schemaname in ('analytics','cpm') and tableowner<>'ams_user'"   # 0
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select record_class||'|'||coalesce(days::text,'') from analytics.retention_policy order by 1"   # EPISODE|90 among them
+#    the source archive carries the new 04b (Short job: --evidence-emit none by default) and the cron drop-in:
+grep -c CPLM_SHORT_EVIDENCE_EMIT migration/04b-submit-flink-jobs.sh      # >= 1
+"""
+        v26_post_block = f"""
+# 6c. CHG-033 - evidence back on with the short tier off, then measure, THEN partition:
+#    within 15 min the log shows the sweep's own line; the classes are visible at once:
+docker logs --since 20m traverse-cplm-api 2>&1 | grep -m1 'Evidence retention:'
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "select retention_class, count(*), pg_size_pretty(sum(total_bytes)) from analytics.evidence_manifest group by 1"
+#    migration/.env: CPLM_EVIDENCE_EMIT=episodes (the interim none goes); leave CPLM_SHORT_EVIDENCE_EMIT unset (= none).
+#    Only the three emitters take the new arguments: cancel them by id, then 04b resubmits what is missing.
+docker exec ams-flink-jobmanager flink list -m localhost:8081 | grep -E 'Short Feature|Long Diagnostics|Gate Fusion'   # note the 3 ids
+docker exec ams-flink-jobmanager flink cancel -m localhost:8081 <id>    # x3
+ALLOW_FLINK_SUBMIT=yes bash migration/04b-submit-flink-jobs.sh
+#    proof after 15 min - G5 and up only, no G0-G4:
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "select gate_id, count(*) from analytics.evidence_manifest where created_at > now() - interval '15 min' group by 1 order by 1"
+#    MEASURE hourly for 24 h (the class query above; the five tables; df -h /). Kill switch: CPLM_EVIDENCE_EMIT=none + the
+#    cancel/resubmit again. Headroom rule: the projected plateau must stay >= 10 GB below the free space - otherwise
+#    lower GATE_RESULTS (and/or SHORT_FEATURES) before partitioning: UPDATE analytics.retention_policy SET days = 14 WHERE record_class = 'GATE_RESULTS';
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "select relname, pg_size_pretty(pg_total_relation_size('analytics.'||relname)) from pg_class where relname in ('cplm_short_feature_results','cplm_long_feature_results','cplm_gate_results','evidence_manifest','evidence_chunk') order by 1"
+# 6d. CHG-033 - the three result tables become daily partitions (cplm-api STOPPED; >= 20 GB free; minutes):
+docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm < /tmp/{release}/ops/cpm-06-fleet-perf-probe.sql | tail -5   # BEFORE
+docker stop traverse-cplm-api
+docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-10b-result-partitions.sql
+docker start traverse-cplm-api
+docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm < /tmp/{release}/ops/cpm-06-fleet-perf-probe.sql | tail -5   # AFTER, same order of magnitude
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select relname||' '||relkind from pg_class where relname in ('cplm_short_feature_results','cplm_long_feature_results','cplm_gate_results')"   # 3 x p
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select count(*) from analytics.cplm_short_feature_results_default"   # 0
+docker logs --since 5m traverse-cplm-api 2>&1 | grep -E 'Partitions|schema ensured' | tail -3
+#    the interim cron line goes (retention is the partitions now); cap-iotdb-logs.sh stays:
+sudo cp migration/cron.d/cpa-capacity /etc/cron.d/cpa-capacity && grep -c prune-short-features /etc/cron.d/cpa-capacity   # 0
+#    next day: the oldest partition is gone and df moved.
+"""
     data_block = ""
     if data_load:
         data_block = f"""
@@ -472,14 +515,14 @@ docker images --no-trunc --format '{{{{.ID}}}} {{{{.Repository}}}}:{{{{.Tag}}}}'
 # 3. disk headroom - this host has filled four times; a load with no room corrupts more
 #    than it deploys. Want >= 20 GB free before starting.
 df -h /
-{v25_block}
+{v25_block}{v26_block}
 # 4. load
 {loads}
 {flink}
 # 6. sync repo files that changed (compose/env/scripts) - rule 1: the repo is the truth
 #    then recreate only what changed:
 {ams_api_env}bash migration/deploy/deploy.sh --prod 2>&1 | tail -8{rename_trap}
-{v25_config_block}{data_block}
+{v25_config_block}{v26_post_block}{data_block}
 # 8. post-update checks (UPDATE-RUNBOOK sec.1 table) - for {release} specifically:
 {checks}
 """
@@ -548,7 +591,8 @@ def main() -> int:
     files.extend(copy_ops_files(out, args.dry_run))
     files.append(make_source_archive(out, commit, args.dry_run))
 
-    steps = vm_steps(args.release, commit, rows, has_flink, services, "data-load" in flags, "v25-upgrade" in flags)
+    steps = vm_steps(args.release, commit, rows, has_flink, services, "data-load" in flags, "v25-upgrade" in flags,
+                     "v26-retention" in flags)
     if not args.dry_run:
         (out / "VM-STEPS.md").write_text(steps, encoding="utf-8", newline="\n")
         write_sums(out, files)

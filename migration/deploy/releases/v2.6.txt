@@ -1,0 +1,27 @@
+# Release v2.6 — CHG-033: bounded evidence + partitioned result tables (the Marun space fix after the
+# 2026-09-26 outage). cplm-api only. The Flink JAR is unchanged: the Short Feature job merely receives
+# --evidence-emit none through the submit script, which ships in the source archive.
+# Consumed by: python migration/deploy/build-release.py --release v2.6
+#
+# Why it is here:
+#   cplm-api      evidence by class - every live artifact TRANSIENT (Cplm:EvidenceTransientHours 6 h AND
+#                 Cplm:EvidenceTransientBudgetBytes 2 GiB, oldest first), EPISODE for what an episode transition
+#                 captured (OPEN / ESCALATE / CLOSE; retention_policy.EPISODE = 90 d after the episode CLOSED),
+#                 STANDARD for reconstructions, PINNED never; the sweep every 15 min; FeaturePartitionMaintenance
+#                 (daily partitions of the three result tables at the plant, drops past retention_policy
+#                 SHORT_FEATURES / LONG_FEATURES / GATE_RESULTS; a no-op on the lab's hypertables); the created_at
+#                 indexes in the self-heal DDL; the feature upserts as constants (CplmFeatureUpsertSql)
+#
+# Schema (both under ops/):
+#   cpm-10a-episode-evidence.sql    online, additive, BEFORE the image swap, then 02-apply-schemas.sh (ownership)
+#   cpm-10b-result-partitions.sql   with cplm-api STOPPED, AFTER the 24 h measurement (VM-STEPS step 6c); needs
+#                                   >= 20 GB free (old and new tables coexist until the commit)
+# Files that ship in the source archive, not in an image: migration/04b-submit-flink-jobs.sh (the Short job's
+#   CPLM_SHORT_EVIDENCE_EMIT switch, default none), migration/cron.d/cpa-capacity (the prune line is gone;
+#   migration/prune-short-features.sh is deleted), migration/deploy/stub-04b.sh (proves 04b's argument order).
+# Env: CPLM_EVIDENCE_EMIT=episodes again in migration/.env (the interim `none` goes); CPLM_SHORT_EVIDENCE_EMIT unset.
+# Flink: cancel + resubmit the Short, Long and Fusion engines only (new arguments); no jar, no other job.
+#
+# NOT rebuilt (unchanged since v2.5): everything else.
+!v26-retention
+cplm-api

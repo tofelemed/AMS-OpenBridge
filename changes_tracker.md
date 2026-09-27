@@ -1782,6 +1782,31 @@ Flink job args `--evidence-emit ALL|EPISODES|NONE`, `--g12-delay-min-s`, `--gate
 
 ---
 
+## Release v2.6 — what to build and run
+
+Prod runs v2.5 (2026-09-26) plus the two Flink engine patches of 2026-09-27. v2.6 is **CHG-033** only: the
+space fix after the 26 September outage. **Updated service: `cplm-api`** (the only image; no Flink jar, no
+frontend). Build: `python migration/deploy/build-release.py --release v2.6` (manifest
+`migration/deploy/releases/v2.6.txt`); the generated `VM-STEPS.md` carries every command with its expected
+output. Scripts and steps to run at the plant, in order:
+
+1. `ops/cpm-10a-episode-evidence.sql` (online, additive) → `bash migration/02-apply-schemas.sh` (ownership).
+2. Image swap: `bash migration/deploy/deploy.sh --prod`; `/health`; the `Evidence retention:` log line within 15 min.
+3. `migration/.env`: `CPLM_EVIDENCE_EMIT=episodes` (the interim `none` goes; `CPLM_SHORT_EVIDENCE_EMIT` stays unset =
+   none); `flink cancel` Short, Long and Fusion; `ALLOW_FLINK_SUBMIT=yes bash migration/04b-submit-flink-jobs.sh`;
+   proof: manifests of the last 15 min are G5 and up only.
+4. Measure 24 h (`select retention_class, count(*), pg_size_pretty(sum(total_bytes)) … group by 1`, the five table
+   sizes, `df -h /`); headroom rule: lower `GATE_RESULTS` to 14 d if the plateau would come within 10 GB of full.
+5. `ops/cpm-06-fleet-perf-probe.sql` (before) → `docker stop traverse-cplm-api` → `ops/cpm-10b-result-partitions.sql`
+   → `docker start traverse-cplm-api` → the probe again → `relkind = p` for the three tables, DEFAULT partitions empty.
+6. `sudo cp migration/cron.d/cpa-capacity /etc/cron.d/` (the prune line is gone); next day: oldest partition dropped, `df` moved.
+
+Tests behind it: cplm-api suite on the lab (incl. the new `EvidenceClassTests`, `EpisodeCaptureTests`,
+`EvidenceClassSweepTests`, `FeaturePartitionTests` on a throwaway plain database), `python -m pytest migration/deploy`
+(18), `bash migration/deploy/stub-04b.sh` (the Short job's argument order). Details:
+[CHG-033](#chg-033--bounded-evidence-and-partitioned-result-tables-the-marun-space-fix-2026-09-27).
+Plant note: [release-note-V2.6.md](release-note-V2.6.md). Progress: [checklist.md](checklist.md) "CHG-033 / v2.6".
+
 ## Risks & pre-existing issues
 
 - ~~**The CPLM Flink test suite does not compile**~~ — resolved in the v2.5 work: the suite runs
@@ -2268,3 +2293,75 @@ timestamped log in `scripts/compact-lab-docker-disk.ps1`.
   "Hyper-V minimum size ... exceeds target" or `Resize-VHD` fails, the fallback is a
   rebuild into a new 160 GB disk (export volumes, recreate, re-import).
 - First nightly reclaim log expected 2026-09-21 03:30 in `D:\DockerSupport\reclaim-docker-*.log`.
+
+## CHG-033 — Bounded evidence and partitioned result tables: the Marun space fix (2026-09-27)
+
+**Scope:** `cplm-api` (evidence classes, episode capture, the sweep, partition maintenance, self-heal indexes),
+two plant SQL steps (`scripts/cpm-10a-episode-evidence.sql` online; `scripts/cpm-10b-result-partitions.sql` with
+cplm-api stopped), the Flink submit script (`migration/04b`: the Short job's `--evidence-emit` switch, default
+none), the cron drop-in (prune line retired, `migration/prune-short-features.sh` deleted). No Flink code, no API,
+no UI change. Design: the user's `gate_evidence_workbench-proposed.md`; plan `.claude/plans/melodic-tumbling-bubble.md`;
+progress [checklist.md](checklist.md) "CHG-033 / v2.6"; plant note [release-note-V2.6.md](release-note-V2.6.md).
+
+**What was wrong.** v2.5 filled the plant's 96 GB shared disk in three hours (`docs/marun-capacity-remediation.md`):
+every window with a finding emitted its artifacts - at Marun that is every window, ~1.4 GB/h into
+`evidence_manifest` / `evidence_chunk` - and the three result tables had no retention at all (the repository's
+retention is TimescaleDB, which the plant does not have). The interim controls held (`CPLM_EVIDENCE_EMIT=none`,
+so an empty workbench; a cron DELETE that plateaus the feature tables) but gate results still grew 0.6 GB/day
+for ever and nothing was a property of the product.
+
+**What changed.**
+
+- **Evidence by class** (`EvidenceBlobStore.RetentionClassOf`, `EvidenceRetentionSweeper` + `EvidenceRetentionTiers`):
+  every live artifact is inserted as `TRANSIENT` and deleted outright after `Cplm:EvidenceTransientHours` (6) or,
+  oldest first, once the class exceeds `Cplm:EvidenceTransientBudgetBytes` (2 GiB, counting ~1.2 KB of row overhead
+  per manifest); an artifact a reconstruction or replay produced (`provenance.purpose` ≠ LIVE or an
+  `analysis_run_id`) is `STANDARD` as before; `PINNED` untouched. The sweep runs every
+  `Cplm:EvidenceSweepIntervalMinutes` (15; the old hours setting still honoured) and returns a `SweepResult`.
+- **Episode capture** (`EpisodeCaptureStore`, `CplmEventFrameService`, `EventFrameLifecycle.Escalate`): the fused
+  verdict's `method_run_ids` are parsed; on OPEN, ESCALATE (severity band rose LOW < MEDIUM < HIGH - the new
+  `TransitionKind`) and CLOSE the frame service records them in `analytics.cplm_episode_capture` inside the frame's
+  transaction and promotes the TRANSIENT manifests already stored to `EPISODE`; the sweep promotes late arrivals.
+  OPEN + ESCALATE stop at `Cplm:EpisodeCaptureMax` (3, `capture_count` on the frame); CLOSE always captures.
+  `EPISODE` expires `retention_policy.EPISODE` days (90) after the linked episode CLOSED, never while it is open.
+  Only the long tier and fusion runs are captured: the fused ids are stamped from the 12h/24h window
+  (`ResultIdentity.java:71`), so short-tier manifests never match them by design.
+- **Result tables partitioned** (`scripts/cpm-10b-result-partitions.sql`, `FeaturePartitions`,
+  `FeaturePartitionMaintenance`, `FeaturePartitionOptions`): short, long and gate results become daily RANGE
+  partitions on `window_end` (PK `(id, window_end)`, id on a plain sequence, every existing index replayed with its
+  name so `CplmResultSchema.Ddl` stays a no-op - proven; `created_at` indexes added for the evidence reconciler).
+  The maintenance loop (every `Cplm:Partitions:MaintenanceMinutes` = 60, 5 s lock timeout, one pass at consumer
+  start too) creates today + 2 (relocating DEFAULT rows first), DROPs days before today - `retention_policy` days
+  (`SHORT_FEATURES` 3, `LONG_FEATURES` 30, `GATE_RESULTS` 30) and prunes DEFAULT below the cutoff. Retention is by
+  window day for every purpose - the lab's Timescale semantics. A table that is not partitioned is skipped, so
+  the lab's hypertables are untouched. The feature upserts moved to `Data/CplmFeatureUpsertSql.cs`.
+- **Short tier off at the source** (`migration/04b-submit-flink-jobs.sh`): `--evidence-emit
+  "${CPLM_SHORT_EVIDENCE_EMIT:-none}"` as the Short job's FIRST argument (`EvidencePolicy.fromArgs` takes the first
+  match); `migration/deploy/stub-04b.sh` runs 04b against a fake docker and prints every job's value.
+- **Schema, four copies as always:** `scripts/cpm-10a-episode-evidence.sql` (plant), `database/scripts/61_cplm_episode_capture.sql`
+  (lab), `migration/schema/03-traverse_cplm.sql` (fresh install), `CplmEventFrameService.EnsureSchemaAsync` (self-heal, DDL only).
+- **Release wiring:** `migration/deploy/releases/v2.6.txt` (`!v26-retention`, cplm-api only), `build-release.py` OPS_FILES +
+  VM-STEPS blocks 4d / 6c / 6d; `migration/cron.d/cpa-capacity` without the prune line.
+
+**Tests.** cplm-api suite on the lab: **192** (new: `EventFrameLifecycleTests` +4, `EvidenceClassTests` 3,
+`EpisodeCaptureTests` 4, `EvidenceClassSweepTests` 3, `FeaturePartitionTests` 10 on a throwaway plain database
+`cplm_plain_test` built from `migration/schema/03` + the self-heal DDL + cpm-10b, `SchemaV25Tests` +1);
+`python -m pytest migration/deploy` 18; `bash migration/deploy/stub-04b.sh` (Short = none, others = episodes, override honoured).
+Every task RED -> GREEN with the full suite before its commit (ledger `.superpowers/sdd/melodic-tumbling-bubble/progress.md`).
+
+**Migration / service update.** See "Release v2.6 - what to build and run" above. Order matters: cpm-10a online -> image
+swap -> evidence on + three jobs resubmitted -> 24 h measurement -> cpm-10b in a stop -> cron file.
+
+**Cost per day (plant, 144 loops, measured cadence x lab bytes per row).** Short features 1.5-2.5 GB/day (3 d ≈ 5-8 GB),
+long 0.16 GB/day (30 d ≈ 5 GB), gate results 0.6 GB/day (30 d ≈ 18 GB), evidence TRANSIENT ~10 GB/day written and deleted
+within ~5 h (3-5 GB plateau), EPISODE ≤ 0.1 GB/day (≤ 10 GB after 90 d). Net permanent growth ≈ 0.1 GB/day; plateau ≈ 35-45 GB
+with 30 d of gate results, ≈ 25-35 GB at 14 d - the headroom rule in the VM steps decides after the measurement.
+
+**Risks and known limits.** The plateau at 30 d of gate results exceeds today's ~25 GB free (headroom rule; storage - remediation
+item 1 - is still the real fix). Frames already open at the plant get no OPEN capture (ESCALATE / CLOSE only). A replay of a
+window older than retention is ephemeral, as in the lab. A fresh install (03 -> cpm-10b -> first start) builds the two feature GIN
+indexes on the empty parents at that first start. The ~10 GB/day TRANSIENT churn is WAL + vacuum load on the shared cluster,
+not space. Pre-existing and untouched: `ConfigEffectiveSummaryTests` races the config lifecycle tests (NullReference in
+`CpmConfigurationController.ShapeSummary` line 277 when a bundle field is null mid-mutation) - failed twice in eight full runs,
+passes alone.
+
