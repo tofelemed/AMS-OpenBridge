@@ -30,6 +30,8 @@ public static class FeaturePartitions
     public static async Task<PartitionMaintenanceResult> MaintainOnceAsync(NpgsqlDataSource db, DateTime utcNow, FeaturePartitionOptions opts,
         ILogger? log, CancellationToken ct)
     {
+        // Cplm:Partitions:Enabled=false stops every pass, the hosted loop's and the consumer's at startup alike.
+        if (!opts.Enabled) return new PartitionMaintenanceResult(0, 0, 0, 0, Tables.Length);
         int created = 0, dropped = 0, relocated = 0, pruned = 0, skipped = 0;
         var today = DateOnly.FromDateTime(utcNow.Kind == DateTimeKind.Utc ? utcNow : utcNow.ToUniversalTime());
         await using var conn = await db.OpenConnectionAsync(ct);

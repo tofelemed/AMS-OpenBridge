@@ -134,10 +134,11 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
   - [x] docs (2026-09-27): `changes_tracker.md` CHG-033 + "Release v2.6 — what to build and run", `MARUN-DISK.md`, `marun-capacity-remediation.md`, release-note addendum
   - [x] full suites green (cplm-api 216/216 final run; pytest 18/18); bundle + final review: see below
 - [ ] **Phase 5 — plant rollout** (user runs; ticked from pasted output)
+  - [ ] 5.0 source archive extracted over `/opt/AMS-open` (new `04b`, cron drop-in); `grep -c CPLM_SHORT_EVIDENCE_EMIT migration/04b-submit-flink-jobs.sh` ≥ 1
   - [ ] 5.1 `cpm-10a` online + `02-apply-schemas.sh` + proof queries
   - [ ] 5.2 cplm-api image swap + `/health` + first `Evidence retention:` log line
   - [ ] 5.3 04b overlay, `CPLM_EVIDENCE_EMIT=episodes`, cancel/resubmit Short-Long-Fusion, G5+-only proof
-  - [ ] 5.4 24 h measurement + headroom rule (`GATE_RESULTS` 30 → 14 if needed)
+  - [ ] 5.4 24 h measurement + headroom rule (`GATE_RESULTS` 14 via `INSERT ... ON CONFLICT DO UPDATE` if needed - the row exists only after cpm-10b)
   - [ ] 5.5 `cpm-06` probe → stop → `cpm-10b` → start → probe → partition proofs
   - [ ] 5.6 cron file updated; next-day partition drop + `df` confirmed
 

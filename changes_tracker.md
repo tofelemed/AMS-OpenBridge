@@ -1790,13 +1790,17 @@ frontend). Build: `python migration/deploy/build-release.py --release v2.6` (man
 `migration/deploy/releases/v2.6.txt`); the generated `VM-STEPS.md` carries every command with its expected
 output. Scripts and steps to run at the plant, in order:
 
+0. Extract the source archive over `/opt/AMS-open` first (`tar -xzf /tmp/v2.6/src-<commit>.tar.gz -C /opt/AMS-open`): the
+   new `04b`, the cron drop-in and `stub-04b.sh` are files, not images (review finding 1 - without it the plant would
+   resubmit the old 04b with short-tier evidence on).
 1. `ops/cpm-10a-episode-evidence.sql` (online, additive) → `bash migration/02-apply-schemas.sh` (ownership).
 2. Image swap: `bash migration/deploy/deploy.sh --prod`; `/health`; the `Evidence retention:` log line within 15 min.
 3. `migration/.env`: `CPLM_EVIDENCE_EMIT=episodes` (the interim `none` goes; `CPLM_SHORT_EVIDENCE_EMIT` stays unset =
    none); `flink cancel` Short, Long and Fusion; `ALLOW_FLINK_SUBMIT=yes bash migration/04b-submit-flink-jobs.sh`;
    proof: manifests of the last 15 min are G5 and up only.
 4. Measure 24 h (`select retention_class, count(*), pg_size_pretty(sum(total_bytes)) … group by 1`, the five table
-   sizes, `df -h /`); headroom rule: lower `GATE_RESULTS` to 14 d if the plateau would come within 10 GB of full.
+   sizes, `df -h /`); headroom rule: if the plateau would come within 10 GB of full, set `GATE_RESULTS` to 14 d with
+   `INSERT ... ON CONFLICT (record_class) DO UPDATE` (the row does not exist before cpm-10b; a plain UPDATE is UPDATE 0).
 5. `ops/cpm-06-fleet-perf-probe.sql` (before) → `docker stop traverse-cplm-api` → `ops/cpm-10b-result-partitions.sql`
    → `docker start traverse-cplm-api` → the probe again → `relkind = p` for the three tables, DEFAULT partitions empty.
 6. `sudo cp migration/cron.d/cpa-capacity /etc/cron.d/` (the prune line is gone); next day: oldest partition dropped, `df` moved.

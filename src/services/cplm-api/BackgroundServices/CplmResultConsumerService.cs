@@ -45,6 +45,7 @@ public sealed class CplmResultConsumerService : BackgroundService
     private readonly ILogger<CplmResultConsumerService> _logger;
     private readonly NpgsqlDataSource _dataSource;
     private readonly CplmOptions _options;
+    private readonly Traverse.CplmApi.Services.FeaturePartitionOptions _partitions;
     private readonly Traverse.CplmApi.Services.IotDbWriteClient _iotdb;
     private readonly Traverse.CplmApi.Services.ConsumerHeartbeat _heartbeat;
     private readonly Traverse.CplmApi.Services.SingleMemberGuard _guard;
@@ -54,6 +55,7 @@ public sealed class CplmResultConsumerService : BackgroundService
         ILogger<CplmResultConsumerService> logger,
         IOptions<KafkaOptions> kafkaOptions,
         IOptions<CplmOptions> cplmOptions,
+        IOptions<Traverse.CplmApi.Services.FeaturePartitionOptions> partitionOptions,
         Traverse.CplmApi.Services.IotDbWriteClient iotdb,
         Traverse.CplmApi.Services.ConsumerHeartbeat heartbeat,
         Traverse.CplmApi.Services.SingleMemberGuard guard,
@@ -62,6 +64,7 @@ public sealed class CplmResultConsumerService : BackgroundService
         _logger = logger;
         _dataSource = dataSource;
         _options = cplmOptions.Value;
+        _partitions = partitionOptions.Value;
         _iotdb = iotdb;
         _heartbeat = heartbeat;
         _guard = guard;
@@ -422,8 +425,7 @@ public sealed class CplmResultConsumerService : BackgroundService
         // (a restart after an outage longer than the lookahead); a no-op on the lab's hypertables.
         try
         {
-            var r = await Traverse.CplmApi.Services.FeaturePartitions.MaintainOnceAsync(_dataSource, DateTime.UtcNow,
-                new Traverse.CplmApi.Services.FeaturePartitionOptions(), _logger, ct);
+            var r = await Traverse.CplmApi.Services.FeaturePartitions.MaintainOnceAsync(_dataSource, DateTime.UtcNow, _partitions, _logger, ct);
             if (r.Created + r.Relocated > 0)
                 _logger.LogInformation("Partitions at startup: {Created} created, {Relocated} row(s) relocated from DEFAULT", r.Created, r.Relocated);
         }

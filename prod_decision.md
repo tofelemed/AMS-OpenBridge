@@ -1,0 +1,94 @@
+# prod_decision.md — the production settings of record (Marun, CPA / loop performance)
+
+Why this file exists: the plant runs on a shared host with settings that are the result of incidents,
+measurements and deliberate trade-offs. If this application is deployed on another server, every value
+below must be decided again for that server, and this file says what we chose here and why. Keep it
+current with every release (`changes_tracker.md` CHG entries are the history; this file is the state).
+
+Last updated: 2026-09-27 (v2.6 / CHG-033 built, plant rollout pending).
+
+## 1. Where it runs
+
+| Item | Value | Why / where recorded |
+|---|---|---|
+| Host | Ubuntu VM 192.168.190.91, 16 cores, **96 GB disk shared with Instrumental** (their Postgres, two Kafka brokers, ZooKeeper) | `migration/MARUN-DISK.md`; `docs/marun-capacity-remediation.md` item 1 (separate storage still open) |
+| Air-gapped | yes: images arrive as tarballs (`release-out/<release>/`); never `docker image prune -a` (curlimages/curl, minio/mc cannot be re-pulled) | `migration/V2.5-DEPLOY.md` |
+| Databases | one Postgres cluster (`instrumental-postgres`, `psql -U postgres`), one logical database per service (`traverse_cplm` for CPA); **no TimescaleDB** at the plant (the lab has it) | `CLAUDE.md`; `database/scripts/39_timescale_policies.sql` is lab-only |
+| Kafka | Instrumental's brokers `kafka-1:9092,kafka-2:9092`; our topics prefixed `traverse.cpa.*`, replication 2 | `migration/kafka/topics.txt`, `migration/04-create-kafka-topics.sh` |
+| Flink | JobManager + one TaskManager (16 slots), **no ZooKeeper HA**, RocksDB + MinIO checkpoints; the jar lives INSIDE the image (`/opt/flink/usrlib`): a jar change = a new `ams-flink` image and `docker rm -f` of JM and TM | VM steps step 5 |
+| Entry points | API gateway `:8081` (single JWT validator, edge-only auth); frontend `:8090`; Flink UI host `:8082` to JM `:8081` | `docs/api-gateway.md` |
+| `/opt/AMS-open` | **not a git checkout**: each release's `src-<commit>.tar.gz` is extracted over it (VM step 4a); `migration/.env` is untracked and survives | `migration/deploy/build-release.py` |
+
+## 2. Versions on the plant
+
+| Date (UTC) | What | Bundle / jar |
+|---|---|---|
+| 2026-09-26 07:20 | v2.5 (CHG-026 / 027 / 028 / 030 / 032) | `release-out/v2.5-20260925-r2`, tag `v2.5` = aae3c77a, jar 2dc8788aa07f |
+| 2026-09-27 05:24 | Flink patch 1: G0 completeness from the declared grid; per-partition watermarks; control streams marked idle | jar b4a10e5474e7a557 |
+| 2026-09-27 | Flink patch 2: sample idleness 30 min; Short job parallelism from `CPLM_SHORT_PARALLELISM` | `release-out/v2.5-flink-patch2-20260927`, jar f7c99294e0767ea9 |
+| pending | v2.6 (CHG-033): bounded evidence + partitioned result tables; `cplm-api` only | `release-out/v2.6-<date>`; `changes_tracker.md` "Release v2.6" |
+
+## 3. Retention: what we keep and for how long
+
+| Store | Setting | Value at the plant | Where | Why |
+|---|---|---|---|---|
+| Evidence, live artifacts (`TRANSIENT`) | `Cplm__EvidenceTransientHours`, `Cplm__EvidenceTransientBudgetBytes` | 6 h AND 2 GiB (oldest first) | cplm-api env (`migration/.env`); sweep every `Cplm__EvidenceSweepIntervalMinutes` = 15 | v2.5 emitted ~1.4 GB/h and filled the disk in three hours; the workbench needs recent artifacts, not history |
+| Evidence, episode captures (`EPISODE`) | `analytics.retention_policy` row `EPISODE` | 90 days **after the episode closed**, never while it is open | `ops/cpm-10a-episode-evidence.sql` | the user's design: evidence follows the episode, captured at OPEN / ESCALATE / CLOSE (`Cplm__EpisodeCaptureMax` = 3 automatic captures, CLOSE always) |
+| Evidence, reconstructions (`STANDARD`) | row `STANDARD` | **3 days** (shipped 90; cut at the go-live disk survey) | `retention_policy` | an operator-requested rebuild is cheap to redo |
+| Evidence, pinned (`PINNED`) | row `PINNED` | never | `retention_policy` | investigation references |
+| Short features | row `SHORT_FEATURES` | 3 days (daily partitions, dropped whole) | `ops/cpm-10b-result-partitions.sql`; `FeaturePartitionMaintenance` hourly | 1.5-2.5 GB/day; trends beyond 3 days come from the long tier |
+| Long features | row `LONG_FEATURES` | 30 days | same | 0.16 GB/day |
+| Gate results (verdict history) | row `GATE_RESULTS` | 30 days; **14 if the headroom rule fires** (the plateau must stay 10 GB below free space) | same | 0.6 GB/day at ~21.5 KB per row: the largest permanent consumer |
+| Short-tier artifacts at the source | `CPLM_SHORT_EVIDENCE_EMIT` (04b, Short job only) | unset = `none` | `migration/.env`, `migration/04b-submit-flink-jobs.sh` | six sliding windows x 144 loops = ~24 GB/day of write-and-delete churn on the shared cluster; G0-G4 evidence is reconstructed on demand |
+| Evidence emission, long tier + fusion | `CPLM_EVIDENCE_EMIT` | `episodes` (was `none` on 26-27 Sep as the emergency control) | same | policy `episodes` = windows with a finding; at this plant that is every window, hence the class bounds above |
+| Kafka topics | `retention.ms` per topic | samples 12 h; `feature.short` 2 h; `gate.evidence` 1 h; other feature/evidence streams 6 h; record-bearing topics 3 d; live metrics 1 h; compacted topics untouched | `migration/kafka/topics.txt` (plant values); `migration/04c-apply-topic-retention.sh` | below the documented minimums, chosen for disk; every consumer can re-derive from the historian |
+| IoTDB log files | `cap-iotdb-logs.sh` hourly (cron `cpa-capacity`) | truncate four named files past 200 MB (ours and the PI archiver's) | `migration/cron.d/cpa-capacity` | the PI archiver's error log grew 1.28 GB in a day |
+| Interim prune cron | `prune-short-features.sh` | **retired in v2.6** (was a 6 h / 24 h DELETE every 30 min) | none | replaced by the partitions |
+
+Steady state with these values: about 35-45 GB with 30 days of gate results, about 25-35 GB with 14; the host had
+about 25 GB free after the 26 September cleanup. The 24 h measurement in the v2.6 VM steps (step 6c) decides.
+
+## 4. Engine and pipeline settings
+
+| Setting | Value | Why |
+|---|---|---|
+| Watermarks | per-partition at the KafkaSource, bounded out-of-orderness `outOfOrdernessMinutes`, sample idleness **30 min**, control streams `noWatermarks().withIdleness(1 s)`, no re-assignment after joins | patches 1 and 2: a single max-based watermark over 16 partitions dropped 91 % of samples as late; 1 min idleness collapsed the minimum under back-pressure |
+| G0 completeness | expected samples from the declared `grid_seconds`, not the median interval | patch 1: the median of whole-second intervals gave 4 or 6, never 5 |
+| Short Feature job parallelism | `CPLM_SHORT_PARALLELISM=4` (16 slots; 9 were free) | one core could not keep six sliding windows over 142 loops current |
+| Job submission | `04b` `submit_if_missing` (skips RUNNING / RESTARTING); a resubmit is a cancel by id, then `04b`; fresh window state after any resubmit (short windows within the hour, 12 h / 24 h verdicts within a day) | no HA, no savepoints |
+| Uneven partition backlog | cancel the Short job, `kafka-consumer-groups --reset-offsets --to-latest`, resubmit | proven twice on 27 September; the skipped backlog was being discarded anyway |
+| CPLM consumer groups | exactly ONE member per group (`traverse-cpa-cplm-results`, `...-frames`, evidence, condition, response, health, config-acks); `SingleMemberGuard` asserts it | two members split the partitions and each persists a subset silently |
+| Gate configuration signing | `CPLM_GATE_CONFIG_KEY` on JM and TM (= `TRAVERSE_SERVICE_KEY`) | unsigned bundles are NACKed; six workers must announce one jar |
+| Quality decoding | every MQTT loop data source declares `quality_protocol = STRING_ENUM` (`ops/set-quality-protocol.py`) | never derive quality from the payload's `source` field |
+| Loop model | `command_path` = `OP_TO_VALVE` for 169 loops, `OP_TO_VFD` for FIC10405, all EXPLICIT; 5 loops `UNKNOWN` | the VFD / cascade-master exception list is still owed by the control engineer |
+| Ingestion parking | ~14.6 % of OT messages park (one Bender monitor is 99.8 % of them): narrow the subscription to exclude `OT/HDPE/BENDER/#` | open |
+
+## 5. Performance settings
+
+| Where | Setting | Why |
+|---|---|---|
+| Fleet reads | `idx_cplm_gate_results_latest_real` / `_latest_any` / `_created_at` (CHG-023) with per-loop LATERAL probes; on the v2.6 partitions one index probe per partition (about 31); proven with `ops/cpm-06-fleet-perf-probe.sql` before and after | Overview / Performance went from 34.8 s to 0.14 s in release v6 and must stay in that order after cpm-10b |
+| Gateway rate limiter | session class (refresh / logout) fails OPEN, one bounded Redis round trip (300 ms), circuit breaker, in-process counters while Redis is away | a 1 s Redis stall logged every user out (lab finding, 2026-09-17) |
+| Evidence reconciler | `created_at` indexes on the three result tables | it scans `created_at > now() - 20 min` every minute; without them a partitioned table is seq-scanned per partition |
+| Sweeps | evidence every 15 min, batched (5 000 / 2 000 / 20 000 rows, `FOR UPDATE SKIP LOCKED`); partitions hourly under a 5 s lock timeout | bounded pieces; never queue the writer behind a long reader |
+| Flink checkpoints | RocksDB + MinIO, no HA | `docker rm -f` of JM and TM on every jar change |
+
+## 6. Issues faced and what we changed
+
+| Date | Issue | Change | Record |
+|---|---|---|---|
+| 2026-09-18 to 20 | disk full, Kafka down, the ingestion producer never reconnected | reconnect fix; Kafka retention cut | CHG-031 |
+| 2026-09-26 (three hours after v2.5) | 311 MB free: evidence per window plus no result retention; ZooKeeper wrote a zero-byte transaction log and crash-looped; Kafka lost its coordinator (about 20 min, Instrumental included) | `CPLM_EVIDENCE_EMIT=none`, TRUNCATEs, `resize2fs` +9 GB, log truncation, Kafka retention minimums, evidence class 3 d, prune and cap crons; the zero-byte `log.7dbe` moved aside (never delete the ZooKeeper data directory) | `migration/MARUN-DISK.md`, `docs/marun-capacity-remediation.md` |
+| 2026-09-27 (day two) | every loop DEGRADED, no short windows, G0 FAIL everywhere | Flink patches 1 and 2 (grid basis, watermarks, idleness, parallelism), offsets reset | `checklist.md` "Production patches" |
+| 2026-09-27 | permanent form of the space fix | v2.6 / CHG-033 (section 3 of this file) | `changes_tracker.md` |
+| open | the admin password was pasted into a session transcript | rotate it | `checklist.md` "Still open" |
+| open | Instrumental: diode-outbox backlog, IoTDB error log | tell Instrumental | `checklist.md` |
+
+## 7. Deploying to another server: what to decide again
+
+1. Disk: an own volume for our Docker volumes (item 1 of the remediation document); size it from the rates in section 3 times the days wanted.
+2. `migration/.env`: every `CPLM_*` value above, `CPLM_GATE_CONFIG_KEY`, the Kafka bootstrap and container names (`migration/lib.sh` defaults are Marun's).
+3. The `retention_policy` rows (section 3) and the `Cplm__*` values: set them for that disk BEFORE switching evidence on.
+4. Kafka topic retention (`topics.txt`) and `04c-apply-topic-retention.sh`; whether TimescaleDB exists (if it does, `39_timescale_policies.sql` instead of cpm-10b).
+5. The OT payload contract (`quality_protocol`, `event_ts_ms`, `grid_seconds`) and the loop model (`command_path`).
+6. Cron: `migration/cron.d/cpa-capacity` (log caps); monitoring (the observability profile is off at Marun; remediation item 4).

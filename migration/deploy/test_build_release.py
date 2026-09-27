@@ -170,4 +170,23 @@ def test_v26_steps_turn_evidence_back_on_with_the_short_tier_off_and_measure_bef
     assert "CPLM_SHORT_EVIDENCE_EMIT" in steps
     assert "retention_class, count(*)" in steps            # the hourly measurement query
     assert "GATE_RESULTS" in steps                          # the headroom rule names the row to lower
-    assert steps.index("cpa-capacity") > steps.index("cpm-10b-result-partitions.sql")
+    assert steps.index("/etc/cron.d/cpa-capacity") > steps.index("cpm-10b-result-partitions.sql")   # the INSTALL is after partitioning (the overlay check in 4a is earlier)
+
+
+def test_v26_steps_extract_the_source_archive_before_touching_04b_or_the_cron_file():
+    # review finding 1: 04b (the Short job's evidence switch) and the cron drop-in live in the source archive,
+    # not in an image; without the overlay the plant resubmits the OLD 04b with short-tier evidence ON
+    steps = v26_steps()
+    sync = steps.index("tar -xzf /tmp/v2.6/src-abc1234.tar.gz -C /opt/AMS-open")
+    assert sync < steps.index("cpm-10a-episode-evidence.sql")
+    assert sync < steps.index("04b-submit-flink-jobs.sh")
+    assert sync < steps.index("cpa-capacity")
+    assert "RELEASE-COMMIT" in steps
+
+
+def test_v26_steps_headroom_rule_works_before_cpm10b_creates_the_row():
+    # review finding 2: the GATE_RESULTS row exists only after cpm-10b; an UPDATE during the measurement is UPDATE 0
+    steps = v26_steps()
+    rule = line_with(steps, "'GATE_RESULTS', 14")
+    assert "ON CONFLICT (record_class) DO UPDATE" in rule
+    assert steps.index(rule) < steps.index("cpm-10b-result-partitions.sql")

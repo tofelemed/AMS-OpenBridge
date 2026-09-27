@@ -152,7 +152,7 @@ public sealed class FeaturePartitionTests : IClassFixture<PlainCplmDb>
         probe.Should().NotContain("Seq Scan", "every partition answers the fleet probe from its child of " + CplmReadIndexes.RealVerdictIndex);
         var reconcile = string.Join("\n", await conn.QueryAsync<string>(
             "EXPLAIN " + Traverse.CplmApi.Services.PostgresEvidenceBlobStore.ReconcileSql("analytics.cplm_gate_results"), transaction: tx));
-        reconcile.Should().NotContain("Seq Scan on analytics.cplm_gate_results", "the reconciler's created_at window is answered by the created_at index on each partition");
+        reconcile.Should().NotContain("Seq Scan", "with sequential scans disabled, any Seq Scan means a partition has no usable created_at index");
     }
 
     private static readonly FeaturePartitionOptions Opts = new() { LookaheadDays = 2, LockTimeoutSeconds = 5 };
@@ -203,5 +203,16 @@ public sealed class FeaturePartitionTests : IClassFixture<PlainCplmDb>
         await using var lab = NpgsqlDataSource.Create(TestDb.ConnectionString());
         var r = await FeaturePartitions.MaintainOnceAsync(lab, DateTime.UtcNow, Opts, null, CancellationToken.None);
         r.Should().Be(new PartitionMaintenanceResult(0, 0, 0, 0, Skipped: 3));
+    }
+
+    [Fact]
+    public async Task Maintenance_disabled_by_options_creates_and_drops_nothing()
+    {
+        // review finding: Cplm:Partitions:Enabled=false must also stop the pass the consumer runs at startup
+        await using var conn = await _fx.Db.OpenConnectionAsync();
+        var before = await Partitions(conn, "cplm_short_feature_results");
+        var r = await FeaturePartitions.MaintainOnceAsync(_fx.Db, DateTime.UtcNow.AddDays(10), new FeaturePartitionOptions { Enabled = false }, null, CancellationToken.None);
+        r.Should().Be(new PartitionMaintenanceResult(0, 0, 0, 0, Skipped: 3));
+        (await Partitions(conn, "cplm_short_feature_results")).Should().Equal(before);
     }
 }

@@ -442,13 +442,20 @@ python3 /tmp/{release}/ops/set-quality-protocol.py --apply
     v26_post_block = ""
     if v26:
         v26_block = f"""
+# 4a. v2.6 source tree - BEFORE anything below runs from /opt/AMS-open: the Short job's evidence switch (04b),
+#    the cron drop-in and stub-04b.sh are files, not images (review finding 1: without this overlay the plant
+#    resubmits the OLD 04b with short-tier evidence ON). migration/.env is untracked and survives the extraction.
+git -C /opt/AMS-open status --porcelain 2>/dev/null || echo "NOT A GIT CHECKOUT - confirm nobody has patched files on the VM (MARUN-CONTEXT rule 1) before extracting"
+cp /opt/AMS-open/migration/.env /tmp/{release}/env-backup-$(date +%Y%m%d%H%M)   # belt and braces
+tar -xzf /tmp/{release}/src-{commit}.tar.gz -C /opt/AMS-open
+echo {commit} > /opt/AMS-open/RELEASE-COMMIT                            # provenance: the tree now IS this commit
+grep -c CPLM_SHORT_EVIDENCE_EMIT migration/04b-submit-flink-jobs.sh      # >= 1: the new 04b
+grep -c '^[^#].*prune-short-features' migration/cron.d/cpa-capacity      # 0: the new drop-in has no prune line
 # 4d. CHG-033 schema - online, additive, BEFORE the image swap (the capture ledger, capture_count, EPISODE = 90 d):
 docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-10a-episode-evidence.sql
 bash migration/02-apply-schemas.sh                                       # ownership -> ams_user (the go-live 42501 trap)
 docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select count(*) from pg_tables where schemaname in ('analytics','cpm') and tableowner<>'ams_user'"   # 0
 docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select record_class||'|'||coalesce(days::text,'') from analytics.retention_policy order by 1"   # EPISODE|90 among them
-#    the source archive carries the new 04b (Short job: --evidence-emit none by default) and the cron drop-in:
-grep -c CPLM_SHORT_EVIDENCE_EMIT migration/04b-submit-flink-jobs.sh      # >= 1
 """
         v26_post_block = f"""
 # 6c. CHG-033 - evidence back on with the short tier off, then measure, THEN partition:
@@ -464,7 +471,9 @@ ALLOW_FLINK_SUBMIT=yes bash migration/04b-submit-flink-jobs.sh
 docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "select gate_id, count(*) from analytics.evidence_manifest where created_at > now() - interval '15 min' group by 1 order by 1"
 #    MEASURE hourly for 24 h (the class query above; the five tables; df -h /). Kill switch: CPLM_EVIDENCE_EMIT=none + the
 #    cancel/resubmit again. Headroom rule: the projected plateau must stay >= 10 GB below the free space - otherwise
-#    lower GATE_RESULTS (and/or SHORT_FEATURES) before partitioning: UPDATE analytics.retention_policy SET days = 14 WHERE record_class = 'GATE_RESULTS';
+#    lower GATE_RESULTS (and/or SHORT_FEATURES) BEFORE partitioning. The row does not exist until cpm-10b, so it is
+#    created here when missing and cpm-10b's ON CONFLICT DO NOTHING then keeps this value (only if the rule says so):
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "INSERT INTO analytics.retention_policy (record_class, days) VALUES ('GATE_RESULTS', 14) ON CONFLICT (record_class) DO UPDATE SET days = EXCLUDED.days"
 docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "select relname, pg_size_pretty(pg_total_relation_size('analytics.'||relname)) from pg_class where relname in ('cplm_short_feature_results','cplm_long_feature_results','cplm_gate_results','evidence_manifest','evidence_chunk') order by 1"
 # 6d. CHG-033 - the three result tables become daily partitions (cplm-api STOPPED; >= 20 GB free; minutes):
 docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm < /tmp/{release}/ops/cpm-06-fleet-perf-probe.sql | tail -5   # BEFORE
@@ -476,7 +485,7 @@ docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select
 docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select count(*) from analytics.cplm_short_feature_results_default"   # 0
 docker logs --since 5m traverse-cplm-api 2>&1 | grep -E 'Partitions|schema ensured' | tail -3
 #    the interim cron line goes (retention is the partitions now); cap-iotdb-logs.sh stays:
-sudo cp migration/cron.d/cpa-capacity /etc/cron.d/cpa-capacity && grep -c prune-short-features /etc/cron.d/cpa-capacity   # 0
+sudo cp migration/cron.d/cpa-capacity /etc/cron.d/cpa-capacity && grep -c '^[^#].*prune-short-features' /etc/cron.d/cpa-capacity   # 0 (the comment line does not count)
 #    next day: the oldest partition is gone and df moved.
 """
     data_block = ""
