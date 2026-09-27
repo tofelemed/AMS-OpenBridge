@@ -53,8 +53,11 @@ submit_if_missing() {
     ok "'$name' already present — skip"
     return 0
   fi
-  info "submitting $class as '$name'"
-  flink run -d -m "localhost:${JM_PORT}" -c "$class" "$JAR" "$@"
+  info "submitting $class as '$name' (parallelism ${SUBMIT_PARALLELISM:-1})"
+  # Marun 2026-09-27: six sliding windows over 142 loops saturate one core; a job that cannot keep up
+  # falls behind on every partition and its results arrive late for ever. SUBMIT_PARALLELISM is set per
+  # call below from migration/.env (deploy.sh exports it); a keyed job spreads its windows across cores.
+  flink run -d -p "${SUBMIT_PARALLELISM:-1}" -m "localhost:${JM_PORT}" -c "$class" "$JAR" "$@"
   sleep 8
 }
 
@@ -85,6 +88,8 @@ COMMON=(
 )
 
 # Short → Long → Live RBE → Fusion last (latest() sources).
+# CPLM_SHORT_PARALLELISM=4 in migration/.env on a 16-slot TaskManager (9 free after the seven jobs).
+SUBMIT_PARALLELISM="${CPLM_SHORT_PARALLELISM:-1}" \
 submit_if_missing "AMS - CPLM Short Feature Engine" \
   com.ams.flink.cplm.CplmShortFeatureStreamJob \
   "${COMMON[@]}" \
