@@ -1787,8 +1787,9 @@ Flink job args `--evidence-emit ALL|EPISODES|NONE`, `--g12-delay-min-s`, `--gate
 Prod runs v2.5 (2026-09-26) plus the two Flink engine patches of 2026-09-27. v2.6 is **CHG-033** only: the
 space fix after the 26 September outage. **Updated service: `cplm-api`** (the only image; no Flink jar, no
 frontend). Build: `python migration/deploy/build-release.py --release v2.6` (manifest
-`migration/deploy/releases/v2.6.txt`); the generated `VM-STEPS.md` carries every command with its expected
-output. Scripts and steps to run at the plant, in order:
+`migration/deploy/releases/v2.6.txt`); built 2026-09-27 as `release-out/v2.6-20260927-r2` (source archive e3cc0b01, the
+reviewed and fixed tree); the generated `VM-STEPS.md` carries every command with its expected output.
+Production settings of record: [prod_decision.md](prod_decision.md). Scripts and steps to run at the plant, in order:
 
 0. Extract the source archive over `/opt/AMS-open` first (`tar -xzf /tmp/v2.6/src-<commit>.tar.gz -C /opt/AMS-open`): the
    new `04b`, the cron drop-in and `stub-04b.sh` are files, not images (review finding 1 - without it the plant would

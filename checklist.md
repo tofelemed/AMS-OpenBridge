@@ -132,7 +132,9 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
   - [x] 8 (stub-04b: Short none, others episodes; bash -n ok) `migration/04b` Short job `--evidence-emit "${CPLM_SHORT_EVIDENCE_EMIT:-none}"` first — `bash -n` + stub run
   - [x] 9 (pytest migration/deploy 18/18) `releases/v2.6.txt`, `build-release.py` OPS_FILES + VM-STEPS, cron line removed, `prune-short-features.sh` deleted — `test_build_release.py`
   - [x] docs (2026-09-27): `changes_tracker.md` CHG-033 + "Release v2.6 — what to build and run", `MARUN-DISK.md`, `marun-capacity-remediation.md`, release-note addendum
-  - [x] full suites green (cplm-api 216/216 final run; pytest 18/18); bundle + final review: see below
+  - [x] full suites green (cplm-api 217/217 after the fix pass; pytest 20/20; stub-04b); bundle `release-out/v2.6-20260927-r2` (src-e3cc0b01, cplm-api image PROD)
+  - [x] final whole-branch review (fresh reviewer): 10 findings; fixed 1 (critical: no source overlay in the VM steps), 2 (headroom UPDATE before the row exists), 5 (Enabled ignored at startup), 8a (vacuous plan assertion) in e3cc0b01; 3/4/6/7/8b/8c/9/10 deferred as minors (ledger)
+  - [x] `prod_decision.md` created (production settings of record)
 - [ ] **Phase 5 — plant rollout** (user runs; ticked from pasted output)
   - [ ] 5.0 source archive extracted over `/opt/AMS-open` (new `04b`, cron drop-in); `grep -c CPLM_SHORT_EVIDENCE_EMIT migration/04b-submit-flink-jobs.sh` ≥ 1
   - [ ] 5.1 `cpm-10a` online + `02-apply-schemas.sh` + proof queries
