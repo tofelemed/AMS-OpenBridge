@@ -19,6 +19,15 @@ import java.util.Set;
  * no formula changed - the SYN-TIC-001 golden tests pin the numbers.
  */
 public final class ShortFeatureCalculator {
+
+    /** The sampling grid the source declares on its tuples ({@code grid_seconds}); 0 when none does. */
+    private static double declaredGridSec(java.util.List<com.ams.flink.cplm.CplmNormalizedSample> samples) {
+        for (com.ams.flink.cplm.CplmNormalizedSample s : samples) {
+            if (s != null && s.gridSeconds > 0) return s.gridSeconds;
+        }
+        return 0.0;
+    }
+
     private ShortFeatureCalculator() {
     }
 
@@ -65,8 +74,20 @@ public final class ShortFeatureCalculator {
         double tsSec = SignalMath.inferSamplePeriodSec(samples);
         result.samplePeriodSec = tsSec;
         long windowSec = Math.max(1, (windowEndMs - windowStartMs) / 1000);
+        // Marun 2026-09-27: the expected count comes from the grid the tuple DECLARES, never from the
+        // median of observed intervals. The plant timestamps on whole seconds around a 5 s grid, so
+        // consecutive intervals are 4 s and 6 s and their median is 4 or 6 but never 5 - completeness
+        // carried a ~20 % error in both directions, two thirds of short windows read INCOMPLETE, G0
+        // FAILed and fusion blocked every downstream gate (EXCLUDED_DATA_QUALITY). The tell was
+        // completeness above 1.0 on the windows that did pass, impossible for a fraction. The
+        // inference stays as the fallback for a source that declares no grid, and samplePeriodSec
+        // stays the MEASURED period because the artifact reports what was observed.
+        double expectedBasis = declaredGridSec(samples);
+        if (expectedBasis <= 0) expectedBasis = tsSec;
         // Gate 0: never allow expectedSamples to truncate to 0 on micro-batches.
-        int expectedSamples = tsSec > 0 ? (int) Math.max(1, Math.round((double) windowSec / tsSec)) : Math.max(1, n);
+        int expectedSamples = expectedBasis > 0
+                ? (int) Math.max(1, Math.round((double) windowSec / expectedBasis))
+                : Math.max(1, n);
         result.expectedSampleCount = expectedSamples;
         result.sampleCount = n;
         result.completeness = (double) n / expectedSamples;
