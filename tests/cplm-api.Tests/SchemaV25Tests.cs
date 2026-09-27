@@ -79,4 +79,19 @@ public sealed class SchemaV25Tests : IAsyncLifetime
         idx.Should().Contain(new[] { "uq_cplm_gate_results_window_bundle", "uq_cplm_short_window_bundle", "uq_cplm_long_window_bundle", "ix_cplm_gate_results_method_run_ids" });
         idx.Should().NotContain(new[] { "uq_cplm_gate_results_window", "uq_cplm_short_window", "uq_cplm_long_window" });
     }
+
+    [Fact]
+    public async Task Episode_capture_table_and_policy_exist()
+    {
+        // CHG-033: evidence bounded by class - captures at episode transitions (61 / cpm-10a / 03 / EnsureSchemaAsync),
+        // the EPISODE retention row, and capture_count on the frame.
+        await using var conn = await _db.OpenConnectionAsync();
+        var tables = (await conn.QueryAsync<string>(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'analytics'")).ToHashSet();
+        tables.Should().Contain("cplm_episode_capture");
+        (await Columns("cplm_event_frames")).Should().Contain("capture_count");
+        (await Columns("cplm_episode_capture")).Should().Contain(new[] { "episode_id", "method_run_id", "kind", "captured_at" });
+        var episode = await conn.ExecuteScalarAsync<int?>("SELECT days FROM analytics.retention_policy WHERE record_class = 'EPISODE'");
+        episode.Should().Be(90);
+    }
 }

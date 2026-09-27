@@ -331,6 +331,18 @@ public sealed class CplmEventFrameService : BackgroundService
                     shelved_by = acked_by, shelved_at = acked_at, shelve_reason = note, note = NULL,
                     ack_state = 'UNACKNOWLEDGED', acked_by = NULL, acked_at = NULL, updated_at = NOW()
                 WHERE ack_state = 'SHELVED';
+                -- CHG-033 (61_cplm_episode_capture.sql parity): captures at episode transitions. The
+                -- EPISODE retention row is ops SQL (cpm-10a); the sweeper falls back to 90 days without it.
+                ALTER TABLE analytics.cplm_event_frames
+                    ADD COLUMN IF NOT EXISTS capture_count INT NOT NULL DEFAULT 0;
+                CREATE TABLE IF NOT EXISTS analytics.cplm_episode_capture (
+                    episode_id    BIGINT      NOT NULL REFERENCES analytics.cplm_event_frames (id) ON DELETE CASCADE,
+                    method_run_id UUID        NOT NULL,
+                    kind          VARCHAR(16) NOT NULL CHECK (kind IN ('OPEN', 'ESCALATE', 'CLOSE')),
+                    captured_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    PRIMARY KEY (episode_id, method_run_id));
+                CREATE INDEX IF NOT EXISTS ix_cplm_episode_capture_run ON analytics.cplm_episode_capture (method_run_id);
+                CREATE INDEX IF NOT EXISTS ix_cplm_episode_capture_at  ON analytics.cplm_episode_capture (captured_at);
                 """);
             _logger.LogInformation("CPLM event-frame schema ensured");
         }
