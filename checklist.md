@@ -99,6 +99,17 @@ _Last updated: 2026-09-17 17:45 (audit follow-up: all 22 frontend findings fixed
 | Loop model, 2026-09-26 | `command_path` set and republished (170 of 170, 584 ms): **169 `OP_TO_VALVE` + 1 `OP_TO_VFD` (FIC10405), all EXPLICIT**; the 5 loops with no `loop_type` left `UNKNOWN`. **Assumption carried:** the valve sweep ran with an exception list of one, so any cascade master or drive-driven loop among the 169 is currently asserted to be a valve. G12 will label such findings as valve problems; G14 cannot confirm them (no VP on the feed). Correct with a named UPDATE + republish of just those ids once the control engineer supplies the VFD and cascade-master list |
 | Still open | **the VFD / cascade-master exception list** (above); narrow the MQTT subscription to exclude `OT/HDPE/BENDER/#` (one Bender monitor is 99.8% of parked messages); watch `df -h /` daily for a week (15 GB, evidence class 3 d); rotate the admin password (it was pasted into a session transcript); tell Instrumental about the diode-outbox backlog and their IoTDB error log |
 
+## Production patches after v2.5 (Marun, 2026-09-27)
+
+| | |
+|---|---|
+| Symptom, day two | every loop DEGRADED, no short windows on 98 of 142 loops, G0 FAIL on every 12h verdict. Not the gateway, not data quality: two engine defects only a real fleet on a real host shows |
+| Patch 1, deployed 05:24 UTC | jar `b4a10e5474e7a557` (`9244adf8`): `21e4260b` completeness from the declared grid (median of whole-second intervals gave 4 or 6, never 5; PASS rows read 1.13-1.19); `6bbfc7b2` per-partition watermarks at the source, idle-marking control streams, both post-join re-assignments removed (single max-based watermark over 16 interleaved partitions dropped 91 percent of samples as late) |
+| Found on patch 1 | 73 percent still late: `withIdleness(1 min)` let a back-pressured reader that drains one partition at a time drop the other fifteen from the minimum; every late record re-fired twelve 60m windows and saturated the one core. Also: the Short job runs six sliding windows on one core and can only fall behind |
+| Patch 2, bundle `release-out/v2.5-flink-patch2-20260927` | jar `f7c99294e0767ea9` (`3d6a905e`): idleness 30 min; `04b0c2ce` submitter takes `CPLM_SHORT_PARALLELISM` (plant: 4 of 16 slots, 16 cores); `9244adf8` incident controls as repository files (`CPLM_EVIDENCE_EMIT`, prune / cap scripts, cron drop-in, topics.txt at the plant values). Flink suite 275 run / 0 failures / 2 skipped. Plant proof pending at write time |
+| Lever used twice | cancel the Short job, `kafka-consumer-groups --reset-offsets --to-latest`, resubmit: evens the partitions instantly; the backlog it skips was being discarded anyway |
+| Proof on fresh rows (patch 1 + reset) | 1m windows: 141 loops, completeness **1.000**, 12 of 12 samples; longer kinds fill over their own length after any restart |
+
 ## Verification status (last runs, lab)
 
 | Suite / script | Result | When |
