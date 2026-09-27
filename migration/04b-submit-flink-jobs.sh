@@ -89,9 +89,14 @@ COMMON=(
 
 # Short → Long → Live RBE → Fusion last (latest() sources).
 # CPLM_SHORT_PARALLELISM=4 in migration/.env on a 16-slot TaskManager (9 free after the seven jobs).
+# CHG-033 (Marun 2026-09-27): the six short windows emitted ~24 GB/day of artifacts that nothing kept.
+# The Short job gets its own switch, default none (G0-G4 evidence is reconstructed on demand; the
+# long tier and fusion keep emitting). It must come BEFORE "${COMMON[@]}": EvidencePolicy.fromArgs
+# takes the FIRST --evidence-emit it sees. Prove any edit here with migration/deploy/stub-04b.sh.
 SUBMIT_PARALLELISM="${CPLM_SHORT_PARALLELISM:-1}" \
 submit_if_missing "AMS - CPLM Short Feature Engine" \
   com.ams.flink.cplm.CplmShortFeatureStreamJob \
+  --evidence-emit "${CPLM_SHORT_EVIDENCE_EMIT:-none}" \
   "${COMMON[@]}" \
   --job-name "AMS - CPLM Short Feature Engine"
 
