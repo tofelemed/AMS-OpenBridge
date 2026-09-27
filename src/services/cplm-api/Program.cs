@@ -150,6 +150,11 @@ if (config.GetValue("Cplm:ConsumersEnabled", false))
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmEvidenceConsumerService>();
     // v2.5 (1G.5): retention by record class (daily; pinned evidence never expires).
     builder.Services.AddHostedService<Traverse.CplmApi.Services.EvidenceRetentionSweeper>();
+    // CHG-033: the plant's partitioned result tables - next days created, days past retention_policy dropped
+    // (FeaturePartitions; a no-op on the lab's hypertables). Cplm:Partitions:Enabled=false turns it off.
+    builder.Services.Configure<Traverse.CplmApi.Services.FeaturePartitionOptions>(
+        config.GetSection(Traverse.CplmApi.Services.FeaturePartitionOptions.SectionName));
+    builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.FeaturePartitionMaintenance>();
     // v2.5 (1H.5): the Instrumental health ledger + Flink context mirror (own group, single member).
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmInstrumentHealthMirrorService>();
     // v2.5 (2B.2): G12 response results (own group, single member).

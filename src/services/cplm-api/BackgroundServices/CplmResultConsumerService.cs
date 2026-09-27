@@ -418,6 +418,16 @@ public sealed class CplmResultConsumerService : BackgroundService
         await using var cmd = new NpgsqlCommand(ddl, conn);
         await cmd.ExecuteNonQueryAsync(ct);
         _logger.LogInformation("CPLM analytics schema ensured (3 tables, 3 views)");
+        // CHG-033: on the plant's partitioned tables, today's partitions must exist before the first insert
+        // (a restart after an outage longer than the lookahead); a no-op on the lab's hypertables.
+        try
+        {
+            var r = await Traverse.CplmApi.Services.FeaturePartitions.MaintainOnceAsync(_dataSource, DateTime.UtcNow,
+                new Traverse.CplmApi.Services.FeaturePartitionOptions(), _logger, ct);
+            if (r.Created + r.Relocated > 0)
+                _logger.LogInformation("Partitions at startup: {Created} created, {Relocated} row(s) relocated from DEFAULT", r.Created, r.Relocated);
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Partition maintenance at startup failed; the maintenance service retries"); }
     }
 
     // ── JSON helpers ─────────────────────────────────────────────────────────

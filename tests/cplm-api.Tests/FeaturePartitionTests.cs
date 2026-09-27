@@ -7,6 +7,7 @@ using FluentAssertions;
 using Npgsql;
 using NpgsqlTypes;
 using Traverse.CplmApi.Data;
+using Traverse.CplmApi.Services;
 using Xunit;
 
 namespace Traverse.CplmApi.Tests;
@@ -152,5 +153,55 @@ public sealed class FeaturePartitionTests : IClassFixture<PlainCplmDb>
         var reconcile = string.Join("\n", await conn.QueryAsync<string>(
             "EXPLAIN " + Traverse.CplmApi.Services.PostgresEvidenceBlobStore.ReconcileSql("analytics.cplm_gate_results"), transaction: tx));
         reconcile.Should().NotContain("Seq Scan on analytics.cplm_gate_results", "the reconciler's created_at window is answered by the created_at index on each partition");
+    }
+
+    private static readonly FeaturePartitionOptions Opts = new() { LookaheadDays = 2, LockTimeoutSeconds = 5 };
+    private static string Day(DateTime utc) => utc.ToString("yyyyMMdd");
+
+    [Fact]
+    public async Task Maintenance_creates_the_lookahead_days_and_drops_the_days_past_retention()
+    {
+        await using var conn = await _fx.Db.OpenConnectionAsync();
+        var old = DateTime.UtcNow.Date.AddDays(-5);
+        await conn.ExecuteAsync($"""
+            CREATE TABLE IF NOT EXISTS analytics.cplm_short_feature_results_p{Day(old)} PARTITION OF analytics.cplm_short_feature_results
+            FOR VALUES FROM ('{old:yyyy-MM-dd} 00:00:00+00') TO ('{old.AddDays(1):yyyy-MM-dd} 00:00:00+00')
+            """);
+        var r = await FeaturePartitions.MaintainOnceAsync(_fx.Db, DateTime.UtcNow.AddDays(1), Opts, null, CancellationToken.None);
+        r.Skipped.Should().Be(0);
+        var parts = await Partitions(conn, "cplm_short_feature_results");
+        parts.Should().Contain($"cplm_short_feature_results_p{Day(DateTime.UtcNow.AddDays(3))}", "tomorrow's run looks two days ahead of tomorrow");
+        parts.Should().NotContain($"cplm_short_feature_results_p{Day(old)}", "SHORT_FEATURES keeps 3 days; a 5-day-old day is dropped");
+        (await Partitions(conn, "cplm_gate_results")).Should().Contain($"cplm_gate_results_p{Day(DateTime.UtcNow.AddDays(3))}");
+    }
+
+    [Fact]
+    public async Task Maintenance_moves_rows_parked_in_default_into_the_day_it_creates()
+    {
+        await using var conn = await _fx.Db.OpenConnectionAsync();
+        var target = DateTime.UtcNow.Date.AddDays(5).AddHours(12);          // no partition that far ahead yet: the row parks in DEFAULT
+        await ShortUpsert(conn, "PART-RELOCATE", target, 10);
+        await FeaturePartitions.MaintainOnceAsync(_fx.Db, DateTime.UtcNow.AddDays(3), Opts, null, CancellationToken.None);
+        (await conn.ExecuteScalarAsync<int>($"SELECT count(*) FROM analytics.cplm_short_feature_results_p{Day(target)} WHERE loop_id = 'PART-RELOCATE'")).Should().Be(1);
+        (await conn.ExecuteScalarAsync<int>("SELECT count(*) FROM analytics.cplm_short_feature_results_default WHERE loop_id = 'PART-RELOCATE'")).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Maintenance_prunes_default_rows_older_than_retention()
+    {
+        await using var conn = await _fx.Db.OpenConnectionAsync();
+        await ShortUpsert(conn, "PART-PRUNE", DateTime.UtcNow.AddDays(-40), 10);
+        var r = await FeaturePartitions.MaintainOnceAsync(_fx.Db, DateTime.UtcNow, Opts, null, CancellationToken.None);
+        r.Pruned.Should().BeGreaterThanOrEqualTo(1);
+        (await conn.ExecuteScalarAsync<int>("SELECT count(*) FROM analytics.cplm_short_feature_results_default WHERE loop_id = 'PART-PRUNE'")).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Maintenance_leaves_a_table_that_is_not_partitioned_alone()
+    {
+        // the lab's tables are Timescale hypertables (relkind r): nothing to create, drop or prune there
+        await using var lab = NpgsqlDataSource.Create(TestDb.ConnectionString());
+        var r = await FeaturePartitions.MaintainOnceAsync(lab, DateTime.UtcNow, Opts, null, CancellationToken.None);
+        r.Should().Be(new PartitionMaintenanceResult(0, 0, 0, 0, Skipped: 3));
     }
 }
