@@ -161,4 +161,49 @@ public sealed class EventFrameLifecycleTests
         t.Frame.ConditionState.Should().Be("OPEN");
         t.Frame.AvailabilityState.Should().Be("OBSERVED");
     }
+
+    [Fact]
+    public void A_severity_band_rising_on_an_open_frame_is_an_escalation()
+    {
+        // CHG-033: the material change an episode capture is taken on. LOW -> MEDIUM and MEDIUM -> HIGH escalate;
+        // the frame state is exactly what Extend would have produced.
+        var low = OpenFrame() with { Severity = "LOW" };
+        var t = EventFrameLifecycle.Apply(low, Verdict("SUSPECTED_OSCILLATION", 0.85, T0.AddDays(1), T0.AddDays(2), severity: "MEDIUM"));
+        t.Kind.Should().Be(TransitionKind.Escalate);
+        t.Reason.Should().Be("ESCALATED");
+        t.Frame!.Severity.Should().Be("MEDIUM");
+        t.Frame.WindowCount.Should().Be(2);
+        t.Frame.ConditionState.Should().Be("OPEN");
+        EventFrameLifecycle.Apply(OpenFrame() with { Severity = "MEDIUM" },
+            Verdict("SUSPECTED_OSCILLATION", 0.85, T0.AddDays(1), T0.AddDays(2), severity: "HIGH")).Kind.Should().Be(TransitionKind.Escalate);
+        // a frame with no band yet: the first band is a rise
+        EventFrameLifecycle.Apply(OpenFrame() with { Severity = null },
+            Verdict("SUSPECTED_OSCILLATION", 0.85, T0.AddDays(1), T0.AddDays(2), severity: "LOW")).Kind.Should().Be(TransitionKind.Escalate);
+    }
+
+    [Fact]
+    public void A_band_holding_falling_or_missing_only_extends()
+    {
+        EventFrameLifecycle.Apply(OpenFrame(), Verdict("SUSPECTED_OSCILLATION", 0.85, T0.AddDays(1), T0.AddDays(2), severity: "HIGH")).Kind.Should().Be(TransitionKind.Extend);
+        EventFrameLifecycle.Apply(OpenFrame(), Verdict("SUSPECTED_OSCILLATION", 0.85, T0.AddDays(1), T0.AddDays(2), severity: "LOW")).Kind.Should().Be(TransitionKind.Extend);
+        EventFrameLifecycle.Apply(OpenFrame(), Verdict("SUSPECTED_OSCILLATION", 0.85, T0.AddDays(1), T0.AddDays(2), severity: null)).Kind.Should().Be(TransitionKind.Extend);
+    }
+
+    [Fact]
+    public void A_family_change_closes_and_opens_whatever_the_band_does()
+    {
+        var t = EventFrameLifecycle.Apply(OpenFrame() with { Severity = "LOW" },
+            Verdict("SUSPECTED_STICTION", 0.85, T0.AddDays(1), T0.AddDays(2), severity: "HIGH"));
+        t.Kind.Should().Be(TransitionKind.CloseAndOpen);
+    }
+
+    [Fact]
+    public void A_verdict_carries_its_method_run_ids_optionally()
+    {
+        // CHG-033: the fused verdict's run ids are what a transition captures; pre-v2.5 payloads have none.
+        Verdict("SUSPECTED_OSCILLATION", 0.85, T0, T0.AddDays(1)).MethodRunIds.Should().BeNull();
+        var id = Guid.NewGuid();
+        var v = Verdict("SUSPECTED_OSCILLATION", 0.85, T0, T0.AddDays(1)) with { MethodRunIds = new[] { id } };
+        v.MethodRunIds.Should().ContainSingle().Which.Should().Be(id);
+    }
 }

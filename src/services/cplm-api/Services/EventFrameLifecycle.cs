@@ -11,7 +11,8 @@ public enum ResultClass
     Unobservable,
 }
 
-public enum TransitionKind { Ignore, Open, Extend, Observe, MarkUnobservable, Close, CloseAndOpen }
+/// <summary>CHG-033: Escalate = an Extend whose severity band rose (LOW &lt; MEDIUM &lt; HIGH) - the material change an evidence capture is taken on.</summary>
+public enum TransitionKind { Ignore, Open, Extend, Observe, MarkUnobservable, Close, CloseAndOpen, Escalate }
 
 /// <summary>The durable state of one episode row (analytics.cplm_event_frames).</summary>
 public sealed record FrameState(
@@ -50,7 +51,9 @@ public sealed record GateVerdict(
     double RecoverySupportS,
     int ResultRevision,
     string? CalculationVersion,
-    string? DynamicsProfileVersion);
+    string? DynamicsProfileVersion,
+    /// <summary>CHG-033: the fused verdict's method runs (every gate); what a transition captures. Null on pre-v2.5 payloads.</summary>
+    IReadOnlyList<Guid>? MethodRunIds = null);
 
 public sealed record Transition(TransitionKind Kind, FrameState? Frame, string Reason, FrameState? Closed = null);
 
@@ -85,6 +88,10 @@ public static class EventFrameLifecycle
                 return diagnosis[band.Length..];
         return diagnosis;
     }
+
+    /// <summary>CHG-033: LOW &lt; MEDIUM &lt; HIGH; null or an unknown band ranks lowest.</summary>
+    public static int BandRank(string? severity) =>
+        severity?.Trim().ToUpperInvariant() switch { "LOW" => 1, "MEDIUM" => 2, "HIGH" => 3, _ => 0 };
 
     public static Transition Apply(FrameState? open, GateVerdict v)
     {
@@ -126,7 +133,8 @@ public static class EventFrameLifecycle
                 if (open.Family != family)
                     return new Transition(TransitionKind.CloseAndOpen, Open(family, v), "FAMILY_CHANGED",
                         Closed: Close(open, v, "FAMILY_CHANGED"));
-                return new Transition(TransitionKind.Extend, Extend(open, v), "EXTENDED");
+                var kind = BandRank(v.Severity) > BandRank(open.Severity) ? TransitionKind.Escalate : TransitionKind.Extend;
+                return new Transition(kind, Extend(open, v), kind == TransitionKind.Escalate ? "ESCALATED" : "EXTENDED");
             }
         }
     }
