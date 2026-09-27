@@ -115,19 +115,31 @@ public final class CplmParameterSetBroadcastSupport {
             CplmJobConfig cfg) {
         DataStream<String> updates = env.fromSource(
                 source(cfg, legacyMetadataTopic(), cfg.consumerGroupId + "-profile-broadcast-legacy"),
-                org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks(),
+                controlWatermarks(),
                 "cplm-profile-broadcast-legacy-source");
         if (cfg.gateConfigTopic != null && !cfg.gateConfigTopic.isEmpty()) {
             updates = updates.union(env.fromSource(
                     source(cfg, cfg.gateConfigTopic, cfg.consumerGroupId + "-gate-config-broadcast"),
-                    org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks(),
+                    controlWatermarks(),
                     "cplm-gate-config-broadcast-source"));
         }
         if (!consumeCanonical()) return updates;
         return updates.union(env.fromSource(
                 source(cfg, parameterSetTopic(), cfg.consumerGroupId + "-profile-broadcast-canonical"),
-                org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks(),
+                controlWatermarks(),
                 "cplm-profile-broadcast-canonical-source"));
+    }
+
+    /**
+     * A control stream must never hold an event-time watermark: joined with the samples, a two-input
+     * operator emits the MINIMUM of its inputs and a plain noWatermarks() source sits at minus infinity
+     * for ever. Marking it idle after a second removes it from that minimum, so the join passes the
+     * samples' per-partition watermark through untouched (Marun 2026-09-27; the earlier answer was to
+     * re-assign a max-based watermark after every join, which is what dropped 91 % of the samples).
+     */
+    static org.apache.flink.api.common.eventtime.WatermarkStrategy<String> controlWatermarks() {
+        return org.apache.flink.api.common.eventtime.WatermarkStrategy.<String>noWatermarks()
+                .withIdleness(java.time.Duration.ofSeconds(1));
     }
 
     private static KafkaSource<String> source(CplmJobConfig cfg, String topic, String group) {

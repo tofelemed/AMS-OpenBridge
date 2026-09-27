@@ -33,15 +33,13 @@ public final class CplmPeerFanoutSupport {
 
     public static DataStream<CplmNormalizedSample> connectPeerFanout(DataStream<CplmNormalizedSample> samples, StreamExecutionEnvironment env, CplmJobConfig cfg) {
         BroadcastStream<String> updates = CplmParameterSetBroadcastSupport.buildParameterUpdateStream(env, cfg).broadcast(CplmParameterSetBroadcastSupport.PROFILE_STATE);
-        // the control stream carries no watermarks, so the connected operator's watermark would be minus
-        // infinity for ever: re-assign the sample strategy right after the fan-out (see CplmIngestPipeline.watermarks)
+        // the control stream marks itself idle (CplmParameterSetBroadcastSupport.controlWatermarks), so the
+        // fan-out passes the samples' per-partition watermark through; the max-based re-assignment that used
+        // to sit here was the 2026-09-27 late-drop defect in another place (see IngestPipelineWatermarkTest)
         return samples.connect(updates)
                 .process(new PeerFanoutFn())
                 .name("cplm-long-peer-fanout")
-                .uid("cplm-long-peer-fanout")
-                .assignTimestampsAndWatermarks(CplmIngestPipeline.watermarks(cfg))
-                .name("cplm-long-peer-fanout-watermarks")
-                .uid("cplm-long-peer-fanout-watermarks");
+                .uid("cplm-long-peer-fanout");
     }
 
     /** The key a fanned-out sample lands under: the loop it is a peer of, else its own loop. */
