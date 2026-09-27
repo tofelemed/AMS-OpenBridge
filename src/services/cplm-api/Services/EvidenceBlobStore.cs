@@ -45,6 +45,7 @@ public sealed class PostgresEvidenceBlobStore : IEvidenceBlobStore
         var columns = m.TryGetProperty("columns", out var c) ? c.GetRawText() : "[\"x\",\"y\"]";
         var chunkShas = m.TryGetProperty("chunk_sha256", out var cs) ? cs.GetRawText() : "[]";
         var provenance = m.TryGetProperty("provenance", out var pv) ? pv.GetRawText() : "{}";
+        var retentionClass = RetentionClassOf(m);
         await using var conn = await _db.OpenConnectionAsync(ct);
         // v2.5 (2C.2, NR-060): the same artifact re-emitted by a reconstruction has the same evidence id. An
         // EXPIRED (retention) or FAILED (corrupt chunk) manifest is revived: back to PENDING, stale chunks dropped,
@@ -62,9 +63,9 @@ public sealed class PostgresEvidenceBlobStore : IEvidenceBlobStore
                 (evidence_id, method_run_id, gate_id, artifact_kind, role_or_path,
                  x_quantity, x_unit, y_quantity, y_unit, data_type, columns, encoding,
                  calculation_samples, display_points, chunk_count, total_bytes, sha256, chunk_sha256,
-                 provenance, source_commit, jar_sha256)
+                 provenance, source_commit, jar_sha256, retention_class)
             VALUES (@id, @run, @gate, @kind, @role, @xq, @xu, @yq, @yu, @dt, @cols, @enc,
-                    @calc, @disp, @chunks, @bytes, @sha, @chunkShas, @prov, @commit, @jar)
+                    @calc, @disp, @chunks, @bytes, @sha, @chunkShas, @prov, @commit, @jar, @class)
             ON CONFLICT (evidence_id) DO UPDATE SET
                 readiness = 'PENDING', readiness_reason = NULL, completed_at = NULL, created_at = NOW(),
                 columns = EXCLUDED.columns, calculation_samples = EXCLUDED.calculation_samples, display_points = EXCLUDED.display_points,
@@ -94,7 +95,24 @@ public sealed class PostgresEvidenceBlobStore : IEvidenceBlobStore
         cmd.Parameters.Add(new NpgsqlParameter("prov", NpgsqlDbType.Jsonb) { Value = provenance });
         cmd.Parameters.AddWithValue("commit", (object?)S(m, "sourceCommit") ?? DBNull.Value);
         cmd.Parameters.AddWithValue("jar", (object?)S(m, "jarSha256") ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("class", retentionClass);
         await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    /// <summary>
+    /// CHG-033: every live artifact is TRANSIENT - bounded by hours and a byte budget in the sweeper, promoted to
+    /// EPISODE only when an episode transition captured its method run. An artifact a reconstruction or replay
+    /// produced (provenance.purpose other than LIVE, or an analysis_run_id) is STANDARD and lives retention_policy
+    /// days: an operator asked for it. A revived EXPIRED / FAILED row keeps its class (the DO UPDATE above never
+    /// touches retention_class), so an EPISODE capture re-emitted by a reconstruction stays EPISODE.
+    /// </summary>
+    internal static string RetentionClassOf(JsonElement m)
+    {
+        if (!m.TryGetProperty("provenance", out var p) || p.ValueKind != JsonValueKind.Object) return "TRANSIENT";
+        var runId = S(p, "analysis_run_id");
+        var purpose = S(p, "purpose");
+        var requested = !string.IsNullOrEmpty(runId) || (!string.IsNullOrEmpty(purpose) && purpose != "LIVE");
+        return requested ? "STANDARD" : "TRANSIENT";
     }
 
     public async Task<bool> PutChunkAsync(Guid evidenceId, int chunkNo, string sha256, byte[] payload, CancellationToken ct)
