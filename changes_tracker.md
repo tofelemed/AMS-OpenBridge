@@ -2384,6 +2384,15 @@ long 0.16 GB/day (30 d ≈ 5 GB), gate results 0.6 GB/day (30 d ≈ 18 GB), evid
 within ~5 h (3-5 GB plateau), EPISODE ≤ 0.1 GB/day (≤ 10 GB after 90 d). Net permanent growth ≈ 0.1 GB/day; plateau ≈ 35-45 GB
 with 30 d of gate results, ≈ 25-35 GB at 14 d - the headroom rule in the VM steps decides after the measurement.
 
+**Plant outcome (2026-09-27 → 10-02).** v2.6.1 live 27 Sep 17:30 UTC. TRANSIENT held at 1.75 GB as designed. EPISODE did not:
+fused verdicts flip fault family between consecutive 15-min windows on many loops (580 episodes opened and 481 closed per day,
+348 closes FAMILY_CHANGED, 413 episodes under an hour), so ~1,350 capture events a day promoted ~300k manifests a day into a
+class kept 90 d; with 34 orphaned Flink checkpoint directories (5 GB, every `docker rm -f` of the JobManager leaves the jobs'
+last checkpoint) the host reached 1.4 GB free on 2 Oct. Recovery: evidence off, `EPISODE` = 2 d, evidence tables truncated
+(no pinned rows), orphans deleted → 17 GB free. **Open: CHG-034 - episode capture must debounce family flips (one episode per
+loop/window-kind across consecutive windows, or capture only on OPEN of a frame that survived N windows) before
+`CPLM_EVIDENCE_EMIT=episodes` returns; the VM steps must `flink cancel` every job before removing the JobManager.**
+
 **Risks and known limits.** The plateau at 30 d of gate results exceeds today's ~25 GB free (headroom rule; storage - remediation
 item 1 - is still the real fix). Frames already open at the plant get no OPEN capture (ESCALATE / CLOSE only). A replay of a
 window older than retention is ephemeral, as in the lab. A fresh install (03 -> cpm-10b -> first start) builds the two feature GIN

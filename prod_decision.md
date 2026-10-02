@@ -5,7 +5,7 @@ measurements and deliberate trade-offs. If this application is deployed on anoth
 below must be decided again for that server, and this file says what we chose here and why. Keep it
 current with every release (`changes_tracker.md` CHG entries are the history; this file is the state).
 
-Last updated: 2026-09-27 (v2.6 / CHG-033 built, plant rollout pending).
+Last updated: 2026-10-02 (v2.6.1 live since 2026-09-27 17:30 UTC; evidence OFF again since 2026-10-02 after the episode-flapping incident; cpm-10b still pending).
 
 ## 1. Where it runs
 
@@ -33,14 +33,14 @@ Last updated: 2026-09-27 (v2.6 / CHG-033 built, plant rollout pending).
 | Store | Setting | Value at the plant | Where | Why |
 |---|---|---|---|---|
 | Evidence, live artifacts (`TRANSIENT`) | `Cplm__EvidenceTransientHours`, `Cplm__EvidenceTransientBudgetBytes` | 6 h AND 2 GiB (oldest first) | cplm-api env (`migration/.env`); sweep every `Cplm__EvidenceSweepIntervalMinutes` = 15 | v2.5 emitted ~1.4 GB/h and filled the disk in three hours; the workbench needs recent artifacts, not history |
-| Evidence, episode captures (`EPISODE`) | `analytics.retention_policy` row `EPISODE` | 90 days **after the episode closed**, never while it is open | `ops/cpm-10a-episode-evidence.sql` | the user's design: evidence follows the episode, captured at OPEN / ESCALATE / CLOSE (`Cplm__EpisodeCaptureMax` = 3 automatic captures, CLOSE always) |
+| Evidence, episode captures (`EPISODE`) | `analytics.retention_policy` row `EPISODE` | **2 days** after the episode closed (was 90; cut 2026-10-02), never while it is open | `ops/cpm-10a-episode-evidence.sql` | the user's design: evidence follows the episode, captured at OPEN / ESCALATE / CLOSE (`Cplm__EpisodeCaptureMax` = 3 automatic captures, CLOSE always) |
 | Evidence, reconstructions (`STANDARD`) | row `STANDARD` | **3 days** (shipped 90; cut at the go-live disk survey) | `retention_policy` | an operator-requested rebuild is cheap to redo |
 | Evidence, pinned (`PINNED`) | row `PINNED` | never | `retention_policy` | investigation references |
 | Short features | row `SHORT_FEATURES` | 3 days (daily partitions, dropped whole) | `ops/cpm-10b-result-partitions.sql`; `FeaturePartitionMaintenance` hourly | 1.5-2.5 GB/day; trends beyond 3 days come from the long tier |
 | Long features | row `LONG_FEATURES` | 30 days | same | 0.16 GB/day |
 | Gate results (verdict history) | row `GATE_RESULTS` | 30 days; **14 if the headroom rule fires** (the plateau must stay 10 GB below free space) | same | 0.6 GB/day at ~21.5 KB per row: the largest permanent consumer |
 | Short-tier artifacts at the source | `CPLM_SHORT_EVIDENCE_EMIT` (04b, Short job only) | unset = `none` | `migration/.env`, `migration/04b-submit-flink-jobs.sh` | six sliding windows x 144 loops = ~24 GB/day of write-and-delete churn on the shared cluster; G0-G4 evidence is reconstructed on demand |
-| Evidence emission, long tier + fusion | `CPLM_EVIDENCE_EMIT` | `episodes` (was `none` on 26-27 Sep as the emergency control) | same | policy `episodes` = windows with a finding; at this plant that is every window, hence the class bounds above |
+| Evidence emission, long tier + fusion | `CPLM_EVIDENCE_EMIT` | **`none` since 2026-10-02** (`episodes` 27 Sep - 2 Oct); back on only after the capture policy stops opening a new episode on every family flip | same | policy `episodes` = windows with a finding; at this plant that is every window, hence the class bounds above |
 | Kafka topics | `retention.ms` per topic | samples 12 h; `feature.short` 2 h; `gate.evidence` 1 h; other feature/evidence streams 6 h; record-bearing topics 3 d; live metrics 1 h; compacted topics untouched | `migration/kafka/topics.txt` (plant values); `migration/04c-apply-topic-retention.sh` | below the documented minimums, chosen for disk; every consumer can re-derive from the historian |
 | IoTDB log files | `cap-iotdb-logs.sh` hourly (cron `cpa-capacity`) | truncate four named files past 200 MB (ours and the PI archiver's) | `migration/cron.d/cpa-capacity` | the PI archiver's error log grew 1.28 GB in a day |
 | Interim prune cron | `prune-short-features.sh` | **retired in v2.6** (was a 6 h / 24 h DELETE every 30 min) | none | replaced by the partitions |
@@ -71,7 +71,7 @@ about 25 GB free after the 26 September cleanup. The 24 h measurement in the v2.
 | Gateway rate limiter | session class (refresh / logout) fails OPEN, one bounded Redis round trip (300 ms), circuit breaker, in-process counters while Redis is away | a 1 s Redis stall logged every user out (lab finding, 2026-09-17) |
 | Evidence reconciler | `created_at` indexes on the three result tables | it scans `created_at > now() - 20 min` every minute; without them a partitioned table is seq-scanned per partition |
 | Sweeps | evidence every 15 min, batched (5 000 / 2 000 / 20 000 rows, `FOR UPDATE SKIP LOCKED`); partitions hourly under a 5 s lock timeout | bounded pieces; never queue the writer behind a long reader |
-| Flink checkpoints | RocksDB + MinIO, no HA | `docker rm -f` of JM and TM on every jar change |
+| Flink checkpoints | RocksDB + MinIO, no HA; **cancel every job (`flink cancel`) before `docker rm -f` of JM and TM, or delete the orphaned `/data/ams-flink/checkpoints/<job id>` directories afterwards** | a killed JobManager leaves each job's last checkpoint behind: 34 orphans / 5 GB found 2026-10-02 |
 
 ## 6. Issues faced and what we changed
 
@@ -83,6 +83,7 @@ about 25 GB free after the 26 September cleanup. The 24 h measurement in the v2.
 | 2026-09-27 | permanent form of the space fix | v2.6 / CHG-033 (section 3 of this file) | `changes_tracker.md` |
 | open | the admin password was pasted into a session transcript | rotate it | `checklist.md` "Still open" |
 | open | Instrumental: diode-outbox backlog, IoTDB error log | tell Instrumental | `checklist.md` |
+| 2026-10-02 | 1.4 GB free again: the EPISODE class (kept 90 d after close) grew 1 GB/day because fused verdicts flip fault family window to window (580 episodes opened / 481 closed per day, 348 closes FAMILY_CHANGED, 413 shorter than 1 h; each flip = CLOSE + OPEN capture of ~95 artifacts); 34 orphaned Flink checkpoint directories (5 GB) from every `docker rm -f` of the JobManager | evidence off (`CPLM_EVIDENCE_EMIT=none`, Long + Fusion resubmitted), `EPISODE` = 2 d, `TRUNCATE evidence_chunk, evidence_manifest` (0 pinned), orphan checkpoints deleted; 17 GB free | this file; `checklist.md` Phase 5 |
 
 ## 7. Deploying to another server: what to decide again
 
