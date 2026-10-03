@@ -2490,3 +2490,42 @@ offered — the historian covers every window the historian keeps, which at the 
   exports → proofs: `printenv Cplm__FamilyChangeWindows` = 3 in the container; `200` on `/` and users press Ctrl+F5; Loop
   Explorer › Summary shows the 12h / 24h toggle; a trend chart shows "Export CSV" and no "Data table / CSV"; next day
   `FAMILY_CHANGED` closes in the tens.
+
+## CHG-036 — Historian-backed bounded runs were refused by Flink: the replay source is now declared BOUNDED (2026-10-03)
+
+**Scope:** `src/flink` only (`CplmHistoricalReplayJob.java`), one new test. Ships as the v2.6.3 add-on
+`release-out/v2.6.3-20261003/flink-replay-jar-patch3/` (jar sha256 `26020dfd4f78eb20…`), a host-file replacement — no
+Flink image swap, no job cancel or resubmit.
+
+**What was wrong.** Found at Marun during the v2.6.3 test (step H) and reproduced in the lab: every
+`EVIDENCE_RECONSTRUCTION` with `source=iotdb` (and every REPLAY with that source) came back
+`ANALYSIS_RUN_SUBMIT_FAILED` — the JobManager rejected the program at submit time with "Detected an UNBOUNDED source
+with the 'execution.runtime-mode' set to 'BATCH'". The job runs in BATCH (its Kafka branch is bounded by offsets),
+but the historian branch wired its `IotDbBoundedSource` through `env.addSource(SourceFunction)`, which declares every
+legacy source CONTINUOUS_UNBOUNDED whatever its `run()` does. Present since v2.5; never exercised because the UI sent
+`source: 'kafka'` until CHG-035. The plant's `analysis_run` rows at 06:07 and 09:13/09:25 UTC carry the stack.
+
+**What changed.** `CplmHistoricalReplayJob.historianSource(env, fn)` builds the source through the public
+`DataStreamSource(env, typeInfo, new StreamSource<>(fn), false, name, Boundedness.BOUNDED)` constructor, same uid /
+name / parallelism 1 as before. BATCH mode takes no checkpoints, so the FLINK-25920 restore loop that bit the announce
+source in streaming jobs cannot occur here.
+
+**Tests.** `CplmHistoricalReplayJobTest` (new, 2): the bounded wiring passes `env.getStreamGraph()` in BATCH (the
+JobManager's pre-flight) with one source of parallelism 1; the legacy `addSource` wiring throws the exact
+IllegalStateException. RED (missing method) → GREEN; Flink suite 277 run / 0 failures / 2 skipped (Docker Maven).
+Lab 2026-10-03: with the new jar mounted into cplm-api the same POST that failed is **accepted** (HTTP 202, run
+cc6dd5e2, job 516b30ff, tier long, source iotdb); the lab TaskManager has 0 free slots (two duplicate jobs after a
+Docker restart), so the run waits there — completion is proven at the plant (6 free slots), step H of the runbook.
+
+**Delivery and provenance.** cplm-api uploads its own mounted jar for bounded runs (`CplmRecompute__JarPath` =
+host `src/flink/target/ams-flink-1.0-SNAPSHOT.jar`), so the fix reaches the plant by replacing that file (`cp`, not
+`mv`: the bind mount holds the inode) and restarting cplm-api. The seven engine jobs keep the image jar
+f7c99294e0767ea9; reconstruction manifests record the replay jar's hash in their provenance. The next Flink image
+release carries the same source, which closes the split.
+
+### Release v2.6.3 add-on — what to run (CHG-036)
+
+- Updated artifact: the host jar `/opt/AMS-open/src/flink/target/ams-flink-1.0-SNAPSHOT.jar` (replay/reconstruction only).
+- Steps: `release-out/v2.6.3-20261003/flink-replay-jar-patch3/STEPS.md` — checksum, rollback copy, `cp` over the
+  host jar, `docker restart traverse-cplm-api`, `sha256sum` inside the container = `26020dfd…`, then RUNBOOK step H.
+

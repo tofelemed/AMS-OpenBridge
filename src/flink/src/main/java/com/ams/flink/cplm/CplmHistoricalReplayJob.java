@@ -3,6 +3,8 @@ package com.ams.flink.cplm;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
@@ -12,8 +14,10 @@ import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsIni
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
+import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -37,6 +41,25 @@ public final class CplmHistoricalReplayJob {
     private static final long EVALUATION_PERIOD_MS = 5_000L;
 
     private CplmHistoricalReplayJob() {
+    }
+
+    /**
+     * The historian source declared BOUNDED. {@code env.addSource(SourceFunction)} declares every legacy
+     * source CONTINUOUS_UNBOUNDED whatever its run() does, and this job runs in BATCH (its Kafka branch
+     * is bounded by offsets), so the JobManager refused every historian-backed run at submit time:
+     * "Detected an UNBOUNDED source with the 'execution.runtime-mode' set to 'BATCH'" (Marun 2026-10-03,
+     * CHG-036). The public DataStreamSource constructor is the supported way to state the boundedness
+     * of a legacy source; BATCH mode takes no checkpoints, so the FLINK-25920 restore loop that bit the
+     * announce source in streaming jobs cannot occur here.
+     */
+    static DataStreamSource<CplmNormalizedSample> historianSource(StreamExecutionEnvironment env,
+                                                                   com.ams.flink.cplm.replay.IotDbBoundedSource fn) {
+        DataStreamSource<CplmNormalizedSample> s = new DataStreamSource<>(env,
+                TypeInformation.of(CplmNormalizedSample.class), new StreamSource<>(env.clean(fn)),
+                false, "cplm-historical-iotdb-source", Boundedness.BOUNDED);
+        s.uid("cplm-historical-iotdb-source");
+        s.setParallelism(1);
+        return s;
     }
 
     public static void main(String[] args) throws Exception {
@@ -100,11 +123,8 @@ public final class CplmHistoricalReplayJob {
         DataStream<CplmNormalizedSample> samples;
         if ("iotdb".equalsIgnoreCase(sourceKind)) {
             if (toMs <= fromMs) throw new IllegalArgumentException("--source iotdb needs --from-ms < --to-ms");
-            samples = env.addSource(new com.ams.flink.cplm.replay.IotDbBoundedSource(
-                            iotdbHost, iotdbPort, iotdbUser, iotdbPassword, site, loopId, loopType, fromMs, toMs))
-                    .name("cplm-historical-iotdb-source")
-                    .uid("cplm-historical-iotdb-source")
-                    .setParallelism(1);
+            samples = historianSource(env, new com.ams.flink.cplm.replay.IotDbBoundedSource(
+                            iotdbHost, iotdbPort, iotdbUser, iotdbPassword, site, loopId, loopType, fromMs, toMs));
         } else {
             samples = env
                     .fromSource(source, WatermarkStrategy.noWatermarks(), "cplm-historical-replay-source")

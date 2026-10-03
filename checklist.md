@@ -169,9 +169,17 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] vitest 281/281 · lint clean · build clean
 - [x] lab browser pass (FIC10302): 12h eyebrow / run id / request / pill; G5 detail 2 charts, 0 tables, 2 CSV buttons, 0 new console errors
 - [x] workbench reconstruction posts `source: 'iotdb'` (historian) — `api/cpm/evidence.test.ts` RED→GREEN; suite 282/282, lint clean
-- [ ] lab E2E: reconstruct a 12 h G5 run older than Kafka's 12 h retention from IoTDB (FIC10302 run 186dfeb9, window 2026-09-16 15:45 → 09-17 03:45 UTC; IoTDB holds 1,812 samples, Kafka none) — blocked on a free TaskManager slot (lab 16/16 used; two duplicate jobs to cancel)
+- [x] lab E2E, submit level: the historian POST is accepted on the patch-3 jar (202, run cc6dd5e2, job 516b30ff, tier long, source iotdb); before the fix the same POST was 502 (CHG-036). Completion needs a free TaskManager slot (lab 16/16, two duplicate jobs) → proven at the plant, runbook step H
+- [x] plant 2026-10-03 09:03 UTC: v2.6.3 deployed — checksums 19/19, overlay, cpm-11 (2 columns), both images, containers recreated, sourceCommit 5dc9dcf4, knobs 1073741824 / 3, Healthy + groupSplit False, frontend 200 + assets; step H → ANALYSIS_RUN_SUBMIT_FAILED → CHG-036
 - [x] release v2.6.3 = cplm-api (CHG-034) + ams-frontend (CHG-035), one bundle, replaces v2.6.2 (folder + rar removed) — manifest + builder tests 34/34; bundle `release-out/v2.6.3-20261003` (src-5dc9dcf4, both images, 16 ops files, VM-STEPS.md, SHA256SUMS 19/19 OK); frontend image assets carry the toggle and `source="iotdb"`, no "Data table / CSV"
-- [ ] plant deploy of v2.6.3; Ctrl+F5 proof; toggle + CSV + FAMILY_CHANGED proofs
+- [ ] plant: browser proofs (Ctrl+F5, toggle, CSV), next-day FAMILY_CHANGED in the tens
+
+## CHG-036 — historian-backed bounded runs refused by Flink (2026-10-03)
+
+- [x] `CplmHistoricalReplayJobTest` RED (missing `historianSource`) → GREEN 2/2; Flink suite 277 / 0 / 2 skipped (Docker Maven); jar `26020dfd4f78eb20`
+- [x] add-on `release-out/v2.6.3-20261003/flink-replay-jar-patch3/` (jar + SHA256SUMS + STEPS.md: cp over the host jar, restart cplm-api, no engine change)
+- [ ] plant: STEPS.md applied, container jar sha = 26020dfd, runbook step H → `accepted … source iotdb`, job runs and ends, `STANDARD/COMPLETE=N`, workbench shows the artifacts
+- [ ] next Flink image release carries this source (closes the engine/replay jar split)
 
 ## Verification status (last runs, lab)
 
