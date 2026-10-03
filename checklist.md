@@ -170,7 +170,7 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] lab browser pass (FIC10302): 12h eyebrow / run id / request / pill; G5 detail 2 charts, 0 tables, 2 CSV buttons, 0 new console errors
 - [x] workbench reconstruction posts `source: 'iotdb'` (historian) — `api/cpm/evidence.test.ts` RED→GREEN; suite 282/282, lint clean
 - [ ] lab E2E: reconstruct a 12 h G5 run older than Kafka's 12 h retention from IoTDB (FIC10302 run 186dfeb9, window 2026-09-16 15:45 → 09-17 03:45 UTC; IoTDB holds 1,812 samples, Kafka none) — blocked on a free TaskManager slot (lab 16/16 used; two duplicate jobs to cancel)
-- [ ] release v2.6.3 = cplm-api (CHG-034) + ams-frontend (CHG-035), one bundle, replaces v2.6.2 — manifest + builder tests 34/34; bundle build pending
+- [x] release v2.6.3 = cplm-api (CHG-034) + ams-frontend (CHG-035), one bundle, replaces v2.6.2 (folder + rar removed) — manifest + builder tests 34/34; bundle `release-out/v2.6.3-20261003` (src-5dc9dcf4, both images, 16 ops files, VM-STEPS.md, SHA256SUMS 19/19 OK); frontend image assets carry the toggle and `source="iotdb"`, no "Data table / CSV"
 - [ ] plant deploy of v2.6.3; Ctrl+F5 proof; toggle + CSV + FAMILY_CHANGED proofs
 
 ## Verification status (last runs, lab)
