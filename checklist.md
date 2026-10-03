@@ -158,7 +158,7 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] `releases/v2.6.2.txt` + VM steps 4a / 4e / 6e
 - [x] full cplm-api suite 2026-10-03: 219/221 green; the 2 failures are the lab (long-table GIN probe on Timescale-compressed chunks; config lifecycle timing right after the Docker restart, passes on re-run)
 - [x] lab injection 2026-10-03 (new image): 7 windows OSC, STI, STI, OSC, STI, STI, STI → 2 episodes / 1 FAMILY_CHANGED / captures OPEN x2 + CLOSE x1 (old lifecycle on the same input: 4 episodes / 3 closes)
-- [ ] fresh review; bundle `release-out/v2.6.2-<date>`
+- [x] fresh review 2026-10-03: 6 findings, all applied in f1171518 (candidate windows never escalate or move severity; closed rows carry no candidate; unjudged windows keep the candidate, documented; orphan sweep guarded; v2.6.2 steps carry the checkout guard + START_AMS_API); suite 218/218 without the two lab-bound tests; bundle `release-out/v2.6.2-20261003` (src-f1171518, checksums OK)
 - [ ] plant: overlay → cpm-11 → ownership → swap → proofs; next day `FAMILY_CHANGED` closes in the tens
 
 ## Verification status (last runs, lab)
