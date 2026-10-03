@@ -127,4 +127,6 @@ These are settled decisions (`MIGRATION_LOG.md` "Recorded Decisions", `src/Unifi
 
 we are in prod. we have deployed v2. noe we are upadting application and we must have to add changes - migration , service update and all 
 
-in the end changes_tracker.md mention list updated services , script to run for v3 
+in the end changes_tracker.md mention list updated services , script to run for version
+
+as we are deploying version as well - so need to maintain a prod_decision.md which we are doing in the maintanance like for example what retention we are using , what are we doing for performance - what issue we faced what change we done to do it - like the overall production settings in that file - so if we deploy this app to someother server so we should know all of this 
