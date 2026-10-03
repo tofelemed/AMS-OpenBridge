@@ -146,8 +146,9 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
   - [!] 5.4 measurement result (2026-09-30 / 10-02): TRANSIENT bounded as designed (1.75 GB, nothing older than 2.5 h) but EPISODE grew ~1 GB/day: 1,350 capture events/day from verdict-family flapping (348 FAMILY_CHANGED closes/day, 413 episodes under 1 h); disk hit 1.4 GB free on 10-02. Actions: evidence off again, EPISODE 90 → 2 d, evidence tables truncated (0 pinned), 34 orphaned checkpoint dirs (5 GB) deleted → 17 GB free. **Blocker before evidence returns: the capture policy must not open a new episode (and capture ~95 artifacts) on every family flip.**
   - [x] 5.4a evidence back ON 2026-10-02 13:19 UTC, bounded (EPISODE 2 d; cache stays 2 GiB because the compose overlay does not forward `Cplm__EvidenceTransientBudgetBytes` - pass-through owed in the next release); Long + Fusion cancelled cleanly and resubmitted
   - [ ] 5.4b 24 h measurement + headroom rule (`GATE_RESULTS` 14 via `INSERT ... ON CONFLICT DO UPDATE` if needed - the row exists only after cpm-10b)
-  - [ ] 5.5 `cpm-06` probe → stop → `cpm-10b` → start → probe → partition proofs
-  - [ ] 5.6 cron file updated; next-day partition drop + `df` confirmed
+  - [x] 5.5 (2026-10-03) `GATE_RESULTS` 14 set first; cpm-10b: short 0/8311 (6 h), long 40797/40797, gate 285353/308383 carried over; 3 x relkind p; all DEFAULTs 0; probe 25 ms → 112 ms (partition append, inside budget); cplm-api healthy
+  - [x] 5.6 (2026-10-03) cron drop-in installed (prune line 0); 12 GB free after the swap; next-day partition drop still to confirm
+  - [!] 5.7 found during 5.5: the Short job had been in a checkpoint restart loop since the 2 Oct ingestion stop (1,072 completed / 1,070 expired checkpoints, restarts every 10-30 min, event time 13 h behind, re-firing the same 448 windows, 46 short rows in 16 min). Fix as on 27 Sep: cancel, `traverse-cpa-flink-cplm-short` offsets to latest, resubmit (06:3x UTC). Watch: checkpoints completed rising with failed 0; short rows current
 
 ## Verification status (last runs, lab)
 
