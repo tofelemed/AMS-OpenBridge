@@ -185,7 +185,7 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] job reads `IOTDB_PASS` then `IOTDB_PASSWORD` — `historianCredentialsFollowTheFleetEnvNames` RED→GREEN; suite 278 / 0 / 2 skipped; add-on jar `01a54d9f99b4b385`
 - [x] plant 12:23 UTC: hand submission with `--site site1` + credentials → job 50d52c31 → `STANDARD/COMPLETE=3` for run b6c924cf — **reconstruction from IoTDB proven at the plant**; fourth cause = device path from the registry site
 - [x] job resolves the device from `--iotdb-device` / `--iotdb-root-prefix` / `LOOP_ROOT_PREFIX` / `root.site1.cpm` + SafeNode mirror — test RED→GREEN 4/4; cplm-api passes `--iotdb-device` — `CplmRecomputeOptionsTests` 4/4 (next image)
-- [ ] plant: final jar swap (cp + restart cplm-api; container sha 043a6456); runbook step H through cplm-api → `accepted … source iotdb`, `STANDARD/COMPLETE=N` → `accepted … source iotdb`, job runs and ends, `STANDARD/COMPLETE=N`, workbench shows the artifacts
+- [x] plant 2026-10-03 13:19 UTC: patch 4 swapped (container sha 043a6456, brokers kafka-1/kafka-2); step H through cplm-api (PIC10412, run 5d0d8ebf) → `accepted … source iotdb gate G5` (run 4d697f22, job 50c44fb0) → `STANDARD/COMPLETE=3` within 20 s — **CHG-036 closed at the plant; the workbench Reconstruct button works on any window the historian holds** → `accepted … source iotdb`, job runs and ends, `STANDARD/COMPLETE=N`, workbench shows the artifacts
 - [ ] next Flink image release carries this source (closes the engine/replay jar split)
 
 ## Verification status (last runs, lab)

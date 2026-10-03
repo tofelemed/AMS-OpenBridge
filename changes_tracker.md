@@ -2554,6 +2554,10 @@ mirror — never from the registry site (`historianDeviceFollowsTheWriterNotTheR
 `--iotdb-device` = its own `IotDb:LoopRootPrefix` + `SafeNode(loop)` (`HistorianDeviceIsTheWritersPrefixPlusTheSafeNodeName`,
 RED→GREEN, 4/4) — next image. Until then the jar's default prefix covers the plant.
 
+**Closed at the plant 2026-10-03 13:19 UTC.** Patch 4 swapped (container jar `043a6456`, overlay brokers), then the
+normal path — the request the workbench's Reconstruct button sends, nothing supplied by hand — for PIC10412 run
+5d0d8ebf: accepted (run 4d697f22, job 50c44fb0), `STANDARD/COMPLETE=3` within 20 s.
+
 ### Release v2.6.3 add-on — what to run (CHG-036)
 
 - Updated artifact: the host jar `/opt/AMS-open/src/flink/target/ams-flink-1.0-SNAPSHOT.jar` (replay/reconstruction only).
