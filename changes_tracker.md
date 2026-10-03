@@ -2493,8 +2493,8 @@ offered — the historian covers every window the historian keeps, which at the 
 
 ## CHG-036 — Historian-backed bounded runs were refused by Flink: the replay source is now declared BOUNDED (2026-10-03)
 
-**Scope:** `src/flink` only (`CplmHistoricalReplayJob.java`), one new test. Ships as the v2.6.3 add-on
-`release-out/v2.6.3-20261003/flink-replay-jar-patch3/` (jar sha256 `043a645633a56579…`: bounded source, IOTDB_PASS, writer device path; Flink suite 279 / 0 / 2 skipped), a host-file replacement — no
+**Scope:** `src/flink` only (`CplmHistoricalReplayJob.java`), one new test. Ships as the v2.6.3 add-on "replay jar patch 4"
+`release-out/v2.6.3-20261003/flink-replay-jar-patch4/` (jar sha256 `043a645633a56579…`: bounded source, IOTDB_PASS, writer device path; Flink suite 279 / 0 / 2 skipped), a host-file replacement — no
 Flink image swap, no job cancel or resubmit.
 
 **What was wrong.** Found at Marun during the v2.6.3 test (step H) and reproduced in the lab: every
@@ -2557,7 +2557,7 @@ RED→GREEN, 4/4) — next image. Until then the jar's default prefix covers the
 ### Release v2.6.3 add-on — what to run (CHG-036)
 
 - Updated artifact: the host jar `/opt/AMS-open/src/flink/target/ams-flink-1.0-SNAPSHOT.jar` (replay/reconstruction only).
-- Steps: `release-out/v2.6.3-20261003/flink-replay-jar-patch3/STEPS.md` — checksum, rollback copy, `cp` over the
+- Steps: `release-out/v2.6.3-20261003/flink-replay-jar-patch4/STEPS.md` — checksum, rollback copy, `cp` over the
   host jar, then the overlay line `CplmRecompute__BootstrapServers: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092}`
   under cplm-api, `deploy.sh --prod` (recreates cplm-api), `printenv CplmRecompute__BootstrapServers` in the container,
   `sha256sum` inside the container = `043a6456…`, then RUNBOOK step H.
