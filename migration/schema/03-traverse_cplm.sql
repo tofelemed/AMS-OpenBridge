@@ -961,3 +961,16 @@ INSERT INTO analytics.retention_policy (record_class, days) VALUES ('EPISODE', 9
 ON CONFLICT (record_class) DO NOTHING;
 COMMENT ON TABLE analytics.retention_policy IS
     'Evidence retention by record class (days; NULL = never). STANDARD: reconstructions. EPISODE: captured at an episode transition, counted from the episode close. PINNED: never. TRANSIENT (every live artifact) is bounded by cplm-api Cplm:EvidenceTransientHours / Cplm:EvidenceTransientBudgetBytes, not by a row here. SHORT_FEATURES / LONG_FEATURES / GATE_RESULTS: result-table partition retention (cpm-10b).';
+
+-- ---- CHG-034: family-change debounce (mirror of database/scripts/62_cplm_episode_debounce.sql) ----
+-- ── CHG-034: a different fault family is a candidate until it has held ───────
+-- Marun 2026-10-02: fused verdicts flipped fault family between consecutive 15-min windows on many
+-- loops (580 episodes opened / 481 closed a day, 348 closes FAMILY_CHANGED, 413 episodes under an
+-- hour), and every flip captured ~95 evidence artifacts. The lifecycle now keeps the episode open
+-- under its family and counts the other family; after Cplm:FamilyChangeWindows (3) consecutive
+-- windows the episode closes FAMILY_CHANGED and the new one opens, as before.
+ALTER TABLE analytics.cplm_event_frames
+    ADD COLUMN IF NOT EXISTS candidate_family  VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS candidate_windows INT NOT NULL DEFAULT 0;
+COMMENT ON COLUMN analytics.cplm_event_frames.candidate_family IS
+    'CHG-034: a fault family seen instead of this episode''s, not yet settled; takes over after Cplm:FamilyChangeWindows consecutive windows.';

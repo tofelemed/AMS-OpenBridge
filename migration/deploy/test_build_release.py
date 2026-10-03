@@ -221,7 +221,7 @@ def test_v261_steps_set_the_env_switches_before_the_flink_swap_and_do_not_resubm
     swap = steps.index("deploy.sh --prod")
     assert steps.index(evidence) < swap and steps.index(parallel) < swap
     assert steps.index("tar -xzf") < steps.index(evidence)
-    assert "flink cancel" not in steps
+    assert "flink cancel" not in steps[steps.index("deploy.sh --prod"):]     # 6c must not cancel again (step 5 cancels before the swap)
     assert "SEVEN" in steps
     assert steps.index("docker rm -f ams-flink-taskmanager ams-flink-jobmanager") < swap
     assert "slots-available" in steps
@@ -248,3 +248,45 @@ def test_v26_steps_export_start_ams_api_like_every_plant_deploy():
     assert "ALLOW_FLINK_SUBMIT=yes" not in exports        # cplm-api only: no Flink submit (the comment mentions the flag)
     exports = line_with(v261_steps(), "export START_AMS_API=yes")
     assert "ALLOW_FLINK_SUBMIT=yes" in exports
+
+
+# ── CHG-034 release items ─────────────────────────────────────────────────────
+def test_flink_swap_cancels_every_job_before_removing_the_jobmanager_and_sweeps_orphans():
+    # 2026-10-02: a killed JobManager leaves every job's last checkpoint behind (34 orphans, 5 GB); cancelled jobs keep
+    # one too (RETAIN_ON_CANCELLATION), so the resubmit is followed by an orphan sweep against the running ids
+    steps = v261_steps()
+    cancel = steps.index("flink cancel")
+    assert cancel < steps.index("docker rm -f ams-flink-taskmanager ams-flink-jobmanager")
+    assert "/data/ams-flink/checkpoints" in steps
+    assert steps.index("/data/ams-flink/checkpoints") > steps.index("deploy.sh --prod")
+
+
+def test_plant_compose_forwards_the_cplm_evidence_and_episode_knobs():
+    text = (HERE.parent / "deploy" / "docker-compose.marun.yml").read_text(encoding="utf-8") if (HERE.parent / "deploy").is_dir() else (HERE / "docker-compose.marun.yml").read_text(encoding="utf-8")
+    for key in ("Cplm__EvidenceTransientHours", "Cplm__EvidenceTransientBudgetBytes", "Cplm__EvidenceSweepIntervalMinutes",
+                "Cplm__EpisodeCaptureMax", "Cplm__FamilyChangeWindows"):
+        assert f"{key}: ${{{key}:-" in text, key
+
+
+# ── v2.6.2 (CHG-034 family-change debounce; cplm-api only) ───────────────────
+def v262_steps() -> str:
+    return br.vm_steps("v2.6.2", "abc1234", CPLM_ROWS, False, ["cplm-api"], False, False, False, True)
+
+
+def test_v262_manifest_is_cplm_api_only_with_the_debounce_directive():
+    services, flags = br.read_manifest("v2.6.2")
+    assert services == ["cplm-api"]
+    assert "v262-debounce" in flags and "v26-retention" not in flags
+
+
+def test_v262_steps_overlay_then_cpm11_before_the_swap_and_prove_the_knobs_after():
+    steps = v262_steps()
+    sync = steps.index("tar -xzf /tmp/v2.6.2/src-abc1234.tar.gz -C /opt/AMS-open")
+    schema = steps.index("cpm-11-episode-debounce.sql")
+    own = steps.index("02-apply-schemas.sh")
+    swap = steps.index("deploy.sh --prod")
+    assert sync < schema < own < swap
+    assert steps.index("Cplm__FamilyChangeWindows", sync) < swap          # the compose pass-through is checked right after the overlay
+    assert steps.index("printenv Cplm__EvidenceTransientBudgetBytes") > swap
+    assert "cpm-10a" not in steps and "cpm-10b" not in steps               # v2.6 steps are not repeated
+    assert "FAMILY_CHANGED" in steps                                      # the proof query on episode churn

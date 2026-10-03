@@ -44,6 +44,8 @@ public sealed class CplmEventFrameService : BackgroundService
     private readonly SingleMemberGuard _guard;
     /// <summary>CHG-033: OPEN + ESCALATE evidence captures allowed per episode (CLOSE always captures).</summary>
     private readonly int _captureMax;
+    /// <summary>CHG-034: consecutive windows a different family must hold before the episode changes hands.</summary>
+    private readonly int _familyChangeWindows;
     private static int _schemaEnsured;
 
     public CplmEventFrameService(
@@ -57,6 +59,7 @@ public sealed class CplmEventFrameService : BackgroundService
     {
         _logger = logger;
         _captureMax = Math.Max(0, config.GetValue("Cplm:EpisodeCaptureMax", 3));
+        _familyChangeWindows = Math.Max(1, config.GetValue("Cplm:FamilyChangeWindows", EventFrameLifecycle.FamilyChangeWindows));
         _dataSource = dataSource;
         _options = cplmOptions.Value;
         _heartbeat = heartbeat;
@@ -179,7 +182,7 @@ public sealed class CplmEventFrameService : BackgroundService
         // CHG-033: the frame row and its evidence capture land together or not at all.
         await using var tx = await conn.BeginTransactionAsync(ct);
         var open = await ReadOpenAsync(conn, tx, v);
-        var t = EventFrameLifecycle.Apply(open.State, v);
+        var t = EventFrameLifecycle.Apply(open.State, v, _familyChangeWindows);
         switch (t.Kind)
         {
             case TransitionKind.Ignore:
@@ -222,7 +225,7 @@ public sealed class CplmEventFrameService : BackgroundService
         var r = await conn.QueryFirstOrDefaultAsync("""
             SELECT id, family, opened_at, closed_at, peak_diagnosis, peak_confidence, last_diagnosis, last_confidence,
                    severity, window_count, availability_state, condition_state, qualified_support_ms, support_until,
-                   result_revision, close_reason
+                   result_revision, close_reason, candidate_family, candidate_windows
             FROM analytics.cplm_event_frames
             WHERE loop_id = @loopId AND window_kind = @windowKind AND closed_at IS NULL
             ORDER BY opened_at DESC LIMIT 1
@@ -232,7 +235,8 @@ public sealed class CplmEventFrameService : BackgroundService
             (string)r.family, (DateTime)r.opened_at, (DateTime?)r.closed_at, (string)r.peak_diagnosis, (double)r.peak_confidence,
             (string?)r.last_diagnosis, (double?)r.last_confidence, (string?)r.severity, (int)r.window_count,
             (string?)r.availability_state ?? "OBSERVED", (string?)r.condition_state ?? "OPEN",
-            (long?)r.qualified_support_ms ?? 0, (DateTime?)r.support_until, (int?)r.result_revision ?? 1, (string?)r.close_reason));
+            (long?)r.qualified_support_ms ?? 0, (DateTime?)r.support_until, (int?)r.result_revision ?? 1, (string?)r.close_reason,
+            (string?)r.candidate_family, (int?)r.candidate_windows ?? 0));
     }
 
     private static Task<long> InsertAsync(NpgsqlConnection conn, NpgsqlTransaction tx, GateVerdict v, FrameState f) => conn.ExecuteScalarAsync<long>("""
@@ -270,14 +274,15 @@ public sealed class CplmEventFrameService : BackgroundService
             last_diagnosis = @last, last_confidence = @lastConfidence, severity = @severity,
             window_count = @windowCount, availability_state = @availability, condition_state = @condition,
             qualified_support_ms = @supportMs, support_until = @supportUntil, result_revision = @revision,
-            close_reason = @closeReason, updated_at = NOW()
+            close_reason = @closeReason, candidate_family = @candidateFamily, candidate_windows = @candidateWindows, updated_at = NOW()
         WHERE id = @id
         """, new
         {
             id, closedAt = f.ClosedAt, peak = f.PeakDiagnosis, peakConfidence = f.PeakConfidence,
             last = f.LastDiagnosis, lastConfidence = f.LastConfidence, severity = f.Severity, windowCount = f.WindowCount,
             availability = f.AvailabilityState, condition = f.ConditionState, supportMs = f.QualifiedSupportMs,
-            supportUntil = f.SupportUntil, revision = f.ResultRevision, closeReason = f.CloseReason
+            supportUntil = f.SupportUntil, revision = f.ResultRevision, closeReason = f.CloseReason,
+            candidateFamily = f.CandidateFamily, candidateWindows = f.CandidateWindows
         }, tx);
 
     /// <summary>Kept for callers that only need the family (CpmEventsController).</summary>
@@ -378,6 +383,10 @@ public sealed class CplmEventFrameService : BackgroundService
                     PRIMARY KEY (episode_id, method_run_id));
                 CREATE INDEX IF NOT EXISTS ix_cplm_episode_capture_run ON analytics.cplm_episode_capture (method_run_id);
                 CREATE INDEX IF NOT EXISTS ix_cplm_episode_capture_at  ON analytics.cplm_episode_capture (captured_at);
+                -- CHG-034 (62_cplm_episode_debounce.sql parity): a different family is a candidate until it has held.
+                ALTER TABLE analytics.cplm_event_frames
+                    ADD COLUMN IF NOT EXISTS candidate_family  VARCHAR(64),
+                    ADD COLUMN IF NOT EXISTS candidate_windows INT NOT NULL DEFAULT 0;
                 """);
             _logger.LogInformation("CPLM event-frame schema ensured");
         }

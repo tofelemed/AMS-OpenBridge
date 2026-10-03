@@ -66,6 +66,7 @@ OPS_FILES = [
     "scripts/cpm-09-event-shelving.sql",           # CHG-032     - episode shelving lifecycle + action history (BEFORE the cplm-api swap)
     "scripts/cpm-10a-episode-evidence.sql",        # CHG-033     - episode capture ledger + EPISODE class (online, BEFORE the cplm-api swap)
     "scripts/cpm-10b-result-partitions.sql",       # CHG-033     - the three result tables as daily partitions (cplm-api STOPPED, after the 24 h measurement)
+    "scripts/cpm-11-episode-debounce.sql",         # CHG-034     - candidate_family / candidate_windows on the frames (online, BEFORE the cplm-api swap)
     "scripts/set-quality-protocol.py",             # v2.5        - declare quality_protocol on every MQTT_LOOP_SAMPLES source
     "migration/kafka/topics.txt",                  # v2.5        - the 8 new topics (reference copy; 04 reads the extracted tree's)
 ]
@@ -119,9 +120,9 @@ def read_manifest(release: str) -> tuple[list[str], set[str]]:
     unknown = [s for s in services if s not in BUILD_SERVICES and s != "ams-api"]
     if unknown:
         sys.exit(f"{path.name}: unknown compose service(s) {unknown} - must be in prodimages.BUILD_SERVICES")
-    unknown_flags = flags - {"data-load", "v25-upgrade", "v26-retention"}
+    unknown_flags = flags - {"data-load", "v25-upgrade", "v26-retention", "v262-debounce"}
     if unknown_flags:
-        sys.exit(f"{path.name}: unknown directive(s) {sorted(unknown_flags)} - only !data-load, !v25-upgrade and !v26-retention are defined")
+        sys.exit(f"{path.name}: unknown directive(s) {sorted(unknown_flags)} - only !data-load, !v25-upgrade, !v26-retention and !v262-debounce are defined")
     return services, flags
 
 
@@ -300,7 +301,7 @@ POST_CHECKS: dict[str, str] = {
 
 
 def vm_steps(release: str, commit: str, rows: list[tuple[str, str, str]],
-             has_flink: bool, services: list[str], data_load: bool, v25: bool = False, v26: bool = False) -> str:
+             has_flink: bool, services: list[str], data_load: bool, v25: bool = False, v26: bool = False, v262: bool = False) -> str:
     images = []
     for _, image, _ in rows:
         if image not in images:
@@ -340,10 +341,17 @@ def vm_steps(release: str, commit: str, rows: list[tuple[str, str, str]],
 #    submit_if_missing, so with the old JobManager still up it prints [OK] for every job
 #    while they keep executing the OLD jar. Removing both containers is mandatory.
 cp /tmp/{release}/{FLINK_JAR.name} /opt/AMS-open/src/flink/target/{FLINK_JAR.name}
+#    cancel every job BEFORE removing the JobManager (2026-10-02: a killed JobManager left every job's last checkpoint
+#    behind - 34 orphans, 5 GB); cancelled jobs keep one checkpoint too (RETAIN_ON_CANCELLATION), swept after the resubmit
+for id in $(docker exec ams-flink-jobmanager flink list -m localhost:8081 2>/dev/null | grep -oE '[0-9a-f]{{32}}'); do docker exec ams-flink-jobmanager flink cancel -m localhost:8081 $id 2>/dev/null; done
 docker rm -f ams-flink-taskmanager ams-flink-jobmanager
 {ams_api_env}bash migration/deploy/deploy.sh --prod 2>&1 | tail -8          # 04b resubmits all {job_count} jobs
 docker exec ams-flink-jobmanager flink list -m localhost:8081  # {"7 x RUNNING (4 + Condition, Instrument Context, Response)" if (v25 or v26) else "4 x RUNNING"}, start times = now
 #
+#    orphaned checkpoints of the jobs just replaced (running ids are excluded; run it ~2 min after the resubmit):
+docker exec ams-flink-jobmanager flink list -m localhost:8081 2>/dev/null | grep -oE '[0-9a-f]{{32}}' | sort > /tmp/{release}/running-jobs.txt
+for id in $(docker exec ams-minio sh -c 'ls /data/ams-flink/checkpoints/' | sort | comm -23 - /tmp/{release}/running-jobs.txt); do docker exec ams-minio rm -rf /data/ams-flink/checkpoints/$id; done
+docker exec ams-minio sh -c 'du -sh /data/ams-flink/checkpoints'                           # the running jobs' checkpoints only
 #    Do NOT run `compose up flink-job-submit-cplm` here: that service is profiled
 #    lab-alarm and is absent from the cpa profile. On Marun 04b is the only submit path.
 #    COST: no HA and no `-s <savepoint>` means the jobs return with FRESH window state.
@@ -504,6 +512,26 @@ docker logs --since 5m traverse-cplm-api 2>&1 | grep -E 'Partitions|schema ensur
 sudo cp migration/cron.d/cpa-capacity /etc/cron.d/cpa-capacity && grep -c '^[^#].*prune-short-features' /etc/cron.d/cpa-capacity   # 0 (the comment line does not count)
 #    next day: the oldest partition is gone and df moved.
 """
+    v262_block = ""
+    v262_post_block = ""
+    if v262:
+        v262_block = f"""
+# 4a. v2.6.2 source tree - BEFORE anything below: the compose overlay (the Cplm__* knobs) and the daily check are files, not images.
+cp /opt/AMS-open/migration/.env /tmp/{release}/env-backup-$(date +%Y%m%d%H%M)
+tar -xzf /tmp/{release}/src-{commit}.tar.gz -C /opt/AMS-open
+echo {commit} > /opt/AMS-open/RELEASE-COMMIT
+grep -c Cplm__FamilyChangeWindows migration/deploy/docker-compose.marun.yml   # 1: the knobs are forwarded from .env
+# 4e. CHG-034 schema - online, additive, BEFORE the image swap (two columns on cplm_event_frames):
+docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-11-episode-debounce.sql
+bash migration/02-apply-schemas.sh
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select count(*) from information_schema.columns where table_name='cplm_event_frames' and column_name in ('candidate_family','candidate_windows')"   # 2
+"""
+        v262_post_block = f"""
+# 6e. CHG-034 proofs - the knobs reach the container, and episode churn falls over the next day:
+docker exec traverse-cplm-api printenv Cplm__EvidenceTransientBudgetBytes Cplm__FamilyChangeWindows   # the .env values (defaults 2147483648 / 3)
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "select close_reason, count(*) from analytics.cplm_event_frames where closed_at > now() - interval '24 hours' group by 1 order by 2 desc"   # FAMILY_CHANGED in the tens tomorrow, not hundreds
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "select count(*) filter (where candidate_family is not null) candidates, count(*) open_now from analytics.cplm_event_frames where closed_at is null"
+"""
     data_block = ""
     if data_load:
         data_block = f"""
@@ -543,14 +571,14 @@ docker images --no-trunc --format '{{{{.ID}}}} {{{{.Repository}}}}:{{{{.Tag}}}}'
 # 3. disk headroom - this host has filled four times; a load with no room corrupts more
 #    than it deploys. Want >= 20 GB free before starting.
 df -h /
-{v25_block}{v26_block}
+{v25_block}{v26_block}{v262_block}
 # 4. load
 {loads}
 {flink}
 # 6. sync repo files that changed (compose/env/scripts) - rule 1: the repo is the truth
 #    then recreate only what changed:
 {ams_api_env}bash migration/deploy/deploy.sh --prod 2>&1 | tail -8{rename_trap}
-{v25_config_block}{v26_post_block}{data_block}
+{v25_config_block}{v26_post_block}{v262_post_block}{data_block}
 # 8. post-update checks (UPDATE-RUNBOOK sec.1 table) - for {release} specifically:
 {checks}
 """
@@ -620,7 +648,7 @@ def main() -> int:
     files.append(make_source_archive(out, commit, args.dry_run))
 
     steps = vm_steps(args.release, commit, rows, has_flink, services, "data-load" in flags, "v25-upgrade" in flags,
-                     "v26-retention" in flags)
+                     "v26-retention" in flags, "v262-debounce" in flags)
     if not args.dry_run:
         (out / "VM-STEPS.md").write_text(steps, encoding="utf-8", newline="\n")
         write_sums(out, files)

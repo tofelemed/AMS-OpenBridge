@@ -34,7 +34,10 @@ public sealed record FrameState(
     /// <summary>End of the support covered so far; a window starting at or after it is a new, disjoint window.</summary>
     DateTime? SupportUntil,
     int ResultRevision,
-    string? CloseReason = null);
+    string? CloseReason = null,
+    /// <summary>CHG-034: a fault family seen instead of ours, not yet settled; it takes over after FamilyChangeWindows consecutive windows.</summary>
+    string? CandidateFamily = null,
+    int CandidateWindows = 0);
 
 /// <summary>What the lifecycle needs from one fused verdict.</summary>
 public sealed record GateVerdict(
@@ -71,6 +74,10 @@ public sealed record Transition(TransitionKind Kind, FrameState? Frame, string R
 /// </summary>
 public static class EventFrameLifecycle
 {
+    /// <summary>CHG-034: consecutive windows a different fault family must hold before the episode changes hands (Marun flipped
+    /// families window to window: 348 FAMILY_CHANGED closes a day, each one an evidence capture). 3 windows = 45 minutes.</summary>
+    public const int FamilyChangeWindows = 3;
+
     public static ResultClass Classify(string? diagnosis)
     {
         if (string.IsNullOrWhiteSpace(diagnosis)) return ResultClass.Unobservable;
@@ -93,7 +100,9 @@ public static class EventFrameLifecycle
     public static int BandRank(string? severity) =>
         severity?.Trim().ToUpperInvariant() switch { "LOW" => 1, "MEDIUM" => 2, "HIGH" => 3, _ => 0 };
 
-    public static Transition Apply(FrameState? open, GateVerdict v)
+    public static Transition Apply(FrameState? open, GateVerdict v) => Apply(open, v, FamilyChangeWindows);
+
+    public static Transition Apply(FrameState? open, GateVerdict v, int familyChangeWindows)
     {
         var cls = Classify(v.Diagnosis);
         switch (cls)
@@ -130,11 +139,19 @@ public static class EventFrameLifecycle
                 var family = FamilyOf(v.Diagnosis!);
                 if (open is null)
                     return new Transition(TransitionKind.Open, Open(family, v), "OPENED");
-                if (open.Family != family)
-                    return new Transition(TransitionKind.CloseAndOpen, Open(family, v), "FAMILY_CHANGED",
-                        Closed: Close(open, v, "FAMILY_CHANGED"));
                 var kind = BandRank(v.Severity) > BandRank(open.Severity) ? TransitionKind.Escalate : TransitionKind.Extend;
-                return new Transition(kind, Extend(open, v), kind == TransitionKind.Escalate ? "ESCALATED" : "EXTENDED");
+                if (open.Family != family)
+                {
+                    // CHG-034: a different family is a candidate until it has held for familyChangeWindows windows in a row
+                    var held = open.CandidateFamily == family ? open.CandidateWindows + 1 : 1;
+                    if (held >= Math.Max(1, familyChangeWindows))
+                        return new Transition(TransitionKind.CloseAndOpen, Open(family, v), "FAMILY_CHANGED",
+                            Closed: Close(open, v, "FAMILY_CHANGED"));
+                    var pending = Extend(open, v, peakEligible: false) with { CandidateFamily = family, CandidateWindows = held };
+                    return new Transition(kind, pending, kind == TransitionKind.Escalate ? "ESCALATED" : "FAMILY_CANDIDATE");
+                }
+                var extended = Extend(open, v, peakEligible: true) with { CandidateFamily = null, CandidateWindows = 0 };
+                return new Transition(kind, extended, kind == TransitionKind.Escalate ? "ESCALATED" : "EXTENDED");
             }
         }
     }
@@ -154,7 +171,7 @@ public static class EventFrameLifecycle
         CloseReason = reason,
     };
 
-    private static FrameState Extend(FrameState open, GateVerdict v)
+    private static FrameState Extend(FrameState open, GateVerdict v, bool peakEligible = true)
     {
         // Support union: only the part of this window past what the episode already covers.
         var coveredUntil = open.SupportUntil ?? v.WindowStart;
@@ -165,7 +182,7 @@ public static class EventFrameLifecycle
         double fraction = Math.Min(1.0, Math.Max(0.0, v.QualifiedSupportMs / spanMs));
         added = (long)Math.Round(added * fraction);
         bool disjoint = open.SupportUntil is null || v.WindowStart >= open.SupportUntil;
-        bool peakUp = v.Confidence > open.PeakConfidence;
+        bool peakUp = peakEligible && v.Confidence > open.PeakConfidence;   // a candidate family's verdict never becomes this episode's peak
         return open with
         {
             PeakDiagnosis = peakUp ? v.Diagnosis! : open.PeakDiagnosis,

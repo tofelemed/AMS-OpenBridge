@@ -137,10 +137,28 @@ public sealed class EventFrameLifecycleTests
     }
 
     [Fact]
-    public void A_different_family_closes_the_old_frame_and_opens_a_new_one()
+    public void A_different_family_becomes_a_candidate_and_does_not_close_the_frame()
     {
+        // CHG-034: Marun flipped fault families window to window (348 FAMILY_CHANGED closes a day); a new family must hold
+        // for FamilyChangeWindows consecutive windows before the episode changes hands
         var end = T0.AddDays(2);
         var t = EventFrameLifecycle.Apply(OpenFrame("OSCILLATION"), Verdict("SUSPECTED_FINAL_ELEMENT_NONLINEARITY", 0.8, T0.AddDays(1), end));
+        t.Kind.Should().Be(TransitionKind.Extend);
+        t.Reason.Should().Be("FAMILY_CANDIDATE");
+        t.Closed.Should().BeNull();
+        t.Frame!.Family.Should().Be("OSCILLATION");
+        t.Frame.ConditionState.Should().Be("OPEN");
+        t.Frame.CandidateFamily.Should().Be("FINAL_ELEMENT_NONLINEARITY");
+        t.Frame.CandidateWindows.Should().Be(1);
+        t.Frame.LastDiagnosis.Should().Be("SUSPECTED_FINAL_ELEMENT_NONLINEARITY");
+    }
+
+    [Fact]
+    public void The_candidate_family_takes_over_after_three_consecutive_windows()
+    {
+        var end = T0.AddDays(2);
+        var open = OpenFrame("OSCILLATION") with { CandidateFamily = "FINAL_ELEMENT_NONLINEARITY", CandidateWindows = 2 };
+        var t = EventFrameLifecycle.Apply(open, Verdict("SUSPECTED_FINAL_ELEMENT_NONLINEARITY", 0.8, T0.AddDays(1), end));
         t.Kind.Should().Be(TransitionKind.CloseAndOpen);
         t.Closed!.ConditionState.Should().Be("CLOSED");
         t.Closed.CloseReason.Should().Be("FAMILY_CHANGED");
@@ -148,6 +166,8 @@ public sealed class EventFrameLifecycleTests
         t.Frame!.Family.Should().Be("FINAL_ELEMENT_NONLINEARITY");
         t.Frame.WindowCount.Should().Be(1);
         t.Frame.OpenedAt.Should().Be(end);
+        t.Frame.CandidateFamily.Should().BeNull();
+        t.Frame.CandidateWindows.Should().Be(0);
     }
 
     [Fact]
@@ -190,11 +210,40 @@ public sealed class EventFrameLifecycleTests
     }
 
     [Fact]
-    public void A_family_change_closes_and_opens_whatever_the_band_does()
+    public void A_settled_family_change_closes_and_opens_whatever_the_band_does()
     {
-        var t = EventFrameLifecycle.Apply(OpenFrame() with { Severity = "LOW" },
+        var t = EventFrameLifecycle.Apply(OpenFrame() with { Severity = "LOW", CandidateFamily = "STICTION", CandidateWindows = 2 },
             Verdict("SUSPECTED_STICTION", 0.85, T0.AddDays(1), T0.AddDays(2), severity: "HIGH"));
         t.Kind.Should().Be(TransitionKind.CloseAndOpen);
+    }
+
+    [Fact]
+    public void Returning_to_the_frames_own_family_resets_the_candidate()
+    {
+        var open = OpenFrame("OSCILLATION") with { CandidateFamily = "STICTION", CandidateWindows = 2 };
+        var t = EventFrameLifecycle.Apply(open, Verdict("SUSPECTED_OSCILLATION", 0.85, T0.AddDays(1), T0.AddDays(2)));
+        t.Kind.Should().Be(TransitionKind.Extend);
+        t.Frame!.CandidateFamily.Should().BeNull();
+        t.Frame.CandidateWindows.Should().Be(0);
+    }
+
+    [Fact]
+    public void A_third_family_restarts_the_candidate_count()
+    {
+        var open = OpenFrame("OSCILLATION") with { CandidateFamily = "STICTION", CandidateWindows = 2 };
+        var t = EventFrameLifecycle.Apply(open, Verdict("SUSPECTED_TUNING", 0.85, T0.AddDays(1), T0.AddDays(2)));
+        t.Kind.Should().Be(TransitionKind.Extend);
+        t.Frame!.CandidateFamily.Should().Be("TUNING");
+        t.Frame.CandidateWindows.Should().Be(1);
+    }
+
+    [Fact]
+    public void A_candidate_window_with_a_higher_band_still_escalates()
+    {
+        var open = OpenFrame("OSCILLATION") with { Severity = "LOW" };
+        var t = EventFrameLifecycle.Apply(open, Verdict("SUSPECTED_STICTION", 0.85, T0.AddDays(1), T0.AddDays(2), severity: "HIGH"));
+        t.Kind.Should().Be(TransitionKind.Escalate);
+        t.Frame!.CandidateFamily.Should().Be("STICTION");
     }
 
     [Fact]

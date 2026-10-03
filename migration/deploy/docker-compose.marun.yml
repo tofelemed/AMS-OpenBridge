@@ -179,6 +179,12 @@ services:
       <<: *kafka-env
       ConnectionStrings__CplmDb: Host=${POSTGRES_HOST:-instrumental-postgres};Port=5432;Database=traverse_cplm;Username=${AMS_DB_USER:-ams_user};Password=${POSTGRES_PASSWORD}
       Cplm__ConsumersEnabled: "true"
+      # CHG-033 / CHG-034 knobs, forwarded from migration/.env under the same names (defaults = the code's):
+      Cplm__EvidenceTransientHours: ${Cplm__EvidenceTransientHours:-6}
+      Cplm__EvidenceTransientBudgetBytes: ${Cplm__EvidenceTransientBudgetBytes:-2147483648}
+      Cplm__EvidenceSweepIntervalMinutes: ${Cplm__EvidenceSweepIntervalMinutes:-15}
+      Cplm__EpisodeCaptureMax: ${Cplm__EpisodeCaptureMax:-3}
+      Cplm__FamilyChangeWindows: ${Cplm__FamilyChangeWindows:-3}
 
   historian-bff:
     <<: *cpa

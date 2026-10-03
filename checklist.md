@@ -150,6 +150,15 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
   - [x] 5.6 (2026-10-03) cron drop-in installed (prune line 0); 12 GB free after the swap; next-day partition drop still to confirm
   - [!] 5.7 found during 5.5: the Short job had been in a checkpoint restart loop since the 2 Oct ingestion stop (1,072 completed / 1,070 expired checkpoints, restarts every 10-30 min, event time 13 h behind, re-firing the same 448 windows, 46 short rows in 16 min). Fix as on 27 Sep: cancel, `traverse-cpa-flink-cplm-short` offsets to latest, resubmit (06:3x UTC). Watch: checkpoints completed rising with failed 0; short rows current
 
+## CHG-034 / v2.6.2 — family-change debounce (started 2026-10-03)
+
+- [x] lifecycle: candidate family + takeover after `Cplm:FamilyChangeWindows` (3) — `EventFrameLifecycleTests` 20/20
+- [x] frame service persists `candidate_family` / `candidate_windows`; self-heal DDL; `cpm-11` plant script + `62_` lab + `03`
+- [x] plant compose forwards the five `Cplm__*` knobs; VM steps cancel every job before `docker rm -f` JM/TM and sweep orphan checkpoints — `test_build_release.py` 30/30
+- [x] `releases/v2.6.2.txt` + VM steps 4a / 4e / 6e
+- [ ] full cplm-api suite; lab injection (OSCILLATION open → STICTION x2 stays, x3 changes hands); fresh review; bundle `release-out/v2.6.2-<date>`
+- [ ] plant: overlay → cpm-11 → ownership → swap → proofs; next day `FAMILY_CHANGED` closes in the tens
+
 ## Verification status (last runs, lab)
 
 | Suite / script | Result | When |

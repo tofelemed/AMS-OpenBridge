@@ -1782,6 +1782,15 @@ Flink job args `--evidence-emit ALL|EPISODES|NONE`, `--g12-delay-min-s`, `--gate
 
 ---
 
+## Release v2.6.2 — what to build and run (CHG-034 family-change debounce)
+
+**Updated service: `cplm-api`** (the only image; no Flink jar). Build: `python migration/deploy/build-release.py --release v2.6.2`
+(manifest `migration/deploy/releases/v2.6.2.txt`). Scripts and steps at the plant, in order: extract the source archive
+(the compose overlay now forwards the `Cplm__*` knobs; the daily check ships) → `ops/cpm-11-episode-debounce.sql` (online)
+→ `bash migration/02-apply-schemas.sh` → image swap (`deploy.sh --prod`) → proofs (`printenv Cplm__FamilyChangeWindows`,
+`FAMILY_CHANGED` closes per day falling to the tens). Details:
+[CHG-034](#chg-034--episodes-no-longer-flip-with-the-fault-family-2026-10-03).
+
 ## Release v2.6.1 — what to build and run (v2.6 + Flink patch 2, one deployment)
 
 The user's call on 2026-09-27: deploy the patch-2 jar and v2.6 together. **Updated services: `flink-jobmanager` (the
@@ -2401,3 +2410,31 @@ not space. Pre-existing and untouched: `ConfigEffectiveSummaryTests` races the c
 `CpmConfigurationController.ShapeSummary` line 277 when a bundle field is null mid-mutation) - failed twice in eight full runs,
 passes alone.
 
+## CHG-034 — Episodes no longer flip with the fault family (2026-10-03)
+
+**Scope:** `cplm-api` (`EventFrameLifecycle`, `CplmEventFrameService`), one online plant SQL step (`scripts/cpm-11-episode-debounce.sql`,
+mirrors `database/scripts/62_…` and `migration/schema/03`), the plant compose overlay, the release builder, the daily check.
+
+**What was wrong.** At Marun the fused diagnosis flips fault family between consecutive 15-minute windows on many loops. The
+lifecycle keyed an episode on the family, so each flip closed one episode (`FAMILY_CHANGED`) and opened another: 580 opened and
+481 closed per day, 413 shorter than an hour, 348 closes `FAMILY_CHANGED`; and since v2.6 every OPEN and CLOSE captured ~95
+artifacts, the EPISODE evidence class grew ~1 GB a day (the 2 October disk incident).
+
+**What changed.** A verdict of a different family no longer closes the open episode. The episode records it as the candidate
+family and counts consecutive windows (`candidate_family`, `candidate_windows` on `cplm_event_frames`); a window of the
+episode's own family resets the count, a third family restarts it; after `Cplm:FamilyChangeWindows` (default 3 = 45 minutes)
+consecutive windows the episode closes `FAMILY_CHANGED` and the new one opens exactly as before. A candidate window extends the
+episode (support, last diagnosis, severity, `Escalate` when the band rises) but never ratchets its peak. Captures are
+unchanged in kind (OPEN / ESCALATE / CLOSE), so a stable fleet captures tens of times a day. Also: the plant compose forwards
+`Cplm__EvidenceTransientHours`, `Cplm__EvidenceTransientBudgetBytes`, `Cplm__EvidenceSweepIntervalMinutes`,
+`Cplm__EpisodeCaptureMax`, `Cplm__FamilyChangeWindows` from `.env` (the 2 October finding that a `.env` key did not reach the
+container); the Flink swap in the VM steps cancels every job before removing the JobManager and sweeps orphaned checkpoint
+directories (34 orphans / 5 GB found); `migration/daily-check.sh` + `MARUN-DAILY-CHECK.md`.
+
+**Tests.** `EventFrameLifecycleTests` (+5: candidate, takeover after three, reset on own family, third family restarts, escalate
+on a candidate window; the two former immediate-change tests rewritten), `SchemaV25Tests` (+2 columns), `test_build_release.py`
+(+5: cancel before removal + orphan sweep, compose pass-through, v2.6.2 manifest and steps). Full suite + lab injection below.
+
+**Deliberately not done.** The fusion engine's instability itself (why the diagnosis flips) is a Flink question for the engine
+owner; the Short job's 5-minute checkpoint timeout (jar) stays as is - a backlog after an ingestion stop can still push it into
+the restart loop seen on 3 October; `MARUN-DAILY-CHECK.md` section 4 has the recovery.

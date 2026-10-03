@@ -1,0 +1,16 @@
+# Release v2.6.2 — CHG-034: family-change debounce for episodes (+ the three items owed from v2.6.1).
+# cplm-api only; no Flink jar. Consumed by: python migration/deploy/build-release.py --release v2.6.2
+#
+#   cplm-api      an episode no longer closes on the first window of another fault family: the family is a candidate
+#                 until it has held for Cplm__FamilyChangeWindows (3) consecutive windows, then FAMILY_CHANGED as before
+#                 (Marun 2026-10-02: 348 such closes a day, each an evidence capture of ~95 artifacts). Two columns on
+#                 cplm_event_frames (candidate_family, candidate_windows), self-healed too.
+#
+# Schema: ops/cpm-11-episode-debounce.sql (online, additive, BEFORE the swap, then 02-apply-schemas.sh).
+# Source archive (not an image): migration/deploy/docker-compose.marun.yml now forwards Cplm__EvidenceTransientHours,
+#   Cplm__EvidenceTransientBudgetBytes, Cplm__EvidenceSweepIntervalMinutes, Cplm__EpisodeCaptureMax,
+#   Cplm__FamilyChangeWindows from migration/.env (same names); build-release.py's Flink swap now cancels every job
+#   before removing the JobManager and sweeps orphaned checkpoints; migration/daily-check.sh + MARUN-DAILY-CHECK.md.
+# NOT rebuilt: everything else.
+!v262-debounce
+cplm-api

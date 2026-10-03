@@ -90,6 +90,7 @@ public sealed class SchemaV25Tests : IAsyncLifetime
             "SELECT table_name FROM information_schema.tables WHERE table_schema = 'analytics'")).ToHashSet();
         tables.Should().Contain("cplm_episode_capture");
         (await Columns("cplm_event_frames")).Should().Contain("capture_count");
+        (await Columns("cplm_event_frames")).Should().Contain(new[] { "candidate_family", "candidate_windows" });   // CHG-034
         (await Columns("cplm_episode_capture")).Should().Contain(new[] { "episode_id", "method_run_id", "kind", "captured_at" });
         var episode = await conn.ExecuteScalarAsync<int?>("SELECT days FROM analytics.retention_policy WHERE record_class = 'EPISODE'");
         episode.Should().Be(90);
