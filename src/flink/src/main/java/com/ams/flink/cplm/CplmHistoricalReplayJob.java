@@ -62,6 +62,15 @@ public final class CplmHistoricalReplayJob {
         return s;
     }
 
+    /** The first non-empty value among {@code names} in {@code env}, else {@code fallback}. */
+    static String envFirst(java.util.Map<String, String> env, String fallback, String... names) {
+        for (String n : names) {
+            String v = env.get(n);
+            if (v != null && !v.isEmpty()) return v;
+        }
+        return fallback;
+    }
+
     public static void main(String[] args) throws Exception {
         ParameterTool params = ParameterTool.fromArgs(args);
         String brokers = params.get("brokers",
@@ -79,8 +88,10 @@ public final class CplmHistoricalReplayJob {
         String sourceKind = params.get("source", "kafka");
         String iotdbHost = params.get("iotdb-host", System.getenv().getOrDefault("IOTDB_HOST", "ams-iotdb"));
         int iotdbPort = params.getInt("iotdb-port", 6667);
-        String iotdbUser = params.get("iotdb-user", System.getenv().getOrDefault("IOTDB_USER", "root"));
-        String iotdbPassword = params.get("iotdb-password", System.getenv().getOrDefault("IOTDB_PASSWORD", "root"));
+        // CHG-036: the compose files hand every Flink container IOTDB_PASS (what PipelineConfig reads); the
+        // older IOTDB_PASSWORD name is still honoured. A plant with a real password failed with 801 before.
+        String iotdbUser = params.get("iotdb-user", envFirst(System.getenv(), "root", "IOTDB_USER"));
+        String iotdbPassword = params.get("iotdb-password", envFirst(System.getenv(), "root", "IOTDB_PASS", "IOTDB_PASSWORD"));
         String site = params.get("site", "");
         String loopType = params.get("loop-type", null);
         long fromMs = params.getLong("from-ms", 0L);

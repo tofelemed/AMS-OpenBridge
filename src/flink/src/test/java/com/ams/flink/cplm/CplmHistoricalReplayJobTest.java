@@ -38,6 +38,21 @@ public class CplmHistoricalReplayJobTest {
         assertTrue(graph.getStreamNode(graph.getSourceIDs().iterator().next()).getOperatorName().contains("iotdb"));
     }
 
+    /**
+     * Marun 2026-10-03 (CHG-036, third cause): the compose files hand the Flink containers the historian password as
+     * IOTDB_PASS (what every other job reads), the replay job read IOTDB_PASSWORD and fell back to root -
+     * "801: Authentication failed" on the first historian-backed run at a plant with a real password.
+     */
+    @Test
+    public void historianCredentialsFollowTheFleetEnvNames() {
+        java.util.Map<String, String> fleet = java.util.Map.of("IOTDB_PASS", "plant-secret", "IOTDB_USER", "ams");
+        assertEquals("plant-secret", CplmHistoricalReplayJob.envFirst(fleet, "root", "IOTDB_PASS", "IOTDB_PASSWORD"));
+        assertEquals("ams", CplmHistoricalReplayJob.envFirst(fleet, "root", "IOTDB_USER"));
+        java.util.Map<String, String> legacy = java.util.Map.of("IOTDB_PASSWORD", "old-name");
+        assertEquals("old-name", CplmHistoricalReplayJob.envFirst(legacy, "root", "IOTDB_PASS", "IOTDB_PASSWORD"));
+        assertEquals("root", CplmHistoricalReplayJob.envFirst(java.util.Map.of("IOTDB_PASS", ""), "root", "IOTDB_PASS", "IOTDB_PASSWORD"));
+    }
+
     @Test
     public void legacyAddSourceIsWhatBatchModeRefuses() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
