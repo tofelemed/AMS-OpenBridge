@@ -193,7 +193,8 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] `sha256Hex` native-or-pure fallback — `artifactCodec.test.ts` +2 RED→GREEN
 - [x] frontend suite 284/284, lint clean, build clean; builder test `test_v264_manifest…` RED→GREEN 36/36
 - [x] workbench polls the manifest every 10 s while a reconstruction is pending — `GateEvidenceWorkspace.test.tsx` +1 RED→GREEN; suite 285/285
-- [ ] bundle `release-out/v2.6.4-20261003` rebuilt with the polling change (the first build, src-84191a91, is superseded)
+- [x] bundle `release-out/v2.6.4-20261003` rebuilt with the polling change (src-2a737e30, SHA256SUMS 18/18 OK; the src-84191a91 build is superseded)
+- [x] lab browser 2026-10-03 (Vite, FIC10302 12h): Summary G5 → 2 charts (21,414 points) with the native engine; with `crypto.subtle` removed from the page (the plant's HTTP case) Summary G11 → 2 charts (21,402 / 64,206 points) and Workbench G8 → 4 charts, no "did not verify", no Reconstruct offer; G6 (no evidence in the lab) shows the Reconstruct action as designed
 - [ ] plant: image swap, Ctrl+F5, evidence charts draw on the Explorer gate panel and the Workbench
 
 ## Verification status (last runs, lab)

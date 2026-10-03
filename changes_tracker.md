@@ -2582,7 +2582,7 @@ verification rule ("nothing is drawn from bytes that failed their checksum") is 
 
 **Tests.** `artifactCodec.test.ts` (+2, RED→GREEN): the fallback matches the reference digests for `abc`, the empty
 input and a 100 KB input compared with Node's `createHash`; the native path still matches. Frontend suite, lint and
-build below. Plant proof: Ctrl+F5, open a gate on the Explorer Summary or the Evidence Workbench → the charts draw.
+build below. Lab browser proof with `crypto.subtle` removed from the page: Summary G11 (2 charts) and Workbench G8 (4 charts) verify and draw through the fallback. Plant proof: Ctrl+F5, open a gate on the Explorer Summary or the Evidence Workbench → the charts draw.
 
 **Also in v2.6.4: the workbench polls while a reconstruction is pending.** The plant rebuilds a window in ~20 s, but
 `GateEvidenceWorkspace` refetched the manifest once (too early) and then held it for 30 s, so the charts appeared only
