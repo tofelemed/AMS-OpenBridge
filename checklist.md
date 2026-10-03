@@ -156,7 +156,9 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] frame service persists `candidate_family` / `candidate_windows`; self-heal DDL; `cpm-11` plant script + `62_` lab + `03`
 - [x] plant compose forwards the five `Cplm__*` knobs; VM steps cancel every job before `docker rm -f` JM/TM and sweep orphan checkpoints — `test_build_release.py` 30/30
 - [x] `releases/v2.6.2.txt` + VM steps 4a / 4e / 6e
-- [ ] full cplm-api suite; lab injection (OSCILLATION open → STICTION x2 stays, x3 changes hands); fresh review; bundle `release-out/v2.6.2-<date>`
+- [x] full cplm-api suite 2026-10-03: 219/221 green; the 2 failures are the lab (long-table GIN probe on Timescale-compressed chunks; config lifecycle timing right after the Docker restart, passes on re-run)
+- [x] lab injection 2026-10-03 (new image): 7 windows OSC, STI, STI, OSC, STI, STI, STI → 2 episodes / 1 FAMILY_CHANGED / captures OPEN x2 + CLOSE x1 (old lifecycle on the same input: 4 episodes / 3 closes)
+- [ ] fresh review; bundle `release-out/v2.6.2-<date>`
 - [ ] plant: overlay → cpm-11 → ownership → swap → proofs; next day `FAMILY_CHANGED` closes in the tens
 
 ## Verification status (last runs, lab)

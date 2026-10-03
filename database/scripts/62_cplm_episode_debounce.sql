@@ -16,7 +16,7 @@ ALTER TABLE analytics.cplm_event_frames
     ADD COLUMN IF NOT EXISTS candidate_family  VARCHAR(64),
     ADD COLUMN IF NOT EXISTS candidate_windows INT NOT NULL DEFAULT 0;
 COMMENT ON COLUMN analytics.cplm_event_frames.candidate_family IS
-    'CHG-034: a fault family seen instead of this episode''s, not yet settled; takes over after Cplm:FamilyChangeWindows consecutive windows.';
+    'CHG-034: a fault family seen instead of this episode''s, not yet settled; takes over after Cplm:FamilyChangeWindows consecutive fault windows (unjudged windows neither count nor reset).';
 
 DO $$
 BEGIN

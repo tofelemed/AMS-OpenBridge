@@ -315,7 +315,7 @@ def vm_steps(release: str, commit: str, rows: list[tuple[str, str, str]],
     # runs ams-api since Phase 10, so a v2.5 upgrade carries it whether or not the image
     # ships. 04b runs from deploy.sh only under ALLOW_FLINK_SUBMIT=yes (pre-prod gap G6).
     exports: list[str] = []
-    if "ams-api" in services or v25 or v26:
+    if "ams-api" in services or v25 or v26 or v262:
         exports.append("START_AMS_API=yes")
     if has_flink:
         exports.append("ALLOW_FLINK_SUBMIT=yes")
@@ -349,7 +349,8 @@ docker rm -f ams-flink-taskmanager ams-flink-jobmanager
 docker exec ams-flink-jobmanager flink list -m localhost:8081  # {"7 x RUNNING (4 + Condition, Instrument Context, Response)" if (v25 or v26) else "4 x RUNNING"}, start times = now
 #
 #    orphaned checkpoints of the jobs just replaced (running ids are excluded; run it ~2 min after the resubmit):
-docker exec ams-flink-jobmanager flink list -m localhost:8081 2>/dev/null | grep -oE '[0-9a-f]{{32}}' | sort > /tmp/{release}/running-jobs.txt
+docker exec ams-flink-jobmanager flink list -m localhost:8081 | grep -oE '[0-9a-f]{{32}}' | sort > /tmp/{release}/running-jobs.txt   # stderr stays visible on purpose
+[ "$(wc -l < /tmp/{release}/running-jobs.txt)" -ge {7 if (v25 or v26 or v262) else 4} ] || {{ echo "flink list returned fewer ids than jobs - NOT sweeping (JM REST not ready?)"; false; }}
 for id in $(docker exec ams-minio sh -c 'ls /data/ams-flink/checkpoints/' | sort | comm -23 - /tmp/{release}/running-jobs.txt); do docker exec ams-minio rm -rf /data/ams-flink/checkpoints/$id; done
 docker exec ams-minio sh -c 'du -sh /data/ams-flink/checkpoints'                           # the running jobs' checkpoints only
 #    Do NOT run `compose up flink-job-submit-cplm` here: that service is profiled
@@ -517,6 +518,7 @@ sudo cp migration/cron.d/cpa-capacity /etc/cron.d/cpa-capacity && grep -c '^[^#]
     if v262:
         v262_block = f"""
 # 4a. v2.6.2 source tree - BEFORE anything below: the compose overlay (the Cplm__* knobs) and the daily check are files, not images.
+git -C /opt/AMS-open status --porcelain 2>/dev/null || echo "NOT A GIT CHECKOUT - confirm nobody has patched files on the VM (MARUN-CONTEXT rule 1) before extracting"
 cp /opt/AMS-open/migration/.env /tmp/{release}/env-backup-$(date +%Y%m%d%H%M)
 tar -xzf /tmp/{release}/src-{commit}.tar.gz -C /opt/AMS-open
 echo {commit} > /opt/AMS-open/RELEASE-COMMIT

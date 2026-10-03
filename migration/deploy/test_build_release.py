@@ -290,3 +290,16 @@ def test_v262_steps_overlay_then_cpm11_before_the_swap_and_prove_the_knobs_after
     assert steps.index("printenv Cplm__EvidenceTransientBudgetBytes") > swap
     assert "cpm-10a" not in steps and "cpm-10b" not in steps               # v2.6 steps are not repeated
     assert "FAMILY_CHANGED" in steps                                      # the proof query on episode churn
+
+
+def test_flink_orphan_sweep_refuses_to_run_without_the_running_job_list():
+    # review M1: an empty running-jobs list (JM REST briefly down) would otherwise delete every running job's checkpoints
+    steps = v261_steps()
+    guard = steps.index("NOT sweeping")
+    assert steps.index("running-jobs.txt", guard - 400) < guard < steps.index("rm -rf /data/ams-flink/checkpoints")
+
+
+def test_v262_steps_carry_the_checkout_guard_and_the_ams_api_export():
+    steps = v262_steps()
+    assert steps.index("NOT A GIT CHECKOUT") < steps.index("tar -xzf")
+    assert steps.index("export START_AMS_API=yes") < steps.index("deploy.sh --prod")

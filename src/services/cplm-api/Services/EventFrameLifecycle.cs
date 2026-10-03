@@ -75,7 +75,9 @@ public sealed record Transition(TransitionKind Kind, FrameState? Frame, string R
 public static class EventFrameLifecycle
 {
     /// <summary>CHG-034: consecutive windows a different fault family must hold before the episode changes hands (Marun flipped
-    /// families window to window: 348 FAMILY_CHANGED closes a day, each one an evidence capture). 3 windows = 45 minutes.</summary>
+    /// families window to window: 348 FAMILY_CHANGED closes a day, each one an evidence capture). 3 windows = 45 minutes.
+    /// Consecutive FAULT windows: an unjudged window (EXCLUDED_*, INSUFFICIENT_DATA) or a clear one without enough
+    /// support neither counts nor resets the candidate; only the episode's own family resets it.</summary>
     public const int FamilyChangeWindows = 3;
 
     public static ResultClass Classify(string? diagnosis)
@@ -147,8 +149,9 @@ public static class EventFrameLifecycle
                     if (held >= Math.Max(1, familyChangeWindows))
                         return new Transition(TransitionKind.CloseAndOpen, Open(family, v), "FAMILY_CHANGED",
                             Closed: Close(open, v, "FAMILY_CHANGED"));
-                    var pending = Extend(open, v, peakEligible: false) with { CandidateFamily = family, CandidateWindows = held };
-                    return new Transition(kind, pending, kind == TransitionKind.Escalate ? "ESCALATED" : "FAMILY_CANDIDATE");
+                    // the episode's own family alone may escalate or move its severity: a family not yet believed does neither
+                    var pending = Extend(open, v, peakEligible: false) with { CandidateFamily = family, CandidateWindows = held, Severity = open.Severity };
+                    return new Transition(TransitionKind.Extend, pending, "FAMILY_CANDIDATE");
                 }
                 var extended = Extend(open, v, peakEligible: true) with { CandidateFamily = null, CandidateWindows = 0 };
                 return new Transition(kind, extended, kind == TransitionKind.Escalate ? "ESCALATED" : "EXTENDED");
@@ -169,6 +172,8 @@ public static class EventFrameLifecycle
         LastConfidence = v.Confidence,
         ResultRevision = v.ResultRevision,
         CloseReason = reason,
+        CandidateFamily = null,
+        CandidateWindows = 0,
     };
 
     private static FrameState Extend(FrameState open, GateVerdict v, bool peakEligible = true)

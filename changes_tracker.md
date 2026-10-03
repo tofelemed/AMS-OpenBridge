@@ -2423,8 +2423,9 @@ artifacts, the EPISODE evidence class grew ~1 GB a day (the 2 October disk incid
 **What changed.** A verdict of a different family no longer closes the open episode. The episode records it as the candidate
 family and counts consecutive windows (`candidate_family`, `candidate_windows` on `cplm_event_frames`); a window of the
 episode's own family resets the count, a third family restarts it; after `Cplm:FamilyChangeWindows` (default 3 = 45 minutes)
-consecutive windows the episode closes `FAMILY_CHANGED` and the new one opens exactly as before. A candidate window extends the
-episode (support, last diagnosis, severity, `Escalate` when the band rises) but never ratchets its peak. Captures are
+consecutive fault windows the episode closes `FAMILY_CHANGED` and the new one opens exactly as before (an unjudged or
+insufficient-support window neither counts nor resets). A candidate window extends the episode (support, last diagnosis) but
+never ratchets its peak, moves its severity or escalates; a closed row carries no candidate. Captures are
 unchanged in kind (OPEN / ESCALATE / CLOSE), so a stable fleet captures tens of times a day. Also: the plant compose forwards
 `Cplm__EvidenceTransientHours`, `Cplm__EvidenceTransientBudgetBytes`, `Cplm__EvidenceSweepIntervalMinutes`,
 `Cplm__EpisodeCaptureMax`, `Cplm__FamilyChangeWindows` from `.env` (the 2 October finding that a `.env` key did not reach the

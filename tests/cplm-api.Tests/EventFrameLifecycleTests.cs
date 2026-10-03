@@ -168,6 +168,8 @@ public sealed class EventFrameLifecycleTests
         t.Frame.OpenedAt.Should().Be(end);
         t.Frame.CandidateFamily.Should().BeNull();
         t.Frame.CandidateWindows.Should().Be(0);
+        t.Closed.CandidateFamily.Should().BeNull();        // review L4: a closed row carries no stale candidate
+        t.Closed.CandidateWindows.Should().Be(0);
     }
 
     [Fact]
@@ -238,12 +240,30 @@ public sealed class EventFrameLifecycleTests
     }
 
     [Fact]
-    public void A_candidate_window_with_a_higher_band_still_escalates()
+    public void A_candidate_window_never_escalates_nor_moves_the_severity()
     {
+        // review M2: only the episode's own family may escalate; a family the lifecycle does not yet believe must not
+        // flap the operator-facing severity or spend an ESCALATE capture
         var open = OpenFrame("OSCILLATION") with { Severity = "LOW" };
         var t = EventFrameLifecycle.Apply(open, Verdict("SUSPECTED_STICTION", 0.85, T0.AddDays(1), T0.AddDays(2), severity: "HIGH"));
-        t.Kind.Should().Be(TransitionKind.Escalate);
-        t.Frame!.CandidateFamily.Should().Be("STICTION");
+        t.Kind.Should().Be(TransitionKind.Extend);
+        t.Reason.Should().Be("FAMILY_CANDIDATE");
+        t.Frame!.Severity.Should().Be("LOW");
+        t.Frame.CandidateFamily.Should().Be("STICTION");
+    }
+
+    [Fact]
+    public void Unjudged_windows_neither_count_nor_reset_the_candidate()
+    {
+        // review L1: a data gap between two STICTION windows must not make the change of family start over
+        var open = OpenFrame("OSCILLATION") with { CandidateFamily = "STICTION", CandidateWindows = 2 };
+        var u = EventFrameLifecycle.Apply(open, Verdict("EXCLUDED_DATA_QUALITY", 0, T0.AddDays(1), T0.AddDays(2)));
+        u.Kind.Should().Be(TransitionKind.MarkUnobservable);
+        u.Frame!.CandidateFamily.Should().Be("STICTION");
+        u.Frame.CandidateWindows.Should().Be(2);
+        var o = EventFrameLifecycle.Apply(open, Verdict("INSUFFICIENT_EVIDENCE", 0, T0.AddDays(1), T0.AddDays(2), supportMs: 1000, recoverySupportS: 21600));
+        o.Kind.Should().Be(TransitionKind.Observe);
+        o.Frame!.CandidateWindows.Should().Be(2);
     }
 
     [Fact]
