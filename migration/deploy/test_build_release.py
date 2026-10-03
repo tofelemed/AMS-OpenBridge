@@ -303,3 +303,10 @@ def test_v262_steps_carry_the_checkout_guard_and_the_ams_api_export():
     steps = v262_steps()
     assert steps.index("NOT A GIT CHECKOUT") < steps.index("tar -xzf")
     assert steps.index("export START_AMS_API=yes") < steps.index("deploy.sh --prod")
+
+
+# ── v2.6.3 (CHG-035 Explorer 12h/24h toggle + on-demand CSV; ams-frontend only) ─────
+def test_v263_manifest_is_the_frontend_only_with_no_directive():
+    services, flags = br.read_manifest("v2.6.3")
+    assert services == ["ams-frontend"]
+    assert flags == set()

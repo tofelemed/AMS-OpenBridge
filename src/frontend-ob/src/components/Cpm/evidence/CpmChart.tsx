@@ -2,7 +2,7 @@
  * v2.5 Task 2E.1 (spec §3.1 axes; NR-033, NR-035): the ONE echarts wrapper the evidence views use.
  * One y axis per unit group (never mixed units on an axis), `connectNulls: false` always (no filled
  * line across unsupported gaps), `step: 'end'` for held series, times in the site zone with the zone
- * in the axis name, bands labelled with their meaning, and a data-table / CSV companion that shows
+ * in the axis name, bands labelled with their meaning, and an on-demand CSV export of
  * the same values the chart draws. Colours come from the CPM pens (OpenBridge tokens), never literals.
  * Phase 5 (cpa-ui-fix-plan): rectangle zoom on x and on every unit axis, from the title bar.
  */
@@ -54,7 +54,7 @@ export interface CpmChartInput {
 
 const nan = (v: number | null | undefined) => v == null || !Number.isFinite(v) ? null : v;
 
-/** Above this many points a series is decimated for drawing (never for the data table / CSV). */
+/** Above this many points a series is decimated for drawing (never for the CSV). */
 export const SAMPLE_ABOVE = 5000;
 
 /** Rows a horizontal legend needs: each entry is its marker + text (~7 px a character) + the item gap; without a width, four per row. */
@@ -102,7 +102,7 @@ export function buildCpmChartOption(input: CpmChartInput) {
       areaStyle: s.area ? { color: pens[s.pen], opacity: 0.12 } : undefined,
       ...(s.held ? { step: 'end' as const } : {}),
       // performance budget: a 24h window at 5 s is ~17k points per role; above SAMPLE_ABOVE points a line is
-      // drawn through LTTB (shape-preserving) and markers through echarts' large mode - the data table / CSV
+      // drawn through LTTB (shape-preserving) and markers through echarts' large mode - the CSV
       // still carry every value, only the pixels are decimated
       ...(!s.markers && data.length > SAMPLE_ABOVE ? { sampling: 'lttb' as const } : {}),
       ...(s.markers && data.length > SAMPLE_ABOVE ? { large: true, largeThreshold: SAMPLE_ABOVE } : {}),
@@ -167,7 +167,6 @@ export const CpmChart: React.FC<Omit<CpmChartInput, 'pens' | 'width' | 'zoom'> &
   const box = useBoxZoom({ hasY: true });
   const option = useMemo(() => buildCpmChartOption({ ...props, pens, width, zoom: box.zoom }), [props, pens, width, box.zoom]);
   useKeepSelecting(box, option);
-  const [table, setTable] = useState(false);
   const onEvents = useMemo(() => ({
     click: (e: { seriesId?: string; dataIndex?: number }) => { if (props.onClick && e.seriesId != null && e.dataIndex != null) props.onClick(e.seriesId, e.dataIndex); },
     datazoom: box.onDataZoom,
@@ -185,20 +184,15 @@ export const CpmChart: React.FC<Omit<CpmChartInput, 'pens' | 'width' | 'zoom'> &
     <div className="cpm-chart" ref={wrap}>
       <div className="cpm-chart__bar">
         {props.title && <span className="cpm-chart__title">{props.title}</span>}
-        {drawn > SAMPLE_ABOVE && <span className="cpm-chart__note" title="The data table and the CSV carry every value; only the drawing is decimated.">{drawn.toLocaleString('en-GB')} points, drawn sampled</span>}
+        {drawn > SAMPLE_ABOVE && <span className="cpm-chart__note" title="The CSV carries every value; only the drawing is decimated.">{drawn.toLocaleString('en-GB')} points, drawn sampled</span>}
         <ChartZoomBar box={box} hasData={drawn > 0} />
       </div>
       <ReactECharts option={option} notMerge style={{ height: props.height ?? 320 }} onChartReady={box.onChartReady} onEvents={onEvents} />
-      {/* progressive disclosure: the numbers behind the picture, on request (audit: the two buttons on every chart were noise) */}
-      <details className="cpm-chart__more" onToggle={e => setTable((e.target as HTMLDetailsElement).open)}>
-        <summary>Data table / CSV</summary>
-        {table && (
-          <>
-            <ObcButton variant="flat" onClick={csv}>Export CSV</ObcButton>
-            <pre className="cpm-chart__table" data-testid="cpm-chart-table">{toCsv(props.series)}</pre>
-          </>
-        )}
-      </details>
+      {/* the numbers behind the picture, on request: one button, the file built on click (2026-10-03: the
+          open data table re-serialised every point into the page and was not used) */}
+      <div className="cpm-chart__more">
+        <ObcButton variant="flat" onClick={csv}>Export CSV</ObcButton>
+      </div>
     </div>
   );
 };

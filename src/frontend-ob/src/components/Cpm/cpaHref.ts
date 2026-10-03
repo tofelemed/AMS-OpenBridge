@@ -7,8 +7,9 @@
  * unit-tested and shared by every page that routes somewhere.
  *
  * Reader compatibility (do not "fix" without migrating the reader):
- * - Performance reads the fused window KIND from `?window=` (e.g. `24h`), so
- *   `performanceHref` writes `kind` under that name.
+ * - Performance and the Explorer Summary read the fused window KIND from
+ *   `?window=` (e.g. `24h`), so `performanceHref` / `explorerHref` write `kind`
+ *   under that name.
  * - Historical / Replay read `?window=` as the evaluated window END.
  * - The Window Inspector reads its kind from `?profile=`.
  * - The Evidence Workbench opens an IMMUTABLE run via `evidence/selection.ts`
@@ -29,9 +30,9 @@ const build = (path: string, query: Query): string => {
   return s ? `${path}?${s}` : path;
 };
 
-/** The loop hub. `gate` pre-selects a gate on the Summary strip. */
-export const explorerHref = (loop: string, opts: { tab?: ExplorerTab; gate?: string | null } = {}) =>
-  build('/cpm/explorer', { loop, tab: opts.tab, gate: opts.gate });
+/** The loop hub. `gate` pre-selects a gate on the Summary strip; `kind` is the fused window kind the strip evaluates (`?window=`, as on Performance). */
+export const explorerHref = (loop: string, opts: { tab?: ExplorerTab; gate?: string | null; kind?: string | null } = {}) =>
+  build('/cpm/explorer', { loop, tab: opts.tab, gate: opts.gate, window: opts.kind });
 
 /** The fleet matrix. `gate` opens that cell's evidence panel; `kind` is the fused window kind. */
 export const performanceHref = (

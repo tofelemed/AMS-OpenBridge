@@ -196,17 +196,6 @@
 .cpm-chart__more { font-size: 0.8rem; }
 .cpm-chart__more > summary { cursor: pointer; color: var(--element-neutral-color); padding: 4px 0; }
 .cpm-chart__more > summary:hover { color: var(--element-active-color); }
-.cpm-chart__table {
-  margin: 0;
-  max-height: 320px;
-  overflow: auto;
-  padding: 8px;
-  border: 1px solid var(--border-divider-color);
-  border-radius: 6px;
-  background: var(--container-section-color);
-  font-family: var(--font-mono, monospace);
-  font-size: 0.78rem;
-}
 
 /* ── Context lanes / interval lanes ── */
 .cpm-context-lanes { display: flex; flex-direction: column; gap: 8px; }

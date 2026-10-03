@@ -2439,3 +2439,46 @@ on a candidate window; the two former immediate-change tests rewritten), `Schema
 **Deliberately not done.** The fusion engine's instability itself (why the diagnosis flips) is a Flink question for the engine
 owner; the Short job's 5-minute checkpoint timeout (jar) stays as is - a backlog after an ingestion stop can still push it into
 the restart loop seen on 3 October; `MARUN-DAILY-CHECK.md` section 4 has the recovery.
+
+## CHG-035 — Loop Explorer: 12 h / 24 h fused window toggle; trend charts drop the data table (2026-10-03)
+
+**Scope:** `ams-frontend` only (`src/frontend-ob`): `components/Cpm/explorer/{SummaryTab,LoopWorkspace}.tsx`,
+`explorer/summary/WindowKindToggle.tsx` (new), `CpmExplorer.tsx`, `CpmPerformance.tsx`, `cpaHref.ts`,
+`evidence/CpmChart.tsx`, `styles/cpm.css`, `styles/cpm-evidence.css`. No service, schema or Flink change.
+
+**What the operator asked.** The Summary page of the Loop Explorer evaluated the 24 h fused window only ("Evaluated 24h
+window · ending …"); the 12 h verdict exists but could not be reached from the hub. Every trend chart carried a "Data
+table / CSV" disclosure that printed every point into the page when opened; it was not used, and the CSV should be a
+click, not a table.
+
+**What changed.**
+- The Explorer reads the fused window kind from `?window=` (default `24h`), the same name and default as Performance, so
+  the matrix's "open loop" hand-off now lands on the window it was showing (`explorerHref` gained `kind`). The workspace
+  verdict pill and the Summary gate strip read the same kind (one `gates/latest?windowKind=` request, one query key). A
+  12h / 24h `ObcToggleButtonGroup` in the "Gates on the latest fused result" panel head writes it with `replace` and drops
+  `?gate=` (a gate selected on one window is not that gate's row on the other); options come from
+  `resolutions.fusion.firesOn` (static per deployment, cached), with the same empty-first-emit guard Performance has.
+- `CpmChart` lost the `<details>` data table; one flat `Export CSV` button remains and builds the file only on click.
+  The dead `.cpm-chart__table` rule is gone; `.cpm-chart__more` stays for the zero-crossings disclosure in LongViews.
+- `.cpm-panel-head__right` is a flex row (toggle beside the pill).
+
+**Tests.** `cpaHref.test.ts` (+1: `explorerHref` writes `?window=`), `explorer/summary/WindowKindToggle.test.tsx` (new, 2:
+options and selected value; a served kind forwarded, an empty or unknown emit dropped — the two OpenBridge wrappers stubbed
+as `LoopModelCard.test` stubs `ObcButton`, the Lit group never assigns its slot under jsdom), `evidence/CpmChartCsv.test.tsx`
+(new, 1: no table, no `<details>`, no serialised values, one `Export CSV` button). Every test watched RED before the code.
+Frontend suite 281 / 281, `npm run lint` clean, `npm run build` clean. Lab browser pass 2026-10-03 (Vite 5174, FIC10302):
+12h → eyebrow "Evaluated 12h window", a different fused run id on the workbench link, one `windowKind=12h` request, the
+verdict pill updated; G5 detail: 2 charts, 0 data tables, 2 CSV buttons; 0 new console errors.
+
+**Deliberately not done.** The Evidence Workbench reconstruction source stays `kafka` (an `iotdb` source for windows older
+than the samples retention is supported by the API, not yet by the UI — offered, not approved); the Historical / Window
+Inspector pages keep their own window parameters (`?window=` there is the window END, `cpaHref.ts` documents the split).
+
+### Release v2.6.3 — what to build and run
+
+- Updated service: `ams-frontend` (image). Nothing else is rebuilt; no SQL step; no Flink jar; no `.env` change.
+- Build: `python migration/deploy/build-release.py --release v2.6.3 --out release-out/v2.6.3-<date>` (manifest
+  `migration/deploy/releases/v2.6.3.txt`). Can be deployed together with v2.6.2 (independent images) or after it.
+- Plant: `docker load` the frontend image, `bash migration/deploy/deploy.sh --prod` (the usual exports), then `200 on /`
+  and users press Ctrl+F5. Proof: Loop Explorer › Summary shows the 12h / 24h toggle; a trend chart shows "Export CSV" and
+  no "Data table / CSV".

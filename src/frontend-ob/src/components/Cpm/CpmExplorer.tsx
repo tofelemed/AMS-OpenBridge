@@ -38,6 +38,10 @@ export const CpmExplorer: React.FC = () => {
   const tab: ExplorerTab = TABS.includes(rawTab as ExplorerTab)
     ? (rawTab as ExplorerTab) : 'Summary';
 
+  // The fused window kind the Summary gate strip evaluates; same name and default
+  // as Performance (`?window=`), so a hand-off between the two keeps the window.
+  const windowKind = params.get('window') ?? '24h';
+
   const scope = useCpmScope();
 
   const { data, isLoading, isError, error, refetch } = useCpmLoops();
@@ -113,6 +117,7 @@ export const CpmExplorer: React.FC = () => {
           <LoopWorkspace
             loop={loop}
             tab={tab}
+            windowKind={windowKind}
             onTab={t => setParams(p => { p.set('tab', t); return p; }, { replace: true })}
           />
         ) : missingLoop ? (

@@ -99,9 +99,10 @@ export const CpmPerformance: React.FC = () => {
   // A loop id is a route (cpa-ui-fix-plan Phase 2): the matrix loop cell and the
   // attention list open the loop hub; selection stays with the gate cells.
   const navigate = useNavigate();
+  // The hub opens on the same fused window the matrix was showing (`?window=` is read by both).
   const openLoop = React.useCallback((loopId: string) => {
-    navigate(explorerHref(loopId, { tab: 'Summary' }));
-  }, [navigate]);
+    navigate(explorerHref(loopId, { tab: 'Summary', kind: windowKind }));
+  }, [navigate, windowKind]);
 
   // Guidance is ephemeral and personal — it does not belong in a shareable URL
   // the way the row filter and the open gate do. Opening evidence takes the

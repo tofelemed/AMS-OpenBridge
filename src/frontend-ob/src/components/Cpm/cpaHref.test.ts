@@ -13,6 +13,11 @@ describe('cpaHref', () => {
       .toBe('/cpm/explorer?loop=45FIC-109%2FA&tab=Summary&gate=G9');
   });
 
+  it('explorerHref writes the fused kind under ?window= (what the Summary gate strip reads)', () => {
+    expect(explorerHref('FIC10301', { kind: '12h' })).toBe('/cpm/explorer?loop=FIC10301&window=12h');
+    expect(explorerHref('FIC10301', { kind: null })).toBe('/cpm/explorer?loop=FIC10301');
+  });
+
   it('performanceHref writes the kind under ?window= (what Performance reads) and drops empties', () => {
     expect(performanceHref()).toBe('/cpm/performance');
     expect(performanceHref({ loop: 'FIC10301', gate: 'G15', kind: '24h' }))

@@ -43,10 +43,12 @@ const isNoVerdictYet = (e: unknown) => e instanceof ApiError && e.status === 404
 export const LoopWorkspace: React.FC<{
   loop: CpmLoop;
   tab: ExplorerTab;
+  /** The fused window kind (`?window=`) the verdict pill and the Summary gate strip read; one query key for both. */
+  windowKind: string;
   onTab: (t: ExplorerTab) => void;
-}> = ({ loop, tab, onTab }) => {
+}> = ({ loop, tab, windowKind, onTab }) => {
   const navigate = useNavigate();
-  const gates = useLatestGates(loop.loopId, '24h');
+  const gates = useLatestGates(loop.loopId, windowKind);
   const readiness = useCpmReadiness(loop.loopId);
   // Same query key as HistoryTab's, so react-query serves the badge count and
   // the tab body from one fetch.
@@ -205,7 +207,7 @@ export const LoopWorkspace: React.FC<{
           an empty Relationships tab no longer collapses the page under the
           cursor. */}
       <div className="cpm-tabpanel" role="tabpanel" aria-label={`${tab} for ${loop.loopId}`}>
-        {tab === 'Summary' && <SummaryTab loop={loop} />}
+        {tab === 'Summary' && <SummaryTab loop={loop} windowKind={windowKind} />}
         {tab === 'Signals' && <SignalsTab loop={loop} />}
         {tab === 'Calculations' && <CalculationsTab loop={loop} />}
         {tab === 'Relationships' && <RelationshipsTab loop={loop} />}

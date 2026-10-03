@@ -161,6 +161,15 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] fresh review 2026-10-03: 6 findings, all applied in f1171518 (candidate windows never escalate or move severity; closed rows carry no candidate; unjudged windows keep the candidate, documented; orphan sweep guarded; v2.6.2 steps carry the checkout guard + START_AMS_API); suite 218/218 without the two lab-bound tests; bundle `release-out/v2.6.2-20261003` (src-f1171518, checksums OK)
 - [ ] plant: overlay → cpm-11 → ownership → swap → proofs; next day `FAMILY_CHANGED` closes in the tens
 
+## CHG-035 / v2.6.3 — Explorer 12h/24h toggle + on-demand CSV (2026-10-03)
+
+- [x] `CpmChart`: data table removed, one flat `Export CSV` built on click — `CpmChartCsv.test.tsx` RED→GREEN
+- [x] `explorerHref` writes `?window=`; Explorer reads it; workspace pill + Summary strip share the query; `WindowKindToggle` with the empty-emit guard — `cpaHref.test.ts` +1, `WindowKindToggle.test.tsx` 2/2
+- [x] Performance → Explorer hand-off carries the kind
+- [x] vitest 281/281 · lint clean · build clean
+- [x] lab browser pass (FIC10302): 12h eyebrow / run id / request / pill; G5 detail 2 charts, 0 tables, 2 CSV buttons, 0 new console errors
+- [ ] release v2.6.3 (ams-frontend only) built and deployed at the plant; Ctrl+F5 proof
+
 ## Verification status (last runs, lab)
 
 | Suite / script | Result | When |

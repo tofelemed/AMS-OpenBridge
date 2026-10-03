@@ -1183,7 +1183,7 @@
 }
 /* The panel head's right slot had no shrink allowance, so the window count ran
    off the surface edge ("click a band to inspec…"). */
-.cpm-panel-head__right { min-width: 0; flex: 0 1 auto; }
+.cpm-panel-head__right { min-width: 0; flex: 0 1 auto; display: flex; align-items: center; gap: 8px; }
 
 .cpm-hist-captions { display: grid; gap: 4px; margin-top: 10px; }
 .cpm-hist-zoom {

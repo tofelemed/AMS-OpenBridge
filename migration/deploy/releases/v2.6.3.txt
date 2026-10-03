@@ -1,0 +1,11 @@
+# Release v2.6.3 — CHG-035: Loop Explorer 12 h / 24 h fused window toggle; trend charts export CSV on demand (no data table).
+# ams-frontend only; no cplm-api, no schema, no Flink jar, no .env change. Consumed by: python migration/deploy/build-release.py --release v2.6.3
+#
+#   ams-frontend   Explorer › Summary reads the fused window kind from ?window= (default 24h, as Performance) and offers
+#                  12h / 24h in the "Gates on the latest fused result" panel head; the Performance "open loop" hand-off keeps
+#                  the kind. Every trend chart drops the "Data table / CSV" disclosure (it serialised every point into the
+#                  page) and keeps one "Export CSV" button that builds the file on click.
+#
+# Deploy with v2.6.2 or after it (independent images). Proof after the swap: 200 on /, users Ctrl+F5, the toggle is on the
+# Summary page and a trend chart shows "Export CSV" and no "Data table / CSV".
+ams-frontend
