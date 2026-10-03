@@ -2494,7 +2494,7 @@ offered — the historian covers every window the historian keeps, which at the 
 ## CHG-036 — Historian-backed bounded runs were refused by Flink: the replay source is now declared BOUNDED (2026-10-03)
 
 **Scope:** `src/flink` only (`CplmHistoricalReplayJob.java`), one new test. Ships as the v2.6.3 add-on
-`release-out/v2.6.3-20261003/flink-replay-jar-patch3/` (jar sha256 `01a54d9f99b4b385…`, the bounded-source and credential fixes), a host-file replacement — no
+`release-out/v2.6.3-20261003/flink-replay-jar-patch3/` (jar sha256 `043a645633a56579…`: bounded source, IOTDB_PASS, writer device path; Flink suite 279 / 0 / 2 skipped), a host-file replacement — no
 Flink image swap, no job cancel or resubmit.
 
 **What was wrong.** Found at Marun during the v2.6.3 test (step H) and reproduced in the lab: every
@@ -2541,7 +2541,7 @@ threads orphaned by cancelled jobs, not a cause.
 the replay job read `IOTDB_PASSWORD`. The lab's IoTDB keeps the default password, so only the plant failed
 ("801: Authentication failed" in `IotDbBoundedSource.run`). Fix: `CplmHistoricalReplayJob.envFirst` reads
 `IOTDB_PASS` then `IOTDB_PASSWORD` (`historianCredentialsFollowTheFleetEnvNames`, RED→GREEN; suite 278 / 0 / 2 skipped);
-the add-on jar is rebuilt (sha `01a54d9f99b4b385…`). The plant's interim proof passed the credentials as program
+the add-on jar is rebuilt. The plant's interim proof passed the credentials as program
 arguments on a hand submission.
 
 **Fourth cause, and the end-to-end proof (plant 12:23 UTC).** With credentials passed, the job ran and wrote nothing:
@@ -2560,5 +2560,5 @@ RED→GREEN, 4/4) — next image. Until then the jar's default prefix covers the
 - Steps: `release-out/v2.6.3-20261003/flink-replay-jar-patch3/STEPS.md` — checksum, rollback copy, `cp` over the
   host jar, then the overlay line `CplmRecompute__BootstrapServers: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092}`
   under cplm-api, `deploy.sh --prod` (recreates cplm-api), `printenv CplmRecompute__BootstrapServers` in the container,
-  `sha256sum` inside the container = `01a54d9f…`, then RUNBOOK step H.
+  `sha256sum` inside the container = `043a6456…`, then RUNBOOK step H.
 

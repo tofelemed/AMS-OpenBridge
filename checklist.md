@@ -185,7 +185,7 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] job reads `IOTDB_PASS` then `IOTDB_PASSWORD` — `historianCredentialsFollowTheFleetEnvNames` RED→GREEN; suite 278 / 0 / 2 skipped; add-on jar `01a54d9f99b4b385`
 - [x] plant 12:23 UTC: hand submission with `--site site1` + credentials → job 50d52c31 → `STANDARD/COMPLETE=3` for run b6c924cf — **reconstruction from IoTDB proven at the plant**; fourth cause = device path from the registry site
 - [x] job resolves the device from `--iotdb-device` / `--iotdb-root-prefix` / `LOOP_ROOT_PREFIX` / `root.site1.cpm` + SafeNode mirror — test RED→GREEN 4/4; cplm-api passes `--iotdb-device` — `CplmRecomputeOptionsTests` 4/4 (next image)
-- [ ] plant: final jar swap (cp + restart cplm-api; container sha = add-on SHA256SUMS); runbook step H through cplm-api → `accepted … source iotdb`, `STANDARD/COMPLETE=N` → `accepted … source iotdb`, job runs and ends, `STANDARD/COMPLETE=N`, workbench shows the artifacts
+- [ ] plant: final jar swap (cp + restart cplm-api; container sha 043a6456); runbook step H through cplm-api → `accepted … source iotdb`, `STANDARD/COMPLETE=N` → `accepted … source iotdb`, job runs and ends, `STANDARD/COMPLETE=N`, workbench shows the artifacts
 - [ ] next Flink image release carries this source (closes the engine/replay jar split)
 
 ## Verification status (last runs, lab)
