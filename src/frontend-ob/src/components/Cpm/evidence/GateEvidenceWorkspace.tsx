@@ -22,6 +22,9 @@ import { EvidenceArtifactRenderer } from './EvidenceArtifactRenderer';
 import { GateResultStatePanel, classifyGateResult } from './GateResultState';
 import { parseSelection } from './selection';
 import { useEvidenceManifest, useMethodRun, useReconstruct } from './useEvidence';
+
+/** Manifest poll interval while a reconstruction is pending (plant: artifacts land in ~20 s). */
+const RECONSTRUCTION_POLL_MS = 10_000;
 import { useGateArtifacts } from './useGateArtifacts';
 import { findOptionOfRun, neighbours, resolveLanding, runInWindow, useEvidenceWindows, type WindowOption, type WindowTier } from './useEvidenceWindows';
 import { gateReasonOf, gateStatusOf } from './gateFacts';
@@ -44,8 +47,10 @@ export const GateEvidenceWorkspace: React.FC = () => {
   const resolutions = useCpmResolutions();
   const catalogue = useGateCatalogue();
   const run = useMethodRun(selection?.methodRunId);
-  const manifest = useEvidenceManifest(selection?.methodRunId, undefined);
   const reconstruct = useReconstruct(selection?.methodRunId);
+  // A reconstruction lands in ~20 s at the plant; poll while one is pending so the charts appear by themselves
+  // (the hook stops polling once readiness is COMPLETE). Without a pending request the manifest is not polled.
+  const manifest = useEvidenceManifest(selection?.methodRunId, reconstruct.isSuccess ? RECONSTRUCTION_POLL_MS : undefined);
   const [explainCollapsed, toggleExplain] = useExplainCollapsed();
 
   const loop = loops.data?.loops.find(l => l.loopId.toLowerCase() === (loopId ?? '').toLowerCase());

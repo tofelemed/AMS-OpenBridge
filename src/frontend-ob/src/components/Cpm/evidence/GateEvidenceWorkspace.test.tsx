@@ -50,6 +50,7 @@ function respond(url: string): unknown {
   if (url.endsWith('/method-runs/evidence/batch')) {
     return { count: 4, manifests: Object.fromEntries([RUN, G3_FUSED, 'g15-run', 'g0-run', 'g1-run', 'g11-run'].map(id => [id, noEvidence(id)])) };
   }
+  if (url.endsWith('/analysis-runs')) return { analysisRunId: 'ar-1', loopId: 'FIC10302', purpose: 'EVIDENCE_RECONSTRUCTION', jobId: 'job-1', source: 'iotdb', gate: 'G3' };
   if (/\/method-runs\/[^/]+\/evidence$/.test(url)) return noEvidence(url.split('/').slice(-2)[0]);
   if (url.includes('/gates?')) {
     const q = new URL('http://x' + url).searchParams;
@@ -108,6 +109,27 @@ describe('GateEvidenceWorkspace', () => {
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
     await waitFor(() => expect(screen.getAllByText(/Evidence not retained for this run/).length).toBeGreaterThan(0));   // NOT_RETAINED: policy, not a wait
     expect(screen.getAllByText(/Reconstruct evidence/).length).toBeGreaterThan(0);
+  });
+
+  // 2026-10-03 (Marun): the plant reconstructs a window in ~20 s, but the workspace refetched the manifest once
+  // (too early) and then held it for 30 s, so the charts only appeared on a reselect. While a reconstruction is
+  // pending the manifest is polled; the hook stops by itself once readiness is COMPLETE.
+  it('polls the manifest every 10 s once a reconstruction was accepted', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
+      await waitFor(() => expect(screen.getAllByText(/Reconstruct evidence/).length).toBeGreaterThan(0));
+      // the hook coalesces manifest reads into the batch endpoint; a poll is one more batch (or single) read
+      const manifestGets = () => urls().filter(u => u.endsWith('/method-runs/evidence/batch') || u.endsWith(`/method-runs/${RUN}/evidence`)).length;
+      fireEvent.click(screen.getAllByText(/Reconstruct evidence/)[0]);
+      await waitFor(() => expect(screen.getAllByText(/Reconstruction accepted/).length).toBeGreaterThan(0));
+      await vi.advanceTimersByTimeAsync(1_000);
+      const afterAccept = manifestGets();                      // the one invalidation refetch
+      await vi.advanceTimersByTimeAsync(10_500);
+      expect(manifestGets()).toBeGreaterThan(afterAccept);    // a poll fired
+      await vi.advanceTimersByTimeAsync(10_500);
+      expect(manifestGets()).toBeGreaterThan(afterAccept + 1); // and keeps firing while nothing arrived
+    } finally { vi.useRealTimers(); }
   });
 
   it('parses and re-encodes the selection so the URL is the source of truth', () => {

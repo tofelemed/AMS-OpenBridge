@@ -192,7 +192,8 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 
 - [x] `sha256Hex` native-or-pure fallback — `artifactCodec.test.ts` +2 RED→GREEN
 - [x] frontend suite 284/284, lint clean, build clean; builder test `test_v264_manifest…` RED→GREEN 36/36
-- [x] bundle `release-out/v2.6.4-20261003` (ams-frontend only, src-84191a91, SHA256SUMS 18/18 OK; the image's GateResultState chunk carries the fallback)
+- [x] workbench polls the manifest every 10 s while a reconstruction is pending — `GateEvidenceWorkspace.test.tsx` +1 RED→GREEN; suite 285/285
+- [ ] bundle `release-out/v2.6.4-20261003` rebuilt with the polling change (the first build, src-84191a91, is superseded)
 - [ ] plant: image swap, Ctrl+F5, evidence charts draw on the Explorer gate panel and the Workbench
 
 ## Verification status (last runs, lab)

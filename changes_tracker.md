@@ -2584,6 +2584,13 @@ verification rule ("nothing is drawn from bytes that failed their checksum") is 
 input and a 100 KB input compared with Node's `createHash`; the native path still matches. Frontend suite, lint and
 build below. Plant proof: Ctrl+F5, open a gate on the Explorer Summary or the Evidence Workbench → the charts draw.
 
+**Also in v2.6.4: the workbench polls while a reconstruction is pending.** The plant rebuilds a window in ~20 s, but
+`GateEvidenceWorkspace` refetched the manifest once (too early) and then held it for 30 s, so the charts appeared only
+on a reselect. The manifest is now polled every 10 s after an accepted reconstruction (`RECONSTRUCTION_POLL_MS`), and
+the hook stops by itself once readiness is COMPLETE; the Summary gate detail already polled at 15 s.
+`GateEvidenceWorkspace.test.tsx` (+1: fails without the change, passes with it; the hook coalesces manifest reads into
+the batch endpoint, which the test counts). Suite 285 / 285, lint clean, build clean.
+
 ### Release v2.6.4 — what to build and run
 
 - Updated service: `ams-frontend` (image). Nothing else; no SQL; no jar; no `.env` change. Deploys on top of v2.6.3.
