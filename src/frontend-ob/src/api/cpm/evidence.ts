@@ -119,7 +119,12 @@ export async function fetchBundle(methodRunId: string, signal?: AbortSignal): Pr
   return new Uint8Array(await res.arrayBuffer());
 }
 
-export const postReconstruction = (methodRunId: string, source: 'kafka' | 'iotdb' = 'kafka') =>
+/**
+ * Rebuild one method run's artifacts over exactly its support. The support is read from the
+ * historian (IoTDB), the durable store: the Kafka samples topic keeps 12 h at the plant, so a
+ * window older than that would rebuild from nothing (2026-10-03 decision).
+ */
+export const postReconstruction = (methodRunId: string, source: 'kafka' | 'iotdb' = 'iotdb') =>
   apiJson<ReconstructionAccepted>(`${CPM_BASE}/analysis-runs`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ purpose: 'EVIDENCE_RECONSTRUCTION', methodRunId, source }),

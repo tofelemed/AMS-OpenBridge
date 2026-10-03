@@ -305,8 +305,16 @@ def test_v262_steps_carry_the_checkout_guard_and_the_ams_api_export():
     assert steps.index("export START_AMS_API=yes") < steps.index("deploy.sh --prod")
 
 
-# ── v2.6.3 (CHG-035 Explorer 12h/24h toggle + on-demand CSV; ams-frontend only) ─────
-def test_v263_manifest_is_the_frontend_only_with_no_directive():
+# ── v2.6.3 (CHG-034 debounce + CHG-035 Explorer toggle / CSV / historian reconstruction; one bundle) ──
+def test_v263_manifest_is_cplm_api_plus_frontend_with_the_debounce_directive():
     services, flags = br.read_manifest("v2.6.3")
-    assert services == ["ams-frontend"]
-    assert flags == set()
+    assert services == ["cplm-api", "ams-frontend"]
+    assert "v262-debounce" in flags and "v26-retention" not in flags
+
+
+def test_v263_steps_keep_the_debounce_steps_and_add_the_frontend_proof():
+    steps = br.vm_steps("v2.6.3", "abc1234", CPLM_ROWS, False, ["cplm-api", "ams-frontend"], False, False, False, True)
+    sync = steps.index("tar -xzf /tmp/v2.6.3/src-abc1234.tar.gz -C /opt/AMS-open")
+    assert sync < steps.index("cpm-11-episode-debounce.sql") < steps.index("02-apply-schemas.sh") < steps.index("deploy.sh --prod")
+    assert "Ctrl+F5" in steps                                              # the frontend image swap proof
+    assert "FAMILY_CHANGED" in steps

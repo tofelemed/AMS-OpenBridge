@@ -26,6 +26,7 @@ Last updated: 2026-10-02 (v2.6.1 live since 2026-09-27 17:30 UTC; evidence OFF a
 | 2026-09-26 07:20 | v2.5 (CHG-026 / 027 / 028 / 030 / 032) | `release-out/v2.5-20260925-r2`, tag `v2.5` = aae3c77a, jar 2dc8788aa07f |
 | 2026-09-27 05:24 | Flink patch 1: G0 completeness from the declared grid; per-partition watermarks; control streams marked idle | jar b4a10e5474e7a557 |
 | 2026-09-27 | Flink patch 2: sample idleness 30 min; Short job parallelism from `CPLM_SHORT_PARALLELISM` | `release-out/v2.5-flink-patch2-20260927`, jar f7c99294e0767ea9 |
+| pending | **v2.6.3** = CHG-034 (`cplm-api`: episode family-change debounce, `Cplm__FamilyChangeWindows`=3, `ops/cpm-11`) + CHG-035 (`ams-frontend`: Explorer 12h/24h toggle, CSV on demand, reconstruction from the historian); replaces the never-deployed v2.6.2; no jar | `release-out/v2.6.3-<date>`; `changes_tracker.md` "Release v2.6.3" |
 | pending | v2.6.1 = v2.6 (CHG-033: bounded evidence + partitioned result tables, `cplm-api`) + Flink patch 2 (the same jar f7c99294e0767ea9, shipped in the Flink image) in one deployment | `release-out/v2.6.1-20260927`; `changes_tracker.md` "Release v2.6.1" |
 
 ## 3. Retention: what we keep and for how long
@@ -60,6 +61,7 @@ about 25 GB free after the 26 September cleanup. The 24 h measurement in the v2.
 | CPLM consumer groups | exactly ONE member per group (`traverse-cpa-cplm-results`, `...-frames`, evidence, condition, response, health, config-acks); `SingleMemberGuard` asserts it | two members split the partitions and each persists a subset silently |
 | Gate configuration signing | `CPLM_GATE_CONFIG_KEY` on JM and TM (= `TRAVERSE_SERVICE_KEY`) | unsigned bundles are NACKed; six workers must announce one jar |
 | Episode family change | `Cplm__FamilyChangeWindows` = 3 (v2.6.2) | a different fault family must hold 3 consecutive fault windows (45 min; unjudged windows neither count nor reset) before an episode changes hands; candidate windows never move the severity; before, every flip closed and reopened (348 a day) and captured evidence |
+| Evidence reconstruction source | `iotdb` (the historian), set by the workbench; the API also accepts `kafka` | the samples topic keeps 12 h at the plant (`retention.ms` 43200000), the historian keeps the loop series for weeks; a rebuild from Kafka of an older window produced nothing (2026-10-03). The replay job reads `root.<site>.cpm.<loop>.{pv,sp,op,vp,mode}` over exactly the run's support and needs one free TaskManager slot |
 | Quality decoding | every MQTT loop data source declares `quality_protocol = STRING_ENUM` (`ops/set-quality-protocol.py`) | never derive quality from the payload's `source` field |
 | Loop model | `command_path` = `OP_TO_VALVE` for 169 loops, `OP_TO_VFD` for FIC10405, all EXPLICIT; 5 loops `UNKNOWN` | the VFD / cascade-master exception list is still owed by the control engineer |
 | Ingestion parking | ~14.6 % of OT messages park (one Bender monitor is 99.8 % of them): narrow the subscription to exclude `OT/HDPE/BENDER/#` | open |

@@ -1,11 +1,23 @@
-# Release v2.6.3 — CHG-035: Loop Explorer 12 h / 24 h fused window toggle; trend charts export CSV on demand (no data table).
-# ams-frontend only; no cplm-api, no schema, no Flink jar, no .env change. Consumed by: python migration/deploy/build-release.py --release v2.6.3
+# Release v2.6.3 — ONE bundle: CHG-034 (episode family-change debounce) + CHG-035 (Explorer 12 h / 24 h toggle, CSV on
+# demand, evidence reconstruction from the historian). Supersedes v2.6.2, which was built but never deployed.
+# Consumed by: python migration/deploy/build-release.py --release v2.6.3 --skip-jar
 #
-#   ams-frontend   Explorer › Summary reads the fused window kind from ?window= (default 24h, as Performance) and offers
-#                  12h / 24h in the "Gates on the latest fused result" panel head; the Performance "open loop" hand-off keeps
-#                  the kind. Every trend chart drops the "Data table / CSV" disclosure (it serialised every point into the
-#                  page) and keeps one "Export CSV" button that builds the file on click.
+#   cplm-api       CHG-034: an episode no longer closes on the first window of another fault family: the family is a
+#                  candidate until it has held for Cplm__FamilyChangeWindows (3) consecutive windows, then FAMILY_CHANGED
+#                  as before (Marun 2026-10-02: 348 such closes a day, each an evidence capture of ~95 artifacts). Two
+#                  columns on cplm_event_frames (candidate_family, candidate_windows), self-healed too.
+#   ams-frontend   CHG-035: Explorer › Summary reads the fused window kind from ?window= (default 24h, as Performance)
+#                  and offers 12h / 24h in the "Gates on the latest fused result" panel head; Performance "open loop" keeps
+#                  the kind. Trend charts drop the "Data table / CSV" disclosure and keep one "Export CSV" button that
+#                  builds the file on click. The workbench's "Reconstruct" asks for source=iotdb (the historian, durable)
+#                  instead of the 12 h Kafka samples topic.
 #
-# Deploy with v2.6.2 or after it (independent images). Proof after the swap: 200 on /, users Ctrl+F5, the toggle is on the
-# Summary page and a trend chart shows "Export CSV" and no "Data table / CSV".
+# Schema: ops/cpm-11-episode-debounce.sql (online, additive, BEFORE the swap, then 02-apply-schemas.sh).
+# Source archive (not an image): migration/deploy/docker-compose.marun.yml forwards Cplm__EvidenceTransientHours,
+#   Cplm__EvidenceTransientBudgetBytes, Cplm__EvidenceSweepIntervalMinutes, Cplm__EpisodeCaptureMax,
+#   Cplm__FamilyChangeWindows from migration/.env (same names); the Flink swap cancels every job before removing the
+#   JobManager and sweeps orphaned checkpoints; migration/daily-check.sh + MARUN-DAILY-CHECK.md.
+# NOT rebuilt: the Flink jar (plant stays on f7c99294e0767ea9), ingestion, historian-bff, gateway, auth.
+!v262-debounce
+cplm-api
 ams-frontend

@@ -159,7 +159,7 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] full cplm-api suite 2026-10-03: 219/221 green; the 2 failures are the lab (long-table GIN probe on Timescale-compressed chunks; config lifecycle timing right after the Docker restart, passes on re-run)
 - [x] lab injection 2026-10-03 (new image): 7 windows OSC, STI, STI, OSC, STI, STI, STI → 2 episodes / 1 FAMILY_CHANGED / captures OPEN x2 + CLOSE x1 (old lifecycle on the same input: 4 episodes / 3 closes)
 - [x] fresh review 2026-10-03: 6 findings, all applied in f1171518 (candidate windows never escalate or move severity; closed rows carry no candidate; unjudged windows keep the candidate, documented; orphan sweep guarded; v2.6.2 steps carry the checkout guard + START_AMS_API); suite 218/218 without the two lab-bound tests; bundle `release-out/v2.6.2-20261003` (src-f1171518, checksums OK)
-- [ ] plant: overlay → cpm-11 → ownership → swap → proofs; next day `FAMILY_CHANGED` closes in the tens
+- [ ] plant (now inside the v2.6.3 bundle; v2.6.2 withdrawn): overlay → cpm-11 → ownership → swap → proofs; next day `FAMILY_CHANGED` closes in the tens
 
 ## CHG-035 / v2.6.3 — Explorer 12h/24h toggle + on-demand CSV (2026-10-03)
 
@@ -168,7 +168,10 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] Performance → Explorer hand-off carries the kind
 - [x] vitest 281/281 · lint clean · build clean
 - [x] lab browser pass (FIC10302): 12h eyebrow / run id / request / pill; G5 detail 2 charts, 0 tables, 2 CSV buttons, 0 new console errors
-- [ ] release v2.6.3 (ams-frontend only) built and deployed at the plant; Ctrl+F5 proof
+- [x] workbench reconstruction posts `source: 'iotdb'` (historian) — `api/cpm/evidence.test.ts` RED→GREEN; suite 282/282, lint clean
+- [ ] lab E2E: reconstruct a 12 h G5 run older than Kafka's 12 h retention from IoTDB (FIC10302 run 186dfeb9, window 2026-09-16 15:45 → 09-17 03:45 UTC; IoTDB holds 1,812 samples, Kafka none) — blocked on a free TaskManager slot (lab 16/16 used; two duplicate jobs to cancel)
+- [ ] release v2.6.3 = cplm-api (CHG-034) + ams-frontend (CHG-035), one bundle, replaces v2.6.2 — manifest + builder tests 34/34; bundle build pending
+- [ ] plant deploy of v2.6.3; Ctrl+F5 proof; toggle + CSV + FAMILY_CHANGED proofs
 
 ## Verification status (last runs, lab)
 

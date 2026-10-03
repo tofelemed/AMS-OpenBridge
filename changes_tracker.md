@@ -1782,7 +1782,7 @@ Flink job args `--evidence-emit ALL|EPISODES|NONE`, `--g12-delay-min-s`, `--gate
 
 ---
 
-## Release v2.6.2 — what to build and run (CHG-034 family-change debounce)
+## Release v2.6.2 — what to build and run (CHG-034 family-change debounce) — SUPERSEDED by v2.6.3, never deployed
 
 **Updated service: `cplm-api`** (the only image; no Flink jar). Build: `python migration/deploy/build-release.py --release v2.6.2`
 (manifest `migration/deploy/releases/v2.6.2.txt`). Scripts and steps at the plant, in order: extract the source archive
@@ -2444,7 +2444,7 @@ the restart loop seen on 3 October; `MARUN-DAILY-CHECK.md` section 4 has the rec
 
 **Scope:** `ams-frontend` only (`src/frontend-ob`): `components/Cpm/explorer/{SummaryTab,LoopWorkspace}.tsx`,
 `explorer/summary/WindowKindToggle.tsx` (new), `CpmExplorer.tsx`, `CpmPerformance.tsx`, `cpaHref.ts`,
-`evidence/CpmChart.tsx`, `styles/cpm.css`, `styles/cpm-evidence.css`. No service, schema or Flink change.
+`evidence/CpmChart.tsx`, `api/cpm/evidence.ts`, `styles/cpm.css`, `styles/cpm-evidence.css`. No service, schema or Flink change.
 
 **What the operator asked.** The Summary page of the Loop Explorer evaluated the 24 h fused window only ("Evaluated 24h
 window · ending …"); the 12 h verdict exists but could not be reached from the hub. Every trend chart carried a "Data
@@ -2461,24 +2461,32 @@ click, not a table.
 - `CpmChart` lost the `<details>` data table; one flat `Export CSV` button remains and builds the file only on click.
   The dead `.cpm-chart__table` rule is gone; `.cpm-chart__more` stays for the zero-crossings disclosure in LongViews.
 - `.cpm-panel-head__right` is a flex row (toggle beside the pill).
+- **Evidence reconstruction reads the historian.** The workbench's "Reconstruct" posted `source: 'kafka'`, so at the
+  plant only windows inside the samples topic's 12 h retention could be rebuilt and anything older rebuilt from nothing.
+  `postReconstruction` now defaults to `source: 'iotdb'` (the API and the replay job's `IotDbBoundedSource` already
+  supported it: `root.<site>.cpm.<loop>.{pv,sp,op,vp,mode}` over exactly the run's support). User decision 2026-10-03:
+  the historian is the durable source. Lab proof below.
 
 **Tests.** `cpaHref.test.ts` (+1: `explorerHref` writes `?window=`), `explorer/summary/WindowKindToggle.test.tsx` (new, 2:
 options and selected value; a served kind forwarded, an empty or unknown emit dropped — the two OpenBridge wrappers stubbed
 as `LoopModelCard.test` stubs `ObcButton`, the Lit group never assigns its slot under jsdom), `evidence/CpmChartCsv.test.tsx`
 (new, 1: no table, no `<details>`, no serialised values, one `Export CSV` button). Every test watched RED before the code.
-Frontend suite 281 / 281, `npm run lint` clean, `npm run build` clean. Lab browser pass 2026-10-03 (Vite 5174, FIC10302):
+`api/cpm/evidence.test.ts` (new, 1: the request body names `source: 'iotdb'`). Frontend suite 282 / 282, `npm run lint` clean, `npm run build` clean. Lab browser pass 2026-10-03 (Vite 5174, FIC10302):
 12h → eyebrow "Evaluated 12h window", a different fused run id on the workbench link, one `windowKind=12h` request, the
 verdict pill updated; G5 detail: 2 charts, 0 data tables, 2 CSV buttons; 0 new console errors.
 
-**Deliberately not done.** The Evidence Workbench reconstruction source stays `kafka` (an `iotdb` source for windows older
-than the samples retention is supported by the API, not yet by the UI — offered, not approved); the Historical / Window
-Inspector pages keep their own window parameters (`?window=` there is the window END, `cpaHref.ts` documents the split).
+**Deliberately not done.** The Historical / Window Inspector pages keep their own window parameters (`?window=` there is
+the window END, `cpaHref.ts` documents the split); a source picker in the workbench (Kafka for a very recent window) is not
+offered — the historian covers every window the historian keeps, which at the plant is longer than Kafka's 12 h.
 
-### Release v2.6.3 — what to build and run
+### Release v2.6.3 — what to build and run (ONE bundle: CHG-034 + CHG-035; replaces v2.6.2)
 
-- Updated service: `ams-frontend` (image). Nothing else is rebuilt; no SQL step; no Flink jar; no `.env` change.
-- Build: `python migration/deploy/build-release.py --release v2.6.3 --out release-out/v2.6.3-<date>` (manifest
-  `migration/deploy/releases/v2.6.3.txt`). Can be deployed together with v2.6.2 (independent images) or after it.
-- Plant: `docker load` the frontend image, `bash migration/deploy/deploy.sh --prod` (the usual exports), then `200 on /`
-  and users press Ctrl+F5. Proof: Loop Explorer › Summary shows the 12h / 24h toggle; a trend chart shows "Export CSV" and
-  no "Data table / CSV".
+- **Updated services: `cplm-api`** (CHG-034 debounce) **and `ams-frontend`** (CHG-035). No Flink jar (plant stays on
+  f7c99294e0767ea9). Source archive: compose `Cplm__*` pass-through, Flink-swap orphan sweep, daily check.
+- Build: `python migration/deploy/build-release.py --release v2.6.3 --skip-jar --out release-out/v2.6.3-<date>` (manifest
+  `migration/deploy/releases/v2.6.3.txt`, directive `!v262-debounce`). The v2.6.2 bundle is withdrawn.
+- Plant, in order (the bundle's VM-STEPS.txt has the exact commands): extract the source archive → `ops/cpm-11-episode-debounce.sql`
+  (online, additive) → `bash migration/02-apply-schemas.sh` → `docker load` both images → `deploy.sh --prod` with the usual
+  exports → proofs: `printenv Cplm__FamilyChangeWindows` = 3 in the container; `200` on `/` and users press Ctrl+F5; Loop
+  Explorer › Summary shows the 12h / 24h toggle; a trend chart shows "Export CSV" and no "Data table / CSV"; next day
+  `FAMILY_CHANGED` closes in the tens.
