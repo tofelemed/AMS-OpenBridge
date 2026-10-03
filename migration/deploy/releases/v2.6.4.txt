@@ -1,0 +1,9 @@
+# Release v2.6.4 — CHG-037: evidence checksums no longer need a secure context (plant UI is plain HTTP).
+# ams-frontend only; no cplm-api, no schema, no Flink jar, no .env change. Consumed by: python migration/deploy/build-release.py --release v2.6.4 --skip-jar
+#
+#   ams-frontend   At http://192.168.190.91:8090 the browser exposes no crypto.subtle (secure contexts only), so every
+#                  evidence artifact failed verification ("Cannot read properties of undefined (reading 'digest')") and
+#                  the gate panels drew nothing. sha256Hex uses the native engine when present, else a pure-JS SHA-256.
+#
+# Deploy on top of v2.6.3: docker load, deploy.sh --prod (recreates ams-frontend only), 200 on /, users Ctrl+F5.
+ams-frontend

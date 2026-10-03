@@ -66,3 +66,23 @@ describe('artifactCodec', () => {
     await expect(decodeArtifact(meta2, chunks, ports)).rejects.toThrow(/PAYLOAD_LENGTH/);
   });
 });
+
+// 2026-10-03 (Marun): the plant UI is served over plain HTTP (http://<ip>:8090), where the browser exposes no
+// crypto.subtle (secure contexts only), so every artifact failed its checksum with "Cannot read properties of
+// undefined (reading 'digest')" and nothing was drawn. The checksum must not depend on a secure context.
+describe('sha256 without crypto.subtle', () => {
+  it('matches the reference digests with the pure fallback', async () => {
+    const { sha256Hex } = await import('./artifactCodec');
+    const abc = new TextEncoder().encode('abc');
+    expect(await sha256Hex(abc, undefined)).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+    expect(await sha256Hex(new Uint8Array(0), undefined)).toBe('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+    const big = new Uint8Array(100_003); for (let i = 0; i < big.length; i++) big[i] = (i * 31 + 7) & 0xff;
+    expect(await sha256Hex(big, undefined)).toBe(createHash('sha256').update(big).digest('hex'));
+  });
+
+  it('prefers the native engine when one is available', async () => {
+    const { sha256Hex } = await import('./artifactCodec');
+    const abc = new TextEncoder().encode('abc');
+    expect(await sha256Hex(abc, webcrypto.subtle as unknown as SubtleCrypto)).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+  });
+});

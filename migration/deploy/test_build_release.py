@@ -326,3 +326,10 @@ def test_v263_steps_keep_the_debounce_steps_and_add_the_frontend_proof():
     assert sync < steps.index("cpm-11-episode-debounce.sql") < steps.index("02-apply-schemas.sh") < steps.index("deploy.sh --prod")
     assert "Ctrl+F5" in steps                                              # the frontend image swap proof
     assert "FAMILY_CHANGED" in steps
+
+
+# ── v2.6.4 (CHG-037 evidence checksum without SubtleCrypto; ams-frontend only) ─────
+def test_v264_manifest_is_the_frontend_only_with_no_directive():
+    services, flags = br.read_manifest("v2.6.4")
+    assert services == ["ams-frontend"]
+    assert flags == set()

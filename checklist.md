@@ -188,6 +188,13 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] plant 2026-10-03 13:19 UTC: patch 4 swapped (container sha 043a6456, brokers kafka-1/kafka-2); step H through cplm-api (PIC10412, run 5d0d8ebf) → `accepted … source iotdb gate G5` (run 4d697f22, job 50c44fb0) → `STANDARD/COMPLETE=3` within 20 s — **CHG-036 closed at the plant; the workbench Reconstruct button works on any window the historian holds** → `accepted … source iotdb`, job runs and ends, `STANDARD/COMPLETE=N`, workbench shows the artifacts
 - [ ] next Flink image release carries this source (closes the engine/replay jar split)
 
+## CHG-037 / v2.6.4 — evidence checksum without SubtleCrypto (2026-10-03)
+
+- [x] `sha256Hex` native-or-pure fallback — `artifactCodec.test.ts` +2 RED→GREEN
+- [x] frontend suite 284/284, lint clean, build clean; builder test `test_v264_manifest…` RED→GREEN 36/36
+- [ ] bundle `v2.6.4` (ams-frontend only) built
+- [ ] plant: image swap, Ctrl+F5, evidence charts draw on the Explorer gate panel and the Workbench
+
 ## Verification status (last runs, lab)
 
 | Suite / script | Result | When |

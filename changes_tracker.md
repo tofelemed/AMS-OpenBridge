@@ -2566,3 +2566,28 @@ normal path — the request the workbench's Reconstruct button sends, nothing su
   under cplm-api, `deploy.sh --prod` (recreates cplm-api), `printenv CplmRecompute__BootstrapServers` in the container,
   `sha256sum` inside the container = `043a6456…`, then RUNBOOK step H.
 
+## CHG-037 — Evidence checksums failed on the plant UI: no SubtleCrypto over plain HTTP (2026-10-03)
+
+**Scope:** `ams-frontend` only (`src/frontend-ob/src/components/Cpm/evidence/artifactCodec.ts`). Release v2.6.4.
+
+**What was wrong.** The plant UI is served at `http://192.168.190.91:8090`. Browsers expose `crypto.subtle` only in a
+secure context (HTTPS or localhost), so the artifact codec's checksum call threw "Cannot read properties of undefined
+(reading 'digest')" for every chunk, the Explorer gate panel reported "An artifact did not verify … nothing is drawn
+from bytes that failed their checksum", and no evidence chart drew at the plant. The lab runs on localhost and never
+showed it.
+
+**What changed.** `sha256Hex(bytes, subtle)` uses the native engine when the context has one and a pure-JavaScript
+SHA-256 (FIPS 180-4) otherwise; `browserPorts.sha256` passes `globalThis.crypto?.subtle`. Same digest either way, so the
+verification rule ("nothing is drawn from bytes that failed their checksum") is unchanged.
+
+**Tests.** `artifactCodec.test.ts` (+2, RED→GREEN): the fallback matches the reference digests for `abc`, the empty
+input and a 100 KB input compared with Node's `createHash`; the native path still matches. Frontend suite, lint and
+build below. Plant proof: Ctrl+F5, open a gate on the Explorer Summary or the Evidence Workbench → the charts draw.
+
+### Release v2.6.4 — what to build and run
+
+- Updated service: `ams-frontend` (image). Nothing else; no SQL; no jar; no `.env` change. Deploys on top of v2.6.3.
+- Build: `python migration/deploy/build-release.py --release v2.6.4 --skip-jar --out release-out/v2.6.4-<date>`.
+- Plant: `sha256sum -c`, `gunzip -c ams-cpa-ams-frontend.tar.gz | docker load`, `deploy.sh --prod` with the usual
+  exports (recreates ams-frontend only), `200` on `/`, users Ctrl+F5, then a gate's evidence charts draw.
+
