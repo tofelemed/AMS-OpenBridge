@@ -268,6 +268,14 @@ def test_plant_compose_forwards_the_cplm_evidence_and_episode_knobs():
         assert f"{key}: ${{{key}:-" in text, key
 
 
+def test_plant_compose_gives_recompute_the_plant_brokers():
+    # CHG-036 (2026-10-03): the bounded replay/reconstruction job reads the parameter-update topic in main()
+    # with the brokers cplm-api passes; CplmRecompute__BootstrapServers defaulted to the lab's kafka:9092,
+    # so every submission at Marun was refused ("Could not execute application").
+    text = (HERE.parent / "deploy" / "docker-compose.marun.yml").read_text(encoding="utf-8") if (HERE.parent / "deploy").is_dir() else (HERE / "docker-compose.marun.yml").read_text(encoding="utf-8")
+    assert "CplmRecompute__BootstrapServers: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092}" in text
+
+
 # ── v2.6.2 (CHG-034 family-change debounce; cplm-api only) ───────────────────
 def v262_steps() -> str:
     return br.vm_steps("v2.6.2", "abc1234", CPLM_ROWS, False, ["cplm-api"], False, False, False, True)

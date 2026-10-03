@@ -185,6 +185,9 @@ services:
       Cplm__EvidenceSweepIntervalMinutes: ${Cplm__EvidenceSweepIntervalMinutes:-15}
       Cplm__EpisodeCaptureMax: ${Cplm__EpisodeCaptureMax:-3}
       Cplm__FamilyChangeWindows: ${Cplm__FamilyChangeWindows:-3}
+      # CHG-036: the bounded replay / reconstruction job reads the parameter-update topic in main() with the
+      # brokers cplm-api passes; the option's default is the lab's kafka:9092, which does not exist here.
+      CplmRecompute__BootstrapServers: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092}
 
   historian-bff:
     <<: *cpa

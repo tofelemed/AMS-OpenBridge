@@ -2523,9 +2523,24 @@ host `src/flink/target/ams-flink-1.0-SNAPSHOT.jar`), so the fix reaches the plan
 f7c99294e0767ea9; reconstruction manifests record the replay jar's hash in their provenance. The next Flink image
 release carries the same source, which closes the split.
 
+**Second cause, found after the jar patch (plant 10:37 UTC).** With the bounded source fixed, the plant still answered
+"Could not execute application". A hand-built submission of the identical program arguments straight to the JobManager
+was accepted (job c6b5bf75), which isolated the difference to one argument: `--brokers`. The job's `main` reads the
+registry's parameter-update topic (`CplmParameterUpdateReader.readParameterUpdates(brokers)`) before submitting, and
+cplm-api fills `--brokers` from `CplmRecompute:BootstrapServers`, whose default was the lab's `kafka:9092`; the plant
+container set only the jar path for that section, so every submission there (Kafka or historian source, since v2.5) was
+refused. Fixes: (1) the plant overlay forwards `CplmRecompute__BootstrapServers` from `KAFKA_BOOTSTRAP_INTERNAL`
+(`test_plant_compose_gives_recompute_the_plant_brokers`, 35/35) — applied at the plant as a one-line patch of the overlay
+and a cplm-api recreate; (2) `CplmRecomputeOptions.BootstrapServers` is now unset by default and
+`EffectiveBootstrapServers` falls back to the service's own `Kafka:BootstrapServers` (`CplmRecomputeOptionsTests`, 3/3,
+RED→GREEN) — ships with the next cplm-api image. The `Selector$CloseMode` lines in the JobManager log are Kafka admin
+threads orphaned by cancelled jobs, not a cause.
+
 ### Release v2.6.3 add-on — what to run (CHG-036)
 
 - Updated artifact: the host jar `/opt/AMS-open/src/flink/target/ams-flink-1.0-SNAPSHOT.jar` (replay/reconstruction only).
 - Steps: `release-out/v2.6.3-20261003/flink-replay-jar-patch3/STEPS.md` — checksum, rollback copy, `cp` over the
-  host jar, `docker restart traverse-cplm-api`, `sha256sum` inside the container = `26020dfd…`, then RUNBOOK step H.
+  host jar, then the overlay line `CplmRecompute__BootstrapServers: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka-1:9092,kafka-2:9092}`
+  under cplm-api, `deploy.sh --prod` (recreates cplm-api), `printenv CplmRecompute__BootstrapServers` in the container,
+  `sha256sum` inside the container = `26020dfd…`, then RUNBOOK step H.
 

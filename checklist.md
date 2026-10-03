@@ -178,7 +178,10 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 
 - [x] `CplmHistoricalReplayJobTest` RED (missing `historianSource`) → GREEN 2/2; Flink suite 277 / 0 / 2 skipped (Docker Maven); jar `26020dfd4f78eb20`
 - [x] add-on `release-out/v2.6.3-20261003/flink-replay-jar-patch3/` (jar + SHA256SUMS + STEPS.md: cp over the host jar, restart cplm-api, no engine change)
-- [ ] plant: STEPS.md applied, container jar sha = 26020dfd, runbook step H → `accepted … source iotdb`, job runs and ends, `STANDARD/COMPLETE=N`, workbench shows the artifacts
+- [x] plant: jar patch applied 10:21 UTC (container sha 26020dfd, Healthy) — still refused; hand-built submission to the JobManager accepted (job c6b5bf75) → second cause: `--brokers kafka:9092` (lab default) → `CplmParameterUpdateReader` fails in main()
+- [x] overlay forwards `CplmRecompute__BootstrapServers` — `test_plant_compose_gives_recompute_the_plant_brokers` RED→GREEN, 35/35
+- [x] cplm-api falls back to its own `Kafka:BootstrapServers` — `CplmRecomputeOptionsTests` RED→GREEN 3/3 (next image)
+- [ ] plant: overlay line patched + cplm-api recreated + printenv proof; runbook step H → `accepted … source iotdb`, job runs and ends, `STANDARD/COMPLETE=N`, workbench shows the artifacts
 - [ ] next Flink image release carries this source (closes the engine/replay jar split)
 
 ## Verification status (last runs, lab)

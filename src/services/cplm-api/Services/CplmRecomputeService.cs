@@ -93,6 +93,7 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
     private readonly Npgsql.NpgsqlDataSource _dataSource;
     private readonly IConfiguration _config;
     private readonly CplmRecomputeOptions _options;
+    private readonly string _brokers;
     private readonly ILogger<CplmRecomputeService> _logger;
     private readonly AnalysisRunStore _runs;
     private readonly SemaphoreSlim _uploadLock = new(1, 1);
@@ -109,6 +110,7 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
         _dataSource = dataSource;
         _config = config;
         _options = options.Value;
+        _brokers = CplmRecomputeOptions.EffectiveBootstrapServers(_options.BootstrapServers, config["Kafka:BootstrapServers"]);
         _logger = logger;
         _runs = new AnalysisRunStore(dataSource, logger);
     }
@@ -199,7 +201,7 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
         var args = string.Join(' ',
             "--input-topic", _options.SamplesTopic,
             "--output-topic", _options.GateResultsTopic,
-            "--brokers", _options.BootstrapServers,
+            "--brokers", _brokers,
             "--loop-id", loopId,
             "--replay-id", replayId,
             // Registry evidence: a BATCH job does not consume the metadata
@@ -473,5 +475,12 @@ public sealed class CplmRecomputeOptions
     public string JarPath { get; set; } = "/opt/ams/flink/ams-flink.jar";
     public string SamplesTopic { get; set; } = "traverse.cpa.loop.samples.v1";
     public string GateResultsTopic { get; set; } = "traverse.cpa.clpm.gate.results.v1";
-    public string BootstrapServers { get; set; } = "kafka:9092";
+    /// <summary>Brokers the bounded job is handed (it reads the parameter-update topic in main()). Unset = the service's own Kafka:BootstrapServers (CHG-036).</summary>
+    public string? BootstrapServers { get; set; }
+
+    /// <summary>An explicit recompute setting wins; otherwise the service's own brokers; the lab name only as a last resort.</summary>
+    public static string EffectiveBootstrapServers(string? configured, string? serviceKafka)
+        => !string.IsNullOrWhiteSpace(configured) ? configured.Trim()
+         : !string.IsNullOrWhiteSpace(serviceKafka) ? serviceKafka.Trim()
+         : "kafka:9092";
 }
