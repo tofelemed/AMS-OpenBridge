@@ -94,6 +94,7 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
     private readonly IConfiguration _config;
     private readonly CplmRecomputeOptions _options;
     private readonly string _brokers;
+    private readonly string? _historianPrefix;
     private readonly ILogger<CplmRecomputeService> _logger;
     private readonly AnalysisRunStore _runs;
     private readonly SemaphoreSlim _uploadLock = new(1, 1);
@@ -111,6 +112,7 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
         _config = config;
         _options = options.Value;
         _brokers = CplmRecomputeOptions.EffectiveBootstrapServers(_options.BootstrapServers, config["Kafka:BootstrapServers"]);
+        _historianPrefix = config["IotDb:LoopRootPrefix"];
         _logger = logger;
         _runs = new AnalysisRunStore(dataSource, logger);
     }
@@ -217,6 +219,7 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
             "--loop-type", support.LoopType ?? "",
             "--from-ms", support.FromMs.ToString(),
             "--to-ms", support.ToMs.ToString(),
+            historian ? string.Join(' ', "--iotdb-device", CplmRecomputeOptions.HistorianDevice(_historianPrefix, loopId)) : "",
             reconstruct is null ? "" : string.Join(' ',
                 "--reconstruct-method-run", reconstruct.MethodRunId.ToString(),
                 "--reconstruct-gate", reconstruct.Gate,
@@ -477,6 +480,13 @@ public sealed class CplmRecomputeOptions
     public string GateResultsTopic { get; set; } = "traverse.cpa.clpm.gate.results.v1";
     /// <summary>Brokers the bounded job is handed (it reads the parameter-update topic in main()). Unset = the service's own Kafka:BootstrapServers (CHG-036).</summary>
     public string? BootstrapServers { get; set; }
+
+    /// <summary>The historian device the bounded job reads (CHG-036): the writer's root prefix (IotDb:LoopRootPrefix, default root.site1.cpm) + SafeNode(loop) — never the registry site.</summary>
+    public static string HistorianDevice(string? rootPrefix, string loopId)
+    {
+        var prefix = string.IsNullOrWhiteSpace(rootPrefix) ? "root.site1.cpm" : rootPrefix.Trim().TrimEnd('.');
+        return prefix + "." + IotDbWriteClient.SafeNode(loopId);
+    }
 
     /// <summary>An explicit recompute setting wins; otherwise the service's own brokers; the lab name only as a last resort.</summary>
     public static string EffectiveBootstrapServers(string? configured, string? serviceKafka)

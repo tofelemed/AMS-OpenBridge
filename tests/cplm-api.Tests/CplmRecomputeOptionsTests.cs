@@ -22,6 +22,19 @@ public class CplmRecomputeOptionsTests
         Assert.Equal("replay-kafka:9092", CplmRecomputeOptions.EffectiveBootstrapServers("replay-kafka:9092", "kafka-1:9092"));
     }
 
+    /// <summary>
+    /// CHG-036, fourth cause: the replay job read the historian at root.&lt;registry site&gt;.cpm.&lt;loop&gt; and found nothing at
+    /// Marun (registry site hdpe, writer prefix root.site1.cpm). cplm-api now hands the job the exact device the writer
+    /// uses: its own IotDbWrite:LoopRootPrefix plus the SafeNode loop name.
+    /// </summary>
+    [Fact]
+    public void HistorianDeviceIsTheWritersPrefixPlusTheSafeNodeName()
+    {
+        Assert.Equal("root.site1.cpm.PIC30611", CplmRecomputeOptions.HistorianDevice("root.site1.cpm", "PIC30611"));
+        Assert.Equal("root.plant.cpm.FIC_10409", CplmRecomputeOptions.HistorianDevice("root.plant.cpm.", "FIC-10409"));
+        Assert.Equal("root.site1.cpm._101FIC", CplmRecomputeOptions.HistorianDevice(null, "101FIC"));
+    }
+
     [Fact]
     public void TheLabNameIsOnlyTheLastResort()
     {

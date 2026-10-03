@@ -71,6 +71,19 @@ public final class CplmHistoricalReplayJob {
         return fallback;
     }
 
+    /**
+     * The historian device to read (CHG-036, Marun 2026-10-03): --iotdb-device when cplm-api passes the writer's exact
+     * path; else --iotdb-root-prefix, else the LOOP_ROOT_PREFIX env, else the writer's default root.site1.cpm, each
+     * joined with the writer's SafeNode loop name. Never the registry --site: that is the UNS hierarchy site (hdpe at
+     * Marun), the writer stores loops under its configured prefix (root.site1.cpm), and the mismatch read nothing.
+     */
+    static String historianDevice(ParameterTool params, java.util.Map<String, String> env, String loopId) {
+        String explicit = params.get("iotdb-device", null);
+        if (explicit != null && !explicit.isEmpty()) return explicit;
+        String prefix = params.get("iotdb-root-prefix", envFirst(env, "root.site1.cpm", "LOOP_ROOT_PREFIX"));
+        return com.ams.flink.cplm.replay.IotDbBoundedSource.devicePathFor(prefix, loopId);
+    }
+
     public static void main(String[] args) throws Exception {
         ParameterTool params = ParameterTool.fromArgs(args);
         String brokers = params.get("brokers",
@@ -135,7 +148,8 @@ public final class CplmHistoricalReplayJob {
         if ("iotdb".equalsIgnoreCase(sourceKind)) {
             if (toMs <= fromMs) throw new IllegalArgumentException("--source iotdb needs --from-ms < --to-ms");
             samples = historianSource(env, new com.ams.flink.cplm.replay.IotDbBoundedSource(
-                            iotdbHost, iotdbPort, iotdbUser, iotdbPassword, site, loopId, loopType, fromMs, toMs));
+                            iotdbHost, iotdbPort, iotdbUser, iotdbPassword, historianDevice(params, System.getenv(), loopId),
+                            site, loopId, loopType, fromMs, toMs));
         } else {
             samples = env
                     .fromSource(source, WatermarkStrategy.noWatermarks(), "cplm-historical-replay-source")

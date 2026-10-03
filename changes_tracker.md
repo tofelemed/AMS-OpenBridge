@@ -2544,6 +2544,16 @@ the replay job read `IOTDB_PASSWORD`. The lab's IoTDB keeps the default password
 the add-on jar is rebuilt (sha `01a54d9f99b4b385…`). The plant's interim proof passed the credentials as program
 arguments on a hand submission.
 
+**Fourth cause, and the end-to-end proof (plant 12:23 UTC).** With credentials passed, the job ran and wrote nothing:
+it read `root.<registry site>.cpm.<loop>` (`--site hdpe`, the UNS hierarchy site), while the historian writer stores
+loops under its configured prefix `IotDb:LoopRootPrefix` = `root.site1.cpm` with SafeNode names (a leading digit
+prefixed by `_`). A hand submission with `--site site1` produced `STANDARD/COMPLETE=3` manifests for run b6c924cf
+(job 50d52c31): **reconstruction from the historian is proven at the plant.** Fixes: the job resolves the device from
+`--iotdb-device`, else `--iotdb-root-prefix`, else `LOOP_ROOT_PREFIX`, else `root.site1.cpm`, joined with a SafeNode
+mirror — never from the registry site (`historianDeviceFollowsTheWriterNotTheRegistrySite`, RED→GREEN); cplm-api passes
+`--iotdb-device` = its own `IotDb:LoopRootPrefix` + `SafeNode(loop)` (`HistorianDeviceIsTheWritersPrefixPlusTheSafeNodeName`,
+RED→GREEN, 4/4) — next image. Until then the jar's default prefix covers the plant.
+
 ### Release v2.6.3 add-on — what to run (CHG-036)
 
 - Updated artifact: the host jar `/opt/AMS-open/src/flink/target/ams-flink-1.0-SNAPSHOT.jar` (replay/reconstruction only).

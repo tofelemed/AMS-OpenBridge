@@ -53,6 +53,32 @@ public class CplmHistoricalReplayJobTest {
         assertEquals("root", CplmHistoricalReplayJob.envFirst(java.util.Map.of("IOTDB_PASS", ""), "root", "IOTDB_PASS", "IOTDB_PASSWORD"));
     }
 
+    /**
+     * Marun 2026-10-03 (CHG-036, fourth cause): the historian writer stores loops under its configured root
+     * prefix (IotDbWriteOptions.LoopRootPrefix, default root.site1.cpm) with SafeNode names (leading digit
+     * prefixed by '_'); the replay job built root.<registry site>.cpm.<loop> from --site (hdpe at Marun) and
+     * read nothing. The device comes from --iotdb-device (cplm-api), else --iotdb-root-prefix, else the
+     * LOOP_ROOT_PREFIX env, else root.site1.cpm - never from the registry site.
+     */
+    @Test
+    public void historianDeviceFollowsTheWriterNotTheRegistrySite() {
+        java.util.Map<String, String> noEnv = java.util.Map.of();
+        assertEquals("root.site1.cpm.PIC30611",
+                CplmHistoricalReplayJob.historianDevice(args("--site", "hdpe", "--loop-id", "PIC30611"), noEnv, "PIC30611"));
+        assertEquals("root.plant.cpm.PIC30611",
+                CplmHistoricalReplayJob.historianDevice(args("--iotdb-root-prefix", "root.plant.cpm"), noEnv, "PIC30611"));
+        assertEquals("root.x.cpm.Y",
+                CplmHistoricalReplayJob.historianDevice(args("--iotdb-device", "root.x.cpm.Y", "--iotdb-root-prefix", "root.plant.cpm"), noEnv, "PIC30611"));
+        assertEquals("root.env.cpm.PIC30611",
+                CplmHistoricalReplayJob.historianDevice(args(), java.util.Map.of("LOOP_ROOT_PREFIX", "root.env.cpm"), "PIC30611"));
+        assertEquals("root.site1.cpm.FIC_10409", CplmHistoricalReplayJob.historianDevice(args(), noEnv, "FIC-10409"));
+        assertEquals("root.site1.cpm._101FIC", CplmHistoricalReplayJob.historianDevice(args(), noEnv, "101FIC"));   // SafeNode's digit rule
+    }
+
+    private static org.apache.flink.api.java.utils.ParameterTool args(String... a) {
+        return org.apache.flink.api.java.utils.ParameterTool.fromArgs(a);
+    }
+
     @Test
     public void legacyAddSourceIsWhatBatchModeRefuses() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
