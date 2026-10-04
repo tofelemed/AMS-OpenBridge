@@ -202,7 +202,8 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] `configureCheckpointing`: tolerate 1,000 failures, unaligned after 30 s, timeout 15 min — `CplmShortFeatureStreamJobTest` RED→GREEN
 - [x] manifest `v2.6.5` (flink-jobmanager + cplm-api) — builder tests RED→GREEN
 - [x] Flink suite 280 / 0 / 2 skipped; jar 0fd03445; bundle `release-out/v2.6.5-20261004` (src-0556248e, Flink image carries jar 0fd03445, cplm-api image, SHA256SUMS 20/20 OK; RUNBOOK.md with the 7-job swap order)
-- [ ] plant: full Flink swap + cplm-api swap; proofs (one jar 0fd03445 on all workers and in cplm-api, 7 RUNNING, 6 slots, Short checkpoints completing with timeout 900000 / unaligned / tolerable 1000); next-day daily check
+- [x] plant 2026-10-04 08:28 UTC: 7 cancelled → 0 running → JM/TM removed → deploy → 7 RUNNING, 6 slots free; orphan sweep 1.8 GB → 99 MB; JM image created today, usrlib jar 0fd03445, cplm-api 0556248e with mounted jar 0fd03445, Healthy / no split; Short job `/checkpoints/config` = timeout 900000, unaligned, tolerable 1000
+- [ ] `/capabilities` engine jars still list f7c99294 (consumed announcements lag the swap) — re-check in an hour; next-day daily check
 - [x] plant 2026-10-04 07:0x: v2.6.4 deployed (ams-frontend created 07:03, fallback in the shipped chunk); daily check: Short job in the restart loop (32/212, 839 min behind, lag 1.48 M) → section 4 remedy applied; disk 12 GB WARN; FAMILY_CHANGED 184 (was 348)
 
 ## Verification status (last runs, lab)
