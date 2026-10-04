@@ -47,16 +47,32 @@ import java.util.List;
  */
 public class CplmShortFeatureStreamJob {
 
+    /**
+     * CHG-038 (Marun 2026-09-27 / 10-03 / 10-04): the job fell a few minutes behind three times and never recovered.
+     * With Flink's default of zero tolerated checkpoint failures, one expired aligned checkpoint (5 min) failed the
+     * job, the restore rewound Kafka to the last good checkpoint, the backlog grew and the next checkpoint expired too
+     * (32 completed vs 212 failed, 14 h behind). Six window operators with sliding windows cannot drain a backlog in
+     * five minutes, but they clear it in well under an hour when left alone. So: an expired checkpoint is tolerated,
+     * the barrier overtakes the backlog (unaligned after a 30 s aligned attempt - exactly-once is kept), and a
+     * checkpoint gets 15 minutes. Cadence (3 min, 1 min pause) and retained-on-cancel are unchanged.
+     */
+    static void configureCheckpointing(StreamExecutionEnvironment env) {
+        env.enableCheckpointing(180_000, CheckpointingMode.EXACTLY_ONCE);
+        CheckpointConfig c = env.getCheckpointConfig();
+        c.setMinPauseBetweenCheckpoints(60_000);
+        c.setCheckpointTimeout(900_000);
+        c.setTolerableCheckpointFailureNumber(1_000);
+        c.enableUnalignedCheckpoints(true);
+        c.setAlignedCheckpointTimeout(java.time.Duration.ofSeconds(30));
+        c.setExternalizedCheckpointCleanup(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+    }
+
     public static void main(String[] args) throws Exception {
         CplmJobConfig cfg = CplmJobConfig.fromArgs(args);
         cfg = cfg.forJob("AMS - CPLM Short Feature Engine", "-short", null);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.enableCheckpointing(180_000, CheckpointingMode.EXACTLY_ONCE);
-        env.getCheckpointConfig().setMinPauseBetweenCheckpoints(60_000);
-        env.getCheckpointConfig().setCheckpointTimeout(300_000);
-        env.getCheckpointConfig().setExternalizedCheckpointCleanup(
-                CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+        configureCheckpointing(env);
 
         build(env, cfg, args);
         env.execute(cfg.jobName);

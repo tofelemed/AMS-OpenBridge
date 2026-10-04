@@ -333,3 +333,20 @@ def test_v264_manifest_is_the_frontend_only_with_no_directive():
     services, flags = br.read_manifest("v2.6.4")
     assert services == ["ams-frontend"]
     assert flags == set()
+
+
+# ── v2.6.5 (CHG-038 Short job checkpointing + CHG-036 cplm-api fallbacks; Flink image swap) ─────
+def test_v265_manifest_ships_the_flink_image_and_cplm_api_with_no_directive():
+    services, flags = br.read_manifest("v2.6.5")
+    assert services == ["flink-jobmanager", "cplm-api"]
+    assert flags == set()
+
+
+def test_v265_steps_cancel_every_job_before_the_jobmanager_is_removed_and_sweep_orphans():
+    steps = br.vm_steps("v2.6.5", "abc1234", COMBINED_ROWS, True, ["flink-jobmanager", "cplm-api"], False, False, False, False)
+    cancel = steps.index("flink cancel")
+    rm = steps.index("docker rm -f ams-flink-taskmanager ams-flink-jobmanager")
+    assert cancel < rm                                                   # the orphan-checkpoint rule
+    assert "NOT sweeping" in steps                                       # the guarded orphan sweep
+    assert "jarSha256" in steps                                          # the one-jar proof via /capabilities
+    assert "cpm-10a" not in steps and "cpm-11" not in steps              # earlier schema steps are not repeated

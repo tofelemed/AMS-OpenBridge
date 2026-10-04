@@ -1,0 +1,16 @@
+# Release v2.6.5 — CHG-038: the Short Feature job survives a backlog instead of looping on expired checkpoints;
+# plus CHG-036's cplm-api fallbacks (recompute brokers, historian device). Flink image swap: every job is cancelled,
+# JobManager + TaskManager recreated, all seven resubmitted from the new jar (window state rebuilds: short windows
+# within the hour, 12 h / 24 h verdicts within a day). Consumed by: python migration/deploy/build-release.py --release v2.6.5 --skip-jar
+#
+#   flink-jobmanager  (the TaskManager uses the same image) CHG-038: the Short job tolerates expired checkpoints, uses
+#                     unaligned checkpoints after a 30 s aligned attempt and a 15-minute timeout (was 5 min / zero
+#                     tolerance: one expired checkpoint restarted the job, the restore rewound Kafka, the backlog grew -
+#                     Marun 27 Sep, 3 Oct, 4 Oct). Also carries patch 4's replay fixes (bounded historian source,
+#                     IOTDB_PASS, writer device path), so the engine jar and the replay jar match again.
+#   cplm-api          CHG-036: CplmRecompute:BootstrapServers falls back to Kafka:BootstrapServers; historian-backed
+#                     runs get --iotdb-device = IotDb:LoopRootPrefix + SafeNode(loop).
+#
+# Schema: none. .env: none. The overlay already forwards CplmRecompute__BootstrapServers (v2.6.3 add-on).
+flink-jobmanager
+cplm-api

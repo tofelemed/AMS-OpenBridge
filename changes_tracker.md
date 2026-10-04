@@ -2598,3 +2598,38 @@ the batch endpoint, which the test counts). Suite 285 / 285, lint clean, build c
 - Plant: `sha256sum -c`, `gunzip -c ams-cpa-ams-frontend.tar.gz | docker load`, `deploy.sh --prod` with the usual
   exports (recreates ams-frontend only), `200` on `/`, users Ctrl+F5, then a gate's evidence charts draw.
 
+## CHG-038 — The Short Feature job looped on expired checkpoints instead of catching up (2026-10-04)
+
+**Scope:** `src/flink` (`CplmShortFeatureStreamJob.configureCheckpointing`), one test. Ships in release v2.6.5
+(Flink image swap) together with CHG-036's cplm-api fallbacks and patch 4's replay fixes.
+
+**What was wrong.** Three times at Marun (27 September, 3 October, 4 October) the Short job fell a few minutes behind
+real time and never recovered: 32 completed checkpoints against 212 failed, 14 h behind, 1.48 M samples queued on
+4 October. The job checkpointed every 3 min in exactly-once mode with a 5-minute timeout and Flink's default of zero
+tolerated failures. Its six window operators (1-minute tumbling and sliding 5/1, 10/2, 15/5, 30/5, 60/5 minutes; one
+sample lives in about 32 window instances in RocksDB) keep up with the live feed but cannot drain a backlog in five
+minutes, so the aligned barrier waited behind the queue, the checkpoint expired, the job failed, the restore rewound
+Kafka to the last good checkpoint, the backlog grew, and the next checkpoint expired too. The trigger varied (a Kafka
+or TaskManager stall of a few minutes); the inability to recover was the constant. The manual remedy (cancel, reset
+the group's offsets to latest, resubmit) loses the short windows of the looped period.
+
+**What changed.** `configureCheckpointing`: tolerated checkpoint failures 1,000 (an expired checkpoint no longer fails
+the job), unaligned checkpoints after a 30 s aligned attempt (the barrier overtakes the backlog; exactly-once kept),
+timeout 15 min; cadence 3 min / 1 min pause and retain-on-cancel unchanged. Left alone, the job clears a backlog of
+hours in well under an hour. The six other engine jobs keep their settings (thousands of completed checkpoints against
+0 to 5 failed; their windows slide every 15 min).
+
+**Tests.** `CplmShortFeatureStreamJobTest` (RED: method missing → GREEN); Flink suite below. The daily check's
+section 4 (per-job checkpoint counts, Short consumer lag) and section 5 (minutes behind) are the operational proof.
+
+### Release v2.6.5 — what to build and run
+
+- Updated services: **`flink-jobmanager`** (image; the TaskManager uses it too) and **`cplm-api`** (image). No schema,
+  no `.env`.
+- Build: `python migration/deploy/build-release.py --release v2.6.5 --skip-jar --out release-out/v2.6.5-<date>` after
+  `mvn package` (Docker Maven) has produced the jar.
+- Plant: the bundle's VM-STEPS step 5 — `flink cancel` every job, `docker rm -f ams-flink-taskmanager ams-flink-jobmanager`,
+  `deploy.sh --prod` (04b resubmits all seven), orphan-checkpoint sweep guarded by the running-jobs list; then cplm-api
+  swap; proofs: `/capabilities` → one `jarSha256` on all workers, 7 RUNNING, 6 slots free, Short job checkpoints
+  completing; next morning's daily check.
+

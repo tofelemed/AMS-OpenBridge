@@ -197,6 +197,13 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] lab browser 2026-10-03 (Vite, FIC10302 12h): Summary G5 → 2 charts (21,414 points) with the native engine; with `crypto.subtle` removed from the page (the plant's HTTP case) Summary G11 → 2 charts (21,402 / 64,206 points) and Workbench G8 → 4 charts, no "did not verify", no Reconstruct offer; G6 (no evidence in the lab) shows the Reconstruct action as designed
 - [ ] plant: image swap, Ctrl+F5, evidence charts draw on the Explorer gate panel and the Workbench
 
+## CHG-038 / v2.6.5 — Short job checkpointing + Flink image (2026-10-04)
+
+- [x] `configureCheckpointing`: tolerate 1,000 failures, unaligned after 30 s, timeout 15 min — `CplmShortFeatureStreamJobTest` RED→GREEN
+- [x] manifest `v2.6.5` (flink-jobmanager + cplm-api) — builder tests RED→GREEN
+- [ ] Flink suite + jar; bundle built; plant: full Flink swap + cplm-api swap; proofs (one jar, 7 RUNNING, 6 slots, Short checkpoints completing); next-day daily check
+- [x] plant 2026-10-04 07:0x: v2.6.4 deployed (ams-frontend created 07:03, fallback in the shipped chunk); daily check: Short job in the restart loop (32/212, 839 min behind, lag 1.48 M) → section 4 remedy applied; disk 12 GB WARN; FAMILY_CHANGED 184 (was 348)
+
 ## Verification status (last runs, lab)
 
 | Suite / script | Result | When |
