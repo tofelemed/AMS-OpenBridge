@@ -71,6 +71,10 @@ docker exec ams-flink-jobmanager flink cancel -m localhost:8081 $ID 2>/dev/null;
 docker exec instrumental-kafka-1 kafka-consumer-groups --bootstrap-server kafka-1:9092 --group traverse-cpa-flink-cplm-short --topic traverse.cpa.loop.samples.v1 --reset-offsets --to-latest --execute 2>&1 | tail -2
 ALLOW_FLINK_SUBMIT=yes bash /opt/AMS-open/migration/04b-submit-flink-jobs.sh 2>&1 | grep -E 'Short'
 ```
+The `Short job consumer lag` line is the same loop seen from Kafka: under 50,000 samples is normal (a few minutes of
+feed); hundreds of thousands and growing is the backlog, same fix. Section 5's short-features line now says how many
+minutes behind real time the newest window is; more than 120 is the same condition and prints `ACT`.
+
 Fewer than seven jobs: `ALLOW_FLINK_SUBMIT=yes bash migration/04b-submit-flink-jobs.sh` submits the
 missing ones. Never `docker rm -f` the JobManager without cancelling every job first (orphaned
 checkpoints, section 1).

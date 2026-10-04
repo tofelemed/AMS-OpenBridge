@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Marun daily check (v2.6.1). One run per morning:  bash /opt/AMS-open/migration/daily-check.sh
+# Marun daily check (v2.6.3+). One run per morning:  bash /opt/AMS-open/migration/daily-check.sh
 # Prints OK / WARN / ACT per check with the value; MARUN-DAILY-CHECK.md explains each line and the action.
 # Read-only except for nothing: no container, job, table or file is changed by this script.
 cd /opt/AMS-open 2>/dev/null || true
@@ -29,17 +29,33 @@ auth=$(docker logs --since 24h traverse-ingestion-service 2>&1 | grep -ci 'not a
 echo "== 4. Flink jobs"
 run=$(jm flink list -m localhost:8081 | grep -c '(RUNNING)'); [ "$run" -eq 7 ] && ok "7 jobs RUNNING" || act "$run jobs RUNNING, expected 7: jm flink list; resubmit with 04b"
 slots=$(jm curl -s localhost:8081/overview | grep -o '"slots-available":[0-9]*' | cut -d: -f2); [ "$slots" = "6" ] && ok "slots-available 6 (Short on 4)" || warn "slots-available $slots (expected 6)"
+# per-job checkpoints: a job whose failed count rivals its completed count is in the restart loop (MARUN-DAILY-CHECK.md 4)
 jm curl -s localhost:8081/jobs/overview | python3 -c '
-import sys,json,subprocess
-for j in json.load(sys.stdin)["jobs"]:
-    if j["state"]!="RUNNING": continue
-    c=json.loads(subprocess.run(["docker","exec","ams-flink-jobmanager","curl","-s","localhost:8081/jobs/"+j["jid"]+"/checkpoints"],capture_output=True,text=True).stdout)["counts"]
-    tag="OK   " if c["failed"]==0 or c["completed"]>5*c["failed"] else "ACT  "
-    print(f"{tag} {j[\"name\"][:40].ljust(40)} checkpoints ok {c[\"completed\"]} failed {c[\"failed\"]}")' 2>/dev/null
+import sys, json, subprocess
+try:
+    jobs = json.load(sys.stdin)["jobs"]
+except Exception as e:
+    print("WARN  flink jobs overview unreadable: " + str(e)); jobs = []
+for j in jobs:
+    if j.get("state") != "RUNNING": continue
+    name = (j.get("name") or "?")[:40].ljust(40)
+    try:
+        raw = subprocess.run(["docker", "exec", "ams-flink-jobmanager", "curl", "-s", "localhost:8081/jobs/" + j["jid"] + "/checkpoints"], capture_output=True, text=True).stdout
+        c = json.loads(raw)["counts"]
+        tag = "OK   " if c["failed"] == 0 or c["completed"] > 5 * c["failed"] else "ACT  "
+        print(tag + " " + name + " checkpoints ok " + str(c["completed"]) + " failed " + str(c["failed"]))
+    except Exception as e:
+        print("WARN  " + name + " checkpoints unreadable: " + str(e)[:60])
+'
+# the Short job backlog in Kafka terms (section 4 remedy when it only grows)
+lag=$(kf kafka-consumer-groups --bootstrap-server kafka-1:9092 --describe --group traverse-cpa-flink-cplm-short 2>/dev/null | awk 'NR>1 && $6 ~ /^[0-9]+$/ {s+=$6} END {print s+0}')
+[ "${lag:-0}" -lt 50000 ] && ok "Short job consumer lag $lag samples" || act "Short job consumer lag $lag samples - backlog; MARUN-DAILY-CHECK.md 4 (cancel, reset offsets to latest, resubmit)"
 
 echo "== 5. calculations (rows written recently)"
-sh10=$(pg "select count(*)||' rows, newest window '||coalesce(to_char(max(window_end) at time zone 'utc','HH24:MI'),'-') from analytics.cplm_short_feature_results where created_at > now() - interval '10 min'")
-case "$sh10" in 0\ rows*) act "short features: $sh10 (10 min) - Short job stalled? MARUN-DAILY-CHECK.md 5";; *) ok "short features: $sh10 (10 min)";; esac
+sh10=$(pg "select count(*)||' rows, newest window '||coalesce(to_char(max(window_end) at time zone 'utc','MM-DD HH24:MI'),'-')||' UTC, '||coalesce(extract(epoch from now()-max(window_end))::int/60,-1)||' min behind now' from analytics.cplm_short_feature_results where created_at > now() - interval '10 min'")
+behind=$(echo "$sh10" | grep -oE '[0-9-]+ min behind' | cut -d' ' -f1)
+case "$sh10" in 0\ rows*) act "short features: $sh10 (10 min) - Short job stalled? MARUN-DAILY-CHECK.md 5";;
+  *) if [ "${behind:-0}" -gt 120 ]; then act "short features: $sh10 - the Short job is hours behind real time (event-time backlog): MARUN-DAILY-CHECK.md 4"; else ok "short features: $sh10 (10 min)"; fi;; esac
 lg=$(pg "select count(*)||' rows' from analytics.cplm_long_feature_results where created_at > now() - interval '30 min'"); case "$lg" in 0\ rows) warn "long features: none in 30 min (Long job warming up after a restart is normal for an hour)";; *) ok "long features: $lg (30 min)";; esac
 gt=$(pg "select coalesce(string_agg(window_kind||'='||n, ' '),'none') from (select window_kind, count(*) n from analytics.cplm_gate_results where created_at > now() - interval '30 min' group by 1) s"); case "$gt" in none) warn "fused verdicts: none in 30 min";; *) ok "fused verdicts (30 min): $gt";; esac
 cmp=$(pg "select coalesce(round(avg(completeness)::numeric,3)::text,'-') from analytics.cplm_short_feature_results where window_kind='1m' and created_at > now() - interval '1 hour'")
