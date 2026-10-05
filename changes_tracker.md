@@ -2880,12 +2880,61 @@ stale flag; B2_027PIC shows the last verdict "Excluded … 10 Aug 01:00 GST (57 
 "Open Window Inspector ›" → `/cpm/windows?loop=B2_027PIC`; card present on the Signals tab; night theme and 1000 px
 stacked layout, no horizontal overflow; 0 console errors.
 
+## CHG-043 — SME review #5/#6: the Overview shows the operating picture; configuration limits move to Readiness (2026-10-05)
+
+**Source:** `SME_review.md` points 5 and 6. **Scope:** **`cplm-api`** — `Data/FleetLatestSql.cs` (`SummaryByStatus`,
+`StaleAfterSeconds`), `Controllers/CpmFleetController.cs` (`fleet/summary` gains an additive `statuses` block; `diagnoses`
+unchanged); **`ams-frontend`** — `components/Cpm/overview/{OperatingPicture.tsx, ReadinessStrip.tsx, operatingStates.ts
+(+test)}` (new), `CpmOverview.tsx`, `api/cpmApi.ts` (`CpmFleetStatuses`), `styles/cpm-loop-summary.css`. Tests:
+`tests/cplm-api.Tests/FleetStatusSqlTests.cs` (new). No schema change, no migration, no new index.
+
+**What the SME said.** (#5) The Overview gives too much space to missing positioner feedback and configured peers while the
+basic operating picture is incomplete — show healthy, poor performance, excluded, stale and not evaluated; configuration
+limitations can sit in a separate readiness section. (#6) "Need attention 164" beside "164 loops evaluated" mixes counts;
+excluded mode, missing data and confirmed abnormal performance must not look like the same problem.
+
+**Verified before the change (lab, 230 monitored).** Correct. The four tiles were Loops monitored 230, Need attention 164
+(= every non-green verdict: 162 confirmed oscillation + 1 suspected final element + 1 excluded mode; the sub-label "164
+loops evaluated" was the same number), and two configuration counts (224 without VP, 228 without peers) in caution yellow.
+`SummaryByDiagnosis` counts a loop's newest real verdict of ANY age and skips loops with none: 66 loops appeared nowhere,
+B2_027PIC's 57-day-old verdict counted as current; no healthy / stale / not-evaluated count existed.
+
+**What changed.**
+- cplm-api `statuses`: every monitored loop in exactly one state (they add up to `loops.monitored`) — no verdict →
+  `insufficientData` (it has LIVE rows) or `noResult`; verdict window ended longer ago than the window size → `stale`
+  (checked first); `EXCLUDED_*` → `excluded`; NORMAL/NONE/HEALTHY → `healthy`; CONFIRMED_/SUSPECTED_/DETECTED_/CLASSIFIED_*
+  → `poor`; anything else → `unclassified` (counted, never dropped); plus `staleAfterSeconds`. Lab: poor 161, stale 3,
+  insufficient data 1, no result yet 65 = 230; 20 ms (EXPLAIN ANALYZE); cached like the other fleet reads.
+- Overview: an **Operating picture** panel — "230 loop(s) monitored · of 230 registered", one segmented bar (part-to-whole;
+  not-evaluated hatched so it differs from excluded by pattern, not only colour) and five KPI tiles in the SME's order
+  (Healthy · Poor performance · Excluded · Stale · Not evaluated) with count, share and a one-line meaning; "Show loops ›"
+  opens Performance on `rows=attention` / `rows=notEvaluated` (no button where Performance has no matching filter).
+  Configuration limits moved to a neutral **Readiness · Configuration limits** strip at the bottom with "Open Loop Registry ›".
+  An older cplm-api without `statuses` gets a stated notice, not zeros.
+
+**Deliberately not done.** Priority-queue ranking (#7), "100% conf" wording in the queue (#20), trend scaling (#10).
+
+**Tests.** `FleetStatusSqlTests` (new, integration against the lab DB: every monitored loop in one state and the counts equal
+a C# oracle over a plain DISTINCT ON read; a site scope sums to that site's monitored loops) + `FleetStaleAfterTests` (8
+cases); fleet SQL suites 20/20. `overview/operatingStates.test.ts` (new, 5). Frontend 70 files green, lint / tsc / build
+clean. **Known pre-existing failure:** `EvidenceClassSweepTests.The_transient_budget_deletes_the_oldest_live_rows_until_the_class_fits`
+fails on the lab DB with or without this change (proven by stashing it) — not caused here, to be looked at separately; the
+rest of cplm-api.Tests passes (235/236). **Lab browser pass 2026-10-05:** cplm-api rebuilt and restarted (`docker compose
+build cplm-api && up -d --no-deps cplm-api`, healthy in 8 s); the Overview shows 0 / 161 / 0 / 3 / 66 with 70 % / 1 % / 29 %;
+the two "Show loops ›" open `/cpm/performance?rows=attention` and `?rows=notEvaluated`; Readiness strip at the bottom;
+panel 260 px tall (~360 px in the first cut — tiles compacted); 1000 px keeps the five tiles on one row; night theme;
+0 console errors.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040, CHG-041, CHG-042). No schema, no migration, no Flink jar, no `.env` change.
+- Updated services so far: **`ams-frontend`** (CHG-040, CHG-041, CHG-042, CHG-043) and **`cplm-api`** (CHG-043). No schema, no
+  migration, no Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
-- Plant: `docker load` the `ams-frontend` image → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
+- Plant: `docker load` the `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
+  cplm-api restarts its consumers: check each CPLM consumer group has exactly one member afterwards (SingleMemberGuard).
 - Proofs (CHG-040): the Loop Performance menu shows four task sub-headings; open a loop in the Loop Explorer, then
   Investigation from the menu: the same loop is open without picking it again. (CHG-041) on Investigation, scroll to the
   bottom: the LOOP / LOCATION / PERIOD bar stays at the top. (CHG-042) Loop Explorer on any loop opens with the
   Loop summary card above the tabs; a non-blocking readiness banner reads "Configuration limits" in neutral grey.
+  (CHG-043) `GET /api/v1/cpm/fleet/summary` carries `statuses` whose values add up to `loops.monitored`; the Overview shows
+  the five-state operating picture and a Readiness strip at the bottom.

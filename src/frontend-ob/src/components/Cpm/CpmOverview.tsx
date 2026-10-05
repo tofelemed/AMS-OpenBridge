@@ -17,11 +17,12 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { EmptyState, KpiTile, PanelHead, TonePill, WorkspaceHeader, toneFor, fmtDateTime, QueryError } from './shared';
+import { EmptyState, PanelHead, TonePill, WorkspaceHeader, toneFor, fmtDateTime, QueryError } from './shared';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
 import { useCpmEvents, useFleetRankings, useFleetSummary } from '../../hooks/useCpm';
 import GoodErrorBar from './overview/GoodErrorBar';
-import { peersCopy, positionerCopy } from './overview/capabilityCopy';
+import OperatingPicture from './overview/OperatingPicture';
+import ReadinessStrip from './overview/ReadinessStrip';
 import LoopFocus from './overview/LoopFocus';
 import FocusedLoopDrawer from './overview/FocusedLoopDrawer';
 import { eventsHref, explorerHref, performanceHref } from './cpaHref';
@@ -69,17 +70,6 @@ export const CpmOverview: React.FC = () => {
   const evaluated = loops.filter(l => l.diagnosis !== 'NOT_EVALUATED');
   const topFinding = evaluated[0];
 
-  // Counted from the fleet summary, NOT from `loops`. The rankings call is capped
-  // (limit=50, server clamps at 200), so deriving these from it produced a count
-  // over an arbitrary top-50 slice displayed beside a genuine fleet-wide
-  // "of N registered" — silently understating a plant with more than 50 loops.
-  // summary.diagnoses is one row per loop (DISTINCT ON loop_id) with no cap.
-  const fleetDiagnoses = summary.data?.diagnoses ?? [];
-  const fleetEvaluated = fleetDiagnoses.reduce((n, d) => n + d.count, 0);
-  const needAttention = fleetDiagnoses
-    .filter(d => toneFor(d.diagnosis) !== 'good')
-    .reduce((n, d) => n + d.count, 0);
-
   // replace: previewing a row in the focus panel is in-page selection, not a
   // page visit. Opening a loop IS a visit (push), so Back returns here with
   // the selection intact.
@@ -95,29 +85,8 @@ export const CpmOverview: React.FC = () => {
       />
       <PlantScopeFilter scope={scope} summary={summary.data ? `${summary.data.loops.total} loop(s) in scope` : null} />
 
-      <div className="cpm-kpi-row">
-        <KpiTile caption="Loops monitored"
-          tone={summary.data && summary.data.loops.monitored === 0 ? 'warn' : 'good'}
-          value={summary.data ? `${summary.data.loops.monitored}` : '…'}
-          sub={summary.data ? `of ${summary.data.loops.total} registered` : undefined} />
-        <KpiTile caption="Need attention" tone={needAttention > 0 ? 'warn' : 'good'}
-          value={summary.data ? needAttention : '…'}
-          sub={summary.data ? `${fleetEvaluated} loop(s) evaluated` : undefined}
-          action={
-            <ObcButton variant="flat" disabled={!summary.data}
-              title={summary.data ? 'The loops behind this count, in the Performance matrix' : 'Waiting for the fleet summary'}
-              onClick={() => navigate(performanceHref({ rows: 'attention', loop: explicitLoop }))}>
-              Show loops ›
-            </ObcButton>
-          } />
-        {/* v2.5 (audit F11): the registry counts are the same; what they mean under fusion v2 is said (capabilityCopy) */}
-        <KpiTile caption={positionerCopy(summary.data?.capability.loopsCappedByMissingVp ?? 0).caption} tone={summary.data && summary.data.capability.loopsCappedByMissingVp > 0 ? 'warn' : 'good'}
-          value={summary.data?.capability.loopsCappedByMissingVp ?? '…'}
-          sub={summary.data ? positionerCopy(summary.data.capability.loopsCappedByMissingVp).sub : undefined} />
-        <KpiTile caption={peersCopy(summary.data?.capability.loopsWithoutDisturbanceContext ?? 0).caption} tone={summary.data && summary.data.capability.loopsWithoutDisturbanceContext > 0 ? 'warn' : 'good'}
-          value={summary.data?.capability.loopsWithoutDisturbanceContext ?? '…'}
-          sub={summary.data ? peersCopy(summary.data.capability.loopsWithoutDisturbanceContext).sub : undefined} />
-      </div>
+      {/* SME #5/#6 (CHG-043): every monitored loop in one state; configuration limits sit in Readiness below. */}
+      <OperatingPicture summary={summary.data} explicitLoop={explicitLoop} />
 
       <div className="cpm-grid-2">
         <section className="cpm-surface">
@@ -244,6 +213,8 @@ export const CpmOverview: React.FC = () => {
           ))}
         </section>
       </div>
+
+      <ReadinessStrip summary={summary.data} />
 
       {drawerLoop && (
         <FocusedLoopDrawer

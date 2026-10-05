@@ -79,3 +79,35 @@
   border-color: var(--border-divider-color);
   background: var(--container-section-color);
 }
+
+/* ── Overview operating picture + readiness (SME review #5/#6, CHG-043) ──
+   One bar for part-to-whole, the same KPI tiles below. Excluded and not
+   evaluated are both neutral, so not-evaluated is hatched: the two are told
+   apart by pattern and label, never by colour alone. */
+.cpm-op { display: flex; flex-direction: column; gap: 12px; }
+.cpm-op__muted { color: var(--element-neutral-color); font-size: 0.85rem; }
+.cpm-op__pct { margin-left: 8px; font-size: 0.85rem; font-weight: 400; color: var(--element-neutral-color); }
+.cpm-op .cpm-kpi { padding: 10px 14px; }
+.cpm-op .cpm-kpi__action { margin-top: auto; }
+.cpm-op__bar {
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  gap: 2px;
+  background: var(--border-divider-color);
+}
+.cpm-op__seg { min-width: 4px; }
+.cpm-op__seg--healthy  { background: var(--alert-running-color); }
+.cpm-op__seg--poor     { background: var(--alert-alarm-color); }
+.cpm-op__seg--stale    { background: var(--alert-caution-color); }
+.cpm-op__seg--excluded { background: var(--element-neutral-color); }
+.cpm-op__seg--notEvaluated {
+  background: repeating-linear-gradient(135deg,
+    var(--element-neutral-color) 0 3px, var(--container-backdrop-color) 3px 6px);
+}
+/* Five states, one row: an orphaned fifth tile reads as a different kind of thing. */
+.cpm-op__tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .cpm-op__tiles { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } }
+
+.cpm-readiness__list { margin: 0; padding-left: 18px; display: grid; gap: 4px; }

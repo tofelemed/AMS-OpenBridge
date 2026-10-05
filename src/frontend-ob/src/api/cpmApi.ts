@@ -344,6 +344,20 @@ export interface CpmFleetSummary {
     loopsCappedByMissingVp: number;
     loopsWithoutDisturbanceContext: number;
   };
+  /** CHG-043: every MONITORED loop in exactly one operating state (they add up to loops.monitored). Absent on an older cplm-api. */
+  statuses?: CpmFleetStatuses;
+}
+
+/** CHG-043 (SME #5/#6): the operating picture. `stale` = newest verdict older than `staleAfterSeconds` (the window size). */
+export interface CpmFleetStatuses {
+  poor: number;
+  healthy: number;
+  excluded: number;
+  stale: number;
+  insufficientData: number;
+  noResult: number;
+  unclassified: number;
+  staleAfterSeconds: number;
 }
 
 /**

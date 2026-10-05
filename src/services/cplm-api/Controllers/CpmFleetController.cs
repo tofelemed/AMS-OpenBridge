@@ -75,6 +75,13 @@ public sealed class CpmFleetController : ControllerBase
         var byDiagnosis = await conn.QueryAsync<(string Diagnosis, int Count)>(
             FleetLatestSql.SummaryByDiagnosis, new { site, area, unit, windowKind });
 
+        // CHG-043 (SME #5/#6): every monitored loop in exactly one operating state.
+        var staleSeconds = FleetLatestSql.StaleAfterSeconds(windowKind);
+        var byStatus = (await conn.QueryAsync<(string Status, int Count)>(
+                FleetLatestSql.SummaryByStatus, new { site, area, unit, windowKind, staleSeconds }))
+            .ToDictionary(x => x.Status, x => x.Count);
+        int StatusCount(string key) => byStatus.TryGetValue(key, out var n) ? n : 0;
+
         return (object)new
         {
             site, area, unit,
@@ -87,6 +94,18 @@ public sealed class CpmFleetController : ControllerBase
                 withVp = registry?.with_vp ?? 0
             },
             diagnoses = byDiagnosis.Select(d => new { diagnosis = d.Diagnosis, count = d.Count }).ToList(),
+            // The operating picture: these add up to loops.monitored.
+            statuses = new
+            {
+                poor = StatusCount("POOR"),
+                healthy = StatusCount("HEALTHY"),
+                excluded = StatusCount("EXCLUDED"),
+                stale = StatusCount("STALE"),
+                insufficientData = StatusCount("INSUFFICIENT_DATA"),
+                noResult = StatusCount("NO_RESULT"),
+                unclassified = StatusCount("UNCLASSIFIED"),
+                staleAfterSeconds = staleSeconds
+            },
             // Capability caveats, not decoration: a fleet without VP can never
             // report a CONFIRMED diagnosis, and one without peer links cannot
             // distinguish stiction from an upstream disturbance.

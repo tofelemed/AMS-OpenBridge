@@ -172,4 +172,64 @@ public static class FleetLatestSql
           AND (@unit::text IS NULL OR r.unit = @unit)
         GROUP BY l.diagnosis ORDER BY 2 DESC
         """;
+
+    /// <summary>
+    /// SME review #5/#6 (CHG-043) — the fleet's operating picture: every MONITORED loop in scope
+    /// in exactly one state, so the states add up to the monitored count (the old diagnosis
+    /// distribution left loops without a verdict out and counted a months-old verdict as current).
+    /// Per loop, one index probe for its newest real LIVE verdict at this resolution:
+    ///  - no verdict: INSUFFICIENT_DATA when the loop has LIVE rows (all insufficient), else NO_RESULT;
+    ///  - the verdict's window ended more than <c>@staleSeconds</c> ago: STALE (checked first —
+    ///    an old verdict is not the current condition, whatever it says);
+    ///  - EXCLUDED_* → EXCLUDED; NORMAL/NONE/HEALTHY → HEALTHY;
+    ///    CONFIRMED_/SUSPECTED_/DETECTED_/CLASSIFIED_* → POOR (a finding);
+    ///  - anything else (NOT_EVALUATED, an unknown token) → UNCLASSIFIED, counted, never dropped.
+    /// </summary>
+    public const string SummaryByStatus = """
+        SELECT s.status AS "Status", COUNT(*)::int AS "Count"
+        FROM cpm.loop_registry r
+        LEFT JOIN LATERAL (
+            SELECT g.diagnosis, g.window_end
+            FROM analytics.cplm_gate_results g
+            WHERE lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind
+              AND g.diagnosis IS NOT NULL AND g.diagnosis <> 'INSUFFICIENT_DATA'
+              AND g.purpose = 'LIVE'
+            ORDER BY g.window_end DESC NULLS LAST, g.created_at DESC
+            LIMIT 1
+        ) v ON TRUE
+        CROSS JOIN LATERAL (SELECT CASE
+            WHEN v.diagnosis IS NULL THEN
+                CASE WHEN EXISTS (SELECT 1 FROM analytics.cplm_gate_results g
+                                  WHERE lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind
+                                    AND g.purpose = 'LIVE')
+                     THEN 'INSUFFICIENT_DATA' ELSE 'NO_RESULT' END
+            WHEN v.window_end IS NULL OR v.window_end < now() - make_interval(secs => @staleSeconds) THEN 'STALE'
+            WHEN v.diagnosis LIKE 'EXCLUDED%' THEN 'EXCLUDED'
+            WHEN v.diagnosis IN ('NORMAL', 'NONE', 'HEALTHY') THEN 'HEALTHY'
+            WHEN v.diagnosis ~ '^(CONFIRMED|SUSPECTED|DETECTED|CLASSIFIED)_' THEN 'POOR'
+            ELSE 'UNCLASSIFIED' END AS status) s
+        WHERE (@site::text IS NULL OR r.site = @site)
+          AND (@area::text IS NULL OR r.area = @area)
+          AND (@unit::text IS NULL OR r.unit = @unit)
+          AND COALESCE((r.monitoring->>'enabled')::boolean, FALSE)
+        GROUP BY s.status
+        """;
+
+    /// <summary>
+    /// A verdict is stale once its window ended longer ago than the window's own size (a 24h
+    /// verdict more than 24 h old) — the rule the Loop summary card uses too. "15m", "12h", "7d";
+    /// anything unparseable is treated as 24 h.
+    /// </summary>
+    public static int StaleAfterSeconds(string? windowKind)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(windowKind?.Trim() ?? "", @"^(\d+)\s*([mhd])$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (!m.Success || !int.TryParse(m.Groups[1].Value, out var n) || n <= 0) return 24 * 3600;
+        return char.ToLowerInvariant(m.Groups[2].Value[0]) switch
+        {
+            'm' => n * 60,
+            'h' => n * 3600,
+            _ => n * 86_400,
+        };
+    }
 }
