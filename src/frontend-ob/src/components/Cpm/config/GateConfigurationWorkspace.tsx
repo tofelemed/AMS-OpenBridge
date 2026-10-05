@@ -103,7 +103,7 @@ export const GateConfigurationWorkspace: React.FC = () => {
   if (view === 'overview' || (view === 'editor' && !loopId)) {
     return (
       <div className="cpm-screen cpm-config-workspace">
-        <WorkspaceHeader eyebrow="Loop performance" title="Gate configuration" copy={`What each loop runs under, the bundles in progress, and the editor for one of them. ${catalogueLine}`} />
+        <WorkspaceHeader page="/cpm/config" title="Gate configuration" copy={`What each loop runs under, the bundles in progress, and the editor for one of them. ${catalogueLine}`} />
         {toolbar}
         {catalogue.isError && <QueryError error={catalogue.error} retry={() => void catalogue.refetch()} />}
         {view === 'editor' && bundleId ? (

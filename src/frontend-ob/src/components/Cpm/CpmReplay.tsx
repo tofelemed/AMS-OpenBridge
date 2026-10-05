@@ -158,9 +158,8 @@ export const CpmReplay: React.FC = () => {
   return (
     <div className="cpm-screen">
       <WorkspaceHeader
-        eyebrow="Gate-level forensics"
+        page="/cpm/replay"
         title="Evidence replay"
-        copy="Walk the exact samples a window evaluated, see what the gate concluded, and re-run the computation to prove it."
         actions={
           <ObcButton variant="normal" disabled={!selected} onClick={exportPackage}>
             Export package

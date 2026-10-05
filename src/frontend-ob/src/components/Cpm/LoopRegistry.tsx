@@ -55,7 +55,7 @@ export const LoopRegistry: React.FC = () => {
   return (
     <div className="cpm-screen">
       <WorkspaceHeader
-        eyebrow="Governed engineering configuration"
+        page="/cpm/registry"
         title="Loop registry"
         copy="Add individual loops or validate a bulk registry import. Onboarded loops are evaluated immediately; the readiness report is the activation gate."
         actions={

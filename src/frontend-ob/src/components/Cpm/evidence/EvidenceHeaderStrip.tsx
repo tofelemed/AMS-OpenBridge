@@ -49,7 +49,7 @@ export const EvidenceHeaderStrip: React.FC<EvidenceHeaderStripProps> = ({ select
   return (
     <>
       <WorkspaceHeader
-        eyebrow="Evidence workbench"
+        eyebrow="Understand the cause · Evidence workbench"
         title={`${selection.loopId}${loopName ? ` · ${loopName}` : ''} — ${selection.gate}${entry ? ` ${entry.name}` : ''}`}
         copy={entry?.definition ?? 'The exact intermediates of one method run.'}
       />

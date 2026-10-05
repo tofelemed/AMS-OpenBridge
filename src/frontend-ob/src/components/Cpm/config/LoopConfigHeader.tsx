@@ -22,7 +22,7 @@ export const LoopConfigHeader: React.FC<LoopConfigHeaderProps> = ({ loopId, disp
   const workers = eff ? workersSummary(eff) : null;
   return (
     <>
-      <WorkspaceHeader eyebrow="Loop performance · Gate configuration" title={displayName ? `${loopId} · ${displayName}` : loopId}
+      <WorkspaceHeader eyebrow="Set up · Gate configuration" title={displayName ? `${loopId} · ${displayName}` : loopId}
         copy="What this loop runs under today, the bundles at its three levels, and the editor for one of them." actions={actions} />
       {!eff && loading && (
         <div className="cpm-surface cpm-skeleton cpm-skeleton--result" role="status" aria-busy="true" aria-label="Loading the effective configuration">

@@ -182,9 +182,8 @@ export const CpmPerformance: React.FC = () => {
   return (
     <div className="cpm-screen">
       <WorkspaceHeader
-        eyebrow="Fleet and loop analytics"
+        page="/cpm/performance"
         title="Performance"
-        copy="Compare health, control effectiveness, effort, and qualified diagnostic evidence."
         // The group can emit an empty value on its first update (its slot is not
         // assigned yet when willUpdate runs). Writing that to ?window= would send
         // an empty windowKind to every fleet endpoint, so only known kinds pass.

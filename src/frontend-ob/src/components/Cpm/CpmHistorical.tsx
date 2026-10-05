@@ -255,7 +255,7 @@ export const CpmHistorical: React.FC = () => {
 
   return (
     <div className="cpm-screen">
-      <WorkspaceHeader eyebrow="Evidence over time" title="Historical explorer" />
+      <WorkspaceHeader page="/cpm/historical" title="Historical" />
 
       <section className="cpm-surface">
         <RangeToolbar

@@ -193,9 +193,8 @@ export const CpmInvestigation: React.FC = () => {
   return (
     <div className="cpm-screen">
       <WorkspaceHeader
-        eyebrow="Root-cause workspace"
+        page="/cpm/investigation"
         title="Investigation"
-        copy="Follow one loop's evidence from raw signals through the gate chain to the fused conclusion."
       />
       <PlantScopeFilter scope={scope} summary={rankings.data ? `${rankings.data.count} loop(s) in scope` : null} />
 

@@ -160,9 +160,8 @@ export const CpmCalculations: React.FC = () => {
   return (
     <div className="cpm-screen">
       <WorkspaceHeader
-        eyebrow="Loop-specific calculation evidence"
-        title="Calculations & parameters"
-        copy="Select a loop to inspect its stored metric outputs against the latest gate assessments."
+        page="/cpm/calculations"
+        title="Calculations"
       />
 
       <section className="cpm-surface">

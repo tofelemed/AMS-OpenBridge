@@ -79,8 +79,8 @@ export const CpmExplorer: React.FC = () => {
   return (
     <div className="cpm-screen">
       <WorkspaceHeader
-        eyebrow="Asset-centric operational context"
-        title="Explorer"
+        page="/cpm/explorer"
+        title="Loop explorer"
       />
       <PlantScopeFilter
         scope={scope}

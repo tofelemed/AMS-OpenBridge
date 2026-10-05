@@ -90,9 +90,8 @@ export const CpmOverview: React.FC = () => {
   return (
     <div className="cpm-screen">
       <WorkspaceHeader
-        eyebrow="Live operating view"
+        page="/cpm"
         title="Operations overview"
-        copy="Control performance across the plant, prioritised by operational impact."
       />
       <PlantScopeFilter scope={scope} summary={summary.data ? `${summary.data.loops.total} loop(s) in scope` : null} />
 

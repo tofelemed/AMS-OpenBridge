@@ -9,10 +9,11 @@
  * session carries analytics.view.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import * as cpm from '../api/cpmApi';
 import { useAuthStore } from '../store/authStore';
+import { cpmNavHref } from './nav/cpmTasks';
 
 export interface PaletteNavItem {
   path: string;
@@ -32,6 +33,7 @@ interface Entry {
 
 export const CommandPalette: React.FC<{ navItems: PaletteNavItem[] }> = ({ navItems }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const hasPermission = useAuthStore(s => s.hasPermission);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -102,7 +104,8 @@ export const CommandPalette: React.FC<{ navItems: PaletteNavItem[] }> = ({ navIt
   const go = (entry: Entry | undefined) => {
     if (!entry) return;
     setOpen(false);
-    navigate(entry.path);
+    // A menu entry keeps the selected loop and plant scope, as in the sidebar.
+    navigate(entry.kind === 'nav' ? cpmNavHref(entry.path, location.pathname, location.search) : entry.path);
   };
 
   if (!open) return null;

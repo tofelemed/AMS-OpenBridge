@@ -10,6 +10,7 @@ import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObcIconButton } from '@oicl/openbridge-webcomponents-react/components/icon-button/icon-button';
 import type { CpmWindowSpec } from '../../api/cpmApi';
+import { CPM_PAGES, type CpmPagePath } from '../nav/cpmTasks';
 
 export type CpmTone = 'good' | 'warn' | 'bad' | 'muted';
 
@@ -324,16 +325,21 @@ export const KpiTile: React.FC<{
   </div>
 );
 
-/** CPA's workspace header: eyebrow / title / copy / actions. */
+/**
+ * CPA's workspace header: eyebrow / title / copy / actions. `page` names the
+ * route in CPM_PAGES: the eyebrow then defaults to the user task the page serves
+ * and the copy to what it answers, so the header and the menu say the same thing.
+ */
 export const WorkspaceHeader: React.FC<{
-  eyebrow: string;
+  page?: CpmPagePath;
+  eyebrow?: string;
   title: string;
   copy?: string;
   actions?: React.ReactNode;
-}> = ({ eyebrow, title, copy, actions }) => (
+}> = ({ page, eyebrow = page && CPM_PAGES[page].task, title, copy = page && CPM_PAGES[page].purpose, actions }) => (
   <header className="cpm-workspace-header">
     <div>
-      <span className="cpm-eyebrow">{eyebrow}</span>
+      {eyebrow && <span className="cpm-eyebrow">{eyebrow}</span>}
       <h1 className="cpm-title">{title}</h1>
       {copy && <p className="cpm-copy">{copy}</p>}
     </div>

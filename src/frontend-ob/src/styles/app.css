@@ -260,6 +260,15 @@ body {
   margin-bottom: var(--spacing-1, 4px);
 }
 
+/* Task sub-heading inside a nav group (Loop Performance: find → check → cause → set up). */
+.nav-subsection__title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--on-container-neutral-color);
+  padding: var(--spacing-2, 8px) var(--spacing-3, 12px) var(--spacing-1, 4px);
+  opacity: 0.8;
+}
+
 /* Collapsible group header — a full-width toggle that keeps the label styling. */
 .nav-section__title--toggle {
   display: flex;

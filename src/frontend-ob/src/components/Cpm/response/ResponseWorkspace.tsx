@@ -96,7 +96,7 @@ export const ResponseWorkspace: React.FC = () => {
   if (!loopId) {
     return (
       <div className="cpm-screen">
-        <WorkspaceHeader eyebrow="Loop performance" title="System response" copy="Pick a loop to read its response events: the model the kernel estimated from each step, the fit and its residuals, the candidate models and the loop's model history." />
+        <WorkspaceHeader page="/cpm/response" title="System response" />
         {picker}
         {loops.isError && <QueryError error={loops.error} retry={() => void loops.refetch()} />}
         <EmptyState title="Pick a loop" copy="Its response events appear on the left, newest first; select one to read the model and the evidence behind it. From the workbench, a G12 view opens here on its own event." />
@@ -116,7 +116,7 @@ export const ResponseWorkspace: React.FC = () => {
 
   return (
     <div className="cpm-screen cpm-response-workspace">
-      <WorkspaceHeader eyebrow="Loop performance" title={`System response — ${loop?.displayName ?? loopId}`}
+      <WorkspaceHeader eyebrow="Understand the cause" title={`System response — ${loop?.displayName ?? loopId}`}
         copy={`Site zone ${timeZone}. Every event is listed with its state and reason; the selection is explicit and never "latest".`}
         actions={
           <span className="cpm-filter-row">

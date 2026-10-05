@@ -124,8 +124,8 @@ export const CpmEvents: React.FC = () => {
   return (
     <div className="cpm-screen">
       <WorkspaceHeader
-        eyebrow="Conditions, notifications, and cases"
-        title="Events"
+        page="/cpm/events"
+        title="Loop events"
         copy="Investigate diagnosis episodes with operating context and a traceable response history. One row is one episode of one fault family — confidence changes extend it rather than duplicating it."
       />
       <PlantScopeFilter scope={scope}

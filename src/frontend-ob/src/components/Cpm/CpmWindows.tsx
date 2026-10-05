@@ -81,9 +81,8 @@ export const CpmWindows: React.FC = () => {
   return (
     <div className="cpm-screen">
       <WorkspaceHeader
-        eyebrow="Windowing internals"
+        page="/cpm/windows"
         title="Window inspector"
-        copy="How the engine slices time for this loop: emitted windows, their sample budgets, and what each one carried."
         actions={
           metrics.data ? (
             <TonePill tone={anyCplm?.state === 'RUNNING' ? 'good' : anyCplm ? 'bad' : 'muted'}>

@@ -2748,3 +2748,53 @@ restore ~12:12 (while the PC wrote the bundle image) recovered by itself; its ca
   in `analytics.cplm_short_feature_results`; next morning's daily check: `checkpoints` under 1.5 GB, Short lag under
   50,000, short features minutes (not hours) behind.
 - Rollback: load the `ams-flink:pre-v2.6.6` image tag and repeat step 5 (output format unchanged, nothing to migrate).
+
+## CHG-040 — SME review #1-#2: Loop Performance menu organised by user task; menu keeps the loop and plant scope (2026-10-05)
+
+**Source:** `SME_review.md` (2026-10-05), points 1 and 2. First item of the SME review batch; the batch is deployed as one
+release at the end.
+
+**Scope:** `ams-frontend` only (`src/frontend-ob`): `components/nav/{cpmTasks.ts, cpmTasks.test.ts, navItems.ts,
+Sidebar.tsx}` (new; the menu and sidebar moved out of `App.tsx`, 991 → 833 lines), `App.tsx`, `components/CommandPalette.tsx`,
+`components/Cpm/shared.tsx` (`WorkspaceHeader` gained `page`), the headers of the 13 Loop Performance pages,
+`styles/app.css` (`.nav-subsection__title`). No route, service, schema or Flink change; bookmarks keep working.
+
+**What the SME said.** (1) Navigation follows internal analysis functions: Evidence Replay, Evidence Workbench,
+Investigation, Window Inspector and Calculations are separate pages whose difference is not clear; organise around the
+task — find the problem, check the loop, understand the cause, record the action. (2) Opening another page from the menu
+asks to select the loop again.
+
+**Verified against the code.** Both correct. The Loop Performance group was one flat list of 13 entries in build order
+(configuration pages between the analysis pages); six pages answer "why did this loop get this verdict" with nothing
+saying which to use. The URL is the only selection state (`cpaHref.ts`) and every sidebar entry navigated to the bare
+path, so the menu dropped `?loop=` and `?site/area/unit=`; every one of the 13 pages reads `?loop=`.
+
+**What changed.**
+- `cpmTasks.ts` is the one source of truth per page: the task (Find problems / Check a loop / Understand the cause /
+  Set up) and one plain sentence of what the page answers. The sidebar renders the group under those task sub-headings
+  in task order, the sentence is the entry's tooltip, and each page header shows the task as its eyebrow and the
+  sentence as its copy (pages with a dynamic title — Evidence Workbench, a loop's Gate Configuration, a loop's System
+  Response — show "task · page name"). Internal wording left the headers ("Gate-level forensics", "Windowing internals").
+  Titles aligned with the menu labels: "Loop explorer", "Loop events", "Historical", "Calculations".
+- `cpmNavHref`: a menu entry (sidebar and Ctrl+K palette) opened FROM a Loop Performance page keeps `loop`, `site`,
+  `area`, `unit`. Pipeline Health and Governance (System group) and every non-CPM page stay bare.
+
+**Deliberately not done.** The evaluated window is not carried — each page names it differently (`window` = kind on
+Performance/Explorer, = END on Historical/Replay, `profile` on the Window Inspector, a run id on the Workbench); a
+canonical period belongs with SME #3 (persistent loop/period header). Merging Replay / Workbench / Window Inspector into
+one evidence page is deferred: too large a UI change for this release. "Record the action" has no page of its own yet:
+Loop Events (acknowledge/shelve) sits under Find problems; loop-level notes are SME #23.
+
+**Tests.** `nav/cpmTasks.test.ts` (new, 6: loop + scope carried, window not carried, bare path from/to outside Loop
+Performance and to Pipeline Health, blank values dropped, every page has task + purpose). Frontend suite 291 / 291 (67
+files), `tsc` clean, `npm run lint` clean (0 warnings), `npm run build` clean. **Pending:** lab browser pass (Docker
+Desktop was not running on 2026-10-05; to do with the batch): sidebar sub-headings and tooltips, Explorer(loop) →
+menu → Investigation/Replay/Events keep the loop, a non-CPM page → menu → bare path.
+
+### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
+
+- Updated services so far: **`ams-frontend`** (CHG-040). No schema, no migration, no Flink jar, no `.env` change.
+- Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
+- Plant: `docker load` the `ams-frontend` image → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
+- Proofs (CHG-040): the Loop Performance menu shows four task sub-headings; open a loop in the Loop Explorer, then
+  Investigation from the menu: the same loop is open without picking it again.
