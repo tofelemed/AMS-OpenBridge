@@ -222,7 +222,8 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] commits 31b8c114 (living-asset doc), 5307c456 (CHG-039), 06d9880c (VM steps 4a); bundle `release-out/v2.6.6-20261005` (src-06d9880c, jar b432802f, 19/19 SHA256 OK)
 - [ ] push `feat/v25-next-release` and fast-forward `main` (blocked for the agent by the permission classifier — user runs it)
 - [x] plant 2026-10-05: pre-sweep + `rmi ams-flink:pre-v2.6.5` (4.8 GB free), SHA256 OK, rollback tag `ams-flink:pre-v2.6.6`, 4a (3584m line 1, available 11 GiB), load, step 5: 7 cancelled → JM/TM removed → deploy → 7 RUNNING 12:56–12:57; sweep → 118 MB; one tm_ dir; disk 11 GB free; proofs: taskHeap 1154272437, `cplm-short-windows`, delete_on_cancellation true, 6 slots free, jar b432802f
-- [ ] plant Short job retest at +10 min and +70 min (lag, six kinds × ~144 loops, checkpoint failed/restored 0 and size → ~120 MB, busy ≪ 1000, heap); next-morning daily check
+- [x] plant retest +30 min (~13:26 UTC): lag 4,560; six kinds × 143 loops, 10-min counts 1m 1,430 · 5m 1,430 · 10m 715 · 15m/30m/60m 286 (exact cadence); newest 1m 13:23 (~3 min behind); checkpoints 8 ok / 0 failed / 0 restored, 115.4 MB, duration < 1 s (was 553 s); windows busy 0 ms/s at 8 samples/s per subtask; heap 554 / 1,290 MB, 3 old-gen GC; disk 12 GB free
+- [ ] plant retest +70 min (~14:10, buffer full): checkpoint size settles (≤ ~250 MB OK; plant tuples heavier than the lab's), heap, lag; next-morning daily check
 
 ## Verification status (last runs, lab)
 
