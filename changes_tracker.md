@@ -2787,9 +2787,12 @@ Loop Events (acknowledge/shelve) sits under Find problems; loop-level notes are 
 
 **Tests.** `nav/cpmTasks.test.ts` (new, 6: loop + scope carried, window not carried, bare path from/to outside Loop
 Performance and to Pipeline Health, blank values dropped, every page has task + purpose). Frontend suite 291 / 291 (67
-files), `tsc` clean, `npm run lint` clean (0 warnings), `npm run build` clean. **Pending:** lab browser pass (Docker
-Desktop was not running on 2026-10-05; to do with the batch): sidebar sub-headings and tooltips, Explorer(loop) →
-menu → Investigation/Replay/Events keep the loop, a non-CPM page → menu → bare path.
+files), `tsc` clean, `npm run lint` clean (0 warnings), `npm run build` clean. **Lab browser pass 2026-10-05** (Vite 5174,
+admin, FIC10301): sidebar shows the four sub-headings and all 13 tooltips; from `/cpm/explorer?loop=FIC10301&site=site1`
+each of the 12 other Loop Performance entries opened with `loop=FIC10301&site=site1` (Investigation and Evidence Workbench
+opened on the loop with no "pick a loop" prompt; the Workbench resolved its newest run on its own); every header shows the
+task eyebrow + purpose; from `/trend` the menu opens the bare `/cpm/investigation`; 0 console errors. Dev-only note: Vite's
+first-use dependency optimisation reloads the page and drops the in-memory session — log in again (not a product bug).
 
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
