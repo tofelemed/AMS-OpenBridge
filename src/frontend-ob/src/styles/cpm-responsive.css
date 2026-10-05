@@ -1,0 +1,44 @@
+/* ── CPM responsive rules (2026-10-05, user rule: every page, card, KPI, button and trend responsive) ──
+   Shared layout guards, so a narrow screen reflows instead of scrolling sideways. Found by measuring
+   every element past the scroller's edge at ~500 px (Chrome's minimum window width). */
+
+/* Panel heads: the right-hand controls (toggles, pills, buttons) drop under the title when the row
+   is full, instead of pushing past the card (Explorer gate strip head: +100 px). */
+.cpm-panel-head { flex-wrap: wrap; }
+.cpm-panel-head__right { flex-wrap: wrap; }
+
+/* Grid tracks sized in fr default to a min-content minimum, so one long unbreakable line widened a
+   whole column and the card ran off-screen (Investigation: +126 px). Children may shrink. */
+.cpm-grid-2 > * { min-width: 0; }
+
+/* Investigation window browser rows: shrinkable columns, stacked on a phone. */
+.cpm-window-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1.4fr); }
+@media (max-width: 600px) {
+  .cpm-window-row { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Key/value rows: a long unbroken value (run ids, hashes, method ids) wraps inside the card instead of
+   widening the page (Evidence Workbench: +1,476 px at 500 px). */
+.cpm-kv__label { flex: 0 0 auto; max-width: 45%; }
+.cpm-kv__value { min-width: 0; overflow-wrap: anywhere; text-align: right; }
+
+/* OpenBridge toggle groups and pagination have a fixed intrinsic width (one segment per option). On a
+   narrow screen they scroll inside their own box rather than pushing the page sideways
+   (Loop Events filter: +457 px, Performance: +122 px). */
+.cpm-screen obc-toggle-button-group,
+.cpm-screen obc-pagination {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* A data table scrolls inside its card on narrow screens instead of widening the page (Evidence
+   Workbench +2 px, Gate Configuration +4 px: pills in a cell). Desktop layout is untouched. */
+@media (max-width: 900px) {
+  .cpm-screen table.cpm-table { display: block; max-width: 100%; overflow-x: auto; }
+}
+
+/* KPI tiles: a long single-word value (e.g. INSUFFICIENT_EVIDENCE) wraps inside the tile instead of
+   leaking out of a narrow grid track (Workbench verdict tiles at 768 px: +16 px). */
+.cpm-kpi { min-width: 0; }
+.cpm-kpi__caption, .cpm-kpi__value, .cpm-kpi__sub { overflow-wrap: anywhere; }

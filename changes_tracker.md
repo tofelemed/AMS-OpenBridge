@@ -2925,9 +2925,32 @@ the two "Show loops ›" open `/cpm/performance?rows=attention` and `?rows=notEv
 panel 260 px tall (~360 px in the first cut — tiles compacted); 1000 px keeps the five tiles on one row; night theme;
 0 console errors.
 
+## CHG-044 — Responsive guards across the CPM pages (user rule, 2026-10-05)
+
+**Source:** user rule during the SME batch — every page, container card, KPI, button and trend must be responsive.
+**Scope:** `ams-frontend` only: `styles/cpm-responsive.css` (new, imported in `main.tsx`). CSS only, no component change.
+
+**Measured on the lab before the change** (13 CPM pages, page-level horizontal overflow of `.page-content`, outermost
+element past the visible content edge; Chrome's narrowest window ≈ 500 px): Performance +130 (toggle group, pagination),
+Loop Explorer +108 (gate-strip panel head: kind toggle + verdict pill on one unbreakable row), Investigation +135 (fr grid
+columns grown to min-content by nowrap window rows), Evidence Workbench +1,484 (an unbroken id in a key/value row; at
+768 px +16 from a KPI tile value), Loop Events +465 (filter toggle group), Gate Configuration +4 (pills in a table cell).
+Overview, Historical, Replay, Window Inspector, Calculations, System Response, Loop Registry: 0.
+
+**What changed (shared rules, so every page benefits):** panel heads and their right-hand controls wrap under the title;
+`.cpm-grid-2` children may shrink (`min-width: 0`); Investigation window rows use shrinkable columns and stack under
+600 px; key/value values wrap long tokens (`overflow-wrap: anywhere`, label capped at 45 %); OpenBridge toggle groups and
+pagination scroll inside their own box; data tables scroll inside their card under 900 px (desktop untouched); KPI tiles
+shrink and wrap long single-word values.
+
+**Lab pass 2026-10-05:** all 13 pages at 0 px page overflow at ~500, 768, 1000 and 1440 px (wide content — the Performance
+matrix, tables, toggle groups — scrolls inside its own container). Frontend 70 files green, lint and build clean, 0 console
+errors. **Known, deferred to SME #15:** raw machine tokens in Workbench tiles (e.g. `OSCILLATION_TUNING`) now wrap
+mid-word on narrow screens instead of overflowing; #15 replaces them with plain wording.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040, CHG-041, CHG-042, CHG-043) and **`cplm-api`** (CHG-043). No schema, no
+- Updated services so far: **`ams-frontend`** (CHG-040, CHG-041, CHG-042, CHG-043, CHG-044) and **`cplm-api`** (CHG-043). No schema, no
   migration, no Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant: `docker load` the `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.

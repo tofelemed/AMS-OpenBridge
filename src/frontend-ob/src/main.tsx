@@ -27,6 +27,7 @@ import './styles/cpm.css';
 import './styles/cpm-evidence.css';
 import './styles/cpm-context.css';
 import './styles/cpm-loop-summary.css';
+import './styles/cpm-responsive.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
