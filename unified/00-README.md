@@ -13,6 +13,7 @@ OpenBridge) against what the AMS-open codebase actually does on 2026-09-30 (bran
 | `Architecture for Living-Asset Runtime and Plant Manager Dashboard.md` | the pitch, part 2 (component responsibilities, Truss schema extensions, Flink design, message schemas, issue ledger, plan) | same |
 | `10-truss-concept-map-and-gap-analysis.md` | **start here**: the pitch in our terms, the ten findings that shape the work, 39 concepts mapped to what exists (EXISTS / PARTIAL / MISSING), what is reused / updated / new, the twelve decisions to take | deciding whether and how to proceed |
 | `11-target-architecture.md` | components, identity model, runtime package contract, runtime job design, issue ledger, serving contracts, topics and stores, sequences, deployment view, deviations from the pitch and why | designing or reviewing the build |
+| `13-applying-living-asset-to-our-app.md` | plain-language answer: applying the Living Asset sandbox idea to our app (context, ingestion, asset-model and loops, live path, questions to settle) | explaining the idea or preparing the decision meeting |
 | `12-implementation-plan.md` | phases 0–5 as releases (scope, schema four copies, plant scripts in order, acceptance), work breakdown, tests, risks, the records to keep | planning and tracking the work |
 | `01`–`09-current-*.md` | the evidence: nine read-only analyses of the current system, every claim cited as `path:line` | verifying any statement in 10–12 |
 
