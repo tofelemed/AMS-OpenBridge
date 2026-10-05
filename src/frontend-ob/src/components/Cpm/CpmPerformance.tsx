@@ -26,6 +26,7 @@ import { ObiHelp } from '@oicl/openbridge-webcomponents-react/icons/icon-help';
 import {
   EmptyState, KpiTile, PanelHead, WorkspaceHeader, QueryError, fmtDateTime,
 } from './shared';
+import { LoopContextBar } from './context/LoopContextBar';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
 import GateRollup from './GateRollup';
 import GateMatrix, { type MatrixScope } from './GateMatrix';
@@ -202,6 +203,7 @@ export const CpmPerformance: React.FC = () => {
           </ObcToggleButtonGroup>
         }
       />
+      <LoopContextBar loopId={selectedLoop} period={{ label: `Latest ${windowKind} fused window` }} />
       {/* Why only these sizes: this screen shows FUSED verdicts, which fusion
           produces on these windows alone. The finer 1m…60m results exist and
           live in the Window Inspector — say so instead of looking like a

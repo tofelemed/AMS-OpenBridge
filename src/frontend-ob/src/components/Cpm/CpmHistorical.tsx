@@ -20,6 +20,7 @@ import {
   EmptyState, PanelHead, QueryError, WorkspaceHeader,
   classifyMode, cpmChartColors, cpmToneColors, diagnosisBand, fmtDateTime, loopTrendHref,
 } from './shared';
+import { LoopContextBar } from './context/LoopContextBar';
 import { useCpmScope } from './plantScope';
 import type { CpmGateMatrix } from '../../api/cpmApi';
 import {
@@ -256,6 +257,7 @@ export const CpmHistorical: React.FC = () => {
   return (
     <div className="cpm-screen">
       <WorkspaceHeader page="/cpm/historical" title="Historical" />
+      <LoopContextBar loopId={loopId} period={{ label: 'Historical range', start: from.getTime(), end: to.getTime() }} />
 
       <section className="cpm-surface">
         <RangeToolbar

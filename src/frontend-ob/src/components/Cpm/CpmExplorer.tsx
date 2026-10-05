@@ -21,6 +21,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-left-google';
 import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-right-google';
 import { CpmIconButton, EmptyState, WorkspaceHeader } from './shared';
+import { LoopContextBar } from './context/LoopContextBar';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
 import LoopTree from './explorer/LoopTree';
 import LoopWorkspace, { TABS } from './explorer/LoopWorkspace';
@@ -82,6 +83,7 @@ export const CpmExplorer: React.FC = () => {
         page="/cpm/explorer"
         title="Loop explorer"
       />
+      <LoopContextBar loopId={loop?.loopId ?? requestedId} period={{ label: `Gates: latest ${windowKind} fused window · trend: last 8 h` }} />
       <PlantScopeFilter
         scope={scope}
         summary={loops.length ? `${inScope.length} of ${loops.length} loop(s) in scope` : null}

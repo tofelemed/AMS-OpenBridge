@@ -1,0 +1,48 @@
+/* ── Loop context bar (SME review #3) ──────────────────────────────────────
+   Sticks to the top of the scrolling CPM content so the loop, its location
+   and the period stay in view on long pages. It is a direct child of
+   .cpm-screen (a full-height flex column), so it holds for the whole page.
+   The scroller (.page-content) is padded, so `top` is minus that padding —
+   otherwise content shows through a strip above the bar — and the side
+   margins span both paddings (.page-content's and .cpm-screen's 16px) so
+   nothing scrolls past at the edges. */
+.cpm-loop-context {
+  position: sticky;
+  top: calc(-1 * var(--spacing-4, 16px));
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 24px;
+  margin: -8px calc(-16px - var(--spacing-4, 16px)) 0;
+  padding: 8px calc(16px + var(--spacing-4, 16px));
+  background: var(--container-section-color);
+  border-bottom: 1px solid var(--border-outline-color);
+  color: var(--element-active-color);
+  font-size: 0.85rem;
+}
+.cpm-loop-context__item {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.cpm-loop-context__label {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--element-neutral-color);
+}
+.cpm-loop-context__muted { color: var(--element-neutral-color); }
+
+/* Panels that stick inside the same scroller stop below the bar. The bar sits
+   at the scroller's edge (top = -padding) and a panel's `top` is measured from
+   the padded content edge, so `top: <bar height>` leaves a padding-sized gap
+   under the bar. Without a bar the variable is unset and the fallback is the
+   panels' own 16px. */
+.cpm-screen .cpm-response-events,
+.cpm-screen .cpm-explain,
+.cpm-screen .cpm-inspector { top: var(--cpm-context-h, 16px); }
+.cpm-screen .cpm-response-events,
+.cpm-screen .cpm-explain { max-height: calc(100vh - 32px - var(--cpm-context-h, 0px)); }

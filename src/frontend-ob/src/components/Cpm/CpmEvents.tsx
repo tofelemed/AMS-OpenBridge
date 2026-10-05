@@ -21,6 +21,7 @@ import { ObcInputChip } from '@oicl/openbridge-webcomponents-react/components/in
 import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
 import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
 import { EmptyState, QueryError, TonePill, WorkspaceHeader, fmtDateTime } from './shared';
+import { LoopContextBar } from './context/LoopContextBar';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
 import { usePagedSlice } from '../shared/ListPager';
 import { useCpmEvents, useCpmLoops } from '../../hooks/useCpm';
@@ -128,6 +129,7 @@ export const CpmEvents: React.FC = () => {
         title="Loop events"
         copy="Investigate diagnosis episodes with operating context and a traceable response history. One row is one episode of one fault family — confidence changes extend it rather than duplicating it."
       />
+      <LoopContextBar loopId={loopParam} period={{ label: 'All episodes of this loop' }} />
       <PlantScopeFilter scope={scope}
         summary={scope.active ? `${events.length} matching event(s)` : null} />
 

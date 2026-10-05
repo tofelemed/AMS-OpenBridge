@@ -16,6 +16,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import {
   EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader,
   fmtDateTime, QueryError } from './shared';
+import { LoopContextBar } from './context/LoopContextBar';
 import { gateTone } from './gateStatus';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
 import LoopCombobox from './LoopCombobox';
@@ -166,6 +167,7 @@ export const CpmReplay: React.FC = () => {
           </ObcButton>
         }
       />
+      <LoopContextBar loopId={loopId} period={selected ? { label: '24h fused window', start: selected.windowStart, end: selected.windowEnd } : null} />
 
       <section className="cpm-surface">
         <PlantScopeFilter scope={scope} />

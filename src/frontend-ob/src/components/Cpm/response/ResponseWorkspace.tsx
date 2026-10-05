@@ -14,6 +14,7 @@ import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { EmptyState, QueryError, WorkspaceHeader } from '../shared';
+import { LoopContextBar } from '../context/LoopContextBar';
 import { LoopCombobox } from '../LoopCombobox';
 import { PlantScopeFilter, useCpmScope } from '../plantScope';
 import { useCpmLoops } from '../../../hooks/useCpm';
@@ -124,6 +125,7 @@ export const ResponseWorkspace: React.FC = () => {
             <ObcButton variant="flat" onClick={() => setParams(p => { p.delete('loop'); p.delete('event'); p.delete('methodRun'); return p; })}>Change loop</ObcButton>
           </span>
         } />
+      <LoopContextBar loopId={loopId} timeZone={timeZone} period={selected ? { label: `Response event · ${selected.eventType}`, start: selected.t0Ms, end: selected.tEndMs } : { label: 'No response event selected' }} />
       {picker}
       <div className="cpm-response-columns">
         <EventList events={flat} selectedId={eventParam} timeZone={timeZone} loading={events.isLoading || events.isFetchingNextPage}

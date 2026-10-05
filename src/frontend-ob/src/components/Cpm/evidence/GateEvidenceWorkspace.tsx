@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { EmptyState, QueryError, fmtWindowShape, windowSpecsOf } from '../shared';
+import { LoopContextBar } from '../context/LoopContextBar';
 import { useCpmLoops, useCpmResolutions, useGateCatalogue } from '../../../hooks/useCpm';
 import { useCpmScope } from '../plantScope';
 import { PROFILE_SECONDS } from '../windows/windowMath';
@@ -133,6 +134,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
   if (!selection) {
     return (
       <div className="cpm-screen cpm-evidence-workspace">
+        <LoopContextBar loopId={loopId} timeZone={timeZone} period={{ label: `${kind} windows (none opened)` }} />
         {toolbar}
         {!loopId && <EmptyState title="Pick a loop" copy="Its evaluated windows and gates appear here. A gate cell on Performance, Investigation or System Response opens the workbench on that run directly." />}
         {loopId && windows.isLoading && <EmptyState title="Listing the evaluated windows…" />}
@@ -149,6 +151,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
 
   return (
     <div className="cpm-screen cpm-evidence-workspace">
+      <LoopContextBar loopId={loopId} timeZone={timeZone} period={run.data ? { label: `${run.data.windowKind} window`, start: run.data.support.fromMs, end: run.data.support.toMs } : null} />
       {toolbar}
       <EvidenceHeaderStrip selection={selection} run={run.data} entry={entry} loopName={loop?.displayName} timeZone={timeZone}
         readiness={manifest.data?.readiness}

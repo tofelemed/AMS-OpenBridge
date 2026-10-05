@@ -2794,10 +2794,48 @@ opened on the loop with no "pick a loop" prompt; the Workbench resolved its newe
 task eyebrow + purpose; from `/trend` the menu opens the bare `/cpm/investigation`; 0 console errors. Dev-only note: Vite's
 first-use dependency optimisation reloads the page and drops the in-memory session — log in again (not a product bug).
 
+## CHG-041 — SME review #3: a loop context bar that stays in view (loop, service, location, period) (2026-10-05)
+
+**Source:** `SME_review.md` point 3. **Scope:** `ams-frontend` only: `components/Cpm/context/LoopContextBar.tsx` (+ test,
+new), `styles/cpm-context.css` (new, imported in `main.tsx`), one line in each of 11 pages (Explorer, Historical,
+Investigation, Evidence Workbench, Replay, Window Inspector, Calculations, System Response, Loop Events, Performance,
+Overview). No service, schema or Flink change; no new request (the bar reads the cached `useCpmLoops` list).
+
+**What the SME said.** On long pages the loop and the period go out of view; a persistent header should show the
+current loop, service, location and selected window.
+
+**Verified on the lab before the change (1440×900, FIC10301).** Correct. Loop pages run 1.9–4.9 screens; after
+scrolling to the bottom the loop id was nowhere on screen on Investigation, Evidence Workbench, Performance, Window
+Inspector, Overview, Historical and Calculations; no page showed the loop's site › area › unit (the scope filter
+said "All sites"); the window sat inside a card (Investigation) or a toolbar. The registry has no "service" field —
+`displayName` + `loopType` + `criticality` is what exists (a real service description would be a new registry column).
+
+**What changed.** One sticky row under each page header: `LOOP <id> <displayName> <type · criticality>` ·
+`LOCATION site › area › unit` · `PERIOD <what this page shows>`. The period is passed by the page because "window"
+differs per page: Investigation the evaluated fused window (latest / selected) with start → end; Replay the selected
+24h fused window; Evidence Workbench the opened run's window in the site zone; Window Inspector the profile list or the
+opened window; Historical the from → to range; Calculations "Latest results · 24h fused window" with its times; System
+Response the selected response event; Explorer "Gates: latest 24h fused window · trend: last 8 h"; Performance / Overview
+/ Events a label only (they hold no single window). Times always name the zone. The bar renders nothing without a loop,
+says "not in the loop registry" for an unknown id, sticks flush to the scroller edge across the full width, wraps on
+narrow screens, and publishes its measured height (`--cpm-context-h`) so the sticky side panels (Performance evidence
+inspector, Workbench explain column, Response event list) stop 16 px below it instead of sliding under it.
+
+**Deliberately not done (user decision 2026-10-05, Option A).** The period is shown, not carried between pages; a shared
+period parameter belongs with SME #12–#13. No "service" registry field (backend + migration).
+
+**Tests.** `context/LoopContextBar.test.tsx` (new, 7: period text with range/zone, epoch + end-only, label-only and
+unparseable times, location text, no loop → nothing, case-insensitive loop match with all four facts, unknown loop).
+Frontend suite 68 files green, `tsc` clean, lint clean, build clean. **Lab browser pass 2026-10-05** (Vite 5174, FIC10301):
+bar present with the right loop/location/period on all 11 pages; scrolled to the bottom it holds at the scroller top (62 px)
+on every page, full width, horizontal overflow 0; Workbench explain column and Performance inspector hold 16 px below it;
+1000 px wide it wraps to three lines and the panels' offset follows (79 px); night theme via tokens; 0 console errors.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040). No schema, no migration, no Flink jar, no `.env` change.
+- Updated services so far: **`ams-frontend`** (CHG-040, CHG-041). No schema, no migration, no Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant: `docker load` the `ams-frontend` image → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
 - Proofs (CHG-040): the Loop Performance menu shows four task sub-headings; open a loop in the Loop Explorer, then
-  Investigation from the menu: the same loop is open without picking it again.
+  Investigation from the menu: the same loop is open without picking it again. (CHG-041) on Investigation, scroll to the
+  bottom: the LOOP / LOCATION / PERIOD bar stays at the top.

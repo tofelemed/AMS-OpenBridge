@@ -15,6 +15,7 @@ import {
   EmptyState, PanelHead, TonePill, WorkspaceHeader, toneFor, fmtDateTime,
   fmtWindowShape, windowSpecsOf,
 } from './shared';
+import { LoopContextBar } from './context/LoopContextBar';
 import { gateTone } from './gateStatus';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
 import LoopCombobox from './LoopCombobox';
@@ -163,6 +164,7 @@ export const CpmCalculations: React.FC = () => {
         page="/cpm/calculations"
         title="Calculations"
       />
+      <LoopContextBar loopId={loop?.loopId ?? loopId} period={{ label: 'Latest results · 24h fused window', start: gates.data?.windowStart, end: gates.data?.windowEnd }} />
 
       <section className="cpm-surface">
         <PanelHead eyebrow="1 · Select the loop" title="Which loop do you want to evaluate?" />

@@ -18,6 +18,7 @@ import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { EmptyState, KpiTile, PanelHead, TonePill, WorkspaceHeader, toneFor, fmtDateTime, QueryError } from './shared';
+import { LoopContextBar } from './context/LoopContextBar';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
 import { useCpmEvents, useFleetRankings, useFleetSummary } from '../../hooks/useCpm';
 import GoodErrorBar from './overview/GoodErrorBar';
@@ -93,6 +94,7 @@ export const CpmOverview: React.FC = () => {
         page="/cpm"
         title="Operations overview"
       />
+      <LoopContextBar loopId={requestedId} period={{ label: 'Latest verdict · trend: last 8 h' }} />
       <PlantScopeFilter scope={scope} summary={summary.data ? `${summary.data.loops.total} loop(s) in scope` : null} />
 
       <div className="cpm-kpi-row">

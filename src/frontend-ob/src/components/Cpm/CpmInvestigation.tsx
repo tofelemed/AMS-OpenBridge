@@ -20,6 +20,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import {
   EmptyState, KpiTile, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
   fmtDateTime, QueryError, cpmChartColors } from './shared';
+import { LoopContextBar } from './context/LoopContextBar';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
 import { staleVerdictLine } from './verdictAge';
 import { ApiError } from '../../api/apiFetch';
@@ -196,6 +197,7 @@ export const CpmInvestigation: React.FC = () => {
         page="/cpm/investigation"
         title="Investigation"
       />
+      <LoopContextBar loopId={loopId} period={matrix ? { label: `${windowKind} fused window${mode === 'historical' ? ' (selected)' : ' (latest)'}`, start: matrix.windowStart, end: matrix.windowEnd } : null} />
       <PlantScopeFilter scope={scope} summary={rankings.data ? `${rankings.data.count} loop(s) in scope` : null} />
 
       <CaseTriage scope={scope} cases={cases} caseFilter={caseFilter}

@@ -17,6 +17,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import {
   EmptyState, PanelHead, TonePill, WorkspaceHeader,
   fmtDateTime, fmtWindowShape, windowSpecsOf, QueryError } from './shared';
+import { LoopContextBar } from './context/LoopContextBar';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
 import LoopCombobox from './LoopCombobox';
 import {
@@ -95,6 +96,7 @@ export const CpmWindows: React.FC = () => {
           ) : <TonePill tone="muted">CHECKING RUNTIME…</TonePill>
         }
       />
+      <LoopContextBar loopId={loopId} period={view.view === 'detail' ? { label: `${profile} window`, start: view.selected.window_start, end: view.selected.window_end } : { label: `${profile} windows (list)` }} />
 
       <section className="cpm-surface">
         <PlantScopeFilter scope={scope} />
