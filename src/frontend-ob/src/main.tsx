@@ -26,6 +26,7 @@ import './styles/hmi-dialogs.css';
 import './styles/cpm.css';
 import './styles/cpm-evidence.css';
 import './styles/cpm-context.css';
+import './styles/cpm-loop-summary.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

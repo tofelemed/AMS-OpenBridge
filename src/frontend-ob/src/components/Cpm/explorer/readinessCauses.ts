@@ -89,6 +89,8 @@ export function readinessCauses(
   return {
     causes,
     blocking,
-    headline: blocking > 0 ? 'Not producing verdicts' : 'Degraded evidence',
+    // Nothing blocking means the loop IS evaluated; what remains limits what the evidence can
+    // claim (SME review #4/#6) - a configuration limit, not a fault, so it is not worded as one.
+    headline: blocking > 0 ? 'Not producing verdicts' : 'Configuration limits',
   };
 }

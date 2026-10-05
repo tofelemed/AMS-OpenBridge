@@ -2,11 +2,20 @@
 // builders are the contract every in-page route follows.
 import { describe, it, expect } from 'vitest';
 import {
-  calculationsHref, eventsHref, evidenceHref, explorerHref, performanceHref, pipelineHref, replayHref,
+  calculationsHref, eventsHref, evidenceHref, explorerHref, historicalHref, investigationHref, performanceHref, pipelineHref, replayHref,
   responseHref, windowsHref,
 } from './cpaHref';
 
 describe('cpaHref', () => {
+  it('investigationHref writes the fused kind under ?profile= (what Investigation reads)', () => {
+    expect(investigationHref('FIC 1', { kind: '24h' })).toBe('/cpm/investigation?loop=FIC+1&profile=24h');
+    expect(investigationHref('L1')).toBe('/cpm/investigation?loop=L1');
+  });
+
+  it('historicalHref carries the loop', () => {
+    expect(historicalHref('B2_027PIC')).toBe('/cpm/historical?loop=B2_027PIC');
+  });
+
   it('explorerHref always carries the loop and encodes it', () => {
     expect(explorerHref('FIC10301')).toBe('/cpm/explorer?loop=FIC10301');
     expect(explorerHref('45FIC-109/A', { tab: 'Summary', gate: 'G9' }))

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
-import { LoopContextBar, fmtLocation, fmtPeriod } from './LoopContextBar';
+import { LoopContextBar, fmtInstant, fmtLocation, fmtPeriod } from './LoopContextBar';
 
 const loopsState: { data?: unknown; isLoading: boolean } = { isLoading: false };
 vi.mock('../../../hooks/useCpm', () => ({ useCpmLoops: () => loopsState }));
@@ -21,6 +21,13 @@ describe('fmtPeriod', () => {
   it('is just the label without times, and ignores unparseable ones', () => {
     expect(fmtPeriod({ label: 'Latest results' })).toBe('Latest results');
     expect(fmtPeriod({ label: 'Latest results', start: 'nope', end: null })).toBe('Latest results');
+  });
+});
+
+describe('fmtInstant', () => {
+  it('is the same compact form as a period end, zone named', () => {
+    expect(fmtInstant('2026-08-09T21:00:00Z', 'UTC')).toBe('9 Aug 21:00 UTC');
+    expect(fmtInstant(null)).toBe('—');
   });
 });
 

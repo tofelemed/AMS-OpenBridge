@@ -1,0 +1,81 @@
+/* ── Loop summary card (Explorer › Summary, SME review #4) ──────────────────
+   Same visual language as the KPI tiles: a backdrop surface with the tone on a
+   3px left border, so the condition's colour is read before any text. Label
+   column + value column (recognition over recall), the next check set apart
+   at the bottom with the one primary action. */
+.cpm-loop-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 12px 0 4px;
+  padding: 14px 20px;
+  border: 1px solid var(--border-divider-color);
+  border-left: 3px solid var(--cpm-tone, var(--border-divider-color));
+  border-radius: 8px;
+  background: var(--container-backdrop-color);
+}
+.cpm-loop-summary--good  { --cpm-tone: var(--alert-running-color); }
+.cpm-loop-summary--warn  { --cpm-tone: var(--alert-caution-color); }
+.cpm-loop-summary--bad   { --cpm-tone: var(--alert-alarm-color); }
+.cpm-loop-summary--muted { --cpm-tone: var(--element-neutral-color); }
+
+.cpm-loop-summary__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px 16px;
+}
+.cpm-loop-summary__condition { margin: 2px 0 0; font-size: 1.3rem; }
+.cpm-loop-summary__severity { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.8rem; }
+.cpm-loop-summary__muted { color: var(--element-neutral-color); }
+.cpm-loop-summary__note { margin: 0; color: var(--element-neutral-color); }
+.cpm-loop-summary__stale { color: var(--alert-caution-color); font-weight: 600; }
+
+.cpm-loop-summary__rows {
+  display: grid;
+  grid-template-columns: minmax(110px, max-content) minmax(0, 1fr);
+  gap: 8px 20px;
+  margin: 0;
+}
+.cpm-loop-summary__label {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--element-neutral-color);
+  padding-top: 2px;
+}
+.cpm-loop-summary__value { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+
+.cpm-loop-summary__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cpm-loop-summary__chip {
+  padding: 2px 10px;
+  border: 1px solid var(--border-divider-color);
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+.cpm-loop-summary__limits { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
+
+.cpm-loop-summary__next {
+  display: grid;
+  grid-template-columns: minmax(110px, max-content) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-divider-color);
+}
+.cpm-loop-summary__next-text { margin: 0; font-weight: 600; }
+.cpm-loop-summary__actions { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+
+@media (max-width: 1100px) {
+  .cpm-loop-summary__rows { grid-template-columns: 1fr; gap: 2px; }
+  .cpm-loop-summary__value { margin-bottom: 6px; }
+  .cpm-loop-summary__next { grid-template-columns: 1fr; }
+}
+
+/* A readiness banner with nothing blocking is a configuration limit, not a fault:
+   neutral, so it does not compete with the diagnosis for attention. */
+.cpm-causes--limits {
+  border-color: var(--border-divider-color);
+  background: var(--container-section-color);
+}

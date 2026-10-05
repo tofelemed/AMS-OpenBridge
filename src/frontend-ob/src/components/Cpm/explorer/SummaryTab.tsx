@@ -4,7 +4,7 @@
  * Explorer › Summary — composition (cpa-ui-fix-plan Phase 3).
  *
  * Top: the operating state and 8 h trend (./summary/OperatingState) beside the
- * loop model. Then the gates of the latest fused window as a strip fed from the
+ * loop model (the loop summary heads the workspace, above the tabs). Then the gates of the latest fused window as a strip fed from the
  * gates/latest row the workspace already holds (no request); selecting a gate
  * (`?gate=`, replace) opens its detail and evidence below, lazily. Then the
  * calculations at any served window kind, lazily on request.
@@ -20,12 +20,11 @@ import { ApiError } from '../../../api/apiFetch';
 import { useCpmResolutions, useLatestGates } from '../../../hooks/useCpm';
 import { loopSeries } from '../../../utils/loopSeries';
 import { EmptyState, KvRow, PanelHead, QueryError, TonePill, fmtDateTime, toneFor } from '../shared';
-import { evidenceHref } from '../cpaHref';
-import { workbenchHref } from '../evidence/selection';
 import { LoopModelCard } from './LoopModelCard';
 import OperatingState from './summary/OperatingState';
 import SummaryGateStrip from './summary/SummaryGateStrip';
 import WindowKindToggle from './summary/WindowKindToggle';
+import { workbenchExit } from './summary/LoopSummaryCard';
 
 const SummaryGateDetail = React.lazy(() => import('./summary/SummaryGateDetail'));
 const SummaryCalculations = React.lazy(() => import('./summary/SummaryCalculations'));
@@ -54,12 +53,7 @@ export const SummaryTab: React.FC<{ loop: CpmLoop; windowKind: string }> = ({ lo
 
   const [calcOpen, setCalcOpen] = useState(false);
 
-  // The Workbench exit opens the exact fused run when the row carries one, else
-  // the loop-level landing (its newest window with run identity).
-  const g15 = matrix?.methodRunIds?.G15 ?? matrix?.gates.find(g => g.key === 'G15')?.methodRunId ?? null;
-  const workbench = g15
-    ? { href: workbenchHref(loop.loopId, g15, 'G15'), title: `Open the fused ${windowKind} run ${g15} in the Evidence Workbench` }
-    : { href: evidenceHref(loop.loopId, { kind: windowKind }), title: 'Open the newest window with run identity in the Evidence Workbench' };
+  const workbench = workbenchExit(loop.loopId, matrix, windowKind);
 
   return (
     <div>

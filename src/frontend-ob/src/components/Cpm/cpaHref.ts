@@ -62,6 +62,13 @@ export const evidenceHref = (loop: string, opts: { kind?: string | null; gate?: 
 export const responseHref = (loop: string, opts: { event?: string | null } = {}) =>
   build('/cpm/response', { loop, event: opts.event });
 
+/** Investigation on one loop. `kind` is the fused window kind it reads as `?profile=` (12h / 24h). */
+export const investigationHref = (loop: string, opts: { kind?: string | null } = {}) =>
+  build('/cpm/investigation', { loop, profile: opts.kind });
+
+/** Historical on one loop (its default range: signals, KPIs, mode and verdicts over time). */
+export const historicalHref = (loop: string) => build('/cpm/historical', { loop });
+
 /** The standalone calculations catalogue for one loop. */
 export const calculationsHref = (loop: string) => build('/cpm/calculations', { loop });
 

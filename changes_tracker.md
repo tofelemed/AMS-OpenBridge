@@ -2831,11 +2831,56 @@ bar present with the right loop/location/period on all 11 pages; scrolled to the
 on every page, full width, horizontal overflow 0; Workbench explain column and Performance inspector hold 16 px below it;
 1000 px wide it wraps to three lines and the panels' offset follows (79 px); night theme via tokens; 0 console errors.
 
+## CHG-042 — SME review #4: the loop page opens with a summary (condition, severity, cause, evidence, data, next check) (2026-10-05)
+
+**Source:** `SME_review.md` point 4 (+ the #6/#24 separation for the readiness banner). **Scope:** `ams-frontend` only:
+`components/Cpm/explorer/summary/{LoopSummaryCard.tsx, summaryText.ts, summaryText.test.ts}` (new),
+`explorer/{LoopWorkspace.tsx, SummaryTab.tsx, readinessCauses.ts}`, `cpaHref.ts` (+`investigationHref`, `historicalHref`),
+`context/LoopContextBar.tsx` (shared `fmtInstant`), `styles/cpm-loop-summary.css` (new, in `main.tsx`). No request added:
+the card reads the `gates/latest` row LoopWorkspace already holds (same query key).
+
+**What the SME said.** The main loop page should show a short summary first — current condition, severity, diagnosis,
+important evidence, data availability and next checking action; today they are scattered between badges, gate panels and
+lower sections.
+
+**Verified on the lab before the change (FIC10301, 1440×900).** Correct. Severity (`HIGH`) and the engine's recommendation
+were in the served row but shown nowhere on the Explorer (only on Investigation); the evidence score sat at 1,155 px below
+the fold; the leading hypothesis and the data facts (12,068 samples, observability flags) were not shown at all. The most
+prominent element above the fold was a yellow "Degraded evidence · 2 causes" banner whose causes were configuration gaps
+(no VP mapped, no peer links), not faults. B2_027PIC: newest window insufficient (93 samples), last real verdict "excluded
+mode" 57 days earlier — nothing said so.
+
+**What changed.**
+- **Loop summary card** at the head of the loop workspace, above the tabs (so it heads every tab and fits the first screen:
+  388–704 px of a 732 px viewport). Tone on the left border like the KPI tiles. Condition in plain words ("Oscillation
+  confirmed", "Not evaluated: not enough data", "Excluded: loop not in automatic"); severity pill + loop criticality;
+  leading cause with "evidence score" (tooltip: uncalibrated, not a probability — SME #20 wording); evidence seen (present
+  observations, main first, supporting marked); data (samples + window, and "ended N days ago" in caution colour once the
+  window is older than its own size); limitations (observability flags as what each costs, two shown + "and N more");
+  next check (engine recommendation, else a state-specific fallback) with ONE primary action that goes where the check is
+  done — Investigation for a finding, Window Inspector for insufficient data, Historical for excluded mode — and the
+  Evidence Workbench as secondary. When the newest window has no verdict, the card names the last verdict and its age.
+- **Readiness banner**: with nothing blocking it is "Configuration limits" in neutral styling, items labelled LIMIT (muted);
+  blocking causes keep the alarm treatment ("Not producing verdicts", BLOCKING).
+- One date format across the summary surfaces (`fmtInstant` / `fmtPeriod`, zone named).
+
+**Deliberately not done.** Header pills (GOOD / health / diagnosis label clarity) = SME #9; trend scaling = SME #10.
+
+**Tests.** `summary/summaryText.test.ts` (new, 12: condition wording incl. not-judged states, limitation phrases
+de-duplicated, evidence order/cap/legacy, leading cause, next-check fallback, age text, primary action per state,
+staleness = window size), `cpaHref.test.ts` (+2), `context/LoopContextBar.test.tsx` (+1 `fmtInstant`). Frontend suite
+69 files green (one unrelated CHG-032 `EventDetail` test timed out once under full-suite load and passes on rerun and
+alone), `tsc`, lint and build clean. **Lab browser pass 2026-10-05:** FIC10301 card complete above the fold, no false
+stale flag; B2_027PIC shows the last verdict "Excluded … 10 Aug 01:00 GST (57 days ago)", "ended 48 days ago", primary
+"Open Window Inspector ›" → `/cpm/windows?loop=B2_027PIC`; card present on the Signals tab; night theme and 1000 px
+stacked layout, no horizontal overflow; 0 console errors.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040, CHG-041). No schema, no migration, no Flink jar, no `.env` change.
+- Updated services so far: **`ams-frontend`** (CHG-040, CHG-041, CHG-042). No schema, no migration, no Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant: `docker load` the `ams-frontend` image → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
 - Proofs (CHG-040): the Loop Performance menu shows four task sub-headings; open a loop in the Loop Explorer, then
   Investigation from the menu: the same loop is open without picking it again. (CHG-041) on Investigation, scroll to the
-  bottom: the LOOP / LOCATION / PERIOD bar stays at the top.
+  bottom: the LOOP / LOCATION / PERIOD bar stays at the top. (CHG-042) Loop Explorer on any loop opens with the
+  Loop summary card above the tabs; a non-blocking readiness banner reads "Configuration limits" in neutral grey.

@@ -25,6 +25,7 @@ import { PanelHead, TonePill, toneFor } from '../shared';
 import { useInstrumentHealth } from '../health/useInstrumentHealth';
 import { TransmitterHealthPanel, loopHealthSummary } from '../health/TransmitterHealthPanel';
 import { readinessCauses, type ExplorerTab } from './readinessCauses';
+import LoopSummaryCard from './summary/LoopSummaryCard';
 import SummaryTab from './SummaryTab';
 import SignalsTab from './SignalsTab';
 import CalculationsTab from './CalculationsTab';
@@ -139,8 +140,11 @@ export const LoopWorkspace: React.FC<{
         </div>
       )}
 
+      {/* SME #4: the loop summary heads every tab — condition, severity, cause, evidence, data, next check. */}
+      {gates.data && <LoopSummaryCard loop={loop} matrix={gates.data} windowKind={windowKind} />}
+
       {summary && (
-        <div className={`cpm-causes${summary.blocking > 0 ? ' cpm-causes--blocking' : ''}`}>
+        <div className={`cpm-causes${summary.blocking > 0 ? ' cpm-causes--blocking' : ' cpm-causes--limits'}`}>
           <button
             type="button"
             className="cpm-causes__head"
@@ -159,8 +163,8 @@ export const LoopWorkspace: React.FC<{
             <ul className="cpm-causes__list">
               {summary.causes.map(c => (
                 <li key={c.id} className="cpm-causes__item">
-                  <TonePill tone={c.blocking ? 'bad' : 'warn'}>
-                    {c.blocking ? 'BLOCKING' : 'DEGRADED'}
+                  <TonePill tone={c.blocking ? 'bad' : 'muted'}>
+                    {c.blocking ? 'BLOCKING' : 'LIMIT'}
                   </TonePill>
                   <span className="cpm-causes__text">
                     <strong>{c.label}</strong>
