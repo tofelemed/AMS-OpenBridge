@@ -2727,7 +2727,9 @@ simulator, 30 HDPE loops through mosquitto → ingestion-service → `traverse.c
 all six kinds written by cplm-api, newest window ~3 min behind real time (out-of-orderness + exactly-once commit, as
 before); checkpoints 0 failed, growing with the buffer (79 MB at 38 min); heap 540–770 MB of 1,230 with no old-generation
 GC. At 11:36 a lab ZooKeeper suspension suspended all 16 jobs: the Short job restored from its heap checkpoint and
-resumed producing windows (restore proof). The full-buffer reading (after 12:30) goes into `checklist.md`.
+resumed producing windows (restore proof). Near-full buffer (55 of 60 min, 12:18–12:23): busy 0 ms/s, windows ~2 min
+behind, checkpoint 111–118 MB (bench predicted ~116 MB), heap 647–843 of 1,230 MB, no old-generation GC. A second
+restore ~12:12 (while the PC wrote the bundle image) recovered by itself; its cause was not verified.
 
 ### Release v2.6.6 — what to build and run
 

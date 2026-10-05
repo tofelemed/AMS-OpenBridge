@@ -217,8 +217,10 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] release manifest `v2.6.6` + `!chg039-short-heap` VM-step proofs; builder tests 41 passed
 - [x] daily check: checkpoint-size line, zero-rows display fix; runbook §1
 - [x] lab heap run (30 loops, p=3): busy 0–30 ms/s, windows ~3 min behind, checkpoints 0 failed; survived a lab ZooKeeper suspension at 11:36 (restored from its heap checkpoint)
-- [ ] lab full-buffer reading after 12:30 UTC (heap after GC, checkpoint size) → CHG-039 "End-to-end on the lab"
-- [ ] commit; `build-release.py --release v2.6.6 --skip-jar` bundle
+- [x] lab near-full buffer (55 of 60 min, 12:18–12:23 UTC): busy 0 ms/s, windows ~2 min behind, checkpoint 111–118 MB (bench predicted ~116), heap 647–843 of 1,230 MB, 0 old-gen GC. Run ended 12:26 when the session/Docker Desktop stopped
+- [ ] lab: a second restore of the Short job ~12:12 (checkpoint count 9 → 2) while the PC wrote the 616 MB bundle image; job recovered by itself and was on time by 12:18; cause NOT verified (JM log unreadable after Docker stopped) — likely the same ZooKeeper/Docker stall as 11:36; watch for restores at the plant (`restored` in /checkpoints)
+- [x] commits 31b8c114 (living-asset doc), 5307c456 (CHG-039), 06d9880c (VM steps 4a); bundle `release-out/v2.6.6-20261005` (src-06d9880c, jar b432802f, 19/19 SHA256 OK)
+- [ ] push `feat/v25-next-release` and fast-forward `main` (blocked for the agent by the permission classifier — user runs it)
 - [ ] plant: `free -g` check, VM-STEPS step 4a + 5, proofs (taskHeap, `cplm-short-windows`, delete_on_cancellation, 7 RUNNING / 6 free); retest the Short job; next-morning daily check
 
 ## Verification status (last runs, lab)
