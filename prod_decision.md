@@ -5,7 +5,7 @@ measurements and deliberate trade-offs. If this application is deployed on anoth
 below must be decided again for that server, and this file says what we chose here and why. Keep it
 current with every release (`changes_tracker.md` CHG entries are the history; this file is the state).
 
-Last updated: 2026-10-05 (v2.6.6 / CHG-039 built and lab-proven, pending deploy; earlier: v2.6.1 live since 2026-09-27 17:30 UTC; evidence OFF again since 2026-10-02 after the episode-flapping incident; cpm-10b still pending).
+Last updated: 2026-10-05 (v2.6.6 / CHG-039 live at Marun since 12:56 UTC; earlier: v2.6.1 live since 2026-09-27 17:30 UTC; evidence OFF again since 2026-10-02 after the episode-flapping incident; cpm-10b still pending).
 
 ## 1. Where it runs
 
@@ -27,7 +27,7 @@ Last updated: 2026-10-05 (v2.6.6 / CHG-039 built and lab-proven, pending deploy;
 | 2026-09-27 05:24 | Flink patch 1: G0 completeness from the declared grid; per-partition watermarks; control streams marked idle | jar b4a10e5474e7a557 |
 | 2026-09-27 | Flink patch 2: sample idleness 30 min; Short job parallelism from `CPLM_SHORT_PARALLELISM` | `release-out/v2.5-flink-patch2-20260927`, jar f7c99294e0767ea9 |
 | 2026-10-03 09:03 | **v2.6.3** deployed (cplm-api 5dc9dcf4 + ams-frontend); proofs: knobs in the container, consumers Healthy / no split, frontend assets. Step H (reconstruction) found CHG-036 | `release-out/v2.6.3-20261003` |
-| pending | **v2.6.6** = Flink image (CHG-039: the Short job fires all six window kinds from one per-loop sample buffer, output identical; checkpoints deleted on cancel) + daily check (checkpoint-size line); full Flink swap, window state rebuilds | `release-out/v2.6.6-<date>`; `changes_tracker.md` "Release v2.6.6" |
+| 2026-10-05 12:56 | **v2.6.6** = Flink image (CHG-039: Short job single per-loop buffer on heap state, delete on cancel; jar `b432802ffcd25622`) + TaskManager 3584m (taskHeap 1154272437) + daily check; src-06d9880c; 7 RUNNING, 6 slots free, `cplm-short-windows`, delete_on_cancellation true; checkpoints 118 MB after the sweep; disk 4.8 → 11 GB free (old Short RocksDB dir gone) | `release-out/v2.6.6-20261005` |
 | 2026-10-04 08:28 | **v2.6.5** = Flink image (CHG-038 Short checkpointing + patch-4 replay fixes; jar `0fd03445aa6deb59` for engine and replay) + cplm-api 0556248e (CHG-036 fallbacks); full Flink swap, window state rebuilds | `release-out/v2.6.5-20261004` |
 | 2026-10-04 07:03 | **v2.6.4** = ams-frontend (CHG-037: evidence checksums without SubtleCrypto; workbench polls a pending reconstruction) | `release-out/v2.6.4-20261003` (src-2a737e30) |
 | 2026-10-03 13:19 | **v2.6.3 add-on, replay jar patch 4** (CHG-036; patch 3 = the 10:21 UTC interim jar 26020dfd, superseded): host jar `src/flink/target/ams-flink-1.0-SNAPSHOT.jar` → sha `043a645633a56579` (bounded source + IOTDB_PASS + writer device path) + overlay `CplmRecompute__BootstrapServers`; engine jobs stay on f7c99294e0767ea9. Proof: cplm-api reconstruction of PIC10412 → 3 manifests in 20 s | `release-out/v2.6.3-20261003/flink-replay-jar-patch4/` |

@@ -221,7 +221,8 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [ ] lab: a second restore of the Short job ~12:12 (checkpoint count 9 → 2) while the PC wrote the 616 MB bundle image; job recovered by itself and was on time by 12:18; cause NOT verified (JM log unreadable after Docker stopped) — likely the same ZooKeeper/Docker stall as 11:36; watch for restores at the plant (`restored` in /checkpoints)
 - [x] commits 31b8c114 (living-asset doc), 5307c456 (CHG-039), 06d9880c (VM steps 4a); bundle `release-out/v2.6.6-20261005` (src-06d9880c, jar b432802f, 19/19 SHA256 OK)
 - [ ] push `feat/v25-next-release` and fast-forward `main` (blocked for the agent by the permission classifier — user runs it)
-- [ ] plant: `free -g` check, VM-STEPS step 4a + 5, proofs (taskHeap, `cplm-short-windows`, delete_on_cancellation, 7 RUNNING / 6 free); retest the Short job; next-morning daily check
+- [x] plant 2026-10-05: pre-sweep + `rmi ams-flink:pre-v2.6.5` (4.8 GB free), SHA256 OK, rollback tag `ams-flink:pre-v2.6.6`, 4a (3584m line 1, available 11 GiB), load, step 5: 7 cancelled → JM/TM removed → deploy → 7 RUNNING 12:56–12:57; sweep → 118 MB; one tm_ dir; disk 11 GB free; proofs: taskHeap 1154272437, `cplm-short-windows`, delete_on_cancellation true, 6 slots free, jar b432802f
+- [ ] plant Short job retest at +10 min and +70 min (lag, six kinds × ~144 loops, checkpoint failed/restored 0 and size → ~120 MB, busy ≪ 1000, heap); next-morning daily check
 
 ## Verification status (last runs, lab)
 
