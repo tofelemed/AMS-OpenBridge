@@ -2824,6 +2824,11 @@ inspector, Workbench explain column, Response event list) stop 16 px below it in
 **Deliberately not done (user decision 2026-10-05, Option A).** The period is shown, not carried between pages; a shared
 period parameter belongs with SME #12–#13. No "service" registry field (backend + migration).
 
+**Follow-up (user, 2026-10-05):** the bar is NOT shown on the fleet pages — Overview and Performance — where a carried
+`?loop=` only highlights a row; it stays on the 9 loop pages (Explorer, Historical, Investigation, Evidence Workbench,
+Replay, Window Inspector, Calculations, System Response, Loop Events filtered to a loop). Lab-checked: absent on `/cpm` and
+`/cpm/performance?loop=FIC10301`, present on Explorer / Investigation / Events; 0 console errors.
+
 **Tests.** `context/LoopContextBar.test.tsx` (new, 7: period text with range/zone, epoch + end-only, label-only and
 unparseable times, location text, no loop → nothing, case-insensitive loop match with all four facts, unknown loop).
 Frontend suite 68 files green, `tsc` clean, lint clean, build clean. **Lab browser pass 2026-10-05** (Vite 5174, FIC10301):
