@@ -545,6 +545,18 @@ docker exec traverse-cplm-api printenv Cplm__EvidenceTransientBudgetBytes Cplm__
 docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "select close_reason, count(*) from analytics.cplm_event_frames where closed_at > now() - interval '24 hours' group by 1 order by 2 desc"   # FAMILY_CHANGED in the tens tomorrow, not hundreds
 docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "select count(*) filter (where candidate_family is not null) candidates, count(*) open_now from analytics.cplm_event_frames where closed_at is null"
 """
+    chg039_block = ""
+    if chg039:
+        chg039_block = f"""
+# 4a. v2.6.6 source tree - BEFORE step 5: the TaskManager memory (overlay, 3584m) and the daily check are files, not images.
+#     Without this, step 5's deploy.sh recreates the TaskManager at 2560m and the Short job's heap buffer has 640 MB.
+git -C /opt/AMS-open status --porcelain 2>/dev/null || echo "NOT A GIT CHECKOUT - confirm nobody has patched files on the VM (MARUN-CONTEXT rule 1) before extracting"
+cp /opt/AMS-open/migration/.env /tmp/{release}/env-backup-$(date +%Y%m%d%H%M)
+tar -xzf /tmp/{release}/src-{commit}.tar.gz -C /opt/AMS-open
+echo {commit} > /opt/AMS-open/RELEASE-COMMIT
+grep -c 'taskmanager.memory.process.size: 3584m' migration/deploy/docker-compose.marun.yml   # 1
+free -g | awk '/Mem:/ {{print "available GiB", $7}}'                                            # >= 2 before step 5
+"""
     data_block = ""
     if data_load:
         data_block = f"""
@@ -588,7 +600,7 @@ docker images --no-trunc --format '{{{{.ID}}}} {{{{.Repository}}}}:{{{{.Tag}}}}'
 # 3. disk headroom - this host has filled four times; a load with no room corrupts more
 #    than it deploys. Want >= 20 GB free before starting.
 df -h /
-{v25_block}{v26_block}{v262_block}
+{v25_block}{v26_block}{v262_block}{chg039_block}
 # 4. load
 {loads}
 {flink}

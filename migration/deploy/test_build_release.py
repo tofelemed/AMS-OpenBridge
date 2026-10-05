@@ -364,6 +364,8 @@ def test_v266_steps_cancel_before_removal_and_sweep_the_retained_short_tree():
     assert "7 x RUNNING" in steps and "4 x RUNNING" not in steps          # seven standing jobs at the plant
     assert "taskHeap" in steps and "cplm-short-windows" in steps and "delete_on_cancellation" in steps
     assert "free -g" in steps
+    # the overlay (TaskManager 3584m) arrives with the source tree, which must land BEFORE step 5 recreates the TM
+    assert steps.index("tar -xzf /tmp/v2.6.6/src-abc1234.tar.gz") < steps.index("docker rm -f ams-flink-taskmanager")
     assert steps.index("flink cancel") < steps.index("docker rm -f ams-flink-taskmanager ams-flink-jobmanager")
     assert "NOT sweeping" in steps                                       # v2.6.5's Short job keeps its tree on cancel
     assert "jarSha256" in steps
