@@ -331,7 +331,9 @@ services:
         # the second submission at the 256m default). 512m matches the lab; the process size
         # grows by 512m (Flink 1.18 derives JVM overhead as 10 % of it, so heap and managed
         # memory each gain ~15 % rather than staying exactly as before - same values as the lab).
-        taskmanager.memory.process.size: 2560m
+        # CHG-039 (v2.6.6): the Short Feature job keeps its window buffer on HEAP state (~250 MB at 144 loops);
+        # 3584m gives ~1.1 GB task heap (was 640 MB) and 1,086 MB managed (68 MB per slot, was 45) for the RocksDB jobs.
+        taskmanager.memory.process.size: 3584m
         taskmanager.memory.jvm-metaspace.size: 512m
         taskmanager.numberOfTaskSlots: 16
         state.backend: rocksdb

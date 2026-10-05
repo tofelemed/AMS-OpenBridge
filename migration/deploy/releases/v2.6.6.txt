@@ -1,0 +1,15 @@
+# Release v2.6.6 — CHG-039: the Short Feature job fires its six window kinds from ONE per-loop sample buffer on heap
+# state (output identical to v2.6.5), deletes its checkpoints on cancel, and the TaskManager gets 3584m (was 2560m).
+# Flink image swap: every job is cancelled, JobManager + TaskManager recreated (the TaskManager picks up the new
+# FLINK_PROPERTIES from the overlay extracted in step 4a), all seven resubmitted from the new jar (window state rebuilds:
+# short windows within the hour, 12 h / 24 h verdicts within a day).
+# Consumed by: python migration/deploy/build-release.py --release v2.6.6 --skip-jar
+#
+#   flink-jobmanager  (the TaskManager uses the same image) CHG-039: ShortFeatureBufferFn replaces six sliding window
+#                     operators (each sample stored 32 times) - ~800 samples/s per core on heap vs ~22/s before with real
+#                     tuples; the v2.6.5 Short job's own checkpoint tree is RETAINED on cancel, so the guarded orphan
+#                     sweep of step 5 is required. The overlay's TaskManager now has process 3584m (task heap ~1.1 GB).
+#
+# Schema: none. .env: none. Before step 5: `free -g` must show at least ~2 GiB available (the TaskManager takes +1 GiB).
+!chg039-short-heap
+flink-jobmanager

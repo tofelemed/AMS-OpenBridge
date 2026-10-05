@@ -30,6 +30,15 @@ public class CplmShortFeatureStreamJobTest {
         assertTrue("an expired checkpoint must not fail the job", c.getTolerableCheckpointFailureNumber() >= 100);
         assertTrue("the barrier must overtake a backlog", c.isUnalignedCheckpointsEnabled());
         assertEquals(30_000L, c.getAlignedCheckpointTimeout().toMillis());        // aligned first, unaligned after 30 s
-        assertEquals(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION, c.getExternalizedCheckpointCleanup());
+        // CHG-039: retained-on-cancel orphaned a 4.1 GB checkpoint tree per cancel at Marun; follow the cluster rule
+        assertEquals(CheckpointConfig.ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION, c.getExternalizedCheckpointCleanup());
+    }
+
+    /** CHG-039: on RocksDB at ~45 MB per slot the buffer ran at 47 samples/s per core; on the heap 804/s. */
+    @Test
+    public void theShortJobKeepsItsBufferOnTheHeap() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        CplmShortFeatureStreamJob.configureStateBackend(env);
+        assertTrue(env.getStateBackend() instanceof org.apache.flink.runtime.state.hashmap.HashMapStateBackend);
     }
 }

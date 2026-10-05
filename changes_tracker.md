@@ -2633,3 +2633,116 @@ section 4 (per-job checkpoint counts, Short consumer lag) and section 5 (minutes
   swap; proofs: `/capabilities` → one `jarSha256` on all workers, 7 RUNNING, 6 slots free, Short job checkpoints
   completing; next morning's daily check.
 
+
+## CHG-039 — The Short Feature job: one sample buffer instead of six window operators; checkpoints deleted on cancel (2026-10-05)
+
+**Scope:** `src/flink` — `CplmShortFeatureStreamJob` (graph + checkpoint cleanup), new `ShortFeatureBufferFn`,
+`ShortWindowSpecs`, `ShortFeatureEmitter`; tests `ShortWindowParityTest`, `ShortWindowBacklogBench` (measurement),
+`CplmShortFeatureStreamJobTest`. `migration/daily-check.sh` + `MARUN-DAILY-CHECK.md` §1. Ships in release v2.6.6
+(Flink image swap). No schema, no topic, no cplm-api change; the output records are byte-identical.
+
+**What was wrong.** Marun daily check 2026-10-05 05:56 UTC: 3 GB free on the shared disk, the Short job 1.46 M samples
+(~14 h) behind with 18 failed checkpoints, no short features for 10 min. Two defects in the Short job:
+1. *Cost.* Six `WindowOperator`s (1m tumbling; sliding 5/1, 10/2, 15/5, 30/5, 60/5 min) each kept their own copy of
+   every member, so one sample was stored **32 times** (1 + 5 + 5 + 3 + 6 + 12) in RocksDB and every firing re-read its
+   whole window. Live it kept up; after any pause it drained a backlog at ~22 samples/s per core, under back-pressure
+   its unaligned checkpoints carried the queued data, and CHG-038's tolerance only stopped the restart loop — it could
+   not make catching up cheap.
+2. *Leak.* The job set `RETAIN_ON_CANCELLATION`, overriding the cluster's `DELETE_ON_CANCELLATION` (chosen on
+   2026-10-02 precisely because retained trees filled this disk). Every cancel or redeploy of the Short job left its
+   checkpoint tree in MinIO: the 2026-10-05 recovery cancel left **4.1 GB** (checkpoints 4.8 GB → 0.7 GB after the sweep).
+
+**What changed.**
+- `ShortFeatureBufferFn` (one `KeyedProcessFunction` per loop) fires all six kinds from one buffer with Flink's exact
+  window contract (`ShortWindowSpecs`): fire when the watermark reaches `end - 1` if the window has members; fire again
+  for every member arriving within its allowed lateness; drop a sample late for every window it falls in; members in
+  arrival order. Same kinds, sizes, slides and lateness; cplm-api's window contract is unchanged.
+- State layout, chosen so a sample costs O(1) to write: the sample is stored once under its arrival sequence
+  (`MapState<seq, sample>`); a per-minute index (`MapState<minute, long[] seqs>`) turns a window into a run of minutes
+  (every window starts and ends on a whole minute); a firing reads only the minutes of the largest window it fires;
+  eviction deletes whole minutes once the last window that can hold them is cleaned. Every firing and eviction time is
+  a minute boundary − 1 ms, so ONE chained event-time timer per loop (re-armed each minute while anything is buffered)
+  replaces per-sample timers. Per sample: 1 sample write + 1 small index write + at most 1 timer, against 32 list
+  appends + 64 timer registrations before.
+- `ShortFeatureEmitter`: the per-window maths and evidence side output, shared verbatim with the old window function.
+- **State backend (decided 2026-10-05):** the Short job sets `HashMapStateBackend` itself
+  (`configureStateBackend`); every other job keeps the cluster's RocksDB. Checkpoint storage (MinIO) is unchanged.
+- **TaskManager memory:** `taskmanager.memory.process.size` 2560m → **3584m** (plant overlay and lab compose): task heap
+  640 → ~1,100 MB for the ~250 MB heap buffer, managed 717 → 1,086 MB (RocksDB 45 → 68 MB per slot for the other jobs).
+  The host has 62 GiB with ~10 GiB available.
+- Checkpoints: `DELETE_ON_CANCELLATION` (cadence, timeout, tolerance, unaligned from CHG-038 unchanged).
+- Daily check: a `checkpoints N MB` line (WARN > 1.5 GB, ACT > 3 GB); the short-features line no longer prints
+  "newest window - UTC, -1 min behind" when there are no rows.
+
+**How the layout was chosen (lab 2026-10-05, measured, not guessed).** Three cuts ran on the lab under the full-plant
+simulator (161 loops, ~215 samples/s):
+1. one flat `MapState<seq, sample>` read whole and scanned for eviction on every timer: fine at the plant's density,
+   but at ~5,000 buffered samples per loop it fell to **16 samples/s** after a TaskManager restart (stuck at watermark);
+2. one-minute `MapState<minute, List>` buckets: **153 samples/s**, thread dumps 8/8 inside `RocksDB.put` — every sample
+   re-wrote its whole minute (60–80 heavy samples);
+3. the final layout above. Thread dumps then put the remaining cost in reads (`RocksDB.get` + POJO decode of the 1.1
+   tuple with its five-role map): each sample is decoded ~20× over its life (5m/10m re-read 10 min every minute, 60m reads
+   an hour every 5 min) — the old graph paid the same reads plus 32× the writes. A heap cache of decoded samples would
+   remove most reads but needs ~150–200 MB of the ~640 MB task heap the seven plant jobs share: **not done**; recorded in
+   `prod_decision.md` §7 as the next lever if a larger plant needs it.
+
+**Tests.**
+- `ShortWindowParityTest` runs the v2.6.5 six-operator graph and the new operator on one scripted stream (3 loops,
+  150 min, jitter, local disorder, late samples in every lateness band inside and beyond 30 s / 60 s / 90 s / 2 / 3 min,
+  duplicates, a loop silent 45 min, a 10-min watermark jump with the stalled samples draining late, evidence ALL):
+  15,749 records, identical as a multiset, on the heap **and** the RocksDB backend; plus window assignment checked
+  against Flink's own `SlidingEventTimeWindows` for 12,000 timestamps. Mutation checks: disabling late re-firing
+  (15,749 vs 13,683) and evicting 5 min early (15,749 vs 15,230) both fail it.
+- Flink suite: 283 run, 0 failures, 2 skipped (as before).
+- `ShortWindowBacklogBench` (144 loops, 30-min backlog queued, RocksDB, parallelism 1, evidence off; `-Dshort.bench.real=true`
+  uses the lab's real 1.1 tuple from `src/test/resources/cplm/real-loop-sample.json` with a resolved profile):
+
+  | 30-min backlog, plant rate (51,840 samples) | v2.6.5 six windows | CHG-039 buffer |
+  |---|---|---|
+  | real 1.1 tuples | **22 samples/s** (13,416 done in the 10-min cap), checkpoint 43.4 MB and growing | **648 samples/s** (all in 80 s), checkpoint 13.9 MB — **~30×** |
+  | light synthetic tuples | 130 samples/s, checkpoint 31.3 MB | 3,308 samples/s, checkpoint 2.7 MB |
+  | 1 s feed, 90-min backlog (777,600, light) | not run (hours) | 1,705 samples/s |
+
+  This matches the plant: 22/s × 4 subtasks ≈ 88/s of capacity against a 29/s feed keeps up live but drains a backlog
+  at ~60/s (1.46 M ≈ 7 h, growing meanwhile).
+- **The plant's RocksDB memory is the second bottleneck (found 2026-10-05, measured).** Marun/lab TaskManager: 717 MB
+  managed memory over 16 slots = ~45 MB of RocksDB memory per slot; there `RocksDB.put` stalls (thread dumps 26/33).
+  `ShortWindowBacklogBench -Dshort.bench.managedMb=N`, real tuples, 90-min buffer, one core:
+
+  | RocksDB memory per slot | 45 MB (Marun today) | 72 MB | 128 MB | heap state (`HashMapStateBackend`) |
+  |---|---|---|---|---|
+  | CHG-039 operator | 47 samples/s | 127 | 208 | **804** (full snapshot 116 MB; ~250 MB live heap) |
+
+  On RocksDB at Marun's 45 MB per slot the new operator would still take ~2 h for a 1.46 M backlog; on the heap, at
+  ~800/s per core × 4, about 8 min. Hence the heap decision above. Marun read-only diagnosis the same day (v2.6.5 job):
+  source 100 % back-pressured again, Short state **596.6 MB**, a checkpoint takes **553 s** against a 3-min interval,
+  RocksDB working dir 3.6 GB, disk 5.2 GB free; no active swapping (si/so 0; swap held by Instrumental's sqlservr).
+- Lab, same TaskManager and feed (overloaded lab TM: 14 jobs, RocksDB writes throttled): v2.6.5 job **7 samples/s**
+  (its 60m operator 100 % busy), CHG-039 82–94 samples/s.
+
+**End-to-end on the lab (final build, jar `b432802ffcd25622`, heap state).** Lab TaskManager recreated with 3584m
+(taskHeap 1,101 MB). Short job submitted with the supervisor's arguments at parallelism 3 (the free slots); OT
+simulator, 30 HDPE loops through mosquitto → ingestion-service → `traverse.cpa.loop.samples.v1` (~37 samples/s, buffer
+~140,000 samples at 60 min — Marun-like). Readings 11:28–12:06 UTC: window operator busy 0–30 ms/s while keeping up;
+all six kinds written by cplm-api, newest window ~3 min behind real time (out-of-orderness + exactly-once commit, as
+before); checkpoints 0 failed, growing with the buffer (79 MB at 38 min); heap 540–770 MB of 1,230 with no old-generation
+GC. At 11:36 a lab ZooKeeper suspension suspended all 16 jobs: the Short job restored from its heap checkpoint and
+resumed producing windows (restore proof). The full-buffer reading (after 12:30) goes into `checklist.md`.
+
+### Release v2.6.6 — what to build and run
+
+- Updated services: **`flink-jobmanager`** (image `ams-flink`; the TaskManager uses it too) and the **TaskManager memory**
+  (`migration/deploy/docker-compose.marun.yml`: process 3584m; applied when step 5 recreates the TaskManager). Source
+  archive: that overlay, `migration/daily-check.sh`, `MARUN-DAILY-CHECK.md`. No schema, no topic, no `.env`, no cplm-api /
+  frontend change. Check before deploying: `free -g` shows ≥ 2 GiB available beyond the +1 GiB the TaskManager takes.
+- Build: `mvn package` (Docker Maven) → `python migration/deploy/build-release.py --release v2.6.6 --skip-jar
+  --out release-out/v2.6.6-<date>`.
+- Plant (VM-STEPS step 4a + step 5, same as v2.6.5): extract `src-<commit>.tar.gz` over `/opt/AMS-open`; load the
+  `ams-flink` image; `flink cancel` every job; `docker rm -f ams-flink-taskmanager ams-flink-jobmanager`;
+  `deploy.sh --prod` (04b resubmits all seven); then the orphan-checkpoint sweep guarded by the running-jobs list —
+  it must also remove the v2.6.5 Short job's tree, which that version keeps on cancel.
+- Proofs: `/capabilities` → one `jarSha256` on all workers; 7 RUNNING, 6 slots free; the Short job's graph shows
+  `cplm-short-windows` and `/checkpoints/config` → `delete_on_cancellation: true`; within the hour all six short kinds
+  in `analytics.cplm_short_feature_results`; next morning's daily check: `checkpoints` under 1.5 GB, Short lag under
+  50,000, short features minutes (not hours) behind.
+- Rollback: load the `ams-flink:pre-v2.6.6` image tag and repeat step 5 (output format unchanged, nothing to migrate).

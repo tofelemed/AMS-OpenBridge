@@ -14,6 +14,9 @@ echo "== 1. disk"
 avail=$(df -BG / | awk 'NR==2 {gsub("G","",$4); print $4}')
 if [ "$avail" -ge 15 ]; then ok "free ${avail} GB"; elif [ "$avail" -ge 10 ]; then warn "free ${avail} GB - watch; see MARUN-DAILY-CHECK.md 1"; else act "free ${avail} GB - act today: MARUN-DAILY-CHECK.md 1"; fi
 echo "      traverse_cplm $(docker exec instrumental-postgres psql -U postgres -tAc "select pg_size_pretty(pg_database_size('traverse_cplm'))" 2>/dev/null) | kafka $(kf sh -c 'du -sh /var/lib/kafka/data | cut -f1') | checkpoints $(docker exec ams-minio sh -c 'du -sh /data/ams-flink/checkpoints | cut -f1' 2>/dev/null)"
+# CHG-039: checkpoints are ~1 GB for seven jobs (v2.6.6: the Short job keeps 3 full heap snapshots of ~120 MB); GBs mean orphaned trees (a cancel or a killed JobManager) or a backlogged job
+ckmb=$(docker exec ams-minio sh -c 'du -sm /data/ams-flink/checkpoints | cut -f1' 2>/dev/null)
+if [ "${ckmb:-0}" -gt 3072 ]; then act "checkpoints ${ckmb} MB - orphaned checkpoint trees or a backlogged job: MARUN-DAILY-CHECK.md 1 and 4"; elif [ "${ckmb:-0}" -gt 1536 ]; then warn "checkpoints ${ckmb} MB - growing; MARUN-DAILY-CHECK.md 1"; else ok "checkpoints ${ckmb:-?} MB"; fi
 
 echo "== 2. containers"
 for c in traverse-cplm-api traverse-ingestion-service ams-flink-jobmanager ams-flink-taskmanager ams-iotdb ams-minio traverse-gateway ams-frontend; do
@@ -52,7 +55,7 @@ lag=$(kf kafka-consumer-groups --bootstrap-server kafka-1:9092 --describe --grou
 [ "${lag:-0}" -lt 50000 ] && ok "Short job consumer lag $lag samples" || act "Short job consumer lag $lag samples - backlog; MARUN-DAILY-CHECK.md 4 (cancel, reset offsets to latest, resubmit)"
 
 echo "== 5. calculations (rows written recently)"
-sh10=$(pg "select count(*)||' rows, newest window '||coalesce(to_char(max(window_end) at time zone 'utc','MM-DD HH24:MI'),'-')||' UTC, '||coalesce(extract(epoch from now()-max(window_end))::int/60,-1)||' min behind now' from analytics.cplm_short_feature_results where created_at > now() - interval '10 min'")
+sh10=$(pg "select case when count(*) = 0 then '0 rows' else count(*)||' rows, newest window '||coalesce(to_char(max(window_end) at time zone 'utc','MM-DD HH24:MI'),'-')||' UTC, '||coalesce(extract(epoch from now()-max(window_end))::int/60,-1)||' min behind now' end from analytics.cplm_short_feature_results where created_at > now() - interval '10 min'")
 behind=$(echo "$sh10" | grep -oE '[0-9-]+ min behind' | cut -d' ' -f1)
 case "$sh10" in 0\ rows*) act "short features: $sh10 (10 min) - Short job stalled? MARUN-DAILY-CHECK.md 5";;
   *) if [ "${behind:-0}" -gt 120 ]; then act "short features: $sh10 - the Short job is hours behind real time (event-time backlog): MARUN-DAILY-CHECK.md 4"; else ok "short features: $sh10 (10 min)"; fi;; esac

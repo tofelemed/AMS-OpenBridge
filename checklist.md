@@ -206,6 +206,21 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [ ] `/capabilities` engine jars still list f7c99294 (consumed announcements lag the swap) — re-check in an hour; next-day daily check
 - [x] plant 2026-10-04 07:0x: v2.6.4 deployed (ams-frontend created 07:03, fallback in the shipped chunk); daily check: Short job in the restart loop (32/212, 839 min behind, lag 1.48 M) → section 4 remedy applied; disk 12 GB WARN; FAMILY_CHANGED 184 (was 348)
 
+## CHG-039 / v2.6.6 — Short job: one buffer on heap state, TaskManager 3584m (2026-10-05)
+
+- [x] Marun 05:56 daily check: 3 GB free, Short 1.46 M behind → section 1 sweep (3 → 9.4 GB), section 4 reset; root causes found (32 sample copies; job overrode DELETE_ON_CANCELLATION → 4.1 GB orphan)
+- [x] `ShortFeatureBufferFn` + `ShortWindowSpecs` + `ShortFeatureEmitter`; job graph = one `cplm-short-windows` operator; `DELETE_ON_CANCELLATION`
+- [x] `ShortWindowParityTest` (heap + RocksDB, 15,749 records identical; 2 mutation checks fail it); Flink suite 284 / 0 / 2 skipped
+- [x] layout chosen by measurement (lab thread dumps): flat map 16/s → minute lists 153/s → seq map + minute index + timer chain
+- [x] RocksDB at Marun's 45 MB per slot = 47/s (72 MB 127, 128 MB 208); heap 804/s (`ShortWindowBacklogBench -Dshort.bench.real=true`) → **heap chosen** (user, 2026-10-05); `configureStateBackend` + test
+- [x] TaskManager 2560m → 3584m (plant overlay + lab compose); lab TM recreated: taskHeap 1,101 MB
+- [x] release manifest `v2.6.6` + `!chg039-short-heap` VM-step proofs; builder tests 41 passed
+- [x] daily check: checkpoint-size line, zero-rows display fix; runbook §1
+- [x] lab heap run (30 loops, p=3): busy 0–30 ms/s, windows ~3 min behind, checkpoints 0 failed; survived a lab ZooKeeper suspension at 11:36 (restored from its heap checkpoint)
+- [ ] lab full-buffer reading after 12:30 UTC (heap after GC, checkpoint size) → CHG-039 "End-to-end on the lab"
+- [ ] commit; `build-release.py --release v2.6.6 --skip-jar` bundle
+- [ ] plant: `free -g` check, VM-STEPS step 4a + 5, proofs (taskHeap, `cplm-short-windows`, delete_on_cancellation, 7 RUNNING / 6 free); retest the Short job; next-morning daily check
+
 ## Verification status (last runs, lab)
 
 | Suite / script | Result | When |

@@ -31,6 +31,12 @@ docker exec ams-flink-jobmanager flink list -m localhost:8081 2>/dev/null | grep
 for id in $(docker exec ams-minio sh -c 'ls /data/ams-flink/checkpoints/' | sort | comm -23 - /tmp/running.txt); do docker exec ams-minio rm -rf /data/ams-flink/checkpoints/$id; done
 df -h / | tail -1
 ```
+The `checkpoints N MB` line (v2.6.6, CHG-039): about 1 GB is normal for seven jobs (the Short job now keeps its
+state on the heap and its checkpoints are full snapshots, ~120 MB each, three kept). `WARN` above 1.5 GB,
+`ACT` above 3 GB. A jump of gigabytes is either a checkpoint tree left behind by a cancelled or killed job
+(the sweep above removes it; on 5 October the Short job's own tree was 4.1 GB, because until v2.6.6 that job
+kept its checkpoints on cancel) or a job that is far behind (section 4).
+
 If the database is what grows, section 7 (evidence) or section 8 (partitions) says which table; the
 emergency levers are there. `migration/MARUN-DISK.md` has the full survey.
 

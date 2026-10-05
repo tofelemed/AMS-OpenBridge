@@ -350,3 +350,25 @@ def test_v265_steps_cancel_every_job_before_the_jobmanager_is_removed_and_sweep_
     assert "NOT sweeping" in steps                                       # the guarded orphan sweep
     assert "jarSha256" in steps                                          # the one-jar proof via /capabilities
     assert "cpm-10a" not in steps and "cpm-11" not in steps              # earlier schema steps are not repeated
+
+
+# ── v2.6.6 (CHG-039 Short job single buffer on heap state + TaskManager 3584m; Flink image swap) ────────────────
+def test_v266_manifest_ships_only_the_flink_image():
+    services, flags = br.read_manifest("v2.6.6")
+    assert services == ["flink-jobmanager"]
+    assert flags == {"chg039-short-heap"}
+
+
+def test_v266_steps_cancel_before_removal_and_sweep_the_retained_short_tree():
+    steps = br.vm_steps("v2.6.6", "abc1234", COMBINED_ROWS, True, ["flink-jobmanager"], False, False, False, False, True)
+    assert "7 x RUNNING" in steps and "4 x RUNNING" not in steps          # seven standing jobs at the plant
+    assert "taskHeap" in steps and "cplm-short-windows" in steps and "delete_on_cancellation" in steps
+    assert "free -g" in steps
+    assert steps.index("flink cancel") < steps.index("docker rm -f ams-flink-taskmanager ams-flink-jobmanager")
+    assert "NOT sweeping" in steps                                       # v2.6.5's Short job keeps its tree on cancel
+    assert "jarSha256" in steps
+
+
+def test_the_plant_overlay_gives_the_taskmanager_3584m():
+    overlay = (br.Path(__file__).parent / "docker-compose.marun.yml").read_text(encoding="utf-8")
+    assert "taskmanager.memory.process.size: 3584m" in overlay

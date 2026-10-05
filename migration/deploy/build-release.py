@@ -120,9 +120,9 @@ def read_manifest(release: str) -> tuple[list[str], set[str]]:
     unknown = [s for s in services if s not in BUILD_SERVICES and s != "ams-api"]
     if unknown:
         sys.exit(f"{path.name}: unknown compose service(s) {unknown} - must be in prodimages.BUILD_SERVICES")
-    unknown_flags = flags - {"data-load", "v25-upgrade", "v26-retention", "v262-debounce"}
+    unknown_flags = flags - {"data-load", "v25-upgrade", "v26-retention", "v262-debounce", "chg039-short-heap"}
     if unknown_flags:
-        sys.exit(f"{path.name}: unknown directive(s) {sorted(unknown_flags)} - only !data-load, !v25-upgrade, !v26-retention and !v262-debounce are defined")
+        sys.exit(f"{path.name}: unknown directive(s) {sorted(unknown_flags)} - only !data-load, !v25-upgrade, !v26-retention, !v262-debounce and !chg039-short-heap are defined")
     return services, flags
 
 
@@ -301,7 +301,8 @@ POST_CHECKS: dict[str, str] = {
 
 
 def vm_steps(release: str, commit: str, rows: list[tuple[str, str, str]],
-             has_flink: bool, services: list[str], data_load: bool, v25: bool = False, v26: bool = False, v262: bool = False) -> str:
+             has_flink: bool, services: list[str], data_load: bool, v25: bool = False, v26: bool = False, v262: bool = False,
+             chg039: bool = False) -> str:
     images = []
     for _, image, _ in rows:
         if image not in images:
@@ -327,7 +328,7 @@ def vm_steps(release: str, commit: str, rows: list[tuple[str, str, str]],
     if exports:
         ams_api_env = (f"export {' '.join(exports)}   # REQUIRED: ams-api is behind profiles:[cpa-ams-api] "
                        "(compose skips it otherwise); 04b submits jobs only under ALLOW_FLINK_SUBMIT\n")
-    job_count = "SEVEN" if (v25 or v26) else "FOUR"
+    job_count = "SEVEN" if (v25 or v26 or chg039) else "FOUR"
     flink = ""
     if has_flink:
         flink = f"""
@@ -346,11 +347,11 @@ cp /tmp/{release}/{FLINK_JAR.name} /opt/AMS-open/src/flink/target/{FLINK_JAR.nam
 for id in $(docker exec ams-flink-jobmanager flink list -m localhost:8081 2>/dev/null | grep -oE '[0-9a-f]{{32}}'); do docker exec ams-flink-jobmanager flink cancel -m localhost:8081 $id 2>/dev/null; done
 docker rm -f ams-flink-taskmanager ams-flink-jobmanager
 {ams_api_env}bash migration/deploy/deploy.sh --prod 2>&1 | tail -8          # 04b resubmits all {job_count} jobs
-docker exec ams-flink-jobmanager flink list -m localhost:8081  # {"7 x RUNNING (4 + Condition, Instrument Context, Response)" if (v25 or v26) else "4 x RUNNING"}, start times = now
+docker exec ams-flink-jobmanager flink list -m localhost:8081  # {"7 x RUNNING (4 + Condition, Instrument Context, Response)" if (v25 or v26 or chg039) else "4 x RUNNING"}, start times = now
 #
 #    orphaned checkpoints of the jobs just replaced (running ids are excluded; run it ~2 min after the resubmit):
 docker exec ams-flink-jobmanager flink list -m localhost:8081 | grep -oE '[0-9a-f]{{32}}' | sort > /tmp/{release}/running-jobs.txt   # stderr stays visible on purpose
-[ "$(wc -l < /tmp/{release}/running-jobs.txt)" -ge {7 if (v25 or v26 or v262) else 4} ] || {{ echo "flink list returned fewer ids than jobs - NOT sweeping (JM REST not ready?)"; false; }}
+[ "$(wc -l < /tmp/{release}/running-jobs.txt)" -ge {7 if (v25 or v26 or v262 or chg039) else 4} ] || {{ echo "flink list returned fewer ids than jobs - NOT sweeping (JM REST not ready?)"; false; }}
 for id in $(docker exec ams-minio sh -c 'ls /data/ams-flink/checkpoints/' | sort | comm -23 - /tmp/{release}/running-jobs.txt); do docker exec ams-minio rm -rf /data/ams-flink/checkpoints/$id; done
 docker exec ams-minio sh -c 'du -sh /data/ams-flink/checkpoints'                           # the running jobs' checkpoints only
 #    Do NOT run `compose up flink-job-submit-cplm` here: that service is profiled
@@ -373,7 +374,17 @@ docker exec ams-flink-taskmanager sh -c 'test -n "$CPLM_GATE_CONFIG_KEY" && echo
 docker exec ams-flink-jobmanager curl -s localhost:8081/overview | grep -o '"slots-available":[0-9]*'   # 6: 16 slots, seven jobs, the Short job on 4
 grep ams-flink /tmp/{release}/SHA256SUMS.txt | cut -c1-16                                              # the jar every worker must announce (GET /api/v1/cpm/capabilities: config.jarSha256s)
 """
-    ops_block = "\n".join(f"#      ops/{Path(o).name}" for o in OPS_FILES)
+        if chg039:
+            flink += f"""#    v2.6.6 (CHG-039): the Short job runs ONE buffer operator on heap state; the TaskManager has 3584m.
+#    BEFORE this step: free -g -> 'available' must be at least ~2 GiB (the TaskManager takes +1 GiB).
+docker exec ams-flink-jobmanager curl -s localhost:8081/taskmanagers | grep -o '"taskHeap":[0-9]*'   # ~1154000000 (1.1 GB; was 671088640)
+ID=$(docker exec ams-flink-jobmanager flink list -m localhost:8081 2>/dev/null | grep 'Short Feature' | awk '{{print $4}}')
+docker exec ams-flink-jobmanager curl -s localhost:8081/jobs/$ID | grep -o 'cplm-short-windows' | head -1                 # the single buffer operator
+docker exec ams-flink-jobmanager curl -s localhost:8081/jobs/$ID/checkpoints/config | grep -o '"delete_on_cancellation":[a-z]*'   # true
+docker exec ams-flink-jobmanager curl -s localhost:8081/overview | grep -o '"slots-available":[0-9]*'   # 6: 16 slots, seven jobs, the Short job on 4
+grep ams-flink /tmp/{release}/SHA256SUMS.txt | cut -c1-16                                              # the jar every worker must announce (GET /api/v1/cpm/capabilities: config.jarSha256s)
+"""
+    ops_block ="\n".join(f"#      ops/{Path(o).name}" for o in OPS_FILES)
     header = f"""# {release} - VM steps (generated by build-release.py, commit {commit})
 #
 # Ships: {', '.join(services)}
@@ -550,6 +561,10 @@ docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "select c
 #    Tokens expire in 1 h - check ${{#TOKEN}} before starting.
 """
     post = dict(POST_CHECKS)
+    if chg039:
+        post["flink-jobmanager"] = """7 x RUNNING and every start time moved (step 5); taskHeap ~1.1 GB; Short graph has cplm-short-windows,
+#                                delete_on_cancellation true; within the hour all six short kinds written; next daily check:
+#                                checkpoints < 1.5 GB, Short lag < 50,000"""
     if v26:
         post["flink-jobmanager"] = """7 x RUNNING and every start time moved (step 5); slots-available 6 (the Short job on 4);
 #                                every worker announces the bundle's jar (capabilities)"""
@@ -650,7 +665,7 @@ def main() -> int:
     files.append(make_source_archive(out, commit, args.dry_run))
 
     steps = vm_steps(args.release, commit, rows, has_flink, services, "data-load" in flags, "v25-upgrade" in flags,
-                     "v26-retention" in flags, "v262-debounce" in flags)
+                     "v26-retention" in flags, "v262-debounce" in flags, "chg039-short-heap" in flags)
     if not args.dry_run:
         (out / "VM-STEPS.md").write_text(steps, encoding="utf-8", newline="\n")
         write_sums(out, files)
