@@ -121,6 +121,9 @@ public sealed class CpmFleetController : ControllerBase
     /// A11 — bad-actor ranking. Ordered by confidence within a real diagnosis, so
     /// the loops most likely to reward an engineer's time come first.
     /// </summary>
+    /// <summary>Sentinel for orderBy=priority: not an ORDER BY fragment — it selects FleetPrioritySql.</summary>
+    private const string PriorityOrder = "__priority__";
+
     [HttpGet("rankings")]
     public async Task<IActionResult> GetRankings(
         [FromQuery] string? site = null,
@@ -159,21 +162,31 @@ public sealed class CpmFleetController : ControllerBase
             "error" => "l.good_error_pct ASC NULLS LAST",
             "mae" => "l.mae DESC NULLS LAST",
             "effort" => "l.effort_ratio DESC NULLS LAST",
+            // CHG-045 (SME #7): the priority queue — its own query (FleetPrioritySql), current
+            // findings only, ISA-18.2-style criticality × severity level, shelved loops left out.
+            "priority" => PriorityOrder,
             _ => null
         };
         if (rankExpr is null)
             return BadRequest(new
             {
                 error = $"Unknown orderBy '{orderBy}'",
-                allowed = new[] { "confidence", "error", "mae", "effort" }
+                allowed = new[] { "confidence", "error", "mae", "effort", "priority" }
             });
 
         return await CachedAsync($"rankings|{site}|{area}|{unit}|{windowKind}|{rankExpr}|{limit}|{health}", async token =>
         {
             await using var conn = await _dataSource.OpenConnectionAsync(token);
 
-            var rows = await conn.QueryAsync(FleetLatestSql.Rankings(rankExpr, healthWhere),
-                new { site, area, unit, windowKind, limit });
+            var isPriority = rankExpr == PriorityOrder;
+            var staleSeconds = FleetLatestSql.StaleAfterSeconds(windowKind);
+            var rows = await conn.QueryAsync(
+                isPriority ? FleetPrioritySql.Queue(healthWhere) : FleetLatestSql.Rankings(rankExpr, healthWhere),
+                new { site, area, unit, windowKind, limit, staleSeconds });
+            int? shelvedCount = isPriority
+                ? await conn.ExecuteScalarAsync<int>(FleetPrioritySql.ShelvedCount(healthWhere),
+                    new { site, area, unit, windowKind, staleSeconds })
+                : null;
 
             var ranked = rows.Select((r, i) => new
             {
@@ -204,12 +217,17 @@ public sealed class CpmFleetController : ControllerBase
                 // v2.5 (1E.2): the fusion v2 leading hypothesis (STICTION | OSCILLATION_TUNING |
                 // EXTERNAL_DISTURBANCE | EXCESSIVE_EFFORT | NONE); null on pre-v2.5 rows so the
                 // UI's case vocabulary never has to string-match a diagnosis again.
-                leadingHypothesis = (string?)r.leading_hypothesis
+                leadingHypothesis = (string?)r.leading_hypothesis,
+                // CHG-045: the ranking reason (priority order only; null on the other orders).
+                priority = isPriority ? FleetPrioritySql.PriorityLabel((int?)r.priority) : null,
+                episodeOpenedAt = isPriority ? (DateTime?)r.episode_opened_at : null,
+                episodeWindowCount = isPriority ? (int?)r.episode_window_count : null,
+                ackState = isPriority ? (string?)r.ack_state : null
             }).ToList();
 
             // orderBy echoes back: with a LIMIT, the ordering determines WHICH loops
             // are in the response, so a caller must be able to tell what it got.
-            return (object)new { site, area, unit, windowKind, orderBy, health, count = ranked.Count, loops = ranked };
+            return (object)new { site, area, unit, windowKind, orderBy, health, count = ranked.Count, shelvedCount, loops = ranked };
         }, ct);
     }
 

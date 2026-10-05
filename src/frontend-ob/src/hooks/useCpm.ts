@@ -34,6 +34,8 @@ export function useCpmLoop(loopId: string | undefined) {
     queryKey: KEYS.loop(loopId ?? ''),
     queryFn: () => cpm.getLoop(loopId!),
     enabled: !!loopId,
+    // 404 = the loop is not registered: an answer, not a transient failure — retrying cannot change it.
+    retry: (count, error) => !(error instanceof ApiError && error.status === 404) && count < 3,
   });
 }
 

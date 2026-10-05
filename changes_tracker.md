@@ -2948,9 +2948,58 @@ matrix, tables, toggle groups — scrolls inside its own container). Frontend 70
 errors. **Known, deferred to SME #15:** raw machine tokens in Workbench tiles (e.g. `OSCILLATION_TUNING`) now wrap
 mid-word on narrow screens instead of overflowing; #15 replaces them with plain wording.
 
+## CHG-045 — SME review #7: the priority queue ranks by ISA-18.2-style priority and says why (2026-10-05)
+
+**Source:** `SME_review.md` point 7. **Scope:** **`cplm-api`** — `Data/FleetPrioritySql.cs` (new: queue + shelved count),
+`Controllers/CpmFleetController.cs` (`fleet/rankings?orderBy=priority`, additive row fields `priority`, `episodeOpenedAt`,
+`episodeWindowCount`, `ackState` and response `shelvedCount`; the other orders unchanged); **`ams-frontend`** —
+`components/Cpm/overview/{PriorityQueue.tsx, priorityReason.ts (+test)}` (new), `CpmOverview.tsx`, `api/cpmApi.ts`,
+`hooks/useCpm.ts` (`useCpmLoop` no longer retries a 404), `styles/cpm-loop-summary.css`. Tests:
+`tests/cplm-api.Tests/FleetPrioritySqlTests.cs` (new). No schema change, no migration, no new index.
+
+**What the SME said.** Several loops show the same 100% confidence but very different performance (plant: FIC10401 good 97 %,
+LIC10404 good 21 %). The queue needs a visible ranking reason including severity, criticality and persistence; confidence
+alone does not say which loop needs action first.
+
+**Verified before the change (lab).** Correct. The queue was `ORDER BY confidence DESC`; 162 loops share confidence 1.00,
+so its top rows were alphabetical (FIC00701, FIC10301, FIC10302 …). Severity is HIGH on 164 of 165 verdicts, the registry's
+criticality (12 critical / 15 high / 190 medium / 13 low) was not used, persistence (the open episode's `opened_at`,
+`window_count`) was not used, the good-error bar was shown but did not order anything, and shelved loops competed for the
+top six.
+
+**Decision (user: "check what the standard is and go with that").** ISA-18.2 / EEMUA 191: priority from consequence
+severity × time to respond, at most 3–4 levels, target distribution ~5 % high / 15 % medium / 80 % low; a shelved alarm is
+removed from the active list and shown in a separate shelved list; acknowledged alarms stay listed, marked. Implemented as
+three levels — consequence = loop criticality, urgency = finding severity (critical: HIGH/MEDIUM→High, LOW→Medium; high:
+HIGH→High, MEDIUM→Medium, LOW→Low; medium: HIGH→Medium, else Low; low: Low; unset criticality = medium, unset severity =
+LOW). Inside a level: worst control impact (lowest good-error share), then longest persistence (oldest open episode), then
+evidence score, then loop id. Queue = current findings only (the CHG-043 "poor performance" rule), actively shelved
+episodes left out and counted, an expired shelf brings the loop back.
+
+**What changed in the UI.** Overview queue rows: priority badge (High = alarm tone, Medium = caution, Low = neutral), loop
+route, condition in plain words, an "Acknowledged" marker, and a reason line ("High-criticality loop · High severity ·
+persisting 10 h (1 window) · evidence score 100") beside the good-error bar (impact said once). The panel states the rule in
+one line; "N shelved ›" opens Loop Events on the shelved filter when any are shelved. "Highest-confidence finding" became
+"Top-priority finding" and says why the loop heads the queue; the focus panel reads "top-priority loop". A `?loop=` outside
+the queue (healthy, excluded, not evaluated) now previews through a single-loop lookup made only in that case (before: "not
+in the ranking"); an unknown id still says so, with one request instead of three retries.
+
+**Lab result.** 161 queued + 0 shelved = the operating picture's 161 poor; 1 High (FIC10302, high criticality), 160 Medium,
+0 Low — the lab registry is almost all "medium" and the engine rates nearly every finding HIGH severity, so ISA-18.2's "High
+stays rare" holds but Low is empty: review criticality and severity at the plant (prod_decision.md). Medium loops order
+worst-impact first (16 % in band before 22–23 %).
+
+**Tests.** `FleetPrioritySqlTests` (new, integration on the lab DB: every queued row is a current finding, its level equals
+the C# matrix, rows follow level → impact → persistence; queue + shelved = POOR count; shelving one episode inside a rolled-
+back transaction removes it and counts it, an expired shelf brings it back) + `FleetPriorityLabelTests`; fleet SQL suites
+27/27. `overview/priorityReason.test.ts` (new, 6). Frontend 71 files green, lint / tsc / build clean; cplm-api.Tests
+242/243 (the pre-existing `EvidenceClassSweepTests` failure, CHG-043). **Lab browser pass 2026-10-05:** cplm-api rebuilt and
+restarted; queue and finding card as above; rows 115 px (first cut ~170, impact moved beside the reason); 0 px page overflow
+at 500 / 768 / 1000 / 1440; night theme; no console errors in normal use (a deliberately unknown `?loop=` logs its one 404).
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040, CHG-041, CHG-042, CHG-043, CHG-044) and **`cplm-api`** (CHG-043). No schema, no
+- Updated services so far: **`ams-frontend`** (CHG-040, CHG-041, CHG-042, CHG-043, CHG-044, CHG-045) and **`cplm-api`** (CHG-043, CHG-045). No schema, no
   migration, no Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant: `docker load` the `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
@@ -2961,3 +3010,5 @@ mid-word on narrow screens instead of overflowing; #15 replaces them with plain 
   Loop summary card above the tabs; a non-blocking readiness banner reads "Configuration limits" in neutral grey.
   (CHG-043) `GET /api/v1/cpm/fleet/summary` carries `statuses` whose values add up to `loops.monitored`; the Overview shows
   the five-state operating picture and a Readiness strip at the bottom.
+  (CHG-045) the Overview queue rows carry a High / Medium / Low priority badge and a reason line; `fleet/rankings?orderBy=priority`
+  returns `shelvedCount` and per-row `priority`.

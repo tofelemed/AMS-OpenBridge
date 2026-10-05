@@ -445,6 +445,12 @@ export interface CpmRankedLoop {
   observabilityFlags: string[];
   /** v2.5 (1E.2): fusion v2 leading hypothesis (STICTION | OSCILLATION_TUNING | …); null on pre-v2.5 rows. */
   leadingHypothesis: string | null;
+  /** CHG-045, orderBy=priority only: ISA-18.2-style level from loop criticality × finding severity. */
+  priority?: 'HIGH' | 'MEDIUM' | 'LOW' | null;
+  /** CHG-045, orderBy=priority only: the loop's open episode — how long the condition has persisted. */
+  episodeOpenedAt?: string | null;
+  episodeWindowCount?: number | null;
+  ackState?: 'UNACKNOWLEDGED' | 'ACKNOWLEDGED' | 'SHELVED' | string | null;
 }
 
 /**
@@ -452,7 +458,7 @@ export interface CpmRankedLoop {
  * rather than applied to the returned page — re-sorting 50 rows that were selected
  * by confidence cannot surface the fleet's worst-controlled loop.
  */
-export type CpmRankingOrder = 'confidence' | 'error' | 'mae' | 'effort';
+export type CpmRankingOrder = 'confidence' | 'error' | 'mae' | 'effort' | 'priority';
 /** v2.5 (1H.6): server-side fleet health filters — the server decides, the page never re-filters a LIMITed page. */
 export type CpmHealthFilter = 'missing-binding' | 'stale-collection' | 'active-affected';
 
@@ -466,6 +472,8 @@ export const getFleetRankings = (
   return apiJson<{
     site: string | null; windowKind: string; orderBy: string;
     count: number; loops: CpmRankedLoop[];
+    /** CHG-045, orderBy=priority only: current findings left out because their episode is shelved. */
+    shelvedCount?: number | null;
   }>(`${BASE}/fleet/rankings?${params.toString()}`);
 };
 

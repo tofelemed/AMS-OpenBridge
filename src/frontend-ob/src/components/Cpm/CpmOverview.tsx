@@ -17,10 +17,12 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { EmptyState, PanelHead, TonePill, WorkspaceHeader, toneFor, fmtDateTime, QueryError } from './shared';
+import { EmptyState, PanelHead, WorkspaceHeader, fmtDateTime, QueryError } from './shared';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
-import { useCpmEvents, useFleetRankings, useFleetSummary } from '../../hooks/useCpm';
-import GoodErrorBar from './overview/GoodErrorBar';
+import { useCpmEvents, useCpmLoop, useFleetRankings, useFleetSummary } from '../../hooks/useCpm';
+import PriorityQueue from './overview/PriorityQueue';
+import { priorityBadge, priorityReasons } from './overview/priorityReason';
+import { conditionOf } from './explorer/summary/summaryText';
 import OperatingPicture from './overview/OperatingPicture';
 import ReadinessStrip from './overview/ReadinessStrip';
 import LoopFocus from './overview/LoopFocus';
@@ -36,7 +38,8 @@ export const CpmOverview: React.FC = () => {
   // unit, not the whole plant.
   const scope = useCpmScope();
   const summary = useFleetSummary(scope.params);
-  const rankings = useFleetRankings(scope.params);
+  // CHG-045 (SME #7): the queue is the priority order — current findings, criticality × severity.
+  const rankings = useFleetRankings(scope.params, '24h', 'priority');
   // sort:'recent' — the panel below is titled "Recent context" and stamps each row
   // with opened_at, but the endpoint's default order is triage (open first, then
   // peak confidence), so with limit:3 it was showing the three HIGHEST-CONFIDENCE
@@ -51,12 +54,16 @@ export const CpmOverview: React.FC = () => {
   // list is the confidence-ordered ranking, so the default is the top finding —
   // the right focus for a triage surface. It is labelled below so it does not
   // read as the operator's own selection.
-  const selected = requestedId
+  const queued = requestedId
     ? loops.find(l => l.loopId.toLowerCase() === requestedId.toLowerCase())
     : loops[0];
+  // The queue holds current findings only; a chosen loop outside it (healthy, excluded, not yet
+  // evaluated) is looked up on its own — one request, and only in that case.
+  const outside = useCpmLoop(requestedId && !queued && !rankings.isLoading ? requestedId : undefined);
+  const selected: { loopId: string; displayName: string } | undefined = queued
+    ?? (outside.data ? { loopId: outside.data.loopId, displayName: outside.data.displayName } : undefined);
   const showingTopRanked = !requestedId && !!selected;
-  const missingLoop = !!requestedId && !selected
-    && !rankings.isLoading && !rankings.isError && loops.length > 0;
+  const missingLoop = !!requestedId && !selected && !rankings.isLoading && !outside.isLoading;
   // The loop the operator CHOSE, as opposed to the top-ranked default. The fleet
   // exits ("View all", "All events", "Show in Performance") carry only an
   // explicit choice: scoping the fleet to a loop nobody picked would read as a
@@ -67,8 +74,8 @@ export const CpmOverview: React.FC = () => {
   const drawerIndex = drawerLoop
     ? loops.findIndex(l => l.loopId === drawerLoop) : -1;
 
-  const evaluated = loops.filter(l => l.diagnosis !== 'NOT_EVALUATED');
-  const topFinding = evaluated[0];
+  // The queue is current findings in priority order, so its head IS the top-priority finding.
+  const topFinding = loops[0];
 
   // replace: previewing a row in the focus panel is in-page selection, not a
   // page visit. Opening a loop IS a visit (push), so Back returns here with
@@ -89,55 +96,16 @@ export const CpmOverview: React.FC = () => {
       <OperatingPicture summary={summary.data} explicitLoop={explicitLoop} />
 
       <div className="cpm-grid-2">
-        <section className="cpm-surface">
-          <PanelHead eyebrow="Priority queue" title="Loops requiring review"
-            right={
-              <ObcButton variant="normal" onClick={() => navigate(performanceHref({ loop: explicitLoop }))}>
-                View all ›
-              </ObcButton>
-            } />
-          {rankings.isLoading && <EmptyState title="Loading…" />}
-          {rankings.isError && <QueryError title="Rankings unavailable" error={rankings.error} retry={() => void rankings.refetch()} />}
-          {!rankings.isLoading && !rankings.isError && loops.length === 0 && (
-            <EmptyState title="No monitored loops"
-              copy="Onboard loops in the Loop Registry to populate this queue."
-              action={{ label: 'Open Loop Registry', onClick: () => navigate('/cpm/registry') }} />
-          )}
-          {loops.slice(0, 6).map(l => {
-            const isSelected = selected?.loopId === l.loopId;
-            return (
-              // Two controls, two jobs: the loop id opens the loop (a route); the
-              // description previews it in the focus panel (a selection). They
-              // are siblings, not nested, so neither is a button inside a button.
-              <div key={l.loopId}
-                className={`cpm-event-row cpm-queue-row${isSelected ? ' cpm-event-row--selected' : ''}`}>
-                <div className="cpm-queue-row__main">
-                  <ObcButton variant="flat" className="cpm-queue-row__loop"
-                    title={`Open ${l.loopId} in the Loop Explorer`}
-                    onClick={() => openLoop(l.loopId)}>
-                    {l.loopId} ›
-                  </ObcButton>
-                  <button type="button" className="cpm-queue-row__preview"
-                    aria-pressed={isSelected}
-                    aria-label={`Preview ${l.loopId} in the focus panel`}
-                    onClick={() => preview(l.loopId)}>
-                    <span className="cpm-event-row__sub">{l.displayName} · {l.area ?? l.site}</span>
-                    <GoodErrorBar pct={l.metrics.goodErrorPct} mae={l.metrics.mae} />
-                  </button>
-                </div>
-                <span className="cpm-event-row__sub">
-                  {l.confidence != null ? `${(l.confidence * 100).toFixed(0)}% conf` : '—'}
-                </span>
-                <TonePill tone={toneFor(l.diagnosis)}>{l.diagnosis.replace(/_/g, ' ')}</TonePill>
-              </div>
-            );
-          })}
-        </section>
+        <PriorityQueue loops={loops} loading={rankings.isLoading} error={rankings.isError ? rankings.error : null}
+          retry={() => void rankings.refetch()} shelvedCount={rankings.data?.shelvedCount ?? 0}
+          selectedId={selected?.loopId} onPreview={preview} onOpenLoop={openLoop}
+          onViewAll={() => navigate(performanceHref({ rows: 'attention', loop: explicitLoop }))}
+          onShelved={() => navigate(eventsHref({ filter: 'shelved' }))} />
 
         {selected ? (
           <LoopFocus loopId={selected.loopId}
             displayName={showingTopRanked
-              ? `${selected.displayName} · top-ranked loop`
+              ? `${selected.displayName} · top-priority loop`
               : selected.displayName}
             onOpenAnalysis={() => setDrawerLoop(selected.loopId)} />
         ) : missingLoop ? (
@@ -154,16 +122,15 @@ export const CpmOverview: React.FC = () => {
 
       <div className="cpm-grid-2">
         <section className="cpm-surface">
-          <PanelHead eyebrow="Highest-confidence finding" title={
+          <PanelHead eyebrow="Top-priority finding" title={
             topFinding
-              ? `${topFinding.diagnosis.replace(/_/g, ' ')} on ${topFinding.loopId}`
+              ? `${conditionOf(topFinding.diagnosis).label} on ${topFinding.loopId}`
               : 'No evaluated findings yet'} />
           {topFinding ? (
             <>
               <p className="cpm-copy">
-                The fused evidence points to {topFinding.diagnosis.replace(/_/g, ' ').toLowerCase()} on{' '}
-                {topFinding.loopId} ({topFinding.displayName}) at{' '}
-                {topFinding.confidence != null ? `${(topFinding.confidence * 100).toFixed(0)}%` : 'unknown'} confidence.
+                {topFinding.loopId} ({topFinding.displayName}) heads the queue: {priorityBadge(topFinding.priority).label.toLowerCase()}
+                {' — '}{priorityReasons(topFinding).join(', ')}.
               </p>
               <div className="cpm-filter-row">
                 <ObcButton variant="raised" onClick={() => setDrawerLoop(topFinding.loopId)}>
@@ -176,7 +143,7 @@ export const CpmOverview: React.FC = () => {
               </div>
             </>
           ) : (
-            <p className="cpm-copy">Verdicts appear once a loop accumulates a 12h window of samples.</p>
+            <p className="cpm-copy">No loop has a current finding. Verdicts appear once a loop completes an evaluation window.</p>
           )}
         </section>
 
