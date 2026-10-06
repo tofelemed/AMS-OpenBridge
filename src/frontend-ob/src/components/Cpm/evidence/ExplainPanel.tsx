@@ -14,12 +14,13 @@ import { EffectiveConfigDrawer } from '../config/EffectiveConfigDrawer';
 import { CpmIconButton, KvRow, TonePill } from '../shared';
 import CollapsibleSection from '../CollapsibleSection';
 import { methodLabel } from '../vocabulary';
-import { gateTone } from '../gateStatus';
+import { gateMark, gateTone } from '../gateStatus';
 import type { GateState } from './GateResultState';
 import { identityOf, parametersOf } from './gateFacts';
-import { whyParagraphs } from './verdictCopy';
+import { reasonSentence, whyParagraphs } from './verdictCopy';
 import { CopyableId } from './CopyableId';
 import { codeLabel } from '../vocabulary';
+import { ExplainWhy } from './ExplainWhy';
 
 const STORAGE_KEY = 'ams-evidence-explain-collapsed';
 
@@ -46,11 +47,13 @@ export interface ExplainPanelProps {
   status: string | null;
   reason: string | null;
   eligibilityDetail: string | null;
+  /** The site zone the workbench shows times in. */
+  timeZone?: string;
   collapsed: boolean;
   onToggle: () => void;
 }
 
-export const ExplainPanel: React.FC<ExplainPanelProps> = ({ gate, run, entry, manifest, state, status, reason, eligibilityDetail, collapsed, onToggle }) => {
+export const ExplainPanel: React.FC<ExplainPanelProps> = ({ gate, run, entry, manifest, state, status, reason, eligibilityDetail, timeZone, collapsed, onToggle }) => {
   const [showConfig, setShowConfig] = useState(false);
   if (collapsed) {
     return (
@@ -72,8 +75,11 @@ export const ExplainPanel: React.FC<ExplainPanelProps> = ({ gate, run, entry, ma
 
       {/* SME #13 (CHG-050): sections collapse instead of the column scrolling inside the page;
           "Why this result" — the reason — is the one open by default. */}
-      <CollapsibleSection id="wb-explain-why" defaultOpen title="Why this result" summary={why[0]}>
-        {why.map((p, i) => <p key={i} className="cpm-copy">{p}</p>)}
+      <CollapsibleSection id="wb-explain-why" defaultOpen title="Why this result"
+        summary={status ? `${gate}: ${gateMark(status, gate).label}${reason ? ` — ${reasonSentence(reason, { gate, eligibilityDetail })}` : ''}` : why[0]}>
+        {/* SME #19 (CHG-055): measured vs required, the evidence, what remains open; the state's next action last */}
+        <ExplainWhy gate={gate} name={name} run={run} manifest={manifest} status={status} reason={reason} eligibilityDetail={eligibilityDetail} timeZone={timeZone} />
+        {why.slice(1).map((p, i) => <p key={i} className="cpm-copy cpm-why__next">{p}</p>)}
       </CollapsibleSection>
 
       <CollapsibleSection id="wb-explain-asks" title="What this gate asks" summary={entry?.definition ?? undefined}>

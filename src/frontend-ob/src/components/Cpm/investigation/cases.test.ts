@@ -29,6 +29,6 @@ describe('caseIdFor', () => {
       { diagnosis: 'EXCLUDED_MODE', leadingHypothesis: null },
     ];
     expect(caseCounts(rows)).toEqual([['OSCILLATION_TUNING', 2], ['NOT_EVALUABLE', 1]]);
-    expect(caseLabelFor(rows[0])).toBe('Oscillation — tuning');
+    expect(caseLabelFor(rows[0])).toBe('Controller tuning');
   });
 });

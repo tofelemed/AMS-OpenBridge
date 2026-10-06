@@ -62,7 +62,7 @@ describe('evidenceOf', () => {
 
 describe('leadingCauseOf', () => {
   it('names the leading hypothesis, none for NONE/null', () => {
-    expect(leadingCauseOf(v2({ leadingHypothesis: 'OSCILLATION_TUNING' }))).toBe('Oscillation — tuning');
+    expect(leadingCauseOf(v2({ leadingHypothesis: 'OSCILLATION_TUNING' }))).toBe('Controller tuning');
     expect(leadingCauseOf(v2({ leadingHypothesis: 'NONE' }))).toBeNull();
     expect(leadingCauseOf(v2())).toBeNull();
   });

@@ -86,7 +86,7 @@ export const G15Body: React.FC<{ d: DecodedArtifact }> = ({ d }) => {
   return (
     <section className="cpm-surface">
       <PanelHead eyebrow="G15" title="Decision" right={<TonePill tone="muted"><CodeLabel code={P(d, 'score_semantics') ?? 'EVIDENCE_SCORE_UNCALIBRATED'} /></TonePill>} />
-      <KvRow label="Leading cause"><CodeLabel code={leading} /></KvRow>
+      <KvRow label="Possible cause"><CodeLabel code={leading} />{leading && leading !== 'NONE' ? ' — the leading explanation, not confirmed' : ''}</KvRow>
       <KvRow label="Case"><CodeLabel code={P(d, 'case_state')} kind="diagnosis" /></KvRow>
       <KvRow label="Open condition"><CodeLabel code={P(d, 'condition_state')} /></KvRow>
       <KvRow label="Availability"><CodeLabel code={P(d, 'availability')} /></KvRow>

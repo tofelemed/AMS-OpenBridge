@@ -23,6 +23,7 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/accordion-item/accordio
       React.createElement('button', { onClick: () => p.onAccordionItemToggle?.({ detail: { open: !p.open } }) }, `Toggle ${p.title}`),
       p.children),
 }));
+vi.mock('./ExplainWhy', () => ({ ExplainWhy: () => React.createElement('div', { 'data-testid': 'explain-why' }) }));
 vi.mock('../config/EffectiveConfigDrawer', () => ({ EffectiveConfigDrawer: () => React.createElement('div', { 'data-testid': 'effective-config' }) }));
 afterEach(() => { cleanup(); try { localStorage.clear(); } catch { /* stubbed below */ } });
 
@@ -45,12 +46,11 @@ describe('ExplainPanel', () => {
     const heads = screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent);
     // CHG-050: the reason first and open; the rest collapsed behind a one-line summary
     expect(heads).toEqual(['Why this result', 'What this gate asks', 'Method', 'Parameters used', 'Configuration', 'Identity']);
-    expect(screen.getByText(/limited by the 5 s acquisition grid/)).toBeTruthy();
+    expect(screen.getByTestId('explain-why')).toBeTruthy();   // CHG-055: the four-part explanation (own tests)
     expect(screen.queryByText('ACF period')).toBeNull();
     for (const t of ['What this gate asks', 'Method', 'Parameters used', 'Identity']) open(t);
     expect(screen.getByText('Dominant period from the ACF.')).toBeTruthy();
     expect(screen.getByText('Autocorrelation (oscillation) v3.0.0').getAttribute('title')).toBe('G5.ACF_OSCILLATION');
-    expect(screen.getByText(/limited by the 5 s acquisition grid/)).toBeTruthy();
     expect(screen.getByText('ACF period').getAttribute('title')).toBe('acf_series.period_s');
     expect(screen.getByText('290.2 s')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Copy Run' })).toBeTruthy();

@@ -205,7 +205,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
           <WindowFlags row={currentOption?.flags} />
         </main>
         <ExplainPanel gate={selection.gate} run={run.data} entry={entry} manifest={manifest.data} state={state} status={status} reason={reason}
-          eligibilityDetail={eligibilityDetail} collapsed={explainCollapsed} onToggle={toggleExplain} />
+          eligibilityDetail={eligibilityDetail} timeZone={timeZone} collapsed={explainCollapsed} onToggle={toggleExplain} />
       </div>
     </div>
   );

@@ -94,8 +94,11 @@ export const LoopSummaryCard: React.FC<{
 
       <dl className="cpm-loop-summary__rows">
         {finding && (
-          <Row label="Leading cause">
+          <Row label="Possible cause">
             {cause ?? 'No mechanism qualified'}
+            {cause && !(matrix.verdictV2?.leadingHypothesis === 'STICTION' && matrix.verdictV2?.confirmation?.state === 'CONFIRMED') && (
+              <span className="cpm-loop-summary__muted"> · not confirmed</span>
+            )}
             {score != null && (
               <span className="cpm-loop-summary__muted"
                 title="The engine's evidence score for this result (0–100). Uncalibrated: it ranks evidence, it is not a probability.">

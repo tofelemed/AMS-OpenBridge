@@ -10,7 +10,7 @@ import type { CpmRankedLoop } from '../../../api/cpmApi';
 
 export const CASE_LABEL: Record<string, string> = {
   STICTION: 'Valve / final element',
-  OSCILLATION_TUNING: 'Oscillation — tuning',
+  OSCILLATION_TUNING: 'Controller tuning',
   EXTERNAL_DISTURBANCE: 'External disturbance',
   EXCESSIVE_EFFORT: 'Actuator effort',
   ACTUATOR_LIMIT: 'Actuator at limit',

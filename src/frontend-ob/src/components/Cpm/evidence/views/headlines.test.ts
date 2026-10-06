@@ -29,7 +29,7 @@ describe('headlineOf', () => {
     const i = decoded({ gate: 'G13', kind: 'interaction', x: [0], y: [0], provenance: { state: 'UNAVAILABLE', capability_state: 'INSTALLED', peer_ids: '', reason: 'NO_PEER_LINKS' } });
     expect(headlineOf('G13', arts({ interaction: [i] }))).toMatchObject([{ label: 'State', value: 'Unavailable' }, { label: 'Peers', value: '0' }]);
     const d = decoded({ gate: 'G15', kind: 'decision_record', x: [0], y: [0], provenance: { leading_hypothesis: 'STICTION', case_state: 'OPEN', condition_state: 'OPEN' } });
-    expect(headlineOf('G15', arts({ decision_record: [d] }))).toMatchObject([{ label: 'Leading cause', value: 'Valve stiction / nonlinearity', raw: 'STICTION' }, { label: 'Case', value: 'Open' }, { label: 'Open condition', value: 'Open' }]);
+    expect(headlineOf('G15', arts({ decision_record: [d] }))).toMatchObject([{ label: 'Possible cause', value: 'Valve stiction / nonlinearity', raw: 'STICTION' }, { label: 'Case', value: 'Open' }, { label: 'Open condition', value: 'Open' }]);
   });
 
   it('is empty for an unknown gate or a missing artifact', () => {

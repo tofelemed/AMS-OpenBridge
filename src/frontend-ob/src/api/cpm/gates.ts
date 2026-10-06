@@ -124,9 +124,10 @@ export const getWindowSummaries = (loopId: string, windowKind = '24h', opts: Win
 };
 
 export const getGateHistory = (
-  loopId: string, windowKind = '24h', from?: string, to?: string, limit = 100, signal?: AbortSignal,
+  loopId: string, windowKind = '24h', from?: string, to?: string, limit = 100, signal?: AbortSignal, includeInsufficient = false,
 ) => {
   const params = new URLSearchParams({ windowKind, limit: String(limit) });
+  if (includeInsufficient) params.set('includeInsufficient', 'true');
   if (from) params.set('from', from);
   if (to) params.set('to', to);
   return apiJson<{ loopId: string; windowKind: string; count: number; windows: CpmGateMatrix[] }>(

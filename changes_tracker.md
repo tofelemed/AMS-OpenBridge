@@ -3399,9 +3399,52 @@ time but in the long locale form ("10/6/2026, 2:00:00 PM GMT+4"), unlike the con
 "00:00 GST", each "24 h · Excluded: loop not in automatic", pager "1–5 of 100"; Replay "24 h · ends 6 Oct 14:00 GST ·
 Oscillation confirmed"; 0 px page overflow at 1440 / 390; night theme; 0 console errors.
 
+## CHG-055 — SME review #19: "Why this result" = measured vs required, evidence, what remains open; symptom kept apart from cause (2026-10-06)
+
+**Source:** `SME_review.md` point 19. **Scope:** `ams-frontend` only: new `components/Cpm/{causeAnalysis.ts (+test),
+CauseBreakdown.tsx}`, `evidence/{whyRules.ts (+test), ExplainWhy.tsx}`; `evidence/{ExplainPanel.tsx (+test),
+GateEvidenceWorkspace.tsx, views/FusionViews.tsx, views/headlines.ts (+test)}`, `CpmInvestigation.tsx`,
+`explorer/summary/LoopSummaryCard.tsx`, `investigation/cases.ts`, `api/cpm/{verdict.ts, gates.ts}`,
+`styles/cpm-evidence-layout.css`. No service change (reads the existing effective-configuration and gate-history APIs).
+
+**What the SME said.** "Why this result" repeats that the engine judged the result; it needs the measured value, the
+threshold, the evidence that supported the conclusion and the limitation that remains — and observed oscillation must be kept
+apart from tuning being a possible cause.
+
+**Verified before the change.** Correct. For FIC10401 G15 the panel read "The engine judged G15 Decision confirmed. Read the
+evidence below; every value is this run's own…" — built from the status token and the state, nothing measured. The leading
+hypothesis was shown as "Oscillation — tuning" / "Leading cause", beside "Oscillation confirmed": the confirmed thing is the
+symptom; tuning is the highest-scoring explanation (score 1.00 from one symptom, QUALIFIED — G14 confirms valve claims only).
+
+**What changed.**
+- **Why this result, four parts** (Workbench Explain, per gate): the result in one sentence; **Measured vs required** — each value
+  against the threshold that applied (the engine's copy in the fused row when it has one, else the effective configuration at
+  the run's time; "Thresholds: FLOW_FAST_SELF_REG profile · factory / profile layers, as in force at 6 Oct 10:00 UTC"),
+  requirements with ✓ / ✕ (G5 "Accepted cycles ✓ 11 · ≥ 5 required", "Regularity ✓ 1 · ≥ 0.1"), detection thresholds as a
+  position (G4 "62.74 — above the high level · attention at 3 · high at 8" — the normalised activity ratio the engine actually
+  compares), "no threshold configured for this profile" where none is, placeholders as "Not calculated (…)" (CHG-053);
+  **Evidence behind it** (samples, retained artifacts; for G15 the cause breakdown); **What remains open** — the window's flags
+  that limit this gate ("No valve position mapped: a valve cause cannot be confirmed", …) and, for G14 / G15, "Evidence scores
+  rank the explanations; they are not probabilities". Rules: G3, G4, G5, G6, G7, G10, G11, G15 (persistence: agreeing windows vs
+  required). Fetched only while the section is open (the window's fused row incl. insufficient windows, the configuration).
+- **Symptom apart from cause** (Investigation conclusion, Workbench G15 "Why", G15 view, Explorer summary): **Observed** (symptom
+  + gates) · **Possible cause** (evidence score, "not confirmed — a tuning review or an approved step test would confirm it") ·
+  **Ruled out** (the engine's reason, plus the flags that limited the check: "no stiction-shaped cycles — note: no valve
+  position mapped; no clean oscillation cycle, so it could not be checked fully") · **No evidence / not assessed**. Hypotheses
+  are named as causes ("Controller tuning"); the G15 tile and the Explorer row read "Possible cause … · not confirmed".
+- `getGateHistory` gains an optional `includeInsufficient` (the API already accepted it).
+
+**Tests.** `whyRules.test.ts` (new, 4), `causeAnalysis.test.ts` (new, 3); `ExplainPanel`, `headlines`, `summaryText`, `cases` tests
+updated. Frontend 84 files / 392 tests green; lint / tsc / build clean. **Lab pass 2026-10-06** (FIC10401 window ending
+6 Oct 10:00 UTC): G15 "condition confirmed · Agreeing windows ✓ 3 · ≥ 3 required to persist", Observed sustained oscillation
+(G5, G6) / cross-correlation asymmetry (G8) / actuator stress (G4, G10) / output at a limit (G10), Possible cause Controller tuning
+(leading, 1.00, not confirmed) and Excessive actuator effort (0.31), Ruled out sensor / valve stiction / external disturbance with
+their caveats, No evidence: actuator at a limit; G5 / G4 rows as above; insufficient windows say "The whole window: not
+evaluated: not enough data"; 0 px overflow at 1440 / 390; night theme; 0 console errors.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-054) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
+- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-055) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
   migration, no Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant: `docker load` the `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
@@ -3435,3 +3478,5 @@ Oscillation confirmed"; 0 px page overflow at 1440 / 390; night theme; 0 console
   no clean oscillation cycle" (not 0.00 s); an excluded-mode window compares as "N/A", without a 0 % confidence.
   (CHG-054) Investigation › Recent windows: each tile reads "Ends <date time zone>" / "24 h · <verdict>", with ‹ Newer /
   Older › paging; every window picker uses the same "24 h · ends …" name.
+  (CHG-055) Evidence Workbench › Explain › Why this result shows "Measured vs required" rows with the profile's thresholds;
+  Investigation's conclusion lists Observed / Possible cause (not confirmed) / Ruled out / No evidence.

@@ -69,7 +69,7 @@ export function headlineOf(gate: string, arts: GateArtifacts): Headline[] {
     case 'G12': { const d = first(arts, 'response_event'); return pick(fromKey(d, 'event_type'), fromKey(d, 'capture_state'), fromKey(d, 'censor_reason'), fromKey(d, 'input_sequence_count')); }
     case 'G13': { const d = first(arts, 'interaction'); return pick(fromKey(d, 'state'), { label: 'Peers', value: String(listLength(P(d, 'peer_ids'))) }, fromKey(d, 'lag_s'), fromKey(d, 'coherence')); }
     case 'G14': { const d = first(arts, 'confirmation_record'); return pick(fromKey(d, 'state'), fromKey(d, 'claim_type'), fromKey(d, 'non_following_dwell_s'), fromKey(d, 'scope')); }
-    case 'G15': { const d = first(arts, 'decision_record'); return pick(fromKey(d, 'leading_hypothesis', 'Leading cause'), fromKey(d, 'case_state', 'Case'), fromKey(d, 'condition_state', 'Open condition'), fromKey(d, 'availability', 'Availability')); }
+    case 'G15': { const d = first(arts, 'decision_record'); return pick(fromKey(d, 'leading_hypothesis', 'Possible cause'), fromKey(d, 'case_state', 'Case'), fromKey(d, 'condition_state', 'Open condition'), fromKey(d, 'availability', 'Availability')); }
     default: return [];
   }
 }

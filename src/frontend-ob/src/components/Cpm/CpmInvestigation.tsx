@@ -49,6 +49,7 @@ import { EngineTrace } from './evidence/views/engineTrace';
 import { contextOfMatrix, hasVerdict, metricAvailability } from './metricAvailability';
 import { MetricValue } from './MetricValue';
 import { windowEnds, windowSize } from './windowLabel';
+import { CauseBreakdownRows } from './CauseBreakdown';
 
 export const CpmInvestigation: React.FC = () => {
   const navigate = useNavigate();
@@ -218,11 +219,10 @@ export const CpmInvestigation: React.FC = () => {
               </KvRow>
               <KvRow label="Severity">{codeLabel(matrix.severity)}</KvRow>
               <KvRow label="Selected family">{codeLabel(matrix.narrative?.selectedFamily)}</KvRow>
-              <KvRow label="Leading hypothesis">
-                {verdict && !verdict.legacy && verdict.leadingHypothesis
-                  ? (HYPOTHESIS_LABEL[verdict.leadingHypothesis] ?? verdict.leadingHypothesis)
-                  : 'not served (pre-v2.5 result)'}
-              </KvRow>
+              {/* SME #19 (CHG-055): the confirmed SYMPTOM apart from the possible CAUSE */}
+              {verdict && !verdict.legacy
+                ? <CauseBreakdownRows verdict={verdict} flags={matrix.observabilityFlags} />
+                : <KvRow label="Possible cause">not served (pre-v2.5 result)</KvRow>}
               <KvRow label="G14 confirmation">
                 <TonePill tone={verdict?.confirmation.state === 'CONFIRMED' ? 'bad'
                   : verdict?.confirmation.state === 'CONTRADICTED' ? 'good' : 'muted'}>
