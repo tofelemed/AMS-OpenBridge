@@ -3564,9 +3564,66 @@ EVT-1968; a saved note landed on FIC10401 with the window's run, author admin, a
 The episode link and "Notes on EVT-n" are verified once the lab cplm-api carries fa41b8ac + 1eaa1f86 (cherry-picked onto the
 CHG-049 lab build at its S8→S9 boundary — the lab cplm-api is that session's).
 
+## CHG-059 — SME review #23: optional inputs (valve position, peer links) have an applicability and five states (2026-10-06)
+
+**Source:** `SME_review.md` point 23. **Scope:** **`cplm-api`** new `Services/Registry/OptionalInputs.cs`; `CpmLoopRegistryContracts.cs`,
+`CpmLoopRegistryReads.cs`, `CpmLoopRegistryService.cs`, `Registry/CpmLoopRegistryService.Bulk.cs` (engineering merge keeps the
+new keys), `Controllers/CpmReadinessController.cs`, `Controllers/CpmFleetController.cs` (+ `tests/cplm-api.Tests/OptionalInputsTests.cs`,
+`OptionalInputsSqlTests`, an `EngineeringUnitTests` merge case); **`ams-frontend`** new `components/Cpm/optionalInputs.ts` (+ test),
+`OptionalInputFields.tsx`, `explorer/readinessCauses.unit.test.ts`; `api/cpmApi.ts`, `AddLoopWizard.tsx`, `csvImport.ts` (+ test),
+`LoopRegistry.tsx`, `ProfileAside.tsx`, `explorer/LoopWorkspace.tsx`, `explorer/readinessCauses.ts`, `explorer/summary/summaryText.ts`,
+`LoopSummaryCard.tsx`, `causeAnalysis.ts`, `CauseBreakdown.tsx`, `CpmInvestigation.tsx`, `evidence/ExplainWhy.tsx`, `ExplainPanel.tsx`,
+`GateEvidenceWorkspace.tsx`, `overview/capabilityCopy.ts` (+ test), `overview/ReadinessStrip.tsx`, `CpmPerformance.tsx`,
+`styles/cpm-loop-summary.css`. **No schema** (the registry `engineering` JSONB gains two optional keys). Backend commits 5439474d +
+4b92430a.
+
+**What the SME said.** VP and peer links are shown as configuration warnings on loops that may not have them; distinguish
+"available", "expected but unmapped", "not installed", "not applicable" and "temporarily unavailable" — only "expected but
+unmapped" is a configuration gap.
+
+**Verified before the change.** Correct. Every loop without a VP tag got the same warning ("Map a VP signal to lift the confidence
+cap") and counted in the fleet tile `loopsCappedByMissingVp` — a loop driving a variable-speed drive, a valve with no positioner
+feedback, an unmapped positioner and a mapped tag that went quiet all read alike (lab: 224 of 230). Peer links likewise: a stand-
+alone loop had a permanent "No peer links" warning. The registry had no way to say "this loop has no valve".
+
+**What changed.**
+- **Applicability per loop** (registry `engineering.vpApplicability` / `engineering.peerApplicability`: `EXPECTED` | `NOT_INSTALLED`
+  | `NOT_APPLICABLE`; anything else refused with 400). Absent = derived: VP from the loop model's command path (`OP_TO_VFD`,
+  `OP_TO_PV` → not applicable, otherwise expected); peers expected. One rule in `OptionalInputs` (C#) with its SQL twin for fleet
+  counts, a test keeps them equal; the frontend `optionalInputs.ts` mirrors it.
+- **Five states** = applicability × mapped × seen in the latest 24 h window (`payload.vp_available`): AVAILABLE, EXPECTED_UNMAPPED,
+  NOT_INSTALLED, NOT_APPLICABLE, TEMPORARILY_UNAVAILABLE (mapped, no samples). Readiness checks `tag_vp` / `peer_links` carry
+  `state` + `applicability`; only expected-unmapped and temporarily-unavailable are warnings; the plant facts go in a new `notes`
+  list.
+- **Fleet summary:** `loopsCappedByMissingVp` now counts VP expected-but-unmapped, `loopsWithoutDisturbanceContext` peers expected
+  but missing; new `vpNotInstalled`, `vpNotApplicable`, `peersNotApplicable`. Performance tile: "N/M" over valve loops only;
+  Overview Readiness strip: "Valve position expected but not mapped", "Peer links expected but missing" and a "Plant facts,
+  nothing to fix: …" line.
+- **Explorer:** readiness banner "N to fix · M plant fact(s)", each cause labelled Blocking / Configuration / Waiting for data
+  (short features and diagnosis still to arrive are not configuration), plant facts as "Plant fact" rows; a loop with only facts
+  reads "What this loop can be checked for". Loop summary, Investigation cause rows and Workbench Explain read `NO_VP` as the
+  sentence true for the loop ("No valve on this loop: valve (stiction) diagnosis does not apply", "No positioner feedback
+  installed: a valve cause can be suspected, not confirmed", "…expected but not mapped: map its tag…").
+- **Registry:** the VP column reads Mapped / Not mapped / Not installed / No valve; the detail rows say what it means; the edit /
+  add wizard's Signal mappings step has "Valve position on this loop" and "Interacting loops (G13)" (Derive / Expected / Not
+  installed / Not applicable); bulk CSV columns `vp_applicability`, `peer_applicability` (spaces / hyphens tolerated; free text is a
+  row problem). A CSV without them keeps what is stored.
+
+**Not changed (engine).** The Flink fusion job still emits `NO_VP` and applies the 0.89 valve-claim cap without knowing the
+applicability; on a loop declared "no valve" the UI reads the flag as "does not apply", but the engine could still rank a valve
+hypothesis there. Follow-up owed in the fusion job (recorded in `prod_decision.md`).
+
+**Tests.** cplm-api `OptionalInputsTests` + `OptionalInputsSqlTests` + merge case — 64/64 in the filtered run (lab DB). Frontend
+`optionalInputs.test.ts` (new, 4), `readinessCauses.unit.test.ts` (new, 3), `capabilityCopy.test.ts` (rewritten, 4), CSV columns (2) —
+Cpm suite 75 files / 338 tests green; lint / tsc clean. **Lab (frontend only, lab cplm-api is the CHG-049 build):** all 230 lab loops
+are UNKNOWN / OP_TO_VALVE, so every unmapped VP correctly stays "Not mapped" (224) and none is reclassified; Explorer AIC30601 banner
+"5 to fix" with Configuration ×3 / Waiting for data ×2 — day 1440 and night 390 px, no horizontal scroll; registry FIC10302 detail
+"Peer links: None — expected; G13 not evaluated"; edit wizard › Signal mappings shows both selects. The readiness `state` / `notes`
+and the fleet counts are verified once the lab cplm-api carries 5439474d + 4b92430a.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-058) and **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-058).
+- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-059) and **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-058, CHG-059).
   **One schema step** (CHG-058, additive, online): `ops/cpm-13-investigation-event-link.sql`. No Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant, in order: (1) `docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 <
@@ -3611,3 +3668,7 @@ CHG-049 lab build at its S8→S9 boundary — the lab cplm-api is that session's
   a disabled action shows its reason under the button.
   (CHG-058) Investigation › Loop notes saves a note on a loop with no open episode, and does not acknowledge anything unless the
   box is ticked; `SELECT event_id FROM analytics.investigation_reference LIMIT 1` works (the column exists).
+  (CHG-059) `GET /api/v1/cpm/fleet/summary` → `capability` carries `vpNotInstalled` / `vpNotApplicable` / `peersNotApplicable`;
+  readiness for a loop carries `notes` and `tag_vp.state`. **Plant data step:** with the process owner, mark loops on drives or
+  without positioner feedback (registry CSV `vp_applicability`, `peer_applicability`, or the wizard) — until then every unmapped VP
+  counts as expected, which is the old behaviour.

@@ -19,6 +19,7 @@ import { modelLabel, stateOf } from './registryShared';
 import ProfileAside from './ProfileAside';
 import AddLoopWizard from './AddLoopWizard';
 import BulkImportDialog from './BulkImportDialog';
+import { vpCellLabel } from './optionalInputs';
 
 // ── screen ──
 
@@ -125,7 +126,7 @@ export const LoopRegistry: React.FC = () => {
                 </span>
                 <span title={loop.model?.classificationSource}>{modelLabel(loop)}</span>
                 <span>{loop.loopType}</span>
-                <span>{loop.tags['VP'] ? 'AVAILABLE' : 'NOT MAPPED'}</span>
+                <span>{vpCellLabel(loop)}</span>
                 <span>{loop.thresholdProfileId ?? '—'}</span>
                 <TonePill tone={st.tone}>{st.label}</TonePill>
               </div>

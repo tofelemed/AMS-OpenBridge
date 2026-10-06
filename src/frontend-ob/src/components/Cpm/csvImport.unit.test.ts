@@ -29,3 +29,20 @@ describe('pv_unit safety', () => {
     expect(row.engineering).toEqual({ pvMin: 0, pvMax: 900 });
   });
 });
+
+// CHG-059 (SME #23): optional-input applicability columns.
+describe('vp_applicability / peer_applicability columns', () => {
+  const h = 'tag,service,site,unit,loop_type,criticality,vp_applicability,peer_applicability';
+  const p = (row: string) => parseCsv(`${h}\n${row}`, [], null as never, ['FIC']).rows[0];
+  it('are known columns; values normalise to the three words', () => {
+    expect(CSV_HEADERS).toEqual(expect.arrayContaining(['vp_applicability', 'peer_applicability']));
+    expect(p('FIC1,Feed,hdpe,u1,FIC,medium,not installed,Not-Applicable').engineering)
+      .toEqual({ vpApplicability: 'NOT_INSTALLED', peerApplicability: 'NOT_APPLICABLE' });
+    expect(p('FIC1,Feed,hdpe,u1,FIC,medium,,').engineering).toBeNull();
+  });
+  it('reports free text as a row problem and never sends it', () => {
+    const row = p('FIC1,Feed,hdpe,u1,FIC,medium,maybe,');
+    expect(row.problems).toContain("vp_applicability 'maybe' must be EXPECTED, NOT_INSTALLED or NOT_APPLICABLE");
+    expect(row.engineering).toBeNull();
+  });
+});

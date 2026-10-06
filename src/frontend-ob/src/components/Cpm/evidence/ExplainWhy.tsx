@@ -17,6 +17,7 @@ import { CauseBreakdownRows } from '../CauseBreakdown';
 import { whyRows } from './whyRules';
 import { reasonSentence } from './verdictCopy';
 import { fmtInstant } from '../context/LoopContextBar';
+import type { InputContext } from '../optionalInputs';
 
 /** Which window flags limit which gate's claim. */
 const LIMITS_GATE: Record<string, string[]> = {
@@ -28,7 +29,9 @@ const LIMITS_GATE: Record<string, string[]> = {
 export const ExplainWhy: React.FC<{
   gate: string; name: string; run: MethodRun | undefined; manifest: EvidenceManifest | undefined;
   status: string | null; reason: string | null; eligibilityDetail: string | null; timeZone?: string;
-}> = ({ gate, name, run, manifest, status, reason, eligibilityDetail, timeZone }) => {
+  /** CHG-059: the loop's optional-input context (VP / peers applicability). */
+  inputs?: InputContext;
+}> = ({ gate, name, run, manifest, status, reason, eligibilityDetail, timeZone, inputs }) => {
   const endIso = run ? new Date(run.support.toMs).toISOString() : undefined;
   const row = useQuery({
     queryKey: ['cpm', 'why-row', run?.loopId, run?.windowKind, endIso],
@@ -53,7 +56,7 @@ export const ExplainWhy: React.FC<{
     ? `${gate} ${name}: ${mark.meaning === 'none' ? lowerFirst(codeLabel(status)) : mark.label}${reason ? ` — ${reasonSentence(reason, { gate, eligibilityDetail })}` : ''}.`
     : `${gate} ${name}: no verdict recorded for this run.`;
   const flags = fused?.observabilityFlags ?? [];
-  const open = [...new Set(flags.filter(f => (LIMITS_GATE[f] ?? []).some(g => g === '*' || g === gate)).map(limitationOf))];
+  const open = [...new Set(flags.filter(f => (LIMITS_GATE[f] ?? []).some(g => g === '*' || g === gate)).map(f => limitationOf(f, inputs)))];
   const d = (fused?.diagnosis ?? '').toUpperCase();
   if (d.startsWith('INSUFFICIENT') || d.startsWith('EXCLUDED')) open.unshift(`The whole window: ${lowerFirst(diagnosisLabel(fused?.diagnosis))} — no gate on it carries a verdict.`);
   if (gate === 'G15' || gate === 'G14') open.push('Evidence scores rank the explanations; they are not probabilities.');
@@ -85,7 +88,7 @@ export const ExplainWhy: React.FC<{
 
       <h4 className="cpm-eyebrow">Evidence behind it</h4>
       {gate === 'G15' && fused ? (
-        <CauseBreakdownRows verdict={fused.verdictV2} flags={flags} />
+        <CauseBreakdownRows verdict={fused.verdictV2} flags={flags} inputs={inputs} />
       ) : (
         <p className="cpm-copy">
           {run?.support.sampleCount != null ? `${run.support.sampleCount.toLocaleString('en-GB')} samples` : 'The samples'} of this run's {run?.windowKind ?? ''} window

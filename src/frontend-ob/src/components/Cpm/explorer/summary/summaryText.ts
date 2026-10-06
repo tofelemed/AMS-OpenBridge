@@ -11,6 +11,7 @@ import type { CpmGateMatrix } from '../../../../api/cpm/gates';
 import { HYPOTHESIS_LABEL, OBSERVATION_LABEL } from '../../../../api/cpm/verdict';
 import { toneFor, type CpmTone } from '../../shared';
 import { codeLabel, diagnosisLabel } from '../../vocabulary';
+import { optionalInputLimitation, type InputContext } from '../../optionalInputs';
 
 
 export type ConditionKind = 'finding' | 'healthy' | 'excluded' | 'insufficient' | 'not-evaluated';
@@ -43,11 +44,13 @@ const LIMITATION: Record<string, string> = {
   QUALITY_UNKNOWN: 'Source quality unknown for the window',
 };
 
-export const limitationOf = (flag: string): string => LIMITATION[flag] ?? codeLabel(flag);
+/** CHG-059: with the loop's optional-input context, NO_VP / NO_UPSTREAM_LINKS read as what is true for THIS loop. */
+export const limitationOf = (flag: string, inputs?: InputContext): string =>
+  optionalInputLimitation(flag, inputs) ?? LIMITATION[flag] ?? codeLabel(flag);
 
 /** Distinct limitations in served order (two flags can mean the same thing). */
-export function limitationsOf(flags: string[] | null | undefined): string[] {
-  return [...new Set((flags ?? []).map(limitationOf))];
+export function limitationsOf(flags: string[] | null | undefined, inputs?: InputContext): string[] {
+  return [...new Set((flags ?? []).map(f => limitationOf(f, inputs)))];
 }
 
 export interface EvidenceItem { label: string; main: boolean }

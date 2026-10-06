@@ -21,6 +21,7 @@ import { reasonSentence, whyParagraphs } from './verdictCopy';
 import { CopyableId } from './CopyableId';
 import { codeLabel } from '../vocabulary';
 import { ExplainWhy } from './ExplainWhy';
+import type { InputContext } from '../optionalInputs';
 
 const STORAGE_KEY = 'ams-evidence-explain-collapsed';
 
@@ -49,11 +50,13 @@ export interface ExplainPanelProps {
   eligibilityDetail: string | null;
   /** The site zone the workbench shows times in. */
   timeZone?: string;
+  /** CHG-059: the loop's optional-input context. */
+  inputs?: InputContext;
   collapsed: boolean;
   onToggle: () => void;
 }
 
-export const ExplainPanel: React.FC<ExplainPanelProps> = ({ gate, run, entry, manifest, state, status, reason, eligibilityDetail, timeZone, collapsed, onToggle }) => {
+export const ExplainPanel: React.FC<ExplainPanelProps> = ({ gate, run, entry, manifest, state, status, reason, eligibilityDetail, timeZone, inputs, collapsed, onToggle }) => {
   const [showConfig, setShowConfig] = useState(false);
   if (collapsed) {
     return (
@@ -78,7 +81,7 @@ export const ExplainPanel: React.FC<ExplainPanelProps> = ({ gate, run, entry, ma
       <CollapsibleSection id="wb-explain-why" defaultOpen title="Why this result"
         summary={status ? `${gate}: ${gateMark(status, gate).label}${reason ? ` — ${reasonSentence(reason, { gate, eligibilityDetail })}` : ''}` : why[0]}>
         {/* SME #19 (CHG-055): measured vs required, the evidence, what remains open; the state's next action last */}
-        <ExplainWhy gate={gate} name={name} run={run} manifest={manifest} status={status} reason={reason} eligibilityDetail={eligibilityDetail} timeZone={timeZone} />
+        <ExplainWhy gate={gate} name={name} run={run} manifest={manifest} status={status} reason={reason} eligibilityDetail={eligibilityDetail} timeZone={timeZone} inputs={inputs} />
         {why.slice(1).map((p, i) => <p key={i} className="cpm-copy cpm-why__next">{p}</p>)}
       </CollapsibleSection>
 

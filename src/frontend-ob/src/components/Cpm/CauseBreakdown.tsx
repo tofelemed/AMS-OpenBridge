@@ -5,6 +5,7 @@
 import React from 'react';
 import type { CpmVerdictV2 } from '../../api/cpm/verdict';
 import { causeBreakdown, type CauseItem } from './causeAnalysis';
+import type { InputContext } from './optionalInputs';
 
 const List: React.FC<{ items: CauseItem[]; empty: string }> = ({ items, empty }) =>
   items.length === 0 ? <span className="cpm-metric-na">{empty}</span> : (
@@ -19,8 +20,8 @@ const Group: React.FC<{ label: string; children: React.ReactNode }> = ({ label, 
   <><dt className="cpm-cause__label">{label}</dt><dd className="cpm-cause__items">{children}</dd></>
 );
 
-export const CauseBreakdownRows: React.FC<{ verdict: CpmVerdictV2 | undefined | null; flags?: string[] }> = ({ verdict, flags }) => {
-  const b = causeBreakdown(verdict, flags);
+export const CauseBreakdownRows: React.FC<{ verdict: CpmVerdictV2 | undefined | null; flags?: string[]; inputs?: InputContext }> = ({ verdict, flags, inputs }) => {
+  const b = causeBreakdown(verdict, flags, inputs);
   if (!b) return null;
   return (
     <dl className="cpm-cause" data-testid="cause-breakdown">

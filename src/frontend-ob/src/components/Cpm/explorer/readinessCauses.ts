@@ -20,6 +20,9 @@ const BLOCKING_IDS = new Set([
   'tag_pv', 'tag_sp', 'tag_op', 'tag_mode',
 ]);
 
+/** Checks that report data still to arrive (pipeline / timers), not something an engineer configures. */
+const DATA_IDS = new Set(['evidence_short', 'evidence_verdict']);
+
 export type ExplorerTab = 'Summary' | 'Signals' | 'Calculations' | 'Relationships' | 'History';
 
 export type CauseTarget =
@@ -57,11 +60,15 @@ export interface ReadinessCause {
   label: string;
   message: string;
   blocking: boolean;
+  /** CHG-059: what kind of cause — the pill says it (Blocking / Configuration / Waiting for data). */
+  kind: 'blocking' | 'configuration' | 'data';
   target: CauseTarget | null;
 }
 
 export interface ReadinessSummary {
   causes: ReadinessCause[];
+  /** CHG-059: plant facts that limit a diagnosis but need no action (no positioner, no valve, no peers). */
+  notes: string[];
   blocking: number;
   /** Headline: a loop producing nothing is a different problem from a capped one. */
   headline: string;
@@ -72,13 +79,15 @@ export function readinessCauses(
 ): ReadinessSummary | null {
   if (!readiness) return null;
   const failing = readiness.checks.filter(c => !c.ok);
-  if (failing.length === 0) return null;
+  const notes = readiness.notes ?? [];
+  if (failing.length === 0 && notes.length === 0) return null;
 
   const causes: ReadinessCause[] = failing.map(c => ({
     id: c.id,
     label: c.label,
     message: c.message ?? '',
     blocking: BLOCKING_IDS.has(c.id),
+    kind: BLOCKING_IDS.has(c.id) ? 'blocking' as const : DATA_IDS.has(c.id) ? 'data' as const : 'configuration' as const,
     target: targetFor(c.id, loopId),
   }));
   // Blocking first: the reason there is no verdict outranks the reason the
@@ -88,9 +97,10 @@ export function readinessCauses(
   const blocking = causes.filter(c => c.blocking).length;
   return {
     causes,
+    notes,
     blocking,
     // Nothing blocking means the loop IS evaluated; what remains limits what the evidence can
     // claim (SME review #4/#6) - a configuration limit, not a fault, so it is not worded as one.
-    headline: blocking > 0 ? 'Not producing verdicts' : 'Configuration limits',
+    headline: blocking > 0 ? 'Not producing verdicts' : causes.length > 0 ? 'Configuration limits' : 'What this loop can be checked for',
   };
 }

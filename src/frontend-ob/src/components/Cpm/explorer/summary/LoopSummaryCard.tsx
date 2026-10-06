@@ -27,6 +27,7 @@ import {
   ageText, conditionOf, evidenceOf, leadingCauseOf, limitationsOf, nextCheckOf, primaryActionOf, staleAfterMs,
 } from './summaryText';
 import { EVIDENCE_SCORE_HELP, evidenceScoreCap } from '../../evidenceScore';
+import { inputContextOf } from '../../optionalInputs';
 
 const MAX_LIMITS = 2;
 
@@ -60,7 +61,7 @@ export const LoopSummaryCard: React.FC<{
   const finding = condition.kind === 'finding';
   const cause = leadingCauseOf(matrix);
   const evidence = evidenceOf(matrix);
-  const limits = limitationsOf(matrix.observabilityFlags);
+  const limits = limitationsOf(matrix.observabilityFlags, inputContextOf(loop));
   const last = matrix.lastVerdict;
   const score = finding && matrix.confidence != null ? Math.round(matrix.confidence * 100) : null;
   const scoreCap = finding ? evidenceScoreCap(matrix.narrative?.statusReason, matrix.confidence) : null;

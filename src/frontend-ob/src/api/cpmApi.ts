@@ -104,6 +104,9 @@ export interface CpmEngineeringRange {
   pvMax?: number | null;
   /** CHG-047: the PV engineering unit (e.g. "kg/h", "°C", "barg"); SP shares it, OP is %. Null = not set. */
   pvUnit?: string | null;
+  /** CHG-059: whether a VP / peer links are expected on this loop — EXPECTED | NOT_INSTALLED | NOT_APPLICABLE; absent = derived. */
+  vpApplicability?: string | null;
+  peerApplicability?: string | null;
 }
 
 export interface CpmActivateRequest {
@@ -208,6 +211,9 @@ export interface CpmReadinessCheck {
   label: string;
   ok: boolean;
   message: string | null;
+  /** CHG-059 (tag_vp, peer_links): AVAILABLE | EXPECTED_UNMAPPED | NOT_INSTALLED | NOT_APPLICABLE | TEMPORARILY_UNAVAILABLE. */
+  state?: string;
+  applicability?: string;
 }
 
 export interface CpmReadiness {
@@ -218,6 +224,8 @@ export interface CpmReadiness {
   checks: CpmReadinessCheck[];
   blockers: string[];
   warnings: string[];
+  /** CHG-059: plant facts that limit a diagnosis but need no action (no positioner installed, no valve, no peers). */
+  notes?: string[];
   evidence?: { shortFeatures: number; longFeatures: number; verdicts: number };
 }
 
@@ -343,8 +351,14 @@ export interface CpmFleetSummary {
   loops: { total: number; monitored: number; withPeerLinks: number; withVp: number };
   diagnoses: { diagnosis: string; count: number }[];
   capability: {
+    /** CHG-059: loops where a VP is EXPECTED but not mapped (no longer every loop without a VP tag). */
     loopsCappedByMissingVp: number;
+    /** CHG-059: loops where peer links are expected but missing. */
     loopsWithoutDisturbanceContext: number;
+    /** CHG-059: plant facts, not gaps (absent on an older cplm-api). */
+    vpNotInstalled?: number;
+    vpNotApplicable?: number;
+    peersNotApplicable?: number;
   };
   /** CHG-043: every MONITORED loop in exactly one operating state (they add up to loops.monitored). Absent on an older cplm-api. */
   statuses?: CpmFleetStatuses;

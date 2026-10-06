@@ -25,6 +25,7 @@ import type { CpmLoop } from '../../api/cpmApi';
 
 import { modelLabel, stateOf } from './registryShared';
 import { CodeLabel } from './CodeLabel';
+import { peerDetail, vpDetail } from './optionalInputs';
 
 // ── profile detail aside ───────────────────────────────────────────────────
 
@@ -87,11 +88,11 @@ export const ProfileAside: React.FC<{ loop: CpmLoop; onEdit: () => void }> = ({ 
         )}
       </KvRow>
       <KvRow label="Criticality">{loop.criticality}</KvRow>
-      <KvRow label="Valve position">{loop.tags['VP'] ?? 'Not mapped — G14 cannot confirm a final-element fault'}</KvRow>
+      <KvRow label="Valve position">{loop.tags['VP'] ?? vpDetail(loop)}</KvRow>
       <KvRow label="Peer links">
         {loop.links.length > 0
           ? loop.links.map(l => `${l.relType} → ${l.toLoopId}`).join(', ')
-          : 'None — G13 not evaluated'}
+          : peerDetail(loop)}
       </KvRow>
       <KvRow label="Gate profile">{loop.thresholdProfileId ?? 'default'}</KvRow>
       <KvRow label="Observability">

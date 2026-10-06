@@ -24,6 +24,7 @@ import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { PlantLocationPicker, SIGNAL_ROLES, deriveSignalPath, historianNode, isResolvablePath, loopIdProblem } from './plantLocation';
 import type { PlantLocation } from './plantLocation';
 import { NO_VP_COPY } from './investigation/confirmationCopy';
+import { OptionalInputFields, applicabilityOf, type OptionalInputForm } from './OptionalInputFields';
 
 
 // ── add-loop wizard (5 steps, maps 1:1 onto POST /cpm/loops/activate) ──────
@@ -42,6 +43,8 @@ interface WizardState {
   pvMin: string; pvMax: string; opMin: string; opMax: string;
   /** CHG-047: the PV engineering unit, free text ("kg/h", "°C"); blank = not set. */
   pvUnit: string;
+  /** CHG-059: '' = derived; else EXPECTED | NOT_INSTALLED | NOT_APPLICABLE. */
+  vpApplicability: string; peerApplicability: string;
 }
 
 /** v2.5 (2G.1): an EXPLICIT stored model prefills the selects; a preset leaves them blank (so a preset is never re-sent as explicit). */
@@ -66,13 +69,14 @@ function parseBound(text: string): number | null | undefined {
 }
 
 /** Only declared bounds are sent, so an omitted one stays omitted server-side. */
-function engineeringOf(f: { pvMin: string; pvMax: string; opMin: string; opMax: string; pvUnit: string }) {
+function engineeringOf(f: { pvMin: string; pvMax: string; opMin: string; opMax: string; pvUnit: string } & OptionalInputForm) {
   const range: Record<string, number | string> = {};
   for (const k of ['pvMin', 'pvMax', 'opMin', 'opMax'] as const) {
     const v = parseBound(f[k]);
     if (typeof v === 'number') range[k] = v;
   }
   if (f.pvUnit.trim()) range.pvUnit = f.pvUnit.trim();
+  Object.assign(range, applicabilityOf(f));
   return Object.keys(range).length > 0 ? range : null;
 }
 
@@ -138,6 +142,7 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
     pvMin: numText(editLoop.engineering?.pvMin), pvMax: numText(editLoop.engineering?.pvMax),
     opMin: numText(editLoop.engineering?.opMin), opMax: numText(editLoop.engineering?.opMax),
     pvUnit: editLoop.engineering?.pvUnit ?? '',
+    vpApplicability: editLoop.engineering?.vpApplicability ?? '', peerApplicability: editLoop.engineering?.peerApplicability ?? '',
     model: modelFormOf(editLoop.model),
   } : {
     // site starts EMPTY: the old 'site1' placeholder was a site that exists in
@@ -148,7 +153,7 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
     loopType: 'FIC', criticality: 'medium',
     pv: '', sp: '', op: '', mode: '', vp: '',
     thresholdProfileId: '', enableMonitoring: true,
-    pvMin: '', pvMax: '', opMin: '', opMax: '', pvUnit: '',
+    pvMin: '', pvMax: '', opMin: '', opMax: '', pvUnit: '', vpApplicability: '', peerApplicability: '',
     model: emptyModelForm(),
   });
   const readiness = useCpmReadiness(savedLoopId ?? undefined);
@@ -363,9 +368,10 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
                 );
               })}
             </div>
+            <OptionalInputFields form={form} onChange={set} />
             <p className="cpm-copy" style={{ marginTop: 12 }}>
               Paths resolve through the binding resolver; the readiness report flags any
-              signal that falls back to path-pattern resolution instead of the asset model.
+              signal that falls back to path-pattern resolution instead of the asset model.{' '}
               {NO_VP_COPY}
             </p>
           </>

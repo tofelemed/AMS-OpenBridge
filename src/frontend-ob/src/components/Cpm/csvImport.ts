@@ -22,6 +22,8 @@ export const CSV_HEADERS = [
   'pv_min', 'pv_max', 'op_min', 'op_max',
   // CHG-047: the PV engineering unit (kg/h, °C, barg …) — display only: every trend axis names it.
   'pv_unit',
+  // CHG-059: EXPECTED | NOT_INSTALLED | NOT_APPLICABLE; blank = derived (VP from the command path, peers expected).
+  'vp_applicability', 'peer_applicability',
 ] as const;
 
 /**
@@ -214,6 +216,12 @@ export function parseCsv(
     const pvUnit = (values['pv_unit'] ?? '').trim();
     if (pvUnit && !isValidPvUnit(pvUnit)) problems.push(`pv_unit '${pvUnit}' is not a unit (letters, digits, spaces and ° % / . - · ² ³ µ ( ) ^ * only)`);
     else if (pvUnit) engineering.pvUnit = pvUnit;
+    for (const [col, key] of [['vp_applicability', 'vpApplicability'], ['peer_applicability', 'peerApplicability']] as const) {
+      const a = (values[col] ?? '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+      if (!a) continue;
+      if (a === 'EXPECTED' || a === 'NOT_INSTALLED' || a === 'NOT_APPLICABLE') engineering[key] = a;
+      else problems.push(`${col} '${values[col]}' must be EXPECTED, NOT_INSTALLED or NOT_APPLICABLE`);
+    }
     for (const [lo, hi, label] of [['pv_min', 'pv_max', 'PV'], ['op_min', 'op_max', 'OP']] as const) {
       if ((values[lo] ?? '').trim() === '' !== ((values[hi] ?? '').trim() === ''))
         warnings.push(`${label} range is half-declared — the missing bound defaults (0 / 100)`);

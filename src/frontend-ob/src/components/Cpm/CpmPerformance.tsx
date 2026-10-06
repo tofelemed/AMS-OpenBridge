@@ -264,8 +264,8 @@ export const CpmPerformance: React.FC = () => {
             fleet fact that changes what an engineer does next. */}
         <KpiTile caption="Diagnostic capability"
           tone={capped != null && capped > 0 ? 'warn' : 'good'}
-          value={diagnosticCapabilityCopy(fleetTotal ?? null, capped).value}
-          sub={diagnosticCapabilityCopy(fleetTotal ?? null, capped).sub} />
+          value={diagnosticCapabilityCopy(fleetTotal ?? null, capped, summary.data?.capability).value}
+          sub={diagnosticCapabilityCopy(fleetTotal ?? null, capped, summary.data?.capability).sub} />
       </div>
 
       <section className="cpm-surface">

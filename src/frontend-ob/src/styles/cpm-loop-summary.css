@@ -111,6 +111,8 @@
 @media (max-width: 900px) { .cpm-op__tiles { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } }
 
 .cpm-readiness__list { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+/* CHG-059: plant facts (no positioner, no valve, no peers) — a note, not a gap, so no alert tone. */
+.cpm-readiness__facts { margin: 8px 0 0; padding-top: 6px; border-top: 1px solid var(--border-divider-color); }
 
 /* ── Overview priority queue (SME review #7, CHG-045) ──
    One row = head (priority badge · loop route · condition) over the preview (description, the

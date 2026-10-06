@@ -5,30 +5,45 @@
  * peers. The registry counts are the same; what they MEAN changed.
  */
 
-export function positionerCopy(loopsWithoutVp: number): { caption: string; sub: string } {
+export function positionerCopy(loopsExpectedUnmapped: number): { caption: string; sub: string } {
+  // CHG-059 (SME #23): only loops where a VP is EXPECTED count — a drive has no valve, a valve without a positioner is a fact
   return {
-    caption: 'Without positioner feedback',
-    sub: loopsWithoutVp > 0
-      ? 'valve faults confirmable only from an approved test record (G14)'
-      : 'every loop has VP: non-following evidence can confirm a valve fault',
+    caption: 'Valve position expected but not mapped',
+    sub: loopsExpectedUnmapped > 0
+      ? 'map the VP tag so non-following evidence can confirm a valve fault (G14)'
+      : 'every loop that should report a valve position does',
   };
 }
 
-export function peersCopy(loopsWithoutPeers: number): { caption: string; sub: string } {
+export function peersCopy(loopsExpectedMissing: number): { caption: string; sub: string } {
   return {
-    caption: 'Without configured peers',
-    sub: loopsWithoutPeers > 0
+    caption: 'Peer links expected but missing',
+    sub: loopsExpectedMissing > 0
       ? 'interaction analysis unavailable (G13) until peers are configured'
-      : 'every loop has configured peers for G13',
+      : 'every loop that should have peers has them (G13)',
   };
 }
 
-export function diagnosticCapabilityCopy(fleetTotal: number | null, loopsWithoutVp: number | null): { value: string; sub: string } {
-  if (fleetTotal == null || loopsWithoutVp == null) return { value: '—', sub: 'fleet capability unavailable' };
+/** CHG-059: the plant facts beside the gaps — counted, never presented as configuration errors. */
+export function plantFactsCopy(c: { vpNotInstalled?: number; vpNotApplicable?: number; peersNotApplicable?: number }): string | null {
+  const parts = [
+    c.vpNotInstalled ? `${c.vpNotInstalled} without positioner feedback installed (valve cause suspected, not confirmed)` : null,
+    c.vpNotApplicable ? `${c.vpNotApplicable} without a valve (valve diagnosis does not apply)` : null,
+    c.peersNotApplicable ? `${c.peersNotApplicable} without interacting loops (G13 does not apply)` : null,
+  ].filter(Boolean);
+  return parts.length ? `Plant facts, nothing to fix: ${parts.join(' · ')}.` : null;
+}
+
+/** Loops that can confirm a valve fault from VP, out of the loops that HAVE a valve (CHG-059). */
+export function diagnosticCapabilityCopy(fleetTotal: number | null, expectedUnmapped: number | null,
+  facts: { vpNotInstalled?: number; vpNotApplicable?: number } = {}): { value: string; sub: string } {
+  if (fleetTotal == null || expectedUnmapped == null) return { value: '—', sub: 'fleet capability unavailable' };
+  const valves = fleetTotal - (facts.vpNotApplicable ?? 0);
+  const withVp = Math.max(0, valves - expectedUnmapped - (facts.vpNotInstalled ?? 0));
   return {
-    value: `${fleetTotal - loopsWithoutVp}/${fleetTotal}`,
-    sub: loopsWithoutVp > 0
-      ? `${loopsWithoutVp} loop(s) without VP — valve faults there need an approved test record to be confirmed`
-      : 'every loop can confirm a valve fault from non-following evidence',
+    value: `${withVp}/${valves}`,
+    sub: expectedUnmapped > 0
+      ? `${expectedUnmapped} valve loop(s) with VP expected but not mapped — valve faults there need an approved test record to be confirmed`
+      : withVp < valves ? `${valves - withVp} valve loop(s) without positioner feedback installed` : 'every valve loop can confirm a valve fault from non-following evidence',
   };
 }

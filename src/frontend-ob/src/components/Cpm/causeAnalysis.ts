@@ -7,6 +7,7 @@
  */
 import { HYPOTHESIS_LABEL, OBSERVATION_LABEL, type CpmVerdictV2 } from '../../api/cpm/verdict';
 import { codeLabel, lowerFirst, methodLabel } from './vocabulary';
+import { optionalInputLimitation, type InputContext } from './optionalInputs';
 
 export interface CauseItem { id: string; label: string; detail: string }
 export interface CauseBreakdown {
@@ -41,7 +42,7 @@ function gatesOf(basis: string | undefined, methodId: string | undefined): strin
   return (methodId ?? '').split('|').map(m => methodLabel(m)).filter(m => m !== '—').join(', ');
 }
 
-export function causeBreakdown(v: CpmVerdictV2 | undefined | null, flags: string[] = []): CauseBreakdown | null {
+export function causeBreakdown(v: CpmVerdictV2 | undefined | null, flags: string[] = [], inputs?: InputContext): CauseBreakdown | null {
   if (!v || v.legacy) return null;
   const observed = Object.entries(v.observations ?? {})
     .filter(([, o]) => o.present)
@@ -56,7 +57,7 @@ export function causeBreakdown(v: CpmVerdictV2 | undefined | null, flags: string
     if (id === 'NONE') continue;
     const state = (h.state ?? '').toUpperCase();
     const blockedBy = (NOT_ASSESSED_BECAUSE[id] ?? []).filter(f => flags.includes(f));
-    const caveat = blockedBy.length ? ` — note: ${blockedBy.map(f => lowerFirst(codeLabel(f))).join('; ')}, so it could not be checked fully` : '';
+    const caveat = blockedBy.length ? ` — note: ${blockedBy.map(f => lowerFirst(optionalInputLimitation(f, inputs) ?? codeLabel(f))).join('; ')}${blockedBy.some(f => optionalInputLimitation(f, inputs)?.includes('does not apply')) ? '' : ', so it could not be checked fully'}` : '';
     if (state === 'QUALIFIED' && h.score > 0) {
       const confirmed = id === 'STICTION' && v.confirmation?.state === 'CONFIRMED';
       const groups = h.evidenceGroups.map(g => lowerFirst(OBSERVATION_LABEL[g] ?? codeLabel(g))).join(', ');

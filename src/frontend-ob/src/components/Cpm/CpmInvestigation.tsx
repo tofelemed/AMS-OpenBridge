@@ -53,6 +53,7 @@ import { LoopNotes } from './investigation/LoopNotes';
 import { CauseBreakdownRows } from './CauseBreakdown';
 import { EVIDENCE_SCORE_HELP, evidenceScoreText } from './evidenceScore';
 import { EvidenceScoreNote } from './EvidenceScoreNote';
+import { inputContextOf } from './optionalInputs';
 
 export const CpmInvestigation: React.FC = () => {
   const navigate = useNavigate();
@@ -223,7 +224,7 @@ export const CpmInvestigation: React.FC = () => {
               <KvRow label="Selected family">{codeLabel(matrix.narrative?.selectedFamily)}</KvRow>
               {/* SME #19 (CHG-055): the confirmed SYMPTOM apart from the possible CAUSE */}
               {verdict && !verdict.legacy
-                ? <CauseBreakdownRows verdict={verdict} flags={matrix.observabilityFlags} />
+                ? <CauseBreakdownRows verdict={verdict} flags={matrix.observabilityFlags} inputs={inputContextOf(loop)} />
                 : <KvRow label="Possible cause">not served (pre-v2.5 result)</KvRow>}
               <KvRow label="G14 confirmation">
                 <TonePill tone={verdict?.confirmation.state === 'CONFIRMED' ? 'bad'

@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmFleetSummary } from '../../../api/cpmApi';
 import { PanelHead } from '../shared';
-import { peersCopy, positionerCopy } from './capabilityCopy';
+import { peersCopy, plantFactsCopy, positionerCopy } from './capabilityCopy';
 
 export const ReadinessStrip: React.FC<{ summary: CpmFleetSummary | undefined }> = ({ summary }) => {
   const navigate = useNavigate();
@@ -37,6 +37,7 @@ export const ReadinessStrip: React.FC<{ summary: CpmFleetSummary | undefined }> 
           </li>
         ))}
       </ul>
+      {plantFactsCopy(summary.capability) && <p className="cpm-op__muted cpm-readiness__facts">{plantFactsCopy(summary.capability)}</p>}
     </section>
   );
 };
