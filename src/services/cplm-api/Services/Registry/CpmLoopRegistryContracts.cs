@@ -87,7 +87,10 @@ public sealed record CpmEngineeringRange(
     double? PvMin = null, double? PvMax = null,
     // CHG-047 (SME #10): the PV engineering unit ("kg/h", "°C", "barg"); SP shares it, OP is %.
     // Display only — every trend axis and tooltip names it; the engine never reads it.
-    string? PvUnit = null);
+    string? PvUnit = null,
+    // CHG-059 (SME #23): whether VP / peer links are expected on this loop at all — EXPECTED | NOT_INSTALLED |
+    // NOT_APPLICABLE; absent = derived (VP from the command path, peers expected). Display / readiness only.
+    string? VpApplicability = null, string? PeerApplicability = null);
 
 /// <summary>
 /// v2.5 (2G.1, spec v6 §6.1-6.3): what the loop IS, declared as five separate dimensions. Any field

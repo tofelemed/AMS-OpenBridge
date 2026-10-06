@@ -105,4 +105,16 @@ public sealed class EngineeringMergeSqlTests : IAsyncLifetime
         r.TryGetProperty("pvUnit", out _).Should().BeFalse();
         r.GetProperty("pvMin").GetDouble().Should().Be(1);
     }
+
+    [Fact]
+    public async Task A_reimport_without_applicability_keeps_the_engineers_statement()
+    {
+        // CHG-059: a ranges-only CSV must not wipe "no positioner installed" / "no interacting loops"
+        var r = await Merge("""{"pvMin":0,"pvMax":900}""", """{"pvMin":0,"pvMax":800,"vpApplicability":"NOT_INSTALLED","peerApplicability":"NOT_APPLICABLE"}""");
+        r.GetProperty("vpApplicability").GetString().Should().Be("NOT_INSTALLED");
+        r.GetProperty("peerApplicability").GetString().Should().Be("NOT_APPLICABLE");
+        r.GetProperty("pvMax").GetDouble().Should().Be(900);
+        (await Merge("""{"vpApplicability":"EXPECTED"}""", """{"vpApplicability":"NOT_INSTALLED"}"""))
+            .GetProperty("vpApplicability").GetString().Should().Be("EXPECTED", "a row that states it replaces it");
+    }
 }
