@@ -51,7 +51,7 @@ import java.util.Map;
  *
  * <p>CHG-061b: event time alone bounded the buffer, so a lagging watermark (backlog, stalled partition) or a denser
  * feed grew it without limit. A hard per-loop cap now holds: {@code --short-max-samples-per-loop}, or by default
- * twice the samples of the retained 66 minutes on the sample's declared grid ({@link #capFor}). An append that
+ * twice the samples of the retained 66 minutes on the sample's declared grid, at least 1,584 ({@link #capFor}). An append that
  * would pass it first evicts whole oldest minutes, even if their windows have not fired; those windows then fire
  * with fewer members and report their true, lower completeness. Counted on {@code shortBufferCapped}, logged as
  * {@code SHORT_BUFFER_CAPPED} at most once per loop per hour.
@@ -63,6 +63,8 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
     /** CHG-061b: the span a sample can be retained (60m window + 5 min slide + lateness), and the grid fallback. */
     static final int RETAINED_SECONDS = 66 * 60;
     static final int FALLBACK_GRID_SECONDS = 5;
+    /** CHG-061b: the derived cap's floor - the derived cap at the 5 s fallback grid. */
+    static final int MIN_DERIVED_CAP = 1_584;
     private static final long WARN_EVERY_MS = 3_600_000L;
     private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(ShortFeatureBufferFn.class);
 
@@ -75,7 +77,8 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
     private transient ShortProfileRegistry profiles;           // CHG-061: profile key -> the profile, once
     private transient ValueState<Integer> bufferCount;         // CHG-061b: running sample count (append/evict)
     private transient Counter capped;
-    private transient Map<String, Long> lastCapWarnMs;         // log rate limit only (wall clock), never the cap
+    private transient Map<String, Long> lastCapWarnMs;         // log rate limit only (wall clock), never the cap;
+                                                               // bounded by the subtask's loop cardinality
 
     public ShortFeatureBufferFn(EvidencePolicy policy) {
         this(policy, 0);
@@ -87,13 +90,15 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
     }
 
     /**
-     * CHG-061b: the per-loop sample cap - {@code configured} when positive, else {@code 2 x ceil(66 min / grid)}
-     * with the grid the sample declares ({@code grid_seconds}; 5 s when it declares none): 1,584 at 5 s.
+     * CHG-061b: the per-loop sample cap - {@code configured} when positive (an operator's value, no floor), else
+     * {@code 2 x ceil(66 min / grid)} with the grid the sample declares ({@code grid_seconds}; 5 s when it declares
+     * none), never below {@link #MIN_DERIVED_CAP}: a loop declaring a coarse grid but reporting at 5 s must not
+     * silently buffer only a few samples.
      */
     static int capFor(int gridSeconds, int configured) {
         if (configured > 0) return configured;
         int grid = gridSeconds > 0 ? gridSeconds : FALLBACK_GRID_SECONDS;
-        return 2 * ((RETAINED_SECONDS + grid - 1) / grid);
+        return Math.max(2 * ((RETAINED_SECONDS + grid - 1) / grid), MIN_DERIVED_CAP);
     }
 
     @Override
@@ -150,7 +155,7 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
         int count = count();
         int cap = capFor(sample.gridSeconds, maxSamplesPerLoop);
         if (count >= cap) {
-            reportCapped(sample.loopId, count, cap, ts, wm);
+            reportCapped(sample.loopId, count, cap, sample.gridSeconds, ts, wm);
             count = shrinkBefore(m, cap - 1, count);
             if (count >= cap) return;
         }
@@ -313,14 +318,14 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
     }
 
     /** CHG-061b: counts every capped append; logs at most once per loop per hour of processing time. */
-    private void reportCapped(String loopId, int samples, int cap, long ts, long wm) {
+    private void reportCapped(String loopId, int samples, int cap, int gridSeconds, long ts, long wm) {
         capped.inc();
         long now = System.currentTimeMillis();
         Long last = lastCapWarnMs.get(loopId);
         if (last != null && now - last < WARN_EVERY_MS) return;
         lastCapWarnMs.put(loopId, now);
-        LOG.warn("SHORT_BUFFER_CAPPED loop={} samples={} watermarkLagMs={} cap={} (oldest minutes evicted; their windows report lower completeness)",
-                loopId, samples, wm == Long.MIN_VALUE ? -1 : ts - wm, cap);
+        LOG.warn("SHORT_BUFFER_CAPPED loop={} samples={} watermarkLagMs={} cap={} declaredGridS={} (oldest minutes evicted; their windows report lower completeness)",
+                loopId, samples, wm == Long.MIN_VALUE ? -1 : ts - wm, cap, gridSeconds);
     }
 
     private void addMinute(long m) throws Exception {
