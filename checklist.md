@@ -237,7 +237,14 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] Task 7 (758f1bfe + 9aae41c4) daily-check physical-size line (`bash -n` clean; SQL prints an integer on the lab), runbooks (`MARUN-DISK.md` ZooKeeper rule, `MARUN-DAILY-CHECK.md`), `prod_decision.md`, `changes_tracker.md`
 - [x] Totals: Flink full suite 298 run / 0 failures / 2 skipped (baseline 289); cplm-api `Evidence|Response|SchemaV25` 50 / 50 (baseline 45)
 - [x] final-review fix wave (26d19f4f Flink accepted-first cycle pick + throttle M1/M2; b7c6e1f3 cplm-api RESPONSE purge keeps model events; 64f1e28b UI counts from `cycle_scores`; d5f0b4c0 ops: cpm-12b guard before the stop, indisvalid check, RESPONSE row in all schemas, wording) — Flink 307 / 0 / 2 skipped; cplm-api 51 / 51; `test_build_release.py` 45; frontend evidence vitest 107, lint + build clean
-- [ ] Task 8 lab: 2 h run and 24 h soak, restart drill, reconstruction check, `cpm-12b` on the lab
+- [x] Task 8 lab stage A: Flink swap (jar `19b95248`, 13 jobs, no duplicates) + cplm-api + `cpm-12`; T0 10:29 UTC
+- [ ] Task 8 2 h run: manifests/h ≥ 5× lower — **FAILED like for like (2.4×: 10 fed loops 1,200 → 504/h)**; raw 4.7× confounded by 161 → 10 loops; Fusion not throttled (INSUFFICIENT_DATA counts as a finding); cycle cap not exercised (0 cycles on the lab)
+- [x] Task 8 episode evidence COMPLETE (G9, EPISODE) / throttled run → RECONSTRUCT, never an error; `cycle_scores` served (UI by vitest)
+- [x] Task 8 consumer: 0 `fail:`, 0 orphan warnings; restart drill (a) Long resubmit emits 30/30 at once, (b) cplm-api restart clean
+- [x] Task 8 reconstruction: throttled run (kafka) COMPLETE; 48-cycle G7 run (iotdb) uncapped 48 `cycle_fit` + `cycle_scores`
+- [x] Task 8 RESPONSE 14 d: 7,308 events purged (7 model events kept)
+- [x] Task 8 `cpm-12b` on the lab: three tables 5,059 → 3,606 MB; daily-check line 4,920 → 3,552 MB
+- [ ] Task 8 24 h soak (stage B, from T0 2026-10-06 10:29 UTC)
 - [ ] plant deploy in the SME-batch release (manifest `!chg049-evidence`, Flink swap, `cpm-12` online, `cpm-12b` with cplm-api stopped after ≥ 1 h); then daily check §7 physical line under 1536 MB and flat next morning
 - [x] plant 2026-10-06 emergency (before the release): log truncated, /tmp bundles deleted, evidence tables TRUNCATEd (pinned 0), ZooKeeper `log.91a0` moved out; 1.4 → 11 GB free
 

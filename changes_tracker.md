@@ -3182,7 +3182,32 @@ crash-looping, so 0 samples arrived from the OT feed (left to its owners).
 on the lab Postgres. After the final-review fixes: Flink 307 run, 0 failures, 2 skipped; cplm-api 51 / 51;
 `test_build_release.py` 45 passed; frontend `vitest src/components/Cpm/evidence` 107 passed, lint and build clean.
 
-**End-to-end on the lab** pending — Task 8 soak; filled after it.
+**End-to-end on the lab (Task 8 stage A, 2026-10-06, jar `19b95248`, cplm-api from fe0ee52c).** Full Flink swap (13
+jobs cancelled, JM + TM recreated, Short with `--evidence-emit none`, Long / Fusion default `episodes` 12 cycles / 60
+min, all six CPLM CAPABILITY records = `19b95248`); cplm-api with grace 1 d (lab override); `cpm-12` online
+(`indisvalid` t). T0 = 10:29 UTC (24 h soak, stage B, pending).
+- **Warm-up:** no CPLM output for ~30 min after a stateless submit (`SAMPLE_IDLENESS` 30 min holds the watermark while
+  unfed partitions are idle). Expect the same at the plant.
+- **Volume (G5..G15, TRANSIENT + EPISODE), 2 h window 11:15-13:16:** all loops 7,836 → 1,663/h, 101.3 → 10.0 MB/h, but
+  the stateless restart cut the long tier from 161 to the 10 fed loops. **Like for like (the 10 fed loops, full hour):
+  1,200 → 504/h (2.4×), 15.9 → 6.4 MB/h — below the 5× target.** Long 960 → ~264/h (3.6×; the throttle emits once
+  per loop × kind per hour plus on signature changes, as designed). Fusion is unchanged at 240/h: it emits every
+  window whenever the diagnosis is not PASS / NO_CALL / PENDING (INSUFFICIENT_DATA counts). The cycle cap, the plant's
+  main lever, is not exercised: the lab has had 0 valid cycles since 2026-09-25. Max per run G9 = 1. G12 (Response
+  job, outside CHG-049) ran at ~935/h after the restart.
+- **Evidence still there:** episode G9 runs captured on the new jar read COMPLETE (EPISODE); a throttled run reads
+  NONE + the RECONSTRUCT action (never an error). Reconstruction of a throttled run (kafka) → STANDARD/COMPLETE in
+  ~17 s. Reconstruction of a 48-cycle G7 run (iotdb) emitted 48 `cycle_fit` + `cycle_scores` (cycles_total =
+  cycles_emitted = 48, uncapped); the API serves 49 COMPLETE artifacts.
+- **Consumer:** 0 `fail:` lines and 0 orphan / swept warnings from the swap to 14:00 across two cplm-api restarts
+  (drill (b) included); lag 0, one member per group. **Drill (a):** Long cancelled + resubmitted; its first firing emitted
+  30 of 30 loop × kind pairs at once.
+- **RESPONSE 14 d:** the first sweep purged 7,308 events (7 kept: a system model was built from them).
+- **cpm-12b** (cplm-api stopped 7.5 min, script 6 min 35 s): the three tables 5,059 → 3,606 MB; daily-check line 4,920 →
+  3,552 MB (chunk 3,273 → 2,360, manifest 1,647 → 1,191, response_metric 137 → 54); 84,694 TRANSIENT deleted, 0
+  EXPIRED; the ~1.05 M STANDARD replay manifests stay. On the lab the Docker VHDX grew 2.6 GB (no TRIM).
+- Open for the SME / controller: Fusion throttle, or INSUFFICIENT_DATA no longer counted as a finding. The 24 h soak
+  reading (stage B).
 
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
