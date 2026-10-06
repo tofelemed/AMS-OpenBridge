@@ -6,6 +6,9 @@ import com.ams.flink.cplm.CplmLongDiagnosticsResult;
 public final class EvidenceThrottle {
     private EvidenceThrottle() {}
 
+    /** CHG-049 (final review M1): CLEAR = the policy does not emit this window, forget its state; SKIP = throttled; EMIT = output it. */
+    public enum Action { CLEAR, SKIP, EMIT }
+
     public static String signature(CplmLongDiagnosticsResult r) {
         return r.gate7Status + "|" + r.gate8Status + "|" + r.gate9Status + "|" + r.gate10Status + "|" + r.gate11Status;
     }
@@ -14,5 +17,16 @@ public final class EvidenceThrottle {
         if (minIntervalMs <= 0 || prevSig == null || prevMs == null) return true;
         if (!prevSig.equals(sig)) return true;
         return nowMs - prevMs >= minIntervalMs;
+    }
+
+    /** CHG-049 (M1): a window the policy skips clears the state, so a finding that comes back after a PASS emits at once. */
+    public static Action action(boolean policyEmits, String prevSig, Long prevMs, String sig, long nowMs, long minIntervalMs) {
+        if (!policyEmits) return Action.CLEAR;
+        return due(prevSig, prevMs, sig, nowMs, minIntervalMs) ? Action.EMIT : Action.SKIP;
+    }
+
+    /** CHG-049 (M2): the throttle state is written only when at least one record was output. */
+    public static boolean recordsState(int recordsOut) {
+        return recordsOut > 0;
     }
 }

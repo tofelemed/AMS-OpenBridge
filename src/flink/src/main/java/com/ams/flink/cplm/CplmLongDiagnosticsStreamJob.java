@@ -151,14 +151,24 @@ public class CplmLongDiagnosticsStreamJob {
         /** v2.5 (2C.1c): every gate's exact intermediates (LongArtifacts) when the policy says so; the
          *  intermediates are transient, so this runs before the result leaves the operator. */
         private void emitEvidence(OnTimerContext ctx, CplmLongDiagnosticsResult r, long nowMs) throws Exception {
-            if (!policy.emit(r)) return;
             // CHG-049: nowMs is the timer timestamp, not wall-clock, so a replay throttles identically
             String sig = EvidenceThrottle.signature(r);
-            if (!EvidenceThrottle.due(lastEvidenceSig.get(r.windowKind), lastEvidenceMs.get(r.windowKind), sig, nowMs, policy.minIntervalMs)) return;
-            lastEvidenceSig.put(r.windowKind, sig);
-            lastEvidenceMs.put(r.windowKind, nowMs);
+            EvidenceThrottle.Action action = EvidenceThrottle.action(policy.emit(r),
+                    lastEvidenceSig.get(r.windowKind), lastEvidenceMs.get(r.windowKind), sig, nowMs, policy.minIntervalMs);
+            if (action == EvidenceThrottle.Action.CLEAR) {
+                // CHG-049 (M1): a finding that comes back after a PASS emits at once
+                lastEvidenceSig.remove(r.windowKind);
+                lastEvidenceMs.remove(r.windowKind);
+                return;
+            }
+            if (action == EvidenceThrottle.Action.SKIP) return;
+            int records = 0;
             for (EvidenceArtifact a : LongArtifacts.artifacts(r, policy.maxCycles)) {
-                for (String record : EvidenceKafkaRecords.records(a, MAPPER, nowMs)) ctx.output(EVIDENCE, record);
+                for (String record : EvidenceKafkaRecords.records(a, MAPPER, nowMs)) { ctx.output(EVIDENCE, record); records++; }
+            }
+            if (EvidenceThrottle.recordsState(records)) {           // CHG-049 (M2): nothing output, nothing throttled
+                lastEvidenceSig.put(r.windowKind, sig);
+                lastEvidenceMs.put(r.windowKind, nowMs);
             }
         }
 

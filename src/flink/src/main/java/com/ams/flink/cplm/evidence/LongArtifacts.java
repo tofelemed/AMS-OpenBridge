@@ -24,7 +24,7 @@ public final class LongArtifacts {
 
     public static List<EvidenceArtifact> artifacts(CplmLongDiagnosticsResult r) { return artifacts(r, 0); }
 
-    /** CHG-049: maxCycles caps the G7/G9 per-cycle artifacts (evenly spaced, ends kept); <= 0 = every cycle. */
+    /** CHG-049: maxCycles caps the G7/G9 per-cycle artifacts (accepted first, ends kept, the rest evenly spaced); <= 0 = every cycle. */
     public static List<EvidenceArtifact> artifacts(CplmLongDiagnosticsResult r, int maxCycles) {
         List<EvidenceArtifact> out = new ArrayList<>();
         if (r == null || r.methodRunIds == null) return out;
@@ -42,7 +42,7 @@ public final class LongArtifacts {
         String g7 = r.methodRunIds.get("G7");
         if (g7 != null && k.triangularity != null && !k.triangularity.cycles.isEmpty()) {
             List<ShapeMath.CycleFit> cs = k.triangularity.cycles;
-            int[] pick = CycleSampling.pick(cs.size(), maxCycles);
+            int[] pick = g7Pick(cs, maxCycles);
             for (int i : pick) out.add(stamp(cycleFit(g7, cs.get(i)), r));
             out.add(stamp(cycleScores(g7, cs, pick.length), r));      // CHG-049: every cycle's score survives the cap
         }
@@ -51,7 +51,9 @@ public final class LongArtifacts {
         String g9 = r.methodRunIds.get("G9");
         if (g9 != null && k.geometry != null) {
             List<ShapeMath.CyclePolygon> ps = k.geometry.polygons;
-            for (int i : CycleSampling.pick(ps.size(), maxCycles)) {
+            // CHG-049 (final review I1): the same cycles as G7 when the ids line up, so both views show one set
+            boolean aligned = k.triangularity != null && cycleIdsLineUp(k.triangularity.cycles, ps);
+            for (int i : aligned ? g7Pick(k.triangularity.cycles, maxCycles) : CycleSampling.pick(ps.size(), maxCycles)) {
                 out.add(stamp(cyclePolygon(g9, ps.get(i), k), r));
                 out.add(stamp(normalizedPairs(g9, ps.get(i)), r));
             }
@@ -65,6 +67,20 @@ public final class LongArtifacts {
         String g13 = r.methodRunIds.get("G13");
         if (g13 != null && k.interaction != null) for (EvidenceArtifact a : InteractionArtifacts.artifacts(g13, k.interaction, r.interaction)) out.add(stamp(a, r));
         return out;
+    }
+
+    /** CHG-049 (final review I1): the accepted cycles first, so the capped fits never contradict the verdict. */
+    static int[] g7Pick(List<ShapeMath.CycleFit> cs, int maxCycles) {
+        boolean[] accepted = new boolean[cs.size()];
+        for (int i = 0; i < accepted.length; i++) accepted[i] = cs.get(i).accepted;
+        return CycleSampling.pick(cs.size(), maxCycles, accepted);
+    }
+
+    /** CHG-049: G7 and G9 segment the window separately; their indices mean the same cycle only when every id matches. */
+    static boolean cycleIdsLineUp(List<ShapeMath.CycleFit> cs, List<ShapeMath.CyclePolygon> ps) {
+        if (cs == null || ps == null || cs.size() != ps.size()) return false;
+        for (int i = 0; i < cs.size(); i++) if (cs.get(i).cycleId != ps.get(i).cycleId) return false;
+        return true;
     }
 
     private static EvidenceArtifact stamp(EvidenceArtifact a, CplmLongDiagnosticsResult r) {
@@ -139,7 +155,7 @@ public final class LongArtifacts {
         a.column("accepted", "boolean", acc);
         a.provenance.put("cycles_total", n);
         a.provenance.put("cycles_emitted", emitted);
-        a.provenance.put("cycle_selection", "EVEN_SPACED_ENDS_KEPT");
+        a.provenance.put("cycle_selection", "ACCEPTED_FIRST_ENDS_KEPT");
         return a;
     }
 

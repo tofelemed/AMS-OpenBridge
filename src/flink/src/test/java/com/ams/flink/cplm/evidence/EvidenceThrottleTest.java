@@ -45,4 +45,18 @@ public class EvidenceThrottleTest {
         assertEquals(0L, EvidencePolicy.fromArgs(new String[]{"--evidence-min-interval-min", "0"}).minIntervalMs);
         assertEquals(3_600_000L, new EvidencePolicy(EvidencePolicy.Mode.NONE, 3).minIntervalMs);
     }
+    // CHG-049 (final review M1/M2): a window the policy does not emit clears its state, so a finding that comes back emits at once
+    @Test public void policySkipClearsState() {
+        assertEquals(EvidenceThrottle.Action.CLEAR, EvidenceThrottle.action(false, "W|P|P|P|P", 0L, "P|P|P|P|P", 1, H));
+        assertEquals(EvidenceThrottle.Action.CLEAR, EvidenceThrottle.action(false, null, null, "P|P|P|P|P", 1, H));
+    }
+    @Test public void findingReturningAfterPassEmitsAtOnce() {
+        // W emitted at 0; the PASS at 15 min is not emitted by the policy -> CLEAR; the W at 30 min sees no state
+        assertEquals(EvidenceThrottle.Action.EMIT, EvidenceThrottle.action(true, null, null, "W|P|P|P|P", 30 * 60_000L, H));
+        assertEquals("without M1 it would be throttled", EvidenceThrottle.Action.SKIP, EvidenceThrottle.action(true, "W|P|P|P|P", 0L, "W|P|P|P|P", 30 * 60_000L, H));
+    }
+    @Test public void stateRecordedOnlyWhenSomethingWasOutput() {
+        assertFalse(EvidenceThrottle.recordsState(0));
+        assertTrue(EvidenceThrottle.recordsState(1));
+    }
 }

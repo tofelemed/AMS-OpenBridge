@@ -162,6 +162,7 @@ public class GateArtifactsTest {
 
     @Test
     public void cycleArtifactsAreCappedAndEveryCycleIsInTheSummary() {
+        assertTrue("the fixture must have more cycles than the cap", LONG_RESULT.intermediates.triangularity.cycles.size() > 2);
         List<EvidenceArtifact> capped = LongArtifacts.artifacts(LONG_RESULT, 2);
         long fits = capped.stream().filter(a -> "cycle_fit".equals(a.kind)).count();
         long polys = capped.stream().filter(a -> "cycle_polygon".equals(a.kind)).count();
@@ -169,6 +170,29 @@ public class GateArtifactsTest {
         EvidenceArtifact summary = capped.stream().filter(a -> "cycle_scores".equals(a.kind)).findFirst().orElseThrow(() -> new AssertionError("no cycle_scores"));
         assertEquals(LONG_RESULT.intermediates.triangularity.cycles.size(), summary.calculationSamples());
         assertEquals(LONG_RESULT.intermediates.triangularity.cycles.size(), ((Number) summary.provenance.get("cycles_total")).intValue());
+    }
+
+    /** CHG-049 (final review I1): G9 follows G7's pick when the cycle ids line up, and the pick leads with accepted cycles. */
+    @Test
+    public void cappedG9FollowsG7AndAcceptedCyclesArePicked() {
+        int cap = 3;
+        List<EvidenceArtifact> capped = LongArtifacts.artifacts(LONG_RESULT, cap);
+        Set<Object> fitIds = new java.util.TreeSet<>(), polyIds = new java.util.TreeSet<>();
+        int acceptedPicked = 0;
+        for (EvidenceArtifact a : capped) {
+            if ("cycle_fit".equals(a.kind)) { fitIds.add(a.provenance.get("cycle_id")); if (Boolean.TRUE.equals(a.provenance.get("accepted"))) acceptedPicked++; }
+            if ("cycle_polygon".equals(a.kind)) polyIds.add(a.provenance.get("cycle_id"));
+        }
+        List<com.ams.flink.cplm.engine.ShapeMath.CycleFit> cs = LONG_RESULT.intermediates.triangularity.cycles;
+        long accepted = cs.stream().filter(c -> c.accepted).count();
+        assertTrue("fixture has accepted cycles", accepted > 0);
+        assertTrue("an accepted cycle is among the picked fits", acceptedPicked > 0);
+        if (accepted <= cap - 2) assertEquals(accepted, acceptedPicked);
+        boolean idsLineUp = LONG_RESULT.intermediates.geometry != null && LongArtifacts.cycleIdsLineUp(cs, LONG_RESULT.intermediates.geometry.polygons);
+        assertTrue("fixture G7/G9 cycle ids line up", idsLineUp);
+        assertEquals("G9 shows the cycles G7 shows", fitIds, polyIds);
+        EvidenceArtifact summary = capped.stream().filter(a -> "cycle_scores".equals(a.kind)).findFirst().orElseThrow(() -> new AssertionError("no cycle_scores"));
+        assertEquals("ACCEPTED_FIRST_ENDS_KEPT", summary.provenance.get("cycle_selection"));
     }
 
     @Test
