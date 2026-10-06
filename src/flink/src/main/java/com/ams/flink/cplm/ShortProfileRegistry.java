@@ -22,8 +22,9 @@ import java.util.Map;
  * CHG-061: the distinct dynamics profiles of one loop's Short buffer, each stored once.
  *
  * <p>Every sample arrives with its own copy of the resolved profile (~117 members): {@code keyBy} deserializes
- * one per record. Kept on each buffered sample that was ~2.2 KB of heap per sample, ~250 MB at Marun, and a
- * restore or replay ran the TaskManager out of heap (stress test 2026-10-06). The buffer now stores the sample
+ * one per record. Kept on each buffered sample, those copies cost heap on every sample (bench, real tuples: heap per
+ * buffered sample 3.33 -> 2.31 KB, about 1.0 KB saved per sample, checkpoint 57.9 -> 27.1 MB), and a restore or
+ * replay ran the TaskManager out of heap (stress test 2026-10-06). The buffer now stores the sample
  * without its profile plus the profile's content key; the profile itself lives here once per distinct content
  * (usually one per loop) and is re-attached to each sample before a window is computed, so every window sees
  * exactly the profile its samples carried on arrival.

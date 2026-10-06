@@ -53,6 +53,8 @@ for j in jobs:
 # the Short job backlog in Kafka terms (section 4 remedy when it only grows)
 lag=$(kf kafka-consumer-groups --bootstrap-server kafka-1:9092 --describe --group traverse-cpa-flink-cplm-short 2>/dev/null | awk 'NR>1 && $6 ~ /^[0-9]+$/ {s+=$6} END {print s+0}')
 [ "${lag:-0}" -lt 50000 ] && ok "Short job consumer lag $lag samples" || act "Short job consumer lag $lag samples - backlog; MARUN-DAILY-CHECK.md 4 (cancel, reset offsets to latest, resubmit)"
+# CHG-061: the Short buffer hit its per-loop cap (MARUN-DAILY-CHECK.md 4: lag / backlog, or a mis-declared grid)
+capped=$(docker logs --since 24h ams-flink-taskmanager 2>&1 | grep -c SHORT_BUFFER_CAPPED); [ "${capped:-0}" -eq 0 ] && ok "Short buffer cap: no SHORT_BUFFER_CAPPED in 24 h" || warn "Short buffer cap: $capped SHORT_BUFFER_CAPPED lines in 24 h (MARUN-DAILY-CHECK.md 4)"
 
 echo "== 5. calculations (rows written recently)"
 sh10=$(pg "select case when count(*) = 0 then '0 rows' else count(*)||' rows, newest window '||coalesce(to_char(max(window_end) at time zone 'utc','MM-DD HH24:MI'),'-')||' UTC, '||coalesce(extract(epoch from now()-max(window_end))::int/60,-1)||' min behind now' end from analytics.cplm_short_feature_results where created_at > now() - interval '10 min'")

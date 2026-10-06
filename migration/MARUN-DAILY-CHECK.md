@@ -87,6 +87,13 @@ minutes behind real time the newest window is; more than 120 is the same conditi
 
 Since CHG-060 both Flink JVMs exit on an OutOfMemoryError and Docker restarts them (`unless-stopped`). After a TaskManager OOM the jobs resume from their last checkpoint by themselves; check `docker ps` section 2 for a young uptime on `ams-flink-taskmanager`. After a JobManager OOM there is no HA at the plant, so the jobs are gone: this section shows fewer than seven, and the remedy below (`04b`) applies.
 
+`Short buffer cap` (CHG-061, pending deploy): `SHORT_BUFFER_CAPPED loop=... samples=... watermarkLagMs=... declaredGridS=...` in the TaskManager log means one loop's Short buffer reached its hard cap (default 1,584 samples; the oldest whole minutes are evicted), so the job protects its heap instead of running out of it. WARN when it appears in the last 24 h:
+```
+docker logs --since 24h ams-flink-taskmanager 2>&1 | grep -c SHORT_BUFFER_CAPPED
+docker logs --since 24h ams-flink-taskmanager 2>&1 | grep SHORT_BUFFER_CAPPED | tail -3
+```
+A large `watermarkLagMs` on many loops, or a growing `Short job consumer lag`, is a backlog: use the recipe above. One loop only, with `declaredGridS` far from its real publishing interval, is a mis-declared grid: fix `grid_seconds` for that loop in the loop registry (the derived cap follows the declared grid). The line logs at most once per loop per hour.
+
 Fewer than seven jobs: `ALLOW_FLINK_SUBMIT=yes bash migration/04b-submit-flink-jobs.sh` submits the
 missing ones. Never `docker rm -f` the JobManager without cancelling every job first (orphaned
 checkpoints, section 1).

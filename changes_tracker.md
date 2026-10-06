@@ -3223,11 +3223,97 @@ min, all six CPLM CAPABILITY records = `19b95248`); cplm-api with grace 1 d (lab
 - Findings for a follow-up: TM `-XX:+ExitOnOutOfMemoryError` (F1), a bound on the Short heap buffer and its recovery
   runbook (F2), ingestion guard against duplicate loop-sample sources + Long-tier duplicate-timestamp drop (L1).
 
+## CHG-060 — Both Flink JVMs exit on an OutOfMemoryError (2026-10-06)
+
+**Scope:** `infra/docker/docker-compose.yml` (JM / TM `FLINK_PROPERTIES`), the HA compose (JM, JM-2, TM, TM-2), the marun overlay
+(JM, TM), `prod_decision.md` §4 / §6, `migration/MARUN-DAILY-CHECK.md` §4. Ships in the SME-batch release below. Commit b7fb65c1.
+
+**What was wrong.** Task 9 S1 (161 loops on the lab, 2026-10-06): the TaskManager ran out of heap 25-30 min in. The JVM did not
+exit, so the container stayed Up and all 13 jobs, the alarm jobs included, sat in RESTARTING until the TaskManager was
+recreated by hand. Docker's `unless-stopped` only restarts a process that exits.
+
+**What changed.** `env.java.opts.jobmanager` and `env.java.opts.taskmanager` = `-XX:+ExitOnOutOfMemoryError` in every
+`FLINK_PROPERTIES` block (lab compose JM / TM, HA JM / JM-2 / TM / TM-2, marun overlay JM / TM). No heap dump (a dump over 1 GB on
+the shared 96 GB disk is a disk incident). A TaskManager OOM now restarts the TM and the jobs resume from their checkpoint; a
+JobManager OOM restarts the JM and, with no HA at the plant, the jobs are gone (daily check §4 shows fewer than 7: `04b`).
+
+**Tests.** `pytest` 46 passed.
+
+**End-to-end on the lab.** Pending — Task 17 stress re-run.
+
+## CHG-061 — The Short buffer is bounded: one profile per loop, no duplicate samples, a hard per-loop cap (2026-10-06)
+
+**Scope:** `src/flink` (`ShortProfileRegistry`, the Short buffer / `ShortFeatureJob` options, `04b` arguments),
+`migration/04b-submit-flink-jobs.sh`, `migration/daily-check.sh` + `MARUN-DAILY-CHECK.md` §4, `prod_decision.md` §3 / §4.
+Commits 96f14511 (a), 31154549 + afdc1d53 (b).
+
+**What was wrong.** The CHG-039 Short buffer lives on the heap. In the 2026-10-06 stress run its checkpoint reached 275 MB after
+30 min; restoring it ran the TaskManager out of heap (15:22 UTC), and starting without state and replaying the backlog ran it
+out again (15:39 UTC). Every buffered sample carried its own copy of the resolved dynamics profile (~117 members), and nothing
+bounded the buffer when the watermark stalled.
+
+**What changed.**
+- (a) The buffer keeps one profile per loop (`ShortProfileRegistry`: content SHA-256 key, per-loop keyed MapState) and
+  drops an exact duplicate `(loopId, eventTsMs)` at ingest. The state names moved to `-v2`, so a restore of an old checkpoint
+  starts with an empty buffer. Bench, real tuples, heap backend: checkpoint 57.9 -> 27.1 MB (-53 %); heap per buffered sample
+  3.33 -> 2.31 KB (-31 %; the target was 40 %, the measured figure is reported).
+- (b) Hard per-loop cap: `--short-max-samples-per-loop` (0 = derived; 04b passes `${CPLM_SHORT_MAX_SAMPLES_PER_LOOP:-0}`).
+  Derived cap = max(2 x ceil(3960 s / grid), 1584) from the declared `grid_seconds` (fallback 5 s): **1,584 at Marun**. An
+  explicit value > 0 overrides it with no floor. The oldest whole minutes are evicted; if the arriving sample's own minute is
+  the oldest left it is dropped. Log `SHORT_BUFFER_CAPPED loop=... samples=... watermarkLagMs=... declaredGridS=...` at most once
+  per loop per hour; Flink counter `shortBufferCapped`.
+- Daily check §4: `SHORT_BUFFER_CAPPED` count in the TaskManager log over 24 h (WARN if > 0), with the recipe in
+  `MARUN-DAILY-CHECK.md` §4.
+- The `ShortProfileRegistry` javadoc figure was corrected (about 1.0 KB saved per sample, not 2.2 KB; comment only).
+
+**Tests.** Flink full suite 319 run, 0 failures, 2 skipped (baseline 289). Bench with a stalled watermark: heap 145 MB at
+130 min fed, 152 MB at 390 min (3 x the cap): flat.
+
+**End-to-end on the lab.** Pending — Task 17 stress re-run.
+
+## CHG-062 — Duplicate loop samples are ignored, and a second overlapping source is refused (2026-10-06)
+
+**Scope:** `src/flink` (`SignalMath`, the Long tier), `src/services/ingestion-service` (data-source API, subscriber manager),
+`scripts/test-ot-loop-ingestion-e2e.ps1`, `migration/MARUN-CONTEXT.md` §12b, `prod_decision.md` §4.
+Commits 538d4d9b (a), 06a953cf + 680c165e (b), this commit (c).
+
+**What was wrong.** On the lab six active "E2E OT Gateway (mosquitto-test)" sources (five leftovers of the e2e script, which
+created a source and never reused or reliably removed it) delivered every sample 6x. The Long tier then inferred a 0 s sample
+period and found 0 oscillation cycles on the lab from 2026-09-25 onwards. Nothing in ingestion refused a second source on the
+same topics.
+
+**What changed.**
+- (a) `SignalMath.filterHalfOpen` keeps the first sample of a repeated `eventTsMs`; `inferSamplePeriodSec` ignores zero
+  diffs; the Long `onTimer` dedupes the rolling buffer by timestamp and the peer buffer by (loopId, timestamp). SYN-TIC x6 gives
+  the same period and cycles as the clean series.
+- (b) Ingestion refuses an overlapping `MQTT_LOOP_SAMPLES` source. Conflict = same normalized endpoint (scheme, lower-case
+  host, default ports 1883 / 8883) AND (overlapping topic filters OR the same effective client id). API: 409
+  `{error:"overlaps active source '<name>' (<id>)", field:"topics"}` on POST, on PUT (when active and a feed field changed) and on
+  activate (when not already active). Subscriber manager: the oldest source wins (created_at, config_id); a loser is parked with
+  `ConnectionError "duplicate feed: overlaps '<name>'"` and re-checked every 30 s, and a winner leaving logs "Starting subscriber
+  '<name>' (duplicate-feed winner gone)". Same endpoint without overlap: one LogWarning (the Marun diagnostics-vs-PIDParams trap,
+  `MARUN-CONTEXT.md` §12b). The real plant filter `OT/HDPE/+/+/+/PIDParams/+` against the lab filter
+  `OT/+/+/+/+/PIDParams/+` is pinned as overlapping.
+- (c) `test-ot-loop-ingestion-e2e.ps1` reuses its source by name (GET `/data-sources`, PUT the profile and activate, else POST,
+  as `start-ot-loop-soak.ps1` does), deactivates `'OT Gateway (lab soak)'` while it runs and restores it in `finally`, and the
+  cleanup moved into try/finally so a failed step no longer leaks a source. Parse-checked only (it needs the lab).
+
+**Tests.** ingestion 237 / 237; Flink full suite 319 run, 0 failures, 2 skipped. The e2e script parses clean.
+
+**End-to-end on the lab.** Pending — Task 17 stress re-run.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-048), **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-049) and
-  **`flink-jobmanager`** (image `ams-flink`, CHG-049; the TaskManager uses it too: full Flink swap, cancel every job before
-  `docker rm -f` of JM and TM, then the orphan-checkpoint sweep).
+- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-048), **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-049),
+  **`flink-jobmanager`** (image `ams-flink`, CHG-049, CHG-061, CHG-062a; the TaskManager uses it too: full Flink swap, cancel
+  every job before `docker rm -f` of JM and TM, then the orphan-checkpoint sweep) and **`ingestion-service`** (CHG-062b: image
+  `traverse-ingestion-service`, `docker load` and recreate; no schema).
+- Marun overlay (CHG-060): the `FLINK_PROPERTIES` of JM and TM changed (`-XX:+ExitOnOutOfMemoryError`); `deploy.sh` applies the
+  overlay, so the recreate in the Flink swap picks it up. Afterwards the flag is visible in the TaskManager and JobManager process arguments.
+- New optional `.env` key (CHG-061): `CPLM_SHORT_MAX_SAMPLES_PER_LOOP` (unset = 0 = derived, 1,584 at Marun); `04b` passes it as
+  `--short-max-samples-per-loop`.
+- The Short job restarts with EMPTY state (CHG-061: state names moved to `-v2`); after the swap expect about 30 min of warm-up
+  (`SAMPLE_IDLENESS`) before the short features and verdicts resume. Daily check §4 gains a `SHORT_BUFFER_CAPPED` line (WARN > 0 in 24 h).
 - Schema (CHG-049): `cpm-12` online after `deploy.sh` (RESPONSE retention row, `ix_response_event_created`; then the
   `indisvalid` check must print `t`), then `cpm-12b` with cplm-api STOPPED, at a quiet time, only after the new jar has run
   at least 1 h and only if free disk >= 2 x the printed size of the three tables (VM step 6g). Optional `.env` keys `CPLM_EVIDENCE_MAX_CYCLES` (12)
@@ -3250,7 +3336,9 @@ min, all six CPLM CAPABILITY records = `19b95248`); cplm-api with grace 1 d (lab
   them) — until then axes read "(unit not set)".
   (CHG-048) Loop Explorer › Summary trend has 8h (live) / 24h / 7d / 30d / Custom, ‹ / ›, Live and "Open in Historical ›",
   which opens Historical on the same loop and period.
-- Rollback (CHG-049): reload the pre-release images (`pre-<release>-images.txt`) for `ams-flink` and `cplm-api` and repeat the
+- Rollback (CHG-049): reload the pre-release images (`pre-<release>-images.txt`) for `ams-flink`, `cplm-api` and `traverse-ingestion-service` and repeat the
   Flink swap; the RESPONSE retention row and the index can stay (harmless to the old build).
 - Proofs (CHG-049): 7 jobs RUNNING with one `jarSha256`; daily check §7 `evidence tables N MB on disk` under 1536 MB after
   `cpm-12b` and flat the next morning.
+- Proofs (CHG-060..062): the TaskManager process carries `-XX:+ExitOnOutOfMemoryError`; 7 jobs RUNNING after the warm-up; daily
+  check §4 `Short buffer cap` reads OK; a second overlapping `MQTT_LOOP_SAMPLES` source is refused (409) instead of doubling the feed.
