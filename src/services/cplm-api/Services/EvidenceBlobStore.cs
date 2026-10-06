@@ -19,6 +19,8 @@ public interface IEvidenceBlobStore
     Task UpsertManifestAsync(JsonElement manifest, CancellationToken ct);
     Task<bool> PutChunkAsync(Guid evidenceId, int chunkNo, string sha256, byte[] payload, CancellationToken ct);
     Task<StoredManifest?> GetManifestAsync(Guid evidenceId, CancellationToken ct);
+    /// <summary>CHG-049: how many chunks are stored, without reading any payload.</summary>
+    Task<int> CountChunksAsync(Guid evidenceId, CancellationToken ct);
     Task<IReadOnlyList<EvidenceChunkSpec>> GetChunksAsync(Guid evidenceId, CancellationToken ct);
     /// <summary>v2.5 (2C.2): one chunk by number, or null when it is not stored.</summary>
     Task<EvidenceChunkSpec?> GetChunkAsync(Guid evidenceId, int chunkNo, CancellationToken ct);
@@ -143,6 +145,13 @@ public sealed class PostgresEvidenceBlobStore : IEvidenceBlobStore
         return new StoredManifest((Guid)r.evidence_id, (Guid)r.method_run_id, (string)r.gate_id, (string)r.artifact_kind,
             (int)r.chunk_count, (long)r.total_bytes, (string)r.sha256, shas, (string)r.readiness, (string?)r.readiness_reason,
             (long?)r.gate_result_id);
+    }
+
+    public async Task<int> CountChunksAsync(Guid evidenceId, CancellationToken ct)
+    {
+        await using var conn = await _db.OpenConnectionAsync(ct);
+        return await conn.ExecuteScalarAsync<int>(
+            "SELECT count(*) FROM analytics.evidence_chunk WHERE evidence_id = @id", new { id = evidenceId });
     }
 
     public async Task<IReadOnlyList<EvidenceChunkSpec>> GetChunksAsync(Guid evidenceId, CancellationToken ct)

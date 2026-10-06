@@ -119,9 +119,9 @@ public sealed class CplmEvidenceConsumerService : BackgroundService
                 var known = await _store.PutChunkAsync(evidenceId, chunkNo, sha, payload, ct);
                 if (!known)
                 {
-                    // Manifest not yet persisted (records are keyed, so this is a redelivery
-                    // race, not the normal order): let the retry loop re-deliver.
-                    throw new InvalidOperationException($"chunk {chunkNo} arrived before manifest {evidenceId}");
+                    // CHG-049: the sweeper removed the manifest (TRANSIENT age/budget) before its chunks were consumed; nothing can complete it
+                    _logger.LogWarning("Evidence chunk {No} of {Id} has no manifest (swept); skipped", chunkNo, evidenceId);
+                    return;
                 }
                 await EvaluateAsync(evidenceId, ct);
                 break;
@@ -136,6 +136,7 @@ public sealed class CplmEvidenceConsumerService : BackgroundService
     {
         var m = await _store.GetManifestAsync(evidenceId, ct);
         if (m is null || m.Readiness is "COMPLETE" or "FAILED" or "EXPIRED") return;
+        if (await _store.CountChunksAsync(evidenceId, ct) < m.ChunkCount) return;   // CHG-049: PENDING without reading payloads
         var chunks = await _store.GetChunksAsync(evidenceId, ct);
         var verdict = EvidenceAssembly.Evaluate(
             new EvidenceManifestSpec(m.EvidenceId, m.ChunkCount, m.TotalBytes, m.Sha256, m.ChunkSha256), chunks);
