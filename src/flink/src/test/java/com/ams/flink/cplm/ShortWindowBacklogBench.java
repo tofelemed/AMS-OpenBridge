@@ -40,6 +40,8 @@ public class ShortWindowBacklogBench {
     private static final long CAP_MS = Long.getLong("short.bench.capS", 900L) * 1000L;
     /** -Dshort.bench.real=true: samples are the lab's real 1.1 tuple (five roles) with a resolved profile. */
     private static final boolean REAL = Boolean.getBoolean("short.bench.real");
+    /** CHG-061b: -Dshort.bench.stalledWm=true never advances the watermark: only the per-loop cap bounds the buffer. */
+    private static final boolean STALLED_WM = Boolean.getBoolean("short.bench.stalledWm");
     private static final String TEMPLATE_LOOP = "FIC10302";
     private static final String TEMPLATE_TS = "1791191779702";
     static final AtomicLong EMITTED_AT_MS = new AtomicLong();
@@ -80,7 +82,7 @@ public class ShortWindowBacklogBench {
                         ctx.collectWithTimestamp(s, s.eventTsMs);
                         EMITTED.incrementAndGet();
                     }
-                    ctx.emitWatermark(new Watermark(ts - 20_000));
+                    if (!STALLED_WM) ctx.emitWatermark(new Watermark(ts - 20_000));
                 }
             }
             EMITTED_AT_MS.set(System.currentTimeMillis());

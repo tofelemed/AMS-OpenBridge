@@ -8,6 +8,7 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
 import com.ams.flink.cplm.evidence.EvidencePolicy;
@@ -15,7 +16,9 @@ import com.ams.flink.cplm.evidence.EvidencePolicy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * CHG-039: all six short window kinds from ONE per-loop sample buffer.
@@ -45,21 +48,52 @@ import java.util.List;
  * {@link ShortProfileRegistry} keeps each distinct profile once and re-attaches it for the window maths - and
  * an exact duplicate {@code (loopId, record timestamp)} already in the buffer is dropped at ingest (CHG-062:
  * duplicate feeds; Flink's windows counted it twice).
+ *
+ * <p>CHG-061b: event time alone bounded the buffer, so a lagging watermark (backlog, stalled partition) or a denser
+ * feed grew it without limit. A hard per-loop cap now holds: {@code --short-max-samples-per-loop}, or by default
+ * twice the samples of the retained 66 minutes on the sample's declared grid ({@link #capFor}). An append that
+ * would pass it first evicts whole oldest minutes, even if their windows have not fired; those windows then fire
+ * with fewer members and report their true, lower completeness. Counted on {@code shortBufferCapped}, logged as
+ * {@code SHORT_BUFFER_CAPPED} at most once per loop per hour.
  */
 public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNormalizedSample, CplmShortFeatureResult> {
 
     private static final long serialVersionUID = 1L;
     static final long MINUTE_MS = 60_000L;
+    /** CHG-061b: the span a sample can be retained (60m window + 5 min slide + lateness), and the grid fallback. */
+    static final int RETAINED_SECONDS = 66 * 60;
+    static final int FALLBACK_GRID_SECONDS = 5;
+    private static final long WARN_EVERY_MS = 3_600_000L;
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(ShortFeatureBufferFn.class);
 
     private final EvidencePolicy policy;
+    private final int maxSamplesPerLoop;                       // CHG-061b: 0 = derived from the sample's grid
     private transient MapState<Long, BufferedSample> samples;  // arrival sequence -> sample (no profile)
     private transient MapState<Long, long[]> minuteIndex;      // minute start -> sequences, arrival order
     private transient ValueState<long[]> minutes;              // buffered minute starts, ascending
     private transient ValueState<Long> nextSeq;
     private transient ShortProfileRegistry profiles;           // CHG-061: profile key -> the profile, once
+    private transient ValueState<Integer> bufferCount;         // CHG-061b: running sample count (append/evict)
+    private transient Counter capped;
+    private transient Map<String, Long> lastCapWarnMs;         // log rate limit only (wall clock), never the cap
 
     public ShortFeatureBufferFn(EvidencePolicy policy) {
+        this(policy, 0);
+    }
+
+    public ShortFeatureBufferFn(EvidencePolicy policy, int maxSamplesPerLoop) {
         this.policy = policy;
+        this.maxSamplesPerLoop = Math.max(0, maxSamplesPerLoop);
+    }
+
+    /**
+     * CHG-061b: the per-loop sample cap - {@code configured} when positive, else {@code 2 x ceil(66 min / grid)}
+     * with the grid the sample declares ({@code grid_seconds}; 5 s when it declares none): 1,584 at 5 s.
+     */
+    static int capFor(int gridSeconds, int configured) {
+        if (configured > 0) return configured;
+        int grid = gridSeconds > 0 ? gridSeconds : FALLBACK_GRID_SECONDS;
+        return 2 * ((RETAINED_SECONDS + grid - 1) / grid);
     }
 
     @Override
@@ -76,6 +110,9 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
         nextSeq = getRuntimeContext().getState(new ValueStateDescriptor<>("cplm-short-next-seq-v2", Types.LONG));
         profiles = new ShortProfileRegistry(getRuntimeContext().getMapState(new MapStateDescriptor<>("cplm-short-profiles-v2",
                 Types.STRING, TypeInformation.of(ShortProfileRegistry.Entry.class))));
+        bufferCount = getRuntimeContext().getState(new ValueStateDescriptor<>("cplm-short-count-v2", Types.INT));
+        capped = getRuntimeContext().getMetricGroup().counter("shortBufferCapped");
+        lastCapWarnMs = new HashMap<>();
     }
 
     static long minuteOf(long ts) {
@@ -108,6 +145,16 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
         long[] idx = minuteIndex.get(m);
         if (idx != null && holds(idx, ts)) return;                  // CHG-062: exact duplicate, the first stays
 
+        // CHG-061b: the hard cap - whole oldest minutes go first; the sample's own minute never does, so when it
+        // is the oldest left the arriving sample (the oldest data) is the one dropped
+        int count = count();
+        int cap = capFor(sample.gridSeconds, maxSamplesPerLoop);
+        if (count >= cap) {
+            reportCapped(sample.loopId, count, cap, ts, wm);
+            count = shrinkBefore(m, cap - 1, count);
+            if (count >= cap) return;
+        }
+        bufferCount.update(count + 1);
         long seq = nextSeq.value() == null ? 0L : nextSeq.value();
         nextSeq.update(seq + 1);
         String profileKey = profiles.detachAndRemember(sample, m);  // CHG-061: the profile is kept once per loop
@@ -179,24 +226,101 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
     private boolean evict(long t) throws Exception {
         long[] ms = minutes.value();
         if (ms == null || ms.length == 0) return false;
+        int count = count();
         int n = 0;
-        while (n < ms.length && ShortWindowSpecs.retainUntil(ms[n] + MINUTE_MS - 1) <= t) {
-            long[] idx = minuteIndex.get(ms[n]);
-            if (idx != null) for (long s : idx) samples.remove(s);
-            minuteIndex.remove(ms[n]);
-            n++;
-        }
+        while (n < ms.length && ShortWindowSpecs.retainUntil(ms[n] + MINUTE_MS - 1) <= t) count -= dropMinute(ms[n++]);
         if (n == ms.length) {
-            minutes.clear();
+            keepFrom(ms, n);
             nextSeq.clear();
-            profiles.clear();
             return false;
         }
         if (n > 0) {
-            minutes.update(Arrays.copyOfRange(ms, n, ms.length));
-            profiles.evictBefore(ms[n]);                            // CHG-061: a profile leaves with its last minute
+            keepFrom(ms, n);
+            bufferCount.update(count);
         }
         return true;
+    }
+
+    /**
+     * CHG-061b: evicts whole oldest minutes before {@code m} until at most {@code target} samples remain (or none
+     * older is left) - the same eviction path as {@link #evict}, profiles included. Returns the count left.
+     */
+    private int shrinkBefore(long m, int target, int count) throws Exception {
+        long[] ms = minutes.value();
+        if (ms == null) return count;
+        int n = 0;
+        while (count > target && n < ms.length && ms[n] < m) count -= dropMinute(ms[n++]);
+        keepFrom(ms, n);
+        if (n < ms.length) bufferCount.update(count);
+        return count;
+    }
+
+    /** Removes one buffered minute's samples and index entry; returns how many samples it held. */
+    private int dropMinute(long minute) throws Exception {
+        long[] idx = minuteIndex.get(minute);
+        if (idx != null) for (long s : idx) samples.remove(s);
+        minuteIndex.remove(minute);
+        return idx == null ? 0 : idx.length;
+    }
+
+    /** Keeps the minutes from index {@code n} on (all dropped: the buffer, its count and its profiles empty). */
+    private void keepFrom(long[] ms, int n) throws Exception {
+        if (n == 0) return;
+        if (n == ms.length) {
+            minutes.clear();
+            bufferCount.clear();
+            profiles.clear();
+            return;
+        }
+        minutes.update(Arrays.copyOfRange(ms, n, ms.length));
+        profiles.evictBefore(ms[n]);                                // CHG-061: a profile leaves with its last minute
+    }
+
+    /**
+     * CHG-061b: the running sample count. Absent on a buffer that predates it (a pre-CHG-061b "-v2" checkpoint):
+     * counted once from the minute index, then kept by append and evict.
+     */
+    private int count() throws Exception {
+        Integer c = bufferCount.value();
+        if (c != null) return c;
+        int n = bufferedSizeSlow();
+        if (n > 0) bufferCount.update(n);
+        return n;
+    }
+
+    /** The real buffer size, summed over the minute index (a restore and the tests only - never per append). */
+    int bufferedSizeSlow() throws Exception {
+        long[] ms = minutes.value();
+        int n = 0;
+        if (ms != null) {
+            for (long m : ms) {
+                long[] idx = minuteIndex.get(m);
+                if (idx != null) n += idx.length;
+            }
+        }
+        return n;
+    }
+
+    /** CHG-061b (tests): the running count as stored. */
+    int bufferedCount() throws Exception {
+        Integer c = bufferCount.value();
+        return c == null ? 0 : c;
+    }
+
+    /** CHG-061b (tests): this subtask's {@code shortBufferCapped} counter. */
+    long cappedCount() {
+        return capped.getCount();
+    }
+
+    /** CHG-061b: counts every capped append; logs at most once per loop per hour of processing time. */
+    private void reportCapped(String loopId, int samples, int cap, long ts, long wm) {
+        capped.inc();
+        long now = System.currentTimeMillis();
+        Long last = lastCapWarnMs.get(loopId);
+        if (last != null && now - last < WARN_EVERY_MS) return;
+        lastCapWarnMs.put(loopId, now);
+        LOG.warn("SHORT_BUFFER_CAPPED loop={} samples={} watermarkLagMs={} cap={} (oldest minutes evicted; their windows report lower completeness)",
+                loopId, samples, wm == Long.MIN_VALUE ? -1 : ts - wm, cap);
     }
 
     private void addMinute(long m) throws Exception {

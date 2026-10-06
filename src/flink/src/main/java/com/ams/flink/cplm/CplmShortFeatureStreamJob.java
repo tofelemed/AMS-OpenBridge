@@ -86,10 +86,12 @@ public class CplmShortFeatureStreamJob {
         // policy says so (findings by default, --evidence-emit all|episodes|none); one evidence sink.
         EvidencePolicy policy = EvidencePolicy.fromArgs(args);
         String evidenceTopic = argOr(args, "--evidence-topic", CplmTopics.GATE_EVIDENCE);
+        // CHG-061b: the hard per-loop buffer cap; 0 (default) derives it from each sample's declared grid
+        int maxSamplesPerLoop = Integer.parseInt(argOr(args, "--short-max-samples-per-loop", "0"));
 
         SingleOutputStreamOperator<CplmShortFeatureResult> windowed = normalized
                 .keyBy(s -> s.loopId)
-                .process(new ShortFeatureBufferFn(policy))
+                .process(new ShortFeatureBufferFn(policy, maxSamplesPerLoop))
                 .name("cplm-short-windows")
                 .uid("cplm-short-windows");
         DataStream<String> results = windowed
