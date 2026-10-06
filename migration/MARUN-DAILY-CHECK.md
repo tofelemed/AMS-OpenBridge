@@ -85,6 +85,8 @@ The `Short job consumer lag` line is the same loop seen from Kafka: under 50,000
 feed); hundreds of thousands and growing is the backlog, same fix. Section 5's short-features line now says how many
 minutes behind real time the newest window is; more than 120 is the same condition and prints `ACT`.
 
+Since CHG-060 both Flink JVMs exit on an OutOfMemoryError and Docker restarts them (`unless-stopped`). After a TaskManager OOM the jobs resume from their last checkpoint by themselves; check `docker ps` section 2 for a young uptime on `ams-flink-taskmanager`. After a JobManager OOM there is no HA at the plant, so the jobs are gone: this section shows fewer than seven, and the remedy below (`04b`) applies.
+
 Fewer than seven jobs: `ALLOW_FLINK_SUBMIT=yes bash migration/04b-submit-flink-jobs.sh` submits the
 missing ones. Never `docker rm -f` the JobManager without cancelling every job first (orphaned
 checkpoints, section 1).

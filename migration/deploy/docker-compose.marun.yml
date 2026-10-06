@@ -269,6 +269,8 @@ services:
       DB_USER: ${AMS_DB_USER:-ams_user}
       DB_PASS: ${POSTGRES_PASSWORD}
       FLINK_PROPERTIES: |
+        # CHG-060: exit on OutOfMemoryError so Docker (unless-stopped) restarts the JVM instead of leaving it half-dead. No heap dump (a >1 GB dump is a disk incident).
+        env.java.opts.jobmanager: -XX:+ExitOnOutOfMemoryError
         jobmanager.rpc.address: flink-jobmanager
         jobmanager.memory.process.size: 1024m
         parallelism.default: 1
@@ -325,6 +327,8 @@ services:
       DB_USER: ${AMS_DB_USER:-ams_user}
       DB_PASS: ${POSTGRES_PASSWORD}
       FLINK_PROPERTIES: |
+        # CHG-060: exit on OutOfMemoryError so Docker (unless-stopped) restarts the JVM instead of leaving it half-dead. No heap dump (a >1 GB dump is a disk incident).
+        env.java.opts.taskmanager: -XX:+ExitOnOutOfMemoryError
         jobmanager.rpc.address: flink-jobmanager
         # v2.5 (pre-prod gap G3): seven standing jobs plus the bounded shadow / replay /
         # reconstruction submissions share this TM, and every REST submission leaves a

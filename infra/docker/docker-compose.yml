@@ -526,6 +526,8 @@ services:
       # v2.5 (3C.1): the CPLM jobs verify gate-config bundles with the platform service key (HMAC-SHA256); no key = every bundle NACKed UNSIGNED
       CPLM_GATE_CONFIG_KEY: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
       FLINK_PROPERTIES: |
+        # CHG-060: exit on OutOfMemoryError so Docker (unless-stopped) restarts the JVM instead of leaving it half-dead. No heap dump (a >1 GB dump is a disk incident).
+        env.java.opts.jobmanager: -XX:+ExitOnOutOfMemoryError
         jobmanager.rpc.address: flink-jobmanager
         jobmanager.memory.process.size: 1024m
         parallelism.default: 1
@@ -627,6 +629,8 @@ services:
       # v2.5 (3C.1): the CPLM jobs verify gate-config bundles with the platform service key (HMAC-SHA256); no key = every bundle NACKed UNSIGNED
       CPLM_GATE_CONFIG_KEY: ${TRAVERSE_SERVICE_KEY:?TRAVERSE_SERVICE_KEY must be set (generate with openssl rand -hex 24)}
       FLINK_PROPERTIES: |
+        # CHG-060: exit on OutOfMemoryError so Docker (unless-stopped) restarts the JVM instead of leaving it half-dead. No heap dump (a >1 GB dump is a disk incident).
+        env.java.opts.taskmanager: -XX:+ExitOnOutOfMemoryError
         jobmanager.rpc.address: flink-jobmanager
         # CHG-039 (v2.6.6): the Short Feature job keeps its window buffer on HEAP state (~250 MB at 144 loops);
         # 3584m gives ~1.1 GB task heap (was 640 MB) and 1,086 MB managed (68 MB per slot, was 45) for the RocksDB jobs.

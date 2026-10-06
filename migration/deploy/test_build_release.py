@@ -376,6 +376,14 @@ def test_the_plant_overlay_gives_the_taskmanager_3584m():
     assert "taskmanager.memory.process.size: 3584m" in overlay
 
 
+def test_the_plant_overlay_makes_both_flink_jvms_exit_on_oom():
+    # CHG-060: the overlay replaces FLINK_PROPERTIES wholesale, so the flags must be here, not only in the lab file
+    overlay = (br.Path(__file__).parent / "docker-compose.marun.yml").read_text(encoding="utf-8")
+    assert "env.java.opts.jobmanager: -XX:+ExitOnOutOfMemoryError" in overlay
+    assert "env.java.opts.taskmanager: -XX:+ExitOnOutOfMemoryError" in overlay
+    assert "HeapDumpOnOutOfMemoryError" not in overlay      # a >1 GB dump on the 96 GB plant disk is a disk incident
+
+
 # ── CHG-049 (evidence storage optimization; ships inside the accumulating SME batch) ─────────────────────────
 def chg049_steps(on: bool = True) -> str:
     return br.vm_steps("v0.0.0-test", "abc1234", COMBINED_ROWS, True, ["flink-jobmanager", "cplm-api"],

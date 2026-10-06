@@ -117,6 +117,8 @@ services:
   flink-jobmanager:
     environment:
       FLINK_PROPERTIES: |
+        # CHG-060: exit on OutOfMemoryError so Docker (unless-stopped) restarts the JVM instead of leaving it half-dead. No heap dump (a >1 GB dump is a disk incident).
+        env.java.opts.jobmanager: -XX:+ExitOnOutOfMemoryError
         jobmanager.rpc.address: flink-jobmanager
         jobmanager.memory.process.size: 1024m
         parallelism.default: 1
@@ -155,6 +157,8 @@ services:
         condition: service_completed_successfully
     environment:
       FLINK_PROPERTIES: |
+        # CHG-060: exit on OutOfMemoryError so Docker (unless-stopped) restarts the JVM instead of leaving it half-dead. No heap dump (a >1 GB dump is a disk incident).
+        env.java.opts.jobmanager: -XX:+ExitOnOutOfMemoryError
         jobmanager.rpc.address: flink-jobmanager-2
         jobmanager.memory.process.size: 1024m
         parallelism.default: 1
@@ -198,6 +202,8 @@ services:
   flink-taskmanager:
     environment:
       FLINK_PROPERTIES: |
+        # CHG-060: exit on OutOfMemoryError so Docker (unless-stopped) restarts the JVM instead of leaving it half-dead. No heap dump (a >1 GB dump is a disk incident).
+        env.java.opts.taskmanager: -XX:+ExitOnOutOfMemoryError
         taskmanager.memory.process.size: 2048m
         taskmanager.numberOfTaskSlots: 16
         high-availability.type: zookeeper
@@ -235,6 +241,8 @@ services:
         condition: service_healthy
     environment:
       FLINK_PROPERTIES: |
+        # CHG-060: exit on OutOfMemoryError so Docker (unless-stopped) restarts the JVM instead of leaving it half-dead. No heap dump (a >1 GB dump is a disk incident).
+        env.java.opts.taskmanager: -XX:+ExitOnOutOfMemoryError
         taskmanager.memory.process.size: 2048m
         taskmanager.numberOfTaskSlots: 16
         high-availability.type: zookeeper
