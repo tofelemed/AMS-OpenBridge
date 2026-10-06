@@ -3522,12 +3522,57 @@ FIC10401 as above, the G12 link lands on `/cpm/config?loop=FIC10401&view=effecti
 13 pages and none asks for a loop; Loop Events "Unshelve…" shows "The episode is not shelved"; night theme; 0 console errors.
 (The lab cplm-api was stopped 13:50–13:58 UTC by the CHG-049 session's evidence reclaim; checks ran after its restart.)
 
+## CHG-058 — SME review #22: loop notes — always available, linkable to an episode later, never an acknowledgement (2026-10-06)
+
+**Source:** `SME_review.md` point 22. **Scope:** **schema** `database/scripts/63_cplm_investigation_event_link.sql` (+ live plant
+`scripts/cpm-13-investigation-event-link.sql`, fresh-plant mirror `migration/schema/03-traverse_cplm.sql`, `build-release.py`
+OPS_FILES); **`cplm-api`** `Services/InvestigationStore.cs`, `Controllers/CpmInvestigationsController.cs` (+
+`tests/cplm-api.Tests/InvestigationEventLinkTests.cs`); **`ams-frontend`** new `api/cpm/investigations.ts`, `hooks/useLoopNotes.ts`,
+`components/Cpm/investigation/LoopNotes.tsx` (+ test), `components/Cpm/events/EpisodeNotes.tsx`; `CpmInvestigation.tsx`,
+`CpmReplay.tsx`, `events/EventDetail.tsx` (+ test), `styles/cpm-evidence-layout.css`. Backend commits fa41b8ac + 1eaa1f86.
+
+**What the SME said.** Investigation notes exist only when an open event frame exists; a user may need to save a preliminary
+observation for a loop with insufficient evidence or no open event — provide loop-level notes and allow linking them to an event
+later.
+
+**Verified before the change.** Correct, and worse: the Investigation "Investigation note" and the Replay "Record your finding" boxes
+appeared only with an open, unacknowledged episode ("No open event frame" otherwise), and saving sent the text AS the
+acknowledgement comment — writing a note acknowledged the episode (ISA-18.2: acknowledgement is a deliberate act). The v2.5 loop-
+level record already existed (`analytics.investigation_reference`, schema 56 / plant cpm-07: loop, method run, pinned evidence,
+note, explicit outcome; cplm-api create / outcome / get / list per loop) — no page used it (lab: 8 rows, all E2E), and it could
+not reference an episode.
+
+**What changed.**
+- **Schema (additive, online):** `investigation_reference.event_id BIGINT NULL` → `cplm_event_frames(id) ON DELETE SET NULL`
+  + partial index. A note on a loop with no episode is the point; a retention-deleted episode leaves the note on the loop.
+- **cplm-api:** `POST /investigations` accepts `eventId` (same loop only: 404 `EVENT_NOT_FOUND`, 422 `EVENT_OTHER_LOOP`);
+  `PATCH /investigations/{id}/event` links or unlinks later; `GET /events/{eventId}/investigations`; every read carries `eventId`;
+  notes capped at 4,000 characters. Linking never writes an episode action.
+- **Loop notes panel** (Investigation — shown for any selected loop, with or without a verdict — and Evidence Replay): note +
+  outcome (Inconclusive / Work completed / Performance restored) + "Attach to this evaluated window" (the window's G15 run; its
+  evidence pinned) + "Also acknowledge the open episode EVT-n and link the note to it" (opt-in, off by default). The loop's notes
+  newest first with author, time, outcome, links to the window / episode, "Link to episode…" (the loop's 20 most recent
+  episodes) and the outcome editable. Without `cpm.manage` the save shows "Needs the cpm.manage permission" (CHG-057).
+- **Loop Events › episode:** "Notes on EVT-n" (the linked notes) and "Link a loop note" for notes written before it opened.
+
+**Tests.** cplm-api `InvestigationEventLinkTests` (new, 3, lab DB: note without an episode, linked later and unlinked, listed for
+the episode, **no episode action written**; refused for another loop's / a missing episode; over-long note refused) — project
+269/269 green. Frontend `LoopNotes.test.tsx` (new, 3: no episode needed + window / evidence attached; acknowledges only when ticked
+and links the note; permission reason) — 87 files / 400 tests green; lint / tsc / build clean. **Lab:** migration applied to lab
+traverse_cplm 14:10 UTC (column + index verified); Investigation FIC10401 shows the panel with the opt-in for open episode
+EVT-1968; a saved note landed on FIC10401 with the window's run, author admin, and **no action on EVT-1968** (test row removed).
+The episode link and "Notes on EVT-n" are verified once the lab cplm-api carries fa41b8ac + 1eaa1f86 (cherry-picked onto the
+CHG-049 lab build at its S8→S9 boundary — the lab cplm-api is that session's).
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-057) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
-  migration, no Flink jar, no `.env` change.
+- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-058) and **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-058).
+  **One schema step** (CHG-058, additive, online): `ops/cpm-13-investigation-event-link.sql`. No Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
-- Plant: `docker load` the `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
+- Plant, in order: (1) `docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 <
+  ops/cpm-13-investigation-event-link.sql` then `bash migration/02-apply-schemas.sh` (ownership); (2) `docker load` the
+  `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5. The SQL may run before or after
+  the image swap (additive), but run it first so the new endpoints never meet a missing column.
   cplm-api restarts its consumers: check each CPLM consumer group has exactly one member afterwards (SingleMemberGuard).
 - Proofs (CHG-040): the Loop Performance menu shows four task sub-headings; open a loop in the Loop Explorer, then
   Investigation from the menu: the same loop is open without picking it again. (CHG-041) on Investigation, scroll to the
@@ -3564,3 +3609,5 @@ FIC10401 as above, the G12 link lands on `/cpm/config?loop=FIC10401&view=effecti
   a capped score says why (e.g. "capped at 89: a valve cause cannot be confirmed without valve position").
   (CHG-057) System Response on a loop without events explains why and links to the G12 step-test settings and Historical;
   a disabled action shows its reason under the button.
+  (CHG-058) Investigation › Loop notes saves a note on a loop with no open episode, and does not acknowledge anything unless the
+  box is ticked; `SELECT event_id FROM analytics.investigation_reference LIMIT 1` works (the column exists).

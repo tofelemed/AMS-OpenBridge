@@ -67,6 +67,7 @@ OPS_FILES = [
     "scripts/cpm-10a-episode-evidence.sql",        # CHG-033     - episode capture ledger + EPISODE class (online, BEFORE the cplm-api swap)
     "scripts/cpm-10b-result-partitions.sql",       # CHG-033     - the three result tables as daily partitions (cplm-api STOPPED, after the 24 h measurement)
     "scripts/cpm-11-episode-debounce.sql",         # CHG-034     - candidate_family / candidate_windows on the frames (online, BEFORE the cplm-api swap)
+    "scripts/cpm-13-investigation-event-link.sql", # CHG-058     - loop notes linkable to an episode (online, additive, BEFORE the cplm-api swap)
     "scripts/set-quality-protocol.py",             # v2.5        - declare quality_protocol on every MQTT_LOOP_SAMPLES source
     "migration/kafka/topics.txt",                  # v2.5        - the 8 new topics (reference copy; 04 reads the extracted tree's)
 ]

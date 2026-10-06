@@ -19,6 +19,7 @@ import { isAcknowledged, shelfCountdown, shelfState, stateView } from './shelfSt
 import { codeLabel, diagnosisLabel, phrase } from '../vocabulary';
 import { EVIDENCE_SCORE_HELP, evidenceScore, evidenceScoreText } from '../evidenceScore';
 import { ReasonedButton } from '../ReasonedButton';
+import { EpisodeNotes } from './EpisodeNotes';
 
 const ShelvePanel = React.lazy(() => import('./ShelvePanel'));
 const UnshelvePanel = React.lazy(() => import('./UnshelvePanel'));
@@ -174,6 +175,7 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
           <EventHistory eventId={event.id} />
         </Suspense>
       )}
+      <EpisodeNotes event={event} />
       {!open && !acked && (
         <p className="cpm-copy" style={{ marginTop: 8 }}>
           This episode has closed but was never acknowledged — a closed, unacknowledged

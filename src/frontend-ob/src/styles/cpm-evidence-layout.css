@@ -152,3 +152,15 @@
 .cpm-empty__next { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 16px; margin-top: 8px; }
 .cpm-reasoned { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; max-width: 100%; }
 .cpm-reasoned__why { font-size: 0.78rem; color: var(--element-neutral-color); max-width: 32ch; }
+
+/* Loop notes (SME #22, CHG-058). */
+.cpm-loop-notes .cpm-textarea { display: block; width: 100%; max-width: 72ch; resize: vertical; }
+.cpm-loop-notes__options { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 20px; margin: 8px 0; }
+.cpm-check { display: inline-flex; align-items: center; gap: 6px; font-size: 0.875rem; max-width: 60ch; }
+.cpm-loop-notes__hint { font-size: 0.8rem; color: var(--element-neutral-color); }
+.cpm-loop-notes__list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cpm-loop-notes__item { border-top: 1px solid var(--border-divider-color); padding-top: 8px; }
+.cpm-loop-notes__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 0.8rem; color: var(--element-neutral-color); }
+.cpm-loop-notes__text { margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cpm-loop-notes__actions { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-end; }
+.cpm-episode-notes { margin-top: 12px; }

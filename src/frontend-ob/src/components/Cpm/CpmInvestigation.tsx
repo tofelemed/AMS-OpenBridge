@@ -13,7 +13,7 @@
  * Split in v2.5: investigation/{CaseTriage, HypothesisPanel, ReasoningChain,
  * WindowBrowser, cases, confirmationCopy, keyFacts}.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
@@ -27,7 +27,7 @@ import { ApiError } from '../../api/apiFetch';
 import type { CpmGateMatrix } from '../../api/cpmApi';
 import { HYPOTHESIS_LABEL } from '../../api/cpm/verdict';
 import {
-  useAcknowledgeEvent, useCpmEvents, useCpmLoops, useCpmTrend,
+  useCpmEvents, useCpmLoops, useCpmTrend,
   useFleetRankings, useGateHistory, useLatestGates,
 } from '../../hooks/useCpm';
 import { loopSeries } from '../../utils/loopSeries';
@@ -48,7 +48,8 @@ import { CodeLabel } from './CodeLabel';
 import { EngineTrace } from './evidence/views/engineTrace';
 import { contextOfMatrix, hasVerdict, metricAvailability } from './metricAvailability';
 import { MetricValue } from './MetricValue';
-import { windowEnds, windowSize } from './windowLabel';
+import { windowEnds, windowLabel, windowSize } from './windowLabel';
+import { LoopNotes } from './investigation/LoopNotes';
 import { CauseBreakdownRows } from './CauseBreakdown';
 import { EVIDENCE_SCORE_HELP, evidenceScoreText } from './evidenceScore';
 import { EvidenceScoreNote } from './EvidenceScoreNote';
@@ -144,8 +145,6 @@ export const CpmInvestigation: React.FC = () => {
   // Investigation note → the loop's open event frame (full cases are DG-7).
   const events = useCpmEvents({ loopId, openOnly: true, limit: 5 }, 60_000, !!loopId); // C
   const openFrame = events.data?.events.find(e => e.ack_state === 'UNACKNOWLEDGED');
-  const ack = useAcknowledgeEvent();
-  const [note, setNote] = useState('');
 
   return (
     <div className="cpm-screen">
@@ -303,36 +302,16 @@ export const CpmInvestigation: React.FC = () => {
             </CollapsibleSection>
           </div>
 
-          <section className="cpm-surface cpm-investigation-note">
-            <PanelHead eyebrow="Record it" title="Investigation note" />
-            {openFrame ? (
-              <>
-                <textarea className="cpm-textarea" rows={2} value={note}
-                  placeholder="Finding, action taken, follow-up owner…"
-                  onChange={e => setNote(e.target.value)} />
-                <div className="cpm-filter-row" style={{ marginTop: 8 }}>
-                  <ObcButton variant="raised" disabled={note.trim().length === 0 || ack.isPending}
-                    onClick={() => ack.mutate(
-                      { id: openFrame.id, note: `INVESTIGATION: ${note.trim()}` },
-                      { onSuccess: () => setNote('') })}>
-                    {ack.isPending ? 'Saving…' : 'Create investigation note ›'}
-                  </ObcButton>
-                  {ack.isSuccess && <TonePill tone="good">SAVED</TonePill>}
-                </div>
-                <p className="cpm-copy">
-                  Saved as a note on the open event frame (acknowledges it). Full case
-                  management is not built yet — that is data-gap DG-7, not a hidden feature.
-                </p>
-              </>
-            ) : (
-              <EmptyState title="No open event frame"
-                copy="Notes attach to event frames; this loop has none open right now." />
-            )}
-          </section>
 
           <WindowBrowser windows={windows} matrix={matrix} previous={previous}
             windowKind={windowKind} setParams={setParams} />
         </>
+      )}
+
+      {/* SME #22 (CHG-058): notes on the loop — with or without a verdict, with or without an open episode */}
+      {loopId && (
+        <LoopNotes loopId={loopId} openFrame={openFrame ?? null}
+          window={matrix ? { methodRunId: matrix.methodRunIds?.G15 ?? null, label: windowLabel({ windowKind, windowEnd: matrix.windowEnd }) } : null} />
       )}
     </div>
   );

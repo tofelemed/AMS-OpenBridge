@@ -6,6 +6,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter } from 'react-router-dom';
 import type { CpmEventFrame } from '../../../api/cpmApi';
 
+vi.mock('./EpisodeNotes', () => ({ EpisodeNotes: () => null }));   // CHG-058: own fetches, own tests
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean; title?: string }) =>
     React.createElement('button', { onClick: p.onClick, disabled: p.disabled, title: p.title }, p.children),

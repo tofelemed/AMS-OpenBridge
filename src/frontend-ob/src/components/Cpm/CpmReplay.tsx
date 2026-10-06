@@ -23,16 +23,17 @@ import LoopCombobox from './LoopCombobox';
 import type { CpmGateMatrix, CpmKpiRow } from '../../api/cpmApi';
 import { gateRole } from '../../api/cpm/catalogue';
 import {
-  useAcknowledgeEvent, useCpmCalculations, useCpmEvents, useCpmKpisRange,
+  useCpmCalculations, useCpmEvents, useCpmKpisRange,
   useCpmLoops, useGateCatalogue, useGateHistory, useRawSlice, useRecompute,
 } from '../../hooks/useCpm';
 import { loopSeries } from '../../utils/loopSeries';
 import { ReplayChart } from './replay/ReplayChart';
 import { TransformationStepper } from './replay/TransformationStepper';
 import { LineageStrip } from './replay/LineageStrip';
-import { diagnosisLabel, codeLabel, phrase } from './vocabulary';
+import { diagnosisLabel, codeLabel } from './vocabulary';
 import { gateMark } from './gateStatus';
 import { windowLabel } from './windowLabel';
+import { LoopNotes } from './investigation/LoopNotes';
 import { ReasonedButton } from './ReasonedButton';
 
 /** Long-tier metric fields relevant per gate (real stored fields only). */
@@ -140,8 +141,6 @@ export const CpmReplay: React.FC = () => {
   // Engineer note → acknowledge the loop's open event frame with the note.
   const events = useCpmEvents({ loopId, openOnly: true, limit: 5 }, 60_000, !!loopId); // C
   const openFrame = events.data?.events.find(e => e.ack_state === 'UNACKNOWLEDGED');
-  const ack = useAcknowledgeEvent();
-  const [note, setNote] = useState('');
 
   const exportPackage = () => {
     if (!selected) return;
@@ -323,35 +322,13 @@ export const CpmReplay: React.FC = () => {
             )}
           </div>
 
-          <PanelHead eyebrow="Engineer note" title="Record your finding" />
-          {openFrame ? (
-            <>
-              <p className="cpm-copy">
-                Notes attach by acknowledging the open event frame
-                ({phrase(openFrame.family)} · opened {fmtDateTime(openFrame.opened_at)}).
-              </p>
-              <textarea className="cpm-textarea" rows={3} value={note}
-                placeholder="What did the evidence show? What action was taken?"
-                onChange={e => setNote(e.target.value)} />
-              <div className="cpm-filter-row" style={{ marginTop: 8 }}>
-                <ObcButton variant="raised" disabled={note.trim().length === 0 || ack.isPending}
-                  onClick={() => ack.mutate({ id: openFrame.id, note: note.trim() }, { onSuccess: () => setNote('') })}>
-                  {ack.isPending ? 'Saving…' : 'Acknowledge with note'}
-                </ObcButton>
-                {ack.isSuccess && <TonePill tone="good">SAVED</TonePill>}
-                {ack.isError && (
-                  <span className="cpm-field__error">
-                    Failed: {(ack.error as Error)?.message ?? 'unknown error'}
-                  </span>
-                )}
-              </div>
-            </>
-          ) : (
-            <EmptyState title="No open event frame on this loop"
-              copy="Notes are stored on event frames; when this loop has an unacknowledged event, the note box appears here." />
-          )}
         </section>
       </div>
+      {/* SME #22 (CHG-058): loop notes replace "acknowledge with note" — a note never acknowledges by itself */}
+      {loopId && (
+        <LoopNotes loopId={loopId} openFrame={openFrame ?? null}
+          window={selected ? { methodRunId: selected.methodRunIds?.G15 ?? null, label: windowLabel(selected) } : null} />
+      )}
     </div>
   );
 };
