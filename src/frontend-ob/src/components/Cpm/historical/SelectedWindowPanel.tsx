@@ -19,6 +19,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import type { CpmGateMatrix } from '../../../api/cpmApi';
 import { EmptyState, KvRow, PanelHead, TonePill, fmtDateTime, toneFor } from '../shared';
 import { workbenchHref } from '../evidence/selection';
+import { diagnosisLabel } from '../vocabulary';
 
 /** The run to open for a window: its fused verdict (G15), else the first gate that carries one. */
 export function windowRun(win: CpmGateMatrix): { methodRunId: string; gate: string } | null {
@@ -78,7 +79,7 @@ export const SelectedWindowPanel: React.FC<{
             <div>
               <KvRow label="Verdict">
                 <TonePill tone={toneFor(win.diagnosis)}>
-                  {(win.diagnosis ?? 'NONE').replace(/_/g, ' ')}
+                  {diagnosisLabel(win.diagnosis)}
                 </TonePill>
               </KvRow>
               <KvRow label="Confidence">

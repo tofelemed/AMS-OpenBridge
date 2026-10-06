@@ -12,6 +12,7 @@ import type { CpmLoop } from '../../../api/cpmApi';
 import { KvRow, PanelHead, TonePill } from '../shared';
 import { EffectiveConfigDrawer } from '../config/EffectiveConfigDrawer';
 import { evidenceHref, responseHref } from '../cpaHref';
+import { codeLabel } from '../vocabulary';
 
 const acquisitionText = (a: NonNullable<CpmLoop['model']>['acquisition'] | null | undefined): string => {
   if (!a) return '—';
@@ -38,10 +39,10 @@ export const LoopModelCard: React.FC<{ loop: CpmLoop; workbenchHref?: string; wo
       {m ? (
         <>
           <KvRow label="Service family">{m.serviceFamily ?? '—'}</KvRow>
-          <KvRow label="Dynamic class">{m.dynamicClass ?? '—'}</KvRow>
+          <KvRow label="Dynamic class"><span title={m.dynamicClass ?? undefined}>{codeLabel(m.dynamicClass)}</span></KvRow>
           <KvRow label="Objective">{m.objectiveType}</KvRow>
           <KvRow label="Topology">{m.topology}</KvRow>
-          <KvRow label="Command path">{m.commandPath}</KvRow>
+          <KvRow label="Command path"><span title={m.commandPath ?? undefined}>{codeLabel(m.commandPath)}</span></KvRow>
           <KvRow label="Acquisition">{acquisitionText(m.acquisition)}</KvRow>
           <p className="cpm-copy">
             {explicit

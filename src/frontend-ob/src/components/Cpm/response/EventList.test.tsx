@@ -21,7 +21,7 @@ describe('EventList', () => {
     render(<EventList events={[ev({}), ev({ eventId: 'e2', modelState: 'VALIDATED' })]} selectedId="e2" censoredCount={0} showCensored={false} {...base} />);
     const rows = screen.getAllByRole('button', { name: /INPUT_TEST/ });
     expect(rows).toHaveLength(2);
-    expect(rows[0].textContent).toMatch(/CANDIDATE/);
+    expect(rows[0].textContent).toMatch(/Candidate/);
     expect(rows[0].textContent).toMatch(/Response characterised · model candidate/);
     expect(rows[0].textContent).not.toMatch(/EVALUATED|COMPLETE/);                              // one state, not two look-alike pills
     expect(rows[1].getAttribute('aria-current')).toBe('true');

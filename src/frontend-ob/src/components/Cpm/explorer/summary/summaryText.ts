@@ -10,9 +10,8 @@
 import type { CpmGateMatrix } from '../../../../api/cpm/gates';
 import { HYPOTHESIS_LABEL, OBSERVATION_LABEL } from '../../../../api/cpm/verdict';
 import { toneFor, type CpmTone } from '../../shared';
+import { codeLabel, diagnosisLabel } from '../../vocabulary';
 
-const humanise = (token: string) => token.toLowerCase().replace(/_/g, ' ');
-const capitalise = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
 export type ConditionKind = 'finding' | 'healthy' | 'excluded' | 'insufficient' | 'not-evaluated';
 
@@ -29,9 +28,7 @@ export function conditionOf(diagnosis: string | null | undefined): Condition {
     return { kind: 'excluded', label: 'Excluded: loop not in automatic', tone: 'muted' };
   if (d === 'NORMAL' || d === 'NONE' || d === 'HEALTHY')
     return { kind: 'healthy', label: 'No problem found', tone: 'good' };
-  const m = d.match(/^(CONFIRMED|SUSPECTED|DETECTED|CLASSIFIED)_(.+)$/);
-  if (m) return { kind: 'finding', label: `${capitalise(humanise(m[2]))} ${m[1].toLowerCase()}`, tone: toneFor(d) };
-  return { kind: 'finding', label: capitalise(humanise(d)), tone: toneFor(d) };
+  return { kind: 'finding', label: diagnosisLabel(d), tone: toneFor(d) };
 }
 
 /** Observability flags as limitations, each with what it costs the diagnosis. */
@@ -46,7 +43,7 @@ const LIMITATION: Record<string, string> = {
   QUALITY_UNKNOWN: 'Source quality unknown for the window',
 };
 
-export const limitationOf = (flag: string): string => LIMITATION[flag] ?? capitalise(humanise(flag));
+export const limitationOf = (flag: string): string => LIMITATION[flag] ?? codeLabel(flag);
 
 /** Distinct limitations in served order (two flags can mean the same thing). */
 export function limitationsOf(flags: string[] | null | undefined): string[] {
@@ -62,14 +59,14 @@ export function evidenceOf(matrix: Pick<CpmGateMatrix, 'verdictV2'>, max = 3): E
     .filter(([, o]) => o.present)
     .sort(([, a], [, b]) => Number(b.role === 'PRIMARY') - Number(a.role === 'PRIMARY') || b.score - a.score)
     .slice(0, max)
-    .map(([id, o]) => ({ label: OBSERVATION_LABEL[id] ?? capitalise(humanise(id)), main: o.role === 'PRIMARY' }));
+    .map(([id, o]) => ({ label: OBSERVATION_LABEL[id] ?? codeLabel(id), main: o.role === 'PRIMARY' }));
 }
 
 /** The leading explanation, or null when no mechanism qualified (a symptom is not a cause). */
 export function leadingCauseOf(matrix: Pick<CpmGateMatrix, 'verdictV2'>): string | null {
   const lh = matrix.verdictV2?.leadingHypothesis;
   if (!lh || lh === 'NONE') return null;
-  return HYPOTHESIS_LABEL[lh] ?? capitalise(humanise(lh));
+  return HYPOTHESIS_LABEL[lh] ?? codeLabel(lh);
 }
 
 /** The engine's recommendation, else a sensible next check for the state. */

@@ -28,6 +28,7 @@ import { GateResultStatePanel, classifyGateResult, type GateState } from '../../
 import { headlineOf } from '../../evidence/views/headlines';
 import { verdictSentence } from '../../evidence/verdictCopy';
 import { formatInZone, siteZoneOf } from '../../evidence/timezone';
+import { codeLabel } from '../../vocabulary';
 
 export interface SummaryGateDetailProps {
   loop: CpmLoop;
@@ -89,7 +90,7 @@ export const SummaryGateDetail: React.FC<SummaryGateDetailProps> = ({ loop, gate
         title={`${gate} · ${name}`}
         right={
           <span className="cpm-filter-row">
-            {status && <TonePill tone={tone}>{status.replace(/_/g, ' ')}</TonePill>}
+            {status && <TonePill tone={tone}>{codeLabel(status)}</TonePill>}
             <ObcButton variant="flat" title="Collapse this gate" onClick={onClose}>Close</ObcButton>
           </span>
         }

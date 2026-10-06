@@ -31,7 +31,7 @@ describe('ConfigOverview', () => {
     const table = screen.getByRole('table', { name: 'Configuration by loop' });
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(20);                                                            // page 1 of 2
-    expect(rows[0].textContent).toMatch(/FIC10302.*ACTIVE_VERIFIED.*LOOP v2 · f9153b00/);
+    expect(rows[0].textContent).toMatch(/FIC10302.*Active \(verified\).*LOOP v2 · f9153b00/);
     expect(rows[1].textContent).toMatch(/TIC10000.*factory layer/);
     expect(within(rows[0]).getByRole('link', { name: /FIC10302/ }).getAttribute('href')).toBe('/cpm/config?loop=FIC10302&view=effective');
     expect(screen.getByText(/1 of 25 loops run a governed bundle/)).toBeTruthy();

@@ -34,7 +34,7 @@ describe('fmtQuantity', () => {
   });
 
   it('passes strings through, joining ; lists and truncating the very long', () => {
-    expect(fmtQuantity('LINEAR_DETREND;SUBTRACT_MEAN')).toBe('LINEAR_DETREND · SUBTRACT_MEAN');
+    expect(fmtQuantity('LINEAR_DETREND;SUBTRACT_MEAN')).toBe('Linear detrend · Subtract mean');
     expect(fmtQuantity('true')).toBe('true');
     expect(fmtQuantity('x'.repeat(200)).length).toBeLessThanOrEqual(163);
     expect(fmtQuantity('42.5', 's')).toBe('42.5 s');

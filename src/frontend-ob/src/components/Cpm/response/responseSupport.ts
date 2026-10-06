@@ -5,11 +5,12 @@
  */
 import type { ResponseQuantity, SystemModel } from '../../../api/cpm/response';
 import type { DecodedArtifact } from '../evidence/artifactCodec';
+import { phrase } from '../vocabulary';
 
 /** A null quantity is stated with its reason ("not applicable (integrating)"), never shown as 0. */
 export function quantityText(q: ResponseQuantity | undefined): string {
   if (!q) return 'not reported';
-  if (q.value == null) return `not applicable (${(q.reasonIfNull || 'NO_REASON').toLowerCase().replace(/_/g, ' ')})`;
+  if (q.value == null) return `not applicable (${q.reasonIfNull ? phrase(q.reasonIfNull) : 'no reason given'})`;
   const v = fmt(q.value);
   const unc = q.uncertainty != null ? ` ± ${fmt(q.uncertainty)}` : '';
   return `${v}${q.unit ? ` ${q.unit}` : ''}${unc}`;
@@ -61,7 +62,7 @@ export const BAND_MEANINGS: Record<string, string> = {
   PREDICTION_INTERVAL_OF_OUTPUT_NOT_PARAMETER_CONFIDENCE: 'prediction interval of the output, not parameter confidence',
   CONFIDENCE_INTERVAL_OF_FIT: 'confidence interval of the fitted output',
 };
-export const bandMeaningText = (code: string | undefined) => (code ? BAND_MEANINGS[code] ?? code.toLowerCase().replace(/_/g, ' ') : 'band (meaning not declared)');
+export const bandMeaningText = (code: string | undefined) => (code ? BAND_MEANINGS[code] ?? phrase(code) : 'band (meaning not declared)');
 
 export const MODEL_PARAMS = ['process_gain', 'integrating_gain', 'dead_time', 'time_constant', 'time_constant_1', 'time_constant_2', 'damping_ratio', 'natural_frequency'] as const;
 

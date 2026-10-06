@@ -8,6 +8,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { EmptyState, TonePill, type CpmTone } from '../shared';
+import { codeLabel, phrase } from '../vocabulary';
 
 export type GateStateKind =
   | 'LOADING' | 'NO_RESULT' | 'NOT_EVALUATED' | 'SHORT_TIER' | 'UNSUPPORTED_METHOD' | 'NOT_RETAINED' | 'EVIDENCE_PENDING'
@@ -66,7 +67,7 @@ export function classifyGateResult(i: GateStateInput): GateState {
   }
   if (status === 'DISABLED') return { kind: 'DISABLED', title: 'Gate disabled by configuration', detail: i.cell?.reason ?? 'The gate is switched off for this loop.', stillValid: 'The other gates were evaluated without it; fusion assessability is reduced.', action: 'NONE', tone: 'muted' };
   if (status === 'NOT_EVALUATED' || status === 'EXCLUDED' || status === 'INSUFFICIENT') {
-    return { kind: 'NOT_EVALUATED', title: `${status} - the engine looked and declined`, detail: i.cell?.reason ? `Reason: ${i.cell.reason}.` : 'No reason recorded.',
+    return { kind: 'NOT_EVALUATED', title: `${codeLabel(status)}: the engine looked and declined`, detail: i.cell?.reason ? `Reason: ${phrase(i.cell.reason)}.` : 'No reason recorded.',
       stillValid: 'This is a verdict, not missing data: the prerequisite it names must be met before the gate can evaluate.', action: 'NONE', tone: 'warn' };
   }
   const readiness = i.manifest?.readiness ?? 'NONE';
@@ -97,7 +98,7 @@ export const GateResultStatePanel: React.FC<{ state: GateState; onReconstruct?: 
       : undefined;
     return (
       <div className="cpm-gate-state" data-state={state.kind}>
-        <TonePill tone={state.tone}>{state.kind.replace(/_/g, ' ')}</TonePill>
+        <TonePill tone={state.tone}>{codeLabel(state.kind)}</TonePill>
         <EmptyState title={state.title} copy={state.detail} action={action} />
         {state.stillValid && <p className="cpm-gate-state__valid">{state.stillValid}</p>}
         {state.link && <Link className="cpm-gate-state__link" to={state.link.href}>{state.link.label}</Link>}

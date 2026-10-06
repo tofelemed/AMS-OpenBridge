@@ -23,6 +23,7 @@ import { EmptyState, KvRow, QueryError, TonePill, fmtDateTime, toneFor, windowSp
 import { glyphFor } from '../../gateStatus';
 import { calculationsHref, windowsHref } from '../../cpaHref';
 import { LONG_METRICS, WindowResultsPanel, fmtVal } from '../../windows/WindowResults';
+import { diagnosisLabel } from '../../vocabulary';
 
 const isNoVerdictYet = (e: unknown) => e instanceof ApiError && e.status === 404;
 
@@ -41,7 +42,7 @@ const FusedResult: React.FC<{ loop: CpmLoop; kind: string }> = ({ loop, kind }) 
   return (
     <>
       <p className="cpm-copy cpm-source-line">
-        <TonePill tone={toneFor(m.diagnosis)}>{(m.diagnosis ?? 'NONE').replace(/_/g, ' ')}</TonePill>
+        <TonePill tone={toneFor(m.diagnosis)}>{diagnosisLabel(m.diagnosis)}</TonePill>
         {m.confidence != null ? ` ${(m.confidence * 100).toFixed(0)}% confidence · ` : ' '}
         window ending {m.windowEnd ? fmtDateTime(m.windowEnd) : '—'} · {counts.good} pass · {counts.warn} attention · {counts.bad} failed · {counts.muted} not evaluated
       </p>

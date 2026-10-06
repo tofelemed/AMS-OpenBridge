@@ -32,7 +32,7 @@ describe('gate facts', () => {
     const p = parametersOf(manifest, 'G5');
     expect(p.map(x => x.label)).toEqual(['Accepted cycles', 'ACF period', 'Regularity', 'Preprocessing']);
     expect(p.find(x => x.key === 'acf_series.period_s')).toMatchObject({ raw: '290.23199999999997', text: '290.2 s', kind: 'acf_series' });
-    expect(p.find(x => x.label === 'Preprocessing')!.text).toBe('LINEAR_DETREND · SUBTRACT_MEAN');
+    expect(p.find(x => x.label === 'Preprocessing')!.text).toBe('Linear detrend · Subtract mean');
     expect(p.some(x => x.key.includes('loop_id'))).toBe(false);
     // per-item artifacts (one per cycle) are results, not parameters
     const perCycle = { artifacts: [

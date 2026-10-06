@@ -32,9 +32,9 @@ describe('confirmationProse', () => {
   });
 
   it('names a pre-v2.5 row as a legacy flag and never as a confirmation', () => {
-    expect(confirmationProse(undefined, true)).toContain('LEGACY_FLAG_ONLY');
-    expect(confirmationProse(conf({ state: 'LEGACY_FLAG_ONLY', reason: 'PRE_V25_ROW' }))).toContain('LEGACY_FLAG_ONLY');
-    expect(confirmationLabel(undefined, true)).toBe('LEGACY FLAG');
+    expect(confirmationProse(undefined, true)).toContain('VP-presence flag, not a confirmation');
+    expect(confirmationProse(conf({ state: 'LEGACY_FLAG_ONLY', reason: 'PRE_V25_ROW' }))).toContain('VP-presence flag, not a confirmation');
+    expect(confirmationLabel(undefined, true)).toBe('Older result (flag only)');
   });
 
   it('never mentions a numeric cap anywhere', () => {

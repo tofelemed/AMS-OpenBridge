@@ -3214,9 +3214,64 @@ the conclusion and docks exactly under the context bar; Back to conclusion retur
 remembered across navigation; 0 px page overflow at 1440 / 1000 / 768 / 390 (tables scroll in their own wrappers); night
 theme; 0 console errors.
 
+## CHG-051 — SME review #14 + #15: engineering language instead of engine codes; readable precision (2026-10-06)
+
+**Source:** `SME_review.md` points 14 and 15 (approved together). **Scope:** `ams-frontend` only. New:
+`components/Cpm/{vocabulary.ts (+test), CodeLabel.tsx}`, `evidence/views/{engineTrace.tsx (+test)}`. Changed: ~45 display
+sites across Overview, Performance, Events, Explorer, Historical, Investigation, Workbench, Replay, Window Inspector,
+Calculations, System Response, Gate Configuration, Governance and Pipeline; `api/cpm/verdict.ts` (stiction label);
+`evidence/format.ts`, `investigation/keyFacts.ts`, `shared.tsx` (`fmtDuration` below 1 s); `styles/{cpm-evidence-layout,
+cpm-responsive}.css`. No service, schema or engine change.
+
+**What the SME said.** #14: internal wording is exposed — ARGMAX_RANKED, qualified_support, disqualifier codes, long machine
+explanation strings; use engineering language, keep raw identifiers under advanced information. #15: unnecessary precision —
+scores with many decimals, support duration in milliseconds; round sensibly, readable time units.
+
+**Verified before the change (whole application).** Correct. A lab scan of the visible text of every route (three loops: a
+confirmed oscillation, a suspected valve problem, insufficient data; collapsed sections opened) plus every code value in
+`analytics.cplm_gate_latest` found, among others: on the Workbench `ARGMAX_RANKED`, `qualified_support 86400000 ms`,
+`EVIDENCE_SCORE_UNCALIBRATED`, verdict tiles `OSCILLATION_TUNI/NG` broken mid-word, the `explanations` string
+`OSCILLATION=G5=PASS,period=NO_VALID_CYCLE;…` and the fusion reason `selected_family=oscillation, family_score=1.000,
+weighted=0.351, G14_cap=0.89…`, scores like `0.3142214703210277`; on Investigation "Machine reason
+`stiction:NO_SHAPE_EVIDENCE`", disqualifier pills, method ids `XCORR_ASYMMETRY_V1`, "LEGACY FLAG", `2700.00s`; on the Explorer
+`FAST_SELF_REG`, `OP_TO_VALVE` and breadcrumbs `section_600 › u6002_pellet_homogenization_ii_silo_4_5`; the Overview queue
+`section_100`; Gate Configuration `FLOW_FAST_SELF_REG`, `ACTIVE_VERIFIED`; System Response `CANDIDATE_MODEL`; Pipeline
+`18804ms`; and diagnoses shouted in capitals everywhere. Root cause: no vocabulary — ~55 places did `code.replace(/_/g, ' ')`
+on their own and ten small label maps each covered a corner. (The non-CPM routes redirect to the CPM Overview in this build.)
+
+**What changed.**
+- **One vocabulary** (`vocabulary.ts`): statuses, reasons / flags, disqualifiers ("Stiction ruled out: no stiction-shaped
+  cycles"), hypotheses, observations, case / condition / availability, model and bundle lifecycle, dynamics, profiles, command
+  path, method ids ("Autocorrelation (oscillation)"); diagnoses read "Oscillation confirmed", "Valve nonlinearity (stiction)
+  suspected". Health words follow NAMUR NE107. An unknown code is humanised in sentence case (acronyms and gate ids kept),
+  never hidden. Location slugs read "HDPE › Section 600 › U6002 pellet homogenization II silo 4/5".
+- **One way to show a code** (`<CodeLabel>`): the label, the raw code on hover. Every former `replace(/_/g, ' ')` site uses it
+  or the vocabulary functions.
+- **Machine strings made readable:** G15 decision → Leading cause / Case / Open condition / Availability / Qualified support
+  "24 h", hypotheses "ranked by evidence score — the highest leads; scores do not add up", the `explanations` string as a
+  table (symptom · gate · result · note). Investigation: Severity / Selected family / Reason in words; the Reason row is hidden
+  when it only repeats a disqualifier. G14 "Valve confirmation" with labelled fields. Not-evaluated gates: "Not evaluated:
+  the engine looked and declined — Reason: no clean oscillation cycle."
+- **Advanced information kept:** the exact codes and engine strings sit in a closed "Advanced — engine trace (raw codes)"
+  disclosure on the G15 view and the Investigation conclusion card; every label carries its raw code on hover; Explain ›
+  Parameters keeps the raw value on hover and counts composite engine records ("6 entries — read them in the evidence view").
+- **Precision (#15):** scores and ratios 2 decimals, percentages 1, embedded long decimals 3; durations as s / min / h
+  (`2700.00s` → "45 min", `86400000 ms` → "24 h", `18804ms` → "19 s"; under 1 s stays in ms). The exact values stay in the
+  artifacts and the engine trace.
+- **Phone width (found by the 390 px check):** long labels in key-value pills wrap; the Explorer period stepper and the
+  Performance segmented toggle no longer run off the screen.
+
+**Tests.** `vocabulary.test.ts` (every code served by the lab DB has a label with no underscore and no shouting; unknown codes
+humanised; diagnoses, disqualifiers, methods, locations), `engineTrace.test.ts` (explanations parsing; formatter labels,
+composite records, rounding, ms → duration); 27 existing tests updated from raw codes to labels. Frontend 79 files /
+372 tests green; lint / tsc / build clean. **Lab pass 2026-10-06:** re-scan of 40 page views (3 loops × 11 pages + 7 fleet
+pages, sections opened, Advanced excluded) and every gate view G0–G15 of FIC10401 and SYN_TIC_002: **no raw code, key=value
+string, millisecond duration or long decimal left in the main text** (the only match is a user name on Governance — a real
+identifier); 0 px page overflow at 1440 / 390; night theme; 0 console errors.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-050) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
+- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-051) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
   migration, no Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant: `docker load` the `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
@@ -3241,3 +3296,6 @@ theme; 0 console errors.
   (CHG-050) Evidence Workbench and Investigation open with a one-line "Showing … · Change ▾", the verdict / conclusion on
   the first screen, evidence and reasoning in collapsible sections; scroll down and a "Back to conclusion ↑" strip docks
   under the context bar.
+  (CHG-051) no engine codes in the main text: the Workbench G15 view reads "Leading cause Oscillation — tuning", the
+  Investigation card "Oscillation confirmed", Explorer "Fast self-regulating"; open "Advanced — engine trace (raw codes)" to
+  see the exact codes; durations read "45 min" / "24 h".

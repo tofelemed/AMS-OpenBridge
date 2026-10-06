@@ -6,6 +6,7 @@ import React from 'react';
 import type { CpmGateMatrix } from '../../../api/cpmApi';
 import { KvRow, TonePill } from '../shared';
 import { gateTone } from '../gateStatus';
+import { codeLabel, phrase } from '../vocabulary';
 
 /** Reasoning-chain stages over the 17 gates. */
 const CHAIN: { label: string; gates: string[]; question: string }[] = [
@@ -43,16 +44,17 @@ export const ReasoningChain: React.FC<{ matrix: CpmGateMatrix; machineReason: st
           <span className="cpm-event-row__sub">
             {c.gates.map(g => {
               const cell = matrix.gates.find(x => x.key === g);
-              const status = (cell?.status ?? '—').replace(/_/g, ' ');
+              const status = cell?.status ? codeLabel(cell.status) : '—';
               // G14's reason is the confirmation reason (NO_VP, NO_POSITIVE_EVIDENCE, …).
-              return g === 'G14' && cell?.reason ? `${g}:${status} (${cell.reason})` : `${g}:${status}`;
+              return g === 'G14' && cell?.reason ? `${g} ${status} (${phrase(cell.reason)})` : `${g} ${status}`;
             }).join(' · ')}
           </span>
         </div>
       );
     })}
-    <KvRow label="Machine reason code">
-      <span className="cpm-mono">{machineReason ?? 'none — verdict fused cleanly'}</span>
+    <KvRow label="Reason">
+      {machineReason && !machineReason.includes('=') ? <span title={machineReason}>{codeLabel(machineReason)}</span>
+        : machineReason ? 'see Advanced on the conclusion card' : 'none — verdict fused cleanly'}
     </KvRow>
   </>
 );

@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import type { CpmCondition } from '../../../api/cpm/conditions';
 import { EmptyState, PanelHead, QueryError, TonePill, fmtDateTime, fmtDuration } from '../shared';
 import { ageText } from '../verdictAge';
+import { codeLabel, phrase } from '../vocabulary';
 
 const KIND_LABEL: Record<string, string> = { FREEZE: 'Freeze', LIMIT_LOW: 'Limit low', LIMIT_HIGH: 'Limit high' };
 /** An OPEN condition the engine has not updated for this long is stale: its job restarted or the loop's samples stopped. */
@@ -37,7 +38,7 @@ export function conditionRows(conditions: CpmCondition[], now: number): Conditio
     loopId: c.loopId,
     displayName: c.displayName ?? c.loopId,
     gateLabel: c.gate,
-    label: KIND_LABEL[c.kind] ?? c.kind.toLowerCase().replace(/_/g, ' '),
+    label: KIND_LABEL[c.kind] ?? codeLabel(c.kind),
     open: c.state !== 'CLOSED',
     stale: c.state !== 'CLOSED' && now - c.lastMs > STALE_AFTER_MS,
     state: c.state === 'CLOSED' ? 'CLOSED' : 'OPEN',
@@ -45,7 +46,7 @@ export function conditionRows(conditions: CpmCondition[], now: number): Conditio
     lastUpdate: ageText(Math.max(0, now - c.lastMs)),
     startedAt: fmtDateTime(new Date(c.startMs).toISOString()),
     duration: fmtDuration(c.durationS * 1000),
-    reason: (c.closeReason ?? '').toLowerCase().replace(/_/g, ' '),
+    reason: c.closeReason ? phrase(c.closeReason) : '',
   }));
 }
 

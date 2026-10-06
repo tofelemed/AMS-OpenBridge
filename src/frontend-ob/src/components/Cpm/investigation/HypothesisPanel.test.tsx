@@ -34,23 +34,23 @@ describe('HypothesisPanel', () => {
   it('marks the served leading hypothesis and lists each mechanism with its evidence', () => {
     render(<HypothesisPanel verdict={v2} metrics={{}} />);
     const stiction = screen.getByTestId('hypothesis-STICTION');
-    expect(stiction.textContent).toContain('LEADING');
+    expect(stiction.textContent).toContain('Leading');
     expect(stiction.textContent).toContain('Triangular OP waveform');
-    expect(screen.getByTestId('hypothesis-EXCESSIVE_EFFORT').textContent).toContain('DISQUALIFIED');
-    expect(screen.getByTestId('hypothesis-OSCILLATION_TUNING').textContent).not.toContain('LEADING');
+    expect(screen.getByTestId('hypothesis-EXCESSIVE_EFFORT').textContent).toContain('Ruled out');
+    expect(screen.getByTestId('hypothesis-OSCILLATION_TUNING').textContent).not.toContain('Leading');
   });
 
   it('shows the method behind each observation and its role', () => {
     render(<HypothesisPanel verdict={v2} metrics={{}} />);
     const lag = screen.getByTestId('observation-LAG_ASYMMETRY');
-    expect(lag.textContent).toContain('XCORR_ASYMMETRY_V1');
-    expect(lag.textContent).toContain('SUPPORTING');
+    expect(lag.querySelector('[title="XCORR_ASYMMETRY_V1"]')?.textContent).toBe('Cross-correlation asymmetry');
+    expect(lag.textContent).toContain('Supporting');
   });
 
   it('renders the served confirmation state and never a hard-coded cap', () => {
     const { container } = render(<HypothesisPanel verdict={v2} metrics={{}} />);
     expect(screen.getByTestId('confirmation-prose').textContent).toContain('cannot confirm a final-element fault');
-    expect(container.textContent).toContain('NOT CONFIRMED');
+    expect(container.textContent).toContain('Not confirmed');
     expect(container.textContent).not.toContain('0.89');
     expect(container.textContent).toContain('not probabilities');
   });
@@ -62,9 +62,9 @@ describe('HypothesisPanel', () => {
       scoreSemantics: 'LEGACY', resultRevision: 0,
     };
     const { container } = render(<HypothesisPanel verdict={legacy} metrics={{ stiction_family_score: 0.8, fft_score: 0.4 }} />);
-    expect(container.textContent).toContain('LEGACY');
+    expect(container.textContent).toContain('Older result');
     expect(container.textContent).toContain('Stiction family');
-    expect(container.textContent).toContain('LEGACY_FLAG_ONLY');
+    expect(container.textContent).toContain('VP-presence flag, not a confirmation');
     expect(container.querySelector('[data-testid^="hypothesis-"]')).toBeNull();
   });
 });

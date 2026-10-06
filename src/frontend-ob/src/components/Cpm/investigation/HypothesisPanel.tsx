@@ -12,6 +12,7 @@ import { EmptyState, KvRow, PanelHead, TonePill } from '../shared';
 import type { CpmTone } from '../shared';
 import { confirmationLabel, confirmationProse } from './confirmationCopy';
 import { fmt } from './keyFacts';
+import { codeLabel, methodLabel, phrase } from '../vocabulary';
 
 /** Family / detector scores for the LEGACY fallback (rows written before v2.5). */
 const LEGACY_ROWS: { field: string; label: string }[] = [
@@ -51,7 +52,7 @@ export const HypothesisPanel: React.FC<{
     return (
       <>
         <PanelHead eyebrow="Hypothesis comparison" title="Family and detector scores"
-          right={<TonePill tone="muted">LEGACY</TonePill>} />
+          right={<TonePill tone="muted">Older result</TonePill>} />
         <p className="cpm-copy">
           This result predates v2.5: it carries family scores but no observations, hypotheses or
           fault-scoped confirmation. {confirmationProse(undefined, true)}
@@ -88,33 +89,33 @@ export const HypothesisPanel: React.FC<{
         return (
           <div key={id} className="cpm-window-row" data-testid={`hypothesis-${id}`}>
             <strong>
-              {HYPOTHESIS_LABEL[id] ?? id}{' '}
-              <TonePill tone={stateTone(h.state)}>{h.state.replace(/_/g, ' ')}</TonePill>
-              {leading && <> <TonePill tone="warn">LEADING</TonePill></>}
+              {HYPOTHESIS_LABEL[id] ?? codeLabel(id)}{' '}
+              <TonePill tone={stateTone(h.state)}>{codeLabel(h.state)}</TonePill>
+              {leading && <> <TonePill tone="warn">Leading</TonePill></>}
             </strong>
             <ScoreBar value={h.score} />
             <span className="cpm-event-row__sub">
               {h.evidenceGroups.length > 0
-                ? `for: ${h.evidenceGroups.map(g => OBSERVATION_LABEL[g] ?? g).join(' · ')}`
+                ? `for: ${h.evidenceGroups.map(g => OBSERVATION_LABEL[g] ?? codeLabel(g)).join(' · ')}`
                 : 'no supporting observation'}
-              {h.contradictions.length > 0 && ` · against: ${h.contradictions.join(', ')}`}
-              {h.disqualifiers.length > 0 && ` · disqualified: ${h.disqualifiers.join(', ')}`}
+              {h.contradictions.length > 0 && ` · against: ${h.contradictions.map(codeLabel).join(', ')}`}
+              {h.disqualifiers.length > 0 && ` · ruled out by: ${h.disqualifiers.map(c => phrase(c)).join(', ')}`}
             </span>
           </div>
         );
       })}
       <p className="cpm-copy">
-        Scores are uncalibrated evidence scores ({verdict.scoreSemantics}), not probabilities.
+        Scores are uncalibrated evidence scores, not probabilities: they rank the mechanisms, they do not measure certainty.
       </p>
 
-      <PanelHead eyebrow="G14 confirmation" title={conf.claimType.replace(/_/g, ' ')}
+      <PanelHead eyebrow="G14 confirmation" title={codeLabel(conf.claimType)}
         right={<TonePill tone={confirmationTone(conf.state)}>{confirmationLabel(conf)}</TonePill>} />
       <p className="cpm-copy" data-testid="confirmation-prose">{confirmationProse(conf)}</p>
       {conf.positiveEvidenceIds.length > 0 && (
-        <KvRow label="Positive evidence">{conf.positiveEvidenceIds.join(', ')}</KvRow>
+        <KvRow label="Positive evidence">{conf.positiveEvidenceIds.map(codeLabel).join(', ')}</KvRow>
       )}
       {conf.contradictions.length > 0 && (
-        <KvRow label="Contradictions">{conf.contradictions.join(', ')}</KvRow>
+        <KvRow label="Contradictions">{conf.contradictions.map(codeLabel).join(', ')}</KvRow>
       )}
       {conf.scope && <KvRow label="Scope">{conf.scope}</KvRow>}
 
@@ -135,11 +136,11 @@ export const HypothesisPanel: React.FC<{
               <tbody>
                 {observations.map(([id, o]) => (
                   <tr key={id} data-testid={`observation-${id}`}>
-                    <td style={{ textAlign: 'left' }}>{OBSERVATION_LABEL[id] ?? id}</td>
+                    <td style={{ textAlign: 'left' }}>{OBSERVATION_LABEL[id] ?? codeLabel(id)}</td>
                     <td>{o.present ? 'yes' : '—'}</td>
                     <td className="cpm-mono">{fmt(o.score)}</td>
-                    <td style={{ textAlign: 'left' }}><span className="cpm-mono">{o.methodId}</span></td>
-                    <td>{o.role}</td>
+                    <td style={{ textAlign: 'left' }}><span title={o.methodId}>{methodLabel(o.methodId)}</span></td>
+                    <td>{codeLabel(o.role)}</td>
                   </tr>
                 ))}
               </tbody>

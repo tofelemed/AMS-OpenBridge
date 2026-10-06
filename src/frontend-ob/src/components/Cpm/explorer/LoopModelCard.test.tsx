@@ -24,9 +24,9 @@ describe('LoopModelCard', () => {
     render(<MemoryRouter><LoopModelCard loop={loop({ serviceFamily: 'FLOW', dynamicClass: 'FAST_SELF_REG', objectiveType: 'TIGHT', topology: 'SINGLE', commandPath: 'OP_TO_VALVE',
       acquisition: { mode: 'PERIODIC', gridSeconds: 5 }, classificationSource: 'PRESET_FROM_LOOP_TYPE' })} /></MemoryRouter>);
     expect(screen.getByText('FLOW')).toBeTruthy();
-    expect(screen.getByText('FAST_SELF_REG')).toBeTruthy();
+    expect(screen.getByText('Fast self-regulating')).toBeTruthy();
     expect(screen.getByText('TIGHT')).toBeTruthy();
-    expect(screen.getByText('OP_TO_VALVE')).toBeTruthy();
+    expect(screen.getByText('Output drives a valve')).toBeTruthy();
     expect(screen.getByText('PERIODIC · 5 s grid')).toBeTruthy();
     expect(screen.getByText(/derived from the tag type/)).toBeTruthy();
   });

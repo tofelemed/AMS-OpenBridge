@@ -7,8 +7,9 @@
 import type { ResponseEventDetail, ResponseEventSummary, ResponseQuantity, ResponseSubgate } from '../../../api/cpm/response';
 import type { CpmTone } from '../shared';
 import { metricOf, quantityText, stateTone } from './responseSupport';
+import { phrase } from '../vocabulary';
 
-export const humanise = (code: string | null | undefined): string => (code ?? '').trim().toLowerCase().replace(/_/g, ' ');
+export const humanise = (code: string | null | undefined): string => (code ?? '').trim() ? phrase(code) : '';
 const sentence = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
 export interface EventRowView { censored: boolean; state: string; tone: CpmTone; finding: string }

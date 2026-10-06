@@ -37,12 +37,15 @@ import { ReasoningChain } from './investigation/ReasoningChain';
 import { WindowBrowser } from './investigation/WindowBrowser';
 import { caseCounts, caseIdFor } from './investigation/cases';
 import { confirmationLabel } from './investigation/confirmationCopy';
-import { KEY_FACTS, fmt } from './investigation/keyFacts';
+import { KEY_FACTS, fmtFact } from './investigation/keyFacts';
 import { HealthLane } from './health/HealthLane';
 import CollapsibleSection from './CollapsibleSection';
 import ConclusionStrip from './ConclusionStrip';
 import SelectionSummary from './SelectionSummary';
 import { useInstrumentHealthHistory } from './health/useInstrumentHealth';
+import { codeLabel, diagnosisLabel } from './vocabulary';
+import { CodeLabel } from './CodeLabel';
+import { EngineTrace } from './evidence/views/engineTrace';
 
 export const CpmInvestigation: React.FC = () => {
   const navigate = useNavigate();
@@ -147,7 +150,7 @@ export const CpmInvestigation: React.FC = () => {
       <LoopContextBar loopId={loopId} period={matrix ? { label: `${windowKind} fused window${mode === 'historical' ? ' (selected)' : ' (latest)'}`, start: matrix.windowStart, end: matrix.windowEnd } : null} />
       {/* SME #13 (CHG-050): the diagnosis stays in view while the reasoning below it is read. */}
       <ConclusionStrip targetId="cpm-conclusion" active={!!matrix} label="Final conclusion"
-        tone={toneFor(matrix?.diagnosis)} text={(matrix?.diagnosis ?? 'NONE').replace(/_/g, ' ')}
+        tone={toneFor(matrix?.diagnosis)} text={diagnosisLabel(matrix?.diagnosis)}
         detail={matrix?.narrative?.recommendation ?? undefined} />
       {/* The fleet case chips and pickers fold to one line once a verdict is on screen. */}
       <SelectionSummary summary={loopId && matrix
@@ -193,7 +196,7 @@ export const CpmInvestigation: React.FC = () => {
         <>
           <div className="cpm-grid-2">
             <section className="cpm-surface" id="cpm-conclusion">
-              <PanelHead eyebrow="Final conclusion" title={(matrix.diagnosis ?? 'NONE').replace(/_/g, ' ')}
+              <PanelHead eyebrow="Final conclusion" title={diagnosisLabel(matrix.diagnosis)}
                 right={<TonePill tone={toneFor(matrix.diagnosis)}>
                   {matrix.confidence != null ? `${(matrix.confidence * 100).toFixed(0)}% confidence` : 'no confidence'}
                 </TonePill>} />
@@ -210,8 +213,8 @@ export const CpmInvestigation: React.FC = () => {
               <KvRow label="Instrument health">
                 <HealthLane rows={healthHistory.data?.intervals ?? []} from={start} to={end} role="PV" />
               </KvRow>
-              <KvRow label="Severity">{matrix.severity ?? '—'}</KvRow>
-              <KvRow label="Selected family">{matrix.narrative?.selectedFamily ?? '—'}</KvRow>
+              <KvRow label="Severity">{codeLabel(matrix.severity)}</KvRow>
+              <KvRow label="Selected family">{codeLabel(matrix.narrative?.selectedFamily)}</KvRow>
               <KvRow label="Leading hypothesis">
                 {verdict && !verdict.legacy && verdict.leadingHypothesis
                   ? (HYPOTHESIS_LABEL[verdict.leadingHypothesis] ?? verdict.leadingHypothesis)
@@ -223,13 +226,16 @@ export const CpmInvestigation: React.FC = () => {
                   {confirmationLabel(verdict?.confirmation, verdict?.legacy ?? true)}
                 </TonePill>
               </KvRow>
-              <KvRow label="Machine reason">
-                <span className="cpm-mono">{machineReason ?? '—'}</span>
-              </KvRow>
+              {/* CHG-051: the reason in words; an engine trace string ("selected_family=…") lives in Advanced */}
+              {!(machineReason && matrix.familyDisqualifiers.includes(machineReason)) && (
+                <KvRow label="Reason">
+                  {machineReason && !machineReason.includes('=') ? <CodeLabel code={machineReason} /> : machineReason ? 'see Advanced below' : '—'}
+                </KvRow>
+              )}
               {matrix.familyDisqualifiers.length > 0 && (
                 <KvRow label="Disqualifiers">
                   {matrix.familyDisqualifiers.map(d => (
-                    <TonePill key={d} tone="warn">{d}</TonePill>
+                    <TonePill key={d} tone="warn"><CodeLabel code={d} /></TonePill>
                   ))}
                 </KvRow>
               )}
@@ -239,6 +245,10 @@ export const CpmInvestigation: React.FC = () => {
                   <p className="cpm-copy">{matrix.narrative.recommendation}</p>
                 </>
               )}
+              <EngineTrace entries={[['diagnosis', matrix.diagnosis], ['leading_hypothesis', verdict?.leadingHypothesis],
+                ['confirmation', verdict ? `${verdict.confirmation.state}${verdict.confirmation.reason ? ` / ${verdict.confirmation.reason}` : ''}` : null],
+                ['machine_reason', machineReason], ['family_disqualifiers', matrix.familyDisqualifiers.join(', ')],
+                ['status_reason', matrix.narrative?.statusReason], ['selected_family', matrix.narrative?.selectedFamily]]} />
             </section>
 
             <section className="cpm-surface">
@@ -247,7 +257,7 @@ export const CpmInvestigation: React.FC = () => {
                 {KEY_FACTS.map(f => (
                   <KpiTile key={f.field} caption={f.label} tone="muted"
                     value={metrics[f.field] != null
-                      ? `${fmt(metrics[f.field]! * (f.scale ?? 1))}${f.unit}` : '—'}
+                      ? fmtFact(f, metrics[f.field]! * (f.scale ?? 1)) : '—'}
                     sub={metrics[f.field] == null ? 'not in this payload' : undefined} />
                 ))}
               </div>

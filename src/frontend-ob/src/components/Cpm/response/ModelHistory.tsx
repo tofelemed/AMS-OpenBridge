@@ -10,10 +10,11 @@ import type { SystemModel } from '../../../api/cpm/response';
 import { CpmChart, type CpmSeries } from '../evidence/CpmChart';
 import { formatInZone } from '../evidence/timezone';
 import { MODEL_PARAMS, paramPoints, stateTone } from './responseSupport';
+import { codeLabel } from '../vocabulary';
 
 export const ModelHistoryBody: React.FC<{ models: SystemModel[]; timeZone: string; canReview: boolean; onReview: (m: SystemModel) => void }> = ({ models, timeZone, canReview, onReview }) => {
   if (models.length === 0) {
-    return <EmptyState title="No system model for this loop" copy="A model appears when an event reaches CANDIDATE_MODEL; validated and baseline models are reviewed here." />;
+    return <EmptyState title="No system model for this loop" copy="A model appears when an event reaches the candidate-model stage; validated and baseline models are reviewed here." />;
   }
   const charts = MODEL_PARAMS.map(p => ({ param: p, points: paramPoints(models, p) })).filter(c => c.points.length > 0);
   return (
@@ -22,7 +23,7 @@ export const ModelHistoryBody: React.FC<{ models: SystemModel[]; timeZone: strin
       {charts.map(({ param, points }) => {
         const x = points.map(p => p.tMs);
         const series: CpmSeries[] = [
-          { id: param, label: param, unit: points[0].unit, x, y: points.map(p => p.value), pen: 'accent', markers: true, meta: i => [`model ${points[i].modelId.slice(0, 8)} · ${points[i].state}`] },
+          { id: param, label: param, unit: points[0].unit, x, y: points.map(p => p.value), pen: 'accent', markers: true, meta: i => [`model ${points[i].modelId.slice(0, 8)} · ${codeLabel(points[i].state)}`] },
           { id: `${param}_upper`, label: `${param} upper (value + uncertainty)`, unit: points[0].unit, x, y: points.map(p => p.upper), pen: 'grey', markers: true },
           { id: `${param}_lower`, label: `${param} lower (value − uncertainty)`, unit: points[0].unit, x, y: points.map(p => p.lower), pen: 'grey', markers: true },
         ];
@@ -38,7 +39,7 @@ export const ModelHistoryBody: React.FC<{ models: SystemModel[]; timeZone: strin
               <td>{m.family}</td>
               <td className="cpm-mono">{m.pathId}</td>
               <td className="cpm-mono">{m.estimator || '—'}</td>
-              <td><TonePill tone={stateTone(m.modelState)}>{m.modelState}</TonePill></td>
+              <td><TonePill tone={stateTone(m.modelState)}>{codeLabel(m.modelState)}</TonePill></td>
               <td className="cpm-mono">{m.revision}</td>
               <td>{m.reviewedBy ? `${m.reviewedBy}${m.reviewNote ? ` — ${m.reviewNote}` : ''}` : '—'}</td>
               <td>

@@ -23,6 +23,7 @@ import { ApiError } from '../../../api/apiFetch';
 import { EmptyState, KvRow, PanelHead, QueryError, TonePill, fmtWindowShape, windowSpecsOf } from '../shared';
 import { buildTierGroups, gateTone } from '../gateStatus';
 import { WindowResultsPanel } from '../windows/WindowResults';
+import { codeLabel } from '../vocabulary';
 
 const isNoVerdictYet = (e: unknown) => e instanceof ApiError && e.status === 404;
 
@@ -65,7 +66,7 @@ const FusedGates: React.FC<{ loop: CpmLoop; windowKind: string; firesOnLabel: st
                 onClick={() => navigate(
                   `/cpm/replay?loop=${encodeURIComponent(loop.loopId)}&gate=${encodeURIComponent(g.key)}`)}
               >
-                <TonePill tone={gateTone(g.status)}>{g.status.replace(/_/g, ' ')}</TonePill>
+                <TonePill tone={gateTone(g.status)}>{codeLabel(g.status)}</TonePill>
               </button>
             </KvRow>
           ))}

@@ -23,7 +23,7 @@ describe('eventRowView', () => {
     expect(eventRowView(ev({ eligibility: 'INELIGIBLE', finding: 'PATH_UNAVAILABLE', modelState: 'NONE' }))).toMatchObject({ state: 'INELIGIBLE', tone: 'bad', finding: 'Ineligible · path unavailable' });
   });
   it('humanise lowers a code to words', () => {
-    expect(humanise('SUPERSEDED_BY_EVENT')).toBe('superseded by event');
+    expect(humanise('SUPERSEDED_BY_EVENT')).toBe('superseded by a later event');
     expect(humanise('')).toBe('');
   });
 });

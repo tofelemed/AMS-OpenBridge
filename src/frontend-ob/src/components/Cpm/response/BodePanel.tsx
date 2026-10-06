@@ -12,6 +12,7 @@ import { CpmChart } from '../evidence/CpmChart';
 import { ArtifactSkeleton } from '../evidence/views/viewSupport';
 import { GateResultStatePanel } from '../evidence/GateResultState';
 import { metricOf, prov, provList, quantityText } from './responseSupport';
+import { phrase } from '../vocabulary';
 
 // audit F19: catalogue ids - the *_hz / peak_complementary ids never existed, so those rows never rendered
 const MARGINS: Array<[string, string]> = [['gain_margin', 'Gain margin'], ['phase_margin', 'Phase margin'], ['gain_crossover', 'Gain crossover'], ['phase_crossover', 'Phase crossover'], ['peak_sensitivity', 'Peak |S|'], ['peak_complementary_sensitivity', 'Peak |T|'], ['closed_loop_bandwidth', 'Closed-loop bandwidth']];
@@ -24,7 +25,7 @@ export const BodePanel: React.FC<{ bode: DecodedArtifact | undefined; metrics: R
     return (
       <GateResultStatePanel state={{
         kind: 'NOT_EVALUATED', title: 'Frequency response not available',
-        detail: `${reason.replace(/_/g, ' ').toLowerCase()} — the kernel writes a Bode artifact only from a validated model with a known controller form and a crossing in band.`,
+        detail: `${phrase(reason)} — the kernel writes a Bode artifact only from a validated model with a known controller form and a crossing in band.`,
         stillValid: 'The event, its metrics and the candidate models above are unaffected; margins are simply not claimed.',
         action: 'NONE', tone: 'muted',
       }} />
@@ -45,7 +46,7 @@ export const BodePanel: React.FC<{ bode: DecodedArtifact | undefined; metrics: R
         <CpmChart title="∠L(jω)" xKind="value" xLabel="ω" xUnit={bode.units.x ?? 'rad/s'} height={200}
           series={[{ id: 'phase', label: 'phase', unit: bode.units.phase_deg ?? 'degree', x: omega, y: Array.from(bode.columns.phase_deg), pen: 'pink' }]} />
       )}
-      <p className="cpm-copy">{(prov(bode, 'note') ?? 'MODEL_DOMAIN_ESTIMATE_NOT_A_SAFETY_GUARANTEE').replace(/_/g, ' ').toLowerCase()}: margins hold inside the model's validated domain and are not a safety guarantee.</p>
+      <p className="cpm-copy">{phrase(prov(bode, 'note') ?? 'MODEL_DOMAIN_ESTIMATE_NOT_A_SAFETY_GUARANTEE')}: margins hold inside the model's validated domain and are not a safety guarantee.</p>
     </section>
   );
 };

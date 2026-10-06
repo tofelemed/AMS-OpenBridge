@@ -22,6 +22,7 @@ import { useCpmCalculations, useCpmCapabilities, useCpmLoops } from '../../hooks
 import { shortIdentity } from '../../api/cpm/capabilities';
 import { useAuthStore } from '../../store/authStore';
 import { useRoleMatrix } from './useRoleMatrix';
+import { codeLabel } from './vocabulary';
 
 /** Rows fetched per request, and rows rendered per page of that fetch. */
 const AUDIT_TAKE = 200;
@@ -172,9 +173,9 @@ export const CpmGovernance: React.FC = () => {
               <span className="cpm-event-row__title">{fmtDateTime(e.timestampUtc)}</span>
               <div className="cpm-event-row__sub cpm-mono">{e.currentHash.slice(0, 16)}…</div>
             </span>
-            <TonePill tone={EVENT_TONE(e.eventType)}>{e.eventType.replace(/_/g, ' ')}</TonePill>
+            <TonePill tone={EVENT_TONE(e.eventType)}>{codeLabel(e.eventType)}</TonePill>
             <span className="cpm-event-row__sub">{e.userId || 'system'}</span>
-            <span className="cpm-event-row__sub">{e.entityType} · {e.entityId}</span>
+            <span className="cpm-event-row__sub">{codeLabel(e.entityType)} · {e.entityId}</span>
           </div>
         ))}
         {pageCount > 1 && (

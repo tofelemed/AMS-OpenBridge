@@ -13,6 +13,7 @@ import { PanelHead, TonePill } from '../shared';
 import type { ResponseEventSummary } from '../../../api/cpm/response';
 import { formatInZone } from '../evidence/timezone';
 import { eventRowView } from './responseCopy';
+import { codeLabel } from '../vocabulary';
 
 export interface EventListProps {
   events: ResponseEventSummary[];
@@ -54,7 +55,7 @@ export const EventList: React.FC<EventListProps> = ({ events, selectedId, timeZo
               aria-current={selected ? 'true' : undefined} onClick={() => onSelect(e)}>
               <span className="cpm-response-event__head">
                 <span className="cpm-mono cpm-response-event__time">{formatInZone(e.t0Ms, timeZone)}</span>
-                <TonePill tone={v.tone}>{v.state}</TonePill>
+                <TonePill tone={v.tone}>{codeLabel(v.state)}</TonePill>
               </span>
               <span className="cpm-response-event__what">{e.eventType} · {e.pathId}</span>
               <span className="cpm-event-row__sub">{v.finding}</span>

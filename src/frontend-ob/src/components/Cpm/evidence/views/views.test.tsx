@@ -130,7 +130,7 @@ describe('gate views', () => {
   it('G13: a legacy row is a stated UNSUPPORTED_METHOD; an analysed run draws the record, the graph and each peer pane', () => {
     const legacy = arts({ interaction: [decoded({ gate: 'G13', kind: 'interaction', x: [], y: [], provenance: { capability_state: 'UNAVAILABLE', capability_reason: 'INTERACTION_NOT_ANALYSED_BY_LONG_TIER', legacy_link_flag: 'HAS_PEER_LINKS' } })] });
     render(<G13Body arts={legacy} loopId="FIC10302" timeZone="UTC" />);
-    expect(screen.getByText(/UNSUPPORTED METHOD/)).toBeTruthy();
+    expect(screen.getByText(/Unsupported method/)).toBeTruthy();
     expect(screen.getByText(/INTERACTION_NOT_ANALYSED_BY_LONG_TIER/)).toBeTruthy();
     expect(captured).toHaveLength(0);                                                           // never a picture of an uncomputed method
     cleanup();
@@ -161,7 +161,7 @@ describe('gate views', () => {
     expect(cohOpt.xAxis.name).toBe('frequency (Hz)');
     cleanup();
     render(<G14Body d={decoded({ gate: 'G14', kind: 'confirmation_record', x: [], y: [], provenance: { claim_type: 'FINAL_ELEMENT_NON_FOLLOWING', state: 'SUSPECTED', reason: 'VP_TRACKING_HEALTHY', positive_evidence_ids: '', contradictions: 'VP_TRACKING_HEALTHY', scope: 'VP tracking', confirmed_at: 'NOT_CONFIRMED', test_id: 'NONE', review_record: 'NONE' } })} timeZone="UTC" />);
-    expect(screen.getByText('SUSPECTED')).toBeTruthy();
+    expect(screen.getAllByText('Suspected')[0]).toBeTruthy();
     expect(screen.getByText(/none — no positive non-following record/)).toBeTruthy();
     expect(screen.getByText('VP_TRACKING_HEALTHY', { selector: 'td' })).toBeTruthy();
     cleanup();
@@ -172,7 +172,7 @@ describe('gate views', () => {
     expect(rankedHypotheses(dec).map(h => h.id)).toEqual(['STICTION', 'TUNING']);
     render(<G15Body d={dec} />);
     const items = screen.getAllByRole('listitem');
-    expect(items[0].textContent).toContain('STICTION');
+    expect(items[0].querySelector('[title="STICTION"]')).toBeTruthy();
     expect(items[0].getAttribute('data-leading')).toBe('true');
     expect(screen.getByText(/not an additive waterfall/)).toBeTruthy();
   });

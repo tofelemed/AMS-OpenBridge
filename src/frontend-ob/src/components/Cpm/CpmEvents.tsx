@@ -36,6 +36,7 @@ import { ConditionsPanel } from './events/ConditionsPanel';
 import { useCpmConditions } from './events/useConditions';
 import EventDetail, { severityOf } from './events/EventDetail';
 import { explorerHref } from './cpaHref';
+import { diagnosisLabel } from './vocabulary';
 
 // E2 (P2-13): the page's local formatter carried no zone label — and this page
 // owns operator ack timestamps, the exact case the shared formatter exists for.
@@ -221,9 +222,9 @@ export const CpmEvents: React.FC = () => {
               <div key={e.id} className={`cpm-event-row${isSelected ? ' cpm-event-row--selected' : ''}`}>
                 <div className="cpm-event-row__main">
                   <button type="button" className="cpm-event-row__select" aria-pressed={isSelected}
-                    aria-label={`Show episode EVT-${e.id}, ${e.peak_diagnosis.replace(/_/g, ' ')}`}
+                    aria-label={`Show episode EVT-${e.id}, ${diagnosisLabel(e.peak_diagnosis)}`}
                     onClick={() => select(e.id)}>
-                    <span className="cpm-event-row__title">{e.peak_diagnosis.replace(/_/g, ' ')}</span>
+                    <span className="cpm-event-row__title">{diagnosisLabel(e.peak_diagnosis)}</span>
                     <span className="cpm-event-row__sub">EVT-{e.id} · {e.window_kind}</span>
                   </button>
                   <ObcButton variant="flat" title={`Open ${e.loop_id} in the Loop Explorer`}

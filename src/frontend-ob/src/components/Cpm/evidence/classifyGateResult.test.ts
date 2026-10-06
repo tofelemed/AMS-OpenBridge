@@ -33,7 +33,7 @@ describe('classifyGateResult', () => {
   });
   it('NOT_EVALUATED is a verdict, distinct from missing evidence', () => {
     expect(classifyGateResult(base({ cell: { key: 'G5', status: 'NOT_EVALUATED', reason: 'G0_FAIL' } })).kind).toBe('NOT_EVALUATED');
-    expect(classifyGateResult(base({ cell: { key: 'G5', status: 'NOT_EVALUATED', reason: 'G0_FAIL' } })).detail).toContain('G0_FAIL');
+    expect(classifyGateResult(base({ cell: { key: 'G5', status: 'NOT_EVALUATED', reason: 'G0_FAIL' } })).detail).toBe('Reason: window failed data qualification.');
   });
   it('NOT_RETAINED when nothing was kept for the run (policy, not a wait) and EVIDENCE_PENDING only while chunks are arriving', () => {
     const none = classifyGateResult(base({ manifest: { readiness: 'NONE', count: 0 } }));

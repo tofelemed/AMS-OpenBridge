@@ -66,3 +66,9 @@
   .cpm-gate-strip__tier { min-width: 0; max-width: 100%; }
   .cpm-gate-strip__chips { flex-wrap: wrap; }
 }
+
+/* CHG-051: labels are words now, so a long one (a disqualifier in a key-value row) wraps instead of
+   running off a phone screen; the trend period stepper shrinks its label rather than the page. */
+.cpm-kv__value .cpm-pill { white-space: normal; text-align: left; max-width: 100%; }
+.cpm-hist-stepper { max-width: 100%; min-width: 0; }
+@media (max-width: 600px) { .cpm-hist-stepper__text { white-space: normal; min-width: 0; text-align: center; } }

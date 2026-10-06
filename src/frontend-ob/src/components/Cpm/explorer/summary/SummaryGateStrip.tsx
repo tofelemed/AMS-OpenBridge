@@ -13,6 +13,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { CpmGateCell } from '../../../../api/cpm/gates';
 import { buildTierGroups, glyphFor } from '../../gateStatus';
+import { codeLabel } from '../../vocabulary';
 
 export interface SummaryGateStripProps {
   cells: CpmGateCell[];
@@ -69,7 +70,7 @@ export const SummaryGateStrip: React.FC<SummaryGateStripProps> = ({ cells, selec
                   data-gate={key}
                   aria-pressed={isSelected}
                   aria-label={`${key} ${c.name}: ${glyph.label}${c.reason ? `, ${c.reason}` : ''}`}
-                  title={`${c.name} — ${c.status.replace(/_/g, ' ')}${c.reason ? ` · ${c.reason}` : ''}`}
+                  title={`${c.name} — ${codeLabel(c.status)}${c.reason ? ` · ${codeLabel(c.reason)}` : ''}`}
                   tabIndex={key === cursor ? 0 : -1}
                   onFocus={() => setCursor(key)}
                   onClick={() => onSelect(key)}

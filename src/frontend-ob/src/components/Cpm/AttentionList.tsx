@@ -20,6 +20,7 @@ import { ObcDropdownButton } from '@oicl/openbridge-webcomponents-react/componen
 import type { CpmHeatmapLoop, CpmRankedLoop } from '../../api/cpmApi';
 import { EmptyState, PanelHead, QueryError, TonePill, toneFor } from './shared';
 import { drivingGates } from './gateStatus';
+import { diagnosisLabel } from './vocabulary';
 
 export type RankBy = 'confidence' | 'error';
 
@@ -119,7 +120,7 @@ export const AttentionList: React.FC<AttentionListProps> = ({
                 </button>
 
                 <span className="cpm-attention__verdict">
-                  <TonePill tone={toneFor(l.diagnosis)}>{l.diagnosis.replace(/_/g, ' ')}</TonePill>
+                  <TonePill tone={toneFor(l.diagnosis)}>{diagnosisLabel(l.diagnosis)}</TonePill>
                   {metric && <span className="cpm-attention__metric">{metric}</span>}
                 </span>
 

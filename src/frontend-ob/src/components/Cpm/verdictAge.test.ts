@@ -15,8 +15,8 @@ describe('verdictAge', () => {
 
   it('states an older verdict with its diagnosis, confidence and age', () => {
     expect(staleVerdictLine({ diagnosis: 'SUSPECTED_FINAL_ELEMENT_NONLINEARITY', confidence: 0.89, ageMs: 15 * 86_400_000 }))
-      .toBe('last verdict SUSPECTED FINAL ELEMENT NONLINEARITY 89% · 15 d ago');
-    expect(staleVerdictLine({ diagnosis: 'HEALTHY', confidence: null, ageMs: 3_600_000 })).toBe('last verdict HEALTHY · 1 h ago');
+      .toBe('last verdict Valve nonlinearity (stiction) suspected 89% · 15 d ago');
+    expect(staleVerdictLine({ diagnosis: 'HEALTHY', confidence: null, ageMs: 3_600_000 })).toBe('last verdict No problem found · 1 h ago');
     expect(staleVerdictLine(null)).toBeNull();
     expect(staleVerdictLine(undefined)).toBeNull();
   });

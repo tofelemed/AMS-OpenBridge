@@ -7,7 +7,8 @@ import type { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmGateMatrix } from '../../../api/cpmApi';
 import { PanelHead, fmtDateTime } from '../shared';
-import { KEY_FACTS, fmt } from './keyFacts';
+import { KEY_FACTS, fmtFact } from './keyFacts';
+import { diagnosisLabel } from '../vocabulary';
 
 type SetParams = ReturnType<typeof useSearchParams>[1];
 
@@ -36,7 +37,7 @@ export const WindowBrowser: React.FC<{
                 ? { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
                 : { month: 'short', day: 'numeric' })
               : '—'}
-            {' · '}{(w.diagnosis ?? '—').replace(/_/g, ' ').slice(0, 22)}
+            {' · '}{diagnosisLabel(w.diagnosis)}
           </ObcButton>
         ))}
       </div>
@@ -56,8 +57,8 @@ export const WindowBrowser: React.FC<{
             <tbody>
               <tr>
                 <td style={{ textAlign: 'left' }}>Diagnosis</td>
-                <td>{(previous.diagnosis ?? '—').replace(/_/g, ' ')}</td>
-                <td>{(matrix.diagnosis ?? '—').replace(/_/g, ' ')}</td>
+                <td>{diagnosisLabel(previous.diagnosis)}</td>
+                <td>{diagnosisLabel(matrix.diagnosis)}</td>
                 <td>{previous.diagnosis === matrix.diagnosis ? 'unchanged' : 'changed'}</td>
               </tr>
               <tr>
@@ -75,13 +76,12 @@ export const WindowBrowser: React.FC<{
                 // showed good_error_pct as 0.67 while the tile above said
                 // 67%: one value, two units, one screen.
                 const s = f.scale ?? 1;
-                const u = f.unit;
                 return (
                   <tr key={f.field}>
                     <td style={{ textAlign: 'left' }}>{f.label}</td>
-                    <td>{prev != null ? fmt(prev * s) + u : '—'}</td>
-                    <td>{cur != null ? fmt(cur * s) + u : '—'}</td>
-                    <td>{prev != null && cur != null ? fmt((cur - prev) * s) + u : '—'}</td>
+                    <td>{prev != null ? fmtFact(f, prev * s) : '—'}</td>
+                    <td>{cur != null ? fmtFact(f, cur * s) : '—'}</td>
+                    <td>{prev != null && cur != null ? fmtFact(f, (cur - prev) * s) : '—'}</td>
                   </tr>
                 );
               })}

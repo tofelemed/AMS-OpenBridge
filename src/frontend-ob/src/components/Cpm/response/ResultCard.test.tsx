@@ -71,7 +71,7 @@ describe('EventAside', () => {
     const steps = screen.getAllByRole('listitem').filter(li => li.getAttribute('data-subgate'));
     expect(steps).toHaveLength(8);
     expect(steps[4].textContent).toMatch(/E Validation/);
-    expect(steps[4].textContent).toMatch(/WAITING/);
+    expect(steps[4].textContent).toMatch(/Waiting/);
     expect(steps[4].textContent).toMatch(/no independent event yet/);
     expect(screen.getByText('Key results')).toBeTruthy();
     expect(screen.getByText(/Window from/).parentElement!.textContent).toMatch(/2026-09-17/);

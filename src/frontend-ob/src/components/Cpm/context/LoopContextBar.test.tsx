@@ -33,8 +33,8 @@ describe('fmtInstant', () => {
 
 describe('fmtLocation', () => {
   it('reads as a path without underscores and skips missing levels', () => {
-    expect(fmtLocation(FIC)).toBe('hdpe › section 400 › u4002 catalyst tankfarm');
-    expect(fmtLocation({ site: 'hdpe', area: null, unit: 'u1' })).toBe('hdpe › u1');
+    expect(fmtLocation(FIC)).toBe('HDPE › Section 400 › U4002 catalyst tankfarm');
+    expect(fmtLocation({ site: 'hdpe', area: null, unit: 'u1' })).toBe('HDPE › U1');
   });
 });
 
@@ -53,7 +53,7 @@ describe('LoopContextBar', () => {
     expect(bar.textContent).toContain('FIC10301');
     expect(bar.textContent).toContain('Flow controller FIC10301 (FCS0101)');
     expect(bar.textContent).toContain('FIC · criticality medium');
-    expect(bar.textContent).toContain('hdpe › section 400 › u4002 catalyst tankfarm');
+    expect(bar.textContent).toContain('HDPE › Section 400 › U4002 catalyst tankfarm');
     expect(bar.textContent).toContain('Latest results');
   });
 

@@ -5,6 +5,7 @@
  */
 import React from 'react';
 import { PanelHead } from '../shared';
+import { diagnosisLabel } from '../vocabulary';
 
 export const LineageStrip: React.FC<{
   series: string | undefined;
@@ -33,7 +34,7 @@ export const LineageStrip: React.FC<{
       <span className="cpm-lineage__arrow">→</span>
       <div className="cpm-lineage__node">
         <span className="cpm-eyebrow">Fused verdict</span>
-        <span>{(diagnosis ?? '—').replace(/_/g, ' ')}</span>
+        <span>{diagnosisLabel(diagnosis)}</span>
       </div>
     </div>
   </>

@@ -7,15 +7,16 @@
  * derives a verdict, a score or a cap.
  */
 import type { CpmConfirmation } from '../../../api/cpm/verdict';
+import { codeLabel } from '../vocabulary';
 
 /** What a loop with no valve-position signal can and cannot get — for registry/wizard/aside copy. */
 export const NO_VP_COPY =
   'Without a valve-position (VP) signal, G14 cannot confirm a final-element fault: such a verdict '
-  + 'stops at SUSPECTED. Oscillation and effort verdicts are unaffected.';
+  + 'stops at suspected. Oscillation and effort verdicts are unaffected.';
 
 /** Fleet-level version of the same fact, for a count of loops with no VP mapped. */
 export function noVpFleetCopy(count: number): string {
-  return `${count} loop(s) have no VP signal, so a final-element fault on them can be SUSPECTED at most, never CONFIRMED.`;
+  return `${count} loop(s) have no VP signal, so a final-element fault on them can be suspected at most, never confirmed.`;
 }
 
 const fmtS = (s: number) => (s >= 3600 ? `${(s / 3600).toFixed(1)} h` : s >= 60 ? `${(s / 60).toFixed(1)} min` : `${s.toFixed(0)} s`);
@@ -26,7 +27,7 @@ const fmtS = (s: number) => (s >= 3600 ? `${(s / 3600).toFixed(1)} h` : s >= 60 
  */
 export function confirmationProse(c: CpmConfirmation | null | undefined, legacy = false): string {
   if (legacy || !c || c.state === 'LEGACY_FLAG_ONLY') {
-    return 'This result predates v2.5: G14 was a VP-presence flag (LEGACY_FLAG_ONLY), not a confirmation.';
+    return 'This result predates v2.5: G14 was a VP-presence flag, not a confirmation.';
   }
   switch (c.state) {
     case 'CONFIRMED':
@@ -38,7 +39,7 @@ export function confirmationProse(c: CpmConfirmation | null | undefined, legacy 
     case 'NOT_CONFIRMED':
       return c.reason === 'NO_VP'
         ? NO_VP_COPY
-        : 'VP is mapped but showed no non-following dwell: the final-element claim is not confirmed and stops at SUSPECTED.';
+        : 'VP is mapped but showed no non-following dwell: the final-element claim is not confirmed and stops at suspected.';
     case 'NOT_APPLICABLE':
       return 'The verdict is a symptom family (oscillation or effort): a final-element confirmation does not apply.';
     default:
@@ -48,6 +49,6 @@ export function confirmationProse(c: CpmConfirmation | null | undefined, legacy 
 
 /** Short pill text for the G14 state. */
 export function confirmationLabel(c: CpmConfirmation | null | undefined, legacy = false): string {
-  if (legacy || !c || c.state === 'LEGACY_FLAG_ONLY') return 'LEGACY FLAG';
-  return c.state.replace(/_/g, ' ');
+  if (legacy || !c || c.state === 'LEGACY_FLAG_ONLY') return 'Older result (flag only)';
+  return codeLabel(c.state);
 }

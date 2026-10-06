@@ -15,6 +15,7 @@ import { formatInZone } from '../evidence/timezone';
 import { workbenchHref } from '../evidence/selection';
 import { keyResults, subgateSteps } from './responseCopy';
 import { stateTone } from './responseSupport';
+import { codeLabel, phrase } from '../vocabulary';
 
 const outputText = (v: unknown): string => v == null ? '—' : typeof v === 'number' ? (Number.isInteger(v) ? String(v) : v.toFixed(3)) : typeof v === 'object' ? JSON.stringify(v) : String(v);
 /** A missing / zero epoch is unknown, never 1970. */
@@ -48,7 +49,7 @@ export const EventAside: React.FC<EventAsideProps> = ({ result, metrics, timeZon
       <KvRow label="Window from">{when(start, timeZone)}</KvRow>
       <KvRow label="Window to">{end ? when(end, timeZone) : start ? 'open' : 'unknown'}</KvRow>
       <KvRow label="Duration">{start && end ? fmtDuration(end - start) : '—'}</KvRow>
-      <KvRow label="Eligibility · finding">{result.eligibility} · {String(result.finding ?? '—').replace(/_/g, ' ').toLowerCase()}</KvRow>
+      <KvRow label="Eligibility · finding">{result.eligibility} · {result.finding ? phrase(String(result.finding)) : '—'}</KvRow>
       <KvRow label="Method">{String(result.method_id ?? 'G12.SYSTEM_RESPONSE')} {String(result.method_version ?? '')}</KvRow>
       <div className="cpm-response-aside__ids">
         <span className="cpm-fact"><span className="cpm-fact__label">run</span><CopyableId label="method run id" value={methodRunId} /></span>
@@ -69,7 +70,7 @@ export const EventAside: React.FC<EventAsideProps> = ({ result, metrics, timeZon
           <li key={s.key} className={`cpm-step cpm-tone-${s.tone}`} data-subgate={s.key}>
             <span className="cpm-step__head">
               <span className="cpm-step__name">{s.key} {s.name}</span>
-              <TonePill tone={s.tone}>{s.state}</TonePill>
+              <TonePill tone={s.tone}>{codeLabel(s.state)}</TonePill>
             </span>
             {s.reason && <span className="cpm-event-row__sub">{s.reason}</span>}
             {s.outputs.length > 0 && (

@@ -31,10 +31,10 @@ describe('VerdictCard', () => {
 describe('WindowFlags', () => {
   it('lists observability flags, disqualifiers and the insufficient-evidence reason with tones', () => {
     render(<WindowFlags row={{ observabilityFlags: ['HAS_VP', 'NO_STEP_TEST'], familyDisqualifiers: ['stiction:FAMILY_DISQUALIFIED'], insufficientEvidenceReason: 'INSUFFICIENT_SAMPLES' }} />);
-    expect(screen.getByText('HAS_VP').className).toContain('cpm-pill--good');
-    expect(screen.getByText('NO_STEP_TEST').className).toContain('cpm-pill--warn');
-    expect(screen.getByText('stiction:FAMILY_DISQUALIFIED').className).toContain('cpm-pill--muted');
-    expect(screen.getByText('INSUFFICIENT_SAMPLES').className).toContain('cpm-pill--warn');
+    expect(screen.getByText('Valve position mapped').closest('.cpm-pill')?.className).toContain('cpm-pill--good');
+    expect(screen.getByText('No approved step test').closest('.cpm-pill')?.className).toContain('cpm-pill--warn');
+    expect(screen.getByText('Stiction ruled out: ruled out by its own checks').closest('.cpm-pill')?.className).toContain('cpm-pill--muted');
+    expect(screen.getByText('Too few samples').closest('.cpm-pill')?.className).toContain('cpm-pill--warn');
   });
 
   it('says so when the window is not in the loaded list', () => {

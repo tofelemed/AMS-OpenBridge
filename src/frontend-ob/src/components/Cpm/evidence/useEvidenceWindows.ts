@@ -13,6 +13,7 @@ import { fmtDuration, type CpmTone } from '../shared';
 import { gateTone } from '../gateStatus';
 import { formatInZone } from './timezone';
 import { GATE_ORDER } from './gateFacts';
+import { diagnosisLabel } from '../vocabulary';
 
 export type WindowTier = 'fused' | 'short' | 'long';
 
@@ -46,7 +47,7 @@ export function fusedOptions(rows: CpmWindowSummary[], now: number, timeZone: st
     const insufficient = !r.diagnosis || r.diagnosis === 'INSUFFICIENT_DATA';
     const state = insufficient
       ? `INSUFFICIENT DATA${r.insufficientEvidenceReason ? ` (${r.insufficientEvidenceReason})` : ''}`
-      : `${r.diagnosis!.replace(/_/g, ' ')}${r.confidence != null ? ` ${Math.round(r.confidence * 100)}%` : ''}`;
+      : `${diagnosisLabel(r.diagnosis)}${r.confidence != null ? ` ${Math.round(r.confidence * 100)}%` : ''}`;
     const ms = age(r.windowEnd, now);
     const tone: CpmTone = insufficient ? 'muted' : r.diagnosis === 'NOT_EVALUATED' ? 'muted' : /SUSPECTED|CONFIRMED|FAIL/.test(r.diagnosis!) ? 'bad' : /DEVELOPING|WARN/.test(r.diagnosis!) ? 'warn' : 'good';
     return {

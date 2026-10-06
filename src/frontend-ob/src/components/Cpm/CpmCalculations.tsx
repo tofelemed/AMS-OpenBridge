@@ -25,6 +25,7 @@ import {
 import { ApiError } from '../../api/apiFetch';
 import CalcDrawer from './CalcDrawer';
 import { METRICS, type MetricDef } from './calcCatalogue';
+import { diagnosisLabel, codeLabel } from './vocabulary';
 
 /** gates/latest 404 = "no fused window yet" — an answer, not a failure. */
 const isNoVerdict = (e: unknown) => e instanceof ApiError && e.status === 404;
@@ -114,7 +115,7 @@ export const CpmCalculations: React.FC = () => {
     if (!cell || ['NOT_EVALUATED', 'PENDING', 'INSUFFICIENT_EVIDENCE'].includes(cell.status))
       return { label: 'Not evaluated', tone: 'muted' };
     const t = gateTone(cell.status);
-    if (t === 'muted') return { label: cell.status.replace(/_/g, ' '), tone: t };
+    if (t === 'muted') return { label: codeLabel(cell.status), tone: t };
     return { label: t === 'good' ? 'Acceptable' : t === 'warn' ? 'Review' : 'Outside', tone: t };
   };
 
@@ -181,7 +182,7 @@ export const CpmCalculations: React.FC = () => {
                 <TonePill tone="warn">VERDICT UNAVAILABLE</TonePill>
               ) : (
                 <TonePill tone={toneFor(gates.data?.diagnosis)}>
-                  {(gates.data?.diagnosis ?? 'NOT_EVALUATED').replace(/_/g, ' ')}
+                  {diagnosisLabel(gates.data?.diagnosis)}
                 </TonePill>
               )}
               <span className="cpm-copy">

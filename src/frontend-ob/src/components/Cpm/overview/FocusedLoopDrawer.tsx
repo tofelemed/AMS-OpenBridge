@@ -19,6 +19,7 @@ import { ObiCloseGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-
 import { useLatestGates } from '../../../hooks/useCpm';
 import { ApiError } from '../../../api/apiFetch';
 import { useDialogA11y } from '../../../hooks/useDialogA11y';
+import { diagnosisLabel, codeLabel } from '../vocabulary';
 
 const fmtTime = (iso: string | null) =>
   iso ? new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—';
@@ -103,7 +104,7 @@ export const FocusedLoopDrawer: React.FC<{
             <>
               <div className={`cpm-kpi cpm-kpi--${toneFor(matrix.diagnosis)}`} style={{ margin: '12px 0' }}>
                 <span className="cpm-kpi__caption">Primary diagnosis</span>
-                <span className="cpm-kpi__value">{(matrix.diagnosis ?? 'NONE').replace(/_/g, ' ')}</span>
+                <span className="cpm-kpi__value">{diagnosisLabel(matrix.diagnosis)}</span>
                 <span className="cpm-kpi__sub">
                   {matrix.confidence != null ? `${(matrix.confidence * 100).toFixed(0)}% confidence · ` : ''}
                   {matrix.windowKind} window ending {fmtTime(matrix.windowEnd)}
@@ -121,7 +122,7 @@ export const FocusedLoopDrawer: React.FC<{
                       <ObcButton variant="flat" className="cpm-gate-link"
                         title={`Open ${g.key} evidence for ${loopId} on Performance`}
                         onClick={() => onOpenGate(g.key)}>
-                        <TonePill tone={gateTone(g.status)}>{g.status.replace(/_/g, ' ')}</TonePill>
+                        <TonePill tone={gateTone(g.status)}>{codeLabel(g.status)}</TonePill>
                       </ObcButton>
                     </KvRow>
                   ))}

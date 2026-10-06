@@ -23,6 +23,7 @@ import { useCpmEvents } from '../../../hooks/useCpm';
 import { EmptyState, QueryError, TonePill, fmtDateTime } from '../shared';
 import { usePagedSlice } from '../../shared/ListPager';
 import { shelfState } from '../events/shelfState';
+import { diagnosisLabel } from '../vocabulary';
 
 /**
  * sort:'recent' is load-bearing, not a preference: the endpoint's default order
@@ -147,7 +148,7 @@ export const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
             >
               <span className="cpm-event-row__sub">{spanText(run)}</span>
               <span className="cpm-episode__body">
-                <span className="cpm-event-row__title">{run.diagnosis.replace(/_/g, ' ')}</span>
+                <span className="cpm-event-row__title">{diagnosisLabel(run.diagnosis)}</span>
                 <span className="cpm-event-row__sub">
                   {run.frames.length > 1 ? `${run.frames.length} episodes · ` : ''}
                   {/* The count without its size was ambiguous — "3 windows" is

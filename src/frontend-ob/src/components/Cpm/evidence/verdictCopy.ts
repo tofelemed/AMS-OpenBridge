@@ -5,6 +5,7 @@
  */
 import type { Headline } from './views/headlines';
 import type { GateState } from './GateResultState';
+import { codeLabel, phrase } from '../vocabulary';
 
 const REASONS: Record<string, string> = {
   BANDWIDTH: 'limited by the {grid} acquisition grid',
@@ -33,11 +34,8 @@ const REASONS: Record<string, string> = {
   HEALTH_INELIGIBLE: 'the transmitter health made the window ineligible',
 };
 
-const humanise = (token: string) => token.toLowerCase().replace(/_/g, ' ');
-
 export function statusWord(status: string | null): string {
-  if (!status) return 'no verdict';
-  return /^[A-Z_]+$/.test(status) && status.includes('_') ? humanise(status) : status;
+  return status ? phrase(status) : 'no verdict';
 }
 
 /** "2.0 samples per 10.0 s period < 8 (observed grid 5.0 s)" / "(declared 5 s)" -> "5 s"; otherwise nothing. */
@@ -52,8 +50,8 @@ export function reasonSentence(reason: string | null, ctx: { gate: string; eligi
   if (!reason) return null;
   const template = REASONS[reason];
   const grid = gridOf(ctx.eligibilityDetail);
-  const phrase = template ? template.replace('{grid} ', grid ? `${grid} ` : '') : humanise(reason);
-  return `${phrase} (${reason})`;
+  // CHG-051: the phrase only; the raw code is on hover in the verdict and in Explain › Identity.
+  return template ? template.replace('{grid} ', grid ? `${grid} ` : '') : phrase(reason);
 }
 
 export interface VerdictInput {
@@ -65,7 +63,7 @@ export function verdictSentence(i: VerdictInput): string {
   if (!i.status) return `${head}: no verdict recorded for this run.`;
   const numbers = i.headline.slice(0, 3).map((h, n) => `${n === 0 ? h.label : h.label.charAt(0).toLowerCase() + h.label.slice(1)} ${h.value}${h.unit ? ` ${h.unit}` : ''}`).join(', ');
   const reason = reasonSentence(i.reason, { gate: i.gate, eligibilityDetail: i.eligibilityDetail });
-  let s = `${head}: ${i.status}`;
+  let s = `${head}: ${codeLabel(i.status)}`;
   if (numbers) s += ` — ${numbers}`;
   if (reason) s += `${numbers ? ';' : ' —'} ${reason}`;
   return s + '.';
@@ -82,7 +80,7 @@ export function whyParagraphs(i: WhyInput): string[] {
   const name = `${i.gate} ${i.name}`;
   if (i.status) {
     const reason = reasonSentence(i.reason, { gate: i.gate, eligibilityDetail: i.eligibilityDetail });
-    out.push(`The engine judged ${name} ${i.status}${reason ? ` because ${reason}` : ''}.`);
+    out.push(`The engine judged ${name} ${phrase(i.status)}${reason ? ` because ${reason}` : ''}.`);
   } else {
     out.push(`No verdict cell of ${name} exists for this run's tier.`);
   }

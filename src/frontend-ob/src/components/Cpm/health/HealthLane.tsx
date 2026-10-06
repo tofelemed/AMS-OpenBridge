@@ -10,6 +10,7 @@ import type { HealthHistoryRow } from '../../../api/cpm/health';
 import { cpmToneColors, resolveCssColor, type CpmTone } from '../shared';
 import { laneRenderer, type Segment } from '../historical/chartOption';
 import { eligibilityTone } from './TransmitterHealthPanel';
+import { codeLabel } from '../vocabulary';
 
 export function healthSegments(rows: HealthHistoryRow[], from: Date, to: Date, role = 'PV'): Segment[] {
   const fromMs = from.getTime();
@@ -23,7 +24,7 @@ export function healthSegments(rows: HealthHistoryRow[], from: Date, to: Date, r
       return {
         startMs, endMs,
         tone: eligibilityTone(r.eligibility) as CpmTone,
-        label: `${role} ${r.eligibility.replace(/_/g, ' ')} · ${flags} · ${r.deviceId || 'no device'}${r.revision > 1 ? ` · rev ${r.revision}` : ''}`,
+        label: `${role} ${codeLabel(r.eligibility)} · ${flags} · ${r.deviceId || 'no device'}${r.revision > 1 ? ` · rev ${r.revision}` : ''}`,
       };
     })
     .filter(s => s.endMs > s.startMs)

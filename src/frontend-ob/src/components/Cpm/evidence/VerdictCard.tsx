@@ -8,6 +8,8 @@ import { KpiTile, PanelHead, TonePill } from '../shared';
 import { gateTone } from '../gateStatus';
 import type { GateState } from './GateResultState';
 import type { Headline } from './views/headlines';
+import { codeLabel } from '../vocabulary';
+import { CodeLabel } from '../CodeLabel';
 
 export interface VerdictCardProps {
   gate: string;
@@ -23,12 +25,13 @@ export const VerdictCard: React.FC<VerdictCardProps> = ({ gate, name, status, st
   const tone = status ? gateTone(status) : 'muted';
   return (
     <section className={`cpm-surface cpm-verdict cpm-tone-${tone}`} role="region" aria-label="Verdict">
-      <PanelHead eyebrow="Verdict" title={`${gate} · ${name}`} right={status ? <TonePill tone={tone}>{status.replace(/_/g, ' ')}</TonePill> : undefined} />
+      <PanelHead eyebrow="Verdict" title={`${gate} · ${name}`} right={status ? <TonePill tone={tone}>{codeLabel(status)}</TonePill> : undefined} />
       <p className="cpm-verdict__sentence">{sentence}</p>
       {state.kind === 'READY' && headline.length > 0 && (
         <div className="cpm-verdict__tiles">
           {headline.map(h => (
-            <KpiTile key={h.label} caption={h.label} value={h.unit ? `${h.value} ${h.unit}` : h.value} tone={h.tone} />
+            <KpiTile key={h.label} caption={h.label} tone={h.tone}
+              value={<span title={h.raw && h.raw !== h.value ? h.raw : undefined}>{h.unit ? `${h.value} ${h.unit}` : h.value}</span>} />
           ))}
         </div>
       )}
@@ -57,9 +60,9 @@ export const WindowFlags: React.FC<{ row: WindowFlagsRow | undefined }> = ({ row
         <p className="cpm-copy">No flags on this window.</p>
       ) : (
         <div className="cpm-flag-row">
-          {flags.map(f => <TonePill key={f} tone={f.startsWith('HAS_') ? 'good' : 'warn'}>{f}</TonePill>)}
-          {disq.map(d => <TonePill key={d} tone="muted">{d}</TonePill>)}
-          {insufficient && <TonePill tone="warn">{insufficient}</TonePill>}
+          {flags.map(f => <TonePill key={f} tone={f.startsWith('HAS_') ? 'good' : 'warn'}><CodeLabel code={f} /></TonePill>)}
+          {disq.map(d => <TonePill key={d} tone="muted"><CodeLabel code={d} /></TonePill>)}
+          {insufficient && <TonePill tone="warn"><CodeLabel code={insufficient} /></TonePill>}
         </div>
       )}
     </section>

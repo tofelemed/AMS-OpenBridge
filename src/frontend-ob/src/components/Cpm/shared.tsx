@@ -11,6 +11,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import { ObcIconButton } from '@oicl/openbridge-webcomponents-react/components/icon-button/icon-button';
 import type { CpmWindowSpec } from '../../api/cpmApi';
 import { CPM_PAGES, type CpmPagePath } from '../nav/cpmTasks';
+import { diagnosisLabel } from './vocabulary';
 
 export type CpmTone = 'good' | 'warn' | 'bad' | 'muted';
 
@@ -108,6 +109,7 @@ export const TREND_TICK_MS = 60_000;
  */
 export const fmtDuration = (ms: number | null | undefined): string => {
   if (ms == null) return '—';
+  if (ms < 1000) return `${Math.round(ms)} ms`; // sub-second (checkpoint, latency) would round to "0 s"
   if (ms < 60_000) return `${Math.round(ms / 1000)} s`;
   if (ms <= 3_600_000) {
     const min = ms / 60_000;
@@ -295,7 +297,7 @@ export function diagnosisBand(diagnosis: string | null | undefined): {
   if (d.startsWith('CONFIRMED') || d.startsWith('SUSPECTED')) return { label: 'Suspected', tone: 'bad' };
   if (d.startsWith('DETECTED') || d.startsWith('CLASSIFIED')) return { label: 'Developing', tone: 'warn' };
   if (d === 'NORMAL' || d === 'NONE' || d === 'HEALTHY') return { label: 'Normal', tone: 'good' };
-  return { label: d.replace(/_/g, ' '), tone: 'warn' };
+  return { label: diagnosisLabel(d), tone: 'warn' };
 }
 
 /** CPA's dot+label pill. */

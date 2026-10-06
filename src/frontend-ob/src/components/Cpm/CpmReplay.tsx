@@ -30,6 +30,7 @@ import { loopSeries } from '../../utils/loopSeries';
 import { ReplayChart } from './replay/ReplayChart';
 import { TransformationStepper } from './replay/TransformationStepper';
 import { LineageStrip } from './replay/LineageStrip';
+import { diagnosisLabel, codeLabel, phrase } from './vocabulary';
 
 /** Long-tier metric fields relevant per gate (real stored fields only). */
 const GATE_METRICS: Record<string, { field: string; label: string }[]> = {
@@ -197,7 +198,7 @@ export const CpmReplay: React.FC = () => {
               )}
               {windows.map(w => (
                 <option key={w.windowEnd ?? ''} value={w.windowEnd ?? ''}>
-                  ends {w.windowEnd ? fmtDateTime(w.windowEnd) : '—'} · {(w.diagnosis ?? '—').replace(/_/g, ' ')}
+                  ends {w.windowEnd ? fmtDateTime(w.windowEnd) : '—'} · {diagnosisLabel(w.diagnosis)}
                 </option>
               ))}
             </select>
@@ -233,7 +234,7 @@ export const CpmReplay: React.FC = () => {
             </span>
           )}
           <TonePill tone="muted">{role}</TonePill>
-          {cell && <TonePill tone={gateTone(cell.status)}>{cell.status.replace(/_/g, ' ')}</TonePill>}
+          {cell && <TonePill tone={gateTone(cell.status)}>{codeLabel(cell.status)}</TonePill>}
         </div>
 
         <TransformationStepper gridS={gridS} hasVerdict={!!selected} phasePlane={isShapeGate} />
@@ -273,7 +274,7 @@ export const CpmReplay: React.FC = () => {
           <PanelHead eyebrow="Summary" title={def ? `${gateKey} · ${def.name}` : gateKey} />
           <KvRow label="Question">{def?.question ?? '—'}</KvRow>
           <KvRow label="Result">
-            <TonePill tone={gateTone(cell?.status)}>{(cell?.status ?? 'NOT_EVALUATED').replace(/_/g, ' ')}</TonePill>
+            <TonePill tone={gateTone(cell?.status)}>{codeLabel(cell?.status ?? 'NOT_EVALUATED')}</TonePill>
           </KvRow>
           {cell?.reason && <KvRow label="Reason">{cell.reason}</KvRow>}
           <KvRow label="Window">
@@ -324,7 +325,7 @@ export const CpmReplay: React.FC = () => {
             <>
               <p className="cpm-copy">
                 Notes attach by acknowledging the open event frame
-                ({openFrame.family.replace(/_/g, ' ')} · opened {fmtDateTime(openFrame.opened_at)}).
+                ({phrase(openFrame.family)} · opened {fmtDateTime(openFrame.opened_at)}).
               </p>
               <textarea className="cpm-textarea" rows={3} value={note}
                 placeholder="What did the evidence show? What action was taken?"

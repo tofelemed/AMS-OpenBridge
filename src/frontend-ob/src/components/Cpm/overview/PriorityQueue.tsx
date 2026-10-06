@@ -20,6 +20,7 @@ import { conditionOf } from '../explorer/summary/summaryText';
 import GoodErrorBar from './GoodErrorBar';
 import FacetPill from '../FacetPill';
 import { PRIORITY_RULE, priorityBadge, priorityReasons } from './priorityReason';
+import { locationLabel } from '../vocabulary';
 
 const QUEUE_SIZE = 6;
 
@@ -79,7 +80,7 @@ export const PriorityQueue: React.FC<{
             aria-pressed={isSelected}
             aria-label={`Preview ${l.loopId} in the focus panel`}
             onClick={() => onPreview(l.loopId)}>
-            <span className="cpm-event-row__sub">{l.displayName} · {l.area ?? l.site}</span>
+            <span className="cpm-event-row__sub">{l.displayName} · {l.area ? locationLabel(l.area) : locationLabel(l.site, { site: true })}</span>
             <span className="cpm-queue-row__reason">
               <span className="cpm-queue-row__why">{priorityReasons(l, Date.now(), { impact: false }).join(' · ')}</span>
               <GoodErrorBar pct={l.metrics.goodErrorPct} mae={l.metrics.mae} />

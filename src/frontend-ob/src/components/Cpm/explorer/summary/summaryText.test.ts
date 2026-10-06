@@ -16,7 +16,7 @@ const v2 = (over: Partial<CpmGateMatrix['verdictV2']> = {}) => ({
 describe('conditionOf', () => {
   it('reads a finding as "<family> <band>"', () => {
     expect(conditionOf('CONFIRMED_OSCILLATION')).toMatchObject({ kind: 'finding', label: 'Oscillation confirmed', tone: 'bad' });
-    expect(conditionOf('SUSPECTED_FINAL_ELEMENT_NONLINEARITY').label).toBe('Final element nonlinearity suspected');
+    expect(conditionOf('SUSPECTED_FINAL_ELEMENT_NONLINEARITY').label).toBe('Valve nonlinearity (stiction) suspected');
   });
   it('says why a loop was not judged, in muted tone', () => {
     expect(conditionOf('INSUFFICIENT_DATA')).toMatchObject({ kind: 'insufficient', tone: 'muted' });

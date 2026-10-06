@@ -37,6 +37,7 @@ import { buildTierGroups, isRowFilter, latestWindowEnd } from './gateStatus';
 import { useCpmResolutions, useFleetHeatmap, useFleetRankings, useFleetSummary } from '../../hooks/useCpm';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { explorerHref, pipelineHref, windowsHref } from './cpaHref';
+import { diagnosisLabel } from './vocabulary';
 
 /** v2.5 (1H.6): the three fleet health filters the server understands (spec §4.7). */
 const HEALTH_FILTERS: { id: CpmHealthFilter; label: string }[] = [
@@ -353,7 +354,7 @@ export const CpmPerformance: React.FC = () => {
                       </div>
                     </div>
                     <span className="cpm-copy">
-                      Final diagnosis {selectedRow.diagnosis.replace(/_/g, ' ')}
+                      Final diagnosis {diagnosisLabel(selectedRow.diagnosis)}
                       {selectedRow.confidence != null
                         ? ` (${(selectedRow.confidence * 100).toFixed(0)}%)` : ''}
                     </span>

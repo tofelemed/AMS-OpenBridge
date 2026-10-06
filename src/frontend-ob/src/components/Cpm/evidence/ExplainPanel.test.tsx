@@ -49,7 +49,7 @@ describe('ExplainPanel', () => {
     expect(screen.queryByText('ACF period')).toBeNull();
     for (const t of ['What this gate asks', 'Method', 'Parameters used', 'Identity']) open(t);
     expect(screen.getByText('Dominant period from the ACF.')).toBeTruthy();
-    expect(screen.getByText('G5.ACF_OSCILLATION v3.0.0')).toBeTruthy();
+    expect(screen.getByText('Autocorrelation (oscillation) v3.0.0').getAttribute('title')).toBe('G5.ACF_OSCILLATION');
     expect(screen.getByText(/limited by the 5 s acquisition grid/)).toBeTruthy();
     expect(screen.getByText('ACF period').getAttribute('title')).toBe('acf_series.period_s');
     expect(screen.getByText('290.2 s')).toBeTruthy();

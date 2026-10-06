@@ -1,3 +1,4 @@
+import { diagnosisLabel } from './vocabulary';
 /**
  * 2026-09-17 audit F4: the page shows the loop's NEWEST evaluated window; a verdict from an older
  * window is named beside it with its age - stated as older, never presented as current.
@@ -22,5 +23,5 @@ export function staleVerdictLine(ref: VerdictReference | null | undefined): stri
   if (!ref || !ref.diagnosis) return null;
   const conf = ref.confidence != null ? ` ${Math.round(ref.confidence * 100)}%` : '';
   const age = ageText(ref.ageMs);
-  return `last verdict ${ref.diagnosis.replace(/_/g, ' ')}${conf}${age ? ` · ${age}` : ''}`;
+  return `last verdict ${diagnosisLabel(ref.diagnosis)}${conf}${age ? ` · ${age}` : ''}`;
 }

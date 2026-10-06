@@ -34,6 +34,7 @@ import SignalsTab from './SignalsTab';
 import CalculationsTab from './CalculationsTab';
 import RelationshipsTab from './RelationshipsTab';
 import HistoryTab, { HISTORY_QUERY } from './HistoryTab';
+import { locationLabel } from '../vocabulary';
 
 export const TABS: ExplorerTab[] = ['Summary', 'Signals', 'Calculations', 'Relationships', 'History'];
 
@@ -91,7 +92,7 @@ export const LoopWorkspace: React.FC<{
     }));
   }, [signalCount, gateCount, linkCount, episodeCount]);
 
-  const crumbs = [loop.site, loop.area, loop.unit].filter(Boolean) as string[];
+  const crumbs = [locationLabel(loop.site, { site: true }), locationLabel(loop.area), locationLabel(loop.unit)].filter(Boolean);
 
   // v2.5 (1H.6): transmitter health beside the verdict. The pill is the worst-of across bound
   // roles; NOT CONFIGURED is an unavailable state (never OK). Click opens the drawer.

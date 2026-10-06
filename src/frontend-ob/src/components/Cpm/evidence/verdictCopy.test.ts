@@ -9,12 +9,12 @@ const ready: GateState = { kind: 'READY', title: 'Ready', detail: '', stillValid
 
 describe('verdict copy', () => {
   it('turns a reason token into a sentence fragment, using the grid from the eligibility detail when it names one', () => {
-    expect(reasonSentence('BANDWIDTH', { gate: 'G5', eligibilityDetail: '3.4 samples per 17 s period < 4 (declared 5 s)' })).toBe('limited by the 5 s acquisition grid (BANDWIDTH)');
-    expect(reasonSentence('BANDWIDTH', { gate: 'G5', eligibilityDetail: '2.0 samples per 10.0 s period < 8 (observed grid 5.0 s)' })).toBe('limited by the 5 s acquisition grid (BANDWIDTH)');
-    expect(reasonSentence('BANDWIDTH', { gate: 'G5' })).toBe('limited by the acquisition grid (BANDWIDTH)');
-    expect(reasonSentence('NO_VP', { gate: 'G14' })).toBe('no valve-position signal is mapped (NO_VP)');
-    expect(reasonSentence('INSUFFICIENT_SAMPLES', { gate: 'G5' })).toBe('too few qualified samples in the window (INSUFFICIENT_SAMPLES)');
-    expect(reasonSentence('SOME_NEW_TOKEN', { gate: 'G5' })).toBe('some new token (SOME_NEW_TOKEN)');
+    expect(reasonSentence('BANDWIDTH', { gate: 'G5', eligibilityDetail: '3.4 samples per 17 s period < 4 (declared 5 s)' })).toBe('limited by the 5 s acquisition grid');
+    expect(reasonSentence('BANDWIDTH', { gate: 'G5', eligibilityDetail: '2.0 samples per 10.0 s period < 8 (observed grid 5.0 s)' })).toBe('limited by the 5 s acquisition grid');
+    expect(reasonSentence('BANDWIDTH', { gate: 'G5' })).toBe('limited by the acquisition grid');
+    expect(reasonSentence('NO_VP', { gate: 'G14' })).toBe('no valve-position signal is mapped');
+    expect(reasonSentence('INSUFFICIENT_SAMPLES', { gate: 'G5' })).toBe('too few qualified samples in the window');
+    expect(reasonSentence('SOME_NEW_TOKEN', { gate: 'G5' })).toBe('some new token');
     expect(reasonSentence(null, { gate: 'G5' })).toBeNull();
   });
 
@@ -24,18 +24,18 @@ describe('verdict copy', () => {
       headline: [{ label: 'ACF period', value: '290.2', unit: 's' }, { label: 'Regularity', value: '1.000' }, { label: 'Accepted cycles', value: '33' }],
       eligibilityDetail: '3.4 samples per 17 s period < 4 (declared 5 s)',
     });
-    expect(s).toBe('G5 Oscillation (ACF): WARN — ACF period 290.2 s, regularity 1.000, accepted cycles 33; limited by the 5 s acquisition grid (BANDWIDTH).');
+    expect(s).toBe('G5 Oscillation (ACF): Warning — ACF period 290.2 s, regularity 1.000, accepted cycles 33; limited by the 5 s acquisition grid.');
   });
 
   it('states a verdict without numbers or reason plainly', () => {
-    expect(verdictSentence({ gate: 'G0', name: 'Data quality', status: 'PASS', reason: null, headline: [] })).toBe('G0 Data quality: PASS.');
+    expect(verdictSentence({ gate: 'G0', name: 'Data quality', status: 'PASS', reason: null, headline: [] })).toBe('G0 Data quality: Pass.');
     expect(verdictSentence({ gate: 'G3', name: 'Base performance', status: null, reason: null, headline: [] })).toBe('G3 Base performance: no verdict recorded for this run.');
     expect(statusWord('NOT_EVALUATED')).toBe('not evaluated');
   });
 
   it('explains why in paragraphs that end with the next valid action', () => {
     const p = whyParagraphs({ gate: 'G5', name: 'Oscillation (ACF)', status: 'WARN', reason: 'BANDWIDTH', state: ready });
-    expect(p[0]).toMatch(/^The engine judged G5 Oscillation \(ACF\) WARN/);
+    expect(p[0]).toMatch(/^The engine judged G5 Oscillation \(ACF\) warning/);
     expect(p.join(' ')).toMatch(/limited by the acquisition grid/);
     expect(p[p.length - 1]).toMatch(/Read the evidence below/);
     const notEval: GateState = { kind: 'NOT_EVALUATED', title: 'NOT_EVALUATED - the engine looked and declined', detail: 'Reason: G0_FAIL.', stillValid: 'This is a verdict, not missing data.', action: 'NONE', tone: 'warn' };

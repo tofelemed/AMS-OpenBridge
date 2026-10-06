@@ -4,6 +4,9 @@
  * key stay available (tooltips, CSV) for anyone who needs the exact bytes.
  */
 
+import { codeLabel, diagnosisLabel } from '../vocabulary';
+import { fmtDuration } from '../shared';
+
 const SECONDS = /(^|[._])(period|lag|dwell|duration|age|delay|settle|dead_time|time_constant|tau|theta)(_s)?$|_s$/i;
 const FRACTION = /(^|[._])(regularity|coherence|score|ratio|fraction|overlap|coverage|confidence|damping)/i;
 const COUNT = /(_count|_no|cycles|samples|indices|segments|size|revision|_id|bins|events|peaks|polygons)$/i;
@@ -43,10 +46,23 @@ export function fmtQuantity(value: unknown, unit?: string | null, key?: string):
     if (t === '') return '—';
     const asNumber = Number(t);
     if (t !== '' && Number.isFinite(asNumber) && /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(t)) return fmtQuantity(asNumber, unit, key);
-    const joined = t.includes(';') ? t.split(';').map(p => p.trim()).filter(Boolean).join(' · ') : t;
+    // CHG-051: a lone engine code reads as its label; numbers inside a list are rounded (SME #15) — the exact
+    // string stays in the run's artifacts and the Advanced engine trace.
+    if (/^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$/.test(t)) return key && /(^|\.)case_state$/.test(key) ? diagnosisLabel(t) : codeLabel(t);
+    // a composite engine list ("STICTION:DISQUALIFIED:0.0;OSCILLATION_TUNING:QUALIFIED:1.0") is a record, not a value:
+    // its readable form is the gate's evidence view; here it is counted (the exact string is on hover / Advanced)
+    if (t.includes(';') && /[A-Z][A-Z0-9_]{2,}[:=]/.test(t)) {
+      const n = t.split(';').filter(x => x.trim()).length;
+      return `${n} entr${n === 1 ? 'y' : 'ies'} — read them in the evidence view`;
+    }
+    const worded = t.replace(/\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b/g, c => codeLabel(c));
+    const joined = (worded.includes(';') ? worded.split(';').map(p => p.trim()).filter(Boolean).join(' · ') : worded)
+      .replace(/-?\d+\.\d{4,}/g, m => String(Number(Number(m).toFixed(3))));
     return joined.length > 160 ? joined.slice(0, 160) + '…' : joined;
   }
   if (typeof value !== 'number' || !Number.isFinite(value)) return '—';
+  // SME #15: a duration in milliseconds reads in s / min / h
+  if (key && /(_ms|qualified_support)$/i.test(key)) return fmtDuration(value);
   const r = rule(unit, key);
   const suffix = unitSuffix(unit, r);
   switch (r) {

@@ -15,6 +15,7 @@ import type { GateViewProps } from '../EvidenceArtifactRenderer';
 import { GateResultStatePanel } from '../GateResultState';
 import { CpmChart, type CpmSeries } from '../CpmChart';
 import { RequireKinds, col, first } from './viewSupport';
+import { phrase } from '../../vocabulary';
 
 const P = (d: DecodedArtifact | undefined, k: string) => d?.meta.provenance?.[k];
 const list = (s: string | undefined) => (s ?? '').split(';').map(x => x.trim()).filter(Boolean);
@@ -38,7 +39,7 @@ export function buildRelationshipGraph(loopId: string, peers: PeerRow[], pens: R
   const links = peers.map(p => ({
     source: p.direction === 'PEER_LEADS_LOOP' ? p.id : loopId, target: p.direction === 'PEER_LEADS_LOOP' ? loopId : p.id,
     lineStyle: { color: p.associated ? pens.amber : pens.grey, width: p.associated ? 2 : 1, type: p.associated ? 'solid' : 'dashed', opacity: p.state === 'ANALYSED' ? 0.9 : 0.4 },
-    label: { show: true, formatter: p.associated ? `${p.direction.toLowerCase().replace(/_/g, ' ')} · lag ${p.lagS ?? '—'} s · coh ${p.coherence?.toFixed(2) ?? '—'}` : p.state.toLowerCase().replace(/_/g, ' '), color: pens.grey, fontSize: 11 },
+    label: { show: true, formatter: p.associated ? `${phrase(p.direction)} · lag ${p.lagS ?? '—'} s · coh ${p.coherence?.toFixed(2) ?? '—'}` : p.state.toLowerCase().replace(/_/g, ' '), color: pens.grey, fontSize: 11 },
     symbol: p.associated && p.direction !== 'SIMULTANEOUS' ? ['none', 'arrow'] : ['none', 'none'],
   }));
   return {
@@ -75,7 +76,7 @@ export const G13Record: React.FC<{ d: DecodedArtifact; loopId: string }> = ({ d,
                 <tr key={p.id} data-associated={p.associated}>
                   <td className="cpm-mono">{p.id}</td>
                   <td><TonePill tone={p.state === 'ANALYSED' ? (p.associated ? 'warn' : 'good') : 'muted'}>{p.state}</TonePill></td>
-                  <td>{p.associated ? p.direction.toLowerCase().replace(/_/g, ' ') : '—'}</td>
+                  <td>{p.associated ? phrase(p.direction) : '—'}</td>
                   <td className="cpm-mono">{p.lagS ?? '—'}</td>
                   <td className="cpm-mono">{p.coherence?.toFixed(3) ?? '—'}</td>
                 </tr>
@@ -85,7 +86,7 @@ export const G13Record: React.FC<{ d: DecodedArtifact; loopId: string }> = ({ d,
           {associated.length === 0 && <p className="cpm-copy">No peer clears both the coherence and cross-correlation floors on shared support.</p>}
         </>
       )}
-      <KvRow label="alternative explanations">{list(P(d, 'alternative_explanations')).map(a => a.toLowerCase().replace(/_/g, ' ')).join(' · ') || 'none listed'}</KvRow>
+      <KvRow label="alternative explanations">{list(P(d, 'alternative_explanations')).map(a => phrase(a)).join(' · ') || 'none listed'}</KvRow>
       <p className="cpm-copy">Unmapped or unobserved peers do not rule out a disturbance; pairwise correlation alone gives no causal certainty.</p>
     </section>
   );
@@ -103,7 +104,7 @@ export const G13PeerPanes: React.FC<{ aligned: DecodedArtifact; xcorr: DecodedAr
       <PanelHead eyebrow="Peer" title={peerId} right={<TonePill tone="muted">support {P(aligned, 'support_s') ?? '—'} s</TonePill>} />
       <CpmChart title={`aligned series — ${peerId}`} series={series} xKind="time" timeZone={timeZone} height={220} />
       {xcorr && (
-        <CpmChart title={`cross-correlation — ${P(xcorr, 'lag_sign_convention')?.toLowerCase().replace(/_/g, ' ') ?? 'lag'}`} xKind="value" xLabel="lag" xUnit={xcorr.units.x ?? 's'} height={200}
+        <CpmChart title={`cross-correlation — ${(P(xcorr, 'lag_sign_convention') ? phrase(P(xcorr, 'lag_sign_convention')) : 'lag')}`} xKind="value" xLabel="lag" xUnit={xcorr.units.x ?? 's'} height={200}
           series={[{ id: 'xcorr', label: `r(lag) · peak ${Number(P(xcorr, 'peak_xcorr') ?? NaN).toFixed(2)} at ${P(xcorr, 'lag_at_peak_s') ?? '—'} s`, unit: '1', x: xcorr.columns.x, y: Array.from(xcorr.columns.y), pen: 'pink' }]} />
       )}
       {coherence && (

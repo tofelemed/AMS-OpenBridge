@@ -26,6 +26,7 @@ import SummaryGateStrip from './summary/SummaryGateStrip';
 import WindowKindToggle from './summary/WindowKindToggle';
 import { pinEvaluated, revealTrend } from '../trend/evaluatedWindow';
 import { workbenchExit } from './summary/LoopSummaryCard';
+import { diagnosisLabel } from '../vocabulary';
 
 const SummaryGateDetail = React.lazy(() => import('./summary/SummaryGateDetail'));
 const SummaryCalculations = React.lazy(() => import('./summary/SummaryCalculations'));
@@ -78,7 +79,7 @@ export const SummaryTab: React.FC<{ loop: CpmLoop; windowKind: string }> = ({ lo
                 onChange={k => setParams(p => { p.set('window', k); p.delete('gate'); return p; }, { replace: true })} />
               {matrix && (
                 <TonePill tone={toneFor(matrix.diagnosis)}>
-                  {(matrix.diagnosis ?? 'NONE').replace(/_/g, ' ')}
+                  {diagnosisLabel(matrix.diagnosis)}
                   {matrix.confidence != null ? ` · ${(matrix.confidence * 100).toFixed(0)}%` : ''}
                 </TonePill>
               )}

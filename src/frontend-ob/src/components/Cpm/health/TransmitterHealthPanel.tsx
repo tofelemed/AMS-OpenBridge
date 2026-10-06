@@ -8,6 +8,7 @@
 import React from 'react';
 import type { HealthEligibility, LoopInstrumentHealth, RoleHealth } from '../../../api/cpm/health';
 import { KvRow, TonePill, fmtDateTime, type CpmTone } from '../shared';
+import { codeLabel } from '../vocabulary';
 
 export const NE107_LABEL: Record<string, string> = {
   F: 'Failure',
@@ -88,7 +89,7 @@ const RoleCard: React.FC<{ r: RoleHealth; sourceState: string | null }> = ({ r, 
       <header className="cpm-health-role__head">
         <strong>{r.role}</strong>
         <span className="cpm-event-row__sub">{bound ? r.deviceId : 'no device bound'}</span>
-        <TonePill tone={eligibilityTone(r.eligibility)}>{r.eligibility.replace(/_/g, ' ')}</TonePill>
+        <TonePill tone={eligibilityTone(r.eligibility)}>{codeLabel(r.eligibility)}</TonePill>
       </header>
       <p className="cpm-health-role__headline">{roleHeadline(r)}</p>
       {bound && (

@@ -15,7 +15,7 @@ import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KpiTile, KvRow, PanelHead, QueryError, TonePill, WorkspaceHeader,
-  cpmChartColors,
+  cpmChartColors, fmtDuration,
 } from './shared';
 import {
   useCpmLoops, useCpmPipelineStatus, useFleetRankings, usePipelineMetrics, useRecompute,
@@ -210,7 +210,7 @@ export const CpmPipeline: React.FC = () => {
                     <td>{fmtUptime(j.uptimeSec)}</td>
                     <td>{j.checkpoint ? `${j.checkpoint.completed} / ${j.checkpoint.failed}` : '—'}</td>
                     <td>{j.checkpoint?.lastCompletedAgeSec != null ? `${j.checkpoint.lastCompletedAgeSec}s` : '—'}</td>
-                    <td>{j.checkpoint?.lastDurationMs != null ? `${j.checkpoint.lastDurationMs}ms` : '—'}</td>
+                    <td>{j.checkpoint?.lastDurationMs != null ? fmtDuration(j.checkpoint.lastDurationMs) : '—'}</td>
                     <td>{fmtBytes(j.checkpoint?.lastSizeBytes)}</td>
                   </tr>
                 ))}

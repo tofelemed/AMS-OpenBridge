@@ -13,11 +13,13 @@ import type { GateCatalogueEntry } from '../../../api/cpm/catalogue';
 import { EffectiveConfigDrawer } from '../config/EffectiveConfigDrawer';
 import { CpmIconButton, KvRow, TonePill } from '../shared';
 import CollapsibleSection from '../CollapsibleSection';
+import { methodLabel } from '../vocabulary';
 import { gateTone } from '../gateStatus';
 import type { GateState } from './GateResultState';
 import { identityOf, parametersOf } from './gateFacts';
 import { whyParagraphs } from './verdictCopy';
 import { CopyableId } from './CopyableId';
+import { codeLabel } from '../vocabulary';
 
 const STORAGE_KEY = 'ams-evidence-explain-collapsed';
 
@@ -64,7 +66,7 @@ export const ExplainPanel: React.FC<ExplainPanelProps> = ({ gate, run, entry, ma
     <aside className="cpm-explain cpm-surface" aria-label="Explain">
       <div className="cpm-explain__head">
         <span className="cpm-eyebrow">Explain</span>
-        {status && <TonePill tone={gateTone(status)}>{status.replace(/_/g, ' ')}</TonePill>}
+        {status && <TonePill tone={gateTone(status)}>{codeLabel(status)}</TonePill>}
         <CpmIconButton label="Hide explain" onClick={onToggle}><ObiPanelRightClose /></CpmIconButton>
       </div>
 
@@ -81,8 +83,8 @@ export const ExplainPanel: React.FC<ExplainPanelProps> = ({ gate, run, entry, ma
       </CollapsibleSection>
 
       <CollapsibleSection id="wb-explain-method" title="Method"
-        summary={entry ? `${entry.method.id} v${entry.method.version} · ${run?.tier ?? entry.tier}` : undefined}>
-        <KvRow label="Method">{entry ? `${entry.method.id} v${entry.method.version}` : '—'}</KvRow>
+        summary={entry ? `${methodLabel(entry.method.id)} v${entry.method.version} · ${run?.tier ?? entry.tier} tier` : undefined}>
+        <KvRow label="Method">{entry ? <span title={entry.method.id}>{`${methodLabel(entry.method.id)} v${entry.method.version}`}</span> : '—'}</KvRow>
         <KvRow label="Tier">{run?.tier ?? entry?.tier ?? '—'}</KvRow>
         {entry && entry.capabilityState !== 'INSTALLED' && <KvRow label="Capability">{entry.capabilityState}{entry.capabilityReason ? ` · ${entry.capabilityReason}` : ''}</KvRow>}
       </CollapsibleSection>

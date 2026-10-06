@@ -36,6 +36,8 @@ import { confirmationProse, noVpFleetCopy } from './investigation/confirmationCo
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { CpmIconButton, KvRow, PanelHead, TonePill, fmtDateTime } from './shared';
 import { gateTone } from './gateStatus';
+import { codeLabel } from './vocabulary';
+import { CodeLabel } from './CodeLabel';
 
 /** Role per gate — the same static policy the registry aside shows. */
 export interface GateEvidencePanelProps {
@@ -86,7 +88,7 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
       <div className={`cpm-kpi cpm-kpi--${fetchFailed ? 'warn' : gateTone(status)}`}
         style={{ margin: '12px 0' }}>
         <span className="cpm-kpi__caption">Result</span>
-        <span className="cpm-kpi__value">{status.replace(/_/g, ' ')}</span>
+        <span className="cpm-kpi__value">{codeLabel(status)}</span>
         {fetchFailed && (
           <span className="cpm-kpi__sub">
             {gates.error instanceof Error ? gates.error.message : 'The service is unavailable.'}
@@ -146,7 +148,7 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
           <PanelHead eyebrow="Observability" title="Flags on this window" />
           <div className="cpm-flag-row">
             {matrix.observabilityFlags.map(f => (
-              <TonePill key={f} tone={f.startsWith('HAS_') ? 'good' : 'warn'}>{f}</TonePill>
+              <TonePill key={f} tone={f.startsWith('HAS_') ? 'good' : 'warn'}><CodeLabel code={f} /></TonePill>
             ))}
           </div>
         </>

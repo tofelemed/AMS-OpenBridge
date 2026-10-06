@@ -41,7 +41,7 @@ describe('ModelHistory', () => {
     expect(lower[0]).toBeCloseTo(2.98, 9); expect(lower[1]).toBeCloseTo(3.1, 9);
     const tc = captured[2] as { series: Array<{ name: string; data: Array<[number, number | null]> }> };
     expect(tc.series.find(s => s.name === 'time_constant')!.data.map(d => d[1])).toEqual([20]); // a null parameter is not a point
-    expect(screen.getByText('VALIDATED')).toBeTruthy();
+    expect(screen.getByText('Validated')).toBeTruthy();
     expect(screen.getAllByText(/Review/).length).toBeGreaterThan(0);
   });
 

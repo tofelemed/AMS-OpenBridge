@@ -28,6 +28,7 @@ import type {
   CpmCalculations as CpmCatalogue, CpmGateMatrix, CpmKpiRow,
 } from '../../api/cpmApi';
 import type { MetricDef } from './calcCatalogue';
+import { diagnosisLabel } from './vocabulary';
 
 const DRAWER_TABS = ['Definition', 'Validation', 'History'] as const;
 
@@ -269,7 +270,7 @@ export const CalcDrawer: React.FC<{
             )}
             {(events.data?.events ?? []).map(e => (
               <KvRow key={e.id} label={fmtDateTime(e.opened_at)}>
-                {e.peak_diagnosis.replace(/_/g, ' ')} · {(e.peak_confidence * 100).toFixed(0)}%
+                {diagnosisLabel(e.peak_diagnosis)} · {(e.peak_confidence * 100).toFixed(0)}%
                 {/* v2.5 (1F.2): an open episode the engine cannot currently see has not recovered. */}
                 {e.closed_at === null && e.availability_state === 'UNOBSERVABLE' && ' · open, unobservable'}
               </KvRow>

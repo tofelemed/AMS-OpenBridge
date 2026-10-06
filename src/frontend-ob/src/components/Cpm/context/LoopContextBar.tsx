@@ -15,6 +15,7 @@
 import React, { useLayoutEffect, useRef } from 'react';
 import type { CpmLoop } from '../../../api/cpmApi';
 import { useCpmLoops } from '../../../hooks/useCpm';
+import { locationPath } from '../vocabulary';
 
 export interface LoopPeriod {
   /** What the period is, e.g. "24h fused window", "Historical range", "Latest results". */
@@ -23,12 +24,9 @@ export interface LoopPeriod {
   end?: string | number | null;
 }
 
-/** Plant location as readable text: `hdpe › section 400 › u4002 catalyst tankfarm`. */
+/** Plant location as readable text: `HDPE › Section 400 › U4002 catalyst tankfarm` (CHG-051 vocabulary). */
 export function fmtLocation(loop: Pick<CpmLoop, 'site' | 'area' | 'unit'>): string {
-  return [loop.site, loop.area, loop.unit]
-    .filter((s): s is string => !!s)
-    .map(s => s.replace(/_/g, ' '))
-    .join(' › ');
+  return locationPath(loop);
 }
 
 const validZone = (tz: string | undefined): string | undefined => {

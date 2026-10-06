@@ -16,6 +16,7 @@ import { EmptyState, KvRow, PanelHead, TonePill, fmtDateTime, toneFor } from '..
 import { explorerHref } from '../cpaHref';
 import { availabilityCopy, availabilityPill, conditionOf, supportCopy } from './eventsState';
 import { isAcknowledged, shelfCountdown, shelfState, stateView } from './shelfState';
+import { diagnosisLabel, phrase } from '../vocabulary';
 
 const ShelvePanel = React.lazy(() => import('./ShelvePanel'));
 const UnshelvePanel = React.lazy(() => import('./UnshelvePanel'));
@@ -73,7 +74,7 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
     <aside className="cpm-surface">
       <PanelHead
         eyebrow={`EVT-${event.id}`}
-        title={event.peak_diagnosis.replace(/_/g, ' ')}
+        title={diagnosisLabel(event.peak_diagnosis)}
         right={<span className="cpm-filter-row"><TonePill tone={sev.tone}>{sev.label}</TonePill><TonePill tone={state.tone}>{state.label}</TonePill></span>}
       />
       <p className="cpm-copy cpm-source-line">
@@ -87,17 +88,17 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
 
       <PanelHead eyebrow="What happened" title="Episode" />
       <p className="cpm-copy">
-        The {event.family.replace(/_/g, ' ').toLowerCase()} family was reported across{' '}
+        The {phrase(event.family)} family was reported across{' '}
         {supportCopy(event)}, peaking at{' '}
         {(event.peak_confidence * 100).toFixed(0)}% confidence
         {event.last_diagnosis && event.last_diagnosis !== event.peak_diagnosis
-          ? `; the latest window reports ${event.last_diagnosis.replace(/_/g, ' ')}.`
+          ? `; the latest window reports ${diagnosisLabel(event.last_diagnosis).toLowerCase()}.`
           : '.'}
       </p>
       {/* v2.5 (1F.2, R10): condition and availability are separate facts. */}
       <KvRow label="Condition">
         <TonePill tone={open ? 'warn' : 'muted'}>{open ? 'OPEN' : 'CLOSED'}</TonePill>
-        {event.close_reason && <> {event.close_reason.replace(/_/g, ' ').toLowerCase()}</>}
+        {event.close_reason && <> {phrase(event.close_reason)}</>}
       </KvRow>
       <KvRow label="Availability">
         {availability ? <TonePill tone={availability.tone}>{availability.label}</TonePill> : <TonePill tone="good">Observed</TonePill>}

@@ -11,6 +11,7 @@ import { EmptyState, PanelHead, QueryError, TonePill, fmtDateTime } from '../sha
 import { usePagedSlice } from '../../shared/ListPager';
 import type { BundleSummary, EffectiveSummaryLoop } from '../../../api/cpm/config';
 import { bundleLabel, bundleStateTone, shortHash } from './configSupport';
+import { codeLabel, locationLabel } from '../vocabulary';
 
 const PAGE = 20;
 const SETTLED = new Set(['ACTIVE_VERIFIED', 'SUPERSEDED', 'ROLLED_BACK']);
@@ -65,10 +66,10 @@ export const ConfigOverview: React.FC<ConfigOverviewProps> = ({ loops, loopsLoad
               <tbody>
                 {pageItems.map(l => (
                   <tr key={l.loopId} data-state={l.state}>
-                    <td><Link className="cpm-link cpm-mono" to={loopHref(l.loopId)}>{l.loopId}</Link><span className="cpm-config-property__meta cpm-config-table__from">{l.displayName}{l.unit ? ` · ${l.unit}` : ''}</span></td>
-                    <td className="cpm-mono">{l.profileId}</td>
+                    <td><Link className="cpm-link cpm-mono" to={loopHref(l.loopId)}>{l.loopId}</Link><span className="cpm-config-property__meta cpm-config-table__from">{l.displayName}{l.unit ? ` · ${locationLabel(l.unit)}` : ''}</span></td>
+                    <td title={l.profileId ?? undefined}>{codeLabel(l.profileId)}</td>
                     <td>
-                      <TonePill tone={l.bundle ? bundleStateTone(l.state) : 'muted'}>{l.bundle ? l.state : 'factory layer'}</TonePill>
+                      <TonePill tone={l.bundle ? bundleStateTone(l.state) : 'muted'}>{l.bundle ? codeLabel(l.state) : 'factory layer'}</TonePill>
                       {l.bundle && <span className="cpm-config-property__meta cpm-config-table__from">{bundleLabel(l.bundle)}</span>}
                     </td>
                     <td>{l.bundle?.effectiveFrom ? fmtDateTime(l.bundle.effectiveFrom) : '—'}</td>

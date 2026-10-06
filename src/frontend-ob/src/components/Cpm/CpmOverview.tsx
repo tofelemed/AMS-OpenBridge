@@ -28,6 +28,7 @@ import ReadinessStrip from './overview/ReadinessStrip';
 import LoopFocus from './overview/LoopFocus';
 import FocusedLoopDrawer from './overview/FocusedLoopDrawer';
 import { eventsHref, explorerHref, performanceHref } from './cpaHref';
+import { diagnosisLabel } from './vocabulary';
 
 export const CpmOverview: React.FC = () => {
   const navigate = useNavigate();
@@ -170,7 +171,7 @@ export const CpmOverview: React.FC = () => {
                   onClick={() => openLoop(e.loop_id)}>
                   {e.loop_id} ›
                 </ObcButton>
-                <span>{e.peak_diagnosis.replace(/_/g, ' ')}</span>
+                <span>{diagnosisLabel(e.peak_diagnosis)}</span>
               </span>
               <ObcButton variant="flat" title={`Open episode EVT-${e.id} in Loop Events`}
                 onClick={() => navigate(eventsHref({ event: e.id, loop: e.loop_id }))}>

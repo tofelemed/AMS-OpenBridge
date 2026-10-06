@@ -12,6 +12,7 @@ import React from 'react';
 import type { CpmKpiRow } from '../../../api/cpmApi';
 import { KvRow, PanelHead, TonePill, EmptyState } from '../shared';
 import { gateTone, glyphFor } from '../gateStatus';
+import { codeLabel } from '../vocabulary';
 
 export const SHORT_GATES: { key: string; field: string; name: string }[] = [
   { key: 'G0', field: 'gate0_status', name: 'Data quality' },
@@ -132,7 +133,7 @@ export const WindowResultsPanel: React.FC<{
         <div className="cpm-filter-row" style={{ flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
           {SHORT_GATES.map(g => {
             const status = row[g.field];
-            const label = typeof status === 'string' ? status.replace(/_/g, ' ') : '—';
+            const label = typeof status === 'string' ? codeLabel(status) : '—';
             return (
               <span key={g.key} title={g.name}>
                 <TonePill tone={gateTone(typeof status === 'string' ? status : null)}>

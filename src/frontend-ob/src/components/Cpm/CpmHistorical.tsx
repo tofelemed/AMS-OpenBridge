@@ -40,6 +40,7 @@ import {
   parseCustomRange,
   RANGE_PRESETS, activePreset, presetRange, spanOf, stepRange,
 } from './historical/timeRange';
+import { diagnosisLabel } from './vocabulary';
 
 /** KPI overlays offered — real stored fields only, each at its own resolution. */
 const KPI_OVERLAYS = [
@@ -157,7 +158,7 @@ export const CpmHistorical: React.FC = () => {
       startMs: Date.parse(w.windowStart),
       endMs: Date.parse(w.windowEnd),
       tone: b.tone,
-      label: `${b.label} · ${(w.diagnosis ?? '—').replace(/_/g, ' ')}`,
+      label: `${b.label} · ${diagnosisLabel(w.diagnosis)}`,
       windowEnd: w.windowEnd,
     }];
   }), [windows]);

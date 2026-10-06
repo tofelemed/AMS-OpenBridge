@@ -37,6 +37,7 @@ import { EmptyState, TonePill, toneFor } from './shared';
 import {
   ROW_FILTERS, filterCounts, filterRows, glyphFor, isRowFilter, type RowFilter,
 } from './gateStatus';
+import { diagnosisLabel } from './vocabulary';
 
 const PAGE_SIZE = 25;
 const NAV_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
@@ -271,7 +272,7 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
                       })}
                       <td role="gridcell" className="cpm-matrix__result">
                         <TonePill tone={toneFor(row.diagnosis)}>
-                          {row.diagnosis.replace(/_/g, ' ')}
+                          {diagnosisLabel(row.diagnosis)}
                         </TonePill>
                         {/* audit F4: the row is the NEWEST window; an older verdict is named as older, with its age */}
                         {staleVerdictLine(row.lastVerdict) && (

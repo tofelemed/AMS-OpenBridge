@@ -74,7 +74,7 @@ export const HYPOTHESIS_ORDER: LeadingHypothesis[] = [
 ];
 
 export const HYPOTHESIS_LABEL: Record<string, string> = {
-  STICTION: 'Final element (stiction / nonlinearity)',
+  STICTION: 'Valve stiction / nonlinearity',
   OSCILLATION_TUNING: 'Oscillation — tuning',
   EXTERNAL_DISTURBANCE: 'External disturbance',
   EXCESSIVE_EFFORT: 'Excessive actuator effort',
