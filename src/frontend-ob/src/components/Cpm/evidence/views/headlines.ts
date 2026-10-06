@@ -28,6 +28,16 @@ const first = (arts: GateArtifacts, kind: string) => arts.byKind[kind]?.[0];
 const count = (arts: GateArtifacts, kind: string) => arts.byKind[kind]?.length ?? 0;
 const listLength = (s: string | undefined) => (s ? s.split(/[;,]/).map(x => x.trim()).filter(Boolean).length : 0);
 
+/**
+ * CHG-049 (final review I1): the G7 tally. The per-cycle cycle_fit artifacts are capped (accepted first, ends kept),
+ * so the accepted / total counts come from the cycle_scores artifact (one row per cycle, all N) when it is present.
+ */
+export function cycleTally(scores: DecodedArtifact | undefined, cycles: DecodedArtifact[]): { accepted: number; total: number; shown: number } {
+  const acceptedCol = scores?.columns.accepted;
+  if (scores && acceptedCol) return { accepted: Array.from(acceptedCol).filter(v => v !== 0).length, total: scores.n, shown: cycles.length };
+  return { accepted: cycles.filter(c => P(c, 'accepted') === 'true').length, total: cycles.length, shown: cycles.length };
+}
+
 export function headlineOf(gate: string, arts: GateArtifacts): Headline[] {
   const pick = (...items: Array<Headline | null>) => items.filter((h): h is Headline => h != null).slice(0, 5);
   switch (gate) {
@@ -45,9 +55,9 @@ export function headlineOf(gate: string, arts: GateArtifacts): Headline[] {
     case 'G5': { const d = first(arts, 'acf_series'); return pick(fromKey(d, 'period_s'), fromKey(d, 'regularity'), fromKey(d, 'accepted_cycles')); }
     case 'G6': { const d = first(arts, 'psd'); return pick(fromKey(d, 'ordinate_kind'), fromKey(d, 'resolution_hz'), { label: 'Peak bins', value: String(listLength(P(d, 'peak_indices'))) }, fromKey(d, 'noise_reference')); }
     case 'G7': {
-      const cycles = arts.byKind.cycle_fit ?? [];
-      if (!cycles.length) return [];
-      return [{ label: 'Accepted cycles', value: `${cycles.filter(c => P(c, 'accepted') === 'true').length} of ${cycles.length}` }];
+      const t = cycleTally(first(arts, 'cycle_scores'), arts.byKind.cycle_fit ?? []);
+      if (!t.total) return [];
+      return [{ label: 'Accepted cycles', value: `${t.accepted} of ${t.total}` }];
     }
     case 'G8': { const d = first(arts, 'lag_structure'); return pick(fromKey(d, 'method_id'), fromKey(d, 'bicoherence'), fromKey(d, 'capability_reason')); }
     case 'G9': {

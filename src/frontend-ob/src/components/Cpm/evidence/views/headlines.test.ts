@@ -25,6 +25,13 @@ describe('headlineOf', () => {
     expect(headlineOf('G9', arts({ cycle_polygon: [p, p] }))).toEqual([{ label: 'Cycle polygons', value: '2' }, { label: 'Mean area', value: '0.500' }]);
   });
 
+  it('G7: cycle_scores (every cycle) wins over the capped cycle_fit artifacts', () => {
+    const fit = decoded({ gate: 'G7', kind: 'cycle_fit', x: [0], y: [0], provenance: { accepted: 'false', cycle_id: '0' } });
+    const scores = decoded({ gate: 'G7', kind: 'cycle_scores', x: [0, 1, 2, 3], y: [0.1, 0.9, 0.8, 0.2], columns: { accepted: [0, 1, 1, 0] } });
+    expect(headlineOf('G7', arts({ cycle_fit: [fit], cycle_scores: [scores] }))).toEqual([{ label: 'Accepted cycles', value: '2 of 4' }]);
+    expect(headlineOf('G7', arts({ cycle_scores: [scores] }))).toEqual([{ label: 'Accepted cycles', value: '2 of 4' }]);
+  });
+
   it('G13 and G15: the record states', () => {
     const i = decoded({ gate: 'G13', kind: 'interaction', x: [0], y: [0], provenance: { state: 'UNAVAILABLE', capability_state: 'INSTALLED', peer_ids: '', reason: 'NO_PEER_LINKS' } });
     expect(headlineOf('G13', arts({ interaction: [i] }))).toMatchObject([{ label: 'State', value: 'UNAVAILABLE' }, { label: 'Peers', value: '0' }]);
