@@ -551,7 +551,8 @@ Step 'an analysis run (REPLAY) is registered, submitted and isolated by purpose 
 } finally {
 # ── Cleanup (runs even when a step above threw) ──────────────────────────────
 if (-not $SkipCleanup) {
-    if ($simProcess -and -not $simProcess.HasExited) { Stop-Process -Id $simProcess.Id -Force -Confirm:$false }
+    # -ErrorAction SilentlyContinue: the simulator may exit between the check and the stop; a throw here would skip the restore below
+    if ($simProcess -and -not $simProcess.HasExited) { Stop-Process -Id $simProcess.Id -Force -Confirm:$false -ErrorAction SilentlyContinue }
     if ($script:configId -and -not $KeepConfig) {
         try {
             Invoke-RestMethod -Method Post -Uri "$ing/data-sources/$($script:configId)/deactivate" -Headers $H | Out-Null
