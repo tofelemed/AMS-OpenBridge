@@ -39,6 +39,9 @@ import { caseCounts, caseIdFor } from './investigation/cases';
 import { confirmationLabel } from './investigation/confirmationCopy';
 import { KEY_FACTS, fmt } from './investigation/keyFacts';
 import { HealthLane } from './health/HealthLane';
+import CollapsibleSection from './CollapsibleSection';
+import ConclusionStrip from './ConclusionStrip';
+import SelectionSummary from './SelectionSummary';
 import { useInstrumentHealthHistory } from './health/useInstrumentHealth';
 
 export const CpmInvestigation: React.FC = () => {
@@ -142,11 +145,19 @@ export const CpmInvestigation: React.FC = () => {
         title="Investigation"
       />
       <LoopContextBar loopId={loopId} period={matrix ? { label: `${windowKind} fused window${mode === 'historical' ? ' (selected)' : ' (latest)'}`, start: matrix.windowStart, end: matrix.windowEnd } : null} />
-      <PlantScopeFilter scope={scope} summary={rankings.data ? `${rankings.data.count} loop(s) in scope` : null} />
-
-      <CaseTriage scope={scope} cases={cases} caseFilter={caseFilter}
-        loops={filteredLoops.length ? filteredLoops : allLoops} loopId={loopId}
-        mode={mode} windowKind={windowKind} windows={windows} matrix={matrix} setParams={setParams} />
+      {/* SME #13 (CHG-050): the diagnosis stays in view while the reasoning below it is read. */}
+      <ConclusionStrip targetId="cpm-conclusion" active={!!matrix} label="Final conclusion"
+        tone={toneFor(matrix?.diagnosis)} text={(matrix?.diagnosis ?? 'NONE').replace(/_/g, ' ')}
+        detail={matrix?.narrative?.recommendation ?? undefined} />
+      {/* The fleet case chips and pickers fold to one line once a verdict is on screen. */}
+      <SelectionSummary summary={loopId && matrix
+        ? `${loop?.loopId ?? loopId} · ${windowKind} fused · ${mode === 'historical' ? 'selected' : 'latest'} window ending ${matrix.windowEnd ? fmtDateTime(matrix.windowEnd) : '—'}`
+        : null}>
+        <PlantScopeFilter scope={scope} summary={rankings.data ? `${rankings.data.count} loop(s) in scope` : null} />
+        <CaseTriage scope={scope} cases={cases} caseFilter={caseFilter}
+          loops={filteredLoops.length ? filteredLoops : allLoops} loopId={loopId}
+          mode={mode} windowKind={windowKind} windows={windows} matrix={matrix} setParams={setParams} />
+      </SelectionSummary>
 
       {/* I6: error/empty rendering keyed on the query the ACTIVE MODE reads.
           Historical mode used to key on the live query — a failed gate-history
@@ -181,7 +192,7 @@ export const CpmInvestigation: React.FC = () => {
       {matrix && (
         <>
           <div className="cpm-grid-2">
-            <section className="cpm-surface">
+            <section className="cpm-surface" id="cpm-conclusion">
               <PanelHead eyebrow="Final conclusion" title={(matrix.diagnosis ?? 'NONE').replace(/_/g, ' ')}
                 right={<TonePill tone={toneFor(matrix.diagnosis)}>
                   {matrix.confidence != null ? `${(matrix.confidence * 100).toFixed(0)}% confidence` : 'no confidence'}
@@ -261,39 +272,44 @@ export const CpmInvestigation: React.FC = () => {
           </section>
 
           <div className="cpm-grid-2">
-            <section className="cpm-surface">
+            <CollapsibleSection id="inv-reasoning" title="Reasoning chain — how the engine got there"
+              summary={`Eligibility → Evidence → Fusion · ${machineReason ? `reason code ${machineReason}` : 'fused cleanly'}`}>
               <ReasoningChain matrix={matrix} machineReason={machineReason} />
-            </section>
-
-            <section className="cpm-surface">
+            </CollapsibleSection>
+            <CollapsibleSection id="inv-hypotheses" title="Hypothesis comparison"
+              summary={verdict && !verdict.legacy && verdict.leadingHypothesis
+                ? `Leading: ${HYPOTHESIS_LABEL[verdict.leadingHypothesis] ?? verdict.leadingHypothesis} · ${confirmationLabel(verdict.confirmation, false)}`
+                : 'Family and detector scores (pre-v2.5 result)'}>
               <HypothesisPanel verdict={verdict} metrics={metrics} />
-
-              <PanelHead eyebrow="Record it" title="Investigation note" />
-              {openFrame ? (
-                <>
-                  <textarea className="cpm-textarea" rows={2} value={note}
-                    placeholder="Finding, action taken, follow-up owner…"
-                    onChange={e => setNote(e.target.value)} />
-                  <div className="cpm-filter-row" style={{ marginTop: 8 }}>
-                    <ObcButton variant="raised" disabled={note.trim().length === 0 || ack.isPending}
-                      onClick={() => ack.mutate(
-                        { id: openFrame.id, note: `INVESTIGATION: ${note.trim()}` },
-                        { onSuccess: () => setNote('') })}>
-                      {ack.isPending ? 'Saving…' : 'Create investigation note ›'}
-                    </ObcButton>
-                    {ack.isSuccess && <TonePill tone="good">SAVED</TonePill>}
-                  </div>
-                  <p className="cpm-copy">
-                    Saved as a note on the open event frame (acknowledges it). Full case
-                    management is not built yet — that is data-gap DG-7, not a hidden feature.
-                  </p>
-                </>
-              ) : (
-                <EmptyState title="No open event frame"
-                  copy="Notes attach to event frames; this loop has none open right now." />
-              )}
-            </section>
+            </CollapsibleSection>
           </div>
+
+          <section className="cpm-surface cpm-investigation-note">
+            <PanelHead eyebrow="Record it" title="Investigation note" />
+            {openFrame ? (
+              <>
+                <textarea className="cpm-textarea" rows={2} value={note}
+                  placeholder="Finding, action taken, follow-up owner…"
+                  onChange={e => setNote(e.target.value)} />
+                <div className="cpm-filter-row" style={{ marginTop: 8 }}>
+                  <ObcButton variant="raised" disabled={note.trim().length === 0 || ack.isPending}
+                    onClick={() => ack.mutate(
+                      { id: openFrame.id, note: `INVESTIGATION: ${note.trim()}` },
+                      { onSuccess: () => setNote('') })}>
+                    {ack.isPending ? 'Saving…' : 'Create investigation note ›'}
+                  </ObcButton>
+                  {ack.isSuccess && <TonePill tone="good">SAVED</TonePill>}
+                </div>
+                <p className="cpm-copy">
+                  Saved as a note on the open event frame (acknowledges it). Full case
+                  management is not built yet — that is data-gap DG-7, not a hidden feature.
+                </p>
+              </>
+            ) : (
+              <EmptyState title="No open event frame"
+                copy="Notes attach to event frames; this loop has none open right now." />
+            )}
+          </section>
 
           <WindowBrowser windows={windows} matrix={matrix} previous={previous}
             windowKind={windowKind} setParams={setParams} />

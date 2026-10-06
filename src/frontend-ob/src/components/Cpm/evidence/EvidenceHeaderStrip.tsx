@@ -51,7 +51,7 @@ export const EvidenceHeaderStrip: React.FC<EvidenceHeaderStripProps> = ({ select
       <WorkspaceHeader
         eyebrow="Understand the cause · Evidence workbench"
         title={`${selection.loopId}${loopName ? ` · ${loopName}` : ''} — ${selection.gate}${entry ? ` ${entry.name}` : ''}`}
-        copy={entry?.definition ?? 'The exact intermediates of one method run.'}
+        // CHG-050: the gate definition lives in Explain → "What this gate asks"; the header keeps the page short.
       />
       <div className="cpm-fact-row">
         <div className="cpm-fact-row__facts" role="list" aria-label="Run facts">

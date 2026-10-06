@@ -32,6 +32,10 @@ import { gateReasonOf, gateStatusOf } from './gateFacts';
 import { verdictSentence } from './verdictCopy';
 import { headlineOf } from './views/headlines';
 import { formatInZone, siteZoneOf } from './timezone';
+import { gateTone } from '../gateStatus';
+import CollapsibleSection from '../CollapsibleSection';
+import ConclusionStrip from '../ConclusionStrip';
+import SelectionSummary from '../SelectionSummary';
 
 const DEFAULT_KIND = '24h';
 
@@ -152,7 +156,13 @@ export const GateEvidenceWorkspace: React.FC = () => {
   return (
     <div className="cpm-screen cpm-evidence-workspace">
       <LoopContextBar loopId={loopId} timeZone={timeZone} period={run.data ? { label: `${run.data.windowKind} window`, start: run.data.support.fromMs, end: run.data.support.toMs } : null} />
-      {toolbar}
+      {/* SME #13 (CHG-050): the verdict stays in view while the evidence below it is read. */}
+      <ConclusionStrip targetId="cpm-conclusion" active={!!run.data} label="Verdict"
+        tone={status ? gateTone(status) : 'muted'} text={`${selection.gate} · ${(status ?? 'no verdict').replace(/_/g, ' ')}`} detail={sentence} />
+      <SelectionSummary summary={loopId && currentOption
+        ? `${loop?.loopId ?? loopId} · ${kinds.find(k => k.kind === kind)?.label ?? kind} · ${currentOption.label}` : null}>
+        {toolbar}
+      </SelectionSummary>
       <EvidenceHeaderStrip selection={selection} run={run.data} entry={entry} loopName={loop?.displayName} timeZone={timeZone}
         readiness={manifest.data?.readiness}
         nav={{ newer: nav.newer ? () => openWindow(nav.newer) : null, older: nav.older ? () => openWindow(nav.older) : null,
@@ -161,13 +171,15 @@ export const GateEvidenceWorkspace: React.FC = () => {
       {run.data && <GateChipStrip chips={chips} selected={selection.gate} onOpen={(g, id) => goTo(id, g)} />}
       <div className={`cpm-evidence-body${explainCollapsed ? ' cpm-evidence-body--explain-closed' : ''}`}>
         <main className="cpm-evidence-centre" aria-busy={run.isLoading || manifest.isLoading}>
-          <VerdictCard gate={selection.gate} name={entry?.name ?? selection.gate} status={status} reason={reason} state={state} sentence={sentence} headline={headline} />
-          {run.data ? (
-            <SignalContextLanes loopId={run.data.loopId} methodRunIds={run.data.methodRunIds} fromMs={run.data.support.fromMs} toMs={run.data.support.toMs} timeZone={timeZone} timeFmt={timeFmt} />
-          ) : <div className="cpm-surface cpm-skeleton cpm-skeleton--lanes" aria-hidden />}
+          <div id="cpm-conclusion">
+            <VerdictCard gate={selection.gate} name={entry?.name ?? selection.gate} status={status} reason={reason} state={state} sentence={sentence} headline={headline} />
+          </div>
           {state.kind === 'READY' && manifest.data ? (
-            <EvidenceArtifactRenderer gate={selection.gate} manifest={manifest.data} timeZone={timeZone} timeFmt={timeFmt}
-              onNavigateGate={g => { const id = run.data?.methodRunIds[g]; if (id) goTo(id, g); }} />
+            <CollapsibleSection id="wb-evidence" defaultOpen title={`Evidence for ${selection.gate}${entry ? ` · ${entry.name}` : ''}`}
+              summary="The run's own artifacts for this gate: what it computed, and from what.">
+              <EvidenceArtifactRenderer gate={selection.gate} manifest={manifest.data} timeZone={timeZone} timeFmt={timeFmt}
+                onNavigateGate={g => { const id = run.data?.methodRunIds[g]; if (id) goTo(id, g); }} />
+            </CollapsibleSection>
           ) : state.kind === 'LOADING' ? (
             <div className="cpm-surface cpm-skeleton cpm-skeleton--evidence" aria-hidden />
           ) : (
@@ -183,6 +195,12 @@ export const GateEvidenceWorkspace: React.FC = () => {
             </p>
           )}
           {reconstruct.isError && <p className="cpm-field__error" role="alert">Reconstruction refused: {(reconstruct.error as Error).message}</p>}
+          {run.data ? (
+            <CollapsibleSection id="wb-signal-context" title="Signal context"
+              summary="PV / SP and OP / VP from the historian over this run's window — context, not the run's own qualification.">
+              <SignalContextLanes loopId={run.data.loopId} methodRunIds={run.data.methodRunIds} fromMs={run.data.support.fromMs} toMs={run.data.support.toMs} timeZone={timeZone} timeFmt={timeFmt} />
+            </CollapsibleSection>
+          ) : <div className="cpm-surface cpm-skeleton cpm-skeleton--lanes" aria-hidden />}
           <WindowFlags row={currentOption?.flags} />
         </main>
         <ExplainPanel gate={selection.gate} run={run.data} entry={entry} manifest={manifest.data} state={state} status={status} reason={reason}

@@ -11,7 +11,8 @@ import { ObiPanelRightOpen } from '@oicl/openbridge-webcomponents-react/icons/ic
 import type { EvidenceManifest, MethodRun } from '../../../api/cpm/evidence';
 import type { GateCatalogueEntry } from '../../../api/cpm/catalogue';
 import { EffectiveConfigDrawer } from '../config/EffectiveConfigDrawer';
-import { CpmIconButton, KvRow, PanelHead, TonePill } from '../shared';
+import { CpmIconButton, KvRow, TonePill } from '../shared';
+import CollapsibleSection from '../CollapsibleSection';
 import { gateTone } from '../gateStatus';
 import type { GateState } from './GateResultState';
 import { identityOf, parametersOf } from './gateFacts';
@@ -67,27 +68,27 @@ export const ExplainPanel: React.FC<ExplainPanelProps> = ({ gate, run, entry, ma
         <CpmIconButton label="Hide explain" onClick={onToggle}><ObiPanelRightClose /></CpmIconButton>
       </div>
 
-      <section className="cpm-explain__section">
-        <PanelHead eyebrow={gate} title="What this gate asks" />
+      {/* SME #13 (CHG-050): sections collapse instead of the column scrolling inside the page;
+          "Why this result" — the reason — is the one open by default. */}
+      <CollapsibleSection id="wb-explain-why" defaultOpen title="Why this result" summary={why[0]}>
+        {why.map((p, i) => <p key={i} className="cpm-copy">{p}</p>)}
+      </CollapsibleSection>
+
+      <CollapsibleSection id="wb-explain-asks" title="What this gate asks" summary={entry?.definition ?? undefined}>
         <p className="cpm-copy">{entry?.definition ?? 'No catalogue definition for this gate in this build.'}</p>
         {entry?.preconditions && <KvRow label="Needs">{entry.preconditions}</KvRow>}
         <KvRow label="Role">{entry?.role ?? '—'}</KvRow>
-      </section>
+      </CollapsibleSection>
 
-      <section className="cpm-explain__section">
-        <PanelHead eyebrow="Installed" title="Method" />
+      <CollapsibleSection id="wb-explain-method" title="Method"
+        summary={entry ? `${entry.method.id} v${entry.method.version} · ${run?.tier ?? entry.tier}` : undefined}>
         <KvRow label="Method">{entry ? `${entry.method.id} v${entry.method.version}` : '—'}</KvRow>
         <KvRow label="Tier">{run?.tier ?? entry?.tier ?? '—'}</KvRow>
         {entry && entry.capabilityState !== 'INSTALLED' && <KvRow label="Capability">{entry.capabilityState}{entry.capabilityReason ? ` · ${entry.capabilityReason}` : ''}</KvRow>}
-      </section>
+      </CollapsibleSection>
 
-      <section className="cpm-explain__section">
-        <PanelHead eyebrow="Reasoning" title="Why this result" />
-        {why.map((p, i) => <p key={i} className="cpm-copy">{p}</p>)}
-      </section>
-
-      <section className="cpm-explain__section">
-        <PanelHead eyebrow="From the run's artifacts" title="Parameters used" />
+      <CollapsibleSection id="wb-explain-params" title="Parameters used"
+        summary={params.length ? `${params.length} parameter(s) from the run's artifacts` : 'None declared by the retained artifacts'}>
         {params.length === 0 ? (
           <p className="cpm-copy">No retained artifact declares parameters for this gate{manifest ? '' : ' yet'}.</p>
         ) : (
@@ -100,10 +101,9 @@ export const ExplainPanel: React.FC<ExplainPanelProps> = ({ gate, run, entry, ma
             ))}
           </dl>
         )}
-      </section>
+      </CollapsibleSection>
 
-      <section className="cpm-explain__section">
-        <PanelHead eyebrow="Governed" title="Configuration" />
+      <CollapsibleSection id="wb-explain-config" title="Configuration" summary="The governed bundle this run ran under.">
         {run ? (
           <>
             <KvRow label="Bundle"><CopyableId label="Bundle hash" value={run.identity.bundleHash} chars={16} /></KvRow>
@@ -111,10 +111,9 @@ export const ExplainPanel: React.FC<ExplainPanelProps> = ({ gate, run, entry, ma
             {showConfig && <EffectiveConfigDrawer loopId={run.loopId} runBundleHash={run.identity.bundleHash} gateFilter={gate} onClose={() => setShowConfig(false)} />}
           </>
         ) : <p className="cpm-copy">—</p>}
-      </section>
+      </CollapsibleSection>
 
-      <section className="cpm-explain__section">
-        <PanelHead eyebrow="Immutable" title="Identity" />
+      <CollapsibleSection id="wb-explain-identity" title="Identity" summary="Run, bundle and source ids — copyable.">
         {run ? (
           <div className="cpm-explain__identity">
             {identityOf(run).map(row => (
@@ -126,7 +125,7 @@ export const ExplainPanel: React.FC<ExplainPanelProps> = ({ gate, run, entry, ma
             ))}
           </div>
         ) : <p className="cpm-copy">—</p>}
-      </section>
+      </CollapsibleSection>
     </aside>
   );
 };

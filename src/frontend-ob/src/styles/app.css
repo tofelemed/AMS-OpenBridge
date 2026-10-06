@@ -46,6 +46,9 @@ body {
   overflow: hidden;
   background: var(--container-background-color);
 }
+/* Grid items default to min-width:auto, so one wide child (the top bar on a phone) widened the whole
+   1fr column past the viewport and every page was clipped on the right (CHG-050, 390 px check). */
+.app-root > * { min-width: 0; }
 
 .app-topbar {
   grid-area: topbar;

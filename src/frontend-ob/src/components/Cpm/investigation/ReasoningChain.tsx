@@ -4,7 +4,7 @@
  */
 import React from 'react';
 import type { CpmGateMatrix } from '../../../api/cpmApi';
-import { KvRow, PanelHead, TonePill } from '../shared';
+import { KvRow, TonePill } from '../shared';
 import { gateTone } from '../gateStatus';
 
 /** Reasoning-chain stages over the 17 gates. */
@@ -33,7 +33,7 @@ export function stageTone(matrix: CpmGateMatrix | undefined, gates: string[]): '
 
 export const ReasoningChain: React.FC<{ matrix: CpmGateMatrix; machineReason: string | null }> = ({ matrix, machineReason }) => (
   <>
-    <PanelHead eyebrow="Reasoning chain" title="How the engine got there" />
+    {/* The heading is the CollapsibleSection that holds this chain (CHG-050). */}
     {CHAIN.map((c, i) => {
       const tone = stageTone(matrix, c.gates);
       return (

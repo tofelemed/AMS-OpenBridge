@@ -1,0 +1,68 @@
+/* ── Evidence pages: conclusion first, details collapsible, no scroll inside scroll (SME #13, CHG-050) ── */
+
+/* Selection folded into one line ("Showing FIC10401 · 24h fused · … · Change ▾"). */
+.cpm-selection { display: flex; flex-direction: column; gap: 8px; }
+.cpm-selection__line {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
+  padding: 2px 4px 2px 12px;
+  border: 1px solid var(--border-divider-color);
+  border-radius: 8px;
+  background: var(--container-backdrop-color);
+}
+.cpm-selection__text { flex: 1 1 280px; min-width: 0; overflow-wrap: anywhere; }
+
+/* Conclusion strip: a zero-height sticky host right under the context bar; the strip hangs inside it,
+   so showing / hiding it never shifts the page. Spans the screen padding like the context bar. */
+.cpm-conclusion-strip {
+  position: sticky;
+  top: calc(var(--cpm-context-h, 0px) - var(--spacing-4, 16px));
+  z-index: 5;
+  height: 0;
+  margin: 0 calc(-16px - var(--spacing-4, 16px));
+}
+.cpm-conclusion-strip__inner {
+  display: flex; flex-wrap: nowrap; align-items: center; gap: 4px 12px;
+  padding: 6px calc(16px + var(--spacing-4, 16px));
+  background: var(--container-backdrop-color);
+  border-bottom: 1px solid var(--border-outline-color);
+  visibility: hidden; opacity: 0; transition: opacity 120ms ease;
+}
+.cpm-conclusion-strip__inner--shown { visibility: visible; opacity: 1; }
+.cpm-conclusion-strip__inner > * { flex: none; }
+.cpm-conclusion-strip__inner > .cpm-conclusion-strip__detail {
+  flex: 1 1 0; min-width: 0; color: var(--element-neutral-color); font-size: 0.85rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* A phone keeps the verdict and the way back; the detail is the first thing to go. */
+@media (max-width: 600px) {
+  .cpm-conclusion-strip__detail { display: none; }
+  .cpm-conclusion-strip__inner .cpm-eyebrow { display: none; }
+  .cpm-conclusion-strip__inner obc-button { margin-left: auto; }
+}
+
+/* Collapsible evidence sections: an OpenBridge accordion item on a CPM surface; the one-line summary
+   sits under the header while the section is closed. */
+.cpm-collapsible { padding-top: 4px; padding-bottom: 4px; min-width: 0; }
+.cpm-collapsible obc-accordion-item { display: block; width: 100%; }
+.cpm-collapsible__body { display: flex; flex-direction: column; gap: 12px; padding: 4px 0 12px; min-width: 0; }
+.cpm-collapsible__summary {
+  margin: 0 0 8px; color: var(--element-neutral-color); font-size: 0.85rem;
+  overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+
+/* The explain column no longer scrolls inside the page: it flows, its sections collapse instead. */
+.cpm-screen .cpm-explain { position: static; max-height: none; overflow: visible; }
+
+/* Inside the explain column the sections are rows of that one surface, not surfaces of their own. */
+.cpm-explain .cpm-collapsible { background: none; border: 0; box-shadow: none; padding: 0; }
+
+/* The investigation note now has a full-width card of its own: the field spans a readable measure. */
+.cpm-investigation-note .cpm-textarea { display: block; width: 100%; max-width: 72ch; resize: vertical; }
+
+/* Phone widths: the gate tiers wrap their chips instead of running off the edge, and long machine
+   tokens (G15 support lists, reason codes) break rather than clip inside an evidence section. */
+.cpm-collapsible__body { overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .cpm-gate-strip__tier { min-width: 0; max-width: 100%; }
+  .cpm-gate-strip__chips { flex-wrap: wrap; }
+}

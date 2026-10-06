@@ -3169,9 +3169,54 @@ with Docker overnight) the "Now · live 8 h" trend draws the fresh samples (PV �
 when more than one ingestion data source is active (its connection-test URL joins all ids → 404); the simulator was started
 directly with the script's arguments (pid in `%TEMP%\ot-soak-sim.pid`) — script fix not in this batch.
 
+## CHG-050 — SME review #13: the evidence pages lead with the conclusion; the detail collapses; no scroll inside the scroll (2026-10-06)
+
+**Source:** `SME_review.md` point 13. **Scope:** `ams-frontend` only: new `components/Cpm/{CollapsibleSection.tsx,
+ConclusionStrip.tsx, SelectionSummary.tsx}` and `styles/cpm-evidence-layout.css` (imported in `main.tsx`);
+`evidence/{GateEvidenceWorkspace.tsx, ExplainPanel.tsx, EvidenceHeaderStrip.tsx}` (+ the two tests), `CpmInvestigation.tsx`,
+`investigation/ReasoningChain.tsx`; `styles/app.css` (one shell rule, below). No service change.
+
+**What the SME said.** The evidence pages are long; the conclusion gets lost under pickers and detail, and the explain column
+scrolls inside the page.
+
+**Verified before the change.** Correct (1440 × 900, FIC10401). Evidence Workbench was 4.3 screens; the verdict began at
+785 px, below the first screen (which was pickers, title and facts); the Explain column scrolled on its own (605 of 2,199 px
+visible). Investigation was 5.5 screens; the fleet "Analysis cases" chips came before the conclusion (545 px); the reasoning
+chain and hypotheses took 1,490 px. Evidence Replay (2.2 screens) was fine and is unchanged.
+
+**What changed.**
+- **Pickers fold to one line** once something is selected — "Showing FIC10401 · 24h — fused verdict · ends … · Change ▾"
+  (Workbench: scope / loop / window kind / evaluated window / jump to date; Investigation: plant scope + case chips + loop /
+  mode / profile / window). With nothing selected the pickers are simply open.
+- **The conclusion stays in view:** after the verdict card (Workbench) or the Final conclusion card (Investigation) scrolls up
+  out of sight, a one-line strip docks under the loop context bar — verdict pill, the sentence / next-best action (ellipsised;
+  hidden on a phone), **Back to conclusion ↑**. It takes no layout height, so showing it never moves the page.
+- **Detail collapses behind a one-line summary** (OpenBridge accordion item on a CPM surface; the summary shows while closed):
+  Workbench — *Evidence for G15 · Decision* (open), *Signal context* (closed, now after the evidence); Explain — *Why this
+  result* first and open, then *What this gate asks / Method / Parameters used / Configuration / Identity*, closed.
+  Investigation — *Reasoning chain* ("Eligibility → Evidence → Fusion · reason code …") and *Hypothesis comparison* ("Leading:
+  Oscillation — tuning · NOT APPLICABLE"), closed; the investigation note is its own card. Closed content is not rendered.
+  Each open / closed choice is remembered per section in the browser (`localStorage` `ams-cpm-section:<id>`).
+- **No scroll inside the scroll:** the Explain column flows with the page. The gate definition left the Workbench header — it is
+  Explain › *What this gate asks*.
+- **Shell fix found by the 390 px check:** grid items default to `min-width: auto`, so the top bar widened the app's main
+  column to 472 px on a phone and every page was clipped on the right. `.app-root > * { min-width: 0 }` — all pages now fit;
+  the top bar itself is still crowded at 390 px (pre-existing, not in this change). At ≤ 600 px the gate tiers wrap their
+  chips and long machine tokens break inside evidence sections.
+- `obc-accordion-card` was tried first and rejected: its shadow wrapper is fixed at 320 px and shows a description only in
+  its "large" size, so it cannot span a column. `obc-accordion-item` is full width.
+
+**Tests.** `ExplainPanel.test.tsx` (section order: reason first; closed sections open on demand), `GateEvidenceWorkspace.test.tsx`
+(identity behind its section, pickers behind *Change*). Frontend 77 files / 363 tests green; lint / tsc / build clean.
+**Lab pass 2026-10-06** (FIC10401): Workbench 4.3 → **2.23 screens**, the verdict card whole on the first screen (530 → 763 px);
+Investigation 5.5 → **2.64 screens**, the conclusion is the first card (332 px); the strip appears only after scrolling past
+the conclusion and docks exactly under the context bar; Back to conclusion returns; 0 nested scrollers; open / closed
+remembered across navigation; 0 px page overflow at 1440 / 1000 / 768 / 390 (tables scroll in their own wrappers); night
+theme; 0 console errors.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-049) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
+- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-050) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
   migration, no Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant: `docker load` the `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
@@ -3193,3 +3238,6 @@ directly with the script's arguments (pid in `%TEMP%\ot-soak-sim.pid`) — scrip
   which opens Historical on the same loop and period.
   (CHG-049) the evaluated window is a labelled band on the trend; the header Diagnosis pill opens that window with
   "Compare with now" (a second live 8 h trend on the same scale).
+  (CHG-050) Evidence Workbench and Investigation open with a one-line "Showing … · Change ▾", the verdict / conclusion on
+  the first screen, evidence and reasoning in collapsible sections; scroll down and a "Back to conclusion ↑" strip docks
+  under the context bar.
