@@ -65,6 +65,15 @@ public static class OptionalInputs
     public static InputApplicability PeerApplicability(JsonElement engineering) =>
         Declared(engineering, "peerApplicability") ?? InputApplicability.Expected;
 
+    /// <summary>The same rule as <see cref="VpApplicability"/> as a SQL expression over cpm.loop_registry (fleet counts).</summary>
+    public const string VpApplicabilitySql = """
+        COALESCE(NULLIF(upper(trim(engineering->>'vpApplicability')), ''),
+                 CASE WHEN upper(command_path) IN ('OP_TO_VFD', 'OP_TO_PV') THEN 'NOT_APPLICABLE' ELSE 'EXPECTED' END)
+        """;
+
+    /// <summary>The same rule as <see cref="PeerApplicability"/> as a SQL expression over cpm.loop_registry.</summary>
+    public const string PeerApplicabilitySql = "COALESCE(NULLIF(upper(trim(engineering->>'peerApplicability')), ''), 'EXPECTED')";
+
     /// <param name="mapped">The tag (VP) / the links (peers) exist.</param>
     /// <param name="seenInLatestWindow">Whether the latest evaluated window carried it; null when not known.</param>
     public static InputState State(InputApplicability applicability, bool mapped, bool? seenInLatestWindow)

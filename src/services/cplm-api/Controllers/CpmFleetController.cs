@@ -60,11 +60,20 @@ public sealed class CpmFleetController : ControllerBase
     {
         await using var conn = await _dataSource.OpenConnectionAsync(token);
 
-        var registry = await conn.QueryFirstOrDefaultAsync("""
+        // CHG-059 (SME #23): an unmapped VP / missing peer links is a configuration gap only where it is EXPECTED;
+        // a drive has no valve, a valve without a positioner is a plant fact (counted apart, not as gaps).
+        var registry = await conn.QueryFirstOrDefaultAsync($"""
             SELECT COUNT(*)::int AS total,
                    COUNT(*) FILTER (WHERE COALESCE((monitoring->>'enabled')::boolean, FALSE))::int AS monitored,
                    COUNT(*) FILTER (WHERE COALESCE((monitoring->'evidence'->>'peerLinksConfigured')::boolean, FALSE))::int AS with_peer_links,
-                   COUNT(*) FILTER (WHERE tags ? 'vp')::int AS with_vp
+                   COUNT(*) FILTER (WHERE tags ? 'vp')::int AS with_vp,
+                   COUNT(*) FILTER (WHERE NOT (tags ? 'vp') AND {Traverse.CplmApi.Services.Registry.OptionalInputs.VpApplicabilitySql} = 'EXPECTED')::int AS vp_expected_unmapped,
+                   COUNT(*) FILTER (WHERE NOT (tags ? 'vp') AND {Traverse.CplmApi.Services.Registry.OptionalInputs.VpApplicabilitySql} = 'NOT_INSTALLED')::int AS vp_not_installed,
+                   COUNT(*) FILTER (WHERE NOT (tags ? 'vp') AND {Traverse.CplmApi.Services.Registry.OptionalInputs.VpApplicabilitySql} = 'NOT_APPLICABLE')::int AS vp_not_applicable,
+                   COUNT(*) FILTER (WHERE NOT COALESCE((monitoring->'evidence'->>'peerLinksConfigured')::boolean, FALSE)
+                                    AND {Traverse.CplmApi.Services.Registry.OptionalInputs.PeerApplicabilitySql} = 'EXPECTED')::int AS peers_expected_missing,
+                   COUNT(*) FILTER (WHERE NOT COALESCE((monitoring->'evidence'->>'peerLinksConfigured')::boolean, FALSE)
+                                    AND {Traverse.CplmApi.Services.Registry.OptionalInputs.PeerApplicabilitySql} <> 'EXPECTED')::int AS peers_not_applicable
             FROM cpm.loop_registry
             WHERE (@site::text IS NULL OR site = @site)
               AND (@area::text IS NULL OR area = @area)
@@ -111,8 +120,12 @@ public sealed class CpmFleetController : ControllerBase
             // distinguish stiction from an upstream disturbance.
             capability = new
             {
-                loopsCappedByMissingVp = (registry?.total ?? 0) - (registry?.with_vp ?? 0),
-                loopsWithoutDisturbanceContext = (registry?.total ?? 0) - (registry?.with_peer_links ?? 0)
+                // CHG-059: expected-but-unmapped only (was: every loop without a VP tag, VFD loops included)
+                loopsCappedByMissingVp = registry?.vp_expected_unmapped ?? 0,
+                loopsWithoutDisturbanceContext = registry?.peers_expected_missing ?? 0,
+                vpNotInstalled = registry?.vp_not_installed ?? 0,
+                vpNotApplicable = registry?.vp_not_applicable ?? 0,
+                peersNotApplicable = registry?.peers_not_applicable ?? 0
             }
         };
     }, ct);

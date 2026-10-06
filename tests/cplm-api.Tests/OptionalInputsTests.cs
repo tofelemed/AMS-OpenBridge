@@ -54,3 +54,24 @@ public sealed class OptionalInputsTests
         CpmLoopRegistryService.HasRange(new CpmEngineeringRange(VpApplicability: "NOT_INSTALLED")).Should().BeTrue();
     }
 }
+
+/// <summary>CHG-059: the fleet counts' SQL rule and the readiness C# rule must never disagree.</summary>
+[Trait("Category", "Integration")]
+public sealed class OptionalInputsSqlTests
+{
+    [Theory]
+    [InlineData("{}", "OP_TO_VALVE")] [InlineData("{}", "OP_TO_VFD")] [InlineData("{}", "OP_TO_PV")] [InlineData("{}", "UNKNOWN")] [InlineData("{}", null)]
+    [InlineData("""{"vpApplicability":"not_installed"}""", "OP_TO_VALVE")] [InlineData("""{"vpApplicability":"EXPECTED"}""", "OP_TO_VFD")]
+    [InlineData("""{"vpApplicability":" "}""", "OP_TO_VFD")] [InlineData("""{"peerApplicability":"NOT_APPLICABLE"}""", "OP_TO_VALVE")]
+    public async Task The_sql_and_the_csharp_rules_agree(string engineering, string? commandPath)
+    {
+        await using var db = Npgsql.NpgsqlDataSource.Create(TestDb.ConnectionString());
+        await using var conn = await db.OpenConnectionAsync();
+        var row = await Dapper.SqlMapper.QueryFirstAsync<(string Vp, string Peer)>(conn,
+            $"SELECT {OptionalInputs.VpApplicabilitySql} AS vp, {OptionalInputs.PeerApplicabilitySql} AS peer FROM (SELECT @e::jsonb AS engineering, @p::text AS command_path) r",
+            new { e = engineering, p = commandPath });
+        var e = JsonDocument.Parse(engineering).RootElement;
+        row.Vp.Should().Be(OptionalInputs.Code(OptionalInputs.VpApplicability(e, commandPath)));
+        row.Peer.Should().Be(OptionalInputs.Code(OptionalInputs.PeerApplicability(e)));
+    }
+}
