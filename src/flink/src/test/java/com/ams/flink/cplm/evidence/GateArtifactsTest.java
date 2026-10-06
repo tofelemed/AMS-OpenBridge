@@ -8,6 +8,8 @@ import com.ams.flink.cplm.CplmNormalizedSample;
 import com.ams.flink.cplm.CplmShortFeatureResult;
 import com.ams.flink.cplm.SynTic001ReferenceGenerator;
 import com.ams.flink.cplm.contract.RoleObservation;
+import com.ams.flink.cplm.fusion.HealthLanes;
+import com.ams.flink.cplm.health.LoopHealthContextRecord;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -326,5 +328,36 @@ public class GateArtifactsTest {
         assertFalse(new EvidencePolicy(EvidencePolicy.Mode.NONE).emit(clean));
         assertEquals(EvidencePolicy.Mode.ALL, EvidencePolicy.fromArgs(new String[] {"--evidence-emit", "all"}).mode);
         assertEquals(EvidencePolicy.Mode.EPISODES, EvidencePolicy.fromArgs(new String[] {}).mode);
+    }
+
+    // CHG-049: G5/G6 alone and a configured-but-healthy bound lane are context, not a finding
+    private static HealthLanes pvLane(String eligibility) {
+        LoopHealthContextRecord r = new LoopHealthContextRecord();
+        r.loopId = "L"; r.role = "PV"; r.deviceId = "TT-1"; r.bindingId = "b-1";
+        r.eligibility = eligibility; r.descriptiveEligibility = eligibility; r.reason = "";
+        r.activeFlags = new ArrayList<>();
+        Map<String, LoopHealthContextRecord> m = new LinkedHashMap<>();
+        m.put("PV", r);
+        return HealthLanes.of(m);
+    }
+
+    @Test
+    public void g5g6AloneAreNotAFindingAndConfiguredHealthIsNot() {
+        EvidencePolicy p = new EvidencePolicy(EvidencePolicy.Mode.EPISODES);
+        CplmLongDiagnosticsResult l = new CplmLongDiagnosticsResult();
+        l.gate5Status = "WARN"; l.gate6Status = "WARN";
+        l.gate7Status = l.gate8Status = l.gate9Status = l.gate10Status = l.gate11Status = "PASS";
+        assertFalse(p.emit(l));
+        l.gate9Status = "WARN";
+        assertTrue(p.emit(l));
+        CplmGateResult g = new CplmGateResult();
+        g.gate14Status = "PASS"; g.diagnosis = "PASS";
+        g.healthLanes = pvLane("ELIGIBLE");
+        assertTrue(g.healthLanes.configured());
+        assertFalse(p.emit(g));
+        g.healthLanes = pvLane("LIMITED");
+        assertTrue(p.emit(g));
+        g.healthLanes = pvLane("INELIGIBLE");
+        assertTrue(p.emit(g));
     }
 }

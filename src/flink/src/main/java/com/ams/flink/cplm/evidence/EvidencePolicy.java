@@ -75,7 +75,8 @@ public final class EvidencePolicy implements Serializable {
     public boolean emit(CplmLongDiagnosticsResult r) {
         if (mode == Mode.NONE || r == null) return false;
         if (mode == Mode.ALL) return true;
-        return finding(r.gate5Status) || finding(r.gate6Status) || finding(r.gate7Status) || finding(r.gate8Status)
+        // CHG-049: G5 is WARN whenever any period exists and G6 whenever peakRatio > 0.5, so alone they are context, not a finding
+        return finding(r.gate7Status) || finding(r.gate8Status)
                 || finding(r.gate9Status) || finding(r.gate10Status) || finding(r.gate11Status);
     }
 
@@ -83,6 +84,6 @@ public final class EvidencePolicy implements Serializable {
         if (mode == Mode.NONE || r == null) return false;
         if (mode == Mode.ALL) return true;
         return finding(r.gate14Status) || (r.diagnosis != null && !"PASS".equals(r.diagnosis) && !"NO_CALL".equals(r.diagnosis) && !"PENDING".equals(r.diagnosis))
-                || (r.healthLanes != null && r.healthLanes.configured());
+                || (r.healthLanes != null && (r.healthLanes.pvIneligible() || r.healthLanes.anyLimited()));   // CHG-049: a bound lane alone is not a finding
     }
 }
