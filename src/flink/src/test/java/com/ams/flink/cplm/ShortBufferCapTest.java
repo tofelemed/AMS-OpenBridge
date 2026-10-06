@@ -137,13 +137,14 @@ public class ShortBufferCapTest {
     }
 
     @Test
-    public void derivedCapIsTwiceTheRetainedMinutesOnTheDeclaredGridWithAFloor() {
-        assertEquals(1_584, ShortFeatureBufferFn.capFor(5, 0));
-        assertEquals(1_584, ShortFeatureBufferFn.capFor(0, 0));      // no declared grid: the 5 s fallback
-        assertEquals(1_584, ShortFeatureBufferFn.capFor(-3, 0));
-        assertEquals(7_920, ShortFeatureBufferFn.capFor(1, 0));
-        assertEquals(1_584, ShortFeatureBufferFn.capFor(7, 0));      // 2 x ceil(3960 / 7) = 1,132: the floor
-        assertEquals(1_584, ShortFeatureBufferFn.capFor(3_600, 0));  // 2 x ceil(3960 / 3600) = 4: the floor
+    public void derivedCapIsOnePointFourTimesTheRetainedMinutesOnTheDeclaredGridWithAFloor() {
+        // CHG-061 (final review): max(ceil(1.4 x 3960 / grid), 1100) - 1.4 x the 792 normal samples at 5 s
+        assertEquals(1_109, ShortFeatureBufferFn.capFor(5, 0));
+        assertEquals(1_109, ShortFeatureBufferFn.capFor(0, 0));      // no declared grid: the 5 s fallback
+        assertEquals(1_109, ShortFeatureBufferFn.capFor(-3, 0));
+        assertEquals(5_544, ShortFeatureBufferFn.capFor(1, 0));      // a 1 s grid: TaskManager memory review first
+        assertEquals(1_100, ShortFeatureBufferFn.capFor(7, 0));      // ceil(1.4 x 3960 / 7) = 792: the floor
+        assertEquals(1_100, ShortFeatureBufferFn.capFor(3_600, 0));  // ceil(1.4 x 3960 / 3600) = 2: the floor
         assertEquals(250, ShortFeatureBufferFn.capFor(5, 250));      // the job argument wins, no floor
         assertEquals(4, ShortFeatureBufferFn.capFor(3_600, 4));
     }
@@ -168,18 +169,22 @@ public class ShortBufferCapTest {
         long results = run(new Feed(3, perLoop, 5, true));
         assertEquals("shortBufferCapped stays 0 on a normal feed", 0, CAPPED.get());
         assertTrue("windows fired: " + results, results > 3 * 100);
-        // the timer chain evicted minutes: no loop ever held its whole 2 h feed (~70 min retained at most)
-        assertTrue("timer evictions happened: " + MAX_TRUE_SIZE.get(), MAX_TRUE_SIZE.get() < 1_000);
+        // real 66-min windows (66 min = 792 samples; 768 measured): never the whole 2 h feed and
+        // always below the derived cap's floor (CHG-061 final review: normal running never reaches the cap)
+        System.out.println("normal feed: max buffered per loop = " + MAX_TRUE_SIZE.get());
+        assertTrue("about an hour of samples was retained: " + MAX_TRUE_SIZE.get(), MAX_TRUE_SIZE.get() >= 720);
+        assertTrue("the normal buffer stays under 1,100: " + MAX_TRUE_SIZE.get(), MAX_TRUE_SIZE.get() < 1_100);
         assertTrue("checks ran: " + CHECKS.get(), CHECKS.get() >= 2L * 3 * perLoop);
         assertEquals("the running count equals the real size after every timer eviction", 0, MISMATCHES.get());
     }
 
-    /** A loop declaring a 1 h grid but reporting every 5 s: the floor keeps the derived cap at 1,584. */
+    /** A loop declaring a 1 h grid but reporting every 5 s: the floor keeps the derived cap at 1,100. */
     @Test
     public void aCoarseDeclaredGridDoesNotShrinkTheCapBelowTheFloor() throws Exception {
-        assertTrue(ShortFeatureBufferFn.capFor(3_600, 0) >= 1_584);
+        assertTrue(ShortFeatureBufferFn.capFor(3_600, 0) >= 1_100);
         run(new Feed(2, 2 * 60 * 12, 3_600, true));
         assertEquals("no capping on a normal 5 s feed declaring a 1 h grid", 0, CAPPED.get());
+        assertTrue("the buffer stays under the floor: " + MAX_TRUE_SIZE.get(), MAX_TRUE_SIZE.get() < 1_100);
         assertEquals(0, MISMATCHES.get());
     }
 }

@@ -47,11 +47,13 @@ import java.util.Map;
  * restore and replay): a buffered sample no longer carries its own copy of the resolved profile - the loop's
  * {@link ShortProfileRegistry} keeps each distinct profile once and re-attaches it for the window maths - and
  * an exact duplicate {@code (loopId, record timestamp)} already in the buffer is dropped at ingest (CHG-062:
- * duplicate feeds; Flink's windows counted it twice).
+ * duplicate feeds; Flink's windows counted it twice), counted on {@code shortDuplicatesDropped} and logged as
+ * {@code SHORT_DUPLICATE_DROPPED} at most once per loop per hour.
  *
  * <p>CHG-061b: event time alone bounded the buffer, so a lagging watermark (backlog, stalled partition) or a denser
  * feed grew it without limit. A hard per-loop cap now holds: {@code --short-max-samples-per-loop}, or by default
- * twice the samples of the retained 66 minutes on the sample's declared grid, at least 1,584 ({@link #capFor}). An append that
+ * 1.4 x the samples of the retained 66 minutes on the sample's declared grid, at least 1,100 ({@link #capFor}; 1,109 at
+ * 5 s, sized to the plant's 1,100 MB task heap). An append that
  * would pass it first evicts whole oldest minutes, even if their windows have not fired; those windows then fire
  * with fewer members and report their true, lower completeness. Counted on {@code shortBufferCapped}, logged as
  * {@code SHORT_BUFFER_CAPPED} at most once per loop per hour.
@@ -63,8 +65,8 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
     /** CHG-061b: the span a sample can be retained (60m window + 5 min slide + lateness), and the grid fallback. */
     static final int RETAINED_SECONDS = 66 * 60;
     static final int FALLBACK_GRID_SECONDS = 5;
-    /** CHG-061b: the derived cap's floor - the derived cap at the 5 s fallback grid. */
-    static final int MIN_DERIVED_CAP = 1_584;
+    /** CHG-061 (final review): the derived cap's floor - just under the 1,109 derived at the 5 s fallback grid. */
+    static final int MIN_DERIVED_CAP = 1_100;
     private static final long WARN_EVERY_MS = 3_600_000L;
     private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(ShortFeatureBufferFn.class);
 
@@ -77,8 +79,10 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
     private transient ShortProfileRegistry profiles;           // CHG-061: profile key -> the profile, once
     private transient ValueState<Integer> bufferCount;         // CHG-061b: running sample count (append/evict)
     private transient Counter capped;
+    private transient Counter duplicates;                      // CHG-061: exact duplicates dropped at ingest
     private transient Map<String, Long> lastCapWarnMs;         // log rate limit only (wall clock), never the cap;
                                                                // bounded by the subtask's loop cardinality
+    private transient Map<String, Long> lastDupWarnMs;         // the same, for SHORT_DUPLICATE_DROPPED
 
     public ShortFeatureBufferFn(EvidencePolicy policy) {
         this(policy, 0);
@@ -91,22 +95,25 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
 
     /**
      * CHG-061b: the per-loop sample cap - {@code configured} when positive (an operator's value, no floor), else
-     * {@code 2 x ceil(66 min / grid)} with the grid the sample declares ({@code grid_seconds}; 5 s when it declares
+     * {@code ceil(1.4 x 66 min / grid)} with the grid the sample declares ({@code grid_seconds}; 5 s when it declares
      * none), never below {@link #MIN_DERIVED_CAP}: a loop declaring a coarse grid but reporting at 5 s must not
-     * silently buffer only a few samples.
+     * silently buffer only a few samples. CHG-061 (final review): 1.4 x, not 2 x - 1,109 at 5 s (about 92 min of
+     * data against the 792 of normal running), so 144 loops at the cap (~369 MB, ~738 MB while a heap-backend
+     * snapshot copies on write) fit the 1,100 MB task heap. A 1 s grid derives 5,544: review TaskManager memory first.
      */
     static int capFor(int gridSeconds, int configured) {
         if (configured > 0) return configured;
         int grid = gridSeconds > 0 ? gridSeconds : FALLBACK_GRID_SECONDS;
-        return Math.max(2 * ((RETAINED_SECONDS + grid - 1) / grid), MIN_DERIVED_CAP);
+        int tenGrids = 10 * grid;
+        return Math.max((14 * RETAINED_SECONDS + tenGrids - 1) / tenGrids, MIN_DERIVED_CAP);  // ceil(1.4 x 3960 / grid)
     }
 
     @Override
     public void open(Configuration parameters) {
         // CHG-061: BufferedSample changed type (profile key; the profile is no longer kept on it), so the WHOLE
-        // layout moved to "-v2" names. The plant resubmits this job without a savepoint. Should a pre-CHG-061
-        // checkpoint be restored anyway, none of its state is read back (the old names are not registered): the
-        // buffer starts empty, as on a stateless restart, and never mixes an old minute index with new samples.
+        // layout moved to "-v2" names and the new code never reads the old ones. Never restore (-s) a pre-CHG-061
+        // Short checkpoint: the heap backend still restores the old, unregistered state names from it and keeps
+        // re-snapshotting them (dead weight in every checkpoint). The plant resubmits this job without a savepoint.
         samples = getRuntimeContext().getMapState(new MapStateDescriptor<>("cplm-short-samples-v2",
                 Types.LONG, TypeInformation.of(BufferedSample.class)));
         minuteIndex = getRuntimeContext().getMapState(new MapStateDescriptor<>("cplm-short-minute-index-v2",
@@ -117,7 +124,9 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
                 Types.STRING, TypeInformation.of(ShortProfileRegistry.Entry.class))));
         bufferCount = getRuntimeContext().getState(new ValueStateDescriptor<>("cplm-short-count-v2", Types.INT));
         capped = getRuntimeContext().getMetricGroup().counter("shortBufferCapped");
+        duplicates = getRuntimeContext().getMetricGroup().counter("shortDuplicatesDropped");
         lastCapWarnMs = new HashMap<>();
+        lastDupWarnMs = new HashMap<>();
     }
 
     static long minuteOf(long ts) {
@@ -148,7 +157,10 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
         if (!alive) return;                                         // late for every window: dropped
         long m = minuteOf(ts);
         long[] idx = minuteIndex.get(m);
-        if (idx != null && holds(idx, ts)) return;                  // CHG-062: exact duplicate, the first stays
+        if (idx != null && holds(idx, ts)) {                        // CHG-062: exact duplicate, the first stays
+            reportDuplicate(sample.loopId, ts);
+            return;
+        }
 
         // CHG-061b: the hard cap - whole oldest minutes go first; the sample's own minute never does, so when it
         // is the oldest left the arriving sample (the oldest data) is the one dropped
@@ -317,15 +329,34 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
         return capped.getCount();
     }
 
+    /** CHG-061 (tests): this subtask's {@code shortDuplicatesDropped} counter. */
+    long duplicatesDroppedCount() {
+        return duplicates.getCount();
+    }
+
     /** CHG-061b: counts every capped append; logs at most once per loop per hour of processing time. */
     private void reportCapped(String loopId, int samples, int cap, int gridSeconds, long ts, long wm) {
         capped.inc();
-        long now = System.currentTimeMillis();
-        Long last = lastCapWarnMs.get(loopId);
-        if (last != null && now - last < WARN_EVERY_MS) return;
-        lastCapWarnMs.put(loopId, now);
+        if (!due(lastCapWarnMs, loopId)) return;
         LOG.warn("SHORT_BUFFER_CAPPED loop={} samples={} watermarkLagMs={} cap={} declaredGridS={} (oldest minutes evicted; their windows report lower completeness)",
                 loopId, samples, wm == Long.MIN_VALUE ? -1 : ts - wm, cap, gridSeconds);
+    }
+
+    /** CHG-061: counts every dropped duplicate; logs at most once per loop per hour (a doubled feed upstream). */
+    private void reportDuplicate(String loopId, long ts) {
+        duplicates.inc();
+        if (!due(lastDupWarnMs, loopId)) return;
+        LOG.warn("SHORT_DUPLICATE_DROPPED loop={} ts={} (an exact (loop, timestamp) duplicate was dropped; is the loop fed twice?)",
+                loopId, ts);
+    }
+
+    /** Whether the per-loop hourly log slot in {@code last} is free (and takes it). Wall clock, logging only. */
+    private static boolean due(Map<String, Long> last, String loopId) {
+        long now = System.currentTimeMillis();
+        Long prev = last.get(loopId);
+        if (prev != null && now - prev < WARN_EVERY_MS) return false;
+        last.put(loopId, now);
+        return true;
     }
 
     private void addMinute(long m) throws Exception {
