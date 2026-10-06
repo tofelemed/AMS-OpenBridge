@@ -3131,10 +3131,57 @@ Historical → `/cpm/historical?loop=FIC10401&from=…&to=…` with the same ran
 says "\"To\" must be after \"From\".", 12:00–17:00 on 5 Oct pins and plots; 0 px page overflow at 500 / 768 / 1440 on Explorer
 and Historical (the bar stacks on a phone); night theme; 0 console errors.
 
+## CHG-049 — Evidence storage is bounded by what the plant needs, and the daily check measures the files (2026-10-06)
+
+**Scope:** `src/flink` (evidence cycle cap + `cycle_scores`, `EvidencePolicy`, per-loop throttle, `04b` arguments),
+`cplm-api` (evidence consumer: orphan chunks + count gate; RESPONSE retention; `Cplm__EvidenceExpiredGraceDays` forwarded by
+compose; `ix_response_event_created`), `scripts/cpm-12-evidence-response-retention.sql` and
+`scripts/cpm-12b-evidence-reclaim.sql`, `migration/deploy/build-release.py` (+ `chg049-evidence` VM steps),
+`migration/daily-check.sh` + `MARUN-DAILY-CHECK.md` §1 / §7, `MARUN-DISK.md` (ZooKeeper rule), `prod_decision.md`.
+Ships in the accumulating SME-batch release below (version assigned when the batch closes). Commits in `checklist.md`.
+
+**What was wrong.** Marun daily check 2026-10-06 05:21 UTC: 1.4 GB free of 96 GB. Evidence was the controllable part:
+chunk 2424 MB + manifest 1273 MB = **3.7 GB on disk** while the daily check's payload sum said 1.9 GB "within budget" (a
+DELETE never shrinks table files). Manifests: EPISODE COMPLETE 325,016, EPISODE EXPIRED 240,823, TRANSIENT 265,632 written
+in 6 h (~1 M/day of write-then-delete); average 43 manifests per run, maximum 4,321. The response tables (0.8 GB;
+`response_event` 50,821 rows since 2026-09-25, `response_metric` 2.64 M rows) had no retention. The same morning two
+non-evidence events hid the picture: a 2.6 GB uncapped container json-log and Instrumental's ZooKeeper crash-looping on a
+zero-byte transaction log (`log.91a0`), which took Kafka and 6 of 7 Flink jobs down; `piarchiver-broker` (not ours) was also
+crash-looping, so 0 samples arrived from the OT feed (left to its owners).
+
+**What changed.**
+- Flink: one evidence artifact carries at most `--evidence-max-cycles` (**12**, env `CPLM_EVIDENCE_MAX_CYCLES`) cycles, with
+  the per-cycle scores kept in `cycle_scores`; at most one artifact per loop and window kind every
+  `--evidence-min-interval-min` (**60**, env `CPLM_EVIDENCE_MIN_INTERVAL_MIN`). Both pass through `04b`.
+- Policy `episodes`: the Long job emits only on G7..G11 findings (G5 / G6 alone are context); Fusion emits on G14 /
+  diagnosis, or when a health lane is PV-ineligible or limited (a merely configured lane no longer counts).
+- cplm-api evidence consumer: orphan chunks (no manifest) are cleaned and a count gate guards the write.
+- Retention: `retention_policy` row `RESPONSE` = **14 days** (new, `cpm-12`, online; 30 d would hold ~1.5 GB here);
+  `Cplm__EvidenceExpiredGraceDays` = **1** (was the built-in 7, never forwarded by compose); `ix_response_event_created`.
+- `cpm-12b` (cplm-api STOPPED, after at least 1 h of the new jar): removes expired tombstones and rewrites the evidence
+  tables so the space returns.
+- Daily check §7: `evidence tables N MB on disk` from `pg_total_relation_size` (WARN > 1536 MB, ACT > 3072 MB).
+- Runbooks: `MARUN-DISK.md` §3 J (ZooKeeper zero-byte log: back up both volumes, MOVE the file out of `version-2/`, never
+  rename in place) and the 2026-10-06 row; `MARUN-DAILY-CHECK.md` §1 (an uncapped json-log can be GBs) and §7.
+- Left alone: the short-feature GIN index `ix_cplm_short_feature_results_method_run_ids` is used by `MethodRunResolver`.
+- Plant actions already taken 2026-10-06 (before this release): log truncated, /tmp bundles deleted, `TRUNCATE
+  analytics.evidence_chunk, analytics.evidence_manifest` (pinned = 0 checked; emission left ON), ZooKeeper log moved
+  out; disk 1.4 → 11 GB free. See `prod_decision.md` §6.
+
+**Tests.** Flink full suite 298 run, 0 failures, 2 skipped (baseline 289). cplm-api `Evidence|Response|SchemaV25` 50 / 50
+(baseline 45). `test_build_release.py` 45 passed. `bash -n migration/daily-check.sh` clean; the new SQL prints an integer
+on the lab Postgres.
+
+**End-to-end on the lab** pending — Task 8 soak; filled after it.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-048) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
-  migration, no Flink jar, no `.env` change.
+- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-048), **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-049) and
+  **`flink-jobmanager`** (image `ams-flink`, CHG-049; the TaskManager uses it too: full Flink swap, cancel every job before
+  `docker rm -f` of JM and TM, then the orphan-checkpoint sweep).
+- Schema (CHG-049): `cpm-12` online (RESPONSE retention row, `ix_response_event_created`), then `cpm-12b` with cplm-api
+  STOPPED and only after the new jar has run at least 1 h (VM step 6g). Optional `.env` keys `CPLM_EVIDENCE_MAX_CYCLES` (12)
+  and `CPLM_EVIDENCE_MIN_INTERVAL_MIN` (60). The batch manifest must carry `!chg049-evidence`.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant: `docker load` the `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
   cplm-api restarts its consumers: check each CPLM consumer group has exactly one member afterwards (SingleMemberGuard).
@@ -3153,3 +3200,7 @@ and Historical (the bar stacks on a phone); night theme; 0 console errors.
   them) — until then axes read "(unit not set)".
   (CHG-048) Loop Explorer › Summary trend has 8h (live) / 24h / 7d / 30d / Custom, ‹ / ›, Live and "Open in Historical ›",
   which opens Historical on the same loop and period.
+- Rollback (CHG-049): reload the pre-release images (`pre-<release>-images.txt`) for `ams-flink` and `cplm-api` and repeat the
+  Flink swap; the RESPONSE retention row and the index can stay (harmless to the old build).
+- Proofs (CHG-049): 7 jobs RUNNING with one `jarSha256`; daily check §7 `evidence tables N MB on disk` under 1536 MB after
+  `cpm-12b` and flat the next morning.

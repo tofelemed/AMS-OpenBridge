@@ -37,6 +37,10 @@ state on the heap and its checkpoints are full snapshots, ~120 MB each, three ke
 (the sweep above removes it; on 5 October the Short job's own tree was 4.1 GB, because until v2.6.6 that job
 kept its checkpoints on cancel) or a job that is far behind (section 4).
 
+A single container json-log can also be GBs when a container has no log cap (2026-10-06: one uncapped
+log was 2.6 GB; ours are capped 10 m x 3). The truncate loop above is the fix; afterwards find the owner
+with `docker ps -a --no-trunc | grep <container id>` and cap it if it is ours.
+
 If the database is what grows, section 7 (evidence) or section 8 (partitions) says which table; the
 emergency levers are there. `migration/MARUN-DISK.md` has the full survey.
 
@@ -116,6 +120,14 @@ The plant logs at level Error, so the sweeper never prints; these numbers are it
 24 h`: a healthy fleet opens tens of episodes a day; hundreds mean verdicts flipping fault family
 window to window (seen 2 October: 580 a day), which is what inflates `EPISODE`; that is an engine item
 (CHG-034), not something to fix at the plant.
+
+Physical size line (CHG-049): `evidence tables N MB on disk` is `pg_total_relation_size` of the chunk and
+manifest tables, the files and not the payload sum, because DELETE never shrinks them (2026-10-06: 1.9 GB
+of payload "within budget" while 3.7 GB sat on disk). `WARN` above 1536 MB, `ACT` above 3072 MB. What to do:
+1. Once the CHG-049 release is deployed, `ops/cpm-12b` (cplm-api stopped, after at least 1 hour of the new
+   build running) rewrites both tables and returns the space; this is the normal reclaim.
+2. Emergency, disk under 10 GB: the TRUNCATE lever below (check `pinned` = 0 first).
+3. Never switch evidence off as the first move; truncating returns the space and keeps the feature.
 
 Emergency lever when an evidence class breaks its bound and the disk is under 10 GB:
 ```

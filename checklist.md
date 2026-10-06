@@ -225,6 +225,21 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] plant retest +30 min (~13:26 UTC): lag 4,560; six kinds × 143 loops, 10-min counts 1m 1,430 · 5m 1,430 · 10m 715 · 15m/30m/60m 286 (exact cadence); newest 1m 13:23 (~3 min behind); checkpoints 8 ok / 0 failed / 0 restored, 115.4 MB, duration < 1 s (was 553 s); windows busy 0 ms/s at 8 samples/s per subtask; heap 554 / 1,290 MB, 3 old-gen GC; disk 12 GB free
 - [ ] plant retest +70 min (~14:10, buffer full): checkpoint size settles (≤ ~250 MB OK; plant tuples heavier than the lab's), heap, lag; next-morning daily check
 
+## CHG-049 — evidence storage optimization (2026-10-06)
+
+- [x] Task 0 (722a70e7) baseline doc: the 2026-10-06 plant numbers (evidence 3.7 GB on disk vs 1.9 GB payload; manifests by class)
+- [x] Task 1 (df90a565) Flink evidence cycle cap (`--evidence-max-cycles`) + `cycle_scores` — Flink suite green
+- [x] Task 2 (8434d963) emit policy `episodes`: Long on G7..G11 only, Fusion on G14 / PV-ineligible or limited health lane — Flink suite green
+- [x] Task 3 (9474ed82) per-loop throttle (`--evidence-min-interval-min`) + `04b` args — Flink suite green
+- [x] Task 4 (def8878f) cplm-api evidence consumer: orphan chunks + count gate — cplm-api `Evidence` tests green
+- [x] Task 5 (35c5aa1f) RESPONSE retention 14 d + `Cplm__EvidenceExpiredGraceDays` 1 in compose + `ix_response_event_created` — `Response|SchemaV25` tests green
+- [x] Task 6 (e0699b71) `cpm-12` (online) / `cpm-12b` (cplm-api stopped) + `chg049-evidence` VM steps — `test_build_release.py` 45 passed
+- [x] Task 7 daily-check physical-size line (`bash -n` clean; SQL prints an integer on the lab), runbooks (`MARUN-DISK.md` ZooKeeper rule, `MARUN-DAILY-CHECK.md`), `prod_decision.md`, `changes_tracker.md`
+- [x] Totals: Flink full suite 298 run / 0 failures / 2 skipped (baseline 289); cplm-api `Evidence|Response|SchemaV25` 50 / 50 (baseline 45)
+- [ ] Task 8 lab: 2 h run and 24 h soak, restart drill, reconstruction check, `cpm-12b` on the lab
+- [ ] plant deploy in the SME-batch release (manifest `!chg049-evidence`, Flink swap, `cpm-12` online, `cpm-12b` with cplm-api stopped after ≥ 1 h); then daily check §7 physical line under 1536 MB and flat next morning
+- [x] plant 2026-10-06 emergency (before the release): log truncated, /tmp bundles deleted, evidence tables TRUNCATEd (pinned 0), ZooKeeper `log.91a0` moved out; 1.4 → 11 GB free
+
 ## Verification status (last runs, lab)
 
 | Suite / script | Result | When |
