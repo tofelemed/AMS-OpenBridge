@@ -18,11 +18,11 @@ import { whyRows } from './whyRules';
 import { reasonSentence } from './verdictCopy';
 import { fmtInstant } from '../context/LoopContextBar';
 import type { InputContext } from '../optionalInputs';
+import { INPUT_LIMITS_GATE, effectiveInputFlags } from '../inputLimits';
 
-/** Which window flags limit which gate's claim. */
+/** Which window flags limit which gate's claim: the missing inputs (shared, CHG-064) plus the method limits. */
 const LIMITS_GATE: Record<string, string[]> = {
-  NO_VP: ['G10', 'G14', 'G15'], NO_VALID_CYCLE: ['G5', 'G7', 'G8', 'G9', 'G15'], HEALTH_NOT_CONFIGURED: ['G11', 'G15'],
-  HEALTH_LIMITED: ['G11', 'G15'], NO_UPSTREAM_LINKS: ['G13', 'G15'], NO_PEER_LINKS: ['G13', 'G15'], NO_STEP_TEST: ['G12', 'G15'],
+  ...INPUT_LIMITS_GATE, NO_VALID_CYCLE: ['G5', 'G7', 'G8', 'G9', 'G15'],
   INSUFFICIENT_SAMPLES: ['*'], QUALITY_UNKNOWN: ['*'], AREA_OUT_OF_BAND: ['G9'], PERIOD_OUT_OF_BAND: ['G5', 'G6'],
 };
 
@@ -51,7 +51,7 @@ export const ExplainWhy: React.FC<{
   };
   const rows = whyRows(gate, { prov, row: fused, cfg: p => cfg.data?.properties?.[p], eligibilityDetail });
 
-  const mark = gateMark(status, gate);
+  const mark = gateMark(status, gate, effectiveInputFlags(fused?.observabilityFlags, inputs));
   const result = status
     ? `${gate} ${name}: ${mark.meaning === 'none' ? lowerFirst(codeLabel(status)) : mark.label}${reason ? ` — ${reasonSentence(reason, { gate, eligibilityDetail })}` : ''}.`
     : `${gate} ${name}: no verdict recorded for this run.`;

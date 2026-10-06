@@ -42,7 +42,7 @@ import { HealthLane } from './health/HealthLane';
 import CollapsibleSection from './CollapsibleSection';
 import ConclusionStrip from './ConclusionStrip';
 import SelectionSummary from './SelectionSummary';
-import { useInstrumentHealthHistory } from './health/useInstrumentHealth';
+import { useInstrumentHealth, useInstrumentHealthHistory } from './health/useInstrumentHealth';
 import { codeLabel, diagnosisLabel } from './vocabulary';
 import { CodeLabel } from './CodeLabel';
 import { EngineTrace } from './evidence/views/engineTrace';
@@ -54,6 +54,8 @@ import { CauseBreakdownRows } from './CauseBreakdown';
 import { EVIDENCE_SCORE_HELP, evidenceScoreText } from './evidenceScore';
 import { EvidenceScoreNote } from './EvidenceScoreNote';
 import { inputContextOf } from './optionalInputs';
+import { basisOf } from './conclusionBasis';
+import { loopHealthSummary } from './health/TransmitterHealthPanel';
 
 export const CpmInvestigation: React.FC = () => {
   const navigate = useNavigate();
@@ -134,6 +136,10 @@ export const CpmInvestigation: React.FC = () => {
   // v2.5 (1H.6): the PV instrument's eligibility over the SAME window as the verdict, so a
   // health exclusion or a device replacement is visible beside the evidence it affected.
   const healthHistory = useInstrumentHealthHistory(matrix ? loopId : undefined, start, end);
+  // CHG-064 (SME #24): the conclusion says what it rests on and what it was judged without (same query as the Explorer)
+  const healthNow = useInstrumentHealth(matrix ? loopId : undefined);
+  const healthLabel = healthNow.data || healthNow.isError ? loopHealthSummary(healthNow.data).label : undefined;
+  const basis = matrix ? basisOf(matrix, { healthLabel, inputs: inputContextOf(loop) }) : null;
 
 
   const metrics = matrix?.metrics ?? {};
@@ -207,6 +213,16 @@ export const CpmInvestigation: React.FC = () => {
                   {matrix.confidence != null && hasVerdict(matrix.diagnosis) ? evidenceScoreText(matrix.confidence) : 'no verdict'}
                 </TonePill></span>} />
               {hasVerdict(matrix.diagnosis) && <EvidenceScoreNote statusReason={matrix.narrative?.statusReason} score={matrix.confidence} />}
+              {basis && (
+                <dl className="cpm-cause" aria-label="Basis of the conclusion">
+                  <dt className="cpm-cause__label">Basis</dt>
+                  <dd className="cpm-cause__items"><strong>{basis.lead}</strong> {basis.from}.</dd>
+                  {basis.notChecked.length > 0 && <>
+                    <dt className="cpm-cause__label">Not checked</dt>
+                    <dd className="cpm-cause__items"><ul className="cpm-cause-list">{basis.notChecked.map(t => <li key={t}>{t}.</li>)}</ul></dd>
+                  </>}
+                </dl>
+              )}
               <KvRow label="Window">
                 {matrix.windowStart ? fmtDateTime(matrix.windowStart) : '—'} →{' '}
                 {matrix.windowEnd ? fmtDateTime(matrix.windowEnd) : '—'} ({matrix.windowKind})
@@ -218,13 +234,15 @@ export const CpmInvestigation: React.FC = () => {
                 </KvRow>
               )}
               <KvRow label="Instrument health">
-                <HealthLane rows={healthHistory.data?.intervals ?? []} from={start} to={end} role="PV" />
+                {(healthHistory.data?.intervals ?? []).length > 0 || healthHistory.isLoading
+                  ? <HealthLane rows={healthHistory.data?.intervals ?? []} from={start} to={end} role="PV" />
+                  : <span className="cpm-metric-na">No health data for this window — not checked (NE107: missing diagnostics are not OK)</span>}
               </KvRow>
               <KvRow label="Severity">{codeLabel(matrix.severity)}</KvRow>
               <KvRow label="Selected family">{codeLabel(matrix.narrative?.selectedFamily)}</KvRow>
               {/* SME #19 (CHG-055): the confirmed SYMPTOM apart from the possible CAUSE */}
               {verdict && !verdict.legacy
-                ? <CauseBreakdownRows verdict={verdict} flags={matrix.observabilityFlags} inputs={inputContextOf(loop)} />
+                ? <CauseBreakdownRows verdict={verdict} flags={matrix.observabilityFlags} inputs={inputContextOf(loop)} cells={matrix.gates} />
                 : <KvRow label="Possible cause">not served (pre-v2.5 result)</KvRow>}
               <KvRow label="G14 confirmation">
                 <TonePill tone={verdict?.confirmation.state === 'CONFIRMED' ? 'bad'

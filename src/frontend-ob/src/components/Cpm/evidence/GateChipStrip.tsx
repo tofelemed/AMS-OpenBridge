@@ -30,6 +30,8 @@ export function chipsOf(i: {
   cells: Array<{ key: string; status: string | null; reason: string | null }> | undefined;
   result: Record<string, unknown> | null;
   catalogue: GateCatalogue | undefined;
+  /** CHG-064: the window's effective input flags. */
+  inputFlags?: string[];
 }): GateChip[] {
   const byKey = new Map((i.cells ?? []).map(c => [c.key, c]));
   return GATE_ORDER.map(gate => {
@@ -38,7 +40,7 @@ export function chipsOf(i: {
     const status = cell ? (cell.status ?? null) : fromPayload('status');
     const reason = cell ? (cell.reason ?? null) : fromPayload('reason');
     const entry = i.catalogue?.gates.find(g => g.gate === gate);
-    return { gate, name: entry?.name ?? gate, role: entry?.role ?? '', status, reason, methodRunId: i.siblings[gate] ?? null, glyph: glyphFor(status, gate) };
+    return { gate, name: entry?.name ?? gate, role: entry?.role ?? '', status, reason, methodRunId: i.siblings[gate] ?? null, glyph: glyphFor(status, gate, i.inputFlags) };
   });
 }
 

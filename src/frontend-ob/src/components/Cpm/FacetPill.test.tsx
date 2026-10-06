@@ -29,7 +29,7 @@ describe('facet wording', () => {
   });
 
   it('drops the repeated subject from health labels', () => {
-    expect(instrumentHealthText('HEALTH NOT CONFIGURED')).toBe('Not configured');
+    expect(instrumentHealthText('HEALTH NOT CONFIGURED')).toBe('Not configured · not checked');   // CHG-064: NE107, absent is not OK
     expect(instrumentHealthText('INSTRUMENT FAULT')).toBe('Fault');
     expect(instrumentHealthText('INSTRUMENTS OK')).toBe('OK');
     expect(instrumentHealthText('SOMETHING NEW')).toBe('Something new');

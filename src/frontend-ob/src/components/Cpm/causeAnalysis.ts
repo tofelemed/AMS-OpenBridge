@@ -8,6 +8,7 @@
 import { HYPOTHESIS_LABEL, OBSERVATION_LABEL, type CpmVerdictV2 } from '../../api/cpm/verdict';
 import { codeLabel, lowerFirst, methodLabel } from './vocabulary';
 import { optionalInputLimitation, type InputContext } from './optionalInputs';
+import { gateMeaning } from './gateStatus';
 
 export interface CauseItem { id: string; label: string; detail: string }
 export interface CauseBreakdown {
@@ -42,12 +43,26 @@ function gatesOf(basis: string | undefined, methodId: string | undefined): strin
   return (methodId ?? '').split('|').map(m => methodLabel(m)).filter(m => m !== '—').join(', ');
 }
 
-export function causeBreakdown(v: CpmVerdictV2 | undefined | null, flags: string[] = [], inputs?: InputContext): CauseBreakdown | null {
+/** CHG-064: the gates that SAW something on this window; null = cells unknown (keep the engine's list). */
+function firedGates(cells: ReadonlyArray<{ key: string; status: string | null }> | undefined): Set<string> | null {
+  if (!cells) return null;
+  return new Set(cells.filter(c => FIRED.has(gateMeaning(c.status, c.key))).map(c => c.key.toUpperCase()));
+}
+const FIRED = new Set(['seen', 'strong', 'attention', 'failed', 'suspected', 'confirmed']);
+
+/**
+ * `cells` (the window's gate results) narrows each observation's gate list to the gates that fired: the engine's
+ * basis names the gates it CONSULTED, and "Sustained oscillation — G5, G6" beside G5 "Not seen" reads as a contradiction.
+ */
+export function causeBreakdown(v: CpmVerdictV2 | undefined | null, flags: string[] = [], inputs?: InputContext,
+  cells?: ReadonlyArray<{ key: string; status: string | null }>): CauseBreakdown | null {
   if (!v || v.legacy) return null;
+  const fired = firedGates(cells);
   const observed = Object.entries(v.observations ?? {})
     .filter(([, o]) => o.present)
     .sort(([, a], [, b]) => (a.role === 'PRIMARY' ? 0 : 1) - (b.role === 'PRIMARY' ? 0 : 1) || b.score - a.score)
-    .map(([id, o]) => ({ id, label: OBSERVATION_LABEL[id] ?? codeLabel(id), detail: gatesOf(o.basis, o.methodId) }));
+    .map(([id, o]) => ({ id, label: OBSERVATION_LABEL[id] ?? codeLabel(id),
+      detail: gatesOf(o.basis, o.methodId).split(', ').filter(g => g && (!fired || !/^G\d/.test(g) || fired.has(g.toUpperCase()))).join(', ') }));
 
   const possible: CauseBreakdown['possible'] = [];
   const ruledOut: CauseItem[] = [];

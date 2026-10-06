@@ -29,6 +29,8 @@ import { workbenchExit } from './summary/LoopSummaryCard';
 import { diagnosisLabel } from '../vocabulary';
 import { evidenceScoreText } from '../evidenceScore';
 import { hasVerdict } from '../metricAvailability';
+import { effectiveInputFlags } from '../inputLimits';
+import { inputContextOf } from '../optionalInputs';
 
 const SummaryGateDetail = React.lazy(() => import('./summary/SummaryGateDetail'));
 const SummaryCalculations = React.lazy(() => import('./summary/SummaryCalculations'));
@@ -96,7 +98,7 @@ export const SummaryTab: React.FC<{ loop: CpmLoop; windowKind: string }> = ({ lo
         )}
         {cells.length > 0 && (
           <>
-            <SummaryGateStrip cells={cells} selected={selectedGate} onSelect={g => selectGate(g === selectedGate ? null : g)} />
+            <SummaryGateStrip cells={cells} inputFlags={effectiveInputFlags(matrix?.observabilityFlags, inputContextOf(loop))} selected={selectedGate} onSelect={g => selectGate(g === selectedGate ? null : g)} />
             {selectedGate && matrix ? (
               <Suspense fallback={<EmptyState title={`Loading ${selectedGate}…`} />}>
                 <SummaryGateDetail loop={loop} gate={selectedGate} matrix={matrix} windowKind={windowKind}

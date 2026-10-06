@@ -8,6 +8,7 @@
  */
 import type { CpmHeatmapLoop } from '../../api/cpmApi';
 import type { CpmTone } from './shared';
+import { gateLimits } from './inputLimits';
 
 /** Declared tier order. Intersected with the served keys before rendering. */
 export const TIER_GROUPS: { label: string; keys: string[] }[] = [
@@ -32,8 +33,8 @@ export function gateRole(gate: string | null | undefined): GateRole {
 }
 
 /** The meaning of one gate result — what the mark on screen must say (SME review #16, CHG-052). */
-export type GateMeaning = 'ok' | 'attention' | 'failed' | 'unusable' | 'not-seen' | 'seen' | 'strong'
-  | 'suspected' | 'confirmed' | 'ruled-out' | 'none';
+export type GateMeaning = 'ok' | 'ok-limited' | 'attention' | 'failed' | 'unusable' | 'not-seen' | 'not-seen-limited'
+  | 'seen' | 'strong' | 'suspected' | 'confirmed' | 'ruled-out' | 'none';
 
 export interface GateGlyph {
   glyph: string;
@@ -43,6 +44,8 @@ export interface GateGlyph {
   /** Spoken / hover form. The glyph alone gives a screen reader "✓ button" and nothing else. */
   label: string;
   meaning: GateMeaning;
+  /** CHG-064: the missing inputs a pass was judged without ("no transmitter health source"); absent on a full pass. */
+  limitedBy?: string[];
 }
 
 /**
@@ -55,10 +58,13 @@ export interface GateGlyph {
  */
 const MARK: Record<GateMeaning, Omit<GateGlyph, 'meaning'>> = {
   ok: { glyph: '✓', tone: 'good', word: 'OK', label: 'check passed' },
+  // CHG-064 (SME #24): a pass with an input missing is grey — green is kept for a pass on full inputs (ISA-101, NE107)
+  'ok-limited': { glyph: '✓', tone: 'muted', word: 'OK on available data', label: 'check passed on the inputs available' },
   attention: { glyph: '!', tone: 'warn', word: 'Attention', label: 'check needs attention' },
   failed: { glyph: '✕', tone: 'bad', word: 'Failed', label: 'check failed' },
   unusable: { glyph: '⊘', tone: 'muted', word: 'Not usable', label: 'window not usable for this check' },
   'not-seen': { glyph: '◯', tone: 'muted', word: 'Not seen', label: 'symptom not seen by this method' },
+  'not-seen-limited': { glyph: '◯', tone: 'muted', word: 'Not seen on available data', label: 'symptom not seen on the inputs available' },
   seen: { glyph: '◐', tone: 'warn', word: 'Seen', label: 'symptom seen' },
   strong: { glyph: '⬤', tone: 'warn', word: 'Strong', label: 'strong symptom evidence' },
   suspected: { glyph: '△', tone: 'warn', word: 'Suspected', label: 'condition suspected' },
@@ -91,23 +97,31 @@ export function gateMeaning(status: string | null | undefined, gate?: string | n
   return 'none';
 }
 
-/** The mark for a gate result: symbol, colour, word and spoken label. Pass the gate key whenever known. */
-export function gateMark(status: string | null | undefined, gate?: string | null): GateGlyph {
-  const meaning = gateMeaning(status, gate);
+/**
+ * The mark for a gate result: symbol, colour, word and spoken label. Pass the gate key whenever known, and the
+ * window's input flags (`effectiveInputFlags`) where the surface has them: a pass judged without one of the gate's
+ * inputs then reads "OK on available data" and names what was missing (CHG-064).
+ */
+export function gateMark(status: string | null | undefined, gate?: string | null, inputFlags?: readonly string[] | null): GateGlyph {
+  let meaning = gateMeaning(status, gate);
+  const limitedBy = meaning === 'ok' || meaning === 'not-seen' ? gateLimits(gate, inputFlags) : [];
+  if (limitedBy.length) meaning = meaning === 'ok' ? 'ok-limited' : 'not-seen-limited';
   const m = MARK[meaning];
   const word = meaning === 'none' ? NO_VERDICT_WORD[(status ?? '').toUpperCase()] ?? m.word : m.word;
-  return { ...m, word, label: meaning === 'none' ? word.toLowerCase() : m.label, meaning };
+  const label = meaning === 'none' ? word.toLowerCase() : limitedBy.length ? `${m.label} — ${limitedBy.join(', ')}` : m.label;
+  return { ...m, word, label, meaning, ...(limitedBy.length ? { limitedBy } : {}) };
 }
 
 /** THE gate-status colour, from the same meaning as the mark. */
-export const gateTone = (status: string | null | undefined, gate?: string | null): CpmTone => gateMark(status, gate).tone;
+export const gateTone = (status: string | null | undefined, gate?: string | null, inputFlags?: readonly string[] | null): CpmTone =>
+  gateMark(status, gate, inputFlags).tone;
 
 /** Kept for callers of the CPA glyph vocabulary; identical to `gateMark`. */
 export const glyphFor = gateMark;
 
 /** The legend every gate strip / matrix shows once (symbol + words). */
 const LEGEND_ORDER: Array<[GateMeaning, string]> = [
-  ['ok', 'check OK'], ['attention', 'check needs attention'], ['failed', 'check failed'], ['unusable', 'window not usable'],
+  ['ok', 'check OK'], ['ok-limited', 'OK on available data (an input missing)'], ['attention', 'check needs attention'], ['failed', 'check failed'], ['unusable', 'window not usable'],
   ['not-seen', 'symptom not seen'], ['seen', 'symptom seen'], ['strong', 'strong symptom'], ['suspected', 'suspected'],
   ['confirmed', 'confirmed'], ['none', 'no verdict'],
 ];

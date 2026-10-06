@@ -20,8 +20,10 @@ const Group: React.FC<{ label: string; children: React.ReactNode }> = ({ label, 
   <><dt className="cpm-cause__label">{label}</dt><dd className="cpm-cause__items">{children}</dd></>
 );
 
-export const CauseBreakdownRows: React.FC<{ verdict: CpmVerdictV2 | undefined | null; flags?: string[]; inputs?: InputContext }> = ({ verdict, flags, inputs }) => {
-  const b = causeBreakdown(verdict, flags, inputs);
+export const CauseBreakdownRows: React.FC<{ verdict: CpmVerdictV2 | undefined | null; flags?: string[]; inputs?: InputContext;
+  /** CHG-064: the window's gate results, so observations cite only gates that fired. */
+  cells?: ReadonlyArray<{ key: string; status: string | null }> }> = ({ verdict, flags, inputs, cells }) => {
+  const b = causeBreakdown(verdict, flags, inputs, cells);
   if (!b) return null;
   return (
     <dl className="cpm-cause" data-testid="cause-breakdown">

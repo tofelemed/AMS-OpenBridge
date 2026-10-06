@@ -20,11 +20,13 @@ export interface SummaryGateStripProps {
   cells: CpmGateCell[];
   selected: string | null;
   onSelect: (gate: string) => void;
+  /** CHG-064: the window's effective input flags — a pass without one of its inputs reads "OK on available data". */
+  inputFlags?: string[];
 }
 
 const NAV_KEYS = ['ArrowLeft', 'ArrowRight', 'Home', 'End'];
 
-export const SummaryGateStrip: React.FC<SummaryGateStripProps> = ({ cells, selected, onSelect }) => {
+export const SummaryGateStrip: React.FC<SummaryGateStripProps> = ({ cells, selected, onSelect, inputFlags }) => {
   const byKey = new Map(cells.map(c => [c.key, c]));
   const groups = buildTierGroups(cells.map(c => c.key));
   const order = groups.flatMap(g => g.keys);
@@ -62,7 +64,7 @@ export const SummaryGateStrip: React.FC<SummaryGateStripProps> = ({ cells, selec
             <div className="cpm-gate-strip__chips">
               {g.keys.map(key => {
                 const c = byKey.get(key)!;
-                const glyph = glyphFor(c.status, key);
+                const glyph = glyphFor(c.status, key, inputFlags);
                 const isSelected = key === selected;
                 return (
                   <button

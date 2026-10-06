@@ -38,6 +38,7 @@ import ConclusionStrip from '../ConclusionStrip';
 import SelectionSummary from '../SelectionSummary';
 import { codeLabel } from '../vocabulary';
 import { inputContextOf } from '../optionalInputs';
+import { effectiveInputFlags } from '../inputLimits';
 
 const DEFAULT_KIND = '24h';
 
@@ -124,7 +125,8 @@ export const GateEvidenceWorkspace: React.FC = () => {
     siblings: run.data?.methodRunIds ?? {},
     cells: currentOption?.gates ?? (run.data?.cell ? [{ key: run.data.cell.key, status: run.data.cell.status, reason: run.data.cell.reason }] : undefined),
     result: run.data?.result ?? null, catalogue: catalogue.data,
-  }), [run.data, currentOption, catalogue.data]);
+    inputFlags: effectiveInputFlags(currentOption?.flags?.observabilityFlags, inputContextOf(loop)),
+  }), [run.data, currentOption, catalogue.data, loop]);
 
   const toolbar = (
     <EvidenceToolbar scope={scope} loops={loops.data?.loops ?? []} loopId={loopId} kind={kind} kinds={kinds}

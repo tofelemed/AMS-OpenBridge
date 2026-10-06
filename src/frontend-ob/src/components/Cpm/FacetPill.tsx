@@ -26,7 +26,7 @@ export const FACET_LABEL: Record<Facet, string> = {
 
 export const FACET_HINT: Record<Facet, string> = {
   signal: 'Signal quality: whether the live PV measurement is trustworthy right now (OPC / NAMUR NE107 quality)',
-  health: 'Instrument health: what the transmitter diagnostics report (NAMUR NE107)',
+  health: 'Instrument health: what the transmitter diagnostics report (NAMUR NE107). No source means not checked — missing diagnostics are not OK',
   control: 'Control performance: share of the evaluated window inside the good-error band',
   diagnosis: "Diagnosis: the engine's conclusion about the loop on its latest evaluated window",
 };
@@ -63,8 +63,8 @@ export function instrumentHealthText(label: string): string {
     case 'INSTRUMENTS OK': return 'OK';
     case 'INSTRUMENT LIMITED': return 'Limited';
     case 'INSTRUMENT FAULT': return 'Fault';
-    case 'HEALTH NOT CONFIGURED': return 'Not configured';
-    case 'HEALTH UNKNOWN': return 'Unknown';
+    case 'HEALTH NOT CONFIGURED': return 'Not configured · not checked';
+    case 'HEALTH UNKNOWN': return 'Unknown · not checked';
     default: return sentence(label);
   }
 }

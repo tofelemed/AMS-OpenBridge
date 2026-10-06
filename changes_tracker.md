@@ -3662,9 +3662,49 @@ back in Unacknowledged before the sweeper; pages disjoint and ordered; search on
 page; totals and tab counts; Next asks page 2; off-page deep link by id; missing id falls back) — 90 files / 417 tests; lint / tsc /
 build clean.
 
+## CHG-064 — SME review #24: a verdict says what it rests on and what it was judged without; a pass on partial inputs is not a green OK (2026-10-06)
+
+**Source:** `SME_review.md` point 24. **Scope:** **`ams-frontend`** only — new `components/Cpm/inputLimits.ts`, `conclusionBasis.ts`
+(+ `conclusionBasis.test.ts`); `gateStatus.ts` (`gateMark(status, gate, inputFlags?)`, meanings `ok-limited` / `not-seen-limited`,
+legend entry), `causeAnalysis.ts` + `CauseBreakdown.tsx` (`cells`), `explorer/summary/LoopSummaryCard.tsx`, `explorer/LoopWorkspace.tsx`,
+`explorer/SummaryTab.tsx`, `explorer/summary/SummaryGateStrip.tsx`, `evidence/GateChipStrip.tsx`, `evidence/GateEvidenceWorkspace.tsx`,
+`evidence/ExplainWhy.tsx`, `CpmInvestigation.tsx`, `FacetPill.tsx` (+ test), `styles/cpm-evidence-layout.css`. No backend, no schema.
+
+**What the SME said.** HEALTH NOT CONFIGURED and a CONFIRMED diagnosis are shown together; that does not make the diagnosis wrong, but
+the app must explain what was confirmed and what instrument-health information was unavailable. Same for green PASS statuses.
+
+**Verified before the change.** Correct. The Explorer header put a grey "Instrument health: Not configured" beside a red "Diagnosis:
+Oscillation confirmed" with nothing connecting them; the Investigation "Instrument health" row was an empty lane; a gate that passed
+without one of its inputs (G11 freeze with no transmitter health source, G12 with no step test, G13 with no peer links) showed the
+same mark as a pass on full inputs. Also found: the engine's observation `basis` lists the gates it CONSULTED, so "Sustained
+oscillation — G5, G6" sat beside G5 / G6 chips reading "Not seen" (PIC10201).
+
+**What changed.**
+- **Basis + Not checked** on the Loop summary card (Explorer) and the Investigation conclusion: "Confirmed from sustained oscillation ·
+  cross-correlation asymmetry (G8) · actuator stress (G10) …" and one sentence per input the verdict was judged without, with what it
+  leaves open ("Transmitter health: no NE107 health source is bound, so a sensor fault is not ruled out", valve position, peer
+  interaction G13, step response G12). "No problem found" names its missing inputs too. Inputs that do not apply on the loop
+  (CHG-059: no valve, no interacting loops) are not listed. On the summary card those inputs move out of "Limitations" (said once).
+- **Cited gates are the ones that fired** on the window (seen / strong / attention / failed / suspected / confirmed) — in the basis
+  and in the Investigation "Observed" rows.
+- **Instrument health pill:** "Not configured · not checked" / "Unknown · not checked"; tooltip: no source means not checked —
+  missing diagnostics are not OK (NE107). Investigation row: "No health data for this window — not checked" instead of an empty lane.
+- **PASS on available data:** a pass whose gate is limited by a missing input reads "✓ OK on available data" (or "◯ Not seen on
+  available data" for a symptom gate) in grey, with the missing input in its label; green ✓ OK only for a pass on full inputs
+  (ISA-101). Explorer gate strip, Workbench chip strip and Explain. Legend: "OK on available data (an input missing)". The fleet
+  Performance matrix is unchanged — its rows carry no window flags.
+
+**Tests.** `conclusionBasis.test.ts` (new, 6: confirmed basis + health not checked; "No problem found" lists gaps, no verdict → none;
+inputs that do not apply are left out; only fired gates cited; PASS qualifier per gate role; flag filtering), `FacetPill.test.tsx`
+updated — 91 files / 423 tests; lint / tsc / build clean. **Lab:** PIC10201 (latest 24 h window CONFIRMED_OSCILLATION): header "Not
+configured · not checked" beside "Oscillation confirmed"; summary card Basis / Not checked (4 items) with Limitations reduced to "No
+clean oscillation cycle"; Investigation Basis / Not checked in the cause layout, health row in words, Observed "Sustained oscillation"
+without G5/G6; G11 chip "◯ Not seen on available data" in the Explorer strip and the Workbench; day 1440 and night 390 px, no
+horizontal scroll.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-059, CHG-063) and **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-058, CHG-059, CHG-063).
+- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-059, CHG-063, CHG-064) and **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-058, CHG-059, CHG-063).
   **One schema step** (CHG-058, additive, online): `ops/cpm-13-investigation-event-link.sql`. No Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant, in order: (1) `docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 <
@@ -3716,3 +3756,5 @@ build clean.
   (CHG-063) `GET /api/v1/cpm/events/page?state=open&page=2` returns `total`, `counts` and 20 events; Loop Events tabs show counts,
   the pager reads "21–40 of N", searching a loop tag finds its episodes whatever their rank, and `/cpm/events?event=<any id>` opens
   that episode.
+  (CHG-064) a loop whose latest window is confirmed shows "Instrument health: Not configured · not checked", and its Loop summary
+  card / Investigation conclusion list "Basis" and "Not checked"; a gate passed without its input reads "OK on available data".

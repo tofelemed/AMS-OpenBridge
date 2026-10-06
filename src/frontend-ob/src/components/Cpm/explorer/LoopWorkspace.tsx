@@ -160,7 +160,7 @@ export const LoopWorkspace: React.FC<{
       )}
 
       {/* SME #4: the loop summary heads every tab — condition, severity, cause, evidence, data, next check. */}
-      {gates.data && <LoopSummaryCard loop={loop} matrix={gates.data} windowKind={windowKind} />}
+      {gates.data && <LoopSummaryCard loop={loop} matrix={gates.data} windowKind={windowKind} healthLabel={healthSummary.label} />}
 
       {summary && (
         <div className={`cpm-causes${summary.blocking > 0 ? ' cpm-causes--blocking' : ' cpm-causes--limits'}`}>

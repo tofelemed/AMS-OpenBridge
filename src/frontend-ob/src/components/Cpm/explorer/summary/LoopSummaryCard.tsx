@@ -28,6 +28,8 @@ import {
 } from './summaryText';
 import { EVIDENCE_SCORE_HELP, evidenceScoreCap } from '../../evidenceScore';
 import { inputContextOf } from '../../optionalInputs';
+import { basisOf } from '../../conclusionBasis';
+import { INPUT_LIMITS_GATE } from '../../inputLimits';
 
 const MAX_LIMITS = 2;
 
@@ -53,7 +55,9 @@ export const LoopSummaryCard: React.FC<{
   loop: CpmLoop;
   matrix: CpmGateMatrix;
   windowKind: string;
-}> = ({ loop, matrix, windowKind }) => {
+  /** CHG-064: loopHealthSummary's label ("HEALTH NOT CONFIGURED"), so the card can say a sensor fault was not checked. */
+  healthLabel?: string;
+}> = ({ loop, matrix, windowKind, healthLabel }) => {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const workbench = workbenchExit(loop.loopId, matrix, windowKind);
@@ -61,7 +65,10 @@ export const LoopSummaryCard: React.FC<{
   const finding = condition.kind === 'finding';
   const cause = leadingCauseOf(matrix);
   const evidence = evidenceOf(matrix);
-  const limits = limitationsOf(matrix.observabilityFlags, inputContextOf(loop));
+  const inputs = inputContextOf(loop);
+  const basis = basisOf(matrix, { healthLabel, inputs });
+  // with a basis on screen the missing inputs are listed once, under "Not checked"
+  const limits = limitationsOf((matrix.observabilityFlags ?? []).filter(f => !basis || !(f in INPUT_LIMITS_GATE)), inputs);
   const last = matrix.lastVerdict;
   const score = finding && matrix.confidence != null ? Math.round(matrix.confidence * 100) : null;
   const scoreCap = finding ? evidenceScoreCap(matrix.narrative?.statusReason, matrix.confidence) : null;
@@ -110,7 +117,19 @@ export const LoopSummaryCard: React.FC<{
             )}
           </Row>
         )}
-        {evidence.length > 0 && (
+        {basis && (
+          <Row label="Basis">
+            <strong>{basis.lead}</strong> {basis.from}.
+          </Row>
+        )}
+        {basis && basis.notChecked.length > 0 && (
+          <Row label="Not checked">
+            <ul className="cpm-loop-summary__limits">
+              {basis.notChecked.map(n => <li key={n}>{n}.</li>)}
+            </ul>
+          </Row>
+        )}
+        {evidence.length > 0 && !basis && (
           <Row label="Evidence seen">
             <span className="cpm-loop-summary__chips">
               {evidence.map(e => (
