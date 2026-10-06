@@ -234,8 +234,9 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] Task 4 (def8878f) cplm-api evidence consumer: orphan chunks + count gate — cplm-api `Evidence` tests green
 - [x] Task 5 (35c5aa1f) RESPONSE retention 14 d + `Cplm__EvidenceExpiredGraceDays` 1 in compose + `ix_response_event_created` — `Response|SchemaV25` tests green
 - [x] Task 6 (e0699b71) `cpm-12` (online) / `cpm-12b` (cplm-api stopped) + `chg049-evidence` VM steps — `test_build_release.py` 45 passed
-- [x] Task 7 (758f1bfe + 2db22371) daily-check physical-size line (`bash -n` clean; SQL prints an integer on the lab), runbooks (`MARUN-DISK.md` ZooKeeper rule, `MARUN-DAILY-CHECK.md`), `prod_decision.md`, `changes_tracker.md`
+- [x] Task 7 (758f1bfe + 9aae41c4) daily-check physical-size line (`bash -n` clean; SQL prints an integer on the lab), runbooks (`MARUN-DISK.md` ZooKeeper rule, `MARUN-DAILY-CHECK.md`), `prod_decision.md`, `changes_tracker.md`
 - [x] Totals: Flink full suite 298 run / 0 failures / 2 skipped (baseline 289); cplm-api `Evidence|Response|SchemaV25` 50 / 50 (baseline 45)
+- [x] final-review fix wave (26d19f4f Flink accepted-first cycle pick + throttle M1/M2; b7c6e1f3 cplm-api RESPONSE purge keeps model events; 64f1e28b UI counts from `cycle_scores`; d5f0b4c0 ops: cpm-12b guard before the stop, indisvalid check, RESPONSE row in all schemas, wording) — Flink 307 / 0 / 2 skipped; cplm-api 51 / 51; `test_build_release.py` 45; frontend evidence vitest 107, lint + build clean
 - [ ] Task 8 lab: 2 h run and 24 h soak, restart drill, reconstruction check, `cpm-12b` on the lab
 - [ ] plant deploy in the SME-batch release (manifest `!chg049-evidence`, Flink swap, `cpm-12` online, `cpm-12b` with cplm-api stopped after ≥ 1 h); then daily check §7 physical line under 1536 MB and flat next morning
 - [x] plant 2026-10-06 emergency (before the release): log truncated, /tmp bundles deleted, evidence tables TRUNCATEd (pinned 0), ZooKeeper `log.91a0` moved out; 1.4 → 11 GB free
