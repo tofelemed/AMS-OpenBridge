@@ -3243,7 +3243,7 @@ JobManager OOM restarts the JM and, with no HA at the plant, the jobs are gone (
 
 ## CHG-061 — The Short buffer is bounded: one profile per loop, no duplicate samples, a hard per-loop cap (2026-10-06)
 
-**Scope:** `src/flink` (`ShortProfileRegistry`, the Short buffer / `ShortFeatureJob` options, `04b` arguments),
+**Scope:** `src/flink` (`ShortProfileRegistry`, the Short buffer / `CplmShortFeatureStreamJob` options, `04b` arguments),
 `migration/04b-submit-flink-jobs.sh`, `migration/daily-check.sh` + `MARUN-DAILY-CHECK.md` §4, `prod_decision.md` §3 / §4.
 Commits 96f14511 (a), 31154549 + afdc1d53 (b).
 
@@ -3258,16 +3258,25 @@ bounded the buffer when the watermark stalled.
   starts with an empty buffer. Bench, real tuples, heap backend: checkpoint 57.9 -> 27.1 MB (-53 %); heap per buffered sample
   3.33 -> 2.31 KB (-31 %; the target was 40 %, the measured figure is reported).
 - (b) Hard per-loop cap: `--short-max-samples-per-loop` (0 = derived; 04b passes `${CPLM_SHORT_MAX_SAMPLES_PER_LOOP:-0}`).
-  Derived cap = max(2 x ceil(3960 s / grid), 1584) from the declared `grid_seconds` (fallback 5 s): **1,584 at Marun**. An
+  Derived cap = max(ceil(1.4 x 3960 s / grid), 1100) from the declared `grid_seconds` (fallback 5 s): **1,109 at Marun**
+  (1.4 x the 792 samples of normal running, about 92 min of data; sized to the 1,100 MB task heap, see `prod_decision.md` §4). An
   explicit value > 0 overrides it with no floor. The oldest whole minutes are evicted; if the arriving sample's own minute is
-  the oldest left it is dropped. Log `SHORT_BUFFER_CAPPED loop=... samples=... watermarkLagMs=... declaredGridS=...` at most once
-  per loop per hour; Flink counter `shortBufferCapped`.
+  the oldest left it is dropped. Log `SHORT_BUFFER_CAPPED loop=... samples=... watermarkLagMs=... cap=... declaredGridS=...` at
+  most once per loop per hour; Flink counter `shortBufferCapped`.
+- (final review) A dropped exact duplicate is counted on the Flink counter `shortDuplicatesDropped` and logged as
+  `SHORT_DUPLICATE_DROPPED loop=... ts=...` at most once per loop per hour. The Marun Flink log config
+  (`infra/docker/flink-log4j-console.properties`, root ERROR) carries a WARN override for `ShortFeatureBufferFn`, so both lines
+  reach the plant log. G0's duplicate condition is now inert for the short tier: the buffer drops the duplicate before the
+  window maths, so `duplicate_timestamps` (`dup_ts` in `validate-loops`) reads 0 even on a doubled feed; the Kafka-tuple check
+  in `scripts/validate-loops.sh` is the one that still detects it.
 - Daily check §4: `SHORT_BUFFER_CAPPED` count in the TaskManager log over 24 h (WARN if > 0), with the recipe in
   `MARUN-DAILY-CHECK.md` §4.
 - The `ShortProfileRegistry` javadoc figure was corrected (about 1.0 KB saved per sample, not 2.2 KB; comment only).
 
 **Tests.** Flink full suite 319 run, 0 failures, 2 skipped (baseline 289). Bench with a stalled watermark: heap 145 MB at
-130 min fed, 152 MB at 390 min (3 x the cap): flat.
+130 min fed, 152 MB at 390 min (3 x the cap): flat. Final-review fixes: `ShortBufferCapTest` (1,109 at 5 s; a normal feed peaks
+at 768 per loop, under 1,100) and `ShortBufferRestoreTest` (heap-backend snapshot and restore at the cap with two profiles gives
+the same output as an uninterrupted run; `shortDuplicatesDropped` counted).
 
 **End-to-end on the lab.** Pending — Task 17 stress re-run.
 
@@ -3310,7 +3319,8 @@ same topics.
   `traverse-ingestion-service`, `docker load` and recreate; no schema).
 - Marun overlay (CHG-060): the `FLINK_PROPERTIES` of JM and TM changed (`-XX:+ExitOnOutOfMemoryError`); `deploy.sh` applies the
   overlay, so the recreate in the Flink swap picks it up. Afterwards the flag is visible in the TaskManager and JobManager process arguments.
-- New optional `.env` key (CHG-061): `CPLM_SHORT_MAX_SAMPLES_PER_LOOP` (unset = 0 = derived, 1,584 at Marun); `04b` passes it as
+- New optional `.env` key (CHG-061): `CPLM_SHORT_MAX_SAMPLES_PER_LOOP` (unset = 0 = derived = max(ceil(1.4 x 3960 / grid), 1100),
+  1,109 at Marun); `04b` passes it as
   `--short-max-samples-per-loop`.
 - The Short job restarts with EMPTY state (CHG-061: state names moved to `-v2`); after the swap expect about 30 min of warm-up
   (`SAMPLE_IDLENESS`) before the short features and verdicts resume. Daily check §4 gains a `SHORT_BUFFER_CAPPED` line (WARN > 0 in 24 h).
@@ -3319,7 +3329,11 @@ same topics.
   at least 1 h and only if free disk >= 2 x the printed size of the three tables (VM step 6g). Optional `.env` keys `CPLM_EVIDENCE_MAX_CYCLES` (12)
   and `CPLM_EVIDENCE_MIN_INTERVAL_MIN` (60). The batch manifest must carry `!chg049-evidence`.
 - Build: `mvn package` (Docker Maven, the jar is needed for CHG-049; no `--skip-jar`) → `python migration/deploy/build-release.py --release <next> --out release-out/<next>-<date>`.
-- Plant: `docker load` the `ams-frontend`, `cplm-api` and `ams-flink` images; then the Flink swap from the VM steps (cancel every job, `docker rm -f ams-flink-taskmanager ams-flink-jobmanager`) → `deploy.sh --prod` (04b resubmits all seven; 7 RUNNING) → `200` on `/`; users press Ctrl+F5.
+- The batch manifest (`migration/deploy/releases/<next>.txt`, created when the version is assigned) must list
+  `ingestion-service` (CHG-062b), next to `ams-frontend`, `cplm-api` and `flink-jobmanager`.
+- Marun Flink log config (CHG-061): `infra/docker/flink-log4j-console.properties` gains a WARN override for
+  `ShortFeatureBufferFn` (root stays ERROR); the overlay mounts it, so the Flink recreate picks it up.
+- Plant: `docker load` the `ams-frontend`, `cplm-api`, `ams-flink` and `traverse-ingestion-service` images; then the Flink swap from the VM steps (cancel every job, `docker rm -f ams-flink-taskmanager ams-flink-jobmanager`) → `deploy.sh --prod` (04b resubmits all seven; 7 RUNNING) → `200` on `/`; users press Ctrl+F5.
   cplm-api restarts its consumers: check each CPLM consumer group has exactly one member afterwards (SingleMemberGuard).
 - Proofs (CHG-040): the Loop Performance menu shows four task sub-headings; open a loop in the Loop Explorer, then
   Investigation from the menu: the same loop is open without picking it again. (CHG-041) on Investigation, scroll to the

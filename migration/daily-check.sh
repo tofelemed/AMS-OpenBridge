@@ -23,6 +23,12 @@ for c in traverse-cplm-api traverse-ingestion-service ams-flink-jobmanager ams-f
   st=$(docker inspect -f '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' "$c" 2>/dev/null)
   case "$st" in running\ healthy|running\ ) ok "$c $st";; running*) warn "$c $st";; *) act "$c ${st:-missing}";; esac
 done
+# CHG-060: an OOM now exits the Flink JVM and Docker restarts it; a growing count is a crash loop (MARUN-DAILY-CHECK.md 2 and 4).
+# The count resets to 0 when a deploy recreates the container.
+for c in ams-flink-taskmanager ams-flink-jobmanager; do
+  rc=$(docker inspect -f '{{.RestartCount}}' "$c" 2>/dev/null)
+  [ "${rc:-0}" -eq 0 ] && ok "$c RestartCount ${rc:-?}" || warn "$c RestartCount $rc - exits since the last recreate (OOM?); MARUN-DAILY-CHECK.md 4"
+done
 
 echo "== 3. OT feed -> samples (60 s)"
 s1=$(off traverse.cpa.loop.samples.v1); sleep 60; s2=$(off traverse.cpa.loop.samples.v1); d=$((s2-s1))

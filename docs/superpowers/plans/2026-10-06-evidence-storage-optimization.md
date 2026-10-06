@@ -630,9 +630,9 @@ Re-run load (user decision): plant rate × 3, i.e. about 87 tuples/s over 161 lo
 ### Task 13 (CHG-061b): Hard per-loop cap on the Short buffer
 **Files:** `ShortFeatureBufferFn.java`, `CplmShortFeatureStreamJob.java` (arg), `migration/04b-submit-flink-jobs.sh` (Short args), tests.
 
-- **Argument:** `--short-max-samples-per-loop N`. The default is derived as `2 × ceil(66 min / grid)`, with the grid taken from the sample's declared `grid_seconds` (fallback 5 s). That gives 1,584 at Marun. `04b` passes `${CPLM_SHORT_MAX_SAMPLES_PER_LOOP:-0}` (0 = derived).
+- **Argument:** `--short-max-samples-per-loop N`. The default is derived as `max(ceil(1.4 × 66 min / grid), 1100)`, with the grid taken from the sample's declared `grid_seconds` (fallback 5 s). That gives 1,109 at Marun (final review: was 2 × with a 1,584 floor; 1.4 × fits the 1,100 MB task heap at the cap, even during a heap snapshot). `04b` passes `${CPLM_SHORT_MAX_SAMPLES_PER_LOOP:-0}` (0 = derived).
 - **When an append would exceed the cap:** evict whole oldest minutes until it fits, even if their windows have not fired yet.
-- **Reporting:** a warning at most once per loop per hour, `SHORT_BUFFER_CAPPED loop=… samples=… watermarkLagMs=…`, plus a Flink counter `shortBufferCapped`.
+- **Reporting:** a warning at most once per loop per hour, `SHORT_BUFFER_CAPPED loop=… samples=… watermarkLagMs=… cap=… declaredGridS=…`, plus a Flink counter `shortBufferCapped`.
 - **Capped windows:** they report their true (lower) completeness. No crash, no unbounded growth.
 - **Tests:**
   - Feed 3 × cap samples for one loop with a watermark that never advances: the buffer stays at or below the cap and the counter is above 0.

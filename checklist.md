@@ -257,10 +257,11 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 
 - [x] CHG-060 (b7fb65c1) `-XX:+ExitOnOutOfMemoryError` on JM and TM in every `FLINK_PROPERTIES` block (lab compose, HA, marun overlay) — pytest 46 passed
 - [x] CHG-061a (96f14511) Short buffer: one dynamics profile per loop + exact-duplicate drop; state names `-v2` — bench checkpoint 57.9 -> 27.1 MB (-53 %), heap per sample 3.33 -> 2.31 KB (-31 %)
-- [x] CHG-061b (31154549 + afdc1d53) hard per-loop cap `--short-max-samples-per-loop` (derived 1,584 at Marun), `SHORT_BUFFER_CAPPED` log + counter — bench heap flat 145 -> 152 MB over 3 x the cap
+- [x] CHG-061b (31154549 + afdc1d53) hard per-loop cap `--short-max-samples-per-loop` (derived max(ceil(1.4 x 3960 / grid), 1100) = 1,109 at Marun; final review, was 1,584), `SHORT_BUFFER_CAPPED` log + counter — bench heap flat 145 -> 152 MB over 3 x the cap
 - [x] CHG-062a (538d4d9b) duplicate `eventTsMs` ignored in the period inference and the Long tier — Flink full suite 319 run / 0 failures / 2 skipped
 - [x] CHG-062b (06a953cf + 680c165e) ingestion refuses an overlapping `MQTT_LOOP_SAMPLES` source (409; oldest wins in the subscriber) — ingestion 237 / 237
 - [x] Task 16 (this commit) e2e script reuses its source and restores the soak source in `finally`; records: `changes_tracker.md` CHG-060..062 + release block, `prod_decision.md` §3 / §4 / §6, `MARUN-DAILY-CHECK.md` §4 + `daily-check.sh` `SHORT_BUFFER_CAPPED` line (`bash -n` clean), `MARUN-CONTEXT.md` §12b, `ShortProfileRegistry` javadoc figure
+- [x] Final-review fix wave (I1-I4 + minors): log4j WARN override for `ShortFeatureBufferFn` (plant root ERROR), derived cap 1,109 at 5 s, `shortDuplicatesDropped` counter + `SHORT_DUPLICATE_DROPPED` log, heap-backend snapshot/restore harness test, daily check TM / JM `RestartCount`, crash-loop + JM-OOM runbook, ingestion image in the release Plant step
 - [ ] Task 17 stress re-run on the lab (S1 161 loops: no TaskManager OOM, flag in the TM process, forced OOM restarts the TM, `SHORT_BUFFER_CAPPED` behaviour, cycles proven now the duplicates are gone)
 - [ ] plant deploy in the SME-batch release (`ams-flink` + `ingestion-service` images, overlay `FLINK_PROPERTIES`, Short restarts empty, ~30 min warm-up)
 

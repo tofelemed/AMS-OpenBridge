@@ -95,7 +95,7 @@ COMMON=(
 # The Short job gets its own switch, default none (G0-G4 evidence is reconstructed on demand; the
 # long tier and fusion keep emitting). It must come BEFORE "${COMMON[@]}": EvidencePolicy.fromArgs
 # takes the FIRST --evidence-emit it sees. Prove any edit here with migration/deploy/stub-04b.sh.
-# CHG-061b: CPLM_SHORT_MAX_SAMPLES_PER_LOOP caps each loop's Short buffer (0 = 2 x ceil(66 min / grid), 1,584 at 5 s).
+# CHG-061b: CPLM_SHORT_MAX_SAMPLES_PER_LOOP caps each loop's Short buffer (0 = max(ceil(1.4 x 66 min / grid), 1100), 1,109 at 5 s).
 SUBMIT_PARALLELISM="${CPLM_SHORT_PARALLELISM:-1}" \
 submit_if_missing "AMS - CPLM Short Feature Engine" \
   com.ams.flink.cplm.CplmShortFeatureStreamJob \

@@ -46,8 +46,11 @@ emergency levers are there. `migration/MARUN-DISK.md` has the full survey.
 
 ## 2. Containers
 
-All eight must be `running`, and the ones with a health check `healthy`. A missing or restarting
-container:
+All eight must be `running`, and the ones with a health check `healthy`. The `RestartCount` line
+(CHG-060) prints Docker's restart count for `ams-flink-taskmanager` and `ams-flink-jobmanager` and WARNs
+above 0: each restart is one exit (since CHG-060 an OutOfMemoryError exits the JVM). The count resets to 0
+when a deploy recreates the container, so it reads 0 right after a deploy; that is expected. A count that
+grows day over day is a crash loop: section 4. A missing or restarting container:
 ```
 docker logs --since 10m <name> 2>&1 | tail -20
 cd /opt/AMS-open && export START_AMS_API=yes ALLOW_FLINK_SUBMIT=yes && bash migration/deploy/deploy.sh --prod 2>&1 | tail -5
@@ -81,18 +84,22 @@ docker exec ams-flink-jobmanager flink cancel -m localhost:8081 $ID 2>/dev/null;
 docker exec instrumental-kafka-1 kafka-consumer-groups --bootstrap-server kafka-1:9092 --group traverse-cpa-flink-cplm-short --topic traverse.cpa.loop.samples.v1 --reset-offsets --to-latest --execute 2>&1 | tail -2
 ALLOW_FLINK_SUBMIT=yes bash /opt/AMS-open/migration/04b-submit-flink-jobs.sh 2>&1 | grep -E 'Short'
 ```
+`04b` submits a fresh Short job; never restore (`-s`) a pre-CHG-061 Short checkpoint (the heap backend restores its old,
+unregistered state names and keeps re-snapshotting them).
 The `Short job consumer lag` line is the same loop seen from Kafka: under 50,000 samples is normal (a few minutes of
 feed); hundreds of thousands and growing is the backlog, same fix. Section 5's short-features line now says how many
 minutes behind real time the newest window is; more than 120 is the same condition and prints `ACT`.
 
-Since CHG-060 both Flink JVMs exit on an OutOfMemoryError and Docker restarts them (`unless-stopped`). After a TaskManager OOM the jobs resume from their last checkpoint by themselves; check `docker ps` section 2 for a young uptime on `ams-flink-taskmanager`. After a JobManager OOM there is no HA at the plant, so the jobs are gone: this section shows fewer than seven, and the remedy below (`04b`) applies.
+Since CHG-060 (pending deploy) both Flink JVMs exit on an OutOfMemoryError and Docker restarts them (`unless-stopped`). After a TaskManager OOM the jobs resume from their last checkpoint by themselves; check `docker ps` section 2 for a young uptime on `ams-flink-taskmanager`. After a JobManager OOM there is no HA at the plant, so the jobs are gone: this section shows fewer than seven, and the remedy below (`04b`) applies, AND the orphan-checkpoint sweep from section 1 (the cancelled-job cleanup never ran).
+Crash loop: if the TaskManager uptime keeps resetting, or `docker inspect -f '{{.RestartCount}}' ams-flink-taskmanager` grows (section 2), the restored state itself runs the heap out: cancel Short, reset `traverse-cpa-flink-cplm-short` to latest and resubmit (the recipe above).
+`-XX:+ExitOnOutOfMemoryError` covers heap and metaspace OOM, not "Direct buffer memory": a TaskManager logging that error stays up and half dead; restart it by hand (`docker restart ams-flink-taskmanager`).
 
-`Short buffer cap` (CHG-061, pending deploy): `SHORT_BUFFER_CAPPED loop=... samples=... watermarkLagMs=... declaredGridS=...` in the TaskManager log means one loop's Short buffer reached its hard cap (default 1,584 samples; the oldest whole minutes are evicted), so the job protects its heap instead of running out of it. WARN when it appears in the last 24 h:
+`Short buffer cap` (CHG-061, pending deploy): `SHORT_BUFFER_CAPPED loop=... samples=... watermarkLagMs=... cap=... declaredGridS=...` in the TaskManager log means one loop's Short buffer reached its hard cap (default max(ceil(1.4 x 3960 / grid), 1100) = 1,109 samples at 5 s, about 92 min; the oldest whole minutes are evicted), so the job protects its heap instead of running out of it. WARN when it appears in the last 24 h:
 ```
 docker logs --since 24h ams-flink-taskmanager 2>&1 | grep -c SHORT_BUFFER_CAPPED
 docker logs --since 24h ams-flink-taskmanager 2>&1 | grep SHORT_BUFFER_CAPPED | tail -3
 ```
-A large `watermarkLagMs` on many loops, or a growing `Short job consumer lag`, is a backlog: use the recipe above. One loop only, with `declaredGridS` far from its real publishing interval, is a mis-declared grid: fix `grid_seconds` for that loop in the loop registry (the derived cap follows the declared grid). The line logs at most once per loop per hour.
+A large `watermarkLagMs` on many loops, or a growing `Short job consumer lag`, is a backlog: use the recipe above. One loop only, with `declaredGridS` far from its real publishing interval, is a mis-declared grid: fix `grid_seconds` for that loop in the loop registry (the derived cap follows the declared grid). The line logs at most once per loop per hour. `SHORT_DUPLICATE_DROPPED loop=... ts=...` (same rate limit; counter `shortDuplicatesDropped`) means the loop is fed twice: look for a second overlapping data source (`MARUN-CONTEXT.md` 12b). Both lines reach the plant log through the WARN override for `ShortFeatureBufferFn` in `infra/docker/flink-log4j-console.properties` (root stays ERROR).
 
 Fewer than seven jobs: `ALLOW_FLINK_SUBMIT=yes bash migration/04b-submit-flink-jobs.sh` submits the
 missing ones. Never `docker rm -f` the JobManager without cancelling every job first (orphaned

@@ -384,6 +384,18 @@ def test_the_plant_overlay_makes_both_flink_jvms_exit_on_oom():
     assert "HeapDumpOnOutOfMemoryError" not in overlay      # a >1 GB dump on the 96 GB plant disk is a disk incident
 
 
+def test_the_plant_flink_log_config_lets_the_short_buffer_warnings_through():
+    # CHG-061: the overlay mounts infra/docker/flink-log4j-console.properties (compose project dir) with root ERROR;
+    # SHORT_BUFFER_CAPPED / SHORT_DUPLICATE_DROPPED are WARN and the daily check greps for them
+    overlay = (br.Path(__file__).parent / "docker-compose.marun.yml").read_text(encoding="utf-8")
+    assert "./flink-log4j-console.properties:/opt/flink/conf/log4j-console.properties:ro" in overlay
+    props = (HERE.parent.parent / "infra/docker/flink-log4j-console.properties").read_text(encoding="utf-8")
+    lines = [l.strip() for l in props.splitlines()]
+    assert "rootLogger.level = ERROR" in lines
+    assert "logger.shortcap.name = com.ams.flink.cplm.ShortFeatureBufferFn" in lines
+    assert "logger.shortcap.level = WARN" in lines
+
+
 # ── CHG-049 (evidence storage optimization; ships inside the accumulating SME batch) ─────────────────────────
 def chg049_steps(on: bool = True) -> str:
     return br.vm_steps("v0.0.0-test", "abc1234", COMBINED_ROWS, True, ["flink-jobmanager", "cplm-api"],

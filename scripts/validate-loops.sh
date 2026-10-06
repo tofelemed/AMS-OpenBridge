@@ -317,6 +317,8 @@ fi
 # ── 7. why — the numbers ─────────────────────────────────────────────
 if ! skip 7; then
 hdr "7a. G0 data quality"
+# dup_ts: since CHG-061 the Short buffer drops an exact (loop, timestamp) duplicate before the window maths, so this
+# reads 0 even on a doubled feed. The Kafka-tuple check in section 4 ("duplicated timestamp(s)") still detects one.
 Q "SELECT f.loop_id,
        round(avg((f.payload->>'completeness')::numeric),4)    AS completeness,
        round(avg((f.payload->>'bad_quality_pct')::numeric),4) AS bad_quality,
