@@ -117,8 +117,11 @@ public sealed class OtIngestionHostService : BackgroundService
             if (running is not null)
             {
                 if (running.Fingerprint == fingerprint && !reloadRequested && !running.Parked) continue;
-                _logger.LogInformation("Restarting subscriber '{Name}' ({Why})",
-                    row.Name, reloadRequested ? "reload requested" : "config changed");
+                if (running.Parked)
+                    _logger.LogInformation("Starting subscriber '{Name}' (duplicate-feed winner gone)", row.Name);
+                else
+                    _logger.LogInformation("Restarting subscriber '{Name}' ({Why})",
+                        row.Name, reloadRequested ? "reload requested" : "config changed");
                 await StopOneAsync(configId, running);
             }
             await StartOneAsync(row, fingerprint, ct);

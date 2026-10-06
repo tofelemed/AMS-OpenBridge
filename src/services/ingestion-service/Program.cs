@@ -282,7 +282,9 @@ app.MapPost("/data-sources/{id:guid}/activate", async (
 {
     var current = await repo.GetAsync(id);
     if (current is null) return Results.NotFound();
-    if (LoopSourceConflicts.FindConflict(current, await repo.ListAsync(activeOnly: true)) is { } clash)
+    // An idempotent activate of an already-active row is never refused (the winner must not 409 naming its loser).
+    if (!current.IsActive
+        && LoopSourceConflicts.FindConflict(current, await repo.ListAsync(activeOnly: true)) is { } clash)
         return Results.Conflict(new { error = LoopSourceConflicts.ConflictMessage(clash), field = "topics" });
     var row = await repo.SetActiveAsync(id, isActive: true, UserName(user));
     if (row is null) return Results.NotFound();

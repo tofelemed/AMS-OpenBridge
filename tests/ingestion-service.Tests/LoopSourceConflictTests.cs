@@ -27,6 +27,10 @@ public class LoopSourceConflictTests
     [InlineData("a/#", "b/#", false)]
     [InlineData("a/b", "a/b/c", false)]
     [InlineData("a/#", "a", true)]
+    [InlineData("OT/HDPE/+/+/+/PIDParams/+", "OT/+/+/+/+/PIDParams/+", true)]
+    [InlineData("#", "a/b", true)]
+    [InlineData("+", "a/b/#", false)]
+    [InlineData("a/b/#", "a", false)]
     [InlineData("plant/+/+/loops/#", "lab/ot/loops/#", false)]
     [InlineData("plant/+/+/loops/#", "plant/hdpe/u1/loops/pid1/PV", true)]
     public void FilterOverlap_Matrix(string a, string b, bool expected)
