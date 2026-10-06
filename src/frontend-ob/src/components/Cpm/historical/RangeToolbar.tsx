@@ -18,12 +18,11 @@
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
-import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
 import type { CpmLoop } from '../../../api/cpmApi';
 import { PlantScopeFilter, type CpmScope } from '../plantScope';
 import LoopCombobox from '../LoopCombobox';
-import { RANGE_PRESETS, fmtRange, toLocalInput } from './timeRange';
+import { RANGE_PRESETS } from './timeRange';
+import TimeRangeBar from '../trend/TimeRangeBar';
 
 const SIGNAL_KEYS = ['pv', 'sp', 'op', 'vp'] as const;
 export type SignalKey = typeof SIGNAL_KEYS[number];
@@ -34,7 +33,6 @@ const SIGNAL_MEANING: Record<SignalKey, string> = {
   pv: 'Process variable', sp: 'Setpoint', op: 'Controller output', vp: 'Valve position',
 };
 
-const PRESET_KEYS = [...RANGE_PRESETS.map(p => p.key), 'custom'];
 
 export interface RangeToolbarProps {
   scope: CpmScope;
@@ -87,22 +85,6 @@ export const RangeToolbar: React.FC<RangeToolbarProps> = ({
   signals, onToggleSignal, overlays, overlayKey, onOverlay,
   seriesPath, trendHref, onOpenTrend, exportDisabled, onExport, normalize, onToggleNormalize,
 }) => {
-  const [draftFrom, setDraftFrom] = React.useState(() => toLocalInput(from));
-  const [draftTo, setDraftTo] = React.useState(() => toLocalInput(to));
-  const [rangeError, setRangeError] = React.useState<string | null>(null);
-
-  // Drafts follow the APPLIED range when it changes underneath them — a preset,
-  // Back/Forward or an episode deep link all move the chart via the URL, and
-  // inputs still showing the previous range describe a different window than
-  // what is plotted. Keyed on the instants, not the Date identities.
-  React.useEffect(() => {
-    setDraftFrom(toLocalInput(from));
-    setDraftTo(toLocalInput(to));
-    setRangeError(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [from.getTime(), to.getTime()]);
-
-  const custom = preset === 'custom';
 
   return (
     <div className="cpm-hist-toolbar">
@@ -129,49 +111,9 @@ export const RangeToolbar: React.FC<RangeToolbarProps> = ({
       </Row>
 
       <Row label="Range">
-        {/* A segmented group, not five loose buttons — same component and same
-            empty-first-emit guard as the Performance window toggle. */}
-        <ObcToggleButtonGroup
-          value={preset}
-          aria-label="Range preset"
-          onValue={(e: CustomEvent<{ value: string }>) => {
-            if (PRESET_KEYS.includes(e.detail.value)) onPreset(e.detail.value);
-          }}
-        >
-          {RANGE_PRESETS.map(p => (
-            <ObcToggleButtonOption key={p.key} value={p.key}>{p.label}</ObcToggleButtonOption>
-          ))}
-          <ObcToggleButtonOption value="custom">Custom</ObcToggleButtonOption>
-        </ObcToggleButtonGroup>
-
-        <div className="cpm-hist-stepper">
-          <ObcButton variant="flat" onClick={() => onStep(-1)}>‹</ObcButton>
-          <span className="cpm-hist-stepper__text">{fmtRange(from, to)}</span>
-          <ObcButton variant="flat" onClick={() => onStep(1)}>›</ObcButton>
-        </div>
-        <ObcButton variant="normal" onClick={onNow}>Now</ObcButton>
-
-        {custom && (
-          <div className="cpm-hist-custom">
-            <label className="cpm-field cpm-field--compact">
-              <span className="cpm-field__label">From</span>
-              <input className="cpm-input" type="datetime-local" value={draftFrom}
-                onChange={e => setDraftFrom(e.target.value)} />
-            </label>
-            <label className="cpm-field cpm-field--compact">
-              <span className="cpm-field__label">To</span>
-              <input className="cpm-input" type="datetime-local" value={draftTo}
-                onChange={e => setDraftTo(e.target.value)} />
-            </label>
-            {/* Presets apply on click; only the custom pair defers, because a
-                half-typed date pair is not a range worth fetching. */}
-            <ObcButton variant="raised"
-              onClick={() => setRangeError(onApplyCustom(draftFrom, draftTo))}>
-              Apply
-            </ObcButton>
-          </div>
-        )}
-        {rangeError && <span className="cpm-field__error" role="alert">{rangeError}</span>}
+        {/* CHG-048: the shared period control (also on the Loop Explorer trend). */}
+        <TimeRangeBar from={from} to={to} presets={RANGE_PRESETS} preset={preset}
+          onPreset={onPreset} onStep={onStep} onNow={onNow} onApplyCustom={onApplyCustom} />
       </Row>
 
       <Row label="View">

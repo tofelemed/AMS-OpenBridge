@@ -3093,9 +3093,47 @@ Historical and Replay: a unit like `<img src=x onerror=…>` would have run in e
   `pvUnit:"<img src=x onerror=alert(1)>"` → 422 with the allowlist message; `POST /loops/bulk-activate` → row failed
   `REGISTRY_VALIDATION`, 0 activated; the probe loop does not exist (404).
 
+## CHG-048 — SME review #11: the Loop Explorer trend gets periods (presets, ‹ / ›, custom, Live) and carries them to Historical (2026-10-06)
+
+**Source:** `SME_review.md` point 11. **Scope:** `ams-frontend` only: `components/Cpm/trend/{TimeRangeBar.tsx,
+useTrendRange.ts, trendPeriod.ts (+test)}` (new), `historical/{timeRange.ts, RangeToolbar.tsx}` (the period row moved
+into `TimeRangeBar`), `CpmHistorical.tsx`, `explorer/summary/{OperatingState.tsx, LoopSummaryCard.tsx}`, `CpmExplorer.tsx`,
+`cpaHref.ts` (`historicalHref` takes a period), `nav/cpmTasks.ts` (+test), `styles/cpm-loop-summary.css`. No service change.
+
+**What the SME said.** The Explorer has a rolling 8 h trend but older data is not convenient to reach from the same view; add
+time presets, custom dates and previous/next period controls; opening Historical should carry the same loop and period.
+
+**Verified before the change.** Correct. The Explorer trend was a fixed rolling 8 h with no controls; the summary card's
+Historical link carried the loop only; the menu carried loop and scope, never a period. Historical already had presets,
+‹ / ›, Now and custom From / To — inside its own toolbar, unusable elsewhere.
+
+**What changed.**
+- **One shared period bar** (`TimeRangeBar`) for Historical and the Explorer: presets as one segmented group + Custom,
+  ‹ / › one span, Now (Historical) or Live (Explorer), the custom pair applied on Apply with a stated error for a missing
+  or backwards pair. (Historical's "Custom" segment now actually opens the date fields — before, clicking it did nothing
+  until the range already was custom.)
+- **Explorer trend:** `8h` = LIVE (no `from` / `to` in the URL, rolling and refreshing as before); 24h / 7d / 30d, ‹ / › and
+  a custom pair pin an absolute period in the URL as `?from=&to=` — the same names and meaning as Historical. The bar and
+  the trend line say "live" or "fixed period"; polling only while live; the operating-state tiles' trend fallback (the
+  newest bucket) only while live, so a past period is never shown as the loop's current value.
+- **"Open in Historical ›"** on the bar (and the summary card's Historical action) carries the loop and the period; a live
+  view is handed over as its absolute 8 h at the moment of the click.
+- **Menu carry:** `from` / `to` travel between the Explorer and Historical only (the two pages that read them identically);
+  a live Explorer hands Historical its absolute 8 h. Every other page still gets loop + scope only.
+- The sticky context bar's period reads "trend: last 8 h" or the pinned range.
+
+**Tests.** `trend/trendPeriod.test.ts` (new, 3), `nav/cpmTasks.test.ts` (+3: pinned period carried Explorer ⇄ Historical,
+live 8 h made absolute, never carried to Replay). Frontend 76 files green, lint / tsc / build clean. **Lab browser pass
+2026-10-06** (lab feed stalled since 5 Oct, so live 8 h is empty): FIC10401 Explorer shows 8h · live and the no-values state;
+24h pins `from/to` and shows 5 Oct's data on both axes, context bar "trend: Oct 05, 10:41 AM → Oct 06, 10:41 AM"; Open in
+Historical → `/cpm/historical?loop=FIC10401&from=…&to=…` with the same range; menu Historical → Explorer keeps the period
+("fixed period"); Live → `?loop=FIC10401`; menu live Explorer → Historical gets the absolute last 8 h; Custom: a backwards pair
+says "\"To\" must be after \"From\".", 12:00–17:00 on 5 Oct pins and plots; 0 px page overflow at 500 / 768 / 1440 on Explorer
+and Historical (the bar stacks on a phone); night theme; 0 console errors.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-047) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
+- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-048) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
   migration, no Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant: `docker load` the `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
@@ -3113,3 +3151,5 @@ Historical and Replay: a unit like `<img src=x onerror=…>` would have run in e
   (CHG-047) loop trends: "PV / SP (unit)" left, "OP (%)" right, Fit to data / Engineering range switch, band legend +
   caption. **Plant data step:** load PV units with the registry bulk import (`pv_unit` column; a ranges-only CSV keeps
   them) — until then axes read "(unit not set)".
+  (CHG-048) Loop Explorer › Summary trend has 8h (live) / 24h / 7d / 30d / Custom, ‹ / ›, Live and "Open in Historical ›",
+  which opens Historical on the same loop and period.

@@ -30,11 +30,32 @@ const SPAN_TOLERANCE_MS = 60_000;
  * right LENGTH but ends three days ago is not "24h" — it is a custom window, and
  * highlighting the 24h chip for it would misdescribe what is plotted.
  */
-export function activePreset(from: Date, to: Date, nowMs = Date.now()): string {
+export function activePreset(from: Date, to: Date, nowMs = Date.now(), presets: RangePreset[] = RANGE_PRESETS): string {
   if (Math.abs(nowMs - to.getTime()) > LIVE_TOLERANCE_MS) return 'custom';
   const span = to.getTime() - from.getTime();
-  const hit = RANGE_PRESETS.find(p => Math.abs(p.ms - span) <= SPAN_TOLERANCE_MS);
+  const hit = presets.find(p => Math.abs(p.ms - span) <= SPAN_TOLERANCE_MS);
   return hit?.key ?? 'custom';
+}
+
+/**
+ * SME review #11 (CHG-048): the Loop Explorer trend's presets. "8h" is the LIVE rolling window (no
+ * from/to in the URL); the others resolve to an absolute pair when clicked, exactly as on Historical.
+ */
+export const LIVE_PRESET_KEY = '8h';
+export const EXPLORER_PRESETS: RangePreset[] = [
+  { key: LIVE_PRESET_KEY, label: '8h', ms: 8 * 3_600_000 },
+  { key: '24h', label: '24h', ms: 24 * 3_600_000 },
+  { key: '7d', label: '7d', ms: 7 * 86_400_000 },
+  { key: '30d', label: '30d', ms: 30 * 86_400_000 },
+];
+
+/** The custom From/To pair → an absolute range, or the sentence that says why not. */
+export function parseCustomRange(fromText: string, toText: string): { from: Date; to: Date } | string {
+  const from = new Date(fromText); const to = new Date(toText);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return 'Enter both dates.';
+  // Caught here rather than letting historian-bff answer 400 for what is simply a backwards range.
+  if (to <= from) return '"To" must be after "From".';
+  return { from, to };
 }
 
 export const spanOf = (from: Date, to: Date) => to.getTime() - from.getTime();

@@ -13,7 +13,7 @@
  * Workbench labels it: the engine's scores are uncalibrated, not probabilities.
  */
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmLoop } from '../../../../api/cpmApi';
 import type { CpmGateMatrix } from '../../../../api/cpm/gates';
@@ -21,6 +21,7 @@ import { TonePill, toneFor } from '../../shared';
 import { fmtInstant, fmtPeriod } from '../../context/LoopContextBar';
 import { evidenceHref, historicalHref, investigationHref, windowsHref } from '../../cpaHref';
 import { workbenchHref } from '../../evidence/selection';
+import { trendPeriodOf } from '../../trend/trendPeriod';
 import {
   ageText, conditionOf, evidenceOf, leadingCauseOf, limitationsOf, nextCheckOf, primaryActionOf, staleAfterMs,
 } from './summaryText';
@@ -51,6 +52,7 @@ export const LoopSummaryCard: React.FC<{
   windowKind: string;
 }> = ({ loop, matrix, windowKind }) => {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const workbench = workbenchExit(loop.loopId, matrix, windowKind);
   const condition = conditionOf(matrix.diagnosis);
   const finding = condition.kind === 'finding';
@@ -63,7 +65,7 @@ export const LoopSummaryCard: React.FC<{
   const windowAge = Number.isFinite(endMs) && Date.now() - endMs > staleAfterMs(windowKind) ? ageText(Date.now() - endMs) : null;
   const action = primaryActionOf(condition);
   const actionHref = action.target === 'windows' ? windowsHref(loop.loopId)
-    : action.target === 'historical' ? historicalHref(loop.loopId)
+    : action.target === 'historical' ? historicalHref(loop.loopId, trendPeriodOf(params))
     : investigationHref(loop.loopId, { kind: windowKind });
 
   return (

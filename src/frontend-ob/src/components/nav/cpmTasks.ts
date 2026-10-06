@@ -13,7 +13,9 @@
  * Loop Performance pages. The evaluated window is NOT carried: each page names
  * it differently (`window` = kind on Performance/Explorer, = END on
  * Historical/Replay, `profile` on the Window Inspector, a run id on the
- * Workbench), so carrying it would open the wrong period.
+ * Workbench), so carrying it would open the wrong period. The one exception
+ * (CHG-048): the Explorer trend and Historical share a historian period as
+ * `from` / `to`, so that pair travels between those two pages.
  */
 
 export type CpmTask = 'Find problems' | 'Check a loop' | 'Understand the cause' | 'Set up';
@@ -53,7 +55,7 @@ const CARRIED = ['loop', 'site', 'area', 'unit'] as const;
  * The href a menu entry should open. Moving from one Loop Performance page to
  * another keeps the loop and plant scope; anything else is the bare path.
  */
-export function cpmNavHref(target: string, fromPathname: string, fromSearch: string): string {
+export function cpmNavHref(target: string, fromPathname: string, fromSearch: string, nowMs = Date.now()): string {
   if (!cpmPage(target) || !cpmPage(fromPathname)) return target;
   const from = new URLSearchParams(fromSearch);
   const next = new URLSearchParams();
@@ -61,6 +63,21 @@ export function cpmNavHref(target: string, fromPathname: string, fromSearch: str
     const v = from.get(key)?.trim();
     if (v) next.set(key, v);
   }
+  // CHG-048 (SME #11): the Explorer trend and Historical read `from` / `to` the same way, so the period
+  // travels between those two. A live Explorer (no from/to) hands Historical its rolling 8 h, made absolute.
+  if (PERIOD_PAGES.has(fromPathname) && PERIOD_PAGES.has(target) && fromPathname !== target) {
+    const f = from.get('from'); const t = from.get('to');
+    if (f && t) { next.set('from', f); next.set('to', t); }
+    else if (fromPathname === '/cpm/explorer') {
+      next.set('from', new Date(nowMs - LIVE_TREND_MS).toISOString());
+      next.set('to', new Date(nowMs).toISOString());
+    }
+  }
   const qs = next.toString();
   return qs ? `${target}?${qs}` : target;
 }
+
+/** Pages whose `from` / `to` mean the same thing: a historian period. */
+const PERIOD_PAGES = new Set(['/cpm/explorer', '/cpm/historical']);
+/** The Explorer's live rolling trend span (shared.TREND_SPAN_MS). */
+const LIVE_TREND_MS = 8 * 3600_000;

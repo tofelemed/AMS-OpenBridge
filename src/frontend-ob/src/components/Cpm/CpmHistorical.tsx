@@ -37,6 +37,7 @@ import { useBoxZoom, useKeepSelecting } from '../charts/useBoxZoom';
 import ChartZoomBar from '../charts/ChartZoomBar';
 import { healthSegments as toHealthSegments } from './health/HealthLane';
 import {
+  parseCustomRange,
   RANGE_PRESETS, activePreset, presetRange, spanOf, stepRange,
 } from './historical/timeRange';
 
@@ -278,12 +279,9 @@ export const CpmHistorical: React.FC = () => {
           onStep={dir => { const r = stepRange(from, to, dir); applyRange(r.from, r.to); }}
           onNow={() => { const r = presetRange(spanOf(from, to)); applyRange(r.from, r.to); }}
           onApplyCustom={(f, t) => {
-            const fd = new Date(f); const td = new Date(t);
-            if (Number.isNaN(fd.getTime()) || Number.isNaN(td.getTime())) return 'Enter both dates.';
-            // Caught here rather than letting historian-bff answer 400 and the
-            // chart render an error for what is simply a backwards range.
-            if (td <= fd) return '"To" must be after "From".';
-            applyRange(fd, td);
+            const r = parseCustomRange(f, t);
+            if (typeof r === 'string') return r;
+            applyRange(r.from, r.to);
             return null;
           }}
           signals={signals}

@@ -10,6 +10,8 @@
  * empty state instead of three "—" tiles that read like measured zeros.
  */
 import React, { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmLoop } from '../../../../api/cpmApi';
 import { useCpmTrend, useLoopLastValues } from '../../../../hooks/useCpm';
 import { useLoopLive, qualityLabel } from '../../../../hooks/useLoopLive';
@@ -18,9 +20,12 @@ import { loopSeries } from '../../../../utils/loopSeries';
 import { modeLabel } from '../../../../utils/modeVocabulary';
 import {
   EmptyState, PanelHead, QueryError,
-  fmtDateTime, useRollingWindow, TREND_SPAN_MS, TREND_TICK_MS,
+  fmtDateTime,
 } from '../../shared';
 import SignalTrend from '../../trend/SignalTrend';
+import TimeRangeBar from '../../trend/TimeRangeBar';
+import { useTrendRange } from '../../trend/useTrendRange';
+import { historicalHref } from '../../cpaHref';
 
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
 
@@ -50,15 +55,20 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   // Live plane (RBE + snapshot-on-open); historian values remain the fallback.
   const live = useLoopLive(loop.loopId);
   const series = loopSeries(loop.loopId);
-  const { start, end } = useRollingWindow(TREND_SPAN_MS, TREND_TICK_MS);
-  // pollDriven: the window advances on a timer, not because the operator asked.
-  const trend = useCpmTrend(series, start, end, 240, 'pv,sp,op,mode', true, true);
+  // SME #11 (CHG-048): live rolling 8 h by default; a preset, ‹ / › or a custom pair pins a period (URL).
+  const range = useTrendRange();
+  const { from: start, to: end } = range;
+  const navigate = useNavigate();
+  // pollDriven only while live: then the window advances on a timer, not because the operator asked.
+  const trend = useCpmTrend(series, start, end, 240, 'pv,sp,op,mode', true, range.live);
   // Third plane. live -> trend bucket -> last stored value, which is the only one
   // with no time bound: a setpoint held for a month and a loop parked in AUT are
   // invisible to the other two.
   const lastStored = useLoopLastValues(series);
   const points = useMemo(() => trend.data?.points ?? [], [trend.data]);
-  const last = points.length ? points[points.length - 1] : undefined;
+  // The tiles' trend fallback is the newest bucket — only meaningful while the trend is live; a pinned
+  // past period must never present its last bucket as the loop's current value.
+  const last = range.live && points.length ? points[points.length - 1] : undefined;
 
 
   // The third plane counts: a loop whose only evidence is a last stored value must
@@ -77,7 +87,7 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
       {noData ? (
         <EmptyState
           title="No operating data"
-          copy={`No live publisher, and no samples stored at ${series} in the last 8 hours.`}
+          copy={`No live publisher, and no samples stored at ${series} in ${range.live ? 'the last 8 hours' : 'this period'}.`}
         />
       ) : (
         <>
@@ -145,17 +155,28 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
                 </FacetPill>
               );
             })()}
-            {' '}Trend range {fmtDateTime(start.getTime())} → {fmtDateTime(end.getTime())} · rolling 8 h, not an evaluated window
+            {' '}Trend range {fmtDateTime(start.getTime())} → {fmtDateTime(end.getTime())}
+            {range.live ? ' · rolling 8 h' : ' · fixed period'}, not an evaluated window
           </p>
         </>
       )}
+
+      <TimeRangeBar from={start} to={end} presets={range.presets} preset={range.preset}
+        onPreset={range.applyPreset} onStep={range.step} onApplyCustom={range.applyCustom}
+        nowLabel="Live" nowTitle="Back to the live rolling 8 h" onNow={range.goLive}
+        stateNote={range.live ? 'live' : 'fixed period'}>
+        <ObcButton variant="flat" title={`Open ${loop.loopId} in Historical on this period`}
+          onClick={() => navigate(historicalHref(loop.loopId, { from: start.toISOString(), to: end.toISOString() }))}>
+          Open in Historical ›
+        </ObcButton>
+      </TimeRangeBar>
 
       {trend.isLoading && <EmptyState title="Loading trend…" />}
       {/* A historian 403/500 is not an empty historian. */}
       {trend.isError && (
         <QueryError title="Trend unavailable" error={trend.error} retry={() => void trend.refetch()} />
       )}
-      {points.length > 0 && <SignalTrend loopId={loop.loopId} points={points} live />}
+      {points.length > 0 && <SignalTrend loopId={loop.loopId} points={points} live={range.live} />}
     </div>
   );
 };

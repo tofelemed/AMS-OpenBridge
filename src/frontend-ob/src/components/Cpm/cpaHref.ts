@@ -66,8 +66,9 @@ export const responseHref = (loop: string, opts: { event?: string | null } = {})
 export const investigationHref = (loop: string, opts: { kind?: string | null } = {}) =>
   build('/cpm/investigation', { loop, profile: opts.kind });
 
-/** Historical on one loop (its default range: signals, KPIs, mode and verdicts over time). */
-export const historicalHref = (loop: string) => build('/cpm/historical', { loop });
+/** Historical on one loop; `from` / `to` (ISO) carry the period being looked at (CHG-048), else its default range. */
+export const historicalHref = (loop: string, opts: { from?: string | null; to?: string | null } = {}) =>
+  build('/cpm/historical', { loop, from: opts.from, to: opts.to });
 
 /** The standalone calculations catalogue for one loop. */
 export const calculationsHref = (loop: string) => build('/cpm/calculations', { loop });

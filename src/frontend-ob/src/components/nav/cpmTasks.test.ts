@@ -37,3 +37,18 @@ describe('CPM_PAGES', () => {
     }
   });
 });
+
+describe('cpmNavHref period carry (CHG-048)', () => {
+  const NOW = Date.parse('2026-10-06T12:00:00Z');
+  it('carries a pinned period between the Explorer trend and Historical', () => {
+    expect(cpmNavHref('/cpm/historical', '/cpm/explorer', '?loop=L1&from=2026-10-01T00:00:00Z&to=2026-10-02T00:00:00Z', NOW))
+      .toBe('/cpm/historical?loop=L1&from=2026-10-01T00%3A00%3A00Z&to=2026-10-02T00%3A00%3A00Z');
+  });
+  it('hands Historical the live Explorer 8 h, made absolute', () => {
+    expect(cpmNavHref('/cpm/historical', '/cpm/explorer', '?loop=L1', NOW))
+      .toBe('/cpm/historical?loop=L1&from=2026-10-06T04%3A00%3A00.000Z&to=2026-10-06T12%3A00%3A00.000Z');
+  });
+  it('never carries the period to pages that read it differently', () => {
+    expect(cpmNavHref('/cpm/replay', '/cpm/explorer', '?loop=L1&from=a&to=b', NOW)).toBe('/cpm/replay?loop=L1');
+  });
+});

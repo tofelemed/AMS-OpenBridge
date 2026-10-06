@@ -141,3 +141,11 @@
    Scale switch above the chart (right-aligned, wraps under on a phone); the band's caption below. */
 .cpm-signal-trend__bar { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-bottom: 4px; }
 .cpm-signal-trend__note { margin: 4px 0 0; font-size: 0.78rem; color: var(--element-neutral-color); }
+
+/* ── Shared period bar (SME review #11, CHG-048) — Historical and the Explorer trend ──
+   One wrapping row: presets · ‹ range › · Now/Live · (Open in Historical, pushed right); the custom
+   From / To pair wraps under it. On a phone every group drops to its own line, nothing scrolls sideways. */
+.cpm-range-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 8px 0 4px; }
+.cpm-range-bar__end { margin-left: auto; display: inline-flex; gap: 8px; }
+.cpm-range-bar__note { color: var(--element-neutral-color); }
+.cpm-range-bar .cpm-hist-custom { flex-basis: 100%; }
