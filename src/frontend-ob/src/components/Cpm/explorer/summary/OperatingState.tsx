@@ -10,8 +10,6 @@
  * empty state instead of three "—" tiles that read like measured zeros.
  */
 import React, { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmLoop } from '../../../../api/cpmApi';
 import { useCpmTrend, useLoopLastValues } from '../../../../hooks/useCpm';
 import { useLoopLive, qualityLabel } from '../../../../hooks/useLoopLive';
@@ -19,13 +17,11 @@ import { FacetPill, liveSignalQuality } from '../../FacetPill';
 import { loopSeries } from '../../../../utils/loopSeries';
 import { modeLabel } from '../../../../utils/modeVocabulary';
 import {
-  EmptyState, PanelHead, QueryError,
+  EmptyState, PanelHead,
   fmtDateTime,
 } from '../../shared';
-import SignalTrend from '../../trend/SignalTrend';
-import TimeRangeBar from '../../trend/TimeRangeBar';
 import { useTrendRange } from '../../trend/useTrendRange';
-import { historicalHref } from '../../cpaHref';
+import LoopTrendPanel from './LoopTrendPanel';
 
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
 
@@ -58,7 +54,6 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   // SME #11 (CHG-048): live rolling 8 h by default; a preset, ‹ / › or a custom pair pins a period (URL).
   const range = useTrendRange();
   const { from: start, to: end } = range;
-  const navigate = useNavigate();
   // pollDriven only while live: then the window advances on a timer, not because the operator asked.
   const trend = useCpmTrend(series, start, end, 240, 'pv,sp,op,mode', true, range.live);
   // Third plane. live -> trend bucket -> last stored value, which is the only one
@@ -161,22 +156,8 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
         </>
       )}
 
-      <TimeRangeBar from={start} to={end} presets={range.presets} preset={range.preset}
-        onPreset={range.applyPreset} onStep={range.step} onApplyCustom={range.applyCustom}
-        nowLabel="Live" nowTitle="Back to the live rolling 8 h" onNow={range.goLive}
-        stateNote={range.live ? 'live' : 'fixed period'}>
-        <ObcButton variant="flat" title={`Open ${loop.loopId} in Historical on this period`}
-          onClick={() => navigate(historicalHref(loop.loopId, { from: start.toISOString(), to: end.toISOString() }))}>
-          Open in Historical ›
-        </ObcButton>
-      </TimeRangeBar>
-
-      {trend.isLoading && <EmptyState title="Loading trend…" />}
-      {/* A historian 403/500 is not an empty historian. */}
-      {trend.isError && (
-        <QueryError title="Trend unavailable" error={trend.error} retry={() => void trend.refetch()} />
-      )}
-      {points.length > 0 && <SignalTrend loopId={loop.loopId} points={points} live={range.live} />}
+      {/* The period bar, the evaluated window against it and the comparison with now (CHG-048/049). */}
+      <LoopTrendPanel loop={loop} range={range} trend={trend} points={points} />
     </div>
   );
 };

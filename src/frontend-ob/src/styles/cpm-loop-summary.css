@@ -149,3 +149,8 @@
 .cpm-range-bar__end { margin-left: auto; display: inline-flex; gap: 8px; }
 .cpm-range-bar__note { color: var(--element-neutral-color); }
 .cpm-range-bar .cpm-hist-custom { flex-basis: 100%; }
+/* CHG-049: a trend's caption ("Evaluated window (diagnosis)" / "Now (live 8 h)") sits left of its scale switch. */
+.cpm-signal-trend__caption { margin-right: auto; align-self: center; }
+.cpm-signal-trend + .cpm-signal-trend { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-divider-color); }
+.cpm-eval-note { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 6px 0; color: var(--element-neutral-color); font-size: 0.85rem; }
+.cpm-loop-summary__inline-action { margin-left: 8px; }

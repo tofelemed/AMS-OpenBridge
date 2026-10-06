@@ -22,6 +22,7 @@ import { fmtInstant, fmtPeriod } from '../../context/LoopContextBar';
 import { evidenceHref, historicalHref, investigationHref, windowsHref } from '../../cpaHref';
 import { workbenchHref } from '../../evidence/selection';
 import { trendPeriodOf } from '../../trend/trendPeriod';
+import { pinEvaluated, revealTrend } from '../../trend/evaluatedWindow';
 import {
   ageText, conditionOf, evidenceOf, leadingCauseOf, limitationsOf, nextCheckOf, primaryActionOf, staleAfterMs,
 } from './summaryText';
@@ -52,7 +53,7 @@ export const LoopSummaryCard: React.FC<{
   windowKind: string;
 }> = ({ loop, matrix, windowKind }) => {
   const navigate = useNavigate();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const workbench = workbenchExit(loop.loopId, matrix, windowKind);
   const condition = conditionOf(matrix.diagnosis);
   const finding = condition.kind === 'finding';
@@ -118,6 +119,13 @@ export const LoopSummaryCard: React.FC<{
           {matrix.sampleCount != null ? `${matrix.sampleCount.toLocaleString()} samples · ` : ''}
           {fmtPeriod({ label: `${windowKind} window`, start: matrix.windowStart, end: matrix.windowEnd })}
           {windowAge && <strong className="cpm-loop-summary__stale"> · ended {windowAge}</strong>}
+          {matrix.windowStart && matrix.windowEnd && (
+            <ObcButton variant="flat" className="cpm-loop-summary__inline-action"
+              title="Show this evaluated window on the trend, compared with now"
+              onClick={() => { setParams(p => pinEvaluated(p, matrix.windowStart!, matrix.windowEnd!), { replace: true }); revealTrend(); }}>
+              Show on trend ›
+            </ObcButton>
+          )}
         </Row>
         {limits.length > 0 && (
           <Row label="Limitations">

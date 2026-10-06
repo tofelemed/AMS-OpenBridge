@@ -39,6 +39,12 @@ export interface SignalTrendInput {
   range?: CpmEngineeringRange | null;
   /** boxZoomOption(...) for x axis 0 and y axes [0, 1], spread into the option. */
   zoom: Record<string, unknown>;
+  /** CHG-049: the plotted range — the x axis spans it even where the data is partial. */
+  xRange?: { fromMs: number; toMs: number } | null;
+  /** CHG-049: the engine's evaluated window, drawn as a labelled band where it overlaps the range. */
+  evaluated?: { startMs: number; endMs: number; label: string } | null;
+  /** CHG-049: one y-scale shared with another trend (compare mode); overrides fit, not an explicit range. */
+  yBounds?: { pv: { min: number; max: number } | null; op: { min: number; max: number } | null } | null;
 }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -64,11 +70,23 @@ export function axisBounds(scale: TrendScale, r: CpmEngineeringRange | null | un
 const fmtVal = (v: number | null, unit: string) => (v == null ? '—' : `${Number(v.toFixed(2))} ${unit}`.trim());
 
 export function signalTrendOption(i: SignalTrendInput) {
-  const { points, pens, hasVp, pvUnit, scale, range, zoom } = i;
+  const { points, pens, hasVp, pvUnit, scale, range, zoom, xRange, evaluated, yBounds } = i;
   const { good, amber, grey, pink } = pens;
   // Tooltip HTML only (axis names are canvas text): a registry unit is user input.
   const unit = escapeHtml(pvUnit?.trim() || '');
-  const bounds = axisBounds(scale, range);
+  const fitted = axisBounds(scale, range);
+  // Compare mode: both trends on one scale (only when fitting — an explicit engineering range wins).
+  const bounds = scale === 'fit' && yBounds ? {
+    pv: yBounds.pv ? { min: yBounds.pv.min, max: yBounds.pv.max, scale: false } : fitted.pv,
+    op: yBounds.op ? { min: yBounds.op.min, max: yBounds.op.max, scale: false } : fitted.op,
+  } : fitted;
+  // The evaluated window as a band on the PV series; ECharts clips it to the x range.
+  const markArea = evaluated ? {
+    silent: true,
+    itemStyle: { color: grey, opacity: 0.12, borderColor: grey, borderWidth: 1, borderType: 'dashed' },
+    label: { show: true, position: 'insideTop', color: grey, fontSize: 11, formatter: evaluated.label },
+    data: [[{ xAxis: evaluated.startMs }, { xAxis: evaluated.endMs }]],
+  } : undefined;
   const at = (p: CpmTrendPoint, ...keys: string[]) => keys.map(k => num(p[k])).find(v => v != null) ?? null;
   const byTs = new Map(points.map(p => [p.ts, p]));
   const axisStyle = (colour: string) => ({
@@ -103,6 +121,7 @@ export function signalTrendOption(i: SignalTrendInput) {
     },
     // Day boundaries read "5 Oct", not ECharts' bare day number "5".
     xAxis: { type: 'time', axisLine: { lineStyle: { color: grey } },
+      ...(xRange ? { min: xRange.fromMs, max: xRange.toMs } : {}),
       axisLabel: { color: grey, hideOverlap: true,
         formatter: { year: '{yyyy}', month: '{MMM} {yyyy}', day: '{d} {MMM}', hour: '{HH}:{mm}', minute: '{HH}:{mm}', second: '{HH}:{mm}:{ss}', millisecond: '{HH}:{mm}:{ss}', none: '{HH}:{mm}' } } },
     yAxis: [
@@ -123,6 +142,7 @@ export function signalTrendOption(i: SignalTrendInput) {
           return [p.ts, lo != null && hi != null ? hi - lo : null];
         }) },
       { name: 'PV', type: 'line', yAxisIndex: 0, symbol: 'none', color: good, lineStyle: { color: good, width: 2 },
+        ...(markArea ? { markArea } : {}),
         data: points.map(p => [p.ts, at(p, 'pv_avg', 'pv')]) },
       { name: 'SP', type: 'line', yAxisIndex: 0, symbol: 'none', color: grey, lineStyle: { color: grey, width: 1, type: 'dashed' },
         data: points.map(p => [p.ts, at(p, 'sp')]) },

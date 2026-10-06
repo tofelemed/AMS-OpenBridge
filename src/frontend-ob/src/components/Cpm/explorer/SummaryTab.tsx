@@ -24,6 +24,7 @@ import { LoopModelCard } from './LoopModelCard';
 import OperatingState from './summary/OperatingState';
 import SummaryGateStrip from './summary/SummaryGateStrip';
 import WindowKindToggle from './summary/WindowKindToggle';
+import { pinEvaluated, revealTrend } from '../trend/evaluatedWindow';
 import { workbenchExit } from './summary/LoopSummaryCard';
 
 const SummaryGateDetail = React.lazy(() => import('./summary/SummaryGateDetail'));
@@ -101,6 +102,12 @@ export const SummaryTab: React.FC<{ loop: CpmLoop; windowKind: string }> = ({ lo
             ) : (
               <p className="cpm-copy cpm-summary-hint">
                 Select a gate to read its verdict, window and evidence here; the Evidence Workbench holds the full run.
+                {matrix?.windowStart && matrix.windowEnd && (
+                  <ObcButton variant="flat" title="Show the window these gates were evaluated on, on the trend above"
+                    onClick={() => { setParams(p => pinEvaluated(p, matrix.windowStart!, matrix.windowEnd!), { replace: true }); revealTrend(); }}>
+                    Show this window on the trend ›
+                  </ObcButton>
+                )}
               </p>
             )}
           </>

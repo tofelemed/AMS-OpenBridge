@@ -3131,9 +3131,47 @@ Historical → `/cpm/historical?loop=FIC10401&from=…&to=…` with the same ran
 says "\"To\" must be after \"From\".", 12:00–17:00 on 5 Oct pins and plots; 0 px page overflow at 500 / 768 / 1440 on Explorer
 and Historical (the bar stacks on a phone); night theme; 0 console errors.
 
+## CHG-049 — SME review #12: the evaluated window is visible on the trend; the diagnosis opens it and compares it with now (2026-10-06)
+
+**Source:** `SME_review.md` point 12. **Scope:** `ams-frontend` only: `components/Cpm/trend/{evaluatedWindow.ts (+test),
+trendOption.ts (+tests), SignalTrend.tsx, TimeRangeBar.tsx, useTrendRange.ts}`, `explorer/summary/LoopTrendPanel.tsx` (new —
+the trend section moved out of `OperatingState.tsx`), `explorer/{LoopWorkspace.tsx, SummaryTab.tsx, summary/LoopSummaryCard.tsx}`,
+`styles/cpm-loop-summary.css`. No service change; the gate row is the one LoopWorkspace already reads (same query key).
+
+**What the SME said.** The live trend and the evaluated evidence are different time ranges — make that more visible; clicking
+the diagnosis should open the exact evaluated period and allow comparing it with the current condition.
+
+**Verified before the change.** Correct. Only caption text told the two apart ("rolling 8 h, not an evaluated window" /
+"Evaluated 24h window · ending …"); nothing on the chart showed where the evaluated window lay. On the lab they did not even
+overlap (trend = today, verdict = 4–5 Oct) and nothing said so. The diagnosis was not clickable; no view compared then and now.
+
+**What changed.**
+- **The evaluated window on the trend:** drawn as a labelled, dashed band ("Evaluated 24h window · Oscillation confirmed")
+  wherever it overlaps the plotted range (the x axis now spans the whole requested range). When it lies outside, a line says
+  so — "Evaluated 24h window · 4 Oct 16:15 → 5 Oct 16:15 GST is outside this trend range — the diagnosis is about that window,
+  not this one." — with **Show evaluated period ›**; when it partly overlaps, **Show only that window ›**.
+- **The diagnosis opens its period** from three places: the header **Diagnosis** pill (now a button), the summary card's
+  **Show on trend ›** (Data row), the gate strip's **Show this window on the trend ›**. Each pins the trend to exactly the
+  window (`from` / `to`, CHG-048), turns the comparison on, selects the Summary tab and scrolls the trend into view.
+- **Compare with now:** while the trend IS the evaluated window (the bar says "evaluated window"; a caption "Evaluated window
+  (diagnosis)"), a toggle adds a second trend **"Now · live 8 h"** under it — both on ONE y-scale (union of both, padded 5 %
+  and snapped to a clean step: 72–80 kg/h, 20–40 %), so a swing reads the same size in both. The live trend is fetched only
+  while the comparison is on. Choosing any other period leaves the comparison. An empty trend's message now names which trend
+  is empty; the custom From / To pair stays closed for the evaluated window (an app-chosen, non-preset range).
+
+**Tests.** `trend/evaluatedWindow.test.ts` (new, 6: window parsing, overlap, exact-window match, shared bounds snapped,
+empty axes, `pinEvaluated`), `trend/trendOption.test.ts` (+2: band + x range; shared bounds vs engineering range). Frontend 77
+files green, lint / tsc / build clean. **Lab pass 2026-10-06** (FIC10401): live trend → outside-range line + Show evaluated
+period; header Diagnosis click → `from=2026-10-04T12:15Z&to=2026-10-05T12:15Z&compare=1`, trend scrolled into view, band
+labelled, context bar "trend: Oct 04, 04:15 PM → Oct 05, 04:15 PM"; with the lab OT simulator restarted (it had stopped
+with Docker overnight) the "Now · live 8 h" trend draws the fresh samples (PV ≈ 77 kg/h, OP ≈ 33 %) on the shared scale;
+0 px page overflow at 500 / 768 / 1440; night theme; 0 console errors. **Lab note:** `scripts/start-ot-loop-soak.ps1` fails
+when more than one ingestion data source is active (its connection-test URL joins all ids → 404); the simulator was started
+directly with the script's arguments (pid in `%TEMP%\ot-soak-sim.pid`) — script fix not in this batch.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-048) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
+- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-049) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
   migration, no Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant: `docker load` the `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
@@ -3153,3 +3191,5 @@ and Historical (the bar stacks on a phone); night theme; 0 console errors.
   them) — until then axes read "(unit not set)".
   (CHG-048) Loop Explorer › Summary trend has 8h (live) / 24h / 7d / 30d / Custom, ‹ / ›, Live and "Open in Historical ›",
   which opens Historical on the same loop and period.
+  (CHG-049) the evaluated window is a labelled band on the trend; the header Diagnosis pill opens that window with
+  "Compare with now" (a second live 8 h trend on the same scale).

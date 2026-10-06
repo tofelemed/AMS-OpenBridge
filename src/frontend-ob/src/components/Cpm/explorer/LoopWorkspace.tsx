@@ -16,7 +16,7 @@
  *    you were, which is the one thing an asset-centric screen owes you.
  */
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcTabRow } from '@oicl/openbridge-webcomponents-react/components/tab-row/tab-row';
 import type { CpmLoop } from '../../../api/cpmApi';
 import { ApiError } from '../../../api/apiFetch';
@@ -27,6 +27,7 @@ import { TransmitterHealthPanel, loopHealthSummary } from '../health/Transmitter
 import { readinessCauses, type ExplorerTab } from './readinessCauses';
 import LoopSummaryCard from './summary/LoopSummaryCard';
 import { FacetPill, instrumentHealthText } from '../FacetPill';
+import { pinEvaluated, revealTrend } from '../trend/evaluatedWindow';
 import { conditionOf } from './summary/summaryText';
 import SummaryTab from './SummaryTab';
 import SignalsTab from './SignalsTab';
@@ -51,6 +52,7 @@ export const LoopWorkspace: React.FC<{
   onTab: (t: ExplorerTab) => void;
 }> = ({ loop, tab, windowKind, onTab }) => {
   const navigate = useNavigate();
+  const [, setParams] = useSearchParams();
   const gates = useLatestGates(loop.loopId, windowKind);
   const readiness = useCpmReadiness(loop.loopId);
   // Same query key as HistoryTab's, so react-query serves the badge count and
@@ -125,9 +127,23 @@ export const LoopWorkspace: React.FC<{
             >
               <FacetPill facet="health" tone={healthSummary.tone}>{instrumentHealthText(healthSummary.label)}</FacetPill>
             </button>
-            <FacetPill facet="diagnosis" tone={gatesFailed ? 'warn' : toneFor(diagnosis)}>
-              {gatesFailed ? 'Verdict unavailable' : conditionOf(diagnosis).label}
-            </FacetPill>
+            {/* SME #12 (CHG-049): the diagnosis opens the exact window it is about, compared with now. */}
+            <button
+              type="button"
+              className="cpm-pill-button"
+              disabled={!gates.data?.windowStart || !gates.data?.windowEnd}
+              title="Show the evaluated window this diagnosis is about on the trend, compared with now"
+              onClick={() => {
+                const m = gates.data;
+                if (!m?.windowStart || !m.windowEnd) return;
+                setParams(p => pinEvaluated(p, m.windowStart!, m.windowEnd!), { replace: true });
+                revealTrend();
+              }}
+            >
+              <FacetPill facet="diagnosis" tone={gatesFailed ? 'warn' : toneFor(diagnosis)}>
+                {gatesFailed ? 'Verdict unavailable' : conditionOf(diagnosis).label}
+              </FacetPill>
+            </button>
           </span>
         }
       />

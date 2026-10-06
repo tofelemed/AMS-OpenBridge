@@ -33,10 +33,13 @@ export interface TimeRangeBarProps {
   stateNote?: string;
   /** Extra controls at the end of the row (e.g. "Open in Historical ›"). */
   children?: React.ReactNode;
+  /** CHG-049: keep the From / To pair closed for a non-preset range the app chose (the evaluated window). */
+  hideCustomInputs?: boolean;
 }
 
 export const TimeRangeBar: React.FC<TimeRangeBarProps> = ({
   from, to, presets, preset, onPreset, onStep, nowLabel = 'Now', nowTitle, onNow, onApplyCustom, stateNote, children,
+  hideCustomInputs = false,
 }) => {
   const keys = [...presets.map(p => p.key), 'custom'];
   const [draftFrom, setDraftFrom] = React.useState(() => toLocalInput(from));
@@ -51,7 +54,7 @@ export const TimeRangeBar: React.FC<TimeRangeBarProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [from.getTime(), to.getTime()]);
 
-  const custom = preset === 'custom' || customOpen;
+  const custom = customOpen || (preset === 'custom' && !hideCustomInputs);
 
   return (
     <div className="cpm-range-bar">

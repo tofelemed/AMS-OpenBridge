@@ -29,7 +29,13 @@ export const SignalTrend: React.FC<{
   height?: number;
   /** A rolling / polling chart: the zoom bar says the viewport is held while zoomed. */
   live?: boolean;
-}> = ({ loopId, points, hasVp, height = 240, live = false }) => {
+  /** CHG-049: what this chart shows, e.g. "Evaluated window (diagnosis)" / "Now (live 8 h)". */
+  caption?: string;
+  /** CHG-049: the plotted range, the evaluated-window band, and a y-scale shared with another trend. */
+  xRange?: { fromMs: number; toMs: number } | null;
+  evaluated?: { startMs: number; endMs: number; label: string } | null;
+  yBounds?: { pv: { min: number; max: number } | null; op: { min: number; max: number } | null } | null;
+}> = ({ loopId, points, hasVp, height = 240, live = false, caption, xRange, evaluated, yBounds }) => {
   const loops = useCpmLoops();
   const loop = loops.data?.loops.find(l => l.loopId.toLowerCase() === loopId.toLowerCase());
   const range = loop?.engineering ?? null;
@@ -42,18 +48,18 @@ export const SignalTrend: React.FC<{
   const obcTheme = useObcTheme(); // re-derive chart colours on a theme switch
   const option = useMemo(
     () => signalTrendOption({
-      points, pens: cpmChartColors(), hasVp, pvUnit, scale, range,
+      points, pens: cpmChartColors(), hasVp, pvUnit, scale, range, xRange, evaluated, yBounds,
       zoom: boxZoomOption({ xAxisIndex: 0, yAxisIndex: [0, 1] }, box.zoom),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: pen colours are read from CSS vars that change with the theme.
-    [points, hasVp, pvUnit, scale, range, obcTheme, box.zoom],
+    [points, hasVp, pvUnit, scale, range, xRange, evaluated, yBounds, obcTheme, box.zoom],
   );
   useKeepSelecting(box, option);
 
   // A stalled feed answers with time buckets that hold no values: an empty frame explains nothing.
   if (!hasSignalValues(points)) {
     return (
-      <EmptyState title="No signal values in this trend range"
+      <EmptyState title={`${caption ? `${caption}: ` : ''}no signal values in this trend range`}
         copy="The historian returned the time range but no PV, SP or OP samples in it — the feed may have stopped. The live values above show when the last sample arrived." />
     );
   }
@@ -61,6 +67,7 @@ export const SignalTrend: React.FC<{
   return (
     <div className="cpm-signal-trend">
       <div className="cpm-signal-trend__bar">
+        {caption && <span className="cpm-eyebrow cpm-signal-trend__caption">{caption}</span>}
         <ObcToggleButtonGroup value={scale} aria-label="Trend scale"
           onValue={(e: CustomEvent<{ value: string }>) => {
             const v = e.detail.value;

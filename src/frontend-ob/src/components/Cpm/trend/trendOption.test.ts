@@ -88,3 +88,23 @@ describe('tooltip safety', () => {
     expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
   });
 });
+
+describe('evaluated window and compare (CHG-049)', () => {
+  it('draws the evaluated window as a labelled band on the PV series and spans the plotted range', () => {
+    const o = signalTrendOption({ points, pens, scale: 'fit', zoom: {},
+      xRange: { fromMs: 0, toMs: 5000 }, evaluated: { startMs: 1000, endMs: 2000, label: 'Evaluated 24h window' } });
+    const pv = o.series.find(s => s.name === 'PV') as { markArea?: { data: unknown; label: { formatter: string } } };
+    expect(pv.markArea?.data).toEqual([[{ xAxis: 1000 }, { xAxis: 2000 }]]);
+    expect(pv.markArea?.label.formatter).toBe('Evaluated 24h window');
+    expect(o.xAxis).toMatchObject({ min: 0, max: 5000 });
+  });
+
+  it('uses shared y-bounds when fitting, and the engineering range wins over them', () => {
+    const yBounds = { pv: { min: 60, max: 90 }, op: { min: 20, max: 45 } };
+    const fit = signalTrendOption({ points, pens, scale: 'fit', zoom: {}, yBounds });
+    expect(fit.yAxis[0]).toMatchObject({ min: 60, max: 90, scale: false });
+    expect(fit.yAxis[1]).toMatchObject({ min: 20, max: 45, scale: false });
+    const ranged = signalTrendOption({ points, pens, scale: 'range', zoom: {}, yBounds, range: { pvMin: 0, pvMax: 2500 } });
+    expect(ranged.yAxis[0]).toMatchObject({ min: 0, max: 2500 });
+  });
+});
