@@ -3269,9 +3269,62 @@ pages, sections opened, Advanced excluded) and every gate view G0–G15 of FIC10
 string, millisecond duration or long decimal left in the main text** (the only match is a user name on Governance — a real
 identifier); 0 px page overflow at 1440 / 390; night theme; 0 console errors.
 
+## CHG-052 — SME review #16: one gate symbol per meaning; the word beside it; a legend (2026-10-06)
+
+**Source:** `SME_review.md` point 16. **Scope:** `ams-frontend` only: `components/Cpm/gateStatus.ts` (+ new
+`gateStatus.test.ts`), new `GateLegend.tsx`; callers `GateMatrix.tsx`, `evidence/{GateChipStrip, ExplainPanel, VerdictCard,
+GateEvidenceWorkspace, useEvidenceWindows}`, `explorer/{CalculationsTab, summary/SummaryGateStrip, summary/SummaryGateDetail,
+summary/SummaryCalculations}`, `CpmReplay`, `CpmCalculations`, `CalcDrawer`, `GateEvidencePanel`, `overview/FocusedLoopDrawer`,
+`investigation/ReasoningChain`, `windows/WindowResults`; `styles/{cpm-evidence-layout, cpm-responsive}.css`. No service change.
+
+**What the SME said.** The red cross is used for a confirmed condition, for STRONG evidence and for failed / excluded checks;
+make the meanings clearly different, with readable labels and consistent symbols, so a gate need not be opened to understand it.
+
+**Verified before the change.** Correct. `gateStatus.ts` chose the symbol from the colour alone, and FAIL, STRONG, EXCLUDED and
+CONFIRMED were all "bad" → the same red `×`, spoken "failed". Lab fleet (24 h): `×` stood for G0 FAIL (window rejected by data
+qualification, 18 loops), G4/G7/G8/G9 STRONG (strong symptom evidence, 13) and G15 CONFIRMED (the condition, 162). The reverse
+also held: on the diagnostic gates G5–G11 PASS means "this method did not see the symptom" (`LongDiagnosticsCalculator`), yet
+it showed a green ✓ — FIC10401 had ✓ on G5/G6 beside a confirmed oscillation (part of SME #24).
+
+**What changed.** The mark follows the gate's role (its tier: eligibility, performance, diagnostic, confirmation, decision) and
+its status; ISA-101: colour is never the only cue and red is kept for what needs action.
+
+| Meaning | Mark | Colour | Word |
+|---|---|---|---|
+| check passed (eligibility / performance PASS) | ✓ | neutral | OK |
+| check needs attention (WARN) | ! | amber | Attention |
+| performance check failed (FAIL) | ✕ | red | Failed |
+| window not usable (eligibility FAIL, EXCLUDED) | ⊘ | grey | Not usable |
+| symptom not seen (diagnostic PASS) | ◯ (drawn small) | grey | Not seen |
+| symptom seen (diagnostic WARN) | ◐ | amber | Seen |
+| strong symptom (STRONG) | ⬤ | amber | Strong |
+| condition suspected / confirmed (G14 / G15) | △ / ▲ | amber / red | Suspected / Confirmed |
+| valve fault ruled out by measured VP (CONTRADICTED) | ✓ | neutral | Ruled out |
+| no verdict | — | grey | Not evaluated / Insufficient / N/A / Pending |
+
+- Gate chips (Workbench, Explorer) show mark + gate + word ("⬤ G4 Strong", "▲ G15 Confirmed"); a one-line legend sits under
+  every gate strip and above the Performance matrix (symbol-only cells there, the meaning in the hover / spoken label).
+- Pills on Replay, Calculations, Explain, Verdict, drawer and Window Inspector take the same colour rule (a G7 "Strong
+  evidence" pill is amber, not red); Calculations' assessment reads the mark's word instead of "Acceptable / Review / Outside".
+- The evaluated-window picker labels read "G0 not usable (source quality unknown)" instead of "G0 FAIL (QUALITY_UNKNOWN)".
+- Explorer › Calculations counts by meaning: "N findings or attention · N checks failed · N clear · N not evaluated or not usable".
+- **Unchanged on purpose:** the fleet filter / roll-up grouping (`reviewSeverity`) — "Needs attention 165" and the per-gate bars
+  count exactly as before; only how each result looks and reads changed.
+- Glyphs are the large geometric forms (✕ ◯ ⬤): in the UI font × ○ ● render at half the height of ✓ ◐ ▲ (measured 7×5 px vs 11×8).
+- **Found by the 390 px check:** Calculations rows (an inline six-column grid) ran 44 px off a phone screen — they stack per
+  metric under 600 px; calculation values go through the shared formatter (`4118.000 count` → `4118`, SME #15).
+
+**Tests.** `gateStatus.test.ts` (new, 5: role from tier; the three former red crosses get three marks; check vs symptom;
+no-verdict words; review grouping unchanged); `GateChipStrip` / `useEvidenceWindows` tests updated to the new words. Frontend
+80 files / 377 tests green; lint / tsc / build clean. **Lab pass 2026-10-06:** Workbench FIC10401 strip "! G0 Attention · ✓ G1–G3 OK ·
+⬤ G4 Strong · ◯ G5/G6/G8/G11 Not seen · ◐ G10 Seen · — G7/G9/G12/G13 Not evaluated · — G14 N/A · ▲ G15 Confirmed"; Performance
+matrix: red only on G15 Confirmed, B2_027PIC G0 "⊘ window not usable"; counts unchanged (Needs attention 165, Evaluated 165,
+Not evaluated 65); 0 px page overflow at 1440 / 390 on Workbench, Explorer, Performance, Calculations, Replay; night theme;
+0 console errors.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-051) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
+- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-052) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
   migration, no Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant: `docker load` the `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
@@ -3299,3 +3352,5 @@ identifier); 0 px page overflow at 1440 / 390; night theme; 0 console errors.
   (CHG-051) no engine codes in the main text: the Workbench G15 view reads "Leading cause Oscillation — tuning", the
   Investigation card "Oscillation confirmed", Explorer "Fast self-regulating"; open "Advanced — engine trace (raw codes)" to
   see the exact codes; durations read "45 min" / "24 h".
+  (CHG-052) gate chips read "⬤ G4 Strong", "◯ G5 Not seen", "▲ G15 Confirmed" with a legend under the strip; on the
+  Performance matrix red appears only for confirmed conditions and failed checks.

@@ -81,7 +81,7 @@ export const SummaryGateDetail: React.FC<SummaryGateDetailProps> = ({ loop, gate
     gate, name, status, reason: cell?.reason ?? null, headline,
     eligibilityDetail: matrix.methodEligibility?.[gate]?.detail ?? null,
   });
-  const tone = status ? gateTone(status) : 'muted';
+  const tone = status ? gateTone(status, gate) : 'muted';
 
   return (
     <section className={`cpm-summary-detail cpm-tone-${tone}`} aria-label={`${gate} on the latest ${windowKind} window`}>

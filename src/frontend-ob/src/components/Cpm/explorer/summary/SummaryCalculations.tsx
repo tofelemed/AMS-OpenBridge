@@ -36,15 +36,22 @@ const FusedResult: React.FC<{ loop: CpmLoop; kind: string }> = ({ loop, kind }) 
     return <QueryError title="Result unavailable" error={gates.error} retry={() => void gates.refetch()} />;
   }
   if (!m) return <EmptyState title={`No fused ${kind} result yet`} copy="Outcomes appear once a window of this size has been evaluated." />;
-  const counts = { good: 0, warn: 0, bad: 0, muted: 0 };
-  for (const g of m.gates) counts[glyphFor(g.status).tone] += 1;
+  // CHG-052: counted by meaning — a symptom seen is not a failed check
+  const counts = { ok: 0, symptoms: 0, failed: 0, none: 0 };
+  for (const g of m.gates) {
+    const k = glyphFor(g.status, g.key).meaning;
+    if (k === 'ok' || k === 'not-seen' || k === 'ruled-out') counts.ok += 1;
+    else if (k === 'seen' || k === 'strong' || k === 'suspected' || k === 'confirmed' || k === 'attention') counts.symptoms += 1;
+    else if (k === 'failed') counts.failed += 1;
+    else counts.none += 1;
+  }
   const half = Math.ceil(LONG_METRICS.length / 2);
   return (
     <>
       <p className="cpm-copy cpm-source-line">
         <TonePill tone={toneFor(m.diagnosis)}>{diagnosisLabel(m.diagnosis)}</TonePill>
         {m.confidence != null ? ` ${(m.confidence * 100).toFixed(0)}% confidence · ` : ' '}
-        window ending {m.windowEnd ? fmtDateTime(m.windowEnd) : '—'} · {counts.good} pass · {counts.warn} attention · {counts.bad} failed · {counts.muted} not evaluated
+        window ending {m.windowEnd ? fmtDateTime(m.windowEnd) : '—'} · {counts.symptoms} findings or attention · {counts.failed} checks failed · {counts.ok} clear · {counts.none} not evaluated or not usable
       </p>
       <div className="cpm-grid-2">
         <div>

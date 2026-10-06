@@ -72,3 +72,21 @@
 .cpm-kv__value .cpm-pill { white-space: normal; text-align: left; max-width: 100%; }
 .cpm-hist-stepper { max-width: 100%; min-width: 0; }
 @media (max-width: 600px) { .cpm-hist-stepper__text { white-space: normal; min-width: 0; text-align: center; } }
+
+/* Gate marks (SME #16, CHG-052): each chip says its meaning in a word beside the symbol, and one legend
+   under the strip / above the matrix keys the symbols. Legend glyphs use the same chip tokens as the cells. */
+.cpm-gate-chip__word { font-size: 0.8rem; font-weight: 400; opacity: 0.9; white-space: nowrap; }
+.cpm-gate-legend {
+  display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 0;
+  font-size: 0.78rem; color: var(--element-neutral-color);
+}
+.cpm-gate-legend__item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.cpm-gate-legend__glyph {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 3px;
+  border-radius: 4px; font-weight: 700; line-height: 1;
+  background: var(--cpm-chip-bg, transparent); color: var(--cpm-chip-fg, var(--element-neutral-color));
+  border: 1px solid var(--cpm-chip-border, var(--border-divider-color));
+}
+.cpm-matrix-scroll + .cpm-gate-legend, .cpm-gate-legend + .cpm-matrix-scroll { margin-top: 8px; }
+/* "Not seen" is the least important mark: its hollow circle is drawn smaller so it recedes behind ✓ ◐ ▲. */
+[data-mark="not-seen"] { font-size: 0.75em; }

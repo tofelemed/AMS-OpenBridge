@@ -13,7 +13,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { CpmGateCell } from '../../../../api/cpm/gates';
 import { buildTierGroups, glyphFor } from '../../gateStatus';
-import { codeLabel } from '../../vocabulary';
+import { codeLabel, phrase } from '../../vocabulary';
+import { GateLegend } from '../../GateLegend';
 
 export interface SummaryGateStripProps {
   cells: CpmGateCell[];
@@ -53,37 +54,41 @@ export const SummaryGateStrip: React.FC<SummaryGateStripProps> = ({ cells, selec
   };
 
   return (
-    <nav ref={rootRef} className="cpm-gate-strip" aria-label="Gates of the latest fused window" onKeyDown={onKeyDown}>
-      {groups.map(g => (
-        <div key={g.label} className="cpm-gate-strip__tier" role="group" aria-label={g.label}>
-          <span className="cpm-gate-strip__tier-label">{g.label}</span>
-          <div className="cpm-gate-strip__chips">
-            {g.keys.map(key => {
-              const c = byKey.get(key)!;
-              const glyph = glyphFor(c.status);
-              const isSelected = key === selected;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  className={`cpm-gate-chip cpm-matrix__cell--${glyph.tone}${isSelected ? ' cpm-gate-chip--selected' : ''}`}
-                  data-gate={key}
-                  aria-pressed={isSelected}
-                  aria-label={`${key} ${c.name}: ${glyph.label}${c.reason ? `, ${c.reason}` : ''}`}
-                  title={`${c.name} — ${codeLabel(c.status)}${c.reason ? ` · ${codeLabel(c.reason)}` : ''}`}
-                  tabIndex={key === cursor ? 0 : -1}
-                  onFocus={() => setCursor(key)}
-                  onClick={() => onSelect(key)}
-                >
-                  <span className="cpm-gate-chip__glyph" aria-hidden>{glyph.glyph}</span>
-                  <span className="cpm-mono">{key}</span>
-                </button>
-              );
-            })}
+    <>
+      <nav ref={rootRef} className="cpm-gate-strip" aria-label="Gates of the latest fused window" onKeyDown={onKeyDown}>
+        {groups.map(g => (
+          <div key={g.label} className="cpm-gate-strip__tier" role="group" aria-label={g.label}>
+            <span className="cpm-gate-strip__tier-label">{g.label}</span>
+            <div className="cpm-gate-strip__chips">
+              {g.keys.map(key => {
+                const c = byKey.get(key)!;
+                const glyph = glyphFor(c.status, key);
+                const isSelected = key === selected;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`cpm-gate-chip cpm-matrix__cell--${glyph.tone}${isSelected ? ' cpm-gate-chip--selected' : ''}`}
+                    data-gate={key}
+                    aria-pressed={isSelected}
+                    aria-label={`${key} ${c.name}: ${glyph.label}${c.reason ? `, ${phrase(c.reason)}` : ''}`}
+                    title={`${c.name} — ${codeLabel(c.status)}${c.reason ? ` · ${codeLabel(c.reason)}` : ''}`}
+                    tabIndex={key === cursor ? 0 : -1}
+                    onFocus={() => setCursor(key)}
+                    onClick={() => onSelect(key)}
+                  >
+                    <span className="cpm-gate-chip__glyph" aria-hidden data-mark={glyph.meaning}>{glyph.glyph}</span>
+                    <span className="cpm-mono">{key}</span>
+                    <span className="cpm-gate-chip__word" aria-hidden>{glyph.word}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ))}
-    </nav>
+        ))}
+      </nav>
+      <GateLegend />
+    </>
   );
 };
 

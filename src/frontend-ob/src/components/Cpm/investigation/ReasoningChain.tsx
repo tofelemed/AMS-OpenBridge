@@ -25,7 +25,7 @@ const CHAIN: { label: string; gates: string[]; question: string }[] = [
  */
 export function stageTone(matrix: CpmGateMatrix | undefined, gates: string[]): 'good' | 'warn' | 'bad' | 'muted' {
   if (!matrix) return 'muted';
-  const tones = gates.map(g => gateTone(matrix.gates.find(c => c.key === g)?.status));
+  const tones = gates.map(g => gateTone(matrix.gates.find(c => c.key === g)?.status, g));
   if (tones.includes('bad')) return 'bad';
   if (tones.includes('warn')) return 'warn';
   if (tones.every(t => t === 'muted')) return 'muted';

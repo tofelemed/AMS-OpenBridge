@@ -22,7 +22,7 @@ export interface VerdictCardProps {
 }
 
 export const VerdictCard: React.FC<VerdictCardProps> = ({ gate, name, status, state, sentence, headline }) => {
-  const tone = status ? gateTone(status) : 'muted';
+  const tone = status ? gateTone(status, gate) : 'muted';
   return (
     <section className={`cpm-surface cpm-verdict cpm-tone-${tone}`} role="region" aria-label="Verdict">
       <PanelHead eyebrow="Verdict" title={`${gate} · ${name}`} right={status ? <TonePill tone={tone}>{codeLabel(status)}</TonePill> : undefined} />

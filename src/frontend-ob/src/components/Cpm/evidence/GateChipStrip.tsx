@@ -8,6 +8,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { GateCatalogue } from '../../../api/cpm/catalogue';
 import { buildTierGroups, glyphFor, type GateGlyph } from '../gateStatus';
 import { GATE_ORDER } from './gateFacts';
+import { GateLegend } from '../GateLegend';
+import { phrase } from '../vocabulary';
 
 export interface GateChip {
   gate: string;
@@ -36,7 +38,7 @@ export function chipsOf(i: {
     const status = cell ? (cell.status ?? null) : fromPayload('status');
     const reason = cell ? (cell.reason ?? null) : fromPayload('reason');
     const entry = i.catalogue?.gates.find(g => g.gate === gate);
-    return { gate, name: entry?.name ?? gate, role: entry?.role ?? '', status, reason, methodRunId: i.siblings[gate] ?? null, glyph: glyphFor(status) };
+    return { gate, name: entry?.name ?? gate, role: entry?.role ?? '', status, reason, methodRunId: i.siblings[gate] ?? null, glyph: glyphFor(status, gate) };
   });
 }
 
@@ -77,39 +79,43 @@ export const GateChipStrip: React.FC<GateChipStripProps> = ({ chips, selected, o
   };
 
   return (
-    <nav ref={rootRef} className="cpm-gate-strip" aria-label="Gates of this window" onKeyDown={onKeyDown}>
-      {groups.map(g => (
-        <div key={g.label} className="cpm-gate-strip__tier" role="group" aria-label={g.label}>
-          <span className="cpm-gate-strip__tier-label">{g.label}</span>
-          <div className="cpm-gate-strip__chips">
-            {g.keys.map(key => {
-              const c = byGate.get(key)!;
-              const isSelected = c.gate === selected;
-              const title = c.methodRunId
-                ? `${c.name} — ${c.status ?? 'no status'}${c.reason ? ` · ${c.reason}` : ''}`
-                : `${c.name} — no run on this tier for ${c.gate}`;
-              return (
-                <button
-                  key={c.gate}
-                  type="button"
-                  className={`cpm-gate-chip cpm-matrix__cell--${c.glyph.tone}${isSelected ? ' cpm-gate-chip--selected' : ''}`}
-                  data-gate={c.gate}
-                  aria-current={isSelected ? 'true' : undefined}
-                  aria-label={`${c.gate} ${c.name}: ${c.glyph.label}${c.reason ? `, ${c.reason}` : ''}`}
-                  title={title}
-                  disabled={!c.methodRunId}
-                  tabIndex={c.gate === cursor ? 0 : -1}
-                  onFocus={() => setCursor(c.gate)}
-                  onClick={() => { if (c.methodRunId) onOpen(c.gate, c.methodRunId); }}
-                >
-                  <span className="cpm-gate-chip__glyph" aria-hidden>{c.glyph.glyph}</span>
-                  <span className="cpm-mono">{c.gate}</span>
-                </button>
-              );
-            })}
+    <>
+      <nav ref={rootRef} className="cpm-gate-strip" aria-label="Gates of this window" onKeyDown={onKeyDown}>
+        {groups.map(g => (
+          <div key={g.label} className="cpm-gate-strip__tier" role="group" aria-label={g.label}>
+            <span className="cpm-gate-strip__tier-label">{g.label}</span>
+            <div className="cpm-gate-strip__chips">
+              {g.keys.map(key => {
+                const c = byGate.get(key)!;
+                const isSelected = c.gate === selected;
+                const title = c.methodRunId
+                  ? `${c.name} — ${c.status ?? 'no status'}${c.reason ? ` · ${c.reason}` : ''}`
+                  : `${c.name} — no run on this tier for ${c.gate}`;
+                return (
+                  <button
+                    key={c.gate}
+                    type="button"
+                    className={`cpm-gate-chip cpm-matrix__cell--${c.glyph.tone}${isSelected ? ' cpm-gate-chip--selected' : ''}`}
+                    data-gate={c.gate}
+                    aria-current={isSelected ? 'true' : undefined}
+                    aria-label={`${c.gate} ${c.name}: ${c.glyph.label}${c.reason ? `, ${phrase(c.reason)}` : ''}`}
+                    title={title}
+                    disabled={!c.methodRunId}
+                    tabIndex={c.gate === cursor ? 0 : -1}
+                    onFocus={() => setCursor(c.gate)}
+                    onClick={() => { if (c.methodRunId) onOpen(c.gate, c.methodRunId); }}
+                  >
+                    <span className="cpm-gate-chip__glyph" aria-hidden data-mark={c.glyph.meaning}>{c.glyph.glyph}</span>
+                    <span className="cpm-mono">{c.gate}</span>
+                    <span className="cpm-gate-chip__word" aria-hidden>{c.glyph.word}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ))}
-    </nav>
+        ))}
+      </nav>
+      <GateLegend />
+    </>
   );
 };

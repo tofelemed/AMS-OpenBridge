@@ -49,3 +49,12 @@
   .cpm-matrix-toolbar { min-width: 0; max-width: 100%; }
   .cpm-matrix-toolbar obc-toggle-button-group { display: block; max-width: 100%; overflow-x: auto; }
 }
+
+/* Calculations metric rows: six columns on a desktop; on a phone one stacked card per metric and no column
+   header (was an inline grid that ran 44 px off a 390 px screen). */
+.cpm-calc-row { grid-template-columns: 0.7fr 1.8fr 0.4fr 0.7fr 0.9fr 0.8fr; }
+@media (max-width: 600px) {
+  .cpm-calc-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .cpm-event-head.cpm-calc-row { display: none; }
+  .cpm-calc-row > .cpm-pill { justify-self: start; }
+}

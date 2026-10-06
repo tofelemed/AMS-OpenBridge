@@ -41,17 +41,17 @@ describe('kpiOptions', () => {
       { window_start: null, window_end: '2026-09-17T07:45:00Z', sample_count: 0, created_at: 'x', sufficient_data: false, gate0_status: 'FAIL', gate0_reason: 'QUALITY_UNKNOWN', evaluation_state: 'EVALUATED', evaluation_reason: null, method_run_ids: '{}', bundle_hash: null, purpose: 'LIVE' },
     ];
     const o = kpiOptions(rows, '15m', 'short', NOW, 'UTC');
-    expect(o[0].label).toBe('ends 2026-09-17 08:15:00 · G3 WARN · 5 min ago');
+    expect(o[0].label).toBe('ends 2026-09-17 08:15:00 · G3 attention · 5 min ago');
     expect(o[0].methodRunIds).toEqual({ G0: 'a', G3: 'b' });
     expect(o[0].gates.find(g => g.key === 'G3')).toEqual({ key: 'G3', status: 'WARN', reason: null });
     expect(o[0].tone).toBe('warn');
-    expect(o[1].label).toBe('ends 2026-09-17 07:45:00 · G0 FAIL (QUALITY_UNKNOWN) · 35 min ago · no run identity (pre-v2.5)');
+    expect(o[1].label).toBe('ends 2026-09-17 07:45:00 · G0 not usable (source quality unknown) · 35 min ago · no run identity (pre-v2.5)');
     expect(o[1].hasRunIds).toBe(false);
   });
 
   it('states a WAITING / WARMUP window by its evaluation state', () => {
     const rows: CpmKpiRow[] = [{ window_start: null, window_end: '2026-09-17T08:15:00Z', sample_count: 10, created_at: 'x', evaluation_state: 'WAITING', evaluation_reason: 'WARMUP', method_run_ids: '{"G0":"a"}', bundle_hash: 'b', purpose: 'LIVE' }];
-    expect(kpiOptions(rows, '1m', 'short', NOW, 'UTC')[0].label).toBe('ends 2026-09-17 08:15:00 · WAITING (WARMUP) · 5 min ago');
+    expect(kpiOptions(rows, '1m', 'short', NOW, 'UTC')[0].label).toBe('ends 2026-09-17 08:15:00 · Waiting (warmup) · 5 min ago');
   });
 });
 

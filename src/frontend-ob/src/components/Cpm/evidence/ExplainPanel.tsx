@@ -66,7 +66,7 @@ export const ExplainPanel: React.FC<ExplainPanelProps> = ({ gate, run, entry, ma
     <aside className="cpm-explain cpm-surface" aria-label="Explain">
       <div className="cpm-explain__head">
         <span className="cpm-eyebrow">Explain</span>
-        {status && <TonePill tone={gateTone(status)}>{codeLabel(status)}</TonePill>}
+        {status && <TonePill tone={gateTone(status, gate)}>{codeLabel(status)}</TonePill>}
         <CpmIconButton label="Hide explain" onClick={onToggle}><ObiPanelRightClose /></CpmIconButton>
       </div>
 

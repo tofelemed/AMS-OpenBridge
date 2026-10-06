@@ -122,7 +122,7 @@ export const FocusedLoopDrawer: React.FC<{
                       <ObcButton variant="flat" className="cpm-gate-link"
                         title={`Open ${g.key} evidence for ${loopId} on Performance`}
                         onClick={() => onOpenGate(g.key)}>
-                        <TonePill tone={gateTone(g.status)}>{codeLabel(g.status)}</TonePill>
+                        <TonePill tone={gateTone(g.status, g.key)}>{codeLabel(g.status)}</TonePill>
                       </ObcButton>
                     </KvRow>
                   ))}

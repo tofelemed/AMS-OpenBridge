@@ -29,6 +29,7 @@ import type {
 } from '../../api/cpmApi';
 import type { MetricDef } from './calcCatalogue';
 import { diagnosisLabel } from './vocabulary';
+import { fmtQuantity } from './evidence/format';
 
 const DRAWER_TABS = ['Definition', 'Validation', 'History'] as const;
 
@@ -105,7 +106,7 @@ export const CalcDrawer: React.FC<{
           <div className={`cpm-kpi cpm-kpi--${disqualification ? 'warn' : status.tone}`}>
             <span className="cpm-kpi__caption">Latest value</span>
             <span className="cpm-kpi__value">
-              {disqualification ? '— (declined)' : value != null ? `${value.toFixed(3)} ${metric.unit}` : '—'}
+              {disqualification ? '— (declined)' : value != null ? fmtQuantity(value, metric.unit) : '—'}
             </span>
             <span className="cpm-kpi__sub">
               {disqualification ?? status.label}

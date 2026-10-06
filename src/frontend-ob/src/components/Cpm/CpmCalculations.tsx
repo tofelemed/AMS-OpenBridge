@@ -16,7 +16,6 @@ import {
   fmtWindowShape, windowSpecsOf,
 } from './shared';
 import { LoopContextBar } from './context/LoopContextBar';
-import { gateTone } from './gateStatus';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
 import LoopCombobox from './LoopCombobox';
 import {
@@ -25,7 +24,9 @@ import {
 import { ApiError } from '../../api/apiFetch';
 import CalcDrawer from './CalcDrawer';
 import { METRICS, type MetricDef } from './calcCatalogue';
-import { diagnosisLabel, codeLabel } from './vocabulary';
+import { diagnosisLabel } from './vocabulary';
+import { gateMark } from './gateStatus';
+import { fmtQuantity } from './evidence/format';
 
 /** gates/latest 404 = "no fused window yet" — an answer, not a failure. */
 const isNoVerdict = (e: unknown) => e instanceof ApiError && e.status === 404;
@@ -114,9 +115,9 @@ export const CpmCalculations: React.FC = () => {
     // (i.e. out of spec), which is a verdict the engine never issued.
     if (!cell || ['NOT_EVALUATED', 'PENDING', 'INSUFFICIENT_EVIDENCE'].includes(cell.status))
       return { label: 'Not evaluated', tone: 'muted' };
-    const t = gateTone(cell.status);
-    if (t === 'muted') return { label: codeLabel(cell.status), tone: t };
-    return { label: t === 'good' ? 'Acceptable' : t === 'warn' ? 'Review' : 'Outside', tone: t };
+    // CHG-052: the same mark as the gate strips — a diagnostic gate's PASS is "Not seen", not "Acceptable"
+    const mark = gateMark(cell.status, cell.key);
+    return { label: mark.word, tone: mark.tone };
   };
 
   const gateKeys = useMemo(
@@ -238,7 +239,7 @@ export const CpmCalculations: React.FC = () => {
           <span className="cpm-filter-count">{filtered.length} result(s)</span>
         </div>
 
-        <div className="cpm-event-head" style={{ gridTemplateColumns: '0.7fr 1.8fr 0.4fr 0.7fr 0.9fr 0.8fr' }}>
+        <div className="cpm-event-head cpm-calc-row">
           <span>ID</span><span>Calculation / parameter</span><span>Gate</span>
           <span>Latest value</span><span>Window</span><span>Assessment</span>
         </div>
@@ -248,8 +249,7 @@ export const CpmCalculations: React.FC = () => {
           const disq = disqualificationOf(m);
           const wEnd = windowEndOf(m);
           return (
-            <div key={m.id} className="cpm-event-row"
-              style={{ gridTemplateColumns: '0.7fr 1.8fr 0.4fr 0.7fr 0.9fr 0.8fr' }}
+            <div key={m.id} className="cpm-event-row cpm-calc-row"
               onClick={() => setDrawer(m)} role="button" tabIndex={0}
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDrawer(m); } }}>
               <span className="cpm-mono">{m.id}</span>
@@ -261,7 +261,7 @@ export const CpmCalculations: React.FC = () => {
               {/* C1: a value from a DECLINED window is a zeroed placeholder the
                   engine told us not to trust — never render it as a measurement. */}
               <span title={disq ?? undefined}>
-                {disq ? '— (declined)' : v != null ? `${v.toFixed(3)} ${m.unit}` : '—'}
+                {disq ? '— (declined)' : v != null ? fmtQuantity(v, m.unit) : '—'}
               </span>
               {/* C2: WHEN, not just which resolution — "latest" without a
                   timestamp reads as current on a stale historian. */}

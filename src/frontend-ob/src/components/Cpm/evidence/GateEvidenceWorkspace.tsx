@@ -159,7 +159,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
       <LoopContextBar loopId={loopId} timeZone={timeZone} period={run.data ? { label: `${run.data.windowKind} window`, start: run.data.support.fromMs, end: run.data.support.toMs } : null} />
       {/* SME #13 (CHG-050): the verdict stays in view while the evidence below it is read. */}
       <ConclusionStrip targetId="cpm-conclusion" active={!!run.data} label="Verdict"
-        tone={status ? gateTone(status) : 'muted'} text={`${selection.gate} · ${status ? codeLabel(status) : 'no verdict'}`} detail={sentence} />
+        tone={status ? gateTone(status, selection.gate) : 'muted'} text={`${selection.gate} · ${status ? codeLabel(status) : 'no verdict'}`} detail={sentence} />
       <SelectionSummary summary={loopId && currentOption
         ? `${loop?.loopId ?? loopId} · ${kinds.find(k => k.kind === kind)?.label ?? kind} · ${currentOption.label}` : null}>
         {toolbar}

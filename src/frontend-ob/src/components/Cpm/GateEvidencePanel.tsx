@@ -85,7 +85,7 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
           ? ` · profile v${matrix.metadata.dynamicsProfileVersion}` : ''}
       </p>
 
-      <div className={`cpm-kpi cpm-kpi--${fetchFailed ? 'warn' : gateTone(status)}`}
+      <div className={`cpm-kpi cpm-kpi--${fetchFailed ? 'warn' : gateTone(status, gateKey)}`}
         style={{ margin: '12px 0' }}>
         <span className="cpm-kpi__caption">Result</span>
         <span className="cpm-kpi__value">{codeLabel(status)}</span>

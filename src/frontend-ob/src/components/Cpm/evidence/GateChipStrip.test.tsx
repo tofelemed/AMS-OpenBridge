@@ -31,7 +31,7 @@ describe('chipsOf', () => {
     expect(chips.map(c => c.gate).slice(0, 4)).toEqual(['G0', 'G1', 'G2', 'G2r']);
     const g5 = chips.find(c => c.gate === 'G5')!;
     expect(g5).toMatchObject({ name: 'Oscillation (ACF)', status: 'WARN', reason: 'BANDWIDTH', methodRunId: 'g5-run' });
-    expect(g5.glyph.glyph).toBe('!');
+    expect(g5.glyph.glyph).toBe('◐');
     expect(chips.find(c => c.gate === 'G1')).toMatchObject({ status: null, methodRunId: null });
   });
 
@@ -50,17 +50,17 @@ describe('GateChipStrip', () => {
     render(<GateChipStrip chips={chips} selected="G5" onOpen={() => {}} />);
     const groups = screen.getAllByRole('group');
     expect(groups.map(g => g.getAttribute('aria-label'))).toEqual(['Eligibility', 'Performance', 'Diagnostic evidence', 'Confirmation', 'Fusion']);
-    const g5 = screen.getByRole('button', { name: 'G5 Oscillation (ACF): needs attention, BANDWIDTH' });
+    const g5 = screen.getByRole('button', { name: 'G5 Oscillation (ACF): symptom seen, limited by the sampling rate' });
     expect(g5.getAttribute('aria-current')).toBe('true');
-    expect(g5.textContent).toContain('!');
-    expect(screen.getByRole('button', { name: 'G0 Data quality: pass' }).getAttribute('aria-current')).toBeNull();
+    expect(g5.textContent).toContain('◐G5Seen');
+    expect(screen.getByRole('button', { name: 'G0 Data quality: check passed' }).getAttribute('aria-current')).toBeNull();
     expect(screen.getByRole('button', { name: /^G12 / }).textContent).toContain('—');
   });
 
   it('opens a gate on click and disables gates with no run on this tier, saying why', () => {
     const onOpen = vi.fn();
     render(<GateChipStrip chips={chips} selected="G5" onOpen={onOpen} />);
-    fireEvent.click(screen.getByRole('button', { name: 'G0 Data quality: pass' }));
+    fireEvent.click(screen.getByRole('button', { name: 'G0 Data quality: check passed' }));
     expect(onOpen).toHaveBeenCalledWith('G0', 'g0-run');
     const g1 = screen.getByRole('button', { name: /^G1 / });
     expect((g1 as HTMLButtonElement).disabled).toBe(true);

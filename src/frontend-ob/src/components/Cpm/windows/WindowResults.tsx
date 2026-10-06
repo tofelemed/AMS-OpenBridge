@@ -73,7 +73,7 @@ export const GateStrip: React.FC<{ row: CpmKpiRow }> = ({ row }) => {
     <span className="cpm-mono" role="img" aria-label={`Gates: ${spoken}`}>
       {SHORT_GATES.map(g => {
         const status = row[g.field];
-        const { glyph, tone } = glyphFor(typeof status === 'string' ? status : null);
+        const { glyph, tone } = glyphFor(typeof status === 'string' ? status : null, g.key);
         return (
           <span key={g.key} title={`${g.key} · ${g.name}: ${String(status ?? '—')}`}
             className={`cpm-tone-${tone}`}
@@ -136,7 +136,7 @@ export const WindowResultsPanel: React.FC<{
             const label = typeof status === 'string' ? codeLabel(status) : '—';
             return (
               <span key={g.key} title={g.name}>
-                <TonePill tone={gateTone(typeof status === 'string' ? status : null)}>
+                <TonePill tone={gateTone(typeof status === 'string' ? status : null, g.key)}>
                   {g.key} {label}
                 </TonePill>
               </span>

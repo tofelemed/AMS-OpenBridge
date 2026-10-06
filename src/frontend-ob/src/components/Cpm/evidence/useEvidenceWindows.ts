@@ -10,10 +10,10 @@ import * as cpm from '../../../api/cpmApi';
 import { getWindowSummaries, type CpmWindowSummary } from '../../../api/cpm/gates';
 import type { CpmKpiRow } from '../../../api/cpm/kpis';
 import { fmtDuration, type CpmTone } from '../shared';
-import { gateTone } from '../gateStatus';
+import { gateMark, reviewSeverity } from '../gateStatus';
 import { formatInZone } from './timezone';
 import { GATE_ORDER } from './gateFacts';
-import { diagnosisLabel } from '../vocabulary';
+import { codeLabel, diagnosisLabel, phrase } from '../vocabulary';
 
 export type WindowTier = 'fused' | 'short' | 'long';
 
@@ -78,12 +78,12 @@ export function kpiOptions(rows: CpmKpiRow[], kind: string, tier: 'short' | 'lon
     let state: string;
     let tone: CpmTone;
     if (evalState && evalState !== 'EVALUATED') {
-      state = `${evalState}${evalReason ? ` (${evalReason})` : ''}`;
+      state = `${codeLabel(evalState)}${evalReason ? ` (${phrase(evalReason)})` : ''}`;
       tone = 'muted';
     } else {
-      const notPass = gates.filter(g => gateTone(g.status) !== 'good' && gateTone(g.status) !== 'muted');
-      state = notPass.length ? notPass.map(g => `${g.key} ${g.status}${g.reason ? ` (${g.reason})` : ''}`).join(', ') : gates.length ? 'all gates pass' : 'no gate statuses';
-      tone = notPass.some(g => gateTone(g.status) === 'bad') ? 'bad' : notPass.length ? 'warn' : gates.length ? 'good' : 'muted';
+      const notPass = gates.filter(g => reviewSeverity(g.status) != null);
+      state = notPass.length ? notPass.map(g => `${g.key} ${gateMark(g.status, g.key).word.toLowerCase()}${g.reason ? ` (${phrase(g.reason)})` : ''}`).join(', ') : gates.length ? 'all gates pass' : 'no gate statuses';
+      tone = notPass.some(g => reviewSeverity(g.status) === 'bad') ? 'bad' : notPass.length ? 'warn' : gates.length ? 'good' : 'muted';
     }
     const ms = age(r.window_end as string, now);
     return {

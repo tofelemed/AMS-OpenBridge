@@ -38,6 +38,7 @@ import {
   ROW_FILTERS, filterCounts, filterRows, glyphFor, isRowFilter, type RowFilter,
 } from './gateStatus';
 import { diagnosisLabel } from './vocabulary';
+import { GateLegend } from './GateLegend';
 
 const PAGE_SIZE = 25;
 const NAV_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
@@ -201,6 +202,7 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
         />
       ) : (
         <>
+          <GateLegend />
           <div className="cpm-matrix-scroll">
             <table
               ref={gridRef}
@@ -251,7 +253,7 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
                         </button>
                       </th>
                       {orderedGateKeys.map((k, gi) => {
-                        const g = glyphFor(row.gates[k]);
+                        const g = glyphFor(row.gates[k], k);
                         const c = gi + 1;
                         return (
                           <td key={k} role="gridcell" className="cpm-matrix__cell-td">
@@ -265,7 +267,7 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
                               onFocus={() => setCursor({ r, c })}
                               onClick={() => { onSelectLoop(row.loopId); onOpenGate(row.loopId, k); }}
                             >
-                              <span aria-hidden>{g.glyph}</span>
+                              <span aria-hidden data-mark={g.meaning}>{g.glyph}</span>
                             </button>
                           </td>
                         );

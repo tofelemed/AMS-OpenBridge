@@ -31,6 +31,7 @@ import { ReplayChart } from './replay/ReplayChart';
 import { TransformationStepper } from './replay/TransformationStepper';
 import { LineageStrip } from './replay/LineageStrip';
 import { diagnosisLabel, codeLabel, phrase } from './vocabulary';
+import { gateMark } from './gateStatus';
 
 /** Long-tier metric fields relevant per gate (real stored fields only). */
 const GATE_METRICS: Record<string, { field: string; label: string }[]> = {
@@ -234,7 +235,7 @@ export const CpmReplay: React.FC = () => {
             </span>
           )}
           <TonePill tone="muted">{role}</TonePill>
-          {cell && <TonePill tone={gateTone(cell.status)}>{codeLabel(cell.status)}</TonePill>}
+          {cell && <TonePill tone={gateTone(cell.status, cell.key)}>{gateMark(cell.status, cell.key).glyph} {codeLabel(cell.status)}</TonePill>}
         </div>
 
         <TransformationStepper gridS={gridS} hasVerdict={!!selected} phasePlane={isShapeGate} />
@@ -274,9 +275,9 @@ export const CpmReplay: React.FC = () => {
           <PanelHead eyebrow="Summary" title={def ? `${gateKey} · ${def.name}` : gateKey} />
           <KvRow label="Question">{def?.question ?? '—'}</KvRow>
           <KvRow label="Result">
-            <TonePill tone={gateTone(cell?.status)}>{codeLabel(cell?.status ?? 'NOT_EVALUATED')}</TonePill>
+            <TonePill tone={gateTone(cell?.status, gateKey)}>{gateMark(cell?.status, gateKey).glyph} {codeLabel(cell?.status ?? 'NOT_EVALUATED')}</TonePill>
           </KvRow>
-          {cell?.reason && <KvRow label="Reason">{cell.reason}</KvRow>}
+          {cell?.reason && <KvRow label="Reason"><span title={cell.reason}>{codeLabel(cell.reason)}</span></KvRow>}
           <KvRow label="Window">
             {selected?.windowStart ? fmtDateTime(selected.windowStart) : '—'} →{' '}
             {selected?.windowEnd ? fmtDateTime(selected.windowEnd) : '—'}

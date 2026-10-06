@@ -66,7 +66,7 @@ const FusedGates: React.FC<{ loop: CpmLoop; windowKind: string; firesOnLabel: st
                 onClick={() => navigate(
                   `/cpm/replay?loop=${encodeURIComponent(loop.loopId)}&gate=${encodeURIComponent(g.key)}`)}
               >
-                <TonePill tone={gateTone(g.status)}>{codeLabel(g.status)}</TonePill>
+                <TonePill tone={gateTone(g.status, g.key)}>{codeLabel(g.status)}</TonePill>
               </button>
             </KvRow>
           ))}
