@@ -14,6 +14,8 @@ public sealed class ResponseRetentionTests : IAsyncLifetime
 {
     private NpgsqlDataSource _db = null!;
     private readonly Guid _oldEvent = Guid.NewGuid(), _newEvent = Guid.NewGuid(), _oldRun = Guid.NewGuid(), _newRun = Guid.NewGuid();
+    // CHG-049 (final review I4): an old event a system model was created from, with its metric
+    private readonly Guid _modelEvent = Guid.NewGuid(), _modelRun = Guid.NewGuid(), _modelId = Guid.NewGuid();
     private bool _createdPolicyRow;
 
     public async Task InitializeAsync()
@@ -22,7 +24,13 @@ public sealed class ResponseRetentionTests : IAsyncLifetime
         await using var conn = await _db.OpenConnectionAsync();
         await Event(conn, _oldEvent, _oldRun, 3650);
         await Event(conn, _newEvent, _newRun, 1);
-        foreach (var run in new[] { _oldRun, _oldRun, _newRun })
+        await Event(conn, _modelEvent, _modelRun, 3650);
+        await conn.ExecuteAsync(
+            """
+            INSERT INTO analytics.system_model (model_id, loop_id, path_id, family, parameters, model_state, created_from_event)
+            VALUES (@_modelId, 'TEST_CHG049_RESP', 'OP_TO_PV', 'FOPDT', '{}'::jsonb, 'CANDIDATE', @_modelEvent)
+            """, new { _modelId, _modelEvent });
+        foreach (var run in new[] { _oldRun, _oldRun, _newRun, _modelRun })
             await conn.ExecuteAsync("INSERT INTO analytics.response_metric (method_run_id, quantity_id, unit) VALUES (@run, @q, 's')",
                 new { run, q = "q" + Guid.NewGuid().ToString("N")[..8] });
     }
@@ -36,8 +44,9 @@ public sealed class ResponseRetentionTests : IAsyncLifetime
     public async Task DisposeAsync()
     {
         await using var conn = await _db.OpenConnectionAsync();
-        await conn.ExecuteAsync("DELETE FROM analytics.response_metric WHERE method_run_id = ANY(@runs)", new { runs = new[] { _oldRun, _newRun } });
-        await conn.ExecuteAsync("DELETE FROM analytics.response_event WHERE event_id = ANY(@ids)", new { ids = new[] { _oldEvent, _newEvent } });
+        await conn.ExecuteAsync("DELETE FROM analytics.system_model WHERE model_id = @_modelId", new { _modelId });
+        await conn.ExecuteAsync("DELETE FROM analytics.response_metric WHERE method_run_id = ANY(@runs)", new { runs = new[] { _oldRun, _newRun, _modelRun } });
+        await conn.ExecuteAsync("DELETE FROM analytics.response_event WHERE event_id = ANY(@ids)", new { ids = new[] { _oldEvent, _newEvent, _modelEvent } });
         if (_createdPolicyRow) await conn.ExecuteAsync("DELETE FROM analytics.retention_policy WHERE record_class = 'RESPONSE'");
         await _db.DisposeAsync();
     }
@@ -52,6 +61,16 @@ public sealed class ResponseRetentionTests : IAsyncLifetime
         (await conn.ExecuteScalarAsync<int>("SELECT count(*) FROM analytics.response_event WHERE event_id = @id", new { id = _newEvent })).Should().Be(1);
         (await conn.ExecuteScalarAsync<int>("SELECT count(*) FROM analytics.response_metric WHERE method_run_id = @run", new { run = _oldRun })).Should().Be(0);
         (await conn.ExecuteScalarAsync<int>("SELECT count(*) FROM analytics.response_metric WHERE method_run_id = @run", new { run = _newRun })).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Purge_keeps_an_old_event_a_system_model_was_created_from_and_its_metrics()
+    {
+        await ResponseRetention.PurgeAsync(_db, 3600, 1000, CancellationToken.None);
+        await using var conn = await _db.OpenConnectionAsync();
+        (await conn.ExecuteScalarAsync<int>("SELECT count(*) FROM analytics.response_event WHERE event_id = @id", new { id = _modelEvent })).Should().Be(1);
+        (await conn.ExecuteScalarAsync<int>("SELECT count(*) FROM analytics.response_metric WHERE method_run_id = @run", new { run = _modelRun })).Should().Be(1);
+        (await conn.ExecuteScalarAsync<int>("SELECT count(*) FROM analytics.response_event WHERE event_id = @id", new { id = _oldEvent })).Should().Be(0);
     }
 
     [Fact]
