@@ -39,6 +39,12 @@ import java.util.List;
  * arrives within its allowed lateness; a sample late for every window it falls in is dropped. Members
  * are handed over in arrival order, as Flink's list state did. {@code ShortWindowParityTest} runs this
  * function and the old six-operator graph on the same scripted stream and requires identical output.
+ *
+ * <p>CHG-061 (stress test 2026-10-06: a feed doubled x6 ran the TaskManager out of heap, and so did every
+ * restore and replay): a buffered sample no longer carries its own copy of the resolved profile - the loop's
+ * {@link ShortProfileRegistry} keeps each distinct profile once and re-attaches it for the window maths - and
+ * an exact duplicate {@code (loopId, record timestamp)} already in the buffer is dropped at ingest (CHG-062:
+ * duplicate feeds; Flink's windows counted it twice).
  */
 public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNormalizedSample, CplmShortFeatureResult> {
 
@@ -46,10 +52,11 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
     static final long MINUTE_MS = 60_000L;
 
     private final EvidencePolicy policy;
-    private transient MapState<Long, BufferedSample> samples;  // arrival sequence -> sample
+    private transient MapState<Long, BufferedSample> samples;  // arrival sequence -> sample (no profile)
     private transient MapState<Long, long[]> minuteIndex;      // minute start -> sequences, arrival order
     private transient ValueState<long[]> minutes;              // buffered minute starts, ascending
     private transient ValueState<Long> nextSeq;
+    private transient ShortProfileRegistry profiles;           // CHG-061: profile key -> the profile, once
 
     public ShortFeatureBufferFn(EvidencePolicy policy) {
         this.policy = policy;
@@ -57,12 +64,18 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
 
     @Override
     public void open(Configuration parameters) {
-        samples = getRuntimeContext().getMapState(new MapStateDescriptor<>("cplm-short-samples",
+        // CHG-061: BufferedSample changed type (profile key; the profile is no longer kept on it), so the WHOLE
+        // layout moved to "-v2" names. The plant resubmits this job without a savepoint. Should a pre-CHG-061
+        // checkpoint be restored anyway, none of its state is read back (the old names are not registered): the
+        // buffer starts empty, as on a stateless restart, and never mixes an old minute index with new samples.
+        samples = getRuntimeContext().getMapState(new MapStateDescriptor<>("cplm-short-samples-v2",
                 Types.LONG, TypeInformation.of(BufferedSample.class)));
-        minuteIndex = getRuntimeContext().getMapState(new MapStateDescriptor<>("cplm-short-minute-index",
+        minuteIndex = getRuntimeContext().getMapState(new MapStateDescriptor<>("cplm-short-minute-index-v2",
                 Types.LONG, PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO));
-        minutes = getRuntimeContext().getState(new ValueStateDescriptor<>("cplm-short-minutes", PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO));
-        nextSeq = getRuntimeContext().getState(new ValueStateDescriptor<>("cplm-short-next-seq", Types.LONG));
+        minutes = getRuntimeContext().getState(new ValueStateDescriptor<>("cplm-short-minutes-v2", PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO));
+        nextSeq = getRuntimeContext().getState(new ValueStateDescriptor<>("cplm-short-next-seq-v2", Types.LONG));
+        profiles = new ShortProfileRegistry(getRuntimeContext().getMapState(new MapStateDescriptor<>("cplm-short-profiles-v2",
+                Types.STRING, TypeInformation.of(ShortProfileRegistry.Entry.class))));
     }
 
     static long minuteOf(long ts) {
@@ -91,12 +104,14 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
             }
         }
         if (!alive) return;                                         // late for every window: dropped
+        long m = minuteOf(ts);
+        long[] idx = minuteIndex.get(m);
+        if (idx != null && holds(idx, ts)) return;                  // CHG-062: exact duplicate, the first stays
 
         long seq = nextSeq.value() == null ? 0L : nextSeq.value();
         nextSeq.update(seq + 1);
-        samples.put(seq, new BufferedSample(seq, ts, sample));
-        long m = minuteOf(ts);
-        long[] idx = minuteIndex.get(m);
+        String profileKey = profiles.detachAndRemember(sample, m);  // CHG-061: the profile is kept once per loop
+        samples.put(seq, new BufferedSample(seq, ts, sample, profileKey));
         if (idx == null) {
             minuteIndex.put(m, new long[]{seq});
             addMinute(m);
@@ -117,7 +132,21 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
             to = Math.max(to, f[1]);
         }
         List<BufferedSample> range = read(from, to);
-        for (long[] f : fireNow) fire(ShortWindowSpecs.ALL.get((int) f[0]), f[1], range, out, ctx);
+        profiles.attach(range);
+        try {
+            for (long[] f : fireNow) fire(ShortWindowSpecs.ALL.get((int) f[0]), f[1], range, out, ctx);
+        } finally {
+            ShortProfileRegistry.detach(range);
+        }
+    }
+
+    /** Whether a sample with record timestamp {@code ts} is already buffered in the minute of {@code idx}. */
+    private boolean holds(long[] idx, long ts) throws Exception {
+        for (long s : idx) {
+            BufferedSample b = samples.get(s);
+            if (b != null && b.ts == ts) return true;
+        }
+        return false;
     }
 
     @Override
@@ -130,8 +159,13 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
         if (from != Long.MAX_VALUE) {
             List<BufferedSample> range = read(from, end);
             if (!range.isEmpty()) {
-                for (ShortWindowSpecs.Spec spec : ShortWindowSpecs.ALL) {
-                    if (spec.endsAt(end)) fire(spec, end, range, out, ctx);
+                profiles.attach(range);
+                try {
+                    for (ShortWindowSpecs.Spec spec : ShortWindowSpecs.ALL) {
+                        if (spec.endsAt(end)) fire(spec, end, range, out, ctx);
+                    }
+                } finally {
+                    ShortProfileRegistry.detach(range);
                 }
             }
         }
@@ -155,9 +189,13 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
         if (n == ms.length) {
             minutes.clear();
             nextSeq.clear();
+            profiles.clear();
             return false;
         }
-        if (n > 0) minutes.update(Arrays.copyOfRange(ms, n, ms.length));
+        if (n > 0) {
+            minutes.update(Arrays.copyOfRange(ms, n, ms.length));
+            profiles.evictBefore(ms[n]);                            // CHG-061: a profile leaves with its last minute
+        }
         return true;
     }
 
@@ -207,19 +245,24 @@ public class ShortFeatureBufferFn extends KeyedProcessFunction<String, CplmNorma
                 record -> ctx.output(ShortFeatureEmitter.EVIDENCE, record));
     }
 
-    /** One buffered sample: arrival sequence, record timestamp (window membership) and the sample. */
+    /**
+     * One buffered sample: arrival sequence, record timestamp (window membership), the sample without its
+     * profile, and (CHG-061) the key of that profile in the loop's {@link ShortProfileRegistry} (null: none).
+     */
     public static class BufferedSample {
         public long seq;
         public long ts;
         public CplmNormalizedSample sample;
+        public String profileKey;
 
         public BufferedSample() {
         }
 
-        BufferedSample(long seq, long ts, CplmNormalizedSample sample) {
+        BufferedSample(long seq, long ts, CplmNormalizedSample sample, String profileKey) {
             this.seq = seq;
             this.ts = ts;
             this.sample = sample;
+            this.profileKey = profileKey;
         }
     }
 }

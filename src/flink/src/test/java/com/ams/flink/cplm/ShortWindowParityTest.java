@@ -39,6 +39,11 @@ import static org.junit.Assert.assertTrue;
  * 30 s / 60 s / 90 s / 2 min / 3 min), duplicates, one loop silent for 45 minutes and a 10-minute watermark
  * jump followed by the held-back samples. Every result JSON and every evidence record (emission time masked)
  * must match as a multiset, on the heap and the RocksDB backend.
+ *
+ * <p>CHG-061: the buffer keeps one copy of each distinct profile per loop and re-attaches it, so the samples
+ * carry profiles that change inside windows (L1 switches once, L3 alternates, L2 has none); the governing
+ * profile shows in every result's {@code gate_profile_id}. CHG-062 (duplicate feeds): the buffer drops an exact
+ * duplicate {@code (loopId, eventTsMs)}, so the old graph is fed the script WITHOUT the duplicates.
  */
 public class ShortWindowParityTest {
 
@@ -96,6 +101,17 @@ public class ShortWindowParityTest {
         }
     }
 
+    private static CplmLoopDynamicsProfile profile(String id, int epoch) {
+        CplmLoopDynamicsProfile p = CplmLoopDynamicsProfile.resolve("L", null, null);
+        p.gateProfileId = id;
+        p.bundleHash = "bundle-" + id;
+        p.bundleEpoch = epoch;
+        return p;
+    }
+
+    private static final CplmLoopDynamicsProfile PROFILE_A = profile("PROFILE-A", 1);
+    private static final CplmLoopDynamicsProfile PROFILE_B = profile("PROFILE-B", 2);
+
     private static CplmNormalizedSample sample(String loop, long ts, Random rnd) {
         CplmNormalizedSample s = new CplmNormalizedSample();
         s.loopId = loop;
@@ -108,11 +124,14 @@ public class ShortWindowParityTest {
         s.op = 40.0 + 3 * Math.sin(phase + 0.7) + rnd.nextGaussian() * 0.2;
         s.mode = "AUTO";
         s.quality = rnd.nextInt(40) == 0 ? "UNCERTAIN" : "GOOD";
+        // CHG-061: the profile each sample carried on arrival must govern its windows exactly as before
+        if ("L1".equals(loop)) s.resolvedProfile = (ts < T0 + 60 * MIN ? PROFILE_A : PROFILE_B).copy();
+        else if ("L3".equals(loop)) s.resolvedProfile = (((ts - T0) / (7 * MIN)) % 2 == 0 ? PROFILE_A : PROFILE_B).copy();
         return s;
     }
 
-    /** The scripted stream (fixed seed). */
-    static List<Step> script() {
+    /** The scripted stream (fixed seed); {@code duplicates} adds an exact duplicate of every 80th sample. */
+    static List<Step> script(boolean duplicates) {
         Random rnd = new Random(20261005L);
         String[] loops = {"L1", "L2", "L3"};
         List<long[]> raw = new ArrayList<>();          // {ts, loop index}
@@ -159,7 +178,7 @@ public class ShortWindowParityTest {
             steps.add(new Step(last, ts, false));
             maxTs = Math.max(maxTs, ts);
             n++;
-            if (n % 80 == 0) steps.add(new Step(last, lastTs, false));  // an exact duplicate
+            if (duplicates && n % 80 == 0) steps.add(new Step(last, lastTs, false));  // an exact duplicate
             if (n % 12 == 0 && maxTs - 20_000 > wm) {
                 wm = maxTs - 20_000;
                 steps.add(new Step(null, wm, true));
@@ -176,7 +195,9 @@ public class ShortWindowParityTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
         env.setStateBackend(rocksDb ? new EmbeddedRocksDBStateBackend() : new HashMapStateBackend());
         EvidencePolicy policy = new EvidencePolicy(EvidencePolicy.Mode.ALL);
-        DataStream<CplmNormalizedSample> src = env.addSource(new ScriptedSource(script())).name("script");
+        // CHG-062 (duplicate feeds): the buffer ignores an exact duplicate (loopId, eventTsMs), which Flink's
+        // windows counted twice; the old graph therefore gets the same script without the duplicates
+        DataStream<CplmNormalizedSample> src = env.addSource(new ScriptedSource(script(!legacy))).name("script");
 
         List<SingleOutputStreamOperator<CplmShortFeatureResult>> outs = new ArrayList<>();
         if (legacy) {
@@ -246,6 +267,9 @@ public class ShortWindowParityTest {
             firings.merge(m.group(1) + "|" + m.group(2) + "|" + m.group(3), 1, Integer::sum);
         }
         assertTrue("late re-firing must be exercised", firings.values().stream().anyMatch(v -> v > 1));
+        for (String id : new String[]{"PROFILE-A", "PROFILE-B"}) {
+            assertTrue("profile " + id + " governs some windows", legacy.stream().anyMatch(l -> l.contains("\"gate_profile_id\":\"" + id + "\"")));
+        }
 
         assertEquals("same number of records", legacy.size(), buffered.size());
         Map<String, Integer> a = counts(legacy);
@@ -264,6 +288,13 @@ public class ShortWindowParityTest {
     @Test
     public void bufferedOperatorMatchesTheSixWindowGraphOnRocksDb() throws Exception {
         assertParity(true);
+    }
+
+    @Test
+    public void theBufferedRunIsFedExactDuplicates() {
+        long with = script(true).stream().filter(x -> !x.watermark).count();
+        long without = script(false).stream().filter(x -> !x.watermark).count();
+        assertTrue("duplicates injected: " + with + " vs " + without, with - without > 50);
     }
 
     @Test
