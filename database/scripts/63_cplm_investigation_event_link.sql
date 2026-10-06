@@ -3,7 +3,7 @@
 -- of an open episode. Nullable: a note on a loop with no episode (insufficient evidence, nothing open) is
 -- the point. ON DELETE SET NULL: an episode removed by retention leaves the note on the loop.
 -- Additive, re-runnable, online (adds one nullable column + one index).
--- Mirrors: migration/schema/03-traverse_cplm.sql (fresh plant), scripts/cpm-12-investigation-event-link.sql (live plant).
+-- Mirrors: migration/schema/03-traverse_cplm.sql (fresh plant), scripts/cpm-13-investigation-event-link.sql (live plant).
 \c traverse_cplm
 
 ALTER TABLE analytics.investigation_reference

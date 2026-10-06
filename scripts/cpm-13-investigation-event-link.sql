@@ -1,8 +1,8 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- cpm-12-investigation-event-link.sql — PLANT live upgrade for CHG-058 (loop notes linkable to an episode).
+-- cpm-13-investigation-event-link.sql — PLANT live upgrade for CHG-058 (loop notes linkable to an episode).
 --
 -- Run on the plant VM BEFORE the cplm-api image swap (additive; re-runnable; one nullable column + one index):
---   docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < ops/cpm-12-investigation-event-link.sql
+--   docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < ops/cpm-13-investigation-event-link.sql
 --   bash migration/02-apply-schemas.sh      # ownership -> ams_user
 --
 -- This is database/scripts/63_cplm_investigation_event_link.sql minus the connect line.
