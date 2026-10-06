@@ -166,6 +166,16 @@ app.MapPost("/data-sources", async (
     if (DataSourceValidation.ValidateCreate(request) is { } invalid)
         return Results.BadRequest(new { error = invalid.Error, field = invalid.Field });
 
+    // CHG-062: a new source is active from birth; refuse a second feed on the same broker/topics.
+    var candidate = new DataSourceRow
+    {
+        ConfigId = Guid.NewGuid(), ProfileType = request.ProfileType, IsActive = true,
+        ConnectionUrl = request.ConnectionUrl!.Trim(),
+        ProfileConfig = (request.ProfileConfig ?? new ProfileConfig()).ToJson(),
+    };
+    if (LoopSourceConflicts.FindConflict(candidate, await repo.ListAsync(activeOnly: true)) is { } clash)
+        return Results.Conflict(new { error = LoopSourceConflicts.ConflictMessage(clash), field = "topics" });
+
     var row = await repo.InsertAsync(
         request.ProfileType, request.Name!.Trim(), request.Description,
         request.ConnectionUrl!.Trim(), request.Username!.Trim(),
@@ -199,6 +209,19 @@ app.MapPut("/data-sources/{id:guid}", async (
         profileConfig: request.ProfileConfig ?? ProfileConfig.FromJson(existing.ProfileConfig));
     if (merged is { } invalid)
         return Results.BadRequest(new { error = invalid.Error, field = invalid.Field });
+
+    // CHG-062: refuse only when the row is active and a feed-defining field changed
+    // (a harmless rename of an active source must not 409).
+    var mergedRow = new DataSourceRow
+    {
+        ConfigId = id, IsActive = existing.IsActive, CreatedAt = existing.CreatedAt,
+        ProfileType = request.ProfileType ?? existing.ProfileType,
+        ConnectionUrl = (request.ConnectionUrl ?? existing.ConnectionUrl).Trim(),
+        ProfileConfig = request.ProfileConfig?.ToJson() ?? existing.ProfileConfig,
+    };
+    if (existing.IsActive && LoopSourceConflicts.FeedChanged(existing, mergedRow)
+        && LoopSourceConflicts.FindConflict(mergedRow, await repo.ListAsync(activeOnly: true)) is { } clash)
+        return Results.Conflict(new { error = LoopSourceConflicts.ConflictMessage(clash), field = "topics" });
 
     // INVARIANT (spec §5 rule 1): absent or "" password keeps the stored credential.
     var passwordEncrypted = string.IsNullOrEmpty(request.Password) ? null : cipher.Encrypt(request.Password);
@@ -257,6 +280,10 @@ app.MapPost("/data-sources/{id:guid}/test", async (
 app.MapPost("/data-sources/{id:guid}/activate", async (
     Guid id, ClaimsPrincipal user, DataSourceRepository repo, IAuditEmitter audit) =>
 {
+    var current = await repo.GetAsync(id);
+    if (current is null) return Results.NotFound();
+    if (LoopSourceConflicts.FindConflict(current, await repo.ListAsync(activeOnly: true)) is { } clash)
+        return Results.Conflict(new { error = LoopSourceConflicts.ConflictMessage(clash), field = "topics" });
     var row = await repo.SetActiveAsync(id, isActive: true, UserName(user));
     if (row is null) return Results.NotFound();
     audit.Emit("ingestion.datasource.activated", UserName(user), id.ToString(), new { row.Name });
