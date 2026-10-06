@@ -314,6 +314,11 @@ public sealed partial class CpmLoopRegistryService : ICpmLoopRegistryService
         if (!string.IsNullOrWhiteSpace(pvUnit) && !PvUnitPattern.IsMatch(pvUnit.Trim()))
             throw new ArgumentException(
                 $"engineering.pvUnit '{pvUnit.Trim()}' is not a unit: use letters, digits, spaces and ° % / . - · ² ³ µ ( ) ^ *, at most {MaxPvUnitLength} characters");
+
+        // CHG-059: optional-input applicability is one of three words, never free text
+        foreach (var (name, value) in new[] { ("vpApplicability", request.Engineering?.VpApplicability), ("peerApplicability", request.Engineering?.PeerApplicability) })
+            if (!string.IsNullOrWhiteSpace(value) && !Registry.OptionalInputs.IsApplicability(value))
+                throw new ArgumentException($"engineering.{name} '{value.Trim()}' must be one of {string.Join(", ", Registry.OptionalInputs.ApplicabilityValues)}");
     }
 
     internal static readonly System.Text.RegularExpressions.Regex PvUnitPattern =

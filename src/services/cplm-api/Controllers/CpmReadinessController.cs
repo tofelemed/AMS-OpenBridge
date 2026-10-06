@@ -1,6 +1,7 @@
-// Extraction Phase 3 COPY of AMS.Api Controllers/V1/CpmReadinessController.cs — mechanical transforms only
-// (namespace, literal v1 routes, no Asp.Versioning). The AMS.Api original keeps
-// serving until Phase 6 deletes it; behavior changes are forbidden in either copy.
+// Started as the Extraction Phase 3 copy of AMS.Api Controllers/V1/CpmReadinessController.cs (mechanical transforms:
+// namespace, literal v1 routes, no Asp.Versioning). The AMS.Api original has since been deleted: cplm-api
+// owns this endpoint (changed since: RequiredJobs F10, optional-input states CHG-059).
+using Traverse.CplmApi.Services.Registry;
 using System.Text.Json;
 using Dapper;
 using Microsoft.AspNetCore.Authorization;
@@ -110,13 +111,15 @@ public sealed class CpmReadinessController : ControllerBase
 
         var reg = await conn.QueryFirstOrDefaultAsync("""
             SELECT loop_id, display_name, site, loop_type, asset_id,
-                   monitoring::text AS monitoring, tags::text AS tags
+                   monitoring::text AS monitoring, tags::text AS tags,
+                   engineering::text AS engineering, command_path
             FROM cpm.loop_registry WHERE lower(loop_id) = lower(@loopId)
             """, new { loopId });
 
         var checks = new List<object>();
         var blockers = new List<string>();
         var warnings = new List<string>();
+        var notes = new List<string>();   // CHG-059: facts that limit a diagnosis but need no action
 
         if (reg is null)
         {
@@ -168,22 +171,54 @@ public sealed class CpmReadinessController : ControllerBase
                 $"No {role.ToUpperInvariant()} mapping — the gate engine cannot evaluate this loop.");
         }
 
+        // CHG-059 (SME #23): an optional input is one of five states, and only an EXPECTED-but-unmapped one is a
+        // configuration gap. A drive has no valve to report; a valve without a positioner is a plant fact.
+        var engineering = ParseJson((string?)reg.engineering);
         var hasVp = tags.ValueKind == JsonValueKind.Object
             && tags.TryGetProperty("vp", out var vp) && vp.ValueKind == JsonValueKind.String
             && !string.IsNullOrWhiteSpace(vp.GetString());
-        Check("tag_vp", "Signal VP (enables G14 confirmation)", hasVp,
-            hasVp ? null : "Map a VP (valve position) signal to lift the confidence cap.", false,
-            "No VP signal — G14 caps confidence at 0.89, so no diagnosis can reach CONFIRMED.");
+        var vpSeen = await conn.ExecuteScalarAsync<bool?>("""
+            SELECT (payload->>'vp_available')::boolean FROM analytics.cplm_gate_latest
+            WHERE lower(loop_id) = lower(@loopId) AND window_kind = '24h' ORDER BY window_end DESC LIMIT 1
+            """, new { loopId = (string)reg.loop_id });
+        var vpApplicability = OptionalInputs.VpApplicability(engineering, (string?)reg.command_path);
+        var vpState = OptionalInputs.State(vpApplicability, hasVp, vpSeen);
+        var (vpMessage, vpWarning, vpNote) = vpState switch
+        {
+            InputState.ExpectedUnmapped => ("A valve position (VP) is expected here: map its tag so a valve (stiction) cause can be confirmed (G14).",
+                "No VP mapped although one is expected — a valve (stiction) cause can be suspected but not confirmed.", null),
+            InputState.TemporarilyUnavailable => ("VP is mapped but the latest window carried no VP samples — check the positioner signal.",
+                "VP mapped but no VP samples in the latest window — a valve cause cannot be confirmed until it returns.", null),
+            InputState.NotInstalled => ("No positioner feedback installed (declared) — a valve cause can be suspected, not confirmed.", null,
+                "No positioner feedback installed: a valve (stiction) cause can be suspected but not confirmed."),
+            InputState.NotApplicable => ("No valve on this loop (declared or from the command path) — valve diagnosis does not apply.", null,
+                "No valve on this loop: valve (stiction) diagnosis does not apply."),
+            _ => ((string?)null, (string?)null, (string?)null),
+        };
+        checks.Add(new { id = "tag_vp", label = "Signal VP (valve position, G14)", ok = vpState is not (InputState.ExpectedUnmapped or InputState.TemporarilyUnavailable),
+            message = vpMessage, state = OptionalInputs.Code(vpState), applicability = OptionalInputs.Code(vpApplicability) });
+        if (vpWarning is not null) warnings.Add(vpWarning);
+        if (vpNote is not null) notes.Add(vpNote);
 
         // Peer links: derived from the asset graph, not a hand-set flag.
         var linkCount = await conn.ExecuteScalarAsync<int>("""
             SELECT COUNT(*)::int FROM cpm.loop_link
             WHERE from_loop_id = @loopId OR (to_loop_id = @loopId AND rel_type = 'PEER')
             """, new { loopId = (string)reg.loop_id });
-        Check("peer_links", "Peer / upstream links (G13)", linkCount > 0,
-            linkCount > 0 ? null : "Add asset relationships, then POST /cpm/loops/{id}/republish-evidence.",
-            false,
-            "No peer links — G13 stays NOT_EVALUATED and stiction cannot be distinguished from an upstream disturbance.");
+        var peerApplicability = OptionalInputs.PeerApplicability(engineering);
+        var peerState = OptionalInputs.State(peerApplicability, linkCount > 0, null);
+        checks.Add(new { id = "peer_links", label = "Peer / upstream links (G13)", ok = peerState != InputState.ExpectedUnmapped,
+            message = peerState switch
+            {
+                InputState.ExpectedUnmapped => "Add asset relationships, then POST /cpm/loops/{id}/republish-evidence.",
+                InputState.NotApplicable or InputState.NotInstalled => "No interacting loops (declared) — peer interaction is not assessed.",
+                _ => null,
+            },
+            state = OptionalInputs.Code(peerState), applicability = OptionalInputs.Code(peerApplicability) });
+        if (peerState == InputState.ExpectedUnmapped)
+            warnings.Add("No peer links — G13 stays NOT_EVALUATED and stiction cannot be distinguished from an upstream disturbance.");
+        else if (peerState is InputState.NotApplicable or InputState.NotInstalled)
+            notes.Add("No interacting loops: peer interaction (G13) does not apply.");
 
         // Binding provenance (Phase 4.7): a fallback binding derives a different
         // device id, so it can look resolved while pointing at nothing.
@@ -225,6 +260,7 @@ public sealed class CpmReadinessController : ControllerBase
             checks,
             blockers = blockers.Distinct(),
             warnings = warnings.Distinct(),
+            notes = notes.Distinct(),
             evidence = new { shortFeatures = counts?.shorts ?? 0, longFeatures = counts?.longs ?? 0, verdicts = counts?.verdicts ?? 0 }
         });
     }

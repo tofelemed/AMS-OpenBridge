@@ -391,18 +391,21 @@ public sealed partial class CpmLoopRegistryService
     /// <summary>Any declared bound makes the range worth storing.</summary>
     internal static bool HasRange(CpmEngineeringRange? r) =>
         r is { OpMin: not null } or { OpMax: not null } or { PvMin: not null } or { PvMax: not null }
-        || !string.IsNullOrWhiteSpace(r?.PvUnit);
+        || !string.IsNullOrWhiteSpace(r?.PvUnit) || !string.IsNullOrWhiteSpace(r?.VpApplicability) || !string.IsNullOrWhiteSpace(r?.PeerApplicability);
 
     /// <summary>
     /// The bulk upsert's engineering column: an empty incoming block keeps the stored one; otherwise the
     /// incoming block replaces it (a re-import is the new truth for the ranges), except that a stored
-    /// pvUnit survives a row that does not carry one (CHG-047) — a ranges-only CSV must not wipe units.
+    /// pvUnit (CHG-047) and the optional-input applicability (CHG-059) survive a row that does not carry them —
+    /// a ranges-only CSV must not wipe units or an engineer's "not installed".
     /// </summary>
     internal static string EngineeringMerge(string incoming, string existing) => $$"""
         CASE WHEN {{incoming}} = @emptyJson::jsonb THEN {{existing}}
-             WHEN ({{incoming}}->>'pvUnit') IS NULL AND ({{existing}}->>'pvUnit') IS NOT NULL
-             THEN {{incoming}} || jsonb_build_object('pvUnit', {{existing}}->'pvUnit')
-             ELSE {{incoming}} END
+             ELSE jsonb_strip_nulls(jsonb_build_object(
+                    'pvUnit',            CASE WHEN ({{incoming}}->>'pvUnit') IS NULL THEN {{existing}}->'pvUnit' END,
+                    'vpApplicability',   CASE WHEN ({{incoming}}->>'vpApplicability') IS NULL THEN {{existing}}->'vpApplicability' END,
+                    'peerApplicability', CASE WHEN ({{incoming}}->>'peerApplicability') IS NULL THEN {{existing}}->'peerApplicability' END))
+                  || {{incoming}} END
         """;
 
     /// <summary>CHG-047: a unit is a short token ("kg/h", "m3/h", "barg"); anything longer is cut, never stored raw.</summary>
@@ -422,6 +425,8 @@ public sealed partial class CpmLoopRegistryService
             var unit = r.PvUnit.Trim();
             range["pvUnit"] = unit.Length > MaxPvUnitLength ? unit[..MaxPvUnitLength] : unit;
         }
+        if (OptionalInputs.IsApplicability(r.VpApplicability)) range["vpApplicability"] = r.VpApplicability!.Trim().ToUpperInvariant();
+        if (OptionalInputs.IsApplicability(r.PeerApplicability)) range["peerApplicability"] = r.PeerApplicability!.Trim().ToUpperInvariant();
         return JsonSerializer.Serialize(range);
     }
 

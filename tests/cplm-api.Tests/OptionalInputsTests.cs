@@ -1,0 +1,56 @@
+// SME review #23 (CHG-059): an optional input has five states, not one "missing" — only an expected-but-unmapped
+// input is a configuration gap; a drive has no valve; a valve without a positioner is a plant fact; a mapped tag
+// that went quiet is a data problem. Applicability is the engineer's word, else derived from the command path.
+using System.Text.Json;
+using FluentAssertions;
+using Traverse.CplmApi.Services;
+using Traverse.CplmApi.Services.Registry;
+using Xunit;
+
+namespace Traverse.CplmApi.Tests;
+
+public sealed class OptionalInputsTests
+{
+    private static JsonElement Eng(string json) => JsonDocument.Parse(json).RootElement;
+
+    [Theory]
+    [InlineData("OP_TO_VALVE", InputApplicability.Expected)]
+    [InlineData("OP_TO_VFD", InputApplicability.NotApplicable)]
+    [InlineData("OP_TO_PV", InputApplicability.NotApplicable)]
+    [InlineData("UNKNOWN", InputApplicability.Expected)]
+    [InlineData(null, InputApplicability.Expected)]
+    public void Vp_applicability_defaults_from_the_command_path(string? path, InputApplicability expected) =>
+        OptionalInputs.VpApplicability(Eng("{}"), path).Should().Be(expected);
+
+    [Fact]
+    public void The_engineers_statement_wins_over_the_default()
+    {
+        OptionalInputs.VpApplicability(Eng("""{"vpApplicability":"not_installed"}"""), "OP_TO_VALVE").Should().Be(InputApplicability.NotInstalled);
+        OptionalInputs.VpApplicability(Eng("""{"vpApplicability":"EXPECTED"}"""), "OP_TO_VFD").Should().Be(InputApplicability.Expected);
+        OptionalInputs.VpApplicability(Eng("""{"vpApplicability":"rubbish"}"""), "OP_TO_VFD").Should().Be(InputApplicability.NotApplicable);
+        OptionalInputs.PeerApplicability(Eng("""{"peerApplicability":"NOT_APPLICABLE"}""")).Should().Be(InputApplicability.NotApplicable);
+        OptionalInputs.PeerApplicability(Eng("null")).Should().Be(InputApplicability.Expected);
+    }
+
+    [Theory]
+    [InlineData(InputApplicability.Expected, true, true, InputState.Available)]
+    [InlineData(InputApplicability.Expected, true, null, InputState.Available)]
+    [InlineData(InputApplicability.Expected, true, false, InputState.TemporarilyUnavailable)]
+    [InlineData(InputApplicability.Expected, false, null, InputState.ExpectedUnmapped)]
+    [InlineData(InputApplicability.NotInstalled, false, false, InputState.NotInstalled)]
+    [InlineData(InputApplicability.NotApplicable, false, false, InputState.NotApplicable)]
+    public void The_state_combines_applicability_mapping_and_the_latest_window(InputApplicability a, bool mapped, bool? seen, InputState expected) =>
+        OptionalInputs.State(a, mapped, seen).Should().Be(expected);
+
+    [Fact]
+    public void Only_the_three_words_are_stored()
+    {
+        OptionalInputs.IsApplicability("Not_Applicable").Should().BeTrue();
+        OptionalInputs.IsApplicability("maybe").Should().BeFalse();
+        var json = CpmLoopRegistryService.SerializeRange(new CpmEngineeringRange(VpApplicability: "not_installed", PeerApplicability: "<b>"));
+        var e = JsonDocument.Parse(json).RootElement;
+        e.GetProperty("vpApplicability").GetString().Should().Be("NOT_INSTALLED");
+        e.TryGetProperty("peerApplicability", out _).Should().BeFalse("free text is never stored");
+        CpmLoopRegistryService.HasRange(new CpmEngineeringRange(VpApplicability: "NOT_INSTALLED")).Should().BeTrue();
+    }
+}
