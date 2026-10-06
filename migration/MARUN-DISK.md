@@ -207,7 +207,7 @@ First command when the disk is full is now the **per-topic Kafka size** in §3 G
 
 ### J. ZooKeeper (Instrumental's `instrumental-zookeeper`) crash-loops on a zero-byte transaction log
 
-Seen 2026-09-26 (`log.7dbe`) and 2026-10-06 (`log.91a0`): after a full disk, ZooKeeper dies with
+Seen 2026-09-26 (`log.7dbe`) and 2026-10-06 (`log.91a0`): after a full or near-full disk (2026-10-06: 1.4 GB free), ZooKeeper dies with
 `java.io.EOFException` in `FileTxnLog$FileTxnIterator` and restarts forever; both Kafka brokers then log
 `Unable to resolve address: zookeeper:2181` and every Flink job restarts. Recovery, in this order:
 

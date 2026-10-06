@@ -3182,8 +3182,8 @@ on the lab Postgres.
 - Schema (CHG-049): `cpm-12` online (RESPONSE retention row, `ix_response_event_created`), then `cpm-12b` with cplm-api
   STOPPED and only after the new jar has run at least 1 h (VM step 6g). Optional `.env` keys `CPLM_EVIDENCE_MAX_CYCLES` (12)
   and `CPLM_EVIDENCE_MIN_INTERVAL_MIN` (60). The batch manifest must carry `!chg049-evidence`.
-- Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
-- Plant: `docker load` the `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
+- Build: `mvn package` (Docker Maven, the jar is needed for CHG-049; no `--skip-jar`) → `python migration/deploy/build-release.py --release <next> --out release-out/<next>-<date>`.
+- Plant: `docker load` the `ams-frontend`, `cplm-api` and `ams-flink` images; then the Flink swap from the VM steps (cancel every job, `docker rm -f ams-flink-taskmanager ams-flink-jobmanager`) → `deploy.sh --prod` (04b resubmits all seven; 7 RUNNING) → `200` on `/`; users press Ctrl+F5.
   cplm-api restarts its consumers: check each CPLM consumer group has exactly one member afterwards (SingleMemberGuard).
 - Proofs (CHG-040): the Loop Performance menu shows four task sub-headings; open a loop in the Loop Explorer, then
   Investigation from the menu: the same loop is open without picking it again. (CHG-041) on Investigation, scroll to the

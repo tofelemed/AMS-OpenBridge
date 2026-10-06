@@ -127,9 +127,18 @@ of payload "within budget" while 3.7 GB sat on disk). `WARN` above 1536 MB, `ACT
 1. Once the CHG-049 release is deployed, `ops/cpm-12b` (cplm-api stopped, after at least 1 hour of the new
    build running) rewrites both tables and returns the space; this is the normal reclaim.
 2. Emergency, disk under 10 GB: the TRUNCATE lever below (check `pinned` = 0 first).
-3. Never switch evidence off as the first move; truncating returns the space and keeps the feature.
+3. Never switch evidence off as the first move: truncate first (the first lever below); emission stays on.
 
-Emergency lever when an evidence class breaks its bound and the disk is under 10 GB:
+Emergency lever 1, truncate only (emission stays on; this is what the plant did on 2026-10-06), when an evidence class
+breaks its bound or the evidence tables are above 3072 MB and the disk is under 10 GB:
+```
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "select count(*) from analytics.evidence_manifest where pinned"   # must be 0 before the next line
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "TRUNCATE analytics.evidence_chunk, analytics.evidence_manifest"
+df -h / | tail -1
+```
+
+Emergency lever 2, last resort: only when the tables break their bound again within hours of a truncate, or the disk is
+under 3 GB with the truncate already done. It switches emission off and then truncates:
 ```
 cd /opt/AMS-open && sed -i 's/^CPLM_EVIDENCE_EMIT=.*/CPLM_EVIDENCE_EMIT=none/' migration/.env
 for id in $(docker exec ams-flink-jobmanager flink list -m localhost:8081 2>/dev/null | grep -E 'Long Diagnostics|Gate Fusion' | awk '{print $4}'); do docker exec ams-flink-jobmanager flink cancel -m localhost:8081 $id 2>/dev/null; done

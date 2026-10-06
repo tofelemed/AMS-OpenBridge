@@ -234,7 +234,7 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] Task 4 (def8878f) cplm-api evidence consumer: orphan chunks + count gate — cplm-api `Evidence` tests green
 - [x] Task 5 (35c5aa1f) RESPONSE retention 14 d + `Cplm__EvidenceExpiredGraceDays` 1 in compose + `ix_response_event_created` — `Response|SchemaV25` tests green
 - [x] Task 6 (e0699b71) `cpm-12` (online) / `cpm-12b` (cplm-api stopped) + `chg049-evidence` VM steps — `test_build_release.py` 45 passed
-- [x] Task 7 daily-check physical-size line (`bash -n` clean; SQL prints an integer on the lab), runbooks (`MARUN-DISK.md` ZooKeeper rule, `MARUN-DAILY-CHECK.md`), `prod_decision.md`, `changes_tracker.md`
+- [x] Task 7 (758f1bfe + 2db22371) daily-check physical-size line (`bash -n` clean; SQL prints an integer on the lab), runbooks (`MARUN-DISK.md` ZooKeeper rule, `MARUN-DAILY-CHECK.md`), `prod_decision.md`, `changes_tracker.md`
 - [x] Totals: Flink full suite 298 run / 0 failures / 2 skipped (baseline 289); cplm-api `Evidence|Response|SchemaV25` 50 / 50 (baseline 45)
 - [ ] Task 8 lab: 2 h run and 24 h soak, restart drill, reconstruction check, `cpm-12b` on the lab
 - [ ] plant deploy in the SME-batch release (manifest `!chg049-evidence`, Flink swap, `cpm-12` online, `cpm-12b` with cplm-api stopped after ≥ 1 h); then daily check §7 physical line under 1536 MB and flat next morning
