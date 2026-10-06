@@ -33,6 +33,7 @@ import { LineageStrip } from './replay/LineageStrip';
 import { diagnosisLabel, codeLabel, phrase } from './vocabulary';
 import { gateMark } from './gateStatus';
 import { windowLabel } from './windowLabel';
+import { ReasonedButton } from './ReasonedButton';
 
 /** Long-tier metric fields relevant per gate (real stored fields only). */
 const GATE_METRICS: Record<string, { field: string; label: string }[]> = {
@@ -165,9 +166,9 @@ export const CpmReplay: React.FC = () => {
         page="/cpm/replay"
         title="Evidence replay"
         actions={
-          <ObcButton variant="normal" disabled={!selected} onClick={exportPackage}>
+          <ReasonedButton variant="normal" disabled={!selected} reason={!selected ? 'Select an evaluated window first' : null} onClick={exportPackage}>
             Export package
-          </ObcButton>
+          </ReasonedButton>
         }
       />
       <LoopContextBar loopId={loopId} period={selected ? { label: '24h fused window', start: selected.windowStart, end: selected.windowEnd } : null} />
@@ -311,10 +312,10 @@ export const CpmReplay: React.FC = () => {
             window alignment (~90 s round trip). Gate views refresh automatically when it finishes.
           </p>
           <div className="cpm-filter-row">
-            <ObcButton variant="raised" disabled={!loopId || recomputeBusy}
+            <ReasonedButton variant="raised" disabled={!loopId || recomputeBusy} reason={!loopId ? 'Pick a loop first' : null}
               onClick={() => { reset(); submit.mutate(); }}>
               {recomputeBusy ? 'Recomputing…' : 'Re-run this window'}
-            </ObcButton>
+            </ReasonedButton>
             {submit.isError && (
               <span className="cpm-field__error">
                 Recompute failed to start: {(submit.error as Error)?.message ?? 'unknown error'}

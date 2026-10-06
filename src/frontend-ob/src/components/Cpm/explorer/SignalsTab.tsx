@@ -75,7 +75,10 @@ export const SignalsTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
           error={readiness.error} retry={() => void readiness.refetch()} />
       )}
 
-      {roles.length === 0 && <EmptyState title="No signal mappings" />}
+      {roles.length === 0 && (
+        <EmptyState title="No signal mappings" copy="The loop registry maps no PV / SP / OP tags for this loop, so no signal can be read or evaluated."
+          next={[{ label: 'Map its tags in the Loop Registry', to: `/cpm/registry?loop=${encodeURIComponent(loop.loopId)}` }]} />
+      )}
 
       {roles.length > 0 && href && (
         <div className="cpm-filter-row" style={{ marginBottom: 8 }}>

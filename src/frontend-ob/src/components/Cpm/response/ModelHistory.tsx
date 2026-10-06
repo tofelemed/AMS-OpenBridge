@@ -14,7 +14,7 @@ import { codeLabel } from '../vocabulary';
 
 export const ModelHistoryBody: React.FC<{ models: SystemModel[]; timeZone: string; canReview: boolean; onReview: (m: SystemModel) => void }> = ({ models, timeZone, canReview, onReview }) => {
   if (models.length === 0) {
-    return <EmptyState title="No system model for this loop" copy="A model appears when an event reaches the candidate-model stage; validated and baseline models are reviewed here." />;
+    return <EmptyState title="No system model for this loop" copy="A model is estimated from an accepted response event (a qualifying setpoint or output step); this loop has none yet. Once one exists, its candidate, validated and baseline models are reviewed here." />;
   }
   const charts = MODEL_PARAMS.map(p => ({ param: p, points: paramPoints(models, p) })).filter(c => c.points.length > 0);
   return (

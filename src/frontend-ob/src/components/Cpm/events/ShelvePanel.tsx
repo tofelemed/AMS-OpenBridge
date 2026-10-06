@@ -13,6 +13,7 @@ import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/comp
 import type { CpmEventFrame } from '../../../api/cpmApi';
 import { fmtDateTime } from '../shared';
 import { presetsWithin, shelfCountdown, shelfState } from './shelfState';
+import { ReasonedButton } from '../ReasonedButton';
 
 export interface ShelvePanelProps {
   event: CpmEventFrame;
@@ -84,11 +85,11 @@ export const ShelvePanel: React.FC<ShelvePanelProps> = ({ event, canManage, pend
         {invalid ?? `Shelved until ${fmtDateTime(until)} (${shelfCountdown(new Date(until).toISOString(), now)}).`}
       </p>
       <div className="cpm-filter-row">
-        <ObcButton variant="raised" disabled={!canManage || pending || !!invalid}
+        <ReasonedButton variant="raised" disabled={!canManage || pending || !!invalid} reason={!canManage ? 'Needs the cpm.manage permission' : null}
           title={!canManage ? 'Needs the cpm.manage permission' : invalid ?? (active ? 'Replace the current expiry and reason' : 'Shelve until the stated expiry')}
           onClick={() => { if (!invalid) onShelve(new Date(until).toISOString(), reason.trim()); }}>
           {pending ? 'Saving…' : active ? 'Update shelf' : 'Shelve'}
-        </ObcButton>
+        </ReasonedButton>
         <ObcButton variant="flat" disabled={pending} onClick={onClose}>Cancel</ObcButton>
       </div>
       {error != null && (

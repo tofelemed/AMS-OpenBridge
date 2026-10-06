@@ -161,7 +161,8 @@ export const CpmOverview: React.FC = () => {
           )}
           {events.isLoading && <EmptyState title="Loading events…" />}
           {!events.isLoading && !events.isError && (events.data?.events ?? []).length === 0 && (
-            <EmptyState title="No recent events" />
+            <EmptyState title="No recent events" copy="No diagnosis episode has opened or closed on the monitored loops recently."
+              next={[{ label: 'All episodes in Loop Events', to: '/cpm/events' }]} />
           )}
           {(events.data?.events ?? []).map(e => (
             <div key={e.id} className="cpm-trail-row">

@@ -29,6 +29,7 @@ import { gateMark } from './gateStatus';
 import { fmtQuantity } from './evidence/format';
 import { contextOfMatrix, contextOfRow, metricAvailability, type MetricAvailability } from './metricAvailability';
 import { evidenceScore } from './evidenceScore';
+import SelectionSummary from './SelectionSummary';
 
 /** gates/latest 404 = "no fused window yet" — an answer, not a failure. */
 const isNoVerdict = (e: unknown) => e instanceof ApiError && e.status === 404;
@@ -176,12 +177,18 @@ export const CpmCalculations: React.FC = () => {
       <LoopContextBar loopId={loop?.loopId ?? loopId} period={{ label: 'Latest results · 24h fused window', start: gates.data?.windowStart, end: gates.data?.windowEnd }} />
 
       <section className="cpm-surface">
-        <PanelHead eyebrow="1 · Select the loop" title="Which loop do you want to evaluate?" />
-        <PlantScopeFilter scope={scope} />
+        {/* SME #21 (CHG-057): with a loop already chosen (carried from the menu) the step no longer asks for one */}
+        <PanelHead eyebrow={loop ? '1 · Loop' : '1 · Select the loop'}
+          title={loop ? `${loop.loopId} · ${loop.displayName}` : 'Which loop do you want to evaluate?'} />
+        <SelectionSummary summary={loop ? `${loop.loopId} — pick another loop or plant scope` : null}>
+          <PlantScopeFilter scope={scope} />
+          <div className="cpm-toolbar">
+            <LoopCombobox scope={scope} loops={loops} value={loop?.loopId ?? ''}
+              onChange={id => { setParams(p => { p.set('loop', id); return p; }, { replace: true }); setPage(0); }}
+              onClear={() => { setParams(p => { p.delete('loop'); return p; }, { replace: true }); setPage(0); }} />
+          </div>
+        </SelectionSummary>
         <div className="cpm-toolbar">
-          <LoopCombobox scope={scope} loops={loops} value={loop?.loopId ?? ''}
-            onChange={id => { setParams(p => { p.set('loop', id); return p; }, { replace: true }); setPage(0); }}
-            onClear={() => { setParams(p => { p.delete('loop'); return p; }, { replace: true }); setPage(0); }} />
           {loop && (
             <>
               {/* C4: a FAILED gates fetch is not a NOT_EVALUATED verdict — the
@@ -281,7 +288,10 @@ export const CpmCalculations: React.FC = () => {
             </div>
           );
         })}
-        {rows.length === 0 && <EmptyState title="No matching metrics" />}
+        {rows.length === 0 && (
+          <EmptyState title="No matching metrics" copy="No calculation matches the search and filters above."
+            action={{ label: 'Clear search and filters', onClick: () => { setSearch(''); setKindFilter('all'); setGateFilter('all'); } }} />
+        )}
 
         <div className="cpm-wizard-footer">
           <ObcButton variant="normal" disabled={safePage === 0} onClick={() => setPage(Math.max(0, safePage - 1))}>Previous</ObcButton>

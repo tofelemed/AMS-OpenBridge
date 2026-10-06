@@ -39,7 +39,14 @@ export const CaseTriage: React.FC<{
           Clear filter
         </ObcButton>
       )} />
-    {cases.length === 0 && <EmptyState title="No evaluated loops yet" />}
+    {cases.length === 0 && (
+      <EmptyState title="No evaluated loops yet"
+        copy={scope.active
+          ? 'No loop in the selected plant scope has a fused verdict yet — the scope may be too narrow, or its loops have not completed a 12 h / 24 h window.'
+          : 'No loop has completed a 12 h / 24 h evaluation window yet. Pipeline Health shows whether the analysis jobs are running.'}
+        action={scope.active ? { label: 'Clear the plant scope', onClick: () => scope.set({ site: '' }) } : undefined}
+        next={scope.active ? undefined : [{ label: 'Pipeline Health', to: '/cpm/pipeline' }]} />
+    )}
     <div className="cpm-filter-row">
       {cases.map(([c, n]) => (
         <ObcFilterChip

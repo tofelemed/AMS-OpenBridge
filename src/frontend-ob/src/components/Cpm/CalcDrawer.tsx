@@ -31,6 +31,7 @@ import type { MetricDef } from './calcCatalogue';
 import { diagnosisLabel } from './vocabulary';
 import { fmtQuantity } from './evidence/format';
 import { evidenceScore, evidenceScoreText } from './evidenceScore';
+import { historicalHref } from './cpaHref';
 
 const DRAWER_TABS = ['Definition', 'Validation', 'History'] as const;
 
@@ -268,7 +269,9 @@ export const CalcDrawer: React.FC<{
             )}
             {!events.isLoading && !events.isError
               && (events.data?.events ?? []).length === 0 && (
-              <EmptyState title="No episodes recorded" />
+              <EmptyState title="No episodes recorded"
+                copy="No finding on this loop persisted long enough to open a diagnosis episode in the retained period."
+                next={[{ label: 'Verdicts over time in Historical', to: historicalHref(loopId) }]} />
             )}
             {(events.data?.events ?? []).map(e => (
               <KvRow key={e.id} label={fmtDateTime(e.opened_at)}>

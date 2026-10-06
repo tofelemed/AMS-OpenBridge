@@ -9,6 +9,7 @@ import React, { useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmEventFrame } from '../../../api/cpmApi';
 import { isAcknowledged, shelfCountdown, shelfState } from './shelfState';
+import { ReasonedButton } from '../ReasonedButton';
 
 export interface UnshelvePanelProps {
   event: CpmEventFrame;
@@ -38,11 +39,11 @@ export const UnshelvePanel: React.FC<UnshelvePanelProps> = ({ event, canManage, 
           placeholder="valve overhauled · disturbance cleared · shelved by mistake" />
       </label>
       <div className="cpm-filter-row">
-        <ObcButton variant="raised" disabled={!canManage || pending}
+        <ReasonedButton variant="raised" disabled={!canManage || pending} reason={!canManage ? 'Needs the cpm.manage permission' : null}
           title={!canManage ? 'Needs the cpm.manage permission' : 'End the shelf now'}
           onClick={() => onUnshelve(reason.trim() || undefined)}>
           {pending ? 'Unshelving…' : 'Unshelve'}
-        </ObcButton>
+        </ReasonedButton>
         <ObcButton variant="flat" disabled={pending} onClick={onClose}>Cancel</ObcButton>
       </div>
       {error != null && (

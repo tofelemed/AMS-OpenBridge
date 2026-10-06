@@ -7,6 +7,7 @@
  * status/alert token colors there, never onto raw hex here.
  */
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObcIconButton } from '@oicl/openbridge-webcomponents-react/components/icon-button/icon-button';
 import type { CpmWindowSpec } from '../../api/cpmApi';
@@ -398,18 +399,28 @@ export const KvRow: React.FC<{ label: string; children: React.ReactNode }> = ({
 );
 
 /** Honest empty state — the alternative to fabricated numbers. */
+/**
+ * An empty state says WHAT is unavailable (title), WHY (copy) and WHERE NEXT (an action and / or up to two
+ * links that keep the loop and period) — SME review #21 (CHG-057).
+ */
 export const EmptyState: React.FC<{
   title: string;
   copy?: string;
   action?: { label: string; onClick: () => void };
-}> = ({ title, copy, action }) => (
+  next?: Array<{ label: string; to: string }>;
+}> = ({ title, copy, action, next }) => (
   <div className="cpm-empty">
     <h3>{title}</h3>
     {copy && <p>{copy}</p>}
-    {action && (
-      <ObcButton variant="normal" onClick={action.onClick}>
-        {action.label}
-      </ObcButton>
+    {(action || (next && next.length > 0)) && (
+      <div className="cpm-empty__next">
+        {action && (
+          <ObcButton variant="normal" onClick={action.onClick}>
+            {action.label}
+          </ObcButton>
+        )}
+        {next?.slice(0, 2).map(n => <Link key={n.to} className="cpm-link" to={n.to}>{n.label} ›</Link>)}
+      </div>
     )}
   </div>
 );

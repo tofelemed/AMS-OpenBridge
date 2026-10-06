@@ -12,7 +12,6 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KpiTile, KvRow, PanelHead, QueryError, TonePill, WorkspaceHeader,
   cpmChartColors, fmtDuration,
@@ -25,6 +24,7 @@ import { useObcTheme } from '../../hooks/useObcTheme';
 import { boxZoomOption } from '../charts/boxZoom';
 import { useBoxZoom, useKeepSelecting } from '../charts/useBoxZoom';
 import ChartZoomBar from '../charts/ChartZoomBar';
+import { ReasonedButton } from './ReasonedButton';
 
 const fmtUptime = (sec: number | null | undefined) => {
   if (sec == null) return '—';
@@ -253,10 +253,11 @@ export const CpmPipeline: React.FC = () => {
             {!canManage && ' Requires the cpm.manage permission.'}
           </p>
           <div className="cpm-filter-row">
-            <ObcButton variant="raised" disabled={!refLoop || !canManage || e2eBusy}
+            <ReasonedButton variant="raised" disabled={!refLoop || !canManage || e2eBusy}
+              reason={!canManage ? 'Needs the cpm.manage permission' : !refLoop ? 'No loop has a verdict to use as the reference yet' : null}
               onClick={() => { reset(); setE2eStartedAt(Date.now()); setE2eElapsedS(null); submit.mutate(); }}>
               {e2eBusy ? 'Verifying…' : 'Run E2E verification'}
-            </ObcButton>
+            </ReasonedButton>
             {submit.isError && (
               <span className="cpm-field__error">
                 Failed to start: {(submit.error as Error)?.message ?? 'unknown'}

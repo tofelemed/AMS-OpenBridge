@@ -23,6 +23,7 @@ import { shortIdentity } from '../../api/cpm/capabilities';
 import { useAuthStore } from '../../store/authStore';
 import { useRoleMatrix } from './useRoleMatrix';
 import { codeLabel } from './vocabulary';
+import { ReasonedButton } from './ReasonedButton';
 
 /** Rows fetched per request, and rows rendered per page of that fetch. */
 const AUDIT_TAKE = 200;
@@ -110,10 +111,10 @@ export const CpmGovernance: React.FC = () => {
         <PanelHead eyebrow="Immutable audit trail" title="Governance events"
           right={
             <div className="cpm-filter-row">
-              <ObcButton variant="normal" disabled={!canReadAudit || verify.isPending}
-                onClick={() => verify.mutate()}>
+              <ReasonedButton variant="normal" disabled={!canReadAudit || verify.isPending}
+                reason={!canReadAudit ? 'Needs the admin.audit.view permission' : null} onClick={() => verify.mutate()}>
                 {verify.isPending ? 'Verifying chain…' : 'Verify cryptographic chain'}
-              </ObcButton>
+              </ReasonedButton>
             </div>
           } />
         {verify.isSuccess && <p className="cpm-copy"><TonePill tone="good">CHAIN OK</TonePill>&nbsp;{String(verify.data)}</p>}

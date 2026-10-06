@@ -3480,9 +3480,51 @@ Investigation SYN_TIC_002 pill "evidence score 89" + note "This score is capped 
 valve position (G14)"; FIC10401 "evidence score 100", comparison row "Evidence score 100 | 100"; no "confidence" left in the
 Performance page text; 0 console errors.
 
+## CHG-057 — SME review #21: empty pages say what, why and where next; unavailable actions show their reason (2026-10-06)
+
+**Source:** `SME_review.md` point 21. **Scope:** `ams-frontend` only: `components/Cpm/shared.tsx` (`EmptyState` gains `next`
+links), new `ReasonedButton.tsx` (+ test); `response/{ResponseWorkspace, ModelHistory}.tsx`, `CalcDrawer.tsx`,
+`CpmCalculations.tsx`, `CpmOverview.tsx`, `explorer/{HistoryTab, SignalsTab}.tsx`, `investigation/{CaseTriage,
+HypothesisPanel}.tsx`, `events/{EventDetail, ShelvePanel, UnshelvePanel}.tsx`, `CpmGovernance.tsx`, `CpmPipeline.tsx`,
+`CpmReplay.tsx`, `config/{DeploymentStatus, ShadowComparison}.tsx`, `styles/cpm-evidence-layout.css`. No service change.
+
+**What the SME said.** Empty pages need a more helpful next step — System Response has no events / model for the selected loop,
+and other pages ask to select the loop again; explain what is unavailable, why, and where to go next; unavailable actions should
+have their reason visible.
+
+**Verified before the change.** Correct. 112 empty states in 50 files: ~40 are "Loading…" (fine), 8 genuine empties named the
+gap with no reason or way forward. System Response for a loop without events said "No event selected — Choose an event on the
+left" (nothing to choose; 119 censored candidates on FIC10401) and "No system model" without saying how one is made. ~9 actions
+gated by role / prerequisite gave their reason only in a hover title or not at all. Loop carry-over: the menu (CHG-040) keeps the
+loop on all 13 pages (lab-checked), but Calculations still opened with "1 · Select the loop — Which loop do you want to
+evaluate?" and the full picker while the loop was selected.
+
+**What changed.**
+- **Empty state = what · why · where next** (`EmptyState` + up to two links that keep the loop): System Response "No response
+  events for this loop — events are captured from qualifying setpoint or output changes; none qualified in the retained period
+  (119 captured candidates were censored …). A system model needs at least one accepted event." → *Step-test settings (Gate
+  Configuration › G12)* · *Setpoint changes in Historical*; the "Choose an event" and empty "Event details" panels are hidden when
+  there is nothing to choose; "No system model" says a model is estimated from an accepted response event. Also: episodes
+  (drawer, Explorer history → Historical), Overview "No recent events" → Loop Events, Explorer "No signal mappings" → Loop
+  Registry, Calculations "No matching metrics" → *Clear search and filters*, Investigation "No evaluated loops yet" (names the
+  plant scope → *Clear the plant scope*, else → Pipeline Health), "No hypotheses on this window".
+- **Unavailable actions show why** (`ReasonedButton`: the reason under the disabled button, tied by `aria-describedby`):
+  Acknowledge / Shelve / Unshelve ("Already acknowledged", "The episode is not shelved", "Needs the cpm.manage permission"),
+  Governance chain verify (admin.audit.view), Pipeline E2E (cpm.manage / no reference loop), Replay export / re-run, deployment
+  roll-back (cpm.config.rollback), shadow run (cpm.config.shadow / validate first). Lifecycle actions already showed theirs.
+- **Calculations** no longer asks for a loop that is selected: "1 · Loop — FIC10401 · Flow controller …" with the pickers folded
+  behind "Showing … Change ▾" (the CHG-050 pattern).
+- Event detail "Fault family OSCILLATION" → "Oscillation" (a CHG-051 leftover).
+
+**Tests.** `ReasonedButton.test.tsx` (new, 3: reason shown and described-by when disabled, none when enabled; empty state what /
+why / next link). Frontend 86 files / 397 tests green; lint / tsc / build clean. **Lab pass 2026-10-06:** System Response
+FIC10401 as above, the G12 link lands on `/cpm/config?loop=FIC10401&view=effective&gate=G12`; the menu carries FIC10401 to all
+13 pages and none asks for a loop; Loop Events "Unshelve…" shows "The episode is not shelved"; night theme; 0 console errors.
+(The lab cplm-api was stopped 13:50–13:58 UTC by the CHG-049 session's evidence reclaim; checks ran after its restart.)
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-056) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
+- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-057) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
   migration, no Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant: `docker load` the `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
@@ -3520,3 +3562,5 @@ Performance page text; 0 console errors.
   Investigation's conclusion lists Observed / Possible cause (not confirmed) / Ruled out / No evidence.
   (CHG-056) no "% confidence" anywhere: results read "evidence score 97" with the meaning beside the Investigation conclusion;
   a capped score says why (e.g. "capped at 89: a valve cause cannot be confirmed without valve position").
+  (CHG-057) System Response on a loop without events explains why and links to the G12 step-test settings and Historical;
+  a disabled action shows its reason under the button.

@@ -6,11 +6,11 @@
  */
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { KvRow, PanelHead, QueryError, TonePill, fmtDateTime } from '../shared';
 import { apiJson } from '../../../api/apiFetch';
 import { CPM_BASE } from '../../../api/cpm/base';
 import type { Bundle } from '../../../api/cpm/config';
+import { ReasonedButton } from '../ReasonedButton';
 
 export interface ShadowReport {
   bundleId: string; analysisRunId: string | null; runState: string; loopId: string | null; fromMs: number | null; toMs: number | null;
@@ -48,9 +48,11 @@ export const ShadowComparison: React.FC<{
           <input className="cpm-input" value={loopId} onChange={e => setLoopId(e.target.value)} placeholder="loop id" disabled={bundle.scopeKind === 'LOOP'} /></label>
         <label className="cpm-field cpm-field--compact"><span className="cpm-field__label">Hours</span>
           <input className="cpm-input" value={hours} onChange={e => setHours(e.target.value)} inputMode="numeric" /></label>
-        <ObcButton variant="raised" disabled={!startable || pending} onClick={() => onStart({ loopId: bundle.scopeKind === 'LOOP' ? undefined : loopId || undefined, hours: Number(hours) || 24 })}>
+        <ReasonedButton variant="raised" disabled={!startable || pending}
+          reason={!canShadow ? 'Needs the cpm.config.shadow permission' : !startable ? 'Validate the bundle first — only a validated bundle can be shadow-run' : null}
+          onClick={() => onStart({ loopId: bundle.scopeKind === 'LOOP' ? undefined : loopId || undefined, hours: Number(hours) || 24 })}>
           {pending ? 'Starting…' : shadow?.analysisRunId ? 'Run again' : 'Run shadow'}
-        </ObcButton>
+        </ReasonedButton>
       </div>
       {!canShadow && <p className="cpm-copy">Starting a shadow run needs cpm.config.shadow.</p>}
       {bundle.state !== 'VALIDATED' && bundle.state !== 'SHADOW_EVALUATED' && <p className="cpm-copy">Validate the draft first (state {bundle.state}).</p>}

@@ -147,3 +147,8 @@
 
 /* Evidence-score meaning beside the result (SME #20, CHG-056). */
 .cpm-score-note { margin: 2px 0 8px; font-size: 0.8rem; color: var(--element-neutral-color); }
+
+/* Empty states with a way forward; unavailable actions with their reason (SME #21, CHG-057). */
+.cpm-empty__next { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 16px; margin-top: 8px; }
+.cpm-reasoned { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; max-width: 100%; }
+.cpm-reasoned__why { font-size: 0.78rem; color: var(--element-neutral-color); max-width: 32ch; }

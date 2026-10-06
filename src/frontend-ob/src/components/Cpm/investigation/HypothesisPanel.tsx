@@ -82,7 +82,10 @@ export const HypothesisPanel: React.FC<{
     <>
       <PanelHead eyebrow="Hypothesis comparison" title="Mechanisms and the evidence for each"
         right={<TonePill tone="muted">revision {verdict.resultRevision}</TonePill>} />
-      {ids.length === 0 && <EmptyState title="No hypotheses on this window" />}
+      {ids.length === 0 && (
+        <EmptyState title="No hypotheses on this window"
+          copy="No mechanism had evidence to rank on this window — the observations above show what was (and was not) seen." />
+      )}
       {ids.map(id => {
         const h = verdict.hypotheses[id];
         const leading = verdict.leadingHypothesis === id;

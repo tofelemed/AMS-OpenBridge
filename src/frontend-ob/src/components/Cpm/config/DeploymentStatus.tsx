@@ -8,11 +8,11 @@
  * verified (or on request), so two deployments no longer repeat two 6-row tables.
  */
 import React from 'react';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { KvRow, PanelHead, TonePill, fmtDateTime } from '../shared';
 import type { Deployment, WorkerAck } from '../../../api/cpm/config';
 import { deploymentStateText, deploymentStateTone, shortHash } from './configSupport';
 import { ackSummary } from './lifecycle';
+import { ReasonedButton } from '../ReasonedButton';
 
 const ackCell = (a: WorkerAck | null, expectedHash: string): React.ReactNode => {
   if (!a) return <TonePill tone="muted">pending</TonePill>;
@@ -69,9 +69,10 @@ export const DeploymentStatus: React.FC<{
       {probe && <KvRow label="probe">{probe.pinnedResults ?? 0} result(s) pinned to this hash{probe.checkedAt ? ` · checked ${fmtDateTime(probe.checkedAt)}` : ''}</KvRow>}
       <p className="cpm-event-row__sub">{d.semantics}</p>
       {d.state === 'ACTIVE_VERIFIED' && d.kind === 'ACTIVATE' && (
-        <ObcButton variant="flat" disabled={!canRollback || rollbackPending} onClick={() => onRollback(d.deploymentId)}>
+        <ReasonedButton variant="flat" disabled={!canRollback || rollbackPending} reason={!canRollback ? 'Needs the cpm.config.rollback permission' : null}
+          onClick={() => onRollback(d.deploymentId)}>
           {rollbackPending ? 'Rolling back…' : 'Roll back to the previous bundle'}
-        </ObcButton>
+        </ReasonedButton>
       )}
       {!canRollback && d.state === 'ACTIVE_VERIFIED' && <p className="cpm-copy">Rollback needs cpm.config.rollback.</p>}
     </li>

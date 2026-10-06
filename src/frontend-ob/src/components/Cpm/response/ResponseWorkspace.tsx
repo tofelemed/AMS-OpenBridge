@@ -23,7 +23,7 @@ import type { ResponseEventSummary, SystemModel } from '../../../api/cpm/respons
 import { useEvidenceManifest, useMethodRun } from '../evidence/useEvidence';
 import { useGateArtifacts } from '../evidence/useGateArtifacts';
 import { siteZoneOf } from '../evidence/timezone';
-import { explorerHref, responseHref } from '../cpaHref';
+import { explorerHref, historicalHref, responseHref } from '../cpaHref';
 import { EventList } from './EventList';
 import { ResultCard } from './ResultCard';
 import { EventAside } from './EventAside';
@@ -66,6 +66,7 @@ export const ResponseWorkspace: React.FC = () => {
   }, [runLookup.data, eventParam, loopId, navigate]);
 
   const selected: ResponseEventSummary | undefined = flat.find(e => e.eventId === eventParam);
+  const noEvents = events.isSuccess && flat.length === 0 && !showCensored;
   const detail = useResponseEvent(eventParam);
   // a deep link to a censored candidate: list it rather than leave the selection invisible
   useEffect(() => {
@@ -134,7 +135,15 @@ export const ResponseWorkspace: React.FC = () => {
 
         <main className="cpm-response-centre" aria-busy={eventLoading || arts.loading || undefined}>
           {events.isError && <QueryError error={events.error} retry={() => void events.refetch()} />}
-          {!eventParam && !methodRunParam && <EmptyState title="No event selected" copy="Choose an event on the left. Its result, chart, residuals, candidate models and Bode data are the kernel's artifacts for that method run." />}
+          {!eventParam && !methodRunParam && (noEvents ? (
+            // SME #21 (CHG-057): nothing to choose — say why and where to go, instead of "choose an event on the left"
+            <EmptyState title="No response events for this loop"
+              copy={`Events are captured from qualifying setpoint or output changes; none qualified in the retained period${censoredCount > 0 ? ` (${censoredCount} captured candidate${censoredCount === 1 ? ' was' : 's were'} censored — show them on the left to read why)` : ''}. A system model needs at least one accepted event.`}
+              next={[
+                { label: 'Step-test settings (Gate Configuration › G12)', to: `/cpm/config?loop=${encodeURIComponent(loopId)}&view=effective&gate=G12` },
+                { label: 'Setpoint changes in Historical', to: historicalHref(loopId) },
+              ]} />
+          ) : <EmptyState title="No event selected" copy="Choose an event on the left. Its result, chart, residuals, candidate models and Bode data are the kernel's artifacts for that method run." />)}
           {!eventParam && methodRunParam && (runLookup.isError ? <QueryError error={runLookup.error} /> : <EmptyState title="Resolving the method run to its event…" />)}
           {eventParam && detail.isError && <QueryError error={detail.error} retry={() => void detail.refetch()} />}
           {eventParam && !detail.isError && <ResultCard result={result} metrics={detail.data?.metrics} loading={detail.isLoading} />}
@@ -177,7 +186,7 @@ export const ResponseWorkspace: React.FC = () => {
               <span className="cpm-skeleton__label">Loading the event…</span>
             </div>
           )}
-          {!eventParam && <EmptyState title="Event details" copy="The steps, identity and key results of the selected event appear here." />}
+          {!eventParam && !noEvents && <EmptyState title="Event details" copy="The steps, identity and key results of the selected event appear here." />}
         </aside>
       </div>
       {reviewing && <ModelReviewDialog model={reviewing} pending={review.isPending} error={review.error} onClose={() => setReviewing(null)} onSubmit={args => review.mutate(args)} />}

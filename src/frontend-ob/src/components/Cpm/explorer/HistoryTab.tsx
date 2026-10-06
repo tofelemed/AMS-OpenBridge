@@ -25,6 +25,7 @@ import { usePagedSlice } from '../../shared/ListPager';
 import { shelfState } from '../events/shelfState';
 import { diagnosisLabel } from '../vocabulary';
 import { evidenceScoreText } from '../evidenceScore';
+import { historicalHref } from '../cpaHref';
 
 /**
  * sort:'recent' is load-bearing, not a preference: the endpoint's default order
@@ -135,7 +136,9 @@ export const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
           error={events.error} retry={() => void events.refetch()} />
       )}
       {!events.isLoading && !events.isError && runs.length === 0 && (
-        <EmptyState title="No diagnosis episodes recorded for this loop" />
+        <EmptyState title="No diagnosis episodes recorded for this loop"
+          copy="An episode opens when a finding persists across windows; none has on this loop in the retained period."
+          next={[{ label: 'Verdicts over time in Historical', to: historicalHref(loop.loopId) }]} />
       )}
 
       {pageItems.map(run => {

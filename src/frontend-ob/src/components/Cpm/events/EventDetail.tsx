@@ -16,8 +16,9 @@ import { EmptyState, KvRow, PanelHead, TonePill, fmtDateTime, toneFor } from '..
 import { explorerHref } from '../cpaHref';
 import { availabilityCopy, availabilityPill, conditionOf, supportCopy } from './eventsState';
 import { isAcknowledged, shelfCountdown, shelfState, stateView } from './shelfState';
-import { diagnosisLabel, phrase } from '../vocabulary';
+import { codeLabel, diagnosisLabel, phrase } from '../vocabulary';
 import { EVIDENCE_SCORE_HELP, evidenceScore, evidenceScoreText } from '../evidenceScore';
+import { ReasonedButton } from '../ReasonedButton';
 
 const ShelvePanel = React.lazy(() => import('./ShelvePanel'));
 const UnshelvePanel = React.lazy(() => import('./UnshelvePanel'));
@@ -107,7 +108,7 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
       <p className="cpm-copy">{availabilityCopy(event)}</p>
 
       <PanelHead eyebrow="Evidence" title="Provenance" />
-      <KvRow label="Fault family">{event.family}</KvRow>
+      <KvRow label="Fault family"><span title={event.family}>{codeLabel(event.family)}</span></KvRow>
       <KvRow label="Peak evidence score"><span title={EVIDENCE_SCORE_HELP}>{evidenceScore(event.peak_confidence)}</span></KvRow>
       <KvRow label="Resolution">{event.window_kind}</KvRow>
       <KvRow label="Calculation version">{event.calculation_version ?? '—'}</KvRow>
@@ -136,18 +137,19 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
         </label>
       )}
       <div className="cpm-inspector__actions">
-        <ObcButton variant="raised" disabled={!canManage || ack.isPending || acked} title={ackTitle}
+        {/* SME #21 (CHG-057): the reason an action is unavailable is on screen, not only in the hover title */}
+        <ReasonedButton variant="raised" disabled={!canManage || ack.isPending || acked} title={ackTitle} reason={ack.isPending ? null : ackTitle}
           onClick={() => ack.mutate({ id: event.id, note: note || undefined }, { onSuccess: () => setNote('') })}>
           {ack.isPending ? 'Acknowledging…' : 'Acknowledge'}
-        </ObcButton>
-        <ObcButton variant="normal" disabled={!canManage || !open || shelve.isPending} title={shelveTitle}
-          aria-pressed={panel === 'shelve'} onClick={() => toggle('shelve')}>
+        </ReasonedButton>
+        <ReasonedButton variant="normal" disabled={!canManage || !open || shelve.isPending} title={shelveTitle} reason={shelve.isPending ? null : shelveTitle}
+          ariaPressed={panel === 'shelve'} onClick={() => toggle('shelve')}>
           {shelf === 'ACTIVE' ? 'Update shelf…' : 'Shelve…'}
-        </ObcButton>
-        <ObcButton variant="normal" disabled={!canManage || !shelf || unshelve.isPending} title={unshelveTitle}
-          aria-pressed={panel === 'unshelve'} onClick={() => toggle('unshelve')}>
+        </ReasonedButton>
+        <ReasonedButton variant="normal" disabled={!canManage || !shelf || unshelve.isPending} title={unshelveTitle} reason={unshelve.isPending ? null : unshelveTitle}
+          ariaPressed={panel === 'unshelve'} onClick={() => toggle('unshelve')}>
           Unshelve…
-        </ObcButton>
+        </ReasonedButton>
         <ObcButton variant="flat" aria-pressed={historyOpen} title="Every acknowledge, shelve, unshelve and expiry on this episode"
           onClick={() => setHistoryOpen(h => !h)}>
           History ›
