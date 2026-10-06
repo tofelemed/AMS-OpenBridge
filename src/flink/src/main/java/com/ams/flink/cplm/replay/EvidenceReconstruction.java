@@ -101,7 +101,7 @@ public final class EvidenceReconstruction extends KeyedProcessFunction<String, C
             }
             case "long": {
                 CplmLongDiagnosticsResult r = CplmGateEngine.computeLongDiagnostics(samples, t.fromMs, t.toMs, t.windowKind);
-                all = LongArtifacts.artifacts(r);
+                all = LongArtifacts.artifacts(r, 0);
                 break;
             }
             default: {

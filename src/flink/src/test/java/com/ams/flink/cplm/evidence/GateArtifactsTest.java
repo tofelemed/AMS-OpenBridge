@@ -159,6 +159,17 @@ public class GateArtifactsTest {
     }
 
     @Test
+    public void cycleArtifactsAreCappedAndEveryCycleIsInTheSummary() {
+        List<EvidenceArtifact> capped = LongArtifacts.artifacts(LONG_RESULT, 2);
+        long fits = capped.stream().filter(a -> "cycle_fit".equals(a.kind)).count();
+        long polys = capped.stream().filter(a -> "cycle_polygon".equals(a.kind)).count();
+        assertTrue(fits <= 2 && polys <= 2);
+        EvidenceArtifact summary = capped.stream().filter(a -> "cycle_scores".equals(a.kind)).findFirst().orElseThrow(() -> new AssertionError("no cycle_scores"));
+        assertEquals(LONG_RESULT.intermediates.triangularity.cycles.size(), summary.calculationSamples());
+        assertEquals(LONG_RESULT.intermediates.triangularity.cycles.size(), ((Number) summary.provenance.get("cycles_total")).intValue());
+    }
+
+    @Test
     public void everyArtifactHasUnitsAlignedMasksAndProvenance() {
         List<EvidenceArtifact> all = new ArrayList<>();
         all.addAll(SHORT);

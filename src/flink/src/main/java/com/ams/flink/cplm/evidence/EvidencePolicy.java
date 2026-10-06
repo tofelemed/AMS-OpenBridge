@@ -20,23 +20,45 @@ public final class EvidencePolicy implements Serializable {
 
     public enum Mode { EPISODES, ALL, NONE }
 
+    public static final String ARG_MAX_CYCLES = "--evidence-max-cycles";
+    public static final int DEFAULT_MAX_CYCLES = 12;
+
     public final Mode mode;
+    /** CHG-049: per-cycle G7/G9 artifacts pushed live; <= 0 = every cycle. */
+    public final int maxCycles;
 
     public EvidencePolicy(Mode mode) {
+        this(mode, DEFAULT_MAX_CYCLES);
+    }
+
+    public EvidencePolicy(Mode mode, int maxCycles) {
         this.mode = mode == null ? Mode.EPISODES : mode;
+        this.maxCycles = maxCycles;
     }
 
     public static EvidencePolicy fromArgs(String[] args) {
+        Mode mode = Mode.EPISODES;
+        boolean modeSeen = false;
+        int maxCycles = DEFAULT_MAX_CYCLES;
+        boolean cyclesSeen = false;
         for (int i = 0; i + 1 < args.length; i++) {
-            if (ARG.equals(args[i]) || ARG.substring(2).equals(args[i])) {
+            if (!modeSeen && (ARG.equals(args[i]) || ARG.substring(2).equals(args[i]))) {
+                modeSeen = true;
                 try {
-                    return new EvidencePolicy(Mode.valueOf(args[i + 1].trim().toUpperCase()));
+                    mode = Mode.valueOf(args[i + 1].trim().toUpperCase());
                 } catch (IllegalArgumentException e) {
-                    return new EvidencePolicy(Mode.EPISODES);
+                    mode = Mode.EPISODES;
+                }
+            } else if (!cyclesSeen && (ARG_MAX_CYCLES.equals(args[i]) || ARG_MAX_CYCLES.substring(2).equals(args[i]))) {
+                cyclesSeen = true;
+                try {
+                    maxCycles = Integer.parseInt(args[i + 1].trim());
+                } catch (NumberFormatException e) {
+                    maxCycles = DEFAULT_MAX_CYCLES;
                 }
             }
         }
-        return new EvidencePolicy(Mode.EPISODES);
+        return new EvidencePolicy(mode, maxCycles);
     }
 
     private static boolean finding(String status) {

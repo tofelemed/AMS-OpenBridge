@@ -146,7 +146,7 @@ public class CplmLongDiagnosticsStreamJob {
          *  intermediates are transient, so this runs before the result leaves the operator. */
         private void emitEvidence(OnTimerContext ctx, CplmLongDiagnosticsResult r, long nowMs) {
             if (!policy.emit(r)) return;
-            for (EvidenceArtifact a : LongArtifacts.artifacts(r)) {
+            for (EvidenceArtifact a : LongArtifacts.artifacts(r, policy.maxCycles)) {
                 for (String record : EvidenceKafkaRecords.records(a, MAPPER, nowMs)) ctx.output(EVIDENCE, record);
             }
         }

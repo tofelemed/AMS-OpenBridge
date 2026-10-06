@@ -22,7 +22,10 @@ public final class LongArtifacts {
 
     private LongArtifacts() {}
 
-    public static List<EvidenceArtifact> artifacts(CplmLongDiagnosticsResult r) {
+    public static List<EvidenceArtifact> artifacts(CplmLongDiagnosticsResult r) { return artifacts(r, 0); }
+
+    /** CHG-049: maxCycles caps the G7/G9 per-cycle artifacts (evenly spaced, ends kept); <= 0 = every cycle. */
+    public static List<EvidenceArtifact> artifacts(CplmLongDiagnosticsResult r, int maxCycles) {
         List<EvidenceArtifact> out = new ArrayList<>();
         if (r == null || r.methodRunIds == null) return out;
         out.addAll(LongEvidence.artifacts(r));                                  // G10 dwell_events / G11 freeze_events tables (1G.3)
@@ -37,14 +40,20 @@ public final class LongArtifacts {
         String g6 = r.methodRunIds.get("G6");
         if (g6 != null && k.fft != null && k.fft.psd.length > 0) out.add(stamp(psd(g6, k), r));
         String g7 = r.methodRunIds.get("G7");
-        if (g7 != null && k.triangularity != null) for (ShapeMath.CycleFit c : k.triangularity.cycles) out.add(stamp(cycleFit(g7, c), r));
+        if (g7 != null && k.triangularity != null && !k.triangularity.cycles.isEmpty()) {
+            List<ShapeMath.CycleFit> cs = k.triangularity.cycles;
+            int[] pick = CycleSampling.pick(cs.size(), maxCycles);
+            for (int i : pick) out.add(stamp(cycleFit(g7, cs.get(i)), r));
+            out.add(stamp(cycleScores(g7, cs, pick.length), r));      // CHG-049: every cycle's score survives the cap
+        }
         String g8 = r.methodRunIds.get("G8");
         if (g8 != null && k.horch != null && k.horch.lagIndex.length > 0) out.add(stamp(lagStructure(g8, k), r));
         String g9 = r.methodRunIds.get("G9");
         if (g9 != null && k.geometry != null) {
-            for (ShapeMath.CyclePolygon p : k.geometry.polygons) {
-                out.add(stamp(cyclePolygon(g9, p, k), r));
-                out.add(stamp(normalizedPairs(g9, p), r));
+            List<ShapeMath.CyclePolygon> ps = k.geometry.polygons;
+            for (int i : CycleSampling.pick(ps.size(), maxCycles)) {
+                out.add(stamp(cyclePolygon(g9, ps.get(i), k), r));
+                out.add(stamp(normalizedPairs(g9, ps.get(i)), r));
             }
             if (k.geometry.turningAngleRad.length > 0) out.add(stamp(corners(g9, k), r));
         }
@@ -113,6 +122,24 @@ public final class LongArtifacts {
         a.provenance.put("overlap_fraction", f.overlapFraction);
         a.provenance.put("segments", f.segments);
         a.provenance.put("mask", "peak_or_harmonic_bin");
+        return a;
+    }
+
+    /** CHG-049 G7: one row per cycle (all of them, accepted and rejected) so capping the per-cycle artifacts loses no score. */
+    static EvidenceArtifact cycleScores(String runId, List<ShapeMath.CycleFit> cs, int emitted) {
+        int n = cs.size();
+        double[] id = new double[n], score = new double[n], sine = new double[n], tri = new double[n], acc = new double[n];
+        for (int i = 0; i < n; i++) {
+            ShapeMath.CycleFit c = cs.get(i);
+            id[i] = c.cycleId; score[i] = c.score; sine[i] = c.sseSine; tri[i] = c.sseTriangle; acc[i] = c.accepted ? 1 : 0;
+        }
+        EvidenceArtifact a = EvidenceArtifact.series(runId, "G7", "cycle_scores", "ALL_CYCLES", "cycle_id", "ordinal", "cycle_score", "1", id, score, null);
+        a.column("sse_sine", "EU2", sine);
+        a.column("sse_triangle", "EU2", tri);
+        a.column("accepted", "boolean", acc);
+        a.provenance.put("cycles_total", n);
+        a.provenance.put("cycles_emitted", emitted);
+        a.provenance.put("cycle_selection", "EVEN_SPACED_ENDS_KEPT");
         return a;
     }
 
