@@ -53,7 +53,7 @@ const REASON: Record<string, string> = {
   INSUFFICIENT_SAMPLES: 'Too few samples', QUALITY_UNKNOWN: 'Source quality unknown', BANDWIDTH: 'Limited by the sampling rate',
   AREA_OUT_OF_BAND: 'Phase area outside the expected range', PERIOD_OUT_OF_BAND: 'Period outside the expected range',
   BUNDLE_MISMATCH_FUSION: 'Configuration changed between analysis steps', CORNER_NOISE_FLOOR: 'Waveform corners lost in noise',
-  NO_SHAPE_EVIDENCE: 'No stiction-shaped cycles', FAMILY_DISQUALIFIED: 'Ruled out by its own checks',
+  NO_SHAPE_EVIDENCE: 'No stiction-shaped cycles', FAMILY_DISQUALIFIED: 'Its own checks failed',
   LEGACY_FLAG_ONLY: 'Older result: a flag, not an analysis', NOT_A_FINAL_ELEMENT_CLAIM: 'Not a valve claim, nothing to confirm',
   NO_POSITIVE_EVIDENCE: 'No positive evidence', VP_TRACKING_HEALTHY: 'Valve position tracks its command',
   NON_FOLLOWING_DWELL: 'Valve did not follow its command', DISABLED_BY_CONFIG: 'Switched off in configuration',

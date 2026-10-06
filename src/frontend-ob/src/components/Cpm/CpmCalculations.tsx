@@ -27,6 +27,7 @@ import { METRICS, type MetricDef } from './calcCatalogue';
 import { diagnosisLabel } from './vocabulary';
 import { gateMark } from './gateStatus';
 import { fmtQuantity } from './evidence/format';
+import { contextOfMatrix, contextOfRow, metricAvailability, type MetricAvailability } from './metricAvailability';
 
 /** gates/latest 404 = "no fused window yet" — an answer, not a failure. */
 const isNoVerdict = (e: unknown) => e instanceof ApiError && e.status === 404;
@@ -92,12 +93,17 @@ export const CpmCalculations: React.FC = () => {
    * computed on a window that failed G0. The API ships both flags precisely so
    * a UI never renders those values as clean measurements — and this page did.
    */
+  const availabilityOf = (m: MetricDef): MetricAvailability | null => {
+    // CHG-053: per metric, not only per window — a placeholder 0 from a method that did not qualify
+    // (period with no clean cycle, shape gate not evaluated) is not a measurement either
+    const row = m.source === 'short' ? latestShort : m.source === 'long' ? latestLong : undefined;
+    const ctx = m.source === 'gate' ? (gates.data ? contextOfMatrix(gates.data) : null)
+      : row ? contextOfRow(row, m.source === 'short' ? 'short' : 'long') : null;
+    return ctx ? metricAvailability(ctx, m.field, valueOf(m)) : null;
+  };
   const disqualificationOf = (m: MetricDef): string | null => {
-    if (m.source === 'short' && latestShort?.sufficient_data === false)
-      return 'window declined (insufficient data) — stored values are zeroed placeholders';
-    if (m.source === 'long' && latestLong?.long_metrics_qualified === false)
-      return 'metrics unqualified — computed on a window that failed G0';
-    return null;
+    const a = availabilityOf(m);
+    return a && a.state !== 'measured' && valueOf(m) != null ? `${a.short}: ${a.reason}` : null;
   };
 
   /** C2 — WHEN the "latest" value is from; a 4-day-old number without a
@@ -261,7 +267,7 @@ export const CpmCalculations: React.FC = () => {
               {/* C1: a value from a DECLINED window is a zeroed placeholder the
                   engine told us not to trust — never render it as a measurement. */}
               <span title={disq ?? undefined}>
-                {disq ? '— (declined)' : v != null ? fmtQuantity(v, m.unit) : '—'}
+                {disq ? <span className="cpm-metric-na">{availabilityOf(m)?.short}</span> : v != null ? fmtQuantity(v, m.unit) : '—'}
               </span>
               {/* C2: WHEN, not just which resolution — "latest" without a
                   timestamp reads as current on a stale historian. */}

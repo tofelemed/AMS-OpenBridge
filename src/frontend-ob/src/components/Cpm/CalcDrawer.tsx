@@ -106,7 +106,7 @@ export const CalcDrawer: React.FC<{
           <div className={`cpm-kpi cpm-kpi--${disqualification ? 'warn' : status.tone}`}>
             <span className="cpm-kpi__caption">Latest value</span>
             <span className="cpm-kpi__value">
-              {disqualification ? '— (declined)' : value != null ? fmtQuantity(value, metric.unit) : '—'}
+              {disqualification ? <span className="cpm-metric-na">{disqualification.split(':')[0]}</span> : value != null ? fmtQuantity(value, metric.unit) : '—'}
             </span>
             <span className="cpm-kpi__sub">
               {disqualification ?? status.label}

@@ -13,6 +13,8 @@ import type { CpmKpiRow } from '../../../api/cpmApi';
 import { KvRow, PanelHead, TonePill, EmptyState } from '../shared';
 import { gateTone, glyphFor } from '../gateStatus';
 import { codeLabel } from '../vocabulary';
+import { contextOfRow, metricAvailability } from '../metricAvailability';
+import { MetricValue } from '../MetricValue';
 
 export const SHORT_GATES: { key: string; field: string; name: string }[] = [
   { key: 'G0', field: 'gate0_status', name: 'Data quality' },
@@ -106,6 +108,7 @@ export const WindowResultsPanel: React.FC<{
   const declined = isDeclined(row, tier);
   const metrics = tier === 'short' ? SHORT_METRICS : LONG_METRICS;
   const half = Math.ceil(metrics.length / 2);
+  const ctx = contextOfRow(row, tier);
   return (
     <Wrap>
       {!bare && (
@@ -148,14 +151,14 @@ export const WindowResultsPanel: React.FC<{
         <div>
           {metrics.slice(0, half).map(m => (
             <KvRow key={m.field} label={m.label}>
-              <span className="cpm-mono">{fmtVal(row[m.field], m.pct)}</span>
+              <MetricValue a={metricAvailability(ctx, m.field, row[m.field])} className="cpm-mono" text={fmtVal(row[m.field], m.pct)} />
             </KvRow>
           ))}
         </div>
         <div>
           {metrics.slice(half).map(m => (
             <KvRow key={m.field} label={m.label}>
-              <span className="cpm-mono">{fmtVal(row[m.field], m.pct)}</span>
+              <MetricValue a={metricAvailability(ctx, m.field, row[m.field])} className="cpm-mono" text={fmtVal(row[m.field], m.pct)} />
             </KvRow>
           ))}
         </div>

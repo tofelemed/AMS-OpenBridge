@@ -9,6 +9,8 @@ import type { CpmGateMatrix } from '../../../api/cpmApi';
 import { PanelHead, fmtDateTime } from '../shared';
 import { KEY_FACTS, fmtFact } from './keyFacts';
 import { diagnosisLabel } from '../vocabulary';
+import { contextOfMatrix, metricAvailability } from '../metricAvailability';
+import { MetricValue } from '../MetricValue';
 
 type SetParams = ReturnType<typeof useSearchParams>[1];
 
@@ -20,6 +22,18 @@ export const WindowBrowser: React.FC<{
   setParams: SetParams;
 }> = ({ windows, matrix, previous, windowKind, setParams }) => {
   const metrics = matrix.metrics ?? {};
+  // the comparison table renders only with a previous window; the fallback keeps the types simple
+  const prevCtx = contextOfMatrix(previous ?? matrix);
+  const curCtx = contextOfMatrix(matrix);
+  const confPrev = metricAvailability(prevCtx, 'confidence', previous?.confidence);
+  const confCur = metricAvailability(curCtx, 'confidence', matrix.confidence);
+  const pct = (v: number | null | undefined) => (v != null ? `${(v * 100).toFixed(0)}%` : '—');
+  const side = (m: CpmGateMatrix | undefined, which: string) => {
+    const d = (m?.diagnosis ?? '').toUpperCase();
+    return d.startsWith('EXCLUDED') ? `${which} window excluded (loop not in automatic)`
+      : d.startsWith('INSUFFICIENT') ? `${which} window had insufficient data` : null;
+  };
+  const notComparable = [side(previous, 'Previous'), side(matrix, 'Current')].filter(Boolean).join(' · ');
   return (
     <section className="cpm-surface">
       <PanelHead eyebrow="Window browser" title={`Recent ${windowKind} windows`}
@@ -61,12 +75,17 @@ export const WindowBrowser: React.FC<{
                 <td>{diagnosisLabel(matrix.diagnosis)}</td>
                 <td>{previous.diagnosis === matrix.diagnosis ? 'unchanged' : 'changed'}</td>
               </tr>
+              {notComparable && (
+                <tr>
+                  <td colSpan={4} style={{ textAlign: 'left' }} className="cpm-metric-na">{notComparable}</td>
+                </tr>
+              )}
               <tr>
                 <td style={{ textAlign: 'left' }}>Confidence</td>
-                <td>{previous.confidence != null ? (previous.confidence * 100).toFixed(0) + '%' : '—'}</td>
-                <td>{matrix.confidence != null ? (matrix.confidence * 100).toFixed(0) + '%' : '—'}</td>
-                <td>{previous.confidence != null && matrix.confidence != null
-                  ? `${((matrix.confidence - previous.confidence) * 100).toFixed(0)} pt` : '—'}</td>
+                <td><MetricValue a={confPrev} text={pct(previous.confidence)} /></td>
+                <td><MetricValue a={confCur} text={pct(matrix.confidence)} /></td>
+                <td>{confPrev.state === 'measured' && confCur.state === 'measured'
+                  ? `${(((matrix.confidence ?? 0) - (previous.confidence ?? 0)) * 100).toFixed(0)} pt` : '—'}</td>
               </tr>
               {KEY_FACTS.map(f => {
                 const prev = previous.metrics?.[f.field];
@@ -76,12 +95,15 @@ export const WindowBrowser: React.FC<{
                 // showed good_error_pct as 0.67 while the tile above said
                 // 67%: one value, two units, one screen.
                 const s = f.scale ?? 1;
+                // CHG-053: a delta needs two measurements; a placeholder 0 or an excluded window is not one
+                const aPrev = metricAvailability(prevCtx, f.field, prev);
+                const aCur = metricAvailability(curCtx, f.field, cur);
                 return (
                   <tr key={f.field}>
                     <td style={{ textAlign: 'left' }}>{f.label}</td>
-                    <td>{prev != null ? fmtFact(f, prev * s) : '—'}</td>
-                    <td>{cur != null ? fmtFact(f, cur * s) : '—'}</td>
-                    <td>{prev != null && cur != null ? fmtFact(f, (cur - prev) * s) : '—'}</td>
+                    <td><MetricValue a={aPrev} text={fmtFact(f, (prev ?? 0) * s)} /></td>
+                    <td><MetricValue a={aCur} text={fmtFact(f, (cur ?? 0) * s)} /></td>
+                    <td>{aPrev.state === 'measured' && aCur.state === 'measured' ? fmtFact(f, ((cur ?? 0) - (prev ?? 0)) * s) : '—'}</td>
                   </tr>
                 );
               })}

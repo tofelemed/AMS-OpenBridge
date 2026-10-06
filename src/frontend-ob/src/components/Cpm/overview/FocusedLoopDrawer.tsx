@@ -20,6 +20,7 @@ import { useLatestGates } from '../../../hooks/useCpm';
 import { ApiError } from '../../../api/apiFetch';
 import { useDialogA11y } from '../../../hooks/useDialogA11y';
 import { diagnosisLabel, codeLabel } from '../vocabulary';
+import { hasVerdict } from '../metricAvailability';
 
 const fmtTime = (iso: string | null) =>
   iso ? new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—';
@@ -106,7 +107,7 @@ export const FocusedLoopDrawer: React.FC<{
                 <span className="cpm-kpi__caption">Primary diagnosis</span>
                 <span className="cpm-kpi__value">{diagnosisLabel(matrix.diagnosis)}</span>
                 <span className="cpm-kpi__sub">
-                  {matrix.confidence != null ? `${(matrix.confidence * 100).toFixed(0)}% confidence · ` : ''}
+                  {matrix.confidence != null && hasVerdict(matrix.diagnosis) ? `${(matrix.confidence * 100).toFixed(0)}% confidence · ` : ''}
                   {matrix.windowKind} window ending {fmtTime(matrix.windowEnd)}
                 </span>
               </div>

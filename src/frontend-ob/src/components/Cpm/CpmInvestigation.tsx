@@ -46,6 +46,8 @@ import { useInstrumentHealthHistory } from './health/useInstrumentHealth';
 import { codeLabel, diagnosisLabel } from './vocabulary';
 import { CodeLabel } from './CodeLabel';
 import { EngineTrace } from './evidence/views/engineTrace';
+import { contextOfMatrix, hasVerdict, metricAvailability } from './metricAvailability';
+import { MetricValue } from './MetricValue';
 
 export const CpmInvestigation: React.FC = () => {
   const navigate = useNavigate();
@@ -198,7 +200,7 @@ export const CpmInvestigation: React.FC = () => {
             <section className="cpm-surface" id="cpm-conclusion">
               <PanelHead eyebrow="Final conclusion" title={diagnosisLabel(matrix.diagnosis)}
                 right={<TonePill tone={toneFor(matrix.diagnosis)}>
-                  {matrix.confidence != null ? `${(matrix.confidence * 100).toFixed(0)}% confidence` : 'no confidence'}
+                  {matrix.confidence != null && hasVerdict(matrix.diagnosis) ? `${(matrix.confidence * 100).toFixed(0)}% confidence` : 'no verdict'}
                 </TonePill>} />
               <KvRow label="Window">
                 {matrix.windowStart ? fmtDateTime(matrix.windowStart) : '—'} →{' '}
@@ -254,12 +256,15 @@ export const CpmInvestigation: React.FC = () => {
             <section className="cpm-surface">
               <PanelHead eyebrow="Key facts" title="Numeric evidence on this window" />
               <div className="cpm-kpi-row">
-                {KEY_FACTS.map(f => (
-                  <KpiTile key={f.field} caption={f.label} tone="muted"
-                    value={metrics[f.field] != null
-                      ? fmtFact(f, metrics[f.field]! * (f.scale ?? 1)) : '—'}
-                    sub={metrics[f.field] == null ? 'not in this payload' : undefined} />
-                ))}
+                {KEY_FACTS.map(f => {
+                  // CHG-053: a placeholder 0 (method did not qualify) or a value from an excluded window is not a fact
+                  const a = metricAvailability(contextOfMatrix(matrix), f.field, metrics[f.field]);
+                  return (
+                    <KpiTile key={f.field} caption={f.label} tone="muted"
+                      value={<MetricValue a={a} text={fmtFact(f, (metrics[f.field] ?? 0) * (f.scale ?? 1))} />}
+                      sub={a.reason ?? undefined} />
+                  );
+                })}
               </div>
             </section>
           </div>

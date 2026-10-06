@@ -90,3 +90,7 @@
 .cpm-matrix-scroll + .cpm-gate-legend, .cpm-gate-legend + .cpm-matrix-scroll { margin-top: 8px; }
 /* "Not seen" is the least important mark: its hollow circle is drawn smaller so it recedes behind ✓ ◐ ▲. */
 [data-mark="not-seen"] { font-size: 0.75em; }
+
+/* A metric that is not a measurement (SME #17, CHG-053): its status in grey body text, never a number. */
+.cpm-metric-na { color: var(--element-neutral-color); font-family: inherit; font-weight: 400; font-variant-numeric: normal; }
+.cpm-kpi__value .cpm-metric-na { font-size: 1rem; }

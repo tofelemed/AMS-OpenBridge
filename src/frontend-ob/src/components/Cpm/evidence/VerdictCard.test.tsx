@@ -33,7 +33,7 @@ describe('WindowFlags', () => {
     render(<WindowFlags row={{ observabilityFlags: ['HAS_VP', 'NO_STEP_TEST'], familyDisqualifiers: ['stiction:FAMILY_DISQUALIFIED'], insufficientEvidenceReason: 'INSUFFICIENT_SAMPLES' }} />);
     expect(screen.getByText('Valve position mapped').closest('.cpm-pill')?.className).toContain('cpm-pill--good');
     expect(screen.getByText('No approved step test').closest('.cpm-pill')?.className).toContain('cpm-pill--warn');
-    expect(screen.getByText('Stiction ruled out: ruled out by its own checks').closest('.cpm-pill')?.className).toContain('cpm-pill--muted');
+    expect(screen.getByText('Stiction ruled out: its own checks failed').closest('.cpm-pill')?.className).toContain('cpm-pill--muted');
     expect(screen.getByText('Too few samples').closest('.cpm-pill')?.className).toContain('cpm-pill--warn');
   });
 

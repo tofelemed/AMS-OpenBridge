@@ -24,6 +24,8 @@ import { glyphFor } from '../../gateStatus';
 import { calculationsHref, windowsHref } from '../../cpaHref';
 import { LONG_METRICS, WindowResultsPanel, fmtVal } from '../../windows/WindowResults';
 import { diagnosisLabel } from '../../vocabulary';
+import { contextOfMatrix, hasVerdict, metricAvailability } from '../../metricAvailability';
+import { MetricValue } from '../../MetricValue';
 
 const isNoVerdictYet = (e: unknown) => e instanceof ApiError && e.status === 404;
 
@@ -46,22 +48,23 @@ const FusedResult: React.FC<{ loop: CpmLoop; kind: string }> = ({ loop, kind }) 
     else counts.none += 1;
   }
   const half = Math.ceil(LONG_METRICS.length / 2);
+  const ctx = contextOfMatrix(m);
   return (
     <>
       <p className="cpm-copy cpm-source-line">
         <TonePill tone={toneFor(m.diagnosis)}>{diagnosisLabel(m.diagnosis)}</TonePill>
-        {m.confidence != null ? ` ${(m.confidence * 100).toFixed(0)}% confidence · ` : ' '}
+        {m.confidence != null && hasVerdict(m.diagnosis) ? ` ${(m.confidence * 100).toFixed(0)}% confidence · ` : ' '}
         window ending {m.windowEnd ? fmtDateTime(m.windowEnd) : '—'} · {counts.symptoms} findings or attention · {counts.failed} checks failed · {counts.ok} clear · {counts.none} not evaluated or not usable
       </p>
       <div className="cpm-grid-2">
         <div>
           {LONG_METRICS.slice(0, half).map(x => (
-            <KvRow key={x.field} label={x.label}><span className="cpm-mono">{fmtVal(m.metrics?.[x.field], x.pct)}</span></KvRow>
+            <KvRow key={x.field} label={x.label}><MetricValue a={metricAvailability(ctx, x.field, m.metrics?.[x.field])} className="cpm-mono" text={fmtVal(m.metrics?.[x.field], x.pct)} /></KvRow>
           ))}
         </div>
         <div>
           {LONG_METRICS.slice(half).map(x => (
-            <KvRow key={x.field} label={x.label}><span className="cpm-mono">{fmtVal(m.metrics?.[x.field], x.pct)}</span></KvRow>
+            <KvRow key={x.field} label={x.label}><MetricValue a={metricAvailability(ctx, x.field, m.metrics?.[x.field])} className="cpm-mono" text={fmtVal(m.metrics?.[x.field], x.pct)} /></KvRow>
           ))}
         </div>
       </div>

@@ -3322,9 +3322,53 @@ matrix: red only on G15 Confirmed, B2_027PIC G0 "⊘ window not usable"; counts 
 Not evaluated 65); 0 px page overflow at 1440 / 390 on Workbench, Explorer, Performance, Calculations, Replay; night theme;
 0 console errors.
 
+## CHG-053 — SME review #17: a missing calculation never reads as 0.00 (2026-10-06)
+
+**Source:** `SME_review.md` point 17. **Scope:** `ams-frontend` only: new `components/Cpm/{metricAvailability.ts (+test),
+MetricValue.tsx}`; `CpmInvestigation.tsx`, `investigation/WindowBrowser.tsx`, `explorer/summary/SummaryCalculations.tsx`,
+`windows/WindowResults.tsx`, `CpmCalculations.tsx`, `CalcDrawer.tsx`, `verdictAge.ts`, `overview/FocusedLoopDrawer.tsx`,
+`vocabulary.ts` (one label), `styles/cpm-evidence-layout.css`. No service, schema or engine change.
+
+**What the SME said.** Some unavailable or excluded calculations show as 0.00 (the excluded-mode comparison shows several
+zero metrics); distinguish a measured zero from not calculated, not applicable and insufficient evidence.
+
+**Verified before the change.** Correct. Lab, last 10 days of fused rows (~7,000): `stiction_score`, `triangularity`,
+`acf_period_s` and `freeze_index_s` are stored as 0 on every row — including the 6,552 CONFIRMED_OSCILLATION windows (an
+oscillation "period of 0 s"). The engine writes 0 where a method did not qualify (FIC10401: `period_status NO_VALID_CYCLE`,
+G7 NOT_EVALUATED). Excluded-mode windows (B2_027PIC, loop not in automatic) still carry metrics computed on manual data (good-
+error time 100 %, effort 12.6, reversals 0) and "0 %" confidence. 20 loops carry an effort ratio with `effort_qualified=false`.
+The Investigation key facts / previous-current table and Explorer's fused calculations showed all of them as numbers;
+Calculations and Window Inspector flagged only window-level declines.
+
+**What changed.**
+- **One rule per metric** (`metricAvailability`), from what the row already carries — its diagnosis, gate statuses, flags,
+  disqualifiers, and the `period_status` / `*_qualified` fields when a raw window row has them: **measured** (the number; a
+  measured 0 stays "0") · **N/A** "loop not in automatic — the window was excluded" · **Insufficient data** (insufficient /
+  declined / failed data qualification) · **Not calculated** with the reason ("no clean oscillation cycle", "G7 not
+  evaluated") · **Not scored** ("stiction ruled out: no stiction-shaped cycles") · **Not qualified** (a computed value the
+  engine did not qualify). A period of 0 s is never a measurement.
+- Applied on Investigation key facts (status + reason under the tile) and its previous / current table (a delta only between
+  two measurements; a line "Previous window excluded (loop not in automatic)"), Explorer › Calculations, Window Inspector
+  window results, the Calculations page and its drawer (per metric, replacing the window-only check).
+- **No confidence without a verdict:** "0 %" no longer shows for excluded / insufficient / not-evaluated windows (Investigation
+  pill "no verdict", Explorer, drawer, "last verdict Excluded: loop not in automatic · 58 d ago").
+- The not-a-measurement text is grey body text, never number-styled. Wording: "Stiction ruled out: its own checks failed".
+
+**Tests.** `metricAvailability.test.ts` (new, 5: measured zero kept; placeholder zeros by reason; computed-but-unqualified;
+excluded / insufficient / G0-failed windows; raw KPI rows with declines, qualification flags and period status). Frontend 81
+files / 382 tests green; lint / tsc / build clean. **Lab pass 2026-10-06:** FIC10401 confirmed window — "Stiction score: Not
+scored · stiction ruled out: no stiction-shaped cycles", "OP triangularity: Not calculated · G7 not evaluated", "Oscillation
+period: Not calculated · no clean oscillation cycle", "Freeze index 0 s" and "Effort ratio 2.51" kept as measurements; the
+table's deltas only on measured rows. B2_027PIC excluded-mode comparison — every metric and the confidence "N/A", no deltas,
+"Previous window excluded (loop not in automatic) · Current window excluded (loop not in automatic)". Calculations: long
+metrics of the latest unqualified row "Insufficient data"; Window Inspector short windows keep their measured values;
+Performance "last verdict Excluded: loop not in automatic · 58 d ago" (no 0 %); 0 console errors.
+**Engine follow-up (not in this batch):** the Flink jobs should write null, not 0, for an unqualified method — recorded in
+`prod_decision.md`.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-052) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
+- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-053) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
   migration, no Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant: `docker load` the `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
@@ -3354,3 +3398,5 @@ Not evaluated 65); 0 px page overflow at 1440 / 390 on Workbench, Explorer, Perf
   see the exact codes; durations read "45 min" / "24 h".
   (CHG-052) gate chips read "⬤ G4 Strong", "◯ G5 Not seen", "▲ G15 Confirmed" with a legend under the strip; on the
   Performance matrix red appears only for confirmed conditions and failed checks.
+  (CHG-053) Investigation › Key facts on an oscillating loop with no clean cycle reads "Oscillation period: Not calculated —
+  no clean oscillation cycle" (not 0.00 s); an excluded-mode window compares as "N/A", without a 0 % confidence.
