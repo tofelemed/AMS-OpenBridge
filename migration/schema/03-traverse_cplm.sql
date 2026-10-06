@@ -974,3 +974,11 @@ ALTER TABLE analytics.cplm_event_frames
     ADD COLUMN IF NOT EXISTS candidate_windows INT NOT NULL DEFAULT 0;
 COMMENT ON COLUMN analytics.cplm_event_frames.candidate_family IS
     'CHG-034: a fault family seen instead of this episode''s, not yet settled; takes over after Cplm:FamilyChangeWindows consecutive fault windows (unjudged windows neither count nor reset).';
+
+-- ---- CHG-058: loop notes linkable to an episode (mirror of database/scripts/63_cplm_investigation_event_link.sql) ----
+
+ALTER TABLE analytics.investigation_reference
+    ADD COLUMN IF NOT EXISTS event_id BIGINT NULL REFERENCES analytics.cplm_event_frames (id) ON DELETE SET NULL;
+COMMENT ON COLUMN analytics.investigation_reference.event_id IS
+    'CHG-058: the diagnosis episode this loop note is about, linked at creation or later; NULL = a note on the loop only.';
+CREATE INDEX IF NOT EXISTS ix_investigation_reference_event ON analytics.investigation_reference (event_id) WHERE event_id IS NOT NULL;
