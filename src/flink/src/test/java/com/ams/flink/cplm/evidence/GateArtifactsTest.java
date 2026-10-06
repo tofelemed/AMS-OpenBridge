@@ -384,4 +384,23 @@ public class GateArtifactsTest {
         g.healthLanes = pvLane("INELIGIBLE");
         assertTrue(p.emit(g));
     }
+
+    // CHG-049 (Task 10): the fusion policy mirrors cplm-api EventFrameLifecycle.Classify - only Fault diagnoses open an episode
+    @Test
+    public void fusionEmitsOnlyEpisodeableDiagnoses() {
+        EvidencePolicy p = new EvidencePolicy(EvidencePolicy.Mode.EPISODES);
+        for (String d : new String[]{"INSUFFICIENT_DATA", "EXCLUDED_NOT_AUTO", "EXCLUDED", "INSUFFICIENT_EVIDENCE", "NO_CALL", "PASS", "PENDING", "", null}) {
+            CplmGateResult g = new CplmGateResult();
+            g.gate14Status = "PASS"; g.diagnosis = d;
+            assertFalse("no emit for " + d, p.emit(g));
+        }
+        for (String d : new String[]{"SUSPECTED_OSCILLATION", "CONFIRMED_STICTION"}) {
+            CplmGateResult g = new CplmGateResult();
+            g.gate14Status = "PASS"; g.diagnosis = d;
+            assertTrue("emit for " + d, p.emit(g));
+        }
+        CplmGateResult f = new CplmGateResult();
+        f.gate14Status = "WARN"; f.diagnosis = "INSUFFICIENT_DATA";
+        assertTrue("a G14 finding alone emits", p.emit(f));
+    }
 }

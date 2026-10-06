@@ -168,6 +168,9 @@ public class CplmGateFusionStreamJob {
         private transient MapState<String, List<String>> familyHistoryByKind;
         /** v2.5 R11: the fast-path conditions currently open for this loop (kind -> latest event). */
         private transient MapState<String, ConditionEvent> openConditions;
+        /** CHG-049 (Task 10): per window kind throttle state. */
+        private transient MapState<String, String> lastEvidenceSig;
+        private transient MapState<String, Long> lastEvidenceMs;
         /** v2.5 R15: the latest Instrumental health context per signal role for this loop. */
         private transient MapState<String, LoopHealthContextRecord> healthByRole;
 
@@ -191,6 +194,10 @@ public class CplmGateFusionStreamJob {
                     TypeInformation.of(String.class),
                     TypeInformation.of(new TypeHint<List<String>>() {}));
             familyHistoryByKind = getRuntimeContext().getMapState(histDesc);
+            lastEvidenceSig = getRuntimeContext().getMapState(
+                    new MapStateDescriptor<>("cplm-fusion-evidence-last-sig", String.class, String.class));
+            lastEvidenceMs = getRuntimeContext().getMapState(
+                    new MapStateDescriptor<>("cplm-fusion-evidence-last-ms", String.class, Long.class));
             openConditions = getRuntimeContext().getMapState(new MapStateDescriptor<>(
                     "open-conditions", TypeInformation.of(String.class), TypeInformation.of(ConditionEvent.class)));
             healthByRole = getRuntimeContext().getMapState(new MapStateDescriptor<>(
@@ -265,13 +272,31 @@ public class CplmGateFusionStreamJob {
             while (next.size() > keep) next.remove(0);
             familyHistoryByKind.put(longD.windowKind, next);
 
-            if (policy.emit(fused)) {
-                long nowMs = System.currentTimeMillis();
-                for (com.ams.flink.cplm.evidence.EvidenceArtifact a : com.ams.flink.cplm.evidence.FusionArtifacts.artifacts(fused)) {
-                    for (String record : com.ams.flink.cplm.evidence.EvidenceKafkaRecords.records(a, EVIDENCE_MAPPER, nowMs)) ctx.output(EVIDENCE, record);
-                }
-            }
+            emitEvidence(ctx, fused);
             out.collect(fused);
+        }
+
+        /** CHG-049 (Task 10): same decision helper as the Long job; clock is the fused window end (event time), never wall-clock. */
+        private void emitEvidence(Context ctx, CplmGateResult fused) throws Exception {
+            long nowMs = fused.windowEndMs;
+            String kind = fused.windowKind;
+            String sig = com.ams.flink.cplm.evidence.EvidenceThrottle.signature(fused);
+            com.ams.flink.cplm.evidence.EvidenceThrottle.Action action = com.ams.flink.cplm.evidence.EvidenceThrottle.action(
+                    policy.emit(fused), lastEvidenceSig.get(kind), lastEvidenceMs.get(kind), sig, nowMs, policy.minIntervalMs);
+            if (action == com.ams.flink.cplm.evidence.EvidenceThrottle.Action.CLEAR) {
+                lastEvidenceSig.remove(kind);
+                lastEvidenceMs.remove(kind);
+                return;
+            }
+            if (action == com.ams.flink.cplm.evidence.EvidenceThrottle.Action.SKIP) return;
+            int records = 0;
+            for (com.ams.flink.cplm.evidence.EvidenceArtifact a : com.ams.flink.cplm.evidence.FusionArtifacts.artifacts(fused)) {
+                for (String record : com.ams.flink.cplm.evidence.EvidenceKafkaRecords.records(a, EVIDENCE_MAPPER, nowMs)) { ctx.output(EVIDENCE, record); records++; }
+            }
+            if (com.ams.flink.cplm.evidence.EvidenceThrottle.recordsState(records)) {
+                lastEvidenceSig.put(kind, sig);
+                lastEvidenceMs.put(kind, nowMs);
+            }
         }
 
         static String elevatedFamilyForHistory(CplmGateResult result) {

@@ -59,4 +59,10 @@ public class EvidenceThrottleTest {
         assertFalse(EvidenceThrottle.recordsState(0));
         assertTrue(EvidenceThrottle.recordsState(1));
     }
+    // CHG-049 (Task 10): fusion signature
+    @Test public void fusionSignatureIsDiagnosisFamilyG14G15() {
+        com.ams.flink.cplm.CplmGateResult r = new com.ams.flink.cplm.CplmGateResult();
+        r.diagnosis = "SUSPECTED_OSCILLATION"; r.selectedFamily = "OSC"; r.gate14Status = "WARN"; r.gate15Status = "SUSPECTED";
+        assertEquals("SUSPECTED_OSCILLATION|OSC|WARN|SUSPECTED", EvidenceThrottle.signature(r));
+    }
 }

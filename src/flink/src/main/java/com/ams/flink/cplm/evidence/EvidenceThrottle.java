@@ -1,5 +1,6 @@
 package com.ams.flink.cplm.evidence;
 
+import com.ams.flink.cplm.CplmGateResult;
 import com.ams.flink.cplm.CplmLongDiagnosticsResult;
 
 /** CHG-049: the long tier re-fires every 15 min over overlapping windows; emit when the finding changes, else at most once per interval. */
@@ -11,6 +12,11 @@ public final class EvidenceThrottle {
 
     public static String signature(CplmLongDiagnosticsResult r) {
         return r.gate7Status + "|" + r.gate8Status + "|" + r.gate9Status + "|" + r.gate10Status + "|" + r.gate11Status;
+    }
+
+    /** CHG-049 (Task 10): the fusion tier throttles on the fused verdict, per window kind. */
+    public static String signature(CplmGateResult r) {
+        return r.diagnosis + "|" + r.selectedFamily + "|" + r.gate14Status + "|" + r.gate15Status;
     }
 
     public static boolean due(String prevSig, Long prevMs, String sig, long nowMs, long minIntervalMs) {

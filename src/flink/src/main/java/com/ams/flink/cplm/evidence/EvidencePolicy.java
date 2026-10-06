@@ -101,7 +101,19 @@ public final class EvidencePolicy implements Serializable {
     public boolean emit(CplmGateResult r) {
         if (mode == Mode.NONE || r == null) return false;
         if (mode == Mode.ALL) return true;
-        return finding(r.gate14Status) || (r.diagnosis != null && !"PASS".equals(r.diagnosis) && !"NO_CALL".equals(r.diagnosis) && !"PENDING".equals(r.diagnosis))
+        return finding(r.gate14Status) || isFaultDiagnosis(r.diagnosis)
                 || (r.healthLanes != null && (r.healthLanes.pvIneligible() || r.healthLanes.anyLimited()));   // CHG-049: a bound lane alone is not a finding
+    }
+
+    /**
+     * CHG-049 (Task 10): mirrors cplm-api EventFrameLifecycle.Classify - blank, EXCLUDED* and INSUFFICIENT_DATA are
+     * Unobservable, INSUFFICIENT_EVIDENCE and NO_CALL are Clear, everything else is a Fault that opens an episode.
+     * PASS and PENDING are not faults either. Evidence for a verdict that never opens an episode is swept unread.
+     */
+    private static boolean isFaultDiagnosis(String d) {
+        if (d == null || d.trim().isEmpty()) return false;
+        if (d.startsWith("EXCLUDED") || "INSUFFICIENT_DATA".equals(d)) return false;
+        if ("INSUFFICIENT_EVIDENCE".equals(d) || "NO_CALL".equals(d)) return false;
+        return !"PASS".equals(d) && !"PENDING".equals(d);
     }
 }
