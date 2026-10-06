@@ -79,6 +79,8 @@ COMMON=(
   # CPLM_EVIDENCE_EMIT=none in migration/.env (deploy.sh exports it) to switch artifact emission
   # off; verdicts are unaffected. all|episodes|none.
   --evidence-emit "${CPLM_EVIDENCE_EMIT:-episodes}"
+  --evidence-min-interval-min "${CPLM_EVIDENCE_MIN_INTERVAL_MIN:-60}"
+  --evidence-max-cycles "${CPLM_EVIDENCE_MAX_CYCLES:-12}"
   --bootstrap.servers "$BROKERS"
   --input-topic "$INPUT_TOPIC"
   --short-feature-topic "$SHORT_TOPIC"

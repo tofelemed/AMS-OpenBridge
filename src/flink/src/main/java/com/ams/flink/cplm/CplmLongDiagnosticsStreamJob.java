@@ -2,6 +2,8 @@ package com.ams.flink.cplm;
 
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -15,6 +17,7 @@ import com.ams.flink.cplm.contract.CplmTopics;
 import com.ams.flink.cplm.evidence.EvidenceArtifact;
 import com.ams.flink.cplm.evidence.EvidenceKafkaRecords;
 import com.ams.flink.cplm.evidence.EvidencePolicy;
+import com.ams.flink.cplm.evidence.EvidenceThrottle;
 import com.ams.flink.cplm.evidence.LongArtifacts;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -133,6 +136,9 @@ public class CplmLongDiagnosticsStreamJob {
         /** v2.5 (2F.1): the peers' samples fanned out to this loop (peerOfLoopId == this key). */
         private transient ListState<CplmNormalizedSample> peerBuffer;
         private transient ValueState<Long> nextTimerTs;
+        /** CHG-049: per loop (the key), by window kind - the last emitted finding signature and its time. */
+        private transient MapState<String, String> lastEvidenceSig;
+        private transient MapState<String, Long> lastEvidenceMs;
 
         LongDiagnosticsProcessFunction() {
             this(new EvidencePolicy(EvidencePolicy.Mode.EPISODES));
@@ -144,8 +150,13 @@ public class CplmLongDiagnosticsStreamJob {
 
         /** v2.5 (2C.1c): every gate's exact intermediates (LongArtifacts) when the policy says so; the
          *  intermediates are transient, so this runs before the result leaves the operator. */
-        private void emitEvidence(OnTimerContext ctx, CplmLongDiagnosticsResult r, long nowMs) {
+        private void emitEvidence(OnTimerContext ctx, CplmLongDiagnosticsResult r, long nowMs) throws Exception {
             if (!policy.emit(r)) return;
+            // CHG-049: nowMs is the timer timestamp, not wall-clock, so a replay throttles identically
+            String sig = EvidenceThrottle.signature(r);
+            if (!EvidenceThrottle.due(lastEvidenceSig.get(r.windowKind), lastEvidenceMs.get(r.windowKind), sig, nowMs, policy.minIntervalMs)) return;
+            lastEvidenceSig.put(r.windowKind, sig);
+            lastEvidenceMs.put(r.windowKind, nowMs);
             for (EvidenceArtifact a : LongArtifacts.artifacts(r, policy.maxCycles)) {
                 for (String record : EvidenceKafkaRecords.records(a, MAPPER, nowMs)) ctx.output(EVIDENCE, record);
             }
@@ -161,6 +172,10 @@ public class CplmLongDiagnosticsStreamJob {
                             TypeInformation.of(CplmNormalizedSample.class)));
             nextTimerTs = getRuntimeContext().getState(
                     new ValueStateDescriptor<>("next-timer-ts", Long.class));
+            lastEvidenceSig = getRuntimeContext().getMapState(
+                    new MapStateDescriptor<>("cplm-evidence-last-sig", String.class, String.class));
+            lastEvidenceMs = getRuntimeContext().getMapState(
+                    new MapStateDescriptor<>("cplm-evidence-last-ms", String.class, Long.class));
         }
 
         @Override

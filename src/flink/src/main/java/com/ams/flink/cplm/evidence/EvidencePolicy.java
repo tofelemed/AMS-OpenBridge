@@ -22,18 +22,27 @@ public final class EvidencePolicy implements Serializable {
 
     public static final String ARG_MAX_CYCLES = "--evidence-max-cycles";
     public static final int DEFAULT_MAX_CYCLES = 12;
+    public static final String ARG_MIN_INTERVAL = "--evidence-min-interval-min";
+    public static final int DEFAULT_MIN_INTERVAL_MIN = 60;
 
     public final Mode mode;
     /** CHG-049: per-cycle G7/G9 artifacts pushed live; <= 0 = every cycle. */
     public final int maxCycles;
+    /** CHG-049: Long-job evidence for an unchanged finding is re-emitted at most this often; <= 0 = never throttle. */
+    public final long minIntervalMs;
 
     public EvidencePolicy(Mode mode) {
         this(mode, DEFAULT_MAX_CYCLES);
     }
 
     public EvidencePolicy(Mode mode, int maxCycles) {
+        this(mode, maxCycles, DEFAULT_MIN_INTERVAL_MIN * 60_000L);
+    }
+
+    public EvidencePolicy(Mode mode, int maxCycles, long minIntervalMs) {
         this.mode = mode == null ? Mode.EPISODES : mode;
         this.maxCycles = maxCycles;
+        this.minIntervalMs = minIntervalMs;
     }
 
     public static EvidencePolicy fromArgs(String[] args) {
@@ -41,6 +50,8 @@ public final class EvidencePolicy implements Serializable {
         boolean modeSeen = false;
         int maxCycles = DEFAULT_MAX_CYCLES;
         boolean cyclesSeen = false;
+        int minIntervalMin = DEFAULT_MIN_INTERVAL_MIN;
+        boolean intervalSeen = false;
         for (int i = 0; i + 1 < args.length; i++) {
             if (!modeSeen && (ARG.equals(args[i]) || ARG.substring(2).equals(args[i]))) {
                 modeSeen = true;
@@ -56,9 +67,16 @@ public final class EvidencePolicy implements Serializable {
                 } catch (NumberFormatException e) {
                     maxCycles = DEFAULT_MAX_CYCLES;
                 }
+            } else if (!intervalSeen && (ARG_MIN_INTERVAL.equals(args[i]) || ARG_MIN_INTERVAL.substring(2).equals(args[i]))) {
+                intervalSeen = true;
+                try {
+                    minIntervalMin = Integer.parseInt(args[i + 1].trim());
+                } catch (NumberFormatException e) {
+                    minIntervalMin = DEFAULT_MIN_INTERVAL_MIN;
+                }
             }
         }
-        return new EvidencePolicy(mode, maxCycles);
+        return new EvidencePolicy(mode, maxCycles, minIntervalMin * 60_000L);
     }
 
     private static boolean finding(String status) {
