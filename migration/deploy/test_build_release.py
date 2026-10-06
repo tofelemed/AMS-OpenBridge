@@ -419,6 +419,13 @@ def test_chg049_cpm12_is_online_without_a_transaction_and_cpm12b_has_the_disk_gu
     assert not any(" -1 " in l for l in blk.splitlines() if l.startswith("docker")) and "BEGIN" not in blk
     guard = s.split("# 6g.")[1]
     assert "2 x" in guard and guard.index("df -h /") < guard.index("docker stop traverse-cplm-api")
+    # CHG-049 final review I2: the three tables' size (response_metric included) is printed before the stop
+    size = guard.index("pg_total_relation_size('analytics.response_metric')")
+    assert "pg_total_relation_size('analytics.evidence_chunk')" in guard
+    assert size < guard.index("df -h /") < guard.index("docker stop traverse-cplm-api")
+    # M4: an invalid (interrupted CONCURRENTLY) index is checked right after cpm-12
+    blk6f = s.split("# 6f.")[1].split("# 6g.")[0]
+    assert blk6f.index("cpm-12-evidence-response-retention.sql") < blk6f.index("indisvalid") and "DROP INDEX analytics.ix_response_event_created" in blk6f
     assert "at least 1 h" in guard
     sql12 = (HERE.parent.parent / "scripts/cpm-12-evidence-response-retention.sql").read_text(encoding="utf-8")
     assert "CONCURRENTLY" in sql12 and "BEGIN" not in sql12.replace("-- ", "")

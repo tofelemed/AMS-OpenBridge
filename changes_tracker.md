@@ -3155,7 +3155,8 @@ crash-looping, so 0 samples arrived from the OT feed (left to its owners).
   `--evidence-min-interval-min` (**60**, env `CPLM_EVIDENCE_MIN_INTERVAL_MIN`). Both pass through `04b`.
 - Policy `episodes`: the Long job emits only on G7..G11 findings (G5 / G6 alone are context); Fusion emits on G14 /
   diagnosis, or when a health lane is PV-ineligible or limited (a merely configured lane no longer counts).
-- cplm-api evidence consumer: orphan chunks (no manifest) are cleaned and a count gate guards the write.
+- cplm-api evidence consumer: orphan chunks are skipped with a warning (no 2 s stall); the count gate avoids reading
+  payloads until all chunks are there.
 - Retention: `retention_policy` row `RESPONSE` = **14 days** (new, `cpm-12`, online; 30 d would hold ~1.5 GB here);
   `Cplm__EvidenceExpiredGraceDays` = **1** (was the built-in 7, never forwarded by compose); `ix_response_event_created`.
 - `cpm-12b` (cplm-api STOPPED, after at least 1 h of the new jar): removes expired tombstones and rewrites the evidence
@@ -3163,6 +3164,14 @@ crash-looping, so 0 samples arrived from the OT feed (left to its owners).
 - Daily check §7: `evidence tables N MB on disk` from `pg_total_relation_size` (WARN > 1536 MB, ACT > 3072 MB).
 - Runbooks: `MARUN-DISK.md` §3 J (ZooKeeper zero-byte log: back up both volumes, MOVE the file out of `version-2/`, never
   rename in place) and the 2026-10-06 row; `MARUN-DAILY-CHECK.md` §1 (an uncapped json-log can be GBs) and §7.
+- Final-review fixes: the capped G7 / G9 per-cycle artifacts take the **accepted** cycles first (first and last cycle
+  kept, the rest evenly spaced; G9 follows G7's cycle ids when they line up), and the workbench counts accepted / total
+  from `cycle_scores` ("showing k of N cycles"), so a capped window never reads "No accepted cycle" against its verdict.
+  The throttle forgets a window the policy skips (a finding back after a PASS emits at once) and records state only
+  when records were output. The RESPONSE purge keeps events a system model was created from. The RESPONSE row is in the
+  lab and fresh-install schemas too. VM steps: `cpm-12` is followed by an `indisvalid` check (an interrupted
+  CONCURRENTLY build leaves an invalid index: drop it and re-run); the `cpm-12b` guard prints the three tables' size
+  (with `response_metric`) and `df -h /` BEFORE cplm-api is stopped.
 - Left alone: the short-feature GIN index `ix_cplm_short_feature_results_method_run_ids` is used by `MethodRunResolver`.
 - Plant actions already taken 2026-10-06 (before this release): log truncated, /tmp bundles deleted, `TRUNCATE
   analytics.evidence_chunk, analytics.evidence_manifest` (pinned = 0 checked; emission left ON), ZooKeeper log moved
@@ -3170,7 +3179,8 @@ crash-looping, so 0 samples arrived from the OT feed (left to its owners).
 
 **Tests.** Flink full suite 298 run, 0 failures, 2 skipped (baseline 289). cplm-api `Evidence|Response|SchemaV25` 50 / 50
 (baseline 45). `test_build_release.py` 45 passed. `bash -n migration/daily-check.sh` clean; the new SQL prints an integer
-on the lab Postgres.
+on the lab Postgres. After the final-review fixes: Flink 307 run, 0 failures, 2 skipped; cplm-api 51 / 51;
+`test_build_release.py` 45 passed; frontend `vitest src/components/Cpm/evidence` 107 passed, lint and build clean.
 
 **End-to-end on the lab** pending — Task 8 soak; filled after it.
 
@@ -3179,8 +3189,9 @@ on the lab Postgres.
 - Updated services so far: **`ams-frontend`** (CHG-040 … CHG-048), **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-049) and
   **`flink-jobmanager`** (image `ams-flink`, CHG-049; the TaskManager uses it too: full Flink swap, cancel every job before
   `docker rm -f` of JM and TM, then the orphan-checkpoint sweep).
-- Schema (CHG-049): `cpm-12` online (RESPONSE retention row, `ix_response_event_created`), then `cpm-12b` with cplm-api
-  STOPPED and only after the new jar has run at least 1 h (VM step 6g). Optional `.env` keys `CPLM_EVIDENCE_MAX_CYCLES` (12)
+- Schema (CHG-049): `cpm-12` online after `deploy.sh` (RESPONSE retention row, `ix_response_event_created`; then the
+  `indisvalid` check must print `t`), then `cpm-12b` with cplm-api STOPPED, at a quiet time, only after the new jar has run
+  at least 1 h and only if free disk >= 2 x the printed size of the three tables (VM step 6g). Optional `.env` keys `CPLM_EVIDENCE_MAX_CYCLES` (12)
   and `CPLM_EVIDENCE_MIN_INTERVAL_MIN` (60). The batch manifest must carry `!chg049-evidence`.
 - Build: `mvn package` (Docker Maven, the jar is needed for CHG-049; no `--skip-jar`) → `python migration/deploy/build-release.py --release <next> --out release-out/<next>-<date>`.
 - Plant: `docker load` the `ams-frontend`, `cplm-api` and `ams-flink` images; then the Flink swap from the VM steps (cancel every job, `docker rm -f ams-flink-taskmanager ams-flink-jobmanager`) → `deploy.sh --prod` (04b resubmits all seven; 7 RUNNING) → `200` on `/`; users press Ctrl+F5.

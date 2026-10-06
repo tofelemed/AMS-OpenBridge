@@ -553,13 +553,16 @@ docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "select c
 # 6f. CHG-049 evidence storage. Steps 4 (images), 5 (flink cancel -> docker rm -f JM+TM -> deploy.sh -> 04b submit) are above.
 #     cpm-12 is ONLINE (CREATE INDEX CONCURRENTLY: no transaction, no psql -1):
 docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-12-evidence-response-retention.sql
+#     an interrupted CONCURRENTLY build leaves an INVALID index: this must print t. If it prints f:
+#     DROP INDEX analytics.ix_response_event_created; then re-run cpm-12 (the line above).
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select indisvalid from pg_index where indexrelid = 'analytics.ix_response_event_created'::regclass"   # t
 #     the index and policy row are postgres-owned - normalize to ams_user (the go-live 42501 trap):
 bash migration/02-apply-schemas.sh
 docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select count(*) from pg_tables where schemaname in ('analytics','cpm') and tableowner<>'ams_user'"   # 0
-# 6g. cpm-12b - WAIT at least 1 h after the new jar started (the TRANSIENT manifests it deletes are rebuilt by the new jar).
-#     FREE-SPACE GUARD: the script prints the 'before' size; df -h / must show at least 2 x that free (old and new copies coexist).
-#     Less than that: STOP, do not run it. The script cannot check disk itself.
-df -h /
+# 6g. cpm-12b - WAIT at least 1 h after the new jar started (it deletes TRANSIENT manifests: new runs replace them, deleted runs are not rebuilt; quiet time).
+#     FREE-SPACE GUARD, BEFORE the stop: one step prints the three tables' total size and the free disk.
+#     Continue only if free >= 2 x that total (old and new copies coexist); less than that: STOP, do not run cpm-12b.
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -tAc "select pg_size_pretty(pg_total_relation_size('analytics.evidence_chunk')+pg_total_relation_size('analytics.evidence_manifest')+pg_total_relation_size('analytics.response_metric'))"; df -h /
 docker stop traverse-cplm-api
 docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-12b-evidence-reclaim.sql   # prints before / after
 docker start traverse-cplm-api
