@@ -219,9 +219,11 @@ public class CplmLongDiagnosticsStreamJob {
             long evictBefore = timestamp - BUFFER_RETENTION_MS;
             List<CplmNormalizedSample> retained = new ArrayList<>();
             Iterator<CplmNormalizedSample> it = rollingBuffer.get().iterator();
+            java.util.Set<Long> seenTs = new java.util.HashSet<>();
             while (it.hasNext()) {
                 CplmNormalizedSample s = it.next();
-                if (s.eventTsMs >= evictBefore) {
+                // CHG-062a: a repeated timestamp (two sources on one feed) is dropped, first kept; the state shrinks too
+                if (s.eventTsMs >= evictBefore && seenTs.add(s.eventTsMs)) {
                     retained.add(s);
                 }
             }
@@ -231,8 +233,10 @@ public class CplmLongDiagnosticsStreamJob {
             // peer list is the one the newest own sample carried from the registry broadcast
             List<CplmNormalizedSample> peerRetained = new ArrayList<>();
             Map<String, List<CplmNormalizedSample>> peersById = new HashMap<>();
+            java.util.Set<String> seenPeerTs = new java.util.HashSet<>();
             for (CplmNormalizedSample s : peerBuffer.get()) {
                 if (s.eventTsMs < evictBefore) continue;
+                if (!seenPeerTs.add(s.loopId + "|" + s.eventTsMs)) continue;   // CHG-062a: (peer loop, ts) is unique
                 peerRetained.add(s);
                 peersById.computeIfAbsent(s.loopId, k -> new ArrayList<>()).add(s);
             }
