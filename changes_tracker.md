@@ -3661,6 +3661,13 @@ back in Unacknowledged before the sweeper; pages disjoint and ordered; search on
 400s and page-size cap) + `EventActionsApiTests` — 9/9. Frontend `CpmEvents.page.test.tsx` (new, 5: request carries URL filters and
 page; totals and tab counts; Next asks page 2; off-page deep link by id; missing id falls back) — 90 files / 417 tests; lint / tsc /
 build clean.
+**Lab** (cplm-api with 32bccb54 cherry-picked onto the lab build as f306d728, 2026-10-06): `events/page?state=open&page=2` → total
+325, page 2 of 17, 20 rows, counts all 500 / open 325 / unobservable 322 / unacknowledged 324 / acknowledged 6 / shelf expired 1 /
+closed 175; `events/2213` 200, a missing id 404. Page: tabs with counts; `?filter=open&event=1644` (a closed episode) opens EVT-1644 with
+"not on this page"; search "FIC10302" → its 2 episodes (EVT-2213, EVT-2212); Next → "21–40 of 325 · page 2 of 17". Found in the pass
+and fixed: with counts the tab group overflowed at 1440 px — counts are now a dimmed figure after the label ("Open 325") and "Open ·
+unobservable" is "Unobservable" (the tab only ever holds open episodes); the count line is hidden while there is no data (it read
+"0 event(s)" during a transient 500). Day 1440 and night 390 px, no horizontal page scroll.
 
 ## CHG-064 — SME review #24: a verdict says what it rests on and what it was judged without; a pass on partial inputs is not a green OK (2026-10-06)
 

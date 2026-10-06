@@ -119,7 +119,7 @@ export const CpmEvents: React.FC = () => {
         >
           {FILTERS.map(f => (
             <ObcToggleButtonOption key={f.key} value={f.key}>
-              {f.label}{data ? ` (${data.counts[f.key] ?? 0})` : ''}
+              {f.label}{data && <span className="cpm-tab-count"> {data.counts[f.key] ?? 0}</span>}
             </ObcToggleButtonOption>
           ))}
         </ObcToggleButtonGroup>
@@ -155,8 +155,10 @@ export const CpmEvents: React.FC = () => {
         )}
 
         <span className="cpm-filter-count">
-          {total} event(s){loopParam ? ` for ${loopParam}` : ''}{q ? ` matching “${q}”` : ''}
-          {sort === 'recent' ? ' · newest first' : ' · open first, highest evidence score first'}
+          {data && <>
+            {total} event(s){loopParam ? ` for ${loopParam}` : ''}{q ? ` matching “${q}”` : ''}
+            {sort === 'recent' ? ' · newest first' : ' · open first, highest evidence score first'}
+          </>}
         </span>
       </div>
 

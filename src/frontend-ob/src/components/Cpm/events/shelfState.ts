@@ -72,7 +72,7 @@ export type EventFilterKey = 'all' | 'open' | 'unobservable' | 'unacknowledged' 
 export const EVENT_FILTERS: { key: EventFilterKey; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'open', label: 'Open' },
-  { key: 'unobservable', label: 'Open · unobservable' },
+  { key: 'unobservable', label: 'Unobservable' },   // always open: availability is judged on open episodes only
   { key: 'unacknowledged', label: 'Unacknowledged' },
   { key: 'acknowledged', label: 'Acknowledged' },
   { key: 'shelved', label: 'Shelved' },
