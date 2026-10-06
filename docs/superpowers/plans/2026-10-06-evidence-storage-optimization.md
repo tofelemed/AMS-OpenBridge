@@ -573,3 +573,129 @@ Run AFTER Task 8 stage A, on the CHG-049 jar + cplm-api. One scenario at a time.
 | S9 | 24 h soak | Run S1 conditions for 24 h | physical evidence size flat after 6 h (within ±20 %); daily-check sections 4-9 all OK on the lab |
 
 The lab must not run out of disk: check the free space on the drive that holds the Docker data before S1, S6 and S8, and stop if it is under 20 GB. Clean up all `STRESS-` data at the end. Results go in `docs/next-release/chg049-stress-results.md`, plus a summary in CHG-049 "End-to-end on the lab".
+
+---
+
+## Stress-test fixes (CHG-060..062), ship in the same batch (user decision 2026-10-06)
+
+Source: Task 9 S1 (docs/next-release/chg049-stress-results.md). A 161-loop feed, with every sample doubled ×6 by leftover lab sources, ran the TaskManager out of heap in 25-30 min. The JVM did not exit, so all 13 jobs stayed in RESTARTING. Every restore and every replay ran out of heap again.
+
+Plant numbers to design against:
+- Grid 5 s, 142-144 loops, about 29 tuples/s.
+- The Short buffer holds about 66 min of event time per loop: about 790 samples per loop, about 114k in total.
+- About 250 MB live heap and a 116 MB checkpoint. Task heap is 1.1-1.23 GB of the 3584m TaskManager.
+- About 2.2 KB live per buffered sample. Each buffered `CplmNormalizedSample` carries a full `resolvedProfile` (~117 members), deserialized for every record after `keyBy`.
+
+Re-run load (user decision): plant rate × 3, i.e. about 87 tuples/s over 161 loops, no duplicates, 20+ loops oscillating.
+
+### Task 11 (CHG-060): Flink JVMs exit on OOM
+**Files:**
+- `infra/docker/docker-compose.yml`: JM (~528-583) and TM (~629-683) FLINK_PROPERTIES
+- `infra/docker/docker-compose.ha.yml`: JM, JM-2, TM, TM-2
+- `migration/deploy/docker-compose.marun.yml`: JM (~271) and TM (~327)
+- `migration/deploy/test_build_release.py`
+- `prod_decision.md` §4/§6
+- `migration/MARUN-DAILY-CHECK.md` §2/§4
+
+**Changes:**
+- Add `env.java.opts.jobmanager: -XX:+ExitOnOutOfMemoryError` and `env.java.opts.taskmanager: -XX:+ExitOnOutOfMemoryError` to every FLINK_PROPERTIES block.
+- Do NOT add HeapDumpOnOutOfMemoryError. A dump over 1 GB on the 96 GB shared plant disk is a disk incident.
+- The restart policy stays the inherited `unless-stopped`, so Docker restarts an exited JVM.
+
+**Test:** pytest asserts both flags are present in the marun overlay for JM and TM, following the pattern of `test_the_plant_overlay_gives_the_taskmanager_3584m`.
+
+**Docs (plant behaviour):**
+- TM OOM: the TM restarts and the JM reschedules the jobs from their last checkpoint.
+- JM OOM: the JM restarts. With NO HA at the plant the jobs are gone; daily check §4 shows fewer than 7, and the remedy is `04b`.
+- Record this in prod_decision §4, and add the 2026-10-06 stress row to §6.
+
+**Lab proof (in the re-run):** the flag is visible in the TM process, and a forced OOM restarts the TM.
+
+### Task 12 (CHG-061a): Short buffer stores less per sample; exact duplicates dropped
+**Files:** `src/flink/src/main/java/com/ams/flink/cplm/ShortFeatureBufferFn.java`, `ShortWindowParityTest.java`, plus a new or extended unit test.
+
+1. **Profile:**
+   - Buffer samples with `resolvedProfile = null`.
+   - Keep the distinct profiles seen in the buffer in a small per-loop map, keyed by a profile identity (e.g. bundle hash plus revision, or the object's stable key). Evict them with the minutes, so the map is usually 1 entry.
+   - Each buffered sample keeps only that key.
+   - Before a window is computed, re-attach to each sample the profile it carried on arrival.
+   - Calculator results must be IDENTICAL to today: the parity test stays green, apart from the duplicate change in (2).
+2. **Duplicates:**
+   - An exact duplicate `(loopId, eventTsMs)` already in the buffer is dropped at ingest: look up `minuteIndex.get(minuteOf(ts))` and compare ts.
+   - Update `ShortWindowParityTest.java:162`, which injects duplicates on purpose. Its expectation becomes "duplicates are ignored", and a comment says why (CHG-062: duplicate feeds).
+3. **Measure:**
+   - Run `ShortWindowBacklogBench -Dshort.bench=true -Dshort.bench.real=true -Dshort.bench.heap=true` before and after (Docker Maven), and report `heap_used_after_gc_MB` and `checkpoint_MB`.
+   - Target: at least 40 % less heap per buffered sample. If it is not reached, report the actual figure, with no gold-plating.
+
+### Task 13 (CHG-061b): Hard per-loop cap on the Short buffer
+**Files:** `ShortFeatureBufferFn.java`, `CplmShortFeatureStreamJob.java` (arg), `migration/04b-submit-flink-jobs.sh` (Short args), tests.
+
+- **Argument:** `--short-max-samples-per-loop N`. The default is derived as `2 × ceil(66 min / grid)`, with the grid taken from the sample's declared `grid_seconds` (fallback 5 s). That gives 1,584 at Marun. `04b` passes `${CPLM_SHORT_MAX_SAMPLES_PER_LOOP:-0}` (0 = derived).
+- **When an append would exceed the cap:** evict whole oldest minutes until it fits, even if their windows have not fired yet.
+- **Reporting:** a warning at most once per loop per hour, `SHORT_BUFFER_CAPPED loop=… samples=… watermarkLagMs=…`, plus a Flink counter `shortBufferCapped`.
+- **Capped windows:** they report their true (lower) completeness. No crash, no unbounded growth.
+- **Tests:**
+  - Feed 3 × cap samples for one loop with a watermark that never advances: the buffer stays at or below the cap and the counter is above 0.
+  - Normal feed: the cap is never hit and the output equals the parity baseline.
+- **Bench:** with a stalled watermark (add a bench flag if needed), heap stays flat.
+
+### Task 14 (CHG-062a): Duplicate timestamps no longer zero the sample period
+**Files:** `src/flink/.../engine/SignalMath.java` (`filterHalfOpen` ~116-128, `inferSamplePeriodSec` ~130-138), `CplmLongDiagnosticsStreamJob.java` `onTimer` (~219-239), tests.
+
+- `filterHalfOpen`: after sorting, drop a sample whose `eventTsMs` equals the previous one, keeping the first.
+- `inferSamplePeriodSec`: ignore zero diffs (defence in depth).
+- Long `onTimer` retain loop: drop exact `(loopId, eventTsMs)` repeats in both `rollingBuffer` and `peerBuffer`, so the state shrinks too.
+- **Tests:**
+  - A long window with every sample ×6 gives the same `tsSec`, the same validated period and the same cycle count as the clean series. Use the existing SYN-TIC / long fixtures.
+  - Pin any test whose `sampleCount` changes, and explain why.
+
+### Task 15 (CHG-062b): Ingestion refuses an overlapping loop-sample source
+**Files:**
+- `src/services/ingestion-service/Services/` (new pure `LoopSourceConflicts.cs`)
+- `Program.cs` (POST ~162-180, PUT ~183-213, activate ~257-264)
+- `Pipeline/OtIngestionHostService.cs` (`ReconcileAsync` ~73-108)
+- `tests/ingestion-service.Tests/LoopSourceConflictTests.cs` (new)
+
+**Rule.** A candidate `MQTT_LOOP_SAMPLES` source conflicts with an ACTIVE one (excluding itself) when:
+- the broker endpoint is the same: normalized scheme, lower-case host, and port (missing port = 1883, or 8883 for mqtts/ssl);
+- AND either some pair of their topic filters overlaps (compared level by level: `+` matches one level, `#` the rest), or their effective client ids are equal (`DataSourceDto.DeriveClientId`).
+
+**API.** POST, PUT (only when the row is or becomes active) and activate return `409 {error:"overlaps active source '<name>' (<id>)", field:"topics"}`.
+
+**Subscriber manager (`ReconcileAsync`):**
+- Evaluate candidates in `(created_at, config_id)` order; the oldest wins.
+- Record a loser as `Running(null, fingerprint, status)` with `ConnectionError = "duplicate feed: overlaps '<name>'"`, and log one LogError.
+- Re-check losers every cycle, so a loser starts once the winner is deactivated.
+
+**Warning, not a refusal.** When two active loop-sample sources share an endpoint but their filters do NOT overlap (the Marun diagnostics-vs-PIDParams trap, MARUN-CONTEXT §12b), log one LogWarning per change: "two loop-sample sources on one broker; if they carry the same values every sample is doubled".
+
+**Tests (pure, no DB):**
+- overlap matrix: exact, `+` vs a literal, `#`, disjoint, plant filter vs lab filter
+- port normalization
+- client-id clash
+- self-exclusion
+- inactive rows ignored
+- oldest-wins ordering
+
+### Task 16 (CHG-062c + records for 060-062): Lab scripts stop leaking sources; records
+**Files:** `scripts/test-ot-loop-ingestion-e2e.ps1` (~154-166, ~524-533), `changes_tracker.md`, `prod_decision.md`, `migration/MARUN-DAILY-CHECK.md`, `migration/MARUN-CONTEXT.md` §12b, `checklist.md`.
+
+**E2E script:**
+- Reuse its named source: GET by name, PUT the profile, activate. Follow the pattern in `scripts/start-ot-loop-soak.ps1:53-75`.
+- Deactivate the lab soak source `'OT Gateway (lab soak)'` while it runs, and restore it in `finally`.
+- Move cleanup into try/finally.
+
+**Records:**
+- CHG-060, CHG-061 and CHG-062 entries in the CHG-049 template order.
+- SME-batch release block: add "marun overlay FLINK_PROPERTIES changed (CHG-060)" and the Short args (CHG-061).
+- prod_decision §3/§4/§6 rows: the cap default, the OOM flag, and the 2026-10-06 stress-test incident.
+- Daily check: a line for `SHORT_BUFFER_CAPPED` warnings in the TaskManager log over 24 h (WARN if > 0).
+
+### Task 17: Stress re-run at plant rate × 3 (replaces the blocked S1-S9)
+- Same scenarios as Task 9, with:
+  - a feed of 161 loops at about 1.85 s per loop, i.e. about 87 tuples/s, with no duplicate sources;
+  - 20+ loops oscillating (sim `--limit-cycle` profile, commit 3751f95b);
+  - the CHG-060..062 jar and cplm-api.
+- **S10:** a forced TaskManager OOM (e.g. via a test-only job, or `jcmd`). Acceptance: the TM exits and restarts, and the jobs return on their own.
+- **S11:** re-enable ONE duplicate data source through the API, which must return 409, then through SQL, where the subscriber manager must refuse it. Then remove it.
+- Coordinate every disruption with the UI session (ams-open-8c). The cherry-picked cplm-api commits b448bf89..ab3c21c8 stay in the build.
