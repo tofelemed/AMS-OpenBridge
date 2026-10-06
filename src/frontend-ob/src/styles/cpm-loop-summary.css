@@ -136,3 +136,8 @@
   margin-right: 2px;
   border-right: 1px solid var(--border-divider-color);
 }
+
+/* ── Loop signal trend (SME review #9/#10, CHG-047) ──
+   Scale switch above the chart (right-aligned, wraps under on a phone); the band's caption below. */
+.cpm-signal-trend__bar { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-bottom: 4px; }
+.cpm-signal-trend__note { margin: 4px 0 0; font-size: 0.78rem; color: var(--element-neutral-color); }

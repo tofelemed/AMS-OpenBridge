@@ -19,6 +19,8 @@ export const CSV_HEADERS = [
   // unreachable for a loop in engineering units), OP range normalises the output
   // to 0-100 before saturation (G10) and operating region (G2r).
   'pv_min', 'pv_max', 'op_min', 'op_max',
+  // CHG-047: the PV engineering unit (kg/h, °C, barg …) — display only: every trend axis names it.
+  'pv_unit',
 ] as const;
 
 /**
@@ -60,7 +62,7 @@ export interface CsvRow {
   criticality: string;
   paths: Record<SignalRole, { path: string; derived: boolean }>;
   /** Declared bounds only — an omitted one must stay omitted, not become 0. */
-  engineering: Record<string, number> | null;
+  engineering: Record<string, number | string> | null;
   problems: string[];
   warnings: string[];
   existing: boolean;
@@ -202,12 +204,14 @@ export function parseCsv(
     // Engineering ranges: only declared bounds ride along, and a half-declared
     // pair is flagged because the API defaults the missing bound (0 / 100),
     // inventing a span nobody wrote down.
-    const engineering: Record<string, number> = {};
+    const engineering: Record<string, number | string> = {};
     for (const col of ['pv_min', 'pv_max', 'op_min', 'op_max'] as const) {
       const bound = parseBound(values[col]);
       if (bound === null) problems.push(`${col} '${values[col]}' is not a number`);
       else if (bound !== undefined) engineering[camelBound(col)] = bound;
     }
+    const pvUnit = (values['pv_unit'] ?? '').trim();
+    if (pvUnit) engineering.pvUnit = pvUnit;
     for (const [lo, hi, label] of [['pv_min', 'pv_max', 'PV'], ['op_min', 'op_max', 'OP']] as const) {
       if ((values[lo] ?? '').trim() === '' !== ((values[hi] ?? '').trim() === ''))
         warnings.push(`${label} range is half-declared — the missing bound defaults (0 / 100)`);

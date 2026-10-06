@@ -29,9 +29,9 @@ describe('historical chart axes (R14)', () => {
     const yAxis = o.yAxis as Array<{ gridIndex: number; name?: string; position?: string }>;
     const signalsAxes = yAxis.filter(a => a.gridIndex === 0);
     expect(signalsAxes).toHaveLength(2);
-    expect(signalsAxes.map(a => a.name)).toEqual(['°C', 'pp']);
-    const pvAxis = yAxis.findIndex(a => a.gridIndex === 0 && a.name === '°C');
-    const ppAxis = yAxis.findIndex(a => a.gridIndex === 0 && a.name === 'pp');
+    expect(signalsAxes.map(a => a.name)).toEqual(['PV / SP (°C)', 'OP / VP (%)']); // CHG-047: named axes, % not pp
+    const pvAxis = yAxis.findIndex(a => a.gridIndex === 0 && a.name === 'PV / SP (°C)');
+    const ppAxis = yAxis.findIndex(a => a.gridIndex === 0 && a.name === 'OP / VP (%)');
     expect(seriesByName(o, 'PV').yAxisIndex).toBe(pvAxis);
     expect(seriesByName(o, 'SP').yAxisIndex).toBe(pvAxis);
     expect(seriesByName(o, 'OP').yAxisIndex).toBe(ppAxis);
@@ -64,6 +64,6 @@ describe('historical chart axes (R14)', () => {
     expect(html).toContain('16:01:00');                 // 12:01Z in Asia/Dubai (UTC+04:00)
     expect(html).toContain('Asia/Dubai');
     expect(html).toContain('PV: 401.00 °C');
-    expect(html).toContain('OP: 41.00 pp');
+    expect(html).toContain('OP: 41.00 %');
   });
 });

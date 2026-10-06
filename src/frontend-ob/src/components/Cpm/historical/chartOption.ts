@@ -18,22 +18,26 @@
  * signals grid only; the box components, the slider and the wheel share state.
  */
 import type { CpmKpiRow, CpmTrendPoint } from '../../../api/cpmApi';
+import { pvAxisName } from '../trend/trendOption';
 import type { CpmTone } from '../shared';
 import { formatInZone, zoneLabel } from '../evidence/timezone';
 import { FULL_ZOOM, boxZoomOption, type ZoomState } from '../../charts/boxZoom';
 
 /** Grid geometry, in px from the top of the canvas. Lane labels reuse these. */
+// CHG-047: the signals lane starts lower and the overlay sits 30 px under it, so the named axes
+// ("PV / SP (kg/h)", "OP / VP (%)", the overlay's unit) have their own row instead of overprinting
+// the lane above.
 export const LANES = {
-  signals: { top: 24, height: 190 },
-  overlay: { top: 232, height: 80 },
-  mode: { top: 328, height: 14 },
-  verdict: { top: 350, height: 20 },
+  signals: { top: 36, height: 190 },
+  overlay: { top: 256, height: 80 },
+  mode: { top: 352, height: 14 },
+  verdict: { top: 374, height: 20 },
   /** v2.5 (1H.6): optional Instrumental health lane (PV eligibility intervals). */
-  health: { top: 378, height: 14 },
+  health: { top: 402, height: 14 },
   axisLabels: 24,
   slider: { height: 20, bottom: 6 },
 };
-export const CHART_HEIGHT = 440;
+export const CHART_HEIGHT = 464;
 
 export interface Segment {
   startMs: number;
@@ -109,7 +113,7 @@ export function buildChartOption(input: ChartInput) {
   const domain = { min: from.getTime(), max: to.getTime() };
   const hasHealth = healthSegments != null;
   const zoomAxes = hasHealth ? [0, 1, 2, 3, 4] : [0, 1, 2, 3];
-  const pvUnit = input.pvUnit || 'EU';
+  const pvUnit = input.pvUnit?.trim() || '';
   const tz = input.timeZone || 'UTC';
   const normalize = !!input.normalize;
   // v2.5 (2E.2, R14): a 400 °C PV and a 0-100 pp OP never share an axis. The signals grid carries
@@ -137,7 +141,7 @@ export function buildChartOption(input: ChartInput) {
   const sig = (name: string) => (normalize ? `${name} (÷ own span)` : name);
   const dataOf = (get: (p: CpmTrendPoint) => number | null, span: { lo: number; hi: number }) =>
     points.map(p => [p.ts, normalize ? norm(get(p), span) : get(p)] as [number, number | null]);
-  const unitOf = (name: string) => (name === 'PV' || name === 'SP' ? pvUnit : 'pp');
+  const unitOf = (name: string) => (name === 'PV' || name === 'SP' ? pvUnit : '%');
   const originalAt = (name: string, ts: number): number | null => {
     const p = points.find(pt => pt.ts === ts);
     if (!p) return null;
@@ -167,11 +171,11 @@ export function buildChartOption(input: ChartInput) {
   return {
     animation: false,
     grid: [
-      { left: 60, right: 24, top: LANES.signals.top, height: LANES.signals.height },
-      { left: 60, right: 24, top: LANES.overlay.top, height: LANES.overlay.height },
-      { left: 60, right: 24, top: LANES.mode.top, height: LANES.mode.height },
-      { left: 60, right: 24, top: LANES.verdict.top, height: LANES.verdict.height },
-      ...(hasHealth ? [{ left: 60, right: 24, top: LANES.health.top, height: LANES.health.height }] : []),
+      { left: 60, right: 60, top: LANES.signals.top, height: LANES.signals.height },
+      { left: 60, right: 60, top: LANES.overlay.top, height: LANES.overlay.height },
+      { left: 60, right: 60, top: LANES.mode.top, height: LANES.mode.height },
+      { left: 60, right: 60, top: LANES.verdict.top, height: LANES.verdict.height },
+      ...(hasHealth ? [{ left: 60, right: 60, top: LANES.health.top, height: LANES.health.height }] : []),
     ],
     // The point of the rebuild: one crosshair, four lanes.
     axisPointer: { link: [{ xAxisIndex: 'all' as const }], snap: false },
@@ -227,14 +231,14 @@ export function buildChartOption(input: ChartInput) {
       : [timeAxis(0, false), timeAxis(1, false), timeAxis(2, false), timeAxis(3, true)],
     yAxis: [
       { type: 'value', gridIndex: 0, scale: !normalize, ...(normalize ? { min: 0, max: 1 } : {}),
-        name: normalize ? 'fraction of own span (normalised)' : pvUnit, nameTextStyle: { color: grey, fontSize: 10 },
+        name: normalize ? 'fraction of own span (normalised)' : pvAxisName(pvUnit), nameTextStyle: { color: grey, fontSize: 10 },
         axisLabel: { color: grey }, splitLine: { lineStyle: { opacity: 0.2 } } },
       { type: 'value', gridIndex: 1, scale: true, name: overlay.unit, nameTextStyle: { color: grey, fontSize: 10 }, axisLabel: { color: grey }, splitLine: { show: false } },
       laneY(2),
       laneY(3),
       ...(hasHealth ? [laneY(4)] : []),
       // the percentage-point axis of the signals grid (OP / VP), on the right; absent when normalised
-      ...(normalize ? [] : [{ type: 'value' as const, gridIndex: 0, scale: true, position: 'right' as const, name: 'pp',
+      ...(normalize ? [] : [{ type: 'value' as const, gridIndex: 0, scale: true, position: 'right' as const, name: 'OP / VP (%)',
         nameTextStyle: { color: grey, fontSize: 10 }, axisLabel: { color: grey }, splitLine: { show: false } }]),
     ],
     series: [

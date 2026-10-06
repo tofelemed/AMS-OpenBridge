@@ -10,21 +10,17 @@
  * empty state instead of three "—" tiles that read like measured zeros.
  */
 import React, { useMemo } from 'react';
-import ReactECharts from 'echarts-for-react';
 import type { CpmLoop } from '../../../../api/cpmApi';
 import { useCpmTrend, useLoopLastValues } from '../../../../hooks/useCpm';
 import { useLoopLive, qualityLabel } from '../../../../hooks/useLoopLive';
 import { FacetPill, liveSignalQuality } from '../../FacetPill';
-import { useObcTheme } from '../../../../hooks/useObcTheme';
 import { loopSeries } from '../../../../utils/loopSeries';
 import { modeLabel } from '../../../../utils/modeVocabulary';
 import {
   EmptyState, PanelHead, QueryError,
-  cpmChartColors, fmtDateTime, useRollingWindow, TREND_SPAN_MS, TREND_TICK_MS,
+  fmtDateTime, useRollingWindow, TREND_SPAN_MS, TREND_TICK_MS,
 } from '../../shared';
-import { boxZoomOption } from '../../../charts/boxZoom';
-import { useBoxZoom, useKeepSelecting } from '../../../charts/useBoxZoom';
-import ChartZoomBar from '../../../charts/ChartZoomBar';
+import SignalTrend from '../../trend/SignalTrend';
 
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
 
@@ -64,60 +60,6 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   const points = useMemo(() => trend.data?.points ?? [], [trend.data]);
   const last = points.length ? points[points.length - 1] : undefined;
 
-  const box = useBoxZoom({ hasY: true });
-  const obcTheme = useObcTheme(); // re-derive chart colors on theme switch
-  const option = useMemo(() => {
-    const { good, amber, grey } = cpmChartColors();
-    return {
-      animation: false,
-      grid: { left: 42, right: 12, top: 30, bottom: 24 },
-      ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: 0 }, box.zoom),
-      legend: {
-        data: ['PV', 'SP', 'OP'], top: 0, right: 0,
-        textStyle: { color: grey }, inactiveColor: grey,
-      },
-      tooltip: {
-        trigger: 'axis',
-        // 'pv-min'/'pv-band' are stacked helper series that draw the envelope;
-        // their STACKED values are not readable quantities, so they are filtered
-        // out and the bucket's real min–max is reported instead.
-        formatter: (params: Array<{ seriesName: string; marker: string; value: number | null; dataIndex: number }>) => {
-          if (!params.length) return '';
-          const p = points[params[0].dataIndex];
-          const rows = params
-            .filter(x => x.seriesName !== 'pv-min' && x.seriesName !== 'pv-band')
-            .map(x => `${x.marker} ${x.seriesName}: ${x.value == null ? '—' : Number(x.value).toFixed(2)}`);
-          const lo = num(p?.pv_min); const hi = num(p?.pv_max);
-          if (lo != null && hi != null) rows.push(`PV range: ${lo.toFixed(2)} – ${hi.toFixed(2)}`);
-          return [`<strong>${fmtDateTime(p?.ts)}</strong>`, ...rows].join('<br/>');
-        },
-      },
-      xAxis: {
-        type: 'category',
-        data: points.map(p => new Date(p.ts).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })),
-        axisLabel: { color: grey }, axisLine: { lineStyle: { color: grey } },
-      },
-      yAxis: { type: 'value', scale: true, axisLabel: { color: grey }, splitLine: { lineStyle: { opacity: 0.2 } } },
-      series: [
-        { name: 'pv-min', type: 'line', stack: 'band', silent: true, symbol: 'none',
-          lineStyle: { width: 0 }, data: points.map(p => num(p.pv_min)) },
-        { name: 'pv-band', type: 'line', stack: 'band', silent: true, symbol: 'none',
-          lineStyle: { width: 0 }, areaStyle: { color: good, opacity: 0.18 },
-          data: points.map(p => {
-            const lo = num(p.pv_min); const hi = num(p.pv_max);
-            return lo != null && hi != null ? hi - lo : null;
-          }) },
-        { name: 'PV', type: 'line', symbol: 'none', color: good, lineStyle: { color: good, width: 2 },
-          data: points.map(p => num(p.pv_avg) ?? num(p.pv)) },
-        { name: 'SP', type: 'line', symbol: 'none', color: grey, lineStyle: { color: grey, width: 1, type: 'dashed' },
-          data: points.map(p => num(p.sp)) },
-        { name: 'OP', type: 'line', symbol: 'none', color: amber, lineStyle: { color: amber, width: 1.5 },
-          data: points.map(p => num(p.op_avg) ?? num(p.op)) },
-      ],
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
-  }, [points, obcTheme, box.zoom]);
-  useKeepSelecting(box, option);
 
   // The third plane counts: a loop whose only evidence is a last stored value must
   // render its tiles, not the "nothing here" state this guard exists for.
@@ -213,13 +155,7 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
       {trend.isError && (
         <QueryError title="Trend unavailable" error={trend.error} retry={() => void trend.refetch()} />
       )}
-      {points.length > 0 && (
-        <>
-          <ReactECharts option={option} style={{ height: 240 }} notMerge
-            onChartReady={box.onChartReady} onEvents={{ datazoom: box.onDataZoom }} />
-          <ChartZoomBar box={box} hasData live />
-        </>
-      )}
+      {points.length > 0 && <SignalTrend loopId={loop.loopId} points={points} live />}
     </div>
   );
 };

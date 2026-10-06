@@ -15,14 +15,14 @@
  */
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KpiTile, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
-  fmtDateTime, QueryError, cpmChartColors } from './shared';
+  fmtDateTime, QueryError } from './shared';
 import { LoopContextBar } from './context/LoopContextBar';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
 import { staleVerdictLine } from './verdictAge';
+import SignalTrend from './trend/SignalTrend';
 import { ApiError } from '../../api/apiFetch';
 import type { CpmGateMatrix } from '../../api/cpmApi';
 import { HYPOTHESIS_LABEL } from '../../api/cpm/verdict';
@@ -31,10 +31,6 @@ import {
   useFleetRankings, useGateHistory, useLatestGates,
 } from '../../hooks/useCpm';
 import { loopSeries } from '../../utils/loopSeries';
-import { useObcTheme } from '../../hooks/useObcTheme';
-import { boxZoomOption } from '../charts/boxZoom';
-import { useBoxZoom, useKeepSelecting } from '../charts/useBoxZoom';
-import ChartZoomBar from '../charts/ChartZoomBar';
 import { CaseTriage } from './investigation/CaseTriage';
 import { HypothesisPanel } from './investigation/HypothesisPanel';
 import { ReasoningChain } from './investigation/ReasoningChain';
@@ -125,58 +121,6 @@ export const CpmInvestigation: React.FC = () => {
   // health exclusion or a device replacement is visible beside the evidence it affected.
   const healthHistory = useInstrumentHealthHistory(matrix ? loopId : undefined, start, end);
 
-  const box = useBoxZoom({ hasY: true }); // Phase 5: rectangle zoom on the verdict window
-  const obcTheme = useObcTheme(); // C: re-derive chart colors on theme switch
-  const chartOption = useMemo(() => {
-    const { good, amber, grey, pink } = cpmChartColors();
-    const num = (v: unknown) => (typeof v === 'number' ? v : null);
-    return {
-      animation: false,
-      grid: { left: 48, right: 16, top: 20, bottom: 30 },
-      ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: 0 }, box.zoom),
-      tooltip: {
-        trigger: 'axis',
-        // I14: filter the stacked envelope helpers — their values (min, and
-        // max-minus-min) are not signals; report the bucket's real min–max.
-        formatter: (ps: Array<{ seriesName: string; marker: string; value: [number, number | null] }>) => {
-          if (!ps.length) return '';
-          const ts = ps[0].value?.[0];
-          const p = points.find(pt => pt.ts === ts);
-          const rows = ps
-            .filter(x => x.seriesName !== 'pv-min' && x.seriesName !== 'pv-band')
-            .map(x => `${x.marker} ${x.seriesName}: ${x.value?.[1] == null ? '—' : Number(x.value[1]).toFixed(2)}`);
-          const lo = p && typeof p.pv_min === 'number' ? p.pv_min : null;
-          const hi = p && typeof p.pv_max === 'number' ? p.pv_max : null;
-          if (lo != null && hi != null) rows.push(`PV range: ${lo.toFixed(2)} – ${hi.toFixed(2)}`);
-          return [`<strong>${fmtDateTime(ts)}</strong>`, ...rows].join('<br/>');
-        },
-      },
-      xAxis: { type: 'time', axisLabel: { color: grey } },
-      yAxis: { type: 'value', scale: true, axisLabel: { color: grey }, splitLine: { lineStyle: { opacity: 0.2 } } },
-      series: [
-        { name: 'pv-min', type: 'line', stack: 'pv', silent: true, symbol: 'none',
-          lineStyle: { width: 0 }, data: points.map(p => [p.ts, num(p.pv_min)]) },
-        { name: 'pv-band', type: 'line', stack: 'pv', silent: true, symbol: 'none',
-          lineStyle: { width: 0 }, areaStyle: { color: good, opacity: 0.18 },
-          data: points.map(p => {
-            const lo = num(p.pv_min); const hi = num(p.pv_max);
-            return [p.ts, lo != null && hi != null ? hi - lo : null];
-          }) },
-        { name: 'PV', type: 'line', symbol: 'none', color: good, lineStyle: { color: good, width: 2 },
-          data: points.map(p => [p.ts, num(p.pv_avg) ?? num(p.pv)]) },
-        { name: 'SP', type: 'line', symbol: 'none', color: grey, lineStyle: { color: grey, width: 1, type: 'dashed' },
-          data: points.map(p => [p.ts, num(p.sp)]) },
-        { name: 'OP', type: 'line', symbol: 'none', color: amber, lineStyle: { color: amber, width: 1.5 },
-          data: points.map(p => [p.ts, num(p.op_avg) ?? num(p.op)]) },
-        ...(hasVp ? [
-          { name: 'VP', type: 'line', symbol: 'none', color: pink, lineStyle: { color: pink, width: 1.5 },
-            data: points.map(p => [p.ts, num(p.vp_avg) ?? num(p.vp)]) },
-        ] : []),
-      ],
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
-  }, [points, hasVp, obcTheme, box.zoom]);
-  useKeepSelecting(box, chartOption);
 
   const metrics = matrix?.metrics ?? {};
   const machineReason = matrix?.insufficientEvidenceReason
@@ -313,13 +257,7 @@ export const CpmInvestigation: React.FC = () => {
             {!trend.isLoading && !trend.isError && points.length === 0 && (
               <EmptyState title="No historian data for this window" copy={`Nothing stored at ${series}.`} />
             )}
-            {points.length > 0 && (
-              <>
-                <ReactECharts option={chartOption} style={{ height: 260 }} notMerge
-                  onChartReady={box.onChartReady} onEvents={{ datazoom: box.onDataZoom }} />
-                <ChartZoomBar box={box} hasData />
-              </>
-            )}
+            {points.length > 0 && loopId && <SignalTrend loopId={loopId} points={points} hasVp={hasVp} height={260} />}
           </section>
 
           <div className="cpm-grid-2">

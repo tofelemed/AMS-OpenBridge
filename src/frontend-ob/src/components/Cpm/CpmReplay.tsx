@@ -263,7 +263,7 @@ export const CpmReplay: React.FC = () => {
             copy={`Nothing stored at ${series} between the window bounds.`} />
         )}
         {points.length > 0 && (
-          <ReplayChart points={points} phasePlane={isShapeGate} cursorPct={cursorPct} onCursor={setCursorPct}
+          <ReplayChart points={points} pvUnit={loop?.engineering?.pvUnit ?? ''} phasePlane={isShapeGate} cursorPct={cursorPct} onCursor={setCursorPct}
             truncated={raw.data?.truncated ?? false} timeZone={timeZone} />
         )}
       </section>

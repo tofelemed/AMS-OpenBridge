@@ -84,7 +84,10 @@ public sealed record CpmEngineeringRange(
     // 0.5 EU, which is 0.5 % of span on a 0-100 loop but 0.05 % on a 0-1000 t/h
     // flow — so G3 could never pass there. Declared here, broadcast as
     // cplm.loop.engineering, and turned into a fraction-of-span band by the engine.
-    double? PvMin = null, double? PvMax = null);
+    double? PvMin = null, double? PvMax = null,
+    // CHG-047 (SME #10): the PV engineering unit ("kg/h", "°C", "barg"); SP shares it, OP is %.
+    // Display only — every trend axis and tooltip names it; the engine never reads it.
+    string? PvUnit = null);
 
 /// <summary>
 /// v2.5 (2G.1, spec v6 §6.1-6.3): what the loop IS, declared as five separate dimensions. Any field

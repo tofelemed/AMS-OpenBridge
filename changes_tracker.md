@@ -3031,9 +3031,58 @@ overnight stop): Overview focus "SIGNAL QUALITY Uncertain · last value 16 h ago
 Oscillation confirmed" (bad), operating-state line Signal quality; 0 px page overflow on Overview / Explorer / Performance at
 500 / 768 / 1000 / 1440; night theme; 0 console errors.
 
+## CHG-047 — SME review #9/#10: trends get named PV and OP axes with units, the band explained, and a Fit / Engineering-range scale (2026-10-06)
+
+**Source:** `SME_review.md` points 9 and 10. **Scope:** **`ams-frontend`** — `components/Cpm/trend/{SignalTrend.tsx,
+trendOption.ts (+test)}` (new, shared by the Overview focus panel, the Explorer operating state and the Investigation
+evidence chart, replacing three copies), `historical/chartOption.ts` (+test updated), `replay/ReplayChart.tsx`,
+`CpmHistorical.tsx`, `CpmReplay.tsx`, `AddLoopWizard.tsx`, `csvImport.ts` (+`csvImport.unit.test.ts`), `api/cpmApi.ts`,
+`styles/cpm-loop-summary.css`; **`cplm-api`** — `CpmEngineeringRange.PvUnit`, `CpmLoopRegistryReads.ReadRange`,
+`CpmLoopRegistryService.Bulk.cs` (`HasRange`, `SerializeRange`, `EngineeringMerge`); tests `EngineeringUnitTests.cs` (new).
+**No schema change, no migration** (`engineering` is a jsonb column: `pvUnit` is one more optional key). The Flink
+`cplm.loop.engineering` broadcast is unchanged (numbers only).
+
+**What the SME said.** (#9) FIC10401 shows a confirmed oscillation but its trend looks flat: PV ≈ 800 on a wide scale
+with OP ≈ 29 at the bottom — PV/SP need a useful scale and OP a separate percentage scale. (#10) Loops whose PV and OP
+share a magnitude look reasonable on one axis though their units differ; every axis needs units and clear signal
+assignment; the shaded envelope needs explaining.
+
+**Verified before the change.** Correct. The Overview focus trend, the Explorer 8 h trend and the Investigation evidence
+chart drew PV, SP, OP (and VP) and the band on ONE unnamed value axis. Historical and Replay already split PV/SP from
+OP/VP but named the axes with the placeholder "EU" and "pp". The band had no legend entry or explanation. No real unit
+existed anywhere: the registry's engineering block had ranges only, and none of the 1,080 lab assets of the loops' signals
+carried `engineering_unit`.
+
+**What changed.**
+- Shared trend: left axis **"PV / SP (<unit>)"**, right axis **"OP (%)"** / **"OP / VP (%)"**, each named and drawn in its
+  pen colour; time axis with readable day boundaries ("5 Oct", not "5"); legend under the chart with **"PV min–max per
+  point"**; a caption explaining the band; tooltips with units ("PV: 801 kg/h · OP: 29.4 %").
+- **Scale switch (DCS / PI Vision practice — user decision 2026-10-06):** **Fit to data** (default: autorange, shows the
+  shape) | **Engineering range** (the registered PV range and OP range, OP falling back to 0–100 %: shows where the loop
+  sits in its span); the range option is disabled, with its reason, when no PV range is registered.
+- A stalled feed (buckets with no values) shows "No signal values in this trend range" instead of an empty frame.
+- **PV unit (Part B):** the Add-Loop wizard has a "PV unit" field beside the ranges (shown on Review); the bulk CSV has an
+  optional `pv_unit` column; cplm-api stores, returns and serialises it (trimmed, at most 24 characters); **a ranges-only
+  re-import keeps a registered unit** (`EngineeringMerge`). Until a loop has one, every axis reads "(unit not set)" —
+  never a fake "EU". Historical and Replay use it too; their "pp" axis is now "OP / VP (%)"; Historical's lanes moved
+  down 12–24 px and its grids gained right margin so the named axes do not clip or overprint.
+
+**Tests.** Frontend: `trend/trendOption.test.ts` (new, 10: axis assignment and names, pen-coloured axes, band legend,
+VP on the OP axis, tooltip units, fit / range / fallbacks, "unit not set", stalled feed), `csvImport.unit.test.ts` (new,
+3), `historical/chartOption.test.ts` updated to the new axis names. 74 files green; lint / tsc / build clean. cplm-api:
+`EngineeringUnitTests` (3 unit) + `EngineeringMergeSqlTests` (3 on the lab Postgres, evaluating the real merge
+expression); full suite **249 / 249** — the `EvidenceClassSweepTests` failure noted in CHG-043/045 did not reproduce this
+run (it depends on the lab data's state; still worth a look). **Lab pass 2026-10-06:** cplm-api rebuilt and restarted;
+FIC10401 edited in the wizard with PV unit `kg/h` (Review: "PV 0–2500 kg/h · OP 0–100"; API and DB return `pvUnit`);
+Investigation chart: "PV / SP (kg/h)" 73–79 left, "OP (%)" 29–35 right, the oscillation visible in both; Engineering
+range: PV 0–2500 kg/h, OP 0–100 % (PV sits at ~3 % of its registered span — worth checking that range with the plant);
+Overview and Explorer (lab feed stalled 17 h) show the no-values state; Historical and Replay show the unit; 0 px page
+overflow on all five pages at 500 / 768 / 1440; night theme; 0 console errors. Lab data note: FIC10401 now carries
+`pvUnit: "kg/h"` in the lab registry.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040, CHG-041, CHG-042, CHG-043, CHG-044, CHG-045, CHG-046) and **`cplm-api`** (CHG-043, CHG-045). No schema, no
+- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-047) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
   migration, no Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant: `docker load` the `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
@@ -3048,3 +3097,6 @@ Oscillation confirmed" (bad), operating-state line Signal quality; 0 px page ove
   returns `shelvedCount` and per-row `priority`.
   (CHG-046) loop facets carry captions: SIGNAL QUALITY / INSTRUMENT HEALTH / DIAGNOSIS pills, "N% in band" bars; a live value
   older than 10 min shows "Uncertain · last value …".
+  (CHG-047) loop trends: "PV / SP (unit)" left, "OP (%)" right, Fit to data / Engineering range switch, band legend +
+  caption. **Plant data step:** load PV units with the registry bulk import (`pv_unit` column; a ranges-only CSV keeps
+  them) — until then axes read "(unit not set)".

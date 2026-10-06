@@ -102,6 +102,8 @@ export interface CpmEngineeringRange {
   opMax?: number | null;
   pvMin?: number | null;
   pvMax?: number | null;
+  /** CHG-047: the PV engineering unit (e.g. "kg/h", "°C", "barg"); SP shares it, OP is %. Null = not set. */
+  pvUnit?: string | null;
 }
 
 export interface CpmActivateRequest {

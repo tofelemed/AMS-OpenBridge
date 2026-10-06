@@ -5,6 +5,7 @@
  * Phase 5 (cpa-ui-fix-plan): rectangle zoom on both views (x + y), held across cursor moves.
  */
 import React, { useMemo } from 'react';
+import { pvAxisName } from '../trend/trendOption';
 import ReactECharts from 'echarts-for-react';
 import type { CpmTrendPoint } from '../../../api/cpm/kpis';
 import { cpmChartColors, fmtDateTime } from '../shared';
@@ -19,6 +20,7 @@ export interface ReplayChartInput {
   cursorTs: number | null;
   phasePlane: boolean;
   pens: { good: string; amber: string; grey: string; accent: string; pink: string };
+  /** CHG-047: the registered PV unit; blank = not set (never a fake "EU"). */
   pvUnit: string;
   timeZone: string;
   zoom?: ZoomState;
@@ -34,11 +36,11 @@ export function buildReplayOption(i: ReplayChartInput) {
     const pairs = points.map(p => ({ ts: p.ts, pv: num(p.pv), op: num(p.op) })).filter(p => p.pv != null && p.op != null);
     return {
       animation: false,
-      grid: { left: 52, right: 16, top: 20, bottom: 34 },
+      grid: { left: 52, right: 16, top: 36, bottom: 34 },
       ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: 0 }, zoom),
       tooltip: { trigger: 'item' as const },
-      xAxis: { type: 'value' as const, name: 'OP (pp)', scale: true, axisLabel: { color: grey } },
-      yAxis: { type: 'value' as const, name: `PV (${pvUnit})`, scale: true, axisLabel: { color: grey }, splitLine: { lineStyle: { opacity: 0.2 } } },
+      xAxis: { type: 'value' as const, name: 'OP (%)', scale: true, axisLabel: { color: grey } },
+      yAxis: { type: 'value' as const, name: `PV (${pvUnit || 'unit not set'})`, scale: true, axisLabel: { color: grey }, splitLine: { lineStyle: { opacity: 0.2 } } },
       series: [
         { name: 'trajectory', type: 'scatter' as const, symbolSize: 3, itemStyle: { color: grey, opacity: 0.35 },
           data: pairs.filter(p => cursorTs == null || p.ts > cursorTs).map(p => [p.op, p.pv]) },
@@ -50,22 +52,22 @@ export function buildReplayOption(i: ReplayChartInput) {
   const hasVp = points.some(p => num(p.vp) != null);
   return {
     animation: false,
-    grid: { left: 56, right: 56, top: 24, bottom: 34 },
+    grid: { left: 56, right: 56, top: 40, bottom: 34 }, // room for the named axes (CHG-047)
     ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: [0, 1] }, zoom),
     tooltip: {
       trigger: 'axis' as const,
       formatter: (params: Array<{ seriesName: string; marker: string; value: [number, number | null] }>) => {
         if (!params.length) return '';
         const ts = params[0].value[0];
-        const unit = (n: string) => (n === 'PV' || n === 'SP' ? pvUnit : 'pp');
+        const unit = (n: string) => (n === 'PV' || n === 'SP' ? pvUnit : '%');
         const rows = params.map(x => `${x.marker} ${x.seriesName}: ${x.value[1] == null ? '— (no sample)' : `${Number(x.value[1]).toFixed(2)} ${unit(x.seriesName)}`}`);
         return [`<strong>${formatInZone(ts, timeZone)} — ${zoneLabel(timeZone, ts)}</strong>`, ...rows].join('<br/>');
       },
     },
     xAxis: { type: 'time' as const, axisLabel: { color: grey } },
     yAxis: [
-      { type: 'value' as const, name: pvUnit, scale: true, axisLabel: { color: grey }, nameTextStyle: { color: grey, fontSize: 10 }, splitLine: { lineStyle: { opacity: 0.2 } } },
-      { type: 'value' as const, name: 'pp', position: 'right' as const, scale: true, axisLabel: { color: grey }, nameTextStyle: { color: grey, fontSize: 10 }, splitLine: { show: false } },
+      { type: 'value' as const, name: pvAxisName(pvUnit), scale: true, axisLabel: { color: grey }, nameTextStyle: { color: grey, fontSize: 10 }, splitLine: { lineStyle: { opacity: 0.2 } } },
+      { type: 'value' as const, name: 'OP / VP (%)', position: 'right' as const, scale: true, axisLabel: { color: grey }, nameTextStyle: { color: grey, fontSize: 10 }, splitLine: { show: false } },
     ],
     series: [
       { name: 'PV', type: 'line' as const, symbol: 'none', connectNulls: false, yAxisIndex: 0, color: good, lineStyle: { color: good, width: 1.5 },
@@ -89,7 +91,7 @@ export const ReplayChart: React.FC<{
   truncated: boolean;
   timeZone: string;
   pvUnit?: string;
-}> = ({ points, phasePlane, cursorPct, onCursor, truncated, timeZone, pvUnit = 'EU' }) => {
+}> = ({ points, phasePlane, cursorPct, onCursor, truncated, timeZone, pvUnit = '' }) => {
   const cursorTs = points.length > 0 ? points[Math.min(points.length - 1, Math.floor((cursorPct / 100) * (points.length - 1)))].ts : null;
   const box = useBoxZoom({ hasY: true });
   const obcTheme = useObcTheme(); // re-derive chart colors on theme switch

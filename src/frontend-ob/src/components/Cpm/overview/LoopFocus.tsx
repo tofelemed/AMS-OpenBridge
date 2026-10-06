@@ -7,17 +7,13 @@
  * option) and the bar says the viewport is held while zoomed.
  */
 import React, { useMemo } from 'react';
-import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { EmptyState, PanelHead, TonePill, fmtDateTime, QueryError, cpmChartColors, useRollingWindow, TREND_SPAN_MS, TREND_TICK_MS } from '../shared';
+import { EmptyState, PanelHead, TonePill, fmtDateTime, QueryError, useRollingWindow, TREND_SPAN_MS, TREND_TICK_MS } from '../shared';
 import { useCpmTrend } from '../../../hooks/useCpm';
 import { useLoopLive, qualityLabel } from '../../../hooks/useLoopLive';
 import { FacetPill, liveSignalQuality } from '../FacetPill';
 import { loopSeries } from '../../../utils/loopSeries';
-import { useObcTheme } from '../../../hooks/useObcTheme';
-import { boxZoomOption } from '../../charts/boxZoom';
-import { useBoxZoom, useKeepSelecting } from '../../charts/useBoxZoom';
-import ChartZoomBar from '../../charts/ChartZoomBar';
+import SignalTrend from '../trend/SignalTrend';
 
 // ── loop focus panel (signal row + envelope trend) ─────────────────────────
 
@@ -42,65 +38,6 @@ export const LoopFocus: React.FC<{
   const fmtLive = (m: { value: number | string | boolean } | undefined, digits = 1) =>
     m == null ? '—' : typeof m.value === 'number' ? m.value.toFixed(digits) : String(m.value);
 
-  const box = useBoxZoom({ hasY: true });
-  const obcTheme = useObcTheme(); // C: re-derive chart colors on theme switch
-  const option = useMemo(() => {
-    const { good, amber, grey } = cpmChartColors();
-    const ts = points.map(p => p.ts);
-    const num = (v: unknown) => (typeof v === 'number' ? v : null);
-    return {
-      animation: false,
-      grid: { left: 42, right: 12, top: 30, bottom: 24 },
-      ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: 0 }, box.zoom),
-      // No tooltip and no legend meant the shape of an oscillation was visible but
-      // not a single value readable off it.
-      legend: {
-        data: ['PV', 'SP', 'OP'], top: 0, right: 0,
-        textStyle: { color: grey }, inactiveColor: grey,
-      },
-      tooltip: {
-        trigger: 'axis',
-        // 'pv-min'/'pv-band' are stacked helpers that draw the envelope; their
-        // stacked values are not readable quantities, so report the real min–max.
-        formatter: (params: Array<{ seriesName: string; marker: string; value: number | null; dataIndex: number }>) => {
-          if (!params.length) return '';
-          const p = points[params[0].dataIndex];
-          const rows = params
-            .filter(x => x.seriesName !== 'pv-min' && x.seriesName !== 'pv-band')
-            .map(x => `${x.marker} ${x.seriesName}: ${x.value == null ? '—' : Number(x.value).toFixed(2)}`);
-          const lo = num(p?.pv_min); const hi = num(p?.pv_max);
-          if (lo != null && hi != null) rows.push(`PV range: ${lo.toFixed(2)} – ${hi.toFixed(2)}`);
-          return [`<strong>${fmtDateTime(p?.ts)}</strong>`, ...rows].join('<br/>');
-        },
-      },
-      xAxis: {
-        type: 'category',
-        data: ts.map(t => new Date(t).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })),
-        axisLabel: { color: grey }, axisLine: { lineStyle: { color: grey } },
-      },
-      yAxis: { type: 'value', scale: true, axisLabel: { color: grey }, splitLine: { lineStyle: { opacity: 0.2 } } },
-      series: [
-        // PV envelope band: min as invisible base, (max−min) stacked & filled —
-        // the honest rendering of oscillation inside each decimation bucket.
-        { name: 'pv-min', type: 'line', stack: 'pv-band', silent: true, symbol: 'none',
-          lineStyle: { width: 0 }, data: points.map(p => num(p.pv_min)) },
-        { name: 'pv-band', type: 'line', stack: 'pv-band', silent: true, symbol: 'none',
-          lineStyle: { width: 0 }, areaStyle: { color: good, opacity: 0.18 },
-          data: points.map(p => {
-            const lo = num(p.pv_min); const hi = num(p.pv_max);
-            return lo != null && hi != null ? hi - lo : null;
-          }) },
-        { name: 'PV', type: 'line', symbol: 'none', color: good, lineStyle: { color: good, width: 2 },
-          data: points.map(p => num(p.pv_avg) ?? num(p.pv)) },
-        { name: 'SP', type: 'line', symbol: 'none', color: grey, lineStyle: { color: grey, width: 1, type: 'dashed' },
-          data: points.map(p => num(p.sp)) },
-        { name: 'OP', type: 'line', symbol: 'none', color: amber, lineStyle: { color: amber, width: 1.5 },
-          data: points.map(p => num(p.op_avg) ?? num(p.op)) },
-      ],
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
-  }, [points, obcTheme, box.zoom]);
-  useKeepSelecting(box, option);
 
   return (
     <section className="cpm-surface">
@@ -135,13 +72,7 @@ export const LoopFocus: React.FC<{
         <EmptyState title="No historian data for this loop"
           copy={`No samples stored at ${series} in this window.`} />
       )}
-      {points.length > 0 && (
-        <>
-          <ReactECharts option={option} style={{ height: 260 }} notMerge
-            onChartReady={box.onChartReady} onEvents={{ datazoom: box.onDataZoom }} />
-          <ChartZoomBar box={box} hasData={points.length > 0} live />
-        </>
-      )}
+      {points.length > 0 && <SignalTrend loopId={loopId} points={points} height={260} live />}
     </section>
   );
 };

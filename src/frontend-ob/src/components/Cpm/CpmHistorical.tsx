@@ -199,7 +199,7 @@ export const CpmHistorical: React.FC = () => {
   const box = useBoxZoom({ hasY: true });
   const option = useMemo(() => buildChartOption({
     points, kpiRows, overlay, signals, modeSegments, verdictSegments, healthSegments: healthLane, from, to,
-    pens: cpmChartColors(), tones: cpmToneColors(), pvUnit: 'EU', timeZone, normalize, zoom: box.zoom,
+    pens: cpmChartColors(), tones: cpmToneColors(), pvUnit: loop?.engineering?.pvUnit ?? '', timeZone, normalize, zoom: box.zoom,
   }),
   // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
   [points, kpiRows, overlay, signals, modeSegments, verdictSegments, healthLane, from, to, obcTheme, timeZone, normalize, box.zoom]);

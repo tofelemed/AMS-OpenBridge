@@ -297,8 +297,7 @@ public sealed partial class CpmLoopRegistryService
                 is_active = TRUE, tags = EXCLUDED.tags,
                 threshold_profile_id = EXCLUDED.threshold_profile_id,
                 monitoring = cpm.loop_registry.monitoring || EXCLUDED.monitoring,
-                engineering = CASE WHEN EXCLUDED.engineering = @emptyJson::jsonb
-                                   THEN cpm.loop_registry.engineering ELSE EXCLUDED.engineering END,
+                engineering = {EngineeringMerge("EXCLUDED.engineering", "cpm.loop_registry.engineering")},
                 -- v2.5 (2G.1): a preset never overwrites a person's EXPLICIT model
                 service_family = CASE WHEN EXCLUDED.classification_source = 'EXPLICIT' OR cpm.loop_registry.classification_source <> 'EXPLICIT' THEN EXCLUDED.service_family ELSE cpm.loop_registry.service_family END,
                 dynamic_class = CASE WHEN EXCLUDED.classification_source = 'EXPLICIT' OR cpm.loop_registry.classification_source <> 'EXPLICIT' THEN EXCLUDED.dynamic_class ELSE cpm.loop_registry.dynamic_class END,
@@ -390,18 +389,39 @@ public sealed partial class CpmLoopRegistryService
     /// Null when nothing is declared, so "absent" survives the round trip as absent
     /// rather than becoming a zero the engine would treat as a real bound.</summary>
     /// <summary>Any declared bound makes the range worth storing.</summary>
-    private static bool HasRange(CpmEngineeringRange? r) =>
-        r is { OpMin: not null } or { OpMax: not null } or { PvMin: not null } or { PvMax: not null };
+    internal static bool HasRange(CpmEngineeringRange? r) =>
+        r is { OpMin: not null } or { OpMax: not null } or { PvMin: not null } or { PvMax: not null }
+        || !string.IsNullOrWhiteSpace(r?.PvUnit);
+
+    /// <summary>
+    /// The bulk upsert's engineering column: an empty incoming block keeps the stored one; otherwise the
+    /// incoming block replaces it (a re-import is the new truth for the ranges), except that a stored
+    /// pvUnit survives a row that does not carry one (CHG-047) — a ranges-only CSV must not wipe units.
+    /// </summary>
+    internal static string EngineeringMerge(string incoming, string existing) => $$"""
+        CASE WHEN {{incoming}} = @emptyJson::jsonb THEN {{existing}}
+             WHEN ({{incoming}}->>'pvUnit') IS NULL AND ({{existing}}->>'pvUnit') IS NOT NULL
+             THEN {{incoming}} || jsonb_build_object('pvUnit', {{existing}}->'pvUnit')
+             ELSE {{incoming}} END
+        """;
+
+    /// <summary>CHG-047: a unit is a short token ("kg/h", "m3/h", "barg"); anything longer is cut, never stored raw.</summary>
+    internal const int MaxPvUnitLength = 24;
 
     /// <summary>Only the declared bounds are written, so an omitted one stays absent
     /// rather than being persisted as a zero the engine would treat as a real bound.</summary>
-    private static string SerializeRange(CpmEngineeringRange r)
+    internal static string SerializeRange(CpmEngineeringRange r)
     {
-        var range = new Dictionary<string, double>();
+        var range = new Dictionary<string, object>();
         if (r.OpMin is { } opMin) range["opMin"] = opMin;
         if (r.OpMax is { } opMax) range["opMax"] = opMax;
         if (r.PvMin is { } pvMin) range["pvMin"] = pvMin;
         if (r.PvMax is { } pvMax) range["pvMax"] = pvMax;
+        if (!string.IsNullOrWhiteSpace(r.PvUnit))
+        {
+            var unit = r.PvUnit.Trim();
+            range["pvUnit"] = unit.Length > MaxPvUnitLength ? unit[..MaxPvUnitLength] : unit;
+        }
         return JsonSerializer.Serialize(range);
     }
 

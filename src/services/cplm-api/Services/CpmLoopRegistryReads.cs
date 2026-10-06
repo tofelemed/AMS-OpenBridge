@@ -134,9 +134,12 @@ public static class CpmLoopRegistryReads
             root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number
                 ? v.GetDouble() : null;
 
+        var unit = e.TryGetProperty("pvUnit", out var u) && u.ValueKind == JsonValueKind.String
+            && !string.IsNullOrWhiteSpace(u.GetString()) ? u.GetString()!.Trim() : null;
         var range = new CpmEngineeringRange(
-            Num(e, "opMin"), Num(e, "opMax"), Num(e, "pvMin"), Num(e, "pvMax"));
+            Num(e, "opMin"), Num(e, "opMax"), Num(e, "pvMin"), Num(e, "pvMax"), unit);
         return range is { OpMin: not null } or { OpMax: not null } or { PvMin: not null } or { PvMax: not null }
+                   or { PvUnit: not null }
             ? range : null;
     }
 

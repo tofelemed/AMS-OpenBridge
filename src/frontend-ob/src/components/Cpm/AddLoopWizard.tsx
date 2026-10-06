@@ -39,6 +39,8 @@ interface WizardState {
   // Engineering ranges, held as strings so "not declared" stays distinguishable
   // from 0 — the API treats an omitted bound as undeclared and a 0 as a real one.
   pvMin: string; pvMax: string; opMin: string; opMax: string;
+  /** CHG-047: the PV engineering unit, free text ("kg/h", "°C"); blank = not set. */
+  pvUnit: string;
 }
 
 /** v2.5 (2G.1): an EXPLICIT stored model prefills the selects; a preset leaves them blank (so a preset is never re-sent as explicit). */
@@ -63,12 +65,13 @@ function parseBound(text: string): number | null | undefined {
 }
 
 /** Only declared bounds are sent, so an omitted one stays omitted server-side. */
-function engineeringOf(f: { pvMin: string; pvMax: string; opMin: string; opMax: string }) {
-  const range: Record<string, number> = {};
+function engineeringOf(f: { pvMin: string; pvMax: string; opMin: string; opMax: string; pvUnit: string }) {
+  const range: Record<string, number | string> = {};
   for (const k of ['pvMin', 'pvMax', 'opMin', 'opMax'] as const) {
     const v = parseBound(f[k]);
     if (typeof v === 'number') range[k] = v;
   }
+  if (f.pvUnit.trim()) range.pvUnit = f.pvUnit.trim();
   return Object.keys(range).length > 0 ? range : null;
 }
 
@@ -133,6 +136,7 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
     thresholdProfileId: editLoop.thresholdProfileId ?? '', enableMonitoring: editLoop.monitoringEnabled,
     pvMin: numText(editLoop.engineering?.pvMin), pvMax: numText(editLoop.engineering?.pvMax),
     opMin: numText(editLoop.engineering?.opMin), opMax: numText(editLoop.engineering?.opMax),
+    pvUnit: editLoop.engineering?.pvUnit ?? '',
     model: modelFormOf(editLoop.model),
   } : {
     // site starts EMPTY: the old 'site1' placeholder was a site that exists in
@@ -143,7 +147,7 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
     loopType: 'FIC', criticality: 'medium',
     pv: '', sp: '', op: '', mode: '', vp: '',
     thresholdProfileId: '', enableMonitoring: true,
-    pvMin: '', pvMax: '', opMin: '', opMax: '',
+    pvMin: '', pvMax: '', opMin: '', opMax: '', pvUnit: '',
     model: emptyModelForm(),
   });
   const readiness = useCpmReadiness(savedLoopId ?? undefined);
@@ -304,6 +308,11 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
                     placeholder={k.startsWith('pv') ? 'e.g. 0 / 250' : 'e.g. 0 / 100'} />
                 </label>
               ))}
+              <label className="cpm-field">
+                <span className="cpm-field__label">PV unit</span>
+                <input className="cpm-input" value={form.pvUnit} onChange={set('pvUnit')} maxLength={24}
+                  placeholder="e.g. kg/h, °C, barg" />
+              </label>
             </div>
             {rangeIssue && <span className="cpm-field__error">{rangeIssue}</span>}
             {halfRange.length > 0 && (
@@ -391,7 +400,7 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
             <KvRow label="Loop model">{isExplicit(form.model) ? `EXPLICIT — ${[form.model.serviceFamily, form.model.dynamicClass, form.model.objectiveType, form.model.topology, form.model.commandPath].filter(Boolean).join(' · ') || 'acquisition only'}` : `preset from loop type ${form.loopType}`}</KvRow>
             <KvRow label="Signals">{['pv', 'sp', 'op', 'mode', 'vp'].filter(k => form[k as keyof WizardState]).map(k => k.toUpperCase()).join(' · ') || 'none'}</KvRow>
             <KvRow label="Engineering ranges">
-              {[form.pvMin || form.pvMax ? `PV ${form.pvMin || '0'}–${form.pvMax || '100'}` : null,
+              {[form.pvMin || form.pvMax ? `PV ${form.pvMin || '0'}–${form.pvMax || '100'}${form.pvUnit.trim() ? ` ${form.pvUnit.trim()}` : ''}` : form.pvUnit.trim() ? `PV unit ${form.pvUnit.trim()}` : null,
                 form.opMin || form.opMax ? `OP ${form.opMin || '0'}–${form.opMax || '100'}` : null]
                 .filter(Boolean).join(' · ') || 'not declared (PV band stays ±0.5 EU)'}
             </KvRow>
