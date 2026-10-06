@@ -38,6 +38,7 @@ import { useCpmResolutions, useFleetHeatmap, useFleetRankings, useFleetSummary }
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { explorerHref, pipelineHref, windowsHref } from './cpaHref';
 import { diagnosisLabel } from './vocabulary';
+import { evidenceScoreText } from './evidenceScore';
 
 /** v2.5 (1H.6): the three fleet health filters the server understands (spec §4.7). */
 const HEALTH_FILTERS: { id: CpmHealthFilter; label: string }[] = [
@@ -356,7 +357,7 @@ export const CpmPerformance: React.FC = () => {
                     <span className="cpm-copy">
                       Final diagnosis {diagnosisLabel(selectedRow.diagnosis)}
                       {selectedRow.confidence != null
-                        ? ` (${(selectedRow.confidence * 100).toFixed(0)}%)` : ''}
+                        ? ` · ${evidenceScoreText(selectedRow.confidence)}` : ''}
                     </span>
                     <div className="cpm-filter-row">
                       <ObcButton variant="raised"

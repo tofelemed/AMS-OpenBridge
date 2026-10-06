@@ -30,6 +30,7 @@ import type {
 import type { MetricDef } from './calcCatalogue';
 import { diagnosisLabel } from './vocabulary';
 import { fmtQuantity } from './evidence/format';
+import { evidenceScore, evidenceScoreText } from './evidenceScore';
 
 const DRAWER_TABS = ['Definition', 'Validation', 'History'] as const;
 
@@ -106,7 +107,7 @@ export const CalcDrawer: React.FC<{
           <div className={`cpm-kpi cpm-kpi--${disqualification ? 'warn' : status.tone}`}>
             <span className="cpm-kpi__caption">Latest value</span>
             <span className="cpm-kpi__value">
-              {disqualification ? <span className="cpm-metric-na">{disqualification.split(':')[0]}</span> : value != null ? fmtQuantity(value, metric.unit) : '—'}
+              {disqualification ? <span className="cpm-metric-na">{disqualification.split(':')[0]}</span> : value != null ? (metric.field === 'confidence' ? `${evidenceScore(value)} / 100` : fmtQuantity(value, metric.unit)) : '—'}
             </span>
             <span className="cpm-kpi__sub">
               {disqualification ?? status.label}
@@ -238,9 +239,9 @@ export const CalcDrawer: React.FC<{
               </KvRow>
               {disqualification && <p className="cpm-copy">{disqualification}</p>}
               {band && (
-                <KvRow label="Confidence band">
+                <KvRow label="Evidence-score band">
                   {band.band} <span className="cpm-event-row__sub">
-                    (≤ {(band.maxConfidence * 100).toFixed(0)}%)
+                    (evidence score ≤ {(band.maxConfidence * 100).toFixed(0)})
                   </span>
                 </KvRow>
               )}
@@ -271,7 +272,7 @@ export const CalcDrawer: React.FC<{
             )}
             {(events.data?.events ?? []).map(e => (
               <KvRow key={e.id} label={fmtDateTime(e.opened_at)}>
-                {diagnosisLabel(e.peak_diagnosis)} · {(e.peak_confidence * 100).toFixed(0)}%
+                {diagnosisLabel(e.peak_diagnosis)} · peak {evidenceScoreText(e.peak_confidence)}
                 {/* v2.5 (1F.2): an open episode the engine cannot currently see has not recovered. */}
                 {e.closed_at === null && e.availability_state === 'UNOBSERVABLE' && ' · open, unobservable'}
               </KvRow>

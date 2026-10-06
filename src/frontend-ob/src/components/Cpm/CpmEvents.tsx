@@ -128,7 +128,7 @@ export const CpmEvents: React.FC = () => {
       <WorkspaceHeader
         page="/cpm/events"
         title="Loop events"
-        copy="Investigate diagnosis episodes with operating context and a traceable response history. One row is one episode of one fault family — confidence changes extend it rather than duplicating it."
+        copy="Investigate diagnosis episodes with operating context and a traceable response history. One row is one episode of one fault family — a change in its evidence score extends it rather than duplicating it."
       />
       <LoopContextBar loopId={loopParam} period={{ label: 'All episodes of this loop' }} />
       <PlantScopeFilter scope={scope}

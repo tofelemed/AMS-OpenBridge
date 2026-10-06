@@ -26,7 +26,7 @@ describe('fusedOptions', () => {
     expect(o[0].tone).toBe('muted');
     expect(o[0].hasRunIds).toBe(true);
     expect(o[0].gates[0]).toEqual({ key: 'G5', status: 'WARN', reason: 'BANDWIDTH' });
-    expect(o[1].label).toMatch(/^24 h · ends 2 Sept 20:45 UTC · Valve nonlinearity \(stiction\) suspected 89% · 14\.5 d ago · no run identity \(pre-v2\.5\)$/);
+    expect(o[1].label).toMatch(/^24 h · ends 2 Sept 20:45 UTC · Valve nonlinearity \(stiction\) suspected · evidence score 89 · 14\.5 d ago · no run identity \(pre-v2\.5\)$/);
     expect(o[1].hasRunIds).toBe(false);
     expect(o[1].tone).toBe('bad');
   });

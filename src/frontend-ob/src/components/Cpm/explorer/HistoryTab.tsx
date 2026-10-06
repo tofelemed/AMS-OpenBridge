@@ -24,6 +24,7 @@ import { EmptyState, QueryError, TonePill, fmtDateTime } from '../shared';
 import { usePagedSlice } from '../../shared/ListPager';
 import { shelfState } from '../events/shelfState';
 import { diagnosisLabel } from '../vocabulary';
+import { evidenceScoreText } from '../evidenceScore';
 
 /**
  * sort:'recent' is load-bearing, not a preference: the endpoint's default order
@@ -195,7 +196,7 @@ export const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
                       : span.endMs != null ? ` → ${fmtDateTime(span.endMs)}` : ' · open'}
                   </span>
                   <span className="cpm-event-row__sub">
-                    {e.window_count} × {e.window_kind} window(s) · peak {(e.peak_confidence * 100).toFixed(0)}%
+                    {e.window_count} × {e.window_kind} window(s) · peak {evidenceScoreText(e.peak_confidence)}
                   </span>
                 </button>
               );

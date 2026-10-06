@@ -3442,9 +3442,47 @@ updated. Frontend 84 files / 392 tests green; lint / tsc / build clean. **Lab pa
 their caveats, No evidence: actuator at a limit; G5 / G4 rows as above; insufficient windows say "The whole window: not
 evaluated: not enough data"; 0 px overflow at 1440 / 390; night theme; 0 console errors.
 
+## CHG-056 — SME review #20: "confidence" is an evidence score — named, scaled and explained as one (2026-10-06)
+
+**Source:** `SME_review.md` point 20. **Scope:** `ams-frontend` only: new `components/Cpm/{evidenceScore.ts (+test),
+EvidenceScoreNote.tsx}`; `CpmInvestigation.tsx`, `AttentionList.tsx`, `CalcDrawer.tsx`, `CpmCalculations.tsx`, `CpmPerformance.tsx`,
+`CpmEvents.tsx`, `calcCatalogue.ts`, `events/EventDetail.tsx`, `explorer/{HistoryTab, SummaryTab}.tsx`,
+`explorer/summary/{LoopSummaryCard, SummaryCalculations}.tsx`, `historical/SelectedWindowPanel.tsx`,
+`investigation/WindowBrowser.tsx`, `overview/FocusedLoopDrawer.tsx`, `evidence/{useEvidenceWindows.ts, whyRules.ts}`,
+`verdictAge.ts` (+ tests), `styles/cpm-evidence-layout.css`. No service change.
+
+**What the SME said.** 100 % confidence needs a clearer meaning: the Workbench says scores are uncalibrated while the Overview
+shows percentage confidence; if it is an evidence score, call it that, explain it near the result, and do not make it look like
+statistical certainty.
+
+**Verified before the change.** Correct. The engine's `confidence` (`CplmGateFusionEngine`) is the selected family's evidence
+score — how fully the observed symptoms match that family — capped at 0.89 for a valve claim without valve-position
+confirmation (G14) and at 0.54 for a single window not yet persistent. Uncalibrated. Yet ~15 places printed "N% confidence" /
+"Confidence" (Investigation pill "100% confidence", Explorer, drawer, Performance, Historical, comparison table, attention list,
+episode "peak confidence", Workbench picker "… 100%", Calculations "Confidence band" / "Fused confidence", "By confidence"),
+while the Workbench and (since CHG-042 / 045) the Explorer summary and priority reasons said "evidence score". Lab: 152 of 182
+loops at 100 — the SME's "several loops at 100 %".
+
+**What changed.**
+- **One name and format:** "evidence score 97" (0–100, no %) everywhere it appears; "By evidence score"; "Evidence-score band
+  (evidence score ≤ 55)"; Calculations "Fused evidence score" = "100 / 100"; "peak evidence score" on episodes. The CSV export
+  keeps the machine column `confidence`.
+- **Its meaning beside the result** (Investigation conclusion, on hover everywhere the score shows): "Evidence score: how fully
+  the observed symptoms match this finding's signature (0–100). Not a probability, and not a priority — the queue ranks by
+  criticality, severity and persistence."
+- **The caps explained** when they bind, from the engine's own reason string: "capped at 89: a valve cause cannot be confirmed
+  without valve position (G14)" (lab SYN_TIC_002); "capped at 54: not yet persistent (1 of 3 windows agree)". Also in the Explorer
+  summary and as a row in the Workbench G15 "Why this result".
+
+**Tests.** `evidenceScore.test.ts` (new, 2: format never a percentage; both caps and the no-cap case); `verdictAge`,
+`useEvidenceWindows` tests updated. Frontend 85 files / 394 tests green; lint / tsc / build clean. **Lab pass 2026-10-06:**
+Investigation SYN_TIC_002 pill "evidence score 89" + note "This score is capped at 89: a valve cause cannot be confirmed without
+valve position (G14)"; FIC10401 "evidence score 100", comparison row "Evidence score 100 | 100"; no "confidence" left in the
+Performance page text; 0 console errors.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-055) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
+- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-056) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
   migration, no Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant: `docker load` the `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
@@ -3480,3 +3518,5 @@ evaluated: not enough data"; 0 px overflow at 1440 / 390; night theme; 0 console
   Older › paging; every window picker uses the same "24 h · ends …" name.
   (CHG-055) Evidence Workbench › Explain › Why this result shows "Measured vs required" rows with the profile's thresholds;
   Investigation's conclusion lists Observed / Possible cause (not confirmed) / Ruled out / No evidence.
+  (CHG-056) no "% confidence" anywhere: results read "evidence score 97" with the meaning beside the Investigation conclusion;
+  a capped score says why (e.g. "capped at 89: a valve cause cannot be confirmed without valve position").

@@ -7,8 +7,9 @@
  * profile does not configure is said so, never invented.
  */
 import type { CpmGateMatrix } from '../../../api/cpm/gates';
-import { contextOfMatrix, metricAvailability } from '../metricAvailability';
+import { contextOfMatrix, hasVerdict, metricAvailability } from '../metricAvailability';
 import { fmtDuration } from '../shared';
+import { evidenceScore, evidenceScoreCap } from '../evidenceScore';
 
 export interface WhyRow {
   label: string;
@@ -120,6 +121,10 @@ export function whyRows(gate: string, src: WhySources): WhyRow[] {
       break;
     }
     case 'G15': {
+      // SME #20 (CHG-056): the fused score by its real name, with the engine cap that stopped it, if any
+      const score = evidenceScore(src.row?.confidence);
+      if (score != null && hasVerdict(src.row?.diagnosis))
+        rows.push({ label: 'Evidence score (selected family)', value: `${score} of 100`, against: evidenceScoreCap(src.row?.narrative?.statusReason, src.row?.confidence) ?? 'uncalibrated — it ranks evidence; it is not a probability', ok: null });
       const agree = m('persistence_agree_count'), need = m('persistence_windows_required');
       if (agree != null && need != null)
         rows.push({ label: 'Agreeing windows (persistence)', value: agree.toFixed(0), against: `≥ ${need.toFixed(0)} required to persist`, ok: agree >= need });

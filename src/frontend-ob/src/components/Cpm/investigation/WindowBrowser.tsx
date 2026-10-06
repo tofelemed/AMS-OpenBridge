@@ -13,6 +13,7 @@ import { contextOfMatrix, metricAvailability } from '../metricAvailability';
 import { MetricValue } from '../MetricValue';
 import { fmtInstant } from '../context/LoopContextBar';
 import { windowSize, windowSpan } from '../windowLabel';
+import { EVIDENCE_SCORE_HELP, evidenceScore } from '../evidenceScore';
 
 const PAGE = 5;
 
@@ -37,7 +38,7 @@ export const WindowBrowser: React.FC<{
   const curCtx = contextOfMatrix(matrix);
   const confPrev = metricAvailability(prevCtx, 'confidence', previous?.confidence);
   const confCur = metricAvailability(curCtx, 'confidence', matrix.confidence);
-  const pct = (v: number | null | undefined) => (v != null ? `${(v * 100).toFixed(0)}%` : '—');
+  const pct = (v: number | null | undefined) => (v != null ? String(evidenceScore(v)) : '—');
   const side = (m: CpmGateMatrix | undefined, which: string) => {
     const d = (m?.diagnosis ?? '').toUpperCase();
     return d.startsWith('EXCLUDED') ? `${which} window excluded (loop not in automatic)`
@@ -105,7 +106,7 @@ export const WindowBrowser: React.FC<{
                 </tr>
               )}
               <tr>
-                <td style={{ textAlign: 'left' }}>Confidence</td>
+                <td style={{ textAlign: 'left' }} title={EVIDENCE_SCORE_HELP}>Evidence score</td>
                 <td><MetricValue a={confPrev} text={pct(previous.confidence)} /></td>
                 <td><MetricValue a={confCur} text={pct(matrix.confidence)} /></td>
                 <td>{confPrev.state === 'measured' && confCur.state === 'measured'

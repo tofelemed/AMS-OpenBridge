@@ -27,6 +27,8 @@ import WindowKindToggle from './summary/WindowKindToggle';
 import { pinEvaluated, revealTrend } from '../trend/evaluatedWindow';
 import { workbenchExit } from './summary/LoopSummaryCard';
 import { diagnosisLabel } from '../vocabulary';
+import { evidenceScoreText } from '../evidenceScore';
+import { hasVerdict } from '../metricAvailability';
 
 const SummaryGateDetail = React.lazy(() => import('./summary/SummaryGateDetail'));
 const SummaryCalculations = React.lazy(() => import('./summary/SummaryCalculations'));
@@ -80,7 +82,7 @@ export const SummaryTab: React.FC<{ loop: CpmLoop; windowKind: string }> = ({ lo
               {matrix && (
                 <TonePill tone={toneFor(matrix.diagnosis)}>
                   {diagnosisLabel(matrix.diagnosis)}
-                  {matrix.confidence != null ? ` · ${(matrix.confidence * 100).toFixed(0)}%` : ''}
+                  {matrix.confidence != null && hasVerdict(matrix.diagnosis) ? ` · ${evidenceScoreText(matrix.confidence)}` : ''}
                 </TonePill>
               )}
             </>

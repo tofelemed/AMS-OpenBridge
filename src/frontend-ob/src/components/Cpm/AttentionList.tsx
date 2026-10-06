@@ -21,11 +21,12 @@ import type { CpmHeatmapLoop, CpmRankedLoop } from '../../api/cpmApi';
 import { EmptyState, PanelHead, QueryError, TonePill, toneFor } from './shared';
 import { drivingGates } from './gateStatus';
 import { diagnosisLabel } from './vocabulary';
+import { evidenceScoreText } from './evidenceScore';
 
 export type RankBy = 'confidence' | 'error';
 
 const RANK_OPTIONS = [
-  { value: 'confidence', label: 'By confidence' },
+  { value: 'confidence', label: 'By evidence score' },
   { value: 'error', label: 'By control error' },
 ];
 
@@ -99,7 +100,7 @@ export const AttentionList: React.FC<AttentionListProps> = ({
             const metric = rankBy === 'error'
               ? (l.metrics.goodErrorPct != null
                 ? `${(l.metrics.goodErrorPct * 100).toFixed(0)}% in band` : null)
-              : (l.confidence != null ? `confidence ${(l.confidence * 100).toFixed(0)}%` : null);
+              : (l.confidence != null ? evidenceScoreText(l.confidence) : null);
             return (
               <li
                 key={l.loopId}

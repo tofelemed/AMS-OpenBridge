@@ -28,6 +28,7 @@ import { diagnosisLabel } from './vocabulary';
 import { gateMark } from './gateStatus';
 import { fmtQuantity } from './evidence/format';
 import { contextOfMatrix, contextOfRow, metricAvailability, type MetricAvailability } from './metricAvailability';
+import { evidenceScore } from './evidenceScore';
 
 /** gates/latest 404 = "no fused window yet" — an answer, not a failure. */
 const isNoVerdict = (e: unknown) => e instanceof ApiError && e.status === 404;
@@ -267,7 +268,7 @@ export const CpmCalculations: React.FC = () => {
               {/* C1: a value from a DECLINED window is a zeroed placeholder the
                   engine told us not to trust — never render it as a measurement. */}
               <span title={disq ?? undefined}>
-                {disq ? <span className="cpm-metric-na">{availabilityOf(m)?.short}</span> : v != null ? fmtQuantity(v, m.unit) : '—'}
+                {disq ? <span className="cpm-metric-na">{availabilityOf(m)?.short}</span> : v != null ? (m.field === 'confidence' ? `${evidenceScore(v)} / 100` : fmtQuantity(v, m.unit)) : '—'}
               </span>
               {/* C2: WHEN, not just which resolution — "latest" without a
                   timestamp reads as current on a stale historian. */}

@@ -50,6 +50,8 @@ import { contextOfMatrix, hasVerdict, metricAvailability } from './metricAvailab
 import { MetricValue } from './MetricValue';
 import { windowEnds, windowSize } from './windowLabel';
 import { CauseBreakdownRows } from './CauseBreakdown';
+import { EVIDENCE_SCORE_HELP, evidenceScoreText } from './evidenceScore';
+import { EvidenceScoreNote } from './EvidenceScoreNote';
 
 export const CpmInvestigation: React.FC = () => {
   const navigate = useNavigate();
@@ -201,9 +203,10 @@ export const CpmInvestigation: React.FC = () => {
           <div className="cpm-grid-2">
             <section className="cpm-surface" id="cpm-conclusion">
               <PanelHead eyebrow="Final conclusion" title={diagnosisLabel(matrix.diagnosis)}
-                right={<TonePill tone={toneFor(matrix.diagnosis)}>
-                  {matrix.confidence != null && hasVerdict(matrix.diagnosis) ? `${(matrix.confidence * 100).toFixed(0)}% confidence` : 'no verdict'}
-                </TonePill>} />
+                right={<span title={EVIDENCE_SCORE_HELP}><TonePill tone={toneFor(matrix.diagnosis)}>
+                  {matrix.confidence != null && hasVerdict(matrix.diagnosis) ? evidenceScoreText(matrix.confidence) : 'no verdict'}
+                </TonePill></span>} />
+              {hasVerdict(matrix.diagnosis) && <EvidenceScoreNote statusReason={matrix.narrative?.statusReason} score={matrix.confidence} />}
               <KvRow label="Window">
                 {matrix.windowStart ? fmtDateTime(matrix.windowStart) : '—'} →{' '}
                 {matrix.windowEnd ? fmtDateTime(matrix.windowEnd) : '—'} ({matrix.windowKind})

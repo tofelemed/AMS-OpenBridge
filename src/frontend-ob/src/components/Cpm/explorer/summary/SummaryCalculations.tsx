@@ -26,6 +26,7 @@ import { LONG_METRICS, WindowResultsPanel, fmtVal } from '../../windows/WindowRe
 import { diagnosisLabel } from '../../vocabulary';
 import { contextOfMatrix, hasVerdict, metricAvailability } from '../../metricAvailability';
 import { MetricValue } from '../../MetricValue';
+import { evidenceScoreText } from '../../evidenceScore';
 
 const isNoVerdictYet = (e: unknown) => e instanceof ApiError && e.status === 404;
 
@@ -53,7 +54,7 @@ const FusedResult: React.FC<{ loop: CpmLoop; kind: string }> = ({ loop, kind }) 
     <>
       <p className="cpm-copy cpm-source-line">
         <TonePill tone={toneFor(m.diagnosis)}>{diagnosisLabel(m.diagnosis)}</TonePill>
-        {m.confidence != null && hasVerdict(m.diagnosis) ? ` ${(m.confidence * 100).toFixed(0)}% confidence · ` : ' '}
+        {m.confidence != null && hasVerdict(m.diagnosis) ? ` ${evidenceScoreText(m.confidence)} · ` : ' '}
         window ending {m.windowEnd ? fmtDateTime(m.windowEnd) : '—'} · {counts.symptoms} findings or attention · {counts.failed} checks failed · {counts.ok} clear · {counts.none} not evaluated or not usable
       </p>
       <div className="cpm-grid-2">

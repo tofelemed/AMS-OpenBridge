@@ -15,6 +15,7 @@ import { GATE_ORDER } from './gateFacts';
 import { codeLabel, diagnosisLabel, phrase } from '../vocabulary';
 import { windowLabel } from '../windowLabel';
 import { hasVerdict } from '../metricAvailability';
+import { evidenceScoreText } from '../evidenceScore';
 
 export type WindowTier = 'fused' | 'short' | 'long';
 
@@ -48,7 +49,7 @@ export function fusedOptions(rows: CpmWindowSummary[], now: number, timeZone: st
     const insufficient = !r.diagnosis || r.diagnosis === 'INSUFFICIENT_DATA';
     const state = insufficient
       ? `${diagnosisLabel('INSUFFICIENT_DATA')}${r.insufficientEvidenceReason ? ` (${phrase(r.insufficientEvidenceReason)})` : ''}`
-      : `${diagnosisLabel(r.diagnosis)}${r.confidence != null && hasVerdict(r.diagnosis) ? ` ${Math.round(r.confidence * 100)}%` : ''}`;
+      : `${diagnosisLabel(r.diagnosis)}${r.confidence != null && hasVerdict(r.diagnosis) ? ` · ${evidenceScoreText(r.confidence)}` : ''}`;
     const ms = age(r.windowEnd, now);
     const tone: CpmTone = insufficient ? 'muted' : r.diagnosis === 'NOT_EVALUATED' ? 'muted' : /SUSPECTED|CONFIRMED|FAIL/.test(r.diagnosis!) ? 'bad' : /DEVELOPING|WARN/.test(r.diagnosis!) ? 'warn' : 'good';
     return {

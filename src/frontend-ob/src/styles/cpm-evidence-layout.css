@@ -144,3 +144,6 @@
 .cpm-explain .cpm-cause__items { margin-bottom: 6px; }
 .cpm-explain .cpm-why__rows { grid-template-columns: minmax(0, 1fr); }
 .cpm-explain .cpm-why__rows dd { margin-bottom: 6px; }
+
+/* Evidence-score meaning beside the result (SME #20, CHG-056). */
+.cpm-score-note { margin: 2px 0 8px; font-size: 0.8rem; color: var(--element-neutral-color); }

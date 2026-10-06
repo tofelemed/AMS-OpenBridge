@@ -20,6 +20,8 @@ import type { CpmGateMatrix } from '../../../api/cpmApi';
 import { EmptyState, KvRow, PanelHead, TonePill, fmtDateTime, toneFor } from '../shared';
 import { workbenchHref } from '../evidence/selection';
 import { diagnosisLabel } from '../vocabulary';
+import { EVIDENCE_SCORE_HELP, evidenceScore } from '../evidenceScore';
+import { hasVerdict } from '../metricAvailability';
 
 /** The run to open for a window: its fused verdict (G15), else the first gate that carries one. */
 export function windowRun(win: CpmGateMatrix): { methodRunId: string; gate: string } | null {
@@ -82,8 +84,8 @@ export const SelectedWindowPanel: React.FC<{
                   {diagnosisLabel(win.diagnosis)}
                 </TonePill>
               </KvRow>
-              <KvRow label="Confidence">
-                {win.confidence != null ? `${(win.confidence * 100).toFixed(0)}%` : '—'}
+              <KvRow label="Evidence score">
+                <span title={EVIDENCE_SCORE_HELP}>{win.confidence != null && hasVerdict(win.diagnosis) ? evidenceScore(win.confidence) : '—'}</span>
               </KvRow>
               <KvRow label="Samples">{win.sampleCount ?? '—'}</KvRow>
             </div>

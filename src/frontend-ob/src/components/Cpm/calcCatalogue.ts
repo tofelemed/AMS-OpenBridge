@@ -43,6 +43,6 @@ export const METRICS: MetricDef[] = [
   // qualified variant reads 0.0 on the stiction reference loop, so NEITHER is a
   // trustworthy headline alone - say so instead of pretending.
   { id: 'CPLM-070', field: 'corner_score', name: 'Phase-portrait corner score (raw)', gate: 'G9', kind: 'Calculation', unit: 'score', source: 'long', description: 'Sharp-corner evidence in the PV–OP phase plot. CAUTION: the raw statistic reads high (~0.9) even on healthy noisy data; treat it only alongside the G9 verdict and phase-area band, never alone.' },
-  { id: 'CPLM-090', field: 'confidence', name: 'Fused confidence', gate: 'G15', kind: 'Decision', unit: 'ratio', source: 'gate', description: 'Final banded confidence of the selected family.' },
+  { id: 'CPLM-090', field: 'confidence', name: 'Fused evidence score', gate: 'G15', kind: 'Decision', unit: 'score', source: 'gate', description: 'How fully the observed symptoms match the selected family (0–1; shown 0–100). Uncalibrated — not a probability.' },
 ];
 

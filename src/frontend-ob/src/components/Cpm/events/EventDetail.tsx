@@ -17,6 +17,7 @@ import { explorerHref } from '../cpaHref';
 import { availabilityCopy, availabilityPill, conditionOf, supportCopy } from './eventsState';
 import { isAcknowledged, shelfCountdown, shelfState, stateView } from './shelfState';
 import { diagnosisLabel, phrase } from '../vocabulary';
+import { EVIDENCE_SCORE_HELP, evidenceScore, evidenceScoreText } from '../evidenceScore';
 
 const ShelvePanel = React.lazy(() => import('./ShelvePanel'));
 const UnshelvePanel = React.lazy(() => import('./UnshelvePanel'));
@@ -90,7 +91,7 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
       <p className="cpm-copy">
         The {phrase(event.family)} family was reported across{' '}
         {supportCopy(event)}, peaking at{' '}
-        {(event.peak_confidence * 100).toFixed(0)}% confidence
+        {evidenceScoreText(event.peak_confidence)}
         {event.last_diagnosis && event.last_diagnosis !== event.peak_diagnosis
           ? `; the latest window reports ${diagnosisLabel(event.last_diagnosis).toLowerCase()}.`
           : '.'}
@@ -107,7 +108,7 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
 
       <PanelHead eyebrow="Evidence" title="Provenance" />
       <KvRow label="Fault family">{event.family}</KvRow>
-      <KvRow label="Peak confidence">{(event.peak_confidence * 100).toFixed(0)}%</KvRow>
+      <KvRow label="Peak evidence score"><span title={EVIDENCE_SCORE_HELP}>{evidenceScore(event.peak_confidence)}</span></KvRow>
       <KvRow label="Resolution">{event.window_kind}</KvRow>
       <KvRow label="Calculation version">{event.calculation_version ?? '—'}</KvRow>
       <KvRow label="Dynamics profile">{event.dynamics_profile_version ?? '—'}</KvRow>

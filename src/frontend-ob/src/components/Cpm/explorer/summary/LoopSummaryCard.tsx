@@ -26,6 +26,7 @@ import { pinEvaluated, revealTrend } from '../../trend/evaluatedWindow';
 import {
   ageText, conditionOf, evidenceOf, leadingCauseOf, limitationsOf, nextCheckOf, primaryActionOf, staleAfterMs,
 } from './summaryText';
+import { EVIDENCE_SCORE_HELP, evidenceScoreCap } from '../../evidenceScore';
 
 const MAX_LIMITS = 2;
 
@@ -62,6 +63,7 @@ export const LoopSummaryCard: React.FC<{
   const limits = limitationsOf(matrix.observabilityFlags);
   const last = matrix.lastVerdict;
   const score = finding && matrix.confidence != null ? Math.round(matrix.confidence * 100) : null;
+  const scoreCap = finding ? evidenceScoreCap(matrix.narrative?.statusReason, matrix.confidence) : null;
   const endMs = matrix.windowEnd ? Date.parse(matrix.windowEnd) : NaN;
   const windowAge = Number.isFinite(endMs) && Date.now() - endMs > staleAfterMs(windowKind) ? ageText(Date.now() - endMs) : null;
   const action = primaryActionOf(condition);
@@ -101,8 +103,8 @@ export const LoopSummaryCard: React.FC<{
             )}
             {score != null && (
               <span className="cpm-loop-summary__muted"
-                title="The engine's evidence score for this result (0–100). Uncalibrated: it ranks evidence, it is not a probability.">
-                {' · '}evidence score {score}
+                title={EVIDENCE_SCORE_HELP}>
+                {' · '}evidence score {score}{scoreCap ? ` (${scoreCap})` : ''}
               </span>
             )}
           </Row>
