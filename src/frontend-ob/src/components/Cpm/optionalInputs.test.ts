@@ -45,3 +45,12 @@ describe('registry labels', () => {
     expect(peerDetail(loop(null, null))).toMatch(/expected/);
   });
 });
+
+describe('wizard labels', () => {
+  it('names a fact state and summarises the declared applicability', async () => {
+    const { factStateLabel, applicabilitySummary } = await import('./optionalInputs');
+    expect(factStateLabel('NOT_APPLICABLE')).toBe('Not applicable');
+    expect(factStateLabel('AVAILABLE')).toBeNull();
+    expect(applicabilitySummary('', 'NOT_APPLICABLE')).toBe('VP derived · peers not applicable');
+  });
+});

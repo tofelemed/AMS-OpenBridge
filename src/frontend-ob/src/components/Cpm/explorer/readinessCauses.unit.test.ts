@@ -26,3 +26,8 @@ describe('readinessCauses kinds', () => {
       ['tag_pv', 'blocking'], ['peer_links', 'configuration'], ['evidence_short', 'data'], ['evidence_verdict', 'data']]);
   });
 });
+
+it('a mapped VP with no samples is data, not configuration', () => {
+  const rr = { checks: [{ id: 'tag_vp', ok: false, label: 'VP', message: null, state: 'TEMPORARILY_UNAVAILABLE' }] } as unknown as CpmReadiness;
+  expect(readinessCauses(rr, 'FIC1')?.causes[0].kind).toBe('data');
+});

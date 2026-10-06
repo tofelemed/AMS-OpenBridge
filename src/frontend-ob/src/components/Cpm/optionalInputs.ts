@@ -83,3 +83,14 @@ export function vpDetail(loop: LoopLike): string {
 /** Registry detail row when a loop has no peer links. */
 export const peerDetail = (loop: Pick<CpmLoop, 'engineering'>): string =>
   peerApplicabilityOf(loop) === 'EXPECTED' ? 'None — expected; G13 not evaluated' : 'None — no interacting loops (G13 does not apply)';
+
+/** Readiness check pill for an optional input that is fine because it does not apply here (no action needed). */
+export function factStateLabel(state: string | undefined): string | null {
+  return state === 'NOT_APPLICABLE' ? 'Not applicable' : state === 'NOT_INSTALLED' ? 'Not installed' : null;
+}
+
+/** Wizard review line for the declared applicability; blank selects read "derived". */
+export function applicabilitySummary(vp: string, peers: string): string {
+  const word = (v: string) => APPLICABILITY_OPTIONS.find(o => o.value === v && v)?.label.toLowerCase() ?? 'derived';
+  return `VP ${word(vp)} · peers ${word(peers)}`;
+}

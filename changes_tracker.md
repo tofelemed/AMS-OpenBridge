@@ -3614,12 +3614,19 @@ applicability; on a loop declared "no valve" the UI reads the flag as "does not 
 hypothesis there. Follow-up owed in the fusion job (recorded in `prod_decision.md`).
 
 **Tests.** cplm-api `OptionalInputsTests` + `OptionalInputsSqlTests` + merge case — 64/64 in the filtered run (lab DB). Frontend
-`optionalInputs.test.ts` (new, 4), `readinessCauses.unit.test.ts` (new, 3), `capabilityCopy.test.ts` (rewritten, 4), CSV columns (2) —
-Cpm suite 75 files / 338 tests green; lint / tsc clean. **Lab (frontend only, lab cplm-api is the CHG-049 build):** all 230 lab loops
-are UNKNOWN / OP_TO_VALVE, so every unmapped VP correctly stays "Not mapped" (224) and none is reclassified; Explorer AIC30601 banner
-"5 to fix" with Configuration ×3 / Waiting for data ×2 — day 1440 and night 390 px, no horizontal scroll; registry FIC10302 detail
-"Peer links: None — expected; G13 not evaluated"; edit wizard › Signal mappings shows both selects. The readiness `state` / `notes`
-and the fleet counts are verified once the lab cplm-api carries 5439474d + 4b92430a.
+`optionalInputs.test.ts` (new, 6), `readinessCauses.unit.test.ts` (new, 4), `capabilityCopy.test.ts` (rewritten, 4), CSV columns (2) —
+Cpm suite 75 files / 339 tests green; lint / tsc / build clean. **Lab** (cplm-api with 5439474d + 4b92430a, cherry-picked onto the
+CHG-049 lab build 2026-10-06 ~16:20 UTC): all 230 lab loops are UNKNOWN / OP_TO_VALVE, so nothing reclassifies by default —
+`fleet/summary` capability 224 VP expected-unmapped / 228 peers expected-missing / 0 facts; AIC30601 readiness `tag_vp` and
+`peer_links` = EXPECTED_UNMAPPED. Declared through the wizard on FIC10302 (Interacting loops → Not applicable, "Update loop"):
+stored `engineering.peerApplicability = NOT_APPLICABLE` beside the ranges; the activation result reads peers "Not applicable";
+Explorer banner "1 to fix · 1 plant fact(s)" (VP mapped but no samples → TEMPORARILY_UNAVAILABLE, pill "Waiting for data" —
+`vp_available=false` in the latest 24 h row confirms it; peers as a "Plant fact" row); Overview Readiness 227 peers + "Plant facts,
+nothing to fix: 1 without interacting loops". Reverted afterwards. Explorer day 1440 / night 390 px, no horizontal scroll.
+**CHG-058 lab check done on the same build:** a loop note on FIC10302 saved with no episode and its window run attached (box
+unticked), then linked through "Link to episode…" to EVT-2213 → `event_id = 2213`, EVT-2213 still UNACKNOWLEDGED; test note removed.
+**Found, not changed:** Loop Events searches and deep-links (`?event=`) only within its top-200 fetched slice, so an episode of a loop
+outside it (EVT-2213) cannot be opened there — the episode-side "Link a loop note" is reachable only for episodes in the slice.
 
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 

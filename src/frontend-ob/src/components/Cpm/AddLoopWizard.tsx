@@ -25,6 +25,7 @@ import { PlantLocationPicker, SIGNAL_ROLES, deriveSignalPath, historianNode, isR
 import type { PlantLocation } from './plantLocation';
 import { NO_VP_COPY } from './investigation/confirmationCopy';
 import { OptionalInputFields, applicabilityOf, type OptionalInputForm } from './OptionalInputFields';
+import { applicabilitySummary, factStateLabel } from './optionalInputs';
 
 
 // ── add-loop wizard (5 steps, maps 1:1 onto POST /cpm/loops/activate) ──────
@@ -403,7 +404,7 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
 
         {step === 4 && !savedLoopId && (
           <>
-            <PanelHead eyebrow="New control loop" title={form.loopId || '—'} right={<TonePill tone="warn">READY TO SAVE</TonePill>} />
+            <PanelHead eyebrow={isEdit ? 'Edit control loop' : 'New control loop'} title={form.loopId || '—'} right={<TonePill tone="warn">READY TO SAVE</TonePill>} />
             <KvRow label="Service">{form.displayName}</KvRow>
             <KvRow label="Location">{[form.site, form.area, form.unit].filter(Boolean).join(' / ')}</KvRow>
             <KvRow label="Type / criticality">{form.loopType} · {form.criticality}</KvRow>
@@ -414,6 +415,7 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
                 form.opMin || form.opMax ? `OP ${form.opMin || '0'}–${form.opMax || '100'}` : null]
                 .filter(Boolean).join(' · ') || 'not declared (PV band stays ±0.5 EU)'}
             </KvRow>
+            <KvRow label="Optional inputs">{applicabilitySummary(form.vpApplicability, form.peerApplicability)}</KvRow>
             <KvRow label="Monitoring">{form.enableMonitoring ? 'Enabled on save' : 'Registered only'}</KvRow>
             {activate.isError && (
               <p className="cpm-field__error" style={{ marginTop: 8 }}>
@@ -438,7 +440,9 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
             />
             {(readiness.data?.checks ?? []).map(c => (
               <KvRow key={c.id} label={c.label}>
-                <TonePill tone={c.ok ? 'good' : 'warn'}>{c.ok ? 'OK' : c.message ?? 'Check'}</TonePill>
+                {c.ok && factStateLabel(c.state)
+                  ? <TonePill tone="muted">{factStateLabel(c.state)}</TonePill>
+                  : <TonePill tone={c.ok ? 'good' : 'warn'}>{c.ok ? 'OK' : c.message ?? 'Check'}</TonePill>}
               </KvRow>
             ))}
           </>

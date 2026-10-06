@@ -87,7 +87,8 @@ export function readinessCauses(
     label: c.label,
     message: c.message ?? '',
     blocking: BLOCKING_IDS.has(c.id),
-    kind: BLOCKING_IDS.has(c.id) ? 'blocking' as const : DATA_IDS.has(c.id) ? 'data' as const : 'configuration' as const,
+    // a mapped optional input with no samples (CHG-059 TEMPORARILY_UNAVAILABLE) is a data problem, not configuration
+    kind: BLOCKING_IDS.has(c.id) ? 'blocking' as const : DATA_IDS.has(c.id) || c.state === 'TEMPORARILY_UNAVAILABLE' ? 'data' as const : 'configuration' as const,
     target: targetFor(c.id, loopId),
   }));
   // Blocking first: the reason there is no verdict outranks the reason the
