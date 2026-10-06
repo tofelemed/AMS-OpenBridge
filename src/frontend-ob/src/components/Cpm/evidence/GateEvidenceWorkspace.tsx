@@ -161,7 +161,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
       <ConclusionStrip targetId="cpm-conclusion" active={!!run.data} label="Verdict"
         tone={status ? gateTone(status, selection.gate) : 'muted'} text={`${selection.gate} · ${status ? codeLabel(status) : 'no verdict'}`} detail={sentence} />
       <SelectionSummary summary={loopId && currentOption
-        ? `${loop?.loopId ?? loopId} · ${kinds.find(k => k.kind === kind)?.label ?? kind} · ${currentOption.label}` : null}>
+        ? `${loop?.loopId ?? loopId} · ${currentOption.label}` : null}>
         {toolbar}
       </SelectionSummary>
       <EvidenceHeaderStrip selection={selection} run={run.data} entry={entry} loopName={loop?.displayName} timeZone={timeZone}

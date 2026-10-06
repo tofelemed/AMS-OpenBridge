@@ -10,10 +10,12 @@ import { ObcFilterChip } from '@oicl/openbridge-webcomponents-react/components/f
 import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
 import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
 import type { CpmGateMatrix, CpmLoop } from '../../../api/cpmApi';
-import { EmptyState, PanelHead, fmtDateTime } from '../shared';
+import { EmptyState, PanelHead } from '../shared';
+import { diagnosisLabel } from '../vocabulary';
 import type { useCpmScope } from '../plantScope';
 import LoopCombobox from '../LoopCombobox';
 import { CASE_LABEL } from './cases';
+import { windowLabel } from '../windowLabel';
 
 type SetParams = ReturnType<typeof useSearchParams>[1];
 
@@ -89,7 +91,7 @@ export const CaseTriage: React.FC<{
             onChange={e => setParams(p => { p.set('window', e.target.value); return p; }, { replace: true })}>
             {windows.map(w => (
               <option key={w.windowEnd ?? ''} value={w.windowEnd ?? ''}>
-                ends {w.windowEnd ? fmtDateTime(w.windowEnd) : '—'}
+                {windowLabel(w)} · {diagnosisLabel(w.diagnosis)}
               </option>
             ))}
           </select>

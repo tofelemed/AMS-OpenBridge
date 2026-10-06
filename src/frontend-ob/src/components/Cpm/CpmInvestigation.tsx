@@ -48,6 +48,7 @@ import { CodeLabel } from './CodeLabel';
 import { EngineTrace } from './evidence/views/engineTrace';
 import { contextOfMatrix, hasVerdict, metricAvailability } from './metricAvailability';
 import { MetricValue } from './MetricValue';
+import { windowEnds, windowSize } from './windowLabel';
 
 export const CpmInvestigation: React.FC = () => {
   const navigate = useNavigate();
@@ -156,7 +157,7 @@ export const CpmInvestigation: React.FC = () => {
         detail={matrix?.narrative?.recommendation ?? undefined} />
       {/* The fleet case chips and pickers fold to one line once a verdict is on screen. */}
       <SelectionSummary summary={loopId && matrix
-        ? `${loop?.loopId ?? loopId} · ${windowKind} fused · ${mode === 'historical' ? 'selected' : 'latest'} window ending ${matrix.windowEnd ? fmtDateTime(matrix.windowEnd) : '—'}`
+        ? `${loop?.loopId ?? loopId} · ${windowSize({ windowKind })} fused window · ${windowEnds({ windowEnd: matrix.windowEnd })} (${mode === 'historical' ? 'selected' : 'latest'})`
         : null}>
         <PlantScopeFilter scope={scope} summary={rankings.data ? `${rankings.data.count} loop(s) in scope` : null} />
         <CaseTriage scope={scope} cases={cases} caseFilter={caseFilter}

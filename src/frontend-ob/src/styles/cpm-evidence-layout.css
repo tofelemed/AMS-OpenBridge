@@ -38,6 +38,8 @@
   .cpm-conclusion-strip__detail { display: none; }
   .cpm-conclusion-strip__inner .cpm-eyebrow { display: none; }
   .cpm-conclusion-strip__inner obc-button { margin-left: auto; }
+  /* the verdict pill gives way (ellipsis) so "Back to conclusion" always fits */
+  .cpm-conclusion-strip__inner > .cpm-pill { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 
 /* Collapsible evidence sections: an OpenBridge accordion item on a CPM surface; the one-line summary
@@ -94,3 +96,22 @@
 /* A metric that is not a measurement (SME #17, CHG-053): its status in grey body text, never a number. */
 .cpm-metric-na { color: var(--element-neutral-color); font-family: inherit; font-weight: 400; font-variant-numeric: normal; }
 .cpm-kpi__value .cpm-metric-na { font-size: 1rem; }
+
+/* Window tiles (SME #18, CHG-054): each evaluated window named by its end and size, the verdict under it. */
+.cpm-window-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.cpm-window-tile {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-height: 44px; padding: 8px 12px;
+  border: 1px solid var(--border-divider-color); border-radius: 6px; background: var(--container-global-color);
+  color: var(--element-active-color); font: inherit; text-align: left; cursor: pointer;
+}
+.cpm-window-tile:hover { box-shadow: 0 0 0 1px var(--instrument-enhanced-primary-color); }
+.cpm-window-tile:focus-visible { outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color)); outline-offset: 1px; }
+.cpm-window-tile--current { border: 2px solid var(--instrument-enhanced-primary-color); background: var(--container-hover-color, transparent); }
+.cpm-window-tile__end { font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+.cpm-window-tile__tag {
+  font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 1px 6px; border-radius: 4px;
+  border: 1px solid var(--border-divider-color); color: var(--element-neutral-color);
+}
+.cpm-window-tile__sub { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--element-neutral-color); }
+.cpm-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--cpm-tone, var(--element-neutral-color)); }
+.cpm-window-tiles__pager { margin-top: 8px; align-items: center; }

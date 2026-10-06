@@ -3366,9 +3366,42 @@ Performance "last verdict Excluded: loop not in automatic · 58 d ago" (no 0 %);
 **Engine follow-up (not in this batch):** the Flink jobs should write null, not 0, for an unqualified method — recorded in
 `prod_decision.md`.
 
+## CHG-054 — SME review #18: every evaluated window named by its size and end; paging in the window browser (2026-10-06)
+
+**Source:** `SME_review.md` point 18. **Scope:** `ams-frontend` only: new `components/Cpm/windowLabel.ts` (+ test);
+`investigation/{WindowBrowser, CaseTriage}.tsx`, `CpmInvestigation.tsx`, `CpmReplay.tsx`, `evidence/{useEvidenceWindows.ts
+(+test), GateEvidenceWorkspace.tsx (+test)}`, `styles/cpm-evidence-layout.css`. No service change.
+
+**What the SME said.** The recent-window buttons repeat labels like "Oct 5 · EXCLUDED MODE"; each needs its end time and
+duration — the same date and status do not identify which window opens.
+
+**Verified before the change.** Correct. Investigation's window browser named a 24 h window by its DATE only
+(`{ month, day }`) plus the diagnosis; 24 h windows slide every 15 min, so neighbours share the date and usually the verdict —
+on the lab B2_027PIC showed five identical "Aug 10 · Excluded: loop not in automatic" buttons. No duration anywhere, and only
+the newest five were reachable there. The other pickers (Investigation / Replay selects, the Workbench picker) had the end
+time but in the long locale form ("10/6/2026, 2:00:00 PM GMT+4"), unlike the context bar's "6 Oct 14:00 GST", and no size.
+
+**What changed.**
+- **One name for a window** (`windowLabel.ts`), in the loop context bar's format (zone named, 24 h clock): "24 h · ends
+  6 Oct 14:00 GST"; the span "24 h window · 5 Oct 14:00 → 6 Oct 14:00 GST" on hover and for screen readers.
+- **Investigation window browser:** two-line tiles — **Ends 10 Aug 00:45 GST** / "● 24 h · Excluded: loop not in automatic" —
+  the newest tagged "Latest", the current one outlined; **‹ Newer · 1–5 of 100 · Older ›** paging (opens on the page holding
+  the current window). The comparison headers read "Previous · 24 h ending 10 Aug 00:45 GST".
+- **Same name in every picker:** Investigation "Evaluated window", Replay window select, Workbench evaluated-window picker
+  ("24 h · ends 6 Oct 13:00 UTC · Not evaluated: not enough data (too few samples) · 6 min ago" — also the last raw
+  `INSUFFICIENT DATA (INSUFFICIENT_SAMPLES)` and a "0 %" on no-verdict windows gone), and the folded selection lines
+  ("FIC10401 · 24 h fused window · ends 6 Oct 17:00 GST (latest)").
+- **Phone:** the CHG-050 conclusion strip's verdict pill now ellipsises at 390 px so "Back to conclusion" always fits.
+
+**Tests.** `windowLabel.test.ts` (new, 3: size from kind / span; two sliding windows of one day differ; span text);
+`useEvidenceWindows` / `GateEvidenceWorkspace` tests updated. Frontend 82 files / 385 tests green; lint / tsc / build clean.
+**Lab pass 2026-10-06:** B2_027PIC excluded windows read "Ends 10 Aug 01:00 GST · LATEST", "Ends 10 Aug 00:45 GST", …
+"00:00 GST", each "24 h · Excluded: loop not in automatic", pager "1–5 of 100"; Replay "24 h · ends 6 Oct 14:00 GST ·
+Oscillation confirmed"; 0 px page overflow at 1440 / 390; night theme; 0 console errors.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-053) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
+- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-054) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
   migration, no Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant: `docker load` the `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
@@ -3400,3 +3433,5 @@ Performance "last verdict Excluded: loop not in automatic · 58 d ago" (no 0 %);
   Performance matrix red appears only for confirmed conditions and failed checks.
   (CHG-053) Investigation › Key facts on an oscillating loop with no clean cycle reads "Oscillation period: Not calculated —
   no clean oscillation cycle" (not 0.00 s); an excluded-mode window compares as "N/A", without a 0 % confidence.
+  (CHG-054) Investigation › Recent windows: each tile reads "Ends <date time zone>" / "24 h · <verdict>", with ‹ Newer /
+  Older › paging; every window picker uses the same "24 h · ends …" name.

@@ -32,6 +32,7 @@ import { TransformationStepper } from './replay/TransformationStepper';
 import { LineageStrip } from './replay/LineageStrip';
 import { diagnosisLabel, codeLabel, phrase } from './vocabulary';
 import { gateMark } from './gateStatus';
+import { windowLabel } from './windowLabel';
 
 /** Long-tier metric fields relevant per gate (real stored fields only). */
 const GATE_METRICS: Record<string, { field: string; label: string }[]> = {
@@ -199,7 +200,7 @@ export const CpmReplay: React.FC = () => {
               )}
               {windows.map(w => (
                 <option key={w.windowEnd ?? ''} value={w.windowEnd ?? ''}>
-                  ends {w.windowEnd ? fmtDateTime(w.windowEnd) : '—'} · {diagnosisLabel(w.diagnosis)}
+                  {windowLabel(w)} · {diagnosisLabel(w.diagnosis)}
                 </option>
               ))}
             </select>

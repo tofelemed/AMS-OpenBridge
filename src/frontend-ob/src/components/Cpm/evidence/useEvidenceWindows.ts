@@ -11,9 +11,10 @@ import { getWindowSummaries, type CpmWindowSummary } from '../../../api/cpm/gate
 import type { CpmKpiRow } from '../../../api/cpm/kpis';
 import { fmtDuration, type CpmTone } from '../shared';
 import { gateMark, reviewSeverity } from '../gateStatus';
-import { formatInZone } from './timezone';
 import { GATE_ORDER } from './gateFacts';
 import { codeLabel, diagnosisLabel, phrase } from '../vocabulary';
+import { windowLabel } from '../windowLabel';
+import { hasVerdict } from '../metricAvailability';
 
 export type WindowTier = 'fused' | 'short' | 'long';
 
@@ -46,13 +47,13 @@ export function fusedOptions(rows: CpmWindowSummary[], now: number, timeZone: st
     const hasRunIds = Object.keys(ids).length > 0;
     const insufficient = !r.diagnosis || r.diagnosis === 'INSUFFICIENT_DATA';
     const state = insufficient
-      ? `INSUFFICIENT DATA${r.insufficientEvidenceReason ? ` (${r.insufficientEvidenceReason})` : ''}`
-      : `${diagnosisLabel(r.diagnosis)}${r.confidence != null ? ` ${Math.round(r.confidence * 100)}%` : ''}`;
+      ? `${diagnosisLabel('INSUFFICIENT_DATA')}${r.insufficientEvidenceReason ? ` (${phrase(r.insufficientEvidenceReason)})` : ''}`
+      : `${diagnosisLabel(r.diagnosis)}${r.confidence != null && hasVerdict(r.diagnosis) ? ` ${Math.round(r.confidence * 100)}%` : ''}`;
     const ms = age(r.windowEnd, now);
     const tone: CpmTone = insufficient ? 'muted' : r.diagnosis === 'NOT_EVALUATED' ? 'muted' : /SUSPECTED|CONFIRMED|FAIL/.test(r.diagnosis!) ? 'bad' : /DEVELOPING|WARN/.test(r.diagnosis!) ? 'warn' : 'good';
     return {
       windowEnd: r.windowEnd, windowStart: r.windowStart, kind: r.windowKind, tier: 'fused',
-      label: `ends ${formatInZone(Date.parse(r.windowEnd), timeZone)} · ${state} · ${ageText(ms)}${hasRunIds ? '' : NO_IDS}`,
+      label: `${windowLabel({ windowKind: r.windowKind, windowEnd: r.windowEnd }, timeZone)} · ${state} · ${ageText(ms)}${hasRunIds ? '' : NO_IDS}`,
       tone, ageMs: ms, sampleCount: r.sampleCount, methodRunIds: ids, hasRunIds,
       gates: (r.gates ?? []).map(g => ({ key: g.key, status: g.status, reason: g.reason })),
       flags: { observabilityFlags: r.observabilityFlags ?? [], familyDisqualifiers: r.familyDisqualifiers ?? [], insufficientEvidenceReason: r.insufficientEvidenceReason ?? null },
@@ -88,7 +89,7 @@ export function kpiOptions(rows: CpmKpiRow[], kind: string, tier: 'short' | 'lon
     const ms = age(r.window_end as string, now);
     return {
       windowEnd: r.window_end as string, windowStart: (r.window_start as string | null) ?? null, kind, tier,
-      label: `ends ${formatInZone(Date.parse(r.window_end as string), timeZone)} · ${state} · ${ageText(ms)}${hasRunIds ? '' : NO_IDS}`,
+      label: `${windowLabel({ windowKind: kind, windowEnd: r.window_end as string }, timeZone)} · ${state} · ${ageText(ms)}${hasRunIds ? '' : NO_IDS}`,
       tone, ageMs: ms, sampleCount: typeof r.sample_count === 'number' ? r.sample_count : null, methodRunIds: ids, hasRunIds,
       gates, flags: undefined, methodEligibility: null, purpose: typeof r.purpose === 'string' ? r.purpose : null,
     };

@@ -2,15 +2,19 @@
  * Recent evaluated windows with a PREVIOUS/CURRENT delta table over the key facts.
  * Split out of CpmInvestigation in v2.5 (1E.2).
  */
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmGateMatrix } from '../../../api/cpmApi';
-import { PanelHead, fmtDateTime } from '../shared';
+import { PanelHead, toneFor } from '../shared';
 import { KEY_FACTS, fmtFact } from './keyFacts';
 import { diagnosisLabel } from '../vocabulary';
 import { contextOfMatrix, metricAvailability } from '../metricAvailability';
 import { MetricValue } from '../MetricValue';
+import { fmtInstant } from '../context/LoopContextBar';
+import { windowSize, windowSpan } from '../windowLabel';
+
+const PAGE = 5;
 
 type SetParams = ReturnType<typeof useSearchParams>[1];
 
@@ -22,6 +26,12 @@ export const WindowBrowser: React.FC<{
   setParams: SetParams;
 }> = ({ windows, matrix, previous, windowKind, setParams }) => {
   const metrics = matrix.metrics ?? {};
+  // CHG-054: page through the windows five at a time; open on the page holding the CURRENT window
+  const at = Math.max(0, windows.findIndex(w => w.windowEnd === matrix.windowEnd));
+  const [page, setPage] = useState(Math.floor(at / PAGE));
+  useEffect(() => { setPage(Math.floor(at / PAGE)); }, [at]);
+  const shown = windows.slice(page * PAGE, page * PAGE + PAGE);
+  const pages = Math.max(1, Math.ceil(windows.length / PAGE));
   // the comparison table renders only with a previous window; the fallback keeps the types simple
   const prevCtx = contextOfMatrix(previous ?? matrix);
   const curCtx = contextOfMatrix(matrix);
@@ -37,24 +47,38 @@ export const WindowBrowser: React.FC<{
   return (
     <section className="cpm-surface">
       <PanelHead eyebrow="Window browser" title={`Recent ${windowKind} windows`}
-        right={<span className="cpm-copy">newest first · click to pin as CURRENT</span>} />
-      <div className="cpm-filter-row">
-        {windows.slice(0, 5).map(w => (
-          <ObcButton key={w.windowEnd ?? ''} variant={matrix.windowEnd === w.windowEnd ? 'raised' : 'normal'}
-            onClick={() => setParams(p => {
-              p.set('mode', 'historical');
-              if (w.windowEnd) p.set('window', w.windowEnd);
-              return p;
-            }, { replace: true })}>
-            {w.windowEnd
-              ? new Date(w.windowEnd).toLocaleString(undefined, windowKind === '12h'
-                ? { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
-                : { month: 'short', day: 'numeric' })
-              : '—'}
-            {' · '}{diagnosisLabel(w.diagnosis)}
-          </ObcButton>
-        ))}
+        right={<span className="cpm-copy">newest first · pick one to make it CURRENT</span>} />
+      {/* SME #18 (CHG-054): each window by its END and SIZE — sliding windows share a date and often a verdict */}
+      <div className="cpm-window-tiles" role="list" aria-label={`Evaluated ${windowKind} windows`}>
+        {shown.map(w => {
+          const current = matrix.windowEnd === w.windowEnd;
+          const latest = w.windowEnd === windows[0]?.windowEnd;
+          return (
+            <button key={w.windowEnd ?? ''} type="button" role="listitem"
+              className={`cpm-window-tile${current ? ' cpm-window-tile--current' : ''}`}
+              aria-current={current ? 'true' : undefined} title={windowSpan({ ...w, windowKind })}
+              aria-label={`${windowSpan({ ...w, windowKind })}: ${diagnosisLabel(w.diagnosis)}${latest ? ', latest' : ''}`}
+              onClick={() => setParams(p => {
+                p.set('mode', 'historical');
+                if (w.windowEnd) p.set('window', w.windowEnd);
+                return p;
+              }, { replace: true })}>
+              <span className="cpm-window-tile__end">Ends {fmtInstant(w.windowEnd)}{latest && <span className="cpm-window-tile__tag">Latest</span>}</span>
+              <span className="cpm-window-tile__sub">
+                <span className={`cpm-dot cpm-tone-${toneFor(w.diagnosis)}`} aria-hidden />
+                {windowSize({ ...w, windowKind })} · {diagnosisLabel(w.diagnosis)}
+              </span>
+            </button>
+          );
+        })}
       </div>
+      {pages > 1 && (
+        <div className="cpm-filter-row cpm-window-tiles__pager">
+          <ObcButton variant="flat" disabled={page === 0} onClick={() => setPage(x => x - 1)}>‹ Newer</ObcButton>
+          <span className="cpm-copy">{page * PAGE + 1}–{Math.min(windows.length, page * PAGE + PAGE)} of {windows.length}</span>
+          <ObcButton variant="flat" disabled={page >= pages - 1} onClick={() => setPage(x => x + 1)}>Older ›</ObcButton>
+        </div>
+      )}
       {previous ? (
         <div className="cpm-matrix-scroll" style={{ marginTop: 12 }}>
           <table className="cpm-matrix">
@@ -63,8 +87,8 @@ export const WindowBrowser: React.FC<{
                 <th style={{ textAlign: 'left' }}>Metric</th>
                 {/* P2-13: a 24h window ending near midnight lands on a
                     different DAY in local vs UTC — name the instant+zone. */}
-                <th>PREVIOUS (ends {previous.windowEnd ? fmtDateTime(previous.windowEnd) : '—'})</th>
-                <th>CURRENT (ends {matrix.windowEnd ? fmtDateTime(matrix.windowEnd) : '—'})</th>
+                <th title={windowSpan({ ...previous, windowKind })}>Previous · {windowSize({ ...previous, windowKind })} ending {fmtInstant(previous.windowEnd)}</th>
+                <th title={windowSpan({ ...matrix, windowKind })}>Current · {windowSize({ ...matrix, windowKind })} ending {fmtInstant(matrix.windowEnd)}</th>
                 <th>Δ</th>
               </tr>
             </thead>

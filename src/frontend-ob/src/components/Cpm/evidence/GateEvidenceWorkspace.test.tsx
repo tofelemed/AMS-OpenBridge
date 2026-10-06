@@ -157,7 +157,7 @@ describe('GateEvidenceWorkspace', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Change/ }));   // CHG-050: the pickers fold to one line
     const sel = screen.getByLabelText('Evaluated window') as HTMLSelectElement;
     await waitFor(() => expect(sel.value).toBe('2026-09-17T08:00:00Z'));
-    expect(sel.options[sel.selectedIndex].textContent).toMatch(/INSUFFICIENT DATA \(INSUFFICIENT_SAMPLES\)/);
+    expect(sel.options[sel.selectedIndex].textContent).toMatch(/Not evaluated: not enough data \(too few samples\)/);
   });
 
   it('the gate strip opens another gate of the same window and the explain panel collapses (remembered)', async () => {
