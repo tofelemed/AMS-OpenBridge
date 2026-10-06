@@ -6,6 +6,7 @@
  */
 import React, { useMemo } from 'react';
 import { pvAxisName } from '../trend/trendOption';
+import { escapeHtml } from '../../../utils/escapeHtml';
 import ReactECharts from 'echarts-for-react';
 import type { CpmTrendPoint } from '../../../api/cpm/kpis';
 import { cpmChartColors, fmtDateTime } from '../shared';
@@ -59,7 +60,8 @@ export function buildReplayOption(i: ReplayChartInput) {
       formatter: (params: Array<{ seriesName: string; marker: string; value: [number, number | null] }>) => {
         if (!params.length) return '';
         const ts = params[0].value[0];
-        const unit = (n: string) => (n === 'PV' || n === 'SP' ? pvUnit : '%');
+        // Tooltip HTML: the registry unit is user input, escaped here (axis names are canvas text).
+        const unit = (n: string) => (n === 'PV' || n === 'SP' ? escapeHtml(pvUnit) : '%');
         const rows = params.map(x => `${x.marker} ${x.seriesName}: ${x.value[1] == null ? '— (no sample)' : `${Number(x.value[1]).toFixed(2)} ${unit(x.seriesName)}`}`);
         return [`<strong>${formatInZone(ts, timeZone)} — ${zoneLabel(timeZone, ts)}</strong>`, ...rows].join('<br/>');
       },

@@ -307,7 +307,17 @@ public sealed partial class CpmLoopRegistryService : ICpmLoopRegistryService
         var unknown = roles.Where(r => !RequiredRoles.Contains(r) && !OptionalRoles.Contains(r)).ToList();
         if (unknown.Count > 0)
             throw new ArgumentException($"Unknown signal role(s): {string.Join(", ", unknown)}");
+
+        // CHG-047 security review: the unit is shown in every trend; only unit characters are accepted
+        // (letters, digits, space, ° % / . - · ² ³ µ ( ) ^ *), never markup.
+        var pvUnit = request.Engineering?.PvUnit;
+        if (!string.IsNullOrWhiteSpace(pvUnit) && !PvUnitPattern.IsMatch(pvUnit.Trim()))
+            throw new ArgumentException(
+                $"engineering.pvUnit '{pvUnit.Trim()}' is not a unit: use letters, digits, spaces and ° % / . - · ² ³ µ ( ) ^ *, at most {MaxPvUnitLength} characters");
     }
+
+    internal static readonly System.Text.RegularExpressions.Regex PvUnitPattern =
+        new(@"^[\p{L}\p{N} °%/.\-·²³µ()^*]{1," + MaxPvUnitLength + "}$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
     public async Task<bool> DeleteAsync(string loopId, CancellationToken ct)
     {

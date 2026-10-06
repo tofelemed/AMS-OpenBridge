@@ -79,3 +79,12 @@ describe('hasSignalValues', () => {
     expect(hasSignalValues([{ ts: 1, pv: null }, { ts: 2, op_avg: 30 }])).toBe(true);
   });
 });
+
+describe('tooltip safety', () => {
+  it('escapes a hostile unit in the tooltip HTML (the unit is user input)', () => {
+    const o = signalTrendOption({ points, pens, pvUnit: '<img src=x onerror=alert(1)>', scale: 'fit', zoom: {} });
+    const html = o.tooltip.formatter([{ seriesName: 'PV', marker: '', value: [1000, 801] }]);
+    expect(html).not.toContain('<img');
+    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
+  });
+});

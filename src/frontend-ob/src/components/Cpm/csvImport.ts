@@ -5,6 +5,7 @@
  * the repo's file-size limit and the parser can be reasoned about on its own.
  */
 import type { CpmLoop } from '../../api/cpmApi';
+import { isValidPvUnit } from '../../utils/escapeHtml';
 import type { PlantLocation, SignalRole } from './plantLocation';
 import {
   SIGNAL_ROLES, areasOf, deriveSignalPath, historianNode, isResolvablePath,
@@ -211,7 +212,8 @@ export function parseCsv(
       else if (bound !== undefined) engineering[camelBound(col)] = bound;
     }
     const pvUnit = (values['pv_unit'] ?? '').trim();
-    if (pvUnit) engineering.pvUnit = pvUnit;
+    if (pvUnit && !isValidPvUnit(pvUnit)) problems.push(`pv_unit '${pvUnit}' is not a unit (letters, digits, spaces and ° % / . - · ² ³ µ ( ) ^ * only)`);
+    else if (pvUnit) engineering.pvUnit = pvUnit;
     for (const [lo, hi, label] of [['pv_min', 'pv_max', 'PV'], ['op_min', 'op_max', 'OP']] as const) {
       if ((values[lo] ?? '').trim() === '' !== ((values[hi] ?? '').trim() === ''))
         warnings.push(`${label} range is half-declared — the missing bound defaults (0 / 100)`);

@@ -17,6 +17,7 @@
 import type { CpmTrendPoint } from '../../../api/cpm/kpis';
 import type { CpmEngineeringRange } from '../../../api/cpmApi';
 import { fmtDateTime } from '../shared';
+import { escapeHtml } from '../../../utils/escapeHtml';
 
 export type TrendScale = 'fit' | 'range';
 
@@ -65,7 +66,8 @@ const fmtVal = (v: number | null, unit: string) => (v == null ? '—' : `${Numbe
 export function signalTrendOption(i: SignalTrendInput) {
   const { points, pens, hasVp, pvUnit, scale, range, zoom } = i;
   const { good, amber, grey, pink } = pens;
-  const unit = pvUnit?.trim() || '';
+  // Tooltip HTML only (axis names are canvas text): a registry unit is user input.
+  const unit = escapeHtml(pvUnit?.trim() || '');
   const bounds = axisBounds(scale, range);
   const at = (p: CpmTrendPoint, ...keys: string[]) => keys.map(k => num(p[k])).find(v => v != null) ?? null;
   const byTs = new Map(points.map(p => [p.ts, p]));

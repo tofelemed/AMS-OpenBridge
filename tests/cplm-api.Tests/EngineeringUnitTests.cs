@@ -38,6 +38,18 @@ public sealed class EngineeringUnitTests
             .Should().Be(CpmLoopRegistryService.MaxPvUnitLength);
     }
 
+    [Theory]
+    [InlineData("kg/h")] [InlineData("°C")] [InlineData("m³/h")] [InlineData("barg")] [InlineData("% LEL")]
+    [InlineData("t/h")] [InlineData("mm H2O")] [InlineData("µS/cm")] [InlineData("Nm3/h")] [InlineData("kg·m-2")]
+    public void Real_units_pass_the_allowlist(string unit) =>
+        CpmLoopRegistryService.PvUnitPattern.IsMatch(unit).Should().BeTrue();
+
+    [Theory]
+    [InlineData("<img src=x onerror=alert(1)>")] [InlineData("kg\"/h")] [InlineData("a&b")] [InlineData("x'y")]
+    [InlineData("<b>")] [InlineData("kg/h;")] [InlineData("1234567890123456789012345")]
+    public void Markup_and_overlong_text_is_rejected(string unit) =>
+        CpmLoopRegistryService.PvUnitPattern.IsMatch(unit).Should().BeFalse();
+
     [Fact]
     public void A_unit_alone_is_worth_storing()
     {

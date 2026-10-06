@@ -21,3 +21,11 @@ describe('pv_unit column', () => {
     expect(parse('FIC1,Feed,hdpe,u1,FIC,medium,0,900,').rows[0].engineering).toEqual({ pvMin: 0, pvMax: 900 });
   });
 });
+
+describe('pv_unit safety', () => {
+  it('reports markup as a row problem and never sends it', () => {
+    const row = parse('FIC1,Feed,hdpe,u1,FIC,medium,0,900,<b>kg</b>').rows[0];
+    expect(row.problems.some(p => p.startsWith("pv_unit '<b>kg</b>' is not a unit"))).toBe(true);
+    expect(row.engineering).toEqual({ pvMin: 0, pvMax: 900 });
+  });
+});

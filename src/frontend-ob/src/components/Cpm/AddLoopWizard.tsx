@@ -14,6 +14,7 @@
  * report (the wizard shows readiness as its post-save validation step).
  */
 import React, { useMemo, useState } from 'react';
+import { isValidPvUnit } from '../../utils/escapeHtml';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { KvRow, PanelHead, TonePill, fmtDuration, fmtWindowShape, windowSpecsOf } from './shared';
 import { useActivateLoop, useCpmReadiness, useCpmRegistryContract, useCpmResolutions } from '../../hooks/useCpm';
@@ -310,8 +311,11 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
               ))}
               <label className="cpm-field">
                 <span className="cpm-field__label">PV unit</span>
-                <input className="cpm-input" value={form.pvUnit} onChange={set('pvUnit')} maxLength={24}
-                  placeholder="e.g. kg/h, °C, barg" />
+                <input className={`cpm-input${form.pvUnit.trim() && !isValidPvUnit(form.pvUnit) ? ' cpm-input--error' : ''}`}
+                  value={form.pvUnit} onChange={set('pvUnit')} maxLength={24} placeholder="e.g. kg/h, °C, barg" />
+                {form.pvUnit.trim() && !isValidPvUnit(form.pvUnit) && (
+                  <span className="cpm-field__error">Letters, digits, spaces and ° % / . - · ² ³ µ ( ) ^ * only</span>
+                )}
               </label>
             </div>
             {rangeIssue && <span className="cpm-field__error">{rangeIssue}</span>}

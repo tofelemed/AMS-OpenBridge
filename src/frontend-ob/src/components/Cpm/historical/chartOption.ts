@@ -19,6 +19,7 @@
  */
 import type { CpmKpiRow, CpmTrendPoint } from '../../../api/cpmApi';
 import { pvAxisName } from '../trend/trendOption';
+import { escapeHtml } from '../../../utils/escapeHtml';
 import type { CpmTone } from '../shared';
 import { formatInZone, zoneLabel } from '../evidence/timezone';
 import { FULL_ZOOM, boxZoomOption, type ZoomState } from '../../charts/boxZoom';
@@ -141,7 +142,8 @@ export function buildChartOption(input: ChartInput) {
   const sig = (name: string) => (normalize ? `${name} (÷ own span)` : name);
   const dataOf = (get: (p: CpmTrendPoint) => number | null, span: { lo: number; hi: number }) =>
     points.map(p => [p.ts, normalize ? norm(get(p), span) : get(p)] as [number, number | null]);
-  const unitOf = (name: string) => (name === 'PV' || name === 'SP' ? pvUnit : '%');
+  // Tooltip HTML: the registry unit is user input, escaped here (the axis name is canvas text).
+  const unitOf = (name: string) => (name === 'PV' || name === 'SP' ? escapeHtml(pvUnit) : '%');
   const originalAt = (name: string, ts: number): number | null => {
     const p = points.find(pt => pt.ts === ts);
     if (!p) return null;
@@ -207,7 +209,7 @@ export function buildChartOption(input: ChartInput) {
             const base = x.seriesName.replace(' (÷ own span)', '');
             const isSignal = base === 'PV' || base === 'SP' || base === 'OP' || base === 'VP';
             const v = x.value?.[1];
-            if (!isSignal) return `${x.marker} ${x.seriesName}: ${v == null ? '—' : Number(v).toFixed(2)}${x.seriesName === overlay.label ? ` ${overlay.unit}` : ''}`;
+            if (!isSignal) return `${x.marker} ${x.seriesName}: ${v == null ? '—' : Number(v).toFixed(2)}${x.seriesName === overlay.label ? ` ${escapeHtml(overlay.unit)}` : ''}`;
             const original = typeof ts === 'number' ? originalAt(base, ts) : null;
             const shown = original ?? v;
             const frac = normalize && v != null ? ` (${Number(v).toFixed(2)} of own span)` : '';

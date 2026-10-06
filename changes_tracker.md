@@ -3080,6 +3080,19 @@ Overview and Explorer (lab feed stalled 17 h) show the no-values state; Historic
 overflow on all five pages at 500 / 768 / 1440; night theme; 0 console errors. Lab data note: FIC10401 now carries
 `pvUnit: "kg/h"` in the lab registry.
 
+### CHG-047 follow-up — stored-XSS fix for the PV unit (2026-10-06, automated security review)
+
+The PV unit is user-entered (wizard / CSV) and was concatenated into the ECharts **tooltip HTML** of the shared trend,
+Historical and Replay: a unit like `<img src=x onerror=…>` would have run in every viewer's browser. Fixed on both sides:
+- **cplm-api** `Validate` (both the single and the bulk path): `engineering.pvUnit` must match the allowlist
+  `^[\p{L}\p{N} °%/.\-·²³µ()^*]{1,24}$` → 422 `REGISTRY_VALIDATION` (single) / per-row `REGISTRY_VALIDATION` (bulk).
+- **frontend** `utils/escapeHtml.ts` (new): the unit (and Historical's overlay unit) is HTML-escaped in all three tooltip
+  builders; axis names are canvas text and unaffected. The wizard and the CSV import apply the same allowlist and say why.
+- Tests: `EngineeringUnitTests` (+17 allowlist cases), `escapeHtml.test.ts` (new), a hostile-unit tooltip test and a CSV
+  row-problem test. Frontend 75 files green; cplm-api 266 / 266. **Lab proof:** `POST /loops/activate` with
+  `pvUnit:"<img src=x onerror=alert(1)>"` → 422 with the allowlist message; `POST /loops/bulk-activate` → row failed
+  `REGISTRY_VALIDATION`, 0 activated; the probe loop does not exist (404).
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
 - Updated services so far: **`ams-frontend`** (CHG-040 … CHG-047) and **`cplm-api`** (CHG-043, CHG-045, CHG-047). No schema, no
