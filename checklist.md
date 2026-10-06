@@ -245,6 +245,11 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] Task 8 RESPONSE 14 d: 7,308 events purged (7 model events kept)
 - [x] Task 8 `cpm-12b` on the lab: three tables 5,059 → 3,606 MB; daily-check line 4,920 → 3,552 MB
 - [ ] Task 8 24 h soak (stage B, from T0 2026-10-06 10:29 UTC)
+- [x] Task 10 (0ca5d19d) Fusion evidence only for episode-able verdicts + per loop × kind throttle — Flink 309 / 0 / 2 skipped
+- [x] Task 9 lab swap to jar `9622d11d` (13 jobs, no duplicates, CAPABILITY verified); sim limit-cycle profile added
+- [ ] Task 9 S1 161-loop fleet ≥ 4 h — **FAILED: TaskManager OOM at 25-30 min, JVM did not exit (F1); Short state not restorable (F2)**; throttle held before it (0 same-signature re-emits < 60 min, 0 evidence `fail:`); cycles unproven (lab L1: 6 duplicate loop-sample sources)
+- [ ] Task 9 S2-S8 — not run (lab left with Short cancelled; recovery steps refused for the agent, see chg049-stress-results.md)
+- [ ] Task 9 S9 24 h soak — deferred by the coordinator (after the cplm-api rebuild)
 - [ ] plant deploy in the SME-batch release (manifest `!chg049-evidence`, Flink swap, `cpm-12` online, `cpm-12b` with cplm-api stopped after ≥ 1 h); then daily check §7 physical line under 1536 MB and flat next morning
 - [x] plant 2026-10-06 emergency (before the release): log truncated, /tmp bundles deleted, evidence tables TRUNCATEd (pinned 0), ZooKeeper `log.91a0` moved out; 1.4 → 11 GB free
 

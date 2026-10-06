@@ -3209,6 +3209,20 @@ min, all six CPLM CAPABILITY records = `19b95248`); cplm-api with grace 1 d (lab
 - Open for the SME / controller: Fusion throttle, or INSUFFICIENT_DATA no longer counted as a finding. The 24 h soak
   reading (stage B).
 
+**Stress test on the lab (Task 9, 2026-10-06, jar `9622d11d` = Task 10 fusion policy + throttle; full results in
+`docs/next-release/chg049-stress-results.md`).** Stopped in S1; S2-S8 not run; S9 deferred (cplm-api rebuild first).
+- **S1 (161 loops) FAIL:** the Flink TaskManager ran out of heap after 25-30 min and the JVM did not exit (no
+  `ExitOnOutOfMemoryError`): 0 TaskManagers, all 13 jobs RESTARTING until the TM was recreated by hand. The Short
+  job's heap state (275 MB checkpoint at 30 min) could not be restored on the same TM, and a stateless Short OOMed again
+  while replaying its backlog. The lab is left with Short cancelled (12 of 13 RUNNING).
+- **Lab L1:** six active MQTT loop-sample sources on the same topics (five e2e leftovers) put every tuple on Kafka 6×;
+  the Long tier then infers a 0 s sample period and never accepts a cycle (the cause of "0 valid cycles since
+  2026-09-25"). The cycle cap and `cycle_scores` therefore remain unproven on the lab.
+- Before the OOM the throttle held: 1,508 emissions over 805 loop × kind × tier series, 0 re-emits within 60 min
+  without a signature change; max per run G9 1, G5 3; 0 evidence `fail:` lines; evidence lag < 2,000, one member.
+- Findings for a follow-up: TM `-XX:+ExitOnOutOfMemoryError` (F1), a bound on the Short heap buffer and its recovery
+  runbook (F2), ingestion guard against duplicate loop-sample sources + Long-tier duplicate-timestamp drop (L1).
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
 - Updated services so far: **`ams-frontend`** (CHG-040 … CHG-048), **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-049) and
