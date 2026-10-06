@@ -86,6 +86,8 @@ export const isEventFilterKey = (v: string | null): v is EventFilterKey =>
 /**
  * Unacknowledged = open, not reviewed and not suppressed: an active shelf hides the
  * episode from that queue; an expired shelf puts it straight back (nobody reviewed it).
+ * CHG-063: the Loop Events list now filters on the server — cplm-api `EventPageSql.StatePredicate` mirrors this
+ * function; change both together.
  */
 export function matchesEventFilter(e: CpmEventFrame, f: EventFilterKey, now: number): boolean {
   const shelf = shelfState(e, now);

@@ -3628,9 +3628,43 @@ unticked), then linked through "Link to episode…" to EVT-2213 → `event_id = 
 **Found, not changed:** Loop Events searches and deep-links (`?event=`) only within its top-200 fetched slice, so an episode of a loop
 outside it (EVT-2213) cannot be opened there — the episode-side "Link a loop note" is reachable only for episodes in the slice.
 
+## CHG-063 — Loop Events filtered, searched and paged on the server; an episode opens by id (2026-10-06)
+
+**Source:** found during the CHG-058 / CHG-059 lab pass; the user asked for server-side pagination. **Scope:** **`cplm-api`** new
+`Data/EventPageSql.cs`, `Controllers/CpmEventPageController.cs` (+ `tests/cplm-api.Tests/EventPageTests.cs`); **`ams-frontend`** new
+`api/cpm/eventPage.ts`, `components/Cpm/events/useEventPage.ts`, `components/Cpm/CpmEvents.page.test.tsx`; `CpmEvents.tsx`,
+`events/shelfState.ts` (comment). **No schema** (existing indexes on `cplm_event_frames` serve it). Backend commit 32bccb54.
+(CHG-060 … CHG-062 are the parallel session's stress-test fixes.)
+
+**What was wrong.** Loop Events fetched one 200-row "worst first" slice (`GET /events?limit=200&sort=triage`) and filtered that slice
+in the browser: the state tabs, the search box, the plant scope and the `?event=` deep link all reached only those 200 rows. The lab
+holds 500 episodes (325 open), so an open low-priority episode such as EVT-2213 (FIC10302) could not be found, and its link — from
+Investigation › Loop notes "EVT-2213 ›" — opened a different episode with "not in the fetched set".
+
+**What changed.**
+- **cplm-api `GET /api/v1/cpm/events/page`:** `state` (the eight tabs: all / open / unobservable / unacknowledged / acknowledged /
+  shelved / shelfExpired / closed — the SQL mirrors the frontend `matchesEventFilter`, shelves judged against NOW()), `loopId`, `site`
+  / `area` / `unit` (from the registry; an episode of an unregistered loop is left out under a scope, as before), `q` (loop tag, loop
+  name, family, diagnosis; case-insensitive; LIKE wildcards are literal), `sort` triage | recent, `page` (1-based), `pageSize` (max
+  100). Returns `total`, `pageCount`, every tab's count under the same loop / scope / search, `shelvePolicy`, `events`. Unknown
+  state / sort → 400.
+- **cplm-api `GET /api/v1/cpm/events/{id}`:** one episode whatever its state or rank; 404 `EVENT_NOT_FOUND`.
+- `GET /events` is unchanged (Overview, Investigation, Replay, Explorer history, loop notes keep using it).
+- **Loop Events page:** 20 per page from the server, the previous page stays visible while the next loads; tabs read "Open (325)";
+  the count line is the server total ("500 event(s) · open first, highest evidence score first", "… matching “FIC10302”"); search is
+  debounced 300 ms into one request; pager "21–40 of 500 · page 2 of 25". A deep-linked episode not on the page opens by id with
+  "EVT-n is not on this page of the list (filter, search or rank)"; a missing one says "does not exist (retention?)" and falls back.
+  Acknowledge / shelve refresh the page (same query-key prefix).
+
+**Tests.** cplm-api `EventPageTests` (new, 5, lab DB: each tab holds exactly the frontend predicate's episodes incl. an overdue shelf
+back in Unacknowledged before the sweeper; pages disjoint and ordered; search on family / diagnosis with literal `%` `_`; by id + 404;
+400s and page-size cap) + `EventActionsApiTests` — 9/9. Frontend `CpmEvents.page.test.tsx` (new, 5: request carries URL filters and
+page; totals and tab counts; Next asks page 2; off-page deep link by id; missing id falls back) — 90 files / 417 tests; lint / tsc /
+build clean.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-059) and **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-058, CHG-059).
+- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-059, CHG-063) and **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-058, CHG-059, CHG-063).
   **One schema step** (CHG-058, additive, online): `ops/cpm-13-investigation-event-link.sql`. No Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant, in order: (1) `docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 <
@@ -3679,3 +3713,6 @@ outside it (EVT-2213) cannot be opened there — the episode-side "Link a loop n
   readiness for a loop carries `notes` and `tag_vp.state`. **Plant data step:** with the process owner, mark loops on drives or
   without positioner feedback (registry CSV `vp_applicability`, `peer_applicability`, or the wizard) — until then every unmapped VP
   counts as expected, which is the old behaviour.
+  (CHG-063) `GET /api/v1/cpm/events/page?state=open&page=2` returns `total`, `counts` and 20 events; Loop Events tabs show counts,
+  the pager reads "21–40 of N", searching a loop tag finds its episodes whatever their rank, and `/cpm/events?event=<any id>` opens
+  that episode.

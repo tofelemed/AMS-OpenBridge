@@ -13,8 +13,12 @@
  * every loop id is a route to the loop hub; a shelf is shown with its real
  * expiry state (events/shelfState) and the list can be filtered to active or
  * expired shelves; the detail aside and the shelve panel own their own files.
+ *
+ * CHG-063: the list is filtered, searched and paged on the SERVER (`/events/page`). It used to fetch one 200-row
+ * "worst first" slice and filter that in the browser, so tabs, search, plant scope and `?event=` links only reached
+ * the slice. A deep-linked episode that is not on the current page is read by id (`/events/{id}`).
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObcInputChip } from '@oicl/openbridge-webcomponents-react/components/input-chip/input-chip';
@@ -23,13 +27,10 @@ import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/comp
 import { EmptyState, QueryError, TonePill, WorkspaceHeader, fmtDateTime } from './shared';
 import { LoopContextBar } from './context/LoopContextBar';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
-import { usePagedSlice } from '../shared/ListPager';
-import { useCpmEvents, useCpmLoops } from '../../hooks/useCpm';
 import { useAuthStore } from '../../store/authStore';
-import type { CpmLoop } from '../../api/cpmApi';
 import { availabilityPill } from './events/eventsState';
 import {
-  EVENT_FILTERS as FILTERS, isEventFilterKey as isFilterKey, matchesEventFilter as matches, stateView,
+  EVENT_FILTERS as FILTERS, isEventFilterKey as isFilterKey, stateView,
   type EventFilterKey as FilterKey,
 } from './events/shelfState';
 import { ConditionsPanel } from './events/ConditionsPanel';
@@ -37,13 +38,14 @@ import { useCpmConditions } from './events/useConditions';
 import EventDetail, { severityOf } from './events/EventDetail';
 import { explorerHref } from './cpaHref';
 import { diagnosisLabel } from './vocabulary';
+import { useDebounced, useEventById, useEventPage } from './events/useEventPage';
+import { ApiError } from '../../api/apiFetch';
 
 // E2 (P2-13): the page's local formatter carried no zone label — and this page
 // owns operator ack timestamps, the exact case the shared formatter exists for.
 const fmt = (iso: string | null) => (iso ? fmtDateTime(iso) : '—');
 
-/** The fetch cap; at the cap, client-side filter counts describe a slice. */
-const FETCH_LIMIT = 200;
+const PAGE_SIZE = 20;
 
 export const CpmEvents: React.FC = () => {
   const navigate = useNavigate();
@@ -62,61 +64,30 @@ export const CpmEvents: React.FC = () => {
   const loopParam = params.get('loop')?.trim() || undefined;
   const canManage = useAuthStore(s => s.hasPermission('cpm.manage'));
 
-  // Fetch broadly (open + closed + shelved), filter client-side so tab switches
-  // are instant; 30 s background refetch keeps the list current.
+  // CHG-063: every filter is a request parameter; typing is debounced into one request.
   const [search, setSearch] = useState('');
-  const loopData = useCpmLoops().data;
-  const { data, isLoading, isError, error, refetch } =
-    useCpmEvents({ loopId: loopParam, openOnly: false, includeShelved: true, limit: FETCH_LIMIT, sort });
-  // A6.4: an event list is where people hunt, so status tabs alone were not
-  // enough — scope narrows to a section/unit (event frames carry only loop_id,
-  // so the loop registry supplies the location) and free text matches the loop,
-  // family and diagnosis.
+  const q = useDebounced(search.trim());
   const scope = useCpmScope();
   const conditions = useCpmConditions(scope.params, false);
-  const loopIndex = useMemo(() => {
-    const m = new Map<string, CpmLoop>();
-    for (const l of loopData?.loops ?? []) m.set(l.loopId.toLowerCase(), l);
-    return m;
-  }, [loopData]);
+  const [page, setPage] = useState(0);
+  useEffect(() => { setPage(0); }, [filter, sort, loopParam, q, scope.site, scope.area, scope.unit]);
+  const { data, isLoading, isError, error, refetch, isPlaceholderData } = useEventPage({
+    state: filter, loopId: loopParam, q: q || undefined, ...scope.params, sort, page: page + 1, pageSize: PAGE_SIZE,
+  });
+  const events = data?.events ?? [];
+  const total = data?.total ?? 0;
+  const pageCount = data?.pageCount ?? 1;
   // The clock the shelf states are judged against; the 30 s refetch re-renders often enough.
   const now = Date.now();
-  const events = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return (data?.events ?? [])
-      .filter(e => matches(e, filter, now))
-      .filter(e => {
-        if (!scope.active) return true;
-        const l = loopIndex.get(e.loop_id.toLowerCase());
-        // An event whose loop is not in the registry cannot be placed; hide it
-        // under a scope rather than pretend it belongs to the selected unit.
-        return l ? scope.matches(l) : false;
-      })
-      .filter(e => !q
-        || e.loop_id.toLowerCase().includes(q)
-        || (e.family ?? '').toLowerCase().includes(q)
-        || (e.peak_diagnosis ?? '').toLowerCase().includes(q)
-        || (loopIndex.get(e.loop_id.toLowerCase())?.displayName ?? '').toLowerCase().includes(q));
-  }, [data, filter, scope, loopIndex, search, now]);
-  // E3: at the cap the filters are counting a slice, not the fleet.
-  const truncated = (data?.events.length ?? 0) >= FETCH_LIMIT;
 
-  // E4: selection resolves against the FULL list, not the filtered one — a deep
-  // link to an acknowledged event, opened while the "Unacknowledged" filter is
-  // active, used to silently show a different event under that URL.
-  const selected = (data?.events ?? []).find(e => String(e.id) === selectedId) ?? events[0];
-  const selectionHiddenByFilter =
-    !!selected && !events.some(e => e.id === selected.id);
-  // Every sibling screen says when a deep link fell back; this one silently
-  // showed a different episode under a URL naming a missing one.
-  const selectionFellBack = !!selectedId && !!selected
-    && String(selected.id) !== selectedId;
-
-  // Page the (filtered) event list so it isn't a 200-row scroll.
-  const PAGE_SIZE = 20;
-  const [page, setPage] = useState(0);
-  useEffect(() => { setPage(0); }, [filter, sort, loopParam]);
-  const { pageCount, safePage, pageItems: pagedEvents } = usePagedSlice(events, page, PAGE_SIZE);
+  // A deep link resolves on the page first, then by id: an episode outside this page (another filter, a search,
+  // or simply ranked below it) still opens under its own URL — never a different episode in its place.
+  const selectedNum = selectedId && /^\d+$/.test(selectedId) ? Number(selectedId) : null;
+  const onPage = selectedNum !== null ? events.find(e => e.id === selectedNum) : undefined;
+  const lookup = useEventById(selectedNum, !!data && !onPage);
+  const missing = !!selectedId && (selectedNum === null || (lookup.error instanceof ApiError && lookup.error.status === 404));
+  const selected = onPage ?? lookup.data ?? (selectedNum !== null && lookup.isLoading ? undefined : events[0]);
+  const offPage = !onPage && !!lookup.data;
 
   const select = (id: number) =>
     // replace: picking a row is in-page selection, not a page visit.
@@ -132,7 +103,7 @@ export const CpmEvents: React.FC = () => {
       />
       <LoopContextBar loopId={loopParam} period={{ label: 'All episodes of this loop' }} />
       <PlantScopeFilter scope={scope}
-        summary={scope.active ? `${events.length} matching event(s)` : null} />
+        summary={scope.active ? `${total} matching event(s)` : null} />
 
       <div className="cpm-filter-row">
         <ObcToggleButtonGroup
@@ -147,7 +118,9 @@ export const CpmEvents: React.FC = () => {
           }}
         >
           {FILTERS.map(f => (
-            <ObcToggleButtonOption key={f.key} value={f.key}>{f.label}</ObcToggleButtonOption>
+            <ObcToggleButtonOption key={f.key} value={f.key}>
+              {f.label}{data ? ` (${data.counts[f.key] ?? 0})` : ''}
+            </ObcToggleButtonOption>
           ))}
         </ObcToggleButtonGroup>
 
@@ -182,8 +155,8 @@ export const CpmEvents: React.FC = () => {
         )}
 
         <span className="cpm-filter-count">
-          {events.length} event(s){loopParam ? ` for ${loopParam}` : ''}
-          {truncated ? ` · showing the ${sort === 'recent' ? 'newest' : 'highest-priority'} ${FETCH_LIMIT} — counts describe this slice, not the fleet` : ''}
+          {total} event(s){loopParam ? ` for ${loopParam}` : ''}{q ? ` matching “${q}”` : ''}
+          {sort === 'recent' ? ' · newest first' : ' · open first, highest evidence score first'}
         </span>
       </div>
 
@@ -194,26 +167,28 @@ export const CpmEvents: React.FC = () => {
           </div>
           {isLoading && <EmptyState title="Loading events…" />}
           {isError && <QueryError title="Events unavailable" error={error} retry={() => void refetch()} />}
-          {!isLoading && !isError && events.length === 0 && (
+          {!isLoading && !isError && total === 0 && (
             <EmptyState
               title="No events in this view"
-              copy={loopParam
-                ? `No episode of ${loopParam} matches this filter.`
-                : 'Diagnosis episodes appear here when the gate engine reports a fault family.'}
+              copy={q
+                ? `No episode matches “${q}” under this filter — search covers loop tag, loop name, family and diagnosis.`
+                : loopParam
+                  ? `No episode of ${loopParam} matches this filter.`
+                  : 'Diagnosis episodes appear here when the gate engine reports a fault family.'}
             />
           )}
-          {selectionFellBack && (
+          {missing && (
             <p className="cpm-copy" role="status" style={{ padding: '8px 12px' }}>
-              Event {selectedId} is not in the fetched set — showing the first event in this
-              view instead.
+              Event {selectedId} does not exist (it may have been removed by retention) — showing the first event on
+              this page instead.
             </p>
           )}
-          {selectionHiddenByFilter && (
+          {offPage && selected && (
             <p className="cpm-copy" role="status" style={{ padding: '8px 12px' }}>
-              The selected event is hidden by the current filter — its detail stays open on the right.
+              EVT-{selected.id} is not on this page of the list (filter, search or rank) — its detail is open on the right.
             </p>
           )}
-          {pagedEvents.map(e => {
+          {events.map(e => {
             const sev = severityOf(e);
             const st = stateView(e, now);
             const isSelected = selected?.id === e.id;
@@ -242,10 +217,12 @@ export const CpmEvents: React.FC = () => {
             );
           })}
           {pageCount > 1 && (
-            <div className="cpm-pager">
-              <ObcButton variant="flat" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={safePage === 0}>← Prev</ObcButton>
-              <span className="cpm-event-row__sub">Page {safePage + 1} of {pageCount}</span>
-              <ObcButton variant="flat" onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))} disabled={safePage >= pageCount - 1}>Next →</ObcButton>
+            <div className="cpm-pager" aria-busy={isPlaceholderData}>
+              <ObcButton variant="flat" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>← Prev</ObcButton>
+              <span className="cpm-event-row__sub">
+                {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total} · page {page + 1} of {pageCount}
+              </span>
+              <ObcButton variant="flat" onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))} disabled={page >= pageCount - 1}>Next →</ObcButton>
             </div>
           )}
         </section>
