@@ -1,9 +1,11 @@
 'use client';
 
 /**
- * Compact good-error micro-bar for a priority-queue row.
+ * Compact control-performance micro-bar (share of the evaluated window inside the
+ * good-error band) for a priority-queue row.
  */
 import React from 'react';
+import { FACET_HINT } from '../FacetPill';
 
 
 export const GoodErrorBar: React.FC<{ pct: number | null; mae: number | null }> = ({ pct, mae }) => {
@@ -23,12 +25,13 @@ export const GoodErrorBar: React.FC<{ pct: number | null; mae: number | null }> 
   const tone = scaled >= 80 ? 'good' : scaled >= 50 ? 'warn' : 'bad';
   return (
     <div className="cpm-goodbar"
-      title={`Good-error ${scaled.toFixed(0)}%${mae != null ? ` · MAE ${mae.toFixed(2)}` : ''}`}>
+      title={`${FACET_HINT.control}: ${scaled.toFixed(0)}%${mae != null ? ` · MAE ${mae.toFixed(2)}` : ''}`}>
       <span className="cpm-goodbar__track">
         <span className={`cpm-goodbar__fill cpm-goodbar__fill--${tone}`}
           style={{ width: `${clamped}%` }} />
       </span>
-      <span className="cpm-event-row__sub cpm-goodbar__value">good {scaled.toFixed(0)}%</span>
+      {/* SME #8 (CHG-046): "good N%" shared its word with signal quality's "Good". */}
+      <span className="cpm-event-row__sub cpm-goodbar__value">{scaled.toFixed(0)}% in band</span>
     </div>
   );
 };

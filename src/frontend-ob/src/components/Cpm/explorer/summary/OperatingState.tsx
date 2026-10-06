@@ -14,11 +14,12 @@ import ReactECharts from 'echarts-for-react';
 import type { CpmLoop } from '../../../../api/cpmApi';
 import { useCpmTrend, useLoopLastValues } from '../../../../hooks/useCpm';
 import { useLoopLive, qualityLabel } from '../../../../hooks/useLoopLive';
+import { FacetPill, liveSignalQuality } from '../../FacetPill';
 import { useObcTheme } from '../../../../hooks/useObcTheme';
 import { loopSeries } from '../../../../utils/loopSeries';
 import { modeLabel } from '../../../../utils/modeVocabulary';
 import {
-  EmptyState, PanelHead, QueryError, TonePill,
+  EmptyState, PanelHead, QueryError,
   cpmChartColors, fmtDateTime, useRollingWindow, TREND_SPAN_MS, TREND_TICK_MS,
 } from '../../shared';
 import { boxZoomOption } from '../../../charts/boxZoom';
@@ -194,9 +195,14 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
               not an engine evaluation window (the gate strip below names its
               evaluated window separately). */}
           <p className="cpm-copy cpm-source-line">
-            <TonePill tone={live.hasData ? qualityLabel(live.quality ?? live.pv).tone : 'muted'}>
-              {live.hasData ? qualityLabel(live.quality ?? live.pv).label : 'NO LIVE PUBLISHER'}
-            </TonePill>
+            {(() => {
+              const sq = liveSignalQuality(qualityLabel(live.quality ?? live.pv), live.lastSourceTs);
+              return (
+                <FacetPill facet="signal" tone={live.hasData ? sq.tone : 'muted'}>
+                  {live.hasData ? sq.text : 'No live publisher'}
+                </FacetPill>
+              );
+            })()}
             {' '}Trend range {fmtDateTime(start.getTime())} → {fmtDateTime(end.getTime())} · rolling 8 h, not an evaluated window
           </p>
         </>

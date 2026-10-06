@@ -18,6 +18,7 @@ import type { CpmRankedLoop } from '../../../api/cpmApi';
 import { EmptyState, PanelHead, QueryError, TonePill, toneFor } from '../shared';
 import { conditionOf } from '../explorer/summary/summaryText';
 import GoodErrorBar from './GoodErrorBar';
+import FacetPill from '../FacetPill';
 import { PRIORITY_RULE, priorityBadge, priorityReasons } from './priorityReason';
 
 const QUEUE_SIZE = 6;
@@ -71,7 +72,7 @@ export const PriorityQueue: React.FC<{
             </ObcButton>
             <span className="cpm-queue-row__diag">
               {l.ackState === 'ACKNOWLEDGED' && <TonePill tone="muted">Acknowledged</TonePill>}
-              <TonePill tone={toneFor(l.diagnosis)}>{conditionOf(l.diagnosis).label}</TonePill>
+              <FacetPill facet="diagnosis" tone={toneFor(l.diagnosis)}>{conditionOf(l.diagnosis).label}</FacetPill>
             </span>
           </div>
           <button type="button" className="cpm-queue-row__preview"

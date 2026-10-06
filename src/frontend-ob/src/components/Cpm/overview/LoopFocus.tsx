@@ -12,6 +12,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import { EmptyState, PanelHead, TonePill, fmtDateTime, QueryError, cpmChartColors, useRollingWindow, TREND_SPAN_MS, TREND_TICK_MS } from '../shared';
 import { useCpmTrend } from '../../../hooks/useCpm';
 import { useLoopLive, qualityLabel } from '../../../hooks/useLoopLive';
+import { FacetPill, liveSignalQuality } from '../FacetPill';
 import { loopSeries } from '../../../utils/loopSeries';
 import { useObcTheme } from '../../../hooks/useObcTheme';
 import { boxZoomOption } from '../../charts/boxZoom';
@@ -37,6 +38,7 @@ export const LoopFocus: React.FC<{
   // F0.5 — live plane: RBE deltas + snapshot-on-open for this loop's device.
   const live = useLoopLive(loopId);
   const q = qualityLabel(live.quality ?? live.pv);
+  const sq = liveSignalQuality(q, live.lastSourceTs);
   const fmtLive = (m: { value: number | string | boolean } | undefined, digits = 1) =>
     m == null ? '—' : typeof m.value === 'number' ? m.value.toFixed(digits) : String(m.value);
 
@@ -106,12 +108,13 @@ export const LoopFocus: React.FC<{
         right={<ObcButton variant="raised" onClick={onOpenAnalysis}>Open analysis ›</ObcButton>} />
       <div className="cpm-filter-row" style={{ marginBottom: 8 }}>
         {/* Live signal row (F0.5): RBE means "no update" ≠ 0 — absent renders as —.
-            PV pill tone follows the signal QUALITY so a bad-quality PV reads bad. */}
-        <TonePill tone={q.tone}>PV {fmtLive(live.pv)}</TonePill>
+            SME #8 (CHG-046): the values are neutral (alert colours mean a state, never a pen) and
+            quality is its own captioned facet, so a green "Good" is never read as a verdict. */}
+        <TonePill tone="muted">PV {fmtLive(live.pv)}</TonePill>
         <TonePill tone="muted">SP {fmtLive(live.sp)}</TonePill>
-        <TonePill tone="warn">OP {fmtLive(live.op)}</TonePill>
+        <TonePill tone="muted">OP {fmtLive(live.op)}</TonePill>
         <TonePill tone="muted">MODE {fmtLive(live.mode)}</TonePill>
-        <TonePill tone={q.tone}>{q.label}</TonePill>
+        <FacetPill facet="signal" tone={sq.tone}>{sq.text}</FacetPill>
         <span className="cpm-filter-count">
           {live.hasData && live.lastSourceTs
             ? `live · source ${new Date(live.lastSourceTs).toLocaleTimeString()}`

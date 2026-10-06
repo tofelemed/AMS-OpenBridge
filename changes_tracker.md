@@ -2997,9 +2997,43 @@ back transaction removes it and counts it, an expired shelf brings it back) + `F
 restarted; queue and finding card as above; rows 115 px (first cut ~170, impact moved beside the reason); 0 px page overflow
 at 500 / 768 / 1000 / 1440; night theme; no console errors in normal use (a deliberately unknown `?loop=` logs its one 404).
 
+## CHG-046 — SME review #8: signal quality, instrument health, control performance and diagnosis are labelled apart (2026-10-06)
+
+**Source:** `SME_review.md` point 8. **Scope:** `ams-frontend` only: `components/Cpm/FacetPill.tsx` (+test, new),
+`overview/{LoopFocus, GoodErrorBar, PriorityQueue}.tsx`, `explorer/{LoopWorkspace.tsx, summary/OperatingState.tsx}`,
+`AttentionList.tsx`, `styles/cpm-loop-summary.css`. No service change.
+
+**What the SME said.** A green GOOD badge, a green performance bar and a red confirmed diagnosis can appear together; they may
+refer to different things but the labels do not say so. Separate signal quality, control performance and diagnostic condition.
+
+**Verified before the change.** Correct. Four facts, unlabelled or colliding: the Overview focus panel's green "● GOOD" (live PV
+signal quality, OPC/NE107) with a green-tinted PV pill; the queue / attention-list bar "good 22%" / "good error 22%" (share of
+the evaluated window in the good-error band) — the same word as the signal's GOOD; the Explorer header's red "CONFIRMED
+OSCILLATION" (the verdict) with no caption; "HEALTH NOT CONFIGURED" (Instrumental transmitter health). The focus panel's OP pill
+was permanently caution-yellow (it matched the OP pen colour) — an alert colour used as a pen identity (ISA-101).
+
+**What changed.** One `FacetPill` — a fixed caption + the toned value — for the four facets everywhere they appear:
+**Signal quality** (Good / Uncertain / Bad / Maintenance / Out of service, NE107), **Instrument health** (OK / Limited / Fault /
+Not configured), **Diagnosis** (the plain condition wording of the loop summary), and **Control performance**, which is the bar,
+now "N% in band" with the facet tooltip (never "good N%"). Overview focus panel: PV / SP / OP / MODE value pills neutral, signal
+quality its own captioned pill. Explorer header: Instrument health + Diagnosis captioned; operating-state line: Signal quality.
+Queue rows: the condition is the Diagnosis facet.
+
+**Found during the lab pass and fixed (same facet):** the focus panel said "Signal quality · Good" for a value last received 16 h
+earlier (the lab simulators had stopped overnight). Signal quality is now judged as of now: a value older than 10 min (two of the
+feed's 300 s heartbeats — the Explorer tiles' existing threshold) shows its age, and a stalled "Good" becomes **"Uncertain · last
+value 16 h ago"** in caution tone (OPC UA: Uncertain, last usable value). A stalled Bad stays Bad, with its age.
+
+**Tests.** `FacetPill.test.tsx` (new, 7: caption always present, each facet's caption, quality and health wording, fresh vs
+stalled quality). Frontend 72 files green, lint / tsc / build clean. **Lab browser pass 2026-10-06** (Docker restarted after the
+overnight stop): Overview focus "SIGNAL QUALITY Uncertain · last value 16 h ago" (warn), neutral value pills, queue rows
+"DIAGNOSIS Oscillation confirmed" and "22% in band"; Explorer header "INSTRUMENT HEALTH Not configured" (muted) and "DIAGNOSIS
+Oscillation confirmed" (bad), operating-state line Signal quality; 0 px page overflow on Overview / Explorer / Performance at
+500 / 768 / 1000 / 1440; night theme; 0 console errors.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040, CHG-041, CHG-042, CHG-043, CHG-044, CHG-045) and **`cplm-api`** (CHG-043, CHG-045). No schema, no
+- Updated services so far: **`ams-frontend`** (CHG-040, CHG-041, CHG-042, CHG-043, CHG-044, CHG-045, CHG-046) and **`cplm-api`** (CHG-043, CHG-045). No schema, no
   migration, no Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant: `docker load` the `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5.
@@ -3012,3 +3046,5 @@ at 500 / 768 / 1000 / 1440; night theme; no console errors in normal use (a deli
   the five-state operating picture and a Readiness strip at the bottom.
   (CHG-045) the Overview queue rows carry a High / Medium / Low priority badge and a reason line; `fleet/rankings?orderBy=priority`
   returns `shelvedCount` and per-row `priority`.
+  (CHG-046) loop facets carry captions: SIGNAL QUALITY / INSTRUMENT HEALTH / DIAGNOSIS pills, "N% in band" bars; a live value
+  older than 10 min shows "Uncertain · last value …".

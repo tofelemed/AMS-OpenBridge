@@ -97,7 +97,7 @@ export const AttentionList: React.FC<AttentionListProps> = ({
             const selected = selectedLoopId?.toLowerCase() === l.loopId.toLowerCase();
             const metric = rankBy === 'error'
               ? (l.metrics.goodErrorPct != null
-                ? `good error ${(l.metrics.goodErrorPct * 100).toFixed(0)}%` : null)
+                ? `${(l.metrics.goodErrorPct * 100).toFixed(0)}% in band` : null)
               : (l.confidence != null ? `confidence ${(l.confidence * 100).toFixed(0)}%` : null);
             return (
               <li

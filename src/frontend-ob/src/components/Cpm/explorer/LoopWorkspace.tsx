@@ -26,6 +26,8 @@ import { useInstrumentHealth } from '../health/useInstrumentHealth';
 import { TransmitterHealthPanel, loopHealthSummary } from '../health/TransmitterHealthPanel';
 import { readinessCauses, type ExplorerTab } from './readinessCauses';
 import LoopSummaryCard from './summary/LoopSummaryCard';
+import { FacetPill, instrumentHealthText } from '../FacetPill';
+import { conditionOf } from './summary/summaryText';
 import SummaryTab from './SummaryTab';
 import SignalsTab from './SignalsTab';
 import CalculationsTab from './CalculationsTab';
@@ -121,11 +123,11 @@ export const LoopWorkspace: React.FC<{
               title="Transmitter health (Instrumental NE107)"
               onClick={() => setHealthOpen(v => !v)}
             >
-              <TonePill tone={healthSummary.tone}>{healthSummary.label}</TonePill>
+              <FacetPill facet="health" tone={healthSummary.tone}>{instrumentHealthText(healthSummary.label)}</FacetPill>
             </button>
-            <TonePill tone={gatesFailed ? 'warn' : toneFor(diagnosis)}>
-              {diagnosis.replace(/_/g, ' ')}
-            </TonePill>
+            <FacetPill facet="diagnosis" tone={gatesFailed ? 'warn' : toneFor(diagnosis)}>
+              {gatesFailed ? 'Verdict unavailable' : conditionOf(diagnosis).label}
+            </FacetPill>
           </span>
         }
       />

@@ -121,3 +121,18 @@
 .cpm-queue-row__diag { margin-left: auto; display: inline-flex; flex-wrap: wrap; gap: 6px; }
 .cpm-queue-row__reason { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; }
 .cpm-queue-row__why { flex: 1 1 260px; font-size: 0.82rem; color: var(--element-active-color); overflow-wrap: anywhere; }
+
+/* ── Facet pills (SME review #8, CHG-046) ──
+   Every loop facet is captioned with its fixed name (Signal quality / Instrument health /
+   Control performance / Diagnosis) so a green value never reads as a verdict on another facet.
+   The caption is small and neutral; the dot + value keep the tone. Wraps on a narrow screen. */
+.cpm-facet { white-space: normal; flex-wrap: wrap; row-gap: 2px; }
+.cpm-facet__caption {
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--element-neutral-color);
+  padding-right: 6px;
+  margin-right: 2px;
+  border-right: 1px solid var(--border-divider-color);
+}
