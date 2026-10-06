@@ -264,7 +264,7 @@ def test_flink_swap_cancels_every_job_before_removing_the_jobmanager_and_sweeps_
 def test_plant_compose_forwards_the_cplm_evidence_and_episode_knobs():
     text = (HERE.parent / "deploy" / "docker-compose.marun.yml").read_text(encoding="utf-8") if (HERE.parent / "deploy").is_dir() else (HERE / "docker-compose.marun.yml").read_text(encoding="utf-8")
     for key in ("Cplm__EvidenceTransientHours", "Cplm__EvidenceTransientBudgetBytes", "Cplm__EvidenceSweepIntervalMinutes",
-                "Cplm__EpisodeCaptureMax", "Cplm__FamilyChangeWindows"):
+                "Cplm__EpisodeCaptureMax", "Cplm__FamilyChangeWindows", "Cplm__EvidenceExpiredGraceDays"):
         assert f"{key}: ${{{key}:-" in text, key
 
 

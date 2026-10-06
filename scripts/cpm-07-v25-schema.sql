@@ -317,6 +317,7 @@ CREATE TABLE IF NOT EXISTS analytics.response_event (
 CREATE INDEX IF NOT EXISTS ix_response_event_loop_t0 ON analytics.response_event (lower(loop_id), t0_ms DESC);
 CREATE INDEX IF NOT EXISTS ix_response_event_method_run ON analytics.response_event (method_run_id);
 CREATE INDEX IF NOT EXISTS ix_response_event_purpose ON analytics.response_event (purpose, loop_id);
+CREATE INDEX IF NOT EXISTS ix_response_event_created ON analytics.response_event (created_at);   -- CHG-049: retention purge
 
 -- One row per (method run, quantity): the 52 catalogue quantities, null WITH reason.
 CREATE TABLE IF NOT EXISTS analytics.response_metric (

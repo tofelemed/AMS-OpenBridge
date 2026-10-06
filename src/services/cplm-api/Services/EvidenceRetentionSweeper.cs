@@ -5,7 +5,7 @@ using Npgsql;
 namespace Traverse.CplmApi.Services;
 
 /// <summary>What one sweep did; every count is rows.</summary>
-public sealed record SweepResult(int Promoted, int TransientPurged, int Expired, int ChunksDeleted, int Purged);
+public sealed record SweepResult(int Promoted, int TransientPurged, int Expired, int ChunksDeleted, int Purged, int ResponsePurged);
 
 /// <summary>
 /// v2.5 Task 1G.5 (spec v6 §1.6 retention; NR-060) + CHG-033: evidence is retained by RECORD CLASS.
@@ -54,16 +54,16 @@ public sealed class EvidenceRetentionSweeper : BackgroundService
             try
             {
                 var r = await SweepOnceAsync(_db, stoppingToken, _expiredGraceDays, 20_000, _transientHours, _transientBudgetBytes);
-                if (r.Promoted + r.TransientPurged + r.Expired + r.Purged > 0)
-                    _logger.LogInformation("Evidence retention: {Promoted} promoted to EPISODE, {Transient} TRANSIENT deleted, {Expired} expired, {Chunks} chunk(s) deleted, {Purged} purged",
-                        r.Promoted, r.TransientPurged, r.Expired, r.ChunksDeleted, r.Purged);
+                if (r.Promoted + r.TransientPurged + r.Expired + r.Purged + r.ResponsePurged > 0)
+                    _logger.LogInformation("Evidence retention: {Promoted} promoted to EPISODE, {Transient} TRANSIENT deleted, {Expired} expired, {Chunks} chunk(s) deleted, {Purged} purged, {Response} response event(s) purged",
+                        r.Promoted, r.TransientPurged, r.Expired, r.ChunksDeleted, r.Purged, r.ResponsePurged);
             }
             catch (Exception ex) { _logger.LogWarning(ex, "Evidence retention sweep failed; will retry next interval"); }
             try { await Task.Delay(_interval, stoppingToken); } catch (OperationCanceledException) { return; }
         }
     }
 
-    private static readonly string[] NotEvidenceClasses = { "TRANSIENT", "SHORT_FEATURES", "LONG_FEATURES", "GATE_RESULTS" };
+    private static readonly string[] NotEvidenceClasses = { "TRANSIENT", "SHORT_FEATURES", "LONG_FEATURES", "GATE_RESULTS", "RESPONSE" };   // CHG-049: RESPONSE is response_event retention, not an evidence class
 
     /// <summary>One sweep. Static so a test can drive it against the lab database.</summary>
     public static async Task<SweepResult> SweepOnceAsync(NpgsqlDataSource db, CancellationToken ct,
@@ -90,6 +90,12 @@ public sealed class EvidenceRetentionSweeper : BackgroundService
             expired += e; chunks += c;
             purged += await EvidenceRetentionTiers.PurgeExpiredAsync(db, recordClass, days, expiredGraceDays, size, ct);
         }
-        return new SweepResult(promoted, transient, expired, chunks, purged);
+        // 4. CHG-049: response_event / response_metric; no RESPONSE row (or null days) = keep forever
+        int responsePurged = 0;
+        int? responseDays;
+        await using (var conn = await db.OpenConnectionAsync(ct))
+            responseDays = await conn.ExecuteScalarAsync<int?>("SELECT days FROM analytics.retention_policy WHERE record_class = 'RESPONSE'");
+        if (responseDays is { } rd) responsePurged = await ResponseRetention.PurgeAsync(db, rd, 5_000, ct);
+        return new SweepResult(promoted, transient, expired, chunks, purged, responsePurged);
     }
 }

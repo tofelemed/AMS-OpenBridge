@@ -183,6 +183,7 @@ services:
       Cplm__EvidenceTransientHours: ${Cplm__EvidenceTransientHours:-6}
       Cplm__EvidenceTransientBudgetBytes: ${Cplm__EvidenceTransientBudgetBytes:-2147483648}
       Cplm__EvidenceSweepIntervalMinutes: ${Cplm__EvidenceSweepIntervalMinutes:-15}
+      Cplm__EvidenceExpiredGraceDays: ${Cplm__EvidenceExpiredGraceDays:-1}
       Cplm__EpisodeCaptureMax: ${Cplm__EpisodeCaptureMax:-3}
       Cplm__FamilyChangeWindows: ${Cplm__FamilyChangeWindows:-3}
       # CHG-036: the bounded replay / reconstruction job reads the parameter-update topic in main() with the
