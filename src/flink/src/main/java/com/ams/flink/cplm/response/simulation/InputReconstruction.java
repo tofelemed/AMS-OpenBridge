@@ -1,8 +1,5 @@
 package com.ams.flink.cplm.response.simulation;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * The applied input as a held signal (each sample holds until the next), delayed by theta:
  * u_delayed(s) = u(s - theta); before the first sample the baseline u0 applies. Breakpoints are the
@@ -21,36 +18,6 @@ public final class InputReconstruction {
         this.u = u;
         this.u0 = u0;
         this.theta = theta;
-    }
-
-    /** Held, delayed input value at instant s. */
-    public double delayedAt(double s) {
-        double src = s - theta;
-        if (t.length == 0 || src < t[0]) return u0;
-        int lo = 0, hi = t.length - 1;
-        while (lo < hi) {                      // largest j with t[j] <= src
-            int mid = (lo + hi + 1) >>> 1;
-            if (t[mid] <= src) lo = mid; else hi = mid - 1;
-        }
-        return u[lo];
-    }
-
-    /** Instants strictly inside (from, to) at which the delayed input can change: t[j] + theta. */
-    public double[] breakpointsWithin(double from, double to) {
-        int lo = 0, hi = t.length;             // CHG-075: binary search for the first t[j] + theta > from, not a scan from 0
-        while (lo < hi) {
-            int mid = (lo + hi) >>> 1;
-            if (t[mid] + theta > from) hi = mid; else lo = mid + 1;
-        }
-        List<Double> out = new ArrayList<>();
-        for (int j = lo; j < t.length; j++) {
-            double s = t[j] + theta;
-            if (s >= to) break;
-            out.add(s);
-        }
-        double[] r = new double[out.size()];
-        for (int i = 0; i < r.length; i++) r[i] = out.get(i);
-        return r;
     }
 
     /** CHG-075: a forward walk over the breakpoints for one simulation - O(n) in total. */

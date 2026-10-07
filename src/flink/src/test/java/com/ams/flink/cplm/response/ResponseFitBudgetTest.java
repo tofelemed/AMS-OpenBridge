@@ -14,6 +14,7 @@ import java.util.Collections;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * CHG-075 (lab 2026-10-06/07, three times): one G12 fit on a long jittered event ran 30-70 min inside
@@ -44,7 +45,10 @@ public class ResponseFitBudgetTest {
         return new ResponseEvaluator(c).evaluate(closed, ModelFamily.FOPDT, null, 0, ControllerSnapshot.unknown(), 0, "LIVE", "", 0);
     }
 
-    /** 4 h at 1 s with +-50 ms jitter (14,400 samples), production grid, 5 s budget: done or censored by 7 s. */
+    /**
+     * 4 h at 1 s with +-50 ms jitter (14,400 samples), production grid, 5 s budget: the fit stops within 500 ms of its
+     * budget (the contract); the whole evaluate gets 10 s of slack because a CPU-starved shared VM once took 10.9 s.
+     */
     @Test(timeout = 120_000)
     public void aProductionSizeJitteredEventEndsWithinTheBudget() {
         ResponseCapture.Closed c = closed(14_400);
@@ -52,10 +56,30 @@ public class ResponseFitBudgetTest {
         long started = System.nanoTime();
         G12Result g = evaluate(cfg(5_000), c).result;
         long tookMs = (System.nanoTime() - started) / 1_000_000;
-        System.out.println("CHG-075 budget test: evaluate took " + tookMs + " ms, finding " + g.finding + ", D " + g.subgates.get("D").state
+        long fitMs = ((Number) g.subgates.get("D").outputs.get("fit_ms")).longValue();
+        if (Boolean.getBoolean("response.bench")) System.out.println("CHG-075 budget test: evaluate took " + tookMs + " ms, finding " + g.finding + ", D " + g.subgates.get("D").state
                 + ", fit_ms " + g.subgates.get("D").outputs.get("fit_ms") + ", stage " + g.subgates.get("D").outputs.get("budget_stage"));
-        assertTrue("evaluate took " + tookMs + " ms against a 5,000 ms budget", tookMs <= 5_000 + 2_000);
+        assertTrue("the fit took " + fitMs + " ms against a 5,000 ms budget", fitMs <= 5_000 + 500);
+        assertTrue("evaluate took " + tookMs + " ms against a 5,000 ms budget", tookMs <= 5_000 + 10_000);
         assertTrue(g.finding, "BUDGET_EXCEEDED".equals(g.finding) || "ESTIMATED".equals(g.subgates.get("D").state));
+    }
+
+    /** A Flink cancel interrupts the task thread: the fit unwinds and NO result is emitted (the event is re-evaluated after restore). */
+    @Test(timeout = 120_000)
+    public void anInterruptedFitPropagatesInsteadOfCensoring() {
+        ResponseCapture.Closed c = closed(3_600);
+        java.util.List<ResponseEvaluator.Outcome> collected = new java.util.ArrayList<>();
+        Thread.currentThread().interrupt();
+        try {
+            collected.add(evaluate(cfg(60_000), c));
+            fail("an interrupted fit must propagate, not become BUDGET_EXCEEDED");
+        } catch (com.ams.flink.cplm.response.estimation.FitBudgetExceeded expected) {
+            assertTrue(expected.interrupted());
+            assertTrue("the interrupt flag is left for Flink", Thread.currentThread().isInterrupted());
+        } finally {
+            Thread.interrupted();
+        }
+        assertTrue("no result for an interrupted event", collected.isEmpty());
     }
 
     /** The budget path: CENSORED, finding and rejection BUDGET_EXCEEDED, budget outputs, never a partial model. */

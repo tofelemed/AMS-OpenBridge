@@ -153,7 +153,8 @@ public final class ResponseEvaluator implements Serializable {
             try {
                 est = estimator.estimate(c.data, c.u0, family, estimatorSettings(System.nanoTime() + cfg.fitBudgetMs * 1_000_000L));
             } catch (FitBudgetExceeded x) {
-                budgetStage = x.stage().isEmpty() ? x.getMessage() : x.stage() + ("INTERRUPTED".equals(x.getMessage()) ? " INTERRUPTED" : "");
+                if (x.interrupted()) throw x;     // a cancel, not a budget: no result; the event is re-evaluated after restore
+                budgetStage = x.stage().isEmpty() ? x.getMessage() : x.stage();
             }
             long took = System.currentTimeMillis() - started;
             d.outputs.put("method_id", estimator.methodId());

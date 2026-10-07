@@ -21,6 +21,8 @@ import static org.junit.Assert.assertTrue;
 public class ResponseFitParityTest {
     static final double REL = 1e-9;
     private static final boolean CAPTURE = Boolean.getBoolean("parity.capture");
+    /** -Dparity.verbose=true prints every case's relative differences; normal runs stay quiet. */
+    private static final boolean VERBOSE = Boolean.getBoolean("parity.verbose");
     /** fit cases: {gain, theta, tau, tau2, y0, v0, objective}; simulation cases: {sum, y[10], y[50], y[120], y[200], y[299]}. */
     static final Map<String, double[]> EXPECTED = new LinkedHashMap<>();
 
@@ -123,7 +125,7 @@ public class ResponseFitParityTest {
                 if (rel > REL) failures.append(e.getKey()).append('[').append(i).append("] want ").append(want[i]).append(" got ").append(got[i])
                         .append(" rel ").append(rel).append("; ");
             }
-            System.out.println(sb);
+            if (VERBOSE) System.out.println(sb);
         }
         assertTrue(failures.toString(), failures.length() == 0);
     }

@@ -28,4 +28,7 @@ public final class FitBudgetExceeded extends RuntimeException {
     }
 
     public String stage() { return stage; }
+
+    /** True when the task thread was interrupted (Flink cancel), false when the deadline passed. */
+    public boolean interrupted() { return "INTERRUPTED".equals(getMessage()); }
 }
