@@ -449,6 +449,7 @@ def test_chg068_block_preflights_pins_the_project_and_carries_the_rollback():
     assert blk.index("{{.Config.Entrypoint}}") < blk.index("zk-backup-v0.0.0-test") < blk.index("PROJ=$(L") < blk.index("up -d zookeeper")
     assert "binding to port" in blk and "seq 12" in blk and "kafka-topics" in blk and "under-replicated-partitions" in blk
     assert '(cd $ZKDIR && docker compose -p "$PROJ" -f "$CFG" up -d zookeeper)' in blk
+    assert "docker volume inspect -f" in blk and "sudo cp -a" in blk and "sudo du -sh $B" in blk and "alpine" not in blk
 
 
 def test_chg049_cpm12_is_online_without_a_transaction_and_cpm12b_has_the_disk_guard():

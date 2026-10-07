@@ -31,8 +31,8 @@ for c in ams-flink-taskmanager ams-flink-jobmanager; do
 done
 
 # CHG-068: a zero-byte ZooKeeper txn log crash-loops it (ZOOKEEPER-2332); counted from the volume, not inside the (possibly dead) container
-zkimg=$(for i in alpine busybox; do docker image inspect "$i" >/dev/null 2>&1 && { echo "$i"; break; }; done)
-if [ -z "$zkimg" ]; then warn "zookeeper: cannot check zero-byte transaction logs (no alpine or busybox image on this host)"
+zkimg=$(for i in alpine python:3.11-alpine; do docker image inspect "$i" >/dev/null 2>&1 && { echo "$i"; break; }; done)
+if [ -z "$zkimg" ]; then warn "zookeeper: cannot check zero-byte transaction logs (no alpine or python:3.11-alpine image on this host)"
 elif ! docker volume inspect microservices_zookeeper-logs >/dev/null 2>&1; then warn "zookeeper txn-log volume not found - cannot check zero-byte logs"
 else
   # a failing find must not read as 0: the sh -c prints nodir / the find error, and only a plain number counts

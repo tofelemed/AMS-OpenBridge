@@ -342,7 +342,7 @@ def vm_steps(release: str, commit: str, rows: list[tuple[str, str, str]],
 docker inspect instrumental-zookeeper -f '{{{{.Config.Image}}}} | {{{{.Config.Entrypoint}}}} | {{{{.Config.Cmd}}}} | {{{{.Config.User}}}}'
 docker inspect instrumental-zookeeper -f '{{{{range .Mounts}}}}{{{{.Source}}}} -> {{{{.Destination}}}}{{{{"\\n"}}}}{{{{end}}}}'
 #    backup BOTH volumes first (MARUN-DISK.md J step 1)
-for v in microservices_zookeeper-data microservices_zookeeper-logs; do docker run --rm -v $v:/v:ro -v /var/tmp/zk-backup-{release}:/b alpine sh -c "mkdir -p /b/$v && cp -a /v/. /b/$v/"; done
+B=/var/tmp/zk-backup-{release}; sudo mkdir -p $B; for v in microservices_zookeeper-data microservices_zookeeper-logs; do sudo cp -a "$(docker volume inspect -f '{{{{.Mountpoint}}}}' $v)" "$B/$v"; done; sudo du -sh $B   # a few MB (2.6 MB on 6 Oct)
 #    pin THEIR compose project: a different -p creates new empty ZooKeeper volumes = new cluster id = InconsistentClusterIdException on Kafka
 L() {{ docker inspect instrumental-zookeeper -f "{{{{index .Config.Labels \\"$1\\"}}}}"; }}
 SVC=$(L com.docker.compose.service); PROJ=$(L com.docker.compose.project); CFG=$(L com.docker.compose.project.config_files); ZKDIR=$(L com.docker.compose.project.working_dir)

@@ -21,7 +21,10 @@ Required: a `cp-zookeeper` image, empty entrypoint (`[]`), `[/etc/confluent/dock
 `/var/lib/zookeeper/log`. Otherwise STOP: do not apply; read their compose first, then set `ZK_TXNLOG_DIR` / edit the override.
 
 Back up BOTH volumes (as `MARUN-DISK.md` J step 1) before applying: `microservices_zookeeper-data` and `microservices_zookeeper-logs`
-to `/var/tmp/zk-backup-<date>` (a few MB).
+to `/var/tmp/zk-backup-<date>` (a few MB; no helper image needed, the plant has no `alpine`):
+```bash
+B=/var/tmp/zk-backup-<date>; sudo mkdir -p $B; for v in microservices_zookeeper-data microservices_zookeeper-logs; do sudo cp -a "$(docker volume inspect -f '{{.Mountpoint}}' $v)" "$B/$v"; done; sudo du -sh $B   # 2.6 MB on 6 Oct
+```
 
 ## Steps
 Pin their compose project. A different project name (`-p`) creates NEW EMPTY ZooKeeper volumes = a new cluster id while Kafka keeps the
@@ -49,6 +52,6 @@ If ZooKeeper has not bound after the 60 s poll, roll back BEFORE continuing, wit
 cd $ZKDIR && docker compose -p "$PROJ" -f "$CFG" up -d zookeeper
 ```
 Quarantined files stay in `<logs volume>/quarantine/` (never delete them); copy that directory next to the backup for forensics:
-`docker run --rm -v microservices_zookeeper-logs:/l:ro -v /var/tmp/zk-backup-<date>:/b alpine cp -a /l/quarantine /b/`.
+`sudo cp -a "$(docker volume inspect -f '{{.Mountpoint}}' microservices_zookeeper-logs)/quarantine" /var/tmp/zk-backup-<date>/`.
 If the guard did nothing, check the txn-log mount is `/var/lib/zookeeper/log`, else set `ZK_TXNLOG_DIR` in the override.
 Daily check section 2 counts zero-byte logs in the `microservices_zookeeper-logs` volume (ACT > 0: `MARUN-DISK.md` J).

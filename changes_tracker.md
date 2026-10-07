@@ -3433,7 +3433,7 @@ Renaming the file in place does not help (`log.<hex>.<anything>` is still parsed
   deleted) and then `exec`s `/etc/confluent/docker/run`. `ZK_TXNLOG_DIR` overrides `/var/lib/zookeeper/log`.
 - Lab compose mounts it read-only and sets the command (takes effect at the next recreate of `ams-zookeeper`; NOT recreated during the go/no-go).
 - Instrumental's ZooKeeper: compose override + `migration/instrumental/README-zookeeper-guard.md` (plant steps).
-- Daily check §2 counts zero-byte logs in `microservices_zookeeper-logs` via a throwaway `alpine`/`busybox` container (WARN "cannot check"
+- Daily check §2 counts zero-byte logs in `microservices_zookeeper-logs` via a throwaway `alpine` or `python:3.11-alpine` container (WARN "cannot check"
   when neither image exists); ACT > 0 points to `MARUN-DISK.md` J.
 - Not changed: the ZooKeeper upgrade to >= 3.9.3 (later item).
 
