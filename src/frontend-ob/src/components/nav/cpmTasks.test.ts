@@ -8,8 +8,14 @@ describe('cpmNavHref', () => {
   });
 
   it('carries scope without a loop', () => {
-    expect(cpmNavHref('/cpm/performance', '/cpm', '?site=marun&area=hdpe&unit=u1'))
-      .toBe('/cpm/performance?site=marun&area=hdpe&unit=u1');
+    expect(cpmNavHref('/cpm/events', '/cpm', '?site=marun&area=hdpe&unit=u1'))
+      .toBe('/cpm/events?site=marun&area=hdpe&unit=u1');
+  });
+
+  it('opens Overview and Performance on the whole plant: no loop, no scope (CHG-069)', () => {
+    expect(cpmNavHref('/cpm', '/cpm/explorer', '?loop=FIC10503&site=hdpe')).toBe('/cpm');
+    expect(cpmNavHref('/cpm/performance', '/cpm/explorer', '?loop=FIC10503&site=hdpe&area=a')).toBe('/cpm/performance');
+    expect(cpmNavHref('/cpm/performance', '/cpm', '?site=marun')).toBe('/cpm/performance');
   });
 
   it('does not carry the window: its meaning differs per page', () => {

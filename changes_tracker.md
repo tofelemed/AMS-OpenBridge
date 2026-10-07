@@ -3793,6 +3793,24 @@ so `{healthWhere}` reached Postgres literally and every heatmap request answered
 **Phase 3 (engine) is not here:** per the user, gate / fusion changes belong to the parallel session (ams-open-2c); the list was handed
 over 2026-10-07.
 
+## CHG-069 — Overview and Performance open on the whole plant from the menu (2026-10-07)
+
+**Source:** user, 2026-10-07 ("overview and performance page should show all the loops - selected loop context should not be there").
+**Scope:** **`ams-frontend`** only: `components/nav/cpmTasks.ts` (`cpmNavHref`), `components/nav/cpmTasks.test.ts`. No API, no schema.
+
+**What was wrong.** The menu link logic (CHG-040) carried `loop`, `site`, `area` and `unit` from a loop page to every Loop Performance
+page. From Explorer on FIC10503 (`?loop=FIC10503&site=hdpe`), Overview opened at "175 loop(s) in scope" with a focus panel on FIC10503,
+and Performance opened at "All 175" with FIC10503's row selected and its per-window evidence panel open.
+
+**What changed.** `/cpm` and `/cpm/performance` are plant-wide pages, so the menu (sidebar and command palette) always opens them bare,
+with no loop and no site / area / unit filter. All other loop pages keep the CHG-040 carry. In-page links that open a loop on
+Performance on purpose (Explorer gate detail, the Overview loop drawer) are not affected: they use `performanceHref`, not `cpmNavHref`.
+
+**Tests.** `cpmTasks.test.ts`: the scope-carry case now targets Loop Events; new case: Overview / Performance get neither loop nor scope
+from Explorer or Overview. 10/10; tsc / lint / build clean. **Lab (Vite 5174, menu clicks from `/cpm/explorer?loop=FIC10503&site=hdpe`):**
+Overview → `/cpm`, "230 loop(s) in scope", no focus panel; Performance → `/cpm/performance`, "All sites", "230 monitored loop(s) in
+scope", "All 230", no selected row, no evidence panel, at day 1440 and night 390.
+
 ## CHG-049 — Evidence storage is bounded by what the plant needs, and the daily check measures the files (2026-10-06)
 
 **Scope:** `src/flink` (evidence cycle cap + `cycle_scores`, `EvidencePolicy`, per-loop throttle, `04b` arguments),
@@ -4084,7 +4102,7 @@ reported "Flink did not accept the submission in time" while the job ran, and th
 - Go/no-go (user decision 2026-10-07, replaces the 24 h soak gate): about 6 h on the exact shipping build with all 13 lab jobs
   (Response included) decides the plant deploy; the 24 h soak keeps running in parallel and anything it finds after the gate
   becomes a follow-up patch.
-- Updated services: **`ams-frontend`** (CHG-040 … CHG-048, CHG-050 … CHG-059, CHG-063 … CHG-067, CHG-049 G7 view), **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-049, CHG-058, CHG-059, CHG-063, CHG-066, CHG-076),
+- Updated services: **`ams-frontend`** (CHG-040 … CHG-048, CHG-050 … CHG-059, CHG-063 … CHG-067, CHG-069, CHG-049 G7 view), **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-049, CHG-058, CHG-059, CHG-063, CHG-066, CHG-076),
   **`flink-jobmanager`** (image `ams-flink`, CHG-049, CHG-061, CHG-062a, CHG-075; the TaskManager uses it too: full Flink swap, cancel
   every job before `docker rm -f` of JM and TM, then the orphan-checkpoint sweep) and **`ingestion-service`** (CHG-062b: image
   `traverse-ingestion-service`, `docker load` and recreate; no schema).
@@ -4157,6 +4175,7 @@ reported "Flink did not accept the submission in time" while the job ran, and th
   verdict lane says "Confirmed" for a confirmed finding; Replay G0–G4 summary rows show values.
   (CHG-066) `GET /api/v1/cpm/fleet/heatmap?health=missing-binding` answers 200 with `observabilityFlags` per row; Performance reads
   "N monitored loop(s) in scope" and its matrix shows "OK on available data" where an input is missing.
+  (CHG-069) from a loop page the menu's Overview and Performance open on all loops, with no site filter and no selected loop.
 - Rollback (CHG-049): reload the pre-release images (`pre-<release>-images.txt`) for `ams-flink`, `cplm-api` and `traverse-ingestion-service` and repeat the
   Flink swap; the RESPONSE retention row and the index can stay (harmless to the old build).
 - Proofs (CHG-049): 7 jobs RUNNING with one `jarSha256`; daily check §7 `evidence tables N MB on disk` under 1536 MB after

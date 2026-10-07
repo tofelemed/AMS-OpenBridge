@@ -52,11 +52,18 @@ export const cpmPage = (path: string): CpmPageInfo | undefined =>
 const CARRIED = ['loop', 'site', 'area', 'unit'] as const;
 
 /**
+ * CHG-069: the plant-wide pages always open on the whole plant from the menu — no loop focus, no plant-scope filter
+ * carried from a loop page (Overview showed 175 of 230 loops and focused the carried loop; Performance pre-selected it).
+ * In-page links that deliberately open a loop on them (Explorer gate detail, Overview loop drawer — `performanceHref`) still pass it.
+ */
+const FLEET_PAGES = new Set(['/cpm', '/cpm/performance']);
+
+/**
  * The href a menu entry should open. Moving from one Loop Performance page to
  * another keeps the loop and plant scope; anything else is the bare path.
  */
 export function cpmNavHref(target: string, fromPathname: string, fromSearch: string, nowMs = Date.now()): string {
-  if (!cpmPage(target) || !cpmPage(fromPathname)) return target;
+  if (!cpmPage(target) || !cpmPage(fromPathname) || FLEET_PAGES.has(target)) return target;
   const from = new URLSearchParams(fromSearch);
   const next = new URLSearchParams();
   for (const key of CARRIED) {
