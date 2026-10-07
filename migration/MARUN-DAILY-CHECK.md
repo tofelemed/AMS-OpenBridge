@@ -101,6 +101,14 @@ docker logs --since 24h ams-flink-taskmanager 2>&1 | grep SHORT_BUFFER_CAPPED | 
 ```
 A large `watermarkLagMs` on many loops, or a growing `Short job consumer lag`, is a backlog: use the recipe above. One loop only, with `declaredGridS` far from its real publishing interval, is a mis-declared grid: fix `grid_seconds` for that loop in the loop registry (the derived cap follows the declared grid). The line logs at most once per loop per hour. `SHORT_DUPLICATE_DROPPED loop=... ts=...` (same rate limit; counter `shortDuplicatesDropped`) means the loop is fed twice: look for a second overlapping data source (`MARUN-CONTEXT.md` 12b). Both lines reach the plant log through the WARN override for `ShortFeatureBufferFn` in `infra/docker/flink-log4j-console.properties` (root stays ERROR).
 
+`Response` (CHG-075, pending deploy): one G12 fit has a 20 s budget; a fit that runs out is censored, not crashed.
+**BUDGET_EXCEEDED rejections are normal under load; repeated TaskManager restarts are not.** Count the censors of the last 24 h:
+```
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -Atc "select count(*) filter (where finding='BUDGET_EXCEEDED'), count(*) from analytics.response_event where created_at > now()-interval '24 hours'"
+```
+A TaskManager whose `RestartCount` grows (section 2) while the Response job's checkpoints fail is the 2026-10-07 lab incident
+(`prod_decision.md` section 6): cancel the Response job and resubmit it stateless with `04b`.
+
 Fewer than seven jobs: `ALLOW_FLINK_SUBMIT=yes bash migration/04b-submit-flink-jobs.sh` submits the
 missing ones. Never `docker rm -f` the JobManager without cancelling every job first (orphaned
 checkpoints, section 1).

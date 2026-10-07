@@ -279,7 +279,7 @@ POST_CHECKS: dict[str, str] = {
     "historian-bff":
         "GET /api/hist/raw/cursor ... maxCount=10000 -> 200, count 9999, hasMore true",
     "flink-jobmanager":
-        "4 x RUNNING and every start time moved (step 5)",
+        "7 x RUNNING and every start time moved (step 5)",
     "ams-frontend":
         "200 on /, users Ctrl+F5",
     "ams-api":
@@ -345,7 +345,8 @@ def vm_steps(release: str, commit: str, rows: list[tuple[str, str, str]],
 #    while they keep executing the OLD jar. Removing both containers is mandatory.
 cp /tmp/{release}/{FLINK_JAR.name} /opt/AMS-open/src/flink/target/{FLINK_JAR.name}
 #    cancel every job BEFORE removing the JobManager (2026-10-02: a killed JobManager left every job's last checkpoint
-#    behind - 34 orphans, 5 GB); cancelled jobs keep one checkpoint too (RETAIN_ON_CANCELLATION), swept after the resubmit
+#    behind - 34 orphans, 5 GB); the other cancelled jobs keep one checkpoint (cluster RETAIN_ON_CANCELLATION; Short since
+#    CHG-039 and Response since CHG-075 delete theirs), swept after the resubmit
 for id in $(docker exec ams-flink-jobmanager flink list -m localhost:8081 2>/dev/null | grep -oE '[0-9a-f]{{32}}'); do docker exec ams-flink-jobmanager flink cancel -m localhost:8081 $id 2>/dev/null; done
 docker rm -f ams-flink-taskmanager ams-flink-jobmanager
 {ams_api_env}bash migration/deploy/deploy.sh --prod 2>&1 | tail -8          # 04b resubmits all {job_count} jobs

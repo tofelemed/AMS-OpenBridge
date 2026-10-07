@@ -268,6 +268,21 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [ ] F3: reconstruction keeps the live run's colliding TRANSIENT artifacts (mixed datasets in the served set)
 - [ ] plant deploy in the SME-batch release (`ams-flink` + `ingestion-service` images, overlay `FLINK_PROPERTIES`, Short restarts empty, ~30 min warm-up)
 
+## CHG-075 / CHG-076 — Task 17 findings F4 / F3 fixed (2026-10-07; release v2.7.0)
+
+- [x] CHG-075 (44245ba3) the G12 fit budget is a deadline the fit honours (20 s default, `g12-fit-budget-ms`; censor `BUDGET_EXCEEDED`, never a partial model) — RED budget test timed out at 120 s, GREEN 5.03 s with a 5 s budget
+- [x] CHG-075 (829ac29e) exact-ZOH simulation in O(n) + closed-form first order (parity 7.8e-14) — bench FOPDT 5,007 s → 46 s (2b6ac121 `ResponseFitBench`)
+- [x] CHG-075 (872f1393) Response checkpoints: 300 s / 120 s pause, timeout 900 s, 1,000 tolerable failures, unaligned after 30 s, DELETE_ON_CANCELLATION (`CplmCheckpointing`, Short unchanged)
+- [x] CHG-075 (3527edaf) fix round: an interrupted fit re-throws (no output), dead reconstruction helpers removed, budget test slack — Flink full suite 334 run / 0 failures / 2 skipped
+- [x] CHG-076 (61584c90) a reconstruction replaces the live artifacts it collides with (STANDARD; never demotes EPISODE / PINNED) — cplm-api `Evidence|Response|SchemaV25` 57 / 57
+- [x] release manifest v2.7.0 (bcb65977): `!chg049-evidence`, flink-jobmanager, cplm-api, traverse-ingestion-service, ams-frontend — dry-run OK
+- [x] Task 21 records: `changes_tracker.md` CHG-075 / CHG-076 + release block v2.7.0 (go/no-go replaces the 24 h soak gate), `prod_decision.md` §3 / §4 / §6, `MARUN-DAILY-CHECK.md` §4 Response line, `build-release.py` two stale lines (RETAIN comment; post-update 7 x RUNNING) — `test_build_release.py` 47 passed; `build-release.py --release v2.7.0 --dry-run` OK
+- [ ] Task 21 lab swap to the exact shipping build (jar + cplm-api from the worktree; 13 / 13 jobs incl. Response; CAPABILITY jar verified)
+- [ ] Task 21 Response proof on the lab (≥ 60 min: checkpoints complete, 0 failed, TM RestartCount 0; BUDGET_EXCEEDED / ESTIMATED counts)
+- [ ] Task 21 S3 episode churn (2-3 h flip feed; EPISODE manifests per capture bounded, captures capped)
+- [ ] Task 21 go/no-go feed started (S9 conditions, ~6 h gate; the 24 h soak continues in parallel)
+- [ ] plant deploy v2.7.0
+
 ## Verification status (last runs, lab)
 
 | Suite / script | Result | When |
