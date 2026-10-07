@@ -71,9 +71,12 @@ public sealed class CpmAnalyticsController : ControllerBase
         [FromQuery] int limit = 100,
         [FromQuery] bool includeInsufficient = false,
         [FromQuery] string? projection = null,
+        // CHG-066: LIVE results only by default (like gates/latest); ANY also returns REPLAY / SHADOW rows
+        [FromQuery] string purpose = "LIVE",
         CancellationToken ct = default)
     {
         limit = Math.Clamp(limit, 1, 500);
+        purpose = string.IsNullOrWhiteSpace(purpose) ? "LIVE" : purpose.Trim().ToUpperInvariant();
         // v2.5 workbench: `projection=summary` serves the picker's ~0.5 KB row instead of the ~7.5 KB matrix
         var summary = string.Equals(projection, "summary", StringComparison.OrdinalIgnoreCase);
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
@@ -85,9 +88,10 @@ public sealed class CpmAnalyticsController : ControllerBase
               AND (@from::timestamptz IS NULL OR window_end >= @from::timestamptz)
               AND (@to::timestamptz   IS NULL OR window_end <= @to::timestamptz)
               AND (@includeInsufficient OR diagnosis IS DISTINCT FROM 'INSUFFICIENT_DATA')
+              AND (@purpose = 'ANY' OR purpose = @purpose)
             ORDER BY window_end DESC NULLS LAST, created_at DESC
             LIMIT @limit
-            """, new { loopId, windowKind, from, to, limit, includeInsufficient });
+            """, new { loopId, windowKind, from, to, limit, includeInsufficient, purpose });
 
         var results = rows.Select(r => summary
             ? (object)Traverse.CplmApi.Data.GateMatrixProjection.Summary(r)

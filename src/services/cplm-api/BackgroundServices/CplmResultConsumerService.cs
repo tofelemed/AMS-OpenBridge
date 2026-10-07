@@ -281,7 +281,8 @@ public sealed class CplmResultConsumerService : BackgroundService
         cmd.Parameters.AddWithValue("harmEnergyRatio", GetDoubleOrNull(root, "harmonic_energy_ratio"));
         cmd.Parameters.AddWithValue("diagnosis", (object?)GetString(root, "diagnosis") ?? DBNull.Value);
         cmd.Parameters.AddWithValue("severity", (object?)GetString(root, "severity") ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("confidence", GetDouble(root, "confidence"));
+        // CHG-066: absent / null confidence is stored NULL (was 0.0, shown as "evidence score 0")
+        cmd.Parameters.AddWithValue("confidence", GetDoubleOrNull(root, "confidence"));
         cmd.Parameters.Add(new NpgsqlParameter("payload", NpgsqlDbType.Jsonb) { Value = json });
         cmd.Parameters.AddWithValue("source", GetString(root, "calculation_source") ?? "flink");
         AddIdentityParameters(cmd, root);
