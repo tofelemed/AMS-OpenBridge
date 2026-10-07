@@ -277,10 +277,12 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] CHG-076 (61584c90) a reconstruction replaces the live artifacts it collides with (STANDARD; never demotes EPISODE / PINNED) — cplm-api `Evidence|Response|SchemaV25` 57 / 57
 - [x] release manifest v2.7.0 (bcb65977): `!chg049-evidence`, flink-jobmanager, cplm-api, traverse-ingestion-service, ams-frontend — dry-run OK
 - [x] Task 21 records: `changes_tracker.md` CHG-075 / CHG-076 + release block v2.7.0 (go/no-go replaces the 24 h soak gate), `prod_decision.md` §3 / §4 / §6, `MARUN-DAILY-CHECK.md` §4 Response line, `build-release.py` two stale lines (RETAIN comment; post-update 7 x RUNNING) — `test_build_release.py` 47 passed; `build-release.py --release v2.7.0 --dry-run` OK
-- [ ] Task 21 lab swap to the exact shipping build (jar + cplm-api from the worktree; 13 / 13 jobs incl. Response; CAPABILITY jar verified)
-- [ ] Task 21 Response proof on the lab (≥ 60 min: checkpoints complete, 0 failed, TM RestartCount 0; BUDGET_EXCEEDED / ESTIMATED counts)
-- [ ] Task 21 S3 episode churn (2-3 h flip feed; EPISODE manifests per capture bounded, captures capped)
-- [ ] Task 21 go/no-go feed started (S9 conditions, ~6 h gate; the 24 h soak continues in parallel)
+- [x] Task 21 lab swap to the exact shipping build: jar `abbcf7af` + cplm-api from aa365097 (grace 1 d); 13 / 13 RUNNING incl. Response, no duplicates, six CAPABILITY records `abbcf7af`, TM carries the OOM flag; T0 09:49:18 UTC
+- [x] Task 21 Response proof (67 min): 0 failed checkpoints, TM RestartCount 0, busy max 542 ms/s; 3,919 events, BUDGET_EXCEEDED 0, ESTIMATED 32, max fit 822 ms — lab ZooKeeper stalls (4, VM overload) restarted all jobs from checkpoints, not the Response job
+- [x] Task 21 CHG-076 proof: reconstruction of live capped G9 `3ca06723` → 299 manifests STANDARD / COMPLETE, one dataset, 0 TRANSIENT left (API reported a submission timeout under load; the run row stayed CREATED)
+- [ ] Task 21 S3 episode churn — BLOCKED: the swap restarts Long / Fusion stateless; 12h coverage 0.008 (needs 0.95), no 12h verdict before ~21:15 UTC
+- [x] Task 21 go/no-go feed started 09:54:24 UTC (S9 conditions, PID 24268, detached) + samplers; read-back `t21-readback.sh`
+- [ ] go/no-go reading (~6 h, from 09:54 UTC) and the 24 h soak reading
 - [ ] plant deploy v2.7.0
 
 ## Verification status (last runs, lab)
