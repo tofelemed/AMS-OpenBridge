@@ -3746,9 +3746,47 @@ horizontal scroll), Explorer History "peak evidence score 100", window compariso
 overlay 12–30 % on a "%" axis; Replay PIC10201 G3 MAE 1.314 / Good-error 17.3 % (= Investigation) and G0 Completeness 100.0 %, Sample
 count 22,321; Replay "Normalize (grid not reported)"; Performance shows one legend.
 
+## CHG-066 — KPI read paths agree: LIVE history, one fleet population, flags on the matrix (KPI documentation gaps, Phase 2) (2026-10-07)
+
+**Source:** `kpi-documentation.docx` §14; plan approved by the user. **Scope:** **`cplm-api`** `BackgroundServices/CplmResultConsumerService.cs`,
+`Controllers/CpmAnalyticsController.cs`, `Data/FleetLatestSql.cs`, `Controllers/CpmFleetController.cs`,
+`Services/Config/ConfigDeploymentService.cs`, `Controllers/CpmConfigDeploymentsController.cs` (+ new `tests/cplm-api.Tests/KpiConsistencyTests.cs`);
+**`ams-frontend`** `api/cpm/gates.ts`, `api/cpmApi.ts`, `hooks/useCpm.ts`, `components/Cpm/CpmPerformance.tsx`, `GateMatrix.tsx`,
+`useBadActors.ts`, `CpmReplay.tsx`, `config/configSupport.ts`, `config/DeploymentStatus.tsx` (+ `config/deploymentVerification.test.ts`).
+**No schema** (`cplm_gate_results.confidence` is already nullable). Commits: cplm-api 56a04696, frontend 5064743f.
+
+**What was wrong (re-checked in code).** A missing fused `confidence` was stored 0.0 and could show as "evidence score 0"; window
+history (`/loops/{id}/gates`) mixed REPLAY rows into Historical / Investigation (lab: 4 REPLAY rows); the fleet `diagnoses[]` counted
+unmonitored loops and non-LIVE rows while the matrix counts monitored LIVE loops, so Performance's "top N of M" compared two sets; the
+tiles counted EXCLUDED / INSUFFICIENT windows as "evaluated"; the health filter changed the tiles only (not the matrix or attention
+list); "in scope" meant all registered loops on one line and monitored loops on another; the matrix could not show "OK on available
+data" (rows carried no flags); a configuration deployment read "Active and verified - a result carries this bundle hash" also when it
+was activated by the probe-window fallback with no result.
+
+**What changed.**
+- Consumer: absent / null `confidence` → NULL.
+- `GET /loops/{id}/gates`: `purpose` (default LIVE; `ANY` returns re-runs too — the Replay page asks for ANY).
+- `fleet/summary` `diagnoses[]`: monitored loops, LIVE rows only. `fleet/heatmap`: `health=` (same clause and 400 as the rankings)
+  and `observabilityFlags` per row.
+- Performance: tiles count only loops with a real verdict; the health filter applies to tiles, matrix and attention list; the scope line
+  reads "N monitored loop(s) in scope"; matrix cells use the loop's effective input flags ("OK on available data", CHG-064 rule).
+- Deployment probe records `verifiedBy` (RESULT / ACK_WINDOW); the served semantics say which rule applied; the UI reads "Active -
+  applied by every worker; not yet verified by a result …" (amber) for ACK_WINDOW. The activation rule itself is unchanged (a scope with
+  no producing loop must still activate).
+
+**Tests.** cplm-api `KpiConsistencyTests` (new, 3: history LIVE vs ANY; diagnosis distribution excludes REPLAY and unmonitored;
+heatmap flags + health filter) with FleetLatestSqlTests / ConfigLifecycle — 18/18, deployment tests 6/6; build clean. Frontend
+`deploymentVerification.test.ts` (new, 3) — 93 files / 431 tests; lint / tsc / build clean. **Lab:** with the current cplm-api, Performance
+reads "230 monitored loop(s) in scope" and "top 50 of 163 evaluated" (was 164 — one excluded loop no longer counted). The server-side
+parts (matrix "OK on available data", heatmap health filter, LIVE-only history) are verified once ams-open-2c rebuilds the lab cplm-api
+with 56a04696 before its 24 h soak.
+
+**Phase 3 (engine) is not here:** per the user, gate / fusion changes belong to the parallel session (ams-open-2c); the list was handed
+over 2026-10-07.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-059, CHG-063, CHG-064, CHG-065) and **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-058, CHG-059, CHG-063).
+- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-059, CHG-063 … CHG-066) and **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-058, CHG-059, CHG-063, CHG-066).
   **One schema step** (CHG-058, additive, online): `ops/cpm-13-investigation-event-link.sql`. No Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant, in order: (1) `docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 <
@@ -3804,3 +3842,5 @@ count 22,321; Replay "Normalize (grid not reported)"; Performance shows one lege
   card / Investigation conclusion list "Basis" and "Not checked"; a gate passed without its input reads "OK on available data".
   (CHG-065) no "1.00"-style or "%" evidence scores anywhere; Replay and the Historical good-error overlay show %; the Historical
   verdict lane says "Confirmed" for a confirmed finding; Replay G0–G4 summary rows show values.
+  (CHG-066) `GET /api/v1/cpm/fleet/heatmap?health=missing-binding` answers 200 with `observabilityFlags` per row; Performance reads
+  "N monitored loop(s) in scope" and its matrix shows "OK on available data" where an input is missing.
