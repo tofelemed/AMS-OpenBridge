@@ -1,10 +1,8 @@
 package com.ams.flink.cplm;
 
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import com.ams.flink.cplm.contract.CplmTopics;
 import com.ams.flink.cplm.evidence.EvidencePolicy;
@@ -44,16 +42,11 @@ public class CplmShortFeatureStreamJob {
      * <p>CHG-039 (Marun 2026-10-05): the job overrode the cluster's DELETE_ON_CANCELLATION with RETAIN, so every
      * cancel or redeploy left its whole checkpoint tree in MinIO (4.1 GB found, 3 GB free on the disk). It now
      * follows the cluster rule; a restore from a cancelled job's checkpoint is not a workflow at the plant.
+     *
+     * <p>CHG-075: the settings live in {@link CplmCheckpointing}, shared with the Response job.
      */
     static void configureCheckpointing(StreamExecutionEnvironment env) {
-        env.enableCheckpointing(180_000, CheckpointingMode.EXACTLY_ONCE);
-        CheckpointConfig c = env.getCheckpointConfig();
-        c.setMinPauseBetweenCheckpoints(60_000);
-        c.setCheckpointTimeout(900_000);
-        c.setTolerableCheckpointFailureNumber(1_000);
-        c.enableUnalignedCheckpoints(true);
-        c.setAlignedCheckpointTimeout(java.time.Duration.ofSeconds(30));
-        c.setExternalizedCheckpointCleanup(CheckpointConfig.ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION);
+        CplmCheckpointing.configureBusyTolerant(env, 180_000, 60_000);
     }
 
     /**
