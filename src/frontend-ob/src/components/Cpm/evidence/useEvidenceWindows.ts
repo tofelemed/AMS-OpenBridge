@@ -9,13 +9,14 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import * as cpm from '../../../api/cpmApi';
 import { getWindowSummaries, type CpmWindowSummary } from '../../../api/cpm/gates';
 import type { CpmKpiRow } from '../../../api/cpm/kpis';
-import { fmtDuration, type CpmTone } from '../shared';
+import { type CpmTone } from '../shared';
 import { gateMark, reviewSeverity } from '../gateStatus';
 import { GATE_ORDER } from './gateFacts';
 import { codeLabel, diagnosisLabel, phrase } from '../vocabulary';
 import { windowLabel } from '../windowLabel';
 import { hasVerdict } from '../metricAvailability';
 import { evidenceScoreText } from '../evidenceScore';
+import { ageText } from '../verdictAge';
 
 export type WindowTier = 'fused' | 'short' | 'long';
 
@@ -39,7 +40,7 @@ export interface WindowOption {
 }
 
 const age = (endIso: string, now: number) => Math.max(0, now - Date.parse(endIso));
-const ageText = (ms: number) => ms >= 36 * 3_600_000 ? `${(ms / 86_400_000).toFixed(1)} d ago` : `${fmtDuration(ms)} ago`;
+// CHG-065: the shared age format (verdictAge)
 const NO_IDS = ' · no run identity (pre-v2.5)';
 
 export function fusedOptions(rows: CpmWindowSummary[], now: number, timeZone: string): WindowOption[] {

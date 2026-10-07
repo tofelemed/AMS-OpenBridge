@@ -252,12 +252,13 @@ export function toneFor(value: string | null | undefined): CpmTone {
       || v === 'STRONG' || v === 'CRITICAL' || v === 'HIGH')
     return 'bad';
   if (v.startsWith('DETECTED') || v.startsWith('CLASSIFIED') || v === 'WARN' || v === 'REVIEW'
-      || v === 'SHELVED' || v.startsWith('EXCLUDED') || v === 'MEDIUM')
+      || v === 'SHELVED' || v === 'MEDIUM')
     return 'warn';
   if (v === 'PASS' || v === 'GOOD' || v === 'ACKNOWLEDGED' || v === 'ACTIVE' || v === 'RUNNING'
       || v === 'HEALTHY' || v === 'ACCEPTABLE' || v === 'LOW')
     return 'good';
-  // PENDING / NOT_EVALUATED / INSUFFICIENT_EVIDENCE stay muted deliberately:
+  // PENDING / NOT_EVALUATED / INSUFFICIENT_EVIDENCE / EXCLUDED_* stay muted deliberately (CHG-065: EXCLUDED was
+  // amber on some screens and grey on others):
   // "we did not judge this" must not look like a verdict either way.
   return 'muted';
 }
@@ -295,10 +296,12 @@ export function diagnosisBand(diagnosis: string | null | undefined): {
     return { label: 'Not evaluated', tone: 'muted' };
   }
   const d = diagnosis.toUpperCase();
-  if (d.startsWith('CONFIRMED') || d.startsWith('SUSPECTED')) return { label: 'Suspected', tone: 'bad' };
+  // CHG-065: a confirmed finding is never labelled "Suspected"; a window that was not judged is grey, not amber
+  if (d.startsWith('CONFIRMED')) return { label: 'Confirmed', tone: 'bad' };
+  if (d.startsWith('SUSPECTED')) return { label: 'Suspected', tone: 'bad' };
   if (d.startsWith('DETECTED') || d.startsWith('CLASSIFIED')) return { label: 'Developing', tone: 'warn' };
   if (d === 'NORMAL' || d === 'NONE' || d === 'HEALTHY') return { label: 'Normal', tone: 'good' };
-  return { label: diagnosisLabel(d), tone: 'warn' };
+  return { label: diagnosisLabel(d), tone: 'muted' };
 }
 
 /** CPA's dot+label pill. */

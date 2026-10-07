@@ -7,7 +7,8 @@ import React from 'react';
 
 export const stageLabels = (gridS: number | null) => [
   'Raw historian',
-  `Normalize (${gridS != null ? `${gridS % 1 === 0 ? gridS : gridS.toFixed(1)} s` : '5 s'} grid)`,
+  // CHG-065: a missing or zero grid is "not reported", never "0 s" (or a silently assumed 5 s)
+  gridS != null && gridS > 0 ? `Normalize (${gridS % 1 === 0 ? gridS : gridS.toFixed(1)} s grid)` : 'Normalize (grid not reported)',
   'Feature windows',
   'Gate evaluation',
   'Fusion (G15)',

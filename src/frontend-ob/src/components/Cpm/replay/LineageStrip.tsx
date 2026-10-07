@@ -24,7 +24,7 @@ export const LineageStrip: React.FC<{
       <span className="cpm-lineage__arrow">→</span>
       <div className="cpm-lineage__node">
         <span className="cpm-eyebrow">Normalize</span>
-        <span>{gridS != null ? `${gridS % 1 === 0 ? gridS : gridS.toFixed(1)} s grid` : 'engine grid'} · traverse.cpa.loop.samples.v1</span>
+        <span>{gridS != null && gridS > 0 ? `${gridS % 1 === 0 ? gridS : gridS.toFixed(1)} s grid` : 'grid not reported'} · traverse.cpa.loop.samples.v1</span>
       </div>
       <span className="cpm-lineage__arrow">→</span>
       <div className="cpm-lineage__node">

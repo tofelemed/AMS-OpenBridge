@@ -24,7 +24,7 @@ describe('causeBreakdown', () => {
     expect(b.observed).toEqual([{ id: 'OSCILLATION', label: 'Sustained oscillation', detail: 'G5, G6' }]);
     expect(b.possible).toHaveLength(1);
     expect(b.possible[0]).toMatchObject({ label: 'Controller tuning', leading: true, confirmed: false });
-    expect(b.possible[0].detail).toBe('evidence score 1.00 from sustained oscillation · not confirmed — a tuning review or an approved step test would confirm it');
+    expect(b.possible[0].detail).toBe('evidence score 100 from sustained oscillation · not confirmed — a tuning review or an approved step test would confirm it');
   });
 
   it('keeps the engine\u2019s ruling, with the flags that limited the check beside it', () => {

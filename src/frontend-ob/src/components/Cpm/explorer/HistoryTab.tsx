@@ -158,7 +158,7 @@ export const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
                   {/* The count without its size was ambiguous — "3 windows" is
                       36 h of evidence at 12h and 72 h at 24h. */}
                   {run.windows} × {[...run.kinds].sort().join('/')} window(s)
-                  {' '}· peak {(run.peak * 100).toFixed(0)}%
+                  {' '}· peak {evidenceScoreText(run.peak)}
                 </span>
               </span>
               <span className="cpm-episode__state">

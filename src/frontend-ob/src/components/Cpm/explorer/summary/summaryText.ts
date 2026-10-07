@@ -85,14 +85,8 @@ export function nextCheckOf(matrix: Pick<CpmGateMatrix, 'narrative'>, condition:
   }
 }
 
-/** "57 days ago" / "3 h ago" / "12 min ago". */
-export function ageText(ms: number): string {
-  const min = Math.max(0, Math.round(ms / 60_000));
-  if (min < 90) return `${min} min ago`;
-  const h = Math.round(min / 60);
-  if (h < 48) return `${h} h ago`;
-  return `${Math.round(h / 24)} days ago`;
-}
+/** CHG-065: one age format across the CPA pages ("45 s ago" / "12 min ago" / "3 h ago" / "57 d ago"). */
+export { ageText } from '../../verdictAge';
 
 export interface SummaryAction { label: string; target: 'investigation' | 'windows' | 'historical' }
 

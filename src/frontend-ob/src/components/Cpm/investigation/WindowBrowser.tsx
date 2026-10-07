@@ -14,6 +14,7 @@ import { MetricValue } from '../MetricValue';
 import { fmtInstant } from '../context/LoopContextBar';
 import { windowSize, windowSpan } from '../windowLabel';
 import { EVIDENCE_SCORE_HELP, evidenceScore } from '../evidenceScore';
+import { hasVerdict } from '../metricAvailability';
 
 const PAGE = 5;
 
@@ -38,7 +39,8 @@ export const WindowBrowser: React.FC<{
   const curCtx = contextOfMatrix(matrix);
   const confPrev = metricAvailability(prevCtx, 'confidence', previous?.confidence);
   const confCur = metricAvailability(curCtx, 'confidence', matrix.confidence);
-  const pct = (v: number | null | undefined) => (v != null ? String(evidenceScore(v)) : '—');
+  // CHG-065: like every other surface, an evidence score only on a window that has a verdict
+  const pct = (v: number | null | undefined, m?: CpmGateMatrix) => (v != null && (!m || hasVerdict(m.diagnosis)) ? String(evidenceScore(v)) : '—');
   const side = (m: CpmGateMatrix | undefined, which: string) => {
     const d = (m?.diagnosis ?? '').toUpperCase();
     return d.startsWith('EXCLUDED') ? `${which} window excluded (loop not in automatic)`
@@ -107,8 +109,8 @@ export const WindowBrowser: React.FC<{
               )}
               <tr>
                 <td style={{ textAlign: 'left' }} title={EVIDENCE_SCORE_HELP}>Evidence score</td>
-                <td><MetricValue a={confPrev} text={pct(previous.confidence)} /></td>
-                <td><MetricValue a={confCur} text={pct(matrix.confidence)} /></td>
+                <td><MetricValue a={confPrev} text={pct(previous.confidence, previous)} /></td>
+                <td><MetricValue a={confCur} text={pct(matrix.confidence, matrix)} /></td>
                 <td>{confPrev.state === 'measured' && confCur.state === 'measured'
                   ? `${(((matrix.confidence ?? 0) - (previous.confidence ?? 0)) * 100).toFixed(0)} pt` : '—'}</td>
               </tr>

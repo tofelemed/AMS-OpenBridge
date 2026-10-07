@@ -9,6 +9,7 @@ import { HYPOTHESIS_LABEL, OBSERVATION_LABEL, type CpmVerdictV2 } from '../../ap
 import { codeLabel, lowerFirst, methodLabel } from './vocabulary';
 import { optionalInputLimitation, type InputContext } from './optionalInputs';
 import { gateMeaning } from './gateStatus';
+import { evidenceScoreText } from './evidenceScore';
 
 export interface CauseItem { id: string; label: string; detail: string }
 export interface CauseBreakdown {
@@ -78,7 +79,7 @@ export function causeBreakdown(v: CpmVerdictV2 | undefined | null, flags: string
       const groups = h.evidenceGroups.map(g => lowerFirst(OBSERVATION_LABEL[g] ?? codeLabel(g))).join(', ');
       possible.push({
         id, label: hypothesisLabel(id), leading: v.leadingHypothesis === id, confirmed,
-        detail: `evidence score ${h.score.toFixed(2)}${groups ? ` from ${groups}` : ''} · ${confirmed ? 'confirmed by measured valve position' : `not confirmed — ${HOW_TO_CONFIRM[id] ?? 'no confirming measurement is available'}`}`,
+        detail: `${evidenceScoreText(h.score)}${groups ? ` from ${groups}` : ''} · ${confirmed ? 'confirmed by measured valve position' : `not confirmed — ${HOW_TO_CONFIRM[id] ?? 'no confirming measurement is available'}`}`,
       });
     } else if (state === 'DISQUALIFIED') {
       // the engine's verdict stands; a flag that limited the check is said beside it, not instead of it

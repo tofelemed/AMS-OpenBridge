@@ -37,10 +37,11 @@ import { LoopNotes } from './investigation/LoopNotes';
 import { ReasonedButton } from './ReasonedButton';
 
 /** Long-tier metric fields relevant per gate (real stored fields only). */
-const GATE_METRICS: Record<string, { field: string; label: string }[]> = {
-  G0: [{ field: 'completeness', label: 'Completeness' }, { field: 'sample_count', label: 'Sample count' }],
-  G1: [{ field: 'auto_pct', label: 'AUTO fraction' }],
-  G3: [{ field: 'mae', label: 'MAE' }, { field: 'iae', label: 'IAE' }, { field: 'good_error_pct', label: 'Good-error %' }],
+// CHG-065: fractions (0–1) are shown × 100 as %, as on the Window Inspector and Investigation
+const GATE_METRICS: Record<string, { field: string; label: string; pct?: boolean }[]> = {
+  G0: [{ field: 'completeness', label: 'Completeness (%)', pct: true }, { field: 'sample_count', label: 'Sample count' }],
+  G1: [{ field: 'auto_pct', label: 'In AUTO (%)', pct: true }],
+  G3: [{ field: 'mae', label: 'MAE' }, { field: 'iae', label: 'IAE' }, { field: 'good_error_pct', label: 'Good-error time (%)', pct: true }],
   G4: [{ field: 'effort_ratio', label: 'Effort ratio' }, { field: 'reversals_per_hour', label: 'Reversals/h' }, { field: 'travel_per_day', label: 'Travel/day' }],
   G5: [{ field: 'acf_period_s', label: 'ACF period (s)' }, { field: 'acf_regularity', label: 'ACF regularity' }],
   G6: [{ field: 'harmonic_amplitude_ratio', label: 'Harmonic amplitude ratio' }, { field: 'harmonic_energy_ratio', label: 'Harmonic energy ratio' }],
@@ -288,13 +289,19 @@ export const CpmReplay: React.FC = () => {
             v{selected?.metadata.calculationVersion ?? '—'} · profile v{selected?.metadata.dynamicsProfileVersion ?? '—'}
             {selected?.metadata.replayId ? ` · replay ${selected.metadata.replayId}` : ''}
           </KvRow>
-          {(GATE_METRICS[gateKey] ?? []).map(m => (
-            <KvRow key={m.field} label={m.label}>
-              {kpiRow && typeof kpiRow[m.field] === 'number'
-                ? (kpiRow[m.field] as number).toFixed(3)
-                : '— (no long-tier row for this window)'}
-            </KvRow>
-          ))}
+          {(GATE_METRICS[gateKey] ?? []).map(m => {
+            // CHG-065: the verdict's own number first — the fused row carries the window's G0–G4 values (aligned short
+            // features), which the long-tier KPI row keeps only nested, so G0–G4 always read "—" before
+            const v = typeof selected?.metrics?.[m.field] === 'number' ? selected.metrics[m.field]
+              : typeof kpiRow?.[m.field] === 'number' ? kpiRow[m.field] as number : null;
+            return (
+              <KvRow key={m.field} label={m.label}>
+                {v != null
+                  ? (m.pct ? `${(v * 100).toFixed(1)} %` : Number.isInteger(v) ? v.toLocaleString() : v.toFixed(3))
+                  : "— (not in this window's result)"}
+              </KvRow>
+            );
+          })}
 
           <LineageStrip series={series} gridS={gridS} gateKey={gateKey} role={role} diagnosis={selected?.diagnosis} />
         </section>

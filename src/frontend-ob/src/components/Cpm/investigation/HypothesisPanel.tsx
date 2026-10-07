@@ -11,8 +11,8 @@ import { HYPOTHESIS_LABEL, HYPOTHESIS_ORDER, OBSERVATION_LABEL } from '../../../
 import { EmptyState, KvRow, PanelHead, TonePill } from '../shared';
 import type { CpmTone } from '../shared';
 import { confirmationLabel, confirmationProse } from './confirmationCopy';
-import { fmt } from './keyFacts';
 import { codeLabel, methodLabel, phrase } from '../vocabulary';
+import { evidenceScore } from '../evidenceScore';
 
 /** Family / detector scores for the LEGACY fallback (rows written before v2.5). */
 const LEGACY_ROWS: { field: string; label: string }[] = [
@@ -38,7 +38,8 @@ const ScoreBar: React.FC<{ value: number }> = ({ value }) => (
         style={{ width: `${Math.min(100, Math.max(0, value * 100))}%` }}
       />
     </span>
-    <span className="cpm-mono">{fmt(value)}</span>
+    {/* CHG-065: the same 0–100 evidence-score scale as every other surface */}
+    <span className="cpm-mono">{evidenceScore(value) ?? '—'}</span>
   </span>
 );
 
@@ -90,7 +91,7 @@ export const HypothesisPanel: React.FC<{
         const h = verdict.hypotheses[id];
         const leading = verdict.leadingHypothesis === id;
         return (
-          <div key={id} className="cpm-window-row" data-testid={`hypothesis-${id}`}>
+          <div key={id} className="cpm-window-row cpm-hypo-row" data-testid={`hypothesis-${id}`}>
             <strong>
               {HYPOTHESIS_LABEL[id] ?? codeLabel(id)}{' '}
               <TonePill tone={stateTone(h.state)}>{codeLabel(h.state)}</TonePill>
@@ -141,7 +142,7 @@ export const HypothesisPanel: React.FC<{
                   <tr key={id} data-testid={`observation-${id}`}>
                     <td style={{ textAlign: 'left' }}>{OBSERVATION_LABEL[id] ?? codeLabel(id)}</td>
                     <td>{o.present ? 'yes' : '—'}</td>
-                    <td className="cpm-mono">{fmt(o.score)}</td>
+                    <td className="cpm-mono">{evidenceScore(o.score) ?? '—'}</td>
                     <td style={{ textAlign: 'left' }}><span title={o.methodId}>{methodLabel(o.methodId)}</span></td>
                     <td>{codeLabel(o.role)}</td>
                   </tr>

@@ -274,12 +274,6 @@ export const CpmPerformance: React.FC = () => {
           title={`Gate status by loop · latest ${windowKind} window`}
           right={
             <div className="cpm-pathway-head">
-              <span className="cpm-legend">
-                <span className="cpm-legend__item"><span className="cpm-legend__chip cpm-matrix__cell--good">✓</span>Pass</span>
-                <span className="cpm-legend__item"><span className="cpm-legend__chip cpm-matrix__cell--warn">!</span>Attention</span>
-                <span className="cpm-legend__item"><span className="cpm-legend__chip cpm-matrix__cell--bad">×</span>Failed</span>
-                <span className="cpm-legend__item"><span className="cpm-legend__chip cpm-matrix__cell--muted">—</span>Not evaluated</span>
-              </span>
               <button
                 type="button"
                 className="cpm-help-toggle"

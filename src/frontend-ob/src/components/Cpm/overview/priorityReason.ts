@@ -11,7 +11,7 @@ import type { CpmTone } from '../shared';
 import { ageText } from '../explorer/summary/summaryText';
 
 export const PRIORITY_RULE =
-  'Ordered by priority (loop criticality × finding severity), then time outside the good-error band, then how long the condition has persisted. Shelved loops are listed in Loop Events.';
+  'Ordered by priority (loop criticality × finding severity), then time outside the good-error band, then how long the condition has persisted, then evidence score. Shelved loops are listed in Loop Events.';
 
 export function priorityBadge(priority: CpmRankedLoop['priority']): { label: string; tone: CpmTone } {
   switch (priority) {

@@ -3709,9 +3709,46 @@ clean oscillation cycle"; Investigation Basis / Not checked in the cause layout,
 without G5/G6; G11 chip "◯ Not seen on available data" in the Explorer strip and the Workbench; day 1440 and night 390 px, no
 horizontal scroll.
 
+## CHG-065 — KPI display consistency across the CPA pages (KPI documentation gaps, Phase 1) (2026-10-07)
+
+**Source:** `kpi-documentation.docx` §14 and the page-by-page KPI research (2026-10-07); fix plan approved by the user. **Scope:**
+**`ams-frontend`** only — `causeAnalysis.ts`, `investigation/HypothesisPanel.tsx`, `explorer/HistoryTab.tsx`, `CpmReplay.tsx`,
+`replay/TransformationStepper.tsx`, `replay/LineageStrip.tsx`, `CpmHistorical.tsx`, `historical/chartOption.ts`, `shared.tsx`
+(`diagnosisBand`, `toneFor`), `verdictAge.ts`, `explorer/summary/summaryText.ts`, `evidence/useEvidenceWindows.ts`,
+`CpmInvestigation.tsx`, `investigation/WindowBrowser.tsx`, `CpmPerformance.tsx`, `overview/priorityReason.ts`, `styles/cpm.css`
+(+ new `displayConsistency.test.ts`; tests updated: causeAnalysis, useEvidenceWindows, verdictAge). No backend, no schema.
+
+**What was wrong (each re-checked in code before the change).** The same quantity appeared on two scales and some labels
+contradicted the data: hypothesis scores "evidence score 1.00 / 0.31" beside the 0–100 evidence score everywhere else; Explorer
+History "peak 100%"; Replay and the Historical overlay printed good-error / AUTO / completeness as raw 0–1 fractions (overlay unit
+"% (0-1 fraction)"); the Historical verdict lane labelled CONFIRMED_* as "Suspected"; EXCLUDED windows amber on some screens, grey on
+others; three different age formats; Investigation case chips always counted 24h windows even on the 12h profile; the window
+comparison showed an evidence score on rows without a verdict; Performance carried a second, different mini-legend; the queue rule
+text omitted its fourth sort key; Replay printed "Normalize (0 s grid)". Found during the lab check: the Replay summary never showed
+G0–G4 values (it read the long-tier KPI row, which keeps those fields only nested) and blamed "no long-tier row"; the hypothesis
+score bar overlapped the evidence text when the panel is half width.
+
+**What changed.**
+- Evidence scores 0–100 everywhere (hypotheses, observations, History run line "peak evidence score N"); fractions × 100 as % on
+  Replay (Completeness, In AUTO, Good-error time) and the Historical good-error overlay (axis "%").
+- Historical verdict lane: Confirmed / Suspected / Developing / Normal; an unjudged window grey. `toneFor`: EXCLUDED_* grey
+  everywhere (ISA-101: amber = needs attention).
+- One age format, `verdictAge.ageText`: "45 s ago · 12 min ago · 30 h ago · 14 days ago".
+- Investigation case chips follow the 12h / 24h profile; the window comparison shows no evidence score without a verdict.
+- Performance: the header mini-legend removed (the full gate legend stays); queue rule names "then evidence score".
+- Replay: the summary reads the verdict's own numbers first (the fused row), the long-tier row second, so G0–G4 now show values;
+  whole numbers without decimals; a missing grid reads "grid not reported" (stepper and lineage).
+- Hypothesis rows: name and score on one line, evidence text under them (any panel width; one column under 600 px).
+
+**Tests.** `displayConsistency.test.ts` (new, 5) + 3 updated — 92 files / 428 tests; lint / tsc / build clean. **Lab** (2026-10-07):
+PIC10201 Investigation causes "evidence score 100 / 31", hypothesis panel 0 / 100 / 0 without overlap (1440 day, 390 night, no
+horizontal scroll), Explorer History "peak evidence score 100", window comparison 100 → 100 "0 pt"; Historical FIC10302 good-error
+overlay 12–30 % on a "%" axis; Replay PIC10201 G3 MAE 1.314 / Good-error 17.3 % (= Investigation) and G0 Completeness 100.0 %, Sample
+count 22,321; Replay "Normalize (grid not reported)"; Performance shows one legend.
+
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 
-- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-059, CHG-063, CHG-064) and **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-058, CHG-059, CHG-063).
+- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-059, CHG-063, CHG-064, CHG-065) and **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-058, CHG-059, CHG-063).
   **One schema step** (CHG-058, additive, online): `ops/cpm-13-investigation-event-link.sql`. No Flink jar, no `.env` change.
 - Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
 - Plant, in order: (1) `docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 <
@@ -3765,3 +3802,5 @@ horizontal scroll.
   that episode.
   (CHG-064) a loop whose latest window is confirmed shows "Instrument health: Not configured · not checked", and its Loop summary
   card / Investigation conclusion list "Basis" and "Not checked"; a gate passed without its input reads "OK on available data".
+  (CHG-065) no "1.00"-style or "%" evidence scores anywhere; Replay and the Historical good-error overlay show %; the Historical
+  verdict lane says "Confirmed" for a confirmed finding; Replay G0–G4 summary rows show values.

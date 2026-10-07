@@ -67,7 +67,8 @@ export const CpmInvestigation: React.FC = () => {
   // endpoint would be the real fix at that scale.
   // Plant scope (A6.3): case list narrows to a section/unit.
   const scope = useCpmScope();
-  const rankings = useFleetRankings(scope.params, '24h', 'confidence', 200);
+  // CHG-065: the case chips count the same window kind the page shows (was always 24h)
+  const rankings = useFleetRankings(scope.params, params.get('profile') === '12h' ? '12h' : '24h', 'confidence', 200);
 
   const caseFilter = params.get('case');
   const allLoops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);

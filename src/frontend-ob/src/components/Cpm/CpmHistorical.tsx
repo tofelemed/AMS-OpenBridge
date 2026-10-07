@@ -46,7 +46,7 @@ import { diagnosisLabel } from './vocabulary';
 const KPI_OVERLAYS = [
   { key: 'effort_ratio', label: 'Actuator effort ratio', resolution: '15m', unit: 'ratio' },
   { key: 'iae', label: 'Integral absolute error', resolution: '15m', unit: 'EU·s' },
-  { key: 'good_error_pct', label: 'Good-error time', resolution: '15m', unit: '% (0-1 fraction)' },
+  { key: 'good_error_pct', label: 'Good-error time', resolution: '15m', unit: '%', scale: 100 },   // CHG-065: × 100, as everywhere
   { key: 'triangularity', label: 'OP triangularity (stiction)', resolution: '24h', unit: 'score' },
   { key: 'harmonic_energy_ratio', label: 'Harmonic energy ratio', resolution: '24h', unit: 'ratio' },
 ];

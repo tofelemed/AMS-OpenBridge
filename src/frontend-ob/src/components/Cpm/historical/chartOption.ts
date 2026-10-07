@@ -52,7 +52,8 @@ export interface Segment {
 export interface ChartInput {
   points: CpmTrendPoint[];
   kpiRows: CpmKpiRow[];
-  overlay: { key: string; label: string; unit: string };
+  /** CHG-065: `scale` multiplies the stored value for display (a 0–1 fraction shown as %). */
+  overlay: { key: string; label: string; unit: string; scale?: number };
   signals: string[];
   modeSegments: Segment[];
   verdictSegments: Segment[];
@@ -152,7 +153,7 @@ export function buildChartOption(input: ChartInput) {
 
   const overlayData = kpiRows
     .filter(r => r.window_end && typeof r[overlay.key] === 'number')
-    .map(r => [new Date(r.window_end!).getTime(), r[overlay.key] as number]);
+    .map(r => [new Date(r.window_end!).getTime(), (r[overlay.key] as number) * (overlay.scale ?? 1)]);
 
   // Every lane pins the SAME min/max, which is what makes a vertical read
   // across them valid even where one lane has no data at all.

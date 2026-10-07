@@ -1231,6 +1231,12 @@
 }
 .cpm-hypo__fill { display: block; height: 100%; background: var(--alert-running-color); }
 .cpm-hypo__fill--high { background: var(--alert-caution-color); }
+/* CHG-065: name + score on one line, the evidence text on its own line under them — the score bar spilled
+   into the evidence column when the panel sits half-width beside the reasoning chain. */
+.cpm-window-row.cpm-hypo-row { grid-template-columns: minmax(0, 1fr) minmax(120px, 1fr); }
+.cpm-window-row.cpm-hypo-row > :last-child { grid-column: 1 / -1; }
+.cpm-hypo-row .cpm-hypo { min-width: 0; }
+@media (max-width: 600px) { .cpm-window-row.cpm-hypo-row { grid-template-columns: minmax(0, 1fr); } }
 
 
 /* A definitional panel with three tabs and a key/value contract needs more than

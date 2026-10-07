@@ -17,7 +17,8 @@ export function ageText(ms: number | null | undefined): string {
   if (ms < 60_000) return `${Math.round(ms / 1000)} s ago`;
   if (ms < 3_600_000) return `${Math.round(ms / 60_000)} min ago`;
   if (ms < 36 * 3_600_000) return `${Math.round(ms / 3_600_000)} h ago`;
-  return `${Math.round(ms / 86_400_000)} d ago`;
+  const d = Math.round(ms / 86_400_000);
+  return `${d} day${d === 1 ? '' : 's'} ago`;   // CHG-065: the one CPA age format (words for days)
 }
 
 /** "last verdict SUSPECTED FINAL ELEMENT NONLINEARITY 89% · 15 d ago", or null without a reference. */
