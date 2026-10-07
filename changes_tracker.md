@@ -3474,9 +3474,8 @@ lab `ams-zookeeper` not recreated during the go/no-go.
 - ZooKeeper guard (CHG-068): the lab compose changed (applies at the next `ams-zookeeper` recreate). Plant: Instrumental's ZooKeeper gets the
   guard in this release's swap window, AFTER the Flink cancel + `docker rm -f` of JM and TM and BEFORE `deploy.sh --prod`: follow
   `migration/instrumental/README-zookeeper-guard.md` (about 1 min without a Kafka coordinator; STOP rule: not bound in 60 s → `up -d zookeeper` without the override).
-  **PENDING:** the VM-STEPS block and the `OPS_FILES` entries in `migration/deploy/build-release.py` (plus tests) need a user/controller edit; until then
-  the two files reach the plant through the `src-<commit>.tar.gz` archive (step 4a extracts it over /opt/AMS-open) at
-  `infra/docker/zookeeper/` and `migration/instrumental/`. The ZooKeeper upgrade to >= 3.9.3 is a later item.
+  The generated VM steps (flag `chg049-evidence`) carry the block between the Flink `docker rm -f` and `deploy.sh --prod`, and both files ship in
+  `ops/` (`OPS_FILES`; `test_build_release.py` 49 passed). The ZooKeeper upgrade to >= 3.9.3 is a later item.
 - Proofs (CHG-040): the Loop Performance menu shows four task sub-headings; open a loop in the Loop Explorer, then
   Investigation from the menu: the same loop is open without picking it again. (CHG-041) on Investigation, scroll to the
   bottom: the LOOP / LOCATION / PERIOD bar stays at the top. (CHG-042) Loop Explorer on any loop opens with the
