@@ -1,0 +1,15 @@
+# CHG-068: ZooKeeper start guard for Instrumental's ZooKeeper. Apply with:
+#   docker compose -f <their compose file> -f zookeeper-start-guard.override.yml up -d zookeeper
+# The service name below MUST match theirs (default `zookeeper`):
+#   docker inspect instrumental-zookeeper -f '{{index .Config.Labels "com.docker.compose.service"}}'
+# zk-start-guard.sh must sit in the same directory as this file (their project dir:
+#   docker inspect instrumental-zookeeper -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}').
+# The guard assumes the txn-log volume is mounted at /var/lib/zookeeper/log; if their dataLogDir differs,
+# uncomment ZK_TXNLOG_DIR and set it to that path.
+services:
+  zookeeper:
+    volumes:
+      - ./zk-start-guard.sh:/usr/local/bin/zk-start-guard.sh:ro
+    command: ["/usr/local/bin/zk-start-guard.sh"]
+    # environment:
+    #   ZK_TXNLOG_DIR: /var/lib/zookeeper/log
