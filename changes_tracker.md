@@ -4034,7 +4034,18 @@ Jacobian evaluation at every delay, and `InputReconstruction` was O(n²). The Re
 **Tests.** Flink full suite 334 run, 0 failures, 2 skipped (+ the fix-round tests). RED: the budget test timed out at 120 s on
 the old code; GREEN 5.03 s with a 5 s budget.
 
-**End-to-end on the lab.** Pending, filled by Task 21.
+**End-to-end on the lab (Task 21, 2026-10-07, the exact v2.7.0 build: jar `abbcf7af`, cplm-api from aa365097).** Full Flink swap
+(12 jobs cancelled, JM + TM recreated, `-XX:+ExitOnOutOfMemoryError` in the TM, Short by hand with `--evidence-emit none`, the rest
+by `ensure_flink_jobs.py`): **13 / 13 RUNNING, Response included**, no duplicates, all six CPLM CAPABILITY records = `abbcf7af`;
+the Response `/checkpoints/config` reads 300 s / 120 s / 900 s / 1,000 tolerable / unaligned / delete on cancellation. T0 09:49:18 UTC;
+go/no-go feed (161 loops, 24 limit cycles) from 09:54:24.
+- 67 min watched (to 10:56): Response checkpoints **0 failed** in every JobMaster lifetime (latest chk 7-13 COMPLETED, 0.6-15.4 s,
+  5-15 MB); evaluate operator busy max 22-542 ms/s (F4: pinned at 1000); **TaskManager RestartCount 0** (F4: three self-kills in ~30 min).
+- `response_event` on the new jar: 3,919 events, **BUDGET_EXCEEDED 0, ESTIMATED 32, max `fit_ms` 822 ms**. No new step event in the
+  hour (the step sim's loop is fed by the lab's own feed, so it was not run); the bench stays the production-size figure.
+- Deviation (lab, not Response): four ZooKeeper session stalls of 31-40 s (JM 10:09 and 10:18, TM 10:23 and 10:34; VM load 40-55 on
+  6 vCPUs, 4.2 GB swap) made every job lose leadership and restore from its checkpoint, as in Task 17 I1; every Response restart is
+  "Job leader ... lost leadership", none from the job itself. **PASS.**
 
 ## CHG-076 — A reconstruction replaces the live artifacts it collides with (2026-10-07)
 
@@ -4062,7 +4073,11 @@ reconstructed set lost cycles 0-11 and its `cycle_scores`.
 **Tests.** cplm-api `Evidence|Response|SchemaV25` 57 / 57 (+6). `EvidenceApiTests` 243-246 rewritten: an identical-sha re-emit
 stays a no-op; a different-bytes reconstruction replaces the COMPLETE row.
 
-**End-to-end on the lab.** Pending, filled by Task 21.
+**End-to-end on the lab (Task 21, 2026-10-07, cplm-api from aa365097, jar `abbcf7af`).** EVIDENCE_RECONSTRUCTION (iotdb) of a live
+capped G9 run (`3ca06723`, FIC10406 12h, 25 TRANSIENT manifests, dataset `fbde2fed`): the Flink job finished in ~1 min and the stored
+set is **299 manifests, all STANDARD / COMPLETE, one dataset (`b7a64a60`), all from analysis run 40afd5e0**: the colliding live rows
+(cycles and `corners`) were replaced, 0 TRANSIENT left. **PASS** (F3 closed). Seen on the way, not CHG-076: under the lab load the POST
+reported "Flink did not accept the submission in time" while the job ran, and the `analysis_run` row stayed `CREATED`.
 
 ### SME review batch release **v2.7.0** — what to build and run (bundle 7 Oct 2026, plant deploy 8 Oct; manifest `migration/deploy/releases/v2.7.0.txt`)
 
