@@ -55,12 +55,17 @@ public final class OutputErrorEstimator implements ModelEstimator {
         for (int k = 0; k < thetas.size(); k++) {
             double theta = thetas.get(k);
             Trial bestAtTheta = null;
-            for (double sign : signs) {
-                Trial t = fitAtDelay(sup, family, theta, sign * Math.abs(gainSeed), s);
-                if (t == null) continue;
-                if (bestAtTheta == null || t.fit.objective < bestAtTheta.fit.objective) bestAtTheta = t;
-                Trial prev = bestPerSign.get(sign);
-                if (prev == null || t.fit.objective < prev.fit.objective) bestPerSign.put(sign, t);
+            try {                                                              // CHG-075: the deadline stops the profile here
+                FitBudgetExceeded.check(s.deadlineNanos);
+                for (double sign : signs) {
+                    Trial t = fitAtDelay(sup, family, theta, sign * Math.abs(gainSeed), s);
+                    if (t == null) continue;
+                    if (bestAtTheta == null || t.fit.objective < bestAtTheta.fit.objective) bestAtTheta = t;
+                    Trial prev = bestPerSign.get(sign);
+                    if (prev == null || t.fit.objective < prev.fit.objective) bestPerSign.put(sign, t);
+                }
+            } catch (FitBudgetExceeded e) {
+                throw e.atStage("OE_THETA " + k + "/" + thetas.size());
             }
             profile[k] = theta;
             objective[k] = bestAtTheta == null ? Double.NaN : bestAtTheta.fit.objective;
@@ -247,14 +252,14 @@ public final class OutputErrorEstimator implements ModelEstimator {
                 return huge(sup.n);
             }
             double y0 = p[p.length - (f.integrating() ? 2 : 1)], v0 = f.integrating() ? p[p.length - 1] : 0;
-            ZohSimulator.Result sim = ZohSimulator.simulate(m, sup.t, sup.u, sup.u0, y0, v0, sup.t0, sup.maxBridgeS);
+            ZohSimulator.Result sim = ZohSimulator.simulate(m, sup.t, sup.u, sup.u0, y0, v0, sup.t0, sup.maxBridgeS, s.deadlineNanos);
             double[] r = new double[sup.n];
             for (int i = 0; i < sup.n; i++) {
                 r[i] = sim.valid[i] && Double.isFinite(sim.yHat[i]) ? Math.sqrt(sup.w[i]) * (sup.y[i] - sim.yHat[i]) : 1e3;
             }
             return r;
         };
-        BoundedLm.Fit fit = BoundedLm.fit(res, p0, lo, hi, s.maxIterations, s.maxEvaluations, s.boundsHitFraction, s.illConditioned);
+        BoundedLm.Fit fit = BoundedLm.fit(res, p0, lo, hi, s.maxIterations, s.maxEvaluations, s.boundsHitFraction, s.illConditioned, s.deadlineNanos);
         return Double.isFinite(fit.objective) ? new Trial(theta, fit, f) : null;
     }
 
@@ -268,27 +273,34 @@ public final class OutputErrorEstimator implements ModelEstimator {
         double gr = (Math.sqrt(5) - 1) / 2;
         double a = lo, b = hi;
         double c = b - gr * (b - a), d = a + gr * (b - a);
-        Trial tc = fitAtDelay(sup, f, c, gainSeed, s), td = fitAtDelay(sup, f, d, gainSeed, s);
-        Trial best = incumbent;
-        for (int it = 0; it < 20 && b - a > 0.01 * s.delayGridS; it++) {
-            double jc = tc == null ? Double.POSITIVE_INFINITY : tc.fit.objective;
-            double jd = td == null ? Double.POSITIVE_INFINITY : td.fit.objective;
-            if (tc != null && jc < best.fit.objective) best = tc;
-            if (td != null && jd < best.fit.objective) best = td;
-            if (jc < jd) {
-                b = d;
-                d = c;
-                td = tc;
-                c = b - gr * (b - a);
-                tc = fitAtDelay(sup, f, c, gainSeed, s);
-            } else {
-                a = c;
-                c = d;
-                tc = td;
-                d = a + gr * (b - a);
-                td = fitAtDelay(sup, f, d, gainSeed, s);
+        int it = 0;
+        try {                                                                  // CHG-075: the deadline stops the refinement too
+            FitBudgetExceeded.check(s.deadlineNanos);
+            Trial tc = fitAtDelay(sup, f, c, gainSeed, s), td = fitAtDelay(sup, f, d, gainSeed, s);
+            Trial best = incumbent;
+            for (; it < 20 && b - a > 0.01 * s.delayGridS; it++) {
+                FitBudgetExceeded.check(s.deadlineNanos);
+                double jc = tc == null ? Double.POSITIVE_INFINITY : tc.fit.objective;
+                double jd = td == null ? Double.POSITIVE_INFINITY : td.fit.objective;
+                if (tc != null && jc < best.fit.objective) best = tc;
+                if (td != null && jd < best.fit.objective) best = td;
+                if (jc < jd) {
+                    b = d;
+                    d = c;
+                    td = tc;
+                    c = b - gr * (b - a);
+                    tc = fitAtDelay(sup, f, c, gainSeed, s);
+                } else {
+                    a = c;
+                    c = d;
+                    tc = td;
+                    d = a + gr * (b - a);
+                    td = fitAtDelay(sup, f, d, gainSeed, s);
+                }
             }
+            return best;
+        } catch (FitBudgetExceeded e) {
+            throw e.atStage("OE_REFINE " + it + "/20");
         }
-        return best;
     }
 }

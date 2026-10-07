@@ -9,6 +9,7 @@ import com.ams.flink.cplm.response.controller.FrequencyResponse;
 import com.ams.flink.cplm.response.estimation.EstimationResult;
 import com.ams.flink.cplm.response.estimation.EstimatorRegistry;
 import com.ams.flink.cplm.response.estimation.EstimatorSettings;
+import com.ams.flink.cplm.response.estimation.FitBudgetExceeded;
 import com.ams.flink.cplm.response.estimation.ModelEstimator;
 import com.ams.flink.cplm.response.event.EventType;
 import com.ams.flink.cplm.response.event.InputPathResolver;
@@ -147,13 +148,21 @@ public final class ResponseEvaluator implements Serializable {
             rejections.add("ESTIMATION:" + (censored ? c.event.censorReason : legality));
         } else {
             long started = System.currentTimeMillis();
-            est = estimator.estimate(c.data, c.u0, family, estimatorSettings());
+            // CHG-075: the budget is a deadline the fit honours (it used to be checked only after a fit that could run an hour)
+            String budgetStage = null;
+            try {
+                est = estimator.estimate(c.data, c.u0, family, estimatorSettings(System.nanoTime() + cfg.fitBudgetMs * 1_000_000L));
+            } catch (FitBudgetExceeded x) {
+                budgetStage = x.stage().isEmpty() ? x.getMessage() : x.stage() + ("INTERRUPTED".equals(x.getMessage()) ? " INTERRUPTED" : "");
+            }
             long took = System.currentTimeMillis() - started;
             d.outputs.put("method_id", estimator.methodId());
             d.outputs.put("method_version", estimator.methodVersion());
             d.outputs.put("fit_ms", took);
-            if (took > cfg.fitBudgetMs) {
+            if (budgetStage != null || took > cfg.fitBudgetMs) {
                 est = EstimationResult.none(EstimationResult.State.NOT_ESTIMATED, "BUDGET_EXCEEDED");
+                d.outputs.put("budget_ms", cfg.fitBudgetMs);
+                d.outputs.put("budget_stage", budgetStage != null ? budgetStage : "AFTER_FIT");
                 d.state = "CENSORED";
                 g.evaluationState = "CENSORED";
                 g.finding = "BUDGET_EXCEEDED";
@@ -299,8 +308,9 @@ public final class ResponseEvaluator implements Serializable {
         return s;
     }
 
-    private EstimatorSettings estimatorSettings() {
+    private EstimatorSettings estimatorSettings(long deadlineNanos) {
         EstimatorSettings s = new EstimatorSettings();
+        s.deadlineNanos = deadlineNanos == 0 ? 1 : deadlineNanos;          // 0 would mean no deadline
         s.delayGridS = cfg.delayGridS;
         s.thetaMaxS = cfg.thetaMaxS;
         s.tauMaxS = cfg.tauMaxS;

@@ -1,5 +1,6 @@
 package com.ams.flink.cplm.response.simulation;
 
+import com.ams.flink.cplm.response.estimation.FitBudgetExceeded;
 import com.ams.flink.cplm.response.model.ProcessModel;
 import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.RealVector;
@@ -32,6 +33,12 @@ public final class ZohSimulator {
     private ZohSimulator() {}
 
     public static Result simulate(ProcessModel m, double[] t, double[] u, double u0, double y0, double v0, double t0, double maxBridgeS) {
+        return simulate(m, t, u, u0, y0, v0, t0, maxBridgeS, 0);
+    }
+
+    /** CHG-075: as above, checking the fit deadline (System.nanoTime() scale, 0 = none) every 256 samples. */
+    public static Result simulate(ProcessModel m, double[] t, double[] u, double u0, double y0, double v0, double t0, double maxBridgeS,
+                                  long deadlineNanos) {
         int n = t.length;
         double[] yHat = new double[n];
         boolean[] valid = new boolean[n];
@@ -44,6 +51,7 @@ public final class ZohSimulator {
         valid[0] = true;
         String stop = null;
         for (int i = 1; i < n; i++) {
+            if ((i & 255) == 0) FitBudgetExceeded.check(deadlineNanos);
             if (stop != null) {
                 yHat[i] = Double.NaN;
                 continue;
