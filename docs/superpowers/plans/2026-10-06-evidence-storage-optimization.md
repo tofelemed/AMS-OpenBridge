@@ -699,3 +699,103 @@ Re-run load (user decision): plant rate × 3, i.e. about 87 tuples/s over 161 lo
 - **S10:** a forced TaskManager OOM (e.g. via a test-only job, or `jcmd`). Acceptance: the TM exits and restarts, and the jobs return on their own.
 - **S11:** re-enable ONE duplicate data source through the API, which must return 409, then through SQL, where the subscriber manager must refuse it. Then remove it.
 - Coordinate every disruption with the UI session (ams-open-8c). The cherry-picked cplm-api commits b448bf89..ab3c21c8 stay in the build.
+
+---
+
+## Task 17 findings fixed in this batch (user decision 2026-10-07): CHG-075 (F4), CHG-076 (F3)
+
+Source: Task 17 (docs/next-release/chg049-stress-results.md, "Re-run at plant × 3"). Code survey: controller ledger, 2026-10-07.
+
+### Task 19 (CHG-075): one slow G12 fit can no longer restart every Flink job
+**Why:** the Response job runs the fit synchronously inside `processElement` at parallelism 1.
+- One fit can take 30-70 min on 3,000 jittered samples.
+- `fitBudgetMs` = 20 s is only checked AFTER the fit (`ResponseEvaluator.java:149-160`).
+- The checkpoint (120 s, 0 tolerated failures, aligned) then expires. The task cannot be cancelled within `task.cancellation.timeout` (180 s), so the TaskManager kills itself and every job on it restarts. This happened 3× on the lab on 2026-10-06/07.
+
+**Files** (paths under `src/flink/src/main/java/com/ams/flink/cplm/response/`):
+- `estimation/EstimatorSettings.java`
+- `estimation/OutputErrorEstimator.java`: theta loop :55, `refineDelay` :267-293, `fitAtDelay` :207-259
+- `estimation/BoundedLm.java`: :50-114
+- `estimation/ClosedLoopPemEstimator.java`: loops :61-66
+- `simulation/ZohSimulator.java`: :22-74
+- `simulation/InputReconstruction.java`: `breakpointsWithin` :39-49
+- `ResponseEvaluator.java`: :148-175, :302-310
+- `CplmResponseAnalysisJob.java`: :51-53, plus the misleading javadoc at :31
+- new `estimation/FitBudgetExceeded.java`
+
+**Requirements:**
+1. **A real deadline.**
+   - `EstimatorSettings` carries `long deadlineNanos`. `ResponseEvaluator` sets it to `started + fitBudgetMs` when it builds the settings.
+   - The deadline is checked, together with `Thread.currentThread().isInterrupted()`, at all of these points:
+     - every iteration of the OE theta loop and of `refineDelay`;
+     - every BoundedLm evaluation: wrap the value function;
+     - every 256 samples inside `ZohSimulator.simulate`, via an overload taking the deadline;
+     - every PEM order/nk iteration.
+   - On expiry, throw `FitBudgetExceeded` (an unchecked exception).
+   - BoundedLm must re-throw it BEFORE its generic `catch (RuntimeException e)`, which would otherwise turn it into "fit at p0".
+   - `ResponseEvaluator` catches it and routes it to the EXISTING branch: `EstimationResult.none(NOT_ESTIMATED, "BUDGET_EXCEEDED")`, `evaluationState=CENSORED`, `finding=BUDGET_EXCEEDED`, rejection `ESTIMATION:BUDGET_EXCEEDED`. Add `d.outputs` `budget_ms` and `budget_stage` (the theta index reached).
+   - Never a partial model.
+2. **Exact-ZOH speed-ups.** Results stay identical within 1e-9 relative for uniform and jittered inputs.
+   - Rebase times to `t - t[0]`, and key the discretisation cache on integer microseconds of `h`. Times come from ms, so whole steps are exact; fractional-delay sub-steps move by < 0.5 µs.
+   - A closed-form order-1 fast path (FOPDT: `ad = exp(-h/τ)`, `bd = K(1-ad)`; IPDT: `ad = 1`, `bd = K·h`) that bypasses `expm`. The existing ZohSimulatorTest expectations must pass unchanged.
+   - `InputReconstruction.breakpointsWithin` advances a cursor (or binary-searches) instead of scanning from 0. That changes O(n²) to O(n).
+3. **Checkpoints that tolerate a busy operator.** `CplmResponseAnalysisJob` adopts Short's `configureCheckpointing` (CHG-038):
+   - timeout 900 s;
+   - tolerable failures 1,000;
+   - unaligned checkpoints after a 30 s aligned attempt;
+   - DELETE_ON_CANCELLATION, replacing today's RETAIN.
+
+   Reuse the Short helper if it is shareable; otherwise copy it into a small shared helper class, not a duplicate block. Fix the javadoc at :31.
+4. **Tests.**
+   - A jittered (±50 ms) 4 h event at 1 s sampling (14,400 samples) with production defaults (θmax 600 s, grid 5 s) either finishes or returns BUDGET_EXCEEDED within `fitBudgetMs` + 2 s, measured in the test. Use a 5 s budget so it stays fast.
+   - The budget path yields the documented CENSORED result and rejection.
+   - Parity: fixed-seed uniform and jittered datasets give identical parameters and objective (1e-9) before and after the speed-ups. Capture the "before" values in the test from the current code first.
+   - The existing response suite stays green.
+5. **Bench** (test, gated by `-Dresponse.bench=true`, following the `ShortWindowBacklogBench` pattern): one production-size event before and after. Report the wall time.
+
+**Deferred findings (do NOT change, record them):**
+- `relTol` is plumbed but never applied to BoundedLm.
+- LM non-convergence silently returns p0 as a valid trial.
+
+Both change fit results and need an SME decision.
+
+### Task 20 (CHG-076): a reconstruction replaces the live artifacts it collides with
+**Why:** the capped live run and its uncapped reconstruction share evidence ids for the picked cycles and `cycle_scores` (`uuidV5(run|kind|role)`).
+- `EvidenceBlobStore` upserts only revive EXPIRED/FAILED rows, so the live TRANSIENT rows win.
+- The served set mixes two datasets, and the sweep deletes those rows 6 h later.
+
+**File:** `src/services/cplm-api/Services/EvidenceBlobStore.cs`: revive DELETE :55-58, upsert :63-78, `RetentionClassOf` :111-118, `PutChunkAsync` :122-129.
+
+**Requirements:**
+- When the incoming manifest is a reconstruction (`RetentionClassOf == "STANDARD"`) and a live row with the same evidence_id exists in PENDING or COMPLETE, the reconstruction replaces it:
+  - its chunks are deleted;
+  - the manifest fields are updated;
+  - `readiness = PENDING`;
+  - `retention_class` = STANDARD, unless the row is EPISODE (never demote EPISODE) or PINNED (never touch it);
+  - `method_run_id` / `gate_result_id` are kept.
+- An identical re-emit (same sha256) is a no-op.
+- The chunk DELETE and the upsert run in ONE transaction.
+- Live re-deliveries (TRANSIENT) keep today's behaviour: a COMPLETE live row is left alone.
+
+**Tests (lab DB, the existing evidence test pattern):**
+- live COMPLETE + reconstruction, so the row becomes STANDARD/PENDING with its chunks replaced, then COMPLETE once the new chunks arrive;
+- EPISODE + reconstruction gives EPISODE with the payload replaced;
+- PINNED is untouched;
+- live re-delivery of a COMPLETE row is unchanged;
+- same-sha reconstruction is a no-op.
+
+Rewrite `EvidenceApiTests.cs:243-246`. Its "re-delivered COMPLETE manifest is left alone" case carries `purpose=EVIDENCE_RECONSTRUCTION`, so it now asserts the opposite. Explain why in a comment.
+
+### Task 21: records for CHG-075/076, then the lab proof and the 24 h soak
+- **Records:**
+  - changes_tracker CHG-075 and CHG-076, in the template order.
+  - SME-batch release block: the Response job is now part of `flink-jobmanager`; cplm-api already listed.
+  - prod_decision §4/§6: Response checkpoint settings, the fit budget, the 2026-10-06/07 lab incident row.
+  - MARUN-DAILY-CHECK §4: a Response line, "BUDGET_EXCEEDED rejections are normal under load; repeated TaskManager restarts are not".
+  - checklist.
+- **Lab:**
+  - Build the final jar and cplm-api. cplm-api includes the other session's CHG-066 (56a04696), cherry-picked.
+  - Swap. Resubmit all 13 jobs, Response included.
+  - Response bench on the lab: one production-size jittered event.
+  - S3 episode churn (now possible: fusion has had > 12 h of data).
+- **Then the 24 h soak (S9)** on exactly this build, with the read-back commands from Task 17.
