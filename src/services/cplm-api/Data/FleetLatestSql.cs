@@ -123,14 +123,19 @@ public static class FleetLatestSql
     /// (<c>v_*</c> columns, null when the newest row is itself a verdict or none exists) so the UI can
     /// show a stale verdict AS stale instead of presenting it as the current window.
     /// </summary>
-    public static string Heatmap => $"""
+    public static string Heatmap => HeatmapFiltered("");
+
+    /// <summary>CHG-066: the heatmap under a fleet health filter (same clause as the rankings), with the newest
+    /// window's observability flags so a pass judged without one of its inputs reads "OK on available data".</summary>
+    public static string HeatmapFiltered(string healthWhere) => $"""
         SELECT r.loop_id, r.display_name, r.site, r.loop_type,
-               n.window_end, n.diagnosis, n.confidence, n.gates, n.method_run_ids, n.insufficient_reason,
+               n.window_end, n.diagnosis, n.confidence, n.gates, n.method_run_ids, n.insufficient_reason, n.flags,
                v.window_end AS v_window_end, v.diagnosis AS v_diagnosis, v.confidence AS v_confidence
         FROM cpm.loop_registry r
         LEFT JOIN LATERAL (
             SELECT g.window_end, g.diagnosis, g.confidence, (g.payload->'gates')::text AS gates,
-                   g.method_run_ids::text AS method_run_ids, g.payload->>'insufficient_evidence_reason' AS insufficient_reason
+                   g.method_run_ids::text AS method_run_ids, g.payload->>'insufficient_evidence_reason' AS insufficient_reason,
+                   (g.payload->'observability_flags')::text AS flags
             FROM analytics.cplm_gate_results g
             WHERE lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind AND g.purpose = 'LIVE'
             ORDER BY g.window_end DESC NULLS LAST, g.created_at DESC
@@ -146,30 +151,29 @@ public static class FleetLatestSql
             LIMIT 1
         ) v ON TRUE
         {MonitoredInScope}
+        {healthWhere}
         ORDER BY r.loop_id
         LIMIT @limit
         """;
 
     /// <summary>
-    /// Fleet diagnosis distribution: one row per registry loop in scope that has a real
-    /// verdict at this resolution (its newest one). Unlike rankings/heatmap this is NOT
-    /// limited to monitoring-enabled loops — the old query never was, and the Overview's
-    /// "N loops evaluated" is compared against the registry total.
+    /// Fleet diagnosis distribution: one row per MONITORED registry loop in scope that has a real LIVE
+    /// verdict at this resolution (its newest one). CHG-066: same population as rankings / heatmap — it
+    /// used to count unmonitored loops and replay / shadow rows, so the Performance tiles' "top N of M"
+    /// compared two different sets.
     /// </summary>
-    public const string SummaryByDiagnosis = """
+    public static string SummaryByDiagnosis => $"""
         SELECT l.diagnosis AS "Diagnosis", COUNT(*)::int AS "Count"
         FROM cpm.loop_registry r
         JOIN LATERAL (
             SELECT g.diagnosis
             FROM analytics.cplm_gate_results g
-            WHERE lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind
+            WHERE lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind AND g.purpose = 'LIVE'
               AND g.diagnosis IS NOT NULL AND g.diagnosis <> 'INSUFFICIENT_DATA'
             ORDER BY g.window_end DESC NULLS LAST, g.created_at DESC
             LIMIT 1
         ) l ON TRUE
-        WHERE (@site::text IS NULL OR r.site = @site)
-          AND (@area::text IS NULL OR r.area = @area)
-          AND (@unit::text IS NULL OR r.unit = @unit)
+        {MonitoredInScope}
         GROUP BY l.diagnosis ORDER BY 2 DESC
         """;
 

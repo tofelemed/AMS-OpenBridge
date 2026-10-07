@@ -262,10 +262,15 @@ public sealed class CpmFleetController : ControllerBase
         // 171-loop plant after the 100th id and "PIC80140" could not be found. The answer
         // says how many loops exist (`total`) and whether it was cut (`truncated`).
         [FromQuery] int limit = 500,
+        // CHG-066: the same server-side health filter as the rankings, so the matrix and the tiles agree
+        [FromQuery] string? health = null,
         CancellationToken ct = default)
     {
         limit = Math.Clamp(limit, 1, 2000);
-        return CachedAsync($"heatmap|{site}|{area}|{unit}|{windowKind}|{limit}", async token =>
+        var healthWhere = FleetLatestSql.HealthFilter(health);
+        if (healthWhere is null)
+            return Task.FromResult<IActionResult>(BadRequest(new { error = $"Unknown health filter '{health}'", allowed = new[] { "missing-binding", "stale-collection", "active-affected" } }));
+        return CachedAsync($"heatmap|{site}|{area}|{unit}|{windowKind}|{limit}|{health}", async token =>
         {
             await using var conn = await _dataSource.OpenConnectionAsync(token);
 
@@ -275,9 +280,10 @@ public sealed class CpmFleetController : ControllerBase
                   AND (@area::text IS NULL OR r.area = @area)
                   AND (@unit::text IS NULL OR r.unit = @unit)
                   AND COALESCE((r.monitoring->>'enabled')::boolean, FALSE)
+                {healthWhere}
                 """, new { site, area, unit });
 
-            var rows = await conn.QueryAsync(FleetLatestSql.Heatmap, new { site, area, unit, windowKind, limit });
+            var rows = await conn.QueryAsync(FleetLatestSql.HeatmapFiltered(healthWhere), new { site, area, unit, windowKind, limit });
 
             var gateKeys = new[] { "G0","G1","G2","G2r","G3","G4","G5","G6","G7","G8","G9","G10","G11","G12","G13","G14","G15" };
             var cells = rows.Select(r =>
@@ -300,6 +306,7 @@ public sealed class CpmFleetController : ControllerBase
                     diagnosis = (string?)r.diagnosis ?? "NOT_EVALUATED",
                     confidence = r.confidence,
                     insufficientEvidenceReason = (string?)r.insufficient_reason,
+                    observabilityFlags = ReadStringArray((string?)r.flags),
                     gates,
                     // 2026-09-17 audit F4: the newest window's run ids (the workbench launcher) and the last real
                     // verdict when it is an OLDER window than the one shown - stated with its age, never as current

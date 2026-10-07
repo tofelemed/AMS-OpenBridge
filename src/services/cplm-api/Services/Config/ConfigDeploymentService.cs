@@ -205,8 +205,15 @@ public sealed class ConfigDeploymentService
                  + (SELECT count(*) FROM analytics.cplm_long_feature_results WHERE bundle_hash = @hash)
                  + (SELECT count(*) FROM analytics.cplm_gate_results WHERE bundle_hash = @hash)
             """, new { hash = d.ContentHash });
-        var probe = JsonSerializer.Serialize(new { pinnedResults = pinned, checkedAt = DateTimeOffset.UtcNow, rule = "ACTIVE_VERIFIED once a result carries the bundle hash, or after the probe window with complete APPLY ACKs" });
         var verified = pinned > 0 || DateTimeOffset.UtcNow - d.UpdatedAt >= ProbeWindow;
+        // CHG-066: record HOW it verified — RESULT (a result carries the hash) or ACK_WINDOW (every worker applied it but no
+        // loop in scope produced a result within the probe window); the UI must not call the latter "verified by a result"
+        var probe = JsonSerializer.Serialize(new
+        {
+            pinnedResults = pinned, checkedAt = DateTimeOffset.UtcNow,
+            verifiedBy = pinned > 0 ? "RESULT" : verified ? "ACK_WINDOW" : null,
+            rule = "ACTIVE_VERIFIED once a result carries the bundle hash, or after the probe window with complete APPLY ACKs",
+        });
         if (!verified)
         {
             await conn.ExecuteAsync("UPDATE cpm.config_deployment SET probe_results = @probe::jsonb WHERE deployment_id = @id", new { id = d.DeploymentId, probe });
