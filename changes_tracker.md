@@ -3777,9 +3777,14 @@ was activated by the probe-window fallback with no result.
 **Tests.** cplm-api `KpiConsistencyTests` (new, 3: history LIVE vs ANY; diagnosis distribution excludes REPLAY and unmonitored;
 heatmap flags + health filter) with FleetLatestSqlTests / ConfigLifecycle — 18/18, deployment tests 6/6; build clean. Frontend
 `deploymentVerification.test.ts` (new, 3) — 93 files / 431 tests; lint / tsc / build clean. **Lab:** with the current cplm-api, Performance
-reads "230 monitored loop(s) in scope" and "top 50 of 163 evaluated" (was 164 — one excluded loop no longer counted). The server-side
-parts (matrix "OK on available data", heatmap health filter, LIVE-only history) are verified once ams-open-2c rebuilds the lab cplm-api
-with 56a04696 before its 24 h soak.
+reads "230 monitored loop(s) in scope" and "top 50 of 163 evaluated" (was 164 — one excluded loop no longer counted). On the lab
+cplm-api with 56a04696 + c8a33529 (2026-10-07, cherry-picked by ams-open-2c as d12a44cf / bebac177): `fleet/heatmap` 200 with no filter
+(230 rows, 165 with flags), missing-binding 229, stale-collection 1, active-affected 1, `bogus` → 400; FIC10302 history with
+insufficient windows LIVE 357 vs `purpose=ANY` 361 (the 4 REPLAY rows); Performance matrix B2_027PIC G10 "symptom not seen on the
+inputs available — no valve position"; "Stale collection" narrows tiles, roll-up and matrix together (all 1). Deployment wording: no
+deployment has run since the change (the existing ones are result-verified, 647 / 648 pinned, and read "Active and verified"); the
+ACK_WINDOW wording is covered by unit tests. **Fixed during the lab pass (c8a33529):** the heatmap `total` count was a plain raw string,
+so `{healthWhere}` reached Postgres literally and every heatmap request answered 500 — a controller-path test now covers it.
 
 **Phase 3 (engine) is not here:** per the user, gate / fusion changes belong to the parallel session (ams-open-2c); the list was handed
 over 2026-10-07.
