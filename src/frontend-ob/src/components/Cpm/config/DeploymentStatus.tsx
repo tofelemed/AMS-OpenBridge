@@ -37,9 +37,9 @@ export const DeploymentStatus: React.FC<{
   const summary = ackSummary(d);
   const settled = d.state === 'ACTIVE_VERIFIED' || d.state === 'ROLLED_BACK';
   return (
-    <li className={`cpm-surface cpm-config-deployment cpm-tone-${deploymentStateTone(d.state)}`} data-testid="deployment-status" data-state={d.state}>
+    <li className={`cpm-surface cpm-config-deployment cpm-tone-${deploymentStateTone(d.state, d)}`} data-testid="deployment-status" data-state={d.state}>
       <PanelHead eyebrow={`${d.kind === 'ROLLBACK' ? 'Rollback' : 'Deployment'} · ${fmtDateTime(d.createdAt)}`} title={deploymentStateText(d)}
-        right={<TonePill tone={deploymentStateTone(d.state)}>{d.state}</TonePill>} />
+        right={<TonePill tone={deploymentStateTone(d.state, d)}>{d.state}</TonePill>} />
       <KvRow label="bundle hash"><span className="cpm-mono" title={d.contentHash}>{shortHash(d.contentHash, 16)}</span></KvRow>
       <KvRow label="effective">{d.scheduledFor ? fmtDateTime(d.scheduledFor) : 'immediately'} · epoch {d.epoch ?? '—'} · by {d.createdBy}</KvRow>
       {d.rollbackOf && <KvRow label="rolls back"><span className="cpm-mono" title={d.rollbackOf}>{shortHash(d.rollbackOf, 12)}</span></KvRow>}

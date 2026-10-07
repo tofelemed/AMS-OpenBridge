@@ -125,8 +125,11 @@ export const getWindowSummaries = (loopId: string, windowKind = '24h', opts: Win
 
 export const getGateHistory = (
   loopId: string, windowKind = '24h', from?: string, to?: string, limit = 100, signal?: AbortSignal, includeInsufficient = false,
+  /** CHG-066: LIVE results only (server default); 'ANY' also returns REPLAY / SHADOW rows (the Replay page). */
+  purpose: 'LIVE' | 'ANY' = 'LIVE',
 ) => {
   const params = new URLSearchParams({ windowKind, limit: String(limit) });
+  if (purpose !== 'LIVE') params.set('purpose', purpose);
   if (includeInsufficient) params.set('includeInsufficient', 'true');
   if (from) params.set('from', from);
   if (to) params.set('to', to);

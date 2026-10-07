@@ -34,11 +34,14 @@ import { diagnosticCapabilityCopy } from './overview/capabilityCopy';
 import AttentionList, { type RankBy } from './AttentionList';
 import { useBadActors } from './useBadActors';
 import { buildTierGroups, isRowFilter, latestWindowEnd } from './gateStatus';
-import { useCpmResolutions, useFleetHeatmap, useFleetRankings, useFleetSummary } from '../../hooks/useCpm';
+import { useCpmLoops, useCpmResolutions, useFleetHeatmap, useFleetRankings, useFleetSummary } from '../../hooks/useCpm';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { explorerHref, pipelineHref, windowsHref } from './cpaHref';
 import { diagnosisLabel } from './vocabulary';
 import { evidenceScoreText } from './evidenceScore';
+import { hasVerdict } from './metricAvailability';
+import { effectiveInputFlags } from './inputLimits';
+import { inputContextOf } from './optionalInputs';
 
 /** v2.5 (1H.6): the three fleet health filters the server understands (spec §4.7). */
 const HEALTH_FILTERS: { id: CpmHealthFilter; label: string }[] = [
@@ -140,16 +143,23 @@ export const CpmPerformance: React.FC = () => {
   const rankings = useFleetRankings(scope.params, windowKind, 'confidence', 50, true, healthFilter);
   // CHG-023 (P0-2): by confidence this is a slice of `rankings` — no second request;
   // only the "error" order (a different server ORDER BY) costs its own call.
-  const badActors = useBadActors(scope.params, windowKind, rankBy);
-  const heatmap = useFleetHeatmap(scope.params, windowKind);
+  const badActors = useBadActors(scope.params, windowKind, rankBy, healthFilter);
+  const heatmap = useFleetHeatmap(scope.params, windowKind, healthFilter);
+  // CHG-066: the loops' optional-input context, so the matrix marks a pass judged without an input like the Explorer does
+  const registry = useCpmLoops();
 
   const loops = useMemo(() => rankings.data?.loops ?? [], [rankings.data]);
-  const evaluated = loops.filter(l => l.diagnosis !== 'NOT_EVALUATED');
+  // CHG-066: "evaluated" = a real verdict — an excluded or insufficient window is not a performance figure
+  const evaluated = loops.filter(l => hasVerdict(l.diagnosis));
 
   // Aggregates over the loops this page fetched — a capped, confidence-ordered
   // page, NOT the fleet. `truncated` drives the wording so the tiles never claim
   // a fleet figure they do not have.
-  const fleetEvaluated = (summary.data?.diagnoses ?? []).reduce((n, d) => n + d.count, 0);
+  // CHG-066: the same population as `evaluated` — monitored loops with a real LIVE verdict; under a health filter the
+  // (filtered) matrix rows, since the summary is not health-filtered
+  const fleetEvaluated = healthFilter
+    ? (heatmap.data?.loops ?? []).filter(l => hasVerdict(l.diagnosis) || hasVerdict(l.lastVerdict?.diagnosis)).length
+    : (summary.data?.diagnoses ?? []).filter(d => hasVerdict(d.diagnosis)).reduce((n, d) => n + d.count, 0);
   const truncated = fleetEvaluated > evaluated.length;
 
   const medianMae = median(
@@ -168,6 +178,11 @@ export const CpmPerformance: React.FC = () => {
   const fleetTotal = summary.data?.loops.total ?? null;
 
   const heatmapLoops = useMemo(() => heatmap.data?.loops ?? [], [heatmap.data]);
+  const inputFlagsOf = useMemo(() => {
+    const byId = new Map((registry.data?.loops ?? []).map(l => [l.loopId.toLowerCase(), l]));
+    const flagsById = new Map(heatmapLoops.map(r => [r.loopId.toLowerCase(), r.observabilityFlags ?? []]));
+    return (loopId: string) => effectiveInputFlags(flagsById.get(loopId.toLowerCase()), inputContextOf(byId.get(loopId.toLowerCase())));
+  }, [registry.data, heatmapLoops]);
   const tierGroups = useMemo(
     () => buildTierGroups(heatmap.data?.gateKeys ?? []), [heatmap.data?.gateKeys]);
   const orderedGateKeys = useMemo(() => tierGroups.flatMap(g => g.keys), [tierGroups]);
@@ -224,7 +239,7 @@ export const CpmPerformance: React.FC = () => {
       </p>
       <PlantScopeFilter
         scope={scope}
-        summary={fleetTotal != null ? `${fleetTotal} loop(s) in scope` : null}
+        summary={summary.data ? `${summary.data.loops.monitored} monitored loop(s) in scope` : null}
       />
 
       <div className="cpm-chip-row" role="group" aria-label="Instrument health filter">
@@ -336,6 +351,7 @@ export const CpmPerformance: React.FC = () => {
                   onSelectLoop={selectLoop}
                   onOpenLoop={openLoop}
                   onOpenGate={openEvidence}
+                  inputFlagsOf={inputFlagsOf}
                   fleetTotal={heatmap.data?.total ?? fleetTotal}
                 />
 

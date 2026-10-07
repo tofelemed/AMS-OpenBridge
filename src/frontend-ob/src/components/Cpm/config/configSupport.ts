@@ -16,9 +16,13 @@ export function bundleStateTone(state: string | null | undefined): CpmTone {
   }
 }
 
-export function deploymentStateTone(state: DeploymentState | string | null | undefined): CpmTone {
+/** CHG-066: ACTIVE_VERIFIED by the ACK-window fallback (no loop in scope produced a result) is active but not proven. */
+const verifiedByResult = (d: { probeResults?: unknown }) =>
+  ((d.probeResults ?? null) as { verifiedBy?: string; pinnedResults?: number } | null)?.verifiedBy !== 'ACK_WINDOW';
+
+export function deploymentStateTone(state: DeploymentState | string | null | undefined, d?: { probeResults?: unknown }): CpmTone {
   switch (state) {
-    case 'ACTIVE_VERIFIED': return 'good';
+    case 'ACTIVE_VERIFIED': return !d || verifiedByResult(d) ? 'good' : 'warn';
     case 'ACTIVATION_FAILED': case 'PARTIALLY_ACKNOWLEDGED': return 'bad';
     case 'ROLLED_BACK': return 'muted';
     default: return 'warn';
@@ -26,14 +30,16 @@ export function deploymentStateTone(state: DeploymentState | string | null | und
 }
 
 /** The operator-facing label of a deployment state: what is happening and what it is not. */
-export function deploymentStateText(d: { state: string; kind: string; error?: string | null }): string {
+export function deploymentStateText(d: { state: string; kind: string; error?: string | null; probeResults?: unknown }): string {
   switch (d.state) {
     case 'SCHEDULED': return 'Scheduled - PREPARE not yet broadcast';
     case 'PREPARING': return 'Preparing - waiting for every required worker to acknowledge the bundle';
     case 'PREPARED': return 'Prepared - every worker holds the bundle; APPLY is being broadcast';
     case 'APPLYING': return 'Applying - waiting for the workers to switch at the effective time (warm-up after a state boundary)';
     case 'PROBING': return 'Probing - applied everywhere; waiting for a result pinned to this bundle hash';
-    case 'ACTIVE_VERIFIED': return d.kind === 'ROLLBACK' ? 'Rollback verified - the previous bundle is active again' : 'Active and verified - a result carries this bundle hash';
+    case 'ACTIVE_VERIFIED':
+      if (!verifiedByResult(d)) return 'Active - applied by every worker; not yet verified by a result (no loop in scope produced one in the probe window)';
+      return d.kind === 'ROLLBACK' ? 'Rollback verified - the previous bundle is active again' : 'Active and verified - a result carries this bundle hash';
     case 'PARTIALLY_ACKNOWLEDGED': return `Partially acknowledged - NOT active (${d.error ?? 'a required worker did not answer'})`;
     case 'ACTIVATION_FAILED': return `Activation failed - NOT active (${d.error ?? 'a worker refused the bundle'})`;
     case 'ROLLED_BACK': return 'Rolled back - superseded by a later deployment of the previous bundle';

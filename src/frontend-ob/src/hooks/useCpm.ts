@@ -196,10 +196,10 @@ export function useFleetRankings(
   });
 }
 
-export function useFleetHeatmap(scope?: cpm.CpmFleetScope | string, windowKind = '24h') {
+export function useFleetHeatmap(scope?: cpm.CpmFleetScope | string, windowKind = '24h', health?: cpm.CpmHealthFilter) {
   return useQuery({
-    queryKey: ['cpm', 'fleet', 'heatmap', scopeKey(scope), windowKind],
-    queryFn: backgroundPoll(() => cpm.getFleetHeatmap(scope, windowKind)),
+    queryKey: ['cpm', 'fleet', 'heatmap', scopeKey(scope), windowKind, health ?? ''],
+    queryFn: backgroundPoll(() => cpm.getFleetHeatmap(scope, windowKind, 2000, health)),
     refetchInterval: 60_000,
   });
 }
@@ -277,11 +277,11 @@ export function useCpmModeTrack(
 }
 
 export function useGateHistory(
-  loopId: string | undefined, windowKind = '24h', from?: string, to?: string,
+  loopId: string | undefined, windowKind = '24h', from?: string, to?: string, purpose: 'LIVE' | 'ANY' = 'LIVE',
 ) {
   return useQuery({
-    queryKey: ['cpm', 'gate-history', loopId ?? '', windowKind, from ?? '', to ?? ''],
-    queryFn: ({ signal }) => cpm.getGateHistory(loopId!, windowKind, from, to, 100, signal),
+    queryKey: ['cpm', 'gate-history', loopId ?? '', windowKind, from ?? '', to ?? '', purpose],
+    queryFn: ({ signal }) => cpm.getGateHistory(loopId!, windowKind, from, to, 100, signal, false, purpose),
     enabled: !!loopId,
   });
 }

@@ -74,7 +74,8 @@ export const CpmReplay: React.FC = () => {
   const gateKey = params.get('gate') ?? 'G15';
 
   const calc = useCpmCalculations();
-  const history = useGateHistory(loopId, '24h');
+  // CHG-066: the Replay page also shows re-run (REPLAY) windows; every other page reads LIVE windows only
+  const history = useGateHistory(loopId, '24h', undefined, undefined, 'ANY');
   const windows = useMemo(() => {
     const rows = history.data?.windows ?? [];
     return [...rows].sort((a, b) => (b.windowEnd ?? '').localeCompare(a.windowEnd ?? ''));

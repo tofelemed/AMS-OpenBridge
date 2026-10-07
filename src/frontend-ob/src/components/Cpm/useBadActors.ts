@@ -13,6 +13,7 @@ import { useMemo } from 'react';
 import type { CpmFleetScope, CpmRankedLoop } from '../../api/cpmApi';
 import { useFleetRankings } from '../../hooks/useCpm';
 import type { RankBy } from './AttentionList';
+import type { CpmHealthFilter } from '../../api/cpmApi';
 
 const BAD_ACTOR_COUNT = 12;
 
@@ -27,11 +28,12 @@ export interface BadActors {
 }
 
 export function useBadActors(
-  scope: CpmFleetScope | string | undefined, windowKind: string, rankBy: RankBy,
+  scope: CpmFleetScope | string | undefined, windowKind: string, rankBy: RankBy, health?: CpmHealthFilter,
 ): BadActors {
-  // Same query key as CpmPerformance's `rankings` (confidence, 50) → one request.
-  const top = useFleetRankings(scope, windowKind, 'confidence', 50);
-  const byError = useFleetRankings(scope, windowKind, 'error', BAD_ACTOR_COUNT, rankBy === 'error');
+  // Same query key as CpmPerformance's `rankings` (confidence, 50, health) → one request; CHG-066: the health
+  // filter applies here too, so the attention list ranks the same loops as the tiles
+  const top = useFleetRankings(scope, windowKind, 'confidence', 50, true, health);
+  const byError = useFleetRankings(scope, windowKind, 'error', BAD_ACTOR_COUNT, rankBy === 'error', health);
 
   const sliced = useMemo<BadActorsPage | undefined>(() => top.data
     ? { orderBy: top.data.orderBy, count: Math.min(BAD_ACTOR_COUNT, top.data.loops.length),

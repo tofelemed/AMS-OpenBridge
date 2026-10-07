@@ -507,6 +507,8 @@ export interface CpmHeatmapLoop {
   methodRunIds?: Record<string, string>;
   /** The newest OLDER real verdict, when the shown window is not one - stated with its age, never as current. */
   lastVerdict?: { windowEnd: string | null; diagnosis: string | null; confidence: number | null; ageMs: number } | null;
+  /** CHG-066: the newest window's observability flags (a pass judged without an input reads "OK on available data"). */
+  observabilityFlags?: string[];
 }
 
 /**
@@ -515,9 +517,10 @@ export interface CpmHeatmapLoop {
  * in scope; `truncated` says the payload was cut — the matrix must then say so instead of
  * answering "no loops match" for a loop that exists.
  */
-export const getFleetHeatmap = (scope?: CpmFleetScope | string, windowKind = '24h', limit = 2000) => {
+export const getFleetHeatmap = (scope?: CpmFleetScope | string, windowKind = '24h', limit = 2000, health?: CpmHealthFilter) => {
   const params = new URLSearchParams({ windowKind, limit: String(limit) });
   applyScope(params, scope);
+  if (health) params.set('health', health);   // CHG-066: same server-side filter as the rankings
   return apiJson<{
     site: string | null; windowKind: string; gateKeys: string[];
     count: number; total: number; truncated: boolean; loops: CpmHeatmapLoop[];

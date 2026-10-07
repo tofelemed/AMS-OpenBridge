@@ -61,11 +61,13 @@ export interface GateMatrixProps {
   onOpenGate: (loopId: string, gate: string) => void;
   /** Fleet total from the summary endpoint, so the footer can name the shortfall. */
   fleetTotal?: number | null;
+  /** CHG-066: the loop's effective input flags — a pass judged without one of its inputs reads "OK on available data". */
+  inputFlagsOf?: (loopId: string) => string[];
 }
 
 export const GateMatrix: React.FC<GateMatrixProps> = ({
   loops, orderedGateKeys, tierGroups, filter, onFilterChange,
-  page, onPageChange, selectedLoopId, onSelectLoop, onOpenLoop, onOpenGate, fleetTotal,
+  page, onPageChange, selectedLoopId, onSelectLoop, onOpenLoop, onOpenGate, fleetTotal, inputFlagsOf,
 }) => {
   // The text box is deliberately NOT in the URL: it churns one history entry per
   // keystroke and nobody shares "loops matching FIC-0". Mode and gate are, because
@@ -253,7 +255,7 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
                         </button>
                       </th>
                       {orderedGateKeys.map((k, gi) => {
-                        const g = glyphFor(row.gates[k], k);
+                        const g = glyphFor(row.gates[k], k, inputFlagsOf?.(row.loopId));
                         const c = gi + 1;
                         return (
                           <td key={k} role="gridcell" className="cpm-matrix__cell-td">
