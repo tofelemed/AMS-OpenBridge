@@ -337,6 +337,9 @@ services:
     volumes:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_log:/var/lib/zookeeper/log
+      # CHG-068: quarantines a zero-byte transaction log (ZOOKEEPER-2332) before ZooKeeper starts
+      - ./zookeeper/zk-start-guard.sh:/usr/local/bin/zk-start-guard.sh:ro
+    command: ["/usr/local/bin/zk-start-guard.sh"]
     networks:
       - ams-backend
     healthcheck:

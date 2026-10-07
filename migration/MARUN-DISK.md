@@ -217,6 +217,9 @@ Seen 2026-09-26 (`log.7dbe`) and 2026-10-06 (`log.91a0`): after a full or near-f
 3. **MOVE** it out of `version-2/` into the backup directory. Never rename it in place: ZooKeeper parses
    `log.<hex>.<anything>` as a transaction log, so `log.91a0.zero-byte` was still read and the crash went on.
 4. Never delete the data directory or the snapshots.
+   Upstream: ZOOKEEPER-2332 / ZOOKEEPER-2376 (zero-byte log at start, fixed only in 3.9.3 / 3.10.0); ZOOKEEPER-2745 (invalid snapshot
+   after disk-full, open). **CHG-068:** once the start guard is applied (`migration/instrumental/README-zookeeper-guard.md`) the quarantine
+   (steps 2-3) happens automatically at every start into `<logs volume>/quarantine/`; steps 1 and 4-6 still apply. Daily check §2 counts zero-byte logs.
 5. Restart ZooKeeper and confirm in its log: `Snapshot loaded ... highest zxid`. "Last transaction was
    partial" on an older log is normal.
 6. Then check Kafka: the topic count (75 at Marun on 2026-10-06) and 0 under-replicated partitions

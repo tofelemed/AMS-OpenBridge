@@ -4097,6 +4097,32 @@ set is **299 manifests, all STANDARD / COMPLETE, one dataset (`b7a64a60`), all f
 (cycles and `corners`) were replaced, 0 TRANSIENT left. **PASS** (F3 closed). Seen on the way, not CHG-076: under the lab load the POST
 reported "Flink did not accept the submission in time" while the job ran, and the `analysis_run` row stayed `CREATED`.
 
+## CHG-068 — ZooKeeper start guard: a zero-byte transaction log no longer crash-loops ZooKeeper (2026-10-07)
+
+**Scope:** `infra/docker/zookeeper/zk-start-guard.sh`, lab `infra/docker/docker-compose.yml` (`zookeeper`: read-only mount + `command`),
+`migration/instrumental/` (override + README for Instrumental's `instrumental-zookeeper`), `migration/daily-check.sh` §2,
+`tests/ops/zk-start-guard.test.sh`, `prod_decision.md` §4 / §6, `migration/MARUN-DISK.md` J. Ships in release v2.7.0 below.
+
+**What was wrong.** Seen 2026-09-26 (`log.7dbe`) and 2026-10-06 (`log.91a0`): a full disk leaves a zero-byte transaction log and ZooKeeper
+3.8.x exits with `EOFException` at every start (upstream ZOOKEEPER-2332 / ZOOKEEPER-2376, fixed only in 3.9.3 / 3.10.0; ZOOKEEPER-2745,
+data loss from an invalid snapshot after disk-full, is still open). Both Kafka brokers lose their coordinator and every Flink job restarts.
+Renaming the file in place does not help (`log.<hex>.<anything>` is still parsed); it must leave `version-2/`.
+
+**What changed.**
+- `zk-start-guard.sh` is the container command: it moves every zero-byte `log.*` from `version-2/` to `quarantine/` (timestamped, never
+  deleted) and then `exec`s `/etc/confluent/docker/run`. `ZK_TXNLOG_DIR` overrides `/var/lib/zookeeper/log`.
+- Lab compose mounts it read-only and sets the command (takes effect at the next recreate of `ams-zookeeper`; NOT recreated during the go/no-go).
+- Instrumental's ZooKeeper: compose override + `migration/instrumental/README-zookeeper-guard.md` (plant steps).
+- Daily check §2 counts zero-byte logs in `microservices_zookeeper-logs` via a throwaway `alpine` or `python:3.11-alpine` container (WARN "cannot check"
+  when neither image exists); ACT > 0 points to `MARUN-DISK.md` J.
+- Not changed: the ZooKeeper upgrade to >= 3.9.3 (later item).
+
+**Tests.** `bash tests/ops/zk-start-guard.test.sh` 7 / 7 (zero-byte and renamed zero-byte logs moved, real log and snapshot kept, idempotent, no `version-2/`);
+`bash -n` on the guard and `daily-check.sh`; `docker compose -f infra/docker/docker-compose.yml config --quiet` OK.
+
+**End-to-end on the lab.** Guard proven in a throwaway `cp-zookeeper:7.5.3` container 2026-10-07: zero-byte renamed log → quarantined → started;
+lab `ams-zookeeper` not recreated during the go/no-go.
+
 ### SME review batch release **v2.7.0** — what to build and run (bundle 7 Oct 2026, plant deploy 8 Oct; manifest `migration/deploy/releases/v2.7.0.txt`)
 
 - Go/no-go (user decision 2026-10-07, replaces the 24 h soak gate): about 6 h on the exact shipping build with all 13 lab jobs
@@ -4125,6 +4151,11 @@ reported "Flink did not accept the submission in time" while the job ran, and th
   `ShortFeatureBufferFn` (root stays ERROR); the overlay mounts it, so the Flink recreate picks it up.
 - Plant: `docker load` the `ams-frontend`, `cplm-api`, `ams-flink` and `traverse-ingestion-service` images; then the Flink swap from the VM steps (cancel every job, `docker rm -f ams-flink-taskmanager ams-flink-jobmanager`) → `deploy.sh --prod` (04b resubmits all seven; 7 RUNNING) → `200` on `/`; users press Ctrl+F5.
   cplm-api restarts its consumers: check each CPLM consumer group has exactly one member afterwards (SingleMemberGuard).
+- ZooKeeper guard (CHG-068): the lab compose changed (applies at the next `ams-zookeeper` recreate). Plant: Instrumental's ZooKeeper gets the
+  guard in this release's swap window, AFTER the Flink cancel + `docker rm -f` of JM and TM and BEFORE `deploy.sh --prod`: follow
+  `migration/instrumental/README-zookeeper-guard.md` (about 1 min without a Kafka coordinator; STOP rule: not bound in 60 s → `up -d zookeeper` without the override).
+  The generated VM steps (flag `chg049-evidence`) carry the block between the Flink `docker rm -f` and `deploy.sh --prod`, and both files ship in
+  `ops/` (`OPS_FILES`; `test_build_release.py` 49 passed). The ZooKeeper upgrade to >= 3.9.3 is a later item.
 - Proofs (CHG-040): the Loop Performance menu shows four task sub-headings; open a loop in the Loop Explorer, then
   Investigation from the menu: the same loop is open without picking it again. (CHG-041) on Investigation, scroll to the
   bottom: the LOOP / LOCATION / PERIOD bar stays at the top. (CHG-042) Loop Explorer on any loop opens with the

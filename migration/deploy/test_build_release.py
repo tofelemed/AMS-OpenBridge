@@ -432,7 +432,28 @@ def test_chg049_steps_run_in_the_documented_order():
     c12b = s.index("< /tmp/v0.0.0-test/ops/cpm-12b-evidence-reclaim.sql")
     start = s.index("docker start traverse-cplm-api", c12b)
     daily = s.index("daily-check.sh", start)
-    assert load < cancel < rm < deploy < submit < c12 < c13 < own < stop < c12b < start < daily
+    zk = s.index("docker compose -p \"$PROJ\" -f $FARGS -f zookeeper-start-guard.override.yml up -d zookeeper")
+    assert load < cancel < rm < zk < deploy < submit < c12 < c13 < own < stop < c12b < start < daily
+
+
+def test_chg068_zookeeper_guard_files_ship_and_the_block_is_flag_gated():
+    assert "infra/docker/zookeeper/zk-start-guard.sh" in br.OPS_FILES
+    assert "migration/instrumental/zookeeper-start-guard.override.yml" in br.OPS_FILES
+    for rel in ("infra/docker/zookeeper/zk-start-guard.sh", "migration/instrumental/zookeeper-start-guard.override.yml"):
+        assert (HERE.parent.parent / rel).is_file()
+    assert "zookeeper-start-guard.override.yml" in chg049_steps(True)
+    assert "zookeeper-start-guard" not in chg049_steps(False)
+
+
+def test_chg068_block_preflights_pins_the_project_and_carries_the_rollback():
+    s = chg049_steps()
+    blk = s[s.index("CHG-068 ZooKeeper start guard"):s.index("deploy.sh --prod")]
+    assert blk.index("{{.Config.Entrypoint}}") < blk.index("zk-backup-v0.0.0-test") < blk.index("PROJ=$(L") < blk.index("up -d zookeeper")
+    assert "binding to port" in blk and "seq 12" in blk and "kafka-topics" in blk and "under-replicated-partitions" in blk
+    assert '(cd $ZKDIR && docker compose -p "$PROJ" -f $FARGS up -d zookeeper)' in blk
+    assert "docker volume inspect -f" in blk and "sudo cp -a" in blk and "sudo du -sh $B" in blk and "alpine" not in blk
+    for needle in ("OLDID=", "--since 120s", "FARGS=", "-f $FARGS", "STOP: zookeeper was not recreated", "STOP: labels missing", "STOP: not a cp-zookeeper", "STOP: no mount"):
+        assert needle in blk, needle
 
 
 def test_chg049_cpm12_is_online_without_a_transaction_and_cpm12b_has_the_disk_guard():

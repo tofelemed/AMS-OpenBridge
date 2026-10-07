@@ -70,7 +70,9 @@ OPS_FILES = [
     "scripts/cpm-12-evidence-response-retention.sql",  # CHG-049   - response_event created_at index + RESPONSE retention row (online, after the Flink redeploy)
     "scripts/cpm-12b-evidence-reclaim.sql",        # CHG-049     - expired tombstones out + VACUUM FULL of the evidence tables (cplm-api STOPPED, >= 1 h after the new jar)
     "scripts/cpm-13-investigation-event-link.sql", # CHG-058     - loop notes linkable to an episode (online, additive, after cpm-12)
-    "scripts/set-quality-protocol.py",             # v2.5        - declare quality_protocol on every MQTT_LOOP_SAMPLES source
+    "infra/docker/zookeeper/zk-start-guard.sh",    # CHG-068     - ZooKeeper start guard (quarantines zero-byte txn logs); lands in ops/, copied next to Instrumental's compose
+    "migration/instrumental/zookeeper-start-guard.override.yml",  # CHG-068 - compose override: guard mount + command for Instrumental's zookeeper
+    "scripts/set-quality-protocol.py",             # v2.5       - declare quality_protocol on every MQTT_LOOP_SAMPLES source
     "migration/kafka/topics.txt",                  # v2.5        - the 8 new topics (reference copy; 04 reads the extracted tree's)
 ]
 
@@ -331,6 +333,36 @@ def vm_steps(release: str, commit: str, rows: list[tuple[str, str, str]],
     if exports:
         ams_api_env = (f"export {' '.join(exports)}   # REQUIRED: ams-api is behind profiles:[cpa-ams-api] "
                        "(compose skips it otherwise); 04b submits jobs only under ALLOW_FLINK_SUBMIT\n")
+    zk_guard = ""
+    if chg049:
+        # CHG-068: after the JM+TM removal (every job already cancelled), before deploy.sh, so Kafka's coordinator is back before the
+        # jobs return. Mirrors migration/instrumental/README-zookeeper-guard.md. The override's service name must match theirs (default
+        # `zookeeper`) and the txn-log mount must be /var/lib/zookeeper/log; otherwise set ZK_TXNLOG_DIR in the override's environment.
+        zk_guard = f"""#    CHG-068 ZooKeeper start guard on Instrumental's ZooKeeper (recreates ONLY zookeeper; ~1 min without a Kafka coordinator).
+#    Pre-flight - STOP (skip this block) unless: cp-zookeeper image | [] entrypoint | [/etc/confluent/docker/run] | appuser, and a mount at /var/lib/zookeeper/log
+PF=$(docker inspect instrumental-zookeeper -f '{{{{.Config.Image}}}}|{{{{.Config.Entrypoint}}}}|{{{{.Config.Cmd}}}}|{{{{.Config.User}}}}'); echo "$PF"; case "$PF" in *cp-zookeeper*'|[]|[/etc/confluent/docker/run]|appuser') ;; *) echo "STOP: not a cp-zookeeper container with the stock command - read their compose first"; false;; esac
+docker inspect instrumental-zookeeper -f '{{{{range .Mounts}}}}{{{{.Destination}}}} {{{{end}}}}' | grep -q /var/lib/zookeeper/log || {{ echo "STOP: no mount at /var/lib/zookeeper/log"; false; }}
+#    backup BOTH volumes first (MARUN-DISK.md J step 1)
+B=/var/tmp/zk-backup-{release}; sudo mkdir -p $B; for v in microservices_zookeeper-data microservices_zookeeper-logs; do sudo cp -a "$(docker volume inspect -f '{{{{.Mountpoint}}}}' $v)" "$B/$v"; done; sudo du -sh $B   # a few MB (2.6 MB on 6 Oct)
+#    pin THEIR compose project: a different -p creates new empty ZooKeeper volumes = new cluster id = InconsistentClusterIdException on Kafka
+L() {{ docker inspect instrumental-zookeeper -f "{{{{index .Config.Labels \\"$1\\"}}}}"; }}
+SVC=$(L com.docker.compose.service); PROJ=$(L com.docker.compose.project); CFG=$(L com.docker.compose.project.config_files); ZKDIR=$(L com.docker.compose.project.working_dir)
+echo "$SVC $PROJ $CFG $ZKDIR"
+[ -n "$PROJ" ] && [ -n "$CFG" ] && [ -n "$ZKDIR" ] && [ "$SVC" = zookeeper ] || {{ echo "STOP: labels missing or service is not 'zookeeper' - read their compose first"; false; }}
+# $CFG may be a comma-separated list of compose files: one -f each (FARGS is expanded UNQUOTED on purpose, so the words split)
+FARGS=$(echo "$CFG" | sed 's/,/ -f /g')
+OLDID=$(docker inspect -f '{{{{.Id}}}}' instrumental-zookeeper)
+cp /tmp/{release}/ops/zk-start-guard.sh $ZKDIR/zk-start-guard.sh && chmod +x $ZKDIR/zk-start-guard.sh
+cp /tmp/{release}/ops/zookeeper-start-guard.override.yml $ZKDIR/
+(cd $ZKDIR && docker compose -p "$PROJ" -f $FARGS -f zookeeper-start-guard.override.yml up -d zookeeper)      # ONLY zookeeper
+[ "$(docker inspect -f '{{{{.Id}}}}' instrumental-zookeeper)" != "$OLDID" ] || {{ echo "STOP: zookeeper was not recreated (up -d failed?)"; false; }}
+for i in $(seq 12); do docker logs --since 120s instrumental-zookeeper 2>&1 | grep -q 'binding to port' && break; sleep 5; done   # up to 60 s, new container's log only
+docker logs instrumental-zookeeper 2>&1 | grep -E 'zk-start-guard|binding to port|Snapshot loaded'
+docker exec instrumental-kafka-1 kafka-topics --bootstrap-server kafka-1:9092 --list | wc -l                   # 75
+docker exec instrumental-kafka-1 kafka-topics --bootstrap-server kafka-1:9092 --describe --under-replicated-partitions   # empty
+#    STOP RULE: not bound after the 60 s poll -> ROLLBACK before continuing (same -p/-f, no override):
+#      (cd $ZKDIR && docker compose -p "$PROJ" -f $FARGS up -d zookeeper)
+"""
     job_count = "SEVEN" if (v25 or v26 or chg039 or chg049) else "FOUR"
     flink = ""
     if has_flink:
@@ -350,7 +382,7 @@ cp /tmp/{release}/{FLINK_JAR.name} /opt/AMS-open/src/flink/target/{FLINK_JAR.nam
 #    CHG-039 and Response since CHG-075 delete theirs), swept after the resubmit
 for id in $(docker exec ams-flink-jobmanager flink list -m localhost:8081 2>/dev/null | grep -oE '[0-9a-f]{{32}}'); do docker exec ams-flink-jobmanager flink cancel -m localhost:8081 $id 2>/dev/null; done
 docker rm -f ams-flink-taskmanager ams-flink-jobmanager
-{ams_api_env}bash migration/deploy/deploy.sh --prod 2>&1 | tail -8          # 04b resubmits all {job_count} jobs
+{zk_guard}{ams_api_env}bash migration/deploy/deploy.sh --prod 2>&1 | tail -8          # 04b resubmits all {job_count} jobs
 docker exec ams-flink-jobmanager flink list -m localhost:8081  # {"7 x RUNNING (4 + Condition, Instrument Context, Response)" if (v25 or v26 or chg039 or chg049) else "4 x RUNNING"}, start times = now
 #
 #    orphaned checkpoints of the jobs just replaced (running ids are excluded; run it ~2 min after the resubmit):
