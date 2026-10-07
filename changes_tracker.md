@@ -3784,11 +3784,11 @@ with 56a04696 before its 24 h soak.
 **Phase 3 (engine) is not here:** per the user, gate / fusion changes belong to the parallel session (ams-open-2c); the list was handed
 over 2026-10-07.
 
-### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
+### SME review batch release **v2.7.0** — what to build and run (bundle 7 Oct 2026, plant deploy 8 Oct; manifest `migration/deploy/releases/v2.7.0.txt` by ams-open-2c)
 
 - Updated services so far: **`ams-frontend`** (CHG-040 … CHG-059, CHG-063 … CHG-066) and **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-058, CHG-059, CHG-063, CHG-066).
   **One schema step** (CHG-058, additive, online): `ops/cpm-13-investigation-event-link.sql`. No Flink jar, no `.env` change.
-- Build: `python migration/deploy/build-release.py --release <next> --skip-jar --out release-out/<next>-<date>`.
+- Build: `python migration/deploy/build-release.py --release v2.7.0 --out release-out/v2.7.0-20261007` (the combined batch also ships the CHG-049 Flink jar; built by ams-open-2c).
 - Plant, in order: (1) `docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 <
   ops/cpm-13-investigation-event-link.sql` then `bash migration/02-apply-schemas.sh` (ownership); (2) `docker load` the
   `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5. The SQL may run before or after

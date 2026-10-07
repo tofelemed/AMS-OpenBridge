@@ -68,6 +68,30 @@ public sealed class KpiConsistencyTests : IAsyncLifetime
         rows.Should().Equal(("SUSPECTED_OSCILLATION", 1));   // not the newer REPLAY verdict, not the unmonitored loop
     }
 
+    // The controller path, not only the SQL: the `total` count is built in the controller (a missing `$` sent the
+    // literal "{healthWhere}" to Postgres and every heatmap request answered 500 on the lab).
+    [Theory]
+    [InlineData(null)]
+    [InlineData("missing-binding")]
+    [InlineData("active-affected")]
+    public async Task Heatmap_endpoint_answers_with_and_without_a_health_filter(string? health)
+    {
+        var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build();
+        var api = new CpmFleetController(_db, new FleetReadCache(new Microsoft.Extensions.Caching.Memory.MemoryCache(
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())), config)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext() },
+        };
+        var r = await api.GetHeatmap(site: _site, health: health, ct: default);
+        var json = Json(r);
+        var expected = health == "active-affected" ? 0 : 1;
+        json.GetProperty("total").GetInt32().Should().Be(expected);
+        json.GetProperty("count").GetInt32().Should().Be(expected);
+        if (expected == 1)
+            json.GetProperty("loops")[0].GetProperty("observabilityFlags").EnumerateArray().Select(e => e.GetString()).Should().Contain("NO_VP");
+        (await api.GetHeatmap(site: _site, health: "bogus", ct: default)).Should().BeOfType<BadRequestObjectResult>();
+    }
+
     [Fact]
     public async Task Heatmap_rows_carry_the_window_flags_and_honour_the_health_filter()
     {

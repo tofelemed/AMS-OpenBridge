@@ -274,7 +274,8 @@ public sealed class CpmFleetController : ControllerBase
         {
             await using var conn = await _dataSource.OpenConnectionAsync(token);
 
-            var total = await conn.ExecuteScalarAsync<int>("""
+            // CHG-066 fix: interpolated — the health clause is spliced in (it references r = cpm.loop_registry only)
+            var total = await conn.ExecuteScalarAsync<int>($"""
                 SELECT COUNT(*)::int FROM cpm.loop_registry r
                 WHERE (@site::text IS NULL OR r.site = @site)
                   AND (@area::text IS NULL OR r.area = @area)
