@@ -225,6 +225,64 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] plant retest +30 min (~13:26 UTC): lag 4,560; six kinds × 143 loops, 10-min counts 1m 1,430 · 5m 1,430 · 10m 715 · 15m/30m/60m 286 (exact cadence); newest 1m 13:23 (~3 min behind); checkpoints 8 ok / 0 failed / 0 restored, 115.4 MB, duration < 1 s (was 553 s); windows busy 0 ms/s at 8 samples/s per subtask; heap 554 / 1,290 MB, 3 old-gen GC; disk 12 GB free
 - [ ] plant retest +70 min (~14:10, buffer full): checkpoint size settles (≤ ~250 MB OK; plant tuples heavier than the lab's), heap, lag; next-morning daily check
 
+## CHG-049 — evidence storage optimization (2026-10-06)
+
+- [x] Task 0 (722a70e7) baseline doc: the 2026-10-06 plant numbers (evidence 3.7 GB on disk vs 1.9 GB payload; manifests by class)
+- [x] Task 1 (df90a565) Flink evidence cycle cap (`--evidence-max-cycles`) + `cycle_scores` — Flink suite green
+- [x] Task 2 (8434d963) emit policy `episodes`: Long on G7..G11 only, Fusion on G14 / PV-ineligible or limited health lane — Flink suite green
+- [x] Task 3 (9474ed82) per-loop throttle (`--evidence-min-interval-min`) + `04b` args — Flink suite green
+- [x] Task 4 (def8878f) cplm-api evidence consumer: orphan chunks + count gate — cplm-api `Evidence` tests green
+- [x] Task 5 (35c5aa1f) RESPONSE retention 14 d + `Cplm__EvidenceExpiredGraceDays` 1 in compose + `ix_response_event_created` — `Response|SchemaV25` tests green
+- [x] Task 6 (e0699b71) `cpm-12` (online) / `cpm-12b` (cplm-api stopped) + `chg049-evidence` VM steps — `test_build_release.py` 45 passed
+- [x] Task 7 (758f1bfe + 9aae41c4) daily-check physical-size line (`bash -n` clean; SQL prints an integer on the lab), runbooks (`MARUN-DISK.md` ZooKeeper rule, `MARUN-DAILY-CHECK.md`), `prod_decision.md`, `changes_tracker.md`
+- [x] Totals: Flink full suite 298 run / 0 failures / 2 skipped (baseline 289); cplm-api `Evidence|Response|SchemaV25` 50 / 50 (baseline 45)
+- [x] final-review fix wave (26d19f4f Flink accepted-first cycle pick + throttle M1/M2; b7c6e1f3 cplm-api RESPONSE purge keeps model events; 64f1e28b UI counts from `cycle_scores`; d5f0b4c0 ops: cpm-12b guard before the stop, indisvalid check, RESPONSE row in all schemas, wording) — Flink 307 / 0 / 2 skipped; cplm-api 51 / 51; `test_build_release.py` 45; frontend evidence vitest 107, lint + build clean
+- [x] Task 8 lab stage A: Flink swap (jar `19b95248`, 13 jobs, no duplicates) + cplm-api + `cpm-12`; T0 10:29 UTC
+- [ ] Task 8 2 h run: manifests/h ≥ 5× lower — **FAILED like for like (2.4×: 10 fed loops 1,200 → 504/h)**; raw 4.7× confounded by 161 → 10 loops; Fusion not throttled (INSUFFICIENT_DATA counts as a finding); cycle cap not exercised (0 cycles on the lab)
+- [x] Task 8 episode evidence COMPLETE (G9, EPISODE) / throttled run → RECONSTRUCT, never an error; `cycle_scores` served (UI by vitest)
+- [x] Task 8 consumer: 0 `fail:`, 0 orphan warnings; restart drill (a) Long resubmit emits 30/30 at once, (b) cplm-api restart clean
+- [x] Task 8 reconstruction: throttled run (kafka) COMPLETE; 48-cycle G7 run (iotdb) uncapped 48 `cycle_fit` + `cycle_scores`
+- [x] Task 8 RESPONSE 14 d: 7,308 events purged (7 model events kept)
+- [x] Task 8 `cpm-12b` on the lab: three tables 5,059 → 3,606 MB; daily-check line 4,920 → 3,552 MB
+- [ ] Task 8 24 h soak (stage B, from T0 2026-10-06 10:29 UTC)
+- [x] Task 10 (0ca5d19d) Fusion evidence only for episode-able verdicts + per loop × kind throttle — Flink 309 / 0 / 2 skipped
+- [x] Task 9 lab swap to jar `9622d11d` (13 jobs, no duplicates, CAPABILITY verified); sim limit-cycle profile added
+- [ ] Task 9 S1 161-loop fleet ≥ 4 h — **FAILED: TaskManager OOM at 25-30 min, JVM did not exit (F1); Short state not restorable (F2)**; throttle held before it (0 same-signature re-emits < 60 min, 0 evidence `fail:`); cycles unproven (lab L1: 6 duplicate loop-sample sources)
+- [ ] Task 9 S2-S8 — not run (lab left with Short cancelled; recovery steps refused for the agent, see chg049-stress-results.md)
+- [ ] Task 9 S9 24 h soak — deferred by the coordinator (after the cplm-api rebuild)
+- [ ] plant deploy in the SME-batch release (manifest `!chg049-evidence`, Flink swap, `cpm-12` online, `cpm-12b` with cplm-api stopped after ≥ 1 h); then daily check §7 physical line under 1536 MB and flat next morning
+- [x] plant 2026-10-06 emergency (before the release): log truncated, /tmp bundles deleted, evidence tables TRUNCATEd (pinned 0), ZooKeeper `log.91a0` moved out; 1.4 → 11 GB free
+
+## CHG-060..062 — stress-test fixes (2026-10-06)
+
+- [x] CHG-060 (b7fb65c1) `-XX:+ExitOnOutOfMemoryError` on JM and TM in every `FLINK_PROPERTIES` block (lab compose, HA, marun overlay) — pytest 46 passed
+- [x] CHG-061a (96f14511) Short buffer: one dynamics profile per loop + exact-duplicate drop; state names `-v2` — bench checkpoint 57.9 -> 27.1 MB (-53 %), heap per sample 3.33 -> 2.31 KB (-31 %)
+- [x] CHG-061b (31154549 + afdc1d53) hard per-loop cap `--short-max-samples-per-loop` (derived max(ceil(1.4 x 3960 / grid), 1100) = 1,109 at Marun; final review, was 1,584), `SHORT_BUFFER_CAPPED` log + counter — bench heap flat 145 -> 152 MB over 3 x the cap
+- [x] CHG-062a (538d4d9b) duplicate `eventTsMs` ignored in the period inference and the Long tier — Flink full suite 319 run / 0 failures / 2 skipped
+- [x] CHG-062b (06a953cf + 680c165e) ingestion refuses an overlapping `MQTT_LOOP_SAMPLES` source (409; oldest wins in the subscriber) — ingestion 237 / 237
+- [x] Task 16 (this commit) e2e script reuses its source and restores the soak source in `finally`; records: `changes_tracker.md` CHG-060..062 + release block, `prod_decision.md` §3 / §4 / §6, `MARUN-DAILY-CHECK.md` §4 + `daily-check.sh` `SHORT_BUFFER_CAPPED` line (`bash -n` clean), `MARUN-CONTEXT.md` §12b, `ShortProfileRegistry` javadoc figure
+- [x] Final-review fix wave (I1-I4 + minors): log4j WARN override for `ShortFeatureBufferFn` (plant root ERROR), derived cap 1,109 at 5 s, `shortDuplicatesDropped` counter + `SHORT_DUPLICATE_DROPPED` log, heap-backend snapshot/restore harness test, daily check TM / JM `RestartCount`, crash-loop + JM-OOM runbook, ingestion image in the release Plant step
+- [x] Task 17 stress re-run on the lab, 2026-10-06/07, jar b514d2b7 (`docs/next-release/chg049-stress-results.md` "Re-run at plant × 3"): S1 161 loops 4 h no OOM (peak post-GC heap 709 MB), flag in the TM/JM JVMs, cycles accepted (1,065 cycle_scores capped), throttle 0 violations; S2/S2c (all loops at the 1,109 cap: 156 `SHORT_BUFFER_CAPPED` lines, peak heap 713 MB vs 738 MB estimate), S4a-d, S5, S6, S8, S11 PASS; S7 job PASS / stored set F3
+- [ ] Task 17 gaps: plant × 3 rate not reachable at the 5 s grid (grid change refused); S10 forced OOM skipped (test job refused); S3 blocked until 12h coverage (~14:35 UTC 2026-10-07); S9 24 h soak waits for the cplm-api rebuild
+- [ ] F4 (P1): the Response job's fit wedges the TaskManager (checkpoint expiry → uncancellable task → TM self-kill → every job restarts); Response CANCELLED on the lab
+- [ ] F3: reconstruction keeps the live run's colliding TRANSIENT artifacts (mixed datasets in the served set)
+- [ ] plant deploy in the SME-batch release (`ams-flink` + `ingestion-service` images, overlay `FLINK_PROPERTIES`, Short restarts empty, ~30 min warm-up)
+
+## CHG-075 / CHG-076 — Task 17 findings F4 / F3 fixed (2026-10-07; release v2.7.0)
+
+- [x] CHG-075 (44245ba3) the G12 fit budget is a deadline the fit honours (20 s default, `g12-fit-budget-ms`; censor `BUDGET_EXCEEDED`, never a partial model) — RED budget test timed out at 120 s, GREEN 5.03 s with a 5 s budget
+- [x] CHG-075 (829ac29e) exact-ZOH simulation in O(n) + closed-form first order (parity 7.8e-14) — bench FOPDT 5,007 s → 46 s (2b6ac121 `ResponseFitBench`)
+- [x] CHG-075 (872f1393) Response checkpoints: 300 s / 120 s pause, timeout 900 s, 1,000 tolerable failures, unaligned after 30 s, DELETE_ON_CANCELLATION (`CplmCheckpointing`, Short unchanged)
+- [x] CHG-075 (3527edaf) fix round: an interrupted fit re-throws (no output), dead reconstruction helpers removed, budget test slack — Flink full suite 334 run / 0 failures / 2 skipped
+- [x] CHG-076 (61584c90) a reconstruction replaces the live artifacts it collides with (STANDARD; never demotes EPISODE / PINNED) — cplm-api `Evidence|Response|SchemaV25` 57 / 57
+- [x] release manifest v2.7.0 (bcb65977): `!chg049-evidence`, flink-jobmanager, cplm-api, traverse-ingestion-service, ams-frontend — dry-run OK
+- [x] Task 21 records: `changes_tracker.md` CHG-075 / CHG-076 + release block v2.7.0 (go/no-go replaces the 24 h soak gate), `prod_decision.md` §3 / §4 / §6, `MARUN-DAILY-CHECK.md` §4 Response line, `build-release.py` two stale lines (RETAIN comment; post-update 7 x RUNNING) — `test_build_release.py` 47 passed; `build-release.py --release v2.7.0 --dry-run` OK
+- [ ] Task 21 lab swap to the exact shipping build (jar + cplm-api from the worktree; 13 / 13 jobs incl. Response; CAPABILITY jar verified)
+- [ ] Task 21 Response proof on the lab (≥ 60 min: checkpoints complete, 0 failed, TM RestartCount 0; BUDGET_EXCEEDED / ESTIMATED counts)
+- [ ] Task 21 S3 episode churn (2-3 h flip feed; EPISODE manifests per capture bounded, captures capped)
+- [ ] Task 21 go/no-go feed started (S9 conditions, ~6 h gate; the 24 h soak continues in parallel)
+- [ ] plant deploy v2.7.0
+
 ## Verification status (last runs, lab)
 
 | Suite / script | Result | When |

@@ -1,5 +1,5 @@
 /**
- * Explorer › Summary › the loop trend panel (moved out of OperatingState in CHG-049).
+ * Explorer › Summary › the loop trend panel (moved out of OperatingState in CHG-067).
  *
  * The period bar (CHG-048), then the evaluated window against what is plotted (SME review #12):
  *  - the latest evaluated window is a labelled band on the trend wherever it overlaps the range;

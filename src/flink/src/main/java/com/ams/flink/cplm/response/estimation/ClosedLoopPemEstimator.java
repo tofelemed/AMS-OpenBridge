@@ -60,8 +60,13 @@ public final class ClosedLoopPemEstimator implements ModelEstimator {
         int nkMax = (int) Math.max(1, Math.round(s.thetaMaxS / ts));
         for (int order = 1; order <= maxOrder; order++) {
             for (int nk = 0; nk <= nkMax; nk++) {
-                Trial t = fit(d, yMean, uMean, order, nk, ts, s);
-                if (t != null) trials.add(t);
+                try {                                                          // CHG-075: the deadline stops the order/delay scan
+                    FitBudgetExceeded.check(s.deadlineNanos);
+                    Trial t = fit(d, yMean, uMean, order, nk, ts, s);
+                    if (t != null) trials.add(t);
+                } catch (FitBudgetExceeded e) {
+                    throw e.atStage("PEM_ORDER " + order + " NK " + nk + "/" + nkMax);
+                }
             }
         }
         if (trials.isEmpty()) return EstimationResult.none(EstimationResult.State.NOT_ESTIMATED, "NO_STABLE_INVERTIBLE_FIT");
@@ -149,7 +154,7 @@ public final class ClosedLoopPemEstimator implements ModelEstimator {
             }
             return r;
         };
-        BoundedLm.Fit fit = BoundedLm.fit(res, p0, lo, hi, s.maxIterations, s.maxEvaluations, s.boundsHitFraction, s.illConditioned);
+        BoundedLm.Fit fit = BoundedLm.fit(res, p0, lo, hi, s.maxIterations, s.maxEvaluations, s.boundsHitFraction, s.illConditioned, s.deadlineNanos);
         if (!Double.isFinite(fit.objective)) return null;
         ProcessModel model = toContinuous(fit.p, order, nk, ts);
         double denom = 1;

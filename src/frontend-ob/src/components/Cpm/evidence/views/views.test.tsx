@@ -111,6 +111,25 @@ describe('gate views', () => {
     expect(ids.length).toBe(5);                                                                  // 3 overlays + sine + triangle
   });
 
+  // CHG-049 (final review I1): the per-cycle fits are capped; the counts come from cycle_scores (all N cycles)
+  const g7Cycle = (id: string, accepted: boolean) => decoded({ gate: 'G7', kind: 'cycle_fit', role: `CYCLE_${id}`, x: [0, 0.5, 1], y: [0, 1, 0], xQuantity: 'phase', xUnit: 'cycle_fraction',
+    columns: { sine_fit: [0, 1, 0], triangle_fit: [0, 1, 0], original_indices: [0, 1, 2] },
+    provenance: { cycle_id: id, accepted: String(accepted), reject_reason: accepted ? '' : 'LOW_SCORE', sse_sine: '0.1', sse_triangle: '0.4', cycle_score: '0.8', amplitudes: '1', phases: '0' } });
+  const g7Scores = (n: number, acceptedIds: number[]) => decoded({ gate: 'G7', kind: 'cycle_scores', role: 'ALL_CYCLES', x: Array.from({ length: n }, (_, i) => i), y: Array.from({ length: n }, () => 0.5),
+    xQuantity: 'cycle_id', xUnit: 'ordinal', columns: { accepted: Array.from({ length: n }, (_, i) => (acceptedIds.includes(i) ? 1 : 0)) }, provenance: { cycles_total: String(n) } });
+
+  it('G7: with cycle_scores the counts cover every cycle and the chart says how many it shows', () => {
+    render(<G7Body cycles={[g7Cycle('0', true), g7Cycle('99', false)]} scores={g7Scores(100, [0, 10, 20])} />);
+    expect(screen.getByText(/3 accepted of 100/)).toBeTruthy();
+    expect(screen.getByText(/showing 2 of 100 cycles/)).toBeTruthy();
+  });
+
+  it('G7: never "No accepted cycle" when cycle_scores has accepted cycles', () => {
+    render(<G7Body cycles={[g7Cycle('0', false), g7Cycle('99', false)]} scores={g7Scores(100, [40])} />);
+    expect(screen.queryByText(/No accepted cycle/)).toBeNull();
+    expect(screen.getByText(/1 accepted of 100 cycles; none is among the per-cycle fits kept for this run/)).toBeTruthy();
+  });
+
   it('G10 / G11: episodes come from the tables, limits and lanes are intervals, pressures are NOT_MAPPED', () => {
     const t = times(4);
     const lim = decoded({ gate: 'G10', kind: 'actuator_limits', x: t, y: [99, 100, 100, 50], yUnit: 'pp', columns: { u_requested: [99, 100, 100, 50], vp: [NaN, NaN, NaN, NaN], tracking_error: [NaN, NaN, NaN, NaN], active_low: [0, 0, 0, 0], active_high: [0, 1, 1, 0], validity: [1, 1, 1, 1] },

@@ -79,6 +79,8 @@ COMMON=(
   # CPLM_EVIDENCE_EMIT=none in migration/.env (deploy.sh exports it) to switch artifact emission
   # off; verdicts are unaffected. all|episodes|none.
   --evidence-emit "${CPLM_EVIDENCE_EMIT:-episodes}"
+  --evidence-min-interval-min "${CPLM_EVIDENCE_MIN_INTERVAL_MIN:-60}"
+  --evidence-max-cycles "${CPLM_EVIDENCE_MAX_CYCLES:-12}"
   --bootstrap.servers "$BROKERS"
   --input-topic "$INPUT_TOPIC"
   --short-feature-topic "$SHORT_TOPIC"
@@ -93,10 +95,12 @@ COMMON=(
 # The Short job gets its own switch, default none (G0-G4 evidence is reconstructed on demand; the
 # long tier and fusion keep emitting). It must come BEFORE "${COMMON[@]}": EvidencePolicy.fromArgs
 # takes the FIRST --evidence-emit it sees. Prove any edit here with migration/deploy/stub-04b.sh.
+# CHG-061b: CPLM_SHORT_MAX_SAMPLES_PER_LOOP caps each loop's Short buffer (0 = max(ceil(1.4 x 66 min / grid), 1100), 1,109 at 5 s).
 SUBMIT_PARALLELISM="${CPLM_SHORT_PARALLELISM:-1}" \
 submit_if_missing "AMS - CPLM Short Feature Engine" \
   com.ams.flink.cplm.CplmShortFeatureStreamJob \
   --evidence-emit "${CPLM_SHORT_EVIDENCE_EMIT:-none}" \
+  --short-max-samples-per-loop "${CPLM_SHORT_MAX_SAMPLES_PER_LOOP:-0}" \
   "${COMMON[@]}" \
   --job-name "AMS - CPLM Short Feature Engine"
 

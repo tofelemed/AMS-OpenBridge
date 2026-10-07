@@ -89,7 +89,7 @@ describe('tooltip safety', () => {
   });
 });
 
-describe('evaluated window and compare (CHG-049)', () => {
+describe('evaluated window and compare (CHG-067)', () => {
   it('draws the evaluated window as a labelled band on the PV series and spans the plotted range', () => {
     const o = signalTrendOption({ points, pens, scale: 'fit', zoom: {},
       xRange: { fromMs: 0, toMs: 5000 }, evaluated: { startMs: 1000, endMs: 2000, label: 'Evaluated 24h window' } });

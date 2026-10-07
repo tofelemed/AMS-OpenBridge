@@ -39,11 +39,11 @@ export interface SignalTrendInput {
   range?: CpmEngineeringRange | null;
   /** boxZoomOption(...) for x axis 0 and y axes [0, 1], spread into the option. */
   zoom: Record<string, unknown>;
-  /** CHG-049: the plotted range — the x axis spans it even where the data is partial. */
+  /** CHG-067: the plotted range — the x axis spans it even where the data is partial. */
   xRange?: { fromMs: number; toMs: number } | null;
-  /** CHG-049: the engine's evaluated window, drawn as a labelled band where it overlaps the range. */
+  /** CHG-067: the engine's evaluated window, drawn as a labelled band where it overlaps the range. */
   evaluated?: { startMs: number; endMs: number; label: string } | null;
-  /** CHG-049: one y-scale shared with another trend (compare mode); overrides fit, not an explicit range. */
+  /** CHG-067: one y-scale shared with another trend (compare mode); overrides fit, not an explicit range. */
   yBounds?: { pv: { min: number; max: number } | null; op: { min: number; max: number } | null } | null;
 }
 

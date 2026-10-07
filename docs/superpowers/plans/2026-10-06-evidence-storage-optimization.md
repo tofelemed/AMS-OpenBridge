@@ -553,3 +553,249 @@ if [ "${evmb:-0}" -gt 3072 ]; then act "evidence tables ${evmb} MB on disk - MAR
 - **Partitioning the evidence tables.** Build it only if the daily-check physical line stays > 1.5 GB a week after the release. Required design: list-partition by class (TRANSIENT vs kept), with TRANSIENT range-partitioned by created_at hour blocks and dropped whole. This needs `retention_class` + `created_at` on `evidence_chunk`, explicit chunk lifecycle in place of the FK cascade, and `ON CONFLICT (evidence_id)` replaced (single consumer member makes `WHERE NOT EXISTS` safe).
 - **Downsampling full-window series** (G5 `preprocessed_signal`, G9 `corners`, G10, G11) to `display_points`. This is a spec change ("payload carries the full calculation samples"), so it needs an SME decision.
 - **Emit long evidence for one window kind only.** Decide after Task 8, by which window kinds episodes actually capture.
+
+---
+
+### Task 9: Lab stress test, plant failure modes (user request 2026-10-06: "stress test as much as we can so on the plant we don't face issues")
+
+Run AFTER Task 8 stage A, on the CHG-049 jar + cplm-api. One scenario at a time. Each one records its numbers, a verdict, and anything that broke. No code fixes inside this task: a failure becomes a finding for a follow-up fix round.
+
+| # | Plant risk | Scenario | Pass criteria |
+|---|---|---|---|
+| S1 | The cap and throttle never ran on oscillating data (the lab loops make no cycles) | Plant-scale oscillating fleet: `ams-sims/sim_ot_gateway_mqtt.py --loops-csv scripts/fixtures/hdpe-all-loops.csv` (161 loops, 1 s, ~1,700 samples/min) for >= 4 h. Make at least 20 loops oscillate with a clear limit cycle (period 60-120 s, square or triangle OP shape, low noise) so G7/G9 accept cycles. If the sim needs a profile flag for that, add it to the sim, which is test tooling. | max manifests per run <= 25; `cycle_scores` present with `cycles_total` > `cycles_emitted`; for each loop and window kind, at most one emission per 60 min unless the signature changed; TRANSIENT MB/h and rows/h recorded; checkpoints 0 failed; TM heap stable; consumer lag on `traverse-cpa-cplm-evidence` < 1,000 |
+| S2 | Backlog drain (the 3 Oct and 5 Oct incidents) | Stop the feed for 60 min, then resume. Separately, inject a compressed backlog with `ams-sims/sim_loop_samples.py --span-minutes 720` for 20 loops. | The throttle bounds evidence in event time: at most ceil(span/60) emissions per loop × window kind per signature. Short and Long checkpoints do not enter the fail and restore loop. The Short lag drains. |
+| S3 | Episode churn (580 episodes/day seen on 2 Oct) | Flip 20 loops between oscillating and clean every 20-40 min for 3 h, so verdicts open and close episodes. | EPISODE manifests per capture <= about 17 runs × 25; the EPISODE class grows linearly and stays bounded; captures stay capped by `EpisodeCaptureMax` |
+| S4 | Infrastructure outages (ZooKeeper/Kafka on 6 Oct, cplm-api restarts, Postgres) | (a) restart the Kafka broker; (b) stop cplm-api for 30 min under load, then start it; (c) restart Postgres; (d) `docker kill` the TaskManager, so the restore includes the new throttle MapState | after each: all jobs RUNNING again, consumers back to 1 member, evidence `fail:` lines 0 (orphan WARNINGS allowed), lag drains, no duplicate jobs |
+| S5 | TRANSIENT budget purge while data flows (orphan chunks) | Temporarily set `Cplm__EvidenceTransientBudgetBytes` to 50 MB for 1 h on the lab cplm-api | the budget is held; orphan chunks are only warnings; no consumer stall (lag stays flat); restore to 2 GiB afterwards |
+| S6 | cpm-12b duration and lock impact at plant size | Run cpm-12b on the lab's 4.9 GB with the feed live (Flink keeps writing to Kafka, cplm-api stopped as the VM steps say) | record wall time per statement and peak disk; after the start, the consumer catches up and no evidence is lost beyond the documented TRANSIENT delete |
+| S7 | An uncapped reconstruction of a 24 h G9 run with thousands of cycles | EVIDENCE_RECONSTRUCTION on a capped S1 run, source iotdb | COMPLETE; cycle_fit count = cycles_total; record time, Flink TM memory and STANDARD MB |
+| S8 | Response purge at plant volume (2.6 M metric rows) | Insert 300k synthetic response events older than 14 d (about 50 metrics each, test-only `loop_id` prefix `STRESS-`), then let the sweeper purge them | the purge runs in batches; each batch transaction stays under 30 s; live response inserts are not blocked; synthetic rows are gone; no real rows are deleted |
+| S9 | 24 h soak | Run S1 conditions for 24 h | physical evidence size flat after 6 h (within ±20 %); daily-check sections 4-9 all OK on the lab |
+
+The lab must not run out of disk: check the free space on the drive that holds the Docker data before S1, S6 and S8, and stop if it is under 20 GB. Clean up all `STRESS-` data at the end. Results go in `docs/next-release/chg049-stress-results.md`, plus a summary in CHG-049 "End-to-end on the lab".
+
+---
+
+## Stress-test fixes (CHG-060..062), ship in the same batch (user decision 2026-10-06)
+
+Source: Task 9 S1 (docs/next-release/chg049-stress-results.md). A 161-loop feed, with every sample doubled ×6 by leftover lab sources, ran the TaskManager out of heap in 25-30 min. The JVM did not exit, so all 13 jobs stayed in RESTARTING. Every restore and every replay ran out of heap again.
+
+Plant numbers to design against:
+- Grid 5 s, 142-144 loops, about 29 tuples/s.
+- The Short buffer holds about 66 min of event time per loop: about 790 samples per loop, about 114k in total.
+- About 250 MB live heap and a 116 MB checkpoint. Task heap is 1.1-1.23 GB of the 3584m TaskManager.
+- About 2.2 KB live per buffered sample. Each buffered `CplmNormalizedSample` carries a full `resolvedProfile` (~117 members), deserialized for every record after `keyBy`.
+
+Re-run load (user decision): plant rate × 3, i.e. about 87 tuples/s over 161 loops, no duplicates, 20+ loops oscillating.
+
+### Task 11 (CHG-060): Flink JVMs exit on OOM
+**Files:**
+- `infra/docker/docker-compose.yml`: JM (~528-583) and TM (~629-683) FLINK_PROPERTIES
+- `infra/docker/docker-compose.ha.yml`: JM, JM-2, TM, TM-2
+- `migration/deploy/docker-compose.marun.yml`: JM (~271) and TM (~327)
+- `migration/deploy/test_build_release.py`
+- `prod_decision.md` §4/§6
+- `migration/MARUN-DAILY-CHECK.md` §2/§4
+
+**Changes:**
+- Add `env.java.opts.jobmanager: -XX:+ExitOnOutOfMemoryError` and `env.java.opts.taskmanager: -XX:+ExitOnOutOfMemoryError` to every FLINK_PROPERTIES block.
+- Do NOT add HeapDumpOnOutOfMemoryError. A dump over 1 GB on the 96 GB shared plant disk is a disk incident.
+- The restart policy stays the inherited `unless-stopped`, so Docker restarts an exited JVM.
+
+**Test:** pytest asserts both flags are present in the marun overlay for JM and TM, following the pattern of `test_the_plant_overlay_gives_the_taskmanager_3584m`.
+
+**Docs (plant behaviour):**
+- TM OOM: the TM restarts and the JM reschedules the jobs from their last checkpoint.
+- JM OOM: the JM restarts. With NO HA at the plant the jobs are gone; daily check §4 shows fewer than 7, and the remedy is `04b`.
+- Record this in prod_decision §4, and add the 2026-10-06 stress row to §6.
+
+**Lab proof (in the re-run):** the flag is visible in the TM process, and a forced OOM restarts the TM.
+
+### Task 12 (CHG-061a): Short buffer stores less per sample; exact duplicates dropped
+**Files:** `src/flink/src/main/java/com/ams/flink/cplm/ShortFeatureBufferFn.java`, `ShortWindowParityTest.java`, plus a new or extended unit test.
+
+1. **Profile:**
+   - Buffer samples with `resolvedProfile = null`.
+   - Keep the distinct profiles seen in the buffer in a small per-loop map, keyed by a profile identity (e.g. bundle hash plus revision, or the object's stable key). Evict them with the minutes, so the map is usually 1 entry.
+   - Each buffered sample keeps only that key.
+   - Before a window is computed, re-attach to each sample the profile it carried on arrival.
+   - Calculator results must be IDENTICAL to today: the parity test stays green, apart from the duplicate change in (2).
+2. **Duplicates:**
+   - An exact duplicate `(loopId, eventTsMs)` already in the buffer is dropped at ingest: look up `minuteIndex.get(minuteOf(ts))` and compare ts.
+   - Update `ShortWindowParityTest.java:162`, which injects duplicates on purpose. Its expectation becomes "duplicates are ignored", and a comment says why (CHG-062: duplicate feeds).
+3. **Measure:**
+   - Run `ShortWindowBacklogBench -Dshort.bench=true -Dshort.bench.real=true -Dshort.bench.heap=true` before and after (Docker Maven), and report `heap_used_after_gc_MB` and `checkpoint_MB`.
+   - Target: at least 40 % less heap per buffered sample. If it is not reached, report the actual figure, with no gold-plating.
+
+### Task 13 (CHG-061b): Hard per-loop cap on the Short buffer
+**Files:** `ShortFeatureBufferFn.java`, `CplmShortFeatureStreamJob.java` (arg), `migration/04b-submit-flink-jobs.sh` (Short args), tests.
+
+- **Argument:** `--short-max-samples-per-loop N`. The default is derived as `max(ceil(1.4 × 66 min / grid), 1100)`, with the grid taken from the sample's declared `grid_seconds` (fallback 5 s). That gives 1,109 at Marun (final review: was 2 × with a 1,584 floor; 1.4 × fits the 1,100 MB task heap at the cap, even during a heap snapshot). `04b` passes `${CPLM_SHORT_MAX_SAMPLES_PER_LOOP:-0}` (0 = derived).
+- **When an append would exceed the cap:** evict whole oldest minutes until it fits, even if their windows have not fired yet.
+- **Reporting:** a warning at most once per loop per hour, `SHORT_BUFFER_CAPPED loop=… samples=… watermarkLagMs=… cap=… declaredGridS=…`, plus a Flink counter `shortBufferCapped`.
+- **Capped windows:** they report their true (lower) completeness. No crash, no unbounded growth.
+- **Tests:**
+  - Feed 3 × cap samples for one loop with a watermark that never advances: the buffer stays at or below the cap and the counter is above 0.
+  - Normal feed: the cap is never hit and the output equals the parity baseline.
+- **Bench:** with a stalled watermark (add a bench flag if needed), heap stays flat.
+
+### Task 14 (CHG-062a): Duplicate timestamps no longer zero the sample period
+**Files:** `src/flink/.../engine/SignalMath.java` (`filterHalfOpen` ~116-128, `inferSamplePeriodSec` ~130-138), `CplmLongDiagnosticsStreamJob.java` `onTimer` (~219-239), tests.
+
+- `filterHalfOpen`: after sorting, drop a sample whose `eventTsMs` equals the previous one, keeping the first.
+- `inferSamplePeriodSec`: ignore zero diffs (defence in depth).
+- Long `onTimer` retain loop: drop exact `(loopId, eventTsMs)` repeats in both `rollingBuffer` and `peerBuffer`, so the state shrinks too.
+- **Tests:**
+  - A long window with every sample ×6 gives the same `tsSec`, the same validated period and the same cycle count as the clean series. Use the existing SYN-TIC / long fixtures.
+  - Pin any test whose `sampleCount` changes, and explain why.
+
+### Task 15 (CHG-062b): Ingestion refuses an overlapping loop-sample source
+**Files:**
+- `src/services/ingestion-service/Services/` (new pure `LoopSourceConflicts.cs`)
+- `Program.cs` (POST ~162-180, PUT ~183-213, activate ~257-264)
+- `Pipeline/OtIngestionHostService.cs` (`ReconcileAsync` ~73-108)
+- `tests/ingestion-service.Tests/LoopSourceConflictTests.cs` (new)
+
+**Rule.** A candidate `MQTT_LOOP_SAMPLES` source conflicts with an ACTIVE one (excluding itself) when:
+- the broker endpoint is the same: normalized scheme, lower-case host, and port (missing port = 1883, or 8883 for mqtts/ssl);
+- AND either some pair of their topic filters overlaps (compared level by level: `+` matches one level, `#` the rest), or their effective client ids are equal (`DataSourceDto.DeriveClientId`).
+
+**API.** POST, PUT (only when the row is or becomes active) and activate return `409 {error:"overlaps active source '<name>' (<id>)", field:"topics"}`.
+
+**Subscriber manager (`ReconcileAsync`):**
+- Evaluate candidates in `(created_at, config_id)` order; the oldest wins.
+- Record a loser as `Running(null, fingerprint, status)` with `ConnectionError = "duplicate feed: overlaps '<name>'"`, and log one LogError.
+- Re-check losers every cycle, so a loser starts once the winner is deactivated.
+
+**Warning, not a refusal.** When two active loop-sample sources share an endpoint but their filters do NOT overlap (the Marun diagnostics-vs-PIDParams trap, MARUN-CONTEXT §12b), log one LogWarning per change: "two loop-sample sources on one broker; if they carry the same values every sample is doubled".
+
+**Tests (pure, no DB):**
+- overlap matrix: exact, `+` vs a literal, `#`, disjoint, plant filter vs lab filter
+- port normalization
+- client-id clash
+- self-exclusion
+- inactive rows ignored
+- oldest-wins ordering
+
+### Task 16 (CHG-062c + records for 060-062): Lab scripts stop leaking sources; records
+**Files:** `scripts/test-ot-loop-ingestion-e2e.ps1` (~154-166, ~524-533), `changes_tracker.md`, `prod_decision.md`, `migration/MARUN-DAILY-CHECK.md`, `migration/MARUN-CONTEXT.md` §12b, `checklist.md`.
+
+**E2E script:**
+- Reuse its named source: GET by name, PUT the profile, activate. Follow the pattern in `scripts/start-ot-loop-soak.ps1:53-75`.
+- Deactivate the lab soak source `'OT Gateway (lab soak)'` while it runs, and restore it in `finally`.
+- Move cleanup into try/finally.
+
+**Records:**
+- CHG-060, CHG-061 and CHG-062 entries in the CHG-049 template order.
+- SME-batch release block: add "marun overlay FLINK_PROPERTIES changed (CHG-060)" and the Short args (CHG-061).
+- prod_decision §3/§4/§6 rows: the cap default, the OOM flag, and the 2026-10-06 stress-test incident.
+- Daily check: a line for `SHORT_BUFFER_CAPPED` warnings in the TaskManager log over 24 h (WARN if > 0).
+
+### Task 17: Stress re-run at plant rate × 3 (replaces the blocked S1-S9)
+- Same scenarios as Task 9, with:
+  - a feed of 161 loops at about 1.85 s per loop, i.e. about 87 tuples/s, with no duplicate sources;
+  - 20+ loops oscillating (sim `--limit-cycle` profile, commit 3751f95b);
+  - the CHG-060..062 jar and cplm-api.
+- **S10:** a forced TaskManager OOM (e.g. via a test-only job, or `jcmd`). Acceptance: the TM exits and restarts, and the jobs return on their own.
+- **S11:** re-enable ONE duplicate data source through the API, which must return 409, then through SQL, where the subscriber manager must refuse it. Then remove it.
+- Coordinate every disruption with the UI session (ams-open-8c). The cherry-picked cplm-api commits b448bf89..ab3c21c8 stay in the build.
+
+---
+
+## Task 17 findings fixed in this batch (user decision 2026-10-07): CHG-075 (F4), CHG-076 (F3)
+
+Source: Task 17 (docs/next-release/chg049-stress-results.md, "Re-run at plant × 3"). Code survey: controller ledger, 2026-10-07.
+
+### Task 19 (CHG-075): one slow G12 fit can no longer restart every Flink job
+**Why:** the Response job runs the fit synchronously inside `processElement` at parallelism 1.
+- One fit can take 30-70 min on 3,000 jittered samples.
+- `fitBudgetMs` = 20 s is only checked AFTER the fit (`ResponseEvaluator.java:149-160`).
+- The checkpoint (120 s, 0 tolerated failures, aligned) then expires. The task cannot be cancelled within `task.cancellation.timeout` (180 s), so the TaskManager kills itself and every job on it restarts. This happened 3× on the lab on 2026-10-06/07.
+
+**Files** (paths under `src/flink/src/main/java/com/ams/flink/cplm/response/`):
+- `estimation/EstimatorSettings.java`
+- `estimation/OutputErrorEstimator.java`: theta loop :55, `refineDelay` :267-293, `fitAtDelay` :207-259
+- `estimation/BoundedLm.java`: :50-114
+- `estimation/ClosedLoopPemEstimator.java`: loops :61-66
+- `simulation/ZohSimulator.java`: :22-74
+- `simulation/InputReconstruction.java`: `breakpointsWithin` :39-49
+- `ResponseEvaluator.java`: :148-175, :302-310
+- `CplmResponseAnalysisJob.java`: :51-53, plus the misleading javadoc at :31
+- new `estimation/FitBudgetExceeded.java`
+
+**Requirements:**
+1. **A real deadline.**
+   - `EstimatorSettings` carries `long deadlineNanos`. `ResponseEvaluator` sets it to `started + fitBudgetMs` when it builds the settings.
+   - The deadline is checked, together with `Thread.currentThread().isInterrupted()`, at all of these points:
+     - every iteration of the OE theta loop and of `refineDelay`;
+     - every BoundedLm evaluation: wrap the value function;
+     - every 256 samples inside `ZohSimulator.simulate`, via an overload taking the deadline;
+     - every PEM order/nk iteration.
+   - On expiry, throw `FitBudgetExceeded` (an unchecked exception).
+   - BoundedLm must re-throw it BEFORE its generic `catch (RuntimeException e)`, which would otherwise turn it into "fit at p0".
+   - `ResponseEvaluator` catches it and routes it to the EXISTING branch: `EstimationResult.none(NOT_ESTIMATED, "BUDGET_EXCEEDED")`, `evaluationState=CENSORED`, `finding=BUDGET_EXCEEDED`, rejection `ESTIMATION:BUDGET_EXCEEDED`. Add `d.outputs` `budget_ms` and `budget_stage` (the theta index reached).
+   - Never a partial model.
+2. **Exact-ZOH speed-ups.** Results stay identical within 1e-9 relative for uniform and jittered inputs.
+   - Rebase times to `t - t[0]`, and key the discretisation cache on integer microseconds of `h`. Times come from ms, so whole steps are exact; fractional-delay sub-steps move by < 0.5 µs.
+   - A closed-form order-1 fast path (FOPDT: `ad = exp(-h/τ)`, `bd = K(1-ad)`; IPDT: `ad = 1`, `bd = K·h`) that bypasses `expm`. The existing ZohSimulatorTest expectations must pass unchanged.
+   - `InputReconstruction.breakpointsWithin` advances a cursor (or binary-searches) instead of scanning from 0. That changes O(n²) to O(n).
+3. **Checkpoints that tolerate a busy operator.** `CplmResponseAnalysisJob` adopts Short's `configureCheckpointing` (CHG-038):
+   - timeout 900 s;
+   - tolerable failures 1,000;
+   - unaligned checkpoints after a 30 s aligned attempt;
+   - DELETE_ON_CANCELLATION, replacing today's RETAIN.
+
+   Reuse the Short helper if it is shareable; otherwise copy it into a small shared helper class, not a duplicate block. Fix the javadoc at :31.
+4. **Tests.**
+   - A jittered (±50 ms) 4 h event at 1 s sampling (14,400 samples) with production defaults (θmax 600 s, grid 5 s) either finishes or returns BUDGET_EXCEEDED within `fitBudgetMs` + 2 s, measured in the test. Use a 5 s budget so it stays fast.
+   - The budget path yields the documented CENSORED result and rejection.
+   - Parity: fixed-seed uniform and jittered datasets give identical parameters and objective (1e-9) before and after the speed-ups. Capture the "before" values in the test from the current code first.
+   - The existing response suite stays green.
+5. **Bench** (test, gated by `-Dresponse.bench=true`, following the `ShortWindowBacklogBench` pattern): one production-size event before and after. Report the wall time.
+
+**Deferred findings (do NOT change, record them):**
+- `relTol` is plumbed but never applied to BoundedLm.
+- LM non-convergence silently returns p0 as a valid trial.
+
+Both change fit results and need an SME decision.
+
+### Task 20 (CHG-076): a reconstruction replaces the live artifacts it collides with
+**Why:** the capped live run and its uncapped reconstruction share evidence ids for the picked cycles and `cycle_scores` (`uuidV5(run|kind|role)`).
+- `EvidenceBlobStore` upserts only revive EXPIRED/FAILED rows, so the live TRANSIENT rows win.
+- The served set mixes two datasets, and the sweep deletes those rows 6 h later.
+
+**File:** `src/services/cplm-api/Services/EvidenceBlobStore.cs`: revive DELETE :55-58, upsert :63-78, `RetentionClassOf` :111-118, `PutChunkAsync` :122-129.
+
+**Requirements:**
+- When the incoming manifest is a reconstruction (`RetentionClassOf == "STANDARD"`) and a live row with the same evidence_id exists in PENDING or COMPLETE, the reconstruction replaces it:
+  - its chunks are deleted;
+  - the manifest fields are updated;
+  - `readiness = PENDING`;
+  - `retention_class` = STANDARD, unless the row is EPISODE (never demote EPISODE) or PINNED (never touch it);
+  - `method_run_id` / `gate_result_id` are kept.
+- An identical re-emit (same sha256) is a no-op.
+- The chunk DELETE and the upsert run in ONE transaction.
+- Live re-deliveries (TRANSIENT) keep today's behaviour: a COMPLETE live row is left alone.
+
+**Tests (lab DB, the existing evidence test pattern):**
+- live COMPLETE + reconstruction, so the row becomes STANDARD/PENDING with its chunks replaced, then COMPLETE once the new chunks arrive;
+- EPISODE + reconstruction gives EPISODE with the payload replaced;
+- PINNED is untouched;
+- live re-delivery of a COMPLETE row is unchanged;
+- same-sha reconstruction is a no-op.
+
+Rewrite `EvidenceApiTests.cs:243-246`. Its "re-delivered COMPLETE manifest is left alone" case carries `purpose=EVIDENCE_RECONSTRUCTION`, so it now asserts the opposite. Explain why in a comment.
+
+### Task 21: records for CHG-075/076, then the lab proof and the 24 h soak
+- **Records:**
+  - changes_tracker CHG-075 and CHG-076, in the template order.
+  - SME-batch release block: the Response job is now part of `flink-jobmanager`; cplm-api already listed.
+  - prod_decision §4/§6: Response checkpoint settings, the fit budget, the 2026-10-06/07 lab incident row.
+  - MARUN-DAILY-CHECK §4: a Response line, "BUDGET_EXCEEDED rejections are normal under load; repeated TaskManager restarts are not".
+  - checklist.
+- **Lab:**
+  - Build the final jar and cplm-api. cplm-api includes the other session's CHG-066 (56a04696), cherry-picked.
+  - Swap. Resubmit all 13 jobs, Response included.
+  - Response bench on the lab: one production-size jittered event.
+  - S3 episode churn (now possible: fusion has had > 12 h of data).
+- **Then the 24 h soak (S9)** on exactly this build, with the read-back commands from Task 17.

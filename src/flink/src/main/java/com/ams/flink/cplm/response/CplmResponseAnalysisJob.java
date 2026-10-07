@@ -14,10 +14,8 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
@@ -28,7 +26,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
  * v2.5 Task 2B.1 (spec §2, R01, R11): the G12 system-response job. One {@link ResponseCapture}
  * per loop in keyed state detects events and closes captures; each closed capture is evaluated
  * in place by {@link ResponseEvaluator} (Flink processes one key at a time, so per-loop
- * concurrency is one by construction; the wall-clock budget censors a slow fit). Results go to
+ * concurrency is one by construction; CHG-075: the fit budget is a deadline the fit honours - a slow
+ * fit stops at fitBudgetMs and censors BUDGET_EXCEEDED, it no longer runs to the end before being
+ * judged). Results go to
  * {@code traverse.cpa.clpm.response.results.v1} keyed by loop_id; evidence records ride a side
  * output to the gate-evidence topic keyed by method_run_id, exactly like the long job.
  * The previous COMPLETE event of a loop is held as the independent validation holdout.
@@ -48,9 +48,7 @@ public final class CplmResponseAnalysisJob {
         ResponseJobConfig rcfg = ResponseJobConfig.fromArgs(args);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.enableCheckpointing(300_000, CheckpointingMode.EXACTLY_ONCE);
-        env.getCheckpointConfig().setMinPauseBetweenCheckpoints(120_000);
-        env.getCheckpointConfig().setExternalizedCheckpointCleanup(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+        configureCheckpointing(env);
 
         DataStream<CplmNormalizedSample> normalized = CplmIngestPipeline.build(env, cfg, "cplm-response-source");
         SingleOutputStreamOperator<String> results = normalized
@@ -65,6 +63,15 @@ public final class CplmResponseAnalysisJob {
         // compiled capacity) on the gate-config ACK topic at every start - capability from the RUNNING job
         com.ams.flink.cplm.config.CapabilityRecord.announce(env, cfg, cfg.jobName, args);
         env.execute(cfg.jobName);
+    }
+
+    /**
+     * CHG-075 (lab 2026-10-06/07): zero tolerated failures + aligned barriers + RETAIN meant one busy evaluation
+     * expired the checkpoint and failed the job. Same busy-tolerant settings as the Short job (CHG-038/039),
+     * keeping this job's 5 min cadence.
+     */
+    static void configureCheckpointing(StreamExecutionEnvironment env) {
+        com.ams.flink.cplm.CplmCheckpointing.configureBusyTolerant(env, 300_000, 120_000);
     }
 
     /** Keyed wrapper: capture state + the loop's holdout, checkpointed; evaluation inline. */

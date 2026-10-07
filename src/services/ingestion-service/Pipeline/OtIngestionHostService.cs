@@ -32,8 +32,10 @@ public sealed class OtIngestionHostService : BackgroundService
     /// <summary>Subscriber is null when pre-start failed (decrypt/topics) — the entry
     /// still holds the fingerprint slot so we don't retry every 30 s; a config edit
     /// changes the fingerprint and triggers the restart path.</summary>
-    private sealed record Running(IAsyncDisposable? Subscriber, string Fingerprint, SubscriberStatus Status);
+    /// <summary>CHG-062: Parked = a duplicate-feed loser, re-evaluated every cycle (not fingerprint-gated).</summary>
+    private sealed record Running(IAsyncDisposable? Subscriber, string Fingerprint, SubscriberStatus Status, bool Parked = false);
     private readonly Dictionary<Guid, Running> _running = new();
+    private readonly HashSet<string> _warnedPairs = new();
     private readonly HashSet<Guid> _unsupportedLogged = new();
 
     public OtIngestionHostService(
@@ -91,20 +93,55 @@ public sealed class OtIngestionHostService : BackgroundService
             await StopOneAsync(configId, running);
         }
 
+        // CHG-062: oldest wins; a loser is parked, never started (it would double every sample).
+        var losers = LoopSourceConflicts.ResolveLosers(wanted.Values);
+        WarnSameEndpoint(wanted.Values.Where(r => !losers.ContainsKey(r.ConfigId)));
+
         // Start new ones; restart changed/reloaded ones.
         foreach (var (configId, row) in wanted)
         {
             var fingerprint = Fingerprint(row);
             var reloadRequested = _statusRegistry.TryConsumeReload(configId);
-            if (_running.TryGetValue(configId, out var running))
+            _running.TryGetValue(configId, out var running);
+            if (losers.TryGetValue(configId, out var winner))
             {
-                if (running.Fingerprint == fingerprint && !reloadRequested) continue;
-                _logger.LogInformation("Restarting subscriber '{Name}' ({Why})",
-                    row.Name, reloadRequested ? "reload requested" : "config changed");
+                var message = $"duplicate feed: overlaps '{winner.Name}'";
+                if (running is { Parked: true } && running.Status.ConnectionError == message) continue;
+                if (running is not null) await StopOneAsync(configId, running);
+                var parkedStatus = new SubscriberStatus { ConfigId = row.ConfigId, Name = row.Name, ProfileType = row.ProfileType, ConnectionError = message };
+                _statusRegistry.Upsert(parkedStatus);
+                _running[configId] = new Running(null, fingerprint, parkedStatus, Parked: true);
+                _logger.LogError("Subscriber '{Name}' not started: {Error}", row.Name, message);
+                continue;
+            }
+            if (running is not null)
+            {
+                if (running.Fingerprint == fingerprint && !reloadRequested && !running.Parked) continue;
+                if (running.Parked)
+                    _logger.LogInformation("Starting subscriber '{Name}' (duplicate-feed winner gone)", row.Name);
+                else
+                    _logger.LogInformation("Restarting subscriber '{Name}' ({Why})",
+                        row.Name, reloadRequested ? "reload requested" : "config changed");
                 await StopOneAsync(configId, running);
             }
             await StartOneAsync(row, fingerprint, ct);
         }
+    }
+
+    /// <summary>CHG-062: one warning per change when two loop sources share a broker but not a filter.</summary>
+    private void WarnSameEndpoint(IEnumerable<DataSourceRow> winners)
+    {
+        var keys = new HashSet<string>();
+        foreach (var (a, b) in LoopSourceConflicts.SameEndpointPairs(winners))
+        {
+            var key = $"{a.ConfigId}|{b.ConfigId}";
+            keys.Add(key);
+            if (_warnedPairs.Add(key))
+                _logger.LogWarning(
+                    "Two loop-sample sources on one broker ('{A}', '{B}'); if they carry the same values every sample is doubled",
+                    a.Name, b.Name);
+        }
+        _warnedPairs.IntersectWith(keys);
     }
 
     private async Task StartOneAsync(DataSourceRow row, string fingerprint, CancellationToken ct)

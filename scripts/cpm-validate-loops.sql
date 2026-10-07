@@ -157,12 +157,15 @@ GROUP  BY g.loop_id ORDER BY g.loop_id;
 -- ─────────────────────────────────────────────────────────────────────
 -- 5. G0 DATA QUALITY — the gate that silently kills everything else.
 --    PASS needs completeness >= 0.98 AND bad < 0.05 AND duplicates = 0.
+--    duplicate_ts: since CHG-061 the Short buffer drops an exact (loop, timestamp)
+--    duplicate before the window maths, so it reads 0 even on a doubled feed; the
+--    Kafka-tuple check in scripts/validate-loops.sh section 4 still detects one.
 --    bad_quality_pct >= 0.50 is an immediate FAIL.
 -- ─────────────────────────────────────────────────────────────────────
 SELECT s.loop_id,
        round(avg((f.payload->>'completeness')::numeric), 4)        AS completeness,
        round(avg((f.payload->>'bad_quality_pct')::numeric), 4)     AS bad_quality_pct,
-       sum((f.payload->>'duplicate_timestamps')::int)              AS duplicate_ts,
+       sum((f.payload->>'duplicate_timestamps')::int)              AS duplicate_ts,  -- 0 since CHG-061 (see above)
        sum((f.payload->>'gap_count')::int)                         AS gaps,
        round(max((f.payload->>'max_gap_s')::numeric), 1)           AS max_gap_s,
        round(avg((f.payload->>'sampling_jitter')::numeric), 3)     AS jitter,

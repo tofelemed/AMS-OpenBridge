@@ -1,5 +1,5 @@
 /**
- * SME review #12 (CHG-049): the engine's evaluated window against the plotted trend range.
+ * SME review #12 (CHG-067): the engine's evaluated window against the plotted trend range.
  *
  * The Explorer trend is a historian range (live 8 h, or a pinned period); the diagnosis is about one
  * evaluated window. These helpers say whether the two overlap, whether the trend IS the evaluated

@@ -128,7 +128,7 @@ export const LoopWorkspace: React.FC<{
             >
               <FacetPill facet="health" tone={healthSummary.tone}>{instrumentHealthText(healthSummary.label)}</FacetPill>
             </button>
-            {/* SME #12 (CHG-049): the diagnosis opens the exact window it is about, compared with now. */}
+            {/* SME #12 (CHG-067): the diagnosis opens the exact window it is about, compared with now. */}
             <button
               type="button"
               className="cpm-pill-button"

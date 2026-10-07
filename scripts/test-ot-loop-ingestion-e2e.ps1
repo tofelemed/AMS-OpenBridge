@@ -150,10 +150,38 @@ function New-LoopProfileConfig([hashtable]$paramRoles = $null) {
 }
 
 $configId = $null
-Step 'create MQTT_LOOP_SAMPLES data source (NO param_roles: the built-in map must carry VP)' {
+$soakName = 'OT Gateway (lab soak)'   # persistent lab soak source: same topics, so it must be off while this runs (CHG-062)
+$soakId = $null
+$ownName = 'E2E OT Gateway (mosquitto-test)'
+# CHG-062: everything from here to the Result line runs in try / finally (not re-indented, to keep the diff small)
+# so a failed step still removes the source and restores the soak source.
+try {
+Step "deactivate '$soakName' while the test runs (overlapping sources are refused)" {
+    $soak = @(Invoke-RestMethod -Method Get -Uri "$ing/data-sources" -Headers $H) |
+        Where-Object { $_.name -eq $soakName -and $_.isActive } | Select-Object -First 1
+    if ($soak) {
+        Invoke-RestMethod -Method Post -Uri "$ing/data-sources/$($soak.configId)/deactivate" -Headers $H | Out-Null
+        $script:soakId = $soak.configId
+    }
+}
+Step 'create or reuse the MQTT_LOOP_SAMPLES data source (NO param_roles: the built-in map must carry VP)' {
+    # Reuse by name (pattern of start-ot-loop-soak.ps1): a run that died before cleanup used to leave its
+    # source active, and the next run created another one: 6 sources delivered every sample 6x (2026-10-06).
+    $own = @(Invoke-RestMethod -Method Get -Uri "$ing/data-sources" -Headers $H) |
+        Where-Object { $_.name -eq $ownName } | Select-Object -First 1
+    if ($own) {
+        # A PUT replaces profile_config wholesale: send the full profile, then make sure it is active.
+        $put = @{ profileConfig = (New-LoopProfileConfig) } | ConvertTo-Json -Depth 8
+        Invoke-RestMethod -Method Put -Uri "$ing/data-sources/$($own.configId)" -Headers $H -ContentType 'application/json' -Body $put | Out-Null
+        if (-not $own.isActive) {
+            Invoke-RestMethod -Method Post -Uri "$ing/data-sources/$($own.configId)/activate" -Headers $H | Out-Null
+        }
+        $script:configId = $own.configId
+        return
+    }
     $body = @{
         sourceType = 'MQTT'; profileType = 'MQTT_LOOP_SAMPLES'
-        name = 'E2E OT Gateway (mosquitto-test)'
+        name = $ownName
         description = 'created by test-ot-loop-ingestion-e2e.ps1'
         connectionUrl = 'mqtt://mosquitto-test:1883'   # in-network: the subscriber runs inside compose
         username = 'ams_ingest'; password = 'ams-ingest-test'
@@ -520,9 +548,11 @@ Step 'an analysis run (REPLAY) is registered, submitted and isolated by purpose 
     Assert ([int]$leak -eq 0) "replay rows with purpose <> REPLAY: $leak"
 }
 
-# ── Cleanup ──────────────────────────────────────────────────────────────────
+} finally {
+# ── Cleanup (runs even when a step above threw) ──────────────────────────────
 if (-not $SkipCleanup) {
-    if ($simProcess -and -not $simProcess.HasExited) { Stop-Process -Id $simProcess.Id -Force -Confirm:$false }
+    # -ErrorAction SilentlyContinue: the simulator may exit between the check and the stop; a throw here would skip the restore below
+    if ($simProcess -and -not $simProcess.HasExited) { Stop-Process -Id $simProcess.Id -Force -Confirm:$false -ErrorAction SilentlyContinue }
     if ($script:configId -and -not $KeepConfig) {
         try {
             Invoke-RestMethod -Method Post -Uri "$ing/data-sources/$($script:configId)/deactivate" -Headers $H | Out-Null
@@ -530,6 +560,15 @@ if (-not $SkipCleanup) {
             Write-Host "`ncleanup: data source removed (pilot loops kept for soak - bulk-delete via /cpm/registry if unwanted)"
         } catch { Write-Host "cleanup warning: $($_.Exception.Message)" }
     }
+}
+# Restore the soak source even with -SkipCleanup. With -KeepConfig the own source is still active on the same
+# topics, so the activate is refused (409) and says so.
+if ($soakId) {
+    try {
+        Invoke-RestMethod -Method Post -Uri "$ing/data-sources/$soakId/activate" -Headers $H | Out-Null
+        Write-Host "restored '$soakName'"
+    } catch { Write-Host "warning: could not re-activate '$soakName' ($soakId): $($_.Exception.Message) - activate it by hand" }
+}
 }
 
 Write-Host "`n=== Result: $script:passed passed, $script:failed failed ===" -ForegroundColor $(if ($script:failed -eq 0) { 'Green' } else { 'Red' })

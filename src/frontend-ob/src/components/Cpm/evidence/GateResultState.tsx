@@ -76,9 +76,9 @@ export function classifyGateResult(i: GateStateInput): GateState {
   if (readiness === 'FAILED') return { kind: 'EVIDENCE_EXPIRED', title: 'Evidence failed verification', detail: 'A chunk did not verify; the artifacts are not trusted.',
     stillValid: 'The verdict is unaffected. Reconstruction re-emits the artifacts.', action: 'RECONSTRUCT', tone: 'bad' };
   if (readiness === 'NONE') {
-    // nothing is pending: the retention policy keeps arrays only for windows with a finding
+    // nothing is pending: the policy keeps arrays only for windows with a finding, and CHG-049 throttles those to once an hour per loop and window
     return { kind: 'NOT_RETAINED', title: 'Evidence not retained for this run',
-      detail: 'The live path keeps the arrays only for windows with a finding; reconstruct them on request under the same identity.',
+      detail: 'The live path keeps the arrays for windows with a finding, at most once an hour per loop and window; RECONSTRUCT rebuilds them under the same identity.',
       stillValid: 'The verdict and every scalar of this run are valid; only the arrays were not kept.', action: 'RECONSTRUCT', tone: 'muted' };
   }
   if (readiness === 'PENDING' || readiness === 'PARTIAL') {

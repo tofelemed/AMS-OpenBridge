@@ -23,6 +23,12 @@ for c in traverse-cplm-api traverse-ingestion-service ams-flink-jobmanager ams-f
   st=$(docker inspect -f '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' "$c" 2>/dev/null)
   case "$st" in running\ healthy|running\ ) ok "$c $st";; running*) warn "$c $st";; *) act "$c ${st:-missing}";; esac
 done
+# CHG-060: an OOM now exits the Flink JVM and Docker restarts it; a growing count is a crash loop (MARUN-DAILY-CHECK.md 2 and 4).
+# The count resets to 0 when a deploy recreates the container.
+for c in ams-flink-taskmanager ams-flink-jobmanager; do
+  rc=$(docker inspect -f '{{.RestartCount}}' "$c" 2>/dev/null)
+  [ "${rc:-0}" -eq 0 ] && ok "$c RestartCount ${rc:-?}" || warn "$c RestartCount $rc - exits since the last recreate (OOM?); MARUN-DAILY-CHECK.md 4"
+done
 
 echo "== 3. OT feed -> samples (60 s)"
 s1=$(off traverse.cpa.loop.samples.v1); sleep 60; s2=$(off traverse.cpa.loop.samples.v1); d=$((s2-s1))
@@ -53,6 +59,8 @@ for j in jobs:
 # the Short job backlog in Kafka terms (section 4 remedy when it only grows)
 lag=$(kf kafka-consumer-groups --bootstrap-server kafka-1:9092 --describe --group traverse-cpa-flink-cplm-short 2>/dev/null | awk 'NR>1 && $6 ~ /^[0-9]+$/ {s+=$6} END {print s+0}')
 [ "${lag:-0}" -lt 50000 ] && ok "Short job consumer lag $lag samples" || act "Short job consumer lag $lag samples - backlog; MARUN-DAILY-CHECK.md 4 (cancel, reset offsets to latest, resubmit)"
+# CHG-061: the Short buffer hit its per-loop cap (MARUN-DAILY-CHECK.md 4: lag / backlog, or a mis-declared grid)
+capped=$(docker logs --since 24h ams-flink-taskmanager 2>&1 | grep -c SHORT_BUFFER_CAPPED); [ "${capped:-0}" -eq 0 ] && ok "Short buffer cap: no SHORT_BUFFER_CAPPED in 24 h" || warn "Short buffer cap: $capped SHORT_BUFFER_CAPPED lines in 24 h (MARUN-DAILY-CHECK.md 4)"
 
 echo "== 5. calculations (rows written recently)"
 sh10=$(pg "select case when count(*) = 0 then '0 rows' else count(*)||' rows, newest window '||coalesce(to_char(max(window_end) at time zone 'utc','MM-DD HH24:MI'),'-')||' UTC, '||coalesce(extract(epoch from now()-max(window_end))::int/60,-1)||' min behind now' end from analytics.cplm_short_feature_results where created_at > now() - interval '10 min'")
@@ -73,8 +81,11 @@ done
 echo "== 7. evidence (bounds: TRANSIENT <= 2 GB and oldest <= 6 h; EPISODE levels off ~2 GB; STANDARD 3 d)"
 pg "select retention_class||' '||count(*)||' manifests '||pg_size_pretty(sum(total_bytes))||' oldest '||to_char(min(created_at) at time zone 'utc','MM-DD HH24:MI') from analytics.evidence_manifest group by 1 order by 1" | sed 's/^/      /'
 tb=$(pg "select coalesce(sum(total_bytes),0) from analytics.evidence_manifest where retention_class='TRANSIENT'"); [ "${tb:-0}" -le 2400000000 ] && ok "TRANSIENT payload within budget" || act "TRANSIENT payload above 2.4 GB: the sweep is not bounding - MARUN-DAILY-CHECK.md 7"
-eb=$(pg "select coalesce(sum(total_bytes),0) from analytics.evidence_manifest where retention_class='EPISODE'"); [ "${eb:-0}" -le 3500000000 ] && ok "EPISODE payload within bound" || act "EPISODE payload above 3.5 GB: switch evidence off (MARUN-DAILY-CHECK.md 7)"
+eb=$(pg "select coalesce(sum(total_bytes),0) from analytics.evidence_manifest where retention_class='EPISODE'"); [ "${eb:-0}" -le 3500000000 ] && ok "EPISODE payload within bound" || act "EPISODE payload above 3.5 GB: truncate lever: MARUN-DAILY-CHECK.md 7"
 ep=$(pg "select count(*) filter (where opened_at > now()-interval '24 hours')||' opened / '||count(*) filter (where closed_at > now()-interval '24 hours')||' closed / '||count(*) filter (where closed_at is null)||' open now' from analytics.cplm_event_frames"); echo "      episodes 24 h: $ep"
+# CHG-049: the files, not the payload sum - DELETE never shrinks them (2026-10-06: 1.9 GB payload "within budget", 3.7 GB on disk)
+evmb=$(pg "select (pg_total_relation_size('analytics.evidence_chunk')+pg_total_relation_size('analytics.evidence_manifest'))/1048576")
+if [ "${evmb:-0}" -gt 3072 ]; then act "evidence tables ${evmb} MB on disk - MARUN-DAILY-CHECK.md 7"; elif [ "${evmb:-0}" -gt 1536 ]; then warn "evidence tables ${evmb} MB on disk"; else ok "evidence tables ${evmb} MB on disk"; fi
 
 echo "== 8. partitions and retention rows"
 pg "select record_class||'='||coalesce(days::text,'never') from analytics.retention_policy order by 1" | tr '\n' ' ' | sed 's/^/      /'; echo

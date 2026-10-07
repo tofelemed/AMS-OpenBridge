@@ -240,9 +240,21 @@ public sealed class EvidenceApiTests : IAsyncLifetime
         (await store.GetManifestAsync(_expired, CancellationToken.None))!.Readiness.Should().Be("COMPLETE");
         var served = await Evidence().GetChunk(_expired, 1, CancellationToken.None);
         served.Should().BeOfType<FileContentResult>().Which.FileContents.Should().Equal(Chunk1);
-        // a COMPLETE manifest re-delivered (a duplicate) is left alone
+        // an identical re-emit (same sha256) of the COMPLETE manifest is a no-op
         await store.UpsertManifestAsync(manifest, CancellationToken.None);
         (await store.GetManifestAsync(_expired, CancellationToken.None))!.Readiness.Should().Be("COMPLETE");
+        // CHG-076: this manifest carries purpose=EVIDENCE_RECONSTRUCTION, so it is STANDARD. A reconstruction whose
+        // bytes differ (the uncapped re-run of a capped live artifact shares its evidence id) now REPLACES the
+        // COMPLETE row instead of being dropped: back to PENDING, the old chunks gone, waiting for the new stream.
+        var replaced = System.Text.Json.JsonSerializer.SerializeToElement(new Dictionary<string, object?>
+        {
+            ["evidence_id"] = _expired.ToString(), ["method_run_id"] = _run.ToString(), ["gate_id"] = "G3", ["artifact_kind"] = "objective_error",
+            ["chunk_count"] = 1, ["total_bytes"] = (long)Chunk1.Length, ["sha256"] = Sha(Chunk1), ["chunk_sha256"] = new[] { Sha(Chunk1) },
+            ["provenance"] = new Dictionary<string, object?> { ["loop_id"] = _loop, ["window_kind"] = "60m", ["purpose"] = "EVIDENCE_RECONSTRUCTION" },
+        });
+        await store.UpsertManifestAsync(replaced, CancellationToken.None);
+        (await store.GetManifestAsync(_expired, CancellationToken.None))!.Readiness.Should().Be("PENDING");
+        (await store.GetChunksAsync(_expired, CancellationToken.None)).Should().BeEmpty();
     }
 
     [Fact]

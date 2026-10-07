@@ -64,6 +64,46 @@ def load_loops_csv(path, include_unknown=True, limit=0):
     if include_unknown:
         loops.append(("FCS0101", "Flow", "FIC99999", 10.0, 10.0))
     return loops
+class Oscillator:
+    """CHG-049 stress (Task 9): a clean limit cycle G7/G9 can accept, optionally flipping on/off.
+
+    triangle: OP ramps like an integrating controller against a sticky valve, PV is a lagged square
+    wave a quarter period behind (the classic stiction parallelogram). square: OP is a square wave,
+    PV its first-order lag. Clean phases hold PV at SP and OP flat with the same low noise.
+    """
+
+    def __init__(self, rng, pmin, pmax, shape, noise, flip):
+        self.period = rng.uniform(pmin, pmax)
+        self.phase = rng.uniform(0.0, self.period)
+        self.shape, self.noise, self.flip, self.rng = shape, noise, flip, rng
+        self.on = True
+        self.next_flip = self._dwell() if flip else float("inf")
+        self.pv_lag = 0.0
+        self.flips = 0
+
+    def _dwell(self):
+        return self.rng.uniform(self.flip[0], self.flip[1]) * 60.0
+
+    def sample(self, t, sp, dt):
+        if t >= self.next_flip:
+            self.on = not self.on
+            self.flips += 1
+            self.next_flip = t + self._dwell()
+        if not self.on:
+            self.pv_lag = 0.0
+            return sp + random.gauss(0, self.noise), 30.0 + random.gauss(0, self.noise)
+        u = ((t + self.phase) / self.period) % 1.0
+        if self.shape == "square":
+            drive = 1.0 if u < 0.5 else -1.0
+            op = 30.0 + 8.0 * drive
+        else:
+            op = 30.0 + 8.0 * (4.0 * abs(u - 0.5) - 1.0)
+            drive = 1.0 if ((u + 0.25) % 1.0) < 0.5 else -1.0
+        alpha = min(1.0, dt / max(1.0, self.period / 12.0))
+        self.pv_lag += alpha * (drive - self.pv_lag)
+        return sp + 1.5 * self.pv_lag + random.gauss(0, self.noise), op + random.gauss(0, self.noise)
+
+
 TUNING = {"P": (300.0, "%"), "I": (240.0, "s"), "D": (0.0, "s"), "GW": (0.0, "%")}
 TUNING_PERIOD_S = 30.0  # tuning params republished slowly, like a sane gateway would
 
@@ -111,6 +151,16 @@ def main():
                          "(a quality-only change, R20 / NR-022) - 0.2 = one in five")
     ap.add_argument("--exclude", default="",
                     help="comma list of loop tags NOT to publish (e.g. the loop a step scenario drives)")
+    # CHG-049 stress (Task 9): limit-cycle profile for G7/G9 (cycle cap + throttle) and episode churn.
+    ap.add_argument("--osc-loops", type=int, default=0,
+                    help="first N Flow/Pressure loops get a clean limit cycle (0 = off)")
+    ap.add_argument("--osc-period", default="60,120", help="limit-cycle period range in seconds: min,max")
+    ap.add_argument("--osc-shape", choices=("triangle", "square"), default="triangle",
+                    help="OP shape of the limit cycle (triangle = stiction ramp)")
+    ap.add_argument("--osc-noise", type=float, default=0.05, help="gaussian noise on PV/OP of --osc-loops")
+    ap.add_argument("--osc-flip", default="",
+                    help="flip each --osc-loops loop between oscillating and clean every MIN,MAX minutes")
+    ap.add_argument("--seed", type=int, default=49, help="seed for the oscillator periods/phases")
     args = ap.parse_args()
     vp_all = args.vp_loops.strip().lower() == "all"
     vp_loops = set() if args.vp_loops.strip().lower() in ("none", "") \
@@ -124,7 +174,17 @@ def main():
     if excluded:
         loops = [l for l in loops if l[2].upper() not in excluded]
 
-    client = mqtt.Client(client_id="sim-ot-gateway")
+    osc = {}
+    if args.osc_loops > 0:
+        rng = random.Random(args.seed)
+        pmin, pmax = (float(x) for x in args.osc_period.split(","))
+        flip = tuple(float(x) for x in args.osc_flip.split(",")) if args.osc_flip else None
+        for l in [l for l in loops if l[1] in ("Flow", "Pressure") and l[2] != "FIC99999"][:args.osc_loops]:
+            osc[l[2]] = Oscillator(rng, pmin, pmax, args.osc_shape, args.osc_noise, flip)
+        print(f"[sim-ot-gateway] limit cycle on {len(osc)} loops ({args.osc_shape}, {pmin:.0f}-{pmax:.0f}s"
+              f"{', flip ' + args.osc_flip + ' min' if flip else ''}): {','.join(osc)}", flush=True)
+
+    client = mqtt.Client(client_id=os.environ.get("SIM_OT_CLIENT_ID", "sim-ot-gateway"))
     client.username_pw_set(args.username, args.password)
     client.connect(args.host, args.port, keepalive=30)
     client.loop_start()
@@ -160,8 +220,11 @@ def main():
             for fcs, cls, loop, base, sp in loops:
                 if loop == "FIC99999" and not send_unknown:
                     continue
-                pv = base + 2.0 * math.sin(t / 30.0) + random.gauss(0, 0.2)
-                op = 30.0 + 5.0 * math.sin(t / 45.0) + random.gauss(0, 0.5)
+                if loop in osc:
+                    pv, op = osc[loop].sample(t, sp, args.interval)
+                else:
+                    pv = base + 2.0 * math.sin(t / 30.0) + random.gauss(0, 0.2)
+                    op = 30.0 + 5.0 * math.sin(t / 45.0) + random.gauss(0, 0.5)
                 fast = {"PV": (pv, ""), "SP": (sp, ""), "OP": (op, "%"), "MODE": (args.mode, "")}
                 if vp_all or loop.upper() in vp_loops:
                     # Positioner feedback TRACKS the output demand with a small lag and
@@ -184,7 +247,10 @@ def main():
                         published += 1
             if send_tuning:
                 last_tuning = t
-                print(f"[sim-ot-gateway] {published} messages published (t={int(t)}s)", flush=True)
+                flips = sum(o.flips for o in osc.values())
+                print(f"[sim-ot-gateway] {published} messages published (t={int(t)}s"
+                      f"{f', osc on {sum(o.on for o in osc.values())}/{len(osc)}, flips {flips}' if osc else ''})",
+                      flush=True)
             time.sleep(args.interval)
     except KeyboardInterrupt:
         pass

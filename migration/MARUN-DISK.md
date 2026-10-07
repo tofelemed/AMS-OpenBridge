@@ -61,6 +61,7 @@ docker images -f dangling=true
 | 2026-09-12 | Old release bundles in `/tmp` | ~1 GB each | never deleted after load | delete after every successful deploy |
 | 2026-09-18 | **`traverse.cpa.clpm.feature.short.v1`** | 20 GB (10 GB × RF 2) of Kafka's 30 GB; disk 100 % | 7 d retention, uncompressed, and script 04 set no `segment.ms` on 7 d topics (the `<` excluded them) — 1-min features at plant rate | retention **1 d** + lz4 + `segment.ms` 6 h via `kafka-configs --alter` (Instrumental's `dlq.ingestion.failed`, 3.3 GB, also → 1 d); topics.txt + 04 updated; alter, never delete |
 | 2026-09-12 | ams-api HttpClient INFO | bounded 30 MB, but ~25 min history | Serilog ignored the plant log floor | CHG-021 (built, not yet deployed) |
+| 2026-10-06 | one container **json-log** and the **evidence tables** | 2.6 GB uncapped log (owner not identified; ours are capped 10 m x 3); evidence 3.7 GB on disk (chunk 2424 MB + manifest 1273 MB) against 1.9 GB of payload; disk 1.4 GB free | a container without a log cap; evidence DELETE never shrinks the table files | log truncated (section 3 D); evidence TRUNCATEd (pinned = 0 checked first); CHG-049 (pending deploy) bounds the writes and `cpm-12b` reclaims; daily check 7 now measures the files |
 
 **Consequence of a full disk here, twice observed:** IoTDB rejects writes → the historian consumer
 (before CHG-020) *dropped* the rows and committed offsets → permanent trend holes. ZooKeeper
@@ -203,6 +204,24 @@ The 87 GB is shared. On 2026-09-18 the split was: Instrumental Kafka volumes 30 
 
 First command when the disk is full is now the **per-topic Kafka size** in §3 G — it found the
 20 GB in one line.
+
+### J. ZooKeeper (Instrumental's `instrumental-zookeeper`) crash-loops on a zero-byte transaction log
+
+Seen 2026-09-26 (`log.7dbe`) and 2026-10-06 (`log.91a0`): after a full or near-full disk (2026-10-06: 1.4 GB free), ZooKeeper dies with
+`java.io.EOFException` in `FileTxnLog$FileTxnIterator` and restarts forever; both Kafka brokers then log
+`Unable to resolve address: zookeeper:2181` and every Flink job restarts. Recovery, in this order:
+
+1. Back up BOTH ZooKeeper volumes first (`microservices_zookeeper-data` and `microservices_zookeeper-logs`)
+   to a directory such as `/var/tmp/zk-backup-<date>` (a few MB).
+2. Find the bad file: `sudo find <logs volume>/version-2 -name 'log.*' -size 0`.
+3. **MOVE** it out of `version-2/` into the backup directory. Never rename it in place: ZooKeeper parses
+   `log.<hex>.<anything>` as a transaction log, so `log.91a0.zero-byte` was still read and the crash went on.
+4. Never delete the data directory or the snapshots.
+5. Restart ZooKeeper and confirm in its log: `Snapshot loaded ... highest zxid`. "Last transaction was
+   partial" on an older log is normal.
+6. Then check Kafka: the topic count (75 at Marun on 2026-10-06) and 0 under-replicated partitions
+   (`kafka-topics --describe --under-replicated-partitions`), and that Flink jobs and cplm-api's consumer
+   groups are back (daily check 4 and 6).
 
 ## 4. Full cleanup — order of operations
 

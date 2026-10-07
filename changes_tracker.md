@@ -3131,7 +3131,11 @@ Historical → `/cpm/historical?loop=FIC10401&from=…&to=…` with the same ran
 says "\"To\" must be after \"From\".", 12:00–17:00 on 5 Oct pins and plots; 0 px page overflow at 500 / 768 / 1440 on Explorer
 and Historical (the bar stacks on a phone); night theme; 0 console errors.
 
-## CHG-049 — SME review #12: the evaluated window is visible on the trend; the diagnosis opens it and compares it with now (2026-10-06)
+## CHG-067 — SME review #12: the evaluated window is visible on the trend; the diagnosis opens it and compares it with now (2026-10-06)
+
+> Renumbered from CHG-049 at the 7 Oct 2026 merge: two sessions had taken CHG-049 within four minutes of each other, and the
+> evidence-storage fix (CHG-049 below, 107 references across code, ops and the manifest flag `chg049-evidence`) keeps the number.
+> This feature's commits (8fe16de2 and follow-ups) still say CHG-049 in their messages; the code comments now read CHG-067.
 
 **Source:** `SME_review.md` point 12. **Scope:** `ams-frontend` only: `components/Cpm/trend/{evaluatedWindow.ts (+test),
 trendOption.ts (+tests), SignalTrend.tsx, TimeRangeBar.tsx, useTrendRange.ts}`, `explorer/summary/LoopTrendPanel.tsx` (new —
@@ -3789,15 +3793,304 @@ so `{healthWhere}` reached Postgres literally and every heatmap request answered
 **Phase 3 (engine) is not here:** per the user, gate / fusion changes belong to the parallel session (ams-open-2c); the list was handed
 over 2026-10-07.
 
-### SME review batch release **v2.7.0** — what to build and run (bundle 7 Oct 2026, plant deploy 8 Oct; manifest `migration/deploy/releases/v2.7.0.txt` by ams-open-2c)
+## CHG-049 — Evidence storage is bounded by what the plant needs, and the daily check measures the files (2026-10-06)
 
-- Updated services so far: **`ams-frontend`** (CHG-040 … CHG-059, CHG-063 … CHG-066) and **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-058, CHG-059, CHG-063, CHG-066).
-  **One schema step** (CHG-058, additive, online): `ops/cpm-13-investigation-event-link.sql`. No Flink jar, no `.env` change.
-- Build: `python migration/deploy/build-release.py --release v2.7.0 --out release-out/v2.7.0-20261007` (the combined batch also ships the CHG-049 Flink jar; built by ams-open-2c).
-- Plant, in order: (1) `docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 <
-  ops/cpm-13-investigation-event-link.sql` then `bash migration/02-apply-schemas.sh` (ownership); (2) `docker load` the
-  `ams-frontend` and `cplm-api` images → `deploy.sh --prod` → `200` on `/`; users press Ctrl+F5. The SQL may run before or after
-  the image swap (additive), but run it first so the new endpoints never meet a missing column.
+**Scope:** `src/flink` (evidence cycle cap + `cycle_scores`, `EvidencePolicy`, per-loop throttle, `04b` arguments),
+`cplm-api` (evidence consumer: orphan chunks + count gate; RESPONSE retention; `Cplm__EvidenceExpiredGraceDays` forwarded by
+compose; `ix_response_event_created`), `scripts/cpm-12-evidence-response-retention.sql` and
+`scripts/cpm-12b-evidence-reclaim.sql`, `migration/deploy/build-release.py` (+ `chg049-evidence` VM steps),
+`migration/daily-check.sh` + `MARUN-DAILY-CHECK.md` §1 / §7, `MARUN-DISK.md` (ZooKeeper rule), `prod_decision.md`.
+Ships in the accumulating SME-batch release below (version assigned when the batch closes). Commits in `checklist.md`.
+
+**What was wrong.** Marun daily check 2026-10-06 05:21 UTC: 1.4 GB free of 96 GB. Evidence was the controllable part:
+chunk 2424 MB + manifest 1273 MB = **3.7 GB on disk** while the daily check's payload sum said 1.9 GB "within budget" (a
+DELETE never shrinks table files). Manifests: EPISODE COMPLETE 325,016, EPISODE EXPIRED 240,823, TRANSIENT 265,632 written
+in 6 h (~1 M/day of write-then-delete); average 43 manifests per run, maximum 4,321. The response tables (0.8 GB;
+`response_event` 50,821 rows since 2026-09-25, `response_metric` 2.64 M rows) had no retention. The same morning two
+non-evidence events hid the picture: a 2.6 GB uncapped container json-log and Instrumental's ZooKeeper crash-looping on a
+zero-byte transaction log (`log.91a0`), which took Kafka and 6 of 7 Flink jobs down; `piarchiver-broker` (not ours) was also
+crash-looping, so 0 samples arrived from the OT feed (left to its owners).
+
+**What changed.**
+- Flink: one evidence artifact carries at most `--evidence-max-cycles` (**12**, env `CPLM_EVIDENCE_MAX_CYCLES`) cycles, with
+  the per-cycle scores kept in `cycle_scores`; at most one artifact per loop and window kind every
+  `--evidence-min-interval-min` (**60**, env `CPLM_EVIDENCE_MIN_INTERVAL_MIN`). Both pass through `04b`.
+- Policy `episodes`: the Long job emits only on G7..G11 findings (G5 / G6 alone are context); Fusion emits on G14 /
+  diagnosis, or when a health lane is PV-ineligible or limited (a merely configured lane no longer counts).
+- cplm-api evidence consumer: orphan chunks are skipped with a warning (no 2 s stall); the count gate avoids reading
+  payloads until all chunks are there.
+- Retention: `retention_policy` row `RESPONSE` = **14 days** (new, `cpm-12`, online; 30 d would hold ~1.5 GB here);
+  `Cplm__EvidenceExpiredGraceDays` = **1** (was the built-in 7, never forwarded by compose); `ix_response_event_created`.
+- `cpm-12b` (cplm-api STOPPED, after at least 1 h of the new jar): removes expired tombstones and rewrites the evidence
+  tables so the space returns.
+- Daily check §7: `evidence tables N MB on disk` from `pg_total_relation_size` (WARN > 1536 MB, ACT > 3072 MB).
+- Runbooks: `MARUN-DISK.md` §3 J (ZooKeeper zero-byte log: back up both volumes, MOVE the file out of `version-2/`, never
+  rename in place) and the 2026-10-06 row; `MARUN-DAILY-CHECK.md` §1 (an uncapped json-log can be GBs) and §7.
+- Final-review fixes: the capped G7 / G9 per-cycle artifacts take the **accepted** cycles first (first and last cycle
+  kept, the rest evenly spaced; G9 follows G7's cycle ids when they line up), and the workbench counts accepted / total
+  from `cycle_scores` ("showing k of N cycles"), so a capped window never reads "No accepted cycle" against its verdict.
+  The throttle forgets a window the policy skips (a finding back after a PASS emits at once) and records state only
+  when records were output. The RESPONSE purge keeps events a system model was created from. The RESPONSE row is in the
+  lab and fresh-install schemas too. VM steps: `cpm-12` is followed by an `indisvalid` check (an interrupted
+  CONCURRENTLY build leaves an invalid index: drop it and re-run); the `cpm-12b` guard prints the three tables' size
+  (with `response_metric`) and `df -h /` BEFORE cplm-api is stopped.
+- Left alone: the short-feature GIN index `ix_cplm_short_feature_results_method_run_ids` is used by `MethodRunResolver`.
+- Plant actions already taken 2026-10-06 (before this release): log truncated, /tmp bundles deleted, `TRUNCATE
+  analytics.evidence_chunk, analytics.evidence_manifest` (pinned = 0 checked; emission left ON), ZooKeeper log moved
+  out; disk 1.4 → 11 GB free. See `prod_decision.md` §6.
+
+**Tests.** Flink full suite 298 run, 0 failures, 2 skipped (baseline 289). cplm-api `Evidence|Response|SchemaV25` 50 / 50
+(baseline 45). `test_build_release.py` 45 passed. `bash -n migration/daily-check.sh` clean; the new SQL prints an integer
+on the lab Postgres. After the final-review fixes: Flink 307 run, 0 failures, 2 skipped; cplm-api 51 / 51;
+`test_build_release.py` 45 passed; frontend `vitest src/components/Cpm/evidence` 107 passed, lint and build clean.
+
+**End-to-end on the lab (Task 8 stage A, 2026-10-06, jar `19b95248`, cplm-api from fe0ee52c).** Full Flink swap (13
+jobs cancelled, JM + TM recreated, Short with `--evidence-emit none`, Long / Fusion default `episodes` 12 cycles / 60
+min, all six CPLM CAPABILITY records = `19b95248`); cplm-api with grace 1 d (lab override); `cpm-12` online
+(`indisvalid` t). T0 = 10:29 UTC (24 h soak, stage B, pending).
+- **Warm-up:** no CPLM output for ~30 min after a stateless submit (`SAMPLE_IDLENESS` 30 min holds the watermark while
+  unfed partitions are idle). Expect the same at the plant.
+- **Volume (G5..G15, TRANSIENT + EPISODE), 2 h window 11:15-13:16:** all loops 7,836 → 1,663/h, 101.3 → 10.0 MB/h, but
+  the stateless restart cut the long tier from 161 to the 10 fed loops. **Like for like (the 10 fed loops, full hour):
+  1,200 → 504/h (2.4×), 15.9 → 6.4 MB/h — below the 5× target.** Long 960 → ~264/h (3.6×; the throttle emits once
+  per loop × kind per hour plus on signature changes, as designed). Fusion is unchanged at 240/h: it emits every
+  window whenever the diagnosis is not PASS / NO_CALL / PENDING (INSUFFICIENT_DATA counts). The cycle cap, the plant's
+  main lever, is not exercised: the lab has had 0 valid cycles since 2026-09-25. Max per run G9 = 1. G12 (Response
+  job, outside CHG-049) ran at ~935/h after the restart.
+- **Evidence still there:** episode G9 runs captured on the new jar read COMPLETE (EPISODE); a throttled run reads
+  NONE + the RECONSTRUCT action (never an error). Reconstruction of a throttled run (kafka) → STANDARD/COMPLETE in
+  ~17 s. Reconstruction of a 48-cycle G7 run (iotdb) emitted 48 `cycle_fit` + `cycle_scores` (cycles_total =
+  cycles_emitted = 48, uncapped); the API serves 49 COMPLETE artifacts.
+- **Consumer:** 0 `fail:` lines and 0 orphan / swept warnings from the swap to 14:00 across two cplm-api restarts
+  (drill (b) included); lag 0, one member per group. **Drill (a):** Long cancelled + resubmitted; its first firing emitted
+  30 of 30 loop × kind pairs at once.
+- **RESPONSE 14 d:** the first sweep purged 7,308 events (7 kept: a system model was built from them).
+- **cpm-12b** (cplm-api stopped 7.5 min, script 6 min 35 s): the three tables 5,059 → 3,606 MB; daily-check line 4,920 →
+  3,552 MB (chunk 3,273 → 2,360, manifest 1,647 → 1,191, response_metric 137 → 54); 84,694 TRANSIENT deleted, 0
+  EXPIRED; the ~1.05 M STANDARD replay manifests stay. On the lab the Docker VHDX grew 2.6 GB (no TRIM).
+- Open for the SME / controller: Fusion throttle, or INSUFFICIENT_DATA no longer counted as a finding. The 24 h soak
+  reading (stage B).
+
+**Stress test on the lab (Task 9, 2026-10-06, jar `9622d11d` = Task 10 fusion policy + throttle; full results in
+`docs/next-release/chg049-stress-results.md`).** Stopped in S1; S2-S8 not run; S9 deferred (cplm-api rebuild first).
+- **S1 (161 loops) FAIL:** the Flink TaskManager ran out of heap after 25-30 min and the JVM did not exit (no
+  `ExitOnOutOfMemoryError`): 0 TaskManagers, all 13 jobs RESTARTING until the TM was recreated by hand. The Short
+  job's heap state (275 MB checkpoint at 30 min) could not be restored on the same TM, and a stateless Short OOMed again
+  while replaying its backlog. The lab is left with Short cancelled (12 of 13 RUNNING).
+- **Lab L1:** six active MQTT loop-sample sources on the same topics (five e2e leftovers) put every tuple on Kafka 6×;
+  the Long tier then infers a 0 s sample period and never accepts a cycle (the cause of "0 valid cycles since
+  2026-09-25"). The cycle cap and `cycle_scores` therefore remain unproven on the lab.
+- Before the OOM the throttle held: 1,508 emissions over 805 loop × kind × tier series, 0 re-emits within 60 min
+  without a signature change; max per run G9 1, G5 3; 0 evidence `fail:` lines; evidence lag < 2,000, one member.
+- Findings for a follow-up: TM `-XX:+ExitOnOutOfMemoryError` (F1), a bound on the Short heap buffer and its recovery
+  runbook (F2), ingestion guard against duplicate loop-sample sources + Long-tier duplicate-timestamp drop (L1).
+
+**Stress re-run on the lab (Task 17, 2026-10-06/07, jar `b514d2b7` = CHG-049 + CHG-060..062; full results in
+`docs/next-release/chg049-stress-results.md`, section "Re-run at plant × 3").** 161 loops at the 5 s grid = 33 tuples/s (plant × 3
+= 87/s is not reachable at a 5 s grid; the grid change was refused), one source, 24 limit-cycle loops.
+- **S1 PASS:** 4 h, no OOM; G9 max 25 manifests per run; 1,065 of 1,416 `cycle_scores` capped (cycles now accepted: L1 is gone);
+  throttle 0 violations; 27.9k manifests/h, 49.9 MB/h TRANSIENT; TM post-GC heap ~510 MB, peak 709 MB. S2, S4a-d, S5, S6 (cpm-12b
+  6,581 → 3,760 MB in 12.6 min), S8 (300k events purged in 5,000-event transactions, one 35.4 s), S11 PASS. S3 blocked (no
+  episode can open until a 12h window has ≥ 0.95 coverage). S10 skipped (tool refused). S9 not started (cplm-api rebuild first).
+- **Findings needing code:** F4 (P1) a slow Response fit expires the checkpoint, the task does not cancel and the TaskManager kills
+  itself, restarting every Flink job (three times; Response left CANCELLED on the lab); F3 a reconstruction's colliding artifact ids
+  keep the live run's TRANSIENT rows (mixed datasets in the served set).
+
+## CHG-060 — Both Flink JVMs exit on an OutOfMemoryError (2026-10-06)
+
+**Scope:** `infra/docker/docker-compose.yml` (JM / TM `FLINK_PROPERTIES`), the HA compose (JM, JM-2, TM, TM-2), the marun overlay
+(JM, TM), `prod_decision.md` §4 / §6, `migration/MARUN-DAILY-CHECK.md` §4. Ships in the SME-batch release below. Commit b7fb65c1.
+
+**What was wrong.** Task 9 S1 (161 loops on the lab, 2026-10-06): the TaskManager ran out of heap 25-30 min in. The JVM did not
+exit, so the container stayed Up and all 13 jobs, the alarm jobs included, sat in RESTARTING until the TaskManager was
+recreated by hand. Docker's `unless-stopped` only restarts a process that exits.
+
+**What changed.** `env.java.opts.jobmanager` and `env.java.opts.taskmanager` = `-XX:+ExitOnOutOfMemoryError` in every
+`FLINK_PROPERTIES` block (lab compose JM / TM, HA JM / JM-2 / TM / TM-2, marun overlay JM / TM). No heap dump (a dump over 1 GB on
+the shared 96 GB disk is a disk incident). A TaskManager OOM now restarts the TM and the jobs resume from their checkpoint; a
+JobManager OOM restarts the JM and, with no HA at the plant, the jobs are gone (daily check §4 shows fewer than 7: `04b`).
+
+**Tests.** `pytest` 46 passed.
+
+**End-to-end on the lab (Task 17, 2026-10-06/07).** `-XX:+ExitOnOutOfMemoryError` reaches the TM and JM JVMs (ps). No OOM in
+~11 h. Every TM death (Docker crash, three self-kills from the Response job (F4), a `docker kill`) restored all jobs from their
+checkpoints; a JVM exit is restarted by Docker (RestartCount 1 → 3), a `docker kill` is not (manual stop). The forced-OOM drill (S10)
+was skipped: the test job was refused.
+
+## CHG-061 — The Short buffer is bounded: one profile per loop, no duplicate samples, a hard per-loop cap (2026-10-06)
+
+**Scope:** `src/flink` (`ShortProfileRegistry`, the Short buffer / `CplmShortFeatureStreamJob` options, `04b` arguments),
+`migration/04b-submit-flink-jobs.sh`, `migration/daily-check.sh` + `MARUN-DAILY-CHECK.md` §4, `prod_decision.md` §3 / §4.
+Commits 96f14511 (a), 31154549 + afdc1d53 (b).
+
+**What was wrong.** The CHG-039 Short buffer lives on the heap. In the 2026-10-06 stress run its checkpoint reached 275 MB after
+30 min; restoring it ran the TaskManager out of heap (15:22 UTC), and starting without state and replaying the backlog ran it
+out again (15:39 UTC). Every buffered sample carried its own copy of the resolved dynamics profile (~117 members), and nothing
+bounded the buffer when the watermark stalled.
+
+**What changed.**
+- (a) The buffer keeps one profile per loop (`ShortProfileRegistry`: content SHA-256 key, per-loop keyed MapState) and
+  drops an exact duplicate `(loopId, eventTsMs)` at ingest. The state names moved to `-v2`, so a restore of an old checkpoint
+  starts with an empty buffer. Bench, real tuples, heap backend: checkpoint 57.9 -> 27.1 MB (-53 %); heap per buffered sample
+  3.33 -> 2.31 KB (-31 %; the target was 40 %, the measured figure is reported).
+- (b) Hard per-loop cap: `--short-max-samples-per-loop` (0 = derived; 04b passes `${CPLM_SHORT_MAX_SAMPLES_PER_LOOP:-0}`).
+  Derived cap = max(ceil(1.4 x 3960 s / grid), 1100) from the declared `grid_seconds` (fallback 5 s): **1,109 at Marun**
+  (1.4 x the 792 samples of normal running, about 92 min of data; sized to the 1,100 MB task heap, see `prod_decision.md` §4). An
+  explicit value > 0 overrides it with no floor. The oldest whole minutes are evicted; if the arriving sample's own minute is
+  the oldest left it is dropped. Log `SHORT_BUFFER_CAPPED loop=... samples=... watermarkLagMs=... cap=... declaredGridS=...` at
+  most once per loop per hour; Flink counter `shortBufferCapped`.
+- (final review) A dropped exact duplicate is counted on the Flink counter `shortDuplicatesDropped` and logged as
+  `SHORT_DUPLICATE_DROPPED loop=... ts=...` at most once per loop per hour. The Marun Flink log config
+  (`infra/docker/flink-log4j-console.properties`, root ERROR) carries a WARN override for `ShortFeatureBufferFn`, so both lines
+  reach the plant log. G0's duplicate condition is now inert for the short tier: the buffer drops the duplicate before the
+  window maths, so `duplicate_timestamps` (`dup_ts` in `validate-loops`) reads 0 even on a doubled feed; the Kafka-tuple check
+  in `scripts/validate-loops.sh` is the one that still detects it.
+- Daily check §4: `SHORT_BUFFER_CAPPED` count in the TaskManager log over 24 h (WARN if > 0), with the recipe in
+  `MARUN-DAILY-CHECK.md` §4.
+- The `ShortProfileRegistry` javadoc figure was corrected (about 1.0 KB saved per sample, not 2.2 KB; comment only).
+
+**Tests.** Flink full suite 319 run, 0 failures, 2 skipped (baseline 289). Bench with a stalled watermark: heap 145 MB at
+130 min fed, 152 MB at 390 min (3 x the cap): flat. Final-review fixes: `ShortBufferCapTest` (1,109 at 5 s; a normal feed peaks
+at 768 per loop, under 1,100) and `ShortBufferRestoreTest` (heap-backend snapshot and restore at the cap with two profiles gives
+the same output as an uninterrupted run; `shortDuplicatesDropped` counted).
+
+**End-to-end on the lab (Task 17, 2026-10-06/07).** 161 loops, 33 tuples/s, 4 h: no OOM, Short checkpoint ~55 MB / 5 s (Task 9:
+275 MB / 65 s). With a partition held at a frozen timestamp the cap engaged at 45.5 min of watermark lag: 156 loops at 1,109,
+156 `SHORT_BUFFER_CAPPED` WARN lines, `shortBufferCapped` 3,714, checkpoint flat at 81.4 MB, **peak TM post-GC heap 713 MB (design
+estimate 738 MB)**; the release of 65 min of windows passed without a failure. A quiet partition alone never reaches the cap (idleness
+releases the watermark at ~32 min). The Short job restored its state after every TM restart (output within a minute, no warm-up).
+
+## CHG-062 — Duplicate loop samples are ignored, and a second overlapping source is refused (2026-10-06)
+
+**Scope:** `src/flink` (`SignalMath`, the Long tier), `src/services/ingestion-service` (data-source API, subscriber manager),
+`scripts/test-ot-loop-ingestion-e2e.ps1`, `migration/MARUN-CONTEXT.md` §12b, `prod_decision.md` §4.
+Commits 538d4d9b (a), 06a953cf + 680c165e (b), this commit (c).
+
+**What was wrong.** On the lab six active "E2E OT Gateway (mosquitto-test)" sources (five leftovers of the e2e script, which
+created a source and never reused or reliably removed it) delivered every sample 6x. The Long tier then inferred a 0 s sample
+period and found 0 oscillation cycles on the lab from 2026-09-25 onwards. Nothing in ingestion refused a second source on the
+same topics.
+
+**What changed.**
+- (a) `SignalMath.filterHalfOpen` keeps the first sample of a repeated `eventTsMs`; `inferSamplePeriodSec` ignores zero
+  diffs; the Long `onTimer` dedupes the rolling buffer by timestamp and the peer buffer by (loopId, timestamp). SYN-TIC x6 gives
+  the same period and cycles as the clean series.
+- (b) Ingestion refuses an overlapping `MQTT_LOOP_SAMPLES` source. Conflict = same normalized endpoint (scheme, lower-case
+  host, default ports 1883 / 8883) AND (overlapping topic filters OR the same effective client id). API: 409
+  `{error:"overlaps active source '<name>' (<id>)", field:"topics"}` on POST, on PUT (when active and a feed field changed) and on
+  activate (when not already active). Subscriber manager: the oldest source wins (created_at, config_id); a loser is parked with
+  `ConnectionError "duplicate feed: overlaps '<name>'"` and re-checked every 30 s, and a winner leaving logs "Starting subscriber
+  '<name>' (duplicate-feed winner gone)". Same endpoint without overlap: one LogWarning (the Marun diagnostics-vs-PIDParams trap,
+  `MARUN-CONTEXT.md` §12b). The real plant filter `OT/HDPE/+/+/+/PIDParams/+` against the lab filter
+  `OT/+/+/+/+/PIDParams/+` is pinned as overlapping.
+- (c) `test-ot-loop-ingestion-e2e.ps1` reuses its source by name (GET `/data-sources`, PUT the profile and activate, else POST,
+  as `start-ot-loop-soak.ps1` does), deactivates `'OT Gateway (lab soak)'` while it runs and restores it in `finally`, and the
+  cleanup moved into try/finally so a failed step no longer leaks a source. Parse-checked only (it needs the lab).
+
+**Tests.** ingestion 237 / 237; Flink full suite 319 run, 0 failures, 2 skipped. The e2e script parses clean.
+
+**End-to-end on the lab (Task 17, 2026-10-06/07).** One active source: 0 duplicate (loop, event_ts) keys; the Long tier reads a
+5.06 s period and accepts cycles again (G7/G9 PASS on the limit-cycle loops). API activate of a leftover duplicate → 409; an SQL
+re-enable → the subscriber manager runs one feed only (the older config wins and the newer is parked "duplicate feed"), and switches
+back ("duplicate-feed winner gone") when the leftover is deactivated.
+
+## CHG-075 — One slow G12 fit can no longer restart every Flink job: the fit budget is a deadline, Response checkpoints tolerate a busy operator (2026-10-07)
+
+**Scope:** `src/flink` (Response job: `EstimatorSettings` deadline, `FitBudgetExceeded`, `ResponseEvaluator` censor branch,
+`ZohSimulator` / `InputReconstruction` exact-ZOH speed-ups, `CplmCheckpointing` shared by Short and Response,
+`ResponseFitBench`), `prod_decision.md` §4 / §6, `migration/MARUN-DAILY-CHECK.md` §4, `migration/deploy/build-release.py`
+(two stale lines). Ships in release v2.7.0 below (`flink-jobmanager`). Commits 44245ba3, 829ac29e, 872f1393, 2b6ac121, 3527edaf.
+
+**What was wrong.** Task 17 lab stress re-run (finding F4, 2026-10-06/07): the Response job's G12 fit ran inside one
+`processElement` for minutes. Its 120 s checkpoint expired (0 tolerated failures, aligned), the restarting task could not
+cancel within 180 s, and the TaskManager killed itself, so every Flink job, the alarm jobs too, restarted. After the restore
+the job re-read the same input and wedged again: three TaskManager self-kills on the lab (03:47, 03:58, 04:16 UTC on 7 Oct).
+The budget (`fitBudgetMs`) was only checked after a fit had finished. Cause of the slowness: `ZohSimulator` cached the
+discretised model by the exact step length, so with real, jittered timestamps nearly every step ran `expm`, inside every
+Jacobian evaluation at every delay, and `InputReconstruction` was O(n²). The Response job was left CANCELLED on the lab
+(12 of 13 jobs) until this fix.
+
+**What changed.**
+- The G12 fit budget is a deadline the fit honours: `EstimatorSettings.deadlineNanos` = start + `fitBudgetMs` (default
+  **20,000 ms**; job argument `g12-fit-budget-ms`). It is checked (with `Thread.isInterrupted`) in the OE theta loop,
+  `refineDelay`, every BoundedLm evaluation, every 256 samples inside `ZohSimulator.simulate`, and every PEM order / nk
+  iteration. Expiry throws `FitBudgetExceeded`, re-thrown before BoundedLm's generic catch, and `ResponseEvaluator` routes it
+  to the existing censor branch: `NOT_ESTIMATED / BUDGET_EXCEEDED`, `evaluationState=CENSORED`, rejection
+  `ESTIMATION:BUDGET_EXCEEDED`, plus the `budget_ms` and `budget_stage` outputs. Never a partial model. An interrupted
+  (cancelled) fit re-throws and emits nothing; the event is evaluated again after the restore.
+- Exact-ZOH speed-ups with results identical to before (parity 7.8e-14 relative, bound 1e-9): an `InputReconstruction`
+  cursor (O(n) instead of O(n²)) and a closed-form first-order discretisation for FOPDT / IPDT (no `expm`).
+- Bench `ResponseFitBench` (14,400 jittered samples = 4 h at 1 s, production grid θmax 600 s / 5 s, on the loaded lab host):
+  FOPDT **5,007 s → 46 s**, same parameters to 2e-13; SOPDT 390 s after. At the plant's 5 s grid an event has at most
+  2,880 samples (about 9 s FOPDT), inside the 20 s budget; long 1 s-grid events censor as `BUDGET_EXCEEDED` (ruling: keep 20 s).
+- Checkpoints: the shared helper `CplmCheckpointing` (Short delegates to it unchanged: 180 s / 60 s). Response now checkpoints
+  every 300 s with a 120 s minimum pause, timeout 900 s, 1,000 tolerable failures, unaligned after 30 s aligned, and
+  **`DELETE_ON_CANCELLATION` (was RETAIN)**. Unaligned checkpoints cannot overtake a fit still inside `processElement`; a
+  barrier waits at most about 20 s for the fit to stop, well inside the 900 s timeout.
+- Not changed (deferred): `relTol` is plumbed but never applied to BoundedLm; LM non-convergence silently returns p0 as a
+  valid trial; two further speed-ups were rejected because they moved fitted parameters by up to 1.3e-6 and need an SME
+  decision (time rebase to t−t[0], the µs discretisation-cache key).
+
+**Tests.** Flink full suite 334 run, 0 failures, 2 skipped (+ the fix-round tests). RED: the budget test timed out at 120 s on
+the old code; GREEN 5.03 s with a 5 s budget.
+
+**End-to-end on the lab.** Pending, filled by Task 21.
+
+## CHG-076 — A reconstruction replaces the live artifacts it collides with (2026-10-07)
+
+**Scope:** `cplm-api` (`EvidenceBlobStore.UpsertManifestAsync`, `EvidenceApiTests`), `prod_decision.md` §3 / §6. Ships in release
+v2.7.0 below (`cplm-api`). Commit 61584c90.
+
+**What was wrong.** Task 17 lab stress re-run (finding F3, S7): a capped live run and its uncapped reconstruction share
+deterministic evidence ids (cycles 0-11 and `cycle_scores`). The consumer's ON CONFLICT kept the live rows, so the served set
+mixed two datasets (96 `cycle_fit` from the reconstruction, 12 of them really from the live run, and a `cycle_scores` that said
+78 / 12), and those 13 rows stayed TRANSIENT: the sweeper deleted them after 6 h while the 84 STANDARD rows stayed, so the
+reconstructed set lost cycles 0-11 and its `cycle_scores`.
+
+**What changed.**
+- `EvidenceBlobStore.UpsertManifestAsync`: when the incoming manifest is a reconstruction (`RetentionClassOf == STANDARD`:
+  provenance `analysis_run_id`, or purpose ≠ LIVE) and an unpinned row with the same `evidence_id` exists in PENDING /
+  COMPLETE with a different sha256, its chunks are deleted and the manifest is reset to PENDING in ONE transaction
+  (`SELECT … FOR UPDATE`, DELETE, upsert). The class becomes STANDARD unless it is EPISODE (kept); PINNED rows are untouched;
+  a same-sha re-emit is a no-op; a live (TRANSIENT) re-delivery of a COMPLETE row stays a no-op; `method_run_id` /
+  `gate_result_id` are kept.
+- A reconstruction reviving an EXPIRED / FAILED TRANSIENT row also becomes STANDARD (before: it stayed TRANSIENT and was swept
+  in 6 h).
+- Not changed (deferred): `PutChunkAsync` could reject a chunk whose sha ≠ `chunk_sha256[chunk_no]` (a late-live-chunk race;
+  unreachable through Kafka ordering, since live and reconstruction records share `method_run_id` and so the partition).
+
+**Tests.** cplm-api `Evidence|Response|SchemaV25` 57 / 57 (+6). `EvidenceApiTests` 243-246 rewritten: an identical-sha re-emit
+stays a no-op; a different-bytes reconstruction replaces the COMPLETE row.
+
+**End-to-end on the lab.** Pending, filled by Task 21.
+
+### SME review batch release **v2.7.0** — what to build and run (bundle 7 Oct 2026, plant deploy 8 Oct; manifest `migration/deploy/releases/v2.7.0.txt`)
+
+- Go/no-go (user decision 2026-10-07, replaces the 24 h soak gate): about 6 h on the exact shipping build with all 13 lab jobs
+  (Response included) decides the plant deploy; the 24 h soak keeps running in parallel and anything it finds after the gate
+  becomes a follow-up patch.
+- Updated services: **`ams-frontend`** (CHG-040 … CHG-048, CHG-050 … CHG-059, CHG-063 … CHG-067, CHG-049 G7 view), **`cplm-api`** (CHG-043, CHG-045, CHG-047, CHG-049, CHG-058, CHG-059, CHG-063, CHG-066, CHG-076),
+  **`flink-jobmanager`** (image `ams-flink`, CHG-049, CHG-061, CHG-062a, CHG-075; the TaskManager uses it too: full Flink swap, cancel
+  every job before `docker rm -f` of JM and TM, then the orphan-checkpoint sweep) and **`ingestion-service`** (CHG-062b: image
+  `traverse-ingestion-service`, `docker load` and recreate; no schema).
+- Marun overlay (CHG-060): the `FLINK_PROPERTIES` of JM and TM changed (`-XX:+ExitOnOutOfMemoryError`); `deploy.sh` applies the
+  overlay, so the recreate in the Flink swap picks it up. Afterwards the flag is visible in the TaskManager and JobManager process arguments.
+- New optional `.env` key (CHG-061): `CPLM_SHORT_MAX_SAMPLES_PER_LOOP` (unset = 0 = derived = max(ceil(1.4 x 3960 / grid), 1100),
+  1,109 at Marun); `04b` passes it as
+  `--short-max-samples-per-loop`.
+- The Short job restarts with EMPTY state (CHG-061: state names moved to `-v2`); after the swap expect about 30 min of warm-up
+  (`SAMPLE_IDLENESS`) before the short features and verdicts resume. Daily check §4 gains a `SHORT_BUFFER_CAPPED` line (WARN > 0 in 24 h).
+- Schema (CHG-049): `cpm-12` online after `deploy.sh` (RESPONSE retention row, `ix_response_event_created`; then the
+  `indisvalid` check must print `t`), then `cpm-12b` with cplm-api STOPPED, at a quiet time, only after the new jar has run
+  at least 1 h and only if free disk >= 2 x the printed size of the three tables (VM step 6g). Optional `.env` keys `CPLM_EVIDENCE_MAX_CYCLES` (12)
+  and `CPLM_EVIDENCE_MIN_INTERVAL_MIN` (60). The batch manifest must carry `!chg049-evidence`.
+- Build: `mvn package` (Docker Maven, the jar is needed for CHG-049; no `--skip-jar`) → `python migration/deploy/build-release.py --release v2.7.0 --out release-out/v2.7.0-20261007`.
+- The batch manifest `migration/deploy/releases/v2.7.0.txt` (bcb65977) lists `!chg049-evidence`, `flink-jobmanager`, `cplm-api`,
+  `traverse-ingestion-service` (CHG-062b; the compose/manifest name) and `ams-frontend`. Schema order at the plant: `cpm-12`
+  (online), `cpm-12b` (cplm-api stopped, at least 1 h after the swap, free-space guard), `cpm-13` (online, additive; CHG-058 — VM step 6f runs it right after cpm-12; it may run before or after the cplm-api swap, but before the new endpoints are used).
+- Marun Flink log config (CHG-061): `infra/docker/flink-log4j-console.properties` gains a WARN override for
+  `ShortFeatureBufferFn` (root stays ERROR); the overlay mounts it, so the Flink recreate picks it up.
+- Plant: `docker load` the `ams-frontend`, `cplm-api`, `ams-flink` and `traverse-ingestion-service` images; then the Flink swap from the VM steps (cancel every job, `docker rm -f ams-flink-taskmanager ams-flink-jobmanager`) → `deploy.sh --prod` (04b resubmits all seven; 7 RUNNING) → `200` on `/`; users press Ctrl+F5.
   cplm-api restarts its consumers: check each CPLM consumer group has exactly one member afterwards (SingleMemberGuard).
 - Proofs (CHG-040): the Loop Performance menu shows four task sub-headings; open a loop in the Loop Explorer, then
   Investigation from the menu: the same loop is open without picking it again. (CHG-041) on Investigation, scroll to the
@@ -3814,7 +4107,7 @@ over 2026-10-07.
   them) — until then axes read "(unit not set)".
   (CHG-048) Loop Explorer › Summary trend has 8h (live) / 24h / 7d / 30d / Custom, ‹ / ›, Live and "Open in Historical ›",
   which opens Historical on the same loop and period.
-  (CHG-049) the evaluated window is a labelled band on the trend; the header Diagnosis pill opens that window with
+  (CHG-067, was CHG-049) the evaluated window is a labelled band on the trend; the header Diagnosis pill opens that window with
   "Compare with now" (a second live 8 h trend on the same scale).
   (CHG-050) Evidence Workbench and Investigation open with a one-line "Showing … · Change ▾", the verdict / conclusion on
   the first screen, evidence and reasoning in collapsible sections; scroll down and a "Back to conclusion ↑" strip docks
@@ -3849,3 +4142,13 @@ over 2026-10-07.
   verdict lane says "Confirmed" for a confirmed finding; Replay G0–G4 summary rows show values.
   (CHG-066) `GET /api/v1/cpm/fleet/heatmap?health=missing-binding` answers 200 with `observabilityFlags` per row; Performance reads
   "N monitored loop(s) in scope" and its matrix shows "OK on available data" where an input is missing.
+- Rollback (CHG-049): reload the pre-release images (`pre-<release>-images.txt`) for `ams-flink`, `cplm-api` and `traverse-ingestion-service` and repeat the
+  Flink swap; the RESPONSE retention row and the index can stay (harmless to the old build).
+- Proofs (CHG-049): 7 jobs RUNNING with one `jarSha256`; daily check §7 `evidence tables N MB on disk` under 1536 MB after
+  `cpm-12b` and flat the next morning.
+- Proofs (CHG-060..062): the TaskManager process carries `-XX:+ExitOnOutOfMemoryError`; 7 jobs RUNNING after the warm-up; daily
+  check §4 `Short buffer cap` reads OK; a second overlapping `MQTT_LOOP_SAMPLES` source is refused (409) instead of doubling the feed.
+- Proofs (CHG-075 / CHG-076): the Response job is among the 7 RUNNING and its checkpoints complete (JobManager
+  `/jobs/<id>/checkpoints`: `failed` stays 0); `ams-flink-taskmanager` RestartCount stays 0 (daily check §2); `BUDGET_EXCEEDED`
+  censors in `analytics.response_event` are normal under load (daily check §4). A reconstruction's artifacts read STANDARD /
+  COMPLETE with one dataset (no TRANSIENT rows left from the live run).

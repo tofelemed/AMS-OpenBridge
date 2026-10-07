@@ -33,7 +33,7 @@ export interface TimeRangeBarProps {
   stateNote?: string;
   /** Extra controls at the end of the row (e.g. "Open in Historical ›"). */
   children?: React.ReactNode;
-  /** CHG-049: keep the From / To pair closed for a non-preset range the app chose (the evaluated window). */
+  /** CHG-067: keep the From / To pair closed for a non-preset range the app chose (the evaluated window). */
   hideCustomInputs?: boolean;
 }
 

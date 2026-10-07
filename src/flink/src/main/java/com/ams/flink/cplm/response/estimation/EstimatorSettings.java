@@ -14,4 +14,6 @@ public final class EstimatorSettings implements Serializable {
     /** Optional per-sample weights (length = samples of the dataset); null = uniform. */
     public double[] weights;
     public long seed = 1;
+    /** CHG-075: the fit's wall-clock deadline on the System.nanoTime() scale; 0 = none. Past it a fit throws FitBudgetExceeded. */
+    public long deadlineNanos;
 }

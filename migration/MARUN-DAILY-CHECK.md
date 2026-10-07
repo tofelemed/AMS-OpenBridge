@@ -37,13 +37,20 @@ state on the heap and its checkpoints are full snapshots, ~120 MB each, three ke
 (the sweep above removes it; on 5 October the Short job's own tree was 4.1 GB, because until v2.6.6 that job
 kept its checkpoints on cancel) or a job that is far behind (section 4).
 
+A single container json-log can also be GBs when a container has no log cap (2026-10-06: one uncapped
+log was 2.6 GB; ours are capped 10 m x 3). The truncate loop above is the fix; afterwards find the owner
+with `docker ps -a --no-trunc | grep <container id>` and cap it if it is ours.
+
 If the database is what grows, section 7 (evidence) or section 8 (partitions) says which table; the
 emergency levers are there. `migration/MARUN-DISK.md` has the full survey.
 
 ## 2. Containers
 
-All eight must be `running`, and the ones with a health check `healthy`. A missing or restarting
-container:
+All eight must be `running`, and the ones with a health check `healthy`. The `RestartCount` line
+(CHG-060) prints Docker's restart count for `ams-flink-taskmanager` and `ams-flink-jobmanager` and WARNs
+above 0: each restart is one exit (since CHG-060 an OutOfMemoryError exits the JVM). The count resets to 0
+when a deploy recreates the container, so it reads 0 right after a deploy; that is expected. A count that
+grows day over day is a crash loop: section 4. A missing or restarting container:
 ```
 docker logs --since 10m <name> 2>&1 | tail -20
 cd /opt/AMS-open && export START_AMS_API=yes ALLOW_FLINK_SUBMIT=yes && bash migration/deploy/deploy.sh --prod 2>&1 | tail -5
@@ -77,9 +84,30 @@ docker exec ams-flink-jobmanager flink cancel -m localhost:8081 $ID 2>/dev/null;
 docker exec instrumental-kafka-1 kafka-consumer-groups --bootstrap-server kafka-1:9092 --group traverse-cpa-flink-cplm-short --topic traverse.cpa.loop.samples.v1 --reset-offsets --to-latest --execute 2>&1 | tail -2
 ALLOW_FLINK_SUBMIT=yes bash /opt/AMS-open/migration/04b-submit-flink-jobs.sh 2>&1 | grep -E 'Short'
 ```
+`04b` submits a fresh Short job; never restore (`-s`) a pre-CHG-061 Short checkpoint (the heap backend restores its old,
+unregistered state names and keeps re-snapshotting them).
 The `Short job consumer lag` line is the same loop seen from Kafka: under 50,000 samples is normal (a few minutes of
 feed); hundreds of thousands and growing is the backlog, same fix. Section 5's short-features line now says how many
 minutes behind real time the newest window is; more than 120 is the same condition and prints `ACT`.
+
+Since CHG-060 (pending deploy) both Flink JVMs exit on an OutOfMemoryError and Docker restarts them (`unless-stopped`). After a TaskManager OOM the jobs resume from their last checkpoint by themselves; check `docker ps` section 2 for a young uptime on `ams-flink-taskmanager`. After a JobManager OOM there is no HA at the plant, so the jobs are gone: this section shows fewer than seven, and the remedy below (`04b`) applies, AND the orphan-checkpoint sweep from section 1 (the cancelled-job cleanup never ran).
+Crash loop: if the TaskManager uptime keeps resetting, or `docker inspect -f '{{.RestartCount}}' ams-flink-taskmanager` grows (section 2), the restored state itself runs the heap out: cancel Short, reset `traverse-cpa-flink-cplm-short` to latest and resubmit (the recipe above).
+`-XX:+ExitOnOutOfMemoryError` covers heap and metaspace OOM, not "Direct buffer memory": a TaskManager logging that error stays up and half dead; restart it by hand (`docker restart ams-flink-taskmanager`).
+
+`Short buffer cap` (CHG-061, pending deploy): `SHORT_BUFFER_CAPPED loop=... samples=... watermarkLagMs=... cap=... declaredGridS=...` in the TaskManager log means one loop's Short buffer reached its hard cap (default max(ceil(1.4 x 3960 / grid), 1100) = 1,109 samples at 5 s, about 92 min; the oldest whole minutes are evicted), so the job protects its heap instead of running out of it. WARN when it appears in the last 24 h:
+```
+docker logs --since 24h ams-flink-taskmanager 2>&1 | grep -c SHORT_BUFFER_CAPPED
+docker logs --since 24h ams-flink-taskmanager 2>&1 | grep SHORT_BUFFER_CAPPED | tail -3
+```
+A large `watermarkLagMs` on many loops, or a growing `Short job consumer lag`, is a backlog: use the recipe above. One loop only, with `declaredGridS` far from its real publishing interval, is a mis-declared grid: fix `grid_seconds` for that loop in the loop registry (the derived cap follows the declared grid). The line logs at most once per loop per hour. `SHORT_DUPLICATE_DROPPED loop=... ts=...` (same rate limit; counter `shortDuplicatesDropped`) means the loop is fed twice: look for a second overlapping data source (`MARUN-CONTEXT.md` 12b). Both lines reach the plant log through the WARN override for `ShortFeatureBufferFn` in `infra/docker/flink-log4j-console.properties` (root stays ERROR).
+
+`Response` (CHG-075, pending deploy): one G12 fit has a 20 s budget; a fit that runs out is censored, not crashed.
+**BUDGET_EXCEEDED rejections are normal under load; repeated TaskManager restarts are not.** Count the censors of the last 24 h:
+```
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -Atc "select count(*) filter (where finding='BUDGET_EXCEEDED'), count(*) from analytics.response_event where created_at > now()-interval '24 hours'"
+```
+A TaskManager whose `RestartCount` grows (section 2) while the Response job's checkpoints fail is the 2026-10-07 lab incident
+(`prod_decision.md` section 6): cancel the Response job and resubmit it stateless with `04b`.
 
 Fewer than seven jobs: `ALLOW_FLINK_SUBMIT=yes bash migration/04b-submit-flink-jobs.sh` submits the
 missing ones. Never `docker rm -f` the JobManager without cancelling every job first (orphaned
@@ -117,7 +145,24 @@ The plant logs at level Error, so the sweeper never prints; these numbers are it
 window to window (seen 2 October: 580 a day), which is what inflates `EPISODE`; that is an engine item
 (CHG-034), not something to fix at the plant.
 
-Emergency lever when an evidence class breaks its bound and the disk is under 10 GB:
+Physical size line (CHG-049): `evidence tables N MB on disk` is `pg_total_relation_size` of the chunk and
+manifest tables, the files and not the payload sum, because DELETE never shrinks them (2026-10-06: 1.9 GB
+of payload "within budget" while 3.7 GB sat on disk). `WARN` above 1536 MB, `ACT` above 3072 MB. What to do:
+1. Once the CHG-049 release is deployed, `ops/cpm-12b` (cplm-api stopped, after at least 1 hour of the new
+   build running) rewrites both tables and returns the space; this is the normal reclaim.
+2. Emergency, disk under 10 GB: the TRUNCATE lever below (check `pinned` = 0 first).
+3. Never switch evidence off as the first move: truncate first (the first lever below); emission stays on.
+
+Emergency lever 1, truncate only (emission stays on; this is what the plant did on 2026-10-06), when an evidence class
+breaks its bound or the evidence tables are above 3072 MB and the disk is under 10 GB:
+```
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "select count(*) from analytics.evidence_manifest where pinned"   # must be 0 before the next line
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "TRUNCATE analytics.evidence_chunk, analytics.evidence_manifest"
+df -h / | tail -1
+```
+
+Emergency lever 2, last resort: only when the tables break their bound again within hours of a truncate, or the disk is
+under 3 GB with the truncate already done. It switches emission off and then truncates:
 ```
 cd /opt/AMS-open && sed -i 's/^CPLM_EVIDENCE_EMIT=.*/CPLM_EVIDENCE_EMIT=none/' migration/.env
 for id in $(docker exec ams-flink-jobmanager flink list -m localhost:8081 2>/dev/null | grep -E 'Long Diagnostics|Gate Fusion' | awk '{print $4}'); do docker exec ams-flink-jobmanager flink cancel -m localhost:8081 $id 2>/dev/null; done

@@ -124,15 +124,23 @@ public final class SignalMath {
             }
         }
         samples.sort((a, b) -> Long.compare(a.eventTsMs, b.eventTsMs));
-        return samples;
+        // CHG-062a: two sources on one feed repeat a timestamp; keep the FIRST so the period is not 0 s
+        List<CplmNormalizedSample> distinct = new ArrayList<>(samples.size());
+        for (CplmNormalizedSample s : samples) {
+            if (!distinct.isEmpty() && distinct.get(distinct.size() - 1).eventTsMs == s.eventTsMs) continue;
+            distinct.add(s);
+        }
+        return distinct;
     }
 
     public static double inferSamplePeriodSec(List<CplmNormalizedSample> samples) {
         if (samples.size() < 2) return 5.0;
         List<Double> diffs = new ArrayList<>();
         for (int i = 1; i < samples.size(); i++) {
-            diffs.add((samples.get(i).eventTsMs - samples.get(i - 1).eventTsMs) / 1000.0);
+            long d = samples.get(i).eventTsMs - samples.get(i - 1).eventTsMs;
+            if (d > 0) diffs.add(d / 1000.0);   // CHG-062a: a repeated timestamp is not a sample interval
         }
+        if (diffs.isEmpty()) return 5.0;
         Collections.sort(diffs);
         return diffs.get(diffs.size() / 2);
     }

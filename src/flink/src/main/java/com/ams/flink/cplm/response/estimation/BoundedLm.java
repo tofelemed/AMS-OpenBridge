@@ -48,10 +48,19 @@ public final class BoundedLm {
     }
 
     public static Fit fit(Residuals f, double[] p0, double[] lo, double[] hi, int maxIter, int maxEval, double boundsHitFraction, double illConditioned) {
+        return fit(f, p0, lo, hi, maxIter, maxEval, boundsHitFraction, illConditioned, 0);
+    }
+
+    /** CHG-075: as above, with every residual evaluation (value and Jacobian columns) checked against deadlineNanos (0 = none). */
+    public static Fit fit(Residuals f, double[] p0, double[] lo, double[] hi, int maxIter, int maxEval, double boundsHitFraction, double illConditioned,
+                          long deadlineNanos) {
         int n = p0.length;
         double[] z0 = new double[n];
         for (int i = 0; i < n; i++) z0[i] = toZ(p0[i], lo[i], hi[i]);
-        MultivariateVectorFunction value = z -> f.at(unmap(z, lo, hi));
+        MultivariateVectorFunction value = z -> {
+            FitBudgetExceeded.check(deadlineNanos);
+            return f.at(unmap(z, lo, hi));
+        };
         MultivariateMatrixFunction jac = z -> {
             double[] base = value.value(z);
             double[][] j = new double[base.length][n];
@@ -72,6 +81,8 @@ public final class BoundedLm {
             opt = new LevenbergMarquardtOptimizer().optimize(new LeastSquaresBuilder()
                     .start(z0).model(value, jac).target(target).lazyEvaluation(false)
                     .maxEvaluations(maxEval).maxIterations(maxIter).build());
+        } catch (FitBudgetExceeded e) {
+            throw e;                                           // CHG-075: the deadline is not "fit at p0"
         } catch (RuntimeException e) {
             double[] r = f.at(p0);
             double obj = 0;

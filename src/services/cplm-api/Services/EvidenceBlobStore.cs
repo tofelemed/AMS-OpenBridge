@@ -19,6 +19,8 @@ public interface IEvidenceBlobStore
     Task UpsertManifestAsync(JsonElement manifest, CancellationToken ct);
     Task<bool> PutChunkAsync(Guid evidenceId, int chunkNo, string sha256, byte[] payload, CancellationToken ct);
     Task<StoredManifest?> GetManifestAsync(Guid evidenceId, CancellationToken ct);
+    /// <summary>CHG-049: how many chunks are stored, without reading any payload.</summary>
+    Task<int> CountChunksAsync(Guid evidenceId, CancellationToken ct);
     Task<IReadOnlyList<EvidenceChunkSpec>> GetChunksAsync(Guid evidenceId, CancellationToken ct);
     /// <summary>v2.5 (2C.2): one chunk by number, or null when it is not stored.</summary>
     Task<EvidenceChunkSpec?> GetChunkAsync(Guid evidenceId, int chunkNo, CancellationToken ct);
@@ -46,18 +48,38 @@ public sealed class PostgresEvidenceBlobStore : IEvidenceBlobStore
         var chunkShas = m.TryGetProperty("chunk_sha256", out var cs) ? cs.GetRawText() : "[]";
         var provenance = m.TryGetProperty("provenance", out var pv) ? pv.GetRawText() : "{}";
         var retentionClass = RetentionClassOf(m);
+        var reconstruct = retentionClass == "STANDARD";
         await using var conn = await _db.OpenConnectionAsync(ct);
+        // CHG-076: the stale-chunk DELETE and the upsert are ONE transaction; the manifest row is locked first so
+        // a chunk insert (FK key-share lock) cannot slip between them.
+        await using var tx = await conn.BeginTransactionAsync(ct);
+        await using (var lockRow = new NpgsqlCommand(
+            "SELECT 1 FROM analytics.evidence_manifest WHERE evidence_id = @id FOR UPDATE", conn, tx))
+        {
+            lockRow.Parameters.AddWithValue("id", evidenceId);
+            await lockRow.ExecuteNonQueryAsync(ct);
+        }
         // v2.5 (2C.2, NR-060): the same artifact re-emitted by a reconstruction has the same evidence id. An
         // EXPIRED (retention) or FAILED (corrupt chunk) manifest is revived: back to PENDING, stale chunks dropped,
-        // the new chunk stream completes it. A live or COMPLETE manifest is never touched by a duplicate.
+        // the new chunk stream completes it.
+        // CHG-076: the capped live run and its uncapped reconstruction share evidence ids (uuidV5(run|kind|role)),
+        // so a reconstruction (STANDARD) also replaces an unpinned PENDING / COMPLETE live row whose bytes differ.
+        // A live re-delivery, an identical re-emit (same sha256) and a pinned row are never touched.
         await using (var revive = new NpgsqlCommand("""
             DELETE FROM analytics.evidence_chunk c USING analytics.evidence_manifest m
-            WHERE c.evidence_id = m.evidence_id AND m.evidence_id = @id AND m.readiness IN ('EXPIRED', 'FAILED')
-            """, conn))
+            WHERE c.evidence_id = m.evidence_id AND m.evidence_id = @id
+              AND (m.readiness IN ('EXPIRED', 'FAILED')
+                   OR (@reconstruct AND m.readiness IN ('PENDING', 'COMPLETE') AND m.pinned = FALSE
+                       AND m.sha256 IS DISTINCT FROM @sha))
+            """, conn, tx))
         {
             revive.Parameters.AddWithValue("id", evidenceId);
+            revive.Parameters.AddWithValue("reconstruct", reconstruct);
+            revive.Parameters.AddWithValue("sha", S(m, "sha256") ?? "");
             await revive.ExecuteNonQueryAsync(ct);
         }
+        // CHG-076: on the reconstruction path the class becomes STANDARD (an operator asked for it), except an
+        // EPISODE / PINNED row, which is never demoted. method_run_id / gate_result_id are never rewritten.
         await using var cmd = new NpgsqlCommand("""
             INSERT INTO analytics.evidence_manifest
                 (evidence_id, method_run_id, gate_id, artifact_kind, role_or_path,
@@ -71,9 +93,16 @@ public sealed class PostgresEvidenceBlobStore : IEvidenceBlobStore
                 columns = EXCLUDED.columns, calculation_samples = EXCLUDED.calculation_samples, display_points = EXCLUDED.display_points,
                 chunk_count = EXCLUDED.chunk_count, total_bytes = EXCLUDED.total_bytes, sha256 = EXCLUDED.sha256,
                 chunk_sha256 = EXCLUDED.chunk_sha256, provenance = EXCLUDED.provenance,
-                source_commit = EXCLUDED.source_commit, jar_sha256 = EXCLUDED.jar_sha256
+                source_commit = EXCLUDED.source_commit, jar_sha256 = EXCLUDED.jar_sha256,
+                retention_class = CASE WHEN NOT @reconstruct THEN analytics.evidence_manifest.retention_class
+                                       WHEN analytics.evidence_manifest.retention_class IN ('EPISODE', 'PINNED')
+                                            THEN analytics.evidence_manifest.retention_class
+                                       ELSE 'STANDARD' END
             WHERE analytics.evidence_manifest.readiness IN ('EXPIRED', 'FAILED')
-            """, conn);
+               OR (@reconstruct AND analytics.evidence_manifest.readiness IN ('PENDING', 'COMPLETE')
+                   AND analytics.evidence_manifest.pinned = FALSE
+                   AND analytics.evidence_manifest.sha256 IS DISTINCT FROM EXCLUDED.sha256)
+            """, conn, tx);
         cmd.Parameters.AddWithValue("id", evidenceId);
         cmd.Parameters.AddWithValue("run", runId);
         cmd.Parameters.AddWithValue("gate", S(m, "gate_id") ?? "");
@@ -96,15 +125,17 @@ public sealed class PostgresEvidenceBlobStore : IEvidenceBlobStore
         cmd.Parameters.AddWithValue("commit", (object?)S(m, "sourceCommit") ?? DBNull.Value);
         cmd.Parameters.AddWithValue("jar", (object?)S(m, "jarSha256") ?? DBNull.Value);
         cmd.Parameters.AddWithValue("class", retentionClass);
+        cmd.Parameters.AddWithValue("reconstruct", reconstruct);
         await cmd.ExecuteNonQueryAsync(ct);
+        await tx.CommitAsync(ct);
     }
 
     /// <summary>
     /// CHG-033: every live artifact is TRANSIENT - bounded by hours and a byte budget in the sweeper, promoted to
     /// EPISODE only when an episode transition captured its method run. An artifact a reconstruction or replay
     /// produced (provenance.purpose other than LIVE, or an analysis_run_id) is STANDARD and lives retention_policy
-    /// days: an operator asked for it. A revived EXPIRED / FAILED row keeps its class (the DO UPDATE above never
-    /// touches retention_class), so an EPISODE capture re-emitted by a reconstruction stays EPISODE.
+    /// days: an operator asked for it. A row revived or replaced by a live re-delivery keeps its class; one replaced
+    /// by a reconstruction becomes STANDARD (CHG-076), except EPISODE / PINNED, which are never demoted.
     /// </summary>
     internal static string RetentionClassOf(JsonElement m)
     {
@@ -143,6 +174,13 @@ public sealed class PostgresEvidenceBlobStore : IEvidenceBlobStore
         return new StoredManifest((Guid)r.evidence_id, (Guid)r.method_run_id, (string)r.gate_id, (string)r.artifact_kind,
             (int)r.chunk_count, (long)r.total_bytes, (string)r.sha256, shas, (string)r.readiness, (string?)r.readiness_reason,
             (long?)r.gate_result_id);
+    }
+
+    public async Task<int> CountChunksAsync(Guid evidenceId, CancellationToken ct)
+    {
+        await using var conn = await _db.OpenConnectionAsync(ct);
+        return await conn.ExecuteScalarAsync<int>(
+            "SELECT count(*) FROM analytics.evidence_chunk WHERE evidence_id = @id", new { id = evidenceId });
     }
 
     public async Task<IReadOnlyList<EvidenceChunkSpec>> GetChunksAsync(Guid evidenceId, CancellationToken ct)

@@ -16,6 +16,7 @@ import { TimelineTable, type TimelineRow } from './primitives/TimelineTable';
 import { RequireKinds, col, first, markersAt, markersWhere } from './viewSupport';
 import { fmtQuantity } from '../format';
 import { formatInZone } from '../timezone';
+import { cycleTally } from './headlines';
 
 const P = (d: DecodedArtifact, k: string) => d.meta.provenance?.[k];
 
@@ -104,19 +105,24 @@ export const G6Spectrum: React.FC<GateViewProps> = ({ manifest, gate, onNavigate
 };
 
 // ── G7 ─────────────────────────────────────────────────────────────────────────────────────────
-export const G7Body: React.FC<{ cycles: DecodedArtifact[] }> = ({ cycles }) => {
+export const G7Body: React.FC<{ cycles: DecodedArtifact[]; scores?: DecodedArtifact }> = ({ cycles, scores }) => {
   const accepted = cycles.filter(c => P(c, 'accepted') === 'true');
+  // CHG-049: the per-cycle fits are capped; the counts come from cycle_scores (every cycle) when present
+  const tally = cycleTally(scores, cycles);
+  const showing = `showing ${tally.shown} of ${tally.total} cycles`;
   // one series id per cycle: `col` ids a series by its column name, and twelve overlays named 'y' made echarts
   // throw "id duplicates: y" (the error boundary then blanked the whole workbench - 2026-09-17 UI audit)
   const overlays: CpmSeries[] = accepted.slice(0, 12).map(c => ({ ...col(c, 'y', `cycle ${P(c, 'cycle_id')} measured`, 'good', { unit: c.units.y ?? 'EU_centred' }), id: `y:${P(c, 'cycle_id')}` }));
   const fits: CpmSeries[] = accepted.length > 0 ? [col(accepted[0], 'sine_fit', 'sine_fit (first accepted cycle)', 'accent', { dashed: true }), col(accepted[0], 'triangle_fit', 'triangle_fit (first accepted cycle)', 'pink', { dashed: true })] : [];
   return (
     <section className="cpm-surface">
-      <PanelHead eyebrow="G7" title="Per-cycle sine versus triangle fits" right={<TonePill tone={accepted.length > 0 ? 'good' : 'warn'}>{accepted.length} accepted of {cycles.length}</TonePill>} />
+      <PanelHead eyebrow="G7" title="Per-cycle sine versus triangle fits" right={<TonePill tone={tally.accepted > 0 ? 'good' : 'warn'}>{tally.accepted} accepted of {tally.total}</TonePill>} />
       {accepted.length > 0
-        ? <CpmChart title="measured cycles in phase coordinates with the sine and triangle predictions" series={[...overlays, ...fits]} xKind="value" xLabel="phase" xUnit="cycle fraction" height={260} />
-        : <p className="cpm-copy">No accepted cycle: the classifier result is not displayed when the method did not reproduce a cycle.</p>}
-      <table className="cpm-table">
+        ? <CpmChart title={`measured cycles in phase coordinates with the sine and triangle predictions (${showing})`} series={[...overlays, ...fits]} xKind="value" xLabel="phase" xUnit="cycle fraction" height={260} />
+        : tally.accepted > 0
+          ? <p className="cpm-copy">{tally.accepted} accepted of {tally.total} cycles; none is among the per-cycle fits kept for this run ({showing}).</p>
+          : <p className="cpm-copy">No accepted cycle: the classifier result is not displayed when the method did not reproduce a cycle.</p>}
+      <table className="cpm-table" aria-label={`Per-cycle fits, ${showing}`}>
         <thead><tr><th>cycle_id</th><th>accepted</th><th>sse_sine</th><th>sse_triangle</th><th>cycle_score</th><th>amplitude</th><th>phase (rad)</th><th>reject_reason</th></tr></thead>
         <tbody>
           {cycles.map(c => (
@@ -132,7 +138,7 @@ export const G7Body: React.FC<{ cycles: DecodedArtifact[] }> = ({ cycles }) => {
 };
 export const G7WaveformFits: React.FC<GateViewProps> = ({ manifest, gate }) => {
   const arts = useGateArtifacts(manifest, gate);
-  return <RequireKinds arts={arts} kinds={['cycle_fit']}><G7Body cycles={[...(arts.byKind.cycle_fit ?? [])].sort((a, b) => Number(P(a, 'cycle_id')) - Number(P(b, 'cycle_id')))} /></RequireKinds>;
+  return <RequireKinds arts={arts} kinds={['cycle_fit']}><G7Body cycles={[...(arts.byKind.cycle_fit ?? [])].sort((a, b) => Number(P(a, 'cycle_id')) - Number(P(b, 'cycle_id')))} scores={first(arts, 'cycle_scores')} /></RequireKinds>;
 };
 
 // ── G8 ─────────────────────────────────────────────────────────────────────────────────────────

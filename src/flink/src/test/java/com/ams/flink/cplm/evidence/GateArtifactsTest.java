@@ -8,6 +8,8 @@ import com.ams.flink.cplm.CplmNormalizedSample;
 import com.ams.flink.cplm.CplmShortFeatureResult;
 import com.ams.flink.cplm.SynTic001ReferenceGenerator;
 import com.ams.flink.cplm.contract.RoleObservation;
+import com.ams.flink.cplm.fusion.HealthLanes;
+import com.ams.flink.cplm.health.LoopHealthContextRecord;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -156,6 +158,41 @@ public class GateArtifactsTest {
         assertEquals("the fused row adds no second G13 record when the long tier analysed", 0, fusedG13);
         Set<String> g11 = carried(FUSION, "G11");
         for (String f : new String[] {"F", "C", "S", "M", "health_state_id", "source_verified_time", "measurement_impact", "eligibility_intervals"}) assertTrue(f, g11.contains(f));
+    }
+
+    @Test
+    public void cycleArtifactsAreCappedAndEveryCycleIsInTheSummary() {
+        assertTrue("the fixture must have more cycles than the cap", LONG_RESULT.intermediates.triangularity.cycles.size() > 2);
+        List<EvidenceArtifact> capped = LongArtifacts.artifacts(LONG_RESULT, 2);
+        long fits = capped.stream().filter(a -> "cycle_fit".equals(a.kind)).count();
+        long polys = capped.stream().filter(a -> "cycle_polygon".equals(a.kind)).count();
+        assertTrue(fits <= 2 && polys <= 2);
+        EvidenceArtifact summary = capped.stream().filter(a -> "cycle_scores".equals(a.kind)).findFirst().orElseThrow(() -> new AssertionError("no cycle_scores"));
+        assertEquals(LONG_RESULT.intermediates.triangularity.cycles.size(), summary.calculationSamples());
+        assertEquals(LONG_RESULT.intermediates.triangularity.cycles.size(), ((Number) summary.provenance.get("cycles_total")).intValue());
+    }
+
+    /** CHG-049 (final review I1): G9 follows G7's pick when the cycle ids line up, and the pick leads with accepted cycles. */
+    @Test
+    public void cappedG9FollowsG7AndAcceptedCyclesArePicked() {
+        int cap = 3;
+        List<EvidenceArtifact> capped = LongArtifacts.artifacts(LONG_RESULT, cap);
+        Set<Object> fitIds = new java.util.TreeSet<>(), polyIds = new java.util.TreeSet<>();
+        int acceptedPicked = 0;
+        for (EvidenceArtifact a : capped) {
+            if ("cycle_fit".equals(a.kind)) { fitIds.add(a.provenance.get("cycle_id")); if (Boolean.TRUE.equals(a.provenance.get("accepted"))) acceptedPicked++; }
+            if ("cycle_polygon".equals(a.kind)) polyIds.add(a.provenance.get("cycle_id"));
+        }
+        List<com.ams.flink.cplm.engine.ShapeMath.CycleFit> cs = LONG_RESULT.intermediates.triangularity.cycles;
+        long accepted = cs.stream().filter(c -> c.accepted).count();
+        assertTrue("fixture has accepted cycles", accepted > 0);
+        assertTrue("an accepted cycle is among the picked fits", acceptedPicked > 0);
+        if (accepted <= cap - 2) assertEquals(accepted, acceptedPicked);
+        boolean idsLineUp = LONG_RESULT.intermediates.geometry != null && LongArtifacts.cycleIdsLineUp(cs, LONG_RESULT.intermediates.geometry.polygons);
+        assertTrue("fixture G7/G9 cycle ids line up", idsLineUp);
+        assertEquals("G9 shows the cycles G7 shows", fitIds, polyIds);
+        EvidenceArtifact summary = capped.stream().filter(a -> "cycle_scores".equals(a.kind)).findFirst().orElseThrow(() -> new AssertionError("no cycle_scores"));
+        assertEquals("ACCEPTED_FIRST_ENDS_KEPT", summary.provenance.get("cycle_selection"));
     }
 
     @Test
@@ -315,5 +352,55 @@ public class GateArtifactsTest {
         assertFalse(new EvidencePolicy(EvidencePolicy.Mode.NONE).emit(clean));
         assertEquals(EvidencePolicy.Mode.ALL, EvidencePolicy.fromArgs(new String[] {"--evidence-emit", "all"}).mode);
         assertEquals(EvidencePolicy.Mode.EPISODES, EvidencePolicy.fromArgs(new String[] {}).mode);
+    }
+
+    // CHG-049: G5/G6 alone and a configured-but-healthy bound lane are context, not a finding
+    private static HealthLanes pvLane(String eligibility) {
+        LoopHealthContextRecord r = new LoopHealthContextRecord();
+        r.loopId = "L"; r.role = "PV"; r.deviceId = "TT-1"; r.bindingId = "b-1";
+        r.eligibility = eligibility; r.descriptiveEligibility = eligibility; r.reason = "";
+        r.activeFlags = new ArrayList<>();
+        Map<String, LoopHealthContextRecord> m = new LinkedHashMap<>();
+        m.put("PV", r);
+        return HealthLanes.of(m);
+    }
+
+    @Test
+    public void g5g6AloneAreNotAFindingAndConfiguredHealthIsNot() {
+        EvidencePolicy p = new EvidencePolicy(EvidencePolicy.Mode.EPISODES);
+        CplmLongDiagnosticsResult l = new CplmLongDiagnosticsResult();
+        l.gate5Status = "WARN"; l.gate6Status = "WARN";
+        l.gate7Status = l.gate8Status = l.gate9Status = l.gate10Status = l.gate11Status = "PASS";
+        assertFalse(p.emit(l));
+        l.gate9Status = "WARN";
+        assertTrue(p.emit(l));
+        CplmGateResult g = new CplmGateResult();
+        g.gate14Status = "PASS"; g.diagnosis = "PASS";
+        g.healthLanes = pvLane("ELIGIBLE");
+        assertTrue(g.healthLanes.configured());
+        assertFalse(p.emit(g));
+        g.healthLanes = pvLane("LIMITED");
+        assertTrue(p.emit(g));
+        g.healthLanes = pvLane("INELIGIBLE");
+        assertTrue(p.emit(g));
+    }
+
+    // CHG-049 (Task 10): the fusion policy mirrors cplm-api EventFrameLifecycle.Classify - only Fault diagnoses open an episode
+    @Test
+    public void fusionEmitsOnlyEpisodeableDiagnoses() {
+        EvidencePolicy p = new EvidencePolicy(EvidencePolicy.Mode.EPISODES);
+        for (String d : new String[]{"INSUFFICIENT_DATA", "EXCLUDED_NOT_AUTO", "EXCLUDED", "INSUFFICIENT_EVIDENCE", "NO_CALL", "PASS", "PENDING", "", null}) {
+            CplmGateResult g = new CplmGateResult();
+            g.gate14Status = "PASS"; g.diagnosis = d;
+            assertFalse("no emit for " + d, p.emit(g));
+        }
+        for (String d : new String[]{"SUSPECTED_OSCILLATION", "CONFIRMED_STICTION"}) {
+            CplmGateResult g = new CplmGateResult();
+            g.gate14Status = "PASS"; g.diagnosis = d;
+            assertTrue("emit for " + d, p.emit(g));
+        }
+        CplmGateResult f = new CplmGateResult();
+        f.gate14Status = "WARN"; f.diagnosis = "INSUFFICIENT_DATA";
+        assertTrue("a G14 finding alone emits", p.emit(f));
     }
 }

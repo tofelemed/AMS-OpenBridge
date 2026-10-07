@@ -264,7 +264,7 @@ def test_flink_swap_cancels_every_job_before_removing_the_jobmanager_and_sweeps_
 def test_plant_compose_forwards_the_cplm_evidence_and_episode_knobs():
     text = (HERE.parent / "deploy" / "docker-compose.marun.yml").read_text(encoding="utf-8") if (HERE.parent / "deploy").is_dir() else (HERE / "docker-compose.marun.yml").read_text(encoding="utf-8")
     for key in ("Cplm__EvidenceTransientHours", "Cplm__EvidenceTransientBudgetBytes", "Cplm__EvidenceSweepIntervalMinutes",
-                "Cplm__EpisodeCaptureMax", "Cplm__FamilyChangeWindows"):
+                "Cplm__EpisodeCaptureMax", "Cplm__FamilyChangeWindows", "Cplm__EvidenceExpiredGraceDays"):
         assert f"{key}: ${{{key}:-" in text, key
 
 
@@ -374,3 +374,80 @@ def test_v266_steps_cancel_before_removal_and_sweep_the_retained_short_tree():
 def test_the_plant_overlay_gives_the_taskmanager_3584m():
     overlay = (br.Path(__file__).parent / "docker-compose.marun.yml").read_text(encoding="utf-8")
     assert "taskmanager.memory.process.size: 3584m" in overlay
+
+
+def test_the_plant_overlay_makes_both_flink_jvms_exit_on_oom():
+    # CHG-060: the overlay replaces FLINK_PROPERTIES wholesale, so the flags must be here, not only in the lab file
+    overlay = (br.Path(__file__).parent / "docker-compose.marun.yml").read_text(encoding="utf-8")
+    assert "env.java.opts.jobmanager: -XX:+ExitOnOutOfMemoryError" in overlay
+    assert "env.java.opts.taskmanager: -XX:+ExitOnOutOfMemoryError" in overlay
+    assert "HeapDumpOnOutOfMemoryError" not in overlay      # a >1 GB dump on the 96 GB plant disk is a disk incident
+
+
+def test_the_plant_flink_log_config_lets_the_short_buffer_warnings_through():
+    # CHG-061: the overlay mounts infra/docker/flink-log4j-console.properties (compose project dir) with root ERROR;
+    # SHORT_BUFFER_CAPPED / SHORT_DUPLICATE_DROPPED are WARN and the daily check greps for them
+    overlay = (br.Path(__file__).parent / "docker-compose.marun.yml").read_text(encoding="utf-8")
+    assert "./flink-log4j-console.properties:/opt/flink/conf/log4j-console.properties:ro" in overlay
+    props = (HERE.parent.parent / "infra/docker/flink-log4j-console.properties").read_text(encoding="utf-8")
+    lines = [l.strip() for l in props.splitlines()]
+    assert "rootLogger.level = ERROR" in lines
+    assert "logger.shortcap.name = com.ams.flink.cplm.ShortFeatureBufferFn" in lines
+    assert "logger.shortcap.level = WARN" in lines
+
+
+# ── CHG-049 (evidence storage optimization; ships inside the accumulating SME batch) ─────────────────────────
+def chg049_steps(on: bool = True) -> str:
+    return br.vm_steps("v0.0.0-test", "abc1234", COMBINED_ROWS, True, ["flink-jobmanager", "cplm-api"],
+                       False, False, False, False, False, on)
+
+
+def test_chg049_flag_is_whitelisted_and_the_scripts_ship():
+    src = (HERE / "build-release.py").read_text(encoding="utf-8")
+    assert '"chg049-evidence"' in src
+    assert "scripts/cpm-12-evidence-response-retention.sql" in br.OPS_FILES
+    assert "scripts/cpm-12b-evidence-reclaim.sql" in br.OPS_FILES
+    assert "scripts/cpm-13-investigation-event-link.sql" in br.OPS_FILES
+    for rel in ("scripts/cpm-12-evidence-response-retention.sql", "scripts/cpm-12b-evidence-reclaim.sql"):
+        assert (HERE.parent.parent / rel).is_file()
+
+
+def test_chg049_block_appears_only_with_the_flag():
+    assert "cpm-12-evidence-response-retention.sql" in chg049_steps(True).split("# 6f.")[1]
+    off = chg049_steps(False)
+    assert "6f. CHG-049" not in off and "psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/v0.0.0-test/ops/cpm-12" not in off
+
+
+def test_chg049_steps_run_in_the_documented_order():
+    s = chg049_steps()
+    load = s.index("| docker load")
+    cancel = s.index("flink cancel")
+    rm = s.index("docker rm -f ams-flink-taskmanager ams-flink-jobmanager")
+    deploy = s.index("deploy.sh --prod")
+    submit = s.index("04b resubmits")
+    c12 = s.index("< /tmp/v0.0.0-test/ops/cpm-12-evidence-response-retention.sql")
+    c13 = s.index("< /tmp/v0.0.0-test/ops/cpm-13-investigation-event-link.sql", c12)   # CHG-058, merged 7 Oct: after cpm-12
+    own = s.index("02-apply-schemas.sh", c13)
+    stop = s.index("docker stop traverse-cplm-api", own)
+    c12b = s.index("< /tmp/v0.0.0-test/ops/cpm-12b-evidence-reclaim.sql")
+    start = s.index("docker start traverse-cplm-api", c12b)
+    daily = s.index("daily-check.sh", start)
+    assert load < cancel < rm < deploy < submit < c12 < c13 < own < stop < c12b < start < daily
+
+
+def test_chg049_cpm12_is_online_without_a_transaction_and_cpm12b_has_the_disk_guard():
+    s = chg049_steps()
+    blk = s.split("# 6f.")[1].split("# 8. post-update")[0]
+    assert not any(" -1 " in l for l in blk.splitlines() if l.startswith("docker")) and "BEGIN" not in blk
+    guard = s.split("# 6g.")[1]
+    assert "2 x" in guard and guard.index("df -h /") < guard.index("docker stop traverse-cplm-api")
+    # CHG-049 final review I2: the three tables' size (response_metric included) is printed before the stop
+    size = guard.index("pg_total_relation_size('analytics.response_metric')")
+    assert "pg_total_relation_size('analytics.evidence_chunk')" in guard
+    assert size < guard.index("df -h /") < guard.index("docker stop traverse-cplm-api")
+    # M4: an invalid (interrupted CONCURRENTLY) index is checked right after cpm-12
+    blk6f = s.split("# 6f.")[1].split("# 6g.")[0]
+    assert blk6f.index("cpm-12-evidence-response-retention.sql") < blk6f.index("indisvalid") and "DROP INDEX analytics.ix_response_event_created" in blk6f
+    assert "at least 1 h" in guard
+    sql12 = (HERE.parent.parent / "scripts/cpm-12-evidence-response-retention.sql").read_text(encoding="utf-8")
+    assert "CONCURRENTLY" in sql12 and "BEGIN" not in sql12.replace("-- ", "")

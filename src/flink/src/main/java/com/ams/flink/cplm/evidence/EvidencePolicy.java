@@ -20,23 +20,63 @@ public final class EvidencePolicy implements Serializable {
 
     public enum Mode { EPISODES, ALL, NONE }
 
+    public static final String ARG_MAX_CYCLES = "--evidence-max-cycles";
+    public static final int DEFAULT_MAX_CYCLES = 12;
+    public static final String ARG_MIN_INTERVAL = "--evidence-min-interval-min";
+    public static final int DEFAULT_MIN_INTERVAL_MIN = 60;
+
     public final Mode mode;
+    /** CHG-049: per-cycle G7/G9 artifacts pushed live; <= 0 = every cycle. */
+    public final int maxCycles;
+    /** CHG-049: Long-job evidence for an unchanged finding is re-emitted at most this often; <= 0 = never throttle. */
+    public final long minIntervalMs;
 
     public EvidencePolicy(Mode mode) {
+        this(mode, DEFAULT_MAX_CYCLES);
+    }
+
+    public EvidencePolicy(Mode mode, int maxCycles) {
+        this(mode, maxCycles, DEFAULT_MIN_INTERVAL_MIN * 60_000L);
+    }
+
+    public EvidencePolicy(Mode mode, int maxCycles, long minIntervalMs) {
         this.mode = mode == null ? Mode.EPISODES : mode;
+        this.maxCycles = maxCycles;
+        this.minIntervalMs = minIntervalMs;
     }
 
     public static EvidencePolicy fromArgs(String[] args) {
+        Mode mode = Mode.EPISODES;
+        boolean modeSeen = false;
+        int maxCycles = DEFAULT_MAX_CYCLES;
+        boolean cyclesSeen = false;
+        int minIntervalMin = DEFAULT_MIN_INTERVAL_MIN;
+        boolean intervalSeen = false;
         for (int i = 0; i + 1 < args.length; i++) {
-            if (ARG.equals(args[i]) || ARG.substring(2).equals(args[i])) {
+            if (!modeSeen && (ARG.equals(args[i]) || ARG.substring(2).equals(args[i]))) {
+                modeSeen = true;
                 try {
-                    return new EvidencePolicy(Mode.valueOf(args[i + 1].trim().toUpperCase()));
+                    mode = Mode.valueOf(args[i + 1].trim().toUpperCase());
                 } catch (IllegalArgumentException e) {
-                    return new EvidencePolicy(Mode.EPISODES);
+                    mode = Mode.EPISODES;
+                }
+            } else if (!cyclesSeen && (ARG_MAX_CYCLES.equals(args[i]) || ARG_MAX_CYCLES.substring(2).equals(args[i]))) {
+                cyclesSeen = true;
+                try {
+                    maxCycles = Integer.parseInt(args[i + 1].trim());
+                } catch (NumberFormatException e) {
+                    maxCycles = DEFAULT_MAX_CYCLES;
+                }
+            } else if (!intervalSeen && (ARG_MIN_INTERVAL.equals(args[i]) || ARG_MIN_INTERVAL.substring(2).equals(args[i]))) {
+                intervalSeen = true;
+                try {
+                    minIntervalMin = Integer.parseInt(args[i + 1].trim());
+                } catch (NumberFormatException e) {
+                    minIntervalMin = DEFAULT_MIN_INTERVAL_MIN;
                 }
             }
         }
-        return new EvidencePolicy(Mode.EPISODES);
+        return new EvidencePolicy(mode, maxCycles, minIntervalMin * 60_000L);
     }
 
     private static boolean finding(String status) {
@@ -53,14 +93,27 @@ public final class EvidencePolicy implements Serializable {
     public boolean emit(CplmLongDiagnosticsResult r) {
         if (mode == Mode.NONE || r == null) return false;
         if (mode == Mode.ALL) return true;
-        return finding(r.gate5Status) || finding(r.gate6Status) || finding(r.gate7Status) || finding(r.gate8Status)
+        // CHG-049: G5 is WARN whenever any period exists and G6 whenever peakRatio > 0.5, so alone they are context, not a finding
+        return finding(r.gate7Status) || finding(r.gate8Status)
                 || finding(r.gate9Status) || finding(r.gate10Status) || finding(r.gate11Status);
     }
 
     public boolean emit(CplmGateResult r) {
         if (mode == Mode.NONE || r == null) return false;
         if (mode == Mode.ALL) return true;
-        return finding(r.gate14Status) || (r.diagnosis != null && !"PASS".equals(r.diagnosis) && !"NO_CALL".equals(r.diagnosis) && !"PENDING".equals(r.diagnosis))
-                || (r.healthLanes != null && r.healthLanes.configured());
+        return finding(r.gate14Status) || isFaultDiagnosis(r.diagnosis)
+                || (r.healthLanes != null && (r.healthLanes.pvIneligible() || r.healthLanes.anyLimited()));   // CHG-049: a bound lane alone is not a finding
+    }
+
+    /**
+     * CHG-049 (Task 10): mirrors cplm-api EventFrameLifecycle.Classify - blank, EXCLUDED* and INSUFFICIENT_DATA are
+     * Unobservable, INSUFFICIENT_EVIDENCE and NO_CALL are Clear, everything else is a Fault that opens an episode.
+     * PASS and PENDING are not faults either. Evidence for a verdict that never opens an episode is swept unread.
+     */
+    private static boolean isFaultDiagnosis(String d) {
+        if (d == null || d.trim().isEmpty()) return false;
+        if (d.startsWith("EXCLUDED") || "INSUFFICIENT_DATA".equals(d)) return false;
+        if ("INSUFFICIENT_EVIDENCE".equals(d) || "NO_CALL".equals(d)) return false;
+        return !"PASS".equals(d) && !"PENDING".equals(d);
     }
 }

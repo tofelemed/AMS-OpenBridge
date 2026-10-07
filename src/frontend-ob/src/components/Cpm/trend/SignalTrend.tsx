@@ -29,9 +29,9 @@ export const SignalTrend: React.FC<{
   height?: number;
   /** A rolling / polling chart: the zoom bar says the viewport is held while zoomed. */
   live?: boolean;
-  /** CHG-049: what this chart shows, e.g. "Evaluated window (diagnosis)" / "Now (live 8 h)". */
+  /** CHG-067: what this chart shows, e.g. "Evaluated window (diagnosis)" / "Now (live 8 h)". */
   caption?: string;
-  /** CHG-049: the plotted range, the evaluated-window band, and a y-scale shared with another trend. */
+  /** CHG-067: the plotted range, the evaluated-window band, and a y-scale shared with another trend. */
   xRange?: { fromMs: number; toMs: number } | null;
   evaluated?: { startMs: number; endMs: number; label: string } | null;
   yBounds?: { pv: { min: number; max: number } | null; op: { min: number; max: number } | null } | null;

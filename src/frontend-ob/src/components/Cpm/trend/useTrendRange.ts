@@ -32,7 +32,7 @@ export function useTrendRange() {
     [live, rolling.start.getTime(), rolling.end.getTime(), pinnedFrom?.getTime(), pinnedTo?.getTime()],
   );
 
-  // Any period the user picks leaves the evaluated-window comparison (CHG-049): `compare` only means
+  // Any period the user picks leaves the evaluated-window comparison (CHG-067): `compare` only means
   // something while the trend IS the evaluated window.
   const pin = (f: Date, t: Date) =>
     setParams(p => { p.set('from', f.toISOString()); p.set('to', t.toISOString()); p.delete('compare'); return p; }, { replace: true });
