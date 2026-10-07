@@ -4144,6 +4144,10 @@ lab `ams-zookeeper` not recreated during the go/no-go.
   at least 1 h and only if free disk >= 2 x the printed size of the three tables (VM step 6g). Optional `.env` keys `CPLM_EVIDENCE_MAX_CYCLES` (12)
   and `CPLM_EVIDENCE_MIN_INTERVAL_MIN` (60). The batch manifest must carry `!chg049-evidence`.
 - Build: `mvn package` (Docker Maven, the jar is needed for CHG-049; no `--skip-jar`) → `python migration/deploy/build-release.py --release v2.7.0 --out release-out/v2.7.0-20261007`.
+- **Built 2026-10-07 (GO 16:50 UTC after 7 h on the shipping build):** `release-out/v2.7.0-20261007` (897 MB, SHA256SUMS 27/27 OK)
+  from `feat/v25-next-release` head 848e49a1. Images: ams-flink 4c746777…, cplm-api 1dafd1f0…, traverse-ingestion-service fa4ab7ab…,
+  ams-frontend 69de633d…; jar bfff05f0…. Plant procedure: `VM-STEPS.md` in the bundle (Flink swap with the ZooKeeper guard →
+  app images → cpm-12 → cpm-13 → ≥1 h → cpm-12b → daily check).
 - The batch manifest `migration/deploy/releases/v2.7.0.txt` (bcb65977) lists `!chg049-evidence`, `flink-jobmanager`, `cplm-api`,
   `traverse-ingestion-service` (CHG-062b; the compose/manifest name) and `ams-frontend`. Schema order at the plant: `cpm-12`
   (online), `cpm-12b` (cplm-api stopped, at least 1 h after the swap, free-space guard), `cpm-13` (online, additive; CHG-058 — VM step 6f runs it right after cpm-12; it may run before or after the cplm-api swap, but before the new endpoints are used).
