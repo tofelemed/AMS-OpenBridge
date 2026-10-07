@@ -37,14 +37,46 @@ public final class InputReconstruction {
 
     /** Instants strictly inside (from, to) at which the delayed input can change: t[j] + theta. */
     public double[] breakpointsWithin(double from, double to) {
+        int lo = 0, hi = t.length;             // CHG-075: binary search for the first t[j] + theta > from, not a scan from 0
+        while (lo < hi) {
+            int mid = (lo + hi) >>> 1;
+            if (t[mid] + theta > from) hi = mid; else lo = mid + 1;
+        }
         List<Double> out = new ArrayList<>();
-        for (double tj : t) {
-            double s = tj + theta;
-            if (s > from && s < to) out.add(s);
+        for (int j = lo; j < t.length; j++) {
+            double s = t[j] + theta;
             if (s >= to) break;
+            out.add(s);
         }
         double[] r = new double[out.size()];
         for (int i = 0; i < r.length; i++) r[i] = out.get(i);
         return r;
+    }
+
+    /** CHG-075: a forward walk over the breakpoints for one simulation - O(n) in total. */
+    public Cursor cursor() { return new Cursor(); }
+
+    /**
+     * Breakpoint j (t[j] + theta) starts the hold of u[j]; the value is taken from the breakpoint's own
+     * index, never re-derived by subtracting theta again (which can round to the previous sample).
+     */
+    public final class Cursor {
+        private int j;
+        private double held = u0;
+
+        private Cursor() {}
+
+        /** Passes every breakpoint at or before s; returns the delayed input held from s on. */
+        public double heldAfter(double s) {
+            while (j < t.length && t[j] + theta <= s) held = u[j++];
+            return held;
+        }
+
+        /** The next not-yet-passed breakpoint if it lies strictly before {@code to}, else NaN. Does not pass it. */
+        public double nextBefore(double to) {
+            if (j >= t.length) return Double.NaN;
+            double s = t[j] + theta;
+            return s < to ? s : Double.NaN;
+        }
     }
 }
