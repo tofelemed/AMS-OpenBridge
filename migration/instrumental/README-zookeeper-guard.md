@@ -13,8 +13,8 @@ Files (from the release `src-<commit>.tar.gz`, extracted over /opt/AMS-open):
 
 ## 0. Pre-flight (STOP if anything differs)
 ```bash
-docker inspect instrumental-zookeeper -f '{{.Config.Image}} | {{.Config.Entrypoint}} | {{.Config.Cmd}} | {{.Config.User}}'
-docker inspect instrumental-zookeeper -f '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{"
+PF=$(docker inspect instrumental-zookeeper -f '{{.Config.Image}}|{{.Config.Entrypoint}}|{{.Config.Cmd}}|{{.Config.User}}'); echo "$PF"; case "$PF" in *cp-zookeeper*'|[]|[/etc/confluent/docker/run]|appuser') ;; *) echo "STOP: not a cp-zookeeper container with the stock command - read their compose first"; false;; esac
+docker inspect instrumental-zookeeper -f '{{range .Mounts}}{{.Destination}} {{end}}' | grep -q /var/lib/zookeeper/log || { echo "STOP: no mount at /var/lib/zookeeper/log"; false; }
 "}}{{end}}'
 ```
 Required: a `cp-zookeeper` image, empty entrypoint (`[]`), `[/etc/confluent/docker/run]`, user `appuser`, and a mount at
@@ -34,11 +34,16 @@ S=/opt/AMS-open
 L() { docker inspect instrumental-zookeeper -f "{{index .Config.Labels \"$1\"}}"; }
 SVC=$(L com.docker.compose.service); PROJ=$(L com.docker.compose.project)
 CFG=$(L com.docker.compose.project.config_files); ZKDIR=$(L com.docker.compose.project.working_dir)
-echo "$SVC $PROJ $CFG $ZKDIR"        # service must be `zookeeper` (else edit the override); project `microservices`
+echo "$SVC $PROJ $CFG $ZKDIR"
+[ -n "$PROJ" ] && [ -n "$CFG" ] && [ -n "$ZKDIR" ] && [ "$SVC" = zookeeper ] || { echo "STOP: labels missing or service is not 'zookeeper' - read their compose first"; false; }
+# $CFG may be a comma-separated list of compose files: one -f each (FARGS is expanded UNQUOTED on purpose, so the words split)
+FARGS=$(echo "$CFG" | sed 's/,/ -f /g')
+OLDID=$(docker inspect -f '{{.Id}}' instrumental-zookeeper)
 cp $S/infra/docker/zookeeper/zk-start-guard.sh $ZKDIR/zk-start-guard.sh && chmod +x $ZKDIR/zk-start-guard.sh
 cp $S/migration/instrumental/zookeeper-start-guard.override.yml $ZKDIR/
-cd $ZKDIR && docker compose -p "$PROJ" -f "$CFG" -f zookeeper-start-guard.override.yml up -d zookeeper     # ONLY zookeeper
-for i in $(seq 12); do docker logs instrumental-zookeeper 2>&1 | grep -q 'binding to port' && break; sleep 5; done   # up to 60 s
+cd $ZKDIR && docker compose -p "$PROJ" -f $FARGS -f zookeeper-start-guard.override.yml up -d zookeeper     # ONLY zookeeper
+[ "$(docker inspect -f '{{.Id}}' instrumental-zookeeper)" != "$OLDID" ] || { echo "STOP: zookeeper was not recreated (up -d failed?)"; false; }
+for i in $(seq 12); do docker logs --since 120s instrumental-zookeeper 2>&1 | grep -q 'binding to port' && break; sleep 5; done   # up to 60 s, new container's log only
 docker logs instrumental-zookeeper 2>&1 | grep -E 'zk-start-guard|binding to port|Snapshot loaded'
 docker exec instrumental-kafka-1 kafka-topics --bootstrap-server kafka-1:9092 --list | wc -l                   # 75
 docker exec instrumental-kafka-1 kafka-topics --bootstrap-server kafka-1:9092 --describe --under-replicated-partitions   # empty
@@ -49,7 +54,7 @@ line only if a zero-byte log existed; 75 topics; 0 under-replicated.
 ## STOP rule and rollback
 If ZooKeeper has not bound after the 60 s poll, roll back BEFORE continuing, with the SAME `-p` and `-f` (the guard files can stay):
 ```bash
-cd $ZKDIR && docker compose -p "$PROJ" -f "$CFG" up -d zookeeper
+cd $ZKDIR && docker compose -p "$PROJ" -f $FARGS up -d zookeeper
 ```
 Quarantined files stay in `<logs volume>/quarantine/` (never delete them); copy that directory next to the backup for forensics:
 `sudo cp -a "$(docker volume inspect -f '{{.Mountpoint}}' microservices_zookeeper-logs)/quarantine" /var/tmp/zk-backup-<date>/`.

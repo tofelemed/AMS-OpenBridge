@@ -339,23 +339,28 @@ def vm_steps(release: str, commit: str, rows: list[tuple[str, str, str]],
         # `zookeeper`) and the txn-log mount must be /var/lib/zookeeper/log; otherwise set ZK_TXNLOG_DIR in the override's environment.
         zk_guard = f"""#    CHG-068 ZooKeeper start guard on Instrumental's ZooKeeper (recreates ONLY zookeeper; ~1 min without a Kafka coordinator).
 #    Pre-flight - STOP (skip this block) unless: cp-zookeeper image | [] entrypoint | [/etc/confluent/docker/run] | appuser, and a mount at /var/lib/zookeeper/log
-docker inspect instrumental-zookeeper -f '{{{{.Config.Image}}}} | {{{{.Config.Entrypoint}}}} | {{{{.Config.Cmd}}}} | {{{{.Config.User}}}}'
-docker inspect instrumental-zookeeper -f '{{{{range .Mounts}}}}{{{{.Source}}}} -> {{{{.Destination}}}}{{{{"\\n"}}}}{{{{end}}}}'
+PF=$(docker inspect instrumental-zookeeper -f '{{{{.Config.Image}}}}|{{{{.Config.Entrypoint}}}}|{{{{.Config.Cmd}}}}|{{{{.Config.User}}}}'); echo "$PF"; case "$PF" in *cp-zookeeper*'|[]|[/etc/confluent/docker/run]|appuser') ;; *) echo "STOP: not a cp-zookeeper container with the stock command - read their compose first"; false;; esac
+docker inspect instrumental-zookeeper -f '{{{{range .Mounts}}}}{{{{.Destination}}}} {{{{end}}}}' | grep -q /var/lib/zookeeper/log || {{ echo "STOP: no mount at /var/lib/zookeeper/log"; false; }}
 #    backup BOTH volumes first (MARUN-DISK.md J step 1)
 B=/var/tmp/zk-backup-{release}; sudo mkdir -p $B; for v in microservices_zookeeper-data microservices_zookeeper-logs; do sudo cp -a "$(docker volume inspect -f '{{{{.Mountpoint}}}}' $v)" "$B/$v"; done; sudo du -sh $B   # a few MB (2.6 MB on 6 Oct)
 #    pin THEIR compose project: a different -p creates new empty ZooKeeper volumes = new cluster id = InconsistentClusterIdException on Kafka
 L() {{ docker inspect instrumental-zookeeper -f "{{{{index .Config.Labels \\"$1\\"}}}}"; }}
 SVC=$(L com.docker.compose.service); PROJ=$(L com.docker.compose.project); CFG=$(L com.docker.compose.project.config_files); ZKDIR=$(L com.docker.compose.project.working_dir)
-echo "$SVC $PROJ $CFG $ZKDIR"        # service must be `zookeeper` (else edit the override); project `microservices`; several files in $CFG: one -f each
+echo "$SVC $PROJ $CFG $ZKDIR"
+[ -n "$PROJ" ] && [ -n "$CFG" ] && [ -n "$ZKDIR" ] && [ "$SVC" = zookeeper ] || {{ echo "STOP: labels missing or service is not 'zookeeper' - read their compose first"; false; }}
+# $CFG may be a comma-separated list of compose files: one -f each (FARGS is expanded UNQUOTED on purpose, so the words split)
+FARGS=$(echo "$CFG" | sed 's/,/ -f /g')
+OLDID=$(docker inspect -f '{{{{.Id}}}}' instrumental-zookeeper)
 cp /tmp/{release}/ops/zk-start-guard.sh $ZKDIR/zk-start-guard.sh && chmod +x $ZKDIR/zk-start-guard.sh
 cp /tmp/{release}/ops/zookeeper-start-guard.override.yml $ZKDIR/
-(cd $ZKDIR && docker compose -p "$PROJ" -f "$CFG" -f zookeeper-start-guard.override.yml up -d zookeeper)      # ONLY zookeeper
-for i in $(seq 12); do docker logs instrumental-zookeeper 2>&1 | grep -q 'binding to port' && break; sleep 5; done   # up to 60 s
+(cd $ZKDIR && docker compose -p "$PROJ" -f $FARGS -f zookeeper-start-guard.override.yml up -d zookeeper)      # ONLY zookeeper
+[ "$(docker inspect -f '{{{{.Id}}}}' instrumental-zookeeper)" != "$OLDID" ] || {{ echo "STOP: zookeeper was not recreated (up -d failed?)"; false; }}
+for i in $(seq 12); do docker logs --since 120s instrumental-zookeeper 2>&1 | grep -q 'binding to port' && break; sleep 5; done   # up to 60 s, new container's log only
 docker logs instrumental-zookeeper 2>&1 | grep -E 'zk-start-guard|binding to port|Snapshot loaded'
 docker exec instrumental-kafka-1 kafka-topics --bootstrap-server kafka-1:9092 --list | wc -l                   # 75
 docker exec instrumental-kafka-1 kafka-topics --bootstrap-server kafka-1:9092 --describe --under-replicated-partitions   # empty
 #    STOP RULE: not bound after the 60 s poll -> ROLLBACK before continuing (same -p/-f, no override):
-#      (cd $ZKDIR && docker compose -p "$PROJ" -f "$CFG" up -d zookeeper)
+#      (cd $ZKDIR && docker compose -p "$PROJ" -f $FARGS up -d zookeeper)
 """
     job_count = "SEVEN" if (v25 or v26 or chg039 or chg049) else "FOUR"
     flink = ""
