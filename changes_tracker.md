@@ -3223,6 +3223,17 @@ min, all six CPLM CAPABILITY records = `19b95248`); cplm-api with grace 1 d (lab
 - Findings for a follow-up: TM `-XX:+ExitOnOutOfMemoryError` (F1), a bound on the Short heap buffer and its recovery
   runbook (F2), ingestion guard against duplicate loop-sample sources + Long-tier duplicate-timestamp drop (L1).
 
+**Stress re-run on the lab (Task 17, 2026-10-06/07, jar `b514d2b7` = CHG-049 + CHG-060..062; full results in
+`docs/next-release/chg049-stress-results.md`, section "Re-run at plant × 3").** 161 loops at the 5 s grid = 33 tuples/s (plant × 3
+= 87/s is not reachable at a 5 s grid; the grid change was refused), one source, 24 limit-cycle loops.
+- **S1 PASS:** 4 h, no OOM; G9 max 25 manifests per run; 1,065 of 1,416 `cycle_scores` capped (cycles now accepted: L1 is gone);
+  throttle 0 violations; 27.9k manifests/h, 49.9 MB/h TRANSIENT; TM post-GC heap ~510 MB, peak 709 MB. S2, S4a-d, S5, S6 (cpm-12b
+  6,581 → 3,760 MB in 12.6 min), S8 (300k events purged in 5,000-event transactions, one 35.4 s), S11 PASS. S3 blocked (no
+  episode can open until a 12h window has ≥ 0.95 coverage). S10 skipped (tool refused). S9 not started (cplm-api rebuild first).
+- **Findings needing code:** F4 (P1) a slow Response fit expires the checkpoint, the task does not cancel and the TaskManager kills
+  itself, restarting every Flink job (three times; Response left CANCELLED on the lab); F3 a reconstruction's colliding artifact ids
+  keep the live run's TRANSIENT rows (mixed datasets in the served set).
+
 ## CHG-060 — Both Flink JVMs exit on an OutOfMemoryError (2026-10-06)
 
 **Scope:** `infra/docker/docker-compose.yml` (JM / TM `FLINK_PROPERTIES`), the HA compose (JM, JM-2, TM, TM-2), the marun overlay
@@ -3239,7 +3250,10 @@ JobManager OOM restarts the JM and, with no HA at the plant, the jobs are gone (
 
 **Tests.** `pytest` 46 passed.
 
-**End-to-end on the lab.** Pending — Task 17 stress re-run.
+**End-to-end on the lab (Task 17, 2026-10-06/07).** `-XX:+ExitOnOutOfMemoryError` reaches the TM and JM JVMs (ps). No OOM in
+~11 h. Every TM death (Docker crash, three self-kills from the Response job (F4), a `docker kill`) restored all jobs from their
+checkpoints; a JVM exit is restarted by Docker (RestartCount 1 → 3), a `docker kill` is not (manual stop). The forced-OOM drill (S10)
+was skipped: the test job was refused.
 
 ## CHG-061 — The Short buffer is bounded: one profile per loop, no duplicate samples, a hard per-loop cap (2026-10-06)
 
@@ -3278,7 +3292,11 @@ bounded the buffer when the watermark stalled.
 at 768 per loop, under 1,100) and `ShortBufferRestoreTest` (heap-backend snapshot and restore at the cap with two profiles gives
 the same output as an uninterrupted run; `shortDuplicatesDropped` counted).
 
-**End-to-end on the lab.** Pending — Task 17 stress re-run.
+**End-to-end on the lab (Task 17, 2026-10-06/07).** 161 loops, 33 tuples/s, 4 h: no OOM, Short checkpoint ~55 MB / 5 s (Task 9:
+275 MB / 65 s). With a partition held at a frozen timestamp the cap engaged at 45.5 min of watermark lag: 156 loops at 1,109,
+156 `SHORT_BUFFER_CAPPED` WARN lines, `shortBufferCapped` 3,714, checkpoint flat at 81.4 MB, **peak TM post-GC heap 713 MB (design
+estimate 738 MB)**; the release of 65 min of windows passed without a failure. A quiet partition alone never reaches the cap (idleness
+releases the watermark at ~32 min). The Short job restored its state after every TM restart (output within a minute, no warm-up).
 
 ## CHG-062 — Duplicate loop samples are ignored, and a second overlapping source is refused (2026-10-06)
 
@@ -3309,7 +3327,10 @@ same topics.
 
 **Tests.** ingestion 237 / 237; Flink full suite 319 run, 0 failures, 2 skipped. The e2e script parses clean.
 
-**End-to-end on the lab.** Pending — Task 17 stress re-run.
+**End-to-end on the lab (Task 17, 2026-10-06/07).** One active source: 0 duplicate (loop, event_ts) keys; the Long tier reads a
+5.06 s period and accepts cycles again (G7/G9 PASS on the limit-cycle loops). API activate of a leftover duplicate → 409; an SQL
+re-enable → the subscriber manager runs one feed only (the older config wins and the newer is parked "duplicate feed"), and switches
+back ("duplicate-feed winner gone") when the leftover is deactivated.
 
 ### SME review batch release — what to build and run (accumulating; version assigned when the batch closes)
 

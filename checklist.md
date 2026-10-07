@@ -262,7 +262,10 @@ Ticked with commit id + verification as each lands. Every file stays under 500 l
 - [x] CHG-062b (06a953cf + 680c165e) ingestion refuses an overlapping `MQTT_LOOP_SAMPLES` source (409; oldest wins in the subscriber) — ingestion 237 / 237
 - [x] Task 16 (this commit) e2e script reuses its source and restores the soak source in `finally`; records: `changes_tracker.md` CHG-060..062 + release block, `prod_decision.md` §3 / §4 / §6, `MARUN-DAILY-CHECK.md` §4 + `daily-check.sh` `SHORT_BUFFER_CAPPED` line (`bash -n` clean), `MARUN-CONTEXT.md` §12b, `ShortProfileRegistry` javadoc figure
 - [x] Final-review fix wave (I1-I4 + minors): log4j WARN override for `ShortFeatureBufferFn` (plant root ERROR), derived cap 1,109 at 5 s, `shortDuplicatesDropped` counter + `SHORT_DUPLICATE_DROPPED` log, heap-backend snapshot/restore harness test, daily check TM / JM `RestartCount`, crash-loop + JM-OOM runbook, ingestion image in the release Plant step
-- [ ] Task 17 stress re-run on the lab (S1 161 loops: no TaskManager OOM, flag in the TM process, forced OOM restarts the TM, `SHORT_BUFFER_CAPPED` behaviour, cycles proven now the duplicates are gone)
+- [x] Task 17 stress re-run on the lab, 2026-10-06/07, jar b514d2b7 (`docs/next-release/chg049-stress-results.md` "Re-run at plant × 3"): S1 161 loops 4 h no OOM (peak post-GC heap 709 MB), flag in the TM/JM JVMs, cycles accepted (1,065 cycle_scores capped), throttle 0 violations; S2/S2c (all loops at the 1,109 cap: 156 `SHORT_BUFFER_CAPPED` lines, peak heap 713 MB vs 738 MB estimate), S4a-d, S5, S6, S8, S11 PASS; S7 job PASS / stored set F3
+- [ ] Task 17 gaps: plant × 3 rate not reachable at the 5 s grid (grid change refused); S10 forced OOM skipped (test job refused); S3 blocked until 12h coverage (~14:35 UTC 2026-10-07); S9 24 h soak waits for the cplm-api rebuild
+- [ ] F4 (P1): the Response job's fit wedges the TaskManager (checkpoint expiry → uncancellable task → TM self-kill → every job restarts); Response CANCELLED on the lab
+- [ ] F3: reconstruction keeps the live run's colliding TRANSIENT artifacts (mixed datasets in the served set)
 - [ ] plant deploy in the SME-batch release (`ams-flink` + `ingestion-service` images, overlay `FLINK_PROPERTIES`, Short restarts empty, ~30 min warm-up)
 
 ## Verification status (last runs, lab)

@@ -72,3 +72,58 @@ docker exec ams-flink-jobmanager /opt/flink/bin/flink run -d -m ams-flink-jobman
    with overlapping topic filters; the Long tier should drop exact-duplicate timestamps before inferring the sample period.
 4. Lab hygiene: delete the five `test-ot-loop-ingestion-e2e.ps1` leftovers and make that script remove its source.
 5. Not CHG-049: `CplmConfigAckConsumerService` FK violations after job restarts.
+
+---
+
+# Re-run at plant × 3 (Task 17, 2026-10-06 19:20 → 2026-10-07 06:51 UTC)
+
+Jar `b514d2b7` (worktree ac91fd01: CHG-049 + CHG-060..062), ingestion image from the worktree (CHG-062b), cplm-api image 86ef7268
+(grace 1 d lab override). Full running log: `.superpowers/sdd/2026-10-06-evidence-storage-optimization/task-17-report.md`.
+
+## Setup
+- 13 jobs cancelled, JM + TM + ingestion recreated from the worktree compose; `-XX:+ExitOnOutOfMemoryError` in the TM and JM JVMs;
+  Short by hand with `--evidence-emit none`, the rest via `ensure_flink_jobs.py`; no duplicates; all six CPLM CAPABILITY records
+  `jar_sha256 b514d2b7`; jar copied to the main checkout's target (cplm-api reconstruction mount, sha verified).
+- **Load: plant × 3 was not reachable.** The ingestion joiner emits at most one tuple per loop per grid tick: at the 5 s grid, 161 loops
+  give at most 32 tuples/s. 87 tuples/s needs a 1 s grid; changing the active source's grid through the API was **refused** by the harness.
+  The run used the maximum the lab allows: **161 loops, 5 s grid, 33.3 tuples/s measured (1.1 × the plant's 29/s), one source, 0 duplicate
+  keys, 24 limit-cycle loops**. The ×3 heap question was answered by driving every loop to the Short cap instead (S2c).
+
+## Results
+
+| # | Verdict | Key numbers |
+|---|---|---|
+| S1 161 loops, 4 h | **PASS** (2 deviations from lab stalls) | 106,601 manifests / 190.7 MB TRANSIENT (27.9k/h, 49.9 MB/h); G9 max 25 per run; 1,065 of 1,416 cycle_scores capped (max 72 cycles → 12 emitted); throttle 0 violations; TM post-GC heap median ~510 MB, peak 709 MB of 1,229, no OOM; Short checkpoint ~55 MB / 5 s (Task 9: 275 MB / 65 s). Deviations: 1 failed Long checkpoint during a 32 s TM stall; one evidence-lag sample 7,614 that drained within minutes |
+| S2 backlog | **PASS** | 60 min feed stop: Short output back within 3 min, 0 failed checkpoints; 24,000 backdated tuples (12 h, 20 loops): no past window re-fired, ≤ 1 emission per loop × kind |
+| S2c Short cap | **PASS** | quiet partition: idleness released at 31.7 min, cap not reached; partition held with a frozen timestamp: **cap engaged at 45.5 min lag, 156 loops at 1,109, 156 `SHORT_BUFFER_CAPPED` WARN lines, `shortBufferCapped` 3,714**; checkpoint flat 81.4 MB; **peak TM post-GC heap 713 MB (median 610) vs 738 MB design estimate**; release of 65 min of windows: no failure |
+| S3 episode churn | **BLOCKED** | fusion is INSUFFICIENT_DATA on every 12h / 24h window (G0 coverage ≥ 0.95; stateless start 19:30 + the S2 60 min gap) → no episode can open before ~14:35 UTC |
+| S4a Kafka restart | **PASS** | no job restarted; consumers back to 1 member in < 4 min |
+| S4b cplm-api 30 min stop | **PASS** (+ finding F4) | lag 14.7k / 16.6k drained; probe of 7 `/api/v1/cpm` endpoints for 75 s after healthy: **all 200, no 500s** (first round 3.9-5.3 s) |
+| S4c Postgres restart | **PASS** | 0 evidence fails, consumers back |
+| S4d TM kill | **PASS** | every job restored from its checkpoint (Short, Long incl. throttle MapState); throttle 0 violations across all restores. `docker kill` is not restarted by Docker (manual stop) |
+| S5 50 MB budget, 1 h | **PASS** | TRANSIENT 106 → 19-26 MB, 0 orphan warnings, lag flat; restored to 2 GiB |
+| S6 cpm-12b | **PASS** | 6,581 → 3,760 MB; DELETE TRANSIENT 1:48, VACUUM FULL chunk 5:13, manifest 5:16, response_metric 0:19; cplm-api down 12:53; peak disk +3.5 GB |
+| S7 reconstruction | **PASS job / FAIL stored set (F3)** | 9.1 s, 96 cycle_fit = cycles_total 96 (uncapped) on the topic; DB keeps 12 live cycle_fit + the live cycle_scores (78/12, TRANSIENT) next to 84 new STANDARD rows |
+| S8 response purge | **PASS** (1 deviation) | 300k events / 15.6 M metrics purged in two sweeps, 5,000 per transaction, 0 lock waits, 0 real rows lost; one batch 35.4 s (> 30 s) |
+| S10 forced OOM | **SKIPPED** | the heap-hog test job was refused; OOM flag verified in the JVMs; all TM deaths (Docker crash, 3 self-kills, kill) restored with state |
+| S11 duplicate source | **PASS** | API activate → 409; SQL re-enable → the manager ran one feed only (0 duplicate keys) and switched back when removed |
+| S9 24 h soak | **NOT STARTED** | coordinator: cplm-api rebuild first |
+
+## Findings
+- **F4 (P1, needs code): one slow Response fit restarts every Flink job.** `ResponseEvaluator → OutputErrorEstimator → BoundedLm (LM) →
+  ZohSimulator → MatrixExp.expm` ran inside one `processElement` for minutes; the 120 s checkpoint expired (tolerance 0), the task did not
+  cancel within 180 s, and the TaskManager killed itself — three times (03:47, 03:58, 04:16), every job (alarm jobs included) restarting
+  each time, then again on a stateless resubmit. `ZohSimulator.step` caches the discretised model by the exact step length, so jittered
+  real timestamps miss the cache on almost every step. The lab now runs with Response CANCELLED. Fix: bound / interrupt the fit, quantise
+  the step for the cache, move the fit off the checkpoint path, or tolerate a few checkpoint failures.
+- **F3 (needs code): a reconstruction does not replace the live run's colliding artifacts.** Same deterministic ids for cycles 0-11 and
+  `cycle_scores` → ON CONFLICT keeps the live (TRANSIENT, other dataset) rows; the served set mixes datasets and loses those rows when the
+  TRANSIENT sweep runs.
+- O1: a flapping verdict (PASS ↔ finding every 15 min) re-emits evidence every 30 min by design (549 of 714 sub-60-min pairs in S1).
+- O2: the normal Short buffer is ~520 samples per loop (~40 min), not the 792 assumed: the cap has more headroom than designed.
+- O3: after a stateless start or a feed gap > ~36 min, fusion cannot judge a loop for 12 h (12h windows) / 24 h (24h windows).
+- O4: the lab cplm-api log rotates within ~25 min (Polly info lines at 10 MB × 3): sweep and warning lines are lost quickly.
+- O5: "oldest wins" lets an old leftover source re-enabled by SQL take the feed from the configured one (logged as `fail:` with the
+  shared display name only).
+- Lab (not product): the Docker Desktop backend exited at 23:34 UTC on two consecutive days; the lab VM (6 vCPU, 12 GB) ran at load
+  16-67 with 4 GB swap in use, causing 27-58 s TM stalls (ZooKeeper session timeouts → job restarts).
