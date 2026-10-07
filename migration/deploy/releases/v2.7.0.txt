@@ -1,0 +1,24 @@
+# Release v2.7.0 — the SME review batch (CHG-040..048, 058, 059, 063..066) + the evidence-volume fix (CHG-049) +
+# the lab-stress fixes (CHG-060 Flink JVMs exit on OOM, CHG-061 Short buffer slimmer + hard cap, CHG-062 duplicate
+# loop-sample feeds refused and deduplicated, CHG-075 the G12 fit budget really stops a fit, CHG-076 a reconstruction
+# replaces the live artifacts it collides with).
+# Consumed by: python migration/deploy/build-release.py --release v2.7.0        (the jar IS rebuilt: no --skip-jar)
+#
+#   flink-jobmanager            (the TaskManager uses the same image) CHG-049 evidence cap/throttle/policy, CHG-061
+#                               Short buffer, CHG-062a period dedupe, CHG-075 Response fit budget + checkpoints.
+#                               The overlay's FLINK_PROPERTIES changed (CHG-060 ExitOnOutOfMemoryError) - full swap:
+#                               cancel every job, rm -f JM + TM, deploy, 04b (7 RUNNING; ~30 min warm-up, no output).
+#   cplm-api                    CHG-043/045/047/058/059/063/066 (SME batch) + CHG-049 (evidence consumer, RESPONSE
+#                               retention, grace) + CHG-076.
+#   traverse-ingestion-service  CHG-062b: a second overlapping MQTT_LOOP_SAMPLES source is refused (409 / parked).
+#   ams-frontend                CHG-040..048, 058, 059, 063..066 (SME batch) + CHG-049 (G7 cycle_scores view).
+#
+# Schema (ops/, in this order): cpm-12 (online: RESPONSE retention row + index), cpm-12b (cplm-api STOPPED, >= 1 h
+# after the swap, with the free-space guard), cpm-13 (online, additive: investigation event link).
+# .env: optional CPLM_EVIDENCE_MAX_CYCLES (12), CPLM_EVIDENCE_MIN_INTERVAL_MIN (60), CPLM_SHORT_MAX_SAMPLES_PER_LOOP
+# (0 = derived 1,109). Plant data steps (manual, not blocking): registry CSV pv_unit (CHG-047), vp_/peer_applicability (CHG-059).
+!chg049-evidence
+flink-jobmanager
+cplm-api
+traverse-ingestion-service
+ams-frontend

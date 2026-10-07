@@ -3351,7 +3351,7 @@ back ("duplicate-feed winner gone") when the leftover is deactivated.
   and `CPLM_EVIDENCE_MIN_INTERVAL_MIN` (60). The batch manifest must carry `!chg049-evidence`.
 - Build: `mvn package` (Docker Maven, the jar is needed for CHG-049; no `--skip-jar`) → `python migration/deploy/build-release.py --release <next> --out release-out/<next>-<date>`.
 - The batch manifest (`migration/deploy/releases/<next>.txt`, created when the version is assigned) must list
-  `ingestion-service` (CHG-062b), next to `ams-frontend`, `cplm-api` and `flink-jobmanager`.
+  `traverse-ingestion-service` (CHG-062b; the compose/manifest name), next to `ams-frontend`, `cplm-api` and `flink-jobmanager`.
 - Marun Flink log config (CHG-061): `infra/docker/flink-log4j-console.properties` gains a WARN override for
   `ShortFeatureBufferFn` (root stays ERROR); the overlay mounts it, so the Flink recreate picks it up.
 - Plant: `docker load` the `ams-frontend`, `cplm-api`, `ams-flink` and `traverse-ingestion-service` images; then the Flink swap from the VM steps (cancel every job, `docker rm -f ams-flink-taskmanager ams-flink-jobmanager`) → `deploy.sh --prod` (04b resubmits all seven; 7 RUNNING) → `200` on `/`; users press Ctrl+F5.
