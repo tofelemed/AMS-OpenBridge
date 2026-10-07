@@ -1,5 +1,5 @@
 # CHG-068: ZooKeeper start guard for Instrumental's ZooKeeper. Apply with:
-#   docker compose -f <their compose file> -f zookeeper-start-guard.override.yml up -d zookeeper
+#   docker compose -f "$CFG" -f zookeeper-start-guard.override.yml up -d zookeeper
 # The service name below MUST match theirs (default `zookeeper`):
 #   docker inspect instrumental-zookeeper -f '{{index .Config.Labels "com.docker.compose.service"}}'
 # zk-start-guard.sh must sit in the same directory as this file (their project dir:

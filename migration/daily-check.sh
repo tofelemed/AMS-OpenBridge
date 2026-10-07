@@ -32,10 +32,13 @@ done
 
 # CHG-068: a zero-byte ZooKeeper txn log crash-loops it (ZOOKEEPER-2332); counted from the volume, not inside the (possibly dead) container
 zkimg=$(for i in alpine busybox; do docker image inspect "$i" >/dev/null 2>&1 && { echo "$i"; break; }; done)
-if [ -n "$zkimg" ]; then
-  zk0=$(docker run --rm -v microservices_zookeeper-logs:/l:ro "$zkimg" sh -c 'find /l/version-2 -maxdepth 1 -name "log.*" -size 0 | wc -l' 2>/dev/null | tr -d ' ')
-  case "$zk0" in 0) ok "zookeeper: no zero-byte transaction logs";; ''|*[!0-9]*) warn "zookeeper: cannot check zero-byte transaction logs (volume read failed)";; *) act "zookeeper: $zk0 zero-byte transaction log(s) - MARUN-DISK.md J";; esac
-else warn "zookeeper: cannot check zero-byte transaction logs (no alpine or busybox image on this host)"; fi
+if [ -z "$zkimg" ]; then warn "zookeeper: cannot check zero-byte transaction logs (no alpine or busybox image on this host)"
+elif ! docker volume inspect microservices_zookeeper-logs >/dev/null 2>&1; then warn "zookeeper txn-log volume not found - cannot check zero-byte logs"
+else
+  # a failing find must not read as 0: the sh -c prints nodir / the find error, and only a plain number counts
+  zk0=$(docker run --rm -v microservices_zookeeper-logs:/l:ro "$zkimg" sh -c '[ -d /l/version-2 ] || { echo nodir; exit 0; }; n=$(find /l/version-2 -maxdepth 1 -name "log.*" -size 0) || { echo findfail; exit 0; }; [ -z "$n" ] && echo 0 || echo "$n" | wc -l' 2>/dev/null | tr -d ' ')
+  case "$zk0" in 0) ok "zookeeper: no zero-byte transaction logs";; ''|*[!0-9]*) warn "zookeeper: cannot check zero-byte transaction logs (${zk0:-docker run failed})";; *) act "zookeeper: $zk0 zero-byte transaction log(s) - MARUN-DISK.md J";; esac
+fi
 
 echo "== 3. OT feed -> samples (60 s)"
 s1=$(off traverse.cpa.loop.samples.v1); sleep 60; s2=$(off traverse.cpa.loop.samples.v1); d=$((s2-s1))
