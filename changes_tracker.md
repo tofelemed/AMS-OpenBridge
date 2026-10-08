@@ -4144,7 +4144,7 @@ lab `ams-zookeeper` not recreated during the go/no-go.
   at least 1 h and only if free disk >= 2 x the printed size of the three tables (VM step 6g). Optional `.env` keys `CPLM_EVIDENCE_MAX_CYCLES` (12)
   and `CPLM_EVIDENCE_MIN_INTERVAL_MIN` (60). The batch manifest must carry `!chg049-evidence`.
 - Build: `mvn package` (Docker Maven, the jar is needed for CHG-049; no `--skip-jar`) → `python migration/deploy/build-release.py --release v2.7.0 --out release-out/v2.7.0-20261007`.
-- **Built 2026-10-07 (GO 16:50 UTC after 7 h on the shipping build):** `release-out/v2.7.0-20261007` (897 MB, SHA256SUMS 27/27 OK)
+- **Built 2026-10-07 (GO 16:50 UTC after 7 h on the shipping build) — SUPERSEDED by the final bundle `v2.7.0-20261008` below; do not deploy this one:** `release-out/v2.7.0-20261007` (897 MB, SHA256SUMS 27/27 OK)
   from `feat/v25-next-release` head 848e49a1. Images: ams-flink 4c746777…, cplm-api 1dafd1f0…, traverse-ingestion-service fa4ab7ab…,
   ams-frontend 69de633d…; jar bfff05f0…. Plant procedure: `VM-STEPS.md` in the bundle (Flink swap with the ZooKeeper guard →
   app images → cpm-12 → cpm-13 → ≥1 h → cpm-12b → daily check).
