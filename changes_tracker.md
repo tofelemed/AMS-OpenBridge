@@ -4221,3 +4221,4 @@ lab `ams-zookeeper` not recreated during the go/no-go.
   `/jobs/<id>/checkpoints`: `failed` stays 0); `ams-flink-taskmanager` RestartCount stays 0 (daily check §2); `BUDGET_EXCEEDED`
   censors in `analytics.response_event` are normal under load (daily check §4). A reconstruction's artifacts read STANDARD /
   COMPLETE with one dataset (no TRANSIENT rows left from the live run).
+- Known, documented, not fixed in v2.7.0 (F5, user decision 2026-10-07): TaskManager `OutOfMemoryError: Direct buffer memory` in the Kafka fetchers during a mass restore (seen once on the lab at 13 jobs, not reproduced in 5 trials; the TaskManager stays up and the tasks restart from checkpoints). Symptom, numbers and the prepared plant patch (framework off-heap 256m + process.size 3712m, no image change) are in `prod_decision.md` section 6; daily check §4 gains a WARN line; apply the patch if it appears on two days or during a normal deploy.
