@@ -4255,3 +4255,116 @@ ZooKeeper guard → compose `up -d --no-deps --no-build --pull never flink-jobma
 
 Flink downtime 09:08-09:18 UTC (no HA, fresh window state; 12h/24h verdicts need up to a day).
 Same-day incident before the deploy (disk 100 %, ZooKeeper zero-byte log, broker / OT publisher chain): `prod_decision.md` section 6.
+
+## CHG-077 — Valve position is declared per loop; a loop without one is never "degraded" or "VP not mapped" (2026-10-10)
+
+**Source:** user, 2026-10-10 (item 1: "vp should be optional ... if not it will not show degraded or vp not mapped throughout the loop;
+when the loop has vp but we don't map it, it should show degraded / reduced confidence"). **Scope:** **`cplm-api`**
+`Services/CpmLoopRegistryReads.cs` (+ `tests/cplm-api.Tests/OptionalInputsTests.cs`); **`ams-frontend`** `optionalInputs.ts`,
+`OptionalInputFields.tsx`, `AddLoopWizard.tsx`, `registryShared.ts`, `ProfileAside.tsx`, `conclusionBasis.ts`, `summaryText.ts`,
+`evidence/VerdictCard.tsx`, `evidence/GateEvidenceWorkspace.tsx`, `evidence/ExplainWhy.tsx`, `GateEvidencePanel.tsx`,
+`investigation/confirmationCopy.ts`, `investigation/HypothesisPanel.tsx`, `CpmInvestigation.tsx`, `LoopRegistry.tsx` (+ tests).
+**No schema** (the setting is `cpm.loop_registry.engineering.vpApplicability`, CHG-059). Commit bef2fe8e.
+
+**What was wrong.** The per-loop declaration existed (CHG-059, a four-way select), but the registry stamped `NO_VP` on every loop
+without a VP tag, so the State pill read "Degraded"; "Not installed" still counted as a gap ("OK on available data", "not checked");
+raw flag pills, the G14 prose and the wizard note said "no valve position mapped" whatever the loop had.
+
+**What changed.**
+- Wizard: one checkbox "This loop has a valve position (positioner feedback)", saved explicitly (EXPECTED / NOT_APPLICABLE); an edit
+  shows what the loop is today (declared, or derived from the command path). The G14 note shows only when ticked and no VP tag is mapped.
+- cplm-api: `NO_VP` / `NO_UPSTREAM_LINKS` only where the loop declares the input (the registry's "Degraded" follows).
+- UI: NOT_INSTALLED and NOT_APPLICABLE both mean "this loop has no valve position": no NO_VP pill, no "OK on available data", no
+  "not checked" line, no limitation; G14 reads "does not apply". The client-side filter also covers windows the engine still flags.
+- Ticked and unmapped: unchanged — Degraded, "OK on available data", a valve cause stops at suspected (evidence score capped at 89).
+- **Not changed (handed to the gates owner):** the Flink engine still emits `NO_VP` and the 0.89 cap without reading the declaration;
+  the "capped at 89" note can therefore still appear on a valve claim of a no-VP loop until the engine reads it.
+
+**Tests.** cplm-api `OptionalInputsTests` 28/28 (new: NO_VP / NO_UPSTREAM_LINKS by declaration). Frontend `optionalInputs.test.ts`
+(new: `flagsForLoop`, `vpAbsent`, registry State), `conclusionBasis.test.ts`. **Lab (2026-10-10):** FIC10503 edited in the wizard
+(unticked) → saved `vpApplicability: NOT_APPLICABLE`; registry "Valve position: None on this loop — G14 does not apply", Observability
+shows only "No peer links"; Explorer G10 "Not seen" (no "on available data"); Performance G14 panel has no NO_VP pill. After the cplm-api
+rebuild: FIC10503 flags `[NO_UPSTREAM_LINKS]`, B2_027PIC (expected, unmapped) keeps `[NO_VP, NO_UPSTREAM_LINKS]`. Wizard at 390 night.
+
+## CHG-078 — Readiness hints in plain words; a signal value is "live" or its age, never both (2026-10-10)
+
+**Source:** user, 2026-10-10 (item 2). **Scope:** **`cplm-api`** `Controllers/CpmReadinessController.cs`; **`ams-frontend`**
+`explorer/summary/OperatingState.tsx` (+ `liveSource.test.ts`). Commit e8cf8773.
+
+**What changed.** Readiness messages carried API routes ("Add asset relationships, then POST /cpm/loops/{id}/republish-evidence",
+"POST /api/v1/cpm/loops/activate", "see /cpm/pipeline-status"); they now name the screen and the button. The Loop Explorer PV / SP / OP /
+MODE cards read "live" while the feed is current and "last received 13 days ago" once it has stalled (was "live · 13d ago"), in the one
+CPA age format.
+
+**Tests.** `liveSource.test.ts` (3). **Lab:** after the cplm-api rebuild, FIC10503 readiness reads "Add the loop's upstream / peer links
+in the asset model, then use "Re-project links & republish evidence" on this loop in the Loop Registry." The lab feed is stopped, so
+the cards show the stored-value path ("last stored 2 days ago"); the stalled-live path is covered by the unit test.
+
+## CHG-079 — Modal inspectors are centred again on pages with the loop context bar (2026-10-10)
+
+**Source:** user, 2026-10-10 (item 5, Calculations screenshot). **Scope:** **`ams-frontend`** `styles/cpm-context.css`, `CalcDrawer.tsx`.
+Commit 82fb55df.
+
+**Cause.** The CHG-041 sticky rule `.cpm-screen .cpm-inspector { top: var(--cpm-context-h) }` out-ranked `.cpm-inspector--modal
+{ top: 50% }`; with `translate(-50%, -50%)` the Calculations dialog sat about 230 px above the screen, its title and Close under the
+header. The rule now applies to docked inspectors only (every modal inspector on a context-bar page was affected). Also: spacing
+between the Definition tab's description and the Contract head.
+
+**Lab.** Calculations → a row: dialog top 164 px of 900 (1440 day), 117 of 844 (390 night), 214 of 1000 (768 day), head visible.
+
+## CHG-080 — Zoom area / Undo / Reset stay on the Trend page when a From/To window is pinned (2026-10-10)
+
+**Source:** user, 2026-10-10 (item 3). **Scope:** **`ams-frontend`** `Designer/TrendCore.tsx`, `Designer/TrendPage.tsx`. Commit 7304d5f4.
+
+**Cause and change.** The Trend page hides TrendCore's time-bar for a pinned window (its range / step / Now buttons drive the internal
+window) and the zoom controls lived inside it. TrendCore gets an opt-in `showZoomBar`: with the time-bar hidden it shows the window's
+clocks and Zoom area / Undo / Reset alone; a newly pinned window resets the zoom. The canvas trend symbol does not opt in (unchanged).
+
+**Lab.** `/trend?tags=…fic10503.pv,sp&from=…&to=…`: zoom bar present (time-bar absent); a dragged zoom enables Undo / Reset, Reset
+disables them again; live mode unchanged; 390 night fits (no horizontal scroll).
+
+## CHG-081 — SuperAdmin role: only it holds Gate Configuration, Administration, Pipeline Health and Governance (2026-10-10)
+
+**Source:** user, 2026-10-10 (item 4: "create a user super admin; only he can have gate config and the administration side, pipeline
+health, governance; this super admin will be in my hand"). **Scope:** **migration `scripts/cpm-14-superadmin-role.sql`** (+ rollback),
+**`traverse-auth-service`** `rbac/permission-catalog.ts`, `utils/roles.ts`; **`display-service`** `Program.cs` (`IsAdmin`);
+**`ams-frontend`** `App.tsx`, `nav/navItems.ts`, `ProfileAside.tsx`, `explorer/LoopModelCard.tsx`, `evidence/ExplainPanel.tsx`,
+`evidence/ExplainWhy.tsx`, `Administration/UserManagementConfig.tsx`, `Designer/ShareDialog.tsx` (+ tests); `build-release.py`
+OPS_FILES. Commits ea554d0d, b372fda8.
+
+**What changed.**
+- `cpm-14` (traverse_auth, one transaction, idempotent): role `SuperAdmin` with every permission; the SuperAdmin user from psql
+  variables (bcrypt via pgcrypto, no password in the repo); **aborts before revoking anything unless an active SuperAdmin exists**;
+  then `cpm.config.*`, `admin.users.edit`, `admin.audit.view`, `rbac.manage`, `ingestion.view`, `ingestion.manage`, `system.manage`
+  leave every other role and those users' sessions end (`credentials_changed_at`).
+- auth-service catalog: SuperAdmin system role; those keys SuperAdmin-only by default (a role "reset to default" keeps it so).
+  Bulk import cannot create SuperAdmins (deliberate).
+- UI: Pipeline Health and Governance need `system.manage` (menu + route); Administration no longer opens on `asset.edit`; the
+  "Effective configuration" / "Configuration this run used" buttons and the explain-panel configuration read need `cpm.config.read`
+  (the why-rows fall back to the run's own provenance). SuperAdmin counts as an admin for display ownership (display-service, ShareDialog).
+- **Server enforcement:** Gate Configuration (cplm-api `cpm.config.*` policies), Administration (auth-service / ingestion-service keys)
+  are enforced server-side. Pipeline Health and Governance read shared `analytics.view` endpoints also used by other pages: those two
+  pages are gated in the UI only.
+
+**Tests.** auth-service `tsc` clean; display-service builds; frontend tests for the hidden configuration buttons; build-release pytest 49.
+**Lab (2026-10-10):** cpm-14 run → `superadmin_users 1, superadmin_keys 38, grants_revoked 17, roles_reduced Admin, Engineer`; re-run →
+0 revoked. Logins: superadmin (role SuperAdmin, 38 keys) → `/configuration/catalogue` 200, `/configuration/effective` 200,
+`/api/auth/users` 200; admin (25 keys) → 403 / 403 / 403, CPM reads 200. UI: admin's menu has no Gate Configuration, Pipeline Health,
+Governance, Administration, no "Effective configuration" button, `/cpm/config` redirects to the Overview; superadmin sees all four.
+The lab superadmin's password is in `infra/docker/.env` (`LAB_SUPERADMIN_PASSWORD`, git-ignored).
+
+### Patch release **v2.7.1** — what to build and run (CHG-077 … CHG-081)
+
+- Updated services: **`ams-frontend`** (CHG-077 … 081), **`cplm-api`** (CHG-077, CHG-078), **`traverse-auth-service`** (CHG-081),
+  **`display-service`** (CHG-081). No Flink, no ingestion change.
+- Migration: **`ops/cpm-14-superadmin-role.sql`** against `traverse_auth` (one transaction). Choose the SuperAdmin username / email /
+  password first; type the password on the VM only:
+  `docker exec -i instrumental-postgres psql -U postgres -d traverse_auth -1 -v ON_ERROR_STOP=1 -v su_username=superadmin -v su_email=superadmin@local -v su_password='<secret>' < /tmp/v2.7.1/ops/cpm-14-superadmin-role.sql`
+  → last line `cpm-14 OK | 1 | <keys> | <n> | Admin, Engineer…`. Every Admin / Engineer is logged out once; log in as the SuperAdmin
+  and check Administration opens.
+- Order: load images → swap `traverse-auth-service`, `cplm-api`, `display-service`, `ams-frontend` → run cpm-14 → check.
+- Rollback: previous images; `ops/cpm-14-superadmin-role.rollback.sql` gives Admin its keys back (the SuperAdmin role / user stay, harmless).
+- Plant check after deploy: an Admin login shows no Gate Configuration / Pipeline Health / Governance / Administration; a loop whose
+  registry checkbox is unticked shows no "Degraded" for VP; Calculations row dialog centred; Trend pinned window keeps Zoom area.
+- **Deferred (user, 2026-10-10):** Overview operating-picture KPIs ("Healthy 0": HEALTHY maps only NORMAL / NONE / HEALTHY, which the
+  fusion never writes; STALE mixes "no fresh result" with "insufficient data") — more research first, then its own change.
