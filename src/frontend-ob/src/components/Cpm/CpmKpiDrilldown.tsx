@@ -20,7 +20,9 @@ import { EmptyState, PanelHead, QueryError, TonePill, WorkspaceHeader, fmtDateTi
 import { ListPager } from '../shared/ListPager';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
 import { overviewHref } from './cpaHref';
-import { useFleetKpiLoops, useFleetKpis } from './kpi/useFleetKpis';
+import { useFleetKpiLoops, useFleetKpiTrend, useFleetKpis } from './kpi/useFleetKpis';
+import { KpiTrendChart } from './kpi/KpiTrendChart';
+import { kpiSeries, seriesRange } from './kpi/kpiTrend';
 import { KPI_GROUPS, kpiTone, pct, reasonLabel } from './kpi/fleetKpiView';
 import { KPI_WHY } from './kpi/kpiProof';
 import { KPI_META, basisShort, kpiDelta } from './kpi/kpiMeta';
@@ -40,11 +42,17 @@ export const CpmKpiDrilldown: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const kpi = (params.get('kpi') ?? 'acceptable') as FleetKpiKey;
   const reason = params.get('reason');
+  // KPI Phase 5: a picked trend day (its exact as-of instant); absent = now
+  const day = params.get('day');
   const scope = useCpmScope();
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
   const kpis = useFleetKpis(scope.params);
-  const list = useFleetKpiLoops({ kpi, reason, q: search.trim() || undefined, page: page + 1, pageSize: PAGE, ...scope.params });
+  const list = useFleetKpiLoops({ kpi, reason, q: search.trim() || undefined, page: page + 1, pageSize: PAGE, asOf: day, ...scope.params });
+  const trend = useFleetKpiTrend(scope.params);
+  const trendDays = kpiSeries(trend.data, kpi);
+  const pickedDay = day ? trendDays.find(d => d.asOf === day) : undefined;
+  const range = seriesRange(trendDays);
 
   const k = kpis.data;
   const figure = k?.kpis.find(f => f.key === kpi) ?? list.data?.figure ?? null;
@@ -100,10 +108,28 @@ export const CpmKpiDrilldown: React.FC = () => {
         </dl>
       </section>
 
+      <section className="cpm-surface" aria-label="Last 14 days">
+        <PanelHead eyebrow="Last 14 days · same time of day, same rules" title="How this number has moved"
+          right={day ? <ObcButton variant="flat" onClick={() => go({ day: null })}>Back to now</ObcButton> : undefined} />
+        {trend.isError && <QueryError title="The trend is unavailable" error={trend.error} retry={() => void trend.refetch()} />}
+        {!trend.data && !trend.isError && <EmptyState title="Classifying the last 14 days…" />}
+        {trend.data && (
+          <>
+            <KpiTrendChart trend={trend.data} kpi={kpi} selected={day} onPick={asOf => go({ day: asOf })} />
+            <p className="cpm-op__basis">
+              {range ? `Between ${range.min} % and ${range.max} % over the days with data. ` : 'No day had anything to judge. '}
+              Click a day to list the loops it counted. Days before the plant kept results read "no data", not 0 %.
+            </p>
+          </>
+        )}
+      </section>
+
       <section className="cpm-surface" aria-label="Loops behind this KPI">
         <PanelHead eyebrow="The loops behind the number"
-          title={total != null ? `${total} loop(s)${reason ? ` · ${reasonLabel(reason)}` : ''}` : 'Loading…'}
-          right={total != null && figure && !reason && total === figure.count ? <TonePill tone="good">matches the card</TonePill> : undefined} />
+          title={total != null ? `${total} loop(s)${reason ? ` · ${reasonLabel(reason)}` : ''}${day ? ` · as of ${fmtDateTime(day)}` : ''}` : 'Loading…'}
+          right={total != null && !reason && (day
+            ? pickedDay && total === pickedDay.count ? <TonePill tone="good">matches that day</TonePill> : undefined
+            : figure && total === figure.count ? <TonePill tone="good">matches the card</TonePill> : undefined)} />
         <div className="cpm-kpi-proof__tools">
           <label className="cpm-field cpm-kpi-proof__search">
             <span className="cpm-field__label">Search loops</span>

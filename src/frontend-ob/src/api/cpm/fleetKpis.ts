@@ -110,14 +110,33 @@ export const getFleetKpis = (scope?: CpmFleetScope, signal?: AbortSignal) => {
 };
 
 export const getFleetKpiLoops = (
-  q: { kpi: FleetKpiKey; reason?: string | null; q?: string; page?: number; pageSize?: number } & CpmFleetScope,
+  q: { kpi: FleetKpiKey; reason?: string | null; q?: string; page?: number; pageSize?: number; asOf?: string | null } & CpmFleetScope,
   signal?: AbortSignal,
 ) => {
   const p = scoped(q);
   p.set('kpi', q.kpi);
   if (q.reason) p.set('reason', q.reason);
   if (q.q) p.set('q', q.q);
+  if (q.asOf) p.set('asOf', q.asOf);   // a trend day: the loops that day's point counted
   p.set('page', String(q.page ?? 1));
   p.set('pageSize', String(q.pageSize ?? 50));
   return apiJson<FleetKpiLoops>(`${CPM_BASE}/fleet/kpis/loops?${p}`, { signal });
+};
+
+/** KPI Phase 5: one point per day — every figure as it stood at the same time of day (same rules, rows of that instant). */
+export interface FleetKpiTrendPoint {
+  asOf: string;
+  /** Today's point = the cards' live snapshot; its list is the live list (no asOf). */
+  isNow?: boolean;
+  monitored: number;
+  assessed: number;
+  kpis: Array<{ key: FleetKpiKey; count: number; denominator: number }>;
+}
+
+export interface FleetKpiTrend { basis: FleetKpiBasis; days: number; anchor: string; points: FleetKpiTrendPoint[] }
+
+export const getFleetKpiTrend = (scope?: CpmFleetScope, days = 14, signal?: AbortSignal) => {
+  const p = scoped(scope);
+  p.set('days', String(days));
+  return apiJson<FleetKpiTrend>(`${CPM_BASE}/fleet/kpis/trend?${p}`, { signal });
 };

@@ -4,7 +4,7 @@
  */
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { backgroundPoll } from '../../../api/apiFetch';
-import { getFleetKpiLoops, getFleetKpis, type FleetKpiKey } from '../../../api/cpm/fleetKpis';
+import { getFleetKpiLoops, getFleetKpiTrend, getFleetKpis, type FleetKpiKey } from '../../../api/cpm/fleetKpis';
 import type { CpmFleetScope } from '../../../api/cpmApi';
 
 const scopeKey = (s?: CpmFleetScope) => [s?.site ?? '', s?.area ?? '', s?.unit ?? ''].join('|');
@@ -18,11 +18,20 @@ export function useFleetKpis(scope?: CpmFleetScope) {
 }
 
 export function useFleetKpiLoops(
-  q: { kpi: FleetKpiKey; reason?: string | null; q?: string; page: number; pageSize: number } & CpmFleetScope,
+  q: { kpi: FleetKpiKey; reason?: string | null; q?: string; page: number; pageSize: number; asOf?: string | null } & CpmFleetScope,
 ) {
   return useQuery({
-    queryKey: ['cpm', 'fleet', 'kpi-loops', q.kpi, q.reason ?? '', q.q ?? '', q.page, q.pageSize, scopeKey(q)],
+    queryKey: ['cpm', 'fleet', 'kpi-loops', q.kpi, q.reason ?? '', q.q ?? '', q.page, q.pageSize, scopeKey(q), q.asOf ?? 'now'],
     queryFn: ({ signal }) => getFleetKpiLoops(q, signal),
     placeholderData: keepPreviousData,
+  });
+}
+
+/** KPI Phase 5: the last `days` days, one classification per day (cached on the server between 15-min evaluations). */
+export function useFleetKpiTrend(scope?: CpmFleetScope, days = 14) {
+  return useQuery({
+    queryKey: ['cpm', 'fleet', 'kpi-trend', scopeKey(scope), days],
+    queryFn: ({ signal }) => getFleetKpiTrend(scope, days, signal),
+    staleTime: 5 * 60_000,
   });
 }

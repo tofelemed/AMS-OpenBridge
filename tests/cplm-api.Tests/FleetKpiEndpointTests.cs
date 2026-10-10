@@ -113,6 +113,31 @@ public sealed class FleetKpiEndpointTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Every_trend_point_equals_its_own_day_drill_down()
+    {
+        var api = Api();
+        var t = Json(await api.GetTrend(days: 3, site: _site));
+        var points = t.GetProperty("points").EnumerateArray().ToList();
+        points.Should().HaveCount(3);
+        // oldest first; the newest point is today: the probes' fresh rows exist only there
+        points[^1].GetProperty("assessed").GetInt32().Should().Be(3);
+        points[0].GetProperty("assessed").GetInt32().Should().Be(0, "two days ago none of the probe rows existed");
+        foreach (var p in points)
+        {
+            var asOf = DateTimeOffset.Parse(p.GetProperty("asOf").GetString()!);
+            var isNow = p.GetProperty("isNow").GetBoolean();
+            foreach (var f in p.GetProperty("kpis").EnumerateArray())
+            {
+                var key = f.GetProperty("key").GetString()!;
+                // today's bar is the cards' live snapshot: its list is the live one (no asOf)
+                var list = Json(await api.GetKpiLoops(key, site: _site, pageSize: 200, asOf: isNow ? null : asOf));
+                list.GetProperty("total").GetInt32().Should().Be(f.GetProperty("count").GetInt32(), $"{key} on {asOf:O}");
+            }
+        }
+        (await api.GetKpiLoops("stale", site: _site, asOf: DateTimeOffset.UtcNow.AddDays(-30))).Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
     public async Task Drill_down_rows_carry_the_deciding_value_and_reject_unknown_keys()
     {
         var api = Api();

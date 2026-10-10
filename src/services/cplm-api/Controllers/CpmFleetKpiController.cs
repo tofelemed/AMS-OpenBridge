@@ -76,14 +76,18 @@ public sealed class CpmFleetKpiController : ControllerBase
     [HttpGet("loops")]
     public async Task<IActionResult> GetKpiLoops([FromQuery] string kpi, [FromQuery] string? reason = null,
         [FromQuery] string? q = null, [FromQuery] string? site = null, [FromQuery] string? area = null,
-        [FromQuery] string? unit = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken ct = default)
+        [FromQuery] string? unit = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 50,
+        // KPI Phase 5: a trend day's exact as-of instant (from GET trend) — the list of loops that day's point counted
+        [FromQuery] DateTimeOffset? asOf = null, CancellationToken ct = default)
     {
         kpi = (kpi ?? "").Trim().ToLowerInvariant();
         if (!FleetKpiClassifier.Keys.Contains(kpi))
             return BadRequest(new { error = $"Unknown kpi '{kpi}'", allowed = FleetKpiClassifier.Keys });
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 200);
-        var (loops, computedAt, hit) = await ClassifiedAsync(site, area, unit, ct);
+        if (asOf is { } a && (a > DateTimeOffset.UtcNow.AddMinutes(1) || a < DateTimeOffset.UtcNow.AddDays(-MaxTrendDays - 1)))
+            return BadRequest(new { error = $"asOf must lie within the last {MaxTrendDays} days" });
+        var (loops, computedAt, hit) = asOf is { } at ? await ClassifiedAtAsync(site, area, unit, at, ct) : await ClassifiedAsync(site, area, unit, ct);
         Response.Headers["X-Cpm-Cache"] = hit ? "HIT" : "MISS";
 
         var matched = loops.Where(l => FleetKpiClassifier.Matches(l, kpi, reason)).ToList();
@@ -98,10 +102,50 @@ public sealed class CpmFleetKpiController : ControllerBase
             .Select(l => FleetKpiRows.Row(l, kpi, _t)).ToList();
         return Ok(new
         {
-            kpi, reason, basis = Basis(), computedAt,
+            kpi, reason, basis = Basis(), computedAt, asOf,
             figure = FleetKpiClassifier.Figures(loops, _t).FirstOrDefault(f => f.Key == kpi),
             total, matched = matched.Count, page, pageSize, rows,
         });
+    }
+
+    /// <summary>Days of history a trend may cover: the plant keeps the gate results 14 days (cpm-10b retention).</summary>
+    private const int MaxTrendDays = 14;
+
+    /// <summary>
+    /// KPI Phase 5: every Overview figure as it stood at the same time of day on each of the last `days` days — the same
+    /// classification, applied to the rows that existed at that instant. Each point carries its exact `asOf`, which GET loops
+    /// accepts, so a day's point and that day's list of loops come from one classification (count = list, as for the cards).
+    /// Past days sit at the anchor rounded down to 15 min (the engine's evaluation step), so they are cached between
+    /// evaluations; today's point is the live snapshot of the cards (`isNow`; its list is GET loops without asOf).
+    /// </summary>
+    [HttpGet("trend")]
+    public async Task<IActionResult> GetTrend([FromQuery] int days = MaxTrendDays, [FromQuery] string? site = null,
+        [FromQuery] string? area = null, [FromQuery] string? unit = null, CancellationToken ct = default)
+    {
+        days = Math.Clamp(days, 2, MaxTrendDays);
+        var now = DateTimeOffset.UtcNow;
+        var anchor = new DateTimeOffset(now.Ticks - now.Ticks % TimeSpan.FromMinutes(15).Ticks, TimeSpan.Zero);
+        var points = new object[days];
+        using var gate = new SemaphoreSlim(4);    // four classifications at a time: bounded load on the shared database
+        await Task.WhenAll(Enumerable.Range(0, days).Select(async k =>
+        {
+            await gate.WaitAsync(ct);
+            try
+            {
+                // today = the live snapshot the cards use (so today's bar equals the card); past days at the 15-min slot
+                var (loops, asOf, _) = k == 0
+                    ? await ClassifiedAsync(site, area, unit, ct)
+                    : await ClassifiedAtAsync(site, area, unit, anchor.AddDays(-k), ct);
+                points[days - 1 - k] = new
+                {
+                    asOf, isNow = k == 0, monitored = loops.Count,
+                    assessed = loops.Count(l => l.State == KpiState.Assessed),
+                    kpis = FleetKpiClassifier.Figures(loops, _t).Select(f => new { f.Key, f.Count, f.Denominator }),
+                };
+            }
+            finally { gate.Release(); }
+        }));
+        return Ok(new { basis = Basis(), days, anchor, points });
     }
 
     private object Basis() => new
@@ -126,6 +170,23 @@ public sealed class CpmFleetKpiController : ControllerBase
                 new { site, area, unit, windowKind = _t.WindowKind, asOf = now }, cancellationToken: token));
             IReadOnlyList<KpiLoop> loops = raw.Select(r => FleetKpiClassifier.Classify((KpiLoopRow)FleetKpiRows.FromDb(r), _t, now)).ToList();
             return new Snapshot(loops, now);
+        }, ct);
+        return (body.Loops, body.ComputedAt, hit);
+    }
+
+    /// <summary>The classification as of an exact instant (a trend day). Past instants change little, so they are cached
+    /// for 10 min; the key is the instant itself, so the trend point and its drill-down share one snapshot.</summary>
+    private async Task<(IReadOnlyList<KpiLoop> Loops, DateTimeOffset ComputedAt, bool Hit)> ClassifiedAtAsync(
+        string? site, string? area, string? unit, DateTimeOffset asOf, CancellationToken ct)
+    {
+        var at = asOf.ToUniversalTime();
+        var (body, hit) = await _cache.GetOrCreateAsync<Snapshot>($"kpis-at|{site}|{area}|{unit}|{_t}|{at:O}", TimeSpan.FromMinutes(10), async token =>
+        {
+            await using var conn = await _db.OpenConnectionAsync(token);
+            var raw = await conn.QueryAsync(new CommandDefinition(FleetKpiSql.Rows,
+                new { site, area, unit, windowKind = _t.WindowKind, asOf = at }, cancellationToken: token));
+            IReadOnlyList<KpiLoop> loops = raw.Select(r => FleetKpiClassifier.Classify((KpiLoopRow)FleetKpiRows.FromDb(r), _t, at)).ToList();
+            return new Snapshot(loops, at);
         }, ct);
         return (body.Loops, body.ComputedAt, hit);
     }
