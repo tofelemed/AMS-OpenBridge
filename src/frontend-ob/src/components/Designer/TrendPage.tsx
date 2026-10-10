@@ -125,6 +125,8 @@ export const TrendPage: React.FC = () => {
           // TrendCore's bar controls the INTERNAL window, which a controlled
           // window overrides — hiding it beats showing dead range/step buttons.
           showTimeBar={!window}
+          // CHG-080: Zoom area / Undo / Reset act on the chart, not the window — keep them when pinned
+          showZoomBar={!!window}
         />
       </div>
     </div>

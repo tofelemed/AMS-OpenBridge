@@ -23,6 +23,7 @@ import {
 import { buildTrendOption } from './trend/trendOption';
 import { TrendLegend } from './trend/TrendLegend';
 import { TrendTimeBar } from './trend/TrendTimeBar';
+import { ChartZoomBar } from '../charts/ChartZoomBar';
 
 export type { PenSpec } from './trend/trendSupport';
 export { RANGES } from './trend/trendSupport';
@@ -31,6 +32,11 @@ interface TrendCoreProps {
   pens: PenSpec[];
   /** Show the range/live time-bar. */
   showTimeBar?: boolean;
+  /**
+   * CHG-080: with the time-bar hidden (a pinned / controlled window), still show Zoom area / Undo / Reset —
+   * they act on the chart's own zoom, not on the window. Opt-in, so the canvas trend symbol is unchanged.
+   */
+  showZoomBar?: boolean;
   /** One Y-axis per pen (PI Vision style). Defaults on when the pens carry different units. */
   multiAxis?: boolean;
   initialRangeMs?: number;
@@ -55,6 +61,7 @@ interface TrendCoreProps {
 export const TrendCore: React.FC<TrendCoreProps> = ({
   pens: penSpecs,
   showTimeBar = true,
+  showZoomBar = false,
   multiAxis,
   initialRangeMs = 15 * 60_000,
   className = '',
@@ -166,6 +173,10 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
   const fetchKey = controlledWindow
     ? (controlledLive ? `cspan:${controlledWindow.end - controlledWindow.start}` : `cfix:${controlledWindow.start}:${controlledWindow.end}`)
     : (live ? `live:${rangeMs}` : `fix:${rangeMs}:${endTs}`);
+  // CHG-080: a newly pinned window is a new range — a zoom selected on the previous one no longer means anything
+  // (the internal range buttons already reset it the same way).
+  const { reset: resetZoom } = box;
+  useEffect(() => { if (isControlled && !controlledLive) resetZoom(); }, [fetchKey, isControlled, controlledLive, resetZoom]);
 
   // Historical fetch per pen, on window/pen change (identical to Phase C).
   useEffect(() => {
@@ -348,6 +359,13 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
         />
       </div>
 
+      {!showTimeBar && showZoomBar && (
+        <div className="trend-core__bar" data-testid="trend-zoombar">
+          <span className="trend-core__clock">{fmtClock(windowStart)}</span>
+          <ChartZoomBar box={box} hasData={hasData} live={controlledLive} />
+          <span className="trend-core__clock">{fmtClock(windowEnd)}</span>
+        </div>
+      )}
       {showTimeBar && (
         <TrendTimeBar
           windowStart={windowStart} windowEnd={windowEnd} fmtClock={fmtClock}
