@@ -199,6 +199,20 @@ Probes: [`sql/01-kpi-input-coverage.sql`](sql/01-kpi-input-coverage.sql) (`-v ba
 | No "no fault found" code on the lab | last 3 days: only `INSUFFICIENT_DATA`; real verdicts: `CONFIRMED_OSCILLATION` 162 | the simulator only oscillates — **K1 can only be calibrated on plant data** (probe section D) |
 | Saturation basis is a fallback on most loops | `limit_source = FALLBACK_0_100` | K6 drill-down shows the basis; registry OP ranges improve it |
 
+### 5.1 Plant evidence (Marun, probe `sql/02-…`, 2026-10-10 evening, 175 monitored loops)
+
+| Section | Result | Meaning |
+|---|---|---|
+| A. newest row | 142 loops < 1 h old, all `INSUFFICIENT_DATA`; 32 never; 1 older than 24 h | the pipeline **is producing** — under the new rules these are *not assessable (incomplete data)*, not stale; only 1 is stale |
+| C. why insufficient | 140 loops: completeness 0.42, 7,263 of 17,280 samples, sample period 4.1 s, **max gap 16 s** | the feed is continuous; the 24 h window is not yet full: 7,263 × 4.1 s ≈ 8.4 h = time since the v2.7.0 Flink swap (jobs RUNNING since 09:17 UTC, fresh state). 12 h verdicts return ≈ 11.4 h after the restart, 24 h verdicts ≈ 22.8 h after (0.95 × 24 h) — about 08:00–09:00 UTC on 11 Oct if the feed stays continuous. One loop has a 22.5 h gap (broken feed) |
+| D. codes, last 3 days | only `INSUFFICIENT_DATA` | consistent with the 7–10 Oct feed outage / disk incidents and the restart |
+| B. newest real verdict (3–7 days old) | `NO_CALL` 17 + `INSUFFICIENT_EVIDENCE` 8 = **25 no-fault**; `EXCLUDED_MODE` **65**; excessive effort confirmed 26 + suspected 1; oscillation confirmed 11 + suspected 1; valve suspected 1; weak symptoms 9; never 34 | **K1 is confirmed on plant data:** the engine writes the no-fault codes — the old "Healthy" (NORMAL / NONE / HEALTHY) read 0 while 25 loops had no fault. 65 of 175 loops (≈ 37 %) were last judged in manual — the service-factor KPI's first real finding. Excessive effort is the most common fault family |
+| E. acquisition | `{}` on all 175 loops | no grid declared in the registry; the expected count (17,280 = 24 h ÷ 5 s) comes from the source grid |
+
+Consequences: (1) every Flink restart without saved state costs ≈ 23 h of 24 h verdicts — record it in each release's deploy notes;
+(2) the 32 never-evaluated loops and the one 22.5 h gap are onboarding / feed items, not KPI defects; (3) re-run the probe after
+≈ 09:00 UTC on 11 Oct: section A should then show real verdicts and the performance cards fill.
+
 ## 6. Decisions — checked against standards and published practice (approved 2026-10-10)
 
 | # | Question | Decision | Evidence |
@@ -208,7 +222,7 @@ Probes: [`sql/01-kpi-input-coverage.sql`](sql/01-kpi-input-coverage.sql) (`-v ba
 | Q3 | 24 h only, or fall back to 12 h? | **24 h** for every tile (one basis); 12 h verdict shown as context in the K7 drill-down; the daily trend (Phase 5) carries the "many batches" view | Horch (ABB, DYCOPS): a single data batch can mislead (shutdowns, unusual events) — assess over many batches; good control changes over months, not hours. |
 | Q4a | Normal-mode threshold | **≥ 95 %** time in AUTO / CASCADE per loop; fleet target **< 10 %** of loops out of mode | Emerson loop-performance guidance: controllers in manual / incorrect mode < 10 %, do not count a loop that is in the incorrect mode < 5 % of the time; Bayer / PlantTriage: "more than 5 percent out of design mode → out of mode". |
 | Q4b | Saturation threshold | **> 10 %** of the window fully open / closed | Bayer / PlantTriage: "should not be fully open or fully closed more than 10 percent of the time"; no published standard value — site-adjustable. |
-| Q5 | Plant probe | run `sql/02-…` on the VM; it calibrates K1 and explains the plant's 141 / 34 | — |
+| Q5 | Plant probe | **done 2026-10-10** — section 5.1: no-fault codes exist (K1 confirmed); the 141 "stale" were a buffer refill after the restart | `sql/02-…` |
 
 No international standard (ISA / IEC) fixes CPM thresholds; the values above are the published practice. All are configurable
 (cplm-api `Cpm:Kpi:*`) and recorded in `prod_decision.md` — a site changes them there, not in code.
@@ -288,3 +302,4 @@ Drill-down keys: `all`, `assessed`, `acceptable`, `no-fault-limited`, `finding`,
 | 2026-10-10 | 2–3 | Overview cards + drill-down; acceptable also requires not saturated; change vs 24 h ago; redesign (section 10) |
 | 2026-10-10 | 4 | Per-loop KPI cards on the Explorer (`/loops/{id}/kpi-summary`); route-uniqueness guard after a route collision |
 | 2026-10-10 | 5 | 14-day trend with day drill-down (section 11) |
+| 2026-10-10 | — | Plant probe results (section 5.1): K1 confirmed, stale explained by the restart refill |
