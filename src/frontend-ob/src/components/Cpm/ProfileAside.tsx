@@ -41,6 +41,7 @@ export function rolePolicyOf(catalogue: GateCatalogue | undefined): [string, str
 
 export const ProfileAside: React.FC<{ loop: CpmLoop; onEdit: () => void }> = ({ loop, onEdit }) => {
   const [showConfig, setShowConfig] = useState(false);
+  const canReadConfig = useAuthStore(s => s.hasPermission('cpm.config.read'));
   const republish = useRepublishEvidence();
   const catalogue = useGateCatalogue();
   const rolePolicy = rolePolicyOf(catalogue.data);
@@ -104,10 +105,11 @@ export const ProfileAside: React.FC<{ loop: CpmLoop; onEdit: () => void }> = ({ 
 
       {/* v2.5 (audit F21): the governed configuration this loop runs under, read-only, from the registry as well */}
       <div className="cpm-loop-model__links">
-        <ObcButton variant="flat" onClick={() => setShowConfig(v => !v)}>{showConfig ? 'Hide effective configuration' : 'Effective configuration ›'}</ObcButton>
+        {/* CHG-081: the effective configuration is SuperAdmin only (cpm.config.read) */}
+        {canReadConfig && <ObcButton variant="flat" onClick={() => setShowConfig(v => !v)}>{showConfig ? 'Hide effective configuration' : 'Effective configuration ›'}</ObcButton>}
         <RouterLink className="cpm-link" to={`/cpm/evidence?loop=${encodeURIComponent(loop.loopId)}`}>Evidence workbench ›</RouterLink>
       </div>
-      {showConfig && <EffectiveConfigDrawer loopId={loop.loopId} onClose={() => setShowConfig(false)} />}
+      {canReadConfig && showConfig && <EffectiveConfigDrawer loopId={loop.loopId} onClose={() => setShowConfig(false)} />}
 
       <PanelHead eyebrow="Gate role policy" title="Roles per gate" />
       {rolePolicy.length === 0 && <p className="cpm-copy">{catalogue.isError ? 'Gate catalogue unavailable.' : 'Loading the gate catalogue…'}</p>}

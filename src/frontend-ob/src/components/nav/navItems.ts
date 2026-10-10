@@ -84,7 +84,8 @@ export const navItems: NavItem[] = [
   // audits HMI displays as well as CPM, so it is change control for the whole
   // product. Routes stay under /cpm/* — the command palette and existing deep
   // links point there, and a nav regrouping must not break bookmarks.
-  { path: '/cpm/pipeline', label: 'Pipeline Health',     Icon: ObiMonitoring, group: 'System', permission: 'analytics.view' },
+  // CHG-081: Pipeline Health and Governance are platform administration - SuperAdmin only (system.manage)
+  { path: '/cpm/pipeline', label: 'Pipeline Health',     Icon: ObiMonitoring, group: 'System', permission: 'system.manage' },
   { path: '/edge',       label: 'Edge Node Monitor',   Icon: ObiPlaceholder,  group: 'System', permission: 'historian.view' },
   { path: '/iotdb-trend', label: 'IoTDB Trend Viewer',  Icon: ObiDatabase, group: 'System', permission: 'historian.view' },
   // Administration is ONE entry — the hub's own 7-tab bar handles the sections;
@@ -92,5 +93,5 @@ export const navItems: NavItem[] = [
   // redirect. Visible to anyone holding ANY admin permission — matches the
   // /admin/* route's anyOf guard, so an auditor or rbac-manager still sees it.
   { path: '/admin',      label: 'Administration',      Icon: ObiUser, group: 'System', permission: 'admin.users.edit', anyOf: ['admin.users.edit', 'admin.audit.view', 'rbac.manage'] },
-  { path: '/cpm/governance', label: 'Governance',      Icon: ObiListAltCheckGoogle, group: 'System', permission: 'analytics.view' },
+  { path: '/cpm/governance', label: 'Governance',      Icon: ObiListAltCheckGoogle, group: 'System', permission: 'system.manage' },
 ];

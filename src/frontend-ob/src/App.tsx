@@ -446,8 +446,9 @@ const App: React.FC = () => {
                       {/* v2.5 (3D.1): the governed gate configuration - reading needs cpm.config.read; every step beyond is its own permission on the server */}
                       <Route path="/cpm/config"    element={<RequirePermission permission="cpm.config.read"><GateConfigurationWorkspace /></RequirePermission>} />
                       <Route path="/cpm/investigation" element={<RequirePermission permission="analytics.view"><CpmInvestigation /></RequirePermission>} />
-                      <Route path="/cpm/pipeline"  element={<RequirePermission permission="analytics.view"><CpmPipeline /></RequirePermission>} />
-                      <Route path="/cpm/governance" element={<RequirePermission permission="analytics.view"><CpmGovernance /></RequirePermission>} />
+                      {/* CHG-081: SuperAdmin only (system.manage), like the menu */}
+                      <Route path="/cpm/pipeline"  element={<RequirePermission permission="system.manage"><CpmPipeline /></RequirePermission>} />
+                      <Route path="/cpm/governance" element={<RequirePermission permission="system.manage"><CpmGovernance /></RequirePermission>} />
                       <Route path="/cpm/registry"  element={<RequirePermission permission="analytics.view"><CpmLoopRegistry /></RequirePermission>} />
                       <Route path="/cpm/events"    element={<RequirePermission permission="analytics.view"><CpmEvents /></RequirePermission>} />
                       {/* Published-HMI launcher — every role with display.view */}
@@ -461,7 +462,7 @@ const App: React.FC = () => {
                       {/* Infrastructure */}
                       <Route path="/edge"       element={CPA_SLICE_ONLY ? <Navigate to={HOME_PATH} replace /> : <RequirePermission permission="historian.view"><EdgeNodeMonitor /></RequirePermission>} />
                       {/* Administration — was reachable by ANY authenticated user via direct URL */}
-                      <Route path="/admin/*"    element={<RequirePermission permission="admin.users.edit" anyOf={['admin.users.edit', 'admin.audit.view', 'rbac.manage', 'ingestion.view', 'ingestion.manage', 'asset.edit']}><Administration /></RequirePermission>} />
+                      <Route path="/admin/*"    element={<RequirePermission permission="admin.users.edit" anyOf={['admin.users.edit', 'admin.audit.view', 'rbac.manage', 'ingestion.view', 'ingestion.manage']}><Administration /></RequirePermission>} />
                       <Route path="*"           element={<Navigate to={HOME_PATH} replace />} />
                     </Routes>
                   </React.Suspense>

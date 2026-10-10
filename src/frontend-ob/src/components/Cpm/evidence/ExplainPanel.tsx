@@ -22,6 +22,7 @@ import { CopyableId } from './CopyableId';
 import { codeLabel } from '../vocabulary';
 import { ExplainWhy } from './ExplainWhy';
 import type { InputContext } from '../optionalInputs';
+import { useAuthStore } from '../../../store/authStore';
 
 const STORAGE_KEY = 'ams-evidence-explain-collapsed';
 
@@ -58,6 +59,7 @@ export interface ExplainPanelProps {
 
 export const ExplainPanel: React.FC<ExplainPanelProps> = ({ gate, run, entry, manifest, state, status, reason, eligibilityDetail, timeZone, inputs, collapsed, onToggle }) => {
   const [showConfig, setShowConfig] = useState(false);
+  const canReadConfig = useAuthStore(s => s.hasPermission('cpm.config.read'));
   if (collapsed) {
     return (
       <aside className="cpm-explain cpm-explain--collapsed" aria-label="Explain (collapsed)">
@@ -118,8 +120,9 @@ export const ExplainPanel: React.FC<ExplainPanelProps> = ({ gate, run, entry, ma
         {run ? (
           <>
             <KvRow label="Bundle"><CopyableId label="Bundle hash" value={run.identity.bundleHash} chars={16} /></KvRow>
-            <ObcButton variant="flat" onClick={() => setShowConfig(v => !v)}>{showConfig ? 'Hide configuration used' : 'Configuration this run used ›'}</ObcButton>
-            {showConfig && <EffectiveConfigDrawer loopId={run.loopId} runBundleHash={run.identity.bundleHash} gateFilter={gate} onClose={() => setShowConfig(false)} />}
+            {/* CHG-081: reading the configuration is SuperAdmin only; the bundle hash stays for everyone */}
+            {canReadConfig && <ObcButton variant="flat" onClick={() => setShowConfig(v => !v)}>{showConfig ? 'Hide configuration used' : 'Configuration this run used ›'}</ObcButton>}
+            {canReadConfig && showConfig && <EffectiveConfigDrawer loopId={run.loopId} runBundleHash={run.identity.bundleHash} gateFilter={gate} onClose={() => setShowConfig(false)} />}
           </>
         ) : <p className="cpm-copy">—</p>}
       </CollapsibleSection>

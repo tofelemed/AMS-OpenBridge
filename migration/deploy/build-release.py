@@ -70,6 +70,8 @@ OPS_FILES = [
     "scripts/cpm-12-evidence-response-retention.sql",  # CHG-049   - response_event created_at index + RESPONSE retention row (online, after the Flink redeploy)
     "scripts/cpm-12b-evidence-reclaim.sql",        # CHG-049     - expired tombstones out + VACUUM FULL of the evidence tables (cplm-api STOPPED, >= 1 h after the new jar)
     "scripts/cpm-13-investigation-event-link.sql", # CHG-058     - loop notes linkable to an episode (online, additive, after cpm-12)
+    "scripts/cpm-14-superadmin-role.sql",          # CHG-081     - traverse_auth: SuperAdmin role + user (psql -v su_*), then platform admin keys leave every other role
+    "scripts/cpm-14-superadmin-role.rollback.sql", # CHG-081     - rollback: Admin gets those keys back
     "infra/docker/zookeeper/zk-start-guard.sh",    # CHG-068     - ZooKeeper start guard (quarantines zero-byte txn logs); lands in ops/, copied next to Instrumental's compose
     "migration/instrumental/zookeeper-start-guard.override.yml",  # CHG-068 - compose override: guard mount + command for Instrumental's zookeeper
     "scripts/set-quality-protocol.py",             # v2.5       - declare quality_protocol on every MQTT_LOOP_SAMPLES source

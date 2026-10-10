@@ -13,6 +13,7 @@ import { KvRow, PanelHead, TonePill } from '../shared';
 import { EffectiveConfigDrawer } from '../config/EffectiveConfigDrawer';
 import { evidenceHref, responseHref } from '../cpaHref';
 import { codeLabel } from '../vocabulary';
+import { useAuthStore } from '../../../store/authStore';
 
 const acquisitionText = (a: NonNullable<CpmLoop['model']>['acquisition'] | null | undefined): string => {
   if (!a) return '—';
@@ -30,6 +31,7 @@ export const LoopModelCard: React.FC<{ loop: CpmLoop; workbenchHref?: string; wo
 }) => {
   const navigate = useNavigate();
   const [showConfig, setShowConfig] = useState(false);
+  const canReadConfig = useAuthStore(s => s.hasPermission('cpm.config.read'));
   const m = loop.model;
   const explicit = m?.classificationSource === 'EXPLICIT';
   return (
@@ -63,9 +65,10 @@ export const LoopModelCard: React.FC<{ loop: CpmLoop; workbenchHref?: string; wo
           onClick={() => navigate(responseHref(loop.loopId))}>
           System response ›
         </ObcButton>
-        <ObcButton variant="flat" onClick={() => setShowConfig(v => !v)}>{showConfig ? 'Hide effective configuration' : 'Effective configuration ›'}</ObcButton>
+        {/* CHG-081: the effective configuration is SuperAdmin only (cpm.config.read) */}
+        {canReadConfig && <ObcButton variant="flat" onClick={() => setShowConfig(v => !v)}>{showConfig ? 'Hide effective configuration' : 'Effective configuration ›'}</ObcButton>}
       </div>
-      {showConfig && <EffectiveConfigDrawer loopId={loop.loopId} onClose={() => setShowConfig(false)} />}
+      {canReadConfig && showConfig && <EffectiveConfigDrawer loopId={loop.loopId} onClose={() => setShowConfig(false)} />}
     </div>
   );
 };

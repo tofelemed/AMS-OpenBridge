@@ -36,7 +36,8 @@ export const ShareDialog: React.FC<{
 
   const owner = data?.owner;
   // Owner-or-Admin may manage; matches the server's own check (which would otherwise 403).
-  const canManage = !!user && (user.role === 'Admin' || (owner != null && user.username === owner));
+  // CHG-081: SuperAdmin is an admin here too (same as display-service)
+  const canManage = !!user && (user.role === 'Admin' || user.role === 'SuperAdmin' || (owner != null && user.username === owner));
 
   const addGrant = useMutation({
     mutationFn: () => apiJson(`${API_BASE}/${displayId}/permissions`, {

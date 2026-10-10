@@ -1259,9 +1259,10 @@ static bool ContainsProcessValues(JsonDocument doc)
 static string RoleOf(ClaimsPrincipal user) =>
     user.FindFirst("role")?.Value ?? user.FindFirst(ClaimTypes.Role)?.Value ?? "";
 
-/// <summary>Admins govern everything and bypass ownership/ACL checks.</summary>
+/// <summary>Admins govern everything and bypass ownership/ACL checks. CHG-081: SuperAdmin is above Admin.</summary>
 static bool IsAdmin(ClaimsPrincipal user) =>
-    string.Equals(RoleOf(user), "Admin", StringComparison.OrdinalIgnoreCase);
+    string.Equals(RoleOf(user), "Admin", StringComparison.OrdinalIgnoreCase)
+    || string.Equals(RoleOf(user), "SuperAdmin", StringComparison.OrdinalIgnoreCase);
 
 /// <summary>
 /// A display's folder and every ancestor folder, so an ACL granted on a parent folder inherits down.

@@ -19,7 +19,7 @@
  * aligned. system.manage is Admin-only by decision.
  */
 
-export type SystemRole = 'Admin' | 'Engineer' | 'Operator' | 'Viewer';
+export type SystemRole = 'SuperAdmin' | 'Admin' | 'Engineer' | 'Operator' | 'Viewer';
 
 export interface PermissionDef {
   key: string;
@@ -36,10 +36,12 @@ export interface PermissionDef {
 }
 
 // Convenience role groupings for readability.
-const ALL: SystemRole[] = ['Viewer', 'Operator', 'Engineer', 'Admin'];
-const OPERATOR_UP: SystemRole[] = ['Operator', 'Engineer', 'Admin'];
-const ENGINEER_UP: SystemRole[] = ['Engineer', 'Admin'];
-const ADMIN_ONLY: SystemRole[] = ['Admin'];
+const ALL: SystemRole[] = ['Viewer', 'Operator', 'Engineer', 'Admin', 'SuperAdmin'];
+const OPERATOR_UP: SystemRole[] = ['Operator', 'Engineer', 'Admin', 'SuperAdmin'];
+const ENGINEER_UP: SystemRole[] = ['Engineer', 'Admin', 'SuperAdmin'];
+// CHG-081: platform administration (users, roles, audit, OT data sources, pipeline / governance) is SuperAdmin only;
+// gate configuration (cpm.config.*, seeded by SQL, not in this catalog) likewise — scripts/cpm-14-superadmin-role.sql.
+const SUPERADMIN_ONLY: SystemRole[] = ['SuperAdmin'];
 
 export const PERMISSION_CATALOG: PermissionDef[] = [
   // ── Alarms: response (operator) ──────────────────────────────────────────
@@ -75,19 +77,20 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
   { key: 'analysis.edit',           description: 'Create/edit analyses',          category: 'analysis',  roles: ENGINEER_UP },
   // ── Control-loop performance ─────────────────────────────────────────────
   { key: 'cpm.manage',              description: 'Onboard and configure control loops (CPLM)', category: 'cpm', roles: ENGINEER_UP },
-  // ── System / ops (Admin only by decision) ────────────────────────────────
-  { key: 'system.manage',           description: 'Manage pipeline jobs and OPC connections', category: 'system', roles: ADMIN_ONLY },
-  // ── OT data-source configuration (ingestion-service; Admin only by decision) ─
-  { key: 'ingestion.view',          description: 'View OT data-source configurations', category: 'ingestion', roles: ADMIN_ONLY },
-  { key: 'ingestion.manage',        description: 'Create/edit/test OT data-source configurations', category: 'ingestion', roles: ADMIN_ONLY },
-  // ── Administration ───────────────────────────────────────────────────────
-  { key: 'admin.users.edit',        description: 'Create/edit/delete users',      category: 'admin',     roles: ADMIN_ONLY },
-  { key: 'admin.audit.view',        description: 'View the audit log',            category: 'admin',     roles: ADMIN_ONLY },
-  { key: 'rbac.manage',             description: 'Manage roles and their permissions', category: 'admin', roles: ADMIN_ONLY, internal: true },
+  // ── System / ops (SuperAdmin only by decision, CHG-081): also gates Pipeline Health and Governance ─
+  { key: 'system.manage',           description: 'Manage pipeline jobs and OPC connections; view Pipeline Health and Governance', category: 'system', roles: SUPERADMIN_ONLY },
+  // ── OT data-source configuration (ingestion-service; SuperAdmin only by decision) ─
+  { key: 'ingestion.view',          description: 'View OT data-source configurations', category: 'ingestion', roles: SUPERADMIN_ONLY },
+  { key: 'ingestion.manage',        description: 'Create/edit/test OT data-source configurations', category: 'ingestion', roles: SUPERADMIN_ONLY },
+  // ── Administration (SuperAdmin only, CHG-081) ────────────────────────────
+  { key: 'admin.users.edit',        description: 'Create/edit/delete users',      category: 'admin',     roles: SUPERADMIN_ONLY },
+  { key: 'admin.audit.view',        description: 'View the audit log',            category: 'admin',     roles: SUPERADMIN_ONLY },
+  { key: 'rbac.manage',             description: 'Manage roles and their permissions', category: 'admin', roles: SUPERADMIN_ONLY, internal: true },
 ];
 
 export const SYSTEM_ROLES: { name: SystemRole; description: string }[] = [
-  { name: 'Admin',    description: 'System Administrator - full access' },
+  { name: 'SuperAdmin', description: 'Super Administrator - platform administration, gate configuration, pipeline and governance' },
+  { name: 'Admin',    description: 'System Administrator - plant configuration; no platform administration (CHG-081)' },
   { name: 'Engineer', description: 'Engineer - operate + configure, no user admin' },
   { name: 'Operator', description: 'Operator - alarm response operations' },
   { name: 'Viewer',   description: 'Viewer - read-only access' },

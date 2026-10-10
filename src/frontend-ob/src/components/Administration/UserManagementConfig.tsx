@@ -23,7 +23,8 @@ import { T } from '../../styles/theme';
 
 // Built-in roles are the fallback if the roles API is unavailable; the live list
 // (system + custom) is fetched so custom roles can be assigned to users.
-const ROLES = ['Admin', 'Engineer', 'Operator', 'Viewer'] as const;
+// CHG-081: SuperAdmin above Admin (platform administration, gate configuration, pipeline, governance)
+const ROLES = ['SuperAdmin', 'Admin', 'Engineer', 'Operator', 'Viewer'] as const;
 type Role = (typeof ROLES)[number];
 
 const ROLE_STYLE: Record<string, { bg: string; color: string; border: string }> = {

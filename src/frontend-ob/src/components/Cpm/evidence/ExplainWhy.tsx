@@ -20,6 +20,7 @@ import { fmtInstant } from '../context/LoopContextBar';
 import type { InputContext } from '../optionalInputs';
 import { INPUT_LIMITS_GATE, effectiveInputFlags } from '../inputLimits';
 import { flagsForLoop, vpAbsent } from '../optionalInputs';
+import { useAuthStore } from '../../../store/authStore';
 
 /** Which window flags limit which gate's claim: the missing inputs (shared, CHG-064) plus the method limits. */
 const LIMITS_GATE: Record<string, string[]> = {
@@ -39,10 +40,12 @@ export const ExplainWhy: React.FC<{
     queryFn: ({ signal }) => getGateHistory(run!.loopId, run!.windowKind, endIso, endIso, 1, signal, true),
     enabled: !!run && run.tier === 'fusion', staleTime: 5 * 60_000,
   });
+  const canReadConfig = useAuthStore(s => s.hasPermission('cpm.config.read'));
   const cfg = useQuery({
     queryKey: ['cpm', 'why-config', run?.loopId, endIso],
     queryFn: ({ signal }) => getEffectiveConfig(run!.loopId, endIso, signal),
-    enabled: !!run, staleTime: 5 * 60_000,
+    // CHG-081: only for whoever may read the configuration (SuperAdmin) - the rows fall back to the run's provenance
+    enabled: !!run && canReadConfig, staleTime: 5 * 60_000,
   });
   const fused = row.data?.windows?.[0];
   const prov = (kind: string, key: string) => {
