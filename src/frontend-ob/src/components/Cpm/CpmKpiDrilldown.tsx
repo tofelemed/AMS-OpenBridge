@@ -104,7 +104,6 @@ export const CpmKpiDrilldown: React.FC = () => {
           {figure && <><dt>Rule</dt><dd>{figure.rule}.</dd></>}
           {meta && <><dt>Formula</dt><dd><code className="cpm-kpi-proof__formula">{meta.formula}</code></dd></>}
           {KPI_WHY[kpi] && <><dt>Why this KPI</dt><dd>{KPI_WHY[kpi]}</dd></>}
-          <dt>Full logic</dt><dd>kpi_calculation_logic/KPI-LOGIC.md: formulas, thresholds, sources and the lab evidence.</dd>
         </dl>
       </section>
 
