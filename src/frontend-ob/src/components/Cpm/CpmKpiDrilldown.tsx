@@ -11,8 +11,9 @@ import React, { useMemo, useState } from 'react';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-left-google';
-import { ObiTimerGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-timer-google';
-import { ObiLimitsOutsideOver } from '@oicl/openbridge-webcomponents-react/icons/icon-limits-outside-over';
+import { ObiDatabase } from '@oicl/openbridge-webcomponents-react/icons/icon-database';
+import { ObiTime } from '@oicl/openbridge-webcomponents-react/icons/icon-time';
+import { ObiLimitsAttention } from '@oicl/openbridge-webcomponents-react/icons/icon-limits-attention';
 import { ObiHelp } from '@oicl/openbridge-webcomponents-react/icons/icon-help';
 import type { FleetKpiKey } from '../../api/cpm/fleetKpis';
 import { EmptyState, PanelHead, QueryError, TonePill, WorkspaceHeader, fmtDateTime } from './shared';
@@ -81,10 +82,10 @@ export const CpmKpiDrilldown: React.FC = () => {
                 label={`${pct(figure.count, figure.denominator)} % of ${figure.denominatorLabel}`} tone={kpiTone(figure)}
                 delta={kpiDelta(figure, k)} title={figure.rule} />
             : <KpiCard size="large" Icon={meta?.Icon ?? ObiHelp} value={total ?? '…'} label="loop(s) in this list" />}
-          <KpiCard Icon={ObiLimitsOutsideOver} value={<span className="cpm-kpicard__text">{meta ? meta.threshold(k.basis) : 'As listed'}</span>}
+          <KpiCard Icon={ObiLimitsAttention} value={<span className="cpm-kpicard__text">{meta ? meta.threshold(k.basis) : 'As listed'}</span>}
             label="Threshold" />
-          <KpiCard Icon={ObiTimerGoogle} value={<span className="cpm-kpicard__text">{basisShort(k.basis)}</span>} label="Basis" />
-          <KpiCard Icon={ObiHelp} value={<span className="cpm-kpicard__text">{fmtDateTime(k.computedAt)}</span>}
+          <KpiCard Icon={ObiDatabase} value={<span className="cpm-kpicard__text">{basisShort(k.basis)}</span>} label="Basis" />
+          <KpiCard Icon={ObiTime} value={<span className="cpm-kpicard__text">{fmtDateTime(k.computedAt)}</span>}
             label="Computed" sub="the change compares with 24 h earlier" />
         </div>
       )}

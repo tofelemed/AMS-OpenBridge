@@ -13,14 +13,14 @@ const withPrev = (prev: Array<{ key: FleetKpiFigure['key']; count: number; denom
 describe('KPI change since 24 h ago (CHG-085)', () => {
   it('a problem KPI going down is good news; a performance KPI going down is bad news', () => {
     const osc = kpiDelta(fig('oscillating', 1, 6), withPrev([{ key: 'oscillating', count: 2, denominator: 6 }]))!;
-    expect(osc).toMatchObject({ points: -17, direction: 'down', good: true, text: '17 pts' });
+    expect(osc).toMatchObject({ points: -17, direction: 'down', good: true, text: '17 %' });
     const mode = kpiDelta(fig('normal-mode', 6, 7), withPrev([{ key: 'normal-mode', count: 6, denominator: 6 }]))!;
     expect(mode).toMatchObject({ points: -14, direction: 'down', good: false });
-    expect(mode.title).toBe('100 % 24 h ago (6 of 6) → 86 % now (6 of 7)');
+    expect(mode.title).toBe('Change since 24 h ago: 100 % (6 of 6) → 86 % now (6 of 7), 14 percentage points down');
   });
 
   it('flat is neutral; no earlier picture or an empty denominator shows no change at all', () => {
-    expect(kpiDelta(fig('stale', 1, 10), withPrev([{ key: 'stale', count: 1, denominator: 10 }]))).toMatchObject({ direction: 'flat', good: null, text: '±0 pts' });
+    expect(kpiDelta(fig('stale', 1, 10), withPrev([{ key: 'stale', count: 1, denominator: 10 }]))).toMatchObject({ direction: 'flat', good: null, text: '0 %' });
     expect(kpiDelta(fig('stale', 1, 10), {} as FleetKpis)).toBeNull();
     expect(kpiDelta(fig('valve', 1, 6), withPrev([{ key: 'valve', count: 0, denominator: 0 }]))).toBeNull();
   });
