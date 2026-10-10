@@ -4368,3 +4368,28 @@ The lab superadmin's password is in `infra/docker/.env` (`LAB_SUPERADMIN_PASSWOR
   registry checkbox is unticked shows no "Degraded" for VP; Calculations row dialog centred; Trend pinned window keeps Zoom area.
 - **Deferred (user, 2026-10-10):** Overview operating-picture KPIs ("Healthy 0": HEALTHY maps only NORMAL / NONE / HEALTHY, which the
   fusion never writes; STALE mixes "no fresh result" with "insufficient data") — more research first, then its own change.
+
+## CHG-082 — Overview KPIs, Phase 1: one classification behind every KPI tile and its drill-down (2026-10-10)
+
+**Source:** user, 2026-10-10 ("every kpi should have drilldown — prove why it is like this"); rules and evidence in
+`kpi_calculation_logic/KPI-LOGIC.md` (Phase 0: commits 85aa39fe, 43a1ac87). **Scope:** **`cplm-api`** `Data/FleetKpiSql.cs`,
+`Services/Kpi/FleetKpiModels.cs`, `FleetKpiClassifier.cs`, `FleetKpiRows.cs`, `Controllers/CpmFleetKpiController.cs`
+(+ `tests/cplm-api.Tests/FleetKpiClassifierTests.cs`, `FleetKpiEndpointTests.cs`). **No schema, no UI yet** (Phases 2–5). Commit 38dc60d5.
+
+**What it is.** `GET /api/v1/cpm/fleet/kpis` and `GET /api/v1/cpm/fleet/kpis/loops?kpi=` (plant scope, paging, search). Each
+monitored loop is classified once from its newest LIVE 24 h result:
+- state: assessed / not assessable (with reason) / stale (> 1 h) / never evaluated;
+- outcome: acceptable / no fault but out of mode / finding (suspected + confirmed) / symptom only;
+- conditions: in normal mode (≥ 95 % AUTO / CASCADE), oscillating, valve, effort, saturated (> 10 % at an OP limit).
+Every tile count and its drill-down come from the same classification; each drill-down row carries the deciding value against its
+threshold, the window and the inputs to reproduce it. Thresholds: config `Cpm:Kpi:*`, decided against published practice
+(Emerson guidance, Bayer / PlantTriage, OPC UA, ISA-18.2, Horch) — `KPI-LOGIC.md` section 6.
+
+**Tests.** Unit: every rule edge (95 % exactly, 10 % exactly, 1 h exactly, each not-assessable reason, each band) and reconciliation
+(states sum to monitored, outcomes sum to assessed, each figure = its list). Lab DB: 7 probe loops → figures equal drill-down totals.
+Lab-registry test classes `FleetStatusSqlTests`, `FleetLatestSqlTests`, `KpiConsistencyTests`, `FleetKpiEndpointTests` now run in the
+existing `instrument-bindings-lab` collection (they failed when run in parallel with registry-writing tests). Full suite: the KPI and
+fleet tests pass; two failures remain in code not touched here and fail alone too — `FleetPrioritySqlTests` (lab DB read timeout under
+load) and `MethodRunLookupIndexTests` (plan assertion vs the lab's compressed Timescale chunk).
+**Lab (rebuilt cplm-api):** 231 monitored → 165 stale (the lab feed is stopped), 65 never evaluated, stale drill-down 165 rows; query
+0.27–0.59 s on a quiet DB (two probes per loop), behind the 15 s fleet cache.
