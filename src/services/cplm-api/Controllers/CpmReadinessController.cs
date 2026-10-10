@@ -130,7 +130,7 @@ public sealed class CpmReadinessController : ControllerBase
                 checks = new[]
                 {
                     new { id = "registry_row", label = "Registered", ok = false,
-                          message = "Onboard the loop: POST /api/v1/cpm/loops/activate" }
+                          message = "Onboard the loop: Loop Registry → Add loop." }  // CHG-078: no API routes in user text
                 },
                 blockers = new[] { "Loop is not registered." },
                 warnings = Array.Empty<string>()
@@ -189,10 +189,9 @@ public sealed class CpmReadinessController : ControllerBase
                 "No VP mapped although one is expected — a valve (stiction) cause can be suspected but not confirmed.", null),
             InputState.TemporarilyUnavailable => ("VP is mapped but the latest window carried no VP samples — check the positioner signal.",
                 "VP mapped but no VP samples in the latest window — a valve cause cannot be confirmed until it returns.", null),
-            InputState.NotInstalled => ("No positioner feedback installed (declared) — a valve cause can be suspected, not confirmed.", null,
-                "No positioner feedback installed: a valve (stiction) cause can be suspected but not confirmed."),
-            InputState.NotApplicable => ("No valve on this loop (declared or from the command path) — valve diagnosis does not apply.", null,
-                "No valve on this loop: valve (stiction) diagnosis does not apply."),
+            // CHG-077: not installed / not applicable both mean "this loop has no valve position" — a fact, not a gap
+            InputState.NotInstalled or InputState.NotApplicable => ("This loop has no valve position (declared) — valve-position confirmation (G14) does not apply.", null,
+                "This loop has no valve position: valve-position confirmation (G14) does not apply."),
             _ => ((string?)null, (string?)null, (string?)null),
         };
         checks.Add(new { id = "tag_vp", label = "Signal VP (valve position, G14)", ok = vpState is not (InputState.ExpectedUnmapped or InputState.TemporarilyUnavailable),
@@ -210,7 +209,7 @@ public sealed class CpmReadinessController : ControllerBase
         checks.Add(new { id = "peer_links", label = "Peer / upstream links (G13)", ok = peerState != InputState.ExpectedUnmapped,
             message = peerState switch
             {
-                InputState.ExpectedUnmapped => "Add asset relationships, then POST /cpm/loops/{id}/republish-evidence.",
+                InputState.ExpectedUnmapped => "Add the loop's upstream / peer links in the asset model, then use \"Re-project links & republish evidence\" on this loop in the Loop Registry.",
                 InputState.NotApplicable or InputState.NotInstalled => "No interacting loops (declared) — peer interaction is not assessed.",
                 _ => null,
             },
@@ -247,7 +246,7 @@ public sealed class CpmReadinessController : ControllerBase
         var cplmRunning = RequiredJobs.Where(j => j.Role == "cplm")
             .All(j => jobs.TryGetValue(j.Name, out var s) && s == "RUNNING");
         Check("cplm_jobs", "CPLM Flink jobs running", cplmRunning,
-            cplmRunning ? null : "One or more CPLM jobs are not RUNNING — see /cpm/pipeline-status.", true,
+            cplmRunning ? null : "One or more CPLM jobs are not running — see Pipeline Health.", true,
             "CPLM Flink jobs are not all running — no new evidence is being produced.");
 
         return Ok(new

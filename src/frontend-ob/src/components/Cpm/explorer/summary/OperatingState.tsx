@@ -13,7 +13,8 @@ import React, { useMemo } from 'react';
 import type { CpmLoop } from '../../../../api/cpmApi';
 import { useCpmTrend, useLoopLastValues } from '../../../../hooks/useCpm';
 import { useLoopLive, qualityLabel } from '../../../../hooks/useLoopLive';
-import { FacetPill, liveSignalQuality } from '../../FacetPill';
+import { FacetPill, STALE_LIVE_MS, liveSignalQuality } from '../../FacetPill';
+import { ageText } from './summaryText';
 import { loopSeries } from '../../../../utils/loopSeries';
 import { modeLabel } from '../../../../utils/modeVocabulary';
 import {
@@ -25,27 +26,16 @@ import LoopTrendPanel from './LoopTrendPanel';
 
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
 
-/** "live (RBE)" while the feed is current; "live · 4h ago" once it has stalled. */
-const liveSource = (ts: number | undefined): string =>
-  ts && Date.now() - ts > STALE_LIVE_MS ? `live · ${ageLabel(ts)}` : 'live (RBE)';
-
 /**
- * Beyond this, a "live" value is shown with its age. The RBE job heartbeats
- * every known signal every 300 s, so a key never expires; two heartbeat
- * intervals is comfortably past normal jitter while still catching an outage
- * within ~10 minutes.
+ * CHG-078: a value is either live or old — never both. "live" while the feed is current (RBE heartbeats every
+ * signal every 300 s, so past two heartbeats the feed has stalled); otherwise only its age ("last received 13 days
+ * ago"), the same threshold and age words as the signal-quality pill.
  */
-const STALE_LIVE_MS = 10 * 60 * 1000;
+export const liveSource = (ts: number | undefined): string =>
+  ts && Date.now() - ts > STALE_LIVE_MS ? `last received ${ageLabel(ts)}` : 'live';
 
-/** Age of a stored value, coarse on purpose: the point is "not live", not precision. */
-const ageLabel = (ts: number | undefined): string => {
-  if (!ts) return 'earlier';
-  const mins = Math.max(0, Math.round((Date.now() - ts) / 60000));
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 48) return `${hrs}h ago`;
-  return `${Math.round(hrs / 24)}d ago`;
-};
+/** Age of a stored value, in the app's age words (summaryText.ageText). */
+const ageLabel = (ts: number | undefined): string => (ts ? ageText(Date.now() - ts) : 'earlier');
 
 export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   // Live plane (RBE + snapshot-on-open); historian values remain the fallback.
