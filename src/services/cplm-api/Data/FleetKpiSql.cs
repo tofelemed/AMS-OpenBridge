@@ -1,7 +1,8 @@
 // KPI Phase 1 (kpi_calculation_logic/KPI-LOGIC.md): the ONE read behind every Overview KPI tile and its drill-down.
 // Per monitored loop in scope: its newest LIVE 24 h row of any diagnosis (what the loop looks like now) and its newest real
 // verdict (context for "last verdict N days ago"). Both are per-loop index probes — the same CHG-023 shape as FleetLatestSql —
-// so the cost stays one probe pair per loop at any table size. Classification happens in FleetKpiClassifier (C#), so the
+// so the cost stays one probe pair per loop at any table size. @asOf = now for the current picture, now − 24 h for the
+// "change since yesterday" (the same rules applied to the rows that existed then). Classification happens in FleetKpiClassifier (C#), so the
 // tile counts and the drill-down rows can never disagree.
 namespace Traverse.CplmApi.Data;
 
@@ -37,6 +38,7 @@ public static class FleetKpiSql
             SELECT g.window_end, g.diagnosis, g.confidence, g.payload
             FROM analytics.cplm_gate_results g
             WHERE lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind AND g.purpose = 'LIVE'
+              AND g.window_end <= @asOf
             ORDER BY g.window_end DESC NULLS LAST, g.created_at DESC
             LIMIT 1
         ) n ON TRUE
@@ -44,6 +46,7 @@ public static class FleetKpiSql
             SELECT g.window_end, g.diagnosis
             FROM analytics.cplm_gate_results g
             WHERE lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind AND g.purpose = 'LIVE'
+              AND g.window_end <= @asOf
               AND g.diagnosis IS NOT NULL AND g.diagnosis <> 'INSUFFICIENT_DATA'
             ORDER BY g.window_end DESC NULLS LAST, g.created_at DESC
             LIMIT 1

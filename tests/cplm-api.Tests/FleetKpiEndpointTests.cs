@@ -101,6 +101,18 @@ public sealed class FleetKpiEndpointTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task The_previous_picture_is_the_same_rules_on_the_rows_that_existed_24_h_earlier()
+    {
+        var k = Json(await Api().GetKpis(site: _site));
+        var prev = k.GetProperty("previous");
+        prev.GetProperty("monitored").GetInt32().Should().Be(7);
+        var never = prev.GetProperty("kpis").EnumerateArray().Single(f => f.GetProperty("key").GetString() == "never-evaluated");
+        never.GetProperty("count").GetInt32().Should().Be(7, "every probe row is younger than 24 h, so none existed then");
+        DateTimeOffset.Parse(prev.GetProperty("asOf").GetString()!).Should()
+            .BeCloseTo(DateTimeOffset.Parse(k.GetProperty("computedAt").GetString()!).AddHours(-24), TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
     public async Task Drill_down_rows_carry_the_deciding_value_and_reject_unknown_keys()
     {
         var api = Api();

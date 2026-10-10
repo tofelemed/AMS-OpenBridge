@@ -40,6 +40,8 @@ export interface FleetKpis {
   notAssessableByReason: Array<{ reason: string; count: number }>;
   assessed: { acceptable: number; noFaultLimited: number; finding: number; symptomOnly: number; unrecognised: number };
   kpis: FleetKpiFigure[];
+  /** The same classification as it stood 24 h earlier (the change shown on each card); absent on an older cplm-api. */
+  previous?: { asOf: string; monitored: number; kpis: Array<{ key: FleetKpiKey; count: number; denominator: number }> };
 }
 
 export interface FleetKpiDeciding {

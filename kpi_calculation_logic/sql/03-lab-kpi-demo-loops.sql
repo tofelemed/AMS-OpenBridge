@@ -4,6 +4,7 @@
 --   cleanup: psql -d traverse_cplm -X -v ON_ERROR_STOP=1 -v action=cleanup -f 03-lab-kpi-demo-loops.sql
 -- Expected (fresh): monitored 10 · acceptable 2 · finding 3 · no fault but limited 1 · not assessable 2 (incomplete 1, manual 1)
 --                   · stale 1 · never 1 · in normal mode 6 of 7 · saturated 1 of 7 · oscillating / valve / effort 1 of 6 each.
+-- 24 h earlier (rows 24 h 20 min old): 6 loops judged → oscillating 2 of 6 (→ down), in normal mode 6 of 6 (→ down), valve 0 (→ up).
 \if :{?action}
 \else
   \set action create
@@ -31,6 +32,13 @@ VALUES
  ('KDEMO_MAN','24h', NOW()-interval '5 min','EXCLUDED_MODE',0.0,'LIVE','{"auto_pct":0.12,"manual_pct":0.88,"saturation_pct":0.0}',NOW()),
  ('KDEMO_GAP','24h', NOW()-interval '6 min','INSUFFICIENT_DATA',0.0,'LIVE','{"completeness":0.66,"bad_quality_pct":0.0,"sample_count":11481,"expected_sample_count":17280,"max_gap_s":20511}',NOW()),
  ('KDEMO_GAP','24h', NOW()-interval '3 days','CONFIRMED_OSCILLATION',0.95,'LIVE','{"auto_pct":1.0}',NOW()),
- ('KDEMO_OLD','24h', NOW()-interval '5 hours','NO_CALL',0.2,'LIVE','{"auto_pct":1.0}',NOW());
+ ('KDEMO_OLD','24h', NOW()-interval '5 hours','NO_CALL',0.2,'LIVE','{"auto_pct":1.0}',NOW()),
+ -- yesterday (24 h 20 min ago, fresh as of 24 h ago): what the "change vs 24 h ago" compares with
+ ('KDEMO_OK1','24h', NOW()-interval '24 hours 20 minutes','CONFIRMED_OSCILLATION',0.92,'LIVE','{"auto_pct":1.0,"saturation_pct":0.0}',NOW()),
+ ('KDEMO_OSC','24h', NOW()-interval '24 hours 20 minutes','CONFIRMED_OSCILLATION',0.95,'LIVE','{"auto_pct":1.0,"saturation_pct":0.0}',NOW()),
+ ('KDEMO_VLV','24h', NOW()-interval '24 hours 20 minutes','NO_CALL',0.2,'LIVE','{"auto_pct":1.0,"saturation_pct":0.0}',NOW()),
+ ('KDEMO_SAT','24h', NOW()-interval '24 hours 20 minutes','NO_CALL',0.2,'LIVE','{"auto_pct":1.0,"saturation_pct":0.31}',NOW()),
+ ('KDEMO_MAN','24h', NOW()-interval '24 hours 20 minutes','NO_CALL',0.2,'LIVE','{"auto_pct":1.0,"saturation_pct":0.0}',NOW()),
+ ('KDEMO_EFF','24h', NOW()-interval '24 hours 20 minutes','SUSPECTED_EXCESSIVE_EFFORT',0.8,'LIVE','{"auto_pct":1.0,"saturation_pct":0.0}',NOW());
 \echo 'kpi_demo created: open /cpm?site=kpi_demo'
 \endif

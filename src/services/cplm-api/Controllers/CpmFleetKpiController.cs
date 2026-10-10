@@ -42,6 +42,8 @@ public sealed class CpmFleetKpiController : ControllerBase
     {
         var (loops, computedAt, hit) = await ClassifiedAsync(site, area, unit, ct);
         Response.Headers["X-Cpm-Cache"] = hit ? "HIT" : "MISS";
+        // the same classification as it stood 24 h earlier: the "change since yesterday" on each card
+        var (before, beforeAt, _) = await ClassifiedAsync(site, area, unit, ct, TimeSpan.FromHours(24));
         int Count(string k, string? reason = null) => loops.Count(l => FleetKpiClassifier.Matches(l, k, reason));
         return Ok(new
         {
@@ -62,6 +64,12 @@ public sealed class CpmFleetKpiController : ControllerBase
                 symptomOnly = Count("symptom"), unrecognised = loops.Count(l => l.Outcome == KpiOutcome.Unrecognised),
             },
             kpis = FleetKpiClassifier.Figures(loops, _t),
+            previous = new
+            {
+                asOf = beforeAt,
+                monitored = before.Count,
+                kpis = FleetKpiClassifier.Figures(before, _t).Select(f => new { f.Key, f.Count, f.Denominator }),
+            },
         });
     }
 
@@ -107,14 +115,15 @@ public sealed class CpmFleetKpiController : ControllerBase
 
     /// <summary>One read + one classification per scope, cached like the other fleet reads.</summary>
     private async Task<(IReadOnlyList<KpiLoop> Loops, DateTimeOffset ComputedAt, bool Hit)> ClassifiedAsync(
-        string? site, string? area, string? unit, CancellationToken ct)
+        string? site, string? area, string? unit, CancellationToken ct, TimeSpan? ago = null)
     {
-        var (body, hit) = await _cache.GetOrCreateAsync<Snapshot>($"kpis|{site}|{area}|{unit}|{_t}", _ttl, async token =>
+        var back = ago ?? TimeSpan.Zero;
+        var (body, hit) = await _cache.GetOrCreateAsync<Snapshot>($"kpis|{site}|{area}|{unit}|{_t}|{back.TotalHours}", _ttl, async token =>
         {
+            var now = DateTimeOffset.UtcNow - back;   // classify "as of" that instant, from the rows that existed then
             await using var conn = await _db.OpenConnectionAsync(token);
             var raw = await conn.QueryAsync(new CommandDefinition(FleetKpiSql.Rows,
-                new { site, area, unit, windowKind = _t.WindowKind }, cancellationToken: token));
-            var now = DateTimeOffset.UtcNow;
+                new { site, area, unit, windowKind = _t.WindowKind, asOf = now }, cancellationToken: token));
             IReadOnlyList<KpiLoop> loops = raw.Select(r => FleetKpiClassifier.Classify((KpiLoopRow)FleetKpiRows.FromDb(r), _t, now)).ToList();
             return new Snapshot(loops, now);
         }, ct);

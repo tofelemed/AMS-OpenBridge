@@ -86,9 +86,6 @@
    apart by pattern and label, never by colour alone. */
 .cpm-op { display: flex; flex-direction: column; gap: 12px; }
 .cpm-op__muted { color: var(--element-neutral-color); font-size: 0.85rem; }
-.cpm-op__pct { margin-left: 8px; font-size: 0.85rem; font-weight: 400; color: var(--element-neutral-color); }
-.cpm-op .cpm-kpi { padding: 10px 14px; }
-.cpm-op .cpm-kpi__action { margin-top: auto; }
 .cpm-op__bar {
   display: flex;
   height: 12px;
@@ -113,16 +110,6 @@
 .cpm-op__legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; font-size: 0.85rem; }
 .cpm-op__legend li { display: inline-flex; align-items: center; gap: 6px; }
 .cpm-op__swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
-.cpm-op__group { display: flex; flex-direction: column; gap: 6px; }
-.cpm-op__tile { display: flex; min-width: 0; }
-.cpm-op__tile > .cpm-kpi { flex: 1; min-width: 0; }
-.cpm-op__tiles { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.cpm-op__tiles--headline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.cpm-op__tiles--coverage { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.cpm-op__basis { color: var(--element-neutral-color); font-size: 0.85rem; margin: 0; }
-@media (max-width: 900px) {
-  .cpm-op__tiles, .cpm-op__tiles--headline, .cpm-op__tiles--coverage { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
-}
 
 .cpm-readiness__list { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 /* CHG-059: plant facts (no positioner, no valve, no peers) — a note, not a gap, so no alert tone. */
@@ -191,4 +178,82 @@
     content: attr(data-label); display: block; color: var(--element-neutral-color);
     font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
   }
+}
+
+/* CHG-085 (KPI redesign): compact KPI cards — icon top-left, change top-right, the number, its label, its share.
+   Tokens only (OpenBridge); left accent = the KPI's tone; the whole card is a link to its drill-down. */
+.cpm-kpicards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); }
+.cpm-kpicards--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cpm-kpicards--4 { grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr)); }
+.cpm-kpicard {
+  display: flex; flex-direction: column; gap: 2px; height: 100%; box-sizing: border-box; min-width: 0;
+  padding: 12px 14px; border-radius: 10px; text-decoration: none; color: var(--element-active-color);
+  background: var(--container-background-color, var(--container-backdrop-color));
+  border: 1px solid var(--border-divider-color); border-left-width: 3px;
+}
+.cpm-kpicard--good  { border-left-color: var(--alert-running-color); }
+.cpm-kpicard--warn  { border-left-color: var(--alert-caution-color); }
+.cpm-kpicard--bad   { border-left-color: var(--alert-alarm-color); }
+.cpm-kpicard--muted { border-left-color: var(--border-divider-color); }
+.cpm-kpicard--link { cursor: pointer; transition: border-color 120ms ease, box-shadow 120ms ease; }
+.cpm-kpicard--link:hover { border-color: var(--instrument-enhanced-primary-color); box-shadow: 0 1px 4px var(--border-divider-color); }
+.cpm-kpicard--link:focus-visible { outline: 2px solid var(--instrument-enhanced-primary-color); outline-offset: 2px; }
+.cpm-kpicard__top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.cpm-kpicard__icon {
+  display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 7px;
+  border: 1px solid var(--border-divider-color); --element-active-color: var(--element-neutral-color);
+}
+.cpm-kpicard__icon > * { width: 18px; height: 18px; }
+.cpm-kpicard__delta { display: inline-flex; align-items: center; gap: 2px; font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
+.cpm-kpicard__delta--good { color: var(--alert-running-color); --element-active-color: var(--alert-running-color); }
+.cpm-kpicard__delta--bad  { color: var(--alert-alarm-color); --element-active-color: var(--alert-alarm-color); }
+.cpm-kpicard__delta--flat { color: var(--element-neutral-color); }
+.cpm-kpicard__arrow { display: inline-flex; width: 16px; height: 16px; }
+.cpm-kpicard__arrow > * { width: 16px; height: 16px; }
+.cpm-kpicard__value { font-size: 1.6rem; font-weight: 600; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.cpm-kpicard--large .cpm-kpicard__value { font-size: 2rem; }
+.cpm-kpicard__of { font-size: 1rem; font-weight: 400; color: var(--element-neutral-color); }
+.cpm-kpicard__text { display: block; font-size: 0.95rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.cpm-kpicard__label { font-size: 0.85rem; color: var(--element-active-color); }
+.cpm-kpicard__sub { font-size: 0.78rem; color: var(--element-neutral-color); }
+.cpm-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.cpm-op__coverage { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: stretch; }
+.cpm-op__statebox {
+  display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 10px;
+  border: 1px solid var(--border-divider-color);
+}
+.cpm-op__basis { color: var(--element-neutral-color); font-size: 0.8rem; margin: 0; }
+
+/* the measured value against its threshold (drill-down) */
+.cpm-kpimeter { position: relative; display: block; height: 6px; margin-top: 6px; max-width: 220px; border-radius: 3px; background: var(--border-divider-color); }
+.cpm-kpimeter__fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--instrument-enhanced-primary-color); }
+.cpm-kpimeter__mark { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--element-active-color); }
+.cpm-kpi-back { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 4px; font-size: 0.85rem; }
+.cpm-kpi-back__icon { display: inline-flex; width: 18px; height: 18px; }
+.cpm-kpi-back__icon > * { width: 18px; height: 18px; }
+.cpm-kpi-proof__grid { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 16px; margin: 0; }
+.cpm-kpi-proof__grid dt { color: var(--element-neutral-color); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; padding-top: 2px; }
+.cpm-kpi-proof__grid dd { margin: 0; }
+.cpm-kpi-proof__formula {
+  display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 0.85rem; overflow-wrap: anywhere;
+  background: var(--border-divider-color);
+}
+.cpm-kpi-proof__tools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin-bottom: 8px; }
+.cpm-kpi-proof__reasons { display: flex; flex-wrap: wrap; gap: 4px; }
+.cpm-kpi-table__tag { display: block; }
+.cpm-kpi-table__measured { display: block; }
+.cpm-kpi-table__context { color: var(--element-neutral-color); font-size: 0.85rem; }
+
+@media (max-width: 1100px) {
+  .cpm-kpicards--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cpm-op__coverage { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .cpm-kpicards--3 { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .cpm-kpi-proof__grid { grid-template-columns: minmax(0, 1fr); }
+  .cpm-kpi-proof__grid dt { padding-top: 6px; }
+}
+@media (max-width: 480px) {
+  .cpm-kpicards, .cpm-kpicards--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
