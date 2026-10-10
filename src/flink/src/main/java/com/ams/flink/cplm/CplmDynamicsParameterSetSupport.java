@@ -183,6 +183,9 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
             // and a declared OP range is what makes its min/max the G10 limits (R08).
             if (n.has("pvEngMin") && n.has("pvEngMax") && p.pvEngMax - p.pvEngMin > 1e-12) p.pvRangeDeclared = true;
             if (n.has("opEngMin") && n.has("opEngMax") && p.opEngMax - p.opEngMin > 1e-12) p.opRangeDeclared = true;
+            // CHG-082: the VP declaration (cplm-api sends the declared value or the command-path default); unknown = EXPECTED.
+            String vpa = n.path("vpApplicability").asText("").trim().toUpperCase(java.util.Locale.ROOT);
+            if ("EXPECTED".equals(vpa) || "NOT_INSTALLED".equals(vpa) || "NOT_APPLICABLE".equals(vpa)) p.vpApplicability = vpa;
         } catch (Exception e) {
             com.ams.flink.cplm.config.ConfigRejections.count("ENGINEERING_PARSE_ERROR");
             System.out.println("CPLM_ENGINEERING_REJECTED loop=" + loopId + " reason=" + e.getMessage());

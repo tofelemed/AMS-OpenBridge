@@ -4368,3 +4368,36 @@ The lab superadmin's password is in `infra/docker/.env` (`LAB_SUPERADMIN_PASSWOR
   registry checkbox is unticked shows no "Degraded" for VP; Calculations row dialog centred; Trend pinned window keeps Zoom area.
 - **Deferred (user, 2026-10-10):** Overview operating-picture KPIs ("Healthy 0": HEALTHY maps only NORMAL / NONE / HEALTHY, which the
   fusion never writes; STALE mixes "no fresh result" with "insufficient data") — more research first, then its own change.
+
+## CHG-082 — The engine reads the VP declaration: a loop without a valve position gets no NO_VP, G14 "not applicable", valve calls stay suspected (2026-10-10)
+
+**Source:** engine follow-up of CHG-077 (ams-open-65 hand-over, user-approved: gates are this session's); decision on valve claims by the
+user, 2026-10-10: "when we don't have VP we still calculate these, but label them suspected, not confirmed". **Scope:** **`cplm-api`**
+`Services/Registry/CpmLoopRegistryService.Bulk.cs` (`EngineeringParameter`), `CpmLoopRegistryService.Evidence.cs` (both publish paths read
+`command_path`) + `tests/cplm-api.Tests/EngineeringBroadcastTests.cs`; **`flink-jobmanager`** (jar) `CplmLoopDynamicsProfile.java`,
+`CplmDynamicsParameterSetSupport.java`, `engine/LongDiagnosticsCalculator.java`, `fusion/Confirmation.java`, `CplmGateFusionEngine.java`,
+`fusion/DiagnosisBands.java` + `src/test/.../fusion/VpApplicabilityTest.java`. **No schema.**
+
+**What was wrong.** CHG-077 taught the registry and the UI that a loop can have no valve position by design, but the engine never heard it:
+`cplm.loop.engineering` carried only OP/PV ranges (and nothing at all for a loop without a range), so the long and fusion jobs still raised
+`NO_VP`, G14 read NOT_CONFIRMED / NO_VP and the advice said "Bind VP" / "Check VP/positioner data" on drives and valves without feedback.
+
+**What changed.**
+- cplm-api: the engineering record is sent for EVERY loop and carries `vpApplicability` = the declared value, else the command-path default
+  (`OP_TO_VFD` / `OP_TO_PV` = NOT_APPLICABLE, else EXPECTED) — the same `OptionalInputs.VpApplicability` rule the registry uses. Range keys
+  stay absent when undeclared, so the engine keeps its 0-100 defaults.
+- Flink: the profile reads `vpApplicability` (unknown or missing = EXPECTED). Declared NOT_APPLICABLE / NOT_INSTALLED and no VP data:
+  no `NO_VP` flag (long and fusion); G14 = NOT_APPLICABLE, confirmation reason `VP_NOT_APPLICABLE`; insufficient-evidence copy no longer
+  says "valve position unavailable"; advice "Obtain a valid oscillation period" / "Perform an approved bump/stroke test (no valve position
+  on this loop)".
+- **Kept (user decision):** stiction / final-element nonlinearity are still ranked on these loops and top out at SUSPECTED (0.89): nothing
+  can confirm a final-element fault without a measured VP (R02). The hand-over's "drop the 0.89 cap" item is therefore not done.
+- Unchanged: EXPECTED (ticked) and unmapped keeps NO_VP, G14 NOT_CONFIRMED / NO_VP, 0.89; VP data arriving on a loop declared without one
+  wins (normal VP path).
+
+**Deploy.** Flink image (jar) + cplm-api. **Then bulk-republish every loop** (`POST /api/v1/cpm/loops/bulk-republish-evidence`, CHG-024)
+so the broadcast state gets the field; until a loop is republished it reads EXPECTED (today's behaviour), so the order is safe.
+
+**Tests.** Flink `VpApplicabilityTest` 6 new (RED 3/6 before the engine change: NO_VP still raised, G14 NOT_CONFIRMED, "Bind VP" advice;
+GREEN 6/6) + `FusionVerdictV2Test`, `VpTrackingTest`, `FusionInteractionTest` 21/21; full Flink suite 341 run, 0 failures, 2 skipped. cplm-api `EngineeringBroadcastTests` 9 new;
+EngineeringBroadcast + OptionalInputs(+Sql) + BulkRepublish + RegistryReads 44/44.

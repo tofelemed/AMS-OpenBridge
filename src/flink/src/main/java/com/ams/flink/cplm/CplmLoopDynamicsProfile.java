@@ -159,6 +159,13 @@ public final class CplmLoopDynamicsProfile implements Serializable {
     public boolean pvRangeDeclared = false;
     /** v2.5 - true when the loop DECLARED its OP range; limits are then the declared min/max (R08, NR-024). */
     public boolean opRangeDeclared = false;
+    /** CHG-082 - the loop's VP declaration (cplm.loop.engineering): EXPECTED | NOT_INSTALLED | NOT_APPLICABLE. */
+    public String vpApplicability = "EXPECTED";
+
+    /** CHG-082 - declared without a valve position: a missing VP is then no data gap (no NO_VP, G14 NOT_APPLICABLE). */
+    public boolean vpDeclaredAbsent() {
+        return "NOT_INSTALLED".equals(vpApplicability) || "NOT_APPLICABLE".equals(vpApplicability);
+    }
     /**
      * v2.5 R08 - G10 limit policy in normalised percentage points: a sample is "at limit" when
      * within {@link #limitTolerancePp} of 0 or 100 pp of the (declared or assumed) range. The
@@ -322,6 +329,7 @@ public final class CplmLoopDynamicsProfile implements Serializable {
         p.g4ActivityHighRatio = g4ActivityHighRatio;
         p.pvRangeDeclared = pvRangeDeclared;
         p.opRangeDeclared = opRangeDeclared;
+        p.vpApplicability = vpApplicability;
         p.limitTolerancePp = limitTolerancePp;
         p.limitDwellWarnS = limitDwellWarnS;
         p.freezeToleranceEu = freezeToleranceEu;

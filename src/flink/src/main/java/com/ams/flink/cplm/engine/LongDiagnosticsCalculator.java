@@ -96,7 +96,7 @@ public final class LongDiagnosticsCalculator {
             if (s.vp != null) hasVp = true;
         }
         result.hasVp = hasVp;
-        if (!hasVp) result.observabilityFlags.add("NO_VP");
+        if (!hasVp && !profile.vpDeclaredAbsent()) result.observabilityFlags.add("NO_VP");   // CHG-082: no gap when declared absent
         // v2.5 R02: MEASURE how VP followed the demand - the positive evidence or the
         // contradiction that G14 v2 needs. Presence alone is not evidence.
         VpTrackingMath.VpTracking vt = VpTrackingMath.compute(samples, op, profile, tsSec * 1000.0);

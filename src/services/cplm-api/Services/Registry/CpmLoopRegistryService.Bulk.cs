@@ -344,30 +344,35 @@ public sealed partial class CpmLoopRegistryService
     }
 
     /// <summary>
-    /// The cplm.loop.engineering broadcast parameter, or null when the loop declares
-    /// no range. Shared by the single- and batch-publish paths: they were two copies
-    /// of the same literal, which is how one of them would have missed the PV range.
+    /// The cplm.loop.engineering broadcast parameter. Shared by the single- and batch-publish
+    /// paths: they were two copies of the same literal, which is how one of them would have
+    /// missed the PV range.
     ///
     /// The engine defaults are opEng 0-100 and pvEng 0-100, and it merges only the
     /// keys present — so a loop that declares an OP range but no PV range keeps the
     /// default PV band (0.5 EU), exactly as before.
+    ///
+    /// CHG-082: always sent, because it carries <c>vpApplicability</c> — the declared value, else the
+    /// command-path default (<see cref="OptionalInputs.VpApplicability"/>) — so the engine stops flagging
+    /// NO_VP on a loop that has no valve position by design. Range keys stay absent when undeclared.
     /// </summary>
-    private static Dictionary<string, string>? EngineeringParameter(string? engineeringJson)
+    internal static Dictionary<string, string> EngineeringParameter(string? engineeringJson, string? commandPath)
     {
         var engineering = ParseJson(engineeringJson);
-        if (engineering.ValueKind != JsonValueKind.Object) return null;
 
         static double? Num(JsonElement root, string name) =>
-            root.TryGetProperty(name, out var e) && e.ValueKind == JsonValueKind.Number
+            root.ValueKind == JsonValueKind.Object && root.TryGetProperty(name, out var e) && e.ValueKind == JsonValueKind.Number
                 ? e.GetDouble() : null;
 
         var opMin = Num(engineering, "opMin");
         var opMax = Num(engineering, "opMax");
         var pvMin = Num(engineering, "pvMin");
         var pvMax = Num(engineering, "pvMax");
-        if (opMin is null && opMax is null && pvMin is null && pvMax is null) return null;
 
-        var value = new Dictionary<string, double>();
+        var value = new Dictionary<string, object>
+        {
+            ["vpApplicability"] = OptionalInputs.Code(OptionalInputs.VpApplicability(engineering, commandPath)),
+        };
         if (opMin is not null || opMax is not null)
         {
             value["opEngMin"] = opMin ?? 0.0;

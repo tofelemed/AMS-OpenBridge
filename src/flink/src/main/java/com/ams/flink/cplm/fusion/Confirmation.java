@@ -26,7 +26,7 @@ public final class Confirmation implements Serializable {
     public String claimType = CLAIM_FINAL_ELEMENT_NON_FOLLOWING;
     /** CONFIRMED | NOT_CONFIRMED | CONTRADICTED | NOT_APPLICABLE */
     public String state = "NOT_APPLICABLE";
-    /** NO_VP | NO_POSITIVE_EVIDENCE | VP_TRACKING_HEALTHY | NON_FOLLOWING_DWELL | NOT_A_FINAL_ELEMENT_CLAIM */
+    /** NO_VP | VP_NOT_APPLICABLE | NO_POSITIVE_EVIDENCE | VP_TRACKING_HEALTHY | NON_FOLLOWING_DWELL | NOT_A_FINAL_ELEMENT_CLAIM */
     public String reason = "";
     public List<String> positiveEvidenceIds = new ArrayList<>();
     public List<String> contradictions = new ArrayList<>();
@@ -43,6 +43,13 @@ public final class Confirmation implements Serializable {
         Confirmation c = new Confirmation();
         c.nonFollowingDwellS = longD.vpNonFollowingDwellS;
         c.trackingErrorP95Pp = longD.vpTrackingErrorP95Pp;
+        if (!longD.hasVp && profile != null && profile.vpDeclaredAbsent()) {
+            // CHG-082: the loop has no VP by declaration - nothing to confirm with. The final-element cap stays
+            // 0.89 (capForFinalElement default): a valve claim on such a loop tops out at SUSPECTED.
+            c.state = "NOT_APPLICABLE";
+            c.reason = "VP_NOT_APPLICABLE";
+            return c;
+        }
         if (!longD.hasVp || longD.vpEligibleSamples <= 0) {
             c.state = "NOT_CONFIRMED";
             c.reason = "NO_VP";

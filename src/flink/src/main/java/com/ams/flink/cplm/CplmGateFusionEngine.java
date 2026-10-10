@@ -159,7 +159,9 @@ public final class CplmGateFusionEngine implements Serializable {
 
         boolean hasVp = longD.hasVp;
         result.vpAvailable = hasVp;
-        if (!hasVp && !result.observabilityFlags.contains("NO_VP")) {
+        // CHG-082: a missing VP is a data gap only when the loop is expected to have one.
+        boolean vpGap = !hasVp && !profile.vpDeclaredAbsent();
+        if (vpGap && !result.observabilityFlags.contains("NO_VP")) {
             result.observabilityFlags.add("NO_VP");
         }
         // v2.5 R02: G14 is a fault-scoped confirmation from MEASURED VP tracking, never from
@@ -191,9 +193,10 @@ public final class CplmGateFusionEngine implements Serializable {
         }
 
         if (!anyQualified) {
-            noFamily(result, v2, conf, hasVp);
+            noFamily(result, v2, conf, vpGap);
             result.recommendation = result.insufficientEvidenceReason
-                    + " Bind VP or obtain a valid oscillation period before diagnosing.";
+                    + (vpGap ? " Bind VP or obtain a valid oscillation period before diagnosing."
+                             : " Obtain a valid oscillation period before diagnosing.");
             result.statusReason = String.format(
                     "selected_family=NONE, family_score=0.000, weighted=%.3f, confidence=0.000, G14_cap=%.2f, reasons=%s",
                     ev.weightedRaw, g14Cap, String.join("; ", result.familyDisqualifiers));
@@ -216,7 +219,7 @@ public final class CplmGateFusionEngine implements Serializable {
         if ("geometry".equals(selected) && profile.isGeometryDecisiveForbidden()) {
             if (!ev.geometryPrereqsMet || !ev.stictionQualified) {
                 result.familyDisqualifiers.add("geometry:GEOMETRY_ALONE_FORBIDDEN");
-                noFamily(result, v2, conf, hasVp);
+                noFamily(result, v2, conf, vpGap);
                 result.recommendation = result.insufficientEvidenceReason
                         + " Geometry alone cannot diagnose valve nonlinearity on this loop class.";
                 result.statusReason = String.format(
@@ -244,7 +247,9 @@ public final class CplmGateFusionEngine implements Serializable {
 
         result.recommendation = hasVp
                 ? "Review positioner/HART data and perform controlled bump test before retuning."
-                : "Check VP/positioner data or perform an approved bump/stroke test before retuning.";
+                : vpGap
+                ? "Check VP/positioner data or perform an approved bump/stroke test before retuning."
+                : "Perform an approved bump/stroke test before retuning (no valve position on this loop).";
 
         result.statusReason = String.format(
                 "selected_family=%s, family_score=%.3f, weighted=%.3f, confidence=%.3f, G14_cap=%.2f, class=%s, profile=%s",
@@ -364,7 +369,7 @@ public final class CplmGateFusionEngine implements Serializable {
     }
 
     /** No family qualified (or the only one is forbidden): INSUFFICIENT_EVIDENCE, G14 not applicable. */
-    private static void noFamily(CplmGateResult result, FusionVerdictV2 v2, Confirmation conf, boolean hasVp) {
+    private static void noFamily(CplmGateResult result, FusionVerdictV2 v2, Confirmation conf, boolean vpGap) {
         result.selectedFamily = "NONE";
         result.familyScore = 0;
         result.confidence = 0;
@@ -373,7 +378,7 @@ public final class CplmGateFusionEngine implements Serializable {
         result.severity = "LOW";
         result.gate14Status = "NOT_APPLICABLE";
         v2.confirmation = conf.notApplicable();
-        result.insufficientEvidenceReason = DiagnosisBands.insufficientEvidenceReason(result, hasVp);
+        result.insufficientEvidenceReason = DiagnosisBands.insufficientEvidenceReason(result, !vpGap);   // CHG-082
     }
 
     /**

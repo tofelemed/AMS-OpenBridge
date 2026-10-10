@@ -58,8 +58,8 @@ public sealed partial class CpmLoopRegistryService
             list.Add(peer);
         }
 
-        var rows = (await conn.QueryAsync<(string LoopId, string? Monitoring, string? Engineering)>("""
-            SELECT loop_id, monitoring::text, engineering::text
+        var rows = (await conn.QueryAsync<(string LoopId, string? Monitoring, string? Engineering, string? CommandPath)>("""
+            SELECT loop_id, monitoring::text, engineering::text, command_path
             FROM cpm.loop_registry WHERE loop_id = ANY(@ids)
             """, new { ids })).ToList();
         // v2.5 (2G.1): the loop model dimensions ride the same envelope as cplm.loop.model
@@ -82,7 +82,7 @@ public sealed partial class CpmLoopRegistryService
             await conn.ExecuteAsync(mirrorSql, new { ids = withoutPeers, configured = "false" });
 
         var published = 0;
-        foreach (var (loopId, monitoringJson, engineeringJson) in rows)
+        foreach (var (loopId, monitoringJson, engineeringJson, commandPath) in rows)
         {
             var links = peers.TryGetValue(loopId, out var l) ? l : new List<string>();
             var monitoring = ParseJson(monitoringJson);
@@ -103,7 +103,7 @@ public sealed partial class CpmLoopRegistryService
                 }
             };
 
-            if (EngineeringParameter(engineeringJson) is { } engParam) parameters.Add(engParam);
+            if (EngineeringParameter(engineeringJson, commandPath) is { } engParam) parameters.Add(engParam);
             if (models.TryGetValue(loopId, out var modelDto)) parameters.Add(ModelParameter(modelDto));
 
             var envelope = JsonSerializer.Serialize(new Dictionary<string, object>
@@ -148,8 +148,8 @@ public sealed partial class CpmLoopRegistryService
             SELECT from_loop_id FROM cpm.loop_link WHERE to_loop_id = @loopId AND rel_type = 'PEER'
             """, new { loopId })).ToList();
 
-        var row = await conn.QueryFirstOrDefaultAsync<(string? Monitoring, string? Engineering)>(
-            "SELECT monitoring::text, engineering::text FROM cpm.loop_registry WHERE loop_id = @loopId", new { loopId });
+        var row = await conn.QueryFirstOrDefaultAsync<(string? Monitoring, string? Engineering, string? CommandPath)>(
+            "SELECT monitoring::text, engineering::text, command_path FROM cpm.loop_registry WHERE loop_id = @loopId", new { loopId });
         var modelRow = await conn.QueryFirstOrDefaultAsync(CpmLoopRegistryReads.RegistrySelect + " WHERE loop_id = @loopId", new { loopId });
         var monitoringJson = row.Monitoring;
         var monitoring = ParseJson(monitoringJson);
@@ -182,8 +182,8 @@ public sealed partial class CpmLoopRegistryService
         // P3-8 - broadcast the OP and PV engineering ranges so the engine can normalize a
         // non-0-100 OP (e.g. a 0-1 valve fraction) and scale the good-error band to the
         // PV span before gate evaluation. Merge-only key applied AFTER profile
-        // resolution; it can never clobber the class pack.
-        if (EngineeringParameter(row.Engineering) is { } engParam) parameters.Add(engParam);
+        // resolution; it can never clobber the class pack. CHG-082: it also carries vpApplicability.
+        if (EngineeringParameter(row.Engineering, row.CommandPath) is { } engParam) parameters.Add(engParam);
         if (modelRow is not null) parameters.Add(ModelParameter(CpmLoopRegistryReads.ReadModel(modelRow)));
 
         var envelope = JsonSerializer.Serialize(new Dictionary<string, object>
