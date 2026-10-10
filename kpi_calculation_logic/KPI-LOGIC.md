@@ -1,6 +1,6 @@
 # Control-loop KPIs — calculation logic, proof and rationale
 
-Status: **Phase 0 done — rules approved 2026-10-10 after the standards check (section 6)**. Phase 1 (server) built and tested (section 8).
+Status: rules approved 2026-10-10 (section 6). Phases 1–3 built, redesigned and lab-checked (sections 8, 10). Phases 4–5 next.
 Owner: CPA (cplm-api + frontend). Engine values come from the Flink CPLM jobs and are not changed by this work.
 
 This file is the single reference for every Overview / Performance KPI: what it means, the exact formula, the data it is built
@@ -80,8 +80,10 @@ Assessed is then split: **Performing acceptably** (no finding) / **With a findin
 Each entry: definition · formula · inputs (stored field) · threshold · denominator · why (reference) · drill-down columns (proof).
 
 #### K1 — Performing acceptably ("No fault found")
-- **Definition:** share of monitored loops whose fresh 24 h verdict found no fault, in normal mode, on qualified data.
-- **Formula:** `count(loops: state = Assessed AND diagnosis ∈ {NO_CALL, INSUFFICIENT_EVIDENCE} AND auto_pct ≥ 0.95) / monitored`.
+- **Definition:** share of monitored loops whose fresh 24 h verdict found no fault, in normal mode, not at an OP limit, on qualified data.
+- **Formula:** `count(loops: state = Assessed AND diagnosis ∈ {NO_CALL, INSUFFICIENT_EVIDENCE} AND auto_pct ≥ 0.95 AND saturation_pct ≤ 0.10) / monitored`.
+  A no-fault loop that fails either condition is outcome *No fault, but out of mode or at limit* (lab finding 2026-10-10: a loop
+  27 % of the time at its OP limit had a NO_CALL verdict — it has no authority, so it is not performing acceptably).
 - **Inputs:** `diagnosis`, `payload.auto_pct`, `payload.gates.G0`, `window_end`.
 - **Why:** the headline number of CPM tools and field surveys ("share of loops performing acceptably"; Desborough & Miller 2002,
   Bauer et al. 2016). Denominator is *all monitored loops*, so un-assessed loops pull it down visibly instead of hiding.
@@ -238,8 +240,23 @@ Sources checked (2026-10-10):
 | API | `Controllers/CpmFleetKpiController.cs` | `GET /api/v1/cpm/fleet/kpis?site&area&unit` (figures + state partition + reasons) and `GET /api/v1/cpm/fleet/kpis/loops?kpi=&reason=&q=&site&area&unit&page&pageSize` (drill-down; `total` = the tile's count) — `analytics.view`, fleet cache 15 s |
 | Tests | `tests/cplm-api.Tests/FleetKpiClassifierTests.cs`, `FleetKpiEndpointTests.cs` | every rule edge (95 % exactly, 10 % exactly, 1 h exactly, each reason, each band); reconciliation (states sum to monitored, outcomes sum to assessed, each figure = its list) |
 
-Drill-down keys: `all`, `assessed`, `acceptable`, `no-fault-out-of-mode`, `finding`, `symptom`, `oscillating`, `valve`, `effort`,
+Drill-down keys: `all`, `assessed`, `acceptable`, `no-fault-limited`, `finding`, `symptom`, `oscillating`, `valve`, `effort`,
 `normal-mode`, `out-of-mode`, `saturated`, `not-assessable` (+ `reason=`), `stale`, `never-evaluated`.
+
+## 10. Presentation (CHG-085) and the change since yesterday
+
+- **Overview:** six compact cards (performing acceptably, in normal mode, oscillating, valve, effort, saturated) — icon, change,
+  count, label, share of a named denominator; the whole card opens the drill-down. A coverage row holds not assessable / stale /
+  never evaluated and the state bar (every monitored loop in one segment; legend links to each state's list).
+- **Change since 24 h ago:** cplm-api classifies a second snapshot *as of* now − 24 h (`FleetKpiSql @asOf`: each loop's newest rows
+  with `window_end ≤ asOf`, freshness judged against that instant) with the same rules. The card shows the change of the **share**
+  in percentage points (a growing fleet is not a change); green when it moved the right way for that KPI (up for acceptable /
+  normal mode, down for every problem KPI), red otherwise, grey when flat; hidden when there is no earlier picture. Registry
+  membership is today's (a loop added today reads "never evaluated" yesterday).
+- **Detail page:** summary cards (number + change, threshold, basis, computed), proof panel (rule, formula, why, reference), the
+  loops with the measured value on a bar against the threshold marker, verdict, window, inputs and proof links.
+- **Vocabulary:** on these pages `NO_CALL` / `INSUFFICIENT_EVIDENCE` read **"No fault found"** — the shared vocabulary still says
+  "Not evaluated yet" for `NO_CALL` elsewhere in the app (open item: decide app-wide).
 
 ## 9. Change log of this document
 
@@ -248,3 +265,4 @@ Drill-down keys: `all`, `assessed`, `acceptable`, `no-fault-out-of-mode`, `findi
 | 2026-10-10 | 0 | First version: principles, sources, KPI catalogue K1–K9, per-loop KPIs, proof chain, lab findings, open questions |
 | 2026-10-10 | 0 | Q1–Q4 checked against standards / published practice: normal mode 90 → 95 %, saturation 5 → 10 %, fleet target < 10 % out of mode; sources listed |
 | 2026-10-10 | 1 | Implementation map: one read, one classifier, two endpoints, tests |
+| 2026-10-10 | 2–3 | Overview cards + drill-down; acceptable also requires not saturated; change vs 24 h ago; redesign (section 10) |
