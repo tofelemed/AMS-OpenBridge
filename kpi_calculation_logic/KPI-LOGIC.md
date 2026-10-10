@@ -1,6 +1,6 @@
 # Control-loop KPIs — calculation logic, proof and rationale
 
-Status: rules approved 2026-10-10 (section 6). Phases 1–4 built and lab-checked (sections 8, 10, 3.3). Phase 5 (14-day trend) next.
+Status: rules approved 2026-10-10 (section 6). Phases 1–5 built and lab-checked (sections 3.3, 8, 10, 11). Open: plant probe (Q5).
 Owner: CPA (cplm-api + frontend). Engine values come from the Flink CPLM jobs and are not changed by this work.
 
 This file is the single reference for every Overview / Performance KPI: what it means, the exact formula, the data it is built
@@ -265,6 +265,19 @@ Drill-down keys: `all`, `assessed`, `acceptable`, `no-fault-limited`, `finding`,
 - **Vocabulary:** on these pages `NO_CALL` / `INSUFFICIENT_EVIDENCE` read **"No fault found"** — the shared vocabulary still says
   "Not evaluated yet" for `NO_CALL` elsewhere in the app (open item: decide app-wide).
 
+## 11. The 14-day trend (Phase 5, CHG-087)
+
+- `GET /api/v1/cpm/fleet/kpis/trend?days=14&site&area&unit`: one point per day — every figure as it stood at the **same time of day**
+  on that day, from the **same classification** applied to the rows that existed at that instant (`FleetKpiSql @asOf`). Past days sit
+  at the anchor rounded down to 15 min (the engine's evaluation step) and are cached 10 min; **today's point is the cards' live
+  snapshot** (`isNow`), so today's bar always equals the card.
+- Each point carries its exact `asOf`; `GET /fleet/kpis/loops?asOf=` lists the loops that point counted (tested: every point = its
+  own day's list for every KPI). Limit: 14 days — the plant keeps the gate results 14 days (cpm-10b retention).
+- On the detail page the bar chart "How this number has moved" sits between the proof panel and the list; clicking a day switches the
+  list to that day ("matches that day"), "Back to now" returns. A day with nothing to judge is **no data**, never 0 %; the tooltip
+  states count and denominator (a 100 % from 1 of 1 is visible as such).
+- Cost (lab, 240 loops): the whole-plant trend 2.9 s cold, 0.23 s cached (14 classifications, four at a time).
+
 ## 9. Change log of this document
 
 | Date | Phase | Change |
@@ -274,3 +287,4 @@ Drill-down keys: `all`, `assessed`, `acceptable`, `no-fault-limited`, `finding`,
 | 2026-10-10 | 1 | Implementation map: one read, one classifier, two endpoints, tests |
 | 2026-10-10 | 2–3 | Overview cards + drill-down; acceptable also requires not saturated; change vs 24 h ago; redesign (section 10) |
 | 2026-10-10 | 4 | Per-loop KPI cards on the Explorer (`/loops/{id}/kpi-summary`); route-uniqueness guard after a route collision |
+| 2026-10-10 | 5 | 14-day trend with day drill-down (section 11) |

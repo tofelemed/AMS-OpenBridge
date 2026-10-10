@@ -4459,3 +4459,25 @@ gate judgement, not measured, no span, change direction); full suite 449 / 449; 
 (`03-lab-kpi-demo-loops.sql`): 99 % normal mode (G1 pass, +6 %), good-error 86 % (+25 %), MAE 1.5 % of span (1.80 m3/h, G3 pass), 2σ
 3.5 %, 0 % at limit, OP travel 640 %/day and 9.5 reversals/h (G4 warn), coverage 99 % (17107 of 17280, G0 pass); existing
 `/loops/{id}/kpis` still 200.
+
+## CHG-087 — Overview KPIs, Phase 5: 14-day trend on the KPI detail page, each day provable (2026-10-10)
+
+**Source:** user, 2026-10-10 (Phase 5 approved; placed on the detail page, no Overview sparklines). `KPI-LOGIC.md` section 11.
+**Scope:** **`cplm-api`** `Controllers/CpmFleetKpiController.cs` (`GET /fleet/kpis/trend`, `asOf` on `/fleet/kpis/loops`) +
+`FleetKpiEndpointTests`; **`ams-frontend`** `api/cpm/fleetKpis.ts`, `kpi/useFleetKpis.ts`, `kpi/kpiTrend.ts` (+ test),
+`kpi/KpiTrendChart.tsx`, `CpmKpiDrilldown.tsx`. No schema. Commit 07805bb7.
+
+**What it is.** Each KPI's last 14 days as bars (same time of day, same rules, rows of that instant); click a day → the loop list shows
+the loops that day counted ("matches that day"); "Back to now". Today's bar is the cards' live snapshot. A day with nothing to judge
+is "no data", never 0 %.
+
+**Found while testing (fixed before commit).** Today's point was first classified at the 15-min slot and missed rows written after it
+(0 assessed while the card said 6); today now uses the cards' live snapshot.
+
+**Tests.** cplm-api `FleetKpi*` 25 / 25 (every trend point = its own day's drill-down for every KPI; asOf outside 14 days → 400).
+Frontend `kpiTrend.test.ts`; full suite 452 / 452; lint, tsc, build clean. **Lab:** whole-plant trend 2.9 s cold / 0.23 s cached;
+kpi_demo Oscillating: today 1 of 6 ("matches the card"), click 9 Oct → 2 loops "as of 9 Oct 21:30" ("matches that day");
+390 px night, no horizontal scroll.
+
+**Release v2.7.1 — updated services so far:** `ams-frontend` (CHG-077..087), `cplm-api` (CHG-077, 078, 082..087),
+`traverse-auth-service` (CHG-081, incl. the schema.sql restart fix), `display-service` (CHG-081); migration `ops/cpm-14-superadmin-role.sql`.
