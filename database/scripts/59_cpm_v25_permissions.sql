@@ -26,6 +26,15 @@ ON CONFLICT (permission_key) DO NOTHING;
 -- Admin: catch-all re-run so an already-seeded Admin picks up the new keys.
 INSERT INTO role_permissions (role_name, permission_key)
 SELECT 'Admin', permission_key FROM permissions
+-- CHG-081: once a SuperAdmin role exists the platform-administration keys are SuperAdmin-only (cpm-14) - never re-grant them
+WHERE NOT (EXISTS (SELECT 1 FROM roles WHERE role_name = 'SuperAdmin')
+           AND (permission_key LIKE 'cpm.config.%'
+                OR permission_key IN ('admin.users.edit', 'admin.audit.view', 'rbac.manage', 'ingestion.view', 'ingestion.manage', 'system.manage')))
+ON CONFLICT DO NOTHING;
+-- CHG-081: SuperAdmin (when it exists) holds every key, new ones included
+INSERT INTO role_permissions (role_name, permission_key)
+SELECT 'SuperAdmin', permission_key FROM permissions
+WHERE EXISTS (SELECT 1 FROM roles WHERE role_name = 'SuperAdmin')
 ON CONFLICT DO NOTHING;
 
 -- Engineer: analysis, context, and the pre-approval half of the configuration lifecycle.
@@ -34,10 +43,14 @@ SELECT 'Engineer', k FROM (VALUES
     ('cpm.analysis.create'), ('cpm.context.manage'),
     ('cpm.config.read'), ('cpm.config.draft'), ('cpm.config.validate'), ('cpm.config.shadow')
 ) AS v(k)
+-- CHG-081: gate configuration is SuperAdmin-only once that role exists
+WHERE NOT (k LIKE 'cpm.config.%' AND EXISTS (SELECT 1 FROM roles WHERE role_name = 'SuperAdmin'))
 ON CONFLICT DO NOTHING;
 
 -- Supervisor (only where the site defined that role): approval.
 INSERT INTO role_permissions (role_name, permission_key)
 SELECT 'Supervisor', k FROM (VALUES ('cpm.config.read'), ('cpm.config.approve'), ('cpm.model.review')) AS v(k)
 WHERE EXISTS (SELECT 1 FROM roles WHERE role_name = 'Supervisor')
+  -- CHG-081: gate configuration is SuperAdmin-only once that role exists
+  AND NOT (k LIKE 'cpm.config.%' AND EXISTS (SELECT 1 FROM roles WHERE role_name = 'SuperAdmin'))
 ON CONFLICT DO NOTHING;
