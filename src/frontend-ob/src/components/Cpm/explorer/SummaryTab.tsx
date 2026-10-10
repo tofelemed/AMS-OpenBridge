@@ -31,6 +31,7 @@ import { evidenceScoreText } from '../evidenceScore';
 import { hasVerdict } from '../metricAvailability';
 import { effectiveInputFlags } from '../inputLimits';
 import { inputContextOf } from '../optionalInputs';
+import { LoopKpiCards } from './summary/LoopKpiCards';
 
 const SummaryGateDetail = React.lazy(() => import('./summary/SummaryGateDetail'));
 const SummaryCalculations = React.lazy(() => import('./summary/SummaryCalculations'));
@@ -72,6 +73,9 @@ export const SummaryTab: React.FC<{ loop: CpmLoop; windowKind: string }> = ({ lo
           <KvRow label="Historian device">{loopSeries(loop.loopId)}</KvRow>
         </div>
       </div>
+
+      {/* KPI Phase 4: this loop's KPIs, judged by the engine's gates, with the change since yesterday and a proof link each */}
+      <LoopKpiCards loop={loop} windowKind={windowKind} />
 
       <section className="cpm-summary-section" aria-label="Gates on the latest fused window">
         <PanelHead

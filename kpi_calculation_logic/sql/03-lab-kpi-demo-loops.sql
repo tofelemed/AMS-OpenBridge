@@ -17,13 +17,13 @@ DELETE FROM cpm.loop_registry WHERE site = 'kpi_demo';
 \if :is_cleanup
   \echo 'kpi_demo removed'
 \else
-INSERT INTO cpm.loop_registry (loop_id, display_name, loop_type, site, area, unit, monitoring, criticality)
-SELECT 'KDEMO_' || n, d, 'FIC', 'kpi_demo', 'area1', 'unit1', '{"enabled":true}'::jsonb, 'medium'
+INSERT INTO cpm.loop_registry (loop_id, display_name, loop_type, site, area, unit, monitoring, criticality, engineering)
+SELECT 'KDEMO_' || n, d, 'FIC', 'kpi_demo', 'area1', 'unit1', '{"enabled":true}'::jsonb, 'medium', '{"pvMin":0,"pvMax":120,"pvUnit":"m3/h","opMin":0,"opMax":100}'::jsonb
 FROM (VALUES ('OK1','Feed flow'),('OK2','Reflux flow'),('OSC','Steam flow'),('VLV','Level control'),('EFF','Pressure'),
              ('SAT','Cooling water'),('MAN','Bypass flow'),('GAP','Drum level'),('OLD','Old loop'),('NEW','New loop')) v(n,d);
 INSERT INTO analytics.cplm_gate_results (loop_id, window_kind, window_end, diagnosis, confidence, purpose, payload, created_at)
 VALUES
- ('KDEMO_OK1','24h', NOW()-interval '5 min','NO_CALL',0.2,'LIVE','{"auto_pct":1.0,"manual_pct":0.0,"saturation_pct":0.0,"limit_source":"REGISTRY"}',NOW()),
+ ('KDEMO_OK1','24h', NOW()-interval '5 min','NO_CALL',0.2,'LIVE','{"auto_pct":0.99,"manual_pct":0.01,"saturation_pct":0.0,"limit_source":"REGISTRY","good_error_pct":0.86,"mae":1.8,"rmse":2.4,"pv_std":2.1,"travel_per_day":640,"reversals_per_hour":9.5,"sp_changes_per_h":0.4,"completeness":0.99,"sample_count":17107,"expected_sample_count":17280,"gates":{"G0":"PASS","G1":"PASS","G3":"PASS","G4":"WARN","G10":"PASS"}}',NOW()),
  ('KDEMO_OK2','24h', NOW()-interval '9 min','INSUFFICIENT_EVIDENCE',0.3,'LIVE','{"auto_pct":0.97,"manual_pct":0.03,"saturation_pct":0.02,"limit_source":"REGISTRY"}',NOW()),
  ('KDEMO_OSC','24h', NOW()-interval '7 min','CONFIRMED_OSCILLATION',0.96,'LIVE','{"auto_pct":1.0,"saturation_pct":0.0,"period_status":"VALID","validated_period_s":142,"acf_regularity":0.81}',NOW()),
  ('KDEMO_VLV','24h', NOW()-interval '6 min','SUSPECTED_FINAL_ELEMENT_NONLINEARITY',0.89,'LIVE','{"auto_pct":0.99,"saturation_pct":0.0,"confirmation":{"state":"NOT_CONFIRMED"}}',NOW()),
@@ -34,7 +34,7 @@ VALUES
  ('KDEMO_GAP','24h', NOW()-interval '3 days','CONFIRMED_OSCILLATION',0.95,'LIVE','{"auto_pct":1.0}',NOW()),
  ('KDEMO_OLD','24h', NOW()-interval '5 hours','NO_CALL',0.2,'LIVE','{"auto_pct":1.0}',NOW()),
  -- yesterday (24 h 20 min ago, fresh as of 24 h ago): what the "change vs 24 h ago" compares with
- ('KDEMO_OK1','24h', NOW()-interval '24 hours 20 minutes','CONFIRMED_OSCILLATION',0.92,'LIVE','{"auto_pct":1.0,"saturation_pct":0.0}',NOW()),
+ ('KDEMO_OK1','24h', NOW()-interval '24 hours 20 minutes','CONFIRMED_OSCILLATION',0.92,'LIVE','{"auto_pct":0.93,"saturation_pct":0.0,"good_error_pct":0.61,"mae":3.4,"pv_std":3.9,"travel_per_day":1210,"reversals_per_hour":22,"completeness":0.98}',NOW()),
  ('KDEMO_OSC','24h', NOW()-interval '24 hours 20 minutes','CONFIRMED_OSCILLATION',0.95,'LIVE','{"auto_pct":1.0,"saturation_pct":0.0}',NOW()),
  ('KDEMO_VLV','24h', NOW()-interval '24 hours 20 minutes','NO_CALL',0.2,'LIVE','{"auto_pct":1.0,"saturation_pct":0.0}',NOW()),
  ('KDEMO_SAT','24h', NOW()-interval '24 hours 20 minutes','NO_CALL',0.2,'LIVE','{"auto_pct":1.0,"saturation_pct":0.31}',NOW()),

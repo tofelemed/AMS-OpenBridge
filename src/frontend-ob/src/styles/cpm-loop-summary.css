@@ -257,3 +257,6 @@
 @media (max-width: 480px) {
   .cpm-kpicards, .cpm-kpicards--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* KPI Phase 4: per-loop KPI cards on the Explorer summary (nine, compact) */
+.cpm-kpicards--loop { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); margin-top: 8px; }
