@@ -4224,3 +4224,34 @@ lab `ams-zookeeper` not recreated during the go/no-go.
 - Known, documented, not fixed in v2.7.0 (F5, user decision 2026-10-07): TaskManager `OutOfMemoryError: Direct buffer memory` in the Kafka fetchers during a mass restore (seen once on the lab at 13 jobs, not reproduced in 5 trials; the TaskManager stays up and the tasks restart from checkpoints). Symptom, numbers and the prepared plant patch (framework off-heap 256m + process.size 3712m, no image change) are in `prod_decision.md` section 6; daily check §4 gains a WARN line; apply the patch if it appears on two days or during a normal deploy.
 
 - **Final bundle (2026-10-08 05:35 UTC):** `release-out/v2.7.0-20261008` (897 MB, head `1db5f415`, SHA256SUMS 27/27) supersedes `release-out/v2.7.0-20261007` (head 848e49a1; same images/jar source, but its src archive lacks the F5 daily-check line and records). Image archives: ams-flink `abc7ee47…`, cplm-api `8dc5dff3…`, traverse-ingestion-service `8e0a74fc…`, ams-frontend `5de936d7…`; jar `27e400bf…`. The plant runs its `VM-STEPS.md` (generated from 1db5f415).
+
+## DEPLOYED - Release v2.7.0 at Marun (2026-10-10, Flink jobs RUNNING since 09:17 UTC)
+
+**Live:** CHG-040..048, 058, 059, 063..066 (SME batch; ams-open-8c's SME #12 = CHG-067), CHG-049, 060, 061, 062, 068, 075, 076.
+Bundle `release-out/v2.7.0-20261008` (head `1db5f415`, SHA256SUMS 27/27 on the VM).
+
+**Services updated (all on the new image, verified container image id = loaded image id):**
+- `ams-flink-jobmanager` + `ams-flink-taskmanager` (`ams-flink:1.0-SNAPSHOT`, jar `27e400bf…`): 7 jobs RUNNING, 16 slots.
+- `traverse-cplm-api` (`ams-cpa-cplm-api:latest`): 7 consumer groups `traverse-cpa-cplm-*`, 1 member each.
+- `traverse-ingestion-service` (`ams-cpa-traverse-ingestion-service:latest`).
+- `ams-frontend` (`ams-cpa-ams-frontend:latest`).
+- Instrumental's `instrumental-zookeeper`: recreated with the CHG-068 start guard (project `microservices`,
+  `docker-compose.instrument-only.yml` + `zookeeper-start-guard.override.yml`); 75 topics, 0 under-replicated; backup `/var/tmp/zk-backup-v2.7.0`.
+
+**Scripts run (in order):** `sha256sum -c` → rollback list `/tmp/pre-v2.7.0-images.txt` (49) → `docker load` x4 →
+`tar -xzf src-1db5f415.tar.gz -C /opt/AMS-open` (+ `RELEASE-COMMIT`) → jar copy → cancel 7 jobs, `docker rm -f` JM + TM →
+ZooKeeper guard → compose `up -d --no-deps --no-build --pull never flink-jobmanager flink-taskmanager cplm-api traverse-ingestion-service ams-frontend`
+→ `ALLOW_FLINK_SUBMIT=yes bash migration/04b-submit-flink-jobs.sh` → checkpoint orphan sweep → `ops/cpm-12` (index valid `t`) →
+`ops/cpm-13` → `migration/02-apply-schemas.sh` (0 tables not owned by ams_user) → stop cplm-api, `ops/cpm-12b`, start →
+`migration/daily-check.sh` (all OK; evidence tables 32 MB, from 2.1 GB).
+
+**Deviations from VM-STEPS (fix in build-release.py before the next bundle):**
+1. VM-STEPS had no source-extract step; done by hand before any script (earlier releases had it).
+2. `deploy.sh --prod` stopped at compose up: `curlimages/curl:8.9.1` (emqx-init) and `minio/mc` (minio-init) had been pruned
+   from the plant and cannot be pulled offline. Worked around with `--no-deps` on the five services + 04b by hand. Images re-shipped
+   in `release-out/init-images-20261010` (curl `c22f31f7…`, mc `768ac82e…`); load them so a full `deploy.sh --prod` works again.
+3. cpm-12b ran ~10 min after the Flink swap instead of ≥ 1 h: recent TRANSIENT evidence deleted, refills from new runs. No other effect.
+4. `sudo` password prompts swallow the rest of a pasted block: split blocks at the first `sudo`.
+
+Flink downtime 09:08-09:18 UTC (no HA, fresh window state; 12h/24h verdicts need up to a day).
+Same-day incident before the deploy (disk 100 %, ZooKeeper zero-byte log, broker / OT publisher chain): `prod_decision.md` section 6.

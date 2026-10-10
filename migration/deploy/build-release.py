@@ -342,7 +342,8 @@ def vm_steps(release: str, commit: str, rows: list[tuple[str, str, str]],
 #    Pre-flight - STOP (skip this block) unless: cp-zookeeper image | [] entrypoint | [/etc/confluent/docker/run] | appuser, and a mount at /var/lib/zookeeper/log
 PF=$(docker inspect instrumental-zookeeper -f '{{{{.Config.Image}}}}|{{{{.Config.Entrypoint}}}}|{{{{.Config.Cmd}}}}|{{{{.Config.User}}}}'); echo "$PF"; case "$PF" in *cp-zookeeper*'|[]|[/etc/confluent/docker/run]|appuser') ;; *) echo "STOP: not a cp-zookeeper container with the stock command - read their compose first"; false;; esac
 docker inspect instrumental-zookeeper -f '{{{{range .Mounts}}}}{{{{.Destination}}}} {{{{end}}}}' | grep -q /var/lib/zookeeper/log || {{ echo "STOP: no mount at /var/lib/zookeeper/log"; false; }}
-#    backup BOTH volumes first (MARUN-DISK.md J step 1)
+#    backup BOTH volumes first (MARUN-DISK.md J step 1). Run `sudo -v` on its own first: a sudo password prompt
+#    swallows the rest of a pasted block (v2.7.0: the guard files were silently not copied)
 B=/var/tmp/zk-backup-{release}; sudo mkdir -p $B; for v in microservices_zookeeper-data microservices_zookeeper-logs; do sudo cp -a "$(docker volume inspect -f '{{{{.Mountpoint}}}}' $v)" "$B/$v"; done; sudo du -sh $B   # a few MB (2.6 MB on 6 Oct)
 #    pin THEIR compose project: a different -p creates new empty ZooKeeper volumes = new cluster id = InconsistentClusterIdException on Kafka
 L() {{ docker inspect instrumental-zookeeper -f "{{{{index .Config.Labels \\"$1\\"}}}}"; }}
@@ -617,6 +618,25 @@ echo {commit} > /opt/AMS-open/RELEASE-COMMIT
 grep -c 'taskmanager.memory.process.size: 3584m' migration/deploy/docker-compose.marun.yml   # 1
 free -g | awk '/Mem:/ {{print "available GiB", $7}}'                                            # >= 2 before step 5
 """
+    # v2.7.0 (2026-10-10): the source tree was extracted only inside the flagged blocks above, so a release with
+    # none of those flags shipped VM-STEPS without it. Every release extracts it; the flagged blocks already do.
+    src_block = ""
+    if not (v25 or v26 or v262 or chg039):
+        src_block = f"""
+# 4a. source tree - BEFORE any script or compose step: deploy.sh, 04b, the compose files and ops scripts are files, not images.
+#     migration/.env is untracked, so it is not in the archive and survives the extraction.
+git -C /opt/AMS-open status --porcelain 2>/dev/null || echo "NOT A GIT CHECKOUT - confirm nobody has patched files on the VM (MARUN-CONTEXT rule 1) before extracting"
+cp /opt/AMS-open/migration/.env /tmp/{release}/env-backup-$(date +%Y%m%d%H%M)
+tar -xzf /tmp/{release}/src-{commit}.tar.gz -C /opt/AMS-open
+echo {commit} > /opt/AMS-open/RELEASE-COMMIT
+"""
+    # v2.7.0 (2026-10-10): curlimages/curl and minio/mc had been pruned at the plant (their one-shot containers look unused),
+    # so deploy.sh --prod died at compose up trying to pull them offline. Check before anything is stopped.
+    init_check = """
+# 4c. one-shot init images (emqx-init, minio-init) must be present: compose cannot pull them offline. Any MISSING line: STOP,
+#     docker load them first (release-out/init-images-20261010) - never prune them.
+for i in $(grep -oE 'image: (curlimages/curl|minio/mc):[^ ]+' infra/docker/docker-compose.yml | cut -d' ' -f2); do docker image inspect "$i" >/dev/null 2>&1 && echo "present $i" || echo "MISSING $i"; done
+"""
     data_block = ""
     if data_load:
         data_block = f"""
@@ -660,7 +680,7 @@ docker images --no-trunc --format '{{{{.ID}}}} {{{{.Repository}}}}:{{{{.Tag}}}}'
 # 3. disk headroom - this host has filled four times; a load with no room corrupts more
 #    than it deploys. Want >= 20 GB free before starting.
 df -h /
-{v25_block}{v26_block}{v262_block}{chg039_block}
+{v25_block}{v26_block}{v262_block}{chg039_block}{src_block}{init_check}
 # 4. load
 {loads}
 {flink}
