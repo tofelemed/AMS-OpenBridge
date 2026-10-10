@@ -58,7 +58,7 @@ public sealed class CpmFleetKpiController : ControllerBase
                 .Select(g => new { reason = g.Key, count = g.Count() }),
             assessed = new
             {
-                acceptable = Count("acceptable"), noFaultOutOfMode = Count("no-fault-out-of-mode"), finding = Count("finding"),
+                acceptable = Count("acceptable"), noFaultLimited = Count("no-fault-limited"), finding = Count("finding"),
                 symptomOnly = Count("symptom"), unrecognised = loops.Count(l => l.Outcome == KpiOutcome.Unrecognised),
             },
             kpis = FleetKpiClassifier.Figures(loops, _t),

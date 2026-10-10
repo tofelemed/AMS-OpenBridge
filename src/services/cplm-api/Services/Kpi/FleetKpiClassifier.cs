@@ -7,7 +7,7 @@ public static class FleetKpiClassifier
     /// <summary>Drill-down keys, in tile order. "all" lists every monitored loop.</summary>
     public static readonly string[] Keys =
     {
-        "all", "acceptable", "finding", "symptom", "no-fault-out-of-mode", "oscillating", "valve", "effort",
+        "all", "acceptable", "finding", "symptom", "no-fault-limited", "oscillating", "valve", "effort",
         "normal-mode", "out-of-mode", "saturated", "not-assessable", "stale", "never-evaluated", "assessed",
     };
 
@@ -42,9 +42,10 @@ public static class FleetKpiClassifier
         if (d.StartsWith("EXCLUDED", StringComparison.Ordinal))
             return Make(KpiState.NotAssessable, ExcludedReason.GetValueOrDefault(d, "EXCLUDED_OTHER"));
 
-        // A verdict. No fault found = NO_CALL (evidence < 35) or INSUFFICIENT_EVIDENCE (no family qualified).
+        // A verdict. No fault found = NO_CALL (evidence < 35) or INSUFFICIENT_EVIDENCE (no family qualified). Acceptable also
+        // needs the loop in its normal mode and NOT at an OP limit: a saturated loop has no authority, whatever its verdict.
         if (d is "NO_CALL" or "INSUFFICIENT_EVIDENCE")
-            return Make(KpiState.Assessed, null, inMode ? KpiOutcome.Acceptable : KpiOutcome.NoFaultOutOfMode, d);
+            return Make(KpiState.Assessed, null, inMode && !saturated ? KpiOutcome.Acceptable : KpiOutcome.NoFaultLimited, d);
         var cut = d.IndexOf('_');
         var band = cut > 0 ? d[..cut] : d;
         var family = cut > 0 ? d[(cut + 1)..] : null;
@@ -76,7 +77,7 @@ public static class FleetKpiClassifier
         "acceptable" => l.Outcome == KpiOutcome.Acceptable,
         "finding" => l.Outcome == KpiOutcome.Finding,
         "symptom" => l.Outcome == KpiOutcome.SymptomOnly,
-        "no-fault-out-of-mode" => l.Outcome == KpiOutcome.NoFaultOutOfMode,
+        "no-fault-limited" => l.Outcome == KpiOutcome.NoFaultLimited,
         "oscillating" => l.Outcome == KpiOutcome.Finding && l.Family == "OSCILLATION",
         "valve" => l.Outcome == KpiOutcome.Finding && l.Family == "FINAL_ELEMENT_NONLINEARITY",
         "effort" => l.Outcome == KpiOutcome.Finding && l.Family == "EXCESSIVE_EFFORT",
@@ -101,7 +102,7 @@ public static class FleetKpiClassifier
         return new[]
         {
             new KpiFigure("acceptable", "Performing acceptably", Count("acceptable"), monitored, "monitored loops",
-                $"No fault found (NO_CALL / INSUFFICIENT_EVIDENCE), in normal mode ≥ {t.NormalModeMin:P0}, {fresh}"),
+                $"No fault found (NO_CALL / INSUFFICIENT_EVIDENCE), in normal mode ≥ {t.NormalModeMin:P0}, not at an OP limit > {t.SaturationMax:P0}, {fresh}"),
             new KpiFigure("normal-mode", "In normal mode", Count("normal-mode"), modeMeasured, "loops with a measured mode",
                 $"AUTO / CASCADE ≥ {t.NormalModeMin:P0} of the window (> {1 - t.NormalModeMin:P0} out of design mode = out of mode), {fresh}"),
             new KpiFigure("oscillating", "Oscillating", Count("oscillating"), assessed, "assessed loops",

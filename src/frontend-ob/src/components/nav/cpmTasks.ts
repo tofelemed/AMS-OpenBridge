@@ -31,6 +31,8 @@ export const CPM_PAGES = {
   '/cpm': { task: 'Find problems', purpose: 'Which loops need attention first, and why.' },
   '/cpm/performance': { task: 'Find problems', purpose: 'Compare every loop gate by gate and see where the plant is failing.' },
   '/cpm/events': { task: 'Find problems', purpose: 'Diagnosis episodes per loop: acknowledge, shelve and follow them up.' },
+  // CHG-082: an Overview KPI's drill-down (opened from a tile, not a menu item)
+  '/cpm/kpi': { task: 'Find problems', purpose: 'The loops behind one Overview number, and the value that put each one there.' },
   '/cpm/explorer': { task: 'Check a loop', purpose: "One loop's current condition, trend and gate results." },
   '/cpm/historical': { task: 'Check a loop', purpose: "A loop's signals, KPIs, mode and verdicts over a past period." },
   '/cpm/investigation': { task: 'Understand the cause', purpose: 'Start here: the conclusion, the evidence behind it and what to check next.' },

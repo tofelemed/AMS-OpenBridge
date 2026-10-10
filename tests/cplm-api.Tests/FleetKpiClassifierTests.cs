@@ -58,7 +58,7 @@ public sealed class FleetKpiClassifierTests
     [Theory]
     [InlineData("NO_CALL", 0.95, KpiOutcome.Acceptable)]                   // exactly 95 % is in normal mode
     [InlineData("INSUFFICIENT_EVIDENCE", 1.0, KpiOutcome.Acceptable)]
-    [InlineData("NO_CALL", 0.9499, KpiOutcome.NoFaultOutOfMode)]
+    [InlineData("NO_CALL", 0.9499, KpiOutcome.NoFaultLimited)]
     [InlineData("DETECTED_OSCILLATION", 1.0, KpiOutcome.SymptomOnly)]
     [InlineData("CLASSIFIED_FINAL_ELEMENT_NONLINEARITY", 1.0, KpiOutcome.SymptomOnly)]
     [InlineData("SUSPECTED_OSCILLATION", 1.0, KpiOutcome.Finding)]
@@ -69,6 +69,13 @@ public sealed class FleetKpiClassifierTests
         var l = C(Row(diagnosis, auto: auto));
         l.State.Should().Be(KpiState.Assessed);
         l.Outcome.Should().Be(outcome);
+    }
+
+    [Fact]
+    public void A_no_fault_loop_at_an_OP_limit_is_not_performing_acceptably()
+    {
+        C(Row("NO_CALL", sat: 0.27)).Outcome.Should().Be(KpiOutcome.NoFaultLimited, "a saturated loop has no authority");
+        C(Row("NO_CALL", sat: 0.10)).Outcome.Should().Be(KpiOutcome.Acceptable, "exactly 10 % is not more than 10 %");
     }
 
     [Fact]
@@ -97,13 +104,14 @@ public sealed class FleetKpiClassifierTests
         int N(string k) => loops.Count(l => FleetKpiClassifier.Matches(l, k));
 
         (N("assessed") + N("not-assessable") + N("stale") + N("never-evaluated")).Should().Be(loops.Count);
-        (N("acceptable") + N("no-fault-out-of-mode") + N("finding") + N("symptom")).Should().Be(N("assessed"));
+        (N("acceptable") + N("no-fault-limited") + N("finding") + N("symptom")).Should().Be(N("assessed"));
         (N("normal-mode") + N("out-of-mode")).Should().Be(loops.Count(l => l.NormalModeMeasured));
 
         foreach (var f in FleetKpiClassifier.Figures(loops, T))
             f.Count.Should().Be(N(f.Key), $"the {f.Key} tile counts exactly its drill-down");
 
         N("acceptable").Should().Be(1);
+        N("no-fault-limited").Should().Be(1);
         N("oscillating").Should().Be(1);
         N("saturated").Should().Be(2, "the manual-mode window is saturated too: saturation is measured on any fresh window");
         N("stale").Should().Be(1);

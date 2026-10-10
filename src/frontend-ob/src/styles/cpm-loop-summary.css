@@ -98,17 +98,31 @@
   background: var(--border-divider-color);
 }
 .cpm-op__seg { min-width: 4px; }
-.cpm-op__seg--healthy  { background: var(--alert-running-color); }
-.cpm-op__seg--poor     { background: var(--alert-alarm-color); }
-.cpm-op__seg--stale    { background: var(--alert-caution-color); }
-.cpm-op__seg--excluded { background: var(--element-neutral-color); }
-.cpm-op__seg--notEvaluated {
+/* CHG-082: one segment per state of the KPI partition (sums to the monitored loops). Colour only where it means
+   something (ISA-101): green performing, red finding, amber stale; the rest neutral, told apart by pattern and label. */
+.cpm-op__seg--acceptable { background: var(--alert-running-color); }
+.cpm-op__seg--finding    { background: var(--alert-alarm-color); }
+.cpm-op__seg--symptom    { background: var(--alert-caution-color); opacity: 0.55; }
+.cpm-op__seg--outOfMode  { background: var(--element-neutral-color); opacity: 0.55; }
+.cpm-op__seg--notAssessable {
   background: repeating-linear-gradient(135deg,
     var(--element-neutral-color) 0 3px, var(--container-backdrop-color) 3px 6px);
 }
-/* Five states, one row: an orphaned fifth tile reads as a different kind of thing. */
-.cpm-op__tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
-@media (max-width: 900px) { .cpm-op__tiles { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } }
+.cpm-op__seg--stale      { background: var(--alert-caution-color); }
+.cpm-op__seg--never      { background: var(--border-divider-color); outline: 1px dashed var(--element-neutral-color); outline-offset: -1px; }
+.cpm-op__legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; font-size: 0.85rem; }
+.cpm-op__legend li { display: inline-flex; align-items: center; gap: 6px; }
+.cpm-op__swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
+.cpm-op__group { display: flex; flex-direction: column; gap: 6px; }
+.cpm-op__tile { display: flex; min-width: 0; }
+.cpm-op__tile > .cpm-kpi { flex: 1; min-width: 0; }
+.cpm-op__tiles { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.cpm-op__tiles--headline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cpm-op__tiles--coverage { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cpm-op__basis { color: var(--element-neutral-color); font-size: 0.85rem; margin: 0; }
+@media (max-width: 900px) {
+  .cpm-op__tiles, .cpm-op__tiles--headline, .cpm-op__tiles--coverage { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+}
 
 .cpm-readiness__list { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 /* CHG-059: plant facts (no positioner, no valve, no peers) — a note, not a gap, so no alert tone. */
@@ -159,3 +173,22 @@
 
 /* CHG-063: a server count beside a tab label — secondary to the label, figures aligned. */
 .cpm-tab-count { color: inherit; opacity: 0.72; font-variant-numeric: tabular-nums; }
+
+/* CHG-082 / KPI Phase 3: the drill-down (/cpm/kpi). Each row proves one loop's place in the number; under 760 px a row
+   becomes a labelled card so a phone never scrolls sideways. */
+.cpm-kpi-proof__pick { min-width: 220px; }
+.cpm-kpi-proof__search { max-width: 360px; margin-bottom: 8px; }
+.cpm-kpi-table { width: 100%; }
+.cpm-kpi-table td { vertical-align: top; }
+.cpm-kpi-table__sub { display: block; color: var(--element-neutral-color); font-size: 0.8rem; }
+.cpm-kpi-table__links { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; }
+@media (max-width: 760px) {
+  .cpm-kpi-table thead { display: none; }
+  .cpm-kpi-table, .cpm-kpi-table tbody, .cpm-kpi-table tr, .cpm-kpi-table td { display: block; width: 100%; }
+  .cpm-kpi-table tr { border: 1px solid var(--border-divider-color); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
+  .cpm-kpi-table td { border: 0; padding: 3px 0; }
+  .cpm-kpi-table td::before {
+    content: attr(data-label); display: block; color: var(--element-neutral-color);
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+  }
+}

@@ -31,7 +31,7 @@ public static class FleetKpiRows
     /// <summary>Worst first for the KPI's own measure, then by loop id (stable paging).</summary>
     public static IEnumerable<KpiLoop> Order(IEnumerable<KpiLoop> loops, string kpi) => kpi switch
     {
-        "normal-mode" or "out-of-mode" or "acceptable" or "no-fault-out-of-mode"
+        "normal-mode" or "out-of-mode" or "acceptable" or "no-fault-limited"
             => loops.OrderBy(l => l.Row.AutoPct ?? double.MaxValue).ThenBy(l => l.Row.LoopId),
         "saturated" => loops.OrderByDescending(l => l.Row.SaturationPct ?? -1).ThenBy(l => l.Row.LoopId),
         "oscillating" or "valve" or "effort" or "finding" or "symptom"
@@ -49,7 +49,7 @@ public static class FleetKpiRows
             new { label, value = v, threshold, unit = "fraction", comparator = cmp, measured = v is not null };
         return kpi switch
         {
-            "normal-mode" or "out-of-mode" or "acceptable" or "no-fault-out-of-mode"
+            "normal-mode" or "out-of-mode" or "acceptable" or "no-fault-limited"
                 => Pct("Time in AUTO / CASCADE", r.AutoPct, t.NormalModeMin, ">="),
             "saturated" => Pct("Time with OP fully open or closed", r.SaturationPct, t.SaturationMax, ">"),
             "oscillating" or "valve" or "effort" or "finding" or "symptom"

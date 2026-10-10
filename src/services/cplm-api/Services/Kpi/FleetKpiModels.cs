@@ -50,7 +50,8 @@ public sealed record KpiLoopRow
 public enum KpiState { Assessed, NotAssessable, Stale, NeverEvaluated }
 
 /// <summary>What an assessed verdict says — exactly one per assessed loop.</summary>
-public enum KpiOutcome { None, Acceptable, NoFaultOutOfMode, Finding, SymptomOnly, Unrecognised }
+/// <remarks>NoFaultLimited: no fault found, but out of normal mode or at an OP limit (not "acceptable").</remarks>
+public enum KpiOutcome { None, Acceptable, NoFaultLimited, Finding, SymptomOnly, Unrecognised }
 
 /// <summary>The classification of one loop, with every flag a tile counts.</summary>
 public sealed record KpiLoop(

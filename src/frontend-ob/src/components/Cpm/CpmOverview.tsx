@@ -93,8 +93,9 @@ export const CpmOverview: React.FC = () => {
       />
       <PlantScopeFilter scope={scope} summary={summary.data ? `${summary.data.loops.total} loop(s) in scope` : null} />
 
-      {/* SME #5/#6 (CHG-043): every monitored loop in one state; configuration limits sit in Readiness below. */}
-      <OperatingPicture summary={summary.data} explicitLoop={explicitLoop} />
+      {/* CHG-082: every monitored loop in one state, KPI tiles with a drill-down each (kpi_calculation_logic/KPI-LOGIC.md);
+          configuration limits sit in Readiness below. */}
+      <OperatingPicture scope={scope.params} />
 
       <div className="cpm-grid-2">
         <PriorityQueue loops={loops} loading={rankings.isLoading} error={rankings.isError ? rankings.error : null}
