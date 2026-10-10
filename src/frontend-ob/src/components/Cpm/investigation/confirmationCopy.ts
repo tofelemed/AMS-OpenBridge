@@ -14,6 +14,11 @@ export const NO_VP_COPY =
   'Without a valve-position (VP) signal, G14 cannot confirm a final-element fault: such a verdict '
   + 'stops at suspected. Oscillation and effort verdicts are unaffected.';
 
+/** CHG-077: G14 on a loop declared without a valve position. */
+export const NO_VP_ON_LOOP_COPY =
+  'This loop has no valve position, so a final-element confirmation (G14) does not apply. '
+  + 'Oscillation and effort verdicts are unaffected.';
+
 /** Fleet-level version of the same fact, for a count of loops with no VP mapped. */
 export function noVpFleetCopy(count: number): string {
   return `${count} loop(s) have no VP signal, so a final-element fault on them can be suspected at most, never confirmed.`;
@@ -25,7 +30,7 @@ const fmtS = (s: number) => (s >= 3600 ? `${(s / 3600).toFixed(1)} h` : s >= 60 
  * One sentence per served confirmation state. `legacy` rows (written before v2.5) are named
  * as such: G14 was then a VP-presence flag and must not be read as a confirmation.
  */
-export function confirmationProse(c: CpmConfirmation | null | undefined, legacy = false): string {
+export function confirmationProse(c: CpmConfirmation | null | undefined, legacy = false, vpAbsentOnLoop = false): string {
   if (legacy || !c || c.state === 'LEGACY_FLAG_ONLY') {
     return 'This result predates v2.5: G14 was a VP-presence flag, not a confirmation.';
   }
@@ -37,8 +42,9 @@ export function confirmationProse(c: CpmConfirmation | null | undefined, legacy 
       return `Measured valve position tracked the demand within tolerance (p95 error ${c.trackingErrorP95Pp.toFixed(1)} pp): `
         + 'a final-element claim is contradicted and the verdict is held at DETECTED.';
     case 'NOT_CONFIRMED':
+      // CHG-077: on a loop declared without a valve position this is a fact, not a missing mapping
       return c.reason === 'NO_VP'
-        ? NO_VP_COPY
+        ? (vpAbsentOnLoop ? NO_VP_ON_LOOP_COPY : NO_VP_COPY)
         : 'VP is mapped but showed no non-following dwell: the final-element claim is not confirmed and stops at suspected.';
     case 'NOT_APPLICABLE':
       return 'The verdict is a symptom family (oscillation or effort): a final-element confirmation does not apply.';

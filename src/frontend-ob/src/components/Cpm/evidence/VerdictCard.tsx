@@ -10,6 +10,7 @@ import type { GateState } from './GateResultState';
 import type { Headline } from './views/headlines';
 import { codeLabel } from '../vocabulary';
 import { CodeLabel } from '../CodeLabel';
+import { flagsForLoop, type InputContext } from '../optionalInputs';
 
 export interface VerdictCardProps {
   gate: string;
@@ -46,8 +47,9 @@ export interface WindowFlagsRow {
   insufficientEvidenceReason?: string | null;
 }
 
-export const WindowFlags: React.FC<{ row: WindowFlagsRow | undefined }> = ({ row }) => {
-  const flags = row?.observabilityFlags ?? [];
+export const WindowFlags: React.FC<{ row: WindowFlagsRow | undefined; inputs?: InputContext }> = ({ row, inputs }) => {
+  // CHG-077: no NO_VP pill on a loop that has no valve position
+  const flags = flagsForLoop(row?.observabilityFlags, inputs);
   const disq = row?.familyDisqualifiers ?? [];
   const insufficient = row?.insufficientEvidenceReason ?? null;
   const empty = flags.length === 0 && disq.length === 0 && !insufficient;

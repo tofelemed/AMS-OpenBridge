@@ -35,11 +35,9 @@ export function notCheckedOf(flags: readonly string[] | null | undefined, health
     : eff.includes('HEALTH_NOT_CONFIGURED') ? HEALTH_GAP['HEALTH NOT CONFIGURED']
       : eff.includes('HEALTH_LIMITED') ? HEALTH_GAP['INSTRUMENT LIMITED'] : null;
   if (health) out.push(health);
-  if (eff.includes('NO_VP')) {
-    out.push(inputs?.vp === 'NOT_INSTALLED'
-      ? 'Valve position: no positioner feedback installed, so a valve cause can be suspected but not confirmed'
-      : 'Valve position: not available, so a valve (stiction) cause is neither confirmed nor ruled out');
-  }
+  // CHG-077: only a loop that HAS a valve position reaches here (effectiveInputFlags drops the rest)
+  if (eff.includes('NO_VP'))
+    out.push('Valve position: not available, so a valve (stiction) cause is neither confirmed nor ruled out');
   if (eff.includes('NO_UPSTREAM_LINKS') || eff.includes('NO_PEER_LINKS'))
     out.push('Peer interaction (G13): no peer links, so an upstream disturbance is not ruled out');
   if (eff.includes('NO_STEP_TEST'))

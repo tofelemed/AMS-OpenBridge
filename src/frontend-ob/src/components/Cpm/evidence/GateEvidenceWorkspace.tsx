@@ -205,7 +205,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
               <SignalContextLanes loopId={run.data.loopId} methodRunIds={run.data.methodRunIds} fromMs={run.data.support.fromMs} toMs={run.data.support.toMs} timeZone={timeZone} timeFmt={timeFmt} />
             </CollapsibleSection>
           ) : <div className="cpm-surface cpm-skeleton cpm-skeleton--lanes" aria-hidden />}
-          <WindowFlags row={currentOption?.flags} />
+          <WindowFlags row={currentOption?.flags} inputs={inputContextOf(loop)} />
         </main>
         <ExplainPanel gate={selection.gate} run={run.data} entry={entry} manifest={manifest.data} state={state} status={status} reason={reason}
           eligibilityDetail={eligibilityDetail} timeZone={timeZone} inputs={inputContextOf(loop)} collapsed={explainCollapsed} onToggle={toggleExplain} />

@@ -26,6 +26,7 @@ import type { CpmLoop } from '../../api/cpmApi';
 import { modelLabel, stateOf } from './registryShared';
 import { CodeLabel } from './CodeLabel';
 import { peerDetail, vpDetail } from './optionalInputs';
+import { flagsForLoop, inputContextOf } from './optionalInputs';
 
 // ── profile detail aside ───────────────────────────────────────────────────
 
@@ -96,8 +97,8 @@ export const ProfileAside: React.FC<{ loop: CpmLoop; onEdit: () => void }> = ({ 
       </KvRow>
       <KvRow label="Gate profile">{loop.thresholdProfileId ?? 'default'}</KvRow>
       <KvRow label="Observability">
-        {loop.observabilityFlags.length > 0
-          ? loop.observabilityFlags.map(f => <TonePill key={f} tone="warn"><CodeLabel code={f} /></TonePill>)
+        {flagsForLoop(loop.observabilityFlags, inputContextOf(loop)).length > 0
+          ? flagsForLoop(loop.observabilityFlags, inputContextOf(loop)).map(f => <TonePill key={f} tone="warn"><CodeLabel code={f} /></TonePill>)
           : <TonePill tone="good">CLEAR</TonePill>}
       </KvRow>
 

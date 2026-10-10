@@ -24,8 +24,9 @@ import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { PlantLocationPicker, SIGNAL_ROLES, deriveSignalPath, historianNode, isResolvablePath, loopIdProblem } from './plantLocation';
 import type { PlantLocation } from './plantLocation';
 import { NO_VP_COPY } from './investigation/confirmationCopy';
-import { OptionalInputFields, applicabilityOf, type OptionalInputForm } from './OptionalInputFields';
+import { OptionalInputFields, applicabilityOf, hasVpChecked, type OptionalInputForm } from './OptionalInputFields';
 import { applicabilitySummary, factStateLabel } from './optionalInputs';
+import { vpApplicabilityOf } from './optionalInputs';
 
 
 // ── add-loop wizard (5 steps, maps 1:1 onto POST /cpm/loops/activate) ──────
@@ -143,7 +144,9 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
     pvMin: numText(editLoop.engineering?.pvMin), pvMax: numText(editLoop.engineering?.pvMax),
     opMin: numText(editLoop.engineering?.opMin), opMax: numText(editLoop.engineering?.opMax),
     pvUnit: editLoop.engineering?.pvUnit ?? '',
-    vpApplicability: editLoop.engineering?.vpApplicability ?? '', peerApplicability: editLoop.engineering?.peerApplicability ?? '',
+    // CHG-077: the checkbox shows what the loop is today (declared, or derived from its command path)
+    vpApplicability: vpApplicabilityOf(editLoop) === 'EXPECTED' ? 'EXPECTED' : 'NOT_APPLICABLE',
+    peerApplicability: editLoop.engineering?.peerApplicability ?? '',
     model: modelFormOf(editLoop.model),
   } : {
     // site starts EMPTY: the old 'site1' placeholder was a site that exists in
@@ -154,7 +157,7 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
     loopType: 'FIC', criticality: 'medium',
     pv: '', sp: '', op: '', mode: '', vp: '',
     thresholdProfileId: '', enableMonitoring: true,
-    pvMin: '', pvMax: '', opMin: '', opMax: '', pvUnit: '', vpApplicability: '', peerApplicability: '',
+    pvMin: '', pvMax: '', opMin: '', opMax: '', pvUnit: '', vpApplicability: 'EXPECTED', peerApplicability: '',
     model: emptyModelForm(),
   });
   const readiness = useCpmReadiness(savedLoopId ?? undefined);
@@ -369,11 +372,13 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
                 );
               })}
             </div>
-            <OptionalInputFields form={form} onChange={set} />
+            <OptionalInputFields form={form} onChange={set}
+              onVpChange={v => setForm(f => ({ ...f, vpApplicability: v }))} />
             <p className="cpm-copy" style={{ marginTop: 12 }}>
               Paths resolve through the binding resolver; the readiness report flags any
-              signal that falls back to path-pattern resolution instead of the asset model.{' '}
-              {NO_VP_COPY}
+              signal that falls back to path-pattern resolution instead of the asset model.
+              {/* CHG-077: the G14 note only where it is true - a VP is declared and none is mapped */}
+              {hasVpChecked(form.vpApplicability) && !form.vp.trim() && <>{' '}{NO_VP_COPY}</>}
             </p>
           </>
         )}

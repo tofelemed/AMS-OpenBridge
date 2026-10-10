@@ -19,6 +19,7 @@ import { reasonSentence } from './verdictCopy';
 import { fmtInstant } from '../context/LoopContextBar';
 import type { InputContext } from '../optionalInputs';
 import { INPUT_LIMITS_GATE, effectiveInputFlags } from '../inputLimits';
+import { flagsForLoop, vpAbsent } from '../optionalInputs';
 
 /** Which window flags limit which gate's claim: the missing inputs (shared, CHG-064) plus the method limits. */
 const LIMITS_GATE: Record<string, string[]> = {
@@ -52,11 +53,14 @@ export const ExplainWhy: React.FC<{
   const rows = whyRows(gate, { prov, row: fused, cfg: p => cfg.data?.properties?.[p], eligibilityDetail });
 
   const mark = gateMark(status, gate, effectiveInputFlags(fused?.observabilityFlags, inputs));
+  // CHG-077: G14's NO_VP on a loop without a valve position is the plant fact, not "not mapped"
+  const reasonText = reason === 'NO_VP' && vpAbsent(inputs) ? 'this loop has no valve position, so it does not apply'
+    : reason ? reasonSentence(reason, { gate, eligibilityDetail }) : '';
   const result = status
-    ? `${gate} ${name}: ${mark.meaning === 'none' ? lowerFirst(codeLabel(status)) : mark.label}${reason ? ` — ${reasonSentence(reason, { gate, eligibilityDetail })}` : ''}.`
+    ? `${gate} ${name}: ${mark.meaning === 'none' ? lowerFirst(codeLabel(status)) : mark.label}${reasonText ? ` — ${reasonText}` : ''}.`
     : `${gate} ${name}: no verdict recorded for this run.`;
   const flags = fused?.observabilityFlags ?? [];
-  const open = [...new Set(flags.filter(f => (LIMITS_GATE[f] ?? []).some(g => g === '*' || g === gate)).map(f => limitationOf(f, inputs)))];
+  const open = [...new Set(flagsForLoop(flags, inputs).filter(f => (LIMITS_GATE[f] ?? []).some(g => g === '*' || g === gate)).map(f => limitationOf(f, inputs)))];
   const d = (fused?.diagnosis ?? '').toUpperCase();
   if (d.startsWith('INSUFFICIENT') || d.startsWith('EXCLUDED')) open.unshift(`The whole window: ${lowerFirst(diagnosisLabel(fused?.diagnosis))} — no gate on it carries a verdict.`);
   if (gate === 'G15' || gate === 'G14') open.push('Evidence scores rank the explanations; they are not probabilities.');

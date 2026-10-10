@@ -31,7 +31,9 @@ describe('conclusion basis', () => {
   it('an input that does not apply on this loop is not "not checked" (CHG-059)', () => {
     const noValve = { vp: 'NOT_APPLICABLE' as const, vpMapped: false, peers: 'NOT_APPLICABLE' as const };
     expect(notCheckedOf(['NO_VP', 'NO_UPSTREAM_LINKS'], undefined, noValve)).toEqual([]);
-    expect(notCheckedOf(['NO_VP'], undefined, { vp: 'NOT_INSTALLED', vpMapped: false, peers: 'EXPECTED' })[0]).toMatch(/no positioner feedback installed/);
+    // CHG-077: "not installed" is a loop without a valve position too — nothing is missing
+    expect(notCheckedOf(['NO_VP'], undefined, { vp: 'NOT_INSTALLED', vpMapped: false, peers: 'EXPECTED' })).toEqual([]);
+    expect(notCheckedOf(['NO_VP'], undefined, { vp: 'EXPECTED', vpMapped: false, peers: 'EXPECTED' })[0]).toMatch(/^Valve position: not available/);
   });
 });
 

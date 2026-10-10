@@ -47,7 +47,9 @@ export const HypothesisPanel: React.FC<{
   verdict: CpmVerdictV2 | undefined;
   /** All numeric payload fields — the legacy fallback reads the stored family scores from here. */
   metrics: Record<string, number>;
-}> = ({ verdict, metrics }) => {
+  /** CHG-077: the loop is declared without a valve position. */
+  vpAbsentOnLoop?: boolean;
+}> = ({ verdict, metrics, vpAbsentOnLoop = false }) => {
   if (!verdict || verdict.legacy) {
     const rows = LEGACY_ROWS.map(h => ({ ...h, value: metrics[h.field] })).filter(h => h.value != null);
     return (
@@ -114,7 +116,7 @@ export const HypothesisPanel: React.FC<{
 
       <PanelHead eyebrow="G14 confirmation" title={codeLabel(conf.claimType)}
         right={<TonePill tone={confirmationTone(conf.state)}>{confirmationLabel(conf)}</TonePill>} />
-      <p className="cpm-copy" data-testid="confirmation-prose">{confirmationProse(conf)}</p>
+      <p className="cpm-copy" data-testid="confirmation-prose">{confirmationProse(conf, false, vpAbsentOnLoop)}</p>
       {conf.positiveEvidenceIds.length > 0 && (
         <KvRow label="Positive evidence">{conf.positiveEvidenceIds.map(codeLabel).join(', ')}</KvRow>
       )}

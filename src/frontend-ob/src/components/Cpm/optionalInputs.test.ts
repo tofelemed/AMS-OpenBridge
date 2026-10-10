@@ -19,8 +19,9 @@ describe('optional inputs', () => {
   });
   it('turns NO_VP into the sentence true for this loop', () => {
     const ctx = (e: Record<string, unknown> | null, cp: string | null, tags = {}) => inputContextOf(loop(e, cp, tags));
-    expect(optionalInputLimitation('NO_VP', ctx(null, 'OP_TO_VFD'))).toMatch(/^No valve on this loop/);
-    expect(optionalInputLimitation('NO_VP', ctx({ vpApplicability: 'NOT_INSTALLED' }, null))).toMatch(/^No positioner feedback installed/);
+    // CHG-077: declared without a valve position (either value) = a fact that does not apply, never a gap
+    expect(optionalInputLimitation('NO_VP', ctx(null, 'OP_TO_VFD'))).toMatch(/^This loop has no valve position.*does not apply/);
+    expect(optionalInputLimitation('NO_VP', ctx({ vpApplicability: 'NOT_INSTALLED' }, null))).toMatch(/does not apply/);
     expect(optionalInputLimitation('NO_VP', ctx(null, null, { VP: 'a/b/c.vp' }))).toMatch(/^Valve position mapped but no samples/);
     expect(optionalInputLimitation('NO_VP', ctx(null, null))).toMatch(/^Valve position expected but not mapped/);
   });
@@ -38,8 +39,9 @@ describe('registry labels', () => {
     const { vpCellLabel, vpDetail, peerDetail } = await import('./optionalInputs');
     expect(vpCellLabel(loop(null, null, { VP: 'a/b.vp' }))).toBe('Mapped');
     expect(vpCellLabel(loop(null, null))).toBe('Not mapped');
-    expect(vpCellLabel(loop({ vpApplicability: 'NOT_INSTALLED' }, null))).toBe('Not installed');
-    expect(vpCellLabel(loop(null, 'OP_TO_VFD'))).toBe('No valve');
+    expect(vpCellLabel(loop({ vpApplicability: 'NOT_INSTALLED' }, null))).toBe('No VP');
+    expect(vpCellLabel(loop(null, 'OP_TO_VFD'))).toBe('No VP');
+    expect(vpDetail(loop({ vpApplicability: 'NOT_APPLICABLE' }, null))).toMatch(/does not apply/);
     expect(vpDetail(loop(null, null))).toMatch(/^Expected but not mapped/);
     expect(peerDetail(loop({ peerApplicability: 'NOT_APPLICABLE' }, null))).toMatch(/does not apply/);
     expect(peerDetail(loop(null, null))).toMatch(/expected/);
@@ -51,6 +53,28 @@ describe('wizard labels', () => {
     const { factStateLabel, applicabilitySummary } = await import('./optionalInputs');
     expect(factStateLabel('NOT_APPLICABLE')).toBe('Not applicable');
     expect(factStateLabel('AVAILABLE')).toBeNull();
-    expect(applicabilitySummary('', 'NOT_APPLICABLE')).toBe('VP derived · peers not applicable');
+    expect(applicabilitySummary('', 'NOT_APPLICABLE')).toBe('Valve position derived · peers not applicable');
+    expect(applicabilitySummary('EXPECTED', '')).toBe('Valve position yes · peers derived');
+    expect(applicabilitySummary('NOT_APPLICABLE', '')).toBe('Valve position none on this loop · peers derived');
+  });
+});
+
+describe('CHG-077: a loop without a valve position is never missing one', () => {
+  it('drops NO_VP from the flags only where the loop has no valve position', async () => {
+    const { flagsForLoop, vpAbsent } = await import('./optionalInputs');
+    const none = inputContextOf(loop({ vpApplicability: 'NOT_APPLICABLE' }, null));
+    const has = inputContextOf(loop({ vpApplicability: 'EXPECTED' }, null));
+    expect(flagsForLoop(['NO_VP', 'NO_STEP_TEST'], none)).toEqual(['NO_STEP_TEST']);
+    expect(flagsForLoop(['NO_VP', 'NO_STEP_TEST'], has)).toEqual(['NO_VP', 'NO_STEP_TEST']);
+    expect(flagsForLoop(['NO_VP'], undefined)).toEqual(['NO_VP']);
+    expect(vpAbsent(none)).toBe(true);
+    expect(vpAbsent(has)).toBe(false);
+    expect(vpAbsent(undefined)).toBe(false);
+  });
+  it('the registry state is not Degraded for a loop declared without a valve position', async () => {
+    const { stateOf } = await import('./registryShared');
+    const base = { isActive: true, monitoringEnabled: true, observabilityFlags: ['NO_VP'], tags: {}, model: null };
+    expect(stateOf({ ...base, engineering: { vpApplicability: 'NOT_APPLICABLE' } } as unknown as CpmLoop).label).toBe('Active');
+    expect(stateOf({ ...base, engineering: { vpApplicability: 'EXPECTED' } } as unknown as CpmLoop).label).toBe('Degraded');
   });
 });

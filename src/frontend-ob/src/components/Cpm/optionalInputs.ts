@@ -46,14 +46,28 @@ export function inputContextOf(loop: (Pick<CpmLoop, 'engineering' | 'model'> & {
 export function optionalInputLimitation(flag: string, ctx: InputContext | undefined): string | null {
   if (!ctx) return null;
   if (flag === 'NO_VP') {
-    if (ctx.vp === 'NOT_APPLICABLE') return 'No valve on this loop: valve (stiction) diagnosis does not apply';
-    if (ctx.vp === 'NOT_INSTALLED') return 'No positioner feedback installed: a valve (stiction) cause can be suspected, not confirmed';
+    // CHG-077: a loop declared without a valve position (not installed / not applicable) is not missing it
+    if (ctx.vp !== 'EXPECTED') return NO_VP_ON_LOOP;
     if (ctx.vpMapped) return 'Valve position mapped but no samples in this window: a valve cause cannot be confirmed until it returns';
     return 'Valve position expected but not mapped: map its tag so a valve (stiction) cause can be confirmed';
   }
   if ((flag === 'NO_UPSTREAM_LINKS' || flag === 'NO_PEER_LINKS') && ctx.peers !== 'EXPECTED')
     return 'No interacting loops: peer interaction (G13) does not apply';
   return null;
+}
+
+/** CHG-077: the one sentence for a loop declared without a valve position — a fact, not a gap. */
+export const NO_VP_ON_LOOP = 'This loop has no valve position: valve-position confirmation (G14) does not apply';
+
+/** CHG-077: the loop is declared without a valve position (unknown context = has one, the previous behaviour). */
+export const vpAbsent = (ctx: InputContext | undefined): boolean => !!ctx && ctx.vp !== 'EXPECTED';
+
+/**
+ * CHG-077: the window's flags minus the ones for inputs this loop does not have (NO_VP on a loop without a valve
+ * position, a peer flag on a loop without interacting loops) — for raw flag pills, so they never read as a gap.
+ */
+export function flagsForLoop(flags: readonly string[] | null | undefined, ctx: InputContext | undefined): string[] {
+  return (flags ?? []).filter(f => !optionalInputLimitation(f, ctx)?.includes('does not apply'));
 }
 
 export const APPLICABILITY_OPTIONS: Array<{ value: '' | Applicability; label: string }> = [
@@ -69,14 +83,13 @@ type LoopLike = Pick<CpmLoop, 'engineering' | 'model'> & { tags?: Record<string,
 export function vpCellLabel(loop: LoopLike): string {
   const c = inputContextOf(loop)!;
   if (c.vpMapped) return 'Mapped';
-  return c.vp === 'NOT_APPLICABLE' ? 'No valve' : c.vp === 'NOT_INSTALLED' ? 'Not installed' : 'Not mapped';
+  return c.vp === 'EXPECTED' ? 'Not mapped' : 'No VP';
 }
 
 /** Registry detail row for an unmapped VP: what it means on this loop. */
 export function vpDetail(loop: LoopLike): string {
   const c = inputContextOf(loop)!;
-  if (c.vp === 'NOT_APPLICABLE') return 'No valve on this loop — valve diagnosis does not apply';
-  if (c.vp === 'NOT_INSTALLED') return 'No positioner feedback installed — a valve cause can be suspected, not confirmed';
+  if (c.vp !== 'EXPECTED') return 'None on this loop — G14 does not apply';
   return 'Expected but not mapped — G14 cannot confirm a final-element fault';
 }
 
@@ -92,5 +105,6 @@ export function factStateLabel(state: string | undefined): string | null {
 /** Wizard review line for the declared applicability; blank selects read "derived". */
 export function applicabilitySummary(vp: string, peers: string): string {
   const word = (v: string) => APPLICABILITY_OPTIONS.find(o => o.value === v && v)?.label.toLowerCase() ?? 'derived';
-  return `VP ${word(vp)} · peers ${word(peers)}`;
+  const vpWord = !vp ? 'derived' : vp === 'EXPECTED' ? 'yes' : 'none on this loop';
+  return `Valve position ${vpWord} · peers ${word(peers)}`;
 }

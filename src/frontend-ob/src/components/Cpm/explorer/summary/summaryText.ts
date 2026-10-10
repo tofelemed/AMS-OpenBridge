@@ -12,6 +12,7 @@ import { HYPOTHESIS_LABEL, OBSERVATION_LABEL } from '../../../../api/cpm/verdict
 import { toneFor, type CpmTone } from '../../shared';
 import { codeLabel, diagnosisLabel } from '../../vocabulary';
 import { optionalInputLimitation, type InputContext } from '../../optionalInputs';
+import { flagsForLoop } from '../../optionalInputs';
 
 
 export type ConditionKind = 'finding' | 'healthy' | 'excluded' | 'insufficient' | 'not-evaluated';
@@ -50,7 +51,8 @@ export const limitationOf = (flag: string, inputs?: InputContext): string =>
 
 /** Distinct limitations in served order (two flags can mean the same thing). */
 export function limitationsOf(flags: string[] | null | undefined, inputs?: InputContext): string[] {
-  return [...new Set((flags ?? []).map(f => limitationOf(f, inputs)))];
+  // CHG-077: an input this loop does not have (no valve position, no interacting loops) limits nothing
+  return [...new Set(flagsForLoop(flags, inputs).map(f => limitationOf(f, inputs)))];
 }
 
 export interface EvidenceItem { label: string; main: boolean }

@@ -94,7 +94,7 @@ public static class CpmLoopRegistryReads
         return new CpmLoopDto(
             loopId, (Guid?)row.asset_id, row.display_name, row.site, row.area, row.unit,
             row.loop_type, row.criticality, row.is_active, enabled, tags,
-            BuildObservabilityFlags(tags.Keys, links), links, stepTest, row.threshold_profile_id,
+            BuildObservabilityFlags(tags.Keys, links, ParseJson((string?)row.engineering), ReadModel(row).CommandPath), links, stepTest, row.threshold_profile_id,
             ReadRange((string?)row.engineering), (string?)row.timezone, ReadModel(row));
     }
 
@@ -115,13 +115,18 @@ public static class CpmLoopRegistryReads
     /// Flags derived from what the registry knows about the loop's signals and links.
     /// HAS_PEER_LINKS is not stamped here: it is published to the Flink broadcast
     /// (see CpmLoopRegistryService.PublishEvidenceAsync), which is what the gate reads.
+    /// CHG-077: a missing input is a flag (and the registry's "Degraded") only where the loop declares it —
+    /// a loop declared without a valve position (or without interacting loops) is not missing anything.
     /// </summary>
-    internal static List<string> BuildObservabilityFlags(IEnumerable<string> roles, IReadOnlyList<CpmLoopLinkDto> links)
+    internal static List<string> BuildObservabilityFlags(IEnumerable<string> roles, IReadOnlyList<CpmLoopLinkDto> links,
+        JsonElement engineering = default, string? commandPath = null)
     {
         var set = new HashSet<string>(roles, StringComparer.OrdinalIgnoreCase);
         var flags = new List<string>();
-        if (!set.Contains("VP")) flags.Add("NO_VP");
-        if (links.Count == 0) flags.Add("NO_UPSTREAM_LINKS");
+        if (!set.Contains("VP") && Registry.OptionalInputs.VpApplicability(engineering, commandPath) == Registry.InputApplicability.Expected)
+            flags.Add("NO_VP");
+        if (links.Count == 0 && Registry.OptionalInputs.PeerApplicability(engineering) == Registry.InputApplicability.Expected)
+            flags.Add("NO_UPSTREAM_LINKS");
         return flags;
     }
 

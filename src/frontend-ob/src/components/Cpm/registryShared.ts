@@ -4,6 +4,7 @@
  * limit — the single file had grown to 1211 lines holding three features.
  */
 import type { CpmLoop } from '../../api/cpmApi';
+import { flagsForLoop, inputContextOf } from './optionalInputs';
 
 /**
  * v2.5 (2G.1, R25): the loop model as the REGISTRY stores it (service family · dynamic class),
@@ -19,8 +20,9 @@ export function modelLabel(loop: CpmLoop): string {
 export function stateOf(loop: CpmLoop): { label: string; tone: 'good' | 'warn' | 'muted' } {
   if (!loop.isActive) return { label: 'Inactive', tone: 'muted' };
   if (!loop.monitoringEnabled) return { label: 'Registered', tone: 'muted' };
-  if (loop.observabilityFlags.includes('NO_UPSTREAM_LINKS')
-      || loop.observabilityFlags.includes('NO_VP'))
+  // CHG-077: only an input the loop declares can degrade it (also on a server that still stamps NO_VP)
+  const flags = flagsForLoop(loop.observabilityFlags, inputContextOf(loop));
+  if (flags.includes('NO_UPSTREAM_LINKS') || flags.includes('NO_VP'))
     return { label: 'Degraded', tone: 'warn' };
   return { label: 'Active', tone: 'good' };
 }

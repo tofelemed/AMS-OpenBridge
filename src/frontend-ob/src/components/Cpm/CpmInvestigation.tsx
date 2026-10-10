@@ -53,7 +53,7 @@ import { LoopNotes } from './investigation/LoopNotes';
 import { CauseBreakdownRows } from './CauseBreakdown';
 import { EVIDENCE_SCORE_HELP, evidenceScoreText } from './evidenceScore';
 import { EvidenceScoreNote } from './EvidenceScoreNote';
-import { inputContextOf } from './optionalInputs';
+import { inputContextOf, vpAbsent } from './optionalInputs';
 import { basisOf } from './conclusionBasis';
 import { loopHealthSummary } from './health/TransmitterHealthPanel';
 
@@ -318,7 +318,7 @@ export const CpmInvestigation: React.FC = () => {
               summary={verdict && !verdict.legacy && verdict.leadingHypothesis
                 ? `Leading: ${HYPOTHESIS_LABEL[verdict.leadingHypothesis] ?? verdict.leadingHypothesis} · ${confirmationLabel(verdict.confirmation, false)}`
                 : 'Family and detector scores (pre-v2.5 result)'}>
-              <HypothesisPanel verdict={verdict} metrics={metrics} />
+              <HypothesisPanel verdict={verdict} metrics={metrics} vpAbsentOnLoop={vpAbsent(inputContextOf(loop))} />
             </CollapsibleSection>
           </div>
 

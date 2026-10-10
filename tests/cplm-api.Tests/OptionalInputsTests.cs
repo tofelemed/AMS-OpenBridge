@@ -74,4 +74,28 @@ public sealed class OptionalInputsSqlTests
         row.Vp.Should().Be(OptionalInputs.Code(OptionalInputs.VpApplicability(e, commandPath)));
         row.Peer.Should().Be(OptionalInputs.Code(OptionalInputs.PeerApplicability(e)));
     }
+
+    // CHG-077: the registry's NO_VP / NO_UPSTREAM_LINKS (and so its "Degraded") only where the loop declares the input
+    [Theory]
+    [InlineData("{}", null, true)]
+    [InlineData("{\"vpApplicability\":\"EXPECTED\"}", null, true)]
+    [InlineData("{\"vpApplicability\":\"NOT_APPLICABLE\"}", null, false)]
+    [InlineData("{\"vpApplicability\":\"NOT_INSTALLED\"}", null, false)]
+    [InlineData("{}", "OP_TO_VFD", false)]
+    public void Registry_flags_NO_VP_only_for_a_loop_declared_with_a_valve_position(string engineering, string? commandPath, bool noVp)
+    {
+        var flags = CpmLoopRegistryReads.BuildObservabilityFlags(new[] { "PV", "SP", "OP" }, Array.Empty<CpmLoopLinkDto>(), JsonDocument.Parse(engineering).RootElement, commandPath);
+        flags.Contains("NO_VP").Should().Be(noVp);
+        CpmLoopRegistryReads.BuildObservabilityFlags(new[] { "PV", "VP" }, Array.Empty<CpmLoopLinkDto>(), JsonDocument.Parse(engineering).RootElement, commandPath)
+            .Should().NotContain("NO_VP", "a mapped VP is never missing");
+    }
+
+    [Fact]
+    public void Registry_flags_no_peer_links_only_where_peers_are_expected()
+    {
+        var none = Array.Empty<CpmLoopLinkDto>();
+        CpmLoopRegistryReads.BuildObservabilityFlags(new[] { "VP" }, none, JsonDocument.Parse("{}").RootElement).Should().Contain("NO_UPSTREAM_LINKS");
+        CpmLoopRegistryReads.BuildObservabilityFlags(new[] { "VP" }, none, JsonDocument.Parse("{\"peerApplicability\":\"NOT_APPLICABLE\"}").RootElement)
+            .Should().NotContain("NO_UPSTREAM_LINKS");
+    }
 }

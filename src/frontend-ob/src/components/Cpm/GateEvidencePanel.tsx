@@ -27,7 +27,7 @@ import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons
 import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-right-google';
 import { ApiError } from '../../api/apiFetch';
 import type { CpmFleetSummary } from '../../api/cpmApi';
-import { useCpmCalculations, useGateCatalogue, useLatestGates } from '../../hooks/useCpm';
+import { useCpmCalculations, useCpmLoop, useGateCatalogue, useLatestGates } from '../../hooks/useCpm';
 import { staleVerdictLine } from './verdictAge';
 import { gateRole } from '../../api/cpm/catalogue';
 import { workbenchHref } from './evidence/selection';
@@ -38,6 +38,7 @@ import { CpmIconButton, KvRow, PanelHead, TonePill, fmtDateTime } from './shared
 import { gateTone } from './gateStatus';
 import { codeLabel } from './vocabulary';
 import { CodeLabel } from './CodeLabel';
+import { flagsForLoop, inputContextOf, vpAbsent } from './optionalInputs';
 
 /** Role per gate — the same static policy the registry aside shows. */
 export interface GateEvidencePanelProps {
@@ -58,6 +59,8 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
 }) => {
   const navigate = useNavigate();
   const gates = useLatestGates(loopId, windowKind);
+  // CHG-077: the loop's declared inputs, so a loop without a valve position shows no NO_VP gap
+  const inputs = inputContextOf(useCpmLoop(loopId).data);
   const { data: matrix } = gates;
   const { data: calc } = useCpmCalculations();
 
@@ -134,7 +137,7 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
         {gateKey === 'G13' && (matrix?.hasPeerLinks
           ? 'Peer links exist: oscillation without actuator stress disqualifies the stiction family as DISTURBANCE_CONTEXT.'
           : 'No peer links: G13 cannot evaluate, and stiction cannot be distinguished from an upstream disturbance.')}
-        {gateKey === 'G14' && confirmationProse(matrix?.verdictV2?.confirmation, matrix?.verdictV2?.legacy ?? true)}
+        {gateKey === 'G14' && confirmationProse(matrix?.verdictV2?.confirmation, matrix?.verdictV2?.legacy ?? true, vpAbsent(inputs))}
         {gateKey !== 'G13' && gateKey !== 'G14' && (
           role === 'BLOCKING'
             ? 'A failure here excludes the whole window before any diagnosis is attempted.'
@@ -143,11 +146,11 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
               : `Contributes ${role.toLowerCase()} evidence to family qualification.`)}
       </p>
 
-      {matrix && matrix.observabilityFlags.length > 0 && (
+      {matrix && flagsForLoop(matrix.observabilityFlags, inputs).length > 0 && (
         <>
           <PanelHead eyebrow="Observability" title="Flags on this window" />
           <div className="cpm-flag-row">
-            {matrix.observabilityFlags.map(f => (
+            {flagsForLoop(matrix.observabilityFlags, inputs).map(f => (
               <TonePill key={f} tone={f.startsWith('HAS_') ? 'good' : 'warn'}><CodeLabel code={f} /></TonePill>
             ))}
           </div>
