@@ -4434,3 +4434,28 @@ database/scripts 17 / 33 / 37 / 47 / 59, migration/sql/03, cpm-08) now leaves th
 exists and grants SuperAdmin every key; the Engineer / Supervisor `cpm.config.*` grants in 59 / cpm-08 skip too. Lab: cpm-14 →
 auth-service rebuilt and restarted (schema applied) → Admin 0 platform keys; cpm-08 re-run → Admin 0, Engineer 0, SuperAdmin 10.
 Commit 7d29e6cd. **Release v2.7.1** therefore also updates **`traverse-auth-service`** (schema.sql) — already listed for CHG-081.
+
+## CHG-086 — Overview KPIs, Phase 4: per-loop KPI cards on the Loop Explorer (2026-10-10)
+
+**Source:** user, 2026-10-10 ("start next phase"); `kpi_calculation_logic/KPI-LOGIC.md` section 3.3. **Scope:** **`cplm-api`**
+`Controllers/CpmLoopKpiController.cs` (`GET /api/v1/cpm/loops/{id}/kpi-summary`) + `tests/cplm-api.Tests/LoopKpiEndpointTests.cs`,
+`RouteUniquenessTests.cs`; **`ams-frontend`** `api/cpm/loopKpis.ts`, `components/Cpm/kpi/loopKpiView.ts` (+ test),
+`explorer/summary/LoopKpiCards.tsx`, `explorer/SummaryTab.tsx`, `styles/cpm-loop-summary.css`. No schema. Commit 55157646.
+
+**What it is.** Nine compact cards on the Explorer summary for the loop's newest 24 h window: time in normal mode, good-error time,
+MAE and 2σ PV variability as % of the PV span, time at an OP limit (with the limit basis), OP travel, reversals, setpoint changes, data
+coverage. Judged by the engine's gate (G0 / G1 / G3 / G4) or the fleet rule; "not measured" never 0; change vs the window 24 h earlier;
+each card links to its proof (Calculations, trend over the window, Window Inspector). Icons: OpenBridge (same card as the Overview).
+Also: the KPI change on every card is shown as a plain % (no "pts"), and each Overview KPI got an icon that depicts it (the valve KPI
+uses OpenBridge's own valve symbol) — commit 5335ea1e.
+
+**Found while testing (fixed before commit).** The first route, `GET /loops/{id}/kpis`, collided with the existing KPI stream
+(`CpmAnalyticsController`) — both answered 500 (AmbiguousMatchException); the unit test called the controller directly and could not see
+it. Renamed to `/kpi-summary`; new `RouteUniquenessTests` fails on any duplicate HTTP method + route template in cplm-api (proven to fail
+on the collision).
+
+**Tests.** cplm-api: `LoopKpiEndpointTests` 2 / 2, `RouteUniquenessTests` 1 / 1. Frontend: `loopKpiView.test.ts` (engineering values,
+gate judgement, not measured, no span, change direction); full suite 449 / 449; lint, tsc, build clean. **Lab:** demo loop KDEMO_OK1
+(`03-lab-kpi-demo-loops.sql`): 99 % normal mode (G1 pass, +6 %), good-error 86 % (+25 %), MAE 1.5 % of span (1.80 m3/h, G3 pass), 2σ
+3.5 %, 0 % at limit, OP travel 640 %/day and 9.5 reversals/h (G4 warn), coverage 99 % (17107 of 17280, G0 pass); existing
+`/loops/{id}/kpis` still 200.

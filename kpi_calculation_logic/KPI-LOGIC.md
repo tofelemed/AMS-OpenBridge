@@ -1,6 +1,6 @@
 # Control-loop KPIs — calculation logic, proof and rationale
 
-Status: rules approved 2026-10-10 (section 6). Phases 1–3 built, redesigned and lab-checked (sections 8, 10). Phases 4–5 next.
+Status: rules approved 2026-10-10 (section 6). Phases 1–4 built and lab-checked (sections 8, 10, 3.3). Phase 5 (14-day trend) next.
 Owner: CPA (cplm-api + frontend). Engine values come from the Flink CPLM jobs and are not changed by this work.
 
 This file is the single reference for every Overview / Performance KPI: what it means, the exact formula, the data it is built
@@ -153,6 +153,13 @@ Each entry: definition · formula · inputs (stored field) · threshold · denom
 
 ### 3.3 Per-loop KPIs (Loop Explorer card, Phase 4)
 
+Built (CHG-086): `GET /api/v1/cpm/loops/{id}/kpi-summary` serves the loop's newest LIVE 24 h window and the one that existed 24 h
+earlier (stored metrics, the engine gates G0 / G1 / G3 / G4 / G10, registry spans); `components/Cpm/kpi/loopKpiView.ts` turns it into
+nine cards. Each card is **judged by the engine's own gate** where one exists (the UI never invents a threshold the engine did not
+apply) or by the fleet rule (AUTO ≥ 95 %, at limit ≤ 10 %, completeness ≥ 95 %); a value not stored reads "not measured"; MAE and 2σ
+are shown as % of the PV span (no span registered → no %); the change compares with the window 24 h earlier. Each card links to its
+proof: Calculations (G3 / G4 metrics), the trend over the window (mode, saturation, variability, SP), the Window Inspector (coverage).
+
 | KPI | Formula / field | Threshold shown | Proof link |
 |---|---|---|---|
 | Service factor | `auto_pct` (CPLM-003) | ≥ 95 % | trend MODE lane |
@@ -266,3 +273,4 @@ Drill-down keys: `all`, `assessed`, `acceptable`, `no-fault-limited`, `finding`,
 | 2026-10-10 | 0 | Q1–Q4 checked against standards / published practice: normal mode 90 → 95 %, saturation 5 → 10 %, fleet target < 10 % out of mode; sources listed |
 | 2026-10-10 | 1 | Implementation map: one read, one classifier, two endpoints, tests |
 | 2026-10-10 | 2–3 | Overview cards + drill-down; acceptable also requires not saturated; change vs 24 h ago; redesign (section 10) |
+| 2026-10-10 | 4 | Per-loop KPI cards on the Explorer (`/loops/{id}/kpi-summary`); route-uniqueness guard after a route collision |
