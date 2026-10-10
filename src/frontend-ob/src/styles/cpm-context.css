@@ -43,6 +43,8 @@
    panels' own 16px. */
 .cpm-screen .cpm-response-events,
 .cpm-screen .cpm-explain,
-.cpm-screen .cpm-inspector { top: var(--cpm-context-h, 16px); }
+/* CHG-079: docked inspectors only — a MODAL inspector is centred on the screen (top: 50% + translate); this rule
+   out-ranked it and pushed the dialog's head under the app header (Calculations, and every modal on a context page). */
+.cpm-screen .cpm-inspector:not(.cpm-inspector--modal) { top: var(--cpm-context-h, 16px); }
 .cpm-screen .cpm-response-events,
 .cpm-screen .cpm-explain { max-height: calc(100vh - 32px - var(--cpm-context-h, 0px)); }

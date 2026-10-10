@@ -133,7 +133,8 @@ export const CalcDrawer: React.FC<{
 
         {tab === 'Definition' && (
           <>
-            <p className="cpm-copy">{metric.description}</p>
+            {/* CHG-079: space between the tab row, the description and the Contract head (they touched) */}
+            <p className="cpm-copy" style={{ margin: '12px 0 16px' }}>{metric.description}</p>
             <PanelHead eyebrow="Runtime configuration" title="Contract" />
             <KvRow label="Loop">{loopId}</KvRow>
             <KvRow label="Gate">{metric.gate}</KvRow>
