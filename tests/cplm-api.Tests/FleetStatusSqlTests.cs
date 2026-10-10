@@ -29,6 +29,7 @@ public sealed class FleetStaleAfterTests
 }
 
 [Trait("Category", "Integration")]
+[Collection("instrument-bindings-lab")]   // reads or writes the shared lab registry: serialised with the other lab tests
 public sealed class FleetStatusSqlTests : IAsyncLifetime
 {
     private NpgsqlDataSource _db = null!;

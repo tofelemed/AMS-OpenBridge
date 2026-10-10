@@ -1,6 +1,6 @@
 # Control-loop KPIs — calculation logic, proof and rationale
 
-Status: **Phase 0 done — rules approved 2026-10-10 after the standards check (section 6)**. Phase 1 (server) in progress.
+Status: **Phase 0 done — rules approved 2026-10-10 after the standards check (section 6)**. Phase 1 (server) built and tested (section 8).
 Owner: CPA (cplm-api + frontend). Engine values come from the Flink CPLM jobs and are not changed by this work.
 
 This file is the single reference for every Overview / Performance KPI: what it means, the exact formula, the data it is built
@@ -227,9 +227,24 @@ Sources checked (2026-10-10):
 - Choudhury, M. A. A. S., Shah, S. L. & Thornhill, N. F. (2008). *Diagnosis of Process Nonlinearities and Valve Stiction.* Springer.
 - NAMUR NE 107 (status signals); ISA-18.2 / EEMUA 191 (prioritisation principles); ISA-101 (HMI colour use).
 
-## 8. Change log of this document
+## 8. Implementation map (where each rule lives)
+
+| Piece | File | What it holds |
+|---|---|---|
+| The one read | `src/services/cplm-api/Data/FleetKpiSql.cs` | per monitored loop in scope: newest LIVE 24 h row of any diagnosis + newest real verdict (two per-loop index probes) and the payload fields every KPI needs |
+| The rules | `src/services/cplm-api/Services/Kpi/FleetKpiClassifier.cs` | `Classify` (state, reason, outcome, band, family, mode / saturation flags), `Matches` (one predicate per drill-down key), `Figures` (count, denominator, rule text) |
+| Thresholds | `Services/Kpi/FleetKpiModels.cs` `KpiThresholds`; config `Cpm:Kpi:FreshSeconds` (3600), `Cpm:Kpi:NormalModeMin` (0.95), `Cpm:Kpi:SaturationMax` (0.10), `Cpm:Kpi:G0CompletenessMin` (0.95), `Cpm:Kpi:G0BadQualityMax` (0.50) | section 6 decisions |
+| The proof row | `Services/Kpi/FleetKpiRows.cs` | deciding value vs threshold per KPI, the window, the inputs to reproduce it, last real verdict |
+| API | `Controllers/CpmFleetKpiController.cs` | `GET /api/v1/cpm/fleet/kpis?site&area&unit` (figures + state partition + reasons) and `GET /api/v1/cpm/fleet/kpis/loops?kpi=&reason=&q=&site&area&unit&page&pageSize` (drill-down; `total` = the tile's count) — `analytics.view`, fleet cache 15 s |
+| Tests | `tests/cplm-api.Tests/FleetKpiClassifierTests.cs`, `FleetKpiEndpointTests.cs` | every rule edge (95 % exactly, 10 % exactly, 1 h exactly, each reason, each band); reconciliation (states sum to monitored, outcomes sum to assessed, each figure = its list) |
+
+Drill-down keys: `all`, `assessed`, `acceptable`, `no-fault-out-of-mode`, `finding`, `symptom`, `oscillating`, `valve`, `effort`,
+`normal-mode`, `out-of-mode`, `saturated`, `not-assessable` (+ `reason=`), `stale`, `never-evaluated`.
+
+## 9. Change log of this document
 
 | Date | Phase | Change |
 |---|---|---|
 | 2026-10-10 | 0 | First version: principles, sources, KPI catalogue K1–K9, per-loop KPIs, proof chain, lab findings, open questions |
 | 2026-10-10 | 0 | Q1–Q4 checked against standards / published practice: normal mode 90 → 95 %, saturation 5 → 10 %, fleet target < 10 % out of mode; sources listed |
+| 2026-10-10 | 1 | Implementation map: one read, one classifier, two endpoints, tests |
