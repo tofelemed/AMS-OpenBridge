@@ -4393,3 +4393,44 @@ fleet tests pass; two failures remain in code not touched here and fail alone to
 load) and `MethodRunLookupIndexTests` (plan assertion vs the lab's compressed Timescale chunk).
 **Lab (rebuilt cplm-api):** 231 monitored → 165 stale (the lab feed is stopped), 65 never evaluated, stale drill-down 165 rows; query
 0.27–0.59 s on a quiet DB (two probes per loop), behind the 15 s fleet cache.
+
+## CHG-083 / CHG-084 / CHG-085 — Overview KPIs, Phases 2–3 and the redesign: cards, drill-down, change since yesterday (2026-10-10)
+
+**Source:** user, 2026-10-10 (every KPI with a drill-down that proves it; then "design the KPIs like the attached image" and "properly
+design the KPI detail page"). Rules: `kpi_calculation_logic/KPI-LOGIC.md` (sections 3, 6, 10). **Scope:** **`ams-frontend`**
+`api/cpm/fleetKpis.ts`, `components/Cpm/kpi/*` (`fleetKpiView`, `kpiMeta`, `kpiProof`, `KpiCard`, `KpiRowsTable`, `useFleetKpis` + tests),
+`overview/OperatingPicture.tsx`, `CpmKpiDrilldown.tsx` (route `/cpm/kpi`), `CpmOverview.tsx`, `cpaHref.ts`, `nav/cpmTasks.ts`, `App.tsx`,
+`styles/cpm-loop-summary.css` (removed: `overview/operatingStates.ts` + test); **`cplm-api`** `FleetKpiSql` (`@asOf`),
+`CpmFleetKpiController` (`previous`), classifier outcome `NoFaultLimited`. Commits f074a02e, 61620920, 2526efaf.
+
+**What changed.**
+- CHG-083 (Overview): the operating picture reads `GET /fleet/kpis` — six compact cards (performing acceptably, in normal mode,
+  oscillating, valve, effort, saturated), each with icon, change since 24 h ago, count, label and share of a named denominator; the
+  whole card opens its drill-down. Coverage row: not assessable (with reasons) / stale / never evaluated + the state bar (every
+  monitored loop in one segment, legend links). Replaces the CHG-043 states ("Healthy" was always 0).
+- CHG-084 (drill-down `/cpm/kpi?kpi=&reason=&site=`): back link, summary cards (number + change, threshold, basis, computed), proof
+  panel (rule, formula, why + reference), the loops behind the number (server total = card count, "matches the card") with the
+  measured value on a bar against the threshold, verdict, window, inputs to check next and proof links (Loop, Window, Calculations,
+  Trend); reason filter for not assessable; search; paging; cards under 760 px.
+- CHG-085 (design + change): KPI cards per the user's reference image (OpenBridge icons and tokens); cplm-api `fleet/kpis.previous`
+  = the same classification as of now − 24 h; the card shows the change of the share in points, green / red by the KPI's good
+  direction.
+- Rule fix found in the lab: a no-fault loop at an OP limit (> 10 %) is not "performing acceptably" (outcome *No fault, but out of
+  mode or at limit*). On KPI pages `NO_CALL` / `INSUFFICIENT_EVIDENCE` read "No fault found" (the app-wide vocabulary still says
+  "Not evaluated yet" for `NO_CALL` — open, to decide).
+
+**Tests.** Frontend: `fleetKpiView`, `kpiProof`, `kpiMeta` tests (bar sums to monitored, tones, wording, deciding value vs threshold,
+"not measured" never 0, proof links, change direction per KPI); full suite 445 / 446 (the known EventDetail timing flake passes
+alone); lint, tsc, build clean. cplm-api: `FleetKpi*` 24 / 24 (previous snapshot test added).
+**Lab (2026-10-10):** demo site `kpi_demo` (`kpi_calculation_logic/sql/03-lab-kpi-demo-loops.sql`, removable with `-v action=cleanup`):
+10 loops → acceptable 2, in normal mode 6 / 7 (−14 pts), oscillating 1 / 6 (−17 pts, green), valve 1 / 6 (+17 pts, red), saturated
+1 / 7, not assessable 2 (incomplete 1, manual 1), stale 1, never 1; drill-downs list exactly those loops with "Sample completeness
+66 % — below 95 %", "Time in AUTO 12 % — below 95 %", "Evidence score 96 — at or above 75"; Window link opens the Window Inspector on
+that window. Checked at 1440 / 1000 / 768 / 390, day and night, no horizontal scroll.
+
+**CHG-081 fix found here (same release, unreleased change):** the lab Admin had all 38 keys back — auth-service applies
+`database/schema.sql` on every start and it granted Admin every key, undoing cpm-14. Every "Admin gets every key" grant (schema.sql,
+database/scripts 17 / 33 / 37 / 47 / 59, migration/sql/03, cpm-08) now leaves the SuperAdmin-only keys out once a SuperAdmin role
+exists and grants SuperAdmin every key; the Engineer / Supervisor `cpm.config.*` grants in 59 / cpm-08 skip too. Lab: cpm-14 →
+auth-service rebuilt and restarted (schema applied) → Admin 0 platform keys; cpm-08 re-run → Admin 0, Engineer 0, SuperAdmin 10.
+Commit 7d29e6cd. **Release v2.7.1** therefore also updates **`traverse-auth-service`** (schema.sql) — already listed for CHG-081.
