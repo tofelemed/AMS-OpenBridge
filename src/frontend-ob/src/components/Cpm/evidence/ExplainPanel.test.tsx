@@ -6,6 +6,7 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { ExplainPanel, useExplainCollapsed } from './ExplainPanel';
+import { useAuthStore } from '../../../store/authStore';
 import type { EvidenceManifest, MethodRun } from '../../../api/cpm/evidence';
 import type { GateState } from './GateResultState';
 
@@ -59,10 +60,20 @@ describe('ExplainPanel', () => {
   });
 
   it('opens the configuration this run used on request', () => {
+    const perms = ['cpm.config.read'];   // CHG-081: SuperAdmin only
+    useAuthStore.setState({ user: { user_id: 'u', username: 'superadmin', email: '', role: 'SuperAdmin', is_active: true, permissions: perms }, status: 'authenticated', accessToken: 't' });
     render(<ExplainPanel gate="G5" run={run} entry={entry} manifest={manifest} state={ready} status="WARN" reason="BANDWIDTH" eligibilityDetail={null} collapsed={false} onToggle={() => {}} />);
     open('Configuration');
     fireEvent.click(screen.getByRole('button', { name: /Configuration this run used/ }));
     expect(screen.getByTestId('effective-config')).toBeTruthy();
+  });
+
+  it('hides the configuration read from a user without cpm.config.read (CHG-081)', () => {
+    const perms: string[] = [];
+    useAuthStore.setState({ user: { user_id: 'u', username: 'superadmin', email: '', role: 'SuperAdmin', is_active: true, permissions: perms }, status: 'authenticated', accessToken: 't' });
+    render(<ExplainPanel gate="G5" run={run} entry={entry} manifest={manifest} state={ready} status="WARN" reason="BANDWIDTH" eligibilityDetail={null} collapsed={false} onToggle={() => {}} />);
+    open('Configuration');
+    expect(screen.queryByRole('button', { name: /Configuration this run used/ })).toBeNull();
   });
 
   it('collapses to a rail with a single "Show explain" control and calls onToggle', () => {

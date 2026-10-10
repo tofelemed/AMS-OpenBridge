@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { LoopModelCard } from './LoopModelCard';
+import { useAuthStore } from '../../../store/authStore';
 import type { CpmLoop } from '../../../api/cpmApi';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
@@ -42,6 +43,8 @@ describe('LoopModelCard', () => {
   // Workbench one takes the exact run from the Summary when it knows it.
   it('routes to the workbench and the response page for this loop, and opens the effective configuration', () => {
     const Probe: React.FC = () => { const l = useLocation(); return <div data-testid="location">{l.pathname}{l.search}</div>; };
+    const perms = ['cpm.config.read'];   // CHG-081: the effective configuration is SuperAdmin only
+    useAuthStore.setState({ user: { user_id: 'u', username: 'superadmin', email: '', role: 'SuperAdmin', is_active: true, permissions: perms }, status: 'authenticated', accessToken: 't' });
     const { rerender } = render(
       <MemoryRouter initialEntries={['/cpm/explorer?loop=FIC10405']}>
         <Routes><Route path="*" element={<><LoopModelCard loop={loop(null)} /><Probe /></>} /></Routes>
@@ -59,5 +62,12 @@ describe('LoopModelCard', () => {
       </MemoryRouter>);
     fireEvent.click(screen.getByRole('button', { name: /Evidence workbench/ }));
     expect(screen.getByTestId('location').textContent).toBe('/cpm/evidence?loop=FIC10405&methodRun=run-1&gate=G15&mode=FIXED');
+  });
+
+  it('shows no Effective configuration button without cpm.config.read (CHG-081)', () => {
+    const perms: string[] = [];
+    useAuthStore.setState({ user: { user_id: 'u', username: 'superadmin', email: '', role: 'SuperAdmin', is_active: true, permissions: perms }, status: 'authenticated', accessToken: 't' });
+    render(<MemoryRouter><LoopModelCard loop={loop(null)} /></MemoryRouter>);
+    expect(screen.queryByRole('button', { name: /Effective configuration/ })).toBeNull();
   });
 });
