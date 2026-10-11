@@ -1,0 +1,12 @@
+# Release v2.7.3 - CHG-090 (+ CHG-021, never deployed) on top of v2.7.2 (plant v2.7.2 = 68e595ec, deployed 2026-10-11).
+# Consumed by: python migration/deploy/build-release.py --release v2.7.3 --skip-jar   (no Flink change)
+#
+#   historian-bff  CHG-090: the IoTDB warm-up reads ONE device every 60 s instead of SELECT count(*) FROM root.**
+#                  (refused by IoTDB at plant scale and retried every 5 s for ever: 11-12 MemoryNotEnough warnings a minute).
+#   ams-api        CHG-021 (2026-09-12, built after v2.3, never shipped): honours SERVICE_LOG_LEVEL and mutes the per-request
+#                  HttpClient Information lines; CHG-090 also mutes Polly's. No other ams-api change since v2.3.
+#                  Profile-gated (cpa-ams-api): the steps export START_AMS_API=yes so compose really recreates it.
+#
+# No Flink swap, no schema, no data step. The historian writer (ams-api) pauses ~30 s; samples wait in Kafka.
+historian-bff
+ams-api

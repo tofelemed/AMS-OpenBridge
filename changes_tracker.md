@@ -4580,3 +4580,30 @@ cplm-api and ams-frontend; Flink untouched) → users Ctrl+F5. Check: `GET /api/
 **v2.7.2 live:** CHG-089 - cplm-api + ams-frontend, no Flink change. Proven: `fleet/kpis` default 12h, `?windowKind=24h` 24h, `7d` 400; both containers on the new images; 7 jobs RUNNING; 0 error lines.
 
 **Same evening:** the disk fell to 2.5 GB from a pgAdmin backup + dump copies + a SQL Server restore (not ours) - `prod_decision.md` section 6.
+
+## CHG-090 — The IoTDB warm-up reads one device, never `root.**`; ams-api request logs muted (2026-10-12)
+
+**Source:** plant investigation 2026-10-11 (user: "check iotdb issue"): IoTDB `log_datanode_warn.log` grew to 250 MB with
+`MemoryNotEnoughException` stack traces, 11-12 a minute ("estimated 324102394 B, free 193080447 B"). Traced through the IoTDB REST
+connections (8181) to `ams-historian-bff`. **Scope:** **`historian-bff`** `IoTDbWarmupService.cs` (+ `tests/historian-bff.Tests/IoTDbWarmupTests.cs`);
+**`ams-api`** `Program.cs` (Serilog override). No schema, no Flink. Commit c74277ba.
+
+**What was wrong.** The warm-up ran `SELECT count(*) FROM root.**` (every series of 141 loops) every minute; IoTDB refused it, and
+since the 60 s rhythm started only after a FIRST success, it retried every 5 s for ever, logging at Debug (invisible at the plant).
+User trends (200) and historian writes (ams-api: 0 refused, lag 61) were fine: no data lost — only IoTDB churn and log volume.
+ams-api still printed ~90,000 `System.Net.Http` / `Polly` Information lines an hour: CHG-021 (which mutes `System.Net.Http`) was
+built after v2.3 and never shipped.
+
+**What changed.** Warm-up = one device found once with `SHOW DEVICES root.** LIMIT 1` (whitelisted path), the same GROUP-BY over the
+last 5 min; fast retries only in the first minute after start, then 60 s whatever the outcome; a failure is a Warning at most once an
+hour; the device is re-found after a failure. ams-api: `Polly` raised to Warning as well (a retry or failure still shows).
+
+**Tests.** `IoTDbWarmupTests` 5/5 (one-device SQL, SHOW DEVICES parsing incl. empty / unsafe path, retry rhythm, hourly warning).
+**Lab:** primed on one device; IoTDB memory warnings: 2,250 under the old warm-up, 0 since. ams-api / historian-bff build 0 warnings.
+
+## Release v2.7.3 — CHG-090 (+ CHG-021): historian-bff + ams-api
+
+**Services updated:** `historian-bff`, `ams-api` (profile `cpa-ams-api`, so `START_AMS_API=yes`). **Not changed:** Flink, cplm-api, frontend,
+schema. **Scripts to run:** integrity → rollback list → source extract → load the two images → `START_AMS_API=yes deploy.sh --prod`
+→ check: ams-api container recreated (its `Created` time moved), historian lag small, IoTDB warn log no new `not enough memory`,
+ams-api log lines/hour down from ~90 k.
