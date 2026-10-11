@@ -4515,3 +4515,24 @@ so the broadcast state gets the field; until a loop is republished it reads EXPE
 GREEN 6/6) + `FusionVerdictV2Test`, `VpTrackingTest`, `FusionInteractionTest` 21/21; full Flink suite 341 run, 0 failures, 2 skipped. cplm-api `EngineeringBroadcastTests` 9 new;
 EngineeringBroadcast + OptionalInputs(+Sql) + BulkRepublish + RegistryReads 44/44.
 **Lab (2026-10-10/11):** cplm-api image a7b8f884 + Flink jar `c95fe39f` (all six CPLM jobs announce it in their CAPABILITY records); bulk republish of 243 loops (chunks of 20 - 100 timed out in the asset-model step on the loaded lab) -> FIC10503's `cplm.loop.engineering` carries `vpApplicability: NOT_APPLICABLE`. With the plant feed (161 loops, 5 s) on a temporary broker port 1885 (1884 is ProAct's), the first new-jar fused rows: FIC10503 flags `[NO_VALID_CYCLE, HEALTH_NOT_CONFIGURED, INSUFFICIENT_SAMPLES]` - no NO_VP; FIC10501 / 10502 / 10504 (EXPECTED, no VP) keep `NO_VP`; FIC10302 (VP published) no NO_VP. Broker and feed stopped after the test.
+
+## Release v2.7.1 — bundle built (2026-10-11): CHG-077 … CHG-088 on top of v2.7.0
+
+**Bundle:** `release-out/v2.7.1-20261011` (836 MB, head `d55667f8`, SHA256SUMS 30/30, all four images fingerprint PROD). Built with
+`--allow-dirty` only because of another session's uncommitted record lines; the bundle ships `git archive HEAD` (`src-d55667f8.tar.gz`).
+Files: ams-cpa-ams-frontend.tar.gz `572c2736…`; ams-cpa-cplm-api.tar.gz `17e01ec5…`; ams-cpa-traverse-auth-service.tar.gz `6917850b…`; ams-flink_1.0-SNAPSHOT.tar.gz `5439bbb8…`; src-d55667f8.tar.gz `59392966…`; ams-flink-1.0-SNAPSHOT.jar `5ad6d63e…`; 
+
+**Services updated:** `flink-jobmanager` (+ TaskManager, same image; CHG-088), `cplm-api` (077, 078, 082–088), `traverse-auth-service` (081),
+`ams-frontend` (077–081, 083–087). **Not shipped:** `display-service` (CHG-081's ownership rule) — Marun runs it under profile
+`later-module`. No ingestion / gateway / asset-model / historian / Kafka topic change.
+
+**Scripts to run (VM-STEPS.md, in order):** integrity → rollback image list → load → **Flink full swap** (cancel all, `rm -f` JM + TM,
+`deploy.sh --prod`, 04b: 7 RUNNING; orphan sweep now requires all 7 listed) → `deploy.sh --prod` for the app images →
+**6j `ops/cpm-14-superadmin-role.sql`** (traverse_auth, `-1`, `-v su_username/su_email/su_password` typed on the VM; logs every Admin /
+Engineer out once; rollback `cpm-14-superadmin-role.rollback.sql`) → **6k `ops/republish-all-loops.py --apply`** (`ADMIN_PW`; chunks of 20;
+the engine receives `vpApplicability` only after this) → post-checks.
+
+**Notes.** CHG-088 keeps the 0.89 cap (user decision): a loop declared without a VP loses `NO_VP` / "bind VP", valve calls stay SUSPECTED.
+The Flink swap restarts the jobs without state: 12 h / 24 h results refill in ~11 h / ~23 h (Overview shows those loops "not assessable
+(incomplete data)" meanwhile) — deploy after the v2.7.0 refill is complete. Build-script fixes in this release: steps 6j/6k
+(`migration/deploy/release_blocks.py`), `scripts/republish-all-loops.py` (lab 243/243), seven-job count / sweep guard (was `-ge 4` without a flag).
