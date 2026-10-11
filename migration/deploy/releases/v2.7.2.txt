@@ -1,0 +1,12 @@
+# Release v2.7.2 - CHG-089 on top of v2.7.1 (plant v2.7.1 = d55667f8, deployed 2026-10-11).
+# Consumed by: python migration/deploy/build-release.py --release v2.7.2 --skip-jar   (no Flink change: the jar is not rebuilt)
+#
+#   cplm-api      CHG-089: fleet/kpis, /loops, /trend take ?windowKind=12h|24h (default 12h, other values 400); new KPI
+#                 manual-mode (MANUAL >= 50 %); normal-mode shown as "In auto mode"; default window 24h -> 12h on
+#                 fleet summary / rankings / heatmap, gates latest / history, KPI stream, loop kpi-summary.
+#   ams-frontend  CHG-089: 12h default + 24h switch on every CPM page (Overview, KPI page, Explorer, Performance,
+#                 Investigation, Calculations, Historical, Replay, Pipeline, Evidence); "In manual mode" card.
+#
+# No Flink swap, no job restart, no schema, no data step. Users: Ctrl+F5 once.
+cplm-api
+ams-frontend

@@ -4536,3 +4536,39 @@ the engine receives `vpApplicability` only after this) → post-checks.
 The Flink swap restarts the jobs without state: 12 h / 24 h results refill in ~11 h / ~23 h (Overview shows those loops "not assessable
 (incomplete data)" meanwhile) — deploy after the v2.7.0 refill is complete. Build-script fixes in this release: steps 6j/6k
 (`migration/deploy/release_blocks.py`), `scripts/republish-all-loops.py` (lab 243/243), seven-job count / sweep guard (was `-ge 4` without a flag).
+
+## CHG-089 — 12 h by default with a 24 h switch on every CPM page; "In auto mode" / "In manual mode" KPIs (2026-10-12)
+
+**Source:** user, 2026-10-12 ("Overview page should be classified as 12 hours on default and 24h … Loop explorer … the kpi should
+be on 12 hours by default … check all pages where by default 24 hours"; "Total Manual mode loops and auto mode kpis"). Manual
+threshold decided by the user: MANUAL ≥ 50 % of the window. **Scope:** **`cplm-api`** `Controllers/CpmFleetKpiController.cs`,
+`CpmFleetController.cs`, `CpmLoopKpiController.cs`, `CpmAnalyticsController.cs`, `CpmReadinessController.cs`, `Services/Kpi/*`
+(+ tests); **`ams-frontend`** `components/Cpm/useWindowKind.ts` (new), Overview, KPI page, Explorer (+ tabs), Performance,
+Investigation, Calculations, Historical, Replay, Pipeline, Evidence Workbench, `api/*` and `hooks/useCpm.ts` defaults (+ tests).
+**No schema, no Flink.** Commits 991fa95c, b5388fce, 37edec71 (branch feat/chg089-window-12h).
+
+**What changed.**
+- API: `GET fleet/kpis`, `fleet/kpis/loops`, `fleet/kpis/trend` take `?windowKind=12h|24h` (default 12h, anything else 400);
+  the window rides the thresholds record, so cache keys, rule texts, basis and drill-down rows follow it. Default 24h → 12h on
+  fleet summary / rankings / heatmap, gates latest / history, the KPI stream and loop kpi-summary; the readiness VP probe reads the
+  newest fused window of either kind.
+- KPIs: new `manual-mode` "In manual mode" (MANUAL ≥ 50 % of a fresh window; config `Cpm:Kpi:ManualModeMin`); `normal-mode`
+  shown as "In auto mode" (same key, AUTO / CASCADE ≥ 95 %). Drill-down orders by and decides on the manual share.
+- UI: one 12h / 24h switch at the top of every page that shows fused results, kept in the URL (`?window=` on Overview, KPI page,
+  Explorer, Performance, Calculations; `?kind=` on Historical / Replay / Evidence, whose `?window=` is a window END;
+  `?profile=` on Investigation) and carried by the links between pages; a bad value falls back to 12h. Explorer: one switch for
+  every tab (removed from the Summary panel); Calculations tab opens on the page window. Overview: seven performance cards in one
+  row on a wide screen (2 columns at 390 px). KPI proof "Trend" link spans the row's own 12h / 24h window.
+
+**Tests.** cplm-api 91/91 (classifier 23 incl. 12h default / window in rules / manual edges; endpoint 12h probes + 24h switch +
+bad window). Frontend tsc 0, eslint 0, vitest 393/393 (Cpm + api + hooks). **Lab browser (2026-10-12):** Overview 12h → 24h
+(stale 165 → 175, never 76 → 66 = the API), links carry the window, manual-mode card → KPI page keeps 24h with rule / threshold /
+why; Explorer opens on 12h with one switch; day + night; 1440 (7 cards one row), 1000 (4+3), 768 (4+3), 390 (2 columns, no
+horizontal scroll). Lab started only Postgres (host 5434, ProAct holds 5433) + Redis / ZK / Kafka / auth / cplm-api / gateway, then stopped.
+
+## Release v2.7.2 — CHG-089 (cplm-api + ams-frontend)
+
+**Services updated:** `cplm-api`, `ams-frontend`. **Not changed:** Flink (no swap, no job restart), auth, ingestion, schema.
+**Scripts to run:** integrity → rollback image list → source extract → load the two images → `deploy.sh --prod` (recreates
+cplm-api and ams-frontend; Flink untouched) → users Ctrl+F5. Check: `GET /api/v1/cpm/fleet/kpis` → `basis.windowKind = 12h`,
+`?windowKind=24h` → 24h, `?windowKind=7d` → 400; Overview shows the 12h / 24h switch and "In manual mode".
