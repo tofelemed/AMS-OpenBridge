@@ -38,7 +38,7 @@ public sealed class CpmLoopKpiController : ControllerBase
     private static readonly string[] Gates = { "G0", "G1", "G3", "G4", "G10" };
 
     [HttpGet("")]
-    public async Task<IActionResult> Get(string loopId, [FromQuery] string windowKind = "24h", CancellationToken ct = default)
+    public async Task<IActionResult> Get(string loopId, [FromQuery] string windowKind = "12h", CancellationToken ct = default)
     {
         await using var conn = await _db.OpenConnectionAsync(ct);
         var reg = await conn.QuerySingleOrDefaultAsync(new CommandDefinition(

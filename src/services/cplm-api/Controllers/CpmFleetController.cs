@@ -54,7 +54,7 @@ public sealed class CpmFleetController : ControllerBase
         // optional and narrow independently — the registry stores them denormalised.
         [FromQuery] string? area = null,
         [FromQuery] string? unit = null,
-        [FromQuery] string windowKind = "24h",
+        [FromQuery] string windowKind = "12h",
         CancellationToken ct = default)
         => CachedAsync($"summary|{site}|{area}|{unit}|{windowKind}", async token =>
     {
@@ -145,7 +145,7 @@ public sealed class CpmFleetController : ControllerBase
         // optional and narrow independently — the registry stores them denormalised.
         [FromQuery] string? area = null,
         [FromQuery] string? unit = null,
-        [FromQuery] string windowKind = "24h",
+        [FromQuery] string windowKind = "12h",
         [FromQuery] int limit = 50,
         [FromQuery] string orderBy = "confidence",
         // v2.5 (1H.6): server-side Instrumental health filter (see FleetLatestSql.HealthFilter).
@@ -256,7 +256,7 @@ public sealed class CpmFleetController : ControllerBase
         // optional and narrow independently — the registry stores them denormalised.
         [FromQuery] string? area = null,
         [FromQuery] string? unit = null,
-        [FromQuery] string windowKind = "24h",
+        [FromQuery] string windowKind = "12h",
         // CHG-025: the matrix pages and searches CLIENT-SIDE over this payload, so it must
         // carry every monitored loop in scope. The old default of 100 (cap 300) cut a
         // 171-loop plant after the 100th id and "PIC80140" could not be found. The answer

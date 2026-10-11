@@ -12,11 +12,39 @@ public sealed class FleetKpiClassifierTests
     private static readonly DateTimeOffset Now = new(2026, 10, 10, 12, 0, 0, TimeSpan.Zero);
 
     private static KpiLoopRow Row(string? diagnosis, double ageS = 600, double? auto = 1.0, double? sat = 0.0,
-        double? completeness = 1.0, double? badQ = 0.0, string? g0 = null, bool never = false, double? confidence = 0.9) => new()
+        double? completeness = 1.0, double? badQ = 0.0, string? g0 = null, bool never = false, double? confidence = 0.9,
+        double? manual = 0.0) => new()
     {
         LoopId = $"L{Guid.NewGuid():N}"[..10], Diagnosis = diagnosis, WindowEnd = never ? null : Now.AddSeconds(-ageS),
-        AutoPct = auto, SaturationPct = sat, Completeness = completeness, BadQualityPct = badQ, Gate0Reason = g0, Confidence = confidence,
+        AutoPct = auto, ManualPct = manual, SaturationPct = sat, Completeness = completeness, BadQualityPct = badQ,
+        Gate0Reason = g0, Confidence = confidence,
     };
+
+    [Fact]
+    public void The_default_window_is_12h_and_every_rule_names_the_window_it_counts()   // CHG-089
+    {
+        T.WindowKind.Should().Be("12h");
+        var loops = new[] { C(Row("NO_CALL")) };
+        FleetKpiClassifier.Figures(loops, T).Should().Contain(f => f.Key == "stale" && f.Rule.Contains("12h"));
+        FleetKpiClassifier.Figures(loops, T with { WindowKind = "24h" }).Should().Contain(f => f.Key == "stale" && f.Rule.Contains("24h"));
+    }
+
+    [Fact]
+    public void Manual_mode_is_half_the_window_or_more_and_auto_mode_keeps_the_95_percent_rule()   // CHG-089
+    {
+        FleetKpiClassifier.Matches(C(Row("EXCLUDED_MODE", auto: 0.5, manual: 0.50)), "manual-mode").Should().BeTrue("exactly 50 % is manual");
+        FleetKpiClassifier.Matches(C(Row("EXCLUDED_MODE", auto: 0.5, manual: 0.4999)), "manual-mode").Should().BeFalse();
+        FleetKpiClassifier.Matches(C(Row("NO_CALL", manual: null)), "manual-mode").Should().BeFalse("not measured is not manual");
+        FleetKpiClassifier.Matches(C(Row("NO_CALL", ageS: 7200, manual: 1.0)), "manual-mode").Should().BeFalse("an old window is not today's mode");
+        C(Row("EXCLUDED_MODE", auto: 0.0, manual: 1.0)).ManualModeMeasured.Should().BeTrue();
+
+        var figures = FleetKpiClassifier.Figures(new[] { C(Row("NO_CALL", manual: 0.0)) }, T);
+        figures.Single(f => f.Key == "normal-mode").Label.Should().Be("In auto mode");
+        var man = figures.Single(f => f.Key == "manual-mode");
+        man.Label.Should().Be("In manual mode");
+        man.Rule.Should().Contain("50");
+        man.Denominator.Should().Be(1, "loops with a measured manual share");
+    }
 
     private static KpiLoop C(KpiLoopRow r) => FleetKpiClassifier.Classify(r, T, Now);
 
@@ -97,7 +125,7 @@ public sealed class FleetKpiClassifierTests
         var rows = new[]
         {
             Row(null, never: true), Row("NO_CALL", ageS: 7200), Row("INSUFFICIENT_DATA", completeness: 0.5, auto: null),
-            Row("EXCLUDED_MODE", auto: 0.1, sat: 0.4), Row("NO_CALL"), Row("NO_CALL", auto: 0.8), Row("DETECTED_OSCILLATION"),
+            Row("EXCLUDED_MODE", auto: 0.1, sat: 0.4, manual: 0.9), Row("NO_CALL"), Row("NO_CALL", auto: 0.8), Row("DETECTED_OSCILLATION"),
             Row("SUSPECTED_OSCILLATION", sat: 0.2), Row("CONFIRMED_FINAL_ELEMENT_NONLINEARITY"), Row("SUSPECTED_EXCESSIVE_EFFORT"),
         };
         var loops = rows.Select(C).ToList();
@@ -116,5 +144,6 @@ public sealed class FleetKpiClassifierTests
         N("saturated").Should().Be(2, "the manual-mode window is saturated too: saturation is measured on any fresh window");
         N("stale").Should().Be(1);
         N("never-evaluated").Should().Be(1);
+        N("manual-mode").Should().Be(1, "only the manual-mode window spent half its time in MANUAL");
     }
 }

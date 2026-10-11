@@ -179,7 +179,7 @@ public sealed class CpmReadinessController : ControllerBase
             && !string.IsNullOrWhiteSpace(vp.GetString());
         var vpSeen = await conn.ExecuteScalarAsync<bool?>("""
             SELECT (payload->>'vp_available')::boolean FROM analytics.cplm_gate_latest
-            WHERE lower(loop_id) = lower(@loopId) AND window_kind = '24h' ORDER BY window_end DESC LIMIT 1
+            WHERE lower(loop_id) = lower(@loopId) AND window_kind IN ('12h', '24h') ORDER BY window_end DESC LIMIT 1   -- CHG-089: the newest fused window of either kind
             """, new { loopId = (string)reg.loop_id });
         var vpApplicability = OptionalInputs.VpApplicability(engineering, (string?)reg.command_path);
         var vpState = OptionalInputs.State(vpApplicability, hasVp, vpSeen);

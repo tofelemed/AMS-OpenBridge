@@ -39,7 +39,7 @@ public sealed class CpmAnalyticsController : ControllerBase
     /// </summary>
     [HttpGet("loops/{loopId}/gates/latest")]
     public async Task<IActionResult> GetLatestGateMatrix(
-        string loopId, [FromQuery] string windowKind = "24h", [FromQuery] string? prefer = null, CancellationToken ct = default)
+        string loopId, [FromQuery] string windowKind = "12h", [FromQuery] string? prefer = null, CancellationToken ct = default)
     {
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
         // 2026-09-17 audit F4: the matrix served is the loop's NEWEST evaluated window (whatever its
@@ -65,7 +65,7 @@ public sealed class CpmAnalyticsController : ControllerBase
     [HttpGet("loops/{loopId}/gates")]
     public async Task<IActionResult> GetGateHistory(
         string loopId,
-        [FromQuery] string windowKind = "24h",
+        [FromQuery] string windowKind = "12h",
         [FromQuery] DateTimeOffset? from = null,
         [FromQuery] DateTimeOffset? to = null,
         [FromQuery] int limit = 100,
@@ -107,7 +107,7 @@ public sealed class CpmAnalyticsController : ControllerBase
     [HttpGet("loops/{loopId}/kpis")]
     public async Task<IActionResult> GetKpiStream(
         string loopId,
-        [FromQuery] string resolution = "24h",
+        [FromQuery] string resolution = "12h",
         [FromQuery] DateTimeOffset? from = null,
         [FromQuery] DateTimeOffset? to = null,
         [FromQuery] int limit = 200,

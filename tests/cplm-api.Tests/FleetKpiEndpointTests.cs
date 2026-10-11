@@ -25,7 +25,7 @@ public sealed class FleetKpiEndpointTests : IAsyncLifetime
         ("OK", "NO_CALL", "10 minutes", """{"auto_pct":1.0,"saturation_pct":0.0}"""),
         ("OSC", "CONFIRMED_OSCILLATION", "10 minutes", """{"auto_pct":0.99,"saturation_pct":0.3}"""),
         ("SYM", "DETECTED_OSCILLATION", "10 minutes", """{"auto_pct":1.0,"saturation_pct":0.0}"""),
-        ("MAN", "EXCLUDED_MODE", "10 minutes", """{"auto_pct":0.1,"saturation_pct":0.0}"""),
+        ("MAN", "EXCLUDED_MODE", "10 minutes", """{"auto_pct":0.1,"manual_pct":0.9,"saturation_pct":0.0}"""),
         ("GAP", "INSUFFICIENT_DATA", "10 minutes", """{"completeness":0.66,"bad_quality_pct":0.0}"""),
         ("OLD", "NO_CALL", "3 hours", """{"auto_pct":1.0}"""),
         ("NEW", null, "", ""),
@@ -44,9 +44,34 @@ public sealed class FleetKpiEndpointTests : IAsyncLifetime
             if (diagnosis is null) continue;
             await conn.ExecuteAsync($"""
                 INSERT INTO analytics.cplm_gate_results (loop_id, window_kind, window_end, diagnosis, confidence, purpose, payload, created_at)
-                VALUES (@loop, '24h', NOW() - interval '{age}', @diagnosis, 0.9, 'LIVE', @payload::jsonb, NOW())
+                VALUES (@loop, '12h', NOW() - interval '{age}', @diagnosis, 0.9, 'LIVE', @payload::jsonb, NOW())
                 """, new { loop = Loop(n), diagnosis, payload });
         }
+        // CHG-089: one 24 h row (the probes above are 12 h, the default) - the 24 h switch must see only this one
+        await conn.ExecuteAsync("""
+            INSERT INTO analytics.cplm_gate_results (loop_id, window_kind, window_end, diagnosis, confidence, purpose, payload, created_at)
+            VALUES (@loop, '24h', NOW() - interval '10 minutes', 'CONFIRMED_OSCILLATION', 0.9, 'LIVE', '{"auto_pct":1.0,"manual_pct":0.0}'::jsonb, NOW())
+            """, new { loop = Loop("OK") });
+    }
+
+    [Fact]
+    public async Task The_window_switch_counts_the_24h_results_and_rejects_other_windows()   // CHG-089
+    {
+        var api = Api();
+        var k = Json(await api.GetKpis(site: _site, windowKind: "24h"));
+        k.GetProperty("basis").GetProperty("windowKind").GetString().Should().Be("24h");
+        k.GetProperty("monitored").GetInt32().Should().Be(7);
+        k.GetProperty("states").GetProperty("assessed").GetInt32().Should().Be(1);
+        k.GetProperty("states").GetProperty("neverEvaluated").GetInt32().Should().Be(6, "only one loop has a 24 h row");
+        var osc = Json(await api.GetKpiLoops("oscillating", site: _site, windowKind: "24h"));
+        osc.GetProperty("total").GetInt32().Should().Be(1);
+        osc.GetProperty("rows")[0].GetProperty("windowKind").GetString().Should().Be("24h");
+        Json(await api.GetKpis(site: _site)).GetProperty("basis").GetProperty("windowKind").GetString().Should().Be("12h", "12 h is the default");
+        Json(await api.GetTrend(days: 2, site: _site, windowKind: "24h")).GetProperty("basis").GetProperty("windowKind").GetString().Should().Be("24h");
+
+        (await api.GetKpis(site: _site, windowKind: "7d")).Should().BeOfType<BadRequestObjectResult>();
+        (await api.GetKpiLoops("all", site: _site, windowKind: "1h")).Should().BeOfType<BadRequestObjectResult>();
+        (await api.GetTrend(site: _site, windowKind: "x")).Should().BeOfType<BadRequestObjectResult>();
     }
 
     public async Task DisposeAsync()
@@ -86,7 +111,7 @@ public sealed class FleetKpiEndpointTests : IAsyncLifetime
 
         var expected = new Dictionary<string, int>
         {
-            ["acceptable"] = 1, ["normal-mode"] = 3, ["oscillating"] = 1, ["valve"] = 0, ["effort"] = 0,
+            ["acceptable"] = 1, ["normal-mode"] = 3, ["manual-mode"] = 1, ["oscillating"] = 1, ["valve"] = 0, ["effort"] = 0,
             ["saturated"] = 1, ["not-assessable"] = 2, ["stale"] = 1, ["never-evaluated"] = 1,
         };
         foreach (var f in k.GetProperty("kpis").EnumerateArray())

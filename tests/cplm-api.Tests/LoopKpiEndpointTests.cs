@@ -49,7 +49,7 @@ public sealed class LoopKpiEndpointTests : IAsyncLifetime
     [Fact]
     public async Task Serves_the_current_and_the_previous_window_with_gates_and_spans()
     {
-        var k = Json(await new CpmLoopKpiController(_db).Get(_loop.ToLowerInvariant()));
+        var k = Json(await new CpmLoopKpiController(_db).Get(_loop.ToLowerInvariant(), windowKind: "24h"));   // CHG-089: 24 h probe rows; default is 12 h
         k.GetProperty("span").GetProperty("pvMax").GetDouble().Should().Be(200);
         var cur = k.GetProperty("current");
         cur.GetProperty("values").GetProperty("auto_pct").GetDouble().Should().Be(0.98);

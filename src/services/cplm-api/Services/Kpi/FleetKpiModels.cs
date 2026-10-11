@@ -9,7 +9,12 @@ public sealed record KpiThresholds(
     double SaturationMax = 0.10,         // Q4b: fully open / closed > 10 % of the time (Bayer / PlantTriage)
     double G0CompletenessMin = 0.95,     // engine G0 default coverage minimum (reason text only)
     double G0BadQualityMax = 0.50,       // engine G0 default bad-quality maximum (reason text only)
-    string WindowKind = "24h");
+    string WindowKind = "12h",           // CHG-089: 12 h by default, 24 h on request (?windowKind=) - the two fused windows
+    double ManualModeMin = 0.50)         // CHG-089: "in manual mode" = MANUAL ≥ half the window (user decision 2026-10-12)
+{
+    /// <summary>CHG-089: the fused windows a KPI may be counted on (the engine's fusion.firesOn).</summary>
+    public static readonly string[] Windows = { "12h", "24h" };
+}
 
 /// <summary>One registry loop with its newest LIVE row (n_*) and its newest real verdict (v_*), as FleetKpiSql reads it.</summary>
 public sealed record KpiLoopRow
@@ -66,7 +71,9 @@ public sealed record KpiLoop(
     bool InNormalMode,
     bool SaturationMeasured,
     bool Saturated,
-    double? AgeSeconds);
+    double? AgeSeconds,
+    bool ManualModeMeasured = false,   // CHG-089
+    bool InManualMode = false);
 
 /// <summary>A KPI as the Overview shows it: count over a stated denominator, with its rule.</summary>
 public sealed record KpiFigure(string Key, string Label, int Count, int Denominator, string DenominatorLabel, string Rule);

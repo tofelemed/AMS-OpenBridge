@@ -34,6 +34,7 @@ public static class FleetKpiRows
         "normal-mode" or "out-of-mode" or "acceptable" or "no-fault-limited"
             => loops.OrderBy(l => l.Row.AutoPct ?? double.MaxValue).ThenBy(l => l.Row.LoopId),
         "saturated" => loops.OrderByDescending(l => l.Row.SaturationPct ?? -1).ThenBy(l => l.Row.LoopId),
+        "manual-mode" => loops.OrderByDescending(l => l.Row.ManualPct ?? -1).ThenBy(l => l.Row.LoopId),   // CHG-089
         "oscillating" or "valve" or "effort" or "finding" or "symptom"
             => loops.OrderByDescending(l => l.Row.Confidence ?? -1).ThenBy(l => l.Row.LoopId),
         "not-assessable" => loops.OrderBy(l => l.Row.Completeness ?? double.MaxValue).ThenBy(l => l.Row.LoopId),
@@ -52,6 +53,7 @@ public static class FleetKpiRows
             "normal-mode" or "out-of-mode" or "acceptable" or "no-fault-limited"
                 => Pct("Time in AUTO / CASCADE", r.AutoPct, t.NormalModeMin, ">="),
             "saturated" => Pct("Time with OP fully open or closed", r.SaturationPct, t.SaturationMax, ">"),
+            "manual-mode" => Pct("Time in MANUAL", r.ManualPct, t.ManualModeMin, ">="),                         // CHG-089
             "oscillating" or "valve" or "effort" or "finding" or "symptom"
                 => new { label = "Evidence score", value = r.Confidence is { } c ? Math.Round(c * 100) : (double?)null,
                          threshold = 75.0, unit = "score", comparator = ">=", measured = r.Confidence is not null },

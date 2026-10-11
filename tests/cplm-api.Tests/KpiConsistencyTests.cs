@@ -83,7 +83,7 @@ public sealed class KpiConsistencyTests : IAsyncLifetime
         {
             ControllerContext = new ControllerContext { HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext() },
         };
-        var r = await api.GetHeatmap(site: _site, health: health, ct: default);
+        var r = await api.GetHeatmap(site: _site, windowKind: "24h", health: health, ct: default);   // CHG-089: the probes are 24 h rows; the default is now 12 h
         var json = Json(r);
         var expected = health == "active-affected" ? 0 : 1;
         json.GetProperty("total").GetInt32().Should().Be(expected);

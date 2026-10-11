@@ -8,7 +8,7 @@ public static class FleetKpiClassifier
     public static readonly string[] Keys =
     {
         "all", "acceptable", "finding", "symptom", "no-fault-limited", "oscillating", "valve", "effort",
-        "normal-mode", "out-of-mode", "saturated", "not-assessable", "stale", "never-evaluated", "assessed",
+        "normal-mode", "out-of-mode", "manual-mode", "saturated", "not-assessable", "stale", "never-evaluated", "assessed",
     };
 
     private static readonly Dictionary<string, string> ExcludedReason = new(StringComparer.OrdinalIgnoreCase)
@@ -29,9 +29,11 @@ public static class FleetKpiClassifier
         var satMeasured = fresh && r.SaturationPct is not null;
         var inMode = modeMeasured && r.AutoPct!.Value >= t.NormalModeMin;
         var saturated = satMeasured && r.SaturationPct!.Value > t.SaturationMax;
+        var manualMeasured = fresh && r.ManualPct is not null;                                  // CHG-089
+        var inManual = manualMeasured && r.ManualPct!.Value >= t.ManualModeMin;
 
         KpiLoop Make(KpiState s, string? reason = null, KpiOutcome o = KpiOutcome.None, string? band = null, string? family = null) =>
-            new(r, s, reason, o, band, family, fresh, modeMeasured, inMode, satMeasured, saturated, age);
+            new(r, s, reason, o, band, family, fresh, modeMeasured, inMode, satMeasured, saturated, age, manualMeasured, inManual);
 
         if (r.WindowEnd is null) return Make(KpiState.NeverEvaluated);
         if (!fresh) return Make(KpiState.Stale);
@@ -83,6 +85,7 @@ public static class FleetKpiClassifier
         "effort" => l.Outcome == KpiOutcome.Finding && l.Family == "EXCESSIVE_EFFORT",
         "normal-mode" => l.InNormalMode,
         "out-of-mode" => l.NormalModeMeasured && !l.InNormalMode,
+        "manual-mode" => l.InManualMode,
         "saturated" => l.Saturated,
         "not-assessable" => l.State == KpiState.NotAssessable && (reason is null || string.Equals(l.Reason, reason, StringComparison.OrdinalIgnoreCase)),
         "stale" => l.State == KpiState.Stale,
@@ -98,13 +101,17 @@ public static class FleetKpiClassifier
         var assessed = Count("assessed");
         var modeMeasured = loops.Count(l => l.NormalModeMeasured);
         var satMeasured = loops.Count(l => l.SaturationMeasured);
+        var manualMeasured = loops.Count(l => l.ManualModeMeasured);
         var fresh = $"newest {t.WindowKind} result ≤ {t.FreshSeconds / 60} min old";
         return new[]
         {
             new KpiFigure("acceptable", "Performing acceptably", Count("acceptable"), monitored, "monitored loops",
                 $"No fault found (NO_CALL / INSUFFICIENT_EVIDENCE), in normal mode ≥ {t.NormalModeMin:P0}, not at an OP limit > {t.SaturationMax:P0}, {fresh}"),
-            new KpiFigure("normal-mode", "In normal mode", Count("normal-mode"), modeMeasured, "loops with a measured mode",
-                $"AUTO / CASCADE ≥ {t.NormalModeMin:P0} of the window (> {1 - t.NormalModeMin:P0} out of design mode = out of mode), {fresh}"),
+            // CHG-089: the normal-mode KPI is shown as "In auto mode" (same key and rule); "In manual mode" is new
+            new KpiFigure("normal-mode", "In auto mode", Count("normal-mode"), modeMeasured, "loops with a measured mode",
+                $"AUTO / CASCADE ≥ {t.NormalModeMin:P0} of the {t.WindowKind} window (> {1 - t.NormalModeMin:P0} out of design mode = out of mode), {fresh}"),
+            new KpiFigure("manual-mode", "In manual mode", Count("manual-mode"), manualMeasured, "loops with a measured manual share",
+                $"MANUAL ≥ {t.ManualModeMin:P0} of the {t.WindowKind} window (operated by hand most of the time), {fresh}"),
             new KpiFigure("oscillating", "Oscillating", Count("oscillating"), assessed, "assessed loops",
                 $"Suspected or confirmed oscillation (evidence ≥ 75), {fresh}"),
             new KpiFigure("valve", "Suspected valve problem", Count("valve"), assessed, "assessed loops",
