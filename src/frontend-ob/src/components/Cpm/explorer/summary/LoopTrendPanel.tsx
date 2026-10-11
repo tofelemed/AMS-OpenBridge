@@ -25,6 +25,7 @@ import TimeRangeBar from '../../trend/TimeRangeBar';
 import type { useTrendRange } from '../../trend/useTrendRange';
 import { evaluatedWindowOf, isWindowRange, overlaps, pinEvaluated, sharedBounds } from '../../trend/evaluatedWindow';
 import { conditionOf } from './summaryText';
+import { windowKindOf } from '../../useWindowKind';
 
 export const LoopTrendPanel: React.FC<{
   loop: CpmLoop;
@@ -35,7 +36,7 @@ export const LoopTrendPanel: React.FC<{
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const { from, to } = range;
-  const windowKind = params.get('window') ?? '24h';
+  const windowKind = windowKindOf(params.get('window'));   // CHG-089: 12h default
   const gates = useLatestGates(loop.loopId, windowKind);
   const m = gates.data;
   const evaluated = m ? evaluatedWindowOf(m.windowStart, m.windowEnd,

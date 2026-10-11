@@ -29,6 +29,8 @@ import LoopFocus from './overview/LoopFocus';
 import FocusedLoopDrawer from './overview/FocusedLoopDrawer';
 import { eventsHref, explorerHref, performanceHref } from './cpaHref';
 import { diagnosisLabel } from './vocabulary';
+import WindowKindToggle from './explorer/summary/WindowKindToggle';
+import { WINDOW_KINDS, useWindowKind } from './useWindowKind';
 
 export const CpmOverview: React.FC = () => {
   const navigate = useNavigate();
@@ -38,9 +40,11 @@ export const CpmOverview: React.FC = () => {
   // Plant scope (A6.2): a unit operator's priority queue should show their
   // unit, not the whole plant.
   const scope = useCpmScope();
-  const summary = useFleetSummary(scope.params);
+  // CHG-089: one fused window for the whole page (12h default, 24h on request), kept in ?window= and carried by its links
+  const [windowKind, setWindowKind] = useWindowKind('window');
+  const summary = useFleetSummary(scope.params, windowKind);
   // CHG-045 (SME #7): the queue is the priority order — current findings, criticality × severity.
-  const rankings = useFleetRankings(scope.params, '24h', 'priority');
+  const rankings = useFleetRankings(scope.params, windowKind, 'priority');
   // sort:'recent' — the panel below is titled "Recent context" and stamps each row
   // with opened_at, but the endpoint's default order is triage (open first, then
   // peak confidence), so with limit:3 it was showing the three HIGHEST-CONFIDENCE
@@ -83,25 +87,26 @@ export const CpmOverview: React.FC = () => {
   // the selection intact.
   const preview = (loopId: string) =>
     setParams(p => { p.set('loop', loopId); return p; }, { replace: true });
-  const openLoop = (loopId: string) => navigate(explorerHref(loopId, { tab: 'Summary' }));
+  const openLoop = (loopId: string) => navigate(explorerHref(loopId, { tab: 'Summary', kind: windowKind }));
 
   return (
     <div className="cpm-screen">
       <WorkspaceHeader
         page="/cpm"
         title="Operations overview"
+        actions={<WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />}
       />
       <PlantScopeFilter scope={scope} summary={summary.data ? `${summary.data.loops.total} loop(s) in scope` : null} />
 
       {/* CHG-082: every monitored loop in one state, KPI tiles with a drill-down each (kpi_calculation_logic/KPI-LOGIC.md);
           configuration limits sit in Readiness below. */}
-      <OperatingPicture scope={scope.params} />
+      <OperatingPicture scope={scope.params} windowKind={windowKind} />
 
       <div className="cpm-grid-2">
         <PriorityQueue loops={loops} loading={rankings.isLoading} error={rankings.isError ? rankings.error : null}
           retry={() => void rankings.refetch()} shelvedCount={rankings.data?.shelvedCount ?? 0}
           selectedId={selected?.loopId} onPreview={preview} onOpenLoop={openLoop}
-          onViewAll={() => navigate(performanceHref({ rows: 'attention', loop: explicitLoop }))}
+          onViewAll={() => navigate(performanceHref({ rows: 'attention', loop: explicitLoop, kind: windowKind }))}
           onShelved={() => navigate(eventsHref({ filter: 'shelved' }))} />
 
         {selected ? (
@@ -189,13 +194,14 @@ export const CpmOverview: React.FC = () => {
       {drawerLoop && (
         <FocusedLoopDrawer
           loopId={drawerLoop}
+          windowKind={windowKind}
           onClose={() => setDrawerLoop(null)}
           onPrev={drawerIndex > 0 ? () => setDrawerLoop(loops[drawerIndex - 1].loopId) : undefined}
           onNext={drawerIndex >= 0 && drawerIndex < loops.length - 1
             ? () => setDrawerLoop(loops[drawerIndex + 1].loopId) : undefined}
           onOpenLoop={() => { setDrawerLoop(null); openLoop(drawerLoop); }}
-          onOpenMatrix={() => { setDrawerLoop(null); navigate(performanceHref({ loop: drawerLoop })); }}
-          onOpenGate={gate => { setDrawerLoop(null); navigate(performanceHref({ loop: drawerLoop, gate })); }} />
+          onOpenMatrix={() => { setDrawerLoop(null); navigate(performanceHref({ loop: drawerLoop, kind: windowKind })); }}
+          onOpenGate={gate => { setDrawerLoop(null); navigate(performanceHref({ loop: drawerLoop, gate, kind: windowKind })); }} />
       )}
     </div>
   );

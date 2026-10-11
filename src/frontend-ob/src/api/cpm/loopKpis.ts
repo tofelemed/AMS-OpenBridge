@@ -28,5 +28,5 @@ export interface LoopKpis {
   reference: string;
 }
 
-export const getLoopKpis = (loopId: string, windowKind = '24h', signal?: AbortSignal) =>
+export const getLoopKpis = (loopId: string, windowKind = '12h', signal?: AbortSignal) =>
   apiJson<LoopKpis>(`${CPM_BASE}/loops/${encodeURIComponent(loopId)}/kpi-summary?windowKind=${encodeURIComponent(windowKind)}`, { signal });

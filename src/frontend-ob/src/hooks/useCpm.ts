@@ -136,7 +136,7 @@ export function useEventActions(id: number | undefined, enabled: boolean) {
   });
 }
 
-export function useLatestGates(loopId: string | undefined, windowKind = '24h') {
+export function useLatestGates(loopId: string | undefined, windowKind = '12h') {
   return useQuery({
     queryKey: KEYS.gatesLatest(loopId ?? '', windowKind),
     queryFn: ({ signal }) => cpm.getLatestGates(loopId!, windowKind, signal),
@@ -159,7 +159,7 @@ function scopeKey(scope?: cpm.CpmFleetScope | string): string {
   return [scope.site ?? '', scope.area ?? '', scope.unit ?? ''].join('|');
 }
 
-export function useFleetSummary(scope?: cpm.CpmFleetScope | string, windowKind = '24h') {
+export function useFleetSummary(scope?: cpm.CpmFleetScope | string, windowKind = '12h') {
   // P10: this used to drop windowKind on the floor and always ask for 24h, while
   // the query key claimed to identify the result by site alone. Any caller behind
   // a 12h/24h toggle silently got 24h diagnosis counts — and cached them under a
@@ -180,7 +180,7 @@ export function useCpmPipelineStatus(refetchMs = 15_000) {
 }
 
 export function useFleetRankings(
-  scope?: cpm.CpmFleetScope | string, windowKind = '24h',
+  scope?: cpm.CpmFleetScope | string, windowKind = '12h',
   orderBy: cpm.CpmRankingOrder = 'confidence', limit = 50,
   // CHG-023: lets a caller hold a variant it does not currently need (Performance's
   // "error" order) instead of fetching it beside the page's own ranking every 60 s.
@@ -196,7 +196,7 @@ export function useFleetRankings(
   });
 }
 
-export function useFleetHeatmap(scope?: cpm.CpmFleetScope | string, windowKind = '24h', health?: cpm.CpmHealthFilter) {
+export function useFleetHeatmap(scope?: cpm.CpmFleetScope | string, windowKind = '12h', health?: cpm.CpmHealthFilter) {
   return useQuery({
     queryKey: ['cpm', 'fleet', 'heatmap', scopeKey(scope), windowKind, health ?? ''],
     queryFn: backgroundPoll(() => cpm.getFleetHeatmap(scope, windowKind, 2000, health)),
@@ -277,7 +277,7 @@ export function useCpmModeTrack(
 }
 
 export function useGateHistory(
-  loopId: string | undefined, windowKind = '24h', from?: string, to?: string, purpose: 'LIVE' | 'ANY' = 'LIVE',
+  loopId: string | undefined, windowKind = '12h', from?: string, to?: string, purpose: 'LIVE' | 'ANY' = 'LIVE',
 ) {
   return useQuery({
     queryKey: ['cpm', 'gate-history', loopId ?? '', windowKind, from ?? '', to ?? '', purpose],
@@ -286,7 +286,7 @@ export function useGateHistory(
   });
 }
 
-export function useCpmKpis(loopId: string | undefined, resolution = '24h', limit = 50) {
+export function useCpmKpis(loopId: string | undefined, resolution = '12h', limit = 50) {
   return useQuery({
     queryKey: ['cpm', 'kpis', loopId ?? '', resolution, limit],
     queryFn: ({ signal }) => cpm.getKpis(loopId!, resolution, undefined, undefined, limit, signal),

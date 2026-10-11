@@ -28,6 +28,8 @@ import { KPI_WHY } from './kpi/kpiProof';
 import { KPI_META, basisShort, kpiDelta } from './kpi/kpiMeta';
 import { KpiCard } from './kpi/KpiCard';
 import { KpiRowsTable } from './kpi/KpiRowsTable';
+import WindowKindToggle from './explorer/summary/WindowKindToggle';
+import { WINDOW_KINDS, useWindowKind } from './useWindowKind';
 
 const PAGE = 25;
 const DRILL_ONLY: Array<{ key: FleetKpiKey; label: string }> = [
@@ -45,11 +47,14 @@ export const CpmKpiDrilldown: React.FC = () => {
   // KPI Phase 5: a picked trend day (its exact as-of instant); absent = now
   const day = params.get('day');
   const scope = useCpmScope();
+  // CHG-089: the same fused window as the Overview card that opened this page (?window=, 12h default)
+  const [windowKind, setWindowKind] = useWindowKind('window');
+  const kscope = { ...scope.params, windowKind };
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
-  const kpis = useFleetKpis(scope.params);
-  const list = useFleetKpiLoops({ kpi, reason, q: search.trim() || undefined, page: page + 1, pageSize: PAGE, asOf: day, ...scope.params });
-  const trend = useFleetKpiTrend(scope.params);
+  const kpis = useFleetKpis(kscope);
+  const list = useFleetKpiLoops({ kpi, reason, q: search.trim() || undefined, page: page + 1, pageSize: PAGE, asOf: day, ...kscope });
+  const trend = useFleetKpiTrend(kscope);
   const trendDays = kpiSeries(trend.data, kpi);
   const pickedDay = day ? trendDays.find(d => d.asOf === day) : undefined;
   const range = seriesRange(trendDays);
@@ -70,16 +75,19 @@ export const CpmKpiDrilldown: React.FC = () => {
 
   return (
     <div className="cpm-screen">
-      <RouterLink className="cpm-link cpm-kpi-back" to={overviewHref(scope.params)}>
+      <RouterLink className="cpm-link cpm-kpi-back" to={overviewHref(kscope)}>
         <span className="cpm-kpi-back__icon" aria-hidden><ObiChevronLeftGoogle /></span>Operations overview
       </RouterLink>
       <WorkspaceHeader page="/cpm/kpi" title={label}
-        actions={<label className="cpm-field cpm-kpi-proof__pick">
-          <span className="cpm-field__label">Show another KPI</span>
-          <select className="cpm-select" value={kpi} onChange={e => go({ kpi: e.target.value, reason: null })}>
-            {options.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-          </select>
-        </label>} />
+        actions={<>
+          <WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={k2 => { setPage(0); setWindowKind(k2); }} />
+          <label className="cpm-field cpm-kpi-proof__pick">
+            <span className="cpm-field__label">Show another KPI</span>
+            <select className="cpm-select" value={kpi} onChange={e => go({ kpi: e.target.value, reason: null })}>
+              {options.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+            </select>
+          </label>
+        </>} />
       <PlantScopeFilter scope={scope} summary={k ? `${k.monitored} monitored loop(s) in scope` : null} />
 
       {kpis.isError && <QueryError title="KPI unavailable" error={kpis.error} retry={() => void kpis.refetch()} />}

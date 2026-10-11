@@ -12,7 +12,7 @@ import { calculationsHref, historicalHref, windowsHref } from '../../cpaHref';
 import { KpiCard } from '../../kpi/KpiCard';
 import { loopKpiCards, type LoopKpiCardModel } from '../../kpi/loopKpiView';
 
-export const LoopKpiCards: React.FC<{ loop: CpmLoop; windowKind?: string }> = ({ loop, windowKind = '24h' }) => {
+export const LoopKpiCards: React.FC<{ loop: CpmLoop; windowKind?: string }> = ({ loop, windowKind = '12h' }) => {
   const q = useQuery({
     queryKey: ['cpm', 'loop-kpis', loop.loopId, windowKind],
     queryFn: ({ signal }) => getLoopKpis(loop.loopId, windowKind, signal),

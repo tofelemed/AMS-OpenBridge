@@ -2,15 +2,16 @@
  * CHG-082 / CHG-085: the Overview's operating picture, from cplm-api `GET /fleet/kpis` (rules, formulas and evidence:
  * kpi_calculation_logic/KPI-LOGIC.md).
  *
- * - Performance: six compact KPI cards — icon, change since 24 h ago, the count, its label and its share of a NAMED
+ * - Performance: seven compact KPI cards — icon, change since 24 h ago, the count, its label and its share of a NAMED
  *   denominator; each card opens the drill-down listing exactly those loops with the value that put each one there.
+ * - CHG-089: counted on the page's fused window (12h default, 24h on request); every link carries it.
  * - Coverage: the loops that could not be judged (not assessable / stale / never evaluated) beside one bar that places
  *   every monitored loop in exactly one state, with a legend that links to each state's list.
  */
 import React from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import type { CpmFleetScope } from '../../../api/cpmApi';
-import type { FleetKpiFigure, FleetKpis } from '../../../api/cpm/fleetKpis';
+import type { FleetKpiFigure, FleetKpis, FleetKpiScope } from '../../../api/cpm/fleetKpis';
 import { EmptyState, PanelHead, QueryError, fmtDateTime } from '../shared';
 import { kpiHref } from '../cpaHref';
 import { useFleetKpis } from '../kpi/useFleetKpis';
@@ -18,7 +19,7 @@ import { KpiCard } from '../kpi/KpiCard';
 import { KPI_META, kpiDelta } from '../kpi/kpiMeta';
 import { KPI_GROUPS, basisText, kpiTone, pct, reasonsText, stateSegments } from '../kpi/fleetKpiView';
 
-const Card: React.FC<{ f: FleetKpiFigure; k: FleetKpis; scope?: CpmFleetScope; sub?: React.ReactNode }> = ({ f, k, scope, sub }) => {
+const Card: React.FC<{ f: FleetKpiFigure; k: FleetKpis; scope?: FleetKpiScope; sub?: React.ReactNode }> = ({ f, k, scope, sub }) => {
   const meta = KPI_META[f.key];
   if (!meta) return null;
   return (
@@ -28,7 +29,8 @@ const Card: React.FC<{ f: FleetKpiFigure; k: FleetKpis; scope?: CpmFleetScope; s
   );
 };
 
-export const OperatingPicture: React.FC<{ scope?: CpmFleetScope }> = ({ scope }) => {
+export const OperatingPicture: React.FC<{ scope?: CpmFleetScope; windowKind?: string }> = ({ scope: plant, windowKind }) => {
+  const scope: FleetKpiScope = { ...plant, windowKind };
   const q = useFleetKpis(scope);
   const k = q.data;
   const figures = new Map((k?.kpis ?? []).map(f => [f.key, f]));
@@ -39,7 +41,7 @@ export const OperatingPicture: React.FC<{ scope?: CpmFleetScope }> = ({ scope })
 
   return (
     <section className="cpm-surface cpm-op" aria-label="Operating picture">
-      <PanelHead eyebrow={`Operating picture · latest ${k?.basis.windowKind ?? '24h'} results`}
+      <PanelHead eyebrow={`Operating picture · latest ${k?.basis.windowKind ?? windowKind ?? '12h'} results`}
         title={k ? `${k.monitored} loop(s) monitored` : 'Loading…'}
         right={k ? <span className="cpm-op__muted" title={basisText(k)}>updated {fmtDateTime(k.computedAt)} · change vs 24 h ago</span> : undefined} />
       {q.isError && <QueryError title="Operating picture unavailable" error={q.error} retry={() => void q.refetch()} />}

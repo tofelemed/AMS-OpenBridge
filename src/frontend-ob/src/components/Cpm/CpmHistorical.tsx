@@ -14,6 +14,8 @@
  */
 import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import WindowKindToggle from './explorer/summary/WindowKindToggle';
+import { WINDOW_KINDS, useWindowKind } from './useWindowKind';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
@@ -47,8 +49,8 @@ const KPI_OVERLAYS = [
   { key: 'effort_ratio', label: 'Actuator effort ratio', resolution: '15m', unit: 'ratio' },
   { key: 'iae', label: 'Integral absolute error', resolution: '15m', unit: 'EU·s' },
   { key: 'good_error_pct', label: 'Good-error time', resolution: '15m', unit: '%', scale: 100 },   // CHG-065: × 100, as everywhere
-  { key: 'triangularity', label: 'OP triangularity (stiction)', resolution: '24h', unit: 'score' },
-  { key: 'harmonic_energy_ratio', label: 'Harmonic energy ratio', resolution: '24h', unit: 'ratio' },
+  { key: 'triangularity', label: 'OP triangularity (stiction)', resolution: '12h', unit: 'score' },
+  { key: 'harmonic_energy_ratio', label: 'Harmonic energy ratio', resolution: '12h', unit: 'ratio' },
 ];
 
 /** The KPI endpoint caps at 500 rows, newest-first (~5.2 days at 15m). */
@@ -66,6 +68,8 @@ function download(name: string, mime: string, body: string) {
 export const CpmHistorical: React.FC = () => {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  // CHG-089: the fused window kind of the verdict history (?kind=, 12h default; ?window= here is an evaluated END)
+  const [windowKind, setWindowKind] = useWindowKind('kind');
   const loopsQuery = useCpmLoops();
   const loops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
   const scope = useCpmScope();
@@ -117,7 +121,7 @@ export const CpmHistorical: React.FC = () => {
   const trend = useCpmTrend(series, from, to, 300, signals.join(','));
   const modeTrack = useCpmModeTrack(series, from, to, 96);
   const kpis = useCpmKpisRange(loopId, overlay.resolution, from.toISOString(), to.toISOString());
-  const history = useGateHistory(loopId, '24h', from.toISOString(), to.toISOString());
+  const history = useGateHistory(loopId, windowKind, from.toISOString(), to.toISOString());
 
   const points = useMemo(() => trend.data?.points ?? [], [trend.data]);
   const kpiRows = useMemo(() => kpis.data?.samples ?? [], [kpis.data]);
@@ -258,7 +262,8 @@ export const CpmHistorical: React.FC = () => {
 
   return (
     <div className="cpm-screen">
-      <WorkspaceHeader page="/cpm/historical" title="Historical" />
+      <WorkspaceHeader page="/cpm/historical" title="Historical"
+        actions={<WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />} />
       <LoopContextBar loopId={loopId} period={{ label: 'Historical range', start: from.getTime(), end: to.getTime() }} />
 
       <section className="cpm-surface">
@@ -407,7 +412,7 @@ export const CpmHistorical: React.FC = () => {
           applyRange(r.from, r.to);
         }}
         onReplay={windowEnd => {
-          if (loopId) navigate(replayHref(loopId, { window: windowEnd, kind: '24h' }));
+          if (loopId) navigate(replayHref(loopId, { window: windowEnd, kind: windowKind }));
         }}
       />
     </div>

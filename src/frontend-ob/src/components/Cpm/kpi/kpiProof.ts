@@ -66,7 +66,7 @@ export function contextText(row: FleetKpiRow, kpi: FleetKpiKey): string {
       parts.push(`${Math.round(i.sampleCount)} of ${Math.round(i.expectedSampleCount)} samples`);
     if (i.maxGapS != null && i.maxGapS >= 60) parts.push(`longest gap ${Math.round(i.maxGapS / 60)} min`);
     p('bad quality', i.badQualityPct);
-  } else if (kpi === 'normal-mode' || kpi === 'out-of-mode' || kpi === 'acceptable' || kpi === 'no-fault-limited') {
+  } else if (kpi === 'normal-mode' || kpi === 'out-of-mode' || kpi === 'manual-mode' || kpi === 'acceptable' || kpi === 'no-fault-limited') {
     p('manual', i.manualPct);
   }
   // the last REAL judgement before this window, as context — not an exclusion, not the same window again
@@ -81,7 +81,9 @@ export interface ProofLink { label: string; href: string; title: string }
 /** Where the number is proven for this loop: the loop, its evaluated window, the formula, the raw signals. */
 export function proofLinks(row: FleetKpiRow): ProofLink[] {
   const end = row.windowEnd ?? null;
-  const from = end ? new Date(Date.parse(end) - 24 * 3600_000).toISOString() : null;
+  // CHG-089: the trend covers the row's own window (12 h or 24 h), not always 24 h
+  const hours = row.windowKind === '12h' ? 12 : 24;
+  const from = end ? new Date(Date.parse(end) - hours * 3600_000).toISOString() : null;
   const links: ProofLink[] = [
     { label: 'Loop', href: explorerHref(row.loopId, { tab: 'Summary', kind: row.windowKind }), title: `${row.loopId} in the Loop Explorer` },
   ];
@@ -99,6 +101,7 @@ export const KPI_WHY: Partial<Record<FleetKpiKey, string>> = {
   acceptable: 'The headline of control-loop monitoring: loops judged with no fault, on qualified data, in their normal mode and not at an OP limit (Desborough & Miller 2002; Bauer et al. 2016).',
   'normal-mode': 'A loop out of its normal mode is not controlling. More than 5 % of the time out of design mode counts as out of mode; target: fewer than 10 % of loops out of mode (Emerson loop-performance guidance; Bayer / PlantTriage).',
   'out-of-mode': 'Loops that spent more than 5 % of the window outside AUTO / CASCADE (Emerson; Bayer / PlantTriage).',
+  'manual-mode': 'Loops run by hand for half the window or more: the controller is not in charge, so its tuning cannot be judged and the operator carries the load (service factor, Emerson; Bayer / PlantTriage). A loop in MANUAL for a short task is not counted.',
   oscillating: 'Oscillation is among the most common loop defects (Ender 1993; Hägglund 1995). Counted only when suspected or confirmed (evidence ≥ 75), as an alarm would be (ISA-18.2).',
   valve: 'Valve stiction / backlash is a frequent root cause of oscillation and the one maintenance acts on (Horch 1999; Choudhury, Shah & Thornhill 2008). Without valve position it stops at suspected.',
   effort: 'Excessive OP travel and reversals wear the final element (standard CPM wear indicators).',

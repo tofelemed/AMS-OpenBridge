@@ -8,12 +8,19 @@ import type { CpmFleetScope } from '../cpmApi';
 
 export type FleetKpiKey =
   | 'all' | 'assessed' | 'acceptable' | 'no-fault-limited' | 'finding' | 'symptom' | 'oscillating' | 'valve' | 'effort'
-  | 'normal-mode' | 'out-of-mode' | 'saturated' | 'not-assessable' | 'stale' | 'never-evaluated';
+  | 'normal-mode' | 'out-of-mode' | 'manual-mode' | 'saturated' | 'not-assessable' | 'stale' | 'never-evaluated';
+
+/** CHG-089: a fleet scope plus the fused window the KPIs are counted on (12h default, 24h on request). */
+export type FleetKpiScope = CpmFleetScope & { windowKind?: string };
 
 export interface FleetKpiBasis {
   windowKind: string;
+  /** CHG-089: the windows the server accepts (12h, 24h). */
+  windows?: string[];
   freshSeconds: number;
   normalModeMin: number;
+  /** CHG-089: "in manual mode" = MANUAL ≥ this share of the window. */
+  manualModeMin?: number;
   saturationMax: number;
   g0CompletenessMin: number;
   g0BadQualityMax: number;
@@ -96,21 +103,22 @@ export interface FleetKpiLoops {
   rows: FleetKpiRow[];
 }
 
-const scoped = (scope?: CpmFleetScope) => {
+const scoped = (scope?: FleetKpiScope) => {
   const p = new URLSearchParams();
   if (scope?.site) p.set('site', scope.site);
   if (scope?.area) p.set('area', scope.area);
   if (scope?.unit) p.set('unit', scope.unit);
+  if (scope?.windowKind) p.set('windowKind', scope.windowKind);   // CHG-089 (server default 12h)
   return p;
 };
 
-export const getFleetKpis = (scope?: CpmFleetScope, signal?: AbortSignal) => {
+export const getFleetKpis = (scope?: FleetKpiScope, signal?: AbortSignal) => {
   const p = scoped(scope);
   return apiJson<FleetKpis>(`${CPM_BASE}/fleet/kpis${p.size ? `?${p}` : ''}`, { signal });
 };
 
 export const getFleetKpiLoops = (
-  q: { kpi: FleetKpiKey; reason?: string | null; q?: string; page?: number; pageSize?: number; asOf?: string | null } & CpmFleetScope,
+  q: { kpi: FleetKpiKey; reason?: string | null; q?: string; page?: number; pageSize?: number; asOf?: string | null } & FleetKpiScope,
   signal?: AbortSignal,
 ) => {
   const p = scoped(q);
@@ -135,7 +143,7 @@ export interface FleetKpiTrendPoint {
 
 export interface FleetKpiTrend { basis: FleetKpiBasis; days: number; anchor: string; points: FleetKpiTrendPoint[] }
 
-export const getFleetKpiTrend = (scope?: CpmFleetScope, days = 14, signal?: AbortSignal) => {
+export const getFleetKpiTrend = (scope?: FleetKpiScope, days = 14, signal?: AbortSignal) => {
   const p = scoped(scope);
   p.set('days', String(days));
   return apiJson<FleetKpiTrend>(`${CPM_BASE}/fleet/kpis/trend?${p}`, { signal });

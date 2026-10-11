@@ -17,10 +17,10 @@
  */
 import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
 import { ObcFilterChip } from '@oicl/openbridge-webcomponents-react/components/filter-chip/filter-chip';
 import type { CpmHealthFilter } from '../../api/cpmApi';
-import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
+import WindowKindToggle from './explorer/summary/WindowKindToggle';
+import { windowKindOf } from './useWindowKind';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObiHelp } from '@oicl/openbridge-webcomponents-react/icons/icon-help';
 import {
@@ -67,7 +67,7 @@ const fmtAge = (ms: number) =>
 
 export const CpmPerformance: React.FC = () => {
   const [params, setParams] = useSearchParams();
-  const windowKind = params.get('window') ?? '24h';
+  const windowKind = windowKindOf(params.get('window'));   // CHG-089: 12h by default, 24h on request
   const selectedLoop = params.get('loop');
   const openGate = params.get('gate');
   const [rankBy, setRankBy] = React.useState<RankBy>('confidence');
@@ -201,23 +201,8 @@ export const CpmPerformance: React.FC = () => {
       <WorkspaceHeader
         page="/cpm/performance"
         title="Performance"
-        // The group can emit an empty value on its first update (its slot is not
-        // assigned yet when willUpdate runs). Writing that to ?window= would send
-        // an empty windowKind to every fleet endpoint, so only known kinds pass.
-        actions={
-          <ObcToggleButtonGroup
-            value={windowKind}
-            aria-label="Fused evaluation window"
-            onValue={(e: CustomEvent<{ value: string }>) => {
-              const v = e.detail.value;
-              if (fusionKinds.includes(v)) write(p => p.set('window', v));
-            }}
-          >
-            {fusionKinds.map(k => (
-              <ObcToggleButtonOption key={k} value={k}>{k}</ObcToggleButtonOption>
-            ))}
-          </ObcToggleButtonGroup>
-        }
+        // CHG-089: the shared switch (only a served kind reaches onChange, so an empty first emit never reaches ?window=)
+        actions={<WindowKindToggle value={windowKind} kinds={fusionKinds} onChange={v => write(p => p.set('window', v))} />}
       />
       {/* Why only these sizes: this screen shows FUSED verdicts, which fusion
           produces on these windows alone. The finer 1m…60m results exist and

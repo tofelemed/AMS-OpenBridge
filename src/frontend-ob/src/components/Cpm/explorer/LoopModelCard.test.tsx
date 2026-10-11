@@ -50,7 +50,7 @@ describe('LoopModelCard', () => {
         <Routes><Route path="*" element={<><LoopModelCard loop={loop(null)} /><Probe /></>} /></Routes>
       </MemoryRouter>);
     fireEvent.click(screen.getByRole('button', { name: /Evidence workbench/ }));
-    expect(screen.getByTestId('location').textContent).toBe('/cpm/evidence?loop=FIC10405&kind=24h');
+    expect(screen.getByTestId('location').textContent).toBe('/cpm/evidence?loop=FIC10405&kind=12h');
     fireEvent.click(screen.getByRole('button', { name: /System response/ }));
     expect(screen.getByTestId('location').textContent).toBe('/cpm/response?loop=FIC10405');
     fireEvent.click(screen.getByRole('button', { name: /Effective configuration/ }));

@@ -17,13 +17,12 @@ import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmLoop } from '../../../api/cpmApi';
 import { ApiError } from '../../../api/apiFetch';
-import { useCpmResolutions, useLatestGates } from '../../../hooks/useCpm';
+import { useLatestGates } from '../../../hooks/useCpm';
 import { loopSeries } from '../../../utils/loopSeries';
 import { EmptyState, KvRow, PanelHead, QueryError, TonePill, fmtDateTime, toneFor } from '../shared';
 import { LoopModelCard } from './LoopModelCard';
 import OperatingState from './summary/OperatingState';
 import SummaryGateStrip from './summary/SummaryGateStrip';
-import WindowKindToggle from './summary/WindowKindToggle';
 import { pinEvaluated, revealTrend } from '../trend/evaluatedWindow';
 import { workbenchExit } from './summary/LoopSummaryCard';
 import { diagnosisLabel } from '../vocabulary';
@@ -41,8 +40,6 @@ const isNoVerdictYet = (e: unknown) => e instanceof ApiError && e.status === 404
 /** `windowKind` is `?window=` as the Explorer reads it; the strip and the workspace verdict pill share its query key. */
 export const SummaryTab: React.FC<{ loop: CpmLoop; windowKind: string }> = ({ loop, windowKind }) => {
   const [params, setParams] = useSearchParams();
-  const resolutions = useCpmResolutions();
-  const fusionKinds = resolutions.data?.fusion.firesOn ?? ['12h', '24h'];
   const gates = useLatestGates(loop.loopId, windowKind);
   const matrix = gates.data;
   const cells = matrix?.gates ?? [];
@@ -81,18 +78,13 @@ export const SummaryTab: React.FC<{ loop: CpmLoop; windowKind: string }> = ({ lo
         <PanelHead
           eyebrow={`Evaluated ${windowKind} window${matrix?.windowEnd ? ` · ending ${fmtDateTime(matrix.windowEnd)}` : ''}`}
           title="Gates on the latest fused result"
-          right={
-            <>
-              <WindowKindToggle value={windowKind} kinds={fusionKinds}
-                onChange={k => setParams(p => { p.set('window', k); p.delete('gate'); return p; }, { replace: true })} />
-              {matrix && (
-                <TonePill tone={toneFor(matrix.diagnosis)}>
-                  {diagnosisLabel(matrix.diagnosis)}
-                  {matrix.confidence != null && hasVerdict(matrix.diagnosis) ? ` · ${evidenceScoreText(matrix.confidence)}` : ''}
-                </TonePill>
-              )}
-            </>
-          }
+          // CHG-089: the 12h / 24h switch moved to the top of the Explorer (one window for every tab)
+          right={matrix ? (
+            <TonePill tone={toneFor(matrix.diagnosis)}>
+              {diagnosisLabel(matrix.diagnosis)}
+              {matrix.confidence != null && hasVerdict(matrix.diagnosis) ? ` · ${evidenceScoreText(matrix.confidence)}` : ''}
+            </TonePill>
+          ) : undefined}
         />
         {gates.isLoading && <EmptyState title="Loading the latest fused result…" />}
         {failed && <QueryError title="Gate outcomes unavailable" error={gates.error} retry={() => void gates.refetch()} />}

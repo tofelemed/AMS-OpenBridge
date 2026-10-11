@@ -52,7 +52,7 @@ export const CpmPipeline: React.FC = () => {
   // PH1: 200 = server max. "Last fused verdict age" scans windowEnd across this
   // page — the default top-50 confidence slice could miss the fleet's newest
   // window and overstate staleness. Past 200 loops the caveat returns.
-  const rankings = useFleetRankings(undefined, '24h', 'confidence', 200);
+  const rankings = useFleetRankings(undefined, '12h', 'confidence', 200)   // CHG-089: 12h default;
   const loopsQuery = useCpmLoops();
 
   const jobs = useMemo(() => metrics.data?.jobs ?? [], [metrics.data]);

@@ -28,6 +28,8 @@ import LoopTree from './explorer/LoopTree';
 import LoopWorkspace, { TABS } from './explorer/LoopWorkspace';
 import type { ExplorerTab } from './explorer/readinessCauses';
 import { useCpmLoops } from '../../hooks/useCpm';
+import WindowKindToggle from './explorer/summary/WindowKindToggle';
+import { WINDOW_KINDS, windowKindOf } from './useWindowKind';
 
 export const CpmExplorer: React.FC = () => {
   const [params, setParams] = useSearchParams();
@@ -40,9 +42,12 @@ export const CpmExplorer: React.FC = () => {
   const tab: ExplorerTab = TABS.includes(rawTab as ExplorerTab)
     ? (rawTab as ExplorerTab) : 'Summary';
 
-  // The fused window kind the Summary gate strip evaluates; same name and default
-  // as Performance (`?window=`), so a hand-off between the two keeps the window.
-  const windowKind = params.get('window') ?? '24h';
+  // The fused window kind every tab evaluates; same name and default as Performance (`?window=`), so a hand-off between
+  // the two keeps the window. CHG-089: 12h by default, chosen at the top of the page; a gate picked on the other window
+  // does not carry over.
+  const windowKind = windowKindOf(params.get('window'));
+  const setWindowKind = (k: string) =>
+    setParams(p => { p.set('window', k); p.delete('gate'); return p; }, { replace: true });
 
   const scope = useCpmScope();
 
@@ -83,6 +88,7 @@ export const CpmExplorer: React.FC = () => {
       <WorkspaceHeader
         page="/cpm/explorer"
         title="Loop explorer"
+        actions={<WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />}
       />
       <LoopContextBar loopId={loop?.loopId ?? requestedId} period={{ label: `Gates: latest ${windowKind} fused window · trend: ${trendPeriodText(params)}` }} />
       <PlantScopeFilter

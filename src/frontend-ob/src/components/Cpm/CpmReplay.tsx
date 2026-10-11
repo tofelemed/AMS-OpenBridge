@@ -12,6 +12,8 @@
  */
 import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import WindowKindToggle from './explorer/summary/WindowKindToggle';
+import { WINDOW_KINDS, useWindowKind } from './useWindowKind';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader,
@@ -62,6 +64,8 @@ function download(name: string, body: string) {
 
 export const CpmReplay: React.FC = () => {
   const [params, setParams] = useSearchParams();
+  // CHG-089: the fused window kind (?kind= as replayHref writes it; 12h default)
+  const [windowKind, setWindowKind] = useWindowKind('kind');
   const loopsQuery = useCpmLoops();
   const loops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
   // Plant scope (CPM-UX A1): narrows the loop picker to a section/unit.
@@ -75,7 +79,7 @@ export const CpmReplay: React.FC = () => {
 
   const calc = useCpmCalculations();
   // CHG-066: the Replay page also shows re-run (REPLAY) windows; every other page reads LIVE windows only
-  const history = useGateHistory(loopId, '24h', undefined, undefined, 'ANY');
+  const history = useGateHistory(loopId, windowKind, undefined, undefined, 'ANY');
   const windows = useMemo(() => {
     const rows = history.data?.windows ?? [];
     return [...rows].sort((a, b) => (b.windowEnd ?? '').localeCompare(a.windowEnd ?? ''));
@@ -91,7 +95,7 @@ export const CpmReplay: React.FC = () => {
 
   // The long-tier KPI row for the same 24h window carries the metric values.
   const kpiRow: CpmKpiRow | undefined = useCpmKpisRange(
-    loopId, '24h',
+    loopId, windowKind,
     selected?.windowStart ?? undefined,
     // `to` is load-bearing, not decoration: the endpoint filters
     // window_end BETWEEN from AND to and then orders DESC LIMIT n, so leaving
@@ -166,13 +170,15 @@ export const CpmReplay: React.FC = () => {
       <WorkspaceHeader
         page="/cpm/replay"
         title="Evidence replay"
-        actions={
+        actions={<>
+          <WindowKindToggle value={windowKind} kinds={WINDOW_KINDS}
+            onChange={k => { setWindowKind(k); setParams(p => { p.delete('window'); return p; }, { replace: true }); }} />
           <ReasonedButton variant="normal" disabled={!selected} reason={!selected ? 'Select an evaluated window first' : null} onClick={exportPackage}>
             Export package
           </ReasonedButton>
-        }
+        </>}
       />
-      <LoopContextBar loopId={loopId} period={selected ? { label: '24h fused window', start: selected.windowStart, end: selected.windowEnd } : null} />
+      <LoopContextBar loopId={loopId} period={selected ? { label: `${windowKind} fused window`, start: selected.windowStart, end: selected.windowEnd } : null} />
 
       <section className="cpm-surface">
         <PlantScopeFilter scope={scope} />

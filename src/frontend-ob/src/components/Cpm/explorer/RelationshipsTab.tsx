@@ -12,7 +12,8 @@ import type { CpmLoop } from '../../../api/cpmApi';
 import { useCpmCalculations, useLatestGates } from '../../../hooks/useCpm';
 import { EmptyState, KvRow, PanelHead } from '../shared';
 
-export const RelationshipsTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
+/** `windowKind`: the Explorer's fused window (CHG-089, 12h default). */
+export const RelationshipsTab: React.FC<{ loop: CpmLoop; windowKind?: string }> = ({ loop, windowKind = '12h' }) => {
   const navigate = useNavigate();
   // The gate count was hardcoded as "17 gates". The catalogue endpoint reports
   // what the engine actually computes (and which gates have been observed in
@@ -26,7 +27,7 @@ export const RelationshipsTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
 
   // Evidence node: name the stores this loop's evidence actually lands in, and
   // the calculation version that produced the latest verdict.
-  const latest = useLatestGates(loop.loopId, '24h');
+  const latest = useLatestGates(loop.loopId, windowKind);
   const version = latest.data?.metadata.calculationVersion;
 
   const nodes = [

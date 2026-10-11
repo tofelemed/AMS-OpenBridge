@@ -6,6 +6,7 @@
 import type React from 'react';
 import { ObiSpeedGood } from '@oicl/openbridge-webcomponents-react/icons/icon-speed-good';
 import { ObiAuto } from '@oicl/openbridge-webcomponents-react/icons/icon-auto';
+import { ObiManual } from '@oicl/openbridge-webcomponents-react/icons/icon-manual';
 import { ObiWave } from '@oicl/openbridge-webcomponents-react/icons/icon-wave';
 import { ObiBoltGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-bolt-google';
 import { ObiLimitsOutsideOver } from '@oicl/openbridge-webcomponents-react/icons/icon-limits-outside-over';
@@ -33,6 +34,10 @@ export const KPI_META: Partial<Record<FleetKpiKey, KpiMeta>> = {
   'normal-mode': { Icon: ObiAuto, higherIsBetter: true,
     formula: 'count(AUTO % ≥ limit) ÷ loops with a measured mode;  AUTO % = time in AUTO or CASCADE ÷ window time',
     threshold: b => `AUTO / CASCADE ≥ ${pc(b.normalModeMin)} of the window` },
+  // CHG-089: loops operated by hand most of the window
+  'manual-mode': { Icon: ObiManual, higherIsBetter: false,
+    formula: 'count(MANUAL % ≥ limit) ÷ loops with a measured manual share;  MANUAL % = time in MANUAL ÷ window time',
+    threshold: b => `MANUAL ≥ ${pc(b.manualModeMin ?? 0.5)} of the window` },
   'out-of-mode': { Icon: ObiAuto, higherIsBetter: false,
     formula: 'count(AUTO % < limit) ÷ loops with a measured mode',
     threshold: b => `AUTO / CASCADE < ${pc(b.normalModeMin)} of the window` },

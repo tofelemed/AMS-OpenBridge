@@ -89,7 +89,7 @@ export interface CpmKpiPage {
 }
 
 export const getKpis = (
-  loopId: string, resolution = '24h', from?: string, to?: string, limit = 50, signal?: AbortSignal,
+  loopId: string, resolution = '12h', from?: string, to?: string, limit = 50, signal?: AbortSignal,
   before?: string,
 ) => {
   const params = new URLSearchParams({ resolution, limit: String(limit) });

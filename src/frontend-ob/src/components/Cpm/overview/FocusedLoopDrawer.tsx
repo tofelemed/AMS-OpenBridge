@@ -30,6 +30,8 @@ const fmtTime = (iso: string | null) =>
 
 export const FocusedLoopDrawer: React.FC<{
   loopId: string;
+  /** CHG-089: the Overview's fused window (12h default). */
+  windowKind?: string;
   onClose: () => void;
   /** Primary: the loop hub (Explorer › Summary). */
   onOpenLoop: () => void;
@@ -40,9 +42,9 @@ export const FocusedLoopDrawer: React.FC<{
   /** Walk the priority queue without closing; undefined at the ends. */
   onPrev?: () => void;
   onNext?: () => void;
-}> = ({ loopId, onClose, onOpenLoop, onOpenMatrix, onOpenGate, onPrev, onNext }) => {
+}> = ({ loopId, windowKind = '12h', onClose, onOpenLoop, onOpenMatrix, onOpenGate, onPrev, onNext }) => {
   const dialogRef = useDialogA11y<HTMLDivElement>(onClose);
-  const gates = useLatestGates(loopId, '24h');
+  const gates = useLatestGates(loopId, windowKind);
   const { data: matrix, isLoading } = gates;
   // 404 means "no fused window yet" — a real answer. Anything else is a failure
   // and must not be presented as an absence of evidence.

@@ -87,8 +87,8 @@ export const CaseTriage: React.FC<{
         <span className="cpm-field__label">Profile</span>
         <select className="cpm-select" value={windowKind}
           onChange={e => setParams(p => { p.set('profile', e.target.value); p.delete('window'); return p; }, { replace: true })}>
-          <option value="24h">24h fused</option>
           <option value="12h">12h fused</option>
+          <option value="24h">24h fused</option>
         </select>
       </label>
       {mode === 'historical' && (

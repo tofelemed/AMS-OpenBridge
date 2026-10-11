@@ -240,8 +240,8 @@ export const LoopWorkspace: React.FC<{
       <div className="cpm-tabpanel" role="tabpanel" aria-label={`${tab} for ${loop.loopId}`}>
         {tab === 'Summary' && <SummaryTab loop={loop} windowKind={windowKind} />}
         {tab === 'Signals' && <SignalsTab loop={loop} />}
-        {tab === 'Calculations' && <CalculationsTab loop={loop} />}
-        {tab === 'Relationships' && <RelationshipsTab loop={loop} />}
+        {tab === 'Calculations' && <CalculationsTab loop={loop} pageWindowKind={windowKind} />}
+        {tab === 'Relationships' && <RelationshipsTab loop={loop} windowKind={windowKind} />}
         {tab === 'History' && <HistoryTab loop={loop} />}
       </div>
     </section>

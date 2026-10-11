@@ -10,6 +10,8 @@
  */
 import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import WindowKindToggle from './explorer/summary/WindowKindToggle';
+import { WINDOW_KINDS, useWindowKind } from './useWindowKind';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, PanelHead, TonePill, WorkspaceHeader, toneFor, fmtDateTime,
@@ -37,6 +39,8 @@ const isNoVerdict = (e: unknown) => e instanceof ApiError && e.status === 404;
 
 export const CpmCalculations: React.FC = () => {
   const [params, setParams] = useSearchParams();
+  // CHG-089: the fused window (?window=, 12h default)
+  const [windowKind, setWindowKind] = useWindowKind('window');
   const [search, setSearch] = useState('');
   // C5 — the gate filter LIVES in the URL, not in state seeded from it once.
   // The old useState initializer meant the command palette's ?gate=G7 did
@@ -64,9 +68,9 @@ export const CpmCalculations: React.FC = () => {
     ? loops.find(l => l.loopId.toLowerCase() === loopId.toLowerCase())
     : undefined;
 
-  const gates = useLatestGates(loop?.loopId, '24h');
+  const gates = useLatestGates(loop?.loopId, windowKind);
   const shortKpis = useCpmKpis(loop?.loopId, '60m', 1);
-  const longKpis = useCpmKpis(loop?.loopId, '24h', 1);
+  const longKpis = useCpmKpis(loop?.loopId, windowKind, 1);
   const catalogue = useCpmCalculations();
   // Honest window labels (audit.md §4.5): "60m" alone read as a tumbling
   // minute-hour; it is a sliding window. The shape comes from the served
@@ -173,8 +177,9 @@ export const CpmCalculations: React.FC = () => {
       <WorkspaceHeader
         page="/cpm/calculations"
         title="Calculations"
+        actions={<WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />}
       />
-      <LoopContextBar loopId={loop?.loopId ?? loopId} period={{ label: 'Latest results · 24h fused window', start: gates.data?.windowStart, end: gates.data?.windowEnd }} />
+      <LoopContextBar loopId={loop?.loopId ?? loopId} period={{ label: `Latest results · ${windowKind} fused window`, start: gates.data?.windowStart, end: gates.data?.windowEnd }} />
 
       <section className="cpm-surface">
         {/* SME #21 (CHG-057): with a loop already chosen (carried from the menu) the step no longer asks for one */}
@@ -281,7 +286,7 @@ export const CpmCalculations: React.FC = () => {
                   timestamp reads as current on a stale historian. */}
               <span className="cpm-event-row__sub">
                 {m.source === 'short' ? windowShapeOf('60m')
-                  : m.source === 'long' ? windowShapeOf('24h') : '24h fused'}
+                  : m.source === 'long' ? windowShapeOf(windowKind) : `${windowKind} fused`}
                 {wEnd ? ` · ends ${fmtDateTime(wEnd)}` : ''}
               </span>
               <TonePill tone={st.tone}>{st.label}</TonePill>

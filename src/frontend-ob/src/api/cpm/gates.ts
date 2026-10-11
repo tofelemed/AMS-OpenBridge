@@ -83,7 +83,7 @@ export interface CpmGateMatrix {
   };
 }
 
-export const getLatestGates = (loopId: string, windowKind = '24h', signal?: AbortSignal) =>
+export const getLatestGates = (loopId: string, windowKind = '12h', signal?: AbortSignal) =>
   apiJson<CpmGateMatrix>(
     `${BASE}/loops/${encodeURIComponent(loopId)}/gates/latest?windowKind=${windowKind}`, { signal });
 
@@ -116,7 +116,7 @@ export interface CpmWindowSummary {
 export interface WindowSummaryOptions { to?: string; limit?: number; includeInsufficient?: boolean }
 
 /** Every evaluated window of the loop, newest first; `to` pages backwards from the oldest loaded window. */
-export const getWindowSummaries = (loopId: string, windowKind = '24h', opts: WindowSummaryOptions = {}, signal?: AbortSignal) => {
+export const getWindowSummaries = (loopId: string, windowKind = '12h', opts: WindowSummaryOptions = {}, signal?: AbortSignal) => {
   const params = new URLSearchParams({ windowKind, limit: String(opts.limit ?? 100), projection: 'summary', includeInsufficient: String(opts.includeInsufficient ?? true) });
   if (opts.to) params.set('to', opts.to);
   return apiJson<{ loopId: string; windowKind: string; count: number; projection: string; windows: CpmWindowSummary[] }>(
@@ -124,7 +124,7 @@ export const getWindowSummaries = (loopId: string, windowKind = '24h', opts: Win
 };
 
 export const getGateHistory = (
-  loopId: string, windowKind = '24h', from?: string, to?: string, limit = 100, signal?: AbortSignal, includeInsufficient = false,
+  loopId: string, windowKind = '12h', from?: string, to?: string, limit = 100, signal?: AbortSignal, includeInsufficient = false,
   /** CHG-066: LIVE results only (server default); 'ANY' also returns REPLAY / SHADOW rows (the Replay page). */
   purpose: 'LIVE' | 'ANY' = 'LIVE',
 ) => {

@@ -26,7 +26,7 @@ const acquisitionText = (a: NonNullable<CpmLoop['model']>['acquisition'] | null 
 
 export const LoopModelCard: React.FC<{ loop: CpmLoop; workbenchHref?: string; workbenchTitle?: string }> = ({
   loop,
-  workbenchHref = evidenceHref(loop.loopId, { kind: '24h' }),
+  workbenchHref = evidenceHref(loop.loopId, { kind: '12h' }),   // CHG-089: 12h default
   workbenchTitle = 'Open the newest window with run identity in the Evidence Workbench',
 }) => {
   const navigate = useNavigate();

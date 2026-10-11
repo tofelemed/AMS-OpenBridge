@@ -68,7 +68,7 @@ export const CpmInvestigation: React.FC = () => {
   // Plant scope (A6.3): case list narrows to a section/unit.
   const scope = useCpmScope();
   // CHG-065: the case chips count the same window kind the page shows (was always 24h)
-  const rankings = useFleetRankings(scope.params, params.get('profile') === '12h' ? '12h' : '24h', 'confidence', 200);
+  const rankings = useFleetRankings(scope.params, params.get('profile') === '24h' ? '24h' : '12h', 'confidence', 200);
 
   const caseFilter = params.get('case');
   const allLoops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
@@ -89,7 +89,7 @@ export const CpmInvestigation: React.FC = () => {
   // query set for a loop nobody asked for.
   const loopId = params.get('loop') ?? undefined;
   const mode = params.get('mode') === 'historical' ? 'historical' : 'live';
-  const windowKind = params.get('profile') === '12h' ? '12h' : '24h';
+  const windowKind = params.get('profile') === '24h' ? '24h' : '12h';
 
   const latest = useLatestGates(loopId, windowKind);
   const history = useGateHistory(loopId, windowKind);

@@ -103,16 +103,17 @@ const ShortWindowLatest: React.FC<{ loop: CpmLoop; windowKind: string }> = ({ lo
   );
 };
 
-export const CalculationsTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
+/** `pageWindowKind`: the Explorer's fused window (CHG-089, 12h default) — the tab opens on it; its own picker can still
+ *  choose another fused or short window for this tab. */
+export const CalculationsTab: React.FC<{ loop: CpmLoop; pageWindowKind?: string }> = ({ loop, pageWindowKind = '12h' }) => {
   const navigate = useNavigate();
   const resolutions = useCpmResolutions();
   const firesOn = resolutions.data?.fusion.firesOn ?? ['12h', '24h'];
   const specs = windowSpecsOf(resolutions.data, () => 0);
   const shortSpecs = specs.filter(w => w.tier === 'short');
-  // Default = the largest fusion window (the richest verdict), from the served
-  // contract — not a hardcoded literal.
+  // Default = the page's fused window (CHG-089: 12h unless 24h was chosen at the top), when the engine serves it.
   const [windowKind, setWindowKind] = React.useState<string | null>(null);
-  const active = windowKind ?? firesOn[firesOn.length - 1] ?? '24h';
+  const active = windowKind ?? (firesOn.includes(pageWindowKind) ? pageWindowKind : firesOn[0]) ?? '12h';
   const isFused = firesOn.includes(active);
   const firesOnLabel = firesOn.join(' / ');
 

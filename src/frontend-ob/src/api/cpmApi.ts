@@ -392,7 +392,7 @@ function applyScope(params: URLSearchParams, scope?: CpmFleetScope | string): vo
   if (s.unit) params.set('unit', s.unit);
 }
 
-export const getFleetSummary = (scope?: CpmFleetScope | string, windowKind = '24h') => {
+export const getFleetSummary = (scope?: CpmFleetScope | string, windowKind = '12h') => {
   const params = new URLSearchParams({ windowKind });
   applyScope(params, scope);
   return apiJson<CpmFleetSummary>(`${BASE}/fleet/summary?${params.toString()}`);
@@ -479,7 +479,7 @@ export type CpmRankingOrder = 'confidence' | 'error' | 'mae' | 'effort' | 'prior
 export type CpmHealthFilter = 'missing-binding' | 'stale-collection' | 'active-affected';
 
 export const getFleetRankings = (
-  scope?: CpmFleetScope | string, windowKind = '24h', limit = 50, orderBy: CpmRankingOrder = 'confidence',
+  scope?: CpmFleetScope | string, windowKind = '12h', limit = 50, orderBy: CpmRankingOrder = 'confidence',
   health?: CpmHealthFilter,
 ) => {
   const params = new URLSearchParams({ windowKind, limit: String(limit), orderBy });
@@ -517,7 +517,7 @@ export interface CpmHeatmapLoop {
  * in scope; `truncated` says the payload was cut — the matrix must then say so instead of
  * answering "no loops match" for a loop that exists.
  */
-export const getFleetHeatmap = (scope?: CpmFleetScope | string, windowKind = '24h', limit = 2000, health?: CpmHealthFilter) => {
+export const getFleetHeatmap = (scope?: CpmFleetScope | string, windowKind = '12h', limit = 2000, health?: CpmHealthFilter) => {
   const params = new URLSearchParams({ windowKind, limit: String(limit) });
   applyScope(params, scope);
   if (health) params.set('health', health);   // CHG-066: same server-side filter as the rankings

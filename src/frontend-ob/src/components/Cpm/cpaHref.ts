@@ -76,10 +76,13 @@ export const calculationsHref = (loop: string) => build('/cpm/calculations', { l
 /** Pipeline Health has no loop scope: it explains freshness for the whole engine. */
 export const pipelineHref = () => '/cpm/pipeline';
 
-/** CHG-082: a KPI's drill-down — the loops behind one Overview figure, in the same plant scope (`reason` narrows not-assessable). */
-export const kpiHref = (kpi: string, scope: { site?: string; area?: string; unit?: string } = {}, reason?: string | null) =>
-  build('/cpm/kpi', { kpi, reason, site: scope.site, area: scope.area, unit: scope.unit });
+/** CHG-089: a plant scope plus the fused window kind the Overview and the KPI page count on (`?window=`). */
+type KpiLinkScope = { site?: string; area?: string; unit?: string; windowKind?: string };
 
-/** CHG-085: back to the Overview in the same plant scope. */
-export const overviewHref = (scope: { site?: string; area?: string; unit?: string } = {}) =>
-  build('/cpm', { site: scope.site, area: scope.area, unit: scope.unit });
+/** CHG-082: a KPI's drill-down — the loops behind one Overview figure, in the same plant scope and window (`reason` narrows not-assessable). */
+export const kpiHref = (kpi: string, scope: KpiLinkScope = {}, reason?: string | null) =>
+  build('/cpm/kpi', { kpi, reason, site: scope.site, area: scope.area, unit: scope.unit, window: scope.windowKind });
+
+/** CHG-085: back to the Overview in the same plant scope and window. */
+export const overviewHref = (scope: KpiLinkScope = {}) =>
+  build('/cpm', { site: scope.site, area: scope.area, unit: scope.unit, window: scope.windowKind });

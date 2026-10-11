@@ -40,7 +40,7 @@ import { codeLabel } from '../vocabulary';
 import { inputContextOf } from '../optionalInputs';
 import { effectiveInputFlags } from '../inputLimits';
 
-const DEFAULT_KIND = '24h';
+const DEFAULT_KIND = '12h';   // CHG-089
 
 export const GateEvidenceWorkspace: React.FC = () => {
   const [params, setParams] = useSearchParams();

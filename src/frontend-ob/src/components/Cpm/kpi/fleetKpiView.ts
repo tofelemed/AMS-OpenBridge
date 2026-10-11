@@ -12,7 +12,8 @@ export interface KpiGroup { id: 'headline' | 'conditions' | 'coverage'; title: s
 
 /** Tiles in three rows: how the fleet performs, what is wrong, and what could not be judged. */
 export const KPI_GROUPS: KpiGroup[] = [
-  { id: 'headline', title: 'How the fleet performs', keys: ['acceptable', 'normal-mode'] },
+  // CHG-089: "In auto mode" (normal-mode) and the new "In manual mode" side by side
+  { id: 'headline', title: 'How the fleet performs', keys: ['acceptable', 'normal-mode', 'manual-mode'] },
   { id: 'conditions', title: 'What needs a look', keys: ['oscillating', 'valve', 'effort', 'saturated'] },
   { id: 'coverage', title: 'What could not be judged', keys: ['not-assessable', 'stale', 'never-evaluated'] },
 ];

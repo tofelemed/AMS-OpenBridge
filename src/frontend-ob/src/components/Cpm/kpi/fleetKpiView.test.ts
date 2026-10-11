@@ -48,6 +48,6 @@ describe('fleet KPI view (CHG-082)', () => {
   it('groups cover every Overview figure once', () => {
     const keys = KPI_GROUPS.flatMap(g => g.keys);
     expect(new Set(keys).size).toBe(keys.length);
-    expect(keys).toEqual(['acceptable', 'normal-mode', 'oscillating', 'valve', 'effort', 'saturated', 'not-assessable', 'stale', 'never-evaluated']);
+    expect(keys).toEqual(['acceptable', 'normal-mode', 'manual-mode', 'oscillating', 'valve', 'effort', 'saturated', 'not-assessable', 'stale', 'never-evaluated']);
   });
 });

@@ -148,8 +148,8 @@ describe('GateEvidenceWorkspace', () => {
     expect(parseSelection(new URLSearchParams('loop=FIC10302'))).toBeNull();
   });
 
-  it('a loop alone lists its 24h windows and lands on the newest run with identity (URL replaced), without /gates/latest', async () => {
-    renderAt('?loop=FIC10302');
+  it('a loop with kind=24h lists its 24h windows (CHG-089: 12h is the default) and lands on the newest run with identity (URL replaced), without /gates/latest', async () => {
+    renderAt('?loop=FIC10302&kind=24h');
     await waitFor(() => expect(screen.getByTestId('loc').textContent).toContain('methodRun=g15-run'));
     expect(screen.getByTestId('loc').textContent).toContain('gate=G15');
     expect(urls().some(u => u.includes('/gates?') && u.includes('projection=summary') && u.includes('includeInsufficient=true'))).toBe(true);
