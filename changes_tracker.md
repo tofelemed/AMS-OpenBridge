@@ -4572,3 +4572,11 @@ horizontal scroll). Lab started only Postgres (host 5434, ProAct holds 5433) + R
 **Scripts to run:** integrity → rollback image list → source extract → load the two images → `deploy.sh --prod` (recreates
 cplm-api and ams-frontend; Flink untouched) → users Ctrl+F5. Check: `GET /api/v1/cpm/fleet/kpis` → `basis.windowKind = 12h`,
 `?windowKind=24h` → 24h, `?windowKind=7d` → 400; Overview shows the 12h / 24h switch and "In manual mode".
+
+## DEPLOYED - Release v2.7.1 (2026-10-11 06:40 UTC) and v2.7.2 (2026-10-11 21:16 UTC) at Marun
+
+**v2.7.1 live:** CHG-077..088 - Flink (jar `5ad6d63e`), cplm-api, traverse-auth-service, ams-frontend; `cpm-14` run (SuperAdmin `superadmin`), `republish-all-loops.py --apply`. Proven: build `5ad6d63e` on every CPLM job's results; derived NOT_APPLICABLE loop without NO_VP; 0 SuperAdmin-only keys on Admin after an auth restart. **Trap found:** `cpm-14` inserts the SuperAdmin only when absent and never updates its password - the first run stored the literal `<your-secret>`; reset with `UPDATE users SET password_hash = crypt(:'pw', gen_salt('bf', 10)) WHERE username = 'superadmin'`. Fix cpm-14 (or its notes) before the next new server.
+
+**v2.7.2 live:** CHG-089 - cplm-api + ams-frontend, no Flink change. Proven: `fleet/kpis` default 12h, `?windowKind=24h` 24h, `7d` 400; both containers on the new images; 7 jobs RUNNING; 0 error lines.
+
+**Same evening:** the disk fell to 2.5 GB from a pgAdmin backup + dump copies + a SQL Server restore (not ours) - `prod_decision.md` section 6.
