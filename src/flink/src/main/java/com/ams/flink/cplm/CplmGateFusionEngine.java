@@ -159,7 +159,7 @@ public final class CplmGateFusionEngine implements Serializable {
 
         boolean hasVp = longD.hasVp;
         result.vpAvailable = hasVp;
-        // CHG-082: a missing VP is a data gap only when the loop is expected to have one.
+        // CHG-088: a missing VP is a data gap only when the loop is expected to have one.
         boolean vpGap = !hasVp && !profile.vpDeclaredAbsent();
         if (vpGap && !result.observabilityFlags.contains("NO_VP")) {
             result.observabilityFlags.add("NO_VP");
@@ -378,7 +378,7 @@ public final class CplmGateFusionEngine implements Serializable {
         result.severity = "LOW";
         result.gate14Status = "NOT_APPLICABLE";
         v2.confirmation = conf.notApplicable();
-        result.insufficientEvidenceReason = DiagnosisBands.insufficientEvidenceReason(result, !vpGap);   // CHG-082
+        result.insufficientEvidenceReason = DiagnosisBands.insufficientEvidenceReason(result, !vpGap);   // CHG-088
     }
 
     /**

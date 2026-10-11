@@ -18,7 +18,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
- * CHG-082: a loop DECLARED without a valve position (registry engineering.vpApplicability NOT_APPLICABLE /
+ * CHG-088: a loop DECLARED without a valve position (registry engineering.vpApplicability NOT_APPLICABLE /
  * NOT_INSTALLED, broadcast on cplm.loop.engineering) has no VP data gap: no NO_VP flag, G14 NOT_APPLICABLE,
  * no "bind VP" advice. Valve hypotheses are still ranked but top out at SUSPECTED (0.89): without a VP
  * nothing can confirm a final-element fault (R02). EXPECTED and unmapped keeps today's behaviour.

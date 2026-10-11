@@ -54,6 +54,7 @@ const CpmLoopRegistry  = React.lazy(() => import('./components/Cpm/LoopRegistry'
 const CpmEvents        = React.lazy(() => import('./components/Cpm/CpmEvents'));
 const CpmOverview      = React.lazy(() => import('./components/Cpm/CpmOverview'));
 const CpmPerformance   = React.lazy(() => import('./components/Cpm/CpmPerformance'));
+const CpmKpiDrilldown  = React.lazy(() => import('./components/Cpm/CpmKpiDrilldown'));   // CHG-082
 const CpmExplorer      = React.lazy(() => import('./components/Cpm/CpmExplorer'));
 const CpmCalculations  = React.lazy(() => import('./components/Cpm/CpmCalculations'));
 const CpmHistorical    = React.lazy(() => import('./components/Cpm/CpmHistorical'));
@@ -436,6 +437,7 @@ const App: React.FC = () => {
                       {/* ── Loop Performance (CPLM) ─────────────────── */}
                       <Route path="/cpm"             element={<RequirePermission permission="analytics.view"><CpmOverview /></RequirePermission>} />
                       <Route path="/cpm/performance" element={<RequirePermission permission="analytics.view"><CpmPerformance /></RequirePermission>} />
+                      <Route path="/cpm/kpi"         element={<RequirePermission permission="analytics.view"><CpmKpiDrilldown /></RequirePermission>} />
                       <Route path="/cpm/explorer"     element={<RequirePermission permission="analytics.view"><CpmExplorer /></RequirePermission>} />
                       <Route path="/cpm/calculations" element={<RequirePermission permission="analytics.view"><CpmCalculations /></RequirePermission>} />
                       <Route path="/cpm/historical" element={<RequirePermission permission="analytics.view"><CpmHistorical /></RequirePermission>} />

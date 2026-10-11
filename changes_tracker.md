@@ -4369,14 +4369,127 @@ The lab superadmin's password is in `infra/docker/.env` (`LAB_SUPERADMIN_PASSWOR
 - **Deferred (user, 2026-10-10):** Overview operating-picture KPIs ("Healthy 0": HEALTHY maps only NORMAL / NONE / HEALTHY, which the
   fusion never writes; STALE mixes "no fresh result" with "insufficient data") — more research first, then its own change.
 
-## CHG-082 — The engine reads the VP declaration: a loop without a valve position gets no NO_VP, G14 "not applicable", valve calls stay suspected (2026-10-10)
+## CHG-082 — Overview KPIs, Phase 1: one classification behind every KPI tile and its drill-down (2026-10-10)
+
+**Source:** user, 2026-10-10 ("every kpi should have drilldown — prove why it is like this"); rules and evidence in
+`kpi_calculation_logic/KPI-LOGIC.md` (Phase 0: commits 85aa39fe, 43a1ac87). **Scope:** **`cplm-api`** `Data/FleetKpiSql.cs`,
+`Services/Kpi/FleetKpiModels.cs`, `FleetKpiClassifier.cs`, `FleetKpiRows.cs`, `Controllers/CpmFleetKpiController.cs`
+(+ `tests/cplm-api.Tests/FleetKpiClassifierTests.cs`, `FleetKpiEndpointTests.cs`). **No schema, no UI yet** (Phases 2–5). Commit 38dc60d5.
+
+**What it is.** `GET /api/v1/cpm/fleet/kpis` and `GET /api/v1/cpm/fleet/kpis/loops?kpi=` (plant scope, paging, search). Each
+monitored loop is classified once from its newest LIVE 24 h result:
+- state: assessed / not assessable (with reason) / stale (> 1 h) / never evaluated;
+- outcome: acceptable / no fault but out of mode / finding (suspected + confirmed) / symptom only;
+- conditions: in normal mode (≥ 95 % AUTO / CASCADE), oscillating, valve, effort, saturated (> 10 % at an OP limit).
+Every tile count and its drill-down come from the same classification; each drill-down row carries the deciding value against its
+threshold, the window and the inputs to reproduce it. Thresholds: config `Cpm:Kpi:*`, decided against published practice
+(Emerson guidance, Bayer / PlantTriage, OPC UA, ISA-18.2, Horch) — `KPI-LOGIC.md` section 6.
+
+**Tests.** Unit: every rule edge (95 % exactly, 10 % exactly, 1 h exactly, each not-assessable reason, each band) and reconciliation
+(states sum to monitored, outcomes sum to assessed, each figure = its list). Lab DB: 7 probe loops → figures equal drill-down totals.
+Lab-registry test classes `FleetStatusSqlTests`, `FleetLatestSqlTests`, `KpiConsistencyTests`, `FleetKpiEndpointTests` now run in the
+existing `instrument-bindings-lab` collection (they failed when run in parallel with registry-writing tests). Full suite: the KPI and
+fleet tests pass; two failures remain in code not touched here and fail alone too — `FleetPrioritySqlTests` (lab DB read timeout under
+load) and `MethodRunLookupIndexTests` (plan assertion vs the lab's compressed Timescale chunk).
+**Lab (rebuilt cplm-api):** 231 monitored → 165 stale (the lab feed is stopped), 65 never evaluated, stale drill-down 165 rows; query
+0.27–0.59 s on a quiet DB (two probes per loop), behind the 15 s fleet cache.
+
+## CHG-083 / CHG-084 / CHG-085 — Overview KPIs, Phases 2–3 and the redesign: cards, drill-down, change since yesterday (2026-10-10)
+
+**Source:** user, 2026-10-10 (every KPI with a drill-down that proves it; then "design the KPIs like the attached image" and "properly
+design the KPI detail page"). Rules: `kpi_calculation_logic/KPI-LOGIC.md` (sections 3, 6, 10). **Scope:** **`ams-frontend`**
+`api/cpm/fleetKpis.ts`, `components/Cpm/kpi/*` (`fleetKpiView`, `kpiMeta`, `kpiProof`, `KpiCard`, `KpiRowsTable`, `useFleetKpis` + tests),
+`overview/OperatingPicture.tsx`, `CpmKpiDrilldown.tsx` (route `/cpm/kpi`), `CpmOverview.tsx`, `cpaHref.ts`, `nav/cpmTasks.ts`, `App.tsx`,
+`styles/cpm-loop-summary.css` (removed: `overview/operatingStates.ts` + test); **`cplm-api`** `FleetKpiSql` (`@asOf`),
+`CpmFleetKpiController` (`previous`), classifier outcome `NoFaultLimited`. Commits f074a02e, 61620920, 2526efaf.
+
+**What changed.**
+- CHG-083 (Overview): the operating picture reads `GET /fleet/kpis` — six compact cards (performing acceptably, in normal mode,
+  oscillating, valve, effort, saturated), each with icon, change since 24 h ago, count, label and share of a named denominator; the
+  whole card opens its drill-down. Coverage row: not assessable (with reasons) / stale / never evaluated + the state bar (every
+  monitored loop in one segment, legend links). Replaces the CHG-043 states ("Healthy" was always 0).
+- CHG-084 (drill-down `/cpm/kpi?kpi=&reason=&site=`): back link, summary cards (number + change, threshold, basis, computed), proof
+  panel (rule, formula, why + reference), the loops behind the number (server total = card count, "matches the card") with the
+  measured value on a bar against the threshold, verdict, window, inputs to check next and proof links (Loop, Window, Calculations,
+  Trend); reason filter for not assessable; search; paging; cards under 760 px.
+- CHG-085 (design + change): KPI cards per the user's reference image (OpenBridge icons and tokens); cplm-api `fleet/kpis.previous`
+  = the same classification as of now − 24 h; the card shows the change of the share in points, green / red by the KPI's good
+  direction.
+- Rule fix found in the lab: a no-fault loop at an OP limit (> 10 %) is not "performing acceptably" (outcome *No fault, but out of
+  mode or at limit*). On KPI pages `NO_CALL` / `INSUFFICIENT_EVIDENCE` read "No fault found" (the app-wide vocabulary still says
+  "Not evaluated yet" for `NO_CALL` — open, to decide).
+
+**Tests.** Frontend: `fleetKpiView`, `kpiProof`, `kpiMeta` tests (bar sums to monitored, tones, wording, deciding value vs threshold,
+"not measured" never 0, proof links, change direction per KPI); full suite 445 / 446 (the known EventDetail timing flake passes
+alone); lint, tsc, build clean. cplm-api: `FleetKpi*` 24 / 24 (previous snapshot test added).
+**Lab (2026-10-10):** demo site `kpi_demo` (`kpi_calculation_logic/sql/03-lab-kpi-demo-loops.sql`, removable with `-v action=cleanup`):
+10 loops → acceptable 2, in normal mode 6 / 7 (−14 pts), oscillating 1 / 6 (−17 pts, green), valve 1 / 6 (+17 pts, red), saturated
+1 / 7, not assessable 2 (incomplete 1, manual 1), stale 1, never 1; drill-downs list exactly those loops with "Sample completeness
+66 % — below 95 %", "Time in AUTO 12 % — below 95 %", "Evidence score 96 — at or above 75"; Window link opens the Window Inspector on
+that window. Checked at 1440 / 1000 / 768 / 390, day and night, no horizontal scroll.
+
+**CHG-081 fix found here (same release, unreleased change):** the lab Admin had all 38 keys back — auth-service applies
+`database/schema.sql` on every start and it granted Admin every key, undoing cpm-14. Every "Admin gets every key" grant (schema.sql,
+database/scripts 17 / 33 / 37 / 47 / 59, migration/sql/03, cpm-08) now leaves the SuperAdmin-only keys out once a SuperAdmin role
+exists and grants SuperAdmin every key; the Engineer / Supervisor `cpm.config.*` grants in 59 / cpm-08 skip too. Lab: cpm-14 →
+auth-service rebuilt and restarted (schema applied) → Admin 0 platform keys; cpm-08 re-run → Admin 0, Engineer 0, SuperAdmin 10.
+Commit 7d29e6cd. **Release v2.7.1** therefore also updates **`traverse-auth-service`** (schema.sql) — already listed for CHG-081.
+
+## CHG-086 — Overview KPIs, Phase 4: per-loop KPI cards on the Loop Explorer (2026-10-10)
+
+**Source:** user, 2026-10-10 ("start next phase"); `kpi_calculation_logic/KPI-LOGIC.md` section 3.3. **Scope:** **`cplm-api`**
+`Controllers/CpmLoopKpiController.cs` (`GET /api/v1/cpm/loops/{id}/kpi-summary`) + `tests/cplm-api.Tests/LoopKpiEndpointTests.cs`,
+`RouteUniquenessTests.cs`; **`ams-frontend`** `api/cpm/loopKpis.ts`, `components/Cpm/kpi/loopKpiView.ts` (+ test),
+`explorer/summary/LoopKpiCards.tsx`, `explorer/SummaryTab.tsx`, `styles/cpm-loop-summary.css`. No schema. Commit 55157646.
+
+**What it is.** Nine compact cards on the Explorer summary for the loop's newest 24 h window: time in normal mode, good-error time,
+MAE and 2σ PV variability as % of the PV span, time at an OP limit (with the limit basis), OP travel, reversals, setpoint changes, data
+coverage. Judged by the engine's gate (G0 / G1 / G3 / G4) or the fleet rule; "not measured" never 0; change vs the window 24 h earlier;
+each card links to its proof (Calculations, trend over the window, Window Inspector). Icons: OpenBridge (same card as the Overview).
+Also: the KPI change on every card is shown as a plain % (no "pts"), and each Overview KPI got an icon that depicts it (the valve KPI
+uses OpenBridge's own valve symbol) — commit 5335ea1e.
+
+**Found while testing (fixed before commit).** The first route, `GET /loops/{id}/kpis`, collided with the existing KPI stream
+(`CpmAnalyticsController`) — both answered 500 (AmbiguousMatchException); the unit test called the controller directly and could not see
+it. Renamed to `/kpi-summary`; new `RouteUniquenessTests` fails on any duplicate HTTP method + route template in cplm-api (proven to fail
+on the collision).
+
+**Tests.** cplm-api: `LoopKpiEndpointTests` 2 / 2, `RouteUniquenessTests` 1 / 1. Frontend: `loopKpiView.test.ts` (engineering values,
+gate judgement, not measured, no span, change direction); full suite 449 / 449; lint, tsc, build clean. **Lab:** demo loop KDEMO_OK1
+(`03-lab-kpi-demo-loops.sql`): 99 % normal mode (G1 pass, +6 %), good-error 86 % (+25 %), MAE 1.5 % of span (1.80 m3/h, G3 pass), 2σ
+3.5 %, 0 % at limit, OP travel 640 %/day and 9.5 reversals/h (G4 warn), coverage 99 % (17107 of 17280, G0 pass); existing
+`/loops/{id}/kpis` still 200.
+
+## CHG-087 — Overview KPIs, Phase 5: 14-day trend on the KPI detail page, each day provable (2026-10-10)
+
+**Source:** user, 2026-10-10 (Phase 5 approved; placed on the detail page, no Overview sparklines). `KPI-LOGIC.md` section 11.
+**Scope:** **`cplm-api`** `Controllers/CpmFleetKpiController.cs` (`GET /fleet/kpis/trend`, `asOf` on `/fleet/kpis/loops`) +
+`FleetKpiEndpointTests`; **`ams-frontend`** `api/cpm/fleetKpis.ts`, `kpi/useFleetKpis.ts`, `kpi/kpiTrend.ts` (+ test),
+`kpi/KpiTrendChart.tsx`, `CpmKpiDrilldown.tsx`. No schema. Commit 07805bb7.
+
+**What it is.** Each KPI's last 14 days as bars (same time of day, same rules, rows of that instant); click a day → the loop list shows
+the loops that day counted ("matches that day"); "Back to now". Today's bar is the cards' live snapshot. A day with nothing to judge
+is "no data", never 0 %.
+
+**Found while testing (fixed before commit).** Today's point was first classified at the 15-min slot and missed rows written after it
+(0 assessed while the card said 6); today now uses the cards' live snapshot.
+
+**Tests.** cplm-api `FleetKpi*` 25 / 25 (every trend point = its own day's drill-down for every KPI; asOf outside 14 days → 400).
+Frontend `kpiTrend.test.ts`; full suite 452 / 452; lint, tsc, build clean. **Lab:** whole-plant trend 2.9 s cold / 0.23 s cached;
+kpi_demo Oscillating: today 1 of 6 ("matches the card"), click 9 Oct → 2 loops "as of 9 Oct 21:30" ("matches that day");
+390 px night, no horizontal scroll.
+
+**Release v2.7.1 — updated services so far:** `ams-frontend` (CHG-077..087), `cplm-api` (CHG-077, 078, 082..087),
+`traverse-auth-service` (CHG-081, incl. the schema.sql restart fix), `display-service` (CHG-081); migration `ops/cpm-14-superadmin-role.sql`.
+
+## CHG-088 — The engine reads the VP declaration: a loop without a valve position gets no NO_VP, G14 "not applicable", valve calls stay suspected (2026-10-10)
 
 **Source:** engine follow-up of CHG-077 (ams-open-65 hand-over, user-approved: gates are this session's); decision on valve claims by the
 user, 2026-10-10: "when we don't have VP we still calculate these, but label them suspected, not confirmed". **Scope:** **`cplm-api`**
 `Services/Registry/CpmLoopRegistryService.Bulk.cs` (`EngineeringParameter`), `CpmLoopRegistryService.Evidence.cs` (both publish paths read
 `command_path`) + `tests/cplm-api.Tests/EngineeringBroadcastTests.cs`; **`flink-jobmanager`** (jar) `CplmLoopDynamicsProfile.java`,
 `CplmDynamicsParameterSetSupport.java`, `engine/LongDiagnosticsCalculator.java`, `fusion/Confirmation.java`, `CplmGateFusionEngine.java`,
-`fusion/DiagnosisBands.java` + `src/test/.../fusion/VpApplicabilityTest.java`. **No schema.**
+`fusion/DiagnosisBands.java` + `src/test/.../fusion/VpApplicabilityTest.java`. **No schema.** **Number:** built and lab-tested as CHG-082 (commit a7b8f884 and its lab-proof commit carry that working number); renumbered CHG-088 at the merge because CHG-082..087 are the Overview KPI entries.
 
 **What was wrong.** CHG-077 taught the registry and the UI that a loop can have no valve position by design, but the engine never heard it:
 `cplm.loop.engineering` carried only OP/PV ranges (and nothing at all for a loop without a range), so the long and fusion jobs still raised

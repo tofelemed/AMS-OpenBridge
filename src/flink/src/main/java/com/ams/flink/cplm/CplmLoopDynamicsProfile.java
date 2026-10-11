@@ -159,10 +159,10 @@ public final class CplmLoopDynamicsProfile implements Serializable {
     public boolean pvRangeDeclared = false;
     /** v2.5 - true when the loop DECLARED its OP range; limits are then the declared min/max (R08, NR-024). */
     public boolean opRangeDeclared = false;
-    /** CHG-082 - the loop's VP declaration (cplm.loop.engineering): EXPECTED | NOT_INSTALLED | NOT_APPLICABLE. */
+    /** CHG-088 - the loop's VP declaration (cplm.loop.engineering): EXPECTED | NOT_INSTALLED | NOT_APPLICABLE. */
     public String vpApplicability = "EXPECTED";
 
-    /** CHG-082 - declared without a valve position: a missing VP is then no data gap (no NO_VP, G14 NOT_APPLICABLE). */
+    /** CHG-088 - declared without a valve position: a missing VP is then no data gap (no NO_VP, G14 NOT_APPLICABLE). */
     public boolean vpDeclaredAbsent() {
         return "NOT_INSTALLED".equals(vpApplicability) || "NOT_APPLICABLE".equals(vpApplicability);
     }

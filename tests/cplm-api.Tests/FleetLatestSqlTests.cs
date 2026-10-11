@@ -15,6 +15,7 @@ using Xunit;
 namespace Traverse.CplmApi.Tests;
 
 [Trait("Category", "Integration")]
+[Collection("instrument-bindings-lab")]   // reads or writes the shared lab registry: serialised with the other lab tests
 public sealed class FleetLatestSqlTests : IAsyncLifetime
 {
     private NpgsqlDataSource _db = null!;

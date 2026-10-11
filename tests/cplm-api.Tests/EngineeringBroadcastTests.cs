@@ -1,4 +1,4 @@
-// CHG-082: the cplm.loop.engineering broadcast carries the loop's VP declaration so the Flink engine stops
+// CHG-088: the cplm.loop.engineering broadcast carries the loop's VP declaration so the Flink engine stops
 // flagging NO_VP (and stops asking to "bind VP") on a loop that has no valve position by design. It is sent for
 // every loop now - before, a loop without an OP/PV range got no record at all, so the engine could never learn it.
 using System.Text.Json;

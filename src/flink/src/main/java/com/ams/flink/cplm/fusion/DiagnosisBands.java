@@ -74,7 +74,7 @@ public final class DiagnosisBands {
 
     /**
      * Human-readable zero-dead-end copy for G15 INSUFFICIENT_EVIDENCE (UI / KPI aggregation).
-     * {@code vpOk}: a VP is present, or the loop is declared without one (CHG-082) - only a missing EXPECTED VP is named.
+     * {@code vpOk}: a VP is present, or the loop is declared without one (CHG-088) - only a missing EXPECTED VP is named.
      */
     public static String insufficientEvidenceReason(CplmGateResult result, boolean vpOk) {
         LinkedHashSet<String> parts = new LinkedHashSet<>();

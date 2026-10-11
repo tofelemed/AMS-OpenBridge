@@ -352,7 +352,7 @@ public sealed partial class CpmLoopRegistryService
     /// keys present — so a loop that declares an OP range but no PV range keeps the
     /// default PV band (0.5 EU), exactly as before.
     ///
-    /// CHG-082: always sent, because it carries <c>vpApplicability</c> — the declared value, else the
+    /// CHG-088: always sent, because it carries <c>vpApplicability</c> — the declared value, else the
     /// command-path default (<see cref="OptionalInputs.VpApplicability"/>) — so the engine stops flagging
     /// NO_VP on a loop that has no valve position by design. Range keys stay absent when undeclared.
     /// </summary>

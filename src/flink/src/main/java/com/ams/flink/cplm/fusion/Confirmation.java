@@ -44,7 +44,7 @@ public final class Confirmation implements Serializable {
         c.nonFollowingDwellS = longD.vpNonFollowingDwellS;
         c.trackingErrorP95Pp = longD.vpTrackingErrorP95Pp;
         if (!longD.hasVp && profile != null && profile.vpDeclaredAbsent()) {
-            // CHG-082: the loop has no VP by declaration - nothing to confirm with. The final-element cap stays
+            // CHG-088: the loop has no VP by declaration - nothing to confirm with. The final-element cap stays
             // 0.89 (capForFinalElement default): a valve claim on such a loop tops out at SUSPECTED.
             c.state = "NOT_APPLICABLE";
             c.reason = "VP_NOT_APPLICABLE";

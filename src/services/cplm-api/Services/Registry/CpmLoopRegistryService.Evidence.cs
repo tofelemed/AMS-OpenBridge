@@ -182,7 +182,7 @@ public sealed partial class CpmLoopRegistryService
         // P3-8 - broadcast the OP and PV engineering ranges so the engine can normalize a
         // non-0-100 OP (e.g. a 0-1 valve fraction) and scale the good-error band to the
         // PV span before gate evaluation. Merge-only key applied AFTER profile
-        // resolution; it can never clobber the class pack. CHG-082: it also carries vpApplicability.
+        // resolution; it can never clobber the class pack. CHG-088: it also carries vpApplicability.
         if (EngineeringParameter(row.Engineering, row.CommandPath) is { } engParam) parameters.Add(engParam);
         if (modelRow is not null) parameters.Add(ModelParameter(CpmLoopRegistryReads.ReadModel(modelRow)));
 

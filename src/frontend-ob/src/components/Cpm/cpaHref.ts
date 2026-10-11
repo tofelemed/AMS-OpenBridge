@@ -75,3 +75,11 @@ export const calculationsHref = (loop: string) => build('/cpm/calculations', { l
 
 /** Pipeline Health has no loop scope: it explains freshness for the whole engine. */
 export const pipelineHref = () => '/cpm/pipeline';
+
+/** CHG-082: a KPI's drill-down — the loops behind one Overview figure, in the same plant scope (`reason` narrows not-assessable). */
+export const kpiHref = (kpi: string, scope: { site?: string; area?: string; unit?: string } = {}, reason?: string | null) =>
+  build('/cpm/kpi', { kpi, reason, site: scope.site, area: scope.area, unit: scope.unit });
+
+/** CHG-085: back to the Overview in the same plant scope. */
+export const overviewHref = (scope: { site?: string; area?: string; unit?: string } = {}) =>
+  build('/cpm', { site: scope.site, area: scope.area, unit: scope.unit });

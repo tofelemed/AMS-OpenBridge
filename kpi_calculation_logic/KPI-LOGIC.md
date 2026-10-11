@@ -1,6 +1,6 @@
 # Control-loop KPIs — calculation logic, proof and rationale
 
-Status: **Phase 0 (research) — proposal for approval**, 2026-10-10. Nothing here is implemented yet.
+Status: rules approved 2026-10-10 (section 6). Phases 1–5 built and lab-checked (sections 3.3, 8, 10, 11). Open: plant probe (Q5).
 Owner: CPA (cplm-api + frontend). Engine values come from the Flink CPLM jobs and are not changed by this work.
 
 This file is the single reference for every Overview / Performance KPI: what it means, the exact formula, the data it is built
@@ -80,22 +80,25 @@ Assessed is then split: **Performing acceptably** (no finding) / **With a findin
 Each entry: definition · formula · inputs (stored field) · threshold · denominator · why (reference) · drill-down columns (proof).
 
 #### K1 — Performing acceptably ("No fault found")
-- **Definition:** share of monitored loops whose fresh 24 h verdict found no fault, in normal mode, on qualified data.
-- **Formula:** `count(loops: state = Assessed AND diagnosis ∈ {NO_CALL, INSUFFICIENT_EVIDENCE} AND auto_pct ≥ 0.90) / monitored`.
+- **Definition:** share of monitored loops whose fresh 24 h verdict found no fault, in normal mode, not at an OP limit, on qualified data.
+- **Formula:** `count(loops: state = Assessed AND diagnosis ∈ {NO_CALL, INSUFFICIENT_EVIDENCE} AND auto_pct ≥ 0.95 AND saturation_pct ≤ 0.10) / monitored`.
+  A no-fault loop that fails either condition is outcome *No fault, but out of mode or at limit* (lab finding 2026-10-10: a loop
+  27 % of the time at its OP limit had a NO_CALL verdict — it has no authority, so it is not performing acceptably).
 - **Inputs:** `diagnosis`, `payload.auto_pct`, `payload.gates.G0`, `window_end`.
 - **Why:** the headline number of CPM tools and field surveys ("share of loops performing acceptably"; Desborough & Miller 2002,
   Bauer et al. 2016). Denominator is *all monitored loops*, so un-assessed loops pull it down visibly instead of hiding.
 - **Drill-down:** loop · verdict word · evidence score · AUTO % · window end · links (Explorer, Calculations G15 row).
 
 #### K2 — Service factor (in normal mode)
-- **Definition:** share of loops spending at least 90 % of the window in their normal mode (AUTO / CASCADE).
-- **Formula:** `count(fresh rows with auto_pct ≥ 0.90) / count(fresh rows where auto_pct is measured)`.
+- **Definition:** share of loops spending at least **95 %** of the window in their normal mode (AUTO / CASCADE).
+- **Formula:** `count(fresh rows with auto_pct ≥ 0.95) / count(fresh rows where auto_pct is measured)`.
   `auto_pct` = time in AUTO or CASCADE ÷ window time (G1, CPLM-003). Rows without a measured `auto_pct` (insufficient data) are
   listed as "not measured", outside the denominator.
 - **Why:** the first KPI of CPM systems; a loop in manual is not controlling at all. Field surveys (Ender 1993; Desborough &
-  Miller 2002) report a large share of industrial loops — on the order of a third — in manual or performing poorly. 90 % is a
-  common default (tools use 90–95 %); the exact value is a site decision (Q4).
-- **Drill-down:** loop · AUTO % vs 90 % · manual % · window · link to the trend with the MODE lane.
+  Miller 2002) report a large share of industrial loops — on the order of a third — in manual or performing poorly. **95 %**:
+  a loop more than 5 % of the time out of its design mode counts as out of mode (Emerson loop-performance guidance; Bayer's
+  PlantTriage rule). **Fleet target:** fewer than 10 % of loops out of mode (Emerson).
+- **Drill-down:** loop · AUTO % vs 95 % · manual % · window · link to the trend with the MODE lane.
 
 #### K3 — Oscillating
 - **Definition:** share of assessed loops with an established oscillation finding.
@@ -123,12 +126,13 @@ Each entry: definition · formula · inputs (stored field) · threshold · denom
 - **Drill-down:** loop · effort ratio · OP travel per day · reversals per hour · links.
 
 #### K6 — Saturated / at limit
-- **Definition:** share of assessed loops whose OP sat at a limit for at least 5 % of the window.
-- **Formula:** `count(fresh rows with saturation_pct ≥ 0.05) / count(fresh rows where saturation_pct is measured)`.
+- **Definition:** share of assessed loops whose OP sat at a limit (fully open / fully closed) for more than **10 %** of the window.
+- **Formula:** `count(fresh rows with saturation_pct > 0.10) / count(fresh rows where saturation_pct is measured)`.
 - **Inputs:** `payload.saturation_pct`, `payload.limit_source` (`REGISTRY` OP range, or `FALLBACK_0_100`), `payload.sat_limit_dwell_s`.
 - **Why:** a loop at its limit has no authority — no tuning can fix it (equipment sizing / operating point). "Time at limits"
-  is a standard CPM KPI; 5 % is the usual alert level.
-- **Drill-down:** loop · saturation % vs 5 % · **limit basis** (registered OP range or the 0–100 % fallback — shown, because a wrong
+  is a standard CPM KPI. **10 %**: "it should not be fully open or fully closed more than 10 percent of the time" (Bayer's
+  PlantTriage rule); site-adjustable.
+- **Drill-down:** loop · saturation % vs 10 % · **limit basis** (registered OP range or the 0–100 % fallback — shown, because a wrong
   basis makes the number wrong) · longest dwell · link to the trend.
 
 #### K7 — Not assessable (with reasons)
@@ -149,13 +153,20 @@ Each entry: definition · formula · inputs (stored field) · threshold · denom
 
 ### 3.3 Per-loop KPIs (Loop Explorer card, Phase 4)
 
+Built (CHG-086): `GET /api/v1/cpm/loops/{id}/kpi-summary` serves the loop's newest LIVE 24 h window and the one that existed 24 h
+earlier (stored metrics, the engine gates G0 / G1 / G3 / G4 / G10, registry spans); `components/Cpm/kpi/loopKpiView.ts` turns it into
+nine cards. Each card is **judged by the engine's own gate** where one exists (the UI never invents a threshold the engine did not
+apply) or by the fleet rule (AUTO ≥ 95 %, at limit ≤ 10 %, completeness ≥ 95 %); a value not stored reads "not measured"; MAE and 2σ
+are shown as % of the PV span (no span registered → no %); the change compares with the window 24 h earlier. Each card links to its
+proof: Calculations (G3 / G4 metrics), the trend over the window (mode, saturation, variability, SP), the Window Inspector (coverage).
+
 | KPI | Formula / field | Threshold shown | Proof link |
 |---|---|---|---|
-| Service factor | `auto_pct` (CPLM-003) | ≥ 90 % | trend MODE lane |
+| Service factor | `auto_pct` (CPLM-003) | ≥ 95 % | trend MODE lane |
 | Good-error time | `good_error_pct` (CPLM-014): time with \|PV − SP\| inside the good band | profile G3 threshold | Calculations CPLM-014 |
 | Control error | MAE (CPLM-010) and RMS (CPLM-011) as **% of PV span** = value ÷ (pvMax − pvMin) × 100 | profile G3 | Calculations CPLM-010/011 |
-| PV variability | `pv_std` as % of span; 2σ band | — (comparison) | Historical |
-| OP saturation | `saturation_pct`, with limit basis | 5 % | trend OP lane |
+| PV variability | `pv_std` as % of span; 2σ band | context: Emerson guidance 2σ < 1 % of mean (< 0.5 % critical loops); not a pass/fail here — level loops absorb swings by design | Historical |
+| OP saturation | `saturation_pct`, with limit basis | ≤ 10 % | trend OP lane |
 | Valve travel / reversals | CPLM-021 / CPLM-022 | profile G4 | Calculations |
 | SP activity | `sp_changes_per_h` | — | trend SP lane |
 | Data coverage | `completeness` (CPLM-001) | 95 % | Window Inspector |
@@ -188,15 +199,41 @@ Probes: [`sql/01-kpi-input-coverage.sql`](sql/01-kpi-input-coverage.sql) (`-v ba
 | No "no fault found" code on the lab | last 3 days: only `INSUFFICIENT_DATA`; real verdicts: `CONFIRMED_OSCILLATION` 162 | the simulator only oscillates — **K1 can only be calibrated on plant data** (probe section D) |
 | Saturation basis is a fallback on most loops | `limit_source = FALLBACK_0_100` | K6 drill-down shows the basis; registry OP ranges improve it |
 
-## 6. Open questions (decide before Phase 1)
+### 5.1 Plant evidence (Marun, probe `sql/02-…`, 2026-10-10 evening, 175 monitored loops)
 
-| # | Question | Proposal |
+| Section | Result | Meaning |
 |---|---|---|
-| Q1 | Freshness limit | 1 h (four missed 15-min evaluations) |
-| Q2 | Count `DETECTED_*` / `CLASSIFIED_*` as findings? | No — "symptom only", listed, not counted |
-| Q3 | 24 h only, or fall back to the 12 h verdict when the 24 h window is insufficient? | 24 h for the tiles (one basis); show the 12 h verdict in the K7 drill-down as context |
-| Q4 | Service factor and saturation thresholds | 90 % AUTO, 5 % at limit; configurable, recorded in `prod_decision.md` |
-| Q5 | Plant probe | run `sql/02-…` on the VM and return the output; it decides K1 calibration and explains the plant's 141 / 34 |
+| A. newest row | 142 loops < 1 h old, all `INSUFFICIENT_DATA`; 32 never; 1 older than 24 h | the pipeline **is producing** — under the new rules these are *not assessable (incomplete data)*, not stale; only 1 is stale |
+| C. why insufficient | 140 loops: completeness 0.42, 7,263 of 17,280 samples, sample period 4.1 s, **max gap 16 s** | the feed is continuous; the 24 h window is not yet full: 7,263 × 4.1 s ≈ 8.4 h = time since the v2.7.0 Flink swap (jobs RUNNING since 09:17 UTC, fresh state). 12 h verdicts return ≈ 11.4 h after the restart, 24 h verdicts ≈ 22.8 h after (0.95 × 24 h) — about 08:00–09:00 UTC on 11 Oct if the feed stays continuous. One loop has a 22.5 h gap (broken feed) |
+| D. codes, last 3 days | only `INSUFFICIENT_DATA` | consistent with the 7–10 Oct feed outage / disk incidents and the restart |
+| B. newest real verdict (3–7 days old) | `NO_CALL` 17 + `INSUFFICIENT_EVIDENCE` 8 = **25 no-fault**; `EXCLUDED_MODE` **65**; excessive effort confirmed 26 + suspected 1; oscillation confirmed 11 + suspected 1; valve suspected 1; weak symptoms 9; never 34 | **K1 is confirmed on plant data:** the engine writes the no-fault codes — the old "Healthy" (NORMAL / NONE / HEALTHY) read 0 while 25 loops had no fault. 65 of 175 loops (≈ 37 %) were last judged in manual — the service-factor KPI's first real finding. Excessive effort is the most common fault family |
+| E. acquisition | `{}` on all 175 loops | no grid declared in the registry; the expected count (17,280 = 24 h ÷ 5 s) comes from the source grid |
+
+Consequences: (1) every Flink restart without saved state costs ≈ 23 h of 24 h verdicts — record it in each release's deploy notes;
+(2) the 32 never-evaluated loops and the one 22.5 h gap are onboarding / feed items, not KPI defects; (3) re-run the probe after
+≈ 09:00 UTC on 11 Oct: section A should then show real verdicts and the performance cards fill.
+
+## 6. Decisions — checked against standards and published practice (approved 2026-10-10)
+
+| # | Question | Decision | Evidence |
+|---|---|---|---|
+| Q1 | Freshness limit | **1 h** = four missed 15-minute evaluations; older → *Stale* | OPC UA status *Uncertain – last usable value*: "whatever was updating this value has stopped"; SCADA / historian practice marks data stale after a multiple of its update interval. The interval here is fixed by the engine (15 min). |
+| Q2 | Count `DETECTED_*` / `CLASSIFIED_*` as findings? | **No** — counted findings are `SUSPECTED_*` / `CONFIRMED_*` (evidence ≥ 75); weaker bands are listed as "symptom only" | ISA-18.2: raise only conditions that need action (no nuisance); Bayer's PlantTriage installation alarmed oscillation at a factor of **80 %** — the same order as our 75 / 90 bands. |
+| Q3 | 24 h only, or fall back to 12 h? | **24 h** for every tile (one basis); 12 h verdict shown as context in the K7 drill-down; the daily trend (Phase 5) carries the "many batches" view | Horch (ABB, DYCOPS): a single data batch can mislead (shutdowns, unusual events) — assess over many batches; good control changes over months, not hours. |
+| Q4a | Normal-mode threshold | **≥ 95 %** time in AUTO / CASCADE per loop; fleet target **< 10 %** of loops out of mode | Emerson loop-performance guidance: controllers in manual / incorrect mode < 10 %, do not count a loop that is in the incorrect mode < 5 % of the time; Bayer / PlantTriage: "more than 5 percent out of design mode → out of mode". |
+| Q4b | Saturation threshold | **> 10 %** of the window fully open / closed | Bayer / PlantTriage: "should not be fully open or fully closed more than 10 percent of the time"; no published standard value — site-adjustable. |
+| Q5 | Plant probe | **done 2026-10-10** — section 5.1: no-fault codes exist (K1 confirmed); the 141 "stale" were a buffer refill after the restart | `sql/02-…` |
+
+No international standard (ISA / IEC) fixes CPM thresholds; the values above are the published practice. All are configurable
+(cplm-api `Cpm:Kpi:*`) and recorded in `prod_decision.md` — a site changes them there, not in code.
+
+Sources checked (2026-10-10):
+[Emerson — process control loop performance guidance](http://www.emersonautomationexperts.com/2016/services-consulting-training/process-control-loop-performance-guidance/) ·
+[Automation World — Bayer / PlantTriage KPIs](https://automationworld.com/products/networks/article/13303706/teamwork-software-show-results) ·
+[Horch — DYCOPS paper (ABB)](https://library.e.abb.com/public/24d56839eca60be285256f9b0057aa2f/Dycops_Horch.pdf) ·
+[OPC UA Uncertain_LastUsableValue](https://opclabs.com/files/onlinedocs/OPCLabs-OpcStudio/Latest/User's%20Guide%20and%20Reference-OPC%20Studio/OpcLabs.EasyOpcUA~OpcLabs.EasyOpc.UA.UACodeBits~UncertainLastUsableValue.html) ·
+[ControlStation — percent time in normal](https://controlstation.com/percent-time-in-normal/) ·
+[ISA-18.2 alarm definition (Emerson alarm management)](https://www.emerson.com/documents/automation/alarm-management-en-57058.pdf).
 
 ## 7. References
 
@@ -213,8 +250,56 @@ Probes: [`sql/01-kpi-input-coverage.sql`](sql/01-kpi-input-coverage.sql) (`-v ba
 - Choudhury, M. A. A. S., Shah, S. L. & Thornhill, N. F. (2008). *Diagnosis of Process Nonlinearities and Valve Stiction.* Springer.
 - NAMUR NE 107 (status signals); ISA-18.2 / EEMUA 191 (prioritisation principles); ISA-101 (HMI colour use).
 
-## 8. Change log of this document
+## 8. Implementation map (where each rule lives)
+
+| Piece | File | What it holds |
+|---|---|---|
+| The one read | `src/services/cplm-api/Data/FleetKpiSql.cs` | per monitored loop in scope: newest LIVE 24 h row of any diagnosis + newest real verdict (two per-loop index probes) and the payload fields every KPI needs |
+| The rules | `src/services/cplm-api/Services/Kpi/FleetKpiClassifier.cs` | `Classify` (state, reason, outcome, band, family, mode / saturation flags), `Matches` (one predicate per drill-down key), `Figures` (count, denominator, rule text) |
+| Thresholds | `Services/Kpi/FleetKpiModels.cs` `KpiThresholds`; config `Cpm:Kpi:FreshSeconds` (3600), `Cpm:Kpi:NormalModeMin` (0.95), `Cpm:Kpi:SaturationMax` (0.10), `Cpm:Kpi:G0CompletenessMin` (0.95), `Cpm:Kpi:G0BadQualityMax` (0.50) | section 6 decisions |
+| The proof row | `Services/Kpi/FleetKpiRows.cs` | deciding value vs threshold per KPI, the window, the inputs to reproduce it, last real verdict |
+| API | `Controllers/CpmFleetKpiController.cs` | `GET /api/v1/cpm/fleet/kpis?site&area&unit` (figures + state partition + reasons) and `GET /api/v1/cpm/fleet/kpis/loops?kpi=&reason=&q=&site&area&unit&page&pageSize` (drill-down; `total` = the tile's count) — `analytics.view`, fleet cache 15 s |
+| Tests | `tests/cplm-api.Tests/FleetKpiClassifierTests.cs`, `FleetKpiEndpointTests.cs` | every rule edge (95 % exactly, 10 % exactly, 1 h exactly, each reason, each band); reconciliation (states sum to monitored, outcomes sum to assessed, each figure = its list) |
+
+Drill-down keys: `all`, `assessed`, `acceptable`, `no-fault-limited`, `finding`, `symptom`, `oscillating`, `valve`, `effort`,
+`normal-mode`, `out-of-mode`, `saturated`, `not-assessable` (+ `reason=`), `stale`, `never-evaluated`.
+
+## 10. Presentation (CHG-085) and the change since yesterday
+
+- **Overview:** six compact cards (performing acceptably, in normal mode, oscillating, valve, effort, saturated) — icon, change,
+  count, label, share of a named denominator; the whole card opens the drill-down. A coverage row holds not assessable / stale /
+  never evaluated and the state bar (every monitored loop in one segment; legend links to each state's list).
+- **Change since 24 h ago:** cplm-api classifies a second snapshot *as of* now − 24 h (`FleetKpiSql @asOf`: each loop's newest rows
+  with `window_end ≤ asOf`, freshness judged against that instant) with the same rules. The card shows the change of the **share**
+  in percentage points (a growing fleet is not a change); green when it moved the right way for that KPI (up for acceptable /
+  normal mode, down for every problem KPI), red otherwise, grey when flat; hidden when there is no earlier picture. Registry
+  membership is today's (a loop added today reads "never evaluated" yesterday).
+- **Detail page:** summary cards (number + change, threshold, basis, computed), proof panel (rule, formula, why, reference), the
+  loops with the measured value on a bar against the threshold marker, verdict, window, inputs and proof links.
+- **Vocabulary:** on these pages `NO_CALL` / `INSUFFICIENT_EVIDENCE` read **"No fault found"** — the shared vocabulary still says
+  "Not evaluated yet" for `NO_CALL` elsewhere in the app (open item: decide app-wide).
+
+## 11. The 14-day trend (Phase 5, CHG-087)
+
+- `GET /api/v1/cpm/fleet/kpis/trend?days=14&site&area&unit`: one point per day — every figure as it stood at the **same time of day**
+  on that day, from the **same classification** applied to the rows that existed at that instant (`FleetKpiSql @asOf`). Past days sit
+  at the anchor rounded down to 15 min (the engine's evaluation step) and are cached 10 min; **today's point is the cards' live
+  snapshot** (`isNow`), so today's bar always equals the card.
+- Each point carries its exact `asOf`; `GET /fleet/kpis/loops?asOf=` lists the loops that point counted (tested: every point = its
+  own day's list for every KPI). Limit: 14 days — the plant keeps the gate results 14 days (cpm-10b retention).
+- On the detail page the bar chart "How this number has moved" sits between the proof panel and the list; clicking a day switches the
+  list to that day ("matches that day"), "Back to now" returns. A day with nothing to judge is **no data**, never 0 %; the tooltip
+  states count and denominator (a 100 % from 1 of 1 is visible as such).
+- Cost (lab, 240 loops): the whole-plant trend 2.9 s cold, 0.23 s cached (14 classifications, four at a time).
+
+## 9. Change log of this document
 
 | Date | Phase | Change |
 |---|---|---|
 | 2026-10-10 | 0 | First version: principles, sources, KPI catalogue K1–K9, per-loop KPIs, proof chain, lab findings, open questions |
+| 2026-10-10 | 0 | Q1–Q4 checked against standards / published practice: normal mode 90 → 95 %, saturation 5 → 10 %, fleet target < 10 % out of mode; sources listed |
+| 2026-10-10 | 1 | Implementation map: one read, one classifier, two endpoints, tests |
+| 2026-10-10 | 2–3 | Overview cards + drill-down; acceptable also requires not saturated; change vs 24 h ago; redesign (section 10) |
+| 2026-10-10 | 4 | Per-loop KPI cards on the Explorer (`/loops/{id}/kpi-summary`); route-uniqueness guard after a route collision |
+| 2026-10-10 | 5 | 14-day trend with day drill-down (section 11) |
+| 2026-10-10 | — | Plant probe results (section 5.1): K1 confirmed, stale explained by the restart refill |
