@@ -1,0 +1,24 @@
+# Release v2.7.1 - CHG-077..CHG-088 on top of v2.7.0 (plant v2.7.0 = 1db5f415).
+# Consumed by: python migration/deploy/build-release.py --release v2.7.1        (the jar IS rebuilt: no --skip-jar)
+#
+#   flink-jobmanager            (the TaskManager uses the same image) CHG-088: the engine reads the per-loop VP declaration
+#                               (no NO_VP / no "bind VP" advice on a loop declared without a VP; G14 NOT_APPLICABLE; valve calls
+#                               stay SUSPECTED - the 0.89 cap is KEPT). Full swap: cancel every job, rm -f JM + TM, deploy, 04b
+#                               (7 RUNNING; 12h/24h results refill over ~11 h / ~23 h).
+#   cplm-api                    CHG-077, 078 (VP declaration, readiness copy), 082..087 (Overview KPI endpoints), 088
+#                               (vpApplicability on every loop's cplm.loop.engineering record).
+#   traverse-auth-service       CHG-081: SuperAdmin role; schema.sql no longer re-grants Admin the SuperAdmin-only keys on restart.
+#   ams-frontend                CHG-077..081, 083..087 (VP checkbox, readiness wording, dialogs, trend zoom, SuperAdmin menus,
+#                               Overview KPI cards / detail / per-loop cards / 14-day trend).
+#
+#   NOT shipped: display-service (CHG-081's admin-ownership rule) - Marun runs it under profile later-module (not deployed).
+#   No ingestion / gateway / asset-model / historian / Kafka topic change.
+#
+# Schema: ops/cpm-14-superadmin-role.sql (traverse_auth, step 6j, after the auth-service swap). No traverse_cplm script.
+# After the swaps: ops/republish-all-loops.py --apply (step 6k) so the engine receives vpApplicability.
+!chg081-superadmin
+!chg088-vp-republish
+flink-jobmanager
+cplm-api
+traverse-auth-service
+ams-frontend

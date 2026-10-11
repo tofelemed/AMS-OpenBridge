@@ -32,6 +32,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import release_blocks  # noqa: E402
 from prodimages import (  # noqa: E402
     harden_stdio,
     BUILD_SERVICES,
@@ -72,6 +73,7 @@ OPS_FILES = [
     "scripts/cpm-13-investigation-event-link.sql", # CHG-058     - loop notes linkable to an episode (online, additive, after cpm-12)
     "scripts/cpm-14-superadmin-role.sql",          # CHG-081     - traverse_auth: SuperAdmin role + user (psql -v su_*), then platform admin keys leave every other role
     "scripts/cpm-14-superadmin-role.rollback.sql", # CHG-081     - rollback: Admin gets those keys back
+    "scripts/republish-all-loops.py",              # CHG-088     - bulk republish (chunks of 20) so the engine receives vpApplicability
     "infra/docker/zookeeper/zk-start-guard.sh",    # CHG-068     - ZooKeeper start guard (quarantines zero-byte txn logs); lands in ops/, copied next to Instrumental's compose
     "migration/instrumental/zookeeper-start-guard.override.yml",  # CHG-068 - compose override: guard mount + command for Instrumental's zookeeper
     "scripts/set-quality-protocol.py",             # v2.5       - declare quality_protocol on every MQTT_LOOP_SAMPLES source
@@ -127,9 +129,10 @@ def read_manifest(release: str) -> tuple[list[str], set[str]]:
     unknown = [s for s in services if s not in BUILD_SERVICES and s != "ams-api"]
     if unknown:
         sys.exit(f"{path.name}: unknown compose service(s) {unknown} - must be in prodimages.BUILD_SERVICES")
-    unknown_flags = flags - {"data-load", "v25-upgrade", "v26-retention", "v262-debounce", "chg039-short-heap", "chg049-evidence"}
+    known_flags = {"data-load", "v25-upgrade", "v26-retention", "v262-debounce", "chg039-short-heap", "chg049-evidence"} | release_blocks.DIRECTIVES
+    unknown_flags = flags - known_flags
     if unknown_flags:
-        sys.exit(f"{path.name}: unknown directive(s) {sorted(unknown_flags)} - only !data-load, !v25-upgrade, !v26-retention, !v262-debounce, !chg039-short-heap and !chg049-evidence are defined")
+        sys.exit(f"{path.name}: unknown directive(s) {sorted(unknown_flags)} - defined: {', '.join('!' + f for f in sorted(known_flags))}")
     return services, flags
 
 
@@ -284,7 +287,7 @@ POST_CHECKS: dict[str, str] = {
     "historian-bff":
         "GET /api/hist/raw/cursor ... maxCount=10000 -> 200, count 9999, hasMore true",
     "flink-jobmanager":
-        "7 x RUNNING and every start time moved (step 5)",
+        "7 x RUNNING and every start time moved (step 5); every CPLM job announces the bundle's jar (capabilities)",
     "ams-frontend":
         "200 on /, users Ctrl+F5",
     "ams-api":
@@ -366,7 +369,9 @@ docker exec instrumental-kafka-1 kafka-topics --bootstrap-server kafka-1:9092 --
 #    STOP RULE: not bound after the 60 s poll -> ROLLBACK before continuing (same -p/-f, no override):
 #      (cd $ZKDIR && docker compose -p "$PROJ" -f $FARGS up -d zookeeper)
 """
-    job_count = "SEVEN" if (v25 or v26 or chg039 or chg049) else "FOUR"
+    # The plant runs SEVEN jobs since v2.5. v2.7.1 shipped none of the flags below, and the old "FOUR" default made the
+    # orphan sweep's guard `-ge 4`: with 4 of 7 jobs listed it would delete the checkpoints of the 3 still starting.
+    job_count = "SEVEN"
     flink = ""
     if has_flink:
         flink = f"""
@@ -386,11 +391,11 @@ cp /tmp/{release}/{FLINK_JAR.name} /opt/AMS-open/src/flink/target/{FLINK_JAR.nam
 for id in $(docker exec ams-flink-jobmanager flink list -m localhost:8081 2>/dev/null | grep -oE '[0-9a-f]{{32}}'); do docker exec ams-flink-jobmanager flink cancel -m localhost:8081 $id 2>/dev/null; done
 docker rm -f ams-flink-taskmanager ams-flink-jobmanager
 {zk_guard}{ams_api_env}bash migration/deploy/deploy.sh --prod 2>&1 | tail -8          # 04b resubmits all {job_count} jobs
-docker exec ams-flink-jobmanager flink list -m localhost:8081  # {"7 x RUNNING (4 + Condition, Instrument Context, Response)" if (v25 or v26 or chg039 or chg049) else "4 x RUNNING"}, start times = now
+docker exec ams-flink-jobmanager flink list -m localhost:8081  # 7 x RUNNING (4 + Condition, Instrument Context, Response), start times = now
 #
 #    orphaned checkpoints of the jobs just replaced (running ids are excluded; run it ~2 min after the resubmit):
 docker exec ams-flink-jobmanager flink list -m localhost:8081 | grep -oE '[0-9a-f]{{32}}' | sort > /tmp/{release}/running-jobs.txt   # stderr stays visible on purpose
-[ "$(wc -l < /tmp/{release}/running-jobs.txt)" -ge {7 if (v25 or v26 or v262 or chg039 or chg049) else 4} ] || {{ echo "flink list returned fewer ids than jobs - NOT sweeping (JM REST not ready?)"; false; }}
+[ "$(wc -l < /tmp/{release}/running-jobs.txt)" -ge 7 ] || {{ echo "flink list returned fewer ids than jobs - NOT sweeping (JM REST not ready?)"; false; }}
 for id in $(docker exec ams-minio sh -c 'ls /data/ams-flink/checkpoints/' | sort | comm -23 - /tmp/{release}/running-jobs.txt); do docker exec ams-minio rm -rf /data/ams-flink/checkpoints/$id; done
 docker exec ams-minio sh -c 'du -sh /data/ams-flink/checkpoints'                           # the running jobs' checkpoints only
 #    Do NOT run `compose up flink-job-submit-cplm` here: that service is profiled
@@ -760,6 +765,7 @@ def main() -> int:
 
     steps = vm_steps(args.release, commit, rows, has_flink, services, "data-load" in flags, "v25-upgrade" in flags,
                      "v26-retention" in flags, "v262-debounce" in flags, "chg039-short-heap" in flags, "chg049-evidence" in flags)
+    steps = release_blocks.insert(steps, args.release, flags)   # v2.7.1+: CHG-081 / CHG-088 blocks (migration/deploy/release_blocks.py)
     if not args.dry_run:
         (out / "VM-STEPS.md").write_text(steps, encoding="utf-8", newline="\n")
         write_sums(out, files)
