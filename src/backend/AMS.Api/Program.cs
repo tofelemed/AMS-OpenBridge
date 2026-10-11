@@ -43,6 +43,9 @@ var loggerConfig = new LoggerConfiguration()
     // 30 MB json-file cap that left ~25 min of history, so the CHG-020 stall message would
     // rotate away before anyone read it.
     .MinimumLevel.Override("System.Net.Http", LogEventLevel.Warning)
+    // CHG-090: the standard resilience handler logs an Information "Execution attempt" line per request too
+    // (plant 2026-10-11: ~90,000 HttpClient + Polly lines an hour); a retry or a failure is still a Warning.
+    .MinimumLevel.Override("Polly", LogEventLevel.Warning)
     .Enrich.FromLogContext()
     .Enrich.WithProperty("Service", "AMS.Api")
     .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
