@@ -48,7 +48,7 @@ export const OperatingPicture: React.FC<{ scope?: CpmFleetScope; windowKind?: st
       {k && k.monitored === 0 && <EmptyState title="No monitored loops" copy="No loop in this scope has monitoring enabled." />}
       {k && k.monitored > 0 && (
         <>
-          <div className="cpm-kpicards" role="list" aria-label="Loop performance KPIs">
+          <div className="cpm-kpicards cpm-kpicards--7" role="list" aria-label="Loop performance KPIs">
             {performance.map(f => <div role="listitem" key={f.key}><Card f={f} k={k} scope={scope} /></div>)}
           </div>
 

@@ -185,6 +185,8 @@
 .cpm-kpicards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); }
 .cpm-kpicards--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .cpm-kpicards--4 { grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr)); }
+/* CHG-089: the seven performance cards (auto and manual mode added) share one row on a wide screen */
+.cpm-kpicards--7 { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
 .cpm-kpicard {
   display: flex; flex-direction: column; gap: 2px; height: 100%; box-sizing: border-box; min-width: 0;
   padding: 12px 14px; border-radius: 10px; text-decoration: none; color: var(--element-active-color);
@@ -255,7 +257,7 @@
   .cpm-kpi-proof__grid dt { padding-top: 6px; }
 }
 @media (max-width: 480px) {
-  .cpm-kpicards, .cpm-kpicards--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cpm-kpicards, .cpm-kpicards--4, .cpm-kpicards--7 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* KPI Phase 4: per-loop KPI cards on the Explorer summary (nine, compact) */
