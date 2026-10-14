@@ -44,6 +44,15 @@ export function verdictText(row: FleetKpiRow): string {
   return row.evidenceScore != null ? `${word} · evidence ${row.evidenceScore}` : word;
 }
 
+/** CHG-093 (SME review 2 #12): the performance criterion a no-fault loop missed, in words. */
+export const LIMIT_WORD: Record<string, string> = {
+  OUT_OF_MODE: 'out of normal mode',
+  SATURATED: 'at an OP limit',
+  G3_BELOW_FLOOR: 'good-error share below the floor (G3)',
+  G3_NOT_EVALUATED: 'good-error share not evaluated (G3)',
+  G4_STRONG: 'strong actuator activity (G4)',
+};
+
 /** The inputs a reviewer checks next for this KPI (never a 0 for a value that was not measured). */
 export function contextText(row: FleetKpiRow, kpi: FleetKpiKey): string {
   const i = row.inputs;
@@ -66,7 +75,12 @@ export function contextText(row: FleetKpiRow, kpi: FleetKpiKey): string {
       parts.push(`${Math.round(i.sampleCount)} of ${Math.round(i.expectedSampleCount)} samples`);
     if (i.maxGapS != null && i.maxGapS >= 60) parts.push(`longest gap ${Math.round(i.maxGapS / 60)} min`);
     p('bad quality', i.badQualityPct);
-  } else if (kpi === 'normal-mode' || kpi === 'out-of-mode' || kpi === 'manual-mode' || kpi === 'acceptable' || kpi === 'no-fault-limited') {
+  } else if (kpi === 'acceptable' || kpi === 'no-fault-limited') {
+    if (row.limitedBy?.length) parts.push(`limited by: ${row.limitedBy.map(l => LIMIT_WORD[l] ?? l.toLowerCase().replace(/_/g, ' ')).join(', ')}`);
+    p('good-error', i.goodErrorPct);
+    if (i.g4Status) parts.push(`G4 ${i.g4Status.toLowerCase().replace(/_/g, ' ')}`);
+    p('manual', i.manualPct);
+  } else if (kpi === 'normal-mode' || kpi === 'out-of-mode' || kpi === 'manual-mode') {
     p('manual', i.manualPct);
   }
   // the last REAL judgement before this window, as context — not an exclusion, not the same window again
@@ -105,7 +119,7 @@ export function proofLinks(row: FleetKpiRow, kpi?: FleetKpiKey): ProofLink[] {
 
 /** Why this KPI exists and where its rule comes from (KPI-LOGIC.md section 3.2 / 6). */
 export const KPI_WHY: Partial<Record<FleetKpiKey, string>> = {
-  acceptable: 'The headline of control-loop monitoring: loops judged with no fault, on qualified data, in their normal mode and not at an OP limit (Desborough & Miller 2002; Bauer et al. 2016).',
+  acceptable: 'The headline of control-loop monitoring: loops judged with no fault, on qualified data, in their normal mode, not at an OP limit, with the good-error share at or above the profile floor (G3) and no strong actuator activity (G4). No fault identified is a diagnosis; acceptable control needs its own performance criteria (Desborough & Miller 2002; Bauer et al. 2016).',
   'normal-mode': 'A loop out of its normal mode is not controlling. More than 5 % of the time out of design mode counts as out of mode; target: fewer than 10 % of loops out of mode (Emerson loop-performance guidance; Bayer / PlantTriage).',
   'out-of-mode': 'Loops that spent more than 5 % of the window outside AUTO / CASCADE (Emerson; Bayer / PlantTriage).',
   'manual-mode': 'Loops run by hand for half the window or more: the controller is not in charge, so its tuning cannot be judged and the operator carries the load (service factor, Emerson; Bayer / PlantTriage). A loop in MANUAL for a short task is not counted.',
@@ -118,7 +132,7 @@ export const KPI_WHY: Partial<Record<FleetKpiKey, string>> = {
   'never-evaluated': 'Monitored but never evaluated: an onboarding or signal-mapping gap.',
   finding: 'Suspected or confirmed findings of any family.',
   symptom: 'Detected or classified symptoms: evidence below 75, listed but not counted as findings.',
-  'no-fault-limited': 'No fault identified, but the loop was out of its normal mode for more than 5 % of the window or at an OP limit for more than 10 % — so not counted as performing acceptably.',
+  'no-fault-limited': 'No fault identified, but a performance criterion was missed — out of normal mode more than 5 % of the window, at an OP limit more than 10 %, good-error share below the floor or not evaluated (G3), or strong actuator activity (G4) — so not counted as performing acceptably.',
   assessed: 'Loops whose fresh window was judged.',
   all: 'Every monitored loop in scope.',
 };

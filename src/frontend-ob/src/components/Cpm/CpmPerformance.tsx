@@ -34,12 +34,13 @@ import { diagnosticCapabilityCopy } from './overview/capabilityCopy';
 import AttentionList, { type RankBy } from './AttentionList';
 import { useBadActors } from './useBadActors';
 import { buildTierGroups, isRowFilter, latestWindowEnd } from './gateStatus';
-import { useCpmLoops, useCpmResolutions, useFleetHeatmap, useFleetRankings, useFleetSummary } from '../../hooks/useCpm';
+import { useCpmLoops, useCpmResolutions, useFleetHeatmap, useFleetSummary } from '../../hooks/useCpm';
+import { useFleetKpis } from './kpi/useFleetKpis';
+import { headlineTiles } from './performanceHeadline';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { explorerHref, pipelineHref, windowsHref } from './cpaHref';
 import { diagnosisLabel } from './vocabulary';
 import { evidenceScoreText } from './evidenceScore';
-import { hasVerdict } from './metricAvailability';
 import { effectiveInputFlags } from './inputLimits';
 import { inputContextOf } from './optionalInputs';
 
@@ -54,13 +55,6 @@ const HEALTH_FILTERS: { id: CpmHealthFilter; label: string }[] = [
 const DOCK_QUERY = '(min-width: 1200px)';
 /** A fused window older than this is called out rather than shown as current. */
 const STALE_AFTER_MS = 3 * 3_600_000;
-
-const median = (xs: number[]) => {
-  if (xs.length === 0) return null;
-  const s = [...xs].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
-};
 
 const fmtAge = (ms: number) =>
   ms < 3_600_000 ? `${Math.round(ms / 60_000)} min` : `${(ms / 3_600_000).toFixed(1)} h`;
@@ -140,39 +134,14 @@ export const CpmPerformance: React.FC = () => {
     n.delete('page');
     return n;
   }, { replace: true });
-  const rankings = useFleetRankings(scope.params, windowKind, 'confidence', 50, true, healthFilter);
-  // CHG-023 (P0-2): by confidence this is a slice of `rankings` — no second request;
-  // only the "error" order (a different server ORDER BY) costs its own call.
+  // CHG-093 (SME review 2 #10/#11): the headline is computed by the server over EVERY assessed loop in the scope (the
+  // Overview KPIs' classification), with its exclusions — no longer over the 50 most confident loops of a ranked page
+  const fleetKpis = useFleetKpis({ ...scope.params, windowKind });
+  const tiles = fleetKpis.data?.performance ? headlineTiles(fleetKpis.data.performance) : null;
   const badActors = useBadActors(scope.params, windowKind, rankBy, healthFilter);
   const heatmap = useFleetHeatmap(scope.params, windowKind, healthFilter);
   // CHG-066: the loops' optional-input context, so the matrix marks a pass judged without an input like the Explorer does
   const registry = useCpmLoops();
-
-  const loops = useMemo(() => rankings.data?.loops ?? [], [rankings.data]);
-  // CHG-066: "evaluated" = a real verdict — an excluded or insufficient window is not a performance figure
-  const evaluated = loops.filter(l => hasVerdict(l.diagnosis));
-
-  // Aggregates over the loops this page fetched — a capped, confidence-ordered
-  // page, NOT the fleet. `truncated` drives the wording so the tiles never claim
-  // a fleet figure they do not have.
-  // CHG-066: the same population as `evaluated` — monitored loops with a real LIVE verdict; under a health filter the
-  // (filtered) matrix rows, since the summary is not health-filtered
-  const fleetEvaluated = healthFilter
-    ? (heatmap.data?.loops ?? []).filter(l => hasVerdict(l.diagnosis) || hasVerdict(l.lastVerdict?.diagnosis)).length
-    : (summary.data?.diagnoses ?? []).filter(d => hasVerdict(d.diagnosis)).reduce((n, d) => n + d.count, 0);
-  const truncated = fleetEvaluated > evaluated.length;
-
-  const medianMae = median(
-    evaluated.map(l => l.metrics.mae).filter((x): x is number => x != null && x > 0));
-  const avgGoodError = (() => {
-    // goodErrorPct is a 0..1 FRACTION from the engine; scale to percent here.
-    const xs = evaluated.map(l => l.metrics.goodErrorPct).filter((x): x is number => x != null);
-    return xs.length ? (100 * xs.reduce((a, b) => a + b, 0)) / xs.length : null;
-  })();
-  // acfPeriodS > 0 is NOT evidence of a problem — count the diagnosis the engine
-  // actually reached; that is what "evidence" means on this screen.
-  const oscillating = evaluated.filter(l =>
-    l.diagnosis.includes('OSCILLATION') || l.diagnosis.includes('FINAL_ELEMENT')).length;
 
   const capped = summary.data?.capability.loopsCappedByMissingVp ?? null;
   const fleetTotal = summary.data?.loops.total ?? null;
@@ -244,21 +213,15 @@ export const CpmPerformance: React.FC = () => {
       </div>
 
       <div className="cpm-kpi-row">
-        <KpiTile caption="Good-error time"
-          tone={avgGoodError != null && avgGoodError >= 80 ? 'good' : 'warn'}
-          value={avgGoodError != null ? `${avgGoodError.toFixed(1)}%` : '—'}
-          sub={avgGoodError == null ? 'no evaluated loops yet'
-            : truncated ? `mean of top ${evaluated.length} of ${fleetEvaluated} evaluated`
-              : `mean of all ${evaluated.length} evaluated loop(s)`} />
-        <KpiTile caption="Median MAE" tone="good"
-          value={medianMae != null ? medianMae.toFixed(2) : '—'}
-          sub={medianMae == null ? 'no evaluated loops yet'
-            : truncated ? `top ${evaluated.length} of ${fleetEvaluated} evaluated · PV units`
-              : `${evaluated.length} evaluated loop(s) · PV units`} />
-        <KpiTile caption="Loops with periodic diagnosis" tone={oscillating > 0 ? 'warn' : 'good'}
-          value={oscillating}
-          sub={truncated ? `of top ${evaluated.length} of ${fleetEvaluated} evaluated`
-            : `of ${evaluated.length} evaluated`} />
+        {/* CHG-093: neutral tones — these are fleet context, not a verdict (SME review 2 #22); the health filter narrows
+            the ranking and the matrix, not these scope-wide figures, and the tile says so */}
+        {(tiles ?? [
+          { caption: 'Good-error time', value: '—', sub: fleetKpis.isError ? 'could not be read' : 'loading…', title: '' },
+        ]).map(t => (
+          <KpiTile key={t.caption} caption={t.caption} value={t.value} title={t.title || undefined}
+            tone={t.caption === 'Loops with periodic diagnosis' && t.value !== '0' ? 'warn' : 'muted'}
+            sub={healthFilter ? `${t.sub} · whole scope, health filter not applied` : t.sub} />
+        ))}
         {/* Replaces the "Potential savings —" tile, which spent a quarter of the
             KPI row saying a model was not configured. Diagnostic capability is a
             fleet fact that changes what an engineer does next. */}

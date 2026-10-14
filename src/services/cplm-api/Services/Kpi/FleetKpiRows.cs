@@ -25,6 +25,8 @@ public static class FleetKpiRows
             ValidatedPeriodS = D(r.validated_period_s), AcfRegularity = D(r.acf_regularity), EffortRatio = D(r.effort_ratio),
             TravelPerDay = D(r.travel_per_day), ReversalsPerHour = D(r.reversals_per_hour), G14State = (string?)r.g14_state,
             LastVerdictWindowEnd = T(r.v_window_end), LastVerdictDiagnosis = (string?)r.v_diagnosis,
+            G3Status = (string?)r.g3_status, G4Status = (string?)r.g4_status, GoodErrorPct = D(r.good_error_pct),
+            Mae = D(r.mae), PvSpan = D(r.pv_span),
         };
     }
 
@@ -81,6 +83,7 @@ public static class FleetKpiRows
             evidenceScore = verdict && r.Confidence is { } c ? Math.Round(c * 100) : (double?)null,
             windowKind = t.WindowKind, windowEnd = r.WindowEnd, ageSeconds = l.AgeSeconds is { } a ? Math.Round(a) : (double?)null,
             deciding = Deciding(l, kpi, t),
+            limitedBy = l.LimitedBy ?? Array.Empty<string>(),
             inputs = new
             {
                 autoPct = r.AutoPct, manualPct = r.ManualPct, saturationPct = r.SaturationPct, limitSource = r.LimitSource,
@@ -91,6 +94,8 @@ public static class FleetKpiRows
                 periodS = r.ValidatedPeriodS is > 0 ? r.ValidatedPeriodS : null, periodStatus = r.PeriodStatus,
                 acfRegularity = r.AcfRegularity, effortRatio = r.EffortRatio, travelPerDay = r.TravelPerDay,
                 reversalsPerHour = r.ReversalsPerHour, g14State = r.G14State,
+                g3Status = r.G3Status, g4Status = r.G4Status, goodErrorPct = r.GoodErrorPct,
+                errorPctOfSpan = FleetKpiPerformance.ErrorOfSpan(r),
             },
             lastVerdict = r.LastVerdictDiagnosis is null ? null : new { diagnosis = r.LastVerdictDiagnosis, windowEnd = r.LastVerdictWindowEnd },
         };

@@ -47,8 +47,20 @@ export interface FleetKpis {
   notAssessableByReason: Array<{ reason: string; count: number }>;
   assessed: { acceptable: number; noFaultLimited: number; finding: number; symptomOnly: number; unrecognised: number };
   kpis: FleetKpiFigure[];
+  /** CHG-093 (SME review 2 #10/#11): the Performance headline over every assessed loop in scope; absent on an older cplm-api. */
+  performance?: FleetPerformance;
   /** The same classification as it stood 24 h earlier (the change shown on each card); absent on an older cplm-api. */
   previous?: { asOf: string; monitored: number; kpis: Array<{ key: FleetKpiKey; count: number; denominator: number }> };
+}
+
+/** CHG-093: fleet performance figures with their basis — every assessed loop, the exclusions counted, error as % of PV span. */
+export interface FleetPerformance {
+  monitored: number;
+  assessed: number;
+  excluded: { notAssessable: number; stale: number; neverEvaluated: number };
+  goodError: { meanPct: number | null; medianPct: number | null; counted: number; notMeasured: number };
+  errorOfSpan: { medianPct: number | null; counted: number; noSpan: number; notMeasured: number };
+  periodic: { count: number; of: number };
 }
 
 export interface FleetKpiDeciding {
@@ -79,12 +91,15 @@ export interface FleetKpiRow {
   windowEnd?: string | null;
   ageSeconds?: number | null;
   deciding: FleetKpiDeciding;
+  /** CHG-093 (SME review 2 #12): the performance criteria a no-fault loop misses; empty when acceptable. */
+  limitedBy?: string[];
   inputs: {
     autoPct?: number | null; manualPct?: number | null; saturationPct?: number | null; limitSource?: string | null;
     satLimitDwellS?: number | null; completeness?: number | null; badQualityPct?: number | null; sampleCount?: number | null;
     expectedSampleCount?: number | null; maxGapS?: number | null; gate0Reason?: string | null; periodS?: number | null;
     periodStatus?: string | null; acfRegularity?: number | null; effortRatio?: number | null; travelPerDay?: number | null;
     reversalsPerHour?: number | null; g14State?: string | null;
+    g3Status?: string | null; g4Status?: string | null; goodErrorPct?: number | null; errorPctOfSpan?: number | null;
   };
   lastVerdict?: { diagnosis: string; windowEnd?: string | null } | null;
 }

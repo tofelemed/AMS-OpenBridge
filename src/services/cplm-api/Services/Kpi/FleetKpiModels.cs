@@ -47,6 +47,13 @@ public sealed record KpiLoopRow
     public double? TravelPerDay { get; init; }
     public double? ReversalsPerHour { get; init; }
     public string? G14State { get; init; }
+    /// <summary>CHG-093: G3 (good-error share vs the profile floor: PASS / WARN) and G4 (actuator activity: PASS / WARN / STRONG).</summary>
+    public string? G3Status { get; init; }
+    public string? G4Status { get; init; }
+    public double? GoodErrorPct { get; init; }
+    public double? Mae { get; init; }
+    /// <summary>pvMax − pvMin from the registry; null when not registered (error then has no comparable basis).</summary>
+    public double? PvSpan { get; init; }
     public DateTimeOffset? LastVerdictWindowEnd { get; init; }
     public string? LastVerdictDiagnosis { get; init; }
 }
@@ -55,7 +62,8 @@ public sealed record KpiLoopRow
 public enum KpiState { Assessed, NotAssessable, Stale, NeverEvaluated }
 
 /// <summary>What an assessed verdict says — exactly one per assessed loop.</summary>
-/// <remarks>NoFaultLimited: no fault found, but out of normal mode or at an OP limit (not "acceptable").</remarks>
+/// <remarks>NoFaultLimited: no fault identified, but out of normal mode, at an OP limit, below the good-error floor (G3)
+/// or with strong actuator activity (G4) — not "acceptable" (CHG-093).</remarks>
 public enum KpiOutcome { None, Acceptable, NoFaultLimited, Finding, SymptomOnly, Unrecognised }
 
 /// <summary>The classification of one loop, with every flag a tile counts.</summary>
@@ -73,7 +81,10 @@ public sealed record KpiLoop(
     bool Saturated,
     double? AgeSeconds,
     bool ManualModeMeasured = false,   // CHG-089
-    bool InManualMode = false);
+    bool InManualMode = false,
+    // CHG-093 (SME review 2 #12): why a no-fault loop is not performing acceptably — OUT_OF_MODE, SATURATED,
+    // G3_BELOW_FLOOR, G3_NOT_EVALUATED, G4_STRONG; empty when acceptable
+    IReadOnlyList<string>? LimitedBy = null);
 
 /// <summary>A KPI as the Overview shows it: count over a stated denominator, with its rule.</summary>
 public sealed record KpiFigure(string Key, string Label, int Count, int Denominator, string DenominatorLabel, string Rule);

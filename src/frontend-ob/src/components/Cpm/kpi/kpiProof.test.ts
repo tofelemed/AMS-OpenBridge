@@ -41,3 +41,12 @@ describe('KPI proof words (CHG-082)', () => {
     expect(proofLinks(row({})).find(l => l.label === 'Window')!.href).toBe('/cpm/windows?loop=FIC1&profile=24h&window=2026-10-10T12%3A00%3A00Z');
   });
 });
+
+describe('why a no-fault loop is not performing acceptably (CHG-093, SME review 2 #12)', () => {
+  it('names every missed performance criterion', () => {
+    const r = row({ state: 'Assessed', diagnosis: 'NO_CALL', limitedBy: ['G3_BELOW_FLOOR', 'G4_STRONG'],
+      inputs: { goodErrorPct: 0.42, g4Status: 'STRONG', manualPct: 0 } });
+    expect(contextText(r, 'no-fault-limited'))
+      .toBe('limited by: good-error share below the floor (G3), strong actuator activity (G4) · good-error 42 % · G4 strong · manual 0 %');
+  });
+});

@@ -4667,3 +4667,45 @@ User decisions: change labels in percentage points; NO_CALL reads "No fault iden
 - cplm-api builds.
 
 **Lab browser check:** pending (Docker Desktop stopped).
+
+## CHG-093 — SME review 2, phase B: fleet numbers on a proper basis (2026-10-14)
+
+**Source:** `SME_review_2.md` points 10, 11, 12 (`SME_review_2_check.md`, phase B). User decision 2026-10-14 for #12:
+"what sme is saying - or standard and commonly used" → acceptable control needs its own performance criteria.
+
+**What changed**
+- **Performing acceptably (#12):** no fault identified (NO_CALL / INSUFFICIENT_EVIDENCE) is a diagnosis, not a performance
+  verdict. K1 now also needs **G3 PASS** (good-error share at or above the profile floor) and **G4 not STRONG** (actuator
+  activity), on top of normal mode ≥ 95 % and not saturated > 10 %.
+  - A G3 that was not evaluated is not a pass.
+  - A no-fault loop that misses a criterion is "No fault, but limited", and the drill-down names each one missed
+    (`limitedBy`: OUT_OF_MODE, SATURATED, G3_BELOW_FLOOR, G3_NOT_EVALUATED, G4_STRONG).
+  - `FleetKpiSql` reads `gates.G3` / `gates.G4`, `good_error_pct`, `mae` and the registry PV span.
+- **Performance headline over the whole scope (#10):**
+  - The page no longer averages the 50 most confident loops of a ranked page. `GET fleet/kpis` now returns `performance`,
+    computed over every assessed loop in the scope (the Overview KPIs' classification).
+  - Each tile states its denominator and the exclusions (not assessable, stale, never evaluated, not measured).
+  - The tiles are neutral, not green.
+  - Under a health filter the tiles say they cover the whole scope.
+- **Error across loops (#11):**
+  - "Median MAE · PV units" is replaced by "Median error (% of span)": MAE ÷ (pvMax − pvMin) per loop, then the median.
+  - Loops without a registered span are counted as excluded, never mixed in.
+  - `orderBy=mae` on `fleet/rankings` ranks by the same ratio; loops without a span rank last.
+- KPI-LOGIC.md K1 is rewritten, with a change-log line.
+
+**Services updated:** `cplm-api` (KPI read + classifier + `performance` block + rankings order), `ams-frontend`.
+**Not changed:** Flink, schema, retention. **No migration.**
+**Expected effect at the plant:** "Performing acceptably" can drop. Loops with NO_CALL but G3 WARN (good-error share under the
+floor) or G4 STRONG move to "No fault, but limited". This is intended: the SME's point is that these were never shown to
+control acceptably.
+**Script to run:** with the CHG-092 images (the same two services).
+
+**Tests**
+- cplm-api builds.
+- New unit tests: `FleetKpiClassifierTests` (G3 / G4 theory, every missed criterion named) and `FleetKpiPerformanceTests`
+  (span normalisation, exclusions, empty scope). All 33 pass.
+- The DB-backed endpoint tests (`FleetKpiEndpointTests`) are **pending the lab** (Docker stopped): the new SQL columns
+  have not run against Postgres yet.
+- Frontend: tsc and eslint clean; vitest 408 / 408 (new `performanceHeadline.test.ts`, the kpiProof "limited by" case).
+
+**Lab browser check:** pending.

@@ -29,8 +29,9 @@ const fresh = (b: FleetKpiBasis) => `newest ${b.windowKind} result ≤ ${Math.ro
 
 export const KPI_META: Partial<Record<FleetKpiKey, KpiMeta>> = {
   acceptable: { Icon: ObiSpeedGood, higherIsBetter: true,
-    formula: 'count(no fault found ∧ AUTO ≥ normal-mode limit ∧ time at OP limit ≤ saturation limit) ÷ monitored loops',
-    threshold: b => `No fault · AUTO ≥ ${pc(b.normalModeMin)} · at limit ≤ ${pc(b.saturationMax)}` },
+    // CHG-093 (SME review 2 #12): no fault identified is a diagnosis; acceptable control needs its own performance criteria
+    formula: 'count(no fault identified ∧ AUTO ≥ normal-mode limit ∧ time at OP limit ≤ saturation limit ∧ G3 pass ∧ G4 not strong) ÷ monitored loops',
+    threshold: b => `No fault · AUTO ≥ ${pc(b.normalModeMin)} · at limit ≤ ${pc(b.saturationMax)} · good-error share ≥ floor (G3) · effort not strong (G4)` },
   'normal-mode': { Icon: ObiAuto, higherIsBetter: true,
     formula: 'count(AUTO % ≥ limit) ÷ loops with a measured mode;  AUTO % = time in AUTO or CASCADE ÷ window time',
     threshold: b => `AUTO / CASCADE ≥ ${pc(b.normalModeMin)} of the window` },

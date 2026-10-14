@@ -321,8 +321,10 @@ export const KpiTile: React.FC<{
   sub?: React.ReactNode;
   tone?: CpmTone;
   action?: React.ReactNode;
-}> = ({ caption, value, sub, tone = 'muted', action }) => (
-  <div className={`cpm-kpi cpm-kpi--${tone}`}>
+  /** Hover text: what the figure counts and how (CHG-093). */
+  title?: string;
+}> = ({ caption, value, sub, tone = 'muted', action, title }) => (
+  <div className={`cpm-kpi cpm-kpi--${tone}`} title={title}>
     <span className="cpm-kpi__caption">{caption}</span>
     <span className="cpm-kpi__value">{value}</span>
     {sub != null && <span className="cpm-kpi__sub">{sub}</span>}
