@@ -31,7 +31,33 @@ describe('causeBreakdown', () => {
     const b = causeBreakdown(v, ['NO_VP', 'NO_VALID_CYCLE'])!;
     expect(b.ruledOut).toEqual([{ id: 'STICTION', label: 'Valve stiction / nonlinearity',
       detail: 'no stiction-shaped cycles — note: no valve position mapped; no clean oscillation cycle, so it could not be checked fully' }]);
-    expect(b.notAssessed).toEqual([{ id: 'ACTUATOR_LIMIT', label: 'Actuator at a limit', detail: 'no evidence scored' }]);
+    // CHG-092 (SME 2 #7): a qualified mechanism that scored nothing was not seen — it is not "not assessed"
+    expect(b.notAssessed).toEqual([]);
+    expect(b.notSeen).toEqual([{ id: 'ACTUATOR_LIMIT', label: 'Actuator at a limit',
+      detail: 'its evidence was not present in this window — this is not evidence against it' }]);
+  });
+
+  it('a missing input never reads as evidence against (SME review 2 #7)', () => {
+    const w: CpmVerdictV2 = { ...v, hypotheses: {
+      EXTERNAL_DISTURBANCE: { score: 0, state: 'DISQUALIFIED', evidenceGroups: ['OSCILLATION'], contradictions: [], disqualifiers: [] },
+      SENSOR: { score: 0, state: 'DISQUALIFIED', evidenceGroups: [], contradictions: [], disqualifiers: [] },
+      EXCESSIVE_EFFORT: { score: 0, state: 'NO_EVIDENCE', evidenceGroups: [], contradictions: [], disqualifiers: [] },
+      ACTUATOR_LIMIT: { score: 0, state: 'NOT_ASSESSED', evidenceGroups: [], contradictions: [], disqualifiers: [], missingInputs: ['NO_STEP_TEST'] },
+    } };
+    const b = causeBreakdown(w, ['NO_UPSTREAM_LINKS'])!;
+    expect(b.ruledOut).toEqual([]);
+    expect(b.notAssessed.map(i => i.id)).toEqual(['EXTERNAL_DISTURBANCE', 'ACTUATOR_LIMIT']);
+    expect(b.notAssessed[0].detail).toMatch(/so it can be neither confirmed nor ruled out$/);
+    expect(b.notAssessed[1].detail).toMatch(/^no approved step test/i);
+    // SENSOR without a health flag on this window and without reasons: checked, nothing seen
+    expect(b.notSeen.map(i => i.id)).toEqual(['SENSOR', 'EXCESSIVE_EFFORT']);
+  });
+
+  it('a loop without a valve position is confirmed by a stroke test, not by VP tracking (SME 2 #19)', () => {
+    const w: CpmVerdictV2 = { ...v, leadingHypothesis: 'STICTION', hypotheses: {
+      STICTION: { score: 0.8, state: 'QUALIFIED', evidenceGroups: ['OSCILLATION'], contradictions: [], disqualifiers: [] } } };
+    const b = causeBreakdown(w, [], { vp: 'NOT_APPLICABLE', vpMapped: false, peers: 'EXPECTED' })!;
+    expect(b.possible[0].detail).toMatch(/approved stroke \/ bump test would confirm it \(this loop has no valve position\)$/);
   });
 
   it('has nothing to say for a pre-v2.5 row', () => {

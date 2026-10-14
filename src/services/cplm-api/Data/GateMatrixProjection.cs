@@ -181,8 +181,10 @@ public static class GateMatrixProjection
 
     public sealed record ObservationView(bool Present, double Score, string MethodId, string Role, string Basis);
 
+    /// <param name="MissingInputs">CHG-092: the inputs a NOT_ASSESSED hypothesis lacks (engine CHG-095); empty on older rows.</param>
     public sealed record HypothesisView(
-        double Score, string State, string[] EvidenceGroups, string[] Contradictions, string[] Disqualifiers);
+        double Score, string State, string[] EvidenceGroups, string[] Contradictions, string[] Disqualifiers,
+        string[]? MissingInputs = null);
 
     public sealed record ConfirmationView(
         string ClaimType, string State, string Reason, string[] PositiveEvidenceIds, string[] Contradictions,
@@ -238,7 +240,7 @@ public static class GateMatrixProjection
                 hypotheses[h.Name] = new HypothesisView(
                     ReadDouble(h.Value, "score"), ReadString(h.Value, "state") ?? "NOT_ASSESSED",
                     ReadStringArray(h.Value, "evidence_groups"), ReadStringArray(h.Value, "contradictions"),
-                    ReadStringArray(h.Value, "disqualifiers"));
+                    ReadStringArray(h.Value, "disqualifiers"), ReadStringArray(h.Value, "missing_inputs"));
             }
         }
         return new VerdictV2View(

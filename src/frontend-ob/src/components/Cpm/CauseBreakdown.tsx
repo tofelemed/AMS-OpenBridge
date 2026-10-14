@@ -31,8 +31,10 @@ export const CauseBreakdownRows: React.FC<{ verdict: CpmVerdictV2 | undefined | 
       <Group label="Possible cause">
         <List items={b.possible.map(p => ({ ...p, label: `${p.label}${p.leading ? ' (leading)' : ''}` }))} empty="no mechanism qualified" />
       </Group>
-      {b.ruledOut.length > 0 && <Group label="Ruled out"><List items={b.ruledOut} empty="" /></Group>}
-      {b.notAssessed.length > 0 && <Group label="No evidence / not assessed"><List items={b.notAssessed} empty="" /></Group>}
+      {/* SME review 2 #7 (CHG-092): evidence against a cause is not the same fact as a cause that could not be assessed */}
+      {b.ruledOut.length > 0 && <Group label="Evidence against"><List items={b.ruledOut} empty="" /></Group>}
+      {b.notAssessed.length > 0 && <Group label="Not assessed — input missing"><List items={b.notAssessed} empty="" /></Group>}
+      {b.notSeen.length > 0 && <Group label="Not seen in this window"><List items={b.notSeen} empty="" /></Group>}
     </dl>
   );
 };

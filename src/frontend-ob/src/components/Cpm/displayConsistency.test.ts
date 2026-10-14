@@ -10,7 +10,10 @@ import { PRIORITY_RULE } from './overview/priorityReason';
 describe('display consistency (CHG-065)', () => {
   it('the Historical verdict lane names a confirmed finding as confirmed, and an unjudged window in grey', () => {
     expect(diagnosisBand('CONFIRMED_OSCILLATION')).toEqual({ label: 'Confirmed', tone: 'bad' });
-    expect(diagnosisBand('SUSPECTED_FINAL_ELEMENT_NONLINEARITY')).toEqual({ label: 'Suspected', tone: 'bad' });
+    // CHG-092 (SME 2 #6): suspected is amber like its G15 mark; red only for confirmed (ISA-101)
+    expect(diagnosisBand('SUSPECTED_FINAL_ELEMENT_NONLINEARITY')).toEqual({ label: 'Suspected', tone: 'warn' });
+    expect(diagnosisBand('DETECTED_OSCILLATION')).toEqual({ label: 'Detected', tone: 'warn' });
+    expect(diagnosisBand('NO_CALL')).toEqual({ label: 'No fault identified', tone: 'muted' });
     expect(diagnosisBand('EXCLUDED_MODE').tone).toBe('muted');
   });
   it('an excluded window is grey, not amber, wherever toneFor colours it', () => {

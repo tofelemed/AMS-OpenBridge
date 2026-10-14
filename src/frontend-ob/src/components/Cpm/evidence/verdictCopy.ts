@@ -10,6 +10,7 @@ import { codeLabel, phrase } from '../vocabulary';
 const REASONS: Record<string, string> = {
   BANDWIDTH: 'limited by the {grid} acquisition grid',
   NO_VP: 'no valve-position signal is mapped',
+  VP_NOT_APPLICABLE: 'this loop has no valve position, so it does not apply',   // CHG-092 / CHG-088
   NO_UPSTREAM_LINKS: 'no peer links are configured',
   NO_PEER_LINKS: 'no peer links are configured',
   NO_STEP_TEST: 'no approved step test is on record',

@@ -32,7 +32,9 @@ export function stageTone(matrix: CpmGateMatrix | undefined, gates: string[]): '
   return 'good';
 }
 
-export const ReasoningChain: React.FC<{ matrix: CpmGateMatrix; machineReason: string | null }> = ({ matrix, machineReason }) => (
+export const ReasoningChain: React.FC<{ matrix: CpmGateMatrix; machineReason: string | null;
+  /** CHG-092 (SME 2 #19): the loop is declared without a valve position — G14's NO_VP is then a fact, not a gap. */
+  vpAbsentOnLoop?: boolean }> = ({ matrix, machineReason, vpAbsentOnLoop = false }) => (
   <>
     {/* The heading is the CollapsibleSection that holds this chain (CHG-050). */}
     {CHAIN.map((c, i) => {
@@ -46,7 +48,8 @@ export const ReasoningChain: React.FC<{ matrix: CpmGateMatrix; machineReason: st
               const cell = matrix.gates.find(x => x.key === g);
               const status = cell?.status ? codeLabel(cell.status) : '—';
               // G14's reason is the confirmation reason (NO_VP, NO_POSITIVE_EVIDENCE, …).
-              return g === 'G14' && cell?.reason ? `${g} ${status} (${phrase(cell.reason)})` : `${g} ${status}`;
+              const reason = cell?.reason === 'NO_VP' && vpAbsentOnLoop ? 'VP_NOT_APPLICABLE' : cell?.reason;
+              return g === 'G14' && reason ? `${g} ${status} (${phrase(reason)})` : `${g} ${status}`;
             }).join(' · ')}
           </span>
         </div>

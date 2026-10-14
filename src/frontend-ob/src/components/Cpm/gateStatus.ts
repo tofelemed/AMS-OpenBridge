@@ -34,7 +34,7 @@ export function gateRole(gate: string | null | undefined): GateRole {
 
 /** The meaning of one gate result — what the mark on screen must say (SME review #16, CHG-052). */
 export type GateMeaning = 'ok' | 'ok-limited' | 'attention' | 'failed' | 'unusable' | 'not-seen' | 'not-seen-limited'
-  | 'seen' | 'strong' | 'suspected' | 'confirmed' | 'ruled-out' | 'none';
+  | 'seen' | 'strong' | 'detected' | 'classified' | 'suspected' | 'confirmed' | 'ruled-out' | 'none';
 
 export interface GateGlyph {
   glyph: string;
@@ -67,6 +67,9 @@ const MARK: Record<GateMeaning, Omit<GateGlyph, 'meaning'>> = {
   'not-seen-limited': { glyph: '◯', tone: 'muted', word: 'Not seen on available data', label: 'symptom not seen on the inputs available' },
   seen: { glyph: '◐', tone: 'warn', word: 'Seen', label: 'symptom seen' },
   strong: { glyph: '⬤', tone: 'warn', word: 'Strong', label: 'strong symptom evidence' },
+  // CHG-092 (SME 2 #6): G15 carries the diagnosis band — same word as the result pill, amber below confirmed
+  detected: { glyph: '△', tone: 'warn', word: 'Detected', label: 'condition detected (weak evidence)' },
+  classified: { glyph: '△', tone: 'warn', word: 'Classified', label: 'condition classified (moderate evidence)' },
   suspected: { glyph: '△', tone: 'warn', word: 'Suspected', label: 'condition suspected' },
   confirmed: { glyph: '▲', tone: 'bad', word: 'Confirmed', label: 'condition confirmed' },
   'ruled-out': { glyph: '✓', tone: 'good', word: 'Ruled out', label: 'fault ruled out by measured evidence' },
@@ -83,6 +86,8 @@ export function gateMeaning(status: string | null | undefined, gate?: string | n
   const role = gateRole(gate);
   if (s === 'CONFIRMED') return 'confirmed';
   if (s === 'SUSPECTED') return 'suspected';
+  if (s === 'CLASSIFIED') return 'classified';
+  if (s === 'DETECTED') return 'detected';
   if (s === 'CONTRADICTED') return 'ruled-out';
   if (s === 'STRONG') return 'strong';
   if (s.startsWith('EXCLUDED')) return 'unusable';

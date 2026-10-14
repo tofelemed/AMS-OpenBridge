@@ -69,8 +69,10 @@ function delta(key: string, k: LoopKpis, span: number | null, unit: string, high
   return {
     points: d, direction,
     good: direction === 'flat' || higherIsBetter == null ? null : (direction === 'up') === higherIsBetter,
-    text: `${fmt(Math.abs(d), unit === '%' ? 0 : 1)}${unit === '%' ? ' %' : ''}`,
-    title: `Change since the window 24 h earlier: ${fmt(then)}${unit} → ${fmt(now)}${unit}`,
+    // SME review 2 #13: a % value changes by percentage points (pp); other values in their own unit
+    text: `${direction === 'flat' ? '±' : d > 0 ? '+' : '−'}${fmt(Math.abs(d), unit === '%' ? 0 : 1)}${unit === '%' ? ' pp' : unit ? ` ${unit}` : ''}`,
+    title: `Change since the window 24 h earlier: ${fmt(then)}${unit === '%' ? ' %' : ` ${unit}`} → ${fmt(now)}${unit === '%' ? ' %' : ` ${unit}`}`
+      + (unit === '%' ? ` (${fmt(Math.abs(d), 1)} percentage points ${direction === 'flat' ? 'change' : direction})` : ''),
   };
 }
 

@@ -402,7 +402,7 @@ export const CpmHistorical: React.FC = () => {
         </div>
       </section>
 
-      <SelectedWindowPanel
+      <SelectedWindowPanel windowKind={windowKind}
         loopId={loopId}
         window={windows.length > 0 ? selectedWindow : undefined}
         fellBack={windowFellBack}

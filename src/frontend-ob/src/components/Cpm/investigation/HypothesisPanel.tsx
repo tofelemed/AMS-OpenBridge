@@ -96,7 +96,11 @@ export const HypothesisPanel: React.FC<{
           <div key={id} className="cpm-window-row cpm-hypo-row" data-testid={`hypothesis-${id}`}>
             <strong>
               {HYPOTHESIS_LABEL[id] ?? codeLabel(id)}{' '}
-              <TonePill tone={stateTone(h.state)}>{codeLabel(h.state)}</TonePill>
+              {/* CHG-092 (SME 2 #7): "evidence against" only when measured; otherwise the evidence was not seen */}
+              <TonePill tone={stateTone(h.state)}>{(h.state ?? '').toUpperCase() === 'DISQUALIFIED'
+                ? (h.disqualifiers.length + h.contradictions.length > 0 ? 'Evidence against' : 'Not seen')
+                : (h.state ?? '').toUpperCase() === 'NO_EVIDENCE' ? 'Not seen'
+                : (h.state ?? '').toUpperCase() === 'NOT_ASSESSED' ? 'Not assessed' : codeLabel(h.state)}</TonePill>
               {leading && <> <TonePill tone="warn">Leading</TonePill></>}
             </strong>
             <ScoreBar value={h.score} />
@@ -105,7 +109,7 @@ export const HypothesisPanel: React.FC<{
                 ? `for: ${h.evidenceGroups.map(g => OBSERVATION_LABEL[g] ?? codeLabel(g)).join(' · ')}`
                 : 'no supporting observation'}
               {h.contradictions.length > 0 && ` · against: ${h.contradictions.map(codeLabel).join(', ')}`}
-              {h.disqualifiers.length > 0 && ` · ruled out by: ${h.disqualifiers.map(c => phrase(c)).join(', ')}`}
+              {h.disqualifiers.length > 0 && ` · evidence against: ${h.disqualifiers.map(c => phrase(c)).join(', ')}`}
             </span>
           </div>
         );

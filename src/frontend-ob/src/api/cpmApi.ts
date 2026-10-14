@@ -11,6 +11,7 @@
 import { apiJson } from './apiFetch';
 import { CPM_BASE as BASE } from './cpm/base';
 import type { CpmTrendPoint } from './cpm/kpis';
+import { g15StatusFor } from '../components/Cpm/vocabulary';
 // v2.5: the gate matrix, KPI/trend/resolutions and the fusion v2 verdict types live in
 // ./cpm/* (file-size rule); they are re-exported here so existing imports keep working.
 export * from './cpm/gates';
@@ -524,7 +525,10 @@ export const getFleetHeatmap = (scope?: CpmFleetScope | string, windowKind = '12
   return apiJson<{
     site: string | null; windowKind: string; gateKeys: string[];
     count: number; total: number; truncated: boolean; loops: CpmHeatmapLoop[];
-  }>(`${BASE}/fleet/heatmap?${params.toString()}`);
+  }>(`${BASE}/fleet/heatmap?${params.toString()}`)
+    // CHG-092 (SME 2 #6): the matrix's G15 column shows the diagnosis band
+    .then(r => ({ ...r, loops: r.loops.map(l => (l.gates && 'G15' in l.gates
+      ? { ...l, gates: { ...l.gates, G15: g15StatusFor(l.diagnosis, l.gates.G15) ?? l.gates.G15 } } : l)) }));
 };
 
 // ── Calculations catalogue (U3 drawer, U9) ──────────────────────────────────

@@ -46,7 +46,7 @@ const STATUS: Record<string, string> = {
 
 /** Reasons, flags and disqualifier codes: what the engine could not do, or why it ruled something out. */
 const REASON: Record<string, string> = {
-  NO_VP: 'No valve position mapped', NO_VALID_CYCLE: 'No clean oscillation cycle', NO_PV_SPAN: 'No PV span declared',
+  NO_VP: 'No valve position mapped', VP_NOT_APPLICABLE: 'No valve position on this loop', NO_VALID_CYCLE: 'No clean oscillation cycle', NO_PV_SPAN: 'No PV span declared',
   HEALTH_NOT_CONFIGURED: 'Instrument health not configured', HEALTH_LIMITED: 'Instrument health limited',
   HEALTH_INELIGIBLE: 'Instrument health made the window ineligible',
   NO_UPSTREAM_LINKS: 'No peer links configured', NO_PEER_LINKS: 'No peer links configured', NO_STEP_TEST: 'No approved step test',
@@ -131,10 +131,43 @@ export function disqualifierLabel(code: string): string {
   return `${family} ruled out: ${lowerFirst(why)}`;
 }
 
+/**
+ * SME review 2 #6 (CHG-092): ONE band per result, read from the diagnosis prefix, on every screen (summary, matrix, G15
+ * cell, Investigation, Events, Historical, export). The engine's G15 status said "SUSPECTED" for DETECTED / CLASSIFIED /
+ * SUSPECTED alike (fixed in the engine by CHG-094); stored history keeps the old pairs, so the band always comes from here.
+ * ISA-101: red only for a confirmed condition; the weaker bands are amber; "no fault identified" is a diagnostic
+ * statement, not a performance one, so it is grey — never green (SME 2 #12).
+ */
+export type DiagnosisBandKey = 'CONFIRMED' | 'SUSPECTED' | 'CLASSIFIED' | 'DETECTED' | 'NO_FAULT' | 'NO_DATA' | 'EXCLUDED' | 'NOT_EVALUATED' | 'OTHER';
+export const BAND_WORD: Record<DiagnosisBandKey, string> = {
+  CONFIRMED: 'Confirmed', SUSPECTED: 'Suspected', CLASSIFIED: 'Classified', DETECTED: 'Detected',
+  NO_FAULT: 'No fault identified', NO_DATA: 'Not enough data', EXCLUDED: 'Excluded', NOT_EVALUATED: 'Not evaluated', OTHER: '—',
+};
+export function bandOf(diagnosis: string | null | undefined): DiagnosisBandKey {
+  const d = (diagnosis ?? '').trim().toUpperCase();
+  if (!d || d === 'NOT_EVALUATED' || d === 'PENDING') return 'NOT_EVALUATED';
+  if (d === 'NO_CALL' || d === 'INSUFFICIENT_EVIDENCE') return 'NO_FAULT';
+  if (d === 'INSUFFICIENT_DATA') return 'NO_DATA';
+  if (d.startsWith('EXCLUDED')) return 'EXCLUDED';
+  const m = d.match(/^(CONFIRMED|SUSPECTED|CLASSIFIED|DETECTED)_/);
+  return m ? (m[1] as DiagnosisBandKey) : 'OTHER';
+}
+
+/** The G15 status that matches the diagnosis band (CHG-092 shim for rows written before the engine's CHG-094). */
+export function g15StatusFor(diagnosis: string | null | undefined, served: string | null | undefined): string | null {
+  const b = bandOf(diagnosis);
+  if (b === 'CONFIRMED' || b === 'SUSPECTED' || b === 'CLASSIFIED' || b === 'DETECTED') return b;
+  if (b === 'NO_FAULT') return 'INSUFFICIENT_EVIDENCE';
+  return served ?? null;
+}
+
 /** `CONFIRMED_OSCILLATION` → "Oscillation confirmed"; the not-judged states say why. */
 export function diagnosisLabel(diagnosis: string | null | undefined): string {
   const d = (diagnosis ?? '').trim().toUpperCase();
-  if (!d || d === 'NOT_EVALUATED' || d === 'NO_CALL') return 'Not evaluated yet';
+  if (!d || d === 'NOT_EVALUATED') return 'Not evaluated yet';
+  // CHG-092 (SME 2 #6 / decision 3): NO_CALL and INSUFFICIENT_EVIDENCE are verdicts — judged, no fault reached the
+  // evidence threshold. INSUFFICIENT_EVIDENCE used to read "not enough data", which is INSUFFICIENT_DATA's meaning.
+  if (d === 'NO_CALL' || d === 'INSUFFICIENT_EVIDENCE') return 'No fault identified';
   if (d.startsWith('INSUFFICIENT')) return 'Not evaluated: not enough data';
   if (d.startsWith('EXCLUDED')) return 'Excluded: loop not in automatic';
   if (d === 'NORMAL' || d === 'NONE' || d === 'HEALTHY') return 'No problem found';

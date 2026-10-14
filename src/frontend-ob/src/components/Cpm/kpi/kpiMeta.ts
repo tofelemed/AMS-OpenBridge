@@ -69,8 +69,9 @@ export const basisShort = (b: FleetKpiBasis): string => `${b.windowKind} window 
 export interface KpiDelta { points: number; direction: 'up' | 'down' | 'flat'; good: boolean | null; text: string; title: string }
 
 /**
- * Change in the KPI's share since the same classification 24 h earlier, shown as a plain % (it is percentage points of the
- * share — the hover title says so); a share, not a count, so a fleet that grew does not read as a change. Null when there is no earlier picture to compare with.
+ * Change in the KPI's share since the same classification 24 h earlier, in PERCENTAGE POINTS ("+23 pp": 50 % → 73 % is
+ * 23 points, not a 23 % relative change — SME review 2 #13); a share, not a count, so a fleet that grew does not read as a
+ * change. Null when there is no earlier picture to compare with.
  */
 export function kpiDelta(f: FleetKpiFigure, k: FleetKpis): KpiDelta | null {
   const before = k.previous?.kpis.find(p => p.key === f.key);
@@ -83,7 +84,7 @@ export function kpiDelta(f: FleetKpiFigure, k: FleetKpis): KpiDelta | null {
   return {
     points, direction,
     good: direction === 'flat' ? null : (direction === 'up') === better,
-    text: `${Math.abs(points)} %`,
+    text: direction === 'flat' ? '±0 pp' : `${points > 0 ? '+' : '−'}${Math.abs(points)} pp`,
     title: `Change since 24 h ago: ${Math.round(then)} % (${before.count} of ${before.denominator}) → ${Math.round(now)} % now `
       + `(${f.count} of ${f.denominator}), ${direction === 'flat' ? 'no change' : `${Math.abs(points)} percentage points ${direction}`}`,
   };

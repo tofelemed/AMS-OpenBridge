@@ -12,7 +12,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import { ObcIconButton } from '@oicl/openbridge-webcomponents-react/components/icon-button/icon-button';
 import type { CpmWindowSpec } from '../../api/cpmApi';
 import { CPM_PAGES, type CpmPagePath } from '../nav/cpmTasks';
-import { diagnosisLabel } from './vocabulary';
+import { BAND_WORD, bandOf, diagnosisLabel } from './vocabulary';
 
 export type CpmTone = 'good' | 'warn' | 'bad' | 'muted';
 
@@ -248,14 +248,16 @@ export function toneFor(value: string | null | undefined): CpmTone {
   // (G7 stiction shape, G8 Horch oddness, G9 phase geometry) fell through to
   // 'muted' and rendered identically to "not evaluated" - weaker WARN gates
   // looked more alarming than the ones driving the verdict.
-  if (v.startsWith('CONFIRMED') || v.startsWith('SUSPECTED') || v === 'FAIL' || v === 'BAD'
+  // CHG-092 (SME 2 #6): the same tone as the G15 mark — red only for a CONFIRMED condition (ISA-101), the weaker
+  // bands amber; a LOW severity is not "good" (green would read as acceptable performance — SME 2 #22)
+  if (v.startsWith('CONFIRMED') || v === 'FAIL' || v === 'BAD'
       || v === 'STRONG' || v === 'CRITICAL' || v === 'HIGH')
     return 'bad';
-  if (v.startsWith('DETECTED') || v.startsWith('CLASSIFIED') || v === 'WARN' || v === 'REVIEW'
+  if (v.startsWith('SUSPECTED') || v.startsWith('DETECTED') || v.startsWith('CLASSIFIED') || v === 'WARN' || v === 'REVIEW'
       || v === 'SHELVED' || v === 'MEDIUM')
     return 'warn';
   if (v === 'PASS' || v === 'GOOD' || v === 'ACKNOWLEDGED' || v === 'ACTIVE' || v === 'RUNNING'
-      || v === 'HEALTHY' || v === 'ACCEPTABLE' || v === 'LOW')
+      || v === 'HEALTHY' || v === 'ACCEPTABLE')
     return 'good';
   // PENDING / NOT_EVALUATED / INSUFFICIENT_EVIDENCE / EXCLUDED_* stay muted deliberately (CHG-065: EXCLUDED was
   // amber on some screens and grey on others):
@@ -292,16 +294,13 @@ export function cpmToneColors(): Record<CpmTone, string> {
 export function diagnosisBand(diagnosis: string | null | undefined): {
   label: string; tone: CpmTone;
 } {
-  if (!diagnosis || diagnosis === 'INSUFFICIENT_DATA') {
-    return { label: 'Not evaluated', tone: 'muted' };
-  }
-  const d = diagnosis.toUpperCase();
-  // CHG-065: a confirmed finding is never labelled "Suspected"; a window that was not judged is grey, not amber
-  if (d.startsWith('CONFIRMED')) return { label: 'Confirmed', tone: 'bad' };
-  if (d.startsWith('SUSPECTED')) return { label: 'Suspected', tone: 'bad' };
-  if (d.startsWith('DETECTED') || d.startsWith('CLASSIFIED')) return { label: 'Developing', tone: 'warn' };
-  if (d === 'NORMAL' || d === 'NONE' || d === 'HEALTHY') return { label: 'Normal', tone: 'good' };
-  return { label: diagnosisLabel(d), tone: 'muted' };
+  // CHG-092 (SME 2 #6): the same band words as every other screen (no separate "Developing" vocabulary)
+  const b = bandOf(diagnosis);
+  if (b === 'CONFIRMED') return { label: BAND_WORD.CONFIRMED, tone: 'bad' };
+  if (b === 'SUSPECTED' || b === 'CLASSIFIED' || b === 'DETECTED') return { label: BAND_WORD[b], tone: 'warn' };
+  if (b === 'NO_FAULT') return { label: BAND_WORD.NO_FAULT, tone: 'muted' };
+  if (b === 'NO_DATA' || b === 'NOT_EVALUATED') return { label: 'Not evaluated', tone: 'muted' };
+  return { label: diagnosisLabel(diagnosis), tone: 'muted' };
 }
 
 /** CPA's dot+label pill. */

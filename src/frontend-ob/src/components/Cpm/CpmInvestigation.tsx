@@ -312,7 +312,7 @@ export const CpmInvestigation: React.FC = () => {
           <div className="cpm-grid-2">
             <CollapsibleSection id="inv-reasoning" title="Reasoning chain — how the engine got there"
               summary={`Eligibility → Evidence → Fusion · ${machineReason ? `reason code ${machineReason}` : 'fused cleanly'}`}>
-              <ReasoningChain matrix={matrix} machineReason={machineReason} />
+              <ReasoningChain matrix={matrix} machineReason={machineReason} vpAbsentOnLoop={vpAbsent(inputContextOf(loop))} />
             </CollapsibleSection>
             <CollapsibleSection id="inv-hypotheses" title="Hypothesis comparison"
               summary={verdict && !verdict.legacy && verdict.leadingHypothesis

@@ -93,7 +93,7 @@ export const CpmReplay: React.FC = () => {
   const windowFellBack = !!windowEnd && windows.length > 0
     && !windows.some(w => w.windowEnd === windowEnd);
 
-  // The long-tier KPI row for the same 24h window carries the metric values.
+  // The long-tier KPI row for the same fused window (12h / 24h) carries the metric values.
   const kpiRow: CpmKpiRow | undefined = useCpmKpisRange(
     loopId, windowKind,
     selected?.windowStart ?? undefined,
@@ -194,7 +194,7 @@ export const CpmReplay: React.FC = () => {
             removed. Each now carries a disabled option naming what is missing.
           */}
           <label className="cpm-field">
-            <span className="cpm-field__label">Evaluated window (24h)</span>
+            <span className="cpm-field__label">Evaluated window ({windowKind})</span>
             <select className="cpm-select" value={selected?.windowEnd ?? ''}
               disabled={windows.length === 0}
               onChange={e => setParams(p => { p.set('window', e.target.value); return p; }, { replace: true })}>
@@ -203,7 +203,7 @@ export const CpmReplay: React.FC = () => {
                   {!loopId ? 'Select a loop first'
                     : history.isLoading ? 'Loading windows…'
                       : history.isError ? 'Window list unavailable'
-                        : 'No evaluated 24h windows for this loop'}
+                        : `No evaluated ${windowKind} windows for this loop`}
                 </option>
               )}
               {windows.map(w => (
@@ -261,7 +261,7 @@ export const CpmReplay: React.FC = () => {
         )}
         {history.isError && <QueryError title="Gate history unavailable" error={history.error} retry={() => void history.refetch()} />}
         {loopId && !selected && !history.isLoading && !history.isError && (
-          <EmptyState title="No evaluated 24h windows for this loop"
+          <EmptyState title={`No evaluated ${windowKind} windows for this loop`}
             copy="Replay needs a stored fused result; run the loop long enough to complete a window, or recompute from history." />
         )}
         {raw.isLoading && <EmptyState title="Loading raw slice…" />}
