@@ -71,7 +71,7 @@ export const HistorianLanes: React.FC<{
   const modeIntervals = useMemo(() => modeIntervalsFromTrend(modes.data?.points ?? [], toMs), [modes.data, toMs]);
 
   if (trend.isLoading) return <div className="cpm-context-lanes" aria-busy><p className="cpm-copy">Fetching the historian slice for this window…</p></div>;
-  if (trend.error) return <QueryError title="Historian slice unavailable" error={trend.error} />;
+  if (trend.error) return <QueryError title="Historian slice unavailable" error={trend.error} retry={() => void trend.refetch()} />;
   return (
     <div className="cpm-context-lanes">
       {eu.length > 0

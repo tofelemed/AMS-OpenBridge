@@ -140,9 +140,9 @@ export const GateConfigurationWorkspace: React.FC = () => {
       {view === 'bundles' && (
         <BundlesView activeBundleId={eff.data?.bundle?.bundleId} canDraft={perms.draft} creating={actions.create.isPending} createError={actions.create.isError ? actions.create.error : null}
           levels={{
-            LOOP: { ref: loopId!, bundles: loopLevel.data?.bundles ?? [], loading: loopLevel.isLoading, error: loopLevel.isError ? loopLevel.error : null },
-            PROFILE: { ref: profileId ?? '…', bundles: profileLevel.data?.bundles ?? [], loading: profileLevel.isLoading || (!profileId && eff.isLoading), error: profileLevel.isError ? profileLevel.error : null },
-            SITE: { ref: site ?? '…', bundles: siteLevel.data?.bundles ?? [], loading: siteLevel.isLoading, error: siteLevel.isError ? siteLevel.error : null },
+            LOOP: { ref: loopId!, bundles: loopLevel.data?.bundles ?? [], loading: loopLevel.isLoading, error: loopLevel.isError ? loopLevel.error : null, retry: () => void loopLevel.refetch() },
+            PROFILE: { ref: profileId ?? '…', bundles: profileLevel.data?.bundles ?? [], loading: profileLevel.isLoading || (!profileId && eff.isLoading), error: profileLevel.isError ? profileLevel.error : null, retry: () => void profileLevel.refetch() },
+            SITE: { ref: site ?? '…', bundles: siteLevel.data?.bundles ?? [], loading: siteLevel.isLoading, error: siteLevel.isError ? siteLevel.error : null, retry: () => void siteLevel.refetch() },
           }}
           onOpen={id => go({ view: 'editor', bundle: id, gate: null, tab: null })}
           onCreate={a => { if (site) actions.create.mutate({ site, scopeKind: a.scopeKind, scopeRef: a.scopeRef, parentBundleId: a.parentBundleId, note: a.note }); }} />

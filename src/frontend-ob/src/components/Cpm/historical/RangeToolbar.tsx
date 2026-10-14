@@ -17,6 +17,7 @@
  * diagnostic screen colour that means nothing competes with colour that does.
  */
 import React from 'react';
+import type { HistoryExportKind } from './useHistoryExports';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmLoop } from '../../../api/cpmApi';
 import { PlantScopeFilter, type CpmScope } from '../plantScope';
@@ -63,7 +64,11 @@ export interface RangeToolbarProps {
   onOpenTrend: (href: string) => void;
 
   exportDisabled: boolean;
-  onExport: (fmt: 'json' | 'csv') => void;
+  /** CHG-097 (SME review 2 #17): one labelled download per content; `busy` names the one being prepared. */
+  onExport: (kind: HistoryExportKind) => void;
+  exportBusy?: HistoryExportKind | null;
+  /** The selected window's end (for the evidence package label); null = no evaluated window selected. */
+  packageWindow?: string | null;
   /** v2.5 (2E.2, R14): explicit Normalise toggle - one "fraction of own span" axis instead of EU + pp axes. */
   normalize: boolean;
   onToggleNormalize: () => void;
@@ -83,8 +88,9 @@ export const RangeToolbar: React.FC<RangeToolbarProps> = ({
   scope, loops, loopId, loop, loopsInScope, onLoopChange, onLoopClear,
   from, to, preset, onPreset, onStep, onNow, onApplyCustom,
   signals, onToggleSignal, overlays, overlayKey, onOverlay,
-  seriesPath, trendHref, onOpenTrend, exportDisabled, onExport, normalize, onToggleNormalize,
+  seriesPath, trendHref, onOpenTrend, exportDisabled, onExport, exportBusy, packageWindow, normalize, onToggleNormalize,
 }) => {
+  const busyText = (k: HistoryExportKind, label: string) => (exportBusy === k ? 'Preparing…' : label);
 
   return (
     <div className="cpm-hist-toolbar">
@@ -99,13 +105,24 @@ export const RangeToolbar: React.FC<RangeToolbarProps> = ({
         <LoopCombobox scope={scope} loops={loops} value={loopId}
           onChange={onLoopChange} onClear={onLoopClear} />
         <div className="cpm-hist-row__end">
-          {/* Exporting the diagnosis windows with zero windows produced a file
-              containing only its header row. */}
-          <ObcButton variant="normal" disabled={exportDisabled} onClick={() => onExport('json')}>
-            Export JSON
+          {/* CHG-097 (SME review 2 #17): the old "Export CSV" held evaluated windows, not signals — each download now
+              says what it contains. Exporting windows with zero windows produced a file with only its header row. */}
+          <ObcButton variant="normal" disabled={!loopId || !!exportBusy} onClick={() => onExport('samples')}
+            title="PV, SP, OP, VP and mode from the historian over the range, at the loop's sample period, with units and both clocks">
+            {busyText('samples', 'Signal samples (CSV)')}
           </ObcButton>
-          <ObcButton variant="normal" disabled={exportDisabled} onClick={() => onExport('csv')}>
-            Export CSV
+          <ObcButton variant="normal" disabled={exportDisabled || !!exportBusy} onClick={() => onExport('windows-csv')}
+            title="The evaluated (fused) windows and their diagnoses over the range">
+            Evaluated windows (CSV)
+          </ObcButton>
+          <ObcButton variant="flat" disabled={exportDisabled || !!exportBusy} onClick={() => onExport('windows-json')}
+            title="The same windows with every gate, as JSON">
+            Windows (JSON)
+          </ObcButton>
+          <ObcButton variant="normal" disabled={!packageWindow || !!exportBusy} onClick={() => onExport('package')}
+            title={packageWindow ? `The window ending ${packageWindow}: verdict, every gate, its metrics, the evidence manifests and the signal samples over that window`
+              : 'Select an evaluated window on the verdict lane first'}>
+            {busyText('package', 'Evidence package (selected window)')}
           </ObcButton>
         </div>
       </Row>

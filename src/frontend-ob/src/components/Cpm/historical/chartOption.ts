@@ -71,12 +71,14 @@ export interface ChartInput {
   normalize?: boolean;
   /** Phase 5: the current rectangle / slider zoom (percent ranges), so a re-applied option keeps it. */
   zoom?: ZoomState;
+  /** CHG-097 (SME review 2 #26): the evaluated window under study, shaded on the signal lane with its meaning. */
+  highlight?: { startMs: number; endMs: number; label: string } | null;
 }
 
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
 
 /** Series whose values are scaffolding, not readings — excluded from tooltips. */
-const HELPER_SERIES = new Set(['pv-min', 'pv-band', 'mode-track', 'verdict-track', 'health-track']);
+const HELPER_SERIES = new Set(['pv-min', 'pv-band', 'mode-track', 'verdict-track', 'health-track', 'selected-window']);
 
 /** Which segment (if any) covers an instant. */
 const segmentAt = (segs: Segment[], ts: number) =>
@@ -245,6 +247,12 @@ export function buildChartOption(input: ChartInput) {
         nameTextStyle: { color: grey, fontSize: 10 }, axisLabel: { color: grey }, splitLine: { show: false } }]),
     ],
     series: [
+      ...(input.highlight ? [{
+        name: 'selected-window', type: 'line', silent: true, xAxisIndex: 0, yAxisIndex: 0, data: [] as Array<[number, number]>,
+        markArea: { silent: true, itemStyle: { color: input.pens.accent, opacity: 0.1 },
+          label: { show: true, position: 'insideTop' as const, color: grey, fontSize: 10 },
+          data: [[{ name: input.highlight.label, xAxis: input.highlight.startMs }, { xAxis: input.highlight.endMs }]] },
+      }] : []),
       // PV keeps its envelope: the band is the honest rendering of oscillation
       // inside a decimation bucket. VP gets its own pen — VP tracking OP is a
       // healthy valve, VP staircasing against a smooth OP is stiction.

@@ -223,4 +223,5 @@ Decisions needed before starting:
 | A | Done. Lab browser check pending | CHG-092: `d3d6cfcf`, `67db1e88` |
 | B | Done. DB endpoint tests and lab check pending (Docker stopped) | CHG-093 |
 | C | With ams-open-e0 | CHG-094..096 |
-| D, E, F | Not started | — |
+| D | Done. Lab browser check pending | CHG-097 |
+| E, F | Not started | — |

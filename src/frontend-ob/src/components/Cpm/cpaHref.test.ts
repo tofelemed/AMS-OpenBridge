@@ -66,3 +66,10 @@ describe('KPI proof opens the exact metric on the exact window (CHG-092, SME rev
     expect(calculationsHref('FIC10301', { kind: null, metric: undefined })).toBe('/cpm/calculations?loop=FIC10301');
   });
 });
+
+describe('a KPI or a finding opens its own window on the trend (CHG-097, SME review 2 #26)', () => {
+  it('carries the window kind, the window to shade, the signals and what was clicked', () => {
+    expect(historicalHref('FIC1', { from: 'a', to: 'b', kind: '24h', window: 'b', signals: 'op,vp', focus: 'Time at an OP limit' }))
+      .toBe('/cpm/historical?loop=FIC1&from=a&to=b&kind=24h&window=b&signals=op%2Cvp&focus=Time+at+an+OP+limit');
+  });
+});

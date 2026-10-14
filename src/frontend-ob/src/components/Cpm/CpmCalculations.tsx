@@ -15,7 +15,7 @@ import { WINDOW_KINDS, useWindowKind } from './useWindowKind';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, PanelHead, TonePill, WorkspaceHeader, toneFor, fmtDateTime,
-  fmtWindowShape, windowSpecsOf, fmtDuration,
+  fmtWindowShape, windowSpecsOf, fmtDuration, QueryError,
 } from './shared';
 import { LoopContextBar } from './context/LoopContextBar';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
@@ -241,9 +241,8 @@ export const CpmCalculations: React.FC = () => {
             </>
           )}
           {longKpis.isError && (
-            <span className="cpm-field__error">
-              KPI rows unavailable — latest values below may be missing, not absent.
-            </span>
+            <QueryError title="KPI rows unavailable — values below are missing, not absent" error={longKpis.error}
+              retry={() => void longKpis.refetch()} />
           )}
         </div>
       </section>

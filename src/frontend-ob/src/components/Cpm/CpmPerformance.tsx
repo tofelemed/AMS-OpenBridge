@@ -226,7 +226,7 @@ export const CpmPerformance: React.FC = () => {
             KPI row saying a model was not configured. Diagnostic capability is a
             fleet fact that changes what an engineer does next. */}
         <KpiTile caption="Diagnostic capability"
-          tone={capped != null && capped > 0 ? 'warn' : 'good'}
+          tone={capped != null && capped > 0 ? 'warn' : 'muted'}
           value={diagnosticCapabilityCopy(fleetTotal ?? null, capped, summary.data?.capability).value}
           sub={diagnosticCapabilityCopy(fleetTotal ?? null, capped, summary.data?.capability).sub} />
       </div>

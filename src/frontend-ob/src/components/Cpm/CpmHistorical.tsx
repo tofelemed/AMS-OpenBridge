@@ -29,6 +29,7 @@ import {
   useCpmKpisRange, useCpmLoops, useCpmModeTrack, useCpmTrend, useGateHistory,
 } from '../../hooks/useCpm';
 import { loopSeries } from '../../utils/loopSeries';
+import { useHistoryExports } from './historical/useHistoryExports';
 import { useObcTheme } from '../../hooks/useObcTheme';
 import RangeToolbar, { SIGNAL_KEYS } from './historical/RangeToolbar';
 import SelectedWindowPanel from './historical/SelectedWindowPanel';
@@ -57,13 +58,6 @@ const KPI_OVERLAYS = [
 const KPI_ROW_CAP = 500;
 /** Gate history is capped at 100 windows (~100 days at 24h). */
 const GATE_WINDOW_CAP = 100;
-
-function download(name: string, mime: string, body: string) {
-  const url = URL.createObjectURL(new Blob([body], { type: mime }));
-  const a = document.createElement('a');
-  a.href = url; a.download = name; a.click();
-  URL.revokeObjectURL(url);
-}
 
 export const CpmHistorical: React.FC = () => {
   const navigate = useNavigate();
@@ -95,15 +89,17 @@ export const CpmHistorical: React.FC = () => {
   }, [params]);
 
   // Applied range comes from the URL (deep-linkable, always absolute).
+  // CHG-097 (SME review 2 #16): keyed on the range params only — selecting a window or a signal must not move "now"
+  // and refetch the trend, mode track, KPIs and history
+  const toIso = params.get('to');
+  const fromIso = params.get('from');
   const { from, to } = useMemo(() => {
     const now = new Date();
-    const toIso = params.get('to');
-    const fromIso = params.get('from');
     return {
       from: fromIso ? new Date(fromIso) : new Date(now.getTime() - 3 * 24 * 3600_000),
       to: toIso ? new Date(toIso) : now,
     };
-  }, [params]);
+  }, [fromIso, toIso]);
   const preset = activePreset(from, to);
 
   const write = (mutate: (p: URLSearchParams) => void) =>
@@ -200,15 +196,24 @@ export const CpmHistorical: React.FC = () => {
   // there yet - 'EU' until 2G adds it); Normalise is an explicit URL choice (?normalize=1).
   const normalize = params.get('normalize') === '1';
   const timeZone = loop?.timezone || 'UTC';
+  const focus = params.get('focus');
+  const highlight = useMemo(() => {
+    const w = params.get('window') ? selectedWindow : undefined;
+    if (!w?.windowStart || !w.windowEnd) return null;
+    return { startMs: Date.parse(w.windowStart), endMs: Date.parse(w.windowEnd),
+      label: `Evaluated ${w.windowKind} window${focus ? ` · ${focus}` : ''}` };
+  }, [params, selectedWindow, focus]);
   // Phase 5: rectangle zoom across every lane on x, on the signals grid for y; the
   // slider, the wheel and the box all land in the same state (linked axes).
   const box = useBoxZoom({ hasY: true });
   const option = useMemo(() => buildChartOption({
     points, kpiRows, overlay, signals, modeSegments, verdictSegments, healthSegments: healthLane, from, to,
     pens: cpmChartColors(), tones: cpmToneColors(), pvUnit: loop?.engineering?.pvUnit ?? '', timeZone, normalize, zoom: box.zoom,
+    // CHG-097 (SME review 2 #26): a chosen window (verdict lane, KPI card, finding) is shaded where the signals are read
+    highlight: highlight,
   }),
   // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
-  [points, kpiRows, overlay, signals, modeSegments, verdictSegments, healthLane, from, to, obcTheme, timeZone, normalize, box.zoom]);
+  [points, kpiRows, overlay, signals, modeSegments, verdictSegments, healthLane, from, to, obcTheme, timeZone, normalize, box.zoom, highlight]);
   useKeepSelecting(box, option);
 
   // Zoom explores; Apply commits. Any zoom (slider, wheel or box) filters what is
@@ -231,30 +236,12 @@ export const CpmHistorical: React.FC = () => {
     if (end) write(p => p.set('window', end));
   };
 
-  const exportEvidence = (fmt: 'json' | 'csv') => {
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    if (fmt === 'json') {
-      download(`cplm-${loopId}-windows-${stamp}.json`, 'application/json',
-        JSON.stringify({
-          loopId, from: from.toISOString(), to: to.toISOString(),
-          // The cap travels WITH the evidence: a truncated export read later,
-          // away from this screen, must not pass as the complete record.
-          truncated: windowsTruncated,
-          windowCap: windowsTruncated ? GATE_WINDOW_CAP : undefined,
-          windows,
-        }, null, 2));
-      return;
-    }
-    const head = 'window_start,window_end,diagnosis,severity,confidence,sample_count,calculation_version';
-    const rows = windows.map(w => [
-      w.windowStart ?? '', w.windowEnd ?? '', w.diagnosis ?? '', w.severity ?? '',
-      w.confidence ?? '', w.sampleCount ?? '', w.metadata.calculationVersion ?? '',
-    ].join(','));
-    const foot = windowsTruncated
-      ? [`# TRUNCATED: hit the ${GATE_WINDOW_CAP}-window API cap; older windows in range are not included`]
-      : [];
-    download(`cplm-${loopId}-windows-${stamp}.csv`, 'text/csv', [head, ...rows, ...foot].join('\n'));
-  };
+  // CHG-097 (SME review 2 #17): labelled downloads — signal samples, evaluated windows, the selected window's evidence
+  // package — each with the loop, period, time zone and units (the window cap still travels with the windows export)
+  const exporter = useHistoryExports({
+    loopId, loop, series, from, to, timeZone, windows, truncated: windowsTruncated, cap: GATE_WINDOW_CAP,
+    selected: params.get('window') ? selectedWindow : undefined,
+  });
 
   const toggledTags = Object.fromEntries(
     signals.map(s => [s.toUpperCase(), loop?.tags[s.toUpperCase()] ?? ''])
@@ -304,10 +291,13 @@ export const CpmHistorical: React.FC = () => {
           trendHref={loopTrendHref(toggledTags, '8h', { from, to })}
           onOpenTrend={href => navigate(href)}
           exportDisabled={windows.length === 0}
-          onExport={exportEvidence}
+          onExport={k => void exporter.run(k)}
+          exportBusy={exporter.busy}
+          packageWindow={params.get('window') && selectedWindow?.windowEnd ? fmtDateTime(selectedWindow.windowEnd) : null}
           normalize={normalize}
           onToggleNormalize={() => write(p => { if (normalize) p.delete('normalize'); else p.set('normalize', '1'); })}
         />
+        {exporter.error && <p className="cpm-field__error" role="alert">{exporter.error}</p>}
 
         <PanelHead
           eyebrow="One time axis"

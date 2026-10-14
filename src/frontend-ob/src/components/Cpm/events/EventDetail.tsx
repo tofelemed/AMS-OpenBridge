@@ -13,7 +13,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import type { CpmEventFrame, CpmShelvePolicy } from '../../../api/cpmApi';
 import { useAcknowledgeEvent, useShelveEvent, useUnshelveEvent } from '../../../hooks/useCpm';
 import { EmptyState, KvRow, PanelHead, TonePill, diagnosisBand, fmtDateTime, toneFor } from '../shared';
-import { explorerHref } from '../cpaHref';
+import { explorerHref, historicalHref } from '../cpaHref';
 import { availabilityCopy, availabilityPill, conditionOf, supportCopy } from './eventsState';
 import { isAcknowledged, shelfCountdown, shelfState, stateView } from './shelfState';
 import { codeLabel, diagnosisLabel, phrase } from '../vocabulary';
@@ -95,6 +95,14 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
         <ObcButton variant="flat" title={`Open ${event.loop_id} in the Loop Explorer`}
           onClick={() => navigate(explorerHref(event.loop_id, { tab: 'Summary' }))}>
           {event.loop_id} ›
+        </ObcButton>
+        {/* CHG-097 (SME review 2 #26): the finding opens the period it covers, not only the loop */}
+        <ObcButton variant="flat" title="PV, SP, OP and mode over this episode in Historical, with the peak window shaded"
+          onClick={() => navigate(historicalHref(event.loop_id, {
+            from: event.opened_at, to: event.closed_at ?? new Date().toISOString(),
+            kind: event.window_kind, focus: `episode EVT-${event.id}`,
+          }))}>
+          Episode period ›
         </ObcButton>
         opened {fmt(event.opened_at)}
         {event.closed_at ? ` · closed ${fmt(event.closed_at)}` : ' · still open'}

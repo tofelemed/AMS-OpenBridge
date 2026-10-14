@@ -144,7 +144,7 @@ export const ResponseWorkspace: React.FC = () => {
                 { label: 'Setpoint changes in Historical', to: historicalHref(loopId) },
               ]} />
           ) : <EmptyState title="No event selected" copy="Choose an event on the left. Its result, chart, residuals, candidate models and Bode data are the kernel's artifacts for that method run." />)}
-          {!eventParam && methodRunParam && (runLookup.isError ? <QueryError error={runLookup.error} /> : <EmptyState title="Resolving the method run to its event…" />)}
+          {!eventParam && methodRunParam && (runLookup.isError ? <QueryError title="Method run not found" error={runLookup.error} retry={() => void runLookup.refetch()} /> : <EmptyState title="Resolving the method run to its event…" />)}
           {eventParam && detail.isError && <QueryError error={detail.error} retry={() => void detail.refetch()} />}
           {eventParam && !detail.isError && <ResultCard result={result} metrics={detail.data?.metrics} loading={detail.isLoading} />}
           {eventParam && manifest.isError && <QueryError title="Evidence manifest unavailable" error={manifest.error} retry={() => void manifest.refetch()} />}
@@ -170,7 +170,7 @@ export const ResponseWorkspace: React.FC = () => {
             </Suspense>
           )}
           {models.isError ? <QueryError error={models.error} retry={() => void models.refetch()} /> : (
-            <ModelHistoryBody models={models.data?.models ?? []} timeZone={timeZone} canReview={canReview} onReview={m => { review.reset(); setReviewing(m); }} />
+            <ModelHistoryBody models={models.data?.models ?? []} timeZone={timeZone} pvUnit={loop?.engineering?.pvUnit} canReview={canReview} onReview={m => { review.reset(); setReviewing(m); }} />
           )}
           {!canReview && <p className="cpm-copy">Model review needs the cpm.model.review permission.</p>}
         </main>

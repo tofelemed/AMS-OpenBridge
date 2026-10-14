@@ -67,8 +67,14 @@ export const investigationHref = (loop: string, opts: { kind?: string | null } =
   build('/cpm/investigation', { loop, profile: opts.kind });
 
 /** Historical on one loop; `from` / `to` (ISO) carry the period being looked at (CHG-048), else its default range. */
-export const historicalHref = (loop: string, opts: { from?: string | null; to?: string | null } = {}) =>
-  build('/cpm/historical', { loop, from: opts.from, to: opts.to });
+export const historicalHref = (loop: string, opts: {
+  from?: string | null; to?: string | null;
+  /** CHG-097 (SME review 2 #26): the evaluated window to shade (its end), the signals that matter, and what was clicked. */
+  window?: string | null; signals?: string | null; focus?: string | null;
+  /** Historical's window kind (?kind=12h|24h) — the selected window end is looked up among windows of this kind. */
+  kind?: string | null;
+} = {}) =>
+  build('/cpm/historical', { loop, from: opts.from, to: opts.to, kind: opts.kind, window: opts.window, signals: opts.signals, focus: opts.focus });
 
 /** The standalone calculations catalogue for one loop. */
 export const calculationsHref = (loop: string, opts: { metric?: string | null; kind?: string | null } = {}) =>

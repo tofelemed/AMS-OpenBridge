@@ -14,6 +14,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import {
   EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader,
   fmtDateTime,
+  QueryError,
 } from './shared';
 import { usePagedSlice } from '../shared/ListPager';
 import { ConfigApprovalQueue } from './config/ConfigApprovalQueue';
@@ -154,8 +155,7 @@ export const CpmGovernance: React.FC = () => {
             copy="The token was accepted by the app but not by audit-service — re-login to refresh claims." />
         )}
         {canReadAudit && audit.isError && !auditForbidden && (
-          <EmptyState title="Audit service unreachable"
-            copy={(audit.error as Error)?.message ?? 'unknown error'} />
+          <QueryError title="Audit service unreachable" error={audit.error} retry={() => void audit.refetch()} />
         )}
         {canReadAudit && audit.data && auditRows.length === 0 && (
           <EmptyState title="No governance events recorded yet"
@@ -259,8 +259,7 @@ export const CpmGovernance: React.FC = () => {
           )}
           {matrix.canRead && matrix.isLoading && <EmptyState title="Reading roles…" />}
           {matrix.canRead && matrix.isError && (
-            <EmptyState title="RBAC model unavailable"
-              copy={(matrix.error as Error)?.message ?? 'auth-service did not answer.'} />
+            <QueryError title="RBAC model unavailable" error={matrix.error} retry={() => void matrix.refetch()} />
           )}
 
           {matrix.canRead && matrix.data && (

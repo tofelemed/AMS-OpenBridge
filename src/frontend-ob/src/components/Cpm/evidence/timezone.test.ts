@@ -1,7 +1,7 @@
 // v2.5 Task 2E.1 (spec §3.1 axes: "UTC/site-time x"): times are shown in the SITE zone with the zone
 // visible, DST-safe, and the site zone comes from the registry (UTC when it declares none).
 import { describe, it, expect } from 'vitest';
-import { formatInZone, zoneLabel, siteZoneOf } from './timezone';
+import { axisTimeFormatter, formatInZone, zoneLabel, siteZoneOf } from './timezone';
 
 describe('timezone', () => {
   it('formats across a DST boundary in the site zone', () => {
@@ -19,5 +19,14 @@ describe('timezone', () => {
     expect(siteZoneOf({ timezone: null })).toBe('UTC');
     expect(siteZoneOf({ timezone: 'Mars/Olympus' })).toBe('UTC');
     expect(siteZoneOf(undefined)).toBe('UTC');
+  });
+});
+
+describe('axis ticks fit the span (CHG-097, SME review 2 #15)', () => {
+  const t = Date.UTC(2026, 9, 14, 12, 0, 5);
+  it('a history across days carries the date, a window minutes, an event seconds', () => {
+    expect(axisTimeFormatter(3 * 86_400_000, 'UTC')(t)).toBe('10-14 12:00');
+    expect(axisTimeFormatter(12 * 3_600_000, 'UTC')(t)).toBe('12:00');
+    expect(axisTimeFormatter(10 * 60_000, 'UTC')(t)).toBe('12:00:05');
   });
 });

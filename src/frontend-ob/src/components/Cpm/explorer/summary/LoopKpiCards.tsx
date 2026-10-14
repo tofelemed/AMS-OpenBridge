@@ -12,6 +12,11 @@ import { calculationsHref, historicalHref, windowsHref } from '../../cpaHref';
 import { KpiCard } from '../../kpi/KpiCard';
 import { LOOP_KPI_GROUPS, loopKpiCards, type LoopKpiCardModel } from '../../kpi/loopKpiView';
 
+/** CHG-097 (SME review 2 #26): the signals each trend-proven KPI is read from (Historical shows these, the window shaded). */
+const SIGNALS_OF: Record<string, string> = {
+  service: 'pv,sp,op', variability: 'pv,sp', saturation: 'op,vp', sp: 'sp,pv',
+};
+
 export const LoopKpiCards: React.FC<{ loop: CpmLoop; windowKind?: string }> = ({ loop, windowKind = '12h' }) => {
   const q = useQuery({
     queryKey: ['cpm', 'loop-kpis', loop.loopId, windowKind],
@@ -26,7 +31,7 @@ export const LoopKpiCards: React.FC<{ loop: CpmLoop; windowKind?: string }> = ({
   const hrefOf = (c: LoopKpiCardModel) =>
     c.proof === 'calculations' ? calculationsHref(loop.loopId, { kind: windowKind, metric: c.metric })
       : c.proof === 'windows' ? windowsHref(loop.loopId, { profile: windowKind, window: end })
-        : historicalHref(loop.loopId, { from, to: end });
+        : historicalHref(loop.loopId, { from, to: end, kind: windowKind, window: end, signals: SIGNALS_OF[c.key] ?? null, focus: c.label });
 
   return (
     <section className="cpm-summary-section" aria-label="Loop KPIs">

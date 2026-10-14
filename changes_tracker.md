@@ -4709,3 +4709,51 @@ control acceptably.
 - Frontend: tsc and eslint clean; vitest 408 / 408 (new `performanceHeadline.test.ts`, the kpiProof "limited by" case).
 
 **Lab browser check:** pending.
+
+## CHG-097 — SME review 2, phase D: charts and data out (2026-10-14)
+
+**Source:** `SME_review_2.md` points 15, 16, 17, 26 (`SME_review_2_check.md`, phase D). Number reserved with ams-open-e0 / -d5.
+
+**What changed**
+- **System Response model history (#15):**
+  - Time axes fit the span: seconds for an event, minutes for a window, and the date with the time once the span reaches
+    a day (a history across days repeated "12:00:00"). The change is in `CpmChart`, so every evidence chart benefits.
+  - Parameters show engineering names ("Process gain", not `process_gain`).
+  - Units are the loop's PV unit and the model's input (% OP / % VP), not the kernel placeholders `PV_EU` / `input_EU`.
+  - The interval is drawn as grey caps and named for what it is: ± 1 standard error of the fit, or for a dead time the
+    fit could not pin down, ± half the range of equally good delays (checked in `ResponseEvaluator`).
+- **Loading and failures (#16):**
+  - The trend keeps its last points while the next window loads (the live 8 h blanked every minute). It does so only
+    for the same loop and signals, so a loop switch never shows another loop's trace.
+  - Historical no longer refetches the trend, mode, KPIs and history when a window or signal is selected (its default
+    range was rebuilt on every URL change).
+  - Six load failures gained a Retry with the reason: historian slice, method-run lookup, Gate Configuration versions,
+    Calculations KPI rows, Governance audit, RBAC.
+  - The Performance capability tile is no longer green while loading.
+- **Exports (#17):** Historical offers labelled downloads.
+  - **Signal samples (CSV):** PV / SP / OP / VP / mode from the historian, at the loop's sample period. Read in
+    2,000-bucket slices (historian-bff's cap) and limited to 60,000 rows; a longer range is coarsened and the file says so.
+  - **Evaluated windows (CSV / JSON).**
+  - **Evidence package (selected window, JSON):** verdict, every gate, the window's metrics, the evidence manifests and
+    the samples over exactly that window.
+  - Every file names its content, loop, plant, period and time zone, with time in ISO UTC plus the site clock and a unit
+    per column.
+  - Chart CSVs carry the same header and readable times, and are named `<loop>-<chart>-<start>.csv` (was `Output.csv`
+    with epoch-ms).
+- **Charts central to investigation (#26):**
+  - A per-loop KPI card proven on the trend opens Historical on its own window: the right kind, the window shaded on the
+    signal lane, the relevant signals, and what was clicked.
+  - An episode has "Episode period ›" (opened → closed or now).
+  - The evaluated-window view compares with the previous window or with now over the SAME length, on one y-scale (the
+    old comparison put a 12 h or 24 h window over a live 8 h).
+
+**Services updated:** `ams-frontend` only. **Not changed:** cplm-api, historian-bff, Flink, schema. **No migration.**
+**Script to run:** with the next release's frontend image.
+
+**Tests**
+- tsc and eslint (`--max-warnings 0`) clean.
+- vitest 418 / 418. New tests: `historyExports.test.ts`, `responseSupport.test.ts`, the `axisTimeFormatter` cases, the
+  chart CSV context / file name, the `historicalHref` window / signals / focus link, and ModelHistory names and units.
+- Production build: see the commit.
+
+**Lab browser check:** pending (Docker).

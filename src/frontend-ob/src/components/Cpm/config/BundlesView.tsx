@@ -11,7 +11,7 @@ import { PanelHead, QueryError, TonePill, fmtDateTime } from '../shared';
 import type { BundleSummary, ScopeKind } from '../../../api/cpm/config';
 import { bundleStateTone, shortHash } from './configSupport';
 
-export interface LevelData { ref: string; bundles: BundleSummary[]; loading: boolean; error: unknown }
+export interface LevelData { ref: string; bundles: BundleSummary[]; loading: boolean; error: unknown; retry?: () => void }
 export type Levels = Record<'LOOP' | 'PROFILE' | 'SITE', LevelData>;
 
 const LEVEL_COPY: Record<keyof Levels, string> = {
@@ -48,7 +48,7 @@ export const BundlesView: React.FC<BundlesViewProps> = ({ levels, activeBundleId
                 <span className="cpm-mono cpm-config-level__ref">{level.ref}</span>
                 <span className="cpm-event-row__sub">{LEVEL_COPY[kind]}</span>
               </div>
-              {level.error != null && <QueryError error={level.error} />}
+              {level.error != null && <QueryError title="Versions unavailable" error={level.error} retry={level.retry} />}
               {level.loading && level.bundles.length === 0 && <p className="cpm-copy" aria-busy="true">Loading versions…</p>}
               {!level.loading && level.error == null && versions.length === 0 && <p className="cpm-copy">no bundle at this level - the layer below applies</p>}
               {versions.length > 0 && (

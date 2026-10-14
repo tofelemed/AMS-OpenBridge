@@ -10,7 +10,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { cpmChartColors } from '../shared';
-import { formatInZone, formatTimeInZone, zoneLabel } from './timezone';
+import { axisTimeFormatter, formatInZone, zoneLabel } from './timezone';
 import { FULL_ZOOM, boxZoomOption, type ZoomState } from '../../charts/boxZoom';
 import { useBoxZoom, useKeepSelecting } from '../../charts/useBoxZoom';
 import ChartZoomBar from '../../charts/ChartZoomBar';
@@ -35,6 +35,8 @@ export interface CpmSeries {
   meta?: (i: number) => string[];
   dashed?: boolean;
   area?: boolean;
+  /** An echarts symbol for markers (e.g. a short bar for an interval cap); a filled circle when absent. */
+  symbol?: string;
 }
 
 export interface CpmChartInput {
@@ -76,9 +78,12 @@ export function buildCpmChartOption(input: CpmChartInput) {
   const units: string[] = [];
   for (const s of series) if (!units.includes(s.unit)) units.push(s.unit);
   const firstX = series.find(s => s.x.length > 0)?.x[0] ?? Date.now();
+  let minX = Infinity, maxX = -Infinity;
+  for (const s of series) for (let i = 0; i < s.x.length; i++) { if (s.x[i] < minX) minX = s.x[i]; if (s.x[i] > maxX) maxX = s.x[i]; }
+  const tick = axisTimeFormatter(Number.isFinite(maxX - minX) ? maxX - minX : 0, timeZone);
   const xAxis = xKind === 'time'
     ? { type: 'time' as const, name: `time — ${zoneLabel(timeZone, firstX)}`, nameLocation: 'middle' as const, nameGap: 28,
-        axisLabel: { color: pens.grey, hideOverlap: true, formatter: (v: number) => formatTimeInZone(v, timeZone) }, axisLine: { lineStyle: { color: pens.grey } }, splitLine: { show: false } }
+        axisLabel: { color: pens.grey, hideOverlap: true, formatter: tick }, axisLine: { lineStyle: { color: pens.grey } }, splitLine: { show: false } }
     : { type: 'value' as const, name: input.xUnit ? `${input.xLabel ?? 'x'} (${input.xUnit})` : (input.xLabel ?? 'x'), nameLocation: 'middle' as const, nameGap: 28,
         axisLabel: { color: pens.grey, hideOverlap: true }, axisLine: { lineStyle: { color: pens.grey } }, splitLine: { show: false }, scale: true };
   const yAxis = units.map((u, i) => ({
@@ -95,8 +100,8 @@ export function buildCpmChartOption(input: CpmChartInput) {
       yAxisIndex: units.indexOf(s.unit),
       connectNulls: false,
       showSymbol: !!s.markers,
-      symbol: s.markers ? 'circle' : 'none',
-      symbolSize: s.markers ? 7 : 4,
+      symbol: s.markers ? s.symbol ?? 'circle' : 'none',
+      symbolSize: s.markers ? (s.symbol ? [12, 2] : 7) : 4,
       lineStyle: { color: pens[s.pen], width: s.markers ? 0 : s.bandMeaning ? 1 : 1.5, type: s.dashed || s.bandMeaning ? ('dashed' as const) : ('solid' as const) },
       itemStyle: { color: pens[s.pen] },
       areaStyle: s.area ? { color: pens[s.pen], opacity: 0.12 } : undefined,
@@ -141,15 +146,45 @@ export function buildCpmChartOption(input: CpmChartInput) {
   };
 }
 
-/** The chart's values as CSV - the same numbers the chart draws, nothing recomputed. */
-export function toCsv(series: CpmSeries[]): string {
+const csvCell = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+
+/** CHG-097 (SME review 2 #17): what a chart's CSV says about itself — the chart, the loop, the period and the zone. */
+export interface CsvContext { title?: string; loopId?: string | null; xKind?: 'time' | 'value'; timeZone?: string; xLabel?: string; xUnit?: string }
+
+/**
+ * The chart's values as CSV - the same numbers the chart draws, nothing recomputed. Without a context: the bare table
+ * (x, one column per series). With one (the Export button): "# " header lines naming the chart, loop, period and zone, and
+ * a time axis written as ISO UTC plus the site clock instead of epoch milliseconds.
+ */
+export function toCsv(series: CpmSeries[], ctx?: CsvContext): string {
   const xs = new Set<number>();
   for (const s of series) for (let i = 0; i < s.x.length; i++) xs.add(s.x[i]);
   const sorted = Array.from(xs).sort((a, b) => a - b);
   const index = series.map(s => { const m = new Map<number, number | null>(); for (let i = 0; i < s.x.length; i++) m.set(s.x[i], nan(s.y[i])); return m; });
-  const head = ['x', ...series.map(s => `${s.label} (${s.unit})`)].join(',');
-  const rows = sorted.map(x => [x, ...index.map(m => { const v = m.get(x); return v == null ? '' : String(v); })].join(','));
-  return [head, ...rows].join('\n');
+  const values = (x: number) => index.map(m => { const v = m.get(x); return v == null ? '' : String(v); });
+  const cols = series.map(s => csvCell(`${s.label} (${s.unit})`));
+  if (!ctx) return [['x', ...cols].join(','), ...sorted.map(x => [x, ...values(x)].join(','))].join('\n');
+  const tz = ctx.timeZone ?? 'UTC';
+  const time = ctx.xKind === 'time';
+  const first = sorted[0], last = sorted[sorted.length - 1];
+  const head = [
+    `# chart: ${ctx.title ?? 'evidence'}`,
+    ...(ctx.loopId ? [`# loop: ${ctx.loopId}`] : []),
+    ...(time && first != null ? [`# period: ${new Date(first).toISOString()} to ${new Date(last).toISOString()}`,
+      `# time zone: ${zoneLabel(tz, first)} (time_site column); time_utc is ISO 8601 UTC`] : []),
+    `# units: in each column header; bands are named with their meaning`,
+    `# exported: ${new Date().toISOString()}`,
+  ];
+  const xCols = time ? ['time_utc', 'time_site'] : [csvCell(ctx.xUnit ? `${ctx.xLabel ?? 'x'} (${ctx.xUnit})` : (ctx.xLabel ?? 'x'))];
+  const rows = sorted.map(x => [...(time ? [new Date(x).toISOString(), formatInZone(x, tz)] : [String(x)]), ...values(x)].join(','));
+  return [...head, [...xCols, ...cols].join(','), ...rows].join('\n');
+}
+
+/** "FIC10301-pv-sp-2026-10-14T1200" — the loop and the chart in the file name, never a bare "Output.csv". */
+export function csvFileName(title: string | undefined, loopId: string | null | undefined, firstX: number | undefined, xKind: 'time' | 'value'): string {
+  const slug = (title ?? 'evidence').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'evidence';
+  const when = xKind === 'time' && firstX != null && Number.isFinite(firstX) ? `-${new Date(firstX).toISOString().slice(0, 16).replace(/:/g, '')}` : '';
+  return `${loopId ? `${loopId}-` : ''}${slug}${when}.csv`;
 }
 
 export const CpmChart: React.FC<Omit<CpmChartInput, 'pens' | 'width' | 'zoom'> & { title?: string; onClick?: (seriesId: string, index: number) => void }> = (props) => {
@@ -172,10 +207,13 @@ export const CpmChart: React.FC<Omit<CpmChartInput, 'pens' | 'width' | 'zoom'> &
     datazoom: box.onDataZoom,
   }), [props, box.onDataZoom]);
   const csv = () => {
-    const blob = new Blob([toCsv(props.series)], { type: 'text/csv' });
+    // the loop from the page URL (?loop=): every CPA evidence page carries it
+    const loopId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('loop') : null;
+    const ctx = { title: props.title, loopId, xKind: props.xKind, timeZone: props.timeZone, xLabel: props.xLabel, xUnit: props.xUnit };
+    const blob = new Blob([toCsv(props.series, ctx)], { type: 'text/csv' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `${props.title ?? 'evidence'}.csv`;
+    a.download = csvFileName(props.title, loopId, props.series.find(s => s.x.length > 0)?.x[0], props.xKind);
     a.click();
     URL.revokeObjectURL(a.href);
   };

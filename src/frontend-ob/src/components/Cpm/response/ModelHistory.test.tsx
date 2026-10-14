@@ -23,7 +23,7 @@ describe('ModelHistory', () => {
       model({ modelId: 'a', createdAt: '2026-09-16T10:00:00Z', modelState: 'VALIDATED', parameters: { process_gain: { value: 3.0, unit: 'PV_EU/pp', uncertainty: 0.02, method: 'COVARIANCE', reason: null }, dead_time: { value: 4, unit: 's', uncertainty: 0.5, method: 'COVARIANCE', reason: null }, time_constant: { value: 20, unit: 's', uncertainty: 1, method: 'COVARIANCE', reason: null } } }),
       model({ modelId: 'b', createdAt: '2026-09-16T12:00:00Z', modelState: 'CANDIDATE', parameters: { process_gain: { value: 3.2, unit: 'PV_EU/pp', uncertainty: 0.1, method: 'COVARIANCE', reason: null }, dead_time: { value: 4.5, unit: 's', uncertainty: null, method: 'COVARIANCE', reason: null }, time_constant: { value: null, unit: 's', uncertainty: null, method: '', reason: 'NOT_ESTIMATED' } } }),
     ];
-    render(<ModelHistoryBody models={models} timeZone="UTC" onReview={() => {}} canReview={false} />);
+    render(<ModelHistoryBody models={models} timeZone="UTC" pvUnit="m3/h" onReview={() => {}} canReview={false} />);
     expect(captured.length).toBeGreaterThan(0);
     for (const o of captured as Array<{ series: Array<{ name: string; showSymbol: boolean; lineStyle: { width: number } }>; yAxis: Array<{ name: string }> }>) {
       expect(o.series.length).toBeGreaterThan(0);
@@ -33,14 +33,14 @@ describe('ModelHistory', () => {
       }
     }
     const gain = captured[0] as { series: Array<{ name: string; data: Array<[number, number | null]> }>; yAxis: Array<{ name: string }> };
-    expect(gain.yAxis[0].name).toBe('PV_EU/pp');
-    expect(gain.series.find(s => s.name === 'process_gain')!.data.map(d => d[1])).toEqual([3.0, 3.2]);
+    expect(gain.yAxis[0].name).toBe('m3/h/pp');   // CHG-097 (SME 2 #15): the loop's PV unit, not the kernel placeholder
+    expect(gain.series.find(s => s.name === 'Process gain')!.data.map(d => d[1])).toEqual([3.0, 3.2]);
     const upper = gain.series.find(s => /upper/.test(s.name))!.data.map(d => d[1] as number);
     const lower = gain.series.find(s => /lower/.test(s.name))!.data.map(d => d[1] as number);
     expect(upper[0]).toBeCloseTo(3.02, 9); expect(upper[1]).toBeCloseTo(3.3, 9);
     expect(lower[0]).toBeCloseTo(2.98, 9); expect(lower[1]).toBeCloseTo(3.1, 9);
     const tc = captured[2] as { series: Array<{ name: string; data: Array<[number, number | null]> }> };
-    expect(tc.series.find(s => s.name === 'time_constant')!.data.map(d => d[1])).toEqual([20]); // a null parameter is not a point
+    expect(tc.series.find(s => s.name === 'Time constant')!.data.map(d => d[1])).toEqual([20]); // a null parameter is not a point
     expect(screen.getByText('Validated')).toBeTruthy();
     expect(screen.getAllByText(/Review/).length).toBeGreaterThan(0);
   });

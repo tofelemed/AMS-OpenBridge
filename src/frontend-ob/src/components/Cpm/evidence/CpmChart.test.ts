@@ -1,7 +1,7 @@
 // v2.5 Task 2E.1 (spec §3.1 axes; NR-033, NR-035): one y axis per unit group, never a filled line
 // across unsupported gaps, held series step, times in the site zone with the zone in the axis name.
 import { describe, it, expect } from 'vitest';
-import { buildCpmChartOption, toCsv, type CpmSeries } from './CpmChart';
+import { buildCpmChartOption, csvFileName, toCsv, type CpmSeries } from './CpmChart';
 
 const pens = { good: '#0f0', amber: '#fa0', grey: '#888', accent: '#00f', pink: '#f0f', bad: '#f00' };
 
@@ -63,5 +63,12 @@ describe('buildCpmChartOption', () => {
 
   it('exports the same values as CSV', () => {
     expect(toCsv([pv])).toBe('x,PV (°C)\n0,400\n60000,\n120000,402');
+    // CHG-097 (SME review 2 #17): the Export button's file names the chart, loop, period and zone, with readable times
+    const csv = toCsv([pv], { title: 'Output', loopId: 'FIC1', xKind: 'time', timeZone: 'UTC' }).split('\n');
+    expect(csv.slice(0, 2)).toEqual(['# chart: Output', '# loop: FIC1']);
+    expect(csv).toContain('# period: 1970-01-01T00:00:00.000Z to 1970-01-01T00:02:00.000Z');
+    expect(csv).toContain('time_utc,time_site,PV (°C)');
+    expect(csv).toContain('1970-01-01T00:01:00.000Z,1970-01-01 00:01:00,');
+    expect(csvFileName('Output', 'FIC1', Date.UTC(2026, 9, 14, 12), 'time')).toBe('FIC1-output-2026-10-14T1200.csv');
   });
 });
