@@ -58,3 +58,11 @@ describe('cpaHref', () => {
     expect(calculationsHref('FIC10301')).toBe('/cpm/calculations?loop=FIC10301');
   });
 });
+
+describe('KPI proof opens the exact metric on the exact window (CHG-092, SME review 2 #9)', () => {
+  it('carries the window kind and the CPLM id', () => {
+    expect(calculationsHref('FIC10301', { kind: '24h', metric: 'CPLM-014' }))
+      .toBe('/cpm/calculations?loop=FIC10301&window=24h&metric=CPLM-014');
+    expect(calculationsHref('FIC10301', { kind: null, metric: undefined })).toBe('/cpm/calculations?loop=FIC10301');
+  });
+});

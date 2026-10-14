@@ -35,7 +35,7 @@ import {
 } from './events/shelfState';
 import { ConditionsPanel } from './events/ConditionsPanel';
 import { useCpmConditions } from './events/useConditions';
-import EventDetail, { severityOf } from './events/EventDetail';
+import EventDetail, { currentOf, severityOf } from './events/EventDetail';
 import { explorerHref } from './cpaHref';
 import { diagnosisLabel } from './vocabulary';
 import { useDebounced, useEventById, useEventPage } from './events/useEventPage';
@@ -192,6 +192,7 @@ export const CpmEvents: React.FC = () => {
           )}
           {events.map(e => {
             const sev = severityOf(e);
+            const cur = currentOf(e);
             const st = stateView(e, now);
             const isSelected = selected?.id === e.id;
             return (
@@ -199,9 +200,10 @@ export const CpmEvents: React.FC = () => {
               <div key={e.id} className={`cpm-event-row${isSelected ? ' cpm-event-row--selected' : ''}`}>
                 <div className="cpm-event-row__main">
                   <button type="button" className="cpm-event-row__select" aria-pressed={isSelected}
-                    aria-label={`Show episode EVT-${e.id}, ${diagnosisLabel(e.peak_diagnosis)}`}
+                    aria-label={`Show episode EVT-${e.id}, peak ${diagnosisLabel(e.peak_diagnosis)}`}
                     onClick={() => select(e.id)}>
-                    <span className="cpm-event-row__title">{diagnosisLabel(e.peak_diagnosis)}</span>
+                    {/* CHG-092 (SME review 2 #20): the title is the PEAK; the current window shows beside it when it differs */}
+                    <span className="cpm-event-row__title">Peak: {diagnosisLabel(e.peak_diagnosis)}</span>
                     <span className="cpm-event-row__sub">EVT-{e.id} · {e.window_kind}</span>
                   </button>
                   <ObcButton variant="flat" title={`Open ${e.loop_id} in the Loop Explorer`}
@@ -211,6 +213,7 @@ export const CpmEvents: React.FC = () => {
                 </div>
                 <TonePill tone={sev.tone}>{sev.label}</TonePill>
                 <span className="cpm-event-row__states">
+                  {cur && <TonePill tone={cur.tone}>{cur.label}</TonePill>}
                   <TonePill tone={st.tone}>{st.label}</TonePill>
                   {(() => { const a = availabilityPill(e); return a ? <TonePill tone={a.tone}>{a.label}</TonePill> : null; })()}
                 </span>

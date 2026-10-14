@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmEventFrame, CpmShelvePolicy } from '../../../api/cpmApi';
 import { useAcknowledgeEvent, useShelveEvent, useUnshelveEvent } from '../../../hooks/useCpm';
-import { EmptyState, KvRow, PanelHead, TonePill, fmtDateTime, toneFor } from '../shared';
+import { EmptyState, KvRow, PanelHead, TonePill, diagnosisBand, fmtDateTime, toneFor } from '../shared';
 import { explorerHref } from '../cpaHref';
 import { availabilityCopy, availabilityPill, conditionOf, supportCopy } from './eventsState';
 import { isAcknowledged, shelfCountdown, shelfState, stateView } from './shelfState';
@@ -27,12 +27,21 @@ const EventHistory = React.lazy(() => import('./EventHistory'));
 
 const DEFAULT_MAX_HOURS = 168;
 
-/** peak confidence → CPA's severity vocabulary. */
+/**
+ * The episode's peak, in the engine's own bands (CHG-092, SME review 2 #6/#20): the engine's severity when it wrote one,
+ * otherwise the band of the peak diagnosis — never a second set of score thresholds of our own.
+ */
 export function severityOf(e: CpmEventFrame): { label: string; tone: 'good' | 'warn' | 'bad' | 'muted' } {
   if (e.severity) return { label: e.severity, tone: toneFor(e.severity) };
-  if (e.peak_confidence >= 0.9) return { label: 'High', tone: 'bad' };
-  if (e.peak_confidence >= 0.55) return { label: 'Warning', tone: 'warn' };
-  return { label: 'Advisory', tone: 'muted' };
+  const b = diagnosisBand(e.peak_diagnosis);
+  return { label: `Peak: ${b.label}`, tone: b.tone === 'good' ? 'muted' : b.tone };
+}
+
+/** The window the episode now stands at, when it differs from the peak the title names (null when they match). */
+export function currentOf(e: CpmEventFrame): { label: string; tone: 'good' | 'warn' | 'bad' | 'muted' } | null {
+  if (!e.last_diagnosis || e.last_diagnosis === e.peak_diagnosis) return null;
+  const b = diagnosisBand(e.last_diagnosis);
+  return { label: `Now: ${diagnosisLabel(e.last_diagnosis)}`, tone: b.tone === 'good' ? 'muted' : b.tone };
 }
 
 const fmt = (iso: string | null) => (iso ? fmtDateTime(iso) : '—');
@@ -56,6 +65,7 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
   const [note, setNote] = useState('');
   const now = Date.now();
   const sev = severityOf(event);
+  const cur = currentOf(event);
   const open = conditionOf(event) === 'OPEN';
   const availability = availabilityPill(event);
   const shelf = shelfState(event, now);
@@ -77,8 +87,9 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
     <aside className="cpm-surface">
       <PanelHead
         eyebrow={`EVT-${event.id}`}
-        title={diagnosisLabel(event.peak_diagnosis)}
-        right={<span className="cpm-filter-row"><TonePill tone={sev.tone}>{sev.label}</TonePill><TonePill tone={state.tone}>{state.label}</TonePill></span>}
+        title={`Peak: ${diagnosisLabel(event.peak_diagnosis)}`}
+        right={<span className="cpm-filter-row"><TonePill tone={sev.tone}>{sev.label}</TonePill>
+          {cur && <TonePill tone={cur.tone}>{cur.label}</TonePill>}<TonePill tone={state.tone}>{state.label}</TonePill></span>}
       />
       <p className="cpm-copy cpm-source-line">
         <ObcButton variant="flat" title={`Open ${event.loop_id} in the Loop Explorer`}

@@ -4620,3 +4620,50 @@ SUPERSEDED for a period); CANDIDATE / REJECTED / EXPIRED models older than the R
 (2) CENSORED events a short retention (e.g. 2 days). Expected steady state ~0.5-0.7 GB. Scope: cplm-api `ResponseRetention.cs` /
 `EvidenceRetentionSweeper.cs` (+ tests), maybe a retention_policy row for censored events.
 **Also done 2026-10-14 (plant, by hand, recorded in prod_decision):** `LONG_FEATURES` retention 30 → 14 days (was heading to ~4.6 GB).
+
+## CHG-092 — SME review 2, phase A: wrong or misleading information on the CPM pages (2026-10-14)
+
+**Source:** `SME_review_2.md` points 6, 7, 8, 9, 13, 19, 20, 22, 29 (verdicts and plan: `SME_review_2_check.md`, phase A).
+User decisions: change labels in percentage points; NO_CALL reads "No fault identified" everywhere.
+**Commits:** part 1 `d3d6cfcf`; part 2 (this entry).
+
+**What changed**
+- **One diagnosis band everywhere (#6):** `bandOf()` / `BAND_WORD` in `vocabulary.ts`. Red only for CONFIRMED; SUSPECTED,
+  CLASSIFIED and DETECTED are amber (ISA-101). The G15 cell shows the same band as the result: a frontend shim (`withBandG15`)
+  covers rows written before the engine's CHG-094.
+- **Evidence against vs not assessed vs not seen (#7):** a cause is "Evidence against" only with a disqualifier or
+  contradiction. A missing input (no upstream links, no valid cycle, health not configured, `missing_inputs`) is
+  "Not assessed". A cause with nothing scored is "Not seen in this window". cplm-api `HypothesisView.MissingInputs`.
+- **Calculations on the verdict's own window (#8, #9):**
+  - The short-tier metrics are read from the fused 12 h / 24 h row (`vw_*` columns in `KpiSql.cs`, taken from
+    `payload.short_features`), not from a separate 60 min row.
+  - Window shown as start – end (duration).
+  - A missing value reads "Not measured — reason" and is never shown beside a green gate.
+  - "Gates acceptable" is neutral.
+  - `?metric=` opens that metric. KPI proof links carry metric and window.
+  - The Loop Explorer KPI trend link uses 24 h on the 24 h window.
+- **Changes in percentage points (#13):** "+8 pp", "−17 pp", "±0 pp".
+- **No valve position (#19):** G14 on a no-VP loop reads "This loop has no valve position", and the confirmation step is a
+  stroke / bump test.
+- **Events (#20):**
+  - The title is the peak ("Peak: …").
+  - A "Now: …" pill shows when the latest window differs from the peak.
+  - The severity pill uses the engine band, not the old 0.55 / 0.9 thresholds.
+- **Green only where it means acceptable control (#22):**
+  - Per-loop KPI cards are grouped into Control performance, Actuator activity and Evidence quality.
+  - The cards that bear on the current finding are outlined.
+  - A gate PASS beside a finding is neutral.
+  - Coverage and saturation within limits are neutral; incomplete coverage is amber.
+- **"24h" regression (#29):** Historical and Replay say the selected window kind.
+
+**Services updated:** `ams-frontend`, `cplm-api` (read model only: new `vw_*` columns in the KPI read, `missing_inputs` passthrough).
+**Not changed:** Flink, schema, retention. **No migration.**
+**Script to run:** standard image load + `deploy.sh --prod` for the two images (release bundle when the batch ships).
+
+**Tests**
+- tsc and eslint (`--max-warnings 0`) clean.
+- CPM vitest suite passes; new tests: `diagnosisBand.test.ts`, the loop KPI tone/group cases, the `calculationsHref` metric/window
+  case, the EventDetail peak/current cases.
+- cplm-api builds.
+
+**Lab browser check:** pending (Docker Desktop stopped).

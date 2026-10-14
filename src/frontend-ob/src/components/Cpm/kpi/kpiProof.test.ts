@@ -34,7 +34,7 @@ describe('KPI proof words (CHG-082)', () => {
 
   it('no evidence score without a verdict; links reach the loop, its window, the formula and the trend', () => {
     expect(verdictText(row({ state: 'NotAssessable', reason: 'INCOMPLETE_DATA', evidenceScore: null }))).toBe('Not assessable — incomplete data');
-    expect(verdictText(row({ diagnosis: 'NO_CALL', evidenceScore: 10 }))).toBe('No fault found · evidence 10');
+    expect(verdictText(row({ diagnosis: 'NO_CALL', evidenceScore: 10 }))).toBe('No fault identified · evidence 10');
     const links = proofLinks(row({})).map(l => l.label);
     expect(links).toEqual(['Loop', 'Window', 'Calculations', 'Trend']);
     expect(proofLinks(row({ state: 'NeverEvaluated', windowEnd: null })).map(l => l.label)).toEqual(['Loop']);

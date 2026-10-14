@@ -71,7 +71,9 @@ export const historicalHref = (loop: string, opts: { from?: string | null; to?: 
   build('/cpm/historical', { loop, from: opts.from, to: opts.to });
 
 /** The standalone calculations catalogue for one loop. */
-export const calculationsHref = (loop: string) => build('/cpm/calculations', { loop });
+export const calculationsHref = (loop: string, opts: { metric?: string | null; kind?: string | null } = {}) =>
+  // CHG-092 (SME review 2 #9): a KPI's proof opens the matching metric (CPLM id) on the matching fused window
+  build('/cpm/calculations', { loop, window: opts.kind, metric: opts.metric });
 
 /** Pipeline Health has no loop scope: it explains freshness for the whole engine. */
 export const pipelineHref = () => '/cpm/pipeline';

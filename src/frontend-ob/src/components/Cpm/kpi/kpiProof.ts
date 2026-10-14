@@ -32,7 +32,7 @@ export function stateText(row: FleetKpiRow): string {
     case 'NeverEvaluated': return 'No result yet';
     case 'Stale': return `Newest result ${row.ageSeconds != null ? ageText(row.ageSeconds * 1000) : 'old'}`;
     case 'NotAssessable': return `Not assessable — ${reasonLabel(row.reason)}`;
-    default: return NO_FAULT.has(row.diagnosis ?? '') ? 'No fault found' : row.diagnosis ? diagnosisLabel(row.diagnosis) : 'Assessed';
+    default: return NO_FAULT.has(row.diagnosis ?? '') ? 'No fault identified' : row.diagnosis ? diagnosisLabel(row.diagnosis) : 'Assessed';
   }
 }
 
@@ -40,7 +40,7 @@ export function stateText(row: FleetKpiRow): string {
 export function verdictText(row: FleetKpiRow): string {
   if (row.state !== 'Assessed') return stateText(row);
   // NO_CALL / INSUFFICIENT_EVIDENCE are verdicts — judged, no fault reached the evidence threshold — never "not evaluated"
-  const word = NO_FAULT.has(row.diagnosis ?? '') ? 'No fault found' : row.diagnosis ? diagnosisLabel(row.diagnosis) : '—';
+  const word = NO_FAULT.has(row.diagnosis ?? '') ? 'No fault identified' : row.diagnosis ? diagnosisLabel(row.diagnosis) : '—';
   return row.evidenceScore != null ? `${word} · evidence ${row.evidenceScore}` : word;
 }
 
@@ -79,7 +79,13 @@ export function contextText(row: FleetKpiRow, kpi: FleetKpiKey): string {
 export interface ProofLink { label: string; href: string; title: string }
 
 /** Where the number is proven for this loop: the loop, its evaluated window, the formula, the raw signals. */
-export function proofLinks(row: FleetKpiRow): ProofLink[] {
+/** CHG-092 (SME 2 #9): the calculation that proves each KPI (opened directly on the Calculations page). */
+const KPI_METRIC: Partial<Record<FleetKpiKey, string>> = {
+  acceptable: 'CPLM-014', 'normal-mode': 'CPLM-003', 'out-of-mode': 'CPLM-003', 'manual-mode': 'CPLM-003',
+  'no-fault-limited': 'CPLM-003', oscillating: 'CPLM-030', valve: 'CPLM-050', effort: 'CPLM-020', 'not-assessable': 'CPLM-001',
+};
+
+export function proofLinks(row: FleetKpiRow, kpi?: FleetKpiKey): ProofLink[] {
   const end = row.windowEnd ?? null;
   // CHG-089: the trend covers the row's own window (12 h or 24 h), not always 24 h
   const hours = row.windowKind === '12h' ? 12 : 24;
@@ -90,7 +96,8 @@ export function proofLinks(row: FleetKpiRow): ProofLink[] {
   if (end) links.push({ label: 'Window', href: windowsHref(row.loopId, { profile: row.windowKind, window: end }),
     title: 'The evaluated window in the Window Inspector: data qualification and every gate' });
   if (row.state === 'Assessed' || row.state === 'NotAssessable')
-    links.push({ label: 'Calculations', href: calculationsHref(row.loopId), title: 'Every metric of this loop with its formula, latest value and history' });
+    links.push({ label: 'Calculations', href: calculationsHref(row.loopId, { kind: row.windowKind, metric: kpi ? KPI_METRIC[kpi] : null }),
+      title: 'The metric behind this KPI, on the same window, with its formula and history' });
   if (end) links.push({ label: 'Trend', href: historicalHref(row.loopId, { from, to: end }),
     title: 'PV, SP, OP and mode over the evaluated window (Historical)' });
   return links;
@@ -111,7 +118,7 @@ export const KPI_WHY: Partial<Record<FleetKpiKey, string>> = {
   'never-evaluated': 'Monitored but never evaluated: an onboarding or signal-mapping gap.',
   finding: 'Suspected or confirmed findings of any family.',
   symptom: 'Detected or classified symptoms: evidence below 75, listed but not counted as findings.',
-  'no-fault-limited': 'No fault found, but the loop was out of its normal mode for more than 5 % of the window or at an OP limit for more than 10 % — so not counted as performing acceptably.',
+  'no-fault-limited': 'No fault identified, but the loop was out of its normal mode for more than 5 % of the window or at an OP limit for more than 10 % — so not counted as performing acceptably.',
   assessed: 'Loops whose fresh window was judged.',
   all: 'Every monitored loop in scope.',
 };

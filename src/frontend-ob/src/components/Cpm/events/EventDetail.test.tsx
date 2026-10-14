@@ -21,7 +21,7 @@ vi.mock('../../../hooks/useCpm', () => ({
 }));
 afterEach(() => { cleanup(); actions.mockReset(); });
 
-import { EventDetail } from './EventDetail';
+import { EventDetail, currentOf, severityOf } from './EventDetail';
 
 const frame = (over: Partial<CpmEventFrame>): CpmEventFrame => ({
   id: 833, loop_id: 'FIC10301', window_kind: '24h', family: 'OSCILLATION',
@@ -80,5 +80,17 @@ describe('EventDetail (CHG-032)', () => {
     expect(items).toHaveLength(2);
     expect(items[0].textContent).toMatch(/Unshelved/);
     expect(items[1].textContent).toMatch(/Shelved.*eng\.b.*until.*parts due/);
+  });
+});
+
+describe('episode peak and current band (CHG-092, SME review 2 #6/#20)', () => {
+  it('the pill is the peak in the engine band, not a score threshold of our own', () => {
+    expect(severityOf(frame({ peak_confidence: 0.92 }))).toEqual({ label: 'Peak: Suspected', tone: 'warn' });
+    expect(severityOf(frame({ peak_diagnosis: 'CONFIRMED_OSCILLATION' }))).toEqual({ label: 'Peak: Confirmed', tone: 'bad' });
+    expect(severityOf(frame({ severity: 'HIGH' })).label).toBe('HIGH');
+  });
+  it('the current window shows only when it differs from the peak', () => {
+    expect(currentOf(frame({}))).toBeNull();
+    expect(currentOf(frame({ last_diagnosis: 'NO_CALL' }))).toEqual({ label: 'Now: No fault identified', tone: 'muted' });
   });
 });

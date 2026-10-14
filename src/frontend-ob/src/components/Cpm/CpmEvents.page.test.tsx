@@ -29,6 +29,7 @@ vi.mock('../../store/authStore', () => ({ useAuthStore: (f: (s: { hasPermission:
 vi.mock('./events/EventDetail', () => ({
   default: ({ event }: { event: CpmEventFrame }) => React.createElement('aside', null, `detail EVT-${event.id}`),
   severityOf: () => ({ tone: 'warn', label: 'HIGH' }),
+  currentOf: () => null,
 }));
 vi.mock('./events/useEventPage', () => ({
   useEventPage: (q: unknown) => pageHook(q),

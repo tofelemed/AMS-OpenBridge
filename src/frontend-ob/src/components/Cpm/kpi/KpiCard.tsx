@@ -21,7 +21,9 @@ export const KpiCard: React.FC<{
   title?: string;
   to?: string;
   size?: 'regular' | 'large';
-}> = ({ Icon, value, label, sub, tone = 'muted', delta, title, to, size = 'regular' }) => {
+  /** Bears on the loop's current finding (SME review 2 #22): outlined so the eye goes there first. */
+  relevant?: boolean;
+}> = ({ Icon, value, label, sub, tone = 'muted', delta, title, to, size = 'regular', relevant = false }) => {
   const body = (
     <>
       <span className="cpm-kpicard__top">
@@ -41,7 +43,7 @@ export const KpiCard: React.FC<{
       {sub != null && <span className="cpm-kpicard__sub">{sub}</span>}
     </>
   );
-  const cls = `cpm-kpicard cpm-kpicard--${tone} cpm-kpicard--${size}`;
+  const cls = `cpm-kpicard cpm-kpicard--${tone} cpm-kpicard--${size}${relevant ? ' cpm-kpicard--relevant' : ''}`;
   return to
     ? <RouterLink className={`${cls} cpm-kpicard--link`} to={to} title={title}>{body}</RouterLink>
     : <div className={cls} title={title}>{body}</div>;

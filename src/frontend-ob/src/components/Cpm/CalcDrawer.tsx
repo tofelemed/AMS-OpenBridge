@@ -20,7 +20,7 @@ import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons
 import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-right-google';
 import { ObiCloseGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-close-google';
 import {
-  CpmIconButton, EmptyState, KvRow, PanelHead, QueryError, TonePill, fmtDateTime,
+  CpmIconButton, EmptyState, KvRow, PanelHead, QueryError, TonePill, fmtDateTime, fmtDuration,
 } from './shared';
 import { useCpmEvents } from '../../hooks/useCpm';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
@@ -139,7 +139,7 @@ export const CalcDrawer: React.FC<{
             <KvRow label="Loop">{loopId}</KvRow>
             <KvRow label="Gate">{metric.gate}</KvRow>
             <KvRow label="Kind">{metric.kind}</KvRow>
-            <KvRow label="Stored in">{metric.source === 'short' ? 'cplm_short_feature_results' : metric.source === 'long' ? 'cplm_long_feature_results' : 'cplm_gate_results'}</KvRow>
+            <KvRow label="Stored in">{metric.source === 'short' ? 'cplm_long_feature_results (short-tier metric over the fused window)' : metric.source === 'long' ? 'cplm_long_feature_results' : 'cplm_gate_results'}</KvRow>
             <KvRow label="Output unit">{metric.unit}</KvRow>
             {/* "Apache Flink · event time" was a literal; the catalogue names
                 the engine that actually produced these rows. */}
@@ -170,11 +170,10 @@ export const CalcDrawer: React.FC<{
           const deployed = catalogue?.calculationVersion ?? null;
           const stale = !!stampedVersion && !!deployed && stampedVersion !== deployed;
           const gateDef = catalogue?.gates.find(g => g.key === metric.gate);
-          const qualified = metric.source === 'short'
-            ? (typeof row?.sufficient_data === 'boolean' ? row.sufficient_data : null)
-            : metric.source === 'long'
-              ? (typeof row?.long_metrics_qualified === 'boolean' ? row.long_metrics_qualified : null)
-              : null;
+          // CHG-092 (SME 2 #9): every metric is read from the fused window's row — its own qualification flag
+          const qualified = metric.source !== 'gate'
+            ? (typeof row?.long_metrics_qualified === 'boolean' ? row.long_metrics_qualified : null)
+            : null;
           const emittedAt = metric.source === 'gate'
             ? gateMatrix?.metadata.computedAt ?? null
             : (typeof row?.created_at === 'string' ? row.created_at : null);
@@ -196,7 +195,10 @@ export const CalcDrawer: React.FC<{
               </KvRow>
               <KvRow label="Emitted">{emittedAt ? fmtDateTime(emittedAt) : '—'}</KvRow>
               <KvRow label="Window">
-                {windowEnd ? `ends ${fmtDateTime(windowEnd)}` : '—'}
+                {/* SME review 2 #9: start – end (duration), the same window as the gate verdict */}
+                {windowEnd ? (typeof row?.window_start === 'string'
+                  ? `${fmtDateTime(row.window_start)} – ${fmtDateTime(windowEnd)} (${fmtDuration(Date.parse(windowEnd) - Date.parse(row.window_start))})`
+                  : `ends ${fmtDateTime(windowEnd)}`) : '—'}
               </KvRow>
               <KvRow label="Samples in window">
                 {samples != null ? samples.toLocaleString() : '—'}

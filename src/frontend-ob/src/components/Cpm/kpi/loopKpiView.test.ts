@@ -43,3 +43,31 @@ describe('per-loop KPI cards (KPI Phase 4)', () => {
     expect(c.sp.delta).toBeNull();                                                              // not stored 24 h earlier
   });
 });
+
+describe('green only where it means acceptable control (CHG-092, SME review 2 #22)', () => {
+  it('coverage and saturation within limits are context, not green; incomplete data is amber', () => {
+    const c = byKey(K());
+    expect(c.coverage.tone).toBe('muted');
+    expect(c.saturation.tone).toBe('muted');
+    const thin = byKey(K({ current: { ...K().current!, values: { ...K().current!.values, completeness: 0.5 } } }));
+    expect(thin.coverage.tone).toBe('warn');
+  });
+
+  it('a gate PASS beside a finding is context, and the cards that bear on the finding are marked', () => {
+    const cur = { ...K().current!, diagnosis: 'SUSPECTED_OSCILLATION', gates: { G0: 'PASS', G3: 'PASS', G4: 'PASS' } };
+    const c = byKey(K({ current: cur }));
+    expect(c['good-error'].tone).toBe('muted');
+    expect(c.travel.tone).toBe('muted');
+    expect(c.error.relevant).toBe(true);
+    expect(c.variability.relevant).toBe(true);
+    expect(c.travel.relevant).toBe(false);
+    const ok = byKey(K({ current: { ...cur, diagnosis: 'NO_CALL' } }));
+    expect(ok['good-error'].tone).toBe('good');
+    expect(ok.error.relevant).toBe(false);
+  });
+
+  it('every card sits in one of the three groups', () => {
+    const groups = new Set(loopKpiCards(K()).map(c => c.group));
+    expect([...groups].sort()).toEqual(['actuator', 'control', 'evidence']);
+  });
+});
