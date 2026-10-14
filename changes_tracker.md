@@ -4607,3 +4607,16 @@ hour; the device is re-found after a failure. ams-api: `Polly` raised to Warning
 schema. **Scripts to run:** integrity → rollback list → source extract → load the two images → `START_AMS_API=yes deploy.sh --prod`
 → check: ams-api container recreated (its `Created` time moved), historian lag small, IoTDB warn log no new `not enough memory`,
 ams-api log lines/hour down from ~90 k.
+
+## CHG-091 (PLANNED, next release) — Response retention: unreviewed models and censored events stop growing for ever
+
+**Source:** plant disk investigation 2026-10-14 (user: "note chg 91 for next release"). **Not implemented yet.**
+**Facts (Marun, 2026-10-14):** `response_event` 64,315 rows (~3.5 KB each; about 290 MB), `response_metric` 3.34 M rows (~200 B, about 650 MB);
+6,000-8,000 events a day; 73 % CENSORED (47,006). The 14-day RESPONSE retention runs every 15 min, but skips every event a system model
+was created from (`system_model.created_from_event`) — and 16,632 models each pin their own event, so the evaluated quarter of all events
+(~1,900 a day) is kept for ever: about +27 MB/day, ~10 GB/year.
+**Plan (to confirm with the user, with numbers):** (1) keep for ever only events behind governed models (VALIDATED, ACTIVE_BASELINE;
+SUPERSEDED for a period); CANDIDATE / REJECTED / EXPIRED models older than the RESPONSE retention go, with their events and metrics;
+(2) CENSORED events a short retention (e.g. 2 days). Expected steady state ~0.5-0.7 GB. Scope: cplm-api `ResponseRetention.cs` /
+`EvidenceRetentionSweeper.cs` (+ tests), maybe a retention_policy row for censored events.
+**Also done 2026-10-14 (plant, by hand, recorded in prod_decision):** `LONG_FEATURES` retention 30 → 14 days (was heading to ~4.6 GB).
