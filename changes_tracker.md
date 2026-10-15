@@ -5042,7 +5042,7 @@ INSUFFICIENT_DATA / G15 INSUFFICIENT_EVIDENCE only; user chose to stop the lab a
 **After the plant swap:** the 12 h / 24 h windows refill (as every Flink swap); G15 shows the four bands; Investigation shows
 "Not assessed: input missing" for disturbance on loops without peer links.
 
-## Release v2.8.0 (PLANNED) — SME review 2 complete: CHG-091 … CHG-099 (+ v2.7.3's CHG-090, never deployed)
+## Release v2.8.0 — BUILT 2026-10-15 (`release-out/v2.8.0-20261015`, src-072bb0de, 33/33 checksums, 974 MB; jar 655730a9116a6388) — SME review 2 complete: CHG-091 … CHG-099 (+ v2.7.3's CHG-090, never deployed). Deploy: after a clean daily check
 
 One release so the plant gets one Flink refill. Branch `feat/v25-next-release` after the CHG-094 merge.
 **Services updated:** Flink jar (full swap: CHG-094/095/096), `cplm-api` (CHG-091, 092, 093, 096, 099), `ams-frontend`
