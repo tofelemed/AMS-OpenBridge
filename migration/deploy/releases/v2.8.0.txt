@@ -1,0 +1,23 @@
+# Release v2.8.0 - SME review 2 complete (CHG-091 .. CHG-099) + v2.7.3's CHG-090 (built, never deployed), on top of
+# plant v2.7.2 (68e595ec, deployed 2026-10-11).
+# Consumed by: python migration/deploy/build-release.py --release v2.8.0        (the jar IS rebuilt: no --skip-jar)
+#
+#   flink-jobmanager   (the TaskManager uses the same image) CHG-094 G15 = the diagnosis band + one recommendation per family;
+#                      CHG-095 NOT_ASSESSED / NO_EVIDENCE hypotheses with missing_inputs; CHG-096 G3 compliance as the real
+#                      fraction (old bundles read as before). Full swap: cancel every job, rm -f JM + TM, deploy, 04b
+#                      (7 RUNNING; 12h/24h results refill over ~11 h / ~23 h).
+#   cplm-api           CHG-091 Response retention; CHG-092 / 093 SME phases A + B; CHG-096 factory-layer copy; CHG-099 evidence
+#                      reconstruction stored beside the original.
+#   ams-frontend       CHG-092, 093, 097, 098, 099 (SME review 2 phases A, B, D, E, F).
+#   historian-bff      CHG-090: the IoTDB warm-up reads one device (from v2.7.3, never deployed).
+#   ams-api            CHG-021 / CHG-090: request logs muted (from v2.7.3); profile-gated, the steps export START_AMS_API=yes.
+#
+# Schema: ops/cpm-15-evidence-reconstruction-beside.sql BEFORE the swaps (step 4d) + 02-apply-schemas.sh;
+#         ops/cpm-16-response-retention.sql AFTER the cplm-api swap (step 6l). No data step, no republish.
+!chg099-cpm15
+!chg091-cpm16
+flink-jobmanager
+cplm-api
+ams-frontend
+historian-bff
+ams-api
