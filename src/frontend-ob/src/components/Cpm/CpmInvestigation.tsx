@@ -55,6 +55,9 @@ import { EVIDENCE_SCORE_HELP, evidenceScoreText } from './evidenceScore';
 import { EvidenceScoreNote } from './EvidenceScoreNote';
 import { inputContextOf, vpAbsent } from './optionalInputs';
 import { basisOf } from './conclusionBasis';
+import { limitationsOf } from './explorer/summary/summaryText';
+import { INPUT_LIMITS_GATE } from './inputLimits';
+import { calculationsHref, explorerHref, pipelineHref } from './cpaHref';
 import { loopHealthSummary } from './health/TransmitterHealthPanel';
 
 export const CpmInvestigation: React.FC = () => {
@@ -141,6 +144,11 @@ export const CpmInvestigation: React.FC = () => {
   const healthNow = useInstrumentHealth(matrix ? loopId : undefined);
   const healthLabel = healthNow.data || healthNow.isError ? loopHealthSummary(healthNow.data).label : undefined;
   const basis = matrix ? basisOf(matrix, { healthLabel, inputs: inputContextOf(loop) }) : null;
+  // CHG-098 (SME review 2 #21): the Investigation is the one full home of the limitations (the Explorer shows
+  // two behind a disclosure). With a basis on screen the missing inputs are listed once, under "Not checked".
+  const limits = matrix
+    ? limitationsOf((matrix.observabilityFlags ?? []).filter(f => !basis || !(f in INPUT_LIMITS_GATE)), inputContextOf(loop))
+    : [];
 
 
   const metrics = matrix?.metrics ?? {};
@@ -163,8 +171,8 @@ export const CpmInvestigation: React.FC = () => {
       <LoopContextBar loopId={loopId} period={matrix ? { label: `${windowKind} fused window${mode === 'historical' ? ' (selected)' : ' (latest)'}`, start: matrix.windowStart, end: matrix.windowEnd } : null} />
       {/* SME #13 (CHG-050): the diagnosis stays in view while the reasoning below it is read. */}
       <ConclusionStrip targetId="cpm-conclusion" active={!!matrix} label="Final conclusion"
-        tone={toneFor(matrix?.diagnosis)} text={diagnosisLabel(matrix?.diagnosis)}
-        detail={matrix?.narrative?.recommendation ?? undefined} />
+        tone={toneFor(matrix?.diagnosis)} text={diagnosisLabel(matrix?.diagnosis)} />
+      {/* CHG-098 (SME review 2 #21): the recommendation is shown once, under "Next-best action" in the conclusion */}
       {/* The fleet case chips and pickers fold to one line once a verdict is on screen. */}
       <SelectionSummary summary={loopId && matrix
         ? `${loop?.loopId ?? loopId} · ${windowSize({ windowKind })} fused window · ${windowEnds({ windowEnd: matrix.windowEnd })} (${mode === 'historical' ? 'selected' : 'latest'})`
@@ -200,8 +208,13 @@ export const CpmInvestigation: React.FC = () => {
         && !(mode === 'live' ? latest.isLoading : history.isLoading)
         && !(mode === 'live' ? latest.isError && !noVerdictYet : history.isError) && (
         <section className="cpm-surface">
+          {/* CHG-098 (SME review 2 #29): routes to the loop's readiness and to the engine. */}
           <EmptyState title="No fused verdict for this loop"
-            copy="Verdicts appear once the loop completes a 12h/24h evaluation window, or after a recompute." />
+            copy={`Verdicts appear once the loop completes a ${windowKind} evaluation window, or after a recompute. The loop's summary shows what it is still missing; Pipeline Health shows whether the analysis engine is running.`}
+            next={[
+              { label: 'Open the loop', to: explorerHref(loopId, { tab: 'Summary', kind: windowKind }) },
+              { label: 'Pipeline Health', to: pipelineHref() },
+            ]} />
         </section>
       )}
 
@@ -222,6 +235,12 @@ export const CpmInvestigation: React.FC = () => {
                     <dt className="cpm-cause__label">Not checked</dt>
                     <dd className="cpm-cause__items"><ul className="cpm-cause-list">{basis.notChecked.map(t => <li key={t}>{t}.</li>)}</ul></dd>
                   </>}
+                </dl>
+              )}
+              {limits.length > 0 && (
+                <dl className="cpm-cause" aria-label="Limitations of the conclusion">
+                  <dt className="cpm-cause__label">Limitations</dt>
+                  <dd className="cpm-cause__items"><ul className="cpm-cause-list">{limits.map(l => <li key={l}>{l}</li>)}</ul></dd>
                 </dl>
               )}
               <KvRow label="Window">
@@ -277,7 +296,14 @@ export const CpmInvestigation: React.FC = () => {
             </section>
 
             <section className="cpm-surface">
-              <PanelHead eyebrow="Key facts" title="Numeric evidence on this window" />
+              {/* CHG-098 (SME review 2 #21): the calculation proof stays in Calculations / the Workbench — linked, not repeated */}
+              <PanelHead eyebrow="Key facts" title="Numeric evidence on this window"
+                right={loopId ? (
+                  <ObcButton variant="flat" title="How each number was calculated, on the same window kind"
+                    onClick={() => navigate(calculationsHref(loopId, { kind: windowKind }))}>
+                    Calculation proof ›
+                  </ObcButton>
+                ) : undefined} />
               <div className="cpm-kpi-row">
                 {KEY_FACTS.map(f => {
                   // CHG-053: a placeholder 0 (method did not qualify) or a value from an excluded window is not a fact
@@ -304,7 +330,10 @@ export const CpmInvestigation: React.FC = () => {
               <QueryError title="Trend unavailable" error={trend.error} retry={() => void trend.refetch()} />
             )}
             {!trend.isLoading && !trend.isError && points.length === 0 && (
-              <EmptyState title="No historian data for this window" copy={`Nothing stored at ${series}.`} />
+              // CHG-098 (SME review 2 #29): plain wording, the series as detail, a route to the mapping.
+              <EmptyState title="No historian data for this window"
+                copy={`No PV / SP / OP samples were stored for this loop over this window. Check its signal mapping in the Loop Registry. (Historian series: ${series})`}
+                next={loopId ? [{ label: 'Signal mapping in the Loop Registry', to: `/cpm/registry?loop=${encodeURIComponent(loopId)}` }] : undefined} />
             )}
             {points.length > 0 && loopId && <SignalTrend loopId={loopId} points={points} hasVp={hasVp} height={260} />}
           </section>
@@ -312,7 +341,7 @@ export const CpmInvestigation: React.FC = () => {
           <div className="cpm-grid-2">
             <CollapsibleSection id="inv-reasoning" title="Reasoning chain — how the engine got there"
               summary={`Eligibility → Evidence → Fusion · ${machineReason ? `reason code ${machineReason}` : 'fused cleanly'}`}>
-              <ReasoningChain matrix={matrix} machineReason={machineReason} />
+              <ReasoningChain matrix={matrix} machineReason={machineReason} vpAbsentOnLoop={vpAbsent(inputContextOf(loop))} />
             </CollapsibleSection>
             <CollapsibleSection id="inv-hypotheses" title="Hypothesis comparison"
               summary={verdict && !verdict.legacy && verdict.leadingHypothesis

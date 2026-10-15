@@ -4,8 +4,9 @@
  * The period bar (CHG-048), then the evaluated window against what is plotted (SME review #12):
  *  - the latest evaluated window is a labelled band on the trend wherever it overlaps the range;
  *  - when it lies outside the range, a line says so, with "Show evaluated period ›";
- *  - when the trend IS the evaluated window (a diagnosis click lands here), "Compare with now" adds a
- *    second trend of the live 8 h under it, both on ONE y-scale so the shapes compare like with like.
+ *  - when the trend IS the evaluated window (a diagnosis click lands here), "Compare with previous window" /
+ *    "Compare with now" add a second trend under it of the SAME LENGTH (the window just before it, or the same span
+ *    ending now), both on ONE y-scale and equal time spans, so the shapes line up (CHG-097, SME review 2 #26).
  * The gate row is the one LoopWorkspace already holds (same query key); the live trend is fetched only
  * while the comparison is on.
  */
@@ -17,7 +18,7 @@ import type { CpmLoop } from '../../../../api/cpmApi';
 import type { CpmTrendPoint } from '../../../../api/cpm/kpis';
 import { useCpmTrend, useLatestGates } from '../../../../hooks/useCpm';
 import { loopSeries } from '../../../../utils/loopSeries';
-import { EmptyState, QueryError, TREND_SPAN_MS, TREND_TICK_MS, useRollingWindow } from '../../shared';
+import { EmptyState, QueryError, TREND_TICK_MS, fmtDuration, useRollingWindow } from '../../shared';
 import { historicalHref } from '../../cpaHref';
 import { fmtPeriod } from '../../context/LoopContextBar';
 import SignalTrend from '../../trend/SignalTrend';
@@ -43,18 +44,30 @@ export const LoopTrendPanel: React.FC<{
     `Evaluated ${windowKind} window · ${conditionOf(m.diagnosis).label}`) : null;
   const inView = !!evaluated && overlaps(evaluated, from.getTime(), to.getTime());
   const isEvaluatedView = !!evaluated && !range.live && isWindowRange(evaluated, from.getTime(), to.getTime());
-  const compare = isEvaluatedView && params.get('compare') === '1';
+  // ?compare=previous | now ('1' = now, links written before CHG-097); only on the evaluated-window view
+  const compareParam = params.get('compare');
+  const compareMode: 'previous' | 'now' | null = !isEvaluatedView ? null
+    : compareParam === 'previous' ? 'previous' : compareParam === 'now' || compareParam === '1' ? 'now' : null;
+  const compare = compareMode != null;
 
-  // "Now" for the comparison: the live 8 h, fetched only while the comparison is shown.
-  const now = useRollingWindow(TREND_SPAN_MS, TREND_TICK_MS);
-  const nowTrend = useCpmTrend(loopSeries(loop.loopId), now.start, now.end, 240, 'pv,sp,op', compare, true);
-  const nowPoints = useMemo(() => nowTrend.data?.points ?? [], [nowTrend.data]);
-  const yBounds = useMemo(() => (compare ? sharedBounds([points, nowPoints]) : null), [compare, points, nowPoints]);
+  // The comparison period has the evaluated window's own length — never a different span — so the two time axes align.
+  const lengthMs = evaluated ? evaluated.endMs - evaluated.startMs : 0;
+  const rolling = useRollingWindow(Math.max(lengthMs, 60_000), TREND_TICK_MS);
+  const other = compareMode === 'previous' && evaluated
+    ? { start: new Date(evaluated.startMs - lengthMs), end: new Date(evaluated.startMs) }
+    : { start: rolling.start, end: rolling.end };
+  const otherTrend = useCpmTrend(loopSeries(loop.loopId), other.start, other.end, 240, 'pv,sp,op', compare, compareMode === 'now');
+  const otherPoints = useMemo(() => otherTrend.data?.points ?? [], [otherTrend.data]);
+  const yBounds = useMemo(() => (compare ? sharedBounds([points, otherPoints]) : null), [compare, points, otherPoints]);
+  const otherCaption = compareMode === 'previous'
+    ? `Previous window · the ${fmtDuration(lengthMs)} before it`
+    : `Now · the latest ${fmtDuration(lengthMs)}`;
 
   const showEvaluated = () => {
     if (m?.windowStart && m.windowEnd) setParams(p => pinEvaluated(p, m.windowStart!, m.windowEnd!), { replace: true });
   };
-  const setCompare = (on: boolean) => setParams(p => { if (on) p.set('compare', '1'); else p.delete('compare'); return p; }, { replace: true });
+  const setCompare = (mode: 'previous' | 'now' | null) =>
+    setParams(p => { if (mode) p.set('compare', mode); else p.delete('compare'); return p; }, { replace: true });
   const windowText = evaluated ? fmtPeriod({ label: `Evaluated ${windowKind} window`, start: evaluated.startMs, end: evaluated.endMs }) : '';
 
   return (
@@ -79,10 +92,15 @@ export const LoopTrendPanel: React.FC<{
       {isEvaluatedView && (
         <p className="cpm-eval-note">
           <span>This trend is the evaluated {windowKind} window the diagnosis is about.</span>
-          <ObcButton variant={compare ? 'normal' : 'raised'} aria-pressed={compare}
-            title={compare ? 'Hide the live 8 h comparison' : 'Add the live 8 h under it, on the same scale'}
-            onClick={() => setCompare(!compare)}>
-            {compare ? 'Hide comparison' : 'Compare with now'}
+          <ObcButton variant={compareMode === 'previous' ? 'raised' : 'normal'} aria-pressed={compareMode === 'previous'}
+            title="Add the window just before it, of the same length, under it on the same scale"
+            onClick={() => setCompare(compareMode === 'previous' ? null : 'previous')}>
+            Compare with previous window
+          </ObcButton>
+          <ObcButton variant={compareMode === 'now' ? 'raised' : 'normal'} aria-pressed={compareMode === 'now'}
+            title="Add the same length of time ending now under it, on the same scale"
+            onClick={() => setCompare(compareMode === 'now' ? null : 'now')}>
+            Compare with now
           </ObcButton>
         </p>
       )}
@@ -104,11 +122,15 @@ export const LoopTrendPanel: React.FC<{
           xRange={{ fromMs: from.getTime(), toMs: to.getTime() }}
           evaluated={inView ? evaluated : null} yBounds={yBounds} />
       )}
-      {compare && (nowTrend.isLoading ? <EmptyState title="Loading the live 8 h…" />
-        : nowTrend.isError ? <QueryError title="Live trend unavailable" error={nowTrend.error} retry={() => void nowTrend.refetch()} />
+      {compare && (otherTrend.isLoading ? <EmptyState title="Loading the comparison period…" />
+        : otherTrend.isError ? <QueryError title="Comparison trend unavailable" error={otherTrend.error} retry={() => void otherTrend.refetch()} />
         : (
-          <SignalTrend loopId={loop.loopId} points={nowPoints} live caption="Now · live 8 h"
-            xRange={{ fromMs: now.start.getTime(), toMs: now.end.getTime() }} yBounds={yBounds} />
+          <>
+            <p className="cpm-eval-note"><span>Same length and same y-scale as the evaluated window above: a point at the same
+              horizontal position is the same time into each period.</span></p>
+            <SignalTrend loopId={loop.loopId} points={otherPoints} live={compareMode === 'now'} caption={otherCaption}
+              xRange={{ fromMs: other.start.getTime(), toMs: other.end.getTime() }} yBounds={yBounds} />
+          </>
         ))}
     </div>
   );

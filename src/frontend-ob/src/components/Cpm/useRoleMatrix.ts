@@ -28,6 +28,8 @@ export interface RoleMatrixResult {
   isError: boolean;
   error: unknown;
   data: RoleMatrix | undefined;
+  /** CHG-097: re-read after a failure (the Retry on the RBAC panel). */
+  refetch: () => unknown;
 }
 
 export function useRoleMatrix(): RoleMatrixResult {
@@ -57,6 +59,7 @@ export function useRoleMatrix(): RoleMatrixResult {
     isError,
     error: matrix.error,
     data,
+    refetch: matrix.refetch,
   };
 }
 

@@ -45,3 +45,11 @@ describe('metricAvailability', () => {
     expect(metricAvailability(contextOfRow(long, 'long'), 'acf_period_s', 0).reason).toBe('no clean oscillation cycle');
   });
 });
+
+describe('no-result gate marks keep a value from reading as measured (CHG-098 review)', () => {
+  it('not applicable, disabled and pending are not results; an excluded G0 is not a usable window', () => {
+    for (const st of ['NOT_APPLICABLE', 'DISABLED', 'PENDING'])
+      expect(metricAvailability(matrix({ gates: [{ key: 'G4', status: st }] }), 'effort_ratio', 2).state).toBe('not-calculated');
+    expect(metricAvailability(matrix({ gates: [{ key: 'G0', status: 'EXCLUDED_MODE' }] }), 'mae', 0.2).state).toBe('insufficient');
+  });
+});

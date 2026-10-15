@@ -36,7 +36,9 @@ describe('HypothesisPanel', () => {
     const stiction = screen.getByTestId('hypothesis-STICTION');
     expect(stiction.textContent).toContain('Leading');
     expect(stiction.textContent).toContain('Triangular OP waveform');
-    expect(screen.getByTestId('hypothesis-EXCESSIVE_EFFORT').textContent).toContain('Ruled out');
+    // CHG-092 (SME 2 #7): no measured reason against it → "Not seen", never "Ruled out"
+    expect(screen.getByTestId('hypothesis-EXCESSIVE_EFFORT').textContent).toContain('Not seen');
+    expect(screen.getByTestId('hypothesis-EXCESSIVE_EFFORT').textContent).not.toContain('Ruled out');
     expect(screen.getByTestId('hypothesis-OSCILLATION_TUNING').textContent).not.toContain('Leading');
   });
 

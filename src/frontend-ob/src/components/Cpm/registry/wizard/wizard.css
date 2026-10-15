@@ -1,0 +1,30 @@
+/* CHG-098 (SME review 2 #28): registry wizard - full-width signal paths, change review, pipeline help. */
+
+/* One path per row: the whole modal width, so a long UNS path is not cut off. */
+.cpm-path-list { display: flex; flex-direction: column; gap: 12px; }
+.cpm-path-field { min-width: 0; }
+.cpm-path-field__row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.cpm-path-field__input { flex: 1 1 320px; min-width: 0; }
+.cpm-path-field__status { font-size: var(--cpm-text-caption); color: var(--element-neutral-color); min-width: 0; }
+.cpm-path-field__warn { color: var(--alert-caution-color); font-size: var(--cpm-text-caption); }
+
+/* Review: label over value on narrow screens, side by side otherwise. */
+.cpm-review-list { display: flex; flex-direction: column; margin: 8px 0 0; }
+.cpm-review-row {
+  display: grid; grid-template-columns: minmax(120px, 180px) 1fr; gap: 4px 12px;
+  padding: 6px 0; border-bottom: 1px solid var(--border-divider-color);
+}
+.cpm-review-row:last-child { border-bottom: none; }
+.cpm-review-row__label { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
+.cpm-review-row__value { min-width: 0; overflow-wrap: anywhere; }
+.cpm-review-change__from { color: var(--element-neutral-color); text-decoration: line-through; }
+.cpm-review-change__arrow { color: var(--element-neutral-color); padding: 0 6px; }
+.cpm-review-change__effect { grid-column: 2; color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
+.cpm-review-section { margin-top: 14px; }
+.cpm-review-help { margin-top: 14px; }
+.cpm-review-help__body { margin-top: 8px; }
+
+@media (max-width: 600px) {
+  .cpm-review-row { grid-template-columns: 1fr; }
+  .cpm-review-change__effect { grid-column: 1; }
+}

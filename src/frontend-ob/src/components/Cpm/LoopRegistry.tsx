@@ -134,16 +134,17 @@ export const LoopRegistry: React.FC = () => {
           })}
           {pageCount > 1 && (
             <div className="cpm-pager">
-              <ObcButton variant="flat" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={safePage === 0}>← Prev</ObcButton>
+              <span title={safePage === 0 ? 'Already on the first page' : undefined}><ObcButton variant="flat" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={safePage === 0}>← Prev</ObcButton></span>
               <span className="cpm-event-row__sub">Page {safePage + 1} of {pageCount}</span>
-              <ObcButton variant="flat" onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))} disabled={safePage >= pageCount - 1}>Next →</ObcButton>
+              <span title={safePage >= pageCount - 1 ? 'Already on the last page' : undefined}><ObcButton variant="flat" onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))} disabled={safePage >= pageCount - 1}>Next →</ObcButton></span>
             </div>
           )}
         </section>
 
         {selected
           ? <ProfileAside loop={selected} onEdit={() => setEditLoop(selected)} />
-          : <section className="cpm-surface"><EmptyState title="Select a loop" /></section>}
+          : <section className="cpm-surface"><EmptyState title="Select a loop"
+              copy="Pick a loop in the registry list to see its profile, signal mapping and readiness, and to edit it." /></section>}
       </div>
 
       {wizardOpen && <AddLoopWizard existing={loops} onClose={() => setWizardOpen(false)} />}

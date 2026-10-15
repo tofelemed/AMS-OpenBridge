@@ -20,7 +20,7 @@ import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons
 import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-right-google';
 import { ObiCloseGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-close-google';
 import {
-  CpmIconButton, EmptyState, KvRow, PanelHead, QueryError, TonePill, fmtDateTime,
+  CpmIconButton, EmptyState, KvRow, PanelHead, QueryError, TonePill, fmtDateTime, fmtDuration,
 } from './shared';
 import { useCpmEvents } from '../../hooks/useCpm';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
@@ -66,7 +66,8 @@ export const CalcDrawer: React.FC<{
 
   return (
     <>
-      <div className="cpm-modal-backdrop" onClick={onClose} />
+      {/* CHG-098 (SME review 2 #27): backdrop and dialog fade in once (off for reduced motion) */}
+      <div className="cpm-modal-backdrop cpm-fade-enter" onClick={onClose} />
       {/*
         Was `.cpm-drawer` — fixed to top:0/right:0, which is where the app top
         bar and the live-events rail sit, so the panel's own title and Close
@@ -78,7 +79,7 @@ export const CalcDrawer: React.FC<{
       */}
       <div
         ref={dialogRef}
-        className="cpm-inspector cpm-inspector--modal cpm-inspector--wide"
+        className="cpm-inspector cpm-inspector--modal cpm-inspector--wide cpm-fade-enter"
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
@@ -90,11 +91,11 @@ export const CalcDrawer: React.FC<{
             <h2 className="cpm-panel-title">{metric.name}</h2>
           </div>
           <div className="cpm-inspector__nav">
-            <CpmIconButton label="Previous calculation" disabled={!onPrev}
+            <CpmIconButton label="Previous calculation" disabled={!onPrev} reason="Already the first calculation in the list"
               onClick={() => onPrev?.()}>
               <ObiChevronLeftGoogle />
             </CpmIconButton>
-            <CpmIconButton label="Next calculation" disabled={!onNext}
+            <CpmIconButton label="Next calculation" disabled={!onNext} reason="Already the last calculation in the list"
               onClick={() => onNext?.()}>
               <ObiChevronRightGoogle />
             </CpmIconButton>
@@ -139,7 +140,7 @@ export const CalcDrawer: React.FC<{
             <KvRow label="Loop">{loopId}</KvRow>
             <KvRow label="Gate">{metric.gate}</KvRow>
             <KvRow label="Kind">{metric.kind}</KvRow>
-            <KvRow label="Stored in">{metric.source === 'short' ? 'cplm_short_feature_results' : metric.source === 'long' ? 'cplm_long_feature_results' : 'cplm_gate_results'}</KvRow>
+            <KvRow label="Stored in">{metric.source === 'short' ? 'cplm_long_feature_results (short-tier metric over the fused window)' : metric.source === 'long' ? 'cplm_long_feature_results' : 'cplm_gate_results'}</KvRow>
             <KvRow label="Output unit">{metric.unit}</KvRow>
             {/* "Apache Flink · event time" was a literal; the catalogue names
                 the engine that actually produced these rows. */}
@@ -170,11 +171,10 @@ export const CalcDrawer: React.FC<{
           const deployed = catalogue?.calculationVersion ?? null;
           const stale = !!stampedVersion && !!deployed && stampedVersion !== deployed;
           const gateDef = catalogue?.gates.find(g => g.key === metric.gate);
-          const qualified = metric.source === 'short'
-            ? (typeof row?.sufficient_data === 'boolean' ? row.sufficient_data : null)
-            : metric.source === 'long'
-              ? (typeof row?.long_metrics_qualified === 'boolean' ? row.long_metrics_qualified : null)
-              : null;
+          // CHG-092 (SME 2 #9): every metric is read from the fused window's row — its own qualification flag
+          const qualified = metric.source !== 'gate'
+            ? (typeof row?.long_metrics_qualified === 'boolean' ? row.long_metrics_qualified : null)
+            : null;
           const emittedAt = metric.source === 'gate'
             ? gateMatrix?.metadata.computedAt ?? null
             : (typeof row?.created_at === 'string' ? row.created_at : null);
@@ -196,7 +196,10 @@ export const CalcDrawer: React.FC<{
               </KvRow>
               <KvRow label="Emitted">{emittedAt ? fmtDateTime(emittedAt) : '—'}</KvRow>
               <KvRow label="Window">
-                {windowEnd ? `ends ${fmtDateTime(windowEnd)}` : '—'}
+                {/* SME review 2 #9: start – end (duration), the same window as the gate verdict */}
+                {windowEnd ? (typeof row?.window_start === 'string'
+                  ? `${fmtDateTime(row.window_start)} – ${fmtDateTime(windowEnd)} (${fmtDuration(Date.parse(windowEnd) - Date.parse(row.window_start))})`
+                  : `ends ${fmtDateTime(windowEnd)}`) : '—'}
               </KvRow>
               <KvRow label="Samples in window">
                 {samples != null ? samples.toLocaleString() : '—'}

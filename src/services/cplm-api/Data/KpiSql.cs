@@ -33,7 +33,19 @@ public static class KpiSql
                     (payload->'short_features'->>'expected_sample_count')::int) AS expected_sample_count,
            -- v2.5 workbench: a window is opened by its per-gate run ids (53 identity columns);
            -- the JSON is served as text and parsed by the client (Dapper-dynamic rows).
-           method_run_ids::text AS method_run_ids, bundle_hash, purpose
+           method_run_ids::text AS method_run_ids, bundle_hash, purpose,
+           -- CHG-092 (SME review 2 #9): the short-tier metrics computed over THIS fused window (the engine's aligned
+           -- short slice) — the values the window's G0 / G1 / G3 / G4 verdicts judged. The Calculations page showed the
+           -- separate 60 min row beside a 12 h verdict; vw_ = verdict window. NULL on rows without the nested slice.
+           (payload->'short_features'->>'completeness')::double precision    AS vw_completeness,
+           (payload->'short_features'->>'sample_count')::double precision    AS vw_sample_count,
+           (payload->'short_features'->>'auto_pct')::double precision        AS vw_auto_pct,
+           (payload->'short_features'->>'mae')::double precision             AS vw_mae,
+           (payload->'short_features'->>'rmse')::double precision            AS vw_rmse,
+           (payload->'short_features'->>'iae')::double precision             AS vw_iae,
+           (payload->'short_features'->>'ise')::double precision             AS vw_ise,
+           (payload->'short_features'->>'good_error_pct')::double precision  AS vw_good_error_pct,
+           (payload->'short_features'->>'effort_ratio')::double precision    AS vw_effort_ratio
     FROM analytics.cplm_long_feature_results
     WHERE lower(loop_id) = lower(@loopId) AND window_kind = @resolution
       AND (@from::timestamptz IS NULL OR window_end >= @from::timestamptz)

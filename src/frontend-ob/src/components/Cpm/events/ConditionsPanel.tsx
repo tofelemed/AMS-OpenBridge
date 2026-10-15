@@ -61,7 +61,7 @@ export const ConditionsPanel: React.FC<{ conditions: CpmCondition[]; isLoading: 
         {isLoading && <EmptyState title="Loading the fast conditions…" />}
         {error != null && <QueryError title="Conditions unavailable" error={error} retry={onRetry} />}
         {!isLoading && error == null && rows.length === 0 && (
-          <EmptyState title="No fast conditions in scope" copy="A limit dwell or a freeze on any loop in scope appears here as soon as the Condition Engine sees it." />
+          <EmptyState title="No fast conditions in scope" copy="Nothing to act on: no loop in scope is held at a limit or frozen right now. Such a condition appears here within minutes of the analysis engine seeing it." />
         )}
         {rows.length > 0 && (
           <div className="cpm-matrix-scroll">

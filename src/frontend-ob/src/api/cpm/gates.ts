@@ -6,6 +6,7 @@
 import { apiJson } from '../apiFetch';
 import { CPM_BASE as BASE } from './base';
 import type { CpmVerdictV2 } from './verdict';
+import { g15StatusFor } from '../../components/Cpm/vocabulary';
 
 // ── Gates & KPIs (U1/U3/U5/U8) ──────────────────────────────────────────────
 
@@ -83,9 +84,15 @@ export interface CpmGateMatrix {
   };
 }
 
+/** CHG-092 (SME 2 #6): G15 shows the diagnosis band (rows before the engine's CHG-094 said SUSPECTED for every band). */
+export function withBandG15<T extends { diagnosis?: string | null; gates?: Array<{ key: string; status: string | null }> }>(m: T): T {
+  if (!m?.gates) return m;
+  return { ...m, gates: m.gates.map(g => (g.key === 'G15' ? { ...g, status: g15StatusFor(m.diagnosis, g.status) } : g)) };
+}
+
 export const getLatestGates = (loopId: string, windowKind = '12h', signal?: AbortSignal) =>
   apiJson<CpmGateMatrix>(
-    `${BASE}/loops/${encodeURIComponent(loopId)}/gates/latest?windowKind=${windowKind}`, { signal });
+    `${BASE}/loops/${encodeURIComponent(loopId)}/gates/latest?windowKind=${windowKind}`, { signal }).then(withBandG15);
 
 /**
  * v2.5 workbench: one evaluated window as the picker sees it - the identity, the verdict, the 17
@@ -120,7 +127,8 @@ export const getWindowSummaries = (loopId: string, windowKind = '12h', opts: Win
   const params = new URLSearchParams({ windowKind, limit: String(opts.limit ?? 100), projection: 'summary', includeInsufficient: String(opts.includeInsufficient ?? true) });
   if (opts.to) params.set('to', opts.to);
   return apiJson<{ loopId: string; windowKind: string; count: number; projection: string; windows: CpmWindowSummary[] }>(
-    `${BASE}/loops/${encodeURIComponent(loopId)}/gates?${params.toString()}`, { signal });
+    `${BASE}/loops/${encodeURIComponent(loopId)}/gates?${params.toString()}`, { signal })
+    .then(r => ({ ...r, windows: r.windows.map(withBandG15) }));
 };
 
 export const getGateHistory = (
@@ -134,5 +142,6 @@ export const getGateHistory = (
   if (from) params.set('from', from);
   if (to) params.set('to', to);
   return apiJson<{ loopId: string; windowKind: string; count: number; windows: CpmGateMatrix[] }>(
-    `${BASE}/loops/${encodeURIComponent(loopId)}/gates?${params.toString()}`, { signal });
+    `${BASE}/loops/${encodeURIComponent(loopId)}/gates?${params.toString()}`, { signal })
+    .then(r => ({ ...r, windows: r.windows.map(withBandG15) }));
 };

@@ -72,13 +72,13 @@ export function classifyGateResult(i: GateStateInput): GateState {
   }
   const readiness = i.manifest?.readiness ?? 'NONE';
   if (readiness === 'EXPIRED') return { kind: 'EVIDENCE_EXPIRED', title: 'Evidence expired by retention', detail: 'The manifests are kept; the arrays were removed by the retention policy.',
-    stillValid: 'The verdict and every scalar of this run remain valid; only the arrays are gone. Reconstruction rebuilds them under the same identity.', action: 'RECONSTRUCT', tone: 'warn' };
+    stillValid: 'The verdict and every scalar of this run remain valid; only the arrays are gone. Reconstruction rebuilds them from the run\'s window and labels them as rebuilt.', action: 'RECONSTRUCT', tone: 'warn' };
   if (readiness === 'FAILED') return { kind: 'EVIDENCE_EXPIRED', title: 'Evidence failed verification', detail: 'A chunk did not verify; the artifacts are not trusted.',
     stillValid: 'The verdict is unaffected. Reconstruction re-emits the artifacts.', action: 'RECONSTRUCT', tone: 'bad' };
   if (readiness === 'NONE') {
     // nothing is pending: the policy keeps arrays only for windows with a finding, and CHG-049 throttles those to once an hour per loop and window
     return { kind: 'NOT_RETAINED', title: 'Evidence not retained for this run',
-      detail: 'The live path keeps the arrays for windows with a finding, at most once an hour per loop and window; RECONSTRUCT rebuilds them under the same identity.',
+      detail: 'The live path keeps the arrays for windows with a finding, at most once an hour per loop and window; Reconstruct rebuilds them from the run\'s window, labelled as rebuilt.',
       stillValid: 'The verdict and every scalar of this run are valid; only the arrays were not kept.', action: 'RECONSTRUCT', tone: 'muted' };
   }
   if (readiness === 'PENDING' || readiness === 'PARTIAL') {
@@ -89,8 +89,12 @@ export function classifyGateResult(i: GateStateInput): GateState {
   return { kind: 'READY', title: 'Ready', detail: '', stillValid: '', action: 'NONE', tone: 'good' };
 }
 
-export const GateResultStatePanel: React.FC<{ state: GateState; onReconstruct?: () => void; onRetry?: () => void; onGoToLatest?: () => void; busy?: boolean }> =
-  ({ state, onReconstruct, onRetry, onGoToLatest, busy }) => {
+export const GateResultStatePanel: React.FC<{
+  state: GateState; onReconstruct?: () => void; onRetry?: () => void; onGoToLatest?: () => void; busy?: boolean;
+  /** CHG-099 (SME review 2 #18): why Reconstruct is not offered (shown beside the disabled button, and on hover). */
+  reconstructReason?: string;
+}> =
+  ({ state, onReconstruct, onRetry, onGoToLatest, busy, reconstructReason }) => {
     const action =
       state.action === 'RECONSTRUCT' && onReconstruct ? { label: busy ? 'Reconstruction requested…' : 'Reconstruct evidence', onClick: onReconstruct }
       : state.action === 'RETRY' && onRetry ? { label: 'Retry', onClick: onRetry }
@@ -103,7 +107,11 @@ export const GateResultStatePanel: React.FC<{ state: GateState; onReconstruct?: 
         {state.stillValid && <p className="cpm-gate-state__valid">{state.stillValid}</p>}
         {state.link && <Link className="cpm-gate-state__link" to={state.link.href}>{state.link.label}</Link>}
         {state.action === 'RECONSTRUCT' && !onReconstruct && (
-          <ObcButton variant="normal" disabled>Reconstruct evidence</ObcButton>
+          <>
+            {/* the reason rides on a wrapping span: ObcButton takes no title */}
+            <span title={reconstructReason}><ObcButton variant="normal" disabled>Reconstruct evidence</ObcButton></span>
+            {reconstructReason && <p className="cpm-gate-state__valid">{reconstructReason}</p>}
+          </>
         )}
       </div>
     );

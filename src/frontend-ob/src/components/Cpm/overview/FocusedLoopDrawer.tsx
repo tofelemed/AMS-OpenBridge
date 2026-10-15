@@ -81,11 +81,11 @@ export const FocusedLoopDrawer: React.FC<{
             <h2 className="cpm-panel-title">{loopId}</h2>
           </div>
           <div className="cpm-inspector__nav">
-            <CpmIconButton label="Previous loop in the queue" disabled={!onPrev}
+            <CpmIconButton label="Previous loop in the queue" disabled={!onPrev} reason="Already the first loop in the queue"
               onClick={() => onPrev?.()}>
               <ObiChevronLeftGoogle />
             </CpmIconButton>
-            <CpmIconButton label="Next loop in the queue" disabled={!onNext}
+            <CpmIconButton label="Next loop in the queue" disabled={!onNext} reason="Already the last loop in the queue"
               onClick={() => onNext?.()}>
               <ObiChevronRightGoogle />
             </CpmIconButton>
@@ -101,8 +101,10 @@ export const FocusedLoopDrawer: React.FC<{
               error={gates.error} retry={() => void gates.refetch()} />
           )}
           {!isLoading && !matrix && !fetchFailed && (
+            // CHG-098 (SME review 2 #29): no verdict yet — open the loop, whose readiness says what is missing.
             <EmptyState title="No fused verdict yet"
-              copy="This loop has not completed a 12h/24h evaluation window." />
+              copy={`This loop has not completed a ${windowKind} evaluation window, so there is no verdict to show. Open the loop to see its readiness and what is still missing.`}
+              action={{ label: 'Open loop', onClick: onOpenLoop }} />
           )}
           {matrix && (
             <>

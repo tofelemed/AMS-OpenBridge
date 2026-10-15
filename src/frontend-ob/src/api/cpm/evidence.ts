@@ -64,6 +64,30 @@ export interface EvidenceArtifactMeta {
   pinned: boolean;
   createdAt: string;
   completedAt: string | null;
+  /** CHG-099: RETAINED = the live engine's proof; RECONSTRUCTED = rebuilt on request (absent on an older cplm-api). */
+  basis?: 'RETAINED' | 'RECONSTRUCTED';
+  analysisRunId?: string | null;
+  /** CHG-099: the original evidence id a reconstruction was stored beside. */
+  reconstructionOf?: string | null;
+  sourceCommit?: string | null;
+  jarSha256?: string | null;
+}
+
+/** CHG-099 (SME review 2 #18): a reconstruction stored beside the run's retained proof (differing artifacts only). */
+export interface EvidenceReconstruction {
+  analysisRunId: string;
+  state: string;
+  createdAt: string;
+  source: string | null;
+  differing: number;
+  identical: number;
+  /** PENDING until the run ends; SUPERSEDED = a newer reconstruction replaced its rows; NONE = it produced nothing. */
+  readiness: 'COMPLETE' | 'PENDING' | 'FAILED' | 'IDENTICAL' | 'NONE' | 'SUPERSEDED' | 'IDENTITY_CHANGED';
+  /** IDENTITY_CHANGED: the method run the rebuild landed under (the configuration changed since this run). */
+  rebuiltAs?: string | null;
+  sourceCommit: string | null;
+  jarSha256: string | null;
+  artifacts: EvidenceArtifactMeta[];
 }
 
 export interface EvidenceManifest {
@@ -74,12 +98,19 @@ export interface EvidenceManifest {
   reconstructable: boolean;
   reconstruct: { purpose: 'EVIDENCE_RECONSTRUCTION'; methodRunId: string; endpoint: string };
   artifacts: EvidenceArtifactMeta[];
+  /** CHG-099: newest first; absent on an older cplm-api. */
+  reconstructions?: EvidenceReconstruction[];
 }
 
 export interface ReconstructionAccepted {
   analysisRunId: string; loopId: string; purpose: string; jobId: string; reconstructs: string; gate: string; tier: string;
   windowKind: string; fromMs: number; toMs: number; evidenceUrl: string; statusUrl: string;
 }
+
+/** CHG-099: an analysis run's state; reading it refreshes the state from the Flink job (cplm-api). */
+export const getAnalysisRun = (analysisRunId: string, signal?: AbortSignal) =>
+  apiJson<{ analysisRunId: string; state: string; jobState?: string | null; error?: string | null }>(
+    `${CPM_BASE}/analysis-runs/${encodeURIComponent(analysisRunId)}`, { signal });
 
 export const getMethodRun = (methodRunId: string, signal?: AbortSignal) =>
   apiJson<MethodRun>(`${CPM_BASE}/method-runs/${encodeURIComponent(methodRunId)}`, { signal });

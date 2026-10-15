@@ -83,7 +83,10 @@ export const EvidenceToolbar: React.FC<EvidenceToolbarProps> = (p) => {
               <span className="cpm-field__label" id={`${ids}-jump`}>Jump to date</span>
               <input className="cpm-input" type="datetime-local" aria-labelledby={`${ids}-jump`} value={jump} onChange={e => setJump(e.target.value)} />
             </label>
-            <ObcButton variant="flat" disabled={!jump} onClick={() => { if (jump) p.onJump(new Date(jump).toISOString()); }}>Go</ObcButton>
+            {/* CHG-098 (SME review 2 #29): a disabled Go says why on hover */}
+            <span title={!jump ? 'Pick a date and time first' : undefined}>
+              <ObcButton variant="flat" disabled={!jump} onClick={() => { if (jump) p.onJump(new Date(jump).toISOString()); }}>Go</ObcButton>
+            </span>
           </div>
         )}
       </div>

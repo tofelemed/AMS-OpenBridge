@@ -98,7 +98,7 @@
 .cpm-fact-row__facts { display: flex; flex-wrap: wrap; gap: 6px 20px; min-width: 0; flex: 1 1 auto; }
 .cpm-fact { display: inline-flex; align-items: center; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
 .cpm-fact__label {
-  font-size: 0.72rem;
+  font-size: var(--cpm-text-caption);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--element-neutral-color);
@@ -107,7 +107,7 @@
 .cpm-fact__value { display: inline-flex; align-items: center; gap: 6px; }
 .cpm-fact-row__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
 .cpm-copy-id { display: inline-flex; align-items: center; gap: 2px; }
-.cpm-copy-id__status { font-size: 0.75rem; color: var(--element-neutral-color); min-width: 0; }
+.cpm-copy-id__status { font-size: var(--cpm-text-caption); color: var(--element-neutral-color); min-width: 0; }
 
 /* ── Explain panel (v2.5 workbench redesign): the collapsible right column ── */
 .cpm-explain {
@@ -129,7 +129,7 @@
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 2px 12px;
   margin: 0;
-  font-size: 0.85rem;
+  font-size: var(--cpm-text-small);
 }
 .cpm-explain__params dt { color: var(--element-neutral-color); }
 .cpm-explain__params dd { margin: 0; overflow-wrap: anywhere; }
@@ -151,7 +151,7 @@
 }
 .cpm-gate-strip__tier { display: flex; flex-direction: column; gap: 4px; flex: 0 0 auto; }
 .cpm-gate-strip__tier-label {
-  font-size: 0.72rem;
+  font-size: var(--cpm-text-caption);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--element-neutral-color);
@@ -178,7 +178,8 @@
   outline-offset: 1px;
   transform: translateY(-1px);
 }
-.cpm-gate-chip:disabled { opacity: 0.5; cursor: not-allowed; }
+/* a gate without a run stays readable (0.5 measured 3.6:1 in the night theme, lab sweep 2026-10-15) */
+.cpm-gate-chip:disabled { opacity: 0.8; cursor: not-allowed; border-style: dashed; }
 .cpm-gate-chip:focus-visible {
   outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
   outline-offset: 2px;
@@ -191,9 +192,9 @@
 /* ── Chart wrapper (CpmChart) ── */
 .cpm-chart { display: flex; flex-direction: column; gap: 4px; }
 .cpm-chart__bar { display: flex; align-items: center; gap: 8px; }
-.cpm-chart__title { flex: 1; font-size: 0.85rem; color: var(--element-neutral-color); }
-.cpm-chart__note { font-size: 0.75rem; color: var(--element-neutral-color); }
-.cpm-chart__more { font-size: 0.8rem; }
+.cpm-chart__title { flex: 1; font-size: var(--cpm-text-small); color: var(--element-neutral-color); }
+.cpm-chart__note { font-size: var(--cpm-text-caption); color: var(--element-neutral-color); }
+.cpm-chart__more { font-size: var(--cpm-text-small); }
 .cpm-chart__more > summary { cursor: pointer; color: var(--element-neutral-color); padding: 4px 0; }
 .cpm-chart__more > summary:hover { color: var(--element-active-color); }
 
@@ -205,7 +206,7 @@
 .cpm-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
+  font-size: var(--cpm-text-small);
 }
 .cpm-table th,
 .cpm-table td {
@@ -227,12 +228,12 @@
 
 /* ── Gate state panel ── */
 .cpm-gate-state { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
-.cpm-gate-state__valid { margin: 0; color: var(--element-neutral-color); font-size: 0.85rem; }
+.cpm-gate-state__valid { margin: 0; color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-gate-state__link { color: var(--element-active-color); }
 
 /* ── Response workspace specifics ── */
 .cpm-response-quantities { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 24px; margin-bottom: 8px; }
-.cpm-muted { color: var(--element-neutral-color); font-size: 0.8rem; }
+.cpm-muted { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 /* 2026-09-17 audit F5/F19/F20: compact event rows, one state each; censored rows dimmed; skeletons that
    say what they wait for; the subgates as steps; the catalogue behind a disclosure with its
    not-applicable rows greyed. Tokens only. */
@@ -242,7 +243,7 @@
 .cpm-response-events__censored { align-self: flex-start; margin-bottom: 8px; }
 .cpm-skeleton--result { min-height: 160px; }
 .cpm-skeleton { display: flex; align-items: center; justify-content: center; }
-.cpm-skeleton__label { color: var(--element-neutral-color); font-size: 0.85rem; }
+.cpm-skeleton__label { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-response-aside__ids { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 8px 0 12px; }
 .cpm-response-aside__all { margin-top: 8px; }
 .cpm-response-aside__all > summary { cursor: pointer; color: var(--element-active-color); padding: 8px 0; }
@@ -251,7 +252,7 @@
 .cpm-step { border-left: 3px solid var(--cpm-tone, var(--border-divider-color)); padding: 4px 0 4px 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .cpm-step__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .cpm-step__name { font-weight: 600; }
-.cpm-step__outputs > summary { cursor: pointer; font-size: 0.8rem; color: var(--element-neutral-color); }
+.cpm-step__outputs > summary { cursor: pointer; font-size: var(--cpm-text-small); color: var(--element-neutral-color); }
 
 /* ── v2.5 Phase 3D: Gate Configuration workspace (layout only; tokens as above) ── */
 .cpm-config-columns {
@@ -325,7 +326,7 @@
 .cpm-config-property--invalid { border-left: 3px solid var(--alert-alarm-color); padding-left: 8px; }
 .cpm-config-property__head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .cpm-config-property__name { font-weight: 600; }
-.cpm-config-property__meta { color: var(--element-neutral-color); font-size: 0.85rem; }
+.cpm-config-property__meta { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-config-property__values {
   display: grid;
   grid-template-columns: max-content 1fr;
@@ -338,8 +339,8 @@
 .cpm-config-property__edit { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .cpm-config-inline { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
 .cpm-config-ack { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.cpm-config-ack__jar { color: var(--element-neutral-color); font-size: 0.85rem; }
-.cpm-config-ack__reason { color: var(--alert-alarm-color); font-size: 0.85rem; }
+.cpm-config-ack__jar { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
+.cpm-config-ack__reason { color: var(--alert-alarm-color); font-size: var(--cpm-text-small); }
 .cpm-config-approval--stale { color: var(--element-neutral-color); }
 .cpm-config-effective__filter { display: flex; gap: 8px; margin: 8px 0; }
 /* 2026-09-18 redesign: the effective configuration read as a layer stack + a badged gate strip + one gate's table */
@@ -347,12 +348,12 @@
 .cpm-config-layers { list-style: none; margin: 0 0 4px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
 .cpm-config-layer { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-divider-color); border-left: 4px solid var(--alert-running-color); min-width: 0; }
 .cpm-config-layer--absent { border-left-color: var(--border-divider-color); color: var(--element-neutral-color); }
-.cpm-config-layer__kind { font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--element-neutral-color); }
+.cpm-config-layer__kind { font-size: var(--cpm-text-caption); letter-spacing: 0.06em; text-transform: uppercase; color: var(--element-neutral-color); }
 .cpm-config-layer__ref { font-weight: 600; overflow-wrap: anywhere; }
 .cpm-config-layer__count { font-size: 0.9rem; }
 .cpm-config-effective__bar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; }
 .cpm-config-effective__bar .cpm-config-gates { margin: 0; }
-.cpm-config-gate__badge { display: inline-block; min-width: 1.4em; padding: 0 5px; margin-left: 4px; border-radius: 999px; font-size: 0.75rem; line-height: 1.4; text-align: center; border: 1px solid var(--border-outline-color); background: var(--container-backdrop-color); color: var(--element-active-color); }
+.cpm-config-gate__badge { display: inline-block; min-width: 1.4em; padding: 0 5px; margin-left: 4px; border-radius: 999px; font-size: var(--cpm-text-caption); line-height: 1.4; text-align: center; border: 1px solid var(--border-outline-color); background: var(--container-backdrop-color); color: var(--element-active-color); }
 .cpm-config-gate--selected .cpm-config-gate__badge { background: var(--container-backdrop-color); }
 .cpm-config-workers > summary { cursor: pointer; padding: 6px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .cpm-config-effective-drawer { margin-top: 8px; }
@@ -360,7 +361,7 @@
 .cpm-config-levels { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .cpm-config-level { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px solid var(--border-divider-color); border-radius: 8px; }
 .cpm-config-level__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
-.cpm-config-level__kind { font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--element-neutral-color); }
+.cpm-config-level__kind { font-size: var(--cpm-text-caption); letter-spacing: 0.06em; text-transform: uppercase; color: var(--element-neutral-color); }
 .cpm-config-level__ref { font-weight: 600; }
 .cpm-config-level__versions { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px; }
 /* audit F18: property table with one expanded editor; lifecycle stepper + ordered actions; deployments timeline */
@@ -384,7 +385,7 @@
 .cpm-config-table__editor > td { background: var(--container-backdrop-color); }
 .cpm-config-table__editor .cpm-config-property { border-top: 0; padding: 4px 0 8px; }
 .cpm-lifecycle__steps { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
-.cpm-lifecycle__step { display: inline-flex; align-items: center; gap: 6px; color: var(--element-neutral-color); font-size: 0.85rem; }
+.cpm-lifecycle__step { display: inline-flex; align-items: center; gap: 6px; color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-lifecycle__dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--cpm-tone, var(--element-neutral-color)); background: transparent; }
 .cpm-lifecycle__step--done .cpm-lifecycle__dot, .cpm-lifecycle__step--current .cpm-lifecycle__dot { background: var(--cpm-tone); }
 .cpm-lifecycle__step--current { color: var(--element-active-color); font-weight: 600; }

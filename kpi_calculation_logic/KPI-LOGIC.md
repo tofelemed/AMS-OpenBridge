@@ -79,12 +79,20 @@ Assessed is then split: **Performing acceptably** (no finding) / **With a findin
 
 Each entry: definition · formula · inputs (stored field) · threshold · denominator · why (reference) · drill-down columns (proof).
 
-#### K1 — Performing acceptably ("No fault found")
-- **Definition:** share of monitored loops whose fresh 24 h verdict found no fault, in normal mode, not at an OP limit, on qualified data.
-- **Formula:** `count(loops: state = Assessed AND diagnosis ∈ {NO_CALL, INSUFFICIENT_EVIDENCE} AND auto_pct ≥ 0.95 AND saturation_pct ≤ 0.10) / monitored`.
-  A no-fault loop that fails either condition is outcome *No fault, but out of mode or at limit* (lab finding 2026-10-10: a loop
-  27 % of the time at its OP limit had a NO_CALL verdict — it has no authority, so it is not performing acceptably).
-- **Inputs:** `diagnosis`, `payload.auto_pct`, `payload.gates.G0`, `window_end`.
+#### K1 — Performing acceptably
+- **Definition:** share of monitored loops whose fresh fused verdict identified no fault AND that meet the performance criteria:
+  in normal mode, not at an OP limit, good-error share at or above the profile floor, actuator activity not strong.
+- **Formula:** `count(loops: state = Assessed AND diagnosis ∈ {NO_CALL, INSUFFICIENT_EVIDENCE} AND auto_pct ≥ 0.95 AND
+  saturation_pct ≤ 0.10 AND gates.G3 = PASS AND gates.G4 ≠ STRONG) / monitored`.
+  A no-fault loop that misses any criterion is outcome *No fault, but limited*, and the drill-down names each one missed
+  (`limitedBy`: OUT_OF_MODE, SATURATED, G3_BELOW_FLOOR, G3_NOT_EVALUATED, G4_STRONG). Lab finding 2026-10-10: a loop 27 % of
+  the time at its OP limit had a NO_CALL verdict — no authority, so not acceptable.
+- **Why the performance gates (CHG-093, SME review 2 #12; user decision 2026-10-14):** "no fault identified" is a DIAGNOSTIC
+  result (no family reached the evidence threshold); it does not say the loop controls well. G3 (good-error share vs the
+  profile's class-aware floor, CPLM-014) and G4 (actuator activity vs the profile's warn / high ratios, CPLM-020) are the
+  engine's own performance gates on the same window. A G3 that was not evaluated is not a pass; G4 WARN is allowed (only
+  STRONG excludes), so ordinary activity is not penalised.
+- **Inputs:** `diagnosis`, `payload.auto_pct`, `payload.saturation_pct`, `payload.gates.G3`, `payload.gates.G4`, `window_end`.
 - **Why:** the headline number of CPM tools and field surveys ("share of loops performing acceptably"; Desborough & Miller 2002,
   Bauer et al. 2016). Denominator is *all monitored loops*, so un-assessed loops pull it down visibly instead of hiding.
 - **Drill-down:** loop · verdict word · evidence score · AUTO % · window end · links (Explorer, Calculations G15 row).
@@ -303,3 +311,4 @@ Drill-down keys: `all`, `assessed`, `acceptable`, `no-fault-limited`, `finding`,
 | 2026-10-10 | 4 | Per-loop KPI cards on the Explorer (`/loops/{id}/kpi-summary`); route-uniqueness guard after a route collision |
 | 2026-10-10 | 5 | 14-day trend with day drill-down (section 11) |
 | 2026-10-10 | — | Plant probe results (section 5.1): K1 confirmed, stale explained by the restart refill |
+| 2026-10-14 | CHG-093 | K1 also needs G3 pass and G4 not strong (SME review 2 #12); the Performance headline is computed over every assessed loop in scope, with exclusions, and error as % of PV span (SME review 2 #10 / #11) |

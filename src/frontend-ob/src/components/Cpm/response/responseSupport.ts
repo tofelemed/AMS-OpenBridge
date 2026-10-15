@@ -64,9 +64,40 @@ export const BAND_MEANINGS: Record<string, string> = {
 };
 export const bandMeaningText = (code: string | undefined) => (code ? BAND_MEANINGS[code] ?? phrase(code) : 'band (meaning not declared)');
 
+/** CHG-097 (SME review 2 #15): engineering names for the kernel's parameter ids. */
+export const PARAM_LABEL: Record<string, string> = {
+  process_gain: 'Process gain', integrating_gain: 'Integrating gain', dead_time: 'Dead time', time_constant: 'Time constant',
+  time_constant_1: 'Time constant 1', time_constant_2: 'Time constant 2', damping_ratio: 'Damping ratio', natural_frequency: 'Natural frequency',
+};
+export const paramLabel = (id: string) => PARAM_LABEL[id] ?? phrase(id);
+
+/** The input the model was identified from, by its path: OP / VP in %, a cascade slave's setpoint, or a test signal. */
+function inputUnit(pathId: string | null | undefined): string {
+  switch ((pathId ?? '').toUpperCase()) {
+    case 'OP_TO_PV': return '% OP';
+    case 'VP_TO_PV': return '% VP';
+    case 'SLAVE_SP_TO_PV': return 'slave SP unit';
+    default: return 'input unit';
+  }
+}
+
+/** The kernel writes unit placeholders (PV_EU, input_EU); shown in the loop's PV unit and the path's input unit. */
+export function displayUnit(kernelUnit: string | null | undefined, pathId: string | null | undefined, pvUnit: string | null | undefined): string {
+  const u = kernelUnit ?? '';
+  if (!u) return '';
+  return u.replace(/PV_EU/g, pvUnit?.trim() || 'PV unit').replace(/input_EU/g, inputUnit(pathId));
+}
+
+/**
+ * What the ± interval of a parameter is (ResponseEvaluator: the fit's standard error; for dead time, when the objective is
+ * flat over a range of delays, half that range — at least half a delay-grid step).
+ */
+export const uncertaintyMeaning = (param: string) =>
+  param === 'dead_time' ? '± 1 standard error, or half the range of equally good delays' : '± 1 standard error of the estimate';
+
 export const MODEL_PARAMS = ['process_gain', 'integrating_gain', 'dead_time', 'time_constant', 'time_constant_1', 'time_constant_2', 'damping_ratio', 'natural_frequency'] as const;
 
-export interface ParamPoint { tMs: number; value: number; lower: number | null; upper: number | null; modelId: string; state: string; unit: string }
+export interface ParamPoint { tMs: number; value: number; lower: number | null; upper: number | null; modelId: string; state: string; unit: string; pathId?: string }
 
 /** One point per model that reports the parameter; the interval is value ± uncertainty as the kernel gave it. */
 export function paramPoints(models: SystemModel[], param: string): ParamPoint[] {
@@ -74,7 +105,7 @@ export function paramPoints(models: SystemModel[], param: string): ParamPoint[] 
   for (const m of models) {
     const p = m.parameters?.[param];
     if (!p || p.value == null) continue;
-    out.push({ tMs: Date.parse(m.createdAt), value: p.value, lower: p.uncertainty != null ? p.value - p.uncertainty : null, upper: p.uncertainty != null ? p.value + p.uncertainty : null, modelId: m.modelId, state: m.modelState, unit: p.unit });
+    out.push({ tMs: Date.parse(m.createdAt), value: p.value, lower: p.uncertainty != null ? p.value - p.uncertainty : null, upper: p.uncertainty != null ? p.value + p.uncertainty : null, modelId: m.modelId, state: m.modelState, unit: p.unit, pathId: m.pathId });
   }
   return out.sort((a, b) => a.tMs - b.tMs);
 }

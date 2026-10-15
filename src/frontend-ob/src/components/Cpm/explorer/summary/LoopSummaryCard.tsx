@@ -11,10 +11,19 @@
  * Laid out like the KPI tiles (tone on the left border) so it reads as part of
  * the same product. The confidence is called an evidence score, as the
  * Workbench labels it: the engine's scores are uncalibrated, not probabilities.
+ *
+ * CHG-098 (SME review 2 #20/#21): compact — the diagnosis (once on the page),
+ * severity, the main reason on one line and the next check, so the trend and
+ * the loop KPIs follow directly. The basis, what was not checked, the data and
+ * the limitations sit behind one "Basis and limitations" disclosure (closed by
+ * default, with a one-line summary). The Explorer gives the quick condition:
+ * the full cause breakdown, limitations, recommendation and evidence-score note
+ * live on the Investigation, the calculation proof in the Workbench.
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { ObcAccordionItem } from '@oicl/openbridge-webcomponents-react/components/accordion-item/accordion-item';
 import type { CpmLoop } from '../../../../api/cpmApi';
 import type { CpmGateMatrix } from '../../../../api/cpm/gates';
 import { TonePill, toneFor } from '../../shared';
@@ -26,7 +35,7 @@ import { pinEvaluated, revealTrend } from '../../trend/evaluatedWindow';
 import {
   ageText, conditionOf, evidenceOf, leadingCauseOf, limitationsOf, nextCheckOf, primaryActionOf, staleAfterMs,
 } from './summaryText';
-import { EVIDENCE_SCORE_HELP, evidenceScoreCap } from '../../evidenceScore';
+import { EVIDENCE_SCORE_HELP } from '../../evidenceScore';
 import { inputContextOf } from '../../optionalInputs';
 import { basisOf } from '../../conclusionBasis';
 import { INPUT_LIMITS_GATE } from '../../inputLimits';
@@ -57,7 +66,10 @@ export const LoopSummaryCard: React.FC<{
   windowKind: string;
   /** CHG-064: loopHealthSummary's label ("HEALTH NOT CONFIGURED"), so the card can say a sensor fault was not checked. */
   healthLabel?: string;
-}> = ({ loop, matrix, windowKind, healthLabel }) => {
+  /** CHG-098: more of the basis (the non-blocking readiness bar) and its one-line summary, for the disclosure. */
+  more?: React.ReactNode;
+  moreLine?: string;
+}> = ({ loop, matrix, windowKind, healthLabel, more, moreLine }) => {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const workbench = workbenchExit(loop.loopId, matrix, windowKind);
@@ -71,19 +83,32 @@ export const LoopSummaryCard: React.FC<{
   const limits = limitationsOf((matrix.observabilityFlags ?? []).filter(f => !basis || !(f in INPUT_LIMITS_GATE)), inputs);
   const last = matrix.lastVerdict;
   const score = finding && matrix.confidence != null ? Math.round(matrix.confidence * 100) : null;
-  const scoreCap = finding ? evidenceScoreCap(matrix.narrative?.statusReason, matrix.confidence) : null;
   const endMs = matrix.windowEnd ? Date.parse(matrix.windowEnd) : NaN;
   const windowAge = Number.isFinite(endMs) && Date.now() - endMs > staleAfterMs(windowKind) ? ageText(Date.now() - endMs) : null;
   const action = primaryActionOf(condition);
   const actionHref = action.target === 'windows' ? windowsHref(loop.loopId)
     : action.target === 'historical' ? historicalHref(loop.loopId, trendPeriodOf(params))
     : investigationHref(loop.loopId, { kind: windowKind });
+  const [basisOpen, setBasisOpen] = useState(false);
+  const next = nextCheckOf(matrix, condition);
+  const canPin = !!matrix.windowStart && !!matrix.windowEnd;
+  // the closed disclosure says what is inside it in one line
+  const basisLine = [
+    basis ? `${basis.lead} ${basis.from}` : evidence.length > 0 ? `${evidence.length} observation(s) seen` : '',
+    basis && basis.notChecked.length > 0 ? `${basis.notChecked.length} not checked` : '',
+    limits.length > 0 ? `${limits.length} limitation(s)` : '',
+    matrix.sampleCount != null ? `${matrix.sampleCount.toLocaleString()} samples` : '',
+    moreLine ?? '',
+  ].filter(Boolean).join(' · ');
 
   return (
     <section className={`cpm-loop-summary cpm-loop-summary--${condition.tone}`} aria-label="Loop summary">
       <div className="cpm-loop-summary__head">
         <div>
-          <span className="cpm-eyebrow">Loop summary · latest {windowKind} evaluated window</span>
+          <span className="cpm-eyebrow">
+            Loop summary · latest {windowKind} evaluated window
+            {windowAge && <strong className="cpm-loop-summary__stale"> · ended {windowAge}</strong>}
+          </span>
           <h2 className="cpm-loop-summary__condition">{condition.label}</h2>
         </div>
         {finding && matrix.severity && (
@@ -102,79 +127,95 @@ export const LoopSummaryCard: React.FC<{
         </p>
       )}
 
-      <dl className="cpm-loop-summary__rows">
-        {finding && (
-          <Row label="Possible cause">
+      {finding && (
+        <dl className="cpm-loop-summary__rows">
+          {/* CHG-098 (SME review 2 #21): the main reason on one line; the cause breakdown is the Investigation's */}
+          <Row label="Main reason">
             {cause ?? 'No mechanism qualified'}
             {cause && !(matrix.verdictV2?.leadingHypothesis === 'STICTION' && matrix.verdictV2?.confirmation?.state === 'CONFIRMED') && (
               <span className="cpm-loop-summary__muted"> · not confirmed</span>
             )}
+            {/* the short form; the evidence-score note (with any engine cap) is on the Investigation */}
             {score != null && (
-              <span className="cpm-loop-summary__muted"
-                title={EVIDENCE_SCORE_HELP}>
-                {' · '}evidence score {score}{scoreCap ? ` (${scoreCap})` : ''}
-              </span>
+              <span className="cpm-loop-summary__muted" title={EVIDENCE_SCORE_HELP}>{' · '}evidence score {score}</span>
             )}
           </Row>
-        )}
-        {basis && (
-          <Row label="Basis">
-            <strong>{basis.lead}</strong> {basis.from}.
-          </Row>
-        )}
-        {basis && basis.notChecked.length > 0 && (
-          <Row label="Not checked">
-            <ul className="cpm-loop-summary__limits">
-              {basis.notChecked.map(n => <li key={n}>{n}.</li>)}
-            </ul>
-          </Row>
-        )}
-        {evidence.length > 0 && !basis && (
-          <Row label="Evidence seen">
-            <span className="cpm-loop-summary__chips">
-              {evidence.map(e => (
-                <span key={e.label} className="cpm-loop-summary__chip">
-                  {e.label}{e.main ? '' : <span className="cpm-loop-summary__muted"> · supporting</span>}
-                </span>
-              ))}
-            </span>
-          </Row>
-        )}
-        <Row label="Data">
-          {matrix.sampleCount != null ? `${matrix.sampleCount.toLocaleString()} samples · ` : ''}
-          {fmtPeriod({ label: `${windowKind} window`, start: matrix.windowStart, end: matrix.windowEnd })}
-          {windowAge && <strong className="cpm-loop-summary__stale"> · ended {windowAge}</strong>}
-          {matrix.windowStart && matrix.windowEnd && (
-            <ObcButton variant="flat" className="cpm-loop-summary__inline-action"
-              title="Show this evaluated window on the trend, compared with now"
+        </dl>
+      )}
+
+      <div className="cpm-loop-summary__next">
+        <span className="cpm-loop-summary__label">Next check</span>
+        {/* CHG-098: two lines at most here; the full recommendation is on the Investigation */}
+        <p className="cpm-loop-summary__next-text" title={next}>{next}</p>
+        <span className="cpm-loop-summary__actions">
+          <ObcButton variant="raised" onClick={() => navigate(actionHref)}>{action.label}</ObcButton>
+          {canPin && (
+            <ObcButton variant="flat" title="Show this evaluated window on the trend, compared with now"
               onClick={() => { setParams(p => pinEvaluated(p, matrix.windowStart!, matrix.windowEnd!), { replace: true }); revealTrend(); }}>
               Show on trend ›
             </ObcButton>
           )}
-        </Row>
-        {limits.length > 0 && (
-          <Row label="Limitations">
-            <ul className="cpm-loop-summary__limits">
-              {limits.slice(0, MAX_LIMITS).map(l => <li key={l}>{l}</li>)}
-              {limits.length > MAX_LIMITS && (
-                <li className="cpm-loop-summary__muted" title={limits.slice(MAX_LIMITS).join('\n')}>
-                  and {limits.length - MAX_LIMITS} more
-                </li>
-              )}
-            </ul>
-          </Row>
-        )}
-      </dl>
-
-      <div className="cpm-loop-summary__next">
-        <span className="cpm-loop-summary__label">Next check</span>
-        <p className="cpm-loop-summary__next-text">{nextCheckOf(matrix, condition)}</p>
-        <span className="cpm-loop-summary__actions">
-          <ObcButton variant="raised" onClick={() => navigate(actionHref)}>{action.label}</ObcButton>
           <ObcButton variant="normal" title={workbench.title} onClick={() => navigate(workbench.href)}>
-            Evidence workbench ›
+            Calculation proof › Workbench
           </ObcButton>
         </span>
+      </div>
+
+      {/* CHG-098 (SME review 2 #20): the long basis behind one disclosure (obc-accordion-item: a button with aria-expanded) */}
+      <div className="cpm-loop-summary__more">
+        <ObcAccordionItem title="Basis and limitations" open={basisOpen}
+          onAccordionItemToggle={(e: CustomEvent<{ open: boolean }>) => setBasisOpen(!!e.detail?.open)}>
+          <div slot="expanded-content" className="cpm-collapsible__body">
+            {basisOpen && (
+              <>
+                <dl className="cpm-loop-summary__rows">
+                  {basis && (
+                    <Row label="Basis">
+                      <strong>{basis.lead}</strong> {basis.from}.
+                    </Row>
+                  )}
+                  {basis && basis.notChecked.length > 0 && (
+                    <Row label="Not checked">
+                      <ul className="cpm-loop-summary__limits">
+                        {basis.notChecked.map(n => <li key={n}>{n}.</li>)}
+                      </ul>
+                    </Row>
+                  )}
+                  {evidence.length > 0 && !basis && (
+                    <Row label="Evidence seen">
+                      <span className="cpm-loop-summary__chips">
+                        {evidence.map(e => (
+                          <span key={e.label} className="cpm-loop-summary__chip">
+                            {e.label}{e.main ? '' : <span className="cpm-loop-summary__muted"> · supporting</span>}
+                          </span>
+                        ))}
+                      </span>
+                    </Row>
+                  )}
+                  <Row label="Data">
+                    {matrix.sampleCount != null ? `${matrix.sampleCount.toLocaleString()} samples · ` : ''}
+                    {fmtPeriod({ label: `${windowKind} window`, start: matrix.windowStart, end: matrix.windowEnd })}
+                    {windowAge && <strong className="cpm-loop-summary__stale"> · ended {windowAge}</strong>}
+                  </Row>
+                  {limits.length > 0 && (
+                    <Row label="Limitations">
+                      <ul className="cpm-loop-summary__limits">
+                        {limits.slice(0, MAX_LIMITS).map(l => <li key={l}>{l}</li>)}
+                        {limits.length > MAX_LIMITS && (
+                          <li className="cpm-loop-summary__muted" title={limits.slice(MAX_LIMITS).join('\n')}>
+                            and {limits.length - MAX_LIMITS} more (all listed on the Investigation)
+                          </li>
+                        )}
+                      </ul>
+                    </Row>
+                  )}
+                </dl>
+                {more}
+              </>
+            )}
+          </div>
+        </ObcAccordionItem>
+        {!basisOpen && basisLine && <p className="cpm-collapsible__summary">{basisLine}</p>}
       </div>
     </section>
   );

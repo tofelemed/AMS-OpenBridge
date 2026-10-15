@@ -24,7 +24,8 @@ export interface CpmObservation {
   basis: string;
 }
 
-export type HypothesisState = 'QUALIFIED' | 'DISQUALIFIED' | 'NOT_ASSESSED' | string;
+/** CHG-092: NO_EVIDENCE (checked, nothing seen) arrives with the engine's CHG-095; older rows only carry the first three. */
+export type HypothesisState = 'QUALIFIED' | 'DISQUALIFIED' | 'NOT_ASSESSED' | 'NO_EVIDENCE' | string;
 
 export interface CpmHypothesis {
   score: number;
@@ -35,6 +36,8 @@ export interface CpmHypothesis {
   contradictions: string[];
   /** Why it was not qualified (NO_SHAPE_EVIDENCE, …). */
   disqualifiers: string[];
+  /** CHG-092: the inputs a NOT_ASSESSED hypothesis lacks (NO_UPSTREAM_LINKS, HEALTH_NOT_CONFIGURED, …). */
+  missingInputs?: string[] | null;
 }
 
 export type ConfirmationState =

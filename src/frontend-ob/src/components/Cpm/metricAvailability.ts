@@ -8,7 +8,7 @@
  * The decision uses only what the row already carries: the window's diagnosis, its gate statuses, its flags
  * and disqualifiers — plus the `period_status` / `*_qualified` fields when a raw KPI row has them.
  */
-import { gateMeaning } from './gateStatus';
+import { gateMeaning, isNoResult } from './gateStatus';
 import { METRICS } from './calcCatalogue';
 import { disqualifierLabel, lowerFirst, phrase } from './vocabulary';
 import type { CpmGateMatrix } from '../../api/cpm/gates';
@@ -65,7 +65,8 @@ export function metricAvailability(ctx: MetricContext, field: string, value: unk
     return { state: 'insufficient', short: 'Insufficient data', reason: ctx.declined ?? 'too few qualified samples in the window' };
   const gate = GATE_OF[field];
   const g0 = gateMeaning(ctx.status('G0'), 'G0');
-  if (gate !== 'G0' && g0 === 'unusable')
+  // CHG-098 (SME 2 #24): an EXCLUDED G0 has its own mark now, but the window is still not usable for a metric
+  if (gate !== 'G0' && (g0 === 'unusable' || g0 === 'excluded'))
     return { state: 'insufficient', short: 'Insufficient data', reason: 'the window failed data qualification' };
   if (typeof value !== 'number' || !Number.isFinite(value))
     return { state: 'not-calculated', short: 'Not calculated', reason: 'not in this result' };
@@ -87,7 +88,7 @@ export function metricAvailability(ctx: MetricContext, field: string, value: unk
       : { state: 'not-calculated', short: 'Not qualified', reason: 'computed, but the engine did not qualify it on this window' };
   if (gate) {
     const st = ctx.status(gate);
-    if (st != null && gateMeaning(st, gate) === 'none')
+    if (st != null && isNoResult(gateMeaning(st, gate)))
       return value === 0
         ? { state: 'not-calculated', short: 'Not calculated', reason: `${gate} ${phrase(st)}` }
         : { state: 'not-calculated', short: 'Not qualified', reason: `${gate} ${phrase(st)} — the value is not a result` };

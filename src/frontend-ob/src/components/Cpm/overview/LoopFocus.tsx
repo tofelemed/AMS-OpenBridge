@@ -14,6 +14,7 @@ import { useLoopLive, qualityLabel } from '../../../hooks/useLoopLive';
 import { FacetPill, liveSignalQuality } from '../FacetPill';
 import { loopSeries } from '../../../utils/loopSeries';
 import SignalTrend from '../trend/SignalTrend';
+import { pipelineHref } from '../cpaHref';
 
 // ── loop focus panel (signal row + envelope trend) ─────────────────────────
 
@@ -69,8 +70,13 @@ export const LoopFocus: React.FC<{
         <QueryError title="Trend unavailable" error={trend.error} retry={() => void trend.refetch()} />
       )}
       {!trend.isLoading && !trend.isError && points.length === 0 && (
+        // CHG-098 (SME review 2 #29): plain cause first, the historian series last; routes to the mapping and the engine.
         <EmptyState title="No historian data for this loop"
-          copy={`No samples stored at ${series} in this window.`} />
+          copy={`No PV / SP / OP samples were stored for this loop in the last 8 h. Check its signal mapping in the Loop Registry; if every loop is empty, check Pipeline Health. (Historian series: ${series})`}
+          next={[
+            { label: 'Signal mapping in the Loop Registry', to: `/cpm/registry?loop=${encodeURIComponent(loopId)}` },
+            { label: 'Pipeline Health', to: pipelineHref() },
+          ]} />
       )}
       {points.length > 0 && <SignalTrend loopId={loopId} points={points} height={260} live />}
     </section>

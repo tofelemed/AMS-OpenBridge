@@ -4620,3 +4620,344 @@ SUPERSEDED for a period); CANDIDATE / REJECTED / EXPIRED models older than the R
 (2) CENSORED events a short retention (e.g. 2 days). Expected steady state ~0.5-0.7 GB. Scope: cplm-api `ResponseRetention.cs` /
 `EvidenceRetentionSweeper.cs` (+ tests), maybe a retention_policy row for censored events.
 **Also done 2026-10-14 (plant, by hand, recorded in prod_decision):** `LONG_FEATURES` retention 30 → 14 days (was heading to ~4.6 GB).
+
+## CHG-092 — SME review 2, phase A: wrong or misleading information on the CPM pages (2026-10-14)
+
+**Source:** `SME_review_2.md` points 6, 7, 8, 9, 13, 19, 20, 22, 29 (verdicts and plan: `SME_review_2_check.md`, phase A).
+User decisions: change labels in percentage points; NO_CALL reads "No fault identified" everywhere.
+**Commits:** part 1 `d3d6cfcf`; part 2 (this entry).
+
+**What changed**
+- **One diagnosis band everywhere (#6):** `bandOf()` / `BAND_WORD` in `vocabulary.ts`. Red only for CONFIRMED; SUSPECTED,
+  CLASSIFIED and DETECTED are amber (ISA-101). The G15 cell shows the same band as the result: a frontend shim (`withBandG15`)
+  covers rows written before the engine's CHG-094.
+- **Evidence against vs not assessed vs not seen (#7):** a cause is "Evidence against" only with a disqualifier or
+  contradiction. A missing input (no upstream links, no valid cycle, health not configured, `missing_inputs`) is
+  "Not assessed". A cause with nothing scored is "Not seen in this window". cplm-api `HypothesisView.MissingInputs`.
+- **Calculations on the verdict's own window (#8, #9):**
+  - The short-tier metrics are read from the fused 12 h / 24 h row (`vw_*` columns in `KpiSql.cs`, taken from
+    `payload.short_features`), not from a separate 60 min row.
+  - Window shown as start – end (duration).
+  - A missing value reads "Not measured — reason" and is never shown beside a green gate.
+  - "Gates acceptable" is neutral.
+  - `?metric=` opens that metric. KPI proof links carry metric and window.
+  - The Loop Explorer KPI trend link uses 24 h on the 24 h window.
+- **Changes in percentage points (#13):** "+8 pp", "−17 pp", "±0 pp".
+- **No valve position (#19):** G14 on a no-VP loop reads "This loop has no valve position", and the confirmation step is a
+  stroke / bump test.
+- **Events (#20):**
+  - The title is the peak ("Peak: …").
+  - A "Now: …" pill shows when the latest window differs from the peak.
+  - The severity pill uses the engine band, not the old 0.55 / 0.9 thresholds.
+- **Green only where it means acceptable control (#22):**
+  - Per-loop KPI cards are grouped into Control performance, Actuator activity and Evidence quality.
+  - The cards that bear on the current finding are outlined.
+  - A gate PASS beside a finding is neutral.
+  - Coverage and saturation within limits are neutral; incomplete coverage is amber.
+- **"24h" regression (#29):** Historical and Replay say the selected window kind.
+
+**Services updated:** `ams-frontend`, `cplm-api` (read model only: new `vw_*` columns in the KPI read, `missing_inputs` passthrough).
+**Not changed:** Flink, schema, retention. **No migration.**
+**Script to run:** standard image load + `deploy.sh --prod` for the two images (release bundle when the batch ships).
+
+**Tests**
+- tsc and eslint (`--max-warnings 0`) clean.
+- CPM vitest suite passes; new tests: `diagnosisBand.test.ts`, the loop KPI tone/group cases, the `calculationsHref` metric/window
+  case, the EventDetail peak/current cases.
+- cplm-api builds.
+
+**Lab browser check:** pending (Docker Desktop stopped).
+
+## CHG-093 — SME review 2, phase B: fleet numbers on a proper basis (2026-10-14)
+
+**Source:** `SME_review_2.md` points 10, 11, 12 (`SME_review_2_check.md`, phase B). User decision 2026-10-14 for #12:
+"what sme is saying - or standard and commonly used" → acceptable control needs its own performance criteria.
+
+**What changed**
+- **Performing acceptably (#12):** no fault identified (NO_CALL / INSUFFICIENT_EVIDENCE) is a diagnosis, not a performance
+  verdict. K1 now also needs **G3 PASS** (good-error share at or above the profile floor) and **G4 not STRONG** (actuator
+  activity), on top of normal mode ≥ 95 % and not saturated > 10 %.
+  - A G3 that was not evaluated is not a pass.
+  - A no-fault loop that misses a criterion is "No fault, but limited", and the drill-down names each one missed
+    (`limitedBy`: OUT_OF_MODE, SATURATED, G3_BELOW_FLOOR, G3_NOT_EVALUATED, G4_STRONG).
+  - `FleetKpiSql` reads `gates.G3` / `gates.G4`, `good_error_pct`, `mae` and the registry PV span.
+- **Performance headline over the whole scope (#10):**
+  - The page no longer averages the 50 most confident loops of a ranked page. `GET fleet/kpis` now returns `performance`,
+    computed over every assessed loop in the scope (the Overview KPIs' classification).
+  - Each tile states its denominator and the exclusions (not assessable, stale, never evaluated, not measured).
+  - The tiles are neutral, not green.
+  - Under a health filter the tiles say they cover the whole scope.
+- **Error across loops (#11):**
+  - "Median MAE · PV units" is replaced by "Median error (% of span)": MAE ÷ (pvMax − pvMin) per loop, then the median.
+  - Loops without a registered span are counted as excluded, never mixed in.
+  - `orderBy=mae` on `fleet/rankings` ranks by the same ratio; loops without a span rank last.
+- KPI-LOGIC.md K1 is rewritten, with a change-log line.
+
+**Services updated:** `cplm-api` (KPI read + classifier + `performance` block + rankings order), `ams-frontend`.
+**Not changed:** Flink, schema, retention. **No migration.**
+**Expected effect at the plant:** "Performing acceptably" can drop. Loops with NO_CALL but G3 WARN (good-error share under the
+floor) or G4 STRONG move to "No fault, but limited". This is intended: the SME's point is that these were never shown to
+control acceptably.
+**Script to run:** with the CHG-092 images (the same two services).
+
+**Tests**
+- cplm-api builds.
+- New unit tests: `FleetKpiClassifierTests` (G3 / G4 theory, every missed criterion named) and `FleetKpiPerformanceTests`
+  (span normalisation, exclusions, empty scope). All 33 pass.
+- The DB-backed endpoint tests (`FleetKpiEndpointTests`) are **pending the lab** (Docker stopped): the new SQL columns
+  have not run against Postgres yet.
+- Frontend: tsc and eslint clean; vitest 408 / 408 (new `performanceHeadline.test.ts`, the kpiProof "limited by" case).
+
+**Lab browser check:** pending.
+
+## CHG-097 — SME review 2, phase D: charts and data out (2026-10-14)
+
+**Source:** `SME_review_2.md` points 15, 16, 17, 26 (`SME_review_2_check.md`, phase D). Number reserved with ams-open-e0 / -d5.
+
+**What changed**
+- **System Response model history (#15):**
+  - Time axes fit the span: seconds for an event, minutes for a window, and the date with the time once the span reaches
+    a day (a history across days repeated "12:00:00"). The change is in `CpmChart`, so every evidence chart benefits.
+  - Parameters show engineering names ("Process gain", not `process_gain`).
+  - Units are the loop's PV unit and the model's input (% OP / % VP), not the kernel placeholders `PV_EU` / `input_EU`.
+  - The interval is drawn as grey caps and named for what it is: ± 1 standard error of the fit, or for a dead time the
+    fit could not pin down, ± half the range of equally good delays (checked in `ResponseEvaluator`).
+- **Loading and failures (#16):**
+  - The trend keeps its last points while the next window loads (the live 8 h blanked every minute). It does so only
+    for the same loop and signals, so a loop switch never shows another loop's trace.
+  - Historical no longer refetches the trend, mode, KPIs and history when a window or signal is selected (its default
+    range was rebuilt on every URL change).
+  - Six load failures gained a Retry with the reason: historian slice, method-run lookup, Gate Configuration versions,
+    Calculations KPI rows, Governance audit, RBAC.
+  - The Performance capability tile is no longer green while loading.
+- **Exports (#17):** Historical offers labelled downloads.
+  - **Signal samples (CSV):** PV / SP / OP / VP / mode from the historian, at the loop's sample period. Read in
+    2,000-bucket slices (historian-bff's cap) and limited to 60,000 rows; a longer range is coarsened and the file says so.
+  - **Evaluated windows (CSV / JSON).**
+  - **Evidence package (selected window, JSON):** verdict, every gate, the window's metrics, the evidence manifests and
+    the samples over exactly that window.
+  - Every file names its content, loop, plant, period and time zone, with time in ISO UTC plus the site clock and a unit
+    per column.
+  - Chart CSVs carry the same header and readable times, and are named `<loop>-<chart>-<start>.csv` (was `Output.csv`
+    with epoch-ms).
+- **Charts central to investigation (#26):**
+  - A per-loop KPI card proven on the trend opens Historical on its own window: the right kind, the window shaded on the
+    signal lane, the relevant signals, and what was clicked.
+  - An episode has "Episode period ›" (opened → closed or now).
+  - The evaluated-window view compares with the previous window or with now over the SAME length, on one y-scale (the
+    old comparison put a 12 h or 24 h window over a live 8 h).
+
+**Services updated:** `ams-frontend` only. **Not changed:** cplm-api, historian-bff, Flink, schema. **No migration.**
+**Script to run:** with the next release's frontend image.
+
+**Tests**
+- tsc and eslint (`--max-warnings 0`) clean.
+- vitest 418 / 418. New tests: `historyExports.test.ts`, `responseSupport.test.ts`, the `axisTimeFormatter` cases, the
+  chart CSV context / file name, the `historicalHref` window / signals / focus link, and ModelHistory names and units.
+- Production build: see the commit.
+
+**Lab browser check:** pending (Docker).
+
+## CHG-098 — SME review 2, phase E: layout and interaction on the CPM pages (2026-10-15)
+
+**Source:** `SME_review_2.md` points 20, 21, 23, 24, 25, 27, 28, 29 (`SME_review_2_check.md`, phase E). Number reserved with ams-open-32.
+
+**What changed**
+- **#20 Compact loop summary:** diagnosis (once), severity, a one-line main reason and the next check sit at the top.
+  - Basis, Not checked, Evidence seen, Data, Limitations and the readiness bar (when nothing blocks) are behind one
+    "Basis and limitations" disclosure, closed by default and showing a one-line summary.
+  - The tabs, trend and loop KPIs follow directly.
+- **#21 No repetition:**
+  - Explorer gives the quick condition, "Why and what to do › Investigation" and "Calculation proof › Workbench".
+  - Investigation is the one full home of the limitations and shows the recommendation once (not also in the sticky
+    strip).
+  - The Explorer evidence-score note is short; the cap explanation stays on Investigation.
+- **#23 Readability:**
+  - One CPM type scale: captions ≥ 0.78 rem, secondary text 0.85 rem (CSS variables). This replaced 10 sizes from 0.66
+    to 0.82 rem in 118 rules.
+  - Reading paragraphs stop at about 80 characters.
+  - Chart labels go from 10–11 px to 12 px.
+  - Numbers: fractions at 2 decimals; engineering values at 4 significant figures, grouped from 1,000. Replay, G13 and
+    Response no longer print 3-decimal noise.
+- **#24 Gate matrix:** Performance opens on "Checks behind the result" (per loop, the gates that moved its result, by
+  readable name). The full G0–G15 matrix is a toggle away (`?view=matrix`), with readable column names. Every mark has
+  its own symbol, word and legend entry:
+  - Not usable ⊘ vs Excluded ⊖;
+  - Ruled out ◇ (no longer ✓);
+  - Not evaluated —, N/A / Disabled `n/a`, Pending ….
+- **#25 Tables:**
+  - Events and Calculations have sticky headings and a clear selected row (selected background, accent edge,
+    aria-current).
+  - Calculations sorts on the client by ID, name, gate or result.
+  - Events sorts only by the orders the server supports (`?sort=triage|recent`, CHG-063) and never sorts a page on the
+    client.
+  - Rows are denser.
+- **#27 Feedback:**
+  - Acknowledge, shelve, unshelve, note link and republish show a lasting confirmation line ("Acknowledged by … at …"),
+    or the failure with its reason. This is inline `role=status`, not a toast (CLAUDE.md).
+  - Panels open with a 160 ms ease, switched off under prefers-reduced-motion.
+- **#28 Registry wizard:**
+  - Steps are Identity, Classification, Signal mappings, Review. The empty "Windows & profile" step is now help.
+  - Signal paths are full width, monospace, with the full path on hover and Copy (with "Copied" or the failure).
+  - Continue is blocked, with the reason, for an empty required path, a path with spaces or control characters, a path
+    the bulk import already rejects, a half-declared range, min ≥ max, a non-number or a bad PV unit. An unchanged stored
+    path on an edit only warns.
+  - Review lists the actual paths and, for an edit, a before → after diff of the changed settings only, each with its
+    expected effect.
+- **#29 Empty and disabled states:**
+  - About 45 empty states on the main pages say what is unavailable and offer a next action that exists: pick a loop,
+    widen the range, switch 12 h / 24 h, map a signal in the Loop Registry, Pipeline Health, or retry.
+  - Every disabled button says why, on hover and as visible text where it fits: pagers, Review, exports, workbench links,
+    arrows.
+  - Technical wording ("Flink tier", "kernel", "JobManager") is replaced by plain words, with the detail kept secondary.
+
+**Services updated:** `ams-frontend` only. **No migration.**
+**Tests:** see the CHG-099 entry (one run for both): tsc / eslint clean, vitest 471 / 471, build OK; reviewed.
+**Lab browser check:** pending (Docker). Look in particular at the sticky-heading offset, the selected-row colour in the
+night theme, the readiness bar inside the summary card, and the wider full matrix.
+
+## CHG-099 — SME review 2, phase F: an evidence reconstruction is stored BESIDE the original, never over it (2026-10-15)
+
+**Source:** `SME_review_2.md` point 18. User decision 2026-10-14: as the SME says, mindful of performance, space and
+retention. **Reverses CHG-076** (v2.7.0), which replaced the retained artifacts in place.
+
+**Why:** the engine gives a rebuilt artifact the same evidence id as the original (uuidV5 of run, kind and role).
+CHG-076 therefore overwrote the retained proof:
+- an episode capture or the live arrays silently became other bytes, built by the current jar from the historian;
+- the screen still showed the original run's identity.
+The SME requires the original identity, configuration and input basis preserved, and the two distinguishable.
+
+**What changed (cplm-api, no engine change)**
+- **Store:** a reconstruction (provenance has `analysis_run_id`) is never written into the run's own set.
+  - Different bytes go into a new row `ReconstructionId(original, analysis run)` (stable, so a redelivery lands on the
+    same row), with `reconstruction_of` and `analysis_run_id`, class STANDARD.
+  - This holds even when the original is EXPIRED, FAILED or was never kept, so a rebuild can never mix into the live set.
+    This was the CHG-076 lab case: an uncapped rebuild of a capped run.
+  - Identical bytes are not stored; their evidence ids are recorded once each on the analysis run (`identical_evidence`), so a
+    redelivery does not inflate the count.
+  - Only the newest reconstruction per original is kept.
+  - The original row (EPISODE, PINNED, TRANSIENT) is untouched.
+- **Chunks:** a chunk record carries only the original evidence id. It goes to the row (original or reconstruction) that
+  declares that checksum at that position and does not hold that chunk yet; otherwise it is dropped (a redelivery). It is
+  never appended to another row's chunks. A corrupt chunk fails the row that declared it.
+- **Read:**
+  - `GET /method-runs/{id}/evidence` returns the run's own set as `artifacts`, each with `basis`
+    (RETAINED / RECONSTRUCTED for CHG-076-era rows) and `analysisRunId`.
+  - Up to 5 reconstructions come back as `reconstructions[]`: state, time, source (historian or samples topic), build,
+    differing and identical counts, and their artifacts.
+  - A reconstruction reads PENDING until its run has ended; afterwards COMPLETE / IDENTICAL / FAILED, SUPERSEDED (a newer
+    one replaced its rows) or NONE (it produced nothing).
+  - The run's readiness counts its own set only; the ETag covers all rows and every run's state.
+  - A run whose only evidence is a reconstruction still returns a manifest (batch and bundle).
+  - The bundle takes `?set=<analysisRunId>`.
+- **Analysis run:** records `source` (iotdb or kafka) in its manifest.
+- **Schema:** `evidence_manifest.reconstruction_of` and `analysis_run_id` (nullable), a partial index on
+  `reconstruction_of`, and an index on `analysis_run (manifest->>'reconstructs')` for the per-read lookup.
+
+**What changed (ams-frontend)**
+- An evidence-basis bar on the workbench:
+  - "Retained proof", with the newest reconstruction summarised and "Show the reconstruction" (`?view=`);
+  - "Reconstructed evidence", with its date, source, build and differing / identical counts, and "Show the retained
+    proof";
+  - "Rebuilt evidence" when no retained proof is complete, in which case the newest reconstruction is shown by default.
+- Signal-context lanes built from rebuilt arrays say "rebuilt (original no longer held)", not "the run's own".
+- Reconstruct is offered on every reconstructable run. The page polls the analysis run (which refreshes its state from
+  Flink) and the manifest until that reconstruction settles, because the original stays COMPLETE. The poll belongs to the
+  run it was asked for; moving to another window stops it. The copy no longer says "under the same identity".
+- G12's disabled Reconstruct says why: event-keyed, rebuild from System Response.
+
+**Services updated:** `cplm-api`, `ams-frontend`. **Migration: YES.**
+**Not changed:** Flink, retention policy rows.
+**Script to run (plant), BEFORE the cplm-api image swap:**
+- `docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < ops/cpm-15-evidence-reconstruction-beside.sql`
+  (the file is `scripts/cpm-15-…` in the repo, `ops/` in the bundle)
+- then `bash migration/02-apply-schemas.sh`
+
+The new image names the two columns, so the swap must come after the script. The script is additive and re-runnable.
+Fresh install: `database/scripts/64_…` and `migration/schema/03-traverse_cplm.sql`.
+
+**Space:**
+- At most one reconstruction per original, for STANDARD days (3 at the plant), and only the artifacts that differ.
+- Most rebuilds happen when nothing is retained, so there is no duplicate then.
+- The TRANSIENT 2 GiB budget is unaffected.
+
+**Rows replaced under CHG-076 since v2.7.0** keep the rebuilt bytes; they read as "Rebuilt evidence" (their
+`analysis_run_id` is set).
+
+**Tests**
+- cplm-api builds.
+- `EvidenceReconstructionBesideTests` (replaces `EvidenceReconstructionReplaceTests`) covers:
+  - beside, untouched original;
+  - chunk routing;
+  - EPISODE / PINNED kept;
+  - identical counted;
+  - lost / never-kept stored beside;
+  - newest only;
+  - live redelivery no-op;
+  - stable id.
+- `EvidenceApiTests`: the CHG-076 case is now "kept COMPLETE".
+- These are DB-backed: **pending the lab** (Docker down).
+- Independent code review of the combined E + F diff: 7 findings fixed. Among them, a run with only a reconstruction
+  returned no manifest; a redelivered chunk could be appended to the original; and new gate meanings made N/A / pending
+  values read as measured.
+- Frontend for CHG-098 and CHG-099: tsc and eslint (`--max-warnings 0`) clean, vitest 471 / 471, production build OK.
+**Lab check:** pending — reconstruct a G7 window and see both sets, the switch, the poll stop, and an expired run showing
+"Rebuilt evidence".
+
+## Lab verification 2026-10-15 — SME review 2 (CHG-092, 093, 097, 098, 099)
+
+**Setup:**
+- ProAct stopped and the full AMS stack started from the base compose file (Postgres back on 5433).
+- cplm-api rebuilt from the branch; frontend via Vite on 5174.
+- The engine had been down 4 days, so the newest fused results are from 10–11 October. Demo loops (`KDEMO_*`) and
+  LIC30310 / FIC10301 were used.
+
+**Schema:** `cpm-15` applied twice on the lab DB. Clean, re-runnable; the column add on 1.05 M evidence rows was instant.
+
+**cplm-api tests:** 372 / 374 on the settled stack (a first run in the stack's first minute lost 42 to connection churn).
+- The 2 left are lab-data dependent: FleetPrioritySql needs current findings; MethodRunLookupIndex sees a compressed
+  long-tier chunk.
+- Two seeds were updated for CHG-093 / CHG-099 (`c1ef763a`).
+
+**Browser at 1440 px (day), with 502 px and night spot checks:**
+- Loop summary (#20/#21): compact card, one disclosure.
+- KPI groups and finding highlight (#22); ±pp labels (#13).
+- Performance (#10/#24): whole-scope headline with exclusions ("0 of 0 assessed · excluded: 175 stale, 66 never
+  evaluated"); checks-behind-the-result view; grouped legend.
+- Calculations (#8/#9/#25): `?metric=` opens the drawer; sortable headings; "Not measured — reason".
+- Events (#20/#25/#27): Peak / Now; sticky headings; selected row; server sort; the ack receipt "Acknowledged by
+  superadmin at …".
+- Historical samples export (#17): 8,640 rows at 5 s for 12 h, with the full header.
+- Registry wizard (#28): 754 px path fields, Copy → "Copied", a space blocks Continue with the reason, review "Changes (0)".
+- Narrow 502 px: no horizontal overflow. Night theme readable.
+
+**Reconstruction (CHG-099), live:** LIC30310 G7, the 7 Oct run that CHG-076 had overwritten.
+- The rebuild ran from the historian (source recorded) and stored 97 artifacts BESIDE.
+- The run's own 84 rows are untouched.
+- The rebuild landed under a NEW method run id: the configuration had changed since the run.
+
+**Found and fixed during the pass:**
+- `01737a99`:
+  - CHG-076-era rows rebuilt in place read "Retained proof" (the marker is only in provenance), now "Rebuilt evidence";
+  - a never-followed run read "still running", now "outcome not recorded";
+  - listed pending runs are now polled.
+- `d84ed4c6`: a rebuild under a new run identity is named on the old run ("Open the rebuilt run ›"); the new run listed no
+  arrays, now "Rebuilt evidence · 97 artifact(s) rebuilt".
+- `d7c5f2c5`:
+  - the stale age was caution-yellow text, now a caution chip;
+  - empty headline tiles now name their exclusions.
+- `5944f8d1`: the samples export's `# series:` line was a placeholder, now the real path.
+
+**Lab disk:** the 4-day catch-up took C: from 34.7 to 14.5 GB in about 30 min. The disk watch stopped Docker at 10:30.
+The reclaim (run elevated, `-NoStart`) freed 12.9 GB (VHDX 112 → 99 GB). The stack was stopped again after the pass
+(user rule).
+
+**Width + night sweep (same day, `4a82a208`):** all 16 CPM routes at 1000 and 768 px in night (and day at 768), measured
+in the page: horizontal overflow, text under 12 px, WCAG contrast.
+- Found:
+  - text under 12 px: the OpenBridge root font is 14 px, so the 0.78 / 0.85 rem scale was 10.9 / 11.9 px, now 12.25 / 13 px;
+  - five night contrast faults: stale bar, Instrument-health facet, gate chips without a run, shared pager, legend n/a;
+  - check chips broke mid-name at 768 px.
+- All fixed. Result: 16/16 routes clean at both widths.
+
+**Not covered:** the Explorer trend (no samples for the demo loops).

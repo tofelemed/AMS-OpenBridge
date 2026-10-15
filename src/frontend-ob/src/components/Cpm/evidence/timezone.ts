@@ -35,6 +35,16 @@ export function formatTimeInZone(ms: number, tz: string): string {
   return formatInZone(ms, tz).slice(11);
 }
 
+/**
+ * CHG-097 (SME review 2 #15): an axis tick fitted to the span the chart covers — seconds for a short event, minutes for
+ * a window, the DATE with the time once the span reaches a day (a model history across days repeated "12:00:00").
+ */
+export function axisTimeFormatter(spanMs: number, tz: string): (ms: number) => string {
+  if (spanMs >= 20 * 3_600_000) return ms => { const s = formatInZone(ms, tz); return `${s.slice(5, 10)} ${s.slice(11, 16)}`; };
+  if (spanMs >= 2 * 3_600_000) return ms => formatInZone(ms, tz).slice(11, 16);
+  return ms => formatTimeInZone(ms, tz);
+}
+
 /** The zone's offset at that instant, e.g. "UTC+02:00". */
 export function offsetAt(tz: string, ms: number): string {
   const zone = isValidZone(tz) ? tz : 'UTC';

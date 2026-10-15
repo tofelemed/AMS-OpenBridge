@@ -1,165 +1,56 @@
 'use client';
 
 /**
- * Add / edit a control loop — five steps mapping 1:1 onto
- * POST /cpm/loops/activate.
- */
-'use client';
-
-/**
- * CPLM Phase 7 — U10 Loop Registry.
- * CPA-prototype IA parity: registry table + profile detail aside + 5-step
- * add-loop wizard + bulk CSV import, wired to the real onboarding API.
+ * CPLM Phase 7 — U10 Loop Registry: add / edit a control loop, mapping 1:1
+ * onto POST /cpm/loops/activate.
+ * CPA-prototype IA parity: registry table + profile detail aside + add-loop
+ * wizard + bulk CSV import, wired to the real onboarding API.
  * The prototype's "draft" concept maps to our immediate activate + readiness
  * report (the wizard shows readiness as its post-save validation step).
+ *
+ * CHG-098 (SME review 2 #28): four steps, not five — the fixed pipeline windows
+ * moved under a help toggle on the review step. Every step blocks Continue with
+ * the reason beside the field and beside the button; signal paths use the full
+ * row with Copy; the review lists the paths and, for an edit, only what changed
+ * with its expected effect. Form model and rules live in registry/wizard/.
  */
-import React, { useMemo, useState } from 'react';
-import { isValidPvUnit } from '../../utils/escapeHtml';
+import React, { useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { KvRow, PanelHead, TonePill, fmtDuration, fmtWindowShape, windowSpecsOf } from './shared';
-import { useActivateLoop, useCpmReadiness, useCpmRegistryContract, useCpmResolutions } from '../../hooks/useCpm';
+import { PanelHead, TonePill, KvRow } from './shared';
+import { useActivateLoop, useCpmReadiness, useCpmRegistryContract } from '../../hooks/useCpm';
 import type { CpmActivateRequest, CpmLoop, CpmTagMapEntry } from '../../api/cpmApi';
-import { ClassificationStep, emptyModelForm, isExplicit, modelOf, type ModelForm } from './registry/wizard/ClassificationStep';
+import { ClassificationStep, isExplicit, modelOf } from './registry/wizard/ClassificationStep';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
-import { PlantLocationPicker, SIGNAL_ROLES, deriveSignalPath, historianNode, isResolvablePath, loopIdProblem } from './plantLocation';
+import { PlantLocationPicker, deriveSignalPath, historianNode, loopIdProblem } from './plantLocation';
 import type { PlantLocation } from './plantLocation';
 import { NO_VP_COPY } from './investigation/confirmationCopy';
-import { OptionalInputFields, applicabilityOf, hasVpChecked, type OptionalInputForm } from './OptionalInputFields';
-import { applicabilitySummary, factStateLabel } from './optionalInputs';
-import { vpApplicabilityOf } from './optionalInputs';
+import { OptionalInputFields, hasVpChecked } from './OptionalInputFields';
+import { factStateLabel } from './optionalInputs';
+import { ReasonedButton } from './ReasonedButton';
+import { engineeringOf, firstProblem, initialForm, rangeChecks, signalChecks, withDerivedPaths, type WizardState } from './registry/wizard/wizardForm';
+import { SignalPathField } from './registry/wizard/SignalPathField';
+import { ReviewStep } from './registry/wizard/ReviewStep';
 
+const STEPS = ['Identity', 'Classification', 'Signal mappings', 'Review'] as const;
+const REVIEW = STEPS.length - 1;
 
-// ── add-loop wizard (5 steps, maps 1:1 onto POST /cpm/loops/activate) ──────
-
-const STEPS = ['Identity', 'Classification', 'Signal mappings', 'Windows & profile', 'Review'] as const;
-
-interface WizardState {
-  loopId: string; displayName: string; site: string; area: string; unit: string;
-  loopType: string; criticality: string;
-  /** v2.5 (2G.1): the explicit loop model (blank = the loop_type preset). */
-  model: ModelForm;
-  pv: string; sp: string; op: string; mode: string; vp: string;
-  thresholdProfileId: string; enableMonitoring: boolean;
-  // Engineering ranges, held as strings so "not declared" stays distinguishable
-  // from 0 — the API treats an omitted bound as undeclared and a 0 as a real one.
-  pvMin: string; pvMax: string; opMin: string; opMax: string;
-  /** CHG-047: the PV engineering unit, free text ("kg/h", "°C"); blank = not set. */
-  pvUnit: string;
-  /** CHG-059: '' = derived; else EXPECTED | NOT_INSTALLED | NOT_APPLICABLE. */
-  vpApplicability: string; peerApplicability: string;
-}
-
-/** v2.5 (2G.1): an EXPLICIT stored model prefills the selects; a preset leaves them blank (so a preset is never re-sent as explicit). */
-function modelFormOf(m: CpmLoop['model']): ModelForm {
-  const f = emptyModelForm();
-  if (!m || m.classificationSource !== 'EXPLICIT') return f;
-  const t = (v: number | null | undefined) => (v === null || v === undefined ? '' : String(v));
-  return { ...f, serviceFamily: m.serviceFamily ?? '', dynamicClass: m.dynamicClass ?? '', objectiveType: m.objectiveType ?? '', topology: m.topology ?? '', commandPath: m.commandPath ?? '',
-    acqMode: m.acquisition?.mode ?? '', gridSeconds: t(m.acquisition?.gridSeconds), sourceFilterS: t(m.acquisition?.sourceFilterS), tsQuantMs: t(m.acquisition?.timestampQuantizationMs), declaredScanS: t(m.acquisition?.declaredScanS) };
-}
-
-/** Blank stays blank: an undeclared bound must not round-trip as "0". */
-const numText = (v: number | null | undefined): string =>
-  v === null || v === undefined ? '' : String(v);
-
-/** Blank -> undefined (undeclared); unparseable -> null (a validation error). */
-function parseBound(text: string): number | null | undefined {
-  const t = text.trim();
-  if (t === '') return undefined;
-  const n = Number(t);
-  return Number.isFinite(n) ? n : null;
-}
-
-/** Only declared bounds are sent, so an omitted one stays omitted server-side. */
-function engineeringOf(f: { pvMin: string; pvMax: string; opMin: string; opMax: string; pvUnit: string } & OptionalInputForm) {
-  const range: Record<string, number | string> = {};
-  for (const k of ['pvMin', 'pvMax', 'opMin', 'opMax'] as const) {
-    const v = parseBound(f[k]);
-    if (typeof v === 'number') range[k] = v;
-  }
-  if (f.pvUnit.trim()) range.pvUnit = f.pvUnit.trim();
-  Object.assign(range, applicabilityOf(f));
-  return Object.keys(range).length > 0 ? range : null;
-}
-
-/**
- * Signal paths follow site/[area/]unit/<loopid>.<role>, so they are a pure
- * function of the location + loop tag. Re-derive any path the user has not
- * hand-edited (empty, or still equal to what the previous inputs derived) —
- * that is what stops five long paths being retyped per loop, and stops the
- * dotted IoTDB form being copied out of a placeholder. VP is opt-in: it is only
- * refreshed once it holds a value, since most loops have no position feedback.
- */
-function withDerivedPaths(prev: WizardState, next: WizardState): WizardState {
-  const prevLoc: PlantLocation = { site: prev.site, area: prev.area, unit: prev.unit };
-  const nextLoc: PlantLocation = { site: next.site, area: next.area, unit: next.unit };
-  const out = { ...next };
-  for (const role of SIGNAL_ROLES) {
-    const current = (prev[role] ?? '').trim();
-    if (role === 'vp' && current === '') continue;
-    if (current === '' || current === deriveSignalPath(prevLoc, prev.loopId, role))
-      out[role] = deriveSignalPath(nextLoc, next.loopId, role);
-  }
-  return out;
-}
+const RANGE_LABELS: Record<string, string> = { pvMin: 'PV minimum', pvMax: 'PV maximum', opMin: 'OP minimum', opMax: 'OP maximum', pvUnit: 'PV unit' };
+const PATH_FIELDS = [['pv', 'PV · Process variable *'], ['sp', 'SP · Setpoint *'],
+  ['op', 'OP · Controller output *'], ['mode', 'MODE · Controller mode *'],
+  ['vp', 'VP · Valve position · optional']] as const;
+const PATH_LABELS: Record<string, string> = { pv: 'PV path', sp: 'SP path', op: 'OP path', mode: 'MODE path', vp: 'VP path' };
 
 export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; onClose: () => void }> = ({ existing, editLoop, onClose }) => {
   const dialogRef = useDialogA11y<HTMLDivElement>(onClose);
   const contract = useCpmRegistryContract();
   const activate = useActivateLoop();
-  // Step 3 shows the deployed window contract. Served, not restated — see the
-  // comment at that step.
-  const resolutions = useCpmResolutions();
-  // Names-only fallback when the API predates the contract (see windowSpecsOf).
-  const windowSpecs = useMemo(() => windowSpecsOf(resolutions.data, () => 0), [resolutions.data]);
-  const shortWindowSummary = useMemo(
-    () => windowSpecs
-      .filter(w => w.tier === 'short')
-      // Shape when the API served it, bare kind when it didn't.
-      .map(w => fmtWindowShape(w) || w.kind)
-      .join(' · '),
-    [windowSpecs]);
-  const longWindowSummary = useMemo(() => {
-    const long = windowSpecs.filter(w => w.tier === 'long');
-    if (!long.length) return '';
-    // Same cadence across the long tier, so name it once rather than per slice.
-    const cadence = long[0].cadenceMs;
-    return `${long.map(w => w.kind).join(' / ')} slices${cadence ? ` · ${fmtDuration(cadence)} cadence` : ''}`;
-  }, [windowSpecs]);
-  const minSamplesFloor = useMemo(
-    () => windowSpecs.find(w => w.minSamples != null)?.minSamples ?? null,
-    [windowSpecs]);
   const isEdit = !!editLoop;
   const [step, setStep] = useState(0);
   const [savedLoopId, setSavedLoopId] = useState<string | null>(null);
-  const [form, setForm] = useState<WizardState>(() => editLoop ? {
-    // Edit mode: prefill from the existing loop. Activate is an upsert, so saving
-    // with the same loopId updates it.
-    loopId: editLoop.loopId, displayName: editLoop.displayName, site: editLoop.site,
-    area: editLoop.area ?? '', unit: editLoop.unit ?? '',
-    loopType: editLoop.loopType, criticality: editLoop.criticality,
-    pv: editLoop.tags['PV'] ?? '', sp: editLoop.tags['SP'] ?? '', op: editLoop.tags['OP'] ?? '',
-    mode: editLoop.tags['MODE'] ?? '', vp: editLoop.tags['VP'] ?? '',
-    thresholdProfileId: editLoop.thresholdProfileId ?? '', enableMonitoring: editLoop.monitoringEnabled,
-    pvMin: numText(editLoop.engineering?.pvMin), pvMax: numText(editLoop.engineering?.pvMax),
-    opMin: numText(editLoop.engineering?.opMin), opMax: numText(editLoop.engineering?.opMax),
-    pvUnit: editLoop.engineering?.pvUnit ?? '',
-    // CHG-077: the checkbox shows what the loop is today (declared, or derived from its command path)
-    vpApplicability: vpApplicabilityOf(editLoop) === 'EXPECTED' ? 'EXPECTED' : 'NOT_APPLICABLE',
-    peerApplicability: editLoop.engineering?.peerApplicability ?? '',
-    model: modelFormOf(editLoop.model),
-  } : {
-    // site starts EMPTY: the old 'site1' placeholder was a site that exists in
-    // no asset model, and activation now rejects unmodelled locations (G-07) —
-    // a default that steers every new loop into a 422 is worse than forcing a
-    // pick from the cascade.
-    loopId: '', displayName: '', site: '', area: '', unit: '',
-    loopType: 'FIC', criticality: 'medium',
-    pv: '', sp: '', op: '', mode: '', vp: '',
-    thresholdProfileId: '', enableMonitoring: true,
-    pvMin: '', pvMax: '', opMin: '', opMax: '', pvUnit: '', vpApplicability: 'EXPECTED', peerApplicability: '',
-    model: emptyModelForm(),
-  });
+  // Edit mode: prefill from the existing loop. Activate is an upsert, so saving with the same loopId updates it.
+  // CHG-098 (SME review 2 #28): the prefilled form is kept as the "before" side of the review diff.
+  const [original] = useState<WizardState | undefined>(() => editLoop ? initialForm(editLoop) : undefined);
+  const [form, setForm] = useState<WizardState>(() => original ?? initialForm());
   const readiness = useCpmReadiness(savedLoopId ?? undefined);
   // P5.3: manual location entry (or an empty asset model) means the location is
   // unchecked client-side; the server enforces G-07, so the activate request
@@ -186,21 +77,19 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
   const nodeClash = !isEdit && form.loopId.trim() !== '' && !duplicate
     ? existing.find(l => historianNode(l.loopId) === historianNode(form.loopId))?.loopId ?? null
     : null;
-  const identityValid = form.loopId.trim() !== '' && !loopIdIssue && !nodeClash
-    && form.displayName.trim() !== '' && form.site.trim() !== '' && !duplicate;
-  const signalsValid = !form.enableMonitoring
-    || (form.pv.trim() !== '' && form.sp.trim() !== '' && form.op.trim() !== '' && form.mode.trim() !== '');
-  const rangeIssue = (['pvMin', 'pvMax', 'opMin', 'opMax'] as const)
-    .some(k => parseBound(form[k]) === null) ? 'Engineering ranges must be numbers' : null;
-  // Half a range is worse than none: the API defaults the missing bound (0 / 100),
-  // which silently invents a span nobody declared.
-  const halfRange = ([['pvMin', 'pvMax', 'PV'], ['opMin', 'opMax', 'OP']] as const)
-    .filter(([lo, hi]) => (form[lo].trim() === '') !== (form[hi].trim() === ''))
-    .map(([, , label]) => label);
+  const identityProblem = !form.loopId.trim() ? 'Loop tag is required'
+    : duplicate ? 'Loop tag: this tag already exists'
+    : loopIdIssue ? `Loop tag: ${loopIdIssue}`
+    : nodeClash ? `Loop tag collides with “${nodeClash}” in the historian`
+    : !form.displayName.trim() ? 'Service / description is required'
+    : !form.site.trim() ? 'Site is required' : null;
+  const ranges = rangeChecks(form);
   const modelIssue = isExplicit(form.model) && modelOf(form.model) === null;
-  const canContinue = step === 0 ? identityValid
-    : step === 1 ? rangeIssue === null && !modelIssue
-    : step === 2 ? signalsValid : true;
+  const classificationProblem = firstProblem(ranges, RANGE_LABELS)
+    ?? (modelIssue ? 'Loop model: complete or clear the explicit classification' : null);
+  const paths = signalChecks(form, original);
+  const signalProblem = firstProblem(Object.fromEntries(PATH_FIELDS.map(([k]) => [k, paths[k].error])), PATH_LABELS);
+  const stepProblem = step === 0 ? identityProblem : step === 1 ? classificationProblem : step === 2 ? signalProblem : null;
 
   const buildRequest = (): CpmActivateRequest => {
     const tags: CpmTagMapEntry[] = [];
@@ -305,7 +194,7 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
               band G3 and OCE use — undeclared, that band is a fixed ±0.5&nbsp;EU, which no
               temperature or flow loop in engineering units can meet. <strong>OP range</strong>
               normalises the output to 0–100 before saturation (G10) and operating-region (G2r)
-              maths. Leave both blank to keep today's behaviour.
+              maths. Give both bounds of a range or neither; leave both blank to keep today's behaviour.
             </p>
             <div className="cpm-wizard-grid">
               {([['pvMin', 'PV minimum'], ['pvMax', 'PV maximum'],
@@ -313,27 +202,19 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
                 <label key={k} className="cpm-field">
                   <span className="cpm-field__label">{label}</span>
                   <input
-                    className={`cpm-input${parseBound(form[k]) === null ? ' cpm-input--error' : ''}`}
-                    value={form[k]} onChange={set(k)} inputMode="decimal"
+                    className={`cpm-input${ranges[k] ? ' cpm-input--error' : ''}`}
+                    value={form[k]} onChange={set(k)} inputMode="decimal" aria-invalid={ranges[k] ? true : undefined}
                     placeholder={k.startsWith('pv') ? 'e.g. 0 / 250' : 'e.g. 0 / 100'} />
+                  {ranges[k] && <span className="cpm-field__error">{ranges[k]}</span>}
                 </label>
               ))}
               <label className="cpm-field">
                 <span className="cpm-field__label">PV unit</span>
-                <input className={`cpm-input${form.pvUnit.trim() && !isValidPvUnit(form.pvUnit) ? ' cpm-input--error' : ''}`}
+                <input className={`cpm-input${ranges.pvUnit ? ' cpm-input--error' : ''}`}
                   value={form.pvUnit} onChange={set('pvUnit')} maxLength={24} placeholder="e.g. kg/h, °C, barg" />
-                {form.pvUnit.trim() && !isValidPvUnit(form.pvUnit) && (
-                  <span className="cpm-field__error">Letters, digits, spaces and ° % / . - · ² ³ µ ( ) ^ * only</span>
-                )}
+                {ranges.pvUnit && <span className="cpm-field__error">{ranges.pvUnit}</span>}
               </label>
             </div>
-            {rangeIssue && <span className="cpm-field__error">{rangeIssue}</span>}
-            {halfRange.length > 0 && (
-              <span className="cpm-field__error">
-                {halfRange.join(' and ')} range is half-declared — the missing bound defaults
-                (min 0, max 100), inventing a span. Give both bounds or neither.
-              </span>
-            )}
           </>
         )}
 
@@ -343,24 +224,13 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
               Derived from the location and loop tag as
               <code> site/[area/]unit/&lt;loop&gt;.&lt;role&gt;</code> — edit any path to override it.
             </p>
-            <div className="cpm-wizard-grid">
-              {([['pv', 'PV · Process variable *'], ['sp', 'SP · Setpoint *'],
-                 ['op', 'OP · Controller output *'], ['mode', 'MODE · Controller mode *'],
-                 ['vp', 'VP · Valve position · optional']] as const).map(([k, label]) => {
+            <div className="cpm-path-list">
+              {PATH_FIELDS.map(([k, label]) => {
                 const derived = deriveSignalPath(
                   { site: form.site, area: form.area, unit: form.unit }, form.loopId, k);
-                const shaped = form[k].trim() === '' || isResolvablePath(form[k]);
                 return (
-                  <label key={k} className="cpm-field">
-                    <span className="cpm-field__label">{label}</span>
-                    <input className={`cpm-input cpm-mono${shaped ? '' : ' cpm-input--error'}`}
-                      value={form[k]} onChange={set(k)} placeholder={derived || 'site/unit/loop.role'} />
-                    {!shaped && (
-                      <span className="cpm-field__error">
-                        Not a UNS contextual path. Use slashes (site/unit/loop.{k}), not the dotted
-                        root.… historian form — the binding resolver cannot resolve it.
-                      </span>
-                    )}
+                  <SignalPathField key={k} id={`cpm-wizard-path-${k}`} label={label} value={form[k]}
+                    placeholder={derived || 'site/unit/loop.role'} check={paths[k]} onChange={set(k)}>
                     {k === 'vp' && form.vp.trim() === '' && derived && (
                       <button type="button" className="cpm-pill cpm-pill--muted"
                         style={{ cursor: 'pointer', marginTop: 4, alignSelf: 'flex-start' }}
@@ -368,71 +238,26 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
                         + add VP as {derived}
                       </button>
                     )}
-                  </label>
+                  </SignalPathField>
                 );
               })}
             </div>
             <OptionalInputFields form={form} onChange={set}
               onVpChange={v => setForm(f => ({ ...f, vpApplicability: v }))} />
-            <p className="cpm-copy" style={{ marginTop: 12 }}>
-              Paths resolve through the binding resolver; the readiness report flags any
-              signal that falls back to path-pattern resolution instead of the asset model.
-              {/* CHG-077: the G14 note only where it is true - a VP is declared and none is mapped */}
-              {hasVpChecked(form.vpApplicability) && !form.vp.trim() && <>{' '}{NO_VP_COPY}</>}
-            </p>
-          </>
-        )}
-
-        {step === 3 && (
-          <>
-            {/* Read from the served window contract rather than restating it: this
-                was the third hardcoded copy of the same facts, and the other two
-                had drifted into claiming every short window was tumbling. */}
-            <KvRow label="Short features (G0–G4)">
-              {shortWindowSummary || '—'}
-            </KvRow>
-            <KvRow label="Long diagnostics (G5–G11)">
-              {longWindowSummary || '—'}
-            </KvRow>
-            <KvRow label="Fusion (G12–G15)">
-              {resolutions.data?.fusion
-                ? `Fires on ${resolutions.data.fusion.firesOn.join(' and ')} long records`
-                : '—'}
-            </KvRow>
-            <p className="cpm-copy" style={{ marginTop: 12 }}>
-              Windows are fixed by the deployed pipeline; they are shown here so the reviewer
-              knows what cadence to expect. First fused verdict needs ≥ 12 h of samples
-              {minSamplesFloor != null ? `, and any slice with fewer than ${minSamplesFloor} samples is not evaluated at all` : ''}.
-            </p>
-          </>
-        )}
-
-        {step === 4 && !savedLoopId && (
-          <>
-            <PanelHead eyebrow={isEdit ? 'Edit control loop' : 'New control loop'} title={form.loopId || '—'} right={<TonePill tone="warn">READY TO SAVE</TonePill>} />
-            <KvRow label="Service">{form.displayName}</KvRow>
-            <KvRow label="Location">{[form.site, form.area, form.unit].filter(Boolean).join(' / ')}</KvRow>
-            <KvRow label="Type / criticality">{form.loopType} · {form.criticality}</KvRow>
-            <KvRow label="Loop model">{isExplicit(form.model) ? `EXPLICIT — ${[form.model.serviceFamily, form.model.dynamicClass, form.model.objectiveType, form.model.topology, form.model.commandPath].filter(Boolean).join(' · ') || 'acquisition only'}` : `preset from loop type ${form.loopType}`}</KvRow>
-            <KvRow label="Signals">{['pv', 'sp', 'op', 'mode', 'vp'].filter(k => form[k as keyof WizardState]).map(k => k.toUpperCase()).join(' · ') || 'none'}</KvRow>
-            <KvRow label="Engineering ranges">
-              {[form.pvMin || form.pvMax ? `PV ${form.pvMin || '0'}–${form.pvMax || '100'}${form.pvUnit.trim() ? ` ${form.pvUnit.trim()}` : ''}` : form.pvUnit.trim() ? `PV unit ${form.pvUnit.trim()}` : null,
-                form.opMin || form.opMax ? `OP ${form.opMin || '0'}–${form.opMax || '100'}` : null]
-                .filter(Boolean).join(' · ') || 'not declared (PV band stays ±0.5 EU)'}
-            </KvRow>
-            <KvRow label="Optional inputs">{applicabilitySummary(form.vpApplicability, form.peerApplicability)}</KvRow>
-            <KvRow label="Monitoring">{form.enableMonitoring ? 'Enabled on save' : 'Registered only'}</KvRow>
-            {activate.isError && (
-              <p className="cpm-field__error" style={{ marginTop: 8 }}>
-                {/* ApiError carries the server's problem detail (422 validation,
-                    409 case-collision) — String() prefixed it with "Error:". */}
-                {activate.error instanceof Error ? activate.error.message : String(activate.error)}
-              </p>
+            {/* CHG-077: the G14 note only where it is true - a VP is declared and none is mapped */}
+            {hasVpChecked(form.vpApplicability) && !form.vp.trim() && (
+              <p className="cpm-copy" style={{ marginTop: 12 }}>{NO_VP_COPY}</p>
             )}
           </>
         )}
 
-        {step === 4 && savedLoopId && (
+        {step === REVIEW && !savedLoopId && (
+          <ReviewStep form={form} original={original}
+            // ApiError carries the server's problem detail (422 validation, 409 case-collision) — String() prefixed it with "Error:".
+            error={activate.isError ? (activate.error instanceof Error ? activate.error.message : String(activate.error)) : null} />
+        )}
+
+        {step === REVIEW && savedLoopId && (
           <>
             <PanelHead
               eyebrow="Activation result"
@@ -457,9 +282,9 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
           <ObcButton variant="normal" onClick={savedLoopId ? onClose : (step === 0 ? onClose : () => setStep(s => s - 1))}>
             {savedLoopId ? 'Close' : step === 0 ? 'Cancel' : 'Back'}
           </ObcButton>
-          <span className="cpm-copy">Step {Math.min(step + 1, 5)} of 5</span>
-          {!savedLoopId && (step < 4
-            ? <ObcButton variant="raised" disabled={!canContinue} onClick={() => setStep(s => s + 1)}>Continue ›</ObcButton>
+          <span className="cpm-copy">Step {step + 1} of {STEPS.length}</span>
+          {!savedLoopId && (step < REVIEW
+            ? <ReasonedButton variant="raised" disabled={stepProblem !== null} reason={stepProblem} onClick={() => setStep(s => s + 1)}>Continue ›</ReasonedButton>
             : <ObcButton variant="raised" disabled={activate.isPending} onClick={save}>
                 {activate.isPending ? (isEdit ? 'Updating…' : 'Activating…') : (isEdit ? 'Update loop' : 'Activate loop')}
               </ObcButton>)}

@@ -10,6 +10,7 @@ import { PanelHead } from '../shared';
 import { ReasonedButton } from '../ReasonedButton';
 import { fmtInstant } from '../context/LoopContextBar';
 import { codeLabel } from '../vocabulary';
+import { ActionReceipt, byNow, receiptDone, receiptFailed, useReceiptUser, type Receipt } from '../ActionReceipt';
 
 export const EpisodeNotes: React.FC<{ event: CpmEventFrame }> = ({ event }) => {
   const canManage = useAuthStore(s => s.hasPermission('cpm.manage'));
@@ -17,6 +18,9 @@ export const EpisodeNotes: React.FC<{ event: CpmEventFrame }> = ({ event }) => {
   const loopNotes = useLoopNotes(event.loop_id);
   const link = useLinkLoopNote();
   const [pick, setPick] = useState('');
+  // CHG-098 (SME review 2 #27): the link is confirmed (or its failure explained) beside the control
+  const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const user = useReceiptUser();
   const unlinked = (loopNotes.data?.investigations ?? []).filter(n => n.eventId == null);
   const notes = linked.data?.investigations ?? [];
   return (
@@ -45,11 +49,15 @@ export const EpisodeNotes: React.FC<{ event: CpmEventFrame }> = ({ event }) => {
           </label>
           <ReasonedButton variant="normal" disabled={!canManage || !pick || link.isPending}
             reason={!canManage ? 'Needs the cpm.manage permission' : null}
-            onClick={() => link.mutate({ refId: pick, eventId: event.id }, { onSuccess: () => setPick('') })}>
+            onClick={() => link.mutate({ refId: pick, eventId: event.id }, {
+              onSuccess: () => { setPick(''); setReceipt(receiptDone(`Note linked to EVT-${event.id} ${byNow(user)}`)); },
+              onError: err => setReceipt(receiptFailed('Linking the note', err)),
+            })}>
             {link.isPending ? 'Linking…' : 'Link to this episode'}
           </ReasonedButton>
         </div>
       )}
+      <ActionReceipt receipt={receipt} />
     </section>
   );
 };

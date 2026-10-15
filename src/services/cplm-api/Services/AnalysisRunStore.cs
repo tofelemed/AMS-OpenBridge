@@ -21,7 +21,7 @@ public sealed class AnalysisRunStore
     }
 
     public async Task InsertAsync(Guid id, string loopId, string purpose, string? createdBy, string? idempotencyKey,
-        ReconstructionTarget? reconstruct, CancellationToken ct)
+        ReconstructionTarget? reconstruct, CancellationToken ct, string? source = null)
     {
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
         await using var cmd = conn.CreateCommand();
@@ -41,6 +41,8 @@ public sealed class AnalysisRunStore
             manifest["gate"] = reconstruct.Gate;
             manifest["window_kind"] = reconstruct.WindowKind;
         }
+        // CHG-099 (SME review 2 #18): where the rebuilt arrays were read from (iotdb = historian, kafka = samples topic)
+        if (source is not null) manifest["source"] = source.ToLowerInvariant();
         cmd.Parameters.AddWithValue("manifest", JsonSerializer.Serialize(manifest));
         await cmd.ExecuteNonQueryAsync(ct);
     }

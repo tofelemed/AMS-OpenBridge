@@ -30,7 +30,7 @@
 .cpm-conclusion-strip__inner--shown { visibility: visible; opacity: 1; }
 .cpm-conclusion-strip__inner > * { flex: none; }
 .cpm-conclusion-strip__inner > .cpm-conclusion-strip__detail {
-  flex: 1 1 0; min-width: 0; color: var(--element-neutral-color); font-size: 0.85rem;
+  flex: 1 1 0; min-width: 0; color: var(--element-neutral-color); font-size: var(--cpm-text-small);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 /* A phone keeps the verdict and the way back; the detail is the first thing to go. */
@@ -48,7 +48,7 @@
 .cpm-collapsible obc-accordion-item { display: block; width: 100%; }
 .cpm-collapsible__body { display: flex; flex-direction: column; gap: 12px; padding: 4px 0 12px; min-width: 0; }
 .cpm-collapsible__summary {
-  margin: 0 0 8px; color: var(--element-neutral-color); font-size: 0.85rem;
+  margin: 0 0 8px; color: var(--element-neutral-color); font-size: var(--cpm-text-small);
   overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
 
@@ -77,10 +77,10 @@
 
 /* Gate marks (SME #16, CHG-052): each chip says its meaning in a word beside the symbol, and one legend
    under the strip / above the matrix keys the symbols. Legend glyphs use the same chip tokens as the cells. */
-.cpm-gate-chip__word { font-size: 0.8rem; font-weight: 400; opacity: 0.9; white-space: nowrap; }
+.cpm-gate-chip__word { font-size: var(--cpm-text-small); font-weight: 400; opacity: 0.9; white-space: nowrap; }
 .cpm-gate-legend {
   display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 0;
-  font-size: 0.78rem; color: var(--element-neutral-color);
+  font-size: var(--cpm-text-caption); color: var(--element-neutral-color);
 }
 .cpm-gate-legend__item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .cpm-gate-legend__glyph {
@@ -109,10 +109,10 @@
 .cpm-window-tile--current { border: 2px solid var(--instrument-enhanced-primary-color); background: var(--container-hover-color, transparent); }
 .cpm-window-tile__end { font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
 .cpm-window-tile__tag {
-  font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 1px 6px; border-radius: 4px;
+  font-size: var(--cpm-text-caption); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 1px 6px; border-radius: 4px;
   border: 1px solid var(--border-divider-color); color: var(--element-neutral-color);
 }
-.cpm-window-tile__sub { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--element-neutral-color); }
+.cpm-window-tile__sub { display: inline-flex; align-items: center; gap: 6px; font-size: var(--cpm-text-small); color: var(--element-neutral-color); }
 .cpm-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--cpm-tone, var(--element-neutral-color)); }
 .cpm-window-tiles__pager { margin-top: 8px; align-items: center; }
 
@@ -121,21 +121,21 @@
 .cpm-why .cpm-eyebrow { margin: 8px 0 0; }
 .cpm-why__result { font-weight: 600; margin: 0; }
 .cpm-why__rows { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 4px 10px; margin: 0; }
-.cpm-why__rows dt { color: var(--element-neutral-color); font-size: 0.85rem; }
+.cpm-why__rows dt { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-why__rows dd { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; overflow-wrap: anywhere; }
-.cpm-why__against { flex-basis: 100%; font-size: 0.8rem; color: var(--element-neutral-color); }
+.cpm-why__against { flex-basis: 100%; font-size: var(--cpm-text-small); color: var(--element-neutral-color); }
 .cpm-why__mark {
   display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; border-radius: 4px;
   font-weight: 700; line-height: 1; background: var(--cpm-chip-bg, transparent); color: var(--cpm-chip-fg, var(--element-neutral-color));
   border: 1px solid var(--cpm-chip-border, var(--border-divider-color));
 }
-.cpm-why__source { margin: 0; font-size: 0.78rem; color: var(--element-neutral-color); }
+.cpm-why__source { margin: 0; font-size: var(--cpm-text-caption); color: var(--element-neutral-color); }
 .cpm-why__open { margin: 0; padding-left: 18px; }
-.cpm-why__next { color: var(--element-neutral-color); font-size: 0.85rem; }
+.cpm-why__next { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-cause-list { margin: 0; padding-left: 16px; }
-.cpm-cause-list__detail { color: var(--element-neutral-color); font-size: 0.85rem; }
+.cpm-cause-list__detail { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-cause { display: grid; grid-template-columns: minmax(110px, 0.28fr) minmax(0, 1fr); gap: 8px 12px; margin: 8px 0; }
-.cpm-cause__label { color: var(--element-neutral-color); font-size: 0.85rem; }
+.cpm-cause__label { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-cause__items { margin: 0; }
 .cpm-cause-list li + li { margin-top: 2px; }
 @media (max-width: 600px) { .cpm-cause { grid-template-columns: minmax(0, 1fr); } .cpm-cause__items { margin-bottom: 4px; } }
@@ -146,21 +146,51 @@
 .cpm-explain .cpm-why__rows dd { margin-bottom: 6px; }
 
 /* Evidence-score meaning beside the result (SME #20, CHG-056). */
-.cpm-score-note { margin: 2px 0 8px; font-size: 0.8rem; color: var(--element-neutral-color); }
+.cpm-score-note { margin: 2px 0 8px; font-size: var(--cpm-text-small); color: var(--element-neutral-color); }
 
 /* Empty states with a way forward; unavailable actions with their reason (SME #21, CHG-057). */
 .cpm-empty__next { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 16px; margin-top: 8px; }
 .cpm-reasoned { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; max-width: 100%; }
-.cpm-reasoned__why { font-size: 0.78rem; color: var(--element-neutral-color); max-width: 32ch; }
+.cpm-reasoned__why { font-size: var(--cpm-text-caption); color: var(--element-neutral-color); max-width: 32ch; }
 
 /* Loop notes (SME #22, CHG-058). */
 .cpm-loop-notes .cpm-textarea { display: block; width: 100%; max-width: 72ch; resize: vertical; }
 .cpm-loop-notes__options { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 20px; margin: 8px 0; }
-.cpm-check { display: inline-flex; align-items: center; gap: 6px; font-size: 0.875rem; max-width: 60ch; }
-.cpm-loop-notes__hint { font-size: 0.8rem; color: var(--element-neutral-color); }
+.cpm-check { display: inline-flex; align-items: center; gap: 6px; font-size: var(--cpm-text-small); max-width: 60ch; }
+.cpm-loop-notes__hint { font-size: var(--cpm-text-small); color: var(--element-neutral-color); }
 .cpm-loop-notes__list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .cpm-loop-notes__item { border-top: 1px solid var(--border-divider-color); padding-top: 8px; }
-.cpm-loop-notes__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 0.8rem; color: var(--element-neutral-color); }
+.cpm-loop-notes__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: var(--cpm-text-small); color: var(--element-neutral-color); }
 .cpm-loop-notes__text { margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .cpm-loop-notes__actions { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-end; }
 .cpm-episode-notes { margin-top: 12px; }
+
+/* CHG-098 (SME review 2 #24): the legend is grouped (checks / window / symptoms / result / no result); the full
+   matrix headers carry the gate's readable name under its code (folded into the abbr tooltip below 1000 px); the
+   default "Checks behind the result" view lists only the gates that move each loop's result, as named chips. */
+.cpm-gate-legend__group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.cpm-gate-legend__group-label {
+  font-size: var(--cpm-text-caption); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--element-active-color);
+}
+.cpm-matrix__gate abbr { text-decoration: none; }
+.cpm-matrix__gate-name {
+  display: block; max-width: 6.5em; margin: 1px auto 0; font-size: var(--cpm-text-caption); font-weight: 400; line-height: 1.15;
+  white-space: normal; color: var(--element-neutral-color);
+}
+@media (max-width: 999px) {
+  .cpm-matrix__gate-name { display: none; }
+  .cpm-matrix__gate abbr { text-decoration: underline dotted; cursor: help; }
+}
+.cpm-checks .cpm-checks__head, .cpm-checks .cpm-checks__cell { text-align: left; }
+.cpm-checks__cell { padding: 4px 6px; }
+.cpm-checks__list { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cpm-checks__chip { font-size: var(--cpm-text-small); text-align: left; flex-wrap: wrap; row-gap: 0; max-width: 100%; }
+/* lab sweep 2026-10-15 (768 px): each part (mark, gate name, verdict word) stays whole - a narrow chip wraps BETWEEN parts,
+   never inside "Diagnosis band" and never clipped under the sticky result column */
+.cpm-checks__chip > * { white-space: nowrap; }
+.cpm-matrix__cell--muted.cpm-checks__chip { color: var(--element-neutral-color); }
+@media (max-width: 600px) {
+  .cpm-checks .cpm-matrix__loop, .cpm-checks .cpm-matrix__result { min-width: 120px; }
+  .cpm-checks .cpm-matrix__result { position: static; }
+  .cpm-checks__cell { min-width: 180px; }
+}

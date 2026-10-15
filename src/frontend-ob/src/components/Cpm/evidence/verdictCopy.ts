@@ -10,6 +10,7 @@ import { codeLabel, phrase } from '../vocabulary';
 const REASONS: Record<string, string> = {
   BANDWIDTH: 'limited by the {grid} acquisition grid',
   NO_VP: 'no valve-position signal is mapped',
+  VP_NOT_APPLICABLE: 'this loop has no valve position, so it does not apply',   // CHG-092 / CHG-088
   NO_UPSTREAM_LINKS: 'no peer links are configured',
   NO_PEER_LINKS: 'no peer links are configured',
   NO_STEP_TEST: 'no approved step test is on record',
@@ -89,7 +90,7 @@ export function whyParagraphs(i: WhyInput): string[] {
     case 'READY': out.push('Read the evidence below; every value is this run\'s own, computed under the configuration named on the right.'); break;
     case 'NOT_EVALUATED': out.push('Meet the prerequisite the reason names and the next window will evaluate the gate; this is a verdict, not missing data.'); break;
     case 'SHORT_TIER': out.push('Open the short windows of the same period to read this gate\'s own runs.'); break;
-    case 'NOT_RETAINED': out.push('Reconstruct the evidence to rebuild the arrays under the same identity.'); break;
+    case 'NOT_RETAINED': out.push('Reconstruct the evidence to rebuild the arrays from the run\'s window; they are labelled as rebuilt.'); break;
     case 'EVIDENCE_EXPIRED': out.push('Reconstruct the evidence; the verdict and its scalars are unaffected.'); break;
     case 'EVIDENCE_PENDING': out.push('The artifacts are still arriving; the view refreshes as they land.'); break;
     case 'UNSUPPORTED_METHOD': out.push('This build carries no method for the gate; a later deployment adds it.'); break;

@@ -53,9 +53,12 @@ public sealed class EvidenceClassTests : IAsyncLifetime
     {
         // guards the other direction: the class decision must read the provenance, not stamp everything TRANSIENT
         var id = Guid.NewGuid();
-        await new PostgresEvidenceBlobStore(_db).UpsertManifestAsync(
-            Manifest(id, $$"""{"loop_id":"FIC101","purpose":"EVIDENCE_RECONSTRUCTION","analysis_run_id":"{{Guid.NewGuid()}}"}"""), CancellationToken.None);
-        (await Row(id)).cls.Should().Be("STANDARD");
+        var run = Guid.NewGuid();
+        var stored = await new PostgresEvidenceBlobStore(_db).UpsertManifestAsync(
+            Manifest(id, $$"""{"loop_id":"FIC101","purpose":"EVIDENCE_RECONSTRUCTION","analysis_run_id":"{{run}}"}"""), CancellationToken.None);
+        // CHG-099: a reconstruction is stored beside the original (here: never kept), under its own id
+        stored.Should().Be(PostgresEvidenceBlobStore.ReconstructionId(id, run));
+        (await Row(stored!.Value)).cls.Should().Be("STANDARD");
     }
 
     [Fact]

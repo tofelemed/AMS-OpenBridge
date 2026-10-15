@@ -241,6 +241,10 @@ export function useCpmTrend(
     queryFn: pollDriven ? backgroundPoll(fetchTrend) : fetchTrend,
     enabled: !!series && enabled,
     staleTime: 60_000,
+    // CHG-097 (SME review 2 #16): a moved window (the live 8 h advancing every minute, a new range) keeps the last
+    // drawn points until the new ones arrive instead of blanking the chart — but only for the same loop and signals
+    placeholderData: (prev, prevQuery) =>
+      prevQuery && prevQuery.queryKey[2] === (series ?? '') && prevQuery.queryKey[6] === measurements ? prev : undefined,
   });
 }
 

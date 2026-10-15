@@ -12,7 +12,7 @@ describe('headlineOf', () => {
     const a = arts({ acf_series: [decoded({ gate: 'G5', kind: 'acf_series', x: [0, 1], y: [1, 0.5], provenance: { period_s: '290.23199999999997', regularity: '1.0', accepted_cycles: '33', regularity_method: 'ACF_PEAK_REGULARITY_V1' } })] });
     expect(headlineOf('G5', a)).toMatchObject([
       { label: 'ACF period', value: '290.2', unit: 's' },
-      { label: 'Regularity', value: '1.000' },
+      { label: 'Regularity', value: '1.00' },
       { label: 'Accepted cycles', value: '33' },
     ]);
   });
@@ -22,7 +22,7 @@ describe('headlineOf', () => {
     const bad = decoded({ gate: 'G7', kind: 'cycle_fit', x: [0], y: [0], provenance: { accepted: 'false', cycle_id: '1', reject_reason: 'FLAT' } });
     expect(headlineOf('G7', arts({ cycle_fit: [ok, bad] }))).toEqual([{ label: 'Accepted cycles', value: '1 of 2' }]);
     const p = decoded({ gate: 'G9', kind: 'cycle_polygon', x: [0], y: [0], provenance: { area: '0.5', bbox_area: '1' } });
-    expect(headlineOf('G9', arts({ cycle_polygon: [p, p] }))).toEqual([{ label: 'Cycle polygons', value: '2' }, { label: 'Mean area', value: '0.500' }]);
+    expect(headlineOf('G9', arts({ cycle_polygon: [p, p] }))).toEqual([{ label: 'Cycle polygons', value: '2' }, { label: 'Mean area', value: '0.50' }]);
   });
 
   it('G7: cycle_scores (every cycle) wins over the capped cycle_fit artifacts', () => {

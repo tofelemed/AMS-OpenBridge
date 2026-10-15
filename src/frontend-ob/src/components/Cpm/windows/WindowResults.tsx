@@ -101,7 +101,8 @@ export const WindowResultsPanel: React.FC<{
     return (
       <Wrap>
         {!bare && <PanelHead eyebrow="Window results" title="What the selected window carried" />}
-        <EmptyState title="Select an emitted window above" />
+        <EmptyState title="Select an emitted window above"
+          copy="Its gate results and metrics appear here." />
       </Wrap>
     );
   }

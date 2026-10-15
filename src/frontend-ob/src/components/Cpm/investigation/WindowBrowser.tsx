@@ -77,9 +77,9 @@ export const WindowBrowser: React.FC<{
       </div>
       {pages > 1 && (
         <div className="cpm-filter-row cpm-window-tiles__pager">
-          <ObcButton variant="flat" disabled={page === 0} onClick={() => setPage(x => x - 1)}>‹ Newer</ObcButton>
+          <span title={page === 0 ? 'Already showing the newest windows' : undefined}><ObcButton variant="flat" disabled={page === 0} onClick={() => setPage(x => x - 1)}>‹ Newer</ObcButton></span>
           <span className="cpm-copy">{page * PAGE + 1}–{Math.min(windows.length, page * PAGE + PAGE)} of {windows.length}</span>
-          <ObcButton variant="flat" disabled={page >= pages - 1} onClick={() => setPage(x => x + 1)}>Older ›</ObcButton>
+          <span title={page >= pages - 1 ? 'Already showing the oldest loaded windows' : undefined}><ObcButton variant="flat" disabled={page >= pages - 1} onClick={() => setPage(x => x + 1)}>Older ›</ObcButton></span>
         </div>
       )}
       {previous ? (

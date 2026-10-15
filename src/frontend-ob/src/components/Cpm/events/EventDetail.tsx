@@ -12,14 +12,15 @@ import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmEventFrame, CpmShelvePolicy } from '../../../api/cpmApi';
 import { useAcknowledgeEvent, useShelveEvent, useUnshelveEvent } from '../../../hooks/useCpm';
-import { EmptyState, KvRow, PanelHead, TonePill, fmtDateTime, toneFor } from '../shared';
-import { explorerHref } from '../cpaHref';
+import { EmptyState, KvRow, PanelHead, TonePill, diagnosisBand, fmtDateTime, toneFor } from '../shared';
+import { explorerHref, historicalHref } from '../cpaHref';
 import { availabilityCopy, availabilityPill, conditionOf, supportCopy } from './eventsState';
 import { isAcknowledged, shelfCountdown, shelfState, stateView } from './shelfState';
 import { codeLabel, diagnosisLabel, phrase } from '../vocabulary';
 import { EVIDENCE_SCORE_HELP, evidenceScore, evidenceScoreText } from '../evidenceScore';
 import { ReasonedButton } from '../ReasonedButton';
 import { EpisodeNotes } from './EpisodeNotes';
+import { ActionReceipt, byNow, receiptDone, receiptFailed, useReceiptUser, type Receipt } from '../ActionReceipt';
 
 const ShelvePanel = React.lazy(() => import('./ShelvePanel'));
 const UnshelvePanel = React.lazy(() => import('./UnshelvePanel'));
@@ -27,12 +28,21 @@ const EventHistory = React.lazy(() => import('./EventHistory'));
 
 const DEFAULT_MAX_HOURS = 168;
 
-/** peak confidence → CPA's severity vocabulary. */
+/**
+ * The episode's peak, in the engine's own bands (CHG-092, SME review 2 #6/#20): the engine's severity when it wrote one,
+ * otherwise the band of the peak diagnosis — never a second set of score thresholds of our own.
+ */
 export function severityOf(e: CpmEventFrame): { label: string; tone: 'good' | 'warn' | 'bad' | 'muted' } {
   if (e.severity) return { label: e.severity, tone: toneFor(e.severity) };
-  if (e.peak_confidence >= 0.9) return { label: 'High', tone: 'bad' };
-  if (e.peak_confidence >= 0.55) return { label: 'Warning', tone: 'warn' };
-  return { label: 'Advisory', tone: 'muted' };
+  const b = diagnosisBand(e.peak_diagnosis);
+  return { label: `Peak: ${b.label}`, tone: b.tone === 'good' ? 'muted' : b.tone };
+}
+
+/** The window the episode now stands at, when it differs from the peak the title names (null when they match). */
+export function currentOf(e: CpmEventFrame): { label: string; tone: 'good' | 'warn' | 'bad' | 'muted' } | null {
+  if (!e.last_diagnosis || e.last_diagnosis === e.peak_diagnosis) return null;
+  const b = diagnosisBand(e.last_diagnosis);
+  return { label: `Now: ${diagnosisLabel(e.last_diagnosis)}`, tone: b.tone === 'good' ? 'muted' : b.tone };
 }
 
 const fmt = (iso: string | null) => (iso ? fmtDateTime(iso) : '—');
@@ -44,10 +54,20 @@ export interface EventDetailProps {
   canManage: boolean;
   /** From the events read; absent on an API that predates CHG-032. */
   policy?: CpmShelvePolicy;
+  /**
+   * CHG-098 (SME review 2 #27): the last action's receipt for this episode. Held by the page so it survives the
+   * detail remounting when the action moves the episode off the current tab; kept locally when no owner is given.
+   */
+  receipt?: Receipt | null;
+  onReceipt?: (r: Receipt) => void;
 }
 
-export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, policy }) => {
+export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, policy, receipt: ownedReceipt, onReceipt }) => {
   const navigate = useNavigate();
+  const user = useReceiptUser();
+  const [localReceipt, setLocalReceipt] = useState<Receipt | null>(null);
+  const receipt = onReceipt ? ownedReceipt ?? null : localReceipt;
+  const report = onReceipt ?? setLocalReceipt;
   const ack = useAcknowledgeEvent();
   const shelve = useShelveEvent();
   const unshelve = useUnshelveEvent();
@@ -56,6 +76,7 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
   const [note, setNote] = useState('');
   const now = Date.now();
   const sev = severityOf(event);
+  const cur = currentOf(event);
   const open = conditionOf(event) === 'OPEN';
   const availability = availabilityPill(event);
   const shelf = shelfState(event, now);
@@ -74,16 +95,25 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
   const toggle = (p: Panel) => setPanel(cur => (cur === p ? 'none' : p));
 
   return (
-    <aside className="cpm-surface">
+    <aside className="cpm-surface cpm-panel-enter">
       <PanelHead
         eyebrow={`EVT-${event.id}`}
-        title={diagnosisLabel(event.peak_diagnosis)}
-        right={<span className="cpm-filter-row"><TonePill tone={sev.tone}>{sev.label}</TonePill><TonePill tone={state.tone}>{state.label}</TonePill></span>}
+        title={`Peak: ${diagnosisLabel(event.peak_diagnosis)}`}
+        right={<span className="cpm-filter-row"><TonePill tone={sev.tone}>{sev.label}</TonePill>
+          {cur && <TonePill tone={cur.tone}>{cur.label}</TonePill>}<TonePill tone={state.tone}>{state.label}</TonePill></span>}
       />
       <p className="cpm-copy cpm-source-line">
         <ObcButton variant="flat" title={`Open ${event.loop_id} in the Loop Explorer`}
           onClick={() => navigate(explorerHref(event.loop_id, { tab: 'Summary' }))}>
           {event.loop_id} ›
+        </ObcButton>
+        {/* CHG-097 (SME review 2 #26): the finding opens the period it covers, not only the loop */}
+        <ObcButton variant="flat" title="PV, SP, OP and mode over this episode in Historical, with the peak window shaded"
+          onClick={() => navigate(historicalHref(event.loop_id, {
+            from: event.opened_at, to: event.closed_at ?? new Date().toISOString(),
+            kind: event.window_kind, focus: `episode EVT-${event.id}`,
+          }))}>
+          Episode period ›
         </ObcButton>
         opened {fmt(event.opened_at)}
         {event.closed_at ? ` · closed ${fmt(event.closed_at)}` : ' · still open'}
@@ -140,7 +170,10 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
       <div className="cpm-inspector__actions">
         {/* SME #21 (CHG-057): the reason an action is unavailable is on screen, not only in the hover title */}
         <ReasonedButton variant="raised" disabled={!canManage || ack.isPending || acked} title={ackTitle} reason={ack.isPending ? null : ackTitle}
-          onClick={() => ack.mutate({ id: event.id, note: note || undefined }, { onSuccess: () => setNote('') })}>
+          onClick={() => ack.mutate({ id: event.id, note: note || undefined }, {
+            onSuccess: () => { setNote(''); report(receiptDone(`Acknowledged ${byNow(user)}`, event.id)); },
+            onError: err => report(receiptFailed('Acknowledge', err, event.id)),
+          })}>
           {ack.isPending ? 'Acknowledging…' : 'Acknowledge'}
         </ReasonedButton>
         <ReasonedButton variant="normal" disabled={!canManage || !open || shelve.isPending} title={shelveTitle} reason={shelve.isPending ? null : shelveTitle}
@@ -156,17 +189,31 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
           History ›
         </ObcButton>
       </div>
+      {/* CHG-098 (SME review 2 #27): what the last action recorded (or why it failed) stays beside the actions until
+          the next one. Shelve / unshelve refusals stay inside their open panel, where the inputs to correct are. */}
+      <ActionReceipt receipt={receipt} />
       {panel === 'shelve' && (
         <Suspense fallback={<EmptyState title="Loading…" />}>
           <ShelvePanel event={event} canManage={canManage} pending={shelve.isPending} error={shelve.error} maxHours={maxHours}
-            onShelve={(until, reason) => shelve.mutate({ id: event.id, until, reason }, { onSuccess: () => setPanel('none') })}
+            onShelve={(until, reason) => shelve.mutate({ id: event.id, until, reason }, {
+              onSuccess: r => {
+                setPanel('none');
+                report(receiptDone(`${r.updated ? 'Shelf updated' : 'Shelved'} until ${fmt(r.shelveUntil ?? until)} — ${byNow(user)}`, event.id));
+              },
+            })}
             onClose={() => setPanel('none')} />
         </Suspense>
       )}
       {panel === 'unshelve' && (
         <Suspense fallback={<EmptyState title="Loading…" />}>
           <UnshelvePanel event={event} canManage={canManage} pending={unshelve.isPending} error={unshelve.error}
-            onUnshelve={reason => unshelve.mutate({ id: event.id, reason }, { onSuccess: () => setPanel('none') })}
+            onUnshelve={reason => unshelve.mutate({ id: event.id, reason }, {
+              onSuccess: r => {
+                setPanel('none');
+                const lands = r.ackState === 'ACKNOWLEDGED' ? 'it stays acknowledged' : 'it is back in the Unacknowledged queue';
+                report(receiptDone(`Unshelved ${byNow(user)} — ${lands}`, event.id));
+              },
+            })}
             onClose={() => setPanel('none')} />
         </Suspense>
       )}
@@ -181,11 +228,6 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
           This episode has closed but was never acknowledged — a closed, unacknowledged
           episode is an unreviewed finding, not a resolved one. It can still be
           acknowledged; shelving no longer applies.
-        </p>
-      )}
-      {ack.isError && (
-        <p className="cpm-field__error" role="alert">
-          {(ack.error as Error)?.message ?? 'The action failed.'}
         </p>
       )}
     </aside>

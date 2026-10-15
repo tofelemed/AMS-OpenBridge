@@ -32,8 +32,9 @@ public static class FleetKpiClassifier
         var manualMeasured = fresh && r.ManualPct is not null;                                  // CHG-089
         var inManual = manualMeasured && r.ManualPct!.Value >= t.ManualModeMin;
 
-        KpiLoop Make(KpiState s, string? reason = null, KpiOutcome o = KpiOutcome.None, string? band = null, string? family = null) =>
-            new(r, s, reason, o, band, family, fresh, modeMeasured, inMode, satMeasured, saturated, age, manualMeasured, inManual);
+        KpiLoop Make(KpiState s, string? reason = null, KpiOutcome o = KpiOutcome.None, string? band = null, string? family = null,
+            IReadOnlyList<string>? limitedBy = null) =>
+            new(r, s, reason, o, band, family, fresh, modeMeasured, inMode, satMeasured, saturated, age, manualMeasured, inManual, limitedBy);
 
         if (r.WindowEnd is null) return Make(KpiState.NeverEvaluated);
         if (!fresh) return Make(KpiState.Stale);
@@ -44,10 +45,15 @@ public static class FleetKpiClassifier
         if (d.StartsWith("EXCLUDED", StringComparison.Ordinal))
             return Make(KpiState.NotAssessable, ExcludedReason.GetValueOrDefault(d, "EXCLUDED_OTHER"));
 
-        // A verdict. No fault found = NO_CALL (evidence < 35) or INSUFFICIENT_EVIDENCE (no family qualified). Acceptable also
-        // needs the loop in its normal mode and NOT at an OP limit: a saturated loop has no authority, whatever its verdict.
+        // A verdict. No fault identified = NO_CALL (evidence < 35) or INSUFFICIENT_EVIDENCE (no family qualified). That is a
+        // DIAGNOSTIC result; "performing acceptably" is a PERFORMANCE one and needs its own criteria (CHG-093, SME review 2 #12):
+        // in normal mode, not at an OP limit (no authority), the good-error share at or above the profile floor (G3 PASS) and
+        // no strong actuator activity (G4 not STRONG). A G3 that was not evaluated is not a pass.
         if (d is "NO_CALL" or "INSUFFICIENT_EVIDENCE")
-            return Make(KpiState.Assessed, null, inMode && !saturated ? KpiOutcome.Acceptable : KpiOutcome.NoFaultLimited, d);
+        {
+            var limits = PerformanceLimits(r, inMode, saturated);
+            return Make(KpiState.Assessed, null, limits.Count == 0 ? KpiOutcome.Acceptable : KpiOutcome.NoFaultLimited, d, null, limits);
+        }
         var cut = d.IndexOf('_');
         var band = cut > 0 ? d[..cut] : d;
         var family = cut > 0 ? d[(cut + 1)..] : null;
@@ -58,6 +64,19 @@ public static class FleetKpiClassifier
             _ => KpiOutcome.Unrecognised,
         };
         return Make(KpiState.Assessed, null, outcome, outcome == KpiOutcome.Unrecognised ? null : band, family);
+    }
+
+    /// <summary>CHG-093: the performance criteria a no-fault loop misses (empty = performing acceptably).</summary>
+    public static IReadOnlyList<string> PerformanceLimits(KpiLoopRow r, bool inMode, bool saturated)
+    {
+        var limits = new List<string>(4);
+        if (!inMode) limits.Add("OUT_OF_MODE");
+        if (saturated) limits.Add("SATURATED");
+        var g3 = (r.G3Status ?? "").Trim().ToUpperInvariant();
+        if (g3 is "WARN" or "FAIL") limits.Add("G3_BELOW_FLOOR");
+        else if (g3 != "PASS") limits.Add("G3_NOT_EVALUATED");
+        if (string.Equals(r.G4Status?.Trim(), "STRONG", StringComparison.OrdinalIgnoreCase)) limits.Add("G4_STRONG");
+        return limits;
     }
 
     /// <summary>Why an INSUFFICIENT_DATA window could not be judged: the engine's own G0 reason when it wrote one, else the inputs.</summary>
@@ -106,7 +125,8 @@ public static class FleetKpiClassifier
         return new[]
         {
             new KpiFigure("acceptable", "Performing acceptably", Count("acceptable"), monitored, "monitored loops",
-                $"No fault found (NO_CALL / INSUFFICIENT_EVIDENCE), in normal mode ≥ {t.NormalModeMin:P0}, not at an OP limit > {t.SaturationMax:P0}, {fresh}"),
+                $"No fault identified (NO_CALL / INSUFFICIENT_EVIDENCE), in normal mode ≥ {t.NormalModeMin:P0}, not at an OP limit > {t.SaturationMax:P0}, " +
+                $"good-error share at or above the profile floor (G3 pass), actuator activity not strong (G4), {fresh}"),
             // CHG-089: the normal-mode KPI is shown as "In auto mode" (same key and rule); "In manual mode" is new
             new KpiFigure("normal-mode", "In auto mode", Count("normal-mode"), modeMeasured, "loops with a measured mode",
                 $"AUTO / CASCADE ≥ {t.NormalModeMin:P0} of the {t.WindowKind} window (> {1 - t.NormalModeMin:P0} out of design mode = out of mode), {fresh}"),

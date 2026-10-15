@@ -58,7 +58,9 @@ function respond(url: string): unknown {
   if (url.endsWith('/method-runs/evidence/batch')) {
     return { count: 4, manifests: Object.fromEntries([RUN, G3_FUSED, 'g15-run', 'g0-run', 'g1-run', 'g11-run'].map(id => [id, noEvidence(id)])) };
   }
-  if (url.endsWith('/analysis-runs')) return { analysisRunId: 'ar-1', loopId: 'FIC10302', purpose: 'EVIDENCE_RECONSTRUCTION', jobId: 'job-1', source: 'iotdb', gate: 'G3' };
+  // CHG-099: the accepted reconstruction names the run it rebuilds; its state is read (and refreshed) while it runs
+  if (url.endsWith('/analysis-runs')) return { analysisRunId: 'ar-1', loopId: 'FIC10302', purpose: 'EVIDENCE_RECONSTRUCTION', jobId: 'job-1', source: 'iotdb', gate: 'G3', reconstructs: RUN };
+  if (url.endsWith('/analysis-runs/ar-1')) return { analysisRunId: 'ar-1', state: 'SUBMITTED' };
   if (/\/method-runs\/[^/]+\/evidence$/.test(url)) return noEvidence(url.split('/').slice(-2)[0]);
   if (url.includes('/gates?')) {
     const q = new URL('http://x' + url).searchParams;

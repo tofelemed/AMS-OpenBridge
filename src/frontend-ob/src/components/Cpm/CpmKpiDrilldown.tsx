@@ -158,7 +158,9 @@ export const CpmKpiDrilldown: React.FC = () => {
         {list.isError && <QueryError title="The loop list is unavailable" error={list.error} retry={() => void list.refetch()} />}
         {list.data && list.data.rows.length === 0 && (
           <EmptyState title={search ? 'No loop matches the search' : 'No loop is in this KPI'}
-            copy={search ? 'Clear the search to see every loop behind the number.' : 'The count for this KPI is 0 in this scope.'} />
+            copy={search ? 'Clear the search to see every loop behind the number.' : 'The count for this KPI is 0 in this scope — nothing to verify here. Back on the Overview, the other figures list their loops.'}
+            // CHG-098 (SME review 2 #29): the way out is a button, not only an instruction.
+            action={search ? { label: 'Clear search', onClick: () => { setSearch(''); setPage(0); } } : undefined} />
         )}
         {list.data && list.data.rows.length > 0 && (
           <>

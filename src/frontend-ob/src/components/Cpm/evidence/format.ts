@@ -57,7 +57,7 @@ export function fmtQuantity(value: unknown, unit?: string | null, key?: string):
     }
     const worded = t.replace(/\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b/g, c => codeLabel(c));
     const joined = (worded.includes(';') ? worded.split(';').map(p => p.trim()).filter(Boolean).join(' · ') : worded)
-      .replace(/-?\d+\.\d{4,}/g, m => String(Number(Number(m).toFixed(3))));
+      .replace(/-?\d+\.\d{4,}/g, m => readable(Number(m)));   // CHG-098 (SME 2 #23)
     return joined.length > 160 ? joined.slice(0, 160) + '…' : joined;
   }
   if (typeof value !== 'number' || !Number.isFinite(value)) return '—';
@@ -67,11 +67,12 @@ export function fmtQuantity(value: unknown, unit?: string | null, key?: string):
   const suffix = unitSuffix(unit, r);
   switch (r) {
     case 'seconds': return `${round(value, 1)}${suffix}`;
-    case 'fraction': return `${value.toFixed(3)}${suffix}`;
+    case 'fraction': return `${value.toFixed(2)}${suffix}`;   // CHG-098 (SME 2 #23): 2 dp for a 0–1 fraction
     case 'pp': return `${round(value, 1)}${suffix}`;
     case 'count': return `${Math.round(value)}${suffix}`;
-    case 'hz': return `${Number(value.toPrecision(4))}${suffix}`;
-    default: return `${Number(value.toPrecision(4))}${suffix}`;
+    // engineering values keep 4 significant figures (141.2 m3/h), grouped from 1,000
+    case 'hz': return `${readable(value, 4)}${suffix}`;
+    default: return `${readable(value, 4)}${suffix}`;
   }
 }
 
@@ -127,4 +128,8 @@ export function unitForKey(key: string): string | undefined {
 }
 
 /** The first `n` characters of an id for display ('—' for none); the full id belongs in a title / copy action. */
+/** CHG-098 (SME review 2 #23): a number for reading — `digits` significant figures (3 by default), thousands grouped. */
+export const readable = (v: number, digits = 3): string =>
+  !Number.isFinite(v) ? '—' : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString('en-GB') : String(Number(v.toPrecision(digits)));
+
 export const shortId = (id: string | null | undefined, n = 8): string => (id && id.length > 0 ? id.slice(0, n) : '—');

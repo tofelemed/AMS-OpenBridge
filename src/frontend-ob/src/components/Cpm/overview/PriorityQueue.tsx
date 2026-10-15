@@ -56,7 +56,11 @@ export const PriorityQueue: React.FC<{
       <EmptyState title="No current findings"
         copy={shelvedCount > 0
           ? `Every current finding is shelved (${shelvedCount}). Shelved loops are reviewed in Loop Events.`
-          : 'No loop has a current confirmed or suspected finding. The operating picture above shows the rest of the fleet.'} />
+          : 'No loop has a current confirmed or suspected finding. The operating picture above shows the rest of the fleet.'}
+        // CHG-098 (SME review 2 #29): the useful next step — the shelved list, or every loop.
+        action={shelvedCount > 0
+          ? { label: 'Review shelved loops', onClick: onShelved }
+          : { label: 'View all loops', onClick: onViewAll }} />
     )}
     {loops.slice(0, QUEUE_SIZE).map(l => {
       const isSelected = selectedId === l.loopId;

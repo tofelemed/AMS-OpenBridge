@@ -68,8 +68,8 @@ export function buildReplayOption(i: ReplayChartInput) {
     },
     xAxis: { type: 'time' as const, axisLabel: { color: grey } },
     yAxis: [
-      { type: 'value' as const, name: pvAxisName(pvUnit), scale: true, axisLabel: { color: grey }, nameTextStyle: { color: grey, fontSize: 10 }, splitLine: { lineStyle: { opacity: 0.2 } } },
-      { type: 'value' as const, name: 'OP / VP (%)', position: 'right' as const, scale: true, axisLabel: { color: grey }, nameTextStyle: { color: grey, fontSize: 10 }, splitLine: { show: false } },
+      { type: 'value' as const, name: pvAxisName(pvUnit), scale: true, axisLabel: { color: grey }, nameTextStyle: { color: grey, fontSize: 12 }, splitLine: { lineStyle: { opacity: 0.2 } } },
+      { type: 'value' as const, name: 'OP / VP (%)', position: 'right' as const, scale: true, axisLabel: { color: grey }, nameTextStyle: { color: grey, fontSize: 12 }, splitLine: { show: false } },
     ],
     series: [
       { name: 'PV', type: 'line' as const, symbol: 'none', connectNulls: false, yAxisIndex: 0, color: good, lineStyle: { color: good, width: 1.5 },

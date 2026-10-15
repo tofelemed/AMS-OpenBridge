@@ -31,11 +31,19 @@ public static class FleetKpiSql
                (n.payload->>'travel_per_day')::float8      AS travel_per_day,
                (n.payload->>'reversals_per_hour')::float8  AS reversals_per_hour,
                n.payload->'confirmation'->>'state'         AS g14_state,
+               -- CHG-093 (SME review 2 #12): the window's own performance gates, beside the diagnosis
+               n.payload->'gates'->>'G3'                   AS g3_status,
+               n.payload->'gates'->>'G4'                   AS g4_status,
+               n.good_error_pct                            AS good_error_pct,
+               n.mae                                       AS mae,
+               -- SME review 2 #11: error is only compared across loops as a share of the registered PV span
+               CASE WHEN jsonb_typeof(r.engineering->'pvMax') = 'number' AND jsonb_typeof(r.engineering->'pvMin') = 'number'
+                    THEN (r.engineering->>'pvMax')::float8 - (r.engineering->>'pvMin')::float8 END AS pv_span,
                v.window_end            AS v_window_end,
                v.diagnosis             AS v_diagnosis
         FROM cpm.loop_registry r
         LEFT JOIN LATERAL (
-            SELECT g.window_end, g.diagnosis, g.confidence, g.payload
+            SELECT g.window_end, g.diagnosis, g.confidence, g.payload, g.good_error_pct, g.mae
             FROM analytics.cplm_gate_results g
             WHERE lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind AND g.purpose = 'LIVE'
               AND g.window_end <= @asOf

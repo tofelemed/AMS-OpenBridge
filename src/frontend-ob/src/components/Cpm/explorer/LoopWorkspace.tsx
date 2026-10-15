@@ -16,18 +16,17 @@
  *    you were, which is the one thing an asset-centric screen owes you.
  */
 import React from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcTabRow } from '@oicl/openbridge-webcomponents-react/components/tab-row/tab-row';
 import type { CpmLoop } from '../../../api/cpmApi';
 import { ApiError } from '../../../api/apiFetch';
 import { useCpmEvents, useCpmReadiness, useLatestGates } from '../../../hooks/useCpm';
-import { PanelHead, TonePill, toneFor } from '../shared';
+import { PanelHead, toneFor } from '../shared';
 import { useInstrumentHealth } from '../health/useInstrumentHealth';
 import { TransmitterHealthPanel, loopHealthSummary } from '../health/TransmitterHealthPanel';
 import { readinessCauses, type ExplorerTab } from './readinessCauses';
+import ReadinessBar, { readinessLine } from './ReadinessBar';
 import LoopSummaryCard from './summary/LoopSummaryCard';
 import { FacetPill, instrumentHealthText } from '../FacetPill';
-import { pinEvaluated, revealTrend } from '../trend/evaluatedWindow';
 import { conditionOf } from './summary/summaryText';
 import SummaryTab from './SummaryTab';
 import SignalsTab from './SignalsTab';
@@ -52,8 +51,6 @@ export const LoopWorkspace: React.FC<{
   windowKind: string;
   onTab: (t: ExplorerTab) => void;
 }> = ({ loop, tab, windowKind, onTab }) => {
-  const navigate = useNavigate();
-  const [, setParams] = useSearchParams();
   const gates = useLatestGates(loop.loopId, windowKind);
   const readiness = useCpmReadiness(loop.loopId);
   // Same query key as HistoryTab's, so react-query serves the badge count and
@@ -66,7 +63,7 @@ export const LoopWorkspace: React.FC<{
   const diagnosis = gatesFailed ? 'VERDICT UNAVAILABLE' : gates.data?.diagnosis ?? 'NOT_EVALUATED';
 
   const summary = readinessCauses(readiness.data, loop.loopId);
-  const [causesOpen, setCausesOpen] = React.useState(false);
+  const readinessInCard = !!gates.data && !!summary && summary.blocking === 0;
 
   const signalCount = Object.keys(loop.tags).length;
   const gateCount = gates.data?.gates.length ?? 0;
@@ -128,23 +125,13 @@ export const LoopWorkspace: React.FC<{
             >
               <FacetPill facet="health" tone={healthSummary.tone}>{instrumentHealthText(healthSummary.label)}</FacetPill>
             </button>
-            {/* SME #12 (CHG-067): the diagnosis opens the exact window it is about, compared with now. */}
-            <button
-              type="button"
-              className="cpm-pill-button"
-              disabled={!gates.data?.windowStart || !gates.data?.windowEnd}
-              title="Show the evaluated window this diagnosis is about on the trend, compared with now"
-              onClick={() => {
-                const m = gates.data;
-                if (!m?.windowStart || !m.windowEnd) return;
-                setParams(p => pinEvaluated(p, m.windowStart!, m.windowEnd!), { replace: true });
-                revealTrend();
-              }}
-            >
+            {/* CHG-098 (SME review 2 #20): the diagnosis is shown once — by the loop summary, which also pins its
+                window on the trend (SME #12). Without a served row (failed / no verdict yet) the pill says why. */}
+            {!gates.data && (
               <FacetPill facet="diagnosis" tone={gatesFailed ? 'warn' : toneFor(diagnosis)}>
                 {gatesFailed ? 'Verdict unavailable' : conditionOf(diagnosis).label}
               </FacetPill>
-            </button>
+            )}
           </span>
         }
       />
@@ -159,62 +146,16 @@ export const LoopWorkspace: React.FC<{
         </div>
       )}
 
-      {/* SME #4: the loop summary heads every tab — condition, severity, cause, evidence, data, next check. */}
-      {gates.data && <LoopSummaryCard loop={loop} matrix={gates.data} windowKind={windowKind} healthLabel={healthSummary.label} />}
-
-      {summary && (
-        <div className={`cpm-causes${summary.blocking > 0 ? ' cpm-causes--blocking' : ' cpm-causes--limits'}`}>
-          <button
-            type="button"
-            className="cpm-causes__head"
-            aria-expanded={causesOpen}
-            onClick={() => setCausesOpen(v => !v)}
-          >
-            <strong>{summary.headline}</strong>
-            <span className="cpm-event-row__sub">
-              {summary.causes.length > 0 ? `${summary.causes.length} to fix` : 'nothing to fix'}
-              {summary.blocking > 0 ? ` · ${summary.blocking} blocking` : ''}
-              {summary.notes.length > 0 ? ` · ${summary.notes.length} plant fact(s)` : ''}
-            </span>
-            <span className="cpm-causes__caret" aria-hidden>{causesOpen ? '▾' : '▸'}</span>
-          </button>
-
-          {causesOpen && (
-            <ul className="cpm-causes__list">
-              {summary.causes.map(c => (
-                <li key={c.id} className="cpm-causes__item">
-                  <TonePill tone={c.kind === 'blocking' ? 'bad' : c.kind === 'data' ? 'muted' : 'warn'}>
-                    {c.kind === 'blocking' ? 'Blocking' : c.kind === 'data' ? 'Waiting for data' : 'Configuration'}
-                  </TonePill>
-                  <span className="cpm-causes__text">
-                    <strong>{c.label}</strong>
-                    {c.message && <span className="cpm-event-row__sub">{c.message}</span>}
-                  </span>
-                  {c.target && (
-                    <button
-                      type="button"
-                      className="cpm-causes__action"
-                      onClick={() => {
-                        if (c.target?.kind === 'tab') onTab(c.target.tab);
-                        else if (c.target?.kind === 'route') navigate(c.target.href);
-                      }}
-                    >
-                      {c.target.label} ›
-                    </button>
-                  )}
-                </li>
-              ))}
-              {/* CHG-059 (SME #23): facts about the plant that limit a diagnosis — information, nothing to fix */}
-              {summary.notes.map(n => (
-                <li key={n} className="cpm-causes__item">
-                  <TonePill tone="muted">Plant fact</TonePill>
-                  <span className="cpm-causes__text"><span className="cpm-event-row__sub">{n}</span></span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+      {/* SME #4: the loop summary heads every tab — condition, severity, cause, next check (CHG-098: basis behind a disclosure). */}
+      {gates.data && (
+        <LoopSummaryCard loop={loop} matrix={gates.data} windowKind={windowKind} healthLabel={healthSummary.label}
+          more={readinessInCard && summary ? <ReadinessBar summary={summary} onTab={onTab} /> : undefined}
+          moreLine={readinessInCard && summary ? readinessLine(summary) : undefined} />
       )}
+
+      {/* CHG-098 (SME review 2 #20): a blocking readiness bar stays above the tabs; one that only limits the
+          diagnosis sits in the summary's "Basis and limitations" disclosure, so the trend follows the summary. */}
+      {summary && !readinessInCard && <ReadinessBar summary={summary} onTab={onTab} />}
 
       <div className="cpm-tabs">
         {/* `hug` is required, not cosmetic: obc-tab-item is width:240px /

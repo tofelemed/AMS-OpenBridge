@@ -173,7 +173,11 @@ public sealed class CpmFleetController : ControllerBase
             "confidence" or null or "" => "l.confidence DESC NULLS LAST",
             // good_error_pct is share-inside-band: LOWER is worse, so worst-first.
             "error" => "l.good_error_pct ASC NULLS LAST",
-            "mae" => "l.mae DESC NULLS LAST",
+            // CHG-093 (SME review 2 #11): MAE as a share of the registered PV span; loops without a span rank last
+            "mae" => """
+                (l.mae / NULLIF(CASE WHEN jsonb_typeof(r.engineering->'pvMax') = 'number' AND jsonb_typeof(r.engineering->'pvMin') = 'number'
+                    THEN GREATEST((r.engineering->>'pvMax')::float8 - (r.engineering->>'pvMin')::float8, 0) END, 0)) DESC NULLS LAST
+                """,
             "effort" => "l.effort_ratio DESC NULLS LAST",
             // CHG-045 (SME #7): the priority queue — its own query (FleetPrioritySql), current
             // findings only, ISA-18.2-style criticality × severity level, shelved loops left out.

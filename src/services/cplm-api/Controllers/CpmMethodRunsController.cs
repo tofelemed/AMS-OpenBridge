@@ -114,7 +114,8 @@ public sealed class CpmMethodRunsController : ControllerBase
             var site = await _manifests.SiteOfAsync(conn, id, ct);
             if (site is null || !SiteScope.Allows(Request, site)) { manifests[id.ToString()] = null; continue; }
             var m = await _manifests.ReadAsync(conn, id, site, ct);
-            manifests[id.ToString()] = m.Metas.Count == 0 ? null : m.ToResponse();
+            // CHG-099: a run whose only evidence is a reconstruction (nothing retained) still has a manifest
+            manifests[id.ToString()] = m.Metas.Count == 0 && m.Reconstructions.Count == 0 ? null : m.ToResponse();
         }
         Response.Headers[HeaderNames.CacheControl] = "private, no-cache";
         return Ok(new { count = ids.Length, manifests });
@@ -127,13 +128,13 @@ public sealed class CpmMethodRunsController : ControllerBase
     /// the manifest says why; a run without evidence is 404 with the reconstruction pointer.
     /// </summary>
     [HttpGet("method-runs/{id:guid}/evidence/bundle")]
-    public async Task<IActionResult> GetEvidenceBundle(Guid id, CancellationToken ct)
+    public async Task<IActionResult> GetEvidenceBundle(Guid id, CancellationToken ct, [FromQuery] Guid? set = null)
     {
         await using var conn = await _db.OpenConnectionAsync(ct);
         var site = await _manifests.SiteOfAsync(conn, id, ct);
         if (!SiteScope.Allows(Request, site)) return StatusCode(StatusCodes.Status403Forbidden, SiteScope.Forbidden(site));
         var manifest = await _manifests.ReadAsync(conn, id, site, ct);
-        if (manifest.Metas.Count == 0)
+        if (manifest.Metas.Count == 0 && (set is null || !manifest.ReconstructionMetas.ContainsKey(set.Value)))
             return NotFound(new { error = "EVIDENCE_NOT_FOUND", methodRunId = id, reconstructable = true, reconstruct = new { purpose = "EVIDENCE_RECONSTRUCTION", methodRunId = id, endpoint = "/api/v1/cpm/analysis-runs" } });
 
         var etag = new EntityTagHeaderValue(manifest.Etag);
@@ -146,7 +147,8 @@ public sealed class CpmMethodRunsController : ControllerBase
             Response.Headers[HeaderNames.ETag] = manifest.Etag;
             return StatusCode(StatusCodes.Status304NotModified);
         }
-        var bytes = await EvidenceManifestReader.BundleAsync(conn, manifest, ct);
+        // CHG-099: ?set=<analysisRunId> bundles that reconstruction's rows (stored beside the original); default = the run's own set
+        var bytes = await EvidenceManifestReader.BundleAsync(conn, manifest, ct, set);
         var file = File(bytes, "application/octet-stream");
         file.EntityTag = etag;
         return file;

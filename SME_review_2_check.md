@@ -208,3 +208,21 @@ Decisions needed before starting:
 3. **`NO_CALL` app-wide:** "No fault found" everywhere (as on the KPI pages)?
 4. **Point 18:** keep the original evidence and store a reconstruction beside it? This reverses CHG-076's in-place replacement.
 5. **Engine points (phase C):** hand to the gates session? Meanwhile, phase A adds frontend shims so the screens agree.
+
+## Status
+
+**User decisions (2026-10-14):**
+1. Percentage points.
+2. Own performance criteria: G3 pass and G4 not strong.
+3. "No fault identified" app-wide.
+4. Keep the original evidence and store a reconstruction beside it, mindful of performance, space and retention.
+5. Phase C handed to ams-open-e0.
+
+| Phase | State | Commit / CHG |
+|---|---|---|
+| A | Done. Lab browser check pending | CHG-092: `d3d6cfcf`, `67db1e88` |
+| B | Done. DB endpoint tests and lab check pending (Docker stopped) | CHG-093 |
+| C | With ams-open-e0 | CHG-094..096 |
+| D | Done. Lab browser check pending | CHG-097 |
+| E | Done. Lab browser check pending | CHG-098 |
+| F | Done. DB tests + lab check pending; migration cpm-15 | CHG-099 |

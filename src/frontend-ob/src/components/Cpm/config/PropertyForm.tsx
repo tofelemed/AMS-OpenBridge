@@ -100,8 +100,13 @@ export const PropertyForm: React.FC<{
               placeholder={entry.type === 'string_array' ? 'a, b, c (replaces the whole list)' : `${entry.unit || entry.type}`}
               onChange={e => { setText(e.target.value); setError(null); }} onKeyDown={e => { if (e.key === 'Enter') submit(); }} />
           )}
-          <ObcButton variant="raised" disabled={pending || text === ''} onClick={submit}>Set</ObcButton>
-          <ObcButton variant="flat" disabled={pending || !overridden} onClick={() => onOp({ op: 'reset', property: entry.property })}>Reset to inherited</ObcButton>
+          {/* CHG-098 (SME review 2 #29): a disabled action says why on hover (a wrapping span: ObcButton takes no title) */}
+          <span title={text === '' ? 'Enter or choose a value first' : undefined}>
+            <ObcButton variant="raised" disabled={pending || text === ''} onClick={submit}>Set</ObcButton>
+          </span>
+          <span title={!overridden ? 'Already inherited: this level sets no value of its own' : undefined}>
+            <ObcButton variant="flat" disabled={pending || !overridden} onClick={() => onOp({ op: 'reset', property: entry.property })}>Reset to inherited</ObcButton>
+          </span>
           {error && <span className="cpm-field__error" role="alert" data-testid="input-error">{error}</span>}
         </div>
       )}

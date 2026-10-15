@@ -1,0 +1,112 @@
+/* CHG-098 (SME review 2 #25 / #27): Loop Events and Calculations tables — column headings that stay in view, sort
+   controls in the headings, a selected row that is not the hover colour, compact repeating rows, the visible
+   completion line after an operator action, and a short, reduced-motion-aware panel opening. Tokens only. */
+
+/* Sticky headings inside the page scroller (.page-content), stopping right under the loop context bar — the same
+   offset as the conclusion strip. The heading carries the surface colour so rows never show through it. No new
+   inner scroll container: the page itself scrolls. */
+.cpm-table-head--sticky {
+  position: sticky;
+  top: calc(var(--cpm-context-h, 0px) - var(--spacing-4, 16px));
+  z-index: 4;
+  align-items: center;
+  background: var(--container-backdrop-color);
+}
+
+/* Sortable heading: a plain button that reads like the heading text around it. */
+.cpm-sort-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: start;
+  margin: -2px -4px;
+  padding: 2px 4px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cpm-sort-head:hover { background: var(--flat-hover-background-color); color: var(--element-active-color); }
+.cpm-sort-head--active { color: var(--element-active-color); font-weight: 600; }
+.cpm-sort-head:focus-visible {
+  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
+  outline-offset: 2px;
+}
+.cpm-sort-head__icon { display: inline-flex; width: 16px; height: 16px; flex: 0 0 auto; }
+.cpm-sort-head__icon > * { width: 16px; height: 16px; }
+
+/* Selected row: the OpenBridge selected surface plus the accent edge — distinct from hover (which only tints).
+   The :hover pair out-ranks `.cpm-event-row:hover` so hovering the selected row does not undo it. The loop-id flat
+   button and the pills keep their contrast on the selected surface (as the configuration bundle list does). */
+.cpm-event-row--selected,
+.cpm-event-row--selected:hover {
+  background: var(--selected-enabled-background-color);
+  border-left-color: var(--instrument-enhanced-primary-color);
+  color: var(--on-selected-active-color);
+  --on-flat-active-color: var(--on-selected-active-color);
+}
+.cpm-event-row--selected .cpm-event-row__sub,
+.cpm-event-row--selected .cpm-metric-na { color: var(--on-selected-neutral-color); }
+.cpm-event-row--selected .cpm-pill { color: var(--on-selected-active-color); border-color: var(--on-selected-neutral-color); }
+
+/* Compact repeating rows: less vertical padding, and an episode's state pills sit side by side (wrapping) instead of
+   one per line, so more cases fit on screen for comparison. */
+.cpm-event-row--dense { padding-top: 6px; padding-bottom: 6px; }
+.cpm-event-row--dense .cpm-event-row__states { flex-direction: row; flex-wrap: wrap; }
+
+/* Phone: the Calculations heading row is hidden as a grid (rows become stacked cards), but its sort buttons stay as
+   one wrapping sort bar. Not sticky there — a wrapped bar would cover too much of a small screen. */
+@media (max-width: 600px) {
+  .cpm-event-head.cpm-calc-row.cpm-table-head--sticky {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    position: static;
+  }
+  .cpm-event-head.cpm-calc-row.cpm-table-head--sticky > span { display: none; }
+}
+
+/* Visible completion of an operator action (acknowledge, shelve, unshelve, note link, republish). The live region
+   stays mounted so it is announced; it takes no space while empty. */
+.cpm-action-receipt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: var(--cpm-text-small);
+  color: var(--element-active-color);
+}
+.cpm-action-receipt:empty { margin: 0; }
+.cpm-action-receipt__icon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  --element-active-color: var(--alert-running-color);
+}
+.cpm-action-receipt__icon > * { width: 18px; height: 18px; }
+
+/* Panel opening: the episode detail, its shelve / unshelve panels and the calculation drawer ease in once.
+   No loop, no flashing; switched off entirely for reduced motion. */
+@keyframes cpm-panel-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes cpm-fade-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.cpm-panel-enter,
+.cpm-shelve { animation: cpm-panel-enter 160ms ease-out; }
+/* fade only: the modal is centred with a transform, which an entering translate would override */
+.cpm-fade-enter { animation: cpm-fade-enter 160ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .cpm-panel-enter,
+  .cpm-shelve,
+  .cpm-fade-enter { animation: none; }
+}

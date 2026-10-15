@@ -16,8 +16,12 @@ public sealed record StoredManifest(Guid EvidenceId, Guid MethodRunId, string Ga
 /// </summary>
 public interface IEvidenceBlobStore
 {
-    Task UpsertManifestAsync(JsonElement manifest, CancellationToken ct);
+    /// <summary>Stores a manifest; returns the id it was stored under (CHG-099: a reconstruction beside a held original gets
+    /// its own id; Guid.Empty = identical to the held original, nothing stored; null = not stored).</summary>
+    Task<Guid?> UpsertManifestAsync(JsonElement manifest, CancellationToken ct);
     Task<bool> PutChunkAsync(Guid evidenceId, int chunkNo, string sha256, byte[] payload, CancellationToken ct);
+    /// <summary>CHG-099: the row a chunk belongs to (a pending reconstruction whose checksum list matches, else the id itself).</summary>
+    Task<Guid?> ResolveChunkTargetAsync(Guid evidenceId, int chunkNo, string sha256, CancellationToken ct);
     Task<StoredManifest?> GetManifestAsync(Guid evidenceId, CancellationToken ct);
     /// <summary>CHG-049: how many chunks are stored, without reading any payload.</summary>
     Task<int> CountChunksAsync(Guid evidenceId, CancellationToken ct);
@@ -29,7 +33,7 @@ public interface IEvidenceBlobStore
     Task<int> ReconcileGateResultIdsAsync(CancellationToken ct);
 }
 
-public sealed class PostgresEvidenceBlobStore : IEvidenceBlobStore
+public sealed partial class PostgresEvidenceBlobStore : IEvidenceBlobStore
 {
     private readonly NpgsqlDataSource _db;
 
@@ -40,94 +44,70 @@ public sealed class PostgresEvidenceBlobStore : IEvidenceBlobStore
     private static long L(JsonElement e, string n) =>
         e.TryGetProperty(n, out var p) && p.ValueKind == JsonValueKind.Number && p.TryGetInt64(out var v) ? v : 0;
 
-    public async Task UpsertManifestAsync(JsonElement m, CancellationToken ct)
+    public async Task<Guid?> UpsertManifestAsync(JsonElement m, CancellationToken ct)
     {
-        if (!Guid.TryParse(S(m, "evidence_id"), out var evidenceId) || !Guid.TryParse(S(m, "method_run_id"), out var runId))
+        if (!Guid.TryParse(S(m, "evidence_id"), out var evidenceId) || !Guid.TryParse(S(m, "method_run_id"), out _))
             throw new ArgumentException("manifest without a valid evidence_id / method_run_id");
-        var columns = m.TryGetProperty("columns", out var c) ? c.GetRawText() : "[\"x\",\"y\"]";
-        var chunkShas = m.TryGetProperty("chunk_sha256", out var cs) ? cs.GetRawText() : "[]";
-        var provenance = m.TryGetProperty("provenance", out var pv) ? pv.GetRawText() : "{}";
         var retentionClass = RetentionClassOf(m);
         var reconstruct = retentionClass == "STANDARD";
+        var analysisRunId = AnalysisRunOf(m);
         await using var conn = await _db.OpenConnectionAsync(ct);
-        // CHG-076: the stale-chunk DELETE and the upsert are ONE transaction; the manifest row is locked first so
-        // a chunk insert (FK key-share lock) cannot slip between them.
+        // the stale-chunk DELETE and the upsert are ONE transaction; the manifest row is locked first so a chunk insert
+        // (FK key-share lock) cannot slip between them (CHG-076)
         await using var tx = await conn.BeginTransactionAsync(ct);
+        if (reconstruct && await UpsertReconstructionAsync(conn, tx, m, evidenceId, analysisRunId, ct) is { } stored)
+        {
+            // CHG-099: held original kept; the rebuild was stored beside it (or was identical and not stored twice)
+            await tx.CommitAsync(ct);
+            return stored == Guid.Empty ? Guid.Empty : stored;
+        }
         await using (var lockRow = new NpgsqlCommand(
             "SELECT 1 FROM analytics.evidence_manifest WHERE evidence_id = @id FOR UPDATE", conn, tx))
         {
             lockRow.Parameters.AddWithValue("id", evidenceId);
             await lockRow.ExecuteNonQueryAsync(ct);
         }
-        // v2.5 (2C.2, NR-060): the same artifact re-emitted by a reconstruction has the same evidence id. An
-        // EXPIRED (retention) or FAILED (corrupt chunk) manifest is revived: back to PENDING, stale chunks dropped,
-        // the new chunk stream completes it.
-        // CHG-076: the capped live run and its uncapped reconstruction share evidence ids (uuidV5(run|kind|role)),
-        // so a reconstruction (STANDARD) also replaces an unpinned PENDING / COMPLETE live row whose bytes differ.
-        // A live re-delivery, an identical re-emit (same sha256) and a pinned row are never touched.
+        // v2.5 (2C.2, NR-060): an EXPIRED (retention) or FAILED (corrupt chunk) manifest is revived by a re-emit of the
+        // same artifact: back to PENDING, stale chunks dropped, the new chunk stream completes it. A held row (PENDING /
+        // COMPLETE) is never touched here — CHG-099: a reconstruction of a held row is stored beside it, above.
         await using (var revive = new NpgsqlCommand("""
             DELETE FROM analytics.evidence_chunk c USING analytics.evidence_manifest m
-            WHERE c.evidence_id = m.evidence_id AND m.evidence_id = @id
-              AND (m.readiness IN ('EXPIRED', 'FAILED')
-                   OR (@reconstruct AND m.readiness IN ('PENDING', 'COMPLETE') AND m.pinned = FALSE
-                       AND m.sha256 IS DISTINCT FROM @sha))
+            WHERE c.evidence_id = m.evidence_id AND m.evidence_id = @id AND m.readiness IN ('EXPIRED', 'FAILED')
             """, conn, tx))
         {
             revive.Parameters.AddWithValue("id", evidenceId);
-            revive.Parameters.AddWithValue("reconstruct", reconstruct);
-            revive.Parameters.AddWithValue("sha", S(m, "sha256") ?? "");
             await revive.ExecuteNonQueryAsync(ct);
         }
-        // CHG-076: on the reconstruction path the class becomes STANDARD (an operator asked for it), except an
-        // EPISODE / PINNED row, which is never demoted. method_run_id / gate_result_id are never rewritten.
+        // A legacy reconstruction (no analysis run id) reviving an EXPIRED / FAILED row: STANDARD unless EPISODE / PINNED.
+        // CHG-099 reconstructions never reach this statement (UpsertReconstructionAsync files them beside the original).
         await using var cmd = new NpgsqlCommand("""
             INSERT INTO analytics.evidence_manifest
                 (evidence_id, method_run_id, gate_id, artifact_kind, role_or_path,
                  x_quantity, x_unit, y_quantity, y_unit, data_type, columns, encoding,
                  calculation_samples, display_points, chunk_count, total_bytes, sha256, chunk_sha256,
-                 provenance, source_commit, jar_sha256, retention_class)
+                 provenance, source_commit, jar_sha256, retention_class, analysis_run_id)
             VALUES (@id, @run, @gate, @kind, @role, @xq, @xu, @yq, @yu, @dt, @cols, @enc,
-                    @calc, @disp, @chunks, @bytes, @sha, @chunkShas, @prov, @commit, @jar, @class)
+                    @calc, @disp, @chunks, @bytes, @sha, @chunkShas, @prov, @commit, @jar, @class, @arun)
             ON CONFLICT (evidence_id) DO UPDATE SET
                 readiness = 'PENDING', readiness_reason = NULL, completed_at = NULL, created_at = NOW(),
                 columns = EXCLUDED.columns, calculation_samples = EXCLUDED.calculation_samples, display_points = EXCLUDED.display_points,
                 chunk_count = EXCLUDED.chunk_count, total_bytes = EXCLUDED.total_bytes, sha256 = EXCLUDED.sha256,
                 chunk_sha256 = EXCLUDED.chunk_sha256, provenance = EXCLUDED.provenance,
                 source_commit = EXCLUDED.source_commit, jar_sha256 = EXCLUDED.jar_sha256,
+                analysis_run_id = EXCLUDED.analysis_run_id,
                 retention_class = CASE WHEN NOT @reconstruct THEN analytics.evidence_manifest.retention_class
                                        WHEN analytics.evidence_manifest.retention_class IN ('EPISODE', 'PINNED')
                                             THEN analytics.evidence_manifest.retention_class
                                        ELSE 'STANDARD' END
             WHERE analytics.evidence_manifest.readiness IN ('EXPIRED', 'FAILED')
-               OR (@reconstruct AND analytics.evidence_manifest.readiness IN ('PENDING', 'COMPLETE')
-                   AND analytics.evidence_manifest.pinned = FALSE
-                   AND analytics.evidence_manifest.sha256 IS DISTINCT FROM EXCLUDED.sha256)
             """, conn, tx);
-        cmd.Parameters.AddWithValue("id", evidenceId);
-        cmd.Parameters.AddWithValue("run", runId);
-        cmd.Parameters.AddWithValue("gate", S(m, "gate_id") ?? "");
-        cmd.Parameters.AddWithValue("kind", S(m, "artifact_kind") ?? "");
-        cmd.Parameters.AddWithValue("role", (object?)S(m, "role_or_path") ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("xq", (object?)S(m, "x_quantity") ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("xu", (object?)S(m, "x_unit") ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("yq", (object?)S(m, "y_quantity") ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("yu", (object?)S(m, "y_unit") ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("dt", S(m, "data_type") ?? "f64");
-        cmd.Parameters.Add(new NpgsqlParameter("cols", NpgsqlDbType.Jsonb) { Value = columns });
-        cmd.Parameters.AddWithValue("enc", S(m, "encoding") ?? "f64le+gzip");
-        cmd.Parameters.AddWithValue("calc", (int)L(m, "calculation_samples"));
-        cmd.Parameters.AddWithValue("disp", (int)L(m, "display_points"));
-        cmd.Parameters.AddWithValue("chunks", (int)L(m, "chunk_count"));
-        cmd.Parameters.AddWithValue("bytes", L(m, "total_bytes"));
-        cmd.Parameters.AddWithValue("sha", S(m, "sha256") ?? "");
-        cmd.Parameters.Add(new NpgsqlParameter("chunkShas", NpgsqlDbType.Jsonb) { Value = chunkShas });
-        cmd.Parameters.Add(new NpgsqlParameter("prov", NpgsqlDbType.Jsonb) { Value = provenance });
-        cmd.Parameters.AddWithValue("commit", (object?)S(m, "sourceCommit") ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("jar", (object?)S(m, "jarSha256") ?? DBNull.Value);
+        BindManifest(cmd, m, evidenceId);
         cmd.Parameters.AddWithValue("class", retentionClass);
         cmd.Parameters.AddWithValue("reconstruct", reconstruct);
-        await cmd.ExecuteNonQueryAsync(ct);
+        cmd.Parameters.AddWithValue("arun", reconstruct && analysisRunId is { } a ? a : DBNull.Value);
+        var n = await cmd.ExecuteNonQueryAsync(ct);
         await tx.CommitAsync(ct);
+        return n > 0 ? evidenceId : null;
     }
 
     /// <summary>

@@ -19,6 +19,7 @@ import {
   EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader,
   fmtDateTime, QueryError } from './shared';
 import { LoopContextBar } from './context/LoopContextBar';
+import { pipelineHref } from './cpaHref';
 import { gateTone } from './gateStatus';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
 import LoopCombobox from './LoopCombobox';
@@ -37,6 +38,7 @@ import { gateMark } from './gateStatus';
 import { windowLabel } from './windowLabel';
 import { LoopNotes } from './investigation/LoopNotes';
 import { ReasonedButton } from './ReasonedButton';
+import { readable } from './evidence/format';
 
 /** Long-tier metric fields relevant per gate (real stored fields only). */
 // CHG-065: fractions (0–1) are shown × 100 as %, as on the Window Inspector and Investigation
@@ -93,7 +95,7 @@ export const CpmReplay: React.FC = () => {
   const windowFellBack = !!windowEnd && windows.length > 0
     && !windows.some(w => w.windowEnd === windowEnd);
 
-  // The long-tier KPI row for the same 24h window carries the metric values.
+  // The long-tier KPI row for the same fused window (12h / 24h) carries the metric values.
   const kpiRow: CpmKpiRow | undefined = useCpmKpisRange(
     loopId, windowKind,
     selected?.windowStart ?? undefined,
@@ -194,7 +196,7 @@ export const CpmReplay: React.FC = () => {
             removed. Each now carries a disabled option naming what is missing.
           */}
           <label className="cpm-field">
-            <span className="cpm-field__label">Evaluated window (24h)</span>
+            <span className="cpm-field__label">Evaluated window ({windowKind})</span>
             <select className="cpm-select" value={selected?.windowEnd ?? ''}
               disabled={windows.length === 0}
               onChange={e => setParams(p => { p.set('window', e.target.value); return p; }, { replace: true })}>
@@ -203,7 +205,7 @@ export const CpmReplay: React.FC = () => {
                   {!loopId ? 'Select a loop first'
                     : history.isLoading ? 'Loading windows…'
                       : history.isError ? 'Window list unavailable'
-                        : 'No evaluated 24h windows for this loop'}
+                        : `No evaluated ${windowKind} windows for this loop`}
                 </option>
               )}
               {windows.map(w => (
@@ -261,8 +263,10 @@ export const CpmReplay: React.FC = () => {
         )}
         {history.isError && <QueryError title="Gate history unavailable" error={history.error} retry={() => void history.refetch()} />}
         {loopId && !selected && !history.isLoading && !history.isError && (
-          <EmptyState title="No evaluated 24h windows for this loop"
-            copy="Replay needs a stored fused result; run the loop long enough to complete a window, or recompute from history." />
+          // CHG-098 (SME review 2 #29): what to try — the other window size, or the engine.
+          <EmptyState title={`No evaluated ${windowKind} windows for this loop`}
+            copy="Replay needs a stored result for a completed evaluation window, and this loop has none of this size yet. Switch 12 h / 24 h at the top of the page, or check Pipeline Health if a window is overdue."
+            next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />
         )}
         {raw.isLoading && <EmptyState title="Loading raw slice…" />}
         {raw.isError && (
@@ -270,8 +274,10 @@ export const CpmReplay: React.FC = () => {
             error={raw.error} retry={() => void raw.refetch()} />
         )}
         {selected && !raw.isLoading && !raw.isError && points.length === 0 && (
+          // CHG-098 (SME review 2 #29): plain cause, then the mapping; the historian series last.
           <EmptyState title="No raw historian data for this window"
-            copy={`Nothing stored at ${series} between the window bounds.`} />
+            copy={`No raw samples were stored for this loop between the window's start and end. Check its signal mapping in the Loop Registry, or pick another window. (Historian series: ${series})`}
+            next={loopId ? [{ label: 'Signal mapping in the Loop Registry', to: `/cpm/registry?loop=${encodeURIComponent(loopId)}` }] : undefined} />
         )}
         {points.length > 0 && (
           <ReplayChart points={points} pvUnit={loop?.engineering?.pvUnit ?? ''} phasePlane={isShapeGate} cursorPct={cursorPct} onCursor={setCursorPct}
@@ -304,7 +310,7 @@ export const CpmReplay: React.FC = () => {
             return (
               <KvRow key={m.field} label={m.label}>
                 {v != null
-                  ? (m.pct ? `${(v * 100).toFixed(1)} %` : Number.isInteger(v) ? v.toLocaleString() : v.toFixed(3))
+                  ? (m.pct ? `${(v * 100).toFixed(1)} %` : Number.isInteger(v) ? v.toLocaleString() : readable(v))
                   : "— (not in this window's result)"}
               </KvRow>
             );

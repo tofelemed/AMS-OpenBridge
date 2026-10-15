@@ -77,6 +77,8 @@ public sealed class CpmFleetKpiController : ControllerBase
                 symptomOnly = Count("symptom"), unrecognised = loops.Count(l => l.Outcome == KpiOutcome.Unrecognised),
             },
             kpis = FleetKpiClassifier.Figures(loops, t),
+            // CHG-093 (SME review 2 #10/#11): the Performance headline over the whole scope, with its basis
+            performance = FleetKpiPerformance.Summarise(loops),
             previous = new
             {
                 asOf = beforeAt,
@@ -170,6 +172,7 @@ public sealed class CpmFleetKpiController : ControllerBase
         saturationMax = t.SaturationMax, g0CompletenessMin = t.G0CompletenessMin, g0BadQualityMax = t.G0BadQualityMax,
         findingBands = new[] { "SUSPECTED", "CONFIRMED" }, symptomBands = new[] { "DETECTED", "CLASSIFIED" },
         noFaultCodes = new[] { "NO_CALL", "INSUFFICIENT_EVIDENCE" },
+        acceptableNeeds = new[] { "NORMAL_MODE", "NOT_SATURATED", "G3_PASS", "G4_NOT_STRONG" },   // CHG-093
         reference = "kpi_calculation_logic/KPI-LOGIC.md",
     };
 

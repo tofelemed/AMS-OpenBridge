@@ -22,6 +22,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { ReasonedButton } from './ReasonedButton';
 import { ObiCloseGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-close-google';
 import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-left-google';
 import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-right-google';
@@ -172,16 +173,20 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
               : !cell
                 ? { disabled: true, title: `${gateKey} is not part of this loop's latest ${windowKind} result` }
                 : !runId
-                  ? { disabled: true, title: 'This row predates run identity (v2.5); open Evidence Replay or the Window Inspector instead' }
+                  ? { disabled: true, title: 'This result was stored before analysis runs were kept (before v2.5); use Replay or the Window Inspector instead' }
                   : { disabled: false, title: `Open method run ${runId}` };
         const replayPrimary = workbench.disabled && !gates.isLoading && !fetchFailed && !noWindowYet;
         const replay = replayHref(loopId, { gate: gateKey, window: matrix?.windowEnd, kind: windowKind });
         return (
           <div className="cpm-inspector__actions">
-            <ObcButton variant={replayPrimary ? 'normal' : 'raised'} disabled={workbench.disabled} title={workbench.title}
-              onClick={() => { if (runId) navigate(workbenchHref(loopId, runId, gateKey)); }}>
-              Open in workbench ›
-            </ObcButton>
+            <span title={workbench.title}>
+              {/* CHG-098 (SME review 2 #29): why the workbench is unavailable shows on screen, not only on hover */}
+              <ReasonedButton variant={replayPrimary ? 'normal' : 'raised'} disabled={workbench.disabled}
+                reason={workbench.disabled && !gates.isLoading ? workbench.title : null}
+                onClick={() => { if (runId) navigate(workbenchHref(loopId, runId, gateKey)); }}>
+                Open in workbench ›
+              </ReasonedButton>
+            </span>
             <ObcButton variant={replayPrimary ? 'raised' : 'normal'}
               title={matrix?.windowEnd ? `Replay the ${windowKind} window ending ${fmtDateTime(matrix.windowEnd)}` : `Replay this loop's newest ${windowKind} window`}
               onClick={() => navigate(replay)}>
@@ -221,6 +226,7 @@ export const GateEvidencePanel: React.FC<GateEvidencePanelProps> = ({
         <CpmIconButton
           label={prev ? `Previous gate, ${prev}` : 'Previous gate'}
           disabled={!prev}
+          reason="Already the first gate"
           onClick={() => { if (prev) onSelectGate(prev); }}
         >
           <ObiChevronLeftGoogle />
@@ -228,6 +234,7 @@ export const GateEvidencePanel: React.FC<GateEvidencePanelProps> = ({
         <CpmIconButton
           label={next ? `Next gate, ${next}` : 'Next gate'}
           disabled={!next}
+          reason="Already the last gate"
           onClick={() => { if (next) onSelectGate(next); }}
         >
           <ObiChevronRightGoogle />
@@ -321,7 +328,8 @@ export const GateGuidePanel: React.FC<{
     <div className="cpm-inspector__body">
       <ol className="cpm-copy cpm-guide-steps">
         <li>Pick a gate in the roll-up to see which loops it is holding back.</li>
-        <li>Click any cell in the matrix to open the evidence behind that gate here.</li>
+        {/* CHG-098 (SME review 2 #24): the readable view is the default; the full matrix is the advanced one */}
+        <li>Each loop lists only the checks behind its result, by name. Click one to open its evidence here; switch to the full G0–G15 matrix to see every gate.</li>
         <li>The result column is the fused verdict those gates produced.</li>
       </ol>
       {summary && (

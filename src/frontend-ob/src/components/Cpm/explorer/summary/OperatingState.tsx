@@ -72,7 +72,9 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
       {noData ? (
         <EmptyState
           title="No operating data"
-          copy={`No live publisher, and no samples stored at ${series} in ${range.live ? 'the last 8 hours' : 'this period'}.`}
+          // CHG-098 (SME review 2 #29): plain cause, then the mapping to check; the historian series last.
+          copy={`Nothing is publishing live values for this loop, and no samples were stored in ${range.live ? 'the last 8 hours' : 'this period'}. Check its signal mapping in the Loop Registry, or pick another period. (Historian series: ${series})`}
+          next={[{ label: 'Signal mapping in the Loop Registry', to: `/cpm/registry?loop=${encodeURIComponent(loop.loopId)}` }]}
         />
       ) : (
         <>

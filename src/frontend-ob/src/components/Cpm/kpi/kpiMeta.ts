@@ -29,8 +29,9 @@ const fresh = (b: FleetKpiBasis) => `newest ${b.windowKind} result ≤ ${Math.ro
 
 export const KPI_META: Partial<Record<FleetKpiKey, KpiMeta>> = {
   acceptable: { Icon: ObiSpeedGood, higherIsBetter: true,
-    formula: 'count(no fault found ∧ AUTO ≥ normal-mode limit ∧ time at OP limit ≤ saturation limit) ÷ monitored loops',
-    threshold: b => `No fault · AUTO ≥ ${pc(b.normalModeMin)} · at limit ≤ ${pc(b.saturationMax)}` },
+    // CHG-093 (SME review 2 #12): no fault identified is a diagnosis; acceptable control needs its own performance criteria
+    formula: 'count(no fault identified ∧ AUTO ≥ normal-mode limit ∧ time at OP limit ≤ saturation limit ∧ G3 pass ∧ G4 not strong) ÷ monitored loops',
+    threshold: b => `No fault · AUTO ≥ ${pc(b.normalModeMin)} · at limit ≤ ${pc(b.saturationMax)} · good-error share ≥ floor (G3) · effort not strong (G4)` },
   'normal-mode': { Icon: ObiAuto, higherIsBetter: true,
     formula: 'count(AUTO % ≥ limit) ÷ loops with a measured mode;  AUTO % = time in AUTO or CASCADE ÷ window time',
     threshold: b => `AUTO / CASCADE ≥ ${pc(b.normalModeMin)} of the window` },
@@ -69,8 +70,9 @@ export const basisShort = (b: FleetKpiBasis): string => `${b.windowKind} window 
 export interface KpiDelta { points: number; direction: 'up' | 'down' | 'flat'; good: boolean | null; text: string; title: string }
 
 /**
- * Change in the KPI's share since the same classification 24 h earlier, shown as a plain % (it is percentage points of the
- * share — the hover title says so); a share, not a count, so a fleet that grew does not read as a change. Null when there is no earlier picture to compare with.
+ * Change in the KPI's share since the same classification 24 h earlier, in PERCENTAGE POINTS ("+23 pp": 50 % → 73 % is
+ * 23 points, not a 23 % relative change — SME review 2 #13); a share, not a count, so a fleet that grew does not read as a
+ * change. Null when there is no earlier picture to compare with.
  */
 export function kpiDelta(f: FleetKpiFigure, k: FleetKpis): KpiDelta | null {
   const before = k.previous?.kpis.find(p => p.key === f.key);
@@ -83,7 +85,7 @@ export function kpiDelta(f: FleetKpiFigure, k: FleetKpis): KpiDelta | null {
   return {
     points, direction,
     good: direction === 'flat' ? null : (direction === 'up') === better,
-    text: `${Math.abs(points)} %`,
+    text: direction === 'flat' ? '±0 pp' : `${points > 0 ? '+' : '−'}${Math.abs(points)} pp`,
     title: `Change since 24 h ago: ${Math.round(then)} % (${before.count} of ${before.denominator}) → ${Math.round(now)} % now `
       + `(${f.count} of ${f.denominator}), ${direction === 'flat' ? 'no change' : `${Math.abs(points)} percentage points ${direction}`}`,
   };

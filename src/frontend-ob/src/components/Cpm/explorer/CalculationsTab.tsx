@@ -21,6 +21,7 @@ import type { CpmLoop } from '../../../api/cpmApi';
 import { useCpmKpis, useCpmResolutions, useLatestGates } from '../../../hooks/useCpm';
 import { ApiError } from '../../../api/apiFetch';
 import { EmptyState, KvRow, PanelHead, QueryError, TonePill, fmtWindowShape, windowSpecsOf } from '../shared';
+import { pipelineHref } from '../cpaHref';
 import { buildTierGroups, gateTone } from '../gateStatus';
 import { WindowResultsPanel } from '../windows/WindowResults';
 import { codeLabel } from '../vocabulary';
@@ -49,8 +50,10 @@ const FusedGates: React.FC<{ loop: CpmLoop; windowKind: string; firesOnLabel: st
           error={gates.error} retry={() => void gates.refetch()} />
       )}
       {!gates.isLoading && !gates.data && (!gates.isError || isNoVerdictYet(gates.error)) && (
+        // CHG-098 (SME review 2 #29): the next step when the verdict is overdue.
         <EmptyState title={`No fused ${windowKind} verdict yet`}
-          copy={`Fusion fires on ${firesOnLabel} windows; outcomes appear once one has been evaluated.`} />
+          copy={`Fusion fires on ${firesOnLabel} windows; outcomes appear once one has been evaluated. Switch 12 h / 24 h at the top of the page, or check Pipeline Health if a result is overdue.`}
+          next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />
       )}
       {tiers.map(tier => (
         <section key={tier.label} className="cpm-gate-tier">
@@ -89,7 +92,8 @@ const ShortWindowLatest: React.FC<{ loop: CpmLoop; windowKind: string }> = ({ lo
       )}
       {!kpis.isLoading && !kpis.isError && !row && (
         <EmptyState title={`No ${windowKind} windows stored yet`}
-          copy="Rows appear as the short-feature engine emits results at this granularity." />
+          copy="Rows appear once the analysis engine has evaluated a window of this size. Check Pipeline Health if they are overdue."
+          next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />
       )}
       {row && <WindowResultsPanel row={row} tier="short" bare />}
       <div className="cpm-filter-row" style={{ marginTop: 8 }}>

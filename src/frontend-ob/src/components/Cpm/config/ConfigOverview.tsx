@@ -82,9 +82,9 @@ export const ConfigOverview: React.FC<ConfigOverviewProps> = ({ loops, loopsLoad
         {!loopsLoading && loopsError == null && loops.length > 0 && filtered.length === 0 && <EmptyState title="No loop matches" copy={`Nothing in scope matches "${query}".`} />}
         {pageCount > 1 && (
           <div className="cpm-pager">
-            <ObcButton variant="flat" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={safePage === 0}>← Prev</ObcButton>
+            <span title={safePage === 0 ? 'Already on the first page' : undefined}><ObcButton variant="flat" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={safePage === 0}>← Prev</ObcButton></span>
             <span className="cpm-event-row__sub">Page {safePage + 1} of {pageCount}</span>
-            <ObcButton variant="flat" onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))} disabled={safePage >= pageCount - 1}>Next →</ObcButton>
+            <span title={safePage >= pageCount - 1 ? 'Already on the last page' : undefined}><ObcButton variant="flat" onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))} disabled={safePage >= pageCount - 1}>Next →</ObcButton></span>
           </div>
         )}
       </section>

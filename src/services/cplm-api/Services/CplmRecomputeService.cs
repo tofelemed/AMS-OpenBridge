@@ -181,7 +181,7 @@ public sealed class CplmRecomputeService : ICplmRecomputeService
         }
         var analysisRunId = Guid.NewGuid();
         var replayId = analysisRunId.ToString("N")[..12];
-        await _runs.InsertAsync(analysisRunId, loopId, purpose, createdBy, idempotencyKey, reconstruct, ct);
+        await _runs.InsertAsync(analysisRunId, loopId, purpose, createdBy, idempotencyKey, reconstruct, ct, support.Source);
         if (historian || reconstruct is not null) await _runs.SetRequestedRangeAsync(analysisRunId, support.FromMs, support.ToMs, ct);
         string jarId;
         try

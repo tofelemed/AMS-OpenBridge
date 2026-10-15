@@ -84,13 +84,13 @@ export function signalTrendOption(i: SignalTrendInput) {
   const markArea = evaluated ? {
     silent: true,
     itemStyle: { color: grey, opacity: 0.12, borderColor: grey, borderWidth: 1, borderType: 'dashed' },
-    label: { show: true, position: 'insideTop', color: grey, fontSize: 11, formatter: evaluated.label },
+    label: { show: true, position: 'insideTop', color: grey, fontSize: 12, formatter: evaluated.label },
     data: [[{ xAxis: evaluated.startMs }, { xAxis: evaluated.endMs }]],
   } : undefined;
   const at = (p: CpmTrendPoint, ...keys: string[]) => keys.map(k => num(p[k])).find(v => v != null) ?? null;
   const byTs = new Map(points.map(p => [p.ts, p]));
   const axisStyle = (colour: string) => ({
-    nameTextStyle: { color: colour, fontSize: 11 },
+    nameTextStyle: { color: colour, fontSize: 12 },
     axisLabel: { color: grey },
     axisLine: { show: true, lineStyle: { color: colour } },
   });

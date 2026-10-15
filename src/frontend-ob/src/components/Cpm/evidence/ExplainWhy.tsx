@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { EvidenceManifest, MethodRun } from '../../../api/cpm/evidence';
 import { getGateHistory } from '../../../api/cpm/gates';
 import { getEffectiveConfig } from '../../../api/cpm/config';
-import { gateMark } from '../gateStatus';
+import { gateMark, isNoResult } from '../gateStatus';
 import { codeLabel, diagnosisLabel, lowerFirst } from '../vocabulary';
 import { limitationOf } from '../explorer/summary/summaryText';
 import { CauseBreakdownRows } from '../CauseBreakdown';
@@ -60,7 +60,7 @@ export const ExplainWhy: React.FC<{
   const reasonText = reason === 'NO_VP' && vpAbsent(inputs) ? 'this loop has no valve position, so it does not apply'
     : reason ? reasonSentence(reason, { gate, eligibilityDetail }) : '';
   const result = status
-    ? `${gate} ${name}: ${mark.meaning === 'none' ? lowerFirst(codeLabel(status)) : mark.label}${reasonText ? ` — ${reasonText}` : ''}.`
+    ? `${gate} ${name}: ${isNoResult(mark.meaning) ? lowerFirst(codeLabel(status)) : mark.label}${reasonText ? ` — ${reasonText}` : ''}.`
     : `${gate} ${name}: no verdict recorded for this run.`;
   const flags = fused?.observabilityFlags ?? [];
   const open = [...new Set(flagsForLoop(flags, inputs).filter(f => (LIMITS_GATE[f] ?? []).some(g => g === '*' || g === gate)).map(f => limitationOf(f, inputs)))];

@@ -39,7 +39,7 @@ export function buildRelationshipGraph(loopId: string, peers: PeerRow[], pens: R
   const links = peers.map(p => ({
     source: p.direction === 'PEER_LEADS_LOOP' ? p.id : loopId, target: p.direction === 'PEER_LEADS_LOOP' ? loopId : p.id,
     lineStyle: { color: p.associated ? pens.amber : pens.grey, width: p.associated ? 2 : 1, type: p.associated ? 'solid' : 'dashed', opacity: p.state === 'ANALYSED' ? 0.9 : 0.4 },
-    label: { show: true, formatter: p.associated ? `${phrase(p.direction)} · lag ${p.lagS ?? '—'} s · coh ${p.coherence?.toFixed(2) ?? '—'}` : p.state.toLowerCase().replace(/_/g, ' '), color: pens.grey, fontSize: 11 },
+    label: { show: true, formatter: p.associated ? `${phrase(p.direction)} · lag ${p.lagS ?? '—'} s · coh ${p.coherence?.toFixed(2) ?? '—'}` : p.state.toLowerCase().replace(/_/g, ' '), color: pens.grey, fontSize: 12 },
     symbol: p.associated && p.direction !== 'SIMULTANEOUS' ? ['none', 'arrow'] : ['none', 'none'],
   }));
   return {
@@ -78,7 +78,7 @@ export const G13Record: React.FC<{ d: DecodedArtifact; loopId: string }> = ({ d,
                   <td><TonePill tone={p.state === 'ANALYSED' ? (p.associated ? 'warn' : 'good') : 'muted'}>{p.state}</TonePill></td>
                   <td>{p.associated ? phrase(p.direction) : '—'}</td>
                   <td className="cpm-mono">{p.lagS ?? '—'}</td>
-                  <td className="cpm-mono">{p.coherence?.toFixed(3) ?? '—'}</td>
+                  <td className="cpm-mono">{p.coherence?.toFixed(2) ?? '—'}</td>
                 </tr>
               ))}
             </tbody>

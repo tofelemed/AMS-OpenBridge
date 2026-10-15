@@ -47,7 +47,10 @@ export function confirmationProse(c: CpmConfirmation | null | undefined, legacy 
         ? (vpAbsentOnLoop ? NO_VP_ON_LOOP_COPY : NO_VP_COPY)
         : 'VP is mapped but showed no non-following dwell: the final-element claim is not confirmed and stops at suspected.';
     case 'NOT_APPLICABLE':
-      return 'The verdict is a symptom family (oscillation or effort): a final-element confirmation does not apply.';
+      // CHG-092 (SME 2 #19): VP_NOT_APPLICABLE = a valve claim on a loop without a valve position (CHG-088), not a symptom family
+      return c.reason === 'VP_NOT_APPLICABLE' || vpAbsentOnLoop
+        ? 'This loop has no valve position, so a final-element confirmation (G14) does not apply: a valve cause can be suspected, never confirmed.'
+        : 'The verdict is a symptom family (oscillation or effort): a final-element confirmation does not apply.';
     default:
       return `G14 confirmation state ${c.state} (${c.reason || 'no reason served'}).`;
   }

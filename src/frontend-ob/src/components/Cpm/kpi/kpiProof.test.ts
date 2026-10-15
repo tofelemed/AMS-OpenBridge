@@ -34,10 +34,19 @@ describe('KPI proof words (CHG-082)', () => {
 
   it('no evidence score without a verdict; links reach the loop, its window, the formula and the trend', () => {
     expect(verdictText(row({ state: 'NotAssessable', reason: 'INCOMPLETE_DATA', evidenceScore: null }))).toBe('Not assessable — incomplete data');
-    expect(verdictText(row({ diagnosis: 'NO_CALL', evidenceScore: 10 }))).toBe('No fault found · evidence 10');
+    expect(verdictText(row({ diagnosis: 'NO_CALL', evidenceScore: 10 }))).toBe('No fault identified · evidence 10');
     const links = proofLinks(row({})).map(l => l.label);
     expect(links).toEqual(['Loop', 'Window', 'Calculations', 'Trend']);
     expect(proofLinks(row({ state: 'NeverEvaluated', windowEnd: null })).map(l => l.label)).toEqual(['Loop']);
     expect(proofLinks(row({})).find(l => l.label === 'Window')!.href).toBe('/cpm/windows?loop=FIC1&profile=24h&window=2026-10-10T12%3A00%3A00Z');
+  });
+});
+
+describe('why a no-fault loop is not performing acceptably (CHG-093, SME review 2 #12)', () => {
+  it('names every missed performance criterion', () => {
+    const r = row({ state: 'Assessed', diagnosis: 'NO_CALL', limitedBy: ['G3_BELOW_FLOOR', 'G4_STRONG'],
+      inputs: { goodErrorPct: 0.42, g4Status: 'STRONG', manualPct: 0 } });
+    expect(contextText(r, 'no-fault-limited'))
+      .toBe('limited by: good-error share below the floor (G3), strong actuator activity (G4) · good-error 42 % · G4 strong · manual 0 %');
   });
 });

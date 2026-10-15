@@ -14,6 +14,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import {
   EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader,
   fmtDateTime,
+  QueryError,
 } from './shared';
 import { usePagedSlice } from '../shared/ListPager';
 import { ConfigApprovalQueue } from './config/ConfigApprovalQueue';
@@ -154,8 +155,7 @@ export const CpmGovernance: React.FC = () => {
             copy="The token was accepted by the app but not by audit-service — re-login to refresh claims." />
         )}
         {canReadAudit && audit.isError && !auditForbidden && (
-          <EmptyState title="Audit service unreachable"
-            copy={(audit.error as Error)?.message ?? 'unknown error'} />
+          <QueryError title="Audit service unreachable" error={audit.error} retry={() => void audit.refetch()} />
         )}
         {canReadAudit && audit.data && auditRows.length === 0 && (
           <EmptyState title="No governance events recorded yet"
@@ -181,8 +181,8 @@ export const CpmGovernance: React.FC = () => {
         ))}
         {pageCount > 1 && (
           <div className="cpm-pager">
-            <ObcButton variant="flat" disabled={safePage === 0}
-              onClick={() => setPage(p => Math.max(0, p - 1))}>← Prev</ObcButton>
+            <span title={safePage === 0 ? 'Already on the first page' : undefined}><ObcButton variant="flat" disabled={safePage === 0}
+              onClick={() => setPage(p => Math.max(0, p - 1))}>← Prev</ObcButton></span>
             <span className="cpm-event-row__sub">
               {safePage * AUDIT_PAGE_SIZE + 1}–
               {Math.min((safePage + 1) * AUDIT_PAGE_SIZE, auditRows.length)} of{' '}
@@ -191,8 +191,8 @@ export const CpmGovernance: React.FC = () => {
                 ? ` · newest ${AUDIT_TAKE} of ${audit.data!.total} — older entries are not fetched`
                 : ''}
             </span>
-            <ObcButton variant="flat" disabled={safePage >= pageCount - 1}
-              onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}>Next →</ObcButton>
+            <span title={safePage >= pageCount - 1 ? 'Already on the last page' : undefined}><ObcButton variant="flat" disabled={safePage >= pageCount - 1}
+              onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}>Next →</ObcButton></span>
           </div>
         )}
       </section>
@@ -259,8 +259,7 @@ export const CpmGovernance: React.FC = () => {
           )}
           {matrix.canRead && matrix.isLoading && <EmptyState title="Reading roles…" />}
           {matrix.canRead && matrix.isError && (
-            <EmptyState title="RBAC model unavailable"
-              copy={(matrix.error as Error)?.message ?? 'auth-service did not answer.'} />
+            <QueryError title="RBAC model unavailable" error={matrix.error} retry={() => void matrix.refetch()} />
           )}
 
           {matrix.canRead && matrix.data && (

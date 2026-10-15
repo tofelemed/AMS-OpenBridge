@@ -210,8 +210,8 @@ export const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
 
       {pageCount > 1 && (
         <div className="cpm-pager">
-          <ObcButton variant="flat" onClick={() => setPage(p => Math.max(0, p - 1))}
-            disabled={safePage === 0}>← Prev</ObcButton>
+          <span title={safePage === 0 ? 'Already on the first page' : undefined}><ObcButton variant="flat" onClick={() => setPage(p => Math.max(0, p - 1))}
+            disabled={safePage === 0}>← Prev</ObcButton></span>
           <span className="cpm-event-row__sub">
             {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, runs.length)} of{' '}
             {runs.length} run(s) from {rows.length} episode(s)
@@ -219,8 +219,8 @@ export const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
               ? ` (newest ${HISTORY_QUERY.limit}; older not fetched)` : ''}
             {' '}· Page {safePage + 1} of {pageCount}
           </span>
-          <ObcButton variant="flat" onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
-            disabled={safePage >= pageCount - 1}>Next →</ObcButton>
+          <span title={safePage >= pageCount - 1 ? 'Already on the last page' : undefined}><ObcButton variant="flat" onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
+            disabled={safePage >= pageCount - 1}>Next →</ObcButton></span>
         </div>
       )}
     </div>

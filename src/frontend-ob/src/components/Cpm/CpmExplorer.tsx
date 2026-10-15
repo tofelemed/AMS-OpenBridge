@@ -141,9 +141,10 @@ export const CpmExplorer: React.FC = () => {
           <section className="cpm-surface">
             <EmptyState
               title={scope.active ? 'No loops in this scope' : 'Select a loop'}
+              // CHG-098 (SME review 2 #29): say where to pick a loop.
               copy={scope.active
                 ? 'Widen the site, area or unit filter to see loops.'
-                : undefined}
+                : 'Pick a loop in the list to open its summary, signals, calculations and history.'}
             />
           </section>
         )}

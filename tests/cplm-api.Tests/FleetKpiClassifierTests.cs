@@ -13,11 +13,11 @@ public sealed class FleetKpiClassifierTests
 
     private static KpiLoopRow Row(string? diagnosis, double ageS = 600, double? auto = 1.0, double? sat = 0.0,
         double? completeness = 1.0, double? badQ = 0.0, string? g0 = null, bool never = false, double? confidence = 0.9,
-        double? manual = 0.0) => new()
+        double? manual = 0.0, string? g3 = "PASS", string? g4 = "PASS") => new()
     {
         LoopId = $"L{Guid.NewGuid():N}"[..10], Diagnosis = diagnosis, WindowEnd = never ? null : Now.AddSeconds(-ageS),
         AutoPct = auto, ManualPct = manual, SaturationPct = sat, Completeness = completeness, BadQualityPct = badQ,
-        Gate0Reason = g0, Confidence = confidence,
+        Gate0Reason = g0, Confidence = confidence, G3Status = g3, G4Status = g4,
     };
 
     [Fact]
@@ -104,6 +104,28 @@ public sealed class FleetKpiClassifierTests
     {
         C(Row("NO_CALL", sat: 0.27)).Outcome.Should().Be(KpiOutcome.NoFaultLimited, "a saturated loop has no authority");
         C(Row("NO_CALL", sat: 0.10)).Outcome.Should().Be(KpiOutcome.Acceptable, "exactly 10 % is not more than 10 %");
+    }
+
+    [Theory]   // CHG-093 (SME review 2 #12): no fault identified is a diagnosis; acceptable control needs its own criteria
+    [InlineData("PASS", "PASS", KpiOutcome.Acceptable, "")]
+    [InlineData("PASS", "WARN", KpiOutcome.Acceptable, "")]
+    [InlineData("WARN", "PASS", KpiOutcome.NoFaultLimited, "G3_BELOW_FLOOR")]
+    [InlineData("NOT_EVALUATED", "PASS", KpiOutcome.NoFaultLimited, "G3_NOT_EVALUATED")]
+    [InlineData(null, "PASS", KpiOutcome.NoFaultLimited, "G3_NOT_EVALUATED")]
+    [InlineData("PASS", "STRONG", KpiOutcome.NoFaultLimited, "G4_STRONG")]
+    public void Performing_acceptably_needs_the_performance_gates_not_only_no_fault(string? g3, string? g4, KpiOutcome outcome, string limit)
+    {
+        var l = C(Row("INSUFFICIENT_EVIDENCE", g3: g3, g4: g4));
+        l.Outcome.Should().Be(outcome);
+        if (limit == "") l.LimitedBy.Should().BeEmpty();
+        else l.LimitedBy.Should().Equal(limit);
+    }
+
+    [Fact]
+    public void Every_missed_criterion_is_named()
+    {
+        C(Row("NO_CALL", auto: 0.5, sat: 0.3, g3: "WARN", g4: "STRONG")).LimitedBy
+            .Should().Equal("OUT_OF_MODE", "SATURATED", "G3_BELOW_FLOOR", "G4_STRONG");
     }
 
     [Fact]

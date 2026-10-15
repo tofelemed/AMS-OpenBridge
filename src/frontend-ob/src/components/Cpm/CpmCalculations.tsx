@@ -8,14 +8,14 @@
  * latest values read from the real short/long feature rows — honest coverage,
  * not the prototype's generated 143-row fixture.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import WindowKindToggle from './explorer/summary/WindowKindToggle';
 import { WINDOW_KINDS, useWindowKind } from './useWindowKind';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, PanelHead, TonePill, WorkspaceHeader, toneFor, fmtDateTime,
-  fmtWindowShape, windowSpecsOf,
+  fmtWindowShape, windowSpecsOf, fmtDuration, QueryError,
 } from './shared';
 import { LoopContextBar } from './context/LoopContextBar';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
@@ -32,6 +32,8 @@ import { fmtQuantity } from './evidence/format';
 import { contextOfMatrix, contextOfRow, metricAvailability, type MetricAvailability } from './metricAvailability';
 import { evidenceScore } from './evidenceScore';
 import SelectionSummary from './SelectionSummary';
+import SortHeader from './SortHeader';
+import { DEFAULT_CALC_SORT, calcOrderText, nextCalcSort, sortMetrics, type CalcSort, type CalcSortKey } from './calcSort';
 
 /** gates/latest 404 = "no fused window yet" — an answer, not a failure. */
 const isNoVerdict = (e: unknown) => e instanceof ApiError && e.status === 404;
@@ -52,6 +54,8 @@ export const CpmCalculations: React.FC = () => {
   const [kindFilter, setKindFilter] = useState('all');
   const [page, setPage] = useState(0);
   const [drawer, setDrawer] = useState<MetricDef | null>(null);
+  // CHG-098 (SME review 2 #25): column sort over the whole filtered catalogue (client-side list, so honest)
+  const [sort, setSort] = useState<CalcSort>(DEFAULT_CALC_SORT);
   const PAGE = 12;
 
   const { data: loopData } = useCpmLoops();
@@ -69,7 +73,9 @@ export const CpmCalculations: React.FC = () => {
     : undefined;
 
   const gates = useLatestGates(loop?.loopId, windowKind);
-  const shortKpis = useCpmKpis(loop?.loopId, '60m', 1);
+  // CHG-092 (SME review 2 #9): every value on this page belongs to the SAME window as the verdict that judges it — the
+  // fused window's long row also carries the short-tier metrics computed over that window (vw_*). The separate 60 min
+  // row used to fill the short metrics while the 12 h gate judged them.
   const longKpis = useCpmKpis(loop?.loopId, windowKind, 1);
   const catalogue = useCpmCalculations();
   // Honest window labels (audit.md §4.5): "60m" alone read as a tumbling
@@ -82,14 +88,22 @@ export const CpmCalculations: React.FC = () => {
     return shape ? `${kind} — ${shape}` : kind;
   };
 
-  const latestShort = shortKpis.data?.samples[0];
   const latestLong = longKpis.data?.samples[0];
+  /** The column that holds this metric on the fused window's row (short-tier metrics: the vw_ = verdict-window copy). */
+  const fieldOf = (m: MetricDef) => (m.source === 'short' ? `vw_${m.field}` : m.field);
 
   const valueOf = (m: MetricDef): number | null => {
     if (m.source === 'gate') return gates.data?.confidence ?? null;
-    const row = m.source === 'short' ? latestShort : latestLong;
-    const v = row?.[m.field];
+    const v = latestLong?.[fieldOf(m)];
     return typeof v === 'number' ? v : null;
+  };
+
+  /** SME review 2 #8: why a value is not shown — never a bare "—" beside a gate verdict. */
+  const notMeasuredWhy = (m: MetricDef): string => {
+    if (m.source === 'gate') return gates.data ? 'the fused result carries no evidence score' : `no ${windowKind} result yet`;
+    if (longKpis.isError) return 'the result could not be read';
+    if (!latestLong) return `no ${windowKind} window result yet`;
+    return 'not in this window\'s result (written by an engine version without this metric)';
   };
 
   /**
@@ -102,9 +116,9 @@ export const CpmCalculations: React.FC = () => {
   const availabilityOf = (m: MetricDef): MetricAvailability | null => {
     // CHG-053: per metric, not only per window — a placeholder 0 from a method that did not qualify
     // (period with no clean cycle, shape gate not evaluated) is not a measurement either
-    const row = m.source === 'short' ? latestShort : m.source === 'long' ? latestLong : undefined;
+    // the fused window's own qualification (long_metrics_qualified = its aligned short slice passed G0)
     const ctx = m.source === 'gate' ? (gates.data ? contextOfMatrix(gates.data) : null)
-      : row ? contextOfRow(row, m.source === 'short' ? 'short' : 'long') : null;
+      : latestLong ? contextOfRow(latestLong, 'long') : null;
     return ctx ? metricAvailability(ctx, m.field, valueOf(m)) : null;
   };
   const disqualificationOf = (m: MetricDef): string | null => {
@@ -116,12 +130,23 @@ export const CpmCalculations: React.FC = () => {
    * timestamp reads as current. */
   const windowEndOf = (m: MetricDef): string | null => {
     if (m.source === 'gate') return gates.data?.windowEnd ?? null;
-    const row = m.source === 'short' ? latestShort : latestLong;
-    return typeof row?.window_end === 'string' ? row.window_end : null;
+    return typeof latestLong?.window_end === 'string' ? latestLong.window_end : null;
+  };
+  /** SME review 2 #9: the window as start – end (duration), not only its end. */
+  const windowText = (m: MetricDef): string => {
+    const start = m.source === 'gate' ? gates.data?.windowStart ?? null
+      : typeof latestLong?.window_start === 'string' ? latestLong.window_start : null;
+    const end = windowEndOf(m);
+    if (!end) return `${windowKind} window — none yet`;
+    const span = start ? ` (${fmtDuration(Date.parse(end) - Date.parse(start))})` : '';
+    return `${windowKind} window · ${start ? `${fmtDateTime(start)} – ` : 'ends '}${fmtDateTime(end)}${span}`;
   };
 
   const statusOf = (m: MetricDef): { label: string; tone: 'good' | 'warn' | 'bad' | 'muted' } => {
     const cell = gates.data?.gates.find(g => g.key === m.gate);
+    // SME review 2 #8: the verdict belongs to the GATE; a value that was not measured is never shown beside a green OK
+    if (cell && valueOf(m) == null && !['NOT_EVALUATED', 'PENDING'].includes(cell.status))
+      return { label: `${m.gate} ${gateMark(cell.status, cell.key).word.toLowerCase()} · this value not measured`, tone: 'muted' };
     // P2-12: PENDING and INSUFFICIENT_EVIDENCE also mean "not judged" - they
     // previously fell through to the else branch and were labelled "Outside"
     // (i.e. out of spec), which is a verdict the engine never issued.
@@ -143,14 +168,31 @@ export const CpmCalculations: React.FC = () => {
       && (kindFilter === 'all' || m.kind === kindFilter)
       && (!q || m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q)));
   }, [search, gateFilter, kindFilter]);
-  const pages = Math.max(1, Math.ceil(filtered.length / PAGE));
+  // Not memoized: a few dozen rows, and statusOf reads the gates query on every render anyway.
+  const ordered = sortMetrics(filtered, sort, m => statusOf(m).tone);
+  const pages = Math.max(1, Math.ceil(ordered.length / PAGE));
   // Clamped: a URL-driven filter change (command palette) shrinks `filtered`
   // without the selects' setPage(0) running.
   const safePage = Math.min(page, pages - 1);
-  const rows = filtered.slice(safePage * PAGE, safePage * PAGE + PAGE);
+  const rows = ordered.slice(safePage * PAGE, safePage * PAGE + PAGE);
 
-  // Position in the CURRENT result set, so prev/next walk what you filtered to.
-  const drawerIndex = drawer ? filtered.findIndex(m => m.id === drawer.id) : -1;
+  // Position in the CURRENT result set, so prev/next walk what you filtered to, in the order shown.
+  const drawerIndex = drawer ? ordered.findIndex(m => m.id === drawer.id) : -1;
+  // CHG-098 (SME review 2 #25): prev/next in the drawer turn the page with it, so the selected row is on screen on close
+  useEffect(() => { if (drawerIndex >= 0) setPage(Math.floor(drawerIndex / PAGE)); }, [drawerIndex]);
+  const sortBy = (key: CalcSortKey) => { setSort(s => nextCalcSort(s, key)); setPage(0); };
+  const head = (key: CalcSortKey, label: string, title?: string) => (
+    <SortHeader label={label} title={title} onSort={() => sortBy(key)}
+      active={sort.key === key ? sort.dir : null} orderText={calcOrderText(sort)} />
+  );
+
+  // CHG-092 (SME review 2 #9): ?metric=CPLM-010 (from a KPI's proof link) opens that metric for the ?window= kind
+  const metricParam = params.get('metric');
+  useEffect(() => {
+    if (!metricParam || !loop) return;
+    const m = METRICS.find(x => x.id.toLowerCase() === metricParam.toLowerCase() || x.field === metricParam);
+    if (m) setDrawer(m);
+  }, [metricParam, loop]);
 
   const observed = METRICS.filter(m => valueOf(m) != null).length;
   /**
@@ -211,10 +253,9 @@ export const CpmCalculations: React.FC = () => {
               </span>
             </>
           )}
-          {(shortKpis.isError || longKpis.isError) && (
-            <span className="cpm-field__error">
-              KPI rows unavailable — latest values below may be missing, not absent.
-            </span>
+          {longKpis.isError && (
+            <QueryError title="KPI rows unavailable — values below are missing, not absent" error={longKpis.error}
+              retry={() => void longKpis.refetch()} />
           )}
         </div>
       </section>
@@ -222,7 +263,7 @@ export const CpmCalculations: React.FC = () => {
       {!loop && (
         <section className="cpm-surface">
           <EmptyState title="Select a loop"
-            copy="The catalogue lists every stored metric with this loop's latest value and the gate that judges it." />
+            copy="Pick a loop above. The catalogue then lists every stored metric with this loop's latest value and the gate that judges it." />
         </section>
       )}
 
@@ -232,7 +273,8 @@ export const CpmCalculations: React.FC = () => {
         {/* The hardcoded 17 fallback is the exact claim the Relationships tab
             stopped making — say nothing rather than assert a pack size. */}
         <StatTile caption="Evidence gates in the pack" value={catalogue.data?.gates.length ?? '—'} />
-        <StatTile caption="Gates acceptable" value={`${gateTally.good}/${gateTally.total}`} tone="good" />
+        {/* SME review 2 #22: a count is context, not a verdict — neutral, not green */}
+        <StatTile caption="Gates acceptable" value={`${gateTally.good}/${gateTally.total}`} />
         <StatTile caption="Gates needing review" value={gateTally.review}
           tone={gateTally.review > 0 ? 'warn' : 'good'} />
         <StatTile caption="Gates not evaluated" value={gateTally.muted} tone="muted" />
@@ -258,17 +300,21 @@ export const CpmCalculations: React.FC = () => {
           <span className="cpm-filter-count">{filtered.length} result(s)</span>
         </div>
 
-        <div className="cpm-event-head cpm-calc-row">
-          <span>ID</span><span>Calculation / parameter</span><span>Gate</span>
-          <span>Latest value</span><span>Window</span><span>Assessment</span>
+        {/* CHG-098 (SME review 2 #25): the headings stay in view while the page scrolls, and sort the catalogue */}
+        <div className="cpm-event-head cpm-calc-row cpm-table-head--sticky">
+          {head('id', 'ID')}{head('name', 'Calculation / parameter')}{head('gate', 'Gate')}
+          <span>Value</span><span>Window</span>
+          {head('status', 'Gate result', 'The verdict of the gate that judges this metric, on the same window. Sorts needing attention first.')}
         </div>
         {rows.map(m => {
           const v = valueOf(m);
           const st = statusOf(m);
           const disq = disqualificationOf(m);
-          const wEnd = windowEndOf(m);
+          const isOpen = drawer?.id === m.id;
           return (
-            <div key={m.id} className="cpm-event-row cpm-calc-row"
+            // CHG-098 (SME review 2 #25): the row whose drawer is open is marked, not only hovered
+            <div key={m.id} className={`cpm-event-row cpm-event-row--dense cpm-calc-row${isOpen ? ' cpm-event-row--selected' : ''}`}
+              aria-current={isOpen ? 'true' : undefined}
               onClick={() => setDrawer(m)} role="button" tabIndex={0}
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDrawer(m); } }}>
               <span className="cpm-mono">{m.id}</span>
@@ -280,14 +326,14 @@ export const CpmCalculations: React.FC = () => {
               {/* C1: a value from a DECLINED window is a zeroed placeholder the
                   engine told us not to trust — never render it as a measurement. */}
               <span title={disq ?? undefined}>
-                {disq ? <span className="cpm-metric-na">{availabilityOf(m)?.short}</span> : v != null ? (m.field === 'confidence' ? `${evidenceScore(v)} / 100` : fmtQuantity(v, m.unit)) : '—'}
+                {disq ? <span className="cpm-metric-na">{availabilityOf(m)?.short}</span>
+                  : v != null ? (m.field === 'confidence' ? `${evidenceScore(v)} / 100` : fmtQuantity(v, m.unit))
+                  : <span className="cpm-metric-na" title={notMeasuredWhy(m)}>Not measured — {notMeasuredWhy(m)}</span>}
               </span>
               {/* C2: WHEN, not just which resolution — "latest" without a
                   timestamp reads as current on a stale historian. */}
               <span className="cpm-event-row__sub">
-                {m.source === 'short' ? windowShapeOf('60m')
-                  : m.source === 'long' ? windowShapeOf(windowKind) : `${windowKind} fused`}
-                {wEnd ? ` · ends ${fmtDateTime(wEnd)}` : ''}
+                <span title={windowShapeOf(windowKind)}>{windowText(m)}</span>
               </span>
               <TonePill tone={st.tone}>{st.label}</TonePill>
             </div>
@@ -299,9 +345,9 @@ export const CpmCalculations: React.FC = () => {
         )}
 
         <div className="cpm-wizard-footer">
-          <ObcButton variant="normal" disabled={safePage === 0} onClick={() => setPage(Math.max(0, safePage - 1))}>Previous</ObcButton>
+          <span title={safePage === 0 ? 'Already on the first page' : undefined}><ObcButton variant="normal" disabled={safePage === 0} onClick={() => setPage(Math.max(0, safePage - 1))}>Previous</ObcButton></span>
           <span className="cpm-copy">Page {safePage + 1} of {pages}</span>
-          <ObcButton variant="normal" disabled={safePage >= pages - 1} onClick={() => setPage(Math.min(pages - 1, safePage + 1))}>Next</ObcButton>
+          <span title={safePage >= pages - 1 ? 'Already on the last page' : undefined}><ObcButton variant="normal" disabled={safePage >= pages - 1} onClick={() => setPage(Math.min(pages - 1, safePage + 1))}>Next</ObcButton></span>
         </div>
       </section>
 
@@ -309,16 +355,15 @@ export const CpmCalculations: React.FC = () => {
 
       {drawer && loop && (
         <CalcDrawer metric={drawer} loopId={loop.loopId}
-          onPrev={drawerIndex > 0 ? () => setDrawer(filtered[drawerIndex - 1]) : undefined}
-          onNext={drawerIndex >= 0 && drawerIndex < filtered.length - 1
-            ? () => setDrawer(filtered[drawerIndex + 1]) : undefined}
+          onPrev={drawerIndex > 0 ? () => setDrawer(ordered[drawerIndex - 1]) : undefined}
+          onNext={drawerIndex >= 0 && drawerIndex < ordered.length - 1
+            ? () => setDrawer(ordered[drawerIndex + 1]) : undefined}
           value={valueOf(drawer)} status={statusOf(drawer)}
           disqualification={disqualificationOf(drawer)}
           windowEnd={windowEndOf(drawer)}
           catalogue={catalogue.data}
           gateMatrix={gates.data}
-          row={drawer.source === 'short' ? latestShort
-            : drawer.source === 'long' ? latestLong : undefined}
+          row={drawer.source === 'gate' ? undefined : latestLong}
           onClose={() => setDrawer(null)} />
       )}
     </div>

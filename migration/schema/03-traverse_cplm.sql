@@ -987,3 +987,18 @@ ALTER TABLE analytics.investigation_reference
 COMMENT ON COLUMN analytics.investigation_reference.event_id IS
     'CHG-058: the diagnosis episode this loop note is about, linked at creation or later; NULL = a note on the loop only.';
 CREATE INDEX IF NOT EXISTS ix_investigation_reference_event ON analytics.investigation_reference (event_id) WHERE event_id IS NOT NULL;
+
+-- CHG-099 (SME review 2 #18): reconstructions stored beside the original evidence (database/scripts/64).
+
+ALTER TABLE analytics.evidence_manifest
+    ADD COLUMN IF NOT EXISTS reconstruction_of UUID NULL,
+    ADD COLUMN IF NOT EXISTS analysis_run_id UUID NULL;
+COMMENT ON COLUMN analytics.evidence_manifest.reconstruction_of IS
+    'CHG-099: the original evidence id this row reconstructs (stored beside it); NULL = an original (or a revived lost original).';
+COMMENT ON COLUMN analytics.evidence_manifest.analysis_run_id IS
+    'CHG-099: the EVIDENCE_RECONSTRUCTION analysis run that produced these bytes; NULL = produced by the live engine.';
+CREATE INDEX IF NOT EXISTS ix_evidence_manifest_reconstruction_of
+    ON analytics.evidence_manifest (reconstruction_of) WHERE reconstruction_of IS NOT NULL;
+-- every evidence read lists the reconstruction runs of its method run
+CREATE INDEX IF NOT EXISTS ix_analysis_run_reconstructs
+    ON analytics.analysis_run ((manifest->>'reconstructs')) WHERE purpose = 'EVIDENCE_RECONSTRUCTION';

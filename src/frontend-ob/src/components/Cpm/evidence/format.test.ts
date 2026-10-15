@@ -1,4 +1,5 @@
 // v2.5 workbench: every number the workbench prints goes through one formatter (the audit found
+// CHG-098 (SME review 2 #23): fractions read at 2 decimals (was 3); values keep 4 significant figures, grouped from 1,000.
 // `period 290.23199999999997 s` and `gain=-76.55206322791764` on the page) and every raw provenance
 // key gets a label the reader understands (`acf_series.period_s` -> ACF period), the raw key on hover.
 import { describe, expect, it } from 'vitest';
@@ -7,8 +8,8 @@ import { fmtQuantity, labelForKey, shortId, unitForKey } from './format';
 describe('fmtQuantity', () => {
   it('rounds by unit: seconds to a tenth, fractions to three places, pp to a tenth, counts to integers', () => {
     expect(fmtQuantity(290.23199999999997, 's')).toBe('290.2 s');
-    expect(fmtQuantity(0.99999, '1')).toBe('1.000');
-    expect(fmtQuantity(0.4321, 'fraction')).toBe('0.432');
+    expect(fmtQuantity(0.99999, '1')).toBe('1.00');
+    expect(fmtQuantity(0.4321, 'fraction')).toBe('0.43');
     expect(fmtQuantity(12.345, 'pp')).toBe('12.3 pp');
     expect(fmtQuantity(33, 'count')).toBe('33');
     expect(fmtQuantity(33.0, undefined, 'accepted_cycles')).toBe('33');
@@ -16,13 +17,13 @@ describe('fmtQuantity', () => {
 
   it('infers the rule from the key when the unit is missing', () => {
     expect(fmtQuantity(290.23199999999997, undefined, 'period_s')).toBe('290.2 s');
-    expect(fmtQuantity(0.987654, undefined, 'regularity')).toBe('0.988');
+    expect(fmtQuantity(0.987654, undefined, 'regularity')).toBe('0.99');
     expect(fmtQuantity(0.0123456, 'Hz')).toBe('0.01235 Hz');
   });
 
   it('keeps engineering values to four significant digits with their unit', () => {
     expect(fmtQuantity(-76.55206322791764, 'PV_EU')).toBe('-76.55 PV_EU');
-    expect(fmtQuantity(2253.4911219816613, 'EU')).toBe('2253 EU');
+    expect(fmtQuantity(2253.4911219816613, 'EU')).toBe('2,253 EU');
     expect(fmtQuantity(141.19070994149413)).toBe('141.2');
   });
 
