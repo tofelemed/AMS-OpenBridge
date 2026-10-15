@@ -4952,7 +4952,12 @@ Fresh install: `database/scripts/64_…` and `migration/schema/03-traverse_cplm.
 The reclaim (run elevated, `-NoStart`) freed 12.9 GB (VHDX 112 → 99 GB). The stack was stopped again after the pass
 (user rule).
 
-**Not covered:**
-- 768 / 1000 px widths;
-- a full night-theme sweep of every page;
-- the Explorer trend (no samples for the demo loops).
+**Width + night sweep (same day, `4a82a208`):** all 16 CPM routes at 1000 and 768 px in night (and day at 768), measured
+in the page: horizontal overflow, text under 12 px, WCAG contrast.
+- Found:
+  - text under 12 px: the OpenBridge root font is 14 px, so the 0.78 / 0.85 rem scale was 10.9 / 11.9 px, now 12.25 / 13 px;
+  - five night contrast faults: stale bar, Instrument-health facet, gate chips without a run, shared pager, legend n/a;
+  - check chips broke mid-name at 768 px.
+- All fixed. Result: 16/16 routes clean at both widths.
+
+**Not covered:** the Explorer trend (no samples for the demo loops).
