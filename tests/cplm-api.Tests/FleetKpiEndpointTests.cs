@@ -22,7 +22,8 @@ public sealed class FleetKpiEndpointTests : IAsyncLifetime
     // (name, diagnosis or null = no row, age, payload)
     private (string, string?, string, string)[] Probes => new[]
     {
-        ("OK", "NO_CALL", "10 minutes", """{"auto_pct":1.0,"saturation_pct":0.0}"""),
+        // CHG-093: acceptable also needs G3 PASS and G4 not STRONG on the same window
+        ("OK", "NO_CALL", "10 minutes", """{"auto_pct":1.0,"saturation_pct":0.0,"gates":{"G3":"PASS","G4":"PASS"}}"""),
         ("OSC", "CONFIRMED_OSCILLATION", "10 minutes", """{"auto_pct":0.99,"saturation_pct":0.3}"""),
         ("SYM", "DETECTED_OSCILLATION", "10 minutes", """{"auto_pct":1.0,"saturation_pct":0.0}"""),
         ("MAN", "EXCLUDED_MODE", "10 minutes", """{"auto_pct":0.1,"manual_pct":0.9,"saturation_pct":0.0}"""),
