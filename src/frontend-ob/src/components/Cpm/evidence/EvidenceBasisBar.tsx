@@ -14,7 +14,9 @@ export const EvidenceBasisBar: React.FC<{
   view: string | null;
   timeZone: string;
   onView: (analysisRunId: string | null) => void;
-}> = ({ manifest, view, timeZone, onView }) => {
+  /** Opens another method run in the workbench (a rebuild that landed under a new run identity). */
+  onOpenRun?: (methodRunId: string) => void;
+}> = ({ manifest, view, timeZone, onView, onOpenRun }) => {
   if (!manifest) return null;
   const basis = basisOf(manifest, view, timeZone);
   const newest = manifest.reconstructions?.[0];
@@ -24,8 +26,13 @@ export const EvidenceBasisBar: React.FC<{
     <div className="cpm-eval-note cpm-evidence-basis" role="group" aria-label="Evidence basis">
       <TonePill tone={basis.tone}>{basis.label}</TonePill>
       <span>{basis.detail}</span>
-      {newest && basis.kind === 'RETAINED' && (
+      {/* lab pass 2026-10-15: the newest reconstruction is named on every basis, not only beside retained proof */}
+      {/* not repeated when the basis text already carries it (the rebuild shown by default) */}
+      {newest && basis.kind !== 'RECONSTRUCTION' && !basis.detail.includes(reconstructionSummary(newest, timeZone, false)) && (
         <span className="cpm-event-row__sub">{reconstructionSummary(newest, timeZone)}</span>
+      )}
+      {newest?.rebuiltAs && onOpenRun && (
+        <ObcButton variant="normal" onClick={() => onOpenRun(newest.rebuiltAs!)}>Open the rebuilt run ›</ObcButton>
       )}
       {viewable && (basis.kind === 'RECONSTRUCTION'
         ? <ObcButton variant="normal" onClick={() => onView(null)}>Show the retained proof</ObcButton>

@@ -93,7 +93,8 @@ public sealed class EvidenceManifestReader
             : metas.Any(a => a.Readiness == "FAILED") ? "FAILED"
             : metas.Any(a => a.Readiness == "PENDING") ? "PENDING"
             : metas.All(a => a.Readiness == "EXPIRED") ? "EXPIRED" : "PARTIAL";
-        var runs = await ReconstructionRunsAsync(conn, methodRunId);
+        // the runs asked for this method run AND any run whose rebuild landed under it (a new identity: lab pass 2026-10-15)
+        var runs = await ReconstructionRunsAsync(conn, methodRunId, reconRows.Keys.ToArray());
         // the ETag covers every row AND every reconstruction run's state / identical count (a run that stored no row yet
         // still changes the served body)
         var etag = "\"" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
@@ -128,7 +129,10 @@ public sealed class EvidenceManifestReader
                     : rm.Any(a => a.Readiness == "PENDING") ? "PENDING"
                     : rm.Count > 0 ? "COMPLETE"
                     : run.Identical > 0 ? "IDENTICAL"
+                    // lab pass 2026-10-15: the rebuild computed a NEW run identity (configuration changed since the run)
+                    : run.RebuiltAs is not null ? "IDENTITY_CHANGED"
                     : newestWithRows is { } nw && nw != run.Id ? "SUPERSEDED" : "NONE",
+                rebuiltAs = run.RebuiltAs,
                 sourceCommit = (string?)first?.source_commit,
                 jarSha256 = (string?)first?.jar_sha256,
                 artifacts = list.Select(x => x.Art).ToList(),
@@ -141,21 +145,26 @@ public sealed class EvidenceManifestReader
         };
     }
 
-    private sealed record ReconRun(Guid Id, string State, DateTime CreatedAt, string? Source, int Identical);
+    private sealed record ReconRun(Guid Id, string State, DateTime CreatedAt, string? Source, int Identical, Guid? RebuiltAs);
 
     /// <summary>CHG-099: the reconstruction runs asked for this method run, newest first (operator-requested, so few rows).</summary>
-    private static async Task<List<ReconRun>> ReconstructionRunsAsync(NpgsqlConnection conn, Guid methodRunId)
+    private static async Task<List<ReconRun>> ReconstructionRunsAsync(NpgsqlConnection conn, Guid methodRunId, Guid[] owning)
     {
         var rows = await conn.QueryAsync("""
-            SELECT analysis_run_id, state, created_at, manifest->>'source' AS source,
-                   COALESCE(jsonb_array_length(manifest->'identical_evidence'), 0) AS identical
-            FROM analytics.analysis_run
-            WHERE purpose = 'EVIDENCE_RECONSTRUCTION' AND manifest->>'reconstructs' = @id
-            ORDER BY created_at DESC
+            SELECT a.analysis_run_id, a.state, a.created_at, a.manifest->>'source' AS source,
+                   COALESCE(jsonb_array_length(a.manifest->'identical_evidence'), 0) AS identical,
+                   -- the run identity the rebuild landed under when it is not this run's (the configuration changed since);
+                   -- one index probe (ix_evidence_manifest_analysis_run)
+                   (SELECT m.method_run_id FROM analytics.evidence_manifest m
+                    WHERE m.provenance->>'analysis_run_id' = a.analysis_run_id::text AND m.method_run_id <> @rid
+                    LIMIT 1) AS rebuilt_as
+            FROM analytics.analysis_run a
+            WHERE a.purpose = 'EVIDENCE_RECONSTRUCTION' AND (a.manifest->>'reconstructs' = @id OR a.analysis_run_id = ANY(@owning))
+            ORDER BY a.created_at DESC
             LIMIT 5
-            """, new { id = methodRunId.ToString() });
+            """, new { id = methodRunId.ToString(), rid = methodRunId, owning });
         return rows.Select(r => new ReconRun((Guid)r.analysis_run_id, (string)r.state, (DateTime)r.created_at,
-            (string?)r.source, (int)r.identical)).ToList();
+            (string?)r.source, (int)r.identical, (Guid?)r.rebuilt_as)).ToList();
     }
 
     private static object ArtifactOf(dynamic r)

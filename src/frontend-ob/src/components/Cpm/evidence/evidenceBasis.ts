@@ -51,15 +51,17 @@ export function viewedManifest(m: EvidenceManifest | undefined, view: string | n
   return { ...m, artifacts, count: artifacts.length, readiness: ready ? 'COMPLETE' : r.readiness === 'FAILED' ? 'FAILED' : 'PENDING' };
 }
 
-export function reconstructionSummary(r: EvidenceReconstruction, timeZone: string): string {
+export function reconstructionSummary(r: EvidenceReconstruction, timeZone: string, retained = true): string {
   const when = formatInZone(Date.parse(r.createdAt), timeZone);
   const parts = [`Reconstructed ${when} from ${sourceText(r.source)}`];
   if (r.readiness === 'PENDING') parts.push('still running');
   else if (r.readiness === 'SUPERSEDED') parts.push('superseded by a newer reconstruction');
+  else if (r.readiness === 'IDENTITY_CHANGED') parts.push('rebuilt under a new run identity — the configuration changed since this run');
   else if (r.readiness === 'NONE') parts.push(r.state === 'UNTRACKED' ? 'its outcome was not recorded' : 'it produced no evidence for this run');
   else if (r.readiness === 'FAILED' && r.artifacts.length === 0) parts.push('the run failed');
   else {
-    if (r.differing > 0) parts.push(`${r.differing} artifact(s) differ from the retained proof`);
+    // with nothing retained there is nothing to differ from (lab pass 2026-10-15)
+    if (r.differing > 0) parts.push(retained ? `${r.differing} artifact(s) differ from the retained proof` : `${r.differing} artifact(s) rebuilt`);
     if (r.identical > 0) parts.push(`${r.identical} identical`);
     if (r.readiness === 'FAILED') parts.push('a rebuilt artifact failed verification');
   }
@@ -73,7 +75,7 @@ export function basisOf(m: EvidenceManifest | undefined, view: string | null | u
   const r = reconstructionOf(m, eff.id);
   if (r && eff.auto) {
     return { kind: 'REBUILT_LOST', label: 'Rebuilt evidence', tone: 'warn',
-      detail: `No retained proof is held for this run, so the rebuilt arrays are shown. ${reconstructionSummary(r, timeZone)}. The verdict was computed by the live engine.` };
+      detail: `No retained proof is held for this run, so the rebuilt arrays are shown. ${reconstructionSummary(r, timeZone, false)}. Verdicts come only from the live engine; a rebuild re-creates the arrays, not the verdict.` };
   }
   if (r) {
     return { kind: 'RECONSTRUCTION', label: 'Reconstructed evidence', tone: 'warn',
@@ -82,7 +84,7 @@ export function basisOf(m: EvidenceManifest | undefined, view: string | null | u
   // rows rebuilt in place before CHG-099 (CHG-076) carry the reconstruction's run id in the run's own set
   if (m.artifacts.some(a => a.basis === 'RECONSTRUCTED')) {
     return { kind: 'REBUILT_LOST', label: 'Rebuilt evidence', tone: 'warn',
-      detail: 'These arrays were rebuilt on request by an earlier version, which wrote them over the run\'s original arrays; the originals are no longer held. The verdict was computed by the live engine.' };
+      detail: 'These arrays were rebuilt on request by an earlier version, which wrote them over the run\'s original arrays; the originals are no longer held. Verdicts come only from the live engine; a rebuild re-creates the arrays, not the verdict.' };
   }
   return { kind: 'RETAINED', label: 'Retained proof', tone: 'muted', detail: 'The live engine\'s own arrays for this run, kept by the retention policy.' };
 }

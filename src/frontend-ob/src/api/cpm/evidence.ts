@@ -82,7 +82,9 @@ export interface EvidenceReconstruction {
   differing: number;
   identical: number;
   /** PENDING until the run ends; SUPERSEDED = a newer reconstruction replaced its rows; NONE = it produced nothing. */
-  readiness: 'COMPLETE' | 'PENDING' | 'FAILED' | 'IDENTICAL' | 'NONE' | 'SUPERSEDED';
+  readiness: 'COMPLETE' | 'PENDING' | 'FAILED' | 'IDENTICAL' | 'NONE' | 'SUPERSEDED' | 'IDENTITY_CHANGED';
+  /** IDENTITY_CHANGED: the method run the rebuild landed under (the configuration changed since this run). */
+  rebuiltAs?: string | null;
   sourceCommit: string | null;
   jarSha256: string | null;
   artifacts: EvidenceArtifactMeta[];

@@ -191,7 +191,8 @@ export const GateEvidenceWorkspace: React.FC = () => {
         nav={{ newer: nav.newer ? () => openWindow(nav.newer) : null, older: nav.older ? () => openWindow(nav.older) : null,
           newest: windows.options[0] ? () => openWindow(windows.options[0]) : null, atNewest: optionIndex === 0, inList: optionIndex >= 0 }}
         reconstruct={run.data?.reconstruction.supported ? { onClick: () => reconstruct.mutate(), busy: reconstruct.isPending } : undefined} />
-      <EvidenceBasisBar manifest={rawManifest.data} view={view} timeZone={timeZone} onView={setView} />
+      <EvidenceBasisBar manifest={rawManifest.data} view={view} timeZone={timeZone} onView={setView}
+        onOpenRun={id => goTo(id, selection.gate)} />
       {run.data && <GateChipStrip chips={chips} selected={selection.gate} onOpen={(g, id) => goTo(id, g)} />}
       <div className={`cpm-evidence-body${explainCollapsed ? ' cpm-evidence-body--explain-closed' : ''}`}>
         <main className="cpm-evidence-centre" aria-busy={run.isLoading || manifest.isLoading}>

@@ -77,3 +77,16 @@ describe('lab pass 2026-10-15 (CHG-099)', () => {
     expect(basisOf(m, null, 'UTC').detail).toMatch(/wrote them over the run's original arrays/);
   });
 });
+
+describe('a rebuild under a new run identity (lab pass 2026-10-15)', () => {
+  it('names the identity change, and with nothing retained says "rebuilt", not "differ"', () => {
+    expect(reconstructionSummary(recon({ readiness: 'IDENTITY_CHANGED', differing: 0, identical: 0, artifacts: [], rebuiltAs: 'run-2' }), 'UTC'))
+      .toMatch(/rebuilt under a new run identity — the configuration changed since this run$/);
+    const m = M({ artifacts: [], readiness: 'NONE', reconstructions: [recon({ differing: 97, identical: 0 })] });
+    const b = basisOf(m, null, 'UTC');
+    expect(b.kind).toBe('REBUILT_LOST');
+    expect(b.detail).toMatch(/97 artifact\(s\) rebuilt/);
+    expect(b.detail).not.toMatch(/differ from the retained proof/);
+    expect(b.detail).toMatch(/a rebuild re-creates the arrays, not the verdict/);
+  });
+});
