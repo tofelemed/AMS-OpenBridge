@@ -14,7 +14,7 @@ import { getEvidenceBatch } from '../../../api/cpm/evidence';
 import { formatInZone, zoneLabel } from '../evidence/timezone';
 import { diagnosisLabel } from '../vocabulary';
 
-export interface ExportContext { loopId: string; loop?: CpmLoop; from: Date; to: Date; timeZone: string }
+export interface ExportContext { loopId: string; loop?: CpmLoop; from: Date; to: Date; timeZone: string; /** the historian series read */ series?: string }
 
 /** The historian answers at most this many buckets per request (historian-bff clamps width to 2000). */
 export const HISTORIAN_MAX_BUCKETS = 2000;
@@ -75,7 +75,7 @@ export function windowsJson(ctx: ExportContext, windows: CpmGateMatrix[], trunca
 /** Signal samples as CSV: one row per historian bucket, both clocks, one column per signal with its unit. */
 export function samplesCsv(ctx: ExportContext, points: CpmTrendPoint[], bucketS: number, coarsened: boolean): string {
   const head = headerLines(ctx, 'signal samples from the historian', [
-    ['series', `root...${ctx.loopId}`],
+    ['series', ctx.series ?? `the historian series of ${ctx.loopId}`],   // lab pass: the real path, not a placeholder
     ['resolution', `${bucketS} s buckets (the historian value in each bucket; the average when a bucket holds more than one sample)`
       + (coarsened ? ` - coarsened to stay within ${SAMPLE_ROW_CAP} rows; narrow the range for every sample` : '')],
     ['units', SAMPLE_SIGNALS.map(s => `${s} = ${unitOf(s, ctx.loop)}`).join('; ')],

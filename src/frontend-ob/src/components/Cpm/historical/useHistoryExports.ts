@@ -30,7 +30,7 @@ export function useHistoryExports(args: {
   const run = async (kind: HistoryExportKind) => {
     const { loopId, loop, series, from, to, timeZone, windows, truncated, cap, selected } = args;
     if (!loopId || !series) return;
-    const ctx: ExportContext = { loopId, loop, from, to, timeZone };
+    const ctx: ExportContext = { loopId, loop, from, to, timeZone, series };
     const period = `${stampOf(from)}-${stampOf(to)}`;
     setBusy(kind);
     setError(null);
