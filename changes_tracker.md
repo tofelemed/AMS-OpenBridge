@@ -5045,7 +5045,7 @@ INSUFFICIENT_DATA / G15 INSUFFICIENT_EVIDENCE only; user chose to stop the lab a
 ## Release v2.8.0 (PLANNED) — SME review 2 complete: CHG-091 … CHG-099 (+ v2.7.3's CHG-090, never deployed)
 
 One release so the plant gets one Flink refill. Branch `feat/v25-next-release` after the CHG-094 merge.
-**Services updated:** Flink jar (full swap: CHG-094/095/096), `cplm-api` (CHG-091, 092, 093, 096, 097, 099), `ams-frontend`
+**Services updated:** Flink jar (full swap: CHG-094/095/096), `cplm-api` (CHG-091, 092, 093, 096, 099), `ams-frontend`
 (CHG-092, 093, 097, 098, 099), `historian-bff` + `ams-api` (CHG-090 / CHG-021, from v2.7.3; `START_AMS_API=yes`).
 **Plant order:** integrity → rollback image list → source extract → load images →
 1. `cpm-15-evidence-reconstruction-beside.sql` (online, additive) → `migration/02-apply-schemas.sh` — BEFORE cplm-api;
