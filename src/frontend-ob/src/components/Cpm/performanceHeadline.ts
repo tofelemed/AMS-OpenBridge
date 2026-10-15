@@ -27,7 +27,8 @@ export function headlineTiles(p: FleetPerformance): HeadlineTile[] {
     {
       caption: 'Good-error time',
       value: g.meanPct != null ? pct1(g.meanPct) : '—',
-      sub: g.meanPct == null ? 'no assessed loops yet'
+      // CHG-098 lab pass: with nothing assessed, say why (e.g. every result stale) instead of a bare "yet"
+      sub: g.meanPct == null ? (p.assessed ? `not measured · ${basisText(p, 0)}` : `no assessed loop · ${basisText(p, 0)}`)
         : `mean · ${basisText(p, g.counted, g.notMeasured ? [`${g.notMeasured} not measured`] : [])}`,
       title: 'Mean share of the window with |PV − SP| inside the good band, over every assessed loop in this scope'
         + (g.medianPct != null ? ` (median ${pct1(g.medianPct)})` : ''),
@@ -35,7 +36,7 @@ export function headlineTiles(p: FleetPerformance): HeadlineTile[] {
     {
       caption: 'Median error (% of span)',
       value: e.medianPct != null ? pct1(e.medianPct) : '—',
-      sub: e.medianPct == null ? (p.assessed ? 'no loop with a registered PV span' : 'no assessed loops yet')
+      sub: e.medianPct == null ? (p.assessed ? `no loop with a registered PV span · ${basisText(p, 0)}` : `no assessed loop · ${basisText(p, 0)}`)
         : `MAE ÷ PV span · ${basisText(p, e.counted, [
           e.noSpan ? `${e.noSpan} without a PV span` : '', e.notMeasured ? `${e.notMeasured} not measured` : ''].filter(Boolean))}`,
       title: 'Mean absolute error of each loop divided by its registered PV range (pvMax − pvMin), median across loops. '

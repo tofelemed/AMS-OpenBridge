@@ -30,7 +30,11 @@
 .cpm-loop-summary__severity { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: var(--cpm-text-small); }
 .cpm-loop-summary__muted { color: var(--element-neutral-color); }
 .cpm-loop-summary__note { margin: 0; color: var(--element-neutral-color); }
-.cpm-loop-summary__stale { color: var(--alert-caution-color); font-weight: 600; }
+/* CHG-098 lab pass: caution-yellow TEXT on a light card is unreadable (~1.5:1); the age is a small caution chip instead */
+.cpm-loop-summary__stale {
+  font-weight: 600; padding: 0 6px; border-radius: 4px;
+  background: var(--alert-caution-color); color: var(--on-caution-color, var(--element-active-inverted-color, inherit));
+}
 
 .cpm-loop-summary__rows {
   display: grid;

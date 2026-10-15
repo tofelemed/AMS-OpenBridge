@@ -31,6 +31,6 @@ describe('Performance headline basis (SME review 2 #10/#11)', () => {
     const [good, err] = headlineTiles(P({ assessed: 0, goodError: { meanPct: null, medianPct: null, counted: 0, notMeasured: 0 },
       errorOfSpan: { medianPct: null, counted: 0, noSpan: 0, notMeasured: 0 } }));
     expect(good.value).toBe('—');
-    expect(err.sub).toBe('no assessed loops yet');
+    expect(err.sub).toBe('no assessed loop · 0 of 0 assessed loop(s) · excluded: 40 not assessable, 10 stale, 5 never evaluated');
   });
 });
