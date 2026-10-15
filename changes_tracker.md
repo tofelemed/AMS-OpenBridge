@@ -4903,3 +4903,56 @@ Fresh install: `database/scripts/64_…` and `migration/schema/03-traverse_cplm.
 - Frontend for CHG-098 and CHG-099: tsc and eslint (`--max-warnings 0`) clean, vitest 471 / 471, production build OK.
 **Lab check:** pending — reconstruct a G7 window and see both sets, the switch, the poll stop, and an expired run showing
 "Rebuilt evidence".
+
+## Lab verification 2026-10-15 — SME review 2 (CHG-092, 093, 097, 098, 099)
+
+**Setup:**
+- ProAct stopped and the full AMS stack started from the base compose file (Postgres back on 5433).
+- cplm-api rebuilt from the branch; frontend via Vite on 5174.
+- The engine had been down 4 days, so the newest fused results are from 10–11 October. Demo loops (`KDEMO_*`) and
+  LIC30310 / FIC10301 were used.
+
+**Schema:** `cpm-15` applied twice on the lab DB. Clean, re-runnable; the column add on 1.05 M evidence rows was instant.
+
+**cplm-api tests:** 372 / 374 on the settled stack (a first run in the stack's first minute lost 42 to connection churn).
+- The 2 left are lab-data dependent: FleetPrioritySql needs current findings; MethodRunLookupIndex sees a compressed
+  long-tier chunk.
+- Two seeds were updated for CHG-093 / CHG-099 (`c1ef763a`).
+
+**Browser at 1440 px (day), with 502 px and night spot checks:**
+- Loop summary (#20/#21): compact card, one disclosure.
+- KPI groups and finding highlight (#22); ±pp labels (#13).
+- Performance (#10/#24): whole-scope headline with exclusions ("0 of 0 assessed · excluded: 175 stale, 66 never
+  evaluated"); checks-behind-the-result view; grouped legend.
+- Calculations (#8/#9/#25): `?metric=` opens the drawer; sortable headings; "Not measured — reason".
+- Events (#20/#25/#27): Peak / Now; sticky headings; selected row; server sort; the ack receipt "Acknowledged by
+  superadmin at …".
+- Historical samples export (#17): 8,640 rows at 5 s for 12 h, with the full header.
+- Registry wizard (#28): 754 px path fields, Copy → "Copied", a space blocks Continue with the reason, review "Changes (0)".
+- Narrow 502 px: no horizontal overflow. Night theme readable.
+
+**Reconstruction (CHG-099), live:** LIC30310 G7, the 7 Oct run that CHG-076 had overwritten.
+- The rebuild ran from the historian (source recorded) and stored 97 artifacts BESIDE.
+- The run's own 84 rows are untouched.
+- The rebuild landed under a NEW method run id: the configuration had changed since the run.
+
+**Found and fixed during the pass:**
+- `01737a99`:
+  - CHG-076-era rows rebuilt in place read "Retained proof" (the marker is only in provenance), now "Rebuilt evidence";
+  - a never-followed run read "still running", now "outcome not recorded";
+  - listed pending runs are now polled.
+- `d84ed4c6`: a rebuild under a new run identity is named on the old run ("Open the rebuilt run ›"); the new run listed no
+  arrays, now "Rebuilt evidence · 97 artifact(s) rebuilt".
+- `d7c5f2c5`:
+  - the stale age was caution-yellow text, now a caution chip;
+  - empty headline tiles now name their exclusions.
+- `5944f8d1`: the samples export's `# series:` line was a placeholder, now the real path.
+
+**Lab disk:** the 4-day catch-up took C: from 34.7 to 14.5 GB in about 30 min. The disk watch stopped Docker at 10:30.
+The reclaim (run elevated, `-NoStart`) freed 12.9 GB (VHDX 112 → 99 GB). The stack was stopped again after the pass
+(user rule).
+
+**Not covered:**
+- 768 / 1000 px widths;
+- a full night-theme sweep of every page;
+- the Explorer trend (no samples for the demo loops).
