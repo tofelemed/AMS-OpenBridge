@@ -224,4 +224,5 @@ Decisions needed before starting:
 | B | Done. DB endpoint tests and lab check pending (Docker stopped) | CHG-093 |
 | C | With ams-open-e0 | CHG-094..096 |
 | D | Done. Lab browser check pending | CHG-097 |
-| E, F | Not started | — |
+| E | Done. Lab browser check pending | CHG-098 |
+| F | Done. DB tests + lab check pending; migration cpm-15 | CHG-099 |

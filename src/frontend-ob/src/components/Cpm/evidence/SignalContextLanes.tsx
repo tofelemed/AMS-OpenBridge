@@ -77,9 +77,11 @@ export const SignalContextLanes: React.FC<{
   const modeIntervals = useMemo(() => states.data ? intervalsFromArtifact(states.data, 'state', l => (l === 'AUT' || l === 'CAS' ? 'good' : l === 'MAN' ? 'warn' : 'muted')) : [], [states.data]);
   const healthIntervals = useMemo(() => health.data ? intervalsFromArtifact(health.data, 'eligibility', l => (l === 'ELIGIBLE' ? 'good' : l === 'LIMITED' ? 'warn' : l === 'INELIGIBLE' ? 'bad' : 'muted')) : [], [health.data]);
   const g0Readiness = g0.data?.readiness;
+  // CHG-099 (SME review 2 #18): arrays rebuilt because the original was no longer held are not "the run's own"
+  const own = (m: typeof g0.data) => (m?.artifacts.some(a => a.basis === 'RECONSTRUCTED') ? 'rebuilt (original no longer held)' : "the run's own");
   const source = laneSource({ isLoading: g0.isLoading, data: g0.data }, !!methodRunIds.G0);
   const healthLane = (
-    <IntervalLane title="HEALTH — run's own G11 evidence" intervals={healthIntervals} fromMs={fromMs} toMs={toMs} timeZone={timeZone}
+    <IntervalLane title={`HEALTH — ${own(g11.data)} G11 evidence`} intervals={healthIntervals} fromMs={fromMs} toMs={toMs} timeZone={timeZone}
       empty={methodRunIds.G11 ? `G11 eligibility intervals ${g11.data?.readiness ?? 'loading'} — absence of health is not OK` : 'no G11 run on this row — health not configured'} />
   );
 
@@ -90,12 +92,12 @@ export const SignalContextLanes: React.FC<{
     <div className="cpm-context-lanes">
       {(['PV', 'SP', 'OP', 'VP'] as const).map(r => <RoleArtifact key={r} manifest={g0.data} role={r} onSeries={onSeries} timeFmt={timeFmt} />)}
       {euSeries.length > 0
-        ? <CpmChart title="PV / SP — the run's own qualified samples" series={euSeries} xKind="time" timeZone={timeZone} height={200} />
+        ? <CpmChart title={`PV / SP — ${own(g0.data)} qualified samples`} series={euSeries} xKind="time" timeZone={timeZone} height={200} />
         : <p className="cpm-copy" data-lane="PV/SP">PV / SP lane: G0 evidence {g0Readiness ?? 'loading'} for this window.</p>}
       {ppSeries.length > 0
-        ? <CpmChart title="OP / VP — the run's own qualified samples" series={ppSeries} xKind="time" timeZone={timeZone} height={160} />
+        ? <CpmChart title={`OP / VP — ${own(g0.data)} qualified samples`} series={ppSeries} xKind="time" timeZone={timeZone} height={160} />
         : <p className="cpm-copy" data-lane="OP/VP">OP / VP lane: G0 evidence {g0Readiness ?? 'loading'}.</p>}
-      <IntervalLane title="MODE — run's own G1 evidence" intervals={modeIntervals} fromMs={fromMs} toMs={toMs} timeZone={timeZone}
+      <IntervalLane title={`MODE — ${own(g1.data)} G1 evidence`} intervals={modeIntervals} fromMs={fromMs} toMs={toMs} timeZone={timeZone}
         empty={methodRunIds.G1 ? `G1 state intervals ${g1.data?.readiness ?? 'loading'}` : 'no G1 run on this row'} />
       {healthLane}
     </div>

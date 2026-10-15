@@ -4,7 +4,8 @@
  * decoded artifacts are cached by evidence id + checksum.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getMethodRun, postReconstruction, type EvidenceArtifactMeta } from '../../../api/cpm/evidence';
+import { getAnalysisRun, getMethodRun, postReconstruction, type EvidenceArtifactMeta, type EvidenceManifest } from '../../../api/cpm/evidence';
+import { TERMINAL_RUN_STATES } from './evidenceBasis';
 import { loadArtifact, type DecodedArtifact } from './artifactCodec';
 import { bundledChunkFetcher } from './chunkSource';
 import { loadManifest } from './manifestBatcher';
@@ -18,14 +19,22 @@ export function useMethodRun(methodRunId: string | undefined) {
   });
 }
 
-/** `refetchMs` polls only while artifacts are still arriving (PENDING / PARTIAL); a COMPLETE manifest is immutable and never re-read. */
-export function useEvidenceManifest(methodRunId: string | undefined, refetchMs?: number) {
+/**
+ * `refetchMs` polls only while artifacts are still arriving (PENDING / PARTIAL); a COMPLETE manifest is immutable and never
+ * re-read. CHG-099: a reconstruction is stored BESIDE a COMPLETE original, so while one is pending `settled` decides when
+ * to stop (the run's own readiness stays COMPLETE throughout).
+ */
+export function useEvidenceManifest(methodRunId: string | undefined, refetchMs?: number, settled?: (m: EvidenceManifest) => boolean) {
   return useQuery({
     queryKey: ['cpm', 'evidence-manifest', methodRunId ?? ''],
     queryFn: ({ signal }) => loadManifest(methodRunId!, signal),           // v2.5 batching: coalesced with the sibling reads
     enabled: !!methodRunId,
-    staleTime: (q) => (q.state.data?.readiness === 'COMPLETE' ? Infinity : 30_000),
-    refetchInterval: refetchMs ? (q) => (q.state.data && q.state.data.readiness !== 'COMPLETE' ? refetchMs : false) : undefined,
+    staleTime: (q) => (q.state.data?.readiness === 'COMPLETE' && !settled ? Infinity : 30_000),
+    refetchInterval: refetchMs ? (q) => {
+      const d = q.state.data;
+      if (!d) return false;
+      return (settled ? !settled(d) : d.readiness !== 'COMPLETE') ? refetchMs : false;
+    } : undefined,
   });
 }
 
@@ -36,6 +45,16 @@ export function useArtifact(meta: EvidenceArtifactMeta | undefined) {
     enabled: !!meta && meta.readiness === 'COMPLETE',
     staleTime: Infinity,                                   // immutable bytes
     retry: false,                                          // a checksum mismatch is a fact, not a hiccup
+  });
+}
+
+/** CHG-099: the reconstruction run's state while it is pending — each read refreshes it from the Flink job. */
+export function useAnalysisRunState(analysisRunId: string | undefined, refetchMs: number) {
+  return useQuery({
+    queryKey: ['cpm', 'analysis-run', analysisRunId ?? ''],
+    queryFn: ({ signal }) => getAnalysisRun(analysisRunId!, signal),
+    enabled: !!analysisRunId,
+    refetchInterval: q => (q.state.data && TERMINAL_RUN_STATES.has(q.state.data.state) ? false : refetchMs),
   });
 }
 

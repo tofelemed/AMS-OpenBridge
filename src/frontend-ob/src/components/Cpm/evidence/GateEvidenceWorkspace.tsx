@@ -22,7 +22,10 @@ import { SignalContextLanes } from './SignalContextLanes';
 import { EvidenceArtifactRenderer } from './EvidenceArtifactRenderer';
 import { GateResultStatePanel, classifyGateResult } from './GateResultState';
 import { parseSelection } from './selection';
-import { useEvidenceManifest, useMethodRun, useReconstruct } from './useEvidence';
+import { useAnalysisRunState, useEvidenceManifest, useMethodRun, useReconstruct } from './useEvidence';
+import { EvidenceBasisBar } from './EvidenceBasisBar';
+import type { EvidenceManifest } from '../../../api/cpm/evidence';
+import { reconstructRefusal, reconstructionSettled, viewedManifest } from './evidenceBasis';
 
 /** Manifest poll interval while a reconstruction is pending (plant: artifacts land in ~20 s). */
 const RECONSTRUCTION_POLL_MS = 10_000;
@@ -58,7 +61,17 @@ export const GateEvidenceWorkspace: React.FC = () => {
   const reconstruct = useReconstruct(selection?.methodRunId);
   // A reconstruction lands in ~20 s at the plant; poll while one is pending so the charts appear by themselves
   // (the hook stops polling once readiness is COMPLETE). Without a pending request the manifest is not polled.
-  const manifest = useEvidenceManifest(selection?.methodRunId, reconstruct.isSuccess ? RECONSTRUCTION_POLL_MS : undefined);
+  // CHG-099: a reconstruction is stored beside the retained proof, so the poll stops when THAT reconstruction settles —
+  // and only for the run it was asked for (navigating to another window drops it)
+  const pendingRun = reconstruct.isSuccess && reconstruct.data.reconstructs === selection?.methodRunId
+    ? reconstruct.data.analysisRunId : undefined;
+  const runState = useAnalysisRunState(pendingRun, RECONSTRUCTION_POLL_MS);
+  const settled = useCallback((m: EvidenceManifest) => reconstructionSettled(m, pendingRun), [pendingRun]);
+  const rawManifest = useEvidenceManifest(selection?.methodRunId, pendingRun ? RECONSTRUCTION_POLL_MS : undefined, pendingRun ? settled : undefined);
+  // CHG-099 (SME review 2 #18): ?view=<analysisRunId> shows a reconstruction in place of the differing originals
+  const view = params.get('view');
+  const manifest = { ...rawManifest, data: viewedManifest(rawManifest.data, view) };
+  const setView = (v: string | null) => setParams(p => { if (v) p.set('view', v); else p.delete('view'); return p; }, { replace: true });
   const [explainCollapsed, toggleExplain] = useExplainCollapsed();
 
   const loop = loops.data?.loops.find(l => l.loopId.toLowerCase() === (loopId ?? '').toLowerCase());
@@ -171,7 +184,8 @@ export const GateEvidenceWorkspace: React.FC = () => {
         readiness={manifest.data?.readiness}
         nav={{ newer: nav.newer ? () => openWindow(nav.newer) : null, older: nav.older ? () => openWindow(nav.older) : null,
           newest: windows.options[0] ? () => openWindow(windows.options[0]) : null, atNewest: optionIndex === 0, inList: optionIndex >= 0 }}
-        reconstruct={state.action === 'RECONSTRUCT' && run.data?.reconstruction.supported ? { onClick: () => reconstruct.mutate(), busy: reconstruct.isPending } : undefined} />
+        reconstruct={run.data?.reconstruction.supported ? { onClick: () => reconstruct.mutate(), busy: reconstruct.isPending } : undefined} />
+      <EvidenceBasisBar manifest={rawManifest.data} view={view} timeZone={timeZone} onView={setView} />
       {run.data && <GateChipStrip chips={chips} selected={selection.gate} onOpen={(g, id) => goTo(id, g)} />}
       <div className={`cpm-evidence-body${explainCollapsed ? ' cpm-evidence-body--explain-closed' : ''}`}>
         <main className="cpm-evidence-centre" aria-busy={run.isLoading || manifest.isLoading}>
@@ -189,13 +203,15 @@ export const GateEvidenceWorkspace: React.FC = () => {
           ) : (
             <GateResultStatePanel state={state} busy={reconstruct.isPending}
               onReconstruct={run.data?.reconstruction.supported ? () => reconstruct.mutate() : undefined}
-              onRetry={() => { void run.refetch(); void manifest.refetch(); }}
+              reconstructReason={run.data && !run.data.reconstruction.supported ? reconstructRefusal(run.data.reconstruction.reason) : undefined}
+              onRetry={() => { void run.refetch(); void rawManifest.refetch(); }}
               onGoToLatest={windows.options[0] ? () => openWindow(windows.options[0]) : undefined} />
           )}
           {reconstruct.isSuccess && (
             <p className="cpm-copy" role="status">
-              Reconstruction accepted (run {reconstruct.data.analysisRunId}); the manifest refreshes when the artifacts arrive.
-              <ObcButton variant="flat" onClick={() => void manifest.refetch()}>Refresh</ObcButton>
+              Reconstruction accepted (run {reconstruct.data.analysisRunId}){runState.data ? ` · ${runState.data.state.toLowerCase()}` : ''}.
+              It is stored beside the retained proof, never over it; this page lists it above when it arrives.
+              <ObcButton variant="flat" onClick={() => void rawManifest.refetch()}>Refresh</ObcButton>
             </p>
           )}
           {reconstruct.isError && <p className="cpm-field__error" role="alert">Reconstruction refused: {(reconstruct.error as Error).message}</p>}

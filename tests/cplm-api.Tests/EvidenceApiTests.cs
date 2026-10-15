@@ -243,9 +243,9 @@ public sealed class EvidenceApiTests : IAsyncLifetime
         // an identical re-emit (same sha256) of the COMPLETE manifest is a no-op
         await store.UpsertManifestAsync(manifest, CancellationToken.None);
         (await store.GetManifestAsync(_expired, CancellationToken.None))!.Readiness.Should().Be("COMPLETE");
-        // CHG-076: this manifest carries purpose=EVIDENCE_RECONSTRUCTION, so it is STANDARD. A reconstruction whose
-        // bytes differ (the uncapped re-run of a capped live artifact shares its evidence id) now REPLACES the
-        // COMPLETE row instead of being dropped: back to PENDING, the old chunks gone, waiting for the new stream.
+        // CHG-099 (SME review 2 #18, reverses CHG-076): a reconstruction whose bytes differ never replaces a held
+        // COMPLETE row. With an analysis run it is stored beside it (EvidenceReconstructionBesideTests); without one
+        // (as here) it has nowhere to be filed, so the retained proof stays exactly as it was.
         var replaced = System.Text.Json.JsonSerializer.SerializeToElement(new Dictionary<string, object?>
         {
             ["evidence_id"] = _expired.ToString(), ["method_run_id"] = _run.ToString(), ["gate_id"] = "G3", ["artifact_kind"] = "objective_error",
@@ -253,8 +253,8 @@ public sealed class EvidenceApiTests : IAsyncLifetime
             ["provenance"] = new Dictionary<string, object?> { ["loop_id"] = _loop, ["window_kind"] = "60m", ["purpose"] = "EVIDENCE_RECONSTRUCTION" },
         });
         await store.UpsertManifestAsync(replaced, CancellationToken.None);
-        (await store.GetManifestAsync(_expired, CancellationToken.None))!.Readiness.Should().Be("PENDING");
-        (await store.GetChunksAsync(_expired, CancellationToken.None)).Should().BeEmpty();
+        (await store.GetManifestAsync(_expired, CancellationToken.None))!.Readiness.Should().Be("COMPLETE");
+        (await store.GetChunksAsync(_expired, CancellationToken.None)).Should().HaveCount(2, "the retained chunks are kept");
     }
 
     [Fact]

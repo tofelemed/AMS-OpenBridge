@@ -99,23 +99,34 @@ public sealed class CplmEvidenceConsumerService : BackgroundService
         switch (kind)
         {
             case "EVIDENCE_MANIFEST":
-                await _store.UpsertManifestAsync(root, ct);
-                await EvaluateAsync(evidenceId, ct);
+            {
+                // CHG-099: a reconstruction beside a held original is stored under its own id; evaluate that row
+                var stored = await _store.UpsertManifestAsync(root, ct);
+                await EvaluateAsync(stored is { } s && s != Guid.Empty ? s : evidenceId, ct);
                 break;
+            }
             case "EVIDENCE_CHUNK":
             {
                 var chunkNo = root.TryGetProperty("chunk_no", out var n) && n.TryGetInt32(out var v) ? v : -1;
                 var sha = root.TryGetProperty("sha256", out var s) ? s.GetString() ?? "" : "";
                 var payload = root.TryGetProperty("payload_b64", out var p) ? Convert.FromBase64String(p.GetString() ?? "") : Array.Empty<byte>();
                 var chunk = new EvidenceChunkSpec(chunkNo, sha, payload);
+                // CHG-099: the row that declares this chunk (the original, or a reconstruction stored beside it); none =
+                // already stored (redelivery) or its manifest is gone - dropped, never appended to another row's chunks
+                if (await _store.ResolveChunkTargetAsync(evidenceId, chunkNo, sha, ct) is not { } target)
+                {
+                    _logger.LogDebug("Evidence chunk {No} of {Id}: no manifest awaits it (stored already or swept); skipped", chunkNo, evidenceId);
+                    return;
+                }
                 if (!EvidenceAssembly.ChunkIsSelfConsistent(chunk))
                 {
                     // A chunk that does not hash to its own checksum was damaged in transit:
-                    // the manifest can never complete from it; say so on the manifest.
-                    await _store.SetReadinessAsync(evidenceId, "FAILED", $"CHUNK_CORRUPT:{chunkNo}", ct);
-                    _logger.LogError("Evidence chunk {No} of {Id} is corrupt; manifest FAILED", chunkNo, evidenceId);
+                    // the manifest can never complete from it; say so on the manifest it was declared by.
+                    await _store.SetReadinessAsync(target, "FAILED", $"CHUNK_CORRUPT:{chunkNo}", ct);
+                    _logger.LogError("Evidence chunk {No} of {Id} is corrupt; manifest FAILED", chunkNo, target);
                     return;
                 }
+                evidenceId = target;
                 var known = await _store.PutChunkAsync(evidenceId, chunkNo, sha, payload, ct);
                 if (!known)
                 {

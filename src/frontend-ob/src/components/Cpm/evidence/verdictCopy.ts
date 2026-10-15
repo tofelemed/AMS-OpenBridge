@@ -90,7 +90,7 @@ export function whyParagraphs(i: WhyInput): string[] {
     case 'READY': out.push('Read the evidence below; every value is this run\'s own, computed under the configuration named on the right.'); break;
     case 'NOT_EVALUATED': out.push('Meet the prerequisite the reason names and the next window will evaluate the gate; this is a verdict, not missing data.'); break;
     case 'SHORT_TIER': out.push('Open the short windows of the same period to read this gate\'s own runs.'); break;
-    case 'NOT_RETAINED': out.push('Reconstruct the evidence to rebuild the arrays under the same identity.'); break;
+    case 'NOT_RETAINED': out.push('Reconstruct the evidence to rebuild the arrays from the run\'s window; they are labelled as rebuilt.'); break;
     case 'EVIDENCE_EXPIRED': out.push('Reconstruct the evidence; the verdict and its scalars are unaffected.'); break;
     case 'EVIDENCE_PENDING': out.push('The artifacts are still arriving; the view refreshes as they land.'); break;
     case 'UNSUPPORTED_METHOD': out.push('This build carries no method for the gate; a later deployment adds it.'); break;

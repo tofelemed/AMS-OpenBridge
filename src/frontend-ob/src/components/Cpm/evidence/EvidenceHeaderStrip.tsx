@@ -80,7 +80,10 @@ export const EvidenceHeaderStrip: React.FC<EvidenceHeaderStripProps> = ({ select
             <ObcButton variant="normal" disabled={!nav.newest || nav.atNewest} onClick={() => nav.newest?.()}>Newest</ObcButton>
           </span>
           {reconstruct && (
-            <ObcButton variant="normal" disabled={reconstruct.busy} onClick={reconstruct.onClick}>{reconstruct.busy ? 'Reconstruction requested…' : 'Reconstruct evidence'}</ObcButton>
+            // CHG-099: offered on every reconstructable run; the rebuild is stored beside the retained proof, never over it
+            <span title="Rebuild this gate's arrays from the run's window; kept beside the retained proof for comparison">
+              <ObcButton variant="normal" disabled={reconstruct.busy} onClick={reconstruct.onClick}>{reconstruct.busy ? 'Reconstruction requested…' : 'Reconstruct evidence'}</ObcButton>
+            </span>
           )}
         </div>
       </div>

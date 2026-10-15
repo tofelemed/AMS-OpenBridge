@@ -4757,3 +4757,149 @@ control acceptably.
 - Production build: see the commit.
 
 **Lab browser check:** pending (Docker).
+
+## CHG-098 — SME review 2, phase E: layout and interaction on the CPM pages (2026-10-15)
+
+**Source:** `SME_review_2.md` points 20, 21, 23, 24, 25, 27, 28, 29 (`SME_review_2_check.md`, phase E). Number reserved with ams-open-32.
+
+**What changed**
+- **#20 Compact loop summary:** diagnosis (once), severity, a one-line main reason and the next check sit at the top.
+  - Basis, Not checked, Evidence seen, Data, Limitations and the readiness bar (when nothing blocks) are behind one
+    "Basis and limitations" disclosure, closed by default and showing a one-line summary.
+  - The tabs, trend and loop KPIs follow directly.
+- **#21 No repetition:**
+  - Explorer gives the quick condition, "Why and what to do › Investigation" and "Calculation proof › Workbench".
+  - Investigation is the one full home of the limitations and shows the recommendation once (not also in the sticky
+    strip).
+  - The Explorer evidence-score note is short; the cap explanation stays on Investigation.
+- **#23 Readability:**
+  - One CPM type scale: captions ≥ 0.78 rem, secondary text 0.85 rem (CSS variables). This replaced 10 sizes from 0.66
+    to 0.82 rem in 118 rules.
+  - Reading paragraphs stop at about 80 characters.
+  - Chart labels go from 10–11 px to 12 px.
+  - Numbers: fractions at 2 decimals; engineering values at 4 significant figures, grouped from 1,000. Replay, G13 and
+    Response no longer print 3-decimal noise.
+- **#24 Gate matrix:** Performance opens on "Checks behind the result" (per loop, the gates that moved its result, by
+  readable name). The full G0–G15 matrix is a toggle away (`?view=matrix`), with readable column names. Every mark has
+  its own symbol, word and legend entry:
+  - Not usable ⊘ vs Excluded ⊖;
+  - Ruled out ◇ (no longer ✓);
+  - Not evaluated —, N/A / Disabled `n/a`, Pending ….
+- **#25 Tables:**
+  - Events and Calculations have sticky headings and a clear selected row (selected background, accent edge,
+    aria-current).
+  - Calculations sorts on the client by ID, name, gate or result.
+  - Events sorts only by the orders the server supports (`?sort=triage|recent`, CHG-063) and never sorts a page on the
+    client.
+  - Rows are denser.
+- **#27 Feedback:**
+  - Acknowledge, shelve, unshelve, note link and republish show a lasting confirmation line ("Acknowledged by … at …"),
+    or the failure with its reason. This is inline `role=status`, not a toast (CLAUDE.md).
+  - Panels open with a 160 ms ease, switched off under prefers-reduced-motion.
+- **#28 Registry wizard:**
+  - Steps are Identity, Classification, Signal mappings, Review. The empty "Windows & profile" step is now help.
+  - Signal paths are full width, monospace, with the full path on hover and Copy (with "Copied" or the failure).
+  - Continue is blocked, with the reason, for an empty required path, a path with spaces or control characters, a path
+    the bulk import already rejects, a half-declared range, min ≥ max, a non-number or a bad PV unit. An unchanged stored
+    path on an edit only warns.
+  - Review lists the actual paths and, for an edit, a before → after diff of the changed settings only, each with its
+    expected effect.
+- **#29 Empty and disabled states:**
+  - About 45 empty states on the main pages say what is unavailable and offer a next action that exists: pick a loop,
+    widen the range, switch 12 h / 24 h, map a signal in the Loop Registry, Pipeline Health, or retry.
+  - Every disabled button says why, on hover and as visible text where it fits: pagers, Review, exports, workbench links,
+    arrows.
+  - Technical wording ("Flink tier", "kernel", "JobManager") is replaced by plain words, with the detail kept secondary.
+
+**Services updated:** `ams-frontend` only. **No migration.**
+**Tests:** see the CHG-099 entry (one run for both): tsc / eslint clean, vitest 471 / 471, build OK; reviewed.
+**Lab browser check:** pending (Docker). Look in particular at the sticky-heading offset, the selected-row colour in the
+night theme, the readiness bar inside the summary card, and the wider full matrix.
+
+## CHG-099 — SME review 2, phase F: an evidence reconstruction is stored BESIDE the original, never over it (2026-10-15)
+
+**Source:** `SME_review_2.md` point 18. User decision 2026-10-14: as the SME says, mindful of performance, space and
+retention. **Reverses CHG-076** (v2.7.0), which replaced the retained artifacts in place.
+
+**Why:** the engine gives a rebuilt artifact the same evidence id as the original (uuidV5 of run, kind and role).
+CHG-076 therefore overwrote the retained proof:
+- an episode capture or the live arrays silently became other bytes, built by the current jar from the historian;
+- the screen still showed the original run's identity.
+The SME requires the original identity, configuration and input basis preserved, and the two distinguishable.
+
+**What changed (cplm-api, no engine change)**
+- **Store:** a reconstruction (provenance has `analysis_run_id`) is never written into the run's own set.
+  - Different bytes go into a new row `ReconstructionId(original, analysis run)` (stable, so a redelivery lands on the
+    same row), with `reconstruction_of` and `analysis_run_id`, class STANDARD.
+  - This holds even when the original is EXPIRED, FAILED or was never kept, so a rebuild can never mix into the live set.
+    This was the CHG-076 lab case: an uncapped rebuild of a capped run.
+  - Identical bytes are not stored; their evidence ids are recorded once each on the analysis run (`identical_evidence`), so a
+    redelivery does not inflate the count.
+  - Only the newest reconstruction per original is kept.
+  - The original row (EPISODE, PINNED, TRANSIENT) is untouched.
+- **Chunks:** a chunk record carries only the original evidence id. It goes to the row (original or reconstruction) that
+  declares that checksum at that position and does not hold that chunk yet; otherwise it is dropped (a redelivery). It is
+  never appended to another row's chunks. A corrupt chunk fails the row that declared it.
+- **Read:**
+  - `GET /method-runs/{id}/evidence` returns the run's own set as `artifacts`, each with `basis`
+    (RETAINED / RECONSTRUCTED for CHG-076-era rows) and `analysisRunId`.
+  - Up to 5 reconstructions come back as `reconstructions[]`: state, time, source (historian or samples topic), build,
+    differing and identical counts, and their artifacts.
+  - A reconstruction reads PENDING until its run has ended; afterwards COMPLETE / IDENTICAL / FAILED, SUPERSEDED (a newer
+    one replaced its rows) or NONE (it produced nothing).
+  - The run's readiness counts its own set only; the ETag covers all rows and every run's state.
+  - A run whose only evidence is a reconstruction still returns a manifest (batch and bundle).
+  - The bundle takes `?set=<analysisRunId>`.
+- **Analysis run:** records `source` (iotdb or kafka) in its manifest.
+- **Schema:** `evidence_manifest.reconstruction_of` and `analysis_run_id` (nullable), a partial index on
+  `reconstruction_of`, and an index on `analysis_run (manifest->>'reconstructs')` for the per-read lookup.
+
+**What changed (ams-frontend)**
+- An evidence-basis bar on the workbench:
+  - "Retained proof", with the newest reconstruction summarised and "Show the reconstruction" (`?view=`);
+  - "Reconstructed evidence", with its date, source, build and differing / identical counts, and "Show the retained
+    proof";
+  - "Rebuilt evidence" when no retained proof is complete, in which case the newest reconstruction is shown by default.
+- Signal-context lanes built from rebuilt arrays say "rebuilt (original no longer held)", not "the run's own".
+- Reconstruct is offered on every reconstructable run. The page polls the analysis run (which refreshes its state from
+  Flink) and the manifest until that reconstruction settles, because the original stays COMPLETE. The poll belongs to the
+  run it was asked for; moving to another window stops it. The copy no longer says "under the same identity".
+- G12's disabled Reconstruct says why: event-keyed, rebuild from System Response.
+
+**Services updated:** `cplm-api`, `ams-frontend`. **Migration: YES.**
+**Not changed:** Flink, retention policy rows.
+**Script to run (plant), BEFORE the cplm-api image swap:**
+- `docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < ops/cpm-15-evidence-reconstruction-beside.sql`
+  (the file is `scripts/cpm-15-…` in the repo, `ops/` in the bundle)
+- then `bash migration/02-apply-schemas.sh`
+
+The new image names the two columns, so the swap must come after the script. The script is additive and re-runnable.
+Fresh install: `database/scripts/64_…` and `migration/schema/03-traverse_cplm.sql`.
+
+**Space:**
+- At most one reconstruction per original, for STANDARD days (3 at the plant), and only the artifacts that differ.
+- Most rebuilds happen when nothing is retained, so there is no duplicate then.
+- The TRANSIENT 2 GiB budget is unaffected.
+
+**Rows replaced under CHG-076 since v2.7.0** keep the rebuilt bytes; they read as "Rebuilt evidence" (their
+`analysis_run_id` is set).
+
+**Tests**
+- cplm-api builds.
+- `EvidenceReconstructionBesideTests` (replaces `EvidenceReconstructionReplaceTests`) covers:
+  - beside, untouched original;
+  - chunk routing;
+  - EPISODE / PINNED kept;
+  - identical counted;
+  - lost / never-kept stored beside;
+  - newest only;
+  - live redelivery no-op;
+  - stable id.
+- `EvidenceApiTests`: the CHG-076 case is now "kept COMPLETE".
+- These are DB-backed: **pending the lab** (Docker down).
+- Independent code review of the combined E + F diff: 7 findings fixed. Among them, a run with only a reconstruction
+  returned no manifest; a redelivered chunk could be appended to the original; and new gate meanings made N/A / pending
+  values read as measured.
+- Frontend for CHG-098 and CHG-099: tsc and eslint (`--max-warnings 0`) clean, vitest 471 / 471, production build OK.
+**Lab check:** pending — reconstruct a G7 window and see both sets, the switch, the poll stop, and an expired run showing
+"Rebuilt evidence".
