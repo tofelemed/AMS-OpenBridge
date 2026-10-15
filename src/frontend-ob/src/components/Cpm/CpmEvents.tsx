@@ -40,6 +40,8 @@ import { explorerHref } from './cpaHref';
 import { diagnosisLabel } from './vocabulary';
 import { useDebounced, useEventById, useEventPage } from './events/useEventPage';
 import { ApiError } from '../../api/apiFetch';
+import SortHeader from './SortHeader';
+import type { Receipt } from './ActionReceipt';
 
 // E2 (P2-13): the page's local formatter carried no zone label — and this page
 // owns operator ack timestamps, the exact case the shared formatter exists for.
@@ -89,9 +91,16 @@ export const CpmEvents: React.FC = () => {
   const selected = onPage ?? lookup.data ?? (selectedNum !== null && lookup.isLoading ? undefined : events[0]);
   const offPage = !onPage && !!lookup.data;
 
+  // CHG-098 (SME review 2 #27): the last action's receipt, held here so it survives the detail remounting when the
+  // action moves the episode off this tab; shown only beside the episode it belongs to.
+  const [receipt, setReceipt] = useState<Receipt | null>(null);
   const select = (id: number) =>
     // replace: picking a row is in-page selection, not a page visit.
     setParams(p => { p.set('event', String(id)); return p; }, { replace: true });
+  // CHG-098 (SME review 2 #25): the column headings set the two orders the server pages by (EventPageSql.OrderBy).
+  // Sorting one fetched page by any other column would mislead, so no other column sorts.
+  const setSort = (v: 'triage' | 'recent') =>
+    setParams(p => { if (v === 'triage') p.delete('sort'); else p.set('sort', v); return p; }, { replace: true });
   const openLoop = (loopId: string) => navigate(explorerHref(loopId, { tab: 'Summary' }));
 
   return (
@@ -131,10 +140,7 @@ export const CpmEvents: React.FC = () => {
             onValue={(e: CustomEvent<{ value: string }>) => {
               const v = e.detail.value;
               if (v !== 'triage' && v !== 'recent') return;
-              setParams(p => {
-                if (v === 'triage') p.delete('sort'); else p.set('sort', v);
-                return p;
-              }, { replace: true });
+              setSort(v);
             }}
           >
             <ObcToggleButtonOption value="triage">Triage</ObcToggleButtonOption>
@@ -164,8 +170,13 @@ export const CpmEvents: React.FC = () => {
 
       <div className="cpm-grid-2">
         <section className="cpm-surface" style={{ padding: 0 }}>
-          <div className="cpm-event-head">
-            <span>Event</span><span>Severity</span><span>State</span><span>Opened</span>
+          <div className="cpm-event-head cpm-table-head--sticky">
+            <span>Event</span>
+            <SortHeader label="Severity" active={sort === 'triage' ? 'desc' : null} orderText="triage: open first, highest evidence score first"
+              title="Triage order: open episodes first, then the highest peak evidence score" onSort={() => setSort('triage')} />
+            <span>State</span>
+            <SortHeader label="Opened" active={sort === 'recent' ? 'desc' : null} orderText="newest first"
+              title="Newest episodes first" onSort={() => setSort('recent')} />
           </div>
           {isLoading && <EmptyState title="Loading events…" />}
           {isError && <QueryError title="Events unavailable" error={error} retry={() => void refetch()} />}
@@ -176,7 +187,14 @@ export const CpmEvents: React.FC = () => {
                 ? `No episode matches “${q}” under this filter — search covers loop tag, loop name, family and diagnosis.`
                 : loopParam
                   ? `No episode of ${loopParam} matches this filter.`
-                  : 'Diagnosis episodes appear here when the gate engine reports a fault family.'}
+                  : filter !== 'all' || scope.active
+                    ? 'No episode matches this state filter and plant scope.'
+                    : 'No diagnosis episode is recorded yet. Episodes appear here when the analysis engine reports a fault family on a loop.'}
+              // CHG-098 (SME review 2 #29): a way out — clear what narrows the list, or see every loop's current result.
+              action={q || loopParam || filter !== 'all'
+                ? { label: 'Show all events', onClick: () => { setSearch(''); setParams(p => { p.delete('filter'); p.delete('loop'); return p; }, { replace: true }); } }
+                : undefined}
+              next={!q && !loopParam && filter === 'all' ? [{ label: 'Current results in Performance', to: '/cpm/performance' }] : undefined}
             />
           )}
           {missing && (
@@ -197,7 +215,8 @@ export const CpmEvents: React.FC = () => {
             const isSelected = selected?.id === e.id;
             return (
               // Two controls, siblings: the episode selects (in-page), the loop id routes.
-              <div key={e.id} className={`cpm-event-row${isSelected ? ' cpm-event-row--selected' : ''}`}>
+              <div key={e.id} className={`cpm-event-row cpm-event-row--dense${isSelected ? ' cpm-event-row--selected' : ''}`}
+                aria-current={isSelected ? 'true' : undefined}>
                 <div className="cpm-event-row__main">
                   <button type="button" className="cpm-event-row__select" aria-pressed={isSelected}
                     aria-label={`Show episode EVT-${e.id}, peak ${diagnosisLabel(e.peak_diagnosis)}`}
@@ -223,18 +242,20 @@ export const CpmEvents: React.FC = () => {
           })}
           {pageCount > 1 && (
             <div className="cpm-pager" aria-busy={isPlaceholderData}>
-              <ObcButton variant="flat" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>← Prev</ObcButton>
+              <span title={page === 0 ? 'Already on the first page' : undefined}><ObcButton variant="flat" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>← Prev</ObcButton></span>
               <span className="cpm-event-row__sub">
                 {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total} · page {page + 1} of {pageCount}
               </span>
-              <ObcButton variant="flat" onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))} disabled={page >= pageCount - 1}>Next →</ObcButton>
+              <span title={page >= pageCount - 1 ? 'Already on the last page' : undefined}><ObcButton variant="flat" onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))} disabled={page >= pageCount - 1}>Next →</ObcButton></span>
             </div>
           )}
         </section>
 
         {selected
-          ? <EventDetail key={selected.id} event={selected} canManage={canManage} policy={data?.shelvePolicy} />
-          : <section className="cpm-surface"><EmptyState title="Select an event" /></section>}
+          ? <EventDetail key={selected.id} event={selected} canManage={canManage} policy={data?.shelvePolicy}
+              receipt={receipt?.key === selected.id ? receipt : null} onReceipt={setReceipt} />
+          : <section className="cpm-surface"><EmptyState title="Select an event"
+              copy="Pick an episode in the list to read its evidence, history and actions here." /></section>}
       </div>
 
       {/* audit F22: the fast G10/G11 conditions (minutes) beside the fused episodes (hours) */}

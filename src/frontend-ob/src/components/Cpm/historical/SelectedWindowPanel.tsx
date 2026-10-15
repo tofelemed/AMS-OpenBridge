@@ -16,6 +16,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { ReasonedButton } from '../ReasonedButton';
 import type { CpmGateMatrix } from '../../../api/cpmApi';
 import { EmptyState, KvRow, PanelHead, TonePill, fmtDateTime, toneFor } from '../shared';
 import { workbenchHref } from '../evidence/selection';
@@ -68,7 +69,9 @@ export const SelectedWindowPanel: React.FC<{
           action={{ label: 'Widen to 30 days', onClick: onWiden }}
         />
       )}
-      {!win && !noWindows && <EmptyState title="Click a verdict band in the chart above" />}
+      {/* CHG-098 (SME review 2 #29): say what the click opens. */}
+      {!win && !noWindows && <EmptyState title="Click a verdict band in the chart above"
+        copy="That window's verdict and gates appear here, with a route to replay its evidence." />}
 
       {fellBack && (
         <p className="cpm-copy" role="status">
@@ -113,13 +116,14 @@ export const SelectedWindowPanel: React.FC<{
             <ObcButton variant="raised" onClick={() => onReplay(win.windowEnd)}>
               Replay this period ›
             </ObcButton>
-            <ObcButton variant="normal" disabled={!run || !loopId}
-              title={run && loopId
-                ? `Open the ${run.gate} run ${run.methodRunId} of this window in the Evidence Workbench`
-                : 'This window predates run identity (v2.5); there is no immutable run to open'}
-              onClick={() => { if (run && loopId) navigate(workbenchHref(loopId, run.methodRunId, run.gate)); }}>
-              Evidence Workbench ›
-            </ObcButton>
+            {/* CHG-098 (SME review 2 #29): the reason it is disabled is on screen; Replay (beside it) is the route instead. */}
+            <span title={run && loopId ? `Open the ${run.gate} run ${run.methodRunId} of this window in the Evidence Workbench` : undefined}>
+              <ReasonedButton variant="normal" disabled={!run || !loopId}
+                reason="Stored before analysis runs were kept (before v2.5), so there is no run to open — use Replay"
+                onClick={() => { if (run && loopId) navigate(workbenchHref(loopId, run.methodRunId, run.gate)); }}>
+                Evidence Workbench ›
+              </ReasonedButton>
+            </span>
             <span className="cpm-copy cpm-hist-note">
               No CMMS integration configured, so no work orders are correlated here.
               Nothing is shown because nothing is known — not because nothing happened.

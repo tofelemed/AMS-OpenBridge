@@ -4,7 +4,7 @@
  * line joining models (no trajectory was estimated). The table carries state, revision, review.
  */
 import React from 'react';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { ReasonedButton } from '../ReasonedButton';
 import { EmptyState, PanelHead, TonePill } from '../shared';
 import type { SystemModel } from '../../../api/cpm/response';
 import { CpmChart, type CpmSeries } from '../evidence/CpmChart';
@@ -54,7 +54,13 @@ export const ModelHistoryBody: React.FC<{
               <td className="cpm-mono">{m.revision}</td>
               <td>{m.reviewedBy ? `${m.reviewedBy}${m.reviewNote ? ` — ${m.reviewNote}` : ''}` : '—'}</td>
               <td>
-                <ObcButton variant="flat" disabled={!canReview || m.modelState === 'SUPERSEDED'} onClick={() => onReview(m)}>Review</ObcButton>
+                {/* CHG-098 (SME review 2 #29): a disabled Review says why — the permission on hover (the page states it once
+                    below the table), a superseded model on screen in its row. */}
+                <span title={!canReview ? 'Reviewing a model needs the cpm.model.review permission'
+                  : m.modelState === 'SUPERSEDED' ? 'A newer revision replaced this model; review the current one instead' : undefined}>
+                  <ReasonedButton variant="flat" disabled={!canReview || m.modelState === 'SUPERSEDED'} onClick={() => onReview(m)}
+                    reason={canReview && m.modelState === 'SUPERSEDED' ? 'Superseded: review the current revision' : null}>Review</ReasonedButton>
+                </span>
               </td>
             </tr>
           ))}

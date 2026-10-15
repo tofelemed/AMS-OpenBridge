@@ -66,7 +66,8 @@ export const CalcDrawer: React.FC<{
 
   return (
     <>
-      <div className="cpm-modal-backdrop" onClick={onClose} />
+      {/* CHG-098 (SME review 2 #27): backdrop and dialog fade in once (off for reduced motion) */}
+      <div className="cpm-modal-backdrop cpm-fade-enter" onClick={onClose} />
       {/*
         Was `.cpm-drawer` — fixed to top:0/right:0, which is where the app top
         bar and the live-events rail sit, so the panel's own title and Close
@@ -78,7 +79,7 @@ export const CalcDrawer: React.FC<{
       */}
       <div
         ref={dialogRef}
-        className="cpm-inspector cpm-inspector--modal cpm-inspector--wide"
+        className="cpm-inspector cpm-inspector--modal cpm-inspector--wide cpm-fade-enter"
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
@@ -90,11 +91,11 @@ export const CalcDrawer: React.FC<{
             <h2 className="cpm-panel-title">{metric.name}</h2>
           </div>
           <div className="cpm-inspector__nav">
-            <CpmIconButton label="Previous calculation" disabled={!onPrev}
+            <CpmIconButton label="Previous calculation" disabled={!onPrev} reason="Already the first calculation in the list"
               onClick={() => onPrev?.()}>
               <ObiChevronLeftGoogle />
             </CpmIconButton>
-            <CpmIconButton label="Next calculation" disabled={!onNext}
+            <CpmIconButton label="Next calculation" disabled={!onNext} reason="Already the last calculation in the list"
               onClick={() => onNext?.()}>
               <ObiChevronRightGoogle />
             </CpmIconButton>

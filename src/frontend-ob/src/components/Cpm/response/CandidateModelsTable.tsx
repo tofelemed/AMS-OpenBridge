@@ -17,7 +17,7 @@ export const CandidateModelsTable: React.FC<{ table: DecodedArtifact | undefined
   const names = provList(intervals, 'parameters');
   const reasons = provList(rejections, 'reasons');
   if (!table && reasons.length === 0) {
-    return <EmptyState title="No candidate models" copy="Estimation did not run for this event (see the subgate states); reasons the kernel recorded are listed when it did." />;
+    return <EmptyState title="No candidate models" copy="No model was estimated for this event. Steps A–H in the event details say where it stopped and why." />;
   }
   return (
     <section className="cpm-surface">

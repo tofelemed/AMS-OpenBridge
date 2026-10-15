@@ -19,7 +19,7 @@
   background: var(--container-section-color);
   border-bottom: 1px solid var(--border-outline-color);
   color: var(--element-active-color);
-  font-size: 0.85rem;
+  font-size: var(--cpm-text-small);
 }
 .cpm-loop-context__item {
   display: inline-flex;
@@ -29,7 +29,7 @@
   min-width: 0;
 }
 .cpm-loop-context__label {
-  font-size: 0.68rem;
+  font-size: var(--cpm-text-caption);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--element-neutral-color);

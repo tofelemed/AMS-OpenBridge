@@ -101,7 +101,7 @@ export const ResponseWorkspace: React.FC = () => {
         <WorkspaceHeader page="/cpm/response" title="System response" />
         {picker}
         {loops.isError && <QueryError error={loops.error} retry={() => void loops.refetch()} />}
-        <EmptyState title="Pick a loop" copy="Its response events appear on the left, newest first; select one to read the model and the evidence behind it. From the workbench, a G12 view opens here on its own event." />
+        <EmptyState title="Pick a loop" copy="Choose a loop above. Its response events (setpoint or output steps) then appear on the left, newest first; select one to read the model and the evidence behind it." />
       </div>
     );
   }
@@ -143,7 +143,7 @@ export const ResponseWorkspace: React.FC = () => {
                 { label: 'Step-test settings (Gate Configuration › G12)', to: `/cpm/config?loop=${encodeURIComponent(loopId)}&view=effective&gate=G12` },
                 { label: 'Setpoint changes in Historical', to: historicalHref(loopId) },
               ]} />
-          ) : <EmptyState title="No event selected" copy="Choose an event on the left. Its result, chart, residuals, candidate models and Bode data are the kernel's artifacts for that method run." />)}
+          ) : <EmptyState title="No event selected" copy="Choose an event in the list on the left to see its result, response chart, fit residuals, candidate models and frequency response." />)}
           {!eventParam && methodRunParam && (runLookup.isError ? <QueryError title="Method run not found" error={runLookup.error} retry={() => void runLookup.refetch()} /> : <EmptyState title="Resolving the method run to its event…" />)}
           {eventParam && detail.isError && <QueryError error={detail.error} retry={() => void detail.refetch()} />}
           {eventParam && !detail.isError && <ResultCard result={result} metrics={detail.data?.metrics} loading={detail.isLoading} />}

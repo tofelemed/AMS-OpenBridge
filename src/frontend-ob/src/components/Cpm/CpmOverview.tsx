@@ -123,7 +123,12 @@ export const CpmOverview: React.FC = () => {
               action={{ label: 'Open Performance', onClick: () => navigate(performanceHref()) }} />
           </section>
         ) : (
-          <section className="cpm-surface"><EmptyState title="Select a loop" /></section>
+          <section className="cpm-surface">
+            {/* CHG-098 (SME review 2 #29): say what fills this panel and where to pick a loop. */}
+            <EmptyState title="Select a loop"
+              copy="Pick a loop in the priority queue to see its live signals and trend here."
+              next={[{ label: 'All loops in Performance', to: performanceHref({ kind: windowKind }) }]} />
+          </section>
         )}
       </div>
 

@@ -33,7 +33,7 @@ import GateEvidencePanel, { GateGuidePanel } from './GateEvidencePanel';
 import { diagnosticCapabilityCopy } from './overview/capabilityCopy';
 import AttentionList, { type RankBy } from './AttentionList';
 import { useBadActors } from './useBadActors';
-import { buildTierGroups, isRowFilter, latestWindowEnd } from './gateStatus';
+import { buildTierGroups, isRowFilter, latestWindowEnd, matrixViewOf, type MatrixView } from './gateStatus';
 import { useCpmLoops, useCpmResolutions, useFleetHeatmap, useFleetSummary } from '../../hooks/useCpm';
 import { useFleetKpis } from './kpi/useFleetKpis';
 import { headlineTiles } from './performanceHeadline';
@@ -74,6 +74,8 @@ export const CpmPerformance: React.FC = () => {
     gate: params.get('fg'),
   };
   const page = Math.max(1, Number(params.get('page') ?? '1') || 1);
+  // CHG-098 (SME review 2 #24): "Checks behind the result" by default; `?view=matrix` keeps the full G0–G15 grid
+  const matrixView = matrixViewOf(params.get('view'));
 
   const write = React.useCallback((mutate: (p: URLSearchParams) => void) => {
     setParams(p => { mutate(p); return p; }, { replace: true });
@@ -85,6 +87,10 @@ export const CpmPerformance: React.FC = () => {
       if (next.gate !== undefined) { if (next.gate) p.set('fg', next.gate); else p.delete('fg'); }
       p.delete('page'); // a new row-set invalidates the page number
     });
+  }, [write]);
+
+  const setMatrixView = React.useCallback((v: MatrixView) => {
+    write(p => { if (v === 'matrix') p.set('view', v); else p.delete('view'); });
   }, [write]);
 
   const setPage = React.useCallback((n: number) => {
@@ -184,12 +190,15 @@ export const CpmPerformance: React.FC = () => {
           return cadence ? ` (recomputed every ${Math.round(cadence / 60_000)} min)` : '';
         })()} ·
         per-window 1m–60m features are in the{' '}
-        <ObcButton variant="flat"
-          title={selectedLoop ? `Per-window results for ${selectedLoop}` : 'Select a loop in the matrix to open its per-window results'}
-          disabled={!selectedLoop}
-          onClick={() => { if (selectedLoop) navigate(windowsHref(selectedLoop)); }}>
-          Window Inspector ›
-        </ObcButton>
+        {/* CHG-098 (SME review 2 #29): the reason rides on a wrapping span (ObcButton takes no title) and in the text */}
+        <span title={selectedLoop ? `Per-window results for ${selectedLoop}` : 'Select a loop in the matrix to open its per-window results'}>
+          <ObcButton variant="flat"
+            disabled={!selectedLoop}
+            onClick={() => { if (selectedLoop) navigate(windowsHref(selectedLoop)); }}>
+            Window Inspector ›
+          </ObcButton>
+        </span>
+        {!selectedLoop && ' (select a loop in the matrix first)'}
       </p>
       <PlantScopeFilter
         scope={scope}
@@ -269,8 +278,10 @@ export const CpmPerformance: React.FC = () => {
             retry={() => void heatmap.refetch()} />
         )}
         {!heatmap.isLoading && !heatmap.isError && heatmapLoops.length === 0 && (
+          // CHG-098 (SME review 2 #29): the route, not only the instruction.
           <EmptyState title="No monitored loops"
-            copy="Onboard loops in the Loop Registry to populate the matrix." />
+            copy="No loop in this plant scope is monitored. Widen the plant scope above, or onboard loops in the Loop Registry to populate the matrix."
+            next={[{ label: 'Loop Registry', to: '/cpm/registry' }]} />
         )}
 
         {heatmapLoops.length > 0 && (
@@ -300,6 +311,8 @@ export const CpmPerformance: React.FC = () => {
                   onOpenLoop={openLoop}
                   onOpenGate={openEvidence}
                   inputFlagsOf={inputFlagsOf}
+                  view={matrixView}
+                  onViewChange={setMatrixView}
                   fleetTotal={heatmap.data?.total ?? fleetTotal}
                 />
 

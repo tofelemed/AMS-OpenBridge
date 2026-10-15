@@ -427,13 +427,19 @@ export const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => vo
           </span>
 
           {step < 2 && (
-            <ObcButton
-              variant="raised"
-              disabled={step === 0 ? !sourceReady : valid.length === 0 || tooMany}
-              onClick={() => setStep(step + 1)}
-            >
-              Next →
-            </ObcButton>
+            // CHG-098 (SME review 2 #29): a disabled Next says why on hover (a wrapping span: ObcButton takes no title)
+            <span title={step === 0
+              ? (!sourceReady ? 'Provide the registry rows, with every required column, first' : undefined)
+              : valid.length === 0 ? 'No row is ready to import — fix the rows marked above'
+                : tooMany ? `Too many rows for one import (at most ${MAX_BULK_LOOPS})` : undefined}>
+              <ObcButton
+                variant="raised"
+                disabled={step === 0 ? !sourceReady : valid.length === 0 || tooMany}
+                onClick={() => setStep(step + 1)}
+              >
+                Next →
+              </ObcButton>
+            </span>
           )}
           {step === 2 && !results && (
             <ObcButton variant="raised" disabled={valid.length === 0 || tooMany || importing} onClick={runImport}>

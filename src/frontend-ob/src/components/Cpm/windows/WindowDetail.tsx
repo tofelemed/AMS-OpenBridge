@@ -125,11 +125,11 @@ export const WindowDetail: React.FC<WindowDetailProps> = ({
             </div>
           </div>
           <div className="cpm-filter-row">
-            <CpmIconButton label="Newer window" disabled={!newer}
+            <CpmIconButton label="Newer window" disabled={!newer} reason="Already the newest loaded window"
               onClick={() => { if (newer?.window_end) onSelect(newer.window_end); }}>
               <ObiChevronLeftGoogle />
             </CpmIconButton>
-            <CpmIconButton label="Older window" disabled={!older}
+            <CpmIconButton label="Older window" disabled={!older} reason="Already the oldest loaded window — load more in the list"
               onClick={() => { if (older?.window_end) onSelect(older.window_end); }}>
               <ObiChevronRightGoogle />
             </CpmIconButton>
@@ -227,8 +227,10 @@ export const WindowDetail: React.FC<WindowDetailProps> = ({
               error={raw.error} retry={() => void raw.refetch()} />
           )}
           {!raw.isLoading && !raw.isError && density.length === 0 && (
-            <EmptyState title="No raw slice available"
-              copy="This window has no stored historian data to count per bucket." />
+            // CHG-098 (SME review 2 #29): plain cause plus the mapping to check.
+            <EmptyState title="No raw samples for this window"
+              copy="No historian samples were stored for this loop over this window, so there is nothing to count. Check the loop's signal mapping in the Loop Registry."
+              next={[{ label: 'Signal mapping in the Loop Registry', to: `/cpm/registry?loop=${encodeURIComponent(loopId)}` }]} />
           )}
           {density.length > 0 && (
             <>

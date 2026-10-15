@@ -62,7 +62,8 @@ export const HypothesisPanel: React.FC<{
         </p>
         {rows.length === 0 && (
           <EmptyState title="No family scores on this window"
-            copy="Scores are produced by the long-diagnostics tier; short-only windows carry none." />
+            // CHG-098 (SME review 2 #29): plain wording for "long-diagnostics tier".
+            copy="Family scores come from the full 12 h / 24 h diagnosis; a window evaluated on short features only carries none. Pick another window to see them." />
         )}
         {rows.map(h => (
           <div key={h.field} className="cpm-kv">

@@ -33,8 +33,13 @@ export function gateRole(gate: string | null | undefined): GateRole {
 }
 
 /** The meaning of one gate result — what the mark on screen must say (SME review #16, CHG-052). */
-export type GateMeaning = 'ok' | 'ok-limited' | 'attention' | 'failed' | 'unusable' | 'not-seen' | 'not-seen-limited'
-  | 'seen' | 'strong' | 'detected' | 'classified' | 'suspected' | 'confirmed' | 'ruled-out' | 'none';
+export type GateMeaning = 'ok' | 'ok-limited' | 'attention' | 'failed' | 'unusable' | 'excluded' | 'not-seen' | 'not-seen-limited'
+  | 'seen' | 'strong' | 'detected' | 'classified' | 'suspected' | 'confirmed' | 'ruled-out' | 'none' | 'not-applicable' | 'pending';
+
+/** CHG-098 (SME review 2 #24): the meanings that carry no result — "not evaluated", "not applicable", "pending". */
+export const NO_RESULT: ReadonlySet<GateMeaning> = new Set<GateMeaning>(['none', 'not-applicable', 'pending']);
+/** True when the status carries no result (not evaluated, not applicable / disabled, pending). */
+export const isNoResult = (meaning: GateMeaning): boolean => NO_RESULT.has(meaning);
 
 export interface GateGlyph {
   glyph: string;
@@ -63,6 +68,8 @@ const MARK: Record<GateMeaning, Omit<GateGlyph, 'meaning'>> = {
   attention: { glyph: '!', tone: 'warn', word: 'Attention', label: 'check needs attention' },
   failed: { glyph: '✕', tone: 'bad', word: 'Failed', label: 'check failed' },
   unusable: { glyph: '⊘', tone: 'muted', word: 'Not usable', label: 'window not usable for this check' },
+  // CHG-098 (SME review 2 #24): an exclusion is a deliberate choice (mode / operating region), not an unusable window
+  excluded: { glyph: '⊖', tone: 'muted', word: 'Excluded', label: 'excluded on purpose (mode or operating region)' },
   'not-seen': { glyph: '◯', tone: 'muted', word: 'Not seen', label: 'symptom not seen by this method' },
   'not-seen-limited': { glyph: '◯', tone: 'muted', word: 'Not seen on available data', label: 'symptom not seen on the inputs available' },
   seen: { glyph: '◐', tone: 'warn', word: 'Seen', label: 'symptom seen' },
@@ -72,8 +79,12 @@ const MARK: Record<GateMeaning, Omit<GateGlyph, 'meaning'>> = {
   classified: { glyph: '△', tone: 'warn', word: 'Classified', label: 'condition classified (moderate evidence)' },
   suspected: { glyph: '△', tone: 'warn', word: 'Suspected', label: 'condition suspected' },
   confirmed: { glyph: '▲', tone: 'bad', word: 'Confirmed', label: 'condition confirmed' },
-  'ruled-out': { glyph: '✓', tone: 'good', word: 'Ruled out', label: 'fault ruled out by measured evidence' },
-  none: { glyph: '—', tone: 'muted', word: 'No verdict', label: 'not evaluated' },
+  // CHG-098 (SME review 2 #24): "ruled out" has its own mark — the ✓ is kept for a check that passed
+  'ruled-out': { glyph: '◇', tone: 'good', word: 'Ruled out', label: 'fault ruled out by measured evidence' },
+  // CHG-098 (SME review 2 #24): "—" is "not evaluated" only; not applicable and pending have their own marks
+  none: { glyph: '—', tone: 'muted', word: 'Not evaluated', label: 'not evaluated' },
+  'not-applicable': { glyph: 'n/a', tone: 'muted', word: 'N/A', label: 'not applicable' },
+  pending: { glyph: '…', tone: 'muted', word: 'Pending', label: 'pending' },
 };
 
 const NO_VERDICT_WORD: Record<string, string> = {
@@ -90,7 +101,9 @@ export function gateMeaning(status: string | null | undefined, gate?: string | n
   if (s === 'DETECTED') return 'detected';
   if (s === 'CONTRADICTED') return 'ruled-out';
   if (s === 'STRONG') return 'strong';
-  if (s.startsWith('EXCLUDED')) return 'unusable';
+  if (s.startsWith('EXCLUDED')) return 'excluded';
+  if (s === 'NOT_APPLICABLE' || s === 'DISABLED') return 'not-applicable';
+  if (s === 'PENDING') return 'pending';
   if (role === 'diagnostic') {
     if (s === 'PASS') return 'not-seen';
     if (s === 'WARN' || s === 'REVIEW') return 'seen';
@@ -112,8 +125,9 @@ export function gateMark(status: string | null | undefined, gate?: string | null
   const limitedBy = meaning === 'ok' || meaning === 'not-seen' ? gateLimits(gate, inputFlags) : [];
   if (limitedBy.length) meaning = meaning === 'ok' ? 'ok-limited' : 'not-seen-limited';
   const m = MARK[meaning];
-  const word = meaning === 'none' ? NO_VERDICT_WORD[(status ?? '').toUpperCase()] ?? m.word : m.word;
-  const label = meaning === 'none' ? word.toLowerCase() : limitedBy.length ? `${m.label} — ${limitedBy.join(', ')}` : m.label;
+  const noResult = NO_RESULT.has(meaning);
+  const word = noResult ? NO_VERDICT_WORD[(status ?? '').toUpperCase()] ?? m.word : m.word;
+  const label = noResult ? word.toLowerCase() : limitedBy.length ? `${m.label} — ${limitedBy.join(', ')}` : m.label;
   return { ...m, word, label, meaning, ...(limitedBy.length ? { limitedBy } : {}) };
 }
 
@@ -124,14 +138,46 @@ export const gateTone = (status: string | null | undefined, gate?: string | null
 /** Kept for callers of the CPA glyph vocabulary; identical to `gateMark`. */
 export const glyphFor = gateMark;
 
-/** The legend every gate strip / matrix shows once (symbol + words). */
-const LEGEND_ORDER: Array<[GateMeaning, string]> = [
-  ['ok', 'check OK'], ['ok-limited', 'OK on available data (an input missing)'], ['attention', 'check needs attention'], ['failed', 'check failed'], ['unusable', 'window not usable'],
-  ['not-seen', 'symptom not seen'], ['seen', 'symptom seen'], ['strong', 'strong symptom'], ['suspected', 'suspected'],
-  ['confirmed', 'confirmed'], ['none', 'no verdict'],
+/**
+ * The legend every gate strip / matrix shows once (symbol + words). CHG-098 (SME review 2 #24): grouped so a failed
+ * check, symptom evidence, an exclusion and "no evaluation" read as four different things, and every mark is in it.
+ */
+const LEGEND_GROUPS: Array<{ group: string; items: Array<[GateMeaning, string]> }> = [
+  { group: 'Checks', items: [['ok', 'check OK'], ['ok-limited', 'OK on available data (an input missing)'], ['attention', 'check needs attention'], ['failed', 'check failed']] },
+  { group: 'Window', items: [['unusable', 'window not usable'], ['excluded', 'excluded on purpose (mode / region)']] },
+  { group: 'Symptoms', items: [['not-seen', 'symptom not seen'], ['seen', 'symptom seen'], ['strong', 'strong symptom']] },
+  { group: 'Result', items: [['suspected', 'detected / classified / suspected'], ['confirmed', 'confirmed'], ['ruled-out', 'ruled out']] },
+  { group: 'No result', items: [['none', 'not evaluated'], ['not-applicable', 'not applicable'], ['pending', 'pending']] },
 ];
-export const GATE_LEGEND: Array<{ glyph: string; tone: CpmTone; text: string; meaning: GateMeaning }> =
-  LEGEND_ORDER.map(([meaning, text]) => ({ glyph: MARK[meaning].glyph, tone: MARK[meaning].tone, text, meaning }));
+export const GATE_LEGEND: Array<{ glyph: string; tone: CpmTone; text: string; meaning: GateMeaning; group: string }> =
+  LEGEND_GROUPS.flatMap(g => g.items.map(([meaning, text]) => ({ glyph: MARK[meaning].glyph, tone: MARK[meaning].tone, text, meaning, group: g.group })));
+
+/**
+ * CHG-098 (SME review 2 #24): readable gate names, the same words the calculations contract serves
+ * (cplm-api CpmEventsController), so a header or a check reads "G7 Stiction shape" without a fetch.
+ */
+export const GATE_NAMES: Readonly<Record<string, string>> = {
+  G0: 'Data quality', G1: 'Mode / service', G2: 'Setpoint activity', G2r: 'Operating region', G3: 'Base performance',
+  G4: 'Actuator effort', G5: 'Oscillation (ACF)', G6: 'Spectral (FFT)', G7: 'Stiction shape', G8: 'Horch oddness',
+  G9: 'Phase geometry', G10: 'Valve / saturation', G11: 'Sensor health', G12: 'Step-test evidence',
+  G13: 'Disturbance context', G14: 'VP confirmation', G15: 'Diagnosis band',
+};
+export const gateName = (gate: string): string => GATE_NAMES[gate] ?? gate;
+
+/** Meanings that do not move a loop's result: a pass, a symptom not seen, or no result at all. */
+const QUIET: ReadonlySet<GateMeaning> = new Set<GateMeaning>(['ok', 'ok-limited', 'not-seen', 'not-seen-limited', ...NO_RESULT]);
+
+/**
+ * CHG-098 (SME review 2 #24): the gates behind a row's current result — every gate whose mark says something
+ * (failed, attention, not usable, excluded, symptom, ruled out, band) plus G15, which gives the verdict. Ordered as served.
+ */
+export function resultGates(row: CpmHeatmapLoop, gateKeys: string[], inputFlags?: readonly string[] | null): string[] {
+  return gateKeys.filter(k => k === 'G15' || !QUIET.has(gateMark(row.gates[k], k, inputFlags).meaning));
+}
+
+/** Performance page view: the readable "checks behind the result" (default) or the full G0–G15 matrix (advanced). */
+export type MatrixView = 'checks' | 'matrix';
+export const matrixViewOf = (v: string | null): MatrixView => (v === 'matrix' ? 'matrix' : 'checks');
 
 /**
  * Does this result hold the loop back — for the fleet filters and roll-up counts ("Needs attention", the

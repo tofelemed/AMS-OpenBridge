@@ -20,6 +20,7 @@ import { codeLabel, diagnosisLabel, phrase } from '../vocabulary';
 import { EVIDENCE_SCORE_HELP, evidenceScore, evidenceScoreText } from '../evidenceScore';
 import { ReasonedButton } from '../ReasonedButton';
 import { EpisodeNotes } from './EpisodeNotes';
+import { ActionReceipt, byNow, receiptDone, receiptFailed, useReceiptUser, type Receipt } from '../ActionReceipt';
 
 const ShelvePanel = React.lazy(() => import('./ShelvePanel'));
 const UnshelvePanel = React.lazy(() => import('./UnshelvePanel'));
@@ -53,10 +54,20 @@ export interface EventDetailProps {
   canManage: boolean;
   /** From the events read; absent on an API that predates CHG-032. */
   policy?: CpmShelvePolicy;
+  /**
+   * CHG-098 (SME review 2 #27): the last action's receipt for this episode. Held by the page so it survives the
+   * detail remounting when the action moves the episode off the current tab; kept locally when no owner is given.
+   */
+  receipt?: Receipt | null;
+  onReceipt?: (r: Receipt) => void;
 }
 
-export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, policy }) => {
+export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, policy, receipt: ownedReceipt, onReceipt }) => {
   const navigate = useNavigate();
+  const user = useReceiptUser();
+  const [localReceipt, setLocalReceipt] = useState<Receipt | null>(null);
+  const receipt = onReceipt ? ownedReceipt ?? null : localReceipt;
+  const report = onReceipt ?? setLocalReceipt;
   const ack = useAcknowledgeEvent();
   const shelve = useShelveEvent();
   const unshelve = useUnshelveEvent();
@@ -84,7 +95,7 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
   const toggle = (p: Panel) => setPanel(cur => (cur === p ? 'none' : p));
 
   return (
-    <aside className="cpm-surface">
+    <aside className="cpm-surface cpm-panel-enter">
       <PanelHead
         eyebrow={`EVT-${event.id}`}
         title={`Peak: ${diagnosisLabel(event.peak_diagnosis)}`}
@@ -159,7 +170,10 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
       <div className="cpm-inspector__actions">
         {/* SME #21 (CHG-057): the reason an action is unavailable is on screen, not only in the hover title */}
         <ReasonedButton variant="raised" disabled={!canManage || ack.isPending || acked} title={ackTitle} reason={ack.isPending ? null : ackTitle}
-          onClick={() => ack.mutate({ id: event.id, note: note || undefined }, { onSuccess: () => setNote('') })}>
+          onClick={() => ack.mutate({ id: event.id, note: note || undefined }, {
+            onSuccess: () => { setNote(''); report(receiptDone(`Acknowledged ${byNow(user)}`, event.id)); },
+            onError: err => report(receiptFailed('Acknowledge', err, event.id)),
+          })}>
           {ack.isPending ? 'Acknowledging…' : 'Acknowledge'}
         </ReasonedButton>
         <ReasonedButton variant="normal" disabled={!canManage || !open || shelve.isPending} title={shelveTitle} reason={shelve.isPending ? null : shelveTitle}
@@ -175,17 +189,31 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
           History ›
         </ObcButton>
       </div>
+      {/* CHG-098 (SME review 2 #27): what the last action recorded (or why it failed) stays beside the actions until
+          the next one. Shelve / unshelve refusals stay inside their open panel, where the inputs to correct are. */}
+      <ActionReceipt receipt={receipt} />
       {panel === 'shelve' && (
         <Suspense fallback={<EmptyState title="Loading…" />}>
           <ShelvePanel event={event} canManage={canManage} pending={shelve.isPending} error={shelve.error} maxHours={maxHours}
-            onShelve={(until, reason) => shelve.mutate({ id: event.id, until, reason }, { onSuccess: () => setPanel('none') })}
+            onShelve={(until, reason) => shelve.mutate({ id: event.id, until, reason }, {
+              onSuccess: r => {
+                setPanel('none');
+                report(receiptDone(`${r.updated ? 'Shelf updated' : 'Shelved'} until ${fmt(r.shelveUntil ?? until)} — ${byNow(user)}`, event.id));
+              },
+            })}
             onClose={() => setPanel('none')} />
         </Suspense>
       )}
       {panel === 'unshelve' && (
         <Suspense fallback={<EmptyState title="Loading…" />}>
           <UnshelvePanel event={event} canManage={canManage} pending={unshelve.isPending} error={unshelve.error}
-            onUnshelve={reason => unshelve.mutate({ id: event.id, reason }, { onSuccess: () => setPanel('none') })}
+            onUnshelve={reason => unshelve.mutate({ id: event.id, reason }, {
+              onSuccess: r => {
+                setPanel('none');
+                const lands = r.ackState === 'ACKNOWLEDGED' ? 'it stays acknowledged' : 'it is back in the Unacknowledged queue';
+                report(receiptDone(`Unshelved ${byNow(user)} — ${lands}`, event.id));
+              },
+            })}
             onClose={() => setPanel('none')} />
         </Suspense>
       )}
@@ -200,11 +228,6 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
           This episode has closed but was never acknowledged — a closed, unacknowledged
           episode is an unreviewed finding, not a resolved one. It can still be
           acknowledged; shelving no longer applies.
-        </p>
-      )}
-      {ack.isError && (
-        <p className="cpm-field__error" role="alert">
-          {(ack.error as Error)?.message ?? 'The action failed.'}
         </p>
       )}
     </aside>

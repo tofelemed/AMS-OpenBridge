@@ -12,7 +12,7 @@
  */
 import React from 'react';
 import type { CpmHeatmapLoop } from '../../api/cpmApi';
-import { gateFailureCounts } from './gateStatus';
+import { gateFailureCounts, gateName } from './gateStatus';
 
 const BAR_MAX_PX = 44;
 
@@ -54,11 +54,12 @@ export const GateRollup: React.FC<{
                   className={`cpm-rollup__bar${active ? ' cpm-rollup__bar--active' : ''}`}
                   aria-pressed={active}
                   disabled={c.total === 0}
+                  title={c.total === 0 ? `${key} ${gateName(key)}: no loop is held back here, so there is nothing to filter` : `${key} ${gateName(key)}`}
                   onClick={() => onSelectGate(active ? null : key)}
                   aria-label={
                     c.total === 0
-                      ? `${key}: no loops held back`
-                      : `${key}: ${c.bad} failed, ${c.warn} need attention. `
+                      ? `${key} ${gateName(key)}: no loops held back`
+                      : `${key} ${gateName(key)}: ${c.bad} failed, ${c.warn} need attention. `
                         + `${active ? 'Showing' : 'Show'} only these loops in the matrix.`
                   }
                 >

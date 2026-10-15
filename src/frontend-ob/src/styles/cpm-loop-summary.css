@@ -27,7 +27,7 @@
   gap: 8px 16px;
 }
 .cpm-loop-summary__condition { margin: 2px 0 0; font-size: 1.3rem; }
-.cpm-loop-summary__severity { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.8rem; }
+.cpm-loop-summary__severity { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: var(--cpm-text-small); }
 .cpm-loop-summary__muted { color: var(--element-neutral-color); }
 .cpm-loop-summary__note { margin: 0; color: var(--element-neutral-color); }
 .cpm-loop-summary__stale { color: var(--alert-caution-color); font-weight: 600; }
@@ -39,7 +39,7 @@
   margin: 0;
 }
 .cpm-loop-summary__label {
-  font-size: 0.72rem;
+  font-size: var(--cpm-text-caption);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--element-neutral-color);
@@ -52,7 +52,7 @@
   padding: 2px 10px;
   border: 1px solid var(--border-divider-color);
   border-radius: 999px;
-  font-size: 0.85rem;
+  font-size: var(--cpm-text-small);
 }
 .cpm-loop-summary__limits { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
 
@@ -65,6 +65,15 @@
   border-top: 1px solid var(--border-divider-color);
 }
 .cpm-loop-summary__next-text { margin: 0; font-weight: 600; }
+/* CHG-098 (SME review 2 #20): the summary stays compact — the next check at most two lines (full text in the
+   title and on the Investigation), the basis behind one OpenBridge accordion item at the foot of the card. */
+.cpm-loop-summary__next-text {
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.cpm-loop-summary__more { margin: -4px -8px -6px; min-width: 0; }
+.cpm-loop-summary__more obc-accordion-item { display: block; width: 100%; }
+.cpm-loop-summary__more .cpm-collapsible__summary { margin: 0 8px 4px; }
+.cpm-loop-summary__more .cpm-collapsible__body { padding: 4px 8px 8px; }
 .cpm-loop-summary__actions { display: inline-flex; flex-wrap: wrap; gap: 8px; }
 
 @media (max-width: 1100px) {
@@ -85,7 +94,7 @@
    evaluated are both neutral, so not-evaluated is hatched: the two are told
    apart by pattern and label, never by colour alone. */
 .cpm-op { display: flex; flex-direction: column; gap: 12px; }
-.cpm-op__muted { color: var(--element-neutral-color); font-size: 0.85rem; }
+.cpm-op__muted { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-op__bar {
   display: flex;
   height: 12px;
@@ -107,7 +116,7 @@
 }
 .cpm-op__seg--stale      { background: var(--alert-caution-color); }
 .cpm-op__seg--never      { background: var(--border-divider-color); outline: 1px dashed var(--element-neutral-color); outline-offset: -1px; }
-.cpm-op__legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; font-size: 0.85rem; }
+.cpm-op__legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; font-size: var(--cpm-text-small); }
 .cpm-op__legend li { display: inline-flex; align-items: center; gap: 6px; }
 .cpm-op__swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
 
@@ -118,12 +127,12 @@
 /* ── Overview priority queue (SME review #7, CHG-045) ──
    One row = head (priority badge · loop route · condition) over the preview (description, the
    ranking reason, the good-error bar). Stacked rather than columned so it reflows at any width. */
-.cpm-queue-rule { margin: 0 0 8px; font-size: 0.8rem; color: var(--element-neutral-color); }
+.cpm-queue-rule { margin: 0 0 8px; font-size: var(--cpm-text-small); color: var(--element-neutral-color); }
 .cpm-queue-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 .cpm-queue-row__head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-width: 0; }
 .cpm-queue-row__diag { margin-left: auto; display: inline-flex; flex-wrap: wrap; gap: 6px; }
 .cpm-queue-row__reason { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; }
-.cpm-queue-row__why { flex: 1 1 260px; font-size: 0.82rem; color: var(--element-active-color); overflow-wrap: anywhere; }
+.cpm-queue-row__why { flex: 1 1 260px; font-size: var(--cpm-text-small); color: var(--element-active-color); overflow-wrap: anywhere; }
 
 /* ── Facet pills (SME review #8, CHG-046) ──
    Every loop facet is captioned with its fixed name (Signal quality / Instrument health /
@@ -131,7 +140,7 @@
    The caption is small and neutral; the dot + value keep the tone. Wraps on a narrow screen. */
 .cpm-facet { white-space: normal; flex-wrap: wrap; row-gap: 2px; }
 .cpm-facet__caption {
-  font-size: 0.68rem;
+  font-size: var(--cpm-text-caption);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--element-neutral-color);
@@ -143,7 +152,7 @@
 /* ── Loop signal trend (SME review #9/#10, CHG-047) ──
    Scale switch above the chart (right-aligned, wraps under on a phone); the band's caption below. */
 .cpm-signal-trend__bar { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-bottom: 4px; }
-.cpm-signal-trend__note { margin: 4px 0 0; font-size: 0.78rem; color: var(--element-neutral-color); }
+.cpm-signal-trend__note { margin: 4px 0 0; font-size: var(--cpm-text-caption); color: var(--element-neutral-color); }
 
 /* ── Shared period bar (SME review #11, CHG-048) — Historical and the Explorer trend ──
    One wrapping row: presets · ‹ range › · Now/Live · (Open in Historical, pushed right); the custom
@@ -155,7 +164,7 @@
 /* CHG-067: a trend's caption ("Evaluated window (diagnosis)" / "Now (live 8 h)") sits left of its scale switch. */
 .cpm-signal-trend__caption { margin-right: auto; align-self: center; }
 .cpm-signal-trend + .cpm-signal-trend { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-divider-color); }
-.cpm-eval-note { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 6px 0; color: var(--element-neutral-color); font-size: 0.85rem; }
+.cpm-eval-note { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 6px 0; color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-loop-summary__inline-action { margin-left: 8px; }
 
 /* CHG-063: a server count beside a tab label — secondary to the label, figures aligned. */
@@ -167,7 +176,7 @@
 .cpm-kpi-proof__search { max-width: 360px; margin-bottom: 8px; }
 .cpm-kpi-table { width: 100%; }
 .cpm-kpi-table td { vertical-align: top; }
-.cpm-kpi-table__sub { display: block; color: var(--element-neutral-color); font-size: 0.8rem; }
+.cpm-kpi-table__sub { display: block; color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-kpi-table__links { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; }
 @media (max-width: 760px) {
   .cpm-kpi-table thead { display: none; }
@@ -176,7 +185,7 @@
   .cpm-kpi-table td { border: 0; padding: 3px 0; }
   .cpm-kpi-table td::before {
     content: attr(data-label); display: block; color: var(--element-neutral-color);
-    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+    font-size: var(--cpm-text-caption); text-transform: uppercase; letter-spacing: 0.06em;
   }
 }
 
@@ -206,7 +215,7 @@
   border: 1px solid var(--border-divider-color); --element-active-color: var(--element-neutral-color);
 }
 .cpm-kpicard__icon > * { width: 18px; height: 18px; }
-.cpm-kpicard__delta { display: inline-flex; align-items: center; gap: 2px; font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
+.cpm-kpicard__delta { display: inline-flex; align-items: center; gap: 2px; font-size: var(--cpm-text-small); font-weight: 600; white-space: nowrap; }
 .cpm-kpicard__delta--good { color: var(--alert-running-color); --element-active-color: var(--alert-running-color); }
 .cpm-kpicard__delta--bad  { color: var(--alert-alarm-color); --element-active-color: var(--alert-alarm-color); }
 .cpm-kpicard__delta--flat { color: var(--element-neutral-color); }
@@ -216,8 +225,8 @@
 .cpm-kpicard--large .cpm-kpicard__value { font-size: 2rem; }
 .cpm-kpicard__of { font-size: 1rem; font-weight: 400; color: var(--element-neutral-color); }
 .cpm-kpicard__text { display: block; font-size: 0.95rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
-.cpm-kpicard__label { font-size: 0.85rem; color: var(--element-active-color); }
-.cpm-kpicard__sub { font-size: 0.78rem; color: var(--element-neutral-color); }
+.cpm-kpicard__label { font-size: var(--cpm-text-small); color: var(--element-active-color); }
+.cpm-kpicard__sub { font-size: var(--cpm-text-caption); color: var(--element-neutral-color); }
 .cpm-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .cpm-op__coverage { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: stretch; }
@@ -225,27 +234,27 @@
   display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 10px;
   border: 1px solid var(--border-divider-color);
 }
-.cpm-op__basis { color: var(--element-neutral-color); font-size: 0.8rem; margin: 0; }
+.cpm-op__basis { color: var(--element-neutral-color); font-size: var(--cpm-text-small); margin: 0; }
 
 /* the measured value against its threshold (drill-down) */
 .cpm-kpimeter { position: relative; display: block; height: 6px; margin-top: 6px; max-width: 220px; border-radius: 3px; background: var(--border-divider-color); }
 .cpm-kpimeter__fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--instrument-enhanced-primary-color); }
 .cpm-kpimeter__mark { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--element-active-color); }
-.cpm-kpi-back { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 4px; font-size: 0.85rem; }
+.cpm-kpi-back { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 4px; font-size: var(--cpm-text-small); }
 .cpm-kpi-back__icon { display: inline-flex; width: 18px; height: 18px; }
 .cpm-kpi-back__icon > * { width: 18px; height: 18px; }
 .cpm-kpi-proof__grid { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 16px; margin: 0; }
-.cpm-kpi-proof__grid dt { color: var(--element-neutral-color); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; padding-top: 2px; }
+.cpm-kpi-proof__grid dt { color: var(--element-neutral-color); font-size: var(--cpm-text-small); text-transform: uppercase; letter-spacing: 0.05em; padding-top: 2px; }
 .cpm-kpi-proof__grid dd { margin: 0; }
 .cpm-kpi-proof__formula {
-  display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 0.85rem; overflow-wrap: anywhere;
+  display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: var(--cpm-text-small); overflow-wrap: anywhere;
   background: var(--border-divider-color);
 }
 .cpm-kpi-proof__tools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin-bottom: 8px; }
 .cpm-kpi-proof__reasons { display: flex; flex-wrap: wrap; gap: 4px; }
 .cpm-kpi-table__tag { display: block; }
 .cpm-kpi-table__measured { display: block; }
-.cpm-kpi-table__context { color: var(--element-neutral-color); font-size: 0.85rem; }
+.cpm-kpi-table__context { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 
 @media (max-width: 1100px) {
   .cpm-kpicards--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -266,7 +275,7 @@
 /* CHG-092 (SME review 2 #22): loop KPI groups + the cards that bear on the current finding */
 .cpm-kpigroup + .cpm-kpigroup { margin-top: 12px; }
 .cpm-kpigroup__title {
-  margin: 8px 0 0; font-size: 0.72rem; font-weight: 600; color: var(--element-neutral-color);
+  margin: 8px 0 0; font-size: var(--cpm-text-caption); font-weight: 600; color: var(--element-neutral-color);
   text-transform: uppercase; letter-spacing: 0.04em;
 }
 .cpm-kpicard--relevant { outline: 2px solid var(--element-active-color); outline-offset: -2px; }

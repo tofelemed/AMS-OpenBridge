@@ -1,3 +1,11 @@
+/* CHG-098 (SME review 2 #23): ONE type scale for the CPM pages. Captions (eyebrows, legends, table labels) never below
+   0.78 rem, secondary text 0.85 rem; body text keeps the OpenBridge default. Reading paragraphs stop at ~80 characters. */
+:root {
+  --cpm-text-caption: 0.78rem;
+  --cpm-text-small: 0.85rem;
+}
+.cpm-copy, .cpm-eval-note > span, .cpm-gate-state__valid { max-width: 80ch; }
+
 /* ═══════════════════════════════════════════════════════════════════════════
    CPLM Phase 7 — CPM screen styles.
    Every color/spacing value comes from OpenBridge tokens so the screens follow
@@ -42,7 +50,7 @@
 .cpm-workspace-header__actions { display: flex; gap: 8px; align-items: center; }
 .cpm-eyebrow {
   display: block;
-  font-size: 0.72rem;
+  font-size: var(--cpm-text-caption);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--element-neutral-color);
@@ -59,7 +67,7 @@
   gap: 6px;
   padding: 2px 10px;
   border-radius: 999px;
-  font-size: 0.8rem;
+  font-size: var(--cpm-text-small);
   border: 1px solid var(--border-divider-color);
   color: var(--element-active-color);
   white-space: nowrap;
@@ -84,14 +92,14 @@
 .cpm-kpi--good  { --cpm-tone: var(--alert-running-color); }
 .cpm-kpi--warn  { --cpm-tone: var(--alert-caution-color); }
 .cpm-kpi--bad   { --cpm-tone: var(--alert-alarm-color); }
-.cpm-kpi__caption { font-size: 0.75rem; color: var(--element-neutral-color); text-transform: uppercase; letter-spacing: 0.05em; }
+.cpm-kpi__caption { font-size: var(--cpm-text-caption); color: var(--element-neutral-color); text-transform: uppercase; letter-spacing: 0.05em; }
 .cpm-kpi__value { font-size: 1.5rem; font-weight: 600; }
-.cpm-kpi__sub { font-size: 0.8rem; color: var(--element-neutral-color); }
+.cpm-kpi__sub { font-size: var(--cpm-text-small); color: var(--element-neutral-color); }
 .cpm-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
 
 /* ── Form field / select (token-styled natives, matching app conventions) ── */
 .cpm-field { display: flex; flex-direction: column; gap: 4px; min-width: 200px; }
-.cpm-field__label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--element-neutral-color); }
+.cpm-field__label { font-size: var(--cpm-text-caption); text-transform: uppercase; letter-spacing: 0.06em; color: var(--element-neutral-color); }
 .cpm-select,
 .cpm-input,
 .cpm-textarea {
@@ -107,20 +115,20 @@
   outline-offset: 1px;
 }
 .cpm-input--error { border-color: var(--alert-alarm-color); }
-.cpm-field__error { color: var(--alert-alarm-color); font-size: 0.78rem; }
+.cpm-field__error { color: var(--alert-alarm-color); font-size: var(--cpm-text-caption); }
 
 /* ── Key/value rows ── */
 .cpm-kv { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--border-divider-color); }
 .cpm-kv:last-child { border-bottom: none; }
-.cpm-kv__label { color: var(--element-neutral-color); font-size: 0.85rem; }
-.cpm-kv__value { text-align: right; font-size: 0.85rem; }
+.cpm-kv__label { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
+.cpm-kv__value { text-align: right; font-size: var(--cpm-text-small); }
 
 /* ── Toolbar (the U5–U9 query bar) ── */
 .cpm-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
 
 /* ── Filter segmented row (U4) ── */
 .cpm-filter-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.cpm-filter-count { margin-left: auto; color: var(--element-neutral-color); font-size: 0.85rem; }
+.cpm-filter-count { margin-left: auto; color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 
 /* ── Event list (U4) ── */
 .cpm-event-row {
@@ -136,7 +144,7 @@
 .cpm-event-row:hover { background: var(--container-hover-color, rgba(128,128,128,0.08)); }
 .cpm-event-row--selected { border-left-color: var(--instrument-enhanced-primary-color); background: var(--container-hover-color, rgba(128,128,128,0.08)); }
 .cpm-event-row__title { font-weight: 600; }
-.cpm-event-row__sub { font-size: 0.78rem; color: var(--element-neutral-color); }
+.cpm-event-row__sub { font-size: var(--cpm-text-caption); color: var(--element-neutral-color); }
 .cpm-pager {
   display: flex;
   align-items: center;
@@ -151,7 +159,7 @@
   grid-template-columns: 1.6fr 0.6fr 0.6fr 0.6fr;
   gap: 8px;
   padding: 6px 12px;
-  font-size: 0.72rem;
+  font-size: var(--cpm-text-caption);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--element-neutral-color);
@@ -167,7 +175,7 @@
   padding: 8px 12px;
 }
 .cpm-reg-head {
-  font-size: 0.72rem;
+  font-size: var(--cpm-text-caption);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--element-neutral-color);
@@ -186,7 +194,7 @@
   border: 1px solid var(--alert-caution-color);
   border-radius: 8px;
   background: color-mix(in srgb, var(--alert-caution-color) 8%, transparent);
-  font-size: 0.88rem;
+  font-size: var(--cpm-text-small);
 }
 
 /* ── Wizard (U10 add-loop) ── */
@@ -198,7 +206,7 @@
   padding: 6px 12px;
   border-radius: 999px;
   border: 1px solid var(--border-divider-color);
-  font-size: 0.8rem;
+  font-size: var(--cpm-text-small);
   color: var(--element-neutral-color);
   background: none;
   cursor: default;
@@ -232,7 +240,7 @@
 
 /* ── CSV preview (U10 bulk import) ── */
 .cpm-csv-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
-.cpm-mono { font-family: var(--font-mono, monospace); font-size: 0.82rem; }
+.cpm-mono { font-family: var(--font-mono, monospace); font-size: var(--cpm-text-small); }
 
 /* ── Gate status matrix (U3) ──────────────────────────────────────────────
    Two rules earn their keep here.
@@ -259,7 +267,7 @@
   border-collapse: separate;
   border-spacing: 0;
   width: 100%;
-  font-size: 0.85rem;
+  font-size: var(--cpm-text-small);
   background: var(--container-global-color);
 }
 .cpm-matrix th, .cpm-matrix td {
@@ -277,8 +285,8 @@
 .cpm-matrix thead tr:first-child th { top: 0; height: 26px; }
 .cpm-matrix thead tr:last-child th { top: 26px; height: 24px; }
 .cpm-matrix thead tr:first-child th[rowspan] { top: 0; }
-.cpm-matrix__tier { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--element-neutral-color); }
-.cpm-matrix__gate { font-size: 0.72rem; font-weight: 600; }
+.cpm-matrix__tier { font-size: var(--cpm-text-caption); text-transform: uppercase; letter-spacing: 0.05em; color: var(--element-neutral-color); }
+.cpm-matrix__gate { font-size: var(--cpm-text-caption); font-weight: 600; }
 .cpm-matrix__loop {
   text-align: left;
   min-width: 190px;
@@ -331,7 +339,7 @@
   border-radius: 4px;
   border: 1px solid transparent;
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: var(--cpm-text-small);
   line-height: 1;
   cursor: pointer;
   background: var(--cpm-chip-bg, transparent);
@@ -367,11 +375,11 @@
   margin: 4px 0 10px;
 }
 .cpm-matrix-toolbar__search { min-width: 220px; flex: 0 1 280px; }
-.cpm-matrix-toolbar__count { margin-left: auto; color: var(--element-neutral-color); font-size: 0.8rem; }
+.cpm-matrix-toolbar__count { margin-left: auto; color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-matrix-pager { display: flex; justify-content: center; margin-top: 12px; }
 
 /* ── Freshness / staleness ── */
-.cpm-freshness { margin: 0 0 10px; font-size: 0.8rem; color: var(--element-neutral-color); }
+.cpm-freshness { margin: 0 0 10px; font-size: var(--cpm-text-small); color: var(--element-neutral-color); }
 .cpm-freshness--stale {
   color: var(--on-caution-color);
   background: var(--alert-caution-container-background-color, var(--container-section-color));
@@ -394,7 +402,7 @@
   background: none;
   color: var(--element-active-color);
   font: inherit;
-  font-size: 0.8rem;
+  font-size: var(--cpm-text-small);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -410,7 +418,7 @@
 .cpm-help-toggle > *:first-child { width: 18px; height: 18px; flex: 0 0 auto; }
 
 /* ── Legend (paired with the cell chips so the key matches the ink) ── */
-.cpm-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.78rem; color: var(--element-neutral-color); }
+.cpm-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: var(--cpm-text-caption); color: var(--element-neutral-color); }
 .cpm-legend__item { display: inline-flex; align-items: center; gap: 5px; }
 .cpm-legend__chip {
   display: inline-flex;
@@ -423,16 +431,16 @@
   background: var(--cpm-chip-bg, transparent);
   color: var(--cpm-chip-fg, var(--element-neutral-color));
   font-weight: 700;
-  font-size: 0.75rem;
+  font-size: var(--cpm-text-caption);
 }
 
 /* ── Fleet gate roll-up ── */
 .cpm-rollup { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; margin: 4px 0 14px; }
-.cpm-rollup__none { margin: 4px 0 12px; font-size: 0.85rem; }
+.cpm-rollup__none { margin: 4px 0 12px; font-size: var(--cpm-text-small); }
 .cpm-rollup__tier { display: flex; flex-direction: column; gap: 4px; }
 .cpm-rollup__bars { display: flex; gap: 3px; align-items: flex-end; }
 .cpm-rollup__tier-label {
-  font-size: 0.66rem;
+  font-size: var(--cpm-text-caption);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--element-neutral-color);
@@ -468,8 +476,8 @@
 .cpm-rollup__seg { width: 100%; border-radius: 2px 2px 0 0; }
 .cpm-rollup__seg--bad { background: var(--alert-alarm-color); }
 .cpm-rollup__seg--warn { background: var(--alert-caution-color); }
-.cpm-rollup__count { font-size: 0.72rem; font-weight: 600; color: var(--element-active-color); }
-.cpm-rollup__key { font-size: 0.66rem; }
+.cpm-rollup__count { font-size: var(--cpm-text-caption); font-weight: 600; color: var(--element-active-color); }
+.cpm-rollup__key { font-size: var(--cpm-text-caption); }
 
 /* ── Matrix + evidence layout ── */
 .cpm-matrix-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
@@ -504,7 +512,7 @@
 .cpm-inspector__actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
 .cpm-inspector--guide { background: var(--container-backdrop-color); }
 .cpm-guide-steps { padding-left: 18px; margin: 0 0 4px; display: grid; gap: 4px; }
-.cpm-guide-note { margin-top: 8px; font-size: 0.82rem; }
+.cpm-guide-note { margin-top: 8px; font-size: var(--cpm-text-small); }
 .cpm-flag-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .cpm-inspector--modal {
   position: fixed;
@@ -560,20 +568,20 @@
 .cpm-attention__rank { color: var(--element-neutral-color); font-variant-numeric: tabular-nums; }
 .cpm-attention__id { display: flex; flex-direction: column; min-width: 0; }
 .cpm-attention__verdict { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.cpm-attention__metric { color: var(--element-neutral-color); font-size: 0.8rem; }
+.cpm-attention__metric { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-attention__gates { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 .cpm-attention__gate {
   background: var(--container-backdrop-color);
   border: 1px solid var(--border-divider-color);
   border-radius: 4px;
   padding: 1px 7px;
-  font-size: 0.76rem;
+  font-size: var(--cpm-text-caption);
   font-weight: 600;
   cursor: pointer;
   color: var(--element-active-color);
 }
 .cpm-attention__gate:hover { border-color: var(--instrument-enhanced-primary-color); }
-.cpm-attention__footnote { margin-top: 10px; font-size: 0.8rem; }
+.cpm-attention__footnote { margin-top: 10px; font-size: var(--cpm-text-small); }
 @media (max-width: 900px) {
   .cpm-attention__row { grid-template-columns: 1fr; gap: 4px; }
 }
@@ -684,7 +692,7 @@
 
 /* ── Loop tree: collapsible site/area/unit groups with counts ── */
 .cpm-tree { display: flex; flex-direction: column; gap: 2px; max-height: 62vh; overflow: auto; }
-.cpm-tree__count { margin: 0; font-size: 0.78rem; color: var(--element-neutral-color); }
+.cpm-tree__count { margin: 0; font-size: var(--cpm-text-caption); color: var(--element-neutral-color); }
 .cpm-tree__foot { border-top: 1px solid var(--border-divider-color); padding-top: 6px; }
 .cpm-tree__group { display: flex; flex-direction: column; }
 .cpm-tree__group-head {
@@ -699,7 +707,7 @@
   cursor: pointer;
   color: var(--element-neutral-color);
   font: inherit;
-  font-size: 0.72rem;
+  font-size: var(--cpm-text-caption);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   text-align: left;
@@ -717,7 +725,7 @@
   padding: 0 6px;
   border-radius: 999px;
   border: 1px solid var(--border-divider-color);
-  font-size: 0.7rem;
+  font-size: var(--cpm-text-caption);
   letter-spacing: 0;
 }
 
@@ -727,7 +735,7 @@
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
-  font-size: 0.78rem;
+  font-size: var(--cpm-text-caption);
   color: var(--element-neutral-color);
   margin-bottom: 6px;
 }
@@ -783,7 +791,7 @@
   border-radius: 999px;
   padding: 2px 10px;
   font: inherit;
-  font-size: 0.78rem;
+  font-size: var(--cpm-text-caption);
   cursor: pointer;
   color: var(--element-active-color);
   white-space: nowrap;
@@ -808,14 +816,14 @@
 
 /* ── Signals table ── */
 .cpm-signal-provenance { display: inline-flex; align-items: center; gap: 8px; }
-.cpm-signal-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.cpm-signal-table { width: 100%; border-collapse: collapse; font-size: var(--cpm-text-small); }
 .cpm-signal-table th, .cpm-signal-table td {
   text-align: left;
   padding: 7px 10px;
   border-bottom: 1px solid var(--border-divider-color);
 }
 .cpm-signal-table thead th {
-  font-size: 0.72rem;
+  font-size: var(--cpm-text-caption);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--element-neutral-color);
@@ -826,7 +834,7 @@
 .cpm-gate-tier { margin-bottom: 14px; }
 .cpm-gate-tier__label {
   margin: 0 0 2px;
-  font-size: 0.72rem;
+  font-size: var(--cpm-text-caption);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--element-neutral-color);
@@ -872,7 +880,7 @@
   padding: 2px 6px;
   cursor: pointer;
   font: inherit;
-  font-size: 0.78rem;
+  font-size: var(--cpm-text-caption);
   color: var(--element-neutral-color);
 }
 .cpm-episode__frame {
@@ -978,7 +986,7 @@
 
 /* ── Bulk-import preview (loop registry) ── */
 .cpm-csv-preview { max-height: 280px; overflow: auto; margin: 8px 0; }
-.cpm-csv-preview table { border-collapse: collapse; width: 100%; font-size: 0.8rem; }
+.cpm-csv-preview table { border-collapse: collapse; width: 100%; font-size: var(--cpm-text-small); }
 .cpm-csv-preview th,
 .cpm-csv-preview td {
   border: 1px solid var(--border-divider-color);
@@ -990,7 +998,7 @@
   position: sticky;
   top: 0;
   background: var(--container-background-color);
-  font-size: 0.7rem;
+  font-size: var(--cpm-text-caption);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--element-neutral-color);
@@ -1079,7 +1087,7 @@
   align-items: center;
   padding-left: 10px;
   border-left: 3px solid var(--instrument-enhanced-primary-color);
-  font-size: 0.68rem;
+  font-size: var(--cpm-text-caption);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1117,7 +1125,7 @@
 }
 .cpm-hist-stepper__text {
   font-variant-numeric: tabular-nums;
-  font-size: 0.85rem;
+  font-size: var(--cpm-text-small);
   padding: 0 8px;
   white-space: nowrap;
   color: var(--element-active-color);
@@ -1140,7 +1148,7 @@
   background: var(--container-global-color);
   color: var(--element-neutral-color);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: var(--cpm-text-small);
   font-weight: 600;
   cursor: pointer;
   min-height: 32px;
@@ -1161,7 +1169,7 @@
   /* SP is a dashed pen in the chart; the swatch says so. */
   background: repeating-linear-gradient(90deg, var(--pen) 0 4px, transparent 4px 7px);
 }
-.cpm-pen-chip__note { font-weight: 400; font-size: 0.72rem; opacity: 0.75; }
+.cpm-pen-chip__note { font-weight: 400; font-size: var(--cpm-text-caption); opacity: 0.75; }
 .cpm-pen-chip:hover { border-color: var(--pen); }
 .cpm-pen-chip--on {
   background: color-mix(in srgb, var(--pen) 14%, var(--container-global-color));
@@ -1175,7 +1183,7 @@
 }
 
 .cpm-hist-note {
-  font-size: 0.78rem;
+  font-size: var(--cpm-text-caption);
   color: var(--element-neutral-color);
   margin: 0;
   min-width: 0;
@@ -1304,7 +1312,7 @@
 }
 .cpm-combo__group {
   padding: 6px 8px 2px;
-  font-size: 0.66rem;
+  font-size: var(--cpm-text-caption);
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--element-neutral-color);
@@ -1322,8 +1330,8 @@
 .cpm-combo__option[aria-selected='true'] {
   border-left-color: var(--instrument-enhanced-primary-color);
 }
-.cpm-combo__empty { padding: 10px 8px; color: var(--element-neutral-color); font-size: 0.85rem; }
-.cpm-combo__hint { font-size: 0.72rem; color: var(--element-neutral-color); }
+.cpm-combo__empty { padding: 10px 8px; color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
+.cpm-combo__hint { font-size: var(--cpm-text-caption); color: var(--element-neutral-color); }
 .cpm-combo__hint--warn { color: var(--on-caution-color); }
 
 

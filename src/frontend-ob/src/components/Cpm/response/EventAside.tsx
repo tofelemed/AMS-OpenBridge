@@ -8,6 +8,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { ReasonedButton } from '../ReasonedButton';
 import { KvRow, PanelHead, TonePill, fmtDuration } from '../shared';
 import type { ResponseEventDetail, ResponseQuantity } from '../../../api/cpm/response';
 import { CopyableId } from '../evidence/CopyableId';
@@ -16,8 +17,9 @@ import { workbenchHref } from '../evidence/selection';
 import { keyResults, subgateSteps } from './responseCopy';
 import { stateTone } from './responseSupport';
 import { codeLabel, phrase } from '../vocabulary';
+import { readable } from '../evidence/format';
 
-const outputText = (v: unknown): string => v == null ? '—' : typeof v === 'number' ? (Number.isInteger(v) ? String(v) : v.toFixed(3)) : typeof v === 'object' ? JSON.stringify(v) : String(v);
+const outputText = (v: unknown): string => v == null ? '—' : typeof v === 'number' ? (Number.isInteger(v) ? String(v) : readable(v)) : typeof v === 'object' ? JSON.stringify(v) : String(v);
 /** A missing / zero epoch is unknown, never 1970. */
 const when = (ms: unknown, tz: string): string => typeof ms === 'number' && ms > 0 ? formatInZone(ms, tz) : 'unknown';
 
@@ -57,11 +59,14 @@ export const EventAside: React.FC<EventAsideProps> = ({ result, metrics, timeZon
         <span className="cpm-fact"><span className="cpm-fact__label">purpose</span><span className="cpm-mono">{result.purpose} · rev {resultRevision ?? '—'}</span></span>
       </div>
       <div className="cpm-inspector__actions">
-        <ObcButton variant="raised" disabled={!methodRunId}
-          title={methodRunId ? `Open the G12 run ${methodRunId} in the Evidence Workbench` : 'This event carries no method run id; there is no immutable run to open'}
-          onClick={() => { if (methodRunId) navigate(workbenchHref(loopId, methodRunId, 'G12')); }}>
-          Open in Evidence Workbench ›
-        </ObcButton>
+        {/* CHG-098 (SME review 2 #29): the reason the button is disabled is on screen, not only on hover. */}
+        <span title={methodRunId ? `Open the G12 run ${methodRunId} in the Evidence Workbench` : undefined}>
+          <ReasonedButton variant="raised" disabled={!methodRunId}
+            reason="This event has no stored analysis run, so there is nothing to open in the workbench"
+            onClick={() => { if (methodRunId) navigate(workbenchHref(loopId, methodRunId, 'G12')); }}>
+            Open in Evidence Workbench ›
+          </ReasonedButton>
+        </span>
       </div>
 
       <PanelHead eyebrow="Subgates" title="Steps A–H" />

@@ -318,11 +318,14 @@ export const CpmHistorical: React.FC = () => {
           <QueryError title="Trend unavailable" error={trend.error} retry={() => void trend.refetch()} />
         )}
         {!trend.isLoading && !trend.isError && !hasAnyLane && (
+          // CHG-098 (SME review 2 #29): plain cause first (historian series last), then a way out — widen, or check the mapping.
           <EmptyState
-            title="Nothing recorded in this range"
+            title={series ? 'Nothing recorded in this range' : 'Select a loop'}
             copy={series
-              ? `No historian samples at ${series}, no KPI rows and no evaluated windows between the selected dates.`
-              : 'Select a loop.'}
+              ? `No signal samples, KPI rows or evaluated windows were stored for this loop between the selected dates. Widen the range, or check the loop's signal mapping. (Historian series: ${series})`
+              : 'Pick a loop in the toolbar above to draw its signals, KPI overlay and verdicts.'}
+            action={series ? { label: 'Widen to 30 days', onClick: () => { const r = presetRange(30 * 86_400_000); applyRange(r.from, r.to); } } : undefined}
+            next={series && loopId ? [{ label: 'Signal mapping in the Loop Registry', to: `/cpm/registry?loop=${encodeURIComponent(loopId)}` }] : undefined}
           />
         )}
 

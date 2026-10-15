@@ -91,6 +91,16 @@ export const RangeToolbar: React.FC<RangeToolbarProps> = ({
   seriesPath, trendHref, onOpenTrend, exportDisabled, onExport, exportBusy, packageWindow, normalize, onToggleNormalize,
 }) => {
   const busyText = (k: HistoryExportKind, label: string) => (exportBusy === k ? 'Preparing…' : label);
+  // CHG-098 (SME review 2 #29): every disabled export says why — on hover (a wrapping span: ObcButton takes no title)
+  // and in one visible line under the buttons.
+  const busyWhy = exportBusy ? 'Another download is being prepared — wait for it to finish' : undefined;
+  const samplesWhy = !loopId ? 'Pick a loop first' : busyWhy;
+  const windowsWhy = exportDisabled ? 'No evaluated windows in this range — widen the range to export them' : busyWhy;
+  const packageWhy = !packageWindow ? 'Select an evaluated window on the verdict lane first' : busyWhy;
+  const exportNote = !loopId ? 'Pick a loop to export its data.'
+    : exportDisabled ? 'No evaluated windows in this range: widen the range to export windows or a package.'
+      : !packageWindow ? 'Click a verdict band to export that window’s evidence package.'
+        : null;
 
   return (
     <div className="cpm-hist-toolbar">
@@ -107,23 +117,27 @@ export const RangeToolbar: React.FC<RangeToolbarProps> = ({
         <div className="cpm-hist-row__end">
           {/* CHG-097 (SME review 2 #17): the old "Export CSV" held evaluated windows, not signals — each download now
               says what it contains. Exporting windows with zero windows produced a file with only its header row. */}
-          <ObcButton variant="normal" disabled={!loopId || !!exportBusy} onClick={() => onExport('samples')}
-            title="PV, SP, OP, VP and mode from the historian over the range, at the loop's sample period, with units and both clocks">
-            {busyText('samples', 'Signal samples (CSV)')}
-          </ObcButton>
-          <ObcButton variant="normal" disabled={exportDisabled || !!exportBusy} onClick={() => onExport('windows-csv')}
-            title="The evaluated (fused) windows and their diagnoses over the range">
-            Evaluated windows (CSV)
-          </ObcButton>
-          <ObcButton variant="flat" disabled={exportDisabled || !!exportBusy} onClick={() => onExport('windows-json')}
-            title="The same windows with every gate, as JSON">
-            Windows (JSON)
-          </ObcButton>
-          <ObcButton variant="normal" disabled={!packageWindow || !!exportBusy} onClick={() => onExport('package')}
-            title={packageWindow ? `The window ending ${packageWindow}: verdict, every gate, its metrics, the evidence manifests and the signal samples over that window`
-              : 'Select an evaluated window on the verdict lane first'}>
-            {busyText('package', 'Evidence package (selected window)')}
-          </ObcButton>
+          <span title={samplesWhy ?? "PV, SP, OP, VP and mode from the historian over the range, at the loop's sample period, with units and both clocks"}>
+            <ObcButton variant="normal" disabled={!loopId || !!exportBusy} onClick={() => onExport('samples')}>
+              {busyText('samples', 'Signal samples (CSV)')}
+            </ObcButton>
+          </span>
+          <span title={windowsWhy ?? 'The evaluated (fused) windows and their diagnoses over the range'}>
+            <ObcButton variant="normal" disabled={exportDisabled || !!exportBusy} onClick={() => onExport('windows-csv')}>
+              Evaluated windows (CSV)
+            </ObcButton>
+          </span>
+          <span title={windowsWhy ?? 'The same windows with every gate, as JSON'}>
+            <ObcButton variant="flat" disabled={exportDisabled || !!exportBusy} onClick={() => onExport('windows-json')}>
+              Windows (JSON)
+            </ObcButton>
+          </span>
+          <span title={packageWhy ?? `The window ending ${packageWindow}: verdict, every gate, its metrics, the evidence manifests and the signal samples over that window`}>
+            <ObcButton variant="normal" disabled={!packageWindow || !!exportBusy} onClick={() => onExport('package')}>
+              {busyText('package', 'Evidence package (selected window)')}
+            </ObcButton>
+          </span>
+          {exportNote && <span className="cpm-hist-note" role="note">{exportNote}</span>}
         </div>
       </Row>
 

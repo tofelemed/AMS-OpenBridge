@@ -8,7 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { CpmLoop } from '../../../../api/cpmApi';
 import { getLoopKpis } from '../../../../api/cpm/loopKpis';
 import { EmptyState, PanelHead, QueryError, fmtDateTime } from '../../shared';
-import { calculationsHref, historicalHref, windowsHref } from '../../cpaHref';
+import { calculationsHref, historicalHref, pipelineHref, windowsHref } from '../../cpaHref';
 import { KpiCard } from '../../kpi/KpiCard';
 import { LOOP_KPI_GROUPS, loopKpiCards, type LoopKpiCardModel } from '../../kpi/loopKpiView';
 
@@ -39,7 +39,10 @@ export const LoopKpiCards: React.FC<{ loop: CpmLoop; windowKind?: string }> = ({
         title="How this loop performs"
         right={k?.previous ? <span className="cpm-op__muted">change vs the window 24 h earlier</span> : undefined} />
       {q.isError && <QueryError title="Loop KPIs unavailable" error={q.error} retry={() => void q.refetch()} />}
-      {k && !k.current && <EmptyState title={`No ${windowKind} window yet`} copy="The KPIs appear once this loop completes an evaluation window." />}
+      {/* CHG-098 (SME review 2 #29): what to try while there is no window. */}
+      {k && !k.current && <EmptyState title={`No ${windowKind} window yet`}
+        copy="The KPIs appear once this loop completes an evaluation window. Switch 12 h / 24 h at the top of the page, or check Pipeline Health if a result is overdue."
+        next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />}
       {/* CHG-092 (SME review 2 #22): grouped by what they tell the engineer; the cards that bear on the finding are outlined */}
       {k?.current && LOOP_KPI_GROUPS.map(gr => {
         const cards = loopKpiCards(k).filter(c => c.group === gr.id);

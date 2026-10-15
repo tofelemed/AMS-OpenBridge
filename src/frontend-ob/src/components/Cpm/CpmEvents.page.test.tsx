@@ -96,6 +96,31 @@ describe('Loop Events server paging (CHG-063)', () => {
   });
 });
 
+// CHG-098 (SME review 2 #25): the headings sort only by the orders the server pages by; the selected row is marked.
+describe('Loop Events headings and selection (CHG-098)', () => {
+  it('the Opened heading asks the server for newest first; Severity returns to triage', () => {
+    pageHook.mockReturnValue(page([1, 2, 3]));
+    byIdHook.mockReturnValue({ data: undefined, isLoading: false, error: null });
+    mount();
+    expect(screen.getByRole('button', { name: /Severity, sorted triage/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by Opened' }));
+    expect(pageHook.mock.calls.at(-1)?.[0]).toMatchObject({ sort: 'recent', page: 1 });
+    expect(screen.getByRole('button', { name: 'Opened, sorted newest first' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by Severity' }));
+    expect(pageHook.mock.calls.at(-1)?.[0]).toMatchObject({ sort: 'triage' });
+    expect(screen.getByRole('button', { name: 'Sort by Opened' })).toBeTruthy();
+  });
+
+  it('marks the selected episode row as current', () => {
+    pageHook.mockReturnValue(page([1, 2]));
+    byIdHook.mockReturnValue({ data: undefined, isLoading: false, error: null });
+    const { container } = mount('/cpm/events?event=2');
+    const current = container.querySelectorAll('[aria-current="true"]');
+    expect(current.length).toBe(1);
+    expect(current[0].textContent).toContain('EVT-2');
+  });
+});
+
 describe('eventPageParams', () => {
   it('sends only non-blank filters', () => {
     const p = eventPageParams({ state: 'all', sort: 'triage', page: 3, pageSize: 20, q: '  FIC10302 ', site: '', loopId: undefined });

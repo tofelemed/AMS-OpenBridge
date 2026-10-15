@@ -18,6 +18,7 @@ import {
   EmptyState, PanelHead, TonePill, WorkspaceHeader,
   fmtDateTime, fmtWindowShape, windowSpecsOf, QueryError } from './shared';
 import { LoopContextBar } from './context/LoopContextBar';
+import { pipelineHref } from './cpaHref';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
 import LoopCombobox from './LoopCombobox';
 import {
@@ -141,8 +142,10 @@ export const CpmWindows: React.FC = () => {
         {kpis.isLoading && <EmptyState title="Loading windows…" />}
         {kpis.isError && <QueryError title="Window data unavailable" error={kpis.error} retry={() => void kpis.refetch()} />}
         {!kpis.isLoading && !kpis.isError && rows.length === 0 && (
+          // CHG-098 (SME review 2 #29): plain wording ("Flink tier") and a route forward.
           <EmptyState title={`No ${profile} windows stored for this loop`}
-            copy="Rows appear as the corresponding Flink tier emits results for this resolution." />
+            copy="Rows appear once the analysis engine has evaluated a window of this size. Choose another window profile above, or check Pipeline Health if they are overdue."
+            next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />
         )}
         {rows.map(r => {
           const comp = completenessOf(r, profileS);

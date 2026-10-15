@@ -383,13 +383,19 @@ export const CpmIconButton: React.FC<{
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  /** CHG-098 (SME review 2 #29): why it is disabled — on hover (a wrapping span) and in the accessible name. */
+  reason?: string | null;
   children: React.ReactNode;
-}> = ({ label, onClick, disabled, children }) => (
-  <ObcIconButton disabled={disabled} onClick={onClick}>
-    {children}
-    <span className="cpm-sr-only">{label}</span>
-  </ObcIconButton>
-);
+}> = ({ label, onClick, disabled, reason, children }) => {
+  const why = disabled && reason ? reason : null;
+  const button = (
+    <ObcIconButton disabled={disabled} onClick={onClick}>
+      {children}
+      <span className="cpm-sr-only">{why ? `${label} (${why})` : label}</span>
+    </ObcIconButton>
+  );
+  return why ? <span title={why}>{button}</span> : button;
+};
 
 /** Key/value row (CPA's .kv). */
 export const KvRow: React.FC<{ label: string; children: React.ReactNode }> = ({

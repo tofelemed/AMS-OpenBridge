@@ -10,14 +10,15 @@ import { CpmChart } from '../evidence/CpmChart';
 import { ArtifactSkeleton } from '../evidence/views/viewSupport';
 import { EmptyState } from '../shared';
 import { epochMs } from './responseSupport';
+import { readable } from '../evidence/format';
 
 export const ResidualPanel: React.FC<{ residuals: DecodedArtifact | undefined; acf: DecodedArtifact | undefined; timeZone: string; validation: ResponseSubgate | undefined; loading?: boolean }> = ({ residuals, acf, timeZone, validation, loading }) => {
   if (!residuals && !acf && loading) return <ArtifactSkeleton kinds={['residuals', 'residual_acf']} />;
   if (!residuals && !acf) {
-    return <EmptyState title="No residuals for this event" copy="The kernel produced no fit here (no estimation, or the event was rejected / censored before estimation), so there is nothing to draw." />;
+    return <EmptyState title="No residuals for this event" copy="No model was fitted to this event (it was rejected or censored before a fit, or estimation did not run), so there is nothing to draw. Steps A–H in the event details say where it stopped." />;
   }
   const outputs = validation?.outputs ?? {};
-  const text = (k: string) => { const v = outputs[k]; return v == null ? '—' : typeof v === 'number' ? v.toFixed(3) : String(v); };
+  const text = (k: string) => { const v = outputs[k]; return v == null ? '—' : typeof v === 'number' ? readable(v) : String(v); };
   return (
     <section className="cpm-surface">
       <PanelHead eyebrow="Subgate E" title="Residuals and validation" />

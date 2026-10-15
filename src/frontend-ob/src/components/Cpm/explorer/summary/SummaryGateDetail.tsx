@@ -14,6 +14,7 @@
 import React, { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { ReasonedButton } from '../../ReasonedButton';
 import type { CpmLoop } from '../../../../api/cpmApi';
 import type { CpmGateMatrix } from '../../../../api/cpm/gates';
 import { useGateCatalogue } from '../../../../hooks/useCpm';
@@ -123,11 +124,14 @@ export const SummaryGateDetail: React.FC<SummaryGateDetailProps> = ({ loop, gate
       )}
 
       <div className="cpm-inspector__actions">
-        <ObcButton variant="raised" disabled={!runId}
-          title={runId ? `Open method run ${runId} in the Evidence Workbench` : 'This row predates run identity (v2.5); there is no immutable run to open'}
-          onClick={() => { if (runId) navigate(workbenchHref(loop.loopId, runId, gate)); }}>
-          Open in Evidence Workbench ›
-        </ObcButton>
+        {/* CHG-098 (SME review 2 #29): the reason it is disabled is on screen, with the next step (Replay, beside it). */}
+        <span title={runId ? `Open method run ${runId} in the Evidence Workbench` : undefined}>
+          <ReasonedButton variant="raised" disabled={!runId}
+            reason="Stored before analysis runs were kept (before v2.5), so there is no run to open — use Replay"
+            onClick={() => { if (runId) navigate(workbenchHref(loop.loopId, runId, gate)); }}>
+            Open in Evidence Workbench ›
+          </ReasonedButton>
+        </span>
         <ObcButton variant="normal" title={`Replay the ${windowKind} window from the historian`}
           onClick={() => navigate(replayHref(loop.loopId, { gate, window: matrix.windowEnd, kind: windowKind }))}>
           Evidence Replay ›

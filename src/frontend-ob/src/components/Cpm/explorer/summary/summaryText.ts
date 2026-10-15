@@ -97,7 +97,8 @@ export function primaryActionOf(condition: Condition): SummaryAction {
   switch (condition.kind) {
     case 'insufficient': return { label: 'Open Window Inspector ›', target: 'windows' };
     case 'excluded': return { label: 'Open Historical ›', target: 'historical' };
-    default: return { label: 'Open investigation ›', target: 'investigation' };
+    // CHG-098 (SME review 2 #21): the Explorer gives the quick condition; the why and the action are the Investigation's
+    default: return { label: 'Why and what to do › Investigation', target: 'investigation' };
   }
 }
 

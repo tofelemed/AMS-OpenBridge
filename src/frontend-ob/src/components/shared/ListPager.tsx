@@ -40,25 +40,30 @@ export const ListPager: React.FC<ListPagerProps> = ({
         Showing {from}–{to} of {total}{note ? ` · ${note}` : ''}
       </span>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <ObcButton
-          variant="flat"
-          size="small"
-          disabled={page === 0}
-          onClick={() => onPageChange(Math.max(0, page - 1))}
-        >
-          ← Prev
-        </ObcButton>
+        {/* CHG-098 (SME review 2 #29): a disabled pager says why on hover (a wrapping span: ObcButton takes no title). */}
+        <span title={page === 0 ? 'Already on the first page' : undefined}>
+          <ObcButton
+            variant="flat"
+            size="small"
+            disabled={page === 0}
+            onClick={() => onPageChange(Math.max(0, page - 1))}
+          >
+            ← Prev
+          </ObcButton>
+        </span>
         <span style={{ fontSize: '11.5px', color: T.textSecondary, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
           Page {page + 1} of {pageCount}
         </span>
-        <ObcButton
-          variant="flat"
-          size="small"
-          disabled={page >= pageCount - 1}
-          onClick={() => onPageChange(Math.min(pageCount - 1, page + 1))}
-        >
-          Next →
-        </ObcButton>
+        <span title={page >= pageCount - 1 ? 'Already on the last page' : undefined}>
+          <ObcButton
+            variant="flat"
+            size="small"
+            disabled={page >= pageCount - 1}
+            onClick={() => onPageChange(Math.min(pageCount - 1, page + 1))}
+          >
+            Next →
+          </ObcButton>
+        </span>
       </div>
     </div>
   );

@@ -22,8 +22,10 @@ export const RequireKinds: React.FC<{ arts: GateArtifacts; kinds: string[]; skel
   if (arts.loading && missing.length > 0) return <ArtifactSkeleton kinds={missing} size={skeleton ?? 'evidence'} />;
   if (arts.errors.length > 0) {
     return (
-      <EmptyState title="An artifact did not verify"
-        copy={arts.errors.map(e => `${e.kind}${e.roleOrPath ? ` (${e.roleOrPath})` : ''}: ${e.message}`).join(' · ') + ' — nothing is drawn from bytes that failed their checksum.'} />
+      // CHG-098 (SME review 2 #29): plain statement first; the per-artifact detail follows in brackets.
+      <EmptyState title="Stored evidence could not be verified"
+        copy={'Nothing is drawn from evidence that failed its integrity check. ('
+          + arts.errors.map(e => `${e.kind}${e.roleOrPath ? ` (${e.roleOrPath})` : ''}: ${e.message}`).join(' · ') + ')'} />
     );
   }
   if (missing.length > 0) {

@@ -13,13 +13,14 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => (
 }));
 const mutation = () => ({ mutate: vi.fn(), isPending: false, isError: false, isSuccess: false, error: null });
 const actions = vi.fn();
+const ackMutate = vi.fn();
 vi.mock('../../../hooks/useCpm', () => ({
-  useAcknowledgeEvent: () => mutation(),
+  useAcknowledgeEvent: () => ({ ...mutation(), mutate: ackMutate }),
   useShelveEvent: () => mutation(),
   useUnshelveEvent: () => mutation(),
   useEventActions: (id: number, enabled: boolean) => actions(id, enabled),
 }));
-afterEach(() => { cleanup(); actions.mockReset(); });
+afterEach(() => { cleanup(); actions.mockReset(); ackMutate.mockReset(); });
 
 import { EventDetail, currentOf, severityOf } from './EventDetail';
 
@@ -92,5 +93,32 @@ describe('episode peak and current band (CHG-092, SME review 2 #6/#20)', () => {
   it('the current window shows only when it differs from the peak', () => {
     expect(currentOf(frame({}))).toBeNull();
     expect(currentOf(frame({ last_diagnosis: 'NO_CALL' }))).toEqual({ label: 'Now: No fault identified', tone: 'muted' });
+  });
+});
+
+// CHG-098 (SME review 2 #27): an action's completion is visible beside the actions, and a failure says why.
+describe('EventDetail action receipt (CHG-098)', () => {
+  type Opts = { onSuccess?: () => void; onError?: (e: unknown) => void };
+  it('confirms an acknowledge in a status line that stays', () => {
+    actions.mockReturnValue({ isLoading: false, isError: false, data: undefined });
+    ackMutate.mockImplementation((_v: unknown, o: Opts) => o.onSuccess?.());
+    mount(frame({}));
+    fireEvent.click(screen.getByRole('button', { name: /^Acknowledge$/ }));
+    expect(screen.getByRole('status').textContent).toMatch(/^Acknowledged at /);
+  });
+
+  it('reports a failed acknowledge with the server reason', () => {
+    actions.mockReturnValue({ isLoading: false, isError: false, data: undefined });
+    ackMutate.mockImplementation((_v: unknown, o: Opts) => o.onError?.(new Error('The episode was already acknowledged.')));
+    mount(frame({}));
+    fireEvent.click(screen.getByRole('button', { name: /^Acknowledge$/ }));
+    expect(screen.getByRole('alert').textContent).toBe('Acknowledge failed — The episode was already acknowledged.');
+  });
+
+  it('shows the receipt the page holds for this episode when the page owns it', () => {
+    actions.mockReturnValue({ isLoading: false, isError: false, data: undefined });
+    render(<MemoryRouter><EventDetail event={frame({})} canManage policy={{ maxHours: 168 }}
+      receipt={{ ok: true, text: 'Shelved until later', key: 833 }} onReceipt={() => undefined} /></MemoryRouter>);
+    expect(screen.getByRole('status').textContent).toBe('Shelved until later');
   });
 });

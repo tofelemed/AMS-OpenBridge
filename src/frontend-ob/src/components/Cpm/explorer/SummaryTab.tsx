@@ -19,15 +19,13 @@ import type { CpmLoop } from '../../../api/cpmApi';
 import { ApiError } from '../../../api/apiFetch';
 import { useLatestGates } from '../../../hooks/useCpm';
 import { loopSeries } from '../../../utils/loopSeries';
-import { EmptyState, KvRow, PanelHead, QueryError, TonePill, fmtDateTime, toneFor } from '../shared';
+import { EmptyState, KvRow, PanelHead, QueryError, fmtDateTime } from '../shared';
+import { pipelineHref } from '../cpaHref';
 import { LoopModelCard } from './LoopModelCard';
 import OperatingState from './summary/OperatingState';
 import SummaryGateStrip from './summary/SummaryGateStrip';
 import { pinEvaluated, revealTrend } from '../trend/evaluatedWindow';
 import { workbenchExit } from './summary/LoopSummaryCard';
-import { diagnosisLabel } from '../vocabulary';
-import { evidenceScoreText } from '../evidenceScore';
-import { hasVerdict } from '../metricAvailability';
 import { effectiveInputFlags } from '../inputLimits';
 import { inputContextOf } from '../optionalInputs';
 import { LoopKpiCards } from './summary/LoopKpiCards';
@@ -79,18 +77,15 @@ export const SummaryTab: React.FC<{ loop: CpmLoop; windowKind: string }> = ({ lo
           eyebrow={`Evaluated ${windowKind} window${matrix?.windowEnd ? ` · ending ${fmtDateTime(matrix.windowEnd)}` : ''}`}
           title="Gates on the latest fused result"
           // CHG-089: the 12h / 24h switch moved to the top of the Explorer (one window for every tab)
-          right={matrix ? (
-            <TonePill tone={toneFor(matrix.diagnosis)}>
-              {diagnosisLabel(matrix.diagnosis)}
-              {matrix.confidence != null && hasVerdict(matrix.diagnosis) ? ` · ${evidenceScoreText(matrix.confidence)}` : ''}
-            </TonePill>
-          ) : undefined}
+          // CHG-098 (SME review 2 #20): no diagnosis pill here — the loop summary above states it once
         />
         {gates.isLoading && <EmptyState title="Loading the latest fused result…" />}
         {failed && <QueryError title="Gate outcomes unavailable" error={gates.error} retry={() => void gates.refetch()} />}
         {noVerdictYet && (
+          // CHG-098 (SME review 2 #29): what to try while there is no verdict.
           <EmptyState title={`No fused ${windowKind} verdict yet`}
-            copy="Gate outcomes appear once this loop completes an evaluation window." />
+            copy="Gate outcomes appear once this loop completes an evaluation window. Switch 12 h / 24 h at the top of the page, or check Pipeline Health if a result is overdue."
+            next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />
         )}
         {cells.length > 0 && (
           <>

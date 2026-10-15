@@ -185,8 +185,8 @@ export function buildChartOption(input: ChartInput) {
     // The point of the rebuild: one crosshair, four lanes.
     axisPointer: { link: [{ xAxisIndex: 'all' as const }], snap: false },
     graphic: [
-      { type: 'text', left: 8, top: LANES.mode.top, style: { text: 'MODE', fill: grey, font: '10px sans-serif' } },
-      { type: 'text', left: 8, top: LANES.verdict.top + 4, style: { text: 'VERDICT', fill: grey, font: '10px sans-serif' } },
+      { type: 'text', left: 8, top: LANES.mode.top, style: { text: 'MODE', fill: grey, font: '12px sans-serif' } },
+      { type: 'text', left: 8, top: LANES.verdict.top + 4, style: { text: 'VERDICT', fill: grey, font: '12px sans-serif' } },
     ],
     toolbox: box.toolbox,
     dataZoom: [
@@ -236,21 +236,21 @@ export function buildChartOption(input: ChartInput) {
       : [timeAxis(0, false), timeAxis(1, false), timeAxis(2, false), timeAxis(3, true)],
     yAxis: [
       { type: 'value', gridIndex: 0, scale: !normalize, ...(normalize ? { min: 0, max: 1 } : {}),
-        name: normalize ? 'fraction of own span (normalised)' : pvAxisName(pvUnit), nameTextStyle: { color: grey, fontSize: 10 },
+        name: normalize ? 'fraction of own span (normalised)' : pvAxisName(pvUnit), nameTextStyle: { color: grey, fontSize: 12 },
         axisLabel: { color: grey }, splitLine: { lineStyle: { opacity: 0.2 } } },
-      { type: 'value', gridIndex: 1, scale: true, name: overlay.unit, nameTextStyle: { color: grey, fontSize: 10 }, axisLabel: { color: grey }, splitLine: { show: false } },
+      { type: 'value', gridIndex: 1, scale: true, name: overlay.unit, nameTextStyle: { color: grey, fontSize: 12 }, axisLabel: { color: grey }, splitLine: { show: false } },
       laneY(2),
       laneY(3),
       ...(hasHealth ? [laneY(4)] : []),
       // the percentage-point axis of the signals grid (OP / VP), on the right; absent when normalised
       ...(normalize ? [] : [{ type: 'value' as const, gridIndex: 0, scale: true, position: 'right' as const, name: 'OP / VP (%)',
-        nameTextStyle: { color: grey, fontSize: 10 }, axisLabel: { color: grey }, splitLine: { show: false } }]),
+        nameTextStyle: { color: grey, fontSize: 12 }, axisLabel: { color: grey }, splitLine: { show: false } }]),
     ],
     series: [
       ...(input.highlight ? [{
         name: 'selected-window', type: 'line', silent: true, xAxisIndex: 0, yAxisIndex: 0, data: [] as Array<[number, number]>,
         markArea: { silent: true, itemStyle: { color: input.pens.accent, opacity: 0.1 },
-          label: { show: true, position: 'insideTop' as const, color: grey, fontSize: 10 },
+          label: { show: true, position: 'insideTop' as const, color: grey, fontSize: 12 },
           data: [[{ name: input.highlight.label, xAxis: input.highlight.startMs }, { xAxis: input.highlight.endMs }]] },
       }] : []),
       // PV keeps its envelope: the band is the honest rendering of oscillation

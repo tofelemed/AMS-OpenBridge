@@ -27,6 +27,7 @@ import { modelLabel, stateOf } from './registryShared';
 import { CodeLabel } from './CodeLabel';
 import { peerDetail, vpDetail } from './optionalInputs';
 import { flagsForLoop, inputContextOf } from './optionalInputs';
+import { ActionReceipt, byNow, receiptDone, receiptFailed, useReceiptUser, type Receipt } from './ActionReceipt';
 
 // ── profile detail aside ───────────────────────────────────────────────────
 
@@ -43,6 +44,8 @@ export const ProfileAside: React.FC<{ loop: CpmLoop; onEdit: () => void }> = ({ 
   const [showConfig, setShowConfig] = useState(false);
   const canReadConfig = useAuthStore(s => s.hasPermission('cpm.config.read'));
   const republish = useRepublishEvidence();
+  const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const user = useReceiptUser();
   const catalogue = useGateCatalogue();
   const rolePolicy = rolePolicyOf(catalogue.data);
   const st = stateOf(loop);
@@ -125,18 +128,16 @@ export const ProfileAside: React.FC<{ loop: CpmLoop; onEdit: () => void }> = ({ 
         <ObcButton
           variant="normal"
           disabled={republish.isPending}
-          onClick={() => republish.mutate(loop.loopId)}
+          onClick={() => republish.mutate(loop.loopId, {
+            // CHG-098 (SME review 2 #27): what was republished, by whom and when — or why it failed — stays on screen
+            onSuccess: r => setReceipt(receiptDone(`Republished ${loop.loopId} ${byNow(user)} — ${r.links} link(s) live on the broadcast${
+              typeof r.signalAssets === 'number' ? `, ${r.signalAssets} signal asset(s) projected into the UNS` : ''}.`, loop.loopId)),
+            onError: err => setReceipt(receiptFailed(`Republishing ${loop.loopId}`, err, loop.loopId)),
+          })}
         >
           {republish.isPending ? 'Republishing…' : 'Re-project links & republish evidence'}
         </ObcButton>
-        {republish.isSuccess && (
-          <p className="cpm-copy">
-            Republished — {republish.data.links} link(s) live on the broadcast
-            {typeof republish.data.signalAssets === 'number'
-              ? `, ${republish.data.signalAssets} signal asset(s) projected into the UNS`
-              : ''}.
-          </p>
-        )}
+        <ActionReceipt receipt={receipt?.key === loop.loopId ? receipt : null} />
       </div>
     </aside>
   );

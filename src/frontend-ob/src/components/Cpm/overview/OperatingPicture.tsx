@@ -45,7 +45,10 @@ export const OperatingPicture: React.FC<{ scope?: CpmFleetScope; windowKind?: st
         title={k ? `${k.monitored} loop(s) monitored` : 'Loading…'}
         right={k ? <span className="cpm-op__muted" title={basisText(k)}>updated {fmtDateTime(k.computedAt)} · change vs 24 h ago</span> : undefined} />
       {q.isError && <QueryError title="Operating picture unavailable" error={q.error} retry={() => void q.refetch()} />}
-      {k && k.monitored === 0 && <EmptyState title="No monitored loops" copy="No loop in this scope has monitoring enabled." />}
+      {/* CHG-098 (SME review 2 #29): widen the scope or enable monitoring. */}
+      {k && k.monitored === 0 && <EmptyState title="No monitored loops"
+        copy="No loop in this plant scope has monitoring enabled. Widen the plant scope above, or onboard and enable loops in the Loop Registry."
+        next={[{ label: 'Loop Registry', to: '/cpm/registry' }]} />}
       {k && k.monitored > 0 && (
         <>
           <div className="cpm-kpicards cpm-kpicards--7" role="list" aria-label="Loop performance KPIs">

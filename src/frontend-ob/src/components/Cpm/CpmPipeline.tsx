@@ -155,7 +155,8 @@ export const CpmPipeline: React.FC = () => {
           tone={status.isError ? 'warn' : status.data?.allRequiredRunning ? 'good' : 'bad'}
           value={status.isError ? '—' : status.data ? `${runningCount}/${statusJobs.length}` : '…'}
           sub={status.isError ? 'status endpoint unreachable'
-            : status.data?.jobManagerReachable ? 'JobManager reachable' : 'JobManager unreachable'} />
+            // CHG-098 (SME review 2 #29): plain wording; the component name stays in brackets
+            : status.data?.jobManagerReachable ? 'analysis engine answering (JobManager)' : 'analysis engine not answering (JobManager)'} />
         <KpiTile caption="Checkpoint success" tone={ckptSuccessPct != null && ckptSuccessPct >= 99 ? 'good' : 'warn'}
           value={ckptSuccessPct != null ? `${ckptSuccessPct.toFixed(1)}%` : '—'}
           sub={`${ckptCompleted.toLocaleString()} ok · ${ckptFailed} failed (since job start)`} />
@@ -173,18 +174,21 @@ export const CpmPipeline: React.FC = () => {
           right={<span className="cpm-copy">
             Latency / backpressure / parallelism are not exposed by the proxy — shown as “—”, not estimated.
           </span>} />
-        {metrics.isLoading && <EmptyState title="Reading Flink metrics…" />}
+        {metrics.isLoading && <EmptyState title="Reading the analysis engine's job metrics…" />}
         {/* The empty branch used to catch fetch FAILURES too, so a metrics proxy
             that never answered rendered "No required jobs matched the overview"
             — asserting the overview was read and came back empty. */}
         {metrics.isError && (
-          <QueryError title="Flink metrics unavailable"
+          <QueryError title="Analysis engine metrics unavailable"
             error={metrics.error} retry={() => void metrics.refetch()} />
         )}
         {!metrics.isLoading && !metrics.isError && jobs.length === 0 && (
-          <EmptyState title="No job metrics"
+          // CHG-098 (SME review 2 #29): plain language first, the technical detail in brackets, and a retry.
+          <EmptyState title={metrics.data?.jobManagerReachable === false ? 'The analysis engine did not answer' : 'No job metrics'}
             copy={metrics.data?.jobManagerReachable === false
-              ? 'The Flink JobManager did not answer.' : 'No required jobs matched the overview.'} />
+              ? 'Its job list could not be read, so no job can be shown and new verdicts may be late. Retry; if it stays down, ask the system administrator to check the analysis engine. (Flink JobManager did not answer.)'
+              : 'None of the required analysis jobs is listed yet — they may still be starting. Retry in a minute. (No required job matched the Flink job overview.)'}
+            action={{ label: 'Retry', onClick: () => void metrics.refetch() }} />
         )}
         {jobs.length > 0 && (
           <div className="cpm-matrix-scroll">
@@ -229,7 +233,7 @@ export const CpmPipeline: React.FC = () => {
             snapshots from the moment this page opened — it does not pretend to know the past.
           </p>
           {telemetry.length < 2
-            ? <EmptyState title="Collecting…" copy="Two or more polls are needed before a line makes sense." />
+            ? <EmptyState title="Collecting…" copy="The chart needs at least two readings; it draws on its own as they arrive — keep this page open." />
             : (
               <>
                 <ReactECharts option={telemetryOption} style={{ height: 220 }} notMerge

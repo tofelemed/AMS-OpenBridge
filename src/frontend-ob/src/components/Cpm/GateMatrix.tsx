@@ -23,6 +23,10 @@
  * tabindex moves focus with `element.focus()`, and `obc-button` renders its
  * <button> inside a shadow root without delegatesFocus, so it can neither take
  * that focus nor give up its own tab stop — 25 rows would become 25 extra stops.
+ *
+ * CHG-098 (SME review 2 #24): this grid is now the ADVANCED view. The default is "Checks behind the result"
+ * (GateMatrixChecks) — per loop, only the gates that move its result, by name. Both share this toolbar, row set
+ * and pager; the view rides the URL (`?view=matrix`) so a link opens the view it was copied from.
  */
 import React from 'react';
 import { ObcFilterChip } from '@oicl/openbridge-webcomponents-react/components/filter-chip/filter-chip';
@@ -31,17 +35,21 @@ import { ObcTextInputField } from '@oicl/openbridge-webcomponents-react/componen
 import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
 import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
 import type { CpmHeatmapLoop } from '../../api/cpmApi';
-import { staleVerdictLine } from './verdictAge';
 import { useDebounce } from '../../hooks/useDebounce';
-import { EmptyState, TonePill, toneFor } from './shared';
+import { EmptyState } from './shared';
 import {
-  ROW_FILTERS, filterCounts, filterRows, glyphFor, isRowFilter, type RowFilter,
+  ROW_FILTERS, filterCounts, filterRows, gateName, glyphFor, isRowFilter, matrixViewOf, type MatrixView, type RowFilter,
 } from './gateStatus';
-import { diagnosisLabel } from './vocabulary';
 import { GateLegend } from './GateLegend';
+import { GateMatrixChecks, ResultCell } from './GateMatrixChecks';
 
 const PAGE_SIZE = 25;
 const NAV_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+/** CHG-098 (SME review 2 #24): the readable view first; the full matrix is the advanced one. */
+const VIEWS: { value: MatrixView; label: string }[] = [
+  { value: 'checks', label: 'Checks behind the result' },
+  { value: 'matrix', label: 'Full G0–G15 matrix' },
+];
 
 /** Shareable part of the filter — the free-text box stays local (see below). */
 export interface MatrixScope { mode: RowFilter; gate: string | null }
@@ -63,11 +71,15 @@ export interface GateMatrixProps {
   fleetTotal?: number | null;
   /** CHG-066: the loop's effective input flags — a pass judged without one of its inputs reads "OK on available data". */
   inputFlagsOf?: (loopId: string) => string[];
+  /** CHG-098: "checks" (default, readable) or "matrix" (the full G0–G15 grid). */
+  view?: MatrixView;
+  onViewChange?: (view: MatrixView) => void;
 }
 
 export const GateMatrix: React.FC<GateMatrixProps> = ({
   loops, orderedGateKeys, tierGroups, filter, onFilterChange,
   page, onPageChange, selectedLoopId, onSelectLoop, onOpenLoop, onOpenGate, fleetTotal, inputFlagsOf,
+  view = 'checks', onViewChange,
 }) => {
   // The text box is deliberately NOT in the URL: it churns one history entry per
   // keystroke and nobody shares "loops matching FIC-0". Mode and gate are, because
@@ -133,6 +145,21 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
   return (
     <>
       <div className="cpm-matrix-toolbar">
+        {/* CHG-098: the view switch; the same first-emit guard as the row filter below (only a known view is written) */}
+        {onViewChange && (
+          <ObcToggleButtonGroup
+            value={view}
+            onValue={(e: CustomEvent<{ value: string }>) => {
+              const v = e.detail.value;
+              if (v === 'checks' || v === 'matrix') onViewChange(matrixViewOf(v));
+            }}
+          >
+            {VIEWS.map(v => (
+              <ObcToggleButtonOption key={v.value} value={v.value}>{v.label}</ObcToggleButtonOption>
+            ))}
+          </ObcToggleButtonGroup>
+        )}
+
         {/* Guard the payload: obc-toggle-button-group runs willUpdate before its
             slot is assigned, so its very first `value` event can carry '' and
             would otherwise write an empty mode into the URL. */}
@@ -205,6 +232,10 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
       ) : (
         <>
           <GateLegend />
+          {view === 'checks' ? (
+            <GateMatrixChecks rows={visible} orderedGateKeys={orderedGateKeys} selectedLoopId={selectedLoopId}
+              onSelectLoop={onSelectLoop} onOpenLoop={onOpenLoop} onOpenGate={onOpenGate} inputFlagsOf={inputFlagsOf} />
+          ) : (
           <div className="cpm-matrix-scroll">
             <table
               ref={gridRef}
@@ -223,8 +254,12 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
                   <th rowSpan={2} scope="col" className="cpm-matrix__result">Result</th>
                 </tr>
                 <tr aria-rowindex={2}>
+                  {/* CHG-098: code + readable name; below 1000 px the name folds into the abbr tooltip */}
                   {orderedGateKeys.map(k => (
-                    <th key={k} scope="col" className="cpm-matrix__gate">{k}</th>
+                    <th key={k} scope="col" className="cpm-matrix__gate">
+                      <abbr title={gateName(k)}>{k}</abbr>
+                      <span className="cpm-matrix__gate-name">{gateName(k)}</span>
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -265,7 +300,8 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
                               data-r={r}
                               data-c={c}
                               tabIndex={tabIndexOf(r, c)}
-                              aria-label={`${row.loopId}, gate ${k}: ${g.label}`}
+                              aria-label={`${row.loopId}, gate ${k} ${gateName(k)}: ${g.label}`}
+                              title={`${k} ${gateName(k)}: ${g.word}`}
                               onFocus={() => setCursor({ r, c })}
                               onClick={() => { onSelectLoop(row.loopId); onOpenGate(row.loopId, k); }}
                             >
@@ -275,13 +311,7 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
                         );
                       })}
                       <td role="gridcell" className="cpm-matrix__result">
-                        <TonePill tone={toneFor(row.diagnosis)}>
-                          {diagnosisLabel(row.diagnosis)}
-                        </TonePill>
-                        {/* audit F4: the row is the NEWEST window; an older verdict is named as older, with its age */}
-                        {staleVerdictLine(row.lastVerdict) && (
-                          <span className="cpm-event-row__sub cpm-matrix__stale" title={row.lastVerdict?.windowEnd ?? undefined}>{staleVerdictLine(row.lastVerdict)}</span>
-                        )}
+                        <ResultCell row={row} />
                       </td>
                     </tr>
                   );
@@ -289,6 +319,7 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
               </tbody>
             </table>
           </div>
+          )}
 
           {pageCount > 1 && (
             <div className="cpm-matrix-pager">
