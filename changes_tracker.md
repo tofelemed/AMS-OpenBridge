@@ -4608,18 +4608,42 @@ schema. **Scripts to run:** integrity → rollback list → source extract → l
 → check: ams-api container recreated (its `Created` time moved), historian lag small, IoTDB warn log no new `not enough memory`,
 ams-api log lines/hour down from ~90 k.
 
-## CHG-091 (PLANNED, next release) — Response retention: unreviewed models and censored events stop growing for ever
+## CHG-091 — Response retention: unreviewed models age out, CENSORED events keep 3 days (2026-10-15)
 
-**Source:** plant disk investigation 2026-10-14 (user: "note chg 91 for next release"). **Not implemented yet.**
-**Facts (Marun, 2026-10-14):** `response_event` 64,315 rows (~3.5 KB each; about 290 MB), `response_metric` 3.34 M rows (~200 B, about 650 MB);
-6,000-8,000 events a day; 73 % CENSORED (47,006). The 14-day RESPONSE retention runs every 15 min, but skips every event a system model
-was created from (`system_model.created_from_event`) — and 16,632 models each pin their own event, so the evaluated quarter of all events
-(~1,900 a day) is kept for ever: about +27 MB/day, ~10 GB/year.
-**Plan (to confirm with the user, with numbers):** (1) keep for ever only events behind governed models (VALIDATED, ACTIVE_BASELINE;
-SUPERSEDED for a period); CANDIDATE / REJECTED / EXPIRED models older than the RESPONSE retention go, with their events and metrics;
-(2) CENSORED events a short retention (e.g. 2 days). Expected steady state ~0.5-0.7 GB. Scope: cplm-api `ResponseRetention.cs` /
-`EvidenceRetentionSweeper.cs` (+ tests), maybe a retention_policy row for censored events.
-**Also done 2026-10-14 (plant, by hand, recorded in prod_decision):** `LONG_FEATURES` retention 30 → 14 days (was heading to ~4.6 GB).
+**Source:** plant disk investigation 2026-10-14 (user: "note chg 91 for next release"). Rules confirmed by the user on 2026-10-15
+with the plant's numbers. **Scope:** **`cplm-api`** `Services/ResponseRetention.cs`, `Services/EvidenceRetentionSweeper.cs`
+(+ `tests/cplm-api.Tests/ResponseRetentionTests.cs`, new `ResponseModelRetentionTests.cs`); schema row in `database/scripts/55_cplm_response.sql`,
+`migration/schema/03-traverse_cplm.sql`, `scripts/cpm-07-v25-schema.sql`; plant script `scripts/cpm-16-response-retention.sql`. Commit bf3afe81.
+
+**What was wrong.** Every system model pinned the response event it was created from (and that event's ~50 metrics) for ever.
+Marun 2026-10-15: 18,008 models since 26 Sep (~1,000 a day) on 53 loop-paths, **none reviewed** (VALIDATED is set by the engine,
+not a person); 18,008 of 18,779 COMPLETE events pinned. Events 320 MB + metrics 738 MB + models 32 MB, growing ~16 MB/day
+(~6 GB/year). CENSORED events (47,245, 73 %) were already bounded by the 14-day RESPONSE row.
+
+**What changed.**
+- **Models:** unreviewed system models older than the RESPONSE days (14) are deleted (their `model_validation` rows cascade).
+  Always kept: `ACTIVE_BASELINE`, any model with `reviewed_by`, the newest model and the newest VALIDATED model of each loop and
+  path (the Response page's current model; 4 of 53 loop-paths had only models older than 14 d), and any model another row's
+  `superseded_by` names. User decision: VALIDATED counts as automatic.
+- **Events:** unchanged rule (14 d, never an event a model was built from) — deleting a model unpins its event.
+- **CENSORED events:** new `retention_policy` row `RESPONSE_CENSORED` = 3 days (user decision; matches STANDARD / SHORT_FEATURES).
+  No row = they follow RESPONSE (14 d) as before. The row is on the evidence sweeper's not-an-evidence-class list.
+- Sweep order every 15 min: models → events → CENSORED events. The log line now counts purged models too.
+
+**Expected effect at Marun:** the first sweep deletes 4,744 models, ~4,700 events they pinned and ~35,000 CENSORED events older
+than 3 days; afterwards the Response store holds ~14 days of models / events and ~3 days of rejections instead of growing.
+Postgres reuses the freed pages; the files do not shrink (no VACUUM FULL needed - the tables stop growing).
+
+**Tests.** `ResponseRetentionTests` + `ResponseModelRetentionTests` + the evidence sweeper / class tests: 12 / 12 on the lab DB
+(keep rules per loop AND path, reviewed / ACTIVE_BASELINE / superseded_by kept, a deleted model unpins its event and metrics,
+a censored-only pass leaves COMPLETE events). Full cplm-api suite 360 / 364; the 4 others need the gateway (8081) or current
+lab findings (environment, same as before the change).
+
+**Services updated:** `cplm-api`. **Migration: YES (one row).** **Script (plant), AFTER the cplm-api image swap, online:**
+`docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < ops/cpm-16-response-retention.sql`
+(`scripts/cpm-16-…` in the repo). Rollback of the row: `DELETE FROM analytics.retention_policy WHERE record_class = 'RESPONSE_CENSORED';`
+(deleted rows do not come back).
+**Also done 2026-10-14 (plant, by hand, recorded in prod_decision):** `LONG_FEATURES` retention 30 → 14 days.
 
 ## CHG-092 — SME review 2, phase A: wrong or misleading information on the CPM pages (2026-10-14)
 
@@ -4961,3 +4985,73 @@ in the page: horizontal overflow, text under 12 px, WCAG contrast.
 - All fixed. Result: 16/16 routes clean at both widths.
 
 **Not covered:** the Explorer trend (no samples for the demo loops).
+
+## CHG-094 — SME review 2, phase C (engine): G15 names the diagnosis band; one recommendation per diagnosis family (2026-10-15)
+
+**Source:** `SME_review_2.md` points 6 and 14, hand-over `handover-engine-sme2.md` C1 + C3 (approved 2026-10-14). **Scope:** **Flink**
+`fusion/DiagnosisBands.java`, new `fusion/Recommendations.java`, `CplmGateFusionEngine.java`, `CplmGateFusionStreamJob.java`
+(+ `BandAndRecommendationTest`, `CplmFormulaContractTest`). Commit 774f5b0e.
+
+**What was wrong.** G15 said SUSPECTED for every band below CONFIRMED, so "Detected oscillation" showed G15 = Suspected. Every
+qualified family got the same valve text ("positioner / bump test before retuning"), oscillation and excessive effort included.
+
+**What changed.**
+- G15 = the diagnosis band: DETECTED / CLASSIFIED / SUSPECTED / CONFIRMED, INSUFFICIENT_EVIDENCE for NO_CALL (the strings
+  ams-open-a0's UI accepts). The persistence cap renames both diagnosis and G15 to DETECTED.
+- Two readers that took "G15 = SUSPECTED" to mean "any call" now accept any band: the persistence history
+  (`elevatedFamilyForHistory`, else agreeing windows never build up) and the persistence cap.
+- Recommendation per leading hypothesis: valve (stiction / final element: the CHG-088 VP-aware texts), tuning (gain and integral
+  time; a step test confirms), external disturbance (trace the upstream / interacting loop), excessive effort (gain and
+  derivative, PV filtering, OP travel). Urgency follows the band: DETECTED "Monitor: … If it persists - …", CLASSIFIED
+  "Plan a review: …", SUSPECTED / CONFIRMED the action. The capped call gets the "Monitor" wording too.
+
+## CHG-095 — SME review 2, phase C (engine): a missing input is "not assessed", not evidence against (2026-10-15)
+
+**Source:** `SME_review_2.md` point 7, hand-over C2. **Scope:** **Flink** `fusion/Hypothesis.java`, `fusion/VerdictAssembly.java`,
+`CplmGateFusionEngine.java` (+ `HypothesisStatesTest`, `FusionHealthLanesTest`). Commit 774f5b0e.
+
+**What changed.** An unqualified hypothesis is `DISQUALIFIED` only with real contradictions or disqualifiers; `NOT_ASSESSED`
+with `missing_inputs` (observability-flag codes) when a required input is missing - EXTERNAL_DISTURBANCE without peer links
+(`NO_UPSTREAM_LINKS`), STICTION with neither VP nor a valid cycle (`NO_VP`, `NO_VALID_CYCLE`), SENSOR without a health source and
+no freeze (`HEALTH_NOT_CONFIGURED`); `NO_EVIDENCE` otherwise. OSCILLATION_TUNING records `DISTURBANCE_CONTEXT` as a contradiction
+when a disturbance explains the oscillation. `missing_inputs` rides the result JSON (cplm-api passes it on as `missingInputs`,
+CHG-092). Contract agreed with ams-open-a0.
+
+## CHG-096 — SME review 2, phase C (engine): G3 compliance threshold stored as the real fraction (2026-10-15)
+
+**Source:** hand-over C4 (found during the SME check). **Scope:** **Flink** `config/BundleProfileMapper.java`, `config/FactoryLayer.java`;
+`factory-layer.json` in `contracts/gate-config/v1/`, `src/services/cplm-api/Config/`, `src/flink/src/main/resources/cplm/gate-config/`
+(+ `ComplianceUnitTest`). Commit 4f201784.
+
+**What was wrong.** CFG-074 `G3.objective_compliance_min` is declared a fraction 0-1, but the factory value was 0.005 and the engine
+read it ×100 (0.005 = 50 %). An engineer entering 0.5 for 50 % made the threshold 50: G3 always WARN.
+
+**What changed (user decision 2026-10-15: "tolerant read").** Published bundles copy the factory + profile layers and are
+content-hashed, so every stored bundle (lab and plant) holds 0.005 - rewriting them would change hashes results reference, and
+the hand-over's plain fix would have made G3 PASS everywhere. Now: the factory layer holds 0.5 / 0.3; the engine reads a stored
+value ≤ 0.01 as the old encoding (×100) and anything above as the fraction. Stored bundles, hashes and G3 results are unchanged;
+new drafts from the factory show 0.5. A target under 1 % cannot be expressed (meaningless for compliance). No migration.
+
+**Tests (094-096).** Flink suite 354 run, 0 failures, 2 skipped (was 341; new: `BandAndRecommendationTest` 6,
+`HypothesisStatesTest` 4, `ComplianceUnitTest` 3; `CplmFormulaContractTest` and `FusionHealthLanesTest` updated to the new
+G15 / SENSOR values). `FactoryLayerParityTest` proves the three factory-layer copies equal the engine export.
+**Lab (2026-10-15):** jar b14ba7d0 announced by all 6 CPLM jobs (CAPABILITY), 13 lab jobs RUNNING; replay path runs on the new
+jar. The lab historian holds no full day of samples (TIC20305: 2,424 on 8 Oct, none 9-10 Oct), so replays read 0 samples →
+INSUFFICIENT_DATA / G15 INSUFFICIENT_EVIDENCE only; user chose to stop the lab and see the first real 12 h verdicts at the plant.
+**Services updated:** Flink (jar, all CPLM jobs: full swap), `cplm-api` (factory-layer.json copy). No schema.
+**After the plant swap:** the 12 h / 24 h windows refill (as every Flink swap); G15 shows the four bands; Investigation shows
+"Not assessed: input missing" for disturbance on loops without peer links.
+
+## Release v2.8.0 (PLANNED) — SME review 2 complete: CHG-091 … CHG-099 (+ v2.7.3's CHG-090, never deployed)
+
+One release so the plant gets one Flink refill. Branch `feat/v25-next-release` after the CHG-094 merge.
+**Services updated:** Flink jar (full swap: CHG-094/095/096), `cplm-api` (CHG-091, 092, 093, 096, 097, 099), `ams-frontend`
+(CHG-092, 093, 097, 098, 099), `historian-bff` + `ams-api` (CHG-090 / CHG-021, from v2.7.3; `START_AMS_API=yes`).
+**Plant order:** integrity → rollback image list → source extract → load images →
+1. `cpm-15-evidence-reconstruction-beside.sql` (online, additive) → `migration/02-apply-schemas.sh` — BEFORE cplm-api;
+2. Flink swap (cancel all, `rm -f` JM + TM, `deploy.sh`, `04b`), then `START_AMS_API=yes deploy.sh --prod` (cplm-api, frontend,
+   historian-bff, ams-api);
+3. `cpm-16-response-retention.sql` (online) - AFTER cplm-api;
+4. checks: 7 jobs RUNNING on one jar (CAPABILITY), consumers 1 member each, first retention sweep logs purged models
+   (~4,700) within 15 min, evidence workbench "Retained proof" bar, Performance headline "N of M assessed", IoTDB warn log quiet.
+**Expect:** "Performing acceptably" drops (CHG-093: G3 PASS + G4 not STRONG required); 12 h / 24 h verdicts refill after the swap.
