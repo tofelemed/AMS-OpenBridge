@@ -305,8 +305,8 @@ public class CplmGateFusionStreamJob {
                     || "NONE".equalsIgnoreCase(result.selectedFamily)) {
                 return "NONE";
             }
-            return "SUSPECTED".equalsIgnoreCase(result.gate15Status)
-                    || "CONFIRMED".equalsIgnoreCase(result.gate15Status)
+            // any banded call counts (CHG-094: G15 now names DETECTED / CLASSIFIED too, where it said SUSPECTED before)
+            return com.ams.flink.cplm.fusion.Recommendations.bandOf(result.gate15Status) != null
                     ? result.selectedFamily
                     : "NONE";
         }

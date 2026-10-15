@@ -46,12 +46,13 @@ public final class DiagnosisBands {
             result.gate15Status = "INSUFFICIENT_EVIDENCE";
             result.severity = "LOW";
         } else if (confidence < 0.55) {
+            // CHG-094 (SME review 2, #6): G15 names the diagnosis band, not SUSPECTED for every band below CONFIRMED
             result.diagnosis = "DETECTED_" + label;
-            result.gate15Status = "SUSPECTED";
+            result.gate15Status = "DETECTED";
             result.severity = "LOW";
         } else if (confidence < 0.75) {
             result.diagnosis = "CLASSIFIED_" + label;
-            result.gate15Status = "SUSPECTED";
+            result.gate15Status = "CLASSIFIED";
             result.severity = "MEDIUM";
         } else if (confidence < 0.90) {
             result.diagnosis = "SUSPECTED_" + label;

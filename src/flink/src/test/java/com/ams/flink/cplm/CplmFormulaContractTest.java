@@ -174,8 +174,9 @@ public class CplmFormulaContractTest {
     @Test
     public void fusionWeightsBandsAndNoVpCapAreDeterministic() {
         assertFusionBand(0.34, true, "NO_CALL", "INSUFFICIENT_EVIDENCE", "LOW", 0.34);
-        assertFusionBand(0.40, true, "DETECTED_FINAL_ELEMENT_NONLINEARITY", "SUSPECTED", "LOW", 0.40);
-        assertFusionBand(0.60, true, "CLASSIFIED_FINAL_ELEMENT_NONLINEARITY", "SUSPECTED", "MEDIUM", 0.60);
+        // CHG-094: G15 names the band (it said SUSPECTED for DETECTED / CLASSIFIED before)
+        assertFusionBand(0.40, true, "DETECTED_FINAL_ELEMENT_NONLINEARITY", "DETECTED", "LOW", 0.40);
+        assertFusionBand(0.60, true, "CLASSIFIED_FINAL_ELEMENT_NONLINEARITY", "CLASSIFIED", "MEDIUM", 0.60);
         assertFusionBand(0.80, true, "SUSPECTED_FINAL_ELEMENT_NONLINEARITY", "SUSPECTED", "HIGH", 0.80);
         assertFusionBand(0.95, true, "CONFIRMED_FINAL_ELEMENT_NONLINEARITY", "CONFIRMED", "HIGH", 0.95);
         assertFusionBand(0.95, false, "SUSPECTED_FINAL_ELEMENT_NONLINEARITY", "SUSPECTED", "HIGH", 0.89);

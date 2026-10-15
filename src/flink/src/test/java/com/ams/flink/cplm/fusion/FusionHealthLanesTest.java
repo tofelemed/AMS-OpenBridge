@@ -122,7 +122,11 @@ public class FusionHealthLanesTest {
         ObjectNode without = (ObjectNode) M.readTree(
                 CplmGateFusionEngine.fuse(shortOk(), longOk(), false, false, p, OpenConditions.none()).toJson());
         ObjectNode with = (ObjectNode) M.readTree(fuse(lanes(ctx("PV", "ELIGIBLE", "NO_ACTIVE_DIAGNOSTIC"))).toJson());
+        // CHG-095: the SENSOR hypothesis says whether a health source was there to assess it
+        assertEquals("NOT_ASSESSED", without.path("hypotheses").path("SENSOR").path("state").asText());
+        assertEquals("NO_EVIDENCE", with.path("hypotheses").path("SENSOR").path("state").asText());
         for (ObjectNode n : new ObjectNode[] { without, with }) {
+            ((ObjectNode) n.path("hypotheses")).remove("SENSOR");
             n.remove("health_lanes");
             n.remove("observability_flags");
             n.remove("observabilityFlags");

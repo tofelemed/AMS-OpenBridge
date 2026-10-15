@@ -8,6 +8,7 @@ import com.ams.flink.cplm.fusion.DiagnosisBands;
 import com.ams.flink.cplm.fusion.FusionEvidence;
 import com.ams.flink.cplm.fusion.FusionInputs;
 import com.ams.flink.cplm.fusion.FusionVerdictV2;
+import com.ams.flink.cplm.fusion.Recommendations;
 import com.ams.flink.cplm.fusion.VerdictAssembly;
 
 import java.io.Serializable;
@@ -240,16 +241,13 @@ public final class CplmGateFusionEngine implements Serializable {
         if (finalElementClaim && "CONTRADICTED".equals(conf.state)) {
             result.observabilityFlags.add("VP_TRACKING_CONTRADICTS");
             v2.hypothesis("STICTION").contradictions.add("VP_TRACKING_HEALTHY");
+            v2.hypothesis("STICTION").settle();   // CHG-095: a contradiction now makes an unqualified one DISQUALIFIED
         }
         v2.leadingHypothesis = DiagnosisBands.leadingHypothesisFor(selected, ev.disturbanceContext);
 
         DiagnosisBands.apply(result, finalConfidence, DiagnosisBands.familyLabel(selected), result.gate14Status);
 
-        result.recommendation = hasVp
-                ? "Review positioner/HART data and perform controlled bump test before retuning."
-                : vpGap
-                ? "Check VP/positioner data or perform an approved bump/stroke test before retuning."
-                : "Perform an approved bump/stroke test before retuning (no valve position on this loop).";
+        result.recommendation = Recommendations.of(v2.leadingHypothesis, result.gate15Status, hasVp, vpGap);   // CHG-094
 
         result.statusReason = String.format(
                 "selected_family=%s, family_score=%.3f, weighted=%.3f, confidence=%.3f, G14_cap=%.2f, class=%s, profile=%s",
@@ -417,12 +415,13 @@ public final class CplmGateFusionEngine implements Serializable {
         boolean satisfied = agree >= need;
         result.persistenceSatisfied = satisfied;
 
-        if (!satisfied
-                && ("SUSPECTED".equals(result.gate15Status) || "CONFIRMED".equals(result.gate15Status))) {
-            // Cap single-window calls at DETECTED.
+        if (!satisfied && Recommendations.bandOf(result.gate15Status) != null) {
+            // Cap single-window calls at DETECTED (any band: G15 named every band SUSPECTED before CHG-094).
             result.diagnosis = "DETECTED_" + DiagnosisBands.familyLabel(result.selectedFamily);
-            result.gate15Status = "SUSPECTED";
+            result.gate15Status = "DETECTED";
             result.severity = "LOW";
+            result.recommendation = Recommendations.of(result.verdictV2.leadingHypothesis, "DETECTED",
+                    result.vpAvailable, result.observabilityFlags.contains("NO_VP"));
             if (result.confidence > 0.54) {
                 result.confidence = 0.54;
             }

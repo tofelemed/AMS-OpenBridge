@@ -20,8 +20,10 @@ public final class Hypothesis implements Serializable {
     public String id;
     /** 0-1 evidence score (uncalibrated); 0 when disqualified. */
     public double score;
-    /** QUALIFIED | DISQUALIFIED | NOT_ASSESSED */
+    /** QUALIFIED | DISQUALIFIED (real evidence against) | NOT_ASSESSED (an input is missing) | NO_EVIDENCE */
     public String state = "NOT_ASSESSED";
+    /** CHG-095: the observability-flag codes of the inputs it needed and did not have (e.g. NO_UPSTREAM_LINKS). */
+    public List<String> missingInputs = new ArrayList<>();
     /** Observation ids that support it. */
     public List<String> evidenceGroups = new ArrayList<>();
     /** Evidence that argues against it (e.g. VP_TRACKING_HEALTHY, DISTURBANCE_CONTEXT). */
@@ -40,6 +42,19 @@ public final class Hypothesis implements Serializable {
         return h;
     }
 
+    /**
+     * CHG-095 (SME review 2, #7): an unqualified hypothesis is DISQUALIFIED only on real contradictions or
+     * disqualifiers; a missing input is NOT_ASSESSED (with the codes), not evidence against; otherwise NO_EVIDENCE.
+     */
+    public Hypothesis settle(String... missing) {
+        for (String s : missing) if (!missingInputs.contains(s)) missingInputs.add(s);
+        if ("QUALIFIED".equals(state)) return this;
+        state = !contradictions.isEmpty() || !disqualifiers.isEmpty() ? "DISQUALIFIED"
+                : !missingInputs.isEmpty() ? "NOT_ASSESSED"
+                : "NO_EVIDENCE";
+        return this;
+    }
+
     public ObjectNode toJson(ObjectMapper m) {
         ObjectNode n = m.createObjectNode();
         n.put("score", score);
@@ -50,6 +65,8 @@ public final class Hypothesis implements Serializable {
         for (String s : contradictions) c.add(s);
         ArrayNode d = n.putArray("disqualifiers");
         for (String s : disqualifiers) d.add(s);
+        ArrayNode mi = n.putArray("missing_inputs");
+        for (String s : missingInputs) mi.add(s);
         return n;
     }
 }

@@ -62,32 +62,38 @@ public final class VerdictAssembly {
         if (e.oscillationEvidence) stiction.evidenceGroups.add("OSCILLATION");
         if (!e.shapeEvidence && e.asymmetrySupport) stiction.disqualifiers.add("NO_SHAPE_EVIDENCE");
         if (e.disturbanceContext) stiction.contradictions.add("DISTURBANCE_CONTEXT");
-        v2.hypotheses.put("STICTION", stiction);
+        // CHG-095: no VP and no valid cycle leaves nothing to judge a valve by - not assessed, not evidence against
+        boolean noVp = result.observabilityFlags.contains("NO_VP");
+        boolean noCycle = "NO_VALID_CYCLE".equals(result.periodStatus);
+        v2.hypotheses.put("STICTION", noVp && noCycle ? stiction.settle("NO_VP", "NO_VALID_CYCLE") : stiction.settle());
 
         boolean tuning = e.oscillationQualified && !e.disturbanceContext;
         Hypothesis oscillationTuning = Hypothesis.of("OSCILLATION_TUNING", tuning ? e.familyOscillation : 0, tuning);
         oscillationTuning.evidenceGroups.add("OSCILLATION");
-        v2.hypotheses.put("OSCILLATION_TUNING", oscillationTuning);
+        if (e.oscillationQualified && e.disturbanceContext) oscillationTuning.contradictions.add("DISTURBANCE_CONTEXT");
+        v2.hypotheses.put("OSCILLATION_TUNING", oscillationTuning.settle());
 
         Hypothesis disturbance = Hypothesis.of("EXTERNAL_DISTURBANCE",
                 e.disturbanceContext ? e.familyOscillation : 0, e.disturbanceContext);
         disturbance.evidenceGroups.add("OSCILLATION");
         if (e.interactionDetected) disturbance.evidenceGroups.add("PEER_INTERACTION");
-        v2.hypotheses.put("EXTERNAL_DISTURBANCE", disturbance);
+        v2.hypotheses.put("EXTERNAL_DISTURBANCE",
+                result.hasPeerLinks ? disturbance.settle() : disturbance.settle("NO_UPSTREAM_LINKS"));
 
         Hypothesis effort = Hypothesis.of("EXCESSIVE_EFFORT", e.effortQualified ? e.familyEffort : 0, e.effortQualified);
         effort.evidenceGroups.add("ACTUATOR_STRESS");
-        v2.hypotheses.put("EXCESSIVE_EFFORT", effort);
+        v2.hypotheses.put("EXCESSIVE_EFFORT", effort.settle());
 
         boolean limit = isStrongOrWarn(result.gate10Status) || oc.hasOpenLimit;
         Hypothesis actuatorLimit = Hypothesis.of("ACTUATOR_LIMIT",
                 limit ? clamp01(result.saturationPct * 2 + (oc.hasOpenLimit ? 0.3 : 0)) : 0, limit);
         actuatorLimit.evidenceGroups.add("LIMIT_OCCUPANCY");
-        v2.hypotheses.put("ACTUATOR_LIMIT", actuatorLimit);
+        v2.hypotheses.put("ACTUATOR_LIMIT", actuatorLimit.settle());
 
         double sensorScore = longD.freezeMaterial ? 0.8 : freezeSeen ? 0.5 : 0;
         Hypothesis sensor = Hypothesis.of("SENSOR", sensorScore, sensorScore > 0);
         sensor.evidenceGroups.add("FREEZE");
-        v2.hypotheses.put("SENSOR", sensor);
+        boolean noHealth = result.healthLanes == null || !result.healthLanes.configured();
+        v2.hypotheses.put("SENSOR", noHealth && !freezeSeen ? sensor.settle("HEALTH_NOT_CONFIGURED") : sensor.settle());
     }
 }
