@@ -178,7 +178,8 @@
   outline-offset: 1px;
   transform: translateY(-1px);
 }
-.cpm-gate-chip:disabled { opacity: 0.5; cursor: not-allowed; }
+/* a gate without a run stays readable (0.5 measured 3.6:1 in the night theme, lab sweep 2026-10-15) */
+.cpm-gate-chip:disabled { opacity: 0.8; cursor: not-allowed; border-style: dashed; }
 .cpm-gate-chip:focus-visible {
   outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
   outline-offset: 2px;

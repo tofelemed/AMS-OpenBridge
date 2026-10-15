@@ -36,7 +36,7 @@ export const ListPager: React.FC<ListPagerProps> = ({
       gap: '12px', flexWrap: 'wrap', padding: '10px 20px',
       borderTop: `1px solid ${T.border}`, background: T.bg,
     }}>
-      <span style={{ fontSize: '11.5px', color: T.textMuted, fontVariantNumeric: 'tabular-nums' }}>
+      <span style={{ fontSize: '12px', color: T.textSecondary, fontVariantNumeric: 'tabular-nums' }}>
         Showing {from}–{to} of {total}{note ? ` · ${note}` : ''}
       </span>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -51,7 +51,7 @@ export const ListPager: React.FC<ListPagerProps> = ({
             ← Prev
           </ObcButton>
         </span>
-        <span style={{ fontSize: '11.5px', color: T.textSecondary, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: '12px', color: T.textSecondary, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
           Page {page + 1} of {pageCount}
         </span>
         <span title={page >= pageCount - 1 ? 'Already on the last page' : undefined}>

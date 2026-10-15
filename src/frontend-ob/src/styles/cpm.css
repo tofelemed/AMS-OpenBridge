@@ -1,9 +1,12 @@
-/* CHG-098 (SME review 2 #23): ONE type scale for the CPM pages. Captions (eyebrows, legends, table labels) never below
-   0.78 rem, secondary text 0.85 rem; body text keeps the OpenBridge default. Reading paragraphs stop at ~80 characters. */
+/* CHG-098 (SME review 2 #23): ONE type scale for the CPM pages. The OpenBridge root font is 14 px, so captions (eyebrows,
+   legends, table labels) are 0.875 rem = 12.25 px and secondary text 0.93 rem = 13 px - never below 12 px (lab sweep
+   2026-10-15 measured the first cut at 10.9 / 11.9 px); body text keeps the OpenBridge default. Paragraphs stop at ~80ch. */
 :root {
-  --cpm-text-caption: 0.78rem;
-  --cpm-text-small: 0.85rem;
+  --cpm-text-caption: 0.875rem;
+  --cpm-text-small: 0.93rem;
 }
+/* lab sweep 2026-10-15: a bare <button> used as a pill took the browser's light default background in the night theme */
+.cpm-pill-button { background: transparent; border: 0; padding: 0; margin: 0; color: inherit; font: inherit; cursor: pointer; }
 .cpm-copy, .cpm-eval-note > span, .cpm-gate-state__valid { max-width: 80ch; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -347,7 +350,8 @@
   border-color: var(--cpm-chip-border, transparent);
 }
 .cpm-matrix__cell--good  { --cpm-chip-fg: var(--element-neutral-color); }
-.cpm-matrix__cell--muted { --cpm-chip-fg: var(--element-inactive-color); }
+/* the neutral TEXT token: element-inactive is for inactive controls and measured 3.6-3.9:1 as text in night (lab sweep 2026-10-15) */
+.cpm-matrix__cell--muted { --cpm-chip-fg: var(--element-neutral-color); }
 .cpm-matrix__cell--warn {
   --cpm-chip-bg: var(--alert-caution-color);
   --cpm-chip-fg: var(--on-caution-color);
@@ -381,7 +385,9 @@
 /* ── Freshness / staleness ── */
 .cpm-freshness { margin: 0 0 10px; font-size: var(--cpm-text-small); color: var(--element-neutral-color); }
 .cpm-freshness--stale {
-  color: var(--on-caution-color);
+  /* on the caution CONTAINER background the readable text is the theme's active text, not on-caution (black on the night
+     theme's dark caution container measured 1.3:1 in the lab sweep 2026-10-15) */
+  color: var(--element-active-color);
   background: var(--alert-caution-container-background-color, var(--container-section-color));
   border: 1px solid var(--alert-caution-outline-color);
   border-radius: 6px;

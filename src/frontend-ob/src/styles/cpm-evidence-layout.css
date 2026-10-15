@@ -184,7 +184,10 @@
 .cpm-checks .cpm-checks__head, .cpm-checks .cpm-checks__cell { text-align: left; }
 .cpm-checks__cell { padding: 4px 6px; }
 .cpm-checks__list { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.cpm-checks__chip { font-size: var(--cpm-text-small); text-align: left; }
+.cpm-checks__chip { font-size: var(--cpm-text-small); text-align: left; flex-wrap: wrap; row-gap: 0; max-width: 100%; }
+/* lab sweep 2026-10-15 (768 px): each part (mark, gate name, verdict word) stays whole - a narrow chip wraps BETWEEN parts,
+   never inside "Diagnosis band" and never clipped under the sticky result column */
+.cpm-checks__chip > * { white-space: nowrap; }
 .cpm-matrix__cell--muted.cpm-checks__chip { color: var(--element-neutral-color); }
 @media (max-width: 600px) {
   .cpm-checks .cpm-matrix__loop, .cpm-checks .cpm-matrix__result { min-width: 120px; }
