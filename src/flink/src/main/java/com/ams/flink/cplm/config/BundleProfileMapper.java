@@ -51,7 +51,7 @@ public final class BundleProfileMapper {
         PROFILE.put("G2r.applied_input_region_max", (p, v, n) -> p.regionOpMax = num(v, n));
         // G3 (short)
         PROFILE.put("G3.error_band_span_fraction", (p, v, n) -> p.goodErrorBandPctOfSpan = num(v, n));
-        PROFILE.put("G3.objective_compliance_min", (p, v, n) -> p.goodErrorPctPassMin = num(v, n) * 100.0);
+        PROFILE.put("G3.objective_compliance_min", (p, v, n) -> p.goodErrorPctPassMin = complianceFraction(num(v, n)));
         // G4 (short)
         PROFILE.put("G4.activity_warn_ratio", (p, v, n) -> p.g4ActivityWarnRatio = num(v, n));
         PROFILE.put("G4.activity_high_ratio", (p, v, n) -> p.g4ActivityHighRatio = num(v, n));
@@ -163,6 +163,16 @@ public final class BundleProfileMapper {
             applied.add(e.getKey());
         }
         return applied;
+    }
+
+    /**
+     * CHG-096 (SME review 2, C4): G3.objective_compliance_min is a fraction (0.5 = 50 % of the window in band).
+     * Bundles written before CHG-096 stored it divided by 100 (0.005 = 50 %), and published bundles are
+     * content-hashed, so they are read as they are: a value of 0.01 or less is the old encoding. A real
+     * compliance target under 1 % means nothing, so the two ranges never meet.
+     */
+    static double complianceFraction(double stored) {
+        return stored <= 0.01 ? stored * 100.0 : stored;
     }
 
     static double num(JsonNode v, String property) {

@@ -31,7 +31,7 @@ public final class FactoryLayer {
         if (Double.isFinite(p.regionOpMin)) v.put("G2r.applied_input_region_min", p.regionOpMin);
         if (Double.isFinite(p.regionOpMax)) v.put("G2r.applied_input_region_max", p.regionOpMax);
         v.put("G3.error_band_span_fraction", p.goodErrorBandPctOfSpan);
-        v.put("G3.objective_compliance_min", p.goodErrorPctPassMin / 100.0);
+        v.put("G3.objective_compliance_min", p.goodErrorPctPassMin);   // CHG-096: the real fraction (was /100)
         v.put("G4.activity_warn_ratio", p.g4ActivityWarnRatio);
         v.put("G4.activity_high_ratio", p.g4ActivityHighRatio);
         v.put("G4.reversal_deadband_pp", p.opDeadbandPct);
