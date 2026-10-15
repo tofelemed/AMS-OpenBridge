@@ -61,7 +61,11 @@ public sealed class EvidenceManifestReader
             SELECT evidence_id, method_run_id, gate_id, artifact_kind, role_or_path, x_quantity, x_unit, y_quantity, y_unit,
                    data_type, columns::text AS columns, encoding, calculation_samples, display_points, chunk_count, total_bytes,
                    sha256, chunk_sha256::text AS chunk_sha256, readiness, readiness_reason, provenance::text AS provenance, retention_class, pinned,
-                   source_commit, jar_sha256, created_at, completed_at, gate_result_id, reconstruction_of, analysis_run_id
+                   source_commit, jar_sha256, created_at, completed_at, gate_result_id, reconstruction_of,
+                   -- CHG-099: rows rebuilt IN PLACE under CHG-076 (before the column existed) carry the run id only in their
+                   -- provenance; they are read as rebuilt, never as the run's retained proof
+                   COALESCE(analysis_run_id, CASE WHEN provenance->>'analysis_run_id' ~ '^[0-9a-fA-F-]{36}$'
+                                                  THEN (provenance->>'analysis_run_id')::uuid END) AS analysis_run_id
             FROM analytics.evidence_manifest WHERE method_run_id = @id ORDER BY artifact_kind, role_or_path, evidence_id
             """, new { id = methodRunId });
         var metas = new List<ArtifactMeta>();
@@ -102,11 +106,15 @@ public sealed class EvidenceManifestReader
             var list = reconRows.TryGetValue(run.Id, out var l) ? l : new();
             var rm = list.Select(x => x.Meta).ToList();
             var first = list.Count > 0 ? list[0].Row : null;
-            var terminal = run.State is "FINISHED" or "FAILED" or "CANCELED" or "SUBMIT_FAILED";
+            // a bounded run ends in minutes; one never marked final within 2 h was not followed (its state is unknown,
+            // never "still running" - e.g. a CHG-076-era run nobody polled)
+            var untracked = run.State is not ("FINISHED" or "FAILED" or "CANCELED" or "SUBMIT_FAILED")
+                            && run.CreatedAt < DateTime.UtcNow.AddHours(-2);
+            var terminal = untracked || run.State is "FINISHED" or "FAILED" or "CANCELED" or "SUBMIT_FAILED";
             reconstructions.Add(new
             {
                 analysisRunId = run.Id,
-                state = run.State,
+                state = untracked ? "UNTRACKED" : run.State,
                 createdAt = run.CreatedAt,
                 source = run.Source,
                 // stored only where the bytes differ from the retained proof; identical artifacts are counted, not copied
@@ -115,7 +123,7 @@ public sealed class EvidenceManifestReader
                 // final only once the run ended (rows arrive artifact by artifact); a finished run with nothing left was
                 // superseded by a newer one (only the newest reconstruction per original is kept) or produced nothing
                 readiness = !terminal ? "PENDING"
-                    : run.State != "FINISHED" && rm.Count == 0 ? "FAILED"
+                    : !untracked && run.State != "FINISHED" && rm.Count == 0 ? "FAILED"
                     : rm.Any(a => a.Readiness == "FAILED") ? "FAILED"
                     : rm.Any(a => a.Readiness == "PENDING") ? "PENDING"
                     : rm.Count > 0 ? "COMPLETE"

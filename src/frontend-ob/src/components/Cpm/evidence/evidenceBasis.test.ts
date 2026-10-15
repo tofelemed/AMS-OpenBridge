@@ -63,3 +63,17 @@ describe('nothing retained: the rebuild is shown, labelled (CHG-099)', () => {
     expect(v.readiness).toBe('COMPLETE');
   });
 });
+
+describe('lab pass 2026-10-15 (CHG-099)', () => {
+  it('a run never followed to its end reads as not recorded, never as still running', () => {
+    const s = reconstructionSummary(recon({ state: 'UNTRACKED', readiness: 'NONE', differing: 0, identical: 0, artifacts: [], source: null }), 'UTC');
+    expect(s).toMatch(/its outcome was not recorded$/);
+    expect(s).toMatch(/a source not recorded \(run before CHG-099\)/);
+    expect(s).not.toMatch(/still running/);
+  });
+  it('rows rebuilt in place by the earlier version are labelled as rebuilt over the originals', () => {
+    const m = M({ artifacts: [art('o1', 'cycle_scores', { basis: 'RECONSTRUCTED' })], reconstructions: [] });
+    expect(basisOf(m, null, 'UTC')).toMatchObject({ kind: 'REBUILT_LOST', label: 'Rebuilt evidence' });
+    expect(basisOf(m, null, 'UTC').detail).toMatch(/wrote them over the run's original arrays/);
+  });
+});

@@ -25,7 +25,7 @@ import { parseSelection } from './selection';
 import { useAnalysisRunState, useEvidenceManifest, useMethodRun, useReconstruct } from './useEvidence';
 import { EvidenceBasisBar } from './EvidenceBasisBar';
 import type { EvidenceManifest } from '../../../api/cpm/evidence';
-import { reconstructRefusal, reconstructionSettled, viewedManifest } from './evidenceBasis';
+import { TERMINAL_RUN_STATES, reconstructRefusal, reconstructionSettled, viewedManifest } from './evidenceBasis';
 
 /** Manifest poll interval while a reconstruction is pending (plant: artifacts land in ~20 s). */
 const RECONSTRUCTION_POLL_MS = 10_000;
@@ -68,6 +68,12 @@ export const GateEvidenceWorkspace: React.FC = () => {
   const runState = useAnalysisRunState(pendingRun, RECONSTRUCTION_POLL_MS);
   const settled = useCallback((m: EvidenceManifest) => reconstructionSettled(m, pendingRun), [pendingRun]);
   const rawManifest = useEvidenceManifest(selection?.methodRunId, pendingRun ? RECONSTRUCTION_POLL_MS : undefined, pendingRun ? settled : undefined);
+  // a reconstruction listed as still running (asked for earlier, or by someone else): reading its state refreshes it from
+  // Flink; once it ends, the manifest is read again so the evidence-basis bar shows the outcome
+  const listedPending = !pendingRun ? rawManifest.data?.reconstructions?.find(r => r.readiness === 'PENDING')?.analysisRunId : undefined;
+  const listedState = useAnalysisRunState(listedPending, RECONSTRUCTION_POLL_MS);
+  const listedEnded = !!listedState.data && TERMINAL_RUN_STATES.has(listedState.data.state);
+  useEffect(() => { if (listedEnded) void rawManifest.refetch(); }, [listedEnded]);   // eslint-disable-line react-hooks/exhaustive-deps
   // CHG-099 (SME review 2 #18): ?view=<analysisRunId> shows a reconstruction in place of the differing originals
   const view = params.get('view');
   const manifest = { ...rawManifest, data: viewedManifest(rawManifest.data, view) };
