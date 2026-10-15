@@ -5,7 +5,8 @@ using Npgsql;
 namespace Traverse.CplmApi.Services;
 
 /// <summary>What one sweep did; every count is rows.</summary>
-public sealed record SweepResult(int Promoted, int TransientPurged, int Expired, int ChunksDeleted, int Purged, int ResponsePurged);
+public sealed record SweepResult(int Promoted, int TransientPurged, int Expired, int ChunksDeleted, int Purged, int ResponsePurged,
+    int ResponseModelsPurged = 0);
 
 /// <summary>
 /// v2.5 Task 1G.5 (spec v6 §1.6 retention; NR-060) + CHG-033: evidence is retained by RECORD CLASS.
@@ -54,16 +55,17 @@ public sealed class EvidenceRetentionSweeper : BackgroundService
             try
             {
                 var r = await SweepOnceAsync(_db, stoppingToken, _expiredGraceDays, 20_000, _transientHours, _transientBudgetBytes);
-                if (r.Promoted + r.TransientPurged + r.Expired + r.Purged + r.ResponsePurged > 0)
-                    _logger.LogInformation("Evidence retention: {Promoted} promoted to EPISODE, {Transient} TRANSIENT deleted, {Expired} expired, {Chunks} chunk(s) deleted, {Purged} purged, {Response} response event(s) purged",
-                        r.Promoted, r.TransientPurged, r.Expired, r.ChunksDeleted, r.Purged, r.ResponsePurged);
+                if (r.Promoted + r.TransientPurged + r.Expired + r.Purged + r.ResponsePurged + r.ResponseModelsPurged > 0)
+                    _logger.LogInformation("Evidence retention: {Promoted} promoted to EPISODE, {Transient} TRANSIENT deleted, {Expired} expired, {Chunks} chunk(s) deleted, {Purged} purged, {Response} response event(s) and {Models} unreviewed model(s) purged",
+                        r.Promoted, r.TransientPurged, r.Expired, r.ChunksDeleted, r.Purged, r.ResponsePurged, r.ResponseModelsPurged);
             }
             catch (Exception ex) { _logger.LogWarning(ex, "Evidence retention sweep failed; will retry next interval"); }
             try { await Task.Delay(_interval, stoppingToken); } catch (OperationCanceledException) { return; }
         }
     }
 
-    private static readonly string[] NotEvidenceClasses = { "TRANSIENT", "SHORT_FEATURES", "LONG_FEATURES", "GATE_RESULTS", "RESPONSE" };   // CHG-049: RESPONSE is response_event retention, not an evidence class
+    // CHG-049: RESPONSE is response_event retention, not an evidence class; CHG-091: nor is RESPONSE_CENSORED
+    private static readonly string[] NotEvidenceClasses = { "TRANSIENT", "SHORT_FEATURES", "LONG_FEATURES", "GATE_RESULTS", "RESPONSE", "RESPONSE_CENSORED" };
 
     /// <summary>One sweep. Static so a test can drive it against the lab database.</summary>
     public static async Task<SweepResult> SweepOnceAsync(NpgsqlDataSource db, CancellationToken ct,
@@ -90,12 +92,21 @@ public sealed class EvidenceRetentionSweeper : BackgroundService
             expired += e; chunks += c;
             purged += await EvidenceRetentionTiers.PurgeExpiredAsync(db, recordClass, days, expiredGraceDays, size, ct);
         }
-        // 4. CHG-049: response_event / response_metric; no RESPONSE row (or null days) = keep forever
-        int responsePurged = 0;
-        int? responseDays;
+        // 4. CHG-049: response_event / response_metric; no RESPONSE row (or null days) = keep forever.
+        //    CHG-091: unreviewed models first (that unpins their events), then the events, then CENSORED by its own row.
+        int responsePurged = 0, modelsPurged = 0;
+        int? responseDays, censoredDays;
         await using (var conn = await db.OpenConnectionAsync(ct))
+        {
             responseDays = await conn.ExecuteScalarAsync<int?>("SELECT days FROM analytics.retention_policy WHERE record_class = 'RESPONSE'");
-        if (responseDays is { } rd) responsePurged = await ResponseRetention.PurgeAsync(db, rd, 5_000, ct);
-        return new SweepResult(promoted, transient, expired, chunks, purged, responsePurged);
+            censoredDays = await conn.ExecuteScalarAsync<int?>("SELECT days FROM analytics.retention_policy WHERE record_class = 'RESPONSE_CENSORED'");
+        }
+        if (responseDays is { } rd)
+        {
+            modelsPurged = await ResponseRetention.PurgeModelsAsync(db, rd, 2_000, ct);
+            responsePurged = await ResponseRetention.PurgeAsync(db, rd, 5_000, ct);
+        }
+        if (censoredDays is { } cd) responsePurged += await ResponseRetention.PurgeAsync(db, cd, 5_000, ct, censoredOnly: true);
+        return new SweepResult(promoted, transient, expired, chunks, purged, responsePurged, modelsPurged);
     }
 }

@@ -320,6 +320,8 @@ CREATE INDEX IF NOT EXISTS ix_response_event_purpose ON analytics.response_event
 CREATE INDEX IF NOT EXISTS ix_response_event_created ON analytics.response_event (created_at);   -- CHG-049: retention purge
 -- CHG-049 (final review I3): the RESPONSE retention row (response_event / response_metric, read by the evidence sweeper)
 INSERT INTO analytics.retention_policy (record_class, days) VALUES ('RESPONSE', 14) ON CONFLICT (record_class) DO NOTHING;
+-- CHG-091: CENSORED response events (rejected captures) keep 3 days, not the 14 of RESPONSE
+INSERT INTO analytics.retention_policy (record_class, days) VALUES ('RESPONSE_CENSORED', 3) ON CONFLICT (record_class) DO NOTHING;
 
 -- One row per (method run, quantity): the 52 catalogue quantities, null WITH reason.
 CREATE TABLE IF NOT EXISTS analytics.response_metric (

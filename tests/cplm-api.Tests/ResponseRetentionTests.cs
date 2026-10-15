@@ -74,6 +74,19 @@ public sealed class ResponseRetentionTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Censored_only_purge_leaves_complete_events()
+    {
+        // CHG-091: _oldEvent is COMPLETE and 3650 d old; a censored-only pass must not take it
+        await ResponseRetention.PurgeAsync(_db, 3600, 1000, CancellationToken.None, censoredOnly: true);
+        await using var conn = await _db.OpenConnectionAsync();
+        (await conn.ExecuteScalarAsync<int>("SELECT count(*) FROM analytics.response_event WHERE event_id = @id", new { id = _oldEvent })).Should().Be(1);
+        await conn.ExecuteAsync("UPDATE analytics.response_event SET capture_state = 'CENSORED' WHERE event_id = @id", new { id = _oldEvent });
+        await ResponseRetention.PurgeAsync(_db, 3600, 1000, CancellationToken.None, censoredOnly: true);
+        (await conn.ExecuteScalarAsync<int>("SELECT count(*) FROM analytics.response_event WHERE event_id = @id", new { id = _oldEvent })).Should().Be(0);
+        (await conn.ExecuteScalarAsync<int>("SELECT count(*) FROM analytics.response_metric WHERE method_run_id = @run", new { run = _oldRun })).Should().Be(0);
+    }
+
+    [Fact]
     public async Task A_RESPONSE_policy_row_is_not_an_evidence_class_and_drives_the_response_purge()
     {
         await using (var conn = await _db.OpenConnectionAsync())
