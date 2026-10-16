@@ -5086,7 +5086,9 @@ ams-open-2a / -3b / -e7.
 
 **Services:** `ams-frontend`. **No migration, no backend.**
 
-## Release v2.8.1 (PLANNED) — CHG-100 (ams-frontend)
+## Release v2.8.0.1 (PLANNED) — CHG-100 (ams-frontend)
+
+**Build:** `python migration/deploy/build-release.py --release v2.8.0.1 --skip-jar` (manifest `migration/deploy/releases/v2.8.0.1.txt`).
 
 **Services updated:** `ams-frontend` only. **Not changed:** cplm-api, Flink, historian-bff, ams-api, schema.
 **Plant steps:** integrity → rollback image list → load the ams-frontend image → `deploy.sh --prod` (frontend only) → check:

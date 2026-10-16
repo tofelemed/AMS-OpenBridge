@@ -1,0 +1,9 @@
+# Release v2.8.0.1 - CHG-100 on top of v2.8.0 (plant v2.8.0 = 072bb0de, deployed 2026-10-16 06:47 UTC).
+# Consumed by: python migration/deploy/build-release.py --release v2.8.0.1 --skip-jar   (no Flink change: the jar is not rebuilt)
+#
+#   ams-frontend  CHG-100: selected rows are a light accent tint + accent edge (was filled dark blue, text unreadable) on
+#                 every CPM page; the whole row is clickable on Loop Events and the Overview queue; Performance > Checks
+#                 behind the result header sticks flush (rows no longer show above it).
+#
+# No Flink swap, no job restart, no schema, no data step, no backend. Users: Ctrl+F5 once.
+ams-frontend
