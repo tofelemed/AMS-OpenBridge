@@ -5086,7 +5086,7 @@ ams-open-2a / -3b / -e7.
 
 **Services:** `ams-frontend`. **No migration, no backend.**
 
-## Release v2.8.0.1 — BUILT 2026-10-16 (`release-out/v2.8.0.1-20261016`, src-43d1948e, 28/28 checksums, 34 MB; image fingerprint PROD, CHG-100 CSS + whole-row click confirmed inside the image) — CHG-100 (ams-frontend)
+## Release v2.8.0.1 — BUILT 2026-10-16 (`release-out/v2.8.0.1-20261016`, src-43d1948e, 28/28 checksums, 34 MB; image fingerprint PROD, CHG-100 CSS + whole-row click confirmed inside the image) — CHG-100 (ams-frontend) **DEPLOYED 2026-10-16 08:00 UTC** (05-validate passed, Flink jobs untouched; rollback list at /tmp/v2.8.0.1/pre-v2.8.0.1-images.txt)
 
 **Build:** `python migration/deploy/build-release.py --release v2.8.0.1 --skip-jar` (manifest `migration/deploy/releases/v2.8.0.1.txt`).
 
