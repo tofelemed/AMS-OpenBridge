@@ -5055,3 +5055,41 @@ One release so the plant gets one Flink refill. Branch `feat/v25-next-release` a
 4. checks: 7 jobs RUNNING on one jar (CAPABILITY), consumers 1 member each, first retention sweep logs purged models
    (~4,700) within 15 min, evidence workbench "Retained proof" bar, Performance headline "N of M assessed", IoTDB warn log quiet.
 **Expect:** "Performing acceptably" drops (CHG-093: G3 PASS + G4 not STRONG required); 12 h / 24 h verdicts refill after the swap.
+
+## CHG-100 — Readable selected rows, whole-row click, Performance checks header (2026-10-16, follow-up to v2.8.0)
+
+**Source:** user review of v2.8.0 at the plant (screenshots of Overview, Performance and Loop Events). Number reserved with
+ams-open-2a / -3b / -e7.
+
+**What changed (ams-frontend only)**
+- **Selected rows are a light tint, not dark blue.** The OpenBridge filled "selected" colour with inverted text made the
+  secondary text and pills of a selected row unreadable.
+  - Now one CPM style: `--cpm-selected-bg` (14 % of the accent colour over the surface), a 4 px accent edge, and the row's
+    normal text colours. Pill outlines are dropped on the selected row.
+  - Applied to Loop Events, the Overview priority queue, Calculations, the Performance matrix / checks rows, Gate
+    Configuration bundles and gates, and System Response events. The HMI Designer's own accent is unchanged.
+- **The whole row is clickable** on Loop Events (selects the episode) and the Overview priority queue (previews the loop),
+  with a pointer cursor. The inner episode / preview button stays the keyboard and screen-reader control. The loop-id
+  button still opens the Loop Explorer and no longer also selects the row.
+- **Performance › Checks behind the result:** rows no longer show above the column header when scrolled.
+  - The checks table has ONE header row, so the full matrix's second-row sticky offset (26 px) applied to it and left a
+    26 px band above the header.
+  - It now sticks at the top of its scroll box (measured: header top = scroll-box top).
+
+**Tests**
+- tsc and eslint clean; vitest 449 / 449 (new `PriorityQueue.test.tsx`: a click on the row body previews, the loop button
+  only opens the Explorer).
+- Lab browser check, 1440 px, day and night:
+  - selected Overview queue and Loop Events rows: every text element ≥ 4.5:1 in both themes (measured in the page);
+  - a click on a row's body text selects it; the loop button opens the Explorer;
+  - Performance checks header flush with its scroll box; the selected matrix row is readable.
+
+**Services:** `ams-frontend`. **No migration, no backend.**
+
+## Release v2.8.1 (PLANNED) — CHG-100 (ams-frontend)
+
+**Services updated:** `ams-frontend` only. **Not changed:** cplm-api, Flink, historian-bff, ams-api, schema.
+**Plant steps:** integrity → rollback image list → load the ams-frontend image → `deploy.sh --prod` (frontend only) → check:
+- the Overview queue and Loop Events selected rows are light, with readable text;
+- a click on a row body selects it;
+- Performance › Checks behind the result: no rows above the header when scrolled.

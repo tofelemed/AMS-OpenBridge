@@ -4,6 +4,11 @@
 :root {
   --cpm-text-caption: 0.875rem;
   --cpm-text-small: 0.93rem;
+  /* CHG-100: ONE selected-row style - a light tint of the accent over the surface and a 4 px accent edge. The OpenBridge
+     filled "selected" (dark blue) made secondary text and pills unreadable on rows that carry several of them. */
+  --cpm-selected-bg: color-mix(in srgb, var(--instrument-enhanced-primary-color) 14%, transparent);
+  --cpm-selected-hover-bg: color-mix(in srgb, var(--instrument-enhanced-primary-color) 20%, transparent);
+  --cpm-selected-edge: var(--instrument-enhanced-primary-color);
 }
 /* lab sweep 2026-10-15: a bare <button> used as a pill took the browser's light default background in the night theme */
 .cpm-pill-button { background: transparent; border: 0; padding: 0; margin: 0; color: inherit; font: inherit; cursor: pointer; }
@@ -145,7 +150,7 @@
   border-left: 3px solid transparent;
 }
 .cpm-event-row:hover { background: var(--container-hover-color, rgba(128,128,128,0.08)); }
-.cpm-event-row--selected { border-left-color: var(--instrument-enhanced-primary-color); background: var(--container-hover-color, rgba(128,128,128,0.08)); }
+.cpm-event-row--selected { border-left-color: var(--cpm-selected-edge); background: var(--cpm-selected-bg); }
 .cpm-event-row__title { font-weight: 600; }
 .cpm-event-row__sub { font-size: var(--cpm-text-caption); color: var(--element-neutral-color); }
 .cpm-pager {
@@ -312,10 +317,14 @@
 .cpm-matrix tbody tr:hover .cpm-matrix__loop,
 .cpm-matrix tbody tr:hover .cpm-matrix__result,
 .cpm-matrix tbody tr:hover { background: var(--container-background-color); }
-.cpm-matrix__row--selected,
+/* CHG-100: the sticky loop / result cells need an OPAQUE background (rows scroll under them), so the tint sits over the
+   container colour there */
+.cpm-matrix__row--selected { background: var(--cpm-selected-bg); }
 .cpm-matrix__row--selected .cpm-matrix__loop,
-.cpm-matrix__row--selected .cpm-matrix__result { background: var(--container-section-color); }
-.cpm-matrix__row--selected .cpm-matrix__loop { box-shadow: inset 3px 0 0 var(--instrument-enhanced-primary-color); }
+.cpm-matrix__row--selected .cpm-matrix__result {
+  background: linear-gradient(var(--cpm-selected-bg), var(--cpm-selected-bg)), var(--container-global-color);
+}
+.cpm-matrix__row--selected .cpm-matrix__loop { box-shadow: inset 4px 0 0 var(--cpm-selected-edge); }
 
 .cpm-matrix__loop-btn {
   display: flex;

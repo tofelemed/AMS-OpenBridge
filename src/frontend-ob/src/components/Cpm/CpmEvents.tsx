@@ -215,8 +215,9 @@ export const CpmEvents: React.FC = () => {
             const isSelected = selected?.id === e.id;
             return (
               // Two controls, siblings: the episode selects (in-page), the loop id routes.
-              <div key={e.id} className={`cpm-event-row cpm-event-row--dense${isSelected ? ' cpm-event-row--selected' : ''}`}
-                aria-current={isSelected ? 'true' : undefined}>
+              // CHG-100: the whole row selects (pointer); the episode button stays the keyboard / screen-reader control
+              <div key={e.id} className={`cpm-event-row cpm-event-row--dense cpm-row-click${isSelected ? ' cpm-event-row--selected' : ''}`}
+                aria-current={isSelected ? 'true' : undefined} onClick={() => select(e.id)}>
                 <div className="cpm-event-row__main">
                   <button type="button" className="cpm-event-row__select" aria-pressed={isSelected}
                     aria-label={`Show episode EVT-${e.id}, peak ${diagnosisLabel(e.peak_diagnosis)}`}
@@ -225,10 +226,13 @@ export const CpmEvents: React.FC = () => {
                     <span className="cpm-event-row__title">Peak: {diagnosisLabel(e.peak_diagnosis)}</span>
                     <span className="cpm-event-row__sub">EVT-{e.id} · {e.window_kind}</span>
                   </button>
-                  <ObcButton variant="flat" title={`Open ${e.loop_id} in the Loop Explorer`}
-                    onClick={() => openLoop(e.loop_id)}>
-                    {e.loop_id} ›
-                  </ObcButton>
+                  {/* the loop opens the Explorer only - its click does not also select the row */}
+                  <span onClick={ev => ev.stopPropagation()}>
+                    <ObcButton variant="flat" title={`Open ${e.loop_id} in the Loop Explorer`}
+                      onClick={() => openLoop(e.loop_id)}>
+                      {e.loop_id} ›
+                    </ObcButton>
+                  </span>
                 </div>
                 <TonePill tone={sev.tone}>{sev.label}</TonePill>
                 <span className="cpm-event-row__states">

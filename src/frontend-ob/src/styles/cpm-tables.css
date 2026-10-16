@@ -40,19 +40,12 @@
 .cpm-sort-head__icon { display: inline-flex; width: 16px; height: 16px; flex: 0 0 auto; }
 .cpm-sort-head__icon > * { width: 16px; height: 16px; }
 
-/* Selected row: the OpenBridge selected surface plus the accent edge — distinct from hover (which only tints).
-   The :hover pair out-ranks `.cpm-event-row:hover` so hovering the selected row does not undo it. The loop-id flat
-   button and the pills keep their contrast on the selected surface (as the configuration bundle list does). */
-.cpm-event-row--selected,
-.cpm-event-row--selected:hover {
-  background: var(--selected-enabled-background-color);
-  border-left-color: var(--instrument-enhanced-primary-color);
-  color: var(--on-selected-active-color);
-  --on-flat-active-color: var(--on-selected-active-color);
-}
-.cpm-event-row--selected .cpm-event-row__sub,
-.cpm-event-row--selected .cpm-metric-na { color: var(--on-selected-neutral-color); }
-.cpm-event-row--selected .cpm-pill { color: var(--on-selected-active-color); border-color: var(--on-selected-neutral-color); }
+/* CHG-100: light tint + accent edge (was the OpenBridge filled selected colour with inverted text); the row keeps its
+   normal text and pill colours, so every line on it stays readable in day and night */
+.cpm-event-row--selected { background: var(--cpm-selected-bg); box-shadow: inset 4px 0 0 var(--cpm-selected-edge); }
+.cpm-event-row--selected:hover { background: var(--cpm-selected-hover-bg); }
+/* the pills' pale outline blends into the plain row but shows against the tint: drop it on the selected row */
+.cpm-event-row--selected .cpm-pill { border-color: transparent; }
 
 /* Compact repeating rows: less vertical padding, and an episode's state pills sit side by side (wrapping) instead of
    one per line, so more cases fit on screen for comparison. */
@@ -110,3 +103,6 @@
   .cpm-shelve,
   .cpm-fade-enter { animation: none; }
 }
+
+/* CHG-100: a row that selects on click shows it */
+.cpm-row-click { cursor: pointer; }

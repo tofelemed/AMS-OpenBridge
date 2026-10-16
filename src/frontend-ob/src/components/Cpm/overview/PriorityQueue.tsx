@@ -66,15 +66,18 @@ export const PriorityQueue: React.FC<{
       const isSelected = selectedId === l.loopId;
       const badge = priorityBadge(l.priority);
       return (
-        <div key={l.loopId}
-          className={`cpm-event-row cpm-queue-row cpm-queue-row--${badge.tone}${isSelected ? ' cpm-event-row--selected' : ''}`}>
+        // CHG-100: the whole row previews the loop (pointer); the preview button stays the keyboard control
+        <div key={l.loopId} onClick={() => onPreview(l.loopId)}
+          className={`cpm-event-row cpm-queue-row cpm-row-click cpm-queue-row--${badge.tone}${isSelected ? ' cpm-event-row--selected' : ''}`}>
           <div className="cpm-queue-row__head">
             <TonePill tone={badge.tone}>{badge.label}</TonePill>
-            <ObcButton variant="flat" className="cpm-queue-row__loop"
+            <span onClick={ev => ev.stopPropagation()}>
+              <ObcButton variant="flat" className="cpm-queue-row__loop"
               title={`Open ${l.loopId} in the Loop Explorer`}
               onClick={() => onOpenLoop(l.loopId)}>
               {l.loopId} ›
             </ObcButton>
+            </span>
             <span className="cpm-queue-row__diag">
               {l.ackState === 'ACKNOWLEDGED' && <TonePill tone="muted">Acknowledged</TonePill>}
               <FacetPill facet="diagnosis" tone={toneFor(l.diagnosis)}>{conditionOf(l.diagnosis).label}</FacetPill>
