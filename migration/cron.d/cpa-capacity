@@ -1,5 +1,5 @@
 # install: sudo cp migration/cron.d/cpa-capacity /etc/cron.d/ && sudo chmod 644 /etc/cron.d/cpa-capacity
-# CHG-033 (v2.6): the prune-short-features.sh line is gone - result-table retention is now the daily
-# partitions (scripts/cpm-10b) and cplm-api's FeaturePartitionMaintenance; retention_policy rows
-# SHORT_FEATURES / LONG_FEATURES / GATE_RESULTS set the days. Reinstall this file after cpm-10b.
+# CHG-033 (v2.6): the prune-short-features.sh line moved out of this file. Since 2026-10-18 it is the
+# official feature retention at Marun (short 6 h, long 24 h) in its OWN drop-in, cron.d/cpa-prune-short-features;
+# the daily partitions (cpm-10b, FeaturePartitionMaintenance) drop the emptied days; GATE_RESULTS days still apply.
 17 * * * * root /opt/AMS-open/migration/cap-iotdb-logs.sh >/dev/null 2>&1

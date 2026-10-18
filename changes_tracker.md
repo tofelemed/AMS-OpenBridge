@@ -5095,3 +5095,12 @@ ams-open-2a / -3b / -e7.
 - the Overview queue and Loop Events selected rows are light, with readable text;
 - a click on a row body selects it;
 - Performance › Checks behind the result: no rows above the header when scrolled.
+
+## OPS — Marun feature retention made official: short features 6 h, long features 24 h (2026-10-18, no CHG: no service or image change)
+
+**Found** during the 2026-10-18 stall (Instrumental's Kafka restarted ~22:00 UTC; Short / Long sources stuck until a TaskManager restart):
+the 2026-09-26 interim prune still runs from its own drop-in `/etc/cron.d/cpa-prune-short-features` (every 30 min, root):
+`DELETE … cplm_short_feature_results WHERE window_end < now() - 6 h` and `… cplm_long_feature_results … < now() - 24 h`. v2.6 (CHG-033) replaced
+`cpa-capacity` only, so the records' "3 d / 14 d by partitions" was never true at Marun. Measured: short ~2.2 GB per full day, long ~245 MB/day;
+9.3 GB free. **User decision:** keep 6 h / 24 h, official. **Repo:** `migration/prune-short-features.sh` and `migration/cron.d/cpa-prune-short-features`
+restored (unchanged SQL), `cpa-capacity`'s comment corrected; `prod_decision.md` sections 3 and 6. **Plant:** nothing to run (the cron is already there).

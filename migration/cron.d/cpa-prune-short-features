@@ -1,0 +1,4 @@
+# install: sudo cp migration/cron.d/cpa-prune-short-features /etc/cron.d/ && sudo chmod 644 /etc/cron.d/cpa-prune-short-features
+# Marun feature retention (decision 2026-10-18): short features 6 h, long features 24 h - see migration/prune-short-features.sh.
+# Removing this file makes the daily partitions the only retention (SHORT_FEATURES 3 d / LONG_FEATURES 14 d, ~10 GB more on disk).
+*/30 * * * * root /opt/AMS-open/migration/prune-short-features.sh >/dev/null 2>&1
