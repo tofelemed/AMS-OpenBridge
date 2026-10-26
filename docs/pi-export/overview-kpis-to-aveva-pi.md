@@ -78,9 +78,9 @@ The rules are taken from `src/services/cplm-api/Data/FleetKpiSql.cs` and `Servic
 psql -h <host> -p <port> -U <read-only user> -d traverse_cplm -A -F ',' -f overview-kpis.sql
 ```
 
-- **Output:** one row per KPI with `as_of, window_kind, kpi_key, label, count, denominator, pct`.
-- **Parameters:** set them in the `params` block at the top of the file:
-  - `window_kind`: `'12h'` or `'24h'`;
+- **Output:** 30 rows: the 15 KPI rows for `12h`, then the same 15 for `24h`. Columns `as_of, window_kind, kpi_key, label, count, denominator, pct`. All 30 rows always come back, with zeros if a scope matches no loop.
+- **Parameters:** in the `kinds` and `params` blocks at the top:
+  - `kinds`: the windows to compute, `'12h'` and `'24h'` by default;
   - `as_of`: `now()` for the current values;
   - `site` / `area` / `unit`: `NULL` for the whole plant.
 - **Port and login:** plant operations provide them. On the VM, `docker port instrumental-postgres` shows the port.
