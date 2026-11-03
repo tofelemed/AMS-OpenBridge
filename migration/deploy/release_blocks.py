@@ -7,7 +7,8 @@ deploy.sh --prod already recreates every changed service.
 """
 from __future__ import annotations
 
-DIRECTIVES = {"chg081-superadmin", "chg088-vp-republish", "chg099-cpm15", "chg091-cpm16", "chg102-cpm17", "chg102-cpm18"}
+DIRECTIVES = {"chg081-superadmin", "chg088-vp-republish", "chg099-cpm15", "chg091-cpm16", "chg102-cpm17", "chg102-cpm18",
+              "chg102-cpm19"}
 
 
 def chg081_superadmin(release: str) -> str:
@@ -104,10 +105,27 @@ docker exec instrumental-postgres psql -U postgres -d traverse_cplm -Atc "select
 """
 
 
+def chg102_cpm19(release: str) -> str:
+    # CHG-102 Phase 5b-1: additive archive tables the new cplm-api's EvidenceArchiver fills; the old image ignores them.
+    return f"""
+# 4g. CHG-102 evidence boundary archive (analytics.evidence_archive day partitions + evidence_archive_run, retention
+#     EVIDENCE_ARCHIVE = 30 d / 12 GiB) - BEFORE the cplm-api swap (step 6 deploy.sh), so the new image archives from its first
+#     pass. Online, additive, re-runnable (lock_timeout 10 s: if it fires, re-run); cplm-api may be running or stopped.
+docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-19-evidence-archive.sql
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -Atc "select record_class||'='||coalesce(days::text,'-')||'d/'||coalesce((max_bytes>>30)::text,'-')||'GiB' from analytics.retention_policy where record_class = 'EVIDENCE_ARCHIVE'"
+#     expected: EVIDENCE_ARCHIVE=30d/12GiB
+#     After the swap and the new Flink jar, the first boundary (00:00 / 12:00 plant time) + 15 min is archived:
+#       docker exec traverse-cplm-api curl -s localhost:5000/health | python3 -m json.tool | grep -A15 evidenceArchive   # installed true, behind false, lostToSweep 0
+#       docker exec instrumental-postgres psql -U postgres -d traverse_cplm -Atc "select window_kind, count(*), sum(artifact_count), pg_size_pretty(sum(payload_bytes)), max(window_end) from analytics.evidence_archive_run group by 1"
+#     Rollback (online; every archived set is lost, the workbench serves live evidence only):
+#       docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-19-evidence-archive.rollback.sql
+"""
+
+
 BLOCKS = {"chg081-superadmin": chg081_superadmin, "chg088-vp-republish": chg088_vp_republish,
           "chg099-cpm15": chg099_cpm15, "chg091-cpm16": chg091_cpm16, "chg102-cpm17": chg102_cpm17,
-          "chg102-cpm18": chg102_cpm18}
-PRE_SWAP = {"chg099-cpm15", "chg102-cpm17", "chg102-cpm18"}
+          "chg102-cpm18": chg102_cpm18, "chg102-cpm19": chg102_cpm19}
+PRE_SWAP = {"chg099-cpm15", "chg102-cpm17", "chg102-cpm18", "chg102-cpm19"}
 
 
 def _at(steps: str, marker: str, extra: str) -> str:

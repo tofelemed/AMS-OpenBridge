@@ -172,6 +172,15 @@ if (config.GetValue("Cplm:ConsumersEnabled", false))
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmConfigAckConsumerService>();
     // CHG-102 Phase 6: ended plant days -> analytics.cplm_kpi_daily (3 y of Overview KPIs + their loops; hourly pass).
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.FleetKpiDailyJob>();
+    // CHG-102 Phase 5b-1: 12 h / 24 h boundary evidence sets packed into analytics.evidence_archive before the TRANSIENT
+    // sweep (Cplm:EvidenceArchive:Enabled, default on; retention_policy EVIDENCE_ARCHIVE days + max_bytes).
+    builder.Services.Configure<Traverse.CplmApi.Services.EvidenceArchiveOptions>(o =>
+    {
+        config.GetSection(Traverse.CplmApi.Services.EvidenceArchiveOptions.SectionName).Bind(o);
+        o.TransientHours = Math.Max(1, config.GetValue("Cplm:EvidenceTransientHours", 6));
+    });
+    builder.Services.AddSingleton<Traverse.CplmApi.Services.EvidenceArchiveStats>();
+    builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.EvidenceArchiveJob>();
 }
 
 // CHG-032: shelves end when their expiry passes (SHELVED -> EXPIRED once a minute), consumers or not.
@@ -278,6 +287,15 @@ app.MapGet("/health", async (
             written = khStats?.Written, rejected = khStats?.Rejected, skipped = khStats?.Skipped,
             lastWriteUtc = khStats?.LastWriteUtc, iotdbUnavailableSinceUtc = khStats?.UnavailableSinceUtc
         };
+        // CHG-102 Phase 5b-1: the boundary archive - behind / lost-to-sweep are what an operator must see
+        var ea = sp.GetService<Traverse.CplmApi.Services.EvidenceArchiveStats>();
+        var evidenceArchive = ea is null ? null : new
+        {
+            enabled = ea.Enabled, installed = ea.Installed, lastPassUtc = ea.LastPassUtc, pendingSets = ea.PendingSets, behind = ea.Behind,
+            archivedSets = ea.ArchivedSets, archivedArtifacts = ea.ArchivedArtifacts, missingArtifacts = ea.MissingArtifacts,
+            lateArtifacts = ea.LateArtifacts, lostToSweep = ea.LostToSweep, packBytes = ea.PackBytes, sourceBytes = ea.SourceBytes,
+            archiveBytes = ea.ArchiveBytes, lastError = ea.LastError
+        };
         // STR-06: a partition split means another member is persisting half the
         // windows. The heartbeat cannot see this — both members look "RUNNING".
         var degraded = r.State is "STALLED" or "NEVER_STARTED"
@@ -296,6 +314,7 @@ app.MapGet("/health", async (
                 health,
                 response,
                 kpiHistory,
+                evidenceArchive,
                 groupSplitDetected = guard.SplitDetected,
                 groupSplitDetail = guard.SplitDetail
             }

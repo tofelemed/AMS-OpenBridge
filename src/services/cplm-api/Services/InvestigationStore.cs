@@ -28,6 +28,12 @@ public sealed class InvestigationStore
         if (ids.Length == 0) return Array.Empty<Guid>();
         await using var conn = await _db.OpenConnectionAsync(ct);
         var known = (await conn.QueryAsync<Guid>("SELECT evidence_id FROM analytics.evidence_manifest WHERE evidence_id = ANY(@ids)", new { ids })).ToHashSet();
+        // CHG-102 Phase 5b-1: archived evidence may be referenced too (its day partition is then never dropped)
+        var unknown = ids.Where(i => !known.Contains(i)).ToArray();
+        if (unknown.Length > 0 && await conn.ExecuteScalarAsync<bool>("SELECT to_regclass('analytics.evidence_archive_run') IS NOT NULL"))
+            known.UnionWith(await conn.QueryAsync<Guid>(
+                "SELECT DISTINCT e FROM analytics.evidence_archive_run r, unnest(r.evidence_ids) e WHERE r.evidence_ids && @unknown AND e = ANY(@unknown)",
+                new { unknown }));
         return ids.Where(i => !known.Contains(i)).ToArray();
     }
 

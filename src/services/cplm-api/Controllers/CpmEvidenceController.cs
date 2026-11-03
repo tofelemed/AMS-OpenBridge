@@ -33,6 +33,9 @@ public sealed class CpmEvidenceController : ControllerBase
     public async Task<IActionResult> GetChunk(Guid id, int n, CancellationToken ct)
     {
         var manifest = await _store.GetManifestAsync(id, ct);
+        // CHG-102 Phase 5b-1: swept (or EXPIRED) live evidence is served from the boundary archive, byte for byte
+        if (manifest is null || manifest.Readiness == "EXPIRED")
+            if (await ArchivedChunkAsync(id, n, ct) is { } archived) return archived;
         if (manifest is null) return NotFound(new { error = "EVIDENCE_NOT_FOUND", evidenceId = id });
         if (!SiteScope.Allows(Request, await SiteOfAsync(id, ct))) return StatusCode(StatusCodes.Status403Forbidden, SiteScope.Forbidden(null));
         if (manifest.Readiness == "EXPIRED")
@@ -43,9 +46,15 @@ public sealed class CpmEvidenceController : ControllerBase
 
         var chunk = await _store.GetChunkAsync(id, n, ct);
         if (chunk is null) return NotFound(new { error = "CHUNK_MISSING", evidenceId = id, chunk = n });
+        return ChunkResult(chunk, n, manifest.ChunkCount);
+    }
+
+    /// <summary>The chunk response: its SHA-256 as the ETag, immutable caching, If-None-Match -> 304.</summary>
+    private IActionResult ChunkResult(EvidenceChunkSpec chunk, int n, int chunkCount)
+    {
         var etag = new EntityTagHeaderValue($"\"{chunk.Sha256}\"");
         Response.Headers[HeaderNames.CacheControl] = CacheControl;
-        Response.Headers["X-Evidence-Chunk"] = $"{n}/{manifest.ChunkCount}";
+        Response.Headers["X-Evidence-Chunk"] = $"{n}/{chunkCount}";
         Response.Headers["X-Evidence-Encoding"] = "f64le+gzip";
         Response.Headers["X-Evidence-Sha256"] = chunk.Sha256;
         if (Request.Headers.TryGetValue(HeaderNames.IfNoneMatch, out var inm) && inm.Any(v => v is not null && v.Trim() == etag.Tag.ToString()))
@@ -56,6 +65,24 @@ public sealed class CpmEvidenceController : ControllerBase
         var file = File(chunk.Payload, "application/octet-stream");
         file.EntityTag = etag;
         return file;
+    }
+
+    /// <summary>
+    /// CHG-102 Phase 5b-1: a chunk of an archived artifact (null = not archived). Same answers as the live path: 403 outside
+    /// the caller's sites, 404 out of range; the archived bytes are the originals, so the ETag and checksum are unchanged.
+    /// </summary>
+    private async Task<IActionResult?> ArchivedChunkAsync(Guid id, int n, CancellationToken ct)
+    {
+        await using var conn = await _db.OpenConnectionAsync(ct);
+        var artifact = await EvidenceArchiveReader.ArtifactAsync(conn, id, ct);
+        if (artifact is null) return null;
+        if (!SiteScope.Allows(Request, await EvidenceArchiveReader.SiteOfAsync(conn, id, byEvidenceId: true, ct)))
+            return StatusCode(StatusCodes.Status403Forbidden, SiteScope.Forbidden(null));
+        var count = artifact.Manifest.ChunkCount;
+        if (n < 0 || n >= count || n >= artifact.Chunks.Count)
+            return NotFound(new { error = "CHUNK_OUT_OF_RANGE", evidenceId = id, chunk = n, chunkCount = count });
+        Response.Headers["X-Evidence-Source"] = "archive";
+        return ChunkResult(artifact.Chunks[n], n, count);
     }
 
     private async Task<string?> SiteOfAsync(Guid evidenceId, CancellationToken ct)

@@ -1,0 +1,104 @@
+using Dapper;
+using Npgsql;
+
+namespace Traverse.CplmApi.Services;
+
+/// <summary>One archived boundary set as listed for a loop (no payload).</summary>
+public sealed record ArchivedSetView(Guid BoundarySetId, string LoopId, string WindowKind, DateTime? WindowStart, DateTime WindowEnd,
+    string? PlantTz, string? BoundaryKind, string? BoundaryLocalEnd, int ArtifactCount, int MissingCount, long PayloadBytes,
+    long SourceBytes, Guid[] MethodRunIds, DateTime ArchivedAt);
+
+/// <summary>
+/// CHG-102 Phase 5b-1 — the read side of the evidence boundary archive: when a method run or an evidence id is no longer
+/// in the live tables, its archived set is found through analytics.evidence_archive_run (GIN on method_run_ids /
+/// evidence_ids), the one packed row is read from its day partition and unpacked to the original manifests and chunk
+/// bytes. A database without cpm-19 reads as "not archived" (never an error on the evidence read path).
+/// </summary>
+public static class EvidenceArchiveReader
+{
+    private const string UndefinedTable = "42P01";
+
+    /// <summary>The archived artifacts of one method run (pack order), or an empty list.</summary>
+    public static async Task<IReadOnlyList<ArchivedArtifact>> ForMethodRunAsync(NpgsqlConnection conn, Guid methodRunId, CancellationToken ct)
+    {
+        var set = await LocateAsync(conn, "method_run_ids", methodRunId, ct);
+        if (set is null) return Array.Empty<ArchivedArtifact>();
+        var all = await LoadAsync(conn, set.Value.SetId, set.Value.WindowEnd, ct);
+        return all.Where(a => a.Manifest.MethodRunId == methodRunId).ToList();
+    }
+
+    /// <summary>One archived artifact by evidence id, or null.</summary>
+    public static async Task<ArchivedArtifact?> ArtifactAsync(NpgsqlConnection conn, Guid evidenceId, CancellationToken ct)
+    {
+        var set = await LocateAsync(conn, "evidence_ids", evidenceId, ct);
+        if (set is null) return null;
+        var all = await LoadAsync(conn, set.Value.SetId, set.Value.WindowEnd, ct);
+        return all.FirstOrDefault(a => a.Manifest.EvidenceId == evidenceId);
+    }
+
+    /// <summary>The site of the loop an archived method run / evidence id belongs to (null when not archived or unsited).</summary>
+    public static async Task<string?> SiteOfAsync(NpgsqlConnection conn, Guid id, bool byEvidenceId, CancellationToken ct)
+    {
+        var column = byEvidenceId ? "evidence_ids" : "method_run_ids";
+        try
+        {
+            return await conn.ExecuteScalarAsync<string?>(new CommandDefinition($"""
+                SELECT l.site FROM analytics.evidence_archive_run r JOIN cpm.loop_registry l ON l.loop_id = r.loop_id
+                WHERE r.{column} @> ARRAY[@id]::uuid[] LIMIT 1
+                """, new { id }, cancellationToken: ct));
+        }
+        catch (PostgresException ex) when (ex.SqlState == UndefinedTable) { return null; }
+    }
+
+    /// <summary>The archived sets of a loop, newest first.</summary>
+    public static async Task<IReadOnlyList<ArchivedSetView>> ListForLoopAsync(NpgsqlConnection conn, string loopId, DateTime from, DateTime to,
+        string? windowKind, int limit, CancellationToken ct)
+    {
+        try
+        {
+            var rows = await conn.QueryAsync(new CommandDefinition("""
+                SELECT boundary_set_id, loop_id, window_kind, window_start, window_end, plant_tz, boundary_kind, boundary_local_end,
+                       artifact_count, missing_count, payload_bytes, source_bytes, method_run_ids, archived_at
+                FROM analytics.evidence_archive_run
+                WHERE lower(loop_id) = lower(@loopId) AND window_end >= @from AND window_end <= @to
+                  AND (@kind::text IS NULL OR window_kind = @kind)
+                ORDER BY window_end DESC, window_kind
+                LIMIT @limit
+                """, new { loopId, from, to, kind = windowKind, limit }, cancellationToken: ct));
+            return rows.Select(r => new ArchivedSetView((Guid)r.boundary_set_id, (string)r.loop_id, (string)r.window_kind,
+                (DateTime?)r.window_start, (DateTime)r.window_end, (string?)r.plant_tz, (string?)r.boundary_kind, (string?)r.boundary_local_end,
+                (int)r.artifact_count, (int)r.missing_count, (long)r.payload_bytes, (long)r.source_bytes, (Guid[])r.method_run_ids,
+                (DateTime)r.archived_at)).ToList();
+        }
+        catch (PostgresException ex) when (ex.SqlState == UndefinedTable) { return Array.Empty<ArchivedSetView>(); }
+    }
+
+    private static async Task<(Guid SetId, DateTime WindowEnd)?> LocateAsync(NpgsqlConnection conn, string column, Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var r = await conn.QueryFirstOrDefaultAsync(new CommandDefinition($"""
+                SELECT boundary_set_id, window_end FROM analytics.evidence_archive_run
+                WHERE {column} @> ARRAY[@id]::uuid[] AND artifact_count > 0
+                ORDER BY archived_at DESC LIMIT 1
+                """, new { id }, cancellationToken: ct));
+            return r is null ? null : ((Guid)r.boundary_set_id, (DateTime)r.window_end);
+        }
+        catch (PostgresException ex) when (ex.SqlState == UndefinedTable) { return null; }
+    }
+
+    /// <summary>Every artifact of one archived set; the pack's own SHA-256 is checked before it is unpacked.</summary>
+    public static async Task<List<ArchivedArtifact>> LoadAsync(NpgsqlConnection conn, Guid setId, DateTime windowEnd, CancellationToken ct)
+    {
+        var r = await conn.QueryFirstOrDefaultAsync(new CommandDefinition("""
+            SELECT codec, payload, payload_sha256 FROM analytics.evidence_archive
+            WHERE boundary_set_id = @setId AND window_end = @windowEnd
+            """, new { setId, windowEnd }, cancellationToken: ct));
+        if (r is null) return new();       // the run row outlived its partition (a drop in progress): not archived any more
+        if ((string)r.codec != EvidenceArchivePack.Codec) throw new InvalidDataException($"evidence archive codec {(string)r.codec} is not supported");
+        var payload = (byte[])r.payload;
+        if (!string.Equals(EvidenceArchivePack.Sha256Hex(payload), (string)r.payload_sha256, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException($"evidence archive pack {setId} does not match its checksum");
+        return EvidenceArchivePack.Unpack(payload);
+    }
+}

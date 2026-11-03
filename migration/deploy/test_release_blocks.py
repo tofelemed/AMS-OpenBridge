@@ -95,3 +95,36 @@ def test_chg102_cpm18_sql_is_idempotent_and_mirrored():
     for mirror in ("database/scripts/66_cplm_kpi_daily.sql", "migration/schema/03-traverse_cplm.sql"):
         m = (root / mirror).read_text(encoding="utf-8")
         assert "CREATE TABLE IF NOT EXISTS analytics.cplm_kpi_daily_run" in m and "('KPI_DAILY', 1095)" in m, mirror
+
+
+# ── CHG-102 Phase 5b-1: evidence boundary archive (cpm-19) ──────────────────
+def test_chg102_cpm19_scripts_ship_and_the_directive_is_a_pre_swap_block():
+    for rel in ("scripts/cpm-19-evidence-archive.sql", "scripts/cpm-19-evidence-archive.rollback.sql"):
+        assert rel in br.OPS_FILES
+        assert (HERE.parent.parent / rel).is_file()
+    assert "chg102-cpm19" in br.release_blocks.DIRECTIVES and "chg102-cpm19" in br.release_blocks.PRE_SWAP
+
+
+def test_chg102_cpm19_block_runs_online_after_cpm18_and_before_the_load_and_the_swap():
+    assert "cpm-19-evidence-archive.sql" not in chg102_steps(set())
+    s = chg102_steps({"chg102-cpm17", "chg102-cpm18", "chg102-cpm19"})
+    blk = s[s.index("# 4g. CHG-102"):s.index("\n# 4. load")]
+    assert s.index("# 4e. CHG-102") < s.index("# 4f. CHG-102") < s.index("# 4g. CHG-102") < s.index("\n# 4. load") < s.index("deploy.sh --prod")
+    assert "docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/v0.0.0-test/ops/cpm-19-evidence-archive.sql" in blk
+    assert not any(l.startswith(("docker stop", "docker start")) for l in blk.splitlines())
+    assert "EVIDENCE_ARCHIVE=30d/12GiB" in blk and "cpm-19-evidence-archive.rollback.sql" in blk
+
+
+def test_chg102_cpm19_sql_is_idempotent_and_mirrored():
+    root = HERE.parent.parent
+    sql = (root / "scripts/cpm-19-evidence-archive.sql").read_text(encoding="utf-8")
+    assert "CHG-102" in sql and "ONLINE" in sql and "BEFORE the cplm-api image swap" in sql
+    assert "docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < ops/cpm-19-evidence-archive.sql" in sql
+    assert "PARTITION BY RANGE (window_end)" in sql and "('EVIDENCE_ARCHIVE', 30, 12884901888)" in sql
+    assert "ON CONFLICT (record_class) DO NOTHING" in sql and "CONCURRENTLY" not in sql
+    assert "OWNER TO ams_user" in sql and "\c " not in sql   # the test fixture runs it through Npgsql
+    rb = (root / "scripts/cpm-19-evidence-archive.rollback.sql").read_text(encoding="utf-8")
+    assert "DROP TABLE IF EXISTS analytics.evidence_archive;" in rb and "DROP COLUMN IF EXISTS max_bytes" in rb and "\c " not in rb
+    for mirror in ("database/scripts/67_cplm_evidence_archive.sql", "migration/schema/03-traverse_cplm.sql"):
+        m = (root / mirror).read_text(encoding="utf-8")
+        assert "CREATE TABLE IF NOT EXISTS analytics.evidence_archive_run" in m and "('EVIDENCE_ARCHIVE', 30, 12884901888)" in m, mirror

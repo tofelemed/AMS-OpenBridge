@@ -225,8 +225,12 @@ failures, unrelated). Lab Postgres for tests is on **5436** (5433 = ProAct). Lon
 Status: **DONE, lab-tested** — `cplm_kpi_daily` (PK day, window_kind, loop_id) + ledger `cplm_kpi_daily_run`
 (thresholds used per day), `FleetKpiDailyJob` hourly (UTC day, settle 60 min, backfill inside gate retention,
 `RuleVersion` recompute), one shared classify path `FleetKpiSnapshot`; trend up to 1095 d; `/cpm/kpi` range
-14 d / 90 d / 1 y / 3 y; migration **cpm-18** (online, PRE_SWAP 4f) + `66_cplm_kpi_daily.sql`. Day boundary is UTC
-(no plant time-zone setting exists) — decide before history accumulates if local days are wanted.
+14 d / 90 d / 1 y / 3 y; migration **cpm-18** (online, PRE_SWAP 4f) + `66_cplm_kpi_daily.sql`.
+**Plant day (6e83ec55, user 2026-11-03: "for Iran, option UTC or IR", then "pick the server's local time"):**
+`PLANT_TIME_ZONE` = `local` (default; host `/etc/localtime` mounted read-only into cplm-api) | `UTC` | `IR`
+(Asia/Tehran +03:30, day ends 20:30 UTC) | IANA id | `+HH:MM`; bad value fails startup; trend returns `plantDay`;
+a zone change re-stores the kept days, older days keep their stored `as_of`. The Flink 00/12 boundaries (Phase 5)
+take the same setting, resolved on the host by the submit scripts.
 
 | Change | Files |
 |---|---|

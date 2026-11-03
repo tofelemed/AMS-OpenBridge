@@ -24,6 +24,10 @@ public sealed class EvidenceManifestReader
         public List<object> Reconstructions { get; init; } = new();
         /// <summary>CHG-099: the reconstruction rows' metas (bundle by set; never part of the run's readiness).</summary>
         public Dictionary<Guid, List<ArtifactMeta>> ReconstructionMetas { get; init; } = new();
+        /// <summary>CHG-102 Phase 5b-1: LIVE (evidence_manifest rows) or ARCHIVE (the boundary archive; live rows gone).</summary>
+        public string Source { get; init; } = "LIVE";
+        /// <summary>CHG-102 Phase 5b-1: the archived chunks by evidence id when Source is ARCHIVE (the bundle reads these).</summary>
+        public Dictionary<Guid, IReadOnlyList<EvidenceChunkSpec>>? ArchivedChunks { get; init; }
 
         /// <summary>The served manifest object (the same shape for the single and the batch read).</summary>
         public object ToResponse() => new
@@ -36,8 +40,24 @@ public sealed class EvidenceManifestReader
             reconstruct = new { purpose = "EVIDENCE_RECONSTRUCTION", methodRunId = MethodRunId, endpoint = "/api/v1/cpm/analysis-runs" },
             artifacts = Artifacts,
             reconstructions = Reconstructions,
+            source = Source,
         };
     }
+
+    /// <summary>
+    /// The manifest columns an artifact is served from (ArtifactOf). CHG-102 Phase 5b-1: the archiver stores exactly these
+    /// per archived artifact, so an archived artifact is served through the same ArtifactOf as a live one.
+    /// </summary>
+    public const string ManifestColumns = """
+        evidence_id, method_run_id, gate_id, artifact_kind, role_or_path, x_quantity, x_unit, y_quantity, y_unit,
+            data_type, columns::text AS columns, encoding, calculation_samples, display_points, chunk_count, total_bytes,
+            sha256, chunk_sha256::text AS chunk_sha256, readiness, readiness_reason, provenance::text AS provenance, retention_class, pinned,
+            source_commit, jar_sha256, created_at, completed_at, gate_result_id, reconstruction_of,
+            -- CHG-099: rows rebuilt IN PLACE under CHG-076 (before the column existed) carry the run id only in their
+            -- provenance; they are read as rebuilt, never as the run's retained proof
+            COALESCE(analysis_run_id, CASE WHEN provenance->>'analysis_run_id' ~ '^[0-9a-fA-F-]{36}$'
+                                           THEN (provenance->>'analysis_run_id')::uuid END) AS analysis_run_id
+        """;
 
     private readonly MethodRunResolver _resolver;
 
@@ -51,28 +71,34 @@ public sealed class EvidenceManifestReader
             WHERE m.method_run_id = @id LIMIT 1
             """, new { id = methodRunId });
         if (site is not null) return site;
+        // CHG-102 Phase 5b-1: an archived run (its live rows swept)
+        site = await EvidenceArchiveReader.SiteOfAsync(conn, methodRunId, byEvidenceId: false, ct);
+        if (site is not null) return site;
         var loc = await _resolver.ResolveAsync(methodRunId, ct);
         return loc?.Site;
     }
 
     public async Task<ManifestRead> ReadAsync(NpgsqlConnection conn, Guid methodRunId, string? site, CancellationToken ct)
     {
-        var rows = await conn.QueryAsync("""
-            SELECT evidence_id, method_run_id, gate_id, artifact_kind, role_or_path, x_quantity, x_unit, y_quantity, y_unit,
-                   data_type, columns::text AS columns, encoding, calculation_samples, display_points, chunk_count, total_bytes,
-                   sha256, chunk_sha256::text AS chunk_sha256, readiness, readiness_reason, provenance::text AS provenance, retention_class, pinned,
-                   source_commit, jar_sha256, created_at, completed_at, gate_result_id, reconstruction_of,
-                   -- CHG-099: rows rebuilt IN PLACE under CHG-076 (before the column existed) carry the run id only in their
-                   -- provenance; they are read as rebuilt, never as the run's retained proof
-                   COALESCE(analysis_run_id, CASE WHEN provenance->>'analysis_run_id' ~ '^[0-9a-fA-F-]{36}$'
-                                                  THEN (provenance->>'analysis_run_id')::uuid END) AS analysis_run_id
+        var rows = await conn.QueryAsync($"""
+            SELECT {ManifestColumns}
             FROM analytics.evidence_manifest WHERE method_run_id = @id ORDER BY artifact_kind, role_or_path, evidence_id
             """, new { id = methodRunId });
+        // CHG-102 Phase 5b-1: nothing held live (gone, or only EXPIRED rows) -> the boundary archive, served through the same
+        // ArtifactOf from the archived manifest columns, so the artifacts and the ETag are what the live rows produced
+        var rowList = rows.ToList();
+        Dictionary<Guid, IReadOnlyList<EvidenceChunkSpec>>? archived = null;
+        if (rowList.All(r => (string)r.readiness == "EXPIRED")
+            && await EvidenceArchiveReader.ForMethodRunAsync(conn, methodRunId, ct) is { Count: > 0 } arch)
+        {
+            rowList = arch.Select(a => (dynamic)a.Manifest.ToRow()).ToList();
+            archived = arch.ToDictionary(a => a.Manifest.EvidenceId, a => a.Chunks);
+        }
         var metas = new List<ArtifactMeta>();
         var artifacts = new List<object>();
         var allMetas = new List<ArtifactMeta>();
         var reconRows = new Dictionary<Guid, List<(object Art, ArtifactMeta Meta, dynamic Row)>>();
-        foreach (var r in rows)
+        foreach (var r in rowList)
         {
             var id = (Guid)r.evidence_id;
             var meta = new ArtifactMeta(id, (string)r.readiness, (string)r.sha256, (int)r.chunk_count);
@@ -140,6 +166,8 @@ public sealed class EvidenceManifestReader
         }
         return new ManifestRead(methodRunId, site, artifacts, metas, readiness, etag)
         {
+            Source = archived is null ? "LIVE" : "ARCHIVE",
+            ArchivedChunks = archived,
             Reconstructions = reconstructions,
             ReconstructionMetas = reconRows.ToDictionary(kv => kv.Key, kv => kv.Value.Select(x => x.Meta).ToList()),
         };
@@ -218,10 +246,15 @@ public sealed class EvidenceManifestReader
         var metas = set is { } s ? manifest.ReconstructionMetas.GetValueOrDefault(s) ?? new() : manifest.Metas;
         var ids = metas.Where(m => m.Readiness == "COMPLETE").Select(m => m.Id).ToArray();
         if (ids.Length == 0) return Array.Empty<byte>();
-        var chunks = (await conn.QueryAsync<(Guid evidence_id, int chunk_no, int byte_length, byte[] payload)>("""
-            SELECT evidence_id, chunk_no, byte_length, payload FROM analytics.evidence_chunk
-            WHERE evidence_id = ANY(@ids) ORDER BY evidence_id, chunk_no
-            """, new { ids })).ToList();
+        var chunks = set is null && manifest.ArchivedChunks is { } archived
+            // CHG-102 Phase 5b-1: the archived set's original chunk bytes
+            ? ids.SelectMany(id => (archived.GetValueOrDefault(id) ?? Array.Empty<EvidenceChunkSpec>())
+                     .Select(c => (evidence_id: id, chunk_no: c.ChunkNo, byte_length: c.Payload.Length, payload: c.Payload)))
+                 .ToList()
+            : (await conn.QueryAsync<(Guid evidence_id, int chunk_no, int byte_length, byte[] payload)>("""
+                SELECT evidence_id, chunk_no, byte_length, payload FROM analytics.evidence_chunk
+                WHERE evidence_id = ANY(@ids) ORDER BY evidence_id, chunk_no
+                """, new { ids })).ToList();
         using var ms = new MemoryStream();
         using var w = new BinaryWriter(ms);
         foreach (var id in ids)
