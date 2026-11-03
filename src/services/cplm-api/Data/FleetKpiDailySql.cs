@@ -17,10 +17,13 @@ public static class FleetKpiDailySql
         ORDER BY day, window_kind
         """;
 
-    public const string Run = """
+    /// <summary>The stored day whose classification instant is exactly @asOf (the day end it was stored with).</summary>
+    public const string RunAt = """
         SELECT day::text AS Day, window_kind AS WindowKind, as_of AS AsOf, rule_version AS RuleVersion, loops AS Loops, thresholds::text AS Thresholds
         FROM analytics.cplm_kpi_daily_run
-        WHERE day = @day::date AND window_kind = @windowKind
+        WHERE as_of = @asOf AND window_kind = @windowKind
+        ORDER BY day DESC
+        LIMIT 1
         """;
 
     public const string DeleteDay = "DELETE FROM analytics.cplm_kpi_daily WHERE day = @day::date AND window_kind = @windowKind";

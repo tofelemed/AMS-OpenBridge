@@ -22,7 +22,7 @@ import { PlantScopeFilter, useCpmScope } from './plantScope';
 import { overviewHref } from './cpaHref';
 import { useFleetKpiLoops, useFleetKpiTrend, useFleetKpis } from './kpi/useFleetKpis';
 import { KpiTrendChart } from './kpi/KpiTrendChart';
-import { kpiSeries, pointLabel, seriesRange } from './kpi/kpiTrend';
+import { kpiSeries, plantDayLabel, pointLabel, seriesRange } from './kpi/kpiTrend';
 import { KPI_GROUPS, kpiTone, pct, reasonLabel } from './kpi/fleetKpiView';
 import { KPI_WHY } from './kpi/kpiProof';
 import { KPI_META, basisShort, kpiDelta } from './kpi/kpiMeta';
@@ -119,7 +119,7 @@ export const CpmKpiDrilldown: React.FC = () => {
       </section>
 
       <section className="cpm-surface" aria-label={`Last ${rangeLabel}`}>
-        <PanelHead eyebrow={`Last ${rangeLabel} · each UTC day at its end, same rules`} title="How this number has moved"
+        <PanelHead eyebrow={`Last ${rangeLabel} · each ${plantDayLabel(trend.data)} at its end, same rules`} title="How this number has moved"
           right={<div className="cpm-kpi-proof__reasons" role="group" aria-label="Trend range">
             {KPI_TREND_RANGES.map(r => (
               <ObcButton key={r.days} variant={r.days === rangeDays ? 'normal' : 'flat'} aria-pressed={r.days === rangeDays}
@@ -142,7 +142,7 @@ export const CpmKpiDrilldown: React.FC = () => {
 
       <section className="cpm-surface" aria-label="Loops behind this KPI">
         <PanelHead eyebrow="The loops behind the number"
-          title={total != null ? `${total} loop(s)${reason ? ` · ${reasonLabel(reason)}` : ''}${day ? ` · ${pickedDay?.day ? `${pointLabel(pickedDay, true)} (UTC day)` : `as of ${fmtDateTime(day)}`}` : ''}` : 'Loading…'}
+          title={total != null ? `${total} loop(s)${reason ? ` · ${reasonLabel(reason)}` : ''}${day ? ` · ${pickedDay?.day ? `${pointLabel(pickedDay, true)} (${plantDayLabel(trend.data)})` : `as of ${fmtDateTime(day)}`}` : ''}` : 'Loading…'}
           right={total != null && !reason && (day
             ? pickedDay && total === pickedDay.count ? <TonePill tone="good">matches that day</TonePill> : undefined
             : figure && total === figure.count ? <TonePill tone="good">matches the card</TonePill> : undefined)} />

@@ -3,8 +3,9 @@
 //   GET fleet/kpis/loops  — the drill-down: the loops behind one figure, each with the values that decided it
 // Both read FleetKpiSql once per scope and classify with FleetKpiClassifier, through the fleet cache — so a tile's count is
 // always the length of its list (tested).
-// CHG-102 Phase 6: ended plant days (UTC) are read from analytics.cplm_kpi_daily (FleetKpiDaily, 3 years) - the trend's
-// past points and loops?asOf=<day end> - so the history outlives the 14-day gate results; today stays the live snapshot.
+// CHG-102 Phase 6: ended plant days (PlantClock: Cpm:PlantTimeZone, local | UTC | IR) are read from analytics.cplm_kpi_daily
+// (FleetKpiDaily, 3 years) - the trend's past points and loops?asOf=<day end> - so the history outlives the 14-day gate
+// results; today stays the live snapshot.
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
@@ -22,11 +23,14 @@ public sealed class CpmFleetKpiController : ControllerBase
     private readonly FleetReadCache _cache;
     private readonly TimeSpan _ttl;
     private readonly KpiThresholds _t;
+    private readonly PlantClock _clock;
 
-    public CpmFleetKpiController([FromKeyedServices("cplm")] NpgsqlDataSource db, FleetReadCache cache, IConfiguration config)
+    public CpmFleetKpiController([FromKeyedServices("cplm")] NpgsqlDataSource db, FleetReadCache cache, IConfiguration config,
+        PlantClock clock)
     {
         _db = db;
         _cache = cache;
+        _clock = clock;
         _ttl = TimeSpan.FromSeconds(config.GetValue("Cpm:FleetCacheSeconds", 15));
         _t = FleetKpiSnapshot.Thresholds(config);   // the daily job reads the same Cpm:Kpi:* thresholds
     }
@@ -100,17 +104,16 @@ public sealed class CpmFleetKpiController : ControllerBase
         DateTimeOffset computedAt;
         bool hit;
         var source = "live";
-        // CHG-102: a stored plant day (asOf = its end, 00:00 UTC) is read from the daily table with the thresholds it was
-        // classified with; inside the gate-result window any other instant is classified live, as before
-        if (asOf is { } da && FleetKpiDaily.DayEndingAt(da) is { } day
-            && await StoredDayAsync(t.WindowKind, day, site, area, unit, ct) is { } stored)
+        // CHG-102: a stored plant day (asOf = the day end it was stored with) is read from the daily table with the thresholds
+        // it was classified with; inside the gate-result window any other instant is classified live, as before
+        if (asOf is { } da && await StoredDayAsync(t.WindowKind, da, site, area, unit, ct) is { } stored)
         {
             (loops, computedAt, hit, t, source) = (stored.Value.Loops, stored.Value.AsOf, stored.Hit, stored.Value.Thresholds, "daily");
         }
         else if (asOf is { } at)
         {
             if (at < DateTimeOffset.UtcNow.AddDays(-LiveDays - 1))
-                return BadRequest(new { error = $"asOf older than {LiveDays} days must be the end (00:00 UTC) of a stored day (GET trend)" });
+                return BadRequest(new { error = $"asOf older than {LiveDays} days must be the end of a stored plant day (the asOf of a GET trend point)" });
             (loops, computedAt, hit) = await ClassifiedAtAsync(t, site, area, unit, at, ct);
         }
         else (loops, computedAt, hit) = await ClassifiedAsync(t, site, area, unit, ct);
@@ -128,7 +131,7 @@ public sealed class CpmFleetKpiController : ControllerBase
             .Select(l => FleetKpiRows.Row(l, kpi, t)).ToList();
         return Ok(new
         {
-            kpi, reason, basis = Basis(t), computedAt, asOf, source,
+            kpi, reason, basis = Basis(t), computedAt, asOf, source, plantDay = _clock.Describe(DateTimeOffset.UtcNow),
             figure = FleetKpiClassifier.Figures(loops, t).FirstOrDefault(f => f.Key == kpi),
             total, matched = matched.Count, page, pageSize, rows,
         });
@@ -141,8 +144,9 @@ public sealed class CpmFleetKpiController : ControllerBase
     private const int LiveDays = 14;
 
     /// <summary>
-    /// KPI Phase 5 / CHG-102 Phase 6: every Overview figure on each of the last `days` days, one point per plant day (UTC) as
-    /// it stood at the day's end (00:00 UTC of the next day): read from analytics.cplm_kpi_daily when the day is stored
+    /// KPI Phase 5 / CHG-102 Phase 6: every Overview figure on each of the last `days` days, one point per plant day
+    /// (PlantClock) as it stood at the day's end (the next plant midnight; a day stored under an earlier zone keeps its own
+    /// end): read from analytics.cplm_kpi_daily when the day is stored
     /// (`source` "daily"), else - inside the 14-day gate-result window - classified live at the same instant ("live"), else an
     /// empty point ("none", drawn as "no data"). Each point carries its exact `asOf`, which GET loops accepts, so a day's point
     /// and that day's list of loops come from one classification (count = list, as for the cards). Today's point is the live
@@ -155,19 +159,19 @@ public sealed class CpmFleetKpiController : ControllerBase
         if (For(windowKind) is not { } t) return BadWindow(windowKind);
         days = Math.Clamp(days, 2, MaxTrendDays);
         var now = DateTimeOffset.UtcNow;
-        var today = DateOnly.FromDateTime(now.UtcDateTime);
+        var today = _clock.DayOf(now);
         var from = today.AddDays(-(days - 1));
-        var (stored, _) = await _cache.GetOrCreateAsync($"kpis-daily|{site}|{area}|{unit}|{t}|{from:O}|{today:O}", TimeSpan.FromMinutes(10),
+        var (stored, _) = await _cache.GetOrCreateAsync($"kpis-daily|{site}|{area}|{unit}|{t}|{_clock.ZoneId}|{from:O}|{today:O}", TimeSpan.FromMinutes(10),
             token => StoredPointsAsync(t, from, today.AddDays(-1), site, area, unit, token), ct);
         var points = new object[days];
         using var gate = new SemaphoreSlim(4);    // four live classifications at a time: bounded load on the shared database
         await Task.WhenAll(Enumerable.Range(0, days).Select(async k =>
         {
             var day = today.AddDays(-k);
-            var asOf = FleetKpiDaily.DayEnd(day);
+            var asOf = _clock.DayEnd(day);
             if (k > 0 && stored.TryGetValue(day, out var p))
             {
-                points[days - 1 - k] = Point(asOf, day, "daily", p.Monitored, p.Assessed, p.Kpis);
+                points[days - 1 - k] = Point(p.AsOf, day, "daily", p.Monitored, p.Assessed, p.Kpis);
                 return;
             }
             if (k > 0 && asOf < now.AddDays(-LiveDays))
@@ -187,7 +191,7 @@ public sealed class CpmFleetKpiController : ControllerBase
             }
             finally { gate.Release(); }
         }));
-        return Ok(new { basis = Basis(t), days, anchor = FleetKpiDaily.DayEnd(today.AddDays(-1)), points });
+        return Ok(new { basis = Basis(t), days, anchor = _clock.DayEnd(today.AddDays(-1)), plantDay = _clock.Describe(now), points });
     }
 
     private static int Assessed(IEnumerable<KpiLoop> loops) => loops.Count(l => l.State == KpiState.Assessed);
@@ -199,7 +203,7 @@ public sealed class CpmFleetKpiController : ControllerBase
         new { asOf, day = day.ToString("yyyy-MM-dd"), isNow = false, source, monitored, assessed, kpis };
 
     private sealed record TrendFigure(string Key, int Count, int Denominator);
-    private sealed record TrendPoint(int Monitored, int Assessed, IReadOnlyList<TrendFigure> Kpis);
+    private sealed record TrendPoint(DateTimeOffset AsOf, int Monitored, int Assessed, IReadOnlyList<TrendFigure> Kpis);
 
     /// <summary>The stored days in [from, to], one point each (a stored day with no loop in scope is 0 monitored, not missing).</summary>
     private async Task<Dictionary<DateOnly, TrendPoint>> StoredPointsAsync(KpiThresholds t, DateOnly from, DateOnly to,
@@ -214,17 +218,20 @@ public sealed class CpmFleetKpiController : ControllerBase
         {
             var day = DateOnly.ParseExact(r.Day, "yyyy-MM-dd");
             IReadOnlyList<KpiLoop> loops = flags.TryGetValue(day, out var l) ? l : new List<KpiLoop>();
-            result[day] = new TrendPoint(loops.Count, Assessed(loops), Figures(loops, t));
+            var asOf = new DateTimeOffset(DateTime.SpecifyKind(r.AsOf, DateTimeKind.Utc));
+            result[day] = new TrendPoint(asOf, loops.Count, Assessed(loops), Figures(loops, t));
         }
         return result;
     }
 
-    /// <summary>One stored day in full (the drill-down of a trend point), cached like the other past instants; null = not stored.</summary>
-    private async Task<(FleetKpiDaily.StoredDay Value, bool Hit)?> StoredDayAsync(string windowKind, DateOnly day,
+    /// <summary>The stored day ending exactly at asOf in full (the drill-down of a trend point), cached like the other past
+    /// instants; null = no stored day ends there.</summary>
+    private async Task<(FleetKpiDaily.StoredDay Value, bool Hit)?> StoredDayAsync(string windowKind, DateTimeOffset asOf,
         string? site, string? area, string? unit, CancellationToken ct)
     {
-        var (body, hit) = await _cache.GetOrCreateAsync($"kpis-day|{site}|{area}|{unit}|{windowKind}|{day:O}", TimeSpan.FromMinutes(10),
-            async token => new[] { await FleetKpiDaily.ReadDayAsync(_db, windowKind, day, site, area, unit, token) }, ct);
+        var at = asOf.ToUniversalTime();
+        var (body, hit) = await _cache.GetOrCreateAsync($"kpis-day|{site}|{area}|{unit}|{windowKind}|{at:O}", TimeSpan.FromMinutes(10),
+            async token => new[] { await FleetKpiDaily.ReadDayAtAsync(_db, windowKind, at, site, area, unit, token) }, ct);
         return body[0] is { } v ? (v, hit) : null;
     }
 

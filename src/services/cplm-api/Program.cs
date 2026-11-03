@@ -116,6 +116,8 @@ builder.Services.AddSingleton<Traverse.CplmApi.Services.IotDbWriteClient>();
 builder.Services.AddHttpClient("IotDbRead");
 builder.Services.AddSingleton<Traverse.CplmApi.Services.IIotDbReader, Traverse.CplmApi.Services.IotDbReadClient>();
 builder.Services.AddSingleton<Traverse.CplmApi.Data.KpiHistoryReader>();
+// CHG-102: the plant day (Cpm:PlantTimeZone = local | UTC | IR | IANA id | +HH:MM). Resolved here so a bad value fails startup.
+builder.Services.AddSingleton(Traverse.CplmApi.Services.Kpi.PlantClock.From(config));
 builder.Services.Configure<Traverse.CplmApi.BackgroundServices.CplmOptions>(
     config.GetSection(Traverse.CplmApi.BackgroundServices.CplmOptions.SectionName));
 // P3-11: always registered so /health can tell "consumers disabled by config"

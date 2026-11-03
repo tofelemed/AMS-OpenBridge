@@ -1439,6 +1439,11 @@ services:
       IotDb__Layout:           ${IOTDB_LAYOUT:-v1}
       IotDb__KpiDatabase:      ${IOTDB_KPI_DB:-root.hdpe.kpi}
       IotDb__ShortKpiDatabase: ${IOTDB_KPIS_DB:-root.hdpe.kpis}
+      # CHG-102: the plant day of the 3-year KPI daily history (and the Flink 00/12 evidence boundaries, passed
+      # by the submit scripts from the same PLANT_TIME_ZONE): local = this server's zone (the /etc/localtime mount
+      # below; containers are UTC without it) | UTC | IR (Asia/Tehran, +03:30) | IANA id | +HH:MM. A bad value
+      # stops cplm-api at startup; the zone in use is logged and returned as plantDay by GET fleet/kpis/trend.
+      Cpm__PlantTimeZone:      ${PLANT_TIME_ZONE:-local}
       # Platform auth (RBAC): validate RS256 tokens from auth-service; X-Service-Key authenticates
       # internal service-to-service calls that carry no user token.
       Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
@@ -1453,6 +1458,8 @@ services:
     volumes:
       # A8 recompute cannot work without the jar â€” verified at Phase 5.2, not first click.
       - ../../src/flink/target/ams-flink-1.0-SNAPSHOT.jar:/opt/ams/flink/ams-flink.jar:ro
+      # CHG-102: PLANT_TIME_ZONE=local reads the host's zone through this file (read-only)
+      - /etc/localtime:/etc/localtime:ro
     # FINAL LOCKDOWN (Plan 04): no published port — reachable only through the gateway (8081) / compose network. See docs/api-gateway.md.
     networks:
       - ams-backend

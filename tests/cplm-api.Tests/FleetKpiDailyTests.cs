@@ -36,6 +36,7 @@ public sealed class FleetKpiDailyTests : IClassFixture<KpiDailyCplmDb>, IAsyncLi
     private static readonly DateOnly Today = DateOnly.FromDateTime(DateTime.UtcNow);
     private static readonly DateOnly Yesterday = Today.AddDays(-1);
     private static readonly KpiThresholds T = new();
+    private static readonly PlantClock Clock = PlantClock.Utc;
 
     public FleetKpiDailyTests(KpiDailyCplmDb fx) => _fx = fx;
 
@@ -49,7 +50,7 @@ public sealed class FleetKpiDailyTests : IClassFixture<KpiDailyCplmDb>, IAsyncLi
                 ON CONFLICT (record_class) DO UPDATE SET days = 1095;
             """);
         // the rows as they stood at yesterday's end (00:00 UTC today): fresh windows of every kind + one stale + one never
-        var end = FleetKpiDaily.DayEnd(Yesterday);
+        var end = Clock.DayEnd(Yesterday);
         var probes = new (string Loop, string? Diagnosis, int MinutesBefore, string Payload)[]
         {
             ("KD_OK", "NO_CALL", 0, """{"auto_pct":1.0,"saturation_pct":0.0,"gates":{"G3":"PASS","G4":"PASS"}}"""),
@@ -81,12 +82,12 @@ public sealed class FleetKpiDailyTests : IClassFixture<KpiDailyCplmDb>, IAsyncLi
 
     public Task DisposeAsync() => Task.CompletedTask;
 
-    private Task<FleetKpiDaily.RunResult> RunAsync() =>
-        FleetKpiDaily.RunOnceAsync(Db, T, DateTimeOffset.UtcNow, TimeSpan.Zero, null, CancellationToken.None);
+    private Task<FleetKpiDaily.RunResult> RunAsync(PlantClock? clock = null) =>
+        FleetKpiDaily.RunOnceAsync(Db, clock ?? Clock, T, DateTimeOffset.UtcNow, TimeSpan.Zero, null, CancellationToken.None);
 
-    private CpmFleetKpiController Api() =>
+    private CpmFleetKpiController Api(PlantClock? clock = null) =>
         new(Db, new FleetReadCache(new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())),
-            new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build())
+            new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build(), clock ?? Clock)
         {
             ControllerContext = new ControllerContext { HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext() },
         };
@@ -119,7 +120,7 @@ public sealed class FleetKpiDailyTests : IClassFixture<KpiDailyCplmDb>, IAsyncLi
     [Fact]
     public async Task A_stored_day_equals_the_live_drill_down_as_of_the_day_end()
     {
-        var asOf = FleetKpiDaily.DayEnd(Yesterday);
+        var asOf = Clock.DayEnd(Yesterday);
         var before = new Dictionary<string, JsonElement>();
         foreach (var w in KpiThresholds.Windows)
             foreach (var key in FleetKpiClassifier.Keys)
@@ -211,7 +212,34 @@ public sealed class FleetKpiDailyTests : IClassFixture<KpiDailyCplmDb>, IAsyncLi
         Json(await Api().GetKpiLoops("oscillating", site: "elsewhere", asOf: asOf)).GetProperty("total").GetInt32().Should().Be(0);
         (await Api().GetKpiLoops("all", site: Site, asOf: asOf.AddHours(6))).Should().BeOfType<BadRequestObjectResult>(
             "an instant older than 14 days that is not a stored day end has no source");
-        (await Api().GetKpiLoops("all", site: Site, asOf: FleetKpiDaily.DayEnd(Today.AddDays(-30)))).Should().BeOfType<BadRequestObjectResult>();
+        (await Api().GetKpiLoops("all", site: Site, asOf: Clock.DayEnd(Today.AddDays(-30)))).Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task A_zone_change_re_stores_the_kept_days_and_older_days_stay_readable_at_their_own_end()
+    {
+        (await RunAsync()).Computed.Should().Be(26);
+        await using var conn = await Db.OpenConnectionAsync();
+        var old = Today.AddDays(-40);
+        await InsertStoredDayAsync(conn, old, "KD_OSC", FleetKpiClassifier.RuleVersion);   // stored under UTC, gate results gone
+
+        var iran = PlantClock.Parse("IR");
+        var re = await RunAsync(iran);
+        (re.Computed + re.Recomputed).Should().Be(26, "every kept day is re-stored as an Iran day (one may be new if Tehran is a day ahead)");
+        var runs = (await conn.QueryAsync<(string Day, DateTime AsOf)>(
+            "SELECT day::text, as_of FROM analytics.cplm_kpi_daily_run WHERE day > @d::date", new { d = old.ToString("yyyy-MM-dd") })).ToList();
+        runs.Should().OnlyContain(r => new DateTimeOffset(DateTime.SpecifyKind(r.AsOf, DateTimeKind.Utc))
+            == iran.DayEnd(DateOnly.ParseExact(r.Day, "yyyy-MM-dd")), "a day ends at 20:30 UTC (Tehran midnight)");
+        runs.Should().OnlyContain(r => r.AsOf.TimeOfDay == new TimeSpan(20, 30, 0));
+        (await RunAsync(iran)).Recomputed.Should().Be(0, "stable once on the new zone");
+
+        var t = Json(await Api(iran).GetTrend(days: 45, site: Site));
+        t.GetProperty("plantDay").GetProperty("zone").GetString().Should().Be("Asia/Tehran");
+        t.GetProperty("plantDay").GetProperty("utcOffset").GetString().Should().Be("+03:30");
+        var o = t.GetProperty("points").EnumerateArray().Single(p => p.GetProperty("day").GetString() == old.ToString("yyyy-MM-dd"));
+        var oldAsOf = DateTimeOffset.Parse(o.GetProperty("asOf").GetString()!);
+        oldAsOf.Should().Be(Clock.DayEnd(old), "the old day keeps the UTC end it was stored with");
+        Json(await Api(iran).GetKpiLoops("oscillating", site: Site, asOf: oldAsOf)).GetProperty("source").GetString().Should().Be("daily");
     }
 
     [Fact]
@@ -234,7 +262,7 @@ public sealed class FleetKpiDailyTests : IClassFixture<KpiDailyCplmDb>, IAsyncLi
     private static async Task InsertStoredDayAsync(NpgsqlConnection conn, DateOnly day, string loop, int ruleVersion)
     {
         var d = day.ToString("yyyy-MM-dd");
-        var asOf = FleetKpiDaily.DayEnd(day);
+        var asOf = Clock.DayEnd(day);
         var inputs = JsonSerializer.Serialize(new KpiLoopRow { LoopId = loop, Site = Site, Diagnosis = "CONFIRMED_OSCILLATION", AutoPct = 0.5,
             Confidence = 0.9, WindowEnd = asOf.AddMinutes(-15) }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         await conn.ExecuteAsync("""

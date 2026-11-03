@@ -88,7 +88,7 @@ public sealed class FleetKpiEndpointTests : IAsyncLifetime
         // a fresh cache per controller, so every test reads the database
         var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build();
         return new CpmFleetKpiController(_db, new FleetReadCache(new Microsoft.Extensions.Caching.Memory.MemoryCache(
-            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())), config)
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())), config, Traverse.CplmApi.Services.Kpi.PlantClock.Utc)
         {
             ControllerContext = new ControllerContext { HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext() },
         };

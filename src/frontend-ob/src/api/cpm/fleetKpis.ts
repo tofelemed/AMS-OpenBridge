@@ -147,14 +147,14 @@ export const getFleetKpiLoops = (
 };
 
 /**
- * KPI Phase 5 / CHG-102 Phase 6: one point per plant day (UTC) — every figure as it stood at the day's end (00:00 UTC of
- * the next day; same rules). Up to 3 years: stored days come from the daily KPI table, recent days not yet stored are
+ * KPI Phase 5 / CHG-102 Phase 6: one point per plant day (in `plantDay.zone`: local, UTC or Iran) — every figure as it
+ * stood at the day's end (the next plant midnight; same rules). Up to 3 years: stored days come from the daily KPI table, recent days not yet stored are
  * classified live, older days never stored are empty ("no data").
  */
 export interface FleetKpiTrendPoint {
   /** The exact instant classified; GET loops?asOf= of it lists that point's loops. */
   asOf: string;
-  /** The plant day (yyyy-MM-dd, UTC) the point stands for; null / absent on today's live point (and on an older cplm-api). */
+  /** The plant day (yyyy-MM-dd, in the plant zone) the point stands for; null / absent on today's live point (and on an older cplm-api). */
   day?: string | null;
   /** Where the point came from: the daily table, a live classification, or nothing kept for that day. */
   source?: 'daily' | 'live' | 'none';
@@ -165,7 +165,14 @@ export interface FleetKpiTrendPoint {
   kpis: Array<{ key: FleetKpiKey; count: number; denominator: number }>;
 }
 
-export interface FleetKpiTrend { basis: FleetKpiBasis; days: number; anchor: string; points: FleetKpiTrendPoint[] }
+/** CHG-102: the zone plant days are counted in (Cpm:PlantTimeZone): setting local | UTC | IR | ..., zone id, offset "+03:30". */
+export interface FleetKpiPlantDay { setting: string; zone: string; utcOffset: string }
+
+export interface FleetKpiTrend {
+  basis: FleetKpiBasis; days: number; anchor: string; points: FleetKpiTrendPoint[];
+  /** Absent on a cplm-api older than the plant-zone setting (those days are UTC). */
+  plantDay?: FleetKpiPlantDay;
+}
 
 /** CHG-102: the trend ranges /cpm/kpi offers (days; the server keeps 3 years and clamps to 1095). */
 export const KPI_TREND_RANGES = [

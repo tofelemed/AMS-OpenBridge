@@ -9,7 +9,7 @@ import ReactECharts from 'echarts-for-react';
 import type { FleetKpiKey, FleetKpiTrend } from '../../../api/cpm/fleetKpis';
 import { cpmChartColors, fmtDateTime } from '../shared';
 import { useObcTheme } from '../../../hooks/useObcTheme';
-import { kpiSeries, pointLabel } from './kpiTrend';
+import { kpiSeries, plantDayLabel, pointLabel } from './kpiTrend';
 
 export const KpiTrendChart: React.FC<{
   trend: FleetKpiTrend;
@@ -25,7 +25,7 @@ export const KpiTrendChart: React.FC<{
     const c = cpmChartColors();
     const lastIdx = days.length - 1;
     const long = days.length > 120;   // CHG-102: past ~4 months the axis names the year
-    const when = (d: (typeof days)[number]) => d.day ? `${pointLabel(d, true)} (UTC day, as of ${fmtDateTime(d.asOf)})` : fmtDateTime(d.asOf);
+    const when = (d: (typeof days)[number]) => d.day ? `${pointLabel(d, true)} (${plantDayLabel(trend)}, as of ${fmtDateTime(d.asOf)})` : fmtDateTime(d.asOf);
     return {
       animation: false,
       grid: { left: 52, right: 12, top: 12, bottom: 28 },   // room for "100 %" at phone width

@@ -1,7 +1,7 @@
 // KPI Phase 5: one KPI's daily series — share per day, "no data" (null) when the day had nothing to judge, never 0 %.
 import { describe, expect, it } from 'vitest';
 import type { FleetKpiTrend } from '../../../api/cpm/fleetKpis';
-import { kpiSeries, pointLabel, seriesRange } from './kpiTrend';
+import { kpiSeries, plantDayLabel, pointLabel, seriesRange } from './kpiTrend';
 
 const T = {
   basis: {} as FleetKpiTrend['basis'], days: 3, anchor: '2026-10-10T12:00:00Z',
@@ -28,5 +28,13 @@ describe('KPI trend series (Phase 5)', () => {
     expect(pointLabel(d)).toBe(new Date('2026-10-10T12:00:00Z').toLocaleDateString(undefined, { day: 'numeric', month: 'short', timeZone: 'UTC' }));
     expect(pointLabel(d, true)).toContain('2026');
     expect(kpiSeries(T, 'oscillating')[0].day).toBeNull();
+  });
+
+  it('CHG-102: the plant day label names the zone the days are counted in', () => {
+    expect(plantDayLabel(undefined)).toBe('UTC day');
+    expect(plantDayLabel({})).toBe('UTC day');
+    expect(plantDayLabel({ plantDay: { setting: 'UTC', zone: 'UTC', utcOffset: '+00:00' } })).toBe('UTC day');
+    expect(plantDayLabel({ plantDay: { setting: 'IR', zone: 'Asia/Tehran', utcOffset: '+03:30' } })).toBe('Asia/Tehran day (UTC+03:30)');
+    expect(plantDayLabel({ plantDay: { setting: '+03:30', zone: 'UTC+03:30', utcOffset: '+03:30' } })).toBe('UTC+03:30 day');
   });
 });
