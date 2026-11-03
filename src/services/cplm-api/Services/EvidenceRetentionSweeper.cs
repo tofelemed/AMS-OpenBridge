@@ -65,7 +65,7 @@ public sealed class EvidenceRetentionSweeper : BackgroundService
     }
 
     // CHG-049: RESPONSE is response_event retention, not an evidence class; CHG-091: nor is RESPONSE_CENSORED
-    private static readonly string[] NotEvidenceClasses = { "TRANSIENT", "SHORT_FEATURES", "LONG_FEATURES", "GATE_RESULTS", "RESPONSE", "RESPONSE_CENSORED" };
+    private static readonly string[] NotEvidenceClasses = { "TRANSIENT", "SHORT_FEATURES", "LONG_FEATURES", "GATE_RESULTS", "RESPONSE", "RESPONSE_CENSORED", "KPI_DAILY" };   // KPI_DAILY: CHG-102, FleetKpiDaily
 
     /// <summary>One sweep. Static so a test can drive it against the lab database.</summary>
     public static async Task<SweepResult> SweepOnceAsync(NpgsqlDataSource db, CancellationToken ct,

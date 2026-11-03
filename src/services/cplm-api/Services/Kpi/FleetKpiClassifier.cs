@@ -4,6 +4,11 @@ namespace Traverse.CplmApi.Services.Kpi;
 
 public static class FleetKpiClassifier
 {
+    /// <summary>CHG-102 (Phase 6): the version of the rules below, stored with every analytics.cplm_kpi_daily row. BUMP IT
+    /// whenever Classify / PerformanceLimits / DataReason / Matches change what a loop counts as: the daily job then
+    /// recomputes the days whose gate results are still kept (older days stay as their own rule version decided them).</summary>
+    public const int RuleVersion = 1;
+
     /// <summary>Drill-down keys, in tile order. "all" lists every monitored loop.</summary>
     public static readonly string[] Keys =
     {

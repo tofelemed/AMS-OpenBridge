@@ -1,7 +1,7 @@
 // KPI Phase 5: one KPI's daily series — share per day, "no data" (null) when the day had nothing to judge, never 0 %.
 import { describe, expect, it } from 'vitest';
 import type { FleetKpiTrend } from '../../../api/cpm/fleetKpis';
-import { kpiSeries, seriesRange } from './kpiTrend';
+import { kpiSeries, pointLabel, seriesRange } from './kpiTrend';
 
 const T = {
   basis: {} as FleetKpiTrend['basis'], days: 3, anchor: '2026-10-10T12:00:00Z',
@@ -22,5 +22,11 @@ describe('KPI trend series (Phase 5)', () => {
   it('the range covers only days with data; none at all is null', () => {
     expect(seriesRange(kpiSeries(T, 'oscillating'))).toEqual({ min: 16.7, max: 33.3 });
     expect(seriesRange(kpiSeries(T, 'valve'))).toBeNull();
+  });
+  it('CHG-102: a stored day is labelled by its plant day (UTC), not by its 00:00 end instant', () => {
+    const d = { asOf: '2026-10-11T00:00:00Z', day: '2026-10-10' };
+    expect(pointLabel(d)).toBe(new Date('2026-10-10T12:00:00Z').toLocaleDateString(undefined, { day: 'numeric', month: 'short', timeZone: 'UTC' }));
+    expect(pointLabel(d, true)).toContain('2026');
+    expect(kpiSeries(T, 'oscillating')[0].day).toBeNull();
   });
 });

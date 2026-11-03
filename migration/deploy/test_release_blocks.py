@@ -62,3 +62,36 @@ def test_chg102_sql_follows_the_cpm10b_conventions():
     assert "ON CONFLICT (record_class) DO UPDATE" in sql and "\\c " not in sql   # the test fixture runs it through Npgsql
     rb = (HERE.parent.parent / "scripts/cpm-17-hot-window-partitions.rollback.sql").read_text(encoding="utf-8")
     assert "DROP COLUMN IF EXISTS hours" in rb and "\\c " not in rb
+
+
+# ── CHG-102 Phase 6: daily fleet KPIs (cpm-18) ──────────────────────────────
+def test_chg102_cpm18_scripts_ship_and_the_directive_is_a_pre_swap_block():
+    for rel in ("scripts/cpm-18-kpi-daily.sql", "scripts/cpm-18-kpi-daily.rollback.sql"):
+        assert rel in br.OPS_FILES
+        assert (HERE.parent.parent / rel).is_file()
+    assert "chg102-cpm18" in br.release_blocks.DIRECTIVES and "chg102-cpm18" in br.release_blocks.PRE_SWAP
+
+
+def test_chg102_cpm18_block_runs_online_after_cpm17_and_before_the_load_and_the_swap():
+    assert "cpm-18-kpi-daily.sql" not in chg102_steps(set())
+    s = chg102_steps({"chg102-cpm17", "chg102-cpm18"})
+    blk = s[s.index("# 4f. CHG-102"):s.index("\n# 4. load")]
+    assert s.index("# 4e. CHG-102") < s.index("# 4f. CHG-102") < s.index("\n# 4. load") < s.index("deploy.sh --prod")
+    assert "docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/v0.0.0-test/ops/cpm-18-kpi-daily.sql" in blk
+    # online: the block neither stops nor starts cplm-api
+    assert not any(l.startswith(("docker stop", "docker start")) for l in blk.splitlines())
+    assert "KPI_DAILY=1095d" in blk and "cpm-18-kpi-daily.rollback.sql" in blk
+
+
+def test_chg102_cpm18_sql_is_idempotent_and_mirrored():
+    root = HERE.parent.parent
+    sql = (root / "scripts/cpm-18-kpi-daily.sql").read_text(encoding="utf-8")
+    assert "CHG-102" in sql and "ONLINE" in sql and "BEFORE the cplm-api image swap" in sql
+    assert "docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < ops/cpm-18-kpi-daily.sql" in sql
+    assert "CREATE TABLE IF NOT EXISTS analytics.cplm_kpi_daily (" in sql and "('KPI_DAILY', 1095)" in sql
+    assert "OWNER TO ams_user" in sql and "\\c " not in sql   # the test fixture runs it through Npgsql
+    rb = (root / "scripts/cpm-18-kpi-daily.rollback.sql").read_text(encoding="utf-8")
+    assert "DROP TABLE IF EXISTS analytics.cplm_kpi_daily;" in rb and "\\c " not in rb
+    for mirror in ("database/scripts/66_cplm_kpi_daily.sql", "migration/schema/03-traverse_cplm.sql"):
+        m = (root / mirror).read_text(encoding="utf-8")
+        assert "CREATE TABLE IF NOT EXISTS analytics.cplm_kpi_daily_run" in m and "('KPI_DAILY', 1095)" in m, mirror

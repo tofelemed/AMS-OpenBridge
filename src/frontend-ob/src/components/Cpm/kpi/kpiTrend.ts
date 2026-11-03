@@ -1,11 +1,14 @@
 /**
  * KPI Phase 5: one KPI's daily series from `GET /fleet/kpis/trend` — pure, tested. A day with no denominator (nothing to
  * judge then, e.g. before the loops were evaluated) is "no data", never 0 %.
+ * CHG-102: points carry their plant day (UTC); up to 3 years of them.
  */
 import type { FleetKpiKey, FleetKpiTrend } from '../../../api/cpm/fleetKpis';
 
 export interface KpiTrendDay {
   asOf: string;
+  /** The plant day (yyyy-MM-dd, UTC), or null for today's live point (and on an older cplm-api). */
+  day: string | null;
   isNow: boolean;
   /** Share in % (rounded to 0.1), or null when the day had nothing to judge. */
   pct: number | null;
@@ -18,13 +21,20 @@ export function kpiSeries(trend: FleetKpiTrend | undefined, key: FleetKpiKey): K
     const f = p.kpis.find(k => k.key === key);
     const count = f?.count ?? 0;
     const denominator = f?.denominator ?? 0;
-    return { asOf: p.asOf, isNow: !!p.isNow, count, denominator, pct: denominator > 0 ? Math.round((count / denominator) * 1000) / 10 : null };
+    return {
+      asOf: p.asOf, day: p.day ?? null, isNow: !!p.isNow, count, denominator,
+      pct: denominator > 0 ? Math.round((count / denominator) * 1000) / 10 : null,
+    };
   });
 }
 
-/** "10 Oct" in the viewer's locale; the tooltip names the exact instant. */
-export const dayLabel = (iso: string): string =>
-  new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+/** "10 Oct" in the viewer's locale — the point's plant day (UTC, so a day-end point never reads as the next day); the year
+ *  on long ranges. Today's live point has no plant day: its own instant. The tooltip names the exact instant. */
+export function pointLabel(d: Pick<KpiTrendDay, 'asOf' | 'day'>, withYear = false): string {
+  const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}) };
+  if (!d.day) return new Date(d.asOf).toLocaleDateString(undefined, opts);
+  return new Date(`${d.day}T00:00:00Z`).toLocaleDateString(undefined, { ...opts, timeZone: 'UTC' });
+}
 
 /** Lowest / highest share over the days with data, for the caption ("between 12 % and 31 %"). */
 export function seriesRange(days: KpiTrendDay[]): { min: number; max: number } | null {

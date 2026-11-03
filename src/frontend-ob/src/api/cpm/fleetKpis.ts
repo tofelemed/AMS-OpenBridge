@@ -146,9 +146,18 @@ export const getFleetKpiLoops = (
   return apiJson<FleetKpiLoops>(`${CPM_BASE}/fleet/kpis/loops?${p}`, { signal });
 };
 
-/** KPI Phase 5: one point per day — every figure as it stood at the same time of day (same rules, rows of that instant). */
+/**
+ * KPI Phase 5 / CHG-102 Phase 6: one point per plant day (UTC) — every figure as it stood at the day's end (00:00 UTC of
+ * the next day; same rules). Up to 3 years: stored days come from the daily KPI table, recent days not yet stored are
+ * classified live, older days never stored are empty ("no data").
+ */
 export interface FleetKpiTrendPoint {
+  /** The exact instant classified; GET loops?asOf= of it lists that point's loops. */
   asOf: string;
+  /** The plant day (yyyy-MM-dd, UTC) the point stands for; null / absent on today's live point (and on an older cplm-api). */
+  day?: string | null;
+  /** Where the point came from: the daily table, a live classification, or nothing kept for that day. */
+  source?: 'daily' | 'live' | 'none';
   /** Today's point = the cards' live snapshot; its list is the live list (no asOf). */
   isNow?: boolean;
   monitored: number;
@@ -157,6 +166,14 @@ export interface FleetKpiTrendPoint {
 }
 
 export interface FleetKpiTrend { basis: FleetKpiBasis; days: number; anchor: string; points: FleetKpiTrendPoint[] }
+
+/** CHG-102: the trend ranges /cpm/kpi offers (days; the server keeps 3 years and clamps to 1095). */
+export const KPI_TREND_RANGES = [
+  { days: 14, label: '14 d' },
+  { days: 90, label: '90 d' },
+  { days: 365, label: '1 y' },
+  { days: 1095, label: '3 y' },
+] as const;
 
 export const getFleetKpiTrend = (scope?: FleetKpiScope, days = 14, signal?: AbortSignal) => {
   const p = scoped(scope);

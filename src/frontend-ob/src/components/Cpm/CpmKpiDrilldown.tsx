@@ -15,14 +15,14 @@ import { ObiDatabase } from '@oicl/openbridge-webcomponents-react/icons/icon-dat
 import { ObiTime } from '@oicl/openbridge-webcomponents-react/icons/icon-time';
 import { ObiLimitsAttention } from '@oicl/openbridge-webcomponents-react/icons/icon-limits-attention';
 import { ObiHelp } from '@oicl/openbridge-webcomponents-react/icons/icon-help';
-import type { FleetKpiKey } from '../../api/cpm/fleetKpis';
+import { KPI_TREND_RANGES, type FleetKpiKey } from '../../api/cpm/fleetKpis';
 import { EmptyState, PanelHead, QueryError, TonePill, WorkspaceHeader, fmtDateTime } from './shared';
 import { ListPager } from '../shared/ListPager';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
 import { overviewHref } from './cpaHref';
 import { useFleetKpiLoops, useFleetKpiTrend, useFleetKpis } from './kpi/useFleetKpis';
 import { KpiTrendChart } from './kpi/KpiTrendChart';
-import { kpiSeries, seriesRange } from './kpi/kpiTrend';
+import { kpiSeries, pointLabel, seriesRange } from './kpi/kpiTrend';
 import { KPI_GROUPS, kpiTone, pct, reasonLabel } from './kpi/fleetKpiView';
 import { KPI_WHY } from './kpi/kpiProof';
 import { KPI_META, basisShort, kpiDelta } from './kpi/kpiMeta';
@@ -54,7 +54,10 @@ export const CpmKpiDrilldown: React.FC = () => {
   const [search, setSearch] = useState('');
   const kpis = useFleetKpis(kscope);
   const list = useFleetKpiLoops({ kpi, reason, q: search.trim() || undefined, page: page + 1, pageSize: PAGE, asOf: day, ...kscope });
-  const trend = useFleetKpiTrend(kscope);
+  // CHG-102: the trend range (?range= days; 14 by default) — up to the 3 years the daily KPI table keeps
+  const rangeDays = KPI_TREND_RANGES.find(r => String(r.days) === params.get('range'))?.days ?? 14;
+  const rangeLabel = KPI_TREND_RANGES.find(r => r.days === rangeDays)?.label ?? `${rangeDays} d`;
+  const trend = useFleetKpiTrend(kscope, rangeDays);
   const trendDays = kpiSeries(trend.data, kpi);
   const pickedDay = day ? trendDays.find(d => d.asOf === day) : undefined;
   const range = seriesRange(trendDays);
@@ -115,17 +118,23 @@ export const CpmKpiDrilldown: React.FC = () => {
         </dl>
       </section>
 
-      <section className="cpm-surface" aria-label="Last 14 days">
-        <PanelHead eyebrow="Last 14 days · same time of day, same rules" title="How this number has moved"
-          right={day ? <ObcButton variant="flat" onClick={() => go({ day: null })}>Back to now</ObcButton> : undefined} />
+      <section className="cpm-surface" aria-label={`Last ${rangeLabel}`}>
+        <PanelHead eyebrow={`Last ${rangeLabel} · each UTC day at its end, same rules`} title="How this number has moved"
+          right={<div className="cpm-kpi-proof__reasons" role="group" aria-label="Trend range">
+            {KPI_TREND_RANGES.map(r => (
+              <ObcButton key={r.days} variant={r.days === rangeDays ? 'normal' : 'flat'} aria-pressed={r.days === rangeDays}
+                onClick={() => go({ range: r.days === 14 ? null : String(r.days) })}>{r.label}</ObcButton>
+            ))}
+            {day && <ObcButton variant="flat" onClick={() => go({ day: null })}>Back to now</ObcButton>}
+          </div>} />
         {trend.isError && <QueryError title="The trend is unavailable" error={trend.error} retry={() => void trend.refetch()} />}
-        {!trend.data && !trend.isError && <EmptyState title="Classifying the last 14 days…" />}
+        {!trend.data && !trend.isError && <EmptyState title={`Loading the last ${rangeLabel}…`} />}
         {trend.data && (
           <>
             <KpiTrendChart trend={trend.data} kpi={kpi} selected={day} onPick={asOf => go({ day: asOf })} />
             <p className="cpm-op__basis">
               {range ? `Between ${range.min} % and ${range.max} % over the days with data. ` : 'No day had anything to judge. '}
-              Click a day to list the loops it counted. Days before the plant kept results read "no data", not 0 %.
+              Click a day to list the loops it counted. Days with nothing kept read "no data", not 0 %.
             </p>
           </>
         )}
@@ -133,7 +142,7 @@ export const CpmKpiDrilldown: React.FC = () => {
 
       <section className="cpm-surface" aria-label="Loops behind this KPI">
         <PanelHead eyebrow="The loops behind the number"
-          title={total != null ? `${total} loop(s)${reason ? ` · ${reasonLabel(reason)}` : ''}${day ? ` · as of ${fmtDateTime(day)}` : ''}` : 'Loading…'}
+          title={total != null ? `${total} loop(s)${reason ? ` · ${reasonLabel(reason)}` : ''}${day ? ` · ${pickedDay?.day ? `${pointLabel(pickedDay, true)} (UTC day)` : `as of ${fmtDateTime(day)}`}` : ''}` : 'Loading…'}
           right={total != null && !reason && (day
             ? pickedDay && total === pickedDay.count ? <TonePill tone="good">matches that day</TonePill> : undefined
             : figure && total === figure.count ? <TonePill tone="good">matches the card</TonePill> : undefined)} />

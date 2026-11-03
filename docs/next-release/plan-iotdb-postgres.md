@@ -177,6 +177,11 @@ status fields (shown as "—").
 
 ### Phase 3 — Tiered reads in cplm-api · ~3 days
 
+Status: **DONE, lab-tested, committed 9261bda5** — `IotDbReadClient` + `KpiHistoryReader`: `/kpis` and `/gates?projection=summary`
+(LIVE) append historian rows strictly older than the oldest PG row when PG returns a short page; cursor crosses the seam;
+`source` per row; `degraded: true` on IoTDB failure. Known limits: device name is case-sensitive (request loop id as
+registered); FLOAT precision in historian rows; no GROUP BY thinning yet (pages are ≤ 500 rows anyway).
+
 | Change | Files |
 |---|---|
 | New `IotDbReadClient` (REST v2 `/query`, aligned select, `GROUP BY` decimation to ≤ 2,000 points, 5 s timeout, typed mapping) | new `src/services/cplm-api/Services/IotDbReadClient.cs` |
@@ -207,7 +212,7 @@ failures, unrelated). Lab Postgres for tests is on **5436** (5433 = ProAct). Lon
 | Change | Files |
 |---|---|
 | Flink: long tier always emits on boundary windows (12 h at 00/12, 24 h at 00, plant-time offset), bypassing throttle/policy; **flapping fix** (one emission per finding change, not per 15-min tick) | `cplm/evidence/EvidencePolicy.java:83-118`, `EvidenceThrottle.java:22-31`, `CplmLongDiagnosticsStreamJob.java:36-62,166` |
-| Archive table `analytics.evidence_archive` (day partitions, one packed row per loop per boundary set) + `evidence_archive_run` lookup; DROP-partition retention + byte cap | `scripts/cpm-17…` (same migration) or `cpm-18`; `database/scripts/66_*.sql` |
+| Archive table `analytics.evidence_archive` (day partitions, one packed row per loop per boundary set) + `evidence_archive_run` lookup; DROP-partition retention + byte cap | `scripts/cpm-19-evidence-archive.sql` (reserved); `database/scripts/67_*.sql` |
 | Archiver: derived arrays stored (f32 + sparse masks, packed); **trace columns** of G9 polygon / G10 / G11 / G13 replaced by a reference (device, from, to, column) + a hash of the trace at emission | new `cplm-api/Services/EvidenceArchiver.cs`; `EvidenceBlobStore.cs:47-142` |
 | Reader: re-assemble today's artifact (columns from archive + IoTDB trace read) → same manifest/bundle JSON; trace hash mismatch → artifact flag `trace: "historian, differs"` | `Services/EvidenceManifestReader.cs:58-241` |
 | Compact form after 90 d (option C, D7): drop n-length derived arrays, keep ACF/PSD/lag/≤3 cycles/events; traces from `cpm1m` | archiver job |
@@ -216,6 +221,12 @@ failures, unrelated). Lab Postgres for tests is on **5436** (5433 = ProAct). Lon
 | Tests: Flink `EvidencePolicyTest`/`EvidenceThrottleTest` boundary + flapping; archive round-trip (archive → re-assembled bytes decode in `artifactCodec.ts`); reader with IoTDB down | Flink tests; `tests/cplm-api.Tests`; `frontend-ob` vitest |
 
 ### Phase 6 — Fleet KPI daily (3 years) · ~1–2 days
+
+Status: **DONE, lab-tested** — `cplm_kpi_daily` (PK day, window_kind, loop_id) + ledger `cplm_kpi_daily_run`
+(thresholds used per day), `FleetKpiDailyJob` hourly (UTC day, settle 60 min, backfill inside gate retention,
+`RuleVersion` recompute), one shared classify path `FleetKpiSnapshot`; trend up to 1095 d; `/cpm/kpi` range
+14 d / 90 d / 1 y / 3 y; migration **cpm-18** (online, PRE_SWAP 4f) + `66_cplm_kpi_daily.sql`. Day boundary is UTC
+(no plant time-zone setting exists) — decide before history accumulates if local days are wanted.
 
 | Change | Files |
 |---|---|

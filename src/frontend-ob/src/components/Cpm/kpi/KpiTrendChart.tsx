@@ -1,5 +1,5 @@
 /**
- * KPI Phase 5: the last 14 days of one KPI, one bar per day (the share at the same time of day, same rules). Clicking a bar
+ * KPI Phase 5: one KPI per day (14 days up to 3 years, CHG-102), one bar per plant day (its share at the day's end, same rules). Clicking a bar
  * shows that day's loops in the list below — so every point on the trend is provable like the card. Bars, not a line, so a
  * day is a large click target; a day with nothing to judge is an empty slot labelled "no data", never 0 %.
  * Colours from OpenBridge tokens via cpmChartColors (re-derived on a theme switch).
@@ -9,7 +9,7 @@ import ReactECharts from 'echarts-for-react';
 import type { FleetKpiKey, FleetKpiTrend } from '../../../api/cpm/fleetKpis';
 import { cpmChartColors, fmtDateTime } from '../shared';
 import { useObcTheme } from '../../../hooks/useObcTheme';
-import { dayLabel, kpiSeries } from './kpiTrend';
+import { kpiSeries, pointLabel } from './kpiTrend';
 
 export const KpiTrendChart: React.FC<{
   trend: FleetKpiTrend;
@@ -24,6 +24,8 @@ export const KpiTrendChart: React.FC<{
   const option = useMemo(() => {
     const c = cpmChartColors();
     const lastIdx = days.length - 1;
+    const long = days.length > 120;   // CHG-102: past ~4 months the axis names the year
+    const when = (d: (typeof days)[number]) => d.day ? `${pointLabel(d, true)} (UTC day, as of ${fmtDateTime(d.asOf)})` : fmtDateTime(d.asOf);
     return {
       animation: false,
       grid: { left: 52, right: 12, top: 12, bottom: 28 },   // room for "100 %" at phone width
@@ -32,11 +34,11 @@ export const KpiTrendChart: React.FC<{
         formatter: (ps: Array<{ dataIndex: number }>) => {
           const d = days[ps[0]?.dataIndex ?? 0];
           if (!d) return '';
-          return `${fmtDateTime(d.asOf)}<br/>${d.pct == null ? 'no data (nothing to judge)' : `${d.pct} % — ${d.count} of ${d.denominator}`}<br/>Click to list these loops`;
+          return `${when(d)}<br/>${d.pct == null ? 'no data (nothing to judge)' : `${d.pct} % — ${d.count} of ${d.denominator}`}<br/>Click to list these loops`;
         },
       },
       xAxis: {
-        type: 'category', data: days.map(d => dayLabel(d.asOf)),
+        type: 'category', data: days.map(d => pointLabel(d, long)),
         axisLabel: { color: c.grey, hideOverlap: true }, axisLine: { lineStyle: { color: c.grey } },
       },
       yAxis: {

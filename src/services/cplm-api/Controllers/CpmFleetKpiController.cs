@@ -3,7 +3,8 @@
 //   GET fleet/kpis/loops  — the drill-down: the loops behind one figure, each with the values that decided it
 // Both read FleetKpiSql once per scope and classify with FleetKpiClassifier, through the fleet cache — so a tile's count is
 // always the length of its list (tested).
-using Dapper;
+// CHG-102 Phase 6: ended plant days (UTC) are read from analytics.cplm_kpi_daily (FleetKpiDaily, 3 years) - the trend's
+// past points and loops?asOf=<day end> - so the history outlives the 14-day gate results; today stays the live snapshot.
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
@@ -27,15 +28,7 @@ public sealed class CpmFleetKpiController : ControllerBase
         _db = db;
         _cache = cache;
         _ttl = TimeSpan.FromSeconds(config.GetValue("Cpm:FleetCacheSeconds", 15));
-        var d = new KpiThresholds();
-        _t = new KpiThresholds(
-            config.GetValue("Cpm:Kpi:FreshSeconds", d.FreshSeconds),
-            config.GetValue("Cpm:Kpi:NormalModeMin", d.NormalModeMin),
-            config.GetValue("Cpm:Kpi:SaturationMax", d.SaturationMax),
-            config.GetValue("Cpm:Kpi:G0CompletenessMin", d.G0CompletenessMin),
-            config.GetValue("Cpm:Kpi:G0BadQualityMax", d.G0BadQualityMax),
-            config.GetValue("Cpm:Kpi:WindowKind", d.WindowKind),
-            config.GetValue("Cpm:Kpi:ManualModeMin", d.ManualModeMin));
+        _t = FleetKpiSnapshot.Thresholds(config);   // the daily job reads the same Cpm:Kpi:* thresholds
     }
 
     /// <summary>CHG-089: the thresholds for the requested fused window (12h default, 24h on request); null = not a fused window.</summary>
@@ -103,7 +96,24 @@ public sealed class CpmFleetKpiController : ControllerBase
         pageSize = Math.Clamp(pageSize, 1, 200);
         if (asOf is { } a && (a > DateTimeOffset.UtcNow.AddMinutes(1) || a < DateTimeOffset.UtcNow.AddDays(-MaxTrendDays - 1)))
             return BadRequest(new { error = $"asOf must lie within the last {MaxTrendDays} days" });
-        var (loops, computedAt, hit) = asOf is { } at ? await ClassifiedAtAsync(t, site, area, unit, at, ct) : await ClassifiedAsync(t, site, area, unit, ct);
+        IReadOnlyList<KpiLoop> loops;
+        DateTimeOffset computedAt;
+        bool hit;
+        var source = "live";
+        // CHG-102: a stored plant day (asOf = its end, 00:00 UTC) is read from the daily table with the thresholds it was
+        // classified with; inside the gate-result window any other instant is classified live, as before
+        if (asOf is { } da && FleetKpiDaily.DayEndingAt(da) is { } day
+            && await StoredDayAsync(t.WindowKind, day, site, area, unit, ct) is { } stored)
+        {
+            (loops, computedAt, hit, t, source) = (stored.Value.Loops, stored.Value.AsOf, stored.Hit, stored.Value.Thresholds, "daily");
+        }
+        else if (asOf is { } at)
+        {
+            if (at < DateTimeOffset.UtcNow.AddDays(-LiveDays - 1))
+                return BadRequest(new { error = $"asOf older than {LiveDays} days must be the end (00:00 UTC) of a stored day (GET trend)" });
+            (loops, computedAt, hit) = await ClassifiedAtAsync(t, site, area, unit, at, ct);
+        }
+        else (loops, computedAt, hit) = await ClassifiedAsync(t, site, area, unit, ct);
         Response.Headers["X-Cpm-Cache"] = hit ? "HIT" : "MISS";
 
         var matched = loops.Where(l => FleetKpiClassifier.Matches(l, kpi, reason)).ToList();
@@ -118,51 +128,104 @@ public sealed class CpmFleetKpiController : ControllerBase
             .Select(l => FleetKpiRows.Row(l, kpi, t)).ToList();
         return Ok(new
         {
-            kpi, reason, basis = Basis(t), computedAt, asOf,
+            kpi, reason, basis = Basis(t), computedAt, asOf, source,
             figure = FleetKpiClassifier.Figures(loops, t).FirstOrDefault(f => f.Key == kpi),
             total, matched = matched.Count, page, pageSize, rows,
         });
     }
 
-    /// <summary>Days of history a trend may cover: the plant keeps the gate results 14 days (cpm-10b retention).</summary>
-    private const int MaxTrendDays = 14;
+    /// <summary>CHG-102: days of history a trend may cover - the daily table keeps 3 years (retention_policy KPI_DAILY).</summary>
+    private const int MaxTrendDays = 1095;
+
+    /// <summary>Days the gate results are kept (cpm-10b retention): inside them a day missing from the table is classified live.</summary>
+    private const int LiveDays = 14;
 
     /// <summary>
-    /// KPI Phase 5: every Overview figure as it stood at the same time of day on each of the last `days` days — the same
-    /// classification, applied to the rows that existed at that instant. Each point carries its exact `asOf`, which GET loops
-    /// accepts, so a day's point and that day's list of loops come from one classification (count = list, as for the cards).
-    /// Past days sit at the anchor rounded down to 15 min (the engine's evaluation step), so they are cached between
-    /// evaluations; today's point is the live snapshot of the cards (`isNow`; its list is GET loops without asOf).
+    /// KPI Phase 5 / CHG-102 Phase 6: every Overview figure on each of the last `days` days, one point per plant day (UTC) as
+    /// it stood at the day's end (00:00 UTC of the next day): read from analytics.cplm_kpi_daily when the day is stored
+    /// (`source` "daily"), else - inside the 14-day gate-result window - classified live at the same instant ("live"), else an
+    /// empty point ("none", drawn as "no data"). Each point carries its exact `asOf`, which GET loops accepts, so a day's point
+    /// and that day's list of loops come from one classification (count = list, as for the cards). Today's point is the live
+    /// snapshot of the cards (`isNow`; its list is GET loops without asOf).
     /// </summary>
     [HttpGet("trend")]
-    public async Task<IActionResult> GetTrend([FromQuery] int days = MaxTrendDays, [FromQuery] string? site = null,
+    public async Task<IActionResult> GetTrend([FromQuery] int days = LiveDays, [FromQuery] string? site = null,
         [FromQuery] string? area = null, [FromQuery] string? unit = null, [FromQuery] string? windowKind = null, CancellationToken ct = default)
     {
         if (For(windowKind) is not { } t) return BadWindow(windowKind);
         days = Math.Clamp(days, 2, MaxTrendDays);
         var now = DateTimeOffset.UtcNow;
-        var anchor = new DateTimeOffset(now.Ticks - now.Ticks % TimeSpan.FromMinutes(15).Ticks, TimeSpan.Zero);
+        var today = DateOnly.FromDateTime(now.UtcDateTime);
+        var from = today.AddDays(-(days - 1));
+        var (stored, _) = await _cache.GetOrCreateAsync($"kpis-daily|{site}|{area}|{unit}|{t}|{from:O}|{today:O}", TimeSpan.FromMinutes(10),
+            token => StoredPointsAsync(t, from, today.AddDays(-1), site, area, unit, token), ct);
         var points = new object[days];
-        using var gate = new SemaphoreSlim(4);    // four classifications at a time: bounded load on the shared database
+        using var gate = new SemaphoreSlim(4);    // four live classifications at a time: bounded load on the shared database
         await Task.WhenAll(Enumerable.Range(0, days).Select(async k =>
         {
+            var day = today.AddDays(-k);
+            var asOf = FleetKpiDaily.DayEnd(day);
+            if (k > 0 && stored.TryGetValue(day, out var p))
+            {
+                points[days - 1 - k] = Point(asOf, day, "daily", p.Monitored, p.Assessed, p.Kpis);
+                return;
+            }
+            if (k > 0 && asOf < now.AddDays(-LiveDays))
+            {
+                points[days - 1 - k] = Point(asOf, day, "none", 0, 0, Array.Empty<TrendFigure>());
+                return;
+            }
             await gate.WaitAsync(ct);
             try
             {
-                // today = the live snapshot the cards use (so today's bar equals the card); past days at the 15-min slot
-                var (loops, asOf, _) = k == 0
-                    ? await ClassifiedAsync(t, site, area, unit, ct)
-                    : await ClassifiedAtAsync(t, site, area, unit, anchor.AddDays(-k), ct);
-                points[days - 1 - k] = new
-                {
-                    asOf, isNow = k == 0, monitored = loops.Count,
-                    assessed = loops.Count(l => l.State == KpiState.Assessed),
-                    kpis = FleetKpiClassifier.Figures(loops, t).Select(f => new { f.Key, f.Count, f.Denominator }),
-                };
+                // today = the live snapshot the cards use (so today's bar equals the card); a past day at its end
+                var (loops, at, _) = k == 0 ? await ClassifiedAsync(t, site, area, unit, ct) : await ClassifiedAtAsync(t, site, area, unit, asOf, ct);
+                var kpis = Figures(loops, t);
+                points[days - 1 - k] = k == 0
+                    ? new { asOf = at, day = (string?)null, isNow = true, source = "live", monitored = loops.Count, assessed = Assessed(loops), kpis }
+                    : Point(asOf, day, "live", loops.Count, Assessed(loops), kpis);
             }
             finally { gate.Release(); }
         }));
-        return Ok(new { basis = Basis(t), days, anchor, points });
+        return Ok(new { basis = Basis(t), days, anchor = FleetKpiDaily.DayEnd(today.AddDays(-1)), points });
+    }
+
+    private static int Assessed(IEnumerable<KpiLoop> loops) => loops.Count(l => l.State == KpiState.Assessed);
+
+    private static IReadOnlyList<TrendFigure> Figures(IReadOnlyList<KpiLoop> loops, KpiThresholds t) =>
+        FleetKpiClassifier.Figures(loops, t).Select(f => new TrendFigure(f.Key, f.Count, f.Denominator)).ToList();
+
+    private static object Point(DateTimeOffset asOf, DateOnly day, string source, int monitored, int assessed, IReadOnlyList<TrendFigure> kpis) =>
+        new { asOf, day = day.ToString("yyyy-MM-dd"), isNow = false, source, monitored, assessed, kpis };
+
+    private sealed record TrendFigure(string Key, int Count, int Denominator);
+    private sealed record TrendPoint(int Monitored, int Assessed, IReadOnlyList<TrendFigure> Kpis);
+
+    /// <summary>The stored days in [from, to], one point each (a stored day with no loop in scope is 0 monitored, not missing).</summary>
+    private async Task<Dictionary<DateOnly, TrendPoint>> StoredPointsAsync(KpiThresholds t, DateOnly from, DateOnly to,
+        string? site, string? area, string? unit, CancellationToken ct)
+    {
+        var result = new Dictionary<DateOnly, TrendPoint>();
+        if (to < from) return result;
+        var runs = (await FleetKpiDaily.RunsAsync(_db, from, to, ct)).Where(r => r.WindowKind == t.WindowKind).ToList();
+        if (runs.Count == 0) return result;
+        var flags = await FleetKpiDaily.ReadFlagsAsync(_db, t.WindowKind, from, to, site, area, unit, ct);
+        foreach (var r in runs)
+        {
+            var day = DateOnly.ParseExact(r.Day, "yyyy-MM-dd");
+            IReadOnlyList<KpiLoop> loops = flags.TryGetValue(day, out var l) ? l : new List<KpiLoop>();
+            result[day] = new TrendPoint(loops.Count, Assessed(loops), Figures(loops, t));
+        }
+        return result;
+    }
+
+    /// <summary>One stored day in full (the drill-down of a trend point), cached like the other past instants; null = not stored.</summary>
+    private async Task<(FleetKpiDaily.StoredDay Value, bool Hit)?> StoredDayAsync(string windowKind, DateOnly day,
+        string? site, string? area, string? unit, CancellationToken ct)
+    {
+        var (body, hit) = await _cache.GetOrCreateAsync($"kpis-day|{site}|{area}|{unit}|{windowKind}|{day:O}", TimeSpan.FromMinutes(10),
+            async token => new[] { await FleetKpiDaily.ReadDayAsync(_db, windowKind, day, site, area, unit, token) }, ct);
+        return body[0] is { } v ? (v, hit) : null;
     }
 
     private static object Basis(KpiThresholds t) => new
@@ -185,11 +248,7 @@ public sealed class CpmFleetKpiController : ControllerBase
         var (body, hit) = await _cache.GetOrCreateAsync<Snapshot>($"kpis|{site}|{area}|{unit}|{t}|{back.TotalHours}", _ttl, async token =>
         {
             var now = DateTimeOffset.UtcNow - back;   // classify "as of" that instant, from the rows that existed then
-            await using var conn = await _db.OpenConnectionAsync(token);
-            var raw = await conn.QueryAsync(new CommandDefinition(FleetKpiSql.Rows,
-                new { site, area, unit, windowKind = t.WindowKind, asOf = now }, cancellationToken: token));
-            IReadOnlyList<KpiLoop> loops = raw.Select(r => FleetKpiClassifier.Classify((KpiLoopRow)FleetKpiRows.FromDb(r), t, now)).ToList();
-            return new Snapshot(loops, now);
+            return new Snapshot(await FleetKpiSnapshot.ClassifyAsync(_db, t, site, area, unit, now, token), now);
         }, ct);
         return (body.Loops, body.ComputedAt, hit);
     }
@@ -202,11 +261,7 @@ public sealed class CpmFleetKpiController : ControllerBase
         var at = asOf.ToUniversalTime();
         var (body, hit) = await _cache.GetOrCreateAsync<Snapshot>($"kpis-at|{site}|{area}|{unit}|{t}|{at:O}", TimeSpan.FromMinutes(10), async token =>
         {
-            await using var conn = await _db.OpenConnectionAsync(token);
-            var raw = await conn.QueryAsync(new CommandDefinition(FleetKpiSql.Rows,
-                new { site, area, unit, windowKind = t.WindowKind, asOf = at }, cancellationToken: token));
-            IReadOnlyList<KpiLoop> loops = raw.Select(r => FleetKpiClassifier.Classify((KpiLoopRow)FleetKpiRows.FromDb(r), t, at)).ToList();
-            return new Snapshot(loops, at);
+            return new Snapshot(await FleetKpiSnapshot.ClassifyAsync(_db, t, site, area, unit, at, token), at);
         }, ct);
         return (body.Loops, body.ComputedAt, hit);
     }

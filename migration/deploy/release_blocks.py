@@ -7,7 +7,7 @@ deploy.sh --prod already recreates every changed service.
 """
 from __future__ import annotations
 
-DIRECTIVES = {"chg081-superadmin", "chg088-vp-republish", "chg099-cpm15", "chg091-cpm16", "chg102-cpm17"}
+DIRECTIVES = {"chg081-superadmin", "chg088-vp-republish", "chg099-cpm15", "chg091-cpm16", "chg102-cpm17", "chg102-cpm18"}
 
 
 def chg081_superadmin(release: str) -> str:
@@ -86,9 +86,28 @@ ls /etc/cron.d/ | grep -c prune-short-features   # 0
 """
 
 
+def chg102_cpm18(release: str) -> str:
+    # CHG-102 Phase 6: additive tables the new cplm-api's FleetKpiDailyJob fills; the old image ignores them.
+    return f"""
+# 4f. CHG-102 daily fleet KPIs kept 3 years (analytics.cplm_kpi_daily + cplm_kpi_daily_run, retention KPI_DAILY = 1095 d)
+#     - BEFORE the cplm-api swap (step 6 deploy.sh), so the new image finds the tables on its first pass. Online, additive,
+#     re-runnable, instant; cplm-api may be running or stopped.
+docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-18-kpi-daily.sql
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -Atc "select record_class||'='||coalesce(days::text,'-')||'d' from analytics.retention_policy where record_class = 'KPI_DAILY'"
+#     expected: KPI_DAILY=1095d
+#     After the swap, ~2 min after the new cplm-api starts, the first pass backfills the ended days the gate results still hold (13 x 2):
+#       docker logs --since 10m traverse-cplm-api 2>&1 | grep 'KPI daily' | tail -3   # "... N day-window(s) stored ..."
+#       docker exec instrumental-postgres psql -U postgres -d traverse_cplm -Atc "select window_kind, count(*), min(day), max(day) from analytics.cplm_kpi_daily_run group by 1"
+#     expected: 12h and 24h, ~13 days each, max(day) = yesterday (UTC; a day is taken 1 h after its end).
+#     Rollback (online; the stored history is lost, the trend falls back to 14 days live):
+#       docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-18-kpi-daily.rollback.sql
+"""
+
+
 BLOCKS = {"chg081-superadmin": chg081_superadmin, "chg088-vp-republish": chg088_vp_republish,
-          "chg099-cpm15": chg099_cpm15, "chg091-cpm16": chg091_cpm16, "chg102-cpm17": chg102_cpm17}
-PRE_SWAP = {"chg099-cpm15", "chg102-cpm17"}
+          "chg099-cpm15": chg099_cpm15, "chg091-cpm16": chg091_cpm16, "chg102-cpm17": chg102_cpm17,
+          "chg102-cpm18": chg102_cpm18}
+PRE_SWAP = {"chg099-cpm15", "chg102-cpm17", "chg102-cpm18"}
 
 
 def _at(steps: str, marker: str, extra: str) -> str:

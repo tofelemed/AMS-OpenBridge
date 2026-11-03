@@ -168,6 +168,8 @@ if (config.GetValue("Cplm:ConsumersEnabled", false))
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmResponseConsumerService>();
     // v2.5 (3B.3 / 3A.2): worker CAPABILITY records and deployment ACKs (own group, single member).
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmConfigAckConsumerService>();
+    // CHG-102 Phase 6: ended plant days -> analytics.cplm_kpi_daily (3 y of Overview KPIs + their loops; hourly pass).
+    builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.FleetKpiDailyJob>();
 }
 
 // CHG-032: shelves end when their expiry passes (SHELVED -> EXPIRED once a minute), consumers or not.

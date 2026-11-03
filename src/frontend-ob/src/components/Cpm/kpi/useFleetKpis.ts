@@ -27,7 +27,7 @@ export function useFleetKpiLoops(
   });
 }
 
-/** KPI Phase 5: the last `days` days, one classification per day (cached on the server between 15-min evaluations). */
+/** KPI Phase 5 / CHG-102: the last `days` days (14 … 1095), one point per plant day (stored days read from the daily KPI table). */
 export function useFleetKpiTrend(scope?: FleetKpiScope, days = 14) {
   return useQuery({
     queryKey: ['cpm', 'fleet', 'kpi-trend', scopeKey(scope), days],

@@ -78,6 +78,8 @@ OPS_FILES = [
     "scripts/cpm-16-response-retention.sql",       # CHG-091     - RESPONSE_CENSORED retention row (online, AFTER the cplm-api swap)
     "scripts/cpm-17-hot-window-partitions.sql",    # CHG-102     - short features hourly, 6 h by DROP; LONG_FEATURES 1 d (cplm-api STOPPED, BEFORE the swap)
     "scripts/cpm-17-hot-window-partitions.rollback.sql",  # CHG-102 - rollback: daily partitions back, hours column dropped (then the old image + the cron)
+    "scripts/cpm-18-kpi-daily.sql",                # CHG-102     - cplm_kpi_daily (+ run ledger) + KPI_DAILY 1095 d: 3 y of fleet KPIs (online, BEFORE the swap)
+    "scripts/cpm-18-kpi-daily.rollback.sql",       # CHG-102     - rollback: both tables + the row dropped (history lost; trend falls back to 14 d live)
     "infra/docker/zookeeper/zk-start-guard.sh",    # CHG-068     - ZooKeeper start guard (quarantines zero-byte txn logs); lands in ops/, copied next to Instrumental's compose
     "migration/instrumental/zookeeper-start-guard.override.yml",  # CHG-068 - compose override: guard mount + command for Instrumental's zookeeper
     "scripts/set-quality-protocol.py",             # v2.5       - declare quality_protocol on every MQTT_LOOP_SAMPLES source
