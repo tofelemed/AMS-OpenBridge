@@ -130,3 +130,8 @@ we are in prod. we have deployed v2. noe we are upadting application and we must
 in the end changes_tracker.md mention list updated services , script to run for version
 
 as we are deploying version as well - so need to maintain a prod_decision.md which we are doing in the maintanance like for example what retention we are using , what are we doing for performance - what issue we faced what change we done to do it - like the overall production settings in that file - so if we deploy this app to someother server so we should know all of this 
+
+<!-- claude-reflect: learned rules (saved from the band; edit freely) -->
+## Learned rules
+- Every KPI should have a drilldown that shows the loops and values behind it, so the number can be verified, where feasible.
+<!-- end claude-reflect -->

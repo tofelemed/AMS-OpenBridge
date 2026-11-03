@@ -4225,6 +4225,32 @@ lab `ams-zookeeper` not recreated during the go/no-go.
 
 - **Final bundle (2026-10-08 05:35 UTC):** `release-out/v2.7.0-20261008` (897 MB, head `1db5f415`, SHA256SUMS 27/27) supersedes `release-out/v2.7.0-20261007` (head 848e49a1; same images/jar source, but its src archive lacks the F5 daily-check line and records). Image archives: ams-flink `abc7ee47…`, cplm-api `8dc5dff3…`, traverse-ingestion-service `8e0a74fc…`, ams-frontend `5de936d7…`; jar `27e400bf…`. The plant runs its `VM-STEPS.md` (generated from 1db5f415).
 
+## OPS — CPLM database export for hand-over: `migration/backup-cplm-db.sh` (2026-10-08, no CHG number: no service, schema or image change)
+
+**Scope:** new `migration/backup-cplm-db.sh`; `prod_decision.md` section 8. No service is updated, no migration runs, no release is needed.
+
+**What it does.** Writes `traverse_cplm` (schema + data: loop registry, calculated KPIs, gate / short / long feature results,
+event frames, response, evidence) as ONE SQL script that creates the database and ends with a per-table row-count self-check.
+One exported REPEATABLE READ snapshot covers pg_dump, the counts and the hypertable copies (consistent while the consumers write).
+No owners / grants; partitions load through the root; lab Timescale hypertables become plain tables; `\restrict` lines stripped
+(`--keep-restrict` keeps them). Options: `--gzip`, `--sample-rows N`, `--inserts` (GUI tools), `--verify` (trial restore into a scratch DB, then drop;
+not at Marun), `--container` / `--user` / `--db`. Refuses a short output disk; a broken stream or a file without the footer is deleted
+and reported as FAILED.
+
+**Script to run.**
+- Plant: `bash migration/backup-cplm-db.sh --gzip --out /var/tmp/cplm-export`
+- Lab:   `MSYS_NO_PATHCONV=1 bash migration/backup-cplm-db.sh --container ams-postgres --user ams_user --gzip --out <dir>`
+- Restore (receiving team): `gunzip -c traverse_cplm-<ts>.sql.gz | psql -U postgres -v target_db=traverse_cplm` → last line `restore check OK`.
+
+**Tests.** `bash -n` OK. Lab run 2026-10-08 (9.1 GB, 38 tables, 5,984,968 rows, 3 hypertables): snapshot, counts, schema and
+data streamed to 1.8 GB gzip, then the lab host ran out of commit memory (44.9 / 45.7 GB, kernel leak) and the WSL VM restarted
+mid `evidence_chunk`; the truncated file was deleted and the end-of-file guard added. Complete (all rows) lab export + restore check: pending.
+Sample mode `--sample-rows N` (added the same day: full schema, first N rows per table, foreign keys NOT VALID, sequences at source values):
+lab 2026-10-08 `--sample-rows 10 --verify` -> `traverse_cplm-20261008T104631Z-sample10.sql` (672 KB; 38 tables, 70 indexes, 17 FKs) and
+`restore check OK: 38 tables, 257 rows`; scratch DB dropped. The trial restore caught and fixed three bugs before that: `docker exec -i`
+inside the table loops ate the loop's stdin (only the first table was written; loops now read fd 3), setval booleans printed as `t`,
+and pg_dump's `client_min_messages = warning` hid the OK notice.
+
 ## DEPLOYED - Release v2.7.0 at Marun (2026-10-10, Flink jobs RUNNING since 09:17 UTC)
 
 **Live:** CHG-040..048, 058, 059, 063..066 (SME batch; ams-open-8c's SME #12 = CHG-067), CHG-049, 060, 061, 062, 068, 075, 076.
@@ -5104,3 +5130,88 @@ the 2026-09-26 interim prune still runs from its own drop-in `/etc/cron.d/cpa-pr
 `cpa-capacity` only, so the records' "3 d / 14 d by partitions" was never true at Marun. Measured: short ~2.2 GB per full day, long ~245 MB/day;
 9.3 GB free. **User decision:** keep 6 h / 24 h, official. **Repo:** `migration/prune-short-features.sh` and `migration/cron.d/cpa-prune-short-features`
 restored (unchanged SQL), `cpa-capacity`'s comment corrected; `prod_decision.md` sections 3 and 6. **Plant:** nothing to run (the cron is already there).
+
+## CHG-101 — Loop historian moves from `root.site1.cpm` to `root.hdpe.cpm`, zero data loss (2026-11-03, lab-rehearsed, unreleased)
+
+**Why.** `root.site1` was a placeholder site name. The plant's UNS site is `hdpe`, and the historian should say so:
+`root.hdpe.cpm.<loop>.<role>`. Analysis: `docs/historian/iotdb-namespace-current-and-plan.md`. IoTDB 1.3.2 cannot
+rename a path or a database (path rename arrives in 2.0.8; a view is read-only), so the tree is copied, verified, then switched.
+The old tree stays as the backup and is deleted by hand only after a 7-day soak. TTL stays 90 days.
+
+**What changed**
+- **One `.env` value, `LOOP_ROOT_PREFIX`, drives every reader and writer** (compose `infra/docker/docker-compose.yml`):
+  - ams-api `IotDb__LoopRootPrefix` (raw sample writer);
+  - cplm-api `IotDb__LoopRootPrefix` (KPI writer, replay / reconstruction device, signal-asset overrides);
+  - iotdb-init `LOOP_CPM_PREFIX`;
+  - the ams-frontend build arg `VITE_LOOP_ROOT_PREFIX` (`infra/docker/frontend/Dockerfile`), baked in at BUILD time.
+- `IOTDB_LOOP_DB` sets the IoTDB database (the TTL unit) for iotdb-init.
+- Unset = `root.site1.cpm`, database `root.site1`, so an image or compose deployed without the lines changes nothing. Code defaults are unchanged.
+- New `migration/iotdb-move-loop-tree.py` (stdlib only), with subcommands `plan`, `prepare`, `copy` and `verify`:
+  - `plan` checks the layout and refuses overlapping or nested databases.
+  - `prepare` creates the database with the old TTL.
+  - `copy` uses `SELECT INTO` per device, in 7-day chunks, with an fsync'd resume state file, a disk guard (exit 3) and retry/backoff on IoTDB timeouts.
+  - `verify` compares per-series counts, old vs new; exit 1 on any shortfall.
+  - It never deletes anything.
+- New runbook `migration/IOTDB-LOOP-TREE-MOVE.md`; `migration/.env.example` documents the two lines.
+- `scripts/verify-ot-loop-flow.ps1`, `scripts/test-ot-loop-ingestion-e2e.ps1` and `ams-sims` take the prefix from `LOOP_ROOT_PREFIX`.
+
+**Tests**
+- New unit tests:
+  - cplm-api `LoopRootPrefixConfigTests`, 3 tests: the compose variable `IotDb__LoopRootPrefix` reaches the KPI writer options, the replay device and the signal-asset path; unset keeps `root.site1.cpm`.
+  - Frontend `src/utils/loopSeries.test.ts`, 2 tests: the build-time prefix, and the legacy tree when unset. eslint is clean.
+- Lab rehearsal 2026-11-03 on the full lab tree, with the sim feeding 10 loops throughout (timings in the runbook):
+  - 27.0 M points bulk-copied in 17 min 42 s;
+  - VERIFY OK before the switch, and again after the delta copy over the whole window (27,049,822 old points, all present);
+  - the switch moved raw and KPI writes to the new tree within a minute (KPI: 1,572 vs 0 rows in 25 min);
+  - iotdb-init re-asserted 90 d on `root.hdpe.cpm`;
+  - 243 loops republished: 922 of 979 asset links re-pointed, and the 57 leftovers are orphans no display references;
+  - the rollback copy-back returned VERIFY OK.
+- UI (browser, :3000, new image) — CPM Historical:
+  - before the switch it requested `series=root.site1.cpm.FIC10401`, after it `series=root.hdpe.cpm.FIC10401`;
+  - PIC80105's 90-day trend shows its October history from the new path;
+  - the 90-day data is identical on both paths, with no gap at the switch;
+  - binding-resolver resolves Designer asset paths to `root.hdpe.cpm.*` (provenance `asset-model`).
+- **Two findings from the rehearsal, written into the runbook:**
+  - The bulk verify stops 10 min before T_COPY. KPI rows are stamped with their window end, and a row stamped
+    just before T_COPY can land after its device was copied (280 rows in the lab); the delta copy covers them.
+  - Results lag must be about 0 before T_COPY and T_FLIP.
+- **Still open:** one IoTDB replay end to end (PIC80105, run `1ef31d13`). It was submitted with the new device, but the lab
+  has no free Flink slot, because the supervisor double-submitted Condition and IoTDB Alarm Persistence after the
+  Flink restarts the lab's memory pressure forced.
+- **Full suites:** cplm-api 346 / 391 with the lab under load. All 45 failures are DB tests that hit a 5 s timeout; every one sampled passed alone. CHG-101 changes no cplm-api source.
+
+**Services updated:** `ams-frontend` (image rebuilt with the prefix); ams-api, cplm-api and iotdb-init are config only (same images).
+**Migration:** IoTDB data copy with `migration/iotdb-move-loop-tree.py`; no Postgres schema change.
+**Scripts to run (plant):** the runbook `migration/IOTDB-LOOP-TREE-MOVE.md`:
+1. `plan`, `prepare`, bulk `copy`, `verify`;
+2. set the `.env` lines, load the frontend image, `deploy.sh --prod`;
+3. delta `copy`, then `verify`;
+4. bulk republish (chunks of 20), then the asset leftover check;
+5. soak 7 days, final `verify`, then `DELETE DATABASE root.site1` by hand.
+
+The build box's `migration/.env` must carry the same `LOOP_ROOT_PREFIX` when `build-prod-images.py` runs.
+
+## CHG-103 — Ingestion loop registry survives a timed-out refresh (2026-11-03, lab-proven, unreleased)
+
+**Found** during the CHG-101 rehearsal. After a cold start, ingestion-service had received 44k MQTT loop messages and emitted 0
+tuples, with the registry at 0 loops; every sample parked as `LOOP_NOT_REGISTERED`.
+
+**Cause.** `LoopRegistryCache.RefreshAsync` caught `Exception ex when (ex is not OperationCanceledException)`. HttpClient's
+own 15 s timeout throws `TaskCanceledException`, which IS an `OperationCanceledException`, while the service's token is not
+cancelled. One slow `cplm-api` answer therefore escaped the catch and ended `RegistryLoopAsync` silently and for good:
+no retry, no log, and the registry stayed empty until a restart. At Marun the same happens whenever cplm-api is slow, for example
+during a deploy or a Postgres stall.
+
+**Fix.** The filter is now `when (!ct.IsCancellationRequested)`: only a real shutdown propagates; a timeout or any other error is
+logged ("Loop registry refresh failed: ... keeping previous map") and retried on the next tick (60 s).
+
+**Tests**
+- 3 new unit tests in `LoopRegistryCacheTests`: the service recovers on the next tick after a timeout, keeps the previous
+  map when a later fetch times out, and still propagates a real shutdown. The two timeout tests FAIL on the old code.
+- ingestion-service suite 240 / 240.
+- Lab: rebuilt image, then `cplm-api` paused so the startup fetch timed out (10:34:30). The next tick (10:35:02) loaded all
+  243 loops and tuples flowed by 10:35:30, with no restart (RestartCount 0).
+
+**Services updated:** `traverse-ingestion-service` (image). **No migration, no config.**
+**Plant:** load the image, `deploy.sh --prod` (ingestion-service only), then check `/api/ingestion/stats` shows `registryLoops` > 0
+and `tuplesEmitted` rising.

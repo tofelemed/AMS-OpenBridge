@@ -1,3 +1,6 @@
+using System.Net;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using Traverse.IngestionService.Pipeline;
 using Xunit;
 
@@ -61,5 +64,78 @@ public class LoopRegistryCacheTests
         var cache = new LoopRegistryCache(CplmRegistryClient.ParseLoops(LoopsJson));
         Assert.False(cache.TryResolve("FIC99999", out _));
         Assert.Equal(3, cache.Count);
+    }
+
+    // ── CHG-103: a timed-out fetch must not end the refresh loop ─────────────
+
+    private sealed class StubHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send)
+        : HttpMessageHandler
+    {
+        public int Calls;
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage r, CancellationToken ct)
+        {
+            Calls++;
+            return send(r, ct);
+        }
+    }
+
+    private static CplmRegistryClient Client(HttpMessageHandler h) =>
+        new(new HttpClient(h), new ConfigurationBuilder().Build());
+
+    private static Task<HttpResponseMessage> Ok() =>
+        Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(LoopsJson) });
+
+    [Fact]
+    public async Task Refresh_survives_an_HttpClient_timeout_and_recovers_on_the_next_tick()
+    {
+        var fail = true;
+        var handler = new StubHandler((_, _) => fail
+            // what HttpClient throws when its own Timeout elapses: TaskCanceledException, caller token NOT cancelled
+            ? Task.FromException<HttpResponseMessage>(new TaskCanceledException(
+                "The request was canceled due to the configured HttpClient.Timeout of 15 seconds elapsing.",
+                new TimeoutException()))
+            : Ok());
+        var client = Client(handler);
+        var cache = new LoopRegistryCache();
+
+        Assert.False(await cache.RefreshAsync(client, NullLogger.Instance, CancellationToken.None));
+        Assert.Equal(0, cache.Count);
+
+        fail = false;
+        Assert.True(await cache.RefreshAsync(client, NullLogger.Instance, CancellationToken.None));
+        Assert.Equal(3, cache.Count);
+        Assert.Equal(2, handler.Calls);
+    }
+
+    [Fact]
+    public async Task Refresh_keeps_the_previous_map_when_a_later_fetch_times_out()
+    {
+        var fail = false;
+        var handler = new StubHandler((_, _) => fail
+            ? Task.FromException<HttpResponseMessage>(new TaskCanceledException("timeout"))
+            : Ok());
+        var client = Client(handler);
+        var cache = new LoopRegistryCache();
+        Assert.True(await cache.RefreshAsync(client, NullLogger.Instance, CancellationToken.None));
+
+        fail = true;
+        Assert.False(await cache.RefreshAsync(client, NullLogger.Instance, CancellationToken.None));
+        Assert.Equal(3, cache.Count);
+        Assert.True(cache.TryResolve("FIC10302", out _));
+    }
+
+    [Fact]
+    public async Task Refresh_still_propagates_a_real_shutdown()
+    {
+        using var cts = new CancellationTokenSource();
+        var handler = new StubHandler((_, ct) =>
+        {
+            cts.Cancel();
+            ct.ThrowIfCancellationRequested();
+            return Ok();
+        });
+        var cache = new LoopRegistryCache();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => cache.RefreshAsync(Client(handler), NullLogger.Instance, cts.Token));
     }
 }

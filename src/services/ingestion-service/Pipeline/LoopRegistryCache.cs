@@ -106,7 +106,11 @@ public sealed class LoopRegistryCache
             LastRefreshed = DateTimeOffset.UtcNow;
             return true;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        // CHG-103: an HttpClient timeout is a TaskCanceledException (an OperationCanceledException) while
+        // OUR token is not cancelled. Filtering on the exception type let it escape and silently ended the
+        // refresh loop: the registry stayed at 0 loops and every sample parked until a restart. Only a
+        // real shutdown (ct cancelled) propagates; everything else keeps the previous map and retries.
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             logger.LogWarning("Loop registry refresh failed: {Message} — keeping previous map ({Count} loops)",
                 ex.Message, Count);

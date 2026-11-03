@@ -15,7 +15,9 @@ param(
     [string]$FlinkRest = 'http://127.0.0.1:8082',
     [string]$IotDbRest = 'http://localhost:8181',
     [string]$IotDbUser = 'root',
-    [string]$IotDbPassword = 'root'
+    [string]$IotDbPassword = 'root',
+    # CHG-101: the loop historian tree - must match IotDb__LoopRootPrefix (.env LOOP_ROOT_PREFIX).
+    [string]$LoopRootPrefix = $(if ($env:LOOP_ROOT_PREFIX) { $env:LOOP_ROOT_PREFIX } else { 'root.site1.cpm' })
 )
 
 $ErrorActionPreference = 'Stop'
@@ -131,9 +133,9 @@ if ($short -gt 0) { Write-Host "  PASS  5b. short-feature windows emitted ($shor
 else { Warn '5b. no short-feature records yet' 'windows close after ~1-2 min of samples - re-run shortly' }
 
 # ── 6. IoTDB history (RawLoopIotDbConsumer) ──────────────────────────────────
-Step "6. IoTDB rows growing for root.site1.cpm.$TargetLoop" {
+Step "6. IoTDB rows growing for $LoopRootPrefix.$TargetLoop" {
     $auth = 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${IotDbUser}:${IotDbPassword}"))
-    $q = @{ sql = "select count(pv) from root.site1.cpm.$TargetLoop" } | ConvertTo-Json
+    $q = @{ sql = "select count(pv) from $LoopRootPrefix.$TargetLoop" } | ConvertTo-Json
     function PvCount($r) { if ($r.values -and $r.values.Count -gt 0 -and $null -ne $r.values[0]) { return [long]$r.values[0][0] } return 0 }
     $c1 = PvCount (Invoke-RestMethod -Method Post -Uri "$IotDbRest/rest/v2/query" -Headers @{ Authorization = $auth } -ContentType 'application/json' -Body $q)
     Start-Sleep -Seconds 15
@@ -162,7 +164,7 @@ Step '7. Postgres result path (consumers caught up; rows once verdicts exist)' {
 Step '8. UI historical trend (/api/hist/trend, last 15 min)' {
     $start = [DateTimeOffset]::UtcNow.AddMinutes(-15).ToString('o')
     $end = [DateTimeOffset]::UtcNow.ToString('o')
-    $uri = "$GatewayBase/api/hist/trend?series=root.site1.cpm.$TargetLoop&measurements=pv,sp,op&start=$([uri]::EscapeDataString($start))&end=$([uri]::EscapeDataString($end))&width=200"
+    $uri = "$GatewayBase/api/hist/trend?series=$LoopRootPrefix.$TargetLoop&measurements=pv,sp,op&start=$([uri]::EscapeDataString($start))&end=$([uri]::EscapeDataString($end))&width=200"
     $trend = Invoke-RestMethod -Uri $uri -Headers $H -TimeoutSec 30
     $json = $trend | ConvertTo-Json -Depth 6 -Compress
     Assert ($json.Length -gt 50 -and $json -match '(pv|value|series|points|timestamps)') 'trend response empty'
@@ -186,7 +188,7 @@ Write-Host @'
 
 UI spots to check by eye:
   live       : CPM -> Loops list (live badges) and any HMI display bound to a loop signal
-  historical : CPM -> loop detail trend, or Designer TrendCore on root.site1.cpm.<loop>
+  historical : CPM -> loop detail trend, or Designer TrendCore on <LoopRootPrefix>.<loop>
   parking    : Administration -> Data Sources (last data received), /api/ingestion/unknown-sources
 '@
 exit $(if ($script:failed -eq 0) { 0 } else { 1 })

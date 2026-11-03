@@ -5,7 +5,7 @@
 #     -> ingestion-service subscriber (parse/validate/resolve/enrich/join)
 #       -> Kafka traverse.cpa.loop.samples.v1 (tuples keyed by loop_id)
 #       -> Kafka traverse.ingestion.ot-dlq + unknown_sources (FIC99999 parking)
-#       -> IoTDB root.site1.cpm.<loop> (via ams-api RawLoopIotDbConsumer)
+#       -> IoTDB <LoopRootPrefix>.<loop> (via ams-api RawLoopIotDbConsumer; default root.site1.cpm)
 #   plus: register-a-loop-mid-run -> flows without redeploy (registry refresh).
 #   plus (v2.5 1A.3): schema 1.1 roles{} rides the SAME topic; the 1.0 readers (Flink
 #   short features, IoTDB historian) are proven unaffected on the same run.
@@ -34,6 +34,8 @@ param(
     [string]$IotDbRest = 'http://127.0.0.1:8181',
     [string]$IotDbUser = 'root',
     [string]$IotDbPassword = 'root',
+    # CHG-101: the loop historian tree - must match IotDb__LoopRootPrefix (.env LOOP_ROOT_PREFIX).
+    [string]$LoopRootPrefix = $(if ($env:LOOP_ROOT_PREFIX) { $env:LOOP_ROOT_PREFIX } else { 'root.site1.cpm' }),
     # Must match the service's Kafka__LoopSamplesTopic (INGESTION_LOOP_SAMPLES_TOPIC
     # in .env; legacy-generation labs use loop.samples.v1).
     [string]$LoopSamplesTopic = 'traverse.cpa.loop.samples.v1',
@@ -399,9 +401,9 @@ Step 'register TIC10101 mid-run -> tuples within 2x refresh interval' {
 }
 
 # ── 9. Historian: RawLoopIotDbConsumer lands the same tuples in IoTDB ────────
-Step 'IoTDB row count grows for root.site1.cpm.FIC10302' {
+Step "IoTDB row count grows for $LoopRootPrefix.FIC10302" {
     $auth = 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${IotDbUser}:${IotDbPassword}"))
-    $q = @{ sql = 'select count(pv) from root.site1.cpm.FIC10302' } | ConvertTo-Json
+    $q = @{ sql = "select count(pv) from $LoopRootPrefix.FIC10302" } | ConvertTo-Json
     function Get-PvCount($resp) {
         # No device yet => IoTDB returns an error body / empty values: treat as 0 rows.
         if ($resp.values -and $resp.values.Count -gt 0 -and $null -ne $resp.values[0]) { return [long]$resp.values[0][0] }
@@ -414,7 +416,7 @@ Step 'IoTDB row count grows for root.site1.cpm.FIC10302' {
     $c2 = Get-PvCount $r2
     Assert ($c2 -gt $c1) "IoTDB count not growing ($c1 -> $c2) - is ams-api's RawLoopIotDbConsumer running?"
     # CHG-010: the positioner measurement lands beside pv/sp/op on the same device.
-    $qv = @{ sql = 'select count(vp) from root.site1.cpm.FIC10302' } | ConvertTo-Json
+    $qv = @{ sql = "select count(vp) from $LoopRootPrefix.FIC10302" } | ConvertTo-Json
     $rv = Invoke-RestMethod -Method Post -Uri "$IotDbRest/rest/v2/query" -Headers @{ Authorization = $auth } -ContentType 'application/json' -Body $qv
     $cv = Get-PvCount $rv
     Assert ($cv -gt 0) "IoTDB has no vp rows for FIC10302 (count(vp)=$cv) - RawLoopIotDbConsumer dropped the optional member?"

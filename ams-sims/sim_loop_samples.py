@@ -2,7 +2,7 @@
 """CPLM / loop path: traverse.cpa.loop.samples.v1 -> {CplmShortFeatureStreamJob,
 CplmLongDiagnosticsStreamJob, CplmGateFusionStreamJob} -> clpm.*.v1 ->
 cplm-api consumers -> traverse_cplm + IoTDB KPI dual-write; in parallel
-RawLoopIotDbConsumer -> root.site1.cpm.<loop>.{pv,sp,op,vp,mode} and
+RawLoopIotDbConsumer -> <LOOP_ROOT_PREFIX>.<loop>.{pv,sp,op,vp,mode} and
 LoopLiveRbeJob -> live.loop.metrics.
 
 Event time is compressed: samples are backdated across --span-minutes so the
@@ -29,7 +29,7 @@ CPLM_TOPICS = ["traverse.cpa.clpm.feature.short.v1", "traverse.cpa.clpm.feature.
 def iotdb_count(loop: str, measurement: str = "pv") -> int:
     try:
         data = sl.iotdb_query(
-            f"select count({measurement}) from root.site1.cpm.{loop}")
+            f"select count({measurement}) from {sl.LOOP_ROOT_PREFIX}.{loop}")
         vals = data.get("values") or []
         if vals and vals[0]:
             return int(vals[0][0])
@@ -40,7 +40,7 @@ def iotdb_count(loop: str, measurement: str = "pv") -> int:
 
 def iotdb_series(loop: str) -> list[str]:
     try:
-        data = sl.iotdb_query(f"show timeseries root.site1.cpm.{loop}.**")
+        data = sl.iotdb_query(f"show timeseries {sl.LOOP_ROOT_PREFIX}.{loop}.**")
         cols = data.get("columns") or []
         idx = cols.index("timeseries") if "timeseries" in cols else 0
         return [row for row in (data.get("values") or [[]])[idx] if row]
@@ -121,7 +121,7 @@ def main() -> int:
         lambda: sl.kafka_end_offset_sum("traverse.cpa.clpm.gate.results.v1") > baselines["traverse.cpa.clpm.gate.results.v1"],
         timeout_sec=300)
 
-    # 4. raw historian: RawLoopIotDbConsumer -> root.site1.cpm.<loop>.*
+    # 4. raw historian: RawLoopIotDbConsumer -> <LOOP_ROOT_PREFIX>.<loop>.*
     def raw_written(loop: str) -> bool:
         return iotdb_count(loop) >= iotdb_before[loop] + per_loop
 

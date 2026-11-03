@@ -45,6 +45,8 @@ FLINK_UI = os.getenv("SIM_FLINK_UI", "http://127.0.0.1:8082")
 IOTDB_REST = os.getenv("SIM_IOTDB_REST", "http://127.0.0.1:8181")
 IOTDB_USER = os.getenv("SIM_IOTDB_USER", "root")
 IOTDB_PASS = os.getenv("SIM_IOTDB_PASS", "root")
+# CHG-101: loop historian tree; must match IotDb__LoopRootPrefix (.env LOOP_ROOT_PREFIX).
+LOOP_ROOT_PREFIX = os.getenv("LOOP_ROOT_PREFIX", "root.site1.cpm")
 ADMIN_USER = os.getenv("SIM_ADMIN_USER", "admin")
 ADMIN_PASS = os.getenv("SIM_ADMIN_PASS", "ChangeMe123!")
 SERVICE_KEY = os.getenv("SIM_SERVICE_KEY", "traverse-internal-dev-key")

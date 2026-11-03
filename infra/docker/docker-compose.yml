@@ -774,6 +774,9 @@ services:
       AlarmIngestion__PollIntervalMs: "2000"
       AlarmIngestion__ServerId:      "f0af9a6d-85f6-4c9f-a8ad-6de277d1d110"
       AlarmIngestion__ServerName:    "Current Alarms Feed"
+      # CHG-101: loop historian tree. ONE .env value (LOOP_ROOT_PREFIX) drives ams-api,
+      # cplm-api, iotdb-init and the ams-frontend build arg - they must always match.
+      IotDb__LoopRootPrefix:         ${LOOP_ROOT_PREFIX:-root.site1.cpm}
       # CPLM Phase 4 â€” the loop registry reads the asset graph from asset-model to
       # CPLM extraction Phase 6: registry/recompute/consumers all live in
       # cplm-api now â€” its env block carries the Cpm__/CplmRecompute__ keys and
@@ -802,6 +805,8 @@ services:
         VITE_HIST_URL: /api/hist
         VITE_SPARKPLUG_GROUP: ams_site1
         VITE_SPARKPLUG_EDGE: ams_edge1
+        # CHG-101: baked in at BUILD time - the build box's .env must carry the plant's value.
+        VITE_LOOP_ROOT_PREFIX: ${LOOP_ROOT_PREFIX:-root.site1.cpm}
     container_name: ams-frontend
     logging: *default-logging
     <<: *default-restart
@@ -1427,6 +1432,8 @@ services:
       CplmRecompute__JarPath: /opt/ams/flink/ams-flink.jar
       IotDb__RestUrl:        http://iotdb:8181
       IotDb__Password:       ${IOTDB_PASSWORD:?IOTDB_PASSWORD must be set}   # KPI writer; code defaults root/root
+      # CHG-101: KPI writer, replay/reconstruction --iotdb-device and the asset overrides follow this.
+      IotDb__LoopRootPrefix: ${LOOP_ROOT_PREFIX:-root.site1.cpm}
       # Platform auth (RBAC): validate RS256 tokens from auth-service; X-Service-Key authenticates
       # internal service-to-service calls that carry no user token.
       Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
@@ -1470,6 +1477,10 @@ services:
       IOTDB_HOST: iotdb
       IOTDB_PORT: "6667"
       IOTDB_USER: ${IOTDB_USER:-root}
+      # CHG-101: loop-historian DATABASE (TTL unit on 1.3.2) and tree. Legacy layout:
+      # database root.site1, tree root.site1.cpm. Moved layout: both root.hdpe.cpm.
+      LOOP_DB: ${IOTDB_LOOP_DB:-root.site1}
+      LOOP_CPM_PREFIX: ${LOOP_ROOT_PREFIX:-root.site1.cpm}
       IOTDB_PASS: ${IOTDB_PASSWORD:?IOTDB_PASSWORD must be set â€” change off the IoTDB default root/root}
     networks:
       - ams-backend
