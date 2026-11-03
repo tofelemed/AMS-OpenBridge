@@ -112,6 +112,10 @@ builder.Services.Configure<Traverse.CplmApi.Services.IotDbWriteOptions>(
     config.GetSection(Traverse.CplmApi.Services.IotDbWriteOptions.SectionName));
 builder.Services.AddHttpClient("IotDbWrite");
 builder.Services.AddSingleton<Traverse.CplmApi.Services.IotDbWriteClient>();
+// CHG-102 Phase 3: tiered KPI / verdict history reads (Postgres hot window, IoTDB older; 5 s budget per read).
+builder.Services.AddHttpClient("IotDbRead");
+builder.Services.AddSingleton<Traverse.CplmApi.Services.IIotDbReader, Traverse.CplmApi.Services.IotDbReadClient>();
+builder.Services.AddSingleton<Traverse.CplmApi.Data.KpiHistoryReader>();
 builder.Services.Configure<Traverse.CplmApi.BackgroundServices.CplmOptions>(
     config.GetSection(Traverse.CplmApi.BackgroundServices.CplmOptions.SectionName));
 // P3-11: always registered so /health can tell "consumers disabled by config"

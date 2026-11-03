@@ -26,8 +26,14 @@ public sealed class CpmAnalyticsController : ControllerBase
     private static readonly string[] LongWindows = Services.WindowCatalog.LongWindows;
 
     private readonly NpgsqlDataSource _dataSource;
+    private readonly Traverse.CplmApi.Data.KpiHistoryReader _history;
 
-    public CpmAnalyticsController([FromKeyedServices("cplm")] NpgsqlDataSource dataSource) => _dataSource = dataSource;
+    public CpmAnalyticsController([FromKeyedServices("cplm")] NpgsqlDataSource dataSource,
+        Traverse.CplmApi.Data.KpiHistoryReader history)
+    {
+        _dataSource = dataSource;
+        _history = history;
+    }
 
     /// <summary>
     /// A3 — the gate matrix for a loop's most recent evaluated window.
@@ -96,7 +102,17 @@ public sealed class CpmAnalyticsController : ControllerBase
         var results = rows.Select(r => summary
             ? (object)Traverse.CplmApi.Data.GateMatrixProjection.Summary(r)
             : (object)Traverse.CplmApi.Data.GateMatrixProjection.Build(r)).ToList();
-        return Ok(new { loopId, windowKind, count = results.Count, projection = summary ? "summary" : "full", windows = results });
+        // CHG-102 Phase 3: summaries older than the 14 d Postgres window come from the IoTDB verdict history
+        // (LIVE only, layout v2); the full matrix stays Postgres-only. `degraded` only when the historian failed.
+        bool? degraded = null;
+        if (summary)
+        {
+            var tiered = await _history.ExtendGateSummariesAsync(loopId, windowKind, from, to, limit,
+                includeInsufficient, purpose, results, ct);
+            results = tiered.Rows;
+            degraded = tiered.Degraded ? true : null;
+        }
+        return Ok(new { loopId, windowKind, count = results.Count, projection = summary ? "summary" : "full", degraded, windows = results });
     }
 
     /// <summary>
@@ -127,14 +143,15 @@ public sealed class CpmAnalyticsController : ControllerBase
         var sql = isLong ? Traverse.CplmApi.Data.KpiSql.Long : Traverse.CplmApi.Data.KpiSql.Short;
 
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
-        var rows = (await conn.QueryAsync(sql, new { loopId, resolution, from, to, limit, before })).ToList();
+        var pgRows = (await conn.QueryAsync(sql, new { loopId, resolution, from, to, limit, before })).Cast<object>().ToList();
+        // CHG-102 Phase 3: a short page whose range reaches older than the Postgres hot window is completed
+        // from the IoTDB KPI history (layout v2), same row shape, each row tagged `source`.
+        var tiered = await _history.ExtendKpisAsync(loopId, resolution, isLong, from, to, before, limit, pgRows, ct);
+        var rows = tiered.Rows;
         // Keyset cursor: rows are newest-first, so the oldest window_end on a full
         // page is the `before` value for the next page. Null when this page is the
-        // end of the data (or the caller's range).
-        DateTimeOffset? nextBefore = null;
-        if (rows.Count == limit && rows[^1] is IDictionary<string, object?> last
-            && last.TryGetValue("window_end", out var lastEnd) && lastEnd is DateTime dt)
-            nextBefore = new DateTimeOffset(dt.ToUniversalTime());
+        // end of the data (or the caller's range). Works across the Postgres/historian seam.
+        var nextBefore = Traverse.CplmApi.Data.KpiHistoryReader.NextBefore(rows, limit, "window_end");
         return Ok(new
         {
             loopId,
@@ -142,6 +159,7 @@ public sealed class CpmAnalyticsController : ControllerBase
             tier = isLong ? "long" : "short",
             count = rows.Count,
             nextBefore,
+            degraded = tiered.Degraded ? true : (bool?)null,
             samples = rows
         });
     }

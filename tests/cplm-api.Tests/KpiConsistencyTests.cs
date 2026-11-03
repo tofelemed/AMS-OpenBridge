@@ -52,7 +52,8 @@ public sealed class KpiConsistencyTests : IAsyncLifetime
     [Fact]
     public async Task Window_history_is_live_by_default_and_any_on_request()
     {
-        var api = new CpmAnalyticsController(_db);
+        // CHG-102 Phase 3: layout v1 = Postgres-only reads (the historian is never asked)
+        var api = new CpmAnalyticsController(_db, KpiHistoryReaderTests.PostgresOnly());
         var live = Json(await api.GetGateHistory(Loop("MON"), "24h", ct: default));
         live.GetProperty("count").GetInt32().Should().Be(1, "the REPLAY row is not a live window");
         live.GetProperty("windows")[0].GetProperty("diagnosis").GetString().Should().Be("SUSPECTED_OSCILLATION");
