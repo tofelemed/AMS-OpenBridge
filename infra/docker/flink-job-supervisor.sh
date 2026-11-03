@@ -35,6 +35,31 @@ CPLM_ARGS=(
   --consumer-group-id traverse-cpa-flink-cplm
 )
 
+# CHG-102 5a: boundary evidence on the plant's local 00:00 / 12:00 (long + fusion jobs only). PLANT_TIME_ZONE
+# (default local) is resolved to a concrete zone id; CPLM_EVIDENCE_BOUNDARY_KINDS (default 12h,24h; empty = off).
+resolve_plant_tz() {
+  local tz="${PLANT_TIME_ZONE:-local}"
+  if [ "$tz" = local ]; then
+    tz="$(timedatectl show -p Timezone --value 2>/dev/null || true)"
+    [ -n "$tz" ] || tz="$(readlink /etc/localtime 2>/dev/null | sed -n 's#.*/zoneinfo/##p' || true)"
+    # the host's /etc/localtime bind-mounted into a container is a plain file: name it by its content
+    if [ -z "$tz" ] && [ -f /etc/localtime ] && [ -d /usr/share/zoneinfo ]; then
+      tz="$(find /usr/share/zoneinfo -type f ! -path '*/posix/*' ! -path '*/right/*' -exec cmp -s {} /etc/localtime \; -print 2>/dev/null \
+            | sed 's#/usr/share/zoneinfo/##' | grep / | sort | head -1 || true)"
+    fi
+    [ -n "$tz" ] || tz=UTC
+  fi
+  echo "$tz"
+}
+PLANT_TZ="$(resolve_plant_tz)"
+BOUNDARY_KINDS="${CPLM_EVIDENCE_BOUNDARY_KINDS-12h,24h}"
+[ -n "$BOUNDARY_KINDS" ] || BOUNDARY_KINDS=none     # an empty program argument is fragile through flink run
+EVIDENCE_CLOCK=(
+  --plant-time-zone "${PLANT_TZ}"
+  --evidence-boundary-kinds "${BOUNDARY_KINDS}"
+)
+echo "[supervisor] plant time zone for boundary evidence: ${PLANT_TZ} (PLANT_TIME_ZONE=${PLANT_TIME_ZONE:-local}); boundary kinds: ${BOUNDARY_KINDS}"
+
 wait_jm() {
   for _ in $(seq 1 60); do
     if curl -sf "http://${JM_HOST}:${JM_PORT}/overview" >/dev/null 2>&1; then return 0; fi
@@ -104,7 +129,7 @@ ensure_all() {
   submit_if_missing "AMS - CPLM Short Feature Engine" com.ams.flink.cplm.CplmShortFeatureStreamJob \
     "${CPLM_ARGS[@]}" --job-name "AMS - CPLM Short Feature Engine"
   submit_if_missing "AMS - CPLM Long Diagnostics Engine" com.ams.flink.cplm.CplmLongDiagnosticsStreamJob \
-    "${CPLM_ARGS[@]}" --job-name "AMS - CPLM Long Diagnostics Engine" --window-hours 24
+    "${CPLM_ARGS[@]}" "${EVIDENCE_CLOCK[@]}" --job-name "AMS - CPLM Long Diagnostics Engine" --window-hours 24
   # v2.5 (Task 1D.4): fast G10/G11 condition path.
   submit_if_missing "AMS - CPLM Condition Engine" com.ams.flink.cplm.condition.CplmConditionStreamJob \
     "${CPLM_ARGS[@]}" --condition-topic "${CPLM_CONDITION_TOPIC:-traverse.cpa.clpm.condition.v1}"
@@ -117,7 +142,7 @@ ensure_all() {
     "${CPLM_ARGS[@]}" --response-topic "${CPLM_RESPONSE_TOPIC:-traverse.cpa.clpm.response.results.v1}" \
     --evidence-topic "${CPLM_EVIDENCE_TOPIC:-traverse.cpa.clpm.gate.evidence.v1}"
   submit_if_missing "AMS - CPLM Gate Fusion Engine" com.ams.flink.cplm.CplmGateFusionStreamJob \
-    "${CPLM_ARGS[@]}" --job-name "AMS - CPLM Gate Fusion Engine"
+    "${CPLM_ARGS[@]}" "${EVIDENCE_CLOCK[@]}" --job-name "AMS - CPLM Gate Fusion Engine"
   # Phase 6.1 — live loop metrics (report-by-exception) for HMI badges.
   # Decision C-A put loop metrics on their own topic rather than adding a third
   # schema to a topic that already carries two. The compiled default is now

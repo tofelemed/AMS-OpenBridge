@@ -1598,8 +1598,11 @@ services:
       KAFKA_BROKERS:         kafka:9092
       FLINK_JAR_PATH:        /opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar
       CPLM_INPUT_TOPIC:      traverse.cpa.loop.samples.v1
+      PLANT_TIME_ZONE:       ${PLANT_TIME_ZONE:-local}          # CHG-102: same plant day as cplm-api
+      CPLM_EVIDENCE_BOUNDARY_KINDS: ${CPLM_EVIDENCE_BOUNDARY_KINDS-12h,24h}
     volumes:
       - ./flink-submit-cplm.sh:/opt/flink-submit-cplm.sh:ro
+      - /etc/localtime:/etc/localtime:ro
     networks:
       - ams-backend
     restart: "no"
@@ -1640,8 +1643,12 @@ services:
       RAW_ALARMS_STARTING_OFFSETS: committed
       IOTDB_HOST:                  iotdb
       IOTDB_PORT:                  "6667"
+      # CHG-102: the long + fusion jobs' boundary evidence follows the SAME plant day as cplm-api
+      PLANT_TIME_ZONE:             ${PLANT_TIME_ZONE:-local}
+      CPLM_EVIDENCE_BOUNDARY_KINDS: ${CPLM_EVIDENCE_BOUNDARY_KINDS-12h,24h}
     volumes:
       - ./flink-job-supervisor.sh:/opt/flink-job-supervisor.sh:ro
+      - /etc/localtime:/etc/localtime:ro
     networks:
       - ams-backend
 

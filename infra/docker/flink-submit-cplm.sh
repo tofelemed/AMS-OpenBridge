@@ -85,21 +85,30 @@ COMMON_ARGS=(
   --consumer-group-id "${CONSUMER_GROUP}"
 )
 
-# CHG-102 5a: boundary evidence on the plant's local 00:00 / 12:00. PLANT_TIME_ZONE (default local) is
-# resolved here to a concrete zone id; CPLM_EVIDENCE_BOUNDARY_KINDS (default 12h,24h; empty = off). Long + Fusion.
-PLANT_TZ="${PLANT_TIME_ZONE:-local}"
-if [ "$PLANT_TZ" = local ]; then
-  PLANT_TZ="$(timedatectl show -p Timezone --value 2>/dev/null || true)"
-  [ -n "$PLANT_TZ" ] || PLANT_TZ="$(readlink /etc/localtime 2>/dev/null | sed 's#.*/zoneinfo/##' || true)"
-  [ -n "$PLANT_TZ" ] || PLANT_TZ=UTC
-fi
+# CHG-102 5a: boundary evidence on the plant's local 00:00 / 12:00 (long + fusion jobs only). PLANT_TIME_ZONE
+# (default local) is resolved to a concrete zone id; CPLM_EVIDENCE_BOUNDARY_KINDS (default 12h,24h; empty = off).
+resolve_plant_tz() {
+  local tz="${PLANT_TIME_ZONE:-local}"
+  if [ "$tz" = local ]; then
+    tz="$(timedatectl show -p Timezone --value 2>/dev/null || true)"
+    [ -n "$tz" ] || tz="$(readlink /etc/localtime 2>/dev/null | sed -n 's#.*/zoneinfo/##p' || true)"
+    # the host's /etc/localtime bind-mounted into a container is a plain file: name it by its content
+    if [ -z "$tz" ] && [ -f /etc/localtime ] && [ -d /usr/share/zoneinfo ]; then
+      tz="$(find /usr/share/zoneinfo -type f ! -path '*/posix/*' ! -path '*/right/*' -exec cmp -s {} /etc/localtime \; -print 2>/dev/null \
+            | sed 's#/usr/share/zoneinfo/##' | grep / | sort | head -1 || true)"
+    fi
+    [ -n "$tz" ] || tz=UTC
+  fi
+  echo "$tz"
+}
+PLANT_TZ="$(resolve_plant_tz)"
 BOUNDARY_KINDS="${CPLM_EVIDENCE_BOUNDARY_KINDS-12h,24h}"
 [ -n "$BOUNDARY_KINDS" ] || BOUNDARY_KINDS=none     # an empty program argument is fragile through flink run
-echo "[CPLM Submit] Plant time zone for boundary evidence: ${PLANT_TZ}; boundary kinds: ${BOUNDARY_KINDS}"
 EVIDENCE_CLOCK=(
   --plant-time-zone "${PLANT_TZ}"
   --evidence-boundary-kinds "${BOUNDARY_KINDS}"
 )
+echo "[CPLM Submit] Plant time zone for boundary evidence: ${PLANT_TZ}; boundary kinds: ${BOUNDARY_KINDS}"
 
 submit_if_missing "AMS - CPLM Short Feature Engine" \
   com.ams.flink.cplm.CplmShortFeatureStreamJob \
