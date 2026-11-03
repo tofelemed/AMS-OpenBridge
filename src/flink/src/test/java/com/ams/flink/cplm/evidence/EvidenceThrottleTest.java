@@ -15,7 +15,12 @@ public class EvidenceThrottleTest {
     @Test public void firstEverEmits() { assertTrue(EvidenceThrottle.due(null, null, "W|P|P|P|P", 0, H)); }
     @Test public void sameSignatureInsideIntervalIsSuppressed() { assertFalse(EvidenceThrottle.due("W|P|P|P|P", 0L, "W|P|P|P|P", H - 1, H)); }
     @Test public void sameSignatureAfterIntervalEmits() { assertTrue(EvidenceThrottle.due("W|P|P|P|P", 0L, "W|P|P|P|P", H, H)); }
-    @Test public void changedSignatureEmitsAtOnce() { assertTrue(EvidenceThrottle.due("W|P|P|P|P", 0L, "W|W|P|P|P", 1, H)); }
+    // CHG-102 5a: a changed signature no longer bypasses the interval (the plant's W/F flapping emitted ~1.8x per loop-hour)
+    @Test public void changedSignatureWaitsForTheInterval() {
+        assertFalse(EvidenceThrottle.due("W|P|P|P|P", 0L, "W|W|P|P|P", 1, H));
+        assertTrue(EvidenceThrottle.due("W|P|P|P|P", 0L, "W|W|P|P|P", H, H));
+    }
+    @Test public void clearedSignatureWithKeptTimeStillThrottles() { assertFalse(EvidenceThrottle.due(null, 0L, "W|P|P|P|P", H - 1, H)); }
     @Test public void zeroIntervalNeverThrottles() { assertTrue(EvidenceThrottle.due("a", 5L, "a", 5, 0)); }
 
     @Test public void signatureJoinsGates7To11() {
@@ -45,16 +50,58 @@ public class EvidenceThrottleTest {
         assertEquals(0L, EvidencePolicy.fromArgs(new String[]{"--evidence-min-interval-min", "0"}).minIntervalMs);
         assertEquals(3_600_000L, new EvidencePolicy(EvidencePolicy.Mode.NONE, 3).minIntervalMs);
     }
-    // CHG-049 (final review M1/M2): a window the policy does not emit clears its state, so a finding that comes back emits at once
+    // CHG-049 (M1) / CHG-102 5a: a window the policy does not emit returns CLEAR (the jobs drop the signature, keep the time)
     @Test public void policySkipClearsState() {
         assertEquals(EvidenceThrottle.Action.CLEAR, EvidenceThrottle.action(false, "W|P|P|P|P", 0L, "P|P|P|P|P", 1, H));
         assertEquals(EvidenceThrottle.Action.CLEAR, EvidenceThrottle.action(false, null, null, "P|P|P|P|P", 1, H));
     }
-    @Test public void findingReturningAfterPassEmitsAtOnce() {
-        // W emitted at 0; the PASS at 15 min is not emitted by the policy -> CLEAR; the W at 30 min sees no state
-        assertEquals(EvidenceThrottle.Action.EMIT, EvidenceThrottle.action(true, null, null, "W|P|P|P|P", 30 * 60_000L, H));
-        assertEquals("without M1 it would be throttled", EvidenceThrottle.Action.SKIP, EvidenceThrottle.action(true, "W|P|P|P|P", 0L, "W|P|P|P|P", 30 * 60_000L, H));
+    // CHG-102 5a: CLEAR drops only the signature, so a finding returning after a PASS waits for the interval
+    @Test public void findingReturningAfterPassWaitsForTheInterval() {
+        // W emitted at 0; the PASS at 15 min clears the signature but keeps t=0; the W at 30 min is throttled
+        assertEquals(EvidenceThrottle.Action.SKIP, EvidenceThrottle.action(true, null, 0L, "W|P|P|P|P", 30 * 60_000L, H));
+        assertEquals(EvidenceThrottle.Action.EMIT, EvidenceThrottle.action(true, null, 0L, "W|P|P|P|P", H, H));
+        assertEquals("never emitted: at once", EvidenceThrottle.Action.EMIT, EvidenceThrottle.action(true, null, null, "W|P|P|P|P", 1, H));
     }
+
+    /** Replays the jobs' state handling (CLEAR keeps the time) over a sequence of 15-min windows; returns emission times. */
+    private static java.util.List<Long> run(String[] sigs, boolean[] policyEmits, boolean[] boundary) {
+        java.util.List<Long> emitted = new java.util.ArrayList<>();
+        String sig = null; Long ms = null;
+        for (int i = 0; i < sigs.length; i++) {
+            long now = i * 15 * 60_000L;
+            EvidenceThrottle.Action a = EvidenceThrottle.action(boundary != null && boundary[i], policyEmits[i], sig, ms, sigs[i], now, H);
+            if (a == EvidenceThrottle.Action.CLEAR) { sig = null; continue; }
+            if (a == EvidenceThrottle.Action.SKIP) continue;
+            emitted.add(now); sig = sigs[i]; ms = now;
+        }
+        return emitted;
+    }
+
+    @Test public void flappingWarnFailEmitsAtMostOncePerHour() {
+        int n = 4 * 6;   // six hours of 15-min windows: W,F,W,F,...
+        String[] sigs = new String[n]; boolean[] emits = new boolean[n];
+        for (int i = 0; i < n; i++) { sigs[i] = (i % 2 == 0 ? "WARN" : "FAIL") + "|PASS|PASS|PASS|PASS"; emits[i] = true; }
+        java.util.List<Long> out = run(sigs, emits, null);
+        assertEquals(java.util.Arrays.asList(0L, H, 2 * H, 3 * H, 4 * H, 5 * H), out);
+        for (int i = 1; i < out.size(); i++) assertTrue(out.get(i) - out.get(i - 1) >= H);
+    }
+
+    @Test public void flappingFindingAndPassEmitsAtMostOncePerHour() {
+        int n = 4 * 6;   // W, PASS, W, PASS: the PASS windows are not emitted (CLEAR)
+        String[] sigs = new String[n]; boolean[] emits = new boolean[n];
+        for (int i = 0; i < n; i++) { emits[i] = i % 2 == 0; sigs[i] = (emits[i] ? "WARN" : "PASS") + "|PASS|PASS|PASS|PASS"; }
+        assertEquals(java.util.Arrays.asList(0L, H, 2 * H, 3 * H, 4 * H, 5 * H), run(sigs, emits, null));
+    }
+
+    @Test public void boundaryEmitsEvenWhenThrottledAndRestartsTheInterval() {
+        String[] sigs = new String[8]; boolean[] emits = new boolean[8]; boolean[] b = new boolean[8];
+        java.util.Arrays.fill(sigs, "W|P|P|P|P"); java.util.Arrays.fill(emits, true);
+        b[2] = true;                                   // 30 min: a plant boundary, inside the interval of the 0-min emission
+        emits[3] = false;                              // a PASS boundary still emits; this one is a plain PASS
+        assertEquals(java.util.Arrays.asList(0L, 30 * 60_000L, 90 * 60_000L), run(sigs, emits, b));
+        assertEquals(EvidenceThrottle.Action.BOUNDARY, EvidenceThrottle.action(true, false, "x", 0L, "x", 1, H));
+    }
+
     @Test public void stateRecordedOnlyWhenSomethingWasOutput() {
         assertFalse(EvidenceThrottle.recordsState(0));
         assertTrue(EvidenceThrottle.recordsState(1));

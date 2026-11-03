@@ -36,6 +36,9 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from plant_time_zone import resolve_plant_time_zone  # noqa: E402
+
 try:
     import requests
 except ImportError:
@@ -133,6 +136,14 @@ CORE_JOBS: tuple[FlinkJobSpec, ...] = (
     # would double-produce gate results) or CplmHistoricalReplayJob (on-demand
     # batch with a per-request name that defeats name-based reconciliation).
 )
+# CHG-102 5a: PLANT_TIME_ZONE (default local) resolved on this host - see plant_time_zone.py
+PLANT_TIME_ZONE = resolve_plant_time_zone()
+# CHG-102 5a: empty = boundary emission off, passed as "none" (an empty program argument is fragile through flink run)
+EVIDENCE_BOUNDARY_KINDS = os.getenv("CPLM_EVIDENCE_BOUNDARY_KINDS", "12h,24h").strip() or "none"
+_CPLM_EVIDENCE_CLOCK_ARGS: tuple[str, ...] = (
+    "--plant-time-zone", PLANT_TIME_ZONE,
+    "--evidence-boundary-kinds", EVIDENCE_BOUNDARY_KINDS,
+)
 _CPLM_COMMON_ARGS: tuple[str, ...] = (
     "--bootstrap.servers", KAFKA_BROKERS,
     "--input-topic", "traverse.cpa.loop.samples.v1",
@@ -150,7 +161,7 @@ CORE_JOBS = CORE_JOBS + (
     FlinkJobSpec(
         name="AMS - CPLM Long Diagnostics Engine",
         entry_class="com.ams.flink.cplm.CplmLongDiagnosticsStreamJob",
-        extra_args=_CPLM_COMMON_ARGS
+        extra_args=_CPLM_COMMON_ARGS + _CPLM_EVIDENCE_CLOCK_ARGS
         + ("--job-name", "AMS - CPLM Long Diagnostics Engine", "--window-hours", "24"),
     ),
     # v2.5 (Task 1D.4): fast G10/G11 condition path (own consumer group, derived in-job).
@@ -178,7 +189,7 @@ CORE_JOBS = CORE_JOBS + (
     FlinkJobSpec(
         name="AMS - CPLM Gate Fusion Engine",
         entry_class="com.ams.flink.cplm.CplmGateFusionStreamJob",
-        extra_args=_CPLM_COMMON_ARGS + ("--job-name", "AMS - CPLM Gate Fusion Engine"),
+        extra_args=_CPLM_COMMON_ARGS + _CPLM_EVIDENCE_CLOCK_ARGS + ("--job-name", "AMS - CPLM Gate Fusion Engine"),
     ),
     # Phase 6.1 - live loop metrics. --live-topic is passed explicitly, though the
     # compiled default now matches it; it used to be mandatory because the default
@@ -405,6 +416,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
+    log(f"CPLM plant time zone for boundary evidence: {PLANT_TIME_ZONE}; boundary kinds: {EVIDENCE_BOUNDARY_KINDS!r}")
 
     try:
         wait_for_jobmanager()

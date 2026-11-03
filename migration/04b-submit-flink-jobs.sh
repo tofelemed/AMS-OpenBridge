@@ -89,6 +89,28 @@ COMMON=(
   --consumer-group-id "$GROUP"
 )
 
+# CHG-102 5a: boundary evidence lands on the PLANT's local 00:00 (24h) and 00:00/12:00 (12h). PLANT_TIME_ZONE
+# (default local) = this host's zone, resolved here to a concrete id so the job never depends on the JVM's
+# zone inside the container; IR / Asia/Tehran is a fixed +03:30 in the job. CPLM_EVIDENCE_BOUNDARY_KINDS
+# (default 12h,24h; empty = off) picks the kinds. Long and Fusion only.
+resolve_plant_tz() {
+  local tz="${PLANT_TIME_ZONE:-local}"
+  if [[ "$tz" == local ]]; then
+    tz="$(timedatectl show -p Timezone --value 2>/dev/null || true)"
+    [[ -n "$tz" ]] || tz="$(readlink /etc/localtime 2>/dev/null | sed 's#.*/zoneinfo/##' || true)"
+    [[ -n "$tz" ]] || tz=UTC
+  fi
+  printf '%s' "$tz"
+}
+PLANT_TZ="$(resolve_plant_tz)"
+BOUNDARY_KINDS="${CPLM_EVIDENCE_BOUNDARY_KINDS-12h,24h}"
+[[ -n "$BOUNDARY_KINDS" ]] || BOUNDARY_KINDS=none     # an empty program argument is fragile through flink run
+info "plant time zone for boundary evidence: ${PLANT_TZ} (PLANT_TIME_ZONE=${PLANT_TIME_ZONE:-local}); boundary kinds: ${BOUNDARY_KINDS}"
+EVIDENCE_CLOCK=(
+  --plant-time-zone "$PLANT_TZ"
+  --evidence-boundary-kinds "$BOUNDARY_KINDS"
+)
+
 # Short → Long → Live RBE → Fusion last (latest() sources).
 # CPLM_SHORT_PARALLELISM=4 in migration/.env on a 16-slot TaskManager (9 free after the seven jobs).
 # CHG-033 (Marun 2026-09-27): the six short windows emitted ~24 GB/day of artifacts that nothing kept.
@@ -107,6 +129,7 @@ submit_if_missing "AMS - CPLM Short Feature Engine" \
 submit_if_missing "AMS - CPLM Long Diagnostics Engine" \
   com.ams.flink.cplm.CplmLongDiagnosticsStreamJob \
   "${COMMON[@]}" \
+  "${EVIDENCE_CLOCK[@]}" \
   --job-name "AMS - CPLM Long Diagnostics Engine" \
   --window-hours 24
 
@@ -141,6 +164,7 @@ submit_if_missing "AMS - CPLM Response Engine" \
 submit_if_missing "AMS - CPLM Gate Fusion Engine" \
   com.ams.flink.cplm.CplmGateFusionStreamJob \
   "${COMMON[@]}" \
+  "${EVIDENCE_CLOCK[@]}" \
   --job-name "AMS - CPLM Gate Fusion Engine"
 
 rc=0

@@ -281,16 +281,19 @@ public class CplmGateFusionStreamJob {
             long nowMs = fused.windowEndMs;
             String kind = fused.windowKind;
             String sig = com.ams.flink.cplm.evidence.EvidenceThrottle.signature(fused);
+            // CHG-102 5a: a plant-boundary verdict (local 00:00 / 12:00) emits whatever the throttle or the policy says
+            boolean boundary = policy.boundary(kind, nowMs);
             com.ams.flink.cplm.evidence.EvidenceThrottle.Action action = com.ams.flink.cplm.evidence.EvidenceThrottle.action(
-                    policy.emit(fused), lastEvidenceSig.get(kind), lastEvidenceMs.get(kind), sig, nowMs, policy.minIntervalMs);
+                    boundary, policy.emit(fused), lastEvidenceSig.get(kind), lastEvidenceMs.get(kind), sig, nowMs, policy.minIntervalMs);
             if (action == com.ams.flink.cplm.evidence.EvidenceThrottle.Action.CLEAR) {
-                lastEvidenceSig.remove(kind);
-                lastEvidenceMs.remove(kind);
+                lastEvidenceSig.remove(kind);   // CHG-102 5a: the time stays, so a returning finding waits for the interval
                 return;
             }
             if (action == com.ams.flink.cplm.evidence.EvidenceThrottle.Action.SKIP) return;
+            List<com.ams.flink.cplm.evidence.EvidenceArtifact> artifacts = com.ams.flink.cplm.evidence.FusionArtifacts.artifacts(fused);
+            com.ams.flink.cplm.evidence.EmissionStamp.stamp(artifacts, boundary, fused.loopId, kind, nowMs, policy.plantClock);
             int records = 0;
-            for (com.ams.flink.cplm.evidence.EvidenceArtifact a : com.ams.flink.cplm.evidence.FusionArtifacts.artifacts(fused)) {
+            for (com.ams.flink.cplm.evidence.EvidenceArtifact a : artifacts) {
                 for (String record : com.ams.flink.cplm.evidence.EvidenceKafkaRecords.records(a, EVIDENCE_MAPPER, nowMs)) { ctx.output(EVIDENCE, record); records++; }
             }
             if (com.ams.flink.cplm.evidence.EvidenceThrottle.recordsState(records)) {

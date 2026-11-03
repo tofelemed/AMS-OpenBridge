@@ -14,6 +14,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import com.ams.flink.cplm.contract.CplmTopics;
+import com.ams.flink.cplm.evidence.EmissionStamp;
 import com.ams.flink.cplm.evidence.EvidenceArtifact;
 import com.ams.flink.cplm.evidence.EvidenceKafkaRecords;
 import com.ams.flink.cplm.evidence.EvidencePolicy;
@@ -153,17 +154,20 @@ public class CplmLongDiagnosticsStreamJob {
         private void emitEvidence(OnTimerContext ctx, CplmLongDiagnosticsResult r, long nowMs) throws Exception {
             // CHG-049: nowMs is the timer timestamp, not wall-clock, so a replay throttles identically
             String sig = EvidenceThrottle.signature(r);
-            EvidenceThrottle.Action action = EvidenceThrottle.action(policy.emit(r),
+            // CHG-102 5a: a plant-boundary window (local 00:00 / 12:00) emits whatever the throttle or the policy says
+            boolean boundary = policy.boundary(r.windowKind, nowMs);
+            EvidenceThrottle.Action action = EvidenceThrottle.action(boundary, policy.emit(r),
                     lastEvidenceSig.get(r.windowKind), lastEvidenceMs.get(r.windowKind), sig, nowMs, policy.minIntervalMs);
             if (action == EvidenceThrottle.Action.CLEAR) {
-                // CHG-049 (M1): a finding that comes back after a PASS emits at once
+                // CHG-102 5a: forget the finding, keep its time - a finding back inside the interval waits for it
                 lastEvidenceSig.remove(r.windowKind);
-                lastEvidenceMs.remove(r.windowKind);
                 return;
             }
             if (action == EvidenceThrottle.Action.SKIP) return;
+            List<EvidenceArtifact> artifacts = LongArtifacts.artifacts(r, policy.maxCycles);
+            EmissionStamp.stamp(artifacts, boundary, r.loopId, r.windowKind, nowMs, policy.plantClock);
             int records = 0;
-            for (EvidenceArtifact a : LongArtifacts.artifacts(r, policy.maxCycles)) {
+            for (EvidenceArtifact a : artifacts) {
                 for (String record : EvidenceKafkaRecords.records(a, MAPPER, nowMs)) { ctx.output(EVIDENCE, record); records++; }
             }
             if (EvidenceThrottle.recordsState(records)) {           // CHG-049 (M2): nothing output, nothing throttled

@@ -403,4 +403,34 @@ public class GateArtifactsTest {
         f.gate14Status = "WARN"; f.diagnosis = "INSUFFICIENT_DATA";
         assertTrue("a G14 finding alone emits", p.emit(f));
     }
+    // CHG-102 5a: the emission stamp lives in provenance only - the manifest's sha256 covers the encoded columns
+    @Test
+    public void boundaryStampIsProvenanceOnlyAndDeterministic() {
+        org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper m = new org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper();
+        long end = LONG_RESULT.windowEndMs;
+        PlantClock ir = PlantClock.parse("IR");
+        List<EvidenceArtifact> plain = LongArtifacts.artifacts(LONG_RESULT), stamped = LongArtifacts.artifacts(LONG_RESULT);
+        EmissionStamp.stamp(stamped, true, "L1", "24h", end, ir);
+        String setId = EmissionStamp.boundarySetId("L1", "24h", end);
+        assertEquals(setId, EmissionStamp.boundarySetId("L1", "24h", end));
+        assertFalse(setId.equals(EmissionStamp.boundarySetId("L1", "12h", end)));
+        for (int i = 0; i < plain.size(); i++) {
+            EvidenceArtifact a = stamped.get(i);
+            assertEquals("BOUNDARY", a.provenance.get("emission_reason"));
+            assertEquals("24h", a.provenance.get("boundary_kind"));
+            assertEquals("+03:30", a.provenance.get("plant_tz"));
+            assertEquals(ir.localIso(end), a.provenance.get("boundary_local_end"));
+            assertEquals(setId, a.provenance.get("boundary_set_id"));
+            assertEquals(a.kind + " checksum unchanged", EvidenceChunker.sha256Hex(EvidenceChunker.encode(plain.get(i))),
+                    EvidenceChunker.sha256Hex(EvidenceChunker.encode(a)));
+            String manifest = EvidenceKafkaRecords.records(a, m, end).get(0);
+            assertTrue(manifest.contains("\"emission_reason\":\"BOUNDARY\"") && manifest.contains(setId));
+        }
+        List<EvidenceArtifact> finding = LongArtifacts.artifacts(LONG_RESULT);
+        EmissionStamp.stamp(finding, false, "L1", "24h", end, ir);
+        for (EvidenceArtifact a : finding) {
+            assertEquals("FINDING", a.provenance.get("emission_reason"));
+            assertFalse(a.provenance.containsKey("boundary_set_id"));
+        }
+    }
 }

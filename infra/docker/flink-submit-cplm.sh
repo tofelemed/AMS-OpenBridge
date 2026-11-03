@@ -85,6 +85,22 @@ COMMON_ARGS=(
   --consumer-group-id "${CONSUMER_GROUP}"
 )
 
+# CHG-102 5a: boundary evidence on the plant's local 00:00 / 12:00. PLANT_TIME_ZONE (default local) is
+# resolved here to a concrete zone id; CPLM_EVIDENCE_BOUNDARY_KINDS (default 12h,24h; empty = off). Long + Fusion.
+PLANT_TZ="${PLANT_TIME_ZONE:-local}"
+if [ "$PLANT_TZ" = local ]; then
+  PLANT_TZ="$(timedatectl show -p Timezone --value 2>/dev/null || true)"
+  [ -n "$PLANT_TZ" ] || PLANT_TZ="$(readlink /etc/localtime 2>/dev/null | sed 's#.*/zoneinfo/##' || true)"
+  [ -n "$PLANT_TZ" ] || PLANT_TZ=UTC
+fi
+BOUNDARY_KINDS="${CPLM_EVIDENCE_BOUNDARY_KINDS-12h,24h}"
+[ -n "$BOUNDARY_KINDS" ] || BOUNDARY_KINDS=none     # an empty program argument is fragile through flink run
+echo "[CPLM Submit] Plant time zone for boundary evidence: ${PLANT_TZ}; boundary kinds: ${BOUNDARY_KINDS}"
+EVIDENCE_CLOCK=(
+  --plant-time-zone "${PLANT_TZ}"
+  --evidence-boundary-kinds "${BOUNDARY_KINDS}"
+)
+
 submit_if_missing "AMS - CPLM Short Feature Engine" \
   com.ams.flink.cplm.CplmShortFeatureStreamJob \
   "${COMMON_ARGS[@]}" \
@@ -93,6 +109,7 @@ submit_if_missing "AMS - CPLM Short Feature Engine" \
 submit_if_missing "AMS - CPLM Long Diagnostics Engine" \
   com.ams.flink.cplm.CplmLongDiagnosticsStreamJob \
   "${COMMON_ARGS[@]}" \
+  "${EVIDENCE_CLOCK[@]}" \
   --job-name "AMS - CPLM Long Diagnostics Engine" \
   --window-hours "${WINDOW_HOURS}"
 
@@ -119,6 +136,7 @@ submit_if_missing "AMS - CPLM Response Engine" \
 submit_if_missing "AMS - CPLM Gate Fusion Engine" \
   com.ams.flink.cplm.CplmGateFusionStreamJob \
   "${COMMON_ARGS[@]}" \
+  "${EVIDENCE_CLOCK[@]}" \
   --job-name "AMS - CPLM Gate Fusion Engine"
 
 sleep 5
