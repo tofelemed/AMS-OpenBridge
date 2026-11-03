@@ -37,8 +37,8 @@ using static Traverse.CplmApi.Services.ResultPayloadReader;
 /// The full raw message goes to the payload JSONB column; the 17 gate statuses
 /// and versions are only there.
 ///
-/// Not here (later phases): SignalR loop-stream broadcast (Phase 6 wires
-/// gate results into the live plane), IoTDB KPI dual-write (Phase 3 slice 2).
+/// Not here: SignalR loop-stream broadcast, and the IoTDB KPI history — CHG-102 moved it to
+/// KpiHistoryConsumerService (own group, LIVE only, retried until IoTDB accepts the row).
 /// </summary>
 public sealed class CplmResultConsumerService : BackgroundService
 {
@@ -46,7 +46,6 @@ public sealed class CplmResultConsumerService : BackgroundService
     private readonly NpgsqlDataSource _dataSource;
     private readonly CplmOptions _options;
     private readonly Traverse.CplmApi.Services.FeaturePartitionOptions _partitions;
-    private readonly Traverse.CplmApi.Services.IotDbWriteClient _iotdb;
     private readonly Traverse.CplmApi.Services.ConsumerHeartbeat _heartbeat;
     private readonly Traverse.CplmApi.Services.SingleMemberGuard _guard;
     private readonly IConsumer<string, string> _consumer;
@@ -56,7 +55,6 @@ public sealed class CplmResultConsumerService : BackgroundService
         IOptions<KafkaOptions> kafkaOptions,
         IOptions<CplmOptions> cplmOptions,
         IOptions<Traverse.CplmApi.Services.FeaturePartitionOptions> partitionOptions,
-        Traverse.CplmApi.Services.IotDbWriteClient iotdb,
         Traverse.CplmApi.Services.ConsumerHeartbeat heartbeat,
         Traverse.CplmApi.Services.SingleMemberGuard guard,
         [FromKeyedServices("cplm")] NpgsqlDataSource dataSource)
@@ -65,7 +63,6 @@ public sealed class CplmResultConsumerService : BackgroundService
         _dataSource = dataSource;
         _options = cplmOptions.Value;
         _partitions = partitionOptions.Value;
-        _iotdb = iotdb;
         _heartbeat = heartbeat;
         _guard = guard;
 
@@ -205,7 +202,6 @@ public sealed class CplmResultConsumerService : BackgroundService
         await using var cmd = new NpgsqlCommand(sql, conn);
         BindGateParameters(cmd, root, loopId, json);
         await cmd.ExecuteNonQueryAsync(ct);
-        await AfterGatePersistedAsync(loopId, root, ct);
         return true;
     }
 
@@ -304,19 +300,6 @@ public sealed class CplmResultConsumerService : BackgroundService
         cmd.Parameters.AddWithValue("datasetHash", (object?)GetString(root, "dataset_hash") ?? DBNull.Value);
     }
 
-    private async Task AfterGatePersistedAsync(string loopId, JsonElement root, CancellationToken ct)
-    {
-        // Phase 3.6 — KPI series dual-write. Timestamp = window end, so replays
-        // overwrite the same point (idempotent by window). Failure is logged by
-        // the client and never fails the message: Postgres is the evidence store.
-        await WriteKpiSeriesAsync(loopId, "gate_" + (GetString(root, "window_kind") ?? "24h"), root,
-            new[] { "mae", "rmse", "iae", "good_error_pct", "acf_period_s", "acf_regularity",
-                    "effort_ratio", "triangularity", "horch_oddness", "phase_area_norm_per_cycle",
-                    "corner_score", "travel_per_day", "reversals_per_hour",
-                    "harmonic_amplitude_ratio", "harmonic_energy_ratio", "confidence" },
-            new[] { "diagnosis", "severity" }, ct);
-    }
-
     // ── Short / long features ────────────────────────────────────────────────
 
     private async Task<bool> PersistFeatureAsync(string json, bool isLong, CancellationToken ct)
@@ -374,42 +357,7 @@ public sealed class CplmResultConsumerService : BackgroundService
         AddIdentityParameters(cmd, root);
         await cmd.ExecuteNonQueryAsync(ct);
 
-        var family = (isLong ? "long_" : "short_") + (GetString(root, "window_kind") ?? (isLong ? "24h" : "5m"));
-        await WriteKpiSeriesAsync(loopId, family, root, fields, textFields: null, ct);
         return true;
-    }
-
-    /// <summary>
-    /// Phase 3.6 — write a KPI aggregate row into IoTDB at
-    /// root.&lt;site&gt;.cpm.&lt;loop&gt;.kpi.&lt;family&gt; with explicitly declared timeseries.
-    /// NOTE: sample_count is the measurement name everywhere (CPA used "samples"
-    /// for features but "sample_count" for gates — unified here; Phase 5 readers
-    /// must use sample_count).
-    /// </summary>
-    private async Task WriteKpiSeriesAsync(string loopId, string family, JsonElement root,
-        string[] numericFields, string[]? textFields, CancellationToken ct)
-    {
-        if (!_iotdb.Enabled) return;
-        long endMs = root.TryGetProperty("windowEndMs", out var p) && p.TryGetInt64(out var v) && v > 0
-            ? v : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var device = $"{_iotdb.LoopRootPrefix}.{Traverse.CplmApi.Services.IotDbWriteClient.SafeNode(loopId)}.kpi.{family}";
-
-        var types = new Dictionary<string, string> { ["sample_count"] = "DOUBLE" };
-        foreach (var f in numericFields) types[f] = "DOUBLE";
-        if (textFields != null) foreach (var f in textFields) types[f] = "TEXT";
-        await _iotdb.EnsureTimeseriesAsync(device, types, ct);
-
-        var kv = new List<KeyValuePair<string, object?>> { new("sample_count", (double)GetInt(root, "sample_count")) };
-        // P1-8: skip metrics the engine did not compute rather than writing 0.0.
-        // InsertAsync drops null entries, so the KPI series gets a genuine gap
-        // instead of a zero that a trend chart would draw as perfect performance.
-        foreach (var f in numericFields)
-        {
-            var val = GetDoubleOrNull(root, f);
-            kv.Add(new(f, val is DBNull ? null : val));
-        }
-        if (textFields != null) foreach (var f in textFields) kv.Add(new(f, GetString(root, f)));
-        await _iotdb.InsertAsync(device, endMs, kv, ct);
     }
 
     // ── Self-healing DDL (mirrors database/scripts/30_cplm_analytics_schema.sql) ──

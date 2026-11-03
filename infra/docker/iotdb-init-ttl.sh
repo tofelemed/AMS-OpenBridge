@@ -116,8 +116,18 @@ if ! run_sql_v "SET TTL TO ${LOOP_CPM_PREFIX}.**.kpi.** ${TTL_730_DAYS};"; then
   echo "[iotdb-init-ttl] NOTE: path-scoped TTL unsupported — kpi.* will inherit the 90 d database TTL."
 fi
 
-echo "[iotdb-init-ttl] Setting TTL — raw loop samples ${LOOP_DB}: ${TTL_90_DAYS}ms (90 days)…"
-run_sql_v "SET TTL TO ${LOOP_DB} ${TTL_90_DAYS};" || true
+RAW_TTL_MS=$(( ${RAW_TTL_DAYS:-90} * 24 * 3600 * 1000 ))
+echo "[iotdb-init-ttl] Setting TTL — raw loop samples ${LOOP_DB}: ${RAW_TTL_MS}ms (${RAW_TTL_DAYS:-90} days)…"
+run_sql_v "SET TTL TO ${LOOP_DB} ${RAW_TTL_MS};" || true
+
+# ── CHG-102 storage layout (docs/next-release/plan-iotdb-postgres.md) ────────
+# Off unless IOTDB_LAYOUT=v2: the legacy tree (DOUBLE/TEXT, not aligned) cannot
+# take a template once series exist, so v2 is applied to a fresh tree at the
+# root.hdpe move (CHG-101). Lab-proven 2026-11-03 on 1.3.2: aligned FLOAT
+# GORILLA/ZSTD + mode TEXT/DICTIONARY = 38 % of today's bytes, same read speed.
+if [ "${IOTDB_LAYOUT:-v1}" = "v2" ]; then
+  . "$(dirname "$0")/iotdb-layout-v2.sh"
+fi
 
 echo "[iotdb-init-ttl] Verifying TTL settings (SHOW ALL TTL)…"
 TTL_OUT=$(echo "SHOW ALL TTL;" | "${IOTDB_CLI}" -h "${IOTDB_HOST}" -p "${IOTDB_PORT}" \

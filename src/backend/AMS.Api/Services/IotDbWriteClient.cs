@@ -147,7 +147,12 @@ public sealed class IotDbWriteClient
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.TryGetProperty("code", out var code) && code.GetInt32() != 200)
             {
-                if (expectAlreadyExists && json.Contains("already exist", StringComparison.OrdinalIgnoreCase))
+                // CHG-102 layout v2: under a device template CREATE TIMESERIES is refused with
+                // 701 TemplateIncompatibleException — the template already pins type/encoding/
+                // compressor and the first insert activates it, so the schema IS in place.
+                if (expectAlreadyExists && (json.Contains("already exist", StringComparison.OrdinalIgnoreCase)
+                        || json.Contains("TemplateIncompatibleException", StringComparison.OrdinalIgnoreCase)
+                        || json.Contains("device template", StringComparison.OrdinalIgnoreCase)))
                     return IotDbWriteOutcome.Ok;
                 _logger.LogWarning("IoTDB nonQuery rejected: {Body} — SQL: {Sql}", Trim(json), Trim(sql));
                 return IotDbWriteOutcome.Rejected;

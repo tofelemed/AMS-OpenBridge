@@ -143,6 +143,9 @@ builder.Services.AddSingleton<Traverse.CplmApi.Services.ResponseResultStore>();
 if (config.GetValue("Cplm:ConsumersEnabled", false))
 {
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmResultConsumerService>();
+    // CHG-102: KPI / verdict history -> IoTDB (own group; LIVE only; offsets only after IoTDB accepted the row).
+    builder.Services.AddSingleton<Traverse.CplmApi.BackgroundServices.KpiHistoryStats>();
+    builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.KpiHistoryConsumerService>();
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmEventFrameService>();
     // v2.5 (Task 1D.5): fast-path condition events -> analytics.condition_event (own single-member group).
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmConditionConsumerService>();
@@ -222,7 +225,8 @@ var cplmConsumersEnabled = config.GetValue("Cplm:ConsumersEnabled", false);
 app.MapGet("/health", async (
     NpgsqlDataSource ds,
     Traverse.CplmApi.Services.ConsumerHeartbeat beats,
-    Traverse.CplmApi.Services.SingleMemberGuard guard) =>
+    Traverse.CplmApi.Services.SingleMemberGuard guard,
+    IServiceProvider sp) =>
 {
     try
     {
@@ -249,6 +253,8 @@ app.MapGet("/health", async (
         var e = ConsumerState("evidence");
         var hl = ConsumerState("health");
         var rs = ConsumerState("response");
+        var kh = ConsumerState(Traverse.CplmApi.BackgroundServices.KpiHistoryConsumerService.HeartbeatName);
+        var khStats = sp.GetService<Traverse.CplmApi.BackgroundServices.KpiHistoryStats>();
         // v2.5 (1G.3, NR-058): projection lag per consumer (persist time - record timestamp).
         object? LagOf(string name) { var l = beats.Lag(name); return l is null ? null : new { lastMs = l.Value.Last, maxMsThisMinute = l.Value.MaxThisMinute }; }
         var results = new { state = r.State, phase = r.Phase, heartbeatAgeSeconds = r.AgeSeconds, projectionLag = LagOf("results") };
@@ -256,6 +262,14 @@ app.MapGet("/health", async (
         var evidence = new { state = e.State, phase = e.Phase, heartbeatAgeSeconds = e.AgeSeconds, projectionLag = LagOf("evidence") };
         var health = new { state = hl.State, phase = hl.Phase, heartbeatAgeSeconds = hl.AgeSeconds, projectionLag = LagOf("health") };
         var response = new { state = rs.State, phase = rs.Phase, heartbeatAgeSeconds = rs.AgeSeconds, projectionLag = LagOf("response") };
+        // CHG-102: KPI history is IoTDB's only long-term copy - surface writes, rejects and outages.
+        var kpiHistory = new
+        {
+            state = kh.State, phase = kh.Phase, heartbeatAgeSeconds = kh.AgeSeconds,
+            projectionLag = LagOf(Traverse.CplmApi.BackgroundServices.KpiHistoryConsumerService.HeartbeatName),
+            written = khStats?.Written, rejected = khStats?.Rejected, skipped = khStats?.Skipped,
+            lastWriteUtc = khStats?.LastWriteUtc, iotdbUnavailableSinceUtc = khStats?.UnavailableSinceUtc
+        };
         // STR-06: a partition split means another member is persisting half the
         // windows. The heartbeat cannot see this — both members look "RUNNING".
         var degraded = r.State is "STALLED" or "NEVER_STARTED"
@@ -273,6 +287,7 @@ app.MapGet("/health", async (
                 evidence,
                 health,
                 response,
+                kpiHistory,
                 groupSplitDetected = guard.SplitDetected,
                 groupSplitDetail = guard.SplitDetail
             }

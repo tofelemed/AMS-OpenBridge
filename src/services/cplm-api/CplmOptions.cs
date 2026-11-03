@@ -21,4 +21,6 @@ public sealed class CplmOptions
     public string GateConfigTopic { get; set; } = "traverse.cpa.context.gate-config.v1";
     public string GateConfigAcksTopic { get; set; } = "traverse.cpa.context.gate-config.acks.v1";
     public string ConsumerGroupId { get; set; } = "traverse-cpa-cplm-results";
+    /// <summary>CHG-102: KPI / verdict history into IoTDB - its own group so IoTDB never stalls the Postgres projection.</summary>
+    public string KpiHistoryConsumerGroupId { get; set; } = "traverse-cpa-kpi-history";
 }

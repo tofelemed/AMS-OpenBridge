@@ -39,6 +39,27 @@ public sealed class IotDbWriteOptions
     /// record. Deliberately NOT root.ams.* — that is the alarm tree.
     /// </summary>
     public string LoopRootPrefix { get; set; } = "root.site1.cpm";
+
+    /// <summary>
+    /// CHG-102: "v2" = KPI history in its own databases (<see cref="KpiDatabase"/>,
+    /// <see cref="ShortKpiDatabase"/>) under device templates (infra/docker/iotdb-layout-v2.sh).
+    /// Anything else = the legacy &lt;prefix&gt;.&lt;loop&gt;.kpi.&lt;family&gt; series.
+    /// </summary>
+    public string Layout { get; set; } = "v1";
+    public string KpiDatabase { get; set; } = "root.hdpe.kpi";
+    public string ShortKpiDatabase { get; set; } = "root.hdpe.kpis";
+    public bool IsLayoutV2 => string.Equals(Layout, "v2", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>Why a statement did or did not land (kept in step with AMS.Api's IotDbWriteOutcome).</summary>
+public enum IotDbWriteOutcome
+{
+    /// <summary>Applied (or, for DDL, already in place).</summary>
+    Ok,
+    /// <summary>IoTDB evaluated the statement and refused it — retrying the same statement will not help.</summary>
+    Rejected,
+    /// <summary>Never evaluated: disabled, transport, auth, timeout — retry later.</summary>
+    Unavailable,
 }
 
 public sealed class IotDbWriteClient
@@ -108,8 +129,12 @@ public sealed class IotDbWriteClient
 
     /// <summary>Execute a write/DDL statement (INSERT/CREATE/SET TTL).</summary>
     public async Task<bool> NonQueryAsync(string sql, CancellationToken ct, bool expectAlreadyExists = false)
+        => await ExecuteAsync(sql, ct, expectAlreadyExists) == IotDbWriteOutcome.Ok;
+
+    /// <summary>Execute a write/DDL statement, reporting why it failed.</summary>
+    public async Task<IotDbWriteOutcome> ExecuteAsync(string sql, CancellationToken ct, bool expectAlreadyExists = false)
     {
-        if (!_opts.Enabled) return false;
+        if (!_opts.Enabled) return IotDbWriteOutcome.Unavailable;
         try
         {
             using var http = CreateClient();
@@ -119,28 +144,55 @@ public sealed class IotDbWriteClient
             if (!res.IsSuccessStatusCode)
             {
                 _logger.LogWarning("IoTDB nonQuery failed ({Status}): {Body} — SQL: {Sql}", res.StatusCode, Trim(json), Trim(sql));
-                return false;
+                return IotDbWriteOutcome.Unavailable;
             }
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.TryGetProperty("code", out var code) && code.GetInt32() != 200)
             {
-                if (expectAlreadyExists && json.Contains("already exist", StringComparison.OrdinalIgnoreCase))
-                    return true;
+                if (expectAlreadyExists && IsSchemaAlreadyInPlace(json))
+                    return IotDbWriteOutcome.Ok;
                 _logger.LogWarning("IoTDB nonQuery rejected: {Body} — SQL: {Sql}", Trim(json), Trim(sql));
-                return false;
+                return IotDbWriteOutcome.Rejected;
             }
-            return true;
+            return IotDbWriteOutcome.Ok;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
+            // Includes the HttpClient timeout (TaskCanceledException with ct un-cancelled).
             _logger.LogWarning(ex, "IoTDB nonQuery exception — SQL: {Sql}", Trim(sql));
-            return false;
+            return IotDbWriteOutcome.Unavailable;
         }
     }
 
+    /// <summary>
+    /// A CREATE TIMESERIES refused because the series exists, or (CHG-102 layout v2) because a
+    /// device template governs the path (code 701 TemplateIncompatibleException — the template
+    /// already declares type, encoding and compressor; inserts activate it).
+    /// </summary>
+    public static bool IsSchemaAlreadyInPlace(string replyJson) =>
+        replyJson.Contains("already exist", StringComparison.OrdinalIgnoreCase)
+        || replyJson.Contains("TemplateIncompatibleException", StringComparison.OrdinalIgnoreCase)
+        || replyJson.Contains("device template", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>Insert one record (used for low-rate KPI aggregates; samples use the batch path).</summary>
-    public Task<bool> InsertAsync(string devicePath, long timestampMs,
+    public async Task<bool> InsertAsync(string devicePath, long timestampMs,
         IReadOnlyList<KeyValuePair<string, object?>> fields, CancellationToken ct)
+        => await InsertRowAsync(devicePath, timestampMs, fields, ct) == IotDbWriteOutcome.Ok;
+
+    /// <summary>Insert one record, reporting the outcome. No non-null field = nothing to write = Ok.</summary>
+    public Task<IotDbWriteOutcome> InsertRowAsync(string devicePath, long timestampMs,
+        IReadOnlyList<KeyValuePair<string, object?>> fields, CancellationToken ct)
+    {
+        var sql = BuildInsertSql(devicePath, timestampMs, fields);
+        return sql is null ? Task.FromResult(IotDbWriteOutcome.Ok) : ExecuteAsync(sql, ct);
+    }
+
+    public static string? BuildInsertSql(string devicePath, long timestampMs,
+        IReadOnlyList<KeyValuePair<string, object?>> fields)
     {
         var cols = new List<string>();
         var vals = new List<string>();
@@ -150,9 +202,8 @@ public sealed class IotDbWriteClient
             cols.Add(name);
             vals.Add(FormatValue(value));
         }
-        if (cols.Count == 0) return Task.FromResult(false);
-        var sql = $"insert into {devicePath}(timestamp,{string.Join(',', cols)}) values({timestampMs},{string.Join(',', vals)})";
-        return NonQueryAsync(sql, ct);
+        if (cols.Count == 0) return null;
+        return $"insert into {devicePath}(timestamp,{string.Join(',', cols)}) values({timestampMs},{string.Join(',', vals)})";
     }
 
     /// <summary>Insert many rows for one device in a single statement — the historian sample path.</summary>

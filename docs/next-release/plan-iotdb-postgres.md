@@ -129,7 +129,27 @@ Phase order = least risk, most value first. Phases 1–2 must land **with CHG-10
 
 Exit: §3 updated with measured numbers, D1–D6 answered.
 
+**Phase 0 results (lab, 2026-11-03)** — status: DONE
+
+| Test | Result |
+|---|---|
+| Size, one dense lab day (180 loops, 9.5 M points) | today 45.8 MB (4.8 B/pt) · FLOAT/GORILLA/LZ4 66 % · FLOAT/CHIMP/ZSTD + mode DICTIONARY 60 % · **aligned FLOAT/GORILLA/ZSTD + mode DICTIONARY 38 % (1.8 B/pt)** · aligned CHIMP 37 % |
+| Read speed | 24 h × 5 signals, one loop: 10–40 ms in every layout (no aligned penalty) · 180 loops × 1 h: ~100 ms |
+| FLOAT precision | lab values are 64-bit (simulated); FLOAT relative error 6 × 10⁻⁸ |
+| Syntax on 1.3.2 REST | template + aligned ✔ · **plain INSERT (today's writers) into an aligned template device ✔** · `cast(x AS FLOAT) … INTO ALIGNED` ✔ · CHIMP ✔ |
+| Template auto-extension | **confirmed**: an insert into `<loop>.kpi` under a template activated it there and added `mae` to the template for every device → KPI series live in their own databases (D1) |
+| Template placement | a template on a database root blocks templates below it → KPI devices are **family-then-loop** (`root.hdpe.kpi.gate_24h.<loop>`), one template per family subtree |
+| Continuous query | one CQ for all loops ✔ (`INTO <kpi>.m1.${3} … ALIGN BY DEVICE`); `::` not allowed with aggregates; `avg()` is DOUBLE and refuses a FLOAT target (no cast) → `*_avg` DOUBLE |
+| Region groups | the lab node refused new databases at ~11 (`no available DataRegionGroup`) → the 1-min rollup lives in `root.hdpe.kpi.m1`, no `cpm1m` database; plant total 4–5 databases |
+
+Decisions taken (user: "start with the recommendations"): D1 yes, D2 raw 1 year, D3 90 d, D4 yes (in `kpi.m1`),
+D5 deferred (needs the quality in the ingestion sample), D6 **GORILLA** (CHIMP +3 % only, newer encoder).
+Plant expectation: 27 MB/day × 0.38 ≈ **10 MB/day** raw (to be confirmed on the first plant days).
+
 ### Phase 1 — IoTDB layout at the `root.hdpe` move (with CHG-101) · ~2 days
+
+Status: init script **DONE** (`infra/docker/iotdb-layout-v2.sh`, sourced when `IOTDB_LAYOUT=v2`; lab-run twice,
+idempotent; raw/KPI/short/1-min writes verified). Move script = ams-open-cf (template list sent 2026-11-03).
 
 | Change | Files |
 |---|---|
@@ -167,6 +187,12 @@ status fields (shown as "—").
 | Tests: edge split, empty IoTDB, IoTDB down (PG part still returned + `degraded: true`), cursor across the edge | `tests/cplm-api.Tests` (new `KpiHistoryReaderTests`) |
 
 ### Phase 4 — PostgreSQL hot window by partition DROP · ~1 day
+
+Status: **DONE, lab-tested** — `FeaturePartitions.cs` hourly grain for short (names `_pYYYYMMDDHH`), `retention_policy.hours`
+(nullable; old image keeps reading `days`), cpm-17 + rollback (in place on the partitioned parent, one transaction),
+`65_cplm_hot_window_partitions.sql`, release block `chg102-cpm17` (PRE_SWAP, removes the cron, cplm-api stays stopped
+until step 6). Tests: FeaturePartition + HotWindow 30/30, release tests 53/53, whole cplm-api.Tests 397/399 (2 lab-data
+failures, unrelated). Lab Postgres for tests is on **5436** (5433 = ProAct). Long table now holds 24–48 h (≤ ~0.5 GB).
 
 | Change | Files |
 |---|---|
