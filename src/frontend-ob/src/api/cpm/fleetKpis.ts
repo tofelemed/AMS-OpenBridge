@@ -154,7 +154,7 @@ export const getFleetKpiLoops = (
 export interface FleetKpiTrendPoint {
   /** The exact instant classified; GET loops?asOf= of it lists that point's loops. */
   asOf: string;
-  /** The plant day (yyyy-MM-dd, in the plant zone) the point stands for; null / absent on today's live point (and on an older cplm-api). */
+  /** The plant day (yyyy-MM-dd, in the plant zone) the point stands for (today's live point included); absent on an older cplm-api. */
   day?: string | null;
   /** Where the point came from: the daily table, a live classification, or nothing kept for that day. */
   source?: 'daily' | 'live' | 'none';

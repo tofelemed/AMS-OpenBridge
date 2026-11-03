@@ -190,6 +190,7 @@ public sealed class FleetKpiDailyTests : IClassFixture<KpiDailyCplmDb>, IAsyncLi
 
         var now = points[^1];
         (now.GetProperty("isNow").GetBoolean(), now.GetProperty("source").GetString()).Should().Be((true, "live"));
+        now.GetProperty("day").GetString().Should().Be(Today.ToString("yyyy-MM-dd"), "today's point names the plant day, so no browser clock labels it the next day");
         var y = points[^2];
         (y.GetProperty("day").GetString(), y.GetProperty("source").GetString()).Should().Be((Yesterday.ToString("yyyy-MM-dd"), "daily"));
         Count(y, "oscillating").Should().Be(1);

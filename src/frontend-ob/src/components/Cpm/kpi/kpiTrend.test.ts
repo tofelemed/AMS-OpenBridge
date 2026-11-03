@@ -34,6 +34,7 @@ describe('KPI trend series (Phase 5)', () => {
     expect(plantDayLabel(undefined)).toBe('UTC day');
     expect(plantDayLabel({})).toBe('UTC day');
     expect(plantDayLabel({ plantDay: { setting: 'UTC', zone: 'UTC', utcOffset: '+00:00' } })).toBe('UTC day');
+    expect(plantDayLabel({ plantDay: { setting: 'local', zone: 'Etc/UTC', utcOffset: '+00:00' } })).toBe('UTC day');
     expect(plantDayLabel({ plantDay: { setting: 'IR', zone: 'Asia/Tehran', utcOffset: '+03:30' } })).toBe('Asia/Tehran day (UTC+03:30)');
     expect(plantDayLabel({ plantDay: { setting: '+03:30', zone: 'UTC+03:30', utcOffset: '+03:30' } })).toBe('UTC+03:30 day');
   });

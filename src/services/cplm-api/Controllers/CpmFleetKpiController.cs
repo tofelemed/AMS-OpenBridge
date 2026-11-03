@@ -186,7 +186,7 @@ public sealed class CpmFleetKpiController : ControllerBase
                 var (loops, at, _) = k == 0 ? await ClassifiedAsync(t, site, area, unit, ct) : await ClassifiedAtAsync(t, site, area, unit, asOf, ct);
                 var kpis = Figures(loops, t);
                 points[days - 1 - k] = k == 0
-                    ? new { asOf = at, day = (string?)null, isNow = true, source = "live", monitored = loops.Count, assessed = Assessed(loops), kpis }
+                    ? new { asOf = at, day = (string?)day.ToString("yyyy-MM-dd"), isNow = true, source = "live", monitored = loops.Count, assessed = Assessed(loops), kpis }
                     : Point(asOf, day, "live", loops.Count, Assessed(loops), kpis);
             }
             finally { gate.Release(); }

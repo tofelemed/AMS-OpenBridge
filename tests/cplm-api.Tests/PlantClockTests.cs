@@ -51,6 +51,12 @@ public sealed class PlantClockTests
     }
 
     [Theory]
+    [InlineData("Etc/UTC")]
+    [InlineData("GMT")]
+    public void A_UTC_alias_reads_as_plain_UTC_for_local(string id) =>
+        PlantClock.Parse(id).DayEnd(Day).Should().Be(DateTimeOffset.Parse("2026-11-04T00:00:00Z"));
+
+    [Theory]
     [InlineData("Mars/Olympus")]
     [InlineData("+15:00")]
     public void An_unknown_zone_fails_loudly(string setting) =>

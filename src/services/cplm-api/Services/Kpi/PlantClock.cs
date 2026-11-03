@@ -65,7 +65,7 @@ public sealed partial class PlantClock
         }
         var found = TryFind(s) ?? throw new ArgumentException(
             $"{ConfigKey} '{s}' is not a time zone: use local, UTC, IR, an IANA id (Asia/Tehran) or an offset (+03:30)");
-        return new PlantClock(found, s, found.Id);
+        return new PlantClock(found, s, UtcAliases.Contains(found.Id) ? "UTC" : found.Id);
     }
 
     /// <summary>The plant clock from configuration (Cpm:PlantTimeZone, default local).</summary>
@@ -78,12 +78,17 @@ public sealed partial class PlantClock
         catch (InvalidTimeZoneException) { return null; }
     }
 
+    /// <summary>The names a UTC server's zone goes by (a Docker VM reports Etc/UTC): all shown as plain "UTC".</summary>
+    private static readonly HashSet<string> UtcAliases = new(StringComparer.OrdinalIgnoreCase)
+        { "UTC", "Etc/UTC", "Etc/UCT", "Etc/GMT", "Etc/Universal", "Etc/Zulu", "GMT", "UCT", "Universal", "Zulu", "Coordinated Universal Time" };
+
     private static TimeZoneInfo Fixed(TimeSpan offset, string id) => TimeZoneInfo.CreateCustomTimeZone(id, offset, id, id);
 
     /// <summary>A mounted /etc/localtime reads as id "localtime": report its offset instead.</summary>
     private static string LocalId(TimeZoneInfo z)
     {
-        if (z.Id.Contains('/') || z.Id == "UTC") return z.Id;
+        if (UtcAliases.Contains(z.Id)) return "UTC";
+        if (z.Id.Contains('/')) return z.Id;
         var o = z.GetUtcOffset(DateTimeOffset.UtcNow);
         return o == TimeSpan.Zero ? "UTC" : "UTC" + (o < TimeSpan.Zero ? "-" : "+") + o.Duration().ToString(@"hh\:mm", CultureInfo.InvariantCulture);
     }

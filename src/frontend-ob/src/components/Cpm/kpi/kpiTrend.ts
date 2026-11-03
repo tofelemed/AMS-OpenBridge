@@ -29,7 +29,8 @@ export function kpiSeries(trend: FleetKpiTrend | undefined, key: FleetKpiKey): K
 }
 
 /** "10 Oct" in the viewer's locale — the point's plant day (UTC, so a day-end point never reads as the next day); the year
- *  on long ranges. Today's live point has no plant day: its own instant. The tooltip names the exact instant. */
+ *  on long ranges. Today's live point carries today's plant day too (CHG-102: a browser on another clock must not label it
+ *  the next day); an older cplm-api sends none, then its own instant. The tooltip names the exact instant. */
 export function pointLabel(d: Pick<KpiTrendDay, 'asOf' | 'day'>, withYear = false): string {
   const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}) };
   if (!d.day) return new Date(d.asOf).toLocaleDateString(undefined, opts);
@@ -40,7 +41,7 @@ export function pointLabel(d: Pick<KpiTrendDay, 'asOf' | 'day'>, withYear = fals
 /** CHG-102: what a plant day is, for labels: "UTC day", "Asia/Tehran day (UTC+03:30)". An older cplm-api = UTC. */
 export function plantDayLabel(trend: Pick<FleetKpiTrend, 'plantDay'> | undefined): string {
   const p = trend?.plantDay;
-  if (!p) return 'UTC day';
+  if (!p || /^(Etc\/)?(UTC|UCT|GMT|Universal|Zulu)$/i.test(p.zone)) return 'UTC day';
   return p.zone.startsWith('UTC') ? `${p.zone} day` : `${p.zone} day (UTC${p.utcOffset})`;
 }
 
