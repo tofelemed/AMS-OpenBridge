@@ -7,7 +7,7 @@ deploy.sh --prod already recreates every changed service.
 """
 from __future__ import annotations
 
-DIRECTIVES = {"chg081-superadmin", "chg088-vp-republish", "chg099-cpm15", "chg091-cpm16"}
+DIRECTIVES = {"chg081-superadmin", "chg088-vp-republish", "chg099-cpm15", "chg091-cpm16", "chg102-cpm17"}
 
 
 def chg081_superadmin(release: str) -> str:
@@ -60,9 +60,35 @@ docker exec instrumental-postgres psql -U postgres -d traverse_cplm -Atc "select
 """
 
 
+def chg102_cpm17(release: str) -> str:
+    # CHG-102: the old cplm-api cannot maintain hourly partitions, so it stays stopped until step 6 starts the new image.
+    return f"""
+# 4e. CHG-102 short features in HOURLY partitions kept 6 h by DROP; LONG_FEATURES 1 d by DROP - BEFORE step 6 (its deploy.sh
+#     recreates cplm-api). The 30-min DELETE cron retires (migration/prune-short-features.sh stays in the repo for rollback).
+#     cplm-api is STOPPED from here until step 6 starts the new image: the old image's maintenance cannot read hourly partitions.
+#     Seconds at plant size: the rows of the last 6 h are copied, the day partitions dropped (~1.1 GB back to the disk at once).
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -Atc "select pg_size_pretty(pg_total_relation_size('analytics.cplm_short_feature_results'))"   # before (Marun 2026-11-03: 1110 MB)
+sudo rm -f /etc/cron.d/cpa-prune-short-features
+docker stop traverse-cplm-api
+docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-17-hot-window-partitions.sql
+#     NOTICE: analytics.cplm_short_feature_results: N daily + 0 hourly partitions replaced by 10 hourly; M rows of the last 6 h kept
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -Atc "select record_class||'='||coalesce(days::text,'-')||'d/'||coalesce(hours::text,'-')||'h' from analytics.retention_policy where record_class in ('SHORT_FEATURES','LONG_FEATURES','GATE_RESULTS') order by 1"
+#     expected: GATE_RESULTS=14d/-h  LONG_FEATURES=1d/-h  SHORT_FEATURES=1d/6h
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -Atc "select pg_size_pretty(pg_total_relation_size('analytics.cplm_short_feature_results'))"   # after: the 6 h of rows only
+ls /etc/cron.d/ | grep -c prune-short-features   # 0
+#     Do NOT docker start traverse-cplm-api here. After step 6, within a minute:
+#       docker logs --since 5m traverse-cplm-api 2>&1 | grep Partitions   # no "every partition is Day" warning
+#     From then on one hourly partition is created and one dropped per hour:
+#       docker exec instrumental-postgres psql -U postgres -d traverse_cplm -Atc "select count(*) from pg_inherits where inhparent = 'analytics.cplm_short_feature_results'::regclass"   # ~11-12
+#     Rollback (cplm-api STOPPED): psql ... < /tmp/{release}/ops/cpm-17-hot-window-partitions.rollback.sql, then the previous
+#     cplm-api image (step 2's list), then the cron back:
+#       sudo cp migration/cron.d/cpa-prune-short-features /etc/cron.d/ && sudo chmod 644 /etc/cron.d/cpa-prune-short-features
+"""
+
+
 BLOCKS = {"chg081-superadmin": chg081_superadmin, "chg088-vp-republish": chg088_vp_republish,
-          "chg099-cpm15": chg099_cpm15, "chg091-cpm16": chg091_cpm16}
-PRE_SWAP = {"chg099-cpm15"}
+          "chg099-cpm15": chg099_cpm15, "chg091-cpm16": chg091_cpm16, "chg102-cpm17": chg102_cpm17}
+PRE_SWAP = {"chg099-cpm15", "chg102-cpm17"}
 
 
 def _at(steps: str, marker: str, extra: str) -> str:

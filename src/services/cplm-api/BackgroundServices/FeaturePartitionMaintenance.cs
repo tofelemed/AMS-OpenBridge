@@ -7,6 +7,8 @@ namespace Traverse.CplmApi.BackgroundServices;
 /// <summary>
 /// CHG-033 — every Cplm:Partitions:MaintenanceMinutes (60) the plant's partitioned result tables get
 /// their next days created and their days past retention_policy dropped (<see cref="FeaturePartitions"/>).
+/// CHG-102: the short features are hourly (next hours created, hours past retention_policy.hours dropped);
+/// the hourly lookahead is never shorter than two of these intervals, so one missed pass is harmless.
 /// A table that is not partitioned (the lab's Timescale hypertables) is left alone, so one build
 /// serves both. A lock timeout or a schema still arriving is logged and retried next tick.
 /// </summary>

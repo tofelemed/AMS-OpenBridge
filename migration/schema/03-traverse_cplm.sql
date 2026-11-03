@@ -1002,3 +1002,9 @@ CREATE INDEX IF NOT EXISTS ix_evidence_manifest_reconstruction_of
 -- every evidence read lists the reconstruction runs of its method run
 CREATE INDEX IF NOT EXISTS ix_analysis_run_reconstructs
     ON analytics.analysis_run ((manifest->>'reconstructs')) WHERE purpose = 'EVIDENCE_RECONSTRUCTION';
+
+-- CHG-102: retention in hours for the hourly short-feature partitions (database/scripts/65; plant: scripts/cpm-17,
+-- which also re-partitions the short table hourly and writes the SHORT_FEATURES / LONG_FEATURES rows).
+ALTER TABLE analytics.retention_policy ADD COLUMN IF NOT EXISTS hours int;
+COMMENT ON COLUMN analytics.retention_policy.hours IS
+    'CHG-102: retention in hours; when set it wins over days (cplm-api partition maintenance). SHORT_FEATURES = 6 (hourly partitions dropped).';

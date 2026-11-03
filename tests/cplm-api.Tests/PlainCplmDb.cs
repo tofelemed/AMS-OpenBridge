@@ -1,16 +1,21 @@
 // CHG-033 - a throwaway PLAIN PostgreSQL database on the lab server (no Timescale hypertables), built
 // from the fresh-install script and then scripts/cpm-10b, so the plant's partition shape is proven where
 // the lab's hypertables cannot show it. One per test class; dropped afterwards.
+// CHG-102 - derived fixtures (HotWindowCplmDb) carry on from that shape with scripts/cpm-17, each under its own
+// database name (xUnit runs test classes in parallel).
 using Npgsql;
 using Xunit;
 
 namespace Traverse.CplmApi.Tests;
 
-public sealed class PlainCplmDb : IAsyncLifetime
+public class PlainCplmDb : IAsyncLifetime
 {
-    public const string Name = "cplm_plain_test";
+    public string Name { get; }
     public NpgsqlDataSource Db { get; private set; } = null!;
     private string _adminCs = null!;
+
+    public PlainCplmDb() : this("cplm_plain_test") { }
+    protected PlainCplmDb(string name) => Name = name;
 
     /// <summary>A file under the repository root (found by walking up to the directory that holds migration/schema).</summary>
     public static string RepoFile(params string[] parts)
@@ -36,7 +41,11 @@ public sealed class PlainCplmDb : IAsyncLifetime
         await using (var cmd = new NpgsqlCommand(Traverse.CplmApi.Data.CplmResultSchema.Ddl, conn) { CommandTimeout = 600 })
             await cmd.ExecuteNonQueryAsync();
         await ApplyAsync(RepoFile("scripts", "cpm-10b-result-partitions.sql"));
+        await AfterCpm10bAsync();
     }
+
+    /// <summary>Hook for derived fixtures: runs once the cpm-10b daily shape exists.</summary>
+    protected virtual Task AfterCpm10bAsync() => Task.CompletedTask;
 
     private async Task AdminAsync(string sql)
     {

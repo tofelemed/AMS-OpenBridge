@@ -2,6 +2,8 @@
 // scripts/cpm-10b builds the shape, the startup self-heal DDL is a no-op on it, the consumer's upserts
 // land once per key, an out-of-range replay row lands in the DEFAULT partition, and the maintenance
 // loop (FeaturePartitions) creates the next days and drops the ones past retention_policy.
+// CHG-102: the short table here is still daily (cpm-17 not applied) - the pre-migration case; the hourly shape is
+// proven in HotWindowPartitionTests.
 using Dapper;
 using FluentAssertions;
 using Npgsql;
@@ -73,7 +75,7 @@ public sealed class FeaturePartitionTests : IClassFixture<PlainCplmDb>
     }
 
     /// <summary>The consumer's exact statement with every parameter it binds (jsonb ones typed as the consumer types them).</summary>
-    private static async Task<int> ShortUpsert(NpgsqlConnection conn, string loop, DateTime windowEnd, int samples)
+    internal static async Task<int> ShortUpsert(NpgsqlConnection conn, string loop, DateTime windowEnd, int samples)
     {
         await using var cmd = new NpgsqlCommand(CplmFeatureUpsertSql.Short, conn);
         cmd.Parameters.AddWithValue("loopId", loop); cmd.Parameters.AddWithValue("windowKind", "1m");
@@ -170,8 +172,9 @@ public sealed class FeaturePartitionTests : IClassFixture<PlainCplmDb>
         var r = await FeaturePartitions.MaintainOnceAsync(_fx.Db, DateTime.UtcNow.AddDays(1), Opts, null, CancellationToken.None);
         r.Skipped.Should().Be(0);
         var parts = await Partitions(conn, "cplm_short_feature_results");
-        parts.Should().Contain($"cplm_short_feature_results_p{Day(DateTime.UtcNow.AddDays(3))}", "tomorrow's run looks two days ahead of tomorrow");
-        parts.Should().NotContain($"cplm_short_feature_results_p{Day(old)}", "SHORT_FEATURES keeps 3 days; a 5-day-old day is dropped");
+        parts.Should().NotContain($"cplm_short_feature_results_p{Day(old)}", "SHORT_FEATURES keeps 3 days; a 5-day-old day is dropped (by its bounds, whatever the grain)");
+        // CHG-102: the short table is created hourly now; the daily tables still look two days ahead of tomorrow
+        (await Partitions(conn, "cplm_long_feature_results")).Should().Contain($"cplm_long_feature_results_p{Day(DateTime.UtcNow.AddDays(3))}");
         (await Partitions(conn, "cplm_gate_results")).Should().Contain($"cplm_gate_results_p{Day(DateTime.UtcNow.AddDays(3))}");
     }
 
@@ -180,10 +183,24 @@ public sealed class FeaturePartitionTests : IClassFixture<PlainCplmDb>
     {
         await using var conn = await _fx.Db.OpenConnectionAsync();
         var target = DateTime.UtcNow.Date.AddDays(5).AddHours(12);          // no partition that far ahead yet: the row parks in DEFAULT
-        await ShortUpsert(conn, "PART-RELOCATE", target, 10);
+        await conn.ExecuteAsync("INSERT INTO analytics.cplm_long_feature_results (loop_id, window_kind, window_end) VALUES ('PART-RELOCATE', '4h', @target)", new { target });
         await FeaturePartitions.MaintainOnceAsync(_fx.Db, DateTime.UtcNow.AddDays(3), Opts, null, CancellationToken.None);
-        (await conn.ExecuteScalarAsync<int>($"SELECT count(*) FROM analytics.cplm_short_feature_results_p{Day(target)} WHERE loop_id = 'PART-RELOCATE'")).Should().Be(1);
-        (await conn.ExecuteScalarAsync<int>("SELECT count(*) FROM analytics.cplm_short_feature_results_default WHERE loop_id = 'PART-RELOCATE'")).Should().Be(0);
+        (await conn.ExecuteScalarAsync<int>($"SELECT count(*) FROM analytics.cplm_long_feature_results_p{Day(target)} WHERE loop_id = 'PART-RELOCATE'")).Should().Be(1);
+        (await conn.ExecuteScalarAsync<int>("SELECT count(*) FROM analytics.cplm_long_feature_results_default WHERE loop_id = 'PART-RELOCATE'")).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Maintenance_on_a_short_table_still_daily_creates_no_hour_inside_an_existing_day()
+    {
+        // CHG-102: a cplm-api started before cpm-17 (or a missed cpm-17) finds the short table daily. The hours it wants
+        // are covered by the day partitions, so it creates none of them and nothing overlaps; it warns instead.
+        await using var conn = await _fx.Db.OpenConnectionAsync();
+        var now = DateTime.UtcNow;
+        await FeaturePartitions.MaintainOnceAsync(_fx.Db, now, Opts, null, CancellationToken.None);
+        var parts = await Partitions(conn, "cplm_short_feature_results");
+        parts.Should().Contain($"cplm_short_feature_results_p{Day(now)}");
+        for (var h = 0; h <= FeaturePartitions.EffectiveLookaheadHours(Opts); h++)
+            parts.Should().NotContain($"cplm_short_feature_results_p{now.AddHours(h):yyyyMMddHH}", "the day partition already holds that hour");
     }
 
     [Fact]

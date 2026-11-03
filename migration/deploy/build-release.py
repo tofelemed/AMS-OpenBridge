@@ -76,6 +76,8 @@ OPS_FILES = [
     "scripts/republish-all-loops.py",              # CHG-088     - bulk republish (chunks of 20) so the engine receives vpApplicability
     "scripts/cpm-15-evidence-reconstruction-beside.sql",  # CHG-099 - evidence_manifest reconstruction columns (online, BEFORE the cplm-api swap)
     "scripts/cpm-16-response-retention.sql",       # CHG-091     - RESPONSE_CENSORED retention row (online, AFTER the cplm-api swap)
+    "scripts/cpm-17-hot-window-partitions.sql",    # CHG-102     - short features hourly, 6 h by DROP; LONG_FEATURES 1 d (cplm-api STOPPED, BEFORE the swap)
+    "scripts/cpm-17-hot-window-partitions.rollback.sql",  # CHG-102 - rollback: daily partitions back, hours column dropped (then the old image + the cron)
     "infra/docker/zookeeper/zk-start-guard.sh",    # CHG-068     - ZooKeeper start guard (quarantines zero-byte txn logs); lands in ops/, copied next to Instrumental's compose
     "migration/instrumental/zookeeper-start-guard.override.yml",  # CHG-068 - compose override: guard mount + command for Instrumental's zookeeper
     "scripts/set-quality-protocol.py",             # v2.5       - declare quality_protocol on every MQTT_LOOP_SAMPLES source
