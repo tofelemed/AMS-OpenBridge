@@ -45,8 +45,13 @@ public sealed record ArchivedManifest(
     }
 }
 
-/// <summary>One archived artifact: its manifest and its chunks (the original bytes, in chunk order).</summary>
-public sealed record ArchivedArtifact(ArchivedManifest Manifest, IReadOnlyList<EvidenceChunkSpec> Chunks);
+/// <summary>
+/// One archived artifact: its manifest and its chunks (the original bytes, in chunk order). CHG-102 Phase 5b-2: a
+/// trace-form artifact carries <see cref="Trace"/> instead (no chunks until <see cref="EvidenceTraceRehydrator"/> rebuilt
+/// them); <see cref="Unavailable"/> = it could not be rebuilt now (the manifest then reads EXPIRED with the reason).
+/// </summary>
+public sealed record ArchivedArtifact(ArchivedManifest Manifest, IReadOnlyList<EvidenceChunkSpec> Chunks,
+    ArchivedTrace? Trace = null, TraceFailure? Unavailable = null);
 
 /// <summary>
 /// CHG-102 Phase 5b-1 — the archive pack, codec <c>cpax1</c>: ONE bytea per boundary set instead of a manifest row plus
@@ -57,15 +62,27 @@ public sealed record ArchivedArtifact(ArchivedManifest Manifest, IReadOnlyList<E
 /// Blobs are the original chunk bytes, verbatim (already f64le+gzip: compressing them again gains nothing) and stored
 /// once per distinct content. Lossless by construction: a served chunk is the original byte for byte, so its SHA-256
 /// and the artifact's SHA-256 verify exactly as for live evidence and the frontend decoder does not change.
+///
+/// CHG-102 Phase 5b-2 - codec <c>cpax2</c> (version 2, written only when at least one artifact is in trace form; a set
+/// without one is still written as cpax1, so turning TraceReferences off restores the 5b-1 format): an index entry holds
+/// either the chunk blob numbers (verbatim, as cpax1) or a <see cref="TraceForm"/> plus, per inline column, the blob of
+/// its Brotli-compressed f64le bytes (deduplicated across the set like the chunks).
 /// </summary>
 public static class EvidenceArchivePack
 {
     public const string Codec = "cpax1";
+    public const string Codec2 = "cpax2";
     private static readonly byte[] Magic = "CPAX"u8.ToArray();
     private const byte Version = 1;
+    private const byte Version2 = 2;
     private static readonly JsonSerializerOptions Json = new() { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull };
 
     private sealed record IndexEntry(ArchivedManifest M, int[] C);
+    /// <summary>cpax2: C = chunk blobs (verbatim) or T + B = trace form and the blob of each inline column (-1 = referenced).</summary>
+    private sealed record IndexEntry2(ArchivedManifest M, int[]? C, TraceForm? T, int[]? B);
+
+    /// <summary>The codec a pack of these artifacts is written with.</summary>
+    public static string CodecFor(IReadOnlyList<ArchivedArtifact> artifacts) => artifacts.Any(a => a.Trace is not null) ? Codec2 : Codec;
 
     public static string Sha256Hex(ReadOnlySpan<byte> b) => Convert.ToHexString(SHA256.HashData(b)).ToLowerInvariant();
 
@@ -73,24 +90,32 @@ public static class EvidenceArchivePack
     {
         var blobs = new List<byte[]>();
         var byHash = new Dictionary<string, int>(StringComparer.Ordinal);
+        int Blob(byte[] payload)
+        {
+            var key = Sha256Hex(payload);
+            if (!byHash.TryGetValue(key, out var n)) { n = blobs.Count; blobs.Add(payload); byHash[key] = n; }
+            return n;
+        }
+        var v2 = CodecFor(artifacts) == Codec2;
         var index = new List<IndexEntry>(artifacts.Count);
+        var index2 = new List<IndexEntry2>(artifacts.Count);
         foreach (var a in artifacts)
         {
-            var refs = new int[a.Chunks.Count];
-            for (var i = 0; i < a.Chunks.Count; i++)
+            if (a.Trace is { } t)
             {
-                var payload = a.Chunks[i].Payload;
-                var key = Sha256Hex(payload);
-                if (!byHash.TryGetValue(key, out var n)) { n = blobs.Count; blobs.Add(payload); byHash[key] = n; }
-                refs[i] = n;
+                var b = t.Inline.Select(x => x is null ? -1 : Blob(x)).ToArray();
+                index2.Add(new IndexEntry2(a.Manifest, null, t.Form, b));
+                continue;
             }
-            index.Add(new IndexEntry(a.Manifest, refs));
+            var refs = a.Chunks.Select(c => Blob(c.Payload)).ToArray();
+            if (v2) index2.Add(new IndexEntry2(a.Manifest, refs, null, null));
+            else index.Add(new IndexEntry(a.Manifest, refs));
         }
-        var indexBytes = Brotli(JsonSerializer.SerializeToUtf8Bytes(index, Json));
+        var indexBytes = Brotli(v2 ? JsonSerializer.SerializeToUtf8Bytes(index2, Json) : JsonSerializer.SerializeToUtf8Bytes(index, Json));
         using var ms = new MemoryStream();
         using var w = new BinaryWriter(ms);
         w.Write(Magic);
-        w.Write(Version);
+        w.Write(v2 ? Version2 : Version);
         w.Write(indexBytes.Length);
         w.Write(indexBytes);
         w.Write(blobs.Count);
@@ -105,19 +130,31 @@ public static class EvidenceArchivePack
         using var r = new BinaryReader(new MemoryStream(pack));
         if (!r.ReadBytes(4).AsSpan().SequenceEqual(Magic)) throw new InvalidDataException("not a cpax pack");
         var version = r.ReadByte();
-        if (version != Version) throw new InvalidDataException($"cpax version {version} is not supported");
-        var index = JsonSerializer.Deserialize<List<IndexEntry>>(Unbrotli(r.ReadBytes(r.ReadInt32())), Json)
-                    ?? throw new InvalidDataException("cpax index is empty");
+        if (version != Version && version != Version2) throw new InvalidDataException($"cpax version {version} is not supported");
+        var indexJson = Unbrotli(r.ReadBytes(r.ReadInt32()));
+        var index = version == Version2
+            ? JsonSerializer.Deserialize<List<IndexEntry2>>(indexJson, Json) ?? throw new InvalidDataException("cpax index is empty")
+            : (JsonSerializer.Deserialize<List<IndexEntry>>(indexJson, Json) ?? throw new InvalidDataException("cpax index is empty"))
+                .Select(e => new IndexEntry2(e.M, e.C, null, null)).ToList();
         var blobs = new byte[r.ReadInt32()][];
         for (var i = 0; i < blobs.Length; i++) blobs[i] = r.ReadBytes(r.ReadInt32());
         var result = new List<ArchivedArtifact>(index.Count);
         foreach (var e in index)
         {
-            var declared = ChunkShas(e.M.ChunkSha256);
-            var chunks = new List<EvidenceChunkSpec>(e.C.Length);
-            for (var i = 0; i < e.C.Length; i++)
+            if (e.T is { } form)
             {
-                var bytes = blobs[e.C[i]];
+                var b = e.B ?? throw new InvalidDataException($"cpax2 trace entry {e.M.EvidenceId} has no column blobs");
+                if (b.Length != form.Cols.Length) throw new InvalidDataException($"cpax2 trace entry {e.M.EvidenceId} is malformed");
+                result.Add(new ArchivedArtifact(e.M, Array.Empty<EvidenceChunkSpec>(),
+                    new ArchivedTrace(form, b.Select(x => x < 0 ? null : blobs[x]).ToArray())));
+                continue;
+            }
+            var cIdx = e.C ?? Array.Empty<int>();
+            var declared = ChunkShas(e.M.ChunkSha256);
+            var chunks = new List<EvidenceChunkSpec>(cIdx.Length);
+            for (var i = 0; i < cIdx.Length; i++)
+            {
+                var bytes = blobs[cIdx[i]];
                 var sha = Sha256Hex(bytes);
                 if (i < declared.Length && !string.Equals(declared[i], sha, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException($"cpax chunk {i} of {e.M.EvidenceId} does not match its checksum");

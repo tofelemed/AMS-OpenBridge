@@ -22,11 +22,14 @@ public sealed class CpmEvidenceController : ControllerBase
     public const string CacheControl = "private, immutable, max-age=31536000";
     private readonly NpgsqlDataSource _db;
     private readonly IEvidenceBlobStore _store;
+    private readonly EvidenceTraceRehydrator? _traces;
 
-    public CpmEvidenceController([FromKeyedServices("cplm")] NpgsqlDataSource db, IEvidenceBlobStore store)
+    public CpmEvidenceController([FromKeyedServices("cplm")] NpgsqlDataSource db, IEvidenceBlobStore store,
+        EvidenceTraceRehydrator? traces = null)
     {
         _db = db;
         _store = store;
+        _traces = traces;
     }
 
     [HttpGet("{id:guid}/chunks/{n:int}")]
@@ -74,14 +77,24 @@ public sealed class CpmEvidenceController : ControllerBase
     private async Task<IActionResult?> ArchivedChunkAsync(Guid id, int n, CancellationToken ct)
     {
         await using var conn = await _db.OpenConnectionAsync(ct);
-        var artifact = await EvidenceArchiveReader.ArtifactAsync(conn, id, ct);
+        var artifact = await EvidenceArchiveReader.ArtifactAsync(conn, id, ct, _traces);
         if (artifact is null) return null;
         if (!SiteScope.Allows(Request, await EvidenceArchiveReader.SiteOfAsync(conn, id, byEvidenceId: true, ct)))
             return StatusCode(StatusCodes.Status403Forbidden, SiteScope.Forbidden(null));
+        // CHG-102 Phase 5b-2: a referenced trace that cannot be rebuilt now - 503 while the historian may answer later,
+        // 409 when its series no longer reproduces the archived checksum (never a 500; the rest of the set is unaffected)
+        if (artifact.Unavailable is { } f)
+        {
+            Response.Headers["X-Evidence-Source"] = "archive";
+            var body = new { error = f.Code, evidenceId = id, reason = f.Reason, retryable = f.Transient, reconstructable = true };
+            if (f.Transient) Response.Headers[HeaderNames.RetryAfter] = "60";
+            return StatusCode(f.Transient ? StatusCodes.Status503ServiceUnavailable : StatusCodes.Status409Conflict, body);
+        }
         var count = artifact.Manifest.ChunkCount;
         if (n < 0 || n >= count || n >= artifact.Chunks.Count)
             return NotFound(new { error = "CHUNK_OUT_OF_RANGE", evidenceId = id, chunk = n, chunkCount = count });
         Response.Headers["X-Evidence-Source"] = "archive";
+        if (artifact.Manifest.Provenance.Contains("\"trace_source\"", StringComparison.Ordinal)) Response.Headers["X-Evidence-Trace"] = "historian";
         return ChunkResult(artifact.Chunks[n], n, count);
     }
 

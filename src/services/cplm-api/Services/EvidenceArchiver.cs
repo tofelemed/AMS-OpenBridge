@@ -36,15 +36,20 @@ public sealed class EvidenceArchiver
     private readonly EvidenceArchiveOptions _opts;
     private readonly EvidenceArchiveStats _stats;
     private readonly ILogger? _log;
+    private readonly EvidenceTraceReferencer? _traces;
     private HashSet<Guid> _pendingLastPass = new();
     private DateTime? _lastPassUtc;
+    private int? _archiveDays;
 
-    public EvidenceArchiver(NpgsqlDataSource db, EvidenceArchiveOptions opts, EvidenceArchiveStats stats, ILogger? log = null)
+    /// <param name="traces">CHG-102 Phase 5b-2: verified raw-sample columns stored as historian references (null = all verbatim).</param>
+    public EvidenceArchiver(NpgsqlDataSource db, EvidenceArchiveOptions opts, EvidenceArchiveStats stats, ILogger? log = null,
+        EvidenceTraceReferencer? traces = null)
     {
         _db = db;
         _opts = opts;
         _stats = stats;
         _log = log;
+        _traces = traces;
     }
 
     private const string Uuid = "'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'";
@@ -97,6 +102,7 @@ public sealed class EvidenceArchiver
         {
             _stats.Installed = await EvidenceArchiveRetention.InstalledAsync(probe);
             if (!_stats.Installed) return new ArchivePassResult(false, 0, 0, 0, 0, 0, 0, 0, 0, null);
+            if (_traces is not null) _archiveDays = (await EvidenceArchiveRetention.PolicyAsync(probe)).Days;
         }
         int sets = 0, artifacts = 0, missing = 0, lost = 0, late = 0;
         long packBytes = 0, sourceBytes = 0;
@@ -201,8 +207,20 @@ public sealed class EvidenceArchiver
             if (m.Readiness == "COMPLETE" && EvidenceArchivePack.Verifies(m, own)) kept.Add(new ArchivedArtifact(m, own));
             else missing++;
         }
-        var pack = kept.Count > 0 ? EvidenceArchivePack.Pack(kept) : null;
         var sourceBytes = kept.Sum(a => a.Chunks.Sum(c => (long)c.Payload.Length));
+        // CHG-102 Phase 5b-2: raw-sample columns proven bit-identical to the historian become references (never fails the set)
+        IReadOnlyList<ArchivedArtifact> packed = kept;
+        if (_traces is not null && kept.Count > 0)
+        {
+            try { packed = await _traces.ApplyAsync(set.LoopId, kept, _archiveDays, ct); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _stats.Traces.OnInline(TraceInlineReason.Unavailable);
+                _log?.LogWarning(ex, "Evidence archive: trace references skipped for set {Set}; archived inline", set.SetId);
+            }
+        }
+        var pack = packed.Count > 0 ? EvidenceArchivePack.Pack(packed) : null;
+        var codec = EvidenceArchivePack.CodecFor(packed);
         if (pack is not null) await EvidenceArchiveRetention.EnsureDayAsync(conn, EvidenceArchiveRetention.DayOf(set.WindowEnd), _opts.LockTimeoutSeconds, ct);
 
         await using var tx = await conn.BeginTransactionAsync(ct);
@@ -234,7 +252,7 @@ public sealed class EvidenceArchiver
             cmd.Parameters.AddWithValue("end", set.WindowEnd);
             cmd.Parameters.AddWithValue("loopId", set.LoopId);
             cmd.Parameters.AddWithValue("kind", set.WindowKind);
-            cmd.Parameters.AddWithValue("codec", EvidenceArchivePack.Codec);
+            cmd.Parameters.AddWithValue("codec", codec);
             cmd.Parameters.AddWithValue("count", kept.Count);
             cmd.Parameters.AddWithValue("bytes", pack.Length);
             cmd.Parameters.AddWithValue("sha", EvidenceArchivePack.Sha256Hex(pack));

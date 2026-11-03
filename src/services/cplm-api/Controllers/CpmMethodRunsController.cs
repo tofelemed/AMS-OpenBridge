@@ -26,11 +26,12 @@ public sealed class CpmMethodRunsController : ControllerBase
     private readonly MethodRunResolver _resolver;
     private readonly EvidenceManifestReader _manifests;
 
-    public CpmMethodRunsController([FromKeyedServices("cplm")] NpgsqlDataSource db, MethodRunResolver resolver)
+    public CpmMethodRunsController([FromKeyedServices("cplm")] NpgsqlDataSource db, MethodRunResolver resolver,
+        EvidenceTraceRehydrator? traces = null)
     {
         _db = db;
         _resolver = resolver;
-        _manifests = new EvidenceManifestReader(resolver);
+        _manifests = new EvidenceManifestReader(resolver, traces);
     }
 
     [HttpGet("method-runs/{id:guid}")]

@@ -60,8 +60,15 @@ public sealed class EvidenceManifestReader
         """;
 
     private readonly MethodRunResolver _resolver;
+    private readonly EvidenceTraceRehydrator? _traces;
 
-    public EvidenceManifestReader(MethodRunResolver resolver) => _resolver = resolver;
+    /// <param name="traces">CHG-102 Phase 5b-2: rebuilds archived artifacts whose raw columns are historian references
+    /// (null = such artifacts read as unavailable).</param>
+    public EvidenceManifestReader(MethodRunResolver resolver, EvidenceTraceRehydrator? traces = null)
+    {
+        _resolver = resolver;
+        _traces = traces;
+    }
 
     /// <summary>The site the run belongs to: from the manifest's loop, else from the result row that carries the run.</summary>
     public async Task<string?> SiteOfAsync(NpgsqlConnection conn, Guid methodRunId, CancellationToken ct)
@@ -89,7 +96,7 @@ public sealed class EvidenceManifestReader
         var rowList = rows.ToList();
         Dictionary<Guid, IReadOnlyList<EvidenceChunkSpec>>? archived = null;
         if (rowList.All(r => (string)r.readiness == "EXPIRED")
-            && await EvidenceArchiveReader.ForMethodRunAsync(conn, methodRunId, ct) is { Count: > 0 } arch)
+            && await EvidenceArchiveReader.ForMethodRunAsync(conn, methodRunId, ct, _traces) is { Count: > 0 } arch)
         {
             rowList = arch.Select(a => (dynamic)a.Manifest.ToRow()).ToList();
             archived = arch.ToDictionary(a => a.Manifest.EvidenceId, a => a.Chunks);

@@ -227,8 +227,12 @@ public sealed class FleetKpiDailyTests : IClassFixture<KpiDailyCplmDb>, IAsyncLi
         var iran = PlantClock.Parse("IR");
         var re = await RunAsync(iran);
         (re.Computed + re.Recomputed).Should().Be(26, "every kept day is re-stored as an Iran day (one may be new if Tehran is a day ahead)");
+        // the Iran pass covers the kept Iran days; after 20:30 UTC Tehran is a day ahead, so the oldest UTC-stored day falls
+        // outside it and rightly keeps its UTC end
+        var iranFirst = iran.DayOf(DateTimeOffset.UtcNow).AddDays(-13);
         var runs = (await conn.QueryAsync<(string Day, DateTime AsOf)>(
-            "SELECT day::text, as_of FROM analytics.cplm_kpi_daily_run WHERE day > @d::date", new { d = old.ToString("yyyy-MM-dd") })).ToList();
+            "SELECT day::text, as_of FROM analytics.cplm_kpi_daily_run WHERE day >= @d::date", new { d = iranFirst.ToString("yyyy-MM-dd") })).ToList();
+        runs.Should().HaveCount(26, "13 Iran days x 2 windows");
         runs.Should().OnlyContain(r => new DateTimeOffset(DateTime.SpecifyKind(r.AsOf, DateTimeKind.Utc))
             == iran.DayEnd(DateOnly.ParseExact(r.Day, "yyyy-MM-dd")), "a day ends at 20:30 UTC (Tehran midnight)");
         runs.Should().OnlyContain(r => r.AsOf.TimeOfDay == new TimeSpan(20, 30, 0));

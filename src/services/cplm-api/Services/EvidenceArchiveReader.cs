@@ -18,23 +18,33 @@ public static class EvidenceArchiveReader
 {
     private const string UndefinedTable = "42P01";
 
-    /// <summary>The archived artifacts of one method run (pack order), or an empty list.</summary>
-    public static async Task<IReadOnlyList<ArchivedArtifact>> ForMethodRunAsync(NpgsqlConnection conn, Guid methodRunId, CancellationToken ct)
+    /// <summary>
+    /// The archived artifacts of one method run (pack order), or an empty list. CHG-102 Phase 5b-2: trace-form artifacts
+    /// are rebuilt from the historian through <paramref name="traces"/> (or come back unavailable without one).
+    /// </summary>
+    public static async Task<IReadOnlyList<ArchivedArtifact>> ForMethodRunAsync(NpgsqlConnection conn, Guid methodRunId, CancellationToken ct,
+        EvidenceTraceRehydrator? traces = null)
     {
         var set = await LocateAsync(conn, "method_run_ids", methodRunId, ct);
         if (set is null) return Array.Empty<ArchivedArtifact>();
         var all = await LoadAsync(conn, set.Value.SetId, set.Value.WindowEnd, ct);
-        return all.Where(a => a.Manifest.MethodRunId == methodRunId).ToList();
+        return await ResolveAsync(all.Where(a => a.Manifest.MethodRunId == methodRunId).ToList(), traces, ct);
     }
 
-    /// <summary>One archived artifact by evidence id, or null.</summary>
-    public static async Task<ArchivedArtifact?> ArtifactAsync(NpgsqlConnection conn, Guid evidenceId, CancellationToken ct)
+    /// <summary>One archived artifact by evidence id, or null (a trace-form one rebuilt, or marked unavailable).</summary>
+    public static async Task<ArchivedArtifact?> ArtifactAsync(NpgsqlConnection conn, Guid evidenceId, CancellationToken ct,
+        EvidenceTraceRehydrator? traces = null)
     {
         var set = await LocateAsync(conn, "evidence_ids", evidenceId, ct);
         if (set is null) return null;
         var all = await LoadAsync(conn, set.Value.SetId, set.Value.WindowEnd, ct);
-        return all.FirstOrDefault(a => a.Manifest.EvidenceId == evidenceId);
+        var one = all.FirstOrDefault(a => a.Manifest.EvidenceId == evidenceId);
+        return one is null ? null : (await ResolveAsync(new List<ArchivedArtifact> { one }, traces, ct))[0];
     }
+
+    private static async Task<IReadOnlyList<ArchivedArtifact>> ResolveAsync(List<ArchivedArtifact> list, EvidenceTraceRehydrator? traces,
+        CancellationToken ct) =>
+        traces is null ? list.Select(EvidenceTraceRehydrator.NotConfigured).ToList() : await traces.ResolveAllAsync(list, ct);
 
     /// <summary>The site of the loop an archived method run / evidence id belongs to (null when not archived or unsited).</summary>
     public static async Task<string?> SiteOfAsync(NpgsqlConnection conn, Guid id, bool byEvidenceId, CancellationToken ct)
@@ -95,7 +105,8 @@ public static class EvidenceArchiveReader
             WHERE boundary_set_id = @setId AND window_end = @windowEnd
             """, new { setId, windowEnd }, cancellationToken: ct));
         if (r is null) return new();       // the run row outlived its partition (a drop in progress): not archived any more
-        if ((string)r.codec != EvidenceArchivePack.Codec) throw new InvalidDataException($"evidence archive codec {(string)r.codec} is not supported");
+        // CHG-102 Phase 5b-2: cpax2 trace-form artifacts come back un-rebuilt (EvidenceTraceRehydrator serves them)
+        if ((string)r.codec is not (EvidenceArchivePack.Codec or EvidenceArchivePack.Codec2)) throw new InvalidDataException($"evidence archive codec {(string)r.codec} is not supported");
         var payload = (byte[])r.payload;
         if (!string.Equals(EvidenceArchivePack.Sha256Hex(payload), (string)r.payload_sha256, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException($"evidence archive pack {setId} does not match its checksum");

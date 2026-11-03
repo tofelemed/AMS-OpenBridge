@@ -19,12 +19,16 @@ public sealed class EvidenceArchiveJob : BackgroundService
     private DateTime _lastMissingLog = DateTime.MinValue;
 
     public EvidenceArchiveJob([FromKeyedServices("cplm")] NpgsqlDataSource db, IOptions<EvidenceArchiveOptions> options,
-        EvidenceArchiveStats stats, ILogger<EvidenceArchiveJob> logger)
+        EvidenceArchiveStats stats, ILogger<EvidenceArchiveJob> logger, IIotDbSeriesReader? series = null,
+        IOptions<IotDbWriteOptions>? iotdb = null)
     {
         _options = options.Value;
         _stats = stats;
         _logger = logger;
-        _archiver = new EvidenceArchiver(db, _options, stats, logger);
+        // CHG-102 Phase 5b-2: verify-then-reference of the raw-sample columns (Cplm:EvidenceArchive:TraceReferences)
+        var traces = iotdb is not null && _options.TraceReferencesFor(iotdb.Value.IsLayoutV2) && series is not null
+            ? new EvidenceTraceReferencer(series, _options, iotdb.Value.LoopRootPrefix, stats.Traces, logger) : null;
+        _archiver = new EvidenceArchiver(db, _options, stats, logger, traces);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

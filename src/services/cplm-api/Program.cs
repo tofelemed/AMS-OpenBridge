@@ -115,6 +115,16 @@ builder.Services.AddSingleton<Traverse.CplmApi.Services.IotDbWriteClient>();
 // CHG-102 Phase 3: tiered KPI / verdict history reads (Postgres hot window, IoTDB older; 5 s budget per read).
 builder.Services.AddHttpClient("IotDbRead");
 builder.Services.AddSingleton<Traverse.CplmApi.Services.IIotDbReader, Traverse.CplmApi.Services.IotDbReadClient>();
+// CHG-102 Phase 5b-2: archived evidence whose raw-sample columns are historian references - verified at archive time,
+// rebuilt and re-verified at read time (every instance serves reads; Cplm:EvidenceArchive binds here for both sides).
+builder.Services.Configure<Traverse.CplmApi.Services.EvidenceArchiveOptions>(o =>
+{
+    config.GetSection(Traverse.CplmApi.Services.EvidenceArchiveOptions.SectionName).Bind(o);
+    o.TransientHours = Math.Max(1, config.GetValue("Cplm:EvidenceTransientHours", 6));
+});
+builder.Services.AddSingleton<Traverse.CplmApi.Services.IIotDbSeriesReader, Traverse.CplmApi.Services.IotDbSeriesReader>();
+builder.Services.AddSingleton<Traverse.CplmApi.Services.EvidenceTraceReadStats>();
+builder.Services.AddSingleton<Traverse.CplmApi.Services.EvidenceTraceRehydrator>();
 builder.Services.AddSingleton<Traverse.CplmApi.Data.KpiHistoryReader>();
 // CHG-102: the plant day (Cpm:PlantTimeZone = local | UTC | IR | IANA id | +HH:MM). Resolved here so a bad value fails startup.
 builder.Services.AddSingleton(Traverse.CplmApi.Services.Kpi.PlantClock.From(config));
@@ -174,11 +184,7 @@ if (config.GetValue("Cplm:ConsumersEnabled", false))
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.FleetKpiDailyJob>();
     // CHG-102 Phase 5b-1: 12 h / 24 h boundary evidence sets packed into analytics.evidence_archive before the TRANSIENT
     // sweep (Cplm:EvidenceArchive:Enabled, default on; retention_policy EVIDENCE_ARCHIVE days + max_bytes).
-    builder.Services.Configure<Traverse.CplmApi.Services.EvidenceArchiveOptions>(o =>
-    {
-        config.GetSection(Traverse.CplmApi.Services.EvidenceArchiveOptions.SectionName).Bind(o);
-        o.TransientHours = Math.Max(1, config.GetValue("Cplm:EvidenceTransientHours", 6));
-    });
+    // (Cplm:EvidenceArchive options are bound above, for the read side as well - CHG-102 Phase 5b-2)
     builder.Services.AddSingleton<Traverse.CplmApi.Services.EvidenceArchiveStats>();
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.EvidenceArchiveJob>();
 }
@@ -289,12 +295,24 @@ app.MapGet("/health", async (
         };
         // CHG-102 Phase 5b-1: the boundary archive - behind / lost-to-sweep are what an operator must see
         var ea = sp.GetService<Traverse.CplmApi.Services.EvidenceArchiveStats>();
-        var evidenceArchive = ea is null ? null : new
+        // CHG-102 Phase 5b-2: trace references - archive side (this instance's archiver) and read side (rebuilds served here)
+        var tr = sp.GetService<Traverse.CplmApi.Services.EvidenceTraceReadStats>();
+        var traceOpts = sp.GetService<Microsoft.Extensions.Options.IOptions<Traverse.CplmApi.Services.EvidenceArchiveOptions>>()?.Value;
+        var traces = new
+        {
+            enabled = traceOpts?.TraceReferencesFor(sp.GetService<Microsoft.Extensions.Options.IOptions<Traverse.CplmApi.Services.IotDbWriteOptions>>()?.Value.IsLayoutV2 ?? false),
+            setting = traceOpts?.TraceReferences?.ToString() ?? "auto (on with IotDb:Layout v2)", historianRetentionDays = traceOpts?.HistorianRetentionDays,
+            referencedColumns = ea?.Traces.ReferencedColumns, referencedArtifacts = ea?.Traces.ReferencedArtifacts,
+            bytesSaved = ea?.Traces.BytesSaved, inlineByReason = ea?.Traces.InlineByReason,
+            rebuilt = tr?.Rebuilt, rebuildCacheHits = tr?.CacheHits, rebuildFailuresByReason = tr?.FailuresByReason,
+            lastRebuildFailure = tr?.LastFailure
+        };
+        var evidenceArchive = ea is null ? (object)new { traces } : new
         {
             enabled = ea.Enabled, installed = ea.Installed, lastPassUtc = ea.LastPassUtc, pendingSets = ea.PendingSets, behind = ea.Behind,
             archivedSets = ea.ArchivedSets, archivedArtifacts = ea.ArchivedArtifacts, missingArtifacts = ea.MissingArtifacts,
             lateArtifacts = ea.LateArtifacts, lostToSweep = ea.LostToSweep, packBytes = ea.PackBytes, sourceBytes = ea.SourceBytes,
-            archiveBytes = ea.ArchiveBytes, lastError = ea.LastError
+            archiveBytes = ea.ArchiveBytes, lastError = ea.LastError, traces
         };
         // STR-06: a partition split means another member is persisting half the
         // windows. The heartbeat cannot see this — both members look "RUNNING".
