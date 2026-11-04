@@ -152,9 +152,7 @@ export const Login: React.FC = () => {
           <p className="login__subtitle"> Control Loop Performance Management</p>
 
           <p className="login__notice">
-            <strong>Authorized use notice:</strong> Access is restricted to authorized
-            operators. All sessions, including failed attempts, are logged and monitored in
-            compliance with IEC 62443 security standards.
+            <strong>Authorized use only.</strong> Access is restricted to authorized operators.
           </p>
 
           <div className="login__field">
@@ -244,7 +242,7 @@ export const Login: React.FC = () => {
             disabled={submitting}
           >
             <ObiCommandLocked slot="leading-icon" className="login__submit-icon" />
-            {submitting ? 'Signing in…' : 'Secure sign in'}
+            {submitting ? 'Signing in…' : 'Sign in'}
           </ObcButton>
 
           {error && (
