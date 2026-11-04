@@ -12,7 +12,7 @@
 import React, { useMemo } from 'react';
 import type { CpmLoop } from '../../../../api/cpmApi';
 import { useCpmTrend, useLoopLastValues } from '../../../../hooks/useCpm';
-import { useLoopLive, qualityLabel } from '../../../../hooks/useLoopLive';
+import { useLoopLive, liveQuality } from '../../../../hooks/useLoopLive';
 import { FacetPill, STALE_LIVE_MS, liveSignalQuality } from '../../FacetPill';
 import { ageText } from './summaryText';
 import { loopSeries } from '../../../../utils/loopSeries';
@@ -135,7 +135,7 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
               evaluated window separately). */}
           <p className="cpm-copy cpm-source-line">
             {(() => {
-              const sq = liveSignalQuality(qualityLabel(live.quality ?? live.pv), live.lastSourceTs);
+              const sq = liveSignalQuality(liveQuality(live), live.lastSourceTs);
               return (
                 <FacetPill facet="signal" tone={live.hasData ? sq.tone : 'muted'}>
                   {live.hasData ? sq.text : 'No live publisher'}

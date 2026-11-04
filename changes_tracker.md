@@ -5095,3 +5095,15 @@ ams-open-2a / -3b / -e7.
 - the Overview queue and Loop Events selected rows are light, with readable text;
 - a click on a row body selects it;
 - Performance › Checks behind the result: no rows above the header when scrolled.
+
+## CHG-104 — Signal quality no longer read from the PV value (2026-11-05, release v2.8.0.2, frontend only)
+
+**Why.** With no quality metric, `qualityLabel(live.quality ?? live.pv)` passed the PV sample in, and its value was read as an OPC quality code. A PV of 45 showed BAD, 100 showed UNCERTAIN and 250 showed GOOD, whatever the signal was doing. Seen on Loop Explorer (Signal quality) and the Overview loop focus panel.
+
+**Fixed.** New `liveQuality(live)` uses the quality metric, else the PV sample's own quality field, and otherwise says UNKNOWN. A loop that was showing a wrong quality now shows its real one, or Unknown.
+
+**Tests.** `hooks/useLoopLive.test.ts`.
+
+**Services updated:** `ams-frontend` only. **No migration, no config.**
+
+**Script to run:** on branch `release/v2.8.0.2`: `python migration/deploy/build-release.py --release v2.8.0.2 --skip-jar`, then the generated VM steps (integrity, rollback image list, load the frontend image, `deploy.sh --prod`). Users: Ctrl+F5 once.

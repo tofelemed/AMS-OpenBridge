@@ -1,0 +1,11 @@
+# Release v2.8.0.2 - CHG-104 on top of v2.8.0.1 (plant v2.8.0.1 = 43d1948e, deployed 2026-10-16).
+# Consumed by: python migration/deploy/build-release.py --release v2.8.0.2 --skip-jar   (no Flink change: the jar is not rebuilt)
+#
+#   ams-frontend  CHG-104: signal quality is never read from the PV value. A PV of 45 showed BAD and 250 showed GOOD
+#                 on Loop Explorer and the Overview loop focus panel, whatever the signal was doing.
+#
+# Build from branch release/v2.8.0.2, NOT feat/v25-next-release: that head also carries the undeployed v2.9.0 frontend,
+# which needs the v2.9.0 backend. v2.9.0 gets this fix through feat/v25-next-release (71381316).
+#
+# No Flink swap, no job restart, no schema, no data step, no backend. Users: Ctrl+F5 once.
+ams-frontend
