@@ -5315,4 +5315,8 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Services updated:** `ams-frontend` only. **No migration, no config.**
 
-**Script to run:** release v2.8.0.2, built from the plant source (43d1948e) plus this fix on branch `release/v2.8.0.2`, not from this branch: its head also carries the undeployed v2.9.0 frontend. `python migration/deploy/build-release.py --release v2.8.0.2 --skip-jar`, then the generated VM steps. v2.9.0 gets the fix through this branch.
+**Script to run:** release v2.8.0.2, built from the plant source (43d1948e) plus this fix on branch `release/v2.8.0.2`, not from this branch: its head also carries the undeployed v2.9.0 frontend. `python migration/deploy/build-release.py --release v2.8.0.2 --skip-jar`, then the generated VM steps (integrity, rollback image list, load the frontend image, `deploy.sh --prod`). Users: Ctrl+F5 once. v2.9.0 gets the fix through this branch.
+
+**Built, not deployed:** `release-out/v2.8.0.2-20261104` (src-2ef184bb, 28/28 checksums, 34 MB). Checked on the plant source: tsc 0, lint 0, 530 tests.
+
+**Build trap.** `build-prod-images.py` wants the Flink jar on disk even for a frontend-only release, and a fresh worktree has none, so copy `src/flink/target/ams-flink-1.0-SNAPSHOT.jar` and `migration/.env` in first. The jar is not shipped.
