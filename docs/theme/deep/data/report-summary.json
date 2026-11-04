@@ -1,0 +1,111 @@
+{
+ "counts": {
+  "routes": 24,
+  "views": 24,
+  "panelsExpanded": 45,
+  "panelsListed": 114,
+  "overlayCaptures": 31,
+  "overlayTypes": 10,
+  "controlsRecorded": 1268,
+  "denied": 597,
+  "failed": 0
+ },
+ "recon": {
+  "reached": 22,
+  "event-driven or shared shell (session expiry, confirm, forbidden)": 7,
+  "data-dependent or beyond the crawl limit": 25,
+  "chart hover: sampled on Explorer and Historical only": 10,
+  "trigger on the deny-list": 6
+ },
+ "axeTotals": {
+  "day": {
+   "by": {
+    "critical": 46,
+    "serious": 494,
+    "moderate": 130,
+    "minor": 18
+   },
+   "rules": {
+    "color-contrast": 356,
+    "label-content-name-mismatch": 107,
+    "region": 96,
+    "aria-prohibited-attr": 30,
+    "landmark-unique": 16,
+    "aria-allowed-role": 15,
+    "button-name": 14,
+    "select-name": 13,
+    "heading-order": 10,
+    "label": 7,
+    "aria-allowed-attr": 6,
+    "aria-required-attr": 6
+   }
+  },
+  "night": {
+   "by": {
+    "critical": 46,
+    "serious": 386,
+    "moderate": 130,
+    "minor": 18
+   },
+   "rules": {
+    "color-contrast": 248,
+    "label-content-name-mismatch": 107,
+    "region": 96,
+    "aria-prohibited-attr": 30,
+    "landmark-unique": 16,
+    "aria-allowed-role": 15,
+    "button-name": 14,
+    "select-name": 13,
+    "heading-order": 10,
+    "label": 7,
+    "aria-allowed-attr": 6,
+    "aria-required-attr": 6
+   }
+  }
+ },
+ "trap": {
+  "overlays": 31,
+  "trapped": 6,
+  "focusStartsInside": 8,
+  "escCloses": 26
+ },
+ "reflowScroll": {
+  "1366x768": 0,
+  "1920x1080": 0,
+  "1280x800": 0,
+  "1024x768": 2,
+  "zoom200": 2
+ },
+ "reflowRoutes": 29,
+ "perf": {
+  "maxStable": 20323,
+  "maxReq": 13,
+  "totalLongTasks": 531,
+  "polling": [
+   "explorer:10",
+   "pipeline:5"
+  ]
+ },
+ "log": {
+  "blocked": 0,
+  "http429": 0,
+  "apiCalls": 633,
+  "pacedMs": 0,
+  "trigger": null
+ },
+ "walksLog": {
+  "blocked": [],
+  "http429": [],
+  "apiCalls": 224,
+  "pacedMs": 2507500,
+  "trigger": null
+ },
+ "reflowLog": {
+  "blocked": [],
+  "http429": [],
+  "apiCalls": 234,
+  "pacedMs": 279250,
+  "trigger": null
+ },
+ "statesBlocked": []
+}

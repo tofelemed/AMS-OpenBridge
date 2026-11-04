@@ -1,0 +1,209 @@
+/*
+ * Traverse Design System — semantic colour and geometry tokens
+ * Source: Traverse UI Design and Development Guide R01, 04 Nov 2026, pages 3–7.
+ * Naming: dotted path → --traverse-<path-with-hyphens>  (surface.panel → --traverse-surface-panel)
+ * Groups marked (ext) are this skill's extension of the guide's convention; reconcile with the
+ * Lead's tokens JSON when supplied.
+ * Verified: scripts/contrast.py — see contrast-report.md.
+ * Skill revision: R1.1 (2026-11-04) — base block no longer sets root font-size/font-family.
+ *
+ * Usage: set data-theme="day" or data-theme="night" on the themed root (<html>).
+ * Day is the initial default. Components consume tokens only.
+ */
+
+/* ---------- Theme-independent tokens ---------- */
+:root {
+  /* diag.* (ext) — NAMUR NE107 diagnostic categories; fixed across themes (guide p.4, p.16) */
+  --traverse-diag-f-fill: #D92D45;
+  --traverse-diag-f-text: #FFFFFF;
+  --traverse-diag-c-fill: #F79B4A;
+  --traverse-diag-c-text: #152238;
+  --traverse-diag-s-fill: #F7D75C;
+  --traverse-diag-s-text: #152238;
+  --traverse-diag-m-fill: #79B6FF;
+  --traverse-diag-m-text: #152238;
+
+  /* space.* (ext) — guide p.6 spacing scale */
+  --traverse-space-1: 4px;
+  --traverse-space-2: 8px;
+  --traverse-space-3: 12px;
+  --traverse-space-4: 16px;
+  --traverse-space-5: 20px;
+  --traverse-space-6: 24px;
+  --traverse-space-8: 32px;
+
+  /* radius.* (ext) */
+  --traverse-radius-panel: 12px;
+  --traverse-radius-control: 6px;
+
+  /* size.* (ext) — shell geometry, CSS px */
+  --traverse-size-sidebar-expanded: 220px;
+  --traverse-size-sidebar-rail: 64px;
+  --traverse-size-header: 64px;
+  --traverse-size-content-padding: 24px;
+  --traverse-size-panel-gap: 16px;
+  --traverse-size-panel-padding: 20px;
+  --traverse-size-control-min-height: 40px;
+  --traverse-size-row: 44px;
+  --traverse-size-row-compact: 40px;
+  --traverse-size-inspector-min: 320px;
+  --traverse-size-inspector-max: 400px;
+  --traverse-size-nav-indicator: 3px;
+
+  /* focus geometry (ext) — 2 px outline, 3 px gap, unclipped */
+  --traverse-focus-width: 2px;
+  --traverse-focus-offset: 3px;
+
+  /* type.* (ext) */
+  --traverse-type-body: 14px;
+  --traverse-type-key: 16px;
+  --traverse-type-page-title: 24px;
+  --traverse-type-section-title: 18px;
+  --traverse-type-metadata: 12px;
+  --traverse-font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --traverse-font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* breakpoints (ext) — informative; media queries cannot read custom properties */
+  --traverse-bp-rail: 1280px;
+  --traverse-bp-drawer: 1024px;
+}
+
+/* ---------- Day ---------- */
+:root,
+[data-theme="day"] {
+  color-scheme: light;
+
+  --traverse-surface-page: #F3F6FA;
+  --traverse-surface-panel: #FFFFFF;
+  --traverse-surface-raised: #E8EEF5;
+  --traverse-surface-hover: #E5ECF4;
+  --traverse-surface-selected: #DDF3F6;
+
+  --traverse-border-subtle: #D3DCE8;
+  --traverse-border-strong: #75879C;
+
+  --traverse-text-primary: #152238;
+  --traverse-text-secondary: #4B5D73;
+  --traverse-text-muted: #596B81; /* revised value; #60738A withdrawn (guide p.3) */
+
+  --traverse-action-primary: #006B83;
+  --traverse-action-hover: #00576B;
+  --traverse-action-active: #00485A;
+  --traverse-action-on: #FFFFFF;
+
+  --traverse-focus: #006B83;
+
+  --traverse-ai-fg: #6C45C0;
+  --traverse-ai-bg: #F0EAFB;
+
+  /* status.* (ext) — guide p.4 */
+  --traverse-status-danger-fg: #B42332;
+  --traverse-status-danger-bg: #FDECEE;
+  --traverse-status-warning-fg: #8A5700;
+  --traverse-status-warning-bg: #FFF3D6;
+  --traverse-status-success-fg: #16724A;
+  --traverse-status-success-bg: #E5F5ED;
+  --traverse-status-info-fg: #1764C0;
+  --traverse-status-info-bg: #E9F1FC;
+  --traverse-status-unknown-fg: #4B5D73;
+  --traverse-status-unknown-bg: #E8EEF5;
+
+  /* chart.* (ext) — guide p.5 */
+  --traverse-chart-series-1: #006B83;
+  --traverse-chart-series-2: #6C45C0;
+  --traverse-chart-series-3: #245EB8;
+  --traverse-chart-series-4: #9B3C82;
+  --traverse-chart-series-5: #53657B;
+  --traverse-chart-series-6: #277575;
+  --traverse-chart-grid: var(--traverse-border-subtle);
+  --traverse-chart-axis: var(--traverse-border-strong);
+  --traverse-chart-tick: var(--traverse-text-secondary);
+  --traverse-chart-cursor: var(--traverse-surface-hover);
+  --traverse-chart-tooltip-bg: var(--traverse-surface-panel);
+  --traverse-chart-tooltip-border: var(--traverse-border-strong);
+  --traverse-chart-tooltip-fg: var(--traverse-text-primary);
+
+  /* overlay (ext) — dialogs/drawers; page surface at 60 % */
+  --traverse-overlay: rgb(243 246 250 / 0.6);
+}
+
+/* ---------- Night ---------- */
+[data-theme="night"] {
+  color-scheme: dark;
+
+  --traverse-surface-page: #0B1220;
+  --traverse-surface-panel: #111C2E;
+  --traverse-surface-raised: #18263B;
+  --traverse-surface-hover: #213149;
+  --traverse-surface-selected: #143540;
+
+  --traverse-border-subtle: #2A3A52;
+  --traverse-border-strong: #6F849F;
+
+  --traverse-text-primary: #EAF1FA;
+  --traverse-text-secondary: #A8B7CC;
+  --traverse-text-muted: #8D9FB7;
+
+  --traverse-action-primary: #54D6E8;
+  --traverse-action-hover: #81E4F0;
+  --traverse-action-active: #33BACC;
+  --traverse-action-on: #0B1220;
+
+  --traverse-focus: #7CE8F4;
+
+  --traverse-ai-fg: #B8A4FF;
+  --traverse-ai-bg: #28213F;
+
+  --traverse-status-danger-fg: #FF7A85;
+  --traverse-status-danger-bg: #351E2B;
+  --traverse-status-warning-fg: #F5C451;
+  --traverse-status-warning-bg: #332A16;
+  --traverse-status-success-fg: #56D6A1;
+  --traverse-status-success-bg: #163329;
+  --traverse-status-info-fg: #7EB1FF;
+  --traverse-status-info-bg: #1B2D46;
+  --traverse-status-unknown-fg: #A8B7CC;
+  --traverse-status-unknown-bg: #18263B;
+
+  --traverse-chart-series-1: #54D6E8;
+  --traverse-chart-series-2: #B8A4FF;
+  --traverse-chart-series-3: #80ABFF;
+  --traverse-chart-series-4: #DFA6DE;
+  --traverse-chart-series-5: #9EAEC2;
+  --traverse-chart-series-6: #86D3D1;
+  --traverse-chart-grid: var(--traverse-border-subtle);
+  --traverse-chart-axis: var(--traverse-border-strong);
+  --traverse-chart-tick: var(--traverse-text-secondary);
+  --traverse-chart-cursor: var(--traverse-surface-hover);
+  --traverse-chart-tooltip-bg: var(--traverse-surface-panel);
+  --traverse-chart-tooltip-border: var(--traverse-border-strong);
+  --traverse-chart-tooltip-fg: var(--traverse-text-primary);
+
+  --traverse-overlay: rgb(11 18 32 / 0.6);
+}
+
+/* ---------- Base application of tokens ---------- */
+/* R1.1: colour only. Do not set font-size or font-family here: a 14px root rescales every
+   rem-based utility (sidebar, header, rows) in an existing Tailwind app. Typography and
+   geometry live in shadcn-bridge.geometry.css, applied only by an approved layout package. */
+html {
+  background: var(--traverse-surface-page);
+  color: var(--traverse-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: var(--traverse-focus-width) solid var(--traverse-focus);
+  outline-offset: var(--traverse-focus-offset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* Scrollbars follow the theme */
+* { scrollbar-color: var(--traverse-border-strong) var(--traverse-surface-page); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--traverse-surface-page); }
+::-webkit-scrollbar-thumb { background: var(--traverse-border-strong); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: var(--traverse-text-muted); }

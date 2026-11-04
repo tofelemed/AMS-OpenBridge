@@ -1,0 +1,1954 @@
+{
+ "log": {
+  "blocked": [],
+  "http429": [],
+  "apiCalls": 234,
+  "pacedMs": 279250,
+  "trigger": null
+ },
+ "result": {
+  "overview": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/overview.png",
+     "night": "night/1366x768/overview.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/overview.png",
+     "night": "night/1920x1080/overview.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/overview.png",
+     "night": "night/1280x800/overview.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/overview.png",
+     "night": "night/1024x768/overview.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/overview.png",
+     "night": "night/zoom200/overview.png"
+    }
+   }
+  },
+  "overview-loop": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/overview-loop.png",
+     "night": "night/1366x768/overview-loop.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/overview-loop.png",
+     "night": "night/1920x1080/overview-loop.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/overview-loop.png",
+     "night": "night/1280x800/overview-loop.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/overview-loop.png",
+     "night": "night/1024x768/overview-loop.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/overview-loop.png",
+     "night": "night/zoom200/overview-loop.png"
+    }
+   }
+  },
+  "performance": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/performance.png",
+     "night": "night/1366x768/performance.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/performance.png",
+     "night": "night/1920x1080/performance.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/performance.png",
+     "night": "night/1280x800/performance.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/performance.png",
+     "night": "night/1024x768/performance.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/performance.png",
+     "night": "night/zoom200/performance.png"
+    }
+   }
+  },
+  "events": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/events.png",
+     "night": "night/1366x768/events.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/events.png",
+     "night": "night/1920x1080/events.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 2,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/events.png",
+     "night": "night/1280x800/events.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 6,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/events.png",
+     "night": "night/1024x768/events.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 8,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/events.png",
+     "night": "night/zoom200/events.png"
+    }
+   }
+  },
+  "explorer": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/explorer.png",
+     "night": "night/1366x768/explorer.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/explorer.png",
+     "night": "night/1920x1080/explorer.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/explorer.png",
+     "night": "night/1280x800/explorer.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 1039,
+    "mainClientW": 824,
+    "horizontalScroll": true,
+    "elementsPastEdge": 7,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/explorer.png",
+     "night": "night/1024x768/explorer.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 971,
+    "mainClientW": 720,
+    "horizontalScroll": true,
+    "elementsPastEdge": 9,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/explorer.png",
+     "night": "night/zoom200/explorer.png"
+    }
+   }
+  },
+  "explorer-signals": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/explorer-signals.png",
+     "night": "night/1366x768/explorer-signals.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/explorer-signals.png",
+     "night": "night/1920x1080/explorer-signals.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/explorer-signals.png",
+     "night": "night/1280x800/explorer-signals.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/explorer-signals.png",
+     "night": "night/1024x768/explorer-signals.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/explorer-signals.png",
+     "night": "night/zoom200/explorer-signals.png"
+    }
+   }
+  },
+  "explorer-calculations": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/explorer-calculations.png",
+     "night": "night/1366x768/explorer-calculations.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/explorer-calculations.png",
+     "night": "night/1920x1080/explorer-calculations.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/explorer-calculations.png",
+     "night": "night/1280x800/explorer-calculations.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/explorer-calculations.png",
+     "night": "night/1024x768/explorer-calculations.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/explorer-calculations.png",
+     "night": "night/zoom200/explorer-calculations.png"
+    }
+   }
+  },
+  "explorer-relationships": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/explorer-relationships.png",
+     "night": "night/1366x768/explorer-relationships.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/explorer-relationships.png",
+     "night": "night/1920x1080/explorer-relationships.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/explorer-relationships.png",
+     "night": "night/1280x800/explorer-relationships.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/explorer-relationships.png",
+     "night": "night/1024x768/explorer-relationships.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/explorer-relationships.png",
+     "night": "night/zoom200/explorer-relationships.png"
+    }
+   }
+  },
+  "explorer-history": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/explorer-history.png",
+     "night": "night/1366x768/explorer-history.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/explorer-history.png",
+     "night": "night/1920x1080/explorer-history.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/explorer-history.png",
+     "night": "night/1280x800/explorer-history.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/explorer-history.png",
+     "night": "night/1024x768/explorer-history.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/explorer-history.png",
+     "night": "night/zoom200/explorer-history.png"
+    }
+   }
+  },
+  "historical": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/historical.png",
+     "night": "night/1366x768/historical.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/historical.png",
+     "night": "night/1920x1080/historical.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/historical.png",
+     "night": "night/1280x800/historical.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/historical.png",
+     "night": "night/1024x768/historical.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/historical.png",
+     "night": "night/zoom200/historical.png"
+    }
+   }
+  },
+  "investigation": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/investigation.png",
+     "night": "night/1366x768/investigation.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/investigation.png",
+     "night": "night/1920x1080/investigation.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/investigation.png",
+     "night": "night/1280x800/investigation.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/investigation.png",
+     "night": "night/1024x768/investigation.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/investigation.png",
+     "night": "night/zoom200/investigation.png"
+    }
+   }
+  },
+  "evidence": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/evidence.png",
+     "night": "night/1366x768/evidence.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/evidence.png",
+     "night": "night/1920x1080/evidence.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/evidence.png",
+     "night": "night/1280x800/evidence.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 954,
+    "mainClientW": 824,
+    "horizontalScroll": true,
+    "elementsPastEdge": 5,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/evidence.png",
+     "night": "night/1024x768/evidence.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 954,
+    "mainClientW": 720,
+    "horizontalScroll": true,
+    "elementsPastEdge": 7,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/evidence.png",
+     "night": "night/zoom200/evidence.png"
+    }
+   }
+  },
+  "replay": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/replay.png",
+     "night": "night/1366x768/replay.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/replay.png",
+     "night": "night/1920x1080/replay.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/replay.png",
+     "night": "night/1280x800/replay.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/replay.png",
+     "night": "night/1024x768/replay.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/replay.png",
+     "night": "night/zoom200/replay.png"
+    }
+   }
+  },
+  "windows": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/windows.png",
+     "night": "night/1366x768/windows.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/windows.png",
+     "night": "night/1920x1080/windows.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/windows.png",
+     "night": "night/1280x800/windows.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/windows.png",
+     "night": "night/1024x768/windows.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/windows.png",
+     "night": "night/zoom200/windows.png"
+    }
+   }
+  },
+  "calculations": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/calculations.png",
+     "night": "night/1366x768/calculations.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/calculations.png",
+     "night": "night/1920x1080/calculations.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/calculations.png",
+     "night": "night/1280x800/calculations.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/calculations.png",
+     "night": "night/1024x768/calculations.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/calculations.png",
+     "night": "night/zoom200/calculations.png"
+    }
+   }
+  },
+  "response": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/response.png",
+     "night": "night/1366x768/response.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/response.png",
+     "night": "night/1920x1080/response.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/response.png",
+     "night": "night/1280x800/response.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/response.png",
+     "night": "night/1024x768/response.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 9,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/response.png",
+     "night": "night/zoom200/response.png"
+    }
+   }
+  },
+  "registry": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/registry.png",
+     "night": "night/1366x768/registry.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/registry.png",
+     "night": "night/1920x1080/registry.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/registry.png",
+     "night": "night/1280x800/registry.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/registry.png",
+     "night": "night/1024x768/registry.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/registry.png",
+     "night": "night/zoom200/registry.png"
+    }
+   }
+  },
+  "config": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/config.png",
+     "night": "night/1366x768/config.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/config.png",
+     "night": "night/1920x1080/config.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/config.png",
+     "night": "night/1280x800/config.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/config.png",
+     "night": "night/1024x768/config.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/config.png",
+     "night": "night/zoom200/config.png"
+    }
+   }
+  },
+  "kpi": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/kpi.png",
+     "night": "night/1366x768/kpi.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/kpi.png",
+     "night": "night/1920x1080/kpi.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/kpi.png",
+     "night": "night/1280x800/kpi.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/kpi.png",
+     "night": "night/1024x768/kpi.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/kpi.png",
+     "night": "night/zoom200/kpi.png"
+    }
+   }
+  },
+  "pipeline": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/pipeline.png",
+     "night": "night/1366x768/pipeline.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/pipeline.png",
+     "night": "night/1920x1080/pipeline.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/pipeline.png",
+     "night": "night/1280x800/pipeline.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/pipeline.png",
+     "night": "night/1024x768/pipeline.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/pipeline.png",
+     "night": "night/zoom200/pipeline.png"
+    }
+   }
+  },
+  "governance": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 67,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/governance.png",
+     "night": "night/1366x768/governance.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 17,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/governance.png",
+     "night": "night/1920x1080/governance.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 67,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/governance.png",
+     "night": "night/1280x800/governance.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/governance.png",
+     "night": "night/1024x768/governance.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/governance.png",
+     "night": "night/zoom200/governance.png"
+    }
+   }
+  },
+  "trend": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/trend.png",
+     "night": "night/1366x768/trend.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/trend.png",
+     "night": "night/1920x1080/trend.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/trend.png",
+     "night": "night/1280x800/trend.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/trend.png",
+     "night": "night/1024x768/trend.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/trend.png",
+     "night": "night/zoom200/trend.png"
+    }
+   }
+  },
+  "admin-users": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/admin-users.png",
+     "night": "night/1366x768/admin-users.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/admin-users.png",
+     "night": "night/1920x1080/admin-users.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/admin-users.png",
+     "night": "night/1280x800/admin-users.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 106,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/admin-users.png",
+     "night": "night/1024x768/admin-users.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 168,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/admin-users.png",
+     "night": "night/zoom200/admin-users.png"
+    }
+   }
+  },
+  "admin-roles": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/admin-roles.png",
+     "night": "night/1366x768/admin-roles.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/admin-roles.png",
+     "night": "night/1920x1080/admin-roles.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/admin-roles.png",
+     "night": "night/1280x800/admin-roles.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/admin-roles.png",
+     "night": "night/1024x768/admin-roles.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/admin-roles.png",
+     "night": "night/zoom200/admin-roles.png"
+    }
+   }
+  },
+  "admin-data-sources": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/admin-data-sources.png",
+     "night": "night/1366x768/admin-data-sources.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/admin-data-sources.png",
+     "night": "night/1920x1080/admin-data-sources.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/admin-data-sources.png",
+     "night": "night/1280x800/admin-data-sources.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/admin-data-sources.png",
+     "night": "night/1024x768/admin-data-sources.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/admin-data-sources.png",
+     "night": "night/zoom200/admin-data-sources.png"
+    }
+   }
+  },
+  "admin-plant-model": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/admin-plant-model.png",
+     "night": "night/1366x768/admin-plant-model.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/admin-plant-model.png",
+     "night": "night/1920x1080/admin-plant-model.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/admin-plant-model.png",
+     "night": "night/1280x800/admin-plant-model.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/admin-plant-model.png",
+     "night": "night/1024x768/admin-plant-model.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/admin-plant-model.png",
+     "night": "night/zoom200/admin-plant-model.png"
+    }
+   }
+  },
+  "admin-aliases": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 1505,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/admin-aliases.png",
+     "night": "night/1366x768/admin-aliases.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/admin-aliases.png",
+     "night": "night/1920x1080/admin-aliases.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 1505,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/admin-aliases.png",
+     "night": "night/1280x800/admin-aliases.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 3008,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/admin-aliases.png",
+     "night": "night/1024x768/admin-aliases.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 3008,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/admin-aliases.png",
+     "night": "night/zoom200/admin-aliases.png"
+    }
+   }
+  },
+  "admin-audit": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/admin-audit.png",
+     "night": "night/1366x768/admin-audit.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/admin-audit.png",
+     "night": "night/1920x1080/admin-audit.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/admin-audit.png",
+     "night": "night/1280x800/admin-audit.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 131,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/admin-audit.png",
+     "night": "night/1024x768/admin-audit.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 232,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/admin-audit.png",
+     "night": "night/zoom200/admin-audit.png"
+    }
+   }
+  },
+  "admin-system": {
+   "1366x768": {
+    "vw": 1366,
+    "docScrollW": 1366,
+    "mainScrollW": 1166,
+    "mainClientW": 1166,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1366x768/admin-system.png",
+     "night": "night/1366x768/admin-system.png"
+    }
+   },
+   "1920x1080": {
+    "vw": 1920,
+    "docScrollW": 1920,
+    "mainScrollW": 1700,
+    "mainClientW": 1700,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 220,
+    "shots": {
+     "day": "day/1920x1080/admin-system.png",
+     "night": "night/1920x1080/admin-system.png"
+    }
+   },
+   "1280x800": {
+    "vw": 1280,
+    "docScrollW": 1280,
+    "mainScrollW": 1080,
+    "mainClientW": 1080,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1280x800/admin-system.png",
+     "night": "night/1280x800/admin-system.png"
+    }
+   },
+   "1024x768": {
+    "vw": 1024,
+    "docScrollW": 1024,
+    "mainScrollW": 824,
+    "mainClientW": 824,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 200,
+    "shots": {
+     "day": "day/1024x768/admin-system.png",
+     "night": "night/1024x768/admin-system.png"
+    }
+   },
+   "zoom200": {
+    "vw": 720,
+    "docScrollW": 720,
+    "mainScrollW": 720,
+    "mainClientW": 720,
+    "horizontalScroll": false,
+    "elementsPastEdge": 0,
+    "sidebarW": 0,
+    "shots": {
+     "day": "day/zoom200/admin-system.png",
+     "night": "night/zoom200/admin-system.png"
+    }
+   }
+  }
+ }
+}

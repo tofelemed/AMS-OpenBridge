@@ -1,0 +1,33 @@
+| Route | Current visible words | Projected | Change | Keep | Shorten | Move | Remove |
+|---|---|---|---|---|---|---|---|
+| admin-data-sources | 531 | 511 | −4 % | 52 | 0 | 0 | 2 |
+| explorer | 503 | 432 | −14 % | 131 | 6 | 2 | 1 |
+| events | 490 | 445 | −9 % | 68 | 2 | 1 | 0 |
+| evidence | 435 | 325 | −25 % | 98 | 6 | 2 | 0 |
+| performance | 431 | 386 | −10 % | 76 | 2 | 2 | 0 |
+| investigation | 410 | 353 | −14 % | 77 | 5 | 1 | 0 |
+| governance | 406 | 381 | −6 % | 89 | 1 | 1 | 0 |
+| registry | 397 | 316 | −20 % | 77 | 1 | 3 | 0 |
+| calculations | 378 | 239 | −37 % | 52 | 2 | 8 | 0 |
+| overview | 308 | 192 | −38 % | 52 | 8 | 1 | 0 |
+| replay | 270 | 192 | −29 % | 58 | 2 | 4 | 0 |
+| kpi | 263 | 96 | −63 % | 30 | 3 | 5 | 0 |
+| windows | 257 | 226 | −12 % | 26 | 3 | 1 | 0 |
+| pipeline | 248 | 189 | −24 % | 34 | 3 | 1 | 0 |
+| explorer-calculations | 201 | 174 | −13 % | 63 | 3 | 1 | 1 |
+| response | 187 | 99 | −47 % | 23 | 6 | 0 | 0 |
+| explorer-relationships | 178 | 145 | −19 % | 45 | 4 | 1 | 1 |
+| historical | 172 | 145 | −16 % | 52 | 2 | 2 | 0 |
+| explorer-history | 155 | 128 | −17 % | 40 | 3 | 1 | 1 |
+| config-bundles | 144 | 124 | −14 % | 30 | 1 | 0 | 1 |
+| explorer-signals | 142 | 115 | −19 % | 42 | 3 | 1 | 1 |
+| config-effective | 142 | 111 | −22 % | 43 | 1 | 1 | 1 |
+| admin-roles | 131 | 107 | −18 % | 73 | 0 | 1 | 1 |
+| admin-system | 114 | 87 | −24 % | 22 | 0 | 1 | 2 |
+| admin-plant-model | 110 | 68 | −38 % | 32 | 0 | 2 | 1 |
+| config | 88 | 72 | −18 % | 27 | 2 | 0 | 0 |
+| admin-audit | 79 | 54 | −32 % | 22 | 2 | 0 | 1 |
+| admin-aliases | 67 | 35 | −48 % | 16 | 0 | 1 | 1 |
+| login | 47 | 28 | −40 % | 8 | 4 | 0 | 0 |
+| admin-users | 40 | 32 | −20 % | 18 | 0 | 0 | 1 |
+| trend | 17 | 17 | −0 % | 13 | 0 | 0 | 0 |

@@ -372,3 +372,8 @@ cpm-validation-*.tar.gz
 /output/
 /src/flink/src/main/resources/git.properties
 scripts/validation/*-out/
+
+# CPA theme analysis: generated evidence, archived outside the repository (CPA-UI-PRM-004 step 0)
+docs/theme/**/screenshots/
+docs/theme/**/annotated/
+**/.tooling/

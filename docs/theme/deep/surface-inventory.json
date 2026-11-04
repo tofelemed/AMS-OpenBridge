@@ -1,0 +1,7643 @@
+{
+ "counts": {
+  "routes": 24,
+  "views": 24,
+  "panelsExpanded": 45,
+  "panelsListed": 114,
+  "overlayCaptures": 31,
+  "overlayTypes": 10,
+  "controlsRecorded": 1268,
+  "denied": 597,
+  "failed": 0
+ },
+ "source": {
+  "liveFiles": 308,
+  "routes": 48,
+  "liveRoutes": 26,
+  "sliceRedirects": 18,
+  "urlParams": 124,
+  "urlParamKeys": 39,
+  "urlDynamicKeyOps": 2,
+  "apiQueryWritesSkipped": 119,
+  "regions": 917,
+  "pageRootRegions": 45,
+  "overlays": 70,
+  "tooltips": 179,
+  "collapsibles": 28,
+  "clicks": 355,
+  "clicksStaticLabel": 275,
+  "clicksMutating": 30,
+  "toasts": 16,
+  "polling": 24,
+  "refetchIntervalInBackground": 0,
+  "queries": 82,
+  "queriesWithEndpoint": 82,
+  "mutations": 23,
+  "directCalls": 52,
+  "permissions": 78,
+  "mutatingControls": 49,
+  "denyUnresolved": 1,
+  "denyLabels": 84,
+  "deadComponents": 8,
+  "deadFiles": 2
+ },
+ "reconciliation": {
+  "reached": 22,
+  "event-driven or shared shell (session expiry, confirm, forbidden)": 7,
+  "data-dependent or beyond the crawl limit": 25,
+  "chart hover: sampled on Explorer and Historical only": 10,
+  "trigger on the deny-list": 6
+ },
+ "surfaces": [
+  {
+   "id": "R-01",
+   "type": "route",
+   "parent": null,
+   "slug": "overview",
+   "label": "Overview",
+   "trigger": null,
+   "url": "/cpm",
+   "screenshots": {
+    "day": "day/1440x1024/R-01--overview.png",
+    "night": "night/1440x1024/R-01--overview.png"
+   },
+   "full": {
+    "day": "day/1440x1024/R-01--overview--full.png",
+    "night": "night/1440x1024/R-01--overview--full.png"
+   },
+   "words": 310,
+   "wordsFirstViewport": 220,
+   "titleCount": 28,
+   "wordsOnOpen": null,
+   "requests": 5,
+   "idleApiPerMin": 0,
+   "panels": [
+    {
+     "title": "Operating picture · latest 12h results",
+     "words": 182
+    },
+    {
+     "title": "Priority queue",
+     "words": 64
+    },
+    {
+     "title": "Select a loop",
+     "words": 23
+    },
+    {
+     "title": "Top-priority finding",
+     "words": 21
+    },
+    {
+     "title": "Recent context",
+     "words": 34
+    },
+    {
+     "title": "Readiness",
+     "words": 57
+    }
+   ],
+   "controls": 12
+  },
+  {
+   "id": "V-01",
+   "type": "view",
+   "parent": null,
+   "slug": "overview-loop",
+   "label": "Overview: loop selected",
+   "trigger": null,
+   "url": "/cpm?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/V-01--overview-loop.png",
+    "night": "night/1440x1024/V-01--overview-loop.png"
+   },
+   "full": {},
+   "words": 341,
+   "wordsFirstViewport": 225,
+   "titleCount": 34,
+   "wordsOnOpen": null,
+   "requests": 6,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "Operating picture · latest 12h results",
+     "words": 182
+    },
+    {
+     "title": "Priority queue",
+     "words": 64
+    },
+    {
+     "title": "Reactor feed flow",
+     "words": 65
+    },
+    {
+     "title": "Top-priority finding",
+     "words": 21
+    },
+    {
+     "title": "Recent context",
+     "words": 34
+    },
+    {
+     "title": "Readiness",
+     "words": 57
+    }
+   ],
+   "controls": 18
+  },
+  {
+   "id": "O-001",
+   "type": "overlay",
+   "parent": "V-01",
+   "slug": null,
+   "label": "",
+   "trigger": {
+    "label": "Open analysis ›",
+    "kind": "button"
+   },
+   "url": "/cpm?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/O-001--overview-loop-cpm-modal-backdrop.png",
+    "night": "night/1440x1024/O-001--overview-loop-cpm-modal-backdrop.png"
+   },
+   "full": null,
+   "words": 0,
+   "wordsFirstViewport": 0,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "R-02",
+   "type": "route",
+   "parent": null,
+   "slug": "performance",
+   "label": "Performance",
+   "trigger": null,
+   "url": "/cpm/performance",
+   "screenshots": {
+    "day": "day/1440x1024/R-02--performance.png",
+    "night": "night/1440x1024/R-02--performance.png"
+   },
+   "full": {
+    "day": "day/1440x1024/R-02--performance--full.png",
+    "night": "night/1440x1024/R-02--performance--full.png"
+   },
+   "words": 437,
+   "wordsFirstViewport": 168,
+   "titleCount": 194,
+   "wordsOnOpen": null,
+   "requests": 1,
+   "idleApiPerMin": 0,
+   "panels": [
+    {
+     "title": "Calculation pathway",
+     "words": 1343
+    },
+    {
+     "title": "Opportunity ranking",
+     "words": 231
+    }
+   ],
+   "controls": 214
+  },
+  {
+   "id": "P-001",
+   "type": "panel",
+   "parent": "R-02",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "How to read this",
+    "kind": "expander"
+   },
+   "url": "/cpm/performance",
+   "screenshots": {
+    "day": "day/1440x1024/P-001--performance-how-to-read-this.png"
+   },
+   "full": null,
+   "words": 539,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 588,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "V-02",
+   "type": "view",
+   "parent": null,
+   "slug": "performance-matrix",
+   "label": "Performance: matrix",
+   "trigger": null,
+   "url": "/cpm/performance?view=matrix",
+   "screenshots": {
+    "day": "day/1440x1024/V-02--performance-matrix.png",
+    "night": "night/1440x1024/V-02--performance-matrix.png"
+   },
+   "full": {},
+   "words": 474,
+   "wordsFirstViewport": 168,
+   "titleCount": 538,
+   "wordsOnOpen": null,
+   "requests": 0,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "Calculation pathway",
+     "words": 1210
+    },
+    {
+     "title": "Opportunity ranking",
+     "words": 231
+    }
+   ],
+   "controls": 516
+  },
+  {
+   "id": "P-002",
+   "type": "panel",
+   "parent": "V-02",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "How to read this",
+    "kind": "expander"
+   },
+   "url": "/cpm/performance?view=matrix",
+   "screenshots": {
+    "day": "day/1440x1024/P-002--performance-matrix-how-to-read-this.png"
+   },
+   "full": null,
+   "words": 576,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 588,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "R-03",
+   "type": "route",
+   "parent": null,
+   "slug": "events",
+   "label": "Loop Events",
+   "trigger": null,
+   "url": "/cpm/events",
+   "screenshots": {
+    "day": "day/1440x1024/R-03--events.png",
+    "night": "night/1440x1024/R-03--events.png"
+   },
+   "full": {
+    "day": "day/1440x1024/R-03--events--full.png",
+    "night": "night/1440x1024/R-03--events--full.png"
+   },
+   "words": 490,
+   "wordsFirstViewport": 217,
+   "titleCount": 148,
+   "wordsOnOpen": null,
+   "requests": 4,
+   "idleApiPerMin": 0,
+   "panels": [
+    {
+     "title": "",
+     "words": 416
+    },
+    {
+     "title": "EVT-2231",
+     "words": 136
+    },
+    {
+     "title": "Fast conditions · G10 limit dwell / G11 freeze",
+     "words": 863
+    }
+   ],
+   "controls": 57
+  },
+  {
+   "id": "R-04",
+   "type": "route",
+   "parent": null,
+   "slug": "explorer",
+   "label": "Explorer: Summary",
+   "trigger": null,
+   "url": "/cpm/explorer?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/R-04--explorer.png",
+    "night": "night/1440x1024/R-04--explorer.png"
+   },
+   "full": {
+    "day": "day/1440x1024/R-04--explorer--full.png",
+    "night": "night/1440x1024/R-04--explorer--full.png"
+   },
+   "words": 485,
+   "wordsFirstViewport": 161,
+   "titleCount": 48,
+   "wordsOnOpen": null,
+   "requests": 8,
+   "idleApiPerMin": 10,
+   "panels": [
+    {
+     "title": "",
+     "words": 3
+    },
+    {
+     "title": "Reactor feed flow",
+     "words": 566
+    }
+   ],
+   "controls": 45
+  },
+  {
+   "id": "P-003",
+   "type": "panel",
+   "parent": "R-04",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Expand loop list",
+    "kind": "button"
+   },
+   "url": "/cpm/explorer?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/P-003--explorer-expand-loop-list.png"
+   },
+   "full": null,
+   "words": 619,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 2209,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "O-002",
+   "type": "overlay",
+   "parent": "R-04",
+   "slug": null,
+   "label": "",
+   "trigger": {
+    "label": "INSTRUMENT HEALTH Limited",
+    "kind": "expander"
+   },
+   "url": "/cpm/explorer?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/O-002--explorer-cpm-health-drawer.png",
+    "night": "night/1440x1024/O-002--explorer-cpm-health-drawer.png"
+   },
+   "full": null,
+   "words": 60,
+   "wordsFirstViewport": 60,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "P-004",
+   "type": "panel",
+   "parent": "R-04",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Not producing verdicts 3 to fix · 1 blocking ▸",
+    "kind": "expander"
+   },
+   "url": "/cpm/explorer?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/P-004--explorer-not-producing-verdicts-3-to-fi.png"
+   },
+   "full": null,
+   "words": 556,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 458,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "V-03",
+   "type": "view",
+   "parent": null,
+   "slug": "explorer-signals",
+   "label": "Explorer: Signals",
+   "trigger": null,
+   "url": "/cpm/explorer?loop=FIC10302&tab=Signals",
+   "screenshots": {
+    "day": "day/1440x1024/V-03--explorer-signals.png",
+    "night": "night/1440x1024/V-03--explorer-signals.png"
+   },
+   "full": {},
+   "words": 213,
+   "wordsFirstViewport": 213,
+   "titleCount": 5,
+   "wordsOnOpen": null,
+   "requests": 0,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "",
+     "words": 3
+    },
+    {
+     "title": "Reactor feed flow",
+     "words": 210
+    }
+   ],
+   "controls": 12
+  },
+  {
+   "id": "P-005",
+   "type": "panel",
+   "parent": "V-03",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Expand loop list",
+    "kind": "button"
+   },
+   "url": "/cpm/explorer?loop=FIC10302&tab=Signals",
+   "screenshots": {
+    "day": "day/1440x1024/P-005--explorer-signals-expand-loop-list.png"
+   },
+   "full": null,
+   "words": 347,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 2209,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "O-003",
+   "type": "overlay",
+   "parent": "V-03",
+   "slug": null,
+   "label": "",
+   "trigger": {
+    "label": "INSTRUMENT HEALTH Limited",
+    "kind": "expander"
+   },
+   "url": "/cpm/explorer?loop=FIC10302&tab=Signals",
+   "screenshots": {
+    "day": "day/1440x1024/O-003--explorer-signals-cpm-health-drawer.png",
+    "night": "night/1440x1024/O-003--explorer-signals-cpm-health-drawer.png"
+   },
+   "full": null,
+   "words": 60,
+   "wordsFirstViewport": 60,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "V-04",
+   "type": "view",
+   "parent": null,
+   "slug": "explorer-calculations",
+   "label": "Explorer: Calculations",
+   "trigger": null,
+   "url": "/cpm/explorer?loop=FIC10302&tab=Calculations",
+   "screenshots": {
+    "day": "day/1440x1024/V-04--explorer-calculations.png",
+    "night": "night/1440x1024/V-04--explorer-calculations.png"
+   },
+   "full": {},
+   "words": 194,
+   "wordsFirstViewport": 147,
+   "titleCount": 5,
+   "wordsOnOpen": null,
+   "requests": 0,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "",
+     "words": 3
+    },
+    {
+     "title": "Reactor feed flow",
+     "words": 255
+    }
+   ],
+   "controls": 26
+  },
+  {
+   "id": "P-006",
+   "type": "panel",
+   "parent": "V-04",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Expand loop list",
+    "kind": "button"
+   },
+   "url": "/cpm/explorer?loop=FIC10302&tab=Calculations",
+   "screenshots": {
+    "day": "day/1440x1024/P-006--explorer-calculations-expand-loop-list.png"
+   },
+   "full": null,
+   "words": 328,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 2209,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "O-004",
+   "type": "overlay",
+   "parent": "V-04",
+   "slug": null,
+   "label": "",
+   "trigger": {
+    "label": "INSTRUMENT HEALTH Limited",
+    "kind": "expander"
+   },
+   "url": "/cpm/explorer?loop=FIC10302&tab=Calculations",
+   "screenshots": {
+    "day": "day/1440x1024/O-004--explorer-calculations-cpm-health-drawer.png",
+    "night": "night/1440x1024/O-004--explorer-calculations-cpm-health-drawer.png"
+   },
+   "full": null,
+   "words": 60,
+   "wordsFirstViewport": 60,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "P-007",
+   "type": "panel",
+   "parent": "V-04",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Not producing verdicts 3 to fix · 1 blocking ▸",
+    "kind": "expander"
+   },
+   "url": "/cpm/explorer?loop=FIC10302&tab=Calculations",
+   "screenshots": {
+    "day": "day/1440x1024/P-007--explorer-calculations-not-producing-verdicts-3-to-fi.png"
+   },
+   "full": null,
+   "words": 265,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 458,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "V-05",
+   "type": "view",
+   "parent": null,
+   "slug": "explorer-relationships",
+   "label": "Explorer: Relationships",
+   "trigger": null,
+   "url": "/cpm/explorer?loop=G13_LOOP_A&tab=Relationships",
+   "screenshots": {
+    "day": "day/1440x1024/V-05--explorer-relationships.png",
+    "night": "night/1440x1024/V-05--explorer-relationships.png"
+   },
+   "full": {},
+   "words": 154,
+   "wordsFirstViewport": 154,
+   "titleCount": 5,
+   "wordsOnOpen": null,
+   "requests": 4,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "",
+     "words": 3
+    },
+    {
+     "title": "G13_LOOP_A",
+     "words": 151
+    }
+   ],
+   "controls": 8
+  },
+  {
+   "id": "P-008",
+   "type": "panel",
+   "parent": "V-05",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Expand loop list",
+    "kind": "button"
+   },
+   "url": "/cpm/explorer?loop=G13_LOOP_A&tab=Relationships",
+   "screenshots": {
+    "day": "day/1440x1024/P-008--explorer-relationships-expand-loop-list.png"
+   },
+   "full": null,
+   "words": 251,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 1705,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "O-005",
+   "type": "overlay",
+   "parent": "V-05",
+   "slug": null,
+   "label": "",
+   "trigger": {
+    "label": "INSTRUMENT HEALTH Not configured · not checked",
+    "kind": "expander"
+   },
+   "url": "/cpm/explorer?loop=G13_LOOP_A&tab=Relationships",
+   "screenshots": {
+    "day": "day/1440x1024/O-005--explorer-relationships-cpm-health-drawer.png",
+    "night": "night/1440x1024/O-005--explorer-relationships-cpm-health-drawer.png"
+   },
+   "full": null,
+   "words": 32,
+   "wordsFirstViewport": 32,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "P-009",
+   "type": "panel",
+   "parent": "V-05",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Not producing verdicts 2 to fix · 1 blocking ▸",
+    "kind": "expander"
+   },
+   "url": "/cpm/explorer?loop=G13_LOOP_A&tab=Relationships",
+   "screenshots": {
+    "day": "day/1440x1024/P-009--explorer-relationships-not-producing-verdicts-2-to-fi.png"
+   },
+   "full": null,
+   "words": 198,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 272,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "V-06",
+   "type": "view",
+   "parent": null,
+   "slug": "explorer-history",
+   "label": "Explorer: History",
+   "trigger": null,
+   "url": "/cpm/explorer?loop=FIC10302&tab=History",
+   "screenshots": {
+    "day": "day/1440x1024/V-06--explorer-history.png",
+    "night": "night/1440x1024/V-06--explorer-history.png"
+   },
+   "full": {},
+   "words": 243,
+   "wordsFirstViewport": 204,
+   "titleCount": 5,
+   "wordsOnOpen": null,
+   "requests": 4,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "",
+     "words": 3
+    },
+    {
+     "title": "Reactor feed flow",
+     "words": 273
+    }
+   ],
+   "controls": 19
+  },
+  {
+   "id": "P-010",
+   "type": "panel",
+   "parent": "V-06",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Expand loop list",
+    "kind": "button"
+   },
+   "url": "/cpm/explorer?loop=FIC10302&tab=History",
+   "screenshots": {
+    "day": "day/1440x1024/P-010--explorer-history-expand-loop-list.png"
+   },
+   "full": null,
+   "words": 377,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 2209,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "O-006",
+   "type": "overlay",
+   "parent": "V-06",
+   "slug": null,
+   "label": "",
+   "trigger": {
+    "label": "INSTRUMENT HEALTH Limited",
+    "kind": "expander"
+   },
+   "url": "/cpm/explorer?loop=FIC10302&tab=History",
+   "screenshots": {
+    "day": "day/1440x1024/O-006--explorer-history-cpm-health-drawer.png",
+    "night": "night/1440x1024/O-006--explorer-history-cpm-health-drawer.png"
+   },
+   "full": null,
+   "words": 60,
+   "wordsFirstViewport": 60,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "P-011",
+   "type": "panel",
+   "parent": "V-06",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "▸ 6 episodes",
+    "kind": "expander"
+   },
+   "url": "/cpm/explorer?loop=FIC10302&tab=History",
+   "screenshots": {
+    "day": "day/1440x1024/P-011--explorer-history--6-episodes.png"
+   },
+   "full": null,
+   "words": 208,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 536,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "P-012",
+   "type": "panel",
+   "parent": "V-06",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "▸ 2 episodes",
+    "kind": "expander"
+   },
+   "url": "/cpm/explorer?loop=FIC10302&tab=History",
+   "screenshots": {
+    "day": "day/1440x1024/P-012--explorer-history--2-episodes.png"
+   },
+   "full": null,
+   "words": 184,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 190,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "P-013",
+   "type": "panel",
+   "parent": "V-06",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "▸ 4 episodes",
+    "kind": "expander"
+   },
+   "url": "/cpm/explorer?loop=FIC10302&tab=History",
+   "screenshots": {
+    "day": "day/1440x1024/P-013--explorer-history--4-episodes.png"
+   },
+   "full": null,
+   "words": 196,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 384,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "R-05",
+   "type": "route",
+   "parent": null,
+   "slug": "historical",
+   "label": "Historical",
+   "trigger": null,
+   "url": "/cpm/historical?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/R-05--historical.png",
+    "night": "night/1440x1024/R-05--historical.png"
+   },
+   "full": {
+    "day": "day/1440x1024/R-05--historical--full.png",
+    "night": "night/1440x1024/R-05--historical--full.png"
+   },
+   "words": 164,
+   "wordsFirstViewport": 131,
+   "titleCount": 10,
+   "wordsOnOpen": null,
+   "requests": 6,
+   "idleApiPerMin": 0,
+   "panels": [
+    {
+     "title": "One time axis",
+     "words": 165
+    },
+    {
+     "title": "Selected period",
+     "words": 31
+    }
+   ],
+   "controls": 27
+  },
+  {
+   "id": "O-007",
+   "type": "overlay",
+   "parent": "R-05",
+   "slug": null,
+   "label": "Control loop",
+   "trigger": {
+    "label": "",
+    "kind": "expander"
+   },
+   "url": "/cpm/historical?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/O-007--historical-control-loop.png",
+    "night": "night/1440x1024/O-007--historical-control-loop.png"
+   },
+   "full": null,
+   "words": 1053,
+   "wordsFirstViewport": 44,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "O-008",
+   "type": "overlay",
+   "parent": "R-05",
+   "slug": null,
+   "label": "Control loop",
+   "trigger": {
+    "label": "Open the loop list",
+    "kind": "button"
+   },
+   "url": "/cpm/historical?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/O-008--historical-control-loop.png",
+    "night": "night/1440x1024/O-008--historical-control-loop.png"
+   },
+   "full": null,
+   "words": 1053,
+   "wordsFirstViewport": 44,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "P-014",
+   "type": "panel",
+   "parent": "R-05",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Signal samples (CSV)",
+    "kind": "button"
+   },
+   "url": "/cpm/historical?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/P-014--historical-signal-samples-csv-.png"
+   },
+   "full": null,
+   "words": 162,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 0,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "R-06",
+   "type": "route",
+   "parent": null,
+   "slug": "investigation",
+   "label": "Investigation",
+   "trigger": null,
+   "url": "/cpm/investigation?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/R-06--investigation.png",
+    "night": "night/1440x1024/R-06--investigation.png"
+   },
+   "full": {
+    "day": "day/1440x1024/R-06--investigation--full.png",
+    "night": "night/1440x1024/R-06--investigation--full.png"
+   },
+   "words": 403,
+   "wordsFirstViewport": 172,
+   "titleCount": 20,
+   "wordsOnOpen": null,
+   "requests": 12,
+   "idleApiPerMin": 0,
+   "panels": [
+    {
+     "title": "Final conclusion",
+     "words": 68
+    },
+    {
+     "title": "Key facts",
+     "words": 76
+    },
+    {
+     "title": "Evidence",
+     "words": 42
+    },
+    {
+     "title": "",
+     "words": 8
+    },
+    {
+     "title": "",
+     "words": 7
+    },
+    {
+     "title": "Window browser",
+     "words": 84
+    },
+    {
+     "title": "Record it",
+     "words": 730
+    }
+   ],
+   "controls": 16
+  },
+  {
+   "id": "P-015",
+   "type": "panel",
+   "parent": "R-06",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Change ▾",
+    "kind": "expander"
+   },
+   "url": "/cpm/investigation?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/P-015--investigation-change-.png"
+   },
+   "full": null,
+   "words": 450,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 396,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "P-016",
+   "type": "panel",
+   "parent": "R-06",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Advanced — engine trace (raw codes)",
+    "kind": "expander"
+   },
+   "url": "/cpm/investigation?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/P-016--investigation-advanced-engine-trace-raw-code.png"
+   },
+   "full": null,
+   "words": 450,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 101,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "P-017",
+   "type": "panel",
+   "parent": "R-06",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Fit to data",
+    "kind": "toggle"
+   },
+   "url": "/cpm/investigation?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/P-017--investigation-fit-to-data.png"
+   },
+   "full": null,
+   "words": 403,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 0,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "P-018",
+   "type": "panel",
+   "parent": "R-06",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Zoom area",
+    "kind": "button"
+   },
+   "url": "/cpm/investigation?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/P-018--investigation-zoom-area.png"
+   },
+   "full": null,
+   "words": 404,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 5,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "R-07",
+   "type": "route",
+   "parent": null,
+   "slug": "evidence",
+   "label": "Evidence Workbench",
+   "trigger": null,
+   "url": "/cpm/evidence?loop=FIC10302&methodRun=276279a3-e8d2-570c-b50f-5569c01dff63&gate=G15&mode=FIXED",
+   "screenshots": {
+    "day": "day/1440x1024/R-07--evidence.png",
+    "night": "night/1440x1024/R-07--evidence.png"
+   },
+   "full": {
+    "day": "day/1440x1024/R-07--evidence--full.png",
+    "night": "night/1440x1024/R-07--evidence--full.png"
+   },
+   "words": 413,
+   "wordsFirstViewport": 193,
+   "titleCount": 23,
+   "wordsOnOpen": null,
+   "requests": 2,
+   "idleApiPerMin": 0,
+   "panels": [
+    {
+     "title": "Verdict",
+     "words": 16
+    },
+    {
+     "title": "",
+     "words": 21
+    },
+    {
+     "title": "Observability",
+     "words": 11
+    },
+    {
+     "title": "Explain",
+     "words": 152
+    }
+   ],
+   "controls": 22
+  },
+  {
+   "id": "P-019",
+   "type": "panel",
+   "parent": "R-07",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Change ▾",
+    "kind": "expander"
+   },
+   "url": "/cpm/evidence?loop=FIC10302&methodRun=276279a3-e8d2-570c-b50f-5569c01dff63&gate=G15&mode=FIXED",
+   "screenshots": {
+    "day": "day/1440x1024/P-019--evidence-change-.png"
+   },
+   "full": null,
+   "words": 470,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 7919,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "P-020",
+   "type": "panel",
+   "parent": "R-07",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Hide explain",
+    "kind": "button"
+   },
+   "url": "/cpm/evidence?loop=FIC10302&methodRun=276279a3-e8d2-570c-b50f-5569c01dff63&gate=G15&mode=FIXED",
+   "screenshots": {
+    "day": "day/1440x1024/P-020--evidence-hide-explain.png"
+   },
+   "full": null,
+   "words": 263,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 0,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "R-08",
+   "type": "route",
+   "parent": null,
+   "slug": "replay",
+   "label": "Evidence Replay",
+   "trigger": null,
+   "url": "/cpm/replay?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/R-08--replay.png",
+    "night": "night/1440x1024/R-08--replay.png"
+   },
+   "full": {
+    "day": "day/1440x1024/R-08--replay--full.png",
+    "night": "night/1440x1024/R-08--replay--full.png"
+   },
+   "words": 271,
+   "wordsFirstViewport": 126,
+   "titleCount": 3,
+   "wordsOnOpen": null,
+   "requests": 6,
+   "idleApiPerMin": 0,
+   "panels": [
+    {
+     "title": "",
+     "words": 1319
+    },
+    {
+     "title": "Summary",
+     "words": 61
+    },
+    {
+     "title": "Re-run",
+     "words": 35
+    },
+    {
+     "title": "Record it",
+     "words": 730
+    }
+   ],
+   "controls": 8
+  },
+  {
+   "id": "O-009",
+   "type": "overlay",
+   "parent": "R-08",
+   "slug": null,
+   "label": "Control loop",
+   "trigger": {
+    "label": "",
+    "kind": "expander"
+   },
+   "url": "/cpm/replay?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/O-009--replay-control-loop.png",
+    "night": "night/1440x1024/O-009--replay-control-loop.png"
+   },
+   "full": null,
+   "words": 1053,
+   "wordsFirstViewport": 44,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "O-010",
+   "type": "overlay",
+   "parent": "R-08",
+   "slug": null,
+   "label": "Control loop",
+   "trigger": {
+    "label": "Open the loop list",
+    "kind": "button"
+   },
+   "url": "/cpm/replay?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/O-010--replay-control-loop.png",
+    "night": "night/1440x1024/O-010--replay-control-loop.png"
+   },
+   "full": null,
+   "words": 1053,
+   "wordsFirstViewport": 44,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "P-021",
+   "type": "panel",
+   "parent": "R-08",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Zoom area",
+    "kind": "button"
+   },
+   "url": "/cpm/replay?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/P-021--replay-zoom-area.png"
+   },
+   "full": null,
+   "words": 272,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 5,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "R-09",
+   "type": "route",
+   "parent": null,
+   "slug": "windows",
+   "label": "Window Inspector",
+   "trigger": null,
+   "url": "/cpm/windows?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/R-09--windows.png",
+    "night": "night/1440x1024/R-09--windows.png"
+   },
+   "full": {
+    "day": "day/1440x1024/R-09--windows--full.png",
+    "night": "night/1440x1024/R-09--windows--full.png"
+   },
+   "words": 255,
+   "wordsFirstViewport": 147,
+   "titleCount": 144,
+   "wordsOnOpen": null,
+   "requests": 4,
+   "idleApiPerMin": 0,
+   "panels": [
+    {
+     "title": "Emitted windows",
+     "words": 519
+    }
+   ],
+   "controls": 28
+  },
+  {
+   "id": "O-011",
+   "type": "overlay",
+   "parent": "R-09",
+   "slug": null,
+   "label": "Control loop",
+   "trigger": {
+    "label": "",
+    "kind": "expander"
+   },
+   "url": "/cpm/windows?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/O-011--windows-control-loop.png",
+    "night": "night/1440x1024/O-011--windows-control-loop.png"
+   },
+   "full": null,
+   "words": 1053,
+   "wordsFirstViewport": 44,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "O-012",
+   "type": "overlay",
+   "parent": "R-09",
+   "slug": null,
+   "label": "Control loop",
+   "trigger": {
+    "label": "Open the loop list",
+    "kind": "button"
+   },
+   "url": "/cpm/windows?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/O-012--windows-control-loop.png",
+    "night": "night/1440x1024/O-012--windows-control-loop.png"
+   },
+   "full": null,
+   "words": 1053,
+   "wordsFirstViewport": 44,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "R-10",
+   "type": "route",
+   "parent": null,
+   "slug": "calculations",
+   "label": "Calculations",
+   "trigger": null,
+   "url": "/cpm/calculations?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/R-10--calculations.png",
+    "night": "night/1440x1024/R-10--calculations.png"
+   },
+   "full": {
+    "day": "day/1440x1024/R-10--calculations--full.png",
+    "night": "night/1440x1024/R-10--calculations--full.png"
+   },
+   "words": 376,
+   "wordsFirstViewport": 177,
+   "titleCount": 26,
+   "wordsOnOpen": null,
+   "requests": 3,
+   "idleApiPerMin": 0,
+   "panels": [
+    {
+     "title": "1 · Loop",
+     "words": 34
+    },
+    {
+     "title": "",
+     "words": 450
+    }
+   ],
+   "controls": 21
+  },
+  {
+   "id": "P-022",
+   "type": "panel",
+   "parent": "R-10",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Change ▾",
+    "kind": "expander"
+   },
+   "url": "/cpm/calculations?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/P-022--calculations-change-.png"
+   },
+   "full": null,
+   "words": 392,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 206,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "P-023",
+   "type": "panel",
+   "parent": "R-10",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "ID, sorted ascending",
+    "kind": "button"
+   },
+   "url": "/cpm/calculations?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/P-023--calculations-id-sorted-ascending.png"
+   },
+   "full": null,
+   "words": 360,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 0,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "P-024",
+   "type": "panel",
+   "parent": "R-10",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Sort by Calculation / parameter",
+    "kind": "button"
+   },
+   "url": "/cpm/calculations?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/P-024--calculations-sort-by-calculation-parameter.png"
+   },
+   "full": null,
+   "words": 386,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 115,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "P-025",
+   "type": "panel",
+   "parent": "R-10",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Sort by Gate",
+    "kind": "button"
+   },
+   "url": "/cpm/calculations?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/P-025--calculations-sort-by-gate.png"
+   },
+   "full": null,
+   "words": 392,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 5,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "O-013",
+   "type": "overlay",
+   "parent": "R-10",
+   "slug": null,
+   "label": "",
+   "trigger": {
+    "label": "CPLM-001 Sample completeness Fraction of expected samples present in the window. G0 Insuff",
+    "kind": "button"
+   },
+   "url": "/cpm/calculations?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/O-013--calculations-cpm-modal-backdrop.png",
+    "night": "night/1440x1024/O-013--calculations-cpm-modal-backdrop.png"
+   },
+   "full": null,
+   "words": 0,
+   "wordsFirstViewport": 0,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "O-014",
+   "type": "overlay",
+   "parent": "R-10",
+   "slug": null,
+   "label": "",
+   "trigger": {
+    "label": "CPLM-002 Sample count Samples evaluated in the window. G0 Insufficient data 12h window · 0",
+    "kind": "button"
+   },
+   "url": "/cpm/calculations?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/O-014--calculations-cpm-modal-backdrop.png",
+    "night": "night/1440x1024/O-014--calculations-cpm-modal-backdrop.png"
+   },
+   "full": null,
+   "words": 0,
+   "wordsFirstViewport": 0,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "O-015",
+   "type": "overlay",
+   "parent": "R-10",
+   "slug": null,
+   "label": "",
+   "trigger": {
+    "label": "CPLM-003 Automatic-mode fraction Time fraction the controller spent in AUTO. G1 Not measur",
+    "kind": "button"
+   },
+   "url": "/cpm/calculations?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/O-015--calculations-cpm-modal-backdrop.png",
+    "night": "night/1440x1024/O-015--calculations-cpm-modal-backdrop.png"
+   },
+   "full": null,
+   "words": 0,
+   "wordsFirstViewport": 0,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "P-026",
+   "type": "panel",
+   "parent": "R-10",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Next",
+    "kind": "button"
+   },
+   "url": "/cpm/calculations?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/P-026--calculations-next.png"
+   },
+   "full": null,
+   "words": 245,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 0,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "R-11",
+   "type": "route",
+   "parent": null,
+   "slug": "response",
+   "label": "System Response",
+   "trigger": null,
+   "url": "/cpm/response?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/R-11--response.png",
+    "night": "night/1440x1024/R-11--response.png"
+   },
+   "full": {
+    "day": "day/1440x1024/R-11--response--full.png",
+    "night": "night/1440x1024/R-11--response--full.png"
+   },
+   "words": 232,
+   "wordsFirstViewport": 131,
+   "titleCount": 11,
+   "wordsOnOpen": null,
+   "requests": 4,
+   "idleApiPerMin": 0,
+   "panels": [
+    {
+     "title": "",
+     "words": 38
+    },
+    {
+     "title": "Events",
+     "words": 19
+    },
+    {
+     "title": "Models",
+     "words": 129
+    }
+   ],
+   "controls": 17
+  },
+  {
+   "id": "O-016",
+   "type": "overlay",
+   "parent": "R-11",
+   "slug": null,
+   "label": "Control loop",
+   "trigger": {
+    "label": "",
+    "kind": "expander"
+   },
+   "url": "/cpm/response?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/O-016--response-control-loop.png",
+    "night": "night/1440x1024/O-016--response-control-loop.png"
+   },
+   "full": null,
+   "words": 1053,
+   "wordsFirstViewport": 44,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "O-017",
+   "type": "overlay",
+   "parent": "R-11",
+   "slug": null,
+   "label": "Control loop",
+   "trigger": {
+    "label": "Open the loop list",
+    "kind": "button"
+   },
+   "url": "/cpm/response?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/O-017--response-control-loop.png",
+    "night": "night/1440x1024/O-017--response-control-loop.png"
+   },
+   "full": null,
+   "words": 1053,
+   "wordsFirstViewport": 44,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "P-027",
+   "type": "panel",
+   "parent": "R-11",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Show 324 censored candidates",
+    "kind": "button"
+   },
+   "url": "/cpm/response?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/P-027--response-show-324-censored-candidates.png"
+   },
+   "full": null,
+   "words": 727,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 4922,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "R-12",
+   "type": "route",
+   "parent": null,
+   "slug": "registry",
+   "label": "Loop Registry",
+   "trigger": null,
+   "url": "/cpm/registry",
+   "screenshots": {
+    "day": "day/1440x1024/R-12--registry.png",
+    "night": "night/1440x1024/R-12--registry.png"
+   },
+   "full": {
+    "day": "day/1440x1024/R-12--registry--full.png",
+    "night": "night/1440x1024/R-12--registry--full.png"
+   },
+   "words": 399,
+   "wordsFirstViewport": 227,
+   "titleCount": 29,
+   "wordsOnOpen": null,
+   "requests": 3,
+   "idleApiPerMin": 0,
+   "panels": [
+    {
+     "title": "Registered assets",
+     "words": 384
+    },
+    {
+     "title": "Assigned profile",
+     "words": 148
+    }
+   ],
+   "controls": 30
+  },
+  {
+   "id": "O-018",
+   "type": "overlay",
+   "parent": "R-12",
+   "slug": null,
+   "label": "",
+   "trigger": {
+    "label": "Add loop",
+    "kind": "button"
+   },
+   "url": "/cpm/registry",
+   "screenshots": {
+    "day": "day/1440x1024/O-018--registry-cpm-modal-backdrop.png",
+    "night": "night/1440x1024/O-018--registry-cpm-modal-backdrop.png"
+   },
+   "full": null,
+   "words": 45,
+   "wordsFirstViewport": 45,
+   "titleCount": 1,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 7
+  },
+  {
+   "id": "V-07",
+   "type": "view",
+   "parent": null,
+   "slug": "registry-loop",
+   "label": "Loop Registry: loop",
+   "trigger": null,
+   "url": "/cpm/registry?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/V-07--registry-loop.png",
+    "night": "night/1440x1024/V-07--registry-loop.png"
+   },
+   "full": {},
+   "words": 391,
+   "wordsFirstViewport": 216,
+   "titleCount": 28,
+   "wordsOnOpen": null,
+   "requests": 0,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "Registered assets",
+     "words": 384
+    },
+    {
+     "title": "Assigned profile",
+     "words": 134
+    }
+   ],
+   "controls": 30
+  },
+  {
+   "id": "O-019",
+   "type": "overlay",
+   "parent": "V-07",
+   "slug": null,
+   "label": "",
+   "trigger": {
+    "label": "Add loop",
+    "kind": "button"
+   },
+   "url": "/cpm/registry?loop=FIC10302",
+   "screenshots": {
+    "day": "day/1440x1024/O-019--registry-loop-cpm-modal-backdrop.png",
+    "night": "night/1440x1024/O-019--registry-loop-cpm-modal-backdrop.png"
+   },
+   "full": null,
+   "words": 45,
+   "wordsFirstViewport": 45,
+   "titleCount": 1,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 7
+  },
+  {
+   "id": "R-13",
+   "type": "route",
+   "parent": null,
+   "slug": "config",
+   "label": "Gate Configuration",
+   "trigger": null,
+   "url": "/cpm/config",
+   "screenshots": {
+    "day": "day/1440x1024/R-13--config.png",
+    "night": "night/1440x1024/R-13--config.png"
+   },
+   "full": {
+    "day": "day/1440x1024/R-13--config--full.png",
+    "night": "night/1440x1024/R-13--config--full.png"
+   },
+   "words": 88,
+   "wordsFirstViewport": 60,
+   "titleCount": 21,
+   "wordsOnOpen": null,
+   "requests": 10,
+   "idleApiPerMin": 0,
+   "panels": [
+    {
+     "title": "",
+     "words": 33
+    },
+    {
+     "title": "Overview",
+     "words": 289
+    },
+    {
+     "title": "Lifecycle",
+     "words": 37
+    }
+   ],
+   "controls": 4
+  },
+  {
+   "id": "O-020",
+   "type": "overlay",
+   "parent": "R-13",
+   "slug": null,
+   "label": "Control loop",
+   "trigger": {
+    "label": "",
+    "kind": "expander"
+   },
+   "url": "/cpm/config",
+   "screenshots": {
+    "day": "day/1440x1024/O-020--config-control-loop.png",
+    "night": "night/1440x1024/O-020--config-control-loop.png"
+   },
+   "full": null,
+   "words": 1053,
+   "wordsFirstViewport": 47,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "O-021",
+   "type": "overlay",
+   "parent": "R-13",
+   "slug": null,
+   "label": "Control loop",
+   "trigger": {
+    "label": "Open the loop list",
+    "kind": "button"
+   },
+   "url": "/cpm/config",
+   "screenshots": {
+    "day": "day/1440x1024/O-021--config-control-loop.png",
+    "night": "night/1440x1024/O-021--config-control-loop.png"
+   },
+   "full": null,
+   "words": 1053,
+   "wordsFirstViewport": 47,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "P-028",
+   "type": "panel",
+   "parent": "R-13",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Next →",
+    "kind": "button"
+   },
+   "url": "/cpm/config",
+   "screenshots": {
+    "day": "day/1440x1024/P-028--config-next-.png"
+   },
+   "full": null,
+   "words": 88,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 0,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "V-08",
+   "type": "view",
+   "parent": null,
+   "slug": "config-effective",
+   "label": "Configuration: Effective",
+   "trigger": null,
+   "url": "/cpm/config?loop=FIC10302&view=effective",
+   "screenshots": {
+    "day": "day/1440x1024/V-08--config-effective.png",
+    "night": "night/1440x1024/V-08--config-effective.png"
+   },
+   "full": {},
+   "words": 127,
+   "wordsFirstViewport": 108,
+   "titleCount": 16,
+   "wordsOnOpen": null,
+   "requests": 1,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "",
+     "words": 26
+    },
+    {
+     "title": "",
+     "words": 38
+    },
+    {
+     "title": "How the values resolve",
+     "words": 157
+    }
+   ],
+   "controls": 21
+  },
+  {
+   "id": "O-022",
+   "type": "overlay",
+   "parent": "V-08",
+   "slug": null,
+   "label": "Control loop",
+   "trigger": {
+    "label": "",
+    "kind": "expander"
+   },
+   "url": "/cpm/config?loop=FIC10302&view=effective",
+   "screenshots": {
+    "day": "day/1440x1024/O-022--config-effective-control-loop.png",
+    "night": "night/1440x1024/O-022--config-effective-control-loop.png"
+   },
+   "full": null,
+   "words": 1053,
+   "wordsFirstViewport": 40,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "O-023",
+   "type": "overlay",
+   "parent": "V-08",
+   "slug": null,
+   "label": "Control loop",
+   "trigger": {
+    "label": "Open the loop list",
+    "kind": "button"
+   },
+   "url": "/cpm/config?loop=FIC10302&view=effective",
+   "screenshots": {
+    "day": "day/1440x1024/O-023--config-effective-control-loop.png",
+    "night": "night/1440x1024/O-023--config-effective-control-loop.png"
+   },
+   "full": null,
+   "words": 1053,
+   "wordsFirstViewport": 36,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "P-029",
+   "type": "panel",
+   "parent": "V-08",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "G11",
+    "kind": "tab"
+   },
+   "url": "/cpm/config?loop=FIC10302&view=effective",
+   "screenshots": {
+    "day": "day/1440x1024/P-029--config-effective-g11.png"
+   },
+   "full": null,
+   "words": 127,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 0,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "P-030",
+   "type": "panel",
+   "parent": "V-08",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "G21",
+    "kind": "tab"
+   },
+   "url": "/cpm/config?loop=FIC10302&view=effective",
+   "screenshots": {
+    "day": "day/1440x1024/P-030--config-effective-g21.png"
+   },
+   "full": null,
+   "words": 127,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 75,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "V-09",
+   "type": "view",
+   "parent": null,
+   "slug": "config-bundles",
+   "label": "Configuration: Bundles",
+   "trigger": null,
+   "url": "/cpm/config?loop=FIC10302&view=bundles",
+   "screenshots": {
+    "day": "day/1440x1024/V-09--config-bundles.png",
+    "night": "night/1440x1024/V-09--config-bundles.png"
+   },
+   "full": {},
+   "words": 191,
+   "wordsFirstViewport": 143,
+   "titleCount": 1,
+   "wordsOnOpen": null,
+   "requests": 3,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "",
+     "words": 26
+    },
+    {
+     "title": "",
+     "words": 38
+    },
+    {
+     "title": "Bundles",
+     "words": 175
+    }
+   ],
+   "controls": 11
+  },
+  {
+   "id": "O-024",
+   "type": "overlay",
+   "parent": "V-09",
+   "slug": null,
+   "label": "Control loop",
+   "trigger": {
+    "label": "",
+    "kind": "expander"
+   },
+   "url": "/cpm/config?loop=FIC10302&view=bundles",
+   "screenshots": {
+    "day": "day/1440x1024/O-024--config-bundles-control-loop.png",
+    "night": "night/1440x1024/O-024--config-bundles-control-loop.png"
+   },
+   "full": null,
+   "words": 1053,
+   "wordsFirstViewport": 36,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "O-025",
+   "type": "overlay",
+   "parent": "V-09",
+   "slug": null,
+   "label": "Control loop",
+   "trigger": {
+    "label": "Open the loop list",
+    "kind": "button"
+   },
+   "url": "/cpm/config?loop=FIC10302&view=bundles",
+   "screenshots": {
+    "day": "day/1440x1024/O-025--config-bundles-control-loop.png",
+    "night": "night/1440x1024/O-025--config-bundles-control-loop.png"
+   },
+   "full": null,
+   "words": 1053,
+   "wordsFirstViewport": 36,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 0
+  },
+  {
+   "id": "R-14",
+   "type": "route",
+   "parent": null,
+   "slug": "kpi",
+   "label": "KPI drill-down",
+   "trigger": null,
+   "url": "/cpm/kpi?kpi=acceptable",
+   "screenshots": {
+    "day": "day/1440x1024/R-14--kpi.png",
+    "night": "night/1440x1024/R-14--kpi.png"
+   },
+   "full": {
+    "day": "day/1440x1024/R-14--kpi--full.png",
+    "night": "night/1440x1024/R-14--kpi--full.png"
+   },
+   "words": 263,
+   "wordsFirstViewport": 223,
+   "titleCount": 2,
+   "wordsOnOpen": null,
+   "requests": 5,
+   "idleApiPerMin": 0,
+   "panels": [
+    {
+     "title": "Proof",
+     "words": 139
+    },
+    {
+     "title": "Last 14 d · each UTC+04:00 day at its end, same rules",
+     "words": 95
+    },
+    {
+     "title": "The loops behind the number",
+     "words": 43
+    }
+   ],
+   "controls": 6
+  },
+  {
+   "id": "V-10",
+   "type": "view",
+   "parent": null,
+   "slug": "kpi-stale",
+   "label": "KPI drill-down: stale",
+   "trigger": null,
+   "url": "/cpm/kpi?kpi=stale",
+   "screenshots": {
+    "day": "day/1440x1024/V-10--kpi-stale.png",
+    "night": "night/1440x1024/V-10--kpi-stale.png"
+   },
+   "full": {},
+   "words": 177,
+   "wordsFirstViewport": 158,
+   "titleCount": 78,
+   "wordsOnOpen": null,
+   "requests": 1,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "Proof",
+     "words": 58
+    },
+    {
+     "title": "Last 14 d · each UTC+04:00 day at its end, same rules",
+     "words": 95
+    },
+    {
+     "title": "The loops behind the number",
+     "words": 1205
+    }
+   ],
+   "controls": null
+  },
+  {
+   "id": "R-15",
+   "type": "route",
+   "parent": null,
+   "slug": "pipeline",
+   "label": "Pipeline Health",
+   "trigger": null,
+   "url": "/cpm/pipeline",
+   "screenshots": {
+    "day": "day/1440x1024/R-15--pipeline.png",
+    "night": "night/1440x1024/R-15--pipeline.png"
+   },
+   "full": {
+    "day": "day/1440x1024/R-15--pipeline--full.png",
+    "night": "night/1440x1024/R-15--pipeline--full.png"
+   },
+   "words": 248,
+   "wordsFirstViewport": 238,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": 4,
+   "idleApiPerMin": 5,
+   "panels": [
+    {
+     "title": "Required jobs",
+     "words": 69
+    },
+    {
+     "title": "Runtime telemetry",
+     "words": 64
+    },
+    {
+     "title": "End-to-end verification",
+     "words": 76
+    }
+   ],
+   "controls": 1
+  },
+  {
+   "id": "P-031",
+   "type": "panel",
+   "parent": "R-15",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Retry",
+    "kind": "button"
+   },
+   "url": "/cpm/pipeline",
+   "screenshots": {
+    "day": "day/1440x1024/P-031--pipeline-retry.png"
+   },
+   "full": null,
+   "words": 232,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 0,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "R-16",
+   "type": "route",
+   "parent": null,
+   "slug": "governance",
+   "label": "Governance",
+   "trigger": null,
+   "url": "/cpm/governance",
+   "screenshots": {
+    "day": "day/1440x1024/R-16--governance.png",
+    "night": "night/1440x1024/R-16--governance.png"
+   },
+   "full": {
+    "day": "day/1440x1024/R-16--governance--full.png",
+    "night": "night/1440x1024/R-16--governance--full.png"
+   },
+   "words": 436,
+   "wordsFirstViewport": 141,
+   "titleCount": 1,
+   "wordsOnOpen": null,
+   "requests": 13,
+   "idleApiPerMin": 0,
+   "panels": [
+    {
+     "title": "Immutable audit trail",
+     "words": 345
+    },
+    {
+     "title": "Version provenance",
+     "words": 126
+    },
+    {
+     "title": "Separation of duties",
+     "words": 93
+    }
+   ],
+   "controls": 6
+  },
+  {
+   "id": "P-032",
+   "type": "panel",
+   "parent": "R-16",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "CPM loops",
+    "kind": "button"
+   },
+   "url": "/cpm/governance",
+   "screenshots": {
+    "day": "day/1440x1024/P-032--governance-cpm-loops.png"
+   },
+   "full": null,
+   "words": 444,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 0,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "P-033",
+   "type": "panel",
+   "parent": "R-16",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "CPM events",
+    "kind": "button"
+   },
+   "url": "/cpm/governance",
+   "screenshots": {
+    "day": "day/1440x1024/P-033--governance-cpm-events.png"
+   },
+   "full": null,
+   "words": 377,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 0,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "R-17",
+   "type": "route",
+   "parent": null,
+   "slug": "trend",
+   "label": "Trend",
+   "trigger": null,
+   "url": "/trend?tags=hdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.pv%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.sp%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.op&range=8h",
+   "screenshots": {
+    "day": "day/1440x1024/R-17--trend.png",
+    "night": "night/1440x1024/R-17--trend.png"
+   },
+   "full": {
+    "day": null,
+    "night": null
+   },
+   "words": 17,
+   "wordsFirstViewport": 17,
+   "titleCount": 13,
+   "wordsOnOpen": null,
+   "requests": 4,
+   "idleApiPerMin": 0,
+   "panels": [],
+   "controls": 15
+  },
+  {
+   "id": "P-034",
+   "type": "panel",
+   "parent": "R-17",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "15m",
+    "kind": "button"
+   },
+   "url": "/trend?tags=hdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.pv%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.sp%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.op&range=8h",
+   "screenshots": {
+    "day": "day/1440x1024/P-034--trend-15m.png"
+   },
+   "full": null,
+   "words": 17,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 0,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "P-035",
+   "type": "panel",
+   "parent": "R-17",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "1h",
+    "kind": "button"
+   },
+   "url": "/trend?tags=hdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.pv%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.sp%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.op&range=8h",
+   "screenshots": {
+    "day": "day/1440x1024/P-035--trend-1h.png"
+   },
+   "full": null,
+   "words": 17,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 0,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "P-036",
+   "type": "panel",
+   "parent": "R-17",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "8h",
+    "kind": "button"
+   },
+   "url": "/trend?tags=hdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.pv%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.sp%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.op&range=8h",
+   "screenshots": {
+    "day": "day/1440x1024/P-036--trend-8h.png"
+   },
+   "full": null,
+   "words": 17,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 0,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "P-037",
+   "type": "panel",
+   "parent": "R-17",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Zoom area",
+    "kind": "button"
+   },
+   "url": "/trend?tags=hdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.pv%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.sp%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.op&range=8h",
+   "screenshots": {
+    "day": "day/1440x1024/P-037--trend-zoom-area.png"
+   },
+   "full": null,
+   "words": 18,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 5,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "R-18",
+   "type": "route",
+   "parent": null,
+   "slug": "admin-users",
+   "label": "Admin: Users",
+   "trigger": null,
+   "url": "/admin/users",
+   "screenshots": {
+    "day": "day/1440x1024/R-18--admin-users.png",
+    "night": "night/1440x1024/R-18--admin-users.png"
+   },
+   "full": {
+    "day": null,
+    "night": null
+   },
+   "words": 40,
+   "wordsFirstViewport": 40,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": 7,
+   "idleApiPerMin": 0,
+   "panels": [],
+   "controls": 21
+  },
+  {
+   "id": "O-026",
+   "type": "overlay",
+   "parent": "R-18",
+   "slug": null,
+   "label": "",
+   "trigger": {
+    "label": "Add user",
+    "kind": "button"
+   },
+   "url": "/admin/users",
+   "screenshots": {
+    "day": "day/1440x1024/O-026--admin-users-dialog-content.png",
+    "night": "night/1440x1024/O-026--admin-users-dialog-content.png"
+   },
+   "full": null,
+   "words": 25,
+   "wordsFirstViewport": 25,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 3
+  },
+  {
+   "id": "O-027",
+   "type": "overlay",
+   "parent": "R-18",
+   "slug": null,
+   "label": "",
+   "trigger": {
+    "label": "Edit",
+    "kind": "button"
+   },
+   "url": "/admin/users",
+   "screenshots": {
+    "day": "day/1440x1024/O-027--admin-users-dialog-content.png",
+    "night": "night/1440x1024/O-027--admin-users-dialog-content.png"
+   },
+   "full": null,
+   "words": 17,
+   "wordsFirstViewport": 17,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 3
+  },
+  {
+   "id": "O-028",
+   "type": "overlay",
+   "parent": "R-18",
+   "slug": null,
+   "label": "",
+   "trigger": {
+    "label": "Edit",
+    "kind": "button"
+   },
+   "url": "/admin/users",
+   "screenshots": {
+    "day": "day/1440x1024/O-028--admin-users-dialog-content.png",
+    "night": "night/1440x1024/O-028--admin-users-dialog-content.png"
+   },
+   "full": null,
+   "words": 17,
+   "wordsFirstViewport": 17,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 3
+  },
+  {
+   "id": "R-19",
+   "type": "route",
+   "parent": null,
+   "slug": "admin-roles",
+   "label": "Admin: Roles",
+   "trigger": null,
+   "url": "/admin/roles",
+   "screenshots": {
+    "day": "day/1440x1024/R-19--admin-roles.png",
+    "night": "night/1440x1024/R-19--admin-roles.png"
+   },
+   "full": {
+    "day": null,
+    "night": null
+   },
+   "words": 131,
+   "wordsFirstViewport": 83,
+   "titleCount": 38,
+   "wordsOnOpen": null,
+   "requests": 3,
+   "idleApiPerMin": 0,
+   "panels": [],
+   "controls": 20
+  },
+  {
+   "id": "P-038",
+   "type": "panel",
+   "parent": "R-19",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "+ New custom role",
+    "kind": "button"
+   },
+   "url": "/admin/roles",
+   "screenshots": {
+    "day": "day/1440x1024/P-038--admin-roles--new-custom-role.png"
+   },
+   "full": null,
+   "words": 133,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 18,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "P-039",
+   "type": "panel",
+   "parent": "R-19",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Operator SYSTEM",
+    "kind": "button"
+   },
+   "url": "/admin/roles",
+   "screenshots": {
+    "day": "day/1440x1024/P-039--admin-roles-operator-system.png"
+   },
+   "full": null,
+   "words": 133,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 3,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "P-040",
+   "type": "panel",
+   "parent": "R-19",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Reset to default",
+    "kind": "button"
+   },
+   "url": "/admin/roles",
+   "screenshots": {
+    "day": "day/1440x1024/P-040--admin-roles-reset-to-default.png"
+   },
+   "full": null,
+   "words": 140,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 46,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "R-20",
+   "type": "route",
+   "parent": null,
+   "slug": "admin-data-sources",
+   "label": "Admin: Data Sources",
+   "trigger": null,
+   "url": "/admin/data-sources",
+   "screenshots": {
+    "day": "day/1440x1024/R-20--admin-data-sources.png",
+    "night": "night/1440x1024/R-20--admin-data-sources.png"
+   },
+   "full": {
+    "day": null,
+    "night": null
+   },
+   "words": 531,
+   "wordsFirstViewport": 153,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": 2,
+   "idleApiPerMin": 0,
+   "panels": [],
+   "controls": 24
+  },
+  {
+   "id": "P-041",
+   "type": "panel",
+   "parent": "R-20",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "+ New Configuration",
+    "kind": "button"
+   },
+   "url": "/admin/data-sources",
+   "screenshots": {
+    "day": "day/1440x1024/P-041--admin-data-sources--new-configuration.png"
+   },
+   "full": null,
+   "words": 130,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 0,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "R-21",
+   "type": "route",
+   "parent": null,
+   "slug": "admin-plant-model",
+   "label": "Admin: Plant Model",
+   "trigger": null,
+   "url": "/admin/plant-model",
+   "screenshots": {
+    "day": "day/1440x1024/R-21--admin-plant-model.png",
+    "night": "night/1440x1024/R-21--admin-plant-model.png"
+   },
+   "full": {
+    "day": null,
+    "night": null
+   },
+   "words": 110,
+   "wordsFirstViewport": 110,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": 9,
+   "idleApiPerMin": 0,
+   "panels": [],
+   "controls": 10
+  },
+  {
+   "id": "O-029",
+   "type": "overlay",
+   "parent": "R-21",
+   "slug": null,
+   "label": "",
+   "trigger": {
+    "label": "+ Add Site",
+    "kind": "button"
+   },
+   "url": "/admin/plant-model",
+   "screenshots": {
+    "day": "day/1440x1024/O-029--admin-plant-model-dialog-content.png",
+    "night": "night/1440x1024/O-029--admin-plant-model-dialog-content.png"
+   },
+   "full": null,
+   "words": 28,
+   "wordsFirstViewport": 28,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 3
+  },
+  {
+   "id": "P-042",
+   "type": "panel",
+   "parent": "R-21",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Expand",
+    "kind": "button"
+   },
+   "url": "/admin/plant-model",
+   "screenshots": {
+    "day": "day/1440x1024/P-042--admin-plant-model-expand.png"
+   },
+   "full": null,
+   "words": 117,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 58,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "O-030",
+   "type": "overlay",
+   "parent": "R-21",
+   "slug": null,
+   "label": "",
+   "trigger": {
+    "label": "+ Area",
+    "kind": "button"
+   },
+   "url": "/admin/plant-model",
+   "screenshots": {
+    "day": "day/1440x1024/O-030--admin-plant-model-dialog-content.png",
+    "night": "night/1440x1024/O-030--admin-plant-model-dialog-content.png"
+   },
+   "full": null,
+   "words": 32,
+   "wordsFirstViewport": 32,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 3
+  },
+  {
+   "id": "O-031",
+   "type": "overlay",
+   "parent": "R-21",
+   "slug": null,
+   "label": "",
+   "trigger": {
+    "label": "Edit",
+    "kind": "button"
+   },
+   "url": "/admin/plant-model",
+   "screenshots": {
+    "day": "day/1440x1024/O-031--admin-plant-model-dialog-content.png",
+    "night": "night/1440x1024/O-031--admin-plant-model-dialog-content.png"
+   },
+   "full": null,
+   "words": 11,
+   "wordsFirstViewport": 11,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": 3
+  },
+  {
+   "id": "P-043",
+   "type": "panel",
+   "parent": "R-21",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Expand",
+    "kind": "button"
+   },
+   "url": "/admin/plant-model",
+   "screenshots": {
+    "day": "day/1440x1024/P-043--admin-plant-model-expand.png"
+   },
+   "full": null,
+   "words": 145,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 289,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "P-044",
+   "type": "panel",
+   "parent": "R-21",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Expand",
+    "kind": "button"
+   },
+   "url": "/admin/plant-model",
+   "screenshots": {
+    "day": "day/1440x1024/P-044--admin-plant-model-expand.png"
+   },
+   "full": null,
+   "words": 168,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 215,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "R-22",
+   "type": "route",
+   "parent": null,
+   "slug": "admin-aliases",
+   "label": "Admin: Tag Aliases",
+   "trigger": null,
+   "url": "/admin/aliases",
+   "screenshots": {
+    "day": "day/1440x1024/R-22--admin-aliases.png",
+    "night": "night/1440x1024/R-22--admin-aliases.png"
+   },
+   "full": {
+    "day": null,
+    "night": null
+   },
+   "words": 67,
+   "wordsFirstViewport": 62,
+   "titleCount": 0,
+   "wordsOnOpen": null,
+   "requests": 1,
+   "idleApiPerMin": 0,
+   "panels": [],
+   "controls": 1
+  },
+  {
+   "id": "R-23",
+   "type": "route",
+   "parent": null,
+   "slug": "admin-audit",
+   "label": "Admin: Audit Log",
+   "trigger": null,
+   "url": "/admin/audit",
+   "screenshots": {
+    "day": "day/1440x1024/R-23--admin-audit.png",
+    "night": "night/1440x1024/R-23--admin-audit.png"
+   },
+   "full": {
+    "day": null,
+    "night": null
+   },
+   "words": 79,
+   "wordsFirstViewport": 70,
+   "titleCount": 25,
+   "wordsOnOpen": null,
+   "requests": 1,
+   "idleApiPerMin": 0,
+   "panels": [],
+   "controls": 2
+  },
+  {
+   "id": "P-045",
+   "type": "panel",
+   "parent": "R-23",
+   "slug": null,
+   "label": null,
+   "trigger": {
+    "label": "Next →",
+    "kind": "button"
+   },
+   "url": "/admin/audit",
+   "screenshots": {
+    "day": "day/1440x1024/P-045--admin-audit-next-.png"
+   },
+   "full": null,
+   "words": 79,
+   "wordsFirstViewport": null,
+   "titleCount": null,
+   "wordsOnOpen": 0,
+   "requests": null,
+   "idleApiPerMin": null,
+   "panels": null,
+   "controls": null
+  },
+  {
+   "id": "R-24",
+   "type": "route",
+   "parent": null,
+   "slug": "admin-system",
+   "label": "Admin: System Settings",
+   "trigger": null,
+   "url": "/admin/system",
+   "screenshots": {
+    "day": "day/1440x1024/R-24--admin-system.png",
+    "night": "night/1440x1024/R-24--admin-system.png"
+   },
+   "full": {
+    "day": null,
+    "night": null
+   },
+   "words": 114,
+   "wordsFirstViewport": 114,
+   "titleCount": 1,
+   "wordsOnOpen": null,
+   "requests": 0,
+   "idleApiPerMin": 0,
+   "panels": [],
+   "controls": 0
+  },
+  {
+   "id": "V-11",
+   "type": "view",
+   "parent": null,
+   "slug": "explorer--confirmed",
+   "label": "explorer: confirmed loop FIC10301",
+   "trigger": null,
+   "url": "/cpm/explorer?loop=FIC10301",
+   "screenshots": {
+    "day": "day/1440x1024/V-11--explorer--confirmed.png",
+    "night": "night/1440x1024/V-11--explorer--confirmed.png"
+   },
+   "full": {},
+   "words": 487,
+   "wordsFirstViewport": 156,
+   "titleCount": 47,
+   "wordsOnOpen": null,
+   "requests": 10,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "",
+     "words": 3
+    },
+    {
+     "title": "Flow controller FIC10301 (FCS0101)",
+     "words": 571
+    }
+   ],
+   "controls": null
+  },
+  {
+   "id": "V-12",
+   "type": "view",
+   "parent": null,
+   "slug": "historical--confirmed",
+   "label": "historical: confirmed loop FIC10301",
+   "trigger": null,
+   "url": "/cpm/historical?loop=FIC10301",
+   "screenshots": {
+    "day": "day/1440x1024/V-12--historical--confirmed.png",
+    "night": "night/1440x1024/V-12--historical--confirmed.png"
+   },
+   "full": {},
+   "words": 170,
+   "wordsFirstViewport": 137,
+   "titleCount": 10,
+   "wordsOnOpen": null,
+   "requests": 5,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "One time axis",
+     "words": 171
+    },
+    {
+     "title": "Selected period",
+     "words": 31
+    }
+   ],
+   "controls": null
+  },
+  {
+   "id": "V-13",
+   "type": "view",
+   "parent": null,
+   "slug": "investigation--confirmed",
+   "label": "investigation: confirmed loop FIC10301",
+   "trigger": null,
+   "url": "/cpm/investigation?loop=FIC10301",
+   "screenshots": {
+    "day": "day/1440x1024/V-13--investigation--confirmed.png",
+    "night": "night/1440x1024/V-13--investigation--confirmed.png"
+   },
+   "full": {},
+   "words": 402,
+   "wordsFirstViewport": 209,
+   "titleCount": 20,
+   "wordsOnOpen": null,
+   "requests": 8,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "Final conclusion",
+     "words": 106
+    },
+    {
+     "title": "Key facts",
+     "words": 76
+    },
+    {
+     "title": "Evidence",
+     "words": 42
+    },
+    {
+     "title": "",
+     "words": 8
+    },
+    {
+     "title": "",
+     "words": 7
+    },
+    {
+     "title": "Window browser",
+     "words": 84
+    },
+    {
+     "title": "Record it",
+     "words": 76
+    }
+   ],
+   "controls": null
+  },
+  {
+   "id": "V-14",
+   "type": "view",
+   "parent": null,
+   "slug": "evidence--confirmed",
+   "label": "evidence: confirmed loop FIC10301",
+   "trigger": null,
+   "url": "/cpm/evidence?loop=FIC10301&methodRun=da35f016-7fdc-56d9-9cf8-96631a708a4f&gate=G15&mode=FIXED",
+   "screenshots": {
+    "day": "day/1440x1024/V-14--evidence--confirmed.png",
+    "night": "night/1440x1024/V-14--evidence--confirmed.png"
+   },
+   "full": {},
+   "words": 271,
+   "wordsFirstViewport": 181,
+   "titleCount": 24,
+   "wordsOnOpen": null,
+   "requests": 5,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "Verdict",
+     "words": 16
+    },
+    {
+     "title": "",
+     "words": 21
+    },
+    {
+     "title": "Observability",
+     "words": 16
+    }
+   ],
+   "controls": null
+  },
+  {
+   "id": "V-15",
+   "type": "view",
+   "parent": null,
+   "slug": "windows--confirmed",
+   "label": "windows: confirmed loop FIC10301",
+   "trigger": null,
+   "url": "/cpm/windows?loop=FIC10301",
+   "screenshots": {
+    "day": "day/1440x1024/V-15--windows--confirmed.png",
+    "night": "night/1440x1024/V-15--windows--confirmed.png"
+   },
+   "full": {},
+   "words": 255,
+   "wordsFirstViewport": 147,
+   "titleCount": 144,
+   "wordsOnOpen": null,
+   "requests": 2,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "Emitted windows",
+     "words": 521
+    }
+   ],
+   "controls": null
+  },
+  {
+   "id": "V-16",
+   "type": "view",
+   "parent": null,
+   "slug": "calculations--confirmed",
+   "label": "calculations: confirmed loop FIC10301",
+   "trigger": null,
+   "url": "/cpm/calculations?loop=FIC10301",
+   "screenshots": {
+    "day": "day/1440x1024/V-16--calculations--confirmed.png",
+    "night": "night/1440x1024/V-16--calculations--confirmed.png"
+   },
+   "full": {},
+   "words": 376,
+   "wordsFirstViewport": 177,
+   "titleCount": 26,
+   "wordsOnOpen": null,
+   "requests": 3,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "1 · Loop",
+     "words": 35
+    },
+    {
+     "title": "",
+     "words": 450
+    }
+   ],
+   "controls": null
+  },
+  {
+   "id": "V-17",
+   "type": "view",
+   "parent": null,
+   "slug": "explorer--suspected",
+   "label": "explorer: suspected loop G13_LOOP_A",
+   "trigger": null,
+   "url": "/cpm/explorer?loop=G13_LOOP_A",
+   "screenshots": {
+    "day": "day/1440x1024/V-17--explorer--suspected.png",
+    "night": "night/1440x1024/V-17--explorer--suspected.png"
+   },
+   "full": {},
+   "words": 495,
+   "wordsFirstViewport": 159,
+   "titleCount": 42,
+   "wordsOnOpen": null,
+   "requests": 9,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "",
+     "words": 3
+    },
+    {
+     "title": "G13_LOOP_A",
+     "words": 595
+    }
+   ],
+   "controls": null
+  },
+  {
+   "id": "V-18",
+   "type": "view",
+   "parent": null,
+   "slug": "historical--suspected",
+   "label": "historical: suspected loop G13_LOOP_A",
+   "trigger": null,
+   "url": "/cpm/historical?loop=G13_LOOP_A",
+   "screenshots": {
+    "day": "day/1440x1024/V-18--historical--suspected.png",
+    "night": "night/1440x1024/V-18--historical--suspected.png"
+   },
+   "full": {},
+   "words": 204,
+   "wordsFirstViewport": 175,
+   "titleCount": 7,
+   "wordsOnOpen": null,
+   "requests": 6,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "One time axis",
+     "words": 212
+    },
+    {
+     "title": "Selected period",
+     "words": 31
+    }
+   ],
+   "controls": null
+  },
+  {
+   "id": "V-19",
+   "type": "view",
+   "parent": null,
+   "slug": "investigation--suspected",
+   "label": "investigation: suspected loop G13_LOOP_A",
+   "trigger": null,
+   "url": "/cpm/investigation?loop=G13_LOOP_A",
+   "screenshots": {
+    "day": "day/1440x1024/V-19--investigation--suspected.png",
+    "night": "night/1440x1024/V-19--investigation--suspected.png"
+   },
+   "full": {},
+   "words": 355,
+   "wordsFirstViewport": 177,
+   "titleCount": 20,
+   "wordsOnOpen": null,
+   "requests": 7,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "Final conclusion",
+     "words": 81
+    },
+    {
+     "title": "Key facts",
+     "words": 76
+    },
+    {
+     "title": "Evidence",
+     "words": 42
+    },
+    {
+     "title": "",
+     "words": 8
+    },
+    {
+     "title": "",
+     "words": 6
+    },
+    {
+     "title": "Window browser",
+     "words": 94
+    },
+    {
+     "title": "Record it",
+     "words": 46
+    }
+   ],
+   "controls": null
+  },
+  {
+   "id": "V-20",
+   "type": "view",
+   "parent": null,
+   "slug": "evidence--suspected",
+   "label": "evidence: suspected loop G13_LOOP_A",
+   "trigger": null,
+   "url": "/cpm/evidence?loop=G13_LOOP_A",
+   "screenshots": {
+    "day": "day/1440x1024/V-20--evidence--suspected.png",
+    "night": "night/1440x1024/V-20--evidence--suspected.png"
+   },
+   "full": {},
+   "words": 92,
+   "wordsFirstViewport": 92,
+   "titleCount": 1,
+   "wordsOnOpen": null,
+   "requests": 1,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "",
+     "words": 2049
+    },
+    {
+     "title": "Evaluate a window from the historian",
+     "words": 37
+    }
+   ],
+   "controls": null
+  },
+  {
+   "id": "V-21",
+   "type": "view",
+   "parent": null,
+   "slug": "windows--suspected",
+   "label": "windows: suspected loop G13_LOOP_A",
+   "trigger": null,
+   "url": "/cpm/windows?loop=G13_LOOP_A",
+   "screenshots": {
+    "day": "day/1440x1024/V-21--windows--suspected.png",
+    "night": "night/1440x1024/V-21--windows--suspected.png"
+   },
+   "full": {},
+   "words": 250,
+   "wordsFirstViewport": 142,
+   "titleCount": 144,
+   "wordsOnOpen": null,
+   "requests": 2,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "Emitted windows",
+     "words": 522
+    }
+   ],
+   "controls": null
+  },
+  {
+   "id": "V-22",
+   "type": "view",
+   "parent": null,
+   "slug": "calculations--suspected",
+   "label": "calculations: suspected loop G13_LOOP_A",
+   "trigger": null,
+   "url": "/cpm/calculations?loop=G13_LOOP_A",
+   "screenshots": {
+    "day": "day/1440x1024/V-22--calculations--suspected.png",
+    "night": "night/1440x1024/V-22--calculations--suspected.png"
+   },
+   "full": {},
+   "words": 368,
+   "wordsFirstViewport": 184,
+   "titleCount": 26,
+   "wordsOnOpen": null,
+   "requests": 2,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "1 · Loop",
+     "words": 32
+    },
+    {
+     "title": "",
+     "words": 450
+    }
+   ],
+   "controls": null
+  },
+  {
+   "id": "V-23",
+   "type": "view",
+   "parent": null,
+   "slug": "explorer--stale",
+   "label": "Explorer: stale loop FIC00701",
+   "trigger": null,
+   "url": "/cpm/explorer?loop=FIC00701",
+   "screenshots": {
+    "day": "day/1440x1024/V-23--explorer--stale.png",
+    "night": "night/1440x1024/V-23--explorer--stale.png"
+   },
+   "full": {},
+   "words": 514,
+   "wordsFirstViewport": 167,
+   "titleCount": 42,
+   "wordsOnOpen": null,
+   "requests": 9,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "",
+     "words": 3
+    },
+    {
+     "title": "Flow controller FIC00701 (FCS0102)",
+     "words": 611
+    }
+   ],
+   "controls": null
+  },
+  {
+   "id": "V-24",
+   "type": "view",
+   "parent": null,
+   "slug": "explorer--not-evaluable",
+   "label": "Explorer: never evaluated DEMO-FIC-001",
+   "trigger": null,
+   "url": "/cpm/explorer?loop=DEMO-FIC-001",
+   "screenshots": {
+    "day": "day/1440x1024/V-24--explorer--not-evaluable.png",
+    "night": "night/1440x1024/V-24--explorer--not-evaluable.png"
+   },
+   "full": {},
+   "words": 259,
+   "wordsFirstViewport": 164,
+   "titleCount": 11,
+   "wordsOnOpen": null,
+   "requests": 8,
+   "idleApiPerMin": null,
+   "panels": [
+    {
+     "title": "",
+     "words": 3
+    },
+    {
+     "title": "Feed flow control",
+     "words": 256
+    }
+   ],
+   "controls": null
+  }
+ ],
+ "sourceOverlays": [
+  {
+   "at": "components/CommandPalette.tsx:116",
+   "kind": "dialog",
+   "owner": "CommandPalette",
+   "title": "Command palette",
+   "reason": "reached"
+  },
+  {
+   "at": "components/shared/Modal.tsx:102",
+   "kind": "dialog",
+   "owner": "Modal",
+   "title": "{…} {…} {…} {…}",
+   "reason": "event-driven or shared shell (session expiry, confirm, forbidden)"
+  },
+  {
+   "at": "components/shared/SessionTimeoutDialog.tsx:30",
+   "kind": "dialog",
+   "owner": "SessionTimeoutDialog",
+   "title": "{…}",
+   "reason": "event-driven or shared shell (session expiry, confirm, forbidden)"
+  },
+  {
+   "at": "components/shared/dialogService.tsx:84",
+   "kind": "dialog",
+   "owner": "DialogProvider",
+   "title": null,
+   "reason": "event-driven or shared shell (session expiry, confirm, forbidden)"
+  },
+  {
+   "at": "components/shared/dialogService.tsx:87",
+   "kind": "dialog",
+   "owner": "DialogProvider",
+   "title": "{…}",
+   "reason": "event-driven or shared shell (session expiry, confirm, forbidden)"
+  },
+  {
+   "at": "components/Cpm/config/EffectiveConfigDrawer.tsx:19",
+   "kind": "drawer",
+   "owner": "EffectiveConfigDrawer",
+   "title": "Loading the effective configuration…",
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/ProfileAside.tsx:115",
+   "kind": "drawer",
+   "owner": "ProfileAside",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/AddLoopWizard.tsx:126",
+   "kind": "dialog",
+   "owner": "AddLoopWizard",
+   "title": "{…} Loop tag * Service / description * Loop type * Engineeri",
+   "reason": "reached"
+  },
+  {
+   "at": "components/Cpm/AddLoopWizard.tsx:127",
+   "kind": "dialog",
+   "owner": "AddLoopWizard",
+   "title": "Edit control loop | Add control loop",
+   "reason": "reached"
+  },
+  {
+   "at": "components/Cpm/BulkImportDialog.tsx:161",
+   "kind": "dialog",
+   "owner": "BulkImportDialog",
+   "title": "{…} Upload the registry export or paste it below. Required c",
+   "reason": "reached"
+  },
+  {
+   "at": "components/Cpm/BulkImportDialog.tsx:162",
+   "kind": "dialog",
+   "owner": "BulkImportDialog",
+   "title": "Import loops from CSV",
+   "reason": "reached"
+  },
+  {
+   "at": "components/Cpm/LoopRegistry.tsx:150",
+   "kind": "dialog",
+   "owner": "LoopRegistry",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/LoopRegistry.tsx:151",
+   "kind": "dialog",
+   "owner": "LoopRegistry",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/LoopRegistry.tsx:152",
+   "kind": "dialog",
+   "owner": "LoopRegistry",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/trend/trendOption.ts:108",
+   "kind": "chart-tooltip",
+   "owner": "signalTrendOption",
+   "title": null,
+   "reason": "reached"
+  },
+  {
+   "at": "components/Cpm/overview/FocusedLoopDrawer.tsx:63",
+   "kind": "dialog",
+   "owner": "FocusedLoopDrawer",
+   "title": null,
+   "reason": "reached"
+  },
+  {
+   "at": "components/Cpm/overview/FocusedLoopDrawer.tsx:70",
+   "kind": "dialog",
+   "owner": "FocusedLoopDrawer",
+   "title": "Focused analysis for {…}",
+   "reason": "reached"
+  },
+  {
+   "at": "components/Cpm/CpmOverview.tsx:200",
+   "kind": "dialog",
+   "owner": "CpmOverview",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/GateEvidencePanel.tsx:266",
+   "kind": "dialog",
+   "owner": "GateEvidencePanel",
+   "title": null,
+   "reason": "reached"
+  },
+  {
+   "at": "components/Cpm/GateEvidencePanel.tsx:281",
+   "kind": "dialog",
+   "owner": "ModalEvidence",
+   "title": null,
+   "reason": "reached"
+  },
+  {
+   "at": "components/Cpm/GateEvidencePanel.tsx:282",
+   "kind": "dialog",
+   "owner": "ModalEvidence",
+   "title": "{…} evidence for {…}",
+   "reason": "reached"
+  },
+  {
+   "at": "components/Cpm/AttentionList.tsx:73",
+   "kind": "menu",
+   "owner": "AttentionList",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/kpi/KpiTrendChart.tsx:32",
+   "kind": "chart-tooltip",
+   "owner": "KpiTrendChart",
+   "title": null,
+   "reason": "chart hover: sampled on Explorer and Historical only"
+  },
+  {
+   "at": "components/Cpm/explorer/LoopModelCard.tsx:71",
+   "kind": "drawer",
+   "owner": "LoopModelCard",
+   "title": null,
+   "reason": "reached"
+  },
+  {
+   "at": "components/Cpm/evidence/CpmChart.tsx:129",
+   "kind": "chart-tooltip",
+   "owner": "buildCpmChartOption",
+   "title": null,
+   "reason": "chart hover: sampled on Explorer and Historical only"
+  },
+  {
+   "at": "components/Cpm/evidence/views/primitives/IntervalLane.tsx:34",
+   "kind": "chart-tooltip",
+   "owner": "buildIntervalLaneOption",
+   "title": null,
+   "reason": "chart hover: sampled on Explorer and Historical only"
+  },
+  {
+   "at": "components/Cpm/evidence/views/primitives/Trajectory.tsx:41",
+   "kind": "chart-tooltip",
+   "owner": "buildTrajectoryOption",
+   "title": null,
+   "reason": "chart hover: sampled on Explorer and Historical only"
+  },
+  {
+   "at": "components/Cpm/evidence/views/G13Interaction.tsx:47",
+   "kind": "chart-tooltip",
+   "owner": "buildRelationshipGraph",
+   "title": null,
+   "reason": "chart hover: sampled on Explorer and Historical only"
+  },
+  {
+   "at": "components/Cpm/explorer/LoopWorkspace.tsx:140",
+   "kind": "drawer",
+   "owner": "LoopWorkspace",
+   "title": null,
+   "reason": "reached"
+  },
+  {
+   "at": "components/Cpm/CpmExplorer.tsx:126",
+   "kind": "drawer",
+   "owner": "CpmExplorer",
+   "title": null,
+   "reason": "reached"
+  },
+  {
+   "at": "components/Cpm/LoopCombobox.tsx:178",
+   "kind": "popover",
+   "owner": "LoopCombobox",
+   "title": "{…}",
+   "reason": "reached"
+  },
+  {
+   "at": "components/Cpm/CalcDrawer.tsx:70",
+   "kind": "dialog",
+   "owner": "CalcDrawer",
+   "title": null,
+   "reason": "reached"
+  },
+  {
+   "at": "components/Cpm/CalcDrawer.tsx:80",
+   "kind": "dialog",
+   "owner": "CalcDrawer",
+   "title": "{…} {…}",
+   "reason": "reached"
+  },
+  {
+   "at": "components/Cpm/CpmCalculations.tsx:233",
+   "kind": "popover",
+   "owner": "CpmCalculations",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/CpmCalculations.tsx:357",
+   "kind": "dialog",
+   "owner": "CpmCalculations",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/historical/RangeToolbar.tsx:115",
+   "kind": "popover",
+   "owner": "RangeToolbar",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/historical/chartOption.ts:201",
+   "kind": "chart-tooltip",
+   "owner": "buildChartOption",
+   "title": null,
+   "reason": "reached"
+  },
+  {
+   "at": "components/Cpm/health/HealthLane.tsx:48",
+   "kind": "chart-tooltip",
+   "owner": "HealthLane",
+   "title": null,
+   "reason": "chart hover: sampled on Explorer and Historical only"
+  },
+  {
+   "at": "components/Cpm/CpmWindows.tsx:105",
+   "kind": "popover",
+   "owner": "CpmWindows",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/replay/ReplayChart.tsx:42",
+   "kind": "chart-tooltip",
+   "owner": "buildReplayOption",
+   "title": null,
+   "reason": "chart hover: sampled on Explorer and Historical only"
+  },
+  {
+   "at": "components/Cpm/replay/ReplayChart.tsx:58",
+   "kind": "chart-tooltip",
+   "owner": "buildReplayOption",
+   "title": null,
+   "reason": "chart hover: sampled on Explorer and Historical only"
+  },
+  {
+   "at": "components/Cpm/CpmReplay.tsx:188",
+   "kind": "popover",
+   "owner": "CpmReplay",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/evidence/EvidenceToolbar.tsx:53",
+   "kind": "popover",
+   "owner": "EvidenceToolbar",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/evidence/ExplainPanel.tsx:125",
+   "kind": "drawer",
+   "owner": "ExplainPanel",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/response/ModelReviewDialog.tsx:34",
+   "kind": "dialog",
+   "owner": "ModelReviewDialog",
+   "title": "{…} {…} {…} / {…} {…} {…} Decision {…} {…} Approved regime (",
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/response/ModelReviewDialog.tsx:35",
+   "kind": "dialog",
+   "owner": "ModelReviewDialog",
+   "title": "Review system model",
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/response/ResponseWorkspace.tsx:91",
+   "kind": "popover",
+   "owner": "ResponseWorkspace",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/response/ResponseWorkspace.tsx:192",
+   "kind": "dialog",
+   "owner": "ResponseWorkspace",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/config/GateConfigurationWorkspace.tsx:95",
+   "kind": "popover",
+   "owner": "GateConfigurationWorkspace",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/investigation/CaseTriage.tsx:66",
+   "kind": "popover",
+   "owner": "CaseTriage",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Cpm/CpmPipeline.tsx:102",
+   "kind": "chart-tooltip",
+   "owner": "CpmPipeline",
+   "title": null,
+   "reason": "chart hover: sampled on Explorer and Historical only"
+  },
+  {
+   "at": "components/Administration/BulkImportModal.tsx:128",
+   "kind": "dialog",
+   "owner": "BulkImportModal",
+   "title": "Bulk import users",
+   "reason": "trigger on the deny-list"
+  },
+  {
+   "at": "components/Administration/UserManagementConfig.tsx:183",
+   "kind": "dialog",
+   "owner": "UserManagementConfig",
+   "title": "Delete user",
+   "reason": "reached"
+  },
+  {
+   "at": "components/Administration/UserManagementConfig.tsx:286",
+   "kind": "dialog",
+   "owner": "UserManagementConfig",
+   "title": "Edit {…} | Add user",
+   "reason": "reached"
+  },
+  {
+   "at": "components/Administration/UserManagementConfig.tsx:348",
+   "kind": "dialog",
+   "owner": "UserManagementConfig",
+   "title": null,
+   "reason": "reached"
+  },
+  {
+   "at": "components/Administration/RolesConfig.tsx:134",
+   "kind": "dialog",
+   "owner": "RolesConfig",
+   "title": "Delete role \"{…}\"",
+   "reason": "trigger on the deny-list"
+  },
+  {
+   "at": "components/Administration/PlantModelImport.tsx:246",
+   "kind": "dialog",
+   "owner": "ImportDialog",
+   "title": "Import plant model from CSV",
+   "reason": "trigger on the deny-list"
+  },
+  {
+   "at": "components/Administration/PlantModelConfig.tsx:256",
+   "kind": "dialog",
+   "owner": "AssetEditorDialog",
+   "title": "Add {…} under {…} | Add {…} | Edit {…} {…}",
+   "reason": "reached"
+  },
+  {
+   "at": "components/Administration/PlantModelConfig.tsx:346",
+   "kind": "dialog",
+   "owner": "PlantModelConfig",
+   "title": "Delete {…}",
+   "reason": "trigger on the deny-list"
+  },
+  {
+   "at": "components/Administration/PlantModelConfig.tsx:438",
+   "kind": "dialog",
+   "owner": "PlantModelConfig",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Administration/PlantModelConfig.tsx:440",
+   "kind": "dialog",
+   "owner": "PlantModelConfig",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Administration/AliasConfig.tsx:59",
+   "kind": "dialog",
+   "owner": "AddAliasDialog",
+   "title": "Add tag alias",
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Administration/AliasConfig.tsx:137",
+   "kind": "dialog",
+   "owner": "ImportAliasDialog",
+   "title": "Import tag aliases from CSV",
+   "reason": "trigger on the deny-list"
+  },
+  {
+   "at": "components/Administration/AliasConfig.tsx:208",
+   "kind": "dialog",
+   "owner": "AliasConfig",
+   "title": "Delete alias",
+   "reason": "trigger on the deny-list"
+  },
+  {
+   "at": "components/Administration/AliasConfig.tsx:289",
+   "kind": "dialog",
+   "owner": "AliasConfig",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Administration/AliasConfig.tsx:290",
+   "kind": "dialog",
+   "owner": "AliasConfig",
+   "title": null,
+   "reason": "data-dependent or beyond the crawl limit"
+  },
+  {
+   "at": "components/Designer/trend/trendOption.ts:90",
+   "kind": "chart-tooltip",
+   "owner": "buildTrendOption",
+   "title": null,
+   "reason": "chart hover: sampled on Explorer and Historical only"
+  },
+  {
+   "at": "App.tsx:318",
+   "kind": "dialog",
+   "owner": "App",
+   "title": null,
+   "reason": "event-driven or shared shell (session expiry, confirm, forbidden)"
+  },
+  {
+   "at": "App.tsx:319",
+   "kind": "dialog",
+   "owner": "App",
+   "title": null,
+   "reason": "event-driven or shared shell (session expiry, confirm, forbidden)"
+  },
+  {
+   "at": "App.tsx:545",
+   "kind": "dialog",
+   "owner": "AppShell",
+   "title": null,
+   "reason": "event-driven or shared shell (session expiry, confirm, forbidden)"
+  }
+ ],
+ "deniedControls": [
+  {
+   "surface": "R-02",
+   "label": "G12 Step-test evidence: no loops held back",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "G12 Step-test evidence: no loops held back",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "B2_027PIC, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC00701, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10301, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10302, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10303A, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10303B, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10401, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10402, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10403, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10404, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10405, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10406, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10409, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10501, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10502, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10503, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10504, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10505, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10506, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10509, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10513, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC10710, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC20209, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC20301, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "V-02",
+   "label": "FIC20404, gate G12 Step-test evidence: not evaluated",
+   "kind": "button"
+  },
+  {
+   "surface": "R-03",
+   "label": "Acknowledge",
+   "kind": "button"
+  },
+  {
+   "surface": "R-03",
+   "label": "Shelve…",
+   "kind": "button"
+  },
+  {
+   "surface": "R-03",
+   "label": "Unshelve…",
+   "kind": "button"
+  },
+  {
+   "surface": "R-05",
+   "label": "Apply",
+   "kind": "button"
+  },
+  {
+   "surface": "R-06",
+   "label": "Save note",
+   "kind": "button"
+  },
+  {
+   "surface": "R-07",
+   "label": "Copy run id",
+   "kind": "button"
+  },
+  {
+   "surface": "R-07",
+   "label": "Reconstruct evidence",
+   "kind": "button"
+  },
+  {
+   "surface": "R-07",
+   "label": "Reconstruct evidence",
+   "kind": "button"
+  },
+  {
+   "surface": "R-08",
+   "label": "Export package",
+   "kind": "button"
+  },
+  {
+   "surface": "R-08",
+   "label": "Re-run this window",
+   "kind": "button"
+  },
+  {
+   "surface": "R-08",
+   "label": "Save note",
+   "kind": "button"
+  },
+  {
+   "surface": "R-11",
+   "label": "Export CSV",
+   "kind": "button"
+  },
+  {
+   "surface": "R-11",
+   "label": "Export CSV",
+   "kind": "button"
+  },
+  {
+   "surface": "R-11",
+   "label": "Export CSV",
+   "kind": "button"
+  },
+  {
+   "surface": "R-12",
+   "label": "Bulk import",
+   "kind": "button"
+  },
+  {
+   "surface": "R-12",
+   "label": "Re-project links & republish evidence",
+   "kind": "button"
+  },
+  {
+   "surface": "V-07",
+   "label": "Bulk import",
+   "kind": "button"
+  },
+  {
+   "surface": "V-07",
+   "label": "Re-project links & republish evidence",
+   "kind": "button"
+  },
+  {
+   "surface": "V-08",
+   "label": "5 of 5 applied · one jar dabe1862 · catalogue matches APPLY acknowledgements",
+   "kind": "expander"
+  },
+  {
+   "surface": "V-09",
+   "label": "New version",
+   "kind": "button"
+  },
+  {
+   "surface": "V-09",
+   "label": "New draft",
+   "kind": "button"
+  },
+  {
+   "surface": "V-09",
+   "label": "New draft",
+   "kind": "button"
+  },
+  {
+   "surface": "R-15",
+   "label": "Run E2E verification",
+   "kind": "button"
+  },
+  {
+   "surface": "R-16",
+   "label": "Verify cryptographic chain",
+   "kind": "button"
+  },
+  {
+   "surface": "R-17",
+   "label": "Apply window",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Bulk import",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-18",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-19",
+   "label": "Save permissions",
+   "kind": "button"
+  },
+  {
+   "surface": "R-20",
+   "label": "Test",
+   "kind": "button"
+  },
+  {
+   "surface": "R-20",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-20",
+   "label": "Test",
+   "kind": "button"
+  },
+  {
+   "surface": "R-20",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-20",
+   "label": "Test",
+   "kind": "button"
+  },
+  {
+   "surface": "R-20",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-20",
+   "label": "Test",
+   "kind": "button"
+  },
+  {
+   "surface": "R-20",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-20",
+   "label": "Test",
+   "kind": "button"
+  },
+  {
+   "surface": "R-20",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-20",
+   "label": "Test",
+   "kind": "button"
+  },
+  {
+   "surface": "R-20",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-20",
+   "label": "Test",
+   "kind": "button"
+  },
+  {
+   "surface": "R-20",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-20",
+   "label": "Test",
+   "kind": "button"
+  },
+  {
+   "surface": "R-20",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-21",
+   "label": "Import CSV",
+   "kind": "button"
+  },
+  {
+   "surface": "R-21",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-21",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-21",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Import CSV",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-22",
+   "label": "Delete",
+   "kind": "button"
+  },
+  {
+   "surface": "R-23",
+   "label": "✓ Verify Cryptographic Chain",
+   "kind": "button"
+  },
+  {
+   "surface": "R-24",
+   "label": "Save unavailable",
+   "kind": "button"
+  }
+ ],
+ "links": [
+  {
+   "from": "R-01",
+   "label": "24h",
+   "to": "/cpm?window=24h",
+   "via": "control"
+  },
+  {
+   "from": "R-01",
+   "label": "View all ›",
+   "to": "/cpm/performance?window=12h&rows=attention",
+   "via": "control"
+  },
+  {
+   "from": "R-01",
+   "label": "View all loops",
+   "to": "/cpm/performance?window=12h&rows=attention",
+   "via": "control"
+  },
+  {
+   "from": "R-01",
+   "label": "All events ›",
+   "to": "/cpm/events",
+   "via": "control"
+  },
+  {
+   "from": "V-01",
+   "label": "24h",
+   "to": "/cpm?loop=FIC10302&window=24h",
+   "via": "control"
+  },
+  {
+   "from": "V-01",
+   "label": "View all ›",
+   "to": "/cpm/performance?loop=FIC10302&window=12h&rows=attention",
+   "via": "control"
+  },
+  {
+   "from": "V-01",
+   "label": "View all loops",
+   "to": "/cpm/performance?loop=FIC10302&window=12h&rows=attention",
+   "via": "control"
+  },
+  {
+   "from": "R-02",
+   "label": "24h",
+   "to": "/cpm/performance?window=24h",
+   "via": "control"
+  },
+  {
+   "from": "R-02",
+   "label": "",
+   "to": "/cpm/performance?health=missing-binding",
+   "via": "control"
+  },
+  {
+   "from": "R-02",
+   "label": "",
+   "to": "/cpm/performance?health=missing-binding",
+   "via": "control"
+  },
+  {
+   "from": "R-02",
+   "label": "",
+   "to": "/cpm/performance?health=missing-binding",
+   "via": "control"
+  },
+  {
+   "from": "R-02",
+   "label": "Pipeline Health ›",
+   "to": "/cpm/pipeline",
+   "via": "control"
+  },
+  {
+   "from": "R-02",
+   "label": "G0 Data quality: 164 failed, 1 need attention. Show only these loops in the matrix.",
+   "to": "/cpm/performance?fg=G0",
+   "via": "control"
+  },
+  {
+   "from": "R-02",
+   "label": "G3 Base performance: 0 failed, 1 need attention. Show only these loops in the matrix.",
+   "to": "/cpm/performance?fg=G3",
+   "via": "control"
+  },
+  {
+   "from": "R-02",
+   "label": "G5 Oscillation (ACF): 0 failed, 163 need attention. Show only these loops in the matrix.",
+   "to": "/cpm/performance?fg=G5",
+   "via": "control"
+  },
+  {
+   "from": "V-02",
+   "label": "24h",
+   "to": "/cpm/performance?view=matrix&window=24h",
+   "via": "control"
+  },
+  {
+   "from": "V-02",
+   "label": "",
+   "to": "/cpm/performance?view=matrix&health=missing-binding",
+   "via": "control"
+  },
+  {
+   "from": "V-02",
+   "label": "",
+   "to": "/cpm/performance?view=matrix&health=missing-binding",
+   "via": "control"
+  },
+  {
+   "from": "V-02",
+   "label": "",
+   "to": "/cpm/performance?view=matrix&health=missing-binding",
+   "via": "control"
+  },
+  {
+   "from": "V-02",
+   "label": "Pipeline Health ›",
+   "to": "/cpm/pipeline",
+   "via": "control"
+  },
+  {
+   "from": "V-02",
+   "label": "G0 Data quality: 164 failed, 1 need attention. Show only these loops in the matrix.",
+   "to": "/cpm/performance?view=matrix&fg=G0",
+   "via": "control"
+  },
+  {
+   "from": "V-02",
+   "label": "G3 Base performance: 0 failed, 1 need attention. Show only these loops in the matrix.",
+   "to": "/cpm/performance?view=matrix&fg=G3",
+   "via": "control"
+  },
+  {
+   "from": "V-02",
+   "label": "G5 Oscillation (ACF): 0 failed, 163 need attention. Show only these loops in the matrix.",
+   "to": "/cpm/performance?view=matrix&fg=G5",
+   "via": "control"
+  },
+  {
+   "from": "R-03",
+   "label": "Open 325",
+   "to": "/cpm/events?filter=open",
+   "via": "control"
+  },
+  {
+   "from": "R-03",
+   "label": "Unobservable 322",
+   "to": "/cpm/events?filter=unobservable",
+   "via": "control"
+  },
+  {
+   "from": "R-03",
+   "label": "Sort by Opened",
+   "to": "/cpm/events?sort=recent",
+   "via": "control"
+  },
+  {
+   "from": "R-03",
+   "label": "Show episode EVT-2231, peak Oscillation confirmed",
+   "to": "/cpm/events?event=2231",
+   "via": "control"
+  },
+  {
+   "from": "R-03",
+   "label": "PIC40102 ›",
+   "to": "/cpm/explorer?loop=PIC40102&tab=Summary",
+   "via": "control"
+  },
+  {
+   "from": "R-03",
+   "label": "Show episode EVT-2230, peak Oscillation confirmed",
+   "to": "/cpm/events?event=2230",
+   "via": "control"
+  },
+  {
+   "from": "R-03",
+   "label": "PIC40102 ›",
+   "to": "/cpm/explorer?loop=PIC40102&tab=Summary",
+   "via": "control"
+  },
+  {
+   "from": "R-03",
+   "label": "Show episode EVT-2229, peak Oscillation confirmed",
+   "to": "/cpm/events?event=2229",
+   "via": "control"
+  },
+  {
+   "from": "R-03",
+   "label": "PIC30325 ›",
+   "to": "/cpm/explorer?loop=PIC30325&tab=Summary",
+   "via": "control"
+  },
+  {
+   "from": "R-04",
+   "label": "24h",
+   "to": "/cpm/explorer?loop=FIC10302&window=24h",
+   "via": "control"
+  },
+  {
+   "from": "R-04",
+   "label": "Open Window Inspector ›",
+   "to": "/cpm/windows?loop=FIC10302",
+   "via": "control"
+  },
+  {
+   "from": "R-04",
+   "label": "Show on trend ›",
+   "to": "/cpm/explorer?loop=FIC10302&from=2026-11-04T00%3A15%3A00.000Z&to=2026-11-04T12%3A15%3A00.000Z&compare=1&tab=Summary",
+   "via": "control"
+  },
+  {
+   "from": "R-04",
+   "label": "Calculation proof › Workbench",
+   "to": "/cpm/evidence?loop=FIC10302&methodRun=276279a3-e8d2-570c-b50f-5569c01dff63&gate=G15&mode=FIXED",
+   "via": "control"
+  },
+  {
+   "from": "V-03",
+   "label": "24h",
+   "to": "/cpm/explorer?loop=FIC10302&tab=Signals&window=24h",
+   "via": "control"
+  },
+  {
+   "from": "V-03",
+   "label": "Open Window Inspector ›",
+   "to": "/cpm/windows?loop=FIC10302",
+   "via": "control"
+  },
+  {
+   "from": "V-03",
+   "label": "Show on trend ›",
+   "to": "/cpm/explorer?loop=FIC10302&tab=Summary&from=2026-11-04T00%3A15%3A00.000Z&to=2026-11-04T12%3A15%3A00.000Z&compare=1",
+   "via": "control"
+  },
+  {
+   "from": "V-03",
+   "label": "Calculation proof › Workbench",
+   "to": "/cpm/evidence?loop=FIC10302&methodRun=276279a3-e8d2-570c-b50f-5569c01dff63&gate=G15&mode=FIXED",
+   "via": "control"
+  },
+  {
+   "from": "V-03",
+   "label": "Pipeline Health ›",
+   "to": "/trend?tags=hdpe%2Fsection_100%2Fu1001_polymerization_reactor_1%2Ffic10302.pv%2Chdpe%2Fsection_100%2Fu1001_polymerization_reactor_1%2Ffic10302.sp%2Chdpe%2Fsection_100%2Fu1001_polymerization_reactor_1%2Ffic10302.op%2Chdpe%2Fsection_100%2Fu1001_polymerization_reactor_1%2Ffic10302.vp&range=8h",
+   "via": "control"
+  },
+  {
+   "from": "V-04",
+   "label": "24h",
+   "to": "/cpm/explorer?loop=FIC10302&tab=Calculations&window=24h",
+   "via": "control"
+  },
+  {
+   "from": "V-04",
+   "label": "Open Window Inspector ›",
+   "to": "/cpm/windows?loop=FIC10302",
+   "via": "control"
+  },
+  {
+   "from": "V-04",
+   "label": "Show on trend ›",
+   "to": "/cpm/explorer?loop=FIC10302&tab=Summary&from=2026-11-04T00%3A15%3A00.000Z&to=2026-11-04T12%3A15%3A00.000Z&compare=1",
+   "via": "control"
+  },
+  {
+   "from": "V-04",
+   "label": "Calculation proof › Workbench",
+   "to": "/cpm/evidence?loop=FIC10302&methodRun=276279a3-e8d2-570c-b50f-5569c01dff63&gate=G15&mode=FIXED",
+   "via": "control"
+  },
+  {
+   "from": "V-04",
+   "label": "Open G0 evidence in Evidence Replay",
+   "to": "/cpm/replay?loop=FIC10302&gate=G0",
+   "via": "control"
+  },
+  {
+   "from": "V-04",
+   "label": "Open G1 evidence in Evidence Replay",
+   "to": "/cpm/replay?loop=FIC10302&gate=G1",
+   "via": "control"
+  },
+  {
+   "from": "V-04",
+   "label": "Open G2 evidence in Evidence Replay",
+   "to": "/cpm/replay?loop=FIC10302&gate=G2",
+   "via": "control"
+  },
+  {
+   "from": "V-05",
+   "label": "24h",
+   "to": "/cpm/explorer?loop=G13_LOOP_A&tab=Relationships&window=24h",
+   "via": "control"
+  },
+  {
+   "from": "V-05",
+   "label": "Open Window Inspector ›",
+   "to": "/cpm/windows?loop=G13_LOOP_A",
+   "via": "control"
+  },
+  {
+   "from": "V-05",
+   "label": "Show on trend ›",
+   "to": "/cpm/explorer?loop=G13_LOOP_A&tab=Summary&from=2026-08-13T07%3A30%3A00.000Z&to=2026-08-13T19%3A30%3A00.000Z&compare=1",
+   "via": "control"
+  },
+  {
+   "from": "V-05",
+   "label": "Calculation proof › Workbench",
+   "to": "/cpm/evidence?loop=G13_LOOP_A&kind=12h",
+   "via": "control"
+  },
+  {
+   "from": "V-06",
+   "label": "24h",
+   "to": "/cpm/explorer?loop=FIC10302&tab=History&window=24h",
+   "via": "control"
+  },
+  {
+   "from": "V-06",
+   "label": "Open Window Inspector ›",
+   "to": "/cpm/windows?loop=FIC10302",
+   "via": "control"
+  },
+  {
+   "from": "V-06",
+   "label": "Show on trend ›",
+   "to": "/cpm/explorer?loop=FIC10302&tab=Summary&from=2026-11-04T00%3A15%3A00.000Z&to=2026-11-04T12%3A15%3A00.000Z&compare=1",
+   "via": "control"
+  },
+  {
+   "from": "V-06",
+   "label": "Calculation proof › Workbench",
+   "to": "/cpm/evidence?loop=FIC10302&methodRun=276279a3-e8d2-570c-b50f-5569c01dff63&gate=G15&mode=FIXED",
+   "via": "control"
+  },
+  {
+   "from": "V-06",
+   "label": "Pipeline Health ›",
+   "to": "/cpm/historical?loop=FIC10302&from=2026-09-25T16%3A45%3A00.000Z&to=2026-11-04T12%3A48%3A12.845Z",
+   "via": "control"
+  },
+  {
+   "from": "V-06",
+   "label": "Relationships ›",
+   "to": "/cpm/historical?loop=FIC10302&from=2026-09-25T16%3A15%3A00.000Z&to=2026-09-25T16%3A30%3A00.000Z",
+   "via": "control"
+  },
+  {
+   "from": "V-06",
+   "label": "25/09/2026, 20:45:00 GST · open Oscillation confirmed 6 episodes · 7 × 12h/24h window(s) ·",
+   "to": "/cpm/historical?loop=FIC10302&from=2026-09-25T16%3A45%3A00.000Z&to=2026-11-04T12%3A48%3A37.058Z",
+   "via": "control"
+  },
+  {
+   "from": "V-06",
+   "label": "25/09/2026, 20:15:00 GST → 25/09/2026, 20:30:00 GST Oscillation detected 2 episodes · 2 × ",
+   "to": "/cpm/historical?loop=FIC10302&from=2026-09-25T16%3A15%3A00.000Z&to=2026-09-25T16%3A30%3A00.000Z",
+   "via": "control"
+  },
+  {
+   "from": "V-06",
+   "label": "25/09/2026, 18:15:00 GST → 25/09/2026, 20:00:00 GST Oscillation confirmed 4 episodes · 4 ×",
+   "to": "/cpm/historical?loop=FIC10302&from=2026-09-25T14%3A15%3A00.000Z&to=2026-09-25T16%3A00%3A00.000Z",
+   "via": "control"
+  },
+  {
+   "from": "R-05",
+   "label": "24h",
+   "to": "/cpm/historical?loop=FIC10302&kind=24h",
+   "via": "control"
+  },
+  {
+   "from": "R-05",
+   "label": "Clear the selected loop",
+   "to": "/cpm/historical",
+   "via": "control"
+  },
+  {
+   "from": "R-05",
+   "label": "24h",
+   "to": "/cpm/historical?loop=FIC10302&kind=24h",
+   "via": "control"
+  },
+  {
+   "from": "R-05",
+   "label": "‹",
+   "to": "/cpm/historical?loop=FIC10302&from=2026-10-29T12%3A48%3A52.722Z&to=2026-11-01T12%3A48%3A52.722Z",
+   "via": "control"
+  },
+  {
+   "from": "R-05",
+   "label": "›",
+   "to": "/cpm/historical?loop=FIC10302&from=2026-11-04T12%3A50%3A13.887Z&to=2026-11-07T12%3A50%3A13.887Z",
+   "via": "control"
+  },
+  {
+   "from": "R-05",
+   "label": "PV Process variable",
+   "to": "/cpm/historical?loop=FIC10302&signals=sp%2Cop",
+   "via": "control"
+  },
+  {
+   "from": "R-05",
+   "label": "SP Setpoint",
+   "to": "/cpm/historical?loop=FIC10302&signals=pv%2Cop",
+   "via": "control"
+  },
+  {
+   "from": "R-05",
+   "label": "OP Controller output",
+   "to": "/cpm/historical?loop=FIC10302&signals=pv%2Csp",
+   "via": "control"
+  },
+  {
+   "from": "R-06",
+   "label": "Calculation proof ›",
+   "to": "/cpm/calculations?loop=FIC10302&window=12h",
+   "via": "control"
+  },
+  {
+   "from": "R-06",
+   "label": "Open in Evidence Replay ›",
+   "to": "/cpm/replay?loop=FIC10302&window=2026-11-04T12%3A15%3A00Z",
+   "via": "control"
+  },
+  {
+   "from": "R-06",
+   "label": "12 h window · 6 Oct 11:15 → 6 Oct 23:15 GST: Oscillation confirmed, latest",
+   "to": "/cpm/investigation?loop=FIC10302&mode=historical&window=2026-10-06T19%3A15%3A00Z",
+   "via": "control"
+  },
+  {
+   "from": "R-06",
+   "label": "12 h window · 6 Oct 11:00 → 6 Oct 23:00 GST: Oscillation confirmed",
+   "to": "/cpm/investigation?loop=FIC10302&mode=historical&window=2026-10-06T19%3A00%3A00Z",
+   "via": "control"
+  },
+  {
+   "from": "R-06",
+   "label": "12 h window · 6 Oct 10:45 → 6 Oct 22:45 GST: Oscillation confirmed",
+   "to": "/cpm/investigation?loop=FIC10302&mode=historical&window=2026-10-06T18%3A45%3A00Z",
+   "via": "control"
+  },
+  {
+   "from": "R-07",
+   "label": "Older ›",
+   "to": "/cpm/evidence?loop=FIC10302&methodRun=194ad086-f73c-584b-8cc3-d341b0fd76d4&gate=G15&mode=FIXED",
+   "via": "control"
+  },
+  {
+   "from": "R-07",
+   "label": "G0 Data quality: window not usable for this check",
+   "to": "/cpm/evidence?loop=FIC10302&methodRun=feb22f33-f61c-5aa8-958c-d6dca8e0de86&gate=G0&mode=FIXED",
+   "via": "control"
+  },
+  {
+   "from": "R-07",
+   "label": "G1 Mode / service: not evaluated",
+   "to": "/cpm/evidence?loop=FIC10302&methodRun=ed66393e-e865-526f-9f8d-62f089ef22be&gate=G1&mode=FIXED",
+   "via": "control"
+  },
+  {
+   "from": "R-07",
+   "label": "G2 SP activity: not evaluated",
+   "to": "/cpm/evidence?loop=FIC10302&methodRun=030f176e-0248-54e1-b5b3-7187c983e80a&gate=G2&mode=FIXED",
+   "via": "control"
+  },
+  {
+   "from": "R-08",
+   "label": "Clear the selected loop",
+   "to": "/cpm/replay",
+   "via": "control"
+  },
+  {
+   "from": "R-09",
+   "label": "Clear the selected loop",
+   "to": "/cpm/windows",
+   "via": "control"
+  },
+  {
+   "from": "R-09",
+   "label": "04/11/2026, 16:25:00 GST from 04/11/2026, 16:10:00 GST 175 samples !✓✓✓!✓ emitted 04/11/20",
+   "to": "/cpm/windows?loop=FIC10302&window=2026-11-04T12%3A25%3A00Z",
+   "via": "control"
+  },
+  {
+   "from": "R-09",
+   "label": "04/11/2026, 16:20:00 GST from 04/11/2026, 16:05:00 GST 177 samples ✓✓✓✓!✓ emitted 04/11/20",
+   "to": "/cpm/windows?loop=FIC10302&window=2026-11-04T12%3A20%3A00Z",
+   "via": "control"
+  },
+  {
+   "from": "R-09",
+   "label": "04/11/2026, 16:15:00 GST from 04/11/2026, 16:00:00 GST 178 samples ✓✓✓✓!✓ emitted 04/11/20",
+   "to": "/cpm/windows?loop=FIC10302&window=2026-11-04T12%3A15%3A00Z",
+   "via": "control"
+  },
+  {
+   "from": "R-10",
+   "label": "24h",
+   "to": "/cpm/calculations?loop=FIC10302&window=24h",
+   "via": "control"
+  },
+  {
+   "from": "R-11",
+   "label": "Open loop ›",
+   "to": "/cpm/explorer?loop=FIC10302&tab=Summary",
+   "via": "control"
+  },
+  {
+   "from": "R-11",
+   "label": "Change loop",
+   "to": "/cpm/response",
+   "via": "control"
+  },
+  {
+   "from": "R-11",
+   "label": "Clear the selected loop",
+   "to": "/cpm/response",
+   "via": "control"
+  },
+  {
+   "from": "R-11",
+   "label": "Zoom area",
+   "to": "/cpm/response?loop=FIC10302&event=4405edde-0acc-54f2-957d-a82f7d60094c",
+   "via": "control"
+  },
+  {
+   "from": "R-12",
+   "label": "AIC30601 Analyser controller AIC30601 · B2 — · — UNKNOWN Not mapped — Degraded",
+   "to": "/cpm/registry?loop=AIC30601",
+   "via": "control"
+  },
+  {
+   "from": "R-12",
+   "label": "B2_027PIC B2 027 Pressure Control · B2 — · — PIC Not mapped — Degraded",
+   "to": "/cpm/registry?loop=B2_027PIC",
+   "via": "control"
+  },
+  {
+   "from": "R-12",
+   "label": "DEMO-BAD-006 Unmodelled location · narnia — · — FIC Not mapped — Degraded",
+   "to": "/cpm/registry?loop=DEMO-BAD-006",
+   "via": "control"
+  },
+  {
+   "from": "V-07",
+   "label": "AIC30601 Analyser controller AIC30601 · B2 — · — UNKNOWN Not mapped — Degraded",
+   "to": "/cpm/registry?loop=AIC30601",
+   "via": "control"
+  },
+  {
+   "from": "V-07",
+   "label": "B2_027PIC B2 027 Pressure Control · B2 — · — PIC Not mapped — Degraded",
+   "to": "/cpm/registry?loop=B2_027PIC",
+   "via": "control"
+  },
+  {
+   "from": "V-07",
+   "label": "DEMO-BAD-006 Unmodelled location · narnia — · — FIC Not mapped — Degraded",
+   "to": "/cpm/registry?loop=DEMO-BAD-006",
+   "via": "control"
+  },
+  {
+   "from": "V-08",
+   "label": "Clear the selected loop",
+   "to": "/cpm/config",
+   "via": "control"
+  },
+  {
+   "from": "V-09",
+   "label": "Clear the selected loop",
+   "to": "/cpm/config",
+   "via": "control"
+  },
+  {
+   "from": "V-09",
+   "label": "v7 · 337ddfe7 ROLLED_BACK POLICY · 25/09/2026, 22:37:18 GST · e2e_cfg_engineer_a733d49f · ",
+   "to": "/cpm/config?loop=FIC10302&view=editor&bundle=9422e3f6-159a-4978-929e-ba98e4212d4d",
+   "via": "control"
+  },
+  {
+   "from": "V-09",
+   "label": "v6 · f9153b00 ACTIVE_VERIFIED POLICY · 25/09/2026, 22:37:18 GST · e2e_cfg_engineer_a733d49",
+   "to": "/cpm/config?loop=FIC10302&view=editor&bundle=b250be9c-8b44-47ce-bde0-204f625a4e3d",
+   "via": "control"
+  },
+  {
+   "from": "V-09",
+   "label": "v5 · 337ddfe7 ROLLED_BACK POLICY · 25/09/2026, 18:32:19 GST · e2e_cfg_engineer_d9063637 · ",
+   "to": "/cpm/config?loop=FIC10302&view=editor&bundle=4357cc12-0555-4da1-af78-51cd14c020aa",
+   "via": "control"
+  },
+  {
+   "from": "R-14",
+   "label": "24h",
+   "to": "/cpm/kpi?kpi=acceptable&window=24h",
+   "via": "control"
+  },
+  {
+   "from": "R-14",
+   "label": "90 d",
+   "to": "/cpm/kpi?kpi=acceptable&range=90",
+   "via": "control"
+  },
+  {
+   "from": "R-14",
+   "label": "1 y",
+   "to": "/cpm/kpi?kpi=acceptable&range=365",
+   "via": "control"
+  },
+  {
+   "from": "R-17",
+   "label": "×",
+   "to": "/trend?tags=hdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.sp%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.op&range=8h",
+   "via": "control"
+  },
+  {
+   "from": "R-17",
+   "label": "×",
+   "to": "/trend?tags=hdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.sp%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.op&range=8h",
+   "via": "control"
+  },
+  {
+   "from": "R-17",
+   "label": "×",
+   "to": "/trend?tags=hdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.sp%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.op&range=8h",
+   "via": "control"
+  }
+ ]
+}

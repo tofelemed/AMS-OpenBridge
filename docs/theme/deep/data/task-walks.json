@@ -1,0 +1,1141 @@
+{
+ "log": {
+  "blocked": [],
+  "http429": [],
+  "apiCalls": 224,
+  "pacedMs": 2507500,
+  "trigger": null
+ },
+ "walks": [
+  {
+   "id": "OP1",
+   "role": "Operator",
+   "task": "Find the loops that need review on my unit and why",
+   "source": "Guide p.11 purpose",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm?site=hdpe",
+     "url": "/cpm?site=hdpe",
+     "words": 443,
+     "pageHeight": 1668,
+     "internalTerms": [
+      "G14",
+      "G13"
+     ]
+    },
+    {
+     "how": "no such control",
+     "deadEnd": "/^Open analysis|^Review evidence/",
+     "target": "/cpm?site=hdpe&loop=FIC10302",
+     "url": "/cpm?site=hdpe&loop=FIC10302",
+     "words": 485,
+     "pageHeight": 1962,
+     "internalTerms": [
+      "G14",
+      "G13"
+     ],
+     "lost": []
+    }
+   ],
+   "clicks": 0,
+   "pageHops": 2,
+   "ms": 5119,
+   "scrollPx": 0,
+   "deadEnds": 1,
+   "contextLost": []
+  },
+  {
+   "id": "OP2",
+   "role": "Operator",
+   "task": "See the current PV, SP, output and mode of a loop",
+   "source": "Guide p.12 purpose",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm?site=hdpe&loop=FIC10302",
+     "url": "/cpm?site=hdpe&loop=FIC10302",
+     "words": 485,
+     "pageHeight": 1962,
+     "internalTerms": [
+      "G14",
+      "G13"
+     ]
+    },
+    {
+     "how": "clicked",
+     "control": "Loop Explorer",
+     "scroll": 0,
+     "url": "/cpm/explorer?loop=FIC10302&site=hdpe",
+     "words": 655,
+     "pageHeight": 2776,
+     "internalTerms": [
+      "fused",
+      "G0",
+      "G1",
+      "G2",
+      "G2r",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G7",
+      "G8",
+      "G9"
+     ],
+     "lost": []
+    }
+   ],
+   "clicks": 1,
+   "pageHops": 2,
+   "ms": 15784,
+   "scrollPx": 0,
+   "deadEnds": 0,
+   "contextLost": []
+  },
+  {
+   "id": "OP3",
+   "role": "Operator",
+   "task": "See whether a loop spent the shift in AUTO",
+   "source": "Guide p.13 time in AUTO",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm/explorer?loop=FIC10302",
+     "url": "/cpm/explorer?loop=FIC10302",
+     "words": 634,
+     "pageHeight": 2776,
+     "internalTerms": [
+      "fused",
+      "G0",
+      "G1",
+      "G2",
+      "G2r",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G7",
+      "G8",
+      "G9"
+     ]
+    },
+    {
+     "how": "clicked",
+     "control": "— Time in normal mode not measured in this window",
+     "scroll": 1304,
+     "url": "/cpm/historical?loop=FIC10302&from=2026-11-04T00%3A15%3A00.000Z&to=2026-11-04T12%3A15%3A00%2B00%3A00&kind=12h&window=2026-11-04T12%3A15%3A00%2B00%3A00&signals=pv%2Csp%2Cop&focus=Time+in+normal+mode",
+     "words": 238,
+     "pageHeight": 1178,
+     "internalTerms": [],
+     "lost": []
+    }
+   ],
+   "clicks": 1,
+   "pageHops": 2,
+   "ms": 30634,
+   "scrollPx": 1304,
+   "deadEnds": 0,
+   "contextLost": []
+  },
+  {
+   "id": "OP4",
+   "role": "Operator",
+   "task": "List loops in manual now",
+   "source": "Overview KPI",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm",
+     "url": "/cpm",
+     "words": 422,
+     "pageHeight": 1668,
+     "internalTerms": [
+      "G14",
+      "G13"
+     ]
+    },
+    {
+     "how": "clicked",
+     "control": "0 In manual mode 0 % of 0 loops with a measured manual share",
+     "scroll": 0,
+     "url": "/cpm/kpi?kpi=manual-mode&window=12h",
+     "words": 373,
+     "pageHeight": 1234,
+     "internalTerms": [],
+     "lost": []
+    }
+   ],
+   "clicks": 1,
+   "pageHops": 2,
+   "ms": 14472,
+   "scrollPx": 0,
+   "deadEnds": 0,
+   "contextLost": []
+  },
+  {
+   "id": "OP5",
+   "role": "Operator",
+   "task": "Find why a loop is not evaluated",
+   "source": "Prompt example; guide p.7 data states",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm/explorer?loop=FIC00701",
+     "url": "/cpm/explorer?loop=FIC00701",
+     "words": 690,
+     "pageHeight": 2636,
+     "internalTerms": [
+      "fused",
+      "G0",
+      "G1",
+      "G2",
+      "G2r",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G7",
+      "G8",
+      "G9"
+     ]
+    },
+    {
+     "how": "clicked",
+     "control": "Open Window Inspector ›",
+     "scroll": 29,
+     "url": "/cpm/windows?loop=FIC00701",
+     "words": 561,
+     "pageHeight": 1971,
+     "internalTerms": [
+      "checkpoint"
+     ],
+     "lost": []
+    }
+   ],
+   "clicks": 1,
+   "pageHops": 2,
+   "ms": 17002,
+   "scrollPx": 29,
+   "deadEnds": 0,
+   "contextLost": []
+  },
+  {
+   "id": "OP6",
+   "role": "Operator",
+   "task": "Check open episodes on a unit",
+   "source": "Loop Events function",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm?site=hdpe",
+     "url": "/cpm?site=hdpe",
+     "words": 443,
+     "pageHeight": 1668,
+     "internalTerms": [
+      "G14",
+      "G13"
+     ]
+    },
+    {
+     "how": "clicked",
+     "control": "All events ›",
+     "scroll": 591,
+     "url": "/cpm/events",
+     "words": 1506,
+     "pageHeight": 3325,
+     "internalTerms": [
+      "G10",
+      "G11",
+      "fused"
+     ],
+     "lost": [
+      "plant"
+     ]
+    }
+   ],
+   "clicks": 1,
+   "pageHops": 2,
+   "ms": 4104,
+   "scrollPx": 591,
+   "deadEnds": 0,
+   "contextLost": [
+    "plant"
+   ]
+  },
+  {
+   "id": "EN1",
+   "role": "Engineer",
+   "task": "Confirm whether a loop oscillation is valve-related",
+   "source": "Prompt example; guide p.13 diagnostic method",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm/explorer?loop=FIC10301",
+     "url": "/cpm/explorer?loop=FIC10301",
+     "words": 638,
+     "pageHeight": 2800,
+     "internalTerms": [
+      "fused",
+      "G0",
+      "G1",
+      "G2",
+      "G2r",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G7",
+      "G8",
+      "G9"
+     ]
+    },
+    {
+     "how": "clicked",
+     "control": "Investigation",
+     "scroll": 0,
+     "url": "/cpm/investigation?loop=FIC10301",
+     "words": 363,
+     "pageHeight": 1948,
+     "internalTerms": [
+      "fused",
+      "G14"
+     ],
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "Evidence Workbench",
+     "scroll": 0,
+     "url": "/cpm/evidence?loop=FIC10301&methodRun=da35f016-7fdc-56d9-9cf8-96631a708a4f&gate=G15&mode=FIXED",
+     "words": 230,
+     "pageHeight": 1352,
+     "internalTerms": [
+      "G15",
+      "argmax",
+      "fusion",
+      "bundle"
+     ],
+     "lost": []
+    }
+   ],
+   "clicks": 2,
+   "pageHops": 3,
+   "ms": 45082,
+   "scrollPx": 0,
+   "deadEnds": 0,
+   "contextLost": []
+  },
+  {
+   "id": "EN2",
+   "role": "Engineer",
+   "task": "Compare loops gate by gate",
+   "source": "Performance function",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm/performance",
+     "url": "/cpm/performance",
+     "words": 196,
+     "pageHeight": 989,
+     "internalTerms": []
+    },
+    {
+     "how": "no such control",
+     "deadEnd": "/^Full G0|matrix/i",
+     "target": "/cpm/performance?view=matrix",
+     "url": "/cpm/performance?view=matrix",
+     "words": 397,
+     "pageHeight": 1636,
+     "internalTerms": [],
+     "lost": []
+    }
+   ],
+   "clicks": 0,
+   "pageHops": 2,
+   "ms": 29122,
+   "scrollPx": 0,
+   "deadEnds": 1,
+   "contextLost": []
+  },
+  {
+   "id": "EN3",
+   "role": "Engineer",
+   "task": "Read how a metric was calculated",
+   "source": "Guide p.13 metric result",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm/explorer?loop=FIC10302&tab=Calculations",
+     "url": "/cpm/explorer?loop=FIC10302&tab=Calculations",
+     "words": 323,
+     "pageHeight": 1414,
+     "internalTerms": [
+      "fused",
+      "G0",
+      "G15",
+      "G1",
+      "G2",
+      "G2r",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G7",
+      "G8"
+     ]
+    },
+    {
+     "how": "no such control",
+     "deadEnd": "/Control error|Good-error/",
+     "target": "/cpm/calculations?loop=FIC10302&metric=CPLM-010",
+     "url": "/cpm/calculations?loop=FIC10302&metric=CPLM-010",
+     "words": 622,
+     "pageHeight": 1870,
+     "internalTerms": [
+      "fused",
+      "G0",
+      "G1",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G7",
+      "G8",
+      "G9",
+      "G15"
+     ],
+     "lost": []
+    }
+   ],
+   "clicks": 0,
+   "pageHops": 2,
+   "ms": 29464,
+   "scrollPx": 0,
+   "deadEnds": 1,
+   "contextLost": []
+  },
+  {
+   "id": "EN4",
+   "role": "Engineer",
+   "task": "Replay the raw samples behind a verdict",
+   "source": "Evidence Replay function",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm/evidence?loop=FIC10302",
+     "url": "/cpm/evidence?loop=FIC10302&methodRun=276279a3-e8d2-570c-b50f-5569c01dff63&gate=G15&mode=FIXED",
+     "words": 509,
+     "pageHeight": 1975,
+     "internalTerms": [
+      "G15",
+      "G0",
+      "G1",
+      "G2",
+      "G2r",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G7",
+      "G8",
+      "G9"
+     ]
+    },
+    {
+     "how": "clicked",
+     "control": "Evidence Replay",
+     "scroll": 0,
+     "url": "/cpm/replay?loop=FIC10302",
+     "words": 987,
+     "pageHeight": 1840,
+     "internalTerms": [
+      "G0",
+      "G1",
+      "G2",
+      "G2r",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G7",
+      "G8",
+      "G9",
+      "G10"
+     ],
+     "lost": []
+    }
+   ],
+   "clicks": 1,
+   "pageHops": 2,
+   "ms": 26133,
+   "scrollPx": 0,
+   "deadEnds": 0,
+   "contextLost": []
+  },
+  {
+   "id": "EN5",
+   "role": "Engineer",
+   "task": "See PV, SP, output and mode for a past period",
+   "source": "Guide p.13 detailed performance",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm/explorer?loop=FIC10302",
+     "url": "/cpm/explorer?loop=FIC10302",
+     "words": 644,
+     "pageHeight": 2830,
+     "internalTerms": [
+      "fused",
+      "G0",
+      "G1",
+      "G2",
+      "G2r",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G7",
+      "G8",
+      "G9"
+     ]
+    },
+    {
+     "how": "clicked",
+     "control": "Historical",
+     "scroll": 0,
+     "url": "/cpm/historical?loop=FIC10302&from=2026-11-04T04%3A58%3A11.822Z&to=2026-11-04T12%3A58%3A11.822Z",
+     "words": 240,
+     "pageHeight": 1621,
+     "internalTerms": [],
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "Open in Trend ›",
+     "scroll": 179,
+     "url": "/trend?tags=hdpe%2Fsection_100%2Fu1001_polymerization_reactor_1%2Ffic10302.pv%2Chdpe%2Fsection_100%2Fu1001_polymerization_reactor_1%2Ffic10302.sp%2Chdpe%2Fsection_100%2Fu1001_polymerization_reactor_1%2Ffic10302.op&range=8h&from=2026-11-04T04%3A58%3A11.822Z&to=2026-11-04T12%3A58%3A11.822Z",
+     "words": 28,
+     "pageHeight": 960,
+     "internalTerms": [],
+     "lost": [
+      "loop"
+     ]
+    }
+   ],
+   "clicks": 2,
+   "pageHops": 3,
+   "ms": 45080,
+   "scrollPx": 179,
+   "deadEnds": 0,
+   "contextLost": [
+    "loop"
+   ]
+  },
+  {
+   "id": "EN6",
+   "role": "Engineer",
+   "task": "Check the process model of a loop",
+   "source": "System Response function",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm/explorer?loop=FIC10302",
+     "url": "/cpm/explorer?loop=FIC10302",
+     "words": 622,
+     "pageHeight": 2543,
+     "internalTerms": [
+      "fused",
+      "G0",
+      "G1",
+      "G2",
+      "G2r",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G7",
+      "G8",
+      "G9"
+     ]
+    },
+    {
+     "how": "clicked",
+     "control": "System Response",
+     "scroll": 0,
+     "url": "/cpm/response?loop=FIC10302",
+     "words": 282,
+     "pageHeight": 2061,
+     "internalTerms": [],
+     "lost": []
+    }
+   ],
+   "clicks": 1,
+   "pageHops": 2,
+   "ms": 29578,
+   "scrollPx": 0,
+   "deadEnds": 0,
+   "contextLost": []
+  },
+  {
+   "id": "RE1",
+   "role": "Reliability",
+   "task": "List suspected valve problems",
+   "source": "Overview KPI",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm",
+     "url": "/cpm",
+     "words": 422,
+     "pageHeight": 1668,
+     "internalTerms": [
+      "G14",
+      "G13"
+     ]
+    },
+    {
+     "how": "clicked",
+     "control": "0 Suspected valve problem 0 % of 0 assessed loops",
+     "scroll": 0,
+     "url": "/cpm/kpi?kpi=valve&window=12h",
+     "words": 334,
+     "pageHeight": 1234,
+     "internalTerms": [],
+     "lost": []
+    }
+   ],
+   "clicks": 1,
+   "pageHops": 2,
+   "ms": 23198,
+   "scrollPx": 0,
+   "deadEnds": 0,
+   "contextLost": []
+  },
+  {
+   "id": "RE2",
+   "role": "Reliability",
+   "task": "Check instrument health on a loop",
+   "source": "Guide p.12 related instrument links",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm/explorer?loop=FIC10302",
+     "url": "/cpm/explorer?loop=FIC10302",
+     "words": 644,
+     "pageHeight": 2830,
+     "internalTerms": [
+      "fused",
+      "G0",
+      "G1",
+      "G2",
+      "G2r",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G7",
+      "G8",
+      "G9"
+     ]
+    },
+    {
+     "how": "clicked",
+     "control": "Investigation",
+     "scroll": 0,
+     "url": "/cpm/investigation?loop=FIC10302",
+     "words": 994,
+     "pageHeight": 2458,
+     "internalTerms": [
+      "fused",
+      "G14"
+     ],
+     "lost": []
+    }
+   ],
+   "clicks": 1,
+   "pageHops": 2,
+   "ms": 30405,
+   "scrollPx": 0,
+   "deadEnds": 0,
+   "contextLost": []
+  },
+  {
+   "id": "RE3",
+   "role": "Reliability",
+   "task": "Follow up an episode",
+   "source": "Loop Events function",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm/events",
+     "url": "/cpm/events",
+     "words": 1506,
+     "pageHeight": 3325,
+     "internalTerms": [
+      "G10",
+      "G11",
+      "fused"
+     ]
+    },
+    {
+     "how": "clicked",
+     "control": "PIC40102 ›",
+     "scroll": 10,
+     "url": "/cpm/explorer?loop=PIC40102&tab=Summary",
+     "words": 579,
+     "pageHeight": 2072,
+     "internalTerms": [
+      "fused",
+      "G0",
+      "G1",
+      "G2",
+      "G2r",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G7",
+      "G8",
+      "G9"
+     ],
+     "lost": []
+    }
+   ],
+   "clicks": 1,
+   "pageHops": 2,
+   "ms": 29914,
+   "scrollPx": 10,
+   "deadEnds": 0,
+   "contextLost": []
+  },
+  {
+   "id": "RE4",
+   "role": "Reliability",
+   "task": "Find loops with excessive actuator effort",
+   "source": "Overview KPI",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm",
+     "url": "/cpm",
+     "words": 422,
+     "pageHeight": 1668,
+     "internalTerms": [
+      "G14",
+      "G13"
+     ]
+    },
+    {
+     "how": "clicked",
+     "control": "0 Excessive actuator effort 0 % of 0 assessed loops",
+     "scroll": 0,
+     "url": "/cpm/kpi?kpi=effort&window=12h",
+     "words": 282,
+     "pageHeight": 1098,
+     "internalTerms": [],
+     "lost": []
+    }
+   ],
+   "clicks": 1,
+   "pageHops": 2,
+   "ms": 29577,
+   "scrollPx": 0,
+   "deadEnds": 0,
+   "contextLost": []
+  },
+  {
+   "id": "RE5",
+   "role": "Reliability",
+   "task": "Find loops with no valve position mapped",
+   "source": "Overview readiness",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm",
+     "url": "/cpm",
+     "words": 422,
+     "pageHeight": 1668,
+     "internalTerms": [
+      "G14",
+      "G13"
+     ]
+    },
+    {
+     "how": "clicked",
+     "control": "Open Loop Registry ›",
+     "scroll": 708,
+     "url": "/cpm/registry",
+     "words": 636,
+     "pageHeight": 2209,
+     "internalTerms": [
+      "G14",
+      "G13",
+      "G0",
+      "G1",
+      "G11",
+      "G2",
+      "G2r",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G10"
+     ],
+     "lost": []
+    }
+   ],
+   "clicks": 1,
+   "pageHops": 2,
+   "ms": 29543,
+   "scrollPx": 708,
+   "deadEnds": 0,
+   "contextLost": []
+  },
+  {
+   "id": "RE6",
+   "role": "Reliability",
+   "task": "See alarm context for a loop",
+   "source": "Guide p.12 related alarm links",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm/explorer?loop=FIC10302",
+     "url": "/cpm/explorer?loop=FIC10302",
+     "words": 644,
+     "pageHeight": 2830,
+     "internalTerms": [
+      "fused",
+      "G0",
+      "G1",
+      "G2",
+      "G2r",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G7",
+      "G8",
+      "G9"
+     ]
+    },
+    {
+     "how": "no such control",
+     "deadEnd": "/Alarm/",
+     "target": "/cpm/explorer?loop=FIC10302",
+     "note": "CAMS alarms are out of the slice",
+     "url": "/cpm/explorer?loop=FIC10302",
+     "words": 644,
+     "pageHeight": 2830,
+     "internalTerms": [
+      "fused",
+      "G0",
+      "G1",
+      "G2",
+      "G2r",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G7",
+      "G8",
+      "G9"
+     ],
+     "lost": []
+    }
+   ],
+   "clicks": 0,
+   "pageHops": 2,
+   "ms": 28936,
+   "scrollPx": 0,
+   "deadEnds": 1,
+   "contextLost": []
+  },
+  {
+   "id": "AD1",
+   "role": "Admin",
+   "task": "Onboard a loop and see what is degraded",
+   "source": "Prompt example; registry function",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm/registry",
+     "url": "/cpm/registry",
+     "words": 636,
+     "pageHeight": 2209,
+     "internalTerms": [
+      "G14",
+      "G13",
+      "G0",
+      "G1",
+      "G11",
+      "G2",
+      "G2r",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G10"
+     ]
+    },
+    {
+     "how": "clicked",
+     "control": "Add loop",
+     "scroll": 0,
+     "url": "/cpm/registry",
+     "words": 719,
+     "pageHeight": 2209,
+     "internalTerms": [
+      "G14",
+      "G13",
+      "G0",
+      "G1",
+      "G11",
+      "G2",
+      "G2r",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G10"
+     ],
+     "lost": []
+    }
+   ],
+   "clicks": 1,
+   "pageHops": 2,
+   "ms": 5475,
+   "scrollPx": 0,
+   "deadEnds": 0,
+   "contextLost": []
+  },
+  {
+   "id": "AD2",
+   "role": "Admin",
+   "task": "See readiness of one loop",
+   "source": "Registry function",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm/registry",
+     "url": "/cpm/registry",
+     "words": 719,
+     "pageHeight": 2209,
+     "internalTerms": [
+      "G14",
+      "G13",
+      "G0",
+      "G1",
+      "G11",
+      "G2",
+      "G2r",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G10"
+     ]
+    },
+    {
+     "how": "opened",
+     "target": "/cpm/registry?loop=FIC10302",
+     "url": "/cpm/registry?loop=FIC10302",
+     "words": 705,
+     "pageHeight": 2209,
+     "internalTerms": [
+      "G14",
+      "G13",
+      "G0",
+      "G1",
+      "G11",
+      "G2",
+      "G2r",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G10"
+     ],
+     "lost": []
+    }
+   ],
+   "clicks": 0,
+   "pageHops": 2,
+   "ms": 1089,
+   "scrollPx": 0,
+   "deadEnds": 0,
+   "contextLost": []
+  },
+  {
+   "id": "AD3",
+   "role": "Admin",
+   "task": "Check whether the pipeline is producing verdicts",
+   "source": "Prompt example",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm",
+     "url": "/cpm",
+     "words": 422,
+     "pageHeight": 1668,
+     "internalTerms": [
+      "G14",
+      "G13"
+     ]
+    },
+    {
+     "how": "clicked",
+     "control": "Pipeline Health",
+     "scroll": 0,
+     "url": "/cpm/pipeline",
+     "words": 236,
+     "pageHeight": 1088,
+     "internalTerms": [
+      "fused"
+     ],
+     "lost": []
+    }
+   ],
+   "clicks": 1,
+   "pageHops": 2,
+   "ms": 29697,
+   "scrollPx": 0,
+   "deadEnds": 0,
+   "contextLost": []
+  },
+  {
+   "id": "AD4",
+   "role": "Admin",
+   "task": "See the thresholds a loop runs under",
+   "source": "Configuration function",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm/explorer?loop=FIC10302",
+     "url": "/cpm/explorer?loop=FIC10302",
+     "words": 644,
+     "pageHeight": 2830,
+     "internalTerms": [
+      "fused",
+      "G0",
+      "G1",
+      "G2",
+      "G2r",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G7",
+      "G8",
+      "G9"
+     ]
+    },
+    {
+     "how": "clicked",
+     "control": "Effective configuration ›",
+     "scroll": 756,
+     "url": "/cpm/explorer?loop=FIC10302",
+     "words": 738,
+     "pageHeight": 3717,
+     "internalTerms": [
+      "fused",
+      "G02",
+      "G11",
+      "G21",
+      "G32",
+      "G43",
+      "G55",
+      "G65",
+      "G73",
+      "G82",
+      "G97",
+      "G12"
+     ],
+     "lost": []
+    }
+   ],
+   "clicks": 1,
+   "pageHops": 2,
+   "ms": 23397,
+   "scrollPx": 756,
+   "deadEnds": 0,
+   "contextLost": []
+  },
+  {
+   "id": "AD5",
+   "role": "Admin",
+   "task": "Review who changed what",
+   "source": "Governance function",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm",
+     "url": "/cpm",
+     "words": 422,
+     "pageHeight": 1668,
+     "internalTerms": [
+      "G14",
+      "G13"
+     ]
+    },
+    {
+     "how": "clicked",
+     "control": "Governance",
+     "scroll": 708,
+     "url": "/cpm/governance",
+     "words": 146,
+     "pageHeight": 960,
+     "internalTerms": [],
+     "lost": []
+    }
+   ],
+   "clicks": 1,
+   "pageHops": 2,
+   "ms": 19712,
+   "scrollPx": 708,
+   "deadEnds": 0,
+   "contextLost": []
+  },
+  {
+   "id": "AD6",
+   "role": "Admin",
+   "task": "Find a user and their role",
+   "source": "Administration function",
+   "hops": [
+    {
+     "how": "opened",
+     "target": "/cpm",
+     "url": "/cpm",
+     "words": 422,
+     "pageHeight": 1668,
+     "internalTerms": [
+      "G14",
+      "G13"
+     ]
+    },
+    {
+     "how": "clicked",
+     "control": "Administration",
+     "scroll": 0,
+     "url": "/admin/users",
+     "words": 202,
+     "pageHeight": 960,
+     "internalTerms": [],
+     "lost": []
+    }
+   ],
+   "clicks": 1,
+   "pageHops": 2,
+   "ms": 24618,
+   "scrollPx": 0,
+   "deadEnds": 0,
+   "contextLost": []
+  }
+ ],
+ "urlState": {
+  "reload": {
+   "after": "/cpm/explorer?loop=FIC10302&tab=Signals",
+   "loggedOut": false
+  }
+ }
+}

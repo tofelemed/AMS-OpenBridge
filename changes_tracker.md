@@ -5179,6 +5179,33 @@ The old tree stays as the backup and is deleted by hand only after a 7-day soak.
   has no free Flink slot, because the supervisor double-submitted Condition and IoTDB Alarm Persistence after the
   Flink restarts the lab's memory pressure forced.
 - **Full suites:** cplm-api 346 / 391 with the lab under load. All 45 failures are DB tests that hit a 5 s timeout; every one sampled passed alone. CHG-101 changes no cplm-api source.
+- **Security fix (2026-11-03, after commit 912f80b5):** in `docker exec` mode the move script passed the IoTDB password
+  to curl as `-u user:password`, which shows in `ps` and in docker exec events. curl now reads the credentials and the body
+  as a config file on stdin (`-K -`). Lab check: queries, a SQL string with quotes and a backslash, and a wrong password
+  (IoTDB 801) all behave correctly.
+- **Layout v2 (2026-11-03, with CHG-102 / ams-open-11; plant move on hold until both land):** the move now lands in
+  the CHG-102 layout. `--layout v2`:
+  - raw loops go to aligned `cpm_raw` devices, with DOUBLE cast to FLOAT;
+  - KPI devices move to `root.hdpe.kpi.<gate_*|long_*>.<loop>` and `root.hdpe.kpis.short_*.<loop>`.
+  Target types are read from the template IoTDB has set on each path. A device or field the templates can't hold is
+  refused, never auto-created. `verify` also compares min/max, within the FLOAT tolerance of 1e-6.
+  `--layout v2-back` is the rollback copy-back into the legacy shape. The new module is `migration/iotdb_move_v2.py`.
+  - Tests: 12 offline tests in `tests/ops/test_iotdb_move_v2.py` (`python -I tests/ops/test_iotdb_move_v2.py -v`).
+  - Lab, on scratch databases with CHG-102's own `iotdb-layout-v2.sh`, all removed afterwards:
+    - 3 loops over 90 days, 1,046,079 points: VERIFY OK.
+    - `v2-back` into a fresh legacy tree and into existing DOUBLE series: VERIFY OK.
+    - Round trip vs the original tree: VERIFY OK.
+  - **Trap found:** IoTDB 1.3.2 keeps back-quotes literally in a cast `SELECT ... INTO` target list. Writing
+    `` INTO dev(`pv`) `` created a series named `` `pv` `` and extended the template for every device.
+    The tool now writes bare names only and stops if a template already holds a quoted node.
+  - Runbook: a template step after `prepare` (on the still-empty raw database), `--layout v2` throughout, and a
+    third `.env` line `IOTDB_LAYOUT=v2`.
+  - **Flink:** the CHG-102 5c On-Demand Evaluation job also reads `LOOP_ROOT_PREFIX`. The CHG-102 release's full Flink
+    swap picks it up. For a switch done on its own after that release: cancel that one job, then run `04b-submit-flink-jobs.sh`
+    (runbook step 3.2).
+  - **Full v2 move on the lab, 2026-11-04 (run by ams-open-11):** 28,113,236 points and 25,003 series VERIFY OK; the lab now
+    runs on `root.hdpev2.*` and `root.hdpe.cpm` stays as the backup. Two `copy` stops on that run (`no available DataRegionGroup`,
+    `301 NullPointerException`) are now retried by the tool. 15 offline tests pass; the retry is not yet seen live.
 
 **Services updated:** `ams-frontend` (image rebuilt with the prefix); ams-api, cplm-api and iotdb-init are config only (same images).
 **Migration:** IoTDB data copy with `migration/iotdb-move-loop-tree.py`; no Postgres schema change.

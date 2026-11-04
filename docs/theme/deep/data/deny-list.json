@@ -1,0 +1,750 @@
+{
+  "labels": [
+    "Save",
+    "Submit",
+    "Apply",
+    "Acknowledge",
+    "Shelve",
+    "Unshelve",
+    "Run",
+    "Re-run",
+    "Evaluate",
+    "Recompute",
+    "Reconstruct",
+    "Republish",
+    "Re-project",
+    "Import",
+    "Test",
+    "Delete",
+    "Deploy",
+    "Approve",
+    "Reject",
+    "Activate",
+    "Update loop",
+    "Sign out",
+    "New draft",
+    "New version",
+    "Set",
+    "Reset to inherited",
+    "Rollback",
+    "Verify",
+    "Link to this episode",
+    "Save note",
+    "✓ Verify Cryptographic Chain",
+    "💾 Create Configuration",
+    "💾 Save Changes",
+    "Acknowledging",
+    "Activate loop",
+    "Activating",
+    "Click to choose a CSV file, or drag & drop it here",
+    "Create",
+    "Create alias",
+    "Create user",
+    "Creating",
+    "Delete role",
+    "Evaluating",
+    "Import users",
+    "Importing",
+    "Link to episode",
+    "Linked episode",
+    "Linking",
+    "Off",
+    "On",
+    "Outcome",
+    "Re-project links & republish evidence",
+    "Re-run this window",
+    "Recomputing",
+    "Reconstruct evidence",
+    "Reconstruction requested",
+    "Record decision",
+    "Recording",
+    "Republishing",
+    "Reset to default",
+    "Role description",
+    "Roll back to the previous bundle",
+    "Rolling back",
+    "Run again",
+    "Run E2E verification",
+    "Run shadow",
+    "Save changes",
+    "Save MODE map",
+    "Save permissions",
+    "Saving",
+    "Scheduling",
+    "Shadow",
+    "Starting",
+    "Submit & activate",
+    "Testing",
+    "Unshelving",
+    "Update shelf",
+    "Updating",
+    "Validate",
+    "Validate →",
+    "Validating",
+    "Verify cryptographic chain",
+    "Verifying",
+    "Verifying chain"
+  ],
+  "evidence": [
+    {
+      "label": "Save",
+      "file": "components/Cpm/investigation/LoopNotes.tsx",
+      "line": 92
+    },
+    {
+      "label": "Save",
+      "file": "components/Administration/UserManagementConfig.tsx",
+      "line": 295
+    },
+    {
+      "label": "Save",
+      "file": "components/Administration/RolesConfig.tsx",
+      "line": 279
+    },
+    {
+      "label": "Submit",
+      "file": "components/Cpm/BulkImportDialog.tsx",
+      "line": 445
+    },
+    {
+      "label": "Apply",
+      "file": "components/Cpm/trend/TimeRangeBar.tsx",
+      "line": 101
+    },
+    {
+      "label": "Apply",
+      "file": "components/Cpm/CpmHistorical.tsx",
+      "line": 349
+    },
+    {
+      "label": "Apply",
+      "file": "components/Designer/TrendPage.tsx",
+      "line": 106
+    },
+    {
+      "label": "Acknowledge",
+      "file": "components/Cpm/events/EventDetail.tsx",
+      "line": 173
+    },
+    {
+      "label": "Shelve",
+      "file": "components/Cpm/events/ShelvePanel.tsx",
+      "line": 90
+    },
+    {
+      "label": "Shelve",
+      "file": "components/Cpm/events/EventDetail.tsx",
+      "line": 180
+    },
+    {
+      "label": "Unshelve",
+      "file": "components/Cpm/events/UnshelvePanel.tsx",
+      "line": 44
+    },
+    {
+      "label": "Unshelve",
+      "file": "components/Cpm/events/EventDetail.tsx",
+      "line": 184
+    },
+    {
+      "label": "Run",
+      "file": "components/Cpm/evidence/GateResultState.tsx",
+      "line": 101
+    },
+    {
+      "label": "Run",
+      "file": "components/Cpm/CpmReplay.tsx",
+      "line": 335
+    },
+    {
+      "label": "Run",
+      "file": "components/Cpm/evidence/ExplainPanel.tsx",
+      "line": 124
+    },
+    {
+      "label": "Re-run",
+      "file": "components/Cpm/CpmReplay.tsx",
+      "line": 335
+    },
+    {
+      "label": "Evaluate",
+      "file": "components/Cpm/evidence/EvaluateWindow.tsx",
+      "line": 78
+    },
+    {
+      "label": "Recompute",
+      "file": "components/Cpm/CpmReplay.tsx",
+      "line": 323
+    },
+    {
+      "label": "Reconstruct",
+      "file": "components/Cpm/evidence/GateResultState.tsx",
+      "line": 99
+    },
+    {
+      "label": "Reconstruct",
+      "file": "components/Cpm/evidence/EvidenceHeaderStrip.tsx",
+      "line": 85
+    },
+    {
+      "label": "Republish",
+      "file": "components/Cpm/ProfileAside.tsx",
+      "line": 131
+    },
+    {
+      "label": "Re-project",
+      "file": "components/Cpm/ProfileAside.tsx",
+      "line": 131
+    },
+    {
+      "label": "Import",
+      "file": "components/Cpm/BulkImportDialog.tsx",
+      "line": 161
+    },
+    {
+      "label": "Import",
+      "file": "components/Cpm/BulkImportDialog.tsx",
+      "line": 177
+    },
+    {
+      "label": "Import",
+      "file": "components/Cpm/BulkImportDialog.tsx",
+      "line": 450
+    },
+    {
+      "label": "Test",
+      "file": "components/Administration/DataSourcesConfig.tsx",
+      "line": 154
+    },
+    {
+      "label": "Delete",
+      "file": "components/Administration/UserManagementConfig.tsx",
+      "line": 261
+    },
+    {
+      "label": "Delete",
+      "file": "components/Administration/RolesConfig.tsx",
+      "line": 282
+    },
+    {
+      "label": "Delete",
+      "file": "components/Administration/DataSourcesConfig.tsx",
+      "line": 162
+    },
+    {
+      "label": "Deploy",
+      "file": null,
+      "line": null
+    },
+    {
+      "label": "Approve",
+      "file": "components/Cpm/config/LifecyclePanel.tsx",
+      "line": 80
+    },
+    {
+      "label": "Reject",
+      "file": "components/Cpm/evidence/format.ts",
+      "line": 98
+    },
+    {
+      "label": "Activate",
+      "file": "components/Cpm/AddLoopWizard.tsx",
+      "line": 288
+    },
+    {
+      "label": "Activate",
+      "file": "components/Cpm/BulkImportDialog.tsx",
+      "line": 177
+    },
+    {
+      "label": "Activate",
+      "file": "components/Cpm/BulkImportDialog.tsx",
+      "line": 445
+    },
+    {
+      "label": "Update loop",
+      "file": "components/Cpm/AddLoopWizard.tsx",
+      "line": 288
+    },
+    {
+      "label": "Sign out",
+      "file": "App.tsx",
+      "line": 681
+    },
+    {
+      "label": "New draft",
+      "file": "components/Cpm/config/BundlesView.tsx",
+      "line": 70
+    },
+    {
+      "label": "New version",
+      "file": "components/Cpm/config/BundlesView.tsx",
+      "line": 70
+    },
+    {
+      "label": "Set",
+      "file": "components/Cpm/config/PropertyForm.tsx",
+      "line": 105
+    },
+    {
+      "label": "Reset to inherited",
+      "file": "components/Cpm/config/PropertyForm.tsx",
+      "line": 108
+    },
+    {
+      "label": "Rollback",
+      "file": "components/Cpm/config/configSupport.ts",
+      "line": 42
+    },
+    {
+      "label": "Rollback",
+      "file": "components/Cpm/config/DeploymentStatus.tsx",
+      "line": 41
+    },
+    {
+      "label": "Verify",
+      "file": "components/Cpm/CpmGovernance.tsx",
+      "line": 116
+    },
+    {
+      "label": "Verify",
+      "file": "components/Administration/AuditExplorer.tsx",
+      "line": 77
+    },
+    {
+      "label": "Link to this episode",
+      "file": "components/Cpm/events/EpisodeNotes.tsx",
+      "line": 52
+    },
+    {
+      "label": "Save note",
+      "file": "components/Cpm/investigation/LoopNotes.tsx",
+      "line": 92
+    },
+    {
+      "label": "Republishing",
+      "file": "components/Cpm/ProfileAside.tsx",
+      "line": 128
+    },
+    {
+      "label": "Re-project links & republish evidence",
+      "file": "components/Cpm/ProfileAside.tsx",
+      "line": 128
+    },
+    {
+      "label": "Updating",
+      "file": "components/Cpm/AddLoopWizard.tsx",
+      "line": 288
+    },
+    {
+      "label": "Activating",
+      "file": "components/Cpm/AddLoopWizard.tsx",
+      "line": 288
+    },
+    {
+      "label": "Activate loop",
+      "file": "components/Cpm/AddLoopWizard.tsx",
+      "line": 288
+    },
+    {
+      "label": "Activating",
+      "file": "components/Cpm/BulkImportDialog.tsx",
+      "line": 445
+    },
+    {
+      "label": "Submit & activate",
+      "file": "components/Cpm/BulkImportDialog.tsx",
+      "line": 445
+    },
+    {
+      "label": "Linking",
+      "file": "components/Cpm/events/EpisodeNotes.tsx",
+      "line": 50
+    },
+    {
+      "label": "Link to this episode",
+      "file": "components/Cpm/events/EpisodeNotes.tsx",
+      "line": 50
+    },
+    {
+      "label": "Acknowledging",
+      "file": "components/Cpm/events/EventDetail.tsx",
+      "line": 172
+    },
+    {
+      "label": "Acknowledge",
+      "file": "components/Cpm/events/EventDetail.tsx",
+      "line": 172
+    },
+    {
+      "label": "Saving",
+      "file": "components/Cpm/events/ShelvePanel.tsx",
+      "line": 88
+    },
+    {
+      "label": "Update shelf",
+      "file": "components/Cpm/events/ShelvePanel.tsx",
+      "line": 88
+    },
+    {
+      "label": "Shelve",
+      "file": "components/Cpm/events/ShelvePanel.tsx",
+      "line": 88
+    },
+    {
+      "label": "Unshelving",
+      "file": "components/Cpm/events/UnshelvePanel.tsx",
+      "line": 42
+    },
+    {
+      "label": "Unshelve",
+      "file": "components/Cpm/events/UnshelvePanel.tsx",
+      "line": 42
+    },
+    {
+      "label": "Saving",
+      "file": "components/Cpm/investigation/LoopNotes.tsx",
+      "line": 92
+    },
+    {
+      "label": "Linked episode",
+      "file": "components/Cpm/investigation/LoopNotes.tsx",
+      "line": 135
+    },
+    {
+      "label": "Link to episode",
+      "file": "components/Cpm/investigation/LoopNotes.tsx",
+      "line": 135
+    },
+    {
+      "label": "Outcome",
+      "file": "components/Cpm/investigation/LoopNotes.tsx",
+      "line": 143
+    },
+    {
+      "label": "Recomputing",
+      "file": "components/Cpm/CpmReplay.tsx",
+      "line": 334
+    },
+    {
+      "label": "Re-run this window",
+      "file": "components/Cpm/CpmReplay.tsx",
+      "line": 334
+    },
+    {
+      "label": "Evaluating",
+      "file": "components/Cpm/evidence/EvaluateWindow.tsx",
+      "line": 78
+    },
+    {
+      "label": "Reconstruction requested",
+      "file": "components/Cpm/evidence/EvidenceHeaderStrip.tsx",
+      "line": 85
+    },
+    {
+      "label": "Reconstruct evidence",
+      "file": "components/Cpm/evidence/EvidenceHeaderStrip.tsx",
+      "line": 85
+    },
+    {
+      "label": "Recording",
+      "file": "components/Cpm/response/ModelReviewDialog.tsx",
+      "line": 67
+    },
+    {
+      "label": "Record decision",
+      "file": "components/Cpm/response/ModelReviewDialog.tsx",
+      "line": 67
+    },
+    {
+      "label": "Starting",
+      "file": "components/Cpm/config/ShadowComparison.tsx",
+      "line": 51
+    },
+    {
+      "label": "Run again",
+      "file": "components/Cpm/config/ShadowComparison.tsx",
+      "line": 51
+    },
+    {
+      "label": "Run shadow",
+      "file": "components/Cpm/config/ShadowComparison.tsx",
+      "line": 51
+    },
+    {
+      "label": "Validating",
+      "file": "components/Cpm/config/LifecyclePanel.tsx",
+      "line": 80
+    },
+    {
+      "label": "Shadow",
+      "file": "components/Cpm/config/LifecyclePanel.tsx",
+      "line": 80
+    },
+    {
+      "label": "Recording",
+      "file": "components/Cpm/config/LifecyclePanel.tsx",
+      "line": 80
+    },
+    {
+      "label": "Scheduling",
+      "file": "components/Cpm/config/LifecyclePanel.tsx",
+      "line": 80
+    },
+    {
+      "label": "Rolling back",
+      "file": "components/Cpm/config/LifecyclePanel.tsx",
+      "line": 80
+    },
+    {
+      "label": "Validate",
+      "file": "components/Cpm/config/LifecyclePanel.tsx",
+      "line": 80
+    },
+    {
+      "label": "Activate",
+      "file": "components/Cpm/config/LifecyclePanel.tsx",
+      "line": 80
+    },
+    {
+      "label": "Rolling back",
+      "file": "components/Cpm/config/DeploymentStatus.tsx",
+      "line": 72
+    },
+    {
+      "label": "Roll back to the previous bundle",
+      "file": "components/Cpm/config/DeploymentStatus.tsx",
+      "line": 72
+    },
+    {
+      "label": "Creating",
+      "file": "components/Cpm/config/BundlesView.tsx",
+      "line": 69
+    },
+    {
+      "label": "New version",
+      "file": "components/Cpm/config/BundlesView.tsx",
+      "line": 69
+    },
+    {
+      "label": "New draft",
+      "file": "components/Cpm/config/BundlesView.tsx",
+      "line": 69
+    },
+    {
+      "label": "Verifying",
+      "file": "components/Cpm/CpmPipeline.tsx",
+      "line": 260
+    },
+    {
+      "label": "Run E2E verification",
+      "file": "components/Cpm/CpmPipeline.tsx",
+      "line": 260
+    },
+    {
+      "label": "Verifying chain",
+      "file": "components/Cpm/CpmGovernance.tsx",
+      "line": 115
+    },
+    {
+      "label": "Verify cryptographic chain",
+      "file": "components/Cpm/CpmGovernance.tsx",
+      "line": 115
+    },
+    {
+      "label": "Importing",
+      "file": "components/Administration/BulkImportModal.tsx",
+      "line": 119
+    },
+    {
+      "label": "Import users",
+      "file": "components/Administration/BulkImportModal.tsx",
+      "line": 119
+    },
+    {
+      "label": "Validating",
+      "file": "components/Administration/BulkImportModal.tsx",
+      "line": 144
+    },
+    {
+      "label": "Click to choose a CSV file, or drag & drop it here",
+      "file": "components/Administration/BulkImportModal.tsx",
+      "line": 144
+    },
+    {
+      "label": "Delete",
+      "file": "components/Administration/UserManagementConfig.tsx",
+      "line": 183
+    },
+    {
+      "label": "Saving",
+      "file": "components/Administration/UserManagementConfig.tsx",
+      "line": 295
+    },
+    {
+      "label": "Save changes",
+      "file": "components/Administration/UserManagementConfig.tsx",
+      "line": 295
+    },
+    {
+      "label": "Create user",
+      "file": "components/Administration/UserManagementConfig.tsx",
+      "line": 295
+    },
+    {
+      "label": "Create",
+      "file": "components/Administration/RolesConfig.tsx",
+      "line": 191
+    },
+    {
+      "label": "Role description",
+      "file": "components/Administration/RolesConfig.tsx",
+      "line": 237
+    },
+    {
+      "label": "Save permissions",
+      "file": "components/Administration/RolesConfig.tsx",
+      "line": 279
+    },
+    {
+      "label": "Reset to default",
+      "file": "components/Administration/RolesConfig.tsx",
+      "line": 281
+    },
+    {
+      "label": "Delete role",
+      "file": "components/Administration/RolesConfig.tsx",
+      "line": 282
+    },
+    {
+      "label": "Delete role",
+      "file": "components/Administration/RolesConfig.tsx",
+      "line": 139
+    },
+    {
+      "label": "Saving",
+      "file": "components/Administration/DataSourceWizard.tsx",
+      "line": 596
+    },
+    {
+      "label": "💾 Save Changes",
+      "file": "components/Administration/DataSourceWizard.tsx",
+      "line": 596
+    },
+    {
+      "label": "💾 Create Configuration",
+      "file": "components/Administration/DataSourceWizard.tsx",
+      "line": 596
+    },
+    {
+      "label": "Saving",
+      "file": "components/Administration/LoopIngestPanel.tsx",
+      "line": 215
+    },
+    {
+      "label": "Save MODE map",
+      "file": "components/Administration/LoopIngestPanel.tsx",
+      "line": 215
+    },
+    {
+      "label": "Testing",
+      "file": "components/Administration/DataSourcesConfig.tsx",
+      "line": 151
+    },
+    {
+      "label": "Test",
+      "file": "components/Administration/DataSourcesConfig.tsx",
+      "line": 151
+    },
+    {
+      "label": "Off",
+      "file": "components/Administration/DataSourcesConfig.tsx",
+      "line": 159
+    },
+    {
+      "label": "On",
+      "file": "components/Administration/DataSourcesConfig.tsx",
+      "line": 159
+    },
+    {
+      "label": "Delete",
+      "file": "components/Administration/DataSourcesConfig.tsx",
+      "line": 232
+    },
+    {
+      "label": "Validating",
+      "file": "components/Administration/PlantModelImport.tsx",
+      "line": 258
+    },
+    {
+      "label": "Validate →",
+      "file": "components/Administration/PlantModelImport.tsx",
+      "line": 258
+    },
+    {
+      "label": "Importing",
+      "file": "components/Administration/PlantModelImport.tsx",
+      "line": 265
+    },
+    {
+      "label": "Import",
+      "file": "components/Administration/PlantModelImport.tsx",
+      "line": 265
+    },
+    {
+      "label": "Saving",
+      "file": "components/Administration/PlantModelConfig.tsx",
+      "line": 269
+    },
+    {
+      "label": "Create",
+      "file": "components/Administration/PlantModelConfig.tsx",
+      "line": 269
+    },
+    {
+      "label": "Save changes",
+      "file": "components/Administration/PlantModelConfig.tsx",
+      "line": 269
+    },
+    {
+      "label": "Delete",
+      "file": "components/Administration/PlantModelConfig.tsx",
+      "line": 156
+    },
+    {
+      "label": "Saving",
+      "file": "components/Administration/AliasConfig.tsx",
+      "line": 68
+    },
+    {
+      "label": "Create alias",
+      "file": "components/Administration/AliasConfig.tsx",
+      "line": 68
+    },
+    {
+      "label": "Importing",
+      "file": "components/Administration/AliasConfig.tsx",
+      "line": 147
+    },
+    {
+      "label": "Import",
+      "file": "components/Administration/AliasConfig.tsx",
+      "line": 147
+    },
+    {
+      "label": "Delete",
+      "file": "components/Administration/AliasConfig.tsx",
+      "line": 268
+    },
+    {
+      "label": "Verifying",
+      "file": "components/Administration/AuditExplorer.tsx",
+      "line": 77
+    },
+    {
+      "label": "✓ Verify Cryptographic Chain",
+      "file": "components/Administration/AuditExplorer.tsx",
+      "line": 77
+    }
+  ]
+}

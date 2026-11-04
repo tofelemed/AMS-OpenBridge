@@ -1,0 +1,74 @@
+{
+ "blocks": {
+  "Keep": 1489,
+  "Shorten": 75,
+  "Move to help": 44,
+  "Remove": 16
+ },
+ "routes": 31,
+ "totalWords": 7341,
+ "projectedWords": 5824,
+ "savedWords": 1517,
+ "top": [
+  {
+   "text": "Not measured — not in this window's result (written by an engine vers…",
+   "cls": "Shorten",
+   "saved": 77,
+   "n": 7
+  },
+  {
+   "text": "The headline of control-loop monitoring: loops judged with no fault, …",
+   "cls": "Move to help",
+   "saved": 57,
+   "n": 1
+  },
+  {
+   "text": "User management, plant model, data sources, and audit",
+   "cls": "Remove",
+   "saved": 56,
+   "n": 7
+  },
+  {
+   "text": "Check that the loop’s signals are arriving: the Window Inspector show…",
+   "cls": "Shorten",
+   "saved": 50,
+   "n": 5
+  },
+  {
+   "text": "A loop is only as good as its signal mappings: on a loop that has a v…",
+   "cls": "Move to help",
+   "saved": 47,
+   "n": 1
+  },
+  {
+   "text": "One loop's current condition, trend and gate results.",
+   "cls": "Move to help",
+   "saved": 40,
+   "n": 5
+  },
+  {
+   "text": "A note stays on the loop. Saving it never acknowledges an episode unl…",
+   "cls": "Shorten",
+   "saved": 38,
+   "n": 2
+  },
+  {
+   "text": "What this loop runs under today, the bundles at its three levels, and…",
+   "cls": "Remove",
+   "saved": 38,
+   "n": 2
+  },
+  {
+   "text": "Investigate diagnosis episodes with operating context and a traceable…",
+   "cls": "Move to help",
+   "saved": 32,
+   "n": 1
+  },
+  {
+   "text": "No fault identified (NO_CALL / INSUFFICIENT_EVIDENCE), in normal mode…",
+   "cls": "Move to help",
+   "saved": 32,
+   "n": 1
+  }
+ ]
+}

@@ -1,0 +1,36 @@
+{
+ "tasks": 24,
+ "deadEnds": [
+  "OP1",
+  "EN2",
+  "EN3",
+  "RE6"
+ ],
+ "contextLost": [
+  "OP6:plant",
+  "EN5:loop"
+ ],
+ "avgWordsOnLanding": 524.13,
+ "hops": {
+  "keep": 1.83,
+  "consolidate": 1.42,
+  "restructure": 1.63
+ },
+ "multiPage": {
+  "keep": 18,
+  "consolidate": 10,
+  "restructure": 15
+ },
+ "iso": {
+  "suitability": 12,
+  "selfDescription": 11,
+  "conformity": 2,
+  "controllability": 5
+ },
+ "urlState": {
+  "reload": {
+   "after": "/cpm/explorer?loop=FIC10302&tab=Signals",
+   "loggedOut": false
+  }
+ }
+}

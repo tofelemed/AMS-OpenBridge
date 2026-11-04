@@ -1,0 +1,62 @@
+{
+ "sidebar": "220 (30)",
+ "header": "64 (30)",
+ "pagePadding": "16px (30)",
+ "screenGap": "16px (22)",
+ "tableRows": {
+  "routes": 9,
+  "min": 32.5,
+  "median": 52,
+  "max": 115
+ },
+ "tableHeader": {
+  "routes": 9,
+  "min": 26.5,
+  "median": 32,
+  "max": 38.3
+ },
+ "divRows": {
+  "routes": 6,
+  "min": 60,
+  "median": 104.4,
+  "max": 118
+ },
+ "nativeButtons": {
+  "routes": 16,
+  "min": 12,
+  "median": 32,
+  "max": 92.8
+ },
+ "obcHost": {
+  "routes": 28,
+  "min": 48,
+  "median": 48,
+  "max": 68.4
+ },
+ "obcInner": {
+  "routes": 28,
+  "min": 48,
+  "median": 48,
+  "max": 48
+ },
+ "inputs": {
+  "routes": 26,
+  "min": 13,
+  "median": 39,
+  "max": 81
+ },
+ "fonts": "{html:14px,body:14px,family:\\Noto Sans\\, sans-serif} (30)",
+ "title": "{fontSize:19.6px,fontWeight:700,lineHeight:29.4px} (22)",
+ "sectionTitle": "{fontSize:14.7px,fontWeight:700,textTransform:none} (22)",
+ "eyebrow": "{fontSize:12.25px,fontWeight:400,letterSpacing:0.98px,textTransform:uppercase} (22)",
+ "panel": "{padding:16px,borderRadius:8px,borderTopWidth:1px,gap:normal} (11); {padding:8px 6px,borderRadius:8px,borderTopWidth:1px,gap:8px} (5); {padding:16px,borderRadius:8px,borderTopWidth:1px,gap:12px} (3); {padding:8px 0px,borderRadius:8px,borderTopWidth:1px,gap:8px 16px} (2); {padding:0px,borderRadius:8px,borderTopWidth:1px,gap:normal} (1)",
+ "kpiCard": "{padding:12px 14px,borderRadius:10px,borderLeftWidth:3px,gap:2px} (3)",
+ "kpiGrid": "12px (3)",
+ "grid2": "16px (8)",
+ "buttonRadius": "0px (8); 999px (3); 4px (2); 6px (2); 8px (1)",
+ "selectRadius": "{borderRadius:6px,height:39px} (19)",
+ "selectedNav": "{text:Administration,backgroundColor:rgb(221, 221, 221),color:rgb(31, 31, 31),fontWeight:500,borderLeftWidth:3px,borderLeftColor:rgb(66, 113, 179),boxShadow:none} (7); {text:Loop Explorer,backgroundColor:rgb(221, 221, 221),color:rgb(31, 31, 31),fontWeight:500,borderLeftWidth:3px,borderLeftColor:rgb(66, 113, 179),boxShadow:none} (5); {text:Gate Configuration,backgroundColor:rgb(221, 221, 221),color:rgb(31, 31, 31),fontWeight:500,borderLeftWidth:3px,borderLeftColor:rgb(66, 113, 179),boxShadow:none} (3); {text:Overview,backgroundColor:rgb(221, 221, 221),color:rgb(31, 31, 31),fontWeight:500,borderLeftWidth:3px,borderLeftColor:rgb(66, 113, 179),boxShadow:none} (2); {text:Performance,backgroundColor:rgb(221, 221, 221),color:rgb(31, 31, 31),fontWeight:500,borderLeftWidth:3px,borderLeftColor:rgb(66, 113, 179),boxShadow:none} (1); {text:Loop Events,backgroundColor:rgb(221, 221, 221),color:rgb(31, 31, 31),fontWeight:500,borderLeftWidth:3px,borderLeftColor:rgb(66, 113, 179),boxShadow:none} (1); {text:Historical,backgroundColor:rgb(221, 221, 221),color:rgb(31, 31, 31),fontWeight:500,borderLeftWidth:3px,borderLeftColor:rgb(66, 113, 179),boxShadow:none} (1); {text:Investigation,backgroundColor:rgb(221, 221, 221),color:rgb(31, 31, 31),fontWeight:500,borderLeftWidth:3px,borderLeftColor:rgb(66, 113, 179),boxShadow:none} (1); {text:Evidence Workbench,backgroundColor:rgb(221, 221, 221),color:rgb(31, 31, 31),fontWeight:500,borderLeftWidth:3px,borderLeftColor:rgb(66, 113, 179),boxShadow:none} (1); {text:Evidence Replay,backgroundColor:rgb(221, 221, 221),color:rgb(31, 31, 31),fontWeight:500,borderLeftWidth:3px,borderLeftColor:rgb(66, 113, 179),boxShadow:none} (1); {text:Window Inspector,backgroundColor:rgb(221, 221, 221),color:rgb(31, 31, 31),fontWeight:500,borderLeftWidth:3px,borderLeftColor:rgb(66, 113, 179),boxShadow:none} (1); {text:Calculations,backgroundColor:rgb(221, 221, 221),color:rgb(31, 31, 31),fontWeight:500,borderLeftWidth:3px,borderLeftColor:rgb(66, 113, 179),boxShadow:none} (1); {text:System Response,backgroundColor:rgb(221, 221, 221),color:rgb(31, 31, 31),fontWeight:500,borderLeftWidth:3px,borderLeftColor:rgb(66, 113, 179),boxShadow:none} (1); {text:Loop Registry,backgroundColor:rgb(221, 221, 221),color:rgb(31, 31, 31),fontWeight:500,borderLeftWidth:3px,borderLeftColor:rgb(66, 113, 179),boxShadow:none} (1); {text:Trend,backgroundColor:rgb(221, 221, 221),color:rgb(31, 31, 31),fontWeight:500,borderLeftWidth:3px,borderLeftColor:rgb(66, 113, 179),boxShadow:none} (1); {text:Pipeline Health,backgroundColor:rgb(221, 221, 221),color:rgb(31, 31, 31),fontWeight:500,borderLeftWidth:3px,borderLeftColor:rgb(66, 113, 179),boxShadow:none} (1); {text:Governance,backgroundColor:rgb(221, 221, 221),color:rgb(31, 31, 31),fontWeight:500,borderLeftWidth:3px,borderLeftColor:rgb(66, 113, 179),boxShadow:none} (1)",
+ "mono": "{fontFamily:\\Noto Sans Mono\\, ui-monospace, monospace,fontVariantNumeric:normal} (13)",
+ "kpiValue": "{fontSize:22.4px,fontWeight:600,fontVariantNumeric:tabular-nums,fontFamily:\\Noto Sans\\, sans-serif} (2); {fontSize:28px,fontWeight:600,fontVariantNumeric:tabular-nums,fontFamily:\\Noto Sans\\, sans-serif} (1)",
+ "td": "{fontSize:13.02px,fontVariantNumeric:normal,fontFamily:\\Noto Sans\\, sans-serif,paddingTop:6px} (3); {fontSize:13.02px,fontVariantNumeric:normal,fontFamily:\\Noto Sans\\, sans-serif,paddingTop:3px} (2); {fontSize:12.25px,fontVariantNumeric:normal,fontFamily:\\Noto Sans\\, sans-serif,paddingTop:7px} (1); {fontSize:13px,fontVariantNumeric:normal,fontFamily:\\Noto Sans\\, sans-serif,paddingTop:9px} (1); {fontSize:13px,fontVariantNumeric:normal,fontFamily:monospace,paddingTop:6px} (1); {fontSize:12px,fontVariantNumeric:normal,fontFamily:\\Noto Sans Mono\\, monospace,paddingTop:12px} (1)"
+}

@@ -1,0 +1,2 @@
+# Capture tooling lives here so the application package.json and lock file stay untouched.
+.tooling/

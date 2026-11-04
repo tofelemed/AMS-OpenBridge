@@ -1,0 +1,6829 @@
+{
+ "generatedBy": "docs/theme/tools/obc-internals.mjs",
+ "package": "@oicl/openbridge-webcomponents",
+ "components": {
+  "accordion-card": {
+   "tag": "obc-accordion-card",
+   "parts": [],
+   "slots": [
+    "alert-icon",
+    "alert-label",
+    "alert-timer",
+    "expanded-content",
+    "leading-icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-controls",
+    "aria-expanded"
+   ],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-accordion-border-radius",
+    "--ui-components-accordion-icon-size",
+    "--ui-components-accordion-label-spacing",
+    "--ui-components-accordion-padding-horizontal"
+   ],
+   "colourVars": 17,
+   "fixedGeometry": {
+    "width": [
+     "320px"
+    ],
+    "padding": [
+     "0 16px 16px 16px",
+     "0 8px",
+     "16px 8px",
+     "4px 0",
+     "4px 8px"
+    ],
+    "min-height": [
+     "40px"
+    ]
+   },
+   "variableGeometry": {
+    "font-size": [
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ],
+    "border-radius": [
+     "var(--ui-components-accordion-border-radius)"
+    ],
+    "min-height": [
+     "var(--global-size-spacing-touch-target-min)"
+    ],
+    "padding": [
+     "0 var(--ui-components-accordion-padding-horizontal)",
+     "0px var(--ui-components-accordion-label-spacing)"
+    ],
+    "width": [
+     "var(--ui-components-accordion-icon-size)"
+    ],
+    "height": [
+     "var(--ui-components-accordion-icon-size)"
+    ]
+   }
+  },
+  "accordion-item": {
+   "tag": "obc-accordion-item",
+   "parts": [],
+   "slots": [
+    "expanded-content"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-expanded"
+   ],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-accordion-item-border-radius",
+    "--ui-components-accordion-item-label-spacing",
+    "--ui-components-accordion-item-padding-horizontal",
+    "--ui-components-accordion-item-touch-target-size"
+   ],
+   "colourVars": 17,
+   "fixedGeometry": {
+    "min-height": [
+     "1px"
+    ],
+    "gap": [
+     "10px"
+    ],
+    "height": [
+     "1px"
+    ]
+   },
+   "variableGeometry": {
+    "font-size": [
+     "var(--global-typography-ui-overline-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-overline-line-height)"
+    ],
+    "border-radius": [
+     "var(--ui-components-accordion-item-border-radius)"
+    ],
+    "height": [
+     "var(--menu-navigation-components-navigation-item-icon-size)",
+     "var(--ui-components-accordion-item-touch-target-size)"
+    ],
+    "padding": [
+     "0 var(--ui-components-accordion-item-label-spacing)",
+     "0 var(--ui-components-accordion-item-padding-horizontal)"
+    ],
+    "width": [
+     "var(--menu-navigation-components-navigation-item-icon-size)"
+    ],
+    "border-bottom-left-radius": [
+     "var(--ui-components-accordion-item-border-radius)"
+    ],
+    "border-bottom-right-radius": [
+     "var(--ui-components-accordion-item-border-radius)"
+    ]
+   }
+  },
+  "advice-button": {
+   "tag": "obc-advice-button",
+   "parts": [],
+   "slots": [
+    "icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "button\""
+   ],
+   "ariaAttrs": [
+    "aria-label",
+    "aria-pressed"
+   ],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--app-components-notification-button-counter-spacing",
+    "--app-components-notification-button-padding-horizontal",
+    "--app-components-notification-button-touch-target-size",
+    "--app-components-notification-button-visual-target-size",
+    "--obc-can-hover",
+    "--ui-components-button-border-radius-bottom-left",
+    "--ui-components-button-border-radius-bottom-right",
+    "--ui-components-button-border-radius-top-left",
+    "--ui-components-button-border-radius-top-right",
+    "--ui-components-icon-button-icon-size",
+    "--ui-components-icon-button-visual-target-size"
+   ],
+   "colourVars": 29,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "height": [
+     "var(--app-components-notification-button-touch-target-size)",
+     "var(--app-components-notification-button-visual-target-size)",
+     "var(--global-size-spacing-icon-icon-size-regular)",
+     "var(--ui-components-icon-button-visual-target-size)"
+    ],
+    "min-width": [
+     "var(--app-components-notification-button-touch-target-size)",
+     "var(--app-components-notification-button-visual-target-size)",
+     "var(--ui-components-icon-button-visual-target-size)"
+    ],
+    "border-radius": [
+     "var(--ui-components-button-border-radius-top-left)\n    var(--ui-compon"
+    ],
+    "padding": [
+     "0 var(--app-components-notification-button-padding-horizontal)"
+    ],
+    "gap": [
+     "var(--app-components-notification-button-counter-spacing)"
+    ],
+    "width": [
+     "var(--ui-components-icon-button-icon-size)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-button-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-button-line-height)"
+    ]
+   }
+  },
+  "advice-floating-item": {
+   "tag": "obc-advice-floating-item",
+   "parts": [],
+   "slots": [
+    "action",
+    "action2",
+    "day",
+    "description",
+    "primary-icon",
+    "time",
+    "title"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 0,
+   "fixedGeometry": {},
+   "variableGeometry": {}
+  },
+  "advice-menu-item": {
+   "tag": "obc-advice-menu-item",
+   "parts": [],
+   "slots": [
+    "icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 0,
+   "fixedGeometry": {},
+   "variableGeometry": {}
+  },
+  "advice-message-item": {
+   "tag": "obc-advice-message-item",
+   "parts": [],
+   "slots": [
+    "secondary-icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 1,
+   "fixedGeometry": {},
+   "variableGeometry": {}
+  },
+  "alert-button": {
+   "tag": "obc-alert-button",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--app-components-alert-button-padding-horizontal",
+    "--app-components-alert-button-tall-padding-vertical",
+    "--app-components-global-alert-item-counter-spacing",
+    "--app-components-topbar-message-item-touch-target-size-tall",
+    "--obc-can-hover",
+    "--ui-components-button-border-radius-bottom-left",
+    "--ui-components-button-border-radius-bottom-right",
+    "--ui-components-button-border-radius-top-left",
+    "--ui-components-button-border-radius-top-right",
+    "--ui-components-button-padding-horizontal",
+    "--ui-components-icon-button-icon-size",
+    "--ui-components-icon-button-visual-target-size"
+   ],
+   "colourVars": 32,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "min-width": [
+     "var(--global-size-spacing-touch-target-min)",
+     "var(--ui-components-icon-button-visual-target-size)"
+    ],
+    "padding": [
+     "0px var(--app-components-alert-button-padding-horizontal)",
+     "0px var(--ui-components-button-padding-horizontal)"
+    ],
+    "height": [
+     "var(--app-components-topbar-message-item-touch-target-size-tall)",
+     "var(--global-size-spacing-icon-icon-size-regular)",
+     "var(--ui-components-icon-button-visual-target-size)"
+    ],
+    "padding-top": [
+     "var(--app-components-alert-button-tall-padding-vertical)"
+    ],
+    "padding-bottom": [
+     "var(--app-components-alert-button-tall-padding-vertical)"
+    ],
+    "min-height": [
+     "var(--global-size-spacing-touch-target-min)"
+    ],
+    "width": [
+     "var(--ui-components-icon-button-icon-size)"
+    ],
+    "border-radius": [
+     "0 var(--ui-components-button-border-radius-top-right)\n      var(--ui-c",
+     "var(--ui-components-button-border-radius-top-left)\n      var(--ui-comp"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-button-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-button-line-height)"
+    ],
+    "gap": [
+     "var(--app-components-global-alert-item-counter-spacing)"
+    ]
+   }
+  },
+  "alert-floating-item": {
+   "tag": "obc-alert-floating-item",
+   "parts": [],
+   "slots": [
+    "action",
+    "action2",
+    "day",
+    "description",
+    "primary-icon",
+    "time",
+    "title"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 0,
+   "fixedGeometry": {},
+   "variableGeometry": {}
+  },
+  "alert-frame": {
+   "tag": "obc-alert-frame",
+   "parts": [],
+   "slots": [
+    "icon",
+    "label",
+    "timer"
+   ],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [
+    "--app-components-alert-frame-icon-size",
+    "--app-components-alert-frame-large-flip-4px-padding-horizontal",
+    "--app-components-alert-frame-large-flip-border-radius",
+    "--app-components-alert-frame-large-flip-padding-vertical",
+    "--app-components-alert-frame-small-flip-border-radius",
+    "--app-components-badge-padding",
+    "--ui-components-button-border-radius"
+   ],
+   "colourVars": 6,
+   "fixedGeometry": {
+    "gap": [
+     "2px"
+    ]
+   },
+   "variableGeometry": {
+    "border-radius": [
+     "0px\n      var(--app-components-alert-frame-large-flip-border-radius)\n ",
+     "0px 0px var(--button-border-radius-bottom-right)\n      var(--button-bo",
+     "0px var(--app-components-alert-frame-small-flip-border-radius)\n    var",
+     "calc(\n    var(--ui-components-button-border-radius) + var(--thickness)",
+     "var(--button-border-radius-bottom-right)\n      var(--button-border-rad"
+    ],
+    "outline-offset": [
+     "calc(-1 * var(--thickness))"
+    ],
+    "padding": [
+     "var(--app-components-alert-frame-large-flip-padding-vertical)\n      va",
+     "var(--app-components-badge-padding)"
+    ],
+    "width": [
+     "calc(var(--ui-components-button-border-radius) + 1px)",
+     "var(--app-components-alert-frame-icon-size)",
+     "var(--ui-components-button-border-radius)"
+    ],
+    "height": [
+     "calc(var(--ui-components-button-border-radius) + 1px)",
+     "var(--app-components-alert-frame-icon-size)",
+     "var(--ui-components-button-border-radius)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ]
+   }
+  },
+  "alert-icon": {
+   "tag": "obc-alert-icon",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 0,
+   "fixedGeometry": {},
+   "variableGeometry": {}
+  },
+  "alert-list-details": {
+   "tag": "obc-alert-list-details",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--app-components-alert-menu-button-spacing",
+    "--app-components-alert-toolbar-margin-horizontal",
+    "--app-components-tool-bar-touch-target-size"
+   ],
+   "colourVars": 5,
+   "fixedGeometry": {
+    "height": [
+     "96px"
+    ],
+    "width": [
+     "96px"
+    ],
+    "max-width": [
+     "344px"
+    ]
+   },
+   "variableGeometry": {
+    "height": [
+     "var(--app-components-tool-bar-touch-target-size)"
+    ],
+    "padding": [
+     "0px var(--app-components-alert-toolbar-margin-horizontal)"
+    ],
+    "gap": [
+     "var(--app-components-alert-menu-button-spacing)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)"
+    ]
+   }
+  },
+  "alert-menu": {
+   "tag": "obc-alert-menu",
+   "parts": [
+    "wrapper"
+   ],
+   "slots": [
+    "empty-${t.name}-description",
+    "empty-${t.name}-icon",
+    "empty-${t.name}-title"
+   ],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--app-components-alert-menu-button-spacing",
+    "--app-components-alert-menu-footer-container-height",
+    "--app-components-alert-menu-footer-padding-horizontal",
+    "--app-components-alert-menu-width",
+    "--ui-components-button-touch-target-size"
+   ],
+   "colourVars": 4,
+   "fixedGeometry": {
+    "height": [
+     "560px",
+     "96px"
+    ],
+    "min-width": [
+     "120px"
+    ],
+    "width": [
+     "96px"
+    ],
+    "max-width": [
+     "344px"
+    ]
+   },
+   "variableGeometry": {
+    "width": [
+     "var(--app-components-alert-menu-width)"
+    ],
+    "min-height": [
+     "var(--app-components-alert-menu-footer-container-height)"
+    ],
+    "padding": [
+     "calc(\n      (\n          var(--app-components-alert-menu-footer-contain"
+    ],
+    "gap": [
+     "var(--app-components-alert-menu-button-spacing)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)"
+    ]
+   }
+  },
+  "alert-menu-item": {
+   "tag": "obc-alert-menu-item",
+   "parts": [],
+   "slots": [
+    "alert-icon",
+    "description",
+    "icon",
+    "title"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 0,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "width": [
+     "var(--trailing-icon-size)"
+    ],
+    "height": [
+     "var(--trailing-icon-size)"
+    ]
+   }
+  },
+  "app-button": {
+   "tag": "obc-app-button",
+   "parts": [],
+   "slots": [
+    "icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-app-button-border-radius-container",
+    "--ui-components-app-button-border-radius-large",
+    "--ui-components-app-button-border-radius-small",
+    "--ui-components-app-button-icon-size",
+    "--ui-components-app-button-icon-size-enhanced",
+    "--ui-components-app-button-padding-vertical",
+    "--ui-components-app-button-padding-vertical-enhanced",
+    "--ui-components-app-button-touch-target-size",
+    "--ui-components-app-button-touch-target-size-enhanced",
+    "--ui-components-app-button-visual-size",
+    "--ui-components-app-button-visual-size-enhanced"
+   ],
+   "colourVars": 30,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "min-width": [
+     "var(--ui-components-app-button-touch-target-size)",
+     "var(--ui-components-app-button-touch-target-size-enhanced)"
+    ],
+    "min-height": [
+     "var(--ui-components-app-button-touch-target-size)",
+     "var(--ui-components-app-button-touch-target-size-enhanced)"
+    ],
+    "padding": [
+     "var(--ui-components-app-button-padding-vertical) 0px",
+     "var(--ui-components-app-button-padding-vertical-enhanced) 0px"
+    ],
+    "border-radius": [
+     "var(--ui-components-app-button-border-radius-container)",
+     "var(--ui-components-app-button-border-radius-large)",
+     "var(--ui-components-app-button-border-radius-small)"
+    ],
+    "width": [
+     "var(--ui-components-app-button-icon-size)",
+     "var(--ui-components-app-button-icon-size-enhanced)",
+     "var(--ui-components-app-button-visual-size)",
+     "var(--ui-components-app-button-visual-size-enhanced)"
+    ],
+    "height": [
+     "var(--ui-components-app-button-icon-size)",
+     "var(--ui-components-app-button-icon-size-enhanced)",
+     "var(--ui-components-app-button-visual-size)",
+     "var(--ui-components-app-button-visual-size-enhanced)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-label-active-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-label-active-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ]
+   }
+  },
+  "app-menu": {
+   "tag": "obc-app-menu",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--app-components-app-menu-app-button-spacing",
+    "--app-components-app-menu-margin-horizontal",
+    "--app-components-app-menu-padding-horizontal",
+    "--app-components-app-menu-padding-vertical"
+   ],
+   "colourVars": 1,
+   "fixedGeometry": {
+    "border-radius": [
+     "8px"
+    ]
+   },
+   "variableGeometry": {
+    "padding": [
+     "var(--app-components-app-menu-padding-vertical)\n      var(--app-compon",
+     "var(--app-components-app-menu-padding-vertical)\n    var(--app-componen"
+    ],
+    "gap": [
+     "0 var(--app-components-app-menu-app-button-spacing)"
+    ]
+   }
+  },
+  "attachment-list-item": {
+   "tag": "obc-attachment-list-item",
+   "parts": [],
+   "slots": [
+    "leading-icon",
+    "tag",
+    "trailing-action"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-attachment-item-border-radius",
+    "--ui-components-attachment-item-label-spacing",
+    "--ui-components-attachment-item-label-spacing-large"
+   ],
+   "colourVars": 15,
+   "fixedGeometry": {
+    "padding-left": [
+     "16px"
+    ],
+    "min-height": [
+     "1px",
+     "48px"
+    ],
+    "width": [
+     "24px"
+    ],
+    "height": [
+     "1px",
+     "24px"
+    ],
+    "padding-right": [
+     "8px"
+    ],
+    "border-radius": [
+     "1px"
+    ]
+   },
+   "variableGeometry": {
+    "border-radius": [
+     "var(--ui-components-attachment-item-border-radius, 6px)"
+    ],
+    "gap": [
+     "var(--ui-components-attachment-item-label-spacing, 8px)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-label-active-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-label-active-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ],
+    "padding": [
+     "0 var(--ui-components-attachment-item-label-spacing-large, 16px)"
+    ]
+   }
+  },
+  "audio-output": {
+   "tag": "obc-audio-output",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--ui-components-audio-output-height",
+    "--ui-components-audio-output-spacing",
+    "--ui-components-audio-output-width"
+   ],
+   "colourVars": 2,
+   "fixedGeometry": {
+    "padding": [
+     "0px 8px"
+    ],
+    "border-radius": [
+     "16px"
+    ]
+   },
+   "variableGeometry": {
+    "gap": [
+     "var(--ui-components-audio-output-spacing)"
+    ],
+    "width": [
+     "var(--ui-components-audio-output-width)"
+    ],
+    "height": [
+     "var(--ui-components-audio-output-height)"
+    ]
+   }
+  },
+  "audio-recording-item": {
+   "tag": "obc-audio-recording-item",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-label"
+   ],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [
+    "--ui-components-audio-input-border-radius",
+    "--ui-components-audio-input-dot-size",
+    "--ui-components-audio-input-height",
+    "--ui-components-audio-input-max-bar-height",
+    "--ui-components-audio-input-spacing",
+    "--ui-components-audio-recording-item-border-radius",
+    "--ui-components-audio-recording-item-label-spacing",
+    "--ui-components-audio-recording-item-touch-target-size"
+   ],
+   "colourVars": 3,
+   "fixedGeometry": {
+    "padding": [
+     "0 8px"
+    ]
+   },
+   "variableGeometry": {
+    "height": [
+     "var(--ui-components-audio-input-dot-size, 4px)",
+     "var(--ui-components-audio-input-height, 32px)",
+     "var(--ui-components-audio-recording-item-touch-target-size, 48px)"
+    ],
+    "padding-right": [
+     "var(\n    --ui-components-audio-recording-item-padding-horizontal,\n    "
+    ],
+    "gap": [
+     "var(--global-size-spacing-target-padding)",
+     "var(--ui-components-audio-input-spacing, 4px)"
+    ],
+    "border-radius": [
+     "var(--ui-components-audio-input-border-radius, 1000px)",
+     "var(--ui-components-audio-recording-item-border-radius, 6px)"
+    ],
+    "width": [
+     "var(--ui-components-audio-input-dot-size, 4px)"
+    ],
+    "min-height": [
+     "var(--ui-components-audio-input-dot-size, 4px)"
+    ],
+    "max-height": [
+     "var(--ui-components-audio-input-max-bar-height, 22px)"
+    ],
+    "padding": [
+     "0 var(--ui-components-audio-recording-item-label-spacing, 8px)"
+    ],
+    "font-size": [
+     "var(--global-typography-instrument-value-regular-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-instrument-value-regular-line-height)"
+    ]
+   }
+  },
+  "automation-button-readout-stack": {
+   "tag": "obc-automation-button-readout-stack",
+   "parts": [
+    "readout-button"
+   ],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--automation-components-typography-label-font-size",
+    "--automation-components-typography-label-font-weight",
+    "--automation-components-typography-label-line-height",
+    "--automation-components-typography-unit-regular-font-size",
+    "--automation-components-typography-unit-regular-font-weight"
+   ],
+   "colourVars": 2,
+   "fixedGeometry": {
+    "width": [
+     "12px",
+     "16px",
+     "24px"
+    ],
+    "height": [
+     "12px",
+     "16px",
+     "20px",
+     "24px",
+     "40px"
+    ],
+    "padding": [
+     "0 4px"
+    ],
+    "gap": [
+     "10px"
+    ],
+    "line-height": [
+     "20px"
+    ],
+    "padding-right": [
+     "2px"
+    ]
+   },
+   "variableGeometry": {
+    "font-size": [
+     "var(--automation-components-typography-label-font-size)",
+     "var(--automation-components-typography-unit-regular-font-size)",
+     "var(--global-typography-instrument-value-large-font-size)",
+     "var(--global-typography-instrument-value-regular-font-size)",
+     "var(--global-typography-instrument-value-small-font-size)"
+    ],
+    "line-height": [
+     "var(--automation-components-typography-label-line-height)",
+     "var(--global-typography-instrument-value-large-line-height)",
+     "var(--global-typography-instrument-value-regular-line-height)",
+     "var(--global-typography-instrument-value-small-line-height)",
+     "var(--global-typography-ui-button-line-height), 24px"
+    ],
+    "gap": [
+     "var(--Automation-components-readout-item-Enhanced-value-padding, 2px)"
+    ]
+   }
+  },
+  "badge": {
+   "tag": "obc-badge",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--app-components-badge-border-radius",
+    "--app-components-badge-icon-size",
+    "--app-components-badge-icon-size-flat",
+    "--app-components-badge-icon-size-large",
+    "--app-components-badge-label-spacing",
+    "--app-components-badge-min-size-large",
+    "--app-components-badge-padding"
+   ],
+   "colourVars": 21,
+   "fixedGeometry": {
+    "height": [
+     "16px",
+     "24px"
+    ],
+    "min-width": [
+     "28px",
+     "38px"
+    ]
+   },
+   "variableGeometry": {
+    "border-radius": [
+     "var(--app-components-badge-border-radius)"
+    ],
+    "padding": [
+     "0 var(--app-components-badge-label-spacing) 1px\n      var(--app-compon",
+     "calc(var(--app-components-badge-padding) - 1px)"
+    ],
+    "width": [
+     "var(--app-components-badge-icon-size)",
+     "var(--app-components-badge-icon-size-flat)",
+     "var(--app-components-badge-icon-size-large)"
+    ],
+    "height": [
+     "var(--app-components-badge-icon-size)",
+     "var(--app-components-badge-icon-size-flat)",
+     "var(--app-components-badge-icon-size-large)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-label-active-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-label-active-line-height)"
+    ],
+    "min-width": [
+     "var(--app-components-badge-icon-size)",
+     "var(--app-components-badge-min-size-large)"
+    ],
+    "min-height": [
+     "var(--app-components-badge-icon-size)",
+     "var(--app-components-badge-min-size-large)"
+    ]
+   }
+  },
+  "battery-icon": {
+   "tag": "obc-battery-icon",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 0,
+   "fixedGeometry": {},
+   "variableGeometry": {}
+  },
+  "breadcrumb": {
+   "tag": "obc-breadcrumb",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "link\""
+   ],
+   "ariaAttrs": [
+    "aria-label"
+   ],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--app-components-breadcrumb-item-border-radius",
+    "--app-components-breadcrumb-item-chevron-container-size",
+    "--app-components-breadcrumb-item-icon-size",
+    "--app-components-breadcrumb-item-label-spacing",
+    "--app-components-breadcrumb-item-padding-horizontal",
+    "--app-components-breadcrumb-item-touch-target-size",
+    "--app-components-breadcrumb-item-visual-target-size",
+    "--app-components-breadcrumbs-padding-horizontal",
+    "--obc-can-hover"
+   ],
+   "colourVars": 15,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "padding": [
+     "0 var(--app-components-breadcrumb-item-padding-horizontal)",
+     "0 var(--app-components-breadcrumbs-padding-horizontal)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)"
+    ],
+    "height": [
+     "var(--app-components-breadcrumb-item-icon-size)",
+     "var(--app-components-breadcrumb-item-touch-target-size)",
+     "var(--app-components-breadcrumb-item-visual-target-size)"
+    ],
+    "gap": [
+     "var(--app-components-breadcrumb-item-label-spacing)"
+    ],
+    "border-radius": [
+     "var(--app-components-breadcrumb-item-border-radius)"
+    ],
+    "width": [
+     "var(--app-components-breadcrumb-item-chevron-container-size)",
+     "var(--app-components-breadcrumb-item-icon-size)"
+    ]
+   }
+  },
+  "brilliance-menu": {
+   "tag": "obc-brilliance-menu",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--app-components-dimming-menu-icon-size",
+    "--app-components-dimming-menu-label-spacing",
+    "--app-components-dimming-menu-margin-horizontal",
+    "--app-components-dimming-menu-padding-vertical",
+    "--app-components-system-menu-margin-horizontal",
+    "--app-components-system-menu-margin-vertical",
+    "--app-components-system-menu-padding-horizontal",
+    "--app-components-system-menu-padding-vertical"
+   ],
+   "colourVars": 7,
+   "fixedGeometry": {
+    "border-radius": [
+     "8px"
+    ],
+    "width": [
+     "320px"
+    ],
+    "gap": [
+     "8px"
+    ],
+    "padding-bottom": [
+     "24px"
+    ],
+    "height": [
+     "1px"
+    ]
+   },
+   "variableGeometry": {
+    "padding": [
+     "0 var(--app-components-system-menu-padding-horizontal)",
+     "var(--app-components-dimming-menu-padding-vertical)\n    var(--app-comp",
+     "var(--app-components-system-menu-margin-vertical)\n    calc(\n      var(",
+     "var(--app-components-system-menu-padding-vertical)\n    var(--app-compo",
+     "var(--app-components-system-menu-padding-vertical) 0"
+    ],
+    "font-size": [
+     "var(--global-typography-instrument-label-font-size)",
+     "var(--global-typography-instrument-value-large-font-size)",
+     "var(--global-typography-ui-overline-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-instrument-label-line-height)",
+     "var(--global-typography-instrument-value-large-line-height)",
+     "var(--global-typography-ui-overline-line-height)"
+    ],
+    "gap": [
+     "var(--app-components-dimming-menu-label-spacing)"
+    ],
+    "width": [
+     "var(--app-components-dimming-menu-icon-size)"
+    ],
+    "height": [
+     "var(--app-components-dimming-menu-icon-size)"
+    ],
+    "padding-top": [
+     "calc(var(--app-components-dimming-menu-padding-vertical) - 1px)"
+    ]
+   }
+  },
+  "button": {
+   "tag": "obc-button",
+   "parts": [
+    "icon",
+    "label",
+    "leading",
+    "trailing",
+    "visible-wrapper",
+    "wrapper"
+   ],
+   "slots": [
+    "leading-icon",
+    "trailing-icon"
+   ],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host:has(.segment-position-middle),\n:host:has(.segment-position-end)",
+    ":host:has(.segment-position-start),\n:host:has(.segment-position-middle)"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-button-border-radius-bottom-left",
+    "--ui-components-button-border-radius-bottom-right",
+    "--ui-components-button-border-radius-top-left",
+    "--ui-components-button-border-radius-top-right",
+    "--ui-components-button-icon-size",
+    "--ui-components-button-label-spacing",
+    "--ui-components-button-padding-horizontal",
+    "--ui-components-button-touch-target-size",
+    "--ui-components-button-visual-size"
+   ],
+   "colourVars": 41,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "height": [
+     "var(--ui-components-button-icon-size)",
+     "var(--ui-components-button-touch-target-size)",
+     "var(--ui-components-button-visual-size)"
+    ],
+    "min-width": [
+     "var(--ui-components-button-touch-target-size)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-button-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-button-line-height) /* 150% */"
+    ],
+    "border-radius": [
+     "var(--ui-components-button-border-radius-top-left)\n      var(--ui-comp"
+    ],
+    "padding-left": [
+     "calc(2 * var(--ui-components-button-padding-horizontal))",
+     "var(--ui-components-button-label-spacing)"
+    ],
+    "padding-right": [
+     "calc(2 * var(--ui-components-button-padding-horizontal))",
+     "var(--ui-components-button-label-spacing)"
+    ],
+    "width": [
+     "var(--ui-components-button-icon-size)"
+    ]
+   }
+  },
+  "calendar": {
+   "tag": "obc-calendar",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-label"
+   ],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [
+    "--app-components-system-menu-margin-horizontal"
+   ],
+   "colourVars": 6,
+   "fixedGeometry": {
+    "padding-left": [
+     "8px"
+    ],
+    "gap": [
+     "1px",
+     "8px"
+    ],
+    "height": [
+     "24px"
+    ],
+    "border-radius": [
+     "6px"
+    ]
+   },
+   "variableGeometry": {
+    "border-radius": [
+     "var(\n      --menu-navigation-components-calendar-border-radius,\n      "
+    ],
+    "padding-left": [
+     "var(--app-components-system-menu-margin-horizontal, 16px)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-overline-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-overline-line-height)"
+    ],
+    "padding": [
+     "var(--menu-navigation-components-calendar-margin-vertical, 16px)\n    v",
+     "var(--menu-navigation-components-calendar-padding-horizontal, 4px)"
+    ],
+    "padding-right": [
+     "var(--app-components-system-menu-margin-horizontal, 16px)"
+    ],
+    "width": [
+     "var(--menu-navigation-components-calendar-event-width, 420px)"
+    ]
+   }
+  },
+  "card": {
+   "tag": "obc-card",
+   "parts": [],
+   "slots": [
+    "dialog-content",
+    "dialog-title",
+    "title"
+   ],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "dialog"
+   ],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-card-border-radius-regular",
+    "--ui-components-card-heading-container-height"
+   ],
+   "colourVars": 16,
+   "fixedGeometry": {
+    "width": [
+     "24px"
+    ],
+    "height": [
+     "24px"
+    ],
+    "padding": [
+     "0 4px"
+    ],
+    "gap": [
+     "8px"
+    ],
+    "font-size": [
+     "12px"
+    ],
+    "line-height": [
+     "16px"
+    ],
+    "border-radius": [
+     "12px",
+     "8px"
+    ]
+   },
+   "variableGeometry": {
+    "border-radius": [
+     "var(--ui-components-card-border-radius-regular)"
+    ],
+    "height": [
+     "var(--ui-components-card-heading-container-height)"
+    ]
+   }
+  },
+  "chat-message": {
+   "tag": "obc-chat-message",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 4,
+   "fixedGeometry": {
+    "padding-top": [
+     "16px",
+     "4px"
+    ],
+    "gap": [
+     "8px"
+    ],
+    "max-width": [
+     "min(80ch, calc(100% - 64px))"
+    ],
+    "padding": [
+     "8px 16px"
+    ],
+    "border-radius": [
+     "8px"
+    ]
+   },
+   "variableGeometry": {
+    "font-size": [
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-button-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-button-line-height)"
+    ]
+   }
+  },
+  "check-button": {
+   "tag": "obc-check-button",
+   "parts": [
+    "label",
+    "visible-wrapper",
+    "wrapper"
+   ],
+   "slots": [
+    "checked-icon",
+    "icon",
+    "unchecked-icon"
+   ],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-checked",
+    "aria-hidden",
+    "aria-pressed"
+   ],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-check-button-border-radius",
+    "--ui-components-check-button-icon-size",
+    "--ui-components-check-button-label-spacing",
+    "--ui-components-check-button-padding-horizontal",
+    "--ui-components-check-button-touch-target-size",
+    "--ui-components-check-button-visual-size",
+    "--ui-components-checkbox-visual-target-size"
+   ],
+   "colourVars": 32,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "height": [
+     "var(--ui-components-check-button-icon-size)",
+     "var(--ui-components-check-button-touch-target-size)",
+     "var(--ui-components-check-button-visual-size)",
+     "var(--ui-components-checkbox-visual-target-size)"
+    ],
+    "padding": [
+     "0px var(--ui-components-check-button-label-spacing)",
+     "0px var(--ui-components-check-button-padding-horizontal)"
+    ],
+    "border-radius": [
+     "var(--ui-components-check-button-border-radius)"
+    ],
+    "width": [
+     "var(--custom-width)",
+     "var(--ui-components-check-button-icon-size)",
+     "var(--ui-components-checkbox-visual-target-size)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)"
+    ]
+   }
+  },
+  "checkbox": {
+   "tag": "obc-checkbox",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "checkbox\""
+   ],
+   "ariaAttrs": [
+    "aria-busy",
+    "aria-checked",
+    "aria-describedby",
+    "aria-disabled",
+    "aria-hidden",
+    "aria-label",
+    "aria-labelledby"
+   ],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-checkbox-border-radius",
+    "--ui-components-checkbox-margin",
+    "--ui-components-checkbox-touch-target-size",
+    "--ui-components-checkbox-visual-target-size"
+   ],
+   "colourVars": 22,
+   "fixedGeometry": {
+    "padding": [
+     "0px"
+    ]
+   },
+   "variableGeometry": {
+    "height": [
+     "var(--global-size-spacing-icon-icon-size-regular)",
+     "var(--global-size-spacing-icon-icon-size-small)",
+     "var(--ui-components-checkbox-touch-target-size)",
+     "var(--ui-components-checkbox-visual-target-size)"
+    ],
+    "min-width": [
+     "var(--ui-components-checkbox-touch-target-size)"
+    ],
+    "min-height": [
+     "var(--ui-components-checkbox-touch-target-size)"
+    ],
+    "padding": [
+     "0px var(--ui-components-checkbox-margin)"
+    ],
+    "width": [
+     "var(--global-size-spacing-icon-icon-size-regular)",
+     "var(--global-size-spacing-icon-icon-size-small)",
+     "var(--ui-components-checkbox-visual-target-size)"
+    ],
+    "border-radius": [
+     "var(--ui-components-checkbox-border-radius)"
+    ]
+   }
+  },
+  "checkbox-item": {
+   "tag": "obc-checkbox-item",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-describedby",
+    "aria-hidden",
+    "aria-label"
+   ],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-checkbox-list-item-border-radius",
+    "--ui-components-checkbox-margin",
+    "--ui-components-checkbox-nested-item-padding-left",
+    "--ui-components-checkbox-padding-horizontal",
+    "--ui-components-checkbox-touch-target-size"
+   ],
+   "colourVars": 16,
+   "fixedGeometry": {
+    "padding": [
+     "0px"
+    ]
+   },
+   "variableGeometry": {
+    "height": [
+     "var(--global-size-spacing-icon-icon-size-regular)",
+     "var(--global-size-spacing-touch-target-min)",
+     "var(--ui-components-checkbox-touch-target-size)"
+    ],
+    "padding": [
+     "0 var(--global-size-spacing-list-item-padding-vertical) 0 0",
+     "0px var(--ui-components-checkbox-margin)"
+    ],
+    "width": [
+     "var(--global-size-spacing-icon-icon-size-regular)",
+     "var(--global-size-spacing-touch-target-min)",
+     "var(--ui-components-checkbox-nested-item-padding-left)"
+    ],
+    "min-width": [
+     "var(--global-size-spacing-touch-target-min)",
+     "var(--ui-components-checkbox-nested-item-padding-left)"
+    ],
+    "min-height": [
+     "var(--global-size-spacing-touch-target-min)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)"
+    ],
+    "border-radius": [
+     "var(--ui-components-checkbox-list-item-border-radius)"
+    ]
+   }
+  },
+  "clock": {
+   "tag": "obc-clock",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--app-components-clock-border-radius",
+    "--app-components-clock-colon-size",
+    "--app-components-clock-colon-spacing",
+    "--app-components-clock-digit-spacing",
+    "--app-components-clock-label-spacing",
+    "--app-components-clock-margin-horizontal",
+    "--app-components-clock-padding-horizontal",
+    "--app-components-clock-touch-target",
+    "--app-components-clock-touch-target-size-double",
+    "--app-components-clock-visual-target",
+    "--obc-can-hover"
+   ],
+   "colourVars": 17,
+   "fixedGeometry": {
+    "width": [
+     "16px",
+     "1px",
+     "24px"
+    ],
+    "height": [
+     "16px",
+     "48px"
+    ]
+   },
+   "variableGeometry": {
+    "gap": [
+     "var(--app-components-clock-colon-spacing)",
+     "var(--app-components-clock-digit-spacing)",
+     "var(--app-components-clock-label-spacing)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-button-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-button-line-height)"
+    ],
+    "width": [
+     "calc(var(--app-components-clock-colon-size) + 1px)",
+     "var(--app-components-clock-colon-size)"
+    ],
+    "height": [
+     "calc(var(--app-components-clock-colon-size) + 1px)",
+     "var(--app-components-clock-touch-target)",
+     "var(--app-components-clock-touch-target-size-double)",
+     "var(--app-components-clock-visual-target)"
+    ],
+    "padding": [
+     "0 var(--app-components-clock-margin-horizontal)",
+     "0 var(--app-components-clock-padding-horizontal)"
+    ],
+    "border-radius": [
+     "var(--app-components-clock-border-radius)"
+    ]
+   }
+  },
+  "command-button": {
+   "tag": "obc-command-button",
+   "parts": [
+    "icon",
+    "visible-wrapper"
+   ],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-button-border-radius-bottom-left",
+    "--ui-components-button-border-radius-bottom-right",
+    "--ui-components-button-border-radius-top-left",
+    "--ui-components-button-border-radius-top-right",
+    "--ui-components-button-touch-target-size",
+    "--ui-components-icon-button-icon-size",
+    "--ui-components-icon-button-visual-target-size"
+   ],
+   "colourVars": 26,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "min-height": [
+     "var(--ui-components-button-touch-target-size)"
+    ],
+    "min-width": [
+     "var(--ui-components-button-touch-target-size)"
+    ],
+    "height": [
+     "var(--ui-components-icon-button-icon-size)",
+     "var(--ui-components-icon-button-visual-target-size)"
+    ],
+    "width": [
+     "var(--ui-components-icon-button-icon-size)",
+     "var(--ui-components-icon-button-visual-target-size)"
+    ],
+    "border-radius": [
+     "var(--ui-components-button-border-radius-top-left)\n      var(--ui-comp"
+    ]
+   }
+  },
+  "command-menu": {
+   "tag": "obc-command-menu",
+   "parts": [],
+   "slots": [
+    "command-description",
+    "command-icon",
+    "command-location",
+    "command-status",
+    "toogle-action-to-in-command-label",
+    "toogle-action-to-no-command-label",
+    "toogle-state-in-command-icon",
+    "toogle-state-in-command-label",
+    "toogle-state-no-command-label"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--app-components-command-menu-icon-size-large",
+    "--app-components-command-menu-margin-horizontal",
+    "--app-components-command-menu-margin-vertical",
+    "--app-components-command-menu-padding-horizontal",
+    "--app-components-command-menu-padding-vertical",
+    "--app-components-system-menu-padding-horizontal",
+    "--app-components-system-menu-padding-vertical"
+   ],
+   "colourVars": 5,
+   "fixedGeometry": {
+    "border-radius": [
+     "4px",
+     "8px"
+    ],
+    "width": [
+     "1px",
+     "360px"
+    ],
+    "gap": [
+     "8px"
+    ],
+    "height": [
+     "16px"
+    ],
+    "padding": [
+     "0px 8px"
+    ]
+   },
+   "variableGeometry": {
+    "padding": [
+     "calc(2 * var(--app-components-system-menu-padding-vertical)) 0px",
+     "var(--app-components-command-menu-margin-vertical)\n    calc(\n      var",
+     "var(--app-components-command-menu-padding-vertical)\n    var(--app-comp"
+    ],
+    "font-size": [
+     "var(--global-typography-instrument-value-large-font-size)",
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-overline-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-instrument-value-large-line-height)",
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-overline-line-height)"
+    ],
+    "width": [
+     "var(--app-components-command-menu-icon-size-large)"
+    ],
+    "height": [
+     "var(--app-components-command-menu-icon-size-large)"
+    ]
+   }
+  },
+  "communication-table": {
+   "tag": "obc-communication-table",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--ui-components-communication-item-label-spacing",
+    "--ui-components-communication-item-notification-dot-size"
+   ],
+   "colourVars": 3,
+   "fixedGeometry": {
+    "min-height": [
+     "64px"
+    ],
+    "height": [
+     "16px"
+    ],
+    "width": [
+     "16px"
+    ]
+   },
+   "variableGeometry": {
+    "padding-right": [
+     "calc(\n      var(--ui-components-communication-item-label-spacing, 8px)"
+    ],
+    "padding-left": [
+     "calc(\n      var(--ui-components-communication-item-label-spacing, 8px)",
+     "var(\n      --ui-components-communication-item-padding-horizontal,\n    "
+    ],
+    "width": [
+     "var(--ui-components-communication-item-notification-dot-size, 6px)"
+    ],
+    "height": [
+     "var(--ui-components-communication-item-notification-dot-size, 6px)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ]
+   }
+  },
+  "context-menu-input": {
+   "tag": "obc-context-menu-input",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "menu\"",
+    "menuitem\""
+   ],
+   "ariaAttrs": [
+    "aria-label",
+    "aria-selected"
+   ],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--ui-components-checkbox-nested-item-padding-left",
+    "--ui-components-context-menu-border-radius",
+    "--ui-components-context-menu-margin-horizontal",
+    "--ui-components-context-menu-margin-vertical",
+    "--ui-components-context-menu-title-label-spacing",
+    "--ui-components-context-menu-touch-target-size"
+   ],
+   "colourVars": 3,
+   "fixedGeometry": {
+    "min-width": [
+     "160px",
+     "240px"
+    ],
+    "gap": [
+     "10px"
+    ]
+   },
+   "variableGeometry": {
+    "border-radius": [
+     "var(--ui-components-context-menu-border-radius)"
+    ],
+    "padding": [
+     "0px var(--ui-components-context-menu-title-label-spacing)",
+     "var(--ui-components-context-menu-margin-vertical)\n    var(--ui-compone"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-overline-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-overline-line-height)"
+    ],
+    "padding-left": [
+     "var(--ui-components-checkbox-nested-item-padding-left)"
+    ],
+    "height": [
+     "var(--ui-components-context-menu-touch-target-size)"
+    ]
+   }
+  },
+  "date-item": {
+   "tag": "obc-date-item",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "button\""
+   ],
+   "ariaAttrs": [
+    "aria-disabled",
+    "aria-hidden",
+    "aria-label"
+   ],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover"
+   ],
+   "colourVars": 43,
+   "fixedGeometry": {
+    "outline-offset": [
+     "2px"
+    ],
+    "padding": [
+     "0 12px"
+    ]
+   },
+   "variableGeometry": {
+    "max-width": [
+     "var(--menu-navigation-components-date-item-touch-target)"
+    ],
+    "height": [
+     "var(--menu-navigation-components-date-item-indicator-size, 6px)",
+     "var(--menu-navigation-components-date-item-touch-target)",
+     "var(--menu-navigation-components-date-item-touch-target, 48px)",
+     "var(--menu-navigation-components-date-item-visual-size)",
+     "var(--menu-navigation-components-date-item-visual-size, 32px)"
+    ],
+    "padding": [
+     "0\n    var(\n      --menu-navigation-components-date-item-appointment-co",
+     "var(--menu-navigation-components-date-item-padding-vertical)\n      var",
+     "var(--menu-navigation-components-date-item-padding-vertical, 8px)\n    "
+    ],
+    "width": [
+     "var(--menu-navigation-components-date-item-indicator-size, 6px)",
+     "var(--menu-navigation-components-date-item-touch-target, 48px)",
+     "var(--menu-navigation-components-date-item-visual-size)",
+     "var(--menu-navigation-components-date-item-visual-size, 32px)"
+    ],
+    "border-radius": [
+     "var(\n        --menu-navigation-components-date-item-border-radius,\n   ",
+     "var(--_obc-date-item-border-top-left-radius, 0)\n      var(--_obc-date-",
+     "var(--menu-navigation-components-date-item-border-radius, 6px)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)"
+    ]
+   }
+  },
+  "divider": {
+   "tag": "obc-divider",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 1,
+   "fixedGeometry": {
+    "width": [
+     "1px"
+    ],
+    "height": [
+     "24px"
+    ],
+    "border-radius": [
+     "1px"
+    ]
+   },
+   "variableGeometry": {}
+  },
+  "dropdown-button": {
+   "tag": "obc-dropdown-button",
+   "parts": [],
+   "slots": [
+    "icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "select"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-button-border-radius-bottom-left",
+    "--ui-components-button-border-radius-bottom-right",
+    "--ui-components-button-border-radius-top-left",
+    "--ui-components-button-border-radius-top-right",
+    "--ui-components-button-label-spacing",
+    "--ui-components-button-padding-horizontal",
+    "--ui-components-button-touch-target-size",
+    "--ui-components-button-visual-size",
+    "--ui-components-context-menu-margin-horizontal",
+    "--ui-components-context-menu-margin-vertical",
+    "--ui-components-context-menu-menu-width"
+   ],
+   "colourVars": 29,
+   "fixedGeometry": {
+    "border-radius": [
+     "12px"
+    ],
+    "height": [
+     "40px"
+    ]
+   },
+   "variableGeometry": {
+    "height": [
+     "var(--global-size-spacing-icon-icon-size-regular)",
+     "var(--menu-navigation-components-navigation-item-touch-target-size)",
+     "var(--ui-components-button-touch-target-size)",
+     "var(--ui-components-button-visual-size)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-button-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-button-line-height)"
+    ],
+    "border-radius": [
+     "var(\n    --menu-navigation-components-navigation-item-border-radius\n  ",
+     "var(--ui-components-button-border-radius-top-left)\n      var(--ui-comp"
+    ],
+    "padding-left": [
+     "calc(var(--ui-components-button-padding-horizontal) * 2)",
+     "var(--ui-components-button-label-spacing)"
+    ],
+    "padding-right": [
+     "var(--ui-components-button-label-spacing)",
+     "var(--ui-components-button-padding-horizontal)"
+    ],
+    "width": [
+     "var(--global-size-spacing-icon-icon-size-regular)"
+    ],
+    "min-width": [
+     "var(--ui-components-context-menu-menu-width)"
+    ],
+    "padding": [
+     "0px\n    var(--menu-navigation-components-navigation-item-padding-horiz",
+     "var(--ui-components-context-menu-margin-vertical)\n    var(--ui-compone"
+    ],
+    "min-height": [
+     "var(\n    --menu-navigation-components-navigation-item-touch-target-siz"
+    ]
+   }
+  },
+  "elevated-card": {
+   "tag": "obc-elevated-card",
+   "parts": [
+    "action",
+    "content-container",
+    "label",
+    "leading-icon",
+    "status",
+    "trailing-icon",
+    "wrapper"
+   ],
+   "slots": [
+    "action",
+    "description",
+    "graphic",
+    "label",
+    "leading-icon",
+    "status",
+    "trailing-icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-elevated-card-border-radius",
+    "--ui-components-elevated-card-icon-size",
+    "--ui-components-elevated-card-label-spacing",
+    "--ui-components-elevated-card-margin-horizontal",
+    "--ui-components-elevated-card-padding-vertical",
+    "--ui-components-elevated-card-touch-target-min",
+    "--ui-components-rich-button-label-spacing"
+   ],
+   "colourVars": 17,
+   "fixedGeometry": {
+    "min-height": [
+     "56px"
+    ]
+   },
+   "variableGeometry": {
+    "min-height": [
+     "var(--ui-components-elevated-card-touch-target-min)"
+    ],
+    "border-top-left-radius": [
+     "var(--elevated-card-border-radius-top-left)"
+    ],
+    "border-top-right-radius": [
+     "var(--elevated-card-border-radius-top-right)"
+    ],
+    "border-bottom-left-radius": [
+     "var(--elevated-card-border-radius-bottom-left)"
+    ],
+    "border-bottom-right-radius": [
+     "var(--elevated-card-border-radius-bottom-right)"
+    ],
+    "padding": [
+     "0 var(--ui-components-elevated-card-label-spacing)",
+     "var(--ui-components-elevated-card-padding-vertical)\n    var(--ui-compo"
+    ],
+    "padding-right": [
+     "var(--ui-components-elevated-card-label-spacing)",
+     "var(--ui-components-rich-button-label-spacing)"
+    ],
+    "width": [
+     "calc(\n    var(--ui-components-elevated-card-icon-size) +\n      var(--u"
+    ],
+    "height": [
+     "var(--ui-components-elevated-card-icon-size)"
+    ],
+    "padding-left": [
+     "var(--ui-components-elevated-card-label-spacing)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-button-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-button-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ],
+    "border-radius": [
+     "var(--ui-components-elevated-card-border-radius)\n    var(--ui-componen"
+    ]
+   }
+  },
+  "elevated-card-radio": {
+   "tag": "obc-elevated-card-radio",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "label"
+   ],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 0,
+   "fixedGeometry": {},
+   "variableGeometry": {}
+  },
+  "elevated-card-radio-group": {
+   "tag": "obc-elevated-card-radio-group",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-radio-button-border-radius",
+    "--ui-components-radio-button-label-spacing",
+    "--ui-components-radio-button-padding-horizontal",
+    "--ui-components-radio-button-selection-size",
+    "--ui-components-radio-button-thumb-size",
+    "--ui-components-radio-button-touch-target-size"
+   ],
+   "colourVars": 29,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "width": [
+     "var(--ui-components-radio-button-selection-size)",
+     "var(--ui-components-radio-button-thumb-size)"
+    ],
+    "height": [
+     "var(--ui-components-radio-button-selection-size)",
+     "var(--ui-components-radio-button-thumb-size)",
+     "var(--ui-components-radio-button-touch-target-size)"
+    ],
+    "padding": [
+     "0 var(--ui-components-radio-button-padding-horizontal)",
+     "0px var(--ui-components-radio-button-label-spacing)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)"
+    ],
+    "border-radius": [
+     "var(--ui-components-radio-button-border-radius)"
+    ]
+   }
+  },
+  "event-item": {
+   "tag": "obc-event-item",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover"
+   ],
+   "colourVars": 16,
+   "fixedGeometry": {
+    "outline-offset": [
+     "2px"
+    ],
+    "min-height": [
+     "48px"
+    ],
+    "gap": [
+     "2px"
+    ],
+    "width": [
+     "24px"
+    ],
+    "height": [
+     "24px"
+    ]
+   },
+   "variableGeometry": {
+    "border-radius": [
+     "var(\n      --menu-navigation-components-appointment-item-border-radius",
+     "var(\n    --menu-navigation-components-appointment-item-border-radius,\n"
+    ],
+    "gap": [
+     "var(--menu-navigation-components-appointment-item-label-spacing, 8px)"
+    ],
+    "padding": [
+     "var(\n        --menu-navigation-components-appointment-item-padding-ver"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-label-line-height)"
+    ],
+    "padding-right": [
+     "var(\n    --menu-navigation-components-appointment-item-padding-horizon"
+    ]
+   }
+  },
+  "event-list": {
+   "tag": "obc-event-list",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "list\" aria",
+    "listitem\""
+   ],
+   "ariaAttrs": [
+    "aria-label"
+   ],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [
+    "--app-components-system-menu-padding-horizontal"
+   ],
+   "colourVars": 3,
+   "fixedGeometry": {
+    "border-radius": [
+     "4px"
+    ],
+    "gap": [
+     "4px"
+    ],
+    "width": [
+     "calc(100% + 8px)"
+    ],
+    "padding": [
+     "4px"
+    ]
+   },
+   "variableGeometry": {
+    "padding": [
+     "4px var(--app-components-system-menu-padding-horizontal, 8px)"
+    ],
+    "padding-left": [
+     "var(\n    --menu-navigation-components-appointment-item-padding-horizon",
+     "var(--app-components-system-menu-padding-horizontal, 8px)"
+    ],
+    "padding-right": [
+     "var(\n    --menu-navigation-components-appointment-item-padding-horizon",
+     "var(--app-components-system-menu-padding-horizontal, 8px)"
+    ],
+    "gap": [
+     "var(--menu-navigation-components-appointment-item-label-spacing, 8px)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-label-line-height)"
+    ]
+   }
+  },
+  "filter-chip": {
+   "tag": "obc-filter-chip",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "checkbox\""
+   ],
+   "ariaAttrs": [
+    "aria-disabled",
+    "aria-label",
+    "aria-pressed"
+   ],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-chip-border-radius",
+    "--ui-components-chip-icon-size",
+    "--ui-components-chip-label-spacing",
+    "--ui-components-chip-padding-horizontal",
+    "--ui-components-chip-space-between",
+    "--ui-components-chip-touch-target-size",
+    "--ui-components-chip-visual-target-size"
+   ],
+   "colourVars": 17,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "height": [
+     "var(--ui-components-chip-icon-size)",
+     "var(--ui-components-chip-touch-target-size)",
+     "var(--ui-components-chip-visual-target-size)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-button-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-button-line-height)"
+    ],
+    "padding": [
+     "0px var(--ui-components-chip-label-spacing)",
+     "0px var(--ui-components-chip-padding-horizontal)"
+    ],
+    "border-radius": [
+     "var(--ui-components-chip-border-radius)"
+    ],
+    "gap": [
+     "var(--ui-components-chip-space-between)"
+    ],
+    "width": [
+     "var(--ui-components-chip-icon-size)"
+    ]
+   }
+  },
+  "floating-item": {
+   "tag": "obc-floating-item",
+   "parts": [],
+   "slots": [
+    "action",
+    "action2",
+    "day",
+    "description",
+    "primary-icon",
+    "secondary-icon",
+    "time",
+    "title"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--app-components-floating-message-item-border-radius",
+    "--app-components-floating-message-item-component-width",
+    "--app-components-floating-message-item-icon-container-height",
+    "--app-components-floating-message-item-icon-container-width",
+    "--app-components-floating-message-item-icon-size",
+    "--app-components-floating-message-item-icon-size-large",
+    "--app-components-floating-message-item-label-spacing",
+    "--app-components-floating-message-item-padding-horizontal-left",
+    "--app-components-floating-message-item-padding-horizontal-right",
+    "--app-components-floating-message-item-padding-vertical-single",
+    "--app-components-notification-menu-item-label-spacing",
+    "--app-components-notification-menu-item-touch-target",
+    "--ui-components-app-button-icon-size",
+    "--ui-components-app-button-visual-size"
+   ],
+   "colourVars": 8,
+   "fixedGeometry": {
+    "border-radius": [
+     "100px"
+    ]
+   },
+   "variableGeometry": {
+    "width": [
+     "var(--app-components-floating-message-item-component-width)",
+     "var(--app-components-floating-message-item-icon-container-width)",
+     "var(--app-components-floating-message-item-icon-size)",
+     "var(--app-components-floating-message-item-icon-size-large)",
+     "var(--ui-components-app-button-icon-size)",
+     "var(--ui-components-app-button-visual-size)"
+    ],
+    "min-height": [
+     "var(\n        --menu-navigation-components-table-item-touch-target-size",
+     "var(--app-components-notification-menu-item-touch-target)"
+    ],
+    "padding": [
+     "0px var(--app-components-floating-message-item-label-spacing)",
+     "var(\n          --app-components-floating-message-item-padding-vertical",
+     "var(\n        --app-components-floating-message-item-padding-vertical-t",
+     "var(--app-components-floating-message-item-padding-vertical-single)\n  "
+    ],
+    "border-radius": [
+     "var(--app-components-floating-message-item-border-radius)"
+    ],
+    "gap": [
+     "var(--app-components-floating-message-item-label-spacing)",
+     "var(--app-components-notification-menu-item-label-spacing)"
+    ],
+    "height": [
+     "var(--app-components-floating-message-item-icon-container-height)",
+     "var(--app-components-floating-message-item-icon-size)",
+     "var(--app-components-floating-message-item-icon-size-large)",
+     "var(--ui-components-app-button-icon-size)",
+     "var(--ui-components-app-button-visual-size)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ],
+    "max-height": [
+     "var(\n        --app-components-floating-message-item-max-height-text-co"
+    ],
+    "padding-left": [
+     "var(--app-components-floating-message-item-label-spacing)"
+    ],
+    "padding-right": [
+     "var(\n        --app-components-floating-message-item-padding-horizontal"
+    ]
+   }
+  },
+  "form-container": {
+   "tag": "obc-form-container",
+   "parts": [
+    "content-body",
+    "content-scrollbar",
+    "content-section",
+    "content-title",
+    "footer-section",
+    "main-section",
+    "title-section",
+    "wrapper"
+   ],
+   "slots": [
+    "content-title",
+    "footer",
+    "title"
+   ],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 6,
+   "fixedGeometry": {
+    "width": [
+     "640px"
+    ],
+    "height": [
+     "48px",
+     "640px"
+    ],
+    "border-radius": [
+     "12px"
+    ],
+    "padding": [
+     "16px 24px"
+    ],
+    "max-height": [
+     "544px"
+    ],
+    "gap": [
+     "16px"
+    ],
+    "min-height": [
+     "48px"
+    ]
+   },
+   "variableGeometry": {
+    "font-size": [
+     "var(--font-size-150)"
+    ],
+    "line-height": [
+     "var(--line-height-150)"
+    ]
+   }
+  },
+  "form-footer-container": {
+   "tag": "obc-form-footer-container",
+   "parts": [
+    "actions",
+    "wrapper"
+   ],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 1,
+   "fixedGeometry": {
+    "max-width": [
+     "640px"
+    ]
+   },
+   "variableGeometry": {
+    "height": [
+     "var(--global-size-spacing-touch-target-min)"
+    ]
+   }
+  },
+  "form-group": {
+   "tag": "obc-form-group",
+   "parts": [
+    "content-container",
+    "subtitle",
+    "text",
+    "title-container",
+    "wrapper"
+   ],
+   "slots": [
+    "subtitle",
+    "text"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [
+    "--obc-form-group-border-radius"
+   ],
+   "colourVars": 4,
+   "fixedGeometry": {
+    "max-width": [
+     "673px"
+    ],
+    "gap": [
+     "4px"
+    ]
+   },
+   "variableGeometry": {
+    "font-size": [
+     "var(--global-typography-ui-label-font-size)",
+     "var(--global-typography-ui-overline-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-label-line-height)",
+     "var(--global-typography-ui-overline-line-height)"
+    ],
+    "border-radius": [
+     "var(--obc-form-group-border-radius)"
+    ]
+   }
+  },
+  "form-item": {
+   "tag": "obc-form-item",
+   "parts": [
+    "action",
+    "content-container",
+    "divider",
+    "error-text",
+    "icon",
+    "leading",
+    "shader",
+    "shader-container",
+    "status",
+    "text",
+    "trailing",
+    "wrapper"
+   ],
+   "slots": [
+    "icon"
+   ],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-label"
+   ],
+   "nativeElements": [],
+   "hostRules": [
+    ":host",
+    ":host(:active):not([disabled]) :is(.wrapper .content-container)",
+    ":host(:focus-within):not([disabled]) :is(.wrapper .content-container)",
+    ":host(:hover):not([disabled]) .wrapper.has-shader .divider,:host(:focus-within):not([disabled]) .wrapper.has-shader .divider,:host(:active):not([disabled]) .wrapper.has-shader .divider,:host([disabled]) .wrapper.has-shader .divider,.wrapper.type-inactive.has-shader .divider,.wrapper.basic-state-disabled.has-shader .divider",
+    ":host(:hover):not([disabled]) :is(.wrapper .content-container)",
+    ":host([data-group-item-before-focused]) .content-container",
+    ":host([data-group-item-focused]) .wrapper",
+    ":host([data-group-item-not-first]) .content-container",
+    ":host([data-group-item-not-first][data-group-item-focused]) .content-container",
+    ":host([disabled]) :is(.wrapper .content-container),.type-inactive :is(.wrapper .content-container),.basic-state-disabled :is(.wrapper .content-container)"
+   ],
+   "focusVisible": false,
+   "componentVars": [
+    "--obc-form-item-border-radius",
+    "--obc-form-item-divider-display",
+    "--ui-components-checkbox-label-spacing",
+    "--ui-components-checkbox-touch-target-size"
+   ],
+   "colourVars": 15,
+   "fixedGeometry": {
+    "max-width": [
+     "669px"
+    ],
+    "height": [
+     "1px",
+     "24px"
+    ],
+    "width": [
+     "24px"
+    ]
+   },
+   "variableGeometry": {
+    "gap": [
+     "var(--global-size-spacing-list-item-item-spacing)",
+     "var(--global-size-spacing-list-item-padding-horizontal)",
+     "var(--global-size-spacing-target-padding)",
+     "var(--ui-components-checkbox-label-spacing)"
+    ],
+    "border-radius": [
+     "var(\n        --obc-form-item-border-radius-top-left,\n        var(--obc"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ],
+    "min-height": [
+     "var(--ui-components-checkbox-touch-target-size)"
+    ]
+   }
+  },
+  "icon-button": {
+   "tag": "obc-icon-button",
+   "parts": [
+    "icon",
+    "label",
+    "visible-wrapper",
+    "wrapper"
+   ],
+   "slots": [
+    "label"
+   ],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-button-border-radius-bottom-left",
+    "--ui-components-button-border-radius-bottom-right",
+    "--ui-components-button-border-radius-top-left",
+    "--ui-components-button-border-radius-top-right",
+    "--ui-components-button-touch-target-size",
+    "--ui-components-icon-button-icon-size",
+    "--ui-components-icon-button-padding-left",
+    "--ui-components-icon-button-padding-right",
+    "--ui-components-icon-button-padding-vertical",
+    "--ui-components-icon-button-visual-target-size"
+   ],
+   "colourVars": 40,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "min-height": [
+     "var(--ui-components-button-touch-target-size)"
+    ],
+    "min-width": [
+     "var(--ui-components-button-touch-target-size)"
+    ],
+    "height": [
+     "var(--ui-components-icon-button-icon-size)",
+     "var(--ui-components-icon-button-visual-target-size)"
+    ],
+    "width": [
+     "calc(\n        var(--ui-components-icon-button-visual-target-size) +\n  ",
+     "var(--ui-components-button-touch-target-size)",
+     "var(--ui-components-icon-button-icon-size)",
+     "var(--ui-components-icon-button-visual-target-size)"
+    ],
+    "border-radius": [
+     "var(--ui-components-button-border-radius-top-left)\n      var(--ui-comp"
+    ],
+    "padding": [
+     "var(--ui-components-icon-button-padding-vertical) 0"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-label-line-height)"
+    ]
+   }
+  },
+  "icon-check-button": {
+   "tag": "obc-icon-check-button",
+   "parts": [],
+   "slots": [
+    "icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-disabled",
+    "aria-pressed"
+   ],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--app-components-alert-frame-border-radius-bottom-left",
+    "--app-components-alert-frame-border-radius-bottom-right",
+    "--app-components-alert-frame-border-radius-top-left",
+    "--app-components-alert-frame-border-radius-top-right",
+    "--obc-can-hover",
+    "--ui-components-check-button-touch-target-size",
+    "--ui-components-check-button-visual-size",
+    "--ui-components-icon-button-padding-vertical",
+    "--ui-components-icon-button-touch-target-size",
+    "--ui-components-icon-check-button-border-radius",
+    "--ui-components-icon-check-button-icon-size"
+   ],
+   "colourVars": 20,
+   "fixedGeometry": {
+    "padding": [
+     "4px 0"
+    ]
+   },
+   "variableGeometry": {
+    "width": [
+     "var(--ui-components-check-button-touch-target-size)",
+     "var(--ui-components-icon-check-button-icon-size)"
+    ],
+    "min-height": [
+     "var(--ui-components-icon-button-touch-target-size)"
+    ],
+    "padding": [
+     "var(--ui-components-icon-button-padding-vertical) 0"
+    ],
+    "height": [
+     "var(--ui-components-check-button-visual-size)",
+     "var(--ui-components-icon-check-button-icon-size)"
+    ],
+    "min-width": [
+     "var(\n    --ui-components-toggle-button-icon-toggle-button-horizontal-i"
+    ],
+    "border-radius": [
+     "calc(\n      var(--app-components-alert-frame-border-radius-top-left) -",
+     "var(--ui-components-icon-check-button-border-radius)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-label-active-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-label-active-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ]
+   }
+  },
+  "input-chip": {
+   "tag": "obc-input-chip",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-label"
+   ],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-chip-border-radius",
+    "--ui-components-chip-icon-size",
+    "--ui-components-chip-label-spacing",
+    "--ui-components-chip-padding-horizontal",
+    "--ui-components-chip-touch-target-size",
+    "--ui-components-chip-visual-target-size"
+   ],
+   "colourVars": 4,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "height": [
+     "var(--ui-components-chip-icon-size)",
+     "var(--ui-components-chip-touch-target-size)",
+     "var(--ui-components-chip-visual-target-size)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-button-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-button-line-height)"
+    ],
+    "padding": [
+     "0px var(--ui-components-chip-label-spacing)",
+     "0px var(--ui-components-chip-padding-horizontal)"
+    ],
+    "border-radius": [
+     "var(--ui-components-chip-border-radius)"
+    ],
+    "width": [
+     "var(--ui-components-chip-icon-size)"
+    ]
+   }
+  },
+  "keyboard-full": {
+   "tag": "obc-keyboard-full",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--ui-components-button-touch-target-size",
+    "--ui-components-input-fields-text-input-field-visual-size-large",
+    "--ui-components-keyboard-action-button-width",
+    "--ui-components-keyboard-border-radius",
+    "--ui-components-keyboard-button-size-min",
+    "--ui-components-keyboard-button-spacing",
+    "--ui-components-keyboard-component-height",
+    "--ui-components-keyboard-component-width-min",
+    "--ui-components-keyboard-nummeric-action-button-width",
+    "--ui-components-keyboard-nummeric-button-size-min",
+    "--ui-components-keyboard-nummeric-button-spacing",
+    "--ui-components-keyboard-nummeric-padding-spacer",
+    "--ui-components-keyboard-nummeric-section-spacing",
+    "--ui-components-keyboard-nummeric-touch-target-size",
+    "--ui-components-keyboard-section-spacing",
+    "--ui-components-keyboard-top-bar-height"
+   ],
+   "colourVars": 3,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "min-width": [
+     "var(--ui-components-button-touch-target-size)",
+     "var(--ui-components-keyboard-button-size-min)",
+     "var(--ui-components-keyboard-component-width-min)",
+     "var(--ui-components-keyboard-nummeric-touch-target-size)"
+    ],
+    "max-height": [
+     "var(--ui-components-keyboard-component-height)"
+    ],
+    "border-radius": [
+     "var(--ui-components-keyboard-border-radius)"
+    ],
+    "height": [
+     "var(--ui-components-input-fields-text-input-field-visual-size-large)",
+     "var(--ui-components-keyboard-button-size-min)",
+     "var(--ui-components-keyboard-top-bar-height)"
+    ],
+    "padding-left": [
+     "var(--ui-components-keyboard-nummeric-padding-spacer)",
+     "var(--ui-components-keyboard-nummeric-section-spacing)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-overline-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-overline-line-height)"
+    ],
+    "padding": [
+     "var(--ui-components-keyboard-section-spacing)"
+    ],
+    "gap": [
+     "var(--ui-components-keyboard-button-spacing)",
+     "var(--ui-components-keyboard-nummeric-button-spacing)",
+     "var(--ui-components-keyboard-section-spacing)"
+    ],
+    "min-height": [
+     "var(\n    --ui-components-input-fields-text-input-field-touch-target-si",
+     "var(--ui-components-keyboard-button-size-min)",
+     "var(--ui-components-keyboard-nummeric-button-size-min)"
+    ],
+    "width": [
+     "var(--ui-components-keyboard-action-button-width)",
+     "var(--ui-components-keyboard-nummeric-action-button-width)"
+    ],
+    "padding-right": [
+     "var(--ui-components-keyboard-nummeric-padding-spacer)"
+    ]
+   }
+  },
+  "keyboard-numeric": {
+   "tag": "obc-keyboard-numeric",
+   "parts": [],
+   "slots": [
+    "leading-icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--ui-components-button-touch-target-size",
+    "--ui-components-icon-button-enhanced-component-min-size",
+    "--ui-components-icon-button-enhanced-padding-vertical",
+    "--ui-components-keyboard-button-size-min",
+    "--ui-components-keyboard-nummeric-action-button-width",
+    "--ui-components-keyboard-nummeric-border-radius",
+    "--ui-components-keyboard-nummeric-button-size-min",
+    "--ui-components-keyboard-nummeric-button-spacing",
+    "--ui-components-keyboard-nummeric-component-height-min",
+    "--ui-components-keyboard-nummeric-component-width-min",
+    "--ui-components-keyboard-nummeric-section-spacing",
+    "--ui-components-keyboard-nummeric-top-bar-height",
+    "--ui-components-keyboard-nummeric-touch-target-size"
+   ],
+   "colourVars": 4,
+   "fixedGeometry": {
+    "min-width": [
+     "160px"
+    ],
+    "min-height": [
+     "216px"
+    ]
+   },
+   "variableGeometry": {
+    "min-width": [
+     "var(--ui-components-button-touch-target-size)",
+     "var(--ui-components-icon-button-enhanced-component-min-size)",
+     "var(--ui-components-keyboard-nummeric-component-width-min)",
+     "var(--ui-components-keyboard-nummeric-touch-target-size)"
+    ],
+    "min-height": [
+     "var(--ui-components-icon-button-enhanced-component-min-size)",
+     "var(--ui-components-keyboard-nummeric-button-size-min)",
+     "var(--ui-components-keyboard-nummeric-component-height-min)"
+    ],
+    "border-radius": [
+     "var(--ui-components-keyboard-nummeric-border-radius)"
+    ],
+    "height": [
+     "var(--ui-components-keyboard-button-size-min)",
+     "var(--ui-components-keyboard-nummeric-button-size-min)",
+     "var(--ui-components-keyboard-nummeric-top-bar-height)"
+    ],
+    "padding-left": [
+     "var(--ui-components-keyboard-nummeric-section-spacing)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-overline-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-overline-line-height)"
+    ],
+    "padding": [
+     "var(--ui-components-icon-button-enhanced-padding-vertical) 0",
+     "var(--ui-components-keyboard-nummeric-section-spacing)"
+    ],
+    "gap": [
+     "var(--ui-components-keyboard-nummeric-button-spacing)",
+     "var(--ui-components-keyboard-nummeric-section-spacing)"
+    ],
+    "width": [
+     "var(--ui-components-keyboard-nummeric-action-button-width)"
+    ]
+   }
+  },
+  "menu-button": {
+   "tag": "obc-menu-button",
+   "parts": [],
+   "slots": [
+    "icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-expanded",
+    "aria-haspopup"
+   ],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-button-border-radius-bottom-left",
+    "--ui-components-button-border-radius-bottom-right",
+    "--ui-components-button-border-radius-top-left",
+    "--ui-components-button-border-radius-top-right",
+    "--ui-components-button-icon-size",
+    "--ui-components-button-label-spacing",
+    "--ui-components-button-padding-horizontal",
+    "--ui-components-button-stroke-weight-bottom",
+    "--ui-components-button-stroke-weight-left",
+    "--ui-components-button-stroke-weight-right",
+    "--ui-components-button-stroke-weight-top",
+    "--ui-components-button-touch-target-size",
+    "--ui-components-button-visual-size"
+   ],
+   "colourVars": 15,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "height": [
+     "var(--ui-components-button-icon-size)",
+     "var(--ui-components-button-touch-target-size)",
+     "var(--ui-components-button-visual-size)"
+    ],
+    "min-width": [
+     "var(--ui-components-button-touch-target-size)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-button-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-button-line-height)"
+    ],
+    "padding": [
+     "0px var(--ui-components-button-label-spacing)",
+     "0px var(--ui-components-button-padding-horizontal)"
+    ],
+    "border-radius": [
+     "var(--ui-components-button-border-radius-top-left)\n      var(--ui-comp"
+    ],
+    "width": [
+     "var(--ui-components-button-icon-size)"
+    ]
+   }
+  },
+  "message-menu-item": {
+   "tag": "obc-message-menu-item",
+   "parts": [
+    "action-container",
+    "trailing-icon"
+   ],
+   "slots": [
+    "action-label",
+    "description",
+    "primary-icon",
+    "secondary-icon",
+    "title",
+    "trailing-icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "button\""
+   ],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host([animateintro])",
+    ":host:has(.action-button-container:hover) .wrapper"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--app-components-message-menu-item-icon-size-large",
+    "--app-components-message-menu-item-icon-size-regular",
+    "--app-components-message-menu-item-label-spacing",
+    "--app-components-message-menu-item-padding-horizontal",
+    "--app-components-message-menu-item-padding-vertical-12",
+    "--app-components-message-menu-item-padding-vertical-4",
+    "--app-components-message-menu-item-padding-vertical-8",
+    "--app-components-notification-menu-item-touch-target",
+    "--obc-can-hover",
+    "--ui-components-button-touch-target-size"
+   ],
+   "colourVars": 17,
+   "fixedGeometry": {
+    "padding": [
+     "8px 0px"
+    ]
+   },
+   "variableGeometry": {
+    "gap": [
+     "var(--app-components-message-menu-item-label-spacing)"
+    ],
+    "min-width": [
+     "var(--action-width, 0)"
+    ],
+    "height": [
+     "var(\n    --app-components-alert-components-general-notification-item-i",
+     "var(--app-components-message-menu-item-icon-size-large)",
+     "var(--app-components-message-menu-item-icon-size-regular)",
+     "var(--ui-components-button-touch-target-size)"
+    ],
+    "min-height": [
+     "var(--app-components-notification-menu-item-touch-target)"
+    ],
+    "padding": [
+     "var(\n        --app-components-message-menu-item-icon-container-padding",
+     "var(--app-components-message-menu-item-padding-vertical-12) 0px",
+     "var(--app-components-message-menu-item-padding-vertical-4)\n    var(--a",
+     "var(--app-components-message-menu-item-padding-vertical-4) 0px",
+     "var(--app-components-message-menu-item-padding-vertical-8)\n    var(--a"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ],
+    "width": [
+     "var(\n    --app-components-alert-components-general-notification-item-i",
+     "var(--app-components-message-menu-item-icon-size-large)",
+     "var(--app-components-message-menu-item-icon-size-regular)"
+    ]
+   }
+  },
+  "modal-window": {
+   "tag": "obc-modal-window",
+   "parts": [],
+   "slots": [
+    "cancel-label",
+    "content",
+    "done-label",
+    "leading-icon",
+    "option-label",
+    "title"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--app-components-modal-border-radius",
+    "--app-components-modal-button-spacing",
+    "--app-components-modal-label-spacing",
+    "--app-components-modal-margin-vertical",
+    "--app-components-modal-padding-divider",
+    "--app-components-modal-padding-vertical-button-container"
+   ],
+   "colourVars": 4,
+   "fixedGeometry": {
+    "height": [
+     "1px",
+     "407px"
+    ],
+    "width": [
+     "349px",
+     "540px"
+    ],
+    "gap": [
+     "10px"
+    ]
+   },
+   "variableGeometry": {
+    "border-radius": [
+     "var(--app-components-modal-border-radius)"
+    ],
+    "padding-left": [
+     "var(--app-components-modal-margin-vertical)"
+    ],
+    "min-height": [
+     "var(--global-size-spacing-touch-target-min)"
+    ],
+    "gap": [
+     "var(--app-components-modal-button-spacing)",
+     "var(--app-components-modal-label-spacing)"
+    ],
+    "width": [
+     "var(--global-size-spacing-icon-icon-size-regular)"
+    ],
+    "height": [
+     "var(--global-size-spacing-icon-icon-size-regular)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-overline-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-overline-line-height)"
+    ],
+    "padding": [
+     "var(--app-components-modal-padding-vertical-button-container)\n    var("
+    ]
+   }
+  },
+  "navigation-item": {
+   "tag": "obc-navigation-item",
+   "parts": [
+    "label"
+   ],
+   "slots": [
+    "icon",
+    "trailing-icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "a"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover"
+   ],
+   "colourVars": 17,
+   "fixedGeometry": {
+    "outline-offset": [
+     "-2px"
+    ]
+   },
+   "variableGeometry": {
+    "height": [
+     "var(\n      --menu-navigation-components-navigation-item-touch-target-s",
+     "var(--menu-navigation-components-navigation-item-icon-size)",
+     "var(--menu-navigation-components-navigation-item-touch-target-size)"
+    ],
+    "border-radius": [
+     "var(\n      --menu-navigation-components-navigation-item-border-radius\n"
+    ],
+    "padding": [
+     "0px\n      calc(\n        var(\n            --menu-navigation-components-",
+     "var(\n        --menu-navigation-components-navigation-item-margin-verti"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-label-active-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-label-active-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ],
+    "width": [
+     "var(\n      --menu-navigation-components-navigation-item-flyout-icon-co",
+     "var(\n      --menu-navigation-components-navigation-item-touch-target-s",
+     "var(--menu-navigation-components-navigation-item-icon-size)",
+     "var(--menu-navigation-components-navigation-item-touch-target-size)"
+    ]
+   }
+  },
+  "navigation-item-group": {
+   "tag": "obc-navigation-item-group",
+   "parts": [
+    "flyout"
+   ],
+   "slots": [
+    "icon"
+   ],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--app-components-navigation-menu-footer-margin-horizontal",
+    "--app-components-navigation-menu-margin-horizontal",
+    "--app-components-navigation-menu-margin-vertical",
+    "--obc-navigation-item-flyout-top",
+    "--ui-components-context-menu-border-radius",
+    "--ui-components-context-menu-margin-horizontal",
+    "--ui-components-context-menu-margin-vertical"
+   ],
+   "colourVars": 2,
+   "fixedGeometry": {
+    "min-width": [
+     "320px"
+    ],
+    "width": [
+     "1px"
+    ]
+   },
+   "variableGeometry": {
+    "padding": [
+     "var(--app-components-navigation-menu-margin-vertical)\n      var(--app-",
+     "var(--ui-components-context-menu-margin-vertical)\n        var(--ui-com"
+    ],
+    "border-radius": [
+     "var(--ui-components-context-menu-border-radius)"
+    ]
+   }
+  },
+  "navigation-menu": {
+   "tag": "obc-navigation-menu",
+   "parts": [],
+   "slots": [
+    "footer",
+    "logo",
+    "main"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--app-components-navigation-menu-footer-margin-horizontal",
+    "--app-components-navigation-menu-margin-vertical"
+   ],
+   "colourVars": 2,
+   "fixedGeometry": {
+    "width": [
+     "320px"
+    ],
+    "height": [
+     "96px"
+    ]
+   },
+   "variableGeometry": {
+    "padding": [
+     "var(--app-components-navigation-menu-margin-vertical)\n      var(--app-",
+     "var(--app-components-navigation-menu-margin-vertical)\n    var(--app-co",
+     "var(--app-components-navigation-menu-margin-vertical) 0px"
+    ],
+    "height": [
+     "calc(\n    var(--menu-navigation-components-navigation-item-touch-targe",
+     "var(\n    --menu-navigation-components-navigation-item-touch-target-siz",
+     "var(--menu-navigation-components-navigation-item-touch-target-size)"
+    ]
+   }
+  },
+  "notification-badge-button": {
+   "tag": "obc-notification-badge-button",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-button-touch-target-size",
+    "--ui-components-button-visual-size"
+   ],
+   "colourVars": 15,
+   "fixedGeometry": {
+    "height": [
+     "24px"
+    ],
+    "width": [
+     "24px",
+     "64px"
+    ],
+    "border-top-left-radius": [
+     "6px"
+    ],
+    "border-bottom-left-radius": [
+     "6px"
+    ],
+    "border-top-right-radius": [
+     "6px"
+    ],
+    "border-bottom-right-radius": [
+     "6px"
+    ]
+   },
+   "variableGeometry": {
+    "height": [
+     "var(--ui-components-button-touch-target-size)",
+     "var(--ui-components-button-visual-size)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-button-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-button-line-height)"
+    ]
+   }
+  },
+  "notification-button": {
+   "tag": "obc-notification-button",
+   "parts": [],
+   "slots": [
+    "icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "button\""
+   ],
+   "ariaAttrs": [
+    "aria-label",
+    "aria-pressed"
+   ],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--app-components-notification-button-counter-spacing",
+    "--app-components-notification-button-padding-horizontal",
+    "--app-components-notification-button-touch-target-size",
+    "--app-components-notification-button-visual-target-size",
+    "--obc-can-hover",
+    "--ui-components-button-border-radius-bottom-left",
+    "--ui-components-button-border-radius-bottom-right",
+    "--ui-components-button-border-radius-top-left",
+    "--ui-components-button-border-radius-top-right",
+    "--ui-components-icon-button-icon-size",
+    "--ui-components-icon-button-visual-target-size"
+   ],
+   "colourVars": 29,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "height": [
+     "var(--app-components-notification-button-touch-target-size)",
+     "var(--app-components-notification-button-visual-target-size)",
+     "var(--global-size-spacing-icon-icon-size-regular)",
+     "var(--ui-components-icon-button-visual-target-size)"
+    ],
+    "min-width": [
+     "var(--app-components-notification-button-touch-target-size)",
+     "var(--app-components-notification-button-visual-target-size)",
+     "var(--ui-components-icon-button-visual-target-size)"
+    ],
+    "border-radius": [
+     "var(--ui-components-button-border-radius-top-left)\n    var(--ui-compon"
+    ],
+    "padding": [
+     "0 var(--app-components-notification-button-padding-horizontal)"
+    ],
+    "gap": [
+     "var(--app-components-notification-button-counter-spacing)"
+    ],
+    "width": [
+     "var(--ui-components-icon-button-icon-size)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-button-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-button-line-height)"
+    ]
+   }
+  },
+  "notification-floating-item": {
+   "tag": "obc-notification-floating-item",
+   "parts": [],
+   "slots": [
+    "action",
+    "action2",
+    "day",
+    "description",
+    "primary-icon",
+    "time",
+    "title"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 0,
+   "fixedGeometry": {},
+   "variableGeometry": {}
+  },
+  "notification-menu-item": {
+   "tag": "obc-notification-menu-item",
+   "parts": [],
+   "slots": [
+    "icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 0,
+   "fixedGeometry": {},
+   "variableGeometry": {}
+  },
+  "notification-message-item": {
+   "tag": "obc-notification-message-item",
+   "parts": [],
+   "slots": [
+    "secondary-icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 0,
+   "fixedGeometry": {},
+   "variableGeometry": {}
+  },
+  "number-input-field": {
+   "tag": "obc-number-input-field",
+   "parts": [],
+   "slots": [
+    "helper-icon",
+    "label-icon",
+    "leading-icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-describedby",
+    "aria-invalid"
+   ],
+   "nativeElements": [
+    "input",
+    "label"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-input-fields-number-input-field-label-spacing-title",
+    "--ui-components-input-fields-number-input-field-padding-horizontal",
+    "--ui-components-input-fields-number-input-field-padding-vertical",
+    "--ui-components-input-fields-number-input-field-vertical-spacer",
+    "--ui-components-input-fields-number-input-field-visual-size",
+    "--ui-components-input-fields-text-input-field-icon-size",
+    "--ui-components-input-fields-text-input-field-label-spacing",
+    "--ui-components-input-fields-text-input-field-required-dot-size",
+    "--ui-components-input-fields-text-input-field-required-dot-spacer"
+   ],
+   "colourVars": 21,
+   "fixedGeometry": {
+    "min-width": [
+     "40px"
+    ]
+   },
+   "variableGeometry": {
+    "min-height": [
+     "var(\n    --ui-components-input-fields-text-input-field-touch-target-si"
+    ],
+    "padding": [
+     "0\n      var(--ui-components-input-fields-number-input-field-label-spac",
+     "0\n      var(--ui-components-input-fields-number-input-field-padding-ho",
+     "0 var(--ui-components-input-fields-text-input-field-label-spacing)",
+     "var(\n        --ui-components-input-fields-number-input-field-vertical-",
+     "var(--ui-components-input-fields-number-input-field-padding-vertical)\n"
+    ],
+    "height": [
+     "var(\n      --ui-components-input-fields-number-input-field-visual-size",
+     "var(\n      --ui-components-input-fields-text-input-field-required-dot-",
+     "var(--global-size-spacing-icon-icon-size-small)",
+     "var(--global-typography-instrument-unit-line-height)",
+     "var(--ui-components-input-fields-number-input-field-visual-size)",
+     "var(--ui-components-input-fields-text-input-field-icon-size)"
+    ],
+    "gap": [
+     "var(\n      --ui-components-input-fields-number-input-field-label-spaci",
+     "var(--ui-components-input-fields-text-input-field-required-dot-spacer)"
+    ],
+    "font-size": [
+     "var(--global-typography-instrument-unit-font-size)",
+     "var(--global-typography-instrument-value-regular-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-instrument-unit-line-height)",
+     "var(--global-typography-instrument-value-regular-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ],
+    "width": [
+     "var(--global-size-spacing-icon-icon-size-small)",
+     "var(--ui-components-input-fields-text-input-field-icon-size)",
+     "var(--ui-components-input-fields-text-input-field-required-dot-size)"
+    ],
+    "border-radius": [
+     "var(\n        --ui-components-input-fields-number-input-field-border-ra",
+     "var(--global-border-radius-border-radius-round)"
+    ],
+    "padding-left": [
+     "var(\n      --ui-components-input-fields-number-input-field-unit-contai"
+    ]
+   }
+  },
+  "pagination": {
+   "tag": "obc-pagination",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "navigation\""
+   ],
+   "ariaAttrs": [
+    "aria-atomic",
+    "aria-disabled",
+    "aria-label",
+    "aria-live"
+   ],
+   "nativeElements": [],
+   "hostRules": [
+    ":host",
+    ":host([full-width]) .navigation-wrapper > obc-toggle-button-group,\n:host([full-width]) .navigation-wrapper > obc-progress-indicator-dots"
+   ],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 0,
+   "fixedGeometry": {},
+   "variableGeometry": {}
+  },
+  "pivot-item": {
+   "tag": "obc-pivot-item",
+   "parts": [],
+   "slots": [
+    "icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-pressed"
+   ],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover"
+   ],
+   "colourVars": 17,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "height": [
+     "var(\n      --menu-navigation-components-pivot-item-icon-pivot-item-hei",
+     "var(\n      --menu-navigation-components-pivot-item-icon-pivot-item-ico",
+     "var(\n      --menu-navigation-components-pivot-item-icon-pivot-item-vis",
+     "var(\n    --menu-navigation-components-pivot-item-icon-pivot-item-touch"
+    ],
+    "padding": [
+     "0px\n      var(\n        --menu-navigation-components-pivot-item-icon-pi",
+     "0px\n    var(\n      --menu-navigation-components-pivot-item-icon-pivot-",
+     "0px var(--menu-navigation-components-table-item-label-spacing)"
+    ],
+    "border-radius": [
+     "var(\n      --menu-navigation-components-pivot-item-icon-pivot-item-bor"
+    ],
+    "width": [
+     "var(\n      --menu-navigation-components-pivot-item-icon-pivot-item-hei",
+     "var(\n      --menu-navigation-components-pivot-item-icon-pivot-item-ico",
+     "var(\n      --menu-navigation-components-pivot-item-icon-pivot-item-tou"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)"
+    ]
+   }
+  },
+  "pivot-item-group": {
+   "tag": "obc-pivot-item-group",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 0,
+   "fixedGeometry": {},
+   "variableGeometry": {}
+  },
+  "progress-bar": {
+   "tag": "obc-progress-bar",
+   "parts": [],
+   "slots": [
+    "icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [
+    "--ui-components-progressbars-progress-bar-linear-bar-height",
+    "--ui-components-progressbars-progress-bar-linear-label-spacing"
+   ],
+   "colourVars": 6,
+   "fixedGeometry": {
+    "border-radius": [
+     "8px"
+    ]
+   },
+   "variableGeometry": {
+    "padding": [
+     "var(\n      --ui-components-progressbars-progress-bar-linear-padding-ve"
+    ],
+    "gap": [
+     "var(--ui-components-progressbars-progress-bar-linear-label-spacing, 2p"
+    ],
+    "font-size": [
+     "var(--global-typography-instrument-label-font-size)",
+     "var(--global-typography-instrument-unit-font-size)",
+     "var(--global-typography-instrument-value-regular-font-size)",
+     "var(--global-typography-ui-button-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-instrument-label-line-height)",
+     "var(--global-typography-instrument-unit-line-height)",
+     "var(--global-typography-instrument-value-regular-line-height)",
+     "var(--global-typography-ui-button-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ],
+    "height": [
+     "var(--global-size-spacing-icon-icon-size-regular)",
+     "var(--global-size-spacing-touch-target-min)",
+     "var(--ui-components-progressbars-progress-bar-linear-bar-height, 8px)"
+    ],
+    "width": [
+     "var(--global-size-spacing-icon-icon-size-regular)",
+     "var(--global-size-spacing-touch-target-min)"
+    ]
+   }
+  },
+  "progress-button": {
+   "tag": "obc-progress-button",
+   "parts": [],
+   "slots": [
+    "icon",
+    "leading-icon",
+    "trailing-icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "button\""
+   ],
+   "ariaAttrs": [
+    "aria-busy",
+    "aria-label",
+    "aria-valuemax",
+    "aria-valuemin",
+    "aria-valuenow"
+   ],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-button-border-radius-bottom-left",
+    "--ui-components-button-border-radius-bottom-right",
+    "--ui-components-button-border-radius-top-left",
+    "--ui-components-button-border-radius-top-right",
+    "--ui-components-button-icon-size",
+    "--ui-components-button-label-spacing",
+    "--ui-components-button-padding-horizontal",
+    "--ui-components-button-touch-target-size",
+    "--ui-components-button-visual-size",
+    "--ui-components-icon-button-icon-size",
+    "--ui-components-icon-button-padding-vertical",
+    "--ui-components-icon-button-visual-target-size",
+    "--ui-components-progressbars-progress-button--circular-bar-weight"
+   ],
+   "colourVars": 45,
+   "fixedGeometry": {
+    "border-radius": [
+     "2px",
+     "8px"
+    ]
+   },
+   "variableGeometry": {
+    "height": [
+     "calc(\n    var(--ui-components-icon-button-visual-target-size) +\n      ",
+     "var(\n    --ui-components-progressbars-progress-button-linear-bar-heigh",
+     "var(--global-size-spacing-icon-icon-size-regular)",
+     "var(--ui-components-button-icon-size)",
+     "var(--ui-components-button-touch-target-size)",
+     "var(--ui-components-button-visual-size)",
+     "var(--ui-components-icon-button-visual-target-size)"
+    ],
+    "min-width": [
+     "var(--global-size-spacing-touch-target-min)",
+     "var(--ui-components-button-touch-target-size)",
+     "var(--ui-components-icon-button-visual-target-size)"
+    ],
+    "padding": [
+     "0 var(--ui-components-button-label-spacing)",
+     "0 var(--ui-components-button-padding-horizontal)",
+     "var(\n      --ui-components-progressbars-progress-button-linear-padding",
+     "var(--ui-components-icon-button-padding-vertical) 0"
+    ],
+    "border-radius": [
+     "var(--ui-components-button-border-radius-top-left)\n    var(--ui-compon"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-button-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-button-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ],
+    "width": [
+     "calc(\n    var(--ui-components-icon-button-visual-target-size) +\n      ",
+     "var(--ui-components-button-icon-size)",
+     "var(--ui-components-icon-button-icon-size)"
+    ],
+    "min-height": [
+     "var(--global-size-spacing-touch-target-min)"
+    ]
+   }
+  },
+  "progress-indicator-dots": {
+   "tag": "obc-progress-indicator-dots",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 1,
+   "fixedGeometry": {
+    "padding": [
+     "8px"
+    ],
+    "gap": [
+     "8px"
+    ]
+   },
+   "variableGeometry": {
+    "gap": [
+     "var(--menu-navigation-components-page-indicator-indicator-spacing)"
+    ],
+    "width": [
+     "var(--menu-navigation-components-page-indicator-indicator-size)"
+    ],
+    "height": [
+     "var(--menu-navigation-components-page-indicator-indicator-size)"
+    ]
+   }
+  },
+  "radio": {
+   "tag": "obc-radio",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "input",
+    "label"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-radio-button-border-radius",
+    "--ui-components-radio-button-label-spacing",
+    "--ui-components-radio-button-padding-horizontal",
+    "--ui-components-radio-button-selection-size",
+    "--ui-components-radio-button-thumb-size",
+    "--ui-components-radio-button-touch-target-size"
+   ],
+   "colourVars": 29,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "width": [
+     "var(--ui-components-radio-button-selection-size)",
+     "var(--ui-components-radio-button-thumb-size)"
+    ],
+    "height": [
+     "var(--ui-components-radio-button-selection-size)",
+     "var(--ui-components-radio-button-thumb-size)",
+     "var(--ui-components-radio-button-touch-target-size)"
+    ],
+    "padding": [
+     "0 var(--ui-components-radio-button-padding-horizontal)",
+     "0px var(--ui-components-radio-button-label-spacing)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)"
+    ],
+    "border-radius": [
+     "var(--ui-components-radio-button-border-radius)"
+    ]
+   }
+  },
+  "rich-button": {
+   "tag": "obc-rich-button",
+   "parts": [],
+   "slots": [
+    "leading-icon",
+    "trailing-icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-button-icon-size",
+    "--ui-components-rich-button-bording-radius",
+    "--ui-components-rich-button-icon-size",
+    "--ui-components-rich-button-icon-size-xlarge",
+    "--ui-components-rich-button-margin-horizontal",
+    "--ui-components-rich-button-margin-vertical",
+    "--ui-components-rich-button-padding-horizontal",
+    "--ui-components-rich-button-padding-vertical-small",
+    "--ui-components-rich-button-width-max-horizontal",
+    "--ui-components-rich-button-width-max-vertical"
+   ],
+   "colourVars": 15,
+   "fixedGeometry": {
+    "gap": [
+     "16px"
+    ]
+   },
+   "variableGeometry": {
+    "border-radius": [
+     "var(--ui-components-rich-button-bording-radius)"
+    ],
+    "width": [
+     "var(--ui-components-button-icon-size)",
+     "var(--ui-components-rich-button-icon-size)",
+     "var(--ui-components-rich-button-icon-size-xlarge)",
+     "var(--ui-components-rich-button-width-max-horizontal, 240px)",
+     "var(--ui-components-rich-button-width-max-vertical, 128px)"
+    ],
+    "padding": [
+     "0px var(--ui-components-rich-button-padding-horizontal)",
+     "var(--ui-components-rich-button-margin-horizontal)",
+     "var(--ui-components-rich-button-margin-vertical)\n      var(--ui-compon"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-button-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-button-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ],
+    "height": [
+     "var(--ui-components-button-icon-size)",
+     "var(--ui-components-rich-button-icon-size)",
+     "var(--ui-components-rich-button-icon-size-xlarge)"
+    ],
+    "padding-top": [
+     "var(--ui-components-rich-button-padding-vertical-small)"
+    ]
+   }
+  },
+  "scrollbar": {
+   "tag": "obc-scrollbar",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [
+    "--obc-scrollbar-button-display",
+    "--obc-scrollbar-button-margin",
+    "--obc-scrollbar-button-radius",
+    "--obc-scrollbar-button-size",
+    "--obc-scrollbar-overflow-x",
+    "--obc-scrollbar-thumb-active-background-color",
+    "--obc-scrollbar-thumb-active-border-color",
+    "--obc-scrollbar-thumb-background-color",
+    "--obc-scrollbar-thumb-border-color",
+    "--obc-scrollbar-thumb-hover-background-color",
+    "--obc-scrollbar-thumb-hover-border-color",
+    "--obc-scrollbar-touch-target-size",
+    "--obc-scrollbar-visual-target-size"
+   ],
+   "colourVars": 5,
+   "fixedGeometry": {
+    "min-height": [
+     "24px"
+    ],
+    "border-radius": [
+     "9999px"
+    ]
+   },
+   "variableGeometry": {
+    "width": [
+     "calc(var(--_pad) * 2 + 4px)",
+     "var(--obc-scrollbar-button-size)",
+     "var(--obc-scrollbar-touch-target-size)"
+    ],
+    "height": [
+     "var(--obc-scrollbar-button-size)",
+     "var(--obc-scrollbar-touch-target-size)"
+    ],
+    "padding": [
+     "var(--_pad)"
+    ],
+    "border-radius": [
+     "var(--_radius)",
+     "var(--obc-scrollbar-button-radius)"
+    ],
+    "outline-offset": [
+     "calc(-1 * var(--offset) - 1px)"
+    ],
+    "min-height": [
+     "calc(var(--obc-scrollbar-touch-target-size) * 1.5)"
+    ]
+   }
+  },
+  "sequence-card": {
+   "tag": "obc-sequence-card",
+   "parts": [
+    "action-container",
+    "title-container",
+    "title-text"
+   ],
+   "slots": [
+    "actions",
+    "header-actions",
+    "leading-icon",
+    "left-time-stamp",
+    "subtitle",
+    "time-stamp",
+    "title"
+   ],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--ui-components-card-padding"
+   ],
+   "colourVars": 6,
+   "fixedGeometry": {
+    "width": [
+     "16px",
+     "24px",
+     "320px",
+     "32px"
+    ],
+    "max-width": [
+     "16px",
+     "25px",
+     "320px"
+    ],
+    "min-width": [
+     "320px"
+    ],
+    "border-radius": [
+     "0 0 12px 12px",
+     "12px",
+     "12px 12px 0 0"
+    ],
+    "min-height": [
+     "16px",
+     "25px",
+     "32px",
+     "48px",
+     "56px",
+     "64px"
+    ],
+    "border-bottom-left-radius": [
+     "12px"
+    ],
+    "border-bottom-right-radius": [
+     "12px"
+    ],
+    "height": [
+     "16px",
+     "24px",
+     "32px"
+    ],
+    "gap": [
+     "12px"
+    ]
+   },
+   "variableGeometry": {
+    "padding": [
+     "0 var(--ui-components-card-padding)"
+    ],
+    "gap": [
+     "var(--ui-components-card-padding)"
+    ],
+    "padding-left": [
+     "var(--ui-components-card-padding)"
+    ],
+    "font-size": [
+     "var(--global-typography-instrument-label-font-size)",
+     "var(--global-typography-instrument-value-regular-font-size)",
+     "var(--global-typography-instrument-value-small-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-instrument-label-line-height)",
+     "var(--global-typography-instrument-value-regular-line-height)",
+     "var(--global-typography-instrument-value-small-line-height)"
+    ],
+    "padding-right": [
+     "var(--ui-components-card-padding)"
+    ]
+   }
+  },
+  "sequence-connector": {
+   "tag": "obc-sequence-connector",
+   "parts": [
+    "line",
+    "loading-bar",
+    "wrapper"
+   ],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 2,
+   "fixedGeometry": {
+    "width": [
+     "1.5px",
+     "24px",
+     "2px",
+     "3px",
+     "4px"
+    ],
+    "height": [
+     "1.5px",
+     "24px",
+     "2px",
+     "3px",
+     "4px"
+    ]
+   },
+   "variableGeometry": {
+    "width": [
+     "var(--loading-bar-percent, 66%)"
+    ],
+    "height": [
+     "var(--loading-bar-percent, 66%)"
+    ]
+   }
+  },
+  "sequence-item": {
+   "tag": "obc-sequence-item",
+   "parts": [
+    "content",
+    "description",
+    "distance",
+    "indicator",
+    "meta-row",
+    "subtitle",
+    "timestamp",
+    "title",
+    "title-block",
+    "title-row",
+    "wrapper"
+   ],
+   "slots": [
+    "description",
+    "meta",
+    "step",
+    "title"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [
+    "--alert-components-badge-label-spacing",
+    "--ui-components-button-label-spacing"
+   ],
+   "colourVars": 3,
+   "fixedGeometry": {
+    "gap": [
+     "4px"
+    ],
+    "min-width": [
+     "65px"
+    ],
+    "max-width": [
+     "146px",
+     "188px",
+     "30px"
+    ],
+    "width": [
+     "146px",
+     "188px"
+    ],
+    "padding": [
+     "14px 0",
+     "4px 0"
+    ],
+    "line-height": [
+     "16px",
+     "20px"
+    ],
+    "font-size": [
+     "11.5px"
+    ]
+   },
+   "variableGeometry": {
+    "gap": [
+     "var(--alert-components-badge-label-spacing)",
+     "var(--global-size-spacing-list-item-menu-padding-horizonal-list-item)",
+     "var(--global-size-spacing-target-padding)",
+     "var(--ui-components-button-label-spacing)"
+    ],
+    "padding": [
+     "0 var(--global-size-spacing-target-padding)",
+     "var(\n            --global-size-spacing-list-item-menu-padding-horizona",
+     "var(--global-size-spacing-target-padding)"
+    ],
+    "font-size": [
+     "var(--global-typography-instrument-unit-font-size)",
+     "var(--global-typography-instrument-value-small-font-size)",
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-instrument-unit-line-height)",
+     "var(--global-typography-instrument-value-small-line-height)",
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ]
+   }
+  },
+  "sequence-loading-spinner": {
+   "tag": "obc-sequence-loading-spinner",
+   "parts": [
+    "spinner",
+    "wrapper"
+   ],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-hidden",
+    "aria-label"
+   ],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [
+    "--ui-components-button-stroke-weight",
+    "--ui-components-button-touch-target-size"
+   ],
+   "colourVars": 2,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "width": [
+     "var(--spinner-cap-size)",
+     "var(--spinner-size)"
+    ],
+    "height": [
+     "var(--spinner-cap-size)",
+     "var(--spinner-size)"
+    ]
+   }
+  },
+  "sequence-modal": {
+   "tag": "obc-sequence-modal",
+   "parts": [],
+   "slots": [
+    "actions"
+   ],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-hidden",
+    "aria-label"
+   ],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [
+    "--ui-components-card-padding"
+   ],
+   "colourVars": 2,
+   "fixedGeometry": {
+    "width": [
+     "1px",
+     "557px"
+    ],
+    "max-width": [
+     "557px"
+    ],
+    "height": [
+     "24px",
+     "506px"
+    ]
+   },
+   "variableGeometry": {
+    "font-size": [
+     "var(--global-typography-instrument-value-medium-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-instrument-value-medium-line-height)"
+    ],
+    "gap": [
+     "var(--ui-components-card-padding)"
+    ],
+    "padding-left": [
+     "var(--ui-components-card-padding)"
+    ]
+   }
+  },
+  "sequence-step": {
+   "tag": "obc-sequence-step",
+   "parts": [
+    "body",
+    "connector",
+    "input",
+    "label",
+    "node",
+    "output",
+    "state-icon",
+    "visible-wrapper",
+    "wrapper"
+   ],
+   "slots": [
+    "leading-icon"
+   ],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "listitem\""
+   ],
+   "ariaAttrs": [
+    "aria-current",
+    "aria-hidden",
+    "aria-label"
+   ],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [
+    ":host(.condensed-label) .wrapper,\n:host(.condensed-label) button",
+    ":host([variant=\"toolbar-add\"])\n  .wrapper.type-large\n  .visible-wrapper\n  .node\n  .content",
+    ":host([variant=\"toolbar-add\"])",
+    ":host([variant=\"toolbar-add\"]) .content",
+    ":host([variant=\"toolbar-add\"]) .wrapper.type-large .visible-wrapper",
+    ":host([variant=\"toolbar-add\"]) .wrapper.type-large:hover .visible-wrapper",
+    ":host([variant=\"toolbar-condensed-icon\"])\n  .wrapper.type-large\n  .visible-wrapper\n  .node\n  .content",
+    ":host([variant=\"toolbar-condensed-icon\"])\n  .wrapper.type-large:hover\n  .visible-wrapper",
+    ":host([variant=\"toolbar-condensed-icon\"]) .content",
+    ":host([variant=\"toolbar-condensed-icon\"]) .wrapper.type-large .visible-wrapper",
+    ":host([variant=\"toolbar-prev\"]) .wrapper.type-large .visible-wrapper",
+    ":host([variant=\"toolbar-prev\"]) .wrapper.type-large:hover .visible-wrapper"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-button-label-spacing"
+   ],
+   "colourVars": 35,
+   "fixedGeometry": {
+    "width": [
+     "1.5px",
+     "16px",
+     "24px",
+     "2px",
+     "32px",
+     "3px",
+     "48px",
+     "5px",
+     "7px",
+     "8px"
+    ],
+    "height": [
+     "1.5px",
+     "16px",
+     "24px",
+     "2px",
+     "32px",
+     "36px",
+     "3px",
+     "48px",
+     "5px",
+     "7px",
+     "8px"
+    ],
+    "min-height": [
+     "16px",
+     "24px",
+     "5px",
+     "7px",
+     "8px"
+    ],
+    "max-width": [
+     "8px"
+    ],
+    "max-height": [
+     "20px"
+    ],
+    "border-radius": [
+     "1000px"
+    ],
+    "min-width": [
+     "24px",
+     "36px",
+     "48px"
+    ],
+    "padding": [
+     "0 10px",
+     "0 4px",
+     "0 8px"
+    ]
+   },
+   "variableGeometry": {
+    "font-size": [
+     "var(--global-typography-instrument-label-font-size)",
+     "var(--global-typography-instrument-value-small-font-size)",
+     "var(--global-typography-ui-body-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-instrument-label-line-height)",
+     "var(--global-typography-instrument-value-small-line-height)",
+     "var(--global-typography-ui-body-line-height)"
+    ]
+   }
+  },
+  "sequence-toolbar": {
+   "tag": "obc-sequence-toolbar",
+   "parts": [],
+   "slots": [
+    "condensed-current",
+    "condensed-total",
+    "end",
+    "start"
+   ],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "list\""
+   ],
+   "ariaAttrs": [
+    "aria-label"
+   ],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 2,
+   "fixedGeometry": {
+    "padding": [
+     "5px"
+    ],
+    "width": [
+     "24px",
+     "608px"
+    ],
+    "border-radius": [
+     "100px"
+    ],
+    "height": [
+     "24px"
+    ]
+   },
+   "variableGeometry": {}
+  },
+  "slide-button": {
+   "tag": "obc-slide-button",
+   "parts": [],
+   "slots": [
+    "label",
+    "leading-icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "button\""
+   ],
+   "ariaAttrs": [
+    "aria-disabled"
+   ],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-button-label-spacing",
+    "--ui-components-button-padding-horizontal",
+    "--ui-components-slide-button-disabled-color",
+    "--ui-components-slide-button-padding-horizontal",
+    "--ui-components-slide-button-touch-target-size",
+    "--ui-components-slide-button-visual-size"
+   ],
+   "colourVars": 17,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "height": [
+     "calc(var(--ui-components-slide-button-visual-size) + 2px)",
+     "var(--global-size-spacing-icon-icon-size-regular)",
+     "var(--ui-components-slide-button-touch-target-size)",
+     "var(--ui-components-slide-button-visual-size)"
+    ],
+    "border-radius": [
+     "var(--global-border-radius-border-radius-base)"
+    ],
+    "width": [
+     "calc(100% - var(--global-size-spacing-touch-target-min))",
+     "var(--global-size-spacing-icon-icon-size-regular)",
+     "var(--global-size-spacing-touch-target-min)"
+    ],
+    "padding": [
+     "0 var(--ui-components-button-label-spacing)",
+     "0 var(--ui-components-slide-button-padding-horizontal, 4px)",
+     "4px var(--ui-components-button-padding-horizontal)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-button-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-button-line-height)"
+    ]
+   }
+  },
+  "slider": {
+   "tag": "obc-slider",
+   "parts": [],
+   "slots": [
+    "icon-left",
+    "icon-right"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "input"
+   ],
+   "hostRules": [
+    ":host",
+    ":host([hugcontainer])",
+    ":host:has(.no-input)"
+   ],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 13,
+   "fixedGeometry": {
+    "height": [
+     "12px",
+     "24px",
+     "28px",
+     "32px",
+     "40px",
+     "4px"
+    ],
+    "border-radius": [
+     "6px"
+    ],
+    "width": [
+     "12px"
+    ]
+   },
+   "variableGeometry": {
+    "height": [
+     "var(--_thumb-size)"
+    ],
+    "width": [
+     "var(--_thumb-size)"
+    ]
+   }
+  },
+  "slider-double": {
+   "tag": "obc-slider-double",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "input"
+   ],
+   "hostRules": [
+    ":host",
+    ":host([hugcontainer])"
+   ],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 14,
+   "fixedGeometry": {
+    "height": [
+     "12px",
+     "28px",
+     "32px",
+     "40px",
+     "48px",
+     "4px"
+    ],
+    "padding-left": [
+     "8px"
+    ],
+    "padding-right": [
+     "8px"
+    ],
+    "border-radius": [
+     "6px"
+    ],
+    "width": [
+     "12px",
+     "48px"
+    ]
+   },
+   "variableGeometry": {
+    "font-size": [
+     "var(--global-typography-ui-button-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-button-line-height)"
+    ]
+   }
+  },
+  "split-button": {
+   "tag": "obc-split-button",
+   "parts": [],
+   "slots": [
+    "icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-expanded",
+    "aria-haspopup"
+   ],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--ui-components-button-touch-target-size"
+   ],
+   "colourVars": 0,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "padding-left": [
+     "var(--split-button-padding-left, 8px)"
+    ]
+   }
+  },
+  "start-stop-switch": {
+   "tag": "obc-start-stop-switch",
+   "parts": [],
+   "slots": [
+    "checked-state-icon",
+    "checked-state-label",
+    "unchecked-state-icon",
+    "unchecked-state-label"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "switch\""
+   ],
+   "ariaAttrs": [
+    "aria-checked",
+    "aria-disabled"
+   ],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--app-components-alert-frame-border-radius-bottom-left",
+    "--app-components-alert-frame-border-radius-bottom-right",
+    "--app-components-alert-frame-border-radius-top-left",
+    "--app-components-alert-frame-border-radius-top-right",
+    "--obc-can-hover",
+    "--ui-components-start-stop-switch-border-radius",
+    "--ui-components-start-stop-switch-description-spacing",
+    "--ui-components-start-stop-switch-icon-size",
+    "--ui-components-start-stop-switch-label-spacing",
+    "--ui-components-start-stop-switch-padding-horizontal",
+    "--ui-components-start-stop-switch-touch-target-size",
+    "--ui-components-start-stop-switch-visual-target-size",
+    "--ui-components-state-toggle-border-radius"
+   ],
+   "colourVars": 19,
+   "fixedGeometry": {
+    "outline-offset": [
+     "1px"
+    ],
+    "width": [
+     "1px"
+    ],
+    "height": [
+     "1px"
+    ]
+   },
+   "variableGeometry": {
+    "min-height": [
+     "var(--ui-components-start-stop-switch-touch-target-size)"
+    ],
+    "border-radius": [
+     "var(--app-components-alert-frame-border-radius-top-left, 6px)\n    var(",
+     "var(--ui-components-start-stop-switch-border-radius)",
+     "var(--ui-components-state-toggle-border-radius)"
+    ],
+    "height": [
+     "var(--ui-components-start-stop-switch-icon-size)",
+     "var(--ui-components-start-stop-switch-touch-target-size)",
+     "var(--ui-components-start-stop-switch-visual-target-size)"
+    ],
+    "padding": [
+     "0px var(--ui-components-start-stop-switch-label-spacing)",
+     "0px var(--ui-components-start-stop-switch-padding-horizontal)"
+    ],
+    "width": [
+     "var(--ui-components-start-stop-switch-icon-size)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-button-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-button-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ],
+    "min-width": [
+     "var(--ui-components-start-stop-switch-touch-target-size)"
+    ],
+    "padding-top": [
+     "var(--ui-components-start-stop-switch-description-spacing)"
+    ]
+   }
+  },
+  "status-indicator": {
+   "tag": "obc-status-indicator",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 12,
+   "fixedGeometry": {
+    "gap": [
+     "4px"
+    ],
+    "height": [
+     "24px",
+     "48px",
+     "8px"
+    ],
+    "padding": [
+     "8px"
+    ],
+    "width": [
+     "16px",
+     "24px"
+    ],
+    "border-radius": [
+     "2px"
+    ]
+   },
+   "variableGeometry": {
+    "font-size": [
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-button-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-button-line-height)"
+    ]
+   }
+  },
+  "stepper-box": {
+   "tag": "obc-stepper-box",
+   "parts": [],
+   "slots": [
+    "helper-text",
+    "unit"
+   ],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-disabled"
+   ],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [
+    "--ui-components-input-fields-text-input-field-label-spacing",
+    "--ui-components-input-fields-text-input-field-padding-horizontal",
+    "--ui-components-input-fields-text-input-field-touch-target-size",
+    "--ui-components-input-fields-text-input-field-visual-size"
+   ],
+   "colourVars": 8,
+   "fixedGeometry": {
+    "gap": [
+     "2px"
+    ]
+   },
+   "variableGeometry": {
+    "height": [
+     "var(--ui-components-input-fields-text-input-field-visual-size)"
+    ],
+    "padding": [
+     "0px\n    calc(\n      var(--ui-components-input-fields-text-input-field-"
+    ],
+    "font-size": [
+     "var(--global-typography-instrument-unit-font-size)",
+     "var(--global-typography-ui-button-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-instrument-unit-line-height)",
+     "var(--global-typography-ui-button-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ],
+    "padding-bottom": [
+     "var(\n    --ui-components-input-fields-text-input-field-padding-vertica"
+    ]
+   }
+  },
+  "system-button": {
+   "tag": "obc-system-button",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--app-components-system-button-border-radius",
+    "--app-components-system-button-icon-spacing",
+    "--app-components-system-button-padding",
+    "--app-components-system-button-touch-target-size",
+    "--app-components-system-button-visual-target",
+    "--app-components-system-menu-padding-horizontal",
+    "--obc-can-hover",
+    "--ui-components-button-icon-size",
+    "--ui-components-button-padding-horizontal"
+   ],
+   "colourVars": 15,
+   "fixedGeometry": {
+    "height": [
+     "16px"
+    ],
+    "width": [
+     "1px"
+    ],
+    "border-radius": [
+     "1px"
+    ]
+   },
+   "variableGeometry": {
+    "height": [
+     "var(--app-components-system-button-touch-target-size)",
+     "var(--app-components-system-button-visual-target)",
+     "var(--ui-components-button-icon-size)"
+    ],
+    "padding": [
+     "0px var(--app-components-system-button-padding)",
+     "0px var(--app-components-system-menu-padding-horizontal)",
+     "0px var(--ui-components-button-padding-horizontal)"
+    ],
+    "gap": [
+     "var(--app-components-system-button-icon-spacing)"
+    ],
+    "border-radius": [
+     "var(--app-components-system-button-border-radius)"
+    ],
+    "width": [
+     "var(--ui-components-button-icon-size)"
+    ]
+   }
+  },
+  "system-menu": {
+   "tag": "obc-system-menu",
+   "parts": [],
+   "slots": [
+    "battery-status"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--app-components-dimming-menu-icon-size",
+    "--app-components-system-button-label-spacing",
+    "--app-components-system-menu-border-radius",
+    "--app-components-system-menu-margin-horizontal",
+    "--app-components-system-menu-margin-vertical",
+    "--app-components-system-menu-padding-horizontal",
+    "--app-components-system-menu-padding-vertical",
+    "--app-components-system-menu-spacing",
+    "--app-components-system-menu-spacing-large",
+    "--app-components-system-menu-touch-target-size",
+    "--app-components-user-menu-margin-horizontal",
+    "--app-components-user-menu-padding-vertical",
+    "--obc-can-hover",
+    "--ui-components-icon-button-icon-size",
+    "--ui-components-icon-button-touch-target-size"
+   ],
+   "colourVars": 18,
+   "fixedGeometry": {
+    "width": [
+     "40px"
+    ],
+    "height": [
+     "1px"
+    ]
+   },
+   "variableGeometry": {
+    "width": [
+     "var(--app-components-dimming-menu-icon-size)",
+     "var(--global-size-spacing-column-width)",
+     "var(--global-size-spacing-icon-icon-size-regular)",
+     "var(--menu-navigation-components-navigation-item-icon-size)",
+     "var(--menu-navigation-components-tab-item-icon-size)",
+     "var(--ui-components-icon-button-icon-size)"
+    ],
+    "border-radius": [
+     "var(--app-components-system-menu-border-radius)"
+    ],
+    "padding-top": [
+     "var(--app-components-system-menu-padding-vertical)"
+    ],
+    "font-size": [
+     "var(--global-typography-instrument-label-font-size)",
+     "var(--global-typography-instrument-value-large-font-size)",
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-button-font-size)",
+     "var(--global-typography-ui-label-font-size)",
+     "var(--global-typography-ui-overline-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-instrument-label-line-height)",
+     "var(--global-typography-instrument-value-large-line-height)",
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-button-line-height)",
+     "var(--global-typography-ui-label-line-height)",
+     "var(--global-typography-ui-overline-line-height)"
+    ],
+    "padding-left": [
+     "var(\n          --menu-navigation-components-navigation-item-padding-ho",
+     "var(--app-components-system-menu-margin-horizontal)"
+    ],
+    "min-height": [
+     "var(\n          --menu-navigation-components-tab-item-touch-target-size",
+     "var(--app-components-system-menu-touch-target-size)",
+     "var(--global-size-spacing-touch-target-min)",
+     "var(--menu-navigation-components-tab-item-touch-target-size)",
+     "var(--ui-components-icon-button-touch-target-size)"
+    ],
+    "padding": [
+     "0 var(--app-components-system-button-label-spacing)",
+     "0 var(--app-components-system-menu-margin-horizontal)\n        var(--ap",
+     "0 var(--app-components-system-menu-margin-horizontal)\n      var(--app-",
+     "0 var(--app-components-system-menu-padding-horizontal)",
+     "0 var(--app-components-system-menu-spacing-large)",
+     "0 var(--menu-navigation-components-tab-item-padding-horizontal)",
+     "var(--app-components-system-menu-margin-horizontal)\n        var(--app-",
+     "var(--app-components-system-menu-margin-vertical)\n      var(--app-comp",
+     "var(--app-components-system-menu-padding-vertical)\n        var(--app-c",
+     "var(--app-components-system-menu-padding-vertical)\n    var(--app-compo",
+     "var(--app-components-system-menu-padding-vertical) 0",
+     "var(--app-components-user-menu-padding-vertical)\n        var(--app-com"
+    ],
+    "min-width": [
+     "var(--global-size-spacing-touch-target-min)",
+     "var(--menu-navigation-components-tab-item-touch-target-size)"
+    ],
+    "height": [
+     "calc(var(--global-size-spacing-column-width) * 375 / 320)",
+     "var(--app-components-dimming-menu-icon-size)",
+     "var(--global-size-spacing-icon-icon-size-regular)",
+     "var(--menu-navigation-components-navigation-item-icon-size)",
+     "var(--menu-navigation-components-tab-item-icon-size)"
+    ],
+    "gap": [
+     "var(--app-components-system-menu-spacing)"
+    ]
+   }
+  },
+  "tab-item": {
+   "tag": "obc-tab-item",
+   "parts": [],
+   "slots": [
+    "badge-icon",
+    "leading-icon",
+    "title"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "tab\""
+   ],
+   "ariaAttrs": [
+    "aria-label"
+   ],
+   "nativeElements": [],
+   "hostRules": [
+    ":host([checked]) .wrapper",
+    ":host([checked]) .wrapper) .leading-icon",
+    ":host([checked]) .wrapper) .title"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover"
+   ],
+   "colourVars": 16,
+   "fixedGeometry": {
+    "width": [
+     "1px",
+     "240px"
+    ],
+    "max-width": [
+     "240px"
+    ],
+    "min-width": [
+     "140px"
+    ]
+   },
+   "variableGeometry": {
+    "height": [
+     "var(--menu-navigation-components-tab-item-divider-height)",
+     "var(--menu-navigation-components-tab-item-icon-size)",
+     "var(--menu-navigation-components-tab-item-touch-target-size)"
+    ],
+    "padding-left": [
+     "var(--menu-navigation-components-tab-item-padding-horizontal)"
+    ],
+    "padding-right": [
+     "var(\n      --menu-navigation-components-tab-item-padding-horizontal\n  ",
+     "var(--menu-navigation-components-tab-item-padding-horizontal)"
+    ],
+    "width": [
+     "var(--menu-navigation-components-tab-item-icon-size)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)"
+    ],
+    "padding": [
+     "0 var(--menu-navigation-components-tab-item-label-spacing)"
+    ]
+   }
+  },
+  "tab-row": {
+   "tag": "obc-tab-row",
+   "parts": [],
+   "slots": [
+    "tab-${tab.id}-badge-icon",
+    "tab-${tab.id}-icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "tablist\""
+   ],
+   "ariaAttrs": [
+    "aria-label"
+   ],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 3,
+   "fixedGeometry": {},
+   "variableGeometry": {}
+  },
+  "tabbed-card": {
+   "tag": "obc-tabbed-card",
+   "parts": [],
+   "slots": [
+    "tab-content-${index}",
+    "tab-icon-${index}"
+   ],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "tab\"",
+    "tablist\" aria",
+    "tabpanel\""
+   ],
+   "ariaAttrs": [
+    "aria-controls",
+    "aria-label",
+    "aria-labelledby",
+    "aria-selected"
+   ],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--app-components-alert-menu-border-radius",
+    "--obc-can-hover"
+   ],
+   "colourVars": 29,
+   "fixedGeometry": {
+    "width": [
+     "1px"
+    ],
+    "height": [
+     "24px"
+    ]
+   },
+   "variableGeometry": {
+    "border-radius": [
+     "var(--app-components-alert-menu-border-radius)"
+    ],
+    "border-top-left-radius": [
+     "var(--app-components-alert-menu-border-radius)"
+    ],
+    "border-top-right-radius": [
+     "var(--app-components-alert-menu-border-radius)"
+    ],
+    "height": [
+     "var(--menu-navigation-components-tab-item-touch-target-size)"
+    ],
+    "padding": [
+     "0 var(--menu-navigation-components-tab-item-label-spacing)",
+     "0 var(--menu-navigation-components-tab-item-padding-horizontal)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)"
+    ],
+    "border-bottom-left-radius": [
+     "var(--app-components-alert-menu-border-radius)"
+    ],
+    "border-bottom-right-radius": [
+     "var(--app-components-alert-menu-border-radius)"
+    ]
+   }
+  },
+  "table": {
+   "tag": "obc-table",
+   "parts": [
+    "body",
+    "grid",
+    "row"
+   ],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "cell\"",
+    "columnheader\"",
+    "row\"",
+    "table\""
+   ],
+   "ariaAttrs": [
+    "aria-describedby",
+    "aria-label"
+   ],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--obc-scrollbar-button-display",
+    "--obc-scrollbar-button-margin",
+    "--obc-scrollbar-button-radius",
+    "--obc-scrollbar-button-size",
+    "--obc-scrollbar-thumb-active-background-color",
+    "--obc-scrollbar-thumb-active-border-color",
+    "--obc-scrollbar-thumb-background-color",
+    "--obc-scrollbar-thumb-border-color",
+    "--obc-scrollbar-thumb-hover-background-color",
+    "--obc-scrollbar-thumb-hover-border-color",
+    "--obc-scrollbar-touch-target-size",
+    "--obc-scrollbar-visual-target-size"
+   ],
+   "colourVars": 18,
+   "fixedGeometry": {
+    "width": [
+     "1px"
+    ],
+    "border-radius": [
+     "100px",
+     "9999px"
+    ],
+    "outline-offset": [
+     "-2px"
+    ],
+    "height": [
+     "1px"
+    ]
+   },
+   "variableGeometry": {
+    "padding": [
+     "0\n          var(--menu-navigation-components-table-item-padding-horizo",
+     "0 var(--menu-navigation-components-table-header-row-margin)",
+     "0 var(--menu-navigation-components-table-item-padding-horizontal)"
+    ],
+    "min-width": [
+     "var(\n          --selection-column-width,\n          var(--menu-navigati",
+     "var(\n      --selection-column-width,\n      var(--menu-navigation-compo",
+     "var(--menu-navigation-components-table-item-icon-size-large)",
+     "var(--menu-navigation-components-table-item-touch-target-size)"
+    ],
+    "min-height": [
+     "calc(var(--obc-scrollbar-touch-target-size) * 1.5)",
+     "var(\n          --menu-navigation-components-table-item-icon-size-large",
+     "var(\n      --menu-navigation-components-table-header-item-touch-target",
+     "var(--menu-navigation-components-table-item-touch-target-size)"
+    ],
+    "width": [
+     "var(\n          --selection-column-width,\n          var(--menu-navigati",
+     "var(--menu-navigation-components-table-item-icon-size)",
+     "var(--obc-scrollbar-button-size)",
+     "var(--obc-scrollbar-touch-target-size)"
+    ],
+    "height": [
+     "var(--menu-navigation-components-table-item-icon-size)",
+     "var(--obc-scrollbar-button-size)",
+     "var(--obc-scrollbar-touch-target-size)"
+    ],
+    "outline-offset": [
+     "calc(-1 * var(--offset) - 1px)"
+    ],
+    "border-radius": [
+     "var(--global-border-radius-border-radius-base)",
+     "var(--obc-scrollbar-button-radius)"
+    ],
+    "gap": [
+     "calc(\n          var(--menu-navigation-components-table-item-badge-spac",
+     "var(--menu-navigation-components-table-item-label-spacing)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ],
+    "max-width": [
+     "var(\n          --selection-column-width,\n          var(--menu-navigati"
+    ],
+    "padding-top": [
+     "var(--menu-navigation-components-table-item-label-spacing)"
+    ],
+    "padding-bottom": [
+     "var(\n          --menu-navigation-components-table-item-label-spacing\n "
+    ]
+   }
+  },
+  "table-header-item": {
+   "tag": "obc-table-header-item",
+   "parts": [
+    "divider",
+    "label",
+    "leading",
+    "sort-icon",
+    "visible-wrapper",
+    "wrapper"
+   ],
+   "slots": [
+    "leading-icon"
+   ],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover"
+   ],
+   "colourVars": 18,
+   "fixedGeometry": {
+    "height": [
+     "24px"
+    ],
+    "width": [
+     "1px"
+    ]
+   },
+   "variableGeometry": {
+    "font-size": [
+     "var(--global-typography-ui-overline-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-overline-line-height)"
+    ],
+    "height": [
+     "var(--menu-navigation-components-table-header-item-icon-size)",
+     "var(--menu-navigation-components-table-header-item-touch-target-size)"
+    ],
+    "padding": [
+     "0\n    var(--menu-navigation-components-table-header-item-margin-horizo",
+     "0\n    var(--menu-navigation-components-table-header-item-padding-horiz",
+     "0 var(--menu-navigation-components-table-header-item-label-spacing)"
+    ],
+    "min-height": [
+     "var(\n    --menu-navigation-components-table-header-item-visual-target-",
+     "var(--menu-navigation-components-table-header-item-icon-size)"
+    ],
+    "border-radius": [
+     "var(\n    --menu-navigation-components-table-header-item-border-radius\n"
+    ],
+    "width": [
+     "var(--menu-navigation-components-table-header-item-icon-size)"
+    ]
+   }
+  },
+  "tag": {
+   "tag": "obc-tag",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [
+    "--obc-tag-border-width",
+    "--obc-tag-padding-block",
+    "--ui-components-tag-border-radius",
+    "--ui-components-tag-icon-size",
+    "--ui-components-tag-label-line-height",
+    "--ui-components-tag-label-spacing",
+    "--ui-components-tag-padding-horizontal",
+    "--ui-components-tag-visual-target"
+   ],
+   "colourVars": 2,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "min-height": [
+     "var(--ui-components-tag-visual-target, 24px)"
+    ],
+    "padding": [
+     "0 var(--ui-components-tag-label-spacing, 4px)",
+     "var(\n    --ui-components-tag-padding,\n    var(--obc-tag-padding-block)"
+    ],
+    "border-radius": [
+     "var(--ui-components-tag-border-radius, 4px)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-label-line-height)",
+     "var(--ui-components-tag-label-line-height, 12px)"
+    ],
+    "width": [
+     "var(--ui-components-tag-icon-size, 16px)"
+    ],
+    "height": [
+     "var(--ui-components-tag-icon-size, 16px)"
+    ],
+    "max-width": [
+     "calc(\n    var(--ui-components-tag-visual-target, 24px) -\n      (var(--"
+    ],
+    "max-height": [
+     "calc(\n    var(--ui-components-tag-visual-target, 24px) -\n      (var(--"
+    ]
+   }
+  },
+  "text-input-field": {
+   "tag": "obc-text-input-field",
+   "parts": [],
+   "slots": [
+    "helper-icon",
+    "label-icon",
+    "leading-icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-describedby",
+    "aria-invalid",
+    "aria-label"
+   ],
+   "nativeElements": [
+    "input",
+    "label"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-icon-button-touch-target-size",
+    "--ui-components-icon-button-visual-target-size",
+    "--ui-components-input-fields-number-input-field-label-spacing-title",
+    "--ui-components-input-fields-number-input-field-padding-horizontal",
+    "--ui-components-input-fields-number-input-field-padding-vertical",
+    "--ui-components-input-fields-number-input-field-vertical-spacer",
+    "--ui-components-input-fields-number-input-field-visual-size",
+    "--ui-components-input-fields-text-input-field-icon-size",
+    "--ui-components-input-fields-text-input-field-label-spacing",
+    "--ui-components-input-fields-text-input-field-required-dot-size",
+    "--ui-components-input-fields-text-input-field-required-dot-spacer"
+   ],
+   "colourVars": 22,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "min-height": [
+     "var(\n    --ui-components-input-fields-text-input-field-touch-target-si"
+    ],
+    "padding": [
+     "0\n      var(--ui-components-input-fields-number-input-field-label-spac",
+     "0\n      var(--ui-components-input-fields-number-input-field-padding-ho",
+     "0 var(--ui-components-input-fields-text-input-field-label-spacing)",
+     "var(\n        --ui-components-input-fields-number-input-field-vertical-",
+     "var(--ui-components-input-fields-number-input-field-padding-vertical)\n"
+    ],
+    "height": [
+     "var(\n      --ui-components-input-fields-number-input-field-visual-size",
+     "var(\n      --ui-components-input-fields-text-input-field-required-dot-",
+     "var(--global-size-spacing-icon-icon-size-small)",
+     "var(--ui-components-input-fields-number-input-field-visual-size)",
+     "var(--ui-components-input-fields-text-input-field-icon-size)"
+    ],
+    "gap": [
+     "var(\n      --ui-components-input-fields-number-input-field-label-spaci",
+     "var(--ui-components-input-fields-text-input-field-required-dot-spacer)"
+    ],
+    "font-size": [
+     "var(--global-typography-instrument-value-regular-font-size)",
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-instrument-value-regular-line-height)",
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ],
+    "width": [
+     "var(--global-size-spacing-icon-icon-size-small)",
+     "var(--ui-components-input-fields-text-input-field-icon-size)",
+     "var(--ui-components-input-fields-text-input-field-required-dot-size)"
+    ],
+    "border-radius": [
+     "var(\n        --ui-components-input-fields-number-input-field-border-ra",
+     "var(--global-border-radius-border-radius-round)"
+    ],
+    "padding-right": [
+     "calc(var(--ui-components-icon-button-visual-target-size) * 2)",
+     "var(--ui-components-icon-button-visual-target-size)"
+    ]
+   }
+  },
+  "textarea-field": {
+   "tag": "obc-textarea-field",
+   "parts": [
+    "content",
+    "wrapper"
+   ],
+   "slots": [
+    "leading-icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "status\"",
+    "status\" with aria"
+   ],
+   "ariaAttrs": [
+    "aria-atomic",
+    "aria-invalid",
+    "aria-label",
+    "aria-labelledby",
+    "aria-live",
+    "aria-required"
+   ],
+   "nativeElements": [
+    "textarea"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--ui-components-button-touch-target-size",
+    "--ui-components-divider-height-regular",
+    "--ui-components-input-fields-rich-input-field-border-radius",
+    "--ui-components-input-fields-rich-input-field-chip-gap",
+    "--ui-components-input-fields-rich-input-field-label-spacing",
+    "--ui-components-input-fields-rich-input-field-padding-horizontal",
+    "--ui-components-input-fields-rich-input-field-padding-vertical",
+    "--ui-components-input-fields-rich-input-field-vertical-spacer",
+    "--ui-components-input-fields-text-input-field-icon-size"
+   ],
+   "colourVars": 15,
+   "fixedGeometry": {
+    "width": [
+     "1px",
+     "420px"
+    ],
+    "border-radius": [
+     "2px"
+    ],
+    "outline-offset": [
+     "-1px"
+    ],
+    "height": [
+     "1px"
+    ]
+   },
+   "variableGeometry": {
+    "min-height": [
+     "var(\n    --ui-components-input-fields-text-input-field-touch-target-si"
+    ],
+    "gap": [
+     "var(\n    --ui-components-input-fields-text-input-field-required-dot-sp",
+     "var(--ui-components-input-fields-rich-input-field-chip-gap, 8px)",
+     "var(--ui-components-input-fields-rich-input-field-vertical-spacer, 4px"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ],
+    "width": [
+     "var(\n    --ui-components-input-fields-text-input-field-required-dot-si",
+     "var(--ui-components-input-fields-text-input-field-icon-size)"
+    ],
+    "height": [
+     "var(\n    --ui-components-input-fields-text-input-field-required-dot-si",
+     "var(--ui-components-divider-height-regular)",
+     "var(--ui-components-input-fields-text-input-field-icon-size)"
+    ],
+    "border-radius": [
+     "calc(\n      var(\n          --ui-components-input-fields-message-input-",
+     "calc(\n    var(--ui-components-input-fields-rich-input-field-border-rad",
+     "var(\n      --ui-components-input-fields-message-input-field-border-rad",
+     "var(\n    --ui-components-input-fields-rich-input-field-border-radius,\n"
+    ],
+    "padding": [
+     "0\n    var(--ui-components-input-fields-rich-input-field-padding-horizo",
+     "4px\n    var(\n      --ui-components-input-fields-number-input-field-lab",
+     "var(\n      --ui-components-input-fields-rich-input-field-padding-verti"
+    ],
+    "padding-left": [
+     "calc(\n    var(--ui-components-input-fields-rich-input-field-padding-ho"
+    ],
+    "padding-bottom": [
+     "var(\n    --ui-components-input-fields-rich-input-field-padding-vertica"
+    ]
+   }
+  },
+  "title-container": {
+   "tag": "obc-title-container",
+   "parts": [
+    "actions",
+    "icon",
+    "label",
+    "left",
+    "text",
+    "title",
+    "wrapper"
+   ],
+   "slots": [
+    "actions",
+    "icon",
+    "label",
+    "title"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 5,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "height": [
+     "var(--global-size-spacing-touch-target-min)",
+     "var(--global-size-spacing-visual-target-min)"
+    ],
+    "min-height": [
+     "var(--global-size-spacing-touch-target-min)"
+    ],
+    "max-height": [
+     "var(--global-size-spacing-touch-target-min)"
+    ],
+    "padding": [
+     "var(--global-size-spacing-list-item-padding-vertical)\n    var(--global"
+    ],
+    "gap": [
+     "var(--global-size-spacing-list-item-item-spacing)"
+    ],
+    "width": [
+     "var(--global-size-spacing-visual-target-min)"
+    ],
+    "font-size": [
+     "var(--font-size-150)",
+     "var(--global-typography-ui-body-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-line-height)",
+     "var(--line-height-150)"
+    ]
+   }
+  },
+  "toggle-button-group": {
+   "tag": "obc-toggle-button-group",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [
+    "--ui-components-divider-height-small",
+    "--ui-components-toggle-button-border-radius",
+    "--ui-components-toggle-button-toggle-button-item-visual-size",
+    "--ui-components-toggle-button-touch-target-size"
+   ],
+   "colourVars": 1,
+   "fixedGeometry": {
+    "outline-offset": [
+     "-1px"
+    ],
+    "width": [
+     "1px"
+    ],
+    "border-radius": [
+     "1px"
+    ]
+   },
+   "variableGeometry": {
+    "min-height": [
+     "var(--ui-components-toggle-button-touch-target-size)"
+    ],
+    "height": [
+     "var(--ui-components-divider-height-small)",
+     "var(--ui-components-toggle-button-toggle-button-item-visual-size)"
+    ],
+    "border-radius": [
+     "var(--ui-components-toggle-button-border-radius)"
+    ]
+   }
+  },
+  "toggle-button-option": {
+   "tag": "obc-toggle-button-option",
+   "parts": [
+    "icon",
+    "visible-wrapper"
+   ],
+   "slots": [
+    "icon"
+   ],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-button-touch-target-size",
+    "--ui-components-check-button-padding-horizontal",
+    "--ui-components-toggle-button-toggle-button-item-icon-size",
+    "--ui-components-toggle-button-toggle-button-item-label-spacing",
+    "--ui-components-toggle-button-toggle-button-item-visual-size"
+   ],
+   "colourVars": 43,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "height": [
+     "var(--ui-components-button-touch-target-size)",
+     "var(--ui-components-toggle-button-toggle-button-item-icon-size)",
+     "var(--ui-components-toggle-button-toggle-button-item-visual-size)"
+    ],
+    "min-width": [
+     "var(\n    --ui-components-icon-toggle-button-horizontal-item-touch-targ",
+     "var(\n    --ui-components-toggle-button-icon-toggle-button-horizontal-i"
+    ],
+    "min-height": [
+     "var(\n    --ui-components-toggle-button-toggle-button-item-touch-target",
+     "var(--ui-components-button-touch-target-size)"
+    ],
+    "padding": [
+     "0px\n    var(--ui-components-toggle-button-toggle-button-item-label-spa",
+     "0px calc(var(--ui-components-check-button-padding-horizontal) * 2)"
+    ],
+    "border-radius": [
+     "var(\n    --ui-components-toggle-button-toggle-button-item-border-radiu"
+    ],
+    "width": [
+     "var(--ui-components-toggle-button-toggle-button-item-icon-size)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-label-active-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-label-active-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ]
+   }
+  },
+  "toggle-button-three-state": {
+   "tag": "obc-toggle-button-three-state",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-hidden",
+    "aria-label"
+   ],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 7,
+   "fixedGeometry": {
+    "width": [
+     "8px"
+    ],
+    "height": [
+     "8px"
+    ]
+   },
+   "variableGeometry": {}
+  },
+  "toggle-button-vertical-group": {
+   "tag": "obc-toggle-button-vertical-group",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": true,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": false,
+   "componentVars": [],
+   "colourVars": 0,
+   "fixedGeometry": {
+    "border-radius": [
+     "6px"
+    ],
+    "outline-offset": [
+     "-1px"
+    ]
+   },
+   "variableGeometry": {}
+  },
+  "toggle-button-vertical-option": {
+   "tag": "obc-toggle-button-vertical-option",
+   "parts": [],
+   "slots": [
+    "icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-disabled",
+    "aria-pressed"
+   ],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [
+    ":host"
+   ],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-check-button-padding-horizontal",
+    "--ui-components-toggle-button-toggle-button-item-icon-size",
+    "--ui-components-toggle-button-toggle-button-item-label-spacing"
+   ],
+   "colourVars": 42,
+   "fixedGeometry": {
+    "height": [
+     "1px"
+    ],
+    "border-radius": [
+     "1px"
+    ]
+   },
+   "variableGeometry": {
+    "min-width": [
+     "var(\n        --ui-components-toggle-button-icon-toggle-button-vertical",
+     "var(\n    --ui-components-toggle-button-toggle-button-item-touch-target"
+    ],
+    "min-height": [
+     "var(\n        --ui-components-toggle-button-icon-toggle-button-vertical",
+     "var(\n    --ui-components-toggle-button-toggle-button-item-touch-target"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)"
+    ],
+    "padding": [
+     "0px\n      var(--ui-components-toggle-button-toggle-button-item-label-s",
+     "0px var(--ui-components-check-button-padding-horizontal)",
+     "var(\n          --ui-components-toggle-button-icon-toggle-button-vertic"
+    ],
+    "border-radius": [
+     "var(\n      --ui-components-toggle-button-toggle-button-item-border-rad"
+    ],
+    "width": [
+     "var(--ui-components-toggle-button-toggle-button-item-icon-size)"
+    ],
+    "height": [
+     "var(--ui-components-toggle-button-toggle-button-item-icon-size)"
+    ]
+   }
+  },
+  "toggle-switch": {
+   "tag": "obc-toggle-switch",
+   "parts": [],
+   "slots": [
+    "icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "input",
+    "label"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-toggle-switch-item-border-radius",
+    "--ui-components-toggle-switch-item-icon-size",
+    "--ui-components-toggle-switch-item-label-spacing",
+    "--ui-components-toggle-switch-item-padding-horizontal",
+    "--ui-components-toggle-switch-item-touch-target-size-two-story",
+    "--ui-components-toggle-switch-selection-height",
+    "--ui-components-toggle-switch-selection-padding",
+    "--ui-components-toggle-switch-selection-width",
+    "--ui-components-toggle-switch-thumb-size",
+    "--ui-components-toggle-switch-touch-target"
+   ],
+   "colourVars": 20,
+   "fixedGeometry": {
+    "height": [
+     "1px"
+    ],
+    "border-radius": [
+     "1px"
+    ]
+   },
+   "variableGeometry": {
+    "height": [
+     "var(--ui-components-toggle-switch-item-icon-size)",
+     "var(--ui-components-toggle-switch-item-touch-target-size-two-story)",
+     "var(--ui-components-toggle-switch-selection-height)",
+     "var(--ui-components-toggle-switch-thumb-size)",
+     "var(--ui-components-toggle-switch-touch-target)"
+    ],
+    "padding": [
+     "0px var(--ui-components-toggle-switch-item-label-spacing)",
+     "0px var(--ui-components-toggle-switch-item-padding-horizontal)",
+     "0px var(--ui-components-toggle-switch-selection-padding)",
+     "var(--global-size-spacing-border-weight-focusframe, 2px)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ],
+    "width": [
+     "var(--ui-components-toggle-switch-item-icon-size)",
+     "var(--ui-components-toggle-switch-selection-width)",
+     "var(--ui-components-toggle-switch-thumb-size)"
+    ],
+    "border-radius": [
+     "var(\n        --global-border-radius-border-radius-round,\n        var(-",
+     "var(--ui-components-toggle-switch-item-border-radius)"
+    ]
+   }
+  },
+  "toggletip": {
+   "tag": "obc-toggletip",
+   "parts": [],
+   "slots": [
+    "content",
+    "leading-icon",
+    "trailing-icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--ui-components-toggletip-border-radius",
+    "--ui-components-toggletip-button-spacing",
+    "--ui-components-toggletip-content-padding-horizontal",
+    "--ui-components-toggletip-content-spacing-vertical",
+    "--ui-components-toggletip-header-padding-horizontal-left",
+    "--ui-components-toggletip-header-padding-horizontal-right",
+    "--ui-components-toggletip-header-padding-vertical-bottom",
+    "--ui-components-toggletip-header-padding-vertical-top",
+    "--ui-components-toggletip-icon-size",
+    "--ui-components-toggletip-label-spacing",
+    "--ui-components-toggletip-pointer-height",
+    "--ui-components-toggletip-pointer-width",
+    "--ui-components-toggletip-stroke-weight"
+   ],
+   "colourVars": 11,
+   "fixedGeometry": {
+    "width": [
+     "24px",
+     "400px"
+    ],
+    "height": [
+     "24px"
+    ]
+   },
+   "variableGeometry": {
+    "border-radius": [
+     "var(--ui-components-toggletip-border-radius)"
+    ],
+    "border-top-left-radius": [
+     "var(--ui-components-toggletip-border-radius)"
+    ],
+    "border-top-right-radius": [
+     "var(--ui-components-toggletip-border-radius)"
+    ],
+    "padding": [
+     "0 var(--ui-components-toggletip-label-spacing)",
+     "var(--ui-components-toggletip-header-padding-vertical-top)\n    var(--u",
+     "var(--ui-components-toggletip-label-spacing)\n    var(--ui-components-t"
+    ],
+    "width": [
+     "var(--ui-components-toggletip-icon-size)",
+     "var(--ui-components-toggletip-pointer-width)"
+    ],
+    "height": [
+     "var(--ui-components-toggletip-icon-size)",
+     "var(--ui-components-toggletip-pointer-height)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-overline-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-overline-line-height)"
+    ],
+    "gap": [
+     "var(--ui-components-toggletip-button-spacing)",
+     "var(--ui-components-toggletip-content-spacing-vertical)"
+    ]
+   }
+  },
+  "tooltip": {
+   "tag": "obc-tooltip",
+   "parts": [],
+   "slots": [
+    "icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--ui-components-tooltip-border-radius",
+    "--ui-components-tooltip-icon-size",
+    "--ui-components-tooltip-label-spacing",
+    "--ui-components-tooltip-padding-vertical",
+    "--ui-components-tooltip-size"
+   ],
+   "colourVars": 15,
+   "fixedGeometry": {
+    "width": [
+     "10px"
+    ],
+    "height": [
+     "6px"
+    ]
+   },
+   "variableGeometry": {
+    "height": [
+     "var(--ui-components-tooltip-icon-size)",
+     "var(--ui-components-tooltip-size)"
+    ],
+    "padding": [
+     "0 var(--ui-components-tooltip-label-spacing)",
+     "0 var(--ui-components-tooltip-padding-vertical)"
+    ],
+    "border-radius": [
+     "var(--ui-components-tooltip-border-radius)"
+    ],
+    "width": [
+     "var(--ui-components-tooltip-icon-size)",
+     "var(--ui-components-tooltip-size)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-button-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-button-line-height)"
+    ]
+   }
+  },
+  "top-bar": {
+   "tag": "obc-top-bar",
+   "parts": [
+    "apps-button",
+    "dimming-button",
+    "left-more-button",
+    "user-button"
+   ],
+   "slots": [
+    "alerts",
+    "app-icon",
+    "clock",
+    "command-button"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [
+    "menubar\""
+   ],
+   "ariaAttrs": [],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--app-components-topbar-icon-size",
+    "--app-components-topbar-label-spacing",
+    "--app-components-topbar-margin-global",
+    "--app-components-topbar-padding-left-small",
+    "--app-components-topbar-touch-target-size",
+    "--app-components-topbar-touch-target-tall",
+    "--ui-components-divider-height-small"
+   ],
+   "colourVars": 4,
+   "fixedGeometry": {
+    "width": [
+     "1px"
+    ]
+   },
+   "variableGeometry": {
+    "height": [
+     "var(--app-components-topbar-icon-size)",
+     "var(--app-components-topbar-touch-target-size)",
+     "var(--app-components-topbar-touch-target-tall)",
+     "var(--ui-components-divider-height-small)"
+    ],
+    "padding": [
+     "0px var(--app-components-topbar-margin-global)"
+    ],
+    "padding-right": [
+     "var(--app-components-topbar-label-spacing)"
+    ],
+    "padding-left": [
+     "var(--app-components-topbar-padding-left-small)"
+    ],
+    "width": [
+     "var(--app-components-topbar-icon-size)"
+    ],
+    "gap": [
+     "var(--app-components-topbar-label-spacing)"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)"
+    ]
+   }
+  },
+  "topbar-message-item": {
+   "tag": "obc-topbar-message-item",
+   "parts": [],
+   "slots": [
+    "action-icon",
+    "action-text",
+    "description",
+    "empty",
+    "primary-icon",
+    "secondary-icon",
+    "time",
+    "time-secondary",
+    "title"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--app-components-topbar-message-item-border-radius-bottom-left",
+    "--app-components-topbar-message-item-border-radius-bottom-right",
+    "--app-components-topbar-message-item-border-radius-top-right",
+    "--app-components-topbar-message-item-cta-button-width",
+    "--app-components-topbar-message-item-icon-size",
+    "--app-components-topbar-message-item-icon-spacing",
+    "--app-components-topbar-message-item-label-padding",
+    "--app-components-topbar-message-item-label-spacing",
+    "--app-components-topbar-message-item-padding-horizontal",
+    "--app-components-topbar-message-item-tall-padding-vertical",
+    "--app-components-topbar-message-item-touch-target",
+    "--app-components-topbar-message-item-touch-target-size-tall",
+    "--app-components-topbar-message-item-visual-target",
+    "--app-components-topbar-message-item-width",
+    "--obc-can-hover",
+    "--ui-components-button-border-radius-bottom-right",
+    "--ui-components-button-border-radius-top-right",
+    "--ui-components-button-label-spacing",
+    "--ui-components-button-padding-horizontal",
+    "--ui-components-icon-button-icon-size",
+    "--ui-components-icon-button-padding-vertical",
+    "--ui-components-icon-button-visual-target-size"
+   ],
+   "colourVars": 18,
+   "fixedGeometry": {},
+   "variableGeometry": {
+    "width": [
+     "var(--app-components-topbar-message-item-cta-button-width)",
+     "var(--app-components-topbar-message-item-icon-size)",
+     "var(--app-components-topbar-message-item-width)",
+     "var(--global-size-spacing-touch-target-min)",
+     "var(--ui-components-icon-button-icon-size)"
+    ],
+    "height": [
+     "var(--app-components-topbar-message-item-icon-size)",
+     "var(--app-components-topbar-message-item-touch-target)",
+     "var(--app-components-topbar-message-item-touch-target-size-tall)",
+     "var(--app-components-topbar-message-item-visual-target)",
+     "var(--global-size-spacing-icon-icon-size-regular)",
+     "var(--ui-components-icon-button-visual-target-size)"
+    ],
+    "padding": [
+     "0 var(--ui-components-button-padding-horizontal)",
+     "0px var(--app-components-topbar-message-item-padding-horizontal)",
+     "0px var(--ui-components-button-label-spacing)",
+     "var(--app-components-topbar-message-item-tall-padding-vertical) 0px",
+     "var(--ui-components-icon-button-padding-vertical) 0px"
+    ],
+    "gap": [
+     "var(--app-components-topbar-message-item-icon-spacing)",
+     "var(--app-components-topbar-message-item-label-padding)",
+     "var(--app-components-topbar-message-item-label-spacing)"
+    ],
+    "border-radius": [
+     "0 var(--ui-components-button-border-radius-top-right)\n    var(--ui-com",
+     "var(\n      --app-components-topbar-message-item-border-radius-top-left"
+    ],
+    "font-size": [
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-button-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-button-line-height)",
+     "var(--global-typography-ui-label-line-height)"
+    ],
+    "min-width": [
+     "var(--global-size-spacing-touch-target-min)"
+    ],
+    "min-height": [
+     "var(--global-size-spacing-touch-target-min)"
+    ]
+   }
+  },
+  "user-button": {
+   "tag": "obc-user-button",
+   "parts": [
+    "content-container",
+    "label"
+   ],
+   "slots": [
+    "icon"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-label"
+   ],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover",
+    "--ui-components-app-button-touch-target-size",
+    "--ui-components-button-border-radius-bottom-left",
+    "--ui-components-button-border-radius-bottom-right",
+    "--ui-components-button-border-radius-top-left",
+    "--ui-components-button-border-radius-top-right",
+    "--ui-components-user-button-border-radius-container",
+    "--ui-components-user-button-icon-size",
+    "--ui-components-user-button-icon-size-enhanced",
+    "--ui-components-user-button-padding-vertical",
+    "--ui-components-user-button-padding-vertical-enhanced",
+    "--ui-components-user-button-touch-target-size",
+    "--ui-components-user-button-touch-target-size-enhanced",
+    "--ui-components-user-button-visual-size",
+    "--ui-components-user-button-visual-size-enhanced"
+   ],
+   "colourVars": 29,
+   "fixedGeometry": {
+    "border-radius": [
+     "100px"
+    ]
+   },
+   "variableGeometry": {
+    "min-width": [
+     "var(--ui-components-user-button-touch-target-size)",
+     "var(--ui-components-user-button-touch-target-size-enhanced)"
+    ],
+    "min-height": [
+     "var(--ui-components-app-button-touch-target-size)",
+     "var(--ui-components-user-button-touch-target-size-enhanced)"
+    ],
+    "padding": [
+     "var(--ui-components-user-button-padding-vertical) 0px",
+     "var(--ui-components-user-button-padding-vertical-enhanced) 0px"
+    ],
+    "border-radius": [
+     "var(--ui-components-button-border-radius-top-left)\n      var(--ui-comp",
+     "var(--ui-components-user-button-border-radius-container)"
+    ],
+    "font-size": [
+     "var(--font-size-150)",
+     "var(--global-typography-ui-body-active-font-size)",
+     "var(--global-typography-ui-body-font-size)",
+     "var(--global-typography-ui-label-active-font-size)",
+     "var(--global-typography-ui-label-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-body-active-line-height)",
+     "var(--global-typography-ui-body-line-height)",
+     "var(--global-typography-ui-label-active-line-height)",
+     "var(--global-typography-ui-label-line-height)",
+     "var(--line-height-150)"
+    ],
+    "width": [
+     "var(--ui-components-user-button-icon-size)",
+     "var(--ui-components-user-button-icon-size-enhanced)",
+     "var(--ui-components-user-button-visual-size)",
+     "var(--ui-components-user-button-visual-size-enhanced)"
+    ],
+    "height": [
+     "var(--ui-components-user-button-icon-size)",
+     "var(--ui-components-user-button-icon-size-enhanced)",
+     "var(--ui-components-user-button-visual-size)",
+     "var(--ui-components-user-button-visual-size-enhanced)"
+    ]
+   }
+  },
+  "user-menu": {
+   "tag": "obc-user-menu",
+   "parts": [],
+   "slots": [
+    "signed-in-action-icon-${normalizedId}"
+   ],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [
+    "aria-hidden"
+   ],
+   "nativeElements": [],
+   "hostRules": [],
+   "focusVisible": false,
+   "componentVars": [
+    "--app-components-user-menu-label-spacing",
+    "--app-components-user-menu-padding-horizontal",
+    "--app-components-user-menu-padding-vertical",
+    "--ui-components-toggletip-label-spacing"
+   ],
+   "colourVars": 3,
+   "fixedGeometry": {
+    "border-radius": [
+     "12px",
+     "8px"
+    ],
+    "width": [
+     "320px"
+    ],
+    "height": [
+     "1px"
+    ]
+   },
+   "variableGeometry": {
+    "font-size": [
+     "var(--font-size-075)",
+     "var(--global-typography-ui-overline-font-size)"
+    ],
+    "line-height": [
+     "var(--global-typography-ui-overline-line-height)",
+     "var(--line-height-075)"
+    ],
+    "padding-inline": [
+     "var(--app-components-user-menu-padding-horizontal)"
+    ],
+    "padding": [
+     "0 calc(var(--app-components-user-menu-padding-horizontal) * 2)\n      v",
+     "calc(var(--app-components-user-menu-padding-vertical) * 2)\n      calc(",
+     "var(--app-components-user-menu-padding-horizontal)\n      var(--app-com",
+     "var(--app-components-user-menu-padding-vertical)\n        var(--app-com",
+     "var(--app-components-user-menu-padding-vertical)\n      calc(var(--app-"
+    ],
+    "gap": [
+     "var(--app-components-user-menu-label-spacing)",
+     "var(--ui-components-toggletip-label-spacing)"
+    ],
+    "padding-bottom": [
+     "var(--app-components-user-menu-padding-vertical)"
+    ],
+    "padding-block": [
+     "calc(\n      var(--app-components-user-menu-padding-vertical) * 0.75\n  ",
+     "var(--app-components-user-menu-padding-vertical)"
+    ],
+    "padding-top": [
+     "calc(var(--app-components-user-menu-padding-vertical) / 2)",
+     "var(--app-components-user-menu-padding-vertical)"
+    ]
+   }
+  },
+  "vendor-button": {
+   "tag": "obc-vendor-button",
+   "parts": [],
+   "slots": [],
+   "hasDefaultSlot": false,
+   "delegatesFocus": false,
+   "elementInternals": false,
+   "formAssociated": false,
+   "roles": [],
+   "ariaAttrs": [],
+   "nativeElements": [
+    "button"
+   ],
+   "hostRules": [],
+   "focusVisible": true,
+   "componentVars": [
+    "--obc-can-hover"
+   ],
+   "colourVars": 13,
+   "fixedGeometry": {
+    "outline-offset": [
+     "-2px"
+    ]
+   },
+   "variableGeometry": {}
+  }
+ }
+}

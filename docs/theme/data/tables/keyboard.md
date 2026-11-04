@@ -1,0 +1,32 @@
+| Route | Click targets | Pointer only | Table rows | Rows focusable | Canvases | Charts focusable | Charts labelled | Tab stops with a detected ring |
+|---|---|---|---|---|---|---|---|---|
+| overview | 13 | 0 | 0 | 0 | 0 | 0 | 0 | 34/45 |
+| performance | 180 | 0 | 25 | 0 | 0 | 0 | 0 | 32/45 |
+| events | 80 | 8 | 50 | 0 | 0 | 0 | 0 | 20/45 |
+| explorer | 29 | 2 | 0 | 0 | 0 | 0 | 0 | 24/44 |
+| explorer-signals | 3 | 2 | 4 | 0 | 0 | 0 | 0 | 37/44 |
+| explorer-calculations | 21 | 2 | 0 | 0 | 0 | 0 | 0 | 37/44 |
+| explorer-relationships | 4 | 2 | 0 | 0 | 0 | 0 | 0 | 37/44 |
+| explorer-history | 8 | 2 | 0 | 0 | 0 | 0 | 0 | 38/44 |
+| historical | 9 | 4 | 0 | 0 | 1 | 0 | 0 | 25/44 |
+| investigation | 6 | 0 | 0 | 0 | 0 | 0 | 0 | 40/44 |
+| evidence | 21 | 4 | 0 | 0 | 0 | 0 | 0 | 37/44 |
+| replay | 10 | 9 | 0 | 0 | 0 | 0 | 0 | 33/44 |
+| windows | 28 | 4 | 0 | 0 | 0 | 0 | 0 | 41/44 |
+| calculations | 16 | 0 | 0 | 0 | 0 | 0 | 0 | 40/44 |
+| response | 6 | 4 | 0 | 0 | 0 | 0 | 0 | 33/43 |
+| registry | 27 | 0 | 0 | 0 | 0 | 0 | 0 | 43/45 |
+| config | 23 | 2 | 21 | 0 | 0 | 0 | 0 | 44/45 |
+| config-effective | 22 | 4 | 17 | 0 | 0 | 0 | 0 | 44/44 |
+| config-bundles | 4 | 4 | 0 | 0 | 0 | 0 | 0 | 37/44 |
+| kpi | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 31/43 |
+| trend | 12 | 0 | 0 | 0 | 1 | 0 | 0 | 43/45 |
+| admin-users | 9 | 0 | 20 | 0 | 0 | 0 | 0 | 10/45 |
+| admin-roles | 63 | 38 | 0 | 0 | 0 | 0 | 0 | 13/45 |
+| admin-data-sources | 7 | 0 | 0 | 0 | 0 | 0 | 0 | 4/44 |
+| admin-plant-model | 10 | 0 | 0 | 0 | 0 | 0 | 0 | 33/44 |
+| admin-aliases | 7 | 0 | 500 | 0 | 0 | 0 | 0 | 32/45 |
+| admin-audit | 8 | 0 | 25 | 0 | 0 | 0 | 0 | 39/43 |
+| admin-system | 10 | 0 | 0 | 0 | 0 | 0 | 0 | 44/44 |
+| pipeline | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 41/44 |
+| governance | 55 | 55 | 6 | 0 | 0 | 0 | 0 | 30/43 |

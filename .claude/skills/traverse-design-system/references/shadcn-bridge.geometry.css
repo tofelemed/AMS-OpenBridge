@@ -1,0 +1,17 @@
+/*
+ * OPTIONAL — Traverse typography and geometry for shadcn/Tailwind v4.
+ * Import ONLY in an approved layout/geometry work package, after shadcn-bridge.css.
+ * Effects: root 14px rescales every rem utility; Inter replaces the current UI font; control radius 6px.
+ * Guide R01 p.6 baseline. Measure shell dimensions before and after applying.
+ */
+html {
+  font-family: var(--traverse-font-sans);
+  font-size: var(--traverse-type-body);
+}
+:root, [data-theme="day"], [data-theme="night"] {
+  --radius: var(--traverse-radius-control);
+}
+@theme inline {
+  --font-sans: var(--traverse-font-sans);
+  --font-mono: var(--traverse-font-mono);
+}

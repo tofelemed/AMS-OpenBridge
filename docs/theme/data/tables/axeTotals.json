@@ -1,0 +1,74 @@
+{
+ "day": {
+  "critical": 15,
+  "serious": 374,
+  "moderate": 83,
+  "minor": 7,
+  "rules": {
+   "color-contrast": 242,
+   "label-content-name-mismatch": 101,
+   "region": 60,
+   "aria-prohibited-attr": 30,
+   "landmark-unique": 10,
+   "heading-order": 8,
+   "select-name": 5,
+   "aria-allowed-role": 5,
+   "button-name": 4,
+   "aria-allowed-attr": 3,
+   "aria-required-attr": 3,
+   "landmark-main-is-top-level": 2,
+   "landmark-no-duplicate-main": 2,
+   "empty-table-header": 2,
+   "page-has-heading-one": 1,
+   "scrollable-region-focusable": 1
+  }
+ },
+ "bright": {
+  "critical": 15,
+  "serious": 100,
+  "moderate": 83,
+  "minor": 7,
+  "rules": {
+   "label-content-name-mismatch": 64,
+   "region": 60,
+   "aria-prohibited-attr": 30,
+   "landmark-unique": 10,
+   "heading-order": 8,
+   "select-name": 5,
+   "aria-allowed-role": 5,
+   "color-contrast": 5,
+   "button-name": 4,
+   "aria-allowed-attr": 3,
+   "aria-required-attr": 3,
+   "landmark-main-is-top-level": 2,
+   "landmark-no-duplicate-main": 2,
+   "empty-table-header": 2,
+   "page-has-heading-one": 1,
+   "scrollable-region-focusable": 1
+  }
+ },
+ "night": {
+  "critical": 15,
+  "serious": 286,
+  "moderate": 83,
+  "minor": 7,
+  "rules": {
+   "color-contrast": 191,
+   "label-content-name-mismatch": 64,
+   "region": 60,
+   "aria-prohibited-attr": 30,
+   "landmark-unique": 10,
+   "heading-order": 8,
+   "select-name": 5,
+   "aria-allowed-role": 5,
+   "button-name": 4,
+   "aria-allowed-attr": 3,
+   "aria-required-attr": 3,
+   "landmark-main-is-top-level": 2,
+   "landmark-no-duplicate-main": 2,
+   "empty-table-header": 2,
+   "page-has-heading-one": 1,
+   "scrollable-region-focusable": 1
+  }
+ }
+}

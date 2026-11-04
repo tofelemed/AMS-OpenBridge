@@ -1,0 +1,22 @@
+{
+ "openbridge": {
+  "tokens": 98,
+  "refs": 1129
+ },
+ "ams": {
+  "tokens": 14,
+  "refs": 71
+ },
+ "cpm": {
+  "tokens": 7,
+  "refs": 41
+ },
+ "designer": {
+  "tokens": 15,
+  "refs": 228
+ },
+ "hmi": {
+  "tokens": 20,
+  "refs": 142
+ }
+}

@@ -1,0 +1,1242 @@
+{
+ "generatedBy": "docs/theme/tools/component-states.mjs",
+ "stylesheets": [
+  "components/Cpm/registry/wizard/wizard.css",
+  "components/Designer/Designer.css",
+  "components/Designer/designTokens.css",
+  "components/Login/Login.css",
+  "styles/app.css",
+  "styles/cpm-context.css",
+  "styles/cpm-evidence-layout.css",
+  "styles/cpm-evidence.css",
+  "styles/cpm-loop-summary.css",
+  "styles/cpm-responsive.css",
+  "styles/cpm-tables.css",
+  "styles/cpm.css",
+  "styles/fonts.css",
+  "styles/hmi-dialogs.css"
+ ],
+ "ruleCount": 2068,
+ "families": {
+  "cpm-pill": {
+   "rules": 11,
+   "files": [
+    "styles/cpm-evidence-layout.css",
+    "styles/cpm-evidence.css",
+    "styles/cpm-responsive.css",
+    "styles/cpm-tables.css",
+    "styles/cpm.css"
+   ],
+   "states": {
+    "selected": 1
+   },
+   "geometry": {
+    "min-width": [
+     "0"
+    ],
+    "max-width": [
+     "100%"
+    ],
+    "gap": [
+     "6px"
+    ],
+    "padding": [
+     "2px 10px"
+    ],
+    "border-radius": [
+     "999px"
+    ],
+    "font-size": [
+     "var(--cpm-text-small)"
+    ]
+   }
+  },
+  "cpm-facet": {
+   "rules": 2,
+   "files": [
+    "styles/cpm-loop-summary.css"
+   ],
+   "states": {},
+   "geometry": {}
+  },
+  "cpm-kpicard": {
+   "rules": 24,
+   "files": [
+    "styles/cpm-loop-summary.css"
+   ],
+   "states": {
+    "hover": 1,
+    "focusVisible": 1
+   },
+   "geometry": {
+    "gap": [
+     "2px"
+    ],
+    "height": [
+     "100%"
+    ],
+    "min-width": [
+     "0"
+    ],
+    "padding": [
+     "12px 14px"
+    ],
+    "border-radius": [
+     "10px"
+    ]
+   }
+  },
+  "cpm-kpi": {
+   "rules": 13,
+   "files": [
+    "styles/cpm-evidence-layout.css",
+    "styles/cpm-evidence.css",
+    "styles/cpm-responsive.css",
+    "styles/cpm.css"
+   ],
+   "states": {},
+   "geometry": {
+    "min-width": [
+     "0"
+    ],
+    "gap": [
+     "2px"
+    ],
+    "padding": [
+     "14px 16px"
+    ],
+    "border-radius": [
+     "8px"
+    ]
+   }
+  },
+  "cpm-surface": {
+   "rules": 1,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {},
+   "geometry": {
+    "border-radius": [
+     "8px"
+    ],
+    "padding": [
+     "16px"
+    ]
+   }
+  },
+  "cpm-panel-head": {
+   "rules": 7,
+   "files": [
+    "styles/cpm-evidence.css",
+    "styles/cpm-responsive.css",
+    "styles/cpm.css"
+   ],
+   "states": {},
+   "geometry": {
+    "gap": [
+     "12px"
+    ]
+   }
+  },
+  "cpm-kv": {
+   "rules": 18,
+   "files": [
+    "styles/cpm-evidence-layout.css",
+    "styles/cpm-evidence.css",
+    "styles/cpm-responsive.css",
+    "styles/cpm.css"
+   ],
+   "states": {},
+   "geometry": {
+    "min-width": [
+     "0"
+    ],
+    "gap": [
+     "2px",
+     "12px"
+    ],
+    "padding": [
+     "6px 0",
+     "0"
+    ]
+   }
+  },
+  "cpm-empty": {
+   "rules": 3,
+   "files": [
+    "styles/cpm-evidence-layout.css",
+    "styles/cpm.css"
+   ],
+   "states": {},
+   "geometry": {
+    "padding": [
+     "32px 16px"
+    ]
+   }
+  },
+  "cpm-skeleton": {
+   "rules": 7,
+   "files": [
+    "styles/cpm-evidence.css"
+   ],
+   "states": {},
+   "geometry": {
+    "min-height": [
+     "120px"
+    ],
+    "border-radius": [
+     "8px"
+    ]
+   }
+  },
+  "cpm-table": {
+   "rules": 6,
+   "files": [
+    "styles/cpm-evidence.css",
+    "styles/cpm-responsive.css"
+   ],
+   "states": {},
+   "geometry": {
+    "width": [
+     "100%"
+    ],
+    "font-size": [
+     "var(--cpm-text-small)"
+    ]
+   }
+  },
+  "cpm-matrix": {
+   "rules": 35,
+   "files": [
+    "styles/cpm-evidence-layout.css",
+    "styles/cpm.css"
+   ],
+   "states": {
+    "hover": 5,
+    "focusVisible": 2,
+    "selected": 4
+   },
+   "geometry": {
+    "width": [
+     "100%"
+    ],
+    "font-size": [
+     "var(--cpm-text-small)"
+    ]
+   }
+  },
+  "cpm-config-table": {
+   "rules": 15,
+   "files": [
+    "styles/cpm-evidence.css"
+   ],
+   "states": {
+    "hover": 1,
+    "focusVisible": 1
+   },
+   "geometry": {}
+  },
+  "cpm-signal-table": {
+   "rules": 3,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {},
+   "geometry": {
+    "width": [
+     "100%"
+    ],
+    "font-size": [
+     "var(--cpm-text-small)"
+    ]
+   }
+  },
+  "cpm-kpi-table": {
+   "rules": 12,
+   "files": [
+    "styles/cpm-loop-summary.css"
+   ],
+   "states": {},
+   "geometry": {
+    "width": [
+     "100%"
+    ]
+   }
+  },
+  "cpm-rbac": {
+   "rules": 2,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {},
+   "geometry": {}
+  },
+  "cpm-checks": {
+   "rules": 10,
+   "files": [
+    "styles/cpm-evidence-layout.css"
+   ],
+   "states": {},
+   "geometry": {}
+  },
+  "cpm-event-row": {
+   "rules": 14,
+   "files": [
+    "styles/cpm-tables.css",
+    "styles/cpm.css"
+   ],
+   "states": {
+    "hover": 2,
+    "focusVisible": 1,
+    "selected": 4
+   },
+   "geometry": {
+    "gap": [
+     "8px"
+    ],
+    "padding": [
+     "10px 12px"
+    ]
+   }
+  },
+  "cpm-queue-row": {
+   "rules": 9,
+   "files": [
+    "styles/cpm-loop-summary.css",
+    "styles/cpm.css"
+   ],
+   "states": {
+    "focusVisible": 1
+   },
+   "geometry": {
+    "gap": [
+     "4px"
+    ]
+   }
+  },
+  "cpm-attention": {
+   "rules": 15,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {
+    "hover": 2,
+    "focusVisible": 2,
+    "selected": 1
+   },
+   "geometry": {
+    "padding": [
+     "0"
+    ],
+    "gap": [
+     "2px"
+    ]
+   }
+  },
+  "cpm-row-click": {
+   "rules": 1,
+   "files": [
+    "styles/cpm-tables.css"
+   ],
+   "states": {},
+   "geometry": {}
+  },
+  "cpm-trail-row": {
+   "rules": 3,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {},
+   "geometry": {
+    "gap": [
+     "4px 12px"
+    ],
+    "padding": [
+     "4px 0"
+    ]
+   }
+  },
+  "cpm-ranked": {
+   "rules": 2,
+   "files": [
+    "styles/cpm-evidence.css"
+   ],
+   "states": {},
+   "geometry": {
+    "gap": [
+     "4px"
+    ]
+   }
+  },
+  "cpm-select": {
+   "rules": 2,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {
+    "focus": 1
+   },
+   "geometry": {
+    "border-radius": [
+     "6px"
+    ],
+    "padding": [
+     "8px 10px"
+    ]
+   }
+  },
+  "cpm-input": {
+   "rules": 3,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {
+    "focus": 1,
+    "invalid": 1
+   },
+   "geometry": {
+    "border-radius": [
+     "6px"
+    ],
+    "padding": [
+     "8px 10px"
+    ]
+   }
+  },
+  "cpm-textarea": {
+   "rules": 4,
+   "files": [
+    "styles/cpm-evidence-layout.css",
+    "styles/cpm.css"
+   ],
+   "states": {
+    "focus": 1
+   },
+   "geometry": {
+    "width": [
+     "100%"
+    ],
+    "max-width": [
+     "72ch"
+    ],
+    "border-radius": [
+     "6px"
+    ],
+    "padding": [
+     "8px 10px"
+    ]
+   }
+  },
+  "ob-input": {
+   "rules": 16,
+   "files": [
+    "components/Designer/Designer.css",
+    "styles/app.css",
+    "styles/hmi-dialogs.css"
+   ],
+   "states": {
+    "hover": 2,
+    "focus": 5
+   },
+   "geometry": {
+    "width": [
+     "180px",
+     "100%"
+    ],
+    "border-radius": [
+     "var(--corner-radius, 4px)",
+     "var(--hmi-radius-sm) !important"
+    ],
+    "padding": [
+     "var(--spacing-2, 8px) var(--spacing-3, 12px)",
+     "9px 13px !important"
+    ],
+    "font-size": [
+     "13px"
+    ]
+   }
+  },
+  "cpm-field": {
+   "rules": 4,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {},
+   "geometry": {
+    "gap": [
+     "4px"
+    ],
+    "min-width": [
+     "200px"
+    ]
+   }
+  },
+  "cpm-check": {
+   "rules": 1,
+   "files": [
+    "styles/cpm-evidence-layout.css"
+   ],
+   "states": {},
+   "geometry": {
+    "gap": [
+     "6px"
+    ],
+    "font-size": [
+     "var(--cpm-text-small)"
+    ],
+    "max-width": [
+     "60ch"
+    ]
+   }
+  },
+  "cpm-sort-head": {
+   "rules": 6,
+   "files": [
+    "styles/cpm-tables.css"
+   ],
+   "states": {
+    "hover": 1,
+    "focusVisible": 1,
+    "selected": 1
+   },
+   "geometry": {
+    "gap": [
+     "4px"
+    ],
+    "padding": [
+     "2px 4px"
+    ],
+    "border-radius": [
+     "4px"
+    ]
+   }
+  },
+  "cpm-inspector": {
+   "rules": 15,
+   "files": [
+    "styles/cpm-context.css",
+    "styles/cpm.css"
+   ],
+   "states": {},
+   "geometry": {
+    "border-radius": [
+     "8px"
+    ],
+    "max-height": [
+     "min(78vh, 900px)"
+    ]
+   }
+  },
+  "cpm-modal": {
+   "rules": 2,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {},
+   "geometry": {
+    "border-radius": [
+     "10px"
+    ],
+    "width": [
+     "min(860px, 92vw)"
+    ],
+    "max-height": [
+     "88vh"
+    ],
+    "padding": [
+     "20px"
+    ]
+   }
+  },
+  "cpm-modal-backdrop": {
+   "rules": 1,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {},
+   "geometry": {}
+  },
+  "dialog-overlay": {
+   "rules": 2,
+   "files": [
+    "styles/app.css",
+    "styles/hmi-dialogs.css"
+   ],
+   "states": {},
+   "geometry": {
+    "padding": [
+     "20px"
+    ]
+   }
+  },
+  "dialog-content": {
+   "rules": 15,
+   "files": [
+    "styles/app.css",
+    "styles/hmi-dialogs.css"
+   ],
+   "states": {
+    "hover": 1,
+    "focus": 3
+   },
+   "geometry": {
+    "min-width": [
+     "400px"
+    ],
+    "max-width": [
+     "92vw"
+    ],
+    "max-height": [
+     "90vh"
+    ],
+    "border-radius": [
+     "var(--hmi-radius)"
+    ]
+   }
+  },
+  "dialog-header": {
+   "rules": 17,
+   "files": [
+    "styles/app.css",
+    "styles/hmi-dialogs.css"
+   ],
+   "states": {},
+   "geometry": {
+    "padding": [
+     "20px 22px 18px"
+    ]
+   }
+  },
+  "dialog-footer": {
+   "rules": 6,
+   "files": [
+    "styles/app.css",
+    "styles/hmi-dialogs.css"
+   ],
+   "states": {
+    "hover": 2,
+    "focus": 1
+   },
+   "geometry": {
+    "padding": [
+     "14px 22px"
+    ],
+    "gap": [
+     "10px"
+    ]
+   }
+  },
+  "form-field": {
+   "rules": 13,
+   "files": [
+    "styles/app.css",
+    "styles/hmi-dialogs.css"
+   ],
+   "states": {},
+   "geometry": {}
+  },
+  "cmdk": {
+   "rules": 12,
+   "files": [
+    "styles/app.css"
+   ],
+   "states": {
+    "selected": 1
+   },
+   "geometry": {
+    "width": [
+     "min(560px, calc(100vw - 32px))"
+    ],
+    "border-radius": [
+     "10px"
+    ]
+   }
+  },
+  "nav-item": {
+   "rules": 6,
+   "files": [
+    "styles/app.css"
+   ],
+   "states": {
+    "hover": 1,
+    "selected": 1
+   },
+   "geometry": {
+    "gap": [
+     "var(--spacing-3, 12px)"
+    ],
+    "padding": [
+     "var(--spacing-2, 8px) var(--spacing-3, 12px)"
+    ],
+    "border-radius": [
+     "var(--corner-radius, 4px)"
+    ],
+    "font-size": [
+     "13px"
+    ],
+    "width": [
+     "100%"
+    ]
+   }
+  },
+  "nav-section": {
+   "rules": 6,
+   "files": [
+    "styles/app.css"
+   ],
+   "states": {
+    "hover": 1
+   },
+   "geometry": {
+    "padding": [
+     "var(--spacing-2, 8px)"
+    ]
+   }
+  },
+  "cpm-gate-chip": {
+   "rules": 9,
+   "files": [
+    "styles/cpm-evidence-layout.css",
+    "styles/cpm-evidence.css"
+   ],
+   "states": {
+    "hover": 1,
+    "focusVisible": 1,
+    "disabled": 1,
+    "selected": 2
+   },
+   "geometry": {
+    "gap": [
+     "6px"
+    ],
+    "min-height": [
+     "32px"
+    ],
+    "padding": [
+     "4px 10px"
+    ],
+    "border-radius": [
+     "6px"
+    ]
+   }
+  },
+  "cpm-gate-strip": {
+   "rules": 6,
+   "files": [
+    "styles/cpm-evidence-layout.css",
+    "styles/cpm-evidence.css"
+   ],
+   "states": {},
+   "geometry": {
+    "gap": [
+     "8px 20px"
+    ],
+    "padding": [
+     "4px 0"
+    ]
+   }
+  },
+  "cpm-wizard-step": {
+   "rules": 3,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {
+    "selected": 1
+   },
+   "geometry": {
+    "gap": [
+     "6px"
+    ],
+    "padding": [
+     "6px 12px"
+    ],
+    "border-radius": [
+     "999px"
+    ],
+    "font-size": [
+     "var(--cpm-text-small)"
+    ]
+   }
+  },
+  "cpm-combo": {
+   "rules": 11,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {
+    "selected": 2
+   },
+   "geometry": {
+    "min-width": [
+     "300px"
+    ]
+   }
+  },
+  "cpm-tabs": {
+   "rules": 1,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {},
+   "geometry": {
+    "max-width": [
+     "100%"
+    ]
+   }
+  },
+  "cpm-link": {
+   "rules": 2,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {
+    "hover": 1
+   },
+   "geometry": {}
+  },
+  "cpm-help-toggle": {
+   "rules": 5,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {
+    "hover": 1,
+    "focusVisible": 1
+   },
+   "geometry": {
+    "gap": [
+     "6px"
+    ],
+    "padding": [
+     "4px 10px"
+    ],
+    "border-radius": [
+     "999px"
+    ],
+    "font-size": [
+     "var(--cpm-text-small)"
+    ]
+   }
+  },
+  "cpm-reasoned": {
+   "rules": 2,
+   "files": [
+    "styles/cpm-evidence-layout.css"
+   ],
+   "states": {},
+   "geometry": {
+    "gap": [
+     "2px"
+    ],
+    "max-width": [
+     "100%"
+    ]
+   }
+  },
+  "chart-zoombar": {
+   "rules": 2,
+   "files": [
+    "styles/app.css"
+   ],
+   "states": {},
+   "geometry": {
+    "gap": [
+     "2px 8px"
+    ]
+   }
+  },
+  "cpm-range-bar": {
+   "rules": 4,
+   "files": [
+    "styles/cpm-loop-summary.css"
+   ],
+   "states": {},
+   "geometry": {
+    "gap": [
+     "8px 12px"
+    ]
+   }
+  },
+  "cpm-hist-stepper": {
+   "rules": 4,
+   "files": [
+    "styles/cpm-evidence-layout.css",
+    "styles/cpm.css"
+   ],
+   "states": {},
+   "geometry": {
+    "max-width": [
+     "100%"
+    ],
+    "min-width": [
+     "0"
+    ],
+    "gap": [
+     "2px"
+    ],
+    "padding": [
+     "0 4px"
+    ],
+    "border-radius": [
+     "8px"
+    ]
+   }
+  },
+  "trend-core__rbtn": {
+   "rules": 3,
+   "files": [
+    "components/Designer/Designer.css"
+   ],
+   "states": {
+    "disabled": 1
+   },
+   "geometry": {
+    "font-size": [
+     "11px"
+    ],
+    "padding": [
+     "4px 8px"
+    ],
+    "border-radius": [
+     "5px"
+    ]
+   }
+  },
+  "cpm-pen-chip": {
+   "rules": 12,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {
+    "hover": 1,
+    "focusVisible": 1,
+    "selected": 2
+   },
+   "geometry": {
+    "gap": [
+     "7px"
+    ],
+    "padding": [
+     "5px 12px"
+    ],
+    "border-radius": [
+     "999px"
+    ],
+    "font-size": [
+     "var(--cpm-text-small)"
+    ],
+    "min-height": [
+     "32px"
+    ]
+   }
+  },
+  "app-topbar": {
+   "rules": 10,
+   "files": [
+    "styles/app.css"
+   ],
+   "states": {},
+   "geometry": {}
+  },
+  "cpm-crumbs": {
+   "rules": 3,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {},
+   "geometry": {
+    "gap": [
+     "6px"
+    ],
+    "font-size": [
+     "var(--cpm-text-caption)"
+    ]
+   }
+  },
+  "cpm-rail": {
+   "rules": 4,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {},
+   "geometry": {
+    "gap": [
+     "8px"
+    ],
+    "padding": [
+     "12px"
+    ]
+   }
+  },
+  "cpm-config-gate": {
+   "rules": 5,
+   "files": [
+    "styles/cpm-evidence.css"
+   ],
+   "states": {
+    "hover": 1,
+    "selected": 2
+   },
+   "geometry": {
+    "padding": [
+     "4px 10px"
+    ],
+    "border-radius": [
+     "999px"
+    ]
+   }
+  },
+  "cpm-config-bundle": {
+   "rules": 3,
+   "files": [
+    "styles/cpm-evidence.css"
+   ],
+   "states": {
+    "hover": 1,
+    "selected": 1
+   },
+   "geometry": {
+    "width": [
+     "100%"
+    ],
+    "gap": [
+     "4px"
+    ],
+    "padding": [
+     "8px 10px"
+    ],
+    "border-radius": [
+     "6px"
+    ]
+   }
+  },
+  "cpm-gate-outcome": {
+   "rules": 2,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {
+    "focusVisible": 1
+   },
+   "geometry": {
+    "padding": [
+     "0"
+    ]
+   }
+  },
+  "cpm-receipt": {
+   "rules": 0,
+   "files": [],
+   "states": {},
+   "geometry": {}
+  },
+  "cpm-explain": {
+   "rules": 18,
+   "files": [
+    "styles/cpm-context.css",
+    "styles/cpm-evidence-layout.css",
+    "styles/cpm-evidence.css"
+   ],
+   "states": {},
+   "geometry": {
+    "max-height": [
+     "calc(100vh - 32px - var(--cpm-context-h, 0px))",
+     "none",
+     "calc(100vh - 32px)"
+    ],
+    "gap": [
+     "12px"
+    ],
+    "min-width": [
+     "0"
+    ]
+   }
+  },
+  "cpm-context": {
+   "rules": 0,
+   "files": [],
+   "states": {},
+   "geometry": {}
+  },
+  "cpm-loop-context": {
+   "rules": 4,
+   "files": [
+    "styles/cpm-context.css"
+   ],
+   "states": {},
+   "geometry": {
+    "gap": [
+     "4px 24px"
+    ],
+    "padding": [
+     "8px calc(16px + var(--spacing-4, 16px))"
+    ],
+    "font-size": [
+     "var(--cpm-text-small)"
+    ]
+   }
+  },
+  "cpm-tree": {
+   "rules": 10,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {
+    "hover": 1,
+    "focusVisible": 1
+   },
+   "geometry": {
+    "gap": [
+     "2px"
+    ],
+    "max-height": [
+     "62vh"
+    ]
+   }
+  },
+  "cpm-matrix-toolbar": {
+   "rules": 5,
+   "files": [
+    "styles/cpm-responsive.css",
+    "styles/cpm.css"
+   ],
+   "states": {},
+   "geometry": {
+    "min-width": [
+     "0"
+    ],
+    "max-width": [
+     "100%"
+    ],
+    "gap": [
+     "12px"
+    ]
+   }
+  },
+  "cpm-matrix-pager": {
+   "rules": 1,
+   "files": [
+    "styles/cpm.css"
+   ],
+   "states": {},
+   "geometry": {}
+  },
+  "cpm-copyable": {
+   "rules": 0,
+   "files": [],
+   "states": {},
+   "geometry": {}
+  },
+  "cpm-id": {
+   "rules": 0,
+   "files": [],
+   "states": {},
+   "geometry": {}
+  }
+ },
+ "globalRules": [
+  {
+   "file": "components/Designer/Designer.css",
+   "selector": ".display-designer__zoom-controls button:hover",
+   "decls": [
+    "background: var(--designer-border)"
+   ]
+  },
+  {
+   "file": "components/Designer/Designer.css",
+   "selector": ".display-designer__history button:disabled",
+   "decls": [
+    "opacity: 0.4",
+    "cursor: not-allowed"
+   ]
+  },
+  {
+   "file": "components/Designer/Designer.css",
+   "selector": ".symbol-palette__search input:focus",
+   "decls": [
+    "outline: none",
+    "border-color: var(--designer-accent)"
+   ]
+  },
+  {
+   "file": "components/Designer/Designer.css",
+   "selector": ".asset-browser__search input:focus",
+   "decls": [
+    "outline: none",
+    "border-color: var(--designer-accent)"
+   ]
+  },
+  {
+   "file": "components/Designer/Designer.css",
+   "selector": ".ft__head button:hover, .ft__actions button:hover",
+   "decls": [
+    "background: var(--container-section-color)",
+    "color: var(--element-active-color)"
+   ]
+  },
+  {
+   "file": "components/Designer/Designer.css",
+   "selector": ".import-save__field input:focus-visible",
+   "decls": [
+    "outline: none",
+    "border-color: var(--indent-focused-border-color, var(--border-focus-color))"
+   ]
+  },
+  {
+   "file": "components/Designer/Designer.css",
+   "selector": ".display-designer__ops button:disabled",
+   "decls": [
+    "opacity: .35",
+    "cursor: default"
+   ]
+  }
+ ],
+ "partRules": [
+  {
+   "file": "styles/hmi-dialogs.css",
+   "selector": ".dialog-footer obc-button[variant=\"raised\"], .dialog-footer obc-button[variant=\"raised\"]::part(button)"
+  },
+  {
+   "file": "styles/hmi-dialogs.css",
+   "selector": ".dialog-footer obc-button[variant=\"raised\"]:hover::part(button), .dialog-footer obc-button[variant=\"raised\"]:focus::part(button)"
+  },
+  {
+   "file": "styles/hmi-dialogs.css",
+   "selector": ".dialog-footer obc-button[variant=\"flat\"], .dialog-footer obc-button[variant=\"flat\"]::part(button)"
+  },
+  {
+   "file": "styles/hmi-dialogs.css",
+   "selector": ".dialog-footer obc-button[variant=\"flat\"]:hover::part(button)"
+  },
+  {
+   "file": "styles/hmi-dialogs.css",
+   "selector": ".detail-panel__actions obc-button[variant=\"raised\"], .detail-panel__actions obc-button[variant=\"raised\"]::part(button)"
+  },
+  {
+   "file": "styles/hmi-dialogs.css",
+   "selector": ".detail-panel__actions obc-button[variant=\"raised\"]:hover::part(button)"
+  },
+  {
+   "file": "styles/hmi-dialogs.css",
+   "selector": ".detail-panel__actions obc-button[variant=\"flat\"], .detail-panel__actions obc-button[variant=\"flat\"]::part(button)"
+  },
+  {
+   "file": "styles/hmi-dialogs.css",
+   "selector": ".detail-panel__actions obc-button[variant=\"flat\"]:hover::part(button)"
+  },
+  {
+   "file": "styles/hmi-dialogs.css",
+   "selector": ".detail-panel__actions obc-button[disabled]::part(button)"
+  },
+  {
+   "file": "styles/hmi-dialogs.css",
+   "selector": ".detail-panel__header obc-button, .detail-panel__header obc-button::part(button)"
+  },
+  {
+   "file": "styles/hmi-dialogs.css",
+   "selector": ".detail-panel__header obc-button:hover::part(button)"
+  }
+ ]
+}

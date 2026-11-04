@@ -1,0 +1,249 @@
+{
+ "surfaces": 48,
+ "overlays": 31,
+ "totals": {
+  "Keep": 4463,
+  "Shorten": 132,
+  "Move to help": 74,
+  "Remove": 11,
+  "Internal": 223
+ },
+ "dispositions": {
+  "Translate": 86,
+  "Collapse into Technical details": 24,
+  "Remove from operator pages": 1
+ },
+ "words": 13362,
+ "projected": 11024,
+ "routeWords": 6359,
+ "routeProjected": 5156,
+ "titleWords": 11215,
+ "violations": [],
+ "internalOnOperatorSurfaces": {
+  "R-02": 1,
+  "V-02": 1,
+  "R-03": 1,
+  "R-04": 3,
+  "V-03": 2,
+  "V-04": 2,
+  "V-05": 2,
+  "V-06": 2,
+  "R-14": 1,
+  "V-11": 3,
+  "V-17": 3,
+  "V-23": 3,
+  "V-24": 5
+ },
+ "top": [
+  {
+   "text": "Check that the loop’s signals are arriving: the Window Inspector show…",
+   "cls": "Shorten",
+   "saved": 50,
+   "n": 5,
+   "surfaces": 5
+  },
+  {
+   "text": "Ordered by priority (loop criticality × finding severity), then time …",
+   "cls": "Shorten",
+   "saved": 54,
+   "n": 2,
+   "surfaces": 2
+  },
+  {
+   "text": "One loop's current condition, trend and gate results.",
+   "cls": "Move to help",
+   "saved": 40,
+   "n": 5,
+   "surfaces": 5
+  },
+  {
+   "text": "Each monitored loop counted once from its newest 12h result, at most …",
+   "cls": "Shorten",
+   "saved": 38,
+   "n": 2,
+   "surfaces": 2
+  },
+  {
+   "text": "No loop has a current confirmed or suspected finding. The operating p…",
+   "cls": "Shorten",
+   "saved": 32,
+   "n": 2,
+   "surfaces": 2
+  },
+  {
+   "text": "A loop is only as good as its signal mappings: on a loop that has a v…",
+   "cls": "Move to help",
+   "saved": 94,
+   "n": 2,
+   "surfaces": 2
+  },
+  {
+   "text": "236 valve position expected but not mapped · map the VP tag so non-fo…",
+   "cls": "Shorten",
+   "saved": 28,
+   "n": 2,
+   "surfaces": 2
+  },
+  {
+   "text": "No loop has a current finding. Verdicts appear once a loop completes …",
+   "cls": "Shorten",
+   "saved": 24,
+   "n": 2,
+   "surfaces": 2
+  },
+  {
+   "text": "Select a gate to read its verdict, window and evidence here; the Evid…",
+   "cls": "Shorten",
+   "saved": 21,
+   "n": 1,
+   "surfaces": 1
+  },
+  {
+   "text": "241 peer links expected but missing · interaction analysis unavailabl…",
+   "cls": "Shorten",
+   "saved": 18,
+   "n": 2,
+   "surfaces": 2
+  },
+  {
+   "text": "The headline of control-loop monitoring: loops judged with no fault, …",
+   "cls": "Move to help",
+   "saved": 57,
+   "n": 1,
+   "surfaces": 1
+  },
+  {
+   "text": "Classification derived from the tag type; declare it in the registry …",
+   "cls": "Move to help",
+   "saved": 15,
+   "n": 1,
+   "surfaces": 1
+  },
+  {
+   "text": "Which loops need attention first, and why.",
+   "cls": "Move to help",
+   "saved": 14,
+   "n": 2,
+   "surfaces": 2
+  },
+  {
+   "text": "Loop summary · latest 12h evaluated window",
+   "cls": "Shorten",
+   "saved": 12,
+   "n": 4,
+   "surfaces": 4
+  },
+  {
+   "text": "Add individual loops or validate a bulk registry import. Onboarded lo…",
+   "cls": "Move to help",
+   "saved": 42,
+   "n": 2,
+   "surfaces": 2
+  },
+  {
+   "text": "Pick a loop in the priority queue to see its live signals and trend h…",
+   "cls": "Shorten",
+   "saved": 12,
+   "n": 1,
+   "surfaces": 1
+  },
+  {
+   "text": "Between 0 % and 0 % over the days with data. Click a day to list the …",
+   "cls": "Shorten",
+   "saved": 32,
+   "n": 2,
+   "surfaces": 2
+  },
+  {
+   "text": "CPLM Flink jobs running",
+   "cls": "Internal",
+   "saved": 8,
+   "n": 2,
+   "surfaces": 2
+  },
+  {
+   "text": "The loops behind one Overview number, and the value that put each one…",
+   "cls": "Move to help",
+   "saved": 28,
+   "n": 2,
+   "surfaces": 2
+  },
+  {
+   "text": "Not measured — not in this window's result (written by an engine vers…",
+   "cls": "Shorten",
+   "saved": 77,
+   "n": 7,
+   "surfaces": 1
+  },
+  {
+   "text": "The shaded band is the evaluated 12h window behind the diagnosis.",
+   "cls": "Shorten",
+   "saved": 7,
+   "n": 1,
+   "surfaces": 1
+  },
+  {
+   "text": "Investigate diagnosis episodes with operating context and a traceable…",
+   "cls": "Move to help",
+   "saved": 32,
+   "n": 1,
+   "surfaces": 1
+  },
+  {
+   "text": "The live path keeps the arrays for windows with a finding, at most on…",
+   "cls": "Move to help",
+   "saved": 30,
+   "n": 1,
+   "surfaces": 1
+  },
+  {
+   "text": "A note stays on the loop. Saving it never acknowledges an episode unl…",
+   "cls": "Shorten",
+   "saved": 38,
+   "n": 2,
+   "surfaces": 2
+  },
+  {
+   "text": "User management, plant model, data sources, and audit",
+   "cls": "Remove",
+   "saved": 56,
+   "n": 7,
+   "surfaces": 7
+  },
+  {
+   "text": "The count for this KPI is 0 in this scope — nothing to verify here. B…",
+   "cls": "Shorten",
+   "saved": 18,
+   "n": 1,
+   "surfaces": 1
+  },
+  {
+   "text": "count(no fault identified ∧ AUTO ≥ normal-mode limit ∧ time at OP lim…",
+   "cls": "Move to help",
+   "saved": 17,
+   "n": 1,
+   "surfaces": 1
+  },
+  {
+   "text": "Observations, hypotheses and the leading hypothesis by ranked selecti…",
+   "cls": "Internal",
+   "saved": 25,
+   "n": 1,
+   "surfaces": 1
+  },
+  {
+   "text": "Verdicts fuse on 12h / 24h rolling windows (recomputed every 15 min) …",
+   "cls": "Move to help",
+   "saved": 46,
+   "n": 2,
+   "surfaces": 2
+  },
+  {
+   "text": "17 gates (17 observed) · CplmGateFusionEngine (Flink)",
+   "cls": "Internal",
+   "saved": 4,
+   "n": 1,
+   "surfaces": 1
+  }
+ ]
+}

@@ -1,0 +1,1004 @@
+{
+ "generatedBy": "docs/theme/tools/component-fit-render.mjs",
+ "byRating": {
+  "Adapter-fit": {
+   "types": 19,
+   "uses": 186
+  },
+  "Extend": {
+   "types": 61,
+   "uses": 1456
+  },
+  "Replace": {
+   "types": 14,
+   "uses": 56
+  }
+ },
+ "rated": 94,
+ "cd1": {
+  "jsxElements": 4669,
+  "openBridgeComponents": 264,
+  "openBridgeTypes": 16,
+  "icons": 39,
+  "iconTypes": 19,
+  "shareOfJsxPct": 6.5,
+  "obcButtonShareOfObPct": 80.7,
+  "nativeControls": 200,
+  "nativeTables": 38,
+  "interactiveOb": 260,
+  "interactiveShareOfControlsPct": 56.5,
+  "hard": {
+   "uses": 37,
+   "files": 15,
+   "ids": [
+    "K-03",
+    "K-05",
+    "K-06",
+    "K-09",
+    "K-10"
+   ]
+  },
+  "ring": {
+   "uses": 9,
+   "files": 6,
+   "ids": [
+    "K-04",
+    "K-07",
+    "K-08",
+    "K-11"
+   ]
+  },
+  "both": {
+   "uses": 46,
+   "files": 19
+  },
+  "whole": {
+   "uses": 303,
+   "files": 102
+  },
+  "keptAfterB2": 218
+ },
+ "coverage": "Rated rows cover 98 inventory keys. The other 189 of 264 custom types are not rated: they are route guards, page bodies, gate views, tab panels and local helpers assembled from rated parts. The largest are RequirePermission 32, RequireKinds 17, Row 10, RequireAuth 9, Row 6, SettingField 5. All 264 are listed with their use sites in [data/component-inventory.json](data/component-inventory.json).",
+ "rows": [
+  {
+   "id": "K-01",
+   "name": "ObcButton",
+   "family": "OpenBridge",
+   "uses": 213,
+   "files": 83,
+   "routes": "19 routes + shell",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-02",
+   "name": "ObcIconButton",
+   "family": "OpenBridge",
+   "uses": 1,
+   "files": 1,
+   "routes": "16 routes",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-03",
+   "name": "ObcToggleButtonGroup + Option (segmented control)",
+   "family": "OpenBridge",
+   "uses": 28,
+   "files": 9,
+   "routes": "10 routes",
+   "rating": "Replace",
+   "band": "hard"
+  },
+  {
+   "id": "K-04",
+   "name": "ObcTextInputField",
+   "family": "OpenBridge",
+   "uses": 5,
+   "files": 3,
+   "routes": "/admin/*, /cpm/explorer, /cpm/performance",
+   "rating": "Replace",
+   "band": "ring"
+  },
+  {
+   "id": "K-05",
+   "name": "ObcTabRow",
+   "family": "OpenBridge",
+   "uses": 4,
+   "files": 4,
+   "routes": "4 routes",
+   "rating": "Replace",
+   "band": "hard"
+  },
+  {
+   "id": "K-06",
+   "name": "ObcFilterChip",
+   "family": "OpenBridge",
+   "uses": 3,
+   "files": 3,
+   "routes": "/cpm/investigation, /cpm/performance",
+   "rating": "Replace",
+   "band": "hard"
+  },
+  {
+   "id": "K-07",
+   "name": "ObcAccordionItem",
+   "family": "OpenBridge",
+   "uses": 2,
+   "files": 2,
+   "routes": "/cpm/evidence, /cpm/explorer, /cpm/investigation",
+   "rating": "Replace",
+   "band": "ring"
+  },
+  {
+   "id": "K-08",
+   "name": "ObcCheckbox",
+   "family": "OpenBridge",
+   "uses": 1,
+   "files": 1,
+   "routes": "/admin/*",
+   "rating": "Replace",
+   "band": "ring"
+  },
+  {
+   "id": "K-09",
+   "name": "ObcDropdownButton",
+   "family": "OpenBridge",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm/performance",
+   "rating": "Replace",
+   "band": "hard"
+  },
+  {
+   "id": "K-10",
+   "name": "ObcPagination",
+   "family": "OpenBridge",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm/performance",
+   "rating": "Replace",
+   "band": "hard"
+  },
+  {
+   "id": "K-11",
+   "name": "ObcInputChip",
+   "family": "OpenBridge",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm/events",
+   "rating": "Replace",
+   "band": "ring"
+  },
+  {
+   "id": "K-12",
+   "name": "ObcProgressBar",
+   "family": "OpenBridge",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm/registry",
+   "rating": "Adapter-fit",
+   "band": null
+  },
+  {
+   "id": "K-13",
+   "name": "ObcStatusIndicator",
+   "family": "OpenBridge",
+   "uses": 1,
+   "files": 1,
+   "routes": "/login",
+   "rating": "Adapter-fit",
+   "band": null
+  },
+  {
+   "id": "K-14",
+   "name": "ObcAlertIcon",
+   "family": "OpenBridge",
+   "uses": 1,
+   "files": 1,
+   "routes": "(shell)",
+   "rating": "Adapter-fit",
+   "band": null
+  },
+  {
+   "id": "K-15",
+   "name": "ObcValveAnalogTwoWayIcon",
+   "family": "OpenBridge",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm, /cpm/explorer, /cpm/kpi",
+   "rating": "Adapter-fit",
+   "band": null
+  },
+  {
+   "id": "K-16",
+   "name": "Obi icons",
+   "family": "OpenBridge",
+   "uses": 39,
+   "files": 19,
+   "routes": "17 routes + shell",
+   "rating": "Adapter-fit",
+   "band": null
+  },
+  {
+   "id": "K-17",
+   "name": "Native `<button>`",
+   "family": "Native HTML",
+   "uses": 65,
+   "files": 42,
+   "routes": "18 routes + shell",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-18",
+   "name": "Native `<select>`",
+   "family": "Native HTML",
+   "uses": 39,
+   "files": 22,
+   "routes": "16 routes",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-19",
+   "name": "Native `<input>`",
+   "family": "Native HTML",
+   "uses": 89,
+   "files": 40,
+   "routes": "18 routes + shell",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-20",
+   "name": "Native `<textarea>`",
+   "family": "Native HTML",
+   "uses": 7,
+   "files": 7,
+   "routes": "7 routes",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-21",
+   "name": "Native `<table>`",
+   "family": "Native HTML",
+   "uses": 38,
+   "files": 30,
+   "routes": "14 routes",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-22",
+   "name": "Native `<details>`",
+   "family": "Native HTML",
+   "uses": 6,
+   "files": 6,
+   "routes": "7 routes",
+   "rating": "Adapter-fit",
+   "band": null
+  },
+  {
+   "id": "K-23",
+   "name": "Field label `.cpm-field`",
+   "family": "Native HTML",
+   "uses": 57,
+   "files": null,
+   "routes": "via host",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-24",
+   "name": "Links (`Link`)",
+   "family": "Native HTML",
+   "uses": 16,
+   "files": 13,
+   "routes": "17 routes",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-25",
+   "name": "TonePill",
+   "family": "CPA custom",
+   "uses": 169,
+   "files": 74,
+   "routes": "16 routes",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-26",
+   "name": "FacetPill",
+   "family": "CPA custom",
+   "uses": 5,
+   "files": 4,
+   "routes": "/cpm, /cpm/explorer",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-27",
+   "name": "Pill (Admin)",
+   "family": "CPA custom",
+   "uses": 5,
+   "files": 2,
+   "routes": "/admin/*",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-28",
+   "name": "Ne107Chip",
+   "family": "CPA custom",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm/explorer, /cpm/historical, /cpm/investigation",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-29",
+   "name": "CodeLabel",
+   "family": "CPA custom",
+   "uses": 22,
+   "files": 5,
+   "routes": "5 routes",
+   "rating": "Adapter-fit",
+   "band": null
+  },
+  {
+   "id": "K-30",
+   "name": "KvRow",
+   "family": "CPA custom",
+   "uses": 206,
+   "files": 43,
+   "routes": "15 routes",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-31",
+   "name": "KpiCard",
+   "family": "CPA custom",
+   "uses": 7,
+   "files": 3,
+   "routes": "/cpm, /cpm/explorer, /cpm/kpi",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-32",
+   "name": "KpiTile and local tiles",
+   "family": "CPA custom",
+   "uses": 52,
+   "files": 12,
+   "routes": "9 routes",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-33",
+   "name": "MetricValue",
+   "family": "CPA custom",
+   "uses": 9,
+   "files": 4,
+   "routes": "/cpm/explorer, /cpm/investigation, /cpm/windows",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-34",
+   "name": "Panel: `.cpm-surface` + PanelHead",
+   "family": "CPA custom",
+   "uses": 132,
+   "files": 69,
+   "routes": "16 routes",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-35",
+   "name": "WorkspaceHeader",
+   "family": "CPA custom",
+   "uses": 18,
+   "files": 17,
+   "routes": "16 routes",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-36",
+   "name": "EmptyState",
+   "family": "CPA custom",
+   "uses": 112,
+   "files": 52,
+   "routes": "16 routes",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-37",
+   "name": "QueryError",
+   "family": "CPA custom",
+   "uses": 57,
+   "files": 37,
+   "routes": "16 routes",
+   "rating": "Adapter-fit",
+   "band": null
+  },
+  {
+   "id": "K-38",
+   "name": "GateResultStatePanel",
+   "family": "CPA custom",
+   "uses": 4,
+   "files": 4,
+   "routes": "/cpm/evidence, /cpm/explorer, /cpm/response",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-39",
+   "name": "Skeleton",
+   "family": "CPA custom",
+   "uses": 18,
+   "files": 4,
+   "routes": "/cpm/evidence, /cpm/explorer, /cpm/response",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-40",
+   "name": "ReasonedButton",
+   "family": "CPA custom",
+   "uses": 19,
+   "files": 16,
+   "routes": "11 routes",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-41",
+   "name": "CpmIconButton",
+   "family": "CPA custom",
+   "uses": 19,
+   "files": 9,
+   "routes": "13 routes",
+   "rating": "Adapter-fit",
+   "band": null
+  },
+  {
+   "id": "K-42",
+   "name": "Modal",
+   "family": "CPA custom",
+   "uses": 8,
+   "files": 7,
+   "routes": "/admin/* + shell",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-43",
+   "name": "FormField",
+   "family": "CPA custom",
+   "uses": 17,
+   "files": 4,
+   "routes": "/admin/* + shell",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-44",
+   "name": "Modal drawers (`.cpm-inspector--modal`)",
+   "family": "CPA custom",
+   "uses": 4,
+   "files": 3,
+   "routes": "/cpm/calculations, /cpm, /cpm/performance",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-45",
+   "name": "Dialogs (`.cpm-modal`)",
+   "family": "CPA custom",
+   "uses": 4,
+   "files": 2,
+   "routes": "/cpm/registry, /cpm/response",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-46",
+   "name": "Docked side panels",
+   "family": "CPA custom",
+   "uses": 5,
+   "files": null,
+   "routes": "via host",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-47",
+   "name": "EffectiveConfigDrawer",
+   "family": "CPA custom",
+   "uses": 3,
+   "files": 3,
+   "routes": "/cpm/evidence, /cpm/explorer, /cpm/registry",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-48",
+   "name": "CommandPalette",
+   "family": "CPA custom",
+   "uses": 1,
+   "files": 1,
+   "routes": "(shell)",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-49",
+   "name": "ListPager",
+   "family": "CPA custom",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm/kpi",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-50",
+   "name": "SortHeader",
+   "family": "CPA custom",
+   "uses": 3,
+   "files": 2,
+   "routes": "/cpm/calculations, /cpm/events",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-51",
+   "name": "GateMatrix",
+   "family": "CPA custom",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm/performance",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-52",
+   "name": "GateMatrixChecks",
+   "family": "CPA custom",
+   "uses": 3,
+   "files": 2,
+   "routes": "/cpm/performance",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-53",
+   "name": "PriorityQueue rows",
+   "family": "CPA custom",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm",
+   "rating": "Replace",
+   "band": null
+  },
+  {
+   "id": "K-54",
+   "name": "AttentionList rows",
+   "family": "CPA custom",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm/performance",
+   "rating": "Replace",
+   "band": null
+  },
+  {
+   "id": "K-55",
+   "name": "Other record lists (6 sites)",
+   "family": "CPA custom",
+   "uses": 6,
+   "files": 6,
+   "routes": "/cpm, /cpm/calculations, /cpm/events, /cpm/governance, /cpm/windows, /cpm/registry",
+   "rating": "Replace",
+   "band": null
+  },
+  {
+   "id": "K-56",
+   "name": "LoopCombobox",
+   "family": "CPA custom",
+   "uses": 8,
+   "files": 8,
+   "routes": "9 routes",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-57",
+   "name": "PlantScopeFilter",
+   "family": "CPA custom",
+   "uses": 14,
+   "files": 14,
+   "routes": "15 routes",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-58",
+   "name": "LoopTree",
+   "family": "CPA custom",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm/explorer",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-59",
+   "name": "LoopContextBar",
+   "family": "CPA custom",
+   "uses": 10,
+   "files": 9,
+   "routes": "9 routes",
+   "rating": "Adapter-fit",
+   "band": null
+  },
+  {
+   "id": "K-60",
+   "name": "Sidebar",
+   "family": "CPA custom",
+   "uses": 1,
+   "files": 1,
+   "routes": "(shell)",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-61",
+   "name": "Top bar",
+   "family": "CPA custom",
+   "uses": 1,
+   "files": 1,
+   "routes": "(shell)",
+   "rating": "Replace",
+   "band": null
+  },
+  {
+   "id": "K-62",
+   "name": "Theme switch",
+   "family": "CPA custom",
+   "uses": 1,
+   "files": 1,
+   "routes": "(shell)",
+   "rating": "Replace",
+   "band": null
+  },
+  {
+   "id": "K-63",
+   "name": "Wizard stepper",
+   "family": "CPA custom",
+   "uses": 2,
+   "files": null,
+   "routes": "via host",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-64",
+   "name": "TimeRangeBar",
+   "family": "CPA custom",
+   "uses": 2,
+   "files": 2,
+   "routes": "/cpm/explorer, /cpm/historical",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-65",
+   "name": "TrendTimeBar",
+   "family": "CPA custom",
+   "uses": 1,
+   "files": 1,
+   "routes": "/trend",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-66",
+   "name": "WindowKindToggle",
+   "family": "CPA custom",
+   "uses": 7,
+   "files": 7,
+   "routes": "7 routes",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-67",
+   "name": "ChartZoomBar",
+   "family": "CPA custom",
+   "uses": 8,
+   "files": 8,
+   "routes": "9 routes",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-68",
+   "name": "CollapsibleSection",
+   "family": "CPA custom",
+   "uses": 10,
+   "files": 3,
+   "routes": "/cpm/evidence, /cpm/investigation",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-69",
+   "name": "ActionReceipt",
+   "family": "CPA custom",
+   "uses": 3,
+   "files": 3,
+   "routes": "/cpm/events, /cpm/registry",
+   "rating": "Adapter-fit",
+   "band": null
+  },
+  {
+   "id": "K-70",
+   "name": "CopyableId",
+   "family": "CPA custom",
+   "uses": 6,
+   "files": 4,
+   "routes": "4 routes",
+   "rating": "Adapter-fit",
+   "band": null
+  },
+  {
+   "id": "K-71",
+   "name": "ConnectivityBanner",
+   "family": "CPA custom",
+   "uses": 1,
+   "files": 1,
+   "routes": "(shell)",
+   "rating": "Adapter-fit",
+   "band": null
+  },
+  {
+   "id": "K-72",
+   "name": "Toast (react-toastify)",
+   "family": "CPA custom",
+   "uses": 1,
+   "files": 1,
+   "routes": "(shell)",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-73",
+   "name": "SelectionSummary",
+   "family": "CPA custom",
+   "uses": 3,
+   "files": 3,
+   "routes": "/cpm/calculations, /cpm/evidence, /cpm/investigation",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-74",
+   "name": "GateLegend",
+   "family": "CPA custom",
+   "uses": 3,
+   "files": 3,
+   "routes": "/cpm/evidence, /cpm/explorer, /cpm/performance",
+   "rating": "Adapter-fit",
+   "band": null
+  },
+  {
+   "id": "K-75",
+   "name": "Gate chip strips",
+   "family": "CPA custom",
+   "uses": 3,
+   "files": 3,
+   "routes": "/cpm/evidence, /cpm/explorer, /cpm/windows",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-76",
+   "name": "Help disclosure `.cpm-help-toggle`",
+   "family": "CPA custom",
+   "uses": 2,
+   "files": null,
+   "routes": "via host",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-77",
+   "name": "Error and loading shells",
+   "family": "CPA custom",
+   "uses": 11,
+   "files": 2,
+   "routes": "(shell)",
+   "rating": "Adapter-fit",
+   "band": null
+  },
+  {
+   "id": "K-78",
+   "name": "C1 SignalTrend",
+   "family": "Charts C1-C17",
+   "uses": 4,
+   "files": 3,
+   "routes": "/cpm, /cpm/explorer, /cpm/investigation",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-79",
+   "name": "C2 Historical chart",
+   "family": "Charts C1-C17",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm/historical",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-80",
+   "name": "C3 ReplayChart",
+   "family": "Charts C1-C17",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm/replay",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-81",
+   "name": "C4 CpmChart",
+   "family": "Charts C1-C17",
+   "uses": 38,
+   "files": 11,
+   "routes": "/cpm/evidence, /cpm/explorer, /cpm/response",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-82",
+   "name": "C5 Trajectory",
+   "family": "Charts C1-C17",
+   "uses": 3,
+   "files": 2,
+   "routes": "/cpm/evidence, /cpm/explorer",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-83",
+   "name": "C6 IntervalLane",
+   "family": "Charts C1-C17",
+   "uses": 7,
+   "files": 4,
+   "routes": "/cpm/evidence, /cpm/explorer",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-84",
+   "name": "C7 HealthLane",
+   "family": "Charts C1-C17",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm/investigation",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-85",
+   "name": "C8 G13 interaction",
+   "family": "Charts C1-C17",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm/evidence",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-86",
+   "name": "C9 KpiTrendChart",
+   "family": "Charts C1-C17",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm/kpi",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-87",
+   "name": "C10 Pipeline chart",
+   "family": "Charts C1-C17",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm/pipeline",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-88",
+   "name": "C11 TrendCore",
+   "family": "Charts C1-C17",
+   "uses": 1,
+   "files": 1,
+   "routes": "/trend",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-89",
+   "name": "C12 Sample density",
+   "family": "Charts C1-C17",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm/windows",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-90",
+   "name": "C13 GateRollup",
+   "family": "Charts C1-C17",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm/performance",
+   "rating": "Adapter-fit",
+   "band": null
+  },
+  {
+   "id": "K-91",
+   "name": "C14 OperatingPicture bar",
+   "family": "Charts C1-C17",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm",
+   "rating": "Extend",
+   "band": null
+  },
+  {
+   "id": "K-92",
+   "name": "C15 GoodErrorBar",
+   "family": "Charts C1-C17",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm",
+   "rating": "Adapter-fit",
+   "band": null
+  },
+  {
+   "id": "K-93",
+   "name": "C16 Meter",
+   "family": "Charts C1-C17",
+   "uses": 1,
+   "files": 1,
+   "routes": "/cpm/kpi",
+   "rating": "Adapter-fit",
+   "band": null
+  },
+  {
+   "id": "K-94",
+   "name": "C17 ScoreBar",
+   "family": "Charts C1-C17",
+   "uses": 2,
+   "files": 1,
+   "routes": "/cpm/investigation",
+   "rating": "Adapter-fit",
+   "band": null
+  }
+ ]
+}

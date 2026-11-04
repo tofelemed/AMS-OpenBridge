@@ -10,6 +10,9 @@ touched: this tool has no delete. Runbook: migration/IOTDB-LOOP-TREE-MOVE.md.
   copy     copy [--from, --to) of every device under --old into --new; resumable (--state)
   verify   per series, count(new) >= count(old) over [--from, --to); any shortfall = exit 1
 
+--layout v1 (default) copies the tree as it is. --layout v2 / v2-back move to / back from the CHG-102
+layout (aligned raw devices, KPIs in their own databases): see migration/iotdb_move_v2.py.
+
 Exit codes: 0 ok, 1 verify failed or IoTDB error, 2 precondition not met, 3 low disk (resume later).
 
 Connection: by default `docker exec <container> curl` against the container's own REST port, which
@@ -29,6 +32,9 @@ import time
 import urllib.request
 from datetime import datetime, timezone
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # -I drops the script dir; the helper sits beside it
+import iotdb_move_v2 as v2  # noqa: E402
+
 DAY_MS = 86_400_000
 
 
@@ -42,6 +48,20 @@ class IoTDBError(RuntimeError):
 # Every statement this tool sends is idempotent (SELECT INTO rewrites the same (series, time)),
 # so timeouts and transport failures are retried; anything else (bad SQL, auth) fails at once.
 RETRYABLE = {305, None}
+# Seen on the first v2 bulk run (lab 2026-11-04): regions are created lazily on the first write to a new database,
+# and one chunk failed with an NPE inside IoTDB. A SELECT INTO re-run writes the same points, so retrying is safe.
+RETRYABLE_TEXT = ("no available DataRegionGroup", "NullPointerException")
+
+
+def retryable(e: "IoTDBError") -> bool:
+    return e.code in RETRYABLE or any(t in str(e) for t in RETRYABLE_TEXT)
+
+
+def _curl_quote(s: str) -> str:
+    """Escape backslash and double quote for a double-quoted value in a curl config file."""
+    if any(c in s for c in "\n\r\t\v"):
+        raise IoTDBError("control character in a curl config value")   # json.dumps never emits one
+    return s.replace("\\", "\\\\").replace('"', '\\"')
 
 
 class IoTDB:
@@ -60,7 +80,7 @@ class IoTDB:
                     time.sleep(self.pause_ms / 1000)   # pacing: leave IoTDB headroom for the live writer
                 return out
             except IoTDBError as e:
-                if e.code not in RETRYABLE or attempt == self.retries:
+                if not retryable(e) or attempt == self.retries:
                     raise
                 wait = 15 * (attempt + 1)
                 print(f"  retry {attempt + 1}/{self.retries} in {wait} s: {str(e)[:160]}", file=sys.stderr)
@@ -80,10 +100,13 @@ class IoTDB:
             except OSError as e:
                 raise IoTDBError(f"REST call failed: {e}") from e
         else:
-            cmd = ["docker", "exec", "-i", self.container, "curl", "-sS", "--max-time", "900",
-                   "-u", f"{self.user}:{self.password}", "-H", "Content-Type: application/json",
-                   "--data-binary", "@-", f"http://127.0.0.1:8181/rest/v2/{endpoint}"]
-            p = subprocess.run(cmd, input=body, capture_output=True)
+            # Credentials and body go to curl as a config file on stdin (-K -), never in argv:
+            # argv is visible in `ps` on the host and in docker exec events.
+            cmd = ["docker", "exec", "-i", self.container, "curl", "-sS", "--max-time", "900", "-K", "-",
+                   "-H", "Content-Type: application/json", f"http://127.0.0.1:8181/rest/v2/{endpoint}"]
+            cfg = (f'user = "{_curl_quote(f"{self.user}:{self.password}")}"\n'
+                   f'data-binary = "{_curl_quote(body.decode("utf-8"))}"\n')
+            p = subprocess.run(cmd, input=cfg.encode("utf-8"), capture_output=True)
             if p.returncode != 0:
                 raise IoTDBError(f"docker exec curl failed ({p.returncode}): "
                                  f"{p.stderr.decode(errors='replace').strip()}")
@@ -224,6 +247,8 @@ def cmd_plan(db: IoTDB, args) -> int:
     for d, t in dbs.items():
         print(f"  {d:<24} TTL {t if t else 'NONE (unbounded)'}")
     old_db, ttl = check_layout(args, dbs)
+    if args.layout != "v1":
+        return v2.cmd_plan(sys.modules[__name__], db, args)
     devs = list_devices(db, args.old, args.loop)
     loops = sorted({loop_of(d, args.old) for d in devs})
     raw = [d for d in devs if d.count(".") == args.old.count(".") + 1]
@@ -281,6 +306,8 @@ def cmd_copy(db: IoTDB, args) -> int:
     state = args.state or f"iotdb-move-{args.new.replace('.', '_')}.state"
     # --ignore-state re-copies everything (repair after a failed verify); still appends to the file.
     done = {} if args.ignore_state else load_state(state)
+    if args.layout != "v1":
+        return v2.cmd_copy(sys.modules[__name__], db, args, a, b, state, done)
     devs = list_devices(db, args.old, args.loop)
     depth = args.old.count(".") + 1
     size = args.chunk_days * DAY_MS
@@ -327,6 +354,8 @@ def series_counts(db: IoTDB, prefix: str, loop: str, a: int, b: int) -> dict[str
 def cmd_verify(db: IoTDB, args) -> int:
     dbs = databases(db)
     a, b = default_from(args, dbs), parse_ms(args.to)
+    if args.layout != "v1":
+        return v2.cmd_verify(sys.modules[__name__], db, args, a, b)
     devs = list_devices(db, args.old, args.loop)
     loops = sorted({loop_of(d, args.old) for d in devs})
     print(f"verify {args.old} vs {args.new}  window {iso(a)} .. {iso(b)}  loops {len(loops)}")
@@ -378,6 +407,10 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--old", default="root.site1.cpm", help="source tree (default root.site1.cpm)")
     ap.add_argument("--new", required=True, help="target tree, e.g. root.hdpe.cpm")
     ap.add_argument("--new-db", help="target database (default: --new)")
+    ap.add_argument("--layout", choices=["v1", "v2", "v2-back"], default="v1",
+                    help="v1 = same shape; v2 = into the CHG-102 layout; v2-back = rollback from it")
+    ap.add_argument("--kpi-db", default="root.hdpe.kpi", help="v2 KPI database (gate_*, long_*)")
+    ap.add_argument("--kpis-db", default="root.hdpe.kpis", help="v2 short-KPI database (short_*)")
     ap.add_argument("--ttl-ms", type=int, help="TTL of the new database (default: the old database's)")
     ap.add_argument("--from", dest="from_", help="window start: epoch ms, ISO-8601 with zone, or now "
                                                  "(default: oldest live data = now - old TTL - 1 d)")

@@ -1,0 +1,147 @@
+/*
+ * shadcn/ui + Tailwind v4 bridge for the Traverse tokens.
+ * Import AFTER tokens.css. R1.1: colour only — does not change --radius or fonts (see shadcn-bridge.geometry.css).
+ * Lets every existing shadcn primitive (bg-background, text-muted-foreground,
+ * border-border, bg-primary …) resolve to Traverse tokens without editing components/ui/*.
+ *
+ * Theme switching: next-themes with
+ *   <ThemeProvider attribute="data-theme" themes={["day","night"]} defaultTheme="day"
+ *                  enableSystem={false} disableTransitionOnChange>   (no value map)
+ * The Tailwind `dark:` variant is re-pointed to [data-theme="night"] below; prefer tokens over dark: utilities.
+ */
+
+@custom-variant dark (&:where([data-theme="night"], [data-theme="night"] *));
+
+:root,
+[data-theme="day"],
+[data-theme="night"] {
+  --background: var(--traverse-surface-page);
+  --foreground: var(--traverse-text-primary);
+
+  --card: var(--traverse-surface-panel);
+  --card-foreground: var(--traverse-text-primary);
+  --popover: var(--traverse-surface-panel);
+  --popover-foreground: var(--traverse-text-primary);
+
+  --primary: var(--traverse-action-primary);
+  --primary-foreground: var(--traverse-action-on);
+
+  --secondary: var(--traverse-surface-raised);
+  --secondary-foreground: var(--traverse-text-primary);
+
+  --muted: var(--traverse-surface-raised);
+  --muted-foreground: var(--traverse-text-secondary);
+
+  --accent: var(--traverse-surface-hover);
+  --accent-foreground: var(--traverse-text-primary);
+
+  --destructive: var(--traverse-status-danger-fg);
+  --destructive-foreground: var(--traverse-action-on);
+
+  --border: var(--traverse-border-subtle);
+  --input: var(--traverse-border-strong);
+  --ring: var(--traverse-focus);
+
+  --sidebar: var(--traverse-surface-page);
+  --sidebar-foreground: var(--traverse-text-secondary);
+  --sidebar-primary: var(--traverse-action-primary);
+  --sidebar-primary-foreground: var(--traverse-action-on);
+  --sidebar-accent: var(--traverse-surface-selected);
+  --sidebar-accent-foreground: var(--traverse-action-primary);
+  --sidebar-border: var(--traverse-border-subtle);
+  --sidebar-ring: var(--traverse-focus);
+
+  --chart-1: var(--traverse-chart-series-1);
+  --chart-2: var(--traverse-chart-series-2);
+  --chart-3: var(--traverse-chart-series-3);
+  --chart-4: var(--traverse-chart-series-4);
+  --chart-5: var(--traverse-chart-series-5);
+
+}
+
+/* Expose Traverse tokens as Tailwind utilities (bg-status-danger-bg, text-ai-fg, border-strong …) */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Traverse-specific utilities */
+  --color-surface-page: var(--traverse-surface-page);
+  --color-surface-panel: var(--traverse-surface-panel);
+  --color-surface-raised: var(--traverse-surface-raised);
+  --color-surface-hover: var(--traverse-surface-hover);
+  --color-surface-selected: var(--traverse-surface-selected);
+  --color-border-subtle: var(--traverse-border-subtle);
+  --color-border-strong: var(--traverse-border-strong);
+  --color-text-primary: var(--traverse-text-primary);
+  --color-text-secondary: var(--traverse-text-secondary);
+  --color-text-muted: var(--traverse-text-muted);
+  --color-action-primary: var(--traverse-action-primary);
+  --color-action-hover: var(--traverse-action-hover);
+  --color-action-active: var(--traverse-action-active);
+  --color-action-on: var(--traverse-action-on);
+  --color-focus: var(--traverse-focus);
+  --color-ai-fg: var(--traverse-ai-fg);
+  --color-ai-bg: var(--traverse-ai-bg);
+  --color-status-danger-fg: var(--traverse-status-danger-fg);
+  --color-status-danger-bg: var(--traverse-status-danger-bg);
+  --color-status-warning-fg: var(--traverse-status-warning-fg);
+  --color-status-warning-bg: var(--traverse-status-warning-bg);
+  --color-status-success-fg: var(--traverse-status-success-fg);
+  --color-status-success-bg: var(--traverse-status-success-bg);
+  --color-status-info-fg: var(--traverse-status-info-fg);
+  --color-status-info-bg: var(--traverse-status-info-bg);
+  --color-status-unknown-fg: var(--traverse-status-unknown-fg);
+  --color-status-unknown-bg: var(--traverse-status-unknown-bg);
+  --color-diag-f-fill: var(--traverse-diag-f-fill);
+  --color-diag-f-text: var(--traverse-diag-f-text);
+  --color-diag-c-fill: var(--traverse-diag-c-fill);
+  --color-diag-c-text: var(--traverse-diag-c-text);
+  --color-diag-s-fill: var(--traverse-diag-s-fill);
+  --color-diag-s-text: var(--traverse-diag-s-text);
+  --color-diag-m-fill: var(--traverse-diag-m-fill);
+  --color-diag-m-text: var(--traverse-diag-m-text);
+  --color-chart-6: var(--traverse-chart-series-6);
+  --color-chart-grid: var(--traverse-chart-grid);
+  --color-chart-axis: var(--traverse-chart-axis);
+  --color-chart-tick: var(--traverse-chart-tick);
+  --color-overlay: var(--traverse-overlay);
+
+  --radius-panel: var(--traverse-radius-panel);
+  --radius-control: var(--traverse-radius-control);
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground; }
+  button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
+}

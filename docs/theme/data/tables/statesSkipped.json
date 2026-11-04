@@ -1,0 +1,50 @@
+[
+ {
+  "theme": "day",
+  "slug": "overview",
+  "state": "loop-drawer",
+  "skipped": "control not present in the lab data"
+ },
+ {
+  "theme": "day",
+  "slug": "explorer",
+  "state": "chart-tooltip",
+  "skipped": "control not present in the lab data"
+ },
+ {
+  "theme": "day",
+  "slug": "kpi",
+  "state": "picker",
+  "skipped": "control not present in the lab data"
+ },
+ {
+  "theme": "day",
+  "slug": "response",
+  "state": "review-dialog",
+  "skipped": "control not present in the lab data"
+ },
+ {
+  "theme": "night",
+  "slug": "overview",
+  "state": "loop-drawer",
+  "skipped": "control not present in the lab data"
+ },
+ {
+  "theme": "night",
+  "slug": "explorer",
+  "state": "chart-tooltip",
+  "skipped": "control not present in the lab data"
+ },
+ {
+  "theme": "night",
+  "slug": "kpi",
+  "state": "picker",
+  "skipped": "control not present in the lab data"
+ },
+ {
+  "theme": "night",
+  "slug": "response",
+  "state": "review-dialog",
+  "skipped": "control not present in the lab data"
+ }
+]
