@@ -14,15 +14,4 @@
   --tone-info-bg: var(--traverse-status-info-bg);
   --tone-unknown: var(--traverse-status-unknown-fg);
 
-  /*
-   * Process signals: the one place their colours are set (UI-038). Charts and legends both read
-   * these. No published standard assigns them, so a site convention replaces these lines.
-   * PV is not the primary action colour, and no pen uses a colour reserved for alarms (ISA-101).
-   * Line style carries the meaning too: PV solid, SP dashed, VP with markers (guide p.5, G05).
-   */
-  --signal-pv: var(--traverse-chart-series-3);
-  --signal-sp: var(--traverse-chart-series-5);
-  --signal-op: var(--traverse-chart-series-1);
-  --signal-vp: var(--traverse-chart-series-4);
-  --signal-other: var(--traverse-chart-series-6);
 }

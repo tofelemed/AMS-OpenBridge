@@ -260,7 +260,8 @@ describe('series roles (item 14)', () => {
 
   it('repeats pens with a dash pattern once the palette runs out', () => {
     expect(look('pen', { penIndex: 0 }).type).toBe('solid');
-    expect(look('pen', { penIndex: 5 }).type).toBe('dotted');
+    expect(look('pen', { penIndex: 5 }).type).toBe('solid');
+    expect(look('pen', { penIndex: 6 }).type).toBe('dotted');
   });
 
   it('labels every line directly, and the labels do not share a position', () => {

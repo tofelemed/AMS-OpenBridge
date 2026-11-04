@@ -3,11 +3,13 @@ import React from 'react';
 import { DestinationHost, type HostTab } from './DestinationHost';
 
 const CpmExplorer = React.lazy(() => import('../../components/Cpm/CpmExplorer'));
+const CpmHistorical = React.lazy(() => import('../../components/Cpm/CpmHistorical'));
 const CpmInvestigation = React.lazy(() => import('../../components/Cpm/CpmInvestigation'));
 const ResponseWorkspace = React.lazy(() => import('../../components/Cpm/response/ResponseWorkspace'));
 
 const TABS: HostTab[] = [
   { value: 'performance', label: 'Performance', render: () => <CpmExplorer tabParam="sub" /> },
+  { value: 'historical', label: 'Historical', windowIsEnd: true, render: () => <CpmHistorical /> },
   { value: 'diagnosis', label: 'Diagnosis', windowIsEnd: true, render: () => <CpmInvestigation /> },
   { value: 'model', label: 'Model', render: () => <ResponseWorkspace /> },
   { value: 'signals', label: 'Signals', render: () => <CpmExplorer tabParam="sub" defaultTab="Signals" /> },

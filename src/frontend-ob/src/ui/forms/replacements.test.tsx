@@ -119,7 +119,7 @@ describe('Gate matrix toolbar', () => {
     const onPageChange = vi.fn();
     const rows = Array.from({ length: 30 }, (_, i) => ({ loopId: `L${i}`, displayName: `Loop ${i}`, gates: {} })) as unknown as CpmHeatmapLoop[];
     const { unmount } = mount({ onPageChange }, rows);
-    expect(screen.getByRole('navigation', { name: 'Pagination' }).textContent).toBe('Page 1 of 2');
+    expect(screen.getByRole('navigation', { name: 'Pagination' }).querySelector('.ui-pagination__status')?.textContent).toBe('Page 1 of 2');
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
     expect(onPageChange.mock.calls).toEqual([[2]]);
     unmount();

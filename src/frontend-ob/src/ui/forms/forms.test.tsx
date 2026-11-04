@@ -8,7 +8,7 @@ import { Accordion } from './Accordion';
 import { Checkbox } from './Checkbox';
 import { FilterChip } from './FilterChip';
 import { InputChip } from './InputChip';
-import { Pagination } from './Pagination';
+import { Pagination, pageWindow } from './Pagination';
 import { Select } from './Select';
 import { TextInput } from './TextInput';
 
@@ -193,11 +193,11 @@ describe('InputChip', () => {
 describe('Pagination', () => {
   const names = ['First page', 'Previous page', 'Next page', 'Last page'];
 
-  it('is four named buttons and one status line, however many pages there are', () => {
+  it('has four named controls, numbered jumps and one status line', () => {
     render(<Pagination page={4} pageCount={50} onChange={() => {}} />);
     const nav = screen.getByRole('navigation', { name: 'Pagination' });
-    expect(within(nav).getAllByRole('button').map(b => b.getAttribute('aria-label'))).toEqual(names);
-    expect(nav.textContent).toBe('Page 4 of 50');
+    expect(within(nav).getAllByRole('button').map(b => b.getAttribute('aria-label')).filter(Boolean)).toEqual(names);
+    expect(nav.querySelector('.ui-pagination__status')?.textContent).toBe('Page 4 of 50');
   });
 
   it('moves to the first, previous, next and last page', () => {
@@ -263,5 +263,21 @@ describe('Tabs count badge', () => {
     const options = [{ value: 'a', label: 'Summary' }, { value: 'b', label: 'Signals', badge: 3 }, { value: 'c', label: 'Links', badge: 0 }];
     render(<Tabs idBase="b" label="Loop" options={options} value="a" onChange={() => {}} />);
     expect(screen.getAllByRole('tab').map(t => t.textContent)).toEqual(['Summary', 'Signals3', 'Links0']);
+  });
+});
+
+describe('Pagination page jumps', () => {
+  it('offers the ends and the pages around the current one', () => {
+    expect(pageWindow(1, 3)).toEqual([1, 2, 3]);
+    expect(pageWindow(10, 50)).toEqual([1, null, 8, 9, 10, 11, 12, null, 50]);
+    expect(pageWindow(1, 1)).toEqual([1]);
+  });
+
+  it('jumps to a numbered page and marks the current one', () => {
+    const onChange = vi.fn();
+    render(<Pagination page={2} pageCount={5} onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Page 4' }));
+    expect(onChange).toHaveBeenCalledWith(4);
+    expect(screen.getByRole('button', { name: 'Page 2' }).getAttribute('aria-current')).toBe('page');
   });
 });

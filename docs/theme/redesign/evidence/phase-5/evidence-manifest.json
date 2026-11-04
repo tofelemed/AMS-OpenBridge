@@ -1,46 +1,36 @@
 {
  "phase": "5",
- "capturedAt": "2026-11-04T19:45:26.266Z",
+ "capturedAt": "2026-11-04T19:54:23.707Z",
  "base": "http://localhost:4173",
  "sizes": [
   "1440x1024"
  ],
  "routes": {
-  "overview": {
-   "url": "/cpm",
-   "finalUrl": "/cpm",
+  "historical": {
+   "url": "/cpm/historical?loop=FIC10302",
+   "finalUrl": "/cpm/historical?loop=FIC10302",
    "stable": true,
-   "ms": 983,
+   "ms": 2868,
    "shots": [
-    "screenshots/day/1440x1024/overview.png",
-    "screenshots/night/1440x1024/overview.png"
+    "screenshots/day/1440x1024/historical.png",
+    "screenshots/night/1440x1024/historical.png"
    ]
   },
-  "performance": {
-   "url": "/cpm/performance",
-   "finalUrl": "/cpm/performance",
+  "trend": {
+   "url": "/trend?tags=hdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.pv%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.sp%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.op&range=8h",
+   "finalUrl": "/trend?tags=hdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.pv%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.sp%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.op&range=8h",
    "stable": true,
-   "ms": 1167,
+   "ms": 2690,
    "shots": [
-    "screenshots/day/1440x1024/performance.png",
-    "screenshots/night/1440x1024/performance.png"
-   ]
-  },
-  "events": {
-   "url": "/cpm/events",
-   "finalUrl": "/cpm/events",
-   "stable": true,
-   "ms": 1197,
-   "shots": [
-    "screenshots/day/1440x1024/events.png",
-    "screenshots/night/1440x1024/events.png"
+    "screenshots/day/1440x1024/trend.png",
+    "screenshots/night/1440x1024/trend.png"
    ]
   }
  },
  "log": {
   "blocked": [],
   "http429": 0,
-  "apiCalls": 16
+  "apiCalls": 15
  },
  "consoleErrors": [
   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"

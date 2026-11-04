@@ -2,9 +2,9 @@
  * The one chart theme builder (CD12). Canvas cannot read CSS variables, so tokens are resolved to
  * literals here, and every chart rebuilds when the theme changes.
  *
- * Signal colours come from `--signal-*` in styles/tones.css, the one place they are set (UI-038).
- * SP is dashed and labelled. Further pens repeat with a dash pattern. Series 2 is violet and reserved
- * for labelled AI content (CD10).
+ * Trend line colours are the owner's core design, from `--signal-*` in styles/signal-colours.css
+ * (UI-050). Grid, axes and tooltips follow the theme. SP is dashed and labelled. Further pens repeat
+ * with a dash pattern.
  */
 import { useSyncExternalStore } from 'react';
 import { readTheme, type Theme } from '../theme/theme';
@@ -60,14 +60,13 @@ export interface ChartPalette {
 
 export function chartPalette(): ChartPalette {
   const signal = (name: string) => resolveTraverse(`--signal-${name}`);
-  const [pv, sp, op, vp] = ['pv', 'sp', 'op', 'vp'].map(signal);
   return {
     theme: readTheme(),
-    pv,
-    sp,
-    op,
-    vp,
-    pens: [pv, sp, op, vp, signal('other')],
+    pv: signal('pv'),
+    sp: signal('sp'),
+    op: signal('op'),
+    vp: signal('vp'),
+    pens: ['pen-1', 'pv', 'op', 'vp', 'overlay', 'pen-6'].map(signal),
     grid: resolveTraverse('chart-grid'),
     axis: resolveTraverse('chart-axis'),
     tick: resolveTraverse('chart-tick'),

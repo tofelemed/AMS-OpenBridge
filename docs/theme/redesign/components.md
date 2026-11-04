@@ -79,9 +79,9 @@ Rule of use: a page never styles a table, badge, dialog or chart itself. If a co
 
 Always pass the gate key: a pass on a diagnostic gate means "symptom not seen" and shows ◯, never ✓.
 
-## Signal colours
+## Trend colours
 
-`--signal-pv`, `--signal-sp`, `--signal-op`, `--signal-vp` and `--signal-other` in `styles/tones.css` are the only place these colours are set. Charts read them through `chartPalette()`, legends through CSS. Pages name a role, never a series number. `npm run lint:signals` measures them for normal vision and red-green colour blindness.
+`styles/signal-colours.css` is the only place these are set. They are the owner's core design, not design-system tokens, in Day and Night. Charts read them through `chartPalette()`, legends through CSS. Pages name a role, never a colour. `theme/signalColours.test.ts` pins the values.
 
 ## 6.9 SegmentedControl and Tabs
 

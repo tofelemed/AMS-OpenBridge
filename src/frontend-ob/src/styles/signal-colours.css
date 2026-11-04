@@ -1,0 +1,24 @@
+/*
+ * Trend line colours: the owner's core design, unchanged, in Day and Night (UI-050). Every trend and
+ * legend reads these. They are deliberately not design-system tokens. src/theme/signalColours.test.ts
+ * pins the values, so change them only on the owner's word.
+ */
+html:root[data-theme='day'] {
+  --signal-pv: #40c057;
+  --signal-sp: #535353;
+  --signal-op: #fab005;
+  --signal-vp: #e64980;
+  --signal-overlay: #7048e8;
+  --signal-pen-1: #e10019;
+  --signal-pen-6: #20c997;
+}
+
+html:root[data-theme='night'] {
+  --signal-pv: #51cf66;
+  --signal-sp: #9a9a9a;
+  --signal-op: #ffd43b;
+  --signal-vp: #f783ac;
+  --signal-overlay: #9775fa;
+  --signal-pen-1: #ff5a6a;
+  --signal-pen-6: #63e6be;
+}

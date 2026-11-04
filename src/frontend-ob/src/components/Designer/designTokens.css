@@ -11,12 +11,12 @@
   --ams-advisory: var(--traverse-status-info-fg);
 
   /* pens: same order as charts/chartTheme.ts (CD12). Series 2 is reserved for AI. */
-  --ams-pen-1: var(--traverse-chart-series-1);
-  --ams-pen-2: var(--traverse-chart-series-5);
-  --ams-pen-3: var(--traverse-chart-series-3);
-  --ams-pen-4: var(--traverse-chart-series-4);
-  --ams-pen-5: var(--traverse-chart-series-6);
-  --ams-pen-6: var(--traverse-chart-series-1);
+  --ams-pen-1: var(--signal-pen-1);
+  --ams-pen-2: var(--signal-pv);
+  --ams-pen-3: var(--signal-op);
+  --ams-pen-4: var(--signal-vp);
+  --ams-pen-5: var(--signal-overlay);
+  --ams-pen-6: var(--signal-pen-6);
 
   /* surfaces / text / lines */
   --ams-canvas-bg: var(--traverse-surface-page);

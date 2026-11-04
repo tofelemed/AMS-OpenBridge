@@ -12,6 +12,7 @@ import { ObiDatabase } from '@oicl/openbridge-webcomponents-react/icons/icon-dat
 import { ObiListAltCheckGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-list-alt-check-google';
 import { ObiMonitoring } from '@oicl/openbridge-webcomponents-react/icons/icon-monitoring';
 import { ObiNotification } from '@oicl/openbridge-webcomponents-react/icons/icon-notification';
+import { ObiTrend } from '@oicl/openbridge-webcomponents-react/icons/icon-trend';
 import { ObiWrench } from '@oicl/openbridge-webcomponents-react/icons/icon-wrench';
 import { cpaHref } from '../../components/Cpm/cpaHref';
 import { SUITE_MODULES, destinationFor, visibleDestinations, type DestinationId } from '../../cpa/destinations';
@@ -73,6 +74,15 @@ export const ShellNav: React.FC<{
                 </li>
               );
             })}
+            {hasPermission('historian.view') && (
+              <li className="shell-nav__entry">
+                <Link to="/trend" className="shell-nav__item" aria-current={location.pathname === '/trend' ? 'page' : undefined}>
+                  <span className="ui-icon"><ObiTrend /></span>
+                  <span className="shell-nav__label">Trend</span>
+                </Link>
+                <span role="tooltip" className="shell-nav__tip"><strong>Trend</strong>Any tags on one chart</span>
+              </li>
+            )}
           </ul>
         </div>
       ))}

@@ -5427,3 +5427,16 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Services updated:** `ams-frontend` (when released). **No migration, no config.**
 **Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-116 — CPA redesign: core trend colours and removed functions restored (2026-11-04, branch feat/cpa-redesign, unreleased)
+
+**Why.** Owner's direction: trend colours exactly as the core design, and no function removed.
+
+**Changed**
+- Trend lines are back to the core design in Day and Night: PV green, SP grey, Controller output amber, VP pink, overlay violet, tag pens in their original order. This reverses the Phase 1 pen remap and the PV/OP swap in 2963846b. Grid, axes, tooltips and lanes keep following the theme.
+- Put back: numbered page jumps in the pager, Historical as a tab on Loop, Trend in the menu.
+
+**Removed.** `lint:signals`, which no longer applies. A test pins the colours instead.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).
