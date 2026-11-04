@@ -11,7 +11,8 @@ import { Dialog } from './Dialog';
 import { Inspector } from './Inspector';
 import { MetricSummary } from './MetricSummary';
 import { NE107_LABEL, Ne107Badge, StatusBadge } from './StatusBadge';
-import { diagnosisTone, episodeTone, gateTone, jobTone, qualityTone, registryTone } from './statusTones';
+import { GateBadge, GateKey, gateBadgeTone } from './GateBadge';
+import { diagnosisTone, episodeTone, jobTone, qualityTone, registryTone } from './statusTones';
 
 afterEach(cleanup);
 
@@ -39,23 +40,6 @@ describe('StatusBadge', () => {
 });
 
 describe('CD8 tones', () => {
-  it('keeps a gate pass neutral, because it is a computed check', () => {
-    expect(gateTone('PASS')).toEqual({ tone: 'neutral', glyph: '✓' });
-  });
-
-  it('gives a limited pass a different glyph from a pass', () => {
-    expect(gateTone('LIMITED').tone).toBe('neutral');
-    expect(gateTone('LIMITED').glyph).not.toBe(gateTone('PASS').glyph);
-  });
-
-  it.each([['WARN', 'warning'], ['FAIL', 'danger'], ['NOT_EVALUATED', 'unknown'], ['DISABLED', 'unknown'], ['', 'unknown'], [null, 'unknown']])('gate %s is %s', (v, tone) => {
-    expect(gateTone(v).tone).toBe(tone);
-  });
-
-  it('marks every EXCLUDED code neutral with a glyph', () => {
-    expect(gateTone('EXCLUDED_MODE')).toEqual({ tone: 'neutral', glyph: '⊘' });
-  });
-
   it.each([['Suspected oscillation', 'info'], ['DETECTED', 'info'], ['CLASSIFIED', 'info'], ['CONFIRMED_STICTION', 'warning'], ['RULED_OUT', 'neutral'], ['NO_CALL', 'unknown']])('diagnosis %s is %s', (v, tone) => {
     expect(diagnosisTone(v).tone).toBe(tone);
   });
@@ -83,9 +67,61 @@ describe('CD8 tones', () => {
   });
 
   it('never makes an unrecognised value look healthy', () => {
-    for (const fn of [gateTone, diagnosisTone, episodeTone, qualityTone, jobTone, registryTone]) {
+    for (const fn of [diagnosisTone, episodeTone, qualityTone, jobTone, registryTone]) {
       expect(fn('SOMETHING_NEW').tone).toBe('unknown');
     }
+  });
+});
+
+describe('GateBadge: one symbol per meaning, everywhere', () => {
+  const mark = (status: string, gate?: string) => {
+    const { container, unmount } = render(<GateBadge status={status} gate={gate} />);
+    const out = { glyph: container.querySelector('.ui-badge__glyph')?.textContent, text: container.textContent, className: container.querySelector('.ui-badge')?.className };
+    unmount();
+    return out;
+  };
+
+  it.each([
+    ['PASS', 'G0', '✓', 'OK'],
+    ['WARN', 'G3', '!', 'Attention'],
+    ['FAIL', 'G3', '✕', 'Failed'],
+    ['FAIL', 'G0', '⊘', 'Not usable'],
+    ['EXCLUDED_MODE', 'G3', '⊖', 'Excluded'],
+    ['PASS', 'G7', '◯', 'Not seen'],
+    ['WARN', 'G7', '◐', 'Seen'],
+    ['STRONG', 'G7', '⬤', 'Strong'],
+    ['SUSPECTED', 'G15', '△', 'Suspected'],
+    ['CONFIRMED', 'G15', '▲', 'Confirmed'],
+    ['CONTRADICTED', 'G15', '◇', 'Ruled out'],
+    ['NOT_EVALUATED', 'G3', '—', 'Not evaluated'],
+    ['NOT_APPLICABLE', 'G3', 'n/a', 'N/A'],
+    ['PENDING', 'G3', '…', 'Pending'],
+  ])('%s on %s shows %s %s', (status, gate, glyph, word) => {
+    const m = mark(status, gate);
+    expect(m.glyph).toBe(glyph);
+    expect(m.text).toContain(word);
+  });
+
+  it('never shows a tick for a diagnostic gate, because there a pass means the symptom was not seen', () => {
+    expect(mark('PASS', 'G7').glyph).not.toBe('✓');
+  });
+
+  it('gives a screen reader the full meaning', () => {
+    expect(mark('PASS', 'G7').text).toContain('symptom not seen by this method');
+  });
+
+  it('follows CD8 for colour', () => {
+    expect(gateBadgeTone('ok', 'good')).toBe('neutral');
+    expect(gateBadgeTone('failed', 'bad')).toBe('danger');
+    expect(gateBadgeTone('attention', 'warn')).toBe('warning');
+    expect(gateBadgeTone('none', 'muted')).toBe('unknown');
+    expect(gateBadgeTone('confirmed', 'bad')).toBe('warning');
+  });
+
+  it('keys every mark in the legend', () => {
+    const { container } = render(<GateKey />);
+    expect(container.textContent).toContain('symptom seen');
+    expect(container.textContent).toContain('excluded on purpose');
   });
 });
 

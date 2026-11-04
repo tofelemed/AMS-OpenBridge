@@ -73,6 +73,16 @@ Rule of use: a page never styles a table, badge, dialog or chart itself. If a co
 - `Ne107Badge`: fixed `diag` fills in both themes, code and label always together. Unknown is a StatusBadge, not a fifth category.
 - **A confirmed finding is `warning`, pending control engineering (CD8).**
 
+### GateBadge and GateKey
+
+`GateBadge.tsx`. **The only way to show a gate result.** Symbol, word and spoken label come from `gateMark` in `components/Cpm/gateStatus.ts`, the SME-reviewed vocabulary (CHG-052, CHG-064, CHG-098), one symbol per meaning. `GateKey` is the legend, from the same list.
+
+Always pass the gate key: a pass on a diagnostic gate means "symptom not seen" and shows ◯, never ✓.
+
+## Signal colours
+
+`--signal-pv`, `--signal-sp`, `--signal-op`, `--signal-vp` and `--signal-other` in `styles/tones.css` are the only place these colours are set. Charts read them through `chartPalette()`, legends through CSS. Pages name a role, never a series number. `npm run lint:signals` measures them for normal vision and red-green colour blindness.
+
 ## 6.9 SegmentedControl and Tabs
 
 `SegmentedControl.tsx`: native buttons, `aria-pressed`, Left and Right move and select. Selected state has weight and an edge as well as colour.

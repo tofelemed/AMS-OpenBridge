@@ -98,7 +98,7 @@ export function DataTable<R>({
                         ? (
                           <button type="button" className="ui-table__sort" onClick={() => onSort(c.key)} aria-label={c.label}>
                             {c.header}
-                            <span aria-hidden="true" className="ui-table__arrow">{active ? (sort?.dir === 'asc' ? '▲' : '▼') : '↕'}</span>
+                            <span aria-hidden="true" className="ui-table__arrow">{active ? (sort?.dir === 'asc' ? '↑' : '↓') : '↕'}</span>
                           </button>
                         )
                         : c.header}

@@ -1172,10 +1172,10 @@
   cursor: pointer;
   min-height: 32px;
 }
-.cpm-pen-chip[data-pen='pv'] { --pen: var(--traverse-chart-series-1); }
-.cpm-pen-chip[data-pen='sp'] { --pen: var(--traverse-chart-series-5); }
-.cpm-pen-chip[data-pen='op'] { --pen: var(--traverse-chart-series-3); }
-.cpm-pen-chip[data-pen='vp'] { --pen: var(--traverse-chart-series-4); }
+.cpm-pen-chip[data-pen='pv'] { --pen: var(--signal-pv); }
+.cpm-pen-chip[data-pen='sp'] { --pen: var(--signal-sp); }
+.cpm-pen-chip[data-pen='op'] { --pen: var(--signal-op); }
+.cpm-pen-chip[data-pen='vp'] { --pen: var(--signal-vp); }
 .cpm-pen-chip__swatch {
   width: 14px;
   height: 3px;

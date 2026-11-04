@@ -2,9 +2,9 @@
  * The one chart theme builder (CD12). Canvas cannot read CSS variables, so tokens are resolved to
  * literals here, and every chart rebuilds when the theme changes.
  *
- * Series roles: PV = series 1, SP = series 5 (dashed, labelled), OP = series 3, VP = series 4,
- * further pens series 6, then repeat with a dash pattern. Series 2 is violet and reserved for
- * labelled AI content (CD10).
+ * Signal colours come from `--signal-*` in styles/tones.css, the one place they are set (UI-038).
+ * SP is dashed and labelled. Further pens repeat with a dash pattern. Series 2 is violet and reserved
+ * for labelled AI content (CD10).
  */
 import { useSyncExternalStore } from 'react';
 import { readTheme, type Theme } from '../theme/theme';
@@ -59,14 +59,15 @@ export interface ChartPalette {
 }
 
 export function chartPalette(): ChartPalette {
-  const series = (n: number) => resolveTraverse(`chart-series-${n}`);
+  const signal = (name: string) => resolveTraverse(`--signal-${name}`);
+  const [pv, sp, op, vp] = ['pv', 'sp', 'op', 'vp'].map(signal);
   return {
     theme: readTheme(),
-    pv: series(1),
-    sp: series(5),
-    op: series(3),
-    vp: series(4),
-    pens: [series(1), series(5), series(3), series(4), series(6)],
+    pv,
+    sp,
+    op,
+    vp,
+    pens: [pv, sp, op, vp, signal('other')],
     grid: resolveTraverse('chart-grid'),
     axis: resolveTraverse('chart-axis'),
     tick: resolveTraverse('chart-tick'),

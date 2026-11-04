@@ -49,6 +49,7 @@ const ACTIVE = {
   T9: r => (PHASE >= 8 ? true : PHASE >= 3 && (/^(ui|pages\/cpa)\//.test(r) || T9_REPLACED_FILES.has(r))),
   T10: r => (PHASE >= 8 ? !r.startsWith('ui/trend/') : PHASE >= 3 && /^(ui|pages\/cpa)\//.test(r) && !r.startsWith('ui/trend/')),
   T11: r => (PHASE >= 8 ? true : PHASE >= 2 && /^(ui|pages\/cpa)\//.test(r)),
+  T13: r => /^(ui|pages\/cpa|cpa)\//.test(r),
 };
 
 const ALLOW = {
@@ -136,7 +137,20 @@ function scanTs(f) {
 }
 
 for (const f of files) (f.endsWith('.css') ? scanCss : scanTs)(f);
-const active = Object.keys(ACTIVE).filter(g => ['T1', 'T2', 'T3', 'T4', 'T6', 'T7'].includes(g) || PHASE >= 3 || (g === 'T11' && PHASE >= 2));
+
+// T13: signal colours and gate marks have one home each (UI-038, UI-039). New code only, as old pages
+// keep their own until Phases 5 and 6 replace them.
+const SERIES = /chart-series-\d/;
+const GATE_GLYPH = /['"`>](◐|◯|⬤|△|▲|◇|⊘|⊖)['"`<]/;
+for (const f of files) {
+  const r = rel(f);
+  if (!ACTIVE.T13(r) || r.includes('.test.')) continue;
+  fs.readFileSync(f, 'utf8').split('\n').forEach((l, i) => {
+    if (SERIES.test(l) && !/^ui\/trend\/trendOption\.test/.test(r)) hit('T13', f, i + 1, l.trim());
+    if (GATE_GLYPH.test(l)) hit('T13', f, i + 1, l.trim());
+  });
+}
+const active = Object.keys(ACTIVE).filter(g => ['T1', 'T2', 'T3', 'T4', 'T6', 'T7', 'T13'].includes(g) || PHASE >= 3 || (g === 'T11' && PHASE >= 2));
 console.log(`lint:theme phase ${PHASE}: ${files.length} live files, gates ${active.join(' ')}, matches ${hits.length}`);
 if (hits.length) {
   console.log(hits.slice(0, process.env.THEME_ALL ? hits.length : 60).join('\n'));

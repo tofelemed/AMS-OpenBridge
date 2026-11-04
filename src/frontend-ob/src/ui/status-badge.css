@@ -24,6 +24,15 @@
   color: var(--traverse-text-primary);
 }
 
+.ui-gate-key { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2) var(--traverse-space-4); }
+.ui-gate-key__group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1); }
+.ui-gate-key__name {
+  color: var(--traverse-text-secondary);
+  font-size: var(--traverse-type-metadata);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
 .ui-ne107 {
   display: inline-flex;
   align-items: center;

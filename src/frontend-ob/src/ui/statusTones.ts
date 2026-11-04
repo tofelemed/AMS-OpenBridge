@@ -1,7 +1,8 @@
 /**
  * CD8: which tone each field's value takes. Fields stay separate: a badge in one never sets another
  * (guide p.4). Values are matched case-insensitively. An unrecognised value is `unknown`, because a
- * state this code cannot name must never look healthy.
+ * state this code cannot name must never look healthy. Gates are not here: they use GateBadge, which
+ * reads the one gate vocabulary in components/Cpm/gateStatus.ts.
  */
 export type BadgeTone = 'danger' | 'warning' | 'success' | 'info' | 'unknown' | 'neutral';
 
@@ -13,16 +14,6 @@ export interface ToneResult {
 const norm = (v: string | null | undefined) => (v ?? '').trim().toUpperCase().replace(/[\s-]+/g, '_');
 
 const UNKNOWN: ToneResult = { tone: 'unknown' };
-
-export function gateTone(status: string | null | undefined): ToneResult {
-  const v = norm(status);
-  if (v === 'PASS' || v === 'OK') return { tone: 'neutral', glyph: '✓' };
-  if (v === 'LIMITED' || v === 'PASS_LIMITED' || v === 'LIMITED_PASS') return { tone: 'neutral', glyph: '◐' };
-  if (v.startsWith('EXCLUDED')) return { tone: 'neutral', glyph: '⊘' };
-  if (v === 'WARN' || v === 'WARNING') return { tone: 'warning' };
-  if (v === 'FAIL' || v === 'FAILED') return { tone: 'danger' };
-  return UNKNOWN; // not evaluated, insufficient, none, n/a, disabled, pending
-}
 
 export function diagnosisTone(value: string | null | undefined): ToneResult {
   const v = norm(value);

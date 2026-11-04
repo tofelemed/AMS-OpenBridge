@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run",
+    "lint:signals": "node scripts/theme/signal-separation.mjs",
     "lint:theme": "node scripts/theme/check-tokens.mjs"
   },
   "dependencies": {

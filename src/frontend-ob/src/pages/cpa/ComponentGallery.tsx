@@ -10,6 +10,7 @@ import { ContextHeader } from '../../ui/ContextHeader';
 import { DataState } from '../../ui/DataState';
 import { DataTable, type Column, type SortState } from '../../ui/DataTable';
 import { Dialog } from '../../ui/Dialog';
+import { GateBadge, GateKey } from '../../ui/GateBadge';
 import { Inspector, WithInspector } from '../../ui/Inspector';
 import { MetricSummary } from '../../ui/MetricSummary';
 import { SegmentedControl } from '../../ui/SegmentedControl';
@@ -50,10 +51,18 @@ const Badges: React.FC = () => (
       <StatusBadge tone="success">Completed</StatusBadge>
       <StatusBadge tone="info">In progress</StatusBadge>
       <StatusBadge tone="unknown">Not evaluated</StatusBadge>
-      <StatusBadge tone="neutral" glyph="✓">Pass</StatusBadge>
-      <StatusBadge tone="neutral" glyph="◐">Limited pass</StatusBadge>
       <StatusBadge tone="neutral" caption="Signal quality">Good</StatusBadge>
     </div>
+    <div className="gallery__row">
+      <GateBadge status="PASS" gate="G0" />
+      <GateBadge status="FAIL" gate="G3" />
+      <GateBadge status="FAIL" gate="G0" />
+      <GateBadge status="EXCLUDED_MODE" gate="G3" />
+      <GateBadge status="PASS" gate="G7" />
+      <GateBadge status="WARN" gate="G7" />
+      <GateBadge status="CONFIRMED" gate="G15" />
+    </div>
+    <GateKey />
     <div className="gallery__row">
       <Ne107Badge code="F" /><Ne107Badge code="C" /><Ne107Badge code="S" /><Ne107Badge code="M" />
     </div>
