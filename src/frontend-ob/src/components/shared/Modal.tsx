@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObiCloseGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-close-google';
 import { ObiWarningGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-warning-google';
+import { deepActiveElement, focusInitial, trapTab } from '../../hooks/focusTrap';
 
 interface ModalProps {
   isOpen: boolean;
@@ -49,36 +50,16 @@ export const Modal: React.FC<ModalProps> = ({
   // incl. the destructive buttons underneath), and restores focus on close.
   useEffect(() => {
     if (!isOpen) return;
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-
-    const focusable = (): HTMLElement[] => {
-      const root = contentRef.current;
-      if (!root) return [];
-      return Array.from(root.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      )).filter(el => el.offsetParent !== null || el === document.activeElement);
-    };
+    const previouslyFocused = deepActiveElement();
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { onCloseRef.current(); return; }
-      if (e.key !== 'Tab') return;
-      const items = focusable();
-      if (items.length === 0) { e.preventDefault(); contentRef.current?.focus(); return; }
-      const first = items[0];
-      const last = items[items.length - 1];
-      const active = document.activeElement as HTMLElement;
-      if (e.shiftKey && (active === first || active === contentRef.current)) {
-        e.preventDefault(); last.focus();
-      } else if (!e.shiftKey && active === last) {
-        e.preventDefault(); first.focus();
-      }
+      if (e.key === 'Tab') trapTab(e, contentRef.current);
     };
 
     document.addEventListener('keydown', handleKeyDown);
     document.body.style.overflow = 'hidden';
-    // Focus the first interactive control if there is one, else the dialog itself.
-    const items = focusable();
-    (items[0] ?? contentRef.current)?.focus();
+    focusInitial(contentRef.current);
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
