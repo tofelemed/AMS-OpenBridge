@@ -10,7 +10,7 @@ import React, { useMemo } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { EmptyState, PanelHead, TonePill, fmtDateTime, QueryError, useRollingWindow, TREND_SPAN_MS, TREND_TICK_MS } from '../shared';
 import { useCpmTrend } from '../../../hooks/useCpm';
-import { useLoopLive, qualityLabel } from '../../../hooks/useLoopLive';
+import { useLoopLive, liveQuality } from '../../../hooks/useLoopLive';
 import { FacetPill, liveSignalQuality } from '../FacetPill';
 import { loopSeries } from '../../../utils/loopSeries';
 import SignalTrend from '../trend/SignalTrend';
@@ -34,7 +34,7 @@ export const LoopFocus: React.FC<{
   const points = useMemo(() => trend.data?.points ?? [], [trend.data]);
   // F0.5 — live plane: RBE deltas + snapshot-on-open for this loop's device.
   const live = useLoopLive(loopId);
-  const q = qualityLabel(live.quality ?? live.pv);
+  const q = liveQuality(live);
   const sq = liveSignalQuality(q, live.lastSourceTs);
   const fmtLive = (m: { value: number | string | boolean } | undefined, digits = 1) =>
     m == null ? '—' : typeof m.value === 'number' ? m.value.toFixed(digits) : String(m.value);

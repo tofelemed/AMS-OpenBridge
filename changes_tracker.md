@@ -5304,3 +5304,15 @@ browser checks of KPI history, Evidence Workbench (archive, evaluation; day / ni
 
 **Still open:** plant check that raw values are 32-bit before trace references (5b-2); SME D7 (compact archive after 90 d, not
 built); D5 (whether backups carry the archive); the release build itself.
+
+## CHG-104 — Signal quality no longer read from the PV value (2026-11-05, frontend only, unreleased)
+
+**Why.** With no quality metric, `qualityLabel(live.quality ?? live.pv)` passed the PV sample in, and its value was read as an OPC quality code. A PV of 45 showed BAD, 100 showed UNCERTAIN and 250 showed GOOD, whatever the signal was doing. Seen on Loop Explorer (Signal quality) and the Overview loop focus panel.
+
+**Fixed.** New `liveQuality(live)` uses the quality metric, else the PV sample's own quality field, and otherwise says UNKNOWN. A loop that was showing a wrong quality now shows its real one, or Unknown.
+
+**Tests.** `hooks/useLoopLive.test.ts`.
+
+**Services updated:** `ams-frontend` only. **No migration, no config.**
+
+**Script to run:** release v2.8.0.2, built from the plant source (43d1948e) plus this fix on branch `release/v2.8.0.2`, not from this branch: its head also carries the undeployed v2.9.0 frontend. `python migration/deploy/build-release.py --release v2.8.0.2 --skip-jar`, then the generated VM steps. v2.9.0 gets the fix through this branch.
